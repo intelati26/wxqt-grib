@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,7 +8,8 @@
 
 const vector<string> UtilityModelEsrlInterface::models{
     "HRRR_NCEP",
-    "RAP_NCEP"
+    "RAP_NCEP",
+    "HRRR_SMOKE",
 };
 
 const vector<string> UtilityModelEsrlInterface::sectorsHrrr{
@@ -27,8 +28,31 @@ const vector<string> UtilityModelEsrlInterface::sectorsHrrrAk{
     "Full"
 };
 
+const vector<string> UtilityModelEsrlInterface::sectorsHrrrSmoke{
+    "Full",
+    "NW",
+    "NC",
+    "NE",
+    "SW",
+    "SC",
+    "SE",
+    "Great Lakes",
+    "East CO",
+
+    "Seattle-Portland",
+    "Central CA",
+    "Chicago-Detroit",
+    "NYC-Boston",
+    "Wash-Balt-Phil",
+    "South Florida",
+    "Atlanta-AL-GA-SC",
+    "Southern CA",
+    "NW-Large",
+    "Vortex SE",
+};
+
 const vector<string> UtilityModelEsrlInterface::modelHrrrParams{
-        "1ref_full_1000m",
+    "1ref_full_1000m",
     "cref_full_sfc",
     "mref_full_sfc",
     "ref_full_m10",
@@ -145,7 +169,7 @@ const vector<string> UtilityModelEsrlInterface::modelHrrrParams{
 };
 
 const vector<string> UtilityModelEsrlInterface::modelHrrrLabels{
-        "1 km agl reflectivity",
+    "1 km agl reflectivity",
     "composite reflectivity",
     // "ensemble comp reflectivity",
     "max 1 km agl reflectivity",
@@ -329,6 +353,33 @@ const vector<string> UtilityModelEsrlInterface::modelHrrrLabels{
     // "cross section NYC wind"
 };
 
+const vector<string> UtilityModelEsrlInterface::modelHrrrSmokeParams{
+    "mfrp_full_sfc",
+    "trc1_full_sfc",
+    "trc1_full_1000ft",
+    "trc1_full_6000ft",
+    "trc1_full_int",
+    "hpbl_full_sfc",
+    "totp_full_sfc",
+    "temp_full_2m",
+    "vis_full_sfc",
+    "firewx_full_sfc",
+};
+
+const vector<string> UtilityModelEsrlInterface::modelHrrrSmokeLabels{
+    "fire radiative power",
+    "near-surface smoke",
+    "1000 ft AGL smoke",
+    "6000 ft AGL smoke",
+    "vertically integrated smoke",
+    "PBL height",
+    "1h precip",
+    "2m temperature",
+    "surface visibility",
+    "Hourly Wildfire Potential",
+};
+
+
 const vector<string> UtilityModelEsrlInterface::sectorsRap{
     "Full",
     "CONUS",
@@ -342,7 +393,7 @@ const vector<string> UtilityModelEsrlInterface::sectorsRap{
 };
 
 const vector<string> UtilityModelEsrlInterface::modelRapParams{
-        "cref_full_sfc",
+    "cref_full_sfc",
     "cape_full_sfc",
     "cin_full_sfc",
     "cape_full_mx90mb",

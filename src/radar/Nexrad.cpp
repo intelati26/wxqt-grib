@@ -1,79 +1,85 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "radar/Nexrad.h"
+#include "Nexrad.h"
 #include <QKeySequence>
 #include <algorithm>
 #include <cmath>
 #include "common/GlobalArrays.h"
 #include "common/GlobalVariables.h"
+#include "objects/FutureVoid.h"
 #include "objects/WString.h"
 #include "misc/TextViewerStatic.h"
 #include "objects/ObjectDateTime.h"
 #include "radar/NexradUtil.h"
-#include "radar/RadarGeometry.h"
+#include "radar/RadarSites.h"
 #include "settings/RadarPreferences.h"
+#include "settings/UIPreferences.h"
 #include "settings/SettingsMain.h"
-#include "util/To.h"
 #include "util/Utility.h"
 #include "util/UtilityList.h"
 #include "util/UtilityLog.h"
 #include "util/UtilityUI.h"
 
-Nexrad::Nexrad(QWidget * parent, int numberOfPanes, bool useASpecificRadar, const string& radarSite)
+Nexrad::Nexrad(Window * parent, int numberOfPanes, bool useASpecificRadar, const string& radarSite)
     : Window{parent}
-    , numberOfPanes{ numberOfPanes }
-    , statusBar{ StatusBar{this} }
-    , reloadTimer{ Timer{this, [this] { autoUpdate(); }} }
-    , comboboxSector{ ComboBox{this, GlobalArrays::radars()} }
-    , comboboxProduct{ ComboBox{this, NexradUtil::radarProductList} }
-    , comboboxTilt{ ComboBox{this} }
-    , comboboxAnimCount{ ComboBox{this, {"5", "10", "15", "20", "25", "30", "40", "50"}} }
-    , comboboxAnimSpeed{ ComboBox{this} }
-    , animateButton{ ButtonToggle{this, Play, "Animate ctrl-a"} }
-    , reloadButton{ ButtonToggle{this, Update, "Auto Update ctrl-u"} }
-    , settingsButton{ Button{this, Settings, "Settings ctrl-p"} }
-    , moveLeftButton{ Button{this, Left, "Move left ctrl- <-"} }
-    , moveRightButton{ Button{this, Right, "Move right ctrl- ->"} }
-    , moveDownButton{ Button{this, Down, "Move down ctrl- downArrow"} }
-    , moveUpButton{ Button{this, Up, "Move up ctrl- upArrow"} }
-    , zoomOutButton{ Button{this, Minus, "Zoom out ctrl- -"} }
-    , zoomInButton{ Button{this, Plus, "Zoom in ctrl- +"} }
-    , textFrameCount{ Text{this, "Frame Count:"} }
-    , textTilt{ Text{this, "Tilt:"} }
-    , textAnimSpeed{ Text{this, "Anim Speed:"} }
-    , nexradLayerDownload{ NexradLayerDownload{this, &nexradList} }
-    , objectAnimateNexrad{ ObjectAnimateNexrad{this, &nexradList, &animateButton, &comboboxAnimCount, &comboboxAnimSpeed} }
-    , shortcutReload{ Shortcut{QKeySequence{"U"}, this} }
-    , shortcutU{ Shortcut{QKeySequence{"V"}, this} }
-    , shortcutQ{ Shortcut{QKeySequence{"R"}, this} }
-    , shortcutL{ Shortcut{QKeySequence{"L"}, this} }
-    , shortcutT{ Shortcut{QKeySequence{"T"}, this} }
-    , shortcutC{ Shortcut{QKeySequence{"C"}, this} }
-    , shortAnimate{ Shortcut{QKeySequence{"A"}, this} }
-    , shortcutZoomIn{ Shortcut{Qt::Key_Equal, this} }  // was Shortcut{Qt::CTRL | Qt::Key_Equal, this)
-    , shortcutZoomOut{ Shortcut{Qt::Key_Minus, this} }
-    , shortcutMoveLeft{ Shortcut{Qt::Key_Left, this} }
-    , shortcutMoveRight{ Shortcut{Qt::Key_Right, this} }
-    , shortcutMoveUp{ Shortcut{Qt::Key_Up, this} }
-    , shortcutMoveDown{ Shortcut{Qt::Key_Down, this} }
-    , shortcutKeyboard{ Shortcut{QKeySequence{"/"}, this} }
-    , shortcutSettings{ Shortcut{QKeySequence{"P"}, this} }
+    , useASpecificRadar{useASpecificRadar}
+    , comboboxSector{this, RadarSites::radars()}
+    , comboboxProduct{this, NexradUtil::radarProductList}
+    , comboboxTilt{this, {"0", "1", "2", "3"}}
+    , comboboxAnimCount{this, {"5", "10", "15", "20", "25", "30", "40", "50"}}
+    , comboboxAnimSpeed{this, {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"}}
+    , autoUpdate{this, "RADAR_DATA_REFRESH_INTERVAL", 3, [this] { downloadData(); }}
+    , settingsButton{this, Settings, "Settings ctrl-p"}
+    , moveLeftButton{this, Left, "Move left ctrl- <-"}
+    , moveRightButton{this, Right, "Move right ctrl- ->"}
+    , moveDownButton{this, Down, "Move down ctrl- downArrow"}
+    , moveUpButton{this, Up, "Move up ctrl- upArrow"}
+    , zoomOutButton{this, Minus, "Zoom out ctrl- -"}
+    , zoomInButton{this, Plus, "Zoom in ctrl- +"}
+    , textFrameCount{this, "Frame Count:"}
+    , textTilt{this, "Tilt:"}
+    , textAnimSpeed{this, "Anim Speed:"}
+    , nexradLayerDownload{this, &nexradList}
+    , objectAnimateNexrad{this, &nexradList, &comboboxAnimCount, &comboboxAnimSpeed}
+    , shortcutReload{QKeySequence{"U"}, this}
+    , shortcutU{QKeySequence{"V"}, this}
+    , shortcutQ{QKeySequence{"R"}, this}
+    , shortcutL{QKeySequence{"L"}, this}
+    , shortcutT{QKeySequence{"T"}, this}
+    , shortcutC{QKeySequence{"C"}, this}
+    , shortcutAnimate{QKeySequence{"A"}, this}
+    , shortcutZoomIn{Qt::Key_Equal, this}  // was Shortcut{Qt::CTRL | Qt::Key_Equal, this)
+    , shortcutZoomOut{Qt::Key_Minus, this}
+    , shortcutMoveLeft{Qt::Key_Left, this}
+    , shortcutMoveRight{Qt::Key_Right, this}
+    , shortcutMoveUp{Qt::Key_Up, this}
+    , shortcutMoveDown{Qt::Key_Down, this}
+    , shortcutMoveLeft2{QKeySequence{"J"}, this}
+    , shortcutMoveRight2{QKeySequence{"K"}, this}
+    , shortcutMoveUp2{QKeySequence{"M"}, this}
+    , shortcutMoveDown2{QKeySequence{"N"}, this}
+    , shortcutKeyboard{QKeySequence{"/"}, this}
+    , shortcutSettings{QKeySequence{"P"}, this}
 {
-    setTitle("Nexrad Radar");
     setAttribute(Qt::WA_DeleteOnClose);
     //
     // Determine dimensions
     //
     const auto dimens = UtilityUI::getScreenBounds();
-    const auto widthW = dimens[0];
-    const auto heightW = dimens[1];
-    auto dimen = std::max(widthW, heightW);
-    setFixedWidth(widthW);
-    setFixedHeight(heightW);
+    auto widthW = dimens[0];
+    auto heightW = dimens[1];
+    auto dimen = std::max(heightW, widthW);
+    if (!UIPreferences::tiledWindows) {
+        setSize2(widthW, heightW - 15);
+    } else {
+        setSize2(static_cast<int>(widthW / 2), static_cast<int>(heightW / 2 - 30));
+        widthW = static_cast<int>(widthW / 2.0);
+        heightW = static_cast<int>(heightW / 2.0);
+    }
 
     if (numberOfPanes == 4) {
         dimen = static_cast<int>(std::round(dimen / 2.0));
@@ -93,58 +99,33 @@ Nexrad::Nexrad(QWidget * parent, int numberOfPanes, bool useASpecificRadar, cons
     //     }
     // }
 
-    //
-    // Initialize main layout containers
-    //
-    setStatusBar(statusBar.getView());
-    statusBar.setVisible(RadarPreferences::radarShowStatusBar);
-    box.setSpacing(0);
-    toolbarLayout.setSpacing(2);
-    radarLayout.setSpacing(0);
-    radarLayout2.setSpacing(0);
-    //
-    // Initialize NexradWidgets
-    //
     for (auto index : range(numberOfPanes)) {
         nexradList.push_back(
             new NexradWidget{
                 this,
-                statusBar,
-                index,
+                static_cast<int>(index),
                 numberOfPanes,
                 useASpecificRadar,
                 radarSite,
                 widthW,
                 heightW,
-                [this] (int pane, const auto& prod) { changeProductFromChild(prod, pane); },
-                [this] (int pane, const auto& sector) { changeSectorFromChild(sector, pane); },
+                [this] (int pane, const auto& prod) { changeProductFromChild(pane, prod); },
+                [this] (int pane, const auto& sector) { changeSectorFromChild(pane, sector); },
                 [this] (double z, int pane) { changeZoom(z, pane); },
-                [this] (int pane) { updateDrag(pane); }
+                [this] (double x, double y, int pane) { changePosition(x, y, pane); },
+                [this] { setTitleMain(); }
             });
-        nexradList.back()->setFixedHeight(dimen);
-        nexradList.back()->setFixedWidth(dimen);
+        if (!UIPreferences::tiledWindows) {
+            nexradList.back()->setFixedHeight(dimen);
+            nexradList.back()->setFixedWidth(dimen);
+        } else {
+            nexradList.back()->setFixedHeight(dimen / 2.0);
+            nexradList.back()->setFixedWidth(dimen / 2.0);
+        }
     }
-    //
-    // Add NexradWidgets to layouts
-    //
-    radarLayout.addWidget(nexradList[0]);
-    if (numberOfPanes > 1) {
-        radarLayout.addWidget(nexradList[1]);
-    }
-    if (numberOfPanes == 4) {
-        radarLayout2.addWidget(nexradList[2]);
-        radarLayout2.addWidget(nexradList[3]);
-    }
-    setupDropDowns();
-    setupShortCuts();
-    setupToolbar();
-    setupBoxLayout();
-    downloadData();
-}
 
-void Nexrad::setupDropDowns() {
     settingsButton.connect([this] {
-        new SettingsMain{this, [this] { settingsCheck(); downloadData(); }, true, true};
+        new SettingsMain{this, [this] { settingsCheck(); }, true, true};
     });
     //
     // sector menu
@@ -156,91 +137,103 @@ void Nexrad::setupDropDowns() {
     //
     comboboxProduct.setIndexByValue(nexradList[0]->nexradState.getRadarProduct());
     comboboxProduct.connect([this] { changeProduct(); });
-    //
-    // reload
-    //
-    reloadButton.setCheckable(true);
-    reloadButton.connect([this] { toggleAutoUpdate(); });
-    moveLeftButton.connect([this] { changePosition(-100.0, 0.0); });
-    moveRightButton.connect([this] { changePosition(100.0, 0.0); });
-    moveDownButton.connect([this] { changePosition(0.0, 100.0); });
-    moveUpButton.connect([this] { changePosition(0.0, -100.0); });
-    zoomOutButton.connect([this] { changeZoom(0.77, 0); });
-    zoomInButton.connect([this] { changeZoom(1.33, 0); });
 
     comboboxAnimCount.setIndex(Utility::readPrefInt("NEXRAD_ANIM_FRAME_COUNT2", 1));
+    comboboxAnimSpeed.setIndex(Utility::readPrefInt("ANIM_INTERVAL", 5));
 
-    comboboxTilt.setArrayListInt(range(4));
     comboboxTilt.setIndex(nexradList[0]->nexradState.tiltInt);
     comboboxTilt.connect([this] { changeTilt(); });
 
-    comboboxAnimSpeed.setArrayListInt(range2(1, 20));
-    comboboxAnimSpeed.setIndex(Utility::readPrefInt("ANIM_INTERVAL", 5));
-
     comboboxAnimCount.connect([this] { objectAnimateNexrad.setAnimationCount(); });
     comboboxAnimSpeed.connect([this] { objectAnimateNexrad.setAnimationSpeed(); });
-    animateButton.connect([this] { objectAnimateNexrad.animateClicked(); });
-}
 
-void Nexrad::setupToolbar() {
-    toolbarLayout.addWidget(settingsButton);
-    toolbarLayout.addWidget(comboboxSector);
-    toolbarLayout.addWidget(comboboxProduct);
-    toolbarLayout.addWidget(moveLeftButton);
-    toolbarLayout.addWidget(moveRightButton);
-    toolbarLayout.addWidget(moveUpButton);
-    toolbarLayout.addWidget(moveDownButton);
-    toolbarLayout.addWidget(zoomOutButton);
-    toolbarLayout.addWidget(zoomInButton);
-    toolbarLayout.addWidget(reloadButton);
-    toolbarLayout.addWidget(animateButton);
-    toolbarLayout.addWidget(textFrameCount, 0, Qt::AlignCenter);
-    toolbarLayout.addWidget(comboboxAnimCount);
-    toolbarLayout.addWidget(textTilt, 0, Qt::AlignCenter);
-    toolbarLayout.addWidget(comboboxTilt);
-    toolbarLayout.addWidget(textAnimSpeed, 0, Qt::AlignCenter);
-    toolbarLayout.addWidget(comboboxAnimSpeed);
+    moveLeftButton.connect([this] { moveLeft(); });
+    moveRightButton.connect([this] { moveRight(); });
+    moveDownButton.connect([this] { moveDown(); });
+    moveUpButton.connect([this] { moveUp(); });
+    zoomOutButton.connect([this] { zoomOut(); });
+    zoomInButton.connect([this] { zoomIn(); });
+
+    boxH.addWidget(settingsButton);
+    boxH.addWidget(comboboxSector);
+    boxH.addWidget(comboboxProduct);
     for (auto nw : nexradList) {
-        toolbarLayout.addWidget(nw->nexradState.radarStatusBox->get());
+        boxH.addWidget(*nw->radarStatusBox);
     }
-    box.addLayout(toolbarLayout);
-    if (!RadarPreferences::radarShowControls) {
-        moveLeftButton.setVisible(false);
-        moveRightButton.setVisible(false);
-        moveUpButton.setVisible(false);
-        moveDownButton.setVisible(false);
-        zoomOutButton.setVisible(false);
-        zoomInButton.setVisible(false);
+    boxH.addWidget(moveLeftButton);
+    boxH.addWidget(moveRightButton);
+    boxH.addWidget(moveUpButton);
+    boxH.addWidget(moveDownButton);
+    boxH.addWidget(zoomOutButton);
+    boxH.addWidget(zoomInButton);
+    boxH.addWidget(autoUpdate);
+    boxH.addWidget(objectAnimateNexrad);
+    if (!UIPreferences::tiledWindows && numberOfPanes == 1) {
+        boxH.addWidget(textFrameCount, 0, Qt::AlignCenter);
+    } else {
+        textFrameCount.setVisible(false);
     }
-}
+    boxH.addWidget(comboboxAnimCount);
+    if (!UIPreferences::tiledWindows && numberOfPanes == 1) {
+        boxH.addWidget(textTilt, 0, Qt::AlignCenter);
+    } else {
+        textTilt.setVisible(false);
+    }
+    boxH.addWidget(comboboxTilt);
+    if (!UIPreferences::tiledWindows && numberOfPanes == 1) {
+        boxH.addWidget(textAnimSpeed, 0, Qt::AlignCenter);
+    } else {
+        textAnimSpeed.setVisible(false);
+    }
+    boxH.addWidget(comboboxAnimSpeed);
+    box.addLayout(boxH);
 
-void Nexrad::setupBoxLayout() {
-    box.addLayout(radarLayout);
+    box.addLayout(nexradBox);
+    nexradBox.addWidgetReal(nexradList[0]);
+    if (numberOfPanes > 1) {
+        nexradBox.addWidgetReal(nexradList[1]);
+    }
     if (numberOfPanes == 4) {
-        box.addLayout(radarLayout2);
+        box.addLayout(nexradBox2);
+        nexradBox2.addWidgetReal(nexradList[2]);
+        nexradBox2.addWidgetReal(nexradList[3]);
     }
+    box.setSpacing(0);
+    boxH.setSpacing(2);
+    nexradBox.setSpacing(0);
+    nexradBox2.setSpacing(0);
     box.getAndShow(this);
-}
 
-void Nexrad::setupShortCuts() {
-    shortcutReload.connect([this] { toggleAutoUpdate(); });
-    shortcutU.connect([this] { changeProductFromChild("N0U", 0); });
-    shortcutQ.connect([this] { changeProductFromChild("N0Q", 0); });
-    shortcutL.connect([this] { changeProductFromChild("DVL", 0); });
-    shortcutT.connect([this] { changeProductFromChild("EET", 0); });
-    shortcutC.connect([this] { changeProductFromChild("N0C", 0); });
-    shortAnimate.connect([this] {
+    adjustControls();
+    adjustProductComboBox();
+    downloadData();
+
+    shortcutReload.connect([this] { autoUpdate.toggleAutoUpdate(); });
+    shortcutU.connect([this] { changeProductFromChild(0, "N0U"); });
+    shortcutQ.connect([this] { changeProductFromChild(0, "N0Q"); });
+    shortcutL.connect([this] { changeProductFromChild(0, "DVL"); });
+    shortcutT.connect([this] { changeProductFromChild(0, "EET"); });
+    shortcutC.connect([this] { changeProductFromChild(0, "N0C"); });
+    shortcutAnimate.connect([this] {
         objectAnimateNexrad.animateClicked();
-        animateButton.setChecked(!animateButton.isChecked());
+        // objectAnimateNexrad.setActive();
     });
-    shortcutZoomIn.connect([this] { changeZoom(1.33, 0); });
-    shortcutZoomOut.connect([this] { changeZoom(0.77, 0); });
-    shortcutMoveLeft.connect([this] { changePosition(-1.0 * moveIncrement, 0.0); });
-    shortcutMoveRight.connect([this] { changePosition(moveIncrement, 0.0); });
-    shortcutMoveUp.connect([this] { changePosition(0.0, -1.0 * moveIncrement); });
-    shortcutMoveDown.connect([this] { changePosition(0.0, moveIncrement); });
-    shortcutKeyboard.connect([this] { new TextViewerStatic{this, GlobalVariables::nexradShortcuts, 700, 600}; });
-    shortcutSettings.connect([this] { new SettingsMain{this, [this] { downloadData(); }, true, true}; });
+    shortcutZoomIn.connect([this] { zoomIn(); });
+    shortcutZoomOut.connect([this] { zoomOut(); });
+
+    shortcutMoveLeft.connect([this] { moveLeft(); });
+    shortcutMoveRight.connect([this] { moveRight(); });
+    shortcutMoveUp.connect([this] { moveUp(); });
+    shortcutMoveDown.connect([this] { moveDown(); });
+
+    shortcutMoveLeft2.connect([this] { moveLeft(); });
+    shortcutMoveRight2.connect([this] { moveRight(); });
+    shortcutMoveUp2.connect([this] { moveUp(); });
+    shortcutMoveDown2.connect([this] { moveDown(); });
+
+    shortcutKeyboard.connect([this] { new TextViewerStatic{this, GlobalVariables::nexradShortcuts, "Shortcuts", 700, 600}; });
+    shortcutSettings.connect([this] { new SettingsMain{this, [this] { settingsCheck(); }, true, true}; });
+
 }
 
 Nexrad::~Nexrad() {
@@ -249,132 +242,109 @@ Nexrad::~Nexrad() {
     }
 }
 
-void Nexrad::syncRadarSite(const string& radarSite, int pane) {
-    moveLeftButton.setVisible(RadarPreferences::radarShowControls);
-    moveRightButton.setVisible(RadarPreferences::radarShowControls);
-    moveUpButton.setVisible(RadarPreferences::radarShowControls);
-    moveDownButton.setVisible(RadarPreferences::radarShowControls);
-    zoomOutButton.setVisible(RadarPreferences::radarShowControls);
-    zoomInButton.setVisible(RadarPreferences::radarShowControls);
-    statusBar.setVisible(RadarPreferences::radarShowStatusBar);
-
+void Nexrad::syncRadarSite(const string& radarSite, int pane, bool resetZoom) {
+    objectAnimateNexrad.stopAnimateNoDownload();
+    adjustControls();
     if (RadarPreferences::dualpaneshareposn) {
         for (auto nw : nexradList) {
             nw->nexradState.setRadar(radarSite);
-            nw->nexradState.reset();
+            if (resetZoom) {
+                nw->nexradState.reset();
+            }
             nw->nexradDraw.initGeom();
-            // UtilityNexradDraw::initGeom(nw->nexradState, nw->fileStorage, nw->textObject);
         }
     } else {
         nexradList[pane]->nexradState.setRadar(radarSite);
-        nexradList[pane]->nexradState.reset();
+        if (resetZoom) {
+            nexradList[pane]->nexradState.reset();
+        }
         nexradList[pane]->nexradDraw.initGeom();
-        // UtilityNexradDraw::initGeom(nexradList[pane]->nexradState, nexradList[pane]->fileStorage, nexradList[pane]->textObject);
+    }
+    adjustProductComboBox();
+}
+
+void Nexrad::adjustControls() {
+    if (!RadarPreferences::showControls || UIPreferences::tiledWindows) {
+        moveLeftButton.setVisible(false);
+        moveRightButton.setVisible(false);
+        moveUpButton.setVisible(false);
+        moveDownButton.setVisible(false);
+        zoomOutButton.setVisible(false);
+        zoomInButton.setVisible(false);
+    } else {
+        moveLeftButton.setVisible(true);
+        moveRightButton.setVisible(true);
+        moveUpButton.setVisible(true);
+        moveDownButton.setVisible(true);
+        zoomOutButton.setVisible(true);
+        zoomInButton.setVisible(true);
     }
 }
 
 void Nexrad::downloadData() {
-    objectAnimateNexrad.stopAnimate();
-    for (auto nw : nexradList) {
-        nw->downloadData();
-    }
-    nexradLayerDownload.downloadLayers();
-    if (reloadTimer.isActive()) {
-        updateTitleForAutoRefresh();
-    }
-}
-
-void Nexrad::updateTitleForAutoRefresh() {
-    setTitle("Auto update [on], interval " + To::string(RadarPreferences::dataRefreshInterval) + ", last update: " + ObjectDateTime::getLocalTimeAsString());
-}
-
-void Nexrad::autoUpdate() {
-    updateTitleForAutoRefresh();
-    downloadData();
-}
-
-void Nexrad::closeEvent(QCloseEvent * event) {
-    if (reloadTimer.isActive()) {
-        reloadTimer.stop();
-    }
+    save();
     objectAnimateNexrad.stopAnimateNoDownload();
-    for (auto it : nexradList) {
-        it->nexradState.writePreferences();
+    for (auto nw : nexradList) {
+        new FutureVoid{this, [nw] { nw->downloadData(); }, [nw] { nw->draw(); }};
     }
-    event->accept();
+    comboboxSector.block();
+    comboboxSector.setIndex(RadarSites::findRadarIndex(nexradList[0]->nexradState.getRadarSite()));
+    comboboxSector.unblock();
+    nexradLayerDownload.downloadLayers();
 }
 
-void Nexrad::changePosition(double x, double y) {
-    if (RadarPreferences::dualpaneshareposn) {
-        for (auto nw : nexradList) {
-            nw->nexradState.xPos -= x;
-            nw->nexradState.yPos -= y;
-            nw->update();
-        }
+void Nexrad::setTitleMain() {
+    setTitle(radarInfoForTitle() + autoUpdate.titleAdd);
+}
+
+string Nexrad::radarInfoForTitle() {
+    const auto nexradStatusAsString = nexradList[0]->levelData.radarInfo;
+    const auto nexradStatus = WString::split(nexradStatusAsString, " ");
+    if (nexradStatus.size() > 3) {
+        return nexradStatusAsString;
     } else {
-        nexradList[0]->nexradState.xPos -= x;
-        nexradList[0]->nexradState.yPos -= y;
-        nexradList[0]->update();
+        return "UNKNOWN";
     }
 }
 
-void Nexrad::toggleAutoUpdate() {
-    if (reloadTimer.isActive()) {
-        UtilityLog::d("Timer DISABLED");
-        reloadButton.setChecked(false);
-        reloadTimer.stop();
-        setTitle("Nexrad Radar");
-    } else {
-        UtilityLog::d("Timer ENABLED");
-        objectAnimateNexrad.stopAnimateNoDownload();
-        reloadButton.setChecked(true);
-        // timer interval is in milliseconds so x 1000 to get seconds and then x 60 to get minutes
-        reloadTimer.start(RadarPreferences::dataRefreshInterval * 1000 * 60);
+void Nexrad::changeProduct() {
+    objectAnimateNexrad.stopAnimateNoDownload();
+    nexradList[0]->nexradState.setRadarProduct(comboboxProduct.getValue());
+    nexradLayerDownload.downloadLayers();
+    if (RadarPreferences::colorLegend) {
+        nexradList[0]->colorLegend.update(nexradList[0]->nexradState.getRadarProduct());
     }
+    nexradList[0]->changeProduct();
+}
+
+void Nexrad::changeProductFromChild(int currentIndex, const string &product) {
+    objectAnimateNexrad.stopAnimateNoDownload();
+    nexradList[currentIndex]->nexradState.setRadarProduct(product);
+    nexradLayerDownload.downloadLayers();
+    if (RadarPreferences::colorLegend) {
+        nexradList[currentIndex]->colorLegend.update(product);
+    }
+    if (currentIndex == 0) {
+        adjustProductComboBox();
+    }
+    nexradList[currentIndex]->changeProduct();
+}
+
+void Nexrad::changeSectorFromChild(int paneNumber, const string& radarSite) {
+    const auto sectorIndex = RadarSites::findRadarIndex(radarSite);
+    comboboxSector.block();
+    comboboxSector.setIndex(sectorIndex);
+    comboboxSector.unblock();
+    syncRadarSite(radarSite, paneNumber, true);
     downloadData();
 }
 
-void Nexrad::changeZoom(double changeAmount, int paneIndex) {
-    const auto factor = static_cast<float>(changeAmount);
-    if (RadarPreferences::dualpaneshareposn) {
-        for (auto nw : nexradList) {
-            const auto oldZoom = nw->nexradState.zoom;
-            nw->nexradState.zoom *= factor;
-
-            const auto newZoom = nw->nexradState.zoom;
-            const auto zoomDifference = newZoom / oldZoom;
-
-            nw->nexradState.xPos *= zoomDifference;
-            nw->nexradState.yPos *= zoomDifference;
-
-            nw->resizePolygons();
-            nw->textObject.add();
-            nw->update();
-        }
-    } else {
-        const auto oldZoom = nexradList[paneIndex]->nexradState.zoom;
-        nexradList[paneIndex]->nexradState.zoom *= factor;
-
-        const auto newZoom = nexradList[paneIndex]->nexradState.zoom;
-        const auto zoomDifference = newZoom / oldZoom;
-
-        nexradList[paneIndex]->nexradState.xPos *= zoomDifference;
-        nexradList[paneIndex]->nexradState.yPos *= zoomDifference;
-
-        nexradList[paneIndex]->resizePolygons();
-        nexradList[paneIndex]->textObject.add();
-        nexradList[paneIndex]->update();
-    }
-}
-
-void Nexrad::updateDrag(int originIndex) {
-    if (RadarPreferences::dualpaneshareposn) {
-        for (auto nw : nexradList) {
-            nw->nexradState.xPos = nexradList[originIndex]->nexradState.xPos;
-            nw->nexradState.yPos = nexradList[originIndex]->nexradState.yPos;
-            nw->update();
-        }
-    }
+void Nexrad::changeRadarSite() {
+    objectAnimateNexrad.stopAnimateNoDownload();
+    const auto site = comboboxSector.getValue();
+    const auto radarSite = WString::split(site, ":")[0];
+    syncRadarSite(radarSite, 0, true);
+    downloadData();
 }
 
 void Nexrad::changeTilt() {
@@ -384,6 +354,106 @@ void Nexrad::changeTilt() {
             nw->nexradState.tiltInt = tilt;
         }
         downloadData();
+    }
+}
+
+void Nexrad::adjustProductComboBox() {
+    comboboxProduct.block();
+    if (nexradList[0]->nexradState.isTdwrSite() && !nexradList[0]->nexradState.isTdwrProduct()) {
+        nexradList[0]->nexradState.setRadarProduct("TZL");
+    } else if (!nexradList[0]->nexradState.isTdwrSite() && nexradList[0]->nexradState.isTdwrProduct()) {
+        nexradList[0]->nexradState.setRadarProduct("N0Q");
+    }
+    auto index = 0;
+    if (nexradList[0]->nexradState.isTdwrProduct()) {
+        comboboxProduct.setList(NexradUtil::radarProductListTdwr);
+        index = findex(nexradList[0]->nexradState.getRadarProduct(), NexradUtil::radarProductListTdwr);
+    } else {
+        comboboxProduct.setList(NexradUtil::radarProductList);
+        index = findex(nexradList[0]->nexradState.getRadarProduct(), NexradUtil::radarProductList);
+    }
+    comboboxProduct.setIndex(index);
+    comboboxProduct.unblock();
+}
+
+void Nexrad::changeZoom(double changeAmount, int paneIndex) {
+    if ((nexradList[paneIndex]->nexradState.zoom > 0.02 && changeAmount < 0.99) || changeAmount > 1.0) {
+        const auto factor = changeAmount;
+        if (RadarPreferences::dualpaneshareposn) {
+            for (auto nw : nexradList)
+            {
+                const auto oldZoom = nw->nexradState.zoom;
+                nw->nexradState.zoom *= factor;
+                const auto newZoom = nw->nexradState.zoom;
+                const auto zoomDifference = newZoom / oldZoom;
+                nw->nexradState.xPos *= zoomDifference;
+                nw->nexradState.yPos *= zoomDifference;
+                nw->resizePolygons();
+                // nw->nexradRenderTextObject.add();
+            }
+        }
+        else {
+            const auto oldZoom = nexradList[paneIndex]->nexradState.zoom;
+            nexradList[paneIndex]->nexradState.zoom *= factor;
+            const auto newZoom = nexradList[paneIndex]->nexradState.zoom;
+            const auto zoomDifference = newZoom / oldZoom;
+            nexradList[paneIndex]->nexradState.xPos *= zoomDifference;
+            nexradList[paneIndex]->nexradState.yPos *= zoomDifference;
+            nexradList[paneIndex]->resizePolygons();
+            // nexradList[paneIndex]->nexradRenderTextObject.add();
+        }
+        drawAndSave();
+    }
+}
+
+void Nexrad::changePosition(double x, double y, int paneIndex) {
+    if (RadarPreferences::dualpaneshareposn) {
+        for (auto nw : nexradList) {
+            nw->nexradState.xPos += x;
+            nw->nexradState.yPos += y;
+        }
+    } else {
+        nexradList[paneIndex]->nexradState.xPos += x;
+        nexradList[paneIndex]->nexradState.yPos += y;
+    }
+    drawAndSave();
+}
+
+void Nexrad::zoomOut() {
+    changeZoom(0.77, 0);
+}
+
+void Nexrad::zoomIn() {
+    changeZoom(1.33, 0);
+}
+
+void Nexrad::moveLeft() {
+    changePosition(moveIncrement, 0.0, 0);
+}
+
+void Nexrad::moveRight() {
+    changePosition(-1.0 * moveIncrement, 0.0, 0);
+}
+
+void Nexrad::moveUp() {
+    changePosition(0.0, moveIncrement, 0);
+}
+
+void Nexrad::moveDown() {
+    changePosition(0.0, -1.0 * moveIncrement, 0);
+}
+
+void Nexrad::drawAndSave() {
+    for (auto nw : nexradList) {
+        nw->update();
+        nw->nexradRenderTextObject.add();
+        nw->nexradState.writePreferences();
+    }
+}
+
+void Nexrad::save() {
+    for (auto nw : nexradList) {
+        nw->nexradState.writePreferences();
     }
 }
 
@@ -399,60 +469,37 @@ void Nexrad::changeTilt() {
 //     }
 // }
 
-void Nexrad::changeProduct() {
-    objectAnimateNexrad.stopAnimateNoDownload();
-    const auto prod = comboboxProduct.getValue();
-    nexradLayerDownload.downloadLayers();
-    nexradList[0]->changeProduct(prod);
-}
-
-void Nexrad::changeProductFromChild(const string& productF, int paneNumber) {
-    objectAnimateNexrad.stopAnimateNoDownload();
-    const auto product = WString::split(productF, ":")[0];
-    // TODO FIXME need to update combobox if tdwr, comboboxProduct.onAction = {}
-    if (paneNumber == 0 && !NexradUtil::isProductTdwr(product)) {
-        const auto productIndex = findex(product, NexradUtil::radarProductList);
-        comboboxProduct.block();
-        comboboxProduct.setIndex(productIndex);
-        comboboxProduct.unblock();
-    }
-    nexradLayerDownload.downloadLayers();
-    nexradList[paneNumber]->changeProduct(product);
-}
-
-void Nexrad::changeRadarSite() {
-    const auto site = comboboxSector.getValue();
-    const auto radarSite = WString::split(site, ":")[0];
-    syncRadarSite(radarSite, 0);
-    downloadData();
-}
-
-void Nexrad::changeSectorFromChild(const string& radarSite, int paneNumber) {
-    const auto sectorIndex = findex(radarSite, GlobalArrays::radars());
-    comboboxSector.block();
-    comboboxSector.setIndex(sectorIndex);
-    comboboxSector.unblock();
-    syncRadarSite(radarSite, paneNumber);
-    downloadData();
-}
-
 void Nexrad::settingsCheck() {
-    moveLeftButton.setVisible(RadarPreferences::radarShowControls);
-    moveRightButton.setVisible(RadarPreferences::radarShowControls);
-    moveUpButton.setVisible(RadarPreferences::radarShowControls);
-    moveDownButton.setVisible(RadarPreferences::radarShowControls);
-    zoomOutButton.setVisible(RadarPreferences::radarShowControls);
-    zoomInButton.setVisible(RadarPreferences::radarShowControls);
-    statusBar.setVisible(RadarPreferences::radarShowStatusBar);
-    RadarGeometry::initialize();
-    RadarPreferences::initialize();
     for (auto nw : nexradList) {
-        nw->textObject.initialize();
         nw->nexradDraw.initGeom();
+        nw->nexradRenderTextObject.initialize();
     }
-    if (reloadTimer.isActive()) {
-        // timer interval is in milliseconds so x 1000 to get seconds and then x 60 to get minutes
-        reloadTimer.setInterval(RadarPreferences::dataRefreshInterval * 1000 * 60);
-        updateTitleForAutoRefresh();
+    syncRadarSite(nexradList[0]->nexradState.getRadarSite(), 0, false);
+    adjustColorLegends();
+    // if auto update is on, toggle it in case of refresh interval changes
+    // this will force an update as well
+    if (autoUpdate.isActive()) {
+        autoUpdate.restart();
+    } else {
+        downloadData();
     }
+}
+
+void Nexrad::adjustColorLegends() {
+    // # TODO FIXME
+    // # if RadarPreferences.colorLegend and len(self.colorLegends) == 0:
+    // #     for nw in self.nexradList:
+    // #         self.colorLegends.append(NexradColorLegend(nw.nexradState.getRadarProduct()))
+    // #     self.nexradBox.addWidgetFirst(self.colorLegends[-1].get())
+    // # if not RadarPreferences.colorLegend and len(self.colorLegends) > 0:
+    // #     for cl in self.colorLegends:
+    // #         cl.setVisible(False)
+}
+
+void Nexrad::closeEventCustom() {
+    if (!useASpecificRadar) {
+        save();
+    }
+    objectAnimateNexrad.stopAnimateNoDownload();
+    autoUpdate.stopNoDownload();
 }

@@ -1,10 +1,15 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "UtilitySpcMeso.h"
+#include "settings/UtilityLocation.h"
+
+string UtilitySpcMeso::getNearest(const LatLon& latLon) {
+    return UtilityLocation::getNearest(latLon, sectorToLatLon);
+}
 
 vector<MenuTitle> UtilitySpcMeso::titles{
     MenuTitle{"Observations", 3},
@@ -428,7 +433,9 @@ const vector<string> UtilitySpcMeso::sectorCodes{
     "17",
     "18",
     "12",
-    "11"
+    "11",
+    "21",
+    "22"
 };
 
 const vector<string> UtilitySpcMeso::sectors{
@@ -441,7 +448,51 @@ const vector<string> UtilitySpcMeso::sectors{
     "Central East",
     "Southeast",
     "Southwest",
-    "Northwest"
+    "Northwest",
+    "Great Lakes",
+    "Intermountain West"
 };
 
+const unordered_map<string, LatLon> UtilitySpcMeso::sectorToLatLon{
+    {"11", {44.56, -112.65}},
+    {"12", {35.75, -112.48}},
+    {"13", {44.65, -96.48}},
+    {"14", {37.61, -96.26}},
+    {"15", {31.80, -96.66}},
+    {"16", {43.71, -77.06}},
+    {"17", {36.88, -81.85}},
+    {"18", {30.98, -85.63}},
+    {"20", {39.01, -91.48}},
+    {"21", {44.02, -85.94}},
+    {"22", {40.95, -110.63}}
+};
 
+const unordered_map<string, string> UtilitySpcMeso::sectorMap{
+    {"11", "Northwest"},
+    {"12", "Southwest"},
+    {"13", "North Central"},
+    {"14", "Central"},
+    {"15", "South Central"},
+    {"16", "Northeast"},
+    {"17", "Central East"},
+    {"18", "Southeast"},
+    {"19", "CONUS"},
+    {"20", "Midwest"},
+    {"21", "Great Lakes"},
+    {"22", "Intermountain West"}
+};
+
+const unordered_map<string, string> UtilitySpcMeso::sectorMapForTitle{
+    {"11", "NW"},
+    {"12", "SW"},
+    {"13", "NC"},
+    {"14", "C"},
+    {"15", "SC"},
+    {"16", "NE"},
+    {"17", "CE"},
+    {"18", "SE"},
+    {"19", "US"},
+    {"20", "MW"},
+    {"21", "GL"},
+    {"22", "GB"}
+};

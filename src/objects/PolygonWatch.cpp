@@ -1,34 +1,34 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "objects/PolygonWatch.h"
+#include "PolygonWatch.h"
 #include "common/GlobalVariables.h"
 #include "objects/Color.h"
+#include "objects/WString.h"
+#include "util/DownloadText.h"
 #include "util/To.h"
 #include "util/Utility.h"
-#include "util/DownloadText.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityString.h"
-#include "WString.h"
 
-unordered_map<PolygonType, std::unique_ptr<PolygonWatch>> PolygonWatch::byType;
+unordered_map<PolygonType, unique_ptr<PolygonWatch>> PolygonWatch::byType;
 DataStorage PolygonWatch::watchLatlonCombined{"WATCH_LATLON_COMBINED"};
-
-const unordered_map<PolygonType, string> PolygonWatch::namesByEnumId{
-    {Mcd, "mcd"},
-    {Mpd, "mpd"},
-    {Watch, "watch"},
-    {WatchTornado, "watchTornado"},
-};
 
 const vector<PolygonType> PolygonWatch::polygonList{
     Watch,
     WatchTornado,
     Mcd,
     Mpd
+};
+
+const unordered_map<PolygonType, string> PolygonWatch::namesByEnumId{
+    {Mcd, "mcd"},
+    {Mpd, "mpd"},
+    {Watch, "watch"},
+    {WatchTornado, "watchTornado"},
 };
 
 const unordered_map<PolygonType, int> PolygonWatch::colorDefaultByType{
@@ -46,13 +46,13 @@ const unordered_map<PolygonType, string> PolygonWatch::colorPrefByType{
 };
 
 PolygonWatch::PolygonWatch(PolygonType type)
-    : type{ type }
-    , storage{ DataStorage{getPrefTokenStorage()} }
-    , latLonList{ DataStorage{getPrefTokenLatLon()} }
-    , numberList{ DataStorage{getPrefTokenNumberList()} }
-    , timer{ DownloadTimer{"WATCH_" + getTypeName()} }
-    , colorInt { Utility::readPrefInt(colorPrefByType.at(type), colorDefaultByType.at(type)) }
-    , isEnabled{ WString::startsWith(Utility::readPref(prefTokenEnabled(), "false"), "t") }
+    : type{type}
+    , latLonList{getPrefTokenLatLon()}
+    , numberList{getPrefTokenNumberList()}
+    , timer{"WATCH_" + getTypeName()}
+    , storage{getPrefTokenStorage()}
+    , colorInt{Utility::readPrefInt(colorPrefByType.at(type), colorDefaultByType.at(type))}
+    , isEnabled{WString::startsWith(Utility::readPref(prefTokenEnabled(), "false"), "t")}
 {
     storage.update();
     latLonList.update();
@@ -67,12 +67,12 @@ void PolygonWatch::download() {
             string numberListString;
             string latLonString;
             const auto numbers = UtilityString::parseColumn(storage.getValue(), ">MPD #(.*?)</a></strong>");
-            for (const auto& numberStr : numbers) {
-                const auto num = To::Int(numberStr);
+            for (const auto& number : numbers) {
+                const auto num = To::Int(number);
                 const auto numberModified = To::stringPadLeftZeros(num, 4);
                 const auto text = DownloadText::byProduct("WPCMPD" + numberModified);
                 numberListString += numberModified + ":";
-                latLonString += LatLon::storeWatchMcdLatLon(text);
+                latLonString += storeWatchMcdLatLon(text);
             }
             latLonList.setValue(latLonString);
             numberList.setValue(numberListString);
@@ -80,12 +80,12 @@ void PolygonWatch::download() {
             string numberListString;
             string latLonString;
             const auto numbers = UtilityString::parseColumn(html, "<strong><a href=./products/md/md.....html.>Mesoscale Discussion #(.*?)</a></strong>");
-            for (const auto& numberStr : numbers) {
-                const auto num = To::Int(numberStr);
+            for (const auto& number : numbers) {
+                const auto num = To::Int(number);
                 const auto numberModified = To::stringPadLeftZeros(num, 4);
                 const auto text = DownloadText::byProduct("SPCMCD" + numberModified);
                 numberListString += numberModified + ":";
-                latLonString += LatLon::storeWatchMcdLatLon(text);
+                latLonString += storeWatchMcdLatLon(text);
             }
             latLonList.setValue(latLonString);
             numberList.setValue(numberListString);
@@ -95,16 +95,16 @@ void PolygonWatch::download() {
             string latLonTorString;
             string latLonCombinedString;
             const auto numbers = UtilityString::parseColumn(html, "[om] Watch #([0-9]*?)</a>");
-            for (const auto& numberStr : numbers) {
-                numberListString += To::stringPadLeftZeros(numberStr, 4) + ":";
-                const auto text = UtilityIO::getHtml(GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/wou" + To::stringPadLeftZeros(numberStr, 4) + ".html");
+            for (const auto& number : numbers) {
+                numberListString += To::stringPadLeftZeros(number, 4) + ":";
+                const auto text = UtilityIO::getHtml(GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/wou" + To::stringPadLeftZeros(number, 4) + ".html");
                 const auto preText = UtilityString::parseMultiLineLastMatch(text, GlobalVariables::pre2Pattern);
                 if (WString::contains(preText, "SEVERE TSTM")) {
-                    latLonString += LatLon::storeWatchMcdLatLon(preText);
+                    latLonString += storeWatchMcdLatLon(preText);
                 } else {
-                    latLonTorString += LatLon::storeWatchMcdLatLon(preText);
+                    latLonTorString += storeWatchMcdLatLon(preText);
                 }
-                latLonCombinedString += LatLon::storeWatchMcdLatLon(preText);
+                latLonCombinedString += storeWatchMcdLatLon(preText);
             }
             latLonList.setValue(latLonString);
             numberList.setValue(numberListString);
@@ -114,28 +114,19 @@ void PolygonWatch::download() {
     }
 }
 
-// KEEP
-// QString PolygonWatch::getData() {
-//    return storage.getValue();
-// }
-
 string PolygonWatch::getUrl() const {
-    string downloadUrl;
-    if (type == Mcd) {
-        downloadUrl = GlobalVariables::nwsSPCwebsitePrefix + "/products/md/";
-    } else if (type == Watch) {
-        downloadUrl = GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/";
-    } else if (type == WatchTornado) {
-        downloadUrl = GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/";
-    } else if (type == Mpd) {
-        downloadUrl = GlobalVariables::nwsWPCwebsitePrefix + "/metwatch/metwatch_mpd.php";
+    switch (type) {
+        case Mcd:
+            return GlobalVariables::nwsSPCwebsitePrefix + "/products/md/";
+        case Watch:
+            return GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/";
+        case WatchTornado:
+            return GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/";
+        case Mpd:
+            return GlobalVariables::nwsWPCwebsitePrefix + "/metwatch/metwatch_mpd.php";
+        default:
+            return "";
     }
-    return downloadUrl;
-}
-
-void PolygonWatch::update() {
-    isEnabled = WString::startsWith(Utility::readPref(prefTokenEnabled(), "false"), "t");
-    colorInt = Utility::readPrefInt(colorPrefByType.at(type), colorDefaultByType.at(type));
 }
 
 string PolygonWatch::getPrefTokenStorage() const {
@@ -145,11 +136,6 @@ string PolygonWatch::getPrefTokenStorage() const {
 string PolygonWatch::prefTokenEnabled() const {
     return "RADAR_SHOW_" + WString::toUpper(getTypeName());
 }
-
-// KEEP
-// QString PolygonWatch::getPrefTokenColor() {
-//    return "RADAR_COLOR_" + getTypeName();
-// }
 
 string PolygonWatch::getPrefTokenNumberList() const {
     return getTypeName() + "_NO_LIST";
@@ -163,45 +149,51 @@ string PolygonWatch::getTypeName() const {
     return namesByEnumId.at(type);
 }
 
+void PolygonWatch::update() {
+    isEnabled = WString::startsWith(Utility::readPref(prefTokenEnabled(), "false"), "t");
+    colorInt = Utility::readPrefInt(colorPrefByType.at(type), colorDefaultByType.at(type));
+}
+
 void PolygonWatch::load() {
     for (auto& data : polygonList) {
-        if (byType.count(data) == 0) {
-            byType[data] = std::make_unique<PolygonWatch>(data);
-        } else {
+        if (byType.contains(data)) {
             byType[data]->update();
+        } else {
+            byType[data] = std::make_unique<PolygonWatch>(data);
         }
     }
     byType[WatchTornado]->isEnabled = byType[Watch]->isEnabled;
 }
 
-// KEEP
-// QString PolygonWatch::storeWatchMcdLatLon(QString html) {
-//    auto coordinates = UtilityString::parseColumn(html, "([0-9]{8}).*?");
-//    QString value = "";
-//    for (const auto& coordinate : coordinates) {
-//        auto latLon = PolygonWatch::getLatLonFromString(coordinate);
-//        value += latLon.printSpaceSeparated();
-//    }
-//    value += ":";
-//    return value.replace(" :", ":");
-// }
-
-// KEEP
-// 36517623 is 3651 -7623
-// LatLon PolygonWatch::getLatLonFromString(QString latLonString) {
-//    const auto latString = latLonString.left(4);
-//    const auto lonString = latLonString.right(4);
-//    auto lat = To::Double(latString);
-//    auto lon = To::Double(lonString);
-//    lat /= 100.0;
-//    lon /= 100.0;
-//    if (lon < 40.0) {
-//        lon += 100.0;
-//    }
-//    return LatLon{lat, -1.0 * lon};
-// }
+string PolygonWatch::getShortName(const PolygonType& type1) {
+    return WString::toUpper(namesByEnumId.at(type1));
+}
 
 string PolygonWatch::getLatLon(const string& number) {
     const auto html = UtilityIO::getHtml(GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/wou" + number + ".html");
     return UtilityString::parseMultiLineLastMatch(html, GlobalVariables::pre2Pattern);
+}
+
+// 36517623 is 3651 -7623
+LatLon PolygonWatch::getLatLonFromString(const string& latLonString) {
+    const string latString{UtilityString::substring(latLonString, 0, 4)};
+    const string lonString{UtilityString::substring(latLonString, 4, 8)};
+    auto lat = To::Double(latString);
+    auto lon = To::Double(lonString);
+    lat /= 100.0;
+    lon /= 100.0;
+    if (lon < 40.0) {
+        lon += 100.0;
+    }
+    return {lat, -1.0 * lon};
+}
+
+string PolygonWatch::storeWatchMcdLatLon(const string& html) {
+    const auto coordinates = UtilityString::parseColumn(html, "([0-9]{8}).*?");
+    string stringValue;
+    for (const auto& coordinate : coordinates) {
+        stringValue += getLatLonFromString(coordinate).printSpaceSeparated();
+    }
+    stringValue += ":";
+    return WString::replace(stringValue, " :", ":");
 }

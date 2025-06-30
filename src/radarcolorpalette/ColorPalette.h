@@ -1,36 +1,34 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTCOLORPALETTE_H
-#define OBJECTCOLORPALETTE_H
+#ifndef COLORPALETTE_H
+#define COLORPALETTE_H
 
-#include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 #include "objects/MemoryBuffer.h"
 #include "radarcolorpalette/ColorPaletteLine.h"
 
+using std::string;
 using std::unordered_map;
 using std::vector;
 
 class ColorPalette {
 public:
     explicit ColorPalette(int);
+    void putInt(const vector<double>&);
+    void putBytesFromLine(const ColorPaletteLine&);
     void initialize();
-    void putBytesViaBytes(unsigned char, unsigned char, unsigned char) const;
-    void putBytes(const ColorPaletteLine&) const;
-    void putLine(const string&) const;
-    void putBytesFromLine(const ColorPaletteLine&) const;
-    void putVector(const vector<double>&) const;
-    void position(int) const;
+    void position(int);
     static void loadColorMap(int);
     static void refreshPref();
-    std::unique_ptr<MemoryBuffer> redValues;
-    std::unique_ptr<MemoryBuffer> greenValues;
-    std::unique_ptr<MemoryBuffer> blueValues;
+    MemoryBuffer redValues;
+    MemoryBuffer greenValues;
+    MemoryBuffer blueValues;
     static unordered_map<int, string> radarColorPalette;
     static unordered_map<int, ColorPalette *> colorMap;
 
@@ -42,4 +40,4 @@ private:
     int colorMapCode;
 };
 
-#endif  // OBJECTCOLORPALETTE_H
+#endif  // COLORPALETTE_H

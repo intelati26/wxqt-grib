@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,7 +8,7 @@
 #define SPCCOMPMAP_H
 
 #include <string>
-#include "ui/Button.h"
+#include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/Photo.h"
@@ -19,18 +19,19 @@ using std::string;
 
 class SpcCompMap : public Window {
 public:
-    explicit SpcCompMap(QWidget *);
+    explicit SpcCompMap(Window *);
 
 private:
     void reload();
+    void moveBack();
+    void moveForward();
     void changeProduct();
     const string prefToken{"SPCCOMPMAP_LAYERSTRIOS"};
-    Photo photo;
-    ComboBox comboboxProduct;
     VBox box;
-    HBox buttonBox;
-    Button buttonBack;
-    Button buttonForward;
+    HBox boxH;
+    Photo photo;
+    ComboBox comboBox;
+    BackForward backForward;
     string product;
     int index;
 };

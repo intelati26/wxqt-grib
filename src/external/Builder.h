@@ -31,10 +31,8 @@ using std::vector;
 
 class Builder {
 public:
-    Builder();
     Builder addVertex(ExternalPoint);
     void updateBoundingBox(ExternalPoint);
-//    Builder * close();
     ExternalPolygon build();
 
 private:
@@ -42,8 +40,8 @@ private:
     vector<ExternalPoint> vertexes;
     vector<ExternalLine> sides;
     BoundingBox boundingBox;
-    bool firstPoint;
-    bool isClosed;
+    bool firstPoint{true};
+    bool isClosed{false};
 };
 
 #endif  // BUILDER_H

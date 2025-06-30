@@ -1,16 +1,14 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "objects/FileStorage.h"
-#include <iostream>
-#include <string>
+#include "FileStorage.h"
 #include "objects/ObjectDateTime.h"
 
 FileStorage::FileStorage()
-    : obsDownloadTimer{ DownloadTimer{"OBS_AND_WIND_BARBS" + QString::number(ObjectDateTime::currentTimeMillis()).toStdString()} }
+    : obsDownloadTimer{"OBS_AND_WIND_BARBS" + QString::number(ObjectDateTime::currentTimeMillis()).toStdString()}
 {}
 
 void FileStorage::clearBuffers() {

@@ -1,11 +1,10 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "util/UtilityLocationFragment.h"
-#include <iostream>
+#include "UtilityLocationFragment.h"
 #include "objects/WString.h"
 #include "util/UtilityString.h"
 
@@ -50,32 +49,28 @@ const unordered_map<string, string> UtilityLocationFragment::windDir{
 };
 
 string UtilityLocationFragment::extract7DayMetrics(const string& chunk) {
-    const string spacing = " ";
-    // wind 24 to 29 mph;
+    const string spacing{" "};
+    // wind 24 to 29 mph
     const auto wind = UtilityString::parseTwo(chunk, sevenDayWind1);
-    // wind around 9 mph;
+    // wind around 9 mph
     const auto wind2 = UtilityString::parse(chunk, sevenDayWind2);
-    // 5 to 10 mph after;
+    // 5 to 10 mph after
     const auto wind3 = UtilityString::parseTwo(chunk, sevenDayWind4);
-    // around 5 mph after;
+    // around 5 mph after
     const auto wind4 = UtilityString::parse(chunk, sevenDayWind5);
-    // 5 to 7 mph in;
+    // 5 to 7 mph in
     const auto wind5 = UtilityString::parseTwo(chunk, sevenDayWind6);
-    // around 6 mph.;
+    // around 6 mph.
     const auto wind7 = UtilityString::parse(chunk, sevenDayWind7);
-    // with gusts as high as 21 mph;
+    // with gusts as high as 21 mph
     auto gust = UtilityString::parse(chunk, sevenDayWind3);
-    // 5 to 7 mph.;
+    // 5 to 7 mph.
     const auto wind9 = UtilityString::parseTwo(chunk, sevenDayWind9);
-    // Winds could gust as high as 21 mph.;
+    // Winds could gust as high as 21 mph.
     if (gust.empty()) {
         gust = UtilityString::parse(chunk, sevenDayWind8);
     }
-    if (!gust.empty()) {
-        gust = " G " + gust + " mph";
-    } else {
-        gust = " mph";
-    }
+    gust = (!gust.empty()) ? " G " + gust + " mph" : " mph";
     if (!wind[0].empty() && !wind[1].empty()) {
         return spacing + wind[0] + "-" + wind[1] + gust;
     } else if (!wind2.empty()) {
@@ -95,16 +90,18 @@ string UtilityLocationFragment::extract7DayMetrics(const string& chunk) {
     }
 }
 
+const vector<string> UtilityLocationFragment::patterns{
+    "Light (.*?) wind increasing",
+    "Breezy, with a[n]? (.*?) wind",
+    "wind becoming (\\w+\\s?\\w*) around",
+    "wind becoming (.*?) [0-9]",
+    "\\. (\\w+\\s?\\w*) wind ",
+    "Windy, with a[n]? (.*?) wind",
+    "Blustery, with a[n]? (.*?) wind",
+    "Light (.*?) wind"
+};
+
 string UtilityLocationFragment::extractWindDirection(const string& chunk) {
-    const vector<string> patterns{
-        "Breezy, with a[n]? (.*?) wind",
-        "wind becoming (\\w+\\s?\\w*) around",
-        "wind becoming (.*?) [0-9]",
-        "\\. (\\w+\\s?\\w*) wind ",
-        "Windy, with a[n]? (.*?) wind",
-        "Blustery, with a[n]? (.*?) wind",
-        "Light (.*?) wind"
-    };
     vector<string> windResults;
     for (const auto& pattern : patterns) {
         windResults.push_back(UtilityString::parse(chunk, pattern));
@@ -121,15 +118,12 @@ string UtilityLocationFragment::extractWindDirection(const string& chunk) {
     } else {
         const auto tmp = WString::toLower(retStr);
         string ret;
-        if (windDir.find(tmp) == windDir.end()) {
-            // std::cout << "WIND not found: " << tmp << std::endl;
-            ret = "";
-        } else {
+        if (windDir.contains(tmp)) {
             ret = " " + windDir.at(tmp);
+        } else {
+            ret = "";
         }
         return ret;
-        // const auto ret = windDir.at(WString::toLower(retStr));
-        // return " " + ret + "";
     }
 }
 

@@ -1,36 +1,34 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTCARDNHCSTORMREPORTITEM_H
-#define OBJECTCARDNHCSTORMREPORTITEM_H
+#ifndef CARDNHCSTORMREPORTITEM_H
+#define CARDNHCSTORMREPORTITEM_H
 
 #include "nhc/NhcStormDetails.h"
 #include "ui/Button.h"
+#include "ui/HBox.h"
 #include "ui/Image.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
+#include "ui/Window.h"
 
 class CardNhcStormReportItem : public HBox {
 public:
-    CardNhcStormReportItem(QWidget *, const NhcStormDetails&);
+    CardNhcStormReportItem(Window *, const NhcStormDetails&);
 
 private:
-    void launch();
-    void launchImage();
     NhcStormDetails stormData;
-    QWidget * parent;
     VBox textLayout;
     Button button;
     Image image;
-    Text topLine;
-    Text lastUpdateLine;
-    Text startTimeLine;
-    Text endTimeLine;
-    Text maxWindLine;
-    Text middleLine;
+    Text text1;
+    Text text2;
+    Text text3;
+    Text text4;
+    Text text5;
 };
 
-#endif  // OBJECTCARDNHCSTORMREPORTITEM_H
+#endif  // CARDNHCSTORMREPORTITEM_H

@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -12,12 +12,13 @@
 #include "ui/ComboBox.h"
 #include "ui/CardLocationItem.h"
 #include "ui/Widget.h"
+#include "ui/Window.h"
 
 using std::vector;
 
 class SettingsLocationsBox : public Widget {
 public:
-    explicit SettingsLocationsBox(QWidget *);
+    explicit SettingsLocationsBox(Window *);
     void refresh();
 
 private:
@@ -25,10 +26,11 @@ private:
     void deleteClicked(int);
     void moveDownClicked(int);
     void moveUpClicked(int);
+    VBox box;
+    Window * parent;
     vector<Button> buttons;
     vector<CardLocationItem> locationCards;
     vector<HBox> hboxList;
-    VBox box;
 };
 
 #endif  // SETTINGSLOCATIONSBOX_H

@@ -1,21 +1,21 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include "CapAlert.h"
 #include "common/GlobalVariables.h"
 #include "objects/WString.h"
-#include "misc/CapAlert.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityString.h"
 
 CapAlert::CapAlert() = default;
 
 CapAlert::CapAlert(const string& url)
-    : url{ url }
+    : url{url}
 {
-    html = UtilityIO::getHtml(url);
+    const auto html = UtilityIO::getHtml(url);
     title = UtilityString::parse(html, "\"headline\": \"(.*?)\"");
     summary = UtilityString::parse(html, "\"description\": \"(.*?)\"");
     instructions = UtilityString::parse(html, "\"instruction\": \"(.*?)\"");

@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -7,7 +7,6 @@
 #ifndef SETTINGSBOX_H
 #define SETTINGSBOX_H
 
-#include <functional>
 #include <memory>
 #include <vector>
 #include "ui/Button.h"
@@ -15,28 +14,28 @@
 #include "ui/HBox.h"
 #include "ui/Switch.h"
 #include "ui/NumberPicker.h"
-#include "ui/ScrolledWindow.h"
-#include "ui/Shortcut.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Widget.h"
+#include "ui/Window.h"
 
 using std::vector;
 
 class SettingsBox : public Widget {
 public:
-    explicit SettingsBox(QWidget *);
+    explicit SettingsBox(Window *);
 
 private:
+    vector<std::unique_ptr<Switch>> configsLeft;
     vector<std::unique_ptr<Switch>> configs;
     Button button;
-    Button buttonAbout;
-    VBox box;
-    HBox hbox0;
+    VBox boxLeft;
+    VBox boxCenter;
+    VBox boxRight;
+    HBox boxMain;
     Text homeScreenLabel;
     Text generalLabel;
-    std::unique_ptr<NumberPicker> np1;
-    std::unique_ptr<NumberPicker> np2;
+    vector<std::unique_ptr<NumberPicker>> numberPickers;
 };
 
 #endif  // SETTINGSBOX_H

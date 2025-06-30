@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTNHCSTORMDETAILS_H
-#define OBJECTNHCSTORMDETAILS_H
+#ifndef NHCSTORMDETAILS_H
+#define NHCSTORMDETAILS_H
 
 #include <string>
 #include <QByteArray>
@@ -14,8 +14,7 @@ using std::string;
 
 class NhcStormDetails {
 public:
-    NhcStormDetails(const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&);
-    string getUpdateTime() const;
+    NhcStormDetails(const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&, const string&);
     string forTopHeader() const;
     string name;
     string movementDir;
@@ -23,18 +22,19 @@ public:
     string pressure;
     string binNumber;
     string stormId;
-    string lastUpdate;
     string classification;
     string lat;
     string lon;
     string intensity;
     string status;
+    string advisoryUrl;
     string center;
     string goesUrl;
     string movement;
     string modBinNumber;
     string baseUrl;
     QByteArray coneBytes;
+    string advisoryNumber;
 };
 
-#endif  // OBJECTNHCSTORMDETAILS_H
+#endif  // NHCSTORMDETAILS_H

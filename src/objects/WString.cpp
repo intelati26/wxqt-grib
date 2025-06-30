@@ -1,23 +1,23 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "objects/WString.h"
+#include "WString.h"
 #include <algorithm>
 #include <regex>
 
 // WString::WString() = default;
-
+//
 // WString WString::toUpper() {
 //     return WString::to_upper(*this);
 // }
-
+//
 // WString WString::toLower() {
 //     return WString::to_lower(*this);
 // }
-
+//
 // WString WString::replace(const string& a, const string& b) {
 //    return WString::replace(*this, a, b);
 // }
@@ -107,8 +107,8 @@ string WString::strip(const string &s) {
 
 string WString::join(const vector<string>& items, const string& s) {
     string returnString;
-    for (const auto& value : items) {
-        returnString += value + s;
+    for (const auto& item : items) {
+        returnString += item + s;
     }
     return strip(returnString);
 }

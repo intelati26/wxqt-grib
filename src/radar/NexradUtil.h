@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef WXGLNEXRAD_H
-#define WXGLNEXRAD_H
+#ifndef NEXRADUTIL_H
+#define NEXRADUTIL_H
 
 #include <cstdint>
 #include <string>
@@ -16,9 +16,12 @@ using std::vector;
 
 class NexradUtil {
 public:
-    static double getBinSize(uint16_t);
-    static int getNumberRangeBins(uint16_t);
+    static int findRadarProductIndex(const string&);
+    static int findRadarProductIndexTdwr(const string&);
+    static bool isRadarTdwr(const string&);
     static bool isProductTdwr(const string&);
+    static int getNumberRangeBins(uint16_t);
+    static double getBinSize(uint16_t);
     static bool isRadarTimeOld(int);
     static bool isVtecCurrent(const string&);
     static double wxoglDspLegendMax;
@@ -26,4 +29,4 @@ public:
     static const vector<string> radarProductListTdwr;
 };
 
-#endif  // WXGLNEXRAD_H
+#endif  // NEXRADUTIL_H

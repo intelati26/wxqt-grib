@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -1051,4 +1051,3 @@ const vector<string> UtilityModelNcepInterface::modelHrwFv3Labels{
 
 // grep title /tmp/a | egrep -o ">.*</a>" | sed "s/>/\"/" | sed "s/<\/a>/\"\,/"
 // grep title /tmp/a | egrep -o "title=.*\"" | sed "s/title=//" | sed "s/$/\"\,/"| awk -F""" "{print $2}" | sed "s/$/\"\,/" | sed "s/^/\"/"
-

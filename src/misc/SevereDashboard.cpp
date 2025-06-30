@@ -1,53 +1,57 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "misc/SevereDashboard.h"
-#include "objects/FutureVoid.h"
+#include "SevereDashboard.h"
+#include "misc/UsAlerts.h"
 #include "objects/FutureBytes.h"
+#include "objects/FutureVoid.h"
 #include "objects/PolygonWatch.h"
 #include "spc/SpcMcdWatchMpdViewer.h"
 #include "spc/SpcStormReports.h"
-#include "misc/UsAlerts.h"
-#include "ui/CardBlackHeaderText.h"
-#include "ui/CardDashAlertItem.h"
 #include "ui/DividerLine.h"
 #include "util/DownloadImage.h"
 #include "util/To.h"
 #include "util/UtilityList.h"
 
-SevereDashboard::SevereDashboard(QWidget * parent)
+SevereDashboard::SevereDashboard(Window * parent)
     : Window{parent}
-    , sw{ ScrolledWindow{this, box} }
-    , shortcutReload{ Shortcut{QKeySequence{"U"}, this} }
+    , autoUpdate{this, "AUTO_UPDATE_INTERVAL_SEVERE_DASHBOARD", 10, [this] { reload(); }}
+    , sw{this, box}
+    , shortcutAutoUpdate{QKeySequence{"U"}, this}
 {
     setTitle("Severe Dashboard");
-    maximize();
-
     severeNotices.insert({Watch, SevereNotice{Watch}});
     severeNotices.insert({Mcd, SevereNotice{Mcd}});
     severeNotices.insert({Mpd, SevereNotice{Mpd}});
 
-    warningsByType.insert({Tor, SevereWarning{Tor}});
-    warningsByType.insert({Tst, SevereWarning{Tst}});
-    warningsByType.insert({Ffw, SevereWarning{Ffw}});
+    for (auto type : warningTypes) {
+        warningsByType.insert({type, SevereWarning{type}});
+    }
 
+    box.addLayout(boxH);
     box.addLayout(boxImages);
-    for (auto type : {Tor, Tst, Ffw}) {
+    box.addLayout(boxWarningsMain);
+    boxH.addWidget(autoUpdate);
+    for (auto type : warningTypes) {
         boxWarnings.insert({type, VBox()});
-        box.addLayout(boxWarnings.at(type));
+        boxWarningsMain.addLayout(boxWarnings.at(type));
     }
     reload();
 
-    shortcutReload.connect([this] { reload(); });
+    shortcutAutoUpdate.connect([this] { autoUpdate.toggleAutoUpdate(); });
 }
 
 void SevereDashboard::reload() {
-    for (const auto type : {Tor, Tst, Ffw}) {
+    boxWarningsMain.removeChildren();
+    for (const auto type : warningTypes) {
+        boxWarnings[type] = VBox();
+        boxWarningsMain.addLayout(boxWarnings[type]);
         new FutureVoid{this, [this, type] { warningsByType.at(type).download(); }, [this, type] { updateWarnings(type); }};
     }
+    boxImages.removeChildren();
     new FutureVoid{this, [this] { downloadWatch(); }, [this] { updateWatch(); }};
 }
 
@@ -55,23 +59,21 @@ void SevereDashboard::downloadWatch() {
     urls.clear();
     urls.push_back(DownloadImage::byProduct("USWARN"));
     urls.push_back(DownloadImage::byProduct("STRPT"));
-    for (const auto& type : {Mcd, Mpd, Watch}) {
-        PolygonWatch::byType.at(type)->download();
-        severeNotices.at(type).getBitmaps();
-        addAll(urls, severeNotices.at(type).urls);
+    for (auto t : {Mcd, Mpd, Watch}) {
+        PolygonWatch::byType.at(t)->download();
+        severeNotices.at(t).getBitmaps();
+        addAll(urls, severeNotices.at(t).urls);
     }
 }
 
 void SevereDashboard::updateWatch() {
-    for (auto& b : boxRows) {
-        b.removeChildren();
-    }
-    boxImages.removeChildren();
+    mtx.lock();
     boxRows.clear();
     images.clear();
+    shortcuts.clear();
     for ([[maybe_unused]] auto index : range(urls.size())) {
         images.emplace_back(this);
-        images.back().setNumberAcross(imagesAcross);
+        images.back().setNumberAcross(imagesAcross, getWindowWidth());
     }
     for (auto index : range(urls.size())) {
         shortcuts.emplace_back(QKeySequence{QString::fromStdString(To::string(index + 1))}, this);
@@ -85,44 +87,47 @@ void SevereDashboard::updateWatch() {
     for (auto& b : boxRows) {
         boxImages.addLayout(b);
     }
-    updateStatusBar();
+    boxImages.addStretch();
+    updateTitle();
     for (auto index : range(urls.size())) {
         new FutureBytes{this, urls[index], [this, index] (const auto& ba) { images[index].setBytes(ba); }};
     }
+    mtx.unlock();
 }
 
 void SevereDashboard::updateWarnings(PolygonType type) {
     if (warningsByType.at(type).getCountAsInt() > 0) {
         boxWarnings[type].removeChildren();
-        auto label = std::make_unique<CardBlackHeaderText>(this, warningsByType.at(type).getCount() + " " + warningsByType.at(type).getName());
-        boxWarnings[type].addLayout(label->getView());
+        headerTextList.emplace_back(this, warningsByType.at(type).getCount() + " " + warningsByType.at(type).getName());
+        boxWarnings.at(type).addLayout(headerTextList.back());
+        auto d{DividerLine{this}};
         for (const auto& warning : warningsByType.at(type).warningList) {
             if (warning.isCurrent) {
-                auto widget1 = std::make_unique<CardDashAlertItem>(this, warning);
-                boxWarnings[type].addLayout(widget1->getView());
-                boxWarnings[type].addWidget(DividerLine{this}.get());
+                dashAlertItems.emplace_back(this, warning);
+                boxWarnings.at(type).addLayout(dashAlertItems.back());
+                boxWarnings.at(type).addWidget(d);
             }
         }
-//        if (type == Ffw) {
+        if (type == Ffw) {
             boxWarnings[type].addStretch();
-//        }
-        updateStatusBar();
+        }
+        updateTitle();
     }
 }
 
-void SevereDashboard::launch(int indexFinal) {
+void SevereDashboard::launch(size_t indexFinal) {
     if (indexFinal == 0) {
         new UsAlerts{this};
     } else if (indexFinal == 1) {
         new SpcStormReports{this, "today"};
-    } else if (indexFinal > 1) {
+    } else if (indexFinal > 1 && indexFinal < urls.size()) {
         new SpcMcdWatchMpdViewer{this, urls[indexFinal]};
     }
 }
 
-void SevereDashboard::updateStatusBar() {
+void SevereDashboard::updateTitle() {
     string statusTotal;
-    for (const auto& type : {Mcd, Watch, Mpd}) {
+    for (const auto type : {Mcd, Watch, Mpd}) {
         if (severeNotices.at(type).getCountAsInt() > 0) {
             statusTotal += "  " + severeNotices.at(type).getShortName() + ": " + severeNotices.at(type).getCount();
         }
@@ -132,5 +137,9 @@ void SevereDashboard::updateStatusBar() {
             statusTotal += "  " + type.second.getShortName() + ": " + type.second.getCount();
         }
     }
-    setTitle(statusTotal);
+    setTitle(statusTotal + " " + autoUpdate.titleAdd);
+}
+
+void SevereDashboard::closeEventCustom() {
+    autoUpdate.stopNoDownload();
 }

@@ -1,65 +1,47 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "objects/LatLon.h"
+#include "LatLon.h"
 #include <cmath>
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 #include "common/GlobalVariables.h"
+#include "external/ExternalPoint.h"
 #include "objects/WString.h"
-#include "settings/UtilityLocation.h"
 #include "util/To.h"
-#include "util/Utility.h"
-#include "util/UtilityCanvasProjection.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityList.h"
 #include "util/UtilityMath.h"
 #include "util/UtilityString.h"
 
 LatLon::LatLon()
-    : latString{ To::string(0.0) }
-    , lonString{ To::string(0.0) }
-    , latNum{ 0.0 }
-    , lonNum{ 0.0 }
+    : latString{To::string(0.0)}
+    , lonString{To::string(0.0)}
+    , latNum{0.0}
+    , lonNum{0.0}
 {}
 
 LatLon::LatLon(double x, double y)
-    : latString{ To::string(x) }
-    , lonString{ To::string(y) }
-    , latNum{ x }
-    , lonNum{ y }
+    : latString{To::string(x)}
+    , lonString{To::string(y)}
+    , latNum{x}
+    , lonNum{y}
 {}
 
 LatLon::LatLon(const string& x, const string& y)
-    : latString{ x }
-    , lonString{ y }
-    , latNum{ To::Double(x) }
-    , lonNum{ To::Double(y) }
+    : latString{x}
+    , lonString{y}
+    , latNum{To::Double(x)}
+    , lonNum{To::Double(y)}
 {}
 
-LatLon::LatLon(const string& temp)
-    : latString{ UtilityString::substring(temp, 0, 4) }
-    , lonString{ UtilityString::substring(temp, 4, 8) }
-{
-    latString = UtilityString::addPeriodBeforeLastTwoChars(latString);
-    lonString = UtilityString::addPeriodBeforeLastTwoChars(lonString);
-    auto tmpDbl = To::Double(lonString);
-    if (tmpDbl < 40.00) {
-        tmpDbl += 100;
-        lonString = To::string(tmpDbl);
-    }
-    latNum = To::Double(latString);
-    lonNum = To::Double(lonString);
+LatLon LatLon::fromList(const vector<double>& coords) {
+    return {coords[0], coords[1]};
 }
-
-LatLon::LatLon(const vector<float>& coords)
-    : latString{ To::string(coords[0]) }
-    , lonString{ To::string(coords[1]) }
-    , latNum{ coords[0] }
-    , lonNum{ coords[1] }
-{}
 
 double LatLon::lat() const {
     return latNum;
@@ -69,10 +51,17 @@ double LatLon::lon() const {
     return lonNum;
 }
 
-// void LatLon::setLon(double d) {
-//    lonString = To::string(d);
-//    lonNum = d;
-// }
+LatLon LatLon::reverseLon() const {
+    return {lat(), -1.0 * lon()};
+}
+
+double LatLon::latInRadians() const {
+    return UtilityMath::deg2rad(lat());
+}
+
+double LatLon::lonInRadians() const {
+    return UtilityMath::deg2rad(lon());
+}
 
 string LatLon::latStr() const {
     return latString;
@@ -82,193 +71,104 @@ string LatLon::lonStr() const {
     return lonString;
 }
 
-void LatLon::setLonStr(const string& s) {
-    lonString = s;
-    lonNum = To::Double(s);
+string LatLon::latForNws() const {
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(4) << latNum;
+    return stream.str();
 }
 
-double LatLon::dist(const LatLon& location2) const {
-    const auto theta = lon() - location2.lon();
-    auto dist = sin(UtilityMath::deg2rad(lat())) * sin(UtilityMath::deg2rad(location2.lat())) + cos(UtilityMath::deg2rad(lat())) * cos(UtilityMath::deg2rad(location2.lat())) * cos(UtilityMath::deg2rad(theta));
-    dist = acos(dist);
-    dist = UtilityMath::rad2deg(dist);
-    dist = dist * 60.0 * 1.1515;
-    return dist;
+string LatLon::lonForNws() const {
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(4) << lonNum;
+    return stream.str();
 }
 
-// used in UtilitySwoD1 and UtilityDownloadRadar
+void LatLon::setLon(double newLon) {
+    lonNum = newLon;
+    lonString = To::string(lonNum);
+}
+
+LatLon LatLon::fromWatchData(const string& temp) {
+    auto latString = UtilityString::substring(temp, 0, 4);
+    auto lonString = UtilityString::substring(temp, 4, 8);
+    latString = UtilityString::addPeriodBeforeLastTwoChars(latString);
+    lonString = UtilityString::addPeriodBeforeLastTwoChars(lonString);
+    auto tmpDbl = To::Double(lonString);
+    if (tmpDbl < 40.00) {
+        tmpDbl += 100;
+        lonString = To::string(tmpDbl);
+    }
+    const auto latNum = To::Double(latString);
+    const auto lonNum = To::Double(lonString);
+    return {latNum, lonNum};
+}
+
+string LatLon::printPretty() const {
+    return latForNws() + ", " + lonForNws() + " ";
+}
+
+// used in SwoDayOne and PolygonWatch
 string LatLon::printSpaceSeparated() const {
     return latString + " " + lonString + " ";
-}
-
-// used by UtilityNexradDraw::initGeom for location dots
-vector<double> LatLon::getProjection(const ProjectionNumbers& pn) const {
-    return UtilityCanvasProjection::computeMercatorNumbersFromLatLon(*this, pn, -1.0);
 }
 
 ExternalPoint LatLon::asPoint() const {
     return {lat(), lon()};
 }
 
-vector<double> LatLon::asList() const {
-    return {lat(), lon()};
+double LatLon::distance(const LatLon& location1, const LatLon& location2) { // , DistanceUnit unit
+    const auto theta = location1.lonNum - location2.lonNum;
+    auto dist = sin(UtilityMath::deg2rad(location1.latNum)) * sin(UtilityMath::deg2rad(location2.latNum)) +
+            cos(UtilityMath::deg2rad(location1.latNum)) * cos(UtilityMath::deg2rad(location2.latNum)) * cos(UtilityMath::deg2rad(theta));
+    dist = acos(dist);
+    dist = UtilityMath::rad2deg(dist);
+    dist = dist * 60.0 * 1.1515;
+    return dist;
 }
 
-LatLon LatLon::fromList(vector<double> coords) {
-    return {coords[0], coords[1]};
-}
-
-LatLon LatLon::fromRadarSite(const string& radarSite) {
-    const auto ridX = UtilityLocation::getRadarSiteX(radarSite);
-    const auto ridY = UtilityLocation::getRadarSiteY(radarSite);
-    const auto latNum = To::Double(ridX);
-    const auto lonNum = -1.0 * To::Double(ridY);
-    return {latNum, lonNum};
-}
-
-// FIXME TODO
-string LatLon::latForNws() const {
-    return QString::number(lat(), 'g', 4).toStdString();
-}
-
-string LatLon::lonForNws() const {
-    return QString::number(lon(), 'g', 4).toStdString();
-}
-
-string LatLon::printPretty() const {
-    const auto len = 7;
-    return UtilityString::truncate(latString, len) + ", " + UtilityString::truncate(lonString, len) + " ";
-}
-
-string LatLon::storeWatchMcdLatLon(const string& html) {
-    const auto coordinates = UtilityString::parseColumn(html, "([0-9]{8}).*?");
-    string stringValue;
-    for (const auto& coordinate : coordinates) {
-        stringValue += getLatLonFromString(coordinate).printSpaceSeparated();
+int LatLon::calculateBearing(const LatLon& start, const LatLon& end) {
+    auto deltaLon = end.lonInRadians() - start.lonInRadians();
+    auto x = cos(end.latInRadians()) * sin(deltaLon);
+    auto y = cos(start.latInRadians()) * sin(end.latInRadians()) - sin(start.latInRadians()) * cos(end.latInRadians()) * cos(deltaLon);
+    auto b = atan2(x, y);
+    auto bearing = static_cast<int>(UtilityMath::rad2deg(b)) % 360;
+    if (bearing < 0) {
+        bearing += 360;
     }
-    stringValue += ":";
-    return WString::replace(stringValue, " :", ":");
+    return bearing;
 }
 
-// 36517623 is 3651 -7623
-LatLon LatLon::getLatLonFromString(const string& latLonString) {
-    const string latString{ UtilityString::substring(latLonString, 0, 4) };
-    const string lonString{ UtilityString::substring(latLonString, 4, 8) };
-    auto lat = To::Double(latString);
-    auto lon = To::Double(lonString);
-    lat /= 100.0;
-    lon /= 100.0;
-    if (lon < 40.0) {
-        lon += 100.0;
-    }
-    return {lat, -1.0 * lon};
+string LatLon::calculateDirection(const LatLon& start, const LatLon& end) {
+    return UtilityMath::bearingToDirection(calculateBearing(start, end));
 }
 
-string LatLon::getLatLon(const string& number) {
-    const auto html = UtilityIO::getHtml(GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/wou" + number + ".html");
-    return UtilityString::parseMultiLineLastMatch(html, GlobalVariables::pre2Pattern);
-}
-
-vector<double> LatLon::latLonListToListOfDoubles(const vector<LatLon>& latLons, const ProjectionNumbers& projectionNumbers) {
-    vector<double> warningList;
-    if (!latLons.empty()) {
-        const auto startCoordinates = UtilityCanvasProjection::computeMercatorNumbersFromLatLon(latLons[0], projectionNumbers);
-        warningList.push_back(startCoordinates[0]);
-        warningList.push_back(startCoordinates[1]);
-        for (auto index : range3(1, latLons.size(), 1)) {
-            const auto coordinates = UtilityCanvasProjection::computeMercatorNumbersFromLatLon(latLons[index], projectionNumbers);
-            warningList.push_back(coordinates[0]);
-            warningList.push_back(coordinates[1]);
-            warningList.push_back(coordinates[0]);
-            warningList.push_back(coordinates[1]);
-        }
-        warningList.push_back(startCoordinates[0]);
-        warningList.push_back(startCoordinates[1]);
-    }
-    return warningList;
-}
-
+// take a space separated list of numbers and return a list of LatLon, list is of the format
+// lon0 lat0 lon1 lat1 for watch
+// for Watch need to multiply Y by -1.0
 vector<LatLon> LatLon::parseStringToLatLons(const string& stringOfNumbers, int multiplier, bool isWarning) {
     const auto listOfNumbers = WString::split(stringOfNumbers, " ");
     vector<double> x;
     vector<double> y;
     for (auto i : range(listOfNumbers.size())) {
-        if (!isWarning) {
+        if (isWarning) {
             if (i % 2 == 0) {
-                y.push_back(To::Double(listOfNumbers[i]));
+                y.push_back(To::Double(listOfNumbers[i]) * multiplier);
             } else {
-                x.push_back(To::Double(listOfNumbers[i]) * -1.0);
+                x.push_back(To::Double(listOfNumbers[i]));
             }
         } else {
             if (i % 2 == 0) {
-                x.push_back(To::Double(listOfNumbers[i]) * multiplier);
+                x.push_back(To::Double(listOfNumbers[i]));
             } else {
-                y.push_back(To::Double(listOfNumbers[i]));
+                y.push_back(To::Double(listOfNumbers[i]) * multiplier);
             }
         }
     }
     vector<LatLon> latLons;
-    if (y.size() > 3 && x.size() > 3 && x.size() == y.size()) {
+    if (x.size() > 3 && y.size() > 3 && x.size() == y.size()) {
         for (auto index : range(x.size())) {
-            latLons.emplace_back(y[index], x[index]);
+            latLons.emplace_back(x[index], y[index]);
         }
     }
     return latLons;
-}
-
-vector<LatLon> LatLon::parseStringToLatLonsForMcdLongPress(const string& stringOfNumbers, int multiplier, bool isWarning) {
-    const auto listOfNumbers = WString::split(stringOfNumbers, " ");
-    vector<double> x;
-    vector<double> y;
-    for (auto i : range(listOfNumbers.size())) {
-        if (!isWarning) {
-            if (i % 2 == 0) {
-                y.push_back(To::Double(listOfNumbers[i]));
-            } else {
-                x.push_back(To::Double(listOfNumbers[i]) * 1.0);
-            }
-        } else {
-            if (i % 2 == 0) {
-                x.push_back(To::Double(listOfNumbers[i]) * multiplier);
-            } else {
-                y.push_back(To::Double(listOfNumbers[i]));
-            }
-        }
-    }
-    vector<LatLon> latLons;
-    if (y.size() > 3 && x.size() > 3 && x.size() == y.size()) {
-        for (int index : range(x.size())) {
-            latLons.emplace_back(y[index], x[index]);
-        }
-    }
-    return latLons;
-}
-
-string LatLon::getWatchLatLon(const string& number) {
-    const auto html = UtilityIO::getHtml(GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/wou" + number + ".html");
-    return parseNwsPreSecondMatch(html);
-}
-
-string LatLon::parseNwsPreSecondMatch(const string& html) {
-    const auto lines = WString::split(html, GlobalVariables::newline);
-    auto preFound = false;
-    auto endPreFound = false;
-    auto preCount = 0;
-    vector<string> modifiedLines;
-    for (const auto& line : lines) {
-        if (WString::contains(line, "<pre>")) {
-            preFound = true;
-            preCount += 1;
-            continue;
-        }
-        if (WString::contains(line, "</pre>")) {
-            if (preCount == 2) {
-                endPreFound = true;
-            }
-        }
-        if (preFound && preCount == 2 && !endPreFound) {
-            modifiedLines.push_back(line);
-        }
-    }
-    return WString::join(modifiedLines, GlobalVariables::newline);
 }

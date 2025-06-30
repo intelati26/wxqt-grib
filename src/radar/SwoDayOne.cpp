@@ -1,11 +1,10 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "radar/SwoDayOne.h"
-#include <iostream>
+#include "SwoDayOne.h"
 #include "common/GlobalVariables.h"
 #include "objects/LatLon.h"
 #include "objects/WString.h"
@@ -15,8 +14,8 @@
 #include "util/UtilityString.h"
 
 DownloadTimer SwoDayOne::timer{"SWO"};
-unordered_map<int, vector<double>> SwoDayOne::hashSwo;
-const vector<QColor> SwoDayOne::swoPaints{
+unordered_map<int, vector<double>> SwoDayOne::polygonBy;
+const vector<QColor> SwoDayOne::colors{
     QColor{255, 0, 255},  // HIGH
     QColor{255, 0, 0},    // MDT
     QColor{255, 140, 0},  // ENH
@@ -35,12 +34,11 @@ void SwoDayOne::get() {
         for (auto m : range(threatList.size())) {
             const auto threatLevelCode = threatList[m];
             const auto htmlList = UtilityString::parseColumn(htmlBlob, UtilityString::substring(threatLevelCode, 1) + " (.*?)[A-Z&]");
-            vector<double> warningList;
             string data;
             for (const auto& polygon : htmlList) {
                 const auto coordinates = UtilityString::parseColumn(polygon, "([0-9]{8}).*?");
                 for (const auto& coord : coordinates) {
-                    data += LatLon{coord}.printSpaceSeparated();
+                    data += LatLon::fromWatchData(coord).printSpaceSeparated();
                 }
                 data += ":";
                 data = WString::replace(data, " :", ":");
@@ -51,6 +49,7 @@ void SwoDayOne::get() {
             // from there transform into the normal dataset needed for drawing lines in the graphic renderer
             //
             if (polygons.size() > 1) {
+                vector<double> warningList;
                 for (const auto& polygon : polygons) {
                     if (!polygon.empty()) {
                         const auto numbers = WString::split(polygon, " ");
@@ -84,7 +83,7 @@ void SwoDayOne::get() {
                         }
                     }
                 }
-                hashSwo[m] = warningList;
+                polygonBy[m] = warningList;
             }
         }
     }

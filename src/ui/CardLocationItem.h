@@ -1,25 +1,27 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTCARDLOCATIONITEM_H
-#define OBJECTCARDLOCATIONITEM_H
+#ifndef CARDLOCATIONITEM_H
+#define CARDLOCATIONITEM_H
 
-#include <QWidget>
-#include "ui/HBox.h"
+#include "objects/LatLon.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
+#include "ui/Window.h"
 
 class CardLocationItem : public VBox {
 public:
-    CardLocationItem(QWidget *, int);
+    CardLocationItem(Window *, int);
 
 private:
     VBox box;
+    LatLon latLon;
     Text text1;
     Text text2;
+    Text text3;
 };
 
-#endif  // OBJECTCARDLOCATIONITEM_H
+#endif  // CARDLOCATIONITEM_H

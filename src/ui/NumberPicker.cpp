@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -11,16 +11,14 @@
 #include "settings/UIPreferences.h"
 #include "util/Utility.h"
 
-NumberPicker::NumberPicker(QWidget * parent, const string& label, const string& pref, int defaultValue, int low, int up, int step)
-    : QObject(parent)
-    , parent{ parent }
-    , pref{ pref }
-    , defaultValue{ defaultValue }
-    , text{ Text{parent, label} }
-    , qSpinBox{ new QSpinBox{parent} }
+NumberPicker::NumberPicker(Window * parent, const string& label, const string& pref, int defaultValue, int low, int up, int step)
+    : pref{pref}
+    , defaultValue{defaultValue}
+    , text{parent, label}
+    , qSpinBox{new QSpinBox{parent}}
 {
     text.setWordWrap(false);
-    box.addWidget(qSpinBox);
+    box.addWidgetReal(qSpinBox);
     box.addWidget(text);
 
     qSpinBox->setRange(low, up);
@@ -32,9 +30,9 @@ NumberPicker::NumberPicker(QWidget * parent, const string& label, const string& 
 
 // #if QT_VERSION >= 0x051400 //0x060000
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
-    QObject::connect(qSpinBox, static_cast<void (QSpinBox::*)(const QString &)>(&QSpinBox::textChanged), this, [this] (const QString& val) { updateNp(val); });
+    QObject::connect(qSpinBox, static_cast<void (QSpinBox::*)(const QString &)>(&QSpinBox::textChanged), parent, [this] (const QString& val) { updateNp(val); });
 #else
-    QObject::connect(qSpinBox, static_cast<void (QSpinBox::*)(const QString &)>(&QSpinBox::valueChanged), this, [this] (QString val) { updateNp(val); });
+    QObject::connect(qSpinBox, static_cast<void (QSpinBox::*)(const QString &)>(&QSpinBox::valueChanged), parent, [this] (QString val) { updateNp(val); });
 #endif
 }
 
@@ -48,6 +46,6 @@ int NumberPicker::getCurrentValue() {
     return Utility::readPrefInt(pref, defaultValue);
 }
 
-QBoxLayout * NumberPicker::get() {
+QBoxLayout * NumberPicker::getView() {
     return box.getView();
 }

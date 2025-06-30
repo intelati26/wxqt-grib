@@ -24,6 +24,7 @@
 #include <vector>
 #include "external/BoundingBox.h"
 #include "external/ExternalLine.h"
+#include "external/ExternalPoint.h"
 #include "objects/LatLon.h"
 
 using std::vector;
@@ -31,13 +32,13 @@ using std::vector;
 class ExternalPolygon {
 public:
     ExternalPolygon(const vector<ExternalLine>&, BoundingBox);
+    static bool polygonContainsPoint(const LatLon&, const vector<LatLon>&);
+
+private:
     bool inBoundingBox(ExternalPoint) const;
     bool contains(ExternalPoint) const;
     ExternalLine createRay(ExternalPoint) const;
     static bool intersect(const ExternalLine&, const ExternalLine&) ;
-    static bool polygonContainsPoint(const LatLon&, const vector<LatLon>&);
-
-private:
     vector<ExternalLine> sides;
     BoundingBox boundingBox;
 };

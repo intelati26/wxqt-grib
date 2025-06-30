@@ -1,33 +1,32 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTCARDSTORMREPORTITEM_H
-#define OBJECTCARDSTORMREPORTITEM_H
+#ifndef CARDSTORMREPORTITEM_H
+#define CARDSTORMREPORTITEM_H
 
 #include <string>
-#include <QWidget>
 #include "spc/StormReport.h"
 #include "ui/Button.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
+#include "ui/Window.h"
 
 using std::string;
 
 class CardStormReportItem : public HBox {
 public:
-    CardStormReportItem(QWidget *, const StormReport&);
+    CardStormReportItem(Window *, const StormReport&);
 
 private:
     static void launchMap(const string&, const string&);
-    VBox layoutButtons;
-    VBox textLayout;
-    Text topLine;
-    Text middleLine;
-    Text endLine;
-    Button buttonDetails;
+    VBox box;
+    Text text1;
+    Text text2;
+    Text text3;
+    Button button;
 };
 
-#endif  // OBJECTCARDSTORMREPORTITEM_H
+#endif  // CARDSTORMREPORTITEM_H

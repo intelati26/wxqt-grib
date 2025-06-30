@@ -19,16 +19,16 @@
     @author Mike Gavaghan
  */
 
-#include "external/ExternalGeodeticCalculator.h"
+#include "ExternalGeodeticCalculator.h"
 #include <cmath>
 #include "external/ExternalAngle.h"
 
-// Calculate the destination and const auto bearing after traveling a specified
+// Calculate the destination and const double bearing after traveling a specified
 // distance, and a specified starting bearing, for an initial location. This
 // is the solution to the direct geodetic problem.
 //
 // @param ellipsoid reference ellipsoid to use
-// @param start starting location
+// @param start - starting location
 // @param startBearing starting bearing (degrees)
 // @param distance distance to travel (meters)
 // @param endBearing bearing at destination (degrees) element at index 0 will

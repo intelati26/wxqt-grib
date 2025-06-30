@@ -1,41 +1,47 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "ui/CardCurrentConditions.h"
+#include "CardCurrentConditions.h"
+#include "settings/Location.h"
+#include "util/UtilityTimeSunMoon.h"
 
-CardCurrentConditions::CardCurrentConditions() = default;
-
-CardCurrentConditions::CardCurrentConditions(QWidget * parent, const CurrentConditions& cc)
-    : HBox{}
-    , topLine{ Text{parent, cc.topLine} }
-    , middleLine{ Text{parent, cc.middleLine} }
-    , bottomLine{ Text{parent, cc.bottomLine} }
-    , photo{ Photo{parent} }
+CardCurrentConditions::CardCurrentConditions(Window * parent, const CurrentConditions& cc)
+    : text1{parent}
+    , text2{parent}
+    , text3{parent}
+    , text4{parent, UtilityTimeSunMoon::getSunTimes(Location::getLatLonCurrent())}
+    , text5{parent, UtilityTimeSunMoon::getMoonTimes(Location::getLatLonCurrent())}
+    , photo{parent}
 {
-    boxText.setSpacing(0);
+    boxImage.addMargins();
 
-    topLine.setWordWrap(false);
-    topLine.setBold();
-    middleLine.setWordWrap(false);
-    bottomLine.setWordWrap(false);
+    text1.setBold();
+    text2.setGray();
+    text3.setGray();
+    text4.setGray();
+    text5.setGray();
+    text2.setWordWrap(false);
+    text3.setWordWrap(false);
 
-    photo.setAlignment(Qt::AlignTop);
-    photo.setNwsIcon(cc.iconUrl);
+    boxImage.addWidget(photo);
+    boxText.addWidget(text1);
+    boxText.addWidget(text2);
+    boxText.addWidget(text3);
+    boxText.addWidget(text4);
+    boxText.addWidget(text5);
 
-    boxText.addWidget(topLine, 0, Qt::AlignTop);
-    boxText.addWidget(middleLine, 0, Qt::AlignTop);
-    boxText.addWidget(bottomLine, 0, Qt::AlignTop);
-
-    addWidget(photo);
+    addLayout(boxImage);
     addLayout(boxText);
+
+    update(cc);
 }
 
 void CardCurrentConditions::update(const CurrentConditions& cc) {
-    topLine.setText(cc.topLine);
-    middleLine.setText(cc.middleLine);
-    bottomLine.setText(cc.bottomLine);
+    text1.setText(cc.topLine);
+    text2.setText(cc.middleLine);
+    text3.setText(cc.bottomLine);
     photo.setNwsIcon(cc.iconUrl);
 }

@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,18 +8,18 @@
 #define ICON_H
 
 enum Icon {
-    None = 0,
-    Settings = 1,
-    Play = 2,
-    Update = 3,
-    Left = 4,
-    Right = 5,
-    Plus = 6,
-    Minus = 7,
-    Up = 8,
-    Down = 9,
-    Radar = 10,
-    Delete = 11,
+    None,
+    Settings,
+    Play,
+    Update,
+    Left,
+    Right,
+    Plus,
+    Minus,
+    Up,
+    Down,
+    Radar,
+    Delete,
 };
 
 #endif  // ICON_H

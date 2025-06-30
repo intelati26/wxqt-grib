@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -10,7 +10,7 @@
 #include "util/UtilityUI.h"
 
 TwoWidgetScroll::TwoWidgetScroll(Window * parent, Widget2& w1, Widget2& w2)
-    : scrollArea{ new QScrollArea{parent} }
+    : scrollArea{new QScrollArea{parent}}
 {
     vbox0.addWidget(w1);
     vbox0.setAlignment(w1, Qt::AlignTop);

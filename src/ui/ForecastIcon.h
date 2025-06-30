@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -10,6 +10,7 @@
 #include <string>
 #include <QImage>
 #include <QPainter>
+#include "ui/Pix.h"
 
 using std::string;
 
@@ -21,8 +22,8 @@ public:
     void drawRightText(const string&);
     void drawVerticalBar();
     void drawSingleText(const string&);
-    QImage get();
-    static QImage blankBitmap();
+    Pix get();
+    static Pix blankBitmap();
 
 private:
     QImage image;

@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -11,12 +11,13 @@
 #include <QFormLayout>
 #include "ui/Box.h"
 #include "ui/Widget2.h"
+#include "ui/Window.h"
 
 using std::string;
 
 class Table : public Box {
 public:
-    explicit Table(QWidget *);
+    explicit Table(Window *);
     void addRow(const string&, Widget2&);
     QFormLayout * getView();
 

@@ -12,7 +12,7 @@ print('<!DOCTYPE RCC><RCC version="1.0">', file=fh)
 print("<qresource>", file=fh)
 files: List[str] = glob.glob("res/*")
 for f in sorted(files):
-    if not f in bigFiles:
+    if f not in bigFiles:
         print("    <file>" + f + "</file>", file=fh)
 print("</qresource>", file=fh)
 print("</RCC>", file=fh)

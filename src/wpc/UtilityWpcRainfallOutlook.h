@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef WPCUTILITYWPCRAINFALLOUTLOOK_H
-#define WPCUTILITYWPCRAINFALLOUTLOOK_H
+#ifndef UTILITYWPCRAINFALLOUTLOOK_H
+#define UTILITYWPCRAINFALLOUTLOOK_H
 
 #include <string>
 #include <vector>
@@ -19,4 +19,4 @@ public:
     static const vector<string> urls;
 };
 
-#endif  // WPCUTILITYWPCRAINFALLOUTLOOK_H
+#endif  // UTILITYWPCRAINFALLOUTLOOK_H

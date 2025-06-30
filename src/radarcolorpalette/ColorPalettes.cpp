@@ -1,15 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "radarcolorpalette/ColorPalettes.h"
-#include <vector>
+#include "ColorPalettes.h"
 #include "radarcolorpalette/ColorPalette.h"
-#include "util/UtilityList.h"
-
-using std::vector;
 
 void ColorPalettes::initialize() {
     ColorPalette::refreshPref();

@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,7 +8,7 @@
 
 unordered_map<RadarGeometryTypeEnum, RadarGeomInfo> RadarGeometry::dataByType;
 
-void RadarGeometry::initialize() {
+void RadarGeometry::initStatic() {
     for (auto t : {
         StateLines,
         CountyLines,
@@ -19,9 +19,9 @@ void RadarGeometry::initialize() {
         MxLines,
     }) {
         if (dataByType.contains(t)) {
-            dataByType[t].update();
+            dataByType.at(t).update();
         } else {
-            dataByType[t] = RadarGeomInfo{t};
+            dataByType.insert({t, RadarGeomInfo{t}});
         }
     }
 }

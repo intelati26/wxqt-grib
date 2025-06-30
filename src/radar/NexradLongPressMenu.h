@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,25 +8,24 @@
 #define NEXRADLONGPRESSMENU_H
 
 #include <functional>
-#include <vector>
-#include <QWidget>
+#include <string>
+#include <QPoint>
 #include "objects/LatLon.h"
 #include "radar/NexradState.h"
-#include "radar/PolygonType.h"
-#include "ui/ComboBox.h"
+#include "ui/Window.h"
 
 using std::function;
-using std::vector;
+using std::string;
 
 class NexradLongPressMenu {
 public:
     static void setupContextMenu(
-        QWidget *,
+        Window *,
         const QPoint&,
         const NexradState&,
         const LatLon&,
-        const function<void(int, string)>&,
-        const function<void(int, string)>&
+        const function<void(int, const string&)>&,
+        const function<void(int, const string&)>&
     );
 };
 

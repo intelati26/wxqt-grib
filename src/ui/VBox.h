@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -22,10 +22,10 @@ using std::vector;
 class VBox : public Box {
 public:
     VBox();
-    void addWidget(QWidget *, int = 0, Qt::Alignment = Qt::Alignment());
-    void addWidget(Widget2&, int = 0, Qt::Alignment = Qt::Alignment());
+    void addWidgetReal(QWidget *, int = 0, Qt::Alignment = Qt::AlignTop | Qt::AlignBaseline);
+    void addWidget(Widget2&, int = 0, Qt::Alignment = Qt::AlignTop | Qt::AlignBaseline);
     void addWidgetAndCenter(Widget2&);
-    void addLayout(QLayout *, int = 0);
+    void addLayoutReal(QLayout *, int = 0);
     void addLayout(Box&, int = 0);
     void addStretch();
     void setSpacing(int);
@@ -34,7 +34,7 @@ public:
     void setAlignment(Widget2&, Qt::Alignment);
     void getAndShow(Window *);
     void removeChildren();
-    void addImageRows(QWidget *, const vector<string>&, vector<Image>&, int);
+    void addImageRows(Window *, const vector<string>&, vector<Image>&, int, int = 0);
     QVBoxLayout * getView();
 
 private:

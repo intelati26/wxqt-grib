@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -18,18 +18,20 @@
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Widget.h"
+#include "ui/Window.h"
 
 using std::string;
 using std::vector;
 
 class SettingsRadarBox : public Widget {
 public:
-    explicit SettingsRadarBox(QWidget *);
+    explicit SettingsRadarBox(Window *);
 
 private:
     void changeRefPal();
     void changeVelPal();
     void launchShortcuts();
+    Window * parent;
     const vector<string> refPalChoices{"CODENH", "DKenh", "NSSL", "NWSD", "GREEN", "AF", "EAK", "NWS"};
     const vector<string> velPalChoices{"CODENH", "EAK", "AF"};
     VBox box;

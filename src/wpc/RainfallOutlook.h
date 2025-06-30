@@ -1,25 +1,30 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef WPCRAINFALLOUTLOOK_H
-#define WPCRAINFALLOUTLOOK_H
+#ifndef RAINFALLOUTLOOK_H
+#define RAINFALLOUTLOOK_H
 
-#include "ui/TwoWidgetScroll.h"
 #include "ui/Photo.h"
+#include "ui/Shortcut.h"
 #include "ui/Text.h"
+#include "ui/TwoWidgetScroll.h"
+#include "ui/VBox.h"
 #include "ui/Window.h"
 
 class RainfallOutlook : public Window {
 public:
-    RainfallOutlook(QWidget *, int);
+    RainfallOutlook(Window *, int);
 
 private:
+    VBox vbox0;
+    VBox vbox1;
+    TwoWidgetScroll sw;
     Photo photo;
     Text text;
-    TwoWidgetScroll sw;
+    Shortcut shortcutImage;
 };
 
-#endif  // WPCRAINFALLOUTLOOK_H
+#endif  // RAINFALLOUTLOOK_H

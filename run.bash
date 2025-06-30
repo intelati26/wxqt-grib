@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # compile and run the program
 # compiles with 4 cores unless called with an arg
@@ -19,7 +19,7 @@ fi
 echo ${buildCommand}
 
 if ${buildCommand}; then
-    if [ "$(uname)" == "Darwin" ]; then
+    if [ "$(uname)" = "Darwin" ]; then
         build/release/${appName}.app/Contents/MacOS/${appName} "$@"
     else
         build/release/${appName} "$@"

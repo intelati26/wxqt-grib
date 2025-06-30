@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,19 +8,16 @@
 #define TEXTVIEWMETAL_H
 
 #include <string>
-#include <QString>
 
 using std::string;
 
 class TextViewMetal {
 public:
-    void setText(const string&);
-    void setPadding(double, double);
-    QString text;
-    int xPos{};
-    int yPos{};
-
-    static float fontSize;
+    TextViewMetal(double, double, const string&);
+    int xPos;
+    int yPos;
+    string text;
+    static double fontSize;
 };
 
 #endif  // TEXTVIEWMETAL_H

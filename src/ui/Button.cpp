@@ -1,22 +1,21 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "ui/Button.h"
 #include "common/GlobalVariables.h"
+#include "ui/ButtonIcon.h"
 #include "ui/IconMapping.h"
 
-Button::Button(QWidget * parent, Icon icon, const string& label)
-    : parent{ parent }
-    , button{ new QPushButton{parent} }
+Button::Button(Window * parent, Icon icon, const string& label)
+    : parent{parent}
+    , button{new QPushButton{parent}}
 {
     button->setToolTip(QString::fromStdString(label));
     if (icon != None) {
-        const auto pixmap = QPixmap{QString::fromStdString(GlobalVariables::imageDir + IconMapping::toString(icon))};
-        const auto buttonIcon = QIcon{pixmap};
-        button->setIcon(buttonIcon);
+        ButtonIcon(button, GlobalVariables::imageDir + IconMapping::toString(icon));
     }
     if (!label.empty() && icon == None) {
         button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);

@@ -23,15 +23,19 @@
 //
 //   @author Mike Gavaghan
 
-#include "external/ExternalGlobalCoordinates.h"
+#include "ExternalGlobalCoordinates.h"
 
 ExternalGlobalCoordinates::ExternalGlobalCoordinates(double latitude, double longitude)
-    : latitude{ latitude }
-    , longitude{ longitude }
+    : latitude{latitude}
+    , longitude{longitude}
 {}
 
+ExternalGlobalCoordinates ExternalGlobalCoordinates::withEc(const ExternalGlobalCoordinates& ec, bool lonNegativeOne) {
+    return lonNegativeOne ? ExternalGlobalCoordinates{ec.getLatitude(), ec.getLongitude() * -1.0} : ExternalGlobalCoordinates{ec.getLatitude(), ec.getLongitude()};
+}
+
 ExternalGlobalCoordinates ExternalGlobalCoordinates::withPn(const ProjectionNumbers& pn, bool lonNegativeOne) {
-    return lonNegativeOne ? ExternalGlobalCoordinates{pn.x(), pn.y() * -1.0} : ExternalGlobalCoordinates{pn.x(), pn.y()};
+    return lonNegativeOne ? ExternalGlobalCoordinates{pn.getLatLon().lat(), pn.getLatLon().lon() * -1.0} : ExternalGlobalCoordinates{pn.getLatLon().lat(), pn.getLatLon().lon()};
 }
 
 double ExternalGlobalCoordinates::getLatitude() const {

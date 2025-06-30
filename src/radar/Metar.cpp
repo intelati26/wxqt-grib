@@ -1,26 +1,38 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "radar/Metar.h"
-#include <QDebug>
-#include "objects/Color.h"
+#include "Metar.h"
 #include "common/GlobalVariables.h"
+#include "objects/Color.h"
+#include "objects/WString.h"
+#include "radar/RadarSites.h"
 #include "util/To.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityList.h"
+#include "util/UtilityLog.h"
 #include "util/UtilityMath.h"
 #include "util/UtilityString.h"
-#include "objects/WString.h"
 
-const string Metar::metarFileName{"/us_metar3.txt"};
-bool Metar::initializedObsMap{false};
-unordered_map<string, LatLon> Metar::obsLatlon;
-vector<string> Metar::metarDataRaw;
-vector<RID> Metar::metarSites;
-std::mutex Metar::mtx;
+unique_ptr<Sites> Metar::sites;
+
+void Metar::initialize() {
+    unordered_map<string, string> name;
+    unordered_map<string, string> lat;
+    unordered_map<string, string> lon;
+    auto lines = UtilityIO::rawFileToStringArray(GlobalVariables::resDir + "obs_all.txt");
+    for (auto line : lines) {
+        auto items = WString::split(WString::strip(line), ",");
+        if (items.size() > 2) {
+            name[items[0]] = items[1] + ", " + items[2];
+            lat[items[0]] = items[3];
+            lon[items[0]] = items[4];
+        }
+    }
+    sites = make_unique<Sites>(name, lat, lon, false);
+}
 
 void Metar::getStateMetarArrayForWXOGL(const string& radarSite, FileStorage& fileStorage) {
     if (fileStorage.obsDownloadTimer.isRefreshNeeded() || radarSite != fileStorage.obsOldRadarSite) {
@@ -33,25 +45,13 @@ void Metar::getStateMetarArrayForWXOGL(const string& radarSite, FileStorage& fil
         vector<int> obsAlAviationColor;
         fileStorage.obsOldRadarSite = radarSite;
         const auto obsList = getNearbyObsSites(radarSite);
-
         const auto url = "https://aviationweather.gov/cgi-bin/data/metar.php?ids=" + obsList;
         const auto html = UtilityIO::getHtml(url);
         const auto metarsTmp = WString::split(html, GlobalVariables::newline);
-        const auto metarArr = condenseObs(metarsTmp);
-        mtx.lock();
-        if (!initializedObsMap) {
-            const auto lines = UtilityIO::rawFileToStringArray(GlobalVariables::resDir + metarFileName);
-            for (const auto& line : lines) {
-                const auto items = WString::split(line, " ");
-                obsLatlon[items[0]] = LatLon{items[1], items[2]};
-            }
-            initializedObsMap = true;
-        }
-        mtx.unlock();
-        for (const auto& metar : metarArr) {
-            if ((WString::startsWith(metar, "K") || WString::startsWith(metar, "P")) && !WString::contains(metar, "NIL")) {
-                auto validWind = false;
-                auto validWindGust = false;
+        const auto metars = condense(metarsTmp);
+        // initObsMap();
+        for (const auto& metar : metars) {
+            if ((WString::startsWith(metar, "K") || WString::startsWith(metar, "P") || WString::startsWith(metar, "T")) && !WString::contains(metar, "NIL")) {
                 const auto metarItems = WString::split(metar, " ");
                 const auto tmpBlob = UtilityString::parse(metar, ".*? (M?../M?..) .*?");
                 const auto tempAndDewpointList = WString::split(tmpBlob, "/");
@@ -89,23 +89,25 @@ void Metar::getStateMetarArrayForWXOGL(const string& radarSite, FileStorage& fil
                     bknInt = To::Int(bknStr);
                 }
                 auto lowestCig = bknInt < ovcInt ? bknInt : ovcInt;
-                auto aviationColor = Color::GREEN;
+                auto aviationColor = Color::greenInt;
                 if (visInt > 5 && lowestCig > 3000) {
-                    aviationColor = Color::GREEN;
+                    aviationColor = Color::greenInt;
                 }
                 if ((visInt >= 3 && visInt <= 5) || (lowestCig >= 1000 && lowestCig <= 3000)) {
                     aviationColor = Color::rgb(0, 100, 255);
                 }
                 if ((visInt >= 1 && visInt < 3) || (lowestCig >= 500 && lowestCig < 1000)) {
-                    aviationColor = Color::RED;
+                    aviationColor = Color::redInt;
                 }
                 if (visInt < 1 || lowestCig < 500) {
-                    aviationColor = Color::MAGENTA;
+                    aviationColor = Color::magentaInt;
                 }
                 if (pressureBlob.size() == 4) {
-                    pressureBlob = UtilityString::insert(pressureBlob, static_cast<int>(pressureBlob.size()) - 2, ".");
+                    pressureBlob = UtilityString::insert(pressureBlob, pressureBlob.size() - 2, ".");
                     pressureBlob = UtilityMath::unitsPressure(pressureBlob);
                 }
+                auto validWind = false;
+                auto validWindGust = false;
                 string windDir;
                 string windInKt;
                 string windGustInKt;
@@ -113,14 +115,16 @@ void Metar::getStateMetarArrayForWXOGL(const string& radarSite, FileStorage& fil
                     validWind = true;
                     windDir = UtilityString::substring(windBlob, 0, 3);
                     windInKt = UtilityString::substring(windBlob, 3, 5);
-                    windBlob = windDir + " (" + UtilityMath::convertWindDir(windDir) + ") " + windInKt + " kt";
+                    const auto windDirInt = To::Int(windDir);
+                    windBlob = windDir + " (" + UtilityMath::bearingToDirection(windDirInt) + ") " + windInKt + " kt";
                 } else if (WString::contains(windBlob, "KT") && windBlob.size() == 10) {
                     validWind = true;
                     validWindGust = true;
                     windDir = UtilityString::substring(windBlob, 0, 3);
                     windInKt = UtilityString::substring(windBlob, 3, 5);
                     windGustInKt = UtilityString::substring(windBlob, 6, 8);
-                    windBlob = windDir + " (" + UtilityMath::convertWindDir(windDir) + ") " + windInKt + " G " + windGustInKt + " kt";
+                    const auto windDirInt = To::Int(windDir);
+                    windBlob = windDir + " (" + UtilityMath::bearingToDirection(windDirInt) + ") " + windInKt + " G " + windGustInKt + " kt";
                 }
                 if (tempAndDewpointList.size() > 1) {
                     auto temperature = tempAndDewpointList[0];
@@ -132,13 +136,14 @@ void Metar::getStateMetarArrayForWXOGL(const string& radarSite, FileStorage& fil
                     dewPoint = UtilityMath::celsiusToFahrenheit(dewPoint);
                     dewPoint = WString::split(dewPoint, ".")[0];
                     const auto& obsSite = metarItems[0];
+                    // Metar.sites.byCode[obsSite].latLon.forNexrad()
                     LatLon latlon;
-                    if (obsLatlon.find(obsSite) == obsLatlon.end()) {
-                        // return "Not Present";
+                    if (sites->byCode.contains(obsSite)) {
+                        latlon = sites->byCode[obsSite]->latLon;  //.forNexrad();
                     } else {
-                        latlon = obsLatlon[obsSite];
+                        UtilityLog::d("Metar.obsLatlon not found: " + obsSite);
                     }
-                    latlon.setLonStr(WString::replace(latlon.lonStr(), "-0", "-"));
+                    latlon.setLon(To::Double(WString::replace(latlon.lonStr(), "-0", "-")));
                     obsAl.push_back(latlon.latStr() + ":" + latlon.lonStr() + ":" + temperature + "/" + dewPoint);
                     obsAlExt.push_back(latlon.latStr() + ":" + latlon.lonStr() + ":" + temperature + "/" + dewPoint + " (" + obsSite + ")" + GlobalVariables::newline + pressureBlob + " - " + visBlobDisplay + GlobalVariables::newline + windBlob + GlobalVariables::newline + conditionsBlob + GlobalVariables::newline + timeBlob);
                     if (validWind) {
@@ -163,42 +168,54 @@ void Metar::getStateMetarArrayForWXOGL(const string& radarSite, FileStorage& fil
     }
 }
 
+// void Metar::initObsMap() {
+//     mtx.lock();
+//     if (obsLatlon.empty()) {
+//         const auto lines = UtilityIO::rawFileToStringArray(GlobalVariables::resDir + metarFileName);
+//         for (const auto& line : lines) {
+//             const auto items = WString::split(line, " ");
+//             if (items.size() > 2) {
+//                 obsLatlon[items[0]] = LatLon{items[1], items[2]};
+//             }
+//         }
+//     }
+//     mtx.unlock();
+// }
+
 string Metar::getNearbyObsSites(const string& radarSite) {
     string obsListSb;
-    const auto radarLocation = LatLon::fromRadarSite(radarSite);
-    readMetarData();
-    const auto obsSiteRange = 200.0;
-    for (const auto& site : metarSites) {
-        const auto currentDistance = radarLocation.dist(site.location);
-        if (currentDistance < obsSiteRange) {
-            obsListSb += site.name + ",";
+    const auto radarLocation = RadarSites::getLatLon(radarSite);
+    // loadMetarData();
+    for (const auto& site : sites->sites) {
+        if (LatLon::distance(radarLocation, site.latLon) < 200.0) {
+            obsListSb += site.codeName + ",";
         }
     }
     return WString::replace(obsListSb, ",$", "");
 }
 
-void Metar::readMetarData() {
-    if (metarDataRaw.empty()) {
-        metarDataRaw = UtilityIO::rawFileToStringArray(GlobalVariables::resDir + metarFileName);
-        metarSites.clear();
-        for (const auto& metar : metarDataRaw) {
-            const auto items = WString::split(metar, " ");
-            if (items.size() > 2) {
-                metarSites.emplace_back(items[0], LatLon{items[1], items[2]}, 0.0);
-            }
-        }
-    }
-}
+// void Metar::loadMetarData() {
+//     if (metarDataRaw.empty()) {
+//         metarDataRaw = UtilityIO::rawFileToStringArray(GlobalVariables::resDir + metarFileName);
+//         metarSites.clear();
+//         for (const auto& metar : metarDataRaw) {
+//             const auto items = WString::split(metar, " ");
+//             if (items.size() > 2) {
+//                 metarSites.push_back(Site::fromLatLon(items[0], "", LatLon{items[1], items[2]}));
+//             }
+//         }
+//     }
+// }
 
 // used to condense a list of metar that contains multiple entries for one site,
 // newest is first so simply grab first/append
-vector<string> Metar::condenseObs(const vector<string>& observations) {
+vector<string> Metar::condense(const vector<string>& observations) {
     unordered_map<string, bool> siteMap;
     vector<string> goodObsList;
     for (const auto& ob : observations) {
         const auto items = WString::split(ob, " ");
         if (items.size() > 3) {
-            if (siteMap.find(items[0]) == siteMap.end()) {
+            if (!siteMap.contains(items[0])) {
                 siteMap[items[0]] = true;
                 goodObsList.push_back(ob);
             }
@@ -207,15 +224,17 @@ vector<string> Metar::condenseObs(const vector<string>& observations) {
     return goodObsList;
 }
 
-RID Metar::findClosestObservation(const LatLon& latLon, int index) {
-    readMetarData();
-    vector<RID> obsSites{metarSites};
-    for (auto i : range(obsSites.size())) {
-        obsSites[i].distance = latLon.dist(obsSites[i].location);
-    }
-    std::sort(
-        obsSites.begin(),
-        obsSites.end(),
-        [] (const RID &s1, const RID &s2) { return s1.distance < s2.distance; });
-    return obsSites[index];
+Site Metar::findClosestObservation(const LatLon& latLon, int order) {
+    return sites->getNearestSite(latLon, order);
+
+    // loadMetarData();
+    // vector<Site> obsSites{metarSites};
+    // for (auto i : range(obsSites.size())) {
+    //     obsSites[i].distance = LatLon::distance(latLon, obsSites[i].latLon);
+    // }
+    // std::sort(
+    //     obsSites.begin(),
+    //     obsSites.end(),
+    //     [] (const auto& s1, const auto& s2) { return s1.distance < s2.distance; });
+    // return obsSites[index];
 }

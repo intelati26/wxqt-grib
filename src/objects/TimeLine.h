@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -10,12 +10,13 @@
 #include <functional>
 #include <QObject>
 #include <QTimeLine>
+#include "ui/Window.h"
 
 using std::function;
 
 class TimeLine {
 public:
-    TimeLine(QObject *, int, int, const function<void(int)>&);
+    TimeLine(Window *, int, size_t, const function<void(int)>&);
     void stop();
     void setCount(int);
     void setSpeed(int);
@@ -25,7 +26,7 @@ public:
 
 private:
     QTimeLine::State state();
-    int count;
+    size_t count;
     QTimeLine * timeLine;
     bool running{false};
 };

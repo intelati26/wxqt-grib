@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -21,7 +21,7 @@ using std::vector;
 
 class WfoText : public Window {
 public:
-    explicit WfoText(QWidget *);
+    WfoText(Window *, const string& site = "");
 
 private:
     void reload();
@@ -31,8 +31,8 @@ private:
     HBox boxH;
     HBox boxText;
     ScrolledWindow sw;
-    ComboBox comboboxProduct;
     ComboBox comboboxSector;
+    ComboBox comboboxProduct;
     string product{"AFD"};
     string sector;
     vector<Text> textList;

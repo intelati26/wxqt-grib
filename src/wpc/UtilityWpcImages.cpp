@@ -1,15 +1,15 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "UtilityWpcImages.h"
-#include "../common/GlobalVariables.h"
+#include "common/GlobalVariables.h"
 
 vector<MenuTitle> UtilityWpcImages::titles{
     MenuTitle{"Surface Analysis", 7},
-    MenuTitle{"Forecast Maps", 22},
+    MenuTitle{"Forecast Maps", 17},
     MenuTitle{"QPF", 27},
     MenuTitle{"Snow / Ice", 17},
     MenuTitle{"National Digital Forecast Database", 15},
@@ -44,11 +44,6 @@ const vector<string> UtilityWpcImages::labels{
     "WPC Fronts - 5day",
     "WPC Fronts - 6day",
     "WPC Fronts - 7day",
-    "Forecast map - 3day (NHEM)",
-    "Forecast map - 4day (NHEM)",
-    "Forecast map - 5day (NHEM)",
-    "Forecast map - 6day (NHEM)",
-    "Forecast map - 7day (NHEM)",
 
     "QPF Day 1",
     "QPF Day 2",
@@ -186,11 +181,6 @@ const vector<string> UtilityWpcImages::urls{
     "https://www.wpc.ncep.noaa.gov/medr/9lhwbg_conus.gif",
     "https://www.wpc.ncep.noaa.gov/medr/9mhwbg_conus.gif",
     "https://www.wpc.ncep.noaa.gov/medr/9nhwbg_conus.gif",
-    "https://www.wpc.ncep.noaa.gov/medr/9jh.gif",
-    "https://www.wpc.ncep.noaa.gov/medr/9kh.gif",
-    "https://www.wpc.ncep.noaa.gov/medr/9lh.gif",
-    "https://www.wpc.ncep.noaa.gov/medr/9mh.gif",
-    "https://www.wpc.ncep.noaa.gov/medr/9nh.gif",
 
     "https://www.wpc.ncep.noaa.gov/qpf/fill_94qwbg.gif",
     "https://www.wpc.ncep.noaa.gov/qpf/fill_98qwbg.gif",

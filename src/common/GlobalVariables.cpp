@@ -1,16 +1,16 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "common/GlobalVariables.h"
+#include "GlobalVariables.h"
 
 const string GlobalVariables::appName{"wxqt"};
 const string GlobalVariables::aboutString{
-appName + " is an efficient and configurable method to access weather content from the NWS, NSSL WRF, and blitzortung.org."
+appName + " is an efficient and configurable method to access weather content from the NWS, and NSSL WRF"
 " Software is provided \"as is\". Use at your own risk. Use for educational purposes and non-commercial purposes only."
-" Do not use for operational purposes.  Copyright 2020, 2021, 2022 joshua.tee@gmail.com ."
+" Do not use for operational purposes.  Copyright 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com ."
 " Privacy Policy: this app does not collect any data from the user or the user’s device."
 " Please report bugs or suggestions via email. "
  + appName + " is licensed under the GNU GPLv3 license. For more information on the license please go here:"
@@ -47,15 +47,14 @@ const string GlobalVariables::mainScreenShortcuts{R"mainScreenShort(
 
     )mainScreenShort"};
 
-
 const string GlobalVariables::nexradShortcuts{R"nexradShort(
 
     Ctrl-DownArrow - down
     Ctrl-UpArrow - up
     Ctrl-LeftArrow - left
     Ctrl-RightArrow - right
-    Ctrl--  zoom out
-    Ctrl-+  zoom in
+    Ctrl-- zoom out
+    Ctrl-+ zoom in
 
     Ctrl-a animate (stops animation if one is going)
     Ctrl-u start/stop auto update
@@ -76,12 +75,12 @@ const string GlobalVariables::appCreatorEmail{"joshua.tee@gmail.com"};
 const string GlobalVariables::resDir{":/res/"};
 const string GlobalVariables::imageDir{":/images/"};
 const string GlobalVariables::newline{"\n"};
-// const string GlobalVariables::degreeSymbol{qstring::fromUtf8("°").toStdString()};
 const string GlobalVariables::degreeSymbol{"\u00B0"};
 const string GlobalVariables::nwsSPCwebsitePrefix{"https://www.spc.noaa.gov"};
 const string GlobalVariables::nwsWPCwebsitePrefix{"https://www.wpc.ncep.noaa.gov"};
 const string GlobalVariables::nwsAWCwebsitePrefix{"https://www.aviationweather.gov"};
 const string GlobalVariables::nwsGraphicalWebsitePrefix{"https://graphical.weather.gov"};
+const string GlobalVariables::nwsOpcWebsitePrefix{"https://ocean.weather.gov"};
 const string GlobalVariables::nwsNhcWebsitePrefix{"https://www.nhc.noaa.gov"};
 const string GlobalVariables::goes16Url{"https://cdn.star.nesdis.noaa.gov/"};
 const string GlobalVariables::nwsApiUrl{"https://api.weather.gov/"};

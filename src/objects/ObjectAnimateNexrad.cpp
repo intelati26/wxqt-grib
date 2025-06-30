@@ -1,31 +1,34 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "objects/ObjectAnimateNexrad.h"
-#include <iostream>
+#include "ObjectAnimateNexrad.h"
 #include "radar/NexradDownload.h"
 #include "util/To.h"
 #include "util/Utility.h"
 #include "util/UtilityLog.h"
 
-ObjectAnimateNexrad::ObjectAnimateNexrad(QWidget * parent, vector<NexradWidget *> * nexradList, ButtonToggle * animateButton, ComboBox * comboboxAnimCount, ComboBox * comboboxAnimSpeed)
-    : parent{ parent }
-    , nexradList{ nexradList }
-    , animateButton{ animateButton }
-    , comboboxAnimCount{ comboboxAnimCount }
-    , comboboxAnimSpeed{ comboboxAnimSpeed }
-    , timeLine{ TimeLine{this, animationSpeed, frameCount, [this] (int i) { loadAnimationFrame(i); }} }
+ObjectAnimateNexrad::ObjectAnimateNexrad(
+    Window * parent,
+    vector<NexradWidget *> * nexradList,
+    ComboBox * comboboxAnimCount,
+    ComboBox * comboboxAnimSpeed
+)
+    : ObjectAnimateParent{parent}
+    , nexradList{nexradList}
+    , comboboxAnimCount{comboboxAnimCount}
+    , comboboxAnimSpeed{comboboxAnimSpeed}
+    , timeLine{parent, animationSpeed, frameCount, [this] (int i) { loadAnimationFrame(i); }}
 {}
 
 void ObjectAnimateNexrad::animateClicked() {
     if (!timeLine.isRunning()) {
-//        animateButton->setActive(true);
+//        button.setActive(true);
         frameCount = To::Int(comboboxAnimCount->getValue());
         animationSpeed = To::Int(comboboxAnimSpeed->getValue()) * 500;
-        animateButton->setText("Downloading");
+        button.setText("Downloading");
         downloadFrames();
         timeLine.setSpeed(animationSpeed);
         timeLine.setCount(frameCount);
@@ -41,23 +44,27 @@ void ObjectAnimateNexrad::animateClicked() {
 // }
 
 void ObjectAnimateNexrad::stopAnimate() {
-    animateButton->setText("");
+    button.setText("");
     for (auto nw : *nexradList) {
-        nw->nexradState.levelDataList.clear();
+        nw->nexradStateAnimation.levelDataList.clear();
     }
     if (timeLine.isRunning()) {
         timeLine.stop();
         for (auto nw : *nexradList) {
             nw->downloadData();
+            nw->draw();
+            // new FutureVoid{this,
+            //     [nw] { nw->downloadData(); },
+            //     [nw] { nw->draw(); }};
         }
     }
 }
 
 void ObjectAnimateNexrad::stopAnimateNoDownload() {
-    animateButton->setText("");
-    animateButton->setActive(false);
+    button.setText("");
+    button.setActive(false);
     for (auto nw : *nexradList) {
-        nw->nexradState.levelDataList.clear();
+        nw->nexradStateAnimation.levelDataList.clear();
     }
     if (timeLine.isRunning()) {
         timeLine.stop();
@@ -65,25 +72,21 @@ void ObjectAnimateNexrad::stopAnimateNoDownload() {
 }
 
 void ObjectAnimateNexrad::downloadFrames() {
-    // std::cout << "START: downloadFrames" << std::endl;
     for (auto nw : *nexradList) {
-        // std::cout << "START: download" << std::endl;
-        NexradDownload::getRadarFilesForAnimation(parent, frameCount, nw->nexradState.getRadarProduct(), nw->nexradState.getRadarSite(), &(nw->fileStorage));
-        nw->nexradState.levelDataList.clear();
-        // std::cout << "START: process" << std::endl;
-        nw->nexradState.processAnimationFiles(frameCount, &(nw->fileStorage));
+        NexradDownload::getRadarFilesForAnimation(frameCount, nw->nexradState.getRadarProduct(), nw->nexradState.getRadarSite(), &nw->fileStorage);
+        nw->nexradStateAnimation.levelDataList.clear();
+        nw->nexradStateAnimation.processAnimationFiles(frameCount, &nw->fileStorage, &nw->nexradState);
     }
-    // std::cout << "END: downloadFrames" << std::endl;
 }
 
-void ObjectAnimateNexrad::loadAnimationFrame(int index) {
-    UtilityLog::d(To::string(index));
+void ObjectAnimateNexrad::loadAnimationFrame(int animationIndex) {
+    UtilityLog::d(To::string(animationIndex));
     for (auto nw : *nexradList) {
-        nw->downloadDataForAnimation(index);
+        nw->downloadDataForAnimation(animationIndex % frameCount);
     }
-    animateButton->setText(To::stringPadLeftZeros(To::string(index + 1), 2) + " / " + To::string(frameCount));
+    button.setText(To::stringPadLeftZeros(To::string(animationIndex + 1), 2) + " / " + To::string(frameCount));
     for (auto nw : *nexradList) {
-        nw->update();
+        nw->draw();
     }
 }
 

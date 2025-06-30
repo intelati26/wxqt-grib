@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -23,7 +23,7 @@ public:
     void translate(int, const ProjectionNumbers&);
     QColor penColor;
     QVector<QLineF> coordinatesModified[4];
-    FrontTypeEnum frontType;
+    FrontTypeEnum type;
     vector<LatLon> coordinates;
 };
 

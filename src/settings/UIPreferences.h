@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -20,13 +20,17 @@ public:
     static void initialize();
     static const int boxPadding;
     static const int padding;
-    static int mainScreenImageSize;   
-    static int imageSizeNwsForecast;     
+    static int fontSize;
+    static bool unitsM;
+    static bool unitsF;
+    static int mainScreenImageSize;
+    static int nwsIconSize;
     static int comboBoxSize;
     static int toolbarIconSize;
+    static bool tiledWindows;
     static QMargins textPadding;
-    static bool useNwsApi;
-    static bool useNwsApiForHourly;
+    static const bool useNwsApi;
+    static const bool useNwsApiForHourly;
     static bool nexradMainScreen;
     static bool mainScreenSevereDashboard;
     static bool nexradScrollWheelMotion;

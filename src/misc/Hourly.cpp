@@ -1,23 +1,19 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "misc/Hourly.h"
-#include <string>
+#include "Hourly.h"
 #include "objects/FutureText.h"
 #include "settings/Location.h"
 
-using std::string;
-
-Hourly::Hourly(QWidget * parent)
+Hourly::Hourly(Window * parent)
     : Window{parent}
-    , sw{ ScrolledWindow{this, box} }
-    , text{ Text{this} }
+    , sw{this, box}
+    , text{this}
 {
-    setSize(500, 900);
-    setTitle("Hourly forecast for " + Location::locationName());
+    setTitle("Hourly forecast for " + Location::name());
     text.setFixedWidth();
     box.addWidget(text);
     box.addMargins();

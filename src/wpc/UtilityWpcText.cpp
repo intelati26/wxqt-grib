@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -7,17 +7,17 @@
 #include "UtilityWpcText.h"
 
 vector<MenuTitle> UtilityWpcText::titles{
-    MenuTitle{"General Forecast Discussions", 10},
+    MenuTitle{"General Forecast Discussions", 9},
     MenuTitle{"Precipitation Discussions", 2},
-    MenuTitle{"Hazards", 7},
-    MenuTitle{"Ocean Weather", 38},
+    MenuTitle{"Hazards", 6},
+    MenuTitle{"Ocean Weather", 33},
     MenuTitle{"Misc North American Weather", 5},
     MenuTitle{"Misc Intl Weather", 4},
     MenuTitle{"SPC", 8},
     MenuTitle{"NHC", 7},
     MenuTitle{"Great Lakes", 7},
-    MenuTitle{"Canada", 8},
-    MenuTitle{"Space Weather", 6}
+    MenuTitle{"Space Weather", 6},
+    MenuTitle{"Canada", 4}
 };
 
 const vector<string> UtilityWpcText::labels{
@@ -26,7 +26,6 @@ const vector<string> UtilityWpcText::labels{
 
     "pmdhi: Hawaii Extended Forecast Discussion",
     "pmdak: Alaska Extended Forecast Discussion",
-    "pmdsa: South American Synoptic Discussion",
     "pmdca: Tropical Discussion",
     "pmdmrd: Prognostic disc for 6-10 and 8-14 Day Outlooks",
     "pmd30d: Prognostic disc for Monthly Outlook",
@@ -36,7 +35,6 @@ const vector<string> UtilityWpcText::labels{
     "qpferd: Excessive Rainfall Discussion",
     "qpfhsd: Heavy Snow and Icing Discussion",
 
-    "ushzd37: CPC US Hazards Outlook Days 3-7",
     "pmdthr: CPC US Hazards Outlook Days 8-14",
     "sccns1: Storm Summary 1",
     "sccns2: Storm Summary 2",
@@ -50,7 +48,6 @@ const vector<string> UtilityWpcText::labels{
     "nfdhsfat1: High Seas Forecasts - N Atlantic",
     "nfdhsfep1: High Seas Forecasts - N Pacific",
     "nfdhsfepi: High Seas Forecasts - E and C N Pacific",
-    "mimpac: Marine Weather disc for N PAC Ocean",
     "offn09: Marine fsct for WA and ORE Waters",
     "offn08: Marine fcst for N CA Waters",
     "offn07: Marine fcst for S CA Waters",
@@ -58,7 +55,6 @@ const vector<string> UtilityWpcText::labels{
     "offpz6: Offshore Waters fsct - PAC 2",
     "nfdoffn35: (VOBRA) for Offshore Waters - WA/OR",
     "nfdoffn36: (VOBRA) for Offshore Waters - CA",
-    "mimatn: Marine disc for N Atlantic Ocean",
     "offn01: Navtex Marine fcst for NE US Waters",
     "offn02: Navtex Marine fcst for Atlantic States Waters",
     "offn03: Navtex Marine fcst for SE US Waters",
@@ -77,11 +73,8 @@ const vector<string> UtilityWpcText::labels{
     "offafg: Offshore Waters fsct - US Artic Waters",
     "offhfo: Offshore Waters fsct - Hawaii",
     "offn10: Navtex Marine fcst for Hawaii",
-    "offn11: Navtex Marine fcst for Kodiak, AK (SE)",
-    "offn12: Navtex Marine fcst for Kodiak, AK (N Gulf)",
-    "offn13: Navtex Marine fcst for Kodiak, AK (West)",
     "offn14: Navtex Marine fcst for Kodiak, AK (NW)",
-    "offn15: Navtex Marine fcst for Kodiak, AK(Arctic)",
+    "offn15: Navtex Marine fcst for Kodiak, AK (Arctic)",
 
     "uvicac: NOAA/EPA Ultraviolet Index /UVI/ Forecast",
     "tptwrn: Hourly temp/wx for Western US",
@@ -105,28 +98,19 @@ const vector<string> UtilityWpcText::labels{
 
     "miatwoat: ATL Tropical Weather Outlook",
     "miatwdat: ATL Tropical Weather Discussion",
+    "miatwsat: ATL Monthly Tropical Summary",
     "miatwoep: EPAC Tropical Weather Outlook",
     "miatwdep: EPAC Tropical Weather Discussion",
-    "miatwsat: ATL Monthly Tropical Summary",
     "miatwsep: EPAC Monthly Tropical Summary",
     "hfotwocp: CPAC Tropical Weather Outlook",
 
-    "glflm: Lake Michigan - Open Lake Forecast",
-    "glfls: Lake Superior - Open Lake Forecast",
-    "glflh: Lake Huron - Open Lake Forecast",
-    "glfsc: Lake St Clair - Open Lake Forecast",
-    "glfle: Lake Erie - Open Lake Forecast",
-    "glflo: Lake Ontario - Open Lake Forecast",
-    "glfsl: Saint Lawrence River",
-
-    "focn45: Significant Weather Discussion, PASPC",
-    "fxcn01_d1-3_west: FXCN01 D1-3 WEST",
-    "fxcn01_d4-7_west: FXCN01 D4-7 WEST",
-    "fxcn01_d1-3_east: FXCN01 D1-3 EAST",
-    "fxcn01_d4-7_east: FXCN01 D4-7 EAST",
-    "awcn11: Weather Summary Manitoba",
-    "awcn13: Weather Summary Saskatchewan",
-    "awcn15: Weather Summary Alberta",
+    "GLFLM: Lake Michigan - Open Lake Forecast",
+    "GLFLS: Lake Superior - Open Lake Forecast",
+    "GLFLH: Lake Huron - Open Lake Forecast",
+    "GLFSC: Lake St Clair - Open Lake Forecast",
+    "GLFLE: Lake Erie - Open Lake Forecast",
+    "GLFLO: Lake Ontario - Open Lake Forecast",
+    "GLFSL: Saint Lawrence River",
 
     "swpc3day: NOAA Geomagnetic Activity Observation and Forecast",
     "swpc3daygeo: NOAA Geomagnetic Activity Probabilities",
@@ -134,4 +118,9 @@ const vector<string> UtilityWpcText::labels{
     "swpc27day: 27-day Space Weather Outlook Table",
     "swpcdisc: Forecast Discussion",
     "swpcwwa: Advisory Outlook",
+
+    "focn45: Significant Weather Discussion, PASPC",
+    "awcn11: Weather Summary Manitoba",
+    "awcn13: Weather Summary Saskatchewan",
+    "awcn15: Weather Summary Alberta"
 };

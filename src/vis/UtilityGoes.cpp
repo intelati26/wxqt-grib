@@ -1,38 +1,30 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "UtilityGoes.h"
 #include <list>
-#include "../common/GlobalVariables.h"
-#include "../objects/WString.h"
-#include "../util/UtilityIO.h"
-#include "../util/UtilityList.h"
-#include "../util/UtilityString.h"
+#include "common/GlobalVariables.h"
+#include "objects/WString.h"
+#include "settings/UtilityLocation.h"
+#include "util/To.h"
+#include "util/UtilityIO.h"
+#include "util/UtilityList.h"
+#include "util/UtilityString.h"
 
-string UtilityGoes::getNearest(const LatLon& location) {
-    auto shortestDistance = 1000.00;
-    string bestSite;
-    for (const auto& item : sectorToLatLon) {
-        auto currentDistance = location.dist(item.second);
-        if (currentDistance < shortestDistance) {
-            shortestDistance = currentDistance;
-            bestSite = item.first;
-        }
-    }
-    return bestSite;
+string UtilityGoes::getNearest(const LatLon& latLon) {
+    return UtilityLocation::getNearest(latLon, sectorToLatLon);
 }
 
 string UtilityGoes::getImageFileName(const string& sector) {
     const string fullsize{"latest"};
-    // string size = sizeMap[sector] ?? fullsize;
     string size;
-    if (sizeMap.find(sector) == sizeMap.end()) {
-        size = fullsize;
-    } else {
+    if (sizeMap.contains(sector)) {
         size = sizeMap.at(sector);
+    } else {
+        size = fullsize;
     }
     return size + ".jpg";
 }
@@ -47,7 +39,7 @@ string UtilityGoes::getImage(const string& product, const string& sector) {
     auto sectorLocal = "SECTOR/" + sector;
     if (sector == "FD" || sector == "CONUS" || sector == "CONUS-G17" || sector == "FD-G17")
         sectorLocal = sector;
-    string satellite{"GOES16"};
+    string satellite{"GOES19"};
     if (contains(sectorsInGoes17, sector)) {
         satellite = "GOES17";
         if (sector == "CONUS-G17") {
@@ -65,35 +57,56 @@ string UtilityGoes::getImage(const string& product, const string& sector) {
     return url;
 }
 
-vector<string> UtilityGoes::getAnimation(const string& product, const string& sector, size_t frameCount) {
-    auto baseUrl = getImage(product, sector);
-    auto items = WString::split(baseUrl, "/");
-    items.pop_back();
-    items.pop_back();
-    if (product == "GLM") {
-        baseUrl = WString::join(items, "/") + "/EXTENT3/";
+// vector<string> UtilityGoes::getAnimation(const string& product, const string& sector, size_t frameCount) {
+//     auto baseUrl = getImage(product, sector);
+//     auto items = WString::split(baseUrl, "/");
+//     items.pop_back();
+//     items.pop_back();
+//     if (product == "GLM") {
+//         baseUrl = WString::join(items, "/") + "/EXTENT3/";
+//     } else {
+//         baseUrl = WString::join(items, "/") + "/" + product + "/";
+//     }
+//     const auto html = UtilityIO::getHtml(baseUrl);
+//     vector<string> urlList;
+//     if (product == "GLM" || WString::startsWith(sector, "CONUS")) {
+//         urlList = UtilityString::parseColumn(WString::replace(html, "\r\n", " "), "<a href=\"([^\\s]*?1250x750.jpg)\">");
+//     } else if (WString::startsWith(sector, "FD")) {
+//         urlList = UtilityString::parseColumn(WString::replace(html, "\r\n", " "), "<a href=\"([^\\s]*?1808x1808.jpg)\">");
+//     } else {
+//         urlList = UtilityString::parseColumn(WString::replace(html, "\r\n", " "), "<a href=\"([^\\s]*?1200x1200.jpg)\">");
+//     }
+//     std::list<string> returnList;
+//     if (urlList.size() > frameCount) {
+//         for ([[maybe_unused]] auto t : range(frameCount)) {
+//             auto u = urlList.back();
+//             urlList.pop_back();
+//             returnList.push_front(baseUrl + u);
+//         }
+//     }
+//     return {returnList.begin(), returnList.end()};
+//     // <a href="20211842100_GOES16-ABI-FL-GEOCOLOR-AL052021-1000x1000.jpg">
+// }
+
+vector<string> UtilityGoes::getAnimation(const string& product, const string& sector, size_t frameCnt) {
+    const auto frameCount = To::string(frameCnt);
+    string url;
+    string satellite = "G19";
+    if (contains(sectorsInGoes17, sector)) {
+        satellite = "G18";
+    }
+    if (sector == "FD") {
+        url = "https://www.star.nesdis.noaa.gov/GOES/fulldisk_band.php?sat=G19&band=" + WString::replace(product, "GLM", "EXTENT") + "&length=" + frameCount;
+    } else if (sector == "CONUS" || sector == "CONUS-G17") {
+        url = "https://www.star.nesdis.noaa.gov/GOES/conus_band.php?sat=" + satellite + "&band=" + WString::replace(product, "GLM", "EXTENT") + "&length=" + frameCount;
     } else {
-        baseUrl = WString::join(items, "/") + "/" + product + "/";
+        url = "https://www.star.nesdis.noaa.gov/GOES/sector_band.php?sat=" + satellite + "&sector=" + sector + "&band=" + product + "&length=" + frameCount;
     }
-    const auto html = UtilityIO::getHtml(baseUrl);
-    vector<string> urlList;
-    if (product == "GLM" || WString::startsWith(sector, "CONUS")) {
-        urlList = UtilityString::parseColumn(WString::replace(html, "\r\n", " "), "<a href=\"([^\\s]*?1250x750.jpg)\">");
-    } else if (WString::startsWith(sector, "FD")) {
-        urlList = UtilityString::parseColumn(WString::replace(html, "\r\n", " "), "<a href=\"([^\\s]*?1808x1808.jpg)\">");
-    } else {
-        urlList = UtilityString::parseColumn(WString::replace(html, "\r\n", " "), "<a href=\"([^\\s]*?1200x1200.jpg)\">");
-    }
-    std::list<string> returnList;
-    if (urlList.size() > frameCount) {
-        for ([[maybe_unused]] auto t : range(frameCount)) {
-            auto u = urlList.back();
-            urlList.pop_back();
-            returnList.push_front(baseUrl + u);
-        }
-    }
-    return {returnList.begin(), returnList.end()};
-    // <a href="20211842100_GOES16-ABI-FL-GEOCOLOR-AL052021-1000x1000.jpg">
+    const auto data = UtilityIO::getHtml(url);
+    auto html = WString::replace(data, "\n", "");
+    html = WString::replace(html, "\r", "");
+    const auto imageHtml = UtilityString::parse(html, "animationImages = \\[(.*?)\\];");
+    return UtilityString::parseColumn(imageHtml, "'(https.*?jpg)'");
 }
 
 vector<string> UtilityGoes::getAnimationGoesFloater(const string& product, const string& url, size_t frameCount) {
@@ -189,7 +202,7 @@ const vector<string> UtilityGoes::labels{
     "DMW"
 };
 
-const vector<string> UtilityGoes::codes{
+const vector<string> UtilityGoes::productCodes{
     "GEOCOLOR",
     "01",
     "02",

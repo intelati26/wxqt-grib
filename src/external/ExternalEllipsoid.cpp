@@ -3,7 +3,7 @@
  * http://www.gavaghan.org/blog/free-source-code/geodesy-library-vincentys-formula/
  *
  * This code may be freely used and modified on any personal or professional
- * project.  It comes with no warranty.
+ * project. It comes with no warranty.
  *
  * BitCoin tips graciously accepted at 1FB63FYQMy7hpC2ANVhZ5mSgAZEtY1aVLf
  */
@@ -11,12 +11,12 @@
 // Encapsulation of an ellipsoid, and declaration of common reference ellipsoids.
 // @author Mike Gavaghan
 
-#include "external/ExternalEllipsoid.h"
+#include "ExternalEllipsoid.h"
 
 ExternalEllipsoid::ExternalEllipsoid(double semiMajor, double semiMinor, double flattening)
-    : semiMajor{ semiMajor }
-    , semiMinor{ semiMinor }
-    , flattening{ flattening }
+    : semiMajor{semiMajor}
+    , semiMinor{semiMinor}
+    , flattening{flattening}
 {}
 
 double ExternalEllipsoid::getSemiMajorAxis() const {

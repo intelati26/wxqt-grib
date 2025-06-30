@@ -1,10 +1,10 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "misc/UtilityHourly.h"
+#include "UtilityHourly.h"
 #include "common/GlobalVariables.h"
 #include "misc/UtilityHourlyOldApi.h"
 #include "objects/ObjectDateTime.h"
@@ -32,7 +32,8 @@ const unordered_map<string, string> UtilityHourly::hourlyAbbreviations{
     {"Likely", "Lkly"},
     {"T-storms", "Tst"},
     {"Showers", "Shwr"},
-    {"Rn And Sn", "Rn/Sn"}
+    {"Rn And Sn", "Rn/Sn"},
+    {"And Patchy Blowing", "Pa Bl"}
 };
 
 string UtilityHourly::getFooter() {
@@ -51,15 +52,8 @@ string UtilityHourly::get(int locationNumber) {
 }
 
 string UtilityHourly::getHourlyString(int locationNumber) {
-    auto html = UtilityDownloadNws::getHourlyData(Location::getLatLon(locationNumber));
-    if (html.size() < 150) {
-        // qDebug() << "HOURLY:" << html << ":\n";
-    }
-    if (html.empty()) {
-        // qDebug() << "HOURLY: 2nd download attempt:\n";
-        html = UtilityDownloadNws::getHourlyData(Location::getLatLon(locationNumber));
-    }
-    const auto header = To::stringPadLeft("Time", 8) + To::stringPadLeft("T", 5) + To::stringPadLeft("Wind", 9) + To::stringPadLeft("WindDir", 6) + GlobalVariables::newline;
+    const auto html = UtilityDownloadNws::getHourlyData(Location::getLatLon(locationNumber));
+    const auto header = To::stringPadLeft("Time", 7) + To::stringPadLeft("T", 4) + To::stringPadLeft("Wind", 8) + To::stringPadLeft("WindDir", 6) + GlobalVariables::newline;
     const auto footer = getFooter();
     return header + parse(html) + footer;
 }
@@ -77,18 +71,18 @@ string UtilityHourly::parse(const string& html) {
         const auto windSpeed = WString::replace(Utility::safeGet(windSpeeds, index), " to ", "-");
         const auto windDirection = Utility::safeGet(windDirections, index);
         const auto shortForecast = Utility::safeGet(shortForecasts, index);
-        stringValue += To::stringPadLeft(time, 7);
-        stringValue += To::stringPadLeft(temperature, 4);
-        stringValue += To::stringPadLeft(windSpeed, 8);
-        stringValue += To::stringPadLeft(windDirection, 4);
-        stringValue += To::stringPadLeft(shortenConditions(shortForecast), 18);
+        stringValue += WString::fixedLengthString(time, 8);
+        stringValue += WString::fixedLengthString(temperature, 5);
+        stringValue += WString::fixedLengthString(windSpeed, 9);
+        stringValue += WString::fixedLengthString(windDirection, 5);
+        stringValue += WString::fixedLengthString(shortenConditions(shortForecast), 25);
         stringValue += GlobalVariables::newline;
     }
     return stringValue;
 }
 
-string UtilityHourly::shortenConditions(const string& stringF) {
-    auto hourly = stringF;
+string UtilityHourly::shortenConditions(const string& s) {
+    auto hourly = s;
     for (const auto& data : hourlyAbbreviations) {
         hourly = WString::replace(hourly, data.first, data.second);
     }

@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTMETALRADARBUFFERS_H
-#define OBJECTMETALRADARBUFFERS_H
+#ifndef RADARBUFFERS_H
+#define RADARBUFFERS_H
 
 #include <cstdint>
 #include <vector>
@@ -22,9 +22,10 @@ public:
     RadarBuffers();
     void initialize();
     void setBackgroundColor();
+    void putColorsByIndex(int);
     int animationIndex{-1};
-    int numberOfRadials{};
-    int numberOfRangeBins{};
+    uint16_t numberOfRadials{};
+    uint16_t numberOfRangeBins{};
     double binSize{};
     uint16_t productCode{};
     vector<QColor> color;
@@ -35,4 +36,4 @@ public:
     MemoryBuffer binWord;
 };
 
-#endif  // OBJECTMETALRADARBUFFERS_H
+#endif  // RADARBUFFERS_H

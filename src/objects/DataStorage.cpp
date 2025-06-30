@@ -1,16 +1,14 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "objects/DataStorage.h"
+#include "DataStorage.h"
 #include "util/Utility.h"
 
-DataStorage::DataStorage() = default;
-
 DataStorage::DataStorage(const string& preference)
-    : preference{ preference }
+    : preference{preference}
 {}
 
 void DataStorage::update() {

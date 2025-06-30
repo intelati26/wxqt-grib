@@ -18,12 +18,12 @@
 #   @author Roman Kushnarenko (sromku@gmail.com)
 #*/
 
-#include "external/BoundingBox.h"
+#include "BoundingBox.h"
 #include <limits>
 
 BoundingBox::BoundingBox()
-    : xMax{ -1.0 * std::numeric_limits<double>::max() }
-    , xMin{ -1.0 * std::numeric_limits<double>::max() }
-    , yMax{ -1.0 * std::numeric_limits<double>::max() }
-    , yMin{ -1.0 * std::numeric_limits<double>::max() }
+    : xMax{-1.0 * std::numeric_limits<double>::max()}
+    , xMin{-1.0 * std::numeric_limits<double>::max()}
+    , yMax{-1.0 * std::numeric_limits<double>::max()}
+    , yMin{-1.0 * std::numeric_limits<double>::max()}
 {}

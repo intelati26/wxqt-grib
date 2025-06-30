@@ -18,12 +18,12 @@
 #   @author Roman Kushnarenko (sromku@gmail.com)
 #*/
 
+#include "ExternalPolygon.h"
 #include "external/Builder.h"
-#include "external/ExternalPolygon.h"
 
 ExternalPolygon::ExternalPolygon(const vector<ExternalLine>& sides, BoundingBox boundingBox)
-    : sides{ sides }
-    , boundingBox{ boundingBox }
+    : sides{sides}
+    , boundingBox{boundingBox}
 {}
 
 bool ExternalPolygon::inBoundingBox(ExternalPoint point) const {
@@ -80,11 +80,7 @@ bool ExternalPolygon::intersect(const ExternalLine& ray, const ExternalLine& sid
     } else {
         return false;
     }
-    if (side.isInside(intersectPoint) && ray.isInside(intersectPoint)) {
-        return true;
-    } else {
-        return false;
-    }
+    return side.isInside(intersectPoint) && ray.isInside(intersectPoint);
 }
 
 bool ExternalPolygon::polygonContainsPoint(const LatLon& latLonTarget, const vector<LatLon>& latLons) {

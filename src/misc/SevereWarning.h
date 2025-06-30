@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -18,17 +18,16 @@ using std::vector;
 class SevereWarning {
 public:
     explicit SevereWarning(PolygonType);
+    void download();
     void generateString();
     string getName() const;
+    string getShortName() const;
     string getCount() const;
     int getCountAsInt() const;
-    string getShortName() const;
-    void download();
     vector<ObjectWarning> warningList;
 
 private:
     PolygonType type;
-    string text;
 };
 
 #endif  // SEVEREWARNING_H

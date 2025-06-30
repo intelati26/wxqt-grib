@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -12,6 +12,7 @@
 #include <vector>
 #include <QPushButton>
 #include "ui/Widget2.h"
+#include "ui/Window.h"
 
 using std::function;
 using std::string;
@@ -19,7 +20,7 @@ using std::vector;
 
 class PopoverMenu : public Widget2 {
 public:
-    PopoverMenu(QWidget *, const string&, const vector<string>&, const function<void(string)>&);
+    PopoverMenu(Window *, const string&, const vector<string>&, const function<void(string)>&);
     QPushButton * getView();
 
 private:

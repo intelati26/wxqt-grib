@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTMENUTITLE_H
-#define OBJECTMENUTITLE_H
+#ifndef MENUTITLE_H
+#define MENUTITLE_H
 
 #include <string>
 #include <vector>
@@ -23,4 +23,4 @@ public:
     int count;
 };
 
-#endif  // OBJECTMENUTITLE_H
+#endif  // MENUTITLE_H

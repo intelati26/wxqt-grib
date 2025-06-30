@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,6 +8,7 @@
 #define OPC_H
 
 #include <string>
+#include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/Photo.h"
 #include "ui/VBox.h"
@@ -17,16 +18,18 @@ using std::string;
 
 class Opc : public Window {
 public:
-    explicit Opc(QWidget *);
+    explicit Opc(Window *);
 
 private:
     void reload();
-    void changeProduct();
+    void moveBack();
+    void moveForward();
     const string prefToken{"OPC_IMG_FAV_URL"};
     Photo photo;
     VBox box;
-    ComboBox comboboxProduct;
-    int index;
+    HBox boxH;
+    ComboBox comboBox;
+    BackForward backForward;
 };
 
 #endif  // OPC_H

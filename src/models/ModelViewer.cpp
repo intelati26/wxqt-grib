@@ -1,55 +1,47 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "models/ModelViewer.h"
+#include "ModelViewer.h"
+#include "models/ObjectModelGet.h"
+#include "models/UtilityModels.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "objects/WString.h"
-#include "models/ObjectModelGet.h"
-#include "models/UtilityModels.h"
 #include "util/UtilityList.h"
 #include "util/UtilityString.h"
 
-ModelViewer::ModelViewer(QWidget * parent, const string& modelType)
+ModelViewer::ModelViewer(Window * parent, const string& modelType)
     : Window{parent}
-    , photo{ Photo{this, Full} }
-    , modelObj{ ObjectModel{modelType} }
-    , comboboxRun{ ComboBox{this} }
-    , comboboxModel{ ComboBox{this, modelObj.models} }
-    , comboboxSector{ ComboBox{this, modelObj.sectors} }
-    , comboboxProduct{ ComboBox{this, modelObj.paramLabels} }
-    , comboboxTime{ ComboBox{this, modelObj.times} }
-    , leftButton{ Button{this, Left, "Back"} }
-    , rightButton{ Button{this, Right, "Forward"} }
+    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , objectModel{modelType}
+    , comboboxRun{this}
+    , comboboxModel{this, objectModel.models}
+    , comboboxSector{this, objectModel.sectors}
+    , comboboxProduct{this, objectModel.paramLabels}
+    , comboboxTime{this, objectModel.times}
+    , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
 {
-    setTitle("Model Viewer");
-    comboboxModel.setIndexByValue(modelObj.model);
+    comboboxModel.setIndexByValue(objectModel.model);
     comboboxModel.connect([this] { changeModelCb(); });
-
-    comboboxRun.addItems(modelObj.runs);
     comboboxRun.connect([this] { changeRunCb(); });
 
-    comboboxSector.setIndexByValue(modelObj.sector);
+    comboboxSector.setIndexByValue(objectModel.sector);
     comboboxSector.connect([this] { changeSectorCb(); });
 
-    comboboxProduct.setIndexByValue(modelObj.param);
+    comboboxProduct.setIndexByValue(objectModel.param);
     comboboxProduct.connect([this] { changeProductCb(); });
 
     comboboxTime.connect([this] { changeTimeCb(); });
-
-    leftButton.connect([this] { moveLeftClicked(); });
-    rightButton.connect([this] { moveRightClicked(); });
 
     boxH.addWidget(comboboxModel);
     boxH.addWidget(comboboxRun);
     boxH.addWidget(comboboxSector);
     boxH.addWidget(comboboxProduct);
     boxH.addWidget(comboboxTime);
-    boxH.addWidget(leftButton);
-    boxH.addWidget(rightButton);
+    boxH.addLayout(backForward);
     box.addLayout(boxH);
     box.addWidgetAndCenter(photo);
     box.getAndShow(this);
@@ -78,47 +70,51 @@ void ModelViewer::changeTimeCb() {
 }
 
 void ModelViewer::changeModel(int index) {
-    modelObj.model = modelObj.models[index];
-    modelObj.setModelVars(modelObj.model);
+    objectModel.model = objectModel.models[index];
+    objectModel.setModelVars(objectModel.model);
     getRun();
 }
 
 void ModelViewer::changeParam(int index) {
-    modelObj.param = modelObj.params[index];
+    objectModel.param = objectModel.params[index];
     reload();
 }
 
 void ModelViewer::changeSector(int index) {
-    modelObj.sector = modelObj.sectors[index];
+    objectModel.sector = objectModel.sectors[index];
     reload();
 }
 
 void ModelViewer::changeRun(int index) {
-    modelObj.run = modelObj.runs[index];
+    objectModel.run = objectModel.runs[index];
     reload();
 }
 
-void ModelViewer::changeTime(int index) {
-    modelObj.setTimeIdx(index);
+void ModelViewer::changeTime(size_t index) {
+    objectModel.setTimeIdx(index);
     reload();
 }
 
-void ModelViewer::moveLeftClicked() {
-    modelObj.leftClick();
-    comboboxTime.setIndex(modelObj.timeIdx);
-    changeTime(modelObj.timeIdx);
+void ModelViewer::moveBack() {
+    objectModel.leftClick();
+    comboboxTime.block();
+    comboboxTime.setIndex(objectModel.timeIdx);
+    comboboxTime.unblock();
+    changeTime(objectModel.timeIdx);
 }
 
-void ModelViewer::moveRightClicked() {
-    modelObj.rightClick();
-    comboboxTime.setIndex(modelObj.timeIdx);
-    changeTime(modelObj.timeIdx);
+void ModelViewer::moveForward() {
+    objectModel.rightClick();
+    comboboxTime.block();
+    comboboxTime.setIndex(objectModel.timeIdx);
+    comboboxTime.unblock();
+    changeTime(objectModel.timeIdx);
 }
 
 void ModelViewer::reload() {
-    auto url = ObjectModelGet::getImageUrl(modelObj);
-    modelObj.writePrefs();
-    new FutureBytes{this, url, [this] (const auto& ba) { photo.setBytes(ba); }};
+    objectModel.writePrefs();
+    setTitle(objectModel.model + " " + objectModel.sector + " " + objectModel.times[comboboxTime.getIndex()]);
+    new FutureBytes{this, ObjectModelGet::imageUrl(objectModel), [this] (const auto& ba) { photo.setBytes(ba); }};
 }
 
 void ModelViewer::getRun() {
@@ -126,8 +122,8 @@ void ModelViewer::getRun() {
 }
 
 void ModelViewer::getRunStatus() {
-    ObjectModelGet::getRunStatus(modelObj);
-    modelObj.run = modelObj.runTimeData.mostRecentRun;
+    ObjectModelGet::runStatus(objectModel);
+    objectModel.run = objectModel.runTimeData.mostRecentRun;
 }
 
 void ModelViewer::updateRunStatus() {
@@ -136,36 +132,36 @@ void ModelViewer::updateRunStatus() {
     comboboxSector.block();
     comboboxProduct.block();
     comboboxModel.block();
-    comboboxTime.setList(modelObj.times);
-    if (modelObj.model == "GLCFS") {
+    comboboxTime.setList(objectModel.times);
+    if (objectModel.model == "GLCFS") {
         // pass
-    } else if (modelObj.model != "SREF" && modelObj.model != "HRRR" && modelObj.model != "HREF" && modelObj.model != "ESRL") {
-        for (auto index : range(modelObj.times.size())) {
-            auto timeStr = modelObj.times[index];
-            auto newValue = WString::split(timeStr, " ")[0] + " " + UtilityModels::convertTimeRuntoTimeString(WString::replace(modelObj.runTimeData.timeStringConversion, "Z", ""), WString::split(timeStr, " ")[0]);
-            modelObj.setTimeArr(index, newValue);
+    } else if (objectModel.model != "SREF" && objectModel.model != "HRRR" && objectModel.model != "HREF" && objectModel.model != "ESRL") {
+        for (auto index : range(objectModel.times.size())) {
+            auto timeStr = objectModel.times[index];
+            auto newValue = WString::split(timeStr, " ")[0] + " " + UtilityModels::convertTimeRuntoTimeString(WString::replace(objectModel.runTimeData.timeStringConversion, "Z", ""), WString::split(timeStr, " ")[0]);
+            objectModel.setTimeArr(index, newValue);
         }
-    } else if (modelObj.prefModel == "SPCHRRR" || modelObj.prefModel == "ESRL") {
-        modelObj.runs = modelObj.runTimeData.listRun;
-        modelObj.times = UtilityModels::updateTime(UtilityString::getLastXChars(modelObj.run, 2), modelObj.run, modelObj.times, "");
+    } else if (objectModel.prefModel == "SPCHRRR" || objectModel.prefModel == "ESRL") {
+        objectModel.runs = objectModel.runTimeData.listRun;
+        objectModel.times = UtilityModels::updateTime(UtilityString::getLastXChars(objectModel.run, 2), objectModel.run, objectModel.times, "");
     } else {
-        modelObj.runs = modelObj.runTimeData.listRun;
-        modelObj.times = UtilityModels::updateTime(UtilityString::getLastXChars(modelObj.run, 3), modelObj.run, modelObj.times, "");
+        objectModel.runs = objectModel.runTimeData.listRun;
+        objectModel.times = UtilityModels::updateTime(UtilityString::getLastXChars(objectModel.run, 3), objectModel.run, objectModel.times, "");
     }
-    comboboxModel.setIndexByValue(modelObj.model);
+    comboboxModel.setIndexByValue(objectModel.model);
 
-    comboboxSector.setList(modelObj.sectors);
-    comboboxSector.setIndexByValue(modelObj.sector);
+    comboboxSector.setList(objectModel.sectors);
+    comboboxSector.setIndexByValue(objectModel.sector);
 
-    comboboxRun.setList(modelObj.runs);
-    comboboxRun.setIndexByValue(modelObj.run);
+    comboboxRun.setList(objectModel.runs);
+    comboboxRun.setIndexByValue(objectModel.run);
 
-    comboboxProduct.setList(modelObj.paramLabels);
-    auto paramIndex = findex(modelObj.param, modelObj.params);
+    comboboxProduct.setList(objectModel.paramLabels);
+    auto paramIndex = findex(objectModel.param, objectModel.params);
     comboboxProduct.setIndex(paramIndex);
 
-    comboboxTime.setList(modelObj.times);
-    comboboxTime.setIndexByValue(modelObj.getTime());
+    comboboxTime.setList(objectModel.times);
+    comboboxTime.setIndexByValue(objectModel.getTime());
 
     comboboxTime.unblock();
     comboboxRun.unblock();

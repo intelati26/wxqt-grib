@@ -1,16 +1,15 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "ObjectModel.h"
-#include "../objects/WString.h"
-#include "../util/To.h"
-#include "../util/Utility.h"
-#include "../util/UtilityList.h"
+#include "objects/WString.h"
+#include "util/To.h"
+#include "util/Utility.h"
+#include "util/UtilityList.h"
 #include "UtilityModelEsrlInterface.h"
-#include "UtilityModelGlcfsInterface.h"
 #include "UtilityModelNcepInterface.h"
 #include "UtilityModelNsslWrfInterface.h"
 #include "UtilityModelSpcHrefInterface.h"
@@ -18,20 +17,13 @@
 #include "UtilityModelSpcSrefInterface.h"
 #include "UtilityModelWpcGefsInterface.h"
 
-string ObjectModel::getTime() const {
-    if (WString::contains(timeStr, " ")) {
-        return WString::split(timeStr, " ")[0];
-    } else {
-        return timeStr;
-    }
-}
-
-ObjectModel::ObjectModel(const string& prefModel) {
-    this->prefModel = prefModel;
-    prefSector = "MODEL" + prefModel + "SECTORLASTUSED";
-    prefParam = "MODEL" + prefModel + "PARAMLASTUSED";
-    prefRunPosn = prefModel + "RUNPOSN";
-    prefRunPosnIdx = prefModel + "RUNPOSN" + "IDX";
+ObjectModel::ObjectModel(const string& prefModel)
+    : prefModel{prefModel}
+    , prefSector{"MODEL" + prefModel + "SECTORLASTUSED"}
+    , prefParam{"MODEL" + prefModel + "PARAMLASTUSED"}
+    , prefRunPosn{prefModel + "RUNPOSN"}
+    , prefRunPosnIdx{prefModel + "RUNPOSN" + "IDX"}
+{
     if (prefModel == "NCARENSEMBLE") {
         run = "00Z";
         timeStr = "01";
@@ -175,19 +167,18 @@ void ObjectModel::setModelVars(const string& modelName) {
         sectors = UtilityModelEsrlInterface::sectorsHrrrAk;
         times.clear();
         loadTimeList(0, 36, 1);
+    } else if (modelToken == "ESRL:HRRR_SMOKE") {
+        params = UtilityModelEsrlInterface::modelHrrrSmokeParams;
+        paramLabels = UtilityModelEsrlInterface::modelHrrrSmokeLabels;
+        sectors = UtilityModelEsrlInterface::sectorsHrrrSmoke;
+        times.clear();
+        loadTimeList(0, 48, 1);
     } else if (modelToken == "ESRL:RAP" || modelToken == "ESRL:RAP_NCEP") {
         params = UtilityModelEsrlInterface::modelRapParams;
         paramLabels = UtilityModelEsrlInterface::modelRapLabels;
         sectors = UtilityModelEsrlInterface::sectorsRap;
         times.clear();
         loadTimeList(0, 21, 1);
-    } else if (modelToken == "GLCFS:GLCFS") {
-        params = UtilityModelGlcfsInterface::params;
-        paramLabels = UtilityModelGlcfsInterface::labels;
-        sectors = UtilityModelGlcfsInterface::sectors;
-        times.clear();
-        loadTimeList(1, 13, 1);
-        loadTimeList(15, 120, 3);
     } else if (modelToken == "NCEP:GFS") {
         params = UtilityModelNcepInterface::paramsGfs;
         paramLabels = UtilityModelNcepInterface::labelsGfs;
@@ -428,4 +419,12 @@ void ObjectModel::rightClick() {
 
 void ObjectModel::setTimeArr(int idx, const string& time) {
     times[idx] = time;
+}
+
+string ObjectModel::getTime() const {
+    if (WString::contains(timeStr, " ")) {
+        return WString::split(timeStr, " ")[0];
+    } else {
+        return timeStr;
+    }
 }

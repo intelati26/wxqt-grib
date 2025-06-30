@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -18,20 +18,18 @@
 #include <QLineF>
 #include <QPinchGesture>
 #include "objects/FileStorage.h"
-#include "objects/FutureBytes.h"
-#include "objects/MemoryBuffer.h"
 #include "objects/LatLon.h"
+#include "radar/NexradColorLegend.h"
 #include "radar/NexradDraw.h"
-#include "radar/NexradState.h"
-#include "radar/PolygonType.h"
-#include "radar/ProjectionNumbers.h"
-#include "radar/UIColorLegend.h"
 #include "radar/NexradLevelData.h"
 #include "radar/NexradRenderTextObject.h"
-#include "ui/ComboBox.h"
-#include "ui/StatusBar.h"
-#include "ui/Text.h"
+#include "radar/NexradState.h"
+#include "radar/NexradStateAnimation.h"
+#include "radar/PolygonType.h"
+#include "radar/ProjectionNumbers.h"
+#include "ui/RadarStatusBox.h"
 #include "ui/TextViewMetal.h"
+#include "ui/Window.h"
 
 using std::function;
 using std::string;
@@ -41,29 +39,22 @@ using std::vector;
 class NexradWidget : public QWidget {
 public:
     NexradWidget(
-        QWidget *,
-        StatusBar&,
-        int,
-        int,
-        bool,
-        const string&,
-        int,
-        int,
+        Window *, int, int, bool, const string&, int, int,
         const function<void(int, string)>&,
         const function<void(int, string)>&,
         const function<void(double, int)>&,
-        const function<void(int)>&
+        const function<void(double, double, int)>&,
+        const function<void()>&
     );
     ~NexradWidget() override;
 //    void updateGps(double, double);
     void downloadDataForAnimation(int);
     void downloadData();
-    void changeSector(const string&);
-    void changeSector(int);
-    void changeProduct(const string&);
+    void changeProduct();
     void processWarnings(PolygonType);
     void process(PolygonType);
     void constructSwo();
+    void constructFire();
     void constructWBLines();
     void constructSti();
     void constructHi();
@@ -71,9 +62,14 @@ public:
     void constructWpcFronts();
     void resizePolygons();
     void draw();
-    NexradState nexradState;
     FileStorage fileStorage;
-    Text statusBarLabel;
+    NexradState nexradState;
+    NexradRenderTextObject nexradRenderTextObject;
+    NexradLevelData levelData;
+    NexradDraw nexradDraw;
+    std::unique_ptr<RadarStatusBox> radarStatusBox;
+    NexradStateAnimation nexradStateAnimation;
+    NexradColorLegend colorLegend;
 
 protected:
     void paintEvent(QPaintEvent *) override;
@@ -90,33 +86,25 @@ private slots:
     void performSingleClickAction();
 
 private:
-    void drawSwo(QPainter&);
-    void drawWpcFronts(QPainter&);
-    void drawWarnings(QPainter&);
-    void drawWatch(QPainter&);
-//    void drawLocationDot(wxPaintDC&) const;
-//    void drawSti(wxPaintDC&) const;
-//    void drawWindBarbs(wxPaintDC&);
+    void drawSwo();
+    void drawFire();
+    void drawWpcFronts();
+    void drawWarnings();
+    void drawWatch();
     void pinchTriggered(QPinchGesture *);
-    void processVtec(PolygonType);
-    void processDataAfterDownload();
-    void zoomIn();
-    void zoomOut();
-    void updateStatusBar();
-    // void updateStatusBarForAnimation(int);
+    void updateTitle();
     void toggleRadar();
     double mouseStartX{};
     double mouseStartY{};
-    StatusBar * statusBar;
     function<void(int, string)> fnProduct;
     function<void(int, string)> fnSector;
     function<void(double, int)> fnZoom;
-    function<void(int)> fnPosition;
+    function<void(double, double, int)> fnPosition;
+    function<void()> setTitleMain;
     unordered_map<int, QVector<QLineF>> swoLinesMap;
-    NexradLevelData levelData;
+    unordered_map<int, QVector<QLineF>> fireLinesMap;
     int totalBins{};
     unordered_map<PolygonType, QVector<QLineF>> polygons;
-    unordered_map<PolygonType, QLabel *> warningCountLabel;
     // vector<LatLon> locationDots;
     // double gpsX{};
     // double gpsY{};
@@ -128,11 +116,6 @@ private:
     vector<QPolygonF> hiPolygons;
     vector<QPolygonF> tvsPolygons;
     string lastMouseType;
-    UIColorLegend colorLegend;
-public:
-    NexradRenderTextObject textObject;
-    NexradDraw nexradDraw;
-private:
     bool hideRadar{false};
     bool hideRoads{false};
     int toggleIndex{};
@@ -140,6 +123,7 @@ private:
     int rotationAngle{};
     int currentStepScaleFactor{};
     int scaleFactor{};
+    Window * parent;
 };
 
 #endif  // NEXRADWIDGET_H

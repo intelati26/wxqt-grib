@@ -1,45 +1,49 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "spc/SpcMeso.h"
+#include "SpcMeso.h"
 #include <algorithm>
 #include "objects/FutureBytes.h"
 #include "spc/UtilitySpcMeso.h"
 #include "spc/UtilitySpcMesoInputOutput.h"
+#include "util/To.h"
 #include "util/Utility.h"
 #include "util/UtilityList.h"
 
-SpcMeso::SpcMeso(QWidget * parent)
+SpcMeso::SpcMeso(Window * parent, const string& productCode, const string& sectorCode, bool savePrefs)
     : Window{parent}
-    , photo{ Photo{this, Full} }
-    , comboboxSector{ ComboBox{this, UtilitySpcMeso::sectors} }
-    , buttonBack{ Button{this, Left, ""} }
-    , buttonForward{ Button{this, Right, ""} }
-    , animateButton{ ButtonToggle{this, Play, "Animate ctrl-A"} }
-    , objectAnimate{ ObjectAnimate{this, &photo, &UtilitySpcMesoInputOutput::getAnimation, [this] { reload(); }, &animateButton} }
-    , shortcutAnimate{ Shortcut{QKeySequence{"A"}, this} }
-    , shortcutLeft{ Shortcut{Qt::Key_Left, this} }
-    , shortcutRight{ Shortcut{Qt::Key_Right, this} }
+    , autoUpdate{this, "SPCMESO_AUTO_UPDATE_INTERVAL", 15, [this] { reload(); }}
+    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , comboboxSector{this, UtilitySpcMeso::sectors}
+    , objectAnimate{this, &photo, &UtilitySpcMesoInputOutput::getAnimation, [this] { reload(); }}
+    , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
+    , savePrefs{savePrefs}
+    , shortcutAnimate{QKeySequence{"A"}, this}
+    , shortcutAutoUpdate{QKeySequence{"U"}, this}
 {
-    setTitle("SPC Mesoanalysis");
-    buttonBack.connect([this] { moveLeftClicked(); });
-    buttonForward.connect([this] { moveRightClicked(); });
-
     objectAnimate.product = Utility::readPref(prefTokenProduct, "pmsl");
     objectAnimate.sector = Utility::readPref(prefTokenSector, "19");
-    animateButton.connect([this] { objectAnimate.animateClicked(); });
+
+    if (sectorCode != "") {
+        objectAnimate.sector = sectorCode;
+    }
+    if (productCode != "") {
+        objectAnimate.product = productCode;
+        this->savePrefs = false;
+    }
+
     index = findex(objectAnimate.product, UtilitySpcMeso::products);
 
     comboboxSector.setIndex(findex(objectAnimate.sector, UtilitySpcMeso::sectorCodes));
     comboboxSector.connect([this] { changeSector(); });
 
     boxFav.addWidget(comboboxSector);
-    boxFav.addWidget(animateButton);
-    boxH.addWidget(buttonBack);
-    boxH.addWidget(buttonForward);
+    boxFav.addLayout(backForward);
+    boxFav.addWidget(objectAnimate);
+    boxFav.addWidget(autoUpdate);
     box.addLayout(boxH);
 
     auto j = 0;
@@ -53,7 +57,7 @@ SpcMeso::SpcMeso(QWidget * parent)
     boxFav.addStretch();
 
     imageLayout.addLayout(boxFav);
-    imageLayout.addWidget(photo);
+    imageLayout.addWidgetAndCenter(photo);
     box.addLayout(imageLayout);
     box.getAndShow(this);
 
@@ -67,32 +71,38 @@ SpcMeso::SpcMeso(QWidget * parent)
         boxH.addWidget(popoverMenus.back());
     }
     shortcutAnimate.connect([this] { objectAnimate.animateClicked(); });
-    shortcutLeft.connect([this] { moveLeftClicked(); });
-    shortcutRight.connect([this] { moveRightClicked(); });
+    shortcutAutoUpdate.connect([this] { autoUpdate.toggleAutoUpdate(); });
     reload();
+
+    for (auto index : range(UtilitySpcMeso::favList.size())) {
+        shortcuts.push_back(Shortcut{QKeySequence{QString::fromStdString(To::string((index + 1) % 10))}, this});
+        shortcuts.back().connect([this, index] { changeProductForFav(index); });
+    }
 }
 
-void SpcMeso::moveLeftClicked() {
+void SpcMeso::reload() {
+    objectAnimate.stopAnimateNoDownload();
+    if (savePrefs) {
+        Utility::writePref(prefTokenProduct, objectAnimate.product);
+        Utility::writePref(prefTokenSector, objectAnimate.sector);
+    }
+    index = indexOf(UtilitySpcMeso::products, objectAnimate.product);
+    setTitle("SPC Mesoanalysis - " + UtilitySpcMeso::labels[index] + " " + autoUpdate.titleAdd);
+    new FutureBytes{this, UtilitySpcMesoInputOutput::getImageUrl(objectAnimate.product, objectAnimate.sector), [this] (const auto& ba) { photo.setBytes(ba); }};
+}
+
+void SpcMeso::moveBack() {
     index -= 1;
     index = std::max(index, 0);
     objectAnimate.product = UtilitySpcMeso::products[index];
     reload();
 }
 
-void SpcMeso::moveRightClicked() {
+void SpcMeso::moveForward() {
     index += 1;
     index = std::min(index, static_cast<int>(UtilitySpcMeso::products.size()) - 1);
     objectAnimate.product = UtilitySpcMeso::products[index];
     reload();
-}
-
-void SpcMeso::reload() {
-    objectAnimate.stopAnimate();
-    Utility::writePref(prefTokenProduct, objectAnimate.product);
-    Utility::writePref(prefTokenSector, objectAnimate.sector);
-    index = indexOf(UtilitySpcMeso::products, objectAnimate.product);
-    setTitle(UtilitySpcMeso::labels[index]);
-    new FutureBytes{this, getUrl(), [this] (const auto& ba) { photo.setBytes(ba); }};
 }
 
 void SpcMeso::changeProductForFav(int indexB) {
@@ -113,16 +123,7 @@ void SpcMeso::changeSector() {
     reload();
 }
 
-string SpcMeso::getUrl() const {
-    string gifUrl = ".gif";
-    // if (UtilitySpcMeso::imgSf.contains(objectAnimate.product)) {
-    if (contains(UtilitySpcMeso::imgSf, objectAnimate.product)) {
-        gifUrl = "_sf.gif";
-    }
-    return "https://www.spc.noaa.gov/exper/mesoanalysis/s" + objectAnimate.sector + "/" + objectAnimate.product + "/" + objectAnimate.product + gifUrl;
-}
-
-void SpcMeso::closeEvent(QCloseEvent * event) {
-    objectAnimate.stopAnimate();
-    event->accept();
+void SpcMeso::closeEventCustom() {
+    objectAnimate.stopAnimateNoDownload();
+    autoUpdate.stopNoDownload();
 }

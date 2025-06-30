@@ -1,10 +1,10 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "misc/UtilityObservations.h"
+#include "UtilityObservations.h"
 
 const vector<string> UtilityObservations::urls{
     "https://www.wpc.ncep.noaa.gov/sfc/sfcobs/large_latestsfc.gif",
@@ -18,7 +18,24 @@ const vector<string> UtilityObservations::urls{
     "https://www.wpc.ncep.noaa.gov/sfc/namncsfcwbg.gif",
     "https://www.wpc.ncep.noaa.gov/sfc/namnesfcwbg.gif",
     "https://www.wpc.ncep.noaa.gov/sfc/namaksfcwbg.gif",
-    "https://www.wpc.ncep.noaa.gov/sfc/namak2sfcwbg.gif"
+    "https://www.wpc.ncep.noaa.gov/sfc/namak2sfcwbg.gif",
+    "https://ocean.weather.gov/UA/Conus.gif",
+    "https://ocean.weather.gov/UA/West_coast.gif",
+    "https://ocean.weather.gov/UA/USA_West.gif",
+    "https://ocean.weather.gov/UA/USA_Mid_West.gif",
+    "https://ocean.weather.gov/UA/USA_East.gif",
+    "https://ocean.weather.gov/UA/East_coast.gif",
+    "https://ocean.weather.gov/UA/Hawaii.gif",
+    "https://ocean.weather.gov/UA/Alaska.gif",
+    "https://ocean.weather.gov/UA/Canada.gif",
+    "https://ocean.weather.gov/UA/USA_South.gif",
+    "https://ocean.weather.gov/UA/Mexico.gif",
+    "https://ocean.weather.gov/UA/OPC_PAC.gif",
+    "https://ocean.weather.gov/UA/Pac_Tropics.gif",
+    "https://ocean.weather.gov/UA/Pac_Difax.gif",
+    "https://ocean.weather.gov/UA/OPC_ATL.gif",
+    "https://ocean.weather.gov/UA/Atl_Tropics.gif",
+    "https://ocean.weather.gov/UA/Atl_Difax.gif",
 };
 
 const vector<string> UtilityObservations::labels{
@@ -33,5 +50,22 @@ const vector<string> UtilityObservations::labels{
     "NC Surface Analysis",
     "NE Surface Analysis",
     "AK Surface Analysis",
-    "Gulf of AK Surface Analysis"
+    "Gulf of AK Surface Analysis",
+    "UA - Continental USA",
+    "UA - West Coast",
+    "UA - USA West",
+    "UA - USA Mid West",
+    "UA - USA East",
+    "UA - East Coast",
+    "UA - Hawaii",
+    "UA - Alaska",
+    "UA - Canada",
+    "UA - USA South",
+    "UA - Gulf of Mexico",
+    "UA - Pacific Ocean",
+    "UA - Pacific Tropical",
+    "UA - Pacific Ocean Difax",
+    "UA - Atlantic Ocean",
+    "UA - Atlantic Tropical",
+    "UA - Atlantic Ocean Difax",
 };

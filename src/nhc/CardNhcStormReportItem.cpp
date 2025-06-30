@@ -1,52 +1,43 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "nhc/CardNhcStormReportItem.h"
-#include "objects/WString.h"
+#include "CardNhcStormReportItem.h"
 #include "misc/ImageViewer.h"
 #include "nhc/NhcStorm.h"
+#include "objects/WString.h"
+#include "util/To.h"
 #include "util/UtilityMath.h"
 
-CardNhcStormReportItem::CardNhcStormReportItem(QWidget * parent, const NhcStormDetails& stormData)
-    : HBox()
-    , stormData{ stormData }
-    , parent{ parent }
-    , button{ Button{parent, None, "Show Details - &" + stormData.name} }
-    , image{ Image{parent} }
-    , topLine{ Text{parent, stormData.name + " (" + stormData.classification + ") " + stormData.center} }
-    , lastUpdateLine{ Text{parent, stormData.getUpdateTime()} }
-    , startTimeLine{ Text{parent, "Moving " + UtilityMath::convertWindDir(stormData.movementDir) + " at " + stormData.movementSpeed + " mph"} }
-    , endTimeLine{ Text{parent, "Min pressure: " + stormData.pressure + " mb"} }
-    , maxWindLine{ Text{parent, "Max sustained: " + stormData.intensity + " mph"} }
-    , middleLine{ Text{parent, stormData.status + " " + stormData.binNumber + " " + WString::toUpper(stormData.stormId)} }
+CardNhcStormReportItem::CardNhcStormReportItem(Window * parent, const NhcStormDetails& stormData)
+    : stormData{stormData}
+    , button{parent, None, "Show Details - " + stormData.name}
+    , image{parent}
+    , text1{parent, stormData.name + " (" + stormData.classification + ") " + stormData.center}
+    , text2{parent, "Moving " + UtilityMath::bearingToDirection(To::Int(stormData.movementDir)) + " at " + stormData.movementSpeed + " mph"}
+    , text3{parent, "Min pressure: " + stormData.pressure + " mb"}
+    , text4{parent, "Max sustained: " + UtilityMath::knotsToMph(stormData.intensity) + " mph"}
+    , text5{parent, stormData.status + " " + stormData.binNumber + " " + WString::toUpper(stormData.stormId)}
 {
-    topLine.setBold();
-    button.connect([this] { launch(); });
+    button.connect([stormData, parent] { new NhcStorm{parent, stormData}; });
 
     image.imageSize = 250;
-    image.connect([this] { launchImage(); });
+    image.connect([stormData, parent] { new ImageViewer{parent, stormData.coneBytes}; });
     image.setBytes(stormData.coneBytes);
 
-    addWidget(image);
+    text1.setBold();
+    text1.setBlue();
 
     textLayout.addWidget(button);
-    textLayout.addWidget(topLine);
-    textLayout.addWidget(lastUpdateLine);
-    textLayout.addWidget(startTimeLine);
-    textLayout.addWidget(endTimeLine);
-    textLayout.addWidget(maxWindLine);
-    textLayout.addWidget(middleLine);
+    textLayout.addWidget(text1);
+    textLayout.addWidget(text2);
+    textLayout.addWidget(text3);
+    textLayout.addWidget(text4);
+    textLayout.addWidget(text5);
     textLayout.addStretch();
+
+    addWidget(image);
     addLayout(textLayout, 1);
-}
-
-void CardNhcStormReportItem::launch() {
-    new NhcStorm{parent, stormData};
-}
-
-void CardNhcStormReportItem::launchImage() {
-    new ImageViewer{parent, stormData.coneBytes};
 }

@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -12,6 +12,7 @@
 #include <vector>
 #include <QComboBox>
 #include "ui/Widget2.h"
+#include "ui/Window.h"
 
 using std::function;
 using std::string;
@@ -19,29 +20,25 @@ using std::vector;
 
 class ComboBox : public Widget2 {
 public:
-    explicit ComboBox(QWidget *);
-    ComboBox(QWidget *, const vector<string>&);
-    void setIndex(int);
+    ComboBox(Window *, const vector<string>& = {});
     int getIndex() const;
+    void setIndex(size_t);
     void setIndexByPref(const string&, int);
     void setIndexByValue(const string&);
-    void setArrayListInt(const vector<int>&);
     void setList(const vector<string>&);
-    void addItems(const vector<string>&);
-    void appendText(const string&);
-    void clear();
     void block();
     void unblock();
     void connect(const function<void()>&);
-    QComboBox * getView();
     void setVisible(bool);
     string getValue() const;
+    QComboBox * getView();
 
 private:
     void blockSignals(bool);
+    void addItemsQt();
     QComboBox * comboBox;
-    QWidget * parent;
-    QStringList comboItems;
+    Window * parent;
+    vector<string> items;
 };
 
 #endif  // COMBOBOX_H

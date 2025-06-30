@@ -1,13 +1,13 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "ui/ColoredBox.h"
+#include "ColoredBox.h"
 
-ColoredBox::ColoredBox(QWidget * parent, const WXColor& wxcolor)
-    : colorPatchCurrent{ new ClickableLabel{parent} }
+ColoredBox::ColoredBox(Window * parent, const WXColor& wxcolor)
+    : colorPatchCurrent{new ClickableLabel{parent}}
 {
     colorPatchCurrent->setStyleSheet(wxcolor.styleSheetCurrent());
     colorPatchCurrent->setFixedSize(sizeColorBlock, sizeColorBlock);

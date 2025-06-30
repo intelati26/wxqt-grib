@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -9,7 +9,6 @@
 
 #include <string>
 #include <vector>
-#include <QString>
 
 using std::string;
 using std::vector;
@@ -23,21 +22,18 @@ public:
     static string extractPreLsr(const string&);
     static string getLastXChars(const string&, int);
     static string removeHtml(const string&);
-    static string insert(const string&, int, const string&);
-    static string truncate(const string&, int);
+    static string insert(const string&, size_t, const string&);
+    static string truncate(const string&, size_t);
     static string substring(const string&, int, int = -1);
     static string addPeriodBeforeLastTwoChars(const string&);
-    static string toCamelCase(const string&);
-    static vector<string> parseXml(const string& payloadF, const string& delim);
-    static vector<string> parseXmlExt(const vector<string>& regexpList, const string& html);
-    static vector<string> parseXmlValue(const string& payloadF);
-    static bool match(const string&, const string&);
-    static string replaceRegex1(const string&, const string&, const string&);
-    static string replaceRegex(const string&, const string&, const string&);
+    static string title(const string&);
     static string parseNwsPre(const string&);
-
-private:
-    static QString parse(const QString&, const QString&);
+    static vector<string> parseXml(const string&, const string&);
+    static vector<string> parseXmlExt(const vector<string>&, const string&);
+    static vector<string> parseXmlValue(const string&);
+    static bool match(const string&, const string&);
+    static string replaceRegex(const string&, const string&, const string&);
+    static string parseBetweenTokens(const string&, const string&, const string&);
 };
 
 #endif  // UTILITYSTRING_H

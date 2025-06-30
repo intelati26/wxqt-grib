@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -7,24 +7,24 @@
 #ifndef DOWNLOADPARALLELBYTES_H
 #define DOWNLOADPARALLELBYTES_H
 
-#include <functional>
 #include <string>
+#include <thread>
 #include <vector>
-#include <QWidget>
+#include <QByteArray>
 
-using std::function;
 using std::string;
+using std::thread;
 using std::vector;
 
 class DownloadParallelBytes {
 public:
-    DownloadParallelBytes(QWidget *, const vector<string>&);
+    explicit DownloadParallelBytes(const vector<string>&);
     vector<QByteArray> byteList;
 
 private:
     void download(int);
     vector<string> urls;
-    vector<bool> downloadComplete;
+    vector<thread> threads;
 };
 
 #endif  // DOWNLOADPARALLELBYTES_H

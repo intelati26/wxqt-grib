@@ -1,14 +1,17 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "MainWindow.h"
+#include <QApplication>
 #include "common/GlobalVariables.h"
+#include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
 #include "objects/FutureVoid.h"
 #include "objects/PolygonWatch.h"
+#include "objects/Route.h"
 #include "misc/TextViewerStatic.h"
 #include "misc/UsAlerts.h"
 #include "spc/SpcMcdWatchMpdViewer.h"
@@ -21,191 +24,152 @@
 
 MainWindow::MainWindow(QWidget * parent)
     : Window{parent}
-    , sw{ ScrolledWindow{this, vbox} }
-    , comboBox{ ComboBox{this, Location::listOfNames()} }
-    , objectToolbar{ Toolbar{this, [this] { reload(); }} }
-    , shortcutClose{ Shortcut{QKeySequence{"Q"}, this} }
-    , shortcutVis{ Shortcut{QKeySequence{"C"}, this} }  // was QKeySequence("Ctrl+C")
-    , shortcutWfoText{ Shortcut{QKeySequence{"A"}, this} }
-    , shortcutHourly{ Shortcut{QKeySequence{"H"}, this} }
-    , shortcutRadar{ Shortcut{QKeySequence{"R"}, this} }
-    , shortcutRadarSinglePane{ Shortcut{QKeySequence{"1"}, this} }
-    , shortcutRadarDualPane{ Shortcut{QKeySequence{"2"}, this} }
-    , shortcutRadarQuadPane{ Shortcut{QKeySequence{"4"}, this} }
-    , shortcutSevereDash{ Shortcut{QKeySequence{"D"}, this} }
-    , shortcutNcep{ Shortcut{QKeySequence{"N"}, this} }
-    , shortRadarMosaic{ Shortcut{QKeySequence{"M"}, this} }
-    , shortcutNhc{ Shortcut{QKeySequence{"O"}, this} }
-    , shortcutSettings{ Shortcut{QKeySequence{"P"}, this} }
-    , shortcutSwo{ Shortcut{QKeySequence{"S"}, this} }
-    , shortcutNationalImages{ Shortcut{QKeySequence{"I"}, this} }
-    , shortcutSpcMeso{ Shortcut{QKeySequence{"Z"}, this} }
-    , shortcutSpcFire{ Shortcut{QKeySequence{"F"}, this} }
-    , shortcutLightning{ Shortcut{QKeySequence{"L"}, this} }
-    , shortcutReload{ Shortcut{QKeySequence{"U"}, this} }
-    , shortcutKeyboard{ Shortcut{QKeySequence{"/"}, this} }
-    , shortcutWpcText{ Shortcut{QKeySequence{"T"}, this} }
-    , shortcutRtma{ Shortcut{QKeySequence{"B"}, this} }
+    , sw{this, box}
+    , comboBox{this, Location::listOfNames()}
+    , toolbar{this, [this] { reload(); }}
+    , cardCurrentConditions{this, currentConditions}
+    , sevenDayCollection{this, &boxSevenDay, &sevenDay}
+    , cardHazards{this, hazards}
+    , timer{"DOWNLOAD_TIMER_MAIN_WINDOW"}
+    , shortcutClose{{"Q"}, this}
+    , shortcutVis{{"C"}, this}  // was QKeySequence("Ctrl+C")
+    , shortcutWfoText{{"A"}, this}
+    , shortcutHourly{{"H"}, this}
+    , shortcutRadar{{"R"}, this}
+    , shortcutRadarSinglePane{{"1"}, this}
+    , shortcutRadarDualPane{{"2"}, this}
+    , shortcutRadarQuadPane{{"4"}, this}
+    , shortcutSevereDash{{"D"}, this}
+    , shortcutNcep{{"N"}, this}
+    , shortRadarMosaic{{"M"}, this}
+    , shortcutNhc{{"O"}, this}
+    , shortcutSettings{{"P"}, this}
+    , shortcutSwo{{"S"}, this}
+    , shortcutNationalImages{{"I"}, this}
+    , shortcutSpcMeso{{"Z"}, this}
+    , shortcutSpcFire{{"F"}, this}
+    , shortcutLightning{{"L"}, this}
+    , shortcutReload{{"U"}, this}
+    , shortcutKeyboard{{"/"}, this}
+    , shortcutWpcText{{"T"}, this}
+    , shortcutRainfallOutlook{{"G"}, this}
+    , shortcutRtma{{"B"}, this}
+    , shortcutUsAlerts{{"K"}, this}
 {
-    setTitle(GlobalVariables::appName);
+    QFont font{};
+    font.setPointSize(UIPreferences::fontSize);
+    QApplication::setFont(font);
+
     watchesByType.insert({Watch, SevereNotice{Watch}});
     watchesByType.insert({Mcd, SevereNotice{Mcd}});
     watchesByType.insert({Mpd, SevereNotice{Mpd}});
 
-    comboBox.setIndex(Location::currentLocationIndex);
+    comboBox.setIndex(Location::getCurrentLocation());
     comboBox.connect([this] { locationChange(); });
     Location::comboBox = &comboBox;
-    //
-    // TEST init nexrad
-    //
-    if (UIPreferences::nexradMainScreen) {
-        auto sb = new StatusBar{this};
-        nexradList.push_back(
-            new NexradWidget{
-                this,
-                *sb,
-                0,
-                1,
-                true,
-                Location::radarSite(),
-                UIPreferences::mainScreenImageSize,
-                UIPreferences::mainScreenImageSize,
-                [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& prod) {},
-                [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& sector) {},
-                [] ([[maybe_unused]] double z, [[maybe_unused]] int pane) {},
-                [] ([[maybe_unused]] int pane) {}
-            });
-    }
+
     boxSevenDay.setSpacing(0);
+
     addWidgets();
-    vbox.addLayout(boxSevereDashboard);
-    vbox.addLayout(box);
-    box.addLayout(objectToolbar);
-    box.addLayout(imageLayout);
-    box.addLayout(forecastLayout);
-    box.addLayout(rightMostLayout);
+    box.addLayout(boxSevereDashboard);
+    box.addLayout(boxH);
+    boxH.addLayout(toolbar);
+    boxH.addLayout(imageLayout);
+    boxH.addLayout(forecastLayout);
+    boxH.addLayout(rightMostLayout);
 
     forecastLayout.addWidget(comboBox);
     forecastLayout.addLayout(boxCc);
+    boxCc.addLayout(cardCurrentConditions);
     forecastLayout.addLayout(boxHazards);
     forecastLayout.addLayout(boxSevenDay);
     forecastLayout.addStretch();
+
+    reload();
+
     // QScroller::grabGesture(vbox.get(), QScroller::TouchGesture);
     shortcutClose.connect([this] { close(); });
-    shortcutVis.connect([this] { objectToolbar.launchGoesViewer(); });
-    shortcutWfoText.connect([this] { objectToolbar.launchWfoText(); });
-    shortcutHourly.connect([this] { objectToolbar.launchHourly(); });
-    shortcutRadar.connect([this] { objectToolbar.launchNexrad(1); });
-    shortcutRadarSinglePane.connect([this] { objectToolbar.launchNexrad(1); });
-    shortcutRadarDualPane.connect([this] { objectToolbar.launchNexrad(2); });
-    shortcutRadarQuadPane.connect([this] { objectToolbar.launchNexrad(4); });
-    shortcutSevereDash.connect([this] { objectToolbar.launchSevereDashboard(); });
-    shortcutNcep.connect([this] { objectToolbar.launchModelViewerGeneric("NCEP"); });
-    shortRadarMosaic.connect([this] { objectToolbar.launchRadarMosaicViewer(); });
-    shortcutNhc.connect([this] { objectToolbar.launchNhc(); });
-    shortcutSettings.connect([this] { objectToolbar.launchSettings(); });
-    shortcutSwo.connect([this] { objectToolbar.launchSpcSwoSummary(); });
-    shortcutNationalImages.connect([this] { objectToolbar.launchNationalImages(); });
-    shortcutSpcMeso.connect([this] { objectToolbar.launchSpcMeso(); });
-    shortcutSpcFire.connect([this] { objectToolbar.launchSpcFireWeatherOutlookSummary(); });
-    shortcutLightning.connect([this] { objectToolbar.launchLightning(); });
-    shortcutReload.connect([this] { reload(); });
-    shortcutKeyboard.connect([this] { new TextViewerStatic{this, GlobalVariables::mainScreenShortcuts, 700, 600}; });
-    shortcutWpcText.connect([this] { objectToolbar.launchNationalText(); });
-    shortcutRtma.connect([this] { objectToolbar.launchRtma(); });
-
-    reload();
+    shortcutVis.connect([this] { Route::vis(this); });
+    shortcutWfoText.connect([this] { toolbar.launchWfoText(); });
+    shortcutHourly.connect([this] { toolbar.launchHourly(); });
+    shortcutRadar.connect([this] { toolbar.launchNexrad(1); });
+    shortcutRadarSinglePane.connect([this] { toolbar.launchNexrad(1); });
+    shortcutRadarDualPane.connect([this] { toolbar.launchNexrad(2); });
+    shortcutRadarQuadPane.connect([this] { toolbar.launchNexrad(4); });
+    shortcutSevereDash.connect([this] { toolbar.launchSevereDashboard(); });
+    shortcutNcep.connect([this] { toolbar.launchModelViewerGeneric("NCEP"); });
+    shortRadarMosaic.connect([this] { toolbar.launchRadarMosaicViewer(); });
+    shortcutNhc.connect([this] { toolbar.launchNhc(); });
+    shortcutSettings.connect([this] { toolbar.launchSettings(); });
+    shortcutSwo.connect([this] { toolbar.launchSpcSwoSummary(); });
+    shortcutNationalImages.connect([this] { toolbar.launchNationalImages(); });
+    shortcutSpcMeso.connect([this] { toolbar.launchSpcMeso(); });
+    shortcutSpcFire.connect([this] { toolbar.launchSpcFireWeatherOutlookSummary(); });
+    shortcutLightning.connect([this] { Route::lightning(this); });
+    shortcutReload.connect([this] { toolbar.autoUpdate.toggleAutoUpdate(); });
+    shortcutKeyboard.connect([this] { new TextViewerStatic{this, GlobalVariables::mainScreenShortcuts, "Shortcuts", 700, 600}; });
+    shortcutWpcText.connect([this] { toolbar.launchNationalText(); });
+    shortcutRtma.connect([this] { toolbar.launchRtma(); });
+    shortcutRainfallOutlook.connect([this] { toolbar.launchRainfallOutlookSummary(); });
+    shortcutUsAlerts.connect([this] { toolbar.launchUsAlerts(); });
 }
 
-void MainWindow::locationChange() {
-    auto index = comboBox.getIndex();
-    if (index == -1) {
-        return;
-    }
-    Location::setCurrentLocation(index);
-    reload();
-}
-
-void MainWindow::updateHazards() {
-    cardHazards.removeLabels();
-    cardHazards = CardHazards{this, hazards};
-    boxHazards.addLayout(cardHazards);
-}
-
-void MainWindow::getHazards() {
-    hazards.process(Location::getLatLonCurrent());
-}
-
-void MainWindow::update7day() {
-    if (!initialized7Day || sevenDayCollection.sevenDayCard.empty()) {
-        sevenDayCollection = SevenDayCollection{this, boxSevenDay, &sevenDay};
-        initialized7Day = true;
-    } else {
-        sevenDayCollection.update();
-    }
-}
-
-void MainWindow::get7day() {
-    sevenDay.process(Location::getLatLonCurrent());
-}
-
-void MainWindow::updateCc() {
-    if (!initializedCc) {
-        cardCurrentConditions = CardCurrentConditions{this, currentConditions};
-        boxCc.addLayout(cardCurrentConditions);
-        initializedCc = true;
-    } else {
-        cardCurrentConditions.update(currentConditions);
-    }
-}
-
-void MainWindow::getCc() {
-    currentConditions.process(Location::getLatLonCurrent(), 0);
-    currentConditions.timeCheck();
-}
+// bool MainWindow::event(QEvent * event) {
+//     switch (event->type()) {
+//         case QEvent::WindowActivate:
+//             qDebug() << "Widget gained focus";
+//             reload();
+//             break;
+//         case QEvent::WindowDeactivate:
+//             break;
+//     };
+//     return QMainWindow::event(event);
+// }
 
 void MainWindow::reload() {
-    configChangeCheck();
-    new FutureVoid{this, [this] { getCc(); }, [this] { updateCc(); }};
-    new FutureVoid{this, [this] { getHazards(); }, [this] { updateHazards(); }};
-    new FutureVoid{this, [this] { get7day(); }, [this] { update7day(); }};
+    // if (timer.isRefreshNeeded()) {
+        setTitle("wX " + toolbar.autoUpdate.titleAdd);
+        configChangeCheck();
 
-    for (const auto& item : UIPreferences::homeScreenItemsText) {
-        if (item.isEnabled()) {
-            const auto t = item.prefToken;
-            new FutureText{this, item.prefToken, [this, t] (const auto& s) { textWidgets[t].setText(s); }};
-        }
-    }
-    for (const auto& item : UIPreferences::homeScreenItemsImage) {
-        if (item.isEnabled()) {
-            const auto url = DownloadImage::byProduct(item.prefToken);
-            const auto token = item.prefToken;
-            new FutureBytes{this, url, [this, token] (const auto& ba) { imageWidgets[token].setToWidth(ba, UIPreferences::mainScreenImageSize); }};
-        }
-    }
-    if (UIPreferences::nexradMainScreen) {
-        auto pane = 0;
-        nexradList[pane]->nexradState.setRadar(Location::radarSite());
-        nexradList[pane]->nexradState.reset();
-        nexradList[pane]->nexradState.zoom = 0.6;
+        new FutureVoid{this, [this] { getCc(); }, [this] { updateCc(); }};
+        new FutureVoid{this, [this] { getHazards(); }, [this] { updateHazards(); }};
+        new FutureVoid{this, [this] { get7day(); }, [this] { update7day(); }};
 
-//        nexradList[pane]->nexradDraw.initGeom();
-//        nexradList[pane]->update();
-//        // FIXME TODO crashes in downloadData FutureBytes
-//         nexradList[pane]->downloadData();
-    }
-    if (UIPreferences::mainScreenSevereDashboard) {
-        new FutureVoid{this, [this] { downloadWatch(); }, [this] { updateWatch(); }};
-    } else {
-        boxSevereDashboard.removeChildren();
-    }
+        for (const auto& item : UIPreferences::homeScreenItemsText) {
+            if (item.isEnabled()) {
+                const auto t = item.getPrefToken();
+                new FutureText{this, item.getPrefToken(), [this, t] (const auto& s) { textWidgets.at(t).setText(s); }};
+            }
+        }
+        for (const auto& item : UIPreferences::homeScreenItemsImage) {
+            if (item.isEnabled()) {
+                const auto url = DownloadImage::byProduct(item.getPrefToken());
+                const auto token = item.getPrefToken();
+                new FutureBytes{this, url, [this, token] (const auto& ba) { imageWidgets.at(token).setToWidth(ba, UIPreferences::mainScreenImageSize); }};
+            }
+        }
+        if (UIPreferences::nexradMainScreen) {
+            const auto pane = 0;
+            nexradList[pane]->nexradState.setRadar(Location::radarSite());
+            nexradList[pane]->nexradState.reset();
+            nexradList[pane]->nexradState.zoom = 0.6;
+            nexradList[pane]->nexradDraw.initGeom();
+
+            for (auto nw : nexradList) {
+                new FutureVoid{this, [nw] { nw->downloadData(); }, [nw] { nw->update(); }};
+            }
+        }
+        if (UIPreferences::mainScreenSevereDashboard) {
+            new FutureVoid{this, [this] { downloadWatch(); }, [this] { updateWatch(); }};
+        } else {
+            boxSevereDashboard.removeChildren();
+        }
+    // }
 }
 
 void MainWindow::downloadWatch() {
+    bytesList.clear();
     urls.clear();
-    for (auto type : {Mcd, Mpd, Watch}) {
-        PolygonWatch::byType[type]->download();
-    }
     urls.push_back(DownloadImage::byProduct("USWARN"));
     urls.push_back(DownloadImage::byProduct("STRPT"));
     for (auto type : {Watch, Mcd, Mpd}) {
@@ -221,14 +185,12 @@ void MainWindow::downloadWatch() {
 void MainWindow::updateWatch() {
     boxSevereDashboard.removeChildren();
     images.clear();
-    for ([[maybe_unused]] auto index : range(urls.size())) {
+    for (auto index : range(urls.size())) {
         images.emplace_back(this);
         images.back().imageSize = 150;
-    }
-    for (auto index : range(urls.size())) {
-        images[index].setBytes(bytesList[index]);
-        images[index].connect([this, index] { launch(index); });
-        boxSevereDashboard.addWidget(images[index]);
+        images.back().setBytes(bytesList[index]);
+        images.back().connect([this, index] { launch(index); });
+        boxSevereDashboard.addWidget(images.back());
     }
 }
 
@@ -247,7 +209,40 @@ void MainWindow::configChangeCheck() {
     if (tokenString != computeTokenString() || UIPreferences::mainScreenImageSize != imageSize) {
         addWidgets();
     }
-    objectToolbar.refresh();
+    toolbar.refresh();
+}
+
+void MainWindow::locationChange() {
+    auto index = comboBox.getIndex();
+    Location::setCurrentLocation(index);
+    reload();
+}
+
+void MainWindow::updateCc() {
+    cardCurrentConditions.update(currentConditions);
+}
+
+void MainWindow::update7day() {
+    sevenDayCollection.update();
+}
+
+void MainWindow::updateHazards() {
+    cardHazards.removeLabels();
+    cardHazards = CardHazards{this, hazards};
+    boxHazards.addLayout(cardHazards);
+}
+
+void MainWindow::getCc() {
+    currentConditions.process(Location::getLatLonCurrent(), 0);
+    currentConditions.timeCheck();
+}
+
+void MainWindow::get7day() {
+    sevenDay.process(Location::getLatLonCurrent());
+}
+
+void MainWindow::getHazards() {
+    hazards.process(Location::getLatLonCurrent());
 }
 
 void MainWindow::addWidgets() {
@@ -256,72 +251,90 @@ void MainWindow::addWidgets() {
     imageWidgets.clear();
     textWidgets.clear();
     boxSevereDashboard.removeChildren();
-    //
-    // TEST - put nexrad at top
-    //
+    tokenString = "";
+    nexradList.clear();
+
     if (UIPreferences::nexradMainScreen) {
+        nexradList.push_back(
+            new NexradWidget{
+                this,
+                0,
+                1,
+                true,
+                Location::radarSite(),
+                UIPreferences::mainScreenImageSize,
+                UIPreferences::mainScreenImageSize,
+                [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& prod) {},
+                [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& sector) {},
+                [] ([[maybe_unused]] double z, [[maybe_unused]] int pane) {},
+                [] ([[maybe_unused]] double x, [[maybe_unused]] double y, [[maybe_unused]] int pane) {},
+                [] {}
+            });
         nexradList[0]->setFixedHeight(UIPreferences::mainScreenImageSize);
         nexradList[0]->setFixedWidth(UIPreferences::mainScreenImageSize);
-        imageLayout.addWidget(nexradList[0]);
+        imageLayout.addWidgetReal(nexradList[0]);
+        tokenString += "NEXRAD_MAIN";
     }
     //
     // image setup
     //
-    imageIndex = 0;
     for (const auto& item : UIPreferences::homeScreenItemsImage) {
         if (item.isEnabled()) {
-            imageWidgets[item.prefToken] = Image{this};
-            const auto tokenFinal = item.prefToken;
-            imageWidgets[item.prefToken].connect([this, tokenFinal] { launchImageScreen(tokenFinal); });
-            imageLayout.addWidget(imageWidgets[item.prefToken]);
+            imageWidgets.insert({item.getPrefToken(), Image{this}});
+            const auto tokenFinal = item.getPrefToken();
+            imageWidgets.at(item.getPrefToken()).connect([this, tokenFinal] { launchImageScreen(tokenFinal); });
+            imageLayout.addWidget(imageWidgets.at(item.getPrefToken()));
+            tokenString += item.getPrefToken();
         }
         imageSize = UIPreferences::mainScreenImageSize;
-        imageIndex += 1;
     }
-    if (imageIndex > 0) {
-        imageLayout.addStretch();
-    }
+    imageLayout.addStretch();
     //
     // Textual right sidebar (hourly)
     //
     for (const auto& item : UIPreferences::homeScreenItemsText) {
         if (item.isEnabled()) {
-            textWidgets[item.prefToken] = Text{this};
-            textWidgets[item.prefToken].setFixedWidth();
-            rightMostLayout.addWidget(textWidgets[item.prefToken]);
+            textWidgets.insert({item.getPrefToken(), Text{this}});
+            textWidgets.at(item.getPrefToken()).setFixedWidth();
+            rightMostLayout.addWidget(textWidgets.at(item.getPrefToken()));
+            tokenString += item.getPrefToken();
         }
     }
+    rightMostLayout.addStretch();
 }
 
 string MainWindow::computeTokenString() {
-    string ts;
+    string tokenString;
+    if (UIPreferences::nexradMainScreen) {
+        tokenString += "NEXRAD_MAIN";
+    }
     for (const auto& item : UIPreferences::homeScreenItemsImage) {
         if (item.isEnabled()) {
-            ts += item.prefToken;
+            tokenString += item.getPrefToken();
         }
     }
     for (const auto& item : UIPreferences::homeScreenItemsText) {
         if (item.isEnabled()) {
-            ts += item.prefToken;
+            tokenString += item.getPrefToken();
         }
     }
-    return ts;
-}
-
-void MainWindow::closeEvent(QCloseEvent * event) {
-    event->accept();
+    return tokenString;
 }
 
 void MainWindow::launchImageScreen(const string& token) {
     if (token == "VISIBLE_SATELLITE") {
-        objectToolbar.launchGoesViewer();
+        Route::vis(this);
     } else if (token == "RADAR_MOSAIC") {
-        objectToolbar.launchRadarMosaicViewer();
+        toolbar.launchRadarMosaicViewer();
     } else if (token == "ANALYSIS_RADAR_AND_WARNINGS") {
-        objectToolbar.launchNationalImages();
+        toolbar.launchNationalImages();
     } else if (token == "USWARN") {
-        objectToolbar.launchUsAlerts();
+        toolbar.launchUsAlerts();
     } else if (token == "RTMA_TEMP") {
-        objectToolbar.launchRtma();
+        toolbar.launchRtma();
+    } else if (token == "SPC_MESO_MSLP") {
+        toolbar.launchSpcMeso("pmsl");
+    } else if (token == "SPC_MESO_500MB") {
+        toolbar.launchSpcMeso("500mb");
     }
 }

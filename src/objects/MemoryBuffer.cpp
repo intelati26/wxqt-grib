@@ -1,28 +1,28 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "objects/MemoryBuffer.h"
+#include "MemoryBuffer.h"
 
 MemoryBuffer::MemoryBuffer()
-    : qbyteArray{ QByteArray{0, '0'} }
+    : qbyteArray{0, '0'}
 {}
 
-MemoryBuffer::MemoryBuffer(int count)
-    : qbyteArray{ QByteArray{count, '0'} }
-    , capacity{ count }
+MemoryBuffer::MemoryBuffer(int capacity)
+    : qbyteArray{capacity, '0'}
+    , capacity{capacity}
 {}
 
 MemoryBuffer::MemoryBuffer(const QByteArray& qarray)
-    : qbyteArray{ QByteArray{qarray} }
-    , capacity{ qbyteArray.size() }
+    : qbyteArray{qarray}
+    , capacity{qbyteArray.size()}
 {}
 
-MemoryBuffer::MemoryBuffer(char * d, int size)
-    : qbyteArray{ QByteArray{d, size} }
-    , capacity{ qbyteArray.size() }
+MemoryBuffer::MemoryBuffer(char * d, int capacity)
+    : qbyteArray{d, capacity}
+    , capacity{qbyteArray.size()}
 {}
 
 void MemoryBuffer::mark(int markAt) {
@@ -49,10 +49,6 @@ int MemoryBuffer::getPosition() const {
 
 void MemoryBuffer::setPosition(int posn) {
     position = posn;
-}
-
-void MemoryBuffer::skipBytes(int count) {
-    position += count;
 }
 
 // KEEP
@@ -111,7 +107,7 @@ float MemoryBuffer::getFloat() {
 //    return u.f;
 // }
 
-float MemoryBuffer::getFloatNative(int index) const {
+float MemoryBuffer::getFloatByIndex(int index) const {
     union {
         float f;
         uchar b[4];
@@ -123,20 +119,8 @@ float MemoryBuffer::getFloatNative(int index) const {
     return u.f;
 }
 
-unsigned char MemoryBuffer::get() {
-    position += 1;
-    return qbyteArray.at(position - 1);
-}
-
-unsigned char MemoryBuffer::get(int index) const {
-    return qbyteArray.at(index);
-}
-
-unsigned char MemoryBuffer::getByIndex(int index) const {
-    return qbyteArray.at(index);
-}
-
-void MemoryBuffer::putFloat(float newValue) {
+void MemoryBuffer::putFloat(double number) {
+    auto newValue = static_cast<float>(number);
     memcpy(qbyteArray.data() + position, &newValue, sizeof(newValue));
     position += 4;
 }
@@ -214,7 +198,20 @@ int MemoryBuffer::getInt() {
     return u.f;
 }
 
-char * MemoryBuffer::getConstData() {
+unsigned char MemoryBuffer::get() {
+    position += 1;
+    return qbyteArray.at(position - 1);
+}
+
+unsigned char MemoryBuffer::getByIndex(int index) const {
+    return qbyteArray.at(index);
+}
+
+void MemoryBuffer::skipBytes(int count) {
+    position += count;
+}
+
+char * MemoryBuffer::getBackingPointer() {
     return qbyteArray.data();
 }
 

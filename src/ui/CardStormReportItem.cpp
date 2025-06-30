@@ -1,34 +1,31 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "ui/CardStormReportItem.h"
+#include "CardStormReportItem.h"
 #include <QDesktopServices>
 #include <QUrl>
 
-CardStormReportItem::CardStormReportItem(QWidget * parent, const StormReport& stormReport)
-    : topLine{ Text{parent, stormReport.state + ", " + stormReport.city + " " + stormReport.time} }
-    , middleLine{ Text{parent, stormReport.address} }
-    , endLine{ Text{parent, stormReport.magnitude + " - " + stormReport.damageReport} }
-    , buttonDetails{ Button{parent, None, "Show on map"} }
+CardStormReportItem::CardStormReportItem(Window * parent, const StormReport& stormReport)
+    : text1{parent, stormReport.state + ", " + stormReport.city + " " + stormReport.time}
+    , text2{parent, stormReport.address}
+    , text3{parent, stormReport.magnitude + " - " + stormReport.damageReport}
+    , button{parent, None, stormReport.latLon.printPretty()}
 {
-    topLine.setBold();
-    middleLine.setGray();
+    text1.setBold();
+    text2.setGray();
+    text3.setGray();
 
-    textLayout.addWidget(topLine);
-    textLayout.addWidget(middleLine);
-    textLayout.addWidget(endLine);
-    textLayout.addStretch();
+    box.addWidget(text1);
+    box.addWidget(text2);
+    box.addWidget(text3);
 
-    const auto lat = stormReport.lat;
-    const auto lon = stormReport.lon;
-    buttonDetails.connect([lat, lon] { launchMap(lat, lon); });
+    button.connect([stormReport] { launchMap(stormReport.lat, stormReport.lon); });
 
-    addLayout(layoutButtons);
-    addLayout(textLayout, Qt::AlignTop);
-    layoutButtons.addWidget(buttonDetails);
+    addWidget(button);
+    addLayout(box, Qt::AlignTop);
 }
 
 void CardStormReportItem::launchMap(const string& lat, const string& lon) {

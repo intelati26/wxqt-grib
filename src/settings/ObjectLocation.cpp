@@ -1,22 +1,23 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "settings/ObjectLocation.h"
+#include "ObjectLocation.h"
+#include "objects/WString.h"
+#include "radar/RadarSites.h"
 #include "util/To.h"
 #include "util/Utility.h"
 
-ObjectLocation::ObjectLocation() = default;
-
 ObjectLocation::ObjectLocation(int locationNumber)
-    : locNumAsString{ To::string(locationNumber + 1) }
-    , lat{ Utility::readPref("LOC" + locNumAsString + "_X", "") }
-    , lon{ Utility::readPref("LOC" + locNumAsString + "_Y", "") }
-    , name{ Utility::readPref("LOC" + locNumAsString + "_LABEL", "") }
-    , wfo{ Utility::readPref("NWS" + locNumAsString, "") }
-    , rid{ Utility::readPref("RID" + locNumAsString, "") }
+    : locNumAsString{To::string(locationNumber + 1) }
+    , lat{Utility::readPref("LOC" + locNumAsString + "_X", "35.231")}
+    , lon{Utility::readPref("LOC" + locNumAsString + "_Y", "-97.451")}
+    , name{Utility::readPref("LOC" + locNumAsString + "_LABEL", "Home")}
+    , wfo{Utility::readPref("NWS" + locNumAsString, "OUN")}
+    , rid{Utility::readPref("RID" + locNumAsString, "KTLX")}
+    , state{WString::split(RadarSites::getName(rid), ",")[0]}
 {}
 
 void ObjectLocation::saveToNewSlot(int newLocNumInt) {
@@ -50,4 +51,8 @@ string ObjectLocation::getWfo() const {
 
 string ObjectLocation::getRadarSite() const {
     return rid;
+}
+
+string ObjectLocation::getState() const {
+    return state;
 }

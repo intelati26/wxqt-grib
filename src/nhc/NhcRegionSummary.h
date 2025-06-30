@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTNHCREGIONSUMMARY_H
-#define OBJECTNHCREGIONSUMMARY_H
+#ifndef NHCREGIONSUMMARY_H
+#define NHCREGIONSUMMARY_H
 
 #include <string>
 #include <vector>
@@ -19,7 +19,6 @@ public:
     explicit NhcRegionSummary(const NhcOceanEnum&);
     vector<string> urls;
     vector<string> titles;
-    string baseUrl;
 };
 
-#endif  // OBJECTNHCREGIONSUMMARY_H
+#endif  // NHCREGIONSUMMARY_H

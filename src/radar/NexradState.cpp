@@ -1,38 +1,35 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "radar/NexradState.h"
-#include <iostream>
-#include <memory>
+#include "NexradState.h"
+#include "common/GlobalDictionaries.h"
+#include "objects/WString.h"
+#include "radar/NexradUtil.h"
 #include "settings/Location.h"
 #include "settings/RadarPreferences.h"
 #include "util/To.h"
 #include "util/Utility.h"
 #include "util/UtilityList.h"
+#include "util/UtilityString.h"
 
-NexradState::NexradState(QWidget * parent,
-    int paneNumber, int numberOfPanes, bool useASpecificRadar, const string& radarToUse, int originalWidth, int originalHeight)
-    : paneNumber{ paneNumber }
-    , numberOfPanes{ numberOfPanes }
-    , useASpecificRadar{ useASpecificRadar }
-    , radarStatusBox { std::make_unique<RadarStatusBox>(parent) }
-    , radarSite{ Location::radarSite() }
-    , originalWidth{ originalWidth }
-    , originalHeight{ originalHeight }
+NexradState::NexradState(int paneNumber, int numberOfPanes, bool useASpecificRadar, const string& radarToUse, int originalWidth, int originalHeight)
+    : paneNumber{paneNumber}
+    , numberOfPanes{numberOfPanes}
+    , useASpecificRadar{useASpecificRadar}
+    , radarSite{Location::radarSite()}
+    , originalWidth{originalWidth}
+    , originalHeight{originalHeight}
 {
-    zoom = 1.0;
     if (numberOfPanes == 2) {
         xPos = 0.0 - (originalWidth / 4.0) * zoom;
     }
-    if (!useASpecificRadar) {
-        radarProduct = initialRadarProducts[0];
-        readPreferences();
-    } else {
+    if (useASpecificRadar) {
         setRadar(radarToUse);
-        radarProduct = initialRadarProducts[0];
+    } else {
+        readPreferences();
     }
 }
 
@@ -44,29 +41,45 @@ string NexradState::getRadarSite() const {
     return radarSite;
 }
 
-string NexradState::getRadarProduct() const {
-    return radarProduct;
-}
-
 void NexradState::setRadar(const string& site) {
     radarSite = site;
     pn.setRadarSite(radarSite);
 }
 
+string NexradState::getRadarProduct() const {
+    return UtilityString::replaceRegex(radarProduct, "[0-3]", To::string(tiltInt));
+}
+
+uint16_t NexradState::getRadarProductId() const {
+    return GlobalDictionaries::radarProductStringToShortInt.at(getRadarProduct());
+}
+
+void NexradState::setRadarProduct(const string& product) {
+    radarProduct = WString::split(product, ":")[0];
+}
+
+bool NexradState::isTdwrSite() const {
+    return NexradUtil::isRadarTdwr(getRadarSite());
+}
+
+bool NexradState::isTdwrProduct() const {
+    return NexradUtil::isProductTdwr(getRadarProduct());
+}
+
 void NexradState::reset() {
     xPos = 0.0;
     yPos = 0.0;
-    zoom = 1.0;
+    zoom = 0.7;
 }
 
-void NexradState::resetZoom() {
-    zoom = 1.0;
-    xPos = 0.0;
-    if (numberOfPanes == 2) {
-        xPos = 0.0 - (originalWidth / 4.0) * zoom;
-    }
-    yPos = 0.0;
-}
+// void NexradState::resetZoom() {
+//     zoom = 0.7;
+//     xPos = 0.0;
+//     if (numberOfPanes == 2) {
+//         xPos = 0.0 - (originalWidth / 4.0) * zoom;
+//     }
+//     yPos = 0.0;
+// }
 
 void NexradState::readPreferences() {
     if (RadarPreferences::rememberLocation) {
@@ -75,14 +88,15 @@ void NexradState::readPreferences() {
         zoom = To::Double(Utility::readPref(radarType + numberOfPanesStr + "_ZOOM" + index, "1.0"));
         xPos = To::Double(Utility::readPref(radarType + numberOfPanesStr + "_X" + index, "0.0"));
         yPos = To::Double(Utility::readPref(radarType + numberOfPanesStr + "_Y" + index, "0.0"));
-        radarSite = Utility::readPref(radarType + numberOfPanesStr + "_RID" + index, Location::radar());
+        setRadar(Utility::readPref(radarType + numberOfPanesStr + "_RID" + index, Location::radarSite()));
         radarProduct = Utility::readPref(radarType + numberOfPanesStr + "_PROD" + index, initialRadarProducts[paneNumber]);
         tiltInt = Utility::readPrefInt(radarType + numberOfPanesStr + "_TILT" + index, 0);
+    } else {
         setRadar(radarSite);
     }
 }
 
-void NexradState::writePreferences() {
+void NexradState::writePreferences() const {
     if (!useASpecificRadar) {
         const auto numberOfPanesStr = To::string(numberOfPanes);
         const auto index = To::string(paneNumber);
@@ -92,15 +106,5 @@ void NexradState::writePreferences() {
         Utility::writePref(radarType + numberOfPanesStr + "_RID" + index, radarSite);
         Utility::writePref(radarType + numberOfPanesStr + "_PROD" + index, radarProduct);
         Utility::writePrefInt(radarType + numberOfPanesStr + "_TILT" + index, tiltInt);
-    }
-}
-
-void NexradState::processAnimationFiles(int frameCount, FileStorage * fileStorage) {
-    for (auto index : range(frameCount)) {
-        levelDataList.emplace_back(this, fileStorage);
-        levelDataList.back().radarBuffers.animationIndex = index;
-        levelDataList.back().decode();
-        levelDataList.back().radarBuffers.initialize();
-        levelDataList.back().generateRadials();
     }
 }

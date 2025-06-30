@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,6 +8,7 @@
 #define RTMA_H
 
 #include <string>
+#include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/Photo.h"
@@ -18,10 +19,12 @@ using std::string;
 
 class Rtma : public Window {
 public:
-    explicit Rtma(QWidget *);
+    explicit Rtma(Window *);
 
 private:
     void reload();
+    void moveBack();
+    void moveForward();
     void changeProduct();
     void changeSector();
     void changeTime();
@@ -31,7 +34,8 @@ private:
     ComboBox comboboxProduct;
     ComboBox comboboxSector;
     ComboBox comboboxTimes;
-    int indexProduct{0};
+    BackForward backForward;
+    int index;
     VBox box;
     HBox hbox;
 };

@@ -1,19 +1,18 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef WPCNATIONALIMAGES_H
-#define WPCNATIONALIMAGES_H
+#ifndef NATIONALIMAGES_H
+#define NATIONALIMAGES_H
 
 #include <string>
 #include <vector>
-#include "ui/Button.h"
+#include "ui/BackForward.h"
 #include "ui/HBox.h"
 #include "ui/Photo.h"
 #include "ui/PopoverMenu.h"
-#include "ui/Shortcut.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -22,23 +21,21 @@ using std::vector;
 
 class NationalImages : public Window {
 public:
-    explicit NationalImages(QWidget *);
+    explicit NationalImages(Window *);
 
 private:
     void reload();
+    void moveBack();
+    void moveForward();
     void changeProductByCode(const string&);
-    void moveLeftClicked();
-    void moveRightClicked();
-    const string prefToken{"WPCIMG_PARAM_LAST_USED"};
+    void resizeEventCustom() override;
     VBox box;
     HBox hbox;
-    vector<PopoverMenu> popoverMenus;
     Photo photo;
-    Button buttonBack;
-    Button buttonForward;
+    BackForward backForward;
     int index;
-    Shortcut shortcutLeft;
-    Shortcut shortcutRight;
+    const string prefToken{"WPCIMG_PARAM_LAST_USED"};
+    vector<PopoverMenu> popoverMenus;
 };
 
-#endif  // WPCNATIONALIMAGES_H
+#endif  // NATIONALIMAGES_H

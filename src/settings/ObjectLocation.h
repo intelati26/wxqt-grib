@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -14,7 +14,6 @@ using std::string;
 
 class ObjectLocation {
 public:
-    ObjectLocation();
     explicit ObjectLocation(int);
     void saveToNewSlot(int);
     string getLat() const;
@@ -23,6 +22,7 @@ public:
     string getName() const;
     string getWfo() const;
     string getRadarSite() const;
+    string getState() const;
 
 private:
     string locNumAsString;
@@ -31,6 +31,7 @@ private:
     string name;
     string wfo;
     string rid;
+    string state;
 };
 
 #endif  // OBJECTLOCATION_H

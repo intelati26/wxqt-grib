@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,18 +8,18 @@
 #define UTILITYFORECASTICON_H
 
 #include <string>
-#include <QImage>
+#include "ui/Pix.h"
 
 using std::string;
 
 class UtilityForecastIcon {
 public:
-    static QImage getIcon(const string&);
+    static Pix getIcon(const string&);
 
 private:
-    static QImage parseBitmapString(const string&);
-    static QImage getBitmapWithOneNumber(const string&);
-    static QImage getDualBitmapWithNumbers(const string&, const string&);
+    static Pix parseBitmapString(const string&);
+    static Pix getDualBitmapWithNumbers(const string&, const string&);
+    static Pix getBitmapWithOneNumber(const string&);
     static string getFilename(const string&);
 };
 

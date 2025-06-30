@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -11,7 +11,6 @@
 #include <unordered_map>
 #include <vector>
 #include <QColor>
-#include "objects/MemoryBuffer.h"
 #include "radar/RadarGeometryTypeEnum.h"
 
 using std::string;
@@ -20,7 +19,6 @@ using std::vector;
 
 class RadarGeomInfo {
 public:
-    RadarGeomInfo();  // needed for non-const unordered_map TODO FIXME
     explicit RadarGeomInfo(RadarGeometryTypeEnum);
     void update();
     RadarGeometryTypeEnum type;
@@ -28,7 +26,7 @@ public:
     vector<unsigned char> colorData;
     int colorInt{};
     QColor qcolor;
-    bool isEnabled{};
+    bool isEnabled;
     int lineSizeDefault{10};
     double lineSize{};
     double lineFactor{20.0};

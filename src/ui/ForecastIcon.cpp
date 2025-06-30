@@ -1,17 +1,16 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "ForecastIcon.h"
-#include "../common/GlobalVariables.h"
-#include "../objects/Color.h"
+#include "common/GlobalVariables.h"
 
 const int ForecastIcon::dimensions{86};
 const int ForecastIcon::numHeight{20};
 const int ForecastIcon::halfWidth{42};
-const QFont ForecastIcon::font{"Helvetica", 15, QFont::Bold};
+const QFont ForecastIcon::font{"Helvetica", 0, QFont::Bold};
 const QPen ForecastIcon::penForText{QColor{38, 97, 139}};
 const QBrush ForecastIcon::brushForBar{QColor{255, 255, 255, 200}, Qt::SolidPattern};
 
@@ -64,10 +63,11 @@ void ForecastIcon::drawSingleText(const string& number) {
     painter.drawText(image.rect(), Qt::AlignBottom | Qt::AlignRight, QString::fromStdString(number) + "%");
 }
 
-QImage ForecastIcon::get() {
-    return image;
+Pix ForecastIcon::get() {
+    return Pix::fromImage(image);
 }
 
-QImage ForecastIcon::blankBitmap() {
-    return QPixmap{dimensions, dimensions}.toImage();
+Pix ForecastIcon::blankBitmap() {
+    // return QPixmap{dimensions, dimensions}.toImage();
+    return Pix::blank(dimensions);
 }

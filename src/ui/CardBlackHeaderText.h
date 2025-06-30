@@ -1,25 +1,25 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTCARDBLACKHEADERTEXT_H
-#define OBJECTCARDBLACKHEADERTEXT_H
+#ifndef CARDBLACKHEADERTEXT_H
+#define CARDBLACKHEADERTEXT_H
 
 #include <string>
-#include <QWidget>
+#include "ui/HBox.h"
 #include "ui/Text.h"
-#include "ui/VBox.h"
+#include "ui/Window.h"
 
 using std::string;
 
-class CardBlackHeaderText : public VBox {
+class CardBlackHeaderText : public HBox {
 public:
-    CardBlackHeaderText(QWidget *, const string&);
+    CardBlackHeaderText(Window *, const string&);
 
 private:
-    Text firstRow;
+    Text text;
 };
 
-#endif  // OBJECTCARDBLACKHEADERTEXT_H
+#endif  // CARDBLACKHEADERTEXT_H

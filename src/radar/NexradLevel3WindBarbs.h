@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef WXGLNEXRADLEVEL3WINDBARBS_H
-#define WXGLNEXRADLEVEL3WINDBARBS_H
+#ifndef NEXRADLEVEL3WINDBARBS_H
+#define NEXRADLEVEL3WINDBARBS_H
 
 #include <vector>
 #include "objects/FileStorage.h"
@@ -18,4 +18,4 @@ public:
     static vector<double> decodeAndPlot(const ProjectionNumbers&, bool, FileStorage&);
 };
 
-#endif  // WXGLNEXRADLEVEL3WINDBARBS_H
+#endif  // NEXRADLEVEL3WINDBARBS_H

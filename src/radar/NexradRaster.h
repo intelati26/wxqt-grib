@@ -1,17 +1,17 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef UTILITYWXMETALPERFRASTER_H
-#define UTILITYWXMETALPERFRASTER_H
+#ifndef NEXRADRASTER_H
+#define NEXRADRASTER_H
 
-#include "radar/NexradLevelData.h"
+#include "radar/RadarBuffers.h"
 
 class NexradRaster {
 public:
-    static int create(RadarBuffers *, NexradLevelData *);
+    static int create(RadarBuffers&);
 };
 
-#endif  // UTILITYWXMETALPERFRASTER_H
+#endif  // NEXRADRASTER_H

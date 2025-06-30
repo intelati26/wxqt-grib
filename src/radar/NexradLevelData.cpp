@@ -1,12 +1,10 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "radar/NexradLevelData.h"
-#include <iostream>
-#include <vector>
+#include "NexradLevelData.h"
 #include "common/GlobalDictionaries.h"
 #include "objects/ObjectDateTime.h"
 #include "radar/NexradState.h"
@@ -18,56 +16,45 @@
 #include "util/UtilityList.h"
 
 NexradLevelData::NexradLevelData(NexradState * nexradState, FileStorage * fileStorge)
-    : fileStorage{ fileStorge }
-    , numberOfRangeBins{ 916 }
-    , numberOfRadials{ 360 }
-    , productCode{ static_cast<uint16_t>(GlobalDictionaries::radarProductStringToShortInt.at(nexradState->getRadarProduct())) }
-    , nexradState{ nexradState }
+    : nexradState{nexradState}
+    , fileStorage{fileStorge}
+    , productCode{nexradState->getRadarProductId()}
 {}
 
 void NexradLevelData::decode() {
-    productCode = GlobalDictionaries::radarProductStringToShortInt.at(nexradState->getRadarProduct());
-    switch (productCode) {
-        case 155:
-        case 30:
-        case 37:
-        case 38:
-        case 41:
-        case 56:
-        case 57:
-        case 78:
-        case 80:
-        case 181:
-            decodeAndPlotNexradLevel3FourBit();
-            break;
-        default:
-            decodeAndPlotNexradLevel3();
-            break;
+    productCode = nexradState->getRadarProductId();
+    if (contains({30, 37, 38, 41, 56, 57, 78, 80, 181}, productCode)) {
+        decodeAndPlotNexradLevel3FourBit();
+    } else {
+        decodeAndPlotNexradLevel3();
     }
 }
 
 void NexradLevelData::generateRadials() {
+    productCode = nexradState->getRadarProductId();
     if (contains({37, 38}, productCode)) {
-        totalBins = NexradRaster::create(&radarBuffers, this);
+        totalBins = NexradRaster::create(radarBuffers);
     } else if (contains({30, 56, 78, 80, 181}, productCode)) {
-        totalBins = NexradDecodeEightBit::createRadials(&radarBuffers);
+        totalBins = NexradDecodeEightBit::createRadials(radarBuffers);
+    } else if (productCode == 0) {
+        totalBins = 0;
     } else {
-        totalBins = NexradDecodeEightBit::andCreateRadials(&radarBuffers, fileStorage);
+        totalBins = NexradDecodeEightBit::andCreateRadials(radarBuffers, fileStorage);
     }
 }
 
 void NexradLevelData::decodeAndPlotNexradLevel3() {
     MemoryBuffer * dis;
     if (radarBuffers.animationIndex == -1) {
-        dis = &(fileStorage->memoryBuffer);
+        dis = &fileStorage->memoryBuffer;
     } else {
-        dis = &(fileStorage->animationMemoryBuffer[radarBuffers.animationIndex]);
+        dis = &fileStorage->animationMemoryBuffer[radarBuffers.animationIndex];
     }
-    dis->setPosition(0);
-    if (dis->getCapacity() > 0) {
+    if (dis->getCapacity() > 300) {
+        dis->setPosition(0);
         while (dis->getShort() != -1) {}
-        latitudeOfRadar = (dis->getInt()) / 1000.0;
-        longitudeOfRadar = (dis->getInt()) / 1000.0;
+        latitudeOfRadar = dis->getInt() / 1000.0;
+        longitudeOfRadar = dis->getInt() / 1000.0;
         radarHeight = dis->getUnsignedShort();
         productCode = dis->getUnsignedShort();
         operationalMode = dis->getUnsignedShort();
@@ -105,14 +92,10 @@ void NexradLevelData::decodeAndPlotNexradLevel3FourBit() {
             radarBuffers.binWord = MemoryBuffer{360 * 720};
             break;
         case 78:
-            radarBuffers.binWord = MemoryBuffer{360 * 592};
-            break;
         case 80:
             radarBuffers.binWord = MemoryBuffer{360 * 592};
             break;
         case 37:
-            radarBuffers.binWord = MemoryBuffer{464 * 464};
-            break;
         case 38:
             radarBuffers.binWord = MemoryBuffer{464 * 464};
             break;
@@ -123,43 +106,27 @@ void NexradLevelData::decodeAndPlotNexradLevel3FourBit() {
     radarBuffers.radialStartAngle = MemoryBuffer{4 * 360};
     MemoryBuffer * dis;
     if (radarBuffers.animationIndex == -1) {
-        dis = &(fileStorage->memoryBuffer);
+        dis = &fileStorage->memoryBuffer;
     } else {
-        dis = &(fileStorage->animationMemoryBuffer[radarBuffers.animationIndex]);
-        dis->setPosition(0);
+        dis = &fileStorage->animationMemoryBuffer[radarBuffers.animationIndex];
     }
     if (dis->getCapacity() > 0) {
-        dis->skipBytes(30);
-        dis->skipBytes(20);
-        dis->skipBytes(8);
-        [[maybe_unused]] int radarHeight = dis->getUnsignedShort();
-        auto productCode = dis->getUnsignedShort();
-        [[maybe_unused]] uint16_t operationalMode = dis->getUnsignedShort();
+        dis->setPosition(0);
+        dis->skipBytes(58);
+        radarHeight = dis->getUnsignedShort();
+        productCode = dis->getUnsignedShort();
+        operationalMode = dis->getUnsignedShort();
         volumeCoveragePattern = dis->getUnsignedShort();
         sequenceNumber = dis->getUnsignedShort();
         volumeScanNumber = dis->getUnsignedShort();
-        auto volumeScanDate = dis->getUnsignedShort();
-        auto volumeScanTime = dis->getInt();
+        volumeScanDate = dis->getUnsignedShort();
+        volumeScanTime = dis->getInt();
         writeTime(volumeScanDate, volumeScanTime);
-        dis->skipBytes(6);
-        dis->skipBytes(56);
-        dis->skipBytes(32);
-        switch (productCode) {
-        case 37:
-            numberOfRangeBins = NexradDecodeFourBit::raster(&radarBuffers, fileStorage);
-            break;
-        case 38:
-            numberOfRangeBins = NexradDecodeFourBit::raster(&radarBuffers, fileStorage);
-            break;
-        case 41:
-            numberOfRangeBins = NexradDecodeFourBit::raster(&radarBuffers, fileStorage);
-            break;
-        case 57:
-            numberOfRangeBins = NexradDecodeFourBit::raster(&radarBuffers, fileStorage);
-            break;
-        default:
-            numberOfRangeBins = NexradDecodeFourBit::radial(&radarBuffers, fileStorage);
-            break;
+        dis->skipBytes(94);
+        if (productCode == 37 || productCode == 38 || productCode == 41 || productCode == 57) {
+            numberOfRangeBins = NexradDecodeFourBit::raster(radarBuffers, fileStorage);
+        } else {
+            numberOfRangeBins = NexradDecodeFourBit::radial(radarBuffers, fileStorage);
         }
         binSize = NexradUtil::getBinSize(productCode);
         numberOfRadials = 360;
@@ -183,12 +150,16 @@ void NexradLevelData::writeTime(uint16_t volumeScanDate, int volumeScanTime) {
         + ", " + "Height: "
         + To::string(radarHeight);
     const int64_t sec = (((volumeScanDate) - 1) * 3600 * 24) + volumeScanTime;
-    auto dateString = ObjectDateTime::getTimeFromPointAsString(sec);
+    const auto dateString = ObjectDateTime::getTimeFromPointAsString(sec);
     const auto radarInfoFinal = dateString + " " + radarInfo;
-    fileStorage->radarInfo = radarInfoFinal;
-    // fileStorage->radarDate = dateString;
-    // radarBuffers.fileStorage.radarVcp = volumeCoveragePattern.toString();
-    fileStorage->radarAgeMilli = static_cast<int>(ObjectDateTime::currentTimeMillis() - sec * 1000);
     this->radarInfo = radarInfoFinal;
-    this->radarAgeMilli = fileStorage->radarAgeMilli;
+    radarAgeMilli = static_cast<int>(ObjectDateTime::currentTimeMillis() - sec * 1000);
+}
+
+int NexradLevelData::decodeAndGenerateRadials() {
+    radarBuffers.animationIndex = -1;
+    decode();
+    radarBuffers.initialize();
+    generateRadials();
+    return totalBins;
 }

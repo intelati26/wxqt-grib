@@ -3,7 +3,7 @@
  * http://www.gavaghan.org/blog/free-source-code/geodesy-library-vincentys-formula/
  *
  * This code may be freely used and modified on any personal or professional
- * project.  It comes with no warranty.
+ * project. It comes with no warranty.
  *
  * BitCoin tips graciously accepted at 1FB63FYQMy7hpC2ANVhZ5mSgAZEtY1aVLf
  */
@@ -16,7 +16,6 @@
 
 class ExternalEllipsoid {
 public:
-    ExternalEllipsoid(double, double, double);
     double getSemiMajorAxis() const;
     double getSemiMinorAxis() const;
     double getFlattening() const;
@@ -24,6 +23,7 @@ public:
     static ExternalEllipsoid fromAAndInverseF(double, double);
 
 private:
+    ExternalEllipsoid(double, double, double);
     double semiMajor;
     double semiMinor;
     double flattening;

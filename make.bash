@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # compile and run the program
 # compiles with 4 cores unless called with an arg

@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef UTILITYSWODAYONE_H
-#define UTILITYSWODAYONE_H
+#ifndef SWODAYONE_H
+#define SWODAYONE_H
 
 #include <string>
 #include <unordered_map>
@@ -21,9 +21,9 @@ class SwoDayOne {
 public:
     static void get();
     static DownloadTimer timer;
-    static unordered_map<int, vector<double>> hashSwo;
-    static const vector<QColor> swoPaints;
+    static unordered_map<int, vector<double>> polygonBy;
+    static const vector<QColor> colors;
     static const vector<string> threatList;
 };
 
-#endif  // UTILITYSWODAYONE_H
+#endif  // SWODAYONE_H

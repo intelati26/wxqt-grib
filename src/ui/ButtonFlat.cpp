@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -7,22 +7,20 @@
 #include "ui/ButtonFlat.h"
 #include "common/GlobalVariables.h"
 #include "settings/UIPreferences.h"
+#include "ui/ButtonIcon.h"
 
 int ButtonFlat::iconSize{};
 
-ButtonFlat::ButtonFlat(const string& imageName, const string& label, QWidget * parent)
-    : parent{ parent }
-    , button{ new QPushButton{parent} }
+ButtonFlat::ButtonFlat(Window * parent, const string& imageName, const string& label)
+    : parent{parent}
+    , button{new QPushButton{parent}}
 {
     iconSize = UIPreferences::toolbarIconSize;
     button->setFlat(true);
     button->setToolTip(QString::fromStdString(label));
     button->setContentsMargins(0, 0, 0, 0);
     if (!imageName.empty()) {
-        const auto pixmap = QPixmap{QString::fromStdString(GlobalVariables::imageDir + imageName)};
-        const auto buttonIcon = QIcon{pixmap};
-        button->setIcon(buttonIcon);
-        button->setIconSize(QSize{iconSize, iconSize});
+        ButtonIcon(button, GlobalVariables::imageDir + imageName, iconSize);
     }
 }
 
@@ -45,4 +43,8 @@ void ButtonFlat::setVisible(bool b) {
 void ButtonFlat::refresh() {
     iconSize = UIPreferences::toolbarIconSize;
     button->setIconSize(QSize{iconSize, iconSize});
+}
+
+int ButtonFlat::getIconSize() {
+    return iconSize;
 }

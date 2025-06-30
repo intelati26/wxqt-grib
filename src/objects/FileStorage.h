@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,9 +8,9 @@
 #define FILESTORAGE_H
 
 #include <QByteArray>
+#include <QColor>
 #include <QLineF>
 #include <QVector>
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -30,8 +30,6 @@ public:
     void setMemoryBufferForAnimation(int, const QByteArray&);
     MemoryBuffer memoryBuffer;
     vector<MemoryBuffer> animationMemoryBuffer;
-    string radarInfo;
-    int radarAgeMilli{};
     vector<double> stiData;
     vector<double> hiData;
     vector<double> tvsData;
@@ -45,10 +43,9 @@ public:
     string obsOldRadarSite;
     DownloadTimer obsDownloadTimer;
     unordered_map<RadarGeometryTypeEnum, QVector<QLineF>> relativeBuffers;
-    vector<double> locationDotsTransformed;
-    vector<double> locationDotsTransformedGps;
-    // double gpsX{};
-    // double gpsY{};
+    vector<vector<double>> locationDotsTransformed;
+    // vector<double> locationDotsTransformedGps;
+    vector<QColor> locationDotsColor;
 };
 
 #endif  // FILESTORAGE_H

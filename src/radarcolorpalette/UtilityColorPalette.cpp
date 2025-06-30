@@ -1,17 +1,16 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "radarcolorpalette/UtilityColorPalette.h"
+#include "UtilityColorPalette.h"
 #include "common/GlobalVariables.h"
 #include "objects/WString.h"
 #include "util/UtilityIO.h"
 
 vector<string> UtilityColorPalette::getColorMapStringFromDisk(int product, const string& code) {
     string cmFileInt;
-    string text;
     switch (product) {
         case 94:
             cmFileInt = "colormapref" + WString::toLower(code) + ".txt";
@@ -61,8 +60,5 @@ vector<string> UtilityColorPalette::getColorMapStringFromDisk(int product, const
         default:
             break;
     }
-    if (!text.empty()) {
-        // return text;
-    } else {}
     return UtilityIO::rawFileToStringArray(GlobalVariables::resDir + cmFileInt);
 }

@@ -1,11 +1,12 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "util/UtilityUS.h"
+#include "UtilityUS.h"
 #include "common/GlobalVariables.h"
+#include "util/UtilityDownloadNws.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityList.h"
 #include "util/UtilityString.h"
@@ -38,12 +39,8 @@ const vector<string> UtilityUS::regexpList{
     "<humidity type=.relative..*?>(.*?)</humidity>"
 };
 
-string UtilityUS::getLocationHtml(const string& x, const string& y) {
-    return UtilityIO::getHtml("https://forecast.weather.gov/MapClick.php?lat=" + x + "&lon=" + y + "&unit=0&lg=english&FcstType=dwml");
-}
-
-vector<string>  UtilityUS::getCurrentConditionsUS(const string& x, const string& y) {
-    const auto html = getLocationHtml(x, y);
+vector<string> UtilityUS::getCurrentConditionsUS(const LatLon& latLon) {
+    const auto html = UtilityDownloadNws::getLocationHtml(latLon);
     const auto rawData = UtilityString::parseXmlExt(regexpList, html);
     return {rawData[10], get7DayExt(rawData)};
 }
@@ -54,7 +51,7 @@ string UtilityUS::get7DayExt(const vector<string>& rawData) {
     timeP12n13List.insert(timeP12n13List.begin(), "");
     string forecastString;
     for (auto j : range2(1, forecast.size())) {
-        forecastString += timeP12n13List[j] + ": " + forecast[j];
+        forecastString += timeP12n13List[j] + ": " + forecast[j] + GlobalVariables::newline;
     }
     return forecastString;
 }

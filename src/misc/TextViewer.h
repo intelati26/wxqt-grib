@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -17,7 +17,7 @@ using std::string;
 
 class TextViewer : public Window {
 public:
-    TextViewer(QWidget *, const string&, int = 0, int = 0);
+    TextViewer(Window *, const string&, bool, const string& = "", int = 0, int = 0);
 
 private:
     VBox box;

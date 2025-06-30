@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -9,20 +9,21 @@
 
 #include <string>
 #include <vector>
-#include "radar/RID.h"
+#include "objects/LatLon.h"
+#include "objects/Site.h"
 
 using std::string;
 using std::vector;
 
 class ObjectMetar {
 public:
-    explicit ObjectMetar(const LatLon&, int index = 0);
+    ObjectMetar(const LatLon&, int = 0);
     void process();
-    static string changePressureUnits(const string&);
+    static string decodeIconFromMetar(const string&, const Site&);
+    static string translateCondition(const string&);
     static string changeDegreeUnits(const string&);
-    static string decodeIconFromMetar(const string&, const RID&);
-    // LatLon location;
-    RID obsClosest;
+    static string changePressureUnits(const string&);
+    Site obsClosest;
     string condition;
     string temperature;
     string dewPoint;
@@ -37,13 +38,12 @@ public:
     string conditionsTimeString;
     string timeStringUtc;
     string icon;
-    string metarData;
     vector<string> metarDataList;
+    string metarData;
 
 private:
     string metarSkyCondition;
     string metarWeatherCondition;
-    bool decodeIcon{true};
 };
 
 #endif  // OBJECTMETAR_H

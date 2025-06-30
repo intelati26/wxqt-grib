@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -69,6 +69,10 @@ bool UtilityUI::isMobile() {
 int UtilityUI::getImageWidth(int numberOfImages) {
     const auto dim = getScreenBounds();
     return static_cast<int>(dim[0] / numberOfImages) - 15;
+}
+
+int UtilityUI::getImageWidth2(int numberOfImages, double width) {
+    return static_cast<int>(width / numberOfImages) - 15;
 }
 
 void UtilityUI::updateImage(QLabel * label, const QByteArray& data, int imageSize) {

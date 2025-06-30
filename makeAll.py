@@ -22,7 +22,7 @@ from subprocess import Popen, PIPE
 from typing import Tuple, List
 
 # positioning
-proHeader: str = """QT += core gui network widgets
+proHeader: str = """QT += core gui network widgets webenginewidgets
 CONFIG += c++2a
 DEFINES += QT_DEPRECATED_WARNINGS
 INCLUDEPATH += src
@@ -75,7 +75,7 @@ def run(command: str):
         yield line
 
 
-def makePro() -> None:
+def makePro(extraFooter: str = "\n") -> None:
     cppFiles: List[str] = glob.glob("src/*.cpp") + glob.glob("src/*/*.c*")
     headerFiles: List[str] = glob.glob("src/*/*.h")
     proTargetFile: str = "wxqt.pro"
@@ -95,6 +95,7 @@ def makePro() -> None:
             fh.write(" " * 4 + qrc + " \\" + '\n')
 
         fh.write(proFooter)
+        fh.write(extraFooter)
 
 
 if __name__ == "__main__":
@@ -104,7 +105,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--singleThread', action='store_true')
     parser.add_argument('--pro', action='store_true')
-    parser.add_argument('--qt6', action='store_true')
+    parser.add_argument('--qt5', action='store_true')
+    parser.add_argument('--gcc', action='store_true')
     args = parser.parse_args()
 
     #
@@ -127,21 +129,27 @@ if __name__ == "__main__":
     #
     # make pro file
     #
-    makePro()
+    if not args.gcc:
+        makePro()
+    else:
+        makePro("QMAKE_CXX = g++\n")
 
     #
     # configure with qmake
     #
-    qmakeCommand: str = "qmake"
-    if args.qt6:
-        qmakeCommand = "qmake6"
+    qmakeCommand: str = "qmake6"
+
     osfile: str = "/etc/os-release"
     if os.path.exists(osfile):
         osFileData = open(osfile).read()
-        if "Fedora Linux" in osFileData:
+        if "Fedora Linux" in osFileData or "FreeBSD" in osFileData:
             qmakeCommand = "qmake-qt5"
         elif "MSYS2" in osFileData:
             qmakeCommand = "qmake6"
+
+    if args.qt5:
+        qmakeCommand = "qmake"
+
     out, err, returnCode = runMe(qmakeCommand)
     print(qmakeCommand, ":", out, err)
     if returnCode != 0:

@@ -1,15 +1,16 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef SPCLSRBYWFO_H
-#define SPCLSRBYWFO_H
+#ifndef LSRBYWFO_H
+#define LSRBYWFO_H
 
 #include <string>
 #include <vector>
 #include "ui/ComboBox.h"
+#include "ui/HBox.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
@@ -20,21 +21,21 @@ using std::vector;
 
 class LsrByWfo : public Window {
 public:
-    explicit LsrByWfo(QWidget *);
+    explicit LsrByWfo(Window *);
 
 private:
     void changeSector();
     void getLsrFromWfo();
     void reload();
-    void download(int, int);
-    void update(int);
+    void update();
     VBox box;
     VBox boxText;
+    HBox boxH;
     ScrolledWindow sw;
     ComboBox comboboxSector;
-    string wfo;
     vector<string> lsrList;
     vector<Text> textList;
+    string wfo;
 };
 
-#endif  // SPCLSRBYWFO_H
+#endif  // LSRBYWFO_H

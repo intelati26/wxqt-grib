@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -9,7 +9,7 @@
 
 #include <string>
 #include "models/ObjectModel.h"
-#include "ui/Button.h"
+#include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/Photo.h"
@@ -20,7 +20,7 @@ using std::string;
 
 class ModelViewer : public Window {
 public:
-    ModelViewer(QWidget *, const string&);
+    ModelViewer(Window *, const string&);
 
 private:
     void changeModelCb();
@@ -32,9 +32,9 @@ private:
     void changeParam(int);
     void changeSector(int);
     void changeRun(int);
-    void changeTime(int);
-    void moveLeftClicked();
-    void moveRightClicked();
+    void changeTime(size_t);
+    void moveBack();
+    void moveForward();
     void reload();
     void getRun();
     void getRunStatus();
@@ -42,14 +42,13 @@ private:
     HBox boxH;
     VBox box;
     Photo photo;
-    ObjectModel modelObj;
+    ObjectModel objectModel;
     ComboBox comboboxRun;
     ComboBox comboboxModel;
     ComboBox comboboxSector;
     ComboBox comboboxProduct;
     ComboBox comboboxTime;
-    Button leftButton;
-    Button rightButton;
+    BackForward backForward;
 };
 
 #endif  // MODELVIEWER_H

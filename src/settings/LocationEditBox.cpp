@@ -1,29 +1,28 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "settings/LocationEditBox.h"
-#include <vector>
+#include "LocationEditBox.h"
 #include "common/GlobalVariables.h"
 #include "objects/LatLon.h"
 #include "objects/WString.h"
+#include "radar/RadarSites.h"
 #include "settings/Location.h"
-#include "settings/UtilityLocation.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityList.h"
 
-LocationEditBox::LocationEditBox(QWidget * parent)
+LocationEditBox::LocationEditBox(Window * parent)
     : Widget{parent}
-    , table{ Table{nullptr} }
-    , saveButton{ Button{this, None, "Save"} }
-    , cityEdit{ Entry{this} }
-    , editName{ Entry{this} }
-    , editLat{ Entry{this} }
-    , editLon{ Entry{this} }
-    , editNexrad{ Entry{this} }
-    , cities{ UtilityIO::rawFileToStringArray(GlobalVariables::resDir + "cityall.txt") }
+    , table{nullptr}
+    , saveButton{parent, None, "Save"}
+    , cityEdit{parent}
+    , editName{parent}
+    , editLat{parent}
+    , editLon{parent}
+    , editNexrad{parent}
+    , cities{UtilityIO::rawFileToStringArray(GlobalVariables::resDir + "cityall.txt")}
 {
     cityEdit.connect([this] { lookupSearchTerm(); });
     saveButton.connect([this] { saveLocation(); });
@@ -34,16 +33,16 @@ LocationEditBox::LocationEditBox(QWidget * parent)
     table.addRow("Longitude", editLon);
     table.addRow("Nexrad", editNexrad);
     table.addRow("", saveButton);
-    box.addLayout(table);
+    boxMain.addLayout(table);
 
     for (auto index : range(6)) {
-        buttons.emplace_back(this, None, "");
+        buttons.emplace_back(parent, None, "");
         boxResults.addWidget(buttons[index]);
         buttons[index].connect([this, index] { populateLabels(index); });
     }
     boxResults.addStretch();
-    box.addLayout(boxResults);
-    setLayout(box.getView());
+    boxMain.addLayout(boxResults);
+    setLayout(boxMain.getView());
     blankOutButtons();
 }
 
@@ -54,10 +53,7 @@ void LocationEditBox::lookupSearchTerm() {
         vector<string> citiesSelected;
         for (auto& city : cities) {
             if (WString::startsWith(WString::toLower(city), text)) {
-                const auto tokens = WString::split(city, ",");
-                const auto latLon = LatLon{tokens[1], tokens[2]};
-                const auto radar = UtilityLocation::getNearestRadarSites(latLon, 1, false)[0].name;
-                citiesSelected.push_back(city + " Radar: " + radar);
+                citiesSelected.push_back(city + " Radar: " + getRadarFromCity(city));
             }
         }
         for (size_t index : range(buttons.size())) {
@@ -74,15 +70,19 @@ void LocationEditBox::lookupSearchTerm() {
     }
 }
 
+string LocationEditBox::getRadarFromCity(const string& s) {
+    auto tokens = WString::split(s, ",");
+    auto latLon = LatLon{tokens[1], tokens[2]};
+    return RadarSites::getNearestCode(latLon, false);
+}
+
 void LocationEditBox::populateLabels(int index) {
     const auto city = buttons[index].getText();
     const auto tokens = WString::split(city, ",");
-    const auto latLon = LatLon{tokens[1], tokens[2]};
-    const auto radar = UtilityLocation::getNearestRadarSites(latLon, 1, false)[0].name;
     editName.setText(tokens[0]);
     editLat.setText(tokens[1]);
     editLon.setText(tokens[2]);
-    editNexrad.setText(radar);
+    editNexrad.setText(getRadarFromCity(city));
 }
 
 void LocationEditBox::blankOutButtons() {

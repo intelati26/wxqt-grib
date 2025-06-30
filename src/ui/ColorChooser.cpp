@@ -1,18 +1,18 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include <QColorDialog>
-#include "ui/ColorChooser.h"
+#include "ColorChooser.h"
 #include "objects/Color.h"
 #include "settings/RadarPreferences.h"
 
-ColorChooser::ColorChooser(QWidget * parent, WXColor * wxcolor, ColoredBox * colorPatchCurrent)
-    : parent{ parent }
-    , wxcolor{ wxcolor }
-    , colorPatchCurrent{ colorPatchCurrent }
+ColorChooser::ColorChooser(Window * parent, WXColor * wxcolor, ColoredBox * colorPatchCurrent)
+    : parent{parent}
+    , wxcolor{wxcolor}
+    , colorPatchCurrent{colorPatchCurrent}
 {}
 
 void ColorChooser::run() {

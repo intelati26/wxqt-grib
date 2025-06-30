@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -9,12 +9,11 @@
 
 #include "objects/FileStorage.h"
 #include "radar/RadarBuffers.h"
-#include "radar/NexradLevelData.h"
 
 class NexradDecodeEightBit {
 public:
-    static int andCreateRadials(RadarBuffers *, FileStorage *);
-    static int createRadials(RadarBuffers *);
+    static int andCreateRadials(RadarBuffers&, FileStorage *);
+    static int createRadials(RadarBuffers&);
 };
 
 #endif  // NEXRADDECODEEIGHTBIT_H

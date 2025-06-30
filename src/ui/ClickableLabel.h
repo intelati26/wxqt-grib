@@ -6,6 +6,7 @@
 #include <functional>
 #include <QLabel>
 #include <Qt>
+#include "ui/Window.h"
 
 using std::function;
 
@@ -14,7 +15,7 @@ class ClickableLabel : public QLabel {
     Q_OBJECT 
 
 public:
-    explicit ClickableLabel(QWidget * parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
+    explicit ClickableLabel(Window * parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
     void connect(const function<void()>&);
     void setToWidth(const QByteArray&, int);
 
@@ -25,7 +26,7 @@ protected:
     void mousePressEvent(QMouseEvent* event) override;
 
 private:
-    QWidget * parent;
+    Window * parent;
 };
 
 #endif  // CLICKABLELABEL_H

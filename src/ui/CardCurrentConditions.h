@@ -1,31 +1,33 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTCARDCURRENTCONDITIONS_H
-#define OBJECTCARDCURRENTCONDITIONS_H
+#ifndef CARDCURRENTCONDITIONS_H
+#define CARDCURRENTCONDITIONS_H
 
-#include <QWidget>
 #include "ui/HBox.h"
 #include "ui/Text.h"
 #include "ui/Photo.h"
 #include "ui/VBox.h"
+#include "ui/Window.h"
 #include "util/CurrentConditions.h"
 
 class CardCurrentConditions : public HBox {
 public:
-    CardCurrentConditions();
-    CardCurrentConditions(QWidget *, const CurrentConditions&);
+    CardCurrentConditions(Window *, const CurrentConditions&);
     void update(const CurrentConditions&);
 
 private:
     VBox boxText;
-    Text topLine;
-    Text middleLine;
-    Text bottomLine;
+    VBox boxImage;
+    Text text1;
+    Text text2;
+    Text text3;
+    Text text4;
+    Text text5;
     Photo photo;
 };
 
-#endif  // OBJECTCARDCURRENTCONDITIONS_H
+#endif  // CARDCURRENTCONDITIONS_H

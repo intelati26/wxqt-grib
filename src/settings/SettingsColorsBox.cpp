@@ -1,27 +1,33 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "settings/SettingsColorsBox.h"
 
-SettingsColorsBox::SettingsColorsBox(QWidget * parent) : Widget{parent} {
+SettingsColorsBox::SettingsColorsBox(Window * parent)
+    : Widget{parent}
+{
     loadColors();
     size_t i = 0;
     for (const auto& color : colors) {
-        objectColorLabels.push_back(std::make_unique<ColorLabel>(this, color));
-        if (i >= colors.size() / 2) {
-            vbox2.addLayout(objectColorLabels.back()->getView());
+        colorLabels.push_back(std::make_unique<ColorLabel>(parent, color));
+        if (i <= static_cast<size_t>(colors.size() * .33)) {
+            vbox1.addLayoutReal(colorLabels.back()->getView());
+        } else if (i <= static_cast<size_t>(colors.size() * .66)) {
+            vbox2.addLayoutReal(colorLabels.back()->getView());
         } else {
-            vbox1.addLayout(objectColorLabels.back()->getView());
+            vbox3.addLayoutReal(colorLabels.back()->getView());
         }
         i += 1;
     }
     vbox1.addStretch();
     vbox2.addStretch();
+    vbox3.addStretch();
     box.addLayout(vbox1);
     box.addLayout(vbox2);
+    box.addLayout(vbox3);
     setLayout(box.getView());
 }
 
@@ -29,7 +35,7 @@ void SettingsColorsBox::loadColors() {
     colors.emplace_back("Cities", "RADAR_COLOR_CITY", 255, 255, 255);
     colors.emplace_back("Counties", "RADAR_COLOR_COUNTY", 75, 75, 75);
     colors.emplace_back("County Labels", "RADAR_COLOR_COUNTY_LABELS", 234, 214, 123);
-    colors.emplace_back("Draw Tool", "DRAW_TOOL_COLOR", 255, 0, 0);
+    colors.emplace_back("Dust Storm Warning", "RADAR_COLOR_DSW", 255, 228, 196);
     colors.emplace_back("Flash Flood Warning", "RADAR_COLOR_FFW", 0, 255, 0);
     colors.emplace_back("Hail Indicators", "RADAR_COLOR_HI", 0, 255, 0);
     colors.emplace_back("Highways", "RADAR_COLOR_HW", 135, 135, 135);
@@ -43,6 +49,9 @@ void SettingsColorsBox::loadColors() {
     colors.emplace_back("Nexrad Radar Background Color", "NEXRAD_RADAR_BACKGROUND_COLOR", 0, 0, 0);
     colors.emplace_back("Observations", "RADAR_COLOR_OBS", 255, 255, 255);
     colors.emplace_back("Secondary Roads", "RADAR_COLOR_HW_EXT", 91, 91, 91);
+    colors.emplace_back("Snow Squall Warning", "RADAR_COLOR_SQW", 199, 21, 133);
+    colors.emplace_back("Special Marine Warning", "RADAR_COLOR_SMW", 255, 165, 0);
+    colors.emplace_back("Special Weather Statement", "RADAR_COLOR_SPS", 255, 226, 181);
     colors.emplace_back("Spotters", "RADAR_COLOR_SPOTTER", 255, 0, 245);
     colors.emplace_back("State Lines", "RADAR_COLOR_STATE", 142, 142, 142);
     colors.emplace_back("Storm Tracks", "RADAR_COLOR_STI", 255, 255, 255);

@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef SPCUTILITYSPCSWO_H
-#define SPCUTILITYSPCSWO_H
+#ifndef UTILITYSPCSWO_H
+#define UTILITYSPCSWO_H
 
 #include <string>
 #include <vector>
@@ -15,8 +15,9 @@ using std::vector;
 
 class UtilitySpcSwo {
 public:
-    static string getImageUrlsDays48(const string&);
-    static vector<string> getImageUrls(const string&);
+    static vector<string> getSwoStateUrl(string, int);
+    static string getImageUrlsDays48(int);
+    static vector<string> getImageUrls(int);
 };
 
-#endif  // SPCUTILITYSPCSWO_H
+#endif  // UTILITYSPCSWO_H

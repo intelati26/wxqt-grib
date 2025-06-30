@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -7,7 +7,6 @@
 #ifndef ACTION_H
 #define ACTION_H
 
-#include <functional>
 #include <string>
 #include <QAction>
 
@@ -19,7 +18,7 @@ public:
     QAction * get() const;
 
 private:
-    QAction * qaction;
+    QAction * action;
 };
 
 #endif  // ACTION_H

@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,7 +8,9 @@
 #define SETTINGSMAIN_H
 
 #include <functional>
+#include <memory>
 #include <string>
+#include "misc/TextViewerStaticBox.h"
 #include "settings/LocationEditBox.h"
 #include "settings/SettingsBox.h"
 #include "settings/SettingsColorsBox.h"
@@ -23,25 +25,25 @@
 
 using std::function;
 using std::string;
+using std::unique_ptr;
 
 class SettingsMain : public Window {
 public:
-    SettingsMain(QWidget *, const function<void()>&, bool, bool);
-
-protected:
-    void closeEvent(QCloseEvent *) override;
+    SettingsMain(Window *, const function<void()>&, bool, bool);
 
 private:
     static string getSettings();
-    std::function<void()> reloadFn;
+    void closeEventCustom() override;
+    function<void()> reloadFn;
     VBox box;
     ScrolledWindow sw;
-    LocationEditBox * locationEditBox;
-    SettingsBox * settingsBox;
-    SettingsRadarBox * settingsRadarBox;
-    SettingsColorsBox * settingsColorsBox;
-    SettingsLocationsBox * settingsLocationsBox;
     TabWidget tabWidget;
+    unique_ptr<SettingsBox> settingsBox;
+    unique_ptr<SettingsRadarBox> settingsRadarBox;
+    unique_ptr<SettingsColorsBox> settingsColorsBox;
+    unique_ptr<SettingsLocationsBox> settingsLocationsBox;
+    unique_ptr<LocationEditBox> locationEditBox;
+    unique_ptr<TextViewerStaticBox> settingsAboutBox;
     string settingsString;
     Shortcut shortcutGeneral;
     Shortcut shortcutRadar;

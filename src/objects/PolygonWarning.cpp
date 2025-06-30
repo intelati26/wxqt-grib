@@ -1,10 +1,10 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "objects/PolygonWarning.h"
+#include "PolygonWarning.h"
 #include "objects/Color.h"
 #include "objects/WString.h"
 #include "radar/NexradUtil.h"
@@ -24,7 +24,6 @@ const unordered_map<PolygonType, int> PolygonWarning::defaultColors{
     {Tor, Color::rgb(243, 85, 243)},
     {Tst, Color::rgb(255, 255, 0)},
     {Ffw, Color::rgb(0, 255, 0)},
-    {Mws, Color::rgb(255, 239, 213)}
 };
 
 const unordered_map<PolygonType, string> PolygonWarning::longName{
@@ -34,9 +33,8 @@ const unordered_map<PolygonType, string> PolygonWarning::longName{
     {Sps, "Special%20Weather%20Statement"},
     {Tor, "Tornado%20Warning"},
     {Tst, "Severe%20Thunderstorm%20Warning"},
-    {Mws, "Marine%20Weather%20Statement"},
     {Ffw, "Flash%20Flood%20Warning"}
-//     {Ffw, "Flood%20Warning"}
+    // {Ffw, "Flood%20Warning"}
 };
 
 const vector<PolygonType> PolygonWarning::polygonList{
@@ -47,7 +45,6 @@ const vector<PolygonType> PolygonWarning::polygonList{
     Sqw,
     Dsw,
     Sps
-    // Mws
 };
 
 const unordered_map<PolygonType, string> PolygonWarning::namesByEnumId{
@@ -58,17 +55,16 @@ const unordered_map<PolygonType, string> PolygonWarning::namesByEnumId{
     {Sqw, "sqw"},
     {Dsw, "dsw"},
     {Sps, "sps"},
-    {Mws, "mws"},
 };
 
-unordered_map<PolygonType, std::unique_ptr<PolygonWarning>> PolygonWarning::byType;
+unordered_map<PolygonType, unique_ptr<PolygonWarning>> PolygonWarning::byType;
 
-PolygonWarning::PolygonWarning(const PolygonType& type)
-    : type{ type }
-    , isEnabled{ WString::startsWith(Utility::readPref(prefTokenEnabled(), "false"), "t") }
-    , storage{ DataStorage{prefTokenStorage()} }
-    , timer{ DownloadTimer{"WARNINGS_" + getTypeName()} }
-    , colorInt { Utility::readPrefInt("RADAR_COLOR_" + WString::toUpper(namesByEnumId.at(type)), defaultColors.at(type)) }
+PolygonWarning::PolygonWarning(PolygonType type)
+    : type{type}
+    , isEnabled{WString::startsWith(Utility::readPref(prefTokenEnabled(), "false"), "t")}
+    , timer{"WARNINGS_" + getTypeName()}
+    , storage{prefTokenStorage()}
+    , colorInt{Utility::readPrefInt("RADAR_COLOR_" + WString::toUpper(namesByEnumId.at(type)), defaultColors.at(type))}
 {
     storage.update();
 }
@@ -86,35 +82,20 @@ string PolygonWarning::getData() const {
     return storage.getValue();
 }
 
-// KEEP
-// void PolygonWarning::enable() {
-//    isEnabled = true;
-//    Utility::writePref(prefTokenEnabled(), "true");
-// }
-
-// void PolygonWarning::disable() {
-//    isEnabled = false;
-//    Utility::writePref(prefTokenEnabled(), "false");
-// }
-
-string PolygonWarning::typeName() const {
-    return namesByEnumId.at(type);
-}
-
 string PolygonWarning::getTypeName() const {
     return namesByEnumId.at(type);
 }
 
 string PolygonWarning::prefTokenEnabled() const {
-    return "RADAR_SHOW_" + typeName();
+    return "RADAR_SHOW_" + getTypeName();
 }
 
 string PolygonWarning::prefTokenStorage() const {
-    return "SEVERE_DASHBOARD_" + typeName();
+    return "SEVERE_DASHBOARD_" + getTypeName();
 }
 
 string PolygonWarning::prefTokenColor() const {
-    return "RADAR_COLOR_" + typeName();
+    return "RADAR_COLOR_" + getTypeName();
 }
 
 int PolygonWarning::color() const {
@@ -122,20 +103,50 @@ int PolygonWarning::color() const {
 }
 
 string PolygonWarning::name() const {
-    const auto tmp = longName.at(type);
-    return WString::replace(tmp, "%20", " ");
+    return WString::replace(longName.at(type), "%20", " ");
 }
 
 string PolygonWarning::urlToken() const {
     return longName.at(type);
 }
 
-string PolygonWarning::url() const {
+string PolygonWarning::getUrl() const {
     return baseUrl + urlToken();
 }
 
-string PolygonWarning::getUrl() const {
-    return baseUrl + urlToken();
+void PolygonWarning::update() {
+    isEnabled = WString::startsWith(Utility::readPref(prefTokenEnabled(), "false"), "t");
+    colorInt = Utility::readPrefInt("RADAR_COLOR_" + WString::toUpper(namesByEnumId.at(type)), defaultColors.at(type));
+}
+
+void PolygonWarning::load() {
+    for (auto data : polygonList) {
+        if (byType.contains(data)) {
+            byType[data]->update();
+        } else {
+            byType[data] = std::make_unique<PolygonWarning>(data);
+        }
+    }
+}
+
+bool PolygonWarning::areAnyEnabled() {
+    auto anyEnabled = false;
+    for (auto it : polygonList) {
+        if (byType[it]->isEnabled) {
+            anyEnabled = true;
+        }
+    }
+    return anyEnabled;
+}
+
+bool PolygonWarning::isCountNonZero() {
+    auto count = 0;
+    for (auto it : polygonList) {
+        if (byType[it]->isEnabled) {
+            count += Warnings::getCount(it);
+        }
+    }
+    return count > 0;
 }
 
 int PolygonWarning::getCount() const {
@@ -155,40 +166,4 @@ string PolygonWarning::getLongName(PolygonType type) {
 
 string PolygonWarning::getShortName(PolygonType type) {
     return WString::toUpper(namesByEnumId.at(type));
-}
-
-bool PolygonWarning::areAnyEnabled() {
-    auto anyEnabled = false;
-    for (const auto& data : PolygonWarning::polygonList) {
-        if (PolygonWarning::byType[data]->isEnabled) {
-            anyEnabled = true;
-        }
-    }
-    // bool test = std::any_of(PolygonWarning::polygonList.begin(), PolygonWarning::polygonList.end(), [](const PolygonType& data ){return PolygonWarning::byType[data].isEnabled;});
-    return anyEnabled;
-}
-
-bool PolygonWarning::isCountNonZero() {
-    auto count = 0;
-    for (auto it : polygonList) {
-        if (byType[it]->isEnabled) {
-            count += Warnings::getCount(it);
-        }
-    }
-    return count > 0;
-}
-
-void PolygonWarning::update() {
-    isEnabled = WString::startsWith(Utility::readPref(prefTokenEnabled(), "false"), "t");
-    colorInt = Utility::readPrefInt("RADAR_COLOR_" + WString::toUpper(namesByEnumId.at(type)), defaultColors.at(type));
-}
-
-void PolygonWarning::load() {
-    for (auto data : polygonList) {
-        if (byType.count(data) == 0) {
-            byType[data] = std::make_unique<PolygonWarning>(data);
-        } else {
-            byType[data]->update();
-        }
-    }
 }

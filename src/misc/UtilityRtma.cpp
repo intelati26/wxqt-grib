@@ -1,41 +1,31 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "misc/UtilityRtma.h"
 #include <algorithm>
-#include "../objects/WString.h"
-#include "../radar/RID.h"
-#include "../settings/Location.h"
-#include "../settings/UtilityLocation.h"
-#include "../util/To.h"
-#include "../util/Utility.h"
-#include "../util/UtilityIO.h"
-#include "../util/UtilityString.h"
-#include <iostream>
+#include "objects/WString.h"
+#include "settings/Location.h"
+#include "settings/UtilityLocation.h"
+#include "util/To.h"
+#include "util/Utility.h"
+#include "util/UtilityIO.h"
+#include "util/UtilityString.h"
 
-using std::unique;
-using std::distance;
+// using std::unique;
+// using std::distance;
 
-string UtilityRtma::getNearestMosaic(const LatLon& latLon) {
-    vector<RID> sites;
-    for (const auto& m : UtilityRtma::sectorToLatLon) {
-        sites.emplace_back(m.first, m.second, latLon.dist(m.second));
-    }
-    std::sort(
-        sites.begin(),
-        sites.end(),
-        [] (const auto& s1, const auto& s2) { return s1.distance < s2.distance; });
-    return sites[0].name;
+string UtilityRtma::getNearest(const LatLon& latLon) {
+    return UtilityLocation::getNearest(latLon, sectorToLatLon);
 }
 
 string UtilityRtma::get(const string& sector) {
     if (sector == "CONUS") {
         return baseUrl + "CONUS-LARGE_0.gif";
     }
-    return UtilityRtma::baseUrl + sector + "_0.gif";
+    return baseUrl + sector + "_0.gif";
 }
 
 vector<string> UtilityRtma::getAnimation([[maybe_unused]] const string& product, const string& sector, [[maybe_unused]] int unused) {
@@ -45,16 +35,12 @@ vector<string> UtilityRtma::getAnimation([[maybe_unused]] const string& product,
         add = "-LARGE";
     }
     for (auto i = 9; i >= 0; i -= 1) {
-        returnList.push_back(UtilityRtma::baseUrl + sector + add + "_" + To::string(i) + ".gif");
+        returnList.push_back(baseUrl + sector + add + "_" + To::string(i) + ".gif");
     }
     return returnList;
 }
 
 const string UtilityRtma::baseUrl{"https://radar.weather.gov/ridge/standard/"};
-
-string UtilityRtma::getNearest(const LatLon& latLon) {
-    return UtilityLocation::getNearest(latLon, sectorToLatLon);
-}
 
 vector<string> UtilityRtma::getTimes() {
     const auto html = UtilityIO::getHtml("https://mag.ncep.noaa.gov/observation-parameter.php?group=Observations%20and%20Analyses&obstype=RTMA&area=MI&ps=area");
@@ -69,8 +55,7 @@ vector<string> UtilityRtma::getTimes() {
 
 string UtilityRtma::getUrl(int index, int indexSector, string runTime) {
     const auto currentRun = WString::split(runTime, " ")[1];
-    // return "https://mag.ncep.noaa.gov/data/rtma/${currentRun}/rtma_${sectors[indexSector]}_000_${labels[index]}.gif";
-    return "https://mag.ncep.noaa.gov/data/rtma/" + currentRun + "/rtma_" + sectors[indexSector] + "_000_" + labels[index] + ".gif";
+    return "https://mag.ncep.noaa.gov/data/rtma/" + currentRun + "/rtma_" + sectors[indexSector] + "_000_" + codes[index] + ".gif";
 }
 
 string UtilityRtma::getUrlForHomeScreen(string product) {
@@ -86,11 +71,22 @@ string UtilityRtma::getUrlForHomeScreen(string product) {
     }
 }
 
-const vector<string> UtilityRtma::labels{
+const vector<string> UtilityRtma::codes{
     "2m_temp",
     "10m_wnd",
-    "2m_dwpt"
+    "2m_dwpt",
+    "ceiling",
+    "vis"
 };
+
+const vector<string> UtilityRtma::labels{
+    "2-Meter Temperature (F)",
+    "10-Meter Wind Speed (Knots) / Direction",
+    "2-Meter Dew Point (F)",
+    "Cloud Ceiling (AGL FT X 100)",
+    "Visibility (Miles)"
+};
+
 
 const vector<string> UtilityRtma::sectors{
     "alaska",
@@ -103,14 +99,14 @@ const vector<string> UtilityRtma::sectors{
     "mid-atl",
     "mid-west",
     "mt",
-    "nc",
-    "nd",
+    "nc_sc",
+    "nd_sd",
     "new-eng",
     "nw-pacific",
     "ohio-valley",
-    "sw",
+    "sw_us",
     "tx",
-    "wx"
+    "wi"
 };
 
 const unordered_map<string, LatLon> UtilityRtma::sectorToLatLon{

@@ -1,26 +1,33 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef WPCRAINFALLOUTLOOKSUMMARY_H
-#define WPCRAINFALLOUTLOOKSUMMARY_H
+#ifndef RAINFALLOUTLOOKSUMMARY_H
+#define RAINFALLOUTLOOKSUMMARY_H
 
+#include <string>
 #include <vector>
-#include "ui/HBox.h"
 #include "ui/Image.h"
+#include "ui/Shortcut.h"
+#include "ui/VBox.h"
 #include "ui/Window.h"
 
+using std::string;
 using std::vector;
 
 class RainfallOutlookSummary : public Window {
 public:
-    explicit RainfallOutlookSummary(QWidget *);
+    explicit RainfallOutlookSummary(Window *);
 
 private:
-    HBox box;
+    void resizeEventCustom() override;
+    VBox box;
     vector<Image> images;
+    vector<string> urls;
+    const int numberAcross{3};
+    vector<Shortcut> shortcuts;
 };
 
-#endif  // WPCRAINFALLOUTLOOKSUMMARY_H
+#endif  // RAINFALLOUTLOOKSUMMARY_H

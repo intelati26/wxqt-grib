@@ -1,12 +1,12 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "radar/WpcFronts.h"
-#include <cmath>
+#include "WpcFronts.h"
 #include <numbers>
+#include <cmath>
 #include "common/GlobalVariables.h"
 #include "objects/WString.h"
 #include "radar/FrontTypeEnum.h"
@@ -60,16 +60,17 @@ vector<PressureCenter> WpcFronts::pressureCenters;
 vector<Fronts> WpcFronts::fronts;
 DownloadTimer WpcFronts::timer{"WPC FRONTS"};
 
-void WpcFronts::addColdFrontTriangles([[maybe_unused]] Fronts * front, [[maybe_unused]] const vector<string>& tokens) {
+void WpcFronts::addColdFrontTriangles([[maybe_unused]] Fronts& front, [[maybe_unused]] const vector<string>& tokens) {
     // size of triangle
     const auto length = 0.4;
     auto startIndex = 0;
     auto indexIncrement = 1;
-    if (front->frontType == OCFNT) {
+    if (front.type == OCFNT) {
         startIndex = 1;
         indexIncrement = 2;
     }
-    for (size_t index = startIndex; index < tokens.size(); index += indexIncrement) {
+    // for (size_t index = startIndex; index < tokens.size(); index += indexIncrement) {
+    for (auto index : range3(startIndex, tokens.size(), indexIncrement)) {
         const auto coordinates = parseLatLon(tokens[index]);
         if (index < (tokens.size() - 1)) {
             const auto coordinates2 = parseLatLon(tokens[index + 1]);
@@ -84,25 +85,25 @@ void WpcFronts::addColdFrontTriangles([[maybe_unused]] Fronts * front, [[maybe_u
                 const auto p2 = UtilityMath::computeTipPoint(x1, y1, x3, y3, true);
                 const auto x2 = p2[0];
                 const auto y2 = p2[1];
-                front->coordinates.emplace_back(x1, y1);
-                front->coordinates.emplace_back(x2, y2);
-                front->coordinates.emplace_back(x2, y2);
-                front->coordinates.emplace_back(x3, y3);
+                front.coordinates.emplace_back(x1, y1);
+                front.coordinates.emplace_back(x2, y2);
+                front.coordinates.emplace_back(x2, y2);
+                front.coordinates.emplace_back(x3, y3);
             }
         }
     }
 }
 
-void WpcFronts::addWarmFrontSemicircles([[maybe_unused]] Fronts * front, [[maybe_unused]] const vector<string>& tokens) {
+void WpcFronts::addWarmFrontSemicircles([[maybe_unused]] Fronts& front, [[maybe_unused]] const vector<string>& tokens) {
     auto length = 0.4;
     auto startIndex = 0;
     auto indexIncrement = 1;
-    if (front->frontType == OCFNT) {
+    if (front.type == OCFNT) {
         startIndex = 2;
         indexIncrement = 2;
         length = 0.2;
     }
-    for (size_t index : range3(startIndex, tokens.size(), indexIncrement)) {
+    for (auto index : range3(startIndex, tokens.size(), indexIncrement)) {
         const auto coordinates = parseLatLon(tokens[index]);
         if (index < (tokens.size() - 1)) {
             const auto coordinates2 = parseLatLon(tokens[index + 1]);
@@ -116,7 +117,7 @@ void WpcFronts::addWarmFrontSemicircles([[maybe_unused]] Fronts * front, [[maybe
                 const auto center2 = coordinates[1] + ((coordinates2[1] - coordinates[1]) * length * (pointNumber + 0.5)) / distance;
                 const auto x3 = coordinates[0] + ((coordinates2[0] - coordinates[0]) * length * (pointNumber + 1)) / distance;
                 const auto y3 = coordinates[1] + ((coordinates2[1] - coordinates[1]) * length * (pointNumber + 1)) / distance;
-                front->coordinates.emplace_back(x1, y1);
+                front.coordinates.emplace_back(x1, y1);
                 const auto slices = 20;
                 const auto step = std::numbers::pi / slices;
                 const auto rotation = 1.0;
@@ -127,46 +128,46 @@ void WpcFronts::addWarmFrontSemicircles([[maybe_unused]] Fronts * front, [[maybe
                 for (auto i : range2(sliceStart, slices + sliceStart + 1)) {
                     const auto x = rotation * length * cos(step * i) + center1;
                     const auto y = rotation * length * sin(step * i) + center2;
-                    front->coordinates.emplace_back(x, y);
-                    front->coordinates.emplace_back(x, y);
+                    front.coordinates.emplace_back(x, y);
+                    front.coordinates.emplace_back(x, y);
                 }
-                front->coordinates.emplace_back(x3, y3);
+                front.coordinates.emplace_back(x3, y3);
             }
         }
     }
 }
 
-void WpcFronts::addFrontDataStationaryWarm(Fronts * front, const vector<string>& tokens) {
-    for (size_t index : range(tokens.size())) {
+void WpcFronts::addFrontDataStationaryWarm(Fronts& front, const vector<string>& tokens) {
+    for (auto index : range(tokens.size())) {
         const auto coordinates = parseLatLon(tokens[index]);
         if (index != 0 && index != (tokens.size() - 1)) {
-            front->coordinates.emplace_back(coordinates[0], coordinates[1]);
+            front.coordinates.emplace_back(coordinates[0], coordinates[1]);
         }
     }
 }
 
-void WpcFronts::addFrontDataTrof(Fronts * front, const vector<string>& tokens) {
+void WpcFronts::addFrontDataTrof(Fronts& front, const vector<string>& tokens) {
     const auto fraction = 0.8;
-    for (size_t index : range(tokens.size() - 1)) {
+    for (auto index : range(tokens.size() - 1)) {
         const auto coordinates = parseLatLon(tokens[index]);
         if (coordinates.size() > 1) {
-            front->coordinates.emplace_back(coordinates[0], coordinates[1]);
+            front.coordinates.emplace_back(coordinates[0], coordinates[1]);
         }
         const auto oldCoordinates = parseLatLon(tokens[index + 1]);
         if (coordinates.size() > 1) {
             const auto coord = UtilityMath::computeMiddlePoint(coordinates[0], coordinates[1], oldCoordinates[0], oldCoordinates[1], fraction);
-            front->coordinates.emplace_back(coord[0], coord[1]);
+            front.coordinates.emplace_back(coord[0], coord[1]);
         }
     }
 }
 
-void WpcFronts::addFrontData(Fronts * front, const vector<string>& tokens) {
-    for (size_t index : range(tokens.size())) {
+void WpcFronts::addFrontData(Fronts& front, const vector<string>& tokens) {
+    for (auto index : range(tokens.size())) {
         const auto coordinates = parseLatLon(tokens[index]);
         if (coordinates.size() > 1) {
-            front->coordinates.emplace_back(coordinates[0], coordinates[1]);
+            front.coordinates.emplace_back(coordinates[0], coordinates[1]);
             if (index != 0 && index != (tokens.size() - 1)) {
-                front->coordinates.emplace_back(coordinates[0], coordinates[1]);
+                front.coordinates.emplace_back(coordinates[0], coordinates[1]);
             }
         }
     }
@@ -199,7 +200,7 @@ void WpcFronts::get() {
         html = UtilityString::parse(html, "SURFACE PROG VALID [0-9]{12}Z(.*?)" + separator + " " + separator);
         html = WString::replace(html, separator, GlobalVariables::newline);
         const auto lines = WString::split(html, GlobalVariables::newline);
-        for (size_t index : range(lines.size())) {
+        for (auto index : range(lines.size())) {
             auto data = lines[index];
             if (index < lines.size() - 1) {
                 int charIndex = 0;
@@ -230,14 +231,14 @@ void WpcFronts::get() {
                 // tokens.removeFirst();
                 tokens.erase(tokens.begin());
                 if (type == "HIGHS") {
-                    for (size_t index2 : range3(0, tokens.size(), 2)) {
+                    for (auto index2 : range3(0, tokens.size(), 2)) {
                         if (index2 + 1 < tokens.size()) {
                             const auto coordinates = parseLatLon(tokens[index2 + 1]);
                             pressureCenters.emplace_back(HIGH, tokens[index2], coordinates[0], coordinates[1]);
                         }
                     }
                 } else if (type == "LOWS") {
-                    for (size_t index2 : range3(0, tokens.size(), 2)) {
+                    for (auto index2 : range3(0, tokens.size(), 2)) {
                         if (index2 + 1 < tokens.size()) {
                             const auto coordinates = parseLatLon(tokens[index2 + 1]);
                             pressureCenters.emplace_back(LOW, tokens[index2], coordinates[0], coordinates[1]);
@@ -245,25 +246,25 @@ void WpcFronts::get() {
                     }
                 } else if (type == "COLD") {
                     fronts.push_back(Fronts{COLD});
-                    addFrontData(&fronts.back(), tokens);
-                    addColdFrontTriangles(&fronts.back(), tokens);
+                    addFrontData(fronts.back(), tokens);
+                    addColdFrontTriangles(fronts.back(), tokens);
                 } else if (type == "STNRY") {
                     fronts.push_back(Fronts{STNRY});
-                    addFrontData(&fronts.back(), tokens);
+                    addFrontData(fronts.back(), tokens);
                     fronts.push_back(Fronts{STNRY_WARM});
-                    addFrontDataStationaryWarm(&fronts.back(), tokens);
+                    addFrontDataStationaryWarm(fronts.back(), tokens);
                 } else if (type == "WARM") {
                     fronts.push_back(Fronts{WARM});
-                    addFrontData(&fronts.back(), tokens);
-                    addWarmFrontSemicircles(&fronts.back(), tokens);
+                    addFrontData(fronts.back(), tokens);
+                    addWarmFrontSemicircles(fronts.back(), tokens);
                 } else if (type == "TROF") {
                     fronts.push_back(Fronts{TROF});
-                    addFrontDataTrof(&fronts.back(), tokens);
+                    addFrontDataTrof(fronts.back(), tokens);
                 } else if (type == "OCFNT") {
                     fronts.push_back(Fronts{OCFNT});
-                    addFrontData(&fronts.back(), tokens);
-                    addColdFrontTriangles(&fronts.back(), tokens);
-                    addWarmFrontSemicircles(&fronts.back(), tokens);
+                    addFrontData(fronts.back(), tokens);
+                    addColdFrontTriangles(fronts.back(), tokens);
+                    addWarmFrontSemicircles(fronts.back(), tokens);
                 }
             }
         }

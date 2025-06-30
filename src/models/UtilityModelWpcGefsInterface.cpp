@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -77,7 +77,6 @@ const vector<string> UtilityModelWpcGefsInterface::params{
     "staz7gt1",
     "staz7gt2",
     "staz7gt3",
-    "2m Temps",
     "2mtlt32",
     "2mtlt0",
     "2mtltm20",

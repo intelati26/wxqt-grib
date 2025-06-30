@@ -1,14 +1,14 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "common/GlobalDictionaries.h"
+#include "GlobalDictionaries.h"
 
 const unordered_map<string, string> GlobalDictionaries::nexradProductString{
-    {"L2REF", "DS.p153r0"},
-    {"L2VEL", "DS.p154r0"},
+    // {"L2REF", "DS.p153r0"},
+    // {"L2VEL", "DS.p154r0"},
     {"NSW", "DS.p30sw"},
     {"N0Q", "DS.p94r0"},
     {"N1Q", "DS.p94r1"},
@@ -57,12 +57,12 @@ const unordered_map<string, string> GlobalDictionaries::nexradProductString{
     {"NCR", "DS.p37cr"},
     {"NCZ", "DS.p38cr"},
     {"N0B", "DS.00n1b"},
-    {"N0G", "DS.00n1g"}
+    // {"N0G", "DS.00n1g"}
 };
 
 const unordered_map<string, int16_t> GlobalDictionaries::radarProductStringToShortInt{
-    {"L2REF", 153},
-    {"L2VEL", 154},
+    // {"N0B", 153},
+    // {"N0G", 154},
     {"N0Q", 94},
     {"N1Q", 94},
     {"N2Q", 94},

@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -9,30 +9,32 @@
 
 #include <string>
 #include "ui/Button.h"
-#include "ui/ComboBox.h"
 #include "ui/Photo.h"
-#include "ui/TwoWidgetScroll.h"
 #include "ui/Shortcut.h"
 #include "ui/Text.h"
+#include "ui/TwoWidgetScroll.h"
 #include "ui/Window.h"
+#include "ui/VBox.h"
 
 using std::string;
 
 class SpcMcdWatchMpdViewer : public Window {
 public:
-    SpcMcdWatchMpdViewer(QWidget *, const string&);
+    SpcMcdWatchMpdViewer(Window *, const string&);
 
 private:
     void updateText(const string&);
     static string getToken(const string&);
-    QWidget * parent;
+    Window * parent;
     VBox boxText;
     Text text;
     Photo photo;
     TwoWidgetScroll sw;
     Button button;
-    Shortcut shortcut;
     string token;
+    string radar;
+    Shortcut shortcut;
+    Shortcut shortcutImage;
 };
 
 #endif  // SPCMCDWATCHMPDVIEWER_H

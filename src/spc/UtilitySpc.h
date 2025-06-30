@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef SPCUTILITYSPC_H
-#define SPCUTILITYSPC_H
+#ifndef UTILITYSPC_H
+#define UTILITYSPC_H
 
 #include <string>
 #include <vector>
@@ -18,4 +18,4 @@ public:
     static vector<string> getTstormOutlookUrls();
 };
 
-#endif  // SPCUTILITYSPC_H
+#endif  // UTILITYSPC_H

@@ -1,10 +1,10 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "util/UtilityMetarConditions.h"
+#include "UtilityMetarConditions.h"
 
 //# https,//www.weather.gov/forecast-icons
 const unordered_map<string, string> UtilityMetarConditions::iconFromCondition{
@@ -327,7 +327,7 @@ const unordered_map<string, string> UtilityMetarConditions::iconFromCondition{
 
     {"Smoke", "fu"},
 
-    {"Haze", "hz"},
+    // {"Haze", "hz"},
     {"Haze", "haze"},
     {"Hot", "hot"},
 

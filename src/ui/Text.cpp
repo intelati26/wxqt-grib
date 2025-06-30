@@ -1,17 +1,15 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "ui/Text.h"
+#include "Text.h"
 #include "settings/UIPreferences.h"
 
-Text::Text() = default;
-
-Text::Text(QWidget * parent, const string& text)
-        : textView{ new QLabel{parent} }
-        , text{ QString::fromStdString(text) }
+Text::Text(Window * parent, const string& text)
+        : textView{new QLabel{parent}}
+        , text{QString::fromStdString(text)}
 {
     textView->setText(this->text);
     textView->setAlignment(Qt::AlignLeft | Qt::AlignTop);
@@ -45,7 +43,7 @@ void Text::setText(const string& text) {
 }
 
 void Text::setFixedWidth() {
-    auto font = QFont{"Monospace"};
+    auto font = QFont{"Courier New"};
     font.setStyleHint(QFont::TypeWriter);
     textView->setFont(font);
 }
@@ -65,7 +63,7 @@ void Text::setBold() {
 }
 
 void Text::setBlueOnWhite() {
-    textView->setStyleSheet("QLabel {background-color: white; color: black; font-size: 18px;}");
+    textView->setStyleSheet("QLabel {background-color: white; color: blue; font-size: 18px;}");
 }
 
 void Text::setVisible(bool b) {

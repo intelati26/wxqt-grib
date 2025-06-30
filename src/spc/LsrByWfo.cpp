@@ -1,32 +1,35 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "spc/LsrByWfo.h"
-#include "common/GlobalArrays.h"
+#include "LsrByWfo.h"
 #include "objects/FutureVoid.h"
 #include "objects/WString.h"
 #include "settings/Location.h"
 #include "ui/DividerLine.h"
-#include "util/To.h"
 #include "util/DownloadText.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityList.h"
 #include "util/UtilityString.h"
+#include "util/To.h"
+#include "util/WfoSites.h"
 
-LsrByWfo::LsrByWfo(QWidget * parent)
+LsrByWfo::LsrByWfo(Window * parent)
     : Window{parent}
-    , sw{ ScrolledWindow{this, box} }
-    , comboboxSector{ ComboBox{this, GlobalArrays::wfos} }
-    , wfo{ Location::office() }
+    , sw{this, box}
+    , comboboxSector{this, WfoSites::sites->nameList}
+    , wfo{Location::wfo()}
 {
-    setTitle("Local Storm Reports");
+    setTitle("Local Storm Reports by Office");
     comboboxSector.setIndexByValue(wfo);
     comboboxSector.connect([this] { changeSector(); });
-    box.addWidget(comboboxSector);
+
+    boxH.addWidget(comboboxSector);
+    box.addLayout(boxH);
     box.addLayout(boxText);
+    box.addMargins();
     reload();
 }
 
@@ -37,38 +40,35 @@ void LsrByWfo::changeSector() {
 
 void LsrByWfo::getLsrFromWfo() {
     lsrList.clear();
-    textList.clear();
-    boxText.removeChildren();
-    const auto url = ("https://forecast.weather.gov/product.php?site=" + wfo + "&issuedby=" + wfo + "&product=LSR&format=txt&version=1&glossary=0");
+    const auto url = "https://forecast.weather.gov/product.php?site=" + wfo + "&issuedby=" + wfo + "&product=LSR&format=txt&version=1&glossary=0";
     const auto html = UtilityIO::getHtml(url);
     const auto numberLSR = UtilityString::parseMultiLineLastMatch(html, "product=LSR&format=TXT&version=(.*?)&glossary");
     if (numberLSR.empty()) {
         lsrList.emplace_back("None issued by this office recently.");
     } else {
-        auto maxVersions = To::Int(numberLSR);
-        if (maxVersions > 30) {
-            maxVersions = 30;
+        auto maxVers = To::Int(numberLSR);
+        if (maxVers > 30) {
+            maxVers = 30;
         }
-        auto i = 0;
-        for (auto version : range3(1, maxVersions, 2)) {
-            lsrList.emplace_back("");
-            textList.emplace_back(this);
-            boxText.addWidget(textList[i]);
-            boxText.addWidget(DividerLine(this).get());
-            new FutureVoid{this, [i, version, this] { download(i, version); }, [i, this] { update(i); }};
-            i += 1;
+        for (auto version : range3(1, maxVers, 2)) {
+            lsrList.push_back(DownloadText::getTextProductWithVersion("LSR" + wfo, version));
         }
     }
 }
 
-void LsrByWfo::download(int i, int version) {
-    lsrList[i] = DownloadText::getTextProductWithVersion("LSR" + wfo, version);
-}
-
-void LsrByWfo::update(int i) {
-    textList[i].setText(lsrList[i]);
-}
-
 void LsrByWfo::reload() {
-    new FutureVoid{this, [] {}, [this] { getLsrFromWfo(); }};
+    new FutureVoid{this, [this] { getLsrFromWfo(); }, [this] { update(); }};
+}
+
+void LsrByWfo::update() {
+    boxText.removeChildren();
+    textList.clear();
+    auto d{DividerLine{this}};
+    for (const auto& lsr : lsrList) {
+        textList.emplace_back(this);
+        textList.back().setFixedWidth();
+        textList.back().setText(lsr);
+        boxText.addWidget(textList.back());
+        boxText.addWidget(d);
+    }
 }

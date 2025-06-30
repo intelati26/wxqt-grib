@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -7,30 +7,17 @@
 #include "RadarGeomInfo.h"
 #include <array>
 #include <cstring>
-#include <iostream>
 #include "common/GlobalVariables.h"
 #include "objects/Color.h"
 #include "objects/WString.h"
 #include "util/Utility.h"
 #include "util/UtilityIO.h"
 
-RadarGeomInfo::RadarGeomInfo() = default;
-
 RadarGeomInfo::RadarGeomInfo(RadarGeometryTypeEnum type)
-    : type{ type }
-    , isEnabled{ WString::startsWith(Utility::readPref(prefToken.at(type), defaultPref.at(type)), "t") }
+    : type{type}
+    , isEnabled{WString::startsWith(Utility::readPref(prefToken.at(type), defaultPref.at(type)), "t")}
 {
-    if (isEnabled) {
-        loadData(typeToFileName.at(type), lineData);
-        // colorInt = Utility::readPrefInt(prefTokenColorInt.at(type), prefTokenColorIntDefault.at(type));
-        // qcolor = Color::intToQColor(colorInt);
-        // lineSize = Utility::readPrefInt(prefTokenLineSize.at(type), lineSizeDefault) / lineFactor;
-    } else {
-        lineData.clear();
-    }
-    colorInt = Utility::readPrefInt(prefTokenColorInt.at(type), prefTokenColorIntDefault.at(type));
-    qcolor = Color::intToQColor(colorInt);
-    lineSize = Utility::readPrefInt(prefTokenLineSize.at(type), lineSizeDefault) / lineFactor;
+    update();
 }
 
 void RadarGeomInfo::update() {
@@ -43,6 +30,21 @@ void RadarGeomInfo::update() {
     colorInt = Utility::readPrefInt(prefTokenColorInt.at(type), prefTokenColorIntDefault.at(type));
     qcolor = Color::intToQColor(colorInt);
     lineSize = Utility::readPrefInt(prefTokenLineSize.at(type), lineSizeDefault) / lineFactor;
+}
+
+void RadarGeomInfo::loadData(const string& fileName, vector<float>& destVec) {
+    const auto srcVec = UtilityIO::readBinaryFileFromResource(GlobalVariables::resDir + fileName);
+    destVec.resize(srcVec.size() / 4);
+    auto j = 0;
+    std::array<unsigned char, 4> c;
+    for (size_t index = 0; index + 3 < srcVec.size(); index += 4) {
+        c[0] = srcVec[index + 3];
+        c[1] = srcVec[index + 2];
+        c[2] = srcVec[index + 1];
+        c[3] = srcVec[index];
+        memcpy(&destVec[j], c.data(), 4);
+        j += 1;
+    }
 }
 
 const unordered_map<RadarGeometryTypeEnum, string> RadarGeomInfo::typeToFileName{
@@ -68,7 +70,7 @@ const unordered_map<RadarGeometryTypeEnum, string> RadarGeomInfo::prefToken{
 const unordered_map<RadarGeometryTypeEnum, string> RadarGeomInfo::defaultPref{
     {StateLines, "true"},
     {CountyLines, "true"},
-    {HwLines, "false"},
+    {HwLines, "true"},
     {HwExtLines, "false"},
     {LakeLines, "false"},
     {CaLines, "false"},
@@ -104,20 +106,3 @@ const unordered_map<RadarGeometryTypeEnum, int> RadarGeomInfo::prefTokenColorInt
     {CaLines, Color::rgb(255, 255, 255)},
     {MxLines, Color::rgb(255, 255, 255)},
 };
-
-void RadarGeomInfo::loadData(const string& fileName, vector<float>& ba) {
-    const auto data = UtilityIO::readBinaryFileFromResource(GlobalVariables::resDir + fileName);
-    ba.resize(data.size() / 4);
-    auto j = 0;
-    std::array<unsigned char, 4> c;
-    for (int index = 0; index + 3 < data.size(); index += 4) {
-        c[0] = data[index + 3];
-        c[1] = data[index + 2];
-        c[2] = data[index + 1];
-        c[3] = data[index];
-        // auto f = 0.0f;
-        memcpy(&ba[j], c.data(), 4);
-        // ba[j] = f;
-        j += 1;
-    }
-}

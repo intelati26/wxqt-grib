@@ -1,11 +1,11 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef UTILITYWPCFRONTS_H
-#define UTILITYWPCFRONTS_H
+#ifndef WPCFRONTS_H
+#define WPCFRONTS_H
 
 #include <string>
 #include <vector>
@@ -18,19 +18,19 @@ using std::vector;
 
 class WpcFronts {
 public:
-    static const string separator;
+    static void get();
     static vector<PressureCenter> pressureCenters;
     static vector<Fronts> fronts;
-    static DownloadTimer timer;
-    static void get();
+    static const string separator;
 
 private:
-    static void addColdFrontTriangles(Fronts *, const vector<string>&);
-    static void addWarmFrontSemicircles(Fronts *, const vector<string>&);
-    static void addFrontDataStationaryWarm(Fronts *, const vector<string>&);
-    static void addFrontDataTrof(Fronts *, const vector<string>&);
-    static void addFrontData(Fronts *, const vector<string>&);
+    static void addColdFrontTriangles(Fronts&, const vector<string>&);
+    static void addWarmFrontSemicircles(Fronts&, const vector<string>&);
+    static void addFrontDataStationaryWarm(Fronts&, const vector<string>&);
+    static void addFrontDataTrof(Fronts&, const vector<string>&);
+    static void addFrontData(Fronts&, const vector<string>&);
     static vector<double> parseLatLon(const string&);
+    static DownloadTimer timer;
 };
 
-#endif  // UTILITYWPCFRONTS_H
+#endif  // WPCFRONTS_H

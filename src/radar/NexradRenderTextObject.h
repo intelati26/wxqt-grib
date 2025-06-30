@@ -1,41 +1,41 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef WXMETALTEXTOBJECT_H
-#define WXMETALTEXTOBJECT_H
+#ifndef NEXRADRENDERTEXTOBJECT_H
+#define NEXRADRENDERTEXTOBJECT_H
 
 #include <string>
 #include <vector>
 #include "objects/FileStorage.h"
 #include "radar/NexradState.h"
+#include "ui/TextViewMetal.h"
 
 using std::string;
 using std::vector;
 
 class NexradRenderTextObject {
 public:
-    NexradRenderTextObject(int, NexradState&, FileStorage *);
+    NexradRenderTextObject(int, NexradState *, FileStorage *);
+    void initialize();
     void add();
     void addWpcPressureCenters();
     void addTextLabelsObservations();
-    void initialize();
 
 private:
     void initializeTextLabelsCitiesExtended() const;
+    void checkAndDrawText(vector<TextViewMetal>&, double, double, const string&, bool);
     static void initializeTextLabelsCountyLabels();
-    void addTextLabelsCountyLabels();
     void addTextLabelsCitiesExtended();
-    void checkAndDrawText(vector<TextViewMetal> *, double, double, const string&, bool = true);
-    static const float cityMinZoom;
-    static const float obsMinZoom;
-    static const float countyMinZoom;
+    void addTextLabelsCountyLabels();
     NexradState * nexradState;
-    int numPanes;
     FileStorage * fileStorage;
     size_t maxCitiesPerGlview;
+    static const double cityMinZoom;
+    static const double obsMinZoom;
+    static const double countyMinZoom;
 };
 
-#endif  // WXMETALTEXTOBJECT_H
+#endif  // NEXRADRENDERTEXTOBJECT_H

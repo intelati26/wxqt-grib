@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -18,36 +18,36 @@ using std::vector;
 
 class Location {
 public:
-    static int currentLocationIndex;
-    static int numberOfLocations;
     static int getNumLocations();
-    static string radar();
-    // used in gtk
+    static void setNumLocations(int);
     static string radarSite();
     static string wfo();
-    static string office();
     static string getRadarSite(int);
     static string getWfo(int);
     static LatLon getLatLon(int);
     static string name();
-    static string locationName();
-    static string getName(int);
+    static string getName(size_t);
+    static void setName(size_t, const string&);
+    static string state();
     static LatLon getLatLonCurrent();
-    static void refreshLocationData();
+    static void refresh();
     static void initNumLocations();
-    static vector<string> getWfoRadarSiteFromPoint(const LatLon&);
+    static void checkCurrentLocationValidity();
     static vector<string> save(const LatLon&, const string&);
-    static void deleteItem(int);
+    static void deleteLocation(int);
     static void setCurrentLocationStr(const string&);
     static vector<string> listOfNames();
     static void setCurrentLocation(int);
     static vector<LatLon> getListLatLons();
     static string getObs();
-    static int getCurrentLocation();
+    static size_t getCurrentLocation();
     static void setMainScreenComboBox();
     static ComboBox * comboBox;
 
 private:
+    static vector<string> getWfoRadarSiteFromPoint(const LatLon&);
+    static int numberOfLocations;
+    static size_t currentLocationIndex;
     static vector<ObjectLocation> locations;
 };
 

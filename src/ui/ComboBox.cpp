@@ -1,40 +1,29 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "ui/ComboBox.h"
+#include "ComboBox.h"
+#include <algorithm>
 #include "settings/UIPreferences.h"
-#include "util/To.h"
 #include "util/Utility.h"
 #include "util/UtilityList.h"
 #include "util/UtilityUI.h"
 
-ComboBox::ComboBox(QWidget * parent)
-    : comboBox{ new QComboBox{parent} }
-    , parent{ parent }
-{
-    comboBox->setMaxVisibleItems(UIPreferences::comboBoxSize);
-    comboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-}
-
-ComboBox::ComboBox(QWidget * parent, const vector<string>& items)
-    : comboBox{ new QComboBox{parent} }
-    , parent{ parent }
+ComboBox::ComboBox(Window * parent, const vector<string>& items)
+    : comboBox{new QComboBox{parent}}
+    , parent{parent}
 {
     for (const auto& s : items) {
-        comboItems.push_back(QString::fromStdString(s));
+        this->items.push_back(s);
     }
     comboBox->setMaxVisibleItems(UIPreferences::comboBoxSize);
     comboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-    comboBox->addItems(comboItems);
-    if (UtilityUI::isMobile()) {
-        comboBox->setFixedWidth(100);
-    }
+    addItemsQt();
 }
 
-void ComboBox::setIndex(int index) {
+void ComboBox::setIndex(size_t index) {
     comboBox->setCurrentIndex(index);
 }
 
@@ -47,40 +36,17 @@ void ComboBox::setIndexByPref(const string& s, int i) {
 }
 
 void ComboBox::setIndexByValue(const string& item) {
-    const auto index = findex(item, comboItems);
+    const auto index = findex(item, items);
     comboBox->setCurrentIndex(index);
-}
-
-void ComboBox::setArrayListInt(const vector<int>& items) {
-    for (auto i : items) {
-        appendText(To::string(i));
-    }
 }
 
 void ComboBox::setList(const vector<string>& items) {
     comboBox->clear();
-    comboItems.clear();
+    this->items.clear();
     for (const auto& s : items) {
-        comboItems.push_back(QString::fromStdString(s));
+        this->items.push_back(s);
     }
-    comboBox->addItems(comboItems);
-}
-
-void ComboBox::addItems(const vector<string>& items) {
-    comboItems.clear();
-    for (const auto& s : items) {
-        comboItems.push_back(QString::fromStdString(s));
-    }
-    comboBox->addItems(comboItems);
-}
-
-void ComboBox::appendText(const string& s) {
-    comboItems.push_back(QString::fromStdString(s));
-    comboBox->addItem(QString::fromStdString(s));
-}
-
-void ComboBox::clear() {
-    comboBox->clear();
+    addItemsQt();
 }
 
 // GTK compat
@@ -111,4 +77,10 @@ void ComboBox::setVisible(bool b) {
 
 string ComboBox::getValue() const {
     return comboBox->currentText().toStdString();
+}
+
+void ComboBox::addItemsQt() {
+    QVector<QString> comboItemsQt;
+    std::transform(items.begin(), items.end(), std::back_inserter(comboItemsQt), [](const string& v){ return QString::fromStdString(v); });
+    comboBox->addItems(comboItemsQt);
 }

@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -13,8 +13,13 @@ using std::string;
 
 class PrefBool {
 public:
-    PrefBool(const string& label, const string& prefToken, bool enabledByDefault);
+    PrefBool(const string&, const string&, bool);
     bool isEnabled() const;
+    bool isEnabledByDefault() const;
+    string getPrefToken() const;
+    string getLabel() const;
+
+private:
     string label;
     string prefToken;
     bool enabledByDefault;

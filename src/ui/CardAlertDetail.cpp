@@ -1,50 +1,44 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "ui/CardAlertDetail.h"
+#include "CardAlertDetail.h"
 #include "misc/AlertsDetail.h"
-#include "radar/Nexrad.h"
+#include "objects/Route.h"
 
-CardAlertDetail::CardAlertDetail(QWidget * parent, const CapAlertXml& cap)
-    : HBox{}
-    , topLine{ Text{parent, cap.title} }
-    , startTimeLine{ Text{parent} }
-    , endTimeLine{ Text{parent} }
-    , middleLine{ Text{parent, cap.area} }
-    , buttonDetails{ Button{parent, None, "Show Details"} }
-    , buttonRadar{ Button{parent, None, ""} }
+CardAlertDetail::CardAlertDetail(Window * parent, const CapAlertXml& cap)
+    : buttonDetails{parent, None, "Details"}
+    , buttonRadar{parent, Radar, "Radar"}
+    , text1{parent, cap.title}
+    , text2{parent, cap.area}
+    , text3{parent, "Start: " + cap.effective}
+    , text4{parent, "End: " + cap.expires}
 {
-    topLine.setBold();
-    topLine.setWordWrap(false);
-
-    startTimeLine.setText(cap.effective);
-    endTimeLine.setText(cap.expires);
-    middleLine.setGray();
-
-    boxText.addWidget(topLine, 0, Qt::AlignTop);
-    boxText.addWidget(middleLine, 0, Qt::AlignTop);
-    boxText.addWidget(startTimeLine, 0, Qt::AlignTop);
-    boxText.addWidget(endTimeLine, 0, Qt::AlignTop);
+    text1.setBold();
+    text1.setWordWrap(false);
+    text2.setGray();
+    boxText.addWidget(text1);
+    boxText.addWidget(text2);
+    boxText.addWidget(text3);
+    boxText.addWidget(text4);
     boxText.addStretch();
-
-    buttonDetails.connect([parent, cap] { new AlertsDetail{parent, cap.url}; });
 
     const auto radarSite = cap.getClosestRadar();
     if (!radarSite.empty()) {
-        buttonRadar.setText("Show Radar - " + radarSite);
-        buttonRadar.connect([parent, radarSite] { new Nexrad{parent, 1, true, radarSite}; });
+        buttonRadar.setText("Radar - " + radarSite);
+        buttonRadar.connect([parent, radarSite] { Route::nexradRadarSpecificSite(parent, radarSite); });
     } else {
         buttonRadar.setVisible(false);
     }
+    buttonDetails.connect([parent, cap] { new AlertsDetail{parent, cap.url}; });
 
     addLayout(layoutVertical, Qt::AlignLeft);
     addLayout(boxText, Qt::AlignTop);
     addStretch();
 
-    layoutVertical.addWidget(buttonDetails);
     layoutVertical.addWidget(buttonRadar);
+    layoutVertical.addWidget(buttonDetails);
     layoutVertical.addStretch();
 }

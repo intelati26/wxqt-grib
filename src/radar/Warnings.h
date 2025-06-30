@@ -1,16 +1,15 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef WXGLPOLYGONWARNINGS_H
-#define WXGLPOLYGONWARNINGS_H
+#ifndef WARNINGS_H
+#define WARNINGS_H
 
 #include <string>
 #include <vector>
 #include "objects/LatLon.h"
-#include "objects/PolygonWarning.h"
 #include "radar/PolygonType.h"
 #include "radar/ProjectionNumbers.h"
 
@@ -19,10 +18,9 @@ using std::vector;
 
 class Warnings {
 public:
-    static vector<double> addGeneric(const ProjectionNumbers& projectionNumbers, const PolygonWarning *);
-    static vector<double> add(const ProjectionNumbers&, const PolygonType&);
-    static int getCount(const PolygonType&);
+    static vector<double> add(const ProjectionNumbers&, PolygonType);
+    static int getCount(PolygonType);
     static string show(const LatLon&);
 };
 
-#endif  // WXGLPOLYGONWARNINGS_H
+#endif  // WARNINGS_H

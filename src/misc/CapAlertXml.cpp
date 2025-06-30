@@ -1,14 +1,14 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include "CapAlertXml.h"
 #include "common/GlobalVariables.h"
-#include "misc/CapAlertXml.h"
 #include "objects/LatLon.h"
 #include "objects/WString.h"
-#include "settings/UtilityLocation.h"
+#include "radar/RadarSites.h"
 #include "util/To.h"
 #include "util/UtilityString.h"
 
@@ -22,8 +22,6 @@ CapAlertXml::CapAlertXml(const string& s) {
     effective = UtilityString::parse(s, "<cap:effective>(.*?)</cap:effective>");
     expires = UtilityString::parse(s, "<cap:expires>(.*?)</cap:expires>");
     event = UtilityString::parse(s, "<cap:event>(.*?)</cap:event>");
-//    vtec = UtilityString::parse(s, "<valueName>VTEC</valueName>.*?<value>(.*?)</value>");
-//    zones = UtilityString::parse(s, "<valueName>UGC</valueName>.*?<value>(.*?)</value>");
     polygon = UtilityString::parse(s, "<cap:polygon>(.*?)</cap:polygon>");
     text = title;
     text += GlobalVariables::newline;
@@ -42,9 +40,7 @@ string CapAlertXml::getClosestRadar() const {
     if (points.size() > 2) {
         const auto lat = To::Double(WString::split(points[0], ",")[0]);
         const auto lon = To::Double(WString::split(points[0], ",")[1]);
-        const auto latLon = LatLon{lat, lon};
-        const auto radarSites = UtilityLocation::getNearestRadarSites(latLon, 1, false);
-        return radarSites[0].name;
+        return RadarSites::getNearestCode(LatLon{lat, lon}, false);
     } else {
         return "";
     }

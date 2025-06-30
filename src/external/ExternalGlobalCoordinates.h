@@ -33,9 +33,10 @@ canonicalized such that:
 class ExternalGlobalCoordinates {
 public:
     ExternalGlobalCoordinates(double, double);
+    static ExternalGlobalCoordinates withEc(const ExternalGlobalCoordinates&, bool);
+    static ExternalGlobalCoordinates withPn(const ProjectionNumbers&, bool);
     double getLatitude() const;
     double getLongitude() const;
-    static ExternalGlobalCoordinates withPn(const ProjectionNumbers&, bool = false);
 
 private:
     // Latitude in degrees. Negative latitude is southern hemisphere. */

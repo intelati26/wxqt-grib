@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -8,20 +8,16 @@
 #define URL_H
 
 #include <string>
-#include <QObject>
+#include <QByteArray>
 #include <QString>
 
 using std::string;
 
-class URL : public QObject{
+class URL {
 public:
-    explicit URL(const string&);
-    string getText();
-    string getTextXmlAcceptHeader();
-    QByteArray getBytes();
-
-private:
-    string url;
+    static string getText(const string&);
+    static string getTextXmlAcceptHeader(const string&);
+    static QByteArray getBytes(const string&);
 };
 
 #endif  // URL_H

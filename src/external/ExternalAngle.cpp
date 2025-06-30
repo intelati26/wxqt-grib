@@ -11,9 +11,9 @@
 // Utility methods for dealing with angles.
 // @author Mike Gavaghan
 
-#include "external/ExternalAngle.h"
-#include <cmath>
+#include "ExternalAngle.h"
 #include <numbers>
+#include <cmath>
 
 // Degrees/Radians conversion constant.
 const double ExternalAngle::piOver180{std::numbers::pi / 180.0};

@@ -1,30 +1,29 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef WXMETALNEXRADLEVELDATA_H
-#define WXMETALNEXRADLEVELDATA_H
+#ifndef NEXRADLEVELDATA_H
+#define NEXRADLEVELDATA_H
 
 #include <cstdint>
-#include <memory>
+#include <string>
 #include "objects/FileStorage.h"
-#include "objects/MemoryBuffer.h"
+#include "radar/NexradState.h"
 #include "radar/RadarBuffers.h"
 
-class NexradState;
+using std::string;
 
 class NexradLevelData {
 public:
     NexradLevelData(NexradState *, FileStorage *);
     void decode();
     void generateRadials();
-    FileStorage * fileStorage{};
+    int decodeAndGenerateRadials();
     double binSize{};
-    int numberOfRangeBins{};
-    int numberOfRadials{};
-    uint16_t productCode{};
+    int numberOfRangeBins{916};
+    int numberOfRadials{360};
     RadarBuffers radarBuffers;
     int radarHeight{};
     double degree{};
@@ -39,6 +38,9 @@ private:
     void decodeAndPlotNexradLevel3();
     void decodeAndPlotNexradLevel3FourBit();
     void writeTime(uint16_t, int);
+    NexradState * nexradState;
+    FileStorage * fileStorage;
+    uint16_t productCode{};
     double latitudeOfRadar{};
     double longitudeOfRadar{};
     uint16_t sequenceNumber{};
@@ -48,7 +50,6 @@ private:
     int64_t seekStart{};
     uint16_t volumeScanDate{};
     int volumeScanTime{};
-    NexradState * nexradState{};
 };
 
-#endif  // WXMETALNEXRADLEVELDATA_H
+#endif  // NEXRADLEVELDATA_H

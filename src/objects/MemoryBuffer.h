@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -7,9 +7,8 @@
 #ifndef MEMORYBUFFER_H
 #define MEMORYBUFFER_H
 
-#include <QByteArray>
 #include <cstdint>
-#include <memory>
+#include <QByteArray>
 
 class MemoryBuffer {
 public:
@@ -23,18 +22,17 @@ public:
     int getPosition() const;
     void setPosition(int);
     float getFloat();
-    float getFloatNative(int) const;
-    void putFloat(float);
+    float getFloatByIndex(int) const;
+    void putFloat(double);
     void put(unsigned char);
     void putByIndex(int, unsigned char);
     int16_t getShort();
     uint16_t getUnsignedShort();
     int getInt();
     unsigned char get();
-    unsigned char get(int) const;
     unsigned char getByIndex(int) const;
     void skipBytes(int);
-    char * getConstData();
+    char * getBackingPointer();
 
 private:
     QByteArray qbyteArray;

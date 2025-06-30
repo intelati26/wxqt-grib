@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -10,7 +10,7 @@
 //  https://api.weather.gov/icons/land/night/bkn?size=medium
 //  https://api.weather.gov/icons/land/day/tsra_hi,40?size=medium
 
-#include "util/UtilityForecastIcon.h"
+#include "UtilityForecastIcon.h"
 #include "common/GlobalVariables.h"
 #include "objects/WString.h"
 #include "ui/ForecastIcon.h"
@@ -18,16 +18,15 @@
 #include "util/UtilityNwsIcon.h"
 #include "util/UtilityString.h"
 
-QImage UtilityForecastIcon::getIcon(const string& url) {
+Pix UtilityForecastIcon::getIcon(const string& url) {
     auto fileName = getFilename(url);
     if (fileName.empty() || fileName == "n") {
         return ForecastIcon::blankBitmap();
     }
     if (contains(UtilityNwsIcon::iconMap, fileName + ".png")) {
         return ForecastIcon{fileName}.get();
-    } else {
-        return parseBitmapString(fileName);
     }
+    return parseBitmapString(fileName);
 }
 
 // Given one string that does not have a match on disk, decode and return a bitmap with textual labels
@@ -35,15 +34,14 @@ QImage UtilityForecastIcon::getIcon(const string& url) {
 // input examples
 //  rain_showers,70/tsra,80
 //  ntsra,80
-QImage UtilityForecastIcon::parseBitmapString(const string& url) {
+Pix UtilityForecastIcon::parseBitmapString(const string& url) {
     if (WString::contains(url, "/") || WString::contains(url, ";j=")) {
         auto items = WString::split(url, "/");
         if (items.size() > 1) {
             return getDualBitmapWithNumbers(items[0], items[1]);
         } else {
             // legacy add
-            auto urlTmp = url;
-            urlTmp = WString::replace(urlTmp, "i=", "");
+            auto urlTmp = WString::replace(url, "i=", "");
             urlTmp = WString::replace(urlTmp, "j=", "");
             urlTmp = WString::replace(urlTmp, "ip=", "");
             urlTmp = WString::replace(urlTmp, "jp=", "");
@@ -59,6 +57,7 @@ QImage UtilityForecastIcon::parseBitmapString(const string& url) {
             } else {
                 return getDualBitmapWithNumbers(items[0], items[1]);
             }
+            // legacy add end
         }
     }
     return getBitmapWithOneNumber(url);
@@ -70,7 +69,7 @@ QImage UtilityForecastIcon::parseBitmapString(const string& url) {
 //  nrain_showers,80 nrain_showers,70
 //  ntsra_hi,40 ntsra_hi
 //  bkn rain
-QImage UtilityForecastIcon::getDualBitmapWithNumbers(const string& iconLeftString, const string& iconRightString) {
+Pix UtilityForecastIcon::getDualBitmapWithNumbers(const string& iconLeftString, const string& iconRightString) {
     const auto leftTokens = WString::split(iconLeftString, ",");
     const auto rightTokens = WString::split(iconRightString, ",");
     auto leftNumber = leftTokens.size() > 1 ? leftTokens[1] : "";
@@ -100,7 +99,7 @@ QImage UtilityForecastIcon::getDualBitmapWithNumbers(const string& iconLeftStrin
 // input examples
 // nrain_showers,80
 // tsra_hi,40
-QImage UtilityForecastIcon::getBitmapWithOneNumber(const string& iconString) {
+Pix UtilityForecastIcon::getBitmapWithOneNumber(const string& iconString) {
     const auto items = WString::split(iconString, ",");
     auto number = items.size() > 1 ? items[1] : "";
     auto weatherCondition = !items.empty() ? items[0] : "";
@@ -119,6 +118,7 @@ string UtilityForecastIcon::getFilename(const string& url) {
     auto fileName = WString::replace(url, "?size=medium", "");
     fileName = WString::replace(fileName, "?size=small", "");
     fileName = WString::replace(fileName, "https://api.weather.gov/icons/land/", "");
+    fileName = WString::replace(fileName, "/icons/land/", "");
     fileName = WString::replace(fileName, "day/", "");
     // legacy add
     fileName = WString::replace(fileName, "https://forecast.weather.gov/newimages/medium/", "");

@@ -1,19 +1,20 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "UtilityModelNcepInputOutput.h"
-#include "../objects/WString.h"
-#include "../util/UtilityIO.h"
-#include "../util/UtilityString.h"
+#include "objects/WString.h"
+#include "util/UtilityIO.h"
+#include "util/UtilityString.h"
 
-const string UtilityModelNcepInputOutput::pattern{"current_cycle_white . .([0-9 ]{11} UTC)"};
+// const string UtilityModelNcepInputOutput::pattern{"current_cycle_white . .([0-9 ]{11} UTC)"};  //  "data-cycle-date=.([0-9 ]{11} UTC)"
+const string UtilityModelNcepInputOutput::pattern{"data-cycle-date=.([0-9 ]{11} UTC)"};
 
 RunTimeData UtilityModelNcepInputOutput::getRunTime(ObjectModel * om) {
-    auto runData = RunTimeData{};
-    auto url = ("https://mag.ncep.noaa.gov/model-guidance-model-parameter.php?group=Model%20Guidance&model=" +
+    RunTimeData runData;
+    const auto url = ("https://mag.ncep.noaa.gov/model-guidance-model-parameter.php?group=Model%20Guidance&model=" +
             WString::toUpper(om->model) +
             "&area=" +
             om->sector +
@@ -31,11 +32,11 @@ RunTimeData UtilityModelNcepInputOutput::getRunTime(ObjectModel * om) {
     runCompletionUrl += "&cycle=" + runCompletionDataStr;
     runCompletionUrl += "&param=" + om->param + "&fourpan=no&imageSize=M&ps=area";
     runCompletionUrl = WString::replace(runCompletionUrl, " ", "%20");
-    string ncepPattern1 = "([0-9]{2}Z)";
-    auto time = UtilityString::parse(html, ncepPattern1);
+    const string ncepPattern1 = "([0-9]{2}Z)";
+    const auto time = UtilityString::parse(html, ncepPattern1);
     runData.mostRecentRun = time;
     runData.timeStringConversion = time;
-    auto timeCompleteUrl = "https://mag.ncep.noaa.gov/model-fhrs.php?group=Model%20Guidance&model=" +
+    const auto timeCompleteUrl = "https://mag.ncep.noaa.gov/model-fhrs.php?group=Model%20Guidance&model=" +
             WString::toLower(om->model) +
             "&fhrmode=image&loopstart=-1&loopend=-1&area=" +
             om->sector +
@@ -46,7 +47,7 @@ RunTimeData UtilityModelNcepInputOutput::getRunTime(ObjectModel * om) {
             "&param=" +
             om->param +
             "&ps=area";
-    auto timeCompleteHTML = UtilityIO::getHtml(WString::replace(timeCompleteUrl, " ", "%20"));
+    const auto timeCompleteHTML = UtilityIO::getHtml(WString::replace(timeCompleteUrl, " ", "%20"));
     return runData;
 }
 

@@ -1,15 +1,17 @@
-#ifndef OBJECTDIVIDERLINE_H
-#define OBJECTDIVIDERLINE_H
+#ifndef DIVIDERLINE_H
+#define DIVIDERLINE_H
 
 #include <QFrame>
+#include "ui/Widget2.h"
+#include "ui/Window.h"
 
-class DividerLine {
+class DividerLine : public Widget2 {
 public:
-    explicit DividerLine(QWidget *);
-    QFrame * get();
+    explicit DividerLine(Window *);
+    QFrame * getView();
 
 private:
     QFrame * line;
 };
 
-#endif  // OBJECTDIVIDERLINE_H
+#endif  // DIVIDERLINE_H

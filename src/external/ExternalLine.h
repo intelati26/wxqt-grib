@@ -20,18 +20,18 @@
 class ExternalLine {
 public:
     ExternalLine(ExternalPoint, ExternalPoint);
+    bool isInside(ExternalPoint) const;
     bool isVertical() const;
     double getA() const;
     double getB() const;
     ExternalPoint getStart() const;
-    bool isInside(ExternalPoint) const;
     ExternalPoint start;
     ExternalPoint end;
 
 private:
-    bool vertical{};
-    double a{};
-    double b{};
+    bool vertical{false};
+    double a{999999999.0};
+    double b{999999999.0};
 };
 
 #endif  // EXTERNALLINE_H

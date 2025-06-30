@@ -13,14 +13,11 @@
 # 
 */
 
-#include "external/ExternalLine.h"
+#include "ExternalLine.h"
 
-ExternalLine::ExternalLine(ExternalPoint start1, ExternalPoint end1)
-    : start{ start1 }
-    , end{ end1 }
-    , vertical{ false }
-    , a{ 999999999.0 }
-    , b{ 999999999.0 }
+ExternalLine::ExternalLine(ExternalPoint start, ExternalPoint end)
+    : start{start}
+    , end{end}
 {
     if (end.x - start.x != 0) {
         a = (end.y - start.y) / (end.x - start.x);
@@ -30,7 +27,7 @@ ExternalLine::ExternalLine(ExternalPoint start1, ExternalPoint end1)
     }
 }
 
-bool ExternalLine::isVertical() const  {
+bool ExternalLine::isVertical() const {
     return vertical;
 }
 

@@ -1,32 +1,29 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTCARDHAZARDS_H
-#define OBJECTCARDHAZARDS_H
+#ifndef CARDHAZARDS_H
+#define CARDHAZARDS_H
 
-#include <string>
 #include <vector>
-#include <QWidget>
 #include "ui/Button.h"
+#include "ui/HBox.h"
 #include "ui/VBox.h"
+#include "ui/Window.h"
 #include "util/Hazards.h"
 
-using std::string;
 using std::vector;
 
-class CardHazards : public VBox {
+class CardHazards : public HBox {
 public:
-    explicit CardHazards();
-    CardHazards(QWidget *, const Hazards&);
+    CardHazards(Window *, const Hazards&);
     void removeLabels();
 
 private:
-    VBox vbox;
-    string data;
+    VBox box;
     vector<Button> labels;
 };
 
-#endif  // OBJECTCARDHAZARDS_H
+#endif  // CARDHAZARDS_H

@@ -1,32 +1,34 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTTOOLBAR_H
-#define OBJECTTOOLBAR_H
+#ifndef TOOLBAR_H
+#define TOOLBAR_H
 
 #include <functional>
 #include <vector>
+#include "objects/AutoUpdate.h"
 #include "ui/ButtonFlat.h"
 #include "ui/ComboBox.h"
 #include "ui/RouteItem.h"
 #include "ui/VBox.h"
+#include "ui/Window.h"
 
 using std::function;
 using std::vector;
 
 class Toolbar : public VBox {
 public:
-    Toolbar(QWidget *, const function<void()>&);
+    Toolbar(Window *, const function<void()>&);
     void launchSettings();
     void launchNexrad(int);
     void launchHourly();
     void launchWfoText();
     void launchSpcSwoSummary();
     void launchGoesViewer();
-    void launchSpcSwoDay1(const string&);
+    void launchSpcSwoDay1(int);
     void launchNationalText();
     void launchSpcTstormOutlooks();
     void launchSpcCompmap();
@@ -36,7 +38,7 @@ public:
     void launchLightning();
     void launchObservationSites();
     void launchObservations();
-    void launchSpcMeso();
+    void launchSpcMeso(const string& = "");
     void launchModelViewer();
     void launchModelViewerGeneric(const string&);
     void launchNationalImages();
@@ -49,10 +51,13 @@ public:
     void refresh();
 
 private:
-    QWidget * parent;
+    Window * parent;
     function<void()> reloadFn;
     vector<RouteItem> routeItems;
     vector<ButtonFlat> buttons;
+
+public:
+    AutoUpdate autoUpdate;
 };
 
-#endif  // OBJECTTOOLBAR_H
+#endif  // TOOLBAR_H

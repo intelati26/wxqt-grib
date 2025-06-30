@@ -18,16 +18,11 @@
 #   @author Roman Kushnarenko (sromku@gmail.com)
 #*/
 
-#include "external/Builder.h"
-
-Builder::Builder()
-        : firstPoint{ true }
-        , isClosed{ false }
-{}
+#include "Builder.h"
 
 Builder Builder::addVertex(ExternalPoint point) {
     if (isClosed) {
-        // each hole we start with the new array of vertex points
+        // each hole we start with the array of vertex points
         vertexes.clear();
         isClosed = false;
     }
@@ -35,21 +30,21 @@ Builder Builder::addVertex(ExternalPoint point) {
     vertexes.push_back(point);
     // add line (edge) to the polygon
     if (vertexes.size() > 1) {
-        ExternalLine line{vertexes[vertexes.size() - 2], point};
-        sides.push_back(line);
+        sides.emplace_back(vertexes[vertexes.size() - 2], point);
     }
     return *this;
 }
 
 void Builder::updateBoundingBox(ExternalPoint point) {
     if (firstPoint) {
-        boundingBox =  BoundingBox{};
+        boundingBox = BoundingBox{};
         boundingBox.xMax = point.x;
         boundingBox.xMin = point.x;
         boundingBox.yMax = point.y;
         boundingBox.yMin = point.y;
         firstPoint = false;
     } else {
+        // set bounding box
         if (point.x > boundingBox.xMax) {
             boundingBox.xMax = point.x;
         } else if (point.x < boundingBox.xMin) {
@@ -64,11 +59,11 @@ void Builder::updateBoundingBox(ExternalPoint point) {
 }
 
 // Builder * Builder::close() {
-//    validate();
-//    // add last Line
-//    sides.push_back(ExternalLine(vertexes[vertexes.size() - 1], vertexes[0]));
-//    isClosed = true;
-//    return this;
+//     validate();
+//     // add last Line
+//     sides.emplace_back(vertexes[vertexes.size() - 1], vertexes[0]);
+//     isClosed = true;
+//     return this;
 // }
 
 ExternalPolygon Builder::build() {
@@ -82,6 +77,7 @@ ExternalPolygon Builder::build() {
 }
 
 void Builder::validate() {
-    // if len(self._vertexes) < 3:
-    //    print('Polygon must have at least 3 points')
+    if (vertexes.size() < 3) {
+        //throw RuntimeException("Polygon must have at least 3 points");
+    }
 }

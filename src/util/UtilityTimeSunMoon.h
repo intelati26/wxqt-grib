@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -9,9 +9,8 @@
 
 #include <string>
 #include <vector>
-#include <QTime>
 #include "objects/LatLon.h"
-#include "radar/RID.h"
+#include "objects/Site.h"
 
 using std::string;
 using std::vector;
@@ -19,7 +18,8 @@ using std::vector;
 class UtilityTimeSunMoon {
 public:
     static string getSunTimes(const LatLon&);
-    static vector<QTime> getSunriseSunsetFromObs(const RID&);
+    static string getMoonTimes(const LatLon&);
+    static vector<double> getSunriseSunsetFromObs(const Site&);
 };
 
 #endif  // UTILITYTIMESUNMOON_H

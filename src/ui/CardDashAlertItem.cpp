@@ -1,59 +1,47 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "ui/CardDashAlertItem.h"
-#include "objects/WString.h"
+#include "CardDashAlertItem.h"
 #include "misc/AlertsDetail.h"
-#include "radar/Nexrad.h"
+#include "objects/Route.h"
+#include "objects/WString.h"
 
-CardDashAlertItem::CardDashAlertItem(QWidget * parent, const ObjectWarning& warning)
-    : HBox{}
-    , topLine{ Text{parent, warning.event + " (" + warning.sender + ")"} }
-    , titleLine{ Text{parent} }
-    , startTimeLine{ Text{parent} }
-    , endTimeLine{ Text{parent} }
-    , middleLine{ Text{parent, warning.area} }
-    , buttonDetails{ Button{parent, None, "Show Details"} }
-    , buttonRadar{ Button{parent, None, "Show Radar - &"} }
+CardDashAlertItem::CardDashAlertItem(Window * parent, const ObjectWarning& warning)
+    : buttonDetails{parent, None, "Details"}
+    , buttonRadar{parent, Radar, "Radar"}
+    , text1{parent, warning.event + " (" + warning.sender + ")"}
+    , text2{parent, warning.sender + " " + WString::replace(warning.title, "\\n", " ")}
+    , text3{parent, warning.area}
+    , text4{parent, WString::replace(warning.effective, "T", " ")}
+    , text5{parent, WString::replace(warning.expires, "T", " ")}
 {
-    topLine.setBlue();
+    text1.setBlue();
+    text3.setGray();
 
-    const auto data = warning.title;
-    const auto titleInfo = warning.sender + " " + WString::replace(data, "\\n", " ");
-    titleLine.setText(titleInfo);
-
-    auto startTime = warning.effective;
-    startTime = WString::replace(startTime, "T", " ");
-    startTimeLine.setText(startTime);
-
-    auto endTime = warning.expires;
-    endTime = WString::replace(endTime, "T", " ");
-    endTimeLine.setText(endTime);
-
-    middleLine.setGray();
-    boxText.addWidget(topLine, 0, Qt::AlignTop);
-    boxText.addWidget(titleLine, 0, Qt::AlignTop);
-    boxText.addWidget(middleLine, 0, Qt::AlignTop);
-    boxText.addWidget(startTimeLine, 0, Qt::AlignTop);
-    boxText.addWidget(endTimeLine, 0, Qt::AlignTop);
+    boxText.addWidget(text1);
+    boxText.addWidget(text2);
+    boxText.addWidget(text3);
+    boxText.addWidget(text4);
+    boxText.addWidget(text5);
     boxText.addStretch();
 
     const auto url = warning.getUrl();
-    const auto parent1 = parent;
-    buttonDetails.connect([url, parent1] { new AlertsDetail{parent1, url}; });
+    buttonDetails.connect([parent, url] { new AlertsDetail{parent, url}; });
 
-    const auto radar = warning.getClosestRadar();
-    buttonRadar.setText("Show Radar - &" + radar);
-    buttonRadar.connect([radar, parent1] { new Nexrad{parent1, 1, true, radar}; });
+    const auto radarSite = warning.getClosestRadar();
+    buttonRadar.setText("Radar - " + radarSite);
+    buttonRadar.connect([parent, radarSite] { Route::nexradRadarSpecificSite(parent, radarSite); });
 
-    addLayout(layoutVertical, Qt::AlignTop);
+    // addLayout(boxButtons, Qt::AlignTop);
+    addLayout(boxButtons);
     addLayout(boxText, Qt::AlignTop);
-    addStretch();
+    // addLayout(boxText);
+    // addStretch();
 
-    layoutVertical.addWidget(buttonDetails);
-    layoutVertical.addWidget(buttonRadar);
-    layoutVertical.addStretch();
+    boxButtons.addWidget(buttonRadar);
+    boxButtons.addWidget(buttonDetails);
+    boxButtons.addStretch();
 }

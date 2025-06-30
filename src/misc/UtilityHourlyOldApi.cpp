@@ -1,16 +1,16 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "misc/UtilityHourlyOldApi.h"
-#include <iostream>
+#include "UtilityHourlyOldApi.h"
 #include "common/GlobalVariables.h"
 #include "objects/ObjectDateTime.h"
 #include "objects/WString.h"
 #include "settings/Location.h"
 #include "util/To.h"
+#include "util/UtilityDownloadNws.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityList.h"
 #include "util/UtilityString.h"
@@ -25,10 +25,8 @@ const vector<string> UtilityHourlyOldApi::regexpList{
 
 string UtilityHourlyOldApi::getHourlyString(int locNumber) {
     const auto latLon  = Location::getLatLon(locNumber);
-    const auto html = UtilityIO::getHtml("https://forecast.weather.gov/MapClick.php?lat=" +
-            latLon.latStr() + "&lon=" +
-            latLon.lonStr() + "&FcstType=digitalDWML");
-    const auto header = To::stringPadLeft("Time", 14) + " "
+    const auto html = UtilityDownloadNws::getHourlyOldData(latLon);
+    const auto header = To::stringPadLeft("Time", 10) + " "
         + To::stringPadLeft("Temp", 8)
         + To::stringPadLeft("Dew", 8)
         + To::stringPadLeft("Precip", 8)

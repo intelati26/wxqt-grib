@@ -1,19 +1,15 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "objects/File.h"
+#include <fstream>
 #include <QFile>
 #include <QTextStream>
-#include <string>
 
-File::File(const string& fileName)
-    : fileName{ fileName }
-{}
-
-QString File::getText() {
+string File::getText(const string& fileName) {
     QFile file;
     file.setFileName(QString::fromStdString(fileName));
     file.open(QIODevice::ReadOnly);
@@ -22,10 +18,10 @@ QString File::getText() {
     if (file.isOpen()) {
         file.close();
     }
-    return stringValue;
+    return stringValue.toStdString();
 }
 
-QByteArray File::getBinaryDataFromResource() {
+QByteArray File::getBinaryDataFromResource(const string& fileName) {
     QFile file{QString::fromStdString(fileName)};
     file.open(QIODevice::ReadOnly);
     auto data = file.readAll();
@@ -33,4 +29,12 @@ QByteArray File::getBinaryDataFromResource() {
         file.close();
     }
     return data;
+}
+
+void File::setText(const string& fileName, const string& data) {
+    std::ofstream fileHandle{fileName};
+    if (fileHandle.is_open()) {
+        fileHandle << data;
+        fileHandle.close();
+    }
 }

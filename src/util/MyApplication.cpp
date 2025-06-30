@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -7,22 +7,25 @@
 #include "MyApplication.h"
 #include <QDir>
 #include "common/GlobalVariables.h"
-#include "radarcolorpalette/ColorPalettes.h"
+#include "radar/Metar.h"
+#include "radar/RadarSites.h"
 #include "settings/Location.h"
 #include "settings/RadarPreferences.h"
 #include "settings/UIPreferences.h"
-#include "util/Utility.h"
 #include "settings/UtilityStorePreferences.h"
+#include "util/SoundingSites.h"
+#include "util/WfoSites.h"
 
 QSettings * MyApplication::preferences;
 
 void MyApplication::onCreate() {
     preferences = new QSettings{QString::fromStdString(GlobalVariables::appCreatorEmail), QString::fromStdString(GlobalVariables::appName)};
-    if (Utility::readPref("LOC1_LABEL", "").empty()) {
-        UtilityStorePreferences::setDefaults();
-    }
-    Location::refreshLocationData();
-    ColorPalettes::initialize();
+    UtilityStorePreferences::setDefaults();
+    SoundingSites::initialize();
+    WfoSites::initialize();
+    RadarSites::initialize();
+    Metar::initialize();
+    Location::refresh();
     RadarPreferences::initialize();
     UIPreferences::initialize();
 }

@@ -1,10 +1,10 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "util/SevenDay.h"
+#include "SevenDay.h"
 #include "objects/WString.h"
 #include "settings/UIPreferences.h"
 #include "util/Forecast.h"
@@ -20,30 +20,26 @@ void SevenDay::process(const LatLon& latLon) {
     detailedForecasts.clear();
     if (UIPreferences::useNwsApi) {
         const auto html = UtilityDownloadNws::get7DayData(latLon);
-        vector<Forecast> forecasts;
         const auto names = UtilityString::parseColumn(html, "\"name\": \"(.*?)\",");
         const auto temperatures = UtilityString::parseColumn(html, "\"temperature\": (.*?),");
-        const auto windSpeeds = UtilityString::parseColumn(html, "\"windSpeed\": \"(.*?)\",");
-        const auto windDirections = UtilityString::parseColumn(html, "\"windDirection\": \"(.*?)\",");
         const auto detailedLocalForecasts = UtilityString::parseColumn(html, "\"detailedForecast\": \"(.*?)\"");
         icons = UtilityString::parseColumn(html, "\"icon\": \"(.*?)\",");
         const auto shortLocalForecasts = UtilityString::parseColumn(html, "\"shortForecast\": \"(.*?)\",");
+        vector<Forecast> forecasts;
         for (auto index : range(names.size())) {
             const auto name = Utility::safeGet(names, index);
             const auto temperature = Utility::safeGet(temperatures, index);
-            const auto windSpeed = Utility::safeGet(windSpeeds, index);
-            const auto windDirection = Utility::safeGet(windDirections, index);
             const auto icon = Utility::safeGet(icons, index);
             const auto shortForecast = Utility::safeGet(shortLocalForecasts, index);
             const auto detailedForecast = Utility::safeGet(detailedLocalForecasts, index);
-            forecasts.emplace_back(name, temperature, windSpeed, windDirection, icon, shortForecast, detailedForecast);
+            forecasts.emplace_back(name, temperature, icon, shortForecast, detailedForecast);
         }
         for (const auto& forecast : forecasts) {
             detailedForecasts.push_back(forecast.name + ": " + forecast.detailedForecast);
             shortForecasts.push_back(forecast.name + ": " + forecast.shortForecast);
         }
     } else {
-        const auto forecastStringList = UtilityUS::getCurrentConditionsUS(latLon.latStr(), latLon.lonStr());
+        const auto forecastStringList = UtilityUS::getCurrentConditionsUS(latLon);
         const auto& forecastString = forecastStringList[1];
         const auto& iconString = forecastStringList[0];
         const auto forecasts = WString::split(forecastString, "\n");

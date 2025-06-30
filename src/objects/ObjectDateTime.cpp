@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -14,24 +14,25 @@
 #include "util/UtilityString.h"
 #include "util/UtilityTimeSunMoon.h"
 
+string ObjectDateTime::formatHourMinute{"MM-dd HH:mm"}; // "yyyy-MM-dd HH:mm"
+
 ObjectDateTime::ObjectDateTime()
-    : dateTime{ QDateTime::currentDateTimeUtc() }
+    : dateTime{QDateTime::currentDateTimeUtc()}
 {}
 
 ObjectDateTime::ObjectDateTime(const QDateTime& dateTime)
-    : dateTime{ QDateTime{dateTime} }
+    : dateTime{dateTime}
 {}
 
-// KEEP
-// void ObjectDateTime::addDays(int i) {
-//    dateTime = dateTime.addDays(i);
-// }
+void ObjectDateTime::addDays(int i) {
+   dateTime = dateTime.addDays(i);
+}
 
 void ObjectDateTime::addHours(int i) {
     dateTime = dateTime.addSecs(i * 60 * 60);
 }
 
-void ObjectDateTime::addSecs(int i) {
+void ObjectDateTime::addSeconds(int i) {
     dateTime = dateTime.addSecs(i);
 }
 
@@ -44,11 +45,7 @@ bool ObjectDateTime::isBefore(const ObjectDateTime& dt) const {
     return dateTime < dt.get();
 }
 
-string ObjectDateTime::toString(const string& s) {
-    return dateTime.toString(QString::fromStdString(s)).toStdString();
-}
-
-string ObjectDateTime::format(const string& s) {
+string ObjectDateTime::format(const string& s) const {
     return dateTime.toString(QString::fromStdString(s)).toStdString();
 }
 
@@ -74,10 +71,14 @@ ObjectDateTime ObjectDateTime::fromObs(const string& time) {
     auto dateTime = QDateTime::fromString(QString::fromStdString(returnTime), "yyyyMMddThhmmss.zzzZ");
     dateTime.setTimeSpec(Qt::UTC);
     if (!dateTime.isValid()) {
-        dateTime = getCurrentTimeInUTC();
+        return ObjectDateTime{};
     }
-    auto objectDateTime = ObjectDateTime{};
-    objectDateTime.dateTime = dateTime;
+    return ObjectDateTime{dateTime};
+}
+
+ObjectDateTime ObjectDateTime::fromMoonTimes(vector<int> date) {
+    auto objectDateTime = ObjectDateTime{QDateTime(QDate{date[0], date[1], date[2]}, QTime{date[3], date[4], date[5]}, QTimeZone::utc())};
+    objectDateTime.utcToLocal();
     return objectDateTime;
 }
 
@@ -89,8 +90,7 @@ ObjectDateTime ObjectDateTime::decodeVtecTime(const string& timeRange) {
     const auto minute = To::Int(UtilityString::parse(timeRange, "[0-9]{6}T[0-9]{2}([0-9]{2})"));
     auto objectDateTime = ObjectDateTime{QDateTime(QDate{year, month, day}, QTime{hour, minute, 0}, QTimeZone::utc())};
     if (!objectDateTime.get().isValid()) {
-        // qDebug() << "NULL" << timeRange;
-        objectDateTime = ObjectDateTime{getCurrentTimeInUTC()};
+        objectDateTime = ObjectDateTime{};
         objectDateTime.addHours(1);
     }
     return objectDateTime;
@@ -106,10 +106,11 @@ ObjectDateTime ObjectDateTime::parse(const string& time, const string& format) {
     return ObjectDateTime{dateTime};
 }
 
-QDateTime ObjectDateTime::getCurrentTimeInUTC() {
-    return QDateTime::currentDateTimeUtc();
+ObjectDateTime ObjectDateTime::getCurrentTimeInUTC() {
+    return ObjectDateTime{};
 }
 
+// const auto offset = QTimeZone::systemTimeZone().offsetFromUtc(QDateTime::currentDateTime()) / 3600;
 int ObjectDateTime::offsetFromUtcInSeconds() {
     const auto dateTime1 = QDateTime::currentDateTime();
     const auto dateTime2 = QDateTime{dateTime1.date(), dateTime1.time(), Qt::UTC};
@@ -122,10 +123,10 @@ string ObjectDateTime::getDateAsString(const string& format) {
     return currentTime.toString(QString::fromStdString(format)).toStdString();
 }
 
-// TODO FIXME remove in favor of below
-string ObjectDateTime::getCurrentLocalTimeAsString() {
-    return getDateAsString("yyyy-MM-dd HH:mm:ss");
-}
+// SAVE for format string
+// string ObjectDateTime::getCurrentLocalTimeAsString() {
+//     return getDateAsString("yyyy-MM-dd HH:mm:ss");
+// }
 
 string ObjectDateTime::getLocalTimeAsString() {
     return getDateAsString("HH:mm:ss");
@@ -151,6 +152,14 @@ int ObjectDateTime::getYear() {
     return QDate::currentDate().year();
 }
 
+string ObjectDateTime::getYearString() {
+    return To::string(QDate::currentDate().year());
+}
+
+string ObjectDateTime::getYearShortString() {
+    return To::string(QDate::currentDate().year()).substr(2);
+}
+
 int ObjectDateTime::getMonth() {
     return QDate::currentDate().month();
 }
@@ -160,16 +169,20 @@ int ObjectDateTime::getDay() {
 }
 
 int ObjectDateTime::getHour() {
+    struct tm aTime;
     const time_t theTime = time(nullptr);
-    const struct tm *aTime = localtime(&theTime);
-    const int hour = aTime->tm_hour;
+    // const struct tm *aTime = localtime(&theTime);
+    localtime_r(&theTime, &aTime);
+    const int hour = aTime.tm_hour;
     return hour;
 }
 
 int ObjectDateTime::getMinute() {
+    struct tm aTime;
     const time_t theTime = time(nullptr);
-    const struct tm *aTime = localtime(&theTime);
-    const int min = aTime->tm_min;
+    // const struct tm *aTime = localtime(&theTime);
+    localtime_r(&theTime, &aTime);
+    const int min = aTime.tm_min;
     return min;
 }
 
@@ -184,21 +197,31 @@ int ObjectDateTime::getCurrentHourInUTC() {
     return currentTime.time().hour();
 }
 
-bool ObjectDateTime::timeDifference(const QDateTime& t1, const QDateTime& t2, int m) {
-    auto date = t2.addSecs(m * 60);
-    return date > t1;
+bool ObjectDateTime::timeDifference(const ObjectDateTime& t1, const ObjectDateTime& t2, int m) {
+    auto date = t2.get().addSecs(m * 60);
+    return date > t1.get();
 }
 
-bool ObjectDateTime::isDaytime(const RID& obs) {
+bool ObjectDateTime::isDaytime(const Site& obs) {
     // 2 element list with sunrise 1st, sunrise 2nd
     const auto sunTimes = UtilityTimeSunMoon::getSunriseSunsetFromObs(obs);
+
+    QTime sr{0, 0, 0};
+    sr = sr.addSecs(static_cast<int>(60 * sunTimes[0]));
+    QTime ss{0, 0, 0};
+    ss = ss.addSecs(static_cast<int>(60 * sunTimes[1]));
+
     const auto currentTime = QTime::currentTime();
-    return !(currentTime > sunTimes[1] || currentTime < sunTimes[0]);
+    return !(currentTime > ss || currentTime < sr);
 }
 
 string ObjectDateTime::getTimeFromPointAsString(uint64_t sec) {
     const auto radarTime = QDateTime::fromMSecsSinceEpoch(sec * 1000);
     return radarTime.toString("hh:mm:ss").toStdString();
+}
+
+string ObjectDateTime::convertFromUTCForMetar(const string& time) {
+    return time;
 }
 
 vector<string> ObjectDateTime::generateModelRuns([[maybe_unused]] const string& time1, [[maybe_unused]] int hours) {  // wxc2 has 3rd arg , QString dateStr
@@ -218,10 +241,10 @@ string ObjectDateTime::translateTimeForHourly(const string& originalTime) {
     value = WString::replace(value, "T", "-");
     const auto originalTimeComponents = WString::split(value, "-");
     const auto hour = To::Int(WString::replace(originalTimeComponents[3], ":00:00", ""));
-    return getDayOfWeekForHourly(originalTime) + " " + To::string(hour);
+    return hourlyDayOfWeek(originalTime) + " " + To::string(hour);
 }
 
-string ObjectDateTime::getDayOfWeekForHourly(const string& originalTime) {
+string ObjectDateTime::hourlyDayOfWeek(const string& originalTime) {
     auto value = originalTime;
     value = WString::replace(value, "T", "-");
     auto originalTimeComponents = WString::split(value, "-");
@@ -231,6 +254,37 @@ string ObjectDateTime::getDayOfWeekForHourly(const string& originalTime) {
     const auto hour = To::Int(WString::replace(originalTimeComponents[3], ":00:00", ""));
     return ObjectDateTime::dayOfWeekAbbreviation(year, month, day, hour);
 }
+
+vector<int> ObjectDateTime::currentTimeForMoon() {
+    // gtkmm
+    // auto objectDateTime = local();
+    // objectDateTime.addHours(18);
+    // const auto year = objectDateTime.getYear();
+    // const auto month = objectDateTime.getMonth();
+    // const auto day = objectDateTime.getDay();
+    // const auto h = objectDateTime.getHour();
+    // const auto m = objectDateTime.getMinute();
+    // return {year, month, day, h, m, 0};
+
+    const auto time = ObjectDateTime{};
+    const auto year = time.getYear();
+    const auto month = time.getMonth();
+    const auto day = time.getDay();
+    const auto h = time.getHour();
+    const auto m = time.getMinute();
+    return {year, month, day, h, m, 0};
+}
+
+string ObjectDateTime::timeOfDayFromMinutes(double minutes) {
+    const auto hours = static_cast<int>(minutes / 60);
+    const auto leftOver = static_cast<int>(minutes) % 60;
+    return WString::fixedLengthStringPad0(To::string(hours), 2) + ":" + WString::fixedLengthStringPad0(To::string(leftOver), 2);
+}
+
+// const auto sunrise = sun.calcSunrise();
+// QTime sr{0, 0, 0};
+// sr = sr.addSecs(static_cast<int>(60 * sunrise));
+// return "Sunrise: " + sr.toString("hh:mm ap").toStdString() + " Sunset: " + ss.toString("hh:mm ap").toStdString();
 
 QDebug operator<<(QDebug dbg, const ObjectDateTime &objectDateTime) {
     dbg.nospace() << objectDateTime.get().toString() << " ";

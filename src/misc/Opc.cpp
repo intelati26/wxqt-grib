@@ -1,36 +1,52 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "misc/Opc.h"
+#include <algorithm>
 #include "objects/FutureBytes.h"
 #include "misc/UtilityOpcImages.h"
 #include "util/Utility.h"
 
-Opc::Opc(QWidget * parent)
+Opc::Opc(Window * parent)
     : Window{parent}
-    , photo{ Photo{this, Full} }
-    , comboboxProduct{ ComboBox{this, UtilityOpcImages::labels} }
-    , index{ Utility::readPrefInt(prefToken, 0) }
+    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , comboBox{this, UtilityOpcImages::labels}
+    , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
 {
-    setTitle("OPC");
-    comboboxProduct.setIndexByValue(UtilityOpcImages::labels[index]);
-    comboboxProduct.connect([this] { changeProduct(); });
-    box.addWidget(comboboxProduct);
+    const auto index = Utility::readPrefInt(prefToken, 0);
+    comboBox.setIndexByValue(UtilityOpcImages::labels[index]);
+    comboBox.connect([this] { reload(); });
+    boxH.addWidget(comboBox);
+    boxH.addLayout(backForward);
+    box.addLayout(boxH);
     box.addWidgetAndCenter(photo);
     box.getAndShow(this);
     reload();
 }
 
 void Opc::reload() {
+    const auto index = comboBox.getIndex();
     const auto& url = UtilityOpcImages::urls[index];
+    setTitle("OPC - " + UtilityOpcImages::labels[index]);
     Utility::writePrefInt(prefToken, index);
-    new FutureBytes{ this, url, [this] (const auto& ba) { photo.setBytes(ba); } };
+    new FutureBytes{this, url, [this] (const auto& ba) { photo.setBytes(ba); } };
 }
 
-void Opc::changeProduct() {
-    index = comboboxProduct.getIndex();
+void Opc::moveBack() {
+    auto index = comboBox.getIndex();
+    index -= 1;
+    index = std::max(index, 0);
+    comboBox.setIndex(index);
+    reload();
+}
+
+void Opc::moveForward() {
+    auto index = comboBox.getIndex();
+    index += 1;
+    index = std::min(index, static_cast<int>(UtilityOpcImages::labels.size()) - 1);
+    comboBox.setIndex(index);
     reload();
 }

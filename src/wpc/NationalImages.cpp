@@ -1,10 +1,10 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "wpc/NationalImages.h"
+#include "NationalImages.h"
 #include <algorithm>
 #include "common/GlobalVariables.h"
 #include "objects/FutureBytes.h"
@@ -13,21 +13,13 @@
 #include "util/UtilityList.h"
 #include "wpc/UtilityWpcImages.h"
 
-NationalImages::NationalImages(QWidget * parent)
+NationalImages::NationalImages(Window * parent)
     : Window{parent}
-    , photo{ Photo{this, Full} }
-    , buttonBack{ Button{this, Left, ""} }
-    , buttonForward{ Button{this, Right, ""} }
-    , index{ Utility::readPrefInt(prefToken, 0) }
-    , shortcutLeft{ Shortcut{Qt::CTRL | Qt::Key_Left, this} }
-    , shortcutRight{ Shortcut{Qt::CTRL | Qt::Key_Right, this} }
+    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
+    , index{Utility::readPrefInt(prefToken, 0)}
 {
-    setTitle("National Images");
-    buttonBack.connect([this] { moveLeftClicked(); });
-    buttonForward.connect([this] { moveRightClicked(); });
-
-    hbox.addWidget(buttonBack);
-    hbox.addWidget(buttonForward);
+    hbox.addLayout(backForward);
     box.addLayout(hbox);
     box.addWidgetAndCenter(photo);
     box.getAndShow(this);
@@ -41,20 +33,6 @@ NationalImages::NationalImages(QWidget * parent)
         popoverMenus.emplace_back(this, objectMenuTitle.title, objectMenuTitle.get(), [this] (const auto& s) { changeProductByCode(s); });
         hbox.addWidget(popoverMenus.back());
     }
-    shortcutLeft.connect([this] { moveLeftClicked(); });
-    shortcutRight.connect([this] { moveRightClicked(); });
-    reload();
-}
-
-void NationalImages::moveLeftClicked() {
-    index -= 1;
-    index = std::max(index, 0);
-    reload();
-}
-
-void NationalImages::moveRightClicked() {
-    index += 1;
-    index = std::min(index, static_cast<int>(UtilityWpcImages::urls.size()) - 1);
     reload();
 }
 
@@ -68,7 +46,23 @@ void NationalImages::reload() {
     new FutureBytes{this, url, [this] (const auto& ba) { photo.setBytes(ba); }};
 }
 
+void NationalImages::moveBack() {
+    index -= 1;
+    index = std::max(index, 0);
+    reload();
+}
+
+void NationalImages::moveForward() {
+    index += 1;
+    index = std::min(index, static_cast<int>(UtilityWpcImages::urls.size()) - 1);
+    reload();
+}
+
 void NationalImages::changeProductByCode(const string& s) {
     index = findex(s, UtilityWpcImages::labels);
     reload();
+}
+
+void NationalImages::resizeEventCustom() {
+    photo.setToHeight(getWindowHeight());
 }

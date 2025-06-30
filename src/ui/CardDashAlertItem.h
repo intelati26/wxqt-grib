@@ -1,34 +1,33 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef OBJECTCARDDASHALERTITEM_H
-#define OBJECTCARDDASHALERTITEM_H
+#ifndef CARDDASHALERTITEM_H
+#define CARDDASHALERTITEM_H
 
-#include <QWidget>
 #include "objects/ObjectWarning.h"
 #include "ui/Button.h"
-#include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
+#include "ui/Window.h"
 
 class CardDashAlertItem : public HBox {
 public:
-    CardDashAlertItem(QWidget *, const ObjectWarning&);
+    CardDashAlertItem(Window *, const ObjectWarning&);
 
 private:
-    VBox layoutVertical;
+    VBox boxButtons;
     VBox boxText;
-    Text topLine;
-    Text titleLine;
-    Text startTimeLine;
-    Text endTimeLine;
-    Text middleLine;
     Button buttonDetails;
     Button buttonRadar;
+    Text text1;
+    Text text2;
+    Text text3;
+    Text text4;
+    Text text5;
 };
 
-#endif  // OBJECTCARDDASHALERTITEM_H
+#endif  // CARDDASHALERTITEM_H

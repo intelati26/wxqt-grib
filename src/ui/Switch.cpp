@@ -1,5 +1,5 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022 joshua.tee@gmail.com. All rights reserved.
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
@@ -11,19 +11,17 @@
 #include "settings/UIPreferences.h"
 #include "util/Utility.h"
 
-Switch::Switch(QWidget * parent, const string& label, const string& pref, bool defaultValue)
-    : QObject(parent)
-    , parent{ parent }
-    , pref{ pref }
-    , defaultValueAsString{ defaultValue ? "true" : "false" }
-    , checkBox{ new QCheckBox{QString::fromStdString(label), parent} }
+Switch::Switch(Window * parent, const string& label, const string& pref, bool defaultValue)
+    : pref{pref}
+    , defaultValueAsString{defaultValue ? "true" : "false"}
+    , checkBox{new QCheckBox{QString::fromStdString(label), parent}}
 {
     checkBox->setChecked(isTrue());
-    connect(checkBox, &QCheckBox::stateChanged, this, [this] { toggle(); });
+    QObject::connect(checkBox, &QCheckBox::stateChanged, parent, [this] { toggle(); });
 }
 
-Switch * Switch::fromPrefBool(QWidget * parent, const PrefBool& prefBool) {
-    return new Switch{parent, prefBool.label, prefBool.prefToken, prefBool.enabledByDefault};
+Switch * Switch::fromPrefBool(Window * parent, const PrefBool& prefBool) {
+    return new Switch{parent, prefBool.getLabel(), prefBool.getPrefToken(), prefBool.isEnabledByDefault()};
 }
 
 bool Switch::isTrue() {
@@ -40,6 +38,6 @@ void Switch::toggle() {
     UIPreferences::initialize();
 }
 
-QWidget * Switch::get() {
+QCheckBox * Switch::getView() {
     return checkBox;
 }
