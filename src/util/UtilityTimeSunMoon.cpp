@@ -6,7 +6,6 @@
 
 #include "UtilityTimeSunMoon.h"
 #include "external/SunSet.h"
-#include "externalMoon/SunMoonCalculator.h"
 #include "objects/ObjectDateTime.h"
 #include "util/To.h"
 #include "util/UtilityMath.h"
@@ -22,16 +21,7 @@ string UtilityTimeSunMoon::getSunTimes(const LatLon& latLon) {
 }
 
 string UtilityTimeSunMoon::getMoonTimes(const LatLon& latLon) {
-    const auto time{ObjectDateTime::currentTimeForMoon()};
-    const auto obsLon = UtilityMath::deg2rad(latLon.lon());  // lon is negative to the west.
-    const auto obsLat = UtilityMath::deg2rad(latLon.lat());
-    auto smc{SunMoonCalculator{time[0], time[1], time[2], time[3], time[4], time[5], obsLon, obsLat}};
-    smc.calcSunAndMoon();
-    const auto moonRise = ObjectDateTime::fromMoonTimes(SunMoonCalculator::getDate(smc.moon.rise)).format(ObjectDateTime::formatHourMinute);
-    const auto moonSet = ObjectDateTime::fromMoonTimes(SunMoonCalculator::getDate(smc.moon.set)).format(ObjectDateTime::formatHourMinute);
-    const auto moonPhase = To::string(static_cast<int>(smc.moon.illuminationPhase));
-    const auto moonAge = To::string(static_cast<int>(smc.moonAge));
-    return "Moonrise: " + moonRise + " Moonset: " + moonSet + " " + moonPhase + "%" + " age: " + moonAge;
+    return "";
 }
 
 vector<double> UtilityTimeSunMoon::getSunriseSunsetFromObs(const Site& obs) {
