@@ -5,6 +5,8 @@
 // *****************************************************************************
 
 #include "LocationEditBox.h"
+#include <QDesktopServices>
+#include <QUrl>
 #include "common/GlobalVariables.h"
 #include "objects/LatLon.h"
 #include "objects/WString.h"
@@ -17,6 +19,7 @@ LocationEditBox::LocationEditBox(Window * parent)
     : Widget{parent}
     , table{nullptr}
     , saveButton{parent, None, "Save"}
+    , mapButton{parent, None, "Show on Map"}
     , cityEdit{parent}
     , editName{parent}
     , editLat{parent}
@@ -26,6 +29,7 @@ LocationEditBox::LocationEditBox(Window * parent)
 {
     cityEdit.connect([this] { lookupSearchTerm(); });
     saveButton.connect([this] { saveLocation(); });
+    mapButton.connect([this] { showOnMap(); });
 
     table.addRow("Enter City:", cityEdit);
     table.addRow("Name", editName);
@@ -33,6 +37,7 @@ LocationEditBox::LocationEditBox(Window * parent)
     table.addRow("Longitude", editLon);
     table.addRow("Nexrad", editNexrad);
     table.addRow("", saveButton);
+    table.addRow("", mapButton);
     boxMain.addLayout(table);
 
     for (auto index : range(6)) {
@@ -60,10 +65,13 @@ void LocationEditBox::lookupSearchTerm() {
             if (index < citiesSelected.size()) {
                 buttons[index].setText(citiesSelected[index]);
                 buttons[index].setVisible(true);
+            } else {
+                buttons[index].setText("");
+                buttons[index].setVisible(false);
             }
-            if (index == 0) {
-                populateLabels(index);
-            }
+        }
+        if (!citiesSelected.empty()) {
+            populateLabels(0);
         }
     } else {
         blankOutButtons();
@@ -72,13 +80,23 @@ void LocationEditBox::lookupSearchTerm() {
 
 string LocationEditBox::getRadarFromCity(const string& s) {
     auto tokens = WString::split(s, ",");
+    if (tokens.size() < 3) {
+        return "";
+    }
     auto latLon = LatLon{tokens[1], tokens[2]};
     return RadarSites::getNearestCode(latLon, false);
 }
 
 void LocationEditBox::populateLabels(int index) {
-    const auto city = buttons[index].getText();
+    auto city = buttons[index].getText();
+    const auto radarSuffix = city.find(" Radar: ");
+    if (radarSuffix != string::npos) {
+        city = city.substr(0, radarSuffix);
+    }
     const auto tokens = WString::split(city, ",");
+    if (tokens.size() < 3) {
+        return;
+    }
     editName.setText(tokens[0]);
     editLat.setText(tokens[1]);
     editLon.setText(tokens[2]);
@@ -94,6 +112,17 @@ void LocationEditBox::blankOutButtons() {
         buttons[index].setText("");
         buttons[index].setVisible(false);
     }
+}
+
+void LocationEditBox::showOnMap() {
+    const auto lat = editLat.getText();
+    const auto lon = editLon.getText();
+    if (lat.empty() || lon.empty()) {
+        return;
+    }
+    const auto url = "https://www.openstreetmap.org/?mlat=" + lat + "&mlon=" + lon +
+        "#map=9/" + lat + "/" + lon;
+    QDesktopServices::openUrl(QUrl{QString::fromStdString(url)});
 }
 
 void LocationEditBox::saveLocation() {

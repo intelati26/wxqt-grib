@@ -31,10 +31,12 @@ private:
     void populateLabels(int);
     void blankOutButtons();
     void saveLocation();
+    void showOnMap();
     VBox boxResults;
     HBox boxMain;
     Table table;
     Button saveButton;
+    Button mapButton;
     Entry cityEdit;
     Entry editName;
     Entry editLat;
