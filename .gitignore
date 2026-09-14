@@ -4,3 +4,4 @@ Makefile
 build/
 wxqt.pro
 resourceCreation/*.qrc
+*.log

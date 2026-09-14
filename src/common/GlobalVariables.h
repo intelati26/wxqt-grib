@@ -16,7 +16,14 @@ public:
     static const string aboutString;
     static const string mainScreenShortcuts;
     static const string nexradShortcuts;
-    static const string appCreatorEmail;
+    // QSettings organization key - must stay stable across builds/forks:
+    // changing it points every future run at a different settings file/
+    // registry key, silently orphaning whatever a user already has saved
+    // (locations, toggles, etc.) under the old one. Deliberately a neutral
+    // project name, not a person's email - see [[wxqt-privacy-hygiene]] /
+    // Settings > General's "Contact email" field for the actual, optional,
+    // user-editable contact address sent to weather APIs.
+    static const string appOrgName;
     static const string appName;
     static const string resDir;
     static const string imageDir;

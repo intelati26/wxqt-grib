@@ -1,6 +1,10 @@
 [TOC]
 # wxqt: Qt/C++ port of "wX" US Advanced Weather application (open source GPL3)
 
+This is a fork of [joshua.tee/wxqt](https://gitlab.com/joshua.tee/wxqt) - all
+credit for the original app and port goes to Joshua Tee; see below for what's
+different here.
+
 [screenshot](https://gitlab.com/joshua.tee/wxqt/-/blob/main/wxqt.png)
 
 Prerequisites:
@@ -18,7 +22,11 @@ https://www.gnu.org/licenses/gpl-3.0.en.html
 ```
 
 ## For those interested in forking or running a modified program:
-Please modify `QString GlobalVariables::appName` and `GlobalVariables::appCreatorEmail` in `src/common/GlobalVariables.cpp` as these are used in HTTP requests to the NWS.
+Please modify `GlobalVariables::appName` in `src/common/GlobalVariables.cpp`
+(used in HTTP requests to the NWS). The contact email sent alongside it is
+no longer hardcoded - it's blank by default and set per-install from
+Settings > General > "Contact email for weather API requests," so nothing
+personal needs to be edited in source at all.
 FYI - you will notice that I've abstracted the native toolkit widgets. This was done as non-public ports to other UI tookits share this codebase, etc.
 
 ## Differences from the original Dec 2021 release

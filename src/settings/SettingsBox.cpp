@@ -8,13 +8,19 @@
 #include "common/GlobalVariables.h"
 #include "misc/TextViewerStatic.h"
 #include "settings/UIPreferences.h"
+#include "util/Utility.h"
 #include "util/UtilityList.h"
+#include "util/UtilityTheme.h"
 
 SettingsBox::SettingsBox(Window * parent)
     : Widget{parent}
     , button{parent, None, "Keyboard Shortcuts"}
     , homeScreenLabel{parent, "Homescreen widgets:"}
     , generalLabel{parent, "General preferences:"}
+    , themeLabel{parent, "Theme (light / dark)"}
+    , themeComboBox{parent, UtilityTheme::labels}
+    , contactEmailLabel{parent, "Contact email for weather API requests (optional)"}
+    , contactEmailEntry{parent}
 {
     boxMain.setSpacing(10);
     boxMain.addLayout(boxLeft);
@@ -56,6 +62,19 @@ SettingsBox::SettingsBox(Window * parent)
     generalLabel.setBlue();
     boxCenter.addWidget(generalLabel);
 
+    themeLabel.setWordWrap(false);
+    themeComboBox.setIndex(UtilityTheme::prefIndex());
+    themeComboBox.connect([this] { changeTheme(); });
+    themeRow.addWidget(themeComboBox);
+    themeRow.addWidget(themeLabel);
+    boxCenter.addLayout(themeRow);
+
+    contactEmailLabel.setWordWrap(true);
+    contactEmailEntry.setText(Utility::readPref("CONTACT_EMAIL", ""));
+    contactEmailEntry.connect([this] { changeContactEmail(); });
+    boxCenter.addWidget(contactEmailLabel);
+    boxCenter.addWidget(contactEmailEntry);
+
     for (auto i : range(configsLeft.size())) {
         boxLeft.addWidget(*configsLeft[i]);
     }
@@ -70,4 +89,18 @@ SettingsBox::SettingsBox(Window * parent)
     boxLeft.addStretch();
     boxCenter.addStretch();
     boxRight.addStretch();
+}
+
+void SettingsBox::changeTheme() {
+    auto index = themeComboBox.getIndex();
+    if (index < 0 || index >= static_cast<int>(UtilityTheme::values.size())) {
+        index = 0;
+    }
+    const auto value = UtilityTheme::values[index];
+    Utility::writePref(UtilityTheme::pref, value);
+    UtilityTheme::applyTheme(value);
+}
+
+void SettingsBox::changeContactEmail() {
+    Utility::writePref("CONTACT_EMAIL", contactEmailEntry.getText());
 }

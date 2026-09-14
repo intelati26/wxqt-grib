@@ -19,7 +19,7 @@
 QSettings * MyApplication::preferences;
 
 void MyApplication::onCreate() {
-    preferences = new QSettings{QString::fromStdString(GlobalVariables::appCreatorEmail), QString::fromStdString(GlobalVariables::appName)};
+    preferences = new QSettings{QString::fromStdString(GlobalVariables::appOrgName), QString::fromStdString(GlobalVariables::appName)};
     UtilityStorePreferences::setDefaults();
     SoundingSites::initialize();
     WfoSites::initialize();

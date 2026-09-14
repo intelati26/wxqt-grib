@@ -6,7 +6,7 @@
 
 #include "GlobalVariables.h"
 
-const string GlobalVariables::appName{"wxqt"};
+const string GlobalVariables::appName{"Runnerwxqt"};
 const string GlobalVariables::aboutString{
 appName + " is an efficient and configurable method to access weather content from the NWS, and NSSL WRF"
 " Software is provided \"as is\". Use at your own risk. Use for educational purposes and non-commercial purposes only."
@@ -71,7 +71,7 @@ const string GlobalVariables::nexradShortcuts{R"nexradShort(
 
     )nexradShort"};
 
-const string GlobalVariables::appCreatorEmail{"joshua.tee@gmail.com"};
+const string GlobalVariables::appOrgName{"wxqt"};
 const string GlobalVariables::resDir{":/res/"};
 const string GlobalVariables::imageDir{":/images/"};
 const string GlobalVariables::newline{"\n"};

@@ -18,6 +18,7 @@ public:
     static string getText(const string&);
     static string getTextXmlAcceptHeader(const string&);
     static QByteArray getBytes(const string&);
+    static QByteArray getBytesRange(const string&, long long, long long);
 };
 
 #endif  // URL_H
