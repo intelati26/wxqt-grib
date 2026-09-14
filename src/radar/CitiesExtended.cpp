@@ -19,7 +19,15 @@ void CitiesExtended::create() {
         for (const auto& line : lines) {
             const auto items = WString::split(line, ",");
             if (items.size() > 2) {
-                cities.emplace_back(items[0], To::Double(items[1]), -1.0 * To::Double(items[2]));
+                // cityall.txt's longitude column is already correctly
+                // negative (US-only cities) - this used to negate it AGAIN,
+                // flipping every city to the wrong (positive/eastern-
+                // hemisphere) side of the globe. Pre-existing bug, only
+                // surfaced now that something (drawCityLabels) actually
+                // bbox-filters on real coordinates instead of just plotting
+                // whatever position Nexrad's own Mercator projection gave it.
+                const auto population = items.size() > 3 ? To::int64(items[3]) : 0;
+                cities.emplace_back(items[0], To::Double(items[1]), To::Double(items[2]), population);
             }
         }
     }

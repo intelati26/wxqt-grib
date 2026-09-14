@@ -6,8 +6,9 @@
 
 #include "CityExt.h"
 
-CityExt::CityExt(const string& name, double latitude, double longitude)
+CityExt::CityExt(const string& name, double latitude, double longitude, int64_t population)
     : name{name}
     , latitude{latitude}
     , longitude{longitude}
+    , population{population}
 {}

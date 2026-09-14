@@ -7,16 +7,18 @@
 #ifndef CITYEXT_H
 #define CITYEXT_H
 
+#include <cstdint>
 #include <string>
 
 using std::string;
 
 class CityExt {
 public:
-    CityExt(const string&, double, double);
+    CityExt(const string&, double, double, int64_t = 0);
     string name;
     double latitude;
     double longitude;
+    int64_t population = 0;   // cityall.txt's 4th column - previously parsed but discarded
 };
 
 #endif  // CITYEXT_H
