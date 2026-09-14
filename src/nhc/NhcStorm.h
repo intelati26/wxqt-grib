@@ -31,6 +31,15 @@ private:
     void changeProduct();
     void launchGoes();
     Window * parent;
+    // declared before comboboxProduct: members initialize in declaration
+    // order, and comboboxProduct is constructed *from* this list, so this
+    // order is load-bearing, not cosmetic.
+    const vector<string> stormTextProducts{
+        "MIATCP: Public Advisory",
+        "MIATCM: Forecast Advisory",
+        "MIATCD: Forecast Discussion",
+        "MIAPWS: Wind Speed Probabilities"
+    };
     VBox boxText;
     VBox boxImages;
     VBox box;
@@ -57,12 +66,6 @@ private:
         "_wind_probs_34_F120_sm2.png",
         "_wind_probs_50_F120_sm2.png",
         "_wind_probs_64_F120_sm2.png"};
-    const vector<string> stormTextProducts{
-        "MIATCP: Public Advisory",
-        "MIATCM: Forecast Advisory",
-        "MIATCD: Forecast Discussion",
-        "MIAPWS: Wind Speed Probabilities"
-    };
 };
 
 #endif  // NHCSTORM_H

@@ -29,17 +29,9 @@ private:
     void updateText();
     void launchImage(size_t);
     Window * parent;
-    VBox boxText;
-    VBox box;
-    ScrolledWindow sw;
-    ComboBox comboBoxText;
-    ComboBox comboBoxImages;
-    ObjectNhc objectNhc;
-    vector<std::unique_ptr<CardNhcStormReportItem>> stormCards;
-    vector<Image> images;
-    vector<string> urls;
-    vector<Shortcut> shortcuts;
-    vector<string> imageTitles;
+    // declared before comboBoxText/comboBoxImages: members initialize in
+    // declaration order, and those two are constructed *from* these lists,
+    // so this order is load-bearing, not cosmetic.
     const vector<string> textProducts{
         "Text Products",
         "MIATWOAT: ATL Tropical Weather Outlook",
@@ -68,6 +60,17 @@ private:
         "EPAC SST Anomaly",
         "ATL SST Anomaly"
     };
+    VBox boxText;
+    VBox box;
+    ScrolledWindow sw;
+    ComboBox comboBoxText;
+    ComboBox comboBoxImages;
+    ObjectNhc objectNhc;
+    vector<std::unique_ptr<CardNhcStormReportItem>> stormCards;
+    vector<Image> images;
+    vector<string> urls;
+    vector<Shortcut> shortcuts;
+    vector<string> imageTitles;
 };
 
 #endif  // NHC_H

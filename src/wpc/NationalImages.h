@@ -33,8 +33,10 @@ private:
     HBox hbox;
     Photo photo;
     BackForward backForward;
-    int index;
+    // declared before index: index's initializer reads this, and members
+    // initialize in declaration order, so this order is load-bearing.
     const string prefToken{"WPCIMG_PARAM_LAST_USED"};
+    int index;
     vector<PopoverMenu> popoverMenus;
 };
 
