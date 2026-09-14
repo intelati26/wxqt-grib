@@ -57,13 +57,13 @@ vector<string> UtilitySpcSwo::getImageUrls(int day) {
     const auto time = UtilityString::parse(html, "show_tab\\(.otlk_([0-9]{4}).\\)");
     if (day == 1 || day == 2) {
         auto baseUrl = GlobalVariables::nwsSPCwebsitePrefix + "/products/outlook/day" + To::string(day) + "probotlk_";
-        urls.push_back(GlobalVariables::nwsSPCwebsitePrefix + "/products/outlook/day" + To::string(day) + "otlk_" + time + ".gif");
-        for (const auto& urlEnd : {"_torn.gif", "_hail.gif", "_wind.gif"}) {
+        urls.push_back(GlobalVariables::nwsSPCwebsitePrefix + "/products/outlook/day" + To::string(day) + "otlk_" + time + ".png");
+        for (const auto& urlEnd : {"_torn.png", "_hail.png", "_wind.png"}) {
             urls.push_back(baseUrl + time + urlEnd);
         }
     } else {
         for (const auto& urlEnd : {"otlk_", "prob_"}) {
-            urls.push_back(GlobalVariables::nwsSPCwebsitePrefix + "/products/outlook/day" + To::string(day) + urlEnd + time + ".gif");
+            urls.push_back(GlobalVariables::nwsSPCwebsitePrefix + "/products/outlook/day" + To::string(day) + urlEnd + time + ".png");
         }
     }
     return urls;

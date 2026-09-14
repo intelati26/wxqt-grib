@@ -7,6 +7,7 @@
 #ifndef UTILITYLIST_H
 #define UTILITYLIST_H
 
+#include <algorithm>
 #include <functional>
 #include <string>
 #include <vector>
@@ -31,7 +32,7 @@ template<typename T> vector<std::pair<int, T>> enumerate(vector<T> vec) {
 }
 
 template<typename T> static bool contains(const vector<T>& items, const T& v) {
-    if (find(items.begin(), items.end(), v) != items.end()) {
+    if (std::find(items.begin(), items.end(), v) != items.end()) {
         return true;
     } else {
         return false;
@@ -49,7 +50,7 @@ public:
 
     // template <typename T>
     // static bool contains(const vector<T> &items, const T &v) {
-    //     if (find(items.begin(), items.end(), v) != items.end()) {
+    //     if (std::find(items.begin(), items.end(), v) != items.end()) {
     //         return true;
     //     } else {
     //         return false;

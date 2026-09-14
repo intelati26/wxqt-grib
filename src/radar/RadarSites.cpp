@@ -311,7 +311,7 @@ const unordered_map<string, string> RadarSites::name{
     {"TTPA", "FL, Tampa Bay"},
     {"TTUL", "OK, Tulsa"},
     {"TDCA", "MD, Washington National"},
-    {"TPBI", "FL, West Palm Beach"},
+    {"TDJT", "FL, West Palm Beach"},
 };
 // const unordered_map<string, string> RadarSites::wfoSitetoLat;
 // const unordered_map<string, string> RadarSites::wfoSitetoLon;
@@ -506,7 +506,7 @@ const unordered_map<string, string> RadarSites::lat{
     {"TMSY", "30.021389"},
     {"TOKC", "35.27611"},
     {"TORD", "41.796589"},
-    {"TPBI", "26.687812"},
+    {"TDJT", "26.687812"},
     {"TPHL", "39.950061"},
     {"TPHX", "33.420352"},
     {"TPIT", "40.501066"},
@@ -710,7 +710,7 @@ const unordered_map<string, string> RadarSites::lon{
     {"TMSY", "90.402919"},
     {"TOKC", "97.51"},
     {"TORD", "87.857628"},
-    {"TPBI", "80.272931"},
+    {"TDJT", "80.272931"},
     {"TPHL", "75.069979"},
     {"TPHX", "112.16318"},
     {"TPIT", "80.486586"},
