@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ui/Toolbar.h"
+#include <algorithm>
 #include <string>
 #include <vector>
 #include "misc/Hourly.h"
@@ -15,13 +16,19 @@
 #include "misc/SevereDashboard.h"
 #include "misc/UsAlerts.h"
 #include "misc/WfoText.h"
+#include "models/GribViewer.h"
+#include "models/IndexViewer.h"
+#include "models/RefsViewer.h"
+#include "models/SpcPostViewer.h"
 #include "models/ModelViewer.h"
 #include "nhc/Nhc.h"
 #include "objects/Route.h"
+#include "objects/WString.h"
 #include "radar/Nexrad.h"
 #include "radar/RadarMosaic.h"
 #include "settings/SettingsMain.h"
 #include "settings/UIPreferences.h"
+#include "util/Utility.h"
 #include "spc/SpcCompMap.h"
 #include "spc/SpcFireSummary.h"
 #include "spc/SpcMeso.h"
@@ -55,6 +62,11 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_flash_on_black_48dp.png", "Nexrad radar viewer, Ctrl-r", [this] { launchNexrad(1); });
     routeItems.emplace_back("wxogldualpane.png", "Nexrad radar viewer, dual pane, Ctrl-2", [this] { launchNexrad(2); });
     routeItems.emplace_back("wxoglquadpane.png", "Nexrad radar viewer, quad pane, Ctrl-4", [this] { launchNexrad(4); });
+
+    routeItems.emplace_back("grib.png", "RRFS GRIB Viewer", [parent] { new GribViewer{parent}; });
+    routeItems.emplace_back("grib.png", "REFS Ensemble Viewer (4-panel mean/spread comparison)", [parent] { new RefsViewer{parent}; });
+    routeItems.emplace_back("tor.png", "SPC Post Slideshow (thunder / severe / lightning probability)", [parent] { new SpcPostViewer{parent}; });
+    routeItems.emplace_back("tstorm.png", "Parametric Index Viewer (SHIP hail parameter)", [parent] { new IndexViewer{parent}; });
 
     routeItems.emplace_back("spc_sum.png", "SPC Convective Outlook Summary, Ctrl-s", [this] { launchSpcSwoSummary(); });
     for (const int day : {1, 2, 3, 48}) {
@@ -90,6 +102,67 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     // routeItems.emplace_back("spchref.png", "SPC HREF", [this] { launchModelViewerGeneric("SPCHREF"); });
     routeItems.emplace_back("goesfulldisk.png", "Global GOES", [parent] { new GoesGlobal{parent}; });
 
+    applySavedOrder();
+    rebuildButtons();
+}
+
+const vector<RouteItem>& Toolbar::getRouteItems() const {
+    return routeItems;
+}
+
+// swaps the tiles at fromIndex/toIndex (wrapping, so "move up" from the top
+// and "move down" from the bottom cycle to the other end), persists the new
+// order, and rebuilds the visible button strip immediately
+void Toolbar::moveRouteItem(int fromIndex, int toIndex) {
+    const auto count = static_cast<int>(routeItems.size());
+    if (count < 2 || fromIndex < 0 || fromIndex >= count) {
+        return;
+    }
+    toIndex = ((toIndex % count) + count) % count;
+    std::swap(routeItems[fromIndex], routeItems[toIndex]);
+    persistOrder();
+    rebuildButtons();
+}
+
+// applies a previously saved order (a comma-joined list of icon filenames -
+// each RouteItem's icon is unique, so it doubles as a stable id). Routes not
+// mentioned (added since the order was last saved) keep their built-in
+// relative order, appended at the end.
+void Toolbar::applySavedOrder() {
+    const auto savedPref = Utility::readPref(orderPrefToken, "");
+    if (savedPref.empty()) {
+        return;   // first run - keep the built-in default order
+    }
+    const auto saved = WString::split(savedPref, ",");
+    vector<RouteItem> ordered;
+    for (const auto& key : saved) {
+        for (const auto& item : routeItems) {
+            if (item.iconString == key) {
+                ordered.push_back(item);
+                break;
+            }
+        }
+    }
+    for (const auto& item : routeItems) {
+        const auto known = std::find(saved.begin(), saved.end(), item.iconString) != saved.end();
+        if (!known) {
+            ordered.push_back(item);
+        }
+    }
+    routeItems = ordered;
+}
+
+void Toolbar::persistOrder() {
+    vector<string> keys;
+    for (const auto& item : routeItems) {
+        keys.push_back(item.iconString);
+    }
+    Utility::writePref(orderPrefToken, WString::join(keys, ","));
+}
+
+void Toolbar::rebuildButtons() {
+    removeChildren();
+    buttons.clear();
     addWidget(autoUpdate);
     for (const auto& item : routeItems) {
         buttons.emplace_back(parent, item.iconString, item.toolTip);
@@ -200,7 +273,7 @@ void Toolbar::launchRtma() {
 }
 
 void Toolbar::launchSettings() {
-    new SettingsMain{parent, reloadFn, true, false};
+    new SettingsMain{parent, reloadFn, true, false, this};
 }
 
 void Toolbar::refresh() {

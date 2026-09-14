@@ -49,10 +49,16 @@ public:
     void launchOpc();
     void launchRtma();
     void refresh();
+    const vector<RouteItem>& getRouteItems() const;
+    void moveRouteItem(int fromIndex, int toIndex);
 
 private:
+    void applySavedOrder();
+    void persistOrder();
+    void rebuildButtons();
     Window * parent;
     function<void()> reloadFn;
+    const string orderPrefToken{"TOOLBAR_ORDER"};
     vector<RouteItem> routeItems;
     vector<ButtonFlat> buttons;
 

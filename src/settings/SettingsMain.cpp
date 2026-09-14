@@ -10,7 +10,7 @@
 
 using std::make_unique;
 
-SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bool showLocationItems, bool showRadarFirst)
+SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bool showLocationItems, bool showRadarFirst, Toolbar * toolbar)
     : Window{parent}
     , reloadFn{reloadFn}
     , sw{this, box}
@@ -31,12 +31,18 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
         settingsLocationsBox = make_unique<SettingsLocationsBox>(parent);
         locationEditBox = make_unique<LocationEditBox>(parent);
     }
+    if (toolbar) {
+        settingsToolbarOrderBox = make_unique<SettingsToolbarOrderBox>(parent, toolbar);
+    }
     tabWidget.addTab(settingsBox.get(), "General");
     tabWidget.addTab(settingsRadarBox.get(), "Radar");
     tabWidget.addTab(settingsColorsBox.get(), "Colors");
     if (showLocationItems) {
         tabWidget.addTab(settingsLocationsBox.get(), "Locations");
         tabWidget.addTab(locationEditBox.get(), "Add Location");
+    }
+    if (toolbar) {
+        tabWidget.addTab(settingsToolbarOrderBox.get(), "Toolbar Order");
     }
     tabWidget.addTab(settingsAboutBox.get(), "About");
     if (showRadarFirst) {

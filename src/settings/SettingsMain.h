@@ -16,10 +16,12 @@
 #include "settings/SettingsColorsBox.h"
 #include "settings/SettingsLocationsBox.h"
 #include "settings/SettingsRadarBox.h"
+#include "settings/SettingsToolbarOrderBox.h"
 #include "ui/ComboBox.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Shortcut.h"
 #include "ui/TabWidget.h"
+#include "ui/Toolbar.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -29,7 +31,7 @@ using std::unique_ptr;
 
 class SettingsMain : public Window {
 public:
-    SettingsMain(Window *, const function<void()>&, bool, bool);
+    SettingsMain(Window *, const function<void()>&, bool, bool, Toolbar * = nullptr);
 
 private:
     static string getSettings();
@@ -43,6 +45,7 @@ private:
     unique_ptr<SettingsColorsBox> settingsColorsBox;
     unique_ptr<SettingsLocationsBox> settingsLocationsBox;
     unique_ptr<LocationEditBox> locationEditBox;
+    unique_ptr<SettingsToolbarOrderBox> settingsToolbarOrderBox;
     unique_ptr<TextViewerStaticBox> settingsAboutBox;
     string settingsString;
     Shortcut shortcutGeneral;
