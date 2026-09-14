@@ -30,6 +30,7 @@ Pix Pix::fromImage(const QImage& image) {
 Pix Pix::blank(int width) {
     auto pixObject = Pix("");
     pixObject.pix = QPixmap{width, width};
+    pixObject.pix.fill(Qt::transparent);
     return pixObject;
 }
 

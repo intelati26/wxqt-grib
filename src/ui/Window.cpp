@@ -15,11 +15,7 @@ Window::Window(QWidget * parent)
     , shortcutClose2{QKeySequence{Qt::Key_Escape}, this}
 {
     setCentralWidget(centralWidget);
-    // setStyleSheet("background-color: white;");
-    QPalette pal = QPalette();
-    pal.setColor(QPalette::Window, Qt::white);
-    setAutoFillBackground(true);
-    setPalette(pal);
+    // background follows the application palette / theme (see UtilityTheme)
     shortcutClose1.connect([this] { close(); });
     shortcutClose2.connect([this] { close(); });
     if (!UIPreferences::tiledWindows) {

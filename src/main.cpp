@@ -9,10 +9,12 @@
 #include "common/GlobalVariables.h"
 #include "ui/MainWindow.h"
 #include "util/MyApplication.h"
+#include "util/UtilityTheme.h"
 
 int main(int argc, char * argv[]) {
     QApplication a{argc, argv};
     MyApplication::onCreate();
+    UtilityTheme::apply();
     a.setWindowIcon(QIcon{QString::fromStdString(GlobalVariables::imageDir) + "wx_launcher.png"});
     if (a.arguments().size() == 3 && a.arguments()[1] == "-r") {
         return a.exec();

@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "Text.h"
+#include <QPalette>
 #include "settings/UIPreferences.h"
 
 Text::Text(Window * parent, const string& text)
@@ -49,11 +50,15 @@ void Text::setFixedWidth() {
 }
 
 void Text::setBlue() {
-    textView->setStyleSheet("QLabel { color : blue; }");
+    auto pal = textView->palette();
+    pal.setColor(QPalette::WindowText, pal.color(QPalette::Link));
+    textView->setPalette(pal);
 }
 
 void Text::setGray() {
-    textView->setStyleSheet("QLabel {color: gray;}");
+    auto pal = textView->palette();
+    pal.setColor(QPalette::WindowText, pal.color(QPalette::PlaceholderText));
+    textView->setPalette(pal);
 }
 
 void Text::setBold() {
@@ -63,7 +68,12 @@ void Text::setBold() {
 }
 
 void Text::setBlueOnWhite() {
-    textView->setStyleSheet("QLabel {background-color: white; color: blue; font-size: 18px;}");
+    auto pal = textView->palette();
+    pal.setColor(QPalette::WindowText, pal.color(QPalette::Link));
+    textView->setPalette(pal);
+    auto font = textView->font();
+    font.setPointSize(14);
+    textView->setFont(font);
 }
 
 void Text::setVisible(bool b) {
