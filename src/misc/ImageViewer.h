@@ -8,9 +8,13 @@
 #define IMAGEVIEWER_H
 
 #include <string>
-#include "ui/Photo.h"
+#include <QByteArray>
+#include "ui/Button.h"
+#include "ui/HBox.h"
+#include "ui/Shortcut.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
+#include "ui/ZoomImage.h"
 
 using std::string;
 
@@ -21,8 +25,17 @@ public:
 
 private:
     void resizeEventCustom() override;
+    void setBytes(const QByteArray&);
+    void save();
+    string suggestedFileName(const QByteArray& savedBytes) const;
     VBox box;
-    Photo photo;
+    HBox boxTop;
+    ZoomImage image;
+    Button saveButton;
+    Shortcut saveShortcut;
+    QByteArray imageBytes;
+    string titleText;
+    string sourceUrl;
 };
 
 #endif  // IMAGEVIEWER_H

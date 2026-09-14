@@ -49,6 +49,10 @@ void ComboBox::setList(const vector<string>& items) {
     addItemsQt();
 }
 
+vector<string> ComboBox::getItems() const {
+    return items;
+}
+
 // GTK compat
 void ComboBox::block() {
     blockSignals(true);

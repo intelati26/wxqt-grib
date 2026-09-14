@@ -26,6 +26,7 @@ public:
     void setIndexByPref(const string&, int);
     void setIndexByValue(const string&);
     void setList(const vector<string>&);
+    vector<string> getItems() const;
     void block();
     void unblock();
     void connect(const function<void()>&);
