@@ -84,6 +84,4 @@ cd wxqt
 - need 
 ```bash
 qt6-base
-qt6-declarative ?
-```
-## Feedback to joshua.tee@gmail.com
+qt6-declarative
