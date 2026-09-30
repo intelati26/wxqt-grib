@@ -9,15 +9,20 @@
 #include <QBuffer>
 #include <QFile>
 #include <QFileDialog>
+#include <QDesktopServices>
+#include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QPainter>
 #include <QProcess>
+#include <QPushButton>
 #include <QStandardPaths>
 #include <QStringList>
 #include <QTemporaryDir>
+#include <QUrl>
 #include "objects/UtilityApng.h"
 #include "objects/UtilityJxl.h"
+#include "objects/UtilityTools.h"
 #include "util/Utility.h"
 
 namespace {
@@ -89,7 +94,7 @@ namespace {
 }
 
 bool UtilityAnimationExport::toolAvailable(const QString& name) {
-    return !QStandardPaths::findExecutable(name).isEmpty();
+    return !UtilityTools::find(name).isEmpty();
 }
 
 vector<UtilityAnimationExport::Format> UtilityAnimationExport::formats(bool animated) {
@@ -190,7 +195,7 @@ bool UtilityAnimationExport::encodeToFile(const Format& format, const vector<QBy
             args << temp.path() + "/frame_" + QString::number(i).rightJustified(4, '0') + ".png";
         }
         args << path;
-        const auto result = runTool("avifenc", args, 300000);
+        const auto result = runTool(UtilityTools::find("avifenc"), args, 300000);
         error = result.error;
         return result.ok && QFile::exists(path);
     }
@@ -208,12 +213,69 @@ bool UtilityAnimationExport::encodeToFile(const Format& format, const vector<QBy
                  << "-vf" << "pad=ceil(iw/2)*2:ceil(ih/2)*2:color=white";
         }
         args << path;
-        const auto result = runTool("ffmpeg", args, 300000);
+        const auto result = runTool(UtilityTools::find("ffmpeg"), args, 300000);
         error = result.error;
         return result.ok && QFile::exists(path);
     }
     error = "unknown export format: " + format.id;
     return false;
+}
+
+void UtilityAnimationExport::showInstallHelp(QWidget * parent, const QStringList& missing) {
+    QString text = "<p><b>More export formats</b> need a small free helper program that is not "
+                   "included, to keep this download small. Animated PNG always works without them.</p><ul>";
+    if (missing.contains("cjxl")) {
+        text += "<li><b>JPEG XL</b> - <code>cjxl</code>: "
+                "<a href=\"https://github.com/libjxl/libjxl/releases\">libjxl releases</a></li>";
+    }
+    if (missing.contains("avifenc")) {
+        text += "<li><b>AVIF</b> - <code>avifenc</code>: "
+                "<a href=\"https://github.com/AOMediaCodec/libavif/releases\">libavif releases</a></li>";
+    }
+    if (missing.contains("ffmpeg")) {
+        text += "<li><b>WebP and MP4</b> - <code>ffmpeg</code>: "
+                "<a href=\"https://ffmpeg.org/download.html\">ffmpeg.org/download</a></li>";
+    }
+    text += "</ul>";
+#ifdef Q_OS_WIN
+    text += "<p><b>Windows:</b> install with <code>winget install Gyan.FFmpeg</code> (ffmpeg), or download the "
+            "files from the links above. Then copy the program (and any .dll files that come with it) into "
+            "the <b>tools</b> folder next to wxqt.exe - the button below opens it - or add it to your PATH.</p>";
+#else
+    QStringList packages;
+    if (missing.contains("cjxl")) { packages << "libjxl-tools"; }
+    if (missing.contains("avifenc")) { packages << "libavif-bin"; }
+    if (missing.contains("ffmpeg")) { packages << "ffmpeg"; }
+    QStringList arch;
+    if (missing.contains("cjxl")) { arch << "libjxl"; }
+    if (missing.contains("avifenc")) { arch << "libavif"; }
+    if (missing.contains("ffmpeg")) { arch << "ffmpeg"; }
+    QStringList fedora;
+    if (missing.contains("cjxl")) { fedora << "libjxl-utils"; }
+    if (missing.contains("avifenc")) { fedora << "libavif-tools"; }
+    if (missing.contains("ffmpeg")) { fedora << "ffmpeg"; }
+    QStringList brew;
+    if (missing.contains("cjxl")) { brew << "jpeg-xl"; }
+    if (missing.contains("avifenc")) { brew << "libavif"; }
+    if (missing.contains("ffmpeg")) { brew << "ffmpeg"; }
+    text += "<p>Install with your package manager:</p><pre>"
+            "Debian/Ubuntu   sudo apt install " + packages.join(" ") + "\n"
+            "Arch/CachyOS    sudo pacman -S " + arch.join(" ") + "\n"
+            "Fedora          sudo dnf install " + fedora.join(" ") + "\n"
+            "macOS (brew)    brew install " + brew.join(" ") + "</pre>"
+            "<p>They only need to be on your PATH. (Or drop the programs into the <b>tools</b> folder "
+            "next to the wxqt program - the button below opens it.)</p>";
+#endif
+    text += "<p>Then reopen Save - the new formats appear in the file-type list.</p>";
+
+    QMessageBox box{QMessageBox::Information, "Get more export formats", text, QMessageBox::Close, parent};
+    box.setTextFormat(Qt::RichText);
+    auto * openFolder = box.addButton("Open tools folder", QMessageBox::ActionRole);
+    box.exec();
+    if (box.clickedButton() == static_cast<QAbstractButton *>(openFolder)) {
+        QDir{}.mkpath(UtilityTools::folder());
+        QDesktopServices::openUrl(QUrl::fromLocalFile(UtilityTools::folder()));
+    }
 }
 
 bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByteArray>& frames, int frameDelayMs,
@@ -244,18 +306,20 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
         filters << format.label + " (*." + format.ext + ")";
     }
     auto caption = QString{animated ? "Save animation" : "Save image"};
-    QStringList missing;
+    QStringList missingTools;
     if (!UtilityJxl::available()) {
-        missing << "JPEG XL needs cjxl";
+        missingTools << "cjxl";
     }
     if (!toolAvailable("avifenc")) {
-        missing << "AVIF needs avifenc";
+        missingTools << "avifenc";
     }
     if (!toolAvailable("ffmpeg")) {
-        missing << QString{animated ? "WebP/MP4" : "WebP"} + " need ffmpeg";
+        missingTools << "ffmpeg";
     }
-    if (!missing.isEmpty()) {
-        caption += "  (not installed: " + missing.join("; ") + ")";
+    // last entry in the file-type list: leads to install instructions
+    const QString helpFilter = "More formats: JPEG XL, AVIF, WebP, MP4 (how to add)...";
+    if (!missingTools.isEmpty()) {
+        filters << helpFilter;
     }
 
     const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
@@ -265,6 +329,10 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
                                                        filters.join(";;"), &selectedFilter);
     if (fileName.isEmpty()) {
         return false;   // the user cancelled
+    }
+    if (selectedFilter == helpFilter) {
+        showInstallHelp(parent, missingTools);
+        return false;
     }
 
     // the chosen file-type filter decides the format, unless the typed

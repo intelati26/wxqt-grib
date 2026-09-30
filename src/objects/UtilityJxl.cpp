@@ -6,6 +6,7 @@
 #include "objects/UtilityJxl.h"
 #include <QDateTime>
 #include <QDir>
+#include "objects/UtilityTools.h"
 #include <QFile>
 #include <QProcess>
 #include <QStandardPaths>
@@ -30,7 +31,7 @@ namespace {
 }
 
 string UtilityJxl::cjxlPath() {
-    return QStandardPaths::findExecutable("cjxl").toStdString();
+    return UtilityTools::find("cjxl").toStdString();
 }
 
 bool UtilityJxl::available() {

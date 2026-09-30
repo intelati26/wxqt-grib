@@ -10,6 +10,7 @@
 #include <QByteArray>
 #include <QImage>
 #include <QString>
+#include <QStringList>
 #include <QWidget>
 
 using std::vector;
@@ -41,6 +42,13 @@ public:
 
     // The encoders themselves (also usable without a dialog). On failure returns
     // false with a human-readable reason in `error`.
+    // Explains how to add the optional formats (JPEG XL, AVIF, WebP, MP4) that
+    // are not bundled: install commands for the current system, download
+    // links, and a button that opens the "tools" folder next to the program
+    // where the files can simply be dropped in. `missing` = the tool names
+    // not found (cjxl / avifenc / ffmpeg); only those are described.
+    static void showInstallHelp(QWidget * parent, const QStringList& missing);
+
     static bool encodeToFile(const Format& format, const vector<QByteArray>& frames, int frameDelayMs,
                              const QByteArray& still, const QString& path, QString& error);
 
