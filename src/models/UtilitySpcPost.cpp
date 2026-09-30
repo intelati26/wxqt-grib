@@ -166,12 +166,9 @@ vector<string> UtilitySpcPost::backgroundLabels() {
     return {"None", "RRFS 2m Temperature", "RRFS Reflectivity"};
 }
 
+// the shared lookup: the portable build's bundled gdal/ folder first, then PATH
 string UtilitySpcPost::gdalBinDir() {
-    const auto found = QStandardPaths::findExecutable("gdalwarp");
-    if (found.isEmpty()) {
-        return "";
-    }
-    return QFileInfo{found}.absolutePath().toStdString();
+    return UtilityGrib::gdalBinDir();
 }
 
 bool UtilitySpcPost::gdalAvailable() {
