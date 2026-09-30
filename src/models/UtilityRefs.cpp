@@ -312,6 +312,78 @@ bool UtilityRefs::fetchFieldGrib(const UtilityGrib::Field& field, const string& 
     return true;
 }
 
+QColor UtilityRefs::memberColor(int member) {
+    const auto index = std::clamp(member - 1, 0, 7);
+    return QColor{memberColors[index][0], memberColors[index][1], memberColors[index][2]};
+}
+
+bool UtilityRefs::memberBasis(int fieldIndex, double panelThreshold, MemberBasis& basis) {
+    if (fieldIndex < 0 || fieldIndex >= static_cast<int>(fields.size())) {
+        return false;
+    }
+    const auto& field = fields[fieldIndex];
+    string base;
+    if (isMemberProduct(field.product)) {
+        base = field.key.substr(0, field.key.rfind("_m"));
+    } else if (const auto * spec = thresholdSpecFor(field.key); spec != nullptr && spec->memberKey != nullptr) {
+        base = spec->memberKey;
+        basis.hasThreshold = true;
+        basis.threshold = std::isnan(panelThreshold) ? spec->defaultThreshold : panelThreshold;
+    } else {
+        return false;
+    }
+    for (const auto& candidate : fields) {
+        if (candidate.key == base + "_m1") {
+            basis.memberKey = base;
+            basis.units = candidate.units;
+            const auto marker = string{"Member 1 "};
+            const auto at = candidate.label.find(marker);
+            basis.label = at == string::npos ? candidate.label : candidate.label.substr(at + marker.size());
+            return true;
+        }
+    }
+    return false;
+}
+
+vector<double> UtilityRefs::memberPointValues(const string& memberKey, const string& dateStr, const string& cycle,
+                                               int forecastHourInt, double lon, double lat, string& status) {
+    vector<double> values(memberCount, std::nan(""));
+    const auto binDir = UtilityGrib::gdalBinDir();
+    if (binDir.empty()) {
+        status = "GDAL not found - install the 'gdal' package";
+        return values;
+    }
+    const auto bin = QString::fromStdString(binDir) + "/";
+    for (int member = 1; member <= memberCount; member += 1) {
+        const auto key = memberKey + "_m" + To::string(member);
+        const UtilityGrib::Field * memberField = nullptr;
+        for (const auto& candidate : fields) {
+            if (candidate.key == key) {
+                memberField = &candidate;
+            }
+        }
+        QString gribPath;
+        string memberStatus;
+        if (memberField == nullptr || !fetchFieldGrib(*memberField, dateStr, cycle, forecastHourInt, gribPath, memberStatus)) {
+            status = memberStatus;
+            continue;
+        }
+        QProcess process;
+        process.start(bin + "gdallocationinfo",
+                      {"-valonly", "-wgs84", gribPath, QString::number(lon, 'f', 4), QString::number(lat, 'f', 4)});
+        process.waitForFinished(30000);
+        if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+            continue;
+        }
+        bool ok = false;
+        const auto value = QString::fromUtf8(process.readAllStandardOutput()).trimmed().toDouble(&ok);
+        if (ok && value > -9000.0) {
+            values[member - 1] = value;
+        }
+    }
+    return values;
+}
+
 bool UtilityRefs::usesThreshold(int fieldIndex) {
     return fieldIndex >= 0 && fieldIndex < static_cast<int>(fields.size()) &&
         thresholdSpecFor(fields[fieldIndex].key) != nullptr;

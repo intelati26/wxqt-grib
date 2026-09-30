@@ -57,6 +57,28 @@ public:
                          string& status, double& dataMin, double& dataMax, string& samplePath,
                          double threshold = std::numeric_limits<double>::quiet_NaN());
 
+    // ---- Stage 5 (point graph) support ----
+    // What a panel's field means for the per-member plume chart: the
+    // per-member field key it is built on ("refc", "tmp2m", ...), a display
+    // label, units, and (for threshold rows) the threshold to draw as a
+    // reference line. False for REFS-only rows (mean/spread/pmmn/REFS prob),
+    // which have no per-member data.
+    struct MemberBasis {
+        string memberKey;
+        string label;
+        string units;
+        bool hasThreshold{false};
+        double threshold{0.0};
+    };
+    static bool memberBasis(int fieldIndex, double panelThreshold, MemberBasis& basis);
+    static constexpr int memberCount = 5;
+    // Each RRFS Ensemble member's value at (lon, lat) for one forecast hour
+    // (index 0 = member 1). NaN where a member is unavailable or the point
+    // is outside its domain. Blocking - run it off the UI thread.
+    static vector<double> memberPointValues(const string& memberKey, const string& dateStr, const string& cycle,
+                                            int forecastHourInt, double lon, double lat, string& status);
+    static QColor memberColor(int member);   // 1-based, matches the paintball key
+
     static bool usesThreshold(int fieldIndex);
     static double defaultThreshold(int fieldIndex);
     static string thresholdUnits(int fieldIndex);

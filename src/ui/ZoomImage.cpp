@@ -214,6 +214,7 @@ void ZoomImage::mousePressEvent(QMouseEvent * event) {
     if (event->button() == Qt::LeftButton) {
         dragging = true;
         dragStart = event->pos();
+        pressGlobal = event->globalPosition().toPoint();
         viewport()->setCursor(Qt::ClosedHandCursor);
         label->setCursor(Qt::ClosedHandCursor);
         event->accept();
@@ -232,8 +233,17 @@ void ZoomImage::mouseMoveEvent(QMouseEvent * event) {
 
 void ZoomImage::mouseReleaseEvent(QMouseEvent * event) {
     if (event->button() == Qt::LeftButton) {
+        const auto wasDragging = dragging;
         dragging = false;
         updateRestingCursor();
+        const auto releaseGlobal = event->globalPosition().toPoint();
+        if (wasDragging && !source.isNull() && (releaseGlobal - pressGlobal).manhattanLength() < 4) {
+            const auto local = label->mapFromGlobal(releaseGlobal);
+            if (label->width() > 0 && label->height() > 0 && label->rect().contains(local)) {
+                emit clicked(static_cast<double>(local.x()) / label->width(),
+                             static_cast<double>(local.y()) / label->height());
+            }
+        }
         event->accept();
     }
 }

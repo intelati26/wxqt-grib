@@ -36,6 +36,8 @@ signals:
     // fx / fy are the cursor position as a 0..1 fraction of the source image
     void hovered(double fx, double fy);
     void hoverEnded();
+    // a left click that did not turn into a drag; fx / fy as for hovered()
+    void clicked(double fx, double fy);
 
 protected:
     void wheelEvent(QWheelEvent *) override;
@@ -62,6 +64,7 @@ private:
     double markerFx{0.0};
     double markerFy{0.0};
     QPoint dragStart;
+    QPoint pressGlobal;
 };
 
 #endif  // ZOOMIMAGE_H

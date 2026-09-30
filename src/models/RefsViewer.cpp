@@ -5,6 +5,7 @@
 
 #include "models/RefsViewer.h"
 #include <QFile>
+#include "models/RefsPointGraph.h"
 #include "models/UtilityGrib.h"
 #include "models/UtilityRefs.h"
 #include "objects/FutureVoid.h"
@@ -28,6 +29,7 @@ RefsViewer::RefsViewer(Window * parent)
         [this] (int local) { onFrameShown(local); },
         [this] (int global) { onScrub(global); },
         [this] { onSave(); }}
+    , buttonGraph{this, Icon::None, "Plume graph"}
 {
     setTitle("REFS Ensemble Viewer");
 
@@ -67,6 +69,14 @@ RefsViewer::RefsViewer(Window * parent)
     boxTop.addWidget(comboRun);
     boxTop.addWidget(comboRegion);
     boxTop.addWidget(comboForecastHour);
+    boxTop.addWidget(buttonGraph);
+    buttonGraph.getView()->setToolTip("Click a map to pick a point, then open the per-member plume chart for that panel's field");
+    buttonGraph.connect([this] { onGraph(); });
+    RefsPanel* clickPanels[4] = {&panel1, &panel2, &panel3, &panel4};
+    for (size_t i = 0; i < 4; i += 1) {
+        QObject::connect(&clickPanels[i]->imageView(), &ZoomImage::clicked, this,
+                         [this, i] (double fx, double fy) { onMapClicked(i, fx, fy); });
+    }
     boxTop.addStretch();
     panel1.addTo(rowTop);
     panel2.addTo(rowTop);
@@ -313,6 +323,45 @@ void RefsViewer::onFrameShown(int localIndex) {
         comboForecastHour.setIndex(globalIndex);
         comboForecastHour.unblock();
     }
+}
+
+void RefsViewer::onMapClicked(size_t panelIndex, double fx, double fy) {
+    selectedFx = fx;
+    selectedFy = fy;
+    selectedPanel = static_cast<int>(panelIndex);
+    // linked crosshair: every panel shows the same region at the same size,
+    // so one (fx, fy) marks the same spot in all four
+    RefsPanel* panels[4] = {&panel1, &panel2, &panel3, &panel4};
+    for (auto* panel : panels) {
+        panel->imageView().setMarker(fx, fy);
+    }
+    const auto box = UtilityGrib::regionBbox(comboRegion.getIndex());
+    const auto lon = box.west + fx * (box.east - box.west);
+    const auto lat = box.north - fy * (box.north - box.south);
+    setTitle("REFS Ensemble Viewer - point " + To::string(lat) + " N, " + To::string(lon) +
+             " E selected (use 'Plume graph' for panel " + To::string(selectedPanel + 1) + ")");
+}
+
+void RefsViewer::onGraph() {
+    if (selectedFx < 0.0) {
+        setTitle("REFS Ensemble Viewer - click a map first to pick a point");
+        return;
+    }
+    RefsPanel* panels[4] = {&panel1, &panel2, &panel3, &panel4};
+    auto& panel = *panels[selectedPanel];
+    UtilityRefs::MemberBasis basis;
+    if (!UtilityRefs::memberBasis(panel.fieldIndex(), panel.threshold(), basis)) {
+        setTitle("REFS Ensemble Viewer - panel " + To::string(selectedPanel + 1) +
+                 " has no per-member data; pick a Member, Paintball or Member Probability field");
+        return;
+    }
+    const auto box = UtilityGrib::regionBbox(comboRegion.getIndex());
+    const auto lon = box.west + selectedFx * (box.east - box.west);
+    const auto lat = box.north - selectedFy * (box.north - box.south);
+    const auto runIndex = comboRun.getIndex();
+    const string runId = (runIndex >= 0 && runIndex < static_cast<int>(runOptions.size()))
+        ? runOptions[runIndex].second : string{};
+    new RefsPointGraph{this, basis, lon, lat, runId};
 }
 
 void RefsViewer::onSave() {

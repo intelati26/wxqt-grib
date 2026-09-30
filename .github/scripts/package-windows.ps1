@@ -58,7 +58,7 @@ if (Test-Path $gdalwarpPath) {
     Write-Host "==> GDAL found at $mingwBin - bundling tools + dependencies"
     $gdalDir = "$distDir/gdal"
     New-Item -ItemType Directory -Force -Path $gdalDir | Out-Null
-    foreach ($tool in @("gdalwarp", "gdaldem", "gdal_translate", "gdal_rasterize", "gdalinfo")) {
+    foreach ($tool in @("gdalwarp", "gdaldem", "gdal_translate", "gdal_rasterize", "gdalinfo", "gdal_contour", "ogr2ogr", "gdallocationinfo")) {
         $toolPath = Join-Path $mingwBin "$tool.exe"
         if (Test-Path $toolPath) {
             Copy-Item $toolPath $gdalDir

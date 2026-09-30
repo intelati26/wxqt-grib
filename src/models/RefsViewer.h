@@ -13,6 +13,7 @@
 #include <QByteArray>
 #include "models/RefsPanel.h"
 #include "ui/AnimationBar.h"
+#include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/VBox.h"
@@ -48,6 +49,8 @@ private:
     void onFrameShown(int localIndex);
     void onScrub(int globalIndex);
     void onSave();
+    void onMapClicked(size_t panelIndex, double fx, double fy);
+    void onGraph();
     void resizeEventCustom() override;
 
     VBox box;
@@ -63,6 +66,11 @@ private:
     RefsPanel panel3;
     RefsPanel panel4;
     AnimationBar animBar;
+    Button buttonGraph;
+    // last map click: fraction of the region image, and which panel it was in
+    double selectedFx{-1.0};
+    double selectedFy{-1.0};
+    int selectedPanel{0};
 
     vector<std::pair<string, string>> runOptions;
     std::array<QByteArray, 4> renderedBytes;

@@ -466,7 +466,23 @@ Result: `vector<vector<double>>` (member → per-hour value), passed to
   `eas`/`ffri`, lpmm/avrg.
 - **Stage 4 (original text)** — probability-of-exceedance UI: threshold picker; direct render
   from `prob`/`eas` bands where available, from-members fallback where not.
-- **Stage 5** — `RefsPointGraph` (the third window): click-to-sample, plume
+- **Stage 5 — done (2026-09-30)**: `RefsPointGraph` (+ hand-drawn
+  `PlumeCanvas`, no Qt Charts). Click any map (new `ZoomImage::clicked`
+  signal, only fires when the press did not become a drag) to pick a point -
+  a linked crosshair marks it in all four panels - then "Plume graph" opens
+  the chart for the field in the clicked panel: one line per RRFS Ensemble
+  member, a bold ensemble mean and (for Paintball / Member Probability
+  fields) a dashed threshold line. Horizon combo 12-60 h (default 24). Hours
+  are fetched one at a time off the UI thread (`UtilityRefs::
+  memberPointValues`: per-member cached idx byte-range slice + `gdallocationinfo
+  -wgs84`), so the chart fills in live; ~6 s per uncached hour (5 members),
+  near-instant when the slices are already cached; closing the window or
+  changing the horizon cancels the chain. REFS-only rows (mean/spread/pmmn/
+  REFS prob) have no per-member data and say so. Verified through the real
+  GUI (offscreen): click, button, 12 h chart rendered. Also added
+  `gdal_contour`, `ogr2ogr` and `gdallocationinfo` to both packaging scripts
+  - the first two were being called (contours) but never bundled.
+- **Stage 5 (original text)** — `RefsPointGraph` (the third window): click-to-sample, plume
   chart.
 - **Stage 6** — the 4-panel mosaic export (single JXL / animated JXL of the
   whole comparison, per "Export formats" above), `AnimationBar` range-export

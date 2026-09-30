@@ -36,7 +36,7 @@ EOF
 
 # No Python needed: rendering uses only the GDAL binaries copied below
 # (gdal_calc/gdal_merge were removed from every pipeline).
-for tool in gdalwarp gdaldem gdal_translate gdal_rasterize gdalinfo; do
+for tool in gdalwarp gdaldem gdal_translate gdal_rasterize gdalinfo gdal_contour ogr2ogr gdallocationinfo; do
     cp "$(command -v "$tool")" "$appDir/usr/gdal/bin/"
 done
 cp -r /usr/share/gdal "$appDir/usr/gdal/share-gdal-data"
