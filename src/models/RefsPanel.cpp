@@ -25,7 +25,7 @@ RefsPanel::RefsPanel(Window * owner)
     rowHeader.addWidget(entryThreshold);
     box.addLayout(rowHeader);
     onFieldChanged();
-    box.addWidgetReal(&image, 1);
+    box.addWidgetReal(&image, 1, Qt::Alignment{});   // default alignment would size it to its minimum height
 }
 
 void RefsPanel::addTo(HBox& row) {

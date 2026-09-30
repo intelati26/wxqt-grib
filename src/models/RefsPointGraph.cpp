@@ -213,7 +213,7 @@ RefsPointGraph::RefsPointGraph(Window * parent, const UtilityRefs::MemberBasis& 
     rowTop.addWidget(textInfo, 1);
     rowTop.addWidget(comboHorizon);
     box.addLayout(rowTop);
-    box.addWidgetReal(canvas, 1);
+    box.addWidgetReal(canvas, 1, Qt::Alignment{});
     box.getAndShow(this);
     setSize(760, 440);
     start();
