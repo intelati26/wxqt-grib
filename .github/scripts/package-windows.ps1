@@ -41,25 +41,25 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # ---------------------------------------------------------------------------
-# GDAL - MSYS2-built (mingw-w64-x86_64-gdal), used by the RRFS GRIB/SPC
+# GDAL - MSYS2-built (mingw-w64-ucrt-x86_64-gdal), used by the RRFS GRIB/SPC
 # Post/severe-indices/REFS viewers via QStandardPaths::findExecutable
 # ("gdalwarp"), i.e. found through PATH at runtime, never linked into
-# wxqt.exe. Copies the tools plus every /mingw64/bin/*.dll they need
+# wxqt.exe. Copies the tools plus every /ucrt64/bin/*.dll they need
 # (directly or transitively), repeating until nothing new turns up.
 # ---------------------------------------------------------------------------
 if (-not $env:MSYS2_LOCATION) {
     Write-Error "MSYS2_LOCATION env var not set - pass steps.msys2.outputs.msys2-location through as env in the workflow"
     exit 1
 }
-$mingwBin = Join-Path $env:MSYS2_LOCATION "mingw64/bin"
-$gdalwarpPath = Join-Path $mingwBin "gdalwarp.exe"
+$gdalToolsBin = Join-Path $env:MSYS2_LOCATION "ucrt64/bin"
+$gdalwarpPath = Join-Path $gdalToolsBin "gdalwarp.exe"
 
 if (Test-Path $gdalwarpPath) {
-    Write-Host "==> GDAL found at $mingwBin - bundling tools + dependencies"
+    Write-Host "==> GDAL found at $gdalToolsBin - bundling tools + dependencies"
     $gdalDir = "$distDir/gdal"
     New-Item -ItemType Directory -Force -Path $gdalDir | Out-Null
     foreach ($tool in @("gdalwarp", "gdaldem", "gdal_translate", "gdal_rasterize", "gdalinfo", "gdal_contour", "ogr2ogr", "gdallocationinfo")) {
-        $toolPath = Join-Path $mingwBin "$tool.exe"
+        $toolPath = Join-Path $gdalToolsBin "$tool.exe"
         if (Test-Path $toolPath) {
             Copy-Item $toolPath $gdalDir
         }
@@ -77,7 +77,7 @@ while [ "$added" -eq 1 ]; do
     while IFS= read -r bin; do
         for dep in $(ldd "$bin" 2>/dev/null | awk '{print $3}'); do
             case "$dep" in
-                /mingw64/bin/*)
+                /ucrt64/bin/*)
                     name="$(basename "$dep")"
                     if [ ! -f "$dir/$name" ]; then
                         cp "$dep" "$dir/"
@@ -103,8 +103,8 @@ done
     $gdalDirUnix = ToMsysPath $gdalDir
     & $msys2Bash -lc "bash '$sweepScriptUnix' '$gdalDirUnix'"
 
-    $gdalDataSrc = Join-Path (Split-Path $mingwBin -Parent) "share/gdal"
-    $projDataSrc = Join-Path (Split-Path $mingwBin -Parent) "share/proj"
+    $gdalDataSrc = Join-Path (Split-Path $gdalToolsBin -Parent) "share/gdal"
+    $projDataSrc = Join-Path (Split-Path $gdalToolsBin -Parent) "share/proj"
     if (Test-Path $gdalDataSrc) { Copy-Item -Recurse $gdalDataSrc "$gdalDir/gdal-data" }
     if (Test-Path $projDataSrc) { Copy-Item -Recurse $projDataSrc "$gdalDir/proj-data" }
 

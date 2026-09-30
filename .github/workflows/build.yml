@@ -10,7 +10,7 @@ jobs:
   windows-x64:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # MSYS2 does not package QtWebEngine for ANY subsystem (MinGW64,
       # UCRT64, CLANG64) - Chromium's build has historically only worked
@@ -26,6 +26,9 @@ jobs:
           arch: 'win64_msvc2022_64'
           modules: 'qtwebengine qtpositioning qtwebchannel'
 
+      # (ilammy/msvc-dev-cmd's latest release, v1.13.0, still declares
+      # Node 20; the runner already forces it onto Node 24, so its
+      # deprecation notice is harmless until upstream re-releases.)
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
@@ -38,8 +41,8 @@ jobs:
       - uses: msys2/setup-msys2@v2
         id: msys2
         with:
-          msystem: MINGW64
-          install: mingw-w64-x86_64-gdal
+          msystem: UCRT64
+          install: mingw-w64-ucrt-x86_64-gdal
           path-type: minimal
 
       - name: Generate resources + .pro
@@ -71,7 +74,7 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path dist/wxqt-portable/* -DestinationPath dist/wxqt-windows-x64.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wxqt-windows-x64
           path: dist/wxqt-windows-x64.zip
@@ -80,7 +83,7 @@ jobs:
   linux-x64-appimage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install build dependencies
         run: |
@@ -104,7 +107,7 @@ jobs:
       - name: Package AppImage
         run: bash .github/scripts/package-linux-appimage.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wxqt-linux-x64-appimage
           path: dist/wxqt-x86_64.AppImage
