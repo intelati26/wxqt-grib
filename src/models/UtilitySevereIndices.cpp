@@ -737,7 +737,7 @@ string UtilitySevereIndices::render(int indexIndex, int regionIndex, const strin
     const auto dir = QString::fromStdString(cacheDir());
     // "si2" is the render version - bump it whenever the drawing pipeline changes
     const auto pngPath = dir + QString::fromStdString(
-        "/si2_" + runKey + "_" + To::string(indexIndex) + "_" + To::string(regionIndex) + "_" + fhr3 + ".png");
+        "/si3_" + runKey + "_" + To::string(indexIndex) + "_" + To::string(regionIndex) + "_" + fhr3 + ".png");
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto gridPath = pngPath + ".grid";
     const auto rangePath = pngPath + ".range";
@@ -847,7 +847,7 @@ string UtilitySevereIndices::renderMax(int indexIndex, int regionIndex, const ve
     // "sm1" is the render version - bump it whenever the drawing pipeline changes
     const auto tagBase = runKey + "_" + To::string(indexIndex) + "_" + To::string(regionIndex) + "_" +
         To::string(first) + "_" + To::string(last) + "_" + To::string(static_cast<int>(hours.size()));
-    const auto pngPath = dir + QString::fromStdString("/sm1_" + tagBase + ".png");
+    const auto pngPath = dir + QString::fromStdString("/sm2_" + tagBase + ".png");
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto gridPath = pngPath + ".grid";
     const auto rangePath = pngPath + ".range";

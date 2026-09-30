@@ -11,6 +11,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <QColor>
+#include <QDateTime>
+#include <QImage>
 #include <QString>
 #include <QStringList>
 
@@ -175,6 +178,40 @@ public:
     // resolve native-resolution detail at that zoom anyway. This is the
     // value actually used for a main visual render's -ts.
     static int mainRenderColumns(const Bbox& box);
+
+    // Draws the CWA boundaries and state lines onto a finished map PNG with
+    // anti-aliasing, at the image's own resolution (line width scales with the
+    // image). Replaces burning 1-pixel lines into the raster, which looks jagged
+    // and gets thinner as the map is rendered larger. `box` is the geographic
+    // extent the PNG covers.
+    struct MapLineSpec {
+        std::string geoJsonPath;   // a "MultiLineString" GeoJSON file, as the *LinesGeoJson() accessors return
+        QColor color;
+        double width;              // in pixels at a 650-px-wide map; scaled up for larger images
+    };
+    // the CWA boundaries (thin gray) and state lines (dark), the default overlay
+    static void drawMapLines(const QString& pngPath, const Bbox& box);
+    // any set of lines, drawn in the order given (later ones on top)
+    static void drawMapLines(const QString& pngPath, const Bbox& box, const std::vector<MapLineSpec>& lines);
+
+    // Information bars drawn over the top and bottom edges of a map, SPC style:
+    // what it is (model, product, units, region) and when (run, forecast hour,
+    // valid time). Used when EXPORTING an image (the on-screen map stays clean -
+    // the window already shows this). Drawn INSIDE the image, not as extra rows,
+    // so the picture keeps its exact geometry.
+    struct MapHeader {
+        QString topLeft;       // e.g. "RRFS  2m Temperature (F)"  (bold)
+        QString topRight;      // e.g. the region
+        QString bottomLeft;    // e.g. "Run 2026-09-30 06Z   F012"
+        QString bottomRight;   // e.g. "Valid Wed 2026-09-30 18:00Z (1:00 PM CDT)"
+    };
+    static void drawMapHeader(QImage& image, const MapHeader& header);
+    // the standard wording. fhFirst/fhLast differ for composites and loops.
+    static MapHeader standardHeader(const QString& model, const QString& product, const QString& region,
+                                    const QDateTime& runUtc, int fhFirst, int fhLast);
+    // height in pixels of each bar for an image of this width (other overlays
+    // that sit in the corners - legends - start below it)
+    static int headerBarHeight(int imageWidth);
 
     // County/highway line overlays. Both reuse data already bundled for the
     // Nexrad radar screen's geometry-overlay system (county.bin, hwv4.bin -

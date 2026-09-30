@@ -51,6 +51,22 @@ require the finished AppImage to start headless and stay up 12 s. Remaining
 weight is Qt + ICU data (~29 MB) + libgdal; the packaging cannot be run locally
 (CachyOS IFUNC issue), so CI is the test.
 
+## Model map rendering (2026-10-01)
+Found by measurement: meso sectors were sampled at 3.0 km/px horizontally but
+3.7-4.2 km/px vertically (equal-degree raster sized by width only). Now: SPC-meso /
+"My Area" maps render at **2 pixels per 3 km cell in each direction**, sized by the
+finer (latitude) axis, resampled with **cubic** (smooth colours kept on purpose -
+no banded option wanted), i.e. ~980x683 for a sector (was 381x266); CONUS stays at
+half native. Reference: SPC's own HRRR GIFs are 1000x750 for every sector, ~1.6 km/px
+(= roughly this 2x2), banded fills, plain 1-px lines. State/county/CWA lines are
+now drawn **anti-aliased** at the image's own resolution (`UtilityGrib::drawMapLines`,
+widths scale with image size) instead of burned in as 1-px raster lines; used by the
+GRIB, REFS and SPC Post renders. The SPC-style **information bars** (model, product,
+units, region / run, F-hour, valid UTC + local) are added only on **export**
+(`UtilityAnimationExport::withHeader`, per frame for loops, read from each frame's
+status line), so the on-screen map stays clean and hover geometry is untouched.
+Cache versions bumped (r11, rm4, rf4/pb4/pm2, sp6, si3/sm2).
+
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
 WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage

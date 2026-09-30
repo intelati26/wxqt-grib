@@ -693,9 +693,6 @@ string UtilityRefs::finishRender(const QString& warpPath, const string& colorMap
              "-burn", QString::number(blue), "-burn", "255",
              QString::fromStdString(geoJson), tiffPath}, status);
     };
-    burnLines(UtilityGrib::cwaLinesGeoJson(), 110, 110, 110);
-    burnLines(UtilityGrib::stateLinesGeoJson(), 25, 25, 25);
-
     const auto translated = runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", tiffPath, pngPath}, status);
     for (const auto& stale : {colorPath, warpPath, tiffPath, tiffPath + ".aux.xml"}) {
         QFile::remove(stale);
@@ -703,6 +700,7 @@ string UtilityRefs::finishRender(const QString& warpPath, const string& colorMap
     if (!translated || !QFile::exists(pngPath)) {
         return "";
     }
+    UtilityGrib::drawMapLines(pngPath, box);   // smooth lines at the image's own resolution
     if (!legendTitle.isEmpty()) {
         drawLegend(pngPath, legendTitle, {}, probabilityLegend);
     }
@@ -730,7 +728,7 @@ string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionI
     // "pb2" is the render version - bump it whenever the drawing pipeline changes
     const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2) +
         "_" + thresholdTag(threshold);
-    const auto pngPath = dir + "/pb3_" + tag + ".png";
+    const auto pngPath = dir + "/pb4_" + tag + ".png";
     const auto gridPath = pngPath + ".grid";
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     if (QFile::exists(pngPath)) {
@@ -836,9 +834,10 @@ string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionI
              QString::fromStdString(geoJson), compTif}, status);
     };
     if (ok) {
-        burnLines(UtilityGrib::cwaLinesGeoJson(), 110, 110, 110);
-        burnLines(UtilityGrib::stateLinesGeoJson(), 25, 25, 25);
         ok = runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", compTif, pngPath}, status);
+        if (ok && QFile::exists(pngPath)) {
+            UtilityGrib::drawMapLines(pngPath, box);
+        }
     }
     for (const auto& stale : {compPng, compTif, compTif + ".aux.xml"}) {
         QFile::remove(stale);
@@ -877,7 +876,7 @@ string UtilityRefs::renderMemberProbability(const UtilityGrib::Field& field, int
     const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2) +
         "_" + thresholdTag(threshold);
     // "pm1" is the render version - bump it whenever the drawing pipeline changes
-    const auto pngPath = dir + "/pm1_" + tag + ".png";
+    const auto pngPath = dir + "/pm2_" + tag + ".png";
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto rangePath = pngPath + ".range";
     const auto gridPath = pngPath + ".grid";
@@ -1023,7 +1022,7 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
 
     // "rf3" is the render version - bump it whenever the drawing pipeline changes
     const auto pngPath = dir + QString::fromStdString(
-        "/rf3_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2 + ".png");
+        "/rf4_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2 + ".png");
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto rangePath = pngPath + ".range";
     const auto gridPath = pngPath + ".grid";

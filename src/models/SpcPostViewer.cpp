@@ -434,8 +434,13 @@ void SpcPostViewer::onSave() {
 
     // the loaded frames when a loop has been rendered, else the single image on screen;
     // the Save dialog offers every available format and reports any failure
-    UtilityAnimationExport::saveWithDialog(this, valid >= 2 ? animBar.loadedFrames() : vector<QByteArray>{},
-                                           frameDelayMs, renderedBytes, suggested, QByteArray{}, false);
+    // exports carry the SPC-style information bars (model, product, region, run, hour,
+    // valid time); each frame of a loop gets its own, read from that frame's status line
+    const auto exportFrames = valid < 2 ? vector<QByteArray>{}
+        : (looping ? UtilityAnimationExport::withHeaders(animBar.loadedFrames(), frameStatuses, QString{})
+                   : animBar.loadedFrames());
+    const auto exportStill = UtilityAnimationExport::withHeader(renderedBytes, QString::fromStdString(status), QString{});
+    UtilityAnimationExport::saveWithDialog(this, exportFrames, frameDelayMs, exportStill, suggested, QByteArray{}, false);
 }
 
 // static 0-100% probability legend - unlike GribViewer's per-field legend, every

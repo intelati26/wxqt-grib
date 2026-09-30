@@ -7,6 +7,7 @@
 #define UTILITYANIMATIONEXPORT_H
 
 #include <functional>
+#include <string>
 #include <vector>
 #include <QByteArray>
 #include <QDateTime>
@@ -65,6 +66,17 @@ public:
     // "<first>Z[-<last>Z]_<product>" from explicit valid times (analyses such as
     // RTMA that have no model run)
     static QString validName(const QDateTime& first, const QDateTime& last, const QString& product);
+    // For images WE render from model runs: returns the PNG with the SPC-style
+    // information bars (model, product, region, run, forecast hour, valid time)
+    // drawn over its top and bottom edges, for saving. Everything is read from the
+    // screen's status line ("RRFS 2026-09-30 06z    F12 valid ...    2m Temperature    CONUS"),
+    // so each frame of an animation gets its own hour. `units` is appended to the
+    // product name. Returns the bytes unchanged if the status can't be read.
+    static QByteArray withHeader(const QByteArray& imageBytes, const QString& status, const QString& units = QString{});
+    // the same for every frame of an animation, one status per frame
+    static vector<QByteArray> withHeaders(const vector<QByteArray>& frames, const vector<std::string>& statuses,
+                                          const QString& units = QString{});
+
     // lower-case, a-z0-9 and single underscores only, at most `length` characters
     static QString slug(const QString& text, int length);
 

@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstring>
 #include <map>
+#include <mutex>
 #include <QByteArray>
 #include <QColor>
 #include <QDateTime>
@@ -485,19 +486,167 @@ int UtilityGrib::nativeGridColumns(const Bbox& box) {
     return std::max(1, static_cast<int>(std::round(lonSpanKm / nativeGridKm)));
 }
 
-// SPC-meso/"My Area" domains render at true 1:1 - one pixel per native grid
-// cell, no more (wasted interpolation, slower for no real detail) and no
-// less (that's exactly the zoomed-in view where per-pixel detail matters).
-// CONUS/NA is a deliberate step down from that: at that zoom the eye can't
-// resolve native-resolution detail anyway, so rendering at half native
-// trades a speed/file-size win for no visible loss.
+// SPC-meso/"My Area" domains render at TWO pixels per native 3 km grid cell in each
+// direction (a 2x2 block per cell), resampled smoothly (cubic) so the extra pixels
+// carry real gradients instead of blocks - this is what makes the map look crisp
+// next to services that draw each grid cell over several screen pixels. The image
+// is an equal-degree lat/lon raster (so the map lines and hover grid stay simple),
+// and a degree of latitude is longer than a degree of longitude, so the size is
+// taken from the FINER axis (latitude, 111.32 km/deg): neither direction is ever
+// coarser than the native grid. (The earlier width-only sizing left the vertical
+// at 3.7-4.2 km per pixel.) CONUS/NA is a deliberate step down - at that zoom the
+// eye can't resolve native detail anyway - so it stays at half native.
 int UtilityGrib::mainRenderColumns(const Bbox& box) {
     const auto span = std::max(box.east - box.west, box.north - box.south);
-    const auto native = nativeGridColumns(box);
     if (span > 30.0) {
-        return std::max(400, native / 2);   // CONUS-sized (and any future NA/AK-sized) regions
+        return std::max(400, nativeGridColumns(box) / 2);   // CONUS-sized (and any future NA/AK-sized) regions
     }
-    return native;   // SPC-meso / "My Area" - true 1:1
+    constexpr int pixelsPerCell = 2;
+    return std::max(1, static_cast<int>(std::round((box.east - box.west) * 111.32 / nativeGridKm)) * pixelsPerCell);
+}
+
+namespace {
+    struct MapLines {
+        std::vector<std::vector<QPointF>> paths;
+    };
+
+    // GeoJSON "MultiLineString" files written by cwaLinesGeoJson() / stateLinesGeoJson(),
+    // parsed once and kept (several MB of JSON is not worth re-parsing per render)
+    const MapLines& loadMapLines(const std::string& path) {
+        static std::mutex mutex;
+        static std::map<std::string, MapLines> cache;
+        std::lock_guard<std::mutex> lock{mutex};
+        const auto found = cache.find(path);
+        if (found != cache.end()) {
+            return found->second;
+        }
+        MapLines lines;
+        QFile file{QString::fromStdString(path)};
+        if (file.open(QIODevice::ReadOnly)) {
+            const auto doc = QJsonDocument::fromJson(file.readAll());
+            const auto coordinates = doc.object().value("geometry").toObject().value("coordinates").toArray();
+            for (const auto& lineValue : coordinates) {
+                std::vector<QPointF> path;
+                for (const auto& pointValue : lineValue.toArray()) {
+                    const auto point = pointValue.toArray();
+                    if (point.size() >= 2) {
+                        path.emplace_back(point[0].toDouble(), point[1].toDouble());
+                    }
+                }
+                if (path.size() >= 2) {
+                    lines.paths.push_back(std::move(path));
+                }
+            }
+        }
+        return cache.emplace(path, std::move(lines)).first->second;
+    }
+}
+
+void UtilityGrib::drawMapLines(const QString& pngPath, const Bbox& box) {
+    drawMapLines(pngPath, box, {
+        {cwaLinesGeoJson(), QColor{110, 110, 110, 235}, 0.8},
+        {stateLinesGeoJson(), QColor{25, 25, 25, 255}, 1.2},
+    });
+}
+
+void UtilityGrib::drawMapLines(const QString& pngPath, const Bbox& box, const std::vector<MapLineSpec>& lines) {
+    QImage image;
+    if (lines.empty() || !image.load(pngPath) || box.east <= box.west || box.north <= box.south) {
+        return;
+    }
+    image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    QPainter painter{&image};
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    const double width = image.width();
+    const double height = image.height();
+    // thicker lines on bigger maps, so they keep the same look when the image is shown smaller
+    const double scale = std::max(1.0, width / 650.0);
+    const auto toPixel = [&] (const QPointF& geo) {
+        return QPointF{(geo.x() - box.west) / (box.east - box.west) * width,
+                       (box.north - geo.y()) / (box.north - box.south) * height};
+    };
+    for (const auto& spec : lines) {
+        painter.setPen(QPen{spec.color, spec.width * scale, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+        for (const auto& geoPath : loadMapLines(spec.geoJsonPath).paths) {
+            // cull lines that cannot touch the map
+            bool near = false;
+            for (const auto& p : geoPath) {
+                if (p.x() >= box.west - 1.0 && p.x() <= box.east + 1.0 && p.y() >= box.south - 1.0 && p.y() <= box.north + 1.0) {
+                    near = true;
+                    break;
+                }
+            }
+            if (!near) {
+                continue;
+            }
+            QPolygonF polygon;
+            polygon.reserve(static_cast<qsizetype>(geoPath.size()));
+            for (const auto& p : geoPath) {
+                polygon << toPixel(p);
+            }
+            painter.drawPolyline(polygon);
+        }
+    }
+    painter.end();
+    image.save(pngPath, "PNG");
+}
+
+int UtilityGrib::headerBarHeight(int imageWidth) {
+    return std::max(18, static_cast<int>(std::lround(imageWidth / 42.0)));
+}
+
+UtilityGrib::MapHeader UtilityGrib::standardHeader(const QString& model, const QString& product, const QString& region,
+                                                    const QDateTime& runUtc, int fhFirst, int fhLast) {
+    MapHeader header;
+    header.topLeft = model + "  " + product;
+    header.topRight = region;
+    const auto hours = [] (int hour) { return QString::number(hour).rightJustified(3, '0'); };
+    header.bottomLeft = "Run " + runUtc.toUTC().toString("yyyy-MM-dd HH") + "Z   F" + hours(fhFirst) +
+        (fhLast != fhFirst ? "-F" + hours(fhLast) : QString{});
+    const auto validFirst = runUtc.addSecs(3600 * fhFirst).toUTC();
+    const auto validLast = runUtc.addSecs(3600 * fhLast).toUTC();
+    const auto stamp = [] (const QDateTime& when) { return when.toString("ddd yyyy-MM-dd HH:mm") + "Z"; };
+    if (fhLast != fhFirst) {
+        header.bottomRight = "Valid " + stamp(validFirst) + "  to  " + stamp(validLast);
+    } else {
+        const auto local = validFirst.toLocalTime();
+        header.bottomRight = "Valid " + stamp(validFirst) + "  (" + local.toString("ddd h:mm AP") + " " +
+            QTimeZone::systemTimeZone().abbreviation(local) + ")";
+    }
+    return header;
+}
+
+void UtilityGrib::drawMapHeader(QImage& image, const MapHeader& header) {
+    if (image.isNull()) {
+        return;
+    }
+    image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    QPainter painter{&image};
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setRenderHint(QPainter::TextAntialiasing, true);
+    const int barHeight = headerBarHeight(image.width());
+    const int pad = std::max(6, barHeight / 3);
+    QFont font = painter.font();
+    font.setPixelSize(std::max(10, static_cast<int>(barHeight * 0.58)));
+    const QColor barColor{255, 255, 255, 222};
+    const QColor textColor{20, 20, 20};
+    const auto drawBar = [&] (int y, const QString& left, bool leftBold, const QString& right) {
+        painter.fillRect(QRect{0, y, image.width(), barHeight}, barColor);
+        painter.setPen(textColor);
+        const QRect area{pad, y, image.width() - 2 * pad, barHeight};
+        // the right-hand text keeps its full length; the left text is shortened to fit beside it
+        font.setBold(false);
+        painter.setFont(font);
+        const int rightWidth = right.isEmpty() ? 0 : painter.fontMetrics().horizontalAdvance(right) + pad * 2;
+        painter.drawText(area, Qt::AlignVCenter | Qt::AlignRight, right);
+        font.setBold(leftBold);
+        painter.setFont(font);
+        const auto fitted = painter.fontMetrics().elidedText(left, Qt::ElideRight, std::max(10, area.width() - rightWidth));
+        painter.drawText(area, Qt::AlignVCenter | Qt::AlignLeft, fitted);
+    };
+    drawBar(0, header.topLeft, true, header.topRight);
+    drawBar(image.height() - barHeight, header.bottomLeft, false, header.bottomRight);
+    painter.end();
 }
 
 string UtilityGrib::gdalBinDir() {
@@ -1233,10 +1382,10 @@ string UtilityGrib::render(int fieldIndex, int regionIndex, const string& foreca
         "    " + field.label + "    " + regionTable[regionIndex].label;
 
     // final image is cached per run + field + region + forecast hour.
-    // "r8" is the render version - bump it whenever the drawing pipeline changes
+    // "r11" is the render version - bump it whenever the drawing pipeline changes
     // so stale cached PNGs are not served.
     const auto pngPath = dir + QString::fromStdString(
-        "/r8_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr3 +
+        "/r11_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr3 +
         (toFahrenheit ? "_f" : "") + ".png");
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto rangePath = pngPath + ".range";
@@ -1370,7 +1519,7 @@ string UtilityGrib::render(int fieldIndex, int regionIndex, const string& foreca
     auto ok = runProcess(bin + "gdalwarp",
             {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
              "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
-             "-r", "bilinear", "-ts", fillCols, "0", gribPath, warpPath});
+             "-r", "cubic", "-ts", fillCols, "0", gribPath, warpPath});
     // Celsius -> Fahrenheit as an exact linear rescale (F = 1.8*C + 32),
     // nodata preserved. gdal_translate -scale (a compiled tool) rather than
     // gdal_calc (a Python script needing python + osgeo bindings, which the
@@ -1536,12 +1685,12 @@ string UtilityGrib::render(int fieldIndex, int regionIndex, const string& foreca
         }
     }
 
-    burnLines(cwaLinesGeoJson(), 110, 110, 110);
-    burnLines(stateLinesGeoJson(), 25, 25, 25);
-
     const auto translated = runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", tiffPath, pngPath});
     for (const auto& stale : {colorPath, warpPath, scaledPath, tiffPath}) {
         QFile::remove(stale);
+    }
+    if (translated && QFile::exists(pngPath)) {
+        drawMapLines(pngPath, box);   // smooth, before any labels are drawn on top
     }
     if (!labelledContourGeoJson.isEmpty()) {
         if (translated && QFile::exists(pngPath)) {
@@ -1670,7 +1819,7 @@ string UtilityGrib::renderMax(int fieldIndex, int regionIndex, const vector<stri
         To::string(first) + "_" + To::string(last) + "_" + To::string(static_cast<int>(hours.size())) +
         (toFahrenheit ? "_f" : ""));
     // "rm1" is the render version - bump it whenever the drawing pipeline changes
-    const auto pngPath = dir + "/rm1_" + tag + ".png";
+    const auto pngPath = dir + "/rm4_" + tag + ".png";
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto rangePath = pngPath + ".range";
     const auto gridPath = pngPath + ".grid";
@@ -1716,7 +1865,7 @@ string UtilityGrib::renderMax(int fieldIndex, int regionIndex, const vector<stri
             && runProcess(bin + "gdalwarp",
                 {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
                  "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
-                 "-r", "bilinear", "-ts", fillCols, "0", QString::fromStdString(gribPath), warpPath})) {
+                 "-r", "cubic", "-ts", fillCols, "0", QString::fromStdString(gribPath), warpPath})) {
             warps << warpPath;
         } else {
             skipped += 1;
@@ -1795,12 +1944,11 @@ string UtilityGrib::renderMax(int fieldIndex, int regionIndex, const vector<stri
                  "-burn", QString::number(red), "-burn", QString::number(green),
                  "-burn", QString::number(blue), "-burn", "255", QString::fromStdString(geoJson), tiffPath});
         };
-        burnLines(cwaLinesGeoJson(), 110, 110, 110);
-        burnLines(stateLinesGeoJson(), 25, 25, 25);
         const auto savedStatus2 = status;
         ok = runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", tiffPath, pngPath});
         if (ok) {
             status = savedStatus2;
+            drawMapLines(pngPath, box);
         }
     }
     for (const auto& stale : {colorPath, maxPath, scaledPath, tiffPath, tiffPath + ".aux.xml", maxPath + ".aux.xml"}) {
@@ -2009,7 +2157,7 @@ string UtilityGrib::renderBackground(const string& kind, const Bbox& bbox, const
     // own named regions. "bg1" is the render version.
     const auto bboxTag = QString::number(bbox.west, 'f', 2) + "_" + QString::number(bbox.south, 'f', 2) +
         "_" + QString::number(bbox.east, 'f', 2) + "_" + QString::number(bbox.north, 'f', 2);
-    const auto pngPath = dir + QString::fromStdString("/bg1_" + runKey + "_" + field.key + "_") + bboxTag +
+    const auto pngPath = dir + QString::fromStdString("/bg2_" + runKey + "_" + field.key + "_") + bboxTag +
         QString::fromStdString("_" + fhr3 + (toFahrenheit ? "_f" : "") + ".png");
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     if (QFile::exists(pngPath)) {

@@ -412,7 +412,7 @@ string UtilitySpcPost::render(int productIndex, int domainIndex, int boundaryFla
     // boundaryFlags is now a bitmask (see UtilitySpcPost::BoundaryState etc.),
     // not a combo index, but folds into this same cache-key slot unchanged.
     const auto pngPath = dir + QString::fromStdString(
-        "/sp5_" + runKey + "_" + product.key + "_" + To::string(domainIndex) + "_" +
+        "/sp6_" + runKey + "_" + product.key + "_" + To::string(domainIndex) + "_" +
         To::string(boundaryFlags) + "_" + To::string(backgroundIndex) + "_" + fhr3 + ".png");
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     if (QFile::exists(pngPath)) {
@@ -514,37 +514,31 @@ string UtilitySpcPost::render(int productIndex, int domainIndex, int boundaryFla
         }
     }
 
-    auto burnLines = [&] (const string& geoJson, int red, int green, int blue) {
-        runProcess(bin + "gdal_rasterize",
-            {"-q", "-b", "1", "-b", "2", "-b", "3", "-b", "4",
-             "-burn", QString::number(red), "-burn", QString::number(green),
-             "-burn", QString::number(blue), "-burn", "255",
-             QString::fromStdString(geoJson), tiffPath});
-    };
-    // independent toggles, not mutually exclusive - always composited in
-    // this fixed order regardless of which combination is set: geographic
-    // reference lines first (thinnest/densest), CWAs next, state lines last
-    // so they stay visually prominent on top of everything else.
+    // independent toggles, not mutually exclusive - always composited in this fixed
+    // order regardless of which combination is set: geographic reference lines
+    // first (thinnest/densest), CWAs next, state lines last so they stay visually
+    // prominent on top of everything else. Drawn anti-aliased onto the finished PNG.
+    std::vector<UtilityGrib::MapLineSpec> overlayLines;
     if (boundaryFlags & BoundaryLake) {
-        burnLines(UtilityGrib::lakeLinesGeoJson(), 70, 130, 180);
+        overlayLines.push_back({UtilityGrib::lakeLinesGeoJson(), QColor{70, 130, 180}, 0.9});
     }
     if (boundaryFlags & BoundaryCanada) {
-        burnLines(UtilityGrib::canadaLinesGeoJson(), 120, 90, 160);
+        overlayLines.push_back({UtilityGrib::canadaLinesGeoJson(), QColor{120, 90, 160}, 1.0});
     }
     if (boundaryFlags & BoundaryMexico) {
-        burnLines(UtilityGrib::mexicoLinesGeoJson(), 160, 110, 60);
+        overlayLines.push_back({UtilityGrib::mexicoLinesGeoJson(), QColor{160, 110, 60}, 1.0});
     }
     if (boundaryFlags & BoundaryHighway) {
-        burnLines(UtilityGrib::highwayLinesGeoJson(), 190, 70, 40);
+        overlayLines.push_back({UtilityGrib::highwayLinesGeoJson(), QColor{190, 70, 40}, 0.9});
     }
     if (boundaryFlags & BoundaryCounty) {
-        burnLines(UtilityGrib::countyLinesGeoJson(), 150, 130, 90);
+        overlayLines.push_back({UtilityGrib::countyLinesGeoJson(), QColor{150, 130, 90}, 0.6});
     }
     if (boundaryFlags & BoundaryCwa) {
-        burnLines(UtilityGrib::cwaLinesGeoJson(), 30, 110, 210);
+        overlayLines.push_back({UtilityGrib::cwaLinesGeoJson(), QColor{30, 110, 210}, 0.8});
     }
     if (boundaryFlags & BoundaryState) {
-        burnLines(UtilityGrib::stateLinesGeoJson(), 20, 20, 20);
+        overlayLines.push_back({UtilityGrib::stateLinesGeoJson(), QColor{20, 20, 20}, 1.2});
     }
 
     const auto translated = runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", tiffPath, pngPath});
@@ -554,6 +548,7 @@ string UtilitySpcPost::render(int productIndex, int domainIndex, int boundaryFla
     if (!translated || !QFile::exists(pngPath)) {
         return "";
     }
+    UtilityGrib::drawMapLines(pngPath, {domain.west, domain.south, domain.east, domain.north}, overlayLines);
 
     // optional RRFS temp/reflectivity background under the product's own
     // shading (transparent below ~10% probability, so the background shows

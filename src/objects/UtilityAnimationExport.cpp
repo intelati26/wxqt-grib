@@ -30,6 +30,7 @@
 #include <QStringList>
 #include <QTemporaryDir>
 #include <QUrl>
+#include "models/UtilityGrib.h"
 #include "objects/URL.h"
 #include "objects/UtilityApng.h"
 #include "objects/UtilityJxl.h"
@@ -546,6 +547,41 @@ namespace {
     QString stamp(const QDateTime& when) {
         return when.toUTC().toString("yyyyMMdd_HHmm") + "Z";
     }
+}
+
+QByteArray UtilityAnimationExport::withHeader(const QByteArray& imageBytes, const QString& status, const QString& units) {
+    QImage image = QImage::fromData(imageBytes);
+    ParsedRun run;
+    if (image.isNull() || !parseStatus(status, run)) {
+        return imageBytes;
+    }
+    // "<model>  <run date> <cycle>z    F12 valid ...    <product>    <region>": the model is the text before
+    // the run date, the region is the last field, the product the field before it (if any)
+    const auto dateAt = QRegularExpression{R"(\d{4}-\d{2}-\d{2} \d{2}z)"}.match(status);
+    const QString model = status.left(dateAt.capturedStart()).trimmed();
+    const auto afterRun = status.mid(dateAt.capturedEnd());
+    const auto parts = afterRun.split(QRegularExpression{R"(\s{3,})"}, Qt::SkipEmptyParts);
+    // parts[0] is the hour text; then an optional product; the last part is the region
+    const QString region = parts.size() >= 2 ? parts.last() : QString{};
+    QString product = parts.size() >= 3 ? parts[parts.size() - 2] : model;
+    if (!units.isEmpty()) {
+        product += " (" + units + ")";
+    }
+    UtilityGrib::drawMapHeader(image, UtilityGrib::standardHeader(model, product, region, run.run, run.firstHour, run.lastHour));
+    QByteArray out;
+    QBuffer buffer{&out};
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return out.isEmpty() ? imageBytes : out;
+}
+
+vector<QByteArray> UtilityAnimationExport::withHeaders(const vector<QByteArray>& frames, const vector<std::string>& statuses,
+                                                       const QString& units) {
+    vector<QByteArray> out;
+    for (size_t i = 0; i < frames.size(); i += 1) {
+        out.push_back(i < statuses.size() ? withHeader(frames[i], QString::fromStdString(statuses[i]), units) : frames[i]);
+    }
+    return out;
 }
 
 QString UtilityAnimationExport::modelName(const QString& firstStatus, const QString& lastStatus, const QString& product) {
