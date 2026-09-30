@@ -39,8 +39,22 @@ public:
     // Save dialog + encode + error report. `frames` are encoded images
     // (PNG/JPEG/GIF bytes) in playback order; with fewer than two, `still` is
     // exported as a single image instead. Returns true only if a file was written.
+    //
+    // The default file name is "<yyyyMMdd_HHmm>Z_<baseName>" when the picture
+    // was downloaded here and the server said when it was produced (see
+    // datedName); `metaBytes` names which bytes to look that up for (default:
+    // the still image, else the newest frame). Rendered images that have no
+    // download record keep `baseName` as given (it already carries run / hour).
     static bool saveWithDialog(QWidget * parent, const vector<QByteArray>& frames, int frameDelayMs,
-                               const QByteArray& still, const QString& baseName);
+                               const QByteArray& still, const QString& baseName,
+                               const QByteArray& metaBytes = QByteArray{});
+
+    // "20260930_1639Z_product" (UTC) from the download metadata recorded for
+    // `bytes` (server Last-Modified, else the time we fetched it); just
+    // `product` if nothing was recorded.
+    static QString datedName(const QString& product, const QByteArray& bytes);
+    // "Updated 2026-09-30 16:39 UTC" for `bytes`, or an empty string
+    static QString updatedText(const QByteArray& bytes);
 
     // The encoders themselves (also usable without a dialog). On failure returns
     // false with a human-readable reason in `error`.

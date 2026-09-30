@@ -47,7 +47,17 @@ storm reports, soundings, compmap, outlook summaries, dashboard thumbnails,
 ...) has a right-click "Save image..." through the same exporter; the source
 bytes are stored on the label itself (`wxqtSourceBytes`) because those
 objects live inside vectors. Left-click only triggers the click action now.
-Discoverability is right-click only - a visible button/hint could be added.
+Hovering a picture shows "Updated <time> UTC / Right-click to save".
+**Timestamps:** `URL::getBytes` records the server's Last-Modified (else the
+fetch time) in a small in-memory table keyed by a hash of the image bytes
+(`URL::metaFor`), so anything holding just the bytes can name the file by the
+picture's real time: default save names are `yyyyMMdd_HHmmZ_<product>` (UTC),
+e.g. `20260930_1630Z_spc_convective_outlooks_day1otlk_1630.png`; an animation
+uses its newest frame's time. Screens showing several pictures add the
+picture's own file name. Rendered model images (GRIB/REFS/SHIP/SPC Post/RTMA)
+have no download record and keep their run/forecast-hour names. Not done:
+valid-time prefixes for those rendered names; writing the time into the file
+metadata.
 
 ## Python dependency in rendering — removed
 No render pipeline uses `gdal_calc.py`/`gdal_merge.py` any more. Nodata

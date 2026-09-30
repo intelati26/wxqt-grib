@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "objects/URL.h"
+#include <deque>
 #include <map>
 #include <mutex>
 #include <QDateTime>
@@ -100,6 +101,7 @@ namespace {
     struct Fetched {
         QByteArray bytes;
         int status{0};   // HTTP status, 0 if the request never got a response
+        QDateTime lastModified;   // the Last-Modified header, if any
     };
 
     Fetched fetchOnce(const string& url, const QByteArray& range, const QByteArray& accept = QByteArray{}) {
@@ -120,6 +122,7 @@ namespace {
         Fetched result;
         result.bytes = response->readAll();
         result.status = response->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        result.lastModified = response->header(QNetworkRequest::LastModifiedHeader).toDateTime();
         delete response;
         return result;
     }
@@ -139,6 +142,48 @@ namespace {
         }
         return result;
     }
+}
+
+namespace {
+    // hash of the image bytes -> where/when it came from; bounded, newest kept
+    using MetaKey = std::pair<qsizetype, size_t>;
+    std::mutex metaMutex;
+    std::map<MetaKey, URL::Meta> metaTable;
+    std::deque<MetaKey> metaOrder;
+    constexpr size_t maxMetaEntries = 600;
+
+    MetaKey metaKeyFor(const QByteArray& bytes) {
+        return {bytes.size(), static_cast<size_t>(qHash(bytes, 0x5eed))};
+    }
+
+    void rememberMeta(const QByteArray& bytes, const string& url, const QDateTime& lastModified) {
+        if (bytes.isEmpty()) {
+            return;
+        }
+        const auto key = metaKeyFor(bytes);
+        std::lock_guard<std::mutex> lock{metaMutex};
+        if (metaTable.find(key) == metaTable.end()) {
+            metaOrder.push_back(key);
+            while (metaOrder.size() > maxMetaEntries) {
+                metaTable.erase(metaOrder.front());
+                metaOrder.pop_front();
+            }
+        }
+        metaTable[key] = URL::Meta{url, lastModified, QDateTime::currentDateTimeUtc()};
+    }
+}
+
+bool URL::metaFor(const QByteArray& bytes, Meta& out) {
+    if (bytes.isEmpty()) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock{metaMutex};
+    const auto found = metaTable.find(metaKeyFor(bytes));
+    if (found == metaTable.end()) {
+        return false;
+    }
+    out = found->second;
+    return true;
 }
 
 string URL::getText(const string& url) {
@@ -165,7 +210,11 @@ string URL::getTextXmlAcceptHeader(const string& url) {
 
 QByteArray URL::getBytes(const string& url) {
     UtilityLog::d("getByte " + url);
-    return fetchWithMirror(url, QByteArray{}).bytes;
+    const auto fetched = fetchWithMirror(url, QByteArray{});
+    if (fetched.status >= 200 && fetched.status < 300) {
+        rememberMeta(fetched.bytes, url, fetched.lastModified);
+    }
+    return fetched.bytes;
 }
 
 // HTTP range request - byte range is inclusive; pass end < 0 for "to end of file"

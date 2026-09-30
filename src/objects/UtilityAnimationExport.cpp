@@ -22,6 +22,7 @@
 #include <QStringList>
 #include <QTemporaryDir>
 #include <QUrl>
+#include "objects/URL.h"
 #include "objects/UtilityApng.h"
 #include "objects/UtilityJxl.h"
 #include "objects/UtilityTools.h"
@@ -225,6 +226,13 @@ bool UtilityAnimationExport::encodeToFile(const Format& format, const vector<QBy
 
 void UtilityAnimationExport::setSourceBytes(QLabel * label, const QByteArray& bytes) {
     label->setProperty("wxqtSourceBytes", bytes);
+    // hovering shows when the picture was produced and how to save it
+    if (bytes.isEmpty()) {
+        label->setToolTip({});
+        return;
+    }
+    const auto updated = updatedText(bytes);
+    label->setToolTip((updated.isEmpty() ? QString{} : updated + "\n") + "Right-click to save");
 }
 
 void UtilityAnimationExport::installContextSave(QLabel * label) {
@@ -239,13 +247,31 @@ void UtilityAnimationExport::installContextSave(QLabel * label) {
         if (menu.exec(label->mapToGlobal(point)) != save) {
             return;
         }
-        auto title = label->window()->windowTitle().toLower();
-        title.replace(QRegularExpression{"[^a-z0-9]+"}, "_");
-        title = title.left(40);
-        while (title.endsWith('_')) {
-            title.chop(1);
+        auto clean = [] (QString text, int length) {
+            text = text.toLower();
+            text.replace(QRegularExpression{"[^a-z0-9]+"}, "_");
+            text = text.left(length);
+            while (text.endsWith('_')) {
+                text.chop(1);
+            }
+            return text;
+        };
+        auto product = clean(label->window()->windowTitle(), 40);
+        // a screen showing several pictures (outlook grids, dashboards) would give
+        // them all the same name, so add the picture's own file name when so
+        int saveable = 0;
+        for (auto * other : label->window()->findChildren<QLabel *>()) {
+            saveable += other->property("wxqtSourceBytes").toByteArray().isEmpty() ? 0 : 1;
         }
-        saveWithDialog(label->window(), {}, 0, bytes, title.isEmpty() ? QString{"image"} : title);
+        URL::Meta meta;
+        if (saveable > 1 && URL::metaFor(bytes, meta)) {
+            auto file = QString::fromStdString(meta.url).section('?', 0, 0).section('/', -1);
+            file = clean(QFileInfo{file}.completeBaseName(), 30);
+            if (!file.isEmpty()) {
+                product += (product.isEmpty() ? "" : "_") + file;
+            }
+        }
+        saveWithDialog(label->window(), {}, 0, bytes, product.isEmpty() ? QString{"image"} : product);
     });
 }
 
@@ -306,8 +332,29 @@ void UtilityAnimationExport::showInstallHelp(QWidget * parent, const QStringList
     }
 }
 
+QString UtilityAnimationExport::datedName(const QString& product, const QByteArray& bytes) {
+    URL::Meta meta;
+    if (!URL::metaFor(bytes, meta)) {
+        return product;
+    }
+    const auto when = meta.lastModified.isValid() ? meta.lastModified : meta.fetched;
+    return when.toUTC().toString("yyyyMMdd_HHmm") + "Z_" + product;
+}
+
+QString UtilityAnimationExport::updatedText(const QByteArray& bytes) {
+    URL::Meta meta;
+    if (!URL::metaFor(bytes, meta)) {
+        return {};
+    }
+    if (meta.lastModified.isValid()) {
+        return "Updated " + meta.lastModified.toUTC().toString("yyyy-MM-dd HH:mm") + " UTC";
+    }
+    return "Downloaded " + meta.fetched.toUTC().toString("yyyy-MM-dd HH:mm") + " UTC";
+}
+
 bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByteArray>& frames, int frameDelayMs,
-                                            const QByteArray& still, const QString& baseName) {
+                                            const QByteArray& still, const QString& baseName,
+                                            const QByteArray& metaBytes) {
     const bool animated = frames.size() >= 2;
     if (!animated && still.isEmpty() && frames.empty()) {
         QMessageBox::information(parent, "Nothing to save", "There is no image to save yet.");
@@ -350,8 +397,11 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
         filters << helpFilter;
     }
 
+    const auto & metaSource = !metaBytes.isEmpty() ? metaBytes
+        : (!still.isEmpty() ? still : (frames.empty() ? still : frames.back()));
+    const auto datedBase = datedName(baseName, metaSource);
     const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    const auto stem = picturesDir.isEmpty() ? baseName : picturesDir + "/" + baseName;
+    const auto stem = picturesDir.isEmpty() ? datedBase : picturesDir + "/" + datedBase;
     QString selectedFilter = filters.first();
     const auto fileName = QFileDialog::getSaveFileName(parent, caption, stem + "." + ordered.front().ext,
                                                        filters.join(";;"), &selectedFilter);

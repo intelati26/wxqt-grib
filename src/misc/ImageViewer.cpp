@@ -146,5 +146,5 @@ void ImageViewer::save() {
     // single image: the Save dialog offers every available format and reports any failure
     auto base = QString::fromStdString(suggestedFileName(sourceBytes));
     base = QFileInfo{base}.completeBaseName();
-    UtilityAnimationExport::saveWithDialog(this, {}, 0, sourceBytes, base);
+    UtilityAnimationExport::saveWithDialog(this, {}, 0, sourceBytes, base, imageBytes);
 }
