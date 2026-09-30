@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "objects/RenderLock.h"
 #include "models/UtilitySpcPost.h"
 #include <algorithm>
 #include <chrono>
@@ -416,6 +417,7 @@ string UtilitySpcPost::render(int productIndex, int domainIndex, int boundaryFla
     const auto pngPath = dir + QString::fromStdString(
         "/sp5_" + runKey + "_" + product.key + "_" + To::string(domainIndex) + "_" +
         To::string(boundaryFlags) + "_" + To::string(backgroundIndex) + "_" + fhr3 + ".png");
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     if (QFile::exists(pngPath)) {
         const auto sidecar = pngPath + ".grid";
         if (QFile::exists(sidecar)) {

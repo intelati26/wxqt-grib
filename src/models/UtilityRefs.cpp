@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "objects/RenderLock.h"
 #include "models/UtilityRefs.h"
 #include <algorithm>
 #include <cctype>
@@ -606,6 +607,7 @@ string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionI
     const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2) +
         "_" + thresholdTag(threshold);
     const auto pngPath = dir + "/pb2_" + tag + ".png";
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     if (QFile::exists(pngPath)) {
         return pngPath.toStdString();
     }
@@ -719,6 +721,7 @@ string UtilityRefs::renderMemberProbability(const UtilityGrib::Field& field, int
         "_" + thresholdTag(threshold);
     // "pm1" is the render version - bump it whenever the drawing pipeline changes
     const auto pngPath = dir + "/pm1_" + tag + ".png";
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto rangePath = pngPath + ".range";
     const auto gridPath = pngPath + ".grid";
     if (QFile::exists(pngPath)) {
@@ -849,6 +852,7 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
     // "rf2" is the render version - bump it whenever the drawing pipeline changes
     const auto pngPath = dir + QString::fromStdString(
         "/rf2_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2 + ".png");
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto rangePath = pngPath + ".range";
     const auto gridPath = pngPath + ".grid";
     if (QFile::exists(pngPath)) {

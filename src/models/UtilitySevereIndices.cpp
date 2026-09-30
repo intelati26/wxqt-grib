@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "objects/RenderLock.h"
 #include "models/UtilitySevereIndices.h"
 #include <algorithm>
 #include <cmath>
@@ -739,6 +740,7 @@ string UtilitySevereIndices::render(int indexIndex, int regionIndex, const strin
     // "si2" is the render version - bump it whenever the drawing pipeline changes
     const auto pngPath = dir + QString::fromStdString(
         "/si2_" + runKey + "_" + To::string(indexIndex) + "_" + To::string(regionIndex) + "_" + fhr3 + ".png");
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto gridPath = pngPath + ".grid";
     const auto rangePath = pngPath + ".range";
     if (QFile::exists(pngPath)) {

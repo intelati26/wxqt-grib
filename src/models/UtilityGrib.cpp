@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "objects/RenderLock.h"
 #include "models/UtilityGrib.h"
 #include <algorithm>
 #include <cmath>
@@ -1200,6 +1201,7 @@ string UtilityGrib::render(int fieldIndex, int regionIndex, const string& foreca
     const auto pngPath = dir + QString::fromStdString(
         "/r8_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr3 +
         (toFahrenheit ? "_f" : "") + ".png");
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto rangePath = pngPath + ".range";
     const auto gridPath = pngPath + ".grid";
     auto readRange = [&] {
@@ -1776,6 +1778,7 @@ string UtilityGrib::renderBackground(const string& kind, const Bbox& bbox, const
         "_" + QString::number(bbox.east, 'f', 2) + "_" + QString::number(bbox.north, 'f', 2);
     const auto pngPath = dir + QString::fromStdString("/bg1_" + runKey + "_" + field.key + "_") + bboxTag +
         QString::fromStdString("_" + fhr3 + (toFahrenheit ? "_f" : "") + ".png");
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     if (QFile::exists(pngPath)) {
         return pngPath.toStdString();
     }
