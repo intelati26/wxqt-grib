@@ -87,7 +87,7 @@ private:
     static string cacheDir();
     static string renderPaintball(const UtilityGrib::Field& field, int regionIndex, double threshold,
                                   const string& dateStr, const string& cycle, int forecastHourInt,
-                                  const string& binDir, string& status);
+                                  const string& binDir, string& status, string& samplePath);
     static string renderMemberProbability(const UtilityGrib::Field& field, int regionIndex, double threshold,
                                           const string& dateStr, const string& cycle, int forecastHourInt,
                                           const string& binDir, string& status, double& dataMin,

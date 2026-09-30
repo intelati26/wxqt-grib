@@ -593,7 +593,7 @@ string UtilityRefs::finishRender(const QString& warpPath, const string& colorMap
 // composited with QPainter, lines burned afterwards, legend drawn last.
 string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionIndex, double threshold,
                                      const string& dateStr, const string& cycle, int forecastHourInt,
-                                     const string& binDir, string& status) {
+                                     const string& binDir, string& status, string& samplePath) {
     const auto * spec = thresholdSpecFor(field.key);
     if (spec == nullptr || spec->memberKey == nullptr) {
         status = "invalid paintball field";
@@ -606,15 +606,20 @@ string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionI
     // "pb2" is the render version - bump it whenever the drawing pipeline changes
     const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2) +
         "_" + thresholdTag(threshold);
-    const auto pngPath = dir + "/pb2_" + tag + ".png";
+    const auto pngPath = dir + "/pb3_" + tag + ".png";
+    const auto gridPath = pngPath + ".grid";
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     if (QFile::exists(pngPath)) {
+        if (QFile::exists(gridPath)) {
+            samplePath = gridPath.toStdString();
+        }
         return pngPath.toStdString();
     }
 
     const auto bin = QString::fromStdString(binDir) + "/";
     QImage canvas;
     vector<int> drawn;
+    QStringList keptWarps;   // kept until the members-exceeding count grid is built
     string lastError;
     for (int member = 1; member <= 5; member += 1) {
         const auto suffix = tag + "_m" + QString::number(member);
@@ -656,8 +661,36 @@ string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionI
         } else {
             lastError = memberStatus;
         }
-        for (const auto& stale : {colorPath, warpPath, tiffPath, memberPng}) {
+        for (const auto& stale : {colorPath, tiffPath, memberPng}) {
             QFile::remove(stale);
+        }
+        if (drawn.empty() || drawn.back() != member) {
+            QFile::remove(warpPath);
+        } else {
+            keptWarps << warpPath;
+        }
+    }
+    // hover sidecar: how many members are at/above the threshold in each cell
+    if (!keptWarps.isEmpty()) {
+        const auto countPath = dir + "/pbcount_" + tag + ".tif";
+        if (UtilityGrib::calcRaster(bin, keptWarps, [threshold, n = static_cast<int>(keptWarps.size())] (const double * v) {
+                int exceeding = 0;
+                for (int i = 0; i < n; i += 1) {
+                    exceeding += v[i] >= threshold ? 1 : 0;
+                }
+                return static_cast<double>(exceeding);
+            }, countPath)) {
+            string ignored;
+            const auto sampleCols = QString::number(UtilityGrib::mainRenderColumns(box) > 1000 ? 220 : 400);
+            if (runProcess(bin + "gdal_translate", {"-q", "-of", "XYZ", "-outsize", sampleCols, "0", countPath, gridPath}, ignored)) {
+                samplePath = gridPath.toStdString();
+            }
+        }
+        QFile::remove(countPath);
+        QFile::remove(countPath + ".aux.xml");
+        for (const auto& warp : keptWarps) {
+            QFile::remove(warp);
+            QFile::remove(warp + ".aux.xml");
         }
     }
     if (canvas.isNull() || drawn.empty()) {
@@ -842,7 +875,7 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
         " " + localZone.toStdString() + "    " + field.label + thresholdNote + "    " + regionLabel;
 
     if (field.product == "pb") {
-        return renderPaintball(field, regionIndex, threshold, dateStr, cycle, forecastHourInt, binDir, status);
+        return renderPaintball(field, regionIndex, threshold, dateStr, cycle, forecastHourInt, binDir, status, samplePath);
     }
     if (field.product == "pm") {
         return renderMemberProbability(field, regionIndex, threshold, dateStr, cycle, forecastHourInt, binDir,

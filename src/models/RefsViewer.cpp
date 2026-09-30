@@ -392,7 +392,11 @@ void RefsViewer::onHover(size_t panelIndex, double fx, double fy) {
         const auto units = QString::fromStdString(
             fieldIndex >= 0 && fieldIndex < static_cast<int>(UtilityRefs::fields.size())
                 ? UtilityRefs::fields[fieldIndex].units : string{});
-        panels[k]->setHoverText(coords + "\n" + QString::number(value, 'f', 1) + " " + units);
+        const auto isPaintball = fieldIndex >= 0 && fieldIndex < static_cast<int>(UtilityRefs::fields.size()) &&
+            UtilityRefs::fields[fieldIndex].product == "pb";
+        panels[k]->setHoverText(coords + "\n" + (isPaintball
+            ? QString{"%1 of %2 members"}.arg(static_cast<int>(std::lround(value))).arg(UtilityRefs::memberCount)
+            : QString::number(value, 'f', 1) + " " + units));
     }
 }
 
