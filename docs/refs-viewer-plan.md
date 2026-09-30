@@ -464,6 +464,15 @@ Result: `vector<vector<double>>` (member → per-hour value), passed to
   pointwise (small isolated cores) - both legends say so. Not added: precip
   accumulation `prob` records (window text varies with forecast hour),
   `eas`/`ffri`, lpmm/avrg.
+- **Stage 4 follow-ups (2026-09-30, local)**: REFS Probability now also has
+  1-hr / 3-hr / total precipitation, 3-hr / total snowfall (shown in inches,
+  published in metres) and total freezing rain. Their idx records differ by
+  a forecast-hour-dependent window ("5-6 hour acc" etc.), so
+  `ThresholdSpec::probWindow` builds the window text from the hour. Real
+  finding: the 3-hr and since-start windows exist only at forecast hours
+  divisible by 3 (hourly windows every hour) - other hours say so in the
+  status line. Paintball panels now have a hover sidecar (members
+  exceeding, "N of 5 members").
 - **Stage 4 (original text)** — probability-of-exceedance UI: threshold picker; direct render
   from `prob`/`eas` bands where available, from-members fallback where not.
 - **Stage 5 — done (2026-09-30)**: `RefsPointGraph` (+ hand-drawn

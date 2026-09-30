@@ -116,7 +116,14 @@ namespace {
         double defaultThreshold;
         const char* probLabel;
         const char* probIdx;
-        vector<double> probThresholds;
+        vector<double> probThresholds;   // as published in the idx (text like ">25.4")
+        // accumulation records only: window length in hours (1, 3) or 0 for
+        // "since forecast start"; the idx text is "<h-w>-<h> hour acc fcst",
+        // so it depends on the forecast hour. -1 = not an accumulation.
+        int probWindow{-1};
+        // published unit -> unit shown to the user (snow is published in
+        // metres, shown in inches)
+        double displayScale{1.0};
     };
     const vector<ThresholdSpec> thresholdSpecs{
         {"Composite Reflectivity", "refc", "refc", "dBZ", 40.0,
@@ -130,6 +137,18 @@ namespace {
             "1km Reflectivity", ":REFD:1000 m above ground", {30, 40, 50}},
         {"0-3km Helicity", "hlcy3", nullptr, "m2/s2", 200.0,
             "0-3km Storm-Relative Helicity", ":HLCY:3000-0 m above ground", {100, 200, 400}},
+        {"1-hr Precipitation", "apcp1h", nullptr, "mm", 12.7,
+            "1-hr Precipitation", ":APCP:surface:", {12.7, 25.4, 50.8, 76.2}, 1},
+        {"3-hr Precipitation", "apcp3h", nullptr, "mm", 25.4,
+            "3-hr Precipitation", ":APCP:surface:", {12.7, 25.4, 50.8, 76.2, 127}, 3},
+        {"Total Precipitation", "apcptot", nullptr, "mm", 25.4,
+            "Total Precipitation", ":APCP:surface:", {12.7, 25.4, 50.8, 76.2, 127}, 0},
+        {"3-hr Snowfall", "snow3h", nullptr, "in", 1.0,
+            "3-hr Snowfall", ":ASNOW:surface:", {0.025, 0.076, 0.152}, 3, 39.37},
+        {"Total Snowfall", "snowtot", nullptr, "in", 1.0,
+            "Total Snowfall", ":ASNOW:surface:", {0.025, 0.076, 0.152, 0.304}, 0, 39.37},
+        {"Total Freezing Rain", "frzrtot", nullptr, "mm", 0.254,
+            "Total Freezing Rain", ":FRZR:surface:", {0.254, 2.54, 6.35, 12.7}, 0},
     };
 
     // 0-100 % scale shared by both probability row kinds; alpha-0 below 5 %
@@ -851,14 +870,23 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
     if (spec != nullptr) {
         auto value = std::isnan(threshold) ? spec->defaultThreshold : threshold;
         if (field.product == "prob") {
-            double best = spec->probThresholds.front();
+            // nearest published band, compared in the units shown to the user
+            const auto shown = [spec] (double published) { return published * spec->displayScale; };
+            double bestPublished = spec->probThresholds.front();
             for (const auto candidate : spec->probThresholds) {
-                if (std::fabs(candidate - value) < std::fabs(best - value)) {
-                    best = candidate;
+                if (std::fabs(shown(candidate) - value) < std::fabs(shown(bestPublished) - value)) {
+                    bestPublished = candidate;
                 }
             }
-            value = best;
-            alsoContains = ":prob >" + QString::number(value, 'g', 6).toStdString() + ":";
+            value = spec->displayScale == 1.0 ? bestPublished : std::round(shown(bestPublished) * 10.0) / 10.0;
+            // accumulation records carry the forecast-hour-dependent window
+            string window;
+            if (spec->probWindow >= 0) {
+                const auto start = spec->probWindow == 0 ? 0 : forecastHourInt - spec->probWindow;
+                window = To::string(start) + "-" + To::string(forecastHourInt) + " hour acc fcst";
+            }
+            alsoContains = (window.empty() ? string{} : ":" + window) + ":prob >" +
+                QString::number(bestPublished, 'g', 6).toStdString() + ":";
             field.key += "_" + thresholdTag(value).toStdString();
         }
         threshold = value;
@@ -905,6 +933,12 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
 
     QString gribPath;
     if (!fetchFieldGrib(field, dateStr, cycle, forecastHourInt, gribPath, status, alsoContains)) {
+        // REFS publishes the 3-hr and since-start accumulation windows only
+        // at forecast hours divisible by 3 (hourly windows exist every hour)
+        if (spec != nullptr && field.product == "prob" && spec->probWindow >= 0 && spec->probWindow != 1 &&
+                forecastHourInt % 3 != 0) {
+            status = field.label + ": this accumulation window is only published at forecast hours divisible by 3 (F03, F06, ...)";
+        }
         return "";
     }
 
