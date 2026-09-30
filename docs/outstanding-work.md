@@ -25,6 +25,24 @@ priority until Windows packaging is actually attempted for real.
 fixed now, see "Recently closed" below - unrelated to Windows specifically,
 worth doing before any public push regardless of platform.)
 
+## Lite build / package size (2026-09-30, local)
+Default build no longer includes QtWebEngine (Chromium was most of the
+download and only the Observation Sites screen used it). `./makeAll.py
+--webengine` restores it (defines `WXQT_WEBENGINE`); the lite build's preview
+panes show a visible note + link instead of a blank box. CI prints a package
+size report (top-level entries + 25 largest files) in each job log - use it
+to see what is left. **Future:** render the observation data as a native
+widget like the other screens, then the web engine can go away for good.
+Still-open size levers: slimming the MSYS2 GDAL dependency closure (or a
+minimal GDAL build), zstd/xz for the AppImage, stripping the Linux binary.
+
+## Export formats (2026-09-30, local)
+All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
+JPEG XL / AVIF / animated WebP / MP4 offered when cjxl / avifenc / ffmpeg are
+installed (not bundled - keeps packages small; bundling avifenc/cjxl is a
+possible follow-up). **GIF is deliberately not supported** (user decision).
+Failures are always shown in a message box - never a silent fallback.
+
 ## Python dependency in rendering — removed
 No render pipeline uses `gdal_calc.py`/`gdal_merge.py` any more. Nodata
 transparency is a leading `nv 0 0 0 0` color-table line +
