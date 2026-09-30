@@ -19,6 +19,7 @@
 #include <QJsonArray>
 #include <vector>
 #include <QVector>
+#include <QCoreApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
@@ -478,6 +479,29 @@ int UtilityGrib::mainRenderColumns(const Bbox& box) {
 }
 
 string UtilityGrib::gdalBinDir() {
+    // Portable Windows builds ship the GDAL tools + data in a "gdal" folder
+    // next to wxqt.exe (see .github/scripts/package-windows.ps1) and have no
+    // launcher script to put it on PATH, so look there first. GDAL/PROJ need
+    // their data directories pointed at the bundled copies too, and the
+    // child processes inherit this process's environment. (The Linux
+    // AppImage's AppRun does the equivalent with PATH/GDAL_DATA itself.)
+    static const auto bundled = [] {
+        const auto dir = QCoreApplication::applicationDirPath() + "/gdal";
+        if (QStandardPaths::findExecutable("gdalwarp", {dir}).isEmpty()) {
+            return QString{};
+        }
+        if (QDir{dir + "/gdal-data"}.exists()) {
+            qputenv("GDAL_DATA", QDir::toNativeSeparators(dir + "/gdal-data").toUtf8());
+        }
+        if (QDir{dir + "/proj-data"}.exists()) {
+            qputenv("PROJ_DATA", QDir::toNativeSeparators(dir + "/proj-data").toUtf8());
+            qputenv("PROJ_LIB", QDir::toNativeSeparators(dir + "/proj-data").toUtf8());
+        }
+        return dir;
+    }();
+    if (!bundled.isEmpty()) {
+        return bundled.toStdString();
+    }
     const auto found = QStandardPaths::findExecutable("gdalwarp");
     if (found.isEmpty()) {
         return "";
