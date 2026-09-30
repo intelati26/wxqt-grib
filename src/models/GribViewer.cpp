@@ -41,6 +41,7 @@ GribViewer::GribViewer(Window * parent)
     , comboRegion{this, UtilityGrib::regions()}
     , comboForecastHour{this, UtilityGrib::forecastHours()}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
+    , buttonMax{this, Icon::None, "Max of range"}
     , animBar{this,
         [this] (int start, int end) { onRangeRequested(start, end); },
         [this] (int local) { onFrameShown(local); },
@@ -65,6 +66,10 @@ GribViewer::GribViewer(Window * parent)
     boxTop.addWidget(comboField);
     boxTop.addWidget(comboRegion);
     boxTop.addWidget(comboForecastHour);
+    buttonMax.getView()->setToolTip("Pixel-wise maximum of the selected field over the Range hours below "
+                                    "(e.g. 01 to 24 for a 24-hour swath). Not available for contour / barb fields.");
+    buttonMax.connect([this] { showMaxOfRange(); });
+    boxTop.addWidget(buttonMax);
     boxTop.addStretch();
     boxImage.addWidgetReal(&image, 1, Qt::Alignment{});
     boxImage.addWidget(legend);
@@ -140,6 +145,56 @@ void GribViewer::invalidateAnimation() {
     animBar.stopIfAnimating();
     animBar.clearFrames();
     gridCache.clear();
+}
+
+// "24hr max" of the selected field over the Range hours (the same From/To
+// pickers Play uses). Shown in the main image; changing the hour, field,
+// region or run goes back to a normal single-hour view.
+void GribViewer::showMaxOfRange() {
+    const auto allHours = comboForecastHour.getItems();
+    vector<string> hours;
+    for (int i = animBar.rangeStartIndex(); i <= animBar.rangeEndIndex() && i < static_cast<int>(allHours.size()); i += 1) {
+        hours.push_back(allHours[i]);
+    }
+    constexpr size_t maxHours = 48;
+    if (hours.size() < 2) {
+        setTitle("RRFS GRIB Viewer - pick a Range of at least two hours for a max composite");
+        return;
+    }
+    if (hours.size() > maxHours) {
+        hours.resize(maxHours);
+    }
+    animBar.stopIfAnimating();
+    const auto fieldIndex = comboField.getIndex();
+    const auto regionIndex = comboRegion.getIndex();
+    const auto runIndex = comboRun.getIndex();
+    const string runId = (runIndex >= 0 && runIndex < static_cast<int>(runOptions.size()))
+        ? runOptions[runIndex].second : string{};
+    legend.setBytes(buildLegend(fieldIndex, 0.0, 0.0));
+    setTitle("RRFS GRIB Viewer - computing " + To::string(static_cast<int>(hours.size())) + "-hour max...");
+    sampleGridPath.clear();
+    refreshHover();
+    new FutureVoid{this,
+        [this, fieldIndex, regionIndex, hours, runId] {
+            pngPath = UtilityGrib::renderMax(fieldIndex, regionIndex, hours, runId,
+                                             status, dataMin, dataMax, sampleGridPath);
+        },
+        [this, fieldIndex] {
+            setTitle("RRFS GRIB Viewer - " + status);
+            legend.setBytes(buildLegend(fieldIndex, dataMin, dataMax));
+            if (pngPath.empty()) {
+                renderedBytes.clear();
+                sampleGridPath.clear();
+                return;
+            }
+            QFile file{QString::fromStdString(pngPath)};
+            if (file.open(QIODevice::ReadOnly)) {
+                renderedBytes = file.readAll();
+                image.setBytesKeepView(renderedBytes);
+                file.close();
+            }
+            refreshHover();
+        }};
 }
 
 void GribViewer::reload() {

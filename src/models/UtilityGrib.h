@@ -56,6 +56,12 @@ public:
     static const string uphlColorMap;
     static const string precipColorMap;
 
+    // Pixel-wise maximum of one field over `hours` (forecast-hour strings,
+    // ascending) - a "24hr max" swath. Same return / sidecar contract as
+    // render(); unsupported for contour / wind-barb / station-plot fields.
+    static string renderMax(int fieldIndex, int regionIndex, const vector<string>& hours, const string& runId,
+                            string& status, double& dataMin, double& dataMax, string& samplePath);
+
     static vector<string> fieldLabels();
     static vector<string> forecastHours(int cycle = -1);   // cycle 0/6/12/18 -> out to F84
     static vector<string> regions();

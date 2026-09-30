@@ -65,6 +65,14 @@ not the same as having watched it work. Remaining:
   wired to animation/save; a natural follow-up is an SPC-day1-style fixed
   "12z-12z" preset button.
 
+## GRIB viewer max composite (2026-09-30, local)
+`UtilityGrib::renderMax` + a "Max of range" button in `GribViewer`: pixel-wise
+max of the selected field over the Range hours (same From/To pickers as Play,
+cap 48). Meant for swaths - updraft helicity, reflectivity, gust, max temp.
+Not offered for contour / wind-barb / station-plot fields. Verified: 3-hr UH
+swath from a finished run (peak 199 m2/s2). Note a still-uploading "Latest"
+run fails with an explanatory message, not silently.
+
 ## Pinned, low-priority follow-ups
 - **SHIP field-fetch batching, part 1 - DONE (2026-09-14)**: the actual
   general fix wasn't SHIP-specific - `UtilityGrib::fetchFieldSlice` was

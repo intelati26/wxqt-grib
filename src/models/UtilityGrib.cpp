@@ -1582,6 +1582,204 @@ namespace {
     }
 }
 
+// Pixel-wise maximum of one field over a run of forecast hours - e.g. a
+// day's updraft-helicity or reflectivity swath, peak gust, or max
+// temperature. Each hour's slice comes from fetchFieldSlice (cached), is
+// warped to the region, and a single calcRaster takes the maximum; then the
+// same colorize / hover-sidecar / line-burn steps as render(). Fields that
+// draw contours, wind barbs or station plots are not supported (their
+// overlays have no meaning on a composite).
+string UtilityGrib::renderMax(int fieldIndex, int regionIndex, const vector<string>& hours, const string& runId,
+                              string& status, double& dataMin, double& dataMax, string& samplePath) {
+    dataMin = 0.0;
+    dataMax = 0.0;
+    samplePath = "";
+    if (fieldIndex < 0 || fieldIndex >= static_cast<int>(fields.size()) || hours.empty()) {
+        status = "invalid field or empty hour range";
+        return "";
+    }
+    const auto& field = fields[fieldIndex];
+    if (field.contourInterval > 0 || !field.contourIdxMatch.empty() || field.windBarbs) {
+        status = field.label + ": a max composite is not available for fields with contours, wind barbs or station plots";
+        return "";
+    }
+    const auto binDir = gdalBinDir();
+    if (binDir.empty()) {
+        status = "GDAL not found - install the 'gdal' package";
+        return "";
+    }
+    if (regionIndex < 0 || regionIndex >= regionCount) {
+        regionIndex = 0;
+    }
+    const bool toFahrenheit = UIPreferences::unitsF && field.units == "C";
+
+    string dateStr;
+    string cycle;
+    if (runId.size() == 10) {
+        dateStr = runId.substr(0, 8);
+        cycle = runId.substr(8, 2);
+    } else if (!resolveLatestRun(dateStr, cycle)) {
+        status = "no RRFS run available on NOMADS";
+        return "";
+    }
+    const auto runKey = dateStr + cycle;
+    const auto first = To::Int(hours.front());
+    const auto last = To::Int(hours.back());
+    status = "RRFS MAX " + dateStr.substr(0, 4) + "-" + dateStr.substr(4, 2) + "-" + dateStr.substr(6, 2) + " " +
+        cycle + "z    F" + WString::fixedLengthStringPad0(To::string(first), 2) + "-F" +
+        WString::fixedLengthStringPad0(To::string(last), 2) + " (" + To::string(static_cast<int>(hours.size())) +
+        " hrs)    " + field.label + "    " + regionTable[regionIndex].label;
+
+    const auto dir = QString::fromStdString(cacheDir());
+    const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" +
+        To::string(first) + "_" + To::string(last) + "_" + To::string(static_cast<int>(hours.size())) +
+        (toFahrenheit ? "_f" : ""));
+    // "rm1" is the render version - bump it whenever the drawing pipeline changes
+    const auto pngPath = dir + "/rm1_" + tag + ".png";
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
+    const auto rangePath = pngPath + ".range";
+    const auto gridPath = pngPath + ".grid";
+    if (QFile::exists(pngPath)) {
+        QFile file{rangePath};
+        if (file.open(QIODevice::ReadOnly)) {
+            const auto parts = QString::fromUtf8(file.readAll()).split(' ', Qt::SkipEmptyParts);
+            if (parts.size() == 2) {
+                dataMin = parts[0].toDouble();
+                dataMax = parts[1].toDouble();
+            }
+        }
+        if (QFile::exists(gridPath)) {
+            samplePath = gridPath.toStdString();
+        }
+        return pngPath.toStdString();
+    }
+
+    auto runProcess = [&status] (const QString& program, const QStringList& args, QByteArray * stdOut = nullptr) {
+        QProcess process;
+        process.start(program, args);
+        process.waitForFinished(30000);
+        const auto ok = process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+        if (stdOut) {
+            *stdOut = process.readAllStandardOutput();
+        }
+        if (!ok) {
+            status = "gdal failed: " + process.readAllStandardError().left(200).toStdString();
+        }
+        return ok;
+    };
+    const auto bin = QString::fromStdString(binDir) + "/";
+    const auto box = regionBbox(regionIndex);
+    const auto fillCols = QString::number(mainRenderColumns(box));
+
+    QStringList warps;
+    int skipped = 0;
+    string lastError;
+    for (const auto& hour : hours) {
+        string gribPath;
+        const auto warpPath = dir + "/rmw_" + tag + "_" + QString::fromStdString(hour) + ".tif";
+        if (fetchFieldSlice(field, dateStr, cycle, hour, gribPath)
+            && runProcess(bin + "gdalwarp",
+                {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
+                 "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
+                 "-r", "bilinear", "-ts", fillCols, "0", QString::fromStdString(gribPath), warpPath})) {
+            warps << warpPath;
+        } else {
+            skipped += 1;
+            lastError = status;
+            QFile::remove(warpPath);
+        }
+    }
+    if (warps.isEmpty()) {
+        status = field.label + ": none of the hours in the range could be fetched - the run may still be "
+            "uploading; try an older run or a range of earlier hours" +
+            (lastError.empty() ? string{} : " (" + lastError + ")");
+        return "";
+    }
+    const auto maxPath = dir + "/rmx_" + tag + ".tif";
+    const auto count = static_cast<int>(warps.size());
+    const auto maxOk = calcRaster(bin, warps, [count] (const double * v) {
+        double best = v[0];
+        for (int i = 1; i < count; i += 1) {
+            best = std::max(best, v[i]);
+        }
+        return best;
+    }, maxPath);
+    for (const auto& warp : warps) {
+        QFile::remove(warp);
+        QFile::remove(warp + ".aux.xml");
+    }
+    if (!maxOk) {
+        status = "max composite calculation failed";
+        return "";
+    }
+
+    QString fillTif = maxPath;
+    const auto scaledPath = dir + "/rms_" + tag + ".tif";
+    if (toFahrenheit) {
+        if (runProcess(bin + "gdal_translate",
+                {"-q", "-ot", "Float32", "-a_nodata", "-9999", "-scale", "-200", "200", "-328", "392",
+                 maxPath, scaledPath})) {
+            fillTif = scaledPath;
+        }
+    }
+    const auto colorPath = dir + "/rmcol_" + tag + ".txt";
+    const auto tiffPath = dir + "/rmc_" + tag + ".tif";
+    {
+        const auto table = "nv 0 0 0 0\n" + (toFahrenheit ? colorMapToFahrenheit(field.colorMap) : field.colorMap);
+        QFile colorFile{colorPath};
+        if (colorFile.open(QIODevice::WriteOnly)) {
+            colorFile.write(table.c_str(), static_cast<qint64>(table.size()));
+            colorFile.close();
+        }
+    }
+    auto ok = runProcess(bin + "gdaldem", {"color-relief", "-q", "-alpha", "-of", "GTiff", fillTif, colorPath, tiffPath});
+    if (ok) {
+        QByteArray info;
+        if (runProcess(bin + "gdalinfo", {"-mm", fillTif}, &info)) {
+            const auto match = QRegularExpression{R"(Computed Min/Max=(-?[0-9.]+),(-?[0-9.]+))"}.match(QString::fromUtf8(info));
+            if (match.hasMatch()) {
+                dataMin = match.captured(1).toDouble();
+                dataMax = match.captured(2).toDouble();
+                QFile file{rangePath};
+                if (file.open(QIODevice::WriteOnly)) {
+                    file.write((QString::number(dataMin, 'f', 2) + " " + QString::number(dataMax, 'f', 2)).toUtf8());
+                    file.close();
+                }
+            }
+        }
+        const auto savedStatus = status;
+        if (runProcess(bin + "gdal_translate",
+                {"-q", "-of", "XYZ", "-outsize", QString::number(sampleGridColumns(box)), "0", fillTif, gridPath})) {
+            samplePath = gridPath.toStdString();
+        } else {
+            status = savedStatus;
+        }
+        const auto burnLines = [&] (const string& geoJson, int red, int green, int blue) {
+            runProcess(bin + "gdal_rasterize",
+                {"-q", "-b", "1", "-b", "2", "-b", "3", "-b", "4",
+                 "-burn", QString::number(red), "-burn", QString::number(green),
+                 "-burn", QString::number(blue), "-burn", "255", QString::fromStdString(geoJson), tiffPath});
+        };
+        burnLines(cwaLinesGeoJson(), 110, 110, 110);
+        burnLines(stateLinesGeoJson(), 25, 25, 25);
+        const auto savedStatus2 = status;
+        ok = runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", tiffPath, pngPath});
+        if (ok) {
+            status = savedStatus2;
+        }
+    }
+    for (const auto& stale : {colorPath, maxPath, scaledPath, tiffPath, tiffPath + ".aux.xml", maxPath + ".aux.xml"}) {
+        QFile::remove(stale);
+    }
+    if (!ok || !QFile::exists(pngPath)) {
+        return "";
+    }
+    if (skipped > 0) {
+        status += "    (" + To::string(skipped) + " hr skipped)";
+    }
+    return pngPath.toStdString();
+}
+
 // same byte-range fetch as render()'s local "ensureSlice" lambda, factored out
 // so renderBackground() (and any other future caller) can reuse it without
 // duplicating the plain-vs-subh fallback logic
