@@ -6,13 +6,17 @@
 
 #include "Image.h"
 #include <QObject>
+#include "objects/UtilityAnimationExport.h"
 #include "util/UtilityUI.h"
 
 Image::Image(Window * parent)
     : imageSize{UtilityUI::getImageWidth(3)}
     , parent{parent}
     , image{new ClickableLabel{parent}}
-{}
+{
+    // right-click "Save image..." (thumbnail grids: outlook summaries, dashboard, ...)
+    UtilityAnimationExport::installContextSave(image);
+}
 
 ClickableLabel * Image::getView() {
     return image;
@@ -44,6 +48,7 @@ void Image::resizeToWidth(float width) {
 
 void Image::setBytes(const QByteArray& ba) {
     bytes = ba;
+    UtilityAnimationExport::setSourceBytes(image, ba);
     UtilityUI::updateImage(image, ba, imageSize);
 }
 

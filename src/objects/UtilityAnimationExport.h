@@ -6,9 +6,11 @@
 #ifndef UTILITYANIMATIONEXPORT_H
 #define UTILITYANIMATIONEXPORT_H
 
+#include <functional>
 #include <vector>
 #include <QByteArray>
 #include <QImage>
+#include <QLabel>
 #include <QString>
 #include <QStringList>
 #include <QWidget>
@@ -42,6 +44,15 @@ public:
 
     // The encoders themselves (also usable without a dialog). On failure returns
     // false with a human-readable reason in `error`.
+    // Gives a picture label a right-click "Save image..." that exports the
+    // source bytes last stored on it with setSourceBytes() (through
+    // saveWithDialog, so the same format choice and visible error reporting).
+    // The bytes live on the label itself - not in a captured owner pointer -
+    // because Photo / Image objects are moved around inside vectors.
+    // Nothing is offered while there are no source bytes (icons etc.).
+    static void installContextSave(QLabel * label);
+    static void setSourceBytes(QLabel * label, const QByteArray& bytes);
+
     // Explains how to add the optional formats (JPEG XL, AVIF, WebP, MP4) that
     // are not bundled: install commands for the current system, download
     // links, and a button that opens the "tools" folder next to the program

@@ -5,32 +5,40 @@
 // *****************************************************************************
 
 #include "Photo.h"
+#include "objects/UtilityAnimationExport.h"
 #include "settings/UIPreferences.h"
 #include "util/UtilityForecastIcon.h"
 #include "util/UtilityUI.h"
 
 Photo::Photo(Window * parent)
     : image{new ClickableLabel{parent}}
-{}
+{
+    installSaveMenu();
+}
 
 Photo::Photo(Window * parent, const QPixmap & pix)
     : image{new ClickableLabel{parent}}
 {
     image->setPixmap(pix);
+    installSaveMenu();
 }
 
 Photo::Photo(Window * parent, PhotoSizeEnum size)
     : image{new ClickableLabel{parent}}
     , size{size}
     , width{UtilityUI::getImageWidth(3)}
-{}
+{
+    installSaveMenu();
+}
 
 Photo::Photo(Window * parent, PhotoSizeEnum size, std::function<int()> getPhotoHeight)
     : image{new ClickableLabel{parent}}
     , size{size}
     , width{UtilityUI::getImageWidth(3)}
     , getPhotoHeight{getPhotoHeight}
-{}
+{
+    installSaveMenu();
+}
 
 // void Photo::set(const QPixmap & pix) {
 //     image->setPixmap(pix);
@@ -127,6 +135,7 @@ void Photo::adjustSize() {
 
 void Photo::setBytes(const QByteArray& ba) {
     bytes = ba;
+    UtilityAnimationExport::setSourceBytes(image, ba);
     if (size == FullWithHeight) {
         setFullScreenWithHeight();
     } else if (size == Scaled) {
@@ -138,7 +147,17 @@ void Photo::setBytes(const QByteArray& ba) {
     }
 }
 
+// Every screen that shows a downloaded picture through Photo (WPC, observations,
+// storm reports, soundings, ocean charts, ...) gets a right-click "Save image..."
+// that goes through the shared exporter (format choice, errors always shown).
+// Nothing is offered for icons / pictures that have no source bytes.
+void Photo::installSaveMenu() {
+    UtilityAnimationExport::installContextSave(image);
+}
+
 void Photo::setNwsIcon(const string& url) {
+    bytes.clear();   // an icon has no source picture to save
+    UtilityAnimationExport::setSourceBytes(image, {});
     // const auto width = UIPreferences::imageSizeNwsForecast;
     // const auto pixmap = QPixmap::fromImage(UtilityForecastIcon::getIcon(url));
     // const auto pixmapResized = pixmap.scaled(width, width, Qt::KeepAspectRatio, Qt::SmoothTransformation);

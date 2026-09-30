@@ -12,9 +12,11 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QStringList>
@@ -219,6 +221,32 @@ bool UtilityAnimationExport::encodeToFile(const Format& format, const vector<QBy
     }
     error = "unknown export format: " + format.id;
     return false;
+}
+
+void UtilityAnimationExport::setSourceBytes(QLabel * label, const QByteArray& bytes) {
+    label->setProperty("wxqtSourceBytes", bytes);
+}
+
+void UtilityAnimationExport::installContextSave(QLabel * label) {
+    label->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(label, &QLabel::customContextMenuRequested, label, [label] (const QPoint& point) {
+        const auto bytes = label->property("wxqtSourceBytes").toByteArray();
+        if (bytes.isEmpty()) {
+            return;
+        }
+        QMenu menu{label};
+        auto * save = menu.addAction("Save image...");
+        if (menu.exec(label->mapToGlobal(point)) != save) {
+            return;
+        }
+        auto title = label->window()->windowTitle().toLower();
+        title.replace(QRegularExpression{"[^a-z0-9]+"}, "_");
+        title = title.left(40);
+        while (title.endsWith('_')) {
+            title.chop(1);
+        }
+        saveWithDialog(label->window(), {}, 0, bytes, title.isEmpty() ? QString{"image"} : title);
+    });
 }
 
 void UtilityAnimationExport::showInstallHelp(QWidget * parent, const QStringList& missing) {

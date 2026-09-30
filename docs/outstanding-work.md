@@ -42,6 +42,12 @@ JPEG XL / AVIF / animated WebP / MP4 offered when cjxl / avifenc / ffmpeg are
 installed (not bundled - keeps packages small; bundling avifenc/cjxl is a
 possible follow-up). **GIF is deliberately not supported** (user decision).
 Failures are always shown in a message box - never a silent fallback.
+Every `Photo` / `Image` picture (WPC national images, observations, OPC,
+storm reports, soundings, compmap, outlook summaries, dashboard thumbnails,
+...) has a right-click "Save image..." through the same exporter; the source
+bytes are stored on the label itself (`wxqtSourceBytes`) because those
+objects live inside vectors. Left-click only triggers the click action now.
+Discoverability is right-click only - a visible button/hint could be added.
 
 ## Python dependency in rendering — removed
 No render pipeline uses `gdal_calc.py`/`gdal_merge.py` any more. Nodata

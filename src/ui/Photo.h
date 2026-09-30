@@ -40,6 +40,8 @@ public:
     QByteArray bytes;
 
 private:
+    // right-click "Save image..." for any picture set with setBytes()
+    void installSaveMenu();
     ClickableLabel * image{};
     PhotoSizeEnum size{};
     int width{};
