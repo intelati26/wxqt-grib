@@ -36,11 +36,28 @@ EOF
 
 # No Python needed: rendering uses only the GDAL binaries copied below
 # (gdal_calc/gdal_merge were removed from every pipeline).
-for tool in gdalwarp gdaldem gdal_translate gdal_rasterize gdalinfo gdal_contour ogr2ogr gdallocationinfo; do
-    cp "$(command -v "$tool")" "$appDir/usr/gdal/bin/"
+#
+# GDAL comes from GDAL_PREFIX when set - the minimal vcpkg build (see the workflow
+# and .github/vcpkg/vcpkg.json) - otherwise from the system (local use). With
+# GDAL_PREFIX set, a missing tool is an error rather than a silently GDAL-less package.
+gdalToolsSrc=""
+gdalDataSrc="/usr/share/gdal"
+projDataSrc="/usr/share/proj"
+if [ -n "${GDAL_PREFIX:-}" ]; then
+    gdalToolsSrc="$GDAL_PREFIX/tools/gdal"
+    gdalDataSrc="$GDAL_PREFIX/share/gdal"
+    projDataSrc="$GDAL_PREFIX/share/proj"
+    [ -x "$gdalToolsSrc/gdalwarp" ] || { echo "GDAL_PREFIX is set but $gdalToolsSrc/gdalwarp is missing"; exit 1; }
+fi
+for tool in gdalwarp gdaldem gdal_translate gdal_rasterize gdalinfo gdal_contour ogr2ogr ogrinfo gdallocationinfo; do
+    if [ -n "$gdalToolsSrc" ]; then
+        cp "$gdalToolsSrc/$tool" "$appDir/usr/gdal/bin/"
+    else
+        cp "$(command -v "$tool")" "$appDir/usr/gdal/bin/"
+    fi
 done
-cp -r /usr/share/gdal "$appDir/usr/gdal/share-gdal-data"
-cp -r /usr/share/proj "$appDir/usr/gdal/share-proj-data"
+cp -r "$gdalDataSrc" "$appDir/usr/gdal/share-gdal-data"
+cp -r "$projDataSrc" "$appDir/usr/gdal/share-proj-data"
 
 # Copies every shared-library dependency (direct + transitive) of every
 # binary already in $1 into $1 itself, repeating until nothing new turns
@@ -81,7 +98,11 @@ cp "$appDir/usr/bin/img2webp" "$appDir/usr/lib/img2webp-for-sweep"
 sweep "$appDir/usr/lib"
 rm "$appDir/usr/lib/wxqt-for-sweep" "$appDir/usr/lib/img2webp-for-sweep"
 
-sweep "$appDir/usr/gdal/bin"
+# vcpkg's own libraries are not on the default library path: let ldd find them
+(
+    [ -n "${GDAL_PREFIX:-}" ] && export LD_LIBRARY_PATH="$GDAL_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    sweep "$appDir/usr/gdal/bin"
+)
 for so in "$appDir"/usr/gdal/bin/*.so*; do
     [ -e "$so" ] && mv "$so" "$appDir/usr/gdal/lib/"
 done
@@ -123,6 +144,11 @@ fi
 # nothing was put in these for the lite build: drop the empty dirs so AppRun
 # does not export web-engine paths for a browser that is not there
 rmdir "$appDir/usr/libexec" "$appDir/usr/resources" 2>/dev/null || true
+
+# vcpkg builds keep their symbol tables; the app binary too. Drop what nothing at
+# runtime reads (Ubuntu's own libraries are already stripped).
+find "$appDir/usr/gdal" "$appDir/usr/bin/wxqt" -type f \( -name '*.so*' -o -perm -u+x \) \
+    -exec sh -c 'strip --strip-unneeded "$1" 2>/dev/null || true' _ {} \;
 
 cat > "$appDir/AppRun" << 'EOF'
 #!/bin/bash

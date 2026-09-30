@@ -230,8 +230,39 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             g++ make \
             qt6-base-dev \
-            gdal-bin libgdal-dev \
             webp
+
+      # GDAL runs as a separate subprocess (never linked into wxqt). Built by vcpkg
+      # with only what wxqt uses - the same minimal manifest as the Windows job
+      # (.github/vcpkg/vcpkg.json) - as shared libraries, release only (triplet
+      # overlay in .github/vcpkg/triplets). The distro GDAL (gdal-bin, used before)
+      # drags in MySQL, LAPACK, poppler, HDF5, Xerces, ... - ~110 MB unpacked of
+      # which wxqt loads none. The install tree is cached; the build only reruns
+      # when the manifest, triplet or the runner image's vcpkg checkout changes.
+      - name: vcpkg cache key
+        id: vcpkg-key
+        run: |
+          commit="$(git -C "$VCPKG_INSTALLATION_ROOT" rev-parse HEAD)"
+          inputs="$(cat .github/vcpkg/vcpkg.json .github/vcpkg/triplets/x64-linux-dynamic-release.cmake | sha256sum | cut -c1-16)"
+          echo "key=gdal-x64-linux-dynamic-release-$commit-$inputs" >> "$GITHUB_OUTPUT"
+
+      - name: Restore GDAL build
+        id: gdal-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/gdal-vcpkg
+          key: ${{ steps.vcpkg-key.outputs.key }}
+
+      - name: Build GDAL (vcpkg)
+        if: steps.gdal-cache.outputs.cache-hit != 'true'
+        run: |
+          "$VCPKG_INSTALLATION_ROOT/vcpkg" install \
+            --x-manifest-root=.github/vcpkg \
+            --x-install-root="$HOME/gdal-vcpkg" \
+            --x-buildtrees-root="$HOME/vb" \
+            --overlay-triplets=.github/vcpkg/triplets \
+            --triplet x64-linux-dynamic-release \
+            --clean-after-build
 
       - name: Generate resources + .pro
         run: |
@@ -245,7 +276,30 @@ jobs:
         run: make -j"$(nproc)"
 
       - name: Package AppImage
-        run: bash .github/scripts/package-linux-appimage.sh
+        run: |
+          export GDAL_PREFIX="$HOME/gdal-vcpkg/x64-linux-dynamic-release"
+          bash .github/scripts/package-linux-appimage.sh
+
+      # The bundled GDAL tools, run from a clean environment with only the
+      # AppDir's own folders on PATH / the library path (see the script).
+      - name: Smoke-test bundled GDAL
+        run: |
+          root="$PWD/AppDir/usr"
+          env -i HOME="$HOME" PATH="$root/gdal/bin:/usr/bin:/bin" \
+            LD_LIBRARY_PATH="$root/gdal/lib:$root/lib" \
+            GDAL_DATA="$root/gdal/share-gdal-data" PROJ_DATA="$root/gdal/share-proj-data" PROJ_LIB="$root/gdal/share-proj-data" \
+            bash .github/vcpkg/smoke-linux.sh "$RUNNER_TEMP/gdalsmoke"
+
+      # The finished AppImage must actually start: run it headless for a few
+      # seconds. timeout's exit code 124 means it was still running when stopped
+      # (good); a crash or missing library ends it sooner with another code.
+      - name: Smoke-test AppImage starts
+        run: |
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout 12 ./dist/wxqt-x86_64.AppImage --appimage-extract-and-run
+          code=$?
+          echo "exit code $code (124 = still running when stopped, which is what we want)"
+          [ "$code" -eq 124 ]
 
       # Where the download size comes from (biggest first) - see the Windows job.
       - name: Package size report
