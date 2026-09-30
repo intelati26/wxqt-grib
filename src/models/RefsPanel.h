@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <functional>
+#include <QLabel>
 #include "ui/ComboBox.h"
 #include "ui/Entry.h"
 #include "ui/HBox.h"
@@ -40,6 +41,8 @@ public:
     // to the new field's default threshold (silently - no reload fired).
     void onFieldChanged();
     void connectThreshold(const std::function<void()>&);
+    // hover read-out overlay (top-left of the image); empty text hides it
+    void setHoverText(const QString&);
 
     ComboBox& fieldCombo();
     ZoomImage& imageView();
@@ -50,6 +53,7 @@ private:
     ComboBox comboField;
     Entry entryThreshold;
     ZoomImage image;
+    QLabel * hoverLabel;
 };
 
 #endif  // REFSPANEL_H

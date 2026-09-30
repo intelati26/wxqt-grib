@@ -484,7 +484,17 @@ Result: `vector<vector<double>>` (member → per-hour value), passed to
   - the first two were being called (contours) but never bundled.
 - **Stage 5 (original text)** — `RefsPointGraph` (the third window): click-to-sample, plume
   chart.
-- **Stage 6** — the 4-panel mosaic export (single JXL / animated JXL of the
+- **Stage 6 — mostly done (2026-09-30)**: `RefsViewer::onSave` builds a
+  single 2x2 mosaic (header line = run/valid time, caption strip per panel
+  naming its field + threshold) and saves it via `UtilityJxl` (JXL, PNG
+  fallback); with a loaded animation it builds one mosaic per hour ->
+  `UtilityApng::fromFrames` -> animated JXL. Also done: **linked hover
+  read-out** - hovering any panel snaps a crosshair in all four and each
+  shows its own value (from its `.grid` sidecar; paintball panels have no
+  sidecar yet so show nothing). Verified through the real viewer. **Still
+  open**: a dedicated toolbar icon (reuses `grib.png`), and a paintball
+  sidecar (members-exceeding count).
+- **Stage 6 (original text)** — the 4-panel mosaic export (single JXL / animated JXL of the
   whole comparison, per "Export formats" above), `AnimationBar` range-export
   applied per-panel too, toolbar entry (new icon; button placed near "RRFS
   GRIB Viewer" in `src/ui/Toolbar.cpp`).

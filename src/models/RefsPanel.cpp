@@ -12,7 +12,13 @@ RefsPanel::RefsPanel(Window * owner)
     : comboField{owner, UtilityRefs::fieldLabels()}
     , entryThreshold{owner}
     , image{owner}
+    , hoverLabel{new QLabel{&image}}
 {
+    hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+    hoverLabel->setStyleSheet(
+        "QLabel { background-color: rgba(15, 15, 15, 205); color: #f2f2f2;"
+        " padding: 3px 6px; border-radius: 3px; }");
+    hoverLabel->hide();
     entryThreshold.getView()->setMaximumWidth(110);
     entryThreshold.getView()->setToolTip("Exceedance threshold - press Enter to apply");
     rowHeader.addWidget(comboField, 1);
@@ -58,6 +64,18 @@ void RefsPanel::onFieldChanged() {
         view->setText(QString::number(UtilityRefs::defaultThreshold(index), 'g', 6));
         view->setPlaceholderText(QString::fromStdString(UtilityRefs::thresholdUnits(index)));
     }
+}
+
+void RefsPanel::setHoverText(const QString& text) {
+    if (text.isEmpty()) {
+        hoverLabel->hide();
+        return;
+    }
+    hoverLabel->setText(text);
+    hoverLabel->adjustSize();
+    hoverLabel->move(8, 8);
+    hoverLabel->show();
+    hoverLabel->raise();
 }
 
 void RefsPanel::connectThreshold(const std::function<void()>& fn) {

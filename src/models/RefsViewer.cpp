@@ -85,6 +85,9 @@ RefsViewer::RefsViewer(Window * parent)
     for (size_t i = 0; i < 4; i += 1) {
         QObject::connect(&clickPanels[i]->imageView(), &ZoomImage::clicked, this,
                          [this, i] (double fx, double fy) { onMapClicked(i, fx, fy); });
+        QObject::connect(&clickPanels[i]->imageView(), &ZoomImage::hovered, this,
+                         [this, i] (double fx, double fy) { onHover(i, fx, fy); });
+        QObject::connect(&clickPanels[i]->imageView(), &ZoomImage::hoverEnded, this, [this] { onHoverEnded(); });
     }
     boxTop.addStretch();
     panel1.addTo(rowTop);
@@ -167,6 +170,7 @@ void RefsViewer::reload() {
                 const auto path = UtilityRefs::render(fieldIndices[i], regionIndex, forecastHour, runId,
                                                         localStatus, lo, hi, gridPath, thresholds[i]);
                 pendingFrame[i].clear();
+                pendingGrid[i] = gridPath;
                 if (!path.empty()) {
                     QFile file{QString::fromStdString(path)};
                     if (file.open(QIODevice::ReadOnly)) {
@@ -181,6 +185,7 @@ void RefsViewer::reload() {
         },
         [this] {
             renderedBytes = pendingFrame;
+            gridPaths = pendingGrid;
             RefsPanel* panels[4] = {&panel1, &panel2, &panel3, &panel4};
             for (size_t i = 0; i < 4; i += 1) {
                 if (!renderedBytes[i].isEmpty()) {
@@ -226,6 +231,7 @@ void RefsViewer::onRangeRequested(int rangeStart, int rangeEnd) {
     sweepIndices = indices;
     sweepFrames.assign(indices.size(), std::array<QByteArray, 4>{});
     frameStatuses.assign(indices.size(), string{});
+    sweepGrids.assign(indices.size(), std::array<string, 4>{});
     renderNextAnimFrame(0, animGeneration);
 }
 
@@ -237,8 +243,10 @@ void RefsViewer::renderNextAnimFrame(size_t sweepIndex, int generation) {
         vector<std::array<QByteArray, 4>> validFrames;
         vector<int> validIndices;
         vector<string> validStatuses;
+        vector<std::array<string, 4>> validGrids;
         for (size_t k = 0; k < sweepFrames.size(); k += 1) {
             if (!sweepFrames[k][0].isEmpty()) {
+                validGrids.push_back(sweepGrids[k]);
                 validFrames.push_back(sweepFrames[k]);
                 validIndices.push_back(sweepIndices[k]);
                 validStatuses.push_back(frameStatuses[k]);
@@ -252,6 +260,7 @@ void RefsViewer::renderNextAnimFrame(size_t sweepIndex, int generation) {
         sweepFrames = validFrames;
         sweepIndices = validIndices;
         frameStatuses = validStatuses;
+        sweepGrids = validGrids;
         // AnimationBar-as-adapter: it only needs one QByteArray per frame for
         // its own frame-count/label bookkeeping - panel 1's bytes stand in.
         vector<QByteArray> barFrames;
@@ -285,6 +294,7 @@ void RefsViewer::renderNextAnimFrame(size_t sweepIndex, int generation) {
                 const auto path = UtilityRefs::render(fieldIndices[i], regionIndex, hour, runId,
                                                         localStatus, lo, hi, gridPath, thresholds[i]);
                 pendingFrame[i].clear();
+                pendingGrid[i] = gridPath;
                 if (!path.empty()) {
                     QFile file{QString::fromStdString(path)};
                     if (file.open(QIODevice::ReadOnly)) {
@@ -303,6 +313,7 @@ void RefsViewer::renderNextAnimFrame(size_t sweepIndex, int generation) {
             }
             sweepFrames[sweepIndex] = pendingFrame;
             frameStatuses[sweepIndex] = pendingStatus;
+            sweepGrids[sweepIndex] = pendingGrid;
             for (auto& frame : pendingFrame) {
                 frame.clear();
             }
@@ -316,6 +327,9 @@ void RefsViewer::onFrameShown(int localIndex) {
     }
     const auto& frame = sweepFrames[localIndex];
     renderedBytes = frame;
+    if (localIndex < static_cast<int>(sweepGrids.size())) {
+        gridPaths = sweepGrids[localIndex];
+    }
     RefsPanel* panels[4] = {&panel1, &panel2, &panel3, &panel4};
     for (size_t i = 0; i < 4; i += 1) {
         if (!frame[i].isEmpty()) {
@@ -331,6 +345,62 @@ void RefsViewer::onFrameShown(int localIndex) {
         comboForecastHour.block();
         comboForecastHour.setIndex(globalIndex);
         comboForecastHour.unblock();
+    }
+}
+
+// Linked read-out: one cursor position, four independent values (each panel
+// samples its own hover sidecar). Every panel renders the same region at the
+// same size, so a single (fx, fy) is valid in all of them; the crosshair is
+// snapped to the hovered panel's own sample cell.
+void RefsViewer::onHover(size_t panelIndex, double fx, double fy) {
+    RefsPanel* panels[4] = {&panel1, &panel2, &panel3, &panel4};
+    double markerFx = fx;
+    double markerFy = fy;
+    const auto sampleGrid = [this] (const string& path) -> const SampleGrid * {
+        if (path.empty()) {
+            return nullptr;
+        }
+        auto cached = gridCache.find(path);
+        if (cached == gridCache.end()) {
+            if (gridCache.size() > 60) {
+                gridCache.clear();
+            }
+            cached = gridCache.emplace(path, SampleGrid::load(QString::fromStdString(path))).first;
+        }
+        return &cached->second;
+    };
+    if (const auto * own = sampleGrid(gridPaths[panelIndex])) {
+        double lon = 0.0;
+        double lat = 0.0;
+        own->snap(fx, fy, lon, lat, markerFx, markerFy);
+    }
+    const auto box = UtilityGrib::regionBbox(comboRegion.getIndex());
+    const auto lon = box.west + fx * (box.east - box.west);
+    const auto lat = box.north - fy * (box.north - box.south);
+    const QString coords = QString{"%1%2  %3%4"}
+        .arg(std::fabs(lat), 0, 'f', 2).arg(lat >= 0 ? "N" : "S")
+        .arg(std::fabs(lon), 0, 'f', 2).arg(lon >= 0 ? "E" : "W");
+    for (size_t k = 0; k < 4; k += 1) {
+        panels[k]->imageView().setMarker(markerFx, markerFy);
+        const auto * grid = sampleGrid(gridPaths[k]);
+        double value = 0.0;
+        if (grid == nullptr || !grid->valueAt(lon, lat, value)) {
+            panels[k]->setHoverText(grid == nullptr ? QString{} : coords + "\nno data");
+            continue;
+        }
+        const auto fieldIndex = panels[k]->fieldIndex();
+        const auto units = QString::fromStdString(
+            fieldIndex >= 0 && fieldIndex < static_cast<int>(UtilityRefs::fields.size())
+                ? UtilityRefs::fields[fieldIndex].units : string{});
+        panels[k]->setHoverText(coords + "\n" + QString::number(value, 'f', 1) + " " + units);
+    }
+}
+
+void RefsViewer::onHoverEnded() {
+    RefsPanel* panels[4] = {&panel1, &panel2, &panel3, &panel4};
+    for (auto* panel : panels) {
+        panel->imageView().clearMarker();
+        panel->setHoverText(QString{});
     }
 }
 

@@ -7,11 +7,13 @@
 #define REFSVIEWER_H
 
 #include <array>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
 #include <QByteArray>
 #include "models/RefsPanel.h"
+#include "objects/SampleGrid.h"
 #include "ui/AnimationBar.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
@@ -52,6 +54,8 @@ private:
     QByteArray buildMosaic(const std::array<QByteArray, 4>& panelBytes, const string& header) const;
     void onMapClicked(size_t panelIndex, double fx, double fy);
     void onGraph();
+    void onHover(size_t panelIndex, double fx, double fy);
+    void onHoverEnded();
     void resizeEventCustom() override;
 
     VBox box;
@@ -75,6 +79,8 @@ private:
 
     vector<std::pair<string, string>> runOptions;
     std::array<QByteArray, 4> renderedBytes;
+    std::array<string, 4> gridPaths;      // hover sidecars of the frame on screen
+    std::map<string, SampleGrid> gridCache;
     string status;
     int animGeneration{0};
 
@@ -86,7 +92,9 @@ private:
     vector<int> sweepIndices;
     vector<std::array<QByteArray, 4>> sweepFrames;
     vector<string> frameStatuses;
+    vector<std::array<string, 4>> sweepGrids;
     std::array<QByteArray, 4> pendingFrame;
+    std::array<string, 4> pendingGrid;
     string pendingStatus;
 };
 
