@@ -52,6 +52,9 @@ private:
     void onSave();
     void onHover(double fx, double fy);
     void onHoverEnded();
+    void onMapClicked(double fx, double fy);
+    void openSounding();
+    const SampleGrid * currentGrid();
     void refreshHover();
     void invalidateAnimation();
     QByteArray buildLegend(int fieldIndex, double clipLo, double clipHi) const;
@@ -69,6 +72,7 @@ private:
     BackForward backForward;
     Button buttonMax;
     Button buttonDay1;
+    Button buttonSounding;
     std::vector<std::string> day1Pending;   // hours computed off-thread for the Day 1 button
     AnimationBar animBar;
     std::vector<std::pair<string, string>> runOptions;
@@ -101,6 +105,9 @@ private:
     std::map<string, SampleGrid> gridCache;   // parsed grids, keyed by sidecar path
     double lastHoverFx{-1.0};
     double lastHoverFy{-1.0};
+    bool haveSoundingPoint{false};   // a map click has picked a point for the Sounding button
+    double soundingLon{0.0};
+    double soundingLat{0.0};
 };
 
 #endif  // GRIBVIEWER_H

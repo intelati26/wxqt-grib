@@ -90,6 +90,18 @@ Parcel liftFrom(const SoundingProfile& prof, double pres, double tmpc, double dw
     }
     pcl.lclPres = std::fmin(pe2, sfcP);
     pcl.lclHght = prof.toAgl(h2lcl);
+    // dry ascent to the LCL, for the drawn trace
+    const double thetaStart = SoundingThermo::theta(pres, tmpc, 1000.0);
+    pcl.tracePres.push_back(pres);
+    pcl.traceTemp.push_back(tmpc);
+    for (double pp = std::floor(pres / 25.0) * 25.0; pp > pe2; pp -= 25.0) {
+        if (pp < pres) {
+            pcl.tracePres.push_back(pp);
+            pcl.traceTemp.push_back(SoundingThermo::theta(1000.0, thetaStart, pp));
+        }
+    }
+    pcl.tracePres.push_back(pe2);
+    pcl.traceTemp.push_back(tp2);
 
     // ---- the dry layer below the LCL, on a 1 mb grid, compared in theta space ----
     const double thetaParcel = SoundingThermo::theta(pe2, tp2, 1000.0);
@@ -161,6 +173,8 @@ Parcel liftFrom(const SoundingProfile& prof, double pres, double tmpc, double dw
         const double h2 = prof.hght[i];
         const double te2 = prof.vtmp[i];
         const double tp2l = wetLift(pe1, tp1, pe2l);
+        pcl.tracePres.push_back(pe2l);
+        pcl.traceTemp.push_back(tp2l);
         const double tdef1 = (virtualTemp(pe1, tp1, tp1) - te1) / ctok(te1);
         const double tdef2 = (virtualTemp(pe2l, tp2l, tp2l) - te2) / ctok(te2);
         lyrlast = lyre;

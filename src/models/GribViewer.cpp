@@ -19,6 +19,7 @@
 #include <QStringList>
 #include <QTextStream>
 #include "misc/ImageViewer.h"
+#include "models/SoundingViewer.h"
 #include "models/UtilityGrib.h"
 #include "objects/FutureVoid.h"
 #include "objects/SampleGrid.h"
@@ -43,6 +44,7 @@ GribViewer::GribViewer(Window * parent)
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonMax{this, Icon::None, "Max of range"}
     , buttonDay1{this, Icon::None, "Day 1 max (12z-12z)"}
+    , buttonSounding{this, Icon::None, "Sounding"}
     , animBar{this,
         [this] (int start, int end) { onRangeRequested(start, end); },
         [this] (int local) { onFrameShown(local); },
@@ -54,6 +56,7 @@ GribViewer::GribViewer(Window * parent)
     QObject::connect(&image, &ZoomImage::doubleClicked, this, [this] { openFullImage(); });
     QObject::connect(&image, &ZoomImage::hovered, this, [this] (double fx, double fy) { onHover(fx, fy); });
     QObject::connect(&image, &ZoomImage::hoverEnded, this, [this] { onHoverEnded(); });
+    QObject::connect(&image, &ZoomImage::clicked, this, [this] (double fx, double fy) { onMapClicked(fx, fy); });
     comboRun.connect([this] { updateForecastHours(); reload(); });
     comboField.connect([this] { invalidateAnimation(); reload(); });
     comboRegion.connect([this] { invalidateAnimation(); reload(); });
@@ -75,6 +78,11 @@ GribViewer::GribViewer(Window * parent)
     buttonDay1.connect([this] { showDay1Max(); });
     boxTop.addWidget(buttonMax);
     boxTop.addWidget(buttonDay1);
+    buttonSounding.getView()->setToolTip("Click the map to pick a point, then open the model sounding (Skew-T, hodograph, "
+                                         "parameters) for that point at the run and forecast hour selected now. A run/hour not "
+                                         "fetched before downloads about 265 MB; further points at the same run and hour are instant.");
+    buttonSounding.connect([this] { openSounding(); });
+    boxTop.addWidget(buttonSounding);
     boxTop.addStretch();
     boxImage.addWidgetReal(&image, 1, Qt::Alignment{});
     boxImage.addWidget(legend);
@@ -286,6 +294,47 @@ void GribViewer::refreshHover() {
     }
 }
 
+// the parsed hover sidecar for the visible frame (parsed once, then cached)
+const SampleGrid * GribViewer::currentGrid() {
+    if (sampleGridPath.empty()) {
+        return nullptr;
+    }
+    auto cached = gridCache.find(sampleGridPath);
+    if (cached == gridCache.end()) {
+        if (gridCache.size() > 40) {
+            gridCache.clear();
+        }
+        cached = gridCache.emplace(sampleGridPath, SampleGrid::load(QString::fromStdString(sampleGridPath))).first;
+    }
+    return &cached->second;
+}
+
+void GribViewer::onMapClicked(double fx, double fy) {
+    const auto * grid = currentGrid();
+    double lon = 0.0;
+    double lat = 0.0;
+    double markerFx = 0.0;
+    double markerFy = 0.0;
+    if (grid == nullptr || !grid->snap(fx, fy, lon, lat, markerFx, markerFy)) {
+        return;
+    }
+    haveSoundingPoint = true;
+    soundingLon = lon;
+    soundingLat = lat;
+    setTitle("RRFS GRIB Viewer - sounding point " + To::string(lat) + " N, " + To::string(lon) + " E (press Sounding)");
+}
+
+void GribViewer::openSounding() {
+    if (!haveSoundingPoint) {
+        setTitle("RRFS GRIB Viewer - click the map to pick a sounding point first");
+        return;
+    }
+    const auto runIndex = comboRun.getIndex();
+    const string runId = (runIndex >= 0 && runIndex < static_cast<int>(runOptions.size()))
+        ? runOptions[runIndex].second : string{};
+    new SoundingViewer{this, soundingLon, soundingLat, runId, comboForecastHour.getValue()};
+}
+
 void GribViewer::onHover(double fx, double fy) {
     lastHoverFx = fx;
     lastHoverFy = fy;
@@ -297,14 +346,8 @@ void GribViewer::onHover(double fx, double fy) {
         hoverLabel->hide();
         return;
     }
-    auto cached = gridCache.find(sampleGridPath);
-    if (cached == gridCache.end()) {
-        if (gridCache.size() > 40) {
-            gridCache.clear();
-        }
-        cached = gridCache.emplace(sampleGridPath, SampleGrid::load(QString::fromStdString(sampleGridPath))).first;
-    }
-    const auto& grid = cached->second;
+    const auto * gridPtr = currentGrid();
+    const auto& grid = *gridPtr;
 
     // snap to the sampled cell so the crosshair, coords and value all agree
     double lon = 0.0;

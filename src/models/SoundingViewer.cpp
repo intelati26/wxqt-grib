@@ -1,0 +1,484 @@
+// *****************************************************************************
+// * This file is part of wxqt.  Licensed under the GNU General Public License v3.
+// * See the COPYING file for the full license text.
+// *****************************************************************************
+
+#include "models/SoundingViewer.h"
+#include <algorithm>
+#include <cmath>
+#include <QBuffer>
+#include <QDateTime>
+#include <QPainter>
+#include <QPainterPath>
+#include <QTimeZone>
+#include <QWidget>
+#include "models/UtilityGrib.h"
+#include "models/UtilityModelSounding.h"
+#include "objects/FutureVoid.h"
+#include "objects/UtilityAnimationExport.h"
+#include "sounding/SoundingThermo.h"
+#include "util/To.h"
+
+namespace {
+    bool have(double v) { return v > -9998.0; }
+    constexpr double pBottom = 1050.0;
+    constexpr double pTop = 100.0;
+    constexpr double tLeft = -40.0;    // temperature at the bottom-left corner of the Skew-T
+    constexpr double tSpan = 90.0;     // degrees C shown across the bottom
+    constexpr double skewShift = 45.0; // how far the top of an isotherm leans right, in degrees C of width
+
+    QString num(double v, int decimals = 0, const QString& unit = QString{}) {
+        return have(v) ? QString::number(v, 'f', decimals) + unit : QStringLiteral("--");
+    }
+
+    // wind barb, northern-hemisphere convention: staff points into the wind, feathers on the clockwise side
+    void drawBarb(QPainter& painter, const QPointF& at, double dirDeg, double speedKt, double length) {
+        if (!have(dirDeg) || !have(speedKt)) return;
+        if (speedKt < 2.5) {
+            painter.drawEllipse(at, 3.0, 3.0);
+            return;
+        }
+        const double rad = dirDeg * M_PI / 180.0;
+        const QPointF staff{std::sin(rad), -std::cos(rad)};
+        const QPointF perp{-staff.y(), staff.x()};
+        const QPointF end = at + staff * length;
+        painter.drawLine(at, end);
+        int remaining = static_cast<int>(std::lround(speedKt / 5.0)) * 5;
+        double along = length;
+        const double step = length * 0.14;
+        const double feather = length * 0.42;
+        while (remaining >= 50) {
+            const QPointF a = at + staff * along, b = at + staff * (along - step * 1.4);
+            QPolygonF flag;
+            flag << a << a + perp * feather + staff * (-step * 0.4) << b;
+            painter.drawPolygon(flag);
+            along -= step * 1.6;
+            remaining -= 50;
+        }
+        while (remaining >= 10) {
+            const QPointF a = at + staff * along;
+            painter.drawLine(a, a + perp * feather - staff * (step * 0.6));
+            along -= step;
+            remaining -= 10;
+        }
+        if (remaining >= 5) {
+            if (along >= length - 1e-6) along -= step;   // a lone half barb sits one step in from the end
+            const QPointF a = at + staff * along;
+            painter.drawLine(a, a + perp * feather * 0.5 - staff * (step * 0.3));
+        }
+    }
+}
+
+class SoundingCanvas : public QWidget {
+public:
+    explicit SoundingCanvas(QWidget * parent) : QWidget{parent} { setMinimumSize(780, 520); }
+
+    void setMessage(const QString& text) {
+        message = text;
+        profile = nullptr;
+        analysis = nullptr;
+        update();
+    }
+
+    void setData(const SoundingProfile * newProfile, const SoundingAnalysis * newAnalysis, const QString& newTitle) {
+        profile = newProfile;
+        analysis = newAnalysis;
+        title = newTitle;
+        message.clear();
+        update();
+    }
+
+    void setParcel(int index) {
+        parcelIndex = index;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override {
+        QPainter painter{this};
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.fillRect(rect(), QColor{12, 12, 16});
+        if (profile == nullptr || analysis == nullptr) {
+            painter.setPen(QColor{200, 200, 200});
+            painter.drawText(rect(), Qt::AlignCenter | Qt::TextWordWrap, message);
+            return;
+        }
+        painter.setPen(QColor{235, 235, 235});
+        QFont titleFont = painter.font();
+        titleFont.setBold(true);
+        painter.setFont(titleFont);
+        painter.drawText(QRect{10, 4, width() - 20, 20}, Qt::AlignLeft | Qt::AlignVCenter, title);
+
+        const int skewWidth = static_cast<int>(width() * 0.56);
+        const QRect skew{46, 30, skewWidth - 46 - 62, height() - 30 - 22};
+        const int rightX = skewWidth + 6;
+        const int rightWidth = width() - rightX - 8;
+        const int hodoSize = std::min(rightWidth, static_cast<int>(height() * 0.40));
+        drawSkewT(painter, skew);
+        drawHodograph(painter, QRect{rightX + (rightWidth - hodoSize) / 2, 30, hodoSize, hodoSize});
+        drawTable(painter, QRect{rightX, 30 + hodoSize + 8, rightWidth, height() - 30 - hodoSize - 14});
+    }
+
+private:
+    const SoundingProfile * profile{nullptr};
+    const SoundingAnalysis * analysis{nullptr};
+    QString title;
+    QString message;
+    int parcelIndex{1};
+
+    // ---- Skew-T geometry ----
+    struct Geometry {
+        QRect plot;
+        double sx;
+        double k;
+        double yOf(double p) const { return plot.bottom() - std::log(pBottom / p) / std::log(pBottom / pTop) * plot.height(); }
+        double xOf(double t, double p) const { return plot.left() + (t - tLeft) * sx + (plot.bottom() - yOf(p)) * k; }
+        QPointF at(double t, double p) const { return {xOf(t, p), yOf(p)}; }
+    };
+
+    Geometry geometry(const QRect& plot) const {
+        Geometry g;
+        g.plot = plot;
+        g.sx = plot.width() / (tSpan + skewShift);
+        g.k = skewShift * g.sx / plot.height();
+        return g;
+    }
+
+    const SoundingParcel::Parcel& selectedParcel() const {
+        return parcelIndex == 0 ? analysis->sb : parcelIndex == 2 ? analysis->mu : analysis->ml;
+    }
+
+    void strokePolyline(QPainter& painter, const Geometry& g, const std::vector<double>& temps, const std::vector<double>& pres) const {
+        QPainterPath path;
+        bool started = false;
+        for (size_t i = 0; i < temps.size() && i < pres.size(); i += 1) {
+            if (!have(temps[i]) || !have(pres[i]) || pres[i] < pTop * 0.999 || pres[i] > pBottom) {
+                continue;
+            }
+            const auto point = g.at(temps[i], pres[i]);
+            if (!started) {
+                path.moveTo(point);
+                started = true;
+            } else {
+                path.lineTo(point);
+            }
+        }
+        painter.drawPath(path);
+    }
+
+    void drawSkewT(QPainter& painter, const QRect& plot) {
+        const auto g = geometry(plot);
+        painter.save();
+        painter.setClipRect(plot);
+        painter.fillRect(plot, QColor{0, 0, 0});
+
+        // isotherms
+        for (int t = -120; t <= 50; t += 10) {
+            painter.setPen(QPen(t == 0 ? QColor{90, 160, 230} : QColor{70, 70, 80}, t == 0 ? 1.5 : 1.0));
+            painter.drawLine(g.at(t, pBottom), g.at(t, pTop));
+        }
+        // dry adiabats
+        painter.setPen(QPen(QColor{90, 70, 40}, 1.0));
+        for (int thetaK = 250; thetaK <= 520; thetaK += 10) {
+            QPainterPath path;
+            bool started = false;
+            for (double p = pBottom; p >= pTop - 1e-6; p -= 25.0) {
+                const double t = thetaK * std::pow(p / 1000.0, SoundingThermo::rocp) - SoundingThermo::zeroCelsiusK;
+                const auto point = g.at(t, p);
+                if (!started) { path.moveTo(point); started = true; } else { path.lineTo(point); }
+            }
+            painter.drawPath(path);
+        }
+        // moist adiabats
+        painter.setPen(QPen(QColor{40, 90, 50}, 1.0, Qt::DashLine));
+        for (int t0 = -10; t0 <= 40; t0 += 5) {
+            QPainterPath path;
+            bool started = false;
+            for (double p = 1000.0; p >= 200.0 - 1e-6; p -= 25.0) {
+                const double t = p >= 1000.0 ? t0 : SoundingThermo::wetLift(1000.0, t0, p);
+                const auto point = g.at(t, p);
+                if (!started) { path.moveTo(point); started = true; } else { path.lineTo(point); }
+            }
+            painter.drawPath(path);
+        }
+        // isobars
+        painter.setPen(QPen(QColor{90, 90, 100}, 1.0));
+        for (int p = 1000; p >= 100; p -= 100) {
+            painter.drawLine(QPointF(plot.left(), g.yOf(p)), QPointF(plot.right(), g.yOf(p)));
+        }
+
+        // CAPE / CIN shading for the selected parcel
+        const auto& pcl = selectedParcel();
+        if (pcl.valid && pcl.tracePres.size() >= 2) {
+            auto parcelAt = [&] (double p) {
+                for (size_t i = 0; i + 1 < pcl.tracePres.size(); i += 1) {
+                    const double p1 = pcl.tracePres[i], p2 = pcl.tracePres[i + 1];
+                    if (p <= p1 && p >= p2 && p1 != p2) {
+                        const double f = (std::log(p1) - std::log(p)) / (std::log(p1) - std::log(p2));
+                        return pcl.traceTemp[i] + f * (pcl.traceTemp[i + 1] - pcl.traceTemp[i]);
+                    }
+                }
+                return SoundingThermo::missing;
+            };
+            const double pStart = pcl.lplPres;
+            for (double p = std::min(pStart, pBottom); p > pTop + 5.0; p -= 5.0) {
+                const double envT = profile->interpTemp(p), envT2 = profile->interpTemp(p - 5.0);
+                const double parT = parcelAt(p), parT2 = parcelAt(p - 5.0);
+                if (!have(envT) || !have(envT2) || !have(parT) || !have(parT2)) continue;
+                if (have(pcl.elPres) && p < pcl.elPres) break;
+                const bool positive = (parT + parT2) > (envT + envT2);
+                if (!positive && !(have(pcl.lfcPres) ? p > pcl.lfcPres : p > pcl.lclPres)) continue;   // colder-than-environment air above the LFC is not CIN
+                QPolygonF quad;
+                quad << g.at(parT, p) << g.at(parT2, p - 5.0) << g.at(envT2, p - 5.0) << g.at(envT, p);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(positive ? QColor{230, 60, 60, 90} : QColor{70, 110, 230, 90});
+                painter.drawPolygon(quad);
+            }
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen(QColor{255, 255, 255}, 1.6, Qt::DashLine));
+            strokePolyline(painter, g, pcl.traceTemp, pcl.tracePres);
+        }
+
+        // environment
+        painter.setPen(QPen(QColor{80, 200, 220}, 1.0));
+        strokePolyline(painter, g, profile->wetbulb, profile->pres);
+        painter.setPen(QPen(QColor{60, 220, 80}, 2.2));
+        strokePolyline(painter, g, profile->dwpc, profile->pres);
+        painter.setPen(QPen(QColor{240, 60, 60}, 2.2));
+        strokePolyline(painter, g, profile->tmpc, profile->pres);
+        painter.restore();
+
+        // frame, pressure and temperature labels
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawRect(plot);
+        for (int p = 1000; p >= 100; p -= 100) {
+            painter.drawText(QRectF(plot.left() - 40, g.yOf(p) - 8, 36, 16), Qt::AlignRight | Qt::AlignVCenter, QString::number(p));
+        }
+        for (int t = -30; t <= 40; t += 10) {
+            const double x = g.xOf(t, pBottom);
+            if (x >= plot.left() && x <= plot.right()) {
+                painter.drawText(QRectF(x - 16, plot.bottom() + 2, 32, 16), Qt::AlignCenter, QString::number(t));
+            }
+        }
+
+        // level markers for the selected parcel
+        painter.setPen(QColor{255, 220, 120});
+        auto mark = [&] (const QString& name, double p) {
+            if (!have(p) || p < pTop || p > pBottom) return;
+            const double y = g.yOf(p);
+            painter.drawLine(QPointF(plot.right() - 38, y), QPointF(plot.right(), y));
+            painter.drawText(QRectF(plot.right() - 76, y - 8, 36, 16), Qt::AlignRight | Qt::AlignVCenter, name);
+        };
+        mark("LCL", pcl.lclPres);
+        mark("LFC", pcl.lfcPres);
+        mark("EL", pcl.elPres);
+
+        // wind barbs in their own column to the right of the plot
+        painter.setPen(QPen(QColor{220, 220, 220}, 1.2));
+        painter.setBrush(QColor{220, 220, 220});
+        const double barbX = plot.right() + 34;
+        double lastY = -1e9;
+        for (size_t i = 0; i < profile->size(); i += 1) {
+            const double p = profile->pres[i];
+            if (p < pTop || p > pBottom || !have(profile->wdir[i]) || !have(profile->wspd[i])) continue;
+            const double y = g.yOf(p);
+            if (std::abs(y - lastY) < 16.0) continue;
+            lastY = y;
+            drawBarb(painter, QPointF(barbX, y), profile->wdir[i], profile->wspd[i], 26.0);
+        }
+        painter.setBrush(Qt::NoBrush);
+    }
+
+    void drawHodograph(QPainter& painter, const QRect& area) {
+        using namespace SoundingIndices;
+        painter.save();
+        painter.fillRect(area, QColor{0, 0, 0});
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawRect(area);
+        // scale from the winds in the lowest 10 km
+        double maxKt = 40.0;
+        for (double h = 0; h <= 10000.0; h += 250.0) {
+            const auto w = windAtAgl(*profile, h);
+            if (w.valid()) maxKt = std::max(maxKt, w.speed() + 5.0);
+        }
+        const double limit = std::min(100.0, std::ceil(maxKt / 10.0) * 10.0);
+        const QPointF centre = area.center();
+        const double scale = (area.width() / 2.0 - 4.0) / limit;
+        painter.setClipRect(area);
+        painter.setPen(QPen(QColor{70, 70, 80}, 1.0));
+        painter.drawLine(QPointF(area.left(), centre.y()), QPointF(area.right(), centre.y()));
+        painter.drawLine(QPointF(centre.x(), area.top()), QPointF(centre.x(), area.bottom()));
+        const double ringStep = limit > 60.0 ? 20.0 : 10.0;
+        for (double r = ringStep; r <= limit + 1e-6; r += ringStep) {
+            painter.drawEllipse(centre, r * scale, r * scale);
+            painter.drawText(QPointF(centre.x() + 2, centre.y() - r * scale + 11), QString::number(static_cast<int>(r)));
+        }
+        auto toPoint = [&] (double u, double v) { return QPointF(centre.x() + u * scale, centre.y() - v * scale); };
+
+        // trace, coloured by height band
+        struct Band { double top; QColor color; };
+        const Band bands[] = {{1000.0, QColor{240, 60, 60}}, {3000.0, QColor{60, 220, 80}}, {6000.0, QColor{240, 220, 60}},
+                              {9000.0, QColor{80, 200, 240}}, {10000.0, QColor{190, 120, 240}}};
+        QPointF previous;
+        bool havePrevious = false;
+        for (double h = 0; h <= 10000.0 + 1e-6; h += 100.0) {
+            const auto w = windAtAgl(*profile, h);
+            if (!w.valid()) continue;
+            const auto point = toPoint(w.u, w.v);
+            if (havePrevious) {
+                QColor color = bands[4].color;
+                for (const auto& band : bands) {
+                    if (h <= band.top + 1e-6) { color = band.color; break; }
+                }
+                painter.setPen(QPen(color, 2.4));
+                painter.drawLine(previous, point);
+            }
+            previous = point;
+            havePrevious = true;
+        }
+        // storm motions and the mean wind
+        painter.setPen(QPen(QColor{255, 255, 255}, 1.4));
+        auto marker = [&] (const Wind& w, const QString& name, bool square) {
+            if (!w.valid()) return;
+            const auto point = toPoint(w.u, w.v);
+            if (square) painter.drawRect(QRectF(point.x() - 3, point.y() - 3, 6, 6));
+            else painter.drawEllipse(point, 4.0, 4.0);
+            painter.drawText(point + QPointF(6, -4), name);
+        };
+        marker(analysis->rightMover, "RM", false);
+        marker(analysis->leftMover, "LM", false);
+        marker(analysis->meanWind06, "MW", true);
+        painter.setClipping(false);
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawText(QRectF(area.left(), area.bottom() + 1, area.width(), 14), Qt::AlignCenter,
+                         "kt: red 0-1  grn 1-3  yel 3-6  cyan 6-9 km");
+        painter.restore();
+    }
+
+    void drawTable(QPainter& painter, const QRect& area) {
+        using namespace SoundingIndices;
+        const auto& a = *analysis;
+        QStringList lines;
+        lines << "              SB      ML      MU";
+        auto parcelRow = [&] (const QString& name, auto pick) {
+            return QString("%1%2%3%4").arg(name, -10).arg(pick(a.sb), 8).arg(pick(a.ml), 8).arg(pick(a.mu), 8);
+        };
+        lines << parcelRow("CAPE", [&] (const auto& p) { return num(p.cape, 0); });
+        lines << parcelRow("CINH", [&] (const auto& p) { return num(p.cin, 0); });
+        lines << parcelRow("LI 500", [&] (const auto& p) { return num(p.liftedIndex500, 1); });
+        lines << parcelRow("LCL m", [&] (const auto& p) { return num(p.lclHght, 0); });
+        lines << parcelRow("LFC m", [&] (const auto& p) { return num(p.lfcHght, 0); });
+        lines << parcelRow("EL m", [&] (const auto& p) { return num(p.elHght, 0); });
+        lines << parcelRow("CAPE 0-3", [&] (const auto& p) { return num(p.cape3km, 0); });
+        lines << "";
+        lines << QString("Shear kt   0-1 %1   0-3 %2   0-6 %3").arg(num(a.shear01.speed(), 0), 3).arg(num(a.shear03.speed(), 0), 3).arg(num(a.shear06.speed(), 0), 3);
+        lines << QString("SRH       0-1 %1   0-3 %2   Eff %3").arg(num(a.srh01, 0), 4).arg(num(a.srh03, 0), 4).arg(num(a.effectiveSrh, 0), 4);
+        lines << QString("Bunkers R %1/%2 kt   L %3/%4 kt").arg(num(a.rightMover.direction(), 0)).arg(num(a.rightMover.speed(), 0))
+                                                      .arg(num(a.leftMover.direction(), 0)).arg(num(a.leftMover.speed(), 0));
+        lines << QString("Eff inflow %1 - %2 m   Eff BWD %3 kt")
+                     .arg(a.effective.valid ? num(a.effective.botAgl, 0) : QString{"--"})
+                     .arg(a.effective.valid ? num(a.effective.topAgl, 0) : QString{"--"})
+                     .arg(num(a.effectiveShearKt, 0));
+        lines << "";
+        lines << QString("STP fix %1  eff %2   SCP %3   SHIP %4").arg(num(a.stpFixed, 1)).arg(num(a.stpEffective, 1)).arg(num(a.supercell, 1)).arg(num(a.hail, 2));
+        lines << QString("PW %1 in   DCAPE %2   0C %3 m  WBZ %4 m").arg(num(a.precipitableWaterIn, 2)).arg(num(a.dcape, 0)).arg(num(a.freezingLevelAgl, 0)).arg(num(a.wetBulbZeroAgl, 0));
+        lines << QString("Lapse C/km  0-3 %1  3-6 %2  700-500 %3").arg(num(a.lapse03, 1)).arg(num(a.lapse36, 1)).arg(num(a.lapse700500, 1));
+
+        painter.save();
+        QFont mono{"monospace"};
+        mono.setStyleHint(QFont::Monospace);
+        mono.setPixelSize(std::clamp(static_cast<int>(area.height() / (lines.size() * 1.3)), 8, 14));
+        painter.setFont(mono);
+        painter.setPen(QColor{230, 230, 230});
+        const int lineHeight = QFontMetrics{mono}.lineSpacing();
+        int y = area.top();
+        for (const auto& line : lines) {
+            painter.drawText(QRect(area.left(), y, area.width(), lineHeight), Qt::AlignLeft | Qt::AlignVCenter, line);
+            y += lineHeight;
+        }
+        painter.restore();
+    }
+};
+
+SoundingViewer::SoundingViewer(Window * parent, double lon, double lat, const string& runId, const string& forecastHour)
+    : Window{parent}
+    , lon{lon}
+    , lat{lat}
+    , runId{runId}
+    , forecastHour{forecastHour}
+    , textInfo{this}
+    , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
+    , buttonSave{new QPushButton{"Save", this}}
+    , canvas{new SoundingCanvas{this}}
+{
+    setTitle("RRFS Sounding");
+    comboParcel.setIndex(1);
+    comboParcel.connect([this] { canvas->setParcel(comboParcel.getIndex()); });
+    QObject::connect(buttonSave, &QPushButton::clicked, this, [this] { onSave(); });
+    rowTop.addWidget(textInfo, 1);
+    rowTop.addWidget(comboParcel);
+    rowTop.addWidgetReal(buttonSave);
+    box.addLayout(rowTop);
+    box.addWidgetReal(canvas, 1, Qt::Alignment{});
+    box.getAndShow(this);
+    setSize(1000, 640);
+    start();
+}
+
+void SoundingViewer::start() {
+    textInfo.setText(QString{"%1 N, %2 W  -  fetching the model column (about 265 MB for a new run/hour, cached afterwards)..."}
+                         .arg(lat, 0, 'f', 2).arg(-lon, 0, 'f', 2));
+    canvas->setMessage("Fetching the RRFS column...\n\nA run/hour not seen before downloads about 265 MB (all 25 mb levels);\nafter that, every other point at the same run and hour is instant.");
+    new FutureVoid{this,
+        [this] {
+            string date;
+            string cycle;
+            if (!UtilityGrib::resolveSynopticRun(runId, date, cycle)) {
+                status = "Model sounding: could not resolve an RRFS run";
+                loaded = false;
+                return;
+            }
+            string detail;
+            loaded = UtilityModelSounding::buildProfile(date, cycle, forecastHour, lon, lat, profile, detail);
+            if (!loaded) {
+                status = detail;
+                return;
+            }
+            analysis = SoundingAnalysis::compute(profile);
+            const QDateTime runUtc{QDate{To::Int(date.substr(0, 4)), To::Int(date.substr(4, 2)), To::Int(date.substr(6, 2))},
+                                   QTime{To::Int(cycle), 0}, QTimeZone::utc()};
+            const auto validLocal = runUtc.addSecs(3600 * To::Int(forecastHour)).toLocalTime();
+            status = "RRFS " + date.substr(0, 4) + "-" + date.substr(4, 2) + "-" + date.substr(6, 2) + " " + cycle + "z    F" +
+                (forecastHour.size() < 2 ? "0" + forecastHour : forecastHour) + " valid " +
+                validLocal.toString("ddd h:mm AP").toStdString() + " " +
+                QTimeZone::systemTimeZone().abbreviation(validLocal).toStdString();
+        },
+        [this] {
+            if (closed) return;
+            if (!loaded) {
+                textInfo.setText(QString::fromStdString(status));
+                canvas->setMessage(QString::fromStdString(status) + "\n\nClose this window and try again, or pick another point or hour.");
+                return;
+            }
+            const auto point = QString{"%1 N, %2 W"}.arg(lat, 0, 'f', 2).arg(-lon, 0, 'f', 2);
+            textInfo.setText(QString::fromStdString(status) + "    " + point);
+            canvas->setData(&profile, &analysis, QString::fromStdString(status) + "    Sounding " + point);
+        }};
+}
+
+void SoundingViewer::onSave() {
+    if (!loaded) {
+        return;
+    }
+    QByteArray bytes;
+    QBuffer buffer{&bytes};
+    buffer.open(QIODevice::WriteOnly);
+    canvas->grab().save(&buffer, "PNG");
+    const auto suggested = UtilityAnimationExport::modelName(QString::fromStdString(status), QString::fromStdString(status),
+        QString{"sounding_%1_%2"}.arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2));
+    UtilityAnimationExport::saveWithDialog(this, {}, 0, bytes, suggested, QByteArray{}, false);
+}
+
+void SoundingViewer::closeEventCustom() {
+    closed = true;
+}

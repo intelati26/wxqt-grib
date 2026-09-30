@@ -6,6 +6,7 @@
 #ifndef SOUNDINGPARCEL_H
 #define SOUNDINGPARCEL_H
 
+#include <vector>
 #include "sounding/SoundingProfile.h"
 
 namespace SoundingParcel {
@@ -28,6 +29,9 @@ namespace SoundingParcel {
         double cape3km{0.0};         // CAPE within the lowest 3 km AGL
         double liftedIndex500{-9999.0};   // C: environment minus parcel at 500 mb
         double liftedIndex300{-9999.0};
+        // the parcel's own temperature (C, not virtual) along its ascent, for drawing on a Skew-T
+        std::vector<double> tracePres;
+        std::vector<double> traceTemp;
         bool valid{false};
     };
 

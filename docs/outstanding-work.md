@@ -239,3 +239,16 @@ run fails with an explanatory message, not silently.
   (`CitiesExtended` was double-negating already-correct longitudes,
   probably also silently broken on the Nexrad radar screen) — see
   `wxqt-spcpost-viewer` memory.
+
+## Model sounding (done 2026-09-30, first version)
+
+- `src/sounding/` — SHARPpy-based engine (attribution: `docs/sharppy-notice.md`):
+  thermo, profile, parcels (SB/ML/MU + effective inflow), shear/Bunkers/SRH, STP/SCP/SHIP,
+  DCAPE, lapse rates, PW. Verified against SPC's printed values on 270 observed soundings.
+- `src/models/UtilityModelSounding` builds an RRFS column (prslev 1000-100 mb every 25 mb +
+  2dfld surface) at a point; `src/models/SoundingViewer` shows Skew-T, hodograph and the
+  parameter table; GribViewer: click the map, press **Sounding** (locked to the selected
+  run and forecast hour). One run/hour ~265 MB, cached.
+- Not done: box/area-mean sounding, a time slider over forecast hours, convective temperature,
+  DCAPE outliers (a few soundings differ from SPC), SPC observed-sounding mode in the same
+  viewer, model soundings from the other viewers (SPC Post, indices, REFS).
