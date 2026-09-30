@@ -38,9 +38,12 @@ minimal GDAL build), zstd/xz for the AppImage, stripping the Linux binary.
 
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
-JPEG XL / AVIF / animated WebP / MP4 offered when cjxl / avifenc / ffmpeg are
-installed (not bundled - keeps packages small; bundling avifenc/cjxl is a
-possible follow-up). **GIF is deliberately not supported** (user decision).
+JPEG XL / AVIF / animated WebP / MP4 offered when cjxl / avifenc / img2webp
+(libwebp tools; ffmpeg is the fallback for WebP) / ffmpeg (MP4) are installed (not bundled - keeps packages small; bundling avifenc/cjxl is a
+possible follow-up). WebP is lossless via `img2webp` (animations) / `cwebp`
+(stills); **verified only against stand-in scripts** - the real libwebp tools were
+not installed where this was written (Arch: `libwebp-utils`; Debian/Ubuntu: `webp`;
+Fedora: `libwebp-tools`). **GIF is deliberately not supported** (user decision).
 Failures are always shown in a message box - never a silent fallback.
 Every `Photo` / `Image` picture (WPC national images, observations, OPC,
 storm reports, soundings, compmap, outlook summaries, dashboard thumbnails,

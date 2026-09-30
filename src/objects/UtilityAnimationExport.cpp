@@ -114,11 +114,13 @@ vector<UtilityAnimationExport::Format> UtilityAnimationExport::formats(bool anim
     if (toolAvailable("avifenc")) {
         list.push_back({"avif", animated ? "AVIF animation" : "AVIF image", "avif"});
     }
-    if (toolAvailable("ffmpeg")) {
+    // WebP: libwebp's own tools are preferred (img2webp for animations, cwebp for
+    // single images); ffmpeg can do either if they are not installed
+    if (toolAvailable("img2webp") || (!animated && toolAvailable("cwebp")) || toolAvailable("ffmpeg")) {
         list.push_back({"webp", animated ? "Animated WebP" : "WebP image", "webp"});
-        if (animated) {
-            list.push_back({"mp4", "MP4 video (H.264)", "mp4"});
-        }
+    }
+    if (animated && toolAvailable("ffmpeg")) {
+        list.push_back({"mp4", "MP4 video (H.264)", "mp4"});
     }
     return list;
 }
@@ -203,6 +205,25 @@ bool UtilityAnimationExport::encodeToFile(const Format& format, const vector<QBy
         error = result.error;
         return result.ok && QFile::exists(path);
     }
+    if (format.id == "webp" && (toolAvailable("img2webp") || (!animated && toolAvailable("cwebp")))) {
+        // lossless, so flat colours and text in weather maps stay exact (like PNG);
+        // frame options come before the frames they apply to
+        QStringList args;
+        QString tool = "img2webp";
+        if (!animated && toolAvailable("cwebp")) {
+            tool = "cwebp";
+            args << "-lossless" << "-quiet" << temp.path() + "/frame_0000.png" << "-o" << path;
+        } else {
+            args << "-loop" << "0" << "-lossless" << "-d" << QString::number(frameDelayMs);
+            for (size_t i = 0; i < source.size(); i += 1) {
+                args << temp.path() + "/frame_" + QString::number(i).rightJustified(4, '0') + ".png";
+            }
+            args << "-o" << path;
+        }
+        const auto result = runTool(UtilityTools::find(tool), args, 300000);
+        error = result.error;
+        return result.ok && QFile::exists(path);
+    }
     if (format.id == "webp" || format.id == "mp4") {
         const auto rate = QString::number(1000.0 / std::max(1, frameDelayMs), 'f', 3);
         QStringList args{"-y", "-hide_banner", "-loglevel", "error"};
@@ -279,31 +300,39 @@ void UtilityAnimationExport::showInstallHelp(QWidget * parent, const QStringList
         text += "<li><b>AVIF</b> - <code>avifenc</code>: "
                 "<a href=\"https://github.com/AOMediaCodec/libavif/releases\">libavif releases</a></li>";
     }
+    if (missing.contains("img2webp")) {
+        text += "<li><b>WebP</b> - <code>img2webp</code> (libwebp tools): "
+                "<a href=\"https://developers.google.com/speed/webp/download\">WebP downloads</a></li>";
+    }
     if (missing.contains("ffmpeg")) {
-        text += "<li><b>WebP and MP4</b> - <code>ffmpeg</code>: "
+        text += "<li><b>MP4 video</b> - <code>ffmpeg</code>: "
                 "<a href=\"https://ffmpeg.org/download.html\">ffmpeg.org/download</a></li>";
     }
     text += "</ul>";
 #ifdef Q_OS_WIN
-    text += "<p><b>Windows:</b> install with <code>winget install Gyan.FFmpeg</code> (ffmpeg), or download the "
+    text += "<p><b>Windows:</b> for ffmpeg run <code>winget install Gyan.FFmpeg</code>; otherwise download the "
             "files from the links above. Then copy the program (and any .dll files that come with it) into "
             "the <b>tools</b> folder next to wxqt.exe - the button below opens it - or add it to your PATH.</p>";
 #else
     QStringList packages;
     if (missing.contains("cjxl")) { packages << "libjxl-tools"; }
     if (missing.contains("avifenc")) { packages << "libavif-bin"; }
+    if (missing.contains("img2webp")) { packages << "webp"; }
     if (missing.contains("ffmpeg")) { packages << "ffmpeg"; }
     QStringList arch;
     if (missing.contains("cjxl")) { arch << "libjxl"; }
     if (missing.contains("avifenc")) { arch << "libavif"; }
+    if (missing.contains("img2webp")) { arch << "libwebp-utils"; }
     if (missing.contains("ffmpeg")) { arch << "ffmpeg"; }
     QStringList fedora;
     if (missing.contains("cjxl")) { fedora << "libjxl-utils"; }
     if (missing.contains("avifenc")) { fedora << "libavif-tools"; }
+    if (missing.contains("img2webp")) { fedora << "libwebp-tools"; }
     if (missing.contains("ffmpeg")) { fedora << "ffmpeg"; }
     QStringList brew;
     if (missing.contains("cjxl")) { brew << "jpeg-xl"; }
     if (missing.contains("avifenc")) { brew << "libavif"; }
+    if (missing.contains("img2webp")) { brew << "webp"; }
     if (missing.contains("ffmpeg")) { brew << "ffmpeg"; }
     text += "<p>Install with your package manager:</p><pre>"
             "Debian/Ubuntu   sudo apt install " + packages.join(" ") + "\n"
@@ -447,8 +476,11 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
     if (!toolAvailable("avifenc")) {
         missingTools << "avifenc";
     }
+    if (!toolAvailable("img2webp") && !toolAvailable("ffmpeg")) {
+        missingTools << "img2webp";   // WebP (libwebp tools)
+    }
     if (!toolAvailable("ffmpeg")) {
-        missingTools << "ffmpeg";
+        missingTools << "ffmpeg";     // MP4 (and a WebP fallback)
     }
     // last entry in the file-type list: leads to install instructions
     const QString helpFilter = "More formats: JPEG XL, AVIF, WebP, MP4 (how to add)...";
