@@ -88,14 +88,24 @@ done
 sweep "$appDir/usr/plugins"
 sweep "$appDir/usr/lib"
 
-webengineDir="$(find /usr -maxdepth 6 -type d -name libexec 2>/dev/null | head -1)"
-[ -n "$webengineDir" ] && cp -r "$webengineDir"/. "$appDir/usr/libexec/"
-for f in icudtl.dat qtwebengine_resources.pak qtwebengine_resources_100p.pak qtwebengine_resources_200p.pak qtwebengine_devtools_resources.pak; do
-    found="$(find /usr -maxdepth 8 -name "$f" 2>/dev/null | head -1)"
-    [ -n "$found" ] && cp "$found" "$appDir/usr/resources/"
-done
-localesDir="$(find /usr -maxdepth 8 -type d -name qtwebengine_locales 2>/dev/null | head -1)"
-[ -n "$localesDir" ] && cp -r "$localesDir" "$appDir/usr/resources/"
+# QtWebEngine's helper process, resources and locales - only when this build
+# actually links it (./makeAll.py --webengine). The default lite build does not,
+# and copying "the first libexec dir found under /usr" into it would bundle
+# unrelated system files.
+if ldd "$appDir/usr/bin/wxqt" | grep -q 'libQt6WebEngineCore'; then
+    webengineDir="$(find /usr -maxdepth 6 -type d -name libexec 2>/dev/null | head -1)"
+    [ -n "$webengineDir" ] && cp -r "$webengineDir"/. "$appDir/usr/libexec/"
+    for f in icudtl.dat qtwebengine_resources.pak qtwebengine_resources_100p.pak qtwebengine_resources_200p.pak qtwebengine_devtools_resources.pak; do
+        found="$(find /usr -maxdepth 8 -name "$f" 2>/dev/null | head -1)"
+        [ -n "$found" ] && cp "$found" "$appDir/usr/resources/"
+    done
+    localesDir="$(find /usr -maxdepth 8 -type d -name qtwebengine_locales 2>/dev/null | head -1)"
+    [ -n "$localesDir" ] && cp -r "$localesDir" "$appDir/usr/resources/"
+
+fi
+# nothing was put in these for the lite build: drop the empty dirs so AppRun
+# does not export web-engine paths for a browser that is not there
+rmdir "$appDir/usr/libexec" "$appDir/usr/resources" 2>/dev/null || true
 
 cat > "$appDir/AppRun" << 'EOF'
 #!/bin/bash

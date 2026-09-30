@@ -34,7 +34,10 @@ Copy-Item $exeSrc "$distDir/wxqt.exe"
 # Chromium needs, plus the VC++ runtime DLLs via --compiler-runtime.
 # ---------------------------------------------------------------------------
 Write-Host "==> running windeployqt"
-windeployqt --release --compiler-runtime "$distDir/wxqt.exe"
+# --no-translations / --no-opengl-sw / --no-system-d3d-compiler: this app does not
+# use Qt's own translations, the software OpenGL fallback DLL (~20 MB) or the
+# bundled D3D compiler, so leave them out of the download
+windeployqt --release --compiler-runtime --no-translations --no-opengl-sw --no-system-d3d-compiler "$distDir/wxqt.exe"
 if ($LASTEXITCODE -ne 0) {
     Write-Error "windeployqt failed"
     exit 1

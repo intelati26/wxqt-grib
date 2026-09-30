@@ -12,11 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # MSYS2 does not package QtWebEngine for ANY subsystem (MinGW64,
-      # UCRT64, CLANG64) - Chromium's build has historically only worked
-      # with MSVC on Windows. wxqt.pro unconditionally requires
-      # webenginewidgets, so wxqt.exe itself has to be an MSVC build -
-      # official Qt binaries via aqtinstall, not pacman.
+      # Official Qt binaries via aqtinstall (MSVC build). The default "lite"
+      # wxqt build no longer uses QtWebEngine, so no extra Qt modules are
+      # needed. (Kept as MSVC + official Qt rather than MSYS2 so that turning
+      # ./makeAll.py --webengine back on stays possible: MSYS2 does not
+      # package QtWebEngine for any subsystem.)
       - name: Install Qt (MSVC, official binaries)
         uses: jurplel/install-qt-action@v4
         with:
@@ -24,7 +24,6 @@ jobs:
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2022_64'
-          modules: 'qtwebengine qtpositioning qtwebchannel'
 
       # Loads the Visual Studio x64 build environment (cl, nmake, INCLUDE/LIB)
       # for the later steps. Done by hand rather than with ilammy/msvc-dev-cmd,
@@ -81,6 +80,21 @@ jobs:
           MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
         run: .github/scripts/package-windows.ps1
 
+      # Where the download size comes from (biggest first) - printed to the
+      # job log so package size can be tuned without downloading the artifact.
+      - name: Package size report
+        shell: pwsh
+        run: |
+          $root = (Resolve-Path dist/wxqt-portable).Path
+          Write-Host "== top-level entries"
+          Get-ChildItem $root | ForEach-Object {
+            $size = if ($_.PSIsContainer) { (Get-ChildItem $_.FullName -Recurse -File | Measure-Object Length -Sum).Sum } else { $_.Length }
+            [pscustomobject]@{ MB = [math]::Round($size / 1MB, 1); Name = $_.Name }
+          } | Sort-Object MB -Descending | Format-Table -AutoSize | Out-String | Write-Host
+          Write-Host "== 25 largest files"
+          Get-ChildItem $root -Recurse -File | Sort-Object Length -Descending | Select-Object -First 25 |
+            ForEach-Object { "{0,8:N1} MB  {1}" -f ($_.Length / 1MB), $_.FullName.Substring($root.Length + 1) } | Write-Host
+
       - name: Zip
         shell: pwsh
         run: Compress-Archive -Path dist/wxqt-portable/* -DestinationPath dist/wxqt-windows-x64.zip
@@ -107,7 +121,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             g++ make \
-            qt6-base-dev qt6-webengine-dev qt6-declarative-dev \
+            qt6-base-dev \
             gdal-bin libgdal-dev
 
       - name: Generate resources + .pro
@@ -123,6 +137,15 @@ jobs:
 
       - name: Package AppImage
         run: bash .github/scripts/package-linux-appimage.sh
+
+      # Where the download size comes from (biggest first) - see the Windows job.
+      - name: Package size report
+        run: |
+          echo "== AppDir top level"
+          du -sm AppDir/usr/* AppDir/usr/gdal/* 2>/dev/null | sort -rn | head -12
+          echo "== 25 largest files"
+          find AppDir -type f -printf '%s %P\n' | sort -rn | head -25 | awk '{ printf "%8.1f MB  %s\n", $1/1048576, $2 }'
+          ls -l dist/
 
       - uses: actions/upload-artifact@v7
         with:

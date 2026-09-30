@@ -10,7 +10,10 @@
 #include <functional>
 #include <string>
 #include <QPushButton>
+#ifdef WXQT_WEBENGINE
 #include <QWebEngineView>
+#endif
+#include <QWidget>
 #include "ui/Widget2.h"
 #include "ui/Window.h"
 
@@ -20,10 +23,13 @@ using std::string;
 class WebViewer : public Widget2 {
 public:
     WebViewer(Window *, const string&);
-    QWebEngineView * getView();
+    // the embedded browser, or - in a build without QtWebEngine - a visible
+    // note saying so with a link that opens the page externally, so the pane
+    // never just sits there blank
+    QWidget * getView() override;
 
 private:
-    QWebEngineView * webEngine;
+    QWidget * view;
     string url;
 };
 

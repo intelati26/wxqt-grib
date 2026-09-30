@@ -22,7 +22,7 @@ from subprocess import Popen, PIPE
 from typing import Tuple, List
 
 # positioning
-proHeader: str = """QT += core gui network widgets webenginewidgets
+proHeader: str = """QT += core gui network widgets
 CONFIG += c++2a
 DEFINES += QT_DEPRECATED_WARNINGS
 INCLUDEPATH += src
@@ -45,6 +45,14 @@ RCC_DIR = $$DESTDIR/.qrc
 UI_DIR = $$DESTDIR/.u
 
 SOURCES += \\
+"""
+
+# Embedded Chromium (QtWebEngine) is optional: it is only used for the two
+# preview panes on the Observation Sites screen, and it accounts for most of
+# the size of a portable package. The default ("lite") build leaves it out;
+# ./makeAll.py --webengine builds with it.
+webEngineHeader: str = """QT += webenginewidgets
+DEFINES += WXQT_WEBENGINE
 """
 
 proFooter: str = """
@@ -75,12 +83,14 @@ def run(command: str):
         yield line
 
 
-def makePro(extraFooter: str = "\n") -> None:
+def makePro(extraFooter: str = "\n", webEngine: bool = False) -> None:
     cppFiles: List[str] = glob.glob("src/*.cpp") + glob.glob("src/*/*.c*")
     headerFiles: List[str] = glob.glob("src/*/*.h")
     proTargetFile: str = "wxqt.pro"
     with open(proTargetFile, "w") as fh:
         fh.write(proHeader)
+        if webEngine:
+            fh.write(webEngineHeader)
         for cpp in sorted(cppFiles):
             fh.write(" " * 4 + cpp + " \\" + '\n')
 
@@ -107,6 +117,8 @@ if __name__ == "__main__":
     parser.add_argument('--pro', action='store_true')
     parser.add_argument('--qt5', action='store_true')
     parser.add_argument('--gcc', action='store_true')
+    parser.add_argument('--webengine', action='store_true',
+                        help='include the embedded QtWebEngine browser (bigger; adds the Observation Sites web previews)')
     args = parser.parse_args()
 
     #
@@ -130,9 +142,9 @@ if __name__ == "__main__":
     # make pro file
     #
     if not args.gcc:
-        makePro()
+        makePro(webEngine=args.webengine)
     else:
-        makePro("QMAKE_CXX = g++\n")
+        makePro("QMAKE_CXX = g++\n", webEngine=args.webengine)
 
     #
     # configure with qmake
