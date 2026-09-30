@@ -33,8 +33,14 @@ panes show a visible note + link instead of a blank box. CI prints a package
 size report (top-level entries + 25 largest files) in each job log - use it
 to see what is left. **Future:** render the observation data as a native
 widget like the other screens, then the web engine can go away for good.
-Still-open size levers: slimming the MSYS2 GDAL dependency closure (or a
-minimal GDAL build), zstd/xz for the AppImage, stripping the Linux binary.
+Windows now bundles a minimal vcpkg GDAL (`.github/vcpkg/vcpkg.json`: core
+drivers + GEOS/PNG/SQLite/OpenJPEG) instead of MSYS2's full one, whose closure
+(OpenBLAS, Arrow/Parquet, x265/aom/SVT-AV1, SFCGAL, poppler, HDF5, ...) was
+most of the 147 MB zip. Contour buffering no longer needs SpatiaLite
+(`UtilityGrib::bufferContours`: `ogr2ogr -simplify` then `ST_Buffer`, output
+byte-identical). CI smoke-tests every GDAL tool/driver the app uses. Still-open
+size levers: the same minimal GDAL for the AppImage, zstd/xz for the AppImage,
+stripping the Linux binary.
 
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;

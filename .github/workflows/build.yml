@@ -44,16 +44,39 @@ jobs:
           }
 
       # GDAL runs as a separate subprocess (QStandardPaths::findExecutable
-      # ("gdalwarp"), never linked into wxqt.exe) - the MinGW/MSVC toolchain
-      # mismatch between it and wxqt.exe doesn't matter, so MSYS2's
-      # pacman-built GDAL (which DOES exist, unlike QtWebEngine) is still
-      # the simplest source for it.
-      - uses: msys2/setup-msys2@v2
-        id: msys2
+      # ("gdalwarp"), never linked into wxqt.exe). Built by vcpkg with only
+      # what wxqt uses (.github/vcpkg/vcpkg.json: core drivers - GRIB, GTiff,
+      # PNG, XYZ, ENVI, VRT, GeoJSON - plus GEOS, SQLite, OpenJPEG). A full
+      # distro GDAL (MSYS2's, used before) pulls in Arrow/Parquet, HEIF video
+      # codecs, PDF, HDF5, OpenBLAS... - over 100 MB of DLLs nothing here loads.
+      # The install tree is cached, so the ~20 min build only reruns when the
+      # manifest or the runner image's vcpkg checkout changes.
+      - name: vcpkg cache key
+        id: vcpkg-key
+        shell: pwsh
+        run: |
+          $commit = git -C "$env:VCPKG_INSTALLATION_ROOT" rev-parse HEAD
+          $manifest = (Get-FileHash .github/vcpkg/vcpkg.json).Hash
+          "key=gdal-x64-windows-release-$commit-$manifest" >> $env:GITHUB_OUTPUT
+
+      - name: Restore GDAL build
+        id: gdal-cache
+        uses: actions/cache@v5
         with:
-          msystem: UCRT64
-          install: mingw-w64-ucrt-x86_64-gdal
-          path-type: minimal
+          path: D:/gdal-vcpkg
+          key: ${{ steps.vcpkg-key.outputs.key }}
+
+      - name: Build GDAL (vcpkg)
+        if: steps.gdal-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install `
+            --x-manifest-root=.github/vcpkg `
+            --x-install-root=D:/gdal-vcpkg `
+            --x-buildtrees-root=D:/vb `
+            --triplet x64-windows-release `
+            --clean-after-build
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed" }
 
       - name: Generate resources + .pro
         shell: pwsh
@@ -77,8 +100,44 @@ jobs:
       - name: Package portable folder
         shell: pwsh
         env:
-          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
+          GDAL_PREFIX: D:/gdal-vcpkg/x64-windows-release
         run: .github/scripts/package-windows.ps1
+
+      # Runs the bundled GDAL tools the way wxqt does, with only the package's
+      # own gdal/ folder (plus Windows itself) on PATH: fails on a missing DLL
+      # or a driver the app needs that the minimal build left out.
+      - name: Smoke-test bundled GDAL
+        shell: pwsh
+        run: |
+          $gdal = (Resolve-Path dist/wxqt-portable/gdal).Path
+          $env:PATH = "$gdal;$env:SystemRoot\System32;$env:SystemRoot"
+          $env:GDAL_DATA = "$gdal\gdal-data"
+          $env:PROJ_DATA = "$gdal\proj-data"
+          $formats = (gdalinfo --formats) + (ogrinfo --formats)
+          foreach ($driver in "GRIB", "GTiff", "PNG", "XYZ", "ENVI", "VRT", "MEM", "GeoJSON") {
+            if (-not ($formats -match "^\s*$driver\b")) { throw "GDAL driver $driver missing" }
+          }
+          $t = New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/gdalsmoke"
+          $rows = foreach ($j in 0..59) { (0..89 | ForEach-Object { 50 + 30 * [math]::Sin($_ / 13) * [math]::Cos($j / 9) }) -join " " }
+          (@("ncols 90", "nrows 60", "xllcorner -110", "yllcorner 25", "cellsize 0.2", "NODATA_value -9999") + $rows) | Set-Content "$t/f.asc"
+          function Run { & $args[0] $args[1..($args.Count - 1)]; if ($LASTEXITCODE -ne 0) { throw "failed: $args" } }
+          Run gdal_translate -q -a_srs EPSG:4326 "$t/f.asc" "$t/f.tif"
+          Run gdalwarp -q -t_srs EPSG:3857 -r cubicspline -ts 190 0 "$t/f.tif" "$t/w.tif"
+          Run gdal_translate -q -of ENVI -ot Float32 "$t/w.tif" "$t/w.raw"
+          Run gdaldem color-relief "$t/f.tif" .github/vcpkg/smoke-colors.txt "$t/c.tif" -alpha
+          Run gdal_translate -q -of PNG "$t/c.tif" "$t/c.png"
+          Run gdal_contour -q -a elev -i 10 "$t/f.tif" "$t/cr.geojson"
+          Run ogr2ogr -q -f GeoJSON "$t/cs.geojson" "$t/cr.geojson" -simplify 0.06
+          Run ogr2ogr -q -f GeoJSON "$t/cb.geojson" "$t/cs.geojson" -dialect sqlite -sql "SELECT ST_Buffer(geometry, 0.02) AS geometry FROM contour"
+          Run gdal_rasterize -q -burn 255 -ts 90 60 -ot Byte "$t/cb.geojson" "$t/r.tif"
+          # GRIB read back, incl. the complex- and JPEG2000-packed GRIB2 NCEP uses
+          Run gdal_translate -q -of GRIB -co DATA_ENCODING=COMPLEX_PACKING "$t/f.tif" "$t/f.grb2"
+          Run gdal_translate -q -of GRIB -co DATA_ENCODING=JPEG2000 "$t/f.tif" "$t/j.grb2"
+          Run gdalinfo -mm "$t/f.grb2"
+          Run gdalinfo -mm "$t/j.grb2"
+          Run gdallocationinfo -valonly -wgs84 "$t/f.tif" -100 30
+          Run gdalinfo -mm "$t/w.tif"
+          Write-Host "bundled GDAL OK"
 
       # Where the download size comes from (biggest first) - printed to the
       # job log so package size can be tuned without downloading the artifact.

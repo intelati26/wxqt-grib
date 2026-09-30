@@ -1,0 +1,15 @@
+{
+  "name": "wxqt-gdal",
+  "version-string": "0",
+  "description": "Minimal GDAL command-line tools for the Windows portable package (see .github/workflows/build.yml)",
+  "dependencies": [
+    {
+      "name": "gdal",
+      "default-features": false,
+      "features": ["tools", "geos", "png", "sqlite3", "openjpeg"]
+    },
+    { "name": "proj", "default-features": false, "features": ["tiff"] },
+    { "name": "tiff", "default-features": false, "features": ["zip"] },
+    { "name": "sqlite3", "default-features": false, "features": ["json1", "rtree"] }
+  ]
+}

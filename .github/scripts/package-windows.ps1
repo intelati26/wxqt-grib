@@ -2,17 +2,15 @@
 #
 # Builds a self-contained "portable" folder for wxqt on Windows: copies
 # wxqt.exe plus every Qt DLL/plugin it needs (via windeployqt, from the
-# official Qt/MSVC install - MSYS2 does not package QtWebEngine at all, for
-# any subsystem, so wxqt.exe itself must be an MSVC build) and the MSYS2-
-# built GDAL command-line tools + their own dependency closure (GDAL tools
-# run as separate subprocesses - QStandardPaths::findExecutable, not linked
-# into wxqt.exe - so the MinGW/MSVC toolchain mismatch between them doesn't
-# matter; they never share a process or link against each other), so the
-# folder runs on a plain Windows install with none of that already present.
+# official Qt/MSVC install) and the minimal vcpkg-built GDAL command-line
+# tools + their DLLs (GDAL tools run as separate subprocesses -
+# QStandardPaths::findExecutable, not linked into wxqt.exe), so the folder
+# runs on a plain Windows install with none of that already present.
 #
-# Run from a shell with both the MSVC dev environment (ilammy/msvc-dev-cmd)
-# and the official Qt bin dir on PATH (jurplel/install-qt-action), after a
-# successful build (build/release/wxqt.exe must exist). Used by
+# Run from a shell with both the MSVC dev environment and the official Qt bin
+# dir on PATH (jurplel/install-qt-action), after a successful build
+# (build/release/wxqt.exe must exist), with GDAL_PREFIX pointing at the vcpkg
+# GDAL install (optional locally: without it GDAL is left out). Used by
 # .github/workflows/build.yml's windows-x64 job.
 $ErrorActionPreference = "Stop"
 
@@ -62,72 +60,46 @@ Write-Host "==> VC++ runtime DLLs copied from $($crtDir.FullName)"
 Remove-Item "$distDir/dxcompiler.dll", "$distDir/dxil.dll" -ErrorAction SilentlyContinue
 
 # ---------------------------------------------------------------------------
-# GDAL - MSYS2-built (mingw-w64-ucrt-x86_64-gdal), used by the RRFS GRIB/SPC
-# Post/severe-indices/REFS viewers via QStandardPaths::findExecutable
-# ("gdalwarp"), i.e. found through PATH at runtime, never linked into
-# wxqt.exe. Copies the tools plus every /ucrt64/bin/*.dll they need
-# (directly or transitively), repeating until nothing new turns up.
+# GDAL - a minimal vcpkg build (.github/vcpkg/vcpkg.json: only the drivers
+# wxqt uses), used by the RRFS GRIB/SPC Post/severe-indices/REFS viewers via
+# QStandardPaths::findExecutable("gdalwarp"), i.e. found through PATH at
+# runtime, never linked into wxqt.exe. vcpkg already puts each tool's DLLs
+# next to it in tools/gdal; GDAL_PREFIX is the vcpkg install dir for the
+# x64-windows-release triplet.
 # ---------------------------------------------------------------------------
-if (-not $env:MSYS2_LOCATION) {
-    Write-Error "MSYS2_LOCATION env var not set - pass steps.msys2.outputs.msys2-location through as env in the workflow"
+$gdalToolsBin = if ($env:GDAL_PREFIX) { Join-Path $env:GDAL_PREFIX "tools/gdal" } else { "" }
+$gdalwarpPath = if ($gdalToolsBin) { Join-Path $gdalToolsBin "gdalwarp.exe" } else { "" }
+if ($env:GDAL_PREFIX -and -not (Test-Path $gdalwarpPath)) {
+    Write-Error "GDAL_PREFIX is set but $gdalwarpPath does not exist - refusing to ship a package without GDAL"
     exit 1
 }
-$gdalToolsBin = Join-Path $env:MSYS2_LOCATION "ucrt64/bin"
-$gdalwarpPath = Join-Path $gdalToolsBin "gdalwarp.exe"
 
-if (Test-Path $gdalwarpPath) {
+if ($gdalwarpPath) {
     Write-Host "==> GDAL found at $gdalToolsBin - bundling tools + dependencies"
     $gdalDir = "$distDir/gdal"
     New-Item -ItemType Directory -Force -Path $gdalDir | Out-Null
-    foreach ($tool in @("gdalwarp", "gdaldem", "gdal_translate", "gdal_rasterize", "gdalinfo", "gdal_contour", "ogr2ogr", "gdallocationinfo")) {
-        $toolPath = Join-Path $gdalToolsBin "$tool.exe"
-        if (Test-Path $toolPath) {
-            Copy-Item $toolPath $gdalDir
-        }
+    foreach ($tool in @("gdalwarp", "gdaldem", "gdal_translate", "gdal_rasterize", "gdalinfo", "gdal_contour", "ogr2ogr", "gdallocationinfo", "ogrinfo")) {
+        Copy-Item (Join-Path $gdalToolsBin "$tool.exe") $gdalDir
     }
+    Copy-Item "$gdalToolsBin/*.dll" $gdalDir
+    # MSVC-built like wxqt.exe, so they need the same VC++ runtime DLLs - next
+    # to them, since a child process doesn't search its parent's folder
+    Copy-Item "$($crtDir.FullName)/*.dll" $gdalDir
 
-    # MSYS2's own ldd (bash) is more reliable for walking the MinGW
-    # dependency graph than trying to parse `dumpbin` output here - shell
-    # out to the msys2 bash this job's MSYS2 setup step already installed.
-    $msys2Bash = Join-Path $env:MSYS2_LOCATION "usr/bin/bash.exe"
-    $sweepScript = @'
-dir="$1"
-added=1
-while [ "$added" -eq 1 ]; do
-    added=0
-    while IFS= read -r bin; do
-        for dep in $(ldd "$bin" 2>/dev/null | awk '{print $3}'); do
-            case "$dep" in
-                /ucrt64/bin/*)
-                    name="$(basename "$dep")"
-                    if [ ! -f "$dir/$name" ]; then
-                        cp "$dep" "$dir/"
-                        added=1
-                    fi
-                    ;;
-            esac
-        done
-    done < <(find "$dir" -maxdepth 1 -type f \( -name '*.exe' -o -name '*.dll' \))
-done
-'@
-    $sweepScriptPath = "$env:TEMP/sweep.sh"
-    Set-Content -Path $sweepScriptPath -Value $sweepScript -NoNewline
-
-    # MSYS2 bash needs /c/... style paths, not "C:\" ones - and needs an
-    # absolute path regardless (this script's own cwd isn't necessarily
-    # where MSYS2 bash's cwd would default to).
-    function ToMsysPath($winPath) {
-        $abs = (Resolve-Path $winPath).Path
-        return "/" + $abs.Substring(0, 1).ToLower() + $abs.Substring(2).Replace("\", "/")
+    # data files only - share/gdal and share/proj also hold vcpkg's CMake
+    # package files, copyright and usage notes
+    $skipData = @("*.cmake", "vcpkg*", "copyright", "usage")
+    foreach ($pair in @(@("gdal", "gdal-data"), @("proj", "proj-data"))) {
+        $src = Join-Path $env:GDAL_PREFIX "share/$($pair[0])"
+        $dst = Join-Path $gdalDir $pair[1]
+        New-Item -ItemType Directory -Force -Path $dst | Out-Null
+        Get-ChildItem $src -File | Where-Object { $name = $_.Name; -not ($skipData | Where-Object { $name -like $_ }) } |
+            Copy-Item -Destination $dst
     }
-    $sweepScriptUnix = ToMsysPath $sweepScriptPath
-    $gdalDirUnix = ToMsysPath $gdalDir
-    & $msys2Bash -lc "bash '$sweepScriptUnix' '$gdalDirUnix'"
-
-    $gdalDataSrc = Join-Path (Split-Path $gdalToolsBin -Parent) "share/gdal"
-    $projDataSrc = Join-Path (Split-Path $gdalToolsBin -Parent) "share/proj"
-    if (Test-Path $gdalDataSrc) { Copy-Item -Recurse $gdalDataSrc "$gdalDir/gdal-data" }
-    if (Test-Path $projDataSrc) { Copy-Item -Recurse $projDataSrc "$gdalDir/proj-data" }
+    if (-not (Test-Path "$gdalDir/proj-data/proj.db")) {
+        Write-Error "proj.db not found under $env:GDAL_PREFIX/share/proj"
+        exit 1
+    }
 
     # No Python needed: rendering uses only the GDAL binaries copied above
     # (gdal_calc/gdal_merge were removed from every pipeline).
