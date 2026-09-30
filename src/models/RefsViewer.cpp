@@ -4,14 +4,23 @@
 // *****************************************************************************
 
 #include "models/RefsViewer.h"
+#include <QBuffer>
 #include <QFile>
+#include <QFileDialog>
+#include <QImage>
+#include <QPainter>
+#include <QStandardPaths>
 #include "models/RefsPointGraph.h"
 #include "models/UtilityGrib.h"
 #include "models/UtilityRefs.h"
 #include "objects/FutureVoid.h"
+#include "objects/UtilityApng.h"
+#include "objects/UtilityJxl.h"
+#include <cmath>
 #include "util/To.h"
 
 namespace {
+    constexpr int frameDelayMs = 400;      // per-frame dwell for the exported APNG, matches AnimationBar
     constexpr size_t maxAnimFrames = 12;   // 4x the GDAL work per hour vs a single-panel viewer - keep the sweep shorter
 }
 
@@ -364,9 +373,106 @@ void RefsViewer::onGraph() {
     new RefsPointGraph{this, basis, lon, lat, runId};
 }
 
+// One image for the whole comparison: the four panel renders in a 2x2 grid
+// (each with a caption strip naming its field) under a header line. Panels
+// with no image yet are left blank. PNG bytes, ready for UtilityApng /
+// UtilityJxl like every other viewer's export.
+QByteArray RefsViewer::buildMosaic(const std::array<QByteArray, 4>& panelBytes, const string& header) const {
+    std::array<QImage, 4> images;
+    QSize cell;
+    for (size_t i = 0; i < 4; i += 1) {
+        images[i] = QImage::fromData(panelBytes[i]);
+        if (!images[i].isNull() && cell.isEmpty()) {
+            cell = images[i].size();
+        }
+    }
+    if (cell.isEmpty()) {
+        return {};
+    }
+    constexpr int gap = 4;
+    constexpr int headerHeight = 26;
+    constexpr int captionHeight = 22;
+    const int width = cell.width() * 2 + gap;
+    const int height = headerHeight + (cell.height() + captionHeight) * 2 + gap;
+    QImage canvas{width, height, QImage::Format_ARGB32};
+    canvas.fill(QColor{30, 30, 30});
+    QPainter painter{&canvas};
+    painter.setRenderHint(QPainter::Antialiasing);
+    QFont font = painter.font();
+    font.setPixelSize(14);
+    font.setBold(true);
+    painter.setFont(font);
+    painter.setPen(QColor{235, 235, 235});
+    painter.drawText(QRect{8, 0, width - 16, headerHeight}, Qt::AlignVCenter | Qt::AlignLeft,
+                     QString::fromStdString(header));
+    const RefsPanel * panels[4] = {&panel1, &panel2, &panel3, &panel4};
+    for (int i = 0; i < 4; i += 1) {
+        const int column = i % 2;
+        const int row = i / 2;
+        const int x = column * (cell.width() + gap);
+        const int y = headerHeight + row * (cell.height() + captionHeight + gap);
+        painter.fillRect(QRect{x, y, cell.width(), captionHeight}, QColor{50, 50, 50});
+        painter.setPen(QColor{235, 235, 235});
+        const auto fieldIndex = panels[i]->fieldIndex();
+        auto caption = QString::fromStdString(fieldIndex >= 0 && fieldIndex < static_cast<int>(UtilityRefs::fields.size())
+            ? UtilityRefs::fields[fieldIndex].label : string{});
+        if (UtilityRefs::usesThreshold(fieldIndex)) {
+            const auto threshold = panels[i]->threshold();
+            caption += QString{"  >= %1 %2"}
+                .arg(std::isnan(threshold) ? UtilityRefs::defaultThreshold(fieldIndex) : threshold, 0, 'g', 6)
+                .arg(QString::fromStdString(UtilityRefs::thresholdUnits(fieldIndex)));
+        }
+        painter.drawText(QRect{x + 6, y, cell.width() - 12, captionHeight}, Qt::AlignVCenter | Qt::AlignLeft, caption);
+        painter.fillRect(QRect{x, y + captionHeight, cell.width(), cell.height()}, QColor{200, 210, 215});
+        if (!images[i].isNull()) {
+            painter.drawImage(QPoint{x, y + captionHeight}, images[i].scaled(cell, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+        }
+    }
+    painter.end();
+    QByteArray out;
+    QBuffer buffer{&out};
+    buffer.open(QIODevice::WriteOnly);
+    canvas.save(&buffer, "PNG");
+    return out;
+}
+
 void RefsViewer::onSave() {
-    // Stage 0 doesn't wire export yet (mosaic compositing is Stage 6) -
-    // nothing to do until then.
+    const auto frameCount = animBar.frameCount();
+    QByteArray outBytes;
+    if (frameCount >= 2 && sweepFrames.size() == static_cast<size_t>(frameCount)) {
+        vector<QByteArray> mosaics;
+        for (size_t k = 0; k < sweepFrames.size(); k += 1) {
+            const auto mosaic = buildMosaic(sweepFrames[k], k < frameStatuses.size() ? frameStatuses[k] : string{});
+            if (!mosaic.isEmpty()) {
+                mosaics.push_back(mosaic);
+            }
+        }
+        outBytes = UtilityApng::fromFrames(mosaics, frameDelayMs);
+    }
+    if (outBytes.isEmpty()) {
+        outBytes = buildMosaic(renderedBytes, status);
+    }
+    if (outBytes.isEmpty()) {
+        setTitle("REFS Ensemble Viewer - nothing to save yet");
+        return;
+    }
+
+    auto suggested = frameCount >= 2
+        ? string{"refs_comparison_anim"}
+        : ("refs_comparison_f" + comboForecastHour.getValue());
+    suggested += UtilityJxl::preferredExtension(outBytes);
+    const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    const auto defaultPath = picturesDir.isEmpty()
+        ? QString::fromStdString(suggested)
+        : picturesDir + "/" + QString::fromStdString(suggested);
+    const auto filter = UtilityJxl::available()
+        ? QString{"JPEG XL Image (*.jxl);;All Files (*)"}
+        : QString{"Images (*.png);;All Files (*)"};
+    const auto fileName = QFileDialog::getSaveFileName(this, "Save Image", defaultPath, filter);
+    if (fileName.isEmpty()) {
+        return;
+    }
+    UtilityJxl::save(outBytes, fileName);
 }
 
 void RefsViewer::resizeEventCustom() {

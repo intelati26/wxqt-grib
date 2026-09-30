@@ -49,6 +49,7 @@ private:
     void onFrameShown(int localIndex);
     void onScrub(int globalIndex);
     void onSave();
+    QByteArray buildMosaic(const std::array<QByteArray, 4>& panelBytes, const string& header) const;
     void onMapClicked(size_t panelIndex, double fx, double fy);
     void onGraph();
     void resizeEventCustom() override;
