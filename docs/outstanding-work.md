@@ -93,10 +93,10 @@ for the full verification chain. Toolbar entry added.
 **Stages 2-6 done (2026-09-30)** - see `docs/refs-viewer-plan.md`: members as
 panel fields, paintball, runtime thresholds + Member Probability + REFS
 Probability, click-to-plume graph (`RefsPointGraph`), 4-panel mosaic export,
-linked hover read-out. Remaining REFS items: precip-accumulation `prob`
-records (window text varies by hour), `eas`/`ffri`/`lpmm`/`avrg`, a
-paintball hover sidecar, a dedicated toolbar icon, and a dedicated "Member N"
-product picker (members are long-list field entries for now).
+linked hover read-out, paintball hover sidecar, precip/snow/freezing-rain
+`prob` records, and a kind / variable / member picker per panel. Remaining
+REFS items: `eas`/`ffri`/`lpmm`/`avrg` products and a dedicated toolbar
+icon.
 
 **Stage 1 partly done (2026-09-30)**: 7 fields now (up from 2), covering
 `mean`/`sprd`/`pmmn` - each product type's real field list verified live

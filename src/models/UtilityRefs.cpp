@@ -250,6 +250,82 @@ vector<string> UtilityRefs::fieldLabels() {
     return labels;
 }
 
+vector<string> UtilityRefs::kindLabels() {
+    return {"REFS Mean / Spread / PMM", "RRFS Ensemble Member", "Paintball (members)", "Member Probability",
+            "REFS Probability"};
+}
+
+int UtilityRefs::kindOf(int fieldIndex) {
+    if (fieldIndex < 0 || fieldIndex >= static_cast<int>(fields.size())) {
+        return 0;
+    }
+    const auto& product = fields[fieldIndex].product;
+    if (isMemberProduct(product)) {
+        return 1;
+    }
+    if (product == "pb") {
+        return 2;
+    }
+    if (product == "pm") {
+        return 3;
+    }
+    if (product == "prob") {
+        return 4;
+    }
+    return 0;
+}
+
+vector<int> UtilityRefs::kindFieldIndices(int kind) {
+    vector<int> result;
+    for (int i = 0; i < static_cast<int>(fields.size()); i += 1) {
+        if (kindOf(i) != kind) {
+            continue;
+        }
+        if (kind == 1 && fields[i].product != "m001") {
+            continue;   // one entry per variable; the member is a separate pick
+        }
+        result.push_back(i);
+    }
+    return result;
+}
+
+string UtilityRefs::variableLabel(int fieldIndex) {
+    if (fieldIndex < 0 || fieldIndex >= static_cast<int>(fields.size())) {
+        return {};
+    }
+    auto label = fields[fieldIndex].label;
+    for (const string prefix : {"RRFS Ens Member 1 ", "RRFS Ens Member 2 ", "RRFS Ens Member 3 ",
+                                 "RRFS Ens Member 4 ", "RRFS Ens Member 5 ", "Paintball ", "Member Probability ",
+                                 "REFS Probability "}) {
+        if (label.rfind(prefix, 0) == 0) {
+            return label.substr(prefix.size());
+        }
+    }
+    return label;
+}
+
+bool UtilityRefs::isMemberField(int fieldIndex) {
+    return kindOf(fieldIndex) == 1;
+}
+
+int UtilityRefs::memberOf(int fieldIndex) {
+    return isMemberField(fieldIndex) ? fields[fieldIndex].product[3] - '0' : 0;
+}
+
+int UtilityRefs::memberFieldIndex(int anyMemberRow, int member) {
+    if (!isMemberField(anyMemberRow)) {
+        return anyMemberRow;
+    }
+    const auto& key = fields[anyMemberRow].key;
+    const auto wanted = key.substr(0, key.rfind("_m")) + "_m" + To::string(member);
+    for (int i = 0; i < static_cast<int>(fields.size()); i += 1) {
+        if (fields[i].key == wanted) {
+            return i;
+        }
+    }
+    return anyMemberRow;
+}
+
 vector<string> UtilityRefs::regions() {
     return UtilityGrib::regions();
 }

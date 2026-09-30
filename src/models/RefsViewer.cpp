@@ -66,13 +66,13 @@ RefsViewer::RefsViewer(Window * parent)
         animBar.stopIfAnimating();
         reload();
     });
-    panel1.fieldCombo().connect([this] { panel1.onFieldChanged(); invalidateAnimation(); reload(); });
+    panel1.connectField([this] { invalidateAnimation(); reload(); });
     panel1.connectThreshold([this] { invalidateAnimation(); reload(); });
-    panel2.fieldCombo().connect([this] { panel2.onFieldChanged(); invalidateAnimation(); reload(); });
+    panel2.connectField([this] { invalidateAnimation(); reload(); });
     panel2.connectThreshold([this] { invalidateAnimation(); reload(); });
-    panel3.fieldCombo().connect([this] { panel3.onFieldChanged(); invalidateAnimation(); reload(); });
+    panel3.connectField([this] { invalidateAnimation(); reload(); });
     panel3.connectThreshold([this] { invalidateAnimation(); reload(); });
-    panel4.fieldCombo().connect([this] { panel4.onFieldChanged(); invalidateAnimation(); reload(); });
+    panel4.connectField([this] { invalidateAnimation(); reload(); });
     panel4.connectThreshold([this] { invalidateAnimation(); reload(); });
 
     boxTop.addWidget(comboRun);

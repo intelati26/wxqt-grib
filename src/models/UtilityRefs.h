@@ -33,6 +33,19 @@ public:
     static const vector<UtilityGrib::Field> fields;
 
     static vector<string> fieldLabels();
+
+    // Panel pickers: the flat field list is grouped into "kinds" (REFS
+    // mean/spread/PMM, a single RRFS Ensemble member, paintball, member
+    // probability, REFS probability). Within a kind the panel offers one
+    // entry per variable; for the member kind those entries are the
+    // member-1 rows and memberFieldIndex() maps to the chosen member.
+    static vector<string> kindLabels();
+    static int kindOf(int fieldIndex);
+    static vector<int> kindFieldIndices(int kind);
+    static string variableLabel(int fieldIndex);   // field label without the kind prefix
+    static bool isMemberField(int fieldIndex);
+    static int memberOf(int fieldIndex);           // 1-based, 0 if not a member row
+    static int memberFieldIndex(int anyMemberRow, int member);
     // Region picker - identical list/geometry to UtilityGrib's own
     // regions() (CONUS, "My Area", SPC-meso sectors). REFS runs at the same
     // 3km/2.5km resolution as deterministic RRFS (confirmed against SCN
