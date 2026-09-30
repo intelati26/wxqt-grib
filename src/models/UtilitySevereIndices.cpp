@@ -41,82 +41,6 @@ namespace {
         return ok;
     }
 
-    // Per-pixel arithmetic over same-grid rasters, in C++ - replaces
-    // gdal_calc.py so the portable builds need no Python. Rasters round-trip
-    // through GDAL's ENVI driver (flat float32 + a text .hdr that carries the
-    // georeferencing), so only the GDAL binaries already bundled are needed.
-    // Unlike gdal_calc, a -9999 (or NaN) in ANY input yields -9999 in the
-    // output, so the result's own nodata is trustworthy.
-    using CalcFn = std::function<double(const double*)>;
-
-    bool calcRaster(const QString& bin, const QStringList& inputs, const CalcFn& fn, const QString& outPath) {
-        const auto base = outPath.left(outPath.lastIndexOf('.'));  // scratch files use an explicit .raw extension: outPath itself can contain dots
-        // (bbox tag), which would make ENVI derive colliding .hdr names
-        QVector<QByteArray> data;
-        QStringList scratch;
-        auto cleanup = [&] {
-            for (const auto& file : scratch) {
-                QFile::remove(file);
-            }
-        };
-        for (int index = 0; index < inputs.size(); index += 1) {
-            const auto raw = base + "_ci" + QString::number(index) + ".raw";
-            const auto hdr = base + "_ci" + QString::number(index) + ".hdr";
-            scratch << raw << hdr << raw + ".aux.xml";
-            if (!runProcess(bin + "gdal_translate", {"-q", "-of", "ENVI", "-ot", "Float32", inputs[index], raw})) {
-                cleanup();
-                return false;
-            }
-            QFile file{raw};
-            if (!file.open(QIODevice::ReadOnly)) {
-                cleanup();
-                return false;
-            }
-            data.push_back(file.readAll());
-            if (data.back().size() != data.front().size() || data.back().isEmpty()) {
-                cleanup();
-                return false;
-            }
-        }
-        const auto count = data.front().size() / static_cast<int>(sizeof(float));
-        QVector<const float*> src;
-        for (const auto& buffer : data) {
-            src.push_back(reinterpret_cast<const float*>(buffer.constData()));
-        }
-        QByteArray out(count * static_cast<int>(sizeof(float)), 0);
-        auto* dst = reinterpret_cast<float*>(out.data());
-        std::vector<double> values(static_cast<size_t>(inputs.size()));
-        for (int pixel = 0; pixel < count; pixel += 1) {
-            bool valid = true;
-            for (int index = 0; index < inputs.size(); index += 1) {
-                const double value = src[index][pixel];
-                if (std::isnan(value) || value == -9999.0) {
-                    valid = false;
-                    break;
-                }
-                values[static_cast<size_t>(index)] = value;
-            }
-            dst[pixel] = valid ? static_cast<float>(fn(values.data())) : -9999.0f;
-        }
-        const auto rawOut = base + "_co.raw";
-        const auto hdrOut = base + "_co.hdr";
-        scratch << rawOut << hdrOut << rawOut + ".aux.xml";
-        QFile outFile{rawOut};
-        if (!outFile.open(QIODevice::WriteOnly) || outFile.write(out) != out.size()) {
-            cleanup();
-            return false;
-        }
-        outFile.close();
-        QFile::remove(hdrOut);
-        if (!QFile::copy(base + "_ci0.hdr", hdrOut)) {
-            cleanup();
-            return false;
-        }
-        const auto ok = runProcess(bin + "gdal_translate", {"-q", "-of", "GTiff", "-a_nodata", "-9999", rawOut, outPath});
-        cleanup();
-        return ok;
-    }
-
     // gdalinfo -mm's "Computed Min/Max" line, respecting NoData
     bool computedMinMax(const QString& bin, const QString& path, double& dataMin, double& dataMax) {
         QByteArray info;
@@ -369,7 +293,7 @@ vector<UtilitySevereIndices::DerivedCheck> UtilitySevereIndices::debugComputeDer
     const auto tagBase = runKey + "_" + fhr3;
 
     auto compute = [&] (const string& key, const string& label, const string& units, const string& formula,
-                         const QStringList& inputs, const CalcFn& fn) {
+                         const QStringList& inputs, const UtilityGrib::CalcFn& fn) {
         DerivedCheck check;
         check.label = label;
         check.key = key;
@@ -377,7 +301,7 @@ vector<UtilitySevereIndices::DerivedCheck> UtilitySevereIndices::debugComputeDer
         check.formula = formula;
 
         const auto outPath = dir + QString::fromStdString("/d_" + tagBase + "_" + key + ".tif");
-        if (!calcRaster(bin, inputs, fn, outPath)) {
+        if (!UtilityGrib::calcRaster(bin, inputs, fn, outPath)) {
             check.error = "raster calc failed";
             results.push_back(check);
             return;
@@ -472,9 +396,9 @@ UtilitySevereIndices::ShipGrid UtilitySevereIndices::computeShipGrid(
         "_" + QString::number(box.east, 'f', 2) + "_" + QString::number(box.north, 'f', 2);
     const auto tagBase = runKey + "_" + fhr3 + "_" + bboxTag.toStdString();
 
-    auto calcTo = [&] (const string& key, const QStringList& inputs, const CalcFn& fn) -> QString {
+    auto calcTo = [&] (const string& key, const QStringList& inputs, const UtilityGrib::CalcFn& fn) -> QString {
         const auto outPath = dir + QString::fromStdString("/s_" + tagBase + "_" + key + ".tif");
-        return calcRaster(bin, inputs, fn, outPath) ? outPath : QString{};
+        return UtilityGrib::calcRaster(bin, inputs, fn, outPath) ? outPath : QString{};
     };
 
     const auto mixrPath = calcTo("mixr",
@@ -553,7 +477,7 @@ UtilitySevereIndices::ShipGrid UtilitySevereIndices::computeShipGrid(
                 {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
                  "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
                  "-r", "near", "-ts", cols, "0", QString::fromStdString(hailGribPath), coarsePath})
-            && calcRaster(bin, {coarsePath}, [](const double* v) { return v[0] * 39.3701; }, inchPath);
+            && UtilityGrib::calcRaster(bin, {coarsePath}, [](const double* v) { return v[0] * 39.3701; }, inchPath);
         if (coarseOk
             && runProcess(bin + "gdal_contour",
                 {"-q", "-a", "elev", "-fl", "0.75", "-fl", "1.0", "-fl", "1.5", "-fl", "2.0", "-fl", "2.5",
@@ -608,9 +532,9 @@ UtilitySevereIndices::StpGrid UtilitySevereIndices::computeStpGrid(
         "_" + QString::number(box.east, 'f', 2) + "_" + QString::number(box.north, 'f', 2);
     const auto tagBase = runKey + "_" + fhr3 + "_" + bboxTag.toStdString() + "_stp";
 
-    auto calcTo = [&] (const string& key, const QStringList& inputs, const CalcFn& fn) -> QString {
+    auto calcTo = [&] (const string& key, const QStringList& inputs, const UtilityGrib::CalcFn& fn) -> QString {
         const auto outPath = dir + QString::fromStdString("/s_" + tagBase + "_" + key + ".tif");
-        return calcRaster(bin, inputs, fn, outPath) ? outPath : QString{};
+        return UtilityGrib::calcRaster(bin, inputs, fn, outPath) ? outPath : QString{};
     };
 
     const auto shear6Path = calcTo("shear6",

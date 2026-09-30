@@ -6,10 +6,12 @@
 #include "models/UtilityRefs.h"
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <QByteArray>
 #include <QDate>
 #include <QDateTime>
 #include <QDir>
+#include <QColor>
 #include <QFont>
 #include <QImage>
 #include <QPainter>
@@ -97,27 +99,61 @@ namespace {
         const string& colorMap;
     };
 
-    // Stage 3: paintball rows. Each is one member-field key + an exceedance
-    // threshold; the row's `product` is "pb" and render() dispatches to
-    // renderPaintball(). idxMatch/units repeat the member field's so the
-    // row is self-describing in the combo, but the per-member fetch uses the
-    // member rows themselves (found by "<memberKey>_m<N>").
-    struct PaintballSpec {
+    // Threshold-driven rows (Stages 3-4). One table drives three row kinds
+    // per variable: "Paintball" (each RRFS Ensemble member's exceedance
+    // area), "Member Probability" (members-exceeding / members, 5-member
+    // ensemble) and "REFS Probability" (REFS's own pre-computed `prob` bands,
+    // ~14-source pool - only a fixed set of thresholds exists there, so a
+    // requested threshold snaps to the nearest). memberKey ties a row to the
+    // per-member field rows above (nullptr = REFS-only variable); probIdx is
+    // the idx prefix inside refs.*.prob (nullptr = not published there).
+    struct ThresholdSpec {
         const char* label;
         const char* key;
         const char* memberKey;
         const char* units;
-        double threshold;
+        double defaultThreshold;
+        const char* probLabel;
+        const char* probIdx;
+        vector<double> probThresholds;
     };
-    const PaintballSpec paintballSpecs[]{
-        {"Paintball Composite Reflectivity >= 20 dBZ", "pb_refc20", "refc", "dBZ", 20.0},
-        {"Paintball Composite Reflectivity >= 40 dBZ", "pb_refc40", "refc", "dBZ", 40.0},
-        {"Paintball Updraft Helicity 2-5km >= 25", "pb_uphl25", "uphl25", "m2/s2", 25.0},
-        {"Paintball Updraft Helicity 2-5km >= 75", "pb_uphl75", "uphl25", "m2/s2", 75.0},
-        {"Paintball Surface CAPE >= 1000", "pb_cape1000", "cape", "J/kg", 1000.0},
-        {"Paintball Surface CAPE >= 2500", "pb_cape2500", "cape", "J/kg", 2500.0},
-        {"Paintball Wind Gust >= 50 kt", "pb_gust50", "gust", "m/s", 25.7},
+    const vector<ThresholdSpec> thresholdSpecs{
+        {"Composite Reflectivity", "refc", "refc", "dBZ", 40.0,
+            "Composite Reflectivity", ":REFC:entire atmosphere", {10, 20, 30, 40, 50}},
+        {"Updraft Helicity 2-5km", "uphl25", "uphl25", "m2/s2", 75.0,
+            "Updraft Helicity 2-5km", ":MXUPHL:5000-2000 m above ground", {25, 75, 150}},
+        {"Surface CAPE", "cape", "cape", "J/kg", 1000.0,
+            "Mixed-Layer CAPE (90-0mb)", ":CAPE:90-0 mb above ground", {500, 1000, 1500, 2000, 3000}},
+        {"Wind Gust", "gust", "gust", "m/s", 25.7, nullptr, nullptr, {}},
+        {"1km Reflectivity", "refd1km", nullptr, "dBZ", 40.0,
+            "1km Reflectivity", ":REFD:1000 m above ground", {30, 40, 50}},
+        {"0-3km Helicity", "hlcy3", nullptr, "m2/s2", 200.0,
+            "0-3km Storm-Relative Helicity", ":HLCY:3000-0 m above ground", {100, 200, 400}},
     };
+
+    // 0-100 % scale shared by both probability row kinds; alpha-0 below 5 %
+    // (near-step stop so the ramp stays crisp)
+    const string probColorMap{
+        "0 0 0 0 0\n" "4.999 0 0 0 0\n" "5 200 230 245\n" "20 120 200 235\n" "40 110 190 120\n"
+        "60 240 225 100\n" "80 245 150 50\n" "100 200 40 40\n"};
+
+    const ThresholdSpec * thresholdSpecFor(const string& fieldKey) {
+        for (const auto& spec : thresholdSpecs) {
+            if (fieldKey == string{"pb_"} + spec.key || fieldKey == string{"pm_"} + spec.key ||
+                fieldKey == string{"rp_"} + spec.key) {
+                return &spec;
+            }
+        }
+        return nullptr;
+    }
+
+    // filename-safe threshold tag, e.g. 25.7 -> "t25p7", -50 -> "tm50"
+    QString thresholdTag(double threshold) {
+        auto text = QString::number(threshold, 'g', 6);
+        text.replace('.', 'p').replace('-', 'm');
+        return "t" + text;
+    }
+
     // fixed member -> colour key (5 members confirmed; headroom for 8)
     const int memberColors[8][3]{
         {228, 26, 28}, {55, 126, 184}, {77, 175, 74}, {152, 78, 163},
@@ -157,8 +193,24 @@ namespace {
                     "m00" + To::string(member)});
             }
         }
-        for (const auto& spec : paintballSpecs) {
-            result.push_back(UtilityGrib::Field{spec.label, spec.key, spec.units, "", "", "pb"});
+        for (const auto& spec : thresholdSpecs) {
+            if (spec.memberKey != nullptr) {
+                result.push_back(UtilityGrib::Field{string{"Paintball "} + spec.label, string{"pb_"} + spec.key,
+                                                     spec.units, "", "", "pb"});
+            }
+        }
+        for (const auto& spec : thresholdSpecs) {
+            if (spec.memberKey != nullptr) {
+                result.push_back(UtilityGrib::Field{string{"Member Probability "} + spec.label,
+                                                     string{"pm_"} + spec.key, "%", "", "", "pm"});
+            }
+        }
+        for (const auto& spec : thresholdSpecs) {
+            if (spec.probIdx != nullptr) {
+                result.push_back(UtilityGrib::Field{string{"REFS Probability "} + spec.probLabel,
+                                                     string{"rp_"} + spec.key, "%", spec.probIdx, probColorMap,
+                                                     "prob"});
+            }
         }
         return result;
     }
@@ -205,7 +257,8 @@ string UtilityRefs::cacheDir() {
 // type in one file) - cached per run+field+hour, shared across regions, same
 // shape as UtilityGrib::render()'s own grib2 cache.
 bool UtilityRefs::fetchFieldGrib(const UtilityGrib::Field& field, const string& dateStr, const string& cycle,
-                                  int forecastHourInt, QString& gribPathOut, string& status) {
+                                  int forecastHourInt, QString& gribPathOut, string& status,
+                                  const string& alsoContains) {
     const auto fhr2 = WString::fixedLengthStringPad0(To::string(forecastHourInt), 2);
     const auto dir = QString::fromStdString(cacheDir());
     const auto runKey = dateStr + cycle;
@@ -240,7 +293,7 @@ bool UtilityRefs::fetchFieldGrib(const UtilityGrib::Field& field, const string& 
     const auto idx = UtilityIO::getHtml(url + ".idx");
     long long start = -1;
     long long end = -1;
-    if (idx.empty() || !UtilityGrib::idxByteRange(idx, field.idxMatch, start, end)) {
+    if (idx.empty() || !UtilityGrib::idxByteRange(idx, field.idxMatch, start, end, 0, alsoContains)) {
         status = field.label + " not available for f" + fhr2;
         return false;
     }
@@ -259,22 +312,217 @@ bool UtilityRefs::fetchFieldGrib(const UtilityGrib::Field& field, const string& 
     return true;
 }
 
+bool UtilityRefs::usesThreshold(int fieldIndex) {
+    return fieldIndex >= 0 && fieldIndex < static_cast<int>(fields.size()) &&
+        thresholdSpecFor(fields[fieldIndex].key) != nullptr;
+}
+
+double UtilityRefs::defaultThreshold(int fieldIndex) {
+    const auto * spec = (fieldIndex >= 0 && fieldIndex < static_cast<int>(fields.size()))
+        ? thresholdSpecFor(fields[fieldIndex].key) : nullptr;
+    return spec ? spec->defaultThreshold : 0.0;
+}
+
+string UtilityRefs::thresholdUnits(int fieldIndex) {
+    const auto * spec = (fieldIndex >= 0 && fieldIndex < static_cast<int>(fields.size()))
+        ? thresholdSpecFor(fields[fieldIndex].key) : nullptr;
+    return spec ? spec->units : string{};
+}
+
+// One member's field, fetched (cached) and warped to the region bbox.
+bool UtilityRefs::warpMember(const string& memberKey, int member, const string& dateStr, const string& cycle,
+                              int forecastHourInt, const UtilityGrib::Bbox& box, const QString& bin,
+                              const QString& warpPath, string& status) {
+    const auto key = memberKey + "_m" + To::string(member);
+    const UtilityGrib::Field * memberField = nullptr;
+    for (const auto& candidate : fields) {
+        if (candidate.key == key) {
+            memberField = &candidate;
+        }
+    }
+    QString gribPath;
+    if (memberField == nullptr || !fetchFieldGrib(*memberField, dateStr, cycle, forecastHourInt, gribPath, status)) {
+        return false;
+    }
+    return runProcess(bin + "gdalwarp",
+            {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
+             "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
+             "-r", "bilinear", "-ts", QString::number(UtilityGrib::mainRenderColumns(box)), "0", gribPath, warpPath},
+            status);
+}
+
+// Top-left key drawn onto a finished PNG: a title line, then either one
+// swatch per (label, colour) entry or, for a probability map, a 0-100 %
+// colour bar.
+void UtilityRefs::drawLegend(const QString& pngPath, const QString& title,
+                              const vector<std::pair<QString, QColor>>& swatches, bool probabilityBar) {
+    QImage image;
+    if (!image.load(pngPath)) {
+        return;
+    }
+    image = image.convertToFormat(QImage::Format_ARGB32);
+    QPainter painter{&image};
+    painter.setRenderHint(QPainter::Antialiasing);
+    const int unit = std::max(11, image.width() / 75);
+    QFont font = painter.font();
+    font.setPixelSize(unit);
+    font.setBold(true);
+    painter.setFont(font);
+    const int rowHeight = unit + 6;
+    const int pad = unit / 2;
+    const int textWidth = painter.fontMetrics().horizontalAdvance(title);
+    const int boxWidth = std::max({unit * 14, textWidth + unit, probabilityBar ? unit * 16 : 0});
+    const int rows = probabilityBar ? 2 : static_cast<int>(swatches.size()) + 1;
+    const int boxHeight = rowHeight * rows + 8 + (probabilityBar ? unit : 0);
+    painter.fillRect(QRect{6, 6, boxWidth, boxHeight}, QColor{255, 255, 255, 215});
+    painter.setPen(QColor{30, 30, 30});
+    painter.drawText(QPoint{6 + pad, 6 + rowHeight}, title);
+    if (probabilityBar) {
+        const int barLeft = 6 + pad;
+        const int barTop = 6 + rowHeight + 6;
+        const int barWidth = boxWidth - 2 * pad;
+        const struct { double pct; QColor color; } stops[]{
+            {0, QColor{255, 255, 255}}, {5, QColor{200, 230, 245}}, {20, QColor{120, 200, 235}},
+            {40, QColor{110, 190, 120}}, {60, QColor{240, 225, 100}}, {80, QColor{245, 150, 50}},
+            {100, QColor{200, 40, 40}}};
+        for (int x = 0; x < barWidth; x += 1) {
+            const auto pct = 100.0 * x / (barWidth - 1);
+            QColor color = stops[6].color;
+            for (int k = 0; k < 6; k += 1) {
+                if (pct <= stops[k + 1].pct) {
+                    const auto f = (pct - stops[k].pct) / (stops[k + 1].pct - stops[k].pct);
+                    color = QColor::fromRgbF(
+                        stops[k].color.redF() + f * (stops[k + 1].color.redF() - stops[k].color.redF()),
+                        stops[k].color.greenF() + f * (stops[k + 1].color.greenF() - stops[k].color.greenF()),
+                        stops[k].color.blueF() + f * (stops[k + 1].color.blueF() - stops[k].color.blueF()));
+                    break;
+                }
+            }
+            painter.setPen(color);
+            painter.drawLine(barLeft + x, barTop, barLeft + x, barTop + unit);
+        }
+        painter.setPen(QColor{30, 30, 30});
+        font.setBold(false);
+        font.setPixelSize(std::max(9, unit - 2));
+        painter.setFont(font);
+        for (int pct = 0; pct <= 100; pct += 25) {
+            painter.drawText(QPoint{barLeft + (barWidth - 1) * pct / 100 - (pct == 100 ? unit * 2 : 0),
+                                    barTop + unit + rowHeight - 2}, QString::number(pct) + (pct == 100 ? "%" : ""));
+        }
+    } else {
+        int row = 1;
+        for (const auto& swatch : swatches) {
+            const int top = 6 + 4 + rowHeight * row + 3;
+            painter.fillRect(QRect{6 + pad, top, unit * 2, unit}, swatch.second);
+            painter.drawRect(QRect{6 + pad, top, unit * 2, unit});
+            painter.drawText(QPoint{6 + pad + unit * 2 + 6, top + unit - 1}, swatch.first);
+            row += 1;
+        }
+    }
+    painter.end();
+    image.save(pngPath, "PNG");
+}
+
+// Colorize a region-warped float GeoTIFF into the final PNG: colour table
+// (leading "nv" = transparent nodata), min/max range file, hover-sample
+// sidecar, CWA/state lines, optional legend. Consumes warpPath.
+string UtilityRefs::finishRender(const QString& warpPath, const string& colorMap, const QString& tag,
+                                  const UtilityGrib::Bbox& box, const QString& bin, const QString& pngPath,
+                                  string& status, double& dataMin, double& dataMax, string& samplePath,
+                                  const QString& legendTitle, bool probabilityLegend) {
+    const auto dir = QString::fromStdString(cacheDir());
+    const auto rangePath = pngPath + ".range";
+    const auto gridPath = pngPath + ".grid";
+    const auto colorPath = dir + "/col_" + tag + ".txt";
+    const auto tiffPath = dir + "/c_" + tag + ".tif";
+    {
+        // leading "nv" entry = colour for recognised-nodata pixels (transparent)
+        const auto table = "nv 0 0 0 0\n" + colorMap;
+        QFile colorFile{colorPath};
+        if (colorFile.open(QIODevice::WriteOnly)) {
+            colorFile.write(table.c_str(), static_cast<qint64>(table.size()));
+            colorFile.close();
+        }
+    }
+    // Colorize straight to RGBA - the "nv 0 0 0 0" entry makes recognised-
+    // nodata pixels transparent, and the table's own alpha-0 stops are
+    // honored by -alpha, so no gdal_calc mask / gdal_merge is needed (both
+    // are Python scripts the portable builds don't bundle). Same reasoning
+    // and verification as UtilityGrib::render().
+    const auto ok = runProcess(bin + "gdaldem",
+            {"color-relief", "-q", "-alpha", "-of", "GTiff", warpPath, colorPath, tiffPath}, status);
+    if (!ok) {
+        for (const auto& stale : {colorPath, warpPath, tiffPath}) {
+            QFile::remove(stale);
+        }
+        return "";
+    }
+
+    QByteArray info;
+    {
+        QProcess process;
+        process.start(bin + "gdalinfo", {"-mm", warpPath});
+        process.waitForFinished(30000);
+        info = process.readAllStandardOutput();
+    }
+    {
+        const auto text = QString::fromUtf8(info);
+        const auto match = QRegularExpression{R"(Computed Min/Max=(-?[0-9.]+),(-?[0-9.]+))"}.match(text);
+        if (match.hasMatch()) {
+            dataMin = match.captured(1).toDouble();
+            dataMax = match.captured(2).toDouble();
+            QFile rangeFile{rangePath};
+            if (rangeFile.open(QIODevice::WriteOnly)) {
+                rangeFile.write((QString::number(dataMin, 'f', 2) + " " + QString::number(dataMax, 'f', 2)).toUtf8());
+            }
+        }
+    }
+
+    // point-value sidecar for the hover read-out, same adaptive column
+    // count UtilityGrib/UtilitySevereIndices' own hover grids use
+    {
+        const auto savedStatus = status;
+        const auto sampleCols = QString::number(UtilityGrib::mainRenderColumns(box) > 1000 ? 220 : 400);
+        if (runProcess(bin + "gdal_translate", {"-q", "-of", "XYZ", "-outsize", sampleCols, "0", warpPath, gridPath}, status)) {
+            samplePath = gridPath.toStdString();
+        }
+        status = savedStatus;
+    }
+
+    const auto burnLines = [&] (const string& geoJson, int red, int green, int blue) {
+        runProcess(bin + "gdal_rasterize",
+            {"-q", "-b", "1", "-b", "2", "-b", "3", "-b", "4",
+             "-burn", QString::number(red), "-burn", QString::number(green),
+             "-burn", QString::number(blue), "-burn", "255",
+             QString::fromStdString(geoJson), tiffPath}, status);
+    };
+    burnLines(UtilityGrib::cwaLinesGeoJson(), 110, 110, 110);
+    burnLines(UtilityGrib::stateLinesGeoJson(), 25, 25, 25);
+
+    const auto translated = runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", tiffPath, pngPath}, status);
+    for (const auto& stale : {colorPath, warpPath, tiffPath, tiffPath + ".aux.xml"}) {
+        QFile::remove(stale);
+    }
+    if (!translated || !QFile::exists(pngPath)) {
+        return "";
+    }
+    if (!legendTitle.isEmpty()) {
+        drawLegend(pngPath, legendTitle, {}, probabilityLegend);
+    }
+    return pngPath.toStdString();
+}
+
 // Paintball plot: each available RRFS Ensemble member's area of exceedance
-// for the row's threshold, drawn as a translucent blob in that member's own
+// for the threshold, drawn as a translucent blob in that member's own
 // colour, all overlaid on one map - where blobs stack the members agree.
 // Python-free: per-member colorize is a 3-stop gdaldem table (transparent
 // below the threshold, member colour at alpha 110 at/above it), members are
 // composited with QPainter, lines burned afterwards, legend drawn last.
-string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionIndex, const string& dateStr,
-                                     const string& cycle, int forecastHourInt, const string& binDir,
-                                     string& status) {
-    const PaintballSpec * spec = nullptr;
-    for (const auto& candidate : paintballSpecs) {
-        if (field.key == candidate.key) {
-            spec = &candidate;
-        }
-    }
-    if (spec == nullptr) {
+string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionIndex, double threshold,
+                                     const string& dateStr, const string& cycle, int forecastHourInt,
+                                     const string& binDir, string& status) {
+    const auto * spec = thresholdSpecFor(field.key);
+    if (spec == nullptr || spec->memberKey == nullptr) {
         status = "invalid paintball field";
         return "";
     }
@@ -282,43 +530,34 @@ string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionI
     const auto runKey = dateStr + cycle;
     const auto box = UtilityGrib::regionBbox(regionIndex);
     const auto dir = QString::fromStdString(cacheDir());
-    // "pb1" is the render version - bump it whenever the drawing pipeline changes
-    const auto pngPath = dir + QString::fromStdString(
-        "/pb1_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2 + ".png");
+    // "pb2" is the render version - bump it whenever the drawing pipeline changes
+    const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2) +
+        "_" + thresholdTag(threshold);
+    const auto pngPath = dir + "/pb2_" + tag + ".png";
     if (QFile::exists(pngPath)) {
         return pngPath.toStdString();
     }
 
     const auto bin = QString::fromStdString(binDir) + "/";
-    const auto fillCols = QString::number(UtilityGrib::mainRenderColumns(box));
-    const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2);
     QImage canvas;
     vector<int> drawn;
     string lastError;
     for (int member = 1; member <= 5; member += 1) {
-        const auto memberKey = string{spec->memberKey} + "_m" + To::string(member);
-        const UtilityGrib::Field * memberField = nullptr;
-        for (const auto& candidate : fields) {
-            if (candidate.key == memberKey) {
-                memberField = &candidate;
-            }
-        }
-        QString gribPath;
-        string memberStatus;
-        if (memberField == nullptr || !fetchFieldGrib(*memberField, dateStr, cycle, forecastHourInt, gribPath, memberStatus)) {
-            lastError = memberStatus;
-            continue;
-        }
         const auto suffix = tag + "_m" + QString::number(member);
         const auto colorPath = dir + "/pbcol_" + suffix + ".txt";
         const auto warpPath = dir + "/pbw_" + suffix + ".tif";
         const auto tiffPath = dir + "/pbc_" + suffix + ".tif";
         const auto memberPng = dir + "/pbm_" + suffix + ".png";
+        string memberStatus;
+        if (!warpMember(spec->memberKey, member, dateStr, cycle, forecastHourInt, box, bin, warpPath, memberStatus)) {
+            lastError = memberStatus;
+            continue;
+        }
         {
             const auto* rgb = memberColors[member - 1];
             const auto colorText = QString{"nv 0 0 0 0\n%1 %2 %3 %4 0\n%5 %2 %3 %4 110\n1000000 %2 %3 %4 110\n"}
-                .arg(spec->threshold - 0.001, 0, 'f', 3).arg(rgb[0]).arg(rgb[1]).arg(rgb[2])
-                .arg(spec->threshold, 0, 'f', 3).toUtf8();
+                .arg(threshold - 0.001, 0, 'f', 3).arg(rgb[0]).arg(rgb[1]).arg(rgb[2])
+                .arg(threshold, 0, 'f', 3).toUtf8();
             QFile colorFile{colorPath};
             if (colorFile.open(QIODevice::WriteOnly)) {
                 colorFile.write(colorText);
@@ -326,11 +565,7 @@ string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionI
             }
         }
         const auto ok =
-            runProcess(bin + "gdalwarp",
-                {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
-                 "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
-                 "-r", "bilinear", "-ts", fillCols, "0", gribPath, warpPath}, memberStatus)
-            && runProcess(bin + "gdaldem", {"color-relief", "-q", "-alpha", "-of", "GTiff", warpPath, colorPath, tiffPath}, memberStatus)
+            runProcess(bin + "gdaldem", {"color-relief", "-q", "-alpha", "-of", "GTiff", warpPath, colorPath, tiffPath}, memberStatus)
             && runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", tiffPath, memberPng}, memberStatus);
         QImage layer;
         if (ok && layer.load(memberPng)) {
@@ -381,42 +616,96 @@ string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionI
         return "";
     }
 
-    // legend key: threshold + one swatch per drawn member, top-left
-    QImage finalImage;
-    if (finalImage.load(pngPath)) {
-        finalImage = finalImage.convertToFormat(QImage::Format_ARGB32);
-        QPainter painter{&finalImage};
-        painter.setRenderHint(QPainter::Antialiasing);
-        const int unit = std::max(11, finalImage.width() / 75);
-        QFont font = painter.font();
-        font.setPixelSize(unit);
-        font.setBold(true);
-        painter.setFont(font);
-        const auto title = QString::fromStdString(string{"Members >= "} +
-            QString::number(spec->threshold, 'f', 0).toStdString() + " " + spec->units);
-        const int rowHeight = unit + 6;
-        const int boxWidth = std::max(unit * 14, painter.fontMetrics().horizontalAdvance(title) + unit);
-        const int boxHeight = rowHeight * (static_cast<int>(drawn.size()) + 1) + 8;
-        painter.fillRect(QRect{6, 6, boxWidth, boxHeight}, QColor{255, 255, 255, 215});
-        painter.setPen(QColor{30, 30, 30});
-        painter.drawText(QPoint{6 + unit / 2, 6 + rowHeight}, title);
-        int row = 1;
-        for (const auto member : drawn) {
-            const auto* rgb = memberColors[member - 1];
-            const int top = 6 + 4 + rowHeight * row + 3;
-            painter.fillRect(QRect{6 + unit / 2, top, unit * 2, unit}, QColor{rgb[0], rgb[1], rgb[2]});
-            painter.drawRect(QRect{6 + unit / 2, top, unit * 2, unit});
-            painter.drawText(QPoint{6 + unit / 2 + unit * 2 + 6, top + unit - 1}, QString{"Member %1"}.arg(member));
-            row += 1;
-        }
-        painter.end();
-        finalImage.save(pngPath, "PNG");
+    vector<std::pair<QString, QColor>> swatches;
+    for (const auto member : drawn) {
+        const auto* rgb = memberColors[member - 1];
+        swatches.push_back({QString{"Member %1"}.arg(member), QColor{rgb[0], rgb[1], rgb[2]}});
     }
+    drawLegend(pngPath, QString{"Members >= %1 %2"}.arg(threshold, 0, 'g', 6).arg(spec->units), swatches, false);
     return pngPath.toStdString();
 }
 
+// From-members probability: percent of available RRFS Ensemble members at
+// or above the threshold in each pixel (a 5-member ensemble - NOT the same
+// pool as REFS's own `prob` bands; see docs/refs-viewer-plan.md). The count
+// grid runs through the same finishRender() as every other field, so it gets
+// the hover sidecar (value = percent) for free.
+string UtilityRefs::renderMemberProbability(const UtilityGrib::Field& field, int regionIndex, double threshold,
+                                             const string& dateStr, const string& cycle, int forecastHourInt,
+                                             const string& binDir, string& status, double& dataMin,
+                                             double& dataMax, string& samplePath) {
+    const auto * spec = thresholdSpecFor(field.key);
+    if (spec == nullptr || spec->memberKey == nullptr) {
+        status = "invalid probability field";
+        return "";
+    }
+    const auto fhr2 = WString::fixedLengthStringPad0(To::string(forecastHourInt), 2);
+    const auto runKey = dateStr + cycle;
+    const auto box = UtilityGrib::regionBbox(regionIndex);
+    const auto dir = QString::fromStdString(cacheDir());
+    const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2) +
+        "_" + thresholdTag(threshold);
+    // "pm1" is the render version - bump it whenever the drawing pipeline changes
+    const auto pngPath = dir + "/pm1_" + tag + ".png";
+    const auto rangePath = pngPath + ".range";
+    const auto gridPath = pngPath + ".grid";
+    if (QFile::exists(pngPath)) {
+        QFile rangeFile{rangePath};
+        if (rangeFile.open(QIODevice::ReadOnly)) {
+            const auto parts = QString::fromUtf8(rangeFile.readAll()).split(' ', Qt::SkipEmptyParts);
+            if (parts.size() == 2) {
+                dataMin = parts[0].toDouble();
+                dataMax = parts[1].toDouble();
+            }
+        }
+        if (QFile::exists(gridPath)) {
+            samplePath = gridPath.toStdString();
+        }
+        return pngPath.toStdString();
+    }
+
+    const auto bin = QString::fromStdString(binDir) + "/";
+    QStringList warps;
+    string lastError;
+    for (int member = 1; member <= 5; member += 1) {
+        const auto warpPath = dir + "/pmw_" + tag + "_m" + QString::number(member) + ".tif";
+        string memberStatus;
+        if (warpMember(spec->memberKey, member, dateStr, cycle, forecastHourInt, box, bin, warpPath, memberStatus)) {
+            warps << warpPath;
+        } else {
+            lastError = memberStatus;
+            QFile::remove(warpPath);
+        }
+    }
+    if (warps.isEmpty()) {
+        status = "no ensemble members available for f" + fhr2 + (lastError.empty() ? "" : " (" + lastError + ")");
+        return "";
+    }
+    const auto countPath = dir + "/pmcount_" + tag + ".tif";
+    const auto count = static_cast<double>(warps.size());
+    const auto ok = UtilityGrib::calcRaster(bin, warps, [threshold, count] (const double * v) {
+        int exceeding = 0;
+        for (int i = 0; i < static_cast<int>(count); i += 1) {
+            exceeding += v[i] >= threshold ? 1 : 0;
+        }
+        return 100.0 * exceeding / count;
+    }, countPath);
+    for (const auto& warp : warps) {
+        QFile::remove(warp);
+        QFile::remove(warp + ".aux.xml");
+    }
+    if (!ok) {
+        status = "member probability calculation failed";
+        return "";
+    }
+    return finishRender(countPath, probColorMap, tag, box, bin, pngPath, status, dataMin, dataMax, samplePath,
+                        QString{"P(>= %1 %2) pointwise, %3 RRFS Ens members"}.arg(threshold, 0, 'g', 6).arg(spec->units)
+                            .arg(warps.size()), true);
+}
+
 string UtilityRefs::render(int fieldIndex, int regionIndex, const string& forecastHour, const string& runId,
-                            string& status, double& dataMin, double& dataMax, string& samplePath) {
+                            string& status, double& dataMin, double& dataMax, string& samplePath,
+                            double threshold) {
     dataMin = 0.0;
     dataMax = 0.0;
     samplePath = "";
@@ -439,12 +728,34 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
     const auto forecastHourInt = To::Int(forecastHour);
     const auto fhr2 = WString::fixedLengthStringPad0(To::string(forecastHourInt), 2);
     const auto runKey = dateStr + cycle;
-    const auto& field = fields[fieldIndex];
+    auto field = fields[fieldIndex];
     const auto regionLabelList = UtilityGrib::regions();
     const auto regionLabel = (regionIndex >= 0 && regionIndex < static_cast<int>(regionLabelList.size()))
         ? regionLabelList[regionIndex] : string{"Unknown"};
     const auto box = UtilityGrib::regionBbox(regionIndex);
     const auto dir = QString::fromStdString(cacheDir());
+
+    // threshold-driven rows: resolve the requested threshold (blank/NaN ->
+    // the row's default; REFS `prob` rows snap to the nearest published band)
+    const auto * spec = thresholdSpecFor(field.key);
+    string alsoContains;
+    string thresholdNote;
+    if (spec != nullptr) {
+        auto value = std::isnan(threshold) ? spec->defaultThreshold : threshold;
+        if (field.product == "prob") {
+            double best = spec->probThresholds.front();
+            for (const auto candidate : spec->probThresholds) {
+                if (std::fabs(candidate - value) < std::fabs(best - value)) {
+                    best = candidate;
+                }
+            }
+            value = best;
+            alsoContains = ":prob >" + QString::number(value, 'g', 6).toStdString() + ":";
+            field.key += "_" + thresholdTag(value).toStdString();
+        }
+        threshold = value;
+        thresholdNote = "    >= " + QString::number(value, 'g', 6).toStdString() + " " + spec->units;
+    }
 
     const QDateTime runUtc{
         QDate{To::Int(dateStr.substr(0, 4)), To::Int(dateStr.substr(4, 2)), To::Int(dateStr.substr(6, 2))},
@@ -453,10 +764,14 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
     const auto localZone = QTimeZone::systemTimeZone().abbreviation(validLocal);
     status = "REFS " + dateStr.substr(0, 4) + "-" + dateStr.substr(4, 2) + "-" + dateStr.substr(6, 2) +
         " " + cycle + "z    F" + fhr2 + " valid " + validLocal.toString("ddd h:mm AP").toStdString() +
-        " " + localZone.toStdString() + "    " + field.label + "    " + regionLabel;
+        " " + localZone.toStdString() + "    " + field.label + thresholdNote + "    " + regionLabel;
 
     if (field.product == "pb") {
-        return renderPaintball(field, regionIndex, dateStr, cycle, forecastHourInt, binDir, status);
+        return renderPaintball(field, regionIndex, threshold, dateStr, cycle, forecastHourInt, binDir, status);
+    }
+    if (field.product == "pm") {
+        return renderMemberProbability(field, regionIndex, threshold, dateStr, cycle, forecastHourInt, binDir,
+                                       status, dataMin, dataMax, samplePath);
     }
 
     // "rf2" is the render version - bump it whenever the drawing pipeline changes
@@ -480,92 +795,23 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
     }
 
     QString gribPath;
-    if (!fetchFieldGrib(field, dateStr, cycle, forecastHourInt, gribPath, status)) {
+    if (!fetchFieldGrib(field, dateStr, cycle, forecastHourInt, gribPath, status, alsoContains)) {
         return "";
     }
 
     const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2);
-    const auto colorPath = dir + "/col_" + tag + ".txt";
     const auto warpPath = dir + "/w_" + tag + ".tif";
-    const auto tiffPath = dir + "/c_" + tag + ".tif";
-    {
-        // leading "nv" entry = colour for recognised-nodata pixels (transparent)
-        const auto table = "nv 0 0 0 0\n" + field.colorMap;
-        QFile colorFile{colorPath};
-        if (colorFile.open(QIODevice::WriteOnly)) {
-            colorFile.write(table.c_str(), static_cast<qint64>(table.size()));
-            colorFile.close();
-        }
-    }
-
     const auto bin = QString::fromStdString(binDir) + "/";
     const auto fillCols = QString::number(UtilityGrib::mainRenderColumns(box));
-
-    auto ok = runProcess(bin + "gdalwarp",
+    if (!runProcess(bin + "gdalwarp",
             {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
              "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
-             "-r", "bilinear", "-ts", fillCols, "0", gribPath, warpPath}, status);
-    // Colorize straight to RGBA - the "nv 0 0 0 0" entry written into the
-    // colour table above makes recognised-nodata pixels transparent, and
-    // reflectivity's own alpha-0 stops below 5 dBZ are honored by -alpha,
-    // so no gdal_calc mask / gdal_merge is needed (both are Python scripts
-    // the portable builds don't bundle). Same reasoning and verification as
-    // UtilityGrib::render().
-    ok = ok && runProcess(bin + "gdaldem", {"color-relief", "-q", "-alpha", "-of", "GTiff", warpPath, colorPath, tiffPath}, status);
-    if (!ok) {
-        for (const auto& stale : {colorPath, warpPath, tiffPath}) {
-            QFile::remove(stale);
-        }
+             "-r", "bilinear", "-ts", fillCols, "0", gribPath, warpPath}, status)) {
+        QFile::remove(warpPath);
         return "";
     }
-
-    QByteArray info;
-    {
-        QProcess process;
-        process.start(bin + "gdalinfo", {"-mm", warpPath});
-        process.waitForFinished(30000);
-        info = process.readAllStandardOutput();
-    }
-    {
-        const auto text = QString::fromUtf8(info);
-        const auto match = QRegularExpression{R"(Computed Min/Max=(-?[0-9.]+),(-?[0-9.]+))"}.match(text);
-        if (match.hasMatch()) {
-            dataMin = match.captured(1).toDouble();
-            dataMax = match.captured(2).toDouble();
-            QFile rangeFile{rangePath};
-            if (rangeFile.open(QIODevice::WriteOnly)) {
-                rangeFile.write((QString::number(dataMin, 'f', 2) + " " + QString::number(dataMax, 'f', 2)).toUtf8());
-            }
-        }
-    }
-
-    // point-value sidecar for the hover read-out, same adaptive column
-    // count UtilityGrib/UtilitySevereIndices' own hover grids use
-    {
-        const auto savedStatus = status;
-        const auto sampleCols = QString::number(UtilityGrib::mainRenderColumns(box) > 1000 ? 220 : 400);
-        if (runProcess(bin + "gdal_translate", {"-q", "-of", "XYZ", "-outsize", sampleCols, "0", warpPath, gridPath}, status)) {
-            samplePath = gridPath.toStdString();
-        }
-        status = savedStatus;
-    }
-
-    const auto burnLines = [&] (const string& geoJson, int red, int green, int blue) {
-        runProcess(bin + "gdal_rasterize",
-            {"-q", "-b", "1", "-b", "2", "-b", "3", "-b", "4",
-             "-burn", QString::number(red), "-burn", QString::number(green),
-             "-burn", QString::number(blue), "-burn", "255",
-             QString::fromStdString(geoJson), tiffPath}, status);
-    };
-    burnLines(UtilityGrib::cwaLinesGeoJson(), 110, 110, 110);
-    burnLines(UtilityGrib::stateLinesGeoJson(), 25, 25, 25);
-
-    const auto translated = runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", tiffPath, pngPath}, status);
-    for (const auto& stale : {colorPath, warpPath, tiffPath}) {
-        QFile::remove(stale);
-    }
-    if (!translated || !QFile::exists(pngPath)) {
-        return "";
-    }
-    return pngPath.toStdString();
+    const auto legend = field.product == "prob"
+        ? QString{"REFS neighborhood P(>= %1 %2), ~14-source pool"}.arg(threshold, 0, 'g', 6).arg(spec->units) : QString{};
+    return finishRender(warpPath, field.colorMap, tag, box, bin, pngPath, status, dataMin, dataMax, samplePath,
+                        legend, true);
 }

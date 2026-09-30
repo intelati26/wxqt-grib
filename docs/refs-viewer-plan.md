@@ -444,7 +444,27 @@ Result: `vector<vector<double>>` (member → per-hour value), passed to
   shows the members stacking over the Gulf. No hover `.grid` sidecar yet
   (the natural one is members-exceeding count, which is also Stage 4's
   from-members probability). Cache key `pb1`.
-- **Stage 4** — probability-of-exceedance UI: threshold picker; direct render
+- **Stage 4 — done (2026-09-30)**: runtime threshold + both probability
+  sources. `UtilityRefs::fields` now has three row kinds per variable, driven
+  by one `thresholdSpecs` table: **Paintball** (Stage 3, threshold now a
+  per-panel runtime value), **Member Probability** (percent of available
+  RRFS Ensemble members >= threshold, pointwise, via the shared
+  `UtilityGrib::calcRaster`; goes through the same `finishRender` so it has
+  a hover sidecar = percent) and **REFS Probability** (REFS's own `prob`
+  product; `UtilityGrib::idxByteRange` gained an `alsoContains` argument to
+  pick one ":prob >N:" record; a requested threshold snaps to the nearest
+  published band and the status line shows the one used). Variables: refc,
+  uphl25, cape (members: surface CAPE; REFS: mixed-layer 90-0mb - different
+  quantities, labelled as such), gust (members only), 1km reflectivity and
+  0-3km helicity (REFS only). Each panel has a threshold box (visible only
+  for these rows, reset to the row's default on field change, Enter to
+  apply). Legends: swatch key for paintball; 0-100 % bar for the
+  probabilities. **Not the same thing**: verified live that REFS `prob` is a
+  *neighborhood* probability (smooth, high) while the 5-member number is
+  pointwise (small isolated cores) - both legends say so. Not added: precip
+  accumulation `prob` records (window text varies with forecast hour),
+  `eas`/`ffri`, lpmm/avrg.
+- **Stage 4 (original text)** — probability-of-exceedance UI: threshold picker; direct render
   from `prob`/`eas` bands where available, from-members fallback where not.
 - **Stage 5** — `RefsPointGraph` (the third window): click-to-sample, plume
   chart.

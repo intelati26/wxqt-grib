@@ -17,6 +17,8 @@
 #include <QFont>
 #include <QImage>
 #include <QJsonArray>
+#include <vector>
+#include <QVector>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
@@ -602,7 +604,8 @@ void UtilityGrib::purgeCacheForOldRun(const string& keepRunId) {
     }
 }
 
-bool UtilityGrib::idxByteRange(const string& idxText, const string& match, long long& start, long long& end, int stepHour) {
+bool UtilityGrib::idxByteRange(const string& idxText, const string& match, long long& start, long long& end,
+                                int stepHour, const string& alsoContains) {
     const auto lines = WString::split(idxText, "\n");
     start = -1;
     end = -1;
@@ -614,6 +617,9 @@ bool UtilityGrib::idxByteRange(const string& idxText, const string& match, long 
     const auto onHourAccum = "-" + tok;
     for (size_t i = 0; i < lines.size(); i += 1) {
         if (!WString::contains(lines[i], match)) {
+            continue;
+        }
+        if (!alsoContains.empty() && !WString::contains(lines[i], alsoContains)) {
             continue;
         }
         if (stepHour > 0) {
@@ -636,6 +642,86 @@ bool UtilityGrib::idxByteRange(const string& idxText, const string& match, long 
         return true;
     }
     return false;
+}
+
+// Per-pixel arithmetic over same-grid rasters, in C++ - replaces
+// gdal_calc.py so the portable builds need no Python. Rasters round-trip
+// through GDAL's ENVI driver (flat float32 + a text .hdr that carries the
+// georeferencing), so only the GDAL binaries already bundled are needed.
+// Unlike gdal_calc, a -9999 (or NaN) in ANY input yields -9999 in the
+// output, so the result's own nodata is trustworthy.
+bool UtilityGrib::calcRaster(const QString& bin, const QStringList& inputs, const CalcFn& fn, const QString& outPath) {
+    auto runGdal = [] (const QString& program, const QStringList& args) {
+        QProcess process;
+        process.start(program, args);
+        process.waitForFinished(30000);
+        return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+    };
+    const auto base = outPath.left(outPath.lastIndexOf('.'));  // scratch files use an explicit .raw extension: outPath itself can contain dots
+    // (bbox tag), which would make ENVI derive colliding .hdr names
+    QVector<QByteArray> data;
+    QStringList scratch;
+    auto cleanup = [&] {
+        for (const auto& file : scratch) {
+            QFile::remove(file);
+        }
+    };
+    for (int index = 0; index < inputs.size(); index += 1) {
+        const auto raw = base + "_ci" + QString::number(index) + ".raw";
+        const auto hdr = base + "_ci" + QString::number(index) + ".hdr";
+        scratch << raw << hdr << raw + ".aux.xml";
+        if (!runGdal(bin + "gdal_translate", {"-q", "-of", "ENVI", "-ot", "Float32", inputs[index], raw})) {
+            cleanup();
+            return false;
+        }
+        QFile file{raw};
+        if (!file.open(QIODevice::ReadOnly)) {
+            cleanup();
+            return false;
+        }
+        data.push_back(file.readAll());
+        if (data.back().size() != data.front().size() || data.back().isEmpty()) {
+            cleanup();
+            return false;
+        }
+    }
+    const auto count = data.front().size() / static_cast<int>(sizeof(float));
+    QVector<const float*> src;
+    for (const auto& buffer : data) {
+        src.push_back(reinterpret_cast<const float*>(buffer.constData()));
+    }
+    QByteArray out(count * static_cast<int>(sizeof(float)), 0);
+    auto* dst = reinterpret_cast<float*>(out.data());
+    std::vector<double> values(static_cast<size_t>(inputs.size()));
+    for (int pixel = 0; pixel < count; pixel += 1) {
+        bool valid = true;
+        for (int index = 0; index < inputs.size(); index += 1) {
+            const double value = src[index][pixel];
+            if (std::isnan(value) || value == -9999.0) {
+                valid = false;
+                break;
+            }
+            values[static_cast<size_t>(index)] = value;
+        }
+        dst[pixel] = valid ? static_cast<float>(fn(values.data())) : -9999.0f;
+    }
+    const auto rawOut = base + "_co.raw";
+    const auto hdrOut = base + "_co.hdr";
+    scratch << rawOut << hdrOut << rawOut + ".aux.xml";
+    QFile outFile{rawOut};
+    if (!outFile.open(QIODevice::WriteOnly) || outFile.write(out) != out.size()) {
+        cleanup();
+        return false;
+    }
+    outFile.close();
+    QFile::remove(hdrOut);
+    if (!QFile::copy(base + "_ci0.hdr", hdrOut)) {
+        cleanup();
+        return false;
+    }
+    const auto ok = runGdal(bin + "gdal_translate", {"-q", "-of", "GTiff", "-a_nodata", "-9999", rawOut, outPath});
+    cleanup();
+    return ok;
 }
 
 // draw each contour's value along the line, onto the finished PNG. decimals/

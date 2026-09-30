@@ -44,6 +44,10 @@ RefsViewer::RefsViewer(Window * parent)
     panel2.setFieldIndex(6);   // Probability-Matched Mean Composite Reflectivity
     panel3.setFieldIndex(3);   // Ensemble Spread 2m Temperature
     panel4.setFieldIndex(5);   // Ensemble Spread Composite Reflectivity
+    panel1.onFieldChanged();
+    panel2.onFieldChanged();
+    panel3.onFieldChanged();
+    panel4.onFieldChanged();
 
     comboRun.connect([this] { updateForecastHours(); reload(); });
     comboRegion.connect([this] { invalidateAnimation(); reload(); });
@@ -51,10 +55,14 @@ RefsViewer::RefsViewer(Window * parent)
         animBar.stopIfAnimating();
         reload();
     });
-    panel1.fieldCombo().connect([this] { invalidateAnimation(); reload(); });
-    panel2.fieldCombo().connect([this] { invalidateAnimation(); reload(); });
-    panel3.fieldCombo().connect([this] { invalidateAnimation(); reload(); });
-    panel4.fieldCombo().connect([this] { invalidateAnimation(); reload(); });
+    panel1.fieldCombo().connect([this] { panel1.onFieldChanged(); invalidateAnimation(); reload(); });
+    panel1.connectThreshold([this] { invalidateAnimation(); reload(); });
+    panel2.fieldCombo().connect([this] { panel2.onFieldChanged(); invalidateAnimation(); reload(); });
+    panel2.connectThreshold([this] { invalidateAnimation(); reload(); });
+    panel3.fieldCombo().connect([this] { panel3.onFieldChanged(); invalidateAnimation(); reload(); });
+    panel3.connectThreshold([this] { invalidateAnimation(); reload(); });
+    panel4.fieldCombo().connect([this] { panel4.onFieldChanged(); invalidateAnimation(); reload(); });
+    panel4.connectThreshold([this] { invalidateAnimation(); reload(); });
 
     boxTop.addWidget(comboRun);
     boxTop.addWidget(comboRegion);
@@ -126,17 +134,19 @@ void RefsViewer::reload() {
         ? runOptions[runIndex].second : string{};
     const std::array<int, 4> fieldIndices{
         panel1.fieldIndex(), panel2.fieldIndex(), panel3.fieldIndex(), panel4.fieldIndex()};
+    const std::array<double, 4> thresholds{
+        panel1.threshold(), panel2.threshold(), panel3.threshold(), panel4.threshold()};
 
     setTitle("REFS Ensemble Viewer - loading...");
     new FutureVoid{this,
-        [this, regionIndex, forecastHour, runId, fieldIndices] {
+        [this, regionIndex, forecastHour, runId, fieldIndices, thresholds] {
             for (size_t i = 0; i < 4; i += 1) {
                 string localStatus;
                 double lo = 0.0;
                 double hi = 0.0;
                 string gridPath;
                 const auto path = UtilityRefs::render(fieldIndices[i], regionIndex, forecastHour, runId,
-                                                        localStatus, lo, hi, gridPath);
+                                                        localStatus, lo, hi, gridPath, thresholds[i]);
                 pendingFrame[i].clear();
                 if (!path.empty()) {
                     QFile file{QString::fromStdString(path)};
@@ -243,16 +253,18 @@ void RefsViewer::renderNextAnimFrame(size_t sweepIndex, int generation) {
         ? allHours[globalIndex] : string{};
     const std::array<int, 4> fieldIndices{
         panel1.fieldIndex(), panel2.fieldIndex(), panel3.fieldIndex(), panel4.fieldIndex()};
+    const std::array<double, 4> thresholds{
+        panel1.threshold(), panel2.threshold(), panel3.threshold(), panel4.threshold()};
 
     new FutureVoid{this,
-        [this, regionIndex, hour, runId, fieldIndices] {
+        [this, regionIndex, hour, runId, fieldIndices, thresholds] {
             for (size_t i = 0; i < 4; i += 1) {
                 string localStatus;
                 double lo = 0.0;
                 double hi = 0.0;
                 string gridPath;
                 const auto path = UtilityRefs::render(fieldIndices[i], regionIndex, hour, runId,
-                                                        localStatus, lo, hi, gridPath);
+                                                        localStatus, lo, hi, gridPath, thresholds[i]);
                 pendingFrame[i].clear();
                 if (!path.empty()) {
                     QFile file{QString::fromStdString(path)};

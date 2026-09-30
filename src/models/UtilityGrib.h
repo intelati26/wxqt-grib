@@ -6,11 +6,13 @@
 #ifndef UTILITYGRIB_H
 #define UTILITYGRIB_H
 
+#include <functional>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
 #include <QString>
+#include <QStringList>
 
 using std::string;
 using std::vector;
@@ -200,7 +202,21 @@ public:
     // fetch against a differently-shaped URL (UtilityRefs, against
     // `refs.*`/`rrfsens.*` rather than `rrfs.*`) can reuse the parser
     // instead of a second copy.
-    static bool idxByteRange(const string& idxText, const string& match, long long& start, long long& end, int stepHour = 0);
+    // alsoContains, if non-empty, must ALSO appear on the matched record's
+    // line - lets a caller pick one record out of several sharing the same
+    // variable/level prefix (e.g. REFS `prob` records, which differ only in
+    // a ":prob >40:" suffix after a forecast-hour-dependent stretch).
+    static bool idxByteRange(const string& idxText, const string& match, long long& start, long long& end,
+                             int stepHour = 0, const string& alsoContains = "");
+
+    // Per-pixel arithmetic over same-grid rasters, in C++ - replaces
+    // gdal_calc.py so the portable builds need no Python. Rasters round-trip
+    // through GDAL's ENVI driver (flat float32 + a text .hdr carrying the
+    // georeferencing), so only the bundled GDAL binaries are needed. A -9999
+    // (or NaN) in ANY input yields -9999 in the output, so the result's own
+    // nodata is trustworthy (unlike gdal_calc's).
+    using CalcFn = std::function<double(const double*)>;
+    static bool calcRaster(const QString& bin, const QStringList& inputs, const CalcFn& fn, const QString& outPath);
 
 private:
     // shared cache-or-generate wrapper - every *LinesGeoJson() accessor

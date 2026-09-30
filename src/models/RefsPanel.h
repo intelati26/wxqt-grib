@@ -6,7 +6,10 @@
 #ifndef REFSPANEL_H
 #define REFSPANEL_H
 
+#include <cmath>
+#include <functional>
 #include "ui/ComboBox.h"
+#include "ui/Entry.h"
 #include "ui/HBox.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -29,12 +32,23 @@ public:
     int fieldIndex() const;
     void setFieldIndex(int);
 
+    // Threshold box, shown only for threshold-driven fields (Paintball /
+    // Member Probability / REFS Probability). Blank or unparsable -> NaN,
+    // which UtilityRefs::render() treats as the field's default.
+    double threshold() const;
+    // Call after the field combo changes: shows/hides the box and resets it
+    // to the new field's default threshold (silently - no reload fired).
+    void onFieldChanged();
+    void connectThreshold(const std::function<void()>&);
+
     ComboBox& fieldCombo();
     ZoomImage& imageView();
 
 private:
     VBox box;
+    HBox rowHeader;
     ComboBox comboField;
+    Entry entryThreshold;
     ZoomImage image;
 };
 
