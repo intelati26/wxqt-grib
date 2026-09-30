@@ -1,0 +1,87 @@
+name: Build portable packages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            make
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-tools
+            mingw-w64-x86_64-qt6-location
+            mingw-w64-x86_64-qt6-webengine
+            mingw-w64-x86_64-gdal
+            python
+
+      - name: Generate resources + .pro
+        run: |
+          cd resourceCreation
+          ./createResourcesImage.py
+          ./createResourcesRes.py
+          cd ..
+          ./makeAll.py --pro
+
+      - name: Build
+        run: make -j$(nproc)
+
+      - name: Package portable folder
+        run: bash .github/scripts/package-windows.sh
+
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path dist/wxqt-portable/* -DestinationPath dist/wxqt-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wxqt-windows-x64
+          path: dist/wxqt-windows-x64.zip
+          if-no-files-found: error
+
+  linux-x64-appimage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++ make \
+            qt6-base-dev qt6-webengine-dev \
+            gdal-bin libgdal-dev python3-gdal
+
+      - name: Generate resources + .pro
+        run: |
+          cd resourceCreation
+          ./createResourcesImage.py
+          ./createResourcesRes.py
+          cd ..
+          ./makeAll.py --pro
+
+      - name: Build
+        run: make -j"$(nproc)"
+
+      - name: Package AppImage
+        run: bash .github/scripts/package-linux-appimage.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wxqt-linux-x64-appimage
+          path: dist/wxqt-x86_64.AppImage
+          if-no-files-found: error
