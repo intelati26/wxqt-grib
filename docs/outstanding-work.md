@@ -38,9 +38,16 @@ drivers + GEOS/PNG/SQLite/OpenJPEG) instead of MSYS2's full one, whose closure
 (OpenBLAS, Arrow/Parquet, x265/aom/SVT-AV1, SFCGAL, poppler, HDF5, ...) was
 most of the 147 MB zip. Contour buffering no longer needs SpatiaLite
 (`UtilityGrib::bufferContours`: `ogr2ogr -simplify` then `ST_Buffer`, output
-byte-identical). CI smoke-tests every GDAL tool/driver the app uses. Still-open
-size levers: the same minimal GDAL for the AppImage, zstd/xz for the AppImage,
-stripping the Linux binary.
+byte-identical). CI smoke-tests every GDAL tool/driver the app uses.
+**Result:** Windows zip 275 MB -> 47 MB over this work (lite build, packaging
+trims, minimal GDAL); AppImage 171 MB -> 87 MB. AppImage is already
+zstd-compressed (checked in the appimagetool log), so xz is not a free win.
+**In progress (branch `linux-minimal-gdal`, PR #2, draft until CI is green):** the
+same vcpkg minimal GDAL for the AppImage (shared libs, release-only triplet
+overlay in `.github/vcpkg/triplets`), GDAL libs/tools stripped, plus CI checks
+that the bundled GDAL runs from a clean environment and that the finished
+AppImage starts headless. The packaging cannot be run locally (CachyOS IFUNC
+issue), so CI is the test.
 
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
