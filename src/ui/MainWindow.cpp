@@ -70,13 +70,9 @@ MainWindow::MainWindow(QWidget * parent)
 
     boxSevenDay.setSpacing(0);
 
-    addWidgets();
     box.addLayout(boxSevereDashboard);
     box.addLayout(boxH);
     boxH.addLayout(toolbar);
-    boxH.addLayout(imageLayout);
-    boxH.addLayout(forecastLayout);
-    boxH.addLayout(rightMostLayout);
 
     forecastLayout.addWidget(comboBox);
     forecastLayout.addLayout(boxCc);
@@ -84,6 +80,8 @@ MainWindow::MainWindow(QWidget * parent)
     forecastLayout.addLayout(boxHazards);
     forecastLayout.addLayout(boxSevenDay);
     forecastLayout.addStretch();
+
+    addWidgets();   // also places the columns right of the toolbar, in the user's order
 
     reload();
 
@@ -251,7 +249,6 @@ void MainWindow::addWidgets() {
     imageWidgets.clear();
     textWidgets.clear();
     boxSevereDashboard.removeChildren();
-    tokenString = "";
     nexradList.clear();
 
     if (UIPreferences::nexradMainScreen) {
@@ -272,50 +269,90 @@ void MainWindow::addWidgets() {
             });
         nexradList[0]->setFixedHeight(UIPreferences::mainScreenImageSize);
         nexradList[0]->setFixedWidth(UIPreferences::mainScreenImageSize);
-        imageLayout.addWidgetReal(nexradList[0]);
-        tokenString += "NEXRAD_MAIN";
     }
     //
     // image setup
     //
-    for (const auto& item : UIPreferences::homeScreenItemsImage) {
-        if (item.isEnabled()) {
-            imageWidgets.insert({item.getPrefToken(), Image{this}});
-            const auto tokenFinal = item.getPrefToken();
-            imageWidgets.at(item.getPrefToken()).connect([this, tokenFinal] { launchImageScreen(tokenFinal); });
-            imageLayout.addWidget(imageWidgets.at(item.getPrefToken()));
-            tokenString += item.getPrefToken();
+    for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
+        if (token == UIPreferences::homeScreenNexradToken) {
+            if (!nexradList.empty()) {
+                imageLayout.addWidgetReal(nexradList[0]);
+            }
+            continue;
         }
-        imageSize = UIPreferences::mainScreenImageSize;
+        for (const auto& item : UIPreferences::homeScreenItemsImage) {
+            if (item.getPrefToken() == token && item.isEnabled()) {
+                imageWidgets.insert({token, Image{this}});
+                imageWidgets.at(token).connect([this, token] { launchImageScreen(token); });
+                imageLayout.addWidget(imageWidgets.at(token));
+            }
+        }
     }
+    imageSize = UIPreferences::mainScreenImageSize;
     imageLayout.addStretch();
     //
     // Textual right sidebar (hourly)
     //
-    for (const auto& item : UIPreferences::homeScreenItemsText) {
-        if (item.isEnabled()) {
-            textWidgets.insert({item.getPrefToken(), Text{this}});
-            textWidgets.at(item.getPrefToken()).setFixedWidth();
-            rightMostLayout.addWidget(textWidgets.at(item.getPrefToken()));
-            tokenString += item.getPrefToken();
+    for (const auto& token : UIPreferences::homeScreenTextOrder.getTokens()) {
+        for (const auto& item : UIPreferences::homeScreenItemsText) {
+            if (item.getPrefToken() == token && item.isEnabled()) {
+                textWidgets.insert({token, Text{this}});
+                textWidgets.at(token).setFixedWidth();
+                rightMostLayout.addWidget(textWidgets.at(token));
+            }
         }
     }
     rightMostLayout.addStretch();
+    tokenString = computeTokenString();
+    arrangeColumns();
+}
+
+// (re)places the image / forecast / text columns right of the toolbar in the
+// order chosen under Settings > Home Screen Order. The column layouts are
+// detached and re-added, not rebuilt, so their contents are kept.
+void MainWindow::arrangeColumns() {
+    auto * row = boxH.getView();
+    const vector<std::pair<string, VBox *>> columns{
+        {UIPreferences::homeColumnImages, &imageLayout},
+        {UIPreferences::homeColumnForecast, &forecastLayout},
+        {UIPreferences::homeColumnText, &rightMostLayout},
+    };
+    for (const auto& column : columns) {
+        row->removeItem(column.second->getView());   // no-op the first time
+        column.second->getView()->setParent(nullptr);
+    }
+    for (const auto& token : UIPreferences::homeScreenColumnOrder.getTokens()) {
+        for (const auto& column : columns) {
+            if (column.first == token) {
+                boxH.addLayout(*column.second);
+            }
+        }
+    }
 }
 
 string MainWindow::computeTokenString() {
     string tokenString;
-    if (UIPreferences::nexradMainScreen) {
-        tokenString += "NEXRAD_MAIN";
+    for (const auto& token : UIPreferences::homeScreenColumnOrder.getTokens()) {
+        tokenString += token + ",";
     }
-    for (const auto& item : UIPreferences::homeScreenItemsImage) {
-        if (item.isEnabled()) {
-            tokenString += item.getPrefToken();
+    for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
+        if (token == UIPreferences::homeScreenNexradToken) {
+            if (UIPreferences::nexradMainScreen) {
+                tokenString += token + ",";
+            }
+            continue;
+        }
+        for (const auto& item : UIPreferences::homeScreenItemsImage) {
+            if (item.getPrefToken() == token && item.isEnabled()) {
+                tokenString += token + ",";
+            }
         }
     }
-    for (const auto& item : UIPreferences::homeScreenItemsText) {
-        if (item.isEnabled()) {
-            tokenString += item.getPrefToken();
+    for (const auto& token : UIPreferences::homeScreenTextOrder.getTokens()) {
+        for (const auto& item : UIPreferences::homeScreenItemsText) {
+            if (item.getPrefToken() == token && item.isEnabled()) {
+                tokenString += token + ",";
+            }
         }
     }
     return tokenString;

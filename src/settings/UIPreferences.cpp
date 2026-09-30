@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "settings/UIPreferences.h"
+#include <algorithm>
 #include "objects/WString.h"
 #include "radarcolorpalette/ColorPalettes.h"
 #include "util/Utility.h"
@@ -41,6 +42,87 @@ vector<PrefBool> UIPreferences::homeScreenItemsText{
     PrefBool{"Wfo Text", "WFO_TEXT", false}
 };
 
+const string UIPreferences::homeScreenNexradToken{"NEXRAD_MAIN"};
+const string UIPreferences::homeColumnImages{"IMAGES"};
+const string UIPreferences::homeColumnForecast{"FORECAST"};
+const string UIPreferences::homeColumnText{"TEXT"};
+
+namespace {
+    vector<string> tokensOf(const vector<PrefBool>& items, const vector<string>& leading = {}) {
+        auto tokens = leading;
+        for (const auto& item : items) {
+            tokens.push_back(item.getPrefToken());
+        }
+        return tokens;
+    }
+}
+
+HomeScreenOrder UIPreferences::homeScreenColumnOrder{"HOME_SCREEN_COLUMN_ORDER", {homeColumnImages, homeColumnForecast, homeColumnText}};
+HomeScreenOrder UIPreferences::homeScreenImageOrder{"HOME_SCREEN_IMAGE_ORDER", tokensOf(homeScreenItemsImage, {homeScreenNexradToken})};
+HomeScreenOrder UIPreferences::homeScreenTextOrder{"HOME_SCREEN_TEXT_ORDER", tokensOf(homeScreenItemsText)};
+
+string UIPreferences::homeScreenLabel(const string& token) {
+    if (token == homeColumnImages) {
+        return "Images (radar, satellite, ...)";
+    }
+    if (token == homeColumnForecast) {
+        return "Forecast (conditions, hazards, 7 day)";
+    }
+    if (token == homeColumnText) {
+        return "Text (hourly, WFO text)";
+    }
+    if (token == homeScreenNexradToken) {
+        return "Nexrad";
+    }
+    for (const auto& items : {&homeScreenItemsImage, &homeScreenItemsText}) {
+        for (const auto& item : *items) {
+            if (item.getPrefToken() == token) {
+                return item.getLabel();
+            }
+        }
+    }
+    return token;
+}
+
+HomeScreenOrder::HomeScreenOrder(const string& prefToken, const vector<string>& defaults)
+    : prefToken{prefToken}
+    , defaults{defaults}
+    , tokens{defaults}
+{}
+
+void HomeScreenOrder::load() {
+    tokens.clear();
+    const auto saved = Utility::readPref(prefToken, "");
+    if (!saved.empty()) {
+        for (const auto& token : WString::split(saved, ",")) {
+            const auto known = std::find(defaults.begin(), defaults.end(), token) != defaults.end();
+            const auto seen = std::find(tokens.begin(), tokens.end(), token) != tokens.end();
+            if (known && !seen) {
+                tokens.push_back(token);
+            }
+        }
+    }
+    for (const auto& token : defaults) {
+        if (std::find(tokens.begin(), tokens.end(), token) == tokens.end()) {
+            tokens.push_back(token);
+        }
+    }
+}
+
+void HomeScreenOrder::move(int from, int to) {
+    const auto count = static_cast<int>(tokens.size());
+    if (count < 2 || from < 0 || from >= count) {
+        return;
+    }
+    to = ((to % count) + count) % count;
+    std::swap(tokens[from], tokens[to]);
+    Utility::writePref(prefToken, WString::join(tokens, ","));
+}
+
+const vector<string>& HomeScreenOrder::getTokens() const {
+    return tokens;
+}
+
 void UIPreferences::initialize() {
     ColorPalettes::initialize();
     textPadding = QMargins(padding, padding, padding, padding);
@@ -56,4 +138,7 @@ void UIPreferences::initialize() {
     rememberGOES = WString::startsWith(Utility::readPref("REMEMBER_GOES", "false"), "t");
     rememberMosaic = WString::startsWith(Utility::readPref("REMEMBER_MOSAIC", "false"), "t");
     tiledWindows = WString::startsWith(Utility::readPref("TILED_WINDOWS", "false"), "t");
+    homeScreenColumnOrder.load();
+    homeScreenImageOrder.load();
+    homeScreenTextOrder.load();
 }
