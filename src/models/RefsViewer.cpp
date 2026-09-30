@@ -527,11 +527,13 @@ void RefsViewer::onSave() {
         setTitle("REFS Ensemble Viewer - nothing to save yet");
         return;
     }
-    const auto suggested = mosaics.size() >= 2
-        ? string{"refs_comparison_anim"}
-        : ("refs_comparison_f" + comboForecastHour.getValue());
+    const auto looping = mosaics.size() >= 2 && !frameStatuses.empty();
+    const auto suggested = UtilityAnimationExport::modelName(
+        QString::fromStdString(looping ? frameStatuses.front() : status),
+        QString::fromStdString(looping ? frameStatuses.back() : status),
+        "refs_comparison_" + UtilityAnimationExport::slug(QString::fromStdString(comboRegion.getValue()), 30));
     UtilityAnimationExport::saveWithDialog(this, mosaics.size() >= 2 ? mosaics : vector<QByteArray>{},
-                                           frameDelayMs, still, QString::fromStdString(suggested));
+                                           frameDelayMs, still, suggested, QByteArray{}, false);
 }
 
 void RefsViewer::resizeEventCustom() {

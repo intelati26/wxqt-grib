@@ -1,3 +1,5 @@
+#include <QDateTime>
+#include <QTimeZone>
 // *****************************************************************************
 // * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
@@ -191,19 +193,33 @@ void Rtma::onSave() {
     const auto sectorIndex = std::max(0, comboboxSector.getIndex());
     const auto sectorName = sectorIndex < static_cast<int>(UtilityRtma::sectors.size())
         ? UtilityRtma::sectors[sectorIndex] : string{"sector"};
-    string suggested;
+    // RTMA is an analysis: name it by its valid (analysis) time, not the time the
+    // server finished writing the file. Combo entries look like "20260930 16 UTC".
+    const auto validTime = [] (const string& text) {
+        auto parsed = QDateTime::fromString(QString::fromStdString(text).left(11), "yyyyMMdd HH");
+        parsed.setTimeZone(QTimeZone::utc());   // the text IS UTC; do not convert it from local time
+        return parsed;
+    };
+    QDateTime firstValid = validTime(comboboxTimes.getValue());
+    QDateTime lastValid = firstValid;
     if (valid >= 2) {
-        suggested = "rtma_" + UtilityRtma::codes[index] + "_" + sectorName + "_anim";
-    } else {
-        auto stamp = comboboxTimes.getValue();
-        std::replace(stamp.begin(), stamp.end(), ' ', '_');
-        suggested = "rtma_" + UtilityRtma::codes[index] + "_" + sectorName + "_" + stamp;
+        const auto items = comboboxTimes.getItems();
+        const auto firstGlobal = animBar.globalIndexAt(0);
+        const auto lastGlobal = animBar.globalIndexAt(valid - 1);
+        // combo entries are newest-first; the bar's indices are chronological
+        const auto fromChrono = [&] (int chrono) { return static_cast<size_t>(comboIndexForChrono(chrono)); };
+        if (firstGlobal >= 0 && lastGlobal >= 0 && fromChrono(lastGlobal) < items.size() && fromChrono(firstGlobal) < items.size()) {
+            firstValid = validTime(items[fromChrono(firstGlobal)]);
+            lastValid = validTime(items[fromChrono(lastGlobal)]);
+        }
     }
+    const auto suggested = UtilityAnimationExport::validName(firstValid, lastValid,
+        QString::fromStdString("rtma_" + UtilityRtma::codes[index] + "_" + sectorName));
 
     // the loaded frames when a loop has been rendered, else the single image on screen;
     // the Save dialog offers every available format and reports any failure
     UtilityAnimationExport::saveWithDialog(this, valid >= 2 ? animBar.loadedFrames() : vector<QByteArray>{},
-                                           frameDelayMs, currentBytes, QString::fromStdString(suggested));
+                                           frameDelayMs, currentBytes, suggested, QByteArray{}, false);
 }
 
 void Rtma::moveBack() {

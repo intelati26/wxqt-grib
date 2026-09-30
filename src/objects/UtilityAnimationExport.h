@@ -9,6 +9,7 @@
 #include <functional>
 #include <vector>
 #include <QByteArray>
+#include <QDateTime>
 #include <QImage>
 #include <QLabel>
 #include <QString>
@@ -45,9 +46,26 @@ public:
     // datedName); `metaBytes` names which bytes to look that up for (default:
     // the still image, else the newest frame). Rendered images that have no
     // download record keep `baseName` as given (it already carries run / hour).
+    // `datePrefix` = false skips that lookup (the caller already put the time in
+    // baseName, e.g. via modelName() / validName()).
     static bool saveWithDialog(QWidget * parent, const vector<QByteArray>& frames, int frameDelayMs,
                                const QByteArray& still, const QString& baseName,
-                               const QByteArray& metaBytes = QByteArray{});
+                               const QByteArray& metaBytes = QByteArray{}, bool datePrefix = true);
+
+    // File-name building for images WE render from model runs (RRFS, REFS,
+    // SHIP/STP, SPC Post): "<run date>_<cycle>z_f<hour>_v<valid time>Z_<product>",
+    // e.g. "20260930_06z_f012_v20260930_1800Z_rrfs_tmp2m_conus". The run, hour(s)
+    // are read from the screen's own status lines ("... 2026-09-30 06z    F12
+    // valid ..." or a max composite's "... F001-F030 (24 hrs)"); the valid time is
+    // run + hour in UTC. For a loaded animation pass the first and last frame's
+    // status: the hour becomes "f001-f024" and the valid time a range. Falls back
+    // to `product` alone if a status can't be read.
+    static QString modelName(const QString& firstStatus, const QString& lastStatus, const QString& product);
+    // "<first>Z[-<last>Z]_<product>" from explicit valid times (analyses such as
+    // RTMA that have no model run)
+    static QString validName(const QDateTime& first, const QDateTime& last, const QString& product);
+    // lower-case, a-z0-9 and single underscores only, at most `length` characters
+    static QString slug(const QString& text, int length);
 
     // "20260930_1639Z_product" (UTC) from the download metadata recorded for
     // `bytes` (server Last-Modified, else the time we fetched it); just

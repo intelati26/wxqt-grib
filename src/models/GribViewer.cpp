@@ -488,14 +488,18 @@ void GribViewer::onSave() {
     const auto fieldIndex = comboField.getIndex();
     const auto fieldKey = (fieldIndex >= 0 && fieldIndex < static_cast<int>(UtilityGrib::fields.size()))
         ? UtilityGrib::fields[fieldIndex].key : string{"field"};
-    auto suggested = (valid >= 2)
-        ? ("rrfs_" + fieldKey + "_anim")
-        : ("rrfs_" + fieldKey + "_f" + comboForecastHour.getValue());
+    // run date / cycle / f-hour / valid time from the screen's own status lines
+    // (first and last loaded frame for an animation) + product + region
+    const auto looping = valid >= 2 && !frameStatuses.empty();
+    const auto firstStatus = QString::fromStdString(looping ? frameStatuses.front() : status);
+    const auto lastStatus = QString::fromStdString(looping ? frameStatuses.back() : status);
+    const auto suggested = UtilityAnimationExport::modelName(firstStatus, lastStatus,
+        QString::fromStdString("rrfs_" + fieldKey) + "_" + UtilityAnimationExport::slug(QString::fromStdString(comboRegion.getValue()), 30));
 
     // the loaded frames when a loop has been rendered, else the single image on screen;
     // the Save dialog offers every available format and reports any failure
     UtilityAnimationExport::saveWithDialog(this, valid >= 2 ? animBar.loadedFrames() : vector<QByteArray>{},
-                                           frameDelayMs, renderedBytes, QString::fromStdString(suggested));
+                                           frameDelayMs, renderedBytes, suggested, QByteArray{}, false);
 }
 
 QByteArray GribViewer::buildLegend(int fieldIndex, double clipLo, double clipHi) const {

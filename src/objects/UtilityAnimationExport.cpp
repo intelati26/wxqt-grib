@@ -19,6 +19,7 @@
 #include <QRegularExpression>
 #include <QPushButton>
 #include <QStandardPaths>
+#include <QTimeZone>
 #include <QStringList>
 #include <QTemporaryDir>
 #include <QUrl>
@@ -247,15 +248,7 @@ void UtilityAnimationExport::installContextSave(QLabel * label) {
         if (menu.exec(label->mapToGlobal(point)) != save) {
             return;
         }
-        auto clean = [] (QString text, int length) {
-            text = text.toLower();
-            text.replace(QRegularExpression{"[^a-z0-9]+"}, "_");
-            text = text.left(length);
-            while (text.endsWith('_')) {
-                text.chop(1);
-            }
-            return text;
-        };
+        auto clean = [] (const QString& text, int length) { return slug(text, length); };
         auto product = clean(label->window()->windowTitle(), 40);
         // a screen showing several pictures (outlook grids, dashboards) would give
         // them all the same name, so add the picture's own file name when so
@@ -332,6 +325,72 @@ void UtilityAnimationExport::showInstallHelp(QWidget * parent, const QStringList
     }
 }
 
+QString UtilityAnimationExport::slug(const QString& text, int length) {
+    auto result = text.toLower();
+    result.replace(QRegularExpression{"[^a-z0-9]+"}, "_");
+    result = result.left(length);
+    while (result.endsWith('_')) {
+        result.chop(1);
+    }
+    return result;
+}
+
+namespace {
+    struct ParsedRun {
+        QDateTime run;
+        int firstHour{0};
+        int lastHour{0};
+    };
+
+    bool parseStatus(const QString& status, ParsedRun& out) {
+        const auto match = QRegularExpression{R"((\d{4})-(\d{2})-(\d{2}) (\d{2})z\s+F(\d+)(?:-F(\d+))?)"}.match(status);
+        if (!match.hasMatch()) {
+            return false;
+        }
+        out.run = QDateTime{QDate{match.captured(1).toInt(), match.captured(2).toInt(), match.captured(3).toInt()},
+                            QTime{match.captured(4).toInt(), 0}, QTimeZone::utc()};
+        out.firstHour = match.captured(5).toInt();
+        out.lastHour = match.captured(6).isEmpty() ? out.firstHour : match.captured(6).toInt();
+        return out.run.isValid();
+    }
+
+    QString stamp(const QDateTime& when) {
+        return when.toUTC().toString("yyyyMMdd_HHmm") + "Z";
+    }
+}
+
+QString UtilityAnimationExport::modelName(const QString& firstStatus, const QString& lastStatus, const QString& product) {
+    ParsedRun first;
+    if (!parseStatus(firstStatus, first)) {
+        return product;
+    }
+    ParsedRun last = first;
+    if (!lastStatus.isEmpty() && !parseStatus(lastStatus, last)) {
+        last = first;
+    }
+    const auto fh = [] (int hour) { return QString::number(hour).rightJustified(3, '0'); };
+    const auto validFirst = first.run.addSecs(3600 * first.firstHour);
+    const auto validLast = last.run.addSecs(3600 * last.lastHour);
+    QString hours = "f" + fh(first.firstHour);
+    QString valid = "v" + stamp(validFirst);
+    if (first.run != last.run || last.lastHour != first.firstHour) {
+        hours += "-f" + fh(last.lastHour);
+        valid += "-" + stamp(validLast);
+    }
+    return first.run.toString("yyyyMMdd_HH") + "z_" + hours + "_" + valid + "_" + product;
+}
+
+QString UtilityAnimationExport::validName(const QDateTime& first, const QDateTime& last, const QString& product) {
+    if (!first.isValid()) {
+        return product;
+    }
+    auto name = stamp(first);
+    if (last.isValid() && last != first) {
+        name += "-" + stamp(last);
+    }
+    return name + "_" + product;
+}
+
 QString UtilityAnimationExport::datedName(const QString& product, const QByteArray& bytes) {
     URL::Meta meta;
     if (!URL::metaFor(bytes, meta)) {
@@ -354,7 +413,7 @@ QString UtilityAnimationExport::updatedText(const QByteArray& bytes) {
 
 bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByteArray>& frames, int frameDelayMs,
                                             const QByteArray& still, const QString& baseName,
-                                            const QByteArray& metaBytes) {
+                                            const QByteArray& metaBytes, bool datePrefix) {
     const bool animated = frames.size() >= 2;
     if (!animated && still.isEmpty() && frames.empty()) {
         QMessageBox::information(parent, "Nothing to save", "There is no image to save yet.");
@@ -399,7 +458,7 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
 
     const auto & metaSource = !metaBytes.isEmpty() ? metaBytes
         : (!still.isEmpty() ? still : (frames.empty() ? still : frames.back()));
-    const auto datedBase = datedName(baseName, metaSource);
+    const auto datedBase = datePrefix ? datedName(baseName, metaSource) : baseName;
     const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
     const auto stem = picturesDir.isEmpty() ? datedBase : picturesDir + "/" + datedBase;
     QString selectedFilter = filters.first();

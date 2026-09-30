@@ -54,10 +54,13 @@ fetch time) in a small in-memory table keyed by a hash of the image bytes
 picture's real time: default save names are `yyyyMMdd_HHmmZ_<product>` (UTC),
 e.g. `20260930_1630Z_spc_convective_outlooks_day1otlk_1630.png`; an animation
 uses its newest frame's time. Screens showing several pictures add the
-picture's own file name. Rendered model images (GRIB/REFS/SHIP/SPC Post/RTMA)
-have no download record and keep their run/forecast-hour names. Not done:
-valid-time prefixes for those rendered names; writing the time into the file
-metadata.
+picture's own file name. **Model images we render** (GRIB, REFS, SHIP/STP incl. max composites, SPC
+Post) are named `<run date>_<cycle>z_f<hour>_v<valid time>Z_<product>_<region>`,
+e.g. `20260930_06z_f012_v20260930_1800Z_rrfs_tmp2m_conus.png`; an animation or
+max composite gives ranges (`f012-f024`, `v...Z-...Z`). Built by
+`UtilityAnimationExport::modelName` from each screen's own status line (valid =
+run + hour, UTC). RTMA (an analysis) uses `validName`: `20260930_1600Z_rtma_*`.
+Not done: writing the time into the file's metadata.
 
 ## Python dependency in rendering — removed
 No render pipeline uses `gdal_calc.py`/`gdal_merge.py` any more. Nodata

@@ -424,14 +424,18 @@ void SpcPostViewer::onSave() {
     const auto productIndex = comboProduct.getIndex();
     const auto productKey = (productIndex >= 0 && productIndex < static_cast<int>(UtilitySpcPost::products.size()))
         ? UtilitySpcPost::products[productIndex].key : string{"spcpost"};
-    auto suggested = (valid >= 2)
-        ? ("spcpost_" + productKey + "_anim")
-        : ("spcpost_" + productKey + "_f" + comboForecastHour.getValue());
+    // run date / cycle / f-hour / valid time from the screen's own status lines
+    // (first and last loaded frame for an animation) + product + region
+    const auto looping = valid >= 2 && !frameStatuses.empty();
+    const auto firstStatus = QString::fromStdString(looping ? frameStatuses.front() : status);
+    const auto lastStatus = QString::fromStdString(looping ? frameStatuses.back() : status);
+    const auto suggested = UtilityAnimationExport::modelName(firstStatus, lastStatus,
+        QString::fromStdString("spcpost_" + productKey) + "_" + UtilityAnimationExport::slug(QString::fromStdString(comboDomain.getValue()), 30));
 
     // the loaded frames when a loop has been rendered, else the single image on screen;
     // the Save dialog offers every available format and reports any failure
     UtilityAnimationExport::saveWithDialog(this, valid >= 2 ? animBar.loadedFrames() : vector<QByteArray>{},
-                                           frameDelayMs, renderedBytes, QString::fromStdString(suggested));
+                                           frameDelayMs, renderedBytes, suggested, QByteArray{}, false);
 }
 
 // static 0-100% probability legend - unlike GribViewer's per-field legend, every

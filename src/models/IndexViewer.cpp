@@ -476,14 +476,18 @@ void IndexViewer::onSave() {
     const auto indexIndex = comboIndex.getIndex();
     const auto indexKey = (indexIndex >= 0 && indexIndex < static_cast<int>(UtilitySevereIndices::indices.size()))
         ? UtilitySevereIndices::indices[indexIndex].key : string{"index"};
-    auto suggested = (valid >= 2)
-        ? (indexKey + "_anim")
-        : (indexKey + "_f" + comboForecastHour.getValue());
+    // run date / cycle / f-hour / valid time from the screen's own status lines
+    // (first and last loaded frame for an animation) + product + region
+    const auto looping = valid >= 2 && !frameStatuses.empty();
+    const auto firstStatus = QString::fromStdString(looping ? frameStatuses.front() : status);
+    const auto lastStatus = QString::fromStdString(looping ? frameStatuses.back() : status);
+    const auto suggested = UtilityAnimationExport::modelName(firstStatus, lastStatus,
+        QString::fromStdString(indexKey) + "_" + UtilityAnimationExport::slug(QString::fromStdString(comboRegion.getValue()), 30));
 
     // the loaded frames when a loop has been rendered, else the single image on screen;
     // the Save dialog offers every available format and reports any failure
     UtilityAnimationExport::saveWithDialog(this, valid >= 2 ? animBar.loadedFrames() : vector<QByteArray>{},
-                                           frameDelayMs, renderedBytes, QString::fromStdString(suggested));
+                                           frameDelayMs, renderedBytes, suggested, QByteArray{}, false);
 }
 
 QByteArray IndexViewer::buildLegend(int indexIndex, double clipLo, double clipHi) const {
