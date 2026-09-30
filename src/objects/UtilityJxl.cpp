@@ -43,9 +43,12 @@ string UtilityJxl::cacheDir() {
     return path.toStdString();
 }
 
-bool UtilityJxl::encode(const QByteArray& bytes, const QString& outPath, bool lossless) {
+bool UtilityJxl::encode(const QByteArray& bytes, const QString& outPath, bool lossless, QString * error) {
     const auto cjxl = cjxlPath();
     if (cjxl.empty() || bytes.isEmpty()) {
+        if (error) {
+            *error = cjxl.empty() ? QString{"cjxl (libjxl) is not installed"} : QString{"there was nothing to encode"};
+        }
         return false;
     }
     const auto tempPath = QString::fromStdString(cacheDir()) + "/in_" +
@@ -68,8 +71,11 @@ bool UtilityJxl::encode(const QByteArray& bytes, const QString& outPath, bool lo
     }
     QProcess process;
     process.start(QString::fromStdString(cjxl), args);
-    process.waitForFinished(30000);
+    process.waitForFinished(120000);
     const auto ok = process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+    if (!ok && error) {
+        *error = "cjxl failed: " + QString::fromUtf8(process.readAllStandardError()).trimmed().right(400);
+    }
     QFile::remove(tempPath);
     return ok && QFile::exists(outPath);
 }

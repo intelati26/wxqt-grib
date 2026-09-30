@@ -10,10 +10,12 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFont>
+#include <QFileInfo>
 #include <QImage>
 #include <QPainter>
 #include <QStandardPaths>
 #include "objects/FutureBytes.h"
+#include "objects/UtilityAnimationExport.h"
 #include "objects/UtilityJxl.h"
 
 namespace {
@@ -141,15 +143,8 @@ void ImageViewer::save() {
         }
     }
 
-    const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    const auto suggested = QString::fromStdString(suggestedFileName(sourceBytes));
-    const auto defaultPath = picturesDir.isEmpty() ? suggested : picturesDir + "/" + suggested;
-    const auto filter = UtilityJxl::available()
-        ? QString{"JPEG XL Image (*.jxl);;All Files (*)"}
-        : QString{"Images (*.png *.gif *.jpg *.jpeg);;All Files (*)"};
-    const auto fileName = QFileDialog::getSaveFileName(this, "Save Image", defaultPath, filter);
-    if (fileName.isEmpty()) {
-        return;
-    }
-    UtilityJxl::save(sourceBytes, fileName);
+    // single image: the Save dialog offers every available format and reports any failure
+    auto base = QString::fromStdString(suggestedFileName(sourceBytes));
+    base = QFileInfo{base}.completeBaseName();
+    UtilityAnimationExport::saveWithDialog(this, {}, 0, sourceBytes, base);
 }

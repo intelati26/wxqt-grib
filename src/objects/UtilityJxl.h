@@ -26,7 +26,8 @@ public:
     // uses "-q 90" (visually lossless, smaller). Returns false on any
     // failure (cjxl missing, bad input, process error) - outPath is left
     // untouched in that case.
-    static bool encode(const QByteArray& bytes, const QString& outPath, bool lossless = true);
+    static bool encode(const QByteArray& bytes, const QString& outPath, bool lossless = true,
+                       QString * error = nullptr);
 
     // ".jxl" when cjxl is available, else a sensible extension sniffed from
     // `fallbackBytes`'s actual format (for building a save-dialog suggestion).

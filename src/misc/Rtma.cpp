@@ -16,7 +16,7 @@
 #include "objects/FutureVoid.h"
 #include "objects/ObjectDateTime.h"
 #include "objects/UtilityApng.h"
-#include "objects/UtilityJxl.h"
+#include "objects/UtilityAnimationExport.h"
 #include "settings/Location.h"
 #include "util/Utility.h"
 
@@ -188,15 +188,6 @@ void Rtma::onSave() {
     if (currentBytes.isEmpty() && valid == 0) {
         return;
     }
-    QByteArray outBytes;
-    if (valid >= 2) {
-        // the bar's loaded frames are already chronological (oldest-first)
-        outBytes = UtilityApng::fromFrames(animBar.loadedFrames(), frameDelayMs);
-    }
-    if (outBytes.isEmpty()) {
-        outBytes = currentBytes;
-    }
-
     const auto sectorIndex = std::max(0, comboboxSector.getIndex());
     const auto sectorName = sectorIndex < static_cast<int>(UtilityRtma::sectors.size())
         ? UtilityRtma::sectors[sectorIndex] : string{"sector"};
@@ -208,20 +199,11 @@ void Rtma::onSave() {
         std::replace(stamp.begin(), stamp.end(), ' ', '_');
         suggested = "rtma_" + UtilityRtma::codes[index] + "_" + sectorName + "_" + stamp;
     }
-    suggested += UtilityJxl::preferredExtension(outBytes);
 
-    const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    const auto defaultPath = picturesDir.isEmpty()
-        ? QString::fromStdString(suggested)
-        : picturesDir + "/" + QString::fromStdString(suggested);
-    const auto filter = UtilityJxl::available()
-        ? QString{"JPEG XL Image (*.jxl);;All Files (*)"}
-        : QString{"Images (*.png *.gif);;All Files (*)"};
-    const auto fileName = QFileDialog::getSaveFileName(this, "Save Image", defaultPath, filter);
-    if (fileName.isEmpty()) {
-        return;
-    }
-    UtilityJxl::save(outBytes, fileName);
+    // the loaded frames when a loop has been rendered, else the single image on screen;
+    // the Save dialog offers every available format and reports any failure
+    UtilityAnimationExport::saveWithDialog(this, valid >= 2 ? animBar.loadedFrames() : vector<QByteArray>{},
+                                           frameDelayMs, currentBytes, QString::fromStdString(suggested));
 }
 
 void Rtma::moveBack() {

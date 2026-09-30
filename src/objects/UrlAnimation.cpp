@@ -5,13 +5,10 @@
 
 #include "objects/UrlAnimation.h"
 #include <QDate>
-#include <QFileDialog>
 #include <QRegularExpression>
-#include <QStandardPaths>
 #include "objects/DownloadParallelBytes.h"
 #include "objects/FutureVoid.h"
-#include "objects/UtilityApng.h"
-#include "objects/UtilityJxl.h"
+#include "objects/UtilityAnimationExport.h"
 #include "util/To.h"
 
 namespace {
@@ -160,28 +157,11 @@ void UrlAnimation::onScrub(int globalIndex) {
 }
 
 void UrlAnimation::onSave() {
-    QByteArray outBytes;
-    if (animBar.frameCount() >= 2) {
-        outBytes = UtilityApng::fromFrames(animBar.loadedFrames(), frameDelayMs);
-    }
-    if (outBytes.isEmpty()) {
-        outBytes = currentBytes;
-    }
-    if (outBytes.isEmpty()) {
+    const auto looping = animBar.frameCount() >= 2;
+    if (!looping && currentBytes.isEmpty()) {
         return;
     }
-    auto suggested = product + "_" + (animBar.frameCount() >= 2 ? string{"anim"} : string{"latest"});
-    suggested += UtilityJxl::preferredExtension(outBytes);
-    const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    const auto defaultPath = picturesDir.isEmpty()
-        ? QString::fromStdString(suggested)
-        : picturesDir + "/" + QString::fromStdString(suggested);
-    const auto filter = UtilityJxl::available()
-        ? QString{"JPEG XL Image (*.jxl);;All Files (*)"}
-        : QString{"Images (*.png);;All Files (*)"};
-    const auto fileName = QFileDialog::getSaveFileName(parent, "Save Image", defaultPath, filter);
-    if (fileName.isEmpty()) {
-        return;
-    }
-    UtilityJxl::save(outBytes, fileName);
+    const auto suggested = product + "_" + (looping ? string{"anim"} : string{"latest"});
+    UtilityAnimationExport::saveWithDialog(parent, looping ? animBar.loadedFrames() : vector<QByteArray>{},
+                                           frameDelayMs, currentBytes, QString::fromStdString(suggested));
 }

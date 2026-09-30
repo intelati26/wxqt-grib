@@ -23,7 +23,7 @@
 #include "objects/FutureVoid.h"
 #include "objects/SampleGrid.h"
 #include "objects/UtilityApng.h"
-#include "objects/UtilityJxl.h"
+#include "objects/UtilityAnimationExport.h"
 #include "settings/UIPreferences.h"
 #include "util/To.h"
 
@@ -485,34 +485,17 @@ void GribViewer::onSave() {
     if (renderedBytes.isEmpty() && valid == 0) {
         return;
     }
-    QByteArray outBytes;
-    if (valid >= 2) {
-        outBytes = UtilityApng::fromFrames(animBar.loadedFrames(), frameDelayMs);
-    }
-    if (outBytes.isEmpty()) {
-        outBytes = renderedBytes;
-    }
-
     const auto fieldIndex = comboField.getIndex();
     const auto fieldKey = (fieldIndex >= 0 && fieldIndex < static_cast<int>(UtilityGrib::fields.size()))
         ? UtilityGrib::fields[fieldIndex].key : string{"field"};
     auto suggested = (valid >= 2)
         ? ("rrfs_" + fieldKey + "_anim")
         : ("rrfs_" + fieldKey + "_f" + comboForecastHour.getValue());
-    suggested += UtilityJxl::preferredExtension(outBytes);
 
-    const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    const auto defaultPath = picturesDir.isEmpty()
-        ? QString::fromStdString(suggested)
-        : picturesDir + "/" + QString::fromStdString(suggested);
-    const auto filter = UtilityJxl::available()
-        ? QString{"JPEG XL Image (*.jxl);;All Files (*)"}
-        : QString{"Images (*.png);;All Files (*)"};
-    const auto fileName = QFileDialog::getSaveFileName(this, "Save Image", defaultPath, filter);
-    if (fileName.isEmpty()) {
-        return;
-    }
-    UtilityJxl::save(outBytes, fileName);
+    // the loaded frames when a loop has been rendered, else the single image on screen;
+    // the Save dialog offers every available format and reports any failure
+    UtilityAnimationExport::saveWithDialog(this, valid >= 2 ? animBar.loadedFrames() : vector<QByteArray>{},
+                                           frameDelayMs, renderedBytes, QString::fromStdString(suggested));
 }
 
 QByteArray GribViewer::buildLegend(int fieldIndex, double clipLo, double clipHi) const {

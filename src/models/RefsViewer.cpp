@@ -15,7 +15,7 @@
 #include "models/UtilityRefs.h"
 #include "objects/FutureVoid.h"
 #include "objects/UtilityApng.h"
-#include "objects/UtilityJxl.h"
+#include "objects/UtilityAnimationExport.h"
 #include <cmath>
 #include "util/To.h"
 
@@ -512,41 +512,26 @@ QByteArray RefsViewer::buildMosaic(const std::array<QByteArray, 4>& panelBytes, 
 
 void RefsViewer::onSave() {
     const auto frameCount = animBar.frameCount();
-    QByteArray outBytes;
+    // one 2x2 mosaic per loaded hour (animation) or just the one on screen
+    vector<QByteArray> mosaics;
     if (frameCount >= 2 && sweepFrames.size() == static_cast<size_t>(frameCount)) {
-        vector<QByteArray> mosaics;
         for (size_t k = 0; k < sweepFrames.size(); k += 1) {
             const auto mosaic = buildMosaic(sweepFrames[k], k < frameStatuses.size() ? frameStatuses[k] : string{});
             if (!mosaic.isEmpty()) {
                 mosaics.push_back(mosaic);
             }
         }
-        outBytes = UtilityApng::fromFrames(mosaics, frameDelayMs);
     }
-    if (outBytes.isEmpty()) {
-        outBytes = buildMosaic(renderedBytes, status);
-    }
-    if (outBytes.isEmpty()) {
+    const auto still = buildMosaic(renderedBytes, status);
+    if (mosaics.size() < 2 && still.isEmpty()) {
         setTitle("REFS Ensemble Viewer - nothing to save yet");
         return;
     }
-
-    auto suggested = frameCount >= 2
+    const auto suggested = mosaics.size() >= 2
         ? string{"refs_comparison_anim"}
         : ("refs_comparison_f" + comboForecastHour.getValue());
-    suggested += UtilityJxl::preferredExtension(outBytes);
-    const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    const auto defaultPath = picturesDir.isEmpty()
-        ? QString::fromStdString(suggested)
-        : picturesDir + "/" + QString::fromStdString(suggested);
-    const auto filter = UtilityJxl::available()
-        ? QString{"JPEG XL Image (*.jxl);;All Files (*)"}
-        : QString{"Images (*.png);;All Files (*)"};
-    const auto fileName = QFileDialog::getSaveFileName(this, "Save Image", defaultPath, filter);
-    if (fileName.isEmpty()) {
-        return;
-    }
-    UtilityJxl::save(outBytes, fileName);
+    UtilityAnimationExport::saveWithDialog(this, mosaics.size() >= 2 ? mosaics : vector<QByteArray>{},
+                                           frameDelayMs, still, QString::fromStdString(suggested));
 }
 
 void RefsViewer::resizeEventCustom() {
