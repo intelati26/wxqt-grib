@@ -849,9 +849,9 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
                                        status, dataMin, dataMax, samplePath);
     }
 
-    // "rf2" is the render version - bump it whenever the drawing pipeline changes
+    // "rf3" is the render version - bump it whenever the drawing pipeline changes
     const auto pngPath = dir + QString::fromStdString(
-        "/rf2_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2 + ".png");
+        "/rf3_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2 + ".png");
     const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
     const auto rangePath = pngPath + ".range";
     const auto gridPath = pngPath + ".grid";
@@ -886,8 +886,48 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
         QFile::remove(warpPath);
         return "";
     }
+    // REFC spread in clear air is fake disagreement: the RRFS members do not
+    // agree on the "no echo" fill value (some use -20 dBZ, some 0), so the
+    // spread reads ~8-10 dBZ across the whole country. Where NO member has
+    // echo (>= 5 dBZ, the display threshold) the spread is zero by
+    // definition - force it to 0 there. Uses whichever members fetched.
+    QString finishWarp = warpPath;
+    if (field.key == "refc_sprd") {
+        QStringList inputs{warpPath};
+        QStringList memberWarps;
+        for (int member = 1; member <= memberCount; member += 1) {
+            const auto memberWarp = dir + "/sw_" + tag + "_m" + QString::number(member) + ".tif";
+            string memberStatus;
+            if (warpMember("refc", member, dateStr, cycle, forecastHourInt, box, bin, memberWarp, memberStatus)) {
+                inputs << memberWarp;
+                memberWarps << memberWarp;
+            } else {
+                QFile::remove(memberWarp);
+            }
+        }
+        if (!memberWarps.isEmpty()) {
+            const auto maskedPath = dir + "/sm_" + tag + ".tif";
+            const auto members = static_cast<int>(memberWarps.size());
+            if (UtilityGrib::calcRaster(bin, inputs, [members] (const double * v) {
+                    double strongest = v[1];
+                    for (int i = 2; i <= members; i += 1) {
+                        strongest = std::max(strongest, v[i]);
+                    }
+                    return strongest < 5.0 ? 0.0 : v[0];
+                }, maskedPath)) {
+                finishWarp = maskedPath;
+            }
+        }
+        for (const auto& memberWarp : memberWarps) {
+            QFile::remove(memberWarp);
+            QFile::remove(memberWarp + ".aux.xml");
+        }
+    }
     const auto legend = field.product == "prob"
         ? QString{"REFS neighborhood P(>= %1 %2), ~14-source pool"}.arg(threshold, 0, 'g', 6).arg(spec->units) : QString{};
-    return finishRender(warpPath, field.colorMap, tag, box, bin, pngPath, status, dataMin, dataMax, samplePath,
+    if (finishWarp != warpPath) {
+        QFile::remove(warpPath);   // finishRender consumes the masked copy instead
+    }
+    return finishRender(finishWarp, field.colorMap, tag, box, bin, pngPath, status, dataMin, dataMax, samplePath,
                         legend, true);
 }
