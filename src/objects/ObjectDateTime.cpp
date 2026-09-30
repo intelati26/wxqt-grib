@@ -169,21 +169,11 @@ int ObjectDateTime::getDay() {
 }
 
 int ObjectDateTime::getHour() {
-    struct tm aTime;
-    const time_t theTime = time(nullptr);
-    // const struct tm *aTime = localtime(&theTime);
-    localtime_r(&theTime, &aTime);
-    const int hour = aTime.tm_hour;
-    return hour;
+    return QTime::currentTime().hour();
 }
 
 int ObjectDateTime::getMinute() {
-    struct tm aTime;
-    const time_t theTime = time(nullptr);
-    // const struct tm *aTime = localtime(&theTime);
-    localtime_r(&theTime, &aTime);
-    const int min = aTime.tm_min;
-    return min;
+    return QTime::currentTime().minute();
 }
 
 int ObjectDateTime::getDayOfWeek() {
