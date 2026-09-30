@@ -60,10 +60,21 @@ namespace {
         return p;
     }
 
-    void setColorScheme(Qt::ColorScheme scheme) {
+    // Qt::ColorScheme itself is a 6.5+ enum (QStyleHints::setColorScheme(),
+    // called below, is 6.8+) - this app also targets Debian bookworm's Qt
+    // 6.4.2 (see README_OS.md), which has neither, so callers pass this
+    // version-independent stand-in instead of referencing Qt::ColorScheme
+    // directly at every call site.
+    enum class ColorSchemeChoice { Unknown, Light, Dark };
+
+    void setColorScheme(ColorSchemeChoice scheme) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         if (const auto hints = QGuiApplication::styleHints()) {
-            hints->setColorScheme(scheme);
+            switch (scheme) {
+                case ColorSchemeChoice::Dark: hints->setColorScheme(Qt::ColorScheme::Dark); break;
+                case ColorSchemeChoice::Light: hints->setColorScheme(Qt::ColorScheme::Light); break;
+                default: hints->setColorScheme(Qt::ColorScheme::Unknown); break;
+            }
         }
 #else
         (void) scheme;
@@ -84,16 +95,16 @@ void UtilityTheme::applyTheme(const string& theme) {
     if (theme == "dark") {
         QApplication::setStyle(QStyleFactory::create("Fusion"));
         QApplication::setPalette(darkPalette());
-        setColorScheme(Qt::ColorScheme::Dark);
+        setColorScheme(ColorSchemeChoice::Dark);
     } else if (theme == "light") {
         QApplication::setStyle(QStyleFactory::create("Fusion"));
         QApplication::setPalette(lightPalette());
-        setColorScheme(Qt::ColorScheme::Light);
+        setColorScheme(ColorSchemeChoice::Light);
     } else {
         const auto name = defaultStyleName.isEmpty() ? QStringLiteral("Fusion") : defaultStyleName;
         QApplication::setStyle(QStyleFactory::create(name));
         QApplication::setPalette(QApplication::style()->standardPalette());
-        setColorScheme(Qt::ColorScheme::Unknown);
+        setColorScheme(ColorSchemeChoice::Unknown);
     }
 }
 
