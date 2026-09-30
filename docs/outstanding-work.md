@@ -76,8 +76,17 @@ shared public statics (fixed a real pre-existing duplication in
 top-level `com/refs/para/refs.*`) and a real REFS-side finding (no plain
 ensemble-mean reflectivity field exists - use `pmmn` instead). No GUI
 click-testing available this session - see `wxqt-refs-viewer-plan` memory
-for the full verification chain. Toolbar entry added. Next: Stage 1
-(round out mean/sprd/pmmn/lpmm/avrg/prob fields), then Stage 2 (member
+for the full verification chain. Toolbar entry added.
+
+**Stage 1 partly done (2026-09-30)**: 7 fields now (up from 2), covering
+`mean`/`sprd`/`pmmn` - each product type's real field list verified live
+(`mean`=broad fields no REFC, `sprd`=same broad set *plus* REFC, `pmmn`=REFC
+only). New dedicated spread colormaps so disagreement panels don't look
+like value panels. `lpmm`/`avrg` (precip-only) and `prob`/`eas`/`ffri`
+deferred - both need a threshold/accumulation-window disambiguation
+mechanism a plain idx substring match can't provide, better solved once
+alongside Stage 4's threshold-picker UI than twice. Next: finish Stage 1's
+remaining product types (folded into Stage 4's work), then Stage 2 (member
 fetch plumbing against the now-confirmed `rrfsens.*` tree).
 
 ## Pinned, low-priority follow-ups

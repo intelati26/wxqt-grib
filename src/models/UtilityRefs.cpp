@@ -24,6 +24,25 @@ namespace {
         return QString::number(value, 'f', 3);
     }
 
+    // Spread fields answer "how much do members disagree here," a
+    // fundamentally different question from "what's the value" - reusing
+    // UtilityGrib's raw-value colormaps (tempColorMap/capeColorMap/
+    // reflColorMap) would make a high-disagreement area look identical to
+    // a genuinely hot/unstable/stormy one. One pale-to-intense single-hue
+    // sequential scale per variable instead, calibrated to that variable's
+    // typical spread range (much narrower than its own value range).
+    const string tempSpreadColorMap{
+        "0 245 245 245\n" "0.5 210 225 245\n" "1 150 190 235\n"
+        "2 90 150 220\n" "3 230 200 60\n" "4.5 230 90 40\n" "6 150 20 20\n"};
+
+    const string capeSpreadColorMap{
+        "0 245 245 245\n" "100 210 225 245\n" "300 150 190 235\n"
+        "600 90 150 220\n" "900 230 200 60\n" "1200 230 90 40\n" "1800 150 20 20\n"};
+
+    const string reflSpreadColorMap{
+        "0 0 0 0 0\n" "2 245 245 245\n" "5 150 190 235\n"
+        "10 90 150 220\n" "15 230 200 60\n" "20 230 90 40\n" "28 150 20 20\n"};
+
     bool runProcess(const QString& program, const QStringList& args, string& status) {
         QProcess process;
         process.start(program, args);
@@ -36,21 +55,41 @@ namespace {
     }
 }
 
-// Stage 0: two fields chosen to prove both the plain case (temp, no
-// special masking) and the reflectivity-specific low-end transparency mask
-// this pipeline also needs to get right before Stage 2/3 reuse the same
-// masking for the per-member paintball fill. Both reuse UtilityGrib's own
-// color tables (now public) rather than a second copy - same physical
-// quantities, same visual scale should look the same across viewers.
-// Reflectivity is NOT in the plain "mean" file (verified live 2026-09-14 -
-// REFS doesn't produce a simple ensemble-mean reflectivity, presumably
-// because averaging dBZ directly isn't meteorologically meaningful the way
-// it is for temperature); it IS in "pmmn" (probability-matched mean,
-// REFS's own more appropriate answer to "one representative reflectivity
-// field"), tagged "wt ens mean" in that file's own .idx.
+// Stage 0 proved the pipeline with two fields (plain case + the
+// reflectivity-specific low-end transparency mask). Stage 1 rounds out the
+// other product types - verified live 2026-09-14 which fields each
+// ensprod product type actually carries, rather than assuming they're
+// uniform:
+// - "mean": broad general-purpose fields (CAPE/TMP/WIND/HGT/etc) - NO REFC
+//   (averaging dBZ directly isn't meteorologically meaningful the way it
+//   is for temperature).
+// - "sprd" (ensemble spread - how much members disagree, not a value):
+//   the same broad set as "mean", PLUS REFC (spread of reflectivity IS
+//   produced, even though a plain mean isn't).
+// - "pmmn" (probability-matched mean): REFC ONLY - REFS's own answer to
+//   "one representative reflectivity field" in place of a plain mean.
+// - "lpmm"/"avrg": precipitation-only (multiple accumulation windows) -
+//   not yet added here, needs a threshold/window-disambiguation approach
+//   closer to what Stage 4's probability picker will need anyway; see
+//   docs/refs-viewer-plan.md.
+// All reuse UtilityGrib's own color tables (now public) for value fields -
+// same physical quantity, same visual scale should look the same across
+// viewers. Spread fields get their own dedicated colormaps (see above) -
+// reusing a value colormap for "how much disagreement" would make a
+// high-spread area look like a genuinely hot/unstable/stormy one.
 const vector<UtilityGrib::Field> UtilityRefs::fields{
     UtilityGrib::Field{"Ensemble Mean 2m Temperature", "tmp2m_mean", "C", ":TMP:2 m above ground:",
                         UtilityGrib::tempColorMap, "mean"},
+    UtilityGrib::Field{"Ensemble Mean Surface CAPE", "cape_mean", "J/kg", ":CAPE:surface:",
+                        UtilityGrib::capeColorMap, "mean"},
+    UtilityGrib::Field{"Ensemble Mean 10m Wind Speed", "wind10m_mean", "m/s", ":WIND:10 m above ground:",
+                        UtilityGrib::windColorMap, "mean"},
+    UtilityGrib::Field{"Ensemble Spread 2m Temperature", "tmp2m_sprd", "C", ":TMP:2 m above ground:",
+                        tempSpreadColorMap, "sprd"},
+    UtilityGrib::Field{"Ensemble Spread Surface CAPE", "cape_sprd", "J/kg", ":CAPE:surface:",
+                        capeSpreadColorMap, "sprd"},
+    UtilityGrib::Field{"Ensemble Spread Composite Reflectivity", "refc_sprd", "dBZ",
+                        ":REFC:entire atmosphere", reflSpreadColorMap, "sprd"},
     UtilityGrib::Field{"Probability-Matched Mean Composite Reflectivity", "refc_pmmn", "dBZ",
                         ":REFC:entire atmosphere", UtilityGrib::reflColorMap, "pmmn"},
 };

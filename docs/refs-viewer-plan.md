@@ -370,15 +370,48 @@ Result: `vector<vector<double>>` (member → per-hour value), passed to
   app - confidence rests on the constructed-under-QApplication test plus
   the independently-verified render pipeline, not on having watched it
   render.
-- **Stage 1** — round out the single-file derived products: `sprd` (spread),
-  `pmmn`/`lpmm` (probability-matched mean, localized), `avrg` (SCN-confirmed:
-  "a combination of the pmmn and mean fields"), and `prob`/`eas`
-  (probability / ensemble-agreement-scale). All confirmed real product types
-  straight from SCN 26-48, no more guessing what ships. Pure `Field`-table +
-  pipeline work, same shape as everything already in `UtilityGrib.cpp`.
-  Panels can now show Mean/Spread/PMM/Probability for real. `ffri`
-  (flash-flood/recurrence-interval exceedance, CONUS only) is a real fifth
-  product type too, worth a row but not required for Stage 1 to be "done."
+- **Stage 1 - partly done (2026-09-30)**: `mean`/`sprd`/`pmmn` rounded out
+  with 7 `Field` rows total (up from Stage 0's 2), each product type's
+  *actual* field list verified live rather than assumed uniform across
+  products - a real, useful finding:
+  - `mean`: broad general fields (confirmed CAPE/TMP/WIND all present) -
+    still no REFC.
+  - `sprd`: the same broad set as `mean`, **plus REFC** (spread of
+    reflectivity IS produced, even without a plain mean to go with it).
+  - `pmmn`: **REFC only** - confirmed nothing else lives in this file.
+  - `lpmm`/`avrg`: confirmed **precipitation-only** (3 accumulation
+    windows apiece, sharing the same `:APCP:surface:` idx prefix
+    disambiguated only by the window text) - not yet added, needs the
+    same kind of threshold/window disambiguation Stage 4's probability
+    picker will need anyway (a plain substring match can't tell "0-6 hour
+    acc" from "3-6 hour acc" without a bit more care), so deferred to land
+    alongside that rather than half-solved here.
+  - `prob`/`eas`/`ffri` - **not started**, genuinely needs Stage 4's
+    threshold-picker UI (prob's records share idx prefixes across
+    different thresholds for the same variable - e.g. `REFC>10/20/30/40/50`
+    all differ only in a `:prob >N:` suffix after a forecast-hour-length
+    string that varies per render, so a single fixed substring can't
+    select "just the 40 dBZ one" the way a plain `mean`/`sprd` field's
+    single-record file can).
+
+  New spread-specific colormaps (`tempSpreadColorMap`/`capeSpreadColorMap`/
+  `reflSpreadColorMap`, `UtilityRefs.cpp`'s own anon namespace) rather than
+  reusing the value colormaps for spread fields - a high-spread area
+  reusing e.g. `capeColorMap` would render identically to a genuinely
+  high-CAPE one, which is actively misleading for "how much do members
+  disagree" rather than "what's the value." Also promoted `UtilityGrib::
+  windColorMap`/`capeColorMap` from private to public (same treatment
+  `tempColorMap`/`reflColorMap` got in Stage 0) so the new mean-wind/
+  mean-CAPE rows reuse them instead of a second copy.
+
+  Verified live against a real run (`2026093000`, F06, CONUS): all 7
+  fields render valid RGBA PNGs with physically sane ranges, and the three
+  spread fields' observed ranges (temp 0.02-2.9°C, CAPE 0-1177 J/kg,
+  reflectivity 1.4-26.1 dBZ) sit comfortably inside their hand-picked
+  colormap ranges (0-6°C / 0-1800 J/kg / 0-28 dBZ) - a real calibration
+  check, not just "does it render." `RefsViewer`'s default 4-panel layout
+  updated to show mean-temp/mean-reflectivity(pmmn) on top with their
+  spread counterparts underneath, instead of two fields each shown twice.
 - **Stage 2** — member fetch/cache plumbing: parallel byte-range download of
   all members for one field+hour (`DownloadParallelBytes`, RTMA-style),
   cached per run+field+hour+member like `g_*.grib2` today. Panels can now

@@ -49,6 +49,8 @@ public:
     // copy of a nontrivial table.
     static const string tempColorMap;
     static const string reflColorMap;
+    static const string windColorMap;
+    static const string capeColorMap;
 
     static vector<string> fieldLabels();
     static vector<string> forecastHours(int cycle = -1);   // cycle 0/6/12/18 -> out to F84

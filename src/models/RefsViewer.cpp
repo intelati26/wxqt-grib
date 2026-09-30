@@ -35,10 +35,15 @@ RefsViewer::RefsViewer(Window * parent)
     // immediately below, and setting an index after connecting would fire
     // a redundant reload() per default (found live: 3 extra concurrent
     // resolveSynopticRun() probes on first launch before this fix).
-    // A reasonable default comparison out of the box - two panels on each
-    // of the two fields Stage 0 has, not all four identical.
-    panel3.setFieldIndex(1);
-    panel4.setFieldIndex(1);
+    // A reasonable default comparison out of the box, now that Stage 1
+    // rounds out mean/spread/pmmn fields: mean temp + mean-derived
+    // reflectivity (pmmn) on top, their spread counterparts underneath -
+    // one glance shows both "what's forecast" and "how much do members
+    // disagree" for the same two quantities, rather than four panels all
+    // showing the same field index.
+    panel2.setFieldIndex(6);   // Probability-Matched Mean Composite Reflectivity
+    panel3.setFieldIndex(3);   // Ensemble Spread 2m Temperature
+    panel4.setFieldIndex(5);   // Ensemble Spread Composite Reflectivity
 
     comboRun.connect([this] { updateForecastHours(); reload(); });
     comboRegion.connect([this] { invalidateAnimation(); reload(); });
