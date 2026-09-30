@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "models/UtilityRefs.h"
+#include <cctype>
 #include <QByteArray>
 #include <QDate>
 #include <QDateTime>
@@ -77,22 +78,64 @@ namespace {
 // viewers. Spread fields get their own dedicated colormaps (see above) -
 // reusing a value colormap for "how much disagreement" would make a
 // high-spread area look like a genuinely hot/unstable/stormy one.
-const vector<UtilityGrib::Field> UtilityRefs::fields{
-    UtilityGrib::Field{"Ensemble Mean 2m Temperature", "tmp2m_mean", "C", ":TMP:2 m above ground:",
-                        UtilityGrib::tempColorMap, "mean"},
-    UtilityGrib::Field{"Ensemble Mean Surface CAPE", "cape_mean", "J/kg", ":CAPE:surface:",
-                        UtilityGrib::capeColorMap, "mean"},
-    UtilityGrib::Field{"Ensemble Mean 10m Wind Speed", "wind10m_mean", "m/s", ":WIND:10 m above ground:",
-                        UtilityGrib::windColorMap, "mean"},
-    UtilityGrib::Field{"Ensemble Spread 2m Temperature", "tmp2m_sprd", "C", ":TMP:2 m above ground:",
-                        tempSpreadColorMap, "sprd"},
-    UtilityGrib::Field{"Ensemble Spread Surface CAPE", "cape_sprd", "J/kg", ":CAPE:surface:",
-                        capeSpreadColorMap, "sprd"},
-    UtilityGrib::Field{"Ensemble Spread Composite Reflectivity", "refc_sprd", "dBZ",
-                        ":REFC:entire atmosphere", reflSpreadColorMap, "sprd"},
-    UtilityGrib::Field{"Probability-Matched Mean Composite Reflectivity", "refc_pmmn", "dBZ",
-                        ":REFC:entire atmosphere", UtilityGrib::reflColorMap, "pmmn"},
-};
+namespace {
+    // Stage 2: the five raw RRFS Ensemble members (rrfsens.*/m001-m005), a
+    // reduced-but-rich per-member field set out of the 2dfldnomads file
+    // (verified live 2026-09-30, all ENS=+N tagged). Same value colormaps as
+    // the deterministic viewer. A member row's `product` slot holds the
+    // member directory name ("m001".."m005") instead of an ensprod type -
+    // isMemberProduct() tells the two apart wherever the URL is built.
+    struct MemberFieldSpec {
+        const char* label;
+        const char* key;
+        const char* units;
+        const char* idxMatch;
+        const string& colorMap;
+    };
+
+    vector<UtilityGrib::Field> buildFields() {
+        vector<UtilityGrib::Field> result{
+        UtilityGrib::Field{"Ensemble Mean 2m Temperature", "tmp2m_mean", "C", ":TMP:2 m above ground:",
+                            UtilityGrib::tempColorMap, "mean"},
+        UtilityGrib::Field{"Ensemble Mean Surface CAPE", "cape_mean", "J/kg", ":CAPE:surface:",
+                            UtilityGrib::capeColorMap, "mean"},
+        UtilityGrib::Field{"Ensemble Mean 10m Wind Speed", "wind10m_mean", "m/s", ":WIND:10 m above ground:",
+                            UtilityGrib::windColorMap, "mean"},
+        UtilityGrib::Field{"Ensemble Spread 2m Temperature", "tmp2m_sprd", "C", ":TMP:2 m above ground:",
+                            tempSpreadColorMap, "sprd"},
+        UtilityGrib::Field{"Ensemble Spread Surface CAPE", "cape_sprd", "J/kg", ":CAPE:surface:",
+                            capeSpreadColorMap, "sprd"},
+        UtilityGrib::Field{"Ensemble Spread Composite Reflectivity", "refc_sprd", "dBZ",
+                            ":REFC:entire atmosphere", reflSpreadColorMap, "sprd"},
+        UtilityGrib::Field{"Probability-Matched Mean Composite Reflectivity", "refc_pmmn", "dBZ",
+                            ":REFC:entire atmosphere", UtilityGrib::reflColorMap, "pmmn"},
+        };
+        const MemberFieldSpec memberSpecs[]{
+            {"Composite Reflectivity", "refc", "dBZ", ":REFC:entire atmosphere", UtilityGrib::reflColorMap},
+            {"2m Temperature", "tmp2m", "C", ":TMP:2 m above ground:", UtilityGrib::tempColorMap},
+            {"Surface CAPE", "cape", "J/kg", ":CAPE:surface:", UtilityGrib::capeColorMap},
+            {"Max 10m Wind Speed", "wind10m", "m/s", ":WIND:10 m above ground:", UtilityGrib::windColorMap},
+            {"Surface Wind Gust", "gust", "m/s", ":GUST:surface:", UtilityGrib::windColorMap},
+            {"Updraft Helicity 2-5km", "uphl25", "m2/s2", ":MXUPHL:5000-2000 m above ground:",
+                UtilityGrib::uphlColorMap},
+        };
+        for (int member = 1; member <= 5; member += 1) {
+            for (const auto& spec : memberSpecs) {
+                result.push_back(UtilityGrib::Field{
+                    "RRFS Ens Member " + To::string(member) + " " + spec.label,
+                    string{spec.key} + "_m" + To::string(member), spec.units, spec.idxMatch, spec.colorMap,
+                    "m00" + To::string(member)});
+            }
+        }
+        return result;
+    }
+
+    bool isMemberProduct(const string& product) {
+        return product.size() == 4 && product[0] == 'm' && std::isdigit(static_cast<unsigned char>(product[1]));
+    }
+}
+
+const vector<UtilityGrib::Field> UtilityRefs::fields{buildFields()};
 
 vector<string> UtilityRefs::fieldLabels() {
     vector<string> labels;
@@ -187,9 +230,16 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
     // ensprod files are one-per-run+cycle+hour (all fields of that product
     // type in one file) - cached per run+field+hour, shared across regions,
     // same shape as UtilityGrib::render()'s own grib2 cache.
-    const auto url = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/refs/" + UtilityGrib::dataStream() +
-        "/refs." + dateStr + "/" + cycle + "/ensprod/refs.t" + cycle + "z." + field.product + ".f" + fhr2 +
-        ".conus.grib2";
+    // Member rows come from the sibling rrfsens.* tree (com/rrfs/, 3-digit
+    // forecast hour); ensprod rows from com/refs/refs.* (2-digit hour).
+    const auto url = isMemberProduct(field.product)
+        ? "https://nomads.ncep.noaa.gov/pub/data/nccf/com/rrfs/" + UtilityGrib::dataStream() +
+            "/rrfsens." + dateStr + "/" + cycle + "/" + field.product + "/rrfs.t" + cycle + "z." +
+            field.product + ".2dfldnomads.3km.f" + WString::fixedLengthStringPad0(To::string(forecastHourInt), 3) +
+            ".conus.grib2"
+        : "https://nomads.ncep.noaa.gov/pub/data/nccf/com/refs/" + UtilityGrib::dataStream() +
+            "/refs." + dateStr + "/" + cycle + "/ensprod/refs.t" + cycle + "z." + field.product + ".f" + fhr2 +
+            ".conus.grib2";
     const auto gribPath = dir + QString::fromStdString("/g_" + runKey + "_" + field.key + "_" + fhr2 + ".grib2");
     {
         bool haveValidCache = false;

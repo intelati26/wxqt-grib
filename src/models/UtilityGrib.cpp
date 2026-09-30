@@ -71,11 +71,6 @@ namespace {
         "-5001 0 0 0 0\n" "2999 0 0 0 0\n" "3000 120 210 235\n" "6000 60 150 230\n"
         "9000 40 200 60\n" "12000 240 220 80\n" "15000 240 130 40\n" "18000 230 50 50\n"};
 
-    const string uphlColorMap{
-        "0 0 0 0 0\n" "24 0 0 0 0\n" "25 120 200 235\n" "50 70 170 120\n"
-        "75 240 220 90\n" "100 240 150 50\n" "150 235 60 50\n" "250 200 40 160\n"
-        "400 255 255 255\n"};
-
     const string updraftColorMap{
         "0 0 0 0 0\n" "2 0 0 0 0\n" "3 150 210 235\n" "6 90 180 130\n"
         "10 240 220 90\n" "16 240 150 50\n" "25 235 60 50\n" "40 200 40 160\n"};
@@ -322,6 +317,11 @@ const string UtilityGrib::windColorMap{
     "15 240 220 90\n" "20 245 150 50\n" "28 230 60 50\n" "38 180 40 160\n"
     "50 255 255 255\n"};
 
+const string UtilityGrib::uphlColorMap{
+    "0 0 0 0 0\n" "24 0 0 0 0\n" "25 120 200 235\n" "50 70 170 120\n"
+    "75 240 220 90\n" "100 240 150 50\n" "150 235 60 50\n" "250 200 40 160\n"
+    "400 255 255 255\n"};
+
 const string UtilityGrib::capeColorMap{
     "0 0 0 0 0\n" "100 0 0 0 0\n" "250 200 230 245\n" "500 120 200 235\n"
     "1000 110 190 120\n" "1500 240 225 100\n" "2500 245 150 50\n"
@@ -341,7 +341,7 @@ const vector<UtilityGrib::Field> UtilityGrib::fields{
     Field{"Composite Reflectivity", "refc", "dBZ", ":REFC:entire atmosphere", reflColorMap},
     Field{"Reflectivity 1km AGL", "refd1km", "dBZ", ":REFD:1000 m above ground:", reflColorMap},
     Field{"Echo Top", "retop", "m", ":RETOP:entire atmosphere", echoTopColorMap},
-    Field{"Updraft Helicity 2-5km", "uphl25", "m2/s2", ":MXUPHL:5000-2000 m above ground:", uphlColorMap},
+    Field{"Updraft Helicity 2-5km", "uphl25", "m2/s2", ":MXUPHL:5000-2000 m above ground:", UtilityGrib::uphlColorMap},
     Field{"Max Updraft Velocity", "maxuvv", "m/s", ":MAXUVV:100-1000 mb:", updraftColorMap},
     Field{"Surface CAPE", "capesfc", "J/kg", ":CAPE:surface:", capeColorMap},
     Field{"Surface CIN", "cinsfc", "J/kg", ":CIN:surface:", cinColorMap},
