@@ -1,0 +1,13 @@
+{
+  "name": "wxqt-webp",
+  "version-string": "0",
+  "description": "img2webp for the Windows portable package's WebP export (kept apart from the GDAL manifest so each is cached on its own)",
+  "dependencies": [
+    {
+      "name": "libwebp",
+      "default-features": false,
+      "features": ["img2webp", "simd"]
+    },
+    { "name": "tiff", "default-features": false }
+  ]
+}

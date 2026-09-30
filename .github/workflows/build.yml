@@ -58,6 +58,8 @@ jobs:
           $commit = git -C "$env:VCPKG_INSTALLATION_ROOT" rev-parse HEAD
           $manifest = (Get-FileHash .github/vcpkg/vcpkg.json).Hash
           "key=gdal-x64-windows-release-$commit-$manifest" >> $env:GITHUB_OUTPUT
+          $webpManifest = (Get-FileHash .github/vcpkg-webp/vcpkg.json).Hash
+          "webp=webp-x64-windows-release-$commit-$webpManifest" >> $env:GITHUB_OUTPUT
 
       - name: Restore GDAL build
         id: gdal-cache
@@ -73,6 +75,27 @@ jobs:
           & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install `
             --x-manifest-root=.github/vcpkg `
             --x-install-root=D:/gdal-vcpkg `
+            --x-buildtrees-root=D:/vb `
+            --triplet x64-windows-release `
+            --clean-after-build
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed" }
+
+      # img2webp (libwebp) for the Save dialog's WebP export - bundled in the
+      # package's tools/ folder. Its own manifest and cache, a few minutes to build.
+      - name: Restore img2webp build
+        id: webp-cache
+        uses: actions/cache@v5
+        with:
+          path: D:/webp-vcpkg
+          key: ${{ steps.vcpkg-key.outputs.webp }}
+
+      - name: Build img2webp (vcpkg)
+        if: steps.webp-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install `
+            --x-manifest-root=.github/vcpkg-webp `
+            --x-install-root=D:/webp-vcpkg `
             --x-buildtrees-root=D:/vb `
             --triplet x64-windows-release `
             --clean-after-build
@@ -101,6 +124,7 @@ jobs:
         shell: pwsh
         env:
           GDAL_PREFIX: D:/gdal-vcpkg/x64-windows-release
+          WEBP_PREFIX: D:/webp-vcpkg/x64-windows-release
         run: .github/scripts/package-windows.ps1
 
       # Runs the bundled GDAL tools the way wxqt does, with only the package's
@@ -138,6 +162,31 @@ jobs:
           Run gdallocationinfo -valonly -wgs84 "$t/f.tif" -100 30
           Run gdalinfo -mm "$t/w.tif"
           Write-Host "bundled GDAL OK"
+
+      # the bundled img2webp, run the way the Save dialog runs it (lossy with a
+      # last-frame pause, and lossless) with only tools/ on PATH
+      - name: Smoke-test bundled img2webp
+        shell: pwsh
+        run: |
+          $tools = (Resolve-Path dist/wxqt-portable/tools).Path
+          $env:PATH = "$tools;$env:SystemRoot\System32;$env:SystemRoot"
+          $t = New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/webpsmoke"
+          Add-Type -AssemblyName System.Drawing
+          foreach ($i in 0..2) {
+            $bmp = New-Object System.Drawing.Bitmap 120, 80
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.Clear([System.Drawing.Color]::FromArgb(255, 40 * $i, 90, 200 - 40 * $i))
+            $g.Dispose()
+            $bmp.Save("$t/frame_000$i.png", [System.Drawing.Imaging.ImageFormat]::Png)
+            $bmp.Dispose()
+          }
+          & img2webp -loop 0 -sharp_yuv -lossy -q 90 -m 4 -d 500 "$t/frame_0000.png" "$t/frame_0001.png" -d 2500 "$t/frame_0002.png" -o "$t/a.webp"
+          if ($LASTEXITCODE -ne 0) { throw "img2webp (lossy) failed" }
+          & img2webp -loop 3 -lossless -q 75 -m 4 -d 300 "$t/frame_0000.png" "$t/frame_0001.png" -o "$t/b.webp"
+          if ($LASTEXITCODE -ne 0) { throw "img2webp (lossless) failed" }
+          & img2webp -mixed -lossy -q 80 -m 6 -d 300 "$t/frame_0000.png" "$t/frame_0001.png" -o "$t/c.webp"
+          if ($LASTEXITCODE -ne 0) { throw "img2webp (mixed) failed" }
+          Write-Host "bundled img2webp OK"
 
       # Where the download size comes from (biggest first) - printed to the
       # job log so package size can be tuned without downloading the artifact.
@@ -181,7 +230,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             g++ make \
             qt6-base-dev \
-            gdal-bin libgdal-dev
+            gdal-bin libgdal-dev \
+            webp
 
       - name: Generate resources + .pro
         run: |

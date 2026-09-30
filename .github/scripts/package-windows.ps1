@@ -108,6 +108,28 @@ if ($gdalwarpPath) {
 }
 
 # ---------------------------------------------------------------------------
+# img2webp (vcpkg libwebp) for the Save dialog's WebP export, in the tools/
+# folder next to wxqt.exe - where UtilityTools looks first. vcpkg puts its
+# DLLs next to it; MSVC-built, so it gets the VC++ runtime DLLs too.
+# WEBP_PREFIX is the vcpkg install dir for the x64-windows-release triplet.
+# ---------------------------------------------------------------------------
+if ($env:WEBP_PREFIX) {
+    $webpBin = Join-Path $env:WEBP_PREFIX "tools/libwebp"
+    if (-not (Test-Path "$webpBin/img2webp.exe")) {
+        Write-Error "WEBP_PREFIX is set but $webpBin/img2webp.exe does not exist - refusing to ship without it"
+        exit 1
+    }
+    $toolsDir = "$distDir/tools"
+    New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
+    Copy-Item "$webpBin/img2webp.exe" $toolsDir
+    Copy-Item "$webpBin/*.dll" $toolsDir
+    Copy-Item "$($crtDir.FullName)/*.dll" $toolsDir
+    Write-Host "==> img2webp bundled into $toolsDir"
+} else {
+    Write-Host "==> note: WEBP_PREFIX not set - WebP export will need img2webp or ffmpeg installed."
+}
+
+# ---------------------------------------------------------------------------
 # launcher - puts the bundled gdal/ folder on PATH and points GDAL/PROJ at
 # their bundled data dirs before starting wxqt.exe. Launch via this, not
 # wxqt.exe directly, so the bundled GDAL tools (if present) are found.

@@ -22,7 +22,8 @@ using std::vector;
 // screen with a play/save bar. The file type is chosen in the Save dialog:
 //   always available (built in, no external tools): Animated PNG
 //   (GIF is deliberately not offered: 256 colours and 1-bit transparency)
-//   if installed:  JPEG XL (cjxl), AVIF (avifenc), animated WebP and MP4 (ffmpeg)
+//   if installed:  JPEG XL (cjxl), AVIF (avifenc), WebP (img2webp - bundled
+//                  with the portable packages - else ffmpeg), MP4 (ffmpeg)
 // A format whose tool is missing is simply not offered, and any encode/write
 // failure is reported to the user in a message box - nothing is silently
 // replaced by a different format any more.
@@ -95,8 +96,31 @@ public:
     static bool encodeToFile(const Format& format, const vector<QByteArray>& frames, int frameDelayMs,
                              const QByteArray& still, const QString& path, QString& error);
 
+    // WebP encoder settings, asked for in the Save flow (webpOptionsDialog)
+    // and remembered between saves - except the frame delay, which starts
+    // from the animation's current speed each time. encodeToFile uses the
+    // ones last confirmed in the dialog (the saved ones before that).
+    struct WebpOptions {
+        enum Mode { Lossy, Lossless, Mixed };
+        Mode mode{Lossy};
+        int quality{90};         // 0-100 (lossy / mixed)
+        int effort{4};           // 0-6, higher = smaller but slower
+        int frameDelayMs{0};     // 0 = the animation's own speed
+        int lastFrameHoldMs{0};  // extra pause on the last frame, 0 = none
+        int loopCount{0};        // 0 = forever
+        bool sharpYuv{false};    // sharper colour edges for lossy (slower)
+    };
+    static WebpOptions savedWebpOptions();
+    // false if the user cancelled; on true `options` is filled and remembered
+    static bool webpOptionsDialog(QWidget * parent, bool animated, int frameDelayMs, WebpOptions& options);
+
 private:
     static bool toolAvailable(const QString& name);
+    static bool webpAvailable();
+    static bool encodeWebp(size_t frameCount, bool animated, int frameDelayMs, const QString& framesDir,
+                           const QString& path, QString& error);
+    static WebpOptions webpOptions;
+    static bool webpOptionsSet;
 };
 
 #endif  // UTILITYANIMATIONEXPORT_H

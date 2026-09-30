@@ -44,9 +44,11 @@ stripping the Linux binary.
 
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
-JPEG XL / AVIF / animated WebP / MP4 offered when cjxl / avifenc / ffmpeg are
-installed (not bundled - keeps packages small; bundling avifenc/cjxl is a
-possible follow-up). **GIF is deliberately not supported** (user decision).
+WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage
+`usr/bin` - ffmpeg is the fallback); JPEG XL / AVIF / MP4 offered when cjxl /
+avifenc / ffmpeg are installed (not bundled - keeps packages small). Choosing
+WebP opens an options dialog (lossy / lossless / mixed, quality, effort, sharp
+YUV, frame delay, pause on last frame, play count), remembered in prefs. **GIF is deliberately not supported** (user decision).
 Failures are always shown in a message box - never a silent fallback.
 Every `Photo` / `Image` picture (WPC national images, observations, OPC,
 storm reports, soundings, compmap, outlook summaries, dashboard thumbnails,
