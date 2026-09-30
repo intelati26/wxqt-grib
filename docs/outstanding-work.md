@@ -25,6 +25,23 @@ priority until Windows packaging is actually attempted for real.
 fixed now, see "Recently closed" below - unrelated to Windows specifically,
 worth doing before any public push regardless of platform.)
 
+## Top priority for portable builds — remove the Python dependency from rendering
+Found 2026-09-30 while checking the new CI packages: `gdal_calc.py` and
+`gdal_merge.py` are **mandatory** in every render pipeline (`UtilityGrib`,
+`UtilitySpcPost`, `UtilityRefs`, `UtilitySevereIndices`): `gdal_calc`
+builds the nodata alpha mask (`ok = ok && runProcess(gdalCalc, ...)`) and
+`gdal_merge` attaches it. Neither the Windows zip nor the Linux AppImage
+bundles them (they need Python + GDAL's osgeo bindings), so the CI artifacts
+can only render on a machine that already has those installed - earlier
+"only the Fahrenheit rescale is affected" comments were wrong (corrected in
+`.github/scripts/`). Plan: replace the mask+merge with binary-only GDAL
+(e.g. `gdalwarp -dstalpha`) and/or assemble the final RGBA in Qt via
+`QImage`, in all four pipelines. SHIP/STP's formula math (`gdal_calc`
+expressions) is intrinsically numpy-style and would need a separate answer
+(bundle Python for just those, or compute in C++). Not started; can't be
+verified without a working local build/test loop, so left for a session
+where that's available.
+
 ## Active — Derived Severe Indices (SHIP / STP / Parametric viewer)
 Full plan: `docs/derived-severe-indices-plan.md`. Segments 1-6 all done and
 verified (field mapping, derived grids, SHIP formula, HAILCAST contour
