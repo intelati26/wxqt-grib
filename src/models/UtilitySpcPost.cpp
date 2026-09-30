@@ -42,7 +42,7 @@ namespace {
     // turbo-ish 10-100% probability palette (gdaldem color-relief format)
     const string probColorMap{
         "0 0 0 0 0\n"
-        "9 0 0 0 0\n"
+        "9.999 0 0 0 0\n"   // a near-step, not a ramp: -alpha interpolates alpha between stops
         "10 61 38 168\n"
         "20 43 100 224\n"
         "30 30 156 220\n"
@@ -410,11 +410,11 @@ string UtilitySpcPost::render(int productIndex, int domainIndex, int boundaryFla
         " " + localZone.toStdString() + "    " + product.label + "    " + domain.label;
 
     // final image cached per run + product + domain + boundary + background + forecast hour.
-    // "sp4" is the render version - bump it whenever the drawing pipeline changes.
+    // "sp5" is the render version - bump it whenever the drawing pipeline changes.
     // boundaryFlags is now a bitmask (see UtilitySpcPost::BoundaryState etc.),
     // not a combo index, but folds into this same cache-key slot unchanged.
     const auto pngPath = dir + QString::fromStdString(
-        "/sp4_" + runKey + "_" + product.key + "_" + To::string(domainIndex) + "_" +
+        "/sp5_" + runKey + "_" + product.key + "_" + To::string(domainIndex) + "_" +
         To::string(boundaryFlags) + "_" + To::string(backgroundIndex) + "_" + fhr3 + ".png");
     if (QFile::exists(pngPath)) {
         const auto sidecar = pngPath + ".grid";
@@ -455,7 +455,9 @@ string UtilitySpcPost::render(int productIndex, int domainIndex, int boundaryFla
     {
         QFile colorFile{colorPath};
         if (colorFile.open(QIODevice::WriteOnly)) {
-            colorFile.write(probColorMap.c_str(), static_cast<qint64>(probColorMap.size()));
+            // leading "nv" entry = colour for recognised-nodata pixels (transparent)
+            const string table = "nv 0 0 0 0\n" + probColorMap;
+            colorFile.write(table.c_str(), static_cast<qint64>(table.size()));
             colorFile.close();
         }
     }
@@ -481,43 +483,16 @@ string UtilitySpcPost::render(int productIndex, int domainIndex, int boundaryFla
              "-te", fixedQ(domain.west), fixedQ(domain.south), fixedQ(domain.east), fixedQ(domain.north),
              "-r", "bilinear", "-ts", fillCols, "0", gribPath, warpPath});
 
-    // gdaldem color-relief -alpha does NOT make nodata pixels transparent -
-    // it clamps them opaque to the nearest colormap stop instead (verified
-    // directly on GDAL 3.13.3 - see UtilityGrib's main pipeline, which had
-    // the same bug). Build an explicit nodata mask, colorize WITHOUT
-    // -alpha, then merge the two into a correct 4-band RGBA tif.
-    //
-    // probColorMap's own <10% bin is ALSO meant to be transparent (its "0 0
-    // 0 0 0"/"9 0 0 0 0" rows - "no meaningful forecast signal here", the
-    // same intent reflectivity's <5dBZ "no echo" bin has) - the nodata-only
-    // mask above doesn't know that, so AND in a value-based mask too, or a
-    // quiet day (real probabilities all under 10%, as confirmed live against
-    // this domain/run) renders as a solid opaque black rectangle instead of
-    // transparent.
-    const auto maskPath = dir + "/m_" + tag + ".tif";
-    const auto sigMaskPath = dir + "/sm_" + tag + ".tif";
-    const auto rgbPath = dir + "/rgb_" + tag + ".tif";
-    const auto gdalCalc = bin + (QFile::exists(bin + "gdal_calc") ? "gdal_calc" : "gdal_calc.py");
-    const auto gdalMerge = bin + (QFile::exists(bin + "gdal_merge") ? "gdal_merge" : "gdal_merge.py");
-    ok = ok && runProcess(gdalCalc, {"-A", warpPath, "--calc=255*(A!=-9999)", "--outfile=" + maskPath,
-                                      "--overwrite", "--quiet", "--type=Byte", "--NoDataValue=0"});
-    ok = ok && runProcess(gdalCalc, {"-A", warpPath, "--calc=255*(A>=10)", "--outfile=" + sigMaskPath,
-                                      "--overwrite", "--quiet", "--type=Byte", "--NoDataValue=0"});
-    if (ok) {
-        const auto combinedPath = dir + "/cm_" + tag + ".tif";
-        if (runProcess(gdalCalc, {"-A", maskPath, "-B", sigMaskPath, "--calc=minimum(A,B)",
-                                  "--outfile=" + combinedPath, "--overwrite", "--quiet",
-                                  "--type=Byte", "--NoDataValue=0"})) {
-            QFile::remove(maskPath);
-            QFile::rename(combinedPath, maskPath);
-        }
-    }
-    QFile::remove(sigMaskPath);
-    ok = ok && runProcess(bin + "gdaldem", {"color-relief", "-q", "-of", "GTiff", warpPath, colorPath, rgbPath});
-    ok = ok && runProcess(gdalMerge, {"-q", "-o", tiffPath, "-separate", "-co", "PHOTOMETRIC=RGB", rgbPath, maskPath});
-    for (const auto& stale : {maskPath, rgbPath}) {
-        QFile::remove(stale);
-    }
+    // Colorize straight to RGBA: the "nv 0 0 0 0" entry written into the
+    // colour table above makes recognised-nodata pixels transparent, and
+    // probColorMap's own alpha-0 rows below 10% ("no meaningful forecast
+    // signal here", the same intent reflectivity's <5dBZ "no echo" bin has;
+    // a quiet day with every probability under 10% must render transparent,
+    // not as a solid black rectangle) are honored by -alpha. This replaces a
+    // gdal_calc nodata mask + value mask + gdal_merge, all Python scripts the
+    // portable builds don't bundle; verified pixel-equivalent against the old
+    // output (see UtilityGrib::render()).
+    ok = ok && runProcess(bin + "gdaldem", {"color-relief", "-q", "-alpha", "-of", "GTiff", warpPath, colorPath, tiffPath});
     if (!ok) {
         for (const auto& stale : {colorPath, warpPath, tiffPath}) {
             QFile::remove(stale);

@@ -40,7 +40,7 @@ namespace {
         "600 90 150 220\n" "900 230 200 60\n" "1200 230 90 40\n" "1800 150 20 20\n"};
 
     const string reflSpreadColorMap{
-        "0 0 0 0 0\n" "2 245 245 245\n" "5 150 190 235\n"
+        "0 245 245 245\n" "2 245 245 245\n" "5 150 190 235\n"
         "10 90 150 220\n" "15 230 200 60\n" "20 230 90 40\n" "28 150 20 20\n"};
 
     bool runProcess(const QString& program, const QStringList& args, string& status) {
@@ -164,9 +164,9 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
         " " + cycle + "z    F" + fhr2 + " valid " + validLocal.toString("ddd h:mm AP").toStdString() +
         " " + localZone.toStdString() + "    " + field.label + "    " + regionLabel;
 
-    // "rf1" is the render version - bump it whenever the drawing pipeline changes
+    // "rf2" is the render version - bump it whenever the drawing pipeline changes
     const auto pngPath = dir + QString::fromStdString(
-        "/rf1_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2 + ".png");
+        "/rf2_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2 + ".png");
     const auto rangePath = pngPath + ".range";
     const auto gridPath = pngPath + ".grid";
     if (QFile::exists(pngPath)) {
@@ -231,55 +231,31 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
     const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2);
     const auto colorPath = dir + "/col_" + tag + ".txt";
     const auto warpPath = dir + "/w_" + tag + ".tif";
-    const auto maskPath = dir + "/m_" + tag + ".tif";
-    const auto echoMaskPath = dir + "/em_" + tag + ".tif";
-    const auto rgbPath = dir + "/rgb_" + tag + ".tif";
     const auto tiffPath = dir + "/c_" + tag + ".tif";
     {
+        // leading "nv" entry = colour for recognised-nodata pixels (transparent)
+        const auto table = "nv 0 0 0 0\n" + field.colorMap;
         QFile colorFile{colorPath};
         if (colorFile.open(QIODevice::WriteOnly)) {
-            colorFile.write(field.colorMap.c_str(), static_cast<qint64>(field.colorMap.size()));
+            colorFile.write(table.c_str(), static_cast<qint64>(table.size()));
             colorFile.close();
         }
     }
 
     const auto bin = QString::fromStdString(binDir) + "/";
-    const auto gdalCalc = bin + (QFile::exists(bin + "gdal_calc") ? "gdal_calc" : "gdal_calc.py");
     const auto fillCols = QString::number(UtilityGrib::mainRenderColumns(box));
 
     auto ok = runProcess(bin + "gdalwarp",
             {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
              "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
              "-r", "bilinear", "-ts", fillCols, "0", gribPath, warpPath}, status);
-    // gdaldem's "-alpha" does NOT make recognised-nodata pixels transparent
-    // (clamped-opaque to the nearest colour stop instead) - build an
-    // explicit mask from the warp's own nodata, same fix UtilityGrib::
-    // render()/renderBackground() already use for the identical problem.
-    const auto gdalMerge = bin + (QFile::exists(bin + "gdal_merge") ? "gdal_merge" : "gdal_merge.py");
-    ok = ok && runProcess(gdalCalc, {"-A", warpPath, "--calc=255*(A!=-9999)", "--outfile=" + maskPath,
-                                      "--overwrite", "--quiet", "--type=Byte", "--NoDataValue=0"}, status);
-    // reflectivity's colour map is deliberately transparent below ~5 dBZ
-    // (real "no echo", not nodata) - AND in a value-based mask too, same
-    // reasoning/fix as UtilityGrib::render().
-    if (ok && field.key == "refc_pmmn") {
-        ok = runProcess(gdalCalc, {"-A", warpPath, "--calc=255*(A>=5)", "--outfile=" + echoMaskPath,
-                                    "--overwrite", "--quiet", "--type=Byte", "--NoDataValue=0"}, status);
-        if (ok) {
-            const auto combinedPath = dir + "/cm_" + tag + ".tif";
-            if (runProcess(gdalCalc, {"-A", maskPath, "-B", echoMaskPath, "--calc=minimum(A,B)",
-                                       "--outfile=" + combinedPath, "--overwrite", "--quiet",
-                                       "--type=Byte", "--NoDataValue=0"}, status)) {
-                QFile::remove(maskPath);
-                QFile::rename(combinedPath, maskPath);
-            }
-        }
-        QFile::remove(echoMaskPath);
-    }
-    ok = ok && runProcess(bin + "gdaldem", {"color-relief", "-q", "-of", "GTiff", warpPath, colorPath, rgbPath}, status);
-    ok = ok && runProcess(gdalMerge, {"-q", "-o", tiffPath, "-separate", "-co", "PHOTOMETRIC=RGB", rgbPath, maskPath}, status);
-    for (const auto& stale : {maskPath, rgbPath}) {
-        QFile::remove(stale);
-    }
+    // Colorize straight to RGBA - the "nv 0 0 0 0" entry written into the
+    // colour table above makes recognised-nodata pixels transparent, and
+    // reflectivity's own alpha-0 stops below 5 dBZ are honored by -alpha,
+    // so no gdal_calc mask / gdal_merge is needed (both are Python scripts
+    // the portable builds don't bundle). Same reasoning and verification as
+    // UtilityGrib::render().
+    ok = ok && runProcess(bin + "gdaldem", {"color-relief", "-q", "-alpha", "-of", "GTiff", warpPath, colorPath, tiffPath}, status);
     if (!ok) {
         for (const auto& stale : {colorPath, warpPath, tiffPath}) {
             QFile::remove(stale);
