@@ -9,40 +9,63 @@ on:
 jobs:
   windows-x64:
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
 
+      # MSYS2 does not package QtWebEngine for ANY subsystem (MinGW64,
+      # UCRT64, CLANG64) - Chromium's build has historically only worked
+      # with MSVC on Windows. wxqt.pro unconditionally requires
+      # webenginewidgets, so wxqt.exe itself has to be an MSVC build -
+      # official Qt binaries via aqtinstall, not pacman.
+      - name: Install Qt (MSVC, official binaries)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2022_64'
+          modules: 'qtwebengine qtpositioning qtwebchannel'
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # GDAL runs as a separate subprocess (QStandardPaths::findExecutable
+      # ("gdalwarp"), never linked into wxqt.exe) - the MinGW/MSVC toolchain
+      # mismatch between it and wxqt.exe doesn't matter, so MSYS2's
+      # pacman-built GDAL (which DOES exist, unlike QtWebEngine) is still
+      # the simplest source for it.
       - uses: msys2/setup-msys2@v2
+        id: msys2
         with:
           msystem: MINGW64
-          update: true
-          install: >-
-            mingw-w64-x86_64-toolchain
-            make
-            mingw-w64-x86_64-qt6-base
-            mingw-w64-x86_64-qt6-tools
-            mingw-w64-x86_64-qt6-location
-            mingw-w64-x86_64-qt6-declarative
-            mingw-w64-x86_64-qt6-webengine
-            mingw-w64-x86_64-gdal
-            python
+          install: mingw-w64-x86_64-gdal
+          path-type: minimal
 
       - name: Generate resources + .pro
+        shell: pwsh
         run: |
           cd resourceCreation
-          ./createResourcesImage.py
-          ./createResourcesRes.py
+          python createResourcesImage.py
+          python createResourcesRes.py
           cd ..
-          ./makeAll.py --pro
+          # --qt5 is a misnomer in makeAll.py - it just means "call the
+          # qmake binary plain 'qmake', not 'qmake6'". Official/aqt Qt
+          # installs only ever have the plain name (no version suffix,
+          # since each version lives in its own isolated directory) -
+          # that MSYS2/Linux-distro numbered-binary convention (qmake6,
+          # windeployqt6) exists only to let Qt5/Qt6 coexist system-wide.
+          python makeAll.py --pro --qt5
 
       - name: Build
-        run: make -j$(nproc)
+        shell: cmd
+        run: nmake
 
       - name: Package portable folder
-        run: bash .github/scripts/package-windows.sh
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
+        run: .github/scripts/package-windows.ps1
 
       - name: Zip
         shell: pwsh
