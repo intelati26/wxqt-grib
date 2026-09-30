@@ -43,6 +43,24 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+# --compiler-runtime drops the 18 MB vc_redist.x64.exe installer in the folder,
+# which a portable zip cannot run anyway. Ship the handful of runtime DLLs it
+# would install instead (app-local deployment of the VC++ runtime is supported);
+# the Universal CRT is part of Windows 10/11 itself. VCToolsRedistDir is set by
+# the "Set up MSVC environment" step.
+Remove-Item "$distDir/vc_redist*.exe" -ErrorAction SilentlyContinue
+$crtDir = Get-ChildItem "$env:VCToolsRedistDir/x64/Microsoft.VC*.CRT" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $crtDir) {
+    Write-Error "VC++ runtime DLLs not found under VCToolsRedistDir ($env:VCToolsRedistDir) - refusing to ship a package that needs the redistributable installed"
+    exit 1
+}
+Copy-Item "$($crtDir.FullName)/*.dll" $distDir
+Write-Host "==> VC++ runtime DLLs copied from $($crtDir.FullName)"
+
+# Direct3D shader compiler DLLs (~14 MB) are only for Qt's D3D12 rendering backend,
+# not the software/raster path this widget app uses.
+Remove-Item "$distDir/dxcompiler.dll", "$distDir/dxil.dll" -ErrorAction SilentlyContinue
+
 # ---------------------------------------------------------------------------
 # GDAL - MSYS2-built (mingw-w64-ucrt-x86_64-gdal), used by the RRFS GRIB/SPC
 # Post/severe-indices/REFS viewers via QStandardPaths::findExecutable

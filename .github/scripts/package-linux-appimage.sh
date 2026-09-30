@@ -88,6 +88,18 @@ done
 sweep "$appDir/usr/plugins"
 sweep "$appDir/usr/lib"
 
+# The Qt side and the GDAL side were each swept separately, so shared system
+# libraries (ICU's 29 MB data file, libcrypto, ...) sit in both folders. AppRun
+# puts usr/lib first on LD_LIBRARY_PATH and usr/gdal/lib second, so a byte-identical
+# copy in usr/gdal/lib is redundant - drop it (checked by content, not just name).
+for f in "$appDir"/usr/gdal/lib/*; do
+    [ -f "$f" ] || continue
+    twin="$appDir/usr/lib/$(basename "$f")"
+    if [ -f "$twin" ] && cmp -s "$f" "$twin"; then
+        rm "$f"
+    fi
+done
+
 # QtWebEngine's helper process, resources and locales - only when this build
 # actually links it (./makeAll.py --webengine). The default lite build does not,
 # and copying "the first libexec dir found under /usr" into it would bundle
