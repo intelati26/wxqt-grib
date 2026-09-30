@@ -64,7 +64,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("wxoglquadpane.png", "Nexrad radar viewer, quad pane, Ctrl-4", [this] { launchNexrad(4); });
 
     routeItems.emplace_back("grib.png", "RRFS GRIB Viewer", [parent] { new GribViewer{parent}; });
-    routeItems.emplace_back("grib.png", "REFS Ensemble Viewer (4-panel mean/spread comparison)", [parent] { new RefsViewer{parent}; });
+    routeItems.emplace_back("refs.png", "REFS Ensemble Viewer (4-panel mean/spread comparison)", [parent] { new RefsViewer{parent}; });
     routeItems.emplace_back("tor.png", "SPC Post Slideshow (thunder / severe / lightning probability)", [parent] { new SpcPostViewer{parent}; });
     routeItems.emplace_back("tstorm.png", "Parametric Index Viewer (SHIP hail parameter)", [parent] { new IndexViewer{parent}; });
 
