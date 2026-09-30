@@ -3,7 +3,10 @@ name: Build portable packages
 on:
   push:
     branches: [main]
+    # documentation-only pushes do not need a 30-minute build
+    paths-ignore: ['docs/**', '**/*.md']
   pull_request:
+    paths-ignore: ['docs/**', '**/*.md']
   workflow_dispatch:
 
 jobs:

@@ -42,12 +42,14 @@ byte-identical). CI smoke-tests every GDAL tool/driver the app uses.
 **Result:** Windows zip 275 MB -> 47 MB over this work (lite build, packaging
 trims, minimal GDAL); AppImage 171 MB -> 87 MB. AppImage is already
 zstd-compressed (checked in the appimagetool log), so xz is not a free win.
-**In progress (branch `linux-minimal-gdal`, PR #2, draft until CI is green):** the
-same vcpkg minimal GDAL for the AppImage (shared libs, release-only triplet
-overlay in `.github/vcpkg/triplets`), GDAL libs/tools stripped, plus CI checks
-that the bundled GDAL runs from a clean environment and that the finished
-AppImage starts headless. The packaging cannot be run locally (CachyOS IFUNC
-issue), so CI is the test.
+**Linux minimal GDAL - DONE (PR #2):** the AppImage now bundles the same vcpkg
+minimal GDAL (shared libs, release-only triplet overlay in
+`.github/vcpkg/triplets`), stripped, instead of Ubuntu's gdal-bin:
+**87 MB -> 66 MB** (171 MB at the start of this work). New CI checks run the
+bundled GDAL from a clean environment (`.github/vcpkg/smoke-linux.sh`) and
+require the finished AppImage to start headless and stay up 12 s. Remaining
+weight is Qt + ICU data (~29 MB) + libgdal; the packaging cannot be run locally
+(CachyOS IFUNC issue), so CI is the test.
 
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
