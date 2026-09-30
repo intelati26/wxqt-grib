@@ -70,21 +70,81 @@ namespace {
         }
         return agent;
     }
+
+    // NOAA's operational-RRFS S3 bucket mirrors NOMADS's RRFS / RRFS Ensemble /
+    // REFS trees with identical relative paths (verified 2026-09-30:
+    // rrfs.YYYYMMDD/CC/..., rrfsens.YYYYMMDD/CC/mNNN/..., refs.YYYYMMDD/CC/
+    // ensprod/...), so when NOMADS rate-limits (429/403) or is down the same
+    // file can be had from AWS. Returns "" for any URL that is not one of
+    // those NOMADS trees.
+    string mirrorUrl(const string& url) {
+        const string nomads = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/";
+        if (url.compare(0, nomads.size(), nomads) != 0) {
+            return "";
+        }
+        for (const string tree : {"rrfs/", "refs/"}) {
+            const auto prefix = nomads + tree;
+            if (url.compare(0, prefix.size(), prefix) != 0) {
+                continue;
+            }
+            // skip the stream directory ("para" / "prod")
+            const auto streamEnd = url.find('/', prefix.size());
+            if (streamEnd == string::npos) {
+                return "";
+            }
+            return "https://noaa-rrfs-ops-pds.s3.amazonaws.com/" + url.substr(streamEnd + 1);
+        }
+        return "";
+    }
+
+    struct Fetched {
+        QByteArray bytes;
+        int status{0};   // HTTP status, 0 if the request never got a response
+    };
+
+    Fetched fetchOnce(const string& url, const QByteArray& range, const QByteArray& accept = QByteArray{}) {
+        throttleByHost(url);
+        QNetworkAccessManager manager;
+        QNetworkRequest request{QUrl{QString::fromStdString(url)}};
+        request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+        if (!range.isEmpty()) {
+            request.setRawHeader(QByteArray{"Range"}, range);
+        }
+        if (!accept.isEmpty()) {
+            request.setRawHeader(QByteArray{"Accept"}, accept);
+        }
+        QNetworkReply * response = manager.get(request);
+        QEventLoop event;
+        QObject::connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);
+        event.exec();
+        Fetched result;
+        result.bytes = response->readAll();
+        result.status = response->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        delete response;
+        return result;
+    }
+
+    // fetchOnce, then the AWS mirror if NOMADS failed (no response, or a 4xx/5xx)
+    Fetched fetchWithMirror(const string& url, const QByteArray& range) {
+        auto result = fetchOnce(url, range);
+        if (result.status == 0 || result.status >= 400) {
+            const auto mirror = mirrorUrl(url);
+            if (!mirror.empty()) {
+                UtilityLog::d("mirror fallback (NOMADS status " + std::to_string(result.status) + ") " + mirror);
+                auto alt = fetchOnce(mirror, range);
+                if (alt.status > 0 && alt.status < 400) {
+                    return alt;
+                }
+            }
+        }
+        return result;
+    }
 }
 
 string URL::getText(const string& url) {
     UtilityLog::d("getHtml " + url);
-    throttleByHost(url);
-    QNetworkAccessManager manager;
-    QNetworkRequest request{QUrl{QString::fromStdString(url)}};
-    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
-    QNetworkReply * response = manager.get(request);
-    QEventLoop event;
-    QObject::connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);
-    event.exec();
-    QString data{response->readAll()};
-    delete response;
-    return data.toStdString();
+    const auto fetched = fetchWithMirror(url, QByteArray{});
+    return QString{fetched.bytes}.toStdString();
 }
 
 string URL::getTextXmlAcceptHeader(const string& url) {
@@ -105,36 +165,15 @@ string URL::getTextXmlAcceptHeader(const string& url) {
 
 QByteArray URL::getBytes(const string& url) {
     UtilityLog::d("getByte " + url);
-    throttleByHost(url);
-    QNetworkAccessManager manager;
-    QNetworkRequest request{QUrl{QString::fromStdString(url)}};
-    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
-    QNetworkReply * response = manager.get(request);
-    QEventLoop event;
-    QObject::connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);
-    event.exec();
-    QByteArray byteArray{response->readAll()};
-    delete response;
-    return byteArray;
+    return fetchWithMirror(url, QByteArray{}).bytes;
 }
 
 // HTTP range request - byte range is inclusive; pass end < 0 for "to end of file"
 QByteArray URL::getBytesRange(const string& url, long long start, long long end) {
     UtilityLog::d("getByteRange " + url + " " + std::to_string(start) + "-" + std::to_string(end));
-    throttleByHost(url);
-    QNetworkAccessManager manager;
-    QNetworkRequest request{QUrl{QString::fromStdString(url)}};
-    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
     auto range = QByteArray{"bytes="} + QByteArray::number(start) + "-";
     if (end >= 0) {
         range += QByteArray::number(end);
     }
-    request.setRawHeader(QByteArray{"Range"}, range);
-    QNetworkReply * response = manager.get(request);
-    QEventLoop event;
-    QObject::connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);
-    event.exec();
-    QByteArray byteArray{response->readAll()};
-    delete response;
-    return byteArray;
+    return fetchWithMirror(url, range).bytes;
 }
