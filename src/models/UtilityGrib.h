@@ -62,6 +62,14 @@ public:
     static string renderMax(int fieldIndex, int regionIndex, const vector<string>& hours, const string& runId,
                             string& status, double& dataMin, double& dataMax, string& samplePath);
 
+    // Forecast hours ("01".."84", matching forecastHours()) that cover the
+    // SPC Day-1 period, 12z to 12z: the 24 hours ending at the first 12z on
+    // or after the run (hourly-max style products, e.g. updraft helicity,
+    // are valid for the hour ending at their forecast time). Clipped to what
+    // the run's cycle actually offers, so a non-synoptic run (18 h) may give
+    // a short or empty list. `synoptic` = resolve "Latest" among 00/06/12/18z.
+    static vector<string> day1Hours(const string& runId, bool synoptic);
+
     static vector<string> fieldLabels();
     static vector<string> forecastHours(int cycle = -1);   // cycle 0/6/12/18 -> out to F84
     static vector<string> regions();

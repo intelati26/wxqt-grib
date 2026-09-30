@@ -39,6 +39,8 @@ public:
 private:
     void reload();
     void showMaxOfRange();
+    void showMaxOfHours(const std::vector<std::string>& hours);
+    void showDay1Max();
     void moveBack();
     void moveForward();
     void updateForecastHours();
@@ -66,6 +68,8 @@ private:
     ComboBox comboForecastHour;
     BackForward backForward;
     Button buttonMax;
+    Button buttonDay1;
+    std::vector<std::string> day1Pending;   // hours computed off-thread for the Day 1 button
     AnimationBar animBar;
     std::vector<std::pair<string, string>> runOptions;
     string status;

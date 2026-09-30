@@ -380,6 +380,27 @@ vector<string> UtilityGrib::forecastHours(int cycle) {
     return hours;
 }
 
+vector<string> UtilityGrib::day1Hours(const string& runId, bool synoptic) {
+    string dateStr;
+    string cycle;
+    if (runId.size() == 10) {
+        cycle = runId.substr(8, 2);
+    } else if (!(synoptic ? resolveSynopticRun(runId, dateStr, cycle) : resolveLatestRun(dateStr, cycle))) {
+        return {};
+    }
+    const auto cycleInt = To::Int(cycle);
+    const auto start = ((12 - cycleInt) % 24 + 24) % 24;   // hours from the run to the next 12z
+    const auto available = forecastHours(cycleInt);
+    vector<string> hours;
+    for (int hour = start + 1; hour <= start + 24; hour += 1) {
+        const auto label = WString::fixedLengthStringPad0(To::string(hour), 2);
+        if (std::find(available.begin(), available.end(), label) != available.end()) {
+            hours.push_back(label);
+        }
+    }
+    return hours;
+}
+
 vector<std::pair<string, string>> UtilityGrib::runOptions() {
     static vector<std::pair<string, string>> cached;
     static qint64 cachedAtMs = 0;

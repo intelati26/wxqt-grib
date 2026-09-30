@@ -40,6 +40,7 @@ IndexViewer::IndexViewer(Window * parent)
     , comboForecastHour{this, UtilitySevereIndices::forecastHours()}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonMax{this, Icon::None, "Max of range"}
+    , buttonDay1{this, Icon::None, "Day 1 max (12z-12z)"}
     , animBar{this,
         [this] (int start, int end) { onRangeRequested(start, end); },
         [this] (int local) { onFrameShown(local); },
@@ -67,7 +68,11 @@ IndexViewer::IndexViewer(Window * parent)
     buttonMax.getView()->setToolTip("Pixel-wise maximum of the selected index over the Range hours below "
                                     "(e.g. set 01 to 24 for a 24-hour max)");
     buttonMax.connect([this] { showMaxOfRange(); });
+    buttonDay1.getView()->setToolTip("Maximum over the SPC Day-1 period, 12z to 12z (the 24 forecast hours "
+                                     "ending at the next 12z after this run)");
+    buttonDay1.connect([this] { showDay1Max(); });
     boxTop.addWidget(buttonMax);
+    boxTop.addWidget(buttonDay1);
     boxTop.addStretch();
     boxImage.addWidgetReal(&image, 1, Qt::Alignment{});
     boxImage.addWidget(legend);
@@ -157,7 +162,12 @@ void IndexViewer::showMaxOfRange() {
     for (int i = animBar.rangeStartIndex(); i <= animBar.rangeEndIndex() && i < static_cast<int>(allHours.size()); i += 1) {
         hours.push_back(allHours[i]);
     }
+    showMaxOfHours(hours);
+}
+
+void IndexViewer::showMaxOfHours(const std::vector<std::string>& hoursIn) {
     constexpr size_t maxHours = 48;
+    auto hours = hoursIn;
     if (hours.size() < 2) {
         setTitle("Parametric Index Viewer - pick a Range of at least two hours for a max composite");
         return;
@@ -195,6 +205,21 @@ void IndexViewer::showMaxOfRange() {
                 file.close();
             }
             refreshHover();
+        }};
+}
+
+void IndexViewer::showDay1Max() {
+    const auto runIndex = comboRun.getIndex();
+    const string runId = (runIndex >= 0 && runIndex < static_cast<int>(runOptions.size()))
+        ? runOptions[runIndex].second : string{};
+    new FutureVoid{this,
+        [this, runId] { day1Pending = UtilityGrib::day1Hours(runId, true); },
+        [this] {
+            if (day1Pending.size() < 2) {
+                setTitle("Parametric Index Viewer - the Day 1 (12z-12z) window is not available for this run");
+                return;
+            }
+            showMaxOfHours(day1Pending);
         }};
 }
 
