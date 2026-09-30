@@ -108,15 +108,11 @@ done
     if (Test-Path $gdalDataSrc) { Copy-Item -Recurse $gdalDataSrc "$gdalDir/gdal-data" }
     if (Test-Path $projDataSrc) { Copy-Item -Recurse $projDataSrc "$gdalDir/proj-data" }
 
-    # KNOWN GAP: gdal_calc.py and gdal_merge.py are Python scripts needing a
-    # full python + osgeo/gdal bindings install - not bundled here. They are
-    # NOT optional: every render pipeline (GRIB, SPC Post, REFS, SHIP/STP)
-    # uses gdal_calc for its nodata mask and gdal_merge to attach it as the
-    # alpha band, so without them on the target machine those viewers fail
-    # to render at all (an earlier version of this comment wrongly claimed
-    # only the Fahrenheit rescale was affected). The real fix is to remove
-    # that Python dependency from the mask/merge steps (see
-    # docs/outstanding-work.md) rather than bundle a Python runtime.
+    # KNOWN GAP (narrowed): GRIB, SPC Post and REFS rendering no longer need
+    # gdal_calc/gdal_merge (Python scripts, not bundled here). Only the
+    # SHIP/STP severe-indices viewer still uses gdal_calc for its formula
+    # math, so that viewer will not render from this package until it is
+    # ported off Python (see docs/outstanding-work.md).
 } else {
     Write-Host "==> note: GDAL not found - skipping. GRIB/SPC Post/severe-indices/REFS viewers will report 'GDAL not found'."
 }

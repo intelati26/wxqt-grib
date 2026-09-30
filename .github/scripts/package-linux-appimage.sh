@@ -34,13 +34,11 @@ Categories=Utility;
 Terminal=false
 EOF
 
-# KNOWN GAP: gdal_calc.py / gdal_merge.py are Python scripts (need python3 +
-# GDAL's osgeo bindings) and are NOT bundled. They are not optional - every
-# render pipeline (GRIB, SPC Post, REFS, SHIP/STP) uses gdal_calc for its
-# nodata mask and gdal_merge to attach it as the alpha band - so on a target
-# machine lacking python3-gdal those viewers fail to render at all. The real
-# fix is removing that Python dependency from the mask/merge steps (see
-# docs/outstanding-work.md), not bundling a Python runtime.
+# KNOWN GAP (narrowed): GRIB, SPC Post and REFS rendering no longer need
+# gdal_calc/gdal_merge (Python scripts, not bundled). Only the SHIP/STP
+# severe-indices viewer still uses gdal_calc for its formula math, so that
+# viewer will not render from this AppImage until ported off Python (see
+# docs/outstanding-work.md).
 for tool in gdalwarp gdaldem gdal_translate gdal_rasterize gdalinfo; do
     cp "$(command -v "$tool")" "$appDir/usr/gdal/bin/"
 done
