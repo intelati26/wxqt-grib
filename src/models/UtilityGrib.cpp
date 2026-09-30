@@ -93,11 +93,6 @@ namespace {
         "40 90 180 130\n" "50 55 150 140\n" "60 50 120 180\n" "70 70 90 180\n"
         "85 100 60 170\n"};
 
-    const string precipColorMap{
-        "0 0 0 0 0\n" "0.4 0 0 0 0\n" "0.5 150 220 235\n" "2 90 180 230\n"
-        "6 60 190 70\n" "12 240 225 90\n" "25 240 150 45\n" "50 230 55 50\n"
-        "100 190 40 150\n" "200 255 255 255\n"};
-
     const string visColorMap{
         "0 200 40 40\n" "400 235 120 45\n" "800 240 190 70\n" "1600 240 235 120\n"
         "3200 180 215 150\n" "6400 150 210 220\n" "12000 205 230 245\n" "16000 0 0 0 0\n"};
@@ -326,6 +321,11 @@ const string UtilityGrib::uphlColorMap{
     "75 240 220 90\n" "100 240 150 50\n" "150 235 60 50\n" "250 200 40 160\n"
     "400 255 255 255\n"};
 
+const string UtilityGrib::precipColorMap{
+    "0 0 0 0 0\n" "0.4 0 0 0 0\n" "0.5 150 220 235\n" "2 90 180 230\n"
+    "6 60 190 70\n" "12 240 225 90\n" "25 240 150 45\n" "50 230 55 50\n"
+    "100 190 40 150\n" "200 255 255 255\n"};
+
 const string UtilityGrib::capeColorMap{
     "0 0 0 0 0\n" "100 0 0 0 0\n" "250 200 230 245\n" "500 120 200 235\n"
     "1000 110 190 120\n" "1500 240 225 100\n" "2500 245 150 50\n"
@@ -351,7 +351,7 @@ const vector<UtilityGrib::Field> UtilityGrib::fields{
     Field{"Surface CIN", "cinsfc", "J/kg", ":CIN:surface:", cinColorMap},
     Field{"0-3km Storm-Rel Helicity", "srh3", "m2/s2", ":HLCY:3000-0 m above ground:", srhColorMap},
     Field{"Precipitable Water", "pwat", "mm", ":PWAT:entire atmosphere", pwatColorMap},
-    Field{"Total Precipitation", "apcp", "mm", ":APCP:surface:", precipColorMap},
+    Field{"Total Precipitation", "apcp", "mm", ":APCP:surface:", UtilityGrib::precipColorMap},
     Field{"Surface Visibility", "vis", "m", ":VIS:surface:", visColorMap},
     Field{"Total Cloud Cover", "tcdc", "%", ":TCDC:entire atmosphere", cloudColorMap},
     Field{"Snow Depth", "snod", "m", ":SNOD:surface:", snowDepthColorMap},

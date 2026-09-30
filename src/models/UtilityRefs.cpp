@@ -151,6 +151,25 @@ namespace {
             "Total Freezing Rain", ":FRZR:surface:", {0.254, 2.54, 6.35, 12.7}, 0},
     };
 
+    // lpmm / avrg rows: accumulation windows, like the precipitation `prob`
+    // records - the idx text is "<h-w>-<h> hour acc fcst" (w = 1, 3 or 0 =
+    // since forecast start), so the record is chosen per forecast hour.
+    struct WindowedField {
+        const char* key;
+        int window;
+    };
+    const WindowedField windowedFields[]{
+        {"apcp1h_lpmm", 1}, {"apcp3h_lpmm", 3}, {"apcptot_lpmm", 0}, {"apcp1h_avrg", 1}, {"apcp3h_avrg", 3}};
+
+    int windowFor(const string& fieldKey) {
+        for (const auto& entry : windowedFields) {
+            if (fieldKey == entry.key) {
+                return entry.window;
+            }
+        }
+        return -1;
+    }
+
     // 0-100 % scale shared by both probability row kinds; alpha-0 below 5 %
     // (near-step stop so the ramp stays crisp)
     const string probColorMap{
@@ -195,6 +214,16 @@ namespace {
                             ":REFC:entire atmosphere", reflSpreadColorMap, "sprd"},
         UtilityGrib::Field{"Probability-Matched Mean Composite Reflectivity", "refc_pmmn", "dBZ",
                             ":REFC:entire atmosphere", UtilityGrib::reflColorMap, "pmmn"},
+        UtilityGrib::Field{"Localized PMM 1-hr Precipitation", "apcp1h_lpmm", "mm", ":APCP:surface:",
+                            UtilityGrib::precipColorMap, "lpmm"},
+        UtilityGrib::Field{"Localized PMM 3-hr Precipitation", "apcp3h_lpmm", "mm", ":APCP:surface:",
+                            UtilityGrib::precipColorMap, "lpmm"},
+        UtilityGrib::Field{"Localized PMM Total Precipitation", "apcptot_lpmm", "mm", ":APCP:surface:",
+                            UtilityGrib::precipColorMap, "lpmm"},
+        UtilityGrib::Field{"Ensemble Mean 1-hr Precipitation", "apcp1h_avrg", "mm", ":APCP:surface:",
+                            UtilityGrib::precipColorMap, "avrg"},
+        UtilityGrib::Field{"Ensemble Mean 3-hr Precipitation", "apcp3h_avrg", "mm", ":APCP:surface:",
+                            UtilityGrib::precipColorMap, "avrg"},
         };
         const MemberFieldSpec memberSpecs[]{
             {"Composite Reflectivity", "refc", "dBZ", ":REFC:entire atmosphere", UtilityGrib::reflColorMap},
@@ -969,6 +998,12 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
         thresholdNote = "    >= " + QString::number(value, 'g', 6).toStdString() + " " + spec->units;
     }
 
+    const auto plainWindow = windowFor(field.key);
+    if (plainWindow >= 0) {
+        const auto start = plainWindow == 0 ? 0 : forecastHourInt - plainWindow;
+        alsoContains = ":" + To::string(start) + "-" + To::string(forecastHourInt) + " hour acc fcst:";
+    }
+
     const QDateTime runUtc{
         QDate{To::Int(dateStr.substr(0, 4)), To::Int(dateStr.substr(4, 2)), To::Int(dateStr.substr(6, 2))},
         QTime{To::Int(cycle), 0}, QTimeZone::utc()};
@@ -1011,8 +1046,9 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
     if (!fetchFieldGrib(field, dateStr, cycle, forecastHourInt, gribPath, status, alsoContains)) {
         // REFS publishes the 3-hr and since-start accumulation windows only
         // at forecast hours divisible by 3 (hourly windows exist every hour)
-        if (spec != nullptr && field.product == "prob" && spec->probWindow >= 0 && spec->probWindow != 1 &&
-                forecastHourInt % 3 != 0) {
+        const auto windowHours = plainWindow >= 0 ? plainWindow
+            : (spec != nullptr && field.product == "prob" ? spec->probWindow : -1);
+        if (windowHours >= 0 && windowHours != 1 && forecastHourInt % 3 != 0) {
             status = field.label + ": this accumulation window is only published at forecast hours divisible by 3 (F03, F06, ...)";
         }
         return "";

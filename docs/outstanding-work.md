@@ -95,8 +95,11 @@ panel fields, paintball, runtime thresholds + Member Probability + REFS
 Probability, click-to-plume graph (`RefsPointGraph`), 4-panel mosaic export,
 linked hover read-out, paintball hover sidecar, precip/snow/freezing-rain
 `prob` records, and a kind / variable / member picker per panel. Remaining
-REFS items: `eas`/`ffri`/`lpmm`/`avrg` products and a dedicated toolbar
-icon.
+REFS items: `eas`/`ffri` (deliberately not added - `ffri`'s PPFFG "prob
+>1/3/6" thresholds are flash-flood-guidance ratios whose exact meaning
+wasn't confirmed, and `eas` semantics are unverified; don't label a
+flooding product on a guess) and a dedicated toolbar icon. `lpmm`/`avrg`
+(localized-PMM and mean precipitation, 1-hr/3-hr/total) are done.
 
 **Stage 1 partly done (2026-09-30)**: 7 fields now (up from 2), covering
 `mean`/`sprd`/`pmmn` - each product type's real field list verified live
