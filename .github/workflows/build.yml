@@ -76,8 +76,10 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: wxqt-windows-x64
+          # archive: false uploads the file as-is - otherwise GitHub wraps our
+          # zip in a second zip. (The artifact is named after the file.)
           path: dist/wxqt-windows-x64.zip
+          archive: false
           if-no-files-found: error
 
   linux-x64-appimage:
@@ -109,6 +111,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: wxqt-linux-x64-appimage
+          # as-is, so the AppImage downloads directly instead of zipped
           path: dist/wxqt-x86_64.AppImage
+          archive: false
           if-no-files-found: error
