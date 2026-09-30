@@ -6,7 +6,10 @@
 #ifndef SOUNDINGVIEWER_H
 #define SOUNDINGVIEWER_H
 
+#include <memory>
 #include <string>
+#include <vector>
+#include <QDateTime>
 #include <QPushButton>
 #include "sounding/SoundingAnalysis.h"
 #include "sounding/SoundingProfile.h"
@@ -21,14 +24,19 @@ using std::string;
 class SoundingCanvas;
 
 // A model sounding for one point, locked to the run and forecast hour it was opened
-// with: Skew-T log-p with the lifted parcel and wind barbs, a hodograph, and the
+// with (model mode), or an SPC observed balloon sounding picked by site and time
+// (observed mode): Skew-T log-p with the lifted parcel and wind barbs, a hodograph, and the
 // SHARPpy-style parameter table.
 class SoundingViewer : public Window {
 public:
     SoundingViewer(Window * parent, double lon, double lat, const string& runId, const string& forecastHour);
+    // SPC observed sounding; `site` is a sounding-site code ("OUN"), empty = the site nearest the current location
+    SoundingViewer(Window * parent, const string& site);
 
 private:
+    void build();
     void start();
+    void startObserved();
     void onSave();
     void closeEventCustom() override;
 
@@ -41,10 +49,16 @@ private:
     VBox box;
     HBox rowTop;
     Text textInfo;
+    ComboBox comboSite;
+    ComboBox comboTime;
     ComboBox comboParcel;
     QPushButton * buttonSave;
     SoundingCanvas * canvas;
 
+    bool observed{false};
+    std::vector<string> timeCodes;   // yyMMddHH per comboTime entry, "" = latest
+    QDateTime observedTime;          // valid time of the loaded observed sounding
+    int generation{0};
     SoundingProfile profile;
     SoundingAnalysis analysis;
     bool loaded{false};

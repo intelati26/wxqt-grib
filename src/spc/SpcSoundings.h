@@ -33,6 +33,7 @@ private:
     Photo photo;
     BackForward backForward;
     Button buttonForText;
+    Button buttonNative;
     VBox box;
     HBox boxH;
     ComboBox comboboxProduct;

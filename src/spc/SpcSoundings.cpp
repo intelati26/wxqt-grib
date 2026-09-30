@@ -8,6 +8,7 @@
 #include <algorithm>
 #include "misc/TextViewer.h"
 #include "misc/UtilityObservations.h"
+#include "models/SoundingViewer.h"
 #include "objects/FutureBytes.h"
 #include "settings/Location.h"
 #include "spc/UtilitySpcSoundings.h"
@@ -22,6 +23,7 @@ SpcSoundings::SpcSoundings(Window * parent, const string& sector)
     , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonForText{this, None, "Text Display"}
+    , buttonNative{this, None, "Skew-T / Hodograph"}
     , comboboxProduct{this, SoundingSites::sites->nameList}
 {
     if (sector != "") {
@@ -30,7 +32,10 @@ SpcSoundings::SpcSoundings(Window * parent, const string& sector)
     index = findex(office, SoundingSites::sites->codeList);
     buttonForText.connect([this] { launchText(); });
     boxH.addLayout(backForward);
+    buttonNative.getView()->setToolTip("Open this site in the native sounding viewer: Skew-T, hodograph and computed parameters, with a time picker");
+    buttonNative.connect([this] { new SoundingViewer{this, office}; });
     boxH.addWidget(buttonForText);
+    boxH.addWidget(buttonNative);
     comboboxProduct.setIndex(index);
     comboboxProduct.connect([this] { changeProduct(); });
 

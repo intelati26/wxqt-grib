@@ -16,6 +16,9 @@
 #include "models/UtilityModelSounding.h"
 #include "objects/FutureVoid.h"
 #include "objects/UtilityAnimationExport.h"
+#include "settings/Location.h"
+#include "util/SoundingSites.h"
+#include "util/UtilityIO.h"
 #include "sounding/SoundingThermo.h"
 #include "util/To.h"
 
@@ -400,6 +403,34 @@ private:
     }
 };
 
+namespace {
+    struct Result {
+        bool ok{false};
+        string status;
+        SoundingProfile profile;
+        SoundingAnalysis analysis;
+        QDateTime validTime;
+    };
+
+    // "Latest" plus the last week of 00z/12z launches, newest first
+    std::vector<std::pair<string, string>> observedTimes() {
+        std::vector<std::pair<string, string>> out{{"Latest", ""}};
+        auto when = QDateTime::currentDateTimeUtc();
+        when = QDateTime{when.date(), QTime{when.time().hour() >= 12 ? 12 : 0, 0}, QTimeZone::utc()};
+        for (int i = 0; i < 14; i += 1) {
+            out.emplace_back(when.toString("yyyy-MM-dd HH").toStdString() + "z", when.toString("yyMMddHH").toStdString());
+            when = when.addSecs(-12 * 3600);
+        }
+        return out;
+    }
+
+    std::vector<string> labelsOf(const std::vector<std::pair<string, string>>& items) {
+        std::vector<string> out;
+        for (const auto& item : items) out.push_back(item.first);
+        return out;
+    }
+}
+
 SoundingViewer::SoundingViewer(Window * parent, double lon, double lat, const string& runId, const string& forecastHour)
     : Window{parent}
     , lon{lon}
@@ -407,62 +438,157 @@ SoundingViewer::SoundingViewer(Window * parent, double lon, double lat, const st
     , runId{runId}
     , forecastHour{forecastHour}
     , textInfo{this}
+    , comboSite{this, {"-"}}
+    , comboTime{this, {"-"}}
     , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
     , buttonSave{new QPushButton{"Save", this}}
     , canvas{new SoundingCanvas{this}}
 {
     setTitle("RRFS Sounding");
+    build();
+    start();
+}
+
+SoundingViewer::SoundingViewer(Window * parent, const string& site)
+    : Window{parent}
+    , lon{0.0}
+    , lat{0.0}
+    , textInfo{this}
+    , comboSite{this, SoundingSites::sites->nameList}
+    , comboTime{this, labelsOf(observedTimes())}
+    , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
+    , buttonSave{new QPushButton{"Save", this}}
+    , canvas{new SoundingCanvas{this}}
+    , observed{true}
+{
+    setTitle("SPC Observed Sounding");
+    for (const auto& item : observedTimes()) {
+        timeCodes.push_back(item.second);
+    }
+    const auto code = site.empty() ? SoundingSites::sites->getNearest(Location::getLatLonCurrent()) : site;
+    const auto& codes = SoundingSites::sites->codeList;
+    const auto found = std::find(codes.begin(), codes.end(), code);
+    comboSite.setIndex(found == codes.end() ? 0 : static_cast<size_t>(found - codes.begin()));
+    comboSite.connect([this] { startObserved(); });
+    comboTime.setIndex(0);
+    comboTime.connect([this] { startObserved(); });
+    build();
+    startObserved();
+}
+
+void SoundingViewer::build() {
     comboParcel.setIndex(1);
     comboParcel.connect([this] { canvas->setParcel(comboParcel.getIndex()); });
     QObject::connect(buttonSave, &QPushButton::clicked, this, [this] { onSave(); });
     rowTop.addWidget(textInfo, 1);
+    if (observed) {
+        rowTop.addWidget(comboSite);
+        rowTop.addWidget(comboTime);
+    }
     rowTop.addWidget(comboParcel);
     rowTop.addWidgetReal(buttonSave);
     box.addLayout(rowTop);
     box.addWidgetReal(canvas, 1, Qt::Alignment{});
     box.getAndShow(this);
     setSize(1000, 640);
-    start();
 }
 
 void SoundingViewer::start() {
+    generation += 1;
+    const int thisGeneration = generation;
     textInfo.setText(QString{"%1 N, %2 W  -  fetching the model column (about 265 MB for a new run/hour, cached afterwards)..."}
                          .arg(lat, 0, 'f', 2).arg(-lon, 0, 'f', 2));
     canvas->setMessage("Fetching the RRFS column...\n\nA run/hour not seen before downloads about 265 MB (all 25 mb levels);\nafter that, every other point at the same run and hour is instant.");
+    auto result = std::make_shared<Result>();
+    const auto lonNow = lon, latNow = lat;
+    const auto runNow = runId, hourNow = forecastHour;
     new FutureVoid{this,
-        [this] {
+        [result, lonNow, latNow, runNow, hourNow] {
             string date;
             string cycle;
-            if (!UtilityGrib::resolveSynopticRun(runId, date, cycle)) {
-                status = "Model sounding: could not resolve an RRFS run";
-                loaded = false;
+            if (!UtilityGrib::resolveSynopticRun(runNow, date, cycle)) {
+                result->status = "Model sounding: could not resolve an RRFS run";
                 return;
             }
             string detail;
-            loaded = UtilityModelSounding::buildProfile(date, cycle, forecastHour, lon, lat, profile, detail);
-            if (!loaded) {
-                status = detail;
+            result->ok = UtilityModelSounding::buildProfile(date, cycle, hourNow, lonNow, latNow, result->profile, detail);
+            if (!result->ok) {
+                result->status = detail;
                 return;
             }
-            analysis = SoundingAnalysis::compute(profile);
+            result->analysis = SoundingAnalysis::compute(result->profile);
             const QDateTime runUtc{QDate{To::Int(date.substr(0, 4)), To::Int(date.substr(4, 2)), To::Int(date.substr(6, 2))},
                                    QTime{To::Int(cycle), 0}, QTimeZone::utc()};
-            const auto validLocal = runUtc.addSecs(3600 * To::Int(forecastHour)).toLocalTime();
-            status = "RRFS " + date.substr(0, 4) + "-" + date.substr(4, 2) + "-" + date.substr(6, 2) + " " + cycle + "z    F" +
-                (forecastHour.size() < 2 ? "0" + forecastHour : forecastHour) + " valid " +
+            const auto validLocal = runUtc.addSecs(3600 * To::Int(hourNow)).toLocalTime();
+            result->status = "RRFS " + date.substr(0, 4) + "-" + date.substr(4, 2) + "-" + date.substr(6, 2) + " " + cycle + "z    F" +
+                (hourNow.size() < 2 ? "0" + hourNow : hourNow) + " valid " +
                 validLocal.toString("ddd h:mm AP").toStdString() + " " +
                 QTimeZone::systemTimeZone().abbreviation(validLocal).toStdString();
         },
-        [this] {
-            if (closed) return;
+        [this, result, thisGeneration] {
+            if (closed || thisGeneration != generation) return;
+            status = result->status;
+            loaded = result->ok;
             if (!loaded) {
                 textInfo.setText(QString::fromStdString(status));
                 canvas->setMessage(QString::fromStdString(status) + "\n\nClose this window and try again, or pick another point or hour.");
                 return;
             }
+            profile = result->profile;
+            analysis = result->analysis;
             const auto point = QString{"%1 N, %2 W"}.arg(lat, 0, 'f', 2).arg(-lon, 0, 'f', 2);
             textInfo.setText(QString::fromStdString(status) + "    " + point);
             canvas->setData(&profile, &analysis, QString::fromStdString(status) + "    Sounding " + point);
+        }};
+}
+
+void SoundingViewer::startObserved() {
+    generation += 1;
+    const int thisGeneration = generation;
+    const auto index = static_cast<size_t>(std::max(0, comboTime.getIndex()));
+    const string timeCode = index < timeCodes.size() ? timeCodes[index] : string{};
+    const string siteCode = SoundingSites::sites->codeList[static_cast<size_t>(std::max(0, comboSite.getIndex()))];
+    const string siteName = SoundingSites::sites->byCode[siteCode]->fullName;
+    const string url = timeCode.empty() ? "https://www.spc.noaa.gov/exper/soundings/LATEST/" + siteCode + ".txt"
+                                        : "https://www.spc.noaa.gov/exper/soundings/" + timeCode + "_OBS/" + siteCode + ".txt";
+    textInfo.setText(QString::fromStdString("SPC sounding " + siteCode + " " + siteName + " - fetching..."));
+    canvas->setMessage(QString::fromStdString("Fetching the " + siteCode + " sounding from SPC..."));
+    auto result = std::make_shared<Result>();
+    new FutureVoid{this,
+        [result, url, siteCode, siteName, timeCode] {
+            const auto text = UtilityIO::getHtml(url);
+            string error;
+            if (!SoundingProfile::parseSpcText(text, result->profile, error)) {
+                result->status = "No sounding for " + siteCode + " " + siteName + (timeCode.empty() ? " (latest)" : " at 20" + timeCode.substr(0, 2) + "-" + timeCode.substr(2, 2) + "-" +
+                    timeCode.substr(4, 2) + " " + timeCode.substr(6, 2) + "z") +
+                    ". SPC publishes 00z and 12z launches (some sites also 06z/18z); the site may not have launched, or the archive may not hold that time.";
+                return;
+            }
+            result->analysis = SoundingAnalysis::compute(result->profile);
+            // "260930/1200" -> UTC time
+            const auto& v = result->profile.validTime;
+            if (v.size() >= 11) {
+                result->validTime = QDateTime{QDate{2000 + To::Int(v.substr(0, 2)), To::Int(v.substr(2, 2)), To::Int(v.substr(4, 2))},
+                                              QTime{To::Int(v.substr(7, 2)), To::Int(v.substr(9, 2))}, QTimeZone::utc()};
+            }
+            result->status = "SPC observed sounding  " + siteCode + " " + siteName + "  " +
+                (result->validTime.isValid() ? result->validTime.toString("yyyy-MM-dd HH:mm").toStdString() + "z" : v);
+            result->ok = true;
+        },
+        [this, result, thisGeneration] {
+            if (closed || thisGeneration != generation) return;
+            status = result->status;
+            loaded = result->ok;
+            if (!loaded) {
+                textInfo.setText(QString{"No sounding found"});
+                canvas->setMessage(QString::fromStdString(status));
+                return;
+            }
+            profile = result->profile;
+            analysis = result->analysis;
+            observedTime = result->validTime;
+            textInfo.setText(QString::fromStdString(status));
+            canvas->setData(&profile, &analysis, QString::fromStdString(status));
         }};
 }
 
@@ -474,8 +600,14 @@ void SoundingViewer::onSave() {
     QBuffer buffer{&bytes};
     buffer.open(QIODevice::WriteOnly);
     canvas->grab().save(&buffer, "PNG");
-    const auto suggested = UtilityAnimationExport::modelName(QString::fromStdString(status), QString::fromStdString(status),
-        QString{"sounding_%1_%2"}.arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2));
+    QString suggested;
+    if (observed) {
+        const auto code = QString::fromStdString(SoundingSites::sites->codeList[static_cast<size_t>(std::max(0, comboSite.getIndex()))]);
+        suggested = UtilityAnimationExport::validName(observedTime, QDateTime{}, "sounding_" + code);
+    } else {
+        suggested = UtilityAnimationExport::modelName(QString::fromStdString(status), QString::fromStdString(status),
+            QString{"sounding_%1_%2"}.arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2));
+    }
     UtilityAnimationExport::saveWithDialog(this, {}, 0, bytes, suggested, QByteArray{}, false);
 }
 
