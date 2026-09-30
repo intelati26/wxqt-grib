@@ -26,12 +26,23 @@ jobs:
           arch: 'win64_msvc2022_64'
           modules: 'qtwebengine qtpositioning qtwebchannel'
 
-      # (ilammy/msvc-dev-cmd's latest release, v1.13.0, still declares
-      # Node 20; the runner already forces it onto Node 24, so its
-      # deprecation notice is harmless until upstream re-releases.)
-      - uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
+      # Loads the Visual Studio x64 build environment (cl, nmake, INCLUDE/LIB)
+      # for the later steps. Done by hand rather than with ilammy/msvc-dev-cmd,
+      # whose latest release (v1.13.0) still declares Node 20 and so keeps
+      # raising the Node deprecation warning: run vcvars64.bat once, capture
+      # the environment it produces, and export it through GITHUB_ENV.
+      - name: Set up MSVC environment
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw "Visual Studio with the C++ x64 tools was not found" }
+          $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
+          cmd /c "`"$vcvars`" >nul && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') {
+              "$($Matches[1])=$($Matches[2])" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+            }
+          }
 
       # GDAL runs as a separate subprocess (QStandardPaths::findExecutable
       # ("gdalwarp"), never linked into wxqt.exe) - the MinGW/MSVC toolchain
@@ -83,7 +94,11 @@ jobs:
           if-no-files-found: error
 
   linux-x64-appimage:
-    runs-on: ubuntu-latest
+    # Pinned rather than ubuntu-latest, which moves to Ubuntu 26 on 2026-10-19.
+    # An AppImage only runs on systems with at least the glibc it was built
+    # against, so the older LTS baseline reaches more distros; switch to 26.04
+    # deliberately (its Qt / GDAL package names and versions need re-checking).
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
