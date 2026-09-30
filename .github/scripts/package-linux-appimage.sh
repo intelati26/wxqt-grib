@@ -72,9 +72,14 @@ sweep() {
     done
 }
 
+# img2webp (the Save dialog's WebP export) next to wxqt, where UtilityTools
+# looks first; its libraries are swept into usr/lib with wxqt's
+cp "$(command -v img2webp)" "$appDir/usr/bin/img2webp"
+
 cp "$appDir/usr/bin/wxqt" "$appDir/usr/lib/wxqt-for-sweep"
+cp "$appDir/usr/bin/img2webp" "$appDir/usr/lib/img2webp-for-sweep"
 sweep "$appDir/usr/lib"
-rm "$appDir/usr/lib/wxqt-for-sweep"
+rm "$appDir/usr/lib/wxqt-for-sweep" "$appDir/usr/lib/img2webp-for-sweep"
 
 sweep "$appDir/usr/gdal/bin"
 for so in "$appDir"/usr/gdal/bin/*.so*; do
@@ -138,6 +143,9 @@ fi
 exec "$HERE/usr/bin/wxqt" "$@"
 EOF
 chmod +x "$appDir/AppRun"
+
+# the bundled img2webp must run from the AppDir's own libraries
+LD_LIBRARY_PATH="$appDir/usr/lib" "$appDir/usr/bin/img2webp" -version
 
 wget -q -O /tmp/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
 chmod +x /tmp/appimagetool

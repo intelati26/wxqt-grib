@@ -33,17 +33,22 @@ panes show a visible note + link instead of a blank box. CI prints a package
 size report (top-level entries + 25 largest files) in each job log - use it
 to see what is left. **Future:** render the observation data as a native
 widget like the other screens, then the web engine can go away for good.
-Still-open size levers: slimming the MSYS2 GDAL dependency closure (or a
-minimal GDAL build), zstd/xz for the AppImage, stripping the Linux binary.
+Windows now bundles a minimal vcpkg GDAL (`.github/vcpkg/vcpkg.json`: core
+drivers + GEOS/PNG/SQLite/OpenJPEG) instead of MSYS2's full one, whose closure
+(OpenBLAS, Arrow/Parquet, x265/aom/SVT-AV1, SFCGAL, poppler, HDF5, ...) was
+most of the 147 MB zip. Contour buffering no longer needs SpatiaLite
+(`UtilityGrib::bufferContours`: `ogr2ogr -simplify` then `ST_Buffer`, output
+byte-identical). CI smoke-tests every GDAL tool/driver the app uses. Still-open
+size levers: the same minimal GDAL for the AppImage, zstd/xz for the AppImage,
+stripping the Linux binary.
 
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
-JPEG XL / AVIF / animated WebP / MP4 offered when cjxl / avifenc / img2webp
-(libwebp tools; ffmpeg is the fallback for WebP) / ffmpeg (MP4) are installed (not bundled - keeps packages small; bundling avifenc/cjxl is a
-possible follow-up). WebP is lossless via `img2webp` (animations) / `cwebp`
-(stills); **verified only against stand-in scripts** - the real libwebp tools were
-not installed where this was written (Arch: `libwebp-utils`; Debian/Ubuntu: `webp`;
-Fedora: `libwebp-tools`). **GIF is deliberately not supported** (user decision).
+WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage
+`usr/bin` - ffmpeg is the fallback); JPEG XL / AVIF / MP4 offered when cjxl /
+avifenc / ffmpeg are installed (not bundled - keeps packages small). Choosing
+WebP opens an options dialog (lossy / lossless / mixed, quality, effort, sharp
+YUV, frame delay, pause on last frame, play count), remembered in prefs. **GIF is deliberately not supported** (user decision).
 Failures are always shown in a message box - never a silent fallback.
 Every `Photo` / `Image` picture (WPC national images, observations, OPC,
 storm reports, soundings, compmap, outlook summaries, dashboard thumbnails,

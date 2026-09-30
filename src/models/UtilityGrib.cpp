@@ -690,6 +690,22 @@ bool UtilityGrib::idxByteRange(const string& idxText, const string& match, long 
     return false;
 }
 
+bool UtilityGrib::bufferContours(const QString& bin, const QString& contourRaw, const QString& contourBuf) {
+    auto runGdal = [] (const QString& program, const QStringList& args) {
+        QProcess process;
+        process.start(program, args);
+        process.waitForFinished(30000);
+        return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+    };
+    const auto simplified = contourBuf.left(contourBuf.lastIndexOf('.')) + "_s.geojson";
+    QFile::remove(simplified);
+    const auto ok = runGdal(bin + "ogr2ogr", {"-q", "-f", "GeoJSON", simplified, contourRaw, "-simplify", "0.06"})
+        && runGdal(bin + "ogr2ogr", {"-q", "-f", "GeoJSON", contourBuf, simplified, "-dialect", "sqlite",
+            "-sql", "SELECT ST_Buffer(geometry, 0.02) AS geometry FROM contour"});
+    QFile::remove(simplified);
+    return ok;
+}
+
 // Per-pixel arithmetic over same-grid rasters, in C++ - replaces
 // gdal_calc.py so the portable builds need no Python. Rasters round-trip
 // through GDAL's ENVI driver (flat float32 + a text .hdr that carries the
@@ -1452,9 +1468,7 @@ string UtilityGrib::render(int fieldIndex, int regionIndex, const string& foreca
         if (coarseOk
             && runProcess(bin + "gdal_contour",
                 {"-q", "-a", "elev", "-i", QString::number(interval), contourSrc, contourRaw})
-            && runProcess(bin + "ogr2ogr",
-                {"-q", "-f", "GeoJSON", contourBuf, contourRaw, "-dialect", "sqlite",
-                 "-sql", "SELECT ST_Buffer(ST_SimplifyPreserveTopology(geometry, 0.06), 0.02) AS geometry FROM contour"})) {
+            && bufferContours(bin, contourRaw, contourBuf)) {
             burnLines(contourBuf.toStdString(), greenContours ? 20 : 245, greenContours ? 70 : 245, greenContours ? 20 : 245);
             labelledContourGeoJson = contourRaw;   // keep it for labelling after PNG
         }

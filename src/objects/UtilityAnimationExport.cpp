@@ -7,7 +7,14 @@
 #include <algorithm>
 #include <string>
 #include <QBuffer>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFile>
+#include <QFormLayout>
+#include <QLabel>
+#include <QSpinBox>
 #include <QFileDialog>
 #include <QDesktopServices>
 #include <QDir>
@@ -97,8 +104,183 @@ namespace {
     }
 }
 
+UtilityAnimationExport::WebpOptions UtilityAnimationExport::webpOptions;
+bool UtilityAnimationExport::webpOptionsSet{false};
+
 bool UtilityAnimationExport::toolAvailable(const QString& name) {
     return !UtilityTools::find(name).isEmpty();
+}
+
+bool UtilityAnimationExport::webpAvailable() {
+    return toolAvailable("img2webp") || toolAvailable("ffmpeg");
+}
+
+UtilityAnimationExport::WebpOptions UtilityAnimationExport::savedWebpOptions() {
+    WebpOptions options;
+    options.mode = static_cast<WebpOptions::Mode>(std::clamp(Utility::readPrefInt("WEBP_EXPORT_MODE", options.mode), 0, 2));
+    options.quality = std::clamp(Utility::readPrefInt("WEBP_EXPORT_QUALITY", options.quality), 0, 100);
+    options.effort = std::clamp(Utility::readPrefInt("WEBP_EXPORT_EFFORT", options.effort), 0, 6);
+    options.lastFrameHoldMs = std::clamp(Utility::readPrefInt("WEBP_EXPORT_LAST_HOLD", options.lastFrameHoldMs), 0, 10000);
+    options.loopCount = std::clamp(Utility::readPrefInt("WEBP_EXPORT_LOOP", options.loopCount), 0, 100);
+    options.sharpYuv = Utility::readPrefInt("WEBP_EXPORT_SHARP_YUV", options.sharpYuv ? 1 : 0) != 0;
+    return options;
+}
+
+bool UtilityAnimationExport::webpOptionsDialog(QWidget * parent, bool animated, int frameDelayMs, WebpOptions& options) {
+    options = savedWebpOptions();
+    QDialog dialog{parent};
+    dialog.setWindowTitle("WebP options");
+    auto * form = new QFormLayout{&dialog};
+
+    auto * mode = new QComboBox{&dialog};
+    mode->addItems({"Lossy (smallest)", "Lossless (exact pixels)", "Mixed (best of both per frame)"});
+    mode->setCurrentIndex(options.mode);
+    form->addRow("Compression", mode);
+
+    auto * quality = new QSpinBox{&dialog};
+    quality->setRange(0, 100);
+    quality->setValue(options.quality);
+    quality->setToolTip("Higher keeps more detail and makes a bigger file");
+    form->addRow("Quality", quality);
+
+    auto * effort = new QSpinBox{&dialog};
+    effort->setRange(0, 6);
+    effort->setValue(options.effort);
+    effort->setToolTip("0 = fastest, 6 = smallest file (slowest)");
+    form->addRow("Effort (0-6)", effort);
+
+    auto * sharp = new QCheckBox{"Sharper colour edges (slower)", &dialog};
+    sharp->setChecked(options.sharpYuv);
+    sharp->setToolTip("Keeps thin coloured lines and text crisp in lossy mode");
+    form->addRow("", sharp);
+
+    QSpinBox * delay = nullptr;
+    QSpinBox * hold = nullptr;
+    QSpinBox * loop = nullptr;
+    if (animated) {
+        delay = new QSpinBox{&dialog};
+        delay->setRange(20, 10000);
+        delay->setSingleStep(50);
+        delay->setSuffix(" ms");
+        delay->setValue(std::clamp(frameDelayMs, 20, 10000));
+        form->addRow("Frame delay", delay);
+
+        hold = new QSpinBox{&dialog};
+        hold->setRange(0, 10000);
+        hold->setSingleStep(250);
+        hold->setSuffix(" ms");
+        hold->setSpecialValueText("None");
+        hold->setValue(options.lastFrameHoldMs);
+        hold->setToolTip("Extra pause on the last frame before the loop starts over");
+        form->addRow("Pause on last frame", hold);
+
+        loop = new QSpinBox{&dialog};
+        loop->setRange(0, 100);
+        loop->setSpecialValueText("Forever");
+        loop->setValue(options.loopCount);
+        form->addRow("Play count", loop);
+    }
+    if (!toolAvailable("img2webp")) {
+        auto * note = new QLabel{"Using ffmpeg: \"Mixed\", sharper colour edges and the last-frame pause "
+                                 "need img2webp (included in the portable packages).", &dialog};
+        note->setWordWrap(true);
+        form->addRow(note);
+    }
+
+    auto updateEnabled = [mode, quality, sharp] {
+        const auto lossless = mode->currentIndex() == WebpOptions::Lossless;
+        quality->setEnabled(!lossless);
+        sharp->setEnabled(!lossless);
+    };
+    QObject::connect(mode, &QComboBox::currentIndexChanged, &dialog, updateEnabled);
+    updateEnabled();
+
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Save | QDialogButtonBox::Cancel, &dialog};
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    form->addRow(buttons);
+    if (dialog.exec() != QDialog::Accepted) {
+        return false;
+    }
+
+    options.mode = static_cast<WebpOptions::Mode>(mode->currentIndex());
+    options.quality = quality->value();
+    options.effort = effort->value();
+    options.sharpYuv = sharp->isChecked();
+    options.frameDelayMs = delay ? delay->value() : 0;
+    if (hold) {
+        options.lastFrameHoldMs = hold->value();
+    }
+    if (loop) {
+        options.loopCount = loop->value();
+    }
+    Utility::writePrefInt("WEBP_EXPORT_MODE", options.mode);
+    Utility::writePrefInt("WEBP_EXPORT_QUALITY", options.quality);
+    Utility::writePrefInt("WEBP_EXPORT_EFFORT", options.effort);
+    Utility::writePrefInt("WEBP_EXPORT_LAST_HOLD", options.lastFrameHoldMs);
+    Utility::writePrefInt("WEBP_EXPORT_LOOP", options.loopCount);
+    Utility::writePrefInt("WEBP_EXPORT_SHARP_YUV", options.sharpYuv ? 1 : 0);
+    webpOptions = options;
+    webpOptionsSet = true;
+    return true;
+}
+
+// frames are already in framesDir as frame_0000.png, frame_0001.png, ...
+bool UtilityAnimationExport::encodeWebp(size_t frameCount, bool animated, int frameDelayMs, const QString& framesDir,
+                                        const QString& path, QString& error) {
+    if (!webpOptionsSet) {
+        webpOptions = savedWebpOptions();
+        webpOptionsSet = true;
+    }
+    const auto& options = webpOptions;
+    const auto delay = std::max(20, options.frameDelayMs > 0 ? options.frameDelayMs : frameDelayMs);
+    auto frameFile = [&] (size_t i) { return framesDir + "/frame_" + QString::number(i).rightJustified(4, '0') + ".png"; };
+
+    const auto img2webp = UtilityTools::find("img2webp");
+    if (!img2webp.isEmpty()) {
+        // file-level options first, then per-frame options, which img2webp
+        // applies to every frame file that follows them
+        QStringList args;
+        if (animated) {
+            args << "-loop" << QString::number(options.loopCount);
+        }
+        if (options.mode == WebpOptions::Mixed) {
+            args << "-mixed";
+        }
+        if (options.sharpYuv && options.mode != WebpOptions::Lossless) {
+            args << "-sharp_yuv";
+        }
+        args << (options.mode == WebpOptions::Lossless ? "-lossless" : "-lossy")
+             << "-q" << QString::number(options.mode == WebpOptions::Lossless ? 75 : options.quality)
+             << "-m" << QString::number(options.effort)
+             << "-d" << QString::number(delay);
+        for (size_t i = 0; i < frameCount; i += 1) {
+            if (animated && i + 1 == frameCount && options.lastFrameHoldMs > 0) {
+                args << "-d" << QString::number(delay + options.lastFrameHoldMs);
+            }
+            args << frameFile(i);
+        }
+        args << "-o" << path;
+        const auto result = runTool(img2webp, args, 300000);
+        error = result.error;
+        return result.ok && QFile::exists(path);
+    }
+
+    QStringList args{"-y", "-hide_banner", "-loglevel", "error"};
+    if (animated) {
+        args << "-framerate" << QString::number(1000.0 / delay, 'f', 3);
+    }
+    args << "-i" << framesDir + "/frame_%04d.png" << "-c:v" << "libwebp_anim";
+    if (options.mode == WebpOptions::Lossless) {
+        args << "-lossless" << "1";
+    } else {
+        args << "-quality" << QString::number(options.quality);
+    }
+    args << "-compression_level" << QString::number(options.effort)
+         << "-loop" << QString::number(animated ? options.loopCount : 0) << path;
+    const auto result = runTool(UtilityTools::find("ffmpeg"), args, 300000);
+    error = result.error;
+    return result.ok && QFile::exists(path);
 }
 
 vector<UtilityAnimationExport::Format> UtilityAnimationExport::formats(bool animated) {
@@ -114,9 +296,7 @@ vector<UtilityAnimationExport::Format> UtilityAnimationExport::formats(bool anim
     if (toolAvailable("avifenc")) {
         list.push_back({"avif", animated ? "AVIF animation" : "AVIF image", "avif"});
     }
-    // WebP: libwebp's own tools are preferred (img2webp for animations, cwebp for
-    // single images); ffmpeg can do either if they are not installed
-    if (toolAvailable("img2webp") || (!animated && toolAvailable("cwebp")) || toolAvailable("ffmpeg")) {
+    if (webpAvailable()) {
         list.push_back({"webp", animated ? "Animated WebP" : "WebP image", "webp"});
     }
     if (animated && toolAvailable("ffmpeg")) {
@@ -205,38 +385,18 @@ bool UtilityAnimationExport::encodeToFile(const Format& format, const vector<QBy
         error = result.error;
         return result.ok && QFile::exists(path);
     }
-    if (format.id == "webp" && (toolAvailable("img2webp") || (!animated && toolAvailable("cwebp")))) {
-        // lossless, so flat colours and text in weather maps stay exact (like PNG);
-        // frame options come before the frames they apply to
-        QStringList args;
-        QString tool = "img2webp";
-        if (!animated && toolAvailable("cwebp")) {
-            tool = "cwebp";
-            args << "-lossless" << "-quiet" << temp.path() + "/frame_0000.png" << "-o" << path;
-        } else {
-            args << "-loop" << "0" << "-lossless" << "-d" << QString::number(frameDelayMs);
-            for (size_t i = 0; i < source.size(); i += 1) {
-                args << temp.path() + "/frame_" + QString::number(i).rightJustified(4, '0') + ".png";
-            }
-            args << "-o" << path;
-        }
-        const auto result = runTool(UtilityTools::find(tool), args, 300000);
-        error = result.error;
-        return result.ok && QFile::exists(path);
+    if (format.id == "webp") {
+        return encodeWebp(source.size(), animated, frameDelayMs, temp.path(), path, error);
     }
-    if (format.id == "webp" || format.id == "mp4") {
+    if (format.id == "mp4") {
         const auto rate = QString::number(1000.0 / std::max(1, frameDelayMs), 'f', 3);
         QStringList args{"-y", "-hide_banner", "-loglevel", "error"};
         if (animated) {
             args << "-framerate" << rate;
         }
-        args << "-i" << temp.path() + "/frame_%04d.png";
-        if (format.id == "webp") {
-            args << "-c:v" << "libwebp_anim" << "-quality" << "90" << "-loop" << "0";
-        } else {
-            args << "-c:v" << "libx264" << "-crf" << "18" << "-pix_fmt" << "yuv420p"
-                 << "-vf" << "pad=ceil(iw/2)*2:ceil(ih/2)*2:color=white";
-        }
+        args << "-i" << temp.path() + "/frame_%04d.png"
+             << "-c:v" << "libx264" << "-crf" << "18" << "-pix_fmt" << "yuv420p"
+             << "-vf" << "pad=ceil(iw/2)*2:ceil(ih/2)*2:color=white";
         args << path;
         const auto result = runTool(UtilityTools::find("ffmpeg"), args, 300000);
         error = result.error;
@@ -305,7 +465,7 @@ void UtilityAnimationExport::showInstallHelp(QWidget * parent, const QStringList
                 "<a href=\"https://developers.google.com/speed/webp/download\">WebP downloads</a></li>";
     }
     if (missing.contains("ffmpeg")) {
-        text += "<li><b>MP4 video</b> - <code>ffmpeg</code>: "
+        text += QString{"<li><b>"} + (missing.contains("img2webp") ? "MP4 (and WebP)" : "MP4") + "</b> - <code>ffmpeg</code>: "
                 "<a href=\"https://ffmpeg.org/download.html\">ffmpeg.org/download</a></li>";
     }
     text += "</ul>";
@@ -476,8 +636,8 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
     if (!toolAvailable("avifenc")) {
         missingTools << "avifenc";
     }
-    if (!toolAvailable("img2webp") && !toolAvailable("ffmpeg")) {
-        missingTools << "img2webp";   // WebP (libwebp tools)
+    if (!toolAvailable("img2webp")) {
+        missingTools << "img2webp";
     }
     if (!toolAvailable("ffmpeg")) {
         missingTools << "ffmpeg";     // MP4 (and a WebP fallback)
@@ -524,6 +684,13 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
     auto path = fileName;
     if (QFileInfo{path}.suffix().toLower() != chosen.ext) {
         path += "." + chosen.ext;
+    }
+
+    if (chosen.id == "webp") {
+        WebpOptions options;
+        if (!webpOptionsDialog(parent, animated, frameDelayMs, options)) {
+            return false;   // the user cancelled
+        }
     }
 
     QString error;

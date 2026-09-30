@@ -33,6 +33,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     }
     if (toolbar) {
         settingsToolbarOrderBox = make_unique<SettingsToolbarOrderBox>(parent, toolbar);
+        settingsHomeScreenOrderBox = make_unique<SettingsHomeScreenOrderBox>(parent);
     }
     tabWidget.addTab(settingsBox.get(), "General");
     tabWidget.addTab(settingsRadarBox.get(), "Radar");
@@ -43,6 +44,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     }
     if (toolbar) {
         tabWidget.addTab(settingsToolbarOrderBox.get(), "Toolbar Order");
+        tabWidget.addTab(settingsHomeScreenOrderBox.get(), "Home Screen Order");
     }
     tabWidget.addTab(settingsAboutBox.get(), "About");
     if (showRadarFirst) {
@@ -52,6 +54,9 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
         tabWidget.connect([this] (int i) {
             if (i == 3) {
                 settingsLocationsBox->refresh();
+            }
+            if (settingsHomeScreenOrderBox) {
+                settingsHomeScreenOrderBox->refresh();   // "(hidden)" follows the General tab's switches
             }
         });
     } else {

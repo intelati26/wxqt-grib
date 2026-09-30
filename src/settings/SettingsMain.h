@@ -16,6 +16,7 @@
 #include "settings/SettingsColorsBox.h"
 #include "settings/SettingsLocationsBox.h"
 #include "settings/SettingsRadarBox.h"
+#include "settings/SettingsHomeScreenOrderBox.h"
 #include "settings/SettingsToolbarOrderBox.h"
 #include "ui/ComboBox.h"
 #include "ui/ScrolledWindow.h"
@@ -46,6 +47,7 @@ private:
     unique_ptr<SettingsLocationsBox> settingsLocationsBox;
     unique_ptr<LocationEditBox> locationEditBox;
     unique_ptr<SettingsToolbarOrderBox> settingsToolbarOrderBox;
+    unique_ptr<SettingsHomeScreenOrderBox> settingsHomeScreenOrderBox;
     unique_ptr<TextViewerStaticBox> settingsAboutBox;
     string settingsString;
     Shortcut shortcutGeneral;

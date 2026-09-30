@@ -483,9 +483,7 @@ UtilitySevereIndices::ShipGrid UtilitySevereIndices::computeShipGrid(
             && runProcess(bin + "gdal_contour",
                 {"-q", "-a", "elev", "-fl", "0.75", "-fl", "1.0", "-fl", "1.5", "-fl", "2.0", "-fl", "2.5",
                  inchPath, contourRaw})
-            && runProcess(bin + "ogr2ogr",
-                {"-q", "-f", "GeoJSON", contourBuf, contourRaw, "-dialect", "sqlite",
-                 "-sql", "SELECT ST_Buffer(ST_SimplifyPreserveTopology(geometry, 0.06), 0.02) AS geometry FROM contour"})) {
+            && UtilityGrib::bufferContours(bin, contourRaw, contourBuf)) {
             result.hailContourBufPath = contourBuf;
             result.hailContourRawPath = contourRaw;
         }

@@ -233,6 +233,13 @@ public:
     using CalcFn = std::function<double(const double*)>;
     static bool calcRaster(const QString& bin, const QStringList& inputs, const CalcFn& fn, const QString& outPath);
 
+    // Contour lines (gdal_contour output, layer "contour") -> simplified,
+    // slightly buffered polygons for burning. Two ogr2ogr passes (-simplify is
+    // GEOS SimplifyPreserveTopology, then the SQLite dialect's ST_Buffer) so
+    // GDAL needs only GEOS, not SpatiaLite; same output as a single
+    // ST_Buffer(ST_SimplifyPreserveTopology(geometry, 0.06), 0.02) query.
+    static bool bufferContours(const QString& bin, const QString& contourRaw, const QString& contourBuf);
+
 private:
     // shared cache-or-generate wrapper - every *LinesGeoJson() accessor
     // above (except cwaLinesGeoJson(), which extracts an already-geojson

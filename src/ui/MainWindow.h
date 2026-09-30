@@ -53,6 +53,7 @@ private:
     static string computeTokenString();
     void locationChange();
     void addWidgets();
+    void arrangeColumns();
     void launchImageScreen(const string&);
     void downloadWatch();
     void updateWatch();
