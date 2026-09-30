@@ -16,33 +16,38 @@
 
 GoesGlobal::GoesGlobal(Window * parent)
     : Window{parent}
-    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , image{this}
     , comboboxProduct{this, UtilityGoesFullDisk::labels }
-    , objectAnimate{this, &photo, &UtilityGoesFullDisk::getAnimation, [this] { reload(); }}
+    , objectAnimate{this, &image, &UtilityGoesFullDisk::getAnimation}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
-    , shortcutAnimate{QKeySequence{"A"}, this}
 {
     index = Utility::readPrefInt(prefToken, 0);
     comboboxProduct.setIndexByValue(UtilityGoesFullDisk::labels[index]);
     comboboxProduct.connect([this] { changeProduct(); });
 
     boxH.addWidget(comboboxProduct);
-    boxH.addWidget(objectAnimate);
     boxH.addLayout(backForward);
     box.addLayout(boxH);
-    box.addWidgetAndCenter(photo);
+    objectAnimate.addTo(box);
+    box.addWidgetReal(&image, 1, Qt::Alignment{});
     box.getAndShow(this);
     reload();
 
-    shortcutAnimate.connect([this] { objectAnimate.animateClicked(); });
 }
 
 void GoesGlobal::reload() {
     setTitle("GOES Global " + UtilityGoesFullDisk::labels[index]);
     objectAnimate.product = UtilityGoesFullDisk::urls[index];
-    objectAnimate.setVisible(UtilityGoesFullDisk::canAnimate(objectAnimate.product));
+    if (UtilityGoesFullDisk::canAnimate(objectAnimate.product)) {
+        objectAnimate.refresh();
+    } else {
+        objectAnimate.clear();
+    }
     Utility::writePrefInt(prefToken, index);
-    new FutureBytes{this, objectAnimate.product, [this] (const auto& ba) { photo.setBytes(ba); }};
+    new FutureBytes{this, objectAnimate.product, [this] (const auto& ba) {
+        image.setBytesKeepView(ba);
+        objectAnimate.setCurrentBytes(ba);
+    }};
 }
 
 void GoesGlobal::moveBack() {

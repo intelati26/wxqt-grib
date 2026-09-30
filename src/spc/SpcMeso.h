@@ -10,12 +10,12 @@
 #include <string>
 #include <vector>
 #include "objects/AutoUpdate.h"
-#include "objects/ObjectAnimate.h"
+#include "objects/UrlAnimation.h"
 #include "ui/BackForward.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
-#include "ui/Photo.h"
+#include "ui/ZoomImage.h"
 #include "ui/PopoverMenu.h"
 #include "ui/Shortcut.h"
 #include "ui/VBox.h"
@@ -30,6 +30,7 @@ public:
 
 private:
     void reload();
+    void showLatest(const QByteArray&);
     void moveBack();
     void moveForward();
     void changeProductForFav(int);
@@ -41,15 +42,14 @@ private:
     VBox boxFav;
     HBox imageLayout;
     AutoUpdate autoUpdate;
-    Photo photo;
+    ZoomImage image;
     ComboBox comboboxSector;
-    ObjectAnimate objectAnimate;
+    UrlAnimation objectAnimate;
     BackForward backForward;
     int index;
     bool savePrefs;
     vector<Button> buttons;
     vector<PopoverMenu> popoverMenus;
-    Shortcut shortcutAnimate;
     Shortcut shortcutAutoUpdate;
     vector<Shortcut> shortcuts;
     const string prefTokenProduct{"SPCMESO1_PARAM_LAST_USED"};

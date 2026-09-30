@@ -16,12 +16,11 @@
 SpcMeso::SpcMeso(Window * parent, const string& productCode, const string& sectorCode, bool savePrefs)
     : Window{parent}
     , autoUpdate{this, "SPCMESO_AUTO_UPDATE_INTERVAL", 15, [this] { reload(); }}
-    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , image{this}
     , comboboxSector{this, UtilitySpcMeso::sectors}
-    , objectAnimate{this, &photo, &UtilitySpcMesoInputOutput::getAnimation, [this] { reload(); }}
+    , objectAnimate{this, &image, &UtilitySpcMesoInputOutput::getAnimation}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , savePrefs{savePrefs}
-    , shortcutAnimate{QKeySequence{"A"}, this}
     , shortcutAutoUpdate{QKeySequence{"U"}, this}
 {
     objectAnimate.product = Utility::readPref(prefTokenProduct, "pmsl");
@@ -42,7 +41,6 @@ SpcMeso::SpcMeso(Window * parent, const string& productCode, const string& secto
 
     boxFav.addWidget(comboboxSector);
     boxFav.addLayout(backForward);
-    boxFav.addWidget(objectAnimate);
     boxFav.addWidget(autoUpdate);
     box.addLayout(boxH);
 
@@ -57,7 +55,8 @@ SpcMeso::SpcMeso(Window * parent, const string& productCode, const string& secto
     boxFav.addStretch();
 
     imageLayout.addLayout(boxFav);
-    imageLayout.addWidgetAndCenter(photo);
+    imageLayout.addWidgetReal(&image, 1, Qt::Alignment{});
+    objectAnimate.addTo(box);
     box.addLayout(imageLayout);
     box.getAndShow(this);
 
@@ -70,7 +69,6 @@ SpcMeso::SpcMeso(Window * parent, const string& productCode, const string& secto
         popoverMenus.emplace_back(this, menuTitle.title, menuTitle.get(), [this] (const auto& s) { changeProductByCode(s); });
         boxH.addWidget(popoverMenus.back());
     }
-    shortcutAnimate.connect([this] { objectAnimate.animateClicked(); });
     shortcutAutoUpdate.connect([this] { autoUpdate.toggleAutoUpdate(); });
     reload();
 
@@ -88,7 +86,14 @@ void SpcMeso::reload() {
     }
     index = indexOf(UtilitySpcMeso::products, objectAnimate.product);
     setTitle("SPC Mesoanalysis - " + UtilitySpcMeso::labels[index] + " " + autoUpdate.titleAdd);
-    new FutureBytes{this, UtilitySpcMesoInputOutput::getImageUrl(objectAnimate.product, objectAnimate.sector), [this] (const auto& ba) { photo.setBytes(ba); }};
+    new FutureBytes{this, UtilitySpcMesoInputOutput::getImageUrl(objectAnimate.product, objectAnimate.sector), [this] (const auto& ba) { showLatest(ba); }};
+    objectAnimate.refresh();
+}
+
+// the newest still image; also what Save exports when no loop has been rendered
+void SpcMeso::showLatest(const QByteArray& bytes) {
+    image.setBytesKeepView(bytes);
+    objectAnimate.setCurrentBytes(bytes);
 }
 
 void SpcMeso::moveBack() {

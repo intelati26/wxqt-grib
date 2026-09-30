@@ -18,14 +18,13 @@
 GoesViewer::GoesViewer(Window * parent, const string& url, const string& product, const string& sector, bool savePref)
     : Window{parent}
     , autoUpdate{parent, "GOES_AUTO_UPDATE_INTERVAL", 5, [this] { reload(); }}
-    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , image{this}
     , comboboxSector{this, UtilityGoes::sectors}
     , comboboxProduct{this, UtilityGoes::labels}
     , comboboxCount{this, {"6", "12", "18", "24"}}
-    , objectAnimate{this, &photo, &UtilityGoes::getAnimation, [this] { reload(); }}
+    , objectAnimate{this, &image, &UtilityGoes::getAnimation}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , goesFloater{false}
-    , shortcutAnimate{QKeySequence{"A"}, this}
     , shortcutAutoUpdate{QKeySequence{"U"}, this}
     , savePref{savePref}
 {
@@ -72,14 +71,13 @@ GoesViewer::GoesViewer(Window * parent, const string& url, const string& product
     }
     boxH.addWidget(comboboxProduct);
     boxH.addWidget(comboboxCount);
-    boxH.addWidget(objectAnimate);
     boxH.addWidget(autoUpdate);
     boxH.addLayout(backForward);
     box.addLayout(boxH);
-    box.addWidgetAndCenter(photo);
+    objectAnimate.addTo(box);
+    box.addWidgetReal(&image, 1, Qt::Alignment{});
     box.getAndShow(this);
 
-    shortcutAnimate.connect([this] { objectAnimate.animateClicked(); });
     shortcutAutoUpdate.connect([this] { autoUpdate.toggleAutoUpdate(); });
     reload();
 }
@@ -92,10 +90,17 @@ void GoesViewer::reload() {
             Utility::writePref("REMEMBER_GOES_SECTOR", objectAnimate.sector);
             Utility::writePref("REMEMBER_GOES_PRODUCT", objectAnimate.product);
         }
-        new FutureBytes{this, UtilityGoes::getImage(objectAnimate.product, objectAnimate.sector), [this] (const auto& ba) { photo.setBytes(ba); }};
+        new FutureBytes{this, UtilityGoes::getImage(objectAnimate.product, objectAnimate.sector), [this] (const auto& ba) { showLatest(ba); }};
     } else {
-        new FutureBytes{this, UtilityGoes::getImageGoesFloater(goesFloaterUrl, objectAnimate.product), [this] (const auto& ba) { photo.setBytes(ba); }};
+        new FutureBytes{this, UtilityGoes::getImageGoesFloater(goesFloaterUrl, objectAnimate.product), [this] (const auto& ba) { showLatest(ba); }};
     }
+    objectAnimate.refresh();
+}
+
+// the newest still image; also what Save exports when no loop has been rendered
+void GoesViewer::showLatest(const QByteArray& bytes) {
+    image.setBytesKeepView(bytes);
+    objectAnimate.setCurrentBytes(bytes);
 }
 
 void GoesViewer::moveBack() {
@@ -127,7 +132,7 @@ void GoesViewer::changeCount() {
 }
 
 void GoesViewer::resizeEventCustom() {
-    photo.setToHeight(getWindowHeight());
+    // ZoomImage re-fits itself on resize while the user has not zoomed
 }
 
 void GoesViewer::closeEventCustom() {

@@ -9,11 +9,11 @@
 
 #include <string>
 #include "objects/AutoUpdate.h"
-#include "objects/ObjectAnimate.h"
+#include "objects/UrlAnimation.h"
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
-#include "ui/Photo.h"
+#include "ui/ZoomImage.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -25,6 +25,7 @@ public:
 
 private:
     void reload();
+    void showLatest(const QByteArray&);
     void moveBack();
     void moveForward();
     void changeSector();
@@ -35,15 +36,14 @@ private:
     AutoUpdate autoUpdate;
     HBox boxH;
     VBox box;
-    Photo photo;
+    ZoomImage image;
     ComboBox comboboxSector;
     ComboBox comboboxProduct;
     ComboBox comboboxCount;
-    ObjectAnimate objectAnimate;
+    UrlAnimation objectAnimate;
     BackForward backForward;
     bool goesFloater;
     string goesFloaterUrl;
-    Shortcut shortcutAnimate;
     Shortcut shortcutAutoUpdate;
     bool savePref;
 };

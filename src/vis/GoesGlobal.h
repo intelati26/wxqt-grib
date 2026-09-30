@@ -9,11 +9,11 @@
 
 #include <string>
 #include "objects/AutoUpdate.h"
-#include "objects/ObjectAnimate.h"
+#include "objects/UrlAnimation.h"
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
-#include "ui/Photo.h"
+#include "ui/ZoomImage.h"
 #include "ui/Shortcut.h"
 #include "ui/Window.h"
 #include "ui/VBox.h"
@@ -34,13 +34,12 @@ private:
     void closeEventCustom() override;
     HBox boxH;
     VBox box;
-    Photo photo;
+    ZoomImage image;
     ComboBox comboboxProduct;
-    ObjectAnimate objectAnimate;
+    UrlAnimation objectAnimate;
     BackForward backForward;
     const string prefToken{"GOESFULLDISK_IMG_FAV_URL"};
     int index;
-    Shortcut shortcutAnimate;
 };
 
 #endif  // GOESGLOBAL_H
