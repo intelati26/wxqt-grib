@@ -431,7 +431,19 @@ Result: `vector<vector<double>>` (member → per-hour value), passed to
   cached per run+field+hour+member like `g_*.grib2` today. Panels can now
   show "Member N"; linked crosshair becomes actually interesting (four
   different members' read-outs side by side).
-- **Stage 3** — paintball renderer + member-colour legend key.
+- **Stage 3 — done (2026-09-30)**: `UtilityRefs::renderPaintball` + 7
+  "Paintball ..." field rows (REFC >= 20/40 dBZ, UH 2-5km >= 25/75, CAPE
+  >= 1000/2500, gust >= 50 kt; thresholds are fixed per row for now - a
+  free-form picker is Stage 4). Per member: idx byte-range fetch (shared
+  `fetchFieldGrib`, factored out of `render()`), warp, then a 3-stop
+  gdaldem table (alpha 0 below the threshold, member colour at alpha 110 at
+  or above) - Python-free. Members composited with QPainter, CWA/state
+  lines burned afterwards, legend (threshold + a swatch per member that
+  actually rendered) drawn last. Missing members are skipped, not fatal.
+  Verified live (2026093000 F06 CONUS): all 7 render; CAPE >= 1000 visibly
+  shows the members stacking over the Gulf. No hover `.grid` sidecar yet
+  (the natural one is members-exceeding count, which is also Stage 4's
+  from-members probability). Cache key `pb1`.
 - **Stage 4** — probability-of-exceedance UI: threshold picker; direct render
   from `prob`/`eas` bands where available, from-members fallback where not.
 - **Stage 5** — `RefsPointGraph` (the third window): click-to-sample, plume

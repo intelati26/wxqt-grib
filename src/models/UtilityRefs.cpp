@@ -4,11 +4,15 @@
 // *****************************************************************************
 
 #include "models/UtilityRefs.h"
+#include <algorithm>
 #include <cctype>
 #include <QByteArray>
 #include <QDate>
 #include <QDateTime>
 #include <QDir>
+#include <QFont>
+#include <QImage>
+#include <QPainter>
 #include <QFile>
 #include <QProcess>
 #include <QRegularExpression>
@@ -93,6 +97,32 @@ namespace {
         const string& colorMap;
     };
 
+    // Stage 3: paintball rows. Each is one member-field key + an exceedance
+    // threshold; the row's `product` is "pb" and render() dispatches to
+    // renderPaintball(). idxMatch/units repeat the member field's so the
+    // row is self-describing in the combo, but the per-member fetch uses the
+    // member rows themselves (found by "<memberKey>_m<N>").
+    struct PaintballSpec {
+        const char* label;
+        const char* key;
+        const char* memberKey;
+        const char* units;
+        double threshold;
+    };
+    const PaintballSpec paintballSpecs[]{
+        {"Paintball Composite Reflectivity >= 20 dBZ", "pb_refc20", "refc", "dBZ", 20.0},
+        {"Paintball Composite Reflectivity >= 40 dBZ", "pb_refc40", "refc", "dBZ", 40.0},
+        {"Paintball Updraft Helicity 2-5km >= 25", "pb_uphl25", "uphl25", "m2/s2", 25.0},
+        {"Paintball Updraft Helicity 2-5km >= 75", "pb_uphl75", "uphl25", "m2/s2", 75.0},
+        {"Paintball Surface CAPE >= 1000", "pb_cape1000", "cape", "J/kg", 1000.0},
+        {"Paintball Surface CAPE >= 2500", "pb_cape2500", "cape", "J/kg", 2500.0},
+        {"Paintball Wind Gust >= 50 kt", "pb_gust50", "gust", "m/s", 25.7},
+    };
+    // fixed member -> colour key (5 members confirmed; headroom for 8)
+    const int memberColors[8][3]{
+        {228, 26, 28}, {55, 126, 184}, {77, 175, 74}, {152, 78, 163},
+        {255, 127, 0}, {166, 86, 40}, {247, 129, 191}, {90, 90, 90}};
+
     vector<UtilityGrib::Field> buildFields() {
         vector<UtilityGrib::Field> result{
         UtilityGrib::Field{"Ensemble Mean 2m Temperature", "tmp2m_mean", "C", ":TMP:2 m above ground:",
@@ -126,6 +156,9 @@ namespace {
                     string{spec.key} + "_m" + To::string(member), spec.units, spec.idxMatch, spec.colorMap,
                     "m00" + To::string(member)});
             }
+        }
+        for (const auto& spec : paintballSpecs) {
+            result.push_back(UtilityGrib::Field{spec.label, spec.key, spec.units, "", "", "pb"});
         }
         return result;
     }
@@ -165,6 +198,221 @@ string UtilityRefs::cacheDir() {
     auto path = QDir::tempPath() + "/wxqt_refs";
     QDir{}.mkpath(path);
     return path.toStdString();
+}
+
+// Fetches (or reuses the cached) single-record GRIB2 slice for one field/
+// hour. ensprod files are one-per-run+cycle+hour (all fields of that product
+// type in one file) - cached per run+field+hour, shared across regions, same
+// shape as UtilityGrib::render()'s own grib2 cache.
+bool UtilityRefs::fetchFieldGrib(const UtilityGrib::Field& field, const string& dateStr, const string& cycle,
+                                  int forecastHourInt, QString& gribPathOut, string& status) {
+    const auto fhr2 = WString::fixedLengthStringPad0(To::string(forecastHourInt), 2);
+    const auto dir = QString::fromStdString(cacheDir());
+    const auto runKey = dateStr + cycle;
+    // Member rows come from the sibling rrfsens.* tree (com/rrfs/, 3-digit
+    // forecast hour); ensprod rows from com/refs/refs.* (2-digit hour).
+    const auto url = isMemberProduct(field.product)
+        ? "https://nomads.ncep.noaa.gov/pub/data/nccf/com/rrfs/" + UtilityGrib::dataStream() +
+            "/rrfsens." + dateStr + "/" + cycle + "/" + field.product + "/rrfs.t" + cycle + "z." +
+            field.product + ".2dfldnomads.3km.f" + WString::fixedLengthStringPad0(To::string(forecastHourInt), 3) +
+            ".conus.grib2"
+        : "https://nomads.ncep.noaa.gov/pub/data/nccf/com/refs/" + UtilityGrib::dataStream() +
+            "/refs." + dateStr + "/" + cycle + "/ensprod/refs.t" + cycle + "z." + field.product + ".f" + fhr2 +
+            ".conus.grib2";
+    const auto gribPath = dir + QString::fromStdString("/g_" + runKey + "_" + field.key + "_" + fhr2 + ".grib2");
+    gribPathOut = gribPath;
+    bool haveValidCache = false;
+    {
+        QFile check{gribPath};
+        if (check.size() > 200 && check.open(QIODevice::ReadOnly)) {
+            const auto validHeader = check.read(4) == QByteArray{"GRIB"};
+            const auto validTrailer = check.seek(check.size() - 4) && check.read(4) == QByteArray{"7777"};
+            check.close();
+            haveValidCache = validHeader && validTrailer;
+        }
+        if (!haveValidCache) {
+            QFile::remove(gribPath);
+        }
+    }
+    if (haveValidCache) {
+        return true;
+    }
+    const auto idx = UtilityIO::getHtml(url + ".idx");
+    long long start = -1;
+    long long end = -1;
+    if (idx.empty() || !UtilityGrib::idxByteRange(idx, field.idxMatch, start, end)) {
+        status = field.label + " not available for f" + fhr2;
+        return false;
+    }
+    const auto slice = URL::getBytesRange(url, start, end);
+    if (slice.size() < 200 || slice.left(4) != QByteArray{"GRIB"}) {
+        status = field.label + " fetch failed";
+        return false;
+    }
+    QFile out{gribPath};
+    if (!out.open(QIODevice::WriteOnly)) {
+        status = "cache write failed";
+        return false;
+    }
+    out.write(slice);
+    out.close();
+    return true;
+}
+
+// Paintball plot: each available RRFS Ensemble member's area of exceedance
+// for the row's threshold, drawn as a translucent blob in that member's own
+// colour, all overlaid on one map - where blobs stack the members agree.
+// Python-free: per-member colorize is a 3-stop gdaldem table (transparent
+// below the threshold, member colour at alpha 110 at/above it), members are
+// composited with QPainter, lines burned afterwards, legend drawn last.
+string UtilityRefs::renderPaintball(const UtilityGrib::Field& field, int regionIndex, const string& dateStr,
+                                     const string& cycle, int forecastHourInt, const string& binDir,
+                                     string& status) {
+    const PaintballSpec * spec = nullptr;
+    for (const auto& candidate : paintballSpecs) {
+        if (field.key == candidate.key) {
+            spec = &candidate;
+        }
+    }
+    if (spec == nullptr) {
+        status = "invalid paintball field";
+        return "";
+    }
+    const auto fhr2 = WString::fixedLengthStringPad0(To::string(forecastHourInt), 2);
+    const auto runKey = dateStr + cycle;
+    const auto box = UtilityGrib::regionBbox(regionIndex);
+    const auto dir = QString::fromStdString(cacheDir());
+    // "pb1" is the render version - bump it whenever the drawing pipeline changes
+    const auto pngPath = dir + QString::fromStdString(
+        "/pb1_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2 + ".png");
+    if (QFile::exists(pngPath)) {
+        return pngPath.toStdString();
+    }
+
+    const auto bin = QString::fromStdString(binDir) + "/";
+    const auto fillCols = QString::number(UtilityGrib::mainRenderColumns(box));
+    const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2);
+    QImage canvas;
+    vector<int> drawn;
+    string lastError;
+    for (int member = 1; member <= 5; member += 1) {
+        const auto memberKey = string{spec->memberKey} + "_m" + To::string(member);
+        const UtilityGrib::Field * memberField = nullptr;
+        for (const auto& candidate : fields) {
+            if (candidate.key == memberKey) {
+                memberField = &candidate;
+            }
+        }
+        QString gribPath;
+        string memberStatus;
+        if (memberField == nullptr || !fetchFieldGrib(*memberField, dateStr, cycle, forecastHourInt, gribPath, memberStatus)) {
+            lastError = memberStatus;
+            continue;
+        }
+        const auto suffix = tag + "_m" + QString::number(member);
+        const auto colorPath = dir + "/pbcol_" + suffix + ".txt";
+        const auto warpPath = dir + "/pbw_" + suffix + ".tif";
+        const auto tiffPath = dir + "/pbc_" + suffix + ".tif";
+        const auto memberPng = dir + "/pbm_" + suffix + ".png";
+        {
+            const auto* rgb = memberColors[member - 1];
+            const auto colorText = QString{"nv 0 0 0 0\n%1 %2 %3 %4 0\n%5 %2 %3 %4 110\n1000000 %2 %3 %4 110\n"}
+                .arg(spec->threshold - 0.001, 0, 'f', 3).arg(rgb[0]).arg(rgb[1]).arg(rgb[2])
+                .arg(spec->threshold, 0, 'f', 3).toUtf8();
+            QFile colorFile{colorPath};
+            if (colorFile.open(QIODevice::WriteOnly)) {
+                colorFile.write(colorText);
+                colorFile.close();
+            }
+        }
+        const auto ok =
+            runProcess(bin + "gdalwarp",
+                {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
+                 "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
+                 "-r", "bilinear", "-ts", fillCols, "0", gribPath, warpPath}, memberStatus)
+            && runProcess(bin + "gdaldem", {"color-relief", "-q", "-alpha", "-of", "GTiff", warpPath, colorPath, tiffPath}, memberStatus)
+            && runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", tiffPath, memberPng}, memberStatus);
+        QImage layer;
+        if (ok && layer.load(memberPng)) {
+            layer = layer.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+            if (canvas.isNull()) {
+                canvas = QImage{layer.size(), QImage::Format_ARGB32_Premultiplied};
+                canvas.fill(Qt::transparent);
+            }
+            if (layer.size() == canvas.size()) {
+                QPainter painter{&canvas};
+                painter.drawImage(0, 0, layer);
+                drawn.push_back(member);
+            }
+        } else {
+            lastError = memberStatus;
+        }
+        for (const auto& stale : {colorPath, warpPath, tiffPath, memberPng}) {
+            QFile::remove(stale);
+        }
+    }
+    if (canvas.isNull() || drawn.empty()) {
+        status = "no ensemble members available for f" + fhr2 + (lastError.empty() ? "" : " (" + lastError + ")");
+        return "";
+    }
+
+    const auto compPng = dir + "/pbcomp_" + tag + ".png";
+    const auto compTif = dir + "/pbcomp_" + tag + ".tif";
+    canvas.convertToFormat(QImage::Format_ARGB32).save(compPng, "PNG");
+    auto ok = runProcess(bin + "gdal_translate",
+            {"-q", "-of", "GTiff", "-a_srs", "EPSG:4326", "-a_ullr", fixedQ(box.west), fixedQ(box.north),
+             fixedQ(box.east), fixedQ(box.south), compPng, compTif}, status);
+    const auto burnLines = [&] (const string& geoJson, int red, int green, int blue) {
+        runProcess(bin + "gdal_rasterize",
+            {"-q", "-b", "1", "-b", "2", "-b", "3", "-b", "4",
+             "-burn", QString::number(red), "-burn", QString::number(green),
+             "-burn", QString::number(blue), "-burn", "255",
+             QString::fromStdString(geoJson), compTif}, status);
+    };
+    if (ok) {
+        burnLines(UtilityGrib::cwaLinesGeoJson(), 110, 110, 110);
+        burnLines(UtilityGrib::stateLinesGeoJson(), 25, 25, 25);
+        ok = runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", compTif, pngPath}, status);
+    }
+    for (const auto& stale : {compPng, compTif, compTif + ".aux.xml"}) {
+        QFile::remove(stale);
+    }
+    if (!ok || !QFile::exists(pngPath)) {
+        return "";
+    }
+
+    // legend key: threshold + one swatch per drawn member, top-left
+    QImage finalImage;
+    if (finalImage.load(pngPath)) {
+        finalImage = finalImage.convertToFormat(QImage::Format_ARGB32);
+        QPainter painter{&finalImage};
+        painter.setRenderHint(QPainter::Antialiasing);
+        const int unit = std::max(11, finalImage.width() / 75);
+        QFont font = painter.font();
+        font.setPixelSize(unit);
+        font.setBold(true);
+        painter.setFont(font);
+        const auto title = QString::fromStdString(string{"Members >= "} +
+            QString::number(spec->threshold, 'f', 0).toStdString() + " " + spec->units);
+        const int rowHeight = unit + 6;
+        const int boxWidth = std::max(unit * 14, painter.fontMetrics().horizontalAdvance(title) + unit);
+        const int boxHeight = rowHeight * (static_cast<int>(drawn.size()) + 1) + 8;
+        painter.fillRect(QRect{6, 6, boxWidth, boxHeight}, QColor{255, 255, 255, 215});
+        painter.setPen(QColor{30, 30, 30});
+        painter.drawText(QPoint{6 + unit / 2, 6 + rowHeight}, title);
+        int row = 1;
+        for (const auto member : drawn) {
+            const auto* rgb = memberColors[member - 1];
+            const int top = 6 + 4 + rowHeight * row + 3;
+            painter.fillRect(QRect{6 + unit / 2, top, unit * 2, unit}, QColor{rgb[0], rgb[1], rgb[2]});
+            painter.drawRect(QRect{6 + unit / 2, top, unit * 2, unit});
+            painter.drawText(QPoint{6 + unit / 2 + unit * 2 + 6, top + unit - 1}, QString{"Member %1"}.arg(member));
+            row += 1;
+        }
+        painter.end();
+        finalImage.save(pngPath, "PNG");
+    }
+    return pngPath.toStdString();
 }
 
 string UtilityRefs::render(int fieldIndex, int regionIndex, const string& forecastHour, const string& runId,
@@ -207,6 +455,10 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
         " " + cycle + "z    F" + fhr2 + " valid " + validLocal.toString("ddd h:mm AP").toStdString() +
         " " + localZone.toStdString() + "    " + field.label + "    " + regionLabel;
 
+    if (field.product == "pb") {
+        return renderPaintball(field, regionIndex, dateStr, cycle, forecastHourInt, binDir, status);
+    }
+
     // "rf2" is the render version - bump it whenever the drawing pipeline changes
     const auto pngPath = dir + QString::fromStdString(
         "/rf2_" + runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2 + ".png");
@@ -227,55 +479,9 @@ string UtilityRefs::render(int fieldIndex, int regionIndex, const string& foreca
         return pngPath.toStdString();
     }
 
-    // ensprod files are one-per-run+cycle+hour (all fields of that product
-    // type in one file) - cached per run+field+hour, shared across regions,
-    // same shape as UtilityGrib::render()'s own grib2 cache.
-    // Member rows come from the sibling rrfsens.* tree (com/rrfs/, 3-digit
-    // forecast hour); ensprod rows from com/refs/refs.* (2-digit hour).
-    const auto url = isMemberProduct(field.product)
-        ? "https://nomads.ncep.noaa.gov/pub/data/nccf/com/rrfs/" + UtilityGrib::dataStream() +
-            "/rrfsens." + dateStr + "/" + cycle + "/" + field.product + "/rrfs.t" + cycle + "z." +
-            field.product + ".2dfldnomads.3km.f" + WString::fixedLengthStringPad0(To::string(forecastHourInt), 3) +
-            ".conus.grib2"
-        : "https://nomads.ncep.noaa.gov/pub/data/nccf/com/refs/" + UtilityGrib::dataStream() +
-            "/refs." + dateStr + "/" + cycle + "/ensprod/refs.t" + cycle + "z." + field.product + ".f" + fhr2 +
-            ".conus.grib2";
-    const auto gribPath = dir + QString::fromStdString("/g_" + runKey + "_" + field.key + "_" + fhr2 + ".grib2");
-    {
-        bool haveValidCache = false;
-        {
-            QFile check{gribPath};
-            if (check.size() > 200 && check.open(QIODevice::ReadOnly)) {
-                const auto validHeader = check.read(4) == QByteArray{"GRIB"};
-                const auto validTrailer = check.seek(check.size() - 4) && check.read(4) == QByteArray{"7777"};
-                check.close();
-                haveValidCache = validHeader && validTrailer;
-            }
-            if (!haveValidCache) {
-                QFile::remove(gribPath);
-            }
-        }
-        if (!haveValidCache) {
-            const auto idx = UtilityIO::getHtml(url + ".idx");
-            long long start = -1;
-            long long end = -1;
-            if (idx.empty() || !UtilityGrib::idxByteRange(idx, field.idxMatch, start, end)) {
-                status = field.label + " not available for f" + fhr2;
-                return "";
-            }
-            const auto slice = URL::getBytesRange(url, start, end);
-            if (slice.size() < 200 || slice.left(4) != QByteArray{"GRIB"}) {
-                status = field.label + " fetch failed";
-                return "";
-            }
-            QFile out{gribPath};
-            if (!out.open(QIODevice::WriteOnly)) {
-                status = "cache write failed";
-                return "";
-            }
-            out.write(slice);
-            out.close();
-        }
+    QString gribPath;
+    if (!fetchFieldGrib(field, dateStr, cycle, forecastHourInt, gribPath, status)) {
+        return "";
     }
 
     const auto tag = QString::fromStdString(runKey + "_" + field.key + "_" + To::string(regionIndex) + "_" + fhr2);

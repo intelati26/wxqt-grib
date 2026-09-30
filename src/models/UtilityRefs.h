@@ -52,6 +52,10 @@ public:
 
 private:
     static string cacheDir();
+    static string renderPaintball(const UtilityGrib::Field& field, int regionIndex, const string& dateStr,
+                                  const string& cycle, int forecastHourInt, const string& binDir, string& status);
+    static bool fetchFieldGrib(const UtilityGrib::Field& field, const string& dateStr, const string& cycle,
+                               int forecastHourInt, QString& gribPathOut, string& status);
 };
 
 #endif  // UTILITYREFS_H
