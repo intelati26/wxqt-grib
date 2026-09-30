@@ -34,11 +34,8 @@ Categories=Utility;
 Terminal=false
 EOF
 
-# KNOWN GAP (narrowed): GRIB, SPC Post and REFS rendering no longer need
-# gdal_calc/gdal_merge (Python scripts, not bundled). Only the SHIP/STP
-# severe-indices viewer still uses gdal_calc for its formula math, so that
-# viewer will not render from this AppImage until ported off Python (see
-# docs/outstanding-work.md).
+# No Python needed: rendering uses only the GDAL binaries copied below
+# (gdal_calc/gdal_merge were removed from every pipeline).
 for tool in gdalwarp gdaldem gdal_translate gdal_rasterize gdalinfo; do
     cp "$(command -v "$tool")" "$appDir/usr/gdal/bin/"
 done

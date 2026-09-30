@@ -25,19 +25,17 @@ priority until Windows packaging is actually attempted for real.
 fixed now, see "Recently closed" below - unrelated to Windows specifically,
 worth doing before any public push regardless of platform.)
 
-## Python dependency in rendering — mostly removed (commit 62bb0ff)
-`UtilityGrib`, `UtilityRefs` and `UtilitySpcPost` no longer use
-`gdal_calc.py`/`gdal_merge.py`: nodata transparency is a leading
-`nv 0 0 0 0` color-table line + `gdaldem color-relief -alpha`, and the C->F
-conversion is `gdal_translate -scale`. Verified near pixel-identical vs the
-old output (only a few alpha-ramp pixels at hard steps, hence the 4.999 /
-9.999 near-step stops). Visible change: color-table stops with alpha 0
-(low CAPE, low wind, ...) are now genuinely transparent.
-
-**Still open:** `UtilitySevereIndices` (SHIP/STP). Its mask/merge steps are
-convertible the same way, but the formula math is `gdal_calc` numpy
-expressions, so SHIP/STP still need Python (bundle it for just those, or
-compute in C++). Until then SHIP/STP won't render in the portable builds.
+## Python dependency in rendering — removed
+No render pipeline uses `gdal_calc.py`/`gdal_merge.py` any more. Nodata
+transparency is a leading `nv 0 0 0 0` color-table line +
+`gdaldem color-relief -alpha`; C->F is `gdal_translate -scale`; SHIP/STP's
+formula math runs in C++ (`calcRaster` in `UtilitySevereIndices.cpp`,
+rasters round-tripped through GDAL's ENVI driver, -9999 propagated).
+Verified pixel-identical (or within a few alpha-ramp pixels) vs the old
+output for GRIB, SPC Post, REFS, RRFS background, SHIP and STP. Visible
+change: alpha-0 low-end color stops (low CAPE, low wind, ...) are now
+genuinely transparent. Not yet verified: a portable build run on a machine
+with no Python/osgeo at all.
 
 ## Active — Derived Severe Indices (SHIP / STP / Parametric viewer)
 Full plan: `docs/derived-severe-indices-plan.md`. Segments 1-6 all done and

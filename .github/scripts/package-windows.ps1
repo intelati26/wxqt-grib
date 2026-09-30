@@ -108,11 +108,8 @@ done
     if (Test-Path $gdalDataSrc) { Copy-Item -Recurse $gdalDataSrc "$gdalDir/gdal-data" }
     if (Test-Path $projDataSrc) { Copy-Item -Recurse $projDataSrc "$gdalDir/proj-data" }
 
-    # KNOWN GAP (narrowed): GRIB, SPC Post and REFS rendering no longer need
-    # gdal_calc/gdal_merge (Python scripts, not bundled here). Only the
-    # SHIP/STP severe-indices viewer still uses gdal_calc for its formula
-    # math, so that viewer will not render from this package until it is
-    # ported off Python (see docs/outstanding-work.md).
+    # No Python needed: rendering uses only the GDAL binaries copied above
+    # (gdal_calc/gdal_merge were removed from every pipeline).
 } else {
     Write-Host "==> note: GDAL not found - skipping. GRIB/SPC Post/severe-indices/REFS viewers will report 'GDAL not found'."
 }
