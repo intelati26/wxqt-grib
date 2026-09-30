@@ -21,7 +21,9 @@ public:
     static string getNearest(const LatLon&);
     static string getImageFileName(const string&);
     static string getImageGoesFloater(const string&, const string&);
-    static string getImage(const string&, const string&);
+    static string getImage(const string&, const string&, const string& size = "");
+    // the image sizes ("2500x1500") STAR publishes in the directory listing html, smallest first
+    static vector<string> parseSizes(const string& directoryHtml);
     static vector<string> getAnimation(const string&, const string&, size_t);
     static vector<string> getAnimationGoesFloater(const string&, const string&, size_t);
     static const unordered_map<string, LatLon> sectorToLatLon;

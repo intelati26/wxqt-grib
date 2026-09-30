@@ -22,6 +22,7 @@ GoesViewer::GoesViewer(Window * parent, const string& url, const string& product
     , comboboxSector{this, UtilityGoes::sectors}
     , comboboxProduct{this, UtilityGoes::labels}
     , comboboxCount{this, {"6", "12", "18", "24"}}
+    , comboboxSize{this, {"Default size"}}
     , objectAnimate{this, &image, &UtilityGoes::getAnimation}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , goesFloater{false}
@@ -71,9 +72,19 @@ GoesViewer::GoesViewer(Window * parent, const string& url, const string& product
     }
     boxH.addWidget(comboboxProduct);
     boxH.addWidget(comboboxCount);
+    if (!goesFloater) {
+        comboboxSize.connect([this] { changeSize(); });
+        boxH.addWidget(comboboxSize);
+    } else {
+        comboboxSize.setVisible(false);
+    }
     boxH.addWidget(autoUpdate);
     boxH.addLayout(backForward);
     box.addLayout(boxH);
+    notice.setWordWrap(true);
+    notice.setStyleSheet("QLabel { background: #fff3cd; color: #664d03; padding: 4px 8px; border-radius: 3px; }");
+    notice.hide();
+    box.addWidgetReal(&notice);
     objectAnimate.addTo(box);
     box.addWidgetReal(&image, 1, Qt::Alignment{});
     box.getAndShow(this);
@@ -90,15 +101,56 @@ void GoesViewer::reload() {
             Utility::writePref("REMEMBER_GOES_SECTOR", objectAnimate.sector);
             Utility::writePref("REMEMBER_GOES_PRODUCT", objectAnimate.product);
         }
-        new FutureBytes{this, UtilityGoes::getImage(objectAnimate.product, objectAnimate.sector), [this] (const auto& ba) { showLatest(ba); }};
+        loadSizes();
+        loadImage();
     } else {
         new FutureBytes{this, UtilityGoes::getImageGoesFloater(goesFloaterUrl, objectAnimate.product), [this] (const auto& ba) { showLatest(ba); }};
     }
     objectAnimate.refresh();
 }
 
+// the sizes STAR offers depend on the sector and on the product, so ask its directory listing
+void GoesViewer::loadSizes() {
+    auto listing = UtilityGoes::getImage(objectAnimate.product, objectAnimate.sector);
+    listing = listing.substr(0, listing.rfind('/') + 1);
+    new FutureBytes{this, listing, [this] (const auto& ba) {
+        auto sizes = UtilityGoes::parseSizes(ba.toStdString());
+        if (sizes.empty()) {
+            return;   // listing unavailable: keep whatever the list already offers
+        }
+        sizes.insert(sizes.begin(), "Default size");
+        comboboxSize.block();
+        comboboxSize.setList(sizes);
+        // keep the chosen size when this product offers it too, otherwise fall back to the default
+        const auto it = std::find(sizes.begin(), sizes.end(), sizeChoice);
+        comboboxSize.setIndex(it == sizes.end() ? 0 : static_cast<size_t>(it - sizes.begin()));
+        if (it == sizes.end()) {
+            sizeChoice.clear();
+        }
+        comboboxSize.unblock();
+    }};
+}
+
+void GoesViewer::loadImage() {
+    new FutureBytes{this, UtilityGoes::getImage(objectAnimate.product, objectAnimate.sector, sizeChoice), [this] (const auto& ba) { showLatest(ba); }};
+}
+
+void GoesViewer::changeSize() {
+    sizeChoice = comboboxSize.getIndex() <= 0 ? "" : comboboxSize.getValue();
+    loadImage();
+}
+
 // the newest still image; also what Save exports when no loop has been rendered
 void GoesViewer::showLatest(const QByteArray& bytes) {
+    if (QImage::fromData(bytes).isNull()) {
+        // a missing file on the server comes back empty or as an error page; say so instead of leaving the old image unexplained
+        const auto what = sizeChoice.empty() ? string{"the latest image"} : "the " + sizeChoice + " image";
+        notice.setText(QString::fromStdString("Could not load " + what + " for this product and sector - it may not exist on the server. " +
+                                              (sizeChoice.empty() ? "Check the connection and try again." : "Try a different size.")));
+        notice.show();
+        return;
+    }
+    notice.hide();
     image.setBytesKeepView(bytes);
     objectAnimate.setCurrentBytes(bytes);
 }

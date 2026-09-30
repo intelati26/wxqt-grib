@@ -6,6 +6,8 @@
 
 #include "UtilityGoes.h"
 #include <list>
+#include <map>
+#include <regex>
 #include "common/GlobalVariables.h"
 #include "objects/WString.h"
 #include "settings/UtilityLocation.h"
@@ -33,9 +35,22 @@ string UtilityGoes::getImageGoesFloater(const string& url, const string& product
     return WString::replace(url, "GEOCOLOR", product);
 }
 
+vector<string> UtilityGoes::parseSizes(const string& html) {
+    std::map<long, string> bySize;   // pixel count -> label, so the list comes out smallest first
+    const std::regex pattern{"href=\"(\\d{3,5})x(\\d{3,5})\\.jpg\""};
+    for (auto it = std::sregex_iterator(html.begin(), html.end(), pattern); it != std::sregex_iterator(); ++it) {
+        bySize[std::stol((*it)[1]) * std::stol((*it)[2])] = (*it)[1].str() + "x" + (*it)[2].str();
+    }
+    vector<string> out;
+    for (const auto& [pixels, label] : bySize) {
+        out.push_back(label);
+    }
+    return out;
+}
+
 // https://cdn.star.nesdis.noaa.gov/GOES16/GLM/CONUS/EXTENT/20201641856GOES16-GLM-CONUS-EXTENT-2500x1500.jpg
 // https://cdn.star.nesdis.noaa.gov/GOES16/GLM/CONUS/EXTENT/1250x750.jpg
-string UtilityGoes::getImage(const string& product, const string& sector) {
+string UtilityGoes::getImage(const string& product, const string& sector, const string& size) {
     auto sectorLocal = "SECTOR/" + sector;
     if (sector == "FD" || sector == "CONUS" || sector == "CONUS-G17" || sector == "FD-G17")
         sectorLocal = sector;
@@ -49,7 +64,7 @@ string UtilityGoes::getImage(const string& product, const string& sector) {
             sectorLocal = "FD";
         }
     }
-    auto url = GlobalVariables::goes16Url + "/" + satellite + "/ABI/" + sectorLocal + "/" + product + "/" + getImageFileName(sector);
+    auto url = GlobalVariables::goes16Url + "/" + satellite + "/ABI/" + sectorLocal + "/" + product + "/" + (size.empty() ? getImageFileName(sector) : size + ".jpg");
     if (product == "GLM") {
         url = WString::replace(url, "ABI", "GLM");
         url = WString::replace(url, sector + "/GLM", sector + "/EXTENT3");

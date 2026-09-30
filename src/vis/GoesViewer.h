@@ -8,6 +8,7 @@
 #define GOESVIEWER_H
 
 #include <string>
+#include <QLabel>
 #include "objects/AutoUpdate.h"
 #include "objects/UrlAnimation.h"
 #include "ui/BackForward.h"
@@ -31,6 +32,9 @@ private:
     void changeSector();
     void changeProduct();
     void changeCount();
+    void changeSize();
+    void loadSizes();
+    void loadImage();
     void resizeEventCustom() override;
     void closeEventCustom() override;
     AutoUpdate autoUpdate;
@@ -40,6 +44,9 @@ private:
     ComboBox comboboxSector;
     ComboBox comboboxProduct;
     ComboBox comboboxCount;
+    ComboBox comboboxSize;
+    QLabel notice;   // visible when the requested image could not be loaded
+    string sizeChoice;   // empty = the app's default size for the sector
     UrlAnimation objectAnimate;
     BackForward backForward;
     bool goesFloater;
