@@ -124,7 +124,17 @@ public:
     static string render(int indexIndex, int regionIndex, const string& forecastHour, const string& runId,
                          string& status, double& dataMin, double& dataMax, string& samplePath);
 
+    // Pixel-wise maximum of the index over `hours` (forecast-hour strings,
+    // ascending) - see UtilitySevereIndices.cpp. Cached per run/index/region/
+    // range; same return / sidecar contract as render().
+    static string renderMax(int indexIndex, int regionIndex, const vector<string>& hours, const string& runId,
+                            string& status, double& dataMin, double& dataMax, string& samplePath);
+
 private:
+    static string finishIndexRender(int indexIndex, const QString& tifPath, const QString& nodataRefPath,
+                                    const QString& hailContourBufPath, const QString& hailContourRawPath,
+                                    const UtilityGrib::Bbox& box, const QString& pngPath,
+                                    const string& tagBaseText, string& status, string& samplePath);
     static const vector<UtilityGrib::Field> shipInputFields;
     // STP (fixed layer)'s raw inputs not already covered by shipInputFields
     // (0-6km shear and terrain height ARE shared - see computeStpGrid()):

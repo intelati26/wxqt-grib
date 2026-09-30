@@ -54,63 +54,16 @@ not the same as having watched it work. Remaining:
   layer" for later). Needs a full vertical-profile parcel computation
   (effective inflow layer, ESRH, EBWD) RRFS doesn't ship as ready fields -
   substantially bigger scope than fixed-layer STP or SHIP. Not started.
-- **Eventual, not yet staged**: 24hr-max compositing mode (pixel-wise max of
-  SHIP across an hour range) — the user's actual end target, sitting
-  alongside the SPC human forecast and SPC Post 24hr probability as a third
-  lens on the same threat. Needs Segment 5's shell to exist first, but the
-  shell's hour control should be designed with this in mind from the start.
-
-## Active — RRFS Ensemble / REFS viewer
-Full plan: `docs/refs-viewer-plan.md`. Stages -1 and 0 done. Briefly paused
-2026-09-14 on a wrong finding (only checked NOMADS/AWS's `refs.*`
-ensprod-only tree); **user pointed out the actual per-member tree**,
-`rrfsens.<date>/<cycle>/m001/`-`m005/`, a sibling of `refs.*` not a
-subdirectory - confirmed live on both NOMADS and the operational-track
-`noaa-rrfs-ops-pds` S3 bucket. Per SCN 26-48 (authoritative), **"RRFS
-Ensemble" and "REFS" are two different systems**: RRFS Ensemble = 5 raw
-members (`rrfsens.*`, what paintball/plume will pull from); REFS = a
-product-generation system (`refs.*/ensprod`) blending a ~14-source pool
-(RRFS det + RRFS Ensemble, both time-lagged, + HRRR), not just the 5
-members - so a from-members paintball/probability will be a real but
-different, smaller ensemble than REFS's own `prob`/`eas`, expected to
-disagree somewhat. Resolution confirmed identical to deterministic RRFS
-(3km CONUS/AK, 2.5km HI/PR) for both.
-
-**Stage 0 done (2026-09-14)**: new `UtilityRefs`/`RefsPanel`/`RefsViewer`,
-2x2-panel shell + `AnimationBar`-as-adapter plumbing, verified live against
-a real REFS run (ensemble-mean 2m temp + probability-matched-mean
-reflectivity, both valid 867x385 RGBA renders). Along the way: promoted
-`UtilityGrib::resolveSynopticRun`/`synopticRunOptions`/`gdalBinDir`/
-`idxByteRange`/`tempColorMap`/`reflColorMap` from private/duplicated to
-shared public statics (fixed a real pre-existing duplication in
-`UtilitySevereIndices` too, not just avoided a new one); caught a wrong URL
-(`com/rrfs/para/refs.*` doesn't exist - the real path is the sibling
-top-level `com/refs/para/refs.*`) and a real REFS-side finding (no plain
-ensemble-mean reflectivity field exists - use `pmmn` instead). No GUI
-click-testing available this session - see `wxqt-refs-viewer-plan` memory
-for the full verification chain. Toolbar entry added.
-
-**Stages 2-6 done (2026-09-30)** - see `docs/refs-viewer-plan.md`: members as
-panel fields, paintball, runtime thresholds + Member Probability + REFS
-Probability, click-to-plume graph (`RefsPointGraph`), 4-panel mosaic export,
-linked hover read-out, paintball hover sidecar, precip/snow/freezing-rain
-`prob` records, and a kind / variable / member picker per panel. Remaining
-REFS items: `eas`/`ffri` (deliberately not added - `ffri`'s PPFFG "prob
->1/3/6" thresholds are flash-flood-guidance ratios whose exact meaning
-wasn't confirmed, and `eas` semantics are unverified; don't label a
-flooding product on a guess) and a dedicated toolbar icon. `lpmm`/`avrg`
-(localized-PMM and mean precipitation, 1-hr/3-hr/total) are done.
-
-**Stage 1 partly done (2026-09-30)**: 7 fields now (up from 2), covering
-`mean`/`sprd`/`pmmn` - each product type's real field list verified live
-(`mean`=broad fields no REFC, `sprd`=same broad set *plus* REFC, `pmmn`=REFC
-only). New dedicated spread colormaps so disagreement panels don't look
-like value panels. `lpmm`/`avrg` (precip-only) and `prob`/`eas`/`ffri`
-deferred - both need a threshold/accumulation-window disambiguation
-mechanism a plain idx substring match can't provide, better solved once
-alongside Stage 4's threshold-picker UI than twice. Next: finish Stage 1's
-remaining product types (folded into Stage 4's work), then Stage 2 (member
-fetch plumbing against the now-confirmed `rrfsens.*` tree).
+- **24hr-max compositing - DONE (2026-09-30, local)**: `UtilitySevereIndices::
+  renderMax` + a "Max of range" button in `IndexViewer` (uses the same
+  From/To Range pickers as Play; cap 48 hours). Each hour's grid comes from
+  the normal `computeShipGrid`/`computeStpGrid` (grib slices cached), the
+  max is one `calcRaster`, then the shared `finishIndexRender` (extracted
+  from `render()`, verified pixel-identical). Verified: composite max ==
+  largest single-hour max for SHIP (0.702) and STP (1.537) over F01-F06;
+  6 hours ~5-9 s once cached. No HAILCAST contours on a composite. Not
+  wired to animation/save; a natural follow-up is an SPC-day1-style fixed
+  "12z-12z" preset button.
 
 ## Pinned, low-priority follow-ups
 - **SHIP field-fetch batching, part 1 - DONE (2026-09-14)**: the actual

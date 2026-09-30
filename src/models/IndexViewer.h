@@ -16,6 +16,7 @@
 #include "objects/SampleGrid.h"
 #include "ui/AnimationBar.h"
 #include "ui/BackForward.h"
+#include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/Photo.h"
@@ -43,6 +44,7 @@ public:
 
 private:
     void reload();
+    void showMaxOfRange();
     void moveBack();
     void moveForward();
     void updateForecastHours();
@@ -69,6 +71,7 @@ private:
     ComboBox comboRegion;
     ComboBox comboForecastHour;
     BackForward backForward;
+    Button buttonMax;
     AnimationBar animBar;
     std::vector<std::pair<string, string>> runOptions;
     string status;

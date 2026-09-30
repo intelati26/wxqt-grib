@@ -798,8 +798,167 @@ string UtilitySevereIndices::render(int indexIndex, int regionIndex, const strin
         }
     }
 
+    return finishIndexRender(indexIndex, tifPath, nodataRefPath, hailContourBufPath, hailContourRawPath, box,
+                             pngPath, runKey + "_" + To::string(indexIndex) + "_" + To::string(regionIndex) + "_" + fhr3,
+                             status, samplePath);
+}
+
+// Pixel-wise maximum of an index over a run of forecast hours (e.g. "24hr
+// max SHIP" - the worst-case footprint of the threat across the day, the
+// natural companion to the SPC day-1 outlook). Each hour's value grid comes
+// from the same computeShipGrid / computeStpGrid the single-hour render
+// uses (their grib slices are cached, so a repeat is warp + arithmetic
+// only); the maximum is one calcRaster over all of them, then the shared
+// colorize/PNG step. Hours that fail to compute are skipped and reported in
+// the status line. HAILCAST contours are not drawn on a composite.
+string UtilitySevereIndices::renderMax(int indexIndex, int regionIndex, const vector<string>& hours,
+                                        const string& runId, string& status, double& dataMin, double& dataMax,
+                                        string& samplePath) {
+    samplePath = "";
+    dataMin = 0.0;
+    dataMax = 0.0;
+    if (indexIndex < 0 || indexIndex >= static_cast<int>(indices.size()) || hours.empty()) {
+        status = "unsupported index or empty hour range";
+        return "";
+    }
+    const auto binDir = UtilityGrib::gdalBinDir();
+    if (binDir.empty()) {
+        status = "GDAL not found - install the 'gdal' package";
+        return "";
+    }
+    string dateStr;
+    string cycle;
+    if (!resolveSynopticRun(runId, dateStr, cycle)) {
+        status = "no RRFS run available";
+        return "";
+    }
+    const auto runKey = dateStr + cycle;
+    const auto box = UtilityGrib::regionBbox(regionIndex);
+    const auto regionLabelList = UtilityGrib::regions();
+    const auto regionLabel = (regionIndex >= 0 && regionIndex < static_cast<int>(regionLabelList.size()))
+        ? regionLabelList[regionIndex] : string{"Unknown"};
+    const auto first = To::Int(hours.front());
+    const auto last = To::Int(hours.back());
+    const auto rangeText = "F" + WString::fixedLengthStringPad0(To::string(first), 3) + "-F" +
+        WString::fixedLengthStringPad0(To::string(last), 3);
+    const auto indexKeyUpper = QString::fromStdString(indices[indexIndex].key).toUpper().toStdString();
+    status = indexKeyUpper + " MAX " + dateStr.substr(0, 4) + "-" + dateStr.substr(4, 2) + "-" + dateStr.substr(6, 2) +
+        " " + cycle + "z    " + rangeText + " (" + To::string(static_cast<int>(hours.size())) + " hrs)    " + regionLabel;
+
+    const auto dir = QString::fromStdString(cacheDir());
+    // "sm1" is the render version - bump it whenever the drawing pipeline changes
+    const auto tagBase = runKey + "_" + To::string(indexIndex) + "_" + To::string(regionIndex) + "_" +
+        To::string(first) + "_" + To::string(last) + "_" + To::string(static_cast<int>(hours.size()));
+    const auto pngPath = dir + QString::fromStdString("/sm1_" + tagBase + ".png");
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
+    const auto gridPath = pngPath + ".grid";
+    const auto rangePath = pngPath + ".range";
+    if (QFile::exists(pngPath)) {
+        QFile rangeFile{rangePath};
+        if (rangeFile.open(QIODevice::ReadOnly)) {
+            const auto parts = QString::fromUtf8(rangeFile.readAll()).split(' ', Qt::SkipEmptyParts);
+            if (parts.size() == 2) {
+                dataMin = parts[0].toDouble();
+                dataMax = parts[1].toDouble();
+            }
+        }
+        if (QFile::exists(gridPath)) {
+            samplePath = gridPath.toStdString();
+        }
+        return pngPath.toStdString();
+    }
+
+    QStringList hourGrids;
+    int skipped = 0;
+    string lastError;
+    for (const auto& hour : hours) {
+        QString tif;
+        QString nodataRef;
+        QStringList scratch;
+        string error;
+        bool ok = false;
+        if (indexIndex == 0) {
+            const auto grid = computeShipGrid(box, hour, runId);
+            ok = grid.ok;
+            error = grid.error;
+            tif = grid.shipTifPath;
+            nodataRef = grid.nodataRefPath;
+            scratch << grid.hailContourBufPath << grid.hailContourRawPath;
+        } else {
+            const auto grid = computeStpGrid(box, hour, runId);
+            ok = grid.ok;
+            error = grid.error;
+            tif = grid.tifPath;
+            nodataRef = grid.nodataRefPath;
+        }
+        for (const auto& file : scratch) {
+            QFile::remove(file);
+        }
+        QFile::remove(nodataRef);
+        if (ok && !tif.isEmpty()) {
+            // keep this hour's grid under a name unique to this composite
+            const auto kept = dir + QString::fromStdString("/smh_" + tagBase + "_" + hour + ".tif");
+            QFile::remove(kept);
+            if (QFile::rename(tif, kept)) {
+                hourGrids << kept;
+            }
+            QFile::remove(tif + ".aux.xml");
+        } else {
+            skipped += 1;
+            lastError = error;
+            QFile::remove(tif);
+        }
+    }
+    if (hourGrids.isEmpty()) {
+        status = "no hours could be computed" + (lastError.empty() ? string{} : " (" + lastError + ")");
+        return "";
+    }
+
     const auto bin = QString::fromStdString(binDir) + "/";
-    const auto tagBase = runKey + "_" + To::string(indexIndex) + "_" + To::string(regionIndex) + "_" + fhr3;
+    const auto maxPath = dir + QString::fromStdString("/smx_" + tagBase + ".tif");
+    const auto count = static_cast<int>(hourGrids.size());
+    const auto ok = UtilityGrib::calcRaster(bin, hourGrids, [count] (const double * v) {
+        double best = v[0];
+        for (int i = 1; i < count; i += 1) {
+            best = std::max(best, v[i]);
+        }
+        return best;
+    }, maxPath);
+    for (const auto& file : hourGrids) {
+        QFile::remove(file);
+        QFile::remove(file + ".aux.xml");
+    }
+    if (!ok) {
+        status = "max composite calculation failed";
+        return "";
+    }
+    computedMinMax(bin, maxPath, dataMin, dataMax);
+    {
+        QFile rangeFile{rangePath};
+        if (rangeFile.open(QIODevice::WriteOnly)) {
+            rangeFile.write((QString::number(dataMin, 'f', 2) + " " + QString::number(dataMax, 'f', 2)).toUtf8());
+        }
+    }
+    if (skipped > 0) {
+        status += "    (" + To::string(skipped) + " hr skipped)";
+    }
+    return finishIndexRender(indexIndex, maxPath, QString{}, QString{}, QString{}, box, pngPath, "max_" + tagBase,
+                             status, samplePath);
+}
+
+// Colorize a finished index value grid into the final PNG (fill, optional
+// HAILCAST contours, hover sidecar). Shared by the single-hour render() and
+// the max-over-range composite. Consumes tifPath / nodataRefPath / the hail
+// contour scratch files.
+string UtilitySevereIndices::finishIndexRender(int indexIndex, const QString& tifPath, const QString& nodataRefPath,
+                                               const QString& hailContourBufPath, const QString& hailContourRawPath,
+                                               const UtilityGrib::Bbox& box, const QString& pngPath,
+                                               const string& tagBaseText, string& status, string& samplePath) {
+    const auto bin = QString::fromStdString(UtilityGrib::gdalBinDir()) + "/";
+    const auto dir = QString::fromStdString(cacheDir());
+    const auto gridPath = pngPath + ".grid";
+    const auto tagBase = tagBaseText;
+    const auto indexKeyUpper = QString::fromStdString(indices[indexIndex].key).toUpper().toStdString();
 
     // Nodata pixels are made transparent by the leading "nv 0 0 0 0" entry in
     // the color table below. Neither index's color table has a "should also

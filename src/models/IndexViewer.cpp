@@ -39,6 +39,7 @@ IndexViewer::IndexViewer(Window * parent)
     , comboRegion{this, UtilitySevereIndices::regionLabels()}
     , comboForecastHour{this, UtilitySevereIndices::forecastHours()}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
+    , buttonMax{this, Icon::None, "Max of range"}
     , animBar{this,
         [this] (int start, int end) { onRangeRequested(start, end); },
         [this] (int local) { onFrameShown(local); },
@@ -63,6 +64,10 @@ IndexViewer::IndexViewer(Window * parent)
     boxTop.addWidget(comboIndex);
     boxTop.addWidget(comboRegion);
     boxTop.addWidget(comboForecastHour);
+    buttonMax.getView()->setToolTip("Pixel-wise maximum of the selected index over the Range hours below "
+                                    "(e.g. set 01 to 24 for a 24-hour max)");
+    buttonMax.connect([this] { showMaxOfRange(); });
+    boxTop.addWidget(buttonMax);
     boxTop.addStretch();
     boxImage.addWidgetReal(&image, 1, Qt::Alignment{});
     boxImage.addWidget(legend);
@@ -141,6 +146,56 @@ void IndexViewer::invalidateAnimation() {
     animBar.stopIfAnimating();
     animBar.clearFrames();
     gridCache.clear();
+}
+
+// "24hr max": the worst case of the selected index over the Range hours
+// (the same From/To pickers Play uses). Shown in the main image; changing the
+// hour, index, region or run goes back to a normal single-hour view.
+void IndexViewer::showMaxOfRange() {
+    const auto allHours = comboForecastHour.getItems();
+    vector<string> hours;
+    for (int i = animBar.rangeStartIndex(); i <= animBar.rangeEndIndex() && i < static_cast<int>(allHours.size()); i += 1) {
+        hours.push_back(allHours[i]);
+    }
+    constexpr size_t maxHours = 48;
+    if (hours.size() < 2) {
+        setTitle("Parametric Index Viewer - pick a Range of at least two hours for a max composite");
+        return;
+    }
+    if (hours.size() > maxHours) {
+        hours.resize(maxHours);
+    }
+    animBar.stopIfAnimating();
+    const auto indexIndex = comboIndex.getIndex();
+    const auto regionIndex = comboRegion.getIndex();
+    const auto runIndex = comboRun.getIndex();
+    const string runId = (runIndex >= 0 && runIndex < static_cast<int>(runOptions.size()))
+        ? runOptions[runIndex].second : string{};
+    legend.setBytes(buildLegend(indexIndex, 0.0, 0.0));
+    setTitle("Parametric Index Viewer - computing " + To::string(static_cast<int>(hours.size())) + "-hour max...");
+    sampleGridPath.clear();
+    refreshHover();
+    new FutureVoid{this,
+        [this, indexIndex, regionIndex, hours, runId] {
+            pngPath = UtilitySevereIndices::renderMax(indexIndex, regionIndex, hours, runId,
+                                                       status, dataMin, dataMax, sampleGridPath);
+        },
+        [this, indexIndex] {
+            setTitle("Parametric Index Viewer - " + status);
+            legend.setBytes(buildLegend(indexIndex, dataMin, dataMax));
+            if (pngPath.empty()) {
+                renderedBytes.clear();
+                sampleGridPath.clear();
+                return;
+            }
+            QFile file{QString::fromStdString(pngPath)};
+            if (file.open(QIODevice::ReadOnly)) {
+                renderedBytes = file.readAll();
+                image.setBytesKeepView(renderedBytes);
+                file.close();
+            }
+            refreshHover();
+        }};
 }
 
 void IndexViewer::reload() {
