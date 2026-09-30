@@ -45,9 +45,43 @@ save/export path; Python-free rendering; AWS fallback for model data.
 5. **A1 NEXRAD loop export** and **A2 native Observation Sites** — closes the "animations" and "no web engine" threads.
 6. **A5 effective-layer STP** when you are ready to provide the formula.
 
-## D. Open questions for you
+## D. Decisions (user, 2026-10-01)
 
-- Is **multi-model (B1)** wanted, or is RRFS/REFS the intended scope?
-- For the **sounding (B2)**: SHARPpy-style parameter set, or a simpler skew-T + hodograph?
-- **Notifications (B7)**: yes/no — it touches the "no short-fuse overlay" decision.
-- Windows: is **single-file** worth the SFX trade-offs, or is the 47 MB zip enough?
+- **Multi-model (B1): on hold.** RRFS/REFS stays the scope; RRFS "will kind of eat
+  everything". Revisit later; B3/B4/B5 proceed on RRFS alone.
+- **Sounding (B2): SHARPpy-style full parameter set** - not the simple skew-T. This
+  is the next big feature (see the plan below).
+- **Notifications (B7): interesting, later.** Current focus is working through the
+  visual dashboard; do not build notifications yet. (The "no short-fuse map overlay"
+  decision stands.)
+- **Windows single file (A8): not wanted.** The 47 MB zip is fine.
+
+## E. Sounding plan (B2) - scoped, not started
+
+Inputs: RRFS `prslev` (isobaric T/RH/U/V/HGT at the model levels) + surface fields
+(2 m T/Td, 10 m wind, surface pressure, terrain) at a clicked point and forecast hour,
+through the same idx byte-range fetch + `gdallocationinfo` sampling the plume chart
+uses. All computation in C++ (the app stays Python-free).
+
+1. **Profile builder** - merge surface + pressure levels into one sorted profile;
+   Td from RH; wind speed/dir from U/V. (S)
+2. **Thermodynamics** - virtual temperature, LCL, parcel lifting on moist
+   adiabats (surface-based, mixed-layer 100 mb, most-unstable, forecast), CAPE/CIN,
+   LFC/EL, 0-3 km CAPE, DCAPE, lapse rates, PWAT, freezing/wet-bulb-zero heights,
+   downdraft parameters. (M-L; the accuracy-critical part)
+3. **Kinematics** - bulk shear layers, Bunkers storm motion, SRH (0-1, 0-3,
+   effective), mean winds, critical angle. (M)
+4. **Composite indices** - STP (fixed and effective), SCP, SHIP, EHI, significant
+   hail/tornado parameters, K/TT-style legacy indices. (M; formulas from the
+   published definitions only - anything not certain is left out, not guessed)
+5. **Effective inflow layer** (this also unlocks effective-layer STP, A5). (M)
+6. **Display** - hand-drawn skew-T log-p (temperature, dewpoint, parcel trace,
+   CAPE/CIN shading, wind barbs), hodograph with storm motion and SRH, a parameter
+   table, time-slider over forecast hours. (L)
+7. **Verification plan** - compare every parameter against an independent
+   reference (MetPy / SHARPpy) on the same soundings, including real RRFS points
+   and known textbook profiles; tolerance documented per parameter. The reference
+   is a development-time oracle only and never ships.
+
+Rough size: L-XL overall; steps 1-4 first (numbers before pictures), so the
+accuracy is settled before any drawing work.
