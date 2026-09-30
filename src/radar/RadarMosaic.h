@@ -9,10 +9,10 @@
 
 #include <string>
 #include "objects/AutoUpdate.h"
-#include "objects/ObjectAnimate.h"
+#include "objects/UrlAnimation.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
-#include "ui/Photo.h"
+#include "ui/ZoomImage.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -24,16 +24,16 @@ public:
 
 private:
     void reload();
+    void showLatest(const QByteArray&);
     void changeSector();
     void resizeEventCustom() override;
     void closeEventCustom() override;
     AutoUpdate autoUpdate;
     VBox box;
     HBox boxH;
-    Photo photo;
+    ZoomImage image;
     ComboBox comboboxSector;
-    ObjectAnimate objectAnimate;
-    Shortcut shortcutAnimate;
+    UrlAnimation objectAnimate;
     Shortcut shortcutAutoUpdate;
     Shortcut shortcutLocal;
     Shortcut shortcutConus;

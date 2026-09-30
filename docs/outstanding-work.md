@@ -62,8 +62,9 @@ not the same as having watched it work. Remaining:
   from `render()`, verified pixel-identical). Verified: composite max ==
   largest single-hour max for SHIP (0.702) and STP (1.537) over F01-F06;
   6 hours ~5-9 s once cached. No HAILCAST contours on a composite. Not
-  wired to animation/save; a natural follow-up is an SPC-day1-style fixed
-  "12z-12z" preset button.
+  wired to animation/save. "Day 1 max (12z-12z)" preset button added to both
+  IndexViewer and GribViewer (`UtilityGrib::day1Hours`); a full cold 24-hour
+  SHIP max for the 06z run took ~3 min.
 
 ## GRIB viewer max composite (2026-09-30, local)
 `UtilityGrib::renderMax` + a "Max of range" button in `GribViewer`: pixel-wise
@@ -107,13 +108,22 @@ run fails with an explanatory message, not silently.
   (`UtilityGrib.cpp`, `rrfsStream` constant), NET 2026-10-14, not yet due.
   Re-confirm the date closer to the day; `para` may vanish early as the
   signal it happened.
-- **`ObjectAnimate` retrofit** — `GoesViewer`/`SpcMeso`/`Nexrad` still use the
-  older `ObjectAnimate`/`ObjectAnimateNexrad` classes (plain loop, no zoom,
-  no slider scrub, no save). Bringing them up to the `AnimationBar` standard
-  already used by RTMA/GribViewer/SpcPostViewer is a separate retrofit, not
-  yet requested.
-- **AWS RRFS mirror fallback** — `noaa-rrfs-pds` as an automatic fallback
-  when NOMADS 429s/403s, no UI needed. Noted, not implemented.
+- **`ObjectAnimate` retrofit - mostly DONE (2026-09-30, local)**: new
+  `UrlAnimation` (AnimationBar + ZoomImage) now drives GoesViewer, GoesGlobal,
+  SpcMeso and RadarMosaic - play / scrub / From-To range / save (APNG->JXL),
+  frame labels from URL timestamps, frames downloaded only on Play/Save/scrub.
+  NOT converted: the NEXRAD level-2 screens (`ObjectAnimateNexrad`) - their
+  loop re-draws native radar data through `NexradWidget` per frame rather than
+  showing a list of images, so it does not fit an image-frame bar; that would
+  need frame capture or a bar variant around `NexradWidget`. `ObjectAnimate.
+  {h,cpp}` are now unused but left in place so merges from upstream stay clean.
+- **AWS RRFS mirror fallback - DONE (2026-09-30, local)**: `URL.cpp` retries a
+  failed NOMADS `rrfs/` or `refs/` request (RRFS, RRFS Ensemble, REFS) against
+  `noaa-rrfs-ops-pds`, same relative paths. Verified same file size and
+  identical `.idx` byte offsets on both, so mixing sources is safe (a few idx
+  label strings differ, e.g. QPFFFG records, which only matters for idxMatch on
+  those). Collapsed three copy-pasted request blocks into one. Not covered:
+  NOMADS directory listings used to discover "latest run".
 - **GEOS-FP viewer** — separate global/aerosol viewer (smoke/dust/AOD),
   lowest priority of the GRIB-sources survey.
 

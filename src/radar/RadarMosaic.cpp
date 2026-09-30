@@ -15,10 +15,9 @@
 RadarMosaic::RadarMosaic(Window * parent, const string& sector)
     : Window{parent}
     , autoUpdate{parent, "AUTO_UPDATE_INTERVAL_RADAR_MOSAIC", 5, [this] { reload(); }}
-    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , image{this}
     , comboboxSector{this, UtilityRadarMosaic::sectors}
-    , objectAnimate{this, &photo, &UtilityRadarMosaic::getAnimation, [this] { reload(); }}
-    , shortcutAnimate{QKeySequence{"A"}, this}
+    , objectAnimate{this, &image, &UtilityRadarMosaic::getAnimation}
     , shortcutAutoUpdate{QKeySequence{"U"}, this}
     , shortcutLocal{QKeySequence{"L"}, this}
     , shortcutConus{QKeySequence{"C"}, this}
@@ -36,13 +35,12 @@ RadarMosaic::RadarMosaic(Window * parent, const string& sector)
     comboboxSector.connect([this] { changeSector(); });
 
     boxH.addWidget(comboboxSector);
-    boxH.addWidget(objectAnimate);
     boxH.addWidget(autoUpdate);
     box.addLayout(boxH);
-    box.addWidgetAndCenter(photo);
+    objectAnimate.addTo(box);
+    box.addWidgetReal(&image, 1, Qt::Alignment{});
     box.getAndShow(this);
 
-    shortcutAnimate.connect([this] { objectAnimate.animateClicked(); });
     shortcutAutoUpdate.connect([this] { autoUpdate.toggleAutoUpdate(); });
     shortcutLocal.connect([this] {
         objectAnimate.sector = UtilityRadarMosaic::getNearest(Location::getLatLonCurrent());
@@ -61,17 +59,24 @@ void RadarMosaic::reload() {
     objectAnimate.stopAnimateNoDownload();
     Utility::writePref("REMEMBER_MOSAIC_SECTOR", objectAnimate.sector);
     const auto url = UtilityRadarMosaic::get(objectAnimate.sector);
-    new FutureBytes{this, url, [this] (const auto& ba) { photo.setBytes(ba); }};
+    new FutureBytes{this, url, [this] (const auto& ba) { showLatest(ba); }};
+    objectAnimate.refresh();
+}
+
+// the newest still image; also what Save exports when no loop has been rendered
+void RadarMosaic::showLatest(const QByteArray& bytes) {
+    image.setBytesKeepView(bytes);
+    objectAnimate.setCurrentBytes(bytes);
 }
 
 void RadarMosaic::changeSector() {
     objectAnimate.sector = UtilityRadarMosaic::sectors[comboboxSector.getIndex()];
-    objectAnimate.stopAnimate();
+    objectAnimate.stopAnimateNoDownload();
     reload();
 }
 
 void RadarMosaic::resizeEventCustom() {
-    photo.setToHeight(getWindowHeight());
+    // ZoomImage re-fits itself on resize while the user has not zoomed
 }
 
 void RadarMosaic::closeEventCustom() {
