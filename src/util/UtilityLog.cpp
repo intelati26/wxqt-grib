@@ -7,7 +7,9 @@
 #include "UtilityLog.h"
 #include <iostream>
 #include "objects/ObjectDateTime.h"
+#include "util/CrashLog.h"
 
 void UtilityLog::d(const string& s) {
     std::cout << ObjectDateTime::getLocalTimeAsString() << " " << s << std::endl;
+    CrashLog::write(s);
 }

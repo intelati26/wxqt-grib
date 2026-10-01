@@ -5,16 +5,39 @@
 // *****************************************************************************
 
 #include <QApplication>
+#include <exception>
+#include <QMetaObject>
 #include <QDebug>
 #include <QPixmap>
 #include <QTimer>
 #include "common/GlobalVariables.h"
 #include "ui/MainWindow.h"
+#include "util/CrashLog.h"
 #include "util/MyApplication.h"
 #include "util/UtilityTheme.h"
 
+namespace {
+    // an exception thrown inside an event handler would otherwise unwind through Qt and end the program: log it, keep running
+    class WxqtApplication : public QApplication {
+    public:
+        using QApplication::QApplication;
+        bool notify(QObject * receiver, QEvent * event) override {
+            try {
+                return QApplication::notify(receiver, event);
+            } catch (const std::exception& e) {
+                CrashLog::write(std::string{"exception in an event handler (ignored): "} + e.what() + " [" +
+                                (receiver != nullptr ? receiver->metaObject()->className() : "?") + "]");
+            } catch (...) {
+                CrashLog::write("unknown exception in an event handler (ignored)");
+            }
+            return false;
+        }
+    };
+}
+
 int main(int argc, char * argv[]) {
-    QApplication a{argc, argv};
+    WxqtApplication a{argc, argv};
+    CrashLog::install();
     MyApplication::onCreate();
     UtilityTheme::apply();
     a.setWindowIcon(QIcon{QString::fromStdString(GlobalVariables::imageDir) + "wx_launcher.png"});
