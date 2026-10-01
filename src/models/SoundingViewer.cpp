@@ -29,9 +29,11 @@ namespace {
     bool have(double v) { return v > -9998.0; }
     constexpr double pBottom = 1050.0;
     constexpr double pTop = 100.0;
+    // SPC's sounding graphic: 100 - 1050 mb, -40 to +60 C along the bottom edge, isotherms leaning at 45 degrees of the
+    // picture (measured from SPC's own image: one pixel to the right per pixel up). The plot is clipped, so isotherms
+    // and traces that lean out of it are simply cut at its border.
     constexpr double tLeft = -40.0;    // temperature at the bottom-left corner of the Skew-T
-    constexpr double tSpan = 90.0;     // degrees C shown across the bottom
-    constexpr double skewShift = 45.0; // how far the top of an isotherm leans right, in degrees C of width
+    constexpr double tSpan = 100.0;    // degrees C shown across the bottom
 
     QString num(double v, int decimals = 0, const QString& unit = QString{}) {
         return have(v) ? QString::number(v, 'f', decimals) + unit : QStringLiteral("--");
@@ -147,8 +149,8 @@ private:
     Geometry geometry(const QRect& plot) const {
         Geometry g;
         g.plot = plot;
-        g.sx = plot.width() / (tSpan + skewShift);
-        g.k = skewShift * g.sx / plot.height();
+        g.sx = plot.width() / tSpan;
+        g.k = 1.0;   // 45 degrees: as many pixels right as up
         return g;
     }
 
@@ -183,13 +185,13 @@ private:
         painter.fillRect(plot, QColor{0, 0, 0});
 
         // isotherms
-        for (int t = -120; t <= 50; t += 10) {
+        for (int t = -170; t <= 60; t += 10) {
             painter.setPen(QPen(t == 0 ? QColor{90, 160, 230} : QColor{70, 70, 80}, t == 0 ? 1.5 : 1.0));
             painter.drawLine(g.at(t, pBottom), g.at(t, pTop));
         }
         // dry adiabats
         painter.setPen(QPen(QColor{90, 70, 40}, 1.0));
-        for (int thetaK = 250; thetaK <= 520; thetaK += 10) {
+        for (int thetaK = 220; thetaK <= 620; thetaK += 10) {
             QPainterPath path;
             bool started = false;
             for (double p = pBottom; p >= pTop - 1e-6; p -= 25.0) {
@@ -264,7 +266,7 @@ private:
         for (int p = 1000; p >= 100; p -= 100) {
             painter.drawText(QRectF(plot.left() - 40, g.yOf(p) - 8, 36, 16), Qt::AlignRight | Qt::AlignVCenter, QString::number(p));
         }
-        for (int t = -30; t <= 40; t += 10) {
+        for (int t = -30; t <= 50; t += 10) {
             const double x = g.xOf(t, pBottom);
             if (x >= plot.left() && x <= plot.right()) {
                 painter.drawText(QRectF(x - 16, plot.bottom() + 2, 32, 16), Qt::AlignCenter, QString::number(t));
