@@ -1,0 +1,343 @@
+// *****************************************************************************
+// * This file is part of wxqt.  Licensed under the GNU General Public License v3.
+// * See the COPYING file for the full license text.
+// *****************************************************************************
+
+#include "models/UtilityCams.h"
+#include <algorithm>
+#include <future>
+#include <mutex>
+#include <QBuffer>
+#include <QDateTime>
+#include <QImage>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QPainter>
+#include <QRegularExpression>
+#include <QString>
+#include <QTimeZone>
+#include "objects/URL.h"
+
+namespace {
+    const string site{"https://cams.nssl.noaa.gov/"};
+
+    string query(const string& parameters) {
+        return site + "query.php?" + parameters;
+    }
+
+    // one JSON call; false (with a plain-language message) if the site cannot be reached or answers with
+    // something that is not JSON
+    bool fetchJson(const string& url, QJsonDocument& out, string& error) {
+        const auto text = URL::getText(url);
+        if (text.empty()) {
+            error = "no answer from cams.nssl.noaa.gov (offline, blocked, or the site is down)";
+            return false;
+        }
+        QJsonParseError parse;
+        out = QJsonDocument::fromJson(QByteArray::fromStdString(text), &parse);
+        if (parse.error != QJsonParseError::NoError) {
+            error = "cams.nssl.noaa.gov sent something unexpected: " + parse.errorString().toStdString();
+            return false;
+        }
+        return true;
+    }
+
+    string text(const QJsonValue& value) {
+        // product ids such as 500 are JSON numbers
+        return value.isString() ? value.toString().toStdString()
+            : value.isDouble() ? QString::number(value.toInt()).toStdString() : string{};
+    }
+
+    vector<string> strings(const QJsonValue& value) {
+        vector<string> out;
+        for (const auto& item : value.toArray()) {
+            out.push_back(text(item));
+        }
+        return out;
+    }
+
+    vector<int> ints(const QJsonValue& value) {
+        vector<int> out;
+        for (const auto& item : value.toArray()) {
+            out.push_back(item.toInt());
+        }
+        return out;
+    }
+
+    string hours3(int seconds) {
+        const int hours = seconds / 3600;
+        const int minutes = (seconds % 3600) / 60;
+        return QString{"f%1%2"}.arg(hours, 3, 10, QChar{'0'}).arg(minutes, 2, 10, QChar{'0'}).toStdString();
+    }
+
+    std::mutex mapMutex;
+    std::map<string, QByteArray> baseMaps;   // outline maps never change within a session
+
+    QByteArray fetchLayer(const string& url, bool cacheable) {
+        if (cacheable) {
+            std::lock_guard<std::mutex> lock{mapMutex};
+            const auto found = baseMaps.find(url);
+            if (found != baseMaps.end()) {
+                return found->second;
+            }
+        }
+        int status = 0;
+        auto bytes = URL::getBytesWithStatus(url, status);
+        // the site answers a missing image with a 404 whose body is a "not available" PNG: require success
+        if (status >= 200 && status < 300 && !QImage::fromData(bytes).isNull()) {
+            if (cacheable) {
+                std::lock_guard<std::mutex> lock{mapMutex};
+                baseMaps[url] = bytes;
+            }
+            return bytes;
+        }
+        return {};   // an error page or nothing
+    }
+}
+
+namespace UtilityCams {
+
+bool models(vector<std::pair<string, string>>& out, string& error) {
+    QJsonDocument document;
+    if (!fetchJson(query("type=models"), document, error)) {
+        return false;
+    }
+    out.clear();
+    // the display names are one small request per model; ask for them all at once (a slow connection setup,
+    // e.g. an IPv6 attempt that times out before IPv4 is used, would otherwise be paid once per model)
+    const auto ids = strings(document.array());
+    vector<std::future<string>> names;
+    for (const auto& id : ids) {
+        names.push_back(std::async(std::launch::async, [id] {
+            Model info;
+            string ignored;
+            return model(id, info, ignored) ? info.name : string{};
+        }));
+    }
+    for (size_t i = 0; i < ids.size(); i += 1) {
+        const auto name = names[i].get();
+        out.emplace_back(ids[i], name.empty() ? ids[i] : name);
+    }
+    if (out.empty()) {
+        error = "cams.nssl.noaa.gov lists no models";
+        return false;
+    }
+    return true;
+}
+
+bool model(const string& id, Model& out, string& error) {
+    QJsonDocument document;
+    if (!fetchJson(query("model=" + id + "&type=model"), document, error)) {
+        return false;
+    }
+    const auto object = document.object();
+    out = Model{};
+    out.id = id;
+    out.name = text(object.value("name"));
+    out.discontinued = object.value("discontinued").toBool();
+    out.sectors = strings(object.value("sectors"));
+    out.dailyRuns = strings(object.value("daily_runs"));
+    const auto times = object.value("data_times");
+    if (times.isArray()) {
+        out.timesByRun[""] = ints(times);
+    } else if (times.isObject()) {
+        // hourly-cycling models list their forecast times per run hour
+        const auto perRun = times.toObject();
+        for (auto it = perRun.begin(); it != perRun.end(); ++it) {
+            out.timesByRun[it.key().toStdString()] = ints(it.value());
+        }
+    }
+    return true;
+}
+
+bool recentRuns(const string& modelId, size_t limit, vector<Run>& out, string& error) {
+    QJsonDocument document;
+    if (!fetchJson(query("model=" + modelId + "&type=runs"), document, error)) {
+        return false;
+    }
+    out.clear();
+    const auto object = document.object();
+    for (auto it = object.begin(); it != object.end(); ++it) {
+        for (const auto& time : strings(it.value())) {
+            out.push_back({it.key().toStdString(), time});
+        }
+    }
+    std::sort(out.begin(), out.end(), [] (const Run& a, const Run& b) { return a.key() > b.key(); });
+    if (out.size() > limit) {
+        out.resize(limit);
+    }
+    if (out.empty()) {
+        error = "no runs are listed for " + modelId;
+        return false;
+    }
+    return true;
+}
+
+bool sectorNames(std::map<string, string>& out, string& error) {
+    QJsonDocument document;
+    if (!fetchJson(query("type=sectors"), document, error)) {
+        return false;
+    }
+    out.clear();
+    const auto object = document.object();
+    for (auto it = object.begin(); it != object.end(); ++it) {
+        out[it.key().toStdString()] = text(it.value().toObject().value("name"));
+    }
+    return true;
+}
+
+bool catalog(const Model& modelInfo, const Run& run, const string& sector, Catalog& out, string& error) {
+    out = Catalog{};
+    QJsonDocument groups;
+    bool haveGroups = false;
+    string groupError;
+    // the category tree and the product list are independent requests: ask for both at once
+    auto categoriesRequest = std::async(std::launch::async, [&] { haveGroups = fetchJson(query("type=deterministic_categories"), groups, groupError); });
+    QJsonDocument document;
+    const bool haveProducts = fetchJson(query("model=" + modelInfo.id + "&rd=" + run.date + "&rt=" + run.time + "&sector=" + sector +
+                                              "&type=products&metadata=true"), document, error);
+    categoriesRequest.get();
+    if (haveGroups) {
+        const auto top = groups.object();
+        for (auto group = top.begin(); group != top.end(); ++group) {
+            vector<string> ids;
+            const auto members = group.value().toObject();
+            for (auto member = members.begin(); member != members.end(); ++member) {
+                ids.push_back(member.key().toStdString());
+                out.categoryLabel[member.key().toStdString()] = text(member.value().toObject().value("label"));
+            }
+            out.groups.emplace_back(group.key().toStdString(), ids);
+        }
+    }
+    // the category tree is a nicety; the products are what matter
+    if (!haveProducts) {
+        return false;
+    }
+    error.clear();
+    const auto object = document.object();
+    for (auto it = object.begin(); it != object.end(); ++it) {
+        const auto meta = it.value().toObject();
+        Product product;
+        product.id = it.key().toStdString();
+        product.label = text(meta.value("label"));
+        product.category = text(meta.value("category"));
+        product.otherCategories = strings(meta.value("other_categories"));
+        product.underlays = strings(meta.value("underlays").toObject().value("show"));
+        product.overlays = strings(meta.value("overlays").toObject().value("show"));
+        const auto lists = meta.value("plot_time_lists").toObject();
+        if (lists.contains(QString::fromStdString(modelInfo.id))) {
+            product.times = ints(lists.value(QString::fromStdString(modelInfo.id)));
+        } else {
+            const auto byRun = modelInfo.timesByRun.find(run.time);
+            const auto fallback = modelInfo.timesByRun.find("");
+            if (byRun != modelInfo.timesByRun.end()) {
+                product.times = byRun->second;
+            } else if (fallback != modelInfo.timesByRun.end()) {
+                product.times = fallback->second;
+            }
+        }
+        if (product.label.empty()) {
+            product.label = product.id;
+        }
+        out.products.push_back(product);
+    }
+    std::sort(out.products.begin(), out.products.end(), [] (const Product& a, const Product& b) { return a.label < b.label; });
+    if (out.products.empty()) {
+        error = modelInfo.name + " offers no products for this run and sector";
+        return false;
+    }
+    return true;
+}
+
+int latestAvailableSeconds(const string& modelId, const Run& run, const string& product, const string& sector) {
+    QJsonDocument document;
+    string ignored;
+    if (!fetchJson(query("model=" + modelId + "&rd=" + run.date + "&rt=" + run.time + "&product=" + product +
+                         "&sector=" + sector + "&type=latest"), document, ignored)) {
+        return -1;
+    }
+    const auto value = document.object().value("model");
+    return value.isDouble() ? value.toInt() : -1;
+}
+
+string imageUrl(const string& modelId, const Run& run, const string& layer, const string& sector, int seconds) {
+    const auto frame = hours3(seconds);
+    return site + "graphics/models/" + modelId + "/" + run.date.substr(0, 4) + "/" + run.date.substr(4, 2) + "/" +
+        run.date.substr(6, 2) + "/" + run.time + "/" + frame + "/" + layer + "." + sector + "." + frame + ".png";
+}
+
+string baseMapUrl(const string& sector) {
+    return site + "graphics/blank_maps/" + sector + ".png";
+}
+
+string layerSpec(const string& modelId, const Run& run, const Product& product, const string& sector, int seconds) {
+    string spec;
+    auto add = [&spec] (const string& url) { spec += (spec.empty() ? "" : "|") + url; };
+    for (const auto& id : product.underlays) add(imageUrl(modelId, run, id, sector, seconds));
+    add("*" + imageUrl(modelId, run, product.id, sector, seconds));   // "*" marks the one required layer
+    for (const auto& id : product.overlays) add(imageUrl(modelId, run, id, sector, seconds));
+    add(baseMapUrl(sector));
+    return spec;
+}
+
+QByteArray composite(const string& spec, string& error) {
+    const auto urls = QString::fromStdString(spec).split('|', Qt::SkipEmptyParts);
+    if (urls.size() < 2) {
+        error = "nothing to draw";
+        return {};
+    }
+    QImage canvas;
+    QPainter painter;
+    bool haveProduct = false;
+    string missingProduct;
+    for (int i = 0; i < urls.size(); i += 1) {
+        const bool isProduct = urls[i].startsWith('*');
+        const bool isMap = i == urls.size() - 1;
+        const auto url = (isProduct ? urls[i].mid(1) : urls[i]).toStdString();
+        const auto layer = QImage::fromData(fetchLayer(url, isMap));
+        if (layer.isNull()) {
+            if (isProduct) {
+                missingProduct = url;
+            }
+            continue;
+        }
+        if (canvas.isNull()) {
+            canvas = QImage{layer.size(), QImage::Format_ARGB32};
+            canvas.fill(Qt::white);
+            painter.begin(&canvas);
+        }
+        painter.drawImage(canvas.rect(), layer);
+        haveProduct = haveProduct || isProduct;
+    }
+    if (painter.isActive()) {
+        painter.end();
+    }
+    if (!haveProduct) {
+        error = "this image is not published (yet): " + QString::fromStdString(missingProduct).section('/', -1).toStdString();
+        return {};
+    }
+    QByteArray png;
+    QBuffer buffer{&png};
+    buffer.open(QIODevice::WriteOnly);
+    canvas.save(&buffer, "PNG");
+    return png;
+}
+
+string frameLabel(const string& spec) {
+    const auto match = QRegularExpression{R"(\.f(\d{3})(\d{2})\.png)"}.match(QString::fromStdString(spec));
+    if (!match.hasMatch()) {
+        return "";
+    }
+    return ("F" + QString::number(match.captured(1).toInt()).rightJustified(2, '0') +
+            (match.captured(2) == "00" ? QString{} : ":" + match.captured(2))).toStdString();
+}
+
+string validLabel(const Run& run, int seconds) {
+    const QDateTime start{QDate::fromString(QString::fromStdString(run.date), "yyyyMMdd"),
+                          QTime{QString::fromStdString(run.time.substr(0, 2)).toInt(), QString::fromStdString(run.time.substr(2, 2)).toInt()},
+                          QTimeZone::utc()};
+    return start.addSecs(seconds).toString("ddd MM/dd HH'Z'").toStdString();
+}
+
+}  // namespace UtilityCams

@@ -19,6 +19,10 @@ public:
     static string getText(const string&);
     static string getTextXmlAcceptHeader(const string&);
     static QByteArray getBytes(const string&);
+    // like getBytes(), and also reports the HTTP status (0 = no response). A server may send an error body that
+    // is itself a valid image (CAMs: a 404 with an "image not available" PNG), so callers that decode images
+    // should require 2xx.
+    static QByteArray getBytesWithStatus(const std::string& url, int& status);
     static QByteArray getBytesRange(const string&, long long, long long);
 
     // Where a downloaded picture came from and when the server says it was

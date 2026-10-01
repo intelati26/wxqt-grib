@@ -49,6 +49,15 @@ public:
     string sector;
     function<vector<string>(string, string, int)> getFunction;
 
+    // Optional hooks for sources whose "URL" is not a plain image address (NSSL CAMs: a layer spec that is
+    // composited from several images). All three default to the plain behaviour.
+    //  - frameFetcher: bytes for one frame (called on worker threads, in parallel); empty bytes = unavailable
+    //  - labeler: the text under the slider for a frame
+    //  - onFailure: called on the UI thread with a plain-language message when frames could not be had
+    function<QByteArray(const string&)> frameFetcher;
+    function<string(const string&, size_t)> labeler;
+    function<void(const string&)> onFailure;
+
 private:
     void onRangeRequested(int start, int end);
     void onScrub(int globalIndex);
@@ -58,6 +67,7 @@ private:
     ZoomImage * image;
     AnimationBar animBar;
     int frameCount{12};
+    int pendingMissing{0};
     int generation{0};
     vector<string> urls;
     vector<string> pendingUrls;

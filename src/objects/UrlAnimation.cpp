@@ -6,6 +6,7 @@
 #include "objects/UrlAnimation.h"
 #include <QDate>
 #include <QRegularExpression>
+#include <QtConcurrent/QtConcurrent>
 #include "objects/DownloadParallelBytes.h"
 #include "objects/FutureVoid.h"
 #include "objects/UtilityAnimationExport.h"
@@ -93,7 +94,7 @@ void UrlAnimation::refresh() {
             urls = pendingUrls;
             vector<string> labels;
             for (size_t i = 0; i < urls.size(); i += 1) {
-                labels.push_back(labelFor(urls[i], i));
+                labels.push_back(labeler ? labeler(urls[i], i) : labelFor(urls[i], i));
             }
             animBar.setAvailableLabels(labels);
             if (!urls.empty()) {
@@ -118,17 +119,39 @@ void UrlAnimation::onRangeRequested(int start, int end) {
         [this, subset, indices] {
             pendingFrames.clear();
             pendingIndices.clear();
-            const auto frames = DownloadParallelBytes{subset}.byteList;
-            for (size_t i = 0; i < frames.size() && i < indices.size(); i += 1) {
+            QList<QByteArray> frames;
+            if (frameFetcher) {
+                // one task per frame on the shared thread pool (header-only QtConcurrent::run, no extra library)
+                const auto fetcher = frameFetcher;
+                QList<QFuture<QByteArray>> pending;
+                for (const auto& url : subset) {
+                    pending.append(QtConcurrent::run([fetcher, url] { return fetcher(url); }));
+                }
+                for (auto& future : pending) {
+                    frames.append(future.result());
+                }
+            } else {
+                const auto downloaded = DownloadParallelBytes{subset}.byteList;
+                frames = QList<QByteArray>(downloaded.begin(), downloaded.end());
+            }
+            pendingMissing = 0;
+            for (size_t i = 0; i < static_cast<size_t>(frames.size()) && i < indices.size(); i += 1) {
+                if (frames[i].isEmpty()) {
+                    pendingMissing += 1;
+                }
                 if (!frames[i].isEmpty()) {
                     pendingFrames.push_back(frames[i]);
                     pendingIndices.push_back(indices[i]);
                 }
             }
         },
-        [this, thisGeneration] {
+        [this, thisGeneration, subset] {
             if (thisGeneration != generation) {
                 return;
+            }
+            if (pendingMissing > 0 && onFailure) {
+                onFailure(To::string(pendingMissing) + " of " + To::string(static_cast<int>(subset.size())) +
+                          " frames could not be fetched" + (pendingFrames.size() < 2 ? " - no loop to play" : " and were skipped"));
             }
             if (pendingFrames.size() < 2) {
                 animBar.cancelPending();
@@ -145,9 +168,15 @@ void UrlAnimation::onScrub(int globalIndex) {
     const auto thisGeneration = generation;
     const auto url = urls[globalIndex];
     new FutureVoid{parent,
-        [this, url] { pendingSingle = DownloadParallelBytes{{url}}.byteList.front(); },
+        [this, url] { pendingSingle = frameFetcher ? frameFetcher(url) : DownloadParallelBytes{{url}}.byteList.front(); },
         [this, thisGeneration, globalIndex] {
-            if (thisGeneration != generation || pendingSingle.isEmpty()) {
+            if (thisGeneration != generation) {
+                return;
+            }
+            if (pendingSingle.isEmpty()) {
+                if (onFailure) {
+                    onFailure("that frame could not be fetched");
+                }
                 return;
             }
             image->setBytesKeepView(pendingSingle);

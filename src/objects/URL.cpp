@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "objects/URL.h"
+#include "objects/KnownIntermediates.h"
 #include <deque>
 #include <map>
 #include <mutex>
@@ -109,6 +110,9 @@ namespace {
         QNetworkAccessManager manager;
         QNetworkRequest request{QUrl{QString::fromStdString(url)}};
         request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+        if (KnownIntermediates::needed(request.url())) {
+            request.setSslConfiguration(KnownIntermediates::configuration());
+        }
         if (!range.isEmpty()) {
             request.setRawHeader(QByteArray{"Range"}, range);
         }
@@ -198,6 +202,9 @@ string URL::getTextXmlAcceptHeader(const string& url) {
     QNetworkAccessManager manager;
     QNetworkRequest request{QUrl{QString::fromStdString(url)}};
     request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+    if (KnownIntermediates::needed(request.url())) {
+        request.setSslConfiguration(KnownIntermediates::configuration());
+    }
     request.setRawHeader(QByteArray{"Accept"}, QByteArray{"application/atom+xml"});
     QNetworkReply * response = manager.get(request);
     QEventLoop event;
@@ -211,6 +218,16 @@ string URL::getTextXmlAcceptHeader(const string& url) {
 QByteArray URL::getBytes(const string& url) {
     UtilityLog::d("getByte " + url);
     const auto fetched = fetchWithMirror(url, QByteArray{});
+    if (fetched.status >= 200 && fetched.status < 300) {
+        rememberMeta(fetched.bytes, url, fetched.lastModified);
+    }
+    return fetched.bytes;
+}
+
+QByteArray URL::getBytesWithStatus(const string& url, int& status) {
+    UtilityLog::d("getByte " + url);
+    const auto fetched = fetchWithMirror(url, QByteArray{});
+    status = fetched.status;
     if (fetched.status >= 200 && fetched.status < 300) {
         rememberMeta(fetched.bytes, url, fetched.lastModified);
     }
