@@ -5,6 +5,7 @@
 
 #include "settings/SettingsHomeScreenOrderBox.h"
 #include "settings/HomeLayoutEditor.h"
+#include "util/Utility.h"
 #include "util/UtilityList.h"
 
 SettingsHomeScreenOrderBox::SettingsHomeScreenOrderBox(Window * parent)
@@ -24,6 +25,7 @@ void SettingsHomeScreenOrderBox::addItems() {
     buttons.clear();
     labels.clear();
     hboxList.clear();
+    combos.clear();
     labels.emplace_back(parent, "Layout - pick a layout, then drag the sections into its zones (or click a section for a menu):");
     labels.back().setBlue();
     labels.back().setWordWrap(false);
@@ -31,6 +33,16 @@ void SettingsHomeScreenOrderBox::addItems() {
     box.addWidgetReal(new HomeLayoutEditor{this, [] {}});
     addSection("Image column (top to bottom):", "Show or hide these under General (Nexrad: \"Show Nexrad on main screen\").", UIPreferences::homeScreenImageOrder);
     addSection("Text column (top to bottom):", "", UIPreferences::homeScreenTextOrder);
+    // the MRMS home thumbnail: the area around the current location, or all of the lower 48
+    hboxList.emplace_back();
+    labels.emplace_back(parent, "MRMS thumbnail area:");
+    labels.back().setWordWrap(false);
+    hboxList.back().addWidget(labels.back());
+    combos.emplace_back(parent, vector<string>{"Around my location", "All of CONUS"});
+    combos.back().setIndex(Utility::readPref("MRMS_THUMB_EXTENT", "regional") == "conus" ? 1 : 0);
+    combos.back().connect([this] { Utility::writePref("MRMS_THUMB_EXTENT", combos.back().getIndex() == 1 ? "conus" : "regional"); });
+    hboxList.back().addWidget(combos.back());
+    box.addLayout(hboxList.back());
     labels.emplace_back(parent, "Changes show on the main screen when Settings is closed.");
     labels.back().setWordWrap(false);
     box.addWidget(labels.back());

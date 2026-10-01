@@ -10,6 +10,7 @@
 #include <string>
 #include "settings/UIPreferences.h"
 #include "ui/Button.h"
+#include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
@@ -39,6 +40,7 @@ private:
     deque<Button> buttons;
     deque<Text> labels;
     deque<HBox> hboxList;
+    deque<ComboBox> combos;
 };
 
 #endif  // SETTINGSHOMESCREENORDERBOX_H
