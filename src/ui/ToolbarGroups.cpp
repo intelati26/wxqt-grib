@@ -23,7 +23,7 @@ namespace {
     const vector<std::pair<string, vector<string>>>& builtIn() {
         static const vector<std::pair<string, vector<string>>> all{
             {"Radar and satellite", {"baseline_flash_on_black_48dp.png", "wxogldualpane.png", "wxoglquadpane.png",
-                                     "radarmosaicnws.png", "baseline_cloud_black_48dp.png", "goesfulldisk.png",
+                                     "radarmosaicnws.png", "mcd_tile.png", "baseline_cloud_black_48dp.png", "goesfulldisk.png",
                                      "lightning.png"}},
             {"Forecast and observations", {"baseline_date_range_black_48dp.png", "baseline_info_black_48dp.png",
                                            "nwsobs.png", "nwsobssites.png", "spcsoundings.png", "rtma.png"}},

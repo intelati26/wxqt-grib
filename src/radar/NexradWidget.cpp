@@ -196,7 +196,11 @@ void NexradWidget::contextMenuEvent(QContextMenuEvent * event) {
 void NexradWidget::paintEvent(QPaintEvent * event) {
     QPainter painter{this};
     nexradDraw.initSurface(&painter, event);
-    if (!hideRadar) {
+    if (dataLayer) {
+        painter.save();
+        dataLayer(painter);
+        painter.restore();
+    } else if (!hideRadar) {
         // for (auto bin = 0; bin < totalBins; bin++) {
         for (auto bin : range(totalBins)) {
             painter.setPen(levelData.radarBuffers.colorPens[bin]);
@@ -279,8 +283,12 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
     if (RadarPreferences::obs && nexradState.zoom > 0.5) {
         nexradDraw.drawText(RadarPreferences::colorObs, nexradState.observations);
     }
-    if (RadarPreferences::colorLegend && nexradState.zoom < 4.0) {
+    if (RadarPreferences::colorLegend && nexradState.zoom < 4.0 && !dataLayer) {
         colorLegend.paintEvent(painter, nexradState.zoom, nexradState.xPos, nexradState.yPos);
+    }
+    if (topLayer) {
+        painter.setWorldTransform(QTransform{});   // keep the window mapping: window units, no pan / zoom
+        topLayer(painter);
     }
 }
 

@@ -24,6 +24,7 @@
 #include "misc/UsAlerts.h"
 #include "misc/WfoText.h"
 #include "models/CamsViewer.h"
+#include "mrms/MrmsViewer.h"
 #include "models/GribViewer.h"
 #include "models/IndexViewer.h"
 #include "models/RefsViewer.h"
@@ -88,6 +89,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("rtma.png", "RTMA", [this] { launchRtma(); });
     routeItems.emplace_back("spcsoundings.png", "Soundings", [parent] { new SoundingViewer{parent, string{}}; });
 
+    routeItems.emplace_back("mcd_tile.png", "MRMS (radar-derived: reflectivity, hail, rotation, rain)", [parent] { new MrmsViewer{parent}; });
     routeItems.emplace_back("radarmosaicnws.png", "Radar Mosaic", [this] { launchRadarMosaicViewer(); });
     routeItems.emplace_back("srfd.png", "National Text", [this] { launchNationalText(); });
     routeItems.emplace_back("uswarn.png", "US Alerts", [this] { launchUsAlerts(); });

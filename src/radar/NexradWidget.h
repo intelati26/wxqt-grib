@@ -16,6 +16,7 @@
 #include <QGestureEvent>
 #include <QLabel>
 #include <QLineF>
+#include <QPainter>
 #include <QPinchGesture>
 #include "objects/FileStorage.h"
 #include "objects/LatLon.h"
@@ -70,6 +71,11 @@ public:
     std::unique_ptr<RadarStatusBox> radarStatusBox;
     NexradStateAnimation nexradStateAnimation;
     NexradColorLegend colorLegend;
+    // Optional replacements used by the MRMS viewer: `dataLayer` is painted instead of the radar bins, in the same
+    // projected, panned and zoomed coordinates as the map lines; `topLayer` is painted last, with the pan / zoom
+    // transform removed (window units, for a legend). While `dataLayer` is set the radar colour legend is not drawn.
+    function<void(QPainter&)> dataLayer;
+    function<void(QPainter&)> topLayer;
 
 protected:
     void paintEvent(QPaintEvent *) override;
