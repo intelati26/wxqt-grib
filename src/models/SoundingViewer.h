@@ -57,6 +57,7 @@ private:
     ComboBox comboTime;
     ComboBox comboArea;   // model mode: the point itself or the mean over a radius around it
     ComboBox comboParcel;
+    ComboBox comboLayout;   // SPC's fixed layout, or the layout that fills the window
     QPushButton * buttonSave;
     SoundingCanvas * canvas;
 

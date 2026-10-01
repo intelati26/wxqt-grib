@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "models/SoundingViewer.h"
+#include "util/Utility.h"
 #include <algorithm>
 #include <cmath>
 #include <QBuffer>
@@ -101,6 +102,11 @@ public:
         update();
     }
 
+    void setSpcLayout(bool spc) {
+        spcLayout = spc;
+        update();
+    }
+
 protected:
     void paintEvent(QPaintEvent *) override {
         QPainter painter{this};
@@ -111,6 +117,26 @@ protected:
             painter.drawText(rect(), Qt::AlignCenter | Qt::TextWordWrap, message);
             return;
         }
+        if (!spcLayout) {
+            // dynamic layout: the plots and tables stretch to fill the window
+            painter.setPen(QColor{235, 235, 235});
+            QFont titleFont = painter.font();
+            titleFont.setBold(true);
+            painter.setFont(titleFont);
+            painter.drawText(QRect{10, 4, width() - 20, 20}, Qt::AlignLeft | Qt::AlignVCenter, title);
+            const int skewWidth = static_cast<int>(width() * 0.56);
+            const QRect skew{46, 30, skewWidth - 46 - 8, height() - 30 - 22};
+            const int rightX = skewWidth + 6;
+            const int rightWidth = width() - rightX - 8;
+            const int insetWidth = 76;   // the 1 km / 6 km wind barbs beside the hodograph
+            const int hodoSize = std::min(rightWidth - insetWidth, static_cast<int>(height() * 0.34));
+            drawSkewT(painter, skew);
+            drawHodograph(painter, QRect{rightX + (rightWidth - insetWidth - hodoSize) / 2, 30, hodoSize, hodoSize});
+            drawWindInset(painter, QRect{rightX + rightWidth - insetWidth, 34, insetWidth, 92});
+            drawTable(painter, QRect{rightX, 30 + hodoSize + 22, rightWidth, height() - 30 - hodoSize - 26}, -1);
+            return;
+        }
+
         // SPC's graphic is 1180 x 826: everything is laid out in those units and scaled to fit the window (centred)
         constexpr double canvasWidth = 1180.0;
         constexpr double canvasHeight = 826.0;
@@ -152,6 +178,7 @@ private:
     QString title;
     QString message;
     int parcelIndex{1};
+    bool spcLayout{true};
 
     // ---- Skew-T geometry ----
     struct Geometry {
@@ -534,7 +561,7 @@ private:
         bool labelColumn;   // first column holds row names (left-aligned) rather than values
     };
 
-    // `group` picks the part of the table band: 0 parcels / thermodynamics / lapse rates, 1 winds and storm motion, 2 indices and precip type
+    // `group` picks the part of the table band (-1: everything): 0 parcels / thermodynamics / lapse rates, 1 winds and storm motion, 2 indices and precip type
     void drawTable(QPainter& painter, const QRect& area, int group) {
         using namespace SoundingIndices;
         const auto& a = *analysis;
@@ -596,7 +623,7 @@ private:
             sections.push_back({{"Best guess precip type"}, {{text}}, false});
         }
 
-        {
+        if (group >= 0) {
             static const std::vector<std::vector<size_t>> groups{{0, 4, 5, 6}, {1, 2}, {3, 7}};
             std::vector<GridSection> chosen;
             for (const auto index : groups[static_cast<size_t>(group)]) {
@@ -731,6 +758,7 @@ SoundingViewer::SoundingViewer(Window * parent, double lon, double lat, const st
     , comboTime{this, {"-"}}
     , comboArea{this, {"Point", "15 km mean", "30 km mean", "60 km mean"}}
     , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
+    , comboLayout{this, {"SPC layout", "Dynamic layout"}}
     , buttonSave{new QPushButton{"Save", this}}
     , canvas{new SoundingCanvas{this}}
 {
@@ -756,6 +784,7 @@ SoundingViewer::SoundingViewer(Window * parent, const string& site)
     , comboTime{this, labelsOf(observedTimes())}
     , comboArea{this, {"Point"}}
     , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
+    , comboLayout{this, {"SPC layout", "Dynamic layout"}}
     , buttonSave{new QPushButton{"Save", this}}
     , canvas{new SoundingCanvas{this}}
     , observed{true}
@@ -778,6 +807,13 @@ SoundingViewer::SoundingViewer(Window * parent, const string& site)
 void SoundingViewer::build() {
     comboParcel.setIndex(1);
     comboParcel.connect([this] { canvas->setParcel(comboParcel.getIndex()); });
+    comboLayout.getView()->setToolTip("SPC layout: SPC's graphic, scaled to fit. Dynamic layout: the skew-T, hodograph and tables stretch to fill the window.");
+    comboLayout.setIndex(static_cast<size_t>(Utility::readPref("SOUNDING_LAYOUT", "spc") == "dynamic" ? 1 : 0));
+    canvas->setSpcLayout(comboLayout.getIndex() == 0);
+    comboLayout.connect([this] {
+        Utility::writePref("SOUNDING_LAYOUT", comboLayout.getIndex() == 0 ? "spc" : "dynamic");
+        canvas->setSpcLayout(comboLayout.getIndex() == 0);
+    });
     QObject::connect(buttonSave, &QPushButton::clicked, this, [this] { onSave(); });
     rowTop.addWidget(textInfo, 1);
     // each mode shows only its own pickers; the others exist (members) but stay hidden
@@ -792,6 +828,7 @@ void SoundingViewer::build() {
         comboTime.setVisible(false);
     }
     rowTop.addWidget(comboParcel);
+    rowTop.addWidget(comboLayout);
     rowTop.addWidgetReal(buttonSave);
     box.addLayout(rowTop);
     box.addWidgetReal(canvas, 1, Qt::Alignment{});
