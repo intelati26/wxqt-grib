@@ -66,6 +66,9 @@ namespace SoundingIndices {
     // pressure (mb) of the first level where the temperature (or wet bulb) reaches `tempC`; -9999 if never
     double temperatureLevel(const SoundingProfile& profile, double tempC, bool wetBulb = false);
     double dcape(const SoundingProfile& profile);
+    // convective temperature (C): the surface temperature at which a parcel with the lowest-100 mb mean
+    // moisture has no CIN left; -9999 when it would need more than 25 C of heating
+    double convectiveTemperature(const SoundingProfile& profile);
 
     // composites, each from the published definitions (inputs in m/s and metres as SPC defines them)
     double stpFixed(double sbCape, double sbLclM, double srh01, double bwd6Ms);

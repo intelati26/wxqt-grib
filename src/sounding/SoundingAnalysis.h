@@ -34,6 +34,7 @@ struct SoundingAnalysis {
     double lapse700500{-9999.0};
     double lapse850500{-9999.0};
     double dcape{-9999.0};
+    double convectiveTemp{-9999.0};    // C
     double freezingLevelAgl{-9999.0};   // m
     double wetBulbZeroAgl{-9999.0};     // m
     double surfaceRh{-9999.0};

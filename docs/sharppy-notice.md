@@ -56,6 +56,7 @@ engine follows SPC, and each such rule is commented in the source:
   100 mb (both now match all 270).
 - The 3-6 km lapse rate is between 3 and 6 km above mean sea level, as SPC
   prints it (labelled "MSL" on screen); 0-3 km is above ground.
+- Convective temperature: see below.
 - Melting level / wet-bulb zero: the lowest crossing going up; none when the
   surface is already below 0 C (269 / 268 of 270).
 
@@ -67,4 +68,6 @@ Known, unexplained differences:
 - Most-unstable parcel start level differs on 33 soundings, all with zero
   MUCAPE (nothing derived from it changes).
 - A few soundings show SPC 0-3 km CAPE with zero total CAPE.
-- Convective temperature is not ported.
+- Convective temperature: SHARPpy's convective_temp() iteration, but lifted with
+  parcelx, the exact-form mean mixing ratio and CIN >= -1 J/kg, which is what
+  SPC's printed values follow (221 of 270 exact, the rest 0.5-1.5 C low).

@@ -337,6 +337,34 @@ namespace SoundingIndices {
         return tote;
     }
 
+    double convectiveTemperature(const SoundingProfile& p) {
+        // SHARPpy's convective_temp(): heat the surface parcel (moisture = lowest-100 mb mean) until its CIN is
+        // gone, in 0.5 C steps (2 C while CIN < -100). Following SPC's printed values (221 of 270 exact, the rest
+        // within 1.5 C), the parcel is lifted with the full parcelx routine, the mean mixing ratio is the exact
+        // form, and "no CIN" means CIN >= -1 J/kg (SHARPpy's documented default; its code uses 0).
+        const double pres = p.sfcPres();
+        double tmpc = p.tmpc[static_cast<size_t>(p.sfc)];
+        const double mixing = meanMixingRatioMb(p, pres, pres - 100.0);
+        if (gone(mixing) || gone(tmpc)) return missing;
+        const double dwpc = SoundingThermo::tempAtMixingRatio(mixing, pres);
+        constexpr double minCin = -1.0;
+        auto lift = [&] (double t, double& cin) {
+            const auto pcl = SoundingParcel::liftFrom(p, pres, t, dwpc);
+            cin = pcl.cin;
+            return pcl.valid && pcl.cape != 0.0;
+        };
+        double cin = 0.0;
+        // more than 25 C of heating needed: give up
+        if (!lift(tmpc + 25.0, cin) || cin < minCin) return missing;
+        if (dwpc - tmpc > 0.0) tmpc += dwpc - tmpc + 4.0;
+        bool valid = lift(tmpc, cin);
+        for (int guard = 0; guard < 200 && (!valid || cin < minCin); guard += 1) {
+            tmpc += (valid && cin < -100.0) ? 2.0 : 0.5;
+            valid = lift(tmpc, cin);
+        }
+        return tmpc;
+    }
+
     double stpFixed(double sbCape, double sbLclM, double srh01, double bwd6Ms) {
         const double lclTerm = sbLclM < 1000.0 ? 1.0 : sbLclM > 2000.0 ? 0.0 : (2000.0 - sbLclM) / 1000.0;
         if (bwd6Ms > 30.0) bwd6Ms = 30.0;

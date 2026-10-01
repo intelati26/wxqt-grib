@@ -119,7 +119,7 @@ protected:
         const int hodoSize = std::min(rightWidth, static_cast<int>(height() * 0.40));
         drawSkewT(painter, skew);
         drawHodograph(painter, QRect{rightX + (rightWidth - hodoSize) / 2, 30, hodoSize, hodoSize});
-        drawTable(painter, QRect{rightX, 30 + hodoSize + 8, rightWidth, height() - 30 - hodoSize - 14});
+        drawTable(painter, QRect{rightX, 30 + hodoSize + 22, rightWidth, height() - 30 - hodoSize - 26});
     }
 
 private:
@@ -386,12 +386,22 @@ private:
         lines << QString("STP fix %1  eff %2   SCP %3   SHIP %4").arg(num(a.stpFixed, 1)).arg(num(a.stpEffective, 1)).arg(num(a.supercell, 1)).arg(num(a.hail, 2));
         lines << QString("PW %1 in   DCAPE %2   0C %3 m  WBZ %4 m").arg(num(a.precipitableWaterIn, 2)).arg(num(a.dcape, 0)).arg(num(a.freezingLevelAgl, 0)).arg(num(a.wetBulbZeroAgl, 0));
         lines << QString("Lapse C/km  0-3 %1  3-6 MSL %2  700-500 %3").arg(num(a.lapse03, 1)).arg(num(a.lapse36, 1)).arg(num(a.lapse700500, 1));
-        lines << QString("Mean w g/kg  low 100 mb %1  0-3 km %2   RH sfc %3%").arg(num(a.meanMixingLow100, 1)).arg(num(a.meanMixing03, 1)).arg(num(a.surfaceRh, 0));
+        lines << QString("Mean w g/kg  low 100 mb %1   0-3 km %2").arg(num(a.meanMixingLow100, 1)).arg(num(a.meanMixing03, 1));
+        lines << QString("Conv temp %1 C   RH sfc %2%").arg(num(a.convectiveTemp, 1)).arg(num(a.surfaceRh, 0));
 
         painter.save();
         QFont mono{"monospace"};
         mono.setStyleHint(QFont::Monospace);
-        mono.setPixelSize(std::clamp(static_cast<int>(area.height() / (lines.size() * 1.3)), 8, 14));
+        // the largest size (14 px down to 7) at which every line fits the area, in height and width
+        int pixelSize = 14;
+        for (; pixelSize > 7; pixelSize -= 1) {
+            mono.setPixelSize(pixelSize);
+            const QFontMetrics metrics{mono};
+            int widest = 0;
+            for (const auto& line : lines) widest = std::max(widest, metrics.horizontalAdvance(line));
+            if (metrics.lineSpacing() * lines.size() <= area.height() && widest <= area.width()) break;
+        }
+        mono.setPixelSize(pixelSize);
         painter.setFont(mono);
         painter.setPen(QColor{230, 230, 230});
         const int lineHeight = QFontMetrics{mono}.lineSpacing();
@@ -484,12 +494,16 @@ void SoundingViewer::build() {
     comboParcel.connect([this] { canvas->setParcel(comboParcel.getIndex()); });
     QObject::connect(buttonSave, &QPushButton::clicked, this, [this] { onSave(); });
     rowTop.addWidget(textInfo, 1);
+    // each mode shows only its own pickers; the others exist (members) but stay hidden
     if (observed) {
         rowTop.addWidget(comboSite);
         rowTop.addWidget(comboTime);
+        comboArea.setVisible(false);
     } else {
         comboArea.connect([this] { start(); });
         rowTop.addWidget(comboArea);
+        comboSite.setVisible(false);
+        comboTime.setVisible(false);
     }
     rowTop.addWidget(comboParcel);
     rowTop.addWidgetReal(buttonSave);

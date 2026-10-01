@@ -46,6 +46,7 @@ SoundingAnalysis SoundingAnalysis::compute(const SoundingProfile& p) {
     a.lapse700500 = lapseRateMb(p, 700, 500);
     a.lapse850500 = lapseRateMb(p, 850, 500);
     a.dcape = SoundingIndices::dcape(p);
+    a.convectiveTemp = convectiveTemperature(p);
     // Freezing / wet-bulb-zero heights. As on SPC's soundings: a surface already at or below 0 C has no
     // melting level (0 m when the surface is exactly 0 C), even if a shallow warm layer sits above it.
     const size_t s0 = static_cast<size_t>(p.sfc);
