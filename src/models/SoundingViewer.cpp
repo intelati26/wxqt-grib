@@ -160,7 +160,9 @@ private:
         QPainterPath path;
         bool started = false;
         for (size_t i = 0; i < temps.size() && i < pres.size(); i += 1) {
-            if (!have(temps[i]) || !have(pres[i]) || pres[i] < pTop * 0.999 || pres[i] > pBottom) {
+            // levels above 100 mb (and below the plot) are kept: the clip rectangle crops the line exactly at the border,
+            // as SPC's graphic does, instead of the trace stopping at the last level inside the plot
+            if (!have(temps[i]) || !have(pres[i]) || pres[i] <= 0.0) {
                 continue;
             }
             const auto point = g.at(temps[i], pres[i]);
