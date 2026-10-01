@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "sounding/SoundingIndices.h"
+#include <algorithm>
 #include <cmath>
 #include "sounding/SoundingThermo.h"
 
@@ -501,5 +502,56 @@ namespace SoundingIndices {
         const double a3 = -6.17e-4;
         const double a4 = -0.17;
         return 1.0 / (1.0 + std::exp(a0 + a1 * maxBulkShear + a2 * lr38 + a3 * muCape + a4 * meanWindMs));
+    }
+
+    namespace {
+        // winds.mean_wind_npw: the plain (not pressure-weighted) mean of u and v on 1 mb steps between two pressures
+        Wind meanBetweenPressures(const SoundingProfile& p, double bottomMb, double topMb) {
+            double su = 0.0;
+            double sv = 0.0;
+            int count = 0;
+            for (double pr = bottomMb; pr >= topMb - 1e-9; pr -= 1.0) {
+                double u;
+                double v;
+                if (!p.interpComponents(pr, u, v)) continue;
+                su += u;
+                sv += v;
+                count += 1;
+            }
+            if (count == 0) return {};
+            return {su / count, sv / count};
+        }
+    }
+
+    Corfidi corfidi(const SoundingProfile& p) {
+        Corfidi result;
+        if (p.size() == 0 || gone(p.sfcPres())) return result;
+        const Wind tropo = p.sfcPres() < 850.0 ? meanBetweenPressures(p, p.sfcPres(), 300.0) : meanBetweenPressures(p, 850.0, 300.0);
+        const double p15 = p.interpPresAtHght(p.toMsl(1500.0));
+        if (gone(p15)) return result;
+        const Wind low = meanBetweenPressures(p, p.sfcPres(), p15);
+        if (!tropo.valid() || !low.valid()) return result;
+        result.upshear = {tropo.u - low.u, tropo.v - low.v};
+        result.downshear = {tropo.u + result.upshear.u, tropo.v + result.upshear.v};
+        return result;
+    }
+
+    double criticalAngle(const SoundingProfile& p, const Wind& storm) {
+        if (!storm.valid() || p.size() == 0 || gone(p.sfcPres())) return missing;
+        const double p500 = p.interpPresAtHght(p.toMsl(500.0));
+        double u500;
+        double v500;
+        double us;
+        double vs;
+        if (gone(p500) || !p.interpComponents(p500, u500, v500) || !p.interpComponents(p.sfcPres(), us, vs)) return missing;
+        const double v1u = u500 - us;
+        const double v1v = v500 - vs;
+        const double v2u = storm.u - us;
+        const double v2v = storm.v - vs;
+        const double m1 = std::hypot(v1u, v1v);
+        const double m2 = std::hypot(v2u, v2v);
+        if (m1 < 1e-9 || m2 < 1e-9) return missing;
+        const double c = std::clamp((v1u * v2u + v1v * v2v) / (m1 * m2), -1.0, 1.0);
+        return std::acos(c) * 180.0 / pi;
     }
 }

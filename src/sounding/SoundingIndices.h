@@ -54,6 +54,16 @@ namespace SoundingIndices {
     double wndg(const SoundingProfile& profile, double mlCape, double mlCin, double lapse03);
     double sigSevere(double mlCape, double shear06Kt);
     double mmp(const SoundingProfile& profile, double muCape);
+    // SHARPpy winds.corfidi_mcs_motion: the Corfidi (meso-beta element) upshear and downshear vectors, knots
+    struct Corfidi {
+        Wind upshear;
+        Wind downshear;
+        bool valid() const { return upshear.valid() && downshear.valid(); }
+    };
+    Corfidi corfidi(const SoundingProfile& profile);
+    // SHARPpy winds.critical_angle (Esterheld and Giuliano 2008): the angle, degrees, between the 0-500 m shear vector and
+    // the vector from the surface wind to the storm motion
+    double criticalAngle(const SoundingProfile& profile, const Wind& stormMotion);
     // Theta-E Index as SHARPpy's params.tei: the maximum minus the minimum theta-e (K) in the lowest 400 mb
     double thetaEIndex(const SoundingProfile& profile);
 

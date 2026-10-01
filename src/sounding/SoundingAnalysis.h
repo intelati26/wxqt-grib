@@ -22,6 +22,8 @@ struct SoundingAnalysis {
     SoundingIndices::Wind leftMover;
     SoundingIndices::Wind meanWind06;
     SoundingIndices::Wind shear01, shear03, shear06;
+    SoundingIndices::Corfidi corfidi;   // upshear / downshear MCS vectors
+    double criticalAngle{-9999.0};      // degrees, for the right-mover storm motion
     double effectiveShearKt{-9999.0};
     double srh01{-9999.0};
     double srh03{-9999.0};

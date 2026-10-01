@@ -1017,6 +1017,11 @@ private:
             sections.push_back({{"Best guess precip type"}, {{text}}, false});
         }
 
+        sections.push_back({{"Corfidi", "Up", "Down", "Crit angle"},
+                            {{"dir / kt", a.corfidi.valid() ? num(a.corfidi.upshear.direction(), 0) + "/" + num(a.corfidi.upshear.speed(), 0) : QString{"--"},
+                              a.corfidi.valid() ? num(a.corfidi.downshear.direction(), 0) + "/" + num(a.corfidi.downshear.speed(), 0) : QString{"--"},
+                              num(a.criticalAngle, 0)}},
+                            true});
         sections.push_back({{"K Idx", "T Tot", "Mid RH %", "Low RH %"},
                             {{num(a.kIndex, 0), num(a.totalTotals, 0), num(a.midRh, 0), num(a.lowRh, 0)}},
                             false});
@@ -1025,7 +1030,7 @@ private:
                             false});
 
         if (group >= 0) {
-            static const std::vector<std::vector<size_t>> groups{{0, 4, 5, 6}, {1, 2}, {3, 8, 9, 7}};
+            static const std::vector<std::vector<size_t>> groups{{0, 4, 5, 6}, {1, 2, 8}, {3, 9, 10, 7}};
             std::vector<GridSection> chosen;
             for (const auto index : groups[static_cast<size_t>(group)]) {
                 chosen.push_back(sections[index]);

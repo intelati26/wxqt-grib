@@ -73,6 +73,9 @@ SoundingAnalysis SoundingAnalysis::compute(const SoundingProfile& p) {
     }
     a.hail = significantHail(p, a.mu);
 
+    a.corfidi = SoundingIndices::corfidi(p);
+    a.criticalAngle = SoundingIndices::criticalAngle(p, a.rightMover);
+
     // the rest of SPC's index list, from SHARPpy's params
     a.kIndex = SoundingIndices::kIndex(p);
     a.totalTotals = SoundingIndices::totalTotals(p);
