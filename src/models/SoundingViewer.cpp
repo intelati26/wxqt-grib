@@ -81,6 +81,36 @@ namespace {
     }
 }
 
+// The sounding is drawn for a dark screen. For export it is drawn again on SPC's white background: every colour goes through
+// themed(), which swaps the light and dark neutrals and darkens colours that would not read on white.
+namespace {
+    bool lightTheme = false;
+
+    // SPC's brown for low values: the dark shade on a dark screen, the lighter one on white (the tint rule would wash it out)
+    QColor brownLine() { return lightTheme ? QColor{0x99, 0x66, 0x00} : QColor{0x77, 0x50, 0x00}; }
+
+    QColor themed(const QColor& c) {
+        if (!lightTheme || !c.isValid()) {
+            return c;
+        }
+        const QColor hsl = c.toHsl();
+        const double saturation = hsl.hslSaturationF();
+        const double lightness = hsl.lightnessF();
+        const int alpha = c.alpha();
+        if (saturation < 0.12) {   // greys, black, white
+            return QColor{255 - c.red(), 255 - c.green(), 255 - c.blue(), alpha};
+        }
+        if (lightness < 0.3) {     // the faint dark tints used for grid lines on black become light tints on white
+            auto light = QColor::fromHslF(hsl.hslHueF(), saturation, 1.0 - lightness);
+            light.setAlpha(alpha);
+            return light;
+        }
+        const double luminance = (0.2126 * c.red() + 0.7152 * c.green() + 0.0722 * c.blue()) / 255.0;
+        const double k = luminance > 0.6 ? 0.6 / luminance : 1.0;   // yellows, cyans, light greens
+        return QColor{static_cast<int>(c.red() * k), static_cast<int>(c.green() * k), static_cast<int>(c.blue() * k), alpha};
+    }
+}
+
 class SoundingCanvas : public QWidget {
 public:
     explicit SoundingCanvas(QWidget * parent) : QWidget{parent} { setMinimumSize(780, 520); }
@@ -110,49 +140,71 @@ public:
         update();
     }
 
+    // SPC's layout on SPC's white background, `scale` times the size of SPC's own graphic, for saving
+    QImage renderExport(int scale) {
+        const bool wasSpc = spcLayout;
+        spcLayout = true;
+        lightTheme = true;
+        QImage image{1180 * scale, 968 * scale, QImage::Format_ARGB32};
+        image.fill(Qt::white);
+        {
+            QPainter painter{&image};
+            paintInto(painter, image.width(), image.height());
+        }
+        lightTheme = false;
+        spcLayout = wasSpc;
+        return image;
+    }
+
 protected:
     void paintEvent(QPaintEvent *) override {
         QPainter painter{this};
+        paintInto(painter, width(), height());
+    }
+
+    // the whole picture into a painter of the given size (the screen widget, or the export image)
+    void paintInto(QPainter& painter, int width, int height) {
+        const QRect rect{0, 0, width, height};
         painter.setRenderHint(QPainter::Antialiasing);
-        painter.fillRect(rect(), QColor{12, 12, 16});
+        painter.fillRect(rect, themed(QColor{12, 12, 16}));
         if (profile == nullptr || analysis == nullptr) {
-            painter.setPen(QColor{200, 200, 200});
-            painter.drawText(rect(), Qt::AlignCenter | Qt::TextWordWrap, message);
+            painter.setPen(themed(QColor{200, 200, 200}));
+            painter.drawText(rect, Qt::AlignCenter | Qt::TextWordWrap, message);
             return;
         }
         if (!spcLayout) {
             // dynamic layout: the plots and tables stretch to fill the window
-            painter.setPen(QColor{235, 235, 235});
+            painter.setPen(themed(QColor{235, 235, 235}));
             QFont titleFont = painter.font();
             titleFont.setBold(true);
             painter.setFont(titleFont);
-            painter.drawText(QRect{10, 4, width() - 20, 20}, Qt::AlignLeft | Qt::AlignVCenter, title);
-            const int skewWidth = static_cast<int>(width() * 0.56);
-            const QRect skew{46, 30, skewWidth - 46 - 8, height() - 30 - 22};
+            painter.drawText(QRect{10, 4, width - 20, 20}, Qt::AlignLeft | Qt::AlignVCenter, title);
+            const int skewWidth = static_cast<int>(width * 0.56);
+            const QRect skew{46, 30, skewWidth - 46 - 8, height - 30 - 22};
             const int rightX = skewWidth + 6;
-            const int rightWidth = width() - rightX - 8;
+            const int rightWidth = width - rightX - 8;
             const int insetWidth = 76;   // the 1 km / 6 km wind barbs beside the hodograph
-            const int hodoSize = std::min(rightWidth - insetWidth, static_cast<int>(height() * 0.34));
+            const int hodoSize = std::min(rightWidth - insetWidth, static_cast<int>(height * 0.34));
             drawSkewT(painter, skew);
             drawHodograph(painter, QRect{rightX + (rightWidth - insetWidth - hodoSize) / 2, 30, hodoSize, hodoSize});
             drawWindInset(painter, QRect{rightX + rightWidth - insetWidth, 34, insetWidth, 92});
-            drawTable(painter, QRect{rightX, 30 + hodoSize + 22, rightWidth, height() - 30 - hodoSize - 26}, -1);
+            drawTable(painter, QRect{rightX, 30 + hodoSize + 22, rightWidth, height - 30 - hodoSize - 26}, -1);
             return;
         }
 
         // SPC's graphic is 1180 x 826 (plus the strip below): everything is laid out in those units and scaled to fit the window (centred)
         constexpr double canvasWidth = 1180.0;
         constexpr double canvasHeight = 968.0;   // SPC's 826 plus a strip for the SARS analogue lists
-        const double scale = std::min(width() / canvasWidth, height() / canvasHeight);
-        painter.translate((width() - canvasWidth * scale) / 2.0, (height() - canvasHeight * scale) / 2.0);
+        const double scale = std::min(width / canvasWidth, height / canvasHeight);
+        painter.translate((width - canvasWidth * scale) / 2.0, (height - canvasHeight * scale) / 2.0);
         painter.scale(scale, scale);
         painter.setClipRect(QRectF{0, 0, canvasWidth, canvasHeight});
-        painter.fillRect(QRectF{0, 0, canvasWidth, canvasHeight}, QColor{12, 12, 16});
+        painter.fillRect(QRectF{0, 0, canvasWidth, canvasHeight}, themed(QColor{12, 12, 16}));
         QFont base = painter.font();
         base.setPixelSize(12);
         painter.setFont(base);
 
-        painter.setPen(QColor{235, 235, 235});
+        painter.setPen(themed(QColor{235, 235, 235}));
         QFont titleFont = base;
         titleFont.setBold(true);
         titleFont.setPixelSize(18);
@@ -177,19 +229,19 @@ protected:
             const double stp = analysis->stpEffective;
             const double ship = analysis->hail;
             const auto stpColor = [] (double v) {
-                if (v < 0.1) return QColor{0x77, 0x50, 0x00};
-                if (v < 1.0) return QColor{0x99, 0x66, 0x00};
-                if (v < 2.0) return QColor{255, 255, 255};
-                if (v < 4.0) return QColor{255, 255, 0};
-                if (v < 8.0) return QColor{255, 0, 0};
-                return QColor{0xe7, 0x00, 0xdf};
+                if (v < 0.1) return brownLine();
+                if (v < 1.0) return themed(QColor{0x99, 0x66, 0x00});
+                if (v < 2.0) return themed(QColor{255, 255, 255});
+                if (v < 4.0) return themed(QColor{255, 255, 0});
+                if (v < 8.0) return themed(QColor{255, 0, 0});
+                return themed(QColor{0xe7, 0x00, 0xdf});
             };
             const auto shipColor = [] (double v) {
-                if (v >= 5.0) return QColor{0xe7, 0x00, 0xdf};
-                if (v >= 2.0) return QColor{255, 0, 0};
-                if (v >= 1.0) return QColor{255, 255, 0};
-                if (v >= 0.5) return QColor{255, 255, 255};
-                return QColor{0x77, 0x50, 0x00};
+                if (v >= 5.0) return themed(QColor{0xe7, 0x00, 0xdf});
+                if (v >= 2.0) return themed(QColor{255, 0, 0});
+                if (v >= 1.0) return themed(QColor{255, 255, 0});
+                if (v >= 0.5) return themed(QColor{255, 255, 255});
+                return brownLine();
             };
             drawBoxPlot(painter, QRect{872, 640, 228, 150}, "Effective-Layer STP (with CIN)", 11.0, 1.0, {"EF4+", "EF3", "EF2", "EF1", "EF0", "NONT"},
                         &efBoxes[0][0], 6, true, stp, have(stp) ? stpColor(stp) : QColor{});
@@ -290,7 +342,7 @@ private:
         };
 
         // heights above ground
-        const QColor heightColor{255, 120, 120};
+        const QColor heightColor = themed(QColor{255, 120, 120});
         for (const double h : {0.0, 1000.0, 3000.0, 6000.0, 9000.0, 12000.0, 15000.0}) {
             const double pressure = prof.interpPresAtHght(prof.toMsl(h));
             if (!have(pressure) || pressure < pTop || pressure > pBottom) continue;
@@ -302,7 +354,7 @@ private:
         }
 
         // freezing level, -20 C, -30 C: heights in feet above ground
-        const QColor levelColor{120, 190, 255};
+        const QColor levelColor = themed(QColor{120, 190, 255});
         const struct { double t; const char * name; } levels[] = {{0.0, "FZL"}, {-20.0, "-20C"}, {-30.0, "-30C"}};
         for (const auto& level : levels) {
             const double pressure = crossingPressure(level.t);
@@ -331,8 +383,8 @@ private:
             }
         }
         if (have(bestBottom) && bestRate >= 4.5) {
-            const QColor color = bestRate >= 8.0 ? QColor{190, 100, 240} : bestRate >= 7.0 ? QColor{255, 90, 90}
-                                : bestRate >= 6.0 ? QColor{210, 150, 70} : QColor{210, 210, 120};
+            const QColor color = bestRate >= 8.0 ? themed(QColor{190, 100, 240}) : bestRate >= 7.0 ? themed(QColor{255, 90, 90})
+                                : bestRate >= 6.0 ? themed(QColor{210, 150, 70}) : themed(QColor{210, 210, 120});
             const double x = g.xOf(prof.interpVtmp(bestBottom) + 5.0, bestBottom);
             const double y1 = g.yOf(bestBottom), y2 = g.yOf(bestTop);
             clipped([&] {
@@ -347,7 +399,7 @@ private:
         // effective inflow layer: bracket with its base and top (m above ground) and the effective SRH
         const auto& layer = analysis->effective;
         if (layer.valid && have(layer.pBot) && have(layer.pTop)) {
-            const QColor color{200, 110, 230};
+            const QColor color = themed(QColor{200, 110, 230});
             const double x1 = g.xOf(-20.0, pBottom), x2 = g.xOf(-33.0, pBottom);
             const double y1 = g.yOf(layer.pBot), y2 = g.yOf(layer.pTop);
             clipped([&] {
@@ -371,15 +423,15 @@ private:
         const auto g = geometry(plot);
         painter.save();
         painter.setClipRect(plot);
-        painter.fillRect(plot, QColor{0, 0, 0});
+        painter.fillRect(plot, themed(QColor{0, 0, 0}));
 
         // isotherms
         for (int t = -170; t <= 60; t += 10) {
-            painter.setPen(QPen(t == 0 ? QColor{90, 160, 230} : QColor{70, 70, 80}, t == 0 ? 1.5 : 1.0));
+            painter.setPen(QPen(t == 0 ? themed(QColor{90, 160, 230}) : themed(QColor{70, 70, 80}), t == 0 ? 1.5 : 1.0));
             painter.drawLine(g.at(t, pBottom), g.at(t, pTop));
         }
         // dry adiabats
-        painter.setPen(QPen(QColor{90, 70, 40}, 1.0));
+        painter.setPen(QPen(themed(QColor{90, 70, 40}), 1.0));
         for (int thetaK = 220; thetaK <= 620; thetaK += 10) {
             QPainterPath path;
             bool started = false;
@@ -391,7 +443,7 @@ private:
             painter.drawPath(path);
         }
         // moist adiabats
-        painter.setPen(QPen(QColor{40, 90, 50}, 1.0, Qt::DashLine));
+        painter.setPen(QPen(themed(QColor{40, 90, 50}), 1.0, Qt::DashLine));
         for (int t0 = -10; t0 <= 40; t0 += 5) {
             QPainterPath path;
             bool started = false;
@@ -403,7 +455,7 @@ private:
             painter.drawPath(path);
         }
         // isobars
-        painter.setPen(QPen(QColor{90, 90, 100}, 1.0));
+        painter.setPen(QPen(themed(QColor{90, 90, 100}), 1.0));
         for (int p = 1000; p >= 100; p -= 100) {
             painter.drawLine(QPointF(plot.left(), g.yOf(p)), QPointF(plot.right(), g.yOf(p)));
         }
@@ -432,25 +484,25 @@ private:
                 QPolygonF quad;
                 quad << g.at(parT, p) << g.at(parT2, p - 5.0) << g.at(envT2, p - 5.0) << g.at(envT, p);
                 painter.setPen(Qt::NoPen);
-                painter.setBrush(positive ? QColor{230, 60, 60, 90} : QColor{70, 110, 230, 90});
+                painter.setBrush(positive ? themed(QColor{230, 60, 60, 90}) : themed(QColor{70, 110, 230, 90}));
                 painter.drawPolygon(quad);
             }
             painter.setBrush(Qt::NoBrush);
-            painter.setPen(QPen(QColor{255, 255, 255}, 1.6, Qt::DashLine));
+            painter.setPen(QPen(themed(QColor{255, 255, 255}), 1.6, Qt::DashLine));
             strokePolyline(painter, g, pcl.traceTemp, pcl.tracePres);
         }
 
         // environment
-        painter.setPen(QPen(QColor{80, 200, 220}, 1.0));
+        painter.setPen(QPen(themed(QColor{80, 200, 220}), 1.0));
         strokePolyline(painter, g, profile->wetbulb, profile->pres);
-        painter.setPen(QPen(QColor{60, 220, 80}, 2.2));
+        painter.setPen(QPen(themed(QColor{60, 220, 80}), 2.2));
         strokePolyline(painter, g, profile->dwpc, profile->pres);
-        painter.setPen(QPen(QColor{240, 60, 60}, 2.2));
+        painter.setPen(QPen(themed(QColor{240, 60, 60}), 2.2));
         strokePolyline(painter, g, profile->tmpc, profile->pres);
         painter.restore();
 
         // frame, pressure and temperature labels
-        painter.setPen(QColor{200, 200, 200});
+        painter.setPen(themed(QColor{200, 200, 200}));
         painter.drawRect(plot);
         for (int p = 1000; p >= 100; p -= 100) {
             painter.drawText(QRectF(plot.left() - 28, g.yOf(p) - 8, 26, 16), Qt::AlignRight | Qt::AlignVCenter, QString::number(p));
@@ -463,7 +515,7 @@ private:
         }
 
         // level markers for the selected parcel
-        painter.setPen(QColor{255, 220, 120});
+        painter.setPen(themed(QColor{255, 220, 120}));
         auto mark = [&] (const QString& name, double p) {
             if (!have(p) || p < pTop || p > pBottom) return;
             const double y = g.yOf(p);
@@ -476,8 +528,8 @@ private:
         drawAnnotations(painter, g, plot);
 
         // wind barbs in their own column to the right of the plot
-        painter.setPen(QPen(QColor{220, 220, 220}, 1.2));
-        painter.setBrush(QColor{220, 220, 220});
+        painter.setPen(QPen(themed(QColor{220, 220, 220}), 1.2));
+        painter.setBrush(themed(QColor{220, 220, 220}));
         const double barbX = plot.right() - 34;
         double lastY = -1e9;
         for (size_t i = 0; i < profile->size(); i += 1) {
@@ -498,8 +550,8 @@ private:
     void drawHodograph(QPainter& painter, const QRect& area) {
         using namespace SoundingIndices;
         painter.save();
-        painter.fillRect(area, QColor{0, 0, 0});
-        painter.setPen(QColor{200, 200, 200});
+        painter.fillRect(area, themed(QColor{0, 0, 0}));
+        painter.setPen(themed(QColor{200, 200, 200}));
         painter.drawRect(area);
         constexpr double xMin = -40.0;
         constexpr double xMax = 90.0;
@@ -508,14 +560,14 @@ private:
         const double scale = std::min(area.width() / (xMax - xMin), area.height() / (yMax - yMin));
         const QPointF origin{area.left() - xMin * scale, area.bottom() + yMin * scale};
         const auto toPoint = [&] (double u, double v) { return QPointF{origin.x() + u * scale, origin.y() - v * scale}; };
-        const QColor orange{230, 150, 0};
+        const QColor orange = themed(QColor{230, 150, 0});
         painter.setClipRect(area);
         QFont font = painter.font();
         font.setPixelSize(10);
         painter.setFont(font);
         // dotted rings every 10 kt
         painter.setBrush(Qt::NoBrush);
-        painter.setPen(QPen{QColor{230, 150, 0, 110}, 1.0, Qt::DotLine});
+        painter.setPen(QPen{themed(QColor{230, 150, 0, 110}), 1.0, Qt::DotLine});
         for (double r = 10.0; r <= 130.0; r += 10.0) {
             painter.drawEllipse(origin, r * scale, r * scale);
         }
@@ -536,10 +588,10 @@ private:
 
         // the trace, coloured by height above ground
         const auto colorAt = [] (double agl) {
-            if (agl < 3000.0) return QColor{255, 0, 0};
-            if (agl < 6000.0) return QColor{0, 255, 0};
-            if (agl < 9000.0) return QColor{0, 139, 0};
-            return QColor{150, 120, 215};
+            if (agl < 3000.0) return themed(QColor{255, 0, 0});
+            if (agl < 6000.0) return themed(QColor{0, 255, 0});
+            if (agl < 9000.0) return themed(QColor{0, 139, 0});
+            return themed(QColor{150, 120, 215});
         };
         QPointF previous;
         bool havePrevious = false;
@@ -558,14 +610,14 @@ private:
             havePrevious = true;
         }
         // a dot and the number at every km
-        painter.setBrush(QColor{235, 235, 235});
+        painter.setBrush(themed(QColor{235, 235, 235}));
         for (int km = 0; km <= 9; km += 1) {
             const auto w = windAtAgl(*profile, km * 1000.0);
             if (!w.valid()) continue;
             const auto point = toPoint(w.u, w.v);
             painter.setPen(Qt::NoPen);
             painter.drawEllipse(point, 3.0, 3.0);
-            painter.setPen(QColor{235, 235, 235});
+            painter.setPen(themed(QColor{235, 235, 235}));
             painter.drawText(QRectF{point.x() - 14.0, point.y() - 17.0, 14.0, 12.0}, Qt::AlignRight | Qt::AlignVCenter, QString::number(km));
         }
         painter.setBrush(Qt::NoBrush);
@@ -575,7 +627,7 @@ private:
         if (a.effective.valid && a.rightMover.valid()) {
             const auto bottom = windAtAgl(*profile, a.effective.botAgl);
             const auto top = windAtAgl(*profile, a.effective.topAgl);
-            painter.setPen(QPen{QColor{30, 170, 255}, 1.0});
+            painter.setPen(QPen{themed(QColor{30, 170, 255}), 1.0});
             const auto rm = toPoint(a.rightMover.u, a.rightMover.v);
             if (bottom.valid()) painter.drawLine(rm, toPoint(bottom.u, bottom.v));
             if (top.valid()) painter.drawLine(rm, toPoint(top.u, top.v));
@@ -585,7 +637,7 @@ private:
         const auto stormMark = [&] (const Wind& w, const QString& name) {
             if (!w.valid()) return;
             const auto point = toPoint(w.u, w.v);
-            painter.setPen(QPen{QColor{255, 255, 255}, 1.4});
+            painter.setPen(QPen{themed(QColor{255, 255, 255}), 1.4});
             painter.drawEllipse(point, 5.0, 5.0);
             painter.drawLine(point + QPointF{-5, 0}, point + QPointF{5, 0});
             painter.drawLine(point + QPointF{0, -5}, point + QPointF{0, 5});
@@ -596,7 +648,7 @@ private:
         stormMark(a.leftMover, "LM");
         if (a.meanWind06.valid()) {
             const auto point = toPoint(a.meanWind06.u, a.meanWind06.v);
-            painter.setPen(QPen{QColor{200, 120, 60}, 1.6});
+            painter.setPen(QPen{themed(QColor{200, 120, 60}), 1.6});
             painter.drawRect(QRectF{point.x() - 4.0, point.y() - 4.0, 8.0, 8.0});
             painter.drawText(QRectF{point.x() + 6.0, point.y() + 1.0, 70.0, 12.0}, Qt::AlignLeft | Qt::AlignVCenter,
                              QString{"%1/%2"}.arg(a.meanWind06.direction(), 0, 'f', 0).arg(a.meanWind06.speed(), 0, 'f', 0));
@@ -604,7 +656,7 @@ private:
         if (a.corfidi.valid()) {
             const auto corfidiMark = [&] (const Wind& w, const QString& name) {
                 const auto point = toPoint(w.u, w.v);
-                painter.setPen(QPen{QColor{30, 144, 255}, 1.3});
+                painter.setPen(QPen{themed(QColor{30, 144, 255}), 1.3});
                 painter.drawEllipse(point, 4.0, 4.0);
                 painter.drawText(QRectF{point.x() + 6.0, point.y() + 1.0, 90.0, 12.0}, Qt::AlignLeft | Qt::AlignVCenter,
                                  QString{"%1=%2/%3"}.arg(name).arg(w.direction(), 0, 'f', 0).arg(w.speed(), 0, 'f', 0));
@@ -613,7 +665,7 @@ private:
             corfidiMark(a.corfidi.downshear, "DP");
         }
         painter.setClipping(false);
-        painter.setPen(QColor{200, 200, 200});
+        painter.setPen(themed(QColor{200, 200, 200}));
         painter.drawText(QRectF(area.left(), area.bottom() + 1, area.width(), 14), Qt::AlignCenter,
                          "km AGL: red 0-3  green 3-6  dark green 6-9  purple 9+  (kt)");
         painter.restore();
@@ -628,8 +680,8 @@ private:
         constexpr double maxSpeed = 120.0;
         painter.save();
         painter.setClipRect(area.adjusted(0, 0, 0, 16));
-        painter.fillRect(area, QColor{0, 0, 0});
-        painter.setPen(QPen{QColor{110, 110, 110}, 1.0, Qt::DashLine});
+        painter.fillRect(area, themed(QColor{0, 0, 0}));
+        painter.setPen(QPen{themed(QColor{110, 110, 110}), 1.0, Qt::DashLine});
         for (int speed = 20; speed < static_cast<int>(maxSpeed); speed += 20) {
             const double x = area.left() + area.width() * speed / maxSpeed;
             painter.drawLine(QPointF{x, static_cast<double>(area.top())}, QPointF{x, static_cast<double>(area.bottom())});
@@ -637,17 +689,17 @@ private:
         QFont font = painter.font();
         font.setPixelSize(8);
         painter.setFont(font);
-        painter.setPen(QColor{170, 170, 170});
+        painter.setPen(themed(QColor{170, 170, 170}));
         for (int speed = 20; speed < static_cast<int>(maxSpeed); speed += 20) {
             const double x = area.left() + area.width() * speed / maxSpeed;
             painter.drawText(QRectF(x - 9, area.bottom() + 2, 18, 12), Qt::AlignCenter, QString::number(speed));   // under the panel, as SPC
         }
         const auto colorAt = [] (double agl) {
-            if (agl < 3000.0) return QColor{255, 0, 0};
-            if (agl < 6000.0) return QColor{0, 255, 0};
-            if (agl < 9000.0) return QColor{0, 139, 0};
-            if (agl < 12000.0) return QColor{145, 44, 238};
-            return QColor{0, 255, 255};
+            if (agl < 3000.0) return themed(QColor{255, 0, 0});
+            if (agl < 6000.0) return themed(QColor{0, 255, 0});
+            if (agl < 9000.0) return themed(QColor{0, 139, 0});
+            if (agl < 12000.0) return themed(QColor{145, 44, 238});
+            return themed(QColor{0, 255, 255});
         };
         std::vector<size_t> levels;
         for (size_t i = 0; i < p.size(); i += 1) {
@@ -668,7 +720,7 @@ private:
             painter.drawLine(QPointF{static_cast<double>(area.left()), y}, QPointF{area.left() + length, y});
         }
         painter.setClipping(false);
-        painter.setPen(QColor{200, 200, 200});
+        painter.setPen(themed(QColor{200, 200, 200}));
         painter.drawRect(area);
         painter.drawText(QRectF(area.left(), area.top() + 2, area.width(), 26), Qt::AlignCenter | Qt::TextWordWrap, "Wind Speed (kt)\nvs Height");
         painter.restore();
@@ -681,10 +733,10 @@ private:
         const auto layers = SoundingAdvection::inferred(*profile, profile->latitude);
         painter.save();
         painter.setClipRect(area.adjusted(-1, -16, 1, 1));
-        painter.fillRect(area, QColor{0, 0, 0});
+        painter.fillRect(area, themed(QColor{0, 0, 0}));
         const double center = area.left() + area.width() / 2.0;
         const auto xOf = [&] (double value) { return center + value / 26.0 * area.width(); };
-        painter.setPen(QPen{QColor{200, 200, 200}, 1.0, Qt::DashLine});
+        painter.setPen(QPen{themed(QColor{200, 200, 200}), 1.0, Qt::DashLine});
         painter.drawLine(QPointF{center, static_cast<double>(area.top())}, QPointF{center, static_cast<double>(area.bottom())});
         QFont font = painter.font();
         font.setPixelSize(10);
@@ -696,16 +748,16 @@ private:
             const double yBottom = g.yOf(layer.pBottom);
             const double yTop = g.yOf(layer.pTop);
             const double x = xOf(std::clamp(layer.advection, -13.0, 13.0));
-            const QColor color = layer.advection > 0 ? QColor{255, 0, 0} : (layer.advection < 0 ? QColor{0x33, 0x99, 0xCC} : QColor{235, 235, 235});
+            const QColor color = layer.advection > 0 ? themed(QColor{255, 0, 0}) : (layer.advection < 0 ? themed(QColor{0x33, 0x99, 0xCC}) : themed(QColor{235, 235, 235}));
             painter.setPen(QPen{color, 1.0});
             painter.drawRect(QRectF{QPointF{std::min(center, x), yTop}, QPointF{std::max(center, x), yBottom}});
             const double labelX = layer.advection < 0 ? xOf(-8.0) : xOf(8.0);
             painter.drawText(QRectF{labelX - 15.0, (yTop + yBottom) / 2.0 - 6.0, 30.0, 12.0}, Qt::AlignCenter, QString::number(layer.advection, 'f', 1));
         }
         painter.setClipping(false);
-        painter.setPen(QColor{200, 200, 200});
+        painter.setPen(themed(QColor{200, 200, 200}));
         painter.drawRect(area);
-        painter.setPen(QColor{235, 235, 235});
+        painter.setPen(themed(QColor{235, 235, 235}));
         painter.drawText(QRectF(area.left() + 2, area.top() + 2, area.width() - 4, 26), Qt::AlignCenter | Qt::TextWordWrap, "Inf. Temp. Adv. (C/hr)");
         painter.restore();
     }
@@ -730,11 +782,11 @@ private:
         const auto yOf = [&] (double pr) { return area.bottom() - (pMax - pr) / (pMax - pMin) * area.height(); };
         const auto xOf = [&] (double t) { return area.left() + (t - tMin) / (tMax - tMin) * area.width(); };
         painter.save();
-        painter.fillRect(area, QColor{0, 0, 0});
+        painter.fillRect(area, themed(QColor{0, 0, 0}));
         QFont font = painter.font();
         font.setPixelSize(9);
         painter.setFont(font);
-        painter.setPen(QColor{200, 200, 200});
+        painter.setPen(themed(QColor{200, 200, 200}));
         for (int pr : {1000, 900, 800, 700, 600, 500}) {
             const double y = yOf(pr);
             painter.drawLine(QPointF{area.left() + 0.0, y}, QPointF{area.left() + 5.0, y});
@@ -749,7 +801,7 @@ private:
             painter.drawText(QRectF{x - 10.0, area.bottom() + 1.0, 20.0, 11.0}, Qt::AlignCenter, QString::number(t));
         }
         painter.setClipRect(area);
-        painter.setPen(QPen{QColor{255, 0, 0}, 2.0});
+        painter.setPen(QPen{themed(QColor{255, 0, 0}), 2.0});
         double lastX = 0.0;
         double lastY = 0.0;
         bool have2 = false;
@@ -766,9 +818,9 @@ private:
             have2 = true;
         }
         painter.setClipping(false);
-        painter.setPen(QColor{200, 200, 200});
+        painter.setPen(themed(QColor{200, 200, 200}));
         painter.drawRect(area);
-        painter.setPen(QColor{235, 235, 235});
+        painter.setPen(themed(QColor{235, 235, 235}));
         painter.drawText(QRectF{area.left() + 4.0, area.top() + 2.0, area.width() - 8.0, 24.0}, Qt::AlignLeft | Qt::TextWordWrap, "Theta-E\nv. Pres");
         const double tei = SoundingIndices::thetaEIndex(p);
         if (have(tei)) {
@@ -789,11 +841,11 @@ private:
         const auto yOf = [&] (double km) { return (area.bottom() - 2.0) - km / hMax * (area.height() - 2.0); };
         const auto xOf = [&] (double kt) { return area.left() + kt / sMax * area.width(); };
         painter.save();
-        painter.fillRect(area, QColor{0, 0, 0});
+        painter.fillRect(area, themed(QColor{0, 0, 0}));
         QFont font = painter.font();
         font.setPixelSize(9);
         painter.setFont(font);
-        painter.setPen(QColor{200, 200, 200});
+        painter.setPen(themed(QColor{200, 200, 200}));
         for (int km : {2, 4, 6, 8, 10, 12, 14}) {
             const double y = yOf(km);
             painter.drawLine(QPointF{static_cast<double>(area.left()), y}, QPointF{area.left() + 5.0, y});
@@ -807,9 +859,9 @@ private:
             painter.drawLine(QPointF{x, area.bottom() - 5.0}, QPointF{x, static_cast<double>(area.bottom())});
             painter.drawText(QRectF{x - 10.0, area.bottom() + 1.0, 20.0, 11.0}, Qt::AlignCenter, QString::number(kt));
         }
-        painter.setPen(QPen{QColor{200, 200, 200}, 1.0, Qt::DashLine});
+        painter.setPen(QPen{themed(QColor{200, 200, 200}), 1.0, Qt::DashLine});
         painter.drawLine(QPointF{xOf(0), static_cast<double>(area.top())}, QPointF{xOf(0), static_cast<double>(area.bottom())});
-        const QColor classic{0xb1, 0x01, 0x9a};
+        const QColor classic = themed(QColor{0xb1, 0x01, 0x9a});
         painter.setPen(QPen{classic, 1.0, Qt::DashLine});
         painter.drawLine(QPointF{xOf(40.0), yOf(8.0)}, QPointF{xOf(40.0), yOf(16.0)});
         painter.drawLine(QPointF{xOf(70.0), yOf(8.0)}, QPointF{xOf(70.0), yOf(16.0)});
@@ -817,7 +869,7 @@ private:
         painter.drawText(QRectF{xOf(40.0) - 5.0, area.top() + 2.0, 50.0, 24.0}, Qt::AlignCenter, "Classic\nSupercell");
         painter.setClipRect(area);
         // the trace: storm-relative speed every 10 m, from the surface to 16 km (or the top of the data)
-        painter.setPen(QPen{QColor{255, 0, 0}, 1.0});
+        painter.setPen(QPen{themed(QColor{255, 0, 0}), 1.0});
         const double sfc = p.sfcHght();
         double lastX = 0.0;
         double lastY = 0.0;
@@ -845,13 +897,13 @@ private:
             painter.setPen(QPen{color, 2.0});
             painter.drawLine(QPointF{x, yOf(fromKm)}, QPointF{x, yOf(toKm)});
         };
-        meanBar(0.0, 2.0, QColor{0x8b, 0x00, 0x00});
-        meanBar(4.0, 6.0, QColor{0x64, 0x95, 0xed});
-        meanBar(9.0, 11.0, QColor{0x94, 0x00, 0xd3});
+        meanBar(0.0, 2.0, themed(QColor{0x8b, 0x00, 0x00}));
+        meanBar(4.0, 6.0, themed(QColor{0x64, 0x95, 0xed}));
+        meanBar(9.0, 11.0, themed(QColor{0x94, 0x00, 0xd3}));
         painter.setClipping(false);
-        painter.setPen(QColor{200, 200, 200});
+        painter.setPen(themed(QColor{200, 200, 200}));
         painter.drawRect(area);
-        painter.setPen(QColor{235, 235, 235});
+        painter.setPen(themed(QColor{235, 235, 235}));
         painter.drawText(QRectF{area.left() + 3.0, area.bottom() - 40.0, 60.0, 34.0}, Qt::AlignLeft | Qt::TextWordWrap, "SR Winds\nv. Height");
         painter.restore();
     }
@@ -861,20 +913,20 @@ private:
     void drawBoxPlot(QPainter& painter, const QRect& area, const QString& title, double yMax, double yStep, const std::vector<QString>& names,
                      const double * boxes, int count, bool median, double value, const QColor& valueColor) {
         painter.save();
-        painter.fillRect(area, QColor{0, 0, 0});
+        painter.fillRect(area, themed(QColor{0, 0, 0}));
         QFont font = painter.font();
         font.setPixelSize(10);
         painter.setFont(font);
-        painter.setPen(QColor{235, 235, 235});
+        painter.setPen(themed(QColor{235, 235, 235}));
         painter.drawText(QRectF{area.left() + 0.0, area.top() + 1.0, static_cast<double>(area.width()), 14.0}, Qt::AlignCenter, title);
         const QRectF plot{area.left() + 18.0, area.top() + 18.0, area.width() - 22.0, area.height() - 36.0};
         const auto yOf = [&] (double v) { return plot.bottom() - std::clamp(v, 0.0, yMax) / yMax * plot.height(); };
         font.setPixelSize(9);
         painter.setFont(font);
         for (double y = 0.0; y <= yMax + 1e-9; y += yStep) {
-            painter.setPen(QPen{QColor{0x00, 0x80, 0xff}, 1.0, Qt::DashLine});
+            painter.setPen(QPen{themed(QColor{0x00, 0x80, 0xff}), 1.0, Qt::DashLine});
             painter.drawLine(QPointF{plot.left(), yOf(y)}, QPointF{plot.right(), yOf(y)});
-            painter.setPen(QColor{235, 235, 235});
+            painter.setPen(themed(QColor{235, 235, 235}));
             painter.drawText(QRectF{area.left() + 0.0, yOf(y) - 6.0, 16.0, 12.0}, Qt::AlignRight | Qt::AlignVCenter, QString::number(y, 'f', 0));
         }
         const double spacing = plot.width() / (count + 1);
@@ -882,12 +934,12 @@ private:
         for (int i = 0; i < count; i += 1) {
             const double cx = plot.left() + spacing * (i + 1);
             const double* b = boxes + i * 5;
-            painter.setPen(QPen{QColor{0, 255, 0}, 2.0});
+            painter.setPen(QPen{themed(QColor{0, 255, 0}), 2.0});
             painter.drawLine(QPointF{cx, yOf(b[0])}, QPointF{cx, yOf(b[1])});
             painter.drawRect(QRectF{QPointF{cx - width / 2.0, yOf(b[3])}, QPointF{cx + width / 2.0, yOf(b[1])}});
             if (median) painter.drawLine(QPointF{cx - width / 2.0, yOf(b[2])}, QPointF{cx + width / 2.0, yOf(b[2])});
             painter.drawLine(QPointF{cx, yOf(b[3])}, QPointF{cx, yOf(b[4])});
-            painter.setPen(QColor{235, 235, 235});
+            painter.setPen(themed(QColor{235, 235, 235}));
             QFont small = painter.font();
             small.setPixelSize(8);
             painter.setFont(small);
@@ -900,7 +952,7 @@ private:
             painter.drawLine(QPointF{plot.left(), yOf(value)}, QPointF{plot.right(), yOf(value)});
             painter.drawText(QRectF{plot.left() + 2.0, yOf(value) - 12.0, 60.0, 11.0}, Qt::AlignLeft | Qt::AlignVCenter, QString::number(value, 'f', 1));
         }
-        painter.setPen(QColor{200, 200, 200});
+        painter.setPen(themed(QColor{200, 200, 200}));
         painter.drawRect(area);
         painter.restore();
     }
@@ -909,16 +961,16 @@ private:
     // line, the number of loose matches, then the quality matches (date, site, and the tornado class or hail size)
     void drawSars(QPainter& painter, const QRect& area) {
         painter.save();
-        painter.fillRect(area, QColor{0, 0, 0});
-        painter.setPen(QColor{200, 200, 200});
+        painter.fillRect(area, themed(QColor{0, 0, 0}));
+        painter.setPen(themed(QColor{200, 200, 200}));
         painter.drawRect(area);
         QFont font = painter.font();
         font.setPixelSize(12);
         font.setBold(true);
         painter.setFont(font);
-        painter.setPen(QColor{235, 235, 235});
+        painter.setPen(themed(QColor{235, 235, 235}));
         painter.drawText(QRectF{static_cast<double>(area.left()), area.top() + 2.0, static_cast<double>(area.width()), 16.0}, Qt::AlignCenter, "SARS - Sounding Analogue System");
-        painter.setPen(QColor{200, 200, 200});
+        painter.setPen(themed(QColor{200, 200, 200}));
         painter.drawLine(QPointF{area.left() + 0.0, area.top() + 19.0}, QPointF{static_cast<double>(area.right()), area.top() + 19.0});
         const double half = area.width() / 2.0;
         painter.drawLine(QPointF{area.left() + half, area.top() + 19.0}, QPointF{area.left() + half, static_cast<double>(area.bottom())});
@@ -936,7 +988,7 @@ private:
             return QString{"%1 %2 %3 %4Z (%5)"}.arg(d.mid(4, 2), monthName(d.mid(2, 2).toInt()), d.left(2), d.mid(6, 2), parts[1]);
         };
         const auto drawSide = [&] (double x0, const QString& heading, const SoundingSars::Result& result, bool tornado) {
-            painter.setPen(QColor{235, 235, 235});
+            painter.setPen(themed(QColor{235, 235, 235}));
             painter.drawText(QRectF{x0, area.top() + 21.0, half, 14.0}, Qt::AlignCenter, heading);
             if (!result.valid) {
                 painter.drawText(QRectF{x0, area.top() + 50.0, half, 14.0}, Qt::AlignCenter, "No analogues (missing data)");
@@ -944,12 +996,12 @@ private:
             }
             if (result.looseMatches > 0) {
                 const double percent = std::round(result.probability * 100.0);
-                painter.setPen(percent >= 50.0 ? QColor{255, 0, 255} : QColor{235, 235, 235});
+                painter.setPen(percent >= 50.0 ? themed(QColor{255, 0, 255}) : themed(QColor{235, 235, 235}));
                 painter.drawText(QRectF{x0, area.bottom() - 15.0, half, 14.0}, Qt::AlignCenter,
                                  QString{"SARS: %1% %2   (%3 loose matches)"}.arg(percent, 0, 'f', 0).arg(tornado ? "TOR" : "SIG").arg(result.looseMatches));
             }
             if (result.quality.empty()) {
-                painter.setPen(QColor{200, 200, 200});
+                painter.setPen(themed(QColor{200, 200, 200}));
                 painter.drawText(QRectF{x0, area.top() + 50.0, half, 14.0}, Qt::AlignCenter, "No Quality Matches");
                 return;
             }
@@ -965,10 +1017,10 @@ private:
                 QColor color;
                 QString tag;
                 if (tornado) {
-                    color = m.category == 2 ? QColor{255, 0, 0} : (m.category == 1 ? QColor{0x00, 0xbf, 0xff} : QColor{0xcc, 0x99, 0x66});
+                    color = m.category == 2 ? themed(QColor{255, 0, 0}) : (m.category == 1 ? themed(QColor{0x00, 0xbf, 0xff}) : themed(QColor{0xcc, 0x99, 0x66}));
                     tag = m.category == 2 ? "SIG" : (m.category == 1 ? "WEAK" : "NON");
                 } else {
-                    color = m.size >= 2.0 ? QColor{255, 0, 0} : QColor{0x00, 0xbf, 0xff};
+                    color = m.size >= 2.0 ? themed(QColor{255, 0, 0}) : themed(QColor{0x00, 0xbf, 0xff});
                     tag = QString::number(m.size, 'f', 2);
                 }
                 painter.setPen(color);
@@ -985,14 +1037,14 @@ private:
     void drawTornadoProbBox(QPainter& painter, const QRect& area) {
         const auto& a = *analysis;
         painter.save();
-        painter.fillRect(area, QColor{0, 0, 0});
-        painter.setPen(QColor{235, 235, 235});
+        painter.fillRect(area, themed(QColor{0, 0, 0}));
+        painter.setPen(themed(QColor{235, 235, 235}));
         painter.drawRect(area);
         QFont font = painter.font();
         font.setPixelSize(8);
         painter.setFont(font);
-        static const QColor alert[6] = {QColor{0x77, 0x50, 0x00}, QColor{0x99, 0x66, 0x00}, QColor{255, 255, 255}, QColor{255, 255, 0},
-                                        QColor{255, 0, 0}, QColor{0xe7, 0x00, 0xdf}};
+        const QColor alert[6] = {brownLine(), themed(QColor{0x99, 0x66, 0x00}), themed(QColor{255, 255, 255}), themed(QColor{255, 255, 0}),
+                                        themed(QColor{255, 0, 0}), themed(QColor{0xe7, 0x00, 0xdf})};
         double y = area.top() + 2.0;
         for (const char * line : {"Prob EF2+ torn with supercell", "Sounding CLIMO = .15 sigtor"}) {
             painter.drawText(QRectF{area.left() + 3.0, y, area.width() - 4.0, 10.0}, Qt::AlignLeft | Qt::AlignVCenter, line);
@@ -1024,7 +1076,7 @@ private:
     void drawWindInset(QPainter& painter, const QRect& area) {
         const auto& p = *profile;
         painter.save();
-        const QColor colors[2] = {QColor{255, 110, 110}, QColor{120, 190, 255}};
+        const QColor colors[2] = {themed(QColor{255, 110, 110}), themed(QColor{120, 190, 255})};
         const double heights[2] = {1000.0, 6000.0};
         const char * labels[2] = {"1 km", "6 km"};
         QFont font = painter.font();
@@ -1210,10 +1262,10 @@ private:
         const int rowHeight = metrics.height() + 2;
         QFont bold = font;
         bold.setBold(true);
-        const QColor headerFill{58, 70, 96};
-        const QColor stripeA{34, 37, 44};
-        const QColor stripeB{43, 47, 56};
-        const QColor lines{86, 92, 104};
+        const QColor headerFill = themed(QColor{58, 70, 96});
+        const QColor stripeA = themed(QColor{34, 37, 44});
+        const QColor stripeB = themed(QColor{43, 47, 56});
+        const QColor lines = themed(QColor{86, 92, 104});
 
         int y = area.top();
         for (const auto& section : sections) {
@@ -1233,7 +1285,7 @@ private:
                 for (int c = 0; c < columns; c += 1) {
                     const QRectF cell{edges[static_cast<size_t>(c)], static_cast<double>(y), edges[static_cast<size_t>(c) + 1] - edges[static_cast<size_t>(c)], static_cast<double>(rowHeight)};
                     painter.setFont(header || (c == 0 && section.labelColumn) ? bold : font);
-                    painter.setPen(header ? QColor{235, 240, 255} : QColor{230, 230, 230});
+                    painter.setPen(header ? themed(QColor{235, 240, 255}) : themed(QColor{230, 230, 230}));
                     const bool left = c == 0 && section.labelColumn;
                     painter.drawText(cell.adjusted(left ? 4 : 0, 0, left ? 0 : 0, 0), (left ? Qt::AlignLeft : Qt::AlignHCenter) | Qt::AlignVCenter,
                                      static_cast<size_t>(c) < cells.size() ? cells[static_cast<size_t>(c)] : QString{});
@@ -1496,7 +1548,7 @@ void SoundingViewer::onSave() {
     QByteArray bytes;
     QBuffer buffer{&bytes};
     buffer.open(QIODevice::WriteOnly);
-    canvas->grab().save(&buffer, "PNG");
+    canvas->renderExport(2).save(&buffer, "PNG");   // SPC's white background at twice its size, whatever the window shows
     QString suggested;
     if (observed) {
         const auto code = QString::fromStdString(SoundingSites::sites->codeList[static_cast<size_t>(std::max(0, comboSite.getIndex()))]);
