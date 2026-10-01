@@ -75,8 +75,8 @@ MainWindow::MainWindow(QWidget * parent)
     boxH.addLayout(toolbar);
     boxH.addLayout(boxRows);
 
-    // each section is a horizontal row; the rows stack top to bottom
-    for (auto * section : {&imageLayout, &forecastLayout, &rightMostLayout}) {
+    // the forecast and text sections are horizontal rows (images wrap, see FlowBox); the rows stack top to bottom
+    for (auto * section : {&forecastLayout, &rightMostLayout}) {
         section->getView()->setDirection(QBoxLayout::LeftToRight);
     }
 
@@ -322,7 +322,7 @@ void MainWindow::addWidgets() {
 // layouts are detached and re-added, not rebuilt, so their contents are kept.
 void MainWindow::arrangeColumns() {
     auto * rows = boxRows.getView();
-    const vector<std::pair<string, VBox *>> columns{
+    const vector<std::pair<string, Box *>> columns{
         {UIPreferences::homeColumnImages, &imageLayout},
         {UIPreferences::homeColumnForecast, &forecastLayout},
         {UIPreferences::homeColumnText, &rightMostLayout},

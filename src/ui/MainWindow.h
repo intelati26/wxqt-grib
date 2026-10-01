@@ -18,6 +18,7 @@
 #include "ui/CardCurrentConditions.h"
 #include "ui/CardHazards.h"
 #include "ui/ComboBox.h"
+#include "ui/FlowBox.h"
 #include "ui/HBox.h"
 #include "ui/Image.h"
 #include "ui/ScrolledWindow.h"
@@ -61,7 +62,7 @@ private:
     VBox box;
     HBox boxH;
     VBox boxRows;   // the image / forecast / text rows, top to bottom, right of the toolbar
-    VBox imageLayout;
+    FlowBox imageLayout;   // fixed-size thumbnails, wrapped to the window width
     VBox rightMostLayout;
     VBox forecastLayout;
     VBox boxCc;
