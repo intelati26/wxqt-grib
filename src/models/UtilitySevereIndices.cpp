@@ -944,6 +944,149 @@ string UtilitySevereIndices::renderMax(int indexIndex, int regionIndex, const ve
                              status, samplePath);
 }
 
+// SHIP changes of ~1 and STP changes of ~2 are large; the table is symmetric about zero with a pale band at no change
+string UtilitySevereIndices::differenceColorMap(int indexIndex) {
+    const double limit = indexIndex == 0 ? 2.0 : 3.0;
+    struct Stop { double fraction; int r, g, b, a; };
+    const Stop stops[] = {{-1.0, 33, 102, 172, 255}, {-0.5, 103, 169, 207, 255}, {-0.1, 209, 229, 240, 255},
+                          {-0.03, 238, 238, 238, 255}, {0.03, 238, 238, 238, 255}, {0.1, 253, 219, 199, 255},
+                          {0.5, 239, 138, 98, 255}, {1.0, 178, 24, 43, 255}};
+    string table;
+    for (const auto& stop : stops) {
+        table += To::string(stop.fraction * limit) + " " + To::string(stop.r) + " " + To::string(stop.g) + " " +
+            To::string(stop.b) + " " + To::string(stop.a) + "\n";
+    }
+    return table;
+}
+
+string UtilitySevereIndices::renderDifference(int indexIndex, int regionIndex, const string& forecastHour,
+                                              const string& runId, int hoursBack, string& status, double& dataMin,
+                                              double& dataMax, string& samplePath) {
+    samplePath = "";
+    dataMin = 0.0;
+    dataMax = 0.0;
+    if (indexIndex < 0 || indexIndex >= static_cast<int>(indices.size()) || hoursBack < 1) {
+        status = "invalid index or comparison";
+        return "";
+    }
+    const auto binDir = UtilityGrib::gdalBinDir();
+    if (binDir.empty()) {
+        status = "GDAL not found - install the 'gdal' package";
+        return "";
+    }
+    string dateStr;
+    string cycle;
+    if (!resolveSynopticRun(runId, dateStr, cycle)) {
+        status = "no RRFS run available";
+        return "";
+    }
+    const QDateTime newRun{QDate{To::Int(dateStr.substr(0, 4)), To::Int(dateStr.substr(4, 2)), To::Int(dateStr.substr(6, 2))},
+                           QTime{To::Int(cycle), 0}, QTimeZone::utc()};
+    const auto oldRun = newRun.addSecs(-3600LL * hoursBack);
+    const string oldDate = oldRun.toString("yyyyMMdd").toStdString();
+    const string oldCycle = oldRun.toString("HH").toStdString();
+    const auto newHour = To::Int(forecastHour);
+    const auto oldHour = To::string(newHour + hoursBack);
+    const auto box = UtilityGrib::regionBbox(regionIndex);
+    const auto regionLabelList = UtilityGrib::regions();
+    const auto regionLabel = (regionIndex >= 0 && regionIndex < static_cast<int>(regionLabelList.size()))
+        ? regionLabelList[regionIndex] : string{"Unknown"};
+    const auto validLocal = newRun.addSecs(3600LL * newHour).toLocalTime();
+    const auto indexKeyUpper = QString::fromStdString(indices[indexIndex].key).toUpper().toStdString();
+    status = indexKeyUpper + " CHANGE " + dateStr.substr(0, 4) + "-" + dateStr.substr(4, 2) + "-" + dateStr.substr(6, 2) +
+        " " + cycle + "z    F" + WString::fixedLengthStringPad0(To::string(newHour), 3) + " valid " +
+        validLocal.toString("ddd h:mm AP").toStdString() + " " + QTimeZone::systemTimeZone().abbreviation(validLocal).toStdString() +
+        "    minus " + oldDate.substr(0, 4) + "-" + oldDate.substr(4, 2) + "-" + oldDate.substr(6, 2) + " " + oldCycle +
+        "z F" + oldHour + "    " + regionLabel;
+
+    const auto dir = QString::fromStdString(cacheDir());
+    const auto tagBase = dateStr + cycle + "_" + oldDate + oldCycle + "_" + To::string(indexIndex) + "_" +
+        To::string(regionIndex) + "_" + To::string(newHour);
+    // "sd1" is the render version - bump it whenever the drawing pipeline changes
+    const auto pngPath = dir + QString::fromStdString("/sd1_" + tagBase + ".png");
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
+    const auto gridPath = pngPath + ".grid";
+    const auto rangePath = pngPath + ".range";
+    if (QFile::exists(pngPath)) {
+        QFile rangeFile{rangePath};
+        if (rangeFile.open(QIODevice::ReadOnly)) {
+            const auto parts = QString::fromUtf8(rangeFile.readAll()).split(' ', Qt::SkipEmptyParts);
+            if (parts.size() == 2) {
+                dataMin = parts[0].toDouble();
+                dataMax = parts[1].toDouble();
+            }
+        }
+        if (QFile::exists(gridPath)) {
+            samplePath = gridPath.toStdString();
+        }
+        return pngPath.toStdString();
+    }
+
+    // each run's own value grid, exactly as the single-hour render computes it (the older run's id is its date + cycle)
+    QStringList grids;
+    string failure;
+    const std::pair<string, string> runs[] = {{runId, forecastHour}, {oldDate + oldCycle, oldHour}};
+    for (const auto& [id, hour] : runs) {
+        QString tif;
+        QString nodataRef;
+        QStringList scratch;
+        bool ok = false;
+        string error;
+        if (indexIndex == 0) {
+            const auto grid = computeShipGrid(box, hour, id);
+            ok = grid.ok;
+            error = grid.error;
+            tif = grid.shipTifPath;
+            nodataRef = grid.nodataRefPath;
+            scratch << grid.hailContourBufPath << grid.hailContourRawPath;
+        } else {
+            const auto grid = computeStpGrid(box, hour, id);
+            ok = grid.ok;
+            error = grid.error;
+            tif = grid.tifPath;
+            nodataRef = grid.nodataRefPath;
+        }
+        for (const auto& file : scratch) {
+            QFile::remove(file);
+        }
+        QFile::remove(nodataRef);
+        if (!ok || tif.isEmpty()) {
+            failure = error + (grids.isEmpty() ? string{} : " (the older run may be gone or not cover that hour)");
+            QFile::remove(tif);
+            break;
+        }
+        const auto kept = dir + QString::fromStdString("/sdh_" + tagBase + "_" + To::string(static_cast<int>(grids.size())) + ".tif");
+        QFile::remove(kept);
+        if (!QFile::rename(tif, kept)) {
+            failure = "could not keep an intermediate grid";
+            break;
+        }
+        QFile::remove(tif + ".aux.xml");
+        grids << kept;
+    }
+    const auto bin = QString::fromStdString(binDir) + "/";
+    const auto diffPath = dir + QString::fromStdString("/sdd_" + tagBase + ".tif");
+    bool ok = failure.empty() && grids.size() == 2 &&
+        UtilityGrib::calcRaster(bin, grids, [] (const double * v) { return v[0] - v[1]; }, diffPath);
+    for (const auto& file : grids) {
+        QFile::remove(file);
+        QFile::remove(file + ".aux.xml");
+    }
+    if (!ok) {
+        status = failure.empty() ? string{"change calculation failed"} : failure;
+        return "";
+    }
+    computedMinMax(bin, diffPath, dataMin, dataMax);
+    {
+        QFile rangeFile{rangePath};
+        if (rangeFile.open(QIODevice::WriteOnly)) {
+            rangeFile.write((QString::number(dataMin, 'f', 2) + " " + QString::number(dataMax, 'f', 2)).toUtf8());
+        }
+    }
+    return finishIndexRender(indexIndex, diffPath, QString{}, QString{}, QString{}, box, pngPath, "chg_" + tagBase,
+                             status, samplePath, differenceColorMap(indexIndex));
+}
+
 // Colorize a finished index value grid into the final PNG (fill, optional
 // HAILCAST contours, hover sidecar). Shared by the single-hour render() and
 // the max-over-range composite. Consumes tifPath / nodataRefPath / the hail
@@ -951,7 +1094,8 @@ string UtilitySevereIndices::renderMax(int indexIndex, int regionIndex, const ve
 string UtilitySevereIndices::finishIndexRender(int indexIndex, const QString& tifPath, const QString& nodataRefPath,
                                                const QString& hailContourBufPath, const QString& hailContourRawPath,
                                                const UtilityGrib::Bbox& box, const QString& pngPath,
-                                               const string& tagBaseText, string& status, string& samplePath) {
+                                               const string& tagBaseText, string& status, string& samplePath,
+                                               const string& colorMapOverride) {
     const auto bin = QString::fromStdString(UtilityGrib::gdalBinDir()) + "/";
     const auto dir = QString::fromStdString(cacheDir());
     const auto gridPath = pngPath + ".grid";
@@ -969,7 +1113,7 @@ string UtilitySevereIndices::finishIndexRender(int indexIndex, const QString& ti
     auto ok = true;
     const auto colorPath = dir + QString::fromStdString("/sicolor_" + tagBase + ".txt");
     {
-        const auto& colorMap = indices[indexIndex].colorMap;
+        const auto& colorMap = colorMapOverride.empty() ? indices[indexIndex].colorMap : colorMapOverride;
         QFile colorFile{colorPath};
         if (colorFile.open(QIODevice::WriteOnly)) {
             // leading "nv" entry: nodata pixels come out fully transparent

@@ -62,6 +62,7 @@ private:
     void onMapClicked(double fx, double fy);
     void refreshHover();
     void invalidateAnimation();
+    int compareHours() const;   // 0 = plain index, else the comparison run's age in hours
     QByteArray buildLegend(int indexIndex, double clipLo, double clipHi) const;
     void resizeEventCustom() override;
 
@@ -74,6 +75,7 @@ private:
     ComboBox comboIndex;
     ComboBox comboRegion;
     ComboBox comboForecastHour;
+    ComboBox comboCompare;   // Off / change since the run 6, 12 or 24 hours earlier
     BackForward backForward;
     Button buttonMax;
     Button buttonDay1;

@@ -286,5 +286,5 @@ run fails with an explanatory message, not silently.
   colours it with a symmetric blue-white-red table scaled per field units (`differenceColorMap`). Works with
   the hour slider / animation; Max-of-range resets it. Temperatures are shown as a change in F (x1.8, no +32).
 - Shared along the way: `colorizeToPng` (the tail of the max-of-range render) and `warpFieldSlice`.
-- Not done: the same Compare control in the index (SHIP/STP) and SPC Post viewers; model-to-model differences
+- Index viewer (SHIP/STP) now has the same Compare dropdown (`UtilitySevereIndices::renderDifference`, 2026-10-01; builds, NOT yet run against live data). Not done: the same control in the SPC Post viewer; model-to-model differences
   (needs the multi-model work that is on hold); a user-chosen comparison run instead of fixed -6/-12/-24 h.

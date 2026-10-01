@@ -38,6 +38,7 @@ IndexViewer::IndexViewer(Window * parent)
     , comboIndex{this, UtilitySevereIndices::indexLabels()}
     , comboRegion{this, UtilitySevereIndices::regionLabels()}
     , comboForecastHour{this, UtilitySevereIndices::forecastHours()}
+    , comboCompare{this, {"Compare: off", "Change vs run -6 h", "Change vs run -12 h", "Change vs run -24 h"}}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonMax{this, Icon::None, "Max of range"}
     , buttonDay1{this, Icon::None, "Day 1 max (12z-12z)"}
@@ -71,6 +72,9 @@ IndexViewer::IndexViewer(Window * parent)
     boxTop.addWidget(comboIndex);
     boxTop.addWidget(comboRegion);
     boxTop.addWidget(comboForecastHour);
+    comboCompare.getView()->setToolTip("Show how this index changed since an earlier run: the same valid time from the run 6, 12 or 24 hours older is subtracted (blue = lower now, red = higher now)");
+    comboCompare.connect([this] { animBar.stopIfAnimating(); invalidateAnimation(); reload(); });
+    boxTop.addWidget(comboCompare);
     buttonMax.getView()->setToolTip("Pixel-wise maximum of the selected index over the Range hours below "
                                     "(e.g. set 01 to 24 for a 24-hour max)");
     buttonMax.connect([this] { showMaxOfRange(); });
@@ -173,6 +177,11 @@ void IndexViewer::showMaxOfRange() {
 }
 
 void IndexViewer::showMaxOfHours(const std::vector<std::string>& hoursIn) {
+    if (compareHours() > 0) {   // a max composite is of the plain index
+        comboCompare.block();
+        comboCompare.setIndex(0);
+        comboCompare.unblock();
+    }
     constexpr size_t maxHours = 48;
     auto hours = hoursIn;
     if (hours.size() < 2) {
@@ -230,6 +239,11 @@ void IndexViewer::showDay1Max() {
         }};
 }
 
+int IndexViewer::compareHours() const {
+    static const int hours[] = {0, 6, 12, 24};
+    return hours[std::clamp(comboCompare.getIndex(), 0, 3)];
+}
+
 void IndexViewer::reload() {
     const auto indexIndex = comboIndex.getIndex();
     const auto regionIndex = comboRegion.getIndex();
@@ -237,14 +251,18 @@ void IndexViewer::reload() {
     const auto runIndex = comboRun.getIndex();
     const string runId = (runIndex >= 0 && runIndex < static_cast<int>(runOptions.size()))
         ? runOptions[runIndex].second : string{};
+    const int hoursBack = compareHours();
     legend.setBytes(buildLegend(indexIndex, 0.0, 0.0));
     setTitle("Parametric Index Viewer - loading...");
     sampleGridPath.clear();
     refreshHover();
     new FutureVoid{this,
-        [this, indexIndex, regionIndex, forecastHour, runId] {
-            pngPath = UtilitySevereIndices::render(indexIndex, regionIndex, forecastHour, runId,
-                                                    status, dataMin, dataMax, sampleGridPath);
+        [this, indexIndex, regionIndex, forecastHour, runId, hoursBack] {
+            pngPath = hoursBack > 0
+                ? UtilitySevereIndices::renderDifference(indexIndex, regionIndex, forecastHour, runId, hoursBack,
+                                                         status, dataMin, dataMax, sampleGridPath)
+                : UtilitySevereIndices::render(indexIndex, regionIndex, forecastHour, runId,
+                                               status, dataMin, dataMax, sampleGridPath);
         },
         [this, indexIndex] {
             setTitle("Parametric Index Viewer - " + status);
@@ -447,13 +465,14 @@ void IndexViewer::renderNextAnimFrame(size_t sweepIndex, int generation) {
         ? allHours[globalIndex] : string{};
 
     new FutureVoid{this,
-        [this, indexIndex, regionIndex, hour, runId] {
+        [this, indexIndex, regionIndex, hour, runId, hoursBack = compareHours()] {
             string localStatus;
             string localGridPath;
             double lo = 0.0;
             double hi = 0.0;
-            const auto path = UtilitySevereIndices::render(indexIndex, regionIndex, hour, runId,
-                                                            localStatus, lo, hi, localGridPath);
+            const auto path = hoursBack > 0
+                ? UtilitySevereIndices::renderDifference(indexIndex, regionIndex, hour, runId, hoursBack, localStatus, lo, hi, localGridPath)
+                : UtilitySevereIndices::render(indexIndex, regionIndex, hour, runId, localStatus, lo, hi, localGridPath);
             pendingFrame.clear();
             if (!path.empty()) {
                 QFile file{QString::fromStdString(path)};
@@ -517,7 +536,9 @@ QByteArray IndexViewer::buildLegend(int indexIndex, double clipLo, double clipHi
         QColor color;
     };
     std::vector<Stop> stops;
-    const auto lines = QString::fromStdString(entry.colorMap).split('\n', Qt::SkipEmptyParts);
+    // a change map has its own symmetric table
+    const auto colorMap = compareHours() > 0 ? UtilitySevereIndices::differenceColorMap(indexIndex) : entry.colorMap;
+    const auto lines = QString::fromStdString(colorMap).split('\n', Qt::SkipEmptyParts);
     for (const auto& line : lines) {
         const auto parts = line.split(' ', Qt::SkipEmptyParts);
         if (parts.size() >= 4) {

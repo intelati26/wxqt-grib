@@ -130,11 +130,20 @@ public:
     static string renderMax(int indexIndex, int regionIndex, const vector<string>& hours, const string& runId,
                             string& status, double& dataMin, double& dataMax, string& samplePath);
 
+    // Run-to-run change: the index for `runId` at `forecastHour` minus the same valid time from the (synoptic)
+    // run `hoursBack` hours earlier. Blue-white-red table in the index's own units; no HAILCAST contours.
+    // Same return / sidecar contract as render().
+    static string renderDifference(int indexIndex, int regionIndex, const string& forecastHour, const string& runId,
+                                   int hoursBack, string& status, double& dataMin, double& dataMax, string& samplePath);
+    // the symmetric colour table renderDifference uses (for a legend)
+    static string differenceColorMap(int indexIndex);
+
 private:
     static string finishIndexRender(int indexIndex, const QString& tifPath, const QString& nodataRefPath,
                                     const QString& hailContourBufPath, const QString& hailContourRawPath,
                                     const UtilityGrib::Bbox& box, const QString& pngPath,
-                                    const string& tagBaseText, string& status, string& samplePath);
+                                    const string& tagBaseText, string& status, string& samplePath,
+                                    const string& colorMapOverride = string{});
     static const vector<UtilityGrib::Field> shipInputFields;
     // STP (fixed layer)'s raw inputs not already covered by shipInputFields
     // (0-6km shear and terrain height ARE shared - see computeStpGrid()):
