@@ -156,5 +156,8 @@ if exist "%HERE%gdal" (
 start "" "%HERE%wxqt.exe" %*
 "@ | Set-Content -Path "$distDir/wxqt.bat"
 
+# PowerShell launcher: records how each run ended (wxqt-run.log) and has an option for the app's debug logging
+Copy-Item (Join-Path $PSScriptRoot "wxqt-launcher.ps1") "$distDir/wxqt.ps1"
+
 $size = (Get-ChildItem -Recurse $distDir | Measure-Object -Property Length -Sum).Sum / 1MB
 Write-Host ("==> done: {0} ({1:N0} MB)" -f $distDir, $size)

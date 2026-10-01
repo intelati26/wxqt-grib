@@ -11,5 +11,5 @@
 
 void UtilityLog::d(const string& s) {
     std::cout << ObjectDateTime::getLocalTimeAsString() << " " << s << std::endl;
-    CrashLog::write(s);
+    CrashLog::writeDebug(s);   // the app's tracing: only kept when debugging is switched on
 }

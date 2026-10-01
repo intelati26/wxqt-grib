@@ -28,6 +28,8 @@
 namespace {
     std::mutex logMutex;
     QString logPath;
+    QString debugPath;
+    bool debugOn = false;
 
     QString chooseLogPath() {
         const auto portable = QCoreApplication::applicationDirPath();
@@ -39,25 +41,39 @@ namespace {
         return local + "/wxqt.log";
     }
 
-    void append(const QString& line) {
+    void appendTo(const QString& path, qint64 limit, const QString& line) {
         std::lock_guard<std::mutex> lock{logMutex};
-        if (logPath.isEmpty()) {
+        if (path.isEmpty()) {
             return;
         }
-        if (QFileInfo{logPath}.size() > 1024 * 1024) {
-            QFile::remove(logPath + ".old");
-            QFile::rename(logPath, logPath + ".old");
+        if (QFileInfo{path}.size() > limit) {
+            QFile::remove(path + ".old");
+            QFile::rename(path, path + ".old");
         }
-        QFile file{logPath};
+        QFile file{path};
         if (file.open(QIODevice::Append | QIODevice::Text)) {
             file.write((line + "\n").toUtf8());
+        }
+    }
+
+    void append(const QString& line) {
+        appendTo(logPath, 1024 * 1024, line);
+    }
+
+    void appendDebug(const QString& line) {
+        if (debugOn) {
+            appendTo(debugPath, 8 * 1024 * 1024, QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz ") + line);
         }
     }
 
     void messageHandler(QtMsgType type, const QMessageLogContext&, const QString& message) {
         const char * kind = type == QtDebugMsg ? "debug" : type == QtInfoMsg ? "info" : type == QtWarningMsg ? "warning"
             : type == QtCriticalMsg ? "CRITICAL" : "FATAL";
-        append(QString{"Qt %1: %2"}.arg(kind, message));
+        if (type == QtDebugMsg || type == QtInfoMsg) {
+            appendDebug(QString{"Qt %1: %2"}.arg(kind, message));   // noise unless debugging
+        } else {
+            append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss ") + QString{"Qt %1: %2"}.arg(kind, message));
+        }
         std::fprintf(stderr, "%s\n", message.toLocal8Bit().constData());
     }
 
@@ -106,14 +122,25 @@ namespace {
 #endif
 }
 
-void CrashLog::install() {
+void CrashLog::install(bool debug) {
     logPath = chooseLogPath();
+    debugPath = QFileInfo{logPath}.absolutePath() + "/wxqt-debug.log";
+    debugOn = debug;
     qInstallMessageHandler(messageHandler);
     std::set_terminate(onTerminate);
 #ifdef Q_OS_WIN
     SetUnhandledExceptionFilter(onCrash);
 #endif
-    append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss ") + "---- wxqt started ----");
+    append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss ") + "---- wxqt started (Qt " + qVersion() +
+           (debug ? ", debug logging ON -> wxqt-debug.log" : "") + ") ----");
+}
+
+void CrashLog::writeDebug(const std::string& line) {
+    appendDebug(QString::fromStdString(line));
+}
+
+bool CrashLog::debugEnabled() {
+    return debugOn;
 }
 
 void CrashLog::write(const std::string& line) {

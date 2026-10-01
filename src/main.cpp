@@ -37,7 +37,11 @@ namespace {
 
 int main(int argc, char * argv[]) {
     WxqtApplication a{argc, argv};
-    CrashLog::install();
+    bool debug = qEnvironmentVariable("WXQT_DEBUG") == "1";
+    for (const auto& argument : a.arguments()) {
+        debug = debug || argument == "--debug";
+    }
+    CrashLog::install(debug);
     MyApplication::onCreate();
     UtilityTheme::apply();
     a.setWindowIcon(QIcon{QString::fromStdString(GlobalVariables::imageDir) + "wx_launcher.png"});
@@ -46,6 +50,7 @@ int main(int argc, char * argv[]) {
     } else {
         MainWindow w;
         w.show();
+        QObject::connect(&a, &QCoreApplication::aboutToQuit, &a, [] { CrashLog::write("---- wxqt closing normally ----"); });
         // development aid: WXQT_GRAB=<file.png>[,<milliseconds>] saves a picture of the main window and quits, so a
         // layout can be checked without a display (run with QT_QPA_PLATFORM=offscreen)
         const auto grab = qEnvironmentVariable("WXQT_GRAB").split(',');
