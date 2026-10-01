@@ -28,6 +28,7 @@
 #include "models/GribViewer.h"
 #include "models/IndexViewer.h"
 #include "models/RefsViewer.h"
+#include "spcrefs/SpcRefsViewer.h"
 #include "models/SpcPostViewer.h"
 #include "models/ModelViewer.h"
 #include "nhc/Nhc.h"
@@ -75,6 +76,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
 
     routeItems.emplace_back("grib.png", "RRFS GRIB Viewer", [parent] { new GribViewer{parent}; });
     routeItems.emplace_back("refs.png", "REFS Ensemble Viewer (4-panel mean/spread comparison)", [parent] { new RefsViewer{parent}; });
+    routeItems.emplace_back("refs.png", "SPC REFS (SPC's ensemble products: probabilities, paintballs, updraft helicity)", [parent] { new SpcRefsViewer{parent}; });
     routeItems.emplace_back("nsslwrf.png", "NSSL CAMs (experimental convection-allowing models: MPAS, WRF, HRRR, RRFS)", [parent] { new CamsViewer{parent}; });
     routeItems.emplace_back("tor.png", "SPC Post Slideshow (thunder / severe / lightning probability)", [parent] { new SpcPostViewer{parent}; });
     routeItems.emplace_back("tstorm.png", "Parametric Index Viewer (SHIP hail parameter)", [parent] { new IndexViewer{parent}; });

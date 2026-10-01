@@ -353,3 +353,21 @@ run fails with an explanatory message, not silently.
 - Shared along the way: `colorizeToPng` (the tail of the max-of-range render) and `warpFieldSlice`.
 - Index viewer (SHIP/STP) now has the same Compare dropdown (`UtilitySevereIndices::renderDifference`, 2026-10-01; builds, NOT yet run against live data). Not done: the same control in the SPC Post viewer; model-to-model differences
   (needs the multi-model work that is on hold); a user-chosen comparison run instead of fixed -6/-12/-24 h.
+
+## SPC REFS viewer (2026-10-01)
+
+New tool "SPC REFS" (Models group; id `refs.png#2`): SPC's own REFS ensemble products read directly from SPC's open Zarr data at
+`https://www.spc.noaa.gov/exper/refs/data/<yyyy/MM/dd>/refs-spc_<yyyymmdd_HHMM>.zarr` - the same files SPC's browser viewer
+(`/exper/refs/viewer`) draws. No GRIB, no GDAL: every product (ensemble mean / max / min, neighborhood and exceedance probabilities,
+"paintball" member masks, updraft-helicity swaths, QPF, snow, ice, fire weather ...) is a ready-made field, one chunk per forecast time.
+- `src/zarr/`: `ZarrStore` (consolidated `.zmetadata`, chunk fetch, dtype conversion) and `Blosc` (blosc v1 frame, byte shuffle, lz4 and
+  zstd; zstd is the vendored single-file decoder `src/external/zstddeclib.c`, licence in `docs/zstd-LICENSE.txt`). Checked byte-for-byte
+  against libblosc on real chunks.
+- `src/spcrefs/`: `LambertGrid` (the 3 km CONUS Lambert grid; matches SPC's latitude / longitude arrays to 1e-10 degrees), `UtilitySpcRefs`
+  (catalog with SPC's own product titles and colour tables, cycle discovery, rendering with state / county / lake lines and a key),
+  `SpcRefsViewer` (product / cycle / forecast time / member, loop, hover read-out, Save with the product / run / valid time border).
+- Cycles are found by probing 00 / 06 / 12 / 18 UTC back from now (the folder cannot be listed). Products differ by cycle (the 00 / 12 UTC
+  cycles also have 24-h and 48-h products).
+- Not done: SPC's GREFS (4-h / 24-h tornado, wind, hail probability) and REFSCT thunder probability (separate `grefs-*` / `refsct` stores);
+  contour and wind-barb overlays; the "dominant precipitation type" QPF shading (the type codes in `ptype_consensus` have no documented key);
+  a home-screen thumbnail; SPC HRRR (`UtilityModelSpcHrrr*`) is kept until SPC retires it.
