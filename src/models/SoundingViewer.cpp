@@ -195,7 +195,7 @@ protected:
             drawBoxPlot(painter, QRect{1072, 640, 100, 150}, "SHIP", 5.0, 1.0, {"<=1.5\"", ">=2.5\""},
                         &shipBoxes[0][0], 2, false, ship, have(ship) ? shipColor(ship) : QColor{});
         }
-        drawWindInset(painter, QRect{545, 742, 100, 78});
+        drawWindInset(painter, QRect{560, 786, 100, 44});
         // the table band under the plots: parcels and thermodynamics | kinematics | indices and precipitation type
         drawTable(painter, bottomLeft(), 0);
         drawTable(painter, bottomMiddle(), 1);
@@ -204,7 +204,7 @@ protected:
 
     static QRect skewRect() { return QRect{30, 25, 565, 565}; }
     static QRect bottomLeft() { return QRect{10, 609, 355, 208}; }
-    static QRect bottomMiddle() { return QRect{373, 609, 168, 130}; }
+    static QRect bottomMiddle() { return QRect{373, 609, 285, 172}; }
     static QRect bottomRight() { return QRect{665, 609, 190, 208}; }
 
 private:
@@ -929,7 +929,7 @@ private:
             const double pressure = p.interpPresAtHght(p.toMsl(heights[i]));
             const bool ok = have(pressure) && p.interpComponents(pressure, u, v);
             // both barbs share one staff base (SPC's inset): the angle and length between them show the shear
-            const QPointF center{area.left() + area.width() * 0.5, area.top() + 34.0};
+            const QPointF center{area.left() + area.width() * 0.5, area.top() + 36.0};
             painter.setPen(QPen{colors[i], 1.6});
             painter.setBrush(colors[i]);
             if (ok) {
@@ -940,10 +940,8 @@ private:
                 drawBarb(painter, center, wind.direction(), wind.speed(), 34.0);
             }
             painter.setPen(colors[i]);
-            painter.drawText(QRectF{area.left() + area.width() * (i == 0 ? 0.0 : 0.5) + 2.0, area.top() + 38.0, area.width() * 0.5 - 4.0, 12.0}, i == 0 ? Qt::AlignLeft : Qt::AlignRight, labels[i]);
+            painter.drawText(QRectF{area.left() + area.width() * (i == 0 ? 0.0 : 0.5) + 2.0, area.top() + 30.0, area.width() * 0.5 - 4.0, 12.0}, i == 0 ? Qt::AlignLeft : Qt::AlignRight, labels[i]);
         }
-        painter.setPen(QColor{200, 200, 200});
-        painter.drawText(QRectF{static_cast<double>(area.left()) - 10.0, area.top() + 64.0, area.width() + 20.0, 12.0}, Qt::AlignHCenter | Qt::AlignTop, "Wind barbs (above ground)");
         painter.restore();
     }
 
@@ -979,10 +977,25 @@ private:
         });
         sections.push_back(parcels);
 
-        sections.push_back({{"", "0-1 km", "0-3 km", "0-6 km", "Eff"},
-                            {{"Shear kt", num(a.shear01.speed(), 0), num(a.shear03.speed(), 0), num(a.shear06.speed(), 0), num(a.effectiveShearKt, 0)},
-                             {"SRH", num(a.srh01, 0), num(a.srh03, 0), "", num(a.effectiveSrh, 0)}},
-                            true});
+        // SPC's kinematics block: for each layer the SRH (where SPC prints one), the bulk shear, the mean wind and the
+        // storm-relative mean wind (right mover), as direction / speed in knots
+        {
+            const auto dirSpeed = [] (const SoundingIndices::Wind& w) {
+                return w.valid() ? num(w.direction(), 0) + "/" + num(w.speed(), 0) : QString{"--"};
+            };
+            const auto layer = [&] (const QString& name, const QString& srh, const SoundingIndices::LayerKinematics& k) {
+                return vector<QString>{name, srh, k.shear.valid() ? num(k.shear.speed(), 0) : QString{"--"}, dirSpeed(k.mean), dirSpeed(k.stormRelative)};
+            };
+            sections.push_back({{"", "SRH", "Shear kt", "MnWind", "SRW"},
+                                {layer("SFC-1 km", num(a.srh01, 0), a.kin1),
+                                 layer("SFC-3 km", num(a.srh03, 0), a.kin3),
+                                 layer("Eff Inflow", num(a.effectiveSrh, 0), a.kinEff),
+                                 layer("SFC-6 km", "", a.kin6),
+                                 layer("SFC-8 km", "", a.kin8),
+                                 layer("LCL-EL cloud", "", a.kinCloud),
+                                 layer("Eff Shear", "", a.kinEbwd)},
+                                true});
+        }
 
         sections.push_back({{"Bunkers", "Right", "Left", "Eff inflow"},
                             {{"dir / kt", num(a.rightMover.direction(), 0) + "/" + num(a.rightMover.speed(), 0),
@@ -1027,6 +1040,10 @@ private:
                               a.corfidi.valid() ? num(a.corfidi.downshear.direction(), 0) + "/" + num(a.corfidi.downshear.speed(), 0) : QString{"--"},
                               num(a.criticalAngle, 0)}},
                             true});
+        sections.push_back({{"MaxT F", "DownT F", "BRN shear", "4-6 km SRW"},
+                            {{have(a.maxTempC) ? num(a.maxTempC * 1.8 + 32.0, 0) : QString{"--"}, have(a.downTempC) ? num(a.downTempC * 1.8 + 32.0, 0) : QString{"--"},
+                              num(a.brnShear, 0), a.kin46.stormRelative.valid() ? num(a.kin46.stormRelative.direction(), 0) + "/" + num(a.kin46.stormRelative.speed(), 0) : QString{"--"}}},
+                            false});
         sections.push_back({{"K Idx", "T Tot", "Mid RH %", "Low RH %"},
                             {{num(a.kIndex, 0), num(a.totalTotals, 0), num(a.midRh, 0), num(a.lowRh, 0)}},
                             false});
@@ -1035,7 +1052,7 @@ private:
                             false});
 
         if (group >= 0) {
-            static const std::vector<std::vector<size_t>> groups{{0, 4, 5, 6}, {1, 2, 8}, {3, 9, 10, 7}};
+            static const std::vector<std::vector<size_t>> groups{{0, 4, 5, 6}, {1, 2, 8}, {3, 9, 10, 11, 7}};
             std::vector<GridSection> chosen;
             for (const auto index : groups[static_cast<size_t>(group)]) {
                 chosen.push_back(sections[index]);

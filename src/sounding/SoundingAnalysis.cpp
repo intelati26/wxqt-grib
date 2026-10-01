@@ -45,7 +45,7 @@ SoundingAnalysis SoundingAnalysis::compute(const SoundingProfile& p) {
     a.lapse36 = lapseRateAgl(p, 3000.0, 6000.0);
     a.lapse700500 = lapseRateMb(p, 700, 500);
     a.lapse850500 = lapseRateMb(p, 850, 500);
-    a.dcape = SoundingIndices::dcape(p);
+    a.dcape = SoundingIndices::dcape(p, &a.downTempC);
     a.convectiveTemp = convectiveTemperature(p);
     // Freezing / wet-bulb-zero heights. As on SPC's soundings: a surface already at or below 0 C has no
     // melting level (0 m when the surface is exactly 0 C), even if a shallow warm layer sits above it.
@@ -87,6 +87,30 @@ SoundingAnalysis SoundingAnalysis::compute(const SoundingProfile& p) {
                 a.fcst = SoundingParcel::liftFrom(p, sfcP, a.maxTempC, td);
             }
         }
+    }
+
+    {
+        const auto at = [&] (double agl) { return SoundingIndices::presAtAgl(p, agl); };
+        const double sfcP = p.sfcPres();
+        const auto& storm = a.rightMover;
+        a.kin1 = SoundingIndices::layerKinematics(p, sfcP, at(1000.0), storm);
+        a.kin3 = SoundingIndices::layerKinematics(p, sfcP, at(3000.0), storm);
+        a.kin6 = SoundingIndices::layerKinematics(p, sfcP, at(6000.0), storm);
+        a.kin8 = SoundingIndices::layerKinematics(p, sfcP, at(8000.0), storm);
+        a.kin46 = SoundingIndices::layerKinematics(p, at(4000.0), at(6000.0), storm);
+        if (a.effective.valid) {
+            a.kinEff = SoundingIndices::layerKinematics(p, a.effective.pBot, a.effective.pTop, storm);
+            if (a.mu.valid && have(a.mu.elHght)) {
+                // the effective bulk wind difference layer: from the base of the inflow layer to half way up to the MU EL
+                const double top = a.effective.botAgl + (a.mu.elHght - a.effective.botAgl) / 2.0;
+                a.kinEbwd = SoundingIndices::layerKinematics(p, a.effective.pBot, at(top), storm);
+            }
+        }
+        // SPC's "LCL - EL (Cloud Layer)" is the surface-based parcel's LCL to EL (matches SPC for OUN: shear 45, mean wind 232/21)
+        if (a.sb.valid && have(a.sb.lclPres) && have(a.sb.elPres)) {
+            a.kinCloud = SoundingIndices::layerKinematics(p, a.sb.lclPres, a.sb.elPres, storm);
+        }
+        a.brnShear = SoundingIndices::brnShear(p);
     }
 
     a.corfidi = SoundingIndices::corfidi(p);

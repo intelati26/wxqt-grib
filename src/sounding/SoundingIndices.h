@@ -61,6 +61,17 @@ namespace SoundingIndices {
         bool valid() const { return upshear.valid() && downshear.valid(); }
     };
     Corfidi corfidi(const SoundingProfile& profile);
+    // SPC's kinematics table for one layer between two pressures: the bulk shear (top minus bottom), the pressure-weighted mean
+    // wind and the storm-relative mean wind (mean minus storm motion), all knots (SHARPpy winds.wind_shear / mean_wind / sr_wind)
+    struct LayerKinematics {
+        Wind shear;
+        Wind mean;
+        Wind stormRelative;
+    };
+    LayerKinematics layerKinematics(const SoundingProfile& profile, double bottomMb, double topMb, const Wind& stormMotion);
+    // SHARPpy bulk_rich's shear term for a parcel starting at the surface: half the square of the difference between the
+    // 0-6 km and 0-500 m mean winds, m2/s2
+    double brnShear(const SoundingProfile& profile);
     // SHARPpy winds.critical_angle (Esterheld and Giuliano 2008): the angle, degrees, between the 0-500 m shear vector and
     // the vector from the surface wind to the storm motion
     double criticalAngle(const SoundingProfile& profile, const Wind& stormMotion);
@@ -86,7 +97,7 @@ namespace SoundingIndices {
 
     // pressure (mb) of the first level where the temperature (or wet bulb) reaches `tempC`; -9999 if never
     double temperatureLevel(const SoundingProfile& profile, double tempC, bool wetBulb = false);
-    double dcape(const SoundingProfile& profile);
+    double dcape(const SoundingProfile& profile, double * surfaceTempC = nullptr);   // surfaceTempC: the downdraft parcel's temperature at the surface (SPC's DownT)
     // convective temperature (C): the surface temperature at which a parcel with the lowest-100 mb mean
     // moisture has no CIN left; -9999 when it would need more than 25 C of heating
     double convectiveTemperature(const SoundingProfile& profile);

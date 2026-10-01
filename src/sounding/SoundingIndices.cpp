@@ -279,7 +279,7 @@ namespace SoundingIndices {
         return missing;
     }
 
-    double dcape(const SoundingProfile& p) {
+    double dcape(const SoundingProfile& p, double * surfaceTempC) {
         const double sfcP = p.sfcPres();
         // the downdraft source: centre of the driest (lowest mean theta-e) 100 mb layer in the lowest 400 mb.
         // Layers starting in the lowest 100 mb are skipped. SHARPpy does not skip them, but SPC's own
@@ -335,6 +335,9 @@ namespace SoundingIndices {
             te1 = te2;
             h1 = h2;
             tp1 = tp2;
+        }
+        if (surfaceTempC != nullptr) {
+            *surfaceTempC = tp1;
         }
         return tote;
     }
@@ -514,20 +517,21 @@ namespace SoundingIndices {
     }
 
     namespace {
-        // winds.mean_wind_npw: the plain (not pressure-weighted) mean of u and v on 1 mb steps between two pressures
+        // winds.mean_wind_npw: the plain (not pressure-weighted) mean. (SHARPpy's code calls the weighted mean here, but SPC's
+        // own Corfidi vectors for OUN and FWD 2026-10-01 12z are only reproduced by the plain mean.)
         Wind meanBetweenPressures(const SoundingProfile& p, double bottomMb, double topMb) {
             double su = 0.0;
             double sv = 0.0;
-            int count = 0;
+            double count = 0.0;
             for (double pr = bottomMb; pr >= topMb - 1e-9; pr -= 1.0) {
                 double u;
                 double v;
                 if (!p.interpComponents(pr, u, v)) continue;
                 su += u;
                 sv += v;
-                count += 1;
+                count += 1.0;
             }
-            if (count == 0) return {};
+            if (count == 0.0) return {};
             return {su / count, sv / count};
         }
     }
@@ -562,5 +566,40 @@ namespace SoundingIndices {
         if (m1 < 1e-9 || m2 < 1e-9) return missing;
         const double c = std::clamp((v1u * v2u + v1v * v2v) / (m1 * m2), -1.0, 1.0);
         return std::acos(c) * 180.0 / pi;
+    }
+
+    LayerKinematics layerKinematics(const SoundingProfile& p, double bottomMb, double topMb, const Wind& storm) {
+        LayerKinematics k;
+        if (gone(bottomMb) || gone(topMb)) return k;
+        double ub, vb, ut, vt;
+        if (p.interpComponents(bottomMb, ub, vb) && p.interpComponents(topMb, ut, vt)) {
+            k.shear = {ut - ub, vt - vb};
+        }
+        // winds.mean_wind: pressure-weighted, 1 mb steps
+        double su = 0.0, sv = 0.0, sw = 0.0;
+        for (double pr = bottomMb; pr >= topMb - 1e-9; pr -= 1.0) {
+            double u, v;
+            if (!p.interpComponents(pr, u, v)) continue;
+            su += u * pr;
+            sv += v * pr;
+            sw += pr;
+        }
+        if (sw > 0.0) {
+            k.mean = {su / sw, sv / sw};
+            if (storm.valid()) k.stormRelative = {k.mean.u - storm.u, k.mean.v - storm.v};
+        }
+        return k;
+    }
+
+    double brnShear(const SoundingProfile& p) {
+        if (p.size() == 0 || gone(p.sfcPres())) return missing;
+        const double p500 = p.interpPresAtHght(p.sfcHght() + 500.0);
+        const double p6 = p.interpPresAtHght(p.toMsl(6000.0));
+        if (gone(p500) || gone(p6)) return missing;
+        const auto low = layerKinematics(p, p.sfcPres(), p500, {});
+        const auto high = layerKinematics(p, p.sfcPres(), p6, {});
+        if (!low.mean.valid() || !high.mean.valid()) return missing;
+        const double ms = std::hypot(high.mean.u - low.mean.u, high.mean.v - low.mean.v) * knotsToMs;
+        return ms * ms / 2.0;
     }
 }

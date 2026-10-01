@@ -26,6 +26,10 @@ struct SoundingAnalysis {
     SoundingIndices::Wind shear01, shear03, shear06;
     SoundingIndices::Corfidi corfidi;   // upshear / downshear MCS vectors
     double criticalAngle{-9999.0};      // degrees, for the right-mover storm motion
+    // SPC's kinematics table: bulk shear, mean wind and storm-relative mean wind (right mover) for each layer
+    SoundingIndices::LayerKinematics kin1, kin3, kinEff, kin6, kin8, kinCloud, kinEbwd, kin46;
+    double brnShear{-9999.0};   // m2/s2
+    double downTempC{-9999.0};  // temperature of the downdraft (DCAPE) parcel when it reaches the surface
     double effectiveShearKt{-9999.0};
     double srh01{-9999.0};
     double srh03{-9999.0};
