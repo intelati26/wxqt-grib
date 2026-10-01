@@ -6,13 +6,18 @@
 
 #include "objects/FutureText.h"
 #include <QtConcurrent/QtConcurrent>
+#include "util/AppState.h"
 #include <QObject>
 #include "util/DownloadText.h"
 
 FutureText::FutureText(Window * parent, const string& url, const function<void(string)>& updateFunc)
     : updateFunc{updateFunc}
     , watcher{new QFutureWatcher<void>}
-    , future{QtConcurrent::run([this, url] { html = DownloadText::byProduct(url); })}
+    , future{QtConcurrent::run([this, url] {
+          if (!AppState::quitting) {
+              html = DownloadText::byProduct(url);
+          }
+      })}
 {
     watcher->setFuture(future);
     QObject::connect(watcher, &QFutureWatcher<void>::finished, parent, [&] {

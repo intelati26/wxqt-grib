@@ -6,12 +6,17 @@
 
 #include "objects/FutureVoid.h"
 #include <QtConcurrent/QtConcurrent>
+#include "util/AppState.h"
 #include <QObject>
 
 FutureVoid::FutureVoid(Window * parent, const function<void()>& downloadFunc, const function<void()>& updateFunc)
     : updateFunc{updateFunc}
     , watcher{new QFutureWatcher<void>}
-    , future{QtConcurrent::run(downloadFunc)}
+    , future{QtConcurrent::run([downloadFunc] {
+          if (!AppState::quitting) {   // queued behind other work when the app starts closing: skip it
+              downloadFunc();
+          }
+      })}
 {
     watcher->setFuture(future);
     QObject::connect(watcher, &QFutureWatcher<void>::finished, parent, [this] {

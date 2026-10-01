@@ -18,6 +18,7 @@
 #include <QThread>
 #include <QUrl>
 #include "common/GlobalVariables.h"
+#include "util/AppState.h"
 #include "util/Utility.h"
 #include "util/UtilityLog.h"
 
@@ -106,10 +107,16 @@ namespace {
     };
 
     Fetched fetchOnce(const string& url, const QByteArray& range, const QByteArray& accept = QByteArray{}) {
+        if (AppState::quitting) {   // the app is closing and waits for every worker: do not start a download now
+            return {};
+        }
         throttleByHost(url);
         QNetworkAccessManager manager;
         QNetworkRequest request{QUrl{QString::fromStdString(url)}};
         request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+        // gives up on a transfer that makes no progress for 30 s (the timer restarts with every chunk, so a large download is
+        // fine): without a limit a stalled server holds a worker - and the app's exit, which waits for workers - indefinitely
+        request.setTransferTimeout(30000);
         if (KnownIntermediates::needed(request.url())) {
             request.setSslConfiguration(KnownIntermediates::configuration());
         }
@@ -198,10 +205,14 @@ string URL::getText(const string& url) {
 
 string URL::getTextXmlAcceptHeader(const string& url) {
     UtilityLog::d("getHtml XML " + url);
+    if (AppState::quitting) {
+        return "";
+    }
     throttleByHost(url);
     QNetworkAccessManager manager;
     QNetworkRequest request{QUrl{QString::fromStdString(url)}};
     request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+    request.setTransferTimeout(30000);   // see fetchOnce
     if (KnownIntermediates::needed(request.url())) {
         request.setSslConfiguration(KnownIntermediates::configuration());
     }

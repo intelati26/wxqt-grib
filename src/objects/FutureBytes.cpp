@@ -6,13 +6,18 @@
 
 #include "objects/FutureBytes.h"
 #include <QtConcurrent/QtConcurrent>
+#include "util/AppState.h"
 #include <QObject>
 #include "util/UtilityIO.h"
 
 FutureBytes::FutureBytes(Window * parent, const string& url, const function<void(const QByteArray&)>& updateFunc)
     : updateFunc{updateFunc}
     , watcher{new QFutureWatcher<void>}
-    , future{QtConcurrent::run([this, url] { this->ba = UtilityIO::downloadAsByteArray(url); })}
+    , future{QtConcurrent::run([this, url] {
+          if (!AppState::quitting) {
+              this->ba = UtilityIO::downloadAsByteArray(url);
+          }
+      })}
 {
     watcher->setFuture(future);
     QObject::connect(watcher, &QFutureWatcher<void>::finished, parent, [&] {

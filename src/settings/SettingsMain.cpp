@@ -71,6 +71,12 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     shortcutAddLocation.connect([this] { tabWidget.setIndex(4); });
 }
 
+// The tab widget is deleted after this object (Qt deletes a window's children last); removing its tabs then emits
+// currentChanged, whose handler uses members that are already gone. Silence it first.
+SettingsMain::~SettingsMain() {
+    tabWidget.getView()->blockSignals(true);
+}
+
 string SettingsMain::getSettings() {
     string s;
     for (const auto& key : Utility::prefGetAllKeys()) {

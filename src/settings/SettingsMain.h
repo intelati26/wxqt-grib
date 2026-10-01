@@ -33,6 +33,7 @@ using std::unique_ptr;
 class SettingsMain : public Window {
 public:
     SettingsMain(Window *, const function<void()>&, bool, bool, Toolbar * = nullptr);
+    ~SettingsMain() override;
 
 private:
     static string getSettings();

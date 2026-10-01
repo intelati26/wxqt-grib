@@ -10,9 +10,11 @@
 #include <QMetaObject>
 #include <QDebug>
 #include <QPixmap>
+#include <QThreadPool>
 #include <QTimer>
 #include "common/GlobalVariables.h"
 #include "ui/MainWindow.h"
+#include "util/AppState.h"
 #include "util/CrashLog.h"
 #include "util/MyApplication.h"
 #include "util/UtilityTheme.h"
@@ -51,7 +53,13 @@ int main(int argc, char * argv[]) {
     } else {
         MainWindow w;
         w.show();
-        QObject::connect(&a, &QCoreApplication::aboutToQuit, &a, [] { CrashLog::write("---- wxqt closing normally ----"); });
+        QObject::connect(&a, &QCoreApplication::aboutToQuit, &a, [] {
+            AppState::quitting = true;   // queued background jobs skip their work
+            // let the running ones finish now, while the application object still exists: a download that is still going when
+            // it is destroyed corrupts memory
+            QThreadPool::globalInstance()->waitForDone();
+            CrashLog::write("---- wxqt closing normally ----");
+        });
         // development aids (run with QT_QPA_PLATFORM=offscreen): WXQT_OPEN=<toolbar entry id, e.g. ntor.png> opens that
         // tool; WXQT_GRAB=<file.png>[,<milliseconds>] saves a picture of the newest tool window (else the main
         // window) and quits, so a screen can be checked without a display

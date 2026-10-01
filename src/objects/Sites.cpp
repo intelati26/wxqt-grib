@@ -31,53 +31,43 @@ Sites::Sites(const unordered_map<string, string>& nameDict, const unordered_map<
     }
 }
 
-string Sites::getNearest(const LatLon& latLon) {
-    for (auto& site : sites) {
-        site.distance = static_cast<int>(LatLon::distance(latLon, site.latLon));
+namespace {
+    // (distance, index into `sites`) for every site, nearest first. The list of sites is shared by every thread (the radar's
+    // observation job walks it while the UI asks for the nearest site), so it is never sorted or written after construction.
+    vector<std::pair<int, size_t>> byDistance(const vector<Site>& sites, const LatLon& latLon) {
+        vector<std::pair<int, size_t>> distances;
+        distances.reserve(sites.size());
+        for (size_t i = 0; i < sites.size(); i += 1) {
+            distances.emplace_back(static_cast<int>(LatLon::distance(latLon, sites[i].latLon)), i);
+        }
+        std::sort(distances.begin(), distances.end());
+        return distances;
     }
-    std::sort(
-        sites.begin(),
-        sites.end(),
-        [] (const Site &a, const Site &b) { return a.distance < b.distance; });
-    return sites[0].codeName;
+}
+
+string Sites::getNearest(const LatLon& latLon) {
+    return sites[byDistance(sites, latLon)[0].second].codeName;
 }
 
 Site Sites::getNearestSite(const LatLon& latLon, int order) {
-    for (auto& site : sites) {
-        site.distance = static_cast<int>(LatLon::distance(latLon, site.latLon));
-    }
-    std::sort(
-        sites.begin(),
-        sites.end(),
-        [] (const Site &a, const Site &b) { return a.distance < b.distance; });
-    return sites[order];
+    const auto distances = byDistance(sites, latLon);
+    const auto position = std::min(static_cast<size_t>(std::max(0, order)), distances.size() - 1);
+    Site site = sites[distances[position].second];
+    site.distance = distances[position].first;
+    return site;
 }
 
 vector<string> Sites::getNearestList(const LatLon& latLon, int count) {
-    for (auto& site : sites) {
-        site.distance = static_cast<int>(LatLon::distance(latLon, site.latLon));
-    }
-    std::sort(
-        sites.begin(),
-        sites.end(),
-        [] (const Site &a, const Site &b) { return a.distance < b.distance; });
-    auto sitesList = std::vector<Site>{sites.begin(), sites.begin() + count};
+    const auto distances = byDistance(sites, latLon);
     vector<string> codeList;
-    for (const auto& site : sitesList) {
-        codeList.push_back(site.codeName);
+    for (size_t i = 0; i < distances.size() && i < static_cast<size_t>(std::max(0, count)); i += 1) {
+        codeList.push_back(sites[distances[i].second].codeName);
     }
     return codeList;
 }
 
 int Sites::getNearestInMiles(const LatLon& latLon) {
-    for (auto& site : sites) {
-        site.distance = static_cast<int>(LatLon::distance(latLon, site.latLon));
-    }
-    std::sort(
-        sites.begin(),
-        sites.end(),
-        [] (const Site &a, const Site &b) { return a.distance < b.distance; });
-    return sites[0].distance;
+    return byDistance(sites, latLon)[0].first;
 }
 
 void Sites::checkValidityMaps() {
