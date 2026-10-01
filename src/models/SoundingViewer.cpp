@@ -24,6 +24,7 @@
 #include "sounding/SoundingAdvection.h"
 #include "sounding/SoundingPrecip.h"
 #include "sounding/SoundingSars.h"
+#include "sounding/SoundingTornadoProb.h"
 #include "sounding/SoundingThermo.h"
 #include "util/To.h"
 
@@ -141,7 +142,7 @@ protected:
 
         // SPC's graphic is 1180 x 826 (plus the strip below): everything is laid out in those units and scaled to fit the window (centred)
         constexpr double canvasWidth = 1180.0;
-        constexpr double canvasHeight = 940.0;   // SPC's 826 plus a strip for the SARS analogue lists
+        constexpr double canvasHeight = 968.0;   // SPC's 826 plus a strip for the SARS analogue lists
         const double scale = std::min(width() / canvasWidth, height() / canvasHeight);
         painter.translate((width() - canvasWidth * scale) / 2.0, (height() - canvasHeight * scale) / 2.0);
         painter.scale(scale, scale);
@@ -166,7 +167,7 @@ protected:
         drawHodograph(painter, QRect{755, 25, 415, 445});
         drawThetaE(painter, QRect{775, 492, 120, 108});
         drawStormRelativeWinds(painter, QRect{940, 492, 120, 108});
-        drawSars(painter, QRect{10, 832, 1160, 102});
+        drawSars(painter, QRect{10, 864, 1160, 102});
         // SHARPpy's effective-layer STP and SHIP box-and-whisker insets (Thompson et al. 2012; SPC): the day's value is the
         // coloured line across the plot
         {
@@ -190,12 +191,13 @@ protected:
                 if (v >= 0.5) return QColor{255, 255, 255};
                 return QColor{0x77, 0x50, 0x00};
             };
-            drawBoxPlot(painter, QRect{872, 640, 190, 150}, "Effective-Layer STP", 11.0, 1.0, {"EF4+", "EF3", "EF2", "EF1", "EF0", "NONT"},
+            drawBoxPlot(painter, QRect{872, 640, 228, 150}, "Effective-Layer STP (with CIN)", 11.0, 1.0, {"EF4+", "EF3", "EF2", "EF1", "EF0", "NONT"},
                         &efBoxes[0][0], 6, true, stp, have(stp) ? stpColor(stp) : QColor{});
-            drawBoxPlot(painter, QRect{1072, 640, 100, 150}, "SHIP", 5.0, 1.0, {"<=1.5\"", ">=2.5\""},
+            drawTornadoProbBox(painter, QRect{872 + 228 - 122, 640 + 17, 120, 84});
+            drawBoxPlot(painter, QRect{1104, 640, 68, 150}, "SHIP", 5.0, 1.0, {"<2in", ">=2in"},
                         &shipBoxes[0][0], 2, false, ship, have(ship) ? shipColor(ship) : QColor{});
         }
-        drawWindInset(painter, QRect{560, 786, 100, 44});
+        drawWindInset(painter, QRect{555, 784, 110, 76});
         // the table band under the plots: parcels and thermodynamics | kinematics | indices and precipitation type
         drawTable(painter, bottomLeft(), 0);
         drawTable(painter, bottomMiddle(), 1);
@@ -489,69 +491,131 @@ private:
         painter.setBrush(Qt::NoBrush);
     }
 
+    // SPC's hodograph: a fixed frame (-40..+90 kt across, -50..+90 up), orange axes with the ring values on them and dotted
+    // rings every 10 kt, the trace coloured by height AGL (red under 3 km, bright green 3-6, dark green 6-9, purple 9-12), a dot
+    // and number at every km, the storm motions (circle with a cross) and mean wind (square), SPC's Corfidi points (UP / DP)
+    // and the effective inflow layer's vectors from the right mover to the hodograph
     void drawHodograph(QPainter& painter, const QRect& area) {
         using namespace SoundingIndices;
         painter.save();
         painter.fillRect(area, QColor{0, 0, 0});
         painter.setPen(QColor{200, 200, 200});
         painter.drawRect(area);
-        // scale from the winds in the lowest 10 km
-        double maxKt = 40.0;
-        for (double h = 0; h <= 10000.0; h += 250.0) {
-            const auto w = windAtAgl(*profile, h);
-            if (w.valid()) maxKt = std::max(maxKt, w.speed() + 5.0);
-        }
-        const double limit = std::min(100.0, std::ceil(maxKt / 10.0) * 10.0);
-        const QPointF centre = area.center();
-        const double scale = (area.width() / 2.0 - 4.0) / limit;
+        constexpr double xMin = -40.0;
+        constexpr double xMax = 90.0;
+        constexpr double yMin = -50.0;
+        constexpr double yMax = 90.0;
+        const double scale = std::min(area.width() / (xMax - xMin), area.height() / (yMax - yMin));
+        const QPointF origin{area.left() - xMin * scale, area.bottom() + yMin * scale};
+        const auto toPoint = [&] (double u, double v) { return QPointF{origin.x() + u * scale, origin.y() - v * scale}; };
+        const QColor orange{230, 150, 0};
         painter.setClipRect(area);
-        painter.setPen(QPen(QColor{70, 70, 80}, 1.0));
-        painter.drawLine(QPointF(area.left(), centre.y()), QPointF(area.right(), centre.y()));
-        painter.drawLine(QPointF(centre.x(), area.top()), QPointF(centre.x(), area.bottom()));
-        const double ringStep = limit > 60.0 ? 20.0 : 10.0;
-        for (double r = ringStep; r <= limit + 1e-6; r += ringStep) {
-            painter.drawEllipse(centre, r * scale, r * scale);
-            painter.drawText(QPointF(centre.x() + 2, centre.y() - r * scale + 11), QString::number(static_cast<int>(r)));
+        QFont font = painter.font();
+        font.setPixelSize(10);
+        painter.setFont(font);
+        // dotted rings every 10 kt
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen{QColor{230, 150, 0, 110}, 1.0, Qt::DotLine});
+        for (double r = 10.0; r <= 130.0; r += 10.0) {
+            painter.drawEllipse(origin, r * scale, r * scale);
         }
-        auto toPoint = [&] (double u, double v) { return QPointF(centre.x() + u * scale, centre.y() - v * scale); };
+        // axes and the ring values on them
+        painter.setPen(QPen{orange, 1.3});
+        painter.drawLine(QPointF{static_cast<double>(area.left()), origin.y()}, QPointF{static_cast<double>(area.right()), origin.y()});
+        painter.drawLine(QPointF{origin.x(), static_cast<double>(area.top())}, QPointF{origin.x(), static_cast<double>(area.bottom())});
+        for (int v = 10; v <= 90; v += 10) {
+            painter.drawText(QRectF{origin.x() + 2.0, origin.y() - v * scale - 6.0, 22.0, 12.0}, Qt::AlignLeft | Qt::AlignVCenter, QString::number(v));   // up
+            if (v <= 50) {
+                painter.drawText(QRectF{origin.x() + 2.0, origin.y() + v * scale - 6.0, 22.0, 12.0}, Qt::AlignLeft | Qt::AlignVCenter, QString::number(v));   // down
+            }
+            painter.drawText(QRectF{origin.x() + v * scale - 11.0, origin.y() + 1.0, 22.0, 12.0}, Qt::AlignCenter, QString::number(v));   // right
+            if (v <= 40) {
+                painter.drawText(QRectF{origin.x() - v * scale - 11.0, origin.y() + 1.0, 22.0, 12.0}, Qt::AlignCenter, QString::number(v));   // left
+            }
+        }
 
-        // trace, coloured by height band
-        struct Band { double top; QColor color; };
-        const Band bands[] = {{1000.0, QColor{240, 60, 60}}, {3000.0, QColor{60, 220, 80}}, {6000.0, QColor{240, 220, 60}},
-                              {9000.0, QColor{80, 200, 240}}, {10000.0, QColor{190, 120, 240}}};
+        // the trace, coloured by height above ground
+        const auto colorAt = [] (double agl) {
+            if (agl < 3000.0) return QColor{255, 0, 0};
+            if (agl < 6000.0) return QColor{0, 255, 0};
+            if (agl < 9000.0) return QColor{0, 139, 0};
+            return QColor{150, 120, 215};
+        };
         QPointF previous;
         bool havePrevious = false;
-        for (double h = 0; h <= 10000.0 + 1e-6; h += 100.0) {
+        for (double h = 0; h <= 12000.0 + 1e-6; h += 100.0) {
             const auto w = windAtAgl(*profile, h);
-            if (!w.valid()) continue;
+            if (!w.valid()) {
+                havePrevious = false;
+                continue;
+            }
             const auto point = toPoint(w.u, w.v);
             if (havePrevious) {
-                QColor color = bands[4].color;
-                for (const auto& band : bands) {
-                    if (h <= band.top + 1e-6) { color = band.color; break; }
-                }
-                painter.setPen(QPen(color, 2.4));
+                painter.setPen(QPen{colorAt(h), 3.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
                 painter.drawLine(previous, point);
             }
             previous = point;
             havePrevious = true;
         }
-        // storm motions and the mean wind
-        painter.setPen(QPen(QColor{255, 255, 255}, 1.4));
-        auto marker = [&] (const Wind& w, const QString& name, bool square) {
+        // a dot and the number at every km
+        painter.setBrush(QColor{235, 235, 235});
+        for (int km = 0; km <= 9; km += 1) {
+            const auto w = windAtAgl(*profile, km * 1000.0);
+            if (!w.valid()) continue;
+            const auto point = toPoint(w.u, w.v);
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(point, 3.0, 3.0);
+            painter.setPen(QColor{235, 235, 235});
+            painter.drawText(QRectF{point.x() - 14.0, point.y() - 17.0, 14.0, 12.0}, Qt::AlignRight | Qt::AlignVCenter, QString::number(km));
+        }
+        painter.setBrush(Qt::NoBrush);
+
+        // the effective inflow layer: thin lines from the right mover to the hodograph at its base and top
+        const auto& a = *analysis;
+        if (a.effective.valid && a.rightMover.valid()) {
+            const auto bottom = windAtAgl(*profile, a.effective.botAgl);
+            const auto top = windAtAgl(*profile, a.effective.topAgl);
+            painter.setPen(QPen{QColor{30, 170, 255}, 1.0});
+            const auto rm = toPoint(a.rightMover.u, a.rightMover.v);
+            if (bottom.valid()) painter.drawLine(rm, toPoint(bottom.u, bottom.v));
+            if (top.valid()) painter.drawLine(rm, toPoint(top.u, top.v));
+        }
+
+        // storm motions (circle with a cross), the mean wind (square) and SPC's Corfidi points
+        const auto stormMark = [&] (const Wind& w, const QString& name) {
             if (!w.valid()) return;
             const auto point = toPoint(w.u, w.v);
-            if (square) painter.drawRect(QRectF(point.x() - 3, point.y() - 3, 6, 6));
-            else painter.drawEllipse(point, 4.0, 4.0);
-            painter.drawText(point + QPointF(6, -4), name);
+            painter.setPen(QPen{QColor{255, 255, 255}, 1.4});
+            painter.drawEllipse(point, 5.0, 5.0);
+            painter.drawLine(point + QPointF{-5, 0}, point + QPointF{5, 0});
+            painter.drawLine(point + QPointF{0, -5}, point + QPointF{0, 5});
+            painter.drawText(QRectF{point.x() - 40.0, point.y() + 6.0, 80.0, 12.0}, Qt::AlignCenter,
+                             QString{"%1/%2 %3"}.arg(w.direction(), 0, 'f', 0).arg(w.speed(), 0, 'f', 0).arg(name));
         };
-        marker(analysis->rightMover, "RM", false);
-        marker(analysis->leftMover, "LM", false);
-        marker(analysis->meanWind06, "MW", true);
+        stormMark(a.rightMover, "RM");
+        stormMark(a.leftMover, "LM");
+        if (a.meanWind06.valid()) {
+            const auto point = toPoint(a.meanWind06.u, a.meanWind06.v);
+            painter.setPen(QPen{QColor{200, 120, 60}, 1.6});
+            painter.drawRect(QRectF{point.x() - 4.0, point.y() - 4.0, 8.0, 8.0});
+            painter.drawText(QRectF{point.x() + 6.0, point.y() + 1.0, 70.0, 12.0}, Qt::AlignLeft | Qt::AlignVCenter,
+                             QString{"%1/%2"}.arg(a.meanWind06.direction(), 0, 'f', 0).arg(a.meanWind06.speed(), 0, 'f', 0));
+        }
+        if (a.corfidi.valid()) {
+            const auto corfidiMark = [&] (const Wind& w, const QString& name) {
+                const auto point = toPoint(w.u, w.v);
+                painter.setPen(QPen{QColor{30, 144, 255}, 1.3});
+                painter.drawEllipse(point, 4.0, 4.0);
+                painter.drawText(QRectF{point.x() + 6.0, point.y() + 1.0, 90.0, 12.0}, Qt::AlignLeft | Qt::AlignVCenter,
+                                 QString{"%1=%2/%3"}.arg(name).arg(w.direction(), 0, 'f', 0).arg(w.speed(), 0, 'f', 0));
+            };
+            corfidiMark(a.corfidi.upshear, "UP");
+            corfidiMark(a.corfidi.downshear, "DP");
+        }
         painter.setClipping(false);
         painter.setPen(QColor{200, 200, 200});
         painter.drawText(QRectF(area.left(), area.bottom() + 1, area.width(), 14), Qt::AlignCenter,
-                         "kt: red 0-1  grn 1-3  yel 3-6  cyan 6-9 km");
+                         "km AGL: red 0-3  green 3-6  dark green 6-9  purple 9+  (kt)");
         painter.restore();
     }
 
@@ -561,9 +625,9 @@ private:
     void drawWindSpeed(QPainter& painter, const QRect& area) {
         const auto& p = *profile;
         const auto g = geometry(skewRect());
-        constexpr double maxSpeed = 140.0;
+        constexpr double maxSpeed = 120.0;
         painter.save();
-        painter.setClipRect(area);
+        painter.setClipRect(area.adjusted(0, 0, 0, 16));
         painter.fillRect(area, QColor{0, 0, 0});
         painter.setPen(QPen{QColor{110, 110, 110}, 1.0, Qt::DashLine});
         for (int speed = 20; speed < static_cast<int>(maxSpeed); speed += 20) {
@@ -571,12 +635,12 @@ private:
             painter.drawLine(QPointF{x, static_cast<double>(area.top())}, QPointF{x, static_cast<double>(area.bottom())});
         }
         QFont font = painter.font();
-        font.setPixelSize(9);
+        font.setPixelSize(8);
         painter.setFont(font);
         painter.setPen(QColor{170, 170, 170});
-        for (int speed = 20; speed < static_cast<int>(maxSpeed); speed += 40) {
+        for (int speed = 20; speed < static_cast<int>(maxSpeed); speed += 20) {
             const double x = area.left() + area.width() * speed / maxSpeed;
-            painter.drawText(QRectF(x - 14, area.bottom() - 14, 28, 12), Qt::AlignCenter, QString::number(speed));
+            painter.drawText(QRectF(x - 9, area.bottom() + 2, 18, 12), Qt::AlignCenter, QString::number(speed));   // under the panel, as SPC
         }
         const auto colorAt = [] (double agl) {
             if (agl < 3000.0) return QColor{255, 0, 0};
@@ -598,12 +662,15 @@ private:
             const double above = n + 1 < levels.size() ? (y + g.yOf(p.pres[levels[n + 1]])) / 2.0 : y - 1.0;
             const double below = n > 0 ? (y + g.yOf(p.pres[levels[n - 1]])) / 2.0 : y + 1.0;
             const double length = area.width() * std::min(p.wspd[i], maxSpeed) / maxSpeed;
-            painter.fillRect(QRectF{static_cast<double>(area.left()), above, length, std::max(1.0, below - above)}, colorAt(p.toAgl(p.hght[i])));
+            (void) above;
+            (void) below;
+            painter.setPen(QPen{colorAt(p.toAgl(p.hght[i])), 2.2});   // one thin line per level, as SPC draws it
+            painter.drawLine(QPointF{static_cast<double>(area.left()), y}, QPointF{area.left() + length, y});
         }
         painter.setClipping(false);
         painter.setPen(QColor{200, 200, 200});
         painter.drawRect(area);
-        painter.drawText(QRectF(area.left(), area.top() + 2, area.width(), 12), Qt::AlignCenter, "Wind (kt)");
+        painter.drawText(QRectF(area.left(), area.top() + 2, area.width(), 26), Qt::AlignCenter | Qt::TextWordWrap, "Wind Speed (kt)\nvs Height");
         painter.restore();
     }
 
@@ -914,6 +981,46 @@ private:
         painter.restore();
     }
 
+    // SHARPpy's text box in the STP panel: the chance of an EF2+ tornado given each parameter alone (SPC prints the same list)
+    void drawTornadoProbBox(QPainter& painter, const QRect& area) {
+        const auto& a = *analysis;
+        painter.save();
+        painter.fillRect(area, QColor{0, 0, 0});
+        painter.setPen(QColor{235, 235, 235});
+        painter.drawRect(area);
+        QFont font = painter.font();
+        font.setPixelSize(8);
+        painter.setFont(font);
+        static const QColor alert[6] = {QColor{0x77, 0x50, 0x00}, QColor{0x99, 0x66, 0x00}, QColor{255, 255, 255}, QColor{255, 255, 0},
+                                        QColor{255, 0, 0}, QColor{0xe7, 0x00, 0xdf}};
+        double y = area.top() + 2.0;
+        for (const char * line : {"Prob EF2+ torn with supercell", "Sounding CLIMO = .15 sigtor"}) {
+            painter.drawText(QRectF{area.left() + 3.0, y, area.width() - 4.0, 10.0}, Qt::AlignLeft | Qt::AlignVCenter, line);
+            y += 10.0;
+        }
+        painter.drawLine(QPointF{area.left() + 0.0, y}, QPointF{static_cast<double>(area.right()), y});
+        y += 2.0;
+        const double ebwd = a.kinEbwd.shear.valid() ? a.kinEbwd.shear.speed() : -9999.0;
+        struct Line {
+            const char * name;
+            SoundingTornadoProb::Result result;
+        };
+        const Line lines[] = {{"based on MLCAPE:", SoundingTornadoProb::fromMlCape(a.ml.cape)},
+                              {"based on MLLCL:", SoundingTornadoProb::fromMlLcl(a.ml.lclHght)},
+                              {"based on ESRH:", SoundingTornadoProb::fromEffectiveSrh(a.effectiveSrh)},
+                              {"based on EBWD:", SoundingTornadoProb::fromEffectiveShear(ebwd)},
+                              {"based on STP_fixed:", SoundingTornadoProb::fromStpFixed(a.stpFixed)},
+                              {"based on STP_effective:", SoundingTornadoProb::fromStpEffective(a.stpEffective)}};
+        for (const auto& line : lines) {
+            painter.setPen(alert[std::clamp(line.result.colour, 0, 5)]);
+            painter.drawText(QRectF{area.left() + 3.0, y, area.width() * 0.75, 10.0}, Qt::AlignLeft | Qt::AlignVCenter, line.name);
+            painter.drawText(QRectF{area.left() + area.width() * 0.75, y, area.width() * 0.25 - 3.0, 10.0}, Qt::AlignRight | Qt::AlignVCenter,
+                             line.result.probability < 0.0 ? QString{"--"} : QString::number(line.result.probability, 'f', 2));
+            y += 10.0;
+        }
+        painter.restore();
+    }
+
     void drawWindInset(QPainter& painter, const QRect& area) {
         const auto& p = *profile;
         painter.save();
@@ -929,7 +1036,7 @@ private:
             const double pressure = p.interpPresAtHght(p.toMsl(heights[i]));
             const bool ok = have(pressure) && p.interpComponents(pressure, u, v);
             // both barbs share one staff base (SPC's inset): the angle and length between them show the shear
-            const QPointF center{area.left() + area.width() * 0.5, area.top() + 36.0};
+            const QPointF center{area.left() + area.width() * 0.5, area.top() + 34.0};
             painter.setPen(QPen{colors[i], 1.6});
             painter.setBrush(colors[i]);
             if (ok) {
@@ -940,7 +1047,7 @@ private:
                 drawBarb(painter, center, wind.direction(), wind.speed(), 34.0);
             }
             painter.setPen(colors[i]);
-            painter.drawText(QRectF{area.left() + area.width() * (i == 0 ? 0.0 : 0.5) + 2.0, area.top() + 30.0, area.width() * 0.5 - 4.0, 12.0}, i == 0 ? Qt::AlignLeft : Qt::AlignRight, labels[i]);
+            painter.drawText(QRectF{area.left() + area.width() * (i == 0 ? 0.0 : 0.5) + 2.0, area.top() + 60.0, area.width() * 0.5 - 4.0, 12.0}, i == 0 ? Qt::AlignLeft : Qt::AlignRight, labels[i]);
         }
         painter.restore();
     }
