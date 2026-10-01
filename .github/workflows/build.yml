@@ -138,8 +138,16 @@ jobs:
         run: |
           $gdal = (Resolve-Path dist/wxqt-portable/gdal).Path
           $env:PATH = "$gdal;$env:SystemRoot\System32;$env:SystemRoot"
-          $env:GDAL_DATA = "$gdal\gdal-data"
+          $zip = "$gdal\gdal-data.zip"
+          $env:GDAL_DATA = "/vsizip/" + ($zip -replace '\\', '/')
           $env:PROJ_DATA = "$gdal\proj-data"
+          # gdal-data is shipped as one zip that GDAL reads in place: prove a table can be read out of it
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $entries = [System.IO.Compression.ZipFile]::OpenRead($zip).Entries | Where-Object { $_.Name -like "*.csv" }
+          if (-not $entries) { throw "no CSV tables inside gdal-data.zip" }
+          $csv = $entries[0].FullName
+          ogrinfo -so -al "$($env:GDAL_DATA)/$csv"
+          if ($LASTEXITCODE -ne 0) { throw "GDAL cannot read $csv from inside gdal-data.zip" }
           $formats = (gdalinfo --formats) + (ogrinfo --formats)
           foreach ($driver in "GRIB", "GTiff", "PNG", "XYZ", "ENVI", "VRT", "MEM", "GeoJSON") {
             if (-not ($formats -match "^\s*$driver\b")) { throw "GDAL driver $driver missing" }

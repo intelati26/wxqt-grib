@@ -96,6 +96,16 @@ if ($gdalwarpPath) {
         Get-ChildItem $src -File | Where-Object { $name = $_.Name; -not ($skipData | Where-Object { $name -like $_ }) } |
             Copy-Item -Destination $dst
     }
+    # gdal-data is hundreds of small tables; ship it as ONE archive that GDAL reads in place
+    # (GDAL_DATA=/vsizip/<zip>) instead of as loose files. proj-data stays a folder: proj.db
+    # is a SQLite database and cannot be read from inside a zip.
+    $gdalDataDir = Join-Path $gdalDir "gdal-data"
+    $gdalDataZip = Join-Path $gdalDir "gdal-data.zip"
+    Remove-Item $gdalDataZip -ErrorAction SilentlyContinue
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($gdalDataDir, $gdalDataZip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+    Remove-Item $gdalDataDir -Recurse -Force
+    Write-Host ("==> gdal-data archived: {0:N2} MB" -f ((Get-Item $gdalDataZip).Length / 1MB))
     if (-not (Test-Path "$gdalDir/proj-data/proj.db")) {
         Write-Error "proj.db not found under $env:GDAL_PREFIX/share/proj"
         exit 1
@@ -140,7 +150,7 @@ setlocal
 set "HERE=%~dp0"
 if exist "%HERE%gdal" (
     set "PATH=%HERE%gdal;%PATH%"
-    set "GDAL_DATA=%HERE%gdal\gdal-data"
+    set "GDAL_DATA=/vsizip/%HERE:\=/%gdal/gdal-data.zip"
     set "PROJ_DATA=%HERE%gdal\proj-data"
 )
 start "" "%HERE%wxqt.exe" %*

@@ -665,7 +665,10 @@ string UtilityGrib::gdalBinDir() {
         if (QStandardPaths::findExecutable("gdalwarp", {dir}).isEmpty()) {
             return QString{};
         }
-        if (QDir{dir + "/gdal-data"}.exists()) {
+        if (QFile::exists(dir + "/gdal-data.zip")) {
+            // the Windows package ships GDAL's tables as one archive that GDAL reads in place
+            qputenv("GDAL_DATA", QString{"/vsizip/" + dir + "/gdal-data.zip"}.toUtf8());
+        } else if (QDir{dir + "/gdal-data"}.exists()) {
             qputenv("GDAL_DATA", QDir::toNativeSeparators(dir + "/gdal-data").toUtf8());
         }
         if (QDir{dir + "/proj-data"}.exists()) {
