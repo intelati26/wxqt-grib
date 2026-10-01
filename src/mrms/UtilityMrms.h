@@ -46,6 +46,7 @@ namespace UtilityMrms {
         double usFactor{1.0};      // native units -> US units (mm -> in, km -> kft, ...)
         string usUnits;            // "" = the same as the native units
         bool autoRange{false};     // no hand-set scale: the colours span each scan's own minimum and maximum
+        bool banded{false};        // each stop's colour covers the range up to the next stop (no blending); below the first stop is transparent
     };
 
     struct Scan {

@@ -49,9 +49,25 @@ namespace {
         return {{10, 120, 200, 255}, {30, 0, 200, 0}, {50, 255, 255, 0}, {70, 255, 165, 0}, {90, 255, 0, 0}, {100, 255, 0, 255}};
     }
 
-    vector<UtilityMrms::Stop> rainStops() {   // mm/h and mm
-        return {{0.1, 150, 200, 150}, {1, 0, 200, 0}, {5, 255, 255, 0}, {10, 255, 165, 0}, {25, 255, 0, 0},
-                {50, 200, 0, 200}, {100, 255, 255, 255}};
+    // the radar screen's precipitation scale (inches; one band per step, the value is the bottom of its band), kept in mm
+    vector<UtilityMrms::Stop> rainStops() {
+        struct Band {
+            double inches;
+            int r;
+            int g;
+            int b;
+        };
+        static const Band bands[] = {
+            {0.01, 1, 236, 236}, {0.05, 0, 200, 240}, {0.10, 0, 160, 255}, {0.20, 0, 60, 255}, {0.40, 1, 255, 0},
+            {0.60, 1, 220, 0}, {0.80, 0, 190, 0}, {1.00, 0, 141, 0}, {1.25, 255, 255, 0}, {1.50, 240, 210, 0},
+            {2.00, 231, 180, 0}, {2.50, 200, 120, 0}, {3.00, 255, 160, 160}, {3.50, 255, 60, 60}, {4.00, 230, 0, 0},
+            {5.00, 180, 0, 0}, {6.00, 255, 0, 255}, {7.00, 217, 0, 217}, {8.00, 164, 0, 164}, {9.00, 120, 0, 120},
+            {10.0, 255, 255, 255}, {12.0, 192, 192, 255}, {14.0, 192, 255, 255}, {16.0, 255, 255, 192}};
+        vector<UtilityMrms::Stop> stops;
+        for (const auto& band : bands) {
+            stops.push_back({band.inches * 25.4, band.r, band.g, band.b});
+        }
+        return stops;
     }
 
     // decoded scans live in their own temp folder; anything older than a few hours is dropped when a scan list is read
@@ -71,10 +87,12 @@ namespace {
                 p.group = "Rotation";
             } else if (starts("PrecipRate")) {
                 p.group = "Precipitation";
+                p.banded = true;
                 p.usFactor = 0.0393701;
                 p.usUnits = "in/h";
             } else if (starts("MultiSensor_QPE") || starts("RadarOnly_QPE")) {
                 p.group = "Precipitation";
+                p.banded = true;
                 p.usFactor = 0.0393701;
                 p.usUnits = "in";
             } else if (starts("VIL")) {
@@ -176,6 +194,17 @@ QVector<QRgb> UtilityMrms::colorTable(const Product& product, const Frame& frame
             }
         }
         const auto& stops = product.autoRange ? scaled : product.stops;
+        if (product.banded) {
+            // the band whose bottom is at or under the value; nothing (transparent) under the first band
+            int band = -1;
+            for (size_t i = 0; i < stops.size() && value >= stops[i].value - 1e-9; i += 1) {
+                band = static_cast<int>(i);
+            }
+            if (band >= 0) {
+                table[index] = qRgba(stops[static_cast<size_t>(band)].r, stops[static_cast<size_t>(band)].g, stops[static_cast<size_t>(band)].b, 255);
+            }
+            continue;
+        }
         int r = stops.front().r;
         int g = stops.front().g;
         int b = stops.front().b;
