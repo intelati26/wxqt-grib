@@ -41,6 +41,11 @@ IndexViewer::IndexViewer(Window * parent)
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonMax{this, Icon::None, "Max of range"}
     , buttonDay1{this, Icon::None, "Day 1 max (12z-12z)"}
+    , soundingPick{this, [this] {
+            const auto runIndex = comboRun.getIndex();
+            const string runId = (runIndex >= 0 && runIndex < static_cast<int>(runOptions.size())) ? runOptions[runIndex].second : string{};
+            return std::make_pair(runId, comboForecastHour.getValue());
+        }, "Parametric Index Viewer"}
     , animBar{this,
         [this] (int start, int end) { onRangeRequested(start, end); },
         [this] (int local) { onFrameShown(local); },
@@ -52,6 +57,7 @@ IndexViewer::IndexViewer(Window * parent)
     QObject::connect(&image, &ZoomImage::doubleClicked, this, [this] { openFullImage(); });
     QObject::connect(&image, &ZoomImage::hovered, this, [this] (double fx, double fy) { onHover(fx, fy); });
     QObject::connect(&image, &ZoomImage::hoverEnded, this, [this] { onHoverEnded(); });
+    QObject::connect(&image, &ZoomImage::clicked, this, [this] (double fx, double fy) { onMapClicked(fx, fy); });
     comboRun.connect([this] { updateForecastHours(); reload(); });
     comboIndex.connect([this] { invalidateAnimation(); reload(); });
     comboRegion.connect([this] { invalidateAnimation(); reload(); });
@@ -73,6 +79,7 @@ IndexViewer::IndexViewer(Window * parent)
     buttonDay1.connect([this] { showDay1Max(); });
     boxTop.addWidget(buttonMax);
     boxTop.addWidget(buttonDay1);
+    boxTop.addWidget(soundingPick.button());
     boxTop.addStretch();
     boxImage.addWidgetReal(&image, 1, Qt::Alignment{});
     boxImage.addWidget(legend);
@@ -287,6 +294,17 @@ void IndexViewer::refreshHover() {
     }
 }
 
+void IndexViewer::onMapClicked(double fx, double fy) {
+    const auto * grid = gridCache.get(sampleGridPath);
+    double lon = 0.0;
+    double lat = 0.0;
+    double markerFx = 0.0;
+    double markerFy = 0.0;
+    if (grid != nullptr && grid->snap(fx, fy, lon, lat, markerFx, markerFy)) {
+        soundingPick.pick(lon, lat);
+    }
+}
+
 void IndexViewer::onHover(double fx, double fy) {
     lastHoverFx = fx;
     lastHoverFy = fy;
@@ -298,14 +316,7 @@ void IndexViewer::onHover(double fx, double fy) {
         hoverLabel->hide();
         return;
     }
-    auto cached = gridCache.find(sampleGridPath);
-    if (cached == gridCache.end()) {
-        if (gridCache.size() > 40) {
-            gridCache.clear();
-        }
-        cached = gridCache.emplace(sampleGridPath, SampleGrid::load(QString::fromStdString(sampleGridPath))).first;
-    }
-    const auto& grid = cached->second;
+    const auto& grid = *gridCache.get(sampleGridPath);
 
     // snap to the sampled cell so the crosshair, coords and value all agree
     double lon = 0.0;

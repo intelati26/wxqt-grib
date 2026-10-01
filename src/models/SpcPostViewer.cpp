@@ -259,14 +259,7 @@ void SpcPostViewer::onHover(double fx, double fy) {
         hoverLabel->hide();
         return;
     }
-    auto cached = gridCache.find(sampleGridPath);
-    if (cached == gridCache.end()) {
-        if (gridCache.size() > 40) {
-            gridCache.clear();
-        }
-        cached = gridCache.emplace(sampleGridPath, SampleGrid::load(QString::fromStdString(sampleGridPath))).first;
-    }
-    const auto& grid = cached->second;
+    const auto& grid = *gridCache.get(sampleGridPath);
 
     double lon = 0.0;
     double lat = 0.0;

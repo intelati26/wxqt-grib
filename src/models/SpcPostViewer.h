@@ -96,7 +96,7 @@ private:
     vector<string> frameGridPaths;       // parallel to the frames loaded in animBar
     QLabel * hoverLabel{};
     string sampleGridPath;               // .grid sidecar backing the visible frame
-    std::map<string, SampleGrid> gridCache;
+    SampleGridCache gridCache;   // parsed hover grids, keyed by sidecar path
     double lastHoverFx{-1.0};
     double lastHoverFy{-1.0};
 };

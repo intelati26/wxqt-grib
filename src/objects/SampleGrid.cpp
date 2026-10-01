@@ -90,3 +90,17 @@ bool SampleGrid::snap(double fx, double fy, double& lon, double& lat, double& ma
     markerFy = (lat - north) / (south - north);
     return true;
 }
+
+const SampleGrid * SampleGridCache::get(const std::string& path) {
+    if (path.empty()) {
+        return nullptr;
+    }
+    auto cached = grids.find(path);
+    if (cached == grids.end()) {
+        if (grids.size() > limit) {
+            grids.clear();
+        }
+        cached = grids.emplace(path, SampleGrid::load(QString::fromStdString(path))).first;
+    }
+    return &cached->second;
+}

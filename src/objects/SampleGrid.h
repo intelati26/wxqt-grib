@@ -6,6 +6,8 @@
 #ifndef SAMPLEGRID_H
 #define SAMPLEGRID_H
 
+#include <map>
+#include <string>
 #include <vector>
 #include <QString>
 
@@ -33,6 +35,20 @@ public:
     // instead of floating at the raw cursor position. Returns false if
     // fx/fy fall outside the grid.
     bool snap(double fx, double fy, double& lon, double& lat, double& markerFx, double& markerFy) const;
+};
+
+// Parsed grids keyed by sidecar path, so a hover over the same frame parses its file once. Emptied when it
+// grows past `limit` entries (a long animation sweep), which is cheaper than tracking use order.
+class SampleGridCache {
+public:
+    explicit SampleGridCache(size_t limit = 40) : limit{limit} {}
+    // nullptr for an empty path
+    const SampleGrid * get(const std::string& path);
+    void clear() { grids.clear(); }
+
+private:
+    size_t limit;
+    std::map<std::string, SampleGrid> grids;
 };
 
 #endif  // SAMPLEGRID_H

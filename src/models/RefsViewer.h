@@ -13,6 +13,7 @@
 #include <vector>
 #include <QByteArray>
 #include "models/RefsPanel.h"
+#include "models/SoundingPick.h"
 #include "objects/SampleGrid.h"
 #include "ui/AnimationBar.h"
 #include "ui/Button.h"
@@ -72,6 +73,7 @@ private:
     RefsPanel panel4;
     AnimationBar animBar;
     Button buttonGraph;
+    SoundingPick soundingPick;
     // last map click: fraction of the region image, and which panel it was in
     double selectedFx{-1.0};
     double selectedFy{-1.0};
@@ -80,7 +82,7 @@ private:
     vector<std::pair<string, string>> runOptions;
     std::array<QByteArray, 4> renderedBytes;
     std::array<string, 4> gridPaths;      // hover sidecars of the frame on screen
-    std::map<string, SampleGrid> gridCache;
+    SampleGridCache gridCache{60};   // parsed hover grids, keyed by sidecar path
     string status;
     int animGeneration{0};
 

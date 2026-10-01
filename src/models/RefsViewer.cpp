@@ -39,6 +39,11 @@ RefsViewer::RefsViewer(Window * parent)
         [this] (int global) { onScrub(global); },
         [this] { onSave(); }}
     , buttonGraph{this, Icon::None, "Plume graph"}
+    , soundingPick{this, [this] {
+            const auto runIndex = comboRun.getIndex();
+            const string runId = (runIndex >= 0 && runIndex < static_cast<int>(runOptions.size())) ? runOptions[runIndex].second : string{};
+            return std::make_pair(runId, comboForecastHour.getValue());
+        }, "REFS Ensemble Viewer"}
 {
     setTitle("REFS Ensemble Viewer");
 
@@ -79,6 +84,7 @@ RefsViewer::RefsViewer(Window * parent)
     boxTop.addWidget(comboRegion);
     boxTop.addWidget(comboForecastHour);
     boxTop.addWidget(buttonGraph);
+    boxTop.addWidget(soundingPick.button());
     buttonGraph.getView()->setToolTip("Click a map to pick a point, then open the per-member plume chart for that panel's field");
     buttonGraph.connect([this] { onGraph(); });
     RefsPanel* clickPanels[4] = {&panel1, &panel2, &panel3, &panel4};
@@ -356,19 +362,7 @@ void RefsViewer::onHover(size_t panelIndex, double fx, double fy) {
     RefsPanel* panels[4] = {&panel1, &panel2, &panel3, &panel4};
     double markerFx = fx;
     double markerFy = fy;
-    const auto sampleGrid = [this] (const string& path) -> const SampleGrid * {
-        if (path.empty()) {
-            return nullptr;
-        }
-        auto cached = gridCache.find(path);
-        if (cached == gridCache.end()) {
-            if (gridCache.size() > 60) {
-                gridCache.clear();
-            }
-            cached = gridCache.emplace(path, SampleGrid::load(QString::fromStdString(path))).first;
-        }
-        return &cached->second;
-    };
+    const auto sampleGrid = [this] (const string& path) { return gridCache.get(path); };
     if (const auto * own = sampleGrid(gridPaths[panelIndex])) {
         double lon = 0.0;
         double lat = 0.0;
@@ -421,8 +415,9 @@ void RefsViewer::onMapClicked(size_t panelIndex, double fx, double fy) {
     const auto box = UtilityGrib::regionBbox(comboRegion.getIndex());
     const auto lon = box.west + fx * (box.east - box.west);
     const auto lat = box.north - fy * (box.north - box.south);
+    soundingPick.pick(lon, lat);
     setTitle("REFS Ensemble Viewer - point " + To::string(lat) + " N, " + To::string(lon) +
-             " E selected (use 'Plume graph' for panel " + To::string(selectedPanel + 1) + ")");
+             " E selected (use 'Plume graph' for panel " + To::string(selectedPanel + 1) + ", or 'Sounding')");
 }
 
 void RefsViewer::onGraph() {

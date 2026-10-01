@@ -16,6 +16,7 @@
 #include "objects/SampleGrid.h"
 #include "ui/AnimationBar.h"
 #include "ui/BackForward.h"
+#include "models/SoundingPick.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
@@ -53,7 +54,6 @@ private:
     void onHover(double fx, double fy);
     void onHoverEnded();
     void onMapClicked(double fx, double fy);
-    void openSounding();
     const SampleGrid * currentGrid();
     void refreshHover();
     void invalidateAnimation();
@@ -72,7 +72,7 @@ private:
     BackForward backForward;
     Button buttonMax;
     Button buttonDay1;
-    Button buttonSounding;
+    SoundingPick soundingPick;
     std::vector<std::string> day1Pending;   // hours computed off-thread for the Day 1 button
     AnimationBar animBar;
     std::vector<std::pair<string, string>> runOptions;
@@ -102,12 +102,9 @@ private:
     vector<string> frameGridPaths;       // parallel to the frames loaded in animBar
     QLabel * hoverLabel{};
     string sampleGridPath;               // .grid sidecar backing the visible frame
-    std::map<string, SampleGrid> gridCache;   // parsed grids, keyed by sidecar path
+    SampleGridCache gridCache;   // parsed hover grids, keyed by sidecar path
     double lastHoverFx{-1.0};
     double lastHoverFy{-1.0};
-    bool haveSoundingPoint{false};   // a map click has picked a point for the Sounding button
-    double soundingLon{0.0};
-    double soundingLat{0.0};
 };
 
 #endif  // GRIBVIEWER_H
