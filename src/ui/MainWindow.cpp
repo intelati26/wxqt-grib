@@ -98,7 +98,7 @@ MainWindow::MainWindow(QWidget * parent)
 
     reload();
 
-    // QScroller::grabGesture(vbox.get(), QScroller::TouchGesture);
+    sw.enableMiddleDrag();
     shortcutClose.connect([this] { close(); });
     shortcutVis.connect([this] { Route::vis(this); });
     shortcutWfoText.connect([this] { toolbar.launchWfoText(); });

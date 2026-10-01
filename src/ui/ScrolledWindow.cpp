@@ -6,6 +6,7 @@
 
 #include "ScrolledWindow.h"
 #include <QScroller>
+#include "ui/MiddleDragScroll.h"
 #include "util/UtilityUI.h"
 
 ScrolledWindow::ScrolledWindow(Window * parent, QBoxLayout * layout)
@@ -40,4 +41,8 @@ ScrolledWindow::ScrolledWindow(Window * parent, VBox& layout)
     parent->setCentralWidget(scrollArea);
     parent->centralWidget->setLayout(layout.getView());
     parent->show();
+}
+
+void ScrolledWindow::enableMiddleDrag() {
+    new MiddleDragScroll{scrollArea};   // owned by the scroll area
 }

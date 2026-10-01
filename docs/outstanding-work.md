@@ -90,6 +90,20 @@ thumbnails are enabled (it widens the window instead).
 - **Window memory:** every `Window` saves its geometry on close and restores it on first show, per screen type
   (`Window::showEvent`, pref `WINDOW_GEOMETRY_<type>`). No settings toggle yet.
 
+## Home layout editor, toolbar styles, middle-drag (2026-10-01)
+- **Home layout editor:** Settings > Home Screen Order starts with a strip of zone templates (`HomeLayout`,
+  `HomeLayoutEditor`); drag the four large sections (Severe, Thumbnails, Forecast, Text) into zones, or click a chip for a
+  zone menu. `MainWindow::arrangeColumns` builds a `QGridLayout` of zones; section contents/order are still set by
+  the older per-item controls. Prefs `HOME_LAYOUT_TEMPLATE` / `HOME_LAYOUT_ASSIGNMENT`. The old column-order pref is
+  now unused. Drag-and-drop itself is untested (no GUI here); the click-menu move and the saved state were.
+- **Toolbar styles:** Settings > Toolbar Order has a style (icons / icons + names grouped / menu bar) and editable
+  groups (rename, add, delete, reorder, per-entry group; reset to built-ins) - `ToolbarGroups`, `Toolbar::rebuildButtons`.
+  Route items now have unique ids (two icons were shared; saved orders key on the id, same as before for the first).
+- **Middle-button drag** pans the home page (`MiddleDragScroll`, tested with synthetic events). Left-drag scrolling
+  was already on (`QScroller`).
+- **Windows gdal-data.zip** shipped and CI-verified (GDAL reads its tables through /vsizip/).
+- Dev aid: `WXQT_GRAB=<png>[,<ms>]` saves the main window picture and quits (use `QT_QPA_PLATFORM=offscreen`).
+
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
 WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage

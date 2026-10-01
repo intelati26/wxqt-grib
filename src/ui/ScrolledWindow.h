@@ -16,6 +16,7 @@ class ScrolledWindow {
 public:
     ScrolledWindow(Window *, QBoxLayout *);
     ScrolledWindow(Window *, VBox&);
+    void enableMiddleDrag();   // hold the middle button and drag to pan the page
 
 private:
     QScrollArea * scrollArea;
