@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+#include <QTimer>
 #include "objects/AutoUpdate.h"
 #include "objects/ObjectAnimateNexrad.h"
 // #include <QGeoPositionInfo>
@@ -52,6 +53,7 @@ private:
     void moveUp();
     void moveDown();
     void drawAndSave();
+    QTimer saveTimer;   // single-shot: saves the pane positions shortly after panning stops
     void save();
     void settingsCheck();
     void adjustColorLegends();

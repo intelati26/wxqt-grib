@@ -131,8 +131,16 @@ void CrashLog::install(bool debug) {
 #ifdef Q_OS_WIN
     SetUnhandledExceptionFilter(onCrash);
 #endif
+    QString build = QString{"built %1 %2"}.arg(__DATE__, __TIME__);
+#ifdef Q_OS_WIN
+    // names the executable's build, to pick the matching wxqt.pdb for the addresses of a crash
+    if (const auto * dos = reinterpret_cast<const IMAGE_DOS_HEADER *>(GetModuleHandleA(nullptr))) {
+        const auto * nt = reinterpret_cast<const IMAGE_NT_HEADERS *>(reinterpret_cast<const char *>(dos) + dos->e_lfanew);
+        build += QString{", image timestamp 0x%1 size 0x%2"}.arg(nt->FileHeader.TimeDateStamp, 0, 16).arg(nt->OptionalHeader.SizeOfImage, 0, 16);
+    }
+#endif
     append(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss ") + "---- wxqt started (Qt " + qVersion() +
-           (debug ? ", debug logging ON -> wxqt-debug.log" : "") + ") ----");
+           (debug ? ", debug logging ON -> wxqt-debug.log" : "") + "; " + build + ") ----");
 }
 
 void CrashLog::writeDebug(const std::string& line) {

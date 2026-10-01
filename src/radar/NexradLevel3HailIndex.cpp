@@ -58,6 +58,9 @@ void NexradLevel3HailIndex::decode(const ProjectionNumbers& projectionNumbers, F
             index += 1;
         }
     }
-    fileStorage.hiData.clear();
-    addAll(fileStorage.hiData, stormList);
+    {
+        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
+        fileStorage.hiData.clear();
+        addAll(fileStorage.hiData, stormList);
+    }
 }

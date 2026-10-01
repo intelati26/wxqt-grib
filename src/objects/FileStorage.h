@@ -11,6 +11,8 @@
 #include <QColor>
 #include <QLineF>
 #include <QVector>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -25,6 +27,10 @@ using std::vector;
 class FileStorage {
 public:
     FileStorage();
+    // Workers fill the lists below (observations, storm tracks, hail and TVS markers) while the UI thread reads them to draw and
+    // to rebuild labels (on every pan step). Everyone touches them only while holding this lock; it is shared so the
+    // object stays copyable.
+    std::shared_ptr<std::mutex> lock{std::make_shared<std::mutex>()};
     void clearBuffers();
     void setMemoryBuffer(const QByteArray&);
     void setMemoryBufferForAnimation(int, const QByteArray&);

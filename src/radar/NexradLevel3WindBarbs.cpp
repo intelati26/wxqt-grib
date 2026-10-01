@@ -4,6 +4,7 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include <mutex>
 #include "radar/NexradLevel3WindBarbs.h"
 #include "external/ExternalGeodeticCalculator.h"
 #include "external/ExternalGlobalCoordinates.h"
@@ -15,7 +16,11 @@
 
 vector<double> NexradLevel3WindBarbs::decodeAndPlot(const ProjectionNumbers& projectionNumbers, bool isGust, FileStorage& fileStorage) {
     vector<double> stormList;
-    const auto arrWb = (!isGust) ? fileStorage.obsArrWb : fileStorage.obsArrWbGust;
+    vector<string> arrWb;
+    {
+        const std::lock_guard<std::mutex> guard{*fileStorage.lock};   // a worker may be replacing the lists
+        arrWb = (!isGust) ? fileStorage.obsArrWb : fileStorage.obsArrWbGust;
+    }
     const auto degreeShift = 180.0;
     const auto arrowLength = 2.5;
     const auto arrowSpacing = 3.0;

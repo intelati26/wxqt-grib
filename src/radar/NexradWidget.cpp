@@ -4,6 +4,7 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include <mutex>
 #include "NexradWidget.h"
 #include <QApplication>
 #include <QMenu>
@@ -390,9 +391,18 @@ void NexradWidget::constructWBLines() {
         for (auto x : range3(0, wBGustFloats.size(), 4)) {
             wbGustLines.push_back(QLineF{wBGustFloats[x], wBGustFloats[x + 1], wBGustFloats[x + 2], wBGustFloats[x + 3]});
         }
-        for (auto index : range(fileStorage.obsArrX.size())) {
-            const auto rawColor = fileStorage.obsArrAviationColor[index];
-            windBarbCirclesTransformed.push_back(Projection::computeMercatorNumbers(fileStorage.obsArrX[index], fileStorage.obsArrY[index], nexradState.getPn()));
+        vector<double> obsX;
+        vector<double> obsY;
+        vector<int> obsColor;
+        {
+            const std::lock_guard<std::mutex> guard{*fileStorage.lock};   // a worker may be replacing the lists
+            obsX = fileStorage.obsArrX;
+            obsY = fileStorage.obsArrY;
+            obsColor = fileStorage.obsArrAviationColor;
+        }
+        for (auto index : range(std::min(obsX.size(), std::min(obsY.size(), obsColor.size())))) {
+            const auto rawColor = obsColor[index];
+            windBarbCirclesTransformed.push_back(Projection::computeMercatorNumbers(obsX[index], obsY[index], nexradState.getPn()));
             windBarbCircleColors.emplace_back(Color::red(rawColor), Color::green(rawColor), Color::blue(rawColor));
         }
     }
@@ -451,7 +461,11 @@ void NexradWidget::constructWpcFronts() {
 
 void NexradWidget::constructSti() {
     stormTrackLines.clear();
-    const auto floats = fileStorage.stiData;
+    vector<double> floats;
+    {
+        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
+        floats = fileStorage.stiData;
+    }
     for (auto x : range3(0, floats.size(), 4)) {
         stormTrackLines.push_back(QLineF{floats[x], floats[x + 1], floats[x + 2], floats[x + 3]});
     }
@@ -463,7 +477,11 @@ void NexradWidget::resizePolygons() {
 }
 
 void NexradWidget::constructHi() {
-    const auto floats = fileStorage.hiData;
+    vector<double> floats;
+    {
+        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
+        floats = fileStorage.hiData;
+    }
     const auto lengthOrig = 5.0;
     const auto length = lengthOrig / nexradState.zoom;
     hiPolygons.clear();
@@ -481,7 +499,11 @@ void NexradWidget::constructHi() {
 }
 
 void NexradWidget::constructTvs() {
-    const auto floats = fileStorage.tvsData;
+    vector<double> floats;
+    {
+        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
+        floats = fileStorage.tvsData;
+    }
     const auto lengthOrig = 5.0;
     const auto length = lengthOrig / nexradState.zoom;
     tvsPolygons.clear();

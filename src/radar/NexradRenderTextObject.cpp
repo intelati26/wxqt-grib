@@ -4,6 +4,7 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include <mutex>
 #include "NexradRenderTextObject.h"
 #include "objects/WString.h"
 #include "radar/PressureCenterTypeEnum.h"
@@ -132,9 +133,17 @@ void NexradRenderTextObject::addTextLabelsObservations() {
     if (RadarPreferences::obs || RadarPreferences::obsWindbarbs) {
         nexradState->observations.clear();
         if (nexradState->zoom > obsMinZoom) {
-            for (auto index : range(fileStorage->obsArr.size())) {
-                if (index < fileStorage->obsArr.size() && index < fileStorage->obsArrExt.size()) {
-                    const auto tmpArrObs = WString::split(fileStorage->obsArr[index], ":");
+            // copies taken under the lock: a worker may be replacing the lists while this runs (every pan step)
+            vector<string> obsArr;
+            vector<string> obsArrExt;
+            {
+                const std::lock_guard<std::mutex> guard{*fileStorage->lock};
+                obsArr = fileStorage->obsArr;
+                obsArrExt = fileStorage->obsArrExt;
+            }
+            for (auto index : range(obsArr.size())) {
+                if (index < obsArr.size() && index < obsArrExt.size()) {
+                    const auto tmpArrObs = WString::split(obsArr[index], ":");
                     const auto lat = To::Double(tmpArrObs[0]);
                     const auto lon = To::Double(tmpArrObs[1]);
                     checkAndDrawText(nexradState->observations, lat, -1.0 * lon, tmpArrObs[2], true);

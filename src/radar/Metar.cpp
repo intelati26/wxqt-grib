@@ -4,6 +4,7 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include <mutex>
 #include "Metar.h"
 #include "common/GlobalVariables.h"
 #include "objects/Color.h"
@@ -35,7 +36,16 @@ void Metar::initialize() {
 }
 
 void Metar::getStateMetarArrayForWXOGL(const string& radarSite, FileStorage& fileStorage) {
-    if (fileStorage.obsDownloadTimer.isRefreshNeeded() || radarSite != fileStorage.obsOldRadarSite) {
+    bool needed = false;
+    {
+        // the check also restarts the timer, so a second job started at the same time sees "not needed" and skips
+        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
+        needed = fileStorage.obsDownloadTimer.isRefreshNeeded() || radarSite != fileStorage.obsOldRadarSite;
+        if (needed) {
+            fileStorage.obsOldRadarSite = radarSite;
+        }
+    }
+    if (needed) {
         vector<string> obsAl;
         vector<string> obsAlExt;
         vector<string> obsAlWb;
@@ -43,7 +53,6 @@ void Metar::getStateMetarArrayForWXOGL(const string& radarSite, FileStorage& fil
         vector<double> obsAlX;
         vector<double> obsAlY;
         vector<int> obsAlAviationColor;
-        fileStorage.obsOldRadarSite = radarSite;
         const auto obsList = getNearbyObsSites(radarSite);
         const auto url = "https://aviationweather.gov/cgi-bin/data/metar.php?ids=" + obsList;
         const auto html = UtilityIO::getHtml(url);
@@ -158,6 +167,7 @@ void Metar::getStateMetarArrayForWXOGL(const string& radarSite, FileStorage& fil
                 }
             }
         }
+        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
         fileStorage.obsArr = obsAl;
         fileStorage.obsArrExt = obsAlExt;
         fileStorage.obsArrWb = obsAlWb;

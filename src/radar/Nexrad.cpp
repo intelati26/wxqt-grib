@@ -66,6 +66,8 @@ Nexrad::Nexrad(Window * parent, int numberOfPanes, bool useASpecificRadar, const
     , shortcutSettings{QKeySequence{"P"}, this}
 {
     setAttribute(Qt::WA_DeleteOnClose);
+    saveTimer.setSingleShot(true);
+    QObject::connect(&saveTimer, &QTimer::timeout, this, [this] { save(); });
     //
     // Determine dimensions
     //
@@ -447,8 +449,9 @@ void Nexrad::drawAndSave() {
     for (auto nw : nexradList) {
         nw->update();
         nw->nexradRenderTextObject.add();
-        nw->nexradState.writePreferences();
     }
+    // the position is saved once the panning pauses, not on every mouse-move (each save is several settings writes)
+    saveTimer.start(800);
 }
 
 void Nexrad::save() {

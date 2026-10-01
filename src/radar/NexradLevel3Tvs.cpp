@@ -29,6 +29,9 @@ void NexradLevel3Tvs::decode(const ProjectionNumbers& projectionNumbers, FileSto
         stormList.push_back(ec.getLatitude());
         stormList.push_back(ec.getLongitude() * -1.0);
     }
-    fileStorage.tvsData.clear();
-    addAll(fileStorage.tvsData, stormList);
+    {
+        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
+        fileStorage.tvsData.clear();
+        addAll(fileStorage.tvsData, stormList);
+    }
 }

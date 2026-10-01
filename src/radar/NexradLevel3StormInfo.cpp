@@ -78,8 +78,11 @@ void NexradLevel3StormInfo::decode(const ProjectionNumbers& projectionNumbers, F
             }
         }
     }
-    fileStorage.stiData.clear();
-    addAll(fileStorage.stiData, stormList);
+    {
+        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
+        fileStorage.stiData.clear();
+        addAll(fileStorage.stiData, stormList);
+    }
 }
 
 vector<double> NexradLevel3StormInfo::drawTickMarks(

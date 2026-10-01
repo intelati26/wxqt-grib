@@ -235,6 +235,15 @@ jobs:
           archive: false
           if-no-files-found: error
 
+      # the matching debug symbols: resolve the addresses of a crash in wxqt.log (wxqt.exe+0x...) with
+      # llvm-symbolizer --obj=wxqt.exe (or WinDbg); the log's first line names the build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wxqt-windows-symbols
+          path: build/release/wxqt.pdb
+          retention-days: 30
+          if-no-files-found: warn
+
   linux-x64-appimage:
     # Pinned rather than ubuntu-latest, which moves to Ubuntu 26 on 2026-10-19.
     # An AppImage only runs on systems with at least the glibc it was built
