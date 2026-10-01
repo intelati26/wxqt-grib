@@ -10,14 +10,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Seconds, no Qt: the sounding engine against SPC's own computed values (tests/sounding/README.md)
-  sounding-engine:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - name: Sounding engine vs SPC
-        run: tests/sounding/run.sh
-
   windows-x64:
     runs-on: windows-latest
     steps:

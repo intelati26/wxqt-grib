@@ -11,7 +11,7 @@
 #include "radar/RadarMosaic.h"
 #include "settings/UIPreferences.h"
 #include "spc/SpcMeso.h"
-#include "spc/SpcSoundings.h"
+#include "models/SoundingViewer.h"
 #include "vis/GoesViewer.h"
 
 using std::string;
@@ -41,7 +41,7 @@ void Route::radarMosaic(Window * parent) {
 }
 
 void Route::spcSoundingBySector(Window * parent, const string& sector) {
-    new SpcSoundings{parent, sector};
+    new SoundingViewer{parent, sector};   // the engine's observed mode; an empty sector = nearest site
 }
 
 void Route::spcMesoBySector(Window * parent, const string& sector) {

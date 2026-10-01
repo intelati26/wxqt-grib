@@ -33,7 +33,7 @@
 #include "spc/SpcCompMap.h"
 #include "spc/SpcFireSummary.h"
 #include "spc/SpcMeso.h"
-#include "spc/SpcSoundings.h"
+#include "models/SoundingViewer.h"
 #include "spc/SpcStormReports.h"
 #include "spc/SpcSwoDay1.h"
 #include "spc/SpcSwoSummary.h"
@@ -79,7 +79,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("nwsobssites.png", "Observation Sites", [this] { launchObservationSites(); });
     routeItems.emplace_back("nwsobs.png", "Observations", [this] { launchObservations(); });
     routeItems.emplace_back("rtma.png", "RTMA", [this] { launchRtma(); });
-    routeItems.emplace_back("spcsoundings.png", "Soundings", [parent] { new SpcSoundings{parent}; });
+    routeItems.emplace_back("spcsoundings.png", "Soundings", [parent] { new SoundingViewer{parent, string{}}; });
 
     routeItems.emplace_back("radarmosaicnws.png", "Radar Mosaic", [this] { launchRadarMosaicViewer(); });
     routeItems.emplace_back("srfd.png", "National Text", [this] { launchNationalText(); });
