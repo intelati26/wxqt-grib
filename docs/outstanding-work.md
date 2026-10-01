@@ -67,6 +67,16 @@ units, region / run, F-hour, valid UTC + local) are added only on **export**
 status line), so the on-screen map stays clean and hover geometry is untouched.
 Cache versions bumped (r11, rm4, rf4/pb4/pm2, sp6, si3/sm2).
 
+## Home screen rows (2026-10-01)
+The home screen's image / forecast / text sections are now **rows stacked top to
+bottom** (default order: images, forecast, text) right of the toolbar, instead of
+columns. Same Settings > Home Screen Order control, relabelled "Rows". Each section
+layout just flips to left-to-right (`MainWindow::MainWindow`, `arrangeColumns`);
+the forecast sub-layouts are top-aligned so current conditions line up with the
+7-day list. Not verified by eye by this session. Possible follow-ups: lay the 7-day
+days out horizontally (that row is tall now), wrap the image row when many
+thumbnails are enabled (it widens the window instead).
+
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
 WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage
