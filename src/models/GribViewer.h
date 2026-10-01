@@ -6,6 +6,7 @@
 #ifndef GRIBVIEWER_H
 #define GRIBVIEWER_H
 
+#include <array>
 #include <map>
 #include <string>
 #include <utility>
@@ -57,6 +58,11 @@ private:
     const SampleGrid * currentGrid();
     void refreshHover();
     void invalidateAnimation();
+    void loadViews();                // from the saved preference into comboViews
+    void storeViews() const;
+    void saveView();                 // names the current field / region / compare and keeps it
+    void applyView(int comboIndex);
+    void deleteView();
     int compareHours() const;   // 0 = plain field, else the comparison run's age in hours
     QByteArray buildLegend(int fieldIndex, double clipLo, double clipHi) const;
     void resizeEventCustom() override;
@@ -71,10 +77,14 @@ private:
     ComboBox comboRegion;
     ComboBox comboForecastHour;
     ComboBox comboCompare;   // Off / change since the run 6, 12 or 24 hours earlier
+    ComboBox comboViews;     // saved field / region / compare combinations
     BackForward backForward;
     Button buttonMax;
     Button buttonDay1;
+    Button buttonSaveView;
+    Button buttonDeleteView;
     SoundingPick soundingPick;
+    vector<std::array<string, 4>> views;   // name, field, region, compare label
     std::vector<std::string> day1Pending;   // hours computed off-thread for the Day 1 button
     AnimationBar animBar;
     std::vector<std::pair<string, string>> runOptions;

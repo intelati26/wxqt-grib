@@ -12,6 +12,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QImage>
+#include <QInputDialog>
 #include <QPainter>
 #include <QObject>
 #include <QPalette>
@@ -26,6 +27,7 @@
 #include "objects/UtilityAnimationExport.h"
 #include "settings/UIPreferences.h"
 #include "util/To.h"
+#include "util/Utility.h"
 
 namespace {
     constexpr int frameDelayMs = 400;   // per-frame dwell for the exported APNG
@@ -41,9 +43,12 @@ GribViewer::GribViewer(Window * parent)
     , comboRegion{this, UtilityGrib::regions()}
     , comboForecastHour{this, UtilityGrib::forecastHours()}
     , comboCompare{this, {"Compare: off", "Change vs run -6 h", "Change vs run -12 h", "Change vs run -24 h"}}
+    , comboViews{this, {"Saved views"}}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonMax{this, Icon::None, "Max of range"}
     , buttonDay1{this, Icon::None, "Day 1 max (12z-12z)"}
+    , buttonSaveView{this, Icon::None, "Save view"}
+    , buttonDeleteView{this, Icon::None, "Delete view"}
     , soundingPick{this, [this] {
             const auto runIndex = comboRun.getIndex();
             const string runId = (runIndex >= 0 && runIndex < static_cast<int>(runOptions.size())) ? runOptions[runIndex].second : string{};
@@ -83,6 +88,16 @@ GribViewer::GribViewer(Window * parent)
     buttonDay1.getView()->setToolTip("Maximum over the SPC Day-1 period, 12z to 12z (the 24 forecast hours "
                                      "ending at the next 12z after this run)");
     buttonDay1.connect([this] { showDay1Max(); });
+    comboViews.getView()->setToolTip("Recall a saved combination of field, region and compare mode");
+    comboViews.connect([this] { applyView(comboViews.getIndex()); });
+    buttonSaveView.getView()->setToolTip("Save the current field, region and compare mode under a name");
+    buttonSaveView.connect([this] { saveView(); });
+    buttonDeleteView.getView()->setToolTip("Delete the saved view chosen in the Saved views list");
+    buttonDeleteView.connect([this] { deleteView(); });
+    loadViews();
+    boxTop.addWidget(comboViews);
+    boxTop.addWidget(buttonSaveView);
+    boxTop.addWidget(buttonDeleteView);
     boxTop.addWidget(buttonMax);
     boxTop.addWidget(buttonDay1);
     boxTop.addWidget(soundingPick.button());
@@ -236,6 +251,97 @@ void GribViewer::showDay1Max() {
             }
             showMaxOfHours(day1Pending);
         }};
+}
+
+namespace {
+    const string viewsPref{"GRIB_SAVED_VIEWS"};
+    constexpr char recordSep = '\n';
+    constexpr char fieldSep = '|';
+}
+
+// one record per line: name|field|region|compare (field / region / compare are the combo labels)
+void GribViewer::loadViews() {
+    views.clear();
+    const auto text = QString::fromStdString(Utility::readPref(viewsPref, ""));
+    for (const auto& line : text.split(QChar{recordSep}, Qt::SkipEmptyParts)) {
+        const auto parts = line.split(QChar{fieldSep});
+        if (parts.size() == 4) {
+            views.push_back({parts[0].toStdString(), parts[1].toStdString(), parts[2].toStdString(), parts[3].toStdString()});
+        }
+    }
+    vector<string> names{"Saved views"};
+    for (const auto& view : views) {
+        names.push_back(view[0]);
+    }
+    comboViews.block();
+    comboViews.setList(names);
+    comboViews.setIndex(0);
+    comboViews.unblock();
+}
+
+void GribViewer::storeViews() const {
+    QStringList lines;
+    for (const auto& view : views) {
+        lines << QString::fromStdString(view[0] + fieldSep + view[1] + fieldSep + view[2] + fieldSep + view[3]);
+    }
+    Utility::writePref(viewsPref, lines.join(QChar{recordSep}).toStdString());
+}
+
+void GribViewer::saveView() {
+    bool ok = false;
+    auto name = QInputDialog::getText(this, "Save view", "Name for this view (field, region and compare mode):",
+                                      QLineEdit::Normal, QString::fromStdString(comboField.getValue()), &ok).trimmed();
+    name.remove(QChar{fieldSep}).remove(QChar{recordSep});
+    if (!ok || name.isEmpty()) {
+        return;
+    }
+    const std::array<string, 4> view{name.toStdString(), comboField.getValue(), comboRegion.getValue(), comboCompare.getValue()};
+    const auto existing = std::find_if(views.begin(), views.end(), [&view] (const auto& v) { return v[0] == view[0]; });
+    if (existing != views.end()) {
+        *existing = view;   // same name: replace
+    } else {
+        views.push_back(view);
+    }
+    storeViews();
+    loadViews();
+    comboViews.setIndexByValue(view[0]);   // shows the name; signals are not blocked, which just re-applies it
+}
+
+void GribViewer::applyView(int comboIndex) {
+    if (comboIndex < 1 || comboIndex > static_cast<int>(views.size())) {
+        return;
+    }
+    const auto& view = views[comboIndex - 1];
+    animBar.stopIfAnimating();
+    comboField.block();
+    comboRegion.block();
+    comboCompare.block();
+    const auto select = [] (ComboBox& combo, const string& label) {   // exact label; setIndexByValue matches prefixes
+        const auto items = combo.getItems();
+        const auto found = std::find(items.begin(), items.end(), label);
+        if (found != items.end()) {
+            combo.setIndex(static_cast<size_t>(found - items.begin()));
+        }
+    };
+    select(comboField, view[1]);
+    select(comboRegion, view[2]);
+    select(comboCompare, view[3]);
+    comboField.unblock();
+    comboRegion.unblock();
+    comboCompare.unblock();
+    invalidateAnimation();
+    reload();
+}
+
+void GribViewer::deleteView() {
+    const auto index = comboViews.getIndex();
+    if (index < 1 || index > static_cast<int>(views.size())) {
+        setTitle("RRFS GRIB Viewer - choose a saved view to delete first");
+        return;
+    }
+    views.erase(views.begin() + (index - 1));
+    storeViews();
+    loadViews();
 }
 
 int GribViewer::compareHours() const {
