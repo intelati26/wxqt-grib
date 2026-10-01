@@ -1,5 +1,12 @@
 # Feature scope — existing and new (2026-10-01)
 
+**Status update (2026-10-01, later):** done since this was written - A7 (window size/position memory), B2 (point
+sounding, SHARPpy-style engine in `src/sounding/`), B3 (run-to-run Compare in the GRIB viewer), B8 (saved views in
+the GRIB viewer: field / region / compare). Home screen sections are now rows (images wrap to the window width).
+Every sounding view, including the toolbar Soundings screen and the home-screen SPC Sounding thumbnail's click,
+now opens the native engine viewer. The `sounding-engine` CI job was removed on request (`tests/sounding/run.sh`
+still runs by hand). The E. Sounding plan below is kept for history; it is built.
+
 Scoping only; nothing here is started. Effort: **S** = hours, **M** = about a day,
 **L** = several days, **XL** = a week+. "Verify" says how it can be proven without
 a GUI session, in the way the rest of this project has been checked.

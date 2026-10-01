@@ -77,6 +77,19 @@ the forecast sub-layouts are top-aligned so current conditions line up with the
 days out horizontally (that row is tall now), wrap the image row when many
 thumbnails are enabled (it widens the window instead).
 
+## Soundings, saved views, window memory (2026-10-01)
+- **One sounding path:** the toolbar Soundings screen and the radar-site sounding shortcut open the native
+  `SoundingViewer` in observed mode (site + time pickers inside it). `SpcSoundings` (the SPC GIF screen with a
+  Text Display button and site stepping) is left in the code, unused. The home screen has an optional
+  "SPC Sounding (nearest site)" thumbnail (SPC's GIF; click opens the native viewer).
+- **CI:** the `sounding-engine` job is gone from `build.yml`; the regression test still exists in `tests/sounding/`.
+- **Duplicate formulas:** STP / SHIP exist in `UtilitySevereIndices` (gridded, from published fields) and
+  `SoundingIndices` (point, from a full profile). Not merged; SHIP differs from SPC on 25/160 observed soundings.
+- **GRIB viewer saved views:** Saved views dropdown + Save/Delete view (field, region, compare mode; pref
+  `GRIB_SAVED_VIEWS`). Not yet in the index / SPC Post / REFS viewers.
+- **Window memory:** every `Window` saves its geometry on close and restores it on first show, per screen type
+  (`Window::showEvent`, pref `WINDOW_GEOMETRY_<type>`). No settings toggle yet.
+
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
 WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage
