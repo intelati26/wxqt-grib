@@ -165,6 +165,34 @@ protected:
         drawHodograph(painter, QRect{755, 25, 415, 445});
         drawThetaE(painter, QRect{775, 492, 120, 108});
         drawStormRelativeWinds(painter, QRect{940, 492, 120, 108});
+        // SHARPpy's effective-layer STP and SHIP box-and-whisker insets (Thompson et al. 2012; SPC): the day's value is the
+        // coloured line across the plot
+        {
+            static const double efBoxes[6][5] = {{1.2, 2.6, 5.3, 8.3, 11.0}, {0.2, 1.0, 2.4, 4.5, 8.4}, {0.0, 0.6, 1.7, 3.7, 5.6},
+                                                 {0.0, 0.3, 1.2, 2.6, 4.5}, {0.0, 0.1, 0.8, 2.0, 3.7}, {0.0, 0.0, 0.2, 0.7, 1.7}};
+            static const double shipBoxes[2][5] = {{0.2, 0.3, 0.2, 0.9, 1.2}, {1.1, 1.4, 0.8, 2.8, 4.0}};
+            const double stp = analysis->stpEffective;
+            const double ship = analysis->hail;
+            const auto stpColor = [] (double v) {
+                if (v < 0.1) return QColor{0x77, 0x50, 0x00};
+                if (v < 1.0) return QColor{0x99, 0x66, 0x00};
+                if (v < 2.0) return QColor{255, 255, 255};
+                if (v < 4.0) return QColor{255, 255, 0};
+                if (v < 8.0) return QColor{255, 0, 0};
+                return QColor{0xe7, 0x00, 0xdf};
+            };
+            const auto shipColor = [] (double v) {
+                if (v >= 5.0) return QColor{0xe7, 0x00, 0xdf};
+                if (v >= 2.0) return QColor{255, 0, 0};
+                if (v >= 1.0) return QColor{255, 255, 0};
+                if (v >= 0.5) return QColor{255, 255, 255};
+                return QColor{0x77, 0x50, 0x00};
+            };
+            drawBoxPlot(painter, QRect{872, 640, 190, 150}, "Effective-Layer STP", 11.0, 1.0, {"EF4+", "EF3", "EF2", "EF1", "EF0", "NONT"},
+                        &efBoxes[0][0], 6, true, stp, have(stp) ? stpColor(stp) : QColor{});
+            drawBoxPlot(painter, QRect{1072, 640, 100, 150}, "SHIP", 5.0, 1.0, {"<=1.5\"", ">=2.5\""},
+                        &shipBoxes[0][0], 2, false, ship, have(ship) ? shipColor(ship) : QColor{});
+        }
         drawWindInset(painter, QRect{545, 742, 100, 78});
         // the table band under the plots: parcels and thermodynamics | kinematics | indices and precipitation type
         drawTable(painter, bottomLeft(), 0);
@@ -756,6 +784,55 @@ private:
         painter.drawRect(area);
         painter.setPen(QColor{235, 235, 235});
         painter.drawText(QRectF{area.left() + 3.0, area.bottom() - 40.0, 60.0, 34.0}, Qt::AlignLeft | Qt::TextWordWrap, "SR Winds\nv. Height");
+        painter.restore();
+    }
+
+    // a box-and-whisker inset: each row of `boxes` is {low whisker end, box bottom, median, box top, high whisker end};
+    // the y axis runs 0..yMax with a dashed line at every `yStep`; `value` is drawn as a line across the plot in `valueColor`
+    void drawBoxPlot(QPainter& painter, const QRect& area, const QString& title, double yMax, double yStep, const std::vector<QString>& names,
+                     const double * boxes, int count, bool median, double value, const QColor& valueColor) {
+        painter.save();
+        painter.fillRect(area, QColor{0, 0, 0});
+        QFont font = painter.font();
+        font.setPixelSize(10);
+        painter.setFont(font);
+        painter.setPen(QColor{235, 235, 235});
+        painter.drawText(QRectF{area.left() + 0.0, area.top() + 1.0, static_cast<double>(area.width()), 14.0}, Qt::AlignCenter, title);
+        const QRectF plot{area.left() + 18.0, area.top() + 18.0, area.width() - 22.0, area.height() - 36.0};
+        const auto yOf = [&] (double v) { return plot.bottom() - std::clamp(v, 0.0, yMax) / yMax * plot.height(); };
+        font.setPixelSize(9);
+        painter.setFont(font);
+        for (double y = 0.0; y <= yMax + 1e-9; y += yStep) {
+            painter.setPen(QPen{QColor{0x00, 0x80, 0xff}, 1.0, Qt::DashLine});
+            painter.drawLine(QPointF{plot.left(), yOf(y)}, QPointF{plot.right(), yOf(y)});
+            painter.setPen(QColor{235, 235, 235});
+            painter.drawText(QRectF{area.left() + 0.0, yOf(y) - 6.0, 16.0, 12.0}, Qt::AlignRight | Qt::AlignVCenter, QString::number(y, 'f', 0));
+        }
+        const double spacing = plot.width() / (count + 1);
+        const double width = plot.width() / (count * 2.2);
+        for (int i = 0; i < count; i += 1) {
+            const double cx = plot.left() + spacing * (i + 1);
+            const double* b = boxes + i * 5;
+            painter.setPen(QPen{QColor{0, 255, 0}, 2.0});
+            painter.drawLine(QPointF{cx, yOf(b[0])}, QPointF{cx, yOf(b[1])});
+            painter.drawRect(QRectF{QPointF{cx - width / 2.0, yOf(b[3])}, QPointF{cx + width / 2.0, yOf(b[1])}});
+            if (median) painter.drawLine(QPointF{cx - width / 2.0, yOf(b[2])}, QPointF{cx + width / 2.0, yOf(b[2])});
+            painter.drawLine(QPointF{cx, yOf(b[3])}, QPointF{cx, yOf(b[4])});
+            painter.setPen(QColor{235, 235, 235});
+            QFont small = painter.font();
+            small.setPixelSize(8);
+            painter.setFont(small);
+            painter.drawText(QRectF{cx - spacing / 2.0 - 2.0, plot.bottom() + 3.0, spacing + 4.0, 12.0}, Qt::AlignCenter, names[static_cast<size_t>(i)]);
+            small.setPixelSize(9);
+            painter.setFont(small);
+        }
+        if (have(value) && valueColor.isValid()) {
+            painter.setPen(QPen{valueColor, 1.5});
+            painter.drawLine(QPointF{plot.left(), yOf(value)}, QPointF{plot.right(), yOf(value)});
+            painter.drawText(QRectF{plot.left() + 2.0, yOf(value) - 12.0, 60.0, 11.0}, Qt::AlignLeft | Qt::AlignVCenter, QString::number(value, 'f', 1));
+        }
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawRect(area);
         painter.restore();
     }
 
