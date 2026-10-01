@@ -23,6 +23,7 @@
 #include "util/To.h"
 
 namespace {
+    constexpr double pi = 3.14159265358979323846;   // M_PI is not defined by MSVC without _USE_MATH_DEFINES
     bool have(double v) { return v > -9998.0; }
     constexpr double pBottom = 1050.0;
     constexpr double pTop = 100.0;
@@ -41,7 +42,7 @@ namespace {
             painter.drawEllipse(at, 3.0, 3.0);
             return;
         }
-        const double rad = dirDeg * M_PI / 180.0;
+        const double rad = dirDeg * pi / 180.0;
         const QPointF staff{std::sin(rad), -std::cos(rad)};
         const QPointF perp{-staff.y(), staff.x()};
         const QPointF end = at + staff * length;

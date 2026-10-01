@@ -15,6 +15,7 @@
 #include "util/To.h"
 
 namespace {
+    constexpr double pi = 3.14159265358979323846;   // M_PI is not defined by MSVC without _USE_MATH_DEFINES
     using std::string;
     using std::vector;
 
@@ -49,7 +50,7 @@ namespace {
     // dewpoint-depression-safe wind conversion: from-direction degrees and speed in knots
     void windFromComponents(double u, double v, double& dir, double& speed) {
         speed = std::hypot(u, v) * msToKnots;
-        dir = std::fmod(std::atan2(-u, -v) * 180.0 / M_PI + 360.0, 360.0);
+        dir = std::fmod(std::atan2(-u, -v) * 180.0 / pi + 360.0, 360.0);
     }
 }
 
@@ -140,7 +141,7 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
         points.emplace_back(lon, lat);
     } else {
         const double kmPerDegLat = 111.32;
-        const double kmPerDegLon = kmPerDegLat * std::cos(lat * M_PI / 180.0);
+        const double kmPerDegLon = kmPerDegLat * std::cos(lat * pi / 180.0);
         // about a dozen samples across the radius: the mean is the same to within noise, the read is far quicker
         const double spacing = std::max(3.0, radiusKm / 6.0);
         const int steps = static_cast<int>(std::floor(radiusKm / spacing));

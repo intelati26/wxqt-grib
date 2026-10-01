@@ -9,6 +9,7 @@
 
 namespace SoundingIndices {
     namespace {
+    constexpr double pi = 3.14159265358979323846;   // M_PI is not defined by MSVC without _USE_MATH_DEFINES
         constexpr double missing = -9999.0;
         constexpr double knotsToMs = 0.514444;
         bool gone(double v) { return v <= -9998.0; }
@@ -37,7 +38,7 @@ namespace SoundingIndices {
 
     double Wind::direction() const {
         if (!valid()) return missing;
-        double d = std::atan2(-u, -v) * 180.0 / M_PI;
+        double d = std::atan2(-u, -v) * 180.0 / pi;
         if (d < 0) d += 360.0;
         return d;
     }
