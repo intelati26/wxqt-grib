@@ -51,6 +51,28 @@ GoesViewer::GoesViewer(Window * parent, const string& url, const string& product
     } else {
         objectAnimate.product = product;
     }
+    productLabels = UtilityGoes::labels;
+    productCodeList = UtilityGoes::productCodes;
+    if (goesFloater) {
+        // NOAA's storm floaters only have these (GeoColor, the 16 bands, a few composites): the others gave "could not load"
+        productLabels.clear();
+        productCodeList.clear();
+        for (size_t i = 0; i < UtilityGoes::productCodes.size(); i += 1) {
+            const auto& code = UtilityGoes::productCodes[i];
+            if (code == "AirMass" || code == "Sandwich" || code == "GEOCOLOR" || (code.size() == 2 && std::isdigit(static_cast<unsigned char>(code[0])))) {
+                productLabels.push_back(UtilityGoes::labels[i]);
+                productCodeList.push_back(code);
+            }
+        }
+        productLabels.push_back("Day Convection - RGB composite");
+        productCodeList.push_back("DayConvection");
+        productLabels.push_back("Day/Night Cloud Micro Combo - RGB composite");
+        productCodeList.push_back("DayNightCloudMicroCombo");
+        if (findex(objectAnimate.product, productCodeList) < 0 || std::find(productCodeList.begin(), productCodeList.end(), objectAnimate.product) == productCodeList.end()) {
+            objectAnimate.product = "GEOCOLOR";   // a remembered product the floater does not have
+        }
+        comboboxProduct.setList(productLabels);
+    }
     if (goesFloater) {
         objectAnimate.getFunction = &UtilityGoes::getAnimationGoesFloater;
         objectAnimate.sector = goesFloaterUrl;
@@ -58,7 +80,7 @@ GoesViewer::GoesViewer(Window * parent, const string& url, const string& product
     comboboxSector.setIndexByValue(objectAnimate.sector);
     comboboxSector.connect([this] { changeSector(); });
 
-    auto indexProd = findex(objectAnimate.product, UtilityGoes::productCodes);
+    auto indexProd = findex(objectAnimate.product, productCodeList);
     comboboxProduct.setIndex(indexProd);
     comboboxProduct.connect([this] { changeProduct(); });
 
@@ -94,7 +116,7 @@ GoesViewer::GoesViewer(Window * parent, const string& url, const string& product
 }
 
 void GoesViewer::reload() {
-    setTitle("GOES Viewer - " + UtilityGoes::labels[comboboxProduct.getIndex()] + " " + autoUpdate.titleAdd);
+    setTitle("GOES Viewer - " + productLabels[static_cast<size_t>(comboboxProduct.getIndex())] + " " + autoUpdate.titleAdd);
     objectAnimate.stopAnimateNoDownload();
     if (!goesFloater) {
         if (savePref) {
@@ -165,7 +187,7 @@ void GoesViewer::moveBack() {
 void GoesViewer::moveForward() {
     auto index = comboboxProduct.getIndex();
     index += 1;
-    index = std::min(index, static_cast<int>(UtilityGoes::productCodes.size()) - 1);
+    index = std::min(index, static_cast<int>(productCodeList.size()) - 1);
     comboboxProduct.setIndex(index);
 }
 
@@ -175,7 +197,7 @@ void GoesViewer::changeSector() {
 }
 
 void GoesViewer::changeProduct() {
-    objectAnimate.product = UtilityGoes::productCodes[comboboxProduct.getIndex()];
+    objectAnimate.product = productCodeList[static_cast<size_t>(comboboxProduct.getIndex())];
     reload();
 }
 

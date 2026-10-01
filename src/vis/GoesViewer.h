@@ -19,6 +19,7 @@
 #include "ui/Window.h"
 
 using std::string;
+using std::vector;
 
 class GoesViewer : public Window {
 public:
@@ -49,6 +50,8 @@ private:
     string sizeChoice;   // empty = the app's default size for the sector
     UrlAnimation objectAnimate;
     BackForward backForward;
+    vector<string> productLabels;   // what the product list offers, and the folder name of each: a storm floater only has some of them
+    vector<string> productCodeList;
     bool goesFloater;
     string goesFloaterUrl;
     Shortcut shortcutAutoUpdate;
