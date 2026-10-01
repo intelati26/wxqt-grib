@@ -30,6 +30,9 @@ class SoundingCanvas;
 class SoundingViewer : public Window {
 public:
     SoundingViewer(Window * parent, double lon, double lat, const string& runId, const string& forecastHour);
+    // model sounding for a valid time: the latest synoptic RRFS run and the lead hour nearest `validUtc`
+    // (for products on another model's clock, e.g. SPC Post); says so on screen if RRFS does not reach that time
+    SoundingViewer(Window * parent, double lon, double lat, const QDateTime& validUtc);
     // SPC observed sounding; `site` is a sounding-site code ("OUN"), empty = the site nearest the current location
     SoundingViewer(Window * parent, const string& site);
 
@@ -44,6 +47,7 @@ private:
     double lat;
     string runId;
     string forecastHour;
+    QDateTime wantedValid;   // set: choose the lead hour from this valid time instead of `forecastHour`
     string status;   // same "RRFS <date> <cycle>z    F<hh> valid ..." form the map screens use, for names and headers
 
     VBox box;

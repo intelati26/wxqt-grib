@@ -461,6 +461,14 @@ SoundingViewer::SoundingViewer(Window * parent, double lon, double lat, const st
     start();
 }
 
+SoundingViewer::SoundingViewer(Window * parent, double lon, double lat, const QDateTime& validUtc)
+    : SoundingViewer{parent, lon, lat, string{}, string{"0"}}
+{
+    // the delegated constructor already started a fetch for hour "0"; restart for the valid time
+    wantedValid = validUtc;
+    start();
+}
+
 SoundingViewer::SoundingViewer(Window * parent, const string& site)
     : Window{parent}
     , lon{0.0}
@@ -521,16 +529,30 @@ void SoundingViewer::start() {
     canvas->setMessage("Fetching the RRFS column...\n\nA run/hour not seen before downloads about 265 MB (all 25 mb levels);\nafter that, every other point at the same run and hour is instant.");
     auto result = std::make_shared<Result>();
     const auto lonNow = lon, latNow = lat;
-    const auto runNow = runId, hourNow = forecastHour;
+    const auto runNow = runId;
+    const auto validNow = wantedValid;
+    auto hourNow = forecastHour;
     static const double radii[] = {0.0, 15.0, 30.0, 60.0};
     const double radiusNow = radii[std::clamp(comboArea.getIndex(), 0, 3)];
     new FutureVoid{this,
-        [result, lonNow, latNow, runNow, hourNow, radiusNow] {
+        [result, lonNow, latNow, runNow, validNow, hourNow, radiusNow]() mutable {
             string date;
             string cycle;
             if (!UtilityGrib::resolveSynopticRun(runNow, date, cycle)) {
                 result->status = "Model sounding: could not resolve an RRFS run";
                 return;
+            }
+            if (validNow.isValid()) {
+                const QDateTime runUtc{QDate{To::Int(date.substr(0, 4)), To::Int(date.substr(4, 2)), To::Int(date.substr(6, 2))},
+                                       QTime{To::Int(cycle), 0}, QTimeZone::utc()};
+                const auto lead = static_cast<int>(std::llround(runUtc.secsTo(validNow) / 3600.0));
+                if (lead < 1 || lead > 84) {
+                    result->status = "Model sounding: the product's valid time (" + validNow.toString("yyyy-MM-dd HH").toStdString() +
+                        "z) is " + (lead < 1 ? "before the latest synoptic RRFS run (" : "beyond the forecast of the latest synoptic RRFS run (") +
+                        date + " " + cycle + "z, F1-F84), so there is no matching RRFS hour";
+                    return;
+                }
+                hourNow = To::string(lead);
             }
             string detail;
             result->ok = UtilityModelSounding::buildProfile(date, cycle, hourNow, lonNow, latNow, result->profile, detail, radiusNow);

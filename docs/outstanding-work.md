@@ -249,6 +249,9 @@ run fails with an explanatory message, not silently.
   2dfld surface) at a point; `src/models/SoundingViewer` shows Skew-T, hodograph and the
   parameter table; GribViewer: click the map, press **Sounding** (locked to the selected
   run and forecast hour). One run/hour ~265 MB, cached.
-- Not done: box/area-mean sounding, a time slider over forecast hours, convective temperature,
-  DCAPE outliers (a few soundings differ from SPC), SPC observed-sounding mode in the same
-  viewer, model soundings from the other viewers (SPC Post, indices, REFS).
+- Done since: area-mean mode (15/30/60 km), SPC observed mode with site/time pickers, convective
+  temperature, DCAPE to 258/270 exact, Sounding button in the GRIB, index, REFS and SPC Post
+  viewers (SPC Post matches the latest synoptic RRFS run to the image's valid time), regression
+  test in CI (`tests/sounding/`).
+- Not done: a forecast-hour slider (hour stays locked by choice), SHIP differs from SPC on
+  25/160 soundings (cause unknown), the 49 convective temperatures that come out 0.5-1.5 C low.

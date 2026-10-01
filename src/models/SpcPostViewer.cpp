@@ -14,9 +14,11 @@
 #include <QPainter>
 #include <QObject>
 #include <QPalette>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
+#include <QTimeZone>
 #include "misc/ImageViewer.h"
 #include "models/UtilitySpcPost.h"
 #include "objects/FutureVoid.h"
@@ -40,6 +42,7 @@ SpcPostViewer::SpcPostViewer(Window * parent)
     , comboRun{this, {"Latest"}}
     , comboForecastHour{this, {}}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
+    , soundingPick{this, [this] { return validTimeUtc(); }, "SPC Post Slideshow"}
     , animBar{this,
         [this] (int start, int end) { onRangeRequested(start, end); },
         [this] (int local) { onFrameShown(local); },
@@ -51,6 +54,7 @@ SpcPostViewer::SpcPostViewer(Window * parent)
     QObject::connect(&image, &ZoomImage::doubleClicked, this, [this] { openFullImage(); });
     QObject::connect(&image, &ZoomImage::hovered, this, [this] (double fx, double fy) { onHover(fx, fy); });
     QObject::connect(&image, &ZoomImage::hoverEnded, this, [this] { onHoverEnded(); });
+    QObject::connect(&image, &ZoomImage::clicked, this, [this] (double fx, double fy) { onMapClicked(fx, fy); });
     comboProduct.connect([this] { invalidateAnimation(); refreshRunOptions(); });
     comboDomain.connect([this] { invalidateAnimation(); reload(); });
     // "State Lines" and "NWS CWAs" default checked (the user's stated
@@ -79,6 +83,7 @@ SpcPostViewer::SpcPostViewer(Window * parent)
     boxTop.addWidget(comboBackground);
     boxTop.addWidget(comboRun);
     boxTop.addWidget(comboForecastHour);
+    boxTop.addWidget(soundingPick.button());
     boxTop.addStretch();
     boxImage.addWidgetReal(&image, 1, Qt::Alignment{});
     boxImage.addWidget(legend);
@@ -245,6 +250,29 @@ void SpcPostViewer::refreshHover() {
     // lastHoverFx >= 0 means the cursor is currently over the image
     if (lastHoverFx >= 0.0) {
         onHover(lastHoverFx, lastHoverFy);
+    }
+}
+
+// the valid time (UTC) of the image on screen, from the "SPC Post <date> <hh>z    F<hh> ..." status line
+QDateTime SpcPostViewer::validTimeUtc() const {
+    static const QRegularExpression pattern{R"((\d{4})-(\d{2})-(\d{2}) (\d{2})z\s+F(\d+))"};
+    const auto match = pattern.match(QString::fromStdString(status));
+    if (!match.hasMatch()) {
+        return {};
+    }
+    const QDateTime run{QDate{match.captured(1).toInt(), match.captured(2).toInt(), match.captured(3).toInt()},
+                        QTime{match.captured(4).toInt(), 0}, QTimeZone::utc()};
+    return run.addSecs(3600LL * match.captured(5).toInt());
+}
+
+void SpcPostViewer::onMapClicked(double fx, double fy) {
+    const auto * grid = gridCache.get(sampleGridPath);
+    double lon = 0.0;
+    double lat = 0.0;
+    double markerFx = 0.0;
+    double markerFy = 0.0;
+    if (grid != nullptr && grid->snap(fx, fy, lon, lat, markerFx, markerFy)) {
+        soundingPick.pick(lon, lat);
     }
 }
 

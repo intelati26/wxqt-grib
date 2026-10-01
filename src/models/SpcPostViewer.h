@@ -14,6 +14,7 @@
 #include <QCheckBox>
 #include <QLabel>
 #include "objects/SampleGrid.h"
+#include "models/SoundingPick.h"
 #include "ui/AnimationBar.h"
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
@@ -51,6 +52,8 @@ private:
     void onSave();
     void onHover(double fx, double fy);
     void onHoverEnded();
+    void onMapClicked(double fx, double fy);
+    QDateTime validTimeUtc() const;
     void refreshHover();
     void invalidateAnimation();
     static QByteArray buildLegend();
@@ -95,6 +98,7 @@ private:
     // hover read-out
     vector<string> frameGridPaths;       // parallel to the frames loaded in animBar
     QLabel * hoverLabel{};
+    SoundingPick soundingPick;
     string sampleGridPath;               // .grid sidecar backing the visible frame
     SampleGridCache gridCache;   // parsed hover grids, keyed by sidecar path
     double lastHoverFx{-1.0};

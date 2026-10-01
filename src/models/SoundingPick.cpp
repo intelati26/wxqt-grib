@@ -19,6 +19,12 @@ SoundingPick::SoundingPick(Window * owner, std::function<std::pair<std::string, 
     buttonSounding.connect([this] { open(); });
 }
 
+SoundingPick::SoundingPick(Window * owner, std::function<QDateTime()> validTime, std::string titleBase)
+    : SoundingPick{owner, std::function<std::pair<std::string, std::string>()>{}, std::move(titleBase)}
+{
+    this->validTime = std::move(validTime);
+}
+
 void SoundingPick::pick(double pickedLon, double pickedLat) {
     havePoint = true;
     lon = pickedLon;
@@ -29,6 +35,15 @@ void SoundingPick::pick(double pickedLon, double pickedLat) {
 void SoundingPick::open() {
     if (!havePoint) {
         owner->setTitle(titleBase + " - click the map to pick a sounding point first");
+        return;
+    }
+    if (validTime) {
+        const auto valid = validTime();
+        if (!valid.isValid()) {
+            owner->setTitle(titleBase + " - no valid time for this image yet");
+            return;
+        }
+        new SoundingViewer{owner, lon, lat, valid};
         return;
     }
     const auto [runId, forecastHour] = runAndHour();
