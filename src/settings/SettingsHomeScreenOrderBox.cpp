@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "settings/SettingsHomeScreenOrderBox.h"
+#include <QTimer>
 #include "settings/HomeLayoutEditor.h"
 #include "util/Utility.h"
 #include "util/UtilityList.h"
@@ -26,6 +27,26 @@ void SettingsHomeScreenOrderBox::addItems() {
     labels.clear();
     hboxList.clear();
     combos.clear();
+    // one control for the home screen's radar picture: the live Nexrad tile, a still MRMS reflectivity picture, or none
+    hboxList.emplace_back();
+    labels.emplace_back(parent, "Radar on the home screen:");
+    labels.back().setWordWrap(false);
+    hboxList.back().addWidget(labels.back());
+    combos.emplace_back(parent, vector<string>{"Live radar (Nexrad)", "MRMS radar picture (still, around your location)", "None"});
+    combos.back().getView()->setToolTip("The live Nexrad tile downloads and decodes radar data in the background; the MRMS picture is a single image");
+    const bool live = Utility::readPref("NEXRAD_ON_MAIN_SCREEN", "false").rfind("t", 0) == 0;
+    const bool still = Utility::readPref("MRMS_RADAR", "false").rfind("t", 0) == 0;
+    combos.back().setIndex(live ? 0 : (still ? 1 : 2));
+    const auto * radarCombo = &combos.back();
+    combos.back().connect([this, radarCombo] {
+        const int choice = radarCombo->getIndex();
+        Utility::writePref("NEXRAD_ON_MAIN_SCREEN", choice == 0 ? "true" : "false");
+        Utility::writePref("MRMS_RADAR", choice == 1 ? "true" : "false");
+        UIPreferences::initialize();
+        QTimer::singleShot(0, this, [this] { refresh(); });   // after this handler returns: the lists below show which items are hidden
+    });
+    hboxList.back().addWidget(combos.back());
+    box.addLayout(hboxList.back());
     labels.emplace_back(parent, "Layout - pick a layout, then drag the sections into its zones (or click a section for a menu):");
     labels.back().setBlue();
     labels.back().setWordWrap(false);

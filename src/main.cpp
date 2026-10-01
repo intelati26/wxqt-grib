@@ -10,6 +10,7 @@
 #include <QMetaObject>
 #include <QDebug>
 #include <QPixmap>
+#include <QTabWidget>
 #include <QThreadPool>
 #include <QTimer>
 #include "common/GlobalVariables.h"
@@ -62,7 +63,7 @@ int main(int argc, char * argv[]) {
         });
         // development aids (run with QT_QPA_PLATFORM=offscreen): WXQT_OPEN=<toolbar entry id, e.g. ntor.png> opens that
         // tool; WXQT_GRAB=<file.png>[,<milliseconds>] saves a picture of the newest tool window (else the main
-        // window) and quits, so a screen can be checked without a display; WXQT_SIZE=<w>x<h> sizes the tool window first
+        // window) and quits, so a screen can be checked without a display; WXQT_SIZE=<w>x<h> sizes the tool window first; WXQT_TAB=<n> picks a tab
         QWidget * opened = nullptr;
         if (const auto route = qEnvironmentVariable("WXQT_OPEN"); !route.isEmpty()) {
             const auto before = QApplication::topLevelWidgets();
@@ -75,6 +76,11 @@ int main(int argc, char * argv[]) {
         }
         if (const auto size = qEnvironmentVariable("WXQT_SIZE").split('x'); opened != nullptr && size.size() == 2) {
             opened->resize(size[0].toInt(), size[1].toInt());   // WXQT_SIZE=1400x1000: the tool window's size for the picture
+        }
+        if (const auto tab = qEnvironmentVariable("WXQT_TAB"); opened != nullptr && !tab.isEmpty()) {
+            for (auto * tabs : opened->findChildren<QTabWidget *>()) {
+                tabs->setCurrentIndex(tab.toInt());   // WXQT_TAB=<n>: show that tab of a tabbed tool (Settings)
+            }
         }
         const auto grab = qEnvironmentVariable("WXQT_GRAB").split(',');
         if (!grab[0].isEmpty()) {
