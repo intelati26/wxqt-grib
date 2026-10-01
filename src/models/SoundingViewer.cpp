@@ -8,6 +8,7 @@
 #include <cmath>
 #include <QBuffer>
 #include <QDateTime>
+#include <vector>
 #include <QPainter>
 #include <QPainterPath>
 #include <QTimeZone>
@@ -117,7 +118,7 @@ protected:
         const QRect skew{46, 30, skewWidth - 46 - 62, height() - 30 - 22};
         const int rightX = skewWidth + 6;
         const int rightWidth = width() - rightX - 8;
-        const int hodoSize = std::min(rightWidth, static_cast<int>(height() * 0.40));
+        const int hodoSize = std::min(rightWidth, static_cast<int>(height() * 0.34));
         drawSkewT(painter, skew);
         drawHodograph(painter, QRect{rightX + (rightWidth - hodoSize) / 2, 30, hodoSize, hodoSize});
         drawTable(painter, QRect{rightX, 30 + hodoSize + 22, rightWidth, height() - 30 - hodoSize - 26});
@@ -359,57 +360,142 @@ private:
         painter.restore();
     }
 
+    // The parameters as grids: one small table per group (parcels, winds, storm motion, indices, thermodynamics, lapse
+    // rates, mixing ratio) with a header row, shaded alternate rows and aligned columns.
+    struct GridSection {
+        vector<QString> header;
+        vector<vector<QString>> rows;
+        bool labelColumn;   // first column holds row names (left-aligned) rather than values
+    };
+
     void drawTable(QPainter& painter, const QRect& area) {
         using namespace SoundingIndices;
         const auto& a = *analysis;
-        QStringList lines;
-        lines << "              SB      ML      MU";
+        vector<GridSection> sections;
+
+        GridSection parcels{{"", "SB", "ML", "MU"}, {}, true};
         auto parcelRow = [&] (const QString& name, auto pick) {
-            return QString("%1%2%3%4").arg(name, -10).arg(pick(a.sb), 8).arg(pick(a.ml), 8).arg(pick(a.mu), 8);
+            parcels.rows.push_back({name, pick(a.sb), pick(a.ml), pick(a.mu)});
         };
-        lines << parcelRow("CAPE", [&] (const auto& p) { return num(p.cape, 0); });
-        lines << parcelRow("CINH", [&] (const auto& p) { return num(p.cin, 0); });
-        lines << parcelRow("LI 500", [&] (const auto& p) { return num(p.liftedIndex500, 1); });
-        lines << parcelRow("LCL m", [&] (const auto& p) { return num(p.lclHght, 0); });
-        lines << parcelRow("LFC m", [&] (const auto& p) { return num(p.lfcHght, 0); });
-        lines << parcelRow("EL m", [&] (const auto& p) { return num(p.elHght, 0); });
-        lines << parcelRow("CAPE 0-3", [&] (const auto& p) { return num(p.cape3km, 0); });
-        lines << "";
-        lines << QString("Shear kt   0-1 %1   0-3 %2   0-6 %3").arg(num(a.shear01.speed(), 0), 3).arg(num(a.shear03.speed(), 0), 3).arg(num(a.shear06.speed(), 0), 3);
-        lines << QString("SRH       0-1 %1   0-3 %2   Eff %3").arg(num(a.srh01, 0), 4).arg(num(a.srh03, 0), 4).arg(num(a.effectiveSrh, 0), 4);
-        lines << QString("Bunkers R %1/%2 kt   L %3/%4 kt").arg(num(a.rightMover.direction(), 0)).arg(num(a.rightMover.speed(), 0))
-                                                      .arg(num(a.leftMover.direction(), 0)).arg(num(a.leftMover.speed(), 0));
-        lines << QString("Eff inflow %1 - %2 m   Eff BWD %3 kt")
-                     .arg(a.effective.valid ? num(a.effective.botAgl, 0) : QString{"--"})
-                     .arg(a.effective.valid ? num(a.effective.topAgl, 0) : QString{"--"})
-                     .arg(num(a.effectiveShearKt, 0));
-        lines << "";
-        lines << QString("STP fix %1  eff %2   SCP %3   SHIP %4").arg(num(a.stpFixed, 1)).arg(num(a.stpEffective, 1)).arg(num(a.supercell, 1)).arg(num(a.hail, 2));
-        lines << QString("PW %1 in   DCAPE %2   0C %3 m  WBZ %4 m").arg(num(a.precipitableWaterIn, 2)).arg(num(a.dcape, 0)).arg(num(a.freezingLevelAgl, 0)).arg(num(a.wetBulbZeroAgl, 0));
-        lines << QString("Lapse C/km  0-3 %1  3-6 MSL %2  700-500 %3").arg(num(a.lapse03, 1)).arg(num(a.lapse36, 1)).arg(num(a.lapse700500, 1));
-        lines << QString("Mean w g/kg  low 100 mb %1   0-3 km %2").arg(num(a.meanMixingLow100, 1)).arg(num(a.meanMixing03, 1));
-        lines << QString("Conv temp %1 C   RH sfc %2%").arg(num(a.convectiveTemp, 1)).arg(num(a.surfaceRh, 0));
+        parcelRow("CAPE", [&] (const auto& p) { return num(p.cape, 0); });
+        parcelRow("CINH", [&] (const auto& p) { return num(p.cin, 0); });
+        parcelRow("LI 500", [&] (const auto& p) { return num(p.liftedIndex500, 1); });
+        parcelRow("LCL m", [&] (const auto& p) { return num(p.lclHght, 0); });
+        parcelRow("LFC m", [&] (const auto& p) { return num(p.lfcHght, 0); });
+        parcelRow("EL m", [&] (const auto& p) { return num(p.elHght, 0); });
+        parcelRow("CAPE 0-3", [&] (const auto& p) { return num(p.cape3km, 0); });
+        sections.push_back(parcels);
+
+        sections.push_back({{"", "0-1 km", "0-3 km", "0-6 km", "Eff"},
+                            {{"Shear kt", num(a.shear01.speed(), 0), num(a.shear03.speed(), 0), num(a.shear06.speed(), 0), num(a.effectiveShearKt, 0)},
+                             {"SRH", num(a.srh01, 0), num(a.srh03, 0), "", num(a.effectiveSrh, 0)}},
+                            true});
+
+        sections.push_back({{"Bunkers", "Right", "Left", "Eff inflow"},
+                            {{"dir / kt", num(a.rightMover.direction(), 0) + "/" + num(a.rightMover.speed(), 0),
+                              num(a.leftMover.direction(), 0) + "/" + num(a.leftMover.speed(), 0),
+                              a.effective.valid ? num(a.effective.botAgl, 0) + " - " + num(a.effective.topAgl, 0) + " m" : QString{"--"}}},
+                            true});
+
+        sections.push_back({{"STP fix", "STP eff", "SCP", "SHIP"},
+                            {{num(a.stpFixed, 1), num(a.stpEffective, 1), num(a.supercell, 1), num(a.hail, 2)}},
+                            false});
+
+        sections.push_back({{"PW in", "DCAPE", "0C m", "WBZ m", "Conv T C", "RH sfc %"},
+                            {{num(a.precipitableWaterIn, 2), num(a.dcape, 0), num(a.freezingLevelAgl, 0), num(a.wetBulbZeroAgl, 0),
+                              num(a.convectiveTemp, 1), num(a.surfaceRh, 0)}},
+                            false});
+
+        sections.push_back({{"", "0-3", "3-6 MSL", "700-500"},
+                            {{"Lapse C/km", num(a.lapse03, 1), num(a.lapse36, 1), num(a.lapse700500, 1)}},
+                            true});
+
+        sections.push_back({{"", "low 100 mb", "0-3 km"},
+                            {{"Mean w g/kg", num(a.meanMixingLow100, 1), num(a.meanMixing03, 1)}},
+                            true});
 
         painter.save();
-        QFont mono{"monospace"};
-        mono.setStyleHint(QFont::Monospace);
-        // the largest size (14 px down to 7) at which every line fits the area, in height and width
+        QFont font{painter.font()};
+        // the largest size (14 px down to 7) at which every table fits the area, in height and (for the widest cell) width
+        int rowsTotal = 0;
+        for (const auto& section : sections) {
+            rowsTotal += static_cast<int>(section.rows.size()) + 1;
+        }
+        const int gap = 3;
+        const int gaps = static_cast<int>(sections.size()) - 1;
         int pixelSize = 14;
         for (; pixelSize > 7; pixelSize -= 1) {
-            mono.setPixelSize(pixelSize);
-            const QFontMetrics metrics{mono};
-            int widest = 0;
-            for (const auto& line : lines) widest = std::max(widest, metrics.horizontalAdvance(line));
-            if (metrics.lineSpacing() * lines.size() <= area.height() && widest <= area.width()) break;
+            font.setPixelSize(pixelSize);
+            const QFontMetrics metrics{font};
+            const int rowHeight = metrics.height() + 2;
+            bool fits = rowHeight * rowsTotal + gap * gaps <= area.height();
+            for (const auto& section : sections) {
+                const int columns = static_cast<int>(section.header.size());
+                const double labelShare = section.labelColumn ? 1.45 : 1.0;
+                const double unit = area.width() / (columns - 1 + labelShare);
+                auto widest = [&] (const vector<QString>& cells, bool header) {
+                    for (size_t c = 0; c < cells.size(); c += 1) {
+                        const double cellWidth = (c == 0 ? labelShare : 1.0) * unit - 8;
+                        if (metrics.horizontalAdvance(cells[c]) > cellWidth) {
+                            return false;
+                        }
+                    }
+                    (void) header;
+                    return true;
+                };
+                fits = fits && widest(section.header, true);
+                for (const auto& row : section.rows) {
+                    fits = fits && widest(row, false);
+                }
+            }
+            if (fits) {
+                break;
+            }
         }
-        mono.setPixelSize(pixelSize);
-        painter.setFont(mono);
-        painter.setPen(QColor{230, 230, 230});
-        const int lineHeight = QFontMetrics{mono}.lineSpacing();
+        font.setPixelSize(pixelSize);
+        const QFontMetrics metrics{font};
+        const int rowHeight = metrics.height() + 2;
+        QFont bold = font;
+        bold.setBold(true);
+        const QColor headerFill{58, 70, 96};
+        const QColor stripeA{34, 37, 44};
+        const QColor stripeB{43, 47, 56};
+        const QColor lines{86, 92, 104};
+
         int y = area.top();
-        for (const auto& line : lines) {
-            painter.drawText(QRect(area.left(), y, area.width(), lineHeight), Qt::AlignLeft | Qt::AlignVCenter, line);
-            y += lineHeight;
+        for (const auto& section : sections) {
+            const int columns = static_cast<int>(section.header.size());
+            const double labelShare = section.labelColumn ? 1.45 : 1.0;
+            const double unit = area.width() / (columns - 1 + labelShare);
+            vector<double> edges{static_cast<double>(area.left())};
+            for (int c = 0; c < columns; c += 1) {
+                edges.push_back(edges.back() + (c == 0 ? labelShare : 1.0) * unit);
+            }
+            const int rowCount = static_cast<int>(section.rows.size()) + 1;
+            for (int r = 0; r < rowCount; r += 1) {
+                const bool header = r == 0;
+                const auto& cells = header ? section.header : section.rows[static_cast<size_t>(r - 1)];
+                const QRectF rowRect{static_cast<double>(area.left()), static_cast<double>(y), static_cast<double>(area.width()), static_cast<double>(rowHeight)};
+                painter.fillRect(rowRect, header ? headerFill : (r % 2 == 1 ? stripeA : stripeB));
+                for (int c = 0; c < columns; c += 1) {
+                    const QRectF cell{edges[static_cast<size_t>(c)], static_cast<double>(y), edges[static_cast<size_t>(c) + 1] - edges[static_cast<size_t>(c)], static_cast<double>(rowHeight)};
+                    painter.setFont(header || (c == 0 && section.labelColumn) ? bold : font);
+                    painter.setPen(header ? QColor{235, 240, 255} : QColor{230, 230, 230});
+                    const bool left = c == 0 && section.labelColumn;
+                    painter.drawText(cell.adjusted(left ? 4 : 0, 0, left ? 0 : 0, 0), (left ? Qt::AlignLeft : Qt::AlignHCenter) | Qt::AlignVCenter,
+                                     static_cast<size_t>(c) < cells.size() ? cells[static_cast<size_t>(c)] : QString{});
+                    if (c > 0) {
+                        painter.setPen(lines);
+                        painter.drawLine(QPointF{cell.left(), cell.top()}, QPointF{cell.left(), cell.bottom()});
+                    }
+                }
+                painter.setPen(lines);
+                painter.drawLine(QPointF{rowRect.left(), rowRect.bottom()}, QPointF{rowRect.right(), rowRect.bottom()});
+                y += rowHeight;
+            }
+            painter.setPen(lines);
+            painter.drawRect(QRectF{static_cast<double>(area.left()), static_cast<double>(y - rowHeight * rowCount), static_cast<double>(area.width()), static_cast<double>(rowHeight * rowCount)});
+            y += gap;
         }
         painter.restore();
     }
