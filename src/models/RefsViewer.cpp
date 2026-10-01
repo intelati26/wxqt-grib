@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "models/RefsViewer.h"
+#include <algorithm>
 #include <QBuffer>
 #include <QFile>
 #include <QFileDialog>
@@ -29,6 +30,7 @@ RefsViewer::RefsViewer(Window * parent)
     , comboRun{this, {"Latest"}}
     , comboRegion{this, UtilityRefs::regions()}
     , comboForecastHour{this, UtilityRefs::forecastHours()}
+    , comboCompare{this, {"Compare: off", "Change vs run -6 h", "Change vs run -12 h", "Change vs run -24 h"}}
     , panel1{this}
     , panel2{this}
     , panel3{this}
@@ -83,6 +85,9 @@ RefsViewer::RefsViewer(Window * parent)
     boxTop.addWidget(comboRun);
     boxTop.addWidget(comboRegion);
     boxTop.addWidget(comboForecastHour);
+    comboCompare.getView()->setToolTip("Show how each panel changed since an earlier run (same valid time, run 6/12/24 hours older; blue = lower now, red = higher now). Paintball and member-probability panels cannot be compared.");
+    comboCompare.connect([this] { animBar.stopIfAnimating(); invalidateAnimation(); reload(); });
+    boxTop.addWidget(comboCompare);
     boxTop.addWidget(buttonGraph);
     boxTop.addWidget(soundingPick.button());
     buttonGraph.getView()->setToolTip("Click a map to pick a point, then open the per-member plume chart for that panel's field");
@@ -154,6 +159,20 @@ void RefsViewer::invalidateAnimation() {
     animBar.clearFrames();
 }
 
+int RefsViewer::compareHours() const {
+    static const int hours[] = {0, 6, 12, 24};
+    return hours[std::clamp(comboCompare.getIndex(), 0, 3)];
+}
+
+string RefsViewer::renderPanel(int fieldIndex, int regionIndex, const string& hour, const string& runId, int hoursBack,
+                               double threshold, string& status, string& gridPath) {
+    double lo = 0.0;
+    double hi = 0.0;
+    return hoursBack > 0
+        ? UtilityRefs::renderDifference(fieldIndex, regionIndex, hour, runId, hoursBack, status, lo, hi, gridPath, threshold)
+        : UtilityRefs::render(fieldIndex, regionIndex, hour, runId, status, lo, hi, gridPath, threshold);
+}
+
 void RefsViewer::reload() {
     const auto regionIndex = comboRegion.getIndex();
     const auto forecastHour = comboForecastHour.getValue();
@@ -167,14 +186,12 @@ void RefsViewer::reload() {
 
     setTitle("REFS Ensemble Viewer - loading...");
     new FutureVoid{this,
-        [this, regionIndex, forecastHour, runId, fieldIndices, thresholds] {
+        [this, regionIndex, forecastHour, runId, fieldIndices, thresholds, hoursBack = compareHours()] {
             for (size_t i = 0; i < 4; i += 1) {
                 string localStatus;
-                double lo = 0.0;
-                double hi = 0.0;
                 string gridPath;
-                const auto path = UtilityRefs::render(fieldIndices[i], regionIndex, forecastHour, runId,
-                                                        localStatus, lo, hi, gridPath, thresholds[i]);
+                const auto path = renderPanel(fieldIndices[i], regionIndex, forecastHour, runId, hoursBack,
+                                              thresholds[i], localStatus, gridPath);
                 pendingFrame[i].clear();
                 pendingGrid[i] = gridPath;
                 if (!path.empty()) {
@@ -186,6 +203,8 @@ void RefsViewer::reload() {
                 }
                 if (i == 0) {
                     pendingStatus = localStatus;
+                } else if (path.empty() && !localStatus.empty()) {
+                    pendingStatus += "    [panel " + To::string(static_cast<int>(i) + 1) + ": " + localStatus + "]";
                 }
             }
         },
@@ -291,14 +310,12 @@ void RefsViewer::renderNextAnimFrame(size_t sweepIndex, int generation) {
         panel1.threshold(), panel2.threshold(), panel3.threshold(), panel4.threshold()};
 
     new FutureVoid{this,
-        [this, regionIndex, hour, runId, fieldIndices, thresholds] {
+        [this, regionIndex, hour, runId, fieldIndices, thresholds, hoursBack = compareHours()] {
             for (size_t i = 0; i < 4; i += 1) {
                 string localStatus;
-                double lo = 0.0;
-                double hi = 0.0;
                 string gridPath;
-                const auto path = UtilityRefs::render(fieldIndices[i], regionIndex, hour, runId,
-                                                        localStatus, lo, hi, gridPath, thresholds[i]);
+                const auto path = renderPanel(fieldIndices[i], regionIndex, hour, runId, hoursBack,
+                                              thresholds[i], localStatus, gridPath);
                 pendingFrame[i].clear();
                 pendingGrid[i] = gridPath;
                 if (!path.empty()) {
@@ -310,6 +327,8 @@ void RefsViewer::renderNextAnimFrame(size_t sweepIndex, int generation) {
                 }
                 if (i == 0) {
                     pendingStatus = localStatus;
+                } else if (path.empty() && !localStatus.empty()) {
+                    pendingStatus += "    [panel " + To::string(static_cast<int>(i) + 1) + ": " + localStatus + "]";
                 }
             }
         },

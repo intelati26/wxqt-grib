@@ -70,6 +70,12 @@ public:
                          string& status, double& dataMin, double& dataMax, string& samplePath,
                          double threshold = std::numeric_limits<double>::quiet_NaN());
 
+    // Run-to-run change map: the same valid time from the run `hoursBack` hours earlier is subtracted. Plain rows
+    // only (not paintball / member probability). Same return / sidecar contract as render().
+    static string renderDifference(int fieldIndex, int regionIndex, const string& forecastHour, const string& runId,
+                                   int hoursBack, string& status, double& dataMin, double& dataMax, string& samplePath,
+                                   double threshold = std::numeric_limits<double>::quiet_NaN());
+
     // ---- Stage 5 (point graph) support ----
     // What a panel's field means for the per-member plume chart: the
     // per-member field key it is built on ("refc", "tmp2m", ...), a display
@@ -97,6 +103,11 @@ public:
     static string thresholdUnits(int fieldIndex);
 
 private:
+    struct Selection;   // defined in UtilityRefs.cpp
+    static Selection selectField(int fieldIndex, double threshold, int forecastHourInt);
+    static bool plainRaster(const Selection& selection, int regionIndex, const string& dateStr, const string& cycle,
+                            int forecastHourInt, const string& binDir, const QString& tag, QString& rasterPath,
+                            string& status);
     static string cacheDir();
     static string renderPaintball(const UtilityGrib::Field& field, int regionIndex, double threshold,
                                   const string& dateStr, const string& cycle, int forecastHourInt,

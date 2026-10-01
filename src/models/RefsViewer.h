@@ -47,6 +47,10 @@ private:
     void reload();
     void updateForecastHours();
     void invalidateAnimation();
+    int compareHours() const;   // 0 = plain panels, else the comparison run's age in hours
+    // one panel's picture - the plain field, or its change since the older run when `hoursBack` > 0
+    static string renderPanel(int fieldIndex, int regionIndex, const string& hour, const string& runId, int hoursBack,
+                              double threshold, string& status, string& gridPath);
     void onRangeRequested(int rangeStart, int rangeEnd);
     void renderNextAnimFrame(size_t sweepIndex, int generation);
     void onFrameShown(int localIndex);
@@ -64,6 +68,7 @@ private:
     ComboBox comboRun;
     ComboBox comboRegion;
     ComboBox comboForecastHour;
+    ComboBox comboCompare;   // Off / change since the run 6, 12 or 24 hours earlier (plain panels only)
     VBox boxGrid;
     HBox rowTop;
     HBox rowBottom;

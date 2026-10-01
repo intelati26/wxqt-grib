@@ -553,3 +553,15 @@ Result: `vector<vector<double>>` (member → per-hour value), passed to
   snapped cell's value, not a replacement for it — keeps both the honesty
   and the smoothness. Applies equally to `GribViewer`'s existing hover and
   whatever `RefsPanel` does.
+
+## Status check, 2026-10-01 (supersedes the "still open" notes above where they differ)
+
+Verified by rendering every row live (37 rows; one member stands for the five): all render.
+- **Done, contrary to the older notes**: the dedicated Member 1-5 picker (RefsPanel's third combo), the toolbar icon
+  (`refs.png`), `lpmm`/`avrg` precipitation rows, REFS probability rows for precipitation/snow/freezing rain.
+- **Done 2026-10-01**: the GRIB viewer's smoothing is shared (cubic resampling at 2 px per native cell, hover grid
+  width from `UtilityGrib::sampleGridColumns`); a **Compare** dropdown (change vs the run 6/12/24 h earlier) for
+  the plain panels via `UtilityRefs::renderDifference`; a Sounding button; `finishRender` now rides on the shared
+  `UtilityGrib::colorizeToPng`, and render() was split into `selectField` + `plainRaster`.
+- **Still open**: `eas`/`ffri` (blocked on what the published thresholds mean); change maps for paintball and
+  member-probability panels (derived per member - they say so on screen); a user-chosen comparison run.

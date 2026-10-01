@@ -65,12 +65,20 @@ public:
     static string renderMax(int fieldIndex, int regionIndex, const vector<string>& hours, const string& runId,
                             string& status, double& dataMin, double& dataMax, string& samplePath);
 
+    // The last stage shared by every composite render (max of a range, run-to-run change, REFS fields): colour a
+    // finished raster (display units) with a gdaldem table ("nv" nodata entry is added), write its value range and
+    // a hover-sample grid beside the PNG, and write the PNG with the map lines drawn on. False (status set) on failure.
+    static bool colorizeToPng(const QString& bin, const QString& dir, const QString& tag, const QString& rasterTif,
+                              const string& colorTable, const Bbox& box, const QString& pngPath, string& status,
+                              double& dataMin, double& dataMax, string& samplePath);
+
     // Run-to-run change map: `forecastHour` of `runId` minus the same valid time from the run `hoursBack` hours
     // earlier. Same return / sidecar contract as renderMax(); unsupported for contour / wind-barb fields.
     static string renderDifference(int fieldIndex, int regionIndex, const string& forecastHour, const string& runId,
                                    int hoursBack, string& status, double& dataMin, double& dataMax, string& samplePath);
     // the blue-white-red table (display units) and units label used by renderDifference, for building a legend
     static string differenceColorMap(int fieldIndex, string& unitsLabel);
+    static string differenceColorMapFor(const Field& field, string& unitsLabel);
 
     // Forecast hours ("01".."84", matching forecastHours()) that cover the
     // SPC Day-1 period, 12z to 12z: the 24 hours ending at the first 12z on
@@ -186,6 +194,10 @@ public:
     // value actually used for a main visual render's -ts.
     static int mainRenderColumns(const Bbox& box);
 
+    // Width of the point-value read-out sidecar ("*.grid") for a bbox: coarser for wide regions, finer for
+    // small ones. Shared so every viewer's hover grid is built the same way.
+    static int sampleGridColumns(const Bbox& box);
+
     // Draws the CWA boundaries and state lines onto a finished map PNG with
     // anti-aliasing, at the image's own resolution (line width scales with the
     // image). Replaces burning 1-pixel lines into the raster, which looks jagged
@@ -296,9 +308,6 @@ private:
     static bool warpFieldSlice(const QString& bin, const Field& field, const string& dateStr, const string& cycle,
                                const string& hour, const Bbox& box, const QString& cols, const QString& warpPath,
                                string& status);
-    static bool colorizeToPng(const QString& bin, const QString& dir, const QString& tag, const QString& rasterTif,
-                              const string& colorTable, const Bbox& box, const QString& pngPath, string& status,
-                              double& dataMin, double& dataMax, string& samplePath);
 };
 
 #endif  // UTILITYGRIB_H

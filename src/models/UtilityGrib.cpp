@@ -153,7 +153,7 @@ namespace {
     // for every region regardless of area. Small/zoomed regions (SPC-meso,
     // "My Area") get a higher count since they're both cheap and where the
     // hover read-out actually gets used closely.
-    int sampleGridColumns(const UtilityGrib::Bbox& box) {
+    int sampleGridColumnsFor(const UtilityGrib::Bbox& box) {
         const auto span = std::max(box.east - box.west, box.north - box.south);
         if (span > 30.0) {
             return 220;    // CONUS-sized (and any future NA/AK-sized) regions
@@ -496,6 +496,10 @@ int UtilityGrib::nativeGridColumns(const Bbox& box) {
 // coarser than the native grid. (The earlier width-only sizing left the vertical
 // at 3.7-4.2 km per pixel.) CONUS/NA is a deliberate step down - at that zoom the
 // eye can't resolve native detail anyway - so it stays at half native.
+int UtilityGrib::sampleGridColumns(const Bbox& box) {
+    return sampleGridColumnsFor(box);
+}
+
 int UtilityGrib::mainRenderColumns(const Bbox& box) {
     const auto span = std::max(box.east - box.west, box.north - box.south);
     if (span > 30.0) {
@@ -1574,7 +1578,7 @@ string UtilityGrib::render(int fieldIndex, int regionIndex, const string& foreca
     // here must not break the (already set) status line.
     {
         const auto savedStatus = status;
-        const auto sampleCols = QString::number(sampleGridColumns(box));
+        const auto sampleCols = QString::number(sampleGridColumnsFor(box));
         if (runProcess(bin + "gdal_translate", {"-q", "-of", "XYZ", "-outsize", sampleCols, "0", fillTif, gridPath})) {
             samplePath = gridPath.toStdString();
         } else {
@@ -1780,7 +1784,10 @@ string UtilityGrib::differenceColorMap(int fieldIndex, string& unitsLabel) {
     if (fieldIndex < 0 || fieldIndex >= static_cast<int>(fields.size())) {
         return "";
     }
-    const auto& field = fields[fieldIndex];
+    return differenceColorMapFor(fields[fieldIndex], unitsLabel);
+}
+
+string UtilityGrib::differenceColorMapFor(const Field& field, string& unitsLabel) {
     const bool toFahrenheit = UIPreferences::unitsF && field.units == "C";
     unitsLabel = toFahrenheit ? string{"F"} : field.units;
     double limit = 10.0;
@@ -2127,7 +2134,7 @@ bool UtilityGrib::colorizeToPng(const QString& bin, const QString& dir, const QS
         }
         const auto savedStatus = status;
         if (runProcess(bin + "gdal_translate",
-                {"-q", "-of", "XYZ", "-outsize", QString::number(sampleGridColumns(box)), "0", rasterTif, gridPath})) {
+                {"-q", "-of", "XYZ", "-outsize", QString::number(sampleGridColumnsFor(box)), "0", rasterTif, gridPath})) {
             samplePath = gridPath.toStdString();
         } else {
             status = savedStatus;
