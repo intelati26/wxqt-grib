@@ -34,6 +34,9 @@ public:
     explicit MrmsViewer(Window * parent);
 
 private:
+    void rebuildProducts(const string& selectId);   // the grouped product list: hand-set ones, then the rest of the server's
+    void refreshNewest();                           // auto-update: a newer scan than the one shown?
+    bool us() const { return comboUnits.getIndex() == 0; }
     void loadScans();                 // the scan list for the chosen product, then the newest scan
     void showScan(int comboIndex);
     void startLoop();
@@ -61,10 +64,17 @@ private:
     ComboBox comboScan;
     BackForward backForward;
     ComboBox comboLoop;
+    ComboBox comboUnits;   // US (inches, kft) or metric
+    ComboBox comboAuto;    // how often to look for a newer scan
     Button buttonLoop;
     Text textStatus;
     NexradWidget * radar{};
 
+    vector<UtilityMrms::Product> extraProducts;   // discovered on the server
+    vector<UtilityMrms::Product> productList;     // what the product combo shows, in order
+    QTimer autoTimer;
+    bool refreshing{false};
+    bool userPickedProduct{false};   // so a late-arriving product list does not override a choice made meanwhile
     vector<UtilityMrms::Scan> scans;          // oldest first
     vector<int> comboToScan;                  // combo row (newest first) -> index into scans
     UtilityMrms::Frame current;

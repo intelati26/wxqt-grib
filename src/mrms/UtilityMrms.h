@@ -22,7 +22,7 @@ using std::vector;
 // projection, so the detail stays at full resolution at any zoom. Every call blocks on the network and GDAL: use
 // them off the UI thread. A failure comes back as a message, never silently.
 namespace UtilityMrms {
-    // the grid MRMS CONUS products cover (degrees)
+    // the area MRMS CONUS products cover (degrees)
     constexpr double west = -130.0;
     constexpr double east = -60.0;
     constexpr double south = 20.0;
@@ -41,7 +41,11 @@ namespace UtilityMrms {
         string units;
         double validMin;           // values below this are "nothing here" (transparent)
         double hi;                 // the top of the colour scale
-        vector<Stop> stops;        // colour table, ascending by value
+        vector<Stop> stops;        // colour table, ascending by value (fractions 0..1 of the data range when autoRange)
+        string group;              // heading in the product list
+        double usFactor{1.0};      // native units -> US units (mm -> in, km -> kft, ...)
+        string usUnits;            // "" = the same as the native units
+        bool autoRange{false};     // no hand-set scale: the colours span each scan's own minimum and maximum
     };
 
     struct Scan {
@@ -49,28 +53,42 @@ namespace UtilityMrms {
         QDateTime utc;
     };
 
-    // the products' common native grid: 7000 x 3500 cells of 0.01 degrees, north-up, from (west, north)
-    constexpr int columns = 7000;
-    constexpr int rows = 3500;
-    constexpr double cell = 0.01;
+    // most products are on one grid: 7000 x 3500 cells of 0.01 degrees, north-up, from (west, north); a few (azimuthal
+    // shear) are finer. Every scan carries its own geometry.
+    struct Grid {
+        int columns{7000};
+        int rows{3500};
+        double west{-130.0};
+        double north{55.0};
+        double cell{0.01};
+    };
 
     // one decoded scan at the grid's full resolution: an 8-bit index per cell, 0 = nothing / transparent, i >= 1 is
     // the value validMin + (i - 1) * step. Kept zlib-compressed (most of a scan is empty), so a loop is cheap.
     struct Frame {
         QByteArray packed;
-        double validMin{0.0};
+        Grid grid;
+        double validMin{0.0};   // the value of index 1
         double step{1.0};
         QDateTime utc;
         QByteArray indices() const { return qUncompress(packed); }
         double valueAt(int index) const { return validMin + (index - 1) * step; }
     };
 
+    // the hand-set products, then every other folder the server has (found once per session, generic colours)
     const vector<Product>& products();
+    bool discoverMore(vector<Product>& out, string& error);
+    // value in the units shown: US (inches, kft) or the native metric ones
+    double shown(const Product&, double value, bool us);
+    string unitsShown(const Product&, bool us);
+    // an equirectangular-in-Mercator picture of a latitude / longitude box from the newest scan of a product, with state
+    // (and, in a small box, county) lines on a white background; `png` empty and `error` set on failure
+    bool thumbnail(const Product&, double latSouth, double latNorth, double lonWest, double lonEast, int width, QByteArray& png, string& error);
     // the scans the server has for a product, oldest first
     bool scans(const Product&, vector<Scan>& out, string& error);
     bool frame(const Product&, const Scan&, Frame& out, string& error);
-    // the colour table of a product at 256 entries (index 0 transparent)
-    QVector<QRgb> colorTable(const Product&);
+    // the colour table of a scan at 256 entries (index 0 transparent)
+    QVector<QRgb> colorTable(const Product&, const Frame&);
 }
 
 #endif  // UTILITYMRMS_H

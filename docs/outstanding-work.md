@@ -124,6 +124,19 @@ ABPG = run + forecast hour (the pictures say "Valid at ..."), CSU-MLP and SPC da
 (marked "from file time"); an ended period is marked EXPIRED so a stale picture cannot look current.
 Dev aid: `WXQT_OPEN=<toolbar id>` opens a tool headless, `WXQT_GRAB` pictures it.
 
+## MRMS products and options (2026-10-01)
+Viewer (`src/mrms/`): every folder on mrms.ncep.noaa.gov/2D is offered - 17 hand-set products (reflectivity, MESH,
+rotation / azimuthal shear, rain, VIL, echo top, lightning probability; note rotation and shear files are in 0.001/s,
+`-3` / `-99` / `-999` are "no coverage") grouped by heading, then the rest ("Other products", found once per session,
+colours span each scan's own 1st-99th percentile). Scans carry their own grid (most 7000x3500 at 0.01 deg, azimuthal shear
+14000x7000 at 0.005 deg). Options: US / metric units (mm -> in, km -> kft; pref `MRMS_UNITS`), auto-update 2 / 5 min / off
+(`MRMS_AUTO`, only while the newest scan is shown), loop length (`MRMS_LOOP`), last product remembered
+(`MRMS_LAST_PRODUCT`). Decodes are serialized and retried once from a fresh download (two decodes of one file used to
+delete each other's scratch header). Home thumbnail "MRMS - latest scan of your last product" (`MRMS_LATEST`): around
+your location, or all of CONUS with pref `MRMS_THUMB_EXTENT=conus`; county + state lines on white. Not done: a Settings
+control for the thumbnail extent, per-product units for unknown ("Other") products, lightning probability folder was
+empty when checked, max-pooling when zoomed far out (thin tracks thin out), Windows run.
+
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
 WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage

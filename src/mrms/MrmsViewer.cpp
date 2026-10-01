@@ -16,17 +16,10 @@
 #include "radar/Projection.h"
 #include "settings/Location.h"
 #include "util/To.h"
+#include "util/Utility.h"
 #include "util/UtilityUI.h"
 
 namespace {
-    vector<string> productLabels() {
-        vector<string> labels;
-        for (const auto& product : UtilityMrms::products()) {
-            labels.push_back(product.label);
-        }
-        return labels;
-    }
-
     const int loopCounts[] = {6, 12, 24};
 
     string timeText(const QDateTime& utc) {
@@ -45,10 +38,12 @@ namespace {
 
 MrmsViewer::MrmsViewer(Window * parent)
     : Window{parent}
-    , comboProduct{this, productLabels()}
+    , comboProduct{this, {"Loading products..."}}
     , comboScan{this, {"Loading..."}}
     , backForward{this, [this] { moveScan(1); }, [this] { moveScan(-1); }}
     , comboLoop{this, {"Loop: last 6 scans", "Loop: last 12 scans", "Loop: last 24 scans"}}
+    , comboUnits{this, {"US units", "Metric units"}}
+    , comboAuto{this, {"Auto-update: 2 min", "Auto-update: 5 min", "Auto-update: off"}}
     , buttonLoop{this, Icon::Play, "Loop"}
     , textStatus{this, ""}
 {
@@ -73,7 +68,32 @@ MrmsViewer::MrmsViewer(Window * parent)
     radar->dataLayer = [this] (QPainter& painter) { paintData(painter); };
     radar->topLayer = [this] (QPainter& painter) { paintLegend(painter); };
 
-    comboProduct.connect([this] { stopLoop(); loadScans(); });
+    comboProduct.connect([this] {
+        stopLoop();
+        userPickedProduct = true;
+        Utility::writePref("MRMS_LAST_PRODUCT", product().id);
+        loadScans();
+    });
+    comboUnits.setIndex(static_cast<size_t>(Utility::readPref("MRMS_UNITS", "us") == "metric" ? 1 : 0));
+    comboUnits.connect([this] {
+        Utility::writePref("MRMS_UNITS", us() ? "us" : "metric");
+        radar->update();
+        textStatus.setText(product().label + "  " + timeText(current.utc));
+    });
+    comboLoop.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_LOOP", 0), 0, 2)));
+    comboLoop.connect([this] { Utility::writePrefInt("MRMS_LOOP", comboLoop.getIndex()); });
+    comboAuto.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_AUTO", 0), 0, 2)));
+    const auto applyAuto = [this] {
+        static const int seconds[] = {120, 300, 0};
+        const int chosen = seconds[std::clamp(comboAuto.getIndex(), 0, 2)];
+        autoTimer.stop();
+        if (chosen > 0) {
+            autoTimer.start(chosen * 1000);
+        }
+    };
+    comboAuto.connect([this, applyAuto] { Utility::writePrefInt("MRMS_AUTO", comboAuto.getIndex()); applyAuto(); });
+    QObject::connect(&autoTimer, &QTimer::timeout, this, [this] { refreshNewest(); });
+    applyAuto();
     comboScan.connect([this] { stopLoop(); showScan(comboScan.getIndex()); });
     buttonLoop.getView()->setToolTip("Play the latest scans as a loop (they are downloaded and decoded first)");
     buttonLoop.connect([this] { looping ? stopLoop() : startLoop(); });
@@ -84,6 +104,8 @@ MrmsViewer::MrmsViewer(Window * parent)
     rowTop.addLayout(backForward);
     rowTop.addWidget(comboScan);
     rowTop.addWidget(comboLoop);
+    rowTop.addWidget(comboUnits);
+    rowTop.addWidget(comboAuto);
     rowTop.addWidget(buttonLoop);
     rowTop.addWidget(textStatus);
     rowTop.addStretch();
@@ -91,12 +113,92 @@ MrmsViewer::MrmsViewer(Window * parent)
     box.addWidgetReal(radar, 0, Qt::AlignTop | Qt::AlignLeft);
     box.addStretch();
     box.getAndShow(this);
+    rebuildProducts(Utility::readPref("MRMS_LAST_PRODUCT", UtilityMrms::products().front().id));
     loadScans();
+    // the rest of the server's products, found in the background
+    auto found = std::make_shared<vector<UtilityMrms::Product>>();
+    new FutureVoid{this,
+        [found] { string error; UtilityMrms::discoverMore(*found, error); },
+        [this, found] {
+            if (closed || found->empty()) {
+                return;
+            }
+            extraProducts = *found;
+            // the product saved last time may be one of the newly found ones: switch to it unless another was picked since
+            const auto before = product().id;
+            rebuildProducts(userPickedProduct ? before : Utility::readPref("MRMS_LAST_PRODUCT", before));
+            if (product().id != before) {
+                stopLoop();
+                loadScans();
+            }
+        }};
+}
+
+void MrmsViewer::rebuildProducts(const string& selectId) {
+    static const vector<string> order{"Reflectivity", "Hail", "Rotation", "Precipitation", "Storm structure", "Lightning", "Other products"};
+    auto list = UtilityMrms::products();
+    list.insert(list.end(), extraProducts.begin(), extraProducts.end());
+    const auto rank = [] (const UtilityMrms::Product& p) {
+        const auto found = std::find(order.begin(), order.end(), p.group);
+        return found == order.end() ? order.size() : static_cast<size_t>(found - order.begin());
+    };
+    std::stable_sort(list.begin(), list.end(), [&rank] (const auto& a, const auto& b) { return rank(a) < rank(b); });
+    productList = list;
+    vector<string> labels;
+    size_t selected = 0;
+    for (size_t i = 0; i < productList.size(); i += 1) {
+        labels.push_back(productList[i].group + " - " + productList[i].label);
+        if (productList[i].id == selectId) {
+            selected = i;
+        }
+    }
+    comboProduct.block();
+    comboProduct.setList(labels);
+    comboProduct.setIndex(selected);
+    comboProduct.unblock();
+}
+
+// auto-update: only while the newest scan is the one shown (not looping, not looking at an older scan)
+void MrmsViewer::refreshNewest() {
+    if (closed || looping || refreshing || comboScan.getIndex() != 0 || scans.empty()) {
+        return;
+    }
+    refreshing = true;
+    const auto chosen = product();
+    const auto shownUtc = scans.back().utc;
+    const auto gen = generation;
+    auto result = std::make_shared<Loaded>();
+    new FutureVoid{this,
+        [chosen, shownUtc, result] {
+            if (UtilityMrms::scans(chosen, result->scans, result->error) && result->scans.back().utc > shownUtc) {
+                UtilityMrms::frame(chosen, result->scans.back(), result->frame, result->error);
+            } else {
+                result->frame.packed.clear();
+            }
+        },
+        [this, result, gen] {
+            refreshing = false;
+            if (closed || gen != generation || result->frame.packed.isEmpty() || !result->error.empty()) {
+                return;
+            }
+            scans = result->scans;
+            comboToScan.clear();
+            vector<string> labels;
+            for (int i = static_cast<int>(scans.size()) - 1; i >= 0; i -= 1) {
+                labels.push_back(timeText(scans[static_cast<size_t>(i)].utc));
+                comboToScan.push_back(i);
+            }
+            comboScan.block();
+            comboScan.setList(labels);
+            comboScan.setIndex(0);
+            comboScan.unblock();
+            setFrame(result->frame);
+        }};
 }
 
 const UtilityMrms::Product& MrmsViewer::product() const {
-    const auto index = std::clamp(comboProduct.getIndex(), 0, static_cast<int>(UtilityMrms::products().size()) - 1);
-    return UtilityMrms::products()[static_cast<size_t>(index)];
+    const auto index = std::clamp(comboProduct.getIndex(), 0, static_cast<int>(productList.size()) - 1);
+    return productList[static_cast<size_t>(index)];
 }
 
 void MrmsViewer::closeEventCustom() {
@@ -172,7 +274,7 @@ void MrmsViewer::moveScan(int step) {
 void MrmsViewer::setFrame(const UtilityMrms::Frame& frame) {
     current = frame;
     currentIndices = frame.indices();
-    currentColors = UtilityMrms::colorTable(product());
+    currentColors = UtilityMrms::colorTable(product(), frame);
     setTitle("MRMS - " + product().label + " - " + timeText(frame.utc));
     textStatus.setText(product().label + "  " + timeText(frame.utc));
     radar->update();
@@ -267,6 +369,7 @@ void MrmsViewer::paintData(QPainter& painter) {
         return;
     }
     const auto [ax, bx, ay, by] = projection();
+    const auto& grid = current.grid;
     const auto inverse = painter.combinedTransform().inverted();   // device pixel -> projected coordinates
     const double ratio = painter.device()->devicePixelRatio();
     // the rectangle of the paint device the radar occupies (the device itself can be a bigger window pixmap)
@@ -279,21 +382,21 @@ void MrmsViewer::paintData(QPainter& painter) {
     for (int i = 0; i < pixelWidth; i += 1) {
         const double x = inverse.m11() * (viewport.left() + (i + 0.5) / ratio) + inverse.dx();
         const double lon = (x - bx) / ax;
-        const int column = static_cast<int>(std::floor((lon - UtilityMrms::west) / UtilityMrms::cell));
-        columnOf[static_cast<size_t>(i)] = (column >= 0 && column < UtilityMrms::columns) ? column : -1;
+        const int column = static_cast<int>(std::floor((lon - grid.west) / grid.cell));
+        columnOf[static_cast<size_t>(i)] = (column >= 0 && column < grid.columns) ? column : -1;
     }
     QImage image{pixelWidth, pixelHeight, QImage::Format_ARGB32_Premultiplied};
     const auto * cells = reinterpret_cast<const uchar *>(currentIndices.constData());
     for (int j = 0; j < pixelHeight; j += 1) {
         const double y = inverse.m22() * (viewport.top() + (j + 0.5) / ratio) + inverse.dy();
         const double lat = std::atan(std::sinh((y - by) / ay * std::numbers::pi / 180.0)) * 180.0 / std::numbers::pi;
-        const int row = static_cast<int>(std::floor((UtilityMrms::north - lat) / UtilityMrms::cell));
+        const int row = static_cast<int>(std::floor((grid.north - lat) / grid.cell));
         auto * out = reinterpret_cast<QRgb *>(image.scanLine(j));
-        if (row < 0 || row >= UtilityMrms::rows) {
+        if (row < 0 || row >= grid.rows) {
             std::fill(out, out + pixelWidth, qRgba(0, 0, 0, 0));
             continue;
         }
-        const auto * source = cells + static_cast<qsizetype>(row) * UtilityMrms::columns;
+        const auto * source = cells + static_cast<qsizetype>(row) * grid.columns;
         for (int i = 0; i < pixelWidth; i += 1) {
             const int column = columnOf[static_cast<size_t>(i)];
             out[i] = column < 0 ? qRgba(0, 0, 0, 0) : currentColors[source[column]];
@@ -319,6 +422,7 @@ void MrmsViewer::showHover(const QPointF& widgetPos) {
         return;
     }
     const auto [ax, bx, ay, by] = projection();
+    const auto& grid = current.grid;
     const auto& state = radar->nexradState;
     const double u = widgetPos.x() * 1000.0 / radar->width() - 500.0;
     const double v = widgetPos.y() * 1000.0 / radar->height() - 250.0;
@@ -326,20 +430,26 @@ void MrmsViewer::showHover(const QPointF& widgetPos) {
     const double y = (v - state.yPos) / state.zoom;
     const double lon = (x - bx) / ax;
     const double lat = std::atan(std::sinh((y - by) / ay * std::numbers::pi / 180.0)) * 180.0 / std::numbers::pi;
-    const int column = static_cast<int>(std::floor((lon - UtilityMrms::west) / UtilityMrms::cell));
-    const int row = static_cast<int>(std::floor((UtilityMrms::north - lat) / UtilityMrms::cell));
+    const int column = static_cast<int>(std::floor((lon - grid.west) / grid.cell));
+    const int row = static_cast<int>(std::floor((grid.north - lat) / grid.cell));
     string text = product().label + "  " + timeText(current.utc);
-    if (column >= 0 && column < UtilityMrms::columns && row >= 0 && row < UtilityMrms::rows) {
-        const int index = static_cast<uchar>(currentIndices[static_cast<qsizetype>(row) * UtilityMrms::columns + column]);
+    if (column >= 0 && column < grid.columns && row >= 0 && row < grid.rows) {
+        const int index = static_cast<uchar>(currentIndices[static_cast<qsizetype>(row) * grid.columns + column]);
         text += "   |   " + QString::number(lat, 'f', 2).toStdString() + (lat >= 0 ? "N " : "S ") +
             QString::number(std::abs(lon), 'f', 2).toStdString() + (lon < 0 ? "W" : "E") + "   ";
-        text += index == 0 ? string{"no data"} : QString::number(current.valueAt(index), 'g', 4).toStdString() + " " + product().units;
+        text += index == 0 ? string{"no data"} : QString::number(UtilityMrms::shown(product(), current.valueAt(index), us()), 'g', 4).toStdString() + " " + UtilityMrms::unitsShown(product(), us());
     }
     textStatus.setText(text);
 }
 
 void MrmsViewer::paintLegend(QPainter& painter) {
+    if (currentIndices.isEmpty()) {
+        return;
+    }
     const auto& stops = product().stops;
+    // an automatic scale spans the scan's own range, so its stop values come from the scan
+    const double lo = current.validMin;
+    const double span = current.step * 254.0;
     const double boxWidth = 38.0;
     const double x0 = -490.0;
     const double y0 = 715.0;
@@ -347,14 +457,15 @@ void MrmsViewer::paintLegend(QPainter& painter) {
     font.setPointSizeF(9.0);
     painter.setFont(font);
     for (size_t i = 0; i < stops.size(); i += 1) {
+        const double value = product().autoRange ? lo + stops[i].value * span : stops[i].value;
         const QRectF box{x0 + static_cast<double>(i) * boxWidth, y0, boxWidth, 14.0};
         painter.setPen(Qt::NoPen);
         painter.setBrush(QColor{stops[i].r, stops[i].g, stops[i].b});
         painter.drawRect(box);
         painter.setPen(Qt::white);
         painter.drawText(QRectF{box.left(), y0 + 14.0, boxWidth, 16.0}, Qt::AlignCenter,
-                         QString::number(stops[i].value, 'g', 3));
+                         QString::number(UtilityMrms::shown(product(), value, us()), 'g', 3));
     }
     painter.drawText(QPointF{x0 + static_cast<double>(stops.size()) * boxWidth + 8.0, y0 + 11.0},
-                     QString::fromStdString(product().units));
+                     QString::fromStdString(UtilityMrms::unitsShown(product(), us())));
 }

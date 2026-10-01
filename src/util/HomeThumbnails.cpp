@@ -8,6 +8,7 @@
 #include <QFile>
 #include "common/GlobalVariables.h"
 #include "misc/UtilityOpcImages.h"
+#include "mrms/UtilityMrms.h"
 #include "models/UtilityGrib.h"
 #include "spc/UtilitySpcCompmap.h"
 #include "spc/UtilitySpcFireOutlook.h"
@@ -53,6 +54,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"GOES_GLOBAL", "Global GOES", "goesfulldisk.png", false, false},
         {"LIGHTNING", "Lightning (GLM)", "lightning.png", false, false},
         {"NHC_ATLANTIC", "NHC Atlantic outlook", "nhc.png", false, false},
+        {"MRMS_LATEST", "MRMS - latest scan of your last product, around your location", "mcd_tile.png", false, false},
         {"GRIB_LATEST", "RRFS GRIB - your last field and region, latest run", "grib.png", true, false},
     };
     return entries;
@@ -68,6 +70,33 @@ const HomeThumbnails::Entry * HomeThumbnails::find(const string& token) {
 }
 
 QByteArray HomeThumbnails::fetch(const string& token) {
+    if (token == "MRMS_LATEST") {
+        // the product last looked at in the MRMS viewer (else composite reflectivity), the newest scan, drawn around the
+        // current location - or over all of CONUS when the preference MRMS_THUMB_EXTENT is "conus"
+        const auto wanted = Utility::readPref("MRMS_LAST_PRODUCT", UtilityMrms::products().front().id);
+        auto product = UtilityMrms::products().front();
+        auto known = std::find_if(UtilityMrms::products().begin(), UtilityMrms::products().end(), [&wanted] (const auto& p) { return p.id == wanted; });
+        if (known != UtilityMrms::products().end()) {
+            product = *known;
+        } else {
+            vector<UtilityMrms::Product> more;
+            string ignored;
+            if (UtilityMrms::discoverMore(more, ignored)) {
+                const auto other = std::find_if(more.begin(), more.end(), [&wanted] (const auto& p) { return p.id == wanted; });
+                if (other != more.end()) {
+                    product = *other;
+                }
+            }
+        }
+        const auto here = Location::getLatLonCurrent();
+        const bool conus = Utility::readPref("MRMS_THUMB_EXTENT", "regional") == "conus";
+        QByteArray png;
+        string error;
+        const bool ok = conus
+            ? UtilityMrms::thumbnail(product, 23.0, 50.0, -127.0, -65.0, 900, png, error)
+            : UtilityMrms::thumbnail(product, here.lat() - 3.8, here.lat() + 3.8, here.lon() - 5.5, here.lon() + 5.5, 900, png, error);
+        return ok ? png : QByteArray{};
+    }
     if (token == "GRIB_LATEST") {
         // the viewer remembers the field and region last looked at; the first forecast hour of the newest run
         const auto field = indexOfLabel(UtilityGrib::fieldLabels(), Utility::readPref(gribLastFieldPref, ""));
