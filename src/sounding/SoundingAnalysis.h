@@ -16,6 +16,8 @@ struct SoundingAnalysis {
     SoundingParcel::Parcel sb;
     SoundingParcel::Parcel ml;
     SoundingParcel::Parcel mu;
+    SoundingParcel::Parcel fcst;   // forecast surface parcel (SHARPpy flag 2): the forecast maximum temperature and the mean low-level moisture
+    double maxTempC{-9999.0};      // forecast maximum temperature, C (SHARPpy params.max_temp)
     SoundingIndices::EffectiveLayer effective;
 
     SoundingIndices::Wind rightMover;

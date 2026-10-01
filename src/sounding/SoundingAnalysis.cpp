@@ -73,6 +73,22 @@ SoundingAnalysis SoundingAnalysis::compute(const SoundingProfile& p) {
     }
     a.hail = significantHail(p, a.mu);
 
+    // forecast surface parcel: SHARPpy params.max_temp (the temperature 100 mb up, plus 2 K, brought down dry-adiabatically) with the
+    // dewpoint of the mean mixing ratio of the lowest 100 mb
+    if (!SoundingThermo::isMissing(p.sfcPres())) {
+        const double sfcP = p.sfcPres();
+        const double mixed = sfcP - 100.0;
+        const double tMix = p.interpTemp(mixed);
+        const double meanW = SoundingIndices::meanMixingRatioMb(p, sfcP, mixed);
+        if (!SoundingThermo::isMissing(tMix) && !SoundingThermo::isMissing(meanW)) {
+            a.maxTempC = ((tMix + SoundingThermo::zeroCelsiusK) + 2.0) * std::pow(sfcP / mixed, SoundingThermo::rocp) - SoundingThermo::zeroCelsiusK;
+            const double td = SoundingThermo::tempAtMixingRatio(meanW, sfcP);
+            if (!SoundingThermo::isMissing(td)) {
+                a.fcst = SoundingParcel::liftFrom(p, sfcP, a.maxTempC, td);
+            }
+        }
+    }
+
     a.corfidi = SoundingIndices::corfidi(p);
     a.criticalAngle = SoundingIndices::criticalAngle(p, a.rightMover);
 

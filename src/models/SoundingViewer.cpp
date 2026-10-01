@@ -961,9 +961,9 @@ private:
         const auto& a = *analysis;
         vector<GridSection> sections;
 
-        GridSection parcels{{"", "SB", "ML", "MU"}, {}, true};
+        GridSection parcels{{"", "SB", "ML", "MU", "FCST"}, {}, true};
         auto parcelRow = [&] (const QString& name, auto pick) {
-            parcels.rows.push_back({name, pick(a.sb), pick(a.ml), pick(a.mu)});
+            parcels.rows.push_back({name, pick(a.sb), pick(a.ml), pick(a.mu), pick(a.fcst)});
         };
         parcelRow("CAPE", [&] (const auto& p) { return num(p.cape, 0); });
         parcelRow("CINH", [&] (const auto& p) { return num(p.cin, 0); });
@@ -972,6 +972,10 @@ private:
         parcelRow("LFC m", [&] (const auto& p) { return num(p.lfcHght, 0); });
         parcelRow("EL m", [&] (const auto& p) { return num(p.elHght, 0); });
         parcelRow("CAPE 0-3", [&] (const auto& p) { return num(p.cape3km, 0); });
+        // normalized CAPE: CAPE over the depth from the LFC to the EL (Blanchard 1998), m/s2
+        parcelRow("NCAPE", [&] (const auto& p) {
+            return (have(p.lfcHght) && have(p.elHght) && p.elHght > p.lfcHght && p.cape > 0.0) ? num(p.cape / (p.elHght - p.lfcHght), 2) : QString{"--"};
+        });
         sections.push_back(parcels);
 
         sections.push_back({{"", "0-1 km", "0-3 km", "0-6 km", "Eff"},
