@@ -405,4 +405,18 @@ namespace SoundingIndices {
         if (frzH < 2400.0) ship *= frzH / 2400.0;
         return ship;
     }
+
+    double thetaEIndex(const SoundingProfile& p) {
+        if (p.size() == 0 || gone(p.sfcPres())) return missing;
+        const double topPres = p.sfcPres() - 400.0;
+        double low = 1e9;
+        double high = -1e9;
+        for (size_t i = 0; i < p.size(); i += 1) {
+            if (p.pres[i] >= topPres && !gone(p.pres[i]) && !gone(p.thetae[i])) {
+                low = std::min(low, p.thetae[i]);
+                high = std::max(high, p.thetae[i]);
+            }
+        }
+        return high < low ? missing : high - low;
+    }
 }

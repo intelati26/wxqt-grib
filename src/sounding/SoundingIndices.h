@@ -45,6 +45,8 @@ namespace SoundingIndices {
     double lapseRateMb(const SoundingProfile& profile, double fromMb, double toMb);
     double lapseRateAgl(const SoundingProfile& profile, double fromAgl, double toAgl);
     double surfaceRelativeHumidity(const SoundingProfile& profile);
+    // Theta-E Index as SHARPpy's params.tei: the maximum minus the minimum theta-e (K) in the lowest 400 mb
+    double thetaEIndex(const SoundingProfile& profile);
 
     // ---- effective inflow layer and what depends on it (Thompson et al. 2007) ----
     struct EffectiveLayer {

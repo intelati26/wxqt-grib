@@ -163,6 +163,7 @@ protected:
         drawWindSpeed(painter, QRect{595, 25, 93, 565});
         drawTempAdvection(painter, QRect{688, 25, 67, 565});
         drawHodograph(painter, QRect{755, 25, 415, 445});
+        drawThetaE(painter, QRect{775, 492, 120, 108});
         drawWindInset(painter, QRect{545, 742, 100, 78});
         // the table band under the plots: parcels and thermodynamics | kinematics | indices and precipitation type
         drawTable(painter, bottomLeft(), 0);
@@ -608,6 +609,73 @@ private:
         painter.drawRect(area);
         painter.setPen(QColor{235, 235, 235});
         painter.drawText(QRectF(area.left() + 2, area.top() + 2, area.width() - 4, 26), Qt::AlignCenter | Qt::TextWordWrap, "Inf. Temp. Adv. (C/hr)");
+        painter.restore();
+    }
+
+    // theta-e against pressure, 1025-400 mb (SHARPpy's thetae panel); the x range is the data's own +-10 K; TEI beneath
+    void drawThetaE(QPainter& painter, const QRect& area) {
+        const auto& p = *profile;
+        double low = 1e9;
+        double high = -1e9;
+        for (size_t i = 0; i < p.size(); i += 1) {
+            if (p.pres[i] > 400.0 && !have(p.thetae[i])) continue;
+            if (p.pres[i] > 400.0) {
+                low = std::min(low, p.thetae[i] + 273.15);
+                high = std::max(high, p.thetae[i] + 273.15);
+            }
+        }
+        if (high < low) return;
+        const double tMin = low - 10.0;
+        const double tMax = high + 10.0;
+        constexpr double pMax = 1025.0;
+        constexpr double pMin = 400.0;
+        const auto yOf = [&] (double pr) { return area.bottom() - (pMax - pr) / (pMax - pMin) * area.height(); };
+        const auto xOf = [&] (double t) { return area.left() + (t - tMin) / (tMax - tMin) * area.width(); };
+        painter.save();
+        painter.fillRect(area, QColor{0, 0, 0});
+        QFont font = painter.font();
+        font.setPixelSize(9);
+        painter.setFont(font);
+        painter.setPen(QColor{200, 200, 200});
+        for (int pr : {1000, 900, 800, 700, 600, 500}) {
+            const double y = yOf(pr);
+            painter.drawLine(QPointF{area.left() + 0.0, y}, QPointF{area.left() + 5.0, y});
+            painter.drawLine(QPointF{area.right() - 5.0, y}, QPointF{static_cast<double>(area.right()), y});
+            painter.drawText(QRectF{area.left() - 24.0, y - 6.0, 22.0, 12.0}, Qt::AlignRight | Qt::AlignVCenter, QString::number(pr));
+        }
+        for (int t = 200; t < 400; t += 10) {
+            if (t < tMin || t > tMax) continue;
+            const double x = xOf(t);
+            painter.drawLine(QPointF{x, static_cast<double>(area.top())}, QPointF{x, area.top() + 5.0});
+            painter.drawLine(QPointF{x, area.bottom() - 5.0}, QPointF{x, static_cast<double>(area.bottom())});
+            painter.drawText(QRectF{x - 10.0, area.bottom() + 1.0, 20.0, 11.0}, Qt::AlignCenter, QString::number(t));
+        }
+        painter.setClipRect(area);
+        painter.setPen(QPen{QColor{255, 0, 0}, 2.0});
+        double lastX = 0.0;
+        double lastY = 0.0;
+        bool have2 = false;
+        for (size_t i = 0; i < p.size(); i += 1) {
+            if (!have(p.pres[i]) || !have(p.thetae[i]) || p.pres[i] <= 400.0) {
+                have2 = false;
+                continue;
+            }
+            const double x = xOf(p.thetae[i] + 273.15);
+            const double y = yOf(p.pres[i]);
+            if (have2) painter.drawLine(QPointF{lastX, lastY}, QPointF{x, y});
+            lastX = x;
+            lastY = y;
+            have2 = true;
+        }
+        painter.setClipping(false);
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawRect(area);
+        painter.setPen(QColor{235, 235, 235});
+        painter.drawText(QRectF{area.left() + 4.0, area.top() + 2.0, area.width() - 8.0, 24.0}, Qt::AlignLeft | Qt::TextWordWrap, "Theta-E\nv. Pres");
+        const double tei = SoundingIndices::thetaEIndex(p);
+        if (have(tei)) {
+            painter.drawText(QRectF{area.left() + 4.0, area.top() + 26.0, area.width() - 8.0, 12.0}, Qt::AlignLeft, QString{"TEI: %1 K"}.arg(tei, 0, 'f', 0));
+        }
         painter.restore();
     }
 
