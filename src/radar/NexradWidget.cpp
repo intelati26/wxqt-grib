@@ -153,6 +153,9 @@ void NexradWidget::wheelEvent(QWheelEvent * event) {
 }
 
 void NexradWidget::mouseMoveEvent(QMouseEvent * event) {
+    if (event->buttons() == Qt::NoButton) {
+        return;   // a screen that tracks the pointer (MRMS value readout) gets moves with no button down: not a drag
+    }
     // nexradState.xPos -= mouseStartX - event->pos().x();
     // nexradState.yPos -= mouseStartY - event->pos().y();
 
