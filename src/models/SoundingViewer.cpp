@@ -971,6 +971,7 @@ private:
         parcelRow("LCL m", [&] (const auto& p) { return num(p.lclHght, 0); });
         parcelRow("LFC m", [&] (const auto& p) { return num(p.lfcHght, 0); });
         parcelRow("EL m", [&] (const auto& p) { return num(p.elHght, 0); });
+        parcelRow("MPL m", [&] (const auto& p) { return num(p.mplHght, 0); });
         parcelRow("CAPE 0-3", [&] (const auto& p) { return num(p.cape3km, 0); });
         // normalized CAPE: CAPE over the depth from the LFC to the EL (Blanchard 1998), m/s2
         parcelRow("NCAPE", [&] (const auto& p) {

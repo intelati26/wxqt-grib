@@ -24,6 +24,8 @@ namespace SoundingParcel {
         double lfcHght{-9999.0};
         double elPres{-9999.0};
         double elHght{-9999.0};
+        double mplPres{-9999.0};     // maximum parcel level: where the energy above the EL has used up the CAPE
+        double mplHght{-9999.0};
         double cape{0.0};            // J/kg
         double cin{0.0};             // J/kg (negative or zero)
         double cape3km{0.0};         // CAPE within the lowest 3 km AGL

@@ -144,7 +144,7 @@ Parcel liftFrom(const SoundingProfile& prof, double pres, double tmpc, double dw
     double te1 = prof.interpVtmp(pe1);
     double tp1 = wetLift(pe2, tp2, pe1);
     double lyre = 0.0, lyrlast = 0.0;
-    double lfcP = missing, elP = missing;
+    double lfcP = missing, elP = missing, mplP = missing;
     bool haveElOrLfcReset = false;
     bool liDone5 = false, liDone3 = false;
     bool b3Set = false, b6Set = false;
@@ -224,6 +224,7 @@ Parcel liftFrom(const SoundingProfile& prof, double pres, double tmpc, double dw
             if (buoyant(pe3, pe2x, tp3, prof.interpVtmp(pe3))) {
                 lfcP = pe3;
                 elP = missing;
+                mplP = missing;
                 cinhAtLfc = totn;
             } else {
                 while (!buoyant(pe3, pe2x, tp3, prof.interpVtmp(pe3)) && pe3 > 0.0) {
@@ -232,6 +233,7 @@ Parcel liftFrom(const SoundingProfile& prof, double pres, double tmpc, double dw
                 if (pe3 > 0.0) {
                     lfcP = pe3;
                     elP = missing;
+                    mplP = missing;
                     cinhAtLfc = totn;
                 }
             }
@@ -248,6 +250,29 @@ Parcel liftFrom(const SoundingProfile& prof, double pres, double tmpc, double dw
                 pe3 -= 5.0;
             }
             elP = pe3;
+            mplP = missing;
+        }
+        // ---- MPL: past the EL, the level where the negative energy has used up the positive (SHARPpy's loop, h3 not advanced) ----
+        if (tote < 0.0 && !ok(mplP) && ok(elP)) {
+            double pe3 = pelast;
+            const double h3 = prof.interpHght(pe3);
+            double te3 = prof.interpVtmp(pe3);
+            double tp3 = wetLift(pe1, tp1, pe3);
+            double totx = tote - lyre;
+            double pe2m = pelast;
+            while (totx > 0.0 && pe2m > 1.0) {
+                pe2m -= 1.0;
+                const double te2m = prof.interpVtmp(pe2m);
+                const double tp2m = wetLift(pe3, tp3, pe2m);
+                const double h2m = prof.interpHght(pe2m);
+                const double tdef3 = (virtualTemp(pe3, tp3, tp3) - te3) / ctok(te3);
+                const double tdef2m = (virtualTemp(pe2m, tp2m, tp2m) - te2m) / ctok(te2m);
+                totx += G * (tdef3 + tdef2m) / 2.0 * (h2m - h3);
+                tp3 = tp2m;
+                te3 = te2m;
+                pe3 = pe2m;
+            }
+            mplP = pe2m;
         }
         if (prof.pres[i] <= 500.0 && !liDone5) {
             const double a = prof.interpVtmp(500.0);
@@ -279,6 +304,11 @@ Parcel liftFrom(const SoundingProfile& prof, double pres, double tmpc, double dw
         pcl.elPres = elP;
         const double h = prof.interpHght(elP);
         pcl.elHght = ok(h) ? prof.toAgl(h) : missing;
+    }
+    if (ok(mplP)) {
+        pcl.mplPres = mplP;
+        const double h = prof.interpHght(mplP);
+        pcl.mplHght = ok(h) ? prof.toAgl(h) : missing;
     }
     pcl.valid = true;
     return pcl;
