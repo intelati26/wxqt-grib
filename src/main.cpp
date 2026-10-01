@@ -16,6 +16,7 @@
 #include "common/GlobalVariables.h"
 #include "ui/MainWindow.h"
 #include "util/AppState.h"
+#include "util/ContactPrompt.h"
 #include "util/CrashLog.h"
 #include "util/MyApplication.h"
 #include "util/UtilityTheme.h"
@@ -89,6 +90,10 @@ int main(int argc, char * argv[]) {
                 (opened != nullptr ? opened->grab() : w.grab()).save(file);
                 a.quit();
             });
+        }
+        // the contact-email question, once the window is up (not in the development screenshot runs, which have nobody to answer)
+        if (grab[0].isEmpty() && qEnvironmentVariable("QT_QPA_PLATFORM") != "offscreen") {
+            QTimer::singleShot(0, &w, [&w] { ContactPrompt::askIfMissing(&w); });
         }
         return a.exec();
     }
