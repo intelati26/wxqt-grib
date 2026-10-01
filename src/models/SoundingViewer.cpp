@@ -178,6 +178,114 @@ private:
         painter.drawPath(path);
     }
 
+    // pressure where the temperature profile first crosses `tC` going up (linear in log p between levels); -9999 if it never does
+    double crossingPressure(double tC) const {
+        const auto& p = *profile;
+        for (size_t i = static_cast<size_t>(p.sfc); i + 1 < p.size(); i += 1) {
+            const double t1 = p.tmpc[i], t2 = p.tmpc[i + 1];
+            if (!have(t1) || !have(t2)) continue;
+            if ((t1 - tC) * (t2 - tC) <= 0.0 && t1 != t2) {
+                const double f = (tC - t1) / (t2 - t1);
+                return std::exp(std::log(p.pres[i]) + f * (std::log(p.pres[i + 1]) - std::log(p.pres[i])));
+            }
+        }
+        return -9999.0;
+    }
+
+    // SPC's / SHARPpy's extra marks on the Skew-T: height labels along the left edge (km above ground, SFC with the station
+    // elevation), the freezing level and the -20 / -30 C levels (feet above ground), the layer of steepest 2 km lapse rate between
+    // 2 and 6 km (when it is at least 4.5 C/km) and the effective inflow layer with its effective SRH
+    void drawAnnotations(QPainter& painter, const Geometry& g, const QRect& plot) const {
+        const auto& prof = *profile;
+        painter.save();
+        QFont font = painter.font();
+        font.setPixelSize(11);
+        painter.setFont(font);
+        const auto clipped = [&] (auto draw) {
+            painter.save();
+            painter.setClipRect(plot);
+            draw();
+            painter.restore();
+        };
+
+        // heights above ground
+        const QColor heightColor{255, 120, 120};
+        for (const double h : {0.0, 1000.0, 3000.0, 6000.0, 9000.0, 12000.0, 15000.0}) {
+            const double pressure = prof.interpPresAtHght(prof.toMsl(h));
+            if (!have(pressure) || pressure < pTop || pressure > pBottom) continue;
+            const double y = g.yOf(pressure);
+            painter.setPen(heightColor);
+            painter.drawLine(QPointF(plot.left(), y), QPointF(plot.left() + 10, y));
+            const QString text = h == 0.0 ? QString("SFC (%1m)").arg(prof.sfcHght(), 0, 'f', 0) : QString("%1 km").arg(h / 1000.0, 0, 'f', 0);
+            painter.drawText(QRectF(plot.left() + 13, y - 8, 90, 16), Qt::AlignLeft | Qt::AlignVCenter, text);
+        }
+
+        // freezing level, -20 C, -30 C: heights in feet above ground
+        const QColor levelColor{120, 190, 255};
+        const struct { double t; const char * name; } levels[] = {{0.0, "FZL"}, {-20.0, "-20C"}, {-30.0, "-30C"}};
+        for (const auto& level : levels) {
+            const double pressure = crossingPressure(level.t);
+            if (!have(pressure) || pressure < pTop || pressure > pBottom) continue;
+            const double heightFt = prof.toAgl(prof.interpHght(pressure)) * 3.28084;
+            const double y = g.yOf(pressure);
+            painter.setPen(QPen{levelColor, 1.5});
+            painter.drawLine(QPointF(plot.right() - 16, y), QPointF(plot.right(), y));
+            painter.drawText(QRectF(plot.right() - 120, y - 14, 102, 14), Qt::AlignRight | Qt::AlignVCenter,
+                             QString("%1 = %2'").arg(level.name).arg(heightFt, 0, 'f', 0));
+        }
+
+        // steepest 2 km lapse rate between 2 and 6 km AGL (SHARPpy max_lapse_rate: 250 m steps, virtual temperature)
+        double bestRate = -1e9, bestBottom = -9999.0, bestTop = -9999.0;
+        for (double bottomAgl = 2000.0; bottomAgl <= 4000.0 + 1e-6; bottomAgl += 250.0) {
+            const double pBot = prof.interpPresAtHght(prof.toMsl(bottomAgl));
+            const double pUp = prof.interpPresAtHght(prof.toMsl(bottomAgl + 2000.0));
+            if (!have(pBot) || !have(pUp)) continue;
+            const double tBot = prof.interpVtmp(pBot), tUp = prof.interpVtmp(pUp);
+            if (!have(tBot) || !have(tUp)) continue;
+            const double rate = (tUp - tBot) * -1000.0 / 2000.0;
+            if (rate > bestRate) {
+                bestRate = rate;
+                bestBottom = pBot;
+                bestTop = pUp;
+            }
+        }
+        if (have(bestBottom) && bestRate >= 4.5) {
+            const QColor color = bestRate >= 8.0 ? QColor{190, 100, 240} : bestRate >= 7.0 ? QColor{255, 90, 90}
+                                : bestRate >= 6.0 ? QColor{210, 150, 70} : QColor{210, 210, 120};
+            const double x = g.xOf(prof.interpVtmp(bestBottom) + 5.0, bestBottom);
+            const double y1 = g.yOf(bestBottom), y2 = g.yOf(bestTop);
+            clipped([&] {
+                painter.setPen(QPen{color, 1.6});
+                painter.drawLine(QPointF(x - 10, y1), QPointF(x + 10, y1));
+                painter.drawLine(QPointF(x - 10, y2), QPointF(x + 10, y2));
+                painter.drawLine(QPointF(x, y1), QPointF(x, y2));
+                painter.drawText(QRectF(x - 15, y2 - 15, 70, 14), Qt::AlignLeft | Qt::AlignVCenter, QString("%1 C/km").arg(bestRate, 0, 'f', 1));
+            });
+        }
+
+        // effective inflow layer: bracket with its base and top (m above ground) and the effective SRH
+        const auto& layer = analysis->effective;
+        if (layer.valid && have(layer.pBot) && have(layer.pTop)) {
+            const QColor color{200, 110, 230};
+            const double x1 = g.xOf(-20.0, pBottom), x2 = g.xOf(-33.0, pBottom);
+            const double y1 = g.yOf(layer.pBot), y2 = g.yOf(layer.pTop);
+            clipped([&] {
+                painter.setPen(QPen{color, 2.0});
+                painter.drawLine(QPointF(x1 - 15, y1), QPointF(x1 + 15, y1));
+                painter.drawLine(QPointF(x1 - 15, y2), QPointF(x1 + 15, y2));
+                painter.drawLine(QPointF(x1, y1), QPointF(x1, y2));
+                const QString bottom = layer.pBot >= prof.sfcPres() - 0.5 ? QString{"SFC"} : QString("%1m").arg(layer.botAgl, 0, 'f', 0);
+                painter.drawText(QRectF(x2, y1 + 3, 60, 14), Qt::AlignLeft | Qt::AlignVCenter, bottom);
+                painter.drawText(QRectF(x2, y2 - 15, 60, 14), Qt::AlignLeft | Qt::AlignVCenter, QString("%1m").arg(layer.topAgl, 0, 'f', 0));
+                if (have(analysis->effectiveSrh)) {
+                    painter.drawText(QRectF(x1 - 15, y2 - 15, 90, 14), Qt::AlignLeft | Qt::AlignVCenter,
+                                     QString("%1 m2s2").arg(analysis->effectiveSrh, 0, 'f', 0));
+                }
+            });
+        }
+        painter.restore();
+    }
+
     void drawSkewT(QPainter& painter, const QRect& plot) {
         const auto g = geometry(plot);
         painter.save();
@@ -284,6 +392,7 @@ private:
         mark("LCL", pcl.lclPres);
         mark("LFC", pcl.lfcPres);
         mark("EL", pcl.elPres);
+        drawAnnotations(painter, g, plot);
 
         // wind barbs in their own column to the right of the plot
         painter.setPen(QPen(QColor{220, 220, 220}, 1.2));
