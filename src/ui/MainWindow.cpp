@@ -14,6 +14,8 @@
 #include "objects/FutureVoid.h"
 #include "objects/PolygonWatch.h"
 #include "settings/HomeLayout.h"
+#include "util/HomeThumbnails.h"
+#include <memory>
 #include "objects/Route.h"
 #include "misc/TextViewerStatic.h"
 #include "misc/UsAlerts.h"
@@ -154,9 +156,17 @@ void MainWindow::reload() {
         }
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
             if (item.isEnabled()) {
-                const auto url = DownloadImage::byProduct(item.getPrefToken());
                 const auto token = item.getPrefToken();
-                new FutureBytes{this, url, [this, token] (const auto& ba) { imageWidgets.at(token).setToWidth(ba, UIPreferences::mainScreenImageSize); }};
+                const auto bytes = std::make_shared<QByteArray>();
+                new FutureVoid{this,
+                    [token, bytes] { *bytes = HomeThumbnails::fetch(token); },
+                    [this, token, bytes] {
+                        const auto found = imageWidgets.find(token);   // the layout may have been rebuilt meanwhile
+                        const auto * entry = HomeThumbnails::find(token);
+                        if (found != imageWidgets.end() && !bytes->isEmpty()) {
+                            found->second.setToWidth(*bytes, UIPreferences::mainScreenImageSize, entry != nullptr && entry->white);
+                        }
+                    }};
             }
         }
         if (UIPreferences::nexradMainScreen) {
@@ -411,5 +421,7 @@ void MainWindow::launchImageScreen(const string& token) {
         toolbar.launchSpcMeso("pmsl");
     } else if (token == "SPC_MESO_500MB") {
         toolbar.launchSpcMeso("500mb");
+    } else if (const auto * entry = HomeThumbnails::find(token); entry != nullptr && !entry->routeId.empty()) {
+        toolbar.launchRoute(entry->routeId);   // any other thumbnail opens its own tool
     }
 }

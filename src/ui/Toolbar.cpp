@@ -248,6 +248,15 @@ void Toolbar::rebuildButtons() {
     addStretch();
 }
 
+void Toolbar::launchRoute(const string& id) {
+    for (const auto& item : routeItems) {
+        if (item.id == id) {
+            item.fn();
+            return;
+        }
+    }
+}
+
 void Toolbar::rebuild() {
     rebuildButtons();
 }

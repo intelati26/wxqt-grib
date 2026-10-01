@@ -350,6 +350,8 @@ int GribViewer::compareHours() const {
 }
 
 void GribViewer::reload() {
+    Utility::writePref("GRIB_LAST_FIELD", comboField.getValue());   // the home screen thumbnail follows what was looked at last
+    Utility::writePref("GRIB_LAST_REGION", comboRegion.getValue());
     const auto fieldIndex = comboField.getIndex();
     const auto regionIndex = comboRegion.getIndex();
     const auto forecastHour = comboForecastHour.getValue();

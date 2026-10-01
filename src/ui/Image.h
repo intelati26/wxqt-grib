@@ -19,7 +19,7 @@ class Image : public Widget2 {
 public:
     explicit Image(Window *);
     void setNumberAcross(int, int);
-    void setToWidth(const QByteArray&, int);
+    void setToWidth(const QByteArray&, int, bool white = false);
     void resize(float);
     void resizeToWidth(float);
     void connect(const std::function<void()>&);

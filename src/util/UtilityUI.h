@@ -21,7 +21,8 @@ public:
     static bool isMobile();
     static int getImageWidth(int);
     static int getImageWidth2(int, double);
-    static void updateImage(QLabel *, const QByteArray&, int);
+    // `white`: composite onto a white background first (pictures with transparent areas)
+    static void updateImage(QLabel *, const QByteArray&, int, bool white = false);
     static void removeChildren(QLayout *);
 };
 

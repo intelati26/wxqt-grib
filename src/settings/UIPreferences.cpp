@@ -6,6 +6,7 @@
 
 #include "settings/UIPreferences.h"
 #include "settings/HomeLayout.h"
+#include "util/HomeThumbnails.h"
 #include <algorithm>
 #include "objects/WString.h"
 #include "radarcolorpalette/ColorPalettes.h"
@@ -29,16 +30,13 @@ bool UIPreferences::mainScreenSevereDashboard;
 bool UIPreferences::nexradScrollWheelMotion;
 bool UIPreferences::rememberGOES;
 bool UIPreferences::rememberMosaic;
-vector<PrefBool> UIPreferences::homeScreenItemsImage{
-    PrefBool{"Radar Mosaic", "RADAR_MOSAIC", true},
-    PrefBool{"Visible Satellite", "VISIBLE_SATELLITE", true},
-    PrefBool{"Alerts", "USWARN", false},
-    PrefBool{"Analysis", "ANALYSIS_RADAR_AND_WARNINGS", false},
-    PrefBool{"RTMA Temp", "RTMA_TEMP", false},
-    PrefBool{"SPC Meso - MSLP", "SPC_MESO_MSLP", false},
-    PrefBool{"SPC Meso - 500mb", "SPC_MESO_500MB", false},
-    PrefBool{"SPC Sounding (nearest site)", "SPC_SOUNDING", false},
-};
+vector<PrefBool> UIPreferences::homeScreenItemsImage = [] {
+    vector<PrefBool> items;
+    for (const auto& entry : HomeThumbnails::all()) {
+        items.emplace_back(entry.label, entry.token, entry.defaultOn);
+    }
+    return items;
+}();
 vector<PrefBool> UIPreferences::homeScreenItemsText{
     PrefBool{"Hourly", "HOURLY", true},
     PrefBool{"Wfo Text", "WFO_TEXT", false}

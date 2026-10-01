@@ -20,6 +20,6 @@ void ClickableLabel::connect(const function<void()>& fn) {
     QObject::connect(this, &ClickableLabel::clicked, parent, fn);
 }
 
-void ClickableLabel::setToWidth(const QByteArray& ba, int width) {
-    UtilityUI::updateImage(this, ba, width);
+void ClickableLabel::setToWidth(const QByteArray& ba, int width, bool white) {
+    UtilityUI::updateImage(this, ba, width, white);
 }

@@ -17,7 +17,7 @@ class ClickableLabel : public QLabel {
 public:
     explicit ClickableLabel(Window * parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
     void connect(const function<void()>&);
-    void setToWidth(const QByteArray&, int);
+    void setToWidth(const QByteArray&, int, bool white = false);
 
 signals:
     void clicked();

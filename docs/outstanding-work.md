@@ -104,6 +104,15 @@ thumbnails are enabled (it widens the window instead).
 - **Windows gdal-data.zip** shipped and CI-verified (GDAL reads its tables through /vsizip/).
 - Dev aid: `WXQT_GRAB=<png>[,<ms>]` saves the main window picture and quits (use `QT_QPA_PLATFORM=offscreen`).
 
+## Home screen thumbnails for any tool (2026-10-01)
+`HomeThumbnails` (src/util) is the registry of home-screen thumbnails: each entry has a token (pref key), a label, the
+Toolbar route it opens on click, whether it is drawn on white, and how its picture is made. Added (all off by default):
+SPC Day 1/2/3/4-8 outlooks, storm reports, fire outlook, compmap, WPC rainfall outlook, OPC, Global GOES, Lightning
+(GLM), NHC Atlantic outlook, and **RRFS GRIB - your last field and region** (rendered from the newest run; the GRIB
+viewer now saves `GRIB_LAST_FIELD` / `GRIB_LAST_REGION`). SPC mesoanalysis, soundings, compmap and GRIB renders are
+composited on white (`UtilityUI::updateImage(..., white)`). Not done: MRMS / REFS / SHIP thumbnails (SHIP renders take
+minutes cold), per-thumbnail field choice, thumbnails for text-only tools. Right-click Save now works on these.
+
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
 WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage

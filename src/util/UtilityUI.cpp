@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "util/UtilityUI.h"
+#include <QPainter>
 #include <QDebug>
 #include <QGuiApplication>
 #include <QScreen>  // KEEP
@@ -75,8 +76,17 @@ int UtilityUI::getImageWidth2(int numberOfImages, double width) {
     return static_cast<int>(width / numberOfImages) - 15;
 }
 
-void UtilityUI::updateImage(QLabel * label, const QByteArray& data, int imageSize) {
-    const auto pixmap = QPixmap::fromImage(QImage::fromData(data));
+void UtilityUI::updateImage(QLabel * label, const QByteArray& data, int imageSize, bool white) {
+    auto source = QImage::fromData(data);
+    if (white && source.hasAlphaChannel()) {
+        QImage flat{source.size(), QImage::Format_RGB32};
+        flat.fill(Qt::white);
+        QPainter painter{&flat};
+        painter.drawImage(0, 0, source);
+        painter.end();
+        source = flat;
+    }
+    const auto pixmap = QPixmap::fromImage(source);
     const double width = pixmap.width();
     const double height = pixmap.height();
     const auto pixmapResized = pixmap.scaled(imageSize, static_cast<int>(imageSize * (height / width)), Qt::KeepAspectRatio, Qt::SmoothTransformation);

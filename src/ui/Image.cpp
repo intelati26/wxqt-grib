@@ -30,8 +30,9 @@ void Image::setNumberAcross(int num, int width) {
     }
 }
 
-void Image::setToWidth(const QByteArray& imageData, int width) {
-    image->setToWidth(imageData, width);
+void Image::setToWidth(const QByteArray& imageData, int width, bool white) {
+    UtilityAnimationExport::setSourceBytes(image, imageData);   // right-click "Save image..." saves the original picture
+    image->setToWidth(imageData, width, white);
 }
 
 void Image::resize(float width) {
