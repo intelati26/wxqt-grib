@@ -1773,6 +1773,170 @@ namespace {
 // same colorize / hover-sidecar / line-burn steps as render(). Fields that
 // draw contours, wind barbs or station plots are not supported (their
 // overlays have no meaning on a composite).
+// Symmetric blue-white-red table for a "change since the older run" map, in display units, with the units'
+// own sensible limit (a 10 C temperature change, 1500 J/kg of CAPE, ...). "No change" is a light gray; only
+// cells with no data at all stay transparent.
+string UtilityGrib::differenceColorMap(int fieldIndex, string& unitsLabel) {
+    if (fieldIndex < 0 || fieldIndex >= static_cast<int>(fields.size())) {
+        return "";
+    }
+    const auto& field = fields[fieldIndex];
+    const bool toFahrenheit = UIPreferences::unitsF && field.units == "C";
+    unitsLabel = toFahrenheit ? string{"F"} : field.units;
+    double limit = 10.0;
+    const auto& u = field.units;
+    if (u == "C") limit = toFahrenheit ? 18.0 : 10.0;
+    else if (u == "%") limit = 40.0;
+    else if (u == "m/s") limit = field.key == "maxuvv" ? 15.0 : 12.0;
+    else if (u == "dBZ") limit = 30.0;
+    else if (u == "J/kg") limit = 1500.0;
+    else if (u == "m2/s2") limit = 150.0;
+    else if (u == "mm") limit = 25.0;
+    else if (u == "gpm") limit = 60.0;
+    else if (u == "m") limit = field.key == "retop" ? 4000.0 : field.key == "vis" ? 10000.0 : 0.5;
+    struct Stop { double fraction; int r, g, b, a; };
+    const Stop stops[] = {{-1.0, 33, 102, 172, 255}, {-0.5, 103, 169, 207, 255}, {-0.1, 209, 229, 240, 255},
+                          {-0.03, 238, 238, 238, 255}, {0.03, 238, 238, 238, 255}, {0.1, 253, 219, 199, 255},
+                          {0.5, 239, 138, 98, 255}, {1.0, 178, 24, 43, 255}};
+    string table;
+    for (const auto& stop : stops) {
+        table += To::string(stop.fraction * limit) + " " + To::string(stop.r) + " " + To::string(stop.g) + " " +
+            To::string(stop.b) + " " + To::string(stop.a) + "\n";
+    }
+    return table;
+}
+
+// Run-to-run change: the field for `runId` (latest when empty) at `forecastHour` minus the same valid time from
+// the run `hoursBack` hours earlier (its lead hour is longer by the same amount). Same return / sidecar
+// contract as renderMax(); the value range written is of the difference.
+string UtilityGrib::renderDifference(int fieldIndex, int regionIndex, const string& forecastHour, const string& runId,
+                                     int hoursBack, string& status, double& dataMin, double& dataMax, string& samplePath) {
+    dataMin = 0.0;
+    dataMax = 0.0;
+    samplePath = "";
+    if (fieldIndex < 0 || fieldIndex >= static_cast<int>(fields.size()) || hoursBack < 1) {
+        status = "invalid field or comparison";
+        return "";
+    }
+    const auto& field = fields[fieldIndex];
+    if (field.contourInterval > 0 || !field.contourIdxMatch.empty() || field.windBarbs) {
+        status = field.label + ": a change map is not available for fields with contours, wind barbs or station plots";
+        return "";
+    }
+    const auto binDir = gdalBinDir();
+    if (binDir.empty()) {
+        status = "GDAL not found - install the 'gdal' package";
+        return "";
+    }
+    if (regionIndex < 0 || regionIndex >= regionCount) {
+        regionIndex = 0;
+    }
+    const bool toFahrenheit = UIPreferences::unitsF && field.units == "C";
+
+    string dateStr;
+    string cycle;
+    if (runId.size() == 10) {
+        dateStr = runId.substr(0, 8);
+        cycle = runId.substr(8, 2);
+    } else if (!resolveLatestRun(dateStr, cycle)) {
+        status = "no RRFS run available on NOMADS";
+        return "";
+    }
+    const QDateTime newRun{QDate{To::Int(dateStr.substr(0, 4)), To::Int(dateStr.substr(4, 2)), To::Int(dateStr.substr(6, 2))},
+                           QTime{To::Int(cycle), 0}, QTimeZone::utc()};
+    const auto oldRun = newRun.addSecs(-3600LL * hoursBack);
+    const string oldDate = oldRun.toString("yyyyMMdd").toStdString();
+    const string oldCycle = oldRun.toString("HH").toStdString();
+    const int newHour = To::Int(forecastHour);
+    const string oldHour = To::string(newHour + hoursBack);
+    const auto validLocal = newRun.addSecs(3600LL * newHour).toLocalTime();
+    status = "RRFS CHANGE " + dateStr.substr(0, 4) + "-" + dateStr.substr(4, 2) + "-" + dateStr.substr(6, 2) + " " +
+        cycle + "z    F" + WString::fixedLengthStringPad0(To::string(newHour), 2) + " valid " +
+        validLocal.toString("ddd h:mm AP").toStdString() + " " + QTimeZone::systemTimeZone().abbreviation(validLocal).toStdString() +
+        "    minus " + oldDate.substr(0, 4) + "-" + oldDate.substr(4, 2) + "-" + oldDate.substr(6, 2) + " " + oldCycle +
+        "z F" + oldHour + "    " + field.label + "    " + regionTable[regionIndex].label;
+
+    const auto dir = QString::fromStdString(cacheDir());
+    const auto tag = QString::fromStdString(dateStr + cycle + "_" + oldDate + oldCycle + "_" + field.key + "_" +
+        To::string(regionIndex) + "_" + To::string(newHour) + (toFahrenheit ? "_f" : ""));
+    // "rd2" is the render version - bump it whenever the drawing pipeline changes
+    const auto pngPath = dir + "/rd2_" + tag + ".png";
+    const RenderLock renderLock{pngPath};   // see objects/RenderLock.h
+    if (QFile::exists(pngPath)) {
+        QFile file{pngPath + ".range"};
+        if (file.open(QIODevice::ReadOnly)) {
+            const auto parts = QString::fromUtf8(file.readAll()).split(' ', Qt::SkipEmptyParts);
+            if (parts.size() == 2) {
+                dataMin = parts[0].toDouble();
+                dataMax = parts[1].toDouble();
+            }
+        }
+        if (QFile::exists(pngPath + ".grid")) {
+            samplePath = (pngPath + ".grid").toStdString();
+        }
+        return pngPath.toStdString();
+    }
+
+    const auto bin = QString::fromStdString(binDir) + "/";
+    const auto box = regionBbox(regionIndex);
+    const auto cols = QString::number(mainRenderColumns(box));
+    const auto newWarp = dir + "/rdn_" + tag + ".tif";
+    const auto oldWarp = dir + "/rdo_" + tag + ".tif";
+    const auto diffPath = dir + "/rdd_" + tag + ".tif";
+    string failure;
+    bool ok = warpFieldSlice(bin, field, dateStr, cycle, To::string(newHour), box, cols, newWarp, failure);
+    if (ok) {
+        ok = warpFieldSlice(bin, field, oldDate, oldCycle, oldHour, box, cols, oldWarp, failure);
+        if (!ok) {
+            failure += " - the older run may be gone or not cover that hour; pick a shorter comparison";
+        }
+    }
+    if (ok) {
+        // a Celsius difference becomes a Fahrenheit difference by x1.8 (no +32: it is a change, not a reading)
+        const double scale = toFahrenheit ? 1.8 : 1.0;
+        ok = calcRaster(bin, {newWarp, oldWarp}, [scale] (const double * v) { return (v[0] - v[1]) * scale; }, diffPath);
+        if (!ok) {
+            failure = "change calculation failed";
+        }
+    }
+    for (const auto& stale : {newWarp, oldWarp, newWarp + ".aux.xml", oldWarp + ".aux.xml"}) {
+        QFile::remove(stale);
+    }
+    if (!ok) {
+        status = failure;
+        return "";
+    }
+    string unitsLabel;
+    const auto done = colorizeToPng(bin, dir, tag, diffPath, differenceColorMap(fieldIndex, unitsLabel), box, pngPath,
+                                    status, dataMin, dataMax, samplePath);
+    QFile::remove(diffPath);
+    QFile::remove(diffPath + ".aux.xml");
+    return done ? pngPath.toStdString() : string{};
+}
+
+// One field's record for a run and forecast hour, fetched (cached) and warped onto the region's lat/lon grid
+// (`cols` pixels wide, cubic) as a GeoTIFF with -9999 for no data. The first step of every composite render.
+bool UtilityGrib::warpFieldSlice(const QString& bin, const Field& field, const string& dateStr, const string& cycle,
+                                 const string& hour, const Bbox& box, const QString& cols, const QString& warpPath,
+                                 string& status) {
+    string gribPath;
+    if (!fetchFieldSlice(field, dateStr, cycle, hour, gribPath)) {
+        status = field.label + ": " + dateStr + " " + cycle + "z F" + hour + " is not available";
+        return false;
+    }
+    QProcess process;
+    process.start(bin + "gdalwarp",
+        {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
+         "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
+         "-r", "cubic", "-ts", cols, "0", QString::fromStdString(gribPath), warpPath});
+    process.waitForFinished(30000);
+    if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+        status = "gdal failed: " + process.readAllStandardError().left(200).toStdString();
+        return false;
+    }
+    return true;
+}
+
 string UtilityGrib::renderMax(int fieldIndex, int regionIndex, const vector<string>& hours, const string& runId,
                               string& status, double& dataMin, double& dataMax, string& samplePath) {
     dataMin = 0.0;
@@ -1859,13 +2023,8 @@ string UtilityGrib::renderMax(int fieldIndex, int regionIndex, const vector<stri
     int skipped = 0;
     string lastError;
     for (const auto& hour : hours) {
-        string gribPath;
         const auto warpPath = dir + "/rmw_" + tag + "_" + QString::fromStdString(hour) + ".tif";
-        if (fetchFieldSlice(field, dateStr, cycle, hour, gribPath)
-            && runProcess(bin + "gdalwarp",
-                {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-dstnodata", "-9999",
-                 "-te", fixedQ(box.west), fixedQ(box.south), fixedQ(box.east), fixedQ(box.north),
-                 "-r", "cubic", "-ts", fillCols, "0", QString::fromStdString(gribPath), warpPath})) {
+        if (warpFieldSlice(bin, field, dateStr, cycle, hour, box, fillCols, warpPath, status)) {
             warps << warpPath;
         } else {
             skipped += 1;
@@ -1906,20 +2065,55 @@ string UtilityGrib::renderMax(int fieldIndex, int regionIndex, const vector<stri
             fillTif = scaledPath;
         }
     }
+    const auto colorTable = toFahrenheit ? colorMapToFahrenheit(field.colorMap) : field.colorMap;
+    const auto done = colorizeToPng(bin, dir, tag, fillTif, colorTable, box, pngPath, status, dataMin, dataMax, samplePath);
+    for (const auto& stale : {maxPath, scaledPath, maxPath + ".aux.xml"}) {
+        QFile::remove(stale);
+    }
+    if (!done) {
+        return "";
+    }
+    if (skipped > 0) {
+        status += "    (" + To::string(skipped) + " hr skipped)";
+    }
+    return pngPath.toStdString();
+}
+
+// The last stage shared by the composite renders (max of a range, run-to-run difference): colour a finished
+// raster with a gdaldem table, record its value range and a hover-sample grid beside the PNG, and write the PNG
+// with the map lines drawn on. `rasterTif` is already in display units. Returns false (status set) on failure.
+bool UtilityGrib::colorizeToPng(const QString& bin, const QString& dir, const QString& tag, const QString& rasterTif,
+                                const string& colorTable, const Bbox& box, const QString& pngPath, string& status,
+                                double& dataMin, double& dataMax, string& samplePath) {
+    const auto rangePath = pngPath + ".range";
+    const auto gridPath = pngPath + ".grid";
+    auto runProcess = [&status] (const QString& program, const QStringList& args, QByteArray * stdOut = nullptr) {
+        QProcess process;
+        process.start(program, args);
+        process.waitForFinished(30000);
+        const auto ok = process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+        if (stdOut) {
+            *stdOut = process.readAllStandardOutput();
+        }
+        if (!ok) {
+            status = "gdal failed: " + process.readAllStandardError().left(200).toStdString();
+        }
+        return ok;
+    };
     const auto colorPath = dir + "/rmcol_" + tag + ".txt";
     const auto tiffPath = dir + "/rmc_" + tag + ".tif";
     {
-        const auto table = "nv 0 0 0 0\n" + (toFahrenheit ? colorMapToFahrenheit(field.colorMap) : field.colorMap);
+        const auto table = "nv 0 0 0 0\n" + colorTable;
         QFile colorFile{colorPath};
         if (colorFile.open(QIODevice::WriteOnly)) {
             colorFile.write(table.c_str(), static_cast<qint64>(table.size()));
             colorFile.close();
         }
     }
-    auto ok = runProcess(bin + "gdaldem", {"color-relief", "-q", "-alpha", "-of", "GTiff", fillTif, colorPath, tiffPath});
+    auto ok = runProcess(bin + "gdaldem", {"color-relief", "-q", "-alpha", "-of", "GTiff", rasterTif, colorPath, tiffPath});
     if (ok) {
         QByteArray info;
-        if (runProcess(bin + "gdalinfo", {"-mm", fillTif}, &info)) {
+        if (runProcess(bin + "gdalinfo", {"-mm", rasterTif}, &info)) {
             const auto match = QRegularExpression{R"(Computed Min/Max=(-?[0-9.]+),(-?[0-9.]+))"}.match(QString::fromUtf8(info));
             if (match.hasMatch()) {
                 dataMin = match.captured(1).toDouble();
@@ -1933,17 +2127,11 @@ string UtilityGrib::renderMax(int fieldIndex, int regionIndex, const vector<stri
         }
         const auto savedStatus = status;
         if (runProcess(bin + "gdal_translate",
-                {"-q", "-of", "XYZ", "-outsize", QString::number(sampleGridColumns(box)), "0", fillTif, gridPath})) {
+                {"-q", "-of", "XYZ", "-outsize", QString::number(sampleGridColumns(box)), "0", rasterTif, gridPath})) {
             samplePath = gridPath.toStdString();
         } else {
             status = savedStatus;
         }
-        const auto burnLines = [&] (const string& geoJson, int red, int green, int blue) {
-            runProcess(bin + "gdal_rasterize",
-                {"-q", "-b", "1", "-b", "2", "-b", "3", "-b", "4",
-                 "-burn", QString::number(red), "-burn", QString::number(green),
-                 "-burn", QString::number(blue), "-burn", "255", QString::fromStdString(geoJson), tiffPath});
-        };
         const auto savedStatus2 = status;
         ok = runProcess(bin + "gdal_translate", {"-q", "-of", "PNG", tiffPath, pngPath});
         if (ok) {
@@ -1951,16 +2139,10 @@ string UtilityGrib::renderMax(int fieldIndex, int regionIndex, const vector<stri
             drawMapLines(pngPath, box);
         }
     }
-    for (const auto& stale : {colorPath, maxPath, scaledPath, tiffPath, tiffPath + ".aux.xml", maxPath + ".aux.xml"}) {
+    for (const auto& stale : {colorPath, tiffPath, tiffPath + ".aux.xml"}) {
         QFile::remove(stale);
     }
-    if (!ok || !QFile::exists(pngPath)) {
-        return "";
-    }
-    if (skipped > 0) {
-        status += "    (" + To::string(skipped) + " hr skipped)";
-    }
-    return pngPath.toStdString();
+    return ok && QFile::exists(pngPath);
 }
 
 // same byte-range fetch as render()'s local "ensureSlice" lambda, factored out

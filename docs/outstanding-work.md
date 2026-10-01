@@ -255,3 +255,13 @@ run fails with an explanatory message, not silently.
   test in CI (`tests/sounding/`).
 - Not done: a forecast-hour slider (hour stays locked by choice), SHIP differs from SPC on
   25/160 soundings (cause unknown), the 49 convective temperatures that come out 0.5-1.5 C low.
+
+## Run-to-run change maps (done 2026-10-01)
+
+- GribViewer **Compare** dropdown (off / vs run -6, -12, -24 h): `UtilityGrib::renderDifference` subtracts the
+  same valid time from the older run (its lead hour is longer by the same amount) onto the region grid and
+  colours it with a symmetric blue-white-red table scaled per field units (`differenceColorMap`). Works with
+  the hour slider / animation; Max-of-range resets it. Temperatures are shown as a change in F (x1.8, no +32).
+- Shared along the way: `colorizeToPng` (the tail of the max-of-range render) and `warpFieldSlice`.
+- Not done: the same Compare control in the index (SHIP/STP) and SPC Post viewers; model-to-model differences
+  (needs the multi-model work that is on hold); a user-chosen comparison run instead of fixed -6/-12/-24 h.

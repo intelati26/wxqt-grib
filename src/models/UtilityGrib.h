@@ -65,6 +65,13 @@ public:
     static string renderMax(int fieldIndex, int regionIndex, const vector<string>& hours, const string& runId,
                             string& status, double& dataMin, double& dataMax, string& samplePath);
 
+    // Run-to-run change map: `forecastHour` of `runId` minus the same valid time from the run `hoursBack` hours
+    // earlier. Same return / sidecar contract as renderMax(); unsupported for contour / wind-barb fields.
+    static string renderDifference(int fieldIndex, int regionIndex, const string& forecastHour, const string& runId,
+                                   int hoursBack, string& status, double& dataMin, double& dataMax, string& samplePath);
+    // the blue-white-red table (display units) and units label used by renderDifference, for building a legend
+    static string differenceColorMap(int fieldIndex, string& unitsLabel);
+
     // Forecast hours ("01".."84", matching forecastHours()) that cover the
     // SPC Day-1 period, 12z to 12z: the 24 hours ending at the first 12z on
     // or after the run (hourly-max style products, e.g. updraft helicity,
@@ -286,6 +293,12 @@ private:
     static bool resolveLatestRun(string& dateStr, string& cycle);
     static void purgeCacheForOldRun(const string& keepRunId);
     static string cacheDir();
+    static bool warpFieldSlice(const QString& bin, const Field& field, const string& dateStr, const string& cycle,
+                               const string& hour, const Bbox& box, const QString& cols, const QString& warpPath,
+                               string& status);
+    static bool colorizeToPng(const QString& bin, const QString& dir, const QString& tag, const QString& rasterTif,
+                              const string& colorTable, const Bbox& box, const QString& pngPath, string& status,
+                              double& dataMin, double& dataMax, string& samplePath);
 };
 
 #endif  // UTILITYGRIB_H

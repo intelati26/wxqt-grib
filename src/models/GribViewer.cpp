@@ -40,6 +40,7 @@ GribViewer::GribViewer(Window * parent)
     , comboField{this, UtilityGrib::fieldLabels()}
     , comboRegion{this, UtilityGrib::regions()}
     , comboForecastHour{this, UtilityGrib::forecastHours()}
+    , comboCompare{this, {"Compare: off", "Change vs run -6 h", "Change vs run -12 h", "Change vs run -24 h"}}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonMax{this, Icon::None, "Max of range"}
     , buttonDay1{this, Icon::None, "Day 1 max (12z-12z)"}
@@ -73,6 +74,9 @@ GribViewer::GribViewer(Window * parent)
     boxTop.addWidget(comboField);
     boxTop.addWidget(comboRegion);
     boxTop.addWidget(comboForecastHour);
+    comboCompare.getView()->setToolTip("Show how this field changed since an earlier run: the same valid time from the run 6, 12 or 24 hours older is subtracted (blue = lower now, red = higher now)");
+    comboCompare.connect([this] { animBar.stopIfAnimating(); invalidateAnimation(); reload(); });
+    boxTop.addWidget(comboCompare);
     buttonMax.getView()->setToolTip("Pixel-wise maximum of the selected field over the Range hours below "
                                     "(e.g. 01 to 24 for a 24-hour swath). Not available for contour / barb fields.");
     buttonMax.connect([this] { showMaxOfRange(); });
@@ -172,6 +176,11 @@ void GribViewer::showMaxOfRange() {
 }
 
 void GribViewer::showMaxOfHours(const std::vector<std::string>& hoursIn) {
+    if (compareHours() > 0) {   // a max composite is of the plain field
+        comboCompare.block();
+        comboCompare.setIndex(0);
+        comboCompare.unblock();
+    }
     constexpr size_t maxHours = 48;
     auto hours = hoursIn;
     if (hours.size() < 2) {
@@ -229,6 +238,11 @@ void GribViewer::showDay1Max() {
         }};
 }
 
+int GribViewer::compareHours() const {
+    static const int hours[] = {0, 6, 12, 24};
+    return hours[std::clamp(comboCompare.getIndex(), 0, 3)];
+}
+
 void GribViewer::reload() {
     const auto fieldIndex = comboField.getIndex();
     const auto regionIndex = comboRegion.getIndex();
@@ -236,14 +250,18 @@ void GribViewer::reload() {
     const auto runIndex = comboRun.getIndex();
     const string runId = (runIndex >= 0 && runIndex < static_cast<int>(runOptions.size()))
         ? runOptions[runIndex].second : string{};
+    const int hoursBack = compareHours();
     legend.setBytes(buildLegend(fieldIndex, 0.0, 0.0));
     setTitle("RRFS GRIB Viewer - loading...");
     sampleGridPath.clear();
     refreshHover();
     new FutureVoid{this,
-        [this, fieldIndex, regionIndex, forecastHour, runId] {
-            pngPath = UtilityGrib::render(fieldIndex, regionIndex, forecastHour, runId,
-                                          status, dataMin, dataMax, sampleGridPath);
+        [this, fieldIndex, regionIndex, forecastHour, runId, hoursBack] {
+            pngPath = hoursBack > 0
+                ? UtilityGrib::renderDifference(fieldIndex, regionIndex, forecastHour, runId, hoursBack,
+                                                status, dataMin, dataMax, sampleGridPath)
+                : UtilityGrib::render(fieldIndex, regionIndex, forecastHour, runId,
+                                      status, dataMin, dataMax, sampleGridPath);
         },
         [this, fieldIndex] {
             setTitle("RRFS GRIB Viewer - " + status);
@@ -465,13 +483,14 @@ void GribViewer::renderNextAnimFrame(size_t sweepIndex, int generation) {
         ? allHours[globalIndex] : string{};
 
     new FutureVoid{this,
-        [this, fieldIndex, regionIndex, hour, runId] {
+        [this, fieldIndex, regionIndex, hour, runId, hoursBack = compareHours()] {
             string localStatus;
             string localGridPath;
             double lo = 0.0;
             double hi = 0.0;
-            const auto path = UtilityGrib::render(fieldIndex, regionIndex, hour, runId,
-                                                  localStatus, lo, hi, localGridPath);
+            const auto path = hoursBack > 0
+                ? UtilityGrib::renderDifference(fieldIndex, regionIndex, hour, runId, hoursBack, localStatus, lo, hi, localGridPath)
+                : UtilityGrib::render(fieldIndex, regionIndex, hour, runId, localStatus, lo, hi, localGridPath);
             pendingFrame.clear();
             if (!path.empty()) {
                 QFile file{QString::fromStdString(path)};
@@ -543,7 +562,11 @@ QByteArray GribViewer::buildLegend(int fieldIndex, double clipLo, double clipHi)
         QColor color;
     };
     std::vector<Stop> stops;
-    const auto lines = QString::fromStdString(field.colorMap).split('\n', Qt::SkipEmptyParts);
+    // a change map has its own symmetric table, already in display units
+    string changeUnits;
+    const bool change = compareHours() > 0;
+    const auto colorMap = change ? UtilityGrib::differenceColorMap(fieldIndex, changeUnits) : field.colorMap;
+    const auto lines = QString::fromStdString(colorMap).split('\n', Qt::SkipEmptyParts);
     for (const auto& line : lines) {
         const auto parts = line.split(' ', Qt::SkipEmptyParts);
         if (parts.size() >= 4) {
@@ -552,7 +575,7 @@ QByteArray GribViewer::buildLegend(int fieldIndex, double clipLo, double clipHi)
                 continue;   // skip the transparent "clear" entries
             }
             auto value = parts[0].toDouble();
-            if (toFahrenheit) {
+            if (toFahrenheit && !change) {
                 value = value * 1.8 + 32.0;
             }
             stops.push_back({value, QColor{parts[1].toInt(), parts[2].toInt(), parts[3].toInt()}});
