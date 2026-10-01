@@ -14,7 +14,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
-#include <QtLogging>
+#include <QtGlobal>
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
 #define NOMINMAX
