@@ -17,7 +17,9 @@ class RouteItem {
 public:
     RouteItem(const string&, const string&, const function<void()>&);
     string iconString;
+    string id;        // unique and stable: the icon file name (a repeated icon gets "#2"); keys saved orders and groups
     string toolTip;
+    string label;     // short name for menus and the icons+text toolbar: the tooltip without shortcut / detail
     function<void()> fn;
 };
 

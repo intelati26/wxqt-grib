@@ -5,9 +5,16 @@
 // *****************************************************************************
 
 #include "ui/Toolbar.h"
+#include "ui/ToolbarGroups.h"
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <QAction>
+#include <QIcon>
+#include <QLabel>
+#include <QMenu>
+#include <QMenuBar>
+#include "common/GlobalVariables.h"
 #include "misc/Hourly.h"
 #include "misc/ObservationSites.h"
 #include "misc/Observations.h"
@@ -72,7 +79,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
 
     routeItems.emplace_back("spc_sum.png", "SPC Convective Outlook Summary, Ctrl-s", [this] { launchSpcSwoSummary(); });
     for (const int day : {1, 2, 3, 48}) {
-        routeItems.emplace_back("day" + To::string(day) + ".png", "SPC Convective Outlook Day ", [this, day] { launchSpcSwoDay1(day); });
+        routeItems.emplace_back("day" + To::string(day) + ".png", std::string{"SPC Convective Outlook Day "} + (day == 48 ? "4-8" : To::string(day)), [this, day] { launchSpcSwoDay1(day); });
     }
     routeItems.emplace_back("fmap.png", "National Images, Ctrl-i", [this] { launchNationalImages(); });
     routeItems.emplace_back("meso.png", "SPC Mesoanalysis, Ctrl-z", [this] { launchSpcMeso(); });
@@ -104,7 +111,20 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     // routeItems.emplace_back("spchref.png", "SPC HREF", [this] { launchModelViewerGeneric("SPCHREF"); });
     routeItems.emplace_back("goesfulldisk.png", "Global GOES", [parent] { new GoesGlobal{parent}; });
 
+    // a repeated icon (CAMs / NSSL WRF, the two thunderstorm items) still needs its own id
+    vector<string> seen;
+    for (auto& item : routeItems) {
+        if (std::find(seen.begin(), seen.end(), item.id) != seen.end()) {
+            item.id += "#2";
+        }
+        seen.push_back(item.id);
+    }
     applySavedOrder();
+    vector<string> allIds;
+    for (const auto& item : routeItems) {
+        allIds.push_back(item.id);
+    }
+    ToolbarGroups::load(allIds);
     rebuildButtons();
 }
 
@@ -139,14 +159,14 @@ void Toolbar::applySavedOrder() {
     vector<RouteItem> ordered;
     for (const auto& key : saved) {
         for (const auto& item : routeItems) {
-            if (item.iconString == key) {
+            if (item.id == key) {
                 ordered.push_back(item);
                 break;
             }
         }
     }
     for (const auto& item : routeItems) {
-        const auto known = std::find(saved.begin(), saved.end(), item.iconString) != saved.end();
+        const auto known = std::find(saved.begin(), saved.end(), item.id) != saved.end();
         if (!known) {
             ordered.push_back(item);
         }
@@ -157,21 +177,77 @@ void Toolbar::applySavedOrder() {
 void Toolbar::persistOrder() {
     vector<string> keys;
     for (const auto& item : routeItems) {
-        keys.push_back(item.iconString);
+        keys.push_back(item.id);
     }
     Utility::writePref(orderPrefToken, WString::join(keys, ","));
 }
 
+// Draws the toolbar in the chosen style (ToolbarGroups::mode): the original column of icons, icons with their
+// names under group headings, or just the auto-update control with the entries in a menu bar of group menus.
 void Toolbar::rebuildButtons() {
     removeChildren();
     buttons.clear();
+    parent->menuBar()->clear();
+    const auto mode = ToolbarGroups::mode();
+    parent->menuBar()->setVisible(mode == ToolbarGroups::MenuBar);
     addWidget(autoUpdate);
-    for (const auto& item : routeItems) {
-        buttons.emplace_back(parent, item.iconString, item.toolTip);
-        buttons.back().connect(item.fn);
-        addWidget(buttons.back());
+    const auto itemFor = [this] (const string& id) -> const RouteItem * {
+        for (const auto& item : routeItems) {
+            if (item.id == id) {
+                return &item;
+            }
+        }
+        return nullptr;
+    };
+    if (mode == ToolbarGroups::Icons) {
+        for (const auto& item : routeItems) {
+            buttons.emplace_back(parent, item.iconString, item.toolTip);
+            buttons.back().connect(item.fn);
+            addWidget(buttons.back());
+        }
+    } else if (mode == ToolbarGroups::IconsText) {
+        for (const auto& group : ToolbarGroups::groups()) {
+            if (group.ids.empty()) {
+                continue;
+            }
+            auto * heading = new QLabel{QString::fromStdString(group.name), parent};
+            heading->setStyleSheet("font-weight: bold; margin-top: 6px;");
+            addWidgetReal(heading);
+            for (const auto& id : group.ids) {
+                const auto * item = itemFor(id);
+                if (item == nullptr) {
+                    continue;
+                }
+                buttons.emplace_back(parent, item->iconString, item->toolTip);
+                buttons.back().setText(item->label);
+                buttons.back().getView()->setStyleSheet("text-align: left; padding: 2px 6px;");
+                buttons.back().connect(item->fn);
+                addWidget(buttons.back());
+            }
+        }
+    } else {
+        for (const auto& group : ToolbarGroups::groups()) {
+            if (group.ids.empty()) {
+                continue;
+            }
+            auto * menu = parent->menuBar()->addMenu(QString::fromStdString(group.name));
+            for (const auto& id : group.ids) {
+                const auto * item = itemFor(id);
+                if (item == nullptr) {
+                    continue;
+                }
+                auto * action = menu->addAction(QIcon{QString::fromStdString(GlobalVariables::imageDir + item->iconString)},
+                                                QString::fromStdString(item->label));
+                action->setToolTip(QString::fromStdString(item->toolTip));
+                QObject::connect(action, &QAction::triggered, parent, item->fn);
+            }
+        }
     }
     addStretch();
+}
+
+void Toolbar::rebuild() {
+    rebuildButtons();
 }
 
 void Toolbar::launchNexrad(int numberOfPanes) {

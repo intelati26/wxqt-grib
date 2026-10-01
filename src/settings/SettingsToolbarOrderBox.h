@@ -9,6 +9,9 @@
 #include <vector>
 #include "ui/Button.h"
 #include "ui/Text.h"
+#include <deque>
+#include "ui/ComboBox.h"
+#include "ui/Entry.h"
 #include "ui/Toolbar.h"
 #include "ui/VBox.h"
 #include "ui/Widget.h"
@@ -28,12 +31,17 @@ private:
     void addItems();
     void moveDownClicked(int);
     void moveUpClicked(int);
+    void addStyleAndGroups();
+    void changed();   // after any edit: redraw the toolbar and this tab
     VBox box;
     Window * parent;
     Toolbar * toolbar;
     vector<Button> buttons;
     vector<Text> labels;
     vector<HBox> hboxList;
+    // deques: elements must not move once their views are in the layout
+    std::deque<ComboBox> combos;
+    std::deque<Entry> entries;
 };
 
 #endif  // SETTINGSTOOLBARORDERBOX_H

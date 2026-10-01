@@ -49,6 +49,7 @@ public:
     void launchOpc();
     void launchRtma();
     void refresh();
+    void rebuild();   // redraw after the style or the groups changed (Settings > Toolbar Order)
     const vector<RouteItem>& getRouteItems() const;
     void moveRouteItem(int fromIndex, int toIndex);
 
