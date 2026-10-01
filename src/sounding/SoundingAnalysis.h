@@ -43,6 +43,15 @@ struct SoundingAnalysis {
     SoundingSars::Result sarsSupercell;   // analogue matches (right-mover SRH); valid == false when an input is missing
     SoundingSars::Result sarsHail;
 
+    double kIndex{-9999.0};
+    double totalTotals{-9999.0};
+    double lowRh{-9999.0};   // mean relative humidity, surface to 100 mb above
+    double midRh{-9999.0};   // 150 to 350 mb above the surface
+    double esp{-9999.0};
+    double wndg{-9999.0};
+    double sigSevere{-9999.0};   // m3/s3
+    double mmp{-9999.0};         // 0-1 probability
+
     double stpFixed{-9999.0};
     double stpEffective{-9999.0};
     double supercell{-9999.0};

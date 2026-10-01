@@ -419,4 +419,87 @@ namespace SoundingIndices {
         }
         return high < low ? missing : high - low;
     }
+
+    double kIndex(const SoundingProfile& p) {
+        const double t8 = p.interpTemp(850.0), t7 = p.interpTemp(700.0), t5 = p.interpTemp(500.0);
+        const double td7 = p.interpDwpt(700.0), td8 = p.interpDwpt(850.0);
+        if (gone(t8) || gone(t7) || gone(t5) || gone(td7) || gone(td8)) return missing;
+        return t8 - t5 + td8 - (t7 - td7);
+    }
+
+    double totalTotals(const SoundingProfile& p) {
+        const double t8 = p.interpTemp(850.0), t5 = p.interpTemp(500.0), td8 = p.interpDwpt(850.0);
+        if (gone(t8) || gone(t5) || gone(td8)) return missing;
+        return (t8 - t5) + (td8 - t5);   // vertical totals plus cross totals
+    }
+
+    double meanRelativeHumidity(const SoundingProfile& p, double bottomMb, double topMb) {
+        double sum = 0.0;
+        double weights = 0.0;
+        for (double pr = bottomMb; pr >= topMb - 1e-9; pr -= 1.0) {
+            const double t = p.interpTemp(pr);
+            const double td = p.interpDwpt(pr);
+            if (gone(t) || gone(td)) continue;
+            sum += SoundingThermo::relativeHumidityPct(pr, t, td) * pr;
+            weights += pr;
+        }
+        return weights > 0.0 ? sum / weights : missing;
+    }
+
+    double esp(double mlCape3km, double mlCape, double lapse03) {
+        if (gone(mlCape3km) || gone(lapse03)) return missing;
+        if (lapse03 < 7.0 || mlCape < 250.0) return 0.0;
+        return (mlCape3km / 50.0) * ((lapse03 - 7.0) / 1.0);
+    }
+
+    double wndg(const SoundingProfile& p, double mlCape, double mlCin, double lapse03) {
+        const Wind mean = meanWind(p, 1000.0, 3500.0);
+        if (!mean.valid() || gone(lapse03) || gone(mlCape)) return missing;
+        const double wind = mean.speed() * knotsToMs;
+        double lr = lapse03 < 7.0 ? 0.0 : lapse03;
+        const double cin = mlCin < -50.0 ? -50.0 : mlCin;
+        return (mlCape / 2000.0) * (lr / 9.0) * (wind / 15.0) * ((50.0 + cin) / 40.0);
+    }
+
+    double sigSevere(double mlCape, double shear06Kt) {
+        if (gone(mlCape) || gone(shear06Kt)) return missing;
+        return mlCape * shear06Kt * knotsToMs;
+    }
+
+    // SHARPpy: the strongest bulk shear (m/s) between a level in the lowest 1 km and one in 6-10 km, pairs skipped when the
+    // bottom level's position in its list is below the top level's (SHARPpy leaves those entries unset; they are not used here)
+    double mmp(const SoundingProfile& p, double muCape) {
+        if (gone(muCape)) return missing;
+        if (muCape < 100.0) return 0.0;
+        std::vector<double> bottoms;
+        std::vector<double> tops;
+        for (size_t i = 0; i < p.size(); i += 1) {
+            if (gone(p.hght[i]) || gone(p.pres[i])) continue;
+            const double agl = p.toAgl(p.hght[i]);
+            if (agl <= 1000.0) bottoms.push_back(p.pres[i]);
+            if (agl >= 6000.0 && agl < 10000.0) tops.push_back(p.pres[i]);
+        }
+        if (bottoms.empty() || tops.empty()) return missing;
+        double maxShear = -1.0;
+        for (size_t b = 0; b < bottoms.size(); b += 1) {
+            for (size_t t = 0; t < tops.size(); t += 1) {
+                if (b < t) continue;
+                double ub, vb, ut, vt;
+                if (!p.interpComponents(bottoms[b], ub, vb) || !p.interpComponents(tops[t], ut, vt)) continue;
+                maxShear = std::max(maxShear, std::hypot(ut - ub, vt - vb));
+            }
+        }
+        if (maxShear < 0.0) return missing;
+        const double maxBulkShear = maxShear * knotsToMs;
+        const double lr38 = lapseRateAgl(p, 3000.0, 8000.0);
+        const Wind mean = meanWind(p, 3000.0, 12000.0);
+        if (gone(lr38) || !mean.valid()) return missing;
+        const double meanWindMs = mean.speed() * knotsToMs;
+        const double a0 = 13.0;
+        const double a1 = -4.59e-2;
+        const double a2 = -1.16;
+        const double a3 = -6.17e-4;
+        const double a4 = -0.17;
+        return 1.0 / (1.0 + std::exp(a0 + a1 * maxBulkShear + a2 * lr38 + a3 * muCape + a4 * meanWindMs));
+    }
 }

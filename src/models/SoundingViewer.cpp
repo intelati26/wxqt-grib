@@ -1016,8 +1016,15 @@ private:
             sections.push_back({{"Best guess precip type"}, {{text}}, false});
         }
 
+        sections.push_back({{"K Idx", "T Tot", "Mid RH %", "Low RH %"},
+                            {{num(a.kIndex, 0), num(a.totalTotals, 0), num(a.midRh, 0), num(a.lowRh, 0)}},
+                            false});
+        sections.push_back({{"ESP", "MMP %", "WNDG", "SigSvr"},
+                            {{num(a.esp, 1), have(a.mmp) ? num(a.mmp * 100.0, 0) : QString{"--"}, num(a.wndg, 1), num(a.sigSevere, 0)}},
+                            false});
+
         if (group >= 0) {
-            static const std::vector<std::vector<size_t>> groups{{0, 4, 5, 6}, {1, 2}, {3, 7}};
+            static const std::vector<std::vector<size_t>> groups{{0, 4, 5, 6}, {1, 2}, {3, 8, 9, 7}};
             std::vector<GridSection> chosen;
             for (const auto index : groups[static_cast<size_t>(group)]) {
                 chosen.push_back(sections[index]);

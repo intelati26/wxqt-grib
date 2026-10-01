@@ -73,6 +73,20 @@ SoundingAnalysis SoundingAnalysis::compute(const SoundingProfile& p) {
     }
     a.hail = significantHail(p, a.mu);
 
+    // the rest of SPC's index list, from SHARPpy's params
+    a.kIndex = SoundingIndices::kIndex(p);
+    a.totalTotals = SoundingIndices::totalTotals(p);
+    if (!SoundingThermo::isMissing(p.sfcPres())) {
+        a.lowRh = SoundingIndices::meanRelativeHumidity(p, p.sfcPres(), p.sfcPres() - 100.0);
+        a.midRh = SoundingIndices::meanRelativeHumidity(p, p.sfcPres() - 150.0, p.sfcPres() - 350.0);
+    }
+    if (a.ml.valid) {
+        a.esp = SoundingIndices::esp(a.ml.cape3km, a.ml.cape, a.lapse03);
+        a.wndg = SoundingIndices::wndg(p, a.ml.cape, a.ml.cin, a.lapse03);
+        if (a.shear06.valid()) a.sigSevere = SoundingIndices::sigSevere(a.ml.cape, a.shear06.speed());
+    }
+    if (a.mu.valid) a.mmp = SoundingIndices::mmp(p, a.mu.cape);
+
     // SARS analogues (SHARPpy's profile.get_sars): needs the mixed-layer and most-unstable parcels and the shears / SRH
     const auto shear03 = bulkShear(p, 0, 3000);
     const auto shear09 = bulkShear(p, 0, 9000);

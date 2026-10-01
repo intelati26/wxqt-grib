@@ -45,6 +45,15 @@ namespace SoundingIndices {
     double lapseRateMb(const SoundingProfile& profile, double fromMb, double toMb);
     double lapseRateAgl(const SoundingProfile& profile, double fromAgl, double toAgl);
     double surfaceRelativeHumidity(const SoundingProfile& profile);
+    // SHARPpy params.k_index, t_totals (vertical + cross totals), mean_relh (pressure weighted, 1 mb steps), esp, wndg,
+    // sig_severe (Craven and Brooks 2004) and mmp (Coniglio et al. 2006)
+    double kIndex(const SoundingProfile& profile);
+    double totalTotals(const SoundingProfile& profile);
+    double meanRelativeHumidity(const SoundingProfile& profile, double bottomMb, double topMb);
+    double esp(double mlCape3km, double mlCape, double lapse03);
+    double wndg(const SoundingProfile& profile, double mlCape, double mlCin, double lapse03);
+    double sigSevere(double mlCape, double shear06Kt);
+    double mmp(const SoundingProfile& profile, double muCape);
     // Theta-E Index as SHARPpy's params.tei: the maximum minus the minimum theta-e (K) in the lowest 400 mb
     double thetaEIndex(const SoundingProfile& profile);
 
