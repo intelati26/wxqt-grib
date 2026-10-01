@@ -10,6 +10,8 @@
 #include "radar/UtilityRadarMosaic.h"
 #include "settings/Location.h"
 #include "spc/UtilitySpcMesoInputOutput.h"
+#include "spc/UtilitySpcSoundings.h"
+#include "util/SoundingSites.h"
 #include "vis/UtilityGoes.h"
 
 string DownloadImage::byProduct(const string& product) {
@@ -28,6 +30,8 @@ string DownloadImage::byProduct(const string& product) {
         url = UtilityRadarMosaic::get(radarMosaicSector);
     } else if (product == "RTMA_TEMP") {
         url = UtilityRtma::getUrlForHomeScreen("2m_temp");
+    } else if (product == "SPC_SOUNDING") {
+        url = UtilitySpcSoundings::getImage(SoundingSites::sites->getNearest(Location::getLatLonCurrent()));
     } else if (product == "SPC_MESO_MSLP") {
         url = UtilitySpcMesoInputOutput::getImageUrl("pmsl", "19");
     } else if (product == "SPC_MESO_500MB") {

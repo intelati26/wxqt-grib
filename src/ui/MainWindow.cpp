@@ -379,6 +379,8 @@ void MainWindow::launchImageScreen(const string& token) {
         toolbar.launchUsAlerts();
     } else if (token == "RTMA_TEMP") {
         toolbar.launchRtma();
+    } else if (token == "SPC_SOUNDING") {
+        Route::spcSoundingBySector(this, "");   // the native sounding viewer, at the nearest site
     } else if (token == "SPC_MESO_MSLP") {
         toolbar.launchSpcMeso("pmsl");
     } else if (token == "SPC_MESO_500MB") {

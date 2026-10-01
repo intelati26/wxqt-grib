@@ -36,6 +36,7 @@ vector<PrefBool> UIPreferences::homeScreenItemsImage{
     PrefBool{"RTMA Temp", "RTMA_TEMP", false},
     PrefBool{"SPC Meso - MSLP", "SPC_MESO_MSLP", false},
     PrefBool{"SPC Meso - 500mb", "SPC_MESO_500MB", false},
+    PrefBool{"SPC Sounding (nearest site)", "SPC_SOUNDING", false},
 };
 vector<PrefBool> UIPreferences::homeScreenItemsText{
     PrefBool{"Hourly", "HOURLY", true},
