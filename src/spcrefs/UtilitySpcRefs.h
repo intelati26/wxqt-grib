@@ -60,10 +60,26 @@ namespace UtilitySpcRefs {
     // the newest cycles that exist on the server, newest first (probes 00 / 06 / 12 / 18 UTC cycles back from now)
     vector<QDateTime> findCycles(int wanted);
 
-    // the data layer as an image on the grid (north at the top), transparent where there is nothing to show
-    QImage dataImage(const Product& product, const vector<float>& values, const vector<string>& memberNames);
+    // The part of the grid that is shown: a window of grid cells (columns from the west, rows from the south) drawn `scale`
+    // pixels per cell. The whole grid is 1799 x 1059 cells at scale 1; a mesoscale sector is a few hundred cells wide and is
+    // drawn larger, resampled smoothly (the data's real resolution is still 3 km).
+    struct View {
+        int col0{0};
+        int row0{0};
+        int cols{1799};
+        int rows{1059};
+        int scale{1};
+        string name{"CONUS"};
+    };
+    // the window around a latitude / longitude box (west-negative longitudes), drawn 4 x 4 pixels per 3 km cell and smoothed
+    View viewForBox(const string& name, double west, double south, double east, double north, int pixelsPerCell = 4);
+    // grid cell under a pixel position given as fractions (0..1) of the picture
+    void cellAt(const View& view, double fx, double fy, int& column, int& row);
+
+    // the data layer as an image (north at the top), transparent where there is nothing to show
+    QImage dataImage(const Product& product, const vector<float>& values, const vector<string>& memberNames, const View& view);
     // the finished picture: light map background, county and state lines, the data, a colour key
-    QByteArray renderPng(const Product& product, const vector<float>& values, const vector<string>& memberNames);
+    QByteArray renderPng(const Product& product, const vector<float>& values, const vector<string>& memberNames, const View& view);
     // the value under a grid point as shown (NaN when there is none)
     double shownValue(const Product& product, const vector<float>& values, int column, int row);
     // text for the read-out at a grid point ("42.5 dBZ", "6 of 10 members")

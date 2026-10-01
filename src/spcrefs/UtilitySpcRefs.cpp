@@ -597,27 +597,93 @@ namespace UtilitySpcRefs {
         }
     }
 
-    QImage dataImage(const Product& product, const vector<float>& values, const vector<string>& memberNames) {
-        const int w = LambertGrid::columns;
-        const int h = LambertGrid::rows;
-        QImage image{w, h, QImage::Format_ARGB32};
+    View viewForBox(const string& name, double west, double south, double east, double north, int pixelsPerCell) {
+        static const LambertGrid grid;
+        double minCol = 1e9, maxCol = -1e9, minRow = 1e9, maxRow = -1e9;
+        // the box is a rectangle in latitude / longitude, which bends on the Lambert grid: walk its outline
+        for (int i = 0; i <= 40; i += 1) {
+            const double t = i / 40.0;
+            const double lon = west + (east - west) * t;
+            const double lat = south + (north - south) * t;
+            for (const auto& [la, lo] : {std::pair<double, double>{south, lon}, {north, lon}, {lat, west}, {lat, east}}) {
+                double c, r;
+                grid.toGrid(la, lo, c, r);
+                minCol = std::min(minCol, c);
+                maxCol = std::max(maxCol, c);
+                minRow = std::min(minRow, r);
+                maxRow = std::max(maxRow, r);
+            }
+        }
+        View v;
+        v.name = name;
+        v.col0 = std::clamp(static_cast<int>(std::floor(minCol)), 0, LambertGrid::columns - 2);
+        v.row0 = std::clamp(static_cast<int>(std::floor(minRow)), 0, LambertGrid::rows - 2);
+        const int col1 = std::clamp(static_cast<int>(std::ceil(maxCol)), v.col0 + 1, LambertGrid::columns - 1);
+        const int row1 = std::clamp(static_cast<int>(std::ceil(maxRow)), v.row0 + 1, LambertGrid::rows - 1);
+        v.cols = col1 - v.col0 + 1;
+        v.rows = row1 - v.row0 + 1;
+        v.scale = std::clamp(pixelsPerCell, 1, 8);
+        return v;
+    }
+
+    void cellAt(const View& view, double fx, double fy, int& column, int& row) {
+        column = view.col0 + static_cast<int>(std::floor(fx * view.cols));
+        row = view.row0 + view.rows - 1 - static_cast<int>(std::floor(fy * view.rows));
+    }
+
+    namespace {
+        float sampleAt(const vector<float>& values, double column, double row, bool smooth) {
+            const int w = LambertGrid::columns;
+            const int h = LambertGrid::rows;
+            if (!smooth) {
+                const int c = std::clamp(static_cast<int>(std::lround(column)), 0, w - 1);
+                const int r = std::clamp(static_cast<int>(std::lround(row)), 0, h - 1);
+                return values[static_cast<size_t>(r) * w + c];
+            }
+            const double cc = std::clamp(column, 0.0, w - 1.0);
+            const double rr = std::clamp(row, 0.0, h - 1.0);
+            const int c0 = std::min(static_cast<int>(cc), w - 2);
+            const int r0 = std::min(static_cast<int>(rr), h - 2);
+            const double fx = cc - c0;
+            const double fy = rr - r0;
+            const float a = values[static_cast<size_t>(r0) * w + c0];
+            const float b = values[static_cast<size_t>(r0) * w + c0 + 1];
+            const float c = values[static_cast<size_t>(r0 + 1) * w + c0];
+            const float d = values[static_cast<size_t>(r0 + 1) * w + c0 + 1];
+            if (std::isnan(a) || std::isnan(b) || std::isnan(c) || std::isnan(d)) {
+                return fx < 0.5 ? (fy < 0.5 ? a : c) : (fy < 0.5 ? b : d);
+            }
+            return static_cast<float>((a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy);
+        }
+    }
+
+    QImage dataImage(const Product& product, const vector<float>& values, const vector<string>& memberNames, const View& view) {
+        const int outW = view.cols * view.scale;
+        const int outH = view.rows * view.scale;
+        QImage image{outW, outH, QImage::Format_ARGB32};
         image.fill(0);
-        if (values.size() < static_cast<size_t>(w) * h) {
+        if (values.size() < static_cast<size_t>(LambertGrid::columns) * LambertGrid::rows) {
             return image;
         }
-        if (product.kind == Kind::Paintball) {
+        const bool paintball = product.kind == Kind::Paintball;
+        vector<QRgb> colours;
+        if (paintball) {
             // each member that is over the threshold paints its colour over the ones before it (SPC's "paintball")
-            vector<QRgb> colours;
             for (size_t i = 0; i < 10; i += 1) {
                 const string name = i < memberNames.size() ? memberNames[i] : string{};
                 const auto found = memberColours().find(name);
                 colours.push_back(found == memberColours().end() ? 0x808080u : found->second);
             }
-            for (int row = 0; row < h; row += 1) {
-                auto * out = reinterpret_cast<QRgb *>(image.scanLine(h - 1 - row));
-                const float * in = values.data() + static_cast<size_t>(row) * w;
-                for (int column = 0; column < w; column += 1) {
-                    const int mask = std::isnan(in[column]) ? 0 : static_cast<int>(in[column]);
+        }
+        const auto p = paintball ? product : withAutoStops(product, values);
+        for (int y = 0; y < outH; y += 1) {
+            auto * out = reinterpret_cast<QRgb *>(image.scanLine(y));
+            const double row = view.row0 + view.rows - (y + 0.5) / view.scale - 0.5;
+            for (int x = 0; x < outW; x += 1) {
+                const double column = view.col0 + (x + 0.5) / view.scale - 0.5;
+                if (paintball) {
+                    const float raw = sampleAt(values, column, row, false);
+                    const int mask = std::isnan(raw) ? 0 : static_cast<int>(raw);
                     if (mask == 0) {
                         continue;
                     }
@@ -632,17 +698,11 @@ namespace UtilitySpcRefs {
                             b = b * (1 - alpha) + (colours[static_cast<size_t>(bit)] & 255) * alpha;
                         }
                     }
-                    out[column] = qRgba(static_cast<int>(r), static_cast<int>(g), static_cast<int>(b), 255);
+                    out[x] = qRgba(static_cast<int>(r), static_cast<int>(g), static_cast<int>(b), 255);
+                } else {
+                    const float raw = sampleAt(values, column, row, view.scale > 1);
+                    out[x] = colourFor(p, std::isnan(raw) ? std::nan("") : raw * p.factor + p.offset, 0, 0);
                 }
-            }
-            return image;
-        }
-        const auto p = withAutoStops(product, values);
-        for (int row = 0; row < h; row += 1) {
-            auto * out = reinterpret_cast<QRgb *>(image.scanLine(h - 1 - row));
-            const float * in = values.data() + static_cast<size_t>(row) * w;
-            for (int column = 0; column < w; column += 1) {
-                out[column] = colourFor(p, std::isnan(in[column]) ? std::nan("") : in[column] * p.factor + p.offset, 0, 0);
             }
         }
         return image;
@@ -661,7 +721,7 @@ namespace UtilitySpcRefs {
             return data;
         }
 
-        void drawLines(QPainter& painter, RadarGeometryTypeEnum type, const QColor& colour, double width, const LambertGrid& grid) {
+        void drawLines(QPainter& painter, RadarGeometryTypeEnum type, const QColor& colour, double width, const LambertGrid& grid, const View& view) {
             const auto& data = geometry(type);
             painter.setPen(QPen{colour, width});
             QVector<QLineF> lines;
@@ -669,21 +729,26 @@ namespace UtilitySpcRefs {
                 double c1, r1, c2, r2;
                 grid.toGrid(data[i], -data[i + 1], c1, r1);
                 grid.toGrid(data[i + 2], -data[i + 3], c2, r2);
-                if ((c1 < 0 && c2 < 0) || (c1 > LambertGrid::columns && c2 > LambertGrid::columns) || (r1 < 0 && r2 < 0) ||
-                    (r1 > LambertGrid::rows && r2 > LambertGrid::rows)) {
+                const double left = view.col0 - 1.0;
+                const double right = view.col0 + view.cols;
+                const double bottom = view.row0 - 1.0;
+                const double top = view.row0 + view.rows;
+                if ((c1 < left && c2 < left) || (c1 > right && c2 > right) || (r1 < bottom && r2 < bottom) || (r1 > top && r2 > top)) {
                     continue;
                 }
-                lines.push_back({c1 + 0.5, LambertGrid::rows - r1 - 0.5, c2 + 0.5, LambertGrid::rows - r2 - 0.5});
+                const auto px = [&] (double c) { return (c - view.col0 + 0.5) * view.scale; };
+                const auto py = [&] (double r) { return (view.row0 + view.rows - r - 0.5) * view.scale; };
+                lines.push_back({px(c1), py(r1), px(c2), py(r2)});
             }
             painter.drawLines(lines);
         }
 
         void drawKey(QPainter& painter, const Product& p, const vector<string>& memberNames, int w, int h) {
             QFont font{painter.font()};
-            font.setPixelSize(15);
+            font.setPixelSize(std::min(24, 15 + (w / 1000)));
             painter.setFont(font);
             const QFontMetrics metrics{font};
-            const double y0 = h - 44;
+            const double y0 = h - 44 - (font.pixelSize() - 15) * 2;
             if (p.kind == Kind::Paintball) {
                 double x = 10;
                 painter.fillRect(QRectF{4, y0 - 6, w - 8.0, 46}, QColor{255, 255, 255, 215});
@@ -719,22 +784,23 @@ namespace UtilitySpcRefs {
         }
     }
 
-    QByteArray renderPng(const Product& product, const vector<float>& values, const vector<string>& memberNames) {
-        const int w = LambertGrid::columns;
-        const int h = LambertGrid::rows;
+    QByteArray renderPng(const Product& product, const vector<float>& values, const vector<string>& memberNames, const View& view) {
+        const int w = view.cols * view.scale;
+        const int h = view.rows * view.scale;
         static const LambertGrid grid;
         QImage image{w, h, QImage::Format_ARGB32_Premultiplied};
         image.fill(QColor{244, 244, 240});
         const auto withStops = withAutoStops(product, values);
+        const double line = std::max(1.0, view.scale * 0.45);   // line weights grow with the picture
         {
             QPainter painter{&image};
             painter.setRenderHint(QPainter::Antialiasing, true);
-            drawLines(painter, LakeLines, QColor{190, 205, 225}, 0.8, grid);
-            drawLines(painter, CountyLines, QColor{205, 205, 200, 150}, 0.5, grid);
-            painter.drawImage(0, 0, dataImage(withStops, values, memberNames));
-            drawLines(painter, CaLines, QColor{90, 90, 90}, 1.0, grid);
-            drawLines(painter, MxLines, QColor{90, 90, 90}, 1.0, grid);
-            drawLines(painter, StateLines, QColor{50, 50, 50}, 1.3, grid);
+            drawLines(painter, LakeLines, QColor{190, 205, 225}, 0.8 * line, grid, view);
+            drawLines(painter, CountyLines, QColor{205, 205, 200, 150}, 0.5 * line, grid, view);
+            painter.drawImage(0, 0, dataImage(withStops, values, memberNames, view));
+            drawLines(painter, CaLines, QColor{90, 90, 90}, 1.0 * line, grid, view);
+            drawLines(painter, MxLines, QColor{90, 90, 90}, 1.0 * line, grid, view);
+            drawLines(painter, StateLines, QColor{50, 50, 50}, 1.3 * line, grid, view);
             drawKey(painter, withStops, memberNames, w, h);
         }
         QByteArray png;

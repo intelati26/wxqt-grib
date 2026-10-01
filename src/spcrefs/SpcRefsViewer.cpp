@@ -47,6 +47,7 @@ SpcRefsViewer::SpcRefsViewer(Window * parent)
     , comboCycle{this, {"Finding cycles..."}}
     , comboTime{this, {"--"}}
     , comboMember{this, {"--"}}
+    , comboRegion{this, UtilityGrib::regions()}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , textStatus{this, ""}
     , animBar{this,
@@ -65,6 +66,21 @@ SpcRefsViewer::SpcRefsViewer(Window * parent)
     comboProduct.getView()->setMinimumContentsLength(30);
     comboProduct.getView()->setMaxVisibleItems(30);
     comboMember.getView()->hide();
+    comboRegion.getView()->setToolTip("The whole CONUS grid (3 km) or a standard mesoscale sector, drawn larger and smoothed - the data's own resolution is still 3 km");
+    {
+        const auto saved = Utility::readPref("SPCREFS_REGION", "CONUS");
+        const auto names = UtilityGrib::regions();
+        size_t index = 0;
+        for (size_t i = 0; i < names.size(); i += 1) {
+            if (names[i] == saved) {
+                index = i;
+            }
+        }
+        comboRegion.setIndex(index);
+        const auto box = UtilityGrib::regionBbox(static_cast<int>(index));
+        view = index == 0 ? UtilitySpcRefs::View{} : UtilitySpcRefs::viewForBox(names[index], box.west, box.south, box.east, box.north);
+    }
+    comboRegion.connect([this] { regionChanged(); });
     textStatus.setWordWrap(false);
     QObject::connect(&image, &ZoomImage::hovered, this, [this] (double fx, double fy) { onHover(fx, fy); });
     QObject::connect(&image, &ZoomImage::hoverEnded, this, [this] { hoverText.clear(); updateStatus(); });
@@ -77,6 +93,7 @@ SpcRefsViewer::SpcRefsViewer(Window * parent)
     rowTop.addLayout(backForward);
     rowTop.addWidget(comboTime);
     rowTop.addWidget(comboMember);
+    rowTop.addWidget(comboRegion);
     rowTop.addWidget(textStatus);
     rowTop.addStretch();
     box.addLayout(rowTop);
@@ -274,15 +291,16 @@ void SpcRefsViewer::showTime() {
     auto s = store;
     const auto members = memberNames;
     const int member = memberIndex();
+    const auto shownView = view;
     auto result = std::make_shared<Loaded>();
     say("Loading " + p.label + "  " + timeLabel(initTime, validTimes[static_cast<size_t>(timeIndex)]).toStdString() + "...");
     new FutureVoid{this,
-        [result, s, p, members, member, timeIndex] {
+        [result, s, p, members, member, timeIndex, shownView] {
             vector<int> chunk = p.members ? vector<int>{member, timeIndex, 0, 0} : vector<int>{timeIndex, 0, 0};
             if (!s->readChunk(p.id, chunk, result->values, result->error)) {
                 return;
             }
-            result->png = UtilitySpcRefs::renderPng(p, result->values, members);
+            result->png = UtilitySpcRefs::renderPng(p, result->values, members, shownView);
         },
         [this, result, gen] {
             if (closed || gen != generation) {
@@ -300,6 +318,26 @@ void SpcRefsViewer::showTime() {
             updateStatus();
             setTitle("SPC REFS - " + product().label + " - " + timeLabel(initTime, validTimes[static_cast<size_t>(comboTime.getIndex())]).toStdString());
         }};
+}
+
+// another sector: the data stays, the picture is drawn again (a loop that was loaded belongs to the old view)
+void SpcRefsViewer::regionChanged() {
+    const int index = comboRegion.getIndex();
+    const auto names = UtilityGrib::regions();
+    if (index < 0 || index >= static_cast<int>(names.size())) {
+        return;
+    }
+    Utility::writePref("SPCREFS_REGION", names[static_cast<size_t>(index)]);
+    const auto box = UtilityGrib::regionBbox(index);
+    view = index == 0 ? UtilitySpcRefs::View{} : UtilitySpcRefs::viewForBox(names[static_cast<size_t>(index)], box.west, box.south, box.east, box.north);
+    animBar.stopIfAnimating();
+    animGeneration += 1;
+    animBar.clearFrames();
+    frameInfos.clear();
+    if (!values.empty()) {
+        shownPng = UtilitySpcRefs::renderPng(product(), values, memberNames, view);
+        image.setBytes(shownPng);   // a different part of the map: start from a fitted view
+    }
 }
 
 void SpcRefsViewer::moveBack() {
@@ -320,8 +358,9 @@ void SpcRefsViewer::onHover(double fx, double fy) {
     if (values.empty()) {
         return;
     }
-    const int column = static_cast<int>(std::floor(fx * LambertGrid::columns));
-    const int row = LambertGrid::rows - 1 - static_cast<int>(std::floor(fy * LambertGrid::rows));
+    int column = 0;
+    int row = 0;
+    UtilitySpcRefs::cellAt(view, fx, fy, column, row);
     const auto text = UtilitySpcRefs::readout(product(), values, column, row, memberNames);
     hoverText = QString::fromStdString(text);
     updateStatus();
@@ -383,10 +422,11 @@ void SpcRefsViewer::onRangeRequested(int rangeStart, int rangeEnd) {
     auto s = store;
     const auto members = memberNames;
     const int member = memberIndex();
+    const auto shownView = view;
     const auto times = validTimes;
     const auto init = initTime;
     auto step = std::make_shared<std::function<void(size_t)>>();
-    *step = [this, gen, sweep, p, s, members, member, times, init, step] (size_t at) {
+    *step = [this, gen, sweep, p, s, members, member, times, init, step, shownView] (size_t at) {
         if (closed || gen != animGeneration) {
             return;
         }
@@ -408,10 +448,10 @@ void SpcRefsViewer::onRangeRequested(int rangeStart, int rangeEnd) {
         const int timeIndex = sweep->indices[at];
         auto one = std::make_shared<Loaded>();
         new FutureVoid{this,
-            [one, s, p, members, member, timeIndex] {
+            [one, s, p, members, member, timeIndex, shownView] {
                 vector<int> chunk = p.members ? vector<int>{member, timeIndex, 0, 0} : vector<int>{timeIndex, 0, 0};
                 if (s->readChunk(p.id, chunk, one->values, one->error)) {
-                    one->png = UtilitySpcRefs::renderPng(p, one->values, members);
+                    one->png = UtilitySpcRefs::renderPng(p, one->values, members, shownView);
                 }
             },
             [this, gen, sweep, one, timeIndex, times, init, step, at] {
@@ -449,7 +489,7 @@ QByteArray SpcRefsViewer::withBorder(const QByteArray& png, const FrameInfo& inf
     }
     UtilityGrib::MapHeader header;
     header.topLeft = "SPC REFS  " + QString::fromStdString(product().label);
-    header.topRight = "CONUS";
+    header.topRight = QString::fromStdString(view.name);
     const auto local = info.valid.toLocalTime();
     header.bottomLeft = "Run " + initTime.toUTC().toString("yyyy-MM-dd HH") + "Z   F" + QString::number(info.hour).rightJustified(2, '0');
     header.bottomRight = "Valid " + info.valid.toUTC().toString("ddd yyyy-MM-dd HH:mm") + "Z  (" + local.toString("ddd h:mm AP") + " " +

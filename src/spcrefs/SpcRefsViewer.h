@@ -44,6 +44,7 @@ private:
     void productChanged();
     void loadTimes();
     void showTime();
+    void regionChanged();
     void moveBack();
     void moveForward();
     void onHover(double fx, double fy);
@@ -65,6 +66,7 @@ private:
     ComboBox comboCycle;
     ComboBox comboTime;
     ComboBox comboMember;
+    ComboBox comboRegion;   // the whole CONUS grid or one of the standard mesoscale sectors
     BackForward backForward;
     Text textStatus;
     AnimationBar animBar;
@@ -76,6 +78,7 @@ private:
     vector<string> memberNames;        // raw names from the store, in bit order
     vector<QDateTime> validTimes;      // the chosen product's time coordinate
     QDateTime initTime;
+    UtilitySpcRefs::View view;         // the part of the grid on screen
     vector<float> values;              // the field on screen
     QByteArray shownPng;
     QString hoverText;
