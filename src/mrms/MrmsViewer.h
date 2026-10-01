@@ -44,6 +44,15 @@ private:
     void paintLegend(QPainter&);
     void moveScan(int step);
     void closeEventCustom() override;
+    bool eventFilter(QObject *, QEvent *) override;
+    struct Projection2 {   // the radar projection as x = ax * lon + bx, y = ay * mercator(lat) + by
+        double ax;
+        double bx;
+        double ay;
+        double by;
+    };
+    Projection2 projection() const;
+    void showHover(const QPointF& widgetPos);
     const UtilityMrms::Product& product() const;
 
     VBox box;

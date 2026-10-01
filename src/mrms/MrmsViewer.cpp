@@ -9,6 +9,7 @@
 #include <memory>
 #include <numbers>
 #include <QFont>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QTimeZone>
 #include "objects/FutureVoid.h"
@@ -67,6 +68,8 @@ MrmsViewer::MrmsViewer(Window * parent)
     radar->nexradState.reset();
     radar->nexradState.zoom = 0.14;   // the whole CONUS grid
     radar->nexradDraw.initGeom();
+    radar->setMouseTracking(true);
+    radar->installEventFilter(this);
     radar->dataLayer = [this] (QPainter& painter) { paintData(painter); };
     radar->topLayer = [this] (QPainter& painter) { paintLegend(painter); };
 
@@ -239,15 +242,9 @@ void MrmsViewer::stepLoop() {
     setFrame(loopFrames[loopPosition]);
 }
 
-// Draws the scan at the grid's own resolution: every screen pixel is turned back into a latitude / longitude through
-// the radar widget's projection and looked up in the grid. That projection is Mercator, so longitude depends only on the
-// pixel's column and latitude only on its row - two small tables, then a plain lookup per pixel.
-void MrmsViewer::paintData(QPainter& painter) {
-    if (currentIndices.isEmpty()) {
-        return;
-    }
+// The radar projection is linear in longitude and in Mercator y (degrees); its coefficients come from three map points.
+MrmsViewer::Projection2 MrmsViewer::projection() const {
     const auto& pn = radar->nexradState.getPn();
-    // the projection is linear in longitude and in Mercator y (degrees): find its coefficients from three map points
     const auto project = [&pn] (double lat, double lon) {
         return Projection::computeMercatorNumbersFromLatLon(LatLon{lat, lon}.reverseLon(), pn);
     };
@@ -258,10 +255,18 @@ void MrmsViewer::paintData(QPainter& painter) {
     const auto b = project(30.0, -99.0);
     const auto c = project(40.0, -100.0);
     const double ax = b[0] - a[0];
-    const double bx = a[0] + 100.0 * ax;
     const double ay = (c[1] - a[1]) / (mercator(40.0) - mercator(30.0));
-    const double by = a[1] - ay * mercator(30.0);
+    return {ax, a[0] + 100.0 * ax, ay, a[1] - ay * mercator(30.0)};
+}
 
+// Draws the scan at the grid's own resolution: every screen pixel is turned back into a latitude / longitude through
+// the radar widget's projection and looked up in the grid. That projection is Mercator, so longitude depends only on the
+// pixel's column and latitude only on its row - two small tables, then a plain lookup per pixel.
+void MrmsViewer::paintData(QPainter& painter) {
+    if (currentIndices.isEmpty()) {
+        return;
+    }
+    const auto [ax, bx, ay, by] = projection();
     const auto inverse = painter.combinedTransform().inverted();   // device pixel -> projected coordinates
     const double ratio = painter.device()->devicePixelRatio();
     // the rectangle of the paint device the radar occupies (the device itself can be a bigger window pixmap)
@@ -297,6 +302,40 @@ void MrmsViewer::paintData(QPainter& painter) {
     // the image is one pixel per device pixel; drawn through the current transform onto exactly the area it was sampled for
     painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
     painter.drawImage(inverse.mapRect(QRectF{viewport}), image, QRectF{image.rect()});
+}
+
+bool MrmsViewer::eventFilter(QObject * object, QEvent * event) {
+    if (object == radar && event->type() == QEvent::MouseMove) {
+        showHover(static_cast<QMouseEvent *>(event)->position());
+    } else if (object == radar && event->type() == QEvent::Leave) {
+        textStatus.setText(product().label + "  " + timeText(current.utc));
+    }
+    return false;
+}
+
+// the value under the pointer: widget pixel -> window units -> projected coordinates -> latitude / longitude -> grid cell
+void MrmsViewer::showHover(const QPointF& widgetPos) {
+    if (currentIndices.isEmpty() || looping) {
+        return;
+    }
+    const auto [ax, bx, ay, by] = projection();
+    const auto& state = radar->nexradState;
+    const double u = widgetPos.x() * 1000.0 / radar->width() - 500.0;
+    const double v = widgetPos.y() * 1000.0 / radar->height() - 250.0;
+    const double x = (u - state.xPos) / state.zoom;
+    const double y = (v - state.yPos) / state.zoom;
+    const double lon = (x - bx) / ax;
+    const double lat = std::atan(std::sinh((y - by) / ay * std::numbers::pi / 180.0)) * 180.0 / std::numbers::pi;
+    const int column = static_cast<int>(std::floor((lon - UtilityMrms::west) / UtilityMrms::cell));
+    const int row = static_cast<int>(std::floor((UtilityMrms::north - lat) / UtilityMrms::cell));
+    string text = product().label + "  " + timeText(current.utc);
+    if (column >= 0 && column < UtilityMrms::columns && row >= 0 && row < UtilityMrms::rows) {
+        const int index = static_cast<uchar>(currentIndices[static_cast<qsizetype>(row) * UtilityMrms::columns + column]);
+        text += "   |   " + QString::number(lat, 'f', 2).toStdString() + (lat >= 0 ? "N " : "S ") +
+            QString::number(std::abs(lon), 'f', 2).toStdString() + (lon < 0 ? "W" : "E") + "   ";
+        text += index == 0 ? string{"no data"} : QString::number(current.valueAt(index), 'g', 4).toStdString() + " " + product().units;
+    }
+    textStatus.setText(text);
 }
 
 void MrmsViewer::paintLegend(QPainter& painter) {
