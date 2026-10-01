@@ -61,9 +61,12 @@ private:
     bool launch(int);
     VBox box;
     HBox boxH;
-    VBox boxRows;   // the thumbnail rows and the forecast / text row, top to bottom, right of the toolbar
-    FlowBox imageLayout;   // fixed-size thumbnails, wrapped to the window width
-    FlowBox lowerFlow;     // the forecast and text sections, side by side while the window is wide enough
+    VBox boxZones;         // right of the toolbar: holds the zone grid chosen under Settings > Home Screen Order
+    QWidget * zonesWidget{};
+    FlowBox imageLayout;   // fixed-size thumbnails, wrapped to the width of their zone
+    // the four large sections; HomeLayout says which zone each one is in
+    QWidget * severeHolder{};
+    QWidget * imagesHolder{};
     QWidget * forecastHolder{};
     QWidget * textHolder{};
     VBox rightMostLayout;

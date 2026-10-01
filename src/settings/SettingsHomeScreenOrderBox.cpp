@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "settings/SettingsHomeScreenOrderBox.h"
+#include "settings/HomeLayoutEditor.h"
 #include "util/UtilityList.h"
 
 SettingsHomeScreenOrderBox::SettingsHomeScreenOrderBox(Window * parent)
@@ -23,7 +24,11 @@ void SettingsHomeScreenOrderBox::addItems() {
     buttons.clear();
     labels.clear();
     hboxList.clear();
-    addSection("Sections (forecast and text share a row when the window is wide enough; thumbnails go below only if listed after the forecast):", "", UIPreferences::homeScreenColumnOrder);
+    labels.emplace_back(parent, "Layout - pick a layout, then drag the sections into its zones (or click a section for a menu):");
+    labels.back().setBlue();
+    labels.back().setWordWrap(false);
+    box.addWidget(labels.back());
+    box.addWidgetReal(new HomeLayoutEditor{this, [] {}});
     addSection("Image column (top to bottom):", "Show or hide these under General (Nexrad: \"Show Nexrad on main screen\").", UIPreferences::homeScreenImageOrder);
     addSection("Text column (top to bottom):", "", UIPreferences::homeScreenTextOrder);
     labels.emplace_back(parent, "Changes show on the main screen when Settings is closed.");

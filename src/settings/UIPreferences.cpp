@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "settings/UIPreferences.h"
+#include "settings/HomeLayout.h"
 #include <algorithm>
 #include "objects/WString.h"
 #include "radarcolorpalette/ColorPalettes.h"
@@ -140,6 +141,7 @@ void UIPreferences::initialize() {
     rememberMosaic = WString::startsWith(Utility::readPref("REMEMBER_MOSAIC", "false"), "t");
     tiledWindows = WString::startsWith(Utility::readPref("TILED_WINDOWS", "false"), "t");
     homeScreenColumnOrder.load();
+    HomeLayout::load();
     homeScreenImageOrder.load();
     homeScreenTextOrder.load();
 }

@@ -6,11 +6,14 @@
 
 #include "MainWindow.h"
 #include <QApplication>
+#include <QGridLayout>
+#include <QVBoxLayout>
 #include "common/GlobalVariables.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
 #include "objects/FutureVoid.h"
 #include "objects/PolygonWatch.h"
+#include "settings/HomeLayout.h"
 #include "objects/Route.h"
 #include "misc/TextViewerStatic.h"
 #include "misc/UsAlerts.h"
@@ -70,13 +73,15 @@ MainWindow::MainWindow(QWidget * parent)
 
     boxSevenDay.setSpacing(0);
 
-    box.addLayout(boxSevereDashboard);
     box.addLayout(boxH);
     boxH.addLayout(toolbar);
-    boxH.addLayout(boxRows);
+    boxH.addLayout(boxZones);
 
-    // the forecast and the text sections are vertical stacks, each in a holder so lowerFlow can place the two side
-    // by side and wrap them when the window is narrow
+    // each large section lives in a holder widget so arrangeColumns can put it in any zone
+    severeHolder = new QWidget{this};
+    severeHolder->setLayout(boxSevereDashboard.getView());
+    imagesHolder = new QWidget{this};
+    imagesHolder->setLayout(imageLayout.getView());
     forecastHolder = new QWidget{this};
     forecastHolder->setLayout(forecastLayout.getView());
     textHolder = new QWidget{this};
@@ -315,49 +320,57 @@ void MainWindow::addWidgets() {
     arrangeColumns();
 }
 
-// (re)places the sections right of the toolbar, top to bottom: the thumbnail rows, and one wrapping row holding
-// the forecast and text sections (side by side while the window is wide enough). The order follows Settings >
-// Home Screen Order: the thumbnails go last only if Images is listed after the forecast. Layouts are detached and
-// re-added, not rebuilt, so their contents are kept.
+// (re)builds the zone grid right of the toolbar from the template and assignments saved by HomeLayout (Settings >
+// Home Screen Order): each zone stacks its sections top to bottom. The section holders are moved, not rebuilt, so
+// their contents are kept.
 void MainWindow::arrangeColumns() {
-    auto * rows = boxRows.getView();
-    for (auto * section : {imageLayout.getView(), lowerFlow.getView()}) {
-        rows->removeItem(section);   // no-op the first time
-        section->setParent(nullptr);
-    }
-    lowerFlow.detachAll();
-    const auto& order = UIPreferences::homeScreenColumnOrder.getTokens();
-    bool imagesFirst = true;
-    for (const auto& token : order) {
-        if (token == UIPreferences::homeColumnImages) {
-            break;
+    const auto holderFor = [this] (const string& section) -> QWidget * {
+        if (section == HomeLayout::sectionSevere) {
+            return severeHolder;
         }
-        if (token == UIPreferences::homeColumnForecast) {
-            imagesFirst = false;
-            break;
+        if (section == HomeLayout::sectionImages) {
+            return imagesHolder;
         }
-    }
-    for (const auto& token : order) {
-        if (token == UIPreferences::homeColumnForecast) {
-            lowerFlow.addWidgetReal(forecastHolder);
-        } else if (token == UIPreferences::homeColumnText) {
-            lowerFlow.addWidgetReal(textHolder);
+        if (section == HomeLayout::sectionForecast) {
+            return forecastHolder;
         }
+        return textHolder;
+    };
+    for (const auto& section : HomeLayout::sections()) {
+        holderFor(section)->setParent(this);   // out of the old grid before it is deleted
     }
-    if (imagesFirst) {
-        boxRows.addLayout(imageLayout);
-        boxRows.addLayout(lowerFlow);
-    } else {
-        boxRows.addLayout(lowerFlow);
-        boxRows.addLayout(imageLayout);
+    if (zonesWidget != nullptr) {
+        boxZones.getView()->removeWidget(zonesWidget);
+        delete zonesWidget;
     }
+    zonesWidget = new QWidget{this};
+    auto * grid = new QGridLayout{zonesWidget};
+    grid->setContentsMargins(0, 0, 0, 0);
+    grid->setSpacing(UIPreferences::boxPadding * 4);
+    const auto& layoutTemplate = HomeLayout::templates()[HomeLayout::templateIndex()];
+    for (size_t column = 0; column < layoutTemplate.columnStretch.size(); column += 1) {
+        grid->setColumnStretch(static_cast<int>(column), layoutTemplate.columnStretch[column]);
+    }
+    grid->setRowStretch(layoutTemplate.rows, 1);   // free height goes below the zones, not between them
+    for (size_t zone = 0; zone < layoutTemplate.zones.size(); zone += 1) {
+        const auto& place = layoutTemplate.zones[zone];
+        auto * zoneWidget = new QWidget{zonesWidget};
+        auto * stack = new QVBoxLayout{zoneWidget};
+        stack->setContentsMargins(0, 0, 0, 0);
+        stack->setSpacing(UIPreferences::boxPadding * 4);
+        for (const auto& section : HomeLayout::sectionsIn(static_cast<int>(zone))) {
+            stack->addWidget(holderFor(section), 0, Qt::AlignTop);
+            holderFor(section)->show();
+        }
+        stack->addStretch();
+        grid->addWidget(zoneWidget, place.row, place.col, place.rowSpan, place.colSpan, Qt::AlignTop);
+    }
+    boxZones.addWidgetReal(zonesWidget, 0, Qt::AlignTop | Qt::AlignLeft);
 }
 
 string MainWindow::computeTokenString() {
     string tokenString;
-    for (const auto& token : UIPreferences::homeScreenColumnOrder.getTokens()) {
-        tokenString += token + ",";
-    }
+    tokenString += HomeLayout::signature() + ",";
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
         if (token == UIPreferences::homeScreenNexradToken) {
             if (UIPreferences::nexradMainScreen) {

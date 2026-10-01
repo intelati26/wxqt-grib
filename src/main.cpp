@@ -6,6 +6,8 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QPixmap>
+#include <QTimer>
 #include "common/GlobalVariables.h"
 #include "ui/MainWindow.h"
 #include "util/MyApplication.h"
@@ -21,6 +23,16 @@ int main(int argc, char * argv[]) {
     } else {
         MainWindow w;
         w.show();
+        // development aid: WXQT_GRAB=<file.png>[,<milliseconds>] saves a picture of the main window and quits, so a
+        // layout can be checked without a display (run with QT_QPA_PLATFORM=offscreen)
+        const auto grab = qEnvironmentVariable("WXQT_GRAB").split(',');
+        if (!grab[0].isEmpty()) {
+            const auto delay = grab.size() > 1 ? grab[1].toInt() : 8000;
+            QTimer::singleShot(delay, &a, [&w, &a, file = grab[0]] {
+                w.grab().save(file);
+                a.quit();
+            });
+        }
         return a.exec();
     }
 }
