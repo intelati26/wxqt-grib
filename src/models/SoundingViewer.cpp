@@ -159,6 +159,7 @@ protected:
 
         // panel rectangles, measured from SPC's picture
         drawSkewT(painter, skewRect());
+        drawWindSpeed(painter, QRect{595, 25, 93, 565});
         drawHodograph(painter, QRect{755, 25, 415, 445});
         drawWindInset(painter, QRect{545, 742, 100, 78});
         // the table band under the plots: parcels and thermodynamics | kinematics | indices and precipitation type
@@ -521,6 +522,57 @@ private:
     }
 
     // two wind barbs, at 1 km and 6 km above ground (SPC's small inset)
+    // wind speed against pressure beside the skew-T (same vertical scale), one bar per level coloured by height above
+    // ground: under 3 km red, 3-6 bright green, 6-9 dark green, 9-12 purple, above 12 km cyan; 0-140 kt, dashed every 20 kt
+    void drawWindSpeed(QPainter& painter, const QRect& area) {
+        const auto& p = *profile;
+        const auto g = geometry(skewRect());
+        constexpr double maxSpeed = 140.0;
+        painter.save();
+        painter.setClipRect(area);
+        painter.fillRect(area, QColor{0, 0, 0});
+        painter.setPen(QPen{QColor{110, 110, 110}, 1.0, Qt::DashLine});
+        for (int speed = 20; speed < static_cast<int>(maxSpeed); speed += 20) {
+            const double x = area.left() + area.width() * speed / maxSpeed;
+            painter.drawLine(QPointF{x, area.top()}, QPointF{x, area.bottom()});
+        }
+        QFont font = painter.font();
+        font.setPixelSize(9);
+        painter.setFont(font);
+        painter.setPen(QColor{170, 170, 170});
+        for (int speed = 20; speed < static_cast<int>(maxSpeed); speed += 40) {
+            const double x = area.left() + area.width() * speed / maxSpeed;
+            painter.drawText(QRectF(x - 14, area.bottom() - 14, 28, 12), Qt::AlignCenter, QString::number(speed));
+        }
+        const auto colorAt = [] (double agl) {
+            if (agl < 3000.0) return QColor{255, 0, 0};
+            if (agl < 6000.0) return QColor{0, 255, 0};
+            if (agl < 9000.0) return QColor{0, 139, 0};
+            if (agl < 12000.0) return QColor{145, 44, 238};
+            return QColor{0, 255, 255};
+        };
+        std::vector<size_t> levels;
+        for (size_t i = 0; i < p.size(); i += 1) {
+            if (have(p.pres[i]) && have(p.wspd[i]) && have(p.hght[i]) && p.pres[i] >= pTop && p.pres[i] <= pBottom) {
+                levels.push_back(i);
+            }
+        }
+        for (size_t n = 0; n < levels.size(); n += 1) {
+            const auto i = levels[n];
+            const double y = g.yOf(p.pres[i]);
+            // the bar covers half the distance to each neighbouring level
+            const double above = n + 1 < levels.size() ? (y + g.yOf(p.pres[levels[n + 1]])) / 2.0 : y - 1.0;
+            const double below = n > 0 ? (y + g.yOf(p.pres[levels[n - 1]])) / 2.0 : y + 1.0;
+            const double length = area.width() * std::min(p.wspd[i], maxSpeed) / maxSpeed;
+            painter.fillRect(QRectF{static_cast<double>(area.left()), above, length, std::max(1.0, below - above)}, colorAt(p.toAgl(p.hght[i])));
+        }
+        painter.setClipping(false);
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawRect(area);
+        painter.drawText(QRectF(area.left(), area.top() - 14, area.width(), 12), Qt::AlignCenter, "Wind (kt)");
+        painter.restore();
+    }
+
     void drawWindInset(QPainter& painter, const QRect& area) {
         const auto& p = *profile;
         painter.save();
