@@ -60,6 +60,7 @@ private:
     bool launch(int);
     VBox box;
     HBox boxH;
+    VBox boxRows;   // the image / forecast / text rows, top to bottom, right of the toolbar
     VBox imageLayout;
     VBox rightMostLayout;
     VBox forecastLayout;

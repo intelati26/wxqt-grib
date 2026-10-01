@@ -73,6 +73,12 @@ MainWindow::MainWindow(QWidget * parent)
     box.addLayout(boxSevereDashboard);
     box.addLayout(boxH);
     boxH.addLayout(toolbar);
+    boxH.addLayout(boxRows);
+
+    // each section is a horizontal row; the rows stack top to bottom
+    for (auto * section : {&imageLayout, &forecastLayout, &rightMostLayout}) {
+        section->getView()->setDirection(QBoxLayout::LeftToRight);
+    }
 
     forecastLayout.addWidget(comboBox);
     forecastLayout.addLayout(boxCc);
@@ -80,6 +86,10 @@ MainWindow::MainWindow(QWidget * parent)
     forecastLayout.addLayout(boxHazards);
     forecastLayout.addLayout(boxSevenDay);
     forecastLayout.addStretch();
+    // in a horizontal row, sub-layouts are centred vertically unless told otherwise
+    for (auto * sub : {&boxCc, &boxHazards, &boxSevenDay}) {
+        forecastLayout.getView()->setAlignment(sub->getView(), Qt::AlignTop);
+    }
 
     addWidgets();   // also places the columns right of the toolbar, in the user's order
 
@@ -307,24 +317,24 @@ void MainWindow::addWidgets() {
     arrangeColumns();
 }
 
-// (re)places the image / forecast / text columns right of the toolbar in the
-// order chosen under Settings > Home Screen Order. The column layouts are
-// detached and re-added, not rebuilt, so their contents are kept.
+// (re)places the image / forecast / text rows right of the toolbar, top to
+// bottom, in the order chosen under Settings > Home Screen Order. The row
+// layouts are detached and re-added, not rebuilt, so their contents are kept.
 void MainWindow::arrangeColumns() {
-    auto * row = boxH.getView();
+    auto * rows = boxRows.getView();
     const vector<std::pair<string, VBox *>> columns{
         {UIPreferences::homeColumnImages, &imageLayout},
         {UIPreferences::homeColumnForecast, &forecastLayout},
         {UIPreferences::homeColumnText, &rightMostLayout},
     };
     for (const auto& column : columns) {
-        row->removeItem(column.second->getView());   // no-op the first time
+        rows->removeItem(column.second->getView());   // no-op the first time
         column.second->getView()->setParent(nullptr);
     }
     for (const auto& token : UIPreferences::homeScreenColumnOrder.getTokens()) {
         for (const auto& column : columns) {
             if (column.first == token) {
-                boxH.addLayout(*column.second);
+                boxRows.addLayout(*column.second);
             }
         }
     }
