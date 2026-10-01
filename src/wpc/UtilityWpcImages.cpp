@@ -148,11 +148,10 @@ const vector<string> UtilityWpcImages::labels{
     "Aviation - WPC 4 day Forecast",
     "Aviation - WPC 5 day Forecast",
     "Aviation - WPC 6 day Forecast",
-    "Aviation - WPC 7 day Forecast",
 
     "Aurora Forecast - North",
     "Aurora Forecast - South",
-    "Estimated Planetary K index"
+    "Station K index (SWPC)"
 };
 
 const vector<string> UtilityWpcImages::urls{
@@ -272,7 +271,7 @@ const vector<string> UtilityWpcImages::urls{
     "https://www.aviationweather.gov/data/products/sigmet/sigmet_all.gif",
     "https://www.aviationweather.gov/data/products/sigmet/sigmet_cb.gif",
     "https://www.aviationweather.gov/data/products/sigmet/sigmet_tb.gif",
-    "https://www.aviationweather.gov/data/products/sigmet/sigmet_ib.gif",
+    "https://www.aviationweather.gov/data/products/sigmet/sigmet_ic.gif",
     "https://www.aviationweather.gov/data/products/progs/F000_wpc_sfc.gif",
     "https://www.aviationweather.gov/data/products/progs/F006_wpc_prog.gif",
     "https://www.aviationweather.gov/data/products/progs/F012_wpc_prog.gif",
@@ -285,9 +284,8 @@ const vector<string> UtilityWpcImages::urls{
     "https://www.aviationweather.gov/data/products/progs/F096_wpc_prog.gif",
     "https://www.aviationweather.gov/data/products/progs/F120_wpc_prog.gif",
     "https://www.aviationweather.gov/data/products/progs/F144_wpc_prog.gif",
-    "https://www.aviationweather.gov/data/products/progs/F168_wpc_prog.gif",
 
     "https://services.swpc.noaa.gov/images/animations/ovation/north/latest.jpg",
     "https://services.swpc.noaa.gov/images/animations/ovation/south/latest.jpg",
-    "https://services.swpc.noaa.gov/images/planetary-k-index.gif"
+    "https://services.swpc.noaa.gov/images/station-k-index.png"
 };
