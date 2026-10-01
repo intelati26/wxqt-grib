@@ -75,10 +75,12 @@ MainWindow::MainWindow(QWidget * parent)
     boxH.addLayout(toolbar);
     boxH.addLayout(boxRows);
 
-    // the forecast and text sections are horizontal rows (images wrap, see FlowBox); the rows stack top to bottom
-    for (auto * section : {&forecastLayout, &rightMostLayout}) {
-        section->getView()->setDirection(QBoxLayout::LeftToRight);
-    }
+    // the forecast and the text sections are vertical stacks, each in a holder so lowerFlow can place the two side
+    // by side and wrap them when the window is narrow
+    forecastHolder = new QWidget{this};
+    forecastHolder->setLayout(forecastLayout.getView());
+    textHolder = new QWidget{this};
+    textHolder->setLayout(rightMostLayout.getView());
 
     forecastLayout.addWidget(comboBox);
     forecastLayout.addLayout(boxCc);
@@ -86,10 +88,6 @@ MainWindow::MainWindow(QWidget * parent)
     forecastLayout.addLayout(boxHazards);
     forecastLayout.addLayout(boxSevenDay);
     forecastLayout.addStretch();
-    // in a horizontal row, sub-layouts are centred vertically unless told otherwise
-    for (auto * sub : {&boxCc, &boxHazards, &boxSevenDay}) {
-        forecastLayout.getView()->setAlignment(sub->getView(), Qt::AlignTop);
-    }
 
     addWidgets();   // also places the columns right of the toolbar, in the user's order
 
@@ -317,26 +315,41 @@ void MainWindow::addWidgets() {
     arrangeColumns();
 }
 
-// (re)places the image / forecast / text rows right of the toolbar, top to
-// bottom, in the order chosen under Settings > Home Screen Order. The row
-// layouts are detached and re-added, not rebuilt, so their contents are kept.
+// (re)places the sections right of the toolbar, top to bottom: the thumbnail rows, and one wrapping row holding
+// the forecast and text sections (side by side while the window is wide enough). The order follows Settings >
+// Home Screen Order: the thumbnails go last only if Images is listed after the forecast. Layouts are detached and
+// re-added, not rebuilt, so their contents are kept.
 void MainWindow::arrangeColumns() {
     auto * rows = boxRows.getView();
-    const vector<std::pair<string, Box *>> columns{
-        {UIPreferences::homeColumnImages, &imageLayout},
-        {UIPreferences::homeColumnForecast, &forecastLayout},
-        {UIPreferences::homeColumnText, &rightMostLayout},
-    };
-    for (const auto& column : columns) {
-        rows->removeItem(column.second->getView());   // no-op the first time
-        column.second->getView()->setParent(nullptr);
+    for (auto * section : {imageLayout.getView(), lowerFlow.getView()}) {
+        rows->removeItem(section);   // no-op the first time
+        section->setParent(nullptr);
     }
-    for (const auto& token : UIPreferences::homeScreenColumnOrder.getTokens()) {
-        for (const auto& column : columns) {
-            if (column.first == token) {
-                boxRows.addLayout(*column.second);
-            }
+    lowerFlow.detachAll();
+    const auto& order = UIPreferences::homeScreenColumnOrder.getTokens();
+    bool imagesFirst = true;
+    for (const auto& token : order) {
+        if (token == UIPreferences::homeColumnImages) {
+            break;
         }
+        if (token == UIPreferences::homeColumnForecast) {
+            imagesFirst = false;
+            break;
+        }
+    }
+    for (const auto& token : order) {
+        if (token == UIPreferences::homeColumnForecast) {
+            lowerFlow.addWidgetReal(forecastHolder);
+        } else if (token == UIPreferences::homeColumnText) {
+            lowerFlow.addWidgetReal(textHolder);
+        }
+    }
+    if (imagesFirst) {
+        boxRows.addLayout(imageLayout);
+        boxRows.addLayout(lowerFlow);
+    } else {
+        boxRows.addLayout(lowerFlow);
+        boxRows.addLayout(imageLayout);
     }
 }
 

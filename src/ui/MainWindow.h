@@ -61,8 +61,11 @@ private:
     bool launch(int);
     VBox box;
     HBox boxH;
-    VBox boxRows;   // the image / forecast / text rows, top to bottom, right of the toolbar
+    VBox boxRows;   // the thumbnail rows and the forecast / text row, top to bottom, right of the toolbar
     FlowBox imageLayout;   // fixed-size thumbnails, wrapped to the window width
+    FlowBox lowerFlow;     // the forecast and text sections, side by side while the window is wide enough
+    QWidget * forecastHolder{};
+    QWidget * textHolder{};
     VBox rightMostLayout;
     VBox forecastLayout;
     VBox boxCc;

@@ -109,6 +109,12 @@ void FlowBox::removeChildren() {
     UtilityUI::removeChildren(flow);
 }
 
+void FlowBox::detachAll() {
+    while (QLayoutItem * item = flow->takeAt(0)) {
+        delete item;   // the wrapper only; the widget lives on
+    }
+}
+
 QLayout * FlowBox::getView() {
     return flow;
 }

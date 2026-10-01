@@ -23,7 +23,7 @@ void SettingsHomeScreenOrderBox::addItems() {
     buttons.clear();
     labels.clear();
     hboxList.clear();
-    addSection("Rows (top to bottom, right of the toolbar):", "", UIPreferences::homeScreenColumnOrder);
+    addSection("Sections (forecast and text share a row when the window is wide enough; thumbnails go below only if listed after the forecast):", "", UIPreferences::homeScreenColumnOrder);
     addSection("Image column (top to bottom):", "Show or hide these under General (Nexrad: \"Show Nexrad on main screen\").", UIPreferences::homeScreenImageOrder);
     addSection("Text column (top to bottom):", "", UIPreferences::homeScreenTextOrder);
     labels.emplace_back(parent, "Changes show on the main screen when Settings is closed.");

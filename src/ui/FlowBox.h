@@ -45,6 +45,7 @@ public:
     void addWidgetReal(QWidget *);
     void addStretch() {}   // a flow has no free space to absorb
     void removeChildren();
+    void detachAll();   // takes every item out without deleting the widgets, so they can be re-added in another order
     QLayout * getView() override;
 
 private:
