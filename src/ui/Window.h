@@ -30,8 +30,11 @@ public:
 protected:
     void resizeEvent(QResizeEvent *) override;
     void closeEvent(QCloseEvent *) override;
+    void showEvent(QShowEvent *) override;
 
 private:
+    string geometryKey() const;   // one saved size / position per kind of screen
+    bool geometryRestored{false};
     virtual void resizeEventCustom();
     virtual void closeEventCustom();
     Shortcut shortcutClose1;

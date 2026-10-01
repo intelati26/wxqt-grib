@@ -5,7 +5,13 @@
 // *****************************************************************************
 
 #include "ui/Window.h"
+#include <algorithm>
+#include <typeinfo>
+#include <QGuiApplication>
+#include <QScreen>
+#include <QStringList>
 #include "settings/UIPreferences.h"
+#include "util/Utility.h"
 #include "util/UtilityUI.h"
 
 Window::Window(QWidget * parent)
@@ -67,7 +73,37 @@ void Window::resizeEvent([[maybe_unused]] QResizeEvent * event) {
 void Window::resizeEventCustom() {  // wxpy diff
 }
 
+string Window::geometryKey() const {
+    return string{"WINDOW_GEOMETRY_"} + typeid(*this).name();
+}
+
+// the first time a screen is shown, put it where and as big as it was when last closed (if that is still on a
+// connected screen)
+void Window::showEvent(QShowEvent * event) {
+    QMainWindow::showEvent(event);
+    if (geometryRestored) {
+        return;
+    }
+    geometryRestored = true;
+    const auto parts = QString::fromStdString(Utility::readPref(geometryKey(), "")).split(',');
+    if (parts.size() != 4) {
+        return;
+    }
+    const QRect saved{parts[0].toInt(), parts[1].toInt(), parts[2].toInt(), parts[3].toInt()};
+    const auto * screen = QGuiApplication::screenAt(saved.center());
+    if (screen == nullptr || saved.width() < 200 || saved.height() < 150) {
+        return;
+    }
+    const auto available = screen->availableGeometry();
+    QRect fitted{saved.topLeft(), QSize{std::min(saved.width(), available.width()), std::min(saved.height(), available.height())}};
+    fitted.moveLeft(std::clamp(fitted.left(), available.left(), available.right() - fitted.width() + 1));
+    fitted.moveTop(std::clamp(fitted.top(), available.top(), available.bottom() - fitted.height() + 1));
+    setGeometry(fitted);
+}
+
 void Window::closeEvent(QCloseEvent * event) {
+    const auto g = geometry();
+    Utility::writePref(geometryKey(), std::to_string(g.x()) + "," + std::to_string(g.y()) + "," + std::to_string(g.width()) + "," + std::to_string(g.height()));
     closeEventCustom();
     event->accept();
 }
