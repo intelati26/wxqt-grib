@@ -36,8 +36,9 @@ namespace SoundingIndices {
 
     // precipitable water, inches, from the surface up to `topMb`
     double precipitableWater(const SoundingProfile& profile, double topMb = 400.0);
-    // pressure-weighted mean mixing ratio (g/kg) between two heights AGL
+    // mean mixing ratio (g/kg) between two heights AGL / two pressures, SHARPpy's exact form
     double meanMixingRatio(const SoundingProfile& profile, double fromAgl, double toAgl);
+    double meanMixingRatioMb(const SoundingProfile& profile, double bottomMb, double topMb);
     double mixingRatioAt(const SoundingProfile& profile, double pMb);
     // temperature change (top minus bottom, C) and lapse rate (C/km, positive = cooling with height)
     double deltaT(const SoundingProfile& profile, double fromMb, double toMb);

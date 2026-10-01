@@ -385,7 +385,8 @@ private:
         lines << "";
         lines << QString("STP fix %1  eff %2   SCP %3   SHIP %4").arg(num(a.stpFixed, 1)).arg(num(a.stpEffective, 1)).arg(num(a.supercell, 1)).arg(num(a.hail, 2));
         lines << QString("PW %1 in   DCAPE %2   0C %3 m  WBZ %4 m").arg(num(a.precipitableWaterIn, 2)).arg(num(a.dcape, 0)).arg(num(a.freezingLevelAgl, 0)).arg(num(a.wetBulbZeroAgl, 0));
-        lines << QString("Lapse C/km  0-3 %1  3-6 %2  700-500 %3").arg(num(a.lapse03, 1)).arg(num(a.lapse36, 1)).arg(num(a.lapse700500, 1));
+        lines << QString("Lapse C/km  0-3 %1  3-6 MSL %2  700-500 %3").arg(num(a.lapse03, 1)).arg(num(a.lapse36, 1)).arg(num(a.lapse700500, 1));
+        lines << QString("Mean w g/kg  low 100 mb %1  0-3 km %2   RH sfc %3%").arg(num(a.meanMixingLow100, 1)).arg(num(a.meanMixing03, 1)).arg(num(a.surfaceRh, 0));
 
         painter.save();
         QFont mono{"monospace"};

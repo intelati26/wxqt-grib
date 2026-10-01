@@ -5,6 +5,7 @@
 
 #include "sounding/SoundingAnalysis.h"
 #include <cmath>
+#include "sounding/SoundingThermo.h"
 
 using namespace SoundingIndices;
 
@@ -36,16 +37,27 @@ SoundingAnalysis SoundingAnalysis::compute(const SoundingProfile& p) {
         if (have(a.effectiveShearKt)) effShearMs = a.effectiveShearKt * knotsToMs;
     }
     a.precipitableWaterIn = precipitableWater(p);
-    a.meanMixing01 = meanMixingRatio(p, 0, 1000);
+    a.meanMixingLow100 = meanMixingRatioMb(p, p.sfcPres(), p.sfcPres() - 100.0);
+    a.meanMixing03 = meanMixingRatio(p, 0, 3000);
     a.lapse03 = lapseRateAgl(p, 0, 3000);
-    a.lapse36 = lapseRateAgl(p, 3000, 6000);
+    // SPC's printed 3-6 km lapse rate is between 3 and 6 km above sea level (its 0-3 km is above ground);
+    // follow SPC so the numbers agree, and label it MSL on screen
+    a.lapse36 = lapseRateMb(p, p.interpPresAtHght(3000.0), p.interpPresAtHght(6000.0));
     a.lapse700500 = lapseRateMb(p, 700, 500);
     a.lapse850500 = lapseRateMb(p, 850, 500);
     a.dcape = SoundingIndices::dcape(p);
-    const double frz = temperatureLevel(p, 0.0);
-    if (have(frz)) a.freezingLevelAgl = p.toAgl(p.interpHght(frz));
-    const double wbz = temperatureLevel(p, 0.0, true);
-    if (have(wbz)) a.wetBulbZeroAgl = p.toAgl(p.interpHght(wbz));
+    // Freezing / wet-bulb-zero heights. As on SPC's soundings: a surface already at or below 0 C has no
+    // melting level (0 m when the surface is exactly 0 C), even if a shallow warm layer sits above it.
+    const size_t s0 = static_cast<size_t>(p.sfc);
+    auto zeroLevel = [&] (double surfaceValue, bool wetBulb) {
+        if (!have(surfaceValue)) return SoundingThermo::missing;
+        if (surfaceValue == 0.0) return 0.0;
+        if (surfaceValue < 0.0) return SoundingThermo::missing;
+        const double pr = temperatureLevel(p, 0.0, wetBulb);
+        return have(pr) ? p.toAgl(p.interpHght(pr)) : SoundingThermo::missing;
+    };
+    a.freezingLevelAgl = zeroLevel(p.tmpc[s0], false);
+    a.wetBulbZeroAgl = zeroLevel(p.wetbulb[s0], true);
     a.surfaceRh = surfaceRelativeHumidity(p);
 
     if (a.shear06.valid() && have(a.srh01) && a.sb.valid) {

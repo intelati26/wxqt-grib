@@ -130,17 +130,28 @@ namespace SoundingIndices {
     }
 
     double meanMixingRatio(const SoundingProfile& p, double fromAgl, double toAgl) {
+        // SHARPpy's mean_mixratio(exact=True), which SPC's printed values follow: the mixing ratio of the
+        // mean dewpoint at the mean pressure, over the interpolated layer ends plus every observed level inside
+        // (ends counted half). Matches SPC's 0-3 km and SFC-850 mb "mean W" on all 270 test soundings.
         const double pb = fromAgl <= 0 ? p.sfcPres() : presAtAgl(p, fromAgl);
         const double pt = presAtAgl(p, toAgl);
+        return meanMixingRatioMb(p, pb, pt);
+    }
+
+    double meanMixingRatioMb(const SoundingProfile& p, double pb, double pt) {
         if (gone(pb) || gone(pt)) return missing;
-        double s = 0, sw = 0;
-        for (double pr = pb; pr >= pt - 1e-9; pr -= 1.0) {
-            const double w = mixingRatioAt(p, pr);
-            if (gone(w)) continue;
-            s += w * pr;
-            sw += pr;
+        const double db = p.interpDwpt(pb), dt = p.interpDwpt(pt);
+        if (gone(db) || gone(dt)) return missing;
+        double sumTd = 0.5 * (db + dt), sumP = 0.5 * (pb + pt);
+        int n = 0;
+        for (size_t i = 0; i < p.size(); i += 1) {
+            if (p.pres[i] < pb && p.pres[i] > pt && !gone(p.dwpc[i])) {
+                sumTd += p.dwpc[i];
+                sumP += p.pres[i];
+                n += 1;
+            }
         }
-        return sw > 0 ? s / sw : missing;
+        return SoundingThermo::mixingRatio(sumP / (n + 1), sumTd / (n + 1));
     }
 
     double deltaT(const SoundingProfile& p, double fromMb, double toMb) {
@@ -247,33 +258,34 @@ namespace SoundingIndices {
     }
 
     double temperatureLevel(const SoundingProfile& p, double tempC, bool wetBulbProfile) {
+        // the lowest level, going up from the ground, where the profile reaches tempC: a reported level that
+        // equals it exactly, or a crossing between two levels (log-p interpolated), whichever comes first.
+        // (SHARPpy returns any exact match before looking for crossings; SPC's printed values do not.)
         const auto& series = wetBulbProfile ? p.wetbulb : p.tmpc;
-        std::vector<double> t, lp;
-        bool below = false, above = false;
+        double prevT = missing, prevLogP = missing;
         for (size_t i = 0; i < p.size(); i += 1) {
             if (gone(series[i]) || gone(p.pres[i]) || p.pres[i] <= 0) continue;
-            if (series[i] == tempC) return p.pres[i];
-            below = below || series[i] < tempC;
-            above = above || series[i] > tempC;
-            t.push_back(series[i]);
-            lp.push_back(std::log10(p.pres[i]));
-        }
-        if (!below || !above) return missing;
-        for (size_t i = 0; i + 1 < t.size(); i += 1) {
-            if ((t[i] - tempC) * (t[i + 1] - tempC) < 0) {
-                const double f = (tempC - t[i]) / (t[i + 1] - t[i]);
-                return std::pow(10.0, lp[i] + f * (lp[i + 1] - lp[i]));
+            const double t = series[i], lp = std::log10(p.pres[i]);
+            if (t == tempC) return p.pres[i];
+            if (!gone(prevT) && (prevT - tempC) * (t - tempC) < 0) {
+                const double f = (tempC - prevT) / (t - prevT);
+                return std::pow(10.0, prevLogP + f * (lp - prevLogP));
             }
+            prevT = t;
+            prevLogP = lp;
         }
         return missing;
     }
 
     double dcape(const SoundingProfile& p) {
         const double sfcP = p.sfcPres();
-        // the downdraft source: centre of the driest (lowest mean theta-e) 100 mb layer in the lowest 400 mb
+        // the downdraft source: centre of the driest (lowest mean theta-e) 100 mb layer in the lowest 400 mb.
+        // Layers starting in the lowest 100 mb are skipped. SHARPpy does not skip them, but SPC's own
+        // output does: with the skip, 258 of 270 SPC soundings match exactly (176 without); the other 12
+        // are near-ties between layer means that differ in the third decimal.
         double minMean = 1000.0, minP = missing;
         for (size_t i = 0; i < p.size(); i += 1) {
-            if (gone(p.thetae[i]) || p.pres[i] < sfcP - 400.0) continue;
+            if (gone(p.thetae[i]) || p.pres[i] < sfcP - 400.0 || p.pres[i] > sfcP - 100.0) continue;
             // SHARPpy's "exact" layer mean: the interpolated ends plus every observed level inside, each counted once
             const double pb = p.pres[i], pt = pb - 100.0;
             const double t1 = p.interpThetae(pb), t2 = p.interpThetae(pt);

@@ -45,7 +45,26 @@ SHARPpy is distributed under the BSD 3-clause license:
 
 The engine was checked against SPC's own computed values (the "Parcel
 Information" and related blocks) in 270 observed soundings (2026-09-29 00Z to
-2026-09-30 12Z). Known differences: DCAPE matches SPC exactly on about 65% of soundings (176 of 270);
-on the rest SPC starts the downdraft from a different level than SHARPpy's
-minimum-theta-e rule picks (the integration itself reproduces SPC's value from that level); SPC's printed "Effective BWD" is not the quantity SCP/STP use
-(SHARPpy's definition is implemented); convective temperature is not ported.
+2026-09-30 12Z). Where SPC's printed numbers differ from SHARPpy's code, the
+engine follows SPC, and each such rule is commented in the source:
+
+- DCAPE source layer: layers starting in the lowest 100 mb are skipped
+  (258 of 270 exact; the rest are near-ties in the layer means).
+- CIN is zeroed only when CAPE is exactly 0 (SHARPpy: when CAPE rounds to 0).
+- Mean mixing ratio uses SHARPpy's exact form (mixing ratio of the mean
+  dewpoint at the mean pressure); SPC's "0-1 km mean W" is really the lowest
+  100 mb (both now match all 270).
+- The 3-6 km lapse rate is between 3 and 6 km above mean sea level, as SPC
+  prints it (labelled "MSL" on screen); 0-3 km is above ground.
+- Melting level / wet-bulb zero: the lowest crossing going up; none when the
+  surface is already below 0 C (269 / 268 of 270).
+
+Known, unexplained differences:
+- SHIP: on 25 of the 160 soundings with CAPE, SPC's value is lower than the
+  published formula gives (never higher); the published formula is used.
+- SPC's printed "Effective BWD" is not the quantity SCP/STP use; SHARPpy's
+  definition (which reproduces SCP/STP) is implemented.
+- Most-unstable parcel start level differs on 33 soundings, all with zero
+  MUCAPE (nothing derived from it changes).
+- A few soundings show SPC 0-3 km CAPE with zero total CAPE.
+- Convective temperature is not ported.

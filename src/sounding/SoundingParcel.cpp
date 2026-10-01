@@ -14,10 +14,6 @@ using SoundingThermo::missing;
 
 namespace SoundingParcel {
 
-namespace {
-    double kelvin(double c) { return c + SoundingThermo::zeroCelsiusK; }
-}
-
 void mixedLayerStart(const SoundingProfile& prof, double depthMb, double& pres, double& temp, double& dwpt) {
     // Follows SHARPpy's "exact" layer mean (params.mean_theta / mean_mixratio): the layer ends
     // are interpolated, every observed level inside is used, and each counts equally. The
@@ -270,7 +266,8 @@ Parcel liftFrom(const SoundingProfile& prof, double pres, double tmpc, double dw
     (void) tote;
     pcl.cape = totp;
     pcl.cin = cinhAtLfc;
-    if (std::floor(pcl.cape) == 0.0) {
+    // no CAPE at all -> no CIN. (SHARPpy zeroes CIN whenever CAPE rounds down to 0; SPC keeps it unless CAPE is exactly 0.)
+    if (pcl.cape == 0.0) {
         pcl.cin = 0.0;
     }
     if (ok(lfcP)) {

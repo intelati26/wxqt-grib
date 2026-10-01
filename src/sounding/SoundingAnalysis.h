@@ -27,9 +27,10 @@ struct SoundingAnalysis {
     double effectiveSrh{-9999.0};
 
     double precipitableWaterIn{-9999.0};
-    double meanMixing01{-9999.0};
+    double meanMixingLow100{-9999.0};   // g/kg, lowest 100 mb (what SPC prints as "0-1 km mean W")
+    double meanMixing03{-9999.0};       // g/kg, 0-3 km
     double lapse03{-9999.0};
-    double lapse36{-9999.0};
+    double lapse36{-9999.0};    // 3-6 km above MEAN SEA LEVEL, as SPC prints it
     double lapse700500{-9999.0};
     double lapse850500{-9999.0};
     double dcape{-9999.0};
