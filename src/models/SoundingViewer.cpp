@@ -164,6 +164,7 @@ protected:
         drawTempAdvection(painter, QRect{688, 25, 67, 565});
         drawHodograph(painter, QRect{755, 25, 415, 445});
         drawThetaE(painter, QRect{775, 492, 120, 108});
+        drawStormRelativeWinds(painter, QRect{940, 492, 120, 108});
         drawWindInset(painter, QRect{545, 742, 100, 78});
         // the table band under the plots: parcels and thermodynamics | kinematics | indices and precipitation type
         drawTable(painter, bottomLeft(), 0);
@@ -676,6 +677,85 @@ private:
         if (have(tei)) {
             painter.drawText(QRectF{area.left() + 4.0, area.top() + 26.0, area.width() - 8.0, 12.0}, Qt::AlignLeft, QString{"TEI: %1 K"}.arg(tei, 0, 'f', 0));
         }
+        painter.restore();
+    }
+
+    // storm-relative wind speed (right-mover storm motion) against height above ground, 0-16 km and 0-80 kt, as SHARPpy's
+    // srwinds panel: the trace, the 0-2 / 4-6 / 9-11 km mean storm-relative winds as short bars, and the 40-70 kt
+    // classic-supercell envelope above 8 km
+    void drawStormRelativeWinds(QPainter& painter, const QRect& area) {
+        const auto& p = *profile;
+        const auto storm = analysis->rightMover;
+        if (!storm.valid() || p.size() == 0) return;
+        constexpr double hMax = 16.0;
+        constexpr double sMax = 80.0;
+        const auto yOf = [&] (double km) { return (area.bottom() - 2.0) - km / hMax * (area.height() - 2.0); };
+        const auto xOf = [&] (double kt) { return area.left() + kt / sMax * area.width(); };
+        painter.save();
+        painter.fillRect(area, QColor{0, 0, 0});
+        QFont font = painter.font();
+        font.setPixelSize(9);
+        painter.setFont(font);
+        painter.setPen(QColor{200, 200, 200});
+        for (int km : {2, 4, 6, 8, 10, 12, 14}) {
+            const double y = yOf(km);
+            painter.drawLine(QPointF{static_cast<double>(area.left()), y}, QPointF{area.left() + 5.0, y});
+            painter.drawLine(QPointF{area.right() - 5.0, y}, QPointF{static_cast<double>(area.right()), y});
+            painter.drawText(QRectF{area.left() - 18.0, y - 6.0, 16.0, 12.0}, Qt::AlignRight | Qt::AlignVCenter, QString::number(km));
+        }
+        for (int kt = 0; kt < 100; kt += 10) {
+            if (kt > sMax) continue;
+            const double x = xOf(kt);
+            painter.drawLine(QPointF{x, static_cast<double>(area.top())}, QPointF{x, area.top() + 5.0});
+            painter.drawLine(QPointF{x, area.bottom() - 5.0}, QPointF{x, static_cast<double>(area.bottom())});
+            painter.drawText(QRectF{x - 10.0, area.bottom() + 1.0, 20.0, 11.0}, Qt::AlignCenter, QString::number(kt));
+        }
+        painter.setPen(QPen{QColor{200, 200, 200}, 1.0, Qt::DashLine});
+        painter.drawLine(QPointF{xOf(0), static_cast<double>(area.top())}, QPointF{xOf(0), static_cast<double>(area.bottom())});
+        const QColor classic{0xb1, 0x01, 0x9a};
+        painter.setPen(QPen{classic, 1.0, Qt::DashLine});
+        painter.drawLine(QPointF{xOf(40.0), yOf(8.0)}, QPointF{xOf(40.0), yOf(16.0)});
+        painter.drawLine(QPointF{xOf(70.0), yOf(8.0)}, QPointF{xOf(70.0), yOf(16.0)});
+        painter.setPen(classic);
+        painter.drawText(QRectF{xOf(40.0) - 5.0, area.top() + 2.0, 50.0, 24.0}, Qt::AlignCenter, "Classic\nSupercell");
+        painter.setClipRect(area);
+        // the trace: storm-relative speed every 10 m, from the surface to 16 km (or the top of the data)
+        painter.setPen(QPen{QColor{255, 0, 0}, 1.0});
+        const double sfc = p.sfcHght();
+        double lastX = 0.0;
+        double lastY = 0.0;
+        bool haveLast = false;
+        for (double h = 0.0; h < hMax * 1000.0; h += 10.0) {
+            const double pr = h <= 0.0 ? p.sfcPres() : p.interpPresAtHght(sfc + h);
+            double u;
+            double v;
+            if (!have(pr) || !p.interpComponents(pr, u, v)) {
+                haveLast = false;
+                if (have(pr)) continue;
+                break;
+            }
+            const double x = xOf(std::hypot(u - storm.u, v - storm.v));
+            const double y = yOf(h / 1000.0);
+            if (haveLast) painter.drawLine(QPointF{lastX, lastY}, QPointF{x, y});
+            lastX = x;
+            lastY = y;
+            haveLast = true;
+        }
+        const auto meanBar = [&] (double fromKm, double toKm, const QColor& color) {
+            const auto mean = SoundingIndices::meanWind(p, fromKm * 1000.0, toKm * 1000.0);
+            if (!mean.valid()) return;
+            const double x = xOf(std::hypot(mean.u - storm.u, mean.v - storm.v));
+            painter.setPen(QPen{color, 2.0});
+            painter.drawLine(QPointF{x, yOf(fromKm)}, QPointF{x, yOf(toKm)});
+        };
+        meanBar(0.0, 2.0, QColor{0x8b, 0x00, 0x00});
+        meanBar(4.0, 6.0, QColor{0x64, 0x95, 0xed});
+        meanBar(9.0, 11.0, QColor{0x94, 0x00, 0xd3});
+        painter.setClipping(false);
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawRect(area);
+        painter.setPen(QColor{235, 235, 235});
+        painter.drawText(QRectF{area.left() + 3.0, area.bottom() - 40.0, 60.0, 34.0}, Qt::AlignLeft | Qt::TextWordWrap, "SR Winds\nv. Height");
         painter.restore();
     }
 
