@@ -8,11 +8,15 @@
 #include <cmath>
 #include <memory>
 #include <numbers>
+#include <QBuffer>
 #include <QFont>
+#include <QImage>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QTimeZone>
+#include "models/UtilityGrib.h"
 #include "objects/FutureVoid.h"
+#include "objects/UtilityAnimationExport.h"
 #include "radar/Projection.h"
 #include "settings/Location.h"
 #include "util/To.h"
@@ -45,6 +49,8 @@ MrmsViewer::MrmsViewer(Window * parent)
     , comboUnits{this, {"US units", "Metric units"}}
     , comboAuto{this, {"Auto-update: 2 min", "Auto-update: 5 min", "Auto-update: off"}}
     , buttonLoop{this, Icon::Play, "Loop"}
+    , buttonSave{this, Icon::None, "Save"}
+    , shortcutSave{QKeySequence{"Ctrl+S"}, this}
     , textStatus{this, ""}
 {
     setAttribute(Qt::WA_DeleteOnClose);
@@ -97,6 +103,9 @@ MrmsViewer::MrmsViewer(Window * parent)
     comboScan.connect([this] { stopLoop(); showScan(comboScan.getIndex()); });
     buttonLoop.getView()->setToolTip("Play the latest scans as a loop (they are downloaded and decoded first)");
     buttonLoop.connect([this] { looping ? stopLoop() : startLoop(); });
+    buttonSave.getView()->setToolTip("Save the map - or the loaded loop - as PNG / animated PNG / WebP ..., with the product, valid time and save time in a border (Ctrl+S)");
+    buttonSave.connect([this] { onSave(); });
+    shortcutSave.connect([this] { onSave(); });
     loopTimer.setInterval(350);
     QObject::connect(&loopTimer, &QTimer::timeout, this, [this] { stepLoop(); });
 
@@ -107,6 +116,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     rowTop.addWidget(comboUnits);
     rowTop.addWidget(comboAuto);
     rowTop.addWidget(buttonLoop);
+    rowTop.addWidget(buttonSave);
     rowTop.addWidget(textStatus);
     rowTop.addStretch();
     box.addLayout(rowTop);
@@ -259,6 +269,7 @@ void MrmsViewer::closeEventCustom() {
 
 void MrmsViewer::loadScans() {
     const auto gen = ++generation;
+    loopFrames.clear();
     const auto chosen = product();
     textStatus.setText("Loading " + chosen.label + "...");
     auto result = std::make_shared<Loaded>();
@@ -296,6 +307,7 @@ void MrmsViewer::showScan(int comboIndex) {
         return;
     }
     const auto gen = ++generation;
+    loopFrames.clear();   // a loop belongs to the scan list it was made from
     const auto chosen = product();
     const auto scan = scans[static_cast<size_t>(comboToScan[static_cast<size_t>(comboIndex)])];
     textStatus.setText("Loading " + timeText(scan.utc) + "...");
@@ -329,6 +341,64 @@ void MrmsViewer::setFrame(const UtilityMrms::Frame& frame) {
     setTitle("MRMS - " + product().label + " - " + timeText(frame.utc));
     textStatus.setText(product().label + "  " + timeText(frame.utc));
     radar->update();
+}
+
+// one scan drawn the way it is on screen (map, lines, legend), with the information bars of the other model viewers:
+// product (and units) and when this file was saved on top; valid time and what it is at the bottom
+QByteArray MrmsViewer::renderFrame(const UtilityMrms::Frame& frame, const QString& units, const QString& extra) {
+    setFrame(frame);
+    const QImage map = radar->grab().toImage();
+    // a border above and below the map (the bars are drawn into it, so nothing - legend included - is covered)
+    const int bar = UtilityGrib::headerBarHeight(map.width());
+    QImage image{map.width(), map.height() + 2 * bar, QImage::Format_ARGB32_Premultiplied};
+    image.fill(Qt::white);
+    {
+        QPainter painter{&image};
+        painter.drawImage(0, bar, map);
+    }
+    UtilityGrib::MapHeader header;
+    header.topLeft = "MRMS  " + QString::fromStdString(product().label) + (units.isEmpty() ? QString{} : " (" + units + ")");
+    header.topRight = "Saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + "Z";
+    const auto local = frame.utc.toLocalTime();
+    header.bottomLeft = "Valid " + frame.utc.toUTC().toString("ddd yyyy-MM-dd HH:mm") + "Z  (" + local.toString("ddd h:mm AP") + " " +
+        QTimeZone::systemTimeZone().abbreviation(local) + ")";
+    header.bottomRight = extra;
+    UtilityGrib::drawMapHeader(image, header);
+    QByteArray bytes;
+    QBuffer buffer{&bytes};
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return bytes;
+}
+
+void MrmsViewer::onSave() {
+    if (currentIndices.isEmpty()) {
+        return;
+    }
+    const bool wasLooping = looping && !loopFrames.empty();
+    loopTimer.stop();
+    const auto shownFrame = current;
+    const auto units = QString::fromStdString(UtilityMrms::unitsShown(product(), us()));
+    const bool animated = loopFrames.size() >= 2;
+    vector<QByteArray> frames;
+    QByteArray still;
+    QDateTime first = current.utc;
+    QDateTime last;
+    if (animated) {
+        for (size_t i = 0; i < loopFrames.size(); i += 1) {
+            frames.push_back(renderFrame(loopFrames[i], units, "NOAA MRMS   frame " + QString::number(i + 1) + " of " + QString::number(loopFrames.size())));
+        }
+        first = loopFrames.front().utc;
+        last = loopFrames.back().utc;
+    } else {
+        still = renderFrame(current, units, "NOAA MRMS");
+    }
+    setFrame(shownFrame);   // back to what was on screen
+    if (wasLooping) {
+        loopTimer.start();
+    }
+    const auto name = UtilityAnimationExport::validName(first, last, "mrms_" + UtilityAnimationExport::slug(QString::fromStdString(product().id), 40));
+    UtilityAnimationExport::saveWithDialog(this, frames, 350, still, name, QByteArray{}, false);
 }
 
 void MrmsViewer::startLoop() {

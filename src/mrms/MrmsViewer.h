@@ -19,6 +19,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/Shortcut.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -47,6 +48,8 @@ private:
     void paintData(QPainter&);
     void paintLegend(QPainter&);
     void moveScan(int step);
+    void onSave();                    // the map (or the loaded loop) with a title / valid time / save time border, as PNG / WebP / ...
+    QByteArray renderFrame(const UtilityMrms::Frame&, const QString& units, const QString& extra);
     void closeEventCustom() override;
     void resizeEventCustom() override;
     void changeZoom(double factor);              // the radar widget's wheel / click zoom
@@ -72,6 +75,8 @@ private:
     ComboBox comboUnits;   // US (inches, kft) or metric
     ComboBox comboAuto;    // how often to look for a newer scan
     Button buttonLoop;
+    Button buttonSave;
+    Shortcut shortcutSave;
     Text textStatus;
     NexradWidget * radar{};
     QPointF pointer;           // last position of the mouse over the map, for zooming about it
