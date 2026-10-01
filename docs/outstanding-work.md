@@ -113,6 +113,13 @@ viewer now saves `GRIB_LAST_FIELD` / `GRIB_LAST_REGION`). SPC mesoanalysis, soun
 composited on white (`UtilityUI::updateImage(..., white)`). Not done: MRMS / REFS / SHIP thumbnails (SHIP renders take
 minutes cold), per-thumbnail field choice, thumbnails for text-only tools. Right-click Save now works on these.
 
+## Severe outlook comparison (2026-10-01)
+`SvrComparison` (toolbar icon ntor.png, Severe weather group): SPC outlook / CSU-MLP (schumacher.atmos.colostate.edu) /
+CIPS analogs (eas.slu.edu) side by side for days 1-8, after the NWS St. Louis "CIPS/CSU/SPC Comparison" page. CIPS has a
+picture per hazard on days 1-2 (hazard combo), one all-hazards picture on days 3-6, none after. Observed 2026-10-01:
+the CIPS pictures were last modified 2026-08-26 (the site may only update in season) - the tooltip shows the file
+time. Dev aid: `WXQT_OPEN=<toolbar id>` opens a tool headless, `WXQT_GRAB` pictures it.
+
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
 WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage

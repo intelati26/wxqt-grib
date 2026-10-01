@@ -38,6 +38,7 @@ using std::vector;
 class MainWindow : public Window {
 public:
     explicit MainWindow(QWidget * = nullptr);
+    void openRoute(const string& id) { toolbar.launchRoute(id); }   // development aid (WXQT_OPEN): open a toolbar entry by its id
 
 // protected:
 //     bool event(QEvent *) override;

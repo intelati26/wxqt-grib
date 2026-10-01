@@ -29,7 +29,7 @@ namespace {
                                            "nwsobs.png", "nwsobssites.png", "spcsoundings.png", "rtma.png"}},
             {"Severe weather", {"baseline_warning_black_48dp.png", "uswarn.png", "report_today.png",
                                 "report_yesterday.png", "spc_sum.png", "day1.png", "day2.png", "day3.png", "day48.png",
-                                "tstorm.png#2", "fire_outlook.png", "meso.png", "spccompmap.png", "tor.png"}},
+                                "tstorm.png#2", "ntor.png", "fire_outlook.png", "meso.png", "spccompmap.png", "tor.png"}},
             {"National, tropical and marine", {"fmap.png", "srfd.png", "wpc_rainfall.png", "nhc.png", "opc.png"}},
             {"Models", {"grib.png", "refs.png", "nsslwrf.png", "tstorm.png", "ncep.png", "spchrrr.png", "spcsref.png",
                         "hrrrviewer.png", "nsslwrf.png#2", "wpcgefs.png"}},

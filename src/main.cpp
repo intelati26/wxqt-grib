@@ -51,13 +51,24 @@ int main(int argc, char * argv[]) {
         MainWindow w;
         w.show();
         QObject::connect(&a, &QCoreApplication::aboutToQuit, &a, [] { CrashLog::write("---- wxqt closing normally ----"); });
-        // development aid: WXQT_GRAB=<file.png>[,<milliseconds>] saves a picture of the main window and quits, so a
-        // layout can be checked without a display (run with QT_QPA_PLATFORM=offscreen)
+        // development aids (run with QT_QPA_PLATFORM=offscreen): WXQT_OPEN=<toolbar entry id, e.g. ntor.png> opens that
+        // tool; WXQT_GRAB=<file.png>[,<milliseconds>] saves a picture of the newest tool window (else the main
+        // window) and quits, so a screen can be checked without a display
+        QWidget * opened = nullptr;
+        if (const auto route = qEnvironmentVariable("WXQT_OPEN"); !route.isEmpty()) {
+            const auto before = QApplication::topLevelWidgets();
+            w.openRoute(route.toStdString());
+            for (auto * widget : QApplication::topLevelWidgets()) {
+                if (widget != &w && !before.contains(widget) && widget->isWindow()) {
+                    opened = widget;
+                }
+            }
+        }
         const auto grab = qEnvironmentVariable("WXQT_GRAB").split(',');
         if (!grab[0].isEmpty()) {
             const auto delay = grab.size() > 1 ? grab[1].toInt() : 8000;
-            QTimer::singleShot(delay, &a, [&w, &a, file = grab[0]] {
-                w.grab().save(file);
+            QTimer::singleShot(delay, &a, [&w, &a, opened, file = grab[0]] {
+                (opened != nullptr ? opened->grab() : w.grab()).save(file);
                 a.quit();
             });
         }

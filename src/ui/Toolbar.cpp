@@ -46,6 +46,7 @@
 #include "spc/SpcSwoDay1.h"
 #include "spc/SpcSwoSummary.h"
 #include "spc/SpcTstormOutlooks.h"
+#include "spc/SvrComparison.h"
 #include "util/To.h"
 #include "vis/GoesGlobal.h"
 #include "vis/GoesViewer.h"
@@ -82,6 +83,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     for (const int day : {1, 2, 3, 48}) {
         routeItems.emplace_back("day" + To::string(day) + ".png", std::string{"SPC Convective Outlook Day "} + (day == 48 ? "4-8" : To::string(day)), [this, day] { launchSpcSwoDay1(day); });
     }
+    routeItems.emplace_back("ntor.png", "Severe outlook comparison (SPC / CSU-MLP / CIPS)", [parent] { new SvrComparison{parent}; });
     routeItems.emplace_back("fmap.png", "National Images, Ctrl-i", [this] { launchNationalImages(); });
     routeItems.emplace_back("meso.png", "SPC Mesoanalysis, Ctrl-z", [this] { launchSpcMeso(); });
     routeItems.emplace_back("nwsobssites.png", "Observation Sites", [this] { launchObservationSites(); });
