@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include <QApplication>
+#include <QMainWindow>
 #include <exception>
 #include <QMetaObject>
 #include <QDebug>
@@ -59,7 +60,7 @@ int main(int argc, char * argv[]) {
             const auto before = QApplication::topLevelWidgets();
             w.openRoute(route.toStdString());
             for (auto * widget : QApplication::topLevelWidgets()) {
-                if (widget != &w && !before.contains(widget) && widget->isWindow()) {
+                if (widget != &w && !before.contains(widget) && qobject_cast<QMainWindow *>(widget) != nullptr) {   // not a combo box's hidden popup
                     opened = widget;
                 }
             }

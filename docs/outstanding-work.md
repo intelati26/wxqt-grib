@@ -115,10 +115,14 @@ minutes cold), per-thumbnail field choice, thumbnails for text-only tools. Right
 
 ## Severe outlook comparison (2026-10-01)
 `SvrComparison` (toolbar icon ntor.png, Severe weather group): SPC outlook / CSU-MLP (schumacher.atmos.colostate.edu) /
-CIPS analogs (eas.slu.edu) side by side for days 1-8, after the NWS St. Louis "CIPS/CSU/SPC Comparison" page. CIPS has a
-picture per hazard on days 1-2 (hazard combo), one all-hazards picture on days 3-6, none after. Observed 2026-10-01:
-the CIPS pictures were last modified 2026-08-26 (the site may only update in season) - the tooltip shows the file
-time. Dev aid: `WXQT_OPEN=<toolbar id>` opens a tool headless, `WXQT_GRAB` pictures it.
+ABPG analogs (University of Missouri, https://analog.missouri.edu/ANALOG/threats.php) side by side for days 1-8, after
+the NWS St. Louis "CIPS/CSU/SPC Comparison" page. **CIPS (SLU) is no longer updated** (files last changed 2026-08-26) and
+was dropped in favour of ABPG: regional maps (8 regions, region combo remembered in `ABPG_REGION`) of the % of the top 15
+analogs with 1+ / 5+ severe reports, F024..F144 = days 1-6, runs 00Z / 12Z; the picture addresses and the newest run are
+read from the page. Each panel shows its valid time: SPC days 1-3 from the outlook page ("Valid 011300Z - 021200Z"),
+ABPG = run + forecast hour (the pictures say "Valid at ..."), CSU-MLP and SPC days 4-8 derived from the file time
+(marked "from file time"); an ended period is marked EXPIRED so a stale picture cannot look current.
+Dev aid: `WXQT_OPEN=<toolbar id>` opens a tool headless, `WXQT_GRAB` pictures it.
 
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
