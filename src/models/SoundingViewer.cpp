@@ -21,6 +21,7 @@
 #include "settings/Location.h"
 #include "util/SoundingSites.h"
 #include "util/UtilityIO.h"
+#include "sounding/SoundingAdvection.h"
 #include "sounding/SoundingPrecip.h"
 #include "sounding/SoundingThermo.h"
 #include "util/To.h"
@@ -160,6 +161,7 @@ protected:
         // panel rectangles, measured from SPC's picture
         drawSkewT(painter, skewRect());
         drawWindSpeed(painter, QRect{595, 25, 93, 565});
+        drawTempAdvection(painter, QRect{688, 25, 67, 565});
         drawHodograph(painter, QRect{755, 25, 415, 445});
         drawWindInset(painter, QRect{545, 742, 100, 78});
         // the table band under the plots: parcels and thermodynamics | kinematics | indices and precipitation type
@@ -569,7 +571,43 @@ private:
         painter.setClipping(false);
         painter.setPen(QColor{200, 200, 200});
         painter.drawRect(area);
-        painter.drawText(QRectF(area.left(), area.top() - 14, area.width(), 12), Qt::AlignCenter, "Wind (kt)");
+        painter.drawText(QRectF(area.left(), area.top() + 2, area.width(), 12), Qt::AlignCenter, "Wind (kt)");
+        painter.restore();
+    }
+
+    // inferred temperature advection (SHARPpy's panel): one box per 100 mb layer from the surface, from the centre line out
+    // to the value (-13 .. +13 C/hr across the width), red warm, blue cold, the value printed in the layer
+    void drawTempAdvection(QPainter& painter, const QRect& area) {
+        const auto g = geometry(skewRect());
+        const auto layers = SoundingAdvection::inferred(*profile, profile->latitude);
+        painter.save();
+        painter.setClipRect(area.adjusted(-1, -16, 1, 1));
+        painter.fillRect(area, QColor{0, 0, 0});
+        const double center = area.left() + area.width() / 2.0;
+        const auto xOf = [&] (double value) { return center + value / 26.0 * area.width(); };
+        painter.setPen(QPen{QColor{200, 200, 200}, 1.0, Qt::DashLine});
+        painter.drawLine(QPointF{center, static_cast<double>(area.top())}, QPointF{center, static_cast<double>(area.bottom())});
+        QFont font = painter.font();
+        font.setPixelSize(10);
+        painter.setFont(font);
+        for (const auto& layer : layers) {
+            if (std::isnan(layer.advection)) {
+                continue;
+            }
+            const double yBottom = g.yOf(layer.pBottom);
+            const double yTop = g.yOf(layer.pTop);
+            const double x = xOf(std::clamp(layer.advection, -13.0, 13.0));
+            const QColor color = layer.advection > 0 ? QColor{255, 0, 0} : (layer.advection < 0 ? QColor{0x33, 0x99, 0xCC} : QColor{235, 235, 235});
+            painter.setPen(QPen{color, 1.0});
+            painter.drawRect(QRectF{QPointF{std::min(center, x), yTop}, QPointF{std::max(center, x), yBottom}});
+            const double labelX = layer.advection < 0 ? xOf(-8.0) : xOf(8.0);
+            painter.drawText(QRectF{labelX - 15.0, (yTop + yBottom) / 2.0 - 6.0, 30.0, 12.0}, Qt::AlignCenter, QString::number(layer.advection, 'f', 1));
+        }
+        painter.setClipping(false);
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawRect(area);
+        painter.setPen(QColor{235, 235, 235});
+        painter.drawText(QRectF(area.left() + 2, area.top() + 2, area.width() - 4, 26), Qt::AlignCenter | Qt::TextWordWrap, "Inf. Temp. Adv. (C/hr)");
         painter.restore();
     }
 
@@ -927,6 +965,7 @@ void SoundingViewer::start() {
                 result->status = detail;
                 return;
             }
+            result->profile.latitude = latNow;   // for the inferred temperature advection
             result->analysis = SoundingAnalysis::compute(result->profile);
             const QDateTime runUtc{QDate{To::Int(date.substr(0, 4)), To::Int(date.substr(4, 2)), To::Int(date.substr(6, 2))},
                                    QTime{To::Int(cycle), 0}, QTimeZone::utc()};
@@ -976,6 +1015,7 @@ void SoundingViewer::startObserved() {
                     ". SPC publishes 00z and 12z launches (some sites also 06z/18z); the site may not have launched, or the archive may not hold that time.";
                 return;
             }
+            result->profile.latitude = SoundingSites::sites->byCode[siteCode]->latLon.lat();
             result->analysis = SoundingAnalysis::compute(result->profile);
             // "260930/1200" -> UTC time
             const auto& v = result->profile.validTime;

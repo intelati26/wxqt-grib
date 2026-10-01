@@ -22,6 +22,7 @@ public:
     std::vector<double> wdir;
     std::vector<double> wspd;
     std::string station;
+    double latitude{35.0};   // degrees north of the station / point (for the inferred temperature advection); 35 when unknown
     std::string validTime;   // as printed in the file, e.g. "260930/1200"
 
     // Reads SPC's sounding text ("%TITLE% ... %RAW% ... %END%"). Returns false if
