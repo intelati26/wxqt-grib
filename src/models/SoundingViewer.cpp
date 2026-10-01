@@ -440,6 +440,7 @@ SoundingViewer::SoundingViewer(Window * parent, double lon, double lat, const st
     , textInfo{this}
     , comboSite{this, {"-"}}
     , comboTime{this, {"-"}}
+    , comboArea{this, {"Point", "15 km mean", "30 km mean", "60 km mean"}}
     , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
     , buttonSave{new QPushButton{"Save", this}}
     , canvas{new SoundingCanvas{this}}
@@ -456,6 +457,7 @@ SoundingViewer::SoundingViewer(Window * parent, const string& site)
     , textInfo{this}
     , comboSite{this, SoundingSites::sites->nameList}
     , comboTime{this, labelsOf(observedTimes())}
+    , comboArea{this, {"Point"}}
     , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
     , buttonSave{new QPushButton{"Save", this}}
     , canvas{new SoundingCanvas{this}}
@@ -484,6 +486,9 @@ void SoundingViewer::build() {
     if (observed) {
         rowTop.addWidget(comboSite);
         rowTop.addWidget(comboTime);
+    } else {
+        comboArea.connect([this] { start(); });
+        rowTop.addWidget(comboArea);
     }
     rowTop.addWidget(comboParcel);
     rowTop.addWidgetReal(buttonSave);
@@ -502,8 +507,10 @@ void SoundingViewer::start() {
     auto result = std::make_shared<Result>();
     const auto lonNow = lon, latNow = lat;
     const auto runNow = runId, hourNow = forecastHour;
+    static const double radii[] = {0.0, 15.0, 30.0, 60.0};
+    const double radiusNow = radii[std::clamp(comboArea.getIndex(), 0, 3)];
     new FutureVoid{this,
-        [result, lonNow, latNow, runNow, hourNow] {
+        [result, lonNow, latNow, runNow, hourNow, radiusNow] {
             string date;
             string cycle;
             if (!UtilityGrib::resolveSynopticRun(runNow, date, cycle)) {
@@ -511,7 +518,7 @@ void SoundingViewer::start() {
                 return;
             }
             string detail;
-            result->ok = UtilityModelSounding::buildProfile(date, cycle, hourNow, lonNow, latNow, result->profile, detail);
+            result->ok = UtilityModelSounding::buildProfile(date, cycle, hourNow, lonNow, latNow, result->profile, detail, radiusNow);
             if (!result->ok) {
                 result->status = detail;
                 return;
@@ -525,7 +532,7 @@ void SoundingViewer::start() {
                 validLocal.toString("ddd h:mm AP").toStdString() + " " +
                 QTimeZone::systemTimeZone().abbreviation(validLocal).toStdString();
         },
-        [this, result, thisGeneration] {
+        [this, result, thisGeneration, radiusNow] {
             if (closed || thisGeneration != generation) return;
             status = result->status;
             loaded = result->ok;
@@ -536,7 +543,8 @@ void SoundingViewer::start() {
             }
             profile = result->profile;
             analysis = result->analysis;
-            const auto point = QString{"%1 N, %2 W"}.arg(lat, 0, 'f', 2).arg(-lon, 0, 'f', 2);
+            const auto point = QString{"%1 N, %2 W"}.arg(lat, 0, 'f', 2).arg(-lon, 0, 'f', 2) +
+                (radiusNow > 0.0 ? QString{"  (%1 km mean)"}.arg(radiusNow, 0, 'f', 0) : QString{});
             textInfo.setText(QString::fromStdString(status) + "    " + point);
             canvas->setData(&profile, &analysis, QString::fromStdString(status) + "    Sounding " + point);
         }};

@@ -56,7 +56,7 @@ namespace {
 namespace UtilityModelSounding {
 
 bool buildProfile(const string& dateStr, const string& cycle, const string& forecastHour, double lon, double lat,
-                  SoundingProfile& out, string& status) {
+                  SoundingProfile& out, string& status, double radiusKm) {
     const auto binDir = UtilityGrib::gdalBinDir();
     if (binDir.empty()) {
         status = "GDAL not found - install the 'gdal' package";
@@ -134,10 +134,34 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
         QFile::rename(merged + ".part", merged);
     }
 
+    // the points to read: the chosen one, or every 3 km cell within the radius
+    vector<std::pair<double, double>> points;
+    if (radiusKm <= 0.0) {
+        points.emplace_back(lon, lat);
+    } else {
+        const double kmPerDegLat = 111.32;
+        const double kmPerDegLon = kmPerDegLat * std::cos(lat * M_PI / 180.0);
+        // about a dozen samples across the radius: the mean is the same to within noise, the read is far quicker
+        const double spacing = std::max(3.0, radiusKm / 6.0);
+        const int steps = static_cast<int>(std::floor(radiusKm / spacing));
+        for (int iy = -steps; iy <= steps; iy += 1) {
+            for (int ix = -steps; ix <= steps; ix += 1) {
+                if (std::hypot(ix * spacing, iy * spacing) <= radiusKm) {
+                    points.emplace_back(lon + ix * spacing / kmPerDegLon, lat + iy * spacing / kmPerDegLat);
+                }
+            }
+        }
+    }
+    // gdallocationinfo reads "lon lat" lines from stdin and prints every band's value for each, in order
     QProcess process;
-    process.start(QString::fromStdString(binDir) + "/gdallocationinfo",
-                  {"-valonly", "-wgs84", merged, QString::number(lon, 'f', 4), QString::number(lat, 'f', 4)});
-    if (!process.waitForFinished(60000) || process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+    process.start(QString::fromStdString(binDir) + "/gdallocationinfo", {"-valonly", "-wgs84", merged});
+    QByteArray coordinates;
+    for (const auto& [x, y] : points) {
+        coordinates += QByteArray::number(x, 'f', 4) + " " + QByteArray::number(y, 'f', 4) + "\n";
+    }
+    process.write(coordinates);
+    process.closeWriteChannel();
+    if (!process.waitForFinished(120000) || process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
         status = "Model sounding: gdallocationinfo failed: " + process.readAllStandardError().toStdString();
         return false;
     }
@@ -145,23 +169,30 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
     for (const auto& line : QString::fromUtf8(process.readAllStandardOutput()).split('\n', Qt::SkipEmptyParts)) {
         values.push_back(line.trimmed().toDouble());
     }
-    if (values.size() != order.size()) {
+    if (values.size() != order.size() * points.size()) {
         status = "Model sounding: read " + To::string(static_cast<int>(values.size())) + " values for " +
-            To::string(static_cast<int>(order.size())) + " records (is the point outside the model domain?)";
+            To::string(static_cast<int>(order.size() * points.size())) + " expected (is the point outside the model domain?)";
         return false;
     }
+    // per record: the mean over the points that have a defined value
     std::map<string, double> value;
-    for (size_t i = 0; i < order.size(); i += 1) {
-        value[order[i]] = values[i];
+    for (size_t record = 0; record < order.size(); record += 1) {
+        double sum = 0.0;
+        int count = 0;
+        for (size_t point = 0; point < points.size(); point += 1) {
+            const double v = values[point * order.size() + record];
+            if (v > -9000.0 && !std::isnan(v)) {
+                sum += v;
+                count += 1;
+            }
+        }
+        value[order[record]] = count > 0 ? sum / count : -9999.0;
     }
     for (const auto& [key, v] : value) {
-        if (v < -9000.0 || std::isnan(v)) {
-            // undefined cells: outside the RRFS domain, or a record that is undefined at this point
-            if (key.rfind("snd_t_", 0) != 0 && key.rfind("snd_td_", 0) != 0 && key.rfind("snd_z_", 0) != 0 &&
-                key.rfind("snd_u_", 0) != 0 && key.rfind("snd_v_", 0) != 0) {
-                status = "Model sounding: no model data at " + To::string(lat) + ", " + To::string(lon) + " (outside the domain?)";
-                return false;
-            }
+        if (v < -9000.0 && key.rfind("snd_t_", 0) != 0 && key.rfind("snd_td_", 0) != 0 && key.rfind("snd_z_", 0) != 0 &&
+            key.rfind("snd_u_", 0) != 0 && key.rfind("snd_v_", 0) != 0) {
+            status = "Model sounding: no model data at " + To::string(lat) + ", " + To::string(lon) + " (outside the domain?)";
+            return false;
         }
     }
 
@@ -199,7 +230,8 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
     profile.validTime = dateStr + "/" + cycle + "Z F" + forecastHour;
     profile.finalize();
     out = profile;
-    status = "RRFS " + dateStr + " " + cycle + "Z F" + forecastHour + " at " + To::string(lat) + ", " + To::string(lon);
+    status = "RRFS " + dateStr + " " + cycle + "Z F" + forecastHour + " at " + To::string(lat) + ", " + To::string(lon) +
+        (radiusKm > 0.0 ? " (mean of " + To::string(static_cast<int>(points.size())) + " points within " + To::string(radiusKm) + " km)" : string{});
     return true;
 }
 

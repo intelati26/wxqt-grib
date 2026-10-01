@@ -21,8 +21,10 @@
 namespace UtilityModelSounding {
     // `forecastHour` as a plain number string ("1", "06"); `dateStr`/`cycle` as UtilityGrib::getLatestRun.
     // On failure returns false and `status` says why (shown to the user, never silent).
+    // `radiusKm` > 0 averages the column over points spaced across that radius around the point (3 km at the smallest)
+    // (same download; temperature, dewpoint, height, pressure and the wind components are averaged level by level).
     bool buildProfile(const std::string& dateStr, const std::string& cycle, const std::string& forecastHour,
-                      double lon, double lat, SoundingProfile& out, std::string& status);
+                      double lon, double lat, SoundingProfile& out, std::string& status, double radiusKm = 0.0);
 }
 
 #endif  // UTILITYMODELSOUNDING_H

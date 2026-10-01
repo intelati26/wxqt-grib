@@ -51,6 +51,7 @@ private:
     Text textInfo;
     ComboBox comboSite;
     ComboBox comboTime;
+    ComboBox comboArea;   // model mode: the point itself or the mean over a radius around it
     ComboBox comboParcel;
     QPushButton * buttonSave;
     SoundingCanvas * canvas;
