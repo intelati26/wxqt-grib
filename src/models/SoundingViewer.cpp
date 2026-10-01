@@ -20,6 +20,7 @@
 #include "settings/Location.h"
 #include "util/SoundingSites.h"
 #include "util/UtilityIO.h"
+#include "sounding/SoundingPrecip.h"
 #include "sounding/SoundingThermo.h"
 #include "util/To.h"
 
@@ -118,9 +119,11 @@ protected:
         const QRect skew{46, 30, skewWidth - 46 - 62, height() - 30 - 22};
         const int rightX = skewWidth + 6;
         const int rightWidth = width() - rightX - 8;
-        const int hodoSize = std::min(rightWidth, static_cast<int>(height() * 0.34));
+        const int insetWidth = 76;   // the 1 km / 6 km wind barbs beside the hodograph
+        const int hodoSize = std::min(rightWidth - insetWidth, static_cast<int>(height() * 0.34));
         drawSkewT(painter, skew);
-        drawHodograph(painter, QRect{rightX + (rightWidth - hodoSize) / 2, 30, hodoSize, hodoSize});
+        drawHodograph(painter, QRect{rightX + (rightWidth - insetWidth - hodoSize) / 2, 30, hodoSize, hodoSize});
+        drawWindInset(painter, QRect{rightX + rightWidth - insetWidth, 34, insetWidth, 92});
         drawTable(painter, QRect{rightX, 30 + hodoSize + 22, rightWidth, height() - 30 - hodoSize - 26});
     }
 
@@ -360,6 +363,39 @@ private:
         painter.restore();
     }
 
+    // two wind barbs, at 1 km and 6 km above ground (SPC's small inset)
+    void drawWindInset(QPainter& painter, const QRect& area) {
+        const auto& p = *profile;
+        painter.save();
+        const QColor colors[2] = {QColor{255, 110, 110}, QColor{120, 190, 255}};
+        const double heights[2] = {1000.0, 6000.0};
+        const char * labels[2] = {"1 km", "6 km"};
+        QFont font = painter.font();
+        font.setPixelSize(10);
+        painter.setFont(font);
+        for (int i = 0; i < 2; i += 1) {
+            double u = 0.0;
+            double v = 0.0;
+            const double pressure = p.interpPresAtHght(p.toMsl(heights[i]));
+            const bool ok = have(pressure) && p.interpComponents(pressure, u, v);
+            const QPointF center{area.left() + area.width() * (0.25 + 0.5 * i), area.top() + 34.0};
+            painter.setPen(QPen{colors[i], 1.6});
+            painter.setBrush(colors[i]);
+            if (ok) {
+                const SoundingIndices::Wind wind{u, v};
+                // the staff points into the wind: start half a staff down-wind so the barb is centred on the cell
+                const double rad = wind.direction() * pi / 180.0;
+                const QPointF toward{std::sin(rad), -std::cos(rad)};
+                drawBarb(painter, center - toward * 17.0, wind.direction(), wind.speed(), 34.0);
+            }
+            painter.setPen(QColor{225, 225, 225});
+            painter.drawText(QRectF{center.x() - 24, area.top() + 54.0, 48, 12}, Qt::AlignCenter, labels[i]);
+        }
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawText(QRectF{static_cast<double>(area.left()), area.top() + 68.0, static_cast<double>(area.width()), 24}, Qt::AlignHCenter | Qt::AlignTop, "Wind barbs\n(above ground)");
+        painter.restore();
+    }
+
     // The parameters as grids: one small table per group (parcels, winds, storm motion, indices, thermodynamics, lapse
     // rates, mixing ratio) with a header row, shaded alternate rows and aligned columns.
     struct GridSection {
@@ -413,6 +449,21 @@ private:
         sections.push_back({{"", "low 100 mb", "0-3 km"},
                             {{"Mean w g/kg", num(a.meanMixingLow100, 1), num(a.meanMixing03, 1)}},
                             true});
+
+        // SPC's "best guess precip type", from the profile (SoundingPrecip, after SHARPpy)
+        {
+            const auto guess = SoundingPrecip::bestGuess(*profile);
+            QString text = QString::fromStdString(guess.type.empty() ? std::string{"--"} : guess.type);
+            if (have(guess.surfaceTempC)) {
+                text += QString("  -  sfc temp %1 F").arg(guess.surfaceTempC * 1.8 + 32.0, 0, 'f', 1);
+            }
+            if (guess.phase >= 0 && have(guess.sourcePressure)) {
+                text += QString(", source ~%1 mb (%2 C)").arg(guess.sourcePressure, 0, 'f', 0).arg(guess.sourceTemp, 0, 'f', 0);
+            } else if (guess.phase < 0) {
+                text += ", no saturated layer below 5 km";
+            }
+            sections.push_back({{"Best guess precip type"}, {{text}}, false});
+        }
 
         painter.save();
         QFont font{painter.font()};

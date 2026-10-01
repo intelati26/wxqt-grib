@@ -8,7 +8,8 @@ the structure and formulas of SHARPpy's `sharptab/params.py` (`parcelx`,
 `stp_fixed`, `stp_cin`, `scp`, `ship`, `mean_theta`, `mean_mixratio`,
 `most_unstable_level`) and `sharptab/winds.py` (`helicity`, `mean_wind`,
 `wind_shear`, `non_parcel_bunkers_motion`). The thermodynamic core
-(`SoundingThermo`) follows `sharptab/thermo.py`.
+(`SoundingThermo`) follows `sharptab/thermo.py`. The precipitation-type guess (`SoundingPrecip`) follows `sharptab/watch_type.py`
+(`init_phase`, `posneg_temperature`, `best_guess_precip`, adapted there from SHARP code donated by Rich Thompson of SPC).
 
 SHARPpy is distributed under the BSD 3-clause license:
 
