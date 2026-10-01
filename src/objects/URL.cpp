@@ -117,6 +117,7 @@ namespace {
         // gives up on a transfer that makes no progress for 30 s (the timer restarts with every chunk, so a large download is
         // fine): without a limit a stalled server holds a worker - and the app's exit, which waits for workers - indefinitely
         request.setTransferTimeout(30000);
+        request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);   // sites move pictures with a 301
         if (KnownIntermediates::needed(request.url())) {
             request.setSslConfiguration(KnownIntermediates::configuration());
         }
@@ -213,6 +214,7 @@ string URL::getTextXmlAcceptHeader(const string& url) {
     QNetworkRequest request{QUrl{QString::fromStdString(url)}};
     request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
     request.setTransferTimeout(30000);   // see fetchOnce
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
     if (KnownIntermediates::needed(request.url())) {
         request.setSslConfiguration(KnownIntermediates::configuration());
     }

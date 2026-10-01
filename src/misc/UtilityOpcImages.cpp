@@ -49,7 +49,7 @@ const vector<string> UtilityOpcImages::labels{
 };
 
 const vector<string> UtilityOpcImages::urls{
-    "https://ocean.weather.gov/A_sfc_full_ocean_color.png",
+    "https://ocean.weather.gov/shtml/A_full_00hrsfc.gif",
     "https://ocean.weather.gov/shtml/ira1.gif",
     "https://ocean.weather.gov/shtml/A_24hr500.gif",
     "https://ocean.weather.gov/shtml/A_48hr500.gif",
@@ -63,7 +63,7 @@ const vector<string> UtilityOpcImages::urls{
     "https://ocean.weather.gov/shtml/A_024hrwper_color.gif",
     "https://ocean.weather.gov/shtml/A_048hrwper_color.gif",
     "https://ocean.weather.gov/shtml/A_096hrwper_color.gif",
-    "https://ocean.weather.gov/P_sfc_full_ocean_color.png",
+    "https://ocean.weather.gov/shtml/P_full_00hrsfc.gif",
     "https://ocean.weather.gov/shtml/irp1.gif",
     "https://ocean.weather.gov/shtml/P_24hr500.gif",
     "https://ocean.weather.gov/shtml/P_48hr500.gif",
