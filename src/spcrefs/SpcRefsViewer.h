@@ -11,6 +11,7 @@
 #include <vector>
 #include <QByteArray>
 #include <QDateTime>
+#include <QLabel>
 #include "spcrefs/UtilitySpcRefs.h"
 #include "ui/AnimationBar.h"
 #include "ui/BackForward.h"
@@ -48,6 +49,8 @@ private:
     void moveBack();
     void moveForward();
     void onHover(double fx, double fy);
+    void onHoverEnded();
+    void refreshHover();
     void onRangeRequested(int rangeStart, int rangeEnd);
     void renderNextFrame(size_t sweepIndex, int generation);
     void onFrameShown(int localIndex);
@@ -81,6 +84,9 @@ private:
     UtilitySpcRefs::View view;         // the part of the grid on screen
     vector<float> values;              // the field on screen
     QByteArray shownPng;
+    QLabel * hoverLabel{};             // the coordinate / value popup over the map
+    double lastHoverFx{-1.0};
+    double lastHoverFy{-1.0};
     QString hoverText;
     vector<FrameInfo> frameInfos;      // parallel to the loop frames in the animation bar
     int generation{0};

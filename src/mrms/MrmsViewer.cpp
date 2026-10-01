@@ -71,6 +71,10 @@ MrmsViewer::MrmsViewer(Window * parent)
     radar->nexradDraw.initGeom();
     radar->setMouseTracking(true);
     radar->installEventFilter(this);
+    hoverLabel = new QLabel{radar};
+    hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+    hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 205); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
+    hoverLabel->hide();
     radar->dataLayer = [this] (QPainter& painter) { paintData(painter); };
     radar->topLayer = [this] (QPainter& painter) { paintLegend(painter); };
 
@@ -540,7 +544,11 @@ bool MrmsViewer::eventFilter(QObject * object, QEvent * event) {
         pointerInside = true;
     } else if (object == radar && event->type() == QEvent::Leave) {
         pointerInside = false;
-        textStatus.setText(product().label + "  " + timeText(current.utc));
+        hoverShown = false;
+        if (hoverLabel != nullptr) {
+            hoverLabel->hide();
+        }
+        radar->update();
     }
     return false;
 }
@@ -561,19 +569,44 @@ void MrmsViewer::showHover(const QPointF& widgetPos) {
     const double lat = std::atan(std::sinh((y - by) / ay * std::numbers::pi / 180.0)) * 180.0 / std::numbers::pi;
     const int column = static_cast<int>(std::floor((lon - grid.west) / grid.cell));
     const int row = static_cast<int>(std::floor((grid.north - lat) / grid.cell));
-    string text = product().label + "  " + timeText(current.utc);
+    // the popup: coordinates, then the value (the same two lines as the other map viewers)
+    QString text = QString::number(std::abs(lat), 'f', 2) + QChar{0x00B0} + (lat >= 0 ? " N" : " S") + "   " +
+        QString::number(std::abs(lon), 'f', 2) + QChar{0x00B0} + (lon < 0 ? " W" : " E") + "\n";
     if (column >= 0 && column < grid.columns && row >= 0 && row < grid.rows) {
         const int index = static_cast<uchar>(currentIndices[static_cast<qsizetype>(row) * grid.columns + column]);
-        text += "   |   " + QString::number(lat, 'f', 2).toStdString() + (lat >= 0 ? "N " : "S ") +
-            QString::number(std::abs(lon), 'f', 2).toStdString() + (lon < 0 ? "W" : "E") + "   ";
-        text += index == 0 ? string{"no data"} : QString::number(UtilityMrms::shown(product(), current.valueAt(index), us()), 'g', 4).toStdString() + " " + UtilityMrms::unitsShown(product(), us());
+        text += index == 0 ? QString{"no data"} : QString::number(UtilityMrms::shown(product(), current.valueAt(index), us()), 'g', 4) + " " +
+            QString::fromStdString(UtilityMrms::unitsShown(product(), us()));
+    } else {
+        text += "outside the MRMS grid";
     }
-    textStatus.setText(text);
+    hoverShown = true;
+    if (hoverLabel != nullptr) {
+        hoverLabel->setText(text);
+        hoverLabel->adjustSize();
+        hoverLabel->move(12, 12);
+        hoverLabel->show();
+        hoverLabel->raise();
+    }
+    radar->update();
 }
 
 void MrmsViewer::paintLegend(QPainter& painter) {
     if (currentIndices.isEmpty()) {
         return;
+    }
+    if (hoverShown && !looping) {
+        // the crosshair at the pointer (window units: the map is drawn on a 1000 x 1000 window)
+        const double u = pointer.x() * 1000.0 / radar->width() - 500.0;
+        const double v = pointer.y() * 1000.0 / radar->height() - 250.0;
+        const double arm = 16.0 * 1000.0 / radar->width();
+        const double gap = 4.0 * 1000.0 / radar->width();
+        for (const auto& pen : {QPen{QColor{0, 0, 0, 200}, 3.5}, QPen{QColor{255, 255, 255}, 1.5}}) {
+            painter.setPen(pen);
+            painter.drawLine(QPointF{u - arm, v}, QPointF{u - gap, v});
+            painter.drawLine(QPointF{u + gap, v}, QPointF{u + arm, v});
+            painter.drawLine(QPointF{u, v - arm}, QPointF{u, v - gap});
+            painter.drawLine(QPointF{u, v + gap}, QPointF{u, v + arm});
+        }
     }
     const auto& stops = product().stops;
     // an automatic scale spans the scan's own range, so its stop values come from the scan

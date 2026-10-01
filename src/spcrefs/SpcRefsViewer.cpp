@@ -11,6 +11,7 @@
 #include <QImage>
 #include <QPainter>
 #include <QTimeZone>
+#include <QTimer>
 #include "models/UtilityGrib.h"
 #include "objects/FutureVoid.h"
 #include "objects/UtilityAnimationExport.h"
@@ -83,7 +84,8 @@ SpcRefsViewer::SpcRefsViewer(Window * parent)
     comboRegion.connect([this] { regionChanged(); });
     textStatus.setWordWrap(false);
     QObject::connect(&image, &ZoomImage::hovered, this, [this] (double fx, double fy) { onHover(fx, fy); });
-    QObject::connect(&image, &ZoomImage::hoverEnded, this, [this] { hoverText.clear(); updateStatus(); });
+    QObject::connect(&image, &ZoomImage::hoverEnded, this, [this] { onHoverEnded(); });
+    image.setCrosshairMode(true);
     comboProduct.connect([this] { userPickedProduct = true; productChanged(); });
     comboCycle.connect([this] { openCycle(); });
     comboTime.connect([this] { animBar.stopIfAnimating(); showTime(); });
@@ -100,6 +102,11 @@ SpcRefsViewer::SpcRefsViewer(Window * parent)
     animBar.addTo(box);
     box.addWidgetReal(&image, 1, Qt::Alignment{});
     box.getAndShow(this);
+    // the coordinate / value popup of the other map viewers
+    hoverLabel = new QLabel{&image};
+    hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+    hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 205); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
+    hoverLabel->hide();
     say("Looking for SPC REFS cycles...");
     auto result = std::make_shared<Loaded>();
     new FutureVoid{this,
@@ -145,10 +152,6 @@ void SpcRefsViewer::closeEventCustom() {
 }
 
 void SpcRefsViewer::updateStatus() {
-    if (!hoverText.isEmpty()) {
-        say(hoverText.toStdString());
-        return;
-    }
     const auto index = comboTime.getIndex();
     if (index >= 0 && index < static_cast<int>(validTimes.size())) {
         say(product().label + "   " + timeLabel(initTime, validTimes[static_cast<size_t>(index)]).toStdString());
@@ -313,7 +316,7 @@ void SpcRefsViewer::showTime() {
             values = result->values;
             shownPng = result->png;
             image.setBytesKeepView(shownPng);
-            hoverText.clear();
+            refreshHover();
             animBar.setSliderPosition(comboTime.getIndex());
             updateStatus();
             setTitle("SPC REFS - " + product().label + " - " + timeLabel(initTime, validTimes[static_cast<size_t>(comboTime.getIndex())]).toStdString());
@@ -337,6 +340,7 @@ void SpcRefsViewer::regionChanged() {
     if (!values.empty()) {
         shownPng = UtilitySpcRefs::renderPng(product(), values, memberNames, view);
         image.setBytes(shownPng);   // a different part of the map: start from a fitted view
+        onHoverEnded();
     }
 }
 
@@ -354,16 +358,48 @@ void SpcRefsViewer::moveForward() {
     }
 }
 
+void SpcRefsViewer::onHoverEnded() {
+    lastHoverFx = -1.0;
+    lastHoverFy = -1.0;
+    image.clearMarker();
+    if (hoverLabel != nullptr) {
+        hoverLabel->hide();
+    }
+}
+
+// the crosshair snaps to the grid cell under the pointer, and the popup gives that cell's coordinates and value
 void SpcRefsViewer::onHover(double fx, double fy) {
-    if (values.empty()) {
+    lastHoverFx = fx;
+    lastHoverFy = fy;
+    if (values.empty() || hoverLabel == nullptr) {
         return;
     }
     int column = 0;
     int row = 0;
     UtilitySpcRefs::cellAt(view, fx, fy, column, row);
-    const auto text = UtilitySpcRefs::readout(product(), values, column, row, memberNames);
-    hoverText = QString::fromStdString(text);
-    updateStatus();
+    auto text = QString::fromStdString(UtilitySpcRefs::readout(product(), values, column, row, memberNames));
+    if (text.isEmpty()) {
+        image.clearMarker();
+        hoverLabel->hide();
+        return;
+    }
+    image.setMarker((column - view.col0 + 0.5) / view.cols, (view.row0 + view.rows - row - 0.5) / view.rows);
+    const auto split = text.indexOf("   ");
+    if (split > 0) {
+        text.replace(split, 3, "\n");   // coordinates on one line, the value on the next
+    }
+    hoverLabel->setText(text);
+    hoverLabel->adjustSize();
+    hoverLabel->move(12, 12);
+    hoverLabel->show();
+    hoverLabel->raise();
+}
+
+// a new picture is on screen (another time, product or sector): keep the popup current if the pointer is still over the map
+void SpcRefsViewer::refreshHover() {
+    if (lastHoverFx >= 0.0) {
+        onHover(lastHoverFx, lastHoverFy);
+    }
 }
 
 void SpcRefsViewer::onScrub(int globalIndex) {

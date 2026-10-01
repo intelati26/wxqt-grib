@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <QByteArray>
+#include <QLabel>
 #include <QPointF>
 #include <QVector>
 #include <QTimer>
@@ -79,6 +80,8 @@ private:
     Shortcut shortcutSave;
     Text textStatus;
     NexradWidget * radar{};
+    QLabel * hoverLabel{};     // the coordinate / value popup over the map
+    bool hoverShown{false};    // draw the crosshair at `pointer`
     QPointF pointer;           // last position of the mouse over the map, for zooming about it
     bool pointerInside{false};
 
