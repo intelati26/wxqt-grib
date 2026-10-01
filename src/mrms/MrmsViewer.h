@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <QByteArray>
+#include <QPointF>
 #include <QVector>
 #include <QTimer>
 #include "mrms/UtilityMrms.h"
@@ -73,6 +74,8 @@ private:
     Button buttonLoop;
     Text textStatus;
     NexradWidget * radar{};
+    QPointF pointer;           // last position of the mouse over the map, for zooming about it
+    bool pointerInside{false};
 
     vector<UtilityMrms::Product> extraProducts;   // discovered on the server
     vector<UtilityMrms::Product> productList;     // what the product combo shows, in order

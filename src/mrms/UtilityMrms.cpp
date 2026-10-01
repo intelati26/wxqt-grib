@@ -32,6 +32,23 @@ namespace {
                 {65, 248, 0, 253}, {70, 152, 84, 198}, {75, 253, 253, 253}};
     }
 
+    vector<UtilityMrms::Stop> meshStops() {   // mm
+        return {{1, 120, 200, 255}, {10, 0, 255, 0}, {19, 255, 255, 0}, {25, 255, 165, 0}, {32, 255, 0, 0}, {51, 200, 0, 100},
+                {76, 150, 0, 200}, {102, 255, 255, 255}};
+    }
+
+    vector<UtilityMrms::Stop> rotationStops() {   // 1e-3/s
+        return {{2, 120, 200, 255}, {6, 0, 220, 0}, {10, 255, 255, 0}, {15, 255, 165, 0}, {20, 255, 0, 0}, {30, 255, 0, 255}};
+    }
+
+    vector<UtilityMrms::Stop> echoTopStops() {   // km
+        return {{2, 120, 200, 255}, {6, 0, 200, 0}, {10, 255, 255, 0}, {14, 255, 165, 0}, {17, 255, 0, 0}, {20, 255, 0, 255}};
+    }
+
+    vector<UtilityMrms::Stop> probabilityStops() {   // %
+        return {{10, 120, 200, 255}, {30, 0, 200, 0}, {50, 255, 255, 0}, {70, 255, 165, 0}, {90, 255, 0, 0}, {100, 255, 0, 255}};
+    }
+
     vector<UtilityMrms::Stop> rainStops() {   // mm/h and mm
         return {{0.1, 150, 200, 150}, {1, 0, 200, 0}, {5, 255, 255, 0}, {10, 255, 165, 0}, {25, 255, 0, 0},
                 {50, 200, 0, 200}, {100, 255, 255, 255}};
@@ -48,13 +65,15 @@ namespace {
                 p.group = "Hail";
                 p.usFactor = 0.0393701;
                 p.usUnits = "in";
+            } else if (starts("POSH")) {
+                p.group = "Hail";
             } else if (starts("RotationTrack") || starts("MergedAzShear")) {
                 p.group = "Rotation";
             } else if (starts("PrecipRate")) {
                 p.group = "Precipitation";
                 p.usFactor = 0.0393701;
                 p.usUnits = "in/h";
-            } else if (starts("MultiSensor_QPE")) {
+            } else if (starts("MultiSensor_QPE") || starts("RadarOnly_QPE")) {
                 p.group = "Precipitation";
                 p.usFactor = 0.0393701;
                 p.usUnits = "in";
@@ -95,14 +114,22 @@ const vector<UtilityMrms::Product>& UtilityMrms::products() {
         P{"MESH", "Hail size (MESH)", "mm", 1.0, 102.0,
           {{1, 120, 200, 255}, {10, 0, 255, 0}, {19, 255, 255, 0}, {25, 255, 165, 0}, {32, 255, 0, 0}, {51, 200, 0, 100},
            {76, 150, 0, 200}, {102, 255, 255, 255}}},
+        P{"MESH_Max_30min", "Hail size, 30-minute max", "mm", 1.0, 102.0, meshStops()},
         P{"MESH_Max_60min", "Hail size, 1-hour max", "mm", 1.0, 102.0,
           {{1, 120, 200, 255}, {10, 0, 255, 0}, {19, 255, 255, 0}, {25, 255, 165, 0}, {32, 255, 0, 0}, {51, 200, 0, 100},
            {76, 150, 0, 200}, {102, 255, 255, 255}}},
+        P{"MESH_Max_120min", "Hail size, 2-hour max", "mm", 1.0, 102.0, meshStops()},
+        P{"MESH_Max_240min", "Hail size, 4-hour max", "mm", 1.0, 102.0, meshStops()},
+        P{"MESH_Max_360min", "Hail size, 6-hour max", "mm", 1.0, 102.0, meshStops()},
         P{"MESH_Max_1440min", "Hail size, 24-hour max", "mm", 1.0, 102.0,
           {{1, 120, 200, 255}, {10, 0, 255, 0}, {19, 255, 255, 0}, {25, 255, 165, 0}, {32, 255, 0, 0}, {51, 200, 0, 100},
            {76, 150, 0, 200}, {102, 255, 255, 255}}},
+        P{"RotationTrack30min", "Rotation track, 30 minutes", "1e-3/s", 2.0, 30.0, rotationStops()},
         P{"RotationTrack60min", "Rotation track, 1 hour", "1e-3/s", 2.0, 30.0,
           {{2, 120, 200, 255}, {6, 0, 220, 0}, {10, 255, 255, 0}, {15, 255, 165, 0}, {20, 255, 0, 0}, {30, 255, 0, 255}}},
+        P{"RotationTrack120min", "Rotation track, 2 hours", "1e-3/s", 2.0, 30.0, rotationStops()},
+        P{"RotationTrack240min", "Rotation track, 4 hours", "1e-3/s", 2.0, 30.0, rotationStops()},
+        P{"RotationTrack360min", "Rotation track, 6 hours", "1e-3/s", 2.0, 30.0, rotationStops()},
         P{"RotationTrack1440min", "Rotation track, 24 hours", "1e-3/s", 2.0, 30.0,
           {{2, 120, 200, 255}, {6, 0, 220, 0}, {10, 255, 255, 0}, {15, 255, 165, 0}, {20, 255, 0, 0}, {30, 255, 0, 255}}},
         P{"MergedAzShear_0-2kmAGL", "Azimuthal shear 0-2 km", "1e-3/s", 2.0, 30.0,
@@ -113,11 +140,21 @@ const vector<UtilityMrms::Product>& UtilityMrms::products() {
         P{"MultiSensor_QPE_01H_Pass2", "Rain, 1 hour (multi-sensor)", "mm", 0.1, 100.0, rainStops()},
         P{"MultiSensor_QPE_03H_Pass2", "Rain, 3 hours (multi-sensor)", "mm", 0.1, 100.0, rainStops()},
         P{"MultiSensor_QPE_06H_Pass2", "Rain, 6 hours (multi-sensor)", "mm", 0.1, 100.0, rainStops()},
+        P{"MultiSensor_QPE_12H_Pass2", "Rain, 12 hours (multi-sensor)", "mm", 0.1, 100.0, rainStops()},
         P{"MultiSensor_QPE_24H_Pass2", "Rain, 24 hours (multi-sensor)", "mm", 0.1, 100.0, rainStops()},
+        P{"MultiSensor_QPE_48H_Pass2", "Rain, 48 hours (multi-sensor)", "mm", 0.1, 100.0, rainStops()},
+        P{"MultiSensor_QPE_72H_Pass2", "Rain, 72 hours (multi-sensor)", "mm", 0.1, 100.0, rainStops()},
+        P{"RadarOnly_QPE_15M", "Rain, 15 minutes (radar only)", "mm", 0.1, 100.0, rainStops()},
+        P{"RadarOnly_QPE_01H", "Rain, 1 hour (radar only)", "mm", 0.1, 100.0, rainStops()},
+        P{"RadarOnly_QPE_24H", "Rain, 24 hours (radar only)", "mm", 0.1, 100.0, rainStops()},
+        P{"RadarOnly_QPE_Since12Z", "Rain since 12Z (radar only)", "mm", 0.1, 100.0, rainStops()},
         P{"VIL", "Vertically integrated liquid", "kg/m2", 5.0, 80.0,
           {{5, 120, 200, 255}, {15, 0, 200, 0}, {30, 255, 255, 0}, {45, 255, 165, 0}, {60, 255, 0, 0}, {80, 255, 0, 255}}},
         P{"EchoTop_18", "Echo top (18 dBZ)", "km", 2.0, 20.0,
           {{2, 120, 200, 255}, {6, 0, 200, 0}, {10, 255, 255, 0}, {14, 255, 165, 0}, {17, 255, 0, 0}, {20, 255, 0, 255}}},
+        P{"EchoTop_30", "Echo top (30 dBZ)", "km", 2.0, 20.0, echoTopStops()},
+        P{"EchoTop_50", "Echo top (50 dBZ)", "km", 2.0, 20.0, echoTopStops()},
+        P{"POSH", "Probability of severe hail (POSH)", "%", 10.0, 100.0, probabilityStops()},
         P{"LightningProbabilityNext30min", "Lightning probability, next 30 min", "%", 10.0, 100.0,
           {{10, 120, 200, 255}, {30, 0, 200, 0}, {50, 255, 255, 0}, {70, 255, 165, 0}, {90, 255, 0, 0}, {100, 255, 0, 255}}},
     });

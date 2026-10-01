@@ -211,8 +211,15 @@ void MrmsViewer::changeZoom(double factor) {
     const double oldZoom = state.zoom;
     state.zoom = std::min(state.zoom * factor, 40.0);
     const double change = state.zoom / oldZoom;
-    state.xPos *= change;   // zoom about the centre of the map
-    state.yPos *= change;
+    // zoom about the pointer (the middle of the map when it is outside): the spot under it stays where it is
+    double u = 0.0;
+    double v = 0.0;
+    if (pointerInside) {
+        u = pointer.x() * 1000.0 / std::max(1, radar->width()) - 500.0;
+        v = pointer.y() * 1000.0 / std::max(1, radar->height()) - 250.0;
+    }
+    state.xPos = u - (u - state.xPos) * change;
+    state.yPos = v - (v - state.yPos) * change;
     radar->resizePolygons();
     radar->nexradRenderTextObject.add();
     radar->update();
@@ -452,9 +459,17 @@ void MrmsViewer::paintData(QPainter& painter) {
 }
 
 bool MrmsViewer::eventFilter(QObject * object, QEvent * event) {
-    if (object == radar && event->type() == QEvent::MouseMove) {
-        showHover(static_cast<QMouseEvent *>(event)->position());
+    if (object == radar && (event->type() == QEvent::MouseMove || event->type() == QEvent::MouseButtonPress)) {
+        pointer = static_cast<QMouseEvent *>(event)->position();
+        pointerInside = true;
+        if (event->type() == QEvent::MouseMove) {
+            showHover(pointer);
+        }
+    } else if (object == radar && event->type() == QEvent::Wheel) {
+        pointer = static_cast<QWheelEvent *>(event)->position();
+        pointerInside = true;
     } else if (object == radar && event->type() == QEvent::Leave) {
+        pointerInside = false;
         textStatus.setText(product().label + "  " + timeText(current.utc));
     }
     return false;

@@ -54,13 +54,17 @@ NhcStormDetails::NhcStormDetails(
     const std::regex pattern{"storm_graphics/[A-Za-z0-9]+/refresh/[A-Za-z0-9_+]+/[0-9]+_[A-Za-z0-9_]+\\.(?:png|gif)"};
     vector<string> found;
     for (auto it = std::sregex_iterator(page.begin(), page.end(), pattern); it != std::sregex_iterator(); ++it) {
-        const auto url = "https://www.nhc.noaa.gov/" + it->str();
+        auto url = "https://www.nhc.noaa.gov/" + it->str();
+        // the page only links 60x48 icons ("_sm"); the full-size picture has the same address without it
+        if (url.find("_sm+png/") != string::npos) {
+            url = WString::replace(WString::replace(url, "_sm+png/", "+png/"), "_sm.png", ".png");
+        }
         if (url.find(prefix) != string::npos && std::find(found.begin(), found.end(), url) == found.end()) {
             found.push_back(url);
         }
     }
     // most useful first: cones, then winds, then arrival times and probabilities, then rainfall
-    static const vector<string> order{"5day_cone_sm", "3day_cone_sm", "5day_expCone", "current_wind", "wind_history", "earliest_reasonable_toa", "most_likely_toa", "wind_probs_34", "wind_probs_50", "wind_probs_64", "INTQPF"};
+    static const vector<string> order{"5day_cone.png", "3day_cone.png", "5day_expCone", "current_wind", "wind_history", "earliest_reasonable_toa", "most_likely_toa", "wind_probs_34", "wind_probs_50", "wind_probs_64", "INTQPF"};
     const auto rank = [] (const string& url) {
         for (size_t i = 0; i < order.size(); i += 1) {
             if (url.find(order[i]) != string::npos) {
@@ -72,21 +76,21 @@ NhcStormDetails::NhcStormDetails(
     std::stable_sort(found.begin(), found.end(), [&rank] (const string& a, const string& b) { return rank(a) < rank(b); });
     graphicUrls = found;
     for (const auto& url : found) {
-        if (url.find("5day_cone_sm") != string::npos) {
+        if (url.find("5day_cone.png") != string::npos) {
             coneUrl = url;
             break;
         }
     }
     if (coneUrl.empty()) {
         for (const auto& url : found) {
-            if (url.find("3day_cone_sm") != string::npos) {
+            if (url.find("3day_cone.png") != string::npos) {
                 coneUrl = url;
                 break;
             }
         }
     }
     if (coneUrl.empty() && found.empty()) {
-        coneUrl = baseUrl + "_5day_cone_with_line_and_wind_sm2.png";   // the older fixed address, if the page could not be read
+        coneUrl = baseUrl + "_5day_cone.png";   // the fixed address, if the page could not be read
     }
     if (!coneUrl.empty()) {
         coneBytes = UtilityIO::downloadAsByteArray(coneUrl);
