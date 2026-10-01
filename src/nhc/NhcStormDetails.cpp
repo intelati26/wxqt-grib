@@ -7,7 +7,9 @@
 #include <regex>
 #include <algorithm>
 #include "NhcStormDetails.h"
+#include <QImage>
 #include "objects/WString.h"
+#include "util/CrashLog.h"
 #include "util/To.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityMath.h"
@@ -94,6 +96,15 @@ NhcStormDetails::NhcStormDetails(
     }
     if (!coneUrl.empty()) {
         coneBytes = UtilityIO::downloadAsByteArray(coneUrl);
+        const auto width = QImage::fromData(coneBytes).width();
+        CrashLog::write("NHC cone " + stormId + ": " + coneUrl + " -> " + std::to_string(coneBytes.size()) + " bytes, " + std::to_string(width) + " px wide, graphics page " + std::to_string(page.size()) + " bytes, " + std::to_string(found.size()) + " pictures listed");
+        if (width < 300) {   // an icon, or nothing: the plain full-size address NHC has always used
+            const auto fixed = UtilityIO::downloadAsByteArray(baseUrl + "_5day_cone.png");
+            if (QImage::fromData(fixed).width() > width) {
+                coneBytes = fixed;
+                coneUrl = baseUrl + "_5day_cone.png";
+            }
+        }
     }
 }
 

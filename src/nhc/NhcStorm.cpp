@@ -5,6 +5,8 @@
 // *****************************************************************************
 
 #include "NhcStorm.h"
+#include <QImage>
+#include "util/CrashLog.h"
 #include "misc/ImageViewer.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
@@ -73,7 +75,10 @@ NhcStorm::NhcStorm(Window * parent, const NhcStormDetails& stormData)
     }
     for (auto index : range(fullUrls.size())) {
         images[index].connect([this, index] { new ImageViewer{this, images[index].bytes}; });
-        new FutureBytes{this, fullUrls[index], [this, index] (const auto& ba) { images[index].setBytes(ba); }};
+        new FutureBytes{this, fullUrls[index], [this, index] (const auto& ba) {
+            CrashLog::write("NHC picture " + fullUrls[index] + " -> " + std::to_string(ba.size()) + " bytes, " + std::to_string(QImage::fromData(ba).width()) + " px wide");
+            images[index].setBytes(ba);
+        }};
     }
     if (stormData.coneUrl.empty() && !stormData.graphicUrls.empty()) {
         setTitle("NHC Storm " + stormData.forTopHeader() + " - NHC publishes no cone forecast for this storm");
