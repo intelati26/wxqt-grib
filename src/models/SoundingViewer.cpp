@@ -928,7 +928,8 @@ private:
             double v = 0.0;
             const double pressure = p.interpPresAtHght(p.toMsl(heights[i]));
             const bool ok = have(pressure) && p.interpComponents(pressure, u, v);
-            const QPointF center{area.left() + area.width() * (0.25 + 0.5 * i), area.top() + 34.0};
+            // both barbs share one staff base (SPC's inset): the angle and length between them show the shear
+            const QPointF center{area.left() + area.width() * 0.5, area.top() + 34.0};
             painter.setPen(QPen{colors[i], 1.6});
             painter.setBrush(colors[i]);
             if (ok) {
@@ -936,13 +937,13 @@ private:
                 // the staff points into the wind: start half a staff down-wind so the barb is centred on the cell
                 const double rad = wind.direction() * pi / 180.0;
                 const QPointF toward{std::sin(rad), -std::cos(rad)};
-                drawBarb(painter, center - toward * 17.0, wind.direction(), wind.speed(), 34.0);
+                drawBarb(painter, center, wind.direction(), wind.speed(), 34.0);
             }
-            painter.setPen(QColor{225, 225, 225});
-            painter.drawText(QRectF{center.x() - 24, area.top() + 54.0, 48, 12}, Qt::AlignCenter, labels[i]);
+            painter.setPen(colors[i]);
+            painter.drawText(QRectF{area.left() + area.width() * (i == 0 ? 0.0 : 0.5) + 2.0, area.top() + 38.0, area.width() * 0.5 - 4.0, 12.0}, i == 0 ? Qt::AlignLeft : Qt::AlignRight, labels[i]);
         }
         painter.setPen(QColor{200, 200, 200});
-        painter.drawText(QRectF{static_cast<double>(area.left()), area.top() + 68.0, static_cast<double>(area.width()), 24}, Qt::AlignHCenter | Qt::AlignTop, "Wind barbs\n(above ground)");
+        painter.drawText(QRectF{static_cast<double>(area.left()) - 10.0, area.top() + 64.0, area.width() + 20.0, 12.0}, Qt::AlignHCenter | Qt::AlignTop, "Wind barbs (above ground)");
         painter.restore();
     }
 
