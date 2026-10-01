@@ -111,23 +111,40 @@ protected:
             painter.drawText(rect(), Qt::AlignCenter | Qt::TextWordWrap, message);
             return;
         }
-        painter.setPen(QColor{235, 235, 235});
-        QFont titleFont = painter.font();
-        titleFont.setBold(true);
-        painter.setFont(titleFont);
-        painter.drawText(QRect{10, 4, width() - 20, 20}, Qt::AlignLeft | Qt::AlignVCenter, title);
+        // SPC's graphic is 1180 x 826: everything is laid out in those units and scaled to fit the window (centred)
+        constexpr double canvasWidth = 1180.0;
+        constexpr double canvasHeight = 826.0;
+        const double scale = std::min(width() / canvasWidth, height() / canvasHeight);
+        painter.translate((width() - canvasWidth * scale) / 2.0, (height() - canvasHeight * scale) / 2.0);
+        painter.scale(scale, scale);
+        painter.setClipRect(QRectF{0, 0, canvasWidth, canvasHeight});
+        painter.fillRect(QRectF{0, 0, canvasWidth, canvasHeight}, QColor{12, 12, 16});
+        QFont base = painter.font();
+        base.setPixelSize(12);
+        painter.setFont(base);
 
-        const int skewWidth = static_cast<int>(width() * 0.56);
-        const QRect skew{46, 30, skewWidth - 46 - 62, height() - 30 - 22};
-        const int rightX = skewWidth + 6;
-        const int rightWidth = width() - rightX - 8;
-        const int insetWidth = 76;   // the 1 km / 6 km wind barbs beside the hodograph
-        const int hodoSize = std::min(rightWidth - insetWidth, static_cast<int>(height() * 0.34));
-        drawSkewT(painter, skew);
-        drawHodograph(painter, QRect{rightX + (rightWidth - insetWidth - hodoSize) / 2, 30, hodoSize, hodoSize});
-        drawWindInset(painter, QRect{rightX + rightWidth - insetWidth, 34, insetWidth, 92});
-        drawTable(painter, QRect{rightX, 30 + hodoSize + 22, rightWidth, height() - 30 - hodoSize - 26});
+        painter.setPen(QColor{235, 235, 235});
+        QFont titleFont = base;
+        titleFont.setBold(true);
+        titleFont.setPixelSize(18);
+        painter.setFont(titleFont);
+        painter.drawText(QRect{30, 2, 760, 22}, Qt::AlignLeft | Qt::AlignVCenter, title);
+        painter.setFont(base);
+
+        // panel rectangles, measured from SPC's picture
+        drawSkewT(painter, skewRect());
+        drawHodograph(painter, QRect{755, 25, 415, 445});
+        drawWindInset(painter, QRect{545, 742, 100, 78});
+        // the table band under the plots: parcels and thermodynamics | kinematics | indices and precipitation type
+        drawTable(painter, bottomLeft(), 0);
+        drawTable(painter, bottomMiddle(), 1);
+        drawTable(painter, bottomRight(), 2);
     }
+
+    static QRect skewRect() { return QRect{30, 25, 565, 565}; }
+    static QRect bottomLeft() { return QRect{10, 609, 355, 208}; }
+    static QRect bottomMiddle() { return QRect{373, 609, 168, 130}; }
+    static QRect bottomRight() { return QRect{665, 609, 190, 208}; }
 
 private:
     const SoundingProfile * profile{nullptr};
@@ -229,8 +246,8 @@ private:
             const double heightFt = prof.toAgl(prof.interpHght(pressure)) * 3.28084;
             const double y = g.yOf(pressure);
             painter.setPen(QPen{levelColor, 1.5});
-            painter.drawLine(QPointF(plot.right() - 16, y), QPointF(plot.right(), y));
-            painter.drawText(QRectF(plot.right() - 120, y - 14, 102, 14), Qt::AlignRight | Qt::AlignVCenter,
+            painter.drawLine(QPointF(plot.right() - 92, y), QPointF(plot.right() - 62, y));
+            painter.drawText(QRectF(plot.right() - 170, y - 14, 106, 14), Qt::AlignRight | Qt::AlignVCenter,
                              QString("%1 = %2'").arg(level.name).arg(heightFt, 0, 'f', 0));
         }
 
@@ -372,7 +389,7 @@ private:
         painter.setPen(QColor{200, 200, 200});
         painter.drawRect(plot);
         for (int p = 1000; p >= 100; p -= 100) {
-            painter.drawText(QRectF(plot.left() - 40, g.yOf(p) - 8, 36, 16), Qt::AlignRight | Qt::AlignVCenter, QString::number(p));
+            painter.drawText(QRectF(plot.left() - 28, g.yOf(p) - 8, 26, 16), Qt::AlignRight | Qt::AlignVCenter, QString::number(p));
         }
         for (int t = -30; t <= 50; t += 10) {
             const double x = g.xOf(t, pBottom);
@@ -386,8 +403,8 @@ private:
         auto mark = [&] (const QString& name, double p) {
             if (!have(p) || p < pTop || p > pBottom) return;
             const double y = g.yOf(p);
-            painter.drawLine(QPointF(plot.right() - 38, y), QPointF(plot.right(), y));
-            painter.drawText(QRectF(plot.right() - 76, y - 8, 36, 16), Qt::AlignRight | Qt::AlignVCenter, name);
+            painter.drawLine(QPointF(plot.right() - 92, y), QPointF(plot.right() - 62, y));
+            painter.drawText(QRectF(plot.right() - 150, y - 8, 54, 16), Qt::AlignRight | Qt::AlignVCenter, name);
         };
         mark("LCL", pcl.lclPres);
         mark("LFC", pcl.lfcPres);
@@ -397,7 +414,7 @@ private:
         // wind barbs in their own column to the right of the plot
         painter.setPen(QPen(QColor{220, 220, 220}, 1.2));
         painter.setBrush(QColor{220, 220, 220});
-        const double barbX = plot.right() + 34;
+        const double barbX = plot.right() - 34;
         double lastY = -1e9;
         for (size_t i = 0; i < profile->size(); i += 1) {
             const double p = profile->pres[i];
@@ -517,7 +534,8 @@ private:
         bool labelColumn;   // first column holds row names (left-aligned) rather than values
     };
 
-    void drawTable(QPainter& painter, const QRect& area) {
+    // `group` picks the part of the table band: 0 parcels / thermodynamics / lapse rates, 1 winds and storm motion, 2 indices and precip type
+    void drawTable(QPainter& painter, const QRect& area, int group) {
         using namespace SoundingIndices;
         const auto& a = *analysis;
         vector<GridSection> sections;
@@ -576,6 +594,15 @@ private:
                 text += ", no saturated layer below 5 km";
             }
             sections.push_back({{"Best guess precip type"}, {{text}}, false});
+        }
+
+        {
+            static const std::vector<std::vector<size_t>> groups{{0, 4, 5, 6}, {1, 2}, {3, 7}};
+            std::vector<GridSection> chosen;
+            for (const auto index : groups[static_cast<size_t>(group)]) {
+                chosen.push_back(sections[index]);
+            }
+            sections = chosen;
         }
 
         painter.save();
