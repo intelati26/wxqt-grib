@@ -290,6 +290,7 @@ void MainWindow::addWidgets() {
                 [] ([[maybe_unused]] double x, [[maybe_unused]] double y, [[maybe_unused]] int pane) {},
                 [] {}
             });
+        nexradList[0]->onClick = [this] { toolbar.launchNexrad(1); };   // click the home screen radar to open the radar window
         nexradList[0]->setFixedHeight(UIPreferences::mainScreenImageSize);
         nexradList[0]->setFixedWidth(UIPreferences::mainScreenImageSize);
     }

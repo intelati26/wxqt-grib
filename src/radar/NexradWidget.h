@@ -105,6 +105,9 @@ private:
     function<void(int, string)> fnProduct;
     function<void(int, string)> fnSector;
     function<void(double, int)> fnZoom;
+public:
+    function<void()> onClick;   // when set (the home screen's radar tile), a plain click does this instead of zooming
+private:
     function<void(double, double, int)> fnPosition;
     function<void()> setTitleMain;
     unordered_map<int, QVector<QLineF>> swoLinesMap;

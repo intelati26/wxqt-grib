@@ -175,6 +175,10 @@ void NexradWidget::mouseDoubleClickEvent([[maybe_unused]] QMouseEvent * event) {
 
 void NexradWidget::performSingleClickAction() {
     if (lastMouseType == "Click") {
+        if (onClick) {
+            onClick();
+            return;
+        }
         fnZoom(0.77, nexradState.paneNumber);
     }
 }
@@ -184,7 +188,7 @@ void NexradWidget::mouseReleaseEvent([[maybe_unused]] QMouseEvent * event) {
         update();
     } else if (lastMouseType == "Click") {
         QTimer::singleShot(QApplication::doubleClickInterval(), [this]() {performSingleClickAction();});
-    } else {
+    } else if (!onClick) {
         fnZoom(1.33, nexradState.paneNumber);
     }
 }
