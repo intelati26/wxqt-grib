@@ -72,5 +72,18 @@ SoundingAnalysis SoundingAnalysis::compute(const SoundingProfile& p) {
         a.supercell = 0.0;
     }
     a.hail = significantHail(p, a.mu);
+
+    // SARS analogues (SHARPpy's profile.get_sars): needs the mixed-layer and most-unstable parcels and the shears / SRH
+    const auto shear03 = bulkShear(p, 0, 3000);
+    const auto shear09 = bulkShear(p, 0, 9000);
+    const double temp500 = p.interpTemp(500.0);
+    if (a.ml.valid && a.mu.valid && shear03.valid() && shear09.valid() && a.shear06.valid() && have(a.srh01) && have(a.srh03) &&
+        have(temp500) && have(a.lapse700500) && have(a.mu.lplPres) && have(a.mu.lplDwpt)) {
+        const double mumr = SoundingThermo::mixingRatio(a.mu.lplPres, a.mu.lplDwpt);
+        a.sarsHail = SoundingSars::hail(mumr, a.mu.cape, temp500, a.lapse700500, a.shear06.speed() * knotsToMs,
+                                        shear09.speed() * knotsToMs, shear03.speed() * knotsToMs, a.srh03);
+        a.sarsSupercell = SoundingSars::supercell(a.ml.cape, a.ml.lclHght, temp500, a.lapse700500, a.shear06.speed(), a.srh01,
+                                                  shear03.speed(), shear09.speed(), a.srh03);
+    }
     return a;
 }

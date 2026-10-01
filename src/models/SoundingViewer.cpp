@@ -23,6 +23,7 @@
 #include "util/UtilityIO.h"
 #include "sounding/SoundingAdvection.h"
 #include "sounding/SoundingPrecip.h"
+#include "sounding/SoundingSars.h"
 #include "sounding/SoundingThermo.h"
 #include "util/To.h"
 
@@ -138,9 +139,9 @@ protected:
             return;
         }
 
-        // SPC's graphic is 1180 x 826: everything is laid out in those units and scaled to fit the window (centred)
+        // SPC's graphic is 1180 x 826 (plus the strip below): everything is laid out in those units and scaled to fit the window (centred)
         constexpr double canvasWidth = 1180.0;
-        constexpr double canvasHeight = 826.0;
+        constexpr double canvasHeight = 940.0;   // SPC's 826 plus a strip for the SARS analogue lists
         const double scale = std::min(width() / canvasWidth, height() / canvasHeight);
         painter.translate((width() - canvasWidth * scale) / 2.0, (height() - canvasHeight * scale) / 2.0);
         painter.scale(scale, scale);
@@ -165,6 +166,7 @@ protected:
         drawHodograph(painter, QRect{755, 25, 415, 445});
         drawThetaE(painter, QRect{775, 492, 120, 108});
         drawStormRelativeWinds(painter, QRect{940, 492, 120, 108});
+        drawSars(painter, QRect{10, 832, 1160, 102});
         // SHARPpy's effective-layer STP and SHIP box-and-whisker insets (Thompson et al. 2012; SPC): the day's value is the
         // coloured line across the plot
         {
@@ -833,6 +835,82 @@ private:
         }
         painter.setPen(QColor{200, 200, 200});
         painter.drawRect(area);
+        painter.restore();
+    }
+
+    // SARS (SHARPpy's analogues panel): supercell analogues on the left, significant hail on the right - the probability
+    // line, the number of loose matches, then the quality matches (date, site, and the tornado class or hail size)
+    void drawSars(QPainter& painter, const QRect& area) {
+        painter.save();
+        painter.fillRect(area, QColor{0, 0, 0});
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawRect(area);
+        QFont font = painter.font();
+        font.setPixelSize(12);
+        font.setBold(true);
+        painter.setFont(font);
+        painter.setPen(QColor{235, 235, 235});
+        painter.drawText(QRectF{static_cast<double>(area.left()), area.top() + 2.0, static_cast<double>(area.width()), 16.0}, Qt::AlignCenter, "SARS - Sounding Analogue System");
+        painter.setPen(QColor{200, 200, 200});
+        painter.drawLine(QPointF{area.left() + 0.0, area.top() + 19.0}, QPointF{static_cast<double>(area.right()), area.top() + 19.0});
+        const double half = area.width() / 2.0;
+        painter.drawLine(QPointF{area.left() + half, area.top() + 19.0}, QPointF{area.left() + half, static_cast<double>(area.bottom())});
+        font.setBold(false);
+        font.setPixelSize(11);
+        painter.setFont(font);
+        const auto monthName = [] (int month) {
+            static const char * names[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+            return QString{names[std::clamp(month - 1, 0, 11)]};
+        };
+        const auto describe = [&] (const QString& id) {   // "yymmddhh.SITE" -> "dd Mon yy HHZ (SITE)"
+            const auto parts = id.split('.');
+            if (parts.size() != 2 || parts[0].size() != 8) return id;
+            const auto d = parts[0];
+            return QString{"%1 %2 %3 %4Z (%5)"}.arg(d.mid(4, 2), monthName(d.mid(2, 2).toInt()), d.left(2), d.mid(6, 2), parts[1]);
+        };
+        const auto drawSide = [&] (double x0, const QString& heading, const SoundingSars::Result& result, bool tornado) {
+            painter.setPen(QColor{235, 235, 235});
+            painter.drawText(QRectF{x0, area.top() + 21.0, half, 14.0}, Qt::AlignCenter, heading);
+            if (!result.valid) {
+                painter.drawText(QRectF{x0, area.top() + 50.0, half, 14.0}, Qt::AlignCenter, "No analogues (missing data)");
+                return;
+            }
+            if (result.looseMatches > 0) {
+                const double percent = std::round(result.probability * 100.0);
+                painter.setPen(percent >= 50.0 ? QColor{255, 0, 255} : QColor{235, 235, 235});
+                painter.drawText(QRectF{x0, area.bottom() - 15.0, half, 14.0}, Qt::AlignCenter,
+                                 QString{"SARS: %1% %2   (%3 loose matches)"}.arg(percent, 0, 'f', 0).arg(tornado ? "TOR" : "SIG").arg(result.looseMatches));
+            }
+            if (result.quality.empty()) {
+                painter.setPen(QColor{200, 200, 200});
+                painter.drawText(QRectF{x0, area.top() + 50.0, half, 14.0}, Qt::AlignCenter, "No Quality Matches");
+                return;
+            }
+            const int perColumn = 4;
+            const double columnWidth = half / 4.0;
+            QFont small = painter.font();
+            small.setPixelSize(10);
+            painter.setFont(small);
+            for (size_t i = 0; i < result.quality.size() && i < static_cast<size_t>(perColumn * 4); i += 1) {
+                const auto& m = result.quality[i];
+                const double x = x0 + (i / perColumn) * columnWidth + 6.0;
+                const double y = area.top() + 36.0 + (i % perColumn) * 12.0;
+                QColor color;
+                QString tag;
+                if (tornado) {
+                    color = m.category == 2 ? QColor{255, 0, 0} : (m.category == 1 ? QColor{0x00, 0xbf, 0xff} : QColor{0xcc, 0x99, 0x66});
+                    tag = m.category == 2 ? "SIG" : (m.category == 1 ? "WEAK" : "NON");
+                } else {
+                    color = m.size >= 2.0 ? QColor{255, 0, 0} : QColor{0x00, 0xbf, 0xff};
+                    tag = QString::number(m.size, 'f', 2);
+                }
+                painter.setPen(color);
+                painter.drawText(QRectF{x, y, columnWidth - 4.0, 13.0}, Qt::AlignLeft | Qt::AlignVCenter,
+                                 describe(QString::fromStdString(m.id)) + "  " + tag);
+            }
+        };
+        drawSide(area.left(), "SUPERCELL", analysis->sarsSupercell, true);
+        drawSide(area.left() + half, "SGFNT HAIL", analysis->sarsHail, false);
         painter.restore();
     }
 

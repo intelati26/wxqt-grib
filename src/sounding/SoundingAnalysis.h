@@ -9,6 +9,7 @@
 #include "sounding/SoundingIndices.h"
 #include "sounding/SoundingParcel.h"
 #include "sounding/SoundingProfile.h"
+#include "sounding/SoundingSars.h"
 
 // Everything a sounding display shows, computed once from a profile. -9999 = unavailable.
 struct SoundingAnalysis {
@@ -38,6 +39,9 @@ struct SoundingAnalysis {
     double freezingLevelAgl{-9999.0};   // m
     double wetBulbZeroAgl{-9999.0};     // m
     double surfaceRh{-9999.0};
+
+    SoundingSars::Result sarsSupercell;   // analogue matches (right-mover SRH); valid == false when an input is missing
+    SoundingSars::Result sarsHail;
 
     double stpFixed{-9999.0};
     double stpEffective{-9999.0};

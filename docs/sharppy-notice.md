@@ -72,3 +72,9 @@ Known, unexplained differences:
 - Convective temperature: SHARPpy's convective_temp() iteration, but lifted with
   parcelx, the exact-form mean mixing ratio and CIN >= -1 J/kg, which is what
   SPC's printed values follow (221 of 270 exact, the rest 0.5-1.5 C low).
+
+## SARS databases (added 2026-10-01)
+
+`resourceCreation/sars/sars_supercell.txt` (Rich Thompson, NOAA SPC) and `sars_hail.txt` (Ryan Jewell, NOAA SPC) are copied from
+SHARPpy's `sharppy/databases`, and the matching in `src/sounding/SoundingSars.cpp` is a port of `databases/sars.py` (BSD licence,
+as above). `src/sounding/SoundingSarsData.cpp` is generated from the two files by `resourceCreation/sars/gen_sars_data.py`.
