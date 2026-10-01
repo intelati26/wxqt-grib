@@ -434,10 +434,18 @@ namespace SoundingIndices {
         return (t8 - t5) + (td8 - t5);   // vertical totals plus cross totals
     }
 
+    // pressure-weighted mean RH over the observed levels inside the layer (no interpolated ends: with them the values drift one
+    // point from the ones SPC prints; levels only reproduces SPC's LowRH / MidRH for OUN and FWD 2026-10-01 12z)
     double meanRelativeHumidity(const SoundingProfile& p, double bottomMb, double topMb) {
+        std::vector<double> levels;
+        for (size_t i = 0; i < p.size(); i += 1) {
+            if (p.pres[i] <= bottomMb && p.pres[i] >= topMb && !gone(p.tmpc[i]) && !gone(p.dwpc[i])) {
+                levels.push_back(p.pres[i]);
+            }
+        }
         double sum = 0.0;
         double weights = 0.0;
-        for (double pr = bottomMb; pr >= topMb - 1e-9; pr -= 1.0) {
+        for (const double pr : levels) {
             const double t = p.interpTemp(pr);
             const double td = p.interpDwpt(pr);
             if (gone(t) || gone(td)) continue;
@@ -484,7 +492,8 @@ namespace SoundingIndices {
         double maxShear = -1.0;
         for (size_t b = 0; b < bottoms.size(); b += 1) {
             for (size_t t = 0; t < tops.size(); t += 1) {
-                if (b < t) continue;
+                // (SHARPpy skips pairs with b < t, which leaves array cells it never fills; SPC's value for the Norman test case
+                // is only reproduced by taking every pair)
                 double ub, vb, ut, vt;
                 if (!p.interpComponents(bottoms[b], ub, vb) || !p.interpComponents(tops[t], ut, vt)) continue;
                 maxShear = std::max(maxShear, std::hypot(ut - ub, vt - vb));

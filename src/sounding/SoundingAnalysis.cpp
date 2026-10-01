@@ -42,7 +42,7 @@ SoundingAnalysis SoundingAnalysis::compute(const SoundingProfile& p) {
     a.lapse03 = lapseRateAgl(p, 0, 3000);
     // SPC's printed 3-6 km lapse rate is between 3 and 6 km above sea level (its 0-3 km is above ground);
     // follow SPC so the numbers agree, and label it MSL on screen
-    a.lapse36 = lapseRateMb(p, p.interpPresAtHght(3000.0), p.interpPresAtHght(6000.0));
+    a.lapse36 = lapseRateAgl(p, 3000.0, 6000.0);
     a.lapse700500 = lapseRateMb(p, 700, 500);
     a.lapse850500 = lapseRateMb(p, 850, 500);
     a.dcape = SoundingIndices::dcape(p);
@@ -95,9 +95,17 @@ SoundingAnalysis SoundingAnalysis::compute(const SoundingProfile& p) {
     // the rest of SPC's index list, from SHARPpy's params
     a.kIndex = SoundingIndices::kIndex(p);
     a.totalTotals = SoundingIndices::totalTotals(p);
-    if (!SoundingThermo::isMissing(p.sfcPres())) {
-        a.lowRh = SoundingIndices::meanRelativeHumidity(p, p.sfcPres(), p.sfcPres() - 100.0);
-        a.midRh = SoundingIndices::meanRelativeHumidity(p, p.sfcPres() - 150.0, p.sfcPres() - 350.0);
+    {
+        // SPC's LowRH / MidRH: the pressure-weighted mean relative humidity from the surface to 1.5 km AGL and from 1.5 to 4 km AGL
+        // (matches the values printed on SPC's graphics for OUN and FWD 2026-10-01 12z; SHARPpy's fixed-pressure layers do not)
+        const double p15 = SoundingIndices::presAtAgl(p, 1500.0);
+        const double p40 = SoundingIndices::presAtAgl(p, 4000.0);
+        if (!SoundingThermo::isMissing(p15) && !SoundingThermo::isMissing(p.sfcPres())) {
+            a.lowRh = SoundingIndices::meanRelativeHumidity(p, p.sfcPres(), p15);
+            if (!SoundingThermo::isMissing(p40)) {
+                a.midRh = SoundingIndices::meanRelativeHumidity(p, p15, p40);
+            }
+        }
     }
     if (a.ml.valid) {
         a.esp = SoundingIndices::esp(a.ml.cape3km, a.ml.cape, a.lapse03);

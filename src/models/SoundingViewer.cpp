@@ -999,7 +999,7 @@ private:
                               num(a.convectiveTemp, 1), num(a.surfaceRh, 0)}},
                             false});
 
-        sections.push_back({{"", "0-3", "3-6 MSL", "700-500"},
+        sections.push_back({{"", "0-3", "3-6 AGL", "700-500"},
                             {{"Lapse C/km", num(a.lapse03, 1), num(a.lapse36, 1), num(a.lapse700500, 1)}},
                             true});
 
