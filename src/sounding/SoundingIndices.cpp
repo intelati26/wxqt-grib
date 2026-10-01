@@ -274,17 +274,22 @@ namespace SoundingIndices {
         double minMean = 1000.0, minP = missing;
         for (size_t i = 0; i < p.size(); i += 1) {
             if (gone(p.thetae[i]) || p.pres[i] < sfcP - 400.0) continue;
-            double s = 0, sw = 0;
-            bool okLayer = true;
-            for (double pr = p.pres[i]; pr >= p.pres[i] - 100.0 - 1e-9; pr -= 1.0) {
-                const double te = p.interpThetae(pr);
-                if (gone(te)) { okLayer = false; break; }
-                s += te * pr;
-                sw += pr;
+            // SHARPpy's "exact" layer mean: the interpolated ends plus every observed level inside, each counted once
+            const double pb = p.pres[i], pt = pb - 100.0;
+            const double t1 = p.interpThetae(pb), t2 = p.interpThetae(pt);
+            if (gone(t1) || gone(t2)) continue;
+            double sum = 0.0;
+            int n = 0;
+            for (size_t j = 0; j < p.size(); j += 1) {
+                if (p.pres[j] < pb && p.pres[j] > pt && !gone(p.thetae[j])) {
+                    sum += p.thetae[j];
+                    n += 1;
+                }
             }
-            if (okLayer && sw > 0 && s / sw < minMean) {
-                minMean = s / sw;
-                minP = p.pres[i] - 50.0;
+            const double mean = (0.5 * (t1 + t2) + sum) / (n + 1);
+            if (mean < minMean) {
+                minMean = mean;
+                minP = pb - 50.0;
             }
         }
         if (gone(minP)) return missing;

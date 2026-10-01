@@ -45,6 +45,7 @@ SHARPpy is distributed under the BSD 3-clause license:
 
 The engine was checked against SPC's own computed values (the "Parcel
 Information" and related blocks) in 270 observed soundings (2026-09-29 00Z to
-2026-09-30 12Z). Known differences: DCAPE matches SPC on some soundings and is
-off on others; SPC's printed "Effective BWD" is not the quantity SCP/STP use
+2026-09-30 12Z). Known differences: DCAPE matches SPC exactly on about 65% of soundings (176 of 270);
+on the rest SPC starts the downdraft from a different level than SHARPpy's
+minimum-theta-e rule picks (the integration itself reproduces SPC's value from that level); SPC's printed "Effective BWD" is not the quantity SCP/STP use
 (SHARPpy's definition is implemented); convective temperature is not ported.
