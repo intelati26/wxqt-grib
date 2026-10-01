@@ -37,6 +37,9 @@ void NexradLevel3HailIndex::decode(const ProjectionNumbers& projectionNumbers, F
     if ((posnNumbers.size() == hailPercentNumbers.size()) && posnNumbers.size() > 1) {
         auto index = 0;
         for (auto data : range3(0, posnNumbers.size() - 2, 2)) {
+            if (static_cast<size_t>(index) >= hailSizeNumbers.size()) {
+                break;   // the product listed fewer sizes than positions: nothing more to pair up (reading on crashed the radar)
+            }
             const auto hailSizeDbl = To::Double(hailSizeNumbers[index]);
             if (hailSizeDbl > 0.49 && (To::Int(hailPercentNumbers[data]) > 60 || To::Int(hailPercentNumbers[data + 1]) > 60)) {
                 const auto degree = To::Int(posnNumbers[data]);

@@ -20,6 +20,9 @@ void NexradLevel3Tvs::decode(const ProjectionNumbers& projectionNumbers, FileSto
     for (auto index : range(tvs.size())) {
         const auto stringData{UtilityString::parse(tvs[index], ".{9}(.{7})")};
         const auto items{WString::split(stringData, "/")};
+        if (items.size() < 2) {
+            continue;   // a line that is not "degrees/range"
+        }
         const auto degStr{WString::replace(items[0], " ", "")};
         const auto nmStr{WString::replace(items[1], " ", "")};
         const auto degree{To::Int(degStr)};
