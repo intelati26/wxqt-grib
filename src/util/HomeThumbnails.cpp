@@ -54,6 +54,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"GOES_GLOBAL", "Global GOES", "goesfulldisk.png", false, false},
         {"LIGHTNING", "Lightning (GLM)", "lightning.png", false, false},
         {"NHC_ATLANTIC", "NHC Atlantic outlook", "nhc.png", false, false},
+        {"MRMS_RADAR", "MRMS radar - composite reflectivity around your location (a still radar picture, instead of the live Nexrad tile)", "mcd_tile.png", false, false},
         {"MRMS_LATEST", "MRMS - latest scan of your last product, around your location", "mcd_tile.png", false, false},
         {"GRIB_LATEST", "RRFS GRIB - your last field and region, latest run", "grib.png", true, false},
     };
@@ -70,10 +71,11 @@ const HomeThumbnails::Entry * HomeThumbnails::find(const string& token) {
 }
 
 QByteArray HomeThumbnails::fetch(const string& token) {
-    if (token == "MRMS_LATEST") {
+    if (token == "MRMS_LATEST" || token == "MRMS_RADAR") {
         // the product last looked at in the MRMS viewer (else composite reflectivity), the newest scan, drawn around the
         // current location - or over all of CONUS when the preference MRMS_THUMB_EXTENT is "conus"
-        const auto wanted = Utility::readPref("MRMS_LAST_PRODUCT", UtilityMrms::products().front().id);
+        // the radar tile always shows composite reflectivity (the first product); the other one follows the viewer
+        const auto wanted = token == "MRMS_RADAR" ? UtilityMrms::products().front().id : Utility::readPref("MRMS_LAST_PRODUCT", UtilityMrms::products().front().id);
         auto product = UtilityMrms::products().front();
         auto known = std::find_if(UtilityMrms::products().begin(), UtilityMrms::products().end(), [&wanted] (const auto& p) { return p.id == wanted; });
         if (known != UtilityMrms::products().end()) {
