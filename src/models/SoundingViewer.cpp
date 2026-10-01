@@ -534,7 +534,7 @@ private:
         painter.setPen(QPen{QColor{110, 110, 110}, 1.0, Qt::DashLine});
         for (int speed = 20; speed < static_cast<int>(maxSpeed); speed += 20) {
             const double x = area.left() + area.width() * speed / maxSpeed;
-            painter.drawLine(QPointF{x, area.top()}, QPointF{x, area.bottom()});
+            painter.drawLine(QPointF{x, static_cast<double>(area.top())}, QPointF{x, static_cast<double>(area.bottom())});
         }
         QFont font = painter.font();
         font.setPixelSize(9);
