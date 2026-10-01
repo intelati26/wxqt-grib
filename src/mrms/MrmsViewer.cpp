@@ -55,10 +55,10 @@ MrmsViewer::MrmsViewer(Window * parent)
         this, 0, 1, true, Location::radarSite(), side, side,
         [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& prod) {},
         [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& sector) {},
-        [] ([[maybe_unused]] double z, [[maybe_unused]] int pane) {},
-        [] ([[maybe_unused]] double x, [[maybe_unused]] double y, [[maybe_unused]] int pane) {},
+        [this] (double z, [[maybe_unused]] int pane) { changeZoom(z); },
+        [this] (double x, double y, [[maybe_unused]] int pane) { changePosition(x, y); },
         [] {}};
-    radar->setFixedSize(side, side);
+    radar->setFixedSize(side, side);   // resized to the window by fitRadar()
     radar->nexradState.setRadar(Location::radarSite());
     radar->nexradState.reset();
     radar->nexradState.zoom = 0.14;   // the whole CONUS grid
@@ -113,6 +113,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     box.addWidgetReal(radar, 0, Qt::AlignTop | Qt::AlignLeft);
     box.addStretch();
     box.getAndShow(this);
+    fitRadar();
     rebuildProducts(Utility::readPref("MRMS_LAST_PRODUCT", UtilityMrms::products().front().id));
     loadScans();
     // the rest of the server's products, found in the background
@@ -199,6 +200,49 @@ void MrmsViewer::refreshNewest() {
 const UtilityMrms::Product& MrmsViewer::product() const {
     const auto index = std::clamp(comboProduct.getIndex(), 0, static_cast<int>(productList.size()) - 1);
     return productList[static_cast<size_t>(index)];
+}
+
+// the radar widget only reports wheel / click / drag requests; the owner changes the view (as the radar screen does)
+void MrmsViewer::changeZoom(double factor) {
+    auto& state = radar->nexradState;
+    if (factor < 1.0 && state.zoom <= 0.02) {
+        return;
+    }
+    const double oldZoom = state.zoom;
+    state.zoom = std::min(state.zoom * factor, 40.0);
+    const double change = state.zoom / oldZoom;
+    state.xPos *= change;   // zoom about the centre of the map
+    state.yPos *= change;
+    radar->resizePolygons();
+    radar->nexradRenderTextObject.add();
+    radar->update();
+}
+
+void MrmsViewer::changePosition(double dx, double dy) {
+    auto& state = radar->nexradState;
+    const double unitsPerPixel = 1000.0 / std::max(1, radar->width());   // the map is drawn on a 1000-unit window
+    state.xPos += dx * unitsPerPixel;
+    state.yPos += dy * unitsPerPixel;
+    radar->nexradRenderTextObject.add();
+    radar->update();
+}
+
+// the map is a square (the radar widget's projection assumes one): as large as fits under the controls
+void MrmsViewer::fitRadar() {
+    if (radar == nullptr) {
+        return;
+    }
+    const int side = std::max(300, std::min(width() - 16, height() - rowTop.getView()->sizeHint().height() - 24));
+    if (radar->width() != side) {
+        radar->setFixedSize(side, side);
+        radar->nexradState.originalWidth = side;
+        radar->nexradState.originalHeight = side;
+        radar->nexradRenderTextObject.add();
+    }
+}
+
+void MrmsViewer::resizeEventCustom() {
+    fitRadar();
 }
 
 void MrmsViewer::closeEventCustom() {

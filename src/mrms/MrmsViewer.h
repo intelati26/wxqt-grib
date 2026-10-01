@@ -47,6 +47,10 @@ private:
     void paintLegend(QPainter&);
     void moveScan(int step);
     void closeEventCustom() override;
+    void resizeEventCustom() override;
+    void changeZoom(double factor);              // the radar widget's wheel / click zoom
+    void changePosition(double dx, double dy);   // its drag pan, in pixels
+    void fitRadar();                             // the map is a square that fills the window
     bool eventFilter(QObject *, QEvent *) override;
     struct Projection2 {   // the radar projection as x = ax * lon + bx, y = ay * mercator(lat) + by
         double ax;
