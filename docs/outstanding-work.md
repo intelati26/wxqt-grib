@@ -137,6 +137,15 @@ your location, or all of CONUS with pref `MRMS_THUMB_EXTENT=conus`; county + sta
 control for the thumbnail extent, per-product units for unknown ("Other") products, lightning probability folder was
 empty when checked, max-pooling when zoomed far out (thin tracks thin out), Windows run.
 
+## NHC storm graphics (2026-10-01)
+The cone (and the storm screen's other pictures) were requested by guessed names (`<id>_5day_cone_with_line_and_wind_sm2.png`
+in `storm_graphics/<AT05>/`) that NHC no longer serves; for Pacific storms the folder was wrong as well. Each storm now
+reads its own graphics page (`graphics_<bin>.shtml`, e.g. `graphics_ep3.shtml`, from `CurrentStorms.json`) and takes the
+current addresses from it (`storm_graphics/EP18/refresh/EP182026_5day_cone_sm+png/011447_5day_cone_sm.png`, cone first, then
+3-day, winds, arrival times, probabilities, rainfall). A storm without a cone shows "No cone graphic available" on its card
+and the storm window title says NHC publishes none; the old fixed names are only a fallback if the page cannot be read.
+Checked live against three active Pacific storms (Rachel, Nineteen-E, Nolo). Not checked: an Atlantic storm.
+
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
 WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage

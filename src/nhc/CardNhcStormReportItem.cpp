@@ -24,8 +24,18 @@ CardNhcStormReportItem::CardNhcStormReportItem(Window * parent, const NhcStormDe
     button.connect([stormData, parent] { new NhcStorm{parent, stormData}; });
 
     image.imageSize = 250;
-    image.connect([stormData, parent] { new ImageViewer{parent, stormData.coneBytes}; });
-    image.setBytes(stormData.coneBytes);
+    image.connect([stormData, parent] {
+        if (stormData.coneBytes.isEmpty()) {
+            new NhcStorm{parent, stormData};   // no cone to enlarge: open the storm's other graphics
+        } else {
+            new ImageViewer{parent, stormData.coneBytes};
+        }
+    });
+    if (stormData.coneBytes.isEmpty()) {
+        image.getView()->setText("No cone graphic available\nfor this storm");
+    } else {
+        image.setBytes(stormData.coneBytes);
+    }
 
     text1.setBold();
     text1.setBlue();

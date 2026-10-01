@@ -54,24 +54,35 @@ NhcStorm::NhcStorm(Window * parent, const NhcStormDetails& stormData)
     boxText.addWidget(text);
     boxText.addStretch();
 
-    for ([[maybe_unused]] const auto& unused : urls) {
+    // the pictures NHC's own graphics page lists for the storm (cone first); the older fixed names only if that page gave none
+    if (!stormData.graphicUrls.empty()) {
+        fullUrls = stormData.graphicUrls;
+    } else {
+        for (const auto& suffix : urls) {
+            auto url = stormData.baseUrl;
+            if (suffix == "WPCQPF_sm2.gif" || suffix == "WPCERO_sm2.gif") {
+                url = WString::replace(url, ObjectDateTime::getYearString(), ObjectDateTime::getYearShortString());
+            }
+            fullUrls.push_back(url + suffix);
+        }
+    }
+    for ([[maybe_unused]] const auto& unused : fullUrls) {
         images.emplace_back(this);
         images.back().imageSize = 250;
         boxImages.addWidget(images.back());
     }
-    for (auto index : range(urls.size())) {
-        auto url = stormData.baseUrl;
-        if (urls[index] == "WPCQPF_sm2.gif" || urls[index] == "WPCERO_sm2.gif") {
-            url = WString::replace(url, ObjectDateTime::getYearString(), ObjectDateTime::getYearShortString());
-        }
+    for (auto index : range(fullUrls.size())) {
         images[index].connect([this, index] { new ImageViewer{this, images[index].bytes}; });
-        new FutureBytes{this, url + urls[index], [this, index] (const auto& ba) { images[index].setBytes(ba); }};
+        new FutureBytes{this, fullUrls[index], [this, index] (const auto& ba) { images[index].setBytes(ba); }};
+    }
+    if (stormData.coneUrl.empty() && !stormData.graphicUrls.empty()) {
+        setTitle("NHC Storm " + stormData.forTopHeader() + " - NHC publishes no cone forecast for this storm");
     }
     boxImages.addStretch();
     reload();
 
     shortcut.connect([this] { new GoesViewer{this, goesUrl}; });
-    for (auto index : range(urls.size() + 1)) {
+    for (auto index : range(fullUrls.size() + 1)) {
         shortcuts.emplace_back(QKeySequence{QString::fromStdString(To::string(index))}, this);
         shortcuts.back().connect([this, parent, index] { new ImageViewer{parent, images[index - 1].bytes}; });
     }

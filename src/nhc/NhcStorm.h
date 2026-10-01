@@ -56,6 +56,7 @@ private:
     Shortcut shortcut;
     vector<string> textProducts;
     vector<Shortcut> shortcuts;
+    vector<string> fullUrls;   // the pictures shown, as full addresses
     const vector<string> urls{
         "_5day_cone_with_line_and_wind_sm2.png",
         "_key_messages.png",

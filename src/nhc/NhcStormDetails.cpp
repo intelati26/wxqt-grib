@@ -4,6 +4,8 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include <regex>
+#include <algorithm>
 #include "NhcStormDetails.h"
 #include "objects/WString.h"
 #include "util/To.h"
@@ -42,9 +44,54 @@ NhcStormDetails::NhcStormDetails(
     , movement{UtilityMath::bearingToDirection(To::Int(movementDir)) + "(" + movementDir + ") at " + movementSpeed + " mph"}
     , modBinNumber{WString::replace(WString::toUpper(UtilityString::substring(stormId, 0, 4)), "AL", "AT")}
     , baseUrl{"https://www.nhc.noaa.gov/storm_graphics/" + modBinNumber + "/" + WString::toUpper(stormId)}
-    , coneBytes{UtilityIO::downloadAsByteArray(baseUrl + "_5day_cone_with_line_and_wind_sm2.png")}
+    , graphicsPageUrl{"https://www.nhc.noaa.gov/graphics_" + WString::toLower(binNumber) + ".shtml"}
     , advisoryNumber{WString::replace(WString::split(advisoryUrl, "/").back(), ".shtml", "")}
-{}
+{
+    // the pictures' addresses, as the storm's graphics page lists them, e.g.
+    // storm_graphics/EP18/refresh/EP182026_5day_cone_sm+png/011447_5day_cone_sm.png
+    const auto page = UtilityIO::getHtml(graphicsPageUrl);
+    const auto prefix = WString::toUpper(stormId);
+    const std::regex pattern{"storm_graphics/[A-Za-z0-9]+/refresh/[A-Za-z0-9_+]+/[0-9]+_[A-Za-z0-9_]+\\.(?:png|gif)"};
+    vector<string> found;
+    for (auto it = std::sregex_iterator(page.begin(), page.end(), pattern); it != std::sregex_iterator(); ++it) {
+        const auto url = "https://www.nhc.noaa.gov/" + it->str();
+        if (url.find(prefix) != string::npos && std::find(found.begin(), found.end(), url) == found.end()) {
+            found.push_back(url);
+        }
+    }
+    // most useful first: cones, then winds, then arrival times and probabilities, then rainfall
+    static const vector<string> order{"5day_cone_sm", "3day_cone_sm", "5day_expCone", "current_wind", "wind_history", "earliest_reasonable_toa", "most_likely_toa", "wind_probs_34", "wind_probs_50", "wind_probs_64", "INTQPF"};
+    const auto rank = [] (const string& url) {
+        for (size_t i = 0; i < order.size(); i += 1) {
+            if (url.find(order[i]) != string::npos) {
+                return i;
+            }
+        }
+        return order.size();
+    };
+    std::stable_sort(found.begin(), found.end(), [&rank] (const string& a, const string& b) { return rank(a) < rank(b); });
+    graphicUrls = found;
+    for (const auto& url : found) {
+        if (url.find("5day_cone_sm") != string::npos) {
+            coneUrl = url;
+            break;
+        }
+    }
+    if (coneUrl.empty()) {
+        for (const auto& url : found) {
+            if (url.find("3day_cone_sm") != string::npos) {
+                coneUrl = url;
+                break;
+            }
+        }
+    }
+    if (coneUrl.empty() && found.empty()) {
+        coneUrl = baseUrl + "_5day_cone_with_line_and_wind_sm2.png";   // the older fixed address, if the page could not be read
+    }
+    if (!coneUrl.empty()) {
+        coneBytes = UtilityIO::downloadAsByteArray(coneUrl);
+    }
+}
 
 string NhcStormDetails::forTopHeader() const {
     return movement + ", " + pressure + " mb, " + intensity + " mph";
