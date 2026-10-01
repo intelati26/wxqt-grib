@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "NexradLongPressMenu.h"
+#include "radar/RadarFavorites.h"
 #include <cmath>
 // #include <numbers>
 #include <vector>
@@ -75,7 +76,8 @@ void NexradLongPressMenu::setupContextMenu(
     for (const auto& rid : radarSites) {
         const auto bearingToRadar = LatLon::calculateDirection(latLon, rid.latLon);
         const auto radarDescription = rid.codeName + " " + RadarSites::getName(rid.codeName) + " " + To::string(static_cast<int>(round(rid.distance))) + " mi " + bearingToRadar;
-        actionRadarSitesList.emplace_back(radarDescription, [&rid, &fnSector, &nexradState] { fnSector(nexradState.paneNumber, rid.codeName); });
+        const auto marker = actionRadarSitesList.empty() ? string{"Closest radar: "} : string{"Radar: "};   // the list is nearest first
+        actionRadarSitesList.emplace_back(marker + radarDescription, [&rid, &fnSector, &nexradState] { fnSector(nexradState.paneNumber, rid.codeName); });
     }
     //
     // products
@@ -122,6 +124,16 @@ void NexradLongPressMenu::setupContextMenu(
     longPressMenu.add(actionAdhocLocation);
     for (const auto& action : actionRadarSitesList) {
         longPressMenu.add(action);
+    }
+    // favourites: the radar being shown, and the one nearest this point
+    const auto shownSite = nexradState.getRadarSite();
+    const auto favoriteShown = CMenuItem{string{RadarFavorites::contains(shownSite) ? "Remove " : "Add "} + shownSite + (RadarFavorites::contains(shownSite) ? " from favorites" : " to favorites"),
+                                         [shownSite] { RadarFavorites::toggle(shownSite); }};
+    longPressMenu.add(favoriteShown);
+    if (closestRadar != shownSite) {
+        const auto favoriteClosest = CMenuItem{string{RadarFavorites::contains(closestRadar) ? "Remove " : "Add "} + closestRadar + (RadarFavorites::contains(closestRadar) ? " from favorites" : " to favorites"),
+                                               [closestRadar] { RadarFavorites::toggle(closestRadar); }};
+        longPressMenu.add(favoriteClosest);
     }
     if (PolygonWarning::areAnyEnabled() && PolygonWarning::isCountNonZero()) {
         longPressMenu.add(actionWarnings);

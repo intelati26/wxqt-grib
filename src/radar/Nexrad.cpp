@@ -17,6 +17,8 @@
 #include "radar/NexradUtil.h"
 #include "radar/RadarSites.h"
 #include "settings/RadarPreferences.h"
+#include "radar/RadarFavorites.h"
+#include "settings/Location.h"
 #include "settings/UIPreferences.h"
 #include "settings/SettingsMain.h"
 #include "util/Utility.h"
@@ -28,6 +30,8 @@ Nexrad::Nexrad(Window * parent, int numberOfPanes, bool useASpecificRadar, const
     : Window{parent}
     , useASpecificRadar{useASpecificRadar}
     , comboboxSector{this, RadarSites::radars()}
+    , closestButton{this, None, "Closest"}
+    , comboboxFavorites{this, {"Favorites"}}
     , comboboxProduct{this, NexradUtil::radarProductList}
     , comboboxTilt{this, {"0", "1", "2", "3"}}
     , comboboxAnimCount{this, {"5", "10", "15", "20", "25", "30", "40", "50"}}
@@ -75,10 +79,11 @@ Nexrad::Nexrad(Window * parent, int numberOfPanes, bool useASpecificRadar, const
     auto widthW = dimens[0];
     auto heightW = dimens[1];
     auto dimen = std::max(heightW, widthW);
+    // an ordinary resizable window (it used to be fixed to the screen size): the radar squares follow it, see fitPanes()
     if (!UIPreferences::tiledWindows) {
-        setSize2(widthW, heightW - 15);
+        setSize(widthW, heightW - 15);
     } else {
-        setSize2(static_cast<int>(widthW / 2), static_cast<int>(heightW / 2 - 30));
+        setSize(static_cast<int>(widthW / 2), static_cast<int>(heightW / 2 - 30));
         widthW = static_cast<int>(widthW / 2.0);
         heightW = static_cast<int>(heightW / 2.0);
     }
@@ -134,6 +139,12 @@ Nexrad::Nexrad(Window * parent, int numberOfPanes, bool useASpecificRadar, const
     //
     comboboxSector.setIndexByValue(nexradList[0]->nexradState.getRadarSite());
     comboboxSector.connect([this] { changeRadarSite(); });
+    closestButton.getView()->setToolTip("Switch to the radar nearest your current location");
+    closestButton.connect([this] { useClosestRadar(); });
+    comboboxFavorites.getView()->setToolTip("Your favourite radars; add or remove the radar shown");
+    comboboxFavorites.connect([this] { favoriteChosen(); });
+    refreshFavorites();
+    RadarFavorites::onChanged = [this] { refreshFavorites(); };   // the right-click menu can add / remove one too
     //
     // product menu
     //
@@ -157,7 +168,14 @@ Nexrad::Nexrad(Window * parent, int numberOfPanes, bool useASpecificRadar, const
     zoomInButton.connect([this] { zoomIn(); });
 
     boxH.addWidget(settingsButton);
+    // compact boxes (their popups still show the full text) so the toolbar row, and with it the minimum window width, stays small
+    for (auto * combo : {comboboxSector.getView(), comboboxFavorites.getView(), comboboxProduct.getView()}) {
+        combo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+        combo->setMinimumContentsLength(combo == comboboxFavorites.getView() ? 10 : 14);
+    }
     boxH.addWidget(comboboxSector);
+    boxH.addWidget(closestButton);
+    boxH.addWidget(comboboxFavorites);
     boxH.addWidget(comboboxProduct);
     for (auto nw : nexradList) {
         boxH.addWidget(*nw->radarStatusBox);
@@ -205,6 +223,7 @@ Nexrad::Nexrad(Window * parent, int numberOfPanes, bool useASpecificRadar, const
     nexradBox.setSpacing(0);
     nexradBox2.setSpacing(0);
     box.getAndShow(this);
+    fitPanes();
 
     adjustControls();
     adjustProductComboBox();
@@ -339,6 +358,7 @@ void Nexrad::changeSectorFromChild(int paneNumber, const string& radarSite) {
     comboboxSector.unblock();
     syncRadarSite(radarSite, paneNumber, true);
     downloadData();
+    refreshFavorites();
 }
 
 void Nexrad::changeRadarSite() {
@@ -347,6 +367,48 @@ void Nexrad::changeRadarSite() {
     const auto radarSite = WString::split(site, ":")[0];
     syncRadarSite(radarSite, 0, true);
     downloadData();
+    refreshFavorites();
+}
+
+void Nexrad::useClosestRadar() {
+    const auto code = RadarSites::getNearestCode(Location::getLatLonCurrent());
+    if (!code.empty()) {
+        changeSectorFromChild(0, code);
+    }
+}
+
+// rows: the heading, each favourite, then one command (add / remove the radar being shown)
+void Nexrad::refreshFavorites() {
+    const auto current = nexradList.empty() ? string{} : nexradList[0]->nexradState.getRadarSite();
+    vector<string> rows{"Favorites"};
+    favoriteCodes = {""};
+    for (const auto& site : RadarFavorites::list()) {
+        rows.push_back("* " + RadarFavorites::label(site));
+        favoriteCodes.push_back(site);
+    }
+    if (!current.empty()) {
+        rows.push_back(RadarFavorites::contains(current) ? "- Remove " + current + " from favorites" : "+ Add " + current + " to favorites");
+        favoriteCodes.push_back("");   // the command row: handled by position
+    }
+    comboboxFavorites.block();
+    comboboxFavorites.setList(rows);
+    comboboxFavorites.setIndex(0);
+    comboboxFavorites.unblock();
+}
+
+void Nexrad::favoriteChosen() {
+    const auto index = static_cast<size_t>(std::max(0, comboboxFavorites.getIndex()));
+    const auto current = nexradList.empty() ? string{} : nexradList[0]->nexradState.getRadarSite();
+    if (index > 0 && index < favoriteCodes.size() && !favoriteCodes[index].empty()) {
+        const auto code = favoriteCodes[index];
+        refreshFavorites();   // the box goes back to its heading
+        changeSectorFromChild(0, code);
+        return;
+    }
+    if (index > 0 && index == favoriteCodes.size() - 1 && !current.empty()) {   // the add / remove command
+        RadarFavorites::toggle(current);
+    }
+    refreshFavorites();
 }
 
 void Nexrad::changeTilt() {
@@ -499,7 +561,37 @@ void Nexrad::adjustColorLegends() {
     // #         cl.setVisible(False)
 }
 
+// One radar square per pane, as large as fits under the controls: one pane the full width, two side by side, four in a 2 x 2 grid.
+void Nexrad::fitPanes() {
+    if (nexradList.empty()) {
+        return;
+    }
+    const int controls = boxH.getView()->sizeHint().height() + 12;
+    const int availableWidth = std::max(300, width() - 8);
+    const int availableHeight = std::max(300, height() - controls - 8);
+    int side = std::min(availableWidth, availableHeight);
+    if (nexradList.size() == 2) {
+        side = std::min(availableWidth / 2, availableHeight);
+    } else if (nexradList.size() == 4) {
+        side = std::min(availableWidth / 2, availableHeight / 2);
+    }
+    for (auto nw : nexradList) {
+        if (nw->width() != side || nw->height() != side) {
+            nw->setFixedSize(side, side);
+            nw->nexradState.originalWidth = side;
+            nw->nexradState.originalHeight = side;
+            nw->nexradRenderTextObject.add();   // the labels that fit depend on the size
+            nw->update();
+        }
+    }
+}
+
+void Nexrad::resizeEventCustom() {
+    fitPanes();
+}
+
 void Nexrad::closeEventCustom() {
+    RadarFavorites::onChanged = nullptr;
     if (!useASpecificRadar) {
         save();
     }

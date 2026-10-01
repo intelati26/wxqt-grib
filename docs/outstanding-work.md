@@ -146,6 +146,15 @@ current addresses from it (`storm_graphics/EP18/refresh/EP182026_5day_cone_sm+pn
 and the storm window title says NHC publishes none; the old fixed names are only a fallback if the page cannot be read.
 Checked live against three active Pacific storms (Rachel, Nineteen-E, Nolo). Not checked: an Atlantic storm.
 
+## Radar window: resizable, closest radar, favorites; MRMS zoom / pan (2026-10-01)
+- The NEXRAD window is now an ordinary resizable window (it was fixed to the screen size); `Nexrad::fitPanes` sizes the radar
+  squares to it (one pane full width, two side by side, four in a 2 x 2 grid). Toolbar: **Closest** button (the radar nearest
+  the current location) and a **Favorites** box (your favourites, then add / remove the radar shown; pref `RADAR_FAVORITES`,
+  `RadarFavorites`). The right-click menu marks the nearest radar to the click and can add / remove the shown radar and the
+  nearest one as favourites. The combo boxes are compact so the minimum window width is smaller.
+- MRMS viewer: wheel / click zoom and drag pan now work (its radar widget's callbacks were empty), and the map fills the window.
+  Zoom is about the map centre; no zoom-to-pointer yet.
+
 ## Export formats (2026-09-30, local)
 All save buttons go through `UtilityAnimationExport`: Animated PNG built in;
 WebP always (img2webp is bundled in both packages - Windows `tools/`, AppImage

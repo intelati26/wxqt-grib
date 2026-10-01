@@ -42,6 +42,9 @@ private:
     void changeProductFromChild(int, const string&);
     void changeSectorFromChild(int, const string&);
     void changeRadarSite();
+    void useClosestRadar();
+    void refreshFavorites();
+    void favoriteChosen();
     void changeTilt();
     void adjustProductComboBox();
     void changeZoom(double, int);
@@ -60,12 +63,17 @@ private:
     // void positionUpdated(const QGeoPositionInfo&);
     // QGeoPositionInfoSource * source;
     void closeEventCustom() override;
+    void resizeEventCustom() override;
+    void fitPanes();   // the radar squares follow the window size
     VBox box;
     HBox boxH;
     HBox nexradBox;
     HBox nexradBox2;
     bool useASpecificRadar;
     ComboBox comboboxSector;
+    Button closestButton;          // switch to the radar nearest the current location
+    ComboBox comboboxFavorites;    // favourite radars, and add / remove the current one
+    vector<string> favoriteCodes;  // site code behind each favourites row ("" = a heading or a command)
     ComboBox comboboxProduct;
     ComboBox comboboxTilt;
     ComboBox comboboxAnimCount;
