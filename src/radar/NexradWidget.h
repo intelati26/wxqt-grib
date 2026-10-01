@@ -100,6 +100,7 @@ private:
     void pinchTriggered(QPinchGesture *);
     void updateTitle();
     void toggleRadar();
+    bool ctrlHeld{false};
     double mouseStartX{};
     double mouseStartY{};
     function<void(int, string)> fnProduct;

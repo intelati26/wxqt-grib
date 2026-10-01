@@ -6,6 +6,7 @@
 
 #include <mutex>
 #include "NexradWidget.h"
+#include "radar/RadarSites.h"
 #include <QApplication>
 #include <QMenu>
 #include <QPainter>
@@ -170,6 +171,7 @@ void NexradWidget::mousePressEvent(QMouseEvent * event) {
     mouseStartX = event->pos().x();
     mouseStartY = event->pos().y();
     lastMouseType = "Click";
+    ctrlHeld = (event->modifiers() & Qt::ControlModifier) != 0;
 }
 
 void NexradWidget::mouseDoubleClickEvent([[maybe_unused]] QMouseEvent * event) {
@@ -187,6 +189,17 @@ void NexradWidget::performSingleClickAction() {
 }
 
 void NexradWidget::mouseReleaseEvent([[maybe_unused]] QMouseEvent * event) {
+    if (ctrlHeld && lastMouseType == "Click" && !onClick) {
+        // Ctrl+click: switch this pane to the radar site nearest the clicked point
+        ctrlHeld = false;
+        lastMouseType = "";
+        const auto latLon = NexradRenderUI::getLatLonFromScreenPosition(nexradState, event->pos().x(), event->pos().y());
+        const auto code = RadarSites::getNearestCode(latLon);
+        if (!code.empty() && code != nexradState.getRadarSite()) {
+            fnSector(nexradState.paneNumber, code);
+        }
+        return;
+    }
     if (lastMouseType == "Drag") {
         update();
     } else if (lastMouseType == "Click") {
