@@ -636,9 +636,32 @@ QString UtilityAnimationExport::updatedText(const QByteArray& bytes) {
     return "Downloaded " + meta.fetched.toUTC().toString("yyyy-MM-dd HH:mm") + " UTC";
 }
 
-bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByteArray>& frames, int frameDelayMs,
+bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByteArray>& loadedFrames, int frameDelayMs,
                                             const QByteArray& still, const QString& baseName,
-                                            const QByteArray& metaBytes, bool datePrefix) {
+                                            const QByteArray& metaBytes, bool datePrefix, const QString& stillBaseName) {
+    QString name = baseName;
+    // A loop that has been rendered stays loaded after it is stopped, so when there is both a loop and the
+    // image on screen, ask which one is wanted (the last answer is remembered as the default button)
+    vector<QByteArray> frames = loadedFrames;
+    if (loadedFrames.size() >= 2 && !still.isEmpty()) {
+        QMessageBox box{QMessageBox::Question, "Save", "What do you want to save?", QMessageBox::NoButton, parent};
+        auto * currentButton = box.addButton("Current image", QMessageBox::AcceptRole);
+        auto * loopButton = box.addButton("Animation (" + QString::number(loadedFrames.size()) + " frames)", QMessageBox::AcceptRole);
+        box.addButton(QMessageBox::Cancel);
+        box.setDefaultButton(Utility::readPref("SAVE_WHICH", "image") == "animation" ? loopButton : currentButton);
+        box.exec();
+        if (box.clickedButton() == currentButton) {
+            frames.clear();
+            if (!stillBaseName.isEmpty()) {
+                name = stillBaseName;
+            }
+            Utility::writePref("SAVE_WHICH", "image");
+        } else if (box.clickedButton() == loopButton) {
+            Utility::writePref("SAVE_WHICH", "animation");
+        } else {
+            return false;   // cancelled
+        }
+    }
     const bool animated = frames.size() >= 2;
     if (!animated && still.isEmpty() && frames.empty()) {
         QMessageBox::information(parent, "Nothing to save", "There is no image to save yet.");
@@ -686,7 +709,7 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
 
     const auto & metaSource = !metaBytes.isEmpty() ? metaBytes
         : (!still.isEmpty() ? still : (frames.empty() ? still : frames.back()));
-    const auto datedBase = datePrefix ? datedName(baseName, metaSource) : baseName;
+    const auto datedBase = datePrefix ? datedName(name, metaSource) : name;
     const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
     const auto stem = picturesDir.isEmpty() ? datedBase : picturesDir + "/" + datedBase;
     QString selectedFilter = filters.first();

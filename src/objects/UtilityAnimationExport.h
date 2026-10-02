@@ -49,10 +49,13 @@ public:
     // the still image, else the newest frame). Rendered images that have no
     // download record keep `baseName` as given (it already carries run / hour).
     // `datePrefix` = false skips that lookup (the caller already put the time in
-    // baseName, e.g. via modelName() / validName()).
+    // baseName, e.g. via modelName() / validName()). When both a loop and the
+    // current image exist the user is asked which to save; `stillBaseName` (if
+    // given) names the single image, since `baseName` then describes the whole loop.
     static bool saveWithDialog(QWidget * parent, const vector<QByteArray>& frames, int frameDelayMs,
                                const QByteArray& still, const QString& baseName,
-                               const QByteArray& metaBytes = QByteArray{}, bool datePrefix = true);
+                               const QByteArray& metaBytes = QByteArray{}, bool datePrefix = true,
+                               const QString& stillBaseName = QString{});
 
     // File-name building for images WE render from model runs (RRFS, REFS,
     // SHIP/STP, SPC Post): "<run date>_<cycle>z_f<hour>_v<valid time>Z_<product>",

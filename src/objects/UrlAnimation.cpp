@@ -192,5 +192,6 @@ void UrlAnimation::onSave() {
     }
     const auto suggested = product + "_" + (looping ? string{"anim"} : string{"latest"});
     UtilityAnimationExport::saveWithDialog(parent, looping ? animBar.loadedFrames() : vector<QByteArray>{},
-                                           frameDelayMs, currentBytes, QString::fromStdString(suggested));
+                                           frameDelayMs, currentBytes, QString::fromStdString(suggested), QByteArray{}, true,
+                                           QString::fromStdString(product + "_latest"));
 }

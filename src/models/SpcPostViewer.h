@@ -75,6 +75,7 @@ private:
     ComboBox comboRun;
     ComboBox comboForecastHour;
     BackForward backForward;
+    SoundingPick soundingPick;   // declared before animBar: the constructor initialises it first
     AnimationBar animBar;
     std::vector<std::pair<string, string>> runOptionsList;
     string status;
@@ -98,7 +99,6 @@ private:
     // hover read-out
     vector<string> frameGridPaths;       // parallel to the frames loaded in animBar
     QLabel * hoverLabel{};
-    SoundingPick soundingPick;
     string sampleGridPath;               // .grid sidecar backing the visible frame
     SampleGridCache gridCache;   // parsed hover grids, keyed by sidecar path
     double lastHoverFx{-1.0};

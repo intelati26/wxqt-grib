@@ -546,8 +546,10 @@ void RefsViewer::onSave() {
         QString::fromStdString(looping ? frameStatuses.front() : status),
         QString::fromStdString(looping ? frameStatuses.back() : status),
         "refs_comparison_" + UtilityAnimationExport::slug(QString::fromStdString(comboRegion.getValue()), 30));
+    const auto stillName = UtilityAnimationExport::modelName(QString::fromStdString(status), QString::fromStdString(status),
+        "refs_comparison_" + UtilityAnimationExport::slug(QString::fromStdString(comboRegion.getValue()), 30));
     UtilityAnimationExport::saveWithDialog(this, mosaics.size() >= 2 ? mosaics : vector<QByteArray>{},
-                                           frameDelayMs, still, suggested, QByteArray{}, false);
+                                           frameDelayMs, still, suggested, QByteArray{}, false, stillName);
 }
 
 void RefsViewer::resizeEventCustom() {

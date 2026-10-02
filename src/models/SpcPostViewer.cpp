@@ -452,6 +452,8 @@ void SpcPostViewer::onSave() {
     const auto lastStatus = QString::fromStdString(looping ? frameStatuses.back() : status);
     const auto suggested = UtilityAnimationExport::modelName(firstStatus, lastStatus,
         QString::fromStdString("spcpost_" + productKey) + "_" + UtilityAnimationExport::slug(QString::fromStdString(comboDomain.getValue()), 30));
+    const auto stillName = UtilityAnimationExport::modelName(QString::fromStdString(status), QString::fromStdString(status),
+        QString::fromStdString("spcpost_" + productKey) + "_" + UtilityAnimationExport::slug(QString::fromStdString(comboDomain.getValue()), 30));
 
     // the loaded frames when a loop has been rendered, else the single image on screen;
     // the Save dialog offers every available format and reports any failure
@@ -461,7 +463,7 @@ void SpcPostViewer::onSave() {
         : (looping ? UtilityAnimationExport::withHeaders(animBar.loadedFrames(), frameStatuses, QString{})
                    : animBar.loadedFrames());
     const auto exportStill = UtilityAnimationExport::withHeader(renderedBytes, QString::fromStdString(status), QString{});
-    UtilityAnimationExport::saveWithDialog(this, exportFrames, frameDelayMs, exportStill, suggested, QByteArray{}, false);
+    UtilityAnimationExport::saveWithDialog(this, exportFrames, frameDelayMs, exportStill, suggested, QByteArray{}, false, stillName);
 }
 
 // static 0-100% probability legend - unlike GribViewer's per-field legend, every

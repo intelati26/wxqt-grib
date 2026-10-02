@@ -513,6 +513,8 @@ void IndexViewer::onSave() {
     const auto lastStatus = QString::fromStdString(looping ? frameStatuses.back() : status);
     const auto suggested = UtilityAnimationExport::modelName(firstStatus, lastStatus,
         QString::fromStdString(indexKey) + "_" + UtilityAnimationExport::slug(QString::fromStdString(comboRegion.getValue()), 30));
+    const auto stillName = UtilityAnimationExport::modelName(QString::fromStdString(status), QString::fromStdString(status),
+        QString::fromStdString(indexKey) + "_" + UtilityAnimationExport::slug(QString::fromStdString(comboRegion.getValue()), 30));
 
     // the loaded frames when a loop has been rendered, else the single image on screen;
     // the Save dialog offers every available format and reports any failure
@@ -522,7 +524,7 @@ void IndexViewer::onSave() {
         : (looping ? UtilityAnimationExport::withHeaders(animBar.loadedFrames(), frameStatuses, QString{})
                    : animBar.loadedFrames());
     const auto exportStill = UtilityAnimationExport::withHeader(renderedBytes, QString::fromStdString(status), QString{});
-    UtilityAnimationExport::saveWithDialog(this, exportFrames, frameDelayMs, exportStill, suggested, QByteArray{}, false);
+    UtilityAnimationExport::saveWithDialog(this, exportFrames, frameDelayMs, exportStill, suggested, QByteArray{}, false, stillName);
 }
 
 QByteArray IndexViewer::buildLegend(int indexIndex, double clipLo, double clipHi) const {
