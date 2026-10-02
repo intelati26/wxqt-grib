@@ -18,6 +18,7 @@ public:
     explicit ClickableLabel(Window * parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
     void connect(const function<void()>&);
     void setToWidth(const QByteArray&, int, bool white = false);
+    bool hasClickHandler() const;   // something is connected to clicked()
 
 signals:
     void clicked();

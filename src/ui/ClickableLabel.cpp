@@ -1,6 +1,7 @@
 // https://wiki.qt.io/Clickable_QLabel
 
 #include "ClickableLabel.h"
+#include <QMetaMethod>
 #include "util/UtilityUI.h"
 
 ClickableLabel::ClickableLabel(Window * parent, [[maybe_unused]] Qt::WindowFlags f)
@@ -22,4 +23,8 @@ void ClickableLabel::connect(const function<void()>& fn) {
 
 void ClickableLabel::setToWidth(const QByteArray& ba, int width, bool white) {
     UtilityUI::updateImage(this, ba, width, white);
+}
+
+bool ClickableLabel::hasClickHandler() const {
+    return isSignalConnected(QMetaMethod::fromSignal(&ClickableLabel::clicked));
 }

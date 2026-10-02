@@ -5,6 +5,9 @@
 
 #include "objects/UtilityAnimationExport.h"
 #include "objects/AnimationRenderer.h"
+#include "misc/ImageViewer.h"
+#include "ui/ClickableLabel.h"
+#include <QMetaMethod>
 #include <algorithm>
 #include <string>
 #include <QBuffer>
@@ -421,19 +424,61 @@ void UtilityAnimationExport::setSourceBytes(QLabel * label, const QByteArray& by
         return;
     }
     const auto updated = updatedText(bytes);
-    label->setToolTip((updated.isEmpty() ? QString{} : updated + "\n") + "Right-click to save");
+    label->setToolTip((updated.isEmpty() ? QString{} : updated + "\n") + "Double-click to zoom, right-click to zoom or save");
+}
+
+namespace {
+    // the picture on a label (any Photo / Image) in a window of its own with zoom, pan and Save
+    void openZoomView(QLabel * label) {
+        const auto bytes = label->property("wxqtSourceBytes").toByteArray();
+        auto * window = dynamic_cast<Window *>(label->window());
+        if (bytes.isEmpty() || window == nullptr) {
+            return;
+        }
+        new ImageViewer{window, bytes, window->windowTitle().toStdString()};
+    }
+
+    // double-click on a picture opens it zoomable, unless the screen already uses a click on that picture for something
+    class ZoomOnDoubleClick : public QObject {
+    public:
+        using QObject::QObject;
+
+    protected:
+        bool eventFilter(QObject * watched, QEvent * event) override {
+            if (event->type() != QEvent::MouseButtonDblClick) {
+                return false;
+            }
+            auto * label = qobject_cast<QLabel *>(watched);
+            if (label == nullptr) {
+                return false;
+            }
+            if (auto * clickable = qobject_cast<ClickableLabel *>(label);
+                clickable != nullptr && clickable->hasClickHandler()) {
+                return false;
+            }
+            openZoomView(label);
+            return true;
+        }
+    };
 }
 
 void UtilityAnimationExport::installContextSave(QLabel * label) {
     label->setContextMenuPolicy(Qt::CustomContextMenu);
+    label->installEventFilter(new ZoomOnDoubleClick{label});
     QObject::connect(label, &QLabel::customContextMenuRequested, label, [label] (const QPoint& point) {
         const auto bytes = label->property("wxqtSourceBytes").toByteArray();
         if (bytes.isEmpty()) {
             return;
         }
         QMenu menu{label};
+        auto * zoom = menu.addAction("Open zoomable view");
         auto * save = menu.addAction("Save image...");
-        if (menu.exec(label->mapToGlobal(point)) != save) {
+        const auto chosen = menu.exec(label->mapToGlobal(point));
+        if (chosen == zoom) {
+            openZoomView(label);
+            return;
+        }
+        if (chosen != save) {
             return;
         }
         auto clean = [] (const QString& text, int length) { return slug(text, length); };
