@@ -12,6 +12,7 @@
 #include "objects/FutureVoid.h"
 #include <cstdlib>
 #include "tropical/CiraLoopViewer.h"
+#include "tropical/UtilityJma.h"
 
 CiraStorm::CiraStorm(Window * parent, const string& stormId, const string& title)
     : Window{parent}
@@ -69,6 +70,7 @@ void CiraStorm::fill(const UtilityCira::StormPage& page) {
         rowButtons.addWidget(buttons.back());
     }
     addJtwc();
+    addJma();
     rowButtons.addStretch();
     for (const auto& product : UtilityCira::products()) {
         const auto found = page.imageUrl.find(product.key);
@@ -173,4 +175,28 @@ void CiraStorm::openText(const string& url, const string& heading) {
         }
         new TextViewerStatic{this, text, heading, 800, 700};
     }};
+}
+
+void CiraStorm::addJma() {
+    if (stormId.substr(0, 2) != "wp") {
+        return;
+    }
+    const auto name = UtilityJma::nameFromTitle(title);
+    if (name.empty()) {
+        return;
+    }
+    buttons.emplace_back(this, None, "JMA analysis and forecast (English)");
+    buttons.back().connect([this, name] {
+        auto text = std::make_shared<string>();
+        auto error = std::make_shared<string>();
+        new FutureVoid{this,
+            [text, error, name] { UtilityJma::advisoryFor(name, *text, *error); },
+            [this, text, error, name] {
+                if (closed) {
+                    return;
+                }
+                new TextViewerStatic{this, text->empty() ? "JMA: " + *error : *text, "JMA " + name, 820, 760};
+            }};
+    });
+    rowButtons.addWidget(buttons.back());
 }

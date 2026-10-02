@@ -34,6 +34,7 @@ private:
     void fill(const UtilityCira::StormPage&);
     void addJtwc();                                  // the Joint Typhoon Warning Center's products, for the basins it covers
     void openText(const string& url, const string& heading);
+    void addJma();   // the Japan Meteorological Agency's analysis and forecast in English (western Pacific storms)
     string stormId;
     string title;
     VBox box;
