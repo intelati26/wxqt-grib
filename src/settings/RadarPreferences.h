@@ -28,6 +28,7 @@ public:
     static bool countyLabels;
     static bool sti;
     static bool hailIndex;
+    static bool useS3;     // radar pictures from the Unidata S3 bucket (super-resolution), the NWS server as the fallback
     static bool tvs;
     static bool colorLegend;
     static int textSize;

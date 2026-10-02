@@ -68,6 +68,8 @@ int NexradDecodeEightBit::andCreateRadials(RadarBuffers& radarBuffers, FileStora
             if (curLevel == level) {
                 levelCount += 1;
             } else {
+                // level 0 is "no echo": its colour is the background, which the widget has already filled, so nothing is drawn
+                if (level != 0) {
                 radarBuffers.rectPoints.emplace_back(
                     QVector<QPointF>{
                         QPointF{binStart * angleVCos, yShift * binStart * angleVSin},
@@ -76,6 +78,7 @@ int NexradDecodeEightBit::andCreateRadials(RadarBuffers& radarBuffers, FileStora
                         QPointF{binStart * angleCos, yShift * binStart * angleSin}});
                 radarBuffers.putColorsByIndex(level);
                 totalBins += 1;
+                }
                 level = curLevel;
                 binStart = bin * radarBuffers.binSize;
                 levelCount = 1;
@@ -126,6 +129,8 @@ int NexradDecodeEightBit::createRadials(RadarBuffers& radarBuffers) {
             if (curLevel == level) {
                 levelCount += 1;
             } else {
+                // level 0 is "no echo": its colour is the background, which the widget has already filled, so nothing is drawn
+                if (level != 0) {
                 radarBuffers.rectPoints.emplace_back(
                     QVector<QPointF>{
                         QPointF{binStart * angleVCos, yShift * binStart * angleVSin},
@@ -134,6 +139,7 @@ int NexradDecodeEightBit::createRadials(RadarBuffers& radarBuffers) {
                         QPointF{binStart * angleCos, yShift * binStart * angleSin}});
                 radarBuffers.putColorsByIndex(level);
                 totalBins += 1;
+                }
                 level = curLevel;
                 binStart = bin * radarBuffers.binSize + radarBlackHoleAdd;
                 levelCount = 1;

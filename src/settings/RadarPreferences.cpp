@@ -24,6 +24,7 @@ bool RadarPreferences::obs;
 bool RadarPreferences::obsWindbarbs;
 bool RadarPreferences::sti;
 bool RadarPreferences::hailIndex;
+bool RadarPreferences::useS3;
 bool RadarPreferences::tvs;
 bool RadarPreferences::wpcFronts;
 bool RadarPreferences::dualpaneshareposn;
@@ -63,6 +64,7 @@ void RadarPreferences::initialize() {
     locationDot = WString::startsWith(Utility::readPref("COD_LOCDOT_DEFAULT", "true"), "t");
     sti = WString::startsWith(Utility::readPref("RADAR_SHOW_STI", "false"), "t");
     hailIndex = WString::startsWith(Utility::readPref("RADAR_SHOW_HI", "false"), "t");
+    useS3 = WString::startsWith(Utility::readPref("RADAR_USE_S3", "true"), "t");
     tvs = WString::startsWith(Utility::readPref("RADAR_SHOW_TVS", "false"), "t");
     wpcFronts = WString::startsWith(Utility::readPref("RADAR_SHOW_WPC_FRONTS", "false"), "t");
     showControls = WString::startsWith(Utility::readPref("RADAR_SHOW_CONTROLS", "true"), "t");

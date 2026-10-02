@@ -66,6 +66,7 @@ SettingsRadarBox::SettingsRadarBox(Window * parent)
     alertConfigs.push_back(std::make_unique<Switch>(parent, "Remember location, site, and product", "WXOGL_REMEMBER_LOCATION", true));
     alertConfigs.push_back(std::make_unique<Switch>(parent, "Rivers", "COD_LAKES_DEFAULT", false));
     alertConfigs.push_back(std::make_unique<Switch>(parent, "Secondary Roads", "RADAR_HW_ENH_EXT", false));
+    alertConfigs.push_back(std::make_unique<Switch>(parent, "Radar from the Unidata S3 bucket (super-resolution), else NWS", "RADAR_USE_S3", true));
     alertConfigs.push_back(std::make_unique<Switch>(parent, "SPC Convective Outlook Day 1", "RADAR_SHOW_SWO", false));
     alertConfigs.push_back(std::make_unique<Switch>(parent, "SPC Fire Weather Outlook Day 1", "RADAR_SHOW_FIRE", false));
     alertConfigs.push_back(std::make_unique<Switch>(parent, "SPC MCD", "RADAR_SHOW_MCD", false));

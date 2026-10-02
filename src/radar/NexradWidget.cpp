@@ -225,10 +225,17 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
     } else if (!hideRadar) {
         const std::lock_guard<std::mutex> guard{dataLock};
         // for (auto bin = 0; bin < totalBins; bin++) {
+        // the bins tile exactly, so they are filled without an outline (much faster); a brush is set only when the level changes
+        painter.setPen(Qt::NoPen);
+        const auto& brushes = levelData.radarBuffers.colorBrushes;
+        const auto& polygons = levelData.radarBuffers.rectPoints;
+        const QBrush * last = nullptr;
         for (auto bin : range(totalBins)) {
-            painter.setPen(levelData.radarBuffers.colorPens[bin]);
-            painter.setBrush(levelData.radarBuffers.colorBrushes[bin]);
-            painter.drawPolygon(levelData.radarBuffers.rectPoints[bin]);
+            if (last == nullptr || !(*last == brushes[bin])) {
+                painter.setBrush(brushes[bin]);
+                last = &brushes[bin];
+            }
+            painter.drawPolygon(polygons[bin]);
         }
     }
     // if (nexradState.zoom > 0.9 && !hideRoads) {
@@ -419,7 +426,7 @@ string NexradWidget::radarInfo() {
 // }
 
 void NexradWidget::downloadData() {
-    const auto url = NexradDownload::getRadarFileUrl(nexradState.getRadarSite(), nexradState.getRadarProduct());
+    const auto url = NexradDownload::latestFileUrl(nexradState.getRadarSite(), nexradState.getRadarProduct());
     fileStorage.setMemoryBuffer(UtilityIO::downloadAsByteArray(url));
     // decode into a new set of buffers off to the side and swap them in: the UI thread keeps painting the old picture meanwhile
     NexradLevelData fresh{&nexradState, &fileStorage};

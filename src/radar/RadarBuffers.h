@@ -7,6 +7,7 @@
 #ifndef RADARBUFFERS_H
 #define RADARBUFFERS_H
 
+#include <array>
 #include <cstdint>
 #include <vector>
 #include <QBrush>
@@ -28,12 +29,14 @@ public:
     uint16_t numberOfRangeBins{};
     double binSize{};
     uint16_t productCode{};
-    vector<QColor> color;
     vector<QPolygonF> rectPoints;
-    vector<QPen> colorPens;
-    vector<QBrush> colorBrushes;
+    vector<QBrush> colorBrushes;                 // one per polygon (a shared copy of its level's brush: no allocation per bin)
     MemoryBuffer radialStartAngle;
     MemoryBuffer binWord;
+
+private:
+    std::array<QBrush, 256> brushOfLevel;         // made on first use, so a run of bins of one level costs one brush
+    std::array<bool, 256> brushMade{};
 };
 
 #endif  // RADARBUFFERS_H

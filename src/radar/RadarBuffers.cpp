@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "RadarBuffers.h"
+#include <algorithm>
 #include "objects/Color.h"
 #include "radarcolorpalette/ColorPalette.h"
 #include "settings/RadarPreferences.h"
@@ -12,16 +13,13 @@
 RadarBuffers::RadarBuffers() {
     const auto size = 150'000;
     rectPoints.reserve(size);
-    color.reserve(size);
-    colorPens.reserve(size);
     colorBrushes.reserve(size);
 }
 
 void RadarBuffers::initialize() {
     rectPoints.clear();
-    color.clear();
-    colorPens.clear();
     colorBrushes.clear();
+    brushMade.fill(false);
 }
 
 void RadarBuffers::setBackgroundColor() {
@@ -31,10 +29,13 @@ void RadarBuffers::setBackgroundColor() {
 }
 
 void RadarBuffers::putColorsByIndex(int level) {
-    color.emplace_back(
-        ColorPalette::colorMap[productCode]->redValues.getByIndex(level),
-        ColorPalette::colorMap[productCode]->greenValues.getByIndex(level),
-        ColorPalette::colorMap[productCode]->blueValues.getByIndex(level));
-    colorPens.emplace_back(color.back(), 0.0, Qt::SolidLine);
-    colorBrushes.emplace_back(color.back(), Qt::SolidPattern);
+    const auto index = static_cast<size_t>(std::clamp(level, 0, 255));
+    if (!brushMade[index]) {
+        brushOfLevel[index] = QBrush{QColor{
+            ColorPalette::colorMap[productCode]->redValues.getByIndex(level),
+            ColorPalette::colorMap[productCode]->greenValues.getByIndex(level),
+            ColorPalette::colorMap[productCode]->blueValues.getByIndex(level)}, Qt::SolidPattern};
+        brushMade[index] = true;
+    }
+    colorBrushes.push_back(brushOfLevel[index]);
 }
