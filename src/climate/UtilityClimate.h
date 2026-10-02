@@ -22,8 +22,9 @@ namespace UtilityClimate {
         string label;
         string url;
         string full;   // a larger version for the click (empty when the picture is the same)
-        Tile(string section, string label, string url, string full = "")
-            : section{std::move(section)}, label{std::move(label)}, url{std::move(url)}, full{std::move(full)} {}
+        string history;   // the HistoryProduct key when the picture has a history and a loop (the click opens that)
+        Tile(string section, string label, string url, string full = "", string history = "")
+            : section{std::move(section)}, label{std::move(label)}, url{std::move(url)}, full{std::move(full)}, history{std::move(history)} {}
     };
 
     // the pictures, grouped by section in display order
@@ -55,6 +56,19 @@ namespace UtilityClimate {
     };
     const vector<TextProduct>& textProducts();
     string tailOf(const string& text, int lines);
+
+    // Pictures that have a history: NOAA Coral Reef Watch's daily global SST products (one picture per day, back to 2020-01-01) and NHC's
+    // 14-day SST loops
+    struct HistoryProduct {
+        string key;
+        string label;
+        bool dated;      // one picture a day at a date-built address (else a fixed list of recent frames)
+    };
+    const vector<HistoryProduct>& historyProducts();
+    // the frame addresses, oldest first: `count` pictures `stepDays` apart ending on endDate (yyyyMMdd); a fixed-list product ignores the date
+    vector<string> historyFrames(const string& key, const string& endDate, int stepDays, int count);
+    string earliestHistoryDate();                // "20200101"
+    string latestHistoryDate();                  // the newest day that has a picture (looked for, so it is not always yesterday)
 
     struct EnsoStatus {
         string status;     // "El Niño Advisory"

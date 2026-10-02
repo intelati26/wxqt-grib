@@ -7,6 +7,9 @@
 #include <cstdlib>
 #include <map>
 #include <sstream>
+#include <algorithm>
+#include <QDate>
+#include <QDateTime>
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
@@ -199,18 +202,80 @@ namespace UtilityClimate {
         }
     }
 
+    namespace {
+        string datedUrl(const string& key, const QDate& date) {
+            const auto stamp = date.toString("yyyyMMdd").toStdString();
+            return ospo + "cb/" + key + "/daily/" + stamp.substr(0, 4) + "/ct5km_" + key + "_v3.1_global_" + stamp + ".png";
+        }
+    }
+
+    const vector<HistoryProduct>& historyProducts() {
+        static const vector<HistoryProduct> all{
+            {"sst", "Sea surface temperature (global, 5 km)", true},
+            {"ssta", "Sea surface temperature anomaly (global, 5 km)", true},
+            {"hs", "HotSpots", true},
+            {"dhw", "Degree Heating Weeks", true},
+            {"baa", "Bleaching alert area", true},
+            {"tafb_atl", "Atlantic SST, last 14 days (NHC)", false},
+            {"tafb_atl_anom", "Atlantic SST anomaly, last 14 days (NHC)", false},
+            {"tafb_pac", "Eastern Pacific SST, last 14 days (NHC)", false},
+            {"tafb_pac_anom", "Eastern Pacific SST anomaly, last 14 days (NHC)", false},
+        };
+        return all;
+    }
+
+    string earliestHistoryDate() {
+        return "20200101";
+    }
+
+    string latestHistoryDate() {
+        // the newest picture is usually yesterday's (UTC), sometimes the day before
+        const auto today = QDateTime::currentDateTimeUtc().date();
+        for (int back = 1; back <= 4; back += 1) {
+            const auto date = today.addDays(-back);
+            // a missing day answers with a web page, not a PNG
+            if (URL::getBytesRange(datedUrl("ssta", date), 0, 7).startsWith("\x89PNG")) {
+                return date.toString("yyyyMMdd").toStdString();
+            }
+        }
+        return today.addDays(-2).toString("yyyyMMdd").toStdString();
+    }
+
+    vector<string> historyFrames(const string& key, const string& endDate, int stepDays, int count) {
+        vector<string> out;
+        if (key.rfind("tafb_", 0) == 0) {
+            const auto suffix = key.substr(5);   // "atl", "atl_anom", "pac", "pac_anom": frame 01 is the oldest, 14 the newest
+            for (int i = 1; i <= 14; i += 1) {
+                out.push_back(nhc + (i < 10 ? "0" : "") + std::to_string(i) + "_" + suffix + ".png");
+            }
+            return out;
+        }
+        const auto end = QDate::fromString(QString::fromStdString(endDate), "yyyyMMdd");
+        const auto first = QDate::fromString(QString::fromStdString(earliestHistoryDate()), "yyyyMMdd");
+        if (!end.isValid() || count < 1) {
+            return out;
+        }
+        for (int i = count - 1; i >= 0; i -= 1) {
+            const auto date = end.addDays(-static_cast<qint64>(i) * std::max(1, stepDays));
+            if (date >= first) {
+                out.push_back(datedUrl(key, date));
+            }
+        }
+        return out;
+    }
+
     const vector<Tile>& tiles() {
         static const vector<Tile> all{
             // sea surface temperature, as it is
-            {"Sea surface temperature", "Global (NOAA/NESDIS 5 km blend)", ospo + "cb/sst/sst.daily.current.png"},
+            {"Sea surface temperature", "Global (NOAA/NESDIS 5 km blend)", ospo + "cb/sst/sst.daily.current.png", "", "sst"},
             {"Sea surface temperature", "Global, continuous colours (click for the full size)", ospo + "sst/contour/global_small.cf.gif", contour("global")},
             {"Sea surface temperature", "Equatorial Pacific", contour("equatpac")},
             {"Sea surface temperature", "US Atlantic, Gulf and Caribbean", contour("usatlant")},
             {"Sea surface temperature", "Gulf of America", contour("GulfwGulfofAmer")},
             {"Sea surface temperature", "North Atlantic", contour("natlanti")},
             {"Sea surface temperature", "Florida, Bahamas and Cuba", contour("satlanti")},
-            {"Sea surface temperature", "Tropical Atlantic (NHC TAFB)", nhc + "14_atl.png"},
-            {"Sea surface temperature", "Eastern Pacific (NHC TAFB)", nhc + "14_pac.png"},
+            {"Sea surface temperature", "Tropical Atlantic (NHC TAFB)", nhc + "14_atl.png", "", "tafb_atl"},
+            {"Sea surface temperature", "Eastern Pacific (NHC TAFB)", nhc + "14_pac.png", "", "tafb_pac"},
             {"Sea surface temperature", "US Pacific", contour("uspacifi")},
             {"Sea surface temperature", "North America", contour("namerica")},
             {"Sea surface temperature", "California", contour("californ")},
@@ -221,16 +286,16 @@ namespace UtilityClimate {
             {"Sea surface temperature", "Alaska to Hawaii", contour("alashawa")},
 
             // the departure from normal
-            {"Sea surface temperature anomaly", "Global anomaly (NOAA/NESDIS)", ospo + "cb/ssta/ssta.daily.current.png"},
+            {"Sea surface temperature anomaly", "Global anomaly (NOAA/NESDIS)", ospo + "cb/ssta/ssta.daily.current.png", "", "ssta"},
             {"Sea surface temperature anomaly", "Tropical Pacific, weekly temperature and anomaly (CPC)", cpcProducts + "analysis_monitoring/enso_update/sstweek_c.gif"},
             {"Sea surface temperature anomaly", "Niño regions, relative anomalies over the year (CPC)", cpcProducts + "analysis_monitoring/enso_update/ssta_c.gif"},
-            {"Sea surface temperature anomaly", "Tropical Atlantic anomaly (NHC TAFB)", nhc + "14_atl_anom.png"},
-            {"Sea surface temperature anomaly", "Eastern Pacific anomaly (NHC TAFB)", nhc + "14_pac_anom.png"},
+            {"Sea surface temperature anomaly", "Tropical Atlantic anomaly (NHC TAFB)", nhc + "14_atl_anom.png", "", "tafb_atl_anom"},
+            {"Sea surface temperature anomaly", "Eastern Pacific anomaly (NHC TAFB)", nhc + "14_pac_anom.png", "", "tafb_pac_anom"},
 
             // marine heat waves and the coral
-            {"Marine heat and coral", "HotSpots (SST above the bleaching threshold)", ospo + "cb/hs/hs.daily.current.png"},
-            {"Marine heat and coral", "Degree Heating Weeks", ospo + "cb/dhw/dhw.daily.current.png"},
-            {"Marine heat and coral", "Bleaching alert area", ospo + "cb/baa/baa.daily.current.png"},
+            {"Marine heat and coral", "HotSpots (SST above the bleaching threshold)", ospo + "cb/hs/hs.daily.current.png", "", "hs"},
+            {"Marine heat and coral", "Degree Heating Weeks", ospo + "cb/dhw/dhw.daily.current.png", "", "dhw"},
+            {"Marine heat and coral", "Bleaching alert area", ospo + "cb/baa/baa.daily.current.png", "", "baa"},
 
             // surface currents: the Global RTOFS and NCOM model analyses (Ocean Prediction Center), in knots
             {"Ocean currents (Global RTOFS and NCOM, OPC, knots)", "Gulf Stream", rtofs("GulfStream")},

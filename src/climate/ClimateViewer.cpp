@@ -8,6 +8,7 @@
 #include <memory>
 #include <QWidget>
 #include "climate/ClimateChart.h"
+#include "climate/ClimateHistoryViewer.h"
 #include "misc/ImageViewer.h"
 #include "misc/TextViewerStatic.h"
 #include "objects/FutureBytes.h"
@@ -125,7 +126,7 @@ void ClimateViewer::build() {
         tileBoxes.emplace_back();
         images.emplace_back(this);
         images.back().imageSize = 400;
-        captions.emplace_back(this, tile.label);
+        captions.emplace_back(this, tile.history.empty() ? tile.label : tile.label + " - click for the history and a loop");
         captions.back().setWordWrap(true);
         tileBoxes.back().addWidget(images.back());
         tileBoxes.back().addWidget(captions.back());
@@ -134,7 +135,14 @@ void ClimateViewer::build() {
         flows.back().addWidgetReal(holder);
         const auto big = tile.full.empty() ? tile.url : tile.full;
         const auto label = tile.label;
-        images.back().connect([this, big, label] { new ImageViewer{this, big, label}; });
+        const auto history = tile.history;
+        images.back().connect([this, big, label, history] {
+            if (history.empty()) {
+                new ImageViewer{this, big, label};
+            } else {
+                new ClimateHistoryViewer{this, history};
+            }
+        });
         const auto index = images.size() - 1;
         new FutureBytes{this, tile.url, [this, index] (const auto& bytes) {
             if (closed || index >= images.size()) {
