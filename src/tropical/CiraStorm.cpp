@@ -4,10 +4,13 @@
 // *****************************************************************************
 
 #include "tropical/CiraStorm.h"
+#include <QImage>
 #include "misc/ImageViewer.h"
+#include "misc/TextViewerStatic.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
 #include "objects/FutureVoid.h"
+#include <cstdlib>
 #include "tropical/CiraLoopViewer.h"
 
 CiraStorm::CiraStorm(Window * parent, const string& stormId, const string& title)
@@ -65,6 +68,7 @@ void CiraStorm::fill(const UtilityCira::StormPage& page) {
         buttons.back().connect([this, key] { new CiraLoopViewer{this, stormId, title, key}; });
         rowButtons.addWidget(buttons.back());
     }
+    addJtwc();
     rowButtons.addStretch();
     for (const auto& product : UtilityCira::products()) {
         const auto found = page.imageUrl.find(product.key);
@@ -103,4 +107,70 @@ void CiraStorm::fill(const UtilityCira::StormPage& page) {
             }
         }};
     }
+}
+
+namespace {
+    // CIRA's "wp262026" is JTWC's "wp2626": basin, storm number, two-digit year. Numbers from 90 up are invests (no warning).
+    string jtwcCode(const string& id) {
+        if (id.size() < 8) {
+            return {};
+        }
+        const auto basin = id.substr(0, 2);
+        if (basin != "wp" && basin != "io" && basin != "sh") {
+            return {};
+        }
+        const int number = std::atoi(id.substr(2, 2).c_str());
+        return number >= 90 ? string{} : basin + id.substr(2, 2) + id.substr(6, 2);
+    }
+    const string jtwcBase{"https://www.metoc.navy.mil/jtwc/products/"};
+}
+
+// The Joint Typhoon Warning Center (US Navy / Air Force) covers the western Pacific, Indian Ocean and Southern Hemisphere: its warning
+// graphic and text, its forecast reasoning, and for an invest its outlook of the basin.
+void CiraStorm::addJtwc() {
+    const auto basin = stormId.substr(0, 2);
+    if (basin != "wp" && basin != "io" && basin != "sh") {
+        return;
+    }
+    const auto code = jtwcCode(stormId);
+    if (!code.empty()) {
+        buttons.emplace_back(this, None, "JTWC warning");
+        buttons.back().connect([this, code] { openText(jtwcBase + code + "web.txt", "JTWC warning " + code); });
+        rowButtons.addWidget(buttons.back());
+        buttons.emplace_back(this, None, "JTWC forecast reasoning");
+        buttons.back().connect([this, code] { openText(jtwcBase + code + "prog.txt", "JTWC reasoning " + code); });
+        rowButtons.addWidget(buttons.back());
+        // JTWC's warning graphic, added once it has loaded (so a storm without one shows nothing)
+        const auto url = jtwcBase + code + ".gif";
+        new FutureBytes{this, url, [this, url] (const auto& bytes) {
+            if (closed || QImage::fromData(bytes).isNull()) {
+                return;
+            }
+            images.emplace_back(this);
+            auto& image = images.back();
+            image.imageSize = 380;
+            image.getView()->setToolTip("JTWC warning graphic");
+            image.connect([this, url] { new ImageViewer{this, url, "JTWC warning graphic"}; });
+            image.setBytes(bytes);
+            flowImages.addWidget(image);
+        }};
+    } else if (basin == "wp" || basin == "io") {
+        const auto outlook = basin == "wp" ? "abpwweb.txt" : "abioweb.txt";
+        buttons.emplace_back(this, None, basin == "wp" ? "JTWC western Pacific outlook" : "JTWC Indian Ocean outlook");
+        buttons.back().connect([this, outlook] { openText(jtwcBase + outlook, "JTWC outlook"); });
+        rowButtons.addWidget(buttons.back());
+    }
+}
+
+void CiraStorm::openText(const string& url, const string& heading) {
+    new FutureText{this, url, [this, heading] (const string& text) {
+        if (closed) {
+            return;
+        }
+        if (text.empty() || text.find("<Error>") != string::npos || text.find("<html") != string::npos) {
+            new TextViewerStatic{this, "That product is not available from JTWC right now.", heading, 500, 150};
+            return;
+        }
+        new TextViewerStatic{this, text, heading, 800, 700};
+    }};
 }

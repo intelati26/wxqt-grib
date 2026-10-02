@@ -32,6 +32,8 @@ public:
 private:
     void closeEventCustom() override { closed = true; }
     void fill(const UtilityCira::StormPage&);
+    void addJtwc();                                  // the Joint Typhoon Warning Center's products, for the basins it covers
+    void openText(const string& url, const string& heading);
     string stormId;
     string title;
     VBox box;
