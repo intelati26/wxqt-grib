@@ -22,6 +22,14 @@ namespace UtilityClimate {
         const string ensoFigures{cpcProducts + "analysis_monitoring/enso_advisory/"};
         const string intraseasonal{cpcProducts + "intraseasonal/"};
 
+        string rtofs(const string& area) {
+            return "https://ocean.weather.gov/Loops/GRTOFS/currents/GRtofs_" + area + "_currents_f000.png";
+        }
+
+        string ncom(const string& area) {
+            return "https://ocean.weather.gov/Loops/NCOM/currents/Ncomcurrents_" + area + "_f000.png";
+        }
+
         string contour(const string& region) {
             return ospo + "sst/contour/" + region + ".cf.gif";
         }
@@ -223,6 +231,16 @@ namespace UtilityClimate {
             {"Marine heat and coral", "HotSpots (SST above the bleaching threshold)", ospo + "cb/hs/hs.daily.current.png"},
             {"Marine heat and coral", "Degree Heating Weeks", ospo + "cb/dhw/dhw.daily.current.png"},
             {"Marine heat and coral", "Bleaching alert area", ospo + "cb/baa/baa.daily.current.png"},
+
+            // surface currents: the Global RTOFS and NCOM model analyses (Ocean Prediction Center), in knots
+            {"Ocean currents (Global RTOFS and NCOM, OPC, knots)", "Gulf Stream", rtofs("GulfStream")},
+            {"Ocean currents (Global RTOFS and NCOM, OPC, knots)", "North Atlantic", rtofs("NorthAtlantic")},
+            {"Ocean currents (Global RTOFS and NCOM, OPC, knots)", "Gulf of America (NCOM)", ncom("GAmrHR")},
+            {"Ocean currents (Global RTOFS and NCOM, OPC, knots)", "North Pacific", rtofs("NorthPacific")},
+            {"Ocean currents (Global RTOFS and NCOM, OPC, knots)", "West Coast", rtofs("WestCoast")},
+            {"Ocean currents (Global RTOFS and NCOM, OPC, knots)", "Southern California (NCOM)", ncom("Socal")},
+            {"Ocean currents (Global RTOFS and NCOM, OPC, knots)", "Hawaii (NCOM)", ncom("Haw")},
+            {"Ocean currents (Global RTOFS and NCOM, OPC, knots)", "Bering Sea", rtofs("BeringSea")},
 
             // the monthly ENSO discussion's figures
             {"El Niño / La Niña (CPC diagnostic discussion)", "Fig. 1: monthly SST anomalies, equatorial Pacific", ensoFigures + "figure01.gif"},
