@@ -47,6 +47,7 @@ private:
     TwoWidgetScroll sw;
     ComboBox comboboxProduct;
     Button goesButton;
+    Button ciraButton;   // the same storm's CIRA / RAMMB satellite and guidance page
     Text text;
     vector<Image> images;
     string goesUrl;

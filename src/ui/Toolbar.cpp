@@ -29,6 +29,7 @@
 #include "models/IndexViewer.h"
 #include "models/RefsViewer.h"
 #include "spcrefs/SpcRefsViewer.h"
+#include "tropical/TropicalViewer.h"
 #include "models/SpcPostViewer.h"
 #include "models/ModelViewer.h"
 #include "nhc/Nhc.h"
@@ -106,6 +107,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("report_today.png", "SPC Storm Reports - today", [this] { launchSpcStormReports("today"); });
     routeItems.emplace_back("report_yesterday.png", "SPC Storm Reports - yesterday", [this] { launchSpcStormReports("yesterday"); });
     routeItems.emplace_back("nhc.png", "NHC product viewer, Ctrl-o", [this] { launchNhc(); });
+    routeItems.emplace_back("nhc.png", "Tropical: active storms worldwide (CIRA / RAMMB), with the NHC tool", [parent] { new TropicalViewer{parent}; });
 
     routeItems.emplace_back("ncep.png", "NCEP Models, Ctrl-m", [this] { launchModelViewer(); });
     routeItems.emplace_back("spchrrr.png", "SPC HRRR", [this] { launchModelViewerGeneric("SPCHRRR"); });

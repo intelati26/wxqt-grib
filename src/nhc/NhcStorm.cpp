@@ -14,6 +14,7 @@
 #include "objects/WString.h"
 #include "util/To.h"
 #include "util/UtilityList.h"
+#include "tropical/CiraStorm.h"
 #include "vis/GoesViewer.h"
 
 NhcStorm::NhcStorm(Window * parent, const NhcStormDetails& stormData)
@@ -23,6 +24,7 @@ NhcStorm::NhcStorm(Window * parent, const NhcStormDetails& stormData)
     , sw{this, boxImages, boxText}
     , comboboxProduct{this, stormTextProducts}
     , goesButton{this, None, "GOES"}
+    , ciraButton{this, None, "CIRA satellite and guidance"}
     , text{this}
     , goesUrl{stormData.goesUrl}
     , product{"MIATCP" + stormData.binNumber}
@@ -30,6 +32,9 @@ NhcStorm::NhcStorm(Window * parent, const NhcStormDetails& stormData)
 {
     setTitle("NHC Storm " + stormData.forTopHeader());
     goesButton.connect([this] { launchGoes(); });
+    ciraButton.connect([this] {
+        new CiraStorm{this->parent, WString::toLower(this->stormData.stormId), WString::toUpper(this->stormData.stormId) + " - " + this->stormData.name};
+    });
     textProductUrl = stormData.advisoryNumber;
     if (WString::startsWith(textProductUrl, "HFO")) {
         office = "HFO";
@@ -52,6 +57,7 @@ NhcStorm::NhcStorm(Window * parent, const NhcStormDetails& stormData)
     comboboxProduct.setIndex(0);
     comboboxProduct.connect([this] { changeProduct(); });
     boxText.addWidget(goesButton);
+    boxText.addWidget(ciraButton);
     boxText.addWidget(comboboxProduct);
     boxText.addWidget(text);
     boxText.addStretch();
