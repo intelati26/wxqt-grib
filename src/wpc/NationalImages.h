@@ -11,10 +11,11 @@
 #include <vector>
 #include "ui/BackForward.h"
 #include "ui/HBox.h"
-#include "ui/Photo.h"
+#include "objects/UrlAnimation.h"
 #include "ui/PopoverMenu.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
+#include "ui/ZoomImage.h"
 
 using std::string;
 using std::vector;
@@ -28,10 +29,12 @@ private:
     void moveBack();
     void moveForward();
     void changeProductByCode(const string&);
-    void resizeEventCustom() override;
+    void closeEventCustom() override;
+    void showLatest(const QByteArray&);
     VBox box;
     HBox hbox;
-    Photo photo;
+    ZoomImage image;                 // zoom / pan; a loop through the menu group's charts (forecast days / hours) below it
+    UrlAnimation objectAnimate;
     BackForward backForward;
     // declared before index: index's initializer reads this, and members
     // initialize in declaration order, so this order is load-bearing.

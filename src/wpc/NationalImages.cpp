@@ -15,13 +15,26 @@
 
 NationalImages::NationalImages(Window * parent)
     : Window{parent}
-    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , image{this}
+    , objectAnimate{this, &image, [] (string, string sector, int) {
+          // the loop is the menu group the chart is in: the sector carries the chart's number
+          vector<string> urls;
+          for (const auto i : UtilityWpcImages::seriesOf(std::atoi(sector.c_str()))) {
+              urls.push_back(UtilityWpcImages::imageUrl(i));
+          }
+          return urls;
+      }}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , index{Utility::readPrefInt(prefToken, 0)}
 {
+    objectAnimate.labeler = [this] (const string&, size_t i) {
+        const auto group = UtilityWpcImages::seriesOf(index);
+        return i < group.size() ? UtilityWpcImages::labels[static_cast<size_t>(group[i])] : string{};
+    };
     hbox.addLayout(backForward);
     box.addLayout(hbox);
-    box.addWidgetAndCenter(photo);
+    objectAnimate.addTo(box);
+    box.addWidgetReal(&image, 1, Qt::Alignment{});
     box.getAndShow(this);
 
     auto itemsSoFar = 0;
@@ -37,13 +50,21 @@ NationalImages::NationalImages(Window * parent)
 }
 
 void NationalImages::reload() {
+    objectAnimate.stopAnimateNoDownload();
     Utility::writePrefInt(prefToken, index);
-    auto url = UtilityWpcImages::urls[index];
-    if (WString::contains(url, GlobalVariables::nwsGraphicalWebsitePrefix + "/images/conus/")) {
-        url += "1_conus.png";
-    }
     setTitle(UtilityWpcImages::labels[index]);
-    new FutureBytes{this, url, [this] (const auto& ba) { photo.setBytes(ba); }};
+    objectAnimate.product = UtilityWpcImages::seriesName(index);
+    objectAnimate.sector = std::to_string(index);
+    new FutureBytes{this, UtilityWpcImages::imageUrl(index), [this] (const auto& ba) { showLatest(ba); }};
+    objectAnimate.refresh();
+}
+
+void NationalImages::showLatest(const QByteArray& bytes) {
+    if (bytes.isEmpty()) {
+        return;
+    }
+    image.setBytesKeepView(bytes);
+    objectAnimate.setCurrentBytes(bytes);
 }
 
 void NationalImages::moveBack() {
@@ -63,6 +84,6 @@ void NationalImages::changeProductByCode(const string& s) {
     reload();
 }
 
-void NationalImages::resizeEventCustom() {
-    photo.setToHeight(getWindowHeight());
+void NationalImages::closeEventCustom() {
+    objectAnimate.stopAnimateNoDownload();
 }

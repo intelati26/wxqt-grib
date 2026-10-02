@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "UtilityOpcImages.h"
+#include <algorithm>
 
 const vector<string> UtilityOpcImages::labels{
     "Atlantic Surface Analysis",
@@ -89,3 +90,65 @@ const vector<string> UtilityOpcImages::urls{
     "https://ocean.weather.gov/shtml/AK_048hrwper_color.gif",
     "https://ocean.weather.gov/shtml/AK_096hrwper_color.gif"
 };
+
+namespace {
+    // "Atlantic" for "Atlantic 24-hour 500 mb", "Alaska/Arctic" for "Alaska/Arctic Surface Analysis"
+    string areaOf(const string& label) {
+        auto cut = label.size();
+        for (const string marker : {" Surface", " Wind", " 24-hour", " 48-hour", " 96-hour", " Near"}) {
+            const auto at = label.find(marker);
+            if (at != string::npos) {
+                cut = std::min(cut, at);
+            }
+        }
+        return label.substr(0, cut);
+    }
+
+    // the kind of chart: a surface chart (analysis or forecast), 500 mb, wind & wave, wave period & direction
+    string kindOf(const string& label) {
+        if (label.find("500 mb") != string::npos) {
+            return "500mb";
+        }
+        if (label.find("Wave period") != string::npos) {
+            return "waveperiod";
+        }
+        if (label.find("Wind") != string::npos) {
+            return "windwave";
+        }
+        if (label.find("Surface") != string::npos && label.find("Temperature") == string::npos) {
+            return "surface";
+        }
+        return string{};   // stands alone (the sea surface temperature chart)
+    }
+}
+
+vector<int> UtilityOpcImages::seriesOf(int index) {
+    const auto& label = labels[static_cast<size_t>(index)];
+    const auto kind = kindOf(label);
+    if (kind.empty()) {
+        return {index};
+    }
+    const auto area = areaOf(label);
+    vector<int> out;
+    for (size_t i = 0; i < labels.size(); i += 1) {
+        if (areaOf(labels[i]) == area && kindOf(labels[i]) == kind) {
+            out.push_back(static_cast<int>(i));
+        }
+    }
+    return out;
+}
+
+string UtilityOpcImages::seriesName(int index) {
+    const auto& label = labels[static_cast<size_t>(index)];
+    string name{"opc_"};
+    for (const char c : areaOf(label) + "_" + kindOf(label)) {
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+            name += c;
+        } else if (c >= 'A' && c <= 'Z') {
+            name += static_cast<char>(c - 'A' + 'a');
+        } else if (name.back() != '_') {
+            name += '_';
+        }
+    }
+    return name;
+}

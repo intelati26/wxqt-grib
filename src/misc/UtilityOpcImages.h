@@ -17,6 +17,10 @@ class UtilityOpcImages {
 public:
     static const vector<string> labels;
     static const vector<string> urls;
+    // The charts that make a run with chart `index` (same area, same kind of chart): the analysis, then the 24, 48 and 96 hour
+    // forecasts, in listed order. A chart that stands alone gives just itself.
+    static vector<int> seriesOf(int index);
+    static string seriesName(int index);
 };
 
 #endif  // UTILITYOPCIMAGES_H

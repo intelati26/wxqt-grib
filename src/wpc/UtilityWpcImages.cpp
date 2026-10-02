@@ -289,3 +289,47 @@ const vector<string> UtilityWpcImages::urls{
     "https://services.swpc.noaa.gov/images/animations/ovation/south/latest.jpg",
     "https://services.swpc.noaa.gov/images/station-k-index.png"
 };
+
+string UtilityWpcImages::imageUrl(int index) {
+    auto url = urls[static_cast<size_t>(index)];
+    if (url.find(GlobalVariables::nwsGraphicalWebsitePrefix + "/images/conus/") != string::npos) {
+        url += "1_conus.png";
+    }
+    return url;
+}
+
+vector<int> UtilityWpcImages::seriesOf(int index) {
+    int first = 0;
+    for (const auto& menu : titles) {
+        if (index < first + menu.count) {
+            vector<int> out;
+            for (int i = first; i < first + menu.count && i < static_cast<int>(urls.size()); i += 1) {
+                out.push_back(i);
+            }
+            return out;
+        }
+        first += menu.count;
+    }
+    return {index};
+}
+
+string UtilityWpcImages::seriesName(int index) {
+    int first = 0;
+    for (const auto& menu : titles) {
+        if (index < first + menu.count) {
+            string name{"wpc_"};
+            for (const char c : menu.title) {
+                if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+                    name += c;
+                } else if (c >= 'A' && c <= 'Z') {
+                    name += static_cast<char>(c - 'A' + 'a');
+                } else if (!name.empty() && name.back() != '_') {
+                    name += '_';
+                }
+            }
+            return name;
+        }
+        first += menu.count;
+    }
+    return "wpc";
+}
