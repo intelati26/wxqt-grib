@@ -14,7 +14,7 @@ vector<MenuTitle> UtilityWpcImages::titles{
     MenuTitle{"Snow / Ice", 17},
     MenuTitle{"National Digital Forecast Database", 15},
     MenuTitle{"CPC Outlooks", 24},
-    MenuTitle{"Aviation", 17},
+    MenuTitle{"Aviation", 16},
     MenuTitle{"Space Weather", 3}
 };
 
