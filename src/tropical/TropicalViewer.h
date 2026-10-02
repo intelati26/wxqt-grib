@@ -37,6 +37,7 @@ private:
     ScrolledWindow sw;
     HBox rowTop;
     Button buttonNhc;
+    Button buttonClimate;
     Button buttonRefresh;
     Text textNote;
     VBox boxStorms;

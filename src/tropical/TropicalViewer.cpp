@@ -6,6 +6,7 @@
 #include "tropical/TropicalViewer.h"
 #include <memory>
 #include <QWidget>
+#include "climate/ClimateViewer.h"
 #include "nhc/Nhc.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
@@ -15,6 +16,7 @@ TropicalViewer::TropicalViewer(Window * parent)
     : Window{parent}
     , sw{this, box}
     , buttonNhc{this, None, "NHC: Atlantic, East and Central Pacific (outlooks, advisories, sea surface temperatures)"}
+    , buttonClimate{this, None, "Climate and ocean: SST, anomaly, El Niño / La Niña"}
     , buttonRefresh{this, None, "Refresh"}
     , textNote{this, "Active tropical cyclones worldwide - CIRA / RAMMB (Colorado State University, NOAA) experimental products. Click a storm."}
 {
@@ -22,8 +24,10 @@ TropicalViewer::TropicalViewer(Window * parent)
     setTitle("Tropical");
     textNote.setWordWrap(true);
     buttonNhc.connect([this] { new Nhc{this}; });
+    buttonClimate.connect([this] { new ClimateViewer{this}; });
     buttonRefresh.connect([this] { reload(); });
     rowTop.addWidget(buttonNhc);
+    rowTop.addWidget(buttonClimate);
     rowTop.addWidget(buttonRefresh);
     rowTop.addStretch();
     box.addLayout(rowTop);

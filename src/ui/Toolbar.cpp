@@ -29,6 +29,7 @@
 #include "models/IndexViewer.h"
 #include "models/RefsViewer.h"
 #include "spcrefs/SpcRefsViewer.h"
+#include "climate/ClimateViewer.h"
 #include "tropical/TropicalViewer.h"
 #include "models/SpcPostViewer.h"
 #include "models/ModelViewer.h"
@@ -114,6 +115,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("spcsref.png", "SPC SREF", [this] { launchModelViewerGeneric("SPCSREF"); });
     routeItems.emplace_back("hrrrviewer.png", "ESRL HRRR/RAP", [this] { launchModelViewerGeneric("ESRL"); });
     routeItems.emplace_back("opc.png", "Ocean Prediction Center", [this] { launchOpc(); });
+    routeItems.emplace_back("opc.png", "Climate and ocean: sea surface temperature and anomaly, El Niño / La Niña, cycles", [parent] { new ClimateViewer{parent}; });
     routeItems.emplace_back("nsslwrf.png", "NSSL WRF", [this] { launchModelViewerGeneric("NSSLWRF"); });
     routeItems.emplace_back("wpcgefs.png", "WPC GEFS", [this] { launchModelViewerGeneric("WPCGEFS"); });
     // routeItems.emplace_back("spchref.png", "SPC HREF", [this] { launchModelViewerGeneric("SPCHREF"); });
