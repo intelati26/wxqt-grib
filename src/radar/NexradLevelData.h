@@ -21,6 +21,8 @@ public:
     void decode();
     void generateRadials();
     int decodeAndGenerateRadials();
+    // after the data has been moved in from another object (a decode done off to the side): point at this widget's state again
+    void rebind(NexradState * state, FileStorage * storage) { nexradState = state; fileStorage = storage; }
     double binSize{};
     int numberOfRangeBins{916};
     int numberOfRadials{360};

@@ -50,30 +50,30 @@ void NexradLayerDownload::downloadLayers() {
     }
     if (RadarPreferences::obsWindbarbs || RadarPreferences::obs) {
         for (auto i : range(nexradList->size())) {
-            new FutureVoid{parent,
-                [this, i] { Metar::getStateMetarArrayForWXOGL((*nexradList)[i]->nexradState.getRadarSite(), (*nexradList)[i]->fileStorage); },
-                [this, i] { constructWBLines(i); }};
+            auto * nw = (*nexradList)[i];
+            nw->runJob([nw] { Metar::getStateMetarArrayForWXOGL(nw->nexradState.getRadarSite(), nw->fileStorage); },
+                       [this, i] { constructWBLines(i); });
         }
     }
     if (RadarPreferences::sti) {
         for (auto i : range(nexradList->size())) {
-            new FutureVoid{parent,
-                [this, i] { NexradLevel3StormInfo::decode((*nexradList)[i]->nexradState.getPn(), (*nexradList)[i]->fileStorage); },
-                [this, i] { constructSti(i); }};
+            auto * nw = (*nexradList)[i];
+            nw->runJob([nw] { NexradLevel3StormInfo::decode(nw->nexradState.getPn(), nw->fileStorage); },
+                       [this, i] { constructSti(i); });
         }
     }
     if (RadarPreferences::hailIndex) {
         for (auto i : range(nexradList->size())) {
-            new FutureVoid{parent,
-                [this, i] { NexradLevel3HailIndex::decode((*nexradList)[i]->nexradState.getPn(), (*nexradList)[i]->fileStorage); },
-                [this, i] { constructHi(i); }};
+            auto * nw = (*nexradList)[i];
+            nw->runJob([nw] { NexradLevel3HailIndex::decode(nw->nexradState.getPn(), nw->fileStorage); },
+                       [this, i] { constructHi(i); });
         }
     }
     if (RadarPreferences::tvs) {
         for (auto i : range(nexradList->size())) {
-            new FutureVoid{parent,
-                [this, i] { NexradLevel3Tvs::decode((*nexradList)[i]->nexradState.getPn(), (*nexradList)[i]->fileStorage); },
-                [this, i] { constructTvs(i); }};
+            auto * nw = (*nexradList)[i];
+            nw->runJob([nw] { NexradLevel3Tvs::decode(nw->nexradState.getPn(), nw->fileStorage); },
+                       [this, i] { constructTvs(i); });
         }
     }
     if (RadarPreferences::wpcFronts) {

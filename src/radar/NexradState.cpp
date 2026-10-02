@@ -34,19 +34,23 @@ NexradState::NexradState(int paneNumber, int numberOfPanes, bool useASpecificRad
 }
 
 ProjectionNumbers NexradState::getPn() const {
+    const std::lock_guard<std::recursive_mutex> guard{*lock};
     return pn;
 }
 
 string NexradState::getRadarSite() const {
+    const std::lock_guard<std::recursive_mutex> guard{*lock};
     return radarSite;
 }
 
 void NexradState::setRadar(const string& site) {
+    const std::lock_guard<std::recursive_mutex> guard{*lock};
     radarSite = site;
     pn.setRadarSite(radarSite);
 }
 
 string NexradState::getRadarProduct() const {
+    const std::lock_guard<std::recursive_mutex> guard{*lock};
     return UtilityString::replaceRegex(radarProduct, "[0-3]", To::string(tiltInt));
 }
 
@@ -55,6 +59,7 @@ uint16_t NexradState::getRadarProductId() const {
 }
 
 void NexradState::setRadarProduct(const string& product) {
+    const std::lock_guard<std::recursive_mutex> guard{*lock};
     radarProduct = WString::split(product, ":")[0];
 }
 
@@ -82,6 +87,7 @@ void NexradState::reset() {
 // }
 
 void NexradState::readPreferences() {
+    const std::lock_guard<std::recursive_mutex> guard{*lock};
     if (RadarPreferences::rememberLocation) {
         const auto numberOfPanesStr = To::string(numberOfPanes);
         const auto index = To::string(paneNumber);
@@ -97,6 +103,7 @@ void NexradState::readPreferences() {
 }
 
 void NexradState::writePreferences() const {
+    const std::lock_guard<std::recursive_mutex> guard{*lock};
     if (!useASpecificRadar) {
         const auto numberOfPanesStr = To::string(numberOfPanes);
         const auto index = To::string(paneNumber);

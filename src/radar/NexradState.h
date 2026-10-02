@@ -8,6 +8,8 @@
 #define NEXRADSTATE_H
 
 #include <cstdint>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 #include "radar/ProjectionNumbers.h"
@@ -44,6 +46,8 @@ public:
     vector<TextViewMetal> observations;
     const vector<string> initialRadarProducts{"N0Q", "N0U", "EET", "DVL"};
     double zoomToHideMiscFeatures{0.2};
+    // the radar site, product and projection are read by download threads and changed by the UI (a radar or product switch)
+    std::shared_ptr<std::recursive_mutex> lock{std::make_shared<std::recursive_mutex>()};
 
 private:
     ProjectionNumbers pn;

@@ -177,7 +177,7 @@ void MainWindow::reload() {
             nexradList[pane]->nexradDraw.initGeom();
 
             for (auto nw : nexradList) {
-                new FutureVoid{this, [nw] { nw->downloadData(); }, [nw] { nw->update(); }};
+                nw->runJob([nw] { nw->downloadData(); }, [nw] { nw->update(); });
             }
         }
         if (UIPreferences::mainScreenSevereDashboard) {

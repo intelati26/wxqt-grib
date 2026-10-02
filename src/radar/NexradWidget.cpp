@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include <mutex>
+#include <QPointer>
 #include "NexradWidget.h"
 #include "radar/RadarSites.h"
 #include <QApplication>
@@ -222,6 +223,7 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
         dataLayer(painter);
         painter.restore();
     } else if (!hideRadar) {
+        const std::lock_guard<std::mutex> guard{dataLock};
         // for (auto bin = 0; bin < totalBins; bin++) {
         for (auto bin : range(totalBins)) {
             painter.setPen(levelData.radarBuffers.colorPens[bin]);
@@ -373,7 +375,36 @@ void NexradWidget::drawWatch() {
 }
 
 // KEEP
-NexradWidget::~NexradWidget() = default;
+NexradWidget::~NexradWidget() {
+    jobGuard->closeAndWait();   // a download or decode still running uses this widget's members
+}
+
+void NexradWidget::runJob(const function<void()>& work, const function<void()>& done) {
+    const auto guard = jobGuard;
+    const QPointer<NexradWidget> self{this};
+    new FutureVoid{parent,
+        [guard, work] {
+            if (!guard->enter()) {
+                return;
+            }
+            try {
+                work();
+            } catch (...) {
+                // a failed download leaves the old picture; nothing to report from here
+            }
+            guard->leave();
+        },
+        [self, done] {
+            if (!self.isNull()) {
+                done();
+            }
+        }};
+}
+
+string NexradWidget::radarInfo() {
+    const std::lock_guard<std::mutex> guard{dataLock};
+    return levelData.radarInfo;
+}
 
 // KEEP
 // void NexradWidget::updateGps(double lat, double lon) {
@@ -390,8 +421,13 @@ NexradWidget::~NexradWidget() = default;
 void NexradWidget::downloadData() {
     const auto url = NexradDownload::getRadarFileUrl(nexradState.getRadarSite(), nexradState.getRadarProduct());
     fileStorage.setMemoryBuffer(UtilityIO::downloadAsByteArray(url));
-    totalBins = 0;
-    totalBins = levelData.decodeAndGenerateRadials();
+    // decode into a new set of buffers off to the side and swap them in: the UI thread keeps painting the old picture meanwhile
+    NexradLevelData fresh{&nexradState, &fileStorage};
+    const auto bins = fresh.decodeAndGenerateRadials();
+    const std::lock_guard<std::mutex> guard{dataLock};
+    levelData = std::move(fresh);
+    levelData.rebind(&nexradState, &fileStorage);
+    totalBins = bins;
 }
 
 void NexradWidget::constructWBLines() {
@@ -541,8 +577,11 @@ void NexradWidget::constructTvs() {
 }
 
 void NexradWidget::downloadDataForAnimation(int index) {
-    levelData = nexradStateAnimation.levelDataList[index];
-    totalBins = levelData.totalBins;
+    {
+        const std::lock_guard<std::mutex> guard{dataLock};
+        levelData = nexradStateAnimation.levelDataList[index];
+        totalBins = levelData.totalBins;
+    }
     updateTitle();
 }
 
@@ -556,6 +595,7 @@ void NexradWidget::processWarnings(PolygonType polygonGenericType) {
 
 void NexradWidget::updateTitle() {
     setTitleMain();
+    const std::lock_guard<std::mutex> guard{dataLock};
     radarStatusBox->setBox(levelData, nexradState.getRadarProduct(), nexradState.getRadarSite());
 }
 
@@ -564,9 +604,7 @@ void NexradWidget::changeProduct() {
     // FIXME TODO javafx does not do legend here
     // colorLegend.update(nexradState.getRadarProduct());
     nexradState.writePreferences();
-    new FutureVoid{parent,
-        [this] { downloadData(); },
-        [this] { draw(); }};
+    runJob([this] { downloadData(); }, [this] { draw(); });
 }
 
 void NexradWidget::toggleRadar() {

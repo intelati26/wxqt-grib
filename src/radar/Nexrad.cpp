@@ -306,7 +306,7 @@ void Nexrad::downloadData() {
     save();
     objectAnimateNexrad.stopAnimateNoDownload();
     for (auto nw : nexradList) {
-        new FutureVoid{this, [nw] { nw->downloadData(); }, [nw] { nw->draw(); }};
+        nw->runJob([nw] { nw->downloadData(); }, [nw] { nw->draw(); });
     }
     comboboxSector.block();
     comboboxSector.setIndex(RadarSites::findRadarIndex(nexradList[0]->nexradState.getRadarSite()));
@@ -319,7 +319,7 @@ void Nexrad::setTitleMain() {
 }
 
 string Nexrad::radarInfoForTitle() {
-    const auto nexradStatusAsString = nexradList[0]->levelData.radarInfo;
+    const auto nexradStatusAsString = nexradList[0]->radarInfo();
     const auto nexradStatus = WString::split(nexradStatusAsString, " ");
     if (nexradStatus.size() > 3) {
         return nexradStatusAsString;

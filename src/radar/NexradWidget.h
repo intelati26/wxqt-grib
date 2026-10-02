@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -19,6 +20,7 @@
 #include <QPainter>
 #include <QPinchGesture>
 #include "objects/FileStorage.h"
+#include "radar/JobGuard.h"
 #include "objects/LatLon.h"
 #include "radar/NexradColorLegend.h"
 #include "radar/NexradDraw.h"
@@ -51,6 +53,10 @@ public:
 //    void updateGps(double, double);
     void downloadDataForAnimation(int);
     void downloadData();
+    // Run `work` on a worker thread, then `done` on the UI thread. The widget is kept alive until the work has finished (its
+    // destructor waits), and `done` is skipped if the widget has gone by then.
+    void runJob(const function<void()>& work, const function<void()>& done);
+    string radarInfo();   // the status text of the radar picture on screen (safe from any thread)
     void changeProduct();
     void processWarnings(PolygonType);
     void process(PolygonType);
@@ -114,6 +120,8 @@ private:
     unordered_map<int, QVector<QLineF>> swoLinesMap;
     unordered_map<int, QVector<QLineF>> fireLinesMap;
     int totalBins{};
+    std::mutex dataLock;                         // levelData / totalBins: swapped by a worker, painted by the UI thread
+    std::shared_ptr<JobGuard> jobGuard{std::make_shared<JobGuard>()};
     unordered_map<PolygonType, QVector<QLineF>> polygons;
     // vector<LatLon> locationDots;
     // double gpsX{};
