@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "NexradDownload.h"
+#include <algorithm>
 #include <unordered_map>
 #include <QDateTime>
 #include <QRegularExpression>
@@ -32,10 +33,11 @@ string NexradDownload::getRadarFileUrl(const string& radarSite, const string& pr
     return GlobalVariables::tgftpSitePrefix + "SL.us008001/DF.of/DC.radar/" + productString + "/SI." + WString::toLower(radarSite) + "/sn.last";
 }
 
-void NexradDownload::getRadarFilesForAnimation(int frameCount, const string& product, const string& radarSite, FileStorage * fileStorage) {
-    if (RadarPreferences::useS3) {
+void NexradDownload::getRadarFilesForAnimation(int frameCount, const string& product, const string& radarSite, FileStorage * fileStorage,
+                                               const QDateTime& end) {
+    if (RadarPreferences::useS3 || end.isValid()) {
         // the bucket lists the real files with their times: no guessing at sequence numbers
-        const auto urls = s3RecentUrls(radarSite, product, frameCount);
+        const auto urls = s3RecentUrls(radarSite, product, frameCount, end);
         if (urls.size() >= 2) {
             DownloadParallel{fileStorage, urls};
             return;
@@ -80,19 +82,34 @@ void NexradDownload::getRadarFilesForAnimation(int frameCount, const string& pro
 namespace {
     const string s3Base{"https://unidata-nexrad-level3.s3.amazonaws.com"};
 
-    // the keys of a radar's product from the last `hours` hours, oldest first (S3 lists keys in name order, which is time order)
-    vector<string> s3Keys(const string& site, const string& product, int hours) {
+    const char * const keyTimeFormat{"yyyy_MM_dd_HH_mm_ss"};
+
+    // the keys of a radar's product from the `hours` hours before `end` (now when `end` is not set), oldest first (S3 lists keys in
+    // name order, which is time order); with `end` set nothing after it
+    vector<string> s3Keys(const string& site, const string& product, int hours, const QDateTime& end = QDateTime{}) {
         const auto prefix = site + "_" + product + "_";
-        const auto start = QDateTime::currentDateTimeUtc().addSecs(-3600LL * hours);
-        const auto url = s3Base + "/?list-type=2&prefix=" + prefix + "&start-after=" + prefix + start.toString("yyyy_MM_dd_HH_mm_ss").toStdString() +
+        const auto last = end.isValid() ? end.toUTC() : QDateTime::currentDateTimeUtc();
+        const auto start = last.addSecs(-3600LL * hours);
+        const auto url = s3Base + "/?list-type=2&prefix=" + prefix + "&start-after=" + prefix + start.toString(keyTimeFormat).toStdString() +
                          "&max-keys=1000";
         const auto xml = QString::fromStdString(UtilityIO::getHtml(url));
+        const auto lastKey = prefix + last.toString(keyTimeFormat).toStdString();
         vector<string> keys;
         static const QRegularExpression key{"<Key>([^<]+)</Key>"};
         for (auto it = key.globalMatch(xml); it.hasNext();) {
-            keys.push_back(it.next().captured(1).toStdString());
+            auto name = it.next().captured(1).toStdString();
+            if (!end.isValid() || name <= lastKey) {
+                keys.push_back(std::move(name));
+            }
         }
         return keys;
+    }
+
+    QDateTime keyTime(const string& key) {
+        const auto stamp = QString::fromStdString(key.substr(key.size() >= 19 ? key.size() - 19 : 0));
+        auto time = QDateTime::fromString(stamp, keyTimeFormat);
+        time.setTimeSpec(Qt::UTC);
+        return time;
     }
 }
 
@@ -109,8 +126,8 @@ string NexradDownload::s3Product(const string& product) {
     return found == superRes.end() ? product : found->second;
 }
 
-vector<string> NexradDownload::s3RecentUrls(const string& radarSite, const string& product, int count) {
-    auto keys = s3Keys(s3Site(radarSite), s3Product(product), 8);
+vector<string> NexradDownload::s3RecentUrls(const string& radarSite, const string& product, int count, const QDateTime& end) {
+    auto keys = s3Keys(s3Site(radarSite), s3Product(product), 8, end);
     if (static_cast<int>(keys.size()) > count) {
         keys.erase(keys.begin(), keys.end() - count);
     }
@@ -121,7 +138,23 @@ vector<string> NexradDownload::s3RecentUrls(const string& radarSite, const strin
     return urls;
 }
 
-string NexradDownload::latestFileUrl(const string& radarSite, const string& product) {
+vector<QDateTime> NexradDownload::s3ScanTimes(const string& radarSite, const string& product, const QDateTime& from, const QDateTime& to) {
+    const auto hours = static_cast<int>(std::max<qint64>(1, (from.secsTo(to) + 3599) / 3600));
+    vector<QDateTime> times;
+    for (const auto& key : s3Keys(s3Site(radarSite), s3Product(product), hours, to)) {
+        const auto time = keyTime(key);
+        if (time.isValid() && time >= from) {
+            times.push_back(time);
+        }
+    }
+    return times;
+}
+
+string NexradDownload::latestFileUrl(const string& radarSite, const string& product, const QDateTime& at) {
+    if (at.isValid()) {
+        const auto urls = s3RecentUrls(radarSite, product, 1, at);
+        return urls.empty() ? string{} : urls.back();
+    }
     if (RadarPreferences::useS3) {
         const auto urls = s3RecentUrls(radarSite, product, 1);
         if (!urls.empty()) {

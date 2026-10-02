@@ -11,6 +11,7 @@
 #include "common/GlobalArrays.h"
 #include "common/GlobalVariables.h"
 #include "objects/FutureVoid.h"
+#include "radar/NexradDownload.h"
 #include "objects/WString.h"
 #include "misc/TextViewerStatic.h"
 #include "objects/ObjectDateTime.h"
@@ -38,6 +39,7 @@ Nexrad::Nexrad(Window * parent, int numberOfPanes, bool useASpecificRadar, const
     , comboboxAnimSpeed{this, {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"}}
     , autoUpdate{this, "RADAR_DATA_REFRESH_INTERVAL", 3, [this] { downloadData(); }}
     , settingsButton{this, Settings, "Settings ctrl-p"}
+    , historyButton{this, None, "History"}
     , moveLeftButton{this, Left, "Move left ctrl- <-"}
     , moveRightButton{this, Right, "Move right ctrl- ->"}
     , moveDownButton{this, Down, "Move down ctrl- downArrow"}
@@ -150,6 +152,7 @@ Nexrad::Nexrad(Window * parent, int numberOfPanes, bool useASpecificRadar, const
     //
     comboboxProduct.setIndexByValue(nexradList[0]->nexradState.getRadarProduct());
     comboboxProduct.connect([this] { changeProduct(); });
+    historyButton.connect([this] { openHistory(); });
 
     comboboxAnimCount.setIndex(Utility::readPrefInt("NEXRAD_ANIM_FRAME_COUNT2", 1));
     comboboxAnimSpeed.setIndex(Utility::readPrefInt("ANIM_INTERVAL", 5));
@@ -187,6 +190,7 @@ Nexrad::Nexrad(Window * parent, int numberOfPanes, bool useASpecificRadar, const
     boxH.addWidget(zoomOutButton);
     boxH.addWidget(zoomInButton);
     boxH.addWidget(autoUpdate);
+    boxH.addWidget(historyButton);
     boxH.addWidget(objectAnimateNexrad);
     if (!UIPreferences::tiledWindows && numberOfPanes == 1) {
         boxH.addWidget(textFrameCount, 0, Qt::AlignCenter);
@@ -315,7 +319,46 @@ void Nexrad::downloadData() {
 }
 
 void Nexrad::setTitleMain() {
-    setTitle(radarInfoForTitle() + autoUpdate.titleAdd);
+    auto title = radarInfoForTitle() + autoUpdate.titleAdd;
+    if (const auto history = nexradList[0]->historyTime(); history.isValid()) {
+        title += nexradList[0]->historyScanMissing() ? "   HISTORY " + history.toString("yyyy-MM-dd HH:mm 'UTC'").toStdString() + " - no scan then"
+                                                     : "   HISTORY (at or before " + history.toString("yyyy-MM-dd HH:mm 'UTC'").toStdString() + ")";
+    }
+    setTitle(title);
+}
+
+void Nexrad::applyHistory(const QDateTime& time) {
+    objectAnimateNexrad.stopAnimateNoDownload();
+    for (auto nw : nexradList) {
+        nw->setHistoryTime(time);
+    }
+    if (time.isValid()) {
+        // no refreshing the newest picture over a past one
+        if (autoUpdate.isActive()) {
+            autoUpdateWasOn = true;
+            autoUpdate.stopNoDownload();
+        }
+    } else if (autoUpdateWasOn) {
+        autoUpdateWasOn = false;
+        autoUpdate.restart();
+    }
+    downloadData();
+}
+
+void Nexrad::openHistory() {
+    if (!historyWindow.isNull()) {
+        historyWindow->raise();
+        historyWindow->refreshStatus();
+        return;
+    }
+    historyWindow = new RadarHistory{
+        this,
+        [this] (const QDateTime& time) { applyHistory(time); },
+        // the scans of the first pane's radar and product, for the previous / next scan buttons (called on a worker thread)
+        [this] (const QDateTime& from, const QDateTime& to) {
+            return NexradDownload::s3ScanTimes(nexradList[0]->nexradState.getRadarSite(), nexradList[0]->nexradState.getRadarProduct(), from, to);
+        },
+        [this] { return nexradList[0]->historyTime(); }};
 }
 
 string Nexrad::radarInfoForTitle() {

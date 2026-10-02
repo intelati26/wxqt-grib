@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+#include <QPointer>
 #include <QTimer>
 #include "objects/AutoUpdate.h"
 #include "objects/ObjectAnimateNexrad.h"
@@ -17,6 +18,7 @@
 // #include "objects/Timer.h"
 #include "radar/NexradLayerDownload.h"
 #include "radar/NexradWidget.h"
+#include "radar/RadarHistory.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
@@ -46,6 +48,8 @@ private:
     void refreshFavorites();
     void favoriteChosen();
     void changeTilt();
+    void applyHistory(const QDateTime&);   // show the scan at or before this time (UTC); invalid = live
+    void openHistory();
     void adjustProductComboBox();
     void changeZoom(double, int);
     void changePosition(double, double, int);
@@ -80,6 +84,9 @@ private:
     ComboBox comboboxAnimSpeed;
     AutoUpdate autoUpdate;
     Button settingsButton;
+    Button historyButton;
+    QPointer<RadarHistory> historyWindow;
+    bool autoUpdateWasOn{false};
     Button moveLeftButton;
     Button moveRightButton;
     Button moveDownButton;

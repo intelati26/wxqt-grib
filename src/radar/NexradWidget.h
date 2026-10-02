@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <memory>
+#include <atomic>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -19,6 +20,7 @@
 #include <QLineF>
 #include <QPainter>
 #include <QPinchGesture>
+#include <QPixmap>
 #include "objects/FileStorage.h"
 #include "radar/JobGuard.h"
 #include "objects/LatLon.h"
@@ -57,6 +59,10 @@ public:
     // destructor waits), and `done` is skipped if the widget has gone by then.
     void runJob(const function<void()>& work, const function<void()>& done);
     string radarInfo();   // the status text of the radar picture on screen (safe from any thread)
+    // History: show the scan at or before this time (UTC) from the S3 bucket instead of the newest; an invalid time is live.
+    void setHistoryTime(const QDateTime&);
+    QDateTime historyTime() const;
+    bool historyScanMissing() const { return historyMissing; }   // the last history download found no scan
     void changeProduct();
     void processWarnings(PolygonType);
     void process(PolygonType);
@@ -102,6 +108,8 @@ private:
     void drawFire();
     void drawWpcFronts();
     void drawWarnings();
+    void paintRadarLayer(QPainter&);   // the radar bins, from a cached picture while only panning
+    void drawRadarBins(QPainter&);
     void drawWatch();
     void pinchTriggered(QPinchGesture *);
     void updateTitle();
@@ -120,6 +128,19 @@ private:
     unordered_map<int, QVector<QLineF>> swoLinesMap;
     unordered_map<int, QVector<QLineF>> fireLinesMap;
     int totalBins{};
+    std::atomic<qint64> historyMs{0};            // 0 = live, else the history time as ms since the epoch (UTC)
+    std::atomic<bool> historyMissing{false};
+    // The radar bins are drawn into a picture a bit larger than the window and that picture is moved while panning; it is redrawn
+    // when the zoom, the size, the data or the background colour change, or the pan goes past its margin (UI thread only).
+    QPixmap radarCache;
+    double cacheZoom{0.0};
+    double cacheX{0.0};
+    double cacheY{0.0};
+    QSize cacheWidgetSize;
+    quint64 cacheVersion{0};
+    qreal cacheRatio{0.0};
+    QColor cacheBackground;
+    quint64 dataVersion{1};                      // bumped under dataLock whenever levelData changes
     std::mutex dataLock;                         // levelData / totalBins: swapped by a worker, painted by the UI thread
     std::shared_ptr<JobGuard> jobGuard{std::make_shared<JobGuard>()};
     unordered_map<PolygonType, QVector<QLineF>> polygons;

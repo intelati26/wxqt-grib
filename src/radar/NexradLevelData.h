@@ -34,7 +34,8 @@ public:
     int16_t elevationAngle{};
     int totalBins{};
     string radarInfo;
-    int radarAgeMilli{};
+    int radarAgeMilli{};          // saturates (an int of ms overflows after 24 days: old scans in history)
+    int64_t scanEpochSec{};       // when the scan was taken (UTC)
 
 private:
     void decodeAndPlotNexradLevel3();

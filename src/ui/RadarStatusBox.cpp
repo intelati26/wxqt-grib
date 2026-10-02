@@ -14,11 +14,13 @@ RadarStatusBox::RadarStatusBox(Window * parent)
     , label{new ClickableLabel{parent}}
 {}
 
-void RadarStatusBox::setBox(const NexradLevelData& levelData, const string& product, const string& radarSite) {
-    const auto radarAgeString = "Radar age: " + To::string(static_cast<int>(levelData.radarAgeMilli / 60000.0)) + " min";
+void RadarStatusBox::setBox(const NexradLevelData& levelData, const string& product, const string& radarSite, const string& historyLabel) {
+    // in history the age is meaningless: say which scan this is, and mark it as not current
+    const auto radarAgeString = historyLabel.empty() ? "Radar age: " + To::string(static_cast<int>(levelData.radarAgeMilli / 60000.0)) + " min"
+                                                     : "HISTORY " + historyLabel;
     const auto status = " / " + WString::split(levelData.radarInfo, " ")[0];
     const auto fullStatus = radarSite + "/" + product + " " + radarAgeString + status;
-    if (NexradUtil::isRadarTimeOld(levelData.radarAgeMilli)) {
+    if (!historyLabel.empty() || NexradUtil::isRadarTimeOld(levelData.radarAgeMilli)) {
         setOld(fullStatus);
     } else {
         setCurrent(fullStatus);

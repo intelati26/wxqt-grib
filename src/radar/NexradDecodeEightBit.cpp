@@ -70,19 +70,26 @@ int NexradDecodeEightBit::andCreateRadials(RadarBuffers& radarBuffers, FileStora
             } else {
                 // level 0 is "no echo": its colour is the background, which the widget has already filled, so nothing is drawn
                 if (level != 0) {
-                radarBuffers.rectPoints.emplace_back(
-                    QVector<QPointF>{
+                radarBuffers.addQuad({
                         QPointF{binStart * angleVCos, yShift * binStart * angleVSin},
                         QPointF{(binStart + radarBuffers.binSize * levelCount) * angleVCos, yShift * (binStart + radarBuffers.binSize * levelCount) * angleVSin},
                         QPointF{(binStart + radarBuffers.binSize * levelCount) * angleCos, yShift * (binStart + radarBuffers.binSize * levelCount) * angleSin},
-                        QPointF{binStart * angleCos, yShift * binStart * angleSin}});
-                radarBuffers.putColorsByIndex(level);
+                        QPointF{binStart * angleCos, yShift * binStart * angleSin}}, level);
                 totalBins += 1;
                 }
                 level = curLevel;
                 binStart = bin * radarBuffers.binSize;
                 levelCount = 1;
             }
+        }
+        // the run still open at the end of the radial (its outermost bins)
+        if (level != 0 && levelCount > 0) {
+            radarBuffers.addQuad({
+                    QPointF{binStart * angleVCos, yShift * binStart * angleVSin},
+                    QPointF{(binStart + radarBuffers.binSize * levelCount) * angleVCos, yShift * (binStart + radarBuffers.binSize * levelCount) * angleVSin},
+                    QPointF{(binStart + radarBuffers.binSize * levelCount) * angleCos, yShift * (binStart + radarBuffers.binSize * levelCount) * angleSin},
+                    QPointF{binStart * angleCos, yShift * binStart * angleSin}}, level);
+            totalBins += 1;
         }
     }
     return totalBins;
@@ -131,19 +138,26 @@ int NexradDecodeEightBit::createRadials(RadarBuffers& radarBuffers) {
             } else {
                 // level 0 is "no echo": its colour is the background, which the widget has already filled, so nothing is drawn
                 if (level != 0) {
-                radarBuffers.rectPoints.emplace_back(
-                    QVector<QPointF>{
+                radarBuffers.addQuad({
                         QPointF{binStart * angleVCos, yShift * binStart * angleVSin},
                         QPointF{(binStart + radarBuffers.binSize * levelCount) * angleVCos, yShift * (binStart + radarBuffers.binSize * levelCount) * angleVSin},
                         QPointF{(binStart + radarBuffers.binSize * levelCount) * angleCos, yShift * (binStart + radarBuffers.binSize * levelCount) * angleSin},
-                        QPointF{binStart * angleCos, yShift * binStart * angleSin}});
-                radarBuffers.putColorsByIndex(level);
+                        QPointF{binStart * angleCos, yShift * binStart * angleSin}}, level);
                 totalBins += 1;
                 }
                 level = curLevel;
                 binStart = bin * radarBuffers.binSize + radarBlackHoleAdd;
                 levelCount = 1;
             }
+        }
+        // the run still open at the end of the radial (its outermost bins)
+        if (level != 0 && levelCount > 0) {
+            radarBuffers.addQuad({
+                    QPointF{binStart * angleVCos, yShift * binStart * angleVSin},
+                    QPointF{(binStart + radarBuffers.binSize * levelCount) * angleVCos, yShift * (binStart + radarBuffers.binSize * levelCount) * angleVSin},
+                    QPointF{(binStart + radarBuffers.binSize * levelCount) * angleCos, yShift * (binStart + radarBuffers.binSize * levelCount) * angleSin},
+                    QPointF{binStart * angleCos, yShift * binStart * angleSin}}, level);
+            totalBins += 1;
         }
     }
     return totalBins;

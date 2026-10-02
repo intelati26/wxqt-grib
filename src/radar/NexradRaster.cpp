@@ -36,12 +36,11 @@ int NexradRaster::create(RadarBuffers& radarBuffers) {
     for (auto g : range(numberOfRows)) {
         for (auto bin : range(binsPerRow)) {
             const auto curLevel = radarBuffers.binWord.getByIndex(g * binsPerRow + bin);
-            radarBuffers.rectPoints.emplace_back(QVector<QPointF>{
+            radarBuffers.addQuad({
                 QPointF{(bin - halfPoint) * scaleFactor, (g - halfPoint) * scaleFactor},
                 QPointF{(bin - halfPoint) * scaleFactor, (g + 1.0 - halfPoint) * scaleFactor},
                 QPointF{(bin + 1.0 - halfPoint) * scaleFactor, (g + 1.0 - halfPoint) * scaleFactor},
-                QPointF{(bin + 1.0 - halfPoint) * scaleFactor, (g - halfPoint) * scaleFactor}});
-            radarBuffers.putColorsByIndex(curLevel);
+                QPointF{(bin + 1.0 - halfPoint) * scaleFactor, (g - halfPoint) * scaleFactor}}, curLevel);
             totalBins += 1;
         }
     }

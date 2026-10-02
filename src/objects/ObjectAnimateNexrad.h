@@ -34,6 +34,8 @@ private:
     ComboBox * comboboxAnimCount;
     ComboBox * comboboxAnimSpeed;
     TimeLine timeLine;
+    int generation{0};      // a stop (or a new start) while the frames are still loading discards them
+    bool loading{false};
 };
 
 #endif  // OBJECTANIMATENEXRAD_H

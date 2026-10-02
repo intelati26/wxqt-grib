@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "NexradStateAnimation.h"
+#include <algorithm>
 #include <thread>
 #include "util/UtilityList.h"
 
@@ -23,7 +24,9 @@ void NexradStateAnimation::processAnimationFiles(int frameCount, FileStorage * f
     //     threads[index].join();
     // }
 
-    for (auto index : range(frameCount)) {
+    // fewer files may have come back than were asked for: decode only those
+    const auto available = std::min(static_cast<size_t>(std::max(frameCount, 0)), fileStorage->animationMemoryBuffer.size());
+    for (auto index : range(available)) {
         levelDataList.emplace_back(nexradState, fileStorage);
         threads.emplace_back([index, this] { process(index); });
         threads[index].join();

@@ -12,13 +12,13 @@
 
 RadarBuffers::RadarBuffers() {
     const auto size = 150'000;
-    rectPoints.reserve(size);
-    colorBrushes.reserve(size);
+    quads.reserve(size);
+    levels.reserve(size);
 }
 
 void RadarBuffers::initialize() {
-    rectPoints.clear();
-    colorBrushes.clear();
+    quads.clear();
+    levels.clear();
     brushMade.fill(false);
 }
 
@@ -28,7 +28,7 @@ void RadarBuffers::setBackgroundColor() {
     ColorPalette::colorMap[productCode]->blueValues.putByIndex(0, Color::blue(Color::qcolorToInt(RadarPreferences::nexradRadarBackgroundColor)));
 }
 
-void RadarBuffers::putColorsByIndex(int level) {
+void RadarBuffers::addQuad(std::initializer_list<QPointF> corners, int level) {
     const auto index = static_cast<size_t>(std::clamp(level, 0, 255));
     if (!brushMade[index]) {
         brushOfLevel[index] = QBrush{QColor{
@@ -37,5 +37,15 @@ void RadarBuffers::putColorsByIndex(int level) {
             ColorPalette::colorMap[productCode]->blueValues.getByIndex(level)}, Qt::SolidPattern};
         brushMade[index] = true;
     }
-    colorBrushes.push_back(brushOfLevel[index]);
+    Quad quad{};
+    size_t i = 0;
+    for (const auto& corner : corners) {
+        if (i < 4) {
+            quad.x[i] = static_cast<float>(corner.x());
+            quad.y[i] = static_cast<float>(corner.y());
+        }
+        i += 1;
+    }
+    quads.push_back(quad);
+    levels.push_back(static_cast<uint8_t>(index));
 }

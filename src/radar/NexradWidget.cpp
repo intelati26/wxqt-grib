@@ -215,6 +215,69 @@ void NexradWidget::contextMenuEvent(QContextMenuEvent * event) {
     NexradLongPressMenu::setupContextMenu(parent, event->globalPos(), nexradState, latLon, fnSector, fnProduct);
 }
 
+// the radar bins; the painter has the window / pan / zoom transform of NexradDraw::initSurface
+void NexradWidget::drawRadarBins(QPainter& painter) {
+    // the bins tile exactly, so they are filled without an outline (much faster); a brush is set only when the level changes
+    painter.setPen(Qt::NoPen);
+    const auto& quads = levelData.radarBuffers.quads;
+    const auto& levels = levelData.radarBuffers.levels;
+    int lastLevel = -1;
+    const auto count = std::min(static_cast<size_t>(std::max(totalBins, 0)), quads.size());
+    for (size_t bin = 0; bin < count; bin += 1) {
+        if (levels[bin] != lastLevel) {
+            lastLevel = levels[bin];
+            painter.setBrush(levelData.radarBuffers.brushOf(lastLevel));
+        }
+        const auto& quad = quads[bin];
+        const QPointF corners[4]{{quad.x[0], quad.y[0]}, {quad.x[1], quad.y[1]}, {quad.x[2], quad.y[2]}, {quad.x[3], quad.y[3]}};
+        painter.drawPolygon(corners, 4);
+    }
+}
+
+void NexradWidget::paintRadarLayer(QPainter& painter) {
+    const std::lock_guard<std::mutex> guard{dataLock};
+    // the window is 1000 x 1000 map units (NexradDraw::initSurface); fx / fy turn units into pixels
+    const auto fx = width() / 1000.0;
+    const auto fy = height() / 1000.0;
+    const auto margin = 250;   // map units kept beyond each side of the window
+    const auto pixelsWide = qRound((1000 + 2 * margin) * fx);
+    const auto pixelsHigh = qRound((1000 + 2 * margin) * fy);
+    const auto ratio = devicePixelRatioF();
+    const QColor background = RadarPreferences::nexradRadarBackgroundColor;
+    if (static_cast<qint64>(pixelsWide) * pixelsHigh > 48'000'000 || pixelsWide < 1 || pixelsHigh < 1) {
+        drawRadarBins(painter);   // too big to keep a picture of
+        return;
+    }
+    const auto usable = !radarCache.isNull() && cacheVersion == dataVersion && cacheZoom == nexradState.zoom &&
+                        cacheWidgetSize == size() && cacheRatio == ratio && cacheBackground == background &&
+                        std::abs(nexradState.xPos - cacheX) <= margin * 0.95 && std::abs(nexradState.yPos - cacheY) <= margin * 0.95;
+    if (!usable) {
+        QPixmap picture{QSize{pixelsWide, pixelsHigh} * ratio};
+        picture.setDevicePixelRatio(ratio);
+        picture.fill(background);
+        QPainter cache{&picture};
+        cache.setViewport(0, 0, pixelsWide, pixelsHigh);
+        cache.setWindow(-500 - margin, -250 - margin, 1000 + 2 * margin, 1000 + 2 * margin);
+        cache.translate(nexradState.xPos, nexradState.yPos);
+        cache.scale(nexradState.zoom, nexradState.zoom);
+        drawRadarBins(cache);
+        cache.end();
+        radarCache = picture;
+        cacheVersion = dataVersion;
+        cacheZoom = nexradState.zoom;
+        cacheX = nexradState.xPos;
+        cacheY = nexradState.yPos;
+        cacheWidgetSize = size();
+        cacheRatio = ratio;
+        cacheBackground = background;
+    }
+    // draw the picture in plain pixels, moved by the pan since it was made
+    painter.save();
+    painter.resetTransform();
+    painter.drawPixmap(QPointF{-margin * fx + (nexradState.xPos - cacheX) * fx, -margin * fy + (nexradState.yPos - cacheY) * fy}, radarCache);
+    painter.restore();
+}
+
 void NexradWidget::paintEvent(QPaintEvent * event) {
     QPainter painter{this};
     nexradDraw.initSurface(&painter, event);
@@ -223,20 +286,7 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
         dataLayer(painter);
         painter.restore();
     } else if (!hideRadar) {
-        const std::lock_guard<std::mutex> guard{dataLock};
-        // for (auto bin = 0; bin < totalBins; bin++) {
-        // the bins tile exactly, so they are filled without an outline (much faster); a brush is set only when the level changes
-        painter.setPen(Qt::NoPen);
-        const auto& brushes = levelData.radarBuffers.colorBrushes;
-        const auto& polygons = levelData.radarBuffers.rectPoints;
-        const QBrush * last = nullptr;
-        for (auto bin : range(totalBins)) {
-            if (last == nullptr || !(*last == brushes[bin])) {
-                painter.setBrush(brushes[bin]);
-                last = &brushes[bin];
-            }
-            painter.drawPolygon(polygons[bin]);
-        }
+        paintRadarLayer(painter);
     }
     // if (nexradState.zoom > 0.9 && !hideRoads) {
     //     nexradDraw.drawGeomLine(HwExtLines);
@@ -408,6 +458,15 @@ void NexradWidget::runJob(const function<void()>& work, const function<void()>& 
         }};
 }
 
+void NexradWidget::setHistoryTime(const QDateTime& time) {
+    historyMs = time.isValid() ? time.toMSecsSinceEpoch() : 0;
+}
+
+QDateTime NexradWidget::historyTime() const {
+    const auto ms = historyMs.load();
+    return ms == 0 ? QDateTime{} : QDateTime::fromMSecsSinceEpoch(ms, Qt::UTC);
+}
+
 string NexradWidget::radarInfo() {
     const std::lock_guard<std::mutex> guard{dataLock};
     return levelData.radarInfo;
@@ -426,7 +485,12 @@ string NexradWidget::radarInfo() {
 // }
 
 void NexradWidget::downloadData() {
-    const auto url = NexradDownload::latestFileUrl(nexradState.getRadarSite(), nexradState.getRadarProduct());
+    const auto url = NexradDownload::latestFileUrl(nexradState.getRadarSite(), nexradState.getRadarProduct(), historyTime());
+    historyMissing = false;
+    if (url.empty()) {
+        historyMissing = true;   // history asked for a time the bucket has no scan for: the picture on screen stays
+        return;
+    }
     fileStorage.setMemoryBuffer(UtilityIO::downloadAsByteArray(url));
     // decode into a new set of buffers off to the side and swap them in: the UI thread keeps painting the old picture meanwhile
     NexradLevelData fresh{&nexradState, &fileStorage};
@@ -435,6 +499,7 @@ void NexradWidget::downloadData() {
     levelData = std::move(fresh);
     levelData.rebind(&nexradState, &fileStorage);
     totalBins = bins;
+    dataVersion += 1;
 }
 
 void NexradWidget::constructWBLines() {
@@ -586,8 +651,13 @@ void NexradWidget::constructTvs() {
 void NexradWidget::downloadDataForAnimation(int index) {
     {
         const std::lock_guard<std::mutex> guard{dataLock};
-        levelData = nexradStateAnimation.levelDataList[index];
+        if (index < 0 || static_cast<size_t>(index) >= nexradStateAnimation.levelDataList.size()) {
+            return;   // fewer frames came back than were asked for
+        }
+        levelData = nexradStateAnimation.levelDataList[static_cast<size_t>(index)];
+        levelData.rebind(&nexradState, &fileStorage);   // the frames were decoded against a scratch file store
         totalBins = levelData.totalBins;
+        dataVersion += 1;
     }
     updateTitle();
 }
@@ -603,7 +673,17 @@ void NexradWidget::processWarnings(PolygonType polygonGenericType) {
 void NexradWidget::updateTitle() {
     setTitleMain();
     const std::lock_guard<std::mutex> guard{dataLock};
-    radarStatusBox->setBox(levelData, nexradState.getRadarProduct(), nexradState.getRadarSite());
+    // the status line names the product on screen: a super-resolution file (N0Q's N0B, N0U's N0G) says so
+    auto product = nexradState.getRadarProduct();
+    if (product.size() == 3 && ((levelData.radarBuffers.productCode == 153 && product[2] == 'Q') ||
+                                (levelData.radarBuffers.productCode == 154 && product[2] == 'U'))) {
+        product[2] = levelData.radarBuffers.productCode == 153 ? 'B' : 'G';
+    }
+    string historyLabel;
+    if (historyTime().isValid() && levelData.scanEpochSec != 0) {
+        historyLabel = QDateTime::fromSecsSinceEpoch(levelData.scanEpochSec, Qt::UTC).toString("yyyy-MM-dd HH:mm 'UTC'").toStdString();
+    }
+    radarStatusBox->setBox(levelData, product, nexradState.getRadarSite(), historyLabel);
 }
 
 void NexradWidget::changeProduct() {

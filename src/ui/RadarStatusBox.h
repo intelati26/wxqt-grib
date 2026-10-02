@@ -20,7 +20,7 @@ using std::string;
 class RadarStatusBox : public Widget2 {
 public:
     explicit RadarStatusBox(Window *);
-    void setBox(const NexradLevelData&, const string&, const string&);
+    void setBox(const NexradLevelData&, const string&, const string&, const string& historyLabel = "");
     void connect(const function<void()>&);
     ClickableLabel * getView();
 

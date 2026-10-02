@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ObjectAnimateNexrad.h"
+#include <memory>
 #include "radar/NexradDownload.h"
 #include "util/To.h"
 #include "util/Utility.h"
@@ -24,17 +25,43 @@ ObjectAnimateNexrad::ObjectAnimateNexrad(
 {}
 
 void ObjectAnimateNexrad::animateClicked() {
-    if (!timeLine.isRunning()) {
-//        button.setActive(true);
-        frameCount = To::Int(comboboxAnimCount->getValue());
-        animationSpeed = To::Int(comboboxAnimSpeed->getValue()) * 500;
-        button.setText("Downloading");
-        downloadFrames();
-        timeLine.setSpeed(animationSpeed);
-        timeLine.setCount(frameCount);
-        timeLine.start();
-    } else {
+    if (timeLine.isRunning() || loading) {
         stopAnimate();
+        return;
+    }
+    frameCount = To::Int(comboboxAnimCount->getValue());
+    animationSpeed = To::Int(comboboxAnimSpeed->getValue()) * 500;
+    button.setText("Downloading");
+    // the frames are downloaded and decoded on worker threads (a loop of super-resolution scans takes seconds), then the
+    // loop starts when every pane has its frames
+    loading = true;
+    const auto thisGeneration = ++generation;
+    const auto count = static_cast<int>(frameCount);
+    auto remaining = std::make_shared<size_t>(nexradList->size());
+    for (auto nw : *nexradList) {
+        auto frames = std::make_shared<NexradStateAnimation>();
+        const auto product = nw->nexradState.getRadarProduct();
+        const auto site = nw->nexradState.getRadarSite();
+        const auto end = nw->historyTime();
+        nw->runJob(
+            [nw, frames, product, site, end, count] {
+                FileStorage scratch;
+                NexradDownload::getRadarFilesForAnimation(count, product, site, &scratch, end);
+                frames->processAnimationFiles(count, &scratch, &nw->nexradState);
+            },
+            [this, nw, frames, remaining, thisGeneration] {
+                if (thisGeneration != generation) {
+                    return;   // stopped, or started again, meanwhile
+                }
+                nw->nexradStateAnimation.levelDataList = std::move(frames->levelDataList);
+                *remaining -= 1;
+                if (*remaining == 0) {
+                    loading = false;
+                    timeLine.setSpeed(animationSpeed);
+                    timeLine.setCount(frameCount);
+                    timeLine.start();
+                }
+            });
     }
 }
 
@@ -45,23 +72,23 @@ void ObjectAnimateNexrad::animateClicked() {
 
 void ObjectAnimateNexrad::stopAnimate() {
     button.setText("");
+    generation += 1;
+    loading = false;
     for (auto nw : *nexradList) {
         nw->nexradStateAnimation.levelDataList.clear();
     }
     if (timeLine.isRunning()) {
         timeLine.stop();
         for (auto nw : *nexradList) {
-            nw->downloadData();
-            nw->draw();
-            // new FutureVoid{this,
-            //     [nw] { nw->downloadData(); },
-            //     [nw] { nw->draw(); }};
+            nw->runJob([nw] { nw->downloadData(); }, [nw] { nw->draw(); });   // back to the newest picture
         }
     }
 }
 
 void ObjectAnimateNexrad::stopAnimateNoDownload() {
     button.setText("");
+    generation += 1;
+    loading = false;
     button.setActive(false);
     for (auto nw : *nexradList) {
         nw->nexradStateAnimation.levelDataList.clear();
@@ -72,11 +99,7 @@ void ObjectAnimateNexrad::stopAnimateNoDownload() {
 }
 
 void ObjectAnimateNexrad::downloadFrames() {
-    for (auto nw : *nexradList) {
-        NexradDownload::getRadarFilesForAnimation(frameCount, nw->nexradState.getRadarProduct(), nw->nexradState.getRadarSite(), &nw->fileStorage);
-        nw->nexradStateAnimation.levelDataList.clear();
-        nw->nexradStateAnimation.processAnimationFiles(frameCount, &nw->fileStorage, &nw->nexradState);
-    }
+    // unused: animateClicked loads the frames on worker threads
 }
 
 void ObjectAnimateNexrad::loadAnimationFrame(int animationIndex) {

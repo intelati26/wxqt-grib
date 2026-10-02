@@ -5,6 +5,8 @@
 // *****************************************************************************
 
 #include "NexradLevelData.h"
+#include <algorithm>
+#include <limits>
 #include "common/GlobalDictionaries.h"
 #include "objects/ObjectDateTime.h"
 #include "radar/NexradState.h"
@@ -153,7 +155,9 @@ void NexradLevelData::writeTime(uint16_t volumeScanDate, int volumeScanTime) {
     const auto dateString = ObjectDateTime::getTimeFromPointAsString(sec);
     const auto radarInfoFinal = dateString + " " + radarInfo;
     this->radarInfo = radarInfoFinal;
-    radarAgeMilli = static_cast<int>(ObjectDateTime::currentTimeMillis() - sec * 1000);
+    scanEpochSec = sec;
+    const int64_t ageMilli = ObjectDateTime::currentTimeMillis() - sec * 1000;
+    radarAgeMilli = static_cast<int>(std::clamp<int64_t>(ageMilli, 0, std::numeric_limits<int>::max()));
 }
 
 int NexradLevelData::decodeAndGenerateRadials() {
