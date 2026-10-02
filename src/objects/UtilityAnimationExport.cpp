@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "objects/UtilityAnimationExport.h"
+#include "objects/AnimationRenderer.h"
 #include <algorithm>
 #include <string>
 #include <QBuffer>
@@ -103,6 +104,11 @@ namespace {
         }
         return images;
     }
+}
+
+namespace {
+    // set by a background export (encodeToFileWith) for the duration of its encode, on its own thread
+    thread_local const UtilityAnimationExport::WebpOptions * webpOverride{nullptr};
 }
 
 UtilityAnimationExport::WebpOptions UtilityAnimationExport::webpOptions;
@@ -233,7 +239,7 @@ bool UtilityAnimationExport::encodeWebp(size_t frameCount, bool animated, int fr
         webpOptions = savedWebpOptions();
         webpOptionsSet = true;
     }
-    const auto& options = webpOptions;
+    const auto& options = webpOverride != nullptr ? *webpOverride : webpOptions;
     const auto delay = std::max(20, options.frameDelayMs > 0 ? options.frameDelayMs : frameDelayMs);
     auto frameFile = [&] (size_t i) { return framesDir + "/frame_" + QString::number(i).rightJustified(4, '0') + ".png"; };
 
@@ -752,13 +758,20 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
         }
     }
 
-    QString error;
-    if (!encodeToFile(chosen, frames, frameDelayMs, still, path, error)) {
-        QFile::remove(path);
-        QMessageBox::warning(parent, "Export failed",
-                             "Could not save as " + chosen.label + ":\n\n" + error);
-        return false;
-    }
+    // the encode runs in the animation renderer window, off the UI thread, so a long one does not lock the program up
+    AnimationRenderer::submit(parent, chosen, frames, frameDelayMs, still, path, webpOptionsInUse());
     Utility::writePref(prefKey, chosen.id.toStdString());
     return true;
+}
+
+UtilityAnimationExport::WebpOptions UtilityAnimationExport::webpOptionsInUse() {
+    return webpOptionsSet ? webpOptions : savedWebpOptions();
+}
+
+bool UtilityAnimationExport::encodeToFileWith(const WebpOptions& options, const Format& format, const vector<QByteArray>& frames,
+                                              int frameDelayMs, const QByteArray& still, const QString& path, QString& error) {
+    webpOverride = &options;
+    const auto ok = encodeToFile(format, frames, frameDelayMs, still, path, error);
+    webpOverride = nullptr;
+    return ok;
 }

@@ -126,6 +126,12 @@ public:
         bool sharpYuv{false};    // sharper colour edges for lossy (slower)
     };
     static WebpOptions savedWebpOptions();
+    // the options an export started now would use (confirmed ones, else the saved ones)
+    static WebpOptions webpOptionsInUse();
+    // encodeToFile for a background worker: the WebP options are the given ones (a snapshot taken when the job was queued), not
+    // whatever a later Save dialog has confirmed since. Safe to call off the UI thread.
+    static bool encodeToFileWith(const WebpOptions&, const Format&, const vector<QByteArray>& frames, int frameDelayMs,
+                                 const QByteArray& still, const QString& path, QString& error);
     // false if the user cancelled; on true `options` is filled and remembered
     static bool webpOptionsDialog(QWidget * parent, bool animated, int frameDelayMs, WebpOptions& options);
 
