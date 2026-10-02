@@ -65,6 +65,9 @@ public:
     bool historyScanMissing() const { return historyMissing; }   // the last history download found no scan
     void changeProduct();
     void processWarnings(PolygonType);
+    // the warnings that were in effect at a past time (the history time unless one is given), from HistoricalWarnings' cache
+    void processHistoricalWarnings(PolygonType, const QDateTime& at = QDateTime{});
+    void showHistoricalWarningsAt(const QDateTime& at);   // every warning type; nothing when not in history
     void process(PolygonType);
     void constructSwo();
     void constructFire();

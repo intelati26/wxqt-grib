@@ -6,6 +6,7 @@
 
 #include "ObjectAnimateNexrad.h"
 #include <memory>
+#include "radar/HistoricalWarnings.h"
 #include "radar/NexradDownload.h"
 #include "util/To.h"
 #include "util/Utility.h"
@@ -48,6 +49,12 @@ void ObjectAnimateNexrad::animateClicked() {
                 FileStorage scratch;
                 NexradDownload::getRadarFilesForAnimation(count, product, site, &scratch, end);
                 frames->processAnimationFiles(count, &scratch, &nw->nexradState);
+                if (end.isValid()) {
+                    // history: the warnings in effect at each frame's time, fetched now so stepping through the loop needs no download
+                    for (const auto& frame : frames->levelDataList) {
+                        HistoricalWarnings::polygonsAt(Tor, QDateTime::fromSecsSinceEpoch(frame.scanEpochSec, Qt::UTC));
+                    }
+                }
             },
             [this, nw, frames, remaining, thisGeneration] {
                 if (thisGeneration != generation) {
@@ -80,7 +87,10 @@ void ObjectAnimateNexrad::stopAnimate() {
     if (timeLine.isRunning()) {
         timeLine.stop();
         for (auto nw : *nexradList) {
-            nw->runJob([nw] { nw->downloadData(); }, [nw] { nw->draw(); });   // back to the newest picture
+            nw->runJob([nw] { nw->downloadData(); }, [nw] {   // back to the newest picture
+                nw->showHistoricalWarningsAt(nw->historyTime());   // (history: the warnings at the chosen time again)
+                nw->draw();
+            });
         }
     }
 }

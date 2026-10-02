@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "NexradLayerDownload.h"
+#include "radar/HistoricalWarnings.h"
 #include "objects/PolygonWarning.h"
 #include "objects/PolygonWatch.h"
 #include "radar/FireDayOne.h"
@@ -25,6 +26,25 @@ NexradLayerDownload::NexradLayerDownload(Window * parent, vector<NexradWidget *>
 
 void NexradLayerDownload::downloadLayers() {
     mtx->lock();
+    if (const auto history = (*nexradList)[0]->historyTime(); history.isValid()) {
+        // a past time: the warnings that were in effect then, from the archive; nothing else is live data to show
+        new FutureVoid{parent,
+            [history] {
+                for (auto type : PolygonWarning::polygonList) {
+                    HistoricalWarnings::polygonsAt(type, history);   // one download, kept for the next type
+                }
+            },
+            [this] {
+                for (auto nw : *nexradList) {
+                    for (auto type : PolygonWarning::polygonList) {
+                        nw->processHistoricalWarnings(type);
+                    }
+                    nw->update();
+                }
+            }};
+        mtx->unlock();
+        return;
+    }
     for (auto polygonGenericType : PolygonWarning::polygonList) {
         if (PolygonWarning::byType[polygonGenericType]->isEnabled) {
             new FutureVoid{parent, [polygonGenericType] { PolygonWarning::byType[polygonGenericType]->download(); },

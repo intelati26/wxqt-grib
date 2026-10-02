@@ -20,6 +20,7 @@
 #include "objects/WString.h"
 #include "radar/FireDayOne.h"
 #include "radar/NexradDownload.h"
+#include "radar/HistoricalWarnings.h"
 #include "radar/NexradLevel3WindBarbs.h"
 #include "radar/NexradLongPressMenu.h"
 #include "radar/NexradRenderUI.h"
@@ -314,23 +315,28 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
     if (RadarPreferences::locationDot) {
         nexradDraw.drawGenericCircles(RadarPreferences::locdotSize, fileStorage.locationDotsColor, fileStorage.locationDotsTransformed);
     }
-    if (RadarPreferences::sti) {
+    // In history only the warnings that were in effect then are drawn: watches, outlooks, fronts, observations, storm tracks and
+    // the hail / TVS markers are current data and would mislead on a past picture.
+    const auto live = !historyTime().isValid();
+    if (live && RadarPreferences::sti) {
         nexradDraw.drawGenericLine(RadarPreferences::stiLinesize, RadarPreferences::colorSti, stormTrackLines);
     }
-    if (RadarPreferences::obsWindbarbs && !windBarbCircleColors.empty() && nexradState.zoom > 0.3) {
+    if (live && RadarPreferences::obsWindbarbs && !windBarbCircleColors.empty() && nexradState.zoom > 0.3) {
         nexradDraw.drawGenericLine(RadarPreferences::wbLinesize, Qt::red, wbGustLines);
         nexradDraw.drawGenericLine(RadarPreferences::wbLinesize, RadarPreferences::colorObsWindbarbs, wbLines);
         nexradDraw.drawGenericCircles(RadarPreferences::aviationSize * 2.0, windBarbCircleColors, windBarbCirclesTransformed);
     }
-    drawWatch();
+    if (live) {
+        drawWatch();
+    }
     drawWarnings();
-    if (RadarPreferences::swo) {
+    if (live && RadarPreferences::swo) {
         drawSwo();
     }
-    if (RadarPreferences::fire) {
+    if (live && RadarPreferences::fire) {
         drawFire();
     }
-    if (RadarPreferences::wpcFronts && nexradState.zoom < 0.5) {
+    if (live && RadarPreferences::wpcFronts && nexradState.zoom < 0.5) {
         drawWpcFronts();
     }
     // KEEP
@@ -348,10 +354,10 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
     //         painter.drawEllipse(center, scaledCircleSize * 6.0, scaledCircleSize * 6.0);
     //     }
     // }
-    if (RadarPreferences::hailIndex) {
+    if (live && RadarPreferences::hailIndex) {
         nexradDraw.drawTriangles(hiPolygons, RadarPreferences::colorHi);
     }
-    if (RadarPreferences::tvs) {
+    if (live && RadarPreferences::tvs) {
         nexradDraw.drawTriangles(tvsPolygons, RadarPreferences::colorTvs);
     }
     if (RadarPreferences::cities && nexradState.zoom > 0.5) {
@@ -360,7 +366,7 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
     if (RadarPreferences::countyLabels && nexradState.zoom > 0.9) {
         nexradDraw.drawText(RadarPreferences::colorCountyLabels, nexradState.countyLabels);
     }
-    if (RadarPreferences::obs && nexradState.zoom > 0.5) {
+    if (live && RadarPreferences::obs && nexradState.zoom > 0.5) {
         nexradDraw.drawText(RadarPreferences::colorObs, nexradState.observations);
     }
     if (RadarPreferences::colorLegend && nexradState.zoom < 4.0 && !dataLayer) {
@@ -649,6 +655,7 @@ void NexradWidget::constructTvs() {
 }
 
 void NexradWidget::downloadDataForAnimation(int index) {
+    qint64 scanForWarnings = 0;
     {
         const std::lock_guard<std::mutex> guard{dataLock};
         if (index < 0 || static_cast<size_t>(index) >= nexradStateAnimation.levelDataList.size()) {
@@ -658,6 +665,11 @@ void NexradWidget::downloadDataForAnimation(int index) {
         levelData.rebind(&nexradState, &fileStorage);   // the frames were decoded against a scratch file store
         totalBins = levelData.totalBins;
         dataVersion += 1;
+        scanForWarnings = levelData.scanEpochSec;
+    }
+    // a history loop shows the warnings that were in effect at each frame's own time (fetched ahead by the loop's download)
+    if (scanForWarnings != 0) {
+        showHistoricalWarningsAt(QDateTime::fromSecsSinceEpoch(scanForWarnings, Qt::UTC));
     }
     updateTitle();
 }
@@ -667,6 +679,27 @@ void NexradWidget::processWarnings(PolygonType polygonGenericType) {
     polygons[polygonGenericType] = QVector<QLineF>();
     for (auto position : range3(0, numbers.size(), 4)) {
         polygons[polygonGenericType].push_back(QLineF{numbers[position], numbers[position + 1], numbers[position + 2], numbers[position + 3]});
+    }
+}
+
+void NexradWidget::processHistoricalWarnings(PolygonType type, const QDateTime& at) {
+    // (the archive is downloaded once per minute asked for and shared: HistoricalWarnings)
+    vector<double> numbers;
+    for (const auto& outline : HistoricalWarnings::polygonsAt(type, at.isValid() ? at : historyTime())) {
+        addAll(numbers, Watch::latLonListToListOfDoubles(outline, nexradState.getPn()));
+    }
+    polygons[type] = QVector<QLineF>();
+    for (auto position : range3(0, numbers.size(), 4)) {
+        polygons[type].push_back(QLineF{numbers[position], numbers[position + 1], numbers[position + 2], numbers[position + 3]});
+    }
+}
+
+void NexradWidget::showHistoricalWarningsAt(const QDateTime& at) {
+    if (!historyTime().isValid()) {
+        return;
+    }
+    for (const auto type : PolygonWarning::polygonList) {
+        processHistoricalWarnings(type, at);
     }
 }
 
