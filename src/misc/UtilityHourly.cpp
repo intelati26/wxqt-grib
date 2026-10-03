@@ -81,6 +81,14 @@ string UtilityHourly::parse(const string& html) {
     return stringValue;
 }
 
+string UtilityHourly::shortenConditions(const string& s) {
+    auto hourly = s;
+    for (const auto& data : hourlyAbbreviations) {
+        hourly = WString::replace(hourly, data.first, data.second);
+    }
+    return hourly;
+}
+
 bool UtilityHourly::getGraphData(int locationNumber, WeatherGraph* graphWidget) {
     if (!graphWidget) {
         return false;

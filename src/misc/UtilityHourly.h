@@ -1,7 +1,10 @@
+#include <string>
+#include <unordered_map>
 #include <vector>
 #include "ui/WeatherGraph.h"
 
 using std::string;
+using std::unordered_map;
 using std::vector;
 
 class UtilityHourly {
@@ -16,4 +19,6 @@ private:
     static string parse(const string&);
     static string shortenConditions(const string&);
     static vector<string> parseColumn(const string& html, const string& pattern);
+    static bool getHourlyGraphData(int locationNumber, WeatherGraph* graphWidget);
+    static bool getHourlyOldApiGraphData(int locationNumber, WeatherGraph* graphWidget);
 };
