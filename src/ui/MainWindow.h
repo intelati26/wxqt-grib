@@ -80,6 +80,7 @@ private:
     VBox boxSevenDay;
     VBox boxHazards;
     HBox boxHourlyGraph;   // Added for hourly graph
+    FlowBox boxSevereDashboard;
     ScrolledWindow sw;
     ComboBox comboBox;
     Toolbar toolbar;
