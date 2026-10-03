@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include <QApplication>
+#include <QString>
 #include "ui/Window.h"
 #include "ui/WeatherGraph.h"
 #include "ui/VBox.h"
@@ -22,12 +23,11 @@ public:
         graphWidget = new WeatherGraph(this);
 
         // Create UI controls
-        HBox controlRow;
-        Button loadButton(this, "Load Test Data");
         Text statusText(this);
         statusText.setText("Testing WeatherGraph functionality...");
+        Button loadButton(this, "Load Test Data");
 
-        // Add widgets
+        // Add widgets using wxqt-grib's API
         controlRow.addWidget(statusText, 1);
         controlRow.addWidget(loadButton, 0);
 
@@ -43,9 +43,9 @@ public:
         // Connect button to load test data
         loadButton.connect([this] {
             if (UtilityHourly::getGraphData(12345, graphWidget)) {
-                statusTextPtr->setText("Successfully loaded weather graph data!");
+                statusTextPtr->setText(QString::fromStdString("Successfully loaded weather graph data!"));
             } else {
-                statusTextPtr->setText("Failed to load weather graph data.");
+                statusTextPtr->setText(QString::fromStdString("Failed to load weather graph data."));
             }
         });
     }
@@ -53,6 +53,7 @@ public:
 private:
     WeatherGraph* graphWidget;
     Text* statusTextPtr;
+    HBox controlRow;
 };
 
 int main(int argc, char *argv[]) {
