@@ -131,14 +131,14 @@ bool UtilityHourly::getHourlyGraphData(int locationNumber, WeatherGraph* graphWi
         const auto windSpeedStr = Utility::safeGet(windSpeeds, index);
         double windSpeed = 0.0;
         if (!windSpeedStr.empty()) {
-            windSpeed = WString::toDouble(windSpeedStr);
+            try { windSpeed = std::stod(windSpeedStr); } catch(...) { windSpeed = 0.0; }
         }
         windSpeedsList.push_back(windSpeed);
 
         const auto windDirStr = Utility::safeGet(windDirections, index);
         double windDir = 0.0;
         if (!windDirStr.empty()) {
-            windDir = WString::toDouble(windDirStr);
+            try { windDir = std::stod(windDirStr); } catch(...) { windDir = 0.0; }
         }
         windDirs.push_back(windDir);
 
@@ -181,14 +181,14 @@ bool UtilityHourly::getHourlyOldApiGraphData(int locationNumber, WeatherGraph* g
         const auto windSpeedStr = Utility::safeGet(windSpeeds, index);
         double windSpeed = 0.0;
         if (!windSpeedStr.empty()) {
-            windSpeed = WString::toDouble(windSpeedStr);
+            try { windSpeed = std::stod(windSpeedStr); } catch(...) { windSpeed = 0.0; }
         }
         windSpeedsList.push_back(windSpeed);
 
         const auto windDirStr = Utility::safeGet(windDirections, index);
         double windDir = 0.0;
         if (!windDirStr.empty()) {
-            windDir = WString::toDouble(windDirStr);
+            try { windDir = std::stod(windDirStr); } catch(...) { windDir = 0.0; }
         }
         windDirs.push_back(windDir);
 
