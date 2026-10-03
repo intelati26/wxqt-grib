@@ -170,17 +170,6 @@ void MainWindow::reload() {
 
 }
 
-void MainWindow::showHourlyGraph() {
-    if (boxHourlyGraph.getView()->isHidden()) {
-        boxHourlyGraph.getView()->show();
-    } else {
-        boxHourlyGraph.getView()->hide();
-    }
-}
-                    }};
-            }
-        }
-        if (UIPreferences::nexradMainScreen) {
             const auto pane = 0;
             nexradList[pane]->nexradState.setRadar(Location::radarSite());
             nexradList[pane]->nexradState.reset();
@@ -435,5 +424,13 @@ void MainWindow::launchImageScreen(const string& token) {
         toolbar.launchSpcMeso("500mb");
     } else if (const auto * entry = HomeThumbnails::find(token); entry != nullptr && !entry->routeId.empty()) {
         toolbar.launchRoute(entry->routeId);   // any other thumbnail opens its own tool
+    }
+}
+
+void MainWindow::showHourlyGraph() {
+    if (boxHourlyGraph.getView()->isVisible()) {
+        boxHourlyGraph.getView()->hide();
+    } else {
+        boxHourlyGraph.getView()->show();
     }
 }
