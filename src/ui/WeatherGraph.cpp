@@ -5,7 +5,6 @@
 // *****************************************************************************
 
 #include "ui/WeatherGraph.h"
-#include "ui/Widget2.h"
 #include <algorithm>
 #include <cmath>
 #include <QPainter>

@@ -11,6 +11,7 @@
 #include <vector>
 #include <QWidget>
 #include "ui/Window.h"
+#include "ui/Widget2.h"
 
 using std::string;
 using std::vector;
@@ -19,6 +20,7 @@ class WeatherGraph : public QWidget, public Widget2 {
 public:
     QWidget * getView() override;
     virtual ~WeatherGraph() override {};
+
 private:
     struct DataPoint {
         double time;           // hour value
