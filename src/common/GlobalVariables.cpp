@@ -22,7 +22,7 @@ const string GlobalVariables::mainScreenShortcuts{R"mainScreenShort(
     Ctrl-c - GOES
     Ctrl-d - Severe Dashboard
     Ctrl-f - SPC Fire Weather Summary
-    Ctrl-h - Hourly
+    Ctrl-h - Show / hide the hourly graph
     Ctrl-i - National Images
     Ctrl-l - Lightning
     Ctrl-m - Radar Mosaic

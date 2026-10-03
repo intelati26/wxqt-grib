@@ -1,6 +1,7 @@
 // *****************************************************************************
-// * Updated MainWindow.h with WeatherGraph integration
-// * Added WeatherGraph widget to the forecast section of the MainWindow
+// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
+// *
+// * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #ifndef MAINWINDOW_H
@@ -79,7 +80,7 @@ private:
     VBox boxCc;
     VBox boxSevenDay;
     VBox boxHazards;
-    HBox boxHourlyGraph;   // Added for hourly graph
+    HBox boxHourlyGraph;
     FlowBox boxSevereDashboard;
     ScrolledWindow sw;
     ComboBox comboBox;
@@ -90,7 +91,8 @@ private:
     SevenDayCollection sevenDayCollection;
     Hazards hazards;
     CardHazards cardHazards;
-    WeatherGraph hourlyGraph;   // Added: Hourly weather graph widget
+    WeatherGraph hourlyGraph;   // hourly temperature / dew point / rain chance / wind, below the 7 day
+    vector<WeatherGraph::Point> hourlyPoints;   // filled off the UI thread, then handed to hourlyGraph
     unordered_map<string, Image> imageWidgets;
     unordered_map<string, Text> textWidgets;
     string tokenString;

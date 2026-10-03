@@ -91,7 +91,8 @@ def run(command: str):
 
 
 def makePro(extraFooter: str = "\n", webEngine: bool = False) -> None:
-    cppFiles: List[str] = glob.glob("src/*.cpp") + glob.glob("src/*/*.c*")
+    # sources only (.c / .cpp) - a stray "Foo.cpp.backup" next to them must not be compiled
+    cppFiles: List[str] = glob.glob("src/*.cpp") + glob.glob("src/*/*.cpp") + glob.glob("src/*/*.c")
     headerFiles: List[str] = glob.glob("src/*/*.h")
     proTargetFile: str = "wxqt.pro"
     with open(proTargetFile, "w") as fh:

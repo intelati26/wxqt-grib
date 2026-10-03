@@ -23,6 +23,7 @@
 #include "spc/SpcStormReports.h"
 #include "settings/Location.h"
 #include "util/DownloadImage.h"
+#include "util/Utility.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityList.h"
 #include "util/UtilityUI.h"
@@ -95,17 +96,20 @@ MainWindow::MainWindow(QWidget * parent)
     boxCc.addLayout(cardCurrentConditions);
     forecastLayout.addLayout(boxHazards);
     forecastLayout.addLayout(boxSevenDay);
-    boxHourlyGraph.addWidget(hourlyGraph);   // Add hourly graph to the forecast layout
+    boxHourlyGraph.addWidget(hourlyGraph);   // hourly graph below the 7 day forecast; H shows / hides it
     forecastLayout.addLayout(boxHourlyGraph);
     forecastLayout.addStretch();
 
     addWidgets();   // also places the columns right of the toolbar, in the user's order
+    hourlyGraph.setVisible(Utility::readPref("HOURLY_GRAPH_MAIN_SCREEN", "true") == "true");
+
+    reload();
 
     sw.enableMiddleDrag();
     shortcutClose.connect([this] { close(); });
     shortcutVis.connect([this] { Route::vis(this); });
     shortcutWfoText.connect([this] { toolbar.launchWfoText(); });
-    shortcutHourly.connect([this] { showHourlyGraph(); });   // Show/hide hourly graph
+    shortcutHourly.connect([this] { showHourlyGraph(); });   // show / hide the hourly graph
     shortcutRadar.connect([this] { toolbar.launchNexrad(1); });
     shortcutRadarSinglePane.connect([this] { toolbar.launchNexrad(1); });
     shortcutRadarDualPane.connect([this] { toolbar.launchNexrad(2); });
@@ -166,10 +170,14 @@ void MainWindow::reload() {
                         const auto * entry = HomeThumbnails::find(token);
                         if (found != imageWidgets.end() && !bytes->isEmpty()) {
                             found->second.setToWidth(*bytes, UIPreferences::mainScreenImageSize, entry != nullptr && entry->white);
-}
-
-}
-
+                        }
+                    }};
+            }
+        }
+        if (!hourlyGraph.isHidden()) {   // not while H has it hidden
+            new FutureVoid{this, [this] { getHourlyGraphData(); }, [this] { updateHourlyGraph(); }};
+        }
+        if (UIPreferences::nexradMainScreen) {
             const auto pane = 0;
             nexradList[pane]->nexradState.setRadar(Location::radarSite());
             nexradList[pane]->nexradState.reset();
@@ -428,9 +436,18 @@ void MainWindow::launchImageScreen(const string& token) {
 }
 
 void MainWindow::showHourlyGraph() {
-    if (boxHourlyGraph.getView()->isVisible()) {
-        boxHourlyGraph.getView()->hide();
-    } else {
-        boxHourlyGraph.getView()->show();
+    const bool show = hourlyGraph.isHidden();
+    hourlyGraph.setVisible(show);
+    Utility::writePref("HOURLY_GRAPH_MAIN_SCREEN", show ? "true" : "false");
+    if (show) {
+        new FutureVoid{this, [this] { getHourlyGraphData(); }, [this] { updateHourlyGraph(); }};
     }
+}
+
+void MainWindow::getHourlyGraphData() {
+    hourlyPoints = UtilityHourly::getGraphData(Location::getCurrentLocation());
+}
+
+void MainWindow::updateHourlyGraph() {
+    hourlyGraph.setData(hourlyPoints, Location::name());
 }

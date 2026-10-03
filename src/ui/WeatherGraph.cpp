@@ -1,194 +1,226 @@
 // *****************************************************************************
 // * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
-// * Refer to the COPYING file for the official project for license.
+// * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
 #include "ui/WeatherGraph.h"
 #include <algorithm>
 #include <cmath>
 #include <QPainter>
-#include <QPen>
-#include <QBrush>
-#include <QDateTime>
-#include <QResizeEvent>
-#include "objects/WString.h"
+#include <QPainterPath>
+#include <QPalette>
 
-WeatherGraph::WeatherGraph(QWidget * parent) : QWidget(parent) {
-    setMinimumSize(600, 400);
-    axisFont.setPixelSize(10);
-    labelFont.setPixelSize(11);
+namespace {
+    // a step of 2, 5 or 10 (times a power of ten) that gives about `count` ticks over the range
+    double niceStep(double range, int count) {
+        const auto raw = range / std::max(1, count);
+        const auto power = std::pow(10.0, std::floor(std::log10(raw)));
+        for (const auto factor : {1.0, 2.0, 5.0, 10.0}) {
+            if (raw <= factor * power) {
+                return factor * power;
+            }
+        }
+        return 10.0 * power;
+    }
+
+    QString hourLabel(const QDateTime& time) {
+        const auto hour = time.time().hour();
+        if (hour == 0) {
+            return "12a";
+        }
+        if (hour == 12) {
+            return "12p";
+        }
+        return QString::number(hour % 12) + (hour < 12 ? "a" : "p");
+    }
+}
+
+WeatherGraph::WeatherGraph(QWidget * parent)
+    : QWidget{parent}
+{
+    setMinimumSize(320, 230);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }
 
 QWidget * WeatherGraph::getView() {
     return this;
 }
 
-void WeatherGraph::setData(const vector<string>& times, const vector<double>& temperatures,
-                          const vector<double>& windSpeeds, const vector<double>& windDirections,
-                          const vector<string>& conditions, const string& location) {
+void WeatherGraph::setData(const vector<Point>& newPoints, const string& location) {
+    // the forecast's own UTC offset is kept, so the hours shown are the location's local hours
+    points.assign(newPoints.begin(), newPoints.begin() + std::min(newPoints.size(), static_cast<size_t>(hoursShown)));
     locationName = location;
-    dataPoints.clear();
-
-    if (times.size() != temperatures.size() || times.size() != windSpeeds.size() ||
-        times.size() != windDirections.size() || times.size() != conditions.size()) {
-        return; // Data mismatch, clear
+    answered = true;
+    if (!points.empty()) {
+        setToolTip(QString::fromStdString("Hourly forecast for " + locationName + " - next " +
+                                          std::to_string(points.size()) + " hours"));
     }
-
-    for (size_t i = 0; i < times.size(); ++i) {
-        DataPoint point;
-        point.time = std::stod(times[i]);
-        point.temperature = temperatures[i];
-        point.windSpeed = windSpeeds[i];
-        point.windDirection = windDirections[i];
-        point.condition = conditions[i];
-        dataPoints.push_back(point);
-    }
-
     update();
 }
 
 void WeatherGraph::paintEvent(QPaintEvent *) {
     QPainter painter{this};
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.fillRect(rect(), QColor{250, 250, 250});
+    const auto text = palette().color(QPalette::WindowText);
+    auto grid = text;
+    grid.setAlpha(45);
+    const QColor temperatureColor{220, 60, 50};
+    const QColor dewpointColor{40, 160, 70};
+    QColor rainColor{60, 130, 220};
+    rainColor.setAlpha(110);
 
-    if (dataPoints.empty()) {
-        painter.setPen(QColor{100, 100, 100});
-        painter.drawText(rect(), Qt::AlignCenter, "No data available");
+    if (points.size() < 2) {
+        painter.setPen(text);
+        painter.drawText(rect(), Qt::AlignCenter, answered ? "Hourly forecast not available (offline or the NWS did not answer)"
+                                                            : "Hourly graph: waiting for the forecast...");
         return;
     }
 
-    // Find data ranges
-    double timeLo = dataPoints[0].time;
-    double timeHi = dataPoints[0].time;
-    double tempLo = dataPoints[0].temperature;
-    double tempHi = dataPoints[0].temperature;
-    double windLo = dataPoints[0].windSpeed;
-    double windHi = dataPoints[0].windSpeed;
-    double windDirLo = dataPoints[0].windDirection;
-    double windDirHi = dataPoints[0].windDirection;
-
-    for (const auto& point : dataPoints) {
-        timeLo = std::min(timeLo, point.time);
-        timeHi = std::max(timeHi, point.time);
-        tempLo = std::min(tempLo, point.temperature);
-        tempHi = std::max(tempHi, point.temperature);
-        windLo = std::min(windLo, point.windSpeed);
-        windHi = std::max(windHi, point.windSpeed);
-        windDirLo = std::min(windDirLo, point.windDirection);
-        windDirHi = std::max(windDirHi, point.windDirection);
+    const auto metrics = painter.fontMetrics();
+    const int lineHeight = metrics.height();
+    const int windRow = lineHeight * 2 + 6;   // arrows, then speeds
+    const QRect plot{metrics.horizontalAdvance("100") + 10, lineHeight * 3 / 2 + 6,
+                     width() - metrics.horizontalAdvance("100") * 2 - 22,
+                     height() - lineHeight * 7 / 2 - windRow - 10};
+    if (plot.width() < 50 || plot.height() < 40) {
+        return;
     }
 
-    // Add some padding to ranges
-    if (timeHi - timeLo < 1.0) {
-        timeLo -= 0.5;
-        timeHi += 0.5;
-    }
-    if (tempHi - tempLo < 2.0) {
-        tempLo -= 1.0;
-        tempHi += 1.0;
-    }
-    if (windHi - windLo < 5.0) {
-        windLo -= 2.5;
-        windHi += 2.5;
-    }
-    if (windDirHi - windDirLo < 10.0) {
-        windDirLo -= 5.0;
-        windDirHi += 5.0;
-    }
-
-    // Create plot area
-    QRect plot{60, 40, width() - 120, height() - 80};
-
-    // Draw grid and axes
-    painter.setPen(QColor{225, 225, 225});
-    painter.drawRect(plot);
-
-    painter.setPen(QColor{60, 60, 60});
-    painter.setFont(axisFont);
-
-    // Time axis (bottom)
-    int timeSteps = std::max(6, static_cast<int>(dataPoints.size()));
-    for (int i = 0; i <= timeSteps; ++i) {
-        double time = timeLo + (timeHi - timeLo) * i / timeSteps;
-        int x = plot.left() + plot.width() * (time - timeLo) / (timeHi - timeLo);
-        painter.drawLine(x, plot.bottom(), x, plot.bottom() + 5);
-        painter.drawText(x - 15, plot.bottom() + 15, QString::number(time, 'f', 0));
-    }
-
-    // Temperature axis (left)
-    int tempSteps = 5;
-    for (int i = 0; i <= tempSteps; ++i) {
-        double temp = tempLo + (tempHi - tempLo) * i / tempSteps;
-        int y = plot.bottom() - plot.height() * i / tempSteps;
-        painter.drawLine(plot.left() - 5, y, plot.left(), y);
-        painter.drawText(8, y + 4, QString::number(temp, 'f', 1));
-    }
-
-    // Wind speed axis (right)
-    int windSteps = 5;
-    for (int i = 0; i <= windSteps; ++i) {
-        double wind = windLo + (windHi - windLo) * i / windSteps;
-        int y = plot.bottom() - plot.height() * i / windSteps;
-        painter.drawLine(plot.right() + 2, y, plot.right() - 2, y);
-        painter.drawText(plot.right() - 8, y + 4, QString::number(wind, 'f', 1));
-    }
-
-    // Wind direction axis (top)
-    int dirSteps = 8;
-    for (int i = 0; i <= dirSteps; ++i) {
-        double dir = windDirLo + (windDirHi - windDirLo) * i / dirSteps;
-        int x = plot.left() + plot.width() * (dir - windDirLo) / (windDirHi - windDirLo);
-        painter.drawLine(x, plot.top() - 5, x, plot.top() + 5);
-        painter.drawText(x - 15, plot.top() - 10, QString::number(dir, 'f', 0));
-    }
-
-    // Draw temperature line (red)
-    painter.setPen(QPen{QColor{220, 50, 50}, 3.0});
-    QPointF prev;
-    bool havePrev = false;
-    for (const auto& point : dataPoints) {
-        int x = plot.left() + plot.width() * (point.time - timeLo) / (timeHi - timeLo);
-        int y = plot.bottom() - plot.height() * (point.temperature - tempLo) / (tempHi - tempLo);
-        if (havePrev) {
-            painter.drawLine(prev, QPointF(x, y));
+    // temperature axis covers both lines, padded and snapped to round numbers
+    double low = points.front().temperature;
+    double high = low;
+    for (const auto& point : points) {
+        low = std::min(low, point.temperature);
+        high = std::max(high, point.temperature);
+        if (point.dewpoint > -900.0) {
+            low = std::min(low, point.dewpoint);
+            high = std::max(high, point.dewpoint);
         }
-        prev = QPointF(x, y);
-        havePrev = true;
+    }
+    const auto step = niceStep(std::max(4.0, high - low), 4);
+    low = std::floor((low - 1.0) / step) * step;
+    high = std::ceil((high + 1.0) / step) * step;
+
+    const auto count = static_cast<int>(points.size());
+    auto xFor = [&] (int index) { return plot.left() + plot.width() * index / static_cast<double>(count - 1); };
+    auto yForTemperature = [&] (double value) { return plot.bottom() - plot.height() * (value - low) / (high - low); };
+    auto yForPercent = [&] (double value) { return plot.bottom() - plot.height() * value / 100.0; };
+
+    // key along the top
+    {
+        int x = 4;
+        const auto drawKey = [&] (const QString& label, const QColor& color) {
+            painter.setPen(color);
+            painter.drawText(x, lineHeight - 3, label);
+            x += metrics.horizontalAdvance(label) + 14;
+        };
+        drawKey("Temp F", temperatureColor);
+        drawKey("Dew point F", dewpointColor);
+        auto rainKey = rainColor;
+        rainKey.setAlpha(255);
+        drawKey("Precip chance %", rainKey);
+        painter.setPen(text);
+        drawKey("Wind mph", text);
     }
 
-    // Draw wind speed line (blue)
-    painter.setPen(QPen{QColor{50, 50, 220}, 2.0});
-    havePrev = false;
-    for (const auto& point : dataPoints) {
-        int x = plot.left() + plot.width() * (point.time - timeLo) / (timeHi - timeLo);
-        int y = plot.bottom() - plot.height() * (point.windSpeed - windLo) / (windHi - windLo);
-        if (havePrev) {
-            painter.drawLine(prev, QPointF(x, y));
+    // horizontal grid + temperature labels (left), percent labels (right)
+    for (double value = low; value <= high + 0.01; value += step) {
+        const auto y = yForTemperature(value);
+        painter.setPen(grid);
+        painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y));
+        painter.setPen(text);
+        painter.drawText(QRectF(0, y - lineHeight / 2.0, plot.left() - 6, lineHeight), Qt::AlignRight | Qt::AlignVCenter,
+                         QString::number(value, 'f', 0));
+    }
+    for (int percent = 0; percent <= 100; percent += 50) {
+        const auto y = yForPercent(percent);
+        painter.setPen(text);
+        painter.drawText(QRectF(plot.right() + 6, y - lineHeight / 2.0, 60, lineHeight), Qt::AlignLeft | Qt::AlignVCenter,
+                         QString::number(percent) + "%");
+    }
+
+    // precipitation chance bars
+    const auto barWidth = std::max(1.0, plot.width() / static_cast<double>(count) * 0.7);
+    for (int index = 0; index < count; index += 1) {
+        const auto chance = points[static_cast<size_t>(index)].precipitationChance;
+        if (chance > 0.0) {
+            const auto x = xFor(index);
+            painter.fillRect(QRectF(x - barWidth / 2.0, yForPercent(chance), barWidth, plot.bottom() - yForPercent(chance)), rainColor);
         }
-        prev = QPointF(x, y);
-        havePrev = true;
     }
 
-    // Draw legend
-    painter.setPen(QColor{40, 40, 40});
-    painter.setFont(labelFont);
-    painter.drawText(10, plot.bottom() + 25, QString::fromStdString("Location: " + locationName));
-    painter.drawText(10, plot.bottom() + 45, "Temperature: °F (red line)");
-    painter.drawText(10, plot.bottom() + 65, "Wind Speed: mph (blue line)");
-
-    // Add condition labels for some points
-    painter.setPen(QColor{80, 80, 80});
-    for (size_t i = 0; i < dataPoints.size(); i += 4) {
-        const auto& point = dataPoints[i];
-        int x = plot.left() + plot.width() * (point.time - timeLo) / (timeHi - timeLo);
-        int y = plot.top() - 20;
-        painter.drawText(x - 20, y, QString::fromStdString(point.condition));
+    // day boundaries and hour labels
+    const int labelEvery = plot.width() / count >= 14 ? 3 : 6;
+    for (int index = 0; index < count; index += 1) {
+        const auto& time = points[static_cast<size_t>(index)].time;
+        const auto x = xFor(index);
+        if (time.time().hour() == 0) {
+            painter.setPen(QPen{text, 1.0, Qt::DashLine});
+            painter.drawLine(QPointF(x, plot.top()), QPointF(x, plot.bottom()));
+            painter.setPen(text);
+            painter.drawText(QPointF(x + 3, plot.top() + lineHeight - 2), time.toString("ddd"));
+        }
+        if (time.time().hour() % labelEvery == 0) {
+            painter.setPen(text);
+            painter.drawText(QRectF(x - 20, plot.bottom() + 2, 40, lineHeight), Qt::AlignCenter, hourLabel(time));
+        }
     }
-}
 
-void WeatherGraph::resizeEvent(QResizeEvent * event) {
-    QWidget::resizeEvent(event);
-    update();
+    // temperature and dew point lines
+    const auto drawLine = [&] (const QColor& color, auto valueOf) {
+        QPainterPath path;
+        bool started = false;
+        for (int index = 0; index < count; index += 1) {
+            const auto value = valueOf(points[static_cast<size_t>(index)]);
+            if (value < -900.0) {
+                started = false;
+                continue;
+            }
+            const QPointF at{xFor(index), yForTemperature(value)};
+            if (started) {
+                path.lineTo(at);
+            } else {
+                path.moveTo(at);
+                started = true;
+            }
+        }
+        painter.setPen(QPen{color, 2.2});
+        painter.drawPath(path);
+    };
+    drawLine(dewpointColor, [] (const Point& point) { return point.dewpoint; });
+    drawLine(temperatureColor, [] (const Point& point) { return point.temperature; });
+
+    // the highest and lowest temperature, labelled
+    const auto [lowest, highest] = std::minmax_element(points.begin(), points.end(),
+        [] (const Point& a, const Point& b) { return a.temperature < b.temperature; });
+    painter.setPen(temperatureColor);
+    for (const auto it : {lowest, highest}) {
+        const auto index = static_cast<int>(it - points.begin());
+        const auto y = yForTemperature(it->temperature);
+        painter.drawText(QRectF(xFor(index) - 20, it == highest ? y - lineHeight - 2 : y + 2, 40, lineHeight),
+                         Qt::AlignCenter, QString::number(it->temperature, 'f', 0));
+    }
+
+    // wind row: an arrow pointing where the wind blows to, the speed under it
+    const auto arrowY = plot.bottom() + lineHeight + 4 + lineHeight / 2.0;
+    const auto speedY = arrowY + lineHeight / 2.0 + 2;
+    for (int index = 0; index < count; index += labelEvery) {
+        const auto& point = points[static_cast<size_t>(index)];
+        const auto x = xFor(index);
+        painter.setPen(text);
+        if (point.windDirection >= 0.0 && point.windSpeed > 0.0) {
+            painter.save();
+            painter.translate(x, arrowY);
+            painter.rotate(point.windDirection + 180.0);   // from-direction -> pointing downwind; 0 deg = up
+            const double size = lineHeight * 0.4;
+            painter.setPen(QPen{text, 1.4});
+            painter.drawLine(QPointF(0, size), QPointF(0, -size));
+            painter.drawLine(QPointF(0, -size), QPointF(-size * 0.5, -size * 0.4));
+            painter.drawLine(QPointF(0, -size), QPointF(size * 0.5, -size * 0.4));
+            painter.restore();
+        }
+        painter.drawText(QRectF(x - 20, speedY, 40, lineHeight), Qt::AlignCenter,
+                         point.windSpeed > 0.0 ? QString::number(point.windSpeed, 'f', 0) : "calm");
+    }
 }
