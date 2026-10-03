@@ -11,6 +11,7 @@
 #include "ui/HBox.h"
 #include "ui/Text.h"
 #include "ui/Button.h"
+#include "ui/Icon.h"
 #include "misc/UtilityHourly.h"
 
 class TestWeatherGraph : public Window {
@@ -25,9 +26,9 @@ public:
         // Create UI controls
         Text statusText(this);
         statusText.setText("Testing WeatherGraph functionality...");
-        Button loadButton(this, "Load Test Data");
+        Button loadButton(this, Icon::None, "Load Test Data");
 
-        // Add widgets using wxqt-grib's API
+        // Add widgets
         controlRow.addWidget(statusText, 1);
         controlRow.addWidget(loadButton, 0);
 
@@ -59,6 +60,5 @@ private:
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     TestWeatherGraph window;
-    window.show();
-    return app.exec();
+    window.show();\n    return app.exec();
 }
