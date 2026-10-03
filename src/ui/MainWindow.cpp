@@ -95,7 +95,7 @@ MainWindow::MainWindow(QWidget * parent)
     boxCc.addLayout(cardCurrentConditions);
     forecastLayout.addLayout(boxHazards);
     forecastLayout.addLayout(boxSevenDay);
-    boxHourlyGraph.addWidget(&hourlyGraph);   // Add hourly graph to the forecast layout
+    boxHourlyGraph.addWidget(hourlyGraph);   // Add hourly graph to the forecast layout
     forecastLayout.addLayout(boxHourlyGraph);
     forecastLayout.addStretch();
 

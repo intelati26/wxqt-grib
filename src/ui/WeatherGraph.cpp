@@ -37,7 +37,7 @@ void WeatherGraph::setData(const vector<string>& times, const vector<double>& te
 
     for (size_t i = 0; i < times.size(); ++i) {
         DataPoint point;
-        point.time = WString::toDouble(times[i]);
+        point.time = std::stod(times[i]);
         point.temperature = temperatures[i];
         point.windSpeed = windSpeeds[i];
         point.windDirection = windDirections[i];
@@ -70,14 +70,14 @@ void WeatherGraph::paintEvent(QPaintEvent *) {
     double windDirHi = dataPoints[0].windDirection;
 
     for (const auto& point : dataPoints) {
-        timeLo = min(timeLo, point.time);
-        timeHi = max(timeHi, point.time);
-        tempLo = min(tempLo, point.temperature);
-        tempHi = max(tempHi, point.temperature);
-        windLo = min(windLo, point.windSpeed);
-        windHi = max(windHi, point.windSpeed);
-        windDirLo = min(windDirLo, point.windDirection);
-        windDirHi = max(windDirHi, point.windDirection);
+        timeLo = std::min(timeLo, point.time);
+        timeHi = std::max(timeHi, point.time);
+        tempLo = std::min(tempLo, point.temperature);
+        tempHi = std::max(tempHi, point.temperature);
+        windLo = std::min(windLo, point.windSpeed);
+        windHi = std::max(windHi, point.windSpeed);
+        windDirLo = std::min(windDirLo, point.windDirection);
+        windDirHi = std::max(windDirHi, point.windDirection);
     }
 
     // Add some padding to ranges
@@ -109,7 +109,7 @@ void WeatherGraph::paintEvent(QPaintEvent *) {
     painter.setFont(axisFont);
 
     // Time axis (bottom)
-    int timeSteps = max(6, static_cast<int>(dataPoints.size()));
+    int timeSteps = std::max(6, static_cast<int>(dataPoints.size()));
     for (int i = 0; i <= timeSteps; ++i) {
         double time = timeLo + (timeHi - timeLo) * i / timeSteps;
         int x = plot.left() + plot.width() * (time - timeLo) / (timeHi - timeLo);
