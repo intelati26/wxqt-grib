@@ -11,7 +11,7 @@
 
 class WeatherGraphExample : public Window {
 public:
-    WeatherGraphExample() {
+    WeatherGraphExample() : Window(nullptr) {
         setTitle("Weather Graph Example");
         setSize(800, 600);
 

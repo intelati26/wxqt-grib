@@ -1,6 +1,8 @@
 // *****************************************************************************
 // * Demo: Creating a graph from UtilityHourly.cpp data
 // * This example shows how to visualize hourly weather data
+// * NOTE: This file is a standalone demo application and should not be part of the main wxqt build.
+// * To build as a standalone app, create a separate project for weather_graph_demo.
 // *****************************************************************************
 
 #include <QApplication>
@@ -22,7 +24,7 @@
 class WeatherGraphDemo : public Window {
     Q_OBJECT
 public:
-    WeatherGraphDemo() {
+    WeatherGraphDemo() : Window(nullptr) {
         setTitle("Weather Graph Demo - Hourly Forecast");
         setSize(1000, 700);
 
