@@ -15,16 +15,29 @@
 #include "util/Utility.h"
 
 namespace {
-    QString defaultStyleName;
-    bool defaultStyleCaptured{false};
+    bool platformCaptured{false};
+    bool platformDark{false};   // the palette the platform gave the application before any theme was applied (the fallback for the OS setting)
+    bool followingSystem{false};
 
-    void captureDefaultStyle() {
-        if (!defaultStyleCaptured) {
-            if (const auto style = QApplication::style()) {
-                defaultStyleName = style->name();
-            }
-            defaultStyleCaptured = true;
+    void capturePlatform() {
+        if (!platformCaptured) {
+            platformDark = QApplication::palette().color(QPalette::Window).lightness() < 128;
+            platformCaptured = true;
         }
+    }
+
+    // does the operating system ask for a dark look? The color scheme the OS reports (Qt 6.5+), else the platform's own palette
+    bool systemWantsDark() {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+        if (const auto hints = QGuiApplication::styleHints()) {
+            switch (hints->colorScheme()) {
+                case Qt::ColorScheme::Dark: return true;
+                case Qt::ColorScheme::Light: return false;
+                default: break;
+            }
+        }
+#endif
+        return platformDark;
     }
 
     QPalette darkPalette() {
@@ -91,7 +104,8 @@ void UtilityTheme::apply() {
 }
 
 void UtilityTheme::applyTheme(const string& theme) {
-    captureDefaultStyle();
+    capturePlatform();
+    followingSystem = theme != "dark" && theme != "light";
     if (theme == "dark") {
         QApplication::setStyle(QStyleFactory::create("Fusion"));
         QApplication::setPalette(darkPalette());
@@ -101,10 +115,23 @@ void UtilityTheme::applyTheme(const string& theme) {
         QApplication::setPalette(lightPalette());
         setColorScheme(ColorSchemeChoice::Light);
     } else {
-        const auto name = defaultStyleName.isEmpty() ? QStringLiteral("Fusion") : defaultStyleName;
-        QApplication::setStyle(QStyleFactory::create(name));
-        QApplication::setPalette(QApplication::style()->standardPalette());
+        // follow the system: the same Fusion look on every platform, light or dark as the operating system asks
         setColorScheme(ColorSchemeChoice::Unknown);
+        QApplication::setStyle(QStyleFactory::create("Fusion"));
+        QApplication::setPalette(systemWantsDark() ? darkPalette() : lightPalette());
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+        static bool connected{false};   // switch live when the operating system changes between light and dark
+        if (!connected) {
+            if (const auto hints = QGuiApplication::styleHints()) {
+                connected = true;
+                QObject::connect(hints, &QStyleHints::colorSchemeChanged, qApp, [] {
+                    if (followingSystem) {
+                        QApplication::setPalette(systemWantsDark() ? darkPalette() : lightPalette());
+                    }
+                });
+            }
+        }
+#endif
     }
 }
 
