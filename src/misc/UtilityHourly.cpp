@@ -81,10 +81,113 @@ string UtilityHourly::parse(const string& html) {
     return stringValue;
 }
 
-string UtilityHourly::shortenConditions(const string& s) {
-    auto hourly = s;
-    for (const auto& data : hourlyAbbreviations) {
-        hourly = WString::replace(hourly, data.first, data.second);
+bool UtilityHourly::getGraphData(int locationNumber, WeatherGraph* graphWidget) {
+    if (!graphWidget) {
+        return false;
     }
-    return hourly;
+
+    if (UIPreferences::useNwsApiForHourly) {
+        return getHourlyGraphData(locationNumber, graphWidget);
+    }
+    return getHourlyOldApiGraphData(locationNumber, graphWidget);
+}
+
+bool UtilityHourly::getHourlyGraphData(int locationNumber, WeatherGraph* graphWidget) {
+    const auto html = UtilityDownloadNws::getHourlyData(Location::getLatLon(locationNumber));
+    const auto startTimes = UtilityString::parseColumn(html, "\"startTime\": \"(.*?)\",");
+    const auto temperatures = UtilityString::parseColumn(html, "\"temperature\": (.*?),");
+    const auto windSpeeds = UtilityString::parseColumn(html, "\"windSpeed\": \"(.*?)\"");
+    const auto windDirections = UtilityString::parseColumn(html, "\"windDirection\": \"(.*?)\"");
+    const auto shortForecasts = UtilityString::parseColumn(html, "\"shortForecast\": \"(.*?)\"");
+    vector<string> times;
+    vector<double> temps;
+    vector<double> windSpeedsList;
+    vector<double> windDirs;
+    vector<string> conditions;
+
+    for (auto index : range(startTimes.size())) {
+        const auto time = ObjectDateTime::translateTimeForHourly(Utility::safeGet(startTimes, index));
+        times.push_back(time);
+
+        const auto tempStr = Utility::safeGet(temperatures, index);
+        double temp = 0.0;
+        if (!tempStr.empty()) {
+            try {
+                temp = std::stod(tempStr);
+            } catch (...) {
+                temp = 0.0;
+            }
+        }
+        temps.push_back(temp);
+
+        const auto windSpeedStr = Utility::safeGet(windSpeeds, index);
+        double windSpeed = 0.0;
+        if (!windSpeedStr.empty()) {
+            windSpeed = WString::toDouble(windSpeedStr);
+        }
+        windSpeedsList.push_back(windSpeed);
+
+        const auto windDirStr = Utility::safeGet(windDirections, index);
+        double windDir = 0.0;
+        if (!windDirStr.empty()) {
+            windDir = WString::toDouble(windDirStr);
+        }
+        windDirs.push_back(windDir);
+
+        const auto condition = shortenConditions(Utility::safeGet(shortForecasts, index));
+        conditions.push_back(condition);
+    }
+
+    graphWidget->setData(times, temps, windSpeedsList, windDirs, conditions, "Location " + std::to_string(locationNumber));
+    return true;
+}
+
+bool UtilityHourly::getHourlyOldApiGraphData(int locationNumber, WeatherGraph* graphWidget) {
+    const auto html = UtilityHourlyOldApi::getHourlyData(Location::getLatLon(locationNumber));
+    const auto startTimes = UtilityString::parseColumn(html, "\"startTime\": \"(.*?)\",");
+    const auto temperatures = UtilityString::parseColumn(html, "\"temperature\": (.*?),");
+    const auto windSpeeds = UtilityString::parseColumn(html, "\"windSpeed\": \"(.*?)\"");
+    const auto windDirections = UtilityString::parseColumn(html, "\"windDirection\": \"(.*?)\"");
+    const auto shortForecasts = UtilityString::parseColumn(html, "\"shortForecast\": \"(.*?)\"");
+    vector<string> times;
+    vector<double> temps;
+    vector<double> windSpeedsList;
+    vector<double> windDirs;
+    vector<string> conditions;
+
+    for (auto index : range(startTimes.size())) {
+        const auto time = ObjectDateTime::translateTimeForHourly(Utility::safeGet(startTimes, index));
+        times.push_back(time);
+
+        const auto tempStr = Utility::safeGet(temperatures, index);
+        double temp = 0.0;
+        if (!tempStr.empty()) {
+            try {
+                temp = std::stod(tempStr);
+            } catch (...) {
+                temp = 0.0;
+            }
+        }
+        temps.push_back(temp);
+
+        const auto windSpeedStr = Utility::safeGet(windSpeeds, index);
+        double windSpeed = 0.0;
+        if (!windSpeedStr.empty()) {
+            windSpeed = WString::toDouble(windSpeedStr);
+        }
+        windSpeedsList.push_back(windSpeed);
+
+        const auto windDirStr = Utility::safeGet(windDirections, index);
+        double windDir = 0.0;
+        if (!windDirStr.empty()) {
+            windDir = WString::toDouble(windDirStr);
+        }
+        windDirs.push_back(windDir);
+
+        const auto condition = shortenConditions(Utility::safeGet(shortForecasts, index));
+        conditions.push_back(condition);
+    }
+
+    graphWidget->setData(times, temps, windSpeedsList, windDirs, conditions, "Location " + std::to_string(locationNumber));
+    return true;
 }

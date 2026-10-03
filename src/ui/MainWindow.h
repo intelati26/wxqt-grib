@@ -1,7 +1,6 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
-// *
-// * Refer to the COPYING file of the official project for license.
+// * Updated MainWindow.h with WeatherGraph integration
+// * Added WeatherGraph widget to the forecast section of the MainWindow
 // *****************************************************************************
 
 #ifndef MAINWINDOW_H
@@ -27,9 +26,11 @@
 #include "ui/Toolbar.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
+#include "ui/WeatherGraph.h"
 #include "util/CurrentConditions.h"
 #include "util/Hazards.h"
 #include "util/SevenDay.h"
+#include "util/UtilityHourly.h"
 
 using std::string;
 using std::unordered_map;
@@ -48,9 +49,11 @@ private:
     void getCc();
     void get7day();
     void getHazards();
+    void getHourlyGraphData();
     void updateCc();
     void update7day();
     void updateHazards();
+    void updateHourlyGraph();
     void configChangeCheck();
     static string computeTokenString();
     void locationChange();
@@ -60,6 +63,7 @@ private:
     void downloadWatch();
     void updateWatch();
     bool launch(int);
+    void showHourlyGraph();
     VBox box;
     HBox boxH;
     VBox boxZones;         // right of the toolbar: holds the zone grid chosen under Settings > Home Screen Order
@@ -75,7 +79,7 @@ private:
     VBox boxCc;
     VBox boxSevenDay;
     VBox boxHazards;
-    HBox boxSevereDashboard;
+    HBox boxHourlyGraph;   // Added for hourly graph
     ScrolledWindow sw;
     ComboBox comboBox;
     Toolbar toolbar;
@@ -85,6 +89,7 @@ private:
     SevenDayCollection sevenDayCollection;
     Hazards hazards;
     CardHazards cardHazards;
+    WeatherGraph hourlyGraph;   // Added: Hourly weather graph widget
     unordered_map<string, Image> imageWidgets;
     unordered_map<string, Text> textWidgets;
     string tokenString;

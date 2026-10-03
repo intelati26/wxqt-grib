@@ -35,6 +35,7 @@ MainWindow::MainWindow(QWidget * parent)
     , cardCurrentConditions{this, currentConditions}
     , sevenDayCollection{this, &boxSevenDay, &sevenDay}
     , cardHazards{this, hazards}
+    , hourlyGraph{this}   // Initialize the hourly weather graph widget
     , timer{"DOWNLOAD_TIMER_MAIN_WINDOW"}
     , shortcutClose{{"Q"}, this}
     , shortcutVis{{"C"}, this}  // was QKeySequence("Ctrl+C")
@@ -94,17 +95,17 @@ MainWindow::MainWindow(QWidget * parent)
     boxCc.addLayout(cardCurrentConditions);
     forecastLayout.addLayout(boxHazards);
     forecastLayout.addLayout(boxSevenDay);
+    boxHourlyGraph.addWidget(&hourlyGraph);   // Add hourly graph to the forecast layout
+    forecastLayout.addLayout(boxHourlyGraph);
     forecastLayout.addStretch();
 
     addWidgets();   // also places the columns right of the toolbar, in the user's order
-
-    reload();
 
     sw.enableMiddleDrag();
     shortcutClose.connect([this] { close(); });
     shortcutVis.connect([this] { Route::vis(this); });
     shortcutWfoText.connect([this] { toolbar.launchWfoText(); });
-    shortcutHourly.connect([this] { toolbar.launchHourly(); });
+    shortcutHourly.connect([this] { showHourlyGraph(); });   // Show/hide hourly graph
     shortcutRadar.connect([this] { toolbar.launchNexrad(1); });
     shortcutRadarSinglePane.connect([this] { toolbar.launchNexrad(1); });
     shortcutRadarDualPane.connect([this] { toolbar.launchNexrad(2); });
@@ -122,8 +123,8 @@ MainWindow::MainWindow(QWidget * parent)
     shortcutReload.connect([this] { toolbar.autoUpdate.toggleAutoUpdate(); });
     shortcutKeyboard.connect([this] { new TextViewerStatic{this, GlobalVariables::mainScreenShortcuts, "Shortcuts", 700, 600}; });
     shortcutWpcText.connect([this] { toolbar.launchNationalText(); });
-    shortcutRtma.connect([this] { toolbar.launchRtma(); });
     shortcutRainfallOutlook.connect([this] { toolbar.launchRainfallOutlookSummary(); });
+    shortcutRtma.connect([this] { toolbar.launchRtma(); });
     shortcutUsAlerts.connect([this] { toolbar.launchUsAlerts(); });
 }
 
