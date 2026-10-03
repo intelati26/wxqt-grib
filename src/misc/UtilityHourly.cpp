@@ -151,7 +151,7 @@ bool UtilityHourly::getHourlyGraphData(int locationNumber, WeatherGraph* graphWi
 }
 
 bool UtilityHourly::getHourlyOldApiGraphData(int locationNumber, WeatherGraph* graphWidget) {
-    const auto html = UtilityHourlyOldApi::getHourlyData(Location::getLatLon(locationNumber));
+        const auto html = UtilityHourlyOldApi::getHourlyString(locationNumber);
     const auto startTimes = UtilityString::parseColumn(html, "\"startTime\": \"(.*?)\",");
     const auto temperatures = UtilityString::parseColumn(html, "\"temperature\": (.*?),");
     const auto windSpeeds = UtilityString::parseColumn(html, "\"windSpeed\": \"(.*?)\"");
