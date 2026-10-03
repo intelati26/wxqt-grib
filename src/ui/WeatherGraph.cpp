@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ui/WeatherGraph.h"
+#include "ui/Widget2.h"
 #include <algorithm>
 #include <cmath>
 #include <QPainter>
@@ -14,10 +15,14 @@
 #include <QResizeEvent>
 #include "objects/WString.h"
 
-WeatherGraph::WeatherGraph(Window * parent) : QWidget(parent) {
+WeatherGraph::WeatherGraph(QWidget * parent) : QWidget(parent) {
     setMinimumSize(600, 400);
     axisFont.setPixelSize(10);
     labelFont.setPixelSize(11);
+}
+
+QWidget * WeatherGraph::getView() {
+    return this;
 }
 
 void WeatherGraph::setData(const vector<string>& times, const vector<double>& temperatures,

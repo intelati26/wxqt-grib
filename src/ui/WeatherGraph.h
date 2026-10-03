@@ -15,8 +15,10 @@
 using std::string;
 using std::vector;
 
-class WeatherGraph : public QWidget {
-Q_OBJECT
+class WeatherGraph : public Widget2 {
+public:
+    QWidget * getView() override;
+    virtual ~WeatherGraph() override {};
 private:
     struct DataPoint {
         double time;           // hour value
@@ -32,7 +34,7 @@ private:
     QFont labelFont;
 
 public:
-    WeatherGraph(Window * parent = nullptr);
+    WeatherGraph(QWidget * parent = nullptr);
     void setData(const vector<string>& times, const vector<double>& temperatures,
                  const vector<double>& windSpeeds, const vector<double>& windDirections,
                  const vector<string>& conditions, const string& location);
