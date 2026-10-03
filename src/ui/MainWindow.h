@@ -30,7 +30,7 @@
 #include "util/CurrentConditions.h"
 #include "util/Hazards.h"
 #include "util/SevenDay.h"
-#include "util/UtilityHourly.h"
+#include "misc/UtilityHourly.h"
 
 using std::string;
 using std::unordered_map;
