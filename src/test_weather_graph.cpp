@@ -1,12 +1,15 @@
 // *****************************************************************************
-// * Test program to demonstrate WeatherGraph functionality
+// * Simple test program to demonstrate WeatherGraph functionality
+// * Uses wxqt-grib's existing UI components correctly
 // *****************************************************************************
 
+#include <QApplication>
 #include "ui/Window.h"
 #include "ui/WeatherGraph.h"
 #include "ui/VBox.h"
 #include "ui/HBox.h"
 #include "ui/Text.h"
+#include "ui/Button.h"
 #include "misc/UtilityHourly.h"
 
 class TestWeatherGraph : public Window {
@@ -15,31 +18,32 @@ public:
         setTitle("Weather Graph Test");
         setSize(800, 600);
 
-        // Create a graph widget
+        // Create a graph widget using wxqt-grib's constructor pattern
         graphWidget = new WeatherGraph(this);
 
-        // Create UI controls
-        HBox* controlRow = new HBox(this);
-        Text* statusText = new Text(this);
-        statusText->setText("Testing WeatherGraph functionality...");
-        ButtonToggle* loadButton = new ButtonToggle(this, "Load Test Data");
+        // Create UI controls using wxqt-grib's patterns
+        VBox mainBox(this);
+        mainBox.addWidgetReal(graphWidget, 1, Qt::AlignTop | Qt::AlignCenter);
 
-        VBox* mainBox = new VBox(this);
-        mainBox->addWidgetReal(graphWidget, 1, Qt::Alignment{});
-        mainBox->addWidgetReal(controlRow, 0, Qt::Alignment{});
+        HBox controlRow(this);
+        Text statusText(this);
+        statusText.setText("Testing WeatherGraph functionality...");
+        Button loadButton(this, "Load Test Data");
 
-        controlRow->addWidget(statusText, 1);
-        controlRow->addWidget(loadButton, 0);
+        // Add widgets using wxqt-grib's API
+        controlRow.addWidget(statusText, 1);
+        controlRow.addWidget(loadButton, 0);
 
-        mainBox->getAndShow(this);
+        // Arrange layout using wxqt-grib's pattern
+        mainBox.addWidgetReal(&controlRow, 0, Qt::AlignTop | Qt::AlignCenter);
+        mainBox.getAndShow(this);
 
         // Connect button to load test data
-        loadButton->connect([this] {
-            // Load test data - use a test location
+        loadButton.connect([this] {
             if (UtilityHourly::getGraphData(12345, graphWidget)) {
-                statusText->setText("Successfully loaded weather graph data!");
+                statusText.setText("Successfully loaded weather graph data!");
             } else {
-                statusText->setText("Failed to load weather graph data.");
+                statusText.setText("Failed to load weather graph data.");
             }
         });
     }
