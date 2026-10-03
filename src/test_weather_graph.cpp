@@ -18,14 +18,11 @@ public:
         setTitle("Weather Graph Test");
         setSize(800, 600);
 
-        // Create a graph widget using wxqt-grib's constructor pattern
+        // Create a graph widget
         graphWidget = new WeatherGraph(this);
 
         // Create UI controls using wxqt-grib's patterns
-        VBox mainBox(this);
-        mainBox.addWidgetReal(graphWidget, 1, Qt::AlignTop | Qt::AlignCenter);
-
-        HBox controlRow(this);
+        HBox controlRow;
         Text statusText(this);
         statusText.setText("Testing WeatherGraph functionality...");
         Button loadButton(this, "Load Test Data");
@@ -34,10 +31,15 @@ public:
         controlRow.addWidget(statusText, 1);
         controlRow.addWidget(loadButton, 0);
 
-        // Arrange layout using wxqt-grib's pattern
-        mainBox.addWidgetReal(&controlRow, 0, Qt::AlignTop | Qt::AlignCenter);
+        // Create main VBox and add components
+        VBox mainBox;
+        mainBox.addWidgetReal(graphWidget, 1);
+        mainBox.addLayout(controlRow, 0);
         mainBox.getAndShow(this);
 
+        // Store reference to statusText for lambda access
+        this->statusText = &statusText;
+        
         // Connect button to load test data
         loadButton.connect([this] {
             if (UtilityHourly::getGraphData(12345, graphWidget)) {
@@ -50,6 +52,7 @@ public:
 
 private:
     WeatherGraph* graphWidget;
+    Text* statusText;
 };
 
 int main(int argc, char *argv[]) {
