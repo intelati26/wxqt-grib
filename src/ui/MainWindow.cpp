@@ -166,7 +166,17 @@ void MainWindow::reload() {
                         const auto * entry = HomeThumbnails::find(token);
                         if (found != imageWidgets.end() && !bytes->isEmpty()) {
                             found->second.setToWidth(*bytes, UIPreferences::mainScreenImageSize, entry != nullptr && entry->white);
-                        }
+}
+
+}
+
+void MainWindow::showHourlyGraph() {
+    if (boxHourlyGraph.getView()->isHidden()) {
+        boxHourlyGraph.getView()->show();
+    } else {
+        boxHourlyGraph.getView()->hide();
+    }
+}
                     }};
             }
         }
