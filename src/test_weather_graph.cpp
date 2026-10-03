@@ -21,13 +21,13 @@ public:
         // Create a graph widget
         graphWidget = new WeatherGraph(this);
 
-        // Create UI controls using wxqt-grib's patterns
+        // Create UI controls
         HBox controlRow;
+        Button loadButton(this, "Load Test Data");
         Text statusText(this);
         statusText.setText("Testing WeatherGraph functionality...");
-        Button loadButton(this, "Load Test Data");
 
-        // Add widgets using wxqt-grib's API
+        // Add widgets
         controlRow.addWidget(statusText, 1);
         controlRow.addWidget(loadButton, 0);
 
@@ -37,22 +37,22 @@ public:
         mainBox.addLayout(controlRow, 0);
         mainBox.getAndShow(this);
 
-        // Store reference to statusText for lambda access
-        this->statusText = &statusText;
+        // Store pointer to statusText for lambda access
+        statusTextPtr = &statusText;
         
         // Connect button to load test data
         loadButton.connect([this] {
             if (UtilityHourly::getGraphData(12345, graphWidget)) {
-                statusText.setText("Successfully loaded weather graph data!");
+                statusTextPtr->setText("Successfully loaded weather graph data!");
             } else {
-                statusText.setText("Failed to load weather graph data.");
+                statusTextPtr->setText("Failed to load weather graph data.");
             }
         });
     }
 
 private:
     WeatherGraph* graphWidget;
-    Text* statusText;
+    Text* statusTextPtr;
 };
 
 int main(int argc, char *argv[]) {
