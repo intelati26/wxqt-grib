@@ -15,7 +15,7 @@
 using std::string;
 using std::vector;
 
-class WeatherGraph : public Widget2 {
+class WeatherGraph : public QWidget, public Widget2 {
 public:
     QWidget * getView() override;
     virtual ~WeatherGraph() override {};
