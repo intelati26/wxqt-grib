@@ -27,7 +27,7 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   **WPC GEFS**, **NCEP** and **ESRL** model viewers.
 
 ### Soundings  [Forecast and observations / Models]
-- A native sounding engine and viewer (SHARPpy algorithms ported to C++, BSD licence, see `docs/sharppy-notice.md`) for SPC's
+- A native sounding engine and viewer (SHARPpy algorithms ported to C++, BSD licence, see `licenses/sharppy-notice.md`) for SPC's
   observed soundings and for **model soundings** built from an RRFS column at a point (or an area mean).
 - Skew-T on SPC's axes with the usual annotations, SPC-style hodograph, wind-speed, storm-relative wind, theta-e, inferred
   temperature advection and STP / SHIP box-and-whisker panels, parcel / kinematic / composite index tables (STP, SCP, SHIP,
@@ -91,8 +91,8 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
 ### Data sources and credits
 NOAA / NWS (NHC, SPC, WPC, OPC, CPC, NESDIS OSPO and Coral Reef Watch, NCEP, NSSL, MRMS), CIRA / RAMMB (Colorado State),
 JTWC, JMA, AWS open data (RRFS mirror). SPC's REFS, CIRA's products and several NSSL models are **experimental**; this is not a
-warning service - see the disclaimer below. Sounding algorithms: SHARPpy (BSD), see `docs/sharppy-notice.md`.
-zstd (BSD / GPLv2) is vendored for the Zarr reader, see `docs/zstd-LICENSE.txt`.
+warning service - see the disclaimer below. Sounding algorithms: SHARPpy (BSD), see `licenses/sharppy-notice.md`.
+zstd (BSD / GPLv2) is vendored for the Zarr reader, see `licenses/zstd-LICENSE.txt`.
 
 Prerequisites:
 * Qt 5.12 or higher (Qt 6 is what the packages are built with)

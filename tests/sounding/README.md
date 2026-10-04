@@ -8,7 +8,7 @@ leaves its tolerance (see the table at the top of `sounding_test.cpp`; tolerance
 accuracy, not aspirations).
 
 The fixtures cover big/weak/zero CAPE, strong shear, high terrain, sea level and an effective inflow layer.
-Where SPC's output differs from SHARPpy's code the engine follows SPC (listed in `docs/sharppy-notice.md`);
+Where SPC's output differs from SHARPpy's code the engine follows SPC (listed in `licenses/sharppy-notice.md`);
 these fixtures are what keeps those rules from being "simplified" back.
 
 Run it (needs only a C++20 compiler):
