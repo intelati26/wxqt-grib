@@ -107,6 +107,8 @@ MainWindow::MainWindow(QWidget * parent)
 
     addWidgets();   // also places the columns right of the toolbar, in the user's order
 
+    reload();
+
     sw.enableMiddleDrag();
     shortcutClose.connect([this] { close(); });
     shortcutVis.connect([this] { Route::vis(this); });
@@ -172,10 +174,11 @@ void MainWindow::reload() {
                         const auto * entry = HomeThumbnails::find(token);
                         if (found != imageWidgets.end() && !bytes->isEmpty()) {
                             found->second.setToWidth(*bytes, UIPreferences::mainScreenImageSize, entry != nullptr && entry->white);
-}
-
-}
-
+                        }
+                    }};
+            }
+        }
+        if (UIPreferences::nexradMainScreen) {
             const auto pane = 0;
             nexradList[pane]->nexradState.setRadar(Location::radarSite());
             nexradList[pane]->nexradState.reset();
@@ -447,9 +450,5 @@ void MainWindow::launchImageScreen(const string& token) {
 }
 
 void MainWindow::showHourlyGraph() {
-    if (boxHourlyGraph.getView()->isVisible()) {
-        boxHourlyGraph.getView()->hide();
-    } else {
-        boxHourlyGraph.getView()->show();
-    }
+    hourlyGraph.setVisible(!hourlyGraph.isVisible());
 }
