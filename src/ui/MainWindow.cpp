@@ -8,6 +8,9 @@
 #include "ui/UiStandards.h"
 #include <QApplication>
 #include <QGridLayout>
+#include <algorithm>
+#include <QLabel>
+#include <QPalette>
 #include <QVBoxLayout>
 #include "common/GlobalVariables.h"
 #include "objects/FutureBytes.h"
@@ -309,7 +312,28 @@ void MainWindow::addWidgets() {
             if (item.getPrefToken() == token && item.isEnabled()) {
                 imageWidgets.insert({token, Image{this}});
                 imageWidgets.at(token).connect([this, token] { launchImageScreen(token); });
-                imageLayout.addWidget(imageWidgets.at(token));
+                // the picture over its short caption (when captions are on); the longer description is the tooltip either way
+                auto * holder = new QWidget{this};
+                auto * stack = new QVBoxLayout{holder};
+                stack->setContentsMargins(0, 0, 0, 0);
+                stack->setSpacing(2);
+                auto * picture = imageWidgets.at(token).getView();
+                const auto tip = QString::fromStdString(HomeThumbnails::tip(token));
+                picture->setToolTip(tip);
+                stack->addWidget(picture);
+                if (const auto caption = HomeThumbnails::caption(token); UIPreferences::homeCaptions && !caption.empty()) {
+                    auto * label = new QLabel{QString::fromStdString(caption), holder};
+                    label->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+                    label->setWordWrap(true);
+                    auto smaller = label->font();
+                    smaller.setPointSizeF(std::max(6.0, smaller.pointSizeF() - 2.0));
+                    label->setFont(smaller);
+                    label->setForegroundRole(QPalette::PlaceholderText);
+                    label->setToolTip(tip);
+                    label->setMaximumWidth(UIPreferences::mainScreenImageSize);
+                    stack->addWidget(label);
+                }
+                imageLayout.addWidgetReal(holder);
             }
         }
     }
@@ -382,7 +406,7 @@ void MainWindow::arrangeColumns() {
 
 string MainWindow::computeTokenString() {
     string tokenString;
-    tokenString += HomeLayout::signature() + ",";
+    tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",");
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
         if (token == UIPreferences::homeScreenNexradToken) {
             if (UIPreferences::nexradMainScreen) {

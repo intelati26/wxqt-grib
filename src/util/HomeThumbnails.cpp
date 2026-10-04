@@ -5,6 +5,7 @@
 
 #include "util/HomeThumbnails.h"
 #include <algorithm>
+#include <map>
 #include <QFile>
 #include "common/GlobalVariables.h"
 #include "misc/UtilityOpcImages.h"
@@ -62,6 +63,54 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"GRIB_LATEST", "RRFS GRIB - your last field and region, latest run", "grib.png", true, false},
     };
     return entries;
+}
+
+namespace {
+    struct Words {
+        string caption;
+        string tip;
+    };
+    const std::map<string, Words>& words() {
+        static const std::map<string, Words> table{
+        {"RADAR_MOSAIC", {"Radar mosaic", "National Weather Service radar mosaic: reflectivity from the radars of one region, joined into one picture."}},
+        {"VISIBLE_SATELLITE", {"Satellite", "GOES satellite picture of your area (the product and sector last used in the satellite viewer)."}},
+        {"USWARN", {"Warnings", "Map of active NWS warnings across the United States."}},
+        {"ANALYSIS_RADAR_AND_WARNINGS", {"Analysis", "WPC national analysis chart: radar, fronts and warnings together."}},
+        {"RTMA_TEMP", {"Temperature now", "Real-Time Mesoscale Analysis: the current temperature analysis on a 2.5 km grid."}},
+        {"SPC_MESO_MSLP", {"Mesoanalysis: sea level pressure", "SPC mesoscale analysis of mean sea level pressure, updated hourly."}},
+        {"SPC_MESO_500MB", {"Mesoanalysis: 500 mb", "SPC mesoscale analysis of the 500 mb (mid-level) height and wind pattern, updated hourly."}},
+        {"SPC_SOUNDING", {"Sounding", "Skew-T sounding from the SPC site nearest your location."}},
+        {"SPC_DAY1", {"Severe outlook: day 1", "SPC categorical convective outlook for today."}},
+        {"SPC_DAY2", {"Severe outlook: day 2", "SPC categorical convective outlook for tomorrow."}},
+        {"SPC_DAY3", {"Severe outlook: day 3", "SPC convective outlook for day 3."}},
+        {"SPC_DAY48", {"Severe outlook: days 4-8", "SPC probabilistic severe weather outlook for days 4 to 8."}},
+        {"SPC_STORM_REPORTS", {"Storm reports today", "Preliminary tornado, hail and wind reports received by SPC today."}},
+        {"SPC_FIRE_DAY1", {"Fire weather: day 1", "SPC fire weather outlook for today."}},
+        {"SPC_COMPMAP", {"Compmap", "SPC mesoanalysis composite map: surface, upper air and radar features together."}},
+        {"WPC_RAINFALL_DAY1", {"Rainfall outlook: day 1", "WPC excessive rainfall outlook for the next 24 hours."}},
+        {"OPC_SURFACE", {"Ocean surface analysis", "Ocean Prediction Center surface analysis for the open waters."}},
+        {"GOES_GLOBAL", {"Global satellite", "Full-disk satellite view (GOES, Himawari or Meteosat, as last chosen)."}},
+        {"LIGHTNING", {"Lightning", "GOES Geostationary Lightning Mapper: recent lightning over the United States."}},
+        {"NHC_ATLANTIC", {"Atlantic outlook", "National Hurricane Center two-day tropical weather outlook for the Atlantic."}},
+        {"TROPICAL_ATL_SAT", {"Tropical Atlantic", "GOES-19 tropical Atlantic view: true colour by day, infrared at night."}},
+        {"TROPICAL_EPAC_SAT", {"Eastern Pacific", "GOES-19 eastern Pacific view: true colour by day, infrared at night."}},
+        {"TROPICAL_WPAC_SAT", {"Western Pacific", "Himawari infrared (colour-enhanced) view of the western Pacific from the Guam sector."}},
+        {"MRMS_RADAR", {"MRMS radar", "Multi-Radar Multi-Sensor composite reflectivity around your location."}},
+        {"MRMS_LATEST", {"MRMS product", "Latest scan of the MRMS product you looked at last, around your location."}},
+        {"GRIB_LATEST", {"Model field", "Your last model field and region from the newest RRFS run."}},
+        };
+        return table;
+    }
+}
+
+string HomeThumbnails::caption(const string& token) {
+    const auto found = words().find(token);
+    return found == words().end() ? string{} : found->second.caption;
+}
+
+string HomeThumbnails::tip(const string& token) {
+    const auto found = words().find(token);
+    return found == words().end() ? string{} : found->second.tip;
 }
 
 const HomeThumbnails::Entry * HomeThumbnails::find(const string& token) {

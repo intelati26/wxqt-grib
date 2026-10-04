@@ -51,6 +51,7 @@ public:
     static const bool useNwsApiForHourly;
     static bool nexradMainScreen;
     static bool mainScreenSevereDashboard;
+    static bool homeCaptions;   // a short caption under each home screen picture
     static bool nexradScrollWheelMotion;
     static bool rememberGOES;
     static bool rememberMosaic;

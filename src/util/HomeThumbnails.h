@@ -28,6 +28,9 @@ namespace HomeThumbnails {
 
     const vector<Entry>& all();
     const Entry * find(const string& token);
+    // the short title shown under the thumbnail, and the longer sentence in its tooltip ("" when the token has none)
+    string caption(const string& token);
+    string tip(const string& token);
     // blocking: the latest picture as image bytes (a download, or a render for the GRIB entries); empty on failure.
     // Use off the UI thread.
     QByteArray fetch(const string& token);

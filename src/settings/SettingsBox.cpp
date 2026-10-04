@@ -33,6 +33,7 @@ SettingsBox::SettingsBox(Window * parent)
     // configs.push_back(std::make_unique<Switch>(parent, "Use new NWS API - Hourly", "USE_NWS_API_HOURLY", true));
 
     configs.push_back(std::make_unique<Switch>(parent, "Show mini SevereDashboard on main screen", "MAINSCREEN_SEVERE_DASH", false));
+    configs.push_back(std::make_unique<Switch>(parent, "Captions under the home screen pictures", "HOME_CAPTIONS", true));
     configs.push_back(std::make_unique<Switch>(parent, "Toggle scroll wheel motion", "NEXRAD_SCROLLWHEEL", false));
     configs.push_back(std::make_unique<Switch>(parent, "Remember last GOES image", "REMEMBER_GOES", false));
     configs.push_back(std::make_unique<Switch>(parent, "Remember last Radar Mosaic image", "REMEMBER_MOSAIC", false));

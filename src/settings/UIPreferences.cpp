@@ -27,6 +27,7 @@ const bool UIPreferences::useNwsApi{true};
 const bool UIPreferences::useNwsApiForHourly{true};
 bool UIPreferences::nexradMainScreen;
 bool UIPreferences::mainScreenSevereDashboard;
+bool UIPreferences::homeCaptions{true};
 bool UIPreferences::nexradScrollWheelMotion;
 bool UIPreferences::rememberGOES;
 bool UIPreferences::rememberMosaic;
@@ -134,6 +135,7 @@ void UIPreferences::initialize() {
     // useNwsApiForHourly = WString::startsWith(Utility::readPref("USE_NWS_API_HOURLY", "true"), "t");
     nexradMainScreen = WString::startsWith(Utility::readPref("NEXRAD_ON_MAIN_SCREEN", "false"), "t");
     mainScreenSevereDashboard = WString::startsWith(Utility::readPref("MAINSCREEN_SEVERE_DASH", "false"), "t");
+    homeCaptions = WString::startsWith(Utility::readPref("HOME_CAPTIONS", "true"), "t");
     nexradScrollWheelMotion = WString::startsWith(Utility::readPref("NEXRAD_SCROLLWHEEL", "false"), "t");
     rememberGOES = WString::startsWith(Utility::readPref("REMEMBER_GOES", "false"), "t");
     rememberMosaic = WString::startsWith(Utility::readPref("REMEMBER_MOSAIC", "false"), "t");
