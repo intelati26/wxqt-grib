@@ -48,7 +48,6 @@ private:
     Text textRapid;
     std::deque<Button> buttons;
     std::deque<Image> images;
-    std::deque<Text> captions;
     bool closed{false};
 };
 

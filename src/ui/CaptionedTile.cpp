@@ -8,7 +8,7 @@
 #include <QPalette>
 #include <QVBoxLayout>
 
-QWidget * CaptionedTile::make(QWidget * parent, QWidget * picture, const QString& caption, const QString& tip, int captionWidth) {
+QWidget * CaptionedTile::make(QWidget * parent, QWidget * picture, const QString& caption, const QString& tip, int captionWidth, bool wrap, int fixedWidth) {
     auto * tile = new QWidget{parent};
     auto * stack = new QVBoxLayout{tile};
     stack->setContentsMargins(0, 0, 0, 0);
@@ -20,10 +20,21 @@ QWidget * CaptionedTile::make(QWidget * parent, QWidget * picture, const QString
     if (!caption.isEmpty()) {
         auto * label = new QLabel{caption, tile};
         label->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+        if (wrap) {
+            label->setWordWrap(true);
+            label->setMinimumHeight(label->heightForWidth(captionWidth));
+        }
         label->setForegroundRole(QPalette::PlaceholderText);
         label->setToolTip(tip);
         label->setMaximumWidth(captionWidth);
-        stack->addWidget(label, 0, Qt::AlignHCenter);
+        if (wrap) {
+            stack->addWidget(label);   // the whole width of the tile, so the lines break where the reserved height expects
+        } else {
+            stack->addWidget(label, 0, Qt::AlignHCenter);
+        }
+    }
+    if (fixedWidth > 0) {
+        tile->setFixedWidth(fixedWidth);
     }
     return tile;
 }

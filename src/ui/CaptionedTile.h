@@ -15,7 +15,9 @@ class QWidget;
 // of one row line up even when the pictures are different heights. An empty caption leaves the picture centred, alone. The tooltip goes
 // on both. The returned widget owns the picture from here on.
 namespace CaptionedTile {
-    QWidget * make(QWidget * parent, QWidget * picture, const QString& caption, const QString& tip, int captionWidth);
+    // captionWidth: the widest the caption may be. wrap: break a long caption into lines (its height is reserved, since a flow row
+    // measures its tiles without regard to their width). fixedWidth: give the tile that width (0 = as wide as its picture)
+    QWidget * make(QWidget * parent, QWidget * picture, const QString& caption, const QString& tip, int captionWidth, bool wrap = false, int fixedWidth = 0);
 }
 
 #endif  // CAPTIONEDTILE_H

@@ -12,6 +12,7 @@
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "tropical/CiraStorm.h"
+#include "ui/CaptionedTile.h"
 
 TropicalViewer::TropicalViewer(Window * parent)
     : Window{parent}
@@ -74,8 +75,6 @@ void TropicalViewer::build(const vector<UtilityCira::Storm>& storms, const vecto
     headings.clear();
     flows.clear();
     images.clear();
-    captions.clear();
-    tileBoxes.clear();
     if (storms.empty()) {
         textNote.setText(string{"No active tropical cyclones anywhere right now (CIRA / RAMMB)."});
         return;
@@ -91,19 +90,14 @@ void TropicalViewer::build(const vector<UtilityCira::Storm>& storms, const vecto
             headings.back().setBlue();
             boxStorms.addWidget(headings.back());
             flows.emplace_back();
+            flows.back().setEqualRowHeights(true);
             boxStorms.addLayout(flows.back());
         }
         // a tile: the infrared picture over the storm's title
-        auto * tile = new QWidget{this};
-        tileBoxes.emplace_back();
         images.emplace_back(this);
         images.back().imageSize = UiStandards::tileImage;
-        captions.emplace_back(this, storm.title);
-        captions.back().setWordWrap(true);
-        tileBoxes.back().addWidget(images.back());
-        tileBoxes.back().addWidget(captions.back());
-        tile->setLayout(tileBoxes.back().getView());
-        flows.back().addWidgetReal(tile);
+        flows.back().addWidgetReal(CaptionedTile::make(this, images.back().getView(), QString::fromStdString(storm.title), QString::fromStdString(storm.title),
+                                                       UiStandards::tileImage, true, UiStandards::tileWidth));
         const auto id = storm.id;
         const auto title = storm.title;
         images.back().connect([this, id, title] { new CiraStorm{this, id, title}; });
