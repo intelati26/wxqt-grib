@@ -30,11 +30,13 @@ public:
     void setGeometry(const QRect&) override;
     QSize sizeHint() const override;
     QSize minimumSize() const override;
+    void setEqualRowHeights(bool on) { equalHeights = on; }   // every item as tall as its row (else each is centred on the row)
 
 private:
     int doLayout(const QRect&, bool onlyMeasure) const;
     QList<QLayoutItem *> items;
     int gap;
+    bool equalHeights{false};
 };
 
 // the Box wrapper, so a flow can stand wherever a VBox / HBox does
@@ -45,6 +47,7 @@ public:
     void addWidgetReal(QWidget *);
     void addStretch() {}   // a flow has no free space to absorb
     void removeChildren();
+    void setEqualRowHeights(bool on) { flow->setEqualRowHeights(on); }
     void detachAll();   // takes every item out without deleting the widgets, so they can be re-added in another order
     QLayout * getView() override;
 

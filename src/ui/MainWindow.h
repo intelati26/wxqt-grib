@@ -80,7 +80,7 @@ private:
     VBox boxSevenDay;
     VBox boxHazards;
     HBox boxHourlyGraph;   // Added for hourly graph
-    FlowBox boxSevereDashboard;
+    FlowBox boxSevereDashboard;   // the mini severe dashboard: warnings, storm reports, watches, discussions
     ScrolledWindow sw;
     ComboBox comboBox;
     Toolbar toolbar;
@@ -96,6 +96,7 @@ private:
     string tokenString;
     int imageSize{UIPreferences::mainScreenImageSize};
     vector<string> urls;
+    vector<string> captionsList;   // a caption for each of urls
     vector<Image> images;
     unordered_map<PolygonType, SevereNotice> watchesByType;
     vector<QByteArray> bytesList;

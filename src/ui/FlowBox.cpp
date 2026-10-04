@@ -85,7 +85,11 @@ int FlowLayout::doLayout(const QRect& rect, bool onlyMeasure) const {
     const auto flushRow = [&] {
         if (!onlyMeasure) {
             for (const auto& placed : row) {
-                placed.item->setGeometry(QRect{QPoint{placed.x, y + (rowHeight - placed.size.height()) / 2}, placed.size});
+                if (equalHeights) {
+                    placed.item->setGeometry(QRect{QPoint{placed.x, y}, QSize{placed.size.width(), rowHeight}});
+                } else {
+                    placed.item->setGeometry(QRect{QPoint{placed.x, y + (rowHeight - placed.size.height()) / 2}, placed.size});
+                }
             }
         }
         row.clear();

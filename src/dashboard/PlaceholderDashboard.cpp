@@ -31,6 +31,7 @@ PlaceholderDashboard::PlaceholderDashboard(Window * parent, const string& title,
         rowLinks.addStretch();
         box.addLayout(rowLinks);
     }
+    flow.setEqualRowHeights(true);   // the dashed borders of a row line up
     box.addLayout(flow);
     box.addStretch();
     for (const auto& panel : panels) {

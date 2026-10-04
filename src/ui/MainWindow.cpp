@@ -18,6 +18,7 @@
 #include "objects/FutureVoid.h"
 #include "objects/PolygonWatch.h"
 #include "settings/HomeLayout.h"
+#include "ui/CaptionedTile.h"
 #include "util/HomeThumbnails.h"
 #include <memory>
 #include "objects/Route.h"
@@ -86,6 +87,7 @@ MainWindow::MainWindow(QWidget * parent)
 
     // each large section lives in a holder widget so arrangeColumns can put it in any zone
     severeHolder = new QWidget{this};
+    boxSevereDashboard.setEqualRowHeights(true);
     severeHolder->setLayout(boxSevereDashboard.getView());
     imagesHolder = new QWidget{this};
     imagesHolder->setLayout(imageLayout.getView());
@@ -195,12 +197,18 @@ void MainWindow::reload() {
 void MainWindow::downloadWatch() {
     bytesList.clear();
     urls.clear();
+    captionsList.clear();
     urls.push_back(DownloadImage::byProduct("USWARN"));
+    captionsList.push_back("Warnings");
     urls.push_back(DownloadImage::byProduct("STRPT"));
+    captionsList.push_back("Storm reports");
     for (auto type : {Watch, Mcd, Mpd}) {
         PolygonWatch::byType[type]->download();
         watchesByType.at(type).getBitmaps();
         addAll(urls, watchesByType.at(type).urls);
+        for ([[maybe_unused]] const auto& url : watchesByType.at(type).urls) {
+            captionsList.push_back(type == Watch ? "Watch" : type == Mcd ? "Meso discussion" : "Precip discussion");
+        }
     }
     for (auto index : range(urls.size())) {
         bytesList.push_back(UtilityIO::downloadAsByteArray(urls[index]));
@@ -215,7 +223,8 @@ void MainWindow::updateWatch() {
         images.back().imageSize = UiStandards::thumbnailImage;
         images.back().setBytes(bytesList[index]);
         images.back().connect([this, index] { launch(index); });
-        boxSevereDashboard.addWidget(images.back());
+        const auto caption = UIPreferences::homeCaptions && index < captionsList.size() ? QString::fromStdString(captionsList[index]) : QString{};
+        boxSevereDashboard.addWidgetReal(CaptionedTile::make(this, images.back().getView(), caption, caption, UiStandards::thumbnailImage));
     }
 }
 
@@ -272,6 +281,7 @@ void MainWindow::getHazards() {
 
 void MainWindow::addWidgets() {
     imageLayout.removeChildren();
+    imageLayout.setEqualRowHeights(true);   // the captions of a row line up along its bottom
     rightMostLayout.removeChildren();
     imageWidgets.clear();
     textWidgets.clear();
@@ -304,7 +314,9 @@ void MainWindow::addWidgets() {
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
         if (token == UIPreferences::homeScreenNexradToken) {
             if (!nexradList.empty()) {
-                imageLayout.addWidgetReal(nexradList[0]);
+                const auto caption = UIPreferences::homeCaptions ? QString::fromStdString("Radar - " + Location::radarSite()) : QString{};
+                imageLayout.addWidgetReal(CaptionedTile::make(this, nexradList[0], caption,
+                                                              "Live NEXRAD radar for the site nearest your location. Click to open the radar.", UIPreferences::mainScreenImageSize));
             }
             continue;
         }
@@ -313,27 +325,9 @@ void MainWindow::addWidgets() {
                 imageWidgets.insert({token, Image{this}});
                 imageWidgets.at(token).connect([this, token] { launchImageScreen(token); });
                 // the picture over its short caption (when captions are on); the longer description is the tooltip either way
-                auto * holder = new QWidget{this};
-                auto * stack = new QVBoxLayout{holder};
-                stack->setContentsMargins(0, 0, 0, 0);
-                stack->setSpacing(2);
-                auto * picture = imageWidgets.at(token).getView();
-                const auto tip = QString::fromStdString(HomeThumbnails::tip(token));
-                picture->setToolTip(tip);
-                stack->addWidget(picture);
-                if (const auto caption = HomeThumbnails::caption(token); UIPreferences::homeCaptions && !caption.empty()) {
-                    auto * label = new QLabel{QString::fromStdString(caption), holder};
-                    label->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
-                    label->setWordWrap(true);
-                    auto smaller = label->font();
-                    smaller.setPointSizeF(std::max(6.0, smaller.pointSizeF() - 2.0));
-                    label->setFont(smaller);
-                    label->setForegroundRole(QPalette::PlaceholderText);
-                    label->setToolTip(tip);
-                    label->setMaximumWidth(UIPreferences::mainScreenImageSize);
-                    stack->addWidget(label);
-                }
-                imageLayout.addWidgetReal(holder);
+                const auto caption = UIPreferences::homeCaptions ? QString::fromStdString(HomeThumbnails::caption(token)) : QString{};
+                imageLayout.addWidgetReal(CaptionedTile::make(this, imageWidgets.at(token).getView(), caption,
+                                                              QString::fromStdString(HomeThumbnails::tip(token)), UIPreferences::mainScreenImageSize));
             }
         }
     }
