@@ -23,7 +23,6 @@ SettingsBox::SettingsBox(Window * parent)
     , contactEmailEntry{parent}
 {
     boxMain.setSpacing(10);
-    boxMain.addLayout(boxLeft);
     boxMain.addLayout(boxCenter);
     boxMain.addLayout(boxRight);
     setLayout(boxMain.getView());
@@ -49,7 +48,7 @@ SettingsBox::SettingsBox(Window * parent)
 
     homeScreenLabel.setBlue();
     homeScreenLabel.setWordWrap(false);
-    boxLeft.addWidget(homeScreenLabel);
+    boxCenter.addWidget(homeScreenLabel);   // a pointer to where the home screen pictures are chosen
 
     generalLabel.setBlue();
     boxCenter.addWidget(generalLabel);
