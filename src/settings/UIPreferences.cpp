@@ -110,6 +110,23 @@ void HomeScreenOrder::load() {
     }
 }
 
+void HomeScreenOrder::set(const vector<string>& order) {
+    vector<string> next;
+    for (const auto& token : order) {
+        const auto known = std::find(defaults.begin(), defaults.end(), token) != defaults.end();
+        if (known && std::find(next.begin(), next.end(), token) == next.end()) {
+            next.push_back(token);
+        }
+    }
+    for (const auto& token : tokens) {
+        if (std::find(next.begin(), next.end(), token) == next.end()) {
+            next.push_back(token);
+        }
+    }
+    tokens = next;
+    Utility::writePref(prefToken, WString::join(tokens, ","));
+}
+
 void HomeScreenOrder::move(int from, int to) {
     const auto count = static_cast<int>(tokens.size());
     if (count < 2 || from < 0 || from >= count) {

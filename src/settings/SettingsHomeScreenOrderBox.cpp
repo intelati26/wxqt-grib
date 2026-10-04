@@ -4,7 +4,10 @@
 // *****************************************************************************
 
 #include "settings/SettingsHomeScreenOrderBox.h"
+#include <QAbstractItemView>
+#include <QListWidget>
 #include <QTimer>
+#include <algorithm>
 #include "settings/HomeLayoutEditor.h"
 #include "util/Utility.h"
 #include "util/UtilityList.h"
@@ -23,7 +26,6 @@ void SettingsHomeScreenOrderBox::refresh() {
 }
 
 void SettingsHomeScreenOrderBox::addItems() {
-    buttons.clear();
     labels.clear();
     hboxList.clear();
     combos.clear();
@@ -52,8 +54,8 @@ void SettingsHomeScreenOrderBox::addItems() {
     labels.back().setWordWrap(false);
     box.addWidget(labels.back());
     box.addWidgetReal(new HomeLayoutEditor{this, [] {}});
-    addSection("Image column (top to bottom):", "Show or hide these under General (Nexrad: \"Show Nexrad on main screen\").", UIPreferences::homeScreenImageOrder);
-    addSection("Text column (top to bottom):", "", UIPreferences::homeScreenTextOrder);
+    addDragList("Image column (top to bottom):", "Drag to reorder, tick to show. The radar is chosen with the control above.", UIPreferences::homeScreenImageOrder);
+    addDragList("Text column (top to bottom):", "Drag to reorder, tick to show.", UIPreferences::homeScreenTextOrder);
     // the MRMS home thumbnail: the area around the current location, or all of the lower 48
     hboxList.emplace_back();
     labels.emplace_back(parent, "MRMS thumbnail area:");
@@ -70,7 +72,8 @@ void SettingsHomeScreenOrderBox::addItems() {
     box.addStretch();
 }
 
-void SettingsHomeScreenOrderBox::addSection(const string& title, const string& note, HomeScreenOrder& order) {
+// one column of the home screen as a list: drag a row to move it, tick it to show it
+void SettingsHomeScreenOrderBox::addDragList(const string& title, const string& note, HomeScreenOrder& order) {
     labels.emplace_back(parent, title);
     labels.back().setBlue();
     labels.back().setWordWrap(false);
@@ -80,29 +83,48 @@ void SettingsHomeScreenOrderBox::addSection(const string& title, const string& n
         labels.back().setWordWrap(false);
         box.addWidget(labels.back());
     }
-    const auto& tokens = order.getTokens();
-    for (auto index : range(tokens.size())) {
-        const auto position = static_cast<int>(index);
-        hboxList.emplace_back();
-
-        buttons.emplace_back(parent, Down, "Move down");
-        buttons.back().connect([this, &order, position] { order.move(position, position + 1); refresh(); });
-        hboxList.back().addWidget(buttons.back());
-
-        buttons.emplace_back(parent, Up, "Move up");
-        buttons.back().connect([this, &order, position] { order.move(position, position - 1); refresh(); });
-        hboxList.back().addWidget(buttons.back());
-
-        auto label = UIPreferences::homeScreenLabel(tokens[index]);
-        if (!isShown(tokens[index])) {
-            label += "  (hidden)";
+    auto * list = new QListWidget{this};
+    list->setDragDropMode(QAbstractItemView::InternalMove);
+    list->setDefaultDropAction(Qt::MoveAction);
+    list->setSelectionMode(QAbstractItemView::SingleSelection);
+    list->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    list->setAlternatingRowColors(true);
+    list->setToolTip("Drag a row to move it; tick it to show it on the home screen");
+    for (const auto& token : order.getTokens()) {
+        auto * item = new QListWidgetItem{QString::fromStdString(UIPreferences::homeScreenLabel(token)), list};
+        item->setData(Qt::UserRole, QString::fromStdString(token));
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled);
+        if (token != UIPreferences::homeScreenNexradToken) {
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+            item->setCheckState(isShown(token) ? Qt::Checked : Qt::Unchecked);
+        } else {
+            item->setText(item->text() + "   (chosen above)");   // the radar has its own control
         }
-        labels.emplace_back(parent, label);
-        labels.back().setWordWrap(false);
-        hboxList.back().addWidget(labels.back());
-
-        box.addLayout(hboxList.back());
     }
+    const int rows = list->count();
+    list->setFixedHeight(rows * std::max(24, list->sizeHintForRow(0)) + 10);
+    const auto sync = [list, &order] {
+        vector<string> next;
+        for (int row = 0; row < list->count(); row += 1) {
+            next.push_back(list->item(row)->data(Qt::UserRole).toString().toStdString());
+        }
+        order.set(next);
+    };
+    // a drop moves the row (or removes and inserts it): read the new order once the move is finished
+    QObject::connect(list->model(), &QAbstractItemModel::rowsMoved, list, [sync] { QTimer::singleShot(0, sync); });
+    QObject::connect(list->model(), &QAbstractItemModel::rowsInserted, list, [sync] { QTimer::singleShot(0, sync); });
+    QObject::connect(list, &QListWidget::itemChanged, list, [] (QListWidgetItem * item) {
+        if ((item->flags() & Qt::ItemIsUserCheckable) == 0) {
+            return;
+        }
+        const auto token = item->data(Qt::UserRole).toString().toStdString();
+        const bool shown = item->checkState() == Qt::Checked;
+        if (isShown(token) != shown) {   // not the move itself
+            Utility::writePref(token, shown ? "true" : "false");
+            UIPreferences::initialize();
+        }
+    });
+    box.addWidgetReal(list);
 }
 
 bool SettingsHomeScreenOrderBox::isShown(const string& token) {

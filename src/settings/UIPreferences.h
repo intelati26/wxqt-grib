@@ -25,6 +25,8 @@ public:
     void load();
     // swaps with the neighbour, wrapping at each end (like Toolbar Order)
     void move(int from, int to);
+    // takes a whole new order (from dragging in Settings): unknown tokens are ignored, any missing ones keep their place at the end
+    void set(const vector<string>& order);
     const vector<string>& getTokens() const;
 
 private:
