@@ -30,6 +30,7 @@
 #include "models/RefsViewer.h"
 #include "spcrefs/SpcRefsViewer.h"
 #include "climate/ClimateViewer.h"
+#include "rivers/RiverMapViewer.h"
 #include "dashboard/Dashboards.h"
 #include "tropical/TropicalViewer.h"
 #include "models/SpcPostViewer.h"
@@ -121,6 +122,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("goes16.png", "Space weather (planned): Kp, aurora, flares, sun", [parent] { Dashboards::openSpaceWeather(parent); });
     routeItems.emplace_back("twtornado.png", "Tornado history (planned): tracks, per-day graph, climatology heatmap", [parent] { Dashboards::openTornadoHistory(parent); });
     routeItems.emplace_back("widget_afd.png", "Forecast discussions (planned): all centres, history, what changed", [parent] { Dashboards::openForecastDiscussions(parent); });
+    routeItems.emplace_back("rain_showers.png", "Rivers: NWS river gauges, flood stages, forecasts and the National Water Model", [parent] { new RiverMapViewer{parent}; });
     routeItems.emplace_back("nsslwrf.png", "NSSL WRF", [this] { launchModelViewerGeneric("NSSLWRF"); });
     routeItems.emplace_back("wpcgefs.png", "WPC GEFS", [this] { launchModelViewerGeneric("WPCGEFS"); });
     // routeItems.emplace_back("spchref.png", "SPC HREF", [this] { launchModelViewerGeneric("SPCHREF"); });
