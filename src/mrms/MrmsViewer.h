@@ -64,6 +64,7 @@ private:
         double by;
     };
     Projection2 projection() const;
+    void showConus();
     void showHover(const QPointF& widgetPos);
     const UtilityMrms::Product& product() const;
 

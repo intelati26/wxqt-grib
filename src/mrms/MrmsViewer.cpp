@@ -67,8 +67,8 @@ MrmsViewer::MrmsViewer(Window * parent)
     radar->setFixedSize(side, side);   // resized to the window by fitRadar()
     radar->nexradState.setRadar(Location::radarSite());
     radar->nexradState.reset();
-    radar->nexradState.zoom = 0.14;   // the whole CONUS grid
     radar->nexradDraw.initGeom();
+    showConus();
     radar->setMouseTracking(true);
     radar->installEventFilter(this);
     hoverLabel = new QLabel{radar};
@@ -121,9 +121,10 @@ MrmsViewer::MrmsViewer(Window * parent)
     rowTop.addWidget(comboAuto);
     rowTop.addWidget(buttonLoop);
     rowTop.addWidget(buttonSave);
-    rowTop.addWidget(textStatus);
     rowTop.addStretch();
     box.addLayout(rowTop);
+    textStatus.setWordWrap(false);   // a wrapped status would make the controls taller than fitRadar() allowed for
+    box.addWidget(textStatus);
     box.addWidgetReal(radar, 0, Qt::AlignTop | Qt::AlignLeft);
     box.addStretch();
     box.getAndShow(this);
@@ -248,12 +249,27 @@ void MrmsViewer::changePosition(double dx, double dy) {
     radar->update();
 }
 
+// the whole lower 48 in the middle of the square map (the view the viewer opens with)
+void MrmsViewer::showConus() {
+    auto& state = radar->nexradState;
+    const auto [ax, bx, ay, by] = projection();
+    const double centerLon = -96.0;
+    const double centerLat = 37.5;
+    const double lonSpan = 62.0;   // the lower 48 is about 59 degrees wide, with a little room round it
+    const double mercatorCenter = 180.0 / std::numbers::pi * std::log(std::tan(std::numbers::pi / 4.0 + centerLat * std::numbers::pi / 360.0));
+    state.zoom = 1000.0 / (std::abs(ax) * lonSpan);
+    state.xPos = -(ax * centerLon + bx) * state.zoom;
+    state.yPos = 250.0 - (ay * mercatorCenter + by) * state.zoom;   // the map window runs from -250 to 750 vertically
+}
+
 // the map is a square (the radar widget's projection assumes one): as large as fits under the controls
 void MrmsViewer::fitRadar() {
     if (radar == nullptr) {
         return;
     }
-    const int side = std::max(300, std::min(width() - 16, height() - rowTop.getView()->sizeHint().height() - 24));
+    // the controls and the status line above the map (each one line: the status does not wrap)
+    const int above = rowTop.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height();
+    const int side = std::max(300, std::min(width() - 16, height() - above - 32));
     if (radar->width() != side) {
         radar->setFixedSize(side, side);
         radar->nexradState.originalWidth = side;
