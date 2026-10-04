@@ -37,9 +37,13 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
 
 ### Radar  [Radar and satellite]
 - **MRMS viewer** - the full MRMS product list (reflectivity, hail MESH / POSH, rotation, azimuthal shear, rain rate and QPE,
-  echo tops) at native resolution on the radar map, with scan picker, loop, zoom about the pointer, value read-out, Save.
-- A MRMS still can replace the live Nexrad tile on the home screen (Settings > Home Screen Order).
-- Radar window: resizable, closest-radar button, favourites, Ctrl+click switches to the radar nearest the click.
+  echo tops) at native resolution on the map, with scan picker, loop, zoom about the pointer, value read-out, Save. The map's
+  overlays (warnings, watches and discussions, outlooks, fronts, observations) are the ones switched on under Settings > Map.
+- A MRMS still can be a picture on the home screen (Settings > Home Screen Order).
+- **MRMS is the only radar.** The single-site NEXRAD (Level III) radar windows were removed from this fork. For raw radar files
+  (Level II / III, single-site base products and velocity) use [Supercell Wx](https://github.com/dpaulat/supercell-wx).
+- **Rivers** - the NWS river gauges (about 13,000) on the same map, coloured by flood category; click a gauge for its hydrograph
+  with the NWS forecast and the National Water Model, now / modelled / record statistics and the flood impacts.
 
 ### Tropical  [National, tropical and marine]
 - **Tropical screen** - every active tropical cyclone in the world (CIRA / RAMMB's list) by basin with a current infrared picture;
@@ -116,17 +120,9 @@ Settings > General > "Contact email for weather API requests," so nothing
 personal needs to be edited in source at all.
 FYI - you will notice that I've abstracted the native toolkit widgets. This was done as non-public ports to other UI tookits share this codebase, etc.
 
-## Differences from the original Dec 2021 release
-  - color legend stays in one spot
-  - zoom in/out in nexrad stays over the spot that is centered
-  - current device location circle/dot added in nexrad (off by default)
-  - nexrad animations are faster
-  - can now change the color of the nexrad background
-
 ## Differences from mobile versions (similar in content to wXL23 but native desktop with keyboard shortcuts, etc):
-- Nexrad Level 2 is not supported. See the wXL23 [FAQ](https://gitlab.com/joshua.tee/wxl23/-/blob/master/doc/FAQ.md#why-is-level-2-radar-not-the-default) for why I can't provide a good experience with this.
+- Single-site NEXRAD radar (Level II or III) is not included in this fork; MRMS is the radar here, and Supercell Wx handles raw radar files.
 - No notifications or widgets
-- No Radar color palette editor
 - Prebuilt Windows and Linux packages come from this repository's GitHub Actions (or compile it yourself)
 - Best effort support from me (ie Mobile support takes priority)
 
@@ -144,12 +140,10 @@ FYI - you will notice that I've abstracted the native toolkit widgets. This was 
 - Linux distro: `$HOME/.config/joshua.tee@gmail.com/wxqt.conf`
 
 ## Bugs (that might never get fixed)
-* In Nexrad when zooming out of in, it does not stay centered.
-* On initial nexrad launch it is not centered on radar site. Usage after this is fine.
 * At times if a thread gets stuck it will not exit properly, **recommendation is to always start program from command line**.
 
 ## Help
-From the main screen and nexrad radar do `Ctrl-/` (? key) to get keyboard shortcuts. Mouse over on some icons will sometimes show a label or shortcut as well.
+From the main screen and the map screens do `Ctrl-/` (? key) to get keyboard shortcuts. Mouse over on some icons will sometimes show a label or shortcut as well.
 
 ## Compile and run
 1. Perform the [steps](https://gitlab.com/joshua.tee/wxqt/-/blob/main/README_OS.md) for your operating system, you will probably need 8GB of memory for compilation. I have used a 4GB Raspberry PI 400 (keyboard model) to compile.
