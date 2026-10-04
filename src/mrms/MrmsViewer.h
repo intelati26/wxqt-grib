@@ -15,6 +15,7 @@
 #include <QVector>
 #include <QTimer>
 #include "mrms/UtilityMrms.h"
+#include "radar/NexradLayerDownload.h"
 #include "radar/NexradWidget.h"
 #include "ui/BackForward.h"
 #include "ui/Button.h"
@@ -81,6 +82,8 @@ private:
     Shortcut shortcutSave;
     Text textStatus;
     NexradWidget * radar{};
+    std::vector<NexradWidget *> radarList;                  // the one map, in the form the overlay downloader takes
+    std::unique_ptr<NexradLayerDownload> layerDownload;      // warnings, watches, outlooks, fronts, observations (the Map settings)
     QLabel * hoverLabel{};     // the coordinate / value popup over the map
     bool hoverShown{false};    // draw the crosshair at `pointer`
     QPointF pointer;           // last position of the mouse over the map, for zooming about it

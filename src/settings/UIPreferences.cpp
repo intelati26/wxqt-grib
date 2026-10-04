@@ -9,7 +9,6 @@
 #include "util/HomeThumbnails.h"
 #include <algorithm>
 #include "objects/WString.h"
-#include "radarcolorpalette/ColorPalettes.h"
 #include "util/Utility.h"
 
 const int UIPreferences::boxPadding{2};
@@ -137,7 +136,6 @@ const vector<string>& HomeScreenOrder::getTokens() const {
 }
 
 void UIPreferences::initialize() {
-    ColorPalettes::initialize();
     textPadding = QMargins(padding, padding, padding, padding);
     fontSize = Utility::readPrefInt("GENERAL_FONT_SIZE", UIPreferences::fontSize);
     mainScreenImageSize = Utility::readPrefInt("MAIN_SCREEN_IMAGE_SIZE", mainScreenImageSize);

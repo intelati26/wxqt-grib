@@ -66,6 +66,9 @@ MrmsViewer::MrmsViewer(Window * parent)
     radar->nexradState.reset();
     radar->nexradDraw.initGeom();
     showConus();
+    radarList.push_back(radar);
+    layerDownload = std::make_unique<NexradLayerDownload>(this, &radarList);
+    layerDownload->downloadLayers();
     radar->setMouseTracking(true);
     radar->installEventFilter(this);
     hoverLabel = new QLabel{radar};
@@ -176,6 +179,7 @@ void MrmsViewer::refreshNewest() {
     if (closed || looping || refreshing || comboScan.getIndex() != 0 || scans.empty()) {
         return;
     }
+    layerDownload->downloadLayers();   // the warnings and the rest move on with the radar
     refreshing = true;
     const auto chosen = product();
     const auto shownUtc = scans.back().utc;

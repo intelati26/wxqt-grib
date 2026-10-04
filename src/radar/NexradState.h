@@ -18,6 +18,7 @@
 using std::string;
 using std::vector;
 
+// The state of a map: its centre (the projection is built round a radar site's position), pan, zoom and the text labels drawn on it.
 class NexradState {
 public:
     NexradState(int, int, bool, const string&, int, int);
@@ -25,35 +26,24 @@ public:
     ProjectionNumbers getPn() const;
     string getRadarSite() const;
     void setRadar(const string&);
-    string getRadarProduct() const;
-    uint16_t getRadarProductId() const;
-    void setRadarProduct(const string&);
-    bool isTdwrSite() const;
-    bool isTdwrProduct() const;
-    void readPreferences();
-    void writePreferences() const;
     int paneNumber;
     int numberOfPanes;
     bool useASpecificRadar;
     double xPos{};
     double yPos{};
     double zoom{1.0};
-    int tiltInt{};
     vector<TextViewMetal> cities;
     vector<TextViewMetal> countyLabels;
     vector<TextViewMetal> pressureCenterLabelsRed;
     vector<TextViewMetal> pressureCenterLabelsBlue;
     vector<TextViewMetal> observations;
-    const vector<string> initialRadarProducts{"N0Q", "N0U", "EET", "DVL"};
     double zoomToHideMiscFeatures{0.2};
-    // the radar site, product and projection are read by download threads and changed by the UI (a radar or product switch)
+    // the map's centre site and its projection are read by download threads and may be changed by the UI
     std::shared_ptr<std::recursive_mutex> lock{std::make_shared<std::recursive_mutex>()};
 
 private:
     ProjectionNumbers pn;
     string radarSite;
-    const string radarType{"WXMETAL"};
-    string radarProduct{"N0Q"};
 public: // TODO FIXME
     int originalWidth{};
     int originalHeight{};

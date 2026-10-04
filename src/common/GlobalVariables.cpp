@@ -29,14 +29,11 @@ const string GlobalVariables::mainScreenShortcuts{R"mainScreenShort(
     Ctrl-n - NCEP Model Viewer
     Ctrl-o - NHC
     Ctrl-q or Ctrl-w or Escape - Quit program
-    Ctrl-r - Nexrad
+    Ctrl-r - MRMS radar
     Ctrl-s - SPC Convective Outlook Summary
     Ctrl-t - National text products
     Ctrl-u - update, reload data
     Ctrl-z - SPC Mesoanalaysis
-    Ctrl-1 - single pane nexrad
-    Ctrl-2 - dual pane nexrad
-    Ctrl-4 - quad pane nexrad
     Ctrl-w or Escape - close window
 
     NOTE: Most screens that have a left/right button combination support Ctrl-LeftArrow and Ctrl-RightArrow
@@ -47,29 +44,6 @@ const string GlobalVariables::mainScreenShortcuts{R"mainScreenShort(
 
     )mainScreenShort"};
 
-const string GlobalVariables::nexradShortcuts{R"nexradShort(
-
-    Ctrl-DownArrow - down
-    Ctrl-UpArrow - up
-    Ctrl-LeftArrow - left
-    Ctrl-RightArrow - right
-    Ctrl-- zoom out
-    Ctrl-+ zoom in
-
-    Ctrl-a animate (stops animation if one is going)
-    Ctrl-u start/stop auto update
-    Ctrl-w close window
-    Ctrl-/ show shortcuts (this window)
-
-    Ctrl-r Base Reflectivity
-    Ctrl-v Base Velocity
-    Ctrl-t Enhanced Echo Tops
-    Ctrl-l Vertically Integrated Liquid
-    Ctrl-c Correlation Coefficient
-
-    You can right click in the radar to open a contextual menu.
-
-    )nexradShort"};
 
 const string GlobalVariables::appOrgName{"wxqt"};
 const string GlobalVariables::resDir{":/res/"};
