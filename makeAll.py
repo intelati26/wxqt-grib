@@ -93,8 +93,9 @@ def run(command: str):
 def makePro(extraFooter: str = "\n", webEngine: bool = False) -> None:
     # real sources only: not backup copies (MainWindow.cpp.backup) and not the stand-alone demos, which have a main() of their own
     standalone = {"src/weather_graph_demo.cpp", "src/weather_graph_example.cpp"}
+    # glob returns backslashes on Windows, so compare with forward slashes
     cppFiles: List[str] = [f for f in glob.glob("src/*.cpp") + glob.glob("src/*/*.c*")
-                           if f.endswith((".c", ".cpp")) and f not in standalone]
+                           if f.endswith((".c", ".cpp")) and f.replace("\\", "/") not in standalone]
     headerFiles: List[str] = glob.glob("src/*/*.h")
     proTargetFile: str = "wxqt.pro"
     with open(proTargetFile, "w") as fh:
