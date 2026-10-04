@@ -13,6 +13,7 @@
 #include <QPalette>
 #include <QVBoxLayout>
 #include "common/GlobalVariables.h"
+#include "mrms/MrmsViewer.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
 #include "objects/FutureVoid.h"
@@ -47,9 +48,6 @@ MainWindow::MainWindow(QWidget * parent)
     , shortcutWfoText{{"A"}, this}
     , shortcutHourly{{"H"}, this}
     , shortcutRadar{{"R"}, this}
-    , shortcutRadarSinglePane{{"1"}, this}
-    , shortcutRadarDualPane{{"2"}, this}
-    , shortcutRadarQuadPane{{"4"}, this}
     , shortcutSevereDash{{"D"}, this}
     , shortcutNcep{{"N"}, this}
     , shortRadarMosaic{{"M"}, this}
@@ -114,10 +112,7 @@ MainWindow::MainWindow(QWidget * parent)
     shortcutVis.connect([this] { Route::vis(this); });
     shortcutWfoText.connect([this] { toolbar.launchWfoText(); });
     shortcutHourly.connect([this] { showHourlyGraph(); });   // Show/hide hourly graph
-    shortcutRadar.connect([this] { toolbar.launchNexrad(1); });
-    shortcutRadarSinglePane.connect([this] { toolbar.launchNexrad(1); });
-    shortcutRadarDualPane.connect([this] { toolbar.launchNexrad(2); });
-    shortcutRadarQuadPane.connect([this] { toolbar.launchNexrad(4); });
+    shortcutRadar.connect([this] { new MrmsViewer{this}; });
     shortcutSevereDash.connect([this] { toolbar.launchSevereDashboard(); });
     shortcutNcep.connect([this] { toolbar.launchModelViewerGeneric("NCEP"); });
     shortRadarMosaic.connect([this] { toolbar.launchRadarMosaicViewer(); });
@@ -176,17 +171,6 @@ void MainWindow::reload() {
                             found->second.setToWidth(*bytes, UIPreferences::mainScreenImageSize, entry != nullptr && entry->white);
                         }
                     }};
-            }
-        }
-        if (UIPreferences::nexradMainScreen) {
-            const auto pane = 0;
-            nexradList[pane]->nexradState.setRadar(Location::radarSite());
-            nexradList[pane]->nexradState.reset();
-            nexradList[pane]->nexradState.zoom = 0.6;
-            nexradList[pane]->nexradDraw.initGeom();
-
-            for (auto nw : nexradList) {
-                nw->runJob([nw] { nw->downloadData(); }, [nw] { nw->update(); });
             }
         }
         if (UIPreferences::mainScreenSevereDashboard) {
@@ -289,40 +273,10 @@ void MainWindow::addWidgets() {
     imageWidgets.clear();
     textWidgets.clear();
     boxSevereDashboard.removeChildren();
-    nexradList.clear();
-
-    if (UIPreferences::nexradMainScreen) {
-        nexradList.push_back(
-            new NexradWidget{
-                this,
-                0,
-                1,
-                true,
-                Location::radarSite(),
-                UIPreferences::mainScreenImageSize,
-                UIPreferences::mainScreenImageSize,
-                [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& prod) {},
-                [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& sector) {},
-                [] ([[maybe_unused]] double z, [[maybe_unused]] int pane) {},
-                [] ([[maybe_unused]] double x, [[maybe_unused]] double y, [[maybe_unused]] int pane) {},
-                [] {}
-            });
-        nexradList[0]->onClick = [this] { toolbar.launchNexrad(1); };   // click the home screen radar to open the radar window
-        nexradList[0]->setFixedHeight(UIPreferences::mainScreenImageSize);
-        nexradList[0]->setFixedWidth(UIPreferences::mainScreenImageSize);
-    }
     //
     // image setup
     //
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
-        if (token == UIPreferences::homeScreenNexradToken) {
-            if (!nexradList.empty()) {
-                const auto caption = UIPreferences::homeCaptions ? QString::fromStdString("Radar - " + Location::radarSite()) : QString{};
-                imageLayout.addWidgetReal(CaptionedTile::make(this, nexradList[0], caption,
-                                                              "Live NEXRAD radar for the site nearest your location. Click to open the radar.", UIPreferences::mainScreenImageSize));
-            }
-            continue;
-        }
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
             if (item.getPrefToken() == token && item.isEnabled()) {
                 imageWidgets.insert({token, Image{this}});
@@ -405,12 +359,6 @@ string MainWindow::computeTokenString() {
     string tokenString;
     tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",");
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
-        if (token == UIPreferences::homeScreenNexradToken) {
-            if (UIPreferences::nexradMainScreen) {
-                tokenString += token + ",";
-            }
-            continue;
-        }
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
             if (item.getPrefToken() == token && item.isEnabled()) {
                 tokenString += token + ",";

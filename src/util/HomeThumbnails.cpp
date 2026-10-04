@@ -58,7 +58,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"TROPICAL_ATL_SAT", "Tropical overview - Atlantic (GOES satellite)", "nhc.png#2", false, false},
         {"TROPICAL_EPAC_SAT", "Tropical overview - East Pacific (GOES satellite)", "nhc.png#2", false, false},
         {"TROPICAL_WPAC_SAT", "Tropical overview - West Pacific (Himawari satellite, Guam sector)", "nhc.png#2", false, false},
-        {"MRMS_RADAR", "MRMS radar - composite reflectivity around your location (a still radar picture, instead of the live Nexrad tile)", "mcd_tile.png", false, false},
+        {"MRMS_RADAR", "MRMS radar - composite reflectivity around your location", "mcd_tile.png", false, false},
         {"MRMS_LATEST", "MRMS - latest scan of your last product, around your location", "mcd_tile.png", false, false},
         {"GRIB_LATEST", "RRFS GRIB - your last field and region, latest run", "grib.png", true, false},
     };

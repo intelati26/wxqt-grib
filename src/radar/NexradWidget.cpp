@@ -19,11 +19,7 @@
 #include "objects/PolygonWatch.h"
 #include "objects/WString.h"
 #include "radar/FireDayOne.h"
-#include "radar/NexradDownload.h"
-#include "radar/HistoricalWarnings.h"
 #include "radar/NexradLevel3WindBarbs.h"
-#include "radar/NexradLongPressMenu.h"
-#include "radar/NexradRenderUI.h"
 #include "radar/Projection.h"
 #include "radar/SwoDayOne.h"
 #include "radar/Warnings.h"
@@ -43,40 +39,22 @@ NexradWidget::NexradWidget(
     const string& radarToUse,
     int originalWidth,
     int originalHeight,
-    const function<void(int, string)>& fnProduct,
-    const function<void(int, string)>& fnSector,
     const function<void(double, int)>& fnZoom,
-    const function<void(double, double, int)>& fnPosition,
-    const function<void()>& setTitleMain
+    const function<void(double, double, int)>& fnPosition
 )
     : QWidget{parent}
     , nexradState{paneNumber, numberOfPanes, useASpecificRadar, radarToUse, originalWidth, originalHeight}
     , nexradRenderTextObject{numberOfPanes, &nexradState, &fileStorage}
-    , levelData{&nexradState, &fileStorage}
     , nexradDraw{&nexradState, &fileStorage, &nexradRenderTextObject}
-    , radarStatusBox{std::make_unique<RadarStatusBox>(parent)}
-    , colorLegend{nexradState.getRadarProduct()}
-    , fnProduct{fnProduct}
-    , fnSector{fnSector}
     , fnZoom{fnZoom}
     , fnPosition{fnPosition}
-    , setTitleMain{setTitleMain}
     , parent{parent}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-
-    // # FIXME TODO see wxpygtk
-    // self.highwayZoom: float = 0.9
-    // # if mainWindow:
-    // #     self.highwayZoom = 0.58
-
     nexradState.originalWidth = originalWidth;
     nexradState.originalHeight = originalHeight;
-    grabGesture(Qt::TapAndHoldGesture);
     grabGesture(Qt::PinchGesture);
     show();
-
-    radarStatusBox->connect([this] { toggleRadar(); });
     nexradDraw.initGeom();
 }
 
@@ -90,22 +68,6 @@ bool NexradWidget::event(QEvent * event) {
 // https://doc.qt.io/qt-5/qgestureevent.html#details
 // pinch gesture for mobile
 bool NexradWidget::gestureEvent(QGestureEvent * event) {
-    if (auto gesture = event->gesture(Qt::TapAndHoldGesture)) {
-        auto t = dynamic_cast<QTapAndHoldGesture *>(gesture);
-        if (t && t->state() == Qt::GestureStarted) {
-            // emit TapAndHoldStarted();
-            if (UtilityUI::isMobile()) {
-                const auto posF = t->position();
-                const auto posGlobal = QPoint{static_cast<int>(posF.x()), static_cast<int>(posF.y())};
-                const auto positionRelative = mapFromGlobal(posGlobal);
-                const auto latLon = NexradRenderUI::getLatLonFromScreenPosition(nexradState, positionRelative.x(), positionRelative.y());
-                NexradLongPressMenu::setupContextMenu(parent, posGlobal, nexradState, latLon, fnSector, fnProduct);
-            }
-        } else if (t && t->state() == Qt::GestureFinished) {
-            // qDebug() << "tap and hold end " << event;
-            // emit TapAndHoldFinished();
-        }
-    }
     // https://doc.qt.io/qt-5/qtwidgets-gestures-imagegestures-example.html
     if (QGesture * pinch = event->gesture(Qt::PinchGesture)) {
         pinchTriggered(dynamic_cast<QPinchGesture *>(pinch));
@@ -173,7 +135,6 @@ void NexradWidget::mousePressEvent(QMouseEvent * event) {
     mouseStartX = event->pos().x();
     mouseStartY = event->pos().y();
     lastMouseType = "Click";
-    ctrlHeld = (event->modifiers() & Qt::ControlModifier) != 0;
 }
 
 void NexradWidget::mouseDoubleClickEvent([[maybe_unused]] QMouseEvent * event) {
@@ -182,101 +143,23 @@ void NexradWidget::mouseDoubleClickEvent([[maybe_unused]] QMouseEvent * event) {
 
 void NexradWidget::performSingleClickAction() {
     if (lastMouseType == "Click") {
-        if (onClick) {
-            onClick();
-            return;
-        }
         fnZoom(0.77, nexradState.paneNumber);
     }
 }
 
 void NexradWidget::mouseReleaseEvent([[maybe_unused]] QMouseEvent * event) {
-    if (ctrlHeld && lastMouseType == "Click" && !onClick) {
-        // Ctrl+click: switch this pane to the radar site nearest the clicked point
-        ctrlHeld = false;
-        lastMouseType = "";
-        const auto latLon = NexradRenderUI::getLatLonFromScreenPosition(nexradState, event->pos().x(), event->pos().y());
-        const auto code = RadarSites::getNearestCode(latLon);
-        if (!code.empty() && code != nexradState.getRadarSite()) {
-            fnSector(nexradState.paneNumber, code);
-        }
-        return;
-    }
     if (lastMouseType == "Drag") {
         update();
     } else if (lastMouseType == "Click") {
+        clickAt = event->position();
+        if (clickHandler && clickHandler(clickAt)) {
+            lastMouseType = "";   // the owner used the click (a gauge, a marker): it does not also zoom
+            return;
+        }
         QTimer::singleShot(QApplication::doubleClickInterval(), [this]() {performSingleClickAction();});
-    } else if (!onClick) {
+    } else {
         fnZoom(1.33, nexradState.paneNumber);
     }
-}
-
-void NexradWidget::contextMenuEvent(QContextMenuEvent * event) {
-    const auto latLon = NexradRenderUI::getLatLonFromScreenPosition(nexradState, event->pos().x(), event->pos().y());
-    NexradLongPressMenu::setupContextMenu(parent, event->globalPos(), nexradState, latLon, fnSector, fnProduct);
-}
-
-// the radar bins; the painter has the window / pan / zoom transform of NexradDraw::initSurface
-void NexradWidget::drawRadarBins(QPainter& painter) {
-    // the bins tile exactly, so they are filled without an outline (much faster); a brush is set only when the level changes
-    painter.setPen(Qt::NoPen);
-    const auto& quads = levelData.radarBuffers.quads;
-    const auto& levels = levelData.radarBuffers.levels;
-    int lastLevel = -1;
-    const auto count = std::min(static_cast<size_t>(std::max(totalBins, 0)), quads.size());
-    for (size_t bin = 0; bin < count; bin += 1) {
-        if (levels[bin] != lastLevel) {
-            lastLevel = levels[bin];
-            painter.setBrush(levelData.radarBuffers.brushOf(lastLevel));
-        }
-        const auto& quad = quads[bin];
-        const QPointF corners[4]{{quad.x[0], quad.y[0]}, {quad.x[1], quad.y[1]}, {quad.x[2], quad.y[2]}, {quad.x[3], quad.y[3]}};
-        painter.drawPolygon(corners, 4);
-    }
-}
-
-void NexradWidget::paintRadarLayer(QPainter& painter) {
-    const std::lock_guard<std::mutex> guard{dataLock};
-    // the window is 1000 x 1000 map units (NexradDraw::initSurface); fx / fy turn units into pixels
-    const auto fx = width() / 1000.0;
-    const auto fy = height() / 1000.0;
-    const auto margin = 250;   // map units kept beyond each side of the window
-    const auto pixelsWide = qRound((1000 + 2 * margin) * fx);
-    const auto pixelsHigh = qRound((1000 + 2 * margin) * fy);
-    const auto ratio = devicePixelRatioF();
-    const QColor background = RadarPreferences::nexradRadarBackgroundColor;
-    if (static_cast<qint64>(pixelsWide) * pixelsHigh > 48'000'000 || pixelsWide < 1 || pixelsHigh < 1) {
-        drawRadarBins(painter);   // too big to keep a picture of
-        return;
-    }
-    const auto usable = !radarCache.isNull() && cacheVersion == dataVersion && cacheZoom == nexradState.zoom &&
-                        cacheWidgetSize == size() && cacheRatio == ratio && cacheBackground == background &&
-                        std::abs(nexradState.xPos - cacheX) <= margin * 0.95 && std::abs(nexradState.yPos - cacheY) <= margin * 0.95;
-    if (!usable) {
-        QPixmap picture{QSize{pixelsWide, pixelsHigh} * ratio};
-        picture.setDevicePixelRatio(ratio);
-        picture.fill(background);
-        QPainter cache{&picture};
-        cache.setViewport(0, 0, pixelsWide, pixelsHigh);
-        cache.setWindow(-500 - margin, -250 - margin, 1000 + 2 * margin, 1000 + 2 * margin);
-        cache.translate(nexradState.xPos, nexradState.yPos);
-        cache.scale(nexradState.zoom, nexradState.zoom);
-        drawRadarBins(cache);
-        cache.end();
-        radarCache = picture;
-        cacheVersion = dataVersion;
-        cacheZoom = nexradState.zoom;
-        cacheX = nexradState.xPos;
-        cacheY = nexradState.yPos;
-        cacheWidgetSize = size();
-        cacheRatio = ratio;
-        cacheBackground = background;
-    }
-    // draw the picture in plain pixels, moved by the pan since it was made
-    painter.save();
-    painter.resetTransform();
-    painter.drawPixmap(QPointF{-margin * fx + (nexradState.xPos - cacheX) * fx, -margin * fy + (nexradState.yPos - cacheY) * fy}, radarCache);
-    painter.restore();
 }
 
 void NexradWidget::paintEvent(QPaintEvent * event) {
@@ -286,8 +169,6 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
         painter.save();
         dataLayer(painter);
         painter.restore();
-    } else if (!hideRadar) {
-        paintRadarLayer(painter);
     }
     // if (nexradState.zoom > 0.9 && !hideRoads) {
     //     nexradDraw.drawGeomLine(HwExtLines);
@@ -303,7 +184,7 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
     // nexradDraw.drawGeomLine(CaLines);
     // nexradDraw.drawGeomLine(MxLines);
 
-    if (nexradState.zoom > 0.7 && !hideRoads) {
+    if (nexradState.zoom > 0.7) {
         for (auto t : {CountyLines, HwLines, HwExtLines, LakeLines}) {
             nexradDraw.drawGeomLine(t);
         }
@@ -315,28 +196,20 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
     if (RadarPreferences::locationDot) {
         nexradDraw.drawGenericCircles(RadarPreferences::locdotSize, fileStorage.locationDotsColor, fileStorage.locationDotsTransformed);
     }
-    // In history only the warnings that were in effect then are drawn: watches, outlooks, fronts, observations, storm tracks and
-    // the hail / TVS markers are current data and would mislead on a past picture.
-    const auto live = !historyTime().isValid();
-    if (live && RadarPreferences::sti) {
-        nexradDraw.drawGenericLine(RadarPreferences::stiLinesize, RadarPreferences::colorSti, stormTrackLines);
-    }
-    if (live && RadarPreferences::obsWindbarbs && !windBarbCircleColors.empty() && nexradState.zoom > 0.3) {
+    if (RadarPreferences::obsWindbarbs && !windBarbCircleColors.empty() && nexradState.zoom > 0.3) {
         nexradDraw.drawGenericLine(RadarPreferences::wbLinesize, Qt::red, wbGustLines);
         nexradDraw.drawGenericLine(RadarPreferences::wbLinesize, RadarPreferences::colorObsWindbarbs, wbLines);
         nexradDraw.drawGenericCircles(RadarPreferences::aviationSize * 2.0, windBarbCircleColors, windBarbCirclesTransformed);
     }
-    if (live) {
-        drawWatch();
-    }
+    drawWatch();
     drawWarnings();
-    if (live && RadarPreferences::swo) {
+    if (RadarPreferences::swo) {
         drawSwo();
     }
-    if (live && RadarPreferences::fire) {
+    if (RadarPreferences::fire) {
         drawFire();
     }
-    if (live && RadarPreferences::wpcFronts && nexradState.zoom < 0.5) {
+    if (RadarPreferences::wpcFronts && nexradState.zoom < 0.5) {
         drawWpcFronts();
     }
     // KEEP
@@ -354,23 +227,14 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
     //         painter.drawEllipse(center, scaledCircleSize * 6.0, scaledCircleSize * 6.0);
     //     }
     // }
-    if (live && RadarPreferences::hailIndex) {
-        nexradDraw.drawTriangles(hiPolygons, RadarPreferences::colorHi);
-    }
-    if (live && RadarPreferences::tvs) {
-        nexradDraw.drawTriangles(tvsPolygons, RadarPreferences::colorTvs);
-    }
     if (RadarPreferences::cities && nexradState.zoom > 0.5) {
         nexradDraw.drawText(RadarPreferences::colorCity, nexradState.cities);
     }
     if (RadarPreferences::countyLabels && nexradState.zoom > 0.9) {
         nexradDraw.drawText(RadarPreferences::colorCountyLabels, nexradState.countyLabels);
     }
-    if (live && RadarPreferences::obs && nexradState.zoom > 0.5) {
+    if (RadarPreferences::obs && nexradState.zoom > 0.5) {
         nexradDraw.drawText(RadarPreferences::colorObs, nexradState.observations);
-    }
-    if (RadarPreferences::colorLegend && nexradState.zoom < 4.0 && !dataLayer) {
-        colorLegend.paintEvent(painter, nexradState.zoom, nexradState.xPos, nexradState.yPos);
     }
     if (topLayer) {
         painter.setWorldTransform(QTransform{});   // keep the window mapping: window units, no pan / zoom
@@ -464,20 +328,6 @@ void NexradWidget::runJob(const function<void()>& work, const function<void()>& 
         }};
 }
 
-void NexradWidget::setHistoryTime(const QDateTime& time) {
-    historyMs = time.isValid() ? time.toMSecsSinceEpoch() : 0;
-}
-
-QDateTime NexradWidget::historyTime() const {
-    const auto ms = historyMs.load();
-    return ms == 0 ? QDateTime{} : QDateTime::fromMSecsSinceEpoch(ms, Qt::UTC);
-}
-
-string NexradWidget::radarInfo() {
-    const std::lock_guard<std::mutex> guard{dataLock};
-    return levelData.radarInfo;
-}
-
 // KEEP
 // void NexradWidget::updateGps(double lat, double lon) {
 //    gpsX = lat;
@@ -489,24 +339,6 @@ string NexradWidget::radarInfo() {
 //        locationDotsTransformedGps.append(coords);
 //    }
 // }
-
-void NexradWidget::downloadData() {
-    const auto url = NexradDownload::latestFileUrl(nexradState.getRadarSite(), nexradState.getRadarProduct(), historyTime());
-    historyMissing = false;
-    if (url.empty()) {
-        historyMissing = true;   // history asked for a time the bucket has no scan for: the picture on screen stays
-        return;
-    }
-    fileStorage.setMemoryBuffer(UtilityIO::downloadAsByteArray(url));
-    // decode into a new set of buffers off to the side and swap them in: the UI thread keeps painting the old picture meanwhile
-    NexradLevelData fresh{&nexradState, &fileStorage};
-    const auto bins = fresh.decodeAndGenerateRadials();
-    const std::lock_guard<std::mutex> guard{dataLock};
-    levelData = std::move(fresh);
-    levelData.rebind(&nexradState, &fileStorage);
-    totalBins = bins;
-    dataVersion += 1;
-}
 
 void NexradWidget::constructWBLines() {
     if (RadarPreferences::obs) {
@@ -593,87 +425,6 @@ void NexradWidget::constructWpcFronts() {
     nexradRenderTextObject.addWpcPressureCenters();
 }
 
-void NexradWidget::constructSti() {
-    stormTrackLines.clear();
-    vector<double> floats;
-    {
-        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
-        floats = fileStorage.stiData;
-    }
-    for (auto x : range3(0, floats.size(), 4)) {
-        stormTrackLines.push_back(QLineF{floats[x], floats[x + 1], floats[x + 2], floats[x + 3]});
-    }
-}
-
-void NexradWidget::resizePolygons() {
-    constructHi();
-    constructTvs();
-}
-
-void NexradWidget::constructHi() {
-    vector<double> floats;
-    {
-        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
-        floats = fileStorage.hiData;
-    }
-    const auto lengthOrig = 5.0;
-    const auto length = lengthOrig / nexradState.zoom;
-    hiPolygons.clear();
-    for (auto x : range3(0, floats.size(), 2)) {
-        const auto point0 = Projection::computeMercatorNumbers(floats[x], floats[x + 1], nexradState.getPn());
-        const QPointF point1{point0[0], point0[1]};
-        const QPointF point2{point0[0] - length, point0[1] - length};
-        const QPointF point3{point0[0] + length, point0[1] - length};
-        QPolygonF polygon;
-        polygon.push_back(point1);
-        polygon.push_back(point2);
-        polygon.push_back(point3);
-        hiPolygons.push_back(polygon);
-    }
-}
-
-void NexradWidget::constructTvs() {
-    vector<double> floats;
-    {
-        const std::lock_guard<std::mutex> guard{*fileStorage.lock};
-        floats = fileStorage.tvsData;
-    }
-    const auto lengthOrig = 5.0;
-    const auto length = lengthOrig / nexradState.zoom;
-    tvsPolygons.clear();
-    for (auto x : range3(0, floats.size(), 2)) {
-        const auto point0 = Projection::computeMercatorNumbers(floats[x], floats[x + 1], nexradState.getPn());
-        const QPointF point1{point0[0], point0[1]};
-        const QPointF point2{point0[0] - length, point0[1] - length};
-        const QPointF point3{point0[0] + length, point0[1] - length};
-        QPolygonF polygon;
-        polygon.push_back(point1);
-        polygon.push_back(point2);
-        polygon.push_back(point3);
-        tvsPolygons.push_back(polygon);
-    }
-}
-
-void NexradWidget::downloadDataForAnimation(int index) {
-    qint64 scanForWarnings = 0;
-    {
-        const std::lock_guard<std::mutex> guard{dataLock};
-        if (index < 0 || static_cast<size_t>(index) >= nexradStateAnimation.levelDataList.size()) {
-            return;   // fewer frames came back than were asked for
-        }
-        levelData = nexradStateAnimation.levelDataList[static_cast<size_t>(index)];
-        levelData.rebind(&nexradState, &fileStorage);   // the frames were decoded against a scratch file store
-        totalBins = levelData.totalBins;
-        dataVersion += 1;
-        scanForWarnings = levelData.scanEpochSec;
-    }
-    // a history loop shows the warnings that were in effect at each frame's own time (fetched ahead by the loop's download)
-    if (scanForWarnings != 0) {
-        showHistoricalWarningsAt(QDateTime::fromSecsSinceEpoch(scanForWarnings, Qt::UTC));
-    }
-    updateTitle();
-}
-
 void NexradWidget::processWarnings(PolygonType polygonGenericType) {
     const auto numbers = Warnings::add(nexradState.getPn(), polygonGenericType);
     polygons[polygonGenericType] = QVector<QLineF>();
@@ -682,76 +433,6 @@ void NexradWidget::processWarnings(PolygonType polygonGenericType) {
     }
 }
 
-void NexradWidget::processHistoricalWarnings(PolygonType type, const QDateTime& at) {
-    // (the archive is downloaded once per minute asked for and shared: HistoricalWarnings)
-    vector<double> numbers;
-    for (const auto& outline : HistoricalWarnings::polygonsAt(type, at.isValid() ? at : historyTime())) {
-        addAll(numbers, Watch::latLonListToListOfDoubles(outline, nexradState.getPn()));
-    }
-    polygons[type] = QVector<QLineF>();
-    for (auto position : range3(0, numbers.size(), 4)) {
-        polygons[type].push_back(QLineF{numbers[position], numbers[position + 1], numbers[position + 2], numbers[position + 3]});
-    }
-}
-
-void NexradWidget::showHistoricalWarningsAt(const QDateTime& at) {
-    if (!historyTime().isValid()) {
-        return;
-    }
-    for (const auto type : PolygonWarning::polygonList) {
-        processHistoricalWarnings(type, at);
-    }
-}
-
-void NexradWidget::updateTitle() {
-    setTitleMain();
-    const std::lock_guard<std::mutex> guard{dataLock};
-    // the status line names the product on screen: a super-resolution file (N0Q's N0B, N0U's N0G) says so
-    auto product = nexradState.getRadarProduct();
-    if (product.size() == 3 && ((levelData.radarBuffers.productCode == 153 && product[2] == 'Q') ||
-                                (levelData.radarBuffers.productCode == 154 && product[2] == 'U'))) {
-        product[2] = levelData.radarBuffers.productCode == 153 ? 'B' : 'G';
-    }
-    string historyLabel;
-    if (historyTime().isValid() && levelData.scanEpochSec != 0) {
-        historyLabel = QDateTime::fromSecsSinceEpoch(levelData.scanEpochSec, Qt::UTC).toString("yyyy-MM-dd HH:mm 'UTC'").toStdString();
-    }
-    radarStatusBox->setBox(levelData, product, nexradState.getRadarSite(), historyLabel);
-}
-
-void NexradWidget::changeProduct() {
-    // nexradState.setRadarProduct(WString::split(product, ":")[0]);
-    // FIXME TODO javafx does not do legend here
-    // colorLegend.update(nexradState.getRadarProduct());
-    nexradState.writePreferences();
-    runJob([this] { downloadData(); }, [this] { draw(); });
-}
-
-void NexradWidget::toggleRadar() {
-    toggleIndex += 1;
-    switch (toggleIndex) {
-        case 0:
-            hideRadar = false;
-            hideRoads = false;
-            break;
-        case 1:
-            hideRadar = true;
-            hideRoads = false;
-            break;
-        case 2:
-            hideRadar = false;
-            hideRoads = true;
-            break;
-        default:
-            toggleIndex = 0;
-            hideRadar = false;
-            hideRoads = false;
-            break;
-    }
-    draw();
-}
-
 void NexradWidget::draw() {
-    updateTitle();
     update();
 }

@@ -59,11 +59,8 @@ MrmsViewer::MrmsViewer(Window * parent)
     const auto side = std::max(300, std::min(dimens[0] - 20, dimens[1] - 160));
     radar = new NexradWidget{
         this, 0, 1, true, Location::radarSite(), side, side,
-        [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& prod) {},
-        [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& sector) {},
         [this] (double z, [[maybe_unused]] int pane) { changeZoom(z); },
-        [this] (double x, double y, [[maybe_unused]] int pane) { changePosition(x, y); },
-        [] {}};
+        [this] (double x, double y, [[maybe_unused]] int pane) { changePosition(x, y); }};
     radar->setFixedSize(side, side);   // resized to the window by fitRadar()
     radar->nexradState.setRadar(Location::radarSite());
     radar->nexradState.reset();
@@ -235,7 +232,6 @@ void MrmsViewer::changeZoom(double factor) {
     }
     state.xPos = u - (u - state.xPos) * change;
     state.yPos = v - (v - state.yPos) * change;
-    radar->resizePolygons();
     radar->nexradRenderTextObject.add();
     radar->update();
 }

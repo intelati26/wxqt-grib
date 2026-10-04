@@ -66,11 +66,8 @@ RiverMapViewer::RiverMapViewer(Window * parent)
     const auto side = std::max(300, std::min(dimens[0] - 20, dimens[1] - 160));
     radar = new NexradWidget{
         this, 0, 1, true, Location::radarSite(), side, side,
-        [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& prod) {},
-        [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& sector) {},
         [this] (double z, [[maybe_unused]] int pane) { changeZoom(z); },
-        [this] (double x, double y, [[maybe_unused]] int pane) { changePosition(x, y); },
-        [] {}};
+        [this] (double x, double y, [[maybe_unused]] int pane) { changePosition(x, y); }};
     radar->setFixedSize(side, side);
     radar->nexradState.setRadar(Location::radarSite());
     radar->nexradState.reset();
@@ -78,6 +75,14 @@ RiverMapViewer::RiverMapViewer(Window * parent)
     showConus();
     radar->setMouseTracking(true);
     radar->installEventFilter(this);
+    // a click on a gauge opens its page, and does not also zoom the map out (the radar widget's plain-click action)
+    radar->clickHandler = [this] (const QPointF& at) {
+        if (const auto * g = gaugeAt(at)) {
+            new RiverGaugeViewer{this, g->lid};
+            return true;
+        }
+        return false;
+    };
     hoverLabel = new QLabel{radar};
     hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
     hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 215); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
@@ -221,7 +226,6 @@ void RiverMapViewer::changeZoom(double factor) {
     }
     state.xPos = u - (u - state.xPos) * change;
     state.yPos = v - (v - state.yPos) * change;
-    radar->resizePolygons();
     radar->nexradRenderTextObject.add();
     radar->update();
 }
@@ -231,7 +235,6 @@ void RiverMapViewer::changePosition(double dx, double dy) {
     const double unitsPerPixel = 1000.0 / std::max(1, radar->width());
     state.xPos += dx * unitsPerPixel;
     state.yPos += dy * unitsPerPixel;
-    moved = true;
     radar->nexradRenderTextObject.add();
     radar->update();
 }
@@ -316,27 +319,11 @@ bool RiverMapViewer::eventFilter(QObject * object, QEvent * event) {
         return false;
     }
     switch (event->type()) {
-        case QEvent::MouseButtonPress:
-            pressedAt = static_cast<QMouseEvent *>(event)->position();
-            pointer = pressedAt;
-            pointerInside = true;
-            moved = false;
-            break;
         case QEvent::MouseMove:
             pointer = static_cast<QMouseEvent *>(event)->position();
             pointerInside = true;
             showHover(pointer);
             break;
-        case QEvent::MouseButtonRelease: {
-            const auto at = static_cast<QMouseEvent *>(event)->position();
-            // a click, not the end of a drag
-            if (!moved && std::hypot(at.x() - pressedAt.x(), at.y() - pressedAt.y()) < 5.0) {
-                if (const auto * g = gaugeAt(at)) {
-                    new RiverGaugeViewer{this, g->lid};
-                }
-            }
-            break;
-        }
         case QEvent::Wheel:
             pointer = static_cast<QWheelEvent *>(event)->position();
             pointerInside = true;

@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "CardAlertDetail.h"
+#include "mrms/MrmsViewer.h"
 #include "misc/AlertsDetail.h"
 #include "objects/Route.h"
 
@@ -25,13 +26,8 @@ CardAlertDetail::CardAlertDetail(Window * parent, const CapAlertXml& cap)
     boxText.addWidget(text4);
     boxText.addStretch();
 
-    const auto radarSite = cap.getClosestRadar();
-    if (!radarSite.empty()) {
-        buttonRadar.setText("Radar - " + radarSite);
-        buttonRadar.connect([parent, radarSite] { Route::nexradRadarSpecificSite(parent, radarSite); });
-    } else {
-        buttonRadar.setVisible(false);
-    }
+    buttonRadar.setText("Radar (MRMS)");
+    buttonRadar.connect([parent] { new MrmsViewer{parent}; });
     buttonDetails.connect([parent, cap] { new AlertsDetail{parent, cap.url}; });
 
     addLayout(layoutVertical, Qt::AlignLeft);

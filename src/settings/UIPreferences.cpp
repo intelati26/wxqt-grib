@@ -25,7 +25,6 @@ bool UIPreferences::tiledWindows{false};
 QMargins UIPreferences::textPadding;
 const bool UIPreferences::useNwsApi{true};
 const bool UIPreferences::useNwsApiForHourly{true};
-bool UIPreferences::nexradMainScreen;
 bool UIPreferences::mainScreenSevereDashboard;
 bool UIPreferences::homeCaptions{true};
 bool UIPreferences::nexradScrollWheelMotion;
@@ -43,7 +42,6 @@ vector<PrefBool> UIPreferences::homeScreenItemsText{
     PrefBool{"Wfo Text", "WFO_TEXT", false}
 };
 
-const string UIPreferences::homeScreenNexradToken{"NEXRAD_MAIN"};
 const string UIPreferences::homeColumnImages{"IMAGES"};
 const string UIPreferences::homeColumnForecast{"FORECAST"};
 const string UIPreferences::homeColumnText{"TEXT"};
@@ -59,7 +57,7 @@ namespace {
 }
 
 HomeScreenOrder UIPreferences::homeScreenColumnOrder{"HOME_SCREEN_COLUMN_ORDER", {homeColumnImages, homeColumnForecast, homeColumnText}};
-HomeScreenOrder UIPreferences::homeScreenImageOrder{"HOME_SCREEN_IMAGE_ORDER", tokensOf(homeScreenItemsImage, {homeScreenNexradToken})};
+HomeScreenOrder UIPreferences::homeScreenImageOrder{"HOME_SCREEN_IMAGE_ORDER", tokensOf(homeScreenItemsImage)};
 HomeScreenOrder UIPreferences::homeScreenTextOrder{"HOME_SCREEN_TEXT_ORDER", tokensOf(homeScreenItemsText)};
 
 string UIPreferences::homeScreenLabel(const string& token) {
@@ -71,9 +69,6 @@ string UIPreferences::homeScreenLabel(const string& token) {
     }
     if (token == homeColumnText) {
         return "Text (hourly, WFO text)";
-    }
-    if (token == homeScreenNexradToken) {
-        return "Nexrad";
     }
     for (const auto& items : {&homeScreenItemsImage, &homeScreenItemsText}) {
         for (const auto& item : *items) {
@@ -150,7 +145,6 @@ void UIPreferences::initialize() {
     nwsIconSize = Utility::readPrefInt("NWS_ICON_SIZE_PREF", nwsIconSize);
     // useNwsApi = WString::startsWith(Utility::readPref("USE_NWS_API_SEVEN_DAY", "false"), "t");
     // useNwsApiForHourly = WString::startsWith(Utility::readPref("USE_NWS_API_HOURLY", "true"), "t");
-    nexradMainScreen = WString::startsWith(Utility::readPref("NEXRAD_ON_MAIN_SCREEN", "false"), "t");
     mainScreenSevereDashboard = WString::startsWith(Utility::readPref("MAINSCREEN_SEVERE_DASH", "false"), "t");
     homeCaptions = WString::startsWith(Utility::readPref("HOME_CAPTIONS", "true"), "t");
     nexradScrollWheelMotion = WString::startsWith(Utility::readPref("NEXRAD_SCROLLWHEEL", "false"), "t");

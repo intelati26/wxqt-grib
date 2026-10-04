@@ -9,7 +9,6 @@
 
 #include <functional>
 #include <memory>
-#include <atomic>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -20,19 +19,14 @@
 #include <QLineF>
 #include <QPainter>
 #include <QPinchGesture>
-#include <QPixmap>
 #include "objects/FileStorage.h"
 #include "radar/JobGuard.h"
 #include "objects/LatLon.h"
-#include "radar/NexradColorLegend.h"
 #include "radar/NexradDraw.h"
-#include "radar/NexradLevelData.h"
 #include "radar/NexradRenderTextObject.h"
 #include "radar/NexradState.h"
-#include "radar/NexradStateAnimation.h"
 #include "radar/PolygonType.h"
 #include "radar/ProjectionNumbers.h"
-#include "ui/RadarStatusBox.h"
 #include "ui/TextViewMetal.h"
 #include "ui/Window.h"
 
@@ -41,56 +35,37 @@ using std::string;
 using std::unordered_map;
 using std::vector;
 
+// The map every map screen is built on: the state, county and highway lines, cities, the location dot and the overlays (warnings, watches
+// and discussions, outlooks, fronts, observations), panned and zoomed by its owner. The owner paints what it shows on it with `dataLayer`
+// (under the lines, in map coordinates) and `topLayer` (over everything, in window units).
 class NexradWidget : public QWidget {
 public:
+    // owner callbacks: zoom by a factor (wheel, pinch, click) and pan by pixels (drag); the numbers 0 / 1 / true are the pane and the
+    // projection's radar site: the map is centred on `radarToUse`
     NexradWidget(
         Window *, int, int, bool, const string&, int, int,
-        const function<void(int, string)>&,
-        const function<void(int, string)>&,
         const function<void(double, int)>&,
-        const function<void(double, double, int)>&,
-        const function<void()>&
+        const function<void(double, double, int)>&
     );
     ~NexradWidget() override;
-//    void updateGps(double, double);
-    void downloadDataForAnimation(int);
-    void downloadData();
     // Run `work` on a worker thread, then `done` on the UI thread. The widget is kept alive until the work has finished (its
     // destructor waits), and `done` is skipped if the widget has gone by then.
     void runJob(const function<void()>& work, const function<void()>& done);
-    string radarInfo();   // the status text of the radar picture on screen (safe from any thread)
-    // History: show the scan at or before this time (UTC) from the S3 bucket instead of the newest; an invalid time is live.
-    void setHistoryTime(const QDateTime&);
-    QDateTime historyTime() const;
-    bool historyScanMissing() const { return historyMissing; }   // the last history download found no scan
-    void changeProduct();
     void processWarnings(PolygonType);
-    // the warnings that were in effect at a past time (the history time unless one is given), from HistoricalWarnings' cache
-    void processHistoricalWarnings(PolygonType, const QDateTime& at = QDateTime{});
-    void showHistoricalWarningsAt(const QDateTime& at);   // every warning type; nothing when not in history
     void process(PolygonType);
     void constructSwo();
     void constructFire();
     void constructWBLines();
-    void constructSti();
-    void constructHi();
-    void constructTvs();
     void constructWpcFronts();
-    void resizePolygons();
     void draw();
     FileStorage fileStorage;
     NexradState nexradState;
     NexradRenderTextObject nexradRenderTextObject;
-    NexradLevelData levelData;
     NexradDraw nexradDraw;
-    std::unique_ptr<RadarStatusBox> radarStatusBox;
-    NexradStateAnimation nexradStateAnimation;
-    NexradColorLegend colorLegend;
-    // Optional replacements used by the MRMS viewer: `dataLayer` is painted instead of the radar bins, in the same
-    // projected, panned and zoomed coordinates as the map lines; `topLayer` is painted last, with the pan / zoom
-    // transform removed (window units, for a legend). While `dataLayer` is set the radar colour legend is not drawn.
     function<void(QPainter&)> dataLayer;
     function<void(QPainter&)> topLayer;
+    // when set, a plain click goes to it first (the point in widget pixels); true means it was used, and the click does not zoom
+    function<bool(const QPointF&)> clickHandler;
 
 protected:
     void paintEvent(QPaintEvent *) override;
@@ -99,7 +74,6 @@ protected:
     void wheelEvent(QWheelEvent *) override;
     void mouseMoveEvent(QMouseEvent *) override;
     void mousePressEvent(QMouseEvent *) override;
-    void contextMenuEvent(QContextMenuEvent *) override;
     void mouseDoubleClickEvent(QMouseEvent *) override;
     void mouseReleaseEvent(QMouseEvent *) override;
 
@@ -111,56 +85,22 @@ private:
     void drawFire();
     void drawWpcFronts();
     void drawWarnings();
-    void paintRadarLayer(QPainter&);   // the radar bins, from a cached picture while only panning
-    void drawRadarBins(QPainter&);
     void drawWatch();
     void pinchTriggered(QPinchGesture *);
-    void updateTitle();
-    void toggleRadar();
-    bool ctrlHeld{false};
     double mouseStartX{};
     double mouseStartY{};
-    function<void(int, string)> fnProduct;
-    function<void(int, string)> fnSector;
+    QPointF clickAt;
     function<void(double, int)> fnZoom;
-public:
-    function<void()> onClick;   // when set (the home screen's radar tile), a plain click does this instead of zooming
-private:
     function<void(double, double, int)> fnPosition;
-    function<void()> setTitleMain;
     unordered_map<int, QVector<QLineF>> swoLinesMap;
     unordered_map<int, QVector<QLineF>> fireLinesMap;
-    int totalBins{};
-    std::atomic<qint64> historyMs{0};            // 0 = live, else the history time as ms since the epoch (UTC)
-    std::atomic<bool> historyMissing{false};
-    // The radar bins are drawn into a picture a bit larger than the window and that picture is moved while panning; it is redrawn
-    // when the zoom, the size, the data or the background colour change, or the pan goes past its margin (UI thread only).
-    QPixmap radarCache;
-    double cacheZoom{0.0};
-    double cacheX{0.0};
-    double cacheY{0.0};
-    QSize cacheWidgetSize;
-    quint64 cacheVersion{0};
-    qreal cacheRatio{0.0};
-    QColor cacheBackground;
-    quint64 dataVersion{1};                      // bumped under dataLock whenever levelData changes
-    std::mutex dataLock;                         // levelData / totalBins: swapped by a worker, painted by the UI thread
     std::shared_ptr<JobGuard> jobGuard{std::make_shared<JobGuard>()};
     unordered_map<PolygonType, QVector<QLineF>> polygons;
-    // vector<LatLon> locationDots;
-    // double gpsX{};
-    // double gpsY{};
     vector<vector<double>> windBarbCirclesTransformed;
     vector<QColor> windBarbCircleColors;
     QVector<QLineF> wbLines;
     QVector<QLineF> wbGustLines;
-    QVector<QLineF> stormTrackLines;
-    vector<QPolygonF> hiPolygons;
-    vector<QPolygonF> tvsPolygons;
     string lastMouseType;
-    bool hideRadar{false};
-    bool hideRoads{false};
-    int toggleIndex{};
     // used by pinch zoom
     int rotationAngle{};
     int currentStepScaleFactor{};

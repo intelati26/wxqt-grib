@@ -12,7 +12,6 @@
 #include "objects/DownloadTimer.h"
 #include "misc/SevereNotice.h"
 #include "radar/PolygonType.h"
-#include "radar/NexradWidget.h"
 #include "settings/UIPreferences.h"
 #include "ui/CardCurrentConditions.h"
 #include "ui/CardHazards.h"
@@ -100,16 +99,12 @@ private:
     vector<Image> images;
     unordered_map<PolygonType, SevereNotice> watchesByType;
     vector<QByteArray> bytesList;
-    vector<NexradWidget *> nexradList;
     DownloadTimer timer;
     Shortcut shortcutClose;
     Shortcut shortcutVis;
     Shortcut shortcutWfoText;
     Shortcut shortcutHourly;
     Shortcut shortcutRadar;
-    Shortcut shortcutRadarSinglePane;
-    Shortcut shortcutRadarDualPane;
-    Shortcut shortcutRadarQuadPane;
     Shortcut shortcutSevereDash;
     Shortcut shortcutNcep;
     Shortcut shortRadarMosaic;

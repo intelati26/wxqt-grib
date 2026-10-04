@@ -29,32 +29,12 @@ void SettingsHomeScreenOrderBox::addItems() {
     labels.clear();
     hboxList.clear();
     combos.clear();
-    // one control for the home screen's radar picture: the live Nexrad tile, a still MRMS reflectivity picture, or none
-    hboxList.emplace_back();
-    labels.emplace_back(parent, "Radar on the home screen:");
-    labels.back().setWordWrap(false);
-    hboxList.back().addWidget(labels.back());
-    combos.emplace_back(parent, vector<string>{"Live radar (Nexrad)", "MRMS radar picture (still, around your location)", "None"});
-    combos.back().getView()->setToolTip("The live Nexrad tile downloads and decodes radar data in the background; the MRMS picture is a single image");
-    const bool live = Utility::readPref("NEXRAD_ON_MAIN_SCREEN", "false").rfind("t", 0) == 0;
-    const bool still = Utility::readPref("MRMS_RADAR", "false").rfind("t", 0) == 0;
-    combos.back().setIndex(live ? 0 : (still ? 1 : 2));
-    const auto * radarCombo = &combos.back();
-    combos.back().connect([this, radarCombo] {
-        const int choice = radarCombo->getIndex();
-        Utility::writePref("NEXRAD_ON_MAIN_SCREEN", choice == 0 ? "true" : "false");
-        Utility::writePref("MRMS_RADAR", choice == 1 ? "true" : "false");
-        UIPreferences::initialize();
-        QTimer::singleShot(0, this, [this] { refresh(); });   // after this handler returns: the lists below show which items are hidden
-    });
-    hboxList.back().addWidget(combos.back());
-    box.addLayout(hboxList.back());
     labels.emplace_back(parent, "Layout - pick a layout, then drag the sections into its zones (or click a section for a menu):");
     labels.back().setBlue();
     labels.back().setWordWrap(false);
     box.addWidget(labels.back());
     box.addWidgetReal(new HomeLayoutEditor{this, [] {}});
-    addDragList("Image column (top to bottom):", "Drag to reorder, tick to show. The radar is chosen with the control above.", UIPreferences::homeScreenImageOrder);
+    addDragList("Image column (top to bottom):", "Drag to reorder, tick to show (the MRMS radar picture is one of these).", UIPreferences::homeScreenImageOrder);
     addDragList("Text column (top to bottom):", "Drag to reorder, tick to show.", UIPreferences::homeScreenTextOrder);
     // the MRMS home thumbnail: the area around the current location, or all of the lower 48
     hboxList.emplace_back();
@@ -94,12 +74,8 @@ void SettingsHomeScreenOrderBox::addDragList(const string& title, const string& 
         auto * item = new QListWidgetItem{QString::fromStdString(UIPreferences::homeScreenLabel(token)), list};
         item->setData(Qt::UserRole, QString::fromStdString(token));
         item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled);
-        if (token != UIPreferences::homeScreenNexradToken) {
-            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-            item->setCheckState(isShown(token) ? Qt::Checked : Qt::Unchecked);
-        } else {
-            item->setText(item->text() + "   (chosen above)");   // the radar has its own control
-        }
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(isShown(token) ? Qt::Checked : Qt::Unchecked);
     }
     const int rows = list->count();
     list->setFixedHeight(rows * std::max(24, list->sizeHintForRow(0)) + 10);
@@ -128,9 +104,6 @@ void SettingsHomeScreenOrderBox::addDragList(const string& title, const string& 
 }
 
 bool SettingsHomeScreenOrderBox::isShown(const string& token) {
-    if (token == UIPreferences::homeScreenNexradToken) {
-        return UIPreferences::nexradMainScreen;
-    }
     for (const auto& items : {&UIPreferences::homeScreenItemsImage, &UIPreferences::homeScreenItemsText}) {
         for (const auto& item : *items) {
             if (item.getPrefToken() == token) {

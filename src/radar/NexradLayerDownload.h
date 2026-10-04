@@ -29,9 +29,6 @@ private:
     void constructWBLines(int);
     void constructSwo();
     void constructFire();
-    void constructHi(int);
-    void constructSti(int);
-    void constructTvs(int);
     void constructWpcFronts();
     Window * parent;
     vector<NexradWidget *> * nexradList;

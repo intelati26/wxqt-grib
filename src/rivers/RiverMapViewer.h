@@ -63,9 +63,7 @@ private:
     QLabel * hoverLabel{};
     std::shared_ptr<vector<UtilityRivers::Gauge>> gauges;
     QPointF pointer;
-    QPointF pressedAt;
     bool pointerInside{false};
-    bool moved{false};
     bool closed{false};
     int generation{0};
 };

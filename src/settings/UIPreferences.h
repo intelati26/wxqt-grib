@@ -51,7 +51,6 @@ public:
     static QMargins textPadding;
     static const bool useNwsApi;
     static const bool useNwsApiForHourly;
-    static bool nexradMainScreen;
     static bool mainScreenSevereDashboard;
     static bool homeCaptions;   // a short caption under each home screen picture
     static bool nexradScrollWheelMotion;
@@ -61,8 +60,7 @@ public:
     static vector<PrefBool> homeScreenItemsText;
     // Settings > Home Screen Order: the columns right of the toolbar, and the
     // items within the image column (homeScreenItemsImage tokens plus
-    // homeScreenNexradToken) and the text column
-    static const string homeScreenNexradToken;
+    // the pictures) and the text column
     static const string homeColumnImages;
     static const string homeColumnForecast;
     static const string homeColumnText;

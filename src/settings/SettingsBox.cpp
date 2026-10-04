@@ -27,7 +27,6 @@ SettingsBox::SettingsBox(Window * parent)
     boxMain.addLayout(boxRight);
     setLayout(boxMain.getView());
 
-    configs.push_back(std::make_unique<Switch>(parent, "Show Nexrad on main screen", "NEXRAD_ON_MAIN_SCREEN", false));
     // configs.push_back(std::make_unique<Switch>(parent, "Use new NWS API", "USE_NWS_API_SEVEN_DAY", true));
     // configs.push_back(std::make_unique<Switch>(parent, "Use new NWS API - Hourly", "USE_NWS_API_HOURLY", true));
 

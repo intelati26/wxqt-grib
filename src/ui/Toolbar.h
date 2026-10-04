@@ -23,7 +23,6 @@ class Toolbar : public VBox {
 public:
     Toolbar(Window *, const function<void()>&);
     void launchSettings();
-    void launchNexrad(int);
     void launchHourly();
     void launchWfoText();
     void launchSpcSwoSummary();

@@ -38,7 +38,6 @@
 #include "nhc/Nhc.h"
 #include "objects/Route.h"
 #include "objects/WString.h"
-#include "radar/Nexrad.h"
 #include "radar/RadarMosaic.h"
 #include "settings/SettingsMain.h"
 #include "settings/UIPreferences.h"
@@ -74,9 +73,6 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_date_range_black_48dp.png", "Hourly Forecast, Ctrl-h", [this] { launchHourly(); });
     routeItems.emplace_back("baseline_info_black_48dp.png", "WFO Text products, Ctrl-a", [this] { launchWfoText(); });
 
-    routeItems.emplace_back("baseline_flash_on_black_48dp.png", "Nexrad radar viewer, Ctrl-r", [this] { launchNexrad(1); });
-    routeItems.emplace_back("wxogldualpane.png", "Nexrad radar viewer, dual pane, Ctrl-2", [this] { launchNexrad(2); });
-    routeItems.emplace_back("wxoglquadpane.png", "Nexrad radar viewer, quad pane, Ctrl-4", [this] { launchNexrad(4); });
 
     routeItems.emplace_back("grib.png", "RRFS GRIB Viewer", [parent] { new GribViewer{parent}; });
     routeItems.emplace_back("refs.png", "REFS Ensemble Viewer (4-panel mean/spread comparison)", [parent] { new RefsViewer{parent}; });
@@ -275,10 +271,6 @@ void Toolbar::launchRoute(const string& id) {
 
 void Toolbar::rebuild() {
     rebuildButtons();
-}
-
-void Toolbar::launchNexrad(int numberOfPanes) {
-    Route::nexradRadar(parent, numberOfPanes);
 }
 
 void Toolbar::launchHourly() {

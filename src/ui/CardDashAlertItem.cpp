@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "CardDashAlertItem.h"
+#include "mrms/MrmsViewer.h"
 #include "misc/AlertsDetail.h"
 #include "objects/Route.h"
 #include "objects/WString.h"
@@ -31,9 +32,8 @@ CardDashAlertItem::CardDashAlertItem(Window * parent, const ObjectWarning& warni
     const auto url = warning.getUrl();
     buttonDetails.connect([parent, url] { new AlertsDetail{parent, url}; });
 
-    const auto radarSite = warning.getClosestRadar();
-    buttonRadar.setText("Radar - " + radarSite);
-    buttonRadar.connect([parent, radarSite] { Route::nexradRadarSpecificSite(parent, radarSite); });
+    buttonRadar.setText("Radar (MRMS)");
+    buttonRadar.connect([parent] { new MrmsViewer{parent}; });
 
     // addLayout(boxButtons, Qt::AlignTop);
     addLayout(boxButtons);

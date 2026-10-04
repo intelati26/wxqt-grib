@@ -5,16 +5,12 @@
 // *****************************************************************************
 
 #include "NexradLayerDownload.h"
-#include "radar/HistoricalWarnings.h"
 #include "objects/PolygonWarning.h"
 #include "objects/PolygonWatch.h"
 #include "radar/FireDayOne.h"
 #include "radar/Metar.h"
 #include "radar/SwoDayOne.h"
 #include "radar/WpcFronts.h"
-#include "radar/NexradLevel3HailIndex.h"
-#include "radar/NexradLevel3StormInfo.h"
-#include "radar/NexradLevel3Tvs.h"
 #include "settings/RadarPreferences.h"
 #include "util/UtilityList.h"
 
@@ -26,25 +22,6 @@ NexradLayerDownload::NexradLayerDownload(Window * parent, vector<NexradWidget *>
 
 void NexradLayerDownload::downloadLayers() {
     mtx->lock();
-    if (const auto history = (*nexradList)[0]->historyTime(); history.isValid()) {
-        // a past time: the warnings that were in effect then, from the archive; nothing else is live data to show
-        new FutureVoid{parent,
-            [history] {
-                for (auto type : PolygonWarning::polygonList) {
-                    HistoricalWarnings::polygonsAt(type, history);   // one download, kept for the next type
-                }
-            },
-            [this] {
-                for (auto nw : *nexradList) {
-                    for (auto type : PolygonWarning::polygonList) {
-                        nw->processHistoricalWarnings(type);
-                    }
-                    nw->update();
-                }
-            }};
-        mtx->unlock();
-        return;
-    }
     for (auto polygonGenericType : PolygonWarning::polygonList) {
         if (PolygonWarning::byType[polygonGenericType]->isEnabled) {
             new FutureVoid{parent, [polygonGenericType] { PolygonWarning::byType[polygonGenericType]->download(); },
@@ -73,27 +50,6 @@ void NexradLayerDownload::downloadLayers() {
             auto * nw = (*nexradList)[i];
             nw->runJob([nw] { Metar::getStateMetarArrayForWXOGL(nw->nexradState.getRadarSite(), nw->fileStorage); },
                        [this, i] { constructWBLines(i); });
-        }
-    }
-    if (RadarPreferences::sti) {
-        for (auto i : range(nexradList->size())) {
-            auto * nw = (*nexradList)[i];
-            nw->runJob([nw] { NexradLevel3StormInfo::decode(nw->nexradState.getPn(), nw->fileStorage); },
-                       [this, i] { constructSti(i); });
-        }
-    }
-    if (RadarPreferences::hailIndex) {
-        for (auto i : range(nexradList->size())) {
-            auto * nw = (*nexradList)[i];
-            nw->runJob([nw] { NexradLevel3HailIndex::decode(nw->nexradState.getPn(), nw->fileStorage); },
-                       [this, i] { constructHi(i); });
-        }
-    }
-    if (RadarPreferences::tvs) {
-        for (auto i : range(nexradList->size())) {
-            auto * nw = (*nexradList)[i];
-            nw->runJob([nw] { NexradLevel3Tvs::decode(nw->nexradState.getPn(), nw->fileStorage); },
-                       [this, i] { constructTvs(i); });
         }
     }
     if (RadarPreferences::wpcFronts) {
@@ -138,21 +94,6 @@ void NexradLayerDownload::constructFire() {
         nw->constructFire();
         nw->update();
     }
-}
-
-void NexradLayerDownload::constructHi(int i) {
-    (*nexradList)[i]->constructHi();
-    (*nexradList)[i]->update();
-}
-
-void NexradLayerDownload::constructSti(int i) {
-    (*nexradList)[i]->constructSti();
-    (*nexradList)[i]->update();
-}
-
-void NexradLayerDownload::constructTvs(int i) {
-    (*nexradList)[i]->constructTvs();
-    (*nexradList)[i]->update();
 }
 
 void NexradLayerDownload::constructWpcFronts() {
