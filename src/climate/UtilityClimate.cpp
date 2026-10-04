@@ -20,6 +20,7 @@ namespace UtilityClimate {
         const string cpc{"https://www.cpc.ncep.noaa.gov"};
         const string cpcData{cpc + "/data/indices/"};
         const string cpcProducts{cpc + "/products/"};
+        const string ocean{cpcProducts + "analysis_monitoring/ocean/weeklyenso_clim_81-10/"};
         const string ospo{"https://www.ospo.noaa.gov/data/"};
         const string nhc{"https://www.nhc.noaa.gov/tafb/sst_loop/"};
         const string ensoFigures{cpcProducts + "analysis_monitoring/enso_advisory/"};
@@ -291,6 +292,17 @@ namespace UtilityClimate {
             {"Sea surface temperature anomaly", "Niño regions, relative anomalies over the year (CPC)", cpcProducts + "analysis_monitoring/enso_update/ssta_c.gif"},
             {"Sea surface temperature anomaly", "Tropical Atlantic anomaly (NHC TAFB)", nhc + "14_atl_anom.png", "", "tafb_atl_anom"},
             {"Sea surface temperature anomaly", "Eastern Pacific anomaly (NHC TAFB)", nhc + "14_pac_anom.png", "", "tafb_pac_anom"},
+
+            // below the surface: the equatorial Pacific by depth (CPC, weekly / pentad; the 1981-2010 climatology)
+            {"Subsurface ocean (equatorial Pacific, CPC)", "Temperature by depth and longitude: anomaly (top) and mean (bottom), latest pentad", ocean + "wkteq_xz.gif"},
+            {"Subsurface ocean (equatorial Pacific, CPC)", "Depth of the 20 C isotherm (the thermocline)", ocean + "wkd20eq2.gif"},
+            {"Subsurface ocean (equatorial Pacific, CPC)", "Anomaly of the depth of the 20 C isotherm", ocean + "wkd20eq2_anm.gif"},
+            {"Subsurface ocean (equatorial Pacific, CPC)", "Temperature anomalies at 55 m", ocean + "wkteq2_anm_55m.gif"},
+            {"Subsurface ocean (equatorial Pacific, CPC)", "Temperature anomalies at 105 m", ocean + "wkteq2_anm_105m.gif"},
+            {"Subsurface ocean (equatorial Pacific, CPC)", "Temperature anomalies at 155 m", ocean + "wkteq2_anm_155m.gif"},
+            {"Subsurface ocean (equatorial Pacific, CPC)", "Sea level anomalies", ocean + "wksl_anm.gif"},
+            {"Subsurface ocean (equatorial Pacific, CPC)", "Upper-ocean temperature anomalies, time by longitude (last year)", cpcProducts + "analysis_monitoring/enso_update/heat-last-year-hr.png"},
+            {"Subsurface ocean (equatorial Pacific, CPC)", "Anomalous equatorial temperatures, most recent pentad (depth by longitude)", cpcProducts + "analysis_monitoring/enso_update/zlon_last-hr.png"},
 
             // marine heat waves and the coral
             {"Marine heat and coral", "HotSpots (SST above the bleaching threshold)", ospo + "cb/hs/hs.daily.current.png", "", "hs"},
