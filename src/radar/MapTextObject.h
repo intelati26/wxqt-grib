@@ -4,21 +4,21 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef NEXRADRENDERTEXTOBJECT_H
-#define NEXRADRENDERTEXTOBJECT_H
+#ifndef MAPTEXTOBJECT_H
+#define MAPTEXTOBJECT_H
 
 #include <string>
 #include <vector>
 #include "objects/FileStorage.h"
-#include "radar/NexradState.h"
+#include "radar/MapState.h"
 #include "ui/TextViewMetal.h"
 
 using std::string;
 using std::vector;
 
-class NexradRenderTextObject {
+class MapTextObject {
 public:
-    NexradRenderTextObject(int, NexradState *, FileStorage *);
+    MapTextObject(int, MapState *, FileStorage *);
     void initialize();
     void add();
     void addWpcPressureCenters();
@@ -30,7 +30,7 @@ private:
     static void initializeTextLabelsCountyLabels();
     void addTextLabelsCitiesExtended();
     void addTextLabelsCountyLabels();
-    NexradState * nexradState;
+    MapState * mapState;
     FileStorage * fileStorage;
     size_t maxCitiesPerGlview;
     static const double cityMinZoom;
@@ -38,4 +38,4 @@ private:
     static const double countyMinZoom;
 };
 
-#endif  // NEXRADRENDERTEXTOBJECT_H
+#endif  // MAPTEXTOBJECT_H

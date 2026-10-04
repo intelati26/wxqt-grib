@@ -11,7 +11,7 @@
 #include <vector>
 #include <QLabel>
 #include <QPointF>
-#include "radar/NexradWidget.h"
+#include "radar/MapWidget.h"
 #include "rivers/UtilityRivers.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
@@ -59,7 +59,7 @@ private:
     ComboBox comboFilter;
     Button buttonRefresh;
     Text textStatus;
-    NexradWidget * radar{};
+    MapWidget * radar{};
     QLabel * hoverLabel{};
     std::shared_ptr<vector<UtilityRivers::Gauge>> gauges;
     QPointF pointer;

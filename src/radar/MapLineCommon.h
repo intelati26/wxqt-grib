@@ -4,8 +4,8 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef NEXRADLEVEL3COMMON_H
-#define NEXRADLEVEL3COMMON_H
+#ifndef MAPLINECOMMON_H
+#define MAPLINECOMMON_H
 
 #include <vector>
 #include "external/ExternalGlobalCoordinates.h"
@@ -13,10 +13,10 @@
 
 using std::vector;
 
-class NexradLevel3Common {
+class MapLineCommon {
 public:
     static vector<double> drawLineFromEc(const ExternalGlobalCoordinates&, const ProjectionNumbers&, double, double);
     static vector<double> drawLine(const vector<double>&, const ProjectionNumbers&, const ExternalGlobalCoordinates&, double, double);
 };
 
-#endif  // NEXRADLEVEL3COMMON_H
+#endif  // MAPLINECOMMON_H

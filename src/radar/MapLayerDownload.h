@@ -4,23 +4,23 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef NEXRADLAYERDOWNLOAD_H
-#define NEXRADLAYERDOWNLOAD_H
+#ifndef MAPLAYERDOWNLOAD_H
+#define MAPLAYERDOWNLOAD_H
 
 #include <memory>
 #include <mutex>
 #include <vector>
 #include "objects/FutureVoid.h"
-#include "radar/NexradWidget.h"
+#include "radar/MapWidget.h"
 #include "radar/PolygonType.h"
 #include "ui/Window.h"
 
 using std::unique_ptr;
 using std::vector;
 
-class NexradLayerDownload {
+class MapLayerDownload {
 public:
-    NexradLayerDownload(Window *, vector<NexradWidget *> *);
+    MapLayerDownload(Window *, vector<MapWidget *> *);
     void downloadLayers();
 
 private:
@@ -31,9 +31,9 @@ private:
     void constructFire();
     void constructWpcFronts();
     Window * parent;
-    vector<NexradWidget *> * nexradList;
+    vector<MapWidget *> * mapList;
     vector<unique_ptr<FutureVoid>> futures;
     unique_ptr<std::mutex> mtx;
 };
 
-#endif  // NEXRADLAYERDOWNLOAD_H
+#endif  // MAPLAYERDOWNLOAD_H

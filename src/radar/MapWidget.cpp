@@ -6,7 +6,7 @@
 
 #include <mutex>
 #include <QPointer>
-#include "NexradWidget.h"
+#include "MapWidget.h"
 #include "radar/RadarSites.h"
 #include <QApplication>
 #include <QMenu>
@@ -19,7 +19,7 @@
 #include "objects/PolygonWatch.h"
 #include "objects/WString.h"
 #include "radar/FireDayOne.h"
-#include "radar/NexradLevel3WindBarbs.h"
+#include "radar/MapWindBarbs.h"
 #include "radar/Projection.h"
 #include "radar/SwoDayOne.h"
 #include "radar/Warnings.h"
@@ -31,7 +31,7 @@
 #include "util/UtilityList.h"
 #include "util/UtilityUI.h"
 
-NexradWidget::NexradWidget(
+MapWidget::MapWidget(
     Window * parent,
     int paneNumber,
     int numberOfPanes,
@@ -43,22 +43,22 @@ NexradWidget::NexradWidget(
     const function<void(double, double, int)>& fnPosition
 )
     : QWidget{parent}
-    , nexradState{paneNumber, numberOfPanes, useASpecificRadar, radarToUse, originalWidth, originalHeight}
-    , nexradRenderTextObject{numberOfPanes, &nexradState, &fileStorage}
-    , nexradDraw{&nexradState, &fileStorage, &nexradRenderTextObject}
+    , mapState{paneNumber, numberOfPanes, useASpecificRadar, radarToUse, originalWidth, originalHeight}
+    , mapTextObject{numberOfPanes, &mapState, &fileStorage}
+    , mapDraw{&mapState, &fileStorage, &mapTextObject}
     , fnZoom{fnZoom}
     , fnPosition{fnPosition}
     , parent{parent}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    nexradState.originalWidth = originalWidth;
-    nexradState.originalHeight = originalHeight;
+    mapState.originalWidth = originalWidth;
+    mapState.originalHeight = originalHeight;
     grabGesture(Qt::PinchGesture);
     show();
-    nexradDraw.initGeom();
+    mapDraw.initGeom();
 }
 
-bool NexradWidget::event(QEvent * event) {
+bool MapWidget::event(QEvent * event) {
     if (event->type() == QEvent::Gesture)
         return gestureEvent(dynamic_cast<QGestureEvent*>(event));
     return QWidget::event(event);
@@ -67,7 +67,7 @@ bool NexradWidget::event(QEvent * event) {
 // https://doc.qt.io/qt-5/gestures-overview.html
 // https://doc.qt.io/qt-5/qgestureevent.html#details
 // pinch gesture for mobile
-bool NexradWidget::gestureEvent(QGestureEvent * event) {
+bool MapWidget::gestureEvent(QGestureEvent * event) {
     // https://doc.qt.io/qt-5/qtwidgets-gestures-imagegestures-example.html
     if (QGesture * pinch = event->gesture(Qt::PinchGesture)) {
         pinchTriggered(dynamic_cast<QPinchGesture *>(pinch));
@@ -81,7 +81,7 @@ bool NexradWidget::gestureEvent(QGestureEvent * event) {
     return true;
 }
 
-void NexradWidget::pinchTriggered(QPinchGesture *gesture) {
+void MapWidget::pinchTriggered(QPinchGesture *gesture) {
     QPinchGesture::ChangeFlags changeFlags = gesture->changeFlags();
     if (changeFlags & QPinchGesture::RotationAngleChanged) {
         auto rotationDelta = static_cast<int>(gesture->rotationAngle() - gesture->lastRotationAngle());
@@ -90,7 +90,7 @@ void NexradWidget::pinchTriggered(QPinchGesture *gesture) {
     }
     if (changeFlags & QPinchGesture::ScaleFactorChanged) {
         currentStepScaleFactor = static_cast<int>(gesture->totalScaleFactor());
-        fnZoom(gesture->scaleFactor(), nexradState.paneNumber);
+        fnZoom(gesture->scaleFactor(), mapState.paneNumber);
         // qDebug() << "pinchTriggered(): zoom by" << gesture->scaleFactor() << "->" << currentStepScaleFactor;
     }
     if (gesture->state() == Qt::GestureFinished) {
@@ -100,54 +100,54 @@ void NexradWidget::pinchTriggered(QPinchGesture *gesture) {
     update();
 }
 
-void NexradWidget::wheelEvent(QWheelEvent * event) {
-    if (UIPreferences::nexradScrollWheelMotion) {
+void MapWidget::wheelEvent(QWheelEvent * event) {
+    if (UIPreferences::mapScrollWheelMotion) {
         if (event->angleDelta().y() > 0) {
-            fnZoom(0.77, nexradState.paneNumber);
+            fnZoom(0.77, mapState.paneNumber);
         } else {
-            fnZoom(1.33, nexradState.paneNumber);
+            fnZoom(1.33, mapState.paneNumber);
         }
     } else {
         if (event->angleDelta().y() > 0) {
-            fnZoom(1.33, nexradState.paneNumber);
+            fnZoom(1.33, mapState.paneNumber);
         } else {
-            fnZoom(0.77, nexradState.paneNumber);
+            fnZoom(0.77, mapState.paneNumber);
         }
     }
     update();
 }
 
-void NexradWidget::mouseMoveEvent(QMouseEvent * event) {
+void MapWidget::mouseMoveEvent(QMouseEvent * event) {
     if (event->buttons() == Qt::NoButton) {
         return;   // a screen that tracks the pointer (MRMS value readout) gets moves with no button down: not a drag
     }
-    // nexradState.xPos -= mouseStartX - event->pos().x();
-    // nexradState.yPos -= mouseStartY - event->pos().y();
+    // mapState.xPos -= mouseStartX - event->pos().x();
+    // mapState.yPos -= mouseStartY - event->pos().y();
 
     lastMouseType = "Drag";
     // update();
-    fnPosition(-1.0 * (mouseStartX - event->pos().x()), -1.0 * (mouseStartY - event->pos().y()), nexradState.paneNumber);
+    fnPosition(-1.0 * (mouseStartX - event->pos().x()), -1.0 * (mouseStartY - event->pos().y()), mapState.paneNumber);
     mouseStartX = event->pos().x();
     mouseStartY = event->pos().y();
 }
 
-void NexradWidget::mousePressEvent(QMouseEvent * event) {
+void MapWidget::mousePressEvent(QMouseEvent * event) {
     mouseStartX = event->pos().x();
     mouseStartY = event->pos().y();
     lastMouseType = "Click";
 }
 
-void NexradWidget::mouseDoubleClickEvent([[maybe_unused]] QMouseEvent * event) {
+void MapWidget::mouseDoubleClickEvent([[maybe_unused]] QMouseEvent * event) {
     lastMouseType = "Double Click";
 }
 
-void NexradWidget::performSingleClickAction() {
+void MapWidget::performSingleClickAction() {
     if (lastMouseType == "Click") {
-        fnZoom(0.77, nexradState.paneNumber);
+        fnZoom(0.77, mapState.paneNumber);
     }
 }
 
-void NexradWidget::mouseReleaseEvent([[maybe_unused]] QMouseEvent * event) {
+void MapWidget::mouseReleaseEvent([[maybe_unused]] QMouseEvent * event) {
     if (lastMouseType == "Drag") {
         update();
     } else if (lastMouseType == "Click") {
@@ -158,48 +158,48 @@ void NexradWidget::mouseReleaseEvent([[maybe_unused]] QMouseEvent * event) {
         }
         QTimer::singleShot(QApplication::doubleClickInterval(), [this]() {performSingleClickAction();});
     } else {
-        fnZoom(1.33, nexradState.paneNumber);
+        fnZoom(1.33, mapState.paneNumber);
     }
 }
 
-void NexradWidget::paintEvent(QPaintEvent * event) {
+void MapWidget::paintEvent(QPaintEvent * event) {
     QPainter painter{this};
-    nexradDraw.initSurface(&painter, event);
+    mapDraw.initSurface(&painter, event);
     if (dataLayer) {
         painter.save();
         dataLayer(painter);
         painter.restore();
     }
-    // if (nexradState.zoom > 0.9 && !hideRoads) {
-    //     nexradDraw.drawGeomLine(HwExtLines);
+    // if (mapState.zoom > 0.9 && !hideRoads) {
+    //     mapDraw.drawGeomLine(HwExtLines);
     // }
-    // if (nexradState.zoom > 0.5) {
-    //     nexradDraw.drawGeomLine(CountyLines);
+    // if (mapState.zoom > 0.5) {
+    //     mapDraw.drawGeomLine(CountyLines);
     //     if (!hideRoads) {
-    //         nexradDraw.drawGeomLine(HwLines);
+    //         mapDraw.drawGeomLine(HwLines);
     //     }
-    //     nexradDraw.drawGeomLine(LakeLines);
+    //     mapDraw.drawGeomLine(LakeLines);
     // }
-    // nexradDraw.drawGeomLine(StateLines);
-    // nexradDraw.drawGeomLine(CaLines);
-    // nexradDraw.drawGeomLine(MxLines);
+    // mapDraw.drawGeomLine(StateLines);
+    // mapDraw.drawGeomLine(CaLines);
+    // mapDraw.drawGeomLine(MxLines);
 
-    if (nexradState.zoom > 0.7) {
+    if (mapState.zoom > 0.7) {
         for (auto t : {CountyLines, HwLines, HwExtLines, LakeLines}) {
-            nexradDraw.drawGeomLine(t);
+            mapDraw.drawGeomLine(t);
         }
     }
     for (auto t : {StateLines, CaLines, MxLines}) {
-        nexradDraw.drawGeomLine(t);
+        mapDraw.drawGeomLine(t);
     }
 
     if (RadarPreferences::locationDot) {
-        nexradDraw.drawGenericCircles(RadarPreferences::locdotSize, fileStorage.locationDotsColor, fileStorage.locationDotsTransformed);
+        mapDraw.drawGenericCircles(RadarPreferences::locdotSize, fileStorage.locationDotsColor, fileStorage.locationDotsTransformed);
     }
-    if (RadarPreferences::obsWindbarbs && !windBarbCircleColors.empty() && nexradState.zoom > 0.3) {
-        nexradDraw.drawGenericLine(RadarPreferences::wbLinesize, Qt::red, wbGustLines);
-        nexradDraw.drawGenericLine(RadarPreferences::wbLinesize, RadarPreferences::colorObsWindbarbs, wbLines);
-        nexradDraw.drawGenericCircles(RadarPreferences::aviationSize * 2.0, windBarbCircleColors, windBarbCirclesTransformed);
+    if (RadarPreferences::obsWindbarbs && !windBarbCircleColors.empty() && mapState.zoom > 0.3) {
+        mapDraw.drawGenericLine(RadarPreferences::wbLinesize, Qt::red, wbGustLines);
+        mapDraw.drawGenericLine(RadarPreferences::wbLinesize, RadarPreferences::colorObsWindbarbs, wbLines);
+        mapDraw.drawGenericCircles(RadarPreferences::aviationSize * 2.0, windBarbCircleColors, windBarbCirclesTransformed);
     }
     drawWatch();
     drawWarnings();
@@ -209,32 +209,32 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
     if (RadarPreferences::fire) {
         drawFire();
     }
-    if (RadarPreferences::wpcFronts && nexradState.zoom < 0.5) {
+    if (RadarPreferences::wpcFronts && mapState.zoom < 0.5) {
         drawWpcFronts();
     }
     // KEEP
     // if (RadarPreferences::locdotFollowsGps) {
     //     for (int i = 0; i < locationDotsTransformedGps.size(); i += 2) {
-    //         painter.setPen(QPen(RadarPreferences::colorLocdot, 1.5 / nexradState.zoom, Qt::SolidLine));
+    //         painter.setPen(QPen(RadarPreferences::colorLocdot, 1.5 / mapState.zoom, Qt::SolidLine));
     //         painter.setBrush(QBrush(RadarPreferences::colorLocdot, Qt::SolidPattern));
     //         QPointF center = QPointF(locationDotsTransformedGps[i], locationDotsTransformedGps[i + 1]);
     //         painter.drawEllipse(center, scaledCircleSize, scaledCircleSize);
     //     }
     //     for (int i = 0; i < locationDotsTransformedGps.size(); i += 2) {
-    //         painter.setPen(QPen(RadarPreferences::colorLocdot, 1.5 / nexradState.zoom, Qt::SolidLine));
+    //         painter.setPen(QPen(RadarPreferences::colorLocdot, 1.5 / mapState.zoom, Qt::SolidLine));
     //         painter.setBrush(QBrush(RadarPreferences::colorLocdot, Qt::NoBrush));
     //         QPointF center = QPointF(locationDotsTransformedGps[i], locationDotsTransformedGps[i + 1]);
     //         painter.drawEllipse(center, scaledCircleSize * 6.0, scaledCircleSize * 6.0);
     //     }
     // }
-    if (RadarPreferences::cities && nexradState.zoom > 0.5) {
-        nexradDraw.drawText(RadarPreferences::colorCity, nexradState.cities);
+    if (RadarPreferences::cities && mapState.zoom > 0.5) {
+        mapDraw.drawText(RadarPreferences::colorCity, mapState.cities);
     }
-    if (RadarPreferences::countyLabels && nexradState.zoom > 0.9) {
-        nexradDraw.drawText(RadarPreferences::colorCountyLabels, nexradState.countyLabels);
+    if (RadarPreferences::countyLabels && mapState.zoom > 0.9) {
+        mapDraw.drawText(RadarPreferences::colorCountyLabels, mapState.countyLabels);
     }
-    if (RadarPreferences::obs && nexradState.zoom > 0.5) {
-        nexradDraw.drawText(RadarPreferences::colorObs, nexradState.observations);
+    if (RadarPreferences::obs && mapState.zoom > 0.5) {
+        mapDraw.drawText(RadarPreferences::colorObs, mapState.observations);
     }
     if (topLayer) {
         painter.setWorldTransform(QTransform{});   // keep the window mapping: window units, no pan / zoom
@@ -242,10 +242,10 @@ void NexradWidget::paintEvent(QPaintEvent * event) {
     }
 }
 
-void NexradWidget::drawSwo() {
+void MapWidget::drawSwo() {
     for (auto riskLevelIndex : range(SwoDayOne::threatList.size())) {
         if (SwoDayOne::polygonBy.contains(riskLevelIndex) && swoLinesMap.contains(riskLevelIndex)) {
-            nexradDraw.drawGenericLine(
+            mapDraw.drawGenericLine(
                 RadarPreferences::swoLinesize,
                 SwoDayOne::colors[riskLevelIndex],
                 swoLinesMap[riskLevelIndex]);
@@ -253,10 +253,10 @@ void NexradWidget::drawSwo() {
     }
 }
 
-void NexradWidget::drawFire() {
+void MapWidget::drawFire() {
     for (auto riskLevelIndex : range(FireDayOne::threatList.size())) {
         if (FireDayOne::polygonBy.contains(riskLevelIndex) && fireLinesMap.contains(riskLevelIndex)) {
-            nexradDraw.drawGenericLine(
+            mapDraw.drawGenericLine(
                 RadarPreferences::swoLinesize,
                 FireDayOne::colors[riskLevelIndex],
                 fireLinesMap[riskLevelIndex]);
@@ -264,25 +264,25 @@ void NexradWidget::drawFire() {
     }
 }
 
-void NexradWidget::drawWpcFronts() {
-    if (nexradState.zoom < 0.5) {
+void MapWidget::drawWpcFronts() {
+    if (mapState.zoom < 0.5) {
         for (const auto& front : WpcFronts::fronts) {
-            if (front.coordinatesModified[nexradState.paneNumber].size() > 1 && front.coordinatesModified[nexradState.paneNumber].size() < 500) {
-                nexradDraw.drawGenericLine(
+            if (front.coordinatesModified[mapState.paneNumber].size() > 1 && front.coordinatesModified[mapState.paneNumber].size() < 500) {
+                mapDraw.drawGenericLine(
                     RadarPreferences::watmcdLinesize,
                     front.penColor,
-                    front.coordinatesModified[nexradState.paneNumber]);
+                    front.coordinatesModified[mapState.paneNumber]);
             }
         }
-        nexradDraw.drawText(Qt::red, nexradState.pressureCenterLabelsRed);
-        nexradDraw.drawText(Qt::blue, nexradState.pressureCenterLabelsBlue);
+        mapDraw.drawText(Qt::red, mapState.pressureCenterLabelsRed);
+        mapDraw.drawText(Qt::blue, mapState.pressureCenterLabelsBlue);
     }
 }
 
-void NexradWidget::drawWarnings() {
+void MapWidget::drawWarnings() {
     for (const auto type1 : PolygonWarning::polygonList) {
         if (PolygonWarning::byType[type1]->isEnabled && polygons.contains(type1)) {
-            nexradDraw.drawGenericLine(
+            mapDraw.drawGenericLine(
                 RadarPreferences::warnLinesize,
                 PolygonWarning::byType[type1]->colorInt,
                 polygons[type1]);
@@ -290,10 +290,10 @@ void NexradWidget::drawWarnings() {
     }
 }
 
-void NexradWidget::drawWatch() {
+void MapWidget::drawWatch() {
     for (const auto type1 : PolygonWatch::polygonList) {
         if (PolygonWatch::byType[type1]->isEnabled && polygons.contains(type1)) {
-            nexradDraw.drawGenericLine(
+            mapDraw.drawGenericLine(
                 RadarPreferences::watmcdLinesize,
                 PolygonWatch::byType[type1]->colorInt,
                 polygons[type1]);
@@ -302,13 +302,13 @@ void NexradWidget::drawWatch() {
 }
 
 // KEEP
-NexradWidget::~NexradWidget() {
+MapWidget::~MapWidget() {
     jobGuard->closeAndWait();   // a download or decode still running uses this widget's members
 }
 
-void NexradWidget::runJob(const function<void()>& work, const function<void()>& done) {
+void MapWidget::runJob(const function<void()>& work, const function<void()>& done) {
     const auto guard = jobGuard;
-    const QPointer<NexradWidget> self{this};
+    const QPointer<MapWidget> self{this};
     new FutureVoid{parent,
         [guard, work] {
             if (!guard->enter()) {
@@ -329,31 +329,31 @@ void NexradWidget::runJob(const function<void()>& work, const function<void()>& 
 }
 
 // KEEP
-// void NexradWidget::updateGps(double lat, double lon) {
+// void MapWidget::updateGps(double lat, double lon) {
 //    gpsX = lat;
 //    gpsY = lon;
 //    if (RadarPreferences::locdotFollowsGps) {
 //        locationDotsTransformedGps.clear();
 //        // lat lon are correct pos / neg but must match below
-//        auto coords = UtilityCanvasProjection::computeMercatorNumbers(gpsX, -1.0 * gpsY, nexradState.getPn());
+//        auto coords = UtilityCanvasProjection::computeMercatorNumbers(gpsX, -1.0 * gpsY, mapState.getPn());
 //        locationDotsTransformedGps.append(coords);
 //    }
 // }
 
-void NexradWidget::constructWBLines() {
+void MapWidget::constructWBLines() {
     if (RadarPreferences::obs) {
-        nexradRenderTextObject.addTextLabelsObservations();
+        mapTextObject.addTextLabelsObservations();
     }
     if (RadarPreferences::obsWindbarbs) {
         windBarbCirclesTransformed.clear();
         windBarbCircleColors.clear();
         wbLines.clear();
         wbGustLines.clear();
-        const auto wBFloats = NexradLevel3WindBarbs::decodeAndPlot(nexradState.getPn(), false, fileStorage);
+        const auto wBFloats = MapWindBarbs::decodeAndPlot(mapState.getPn(), false, fileStorage);
         for (auto x : range3(0, wBFloats.size(), 4)) {
             wbLines.push_back(QLineF{wBFloats[x], wBFloats[x + 1], wBFloats[x + 2], wBFloats[x + 3]});
         }
-        const auto wBGustFloats = NexradLevel3WindBarbs::decodeAndPlot(nexradState.getPn(), true, fileStorage);
+        const auto wBGustFloats = MapWindBarbs::decodeAndPlot(mapState.getPn(), true, fileStorage);
         for (auto x : range3(0, wBGustFloats.size(), 4)) {
             wbGustLines.push_back(QLineF{wBGustFloats[x], wBGustFloats[x + 1], wBGustFloats[x + 2], wBGustFloats[x + 3]});
         }
@@ -368,28 +368,28 @@ void NexradWidget::constructWBLines() {
         }
         for (auto index : range(std::min(obsX.size(), std::min(obsY.size(), obsColor.size())))) {
             const auto rawColor = obsColor[index];
-            windBarbCirclesTransformed.push_back(Projection::computeMercatorNumbers(obsX[index], obsY[index], nexradState.getPn()));
+            windBarbCirclesTransformed.push_back(Projection::computeMercatorNumbers(obsX[index], obsY[index], mapState.getPn()));
             windBarbCircleColors.emplace_back(Color::red(rawColor), Color::green(rawColor), Color::blue(rawColor));
         }
     }
 }
 
-void NexradWidget::process(PolygonType polygonType) {
-    const auto numbers = Watch::add(nexradState.getPn(), polygonType);
+void MapWidget::process(PolygonType polygonType) {
+    const auto numbers = Watch::add(mapState.getPn(), polygonType);
     polygons[polygonType] = QVector<QLineF>();
     for (auto position : range3(0, numbers.size(), 4)) {
         polygons[polygonType].push_back(QLineF(numbers[position], numbers[position + 1], numbers[position + 2], numbers[position + 3]));
     }
 }
 
-void NexradWidget::constructSwo() {
+void MapWidget::constructSwo() {
     for (auto riskLevelIndex : range(SwoDayOne::threatList.size())) {
         if (SwoDayOne::polygonBy.contains(riskLevelIndex)) {
             swoLinesMap[riskLevelIndex] = QVector<QLineF>();
             for (auto x : range3(0, SwoDayOne::polygonBy[riskLevelIndex].size(), 4)) {
                 const auto floatList = SwoDayOne::polygonBy[riskLevelIndex];
-                const auto coords1 = Projection::computeMercatorNumbers(floatList[x], floatList[x + 1], nexradState.getPn());
-                const auto coords2 = Projection::computeMercatorNumbers(floatList[x + 2], floatList[x + 3], nexradState.getPn());
+                const auto coords1 = Projection::computeMercatorNumbers(floatList[x], floatList[x + 1], mapState.getPn());
+                const auto coords2 = Projection::computeMercatorNumbers(floatList[x + 2], floatList[x + 3], mapState.getPn());
                 swoLinesMap[riskLevelIndex].push_back(QLineF{coords1[0], coords1[1], coords2[0], coords2[1]});
             }
         } else {
@@ -400,14 +400,14 @@ void NexradWidget::constructSwo() {
     }
 }
 
-void NexradWidget::constructFire() {
+void MapWidget::constructFire() {
     for (auto riskLevelIndex : range(FireDayOne::threatList.size())) {
         if (FireDayOne::polygonBy.contains(riskLevelIndex)) {
             fireLinesMap[riskLevelIndex] = QVector<QLineF>();
             for (auto x : range3(0, FireDayOne::polygonBy[riskLevelIndex].size(), 4)) {
                 const auto floatList = FireDayOne::polygonBy[riskLevelIndex];
-                const auto coords1 = Projection::computeMercatorNumbers(floatList[x], floatList[x + 1], nexradState.getPn());
-                const auto coords2 = Projection::computeMercatorNumbers(floatList[x + 2], floatList[x + 3], nexradState.getPn());
+                const auto coords1 = Projection::computeMercatorNumbers(floatList[x], floatList[x + 1], mapState.getPn());
+                const auto coords2 = Projection::computeMercatorNumbers(floatList[x + 2], floatList[x + 3], mapState.getPn());
                 fireLinesMap[riskLevelIndex].push_back(QLineF{coords1[0], coords1[1], coords2[0], coords2[1]});
             }
         } else {
@@ -418,21 +418,21 @@ void NexradWidget::constructFire() {
     }
 }
 
-void NexradWidget::constructWpcFronts() {
+void MapWidget::constructWpcFronts() {
     for (auto& front : WpcFronts::fronts) {
-        front.translate(nexradState.paneNumber, nexradState.getPn());
+        front.translate(mapState.paneNumber, mapState.getPn());
     }
-    nexradRenderTextObject.addWpcPressureCenters();
+    mapTextObject.addWpcPressureCenters();
 }
 
-void NexradWidget::processWarnings(PolygonType polygonGenericType) {
-    const auto numbers = Warnings::add(nexradState.getPn(), polygonGenericType);
+void MapWidget::processWarnings(PolygonType polygonGenericType) {
+    const auto numbers = Warnings::add(mapState.getPn(), polygonGenericType);
     polygons[polygonGenericType] = QVector<QLineF>();
     for (auto position : range3(0, numbers.size(), 4)) {
         polygons[polygonGenericType].push_back(QLineF{numbers[position], numbers[position + 1], numbers[position + 2], numbers[position + 3]});
     }
 }
 
-void NexradWidget::draw() {
+void MapWidget::draw() {
     update();
 }

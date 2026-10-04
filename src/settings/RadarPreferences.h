@@ -39,7 +39,7 @@ public:
     static QColor colorObs;
     static QColor colorObsWindbarbs;
     static QColor colorCountyLabels;
-    static QColor nexradRadarBackgroundColor;
+    static QColor mapBackgroundColor;
 };
 
 #endif  // RADARPREFERENCES_H

@@ -4,16 +4,16 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef NEXRADUTIL_H
-#define NEXRADUTIL_H
+#ifndef VTECUTIL_H
+#define VTECUTIL_H
 
 #include <string>
 
 using std::string;
 
-class NexradUtil {
+class VtecUtil {
 public:
     static bool isVtecCurrent(const string&);   // a warning's VTEC time range has not ended yet
 };
 
-#endif  // NEXRADUTIL_H
+#endif  // VTECUTIL_H

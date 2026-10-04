@@ -64,14 +64,14 @@ RiverMapViewer::RiverMapViewer(Window * parent)
     textStatus.setWordWrap(false);
     const auto dimens = UtilityUI::getScreenBounds();
     const auto side = std::max(300, std::min(dimens[0] - 20, dimens[1] - 160));
-    radar = new NexradWidget{
+    radar = new MapWidget{
         this, 0, 1, true, Location::radarSite(), side, side,
         [this] (double z, [[maybe_unused]] int pane) { changeZoom(z); },
         [this] (double x, double y, [[maybe_unused]] int pane) { changePosition(x, y); }};
     radar->setFixedSize(side, side);
-    radar->nexradState.setRadar(Location::radarSite());
-    radar->nexradState.reset();
-    radar->nexradDraw.initGeom();
+    radar->mapState.setRadar(Location::radarSite());
+    radar->mapState.reset();
+    radar->mapDraw.initGeom();
     showConus();
     radar->setMouseTracking(true);
     radar->installEventFilter(this);
@@ -160,7 +160,7 @@ bool RiverMapViewer::shown(const UtilityRivers::Gauge& g) const {
 
 // the radar projection as x = ax * lon + bx, y = ay * mercator(lat) + by (two points fix it)
 RiverMapViewer::Projection2 RiverMapViewer::projection() const {
-    const auto& pn = radar->nexradState.getPn();
+    const auto& pn = radar->mapState.getPn();
     const auto project = [&pn] (double lat, double lon) {
         return Projection::computeMercatorNumbersFromLatLon(LatLon{lat, lon}.reverseLon(), pn);
     };
@@ -174,7 +174,7 @@ RiverMapViewer::Projection2 RiverMapViewer::projection() const {
 
 // where a gauge is in the widget, in pixels
 QPointF RiverMapViewer::widgetOf(const UtilityRivers::Gauge& g, const Projection2& p) const {
-    const auto& state = radar->nexradState;
+    const auto& state = radar->mapState;
     const double u = (p.ax * g.lon + p.bx) * state.zoom + state.xPos;
     const double v = (p.ay * g.mercator + p.by) * state.zoom + state.yPos;
     return QPointF{(u + 500.0) * radar->width() / 1000.0, (v + 250.0) * radar->height() / 1000.0};
@@ -182,7 +182,7 @@ QPointF RiverMapViewer::widgetOf(const UtilityRivers::Gauge& g, const Projection
 
 // the whole lower 48 in the middle of the square map
 void RiverMapViewer::showConus() {
-    auto& state = radar->nexradState;
+    auto& state = radar->mapState;
     const auto [ax, bx, ay, by] = projection();
     const double centerLon = -96.0;
     const double centerLat = 37.5;
@@ -200,9 +200,9 @@ void RiverMapViewer::fitRadar() {
     const int side = std::max(300, std::min(width() - 16, height() - above - 32));
     if (radar->width() != side) {
         radar->setFixedSize(side, side);
-        radar->nexradState.originalWidth = side;
-        radar->nexradState.originalHeight = side;
-        radar->nexradRenderTextObject.add();
+        radar->mapState.originalWidth = side;
+        radar->mapState.originalHeight = side;
+        radar->mapTextObject.add();
     }
 }
 
@@ -211,7 +211,7 @@ void RiverMapViewer::resizeEventCustom() {
 }
 
 void RiverMapViewer::changeZoom(double factor) {
-    auto& state = radar->nexradState;
+    auto& state = radar->mapState;
     if (factor < 1.0 && state.zoom <= 0.02) {
         return;
     }
@@ -226,16 +226,16 @@ void RiverMapViewer::changeZoom(double factor) {
     }
     state.xPos = u - (u - state.xPos) * change;
     state.yPos = v - (v - state.yPos) * change;
-    radar->nexradRenderTextObject.add();
+    radar->mapTextObject.add();
     radar->update();
 }
 
 void RiverMapViewer::changePosition(double dx, double dy) {
-    auto& state = radar->nexradState;
+    auto& state = radar->mapState;
     const double unitsPerPixel = 1000.0 / std::max(1, radar->width());
     state.xPos += dx * unitsPerPixel;
     state.yPos += dy * unitsPerPixel;
-    radar->nexradRenderTextObject.add();
+    radar->mapTextObject.add();
     radar->update();
 }
 
@@ -245,7 +245,7 @@ void RiverMapViewer::paintGauges(QPainter& painter) {
         return;
     }
     const auto p = projection();
-    const auto& state = radar->nexradState;
+    const auto& state = radar->mapState;
     const double perPixel = 1000.0 / std::max(1, radar->width());
     painter.setRenderHint(QPainter::Antialiasing, true);
     for (const auto& g : *gauges) {

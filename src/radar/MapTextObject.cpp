@@ -5,7 +5,7 @@
 // *****************************************************************************
 
 #include <mutex>
-#include "NexradRenderTextObject.h"
+#include "MapTextObject.h"
 #include "objects/WString.h"
 #include "radar/PressureCenterTypeEnum.h"
 #include "radar/CitiesExtended.h"
@@ -17,27 +17,27 @@
 #include "util/To.h"
 #include "util/UtilityList.h"
 
-const double NexradRenderTextObject::cityMinZoom{0.20};
-const double NexradRenderTextObject::obsMinZoom{0.20};
-const double NexradRenderTextObject::countyMinZoom{0.20};
+const double MapTextObject::cityMinZoom{0.20};
+const double MapTextObject::obsMinZoom{0.20};
+const double MapTextObject::countyMinZoom{0.20};
 
-NexradRenderTextObject::NexradRenderTextObject(int numPanes, NexradState * nexradState, FileStorage * fileStorage)
-    : nexradState{nexradState}
+MapTextObject::MapTextObject(int numPanes, MapState * mapState, FileStorage * fileStorage)
+    : mapState{mapState}
     , fileStorage{fileStorage}
     , maxCitiesPerGlview{static_cast<size_t>(40.0 / numPanes)}
 {
     initialize();
 }
 
-void NexradRenderTextObject::addTextLabelsCitiesExtended() {
+void MapTextObject::addTextLabelsCitiesExtended() {
     if (RadarPreferences::cities) {
-        nexradState->cities.clear();
-        if (nexradState->zoom > cityMinZoom) {
+        mapState->cities.clear();
+        if (mapState->zoom > cityMinZoom) {
             const auto cityExtLength = CitiesExtended::cities.size();
             for (auto index : range(cityExtLength)) {
-                if (nexradState->cities.size() <= maxCitiesPerGlview) {
+                if (mapState->cities.size() <= maxCitiesPerGlview) {
                     checkAndDrawText(
-                        nexradState->cities,
+                        mapState->cities,
                         CitiesExtended::cities[index].latitude,
                         CitiesExtended::cities[index].longitude,
                         CitiesExtended::cities[index].name,
@@ -48,16 +48,16 @@ void NexradRenderTextObject::addTextLabelsCitiesExtended() {
     }
 }
 
-void NexradRenderTextObject::checkAndDrawText(vector<TextViewMetal>& tvList, double lat, double lon, const string& text, bool checkBounds) {
-    const auto latLon = Projection::computeMercatorNumbers(lat, lon, nexradState->getPn());
+void MapTextObject::checkAndDrawText(vector<TextViewMetal>& tvList, double lat, double lon, const string& text, bool checkBounds) {
+    const auto latLon = Projection::computeMercatorNumbers(lat, lon, mapState->getPn());
     const auto xPos = latLon[0];
     const auto yPos = latLon[1];
     const auto dimScale = 0.5;
     if (checkBounds
-        && nexradState->originalWidth * -1.0 * dimScale < (xPos * nexradState->zoom)
-        && (xPos * nexradState->zoom)  < nexradState->originalWidth * dimScale
-        &&  nexradState->originalHeight * -1.0 * dimScale < (yPos * nexradState->zoom)
-        && (yPos * nexradState->zoom)  < nexradState->originalHeight * dimScale
+        && mapState->originalWidth * -1.0 * dimScale < (xPos * mapState->zoom)
+        && (xPos * mapState->zoom)  < mapState->originalWidth * dimScale
+        &&  mapState->originalHeight * -1.0 * dimScale < (yPos * mapState->zoom)
+        && (yPos * mapState->zoom)  < mapState->originalHeight * dimScale
     ) {
         tvList.emplace_back(xPos, yPos, text);
     } else if (!checkBounds) {
@@ -65,25 +65,25 @@ void NexradRenderTextObject::checkAndDrawText(vector<TextViewMetal>& tvList, dou
     }
 }
 
-void NexradRenderTextObject::initializeTextLabelsCitiesExtended() const {
+void MapTextObject::initializeTextLabelsCitiesExtended() const {
     if (RadarPreferences::cities) {
         CitiesExtended::create();
     }
 }
 
-void NexradRenderTextObject::initializeTextLabelsCountyLabels() {
+void MapTextObject::initializeTextLabelsCountyLabels() {
     if (RadarPreferences::countyLabels) {
         CountyLabels::create();
     }
 }
 
-void NexradRenderTextObject::addTextLabelsCountyLabels() {
+void MapTextObject::addTextLabelsCountyLabels() {
     if (RadarPreferences::countyLabels) {
-        nexradState->countyLabels.clear();
-        if (nexradState->zoom > countyMinZoom) {
+        mapState->countyLabels.clear();
+        if (mapState->zoom > countyMinZoom) {
             for (auto index : range(CountyLabels::names.size())) {
                 checkAndDrawText(
-                    nexradState->countyLabels,
+                    mapState->countyLabels,
                     CountyLabels::location[index].lat(),
                     CountyLabels::location[index].lon(),
                     CountyLabels::names[index],
@@ -93,12 +93,12 @@ void NexradRenderTextObject::addTextLabelsCountyLabels() {
     }
 }
 
-void NexradRenderTextObject::initialize() {
+void MapTextObject::initialize() {
     initializeTextLabelsCitiesExtended();
     initializeTextLabelsCountyLabels();
 }
 
-void NexradRenderTextObject::add() {
+void MapTextObject::add() {
     if (RadarPreferences::cities) {
         addTextLabelsCitiesExtended();
     }
@@ -113,26 +113,26 @@ void NexradRenderTextObject::add() {
     }
 }
 
-void NexradRenderTextObject::addWpcPressureCenters() {
+void MapTextObject::addWpcPressureCenters() {
     if (RadarPreferences::wpcFronts) {
-        nexradState->pressureCenterLabelsRed.clear();
-        nexradState->pressureCenterLabelsBlue.clear();
-        if (nexradState->zoom < nexradState->zoomToHideMiscFeatures) {
+        mapState->pressureCenterLabelsRed.clear();
+        mapState->pressureCenterLabelsBlue.clear();
+        if (mapState->zoom < mapState->zoomToHideMiscFeatures) {
             for (const auto& p : WpcFronts::pressureCenters) {
                 if (p.centerType == LOW) {
-                    checkAndDrawText(nexradState->pressureCenterLabelsRed, p.lat, p.lon, p.pressureInMb, false);
+                    checkAndDrawText(mapState->pressureCenterLabelsRed, p.lat, p.lon, p.pressureInMb, false);
                 } else {
-                    checkAndDrawText(nexradState->pressureCenterLabelsBlue, p.lat, p.lon, p.pressureInMb, false);
+                    checkAndDrawText(mapState->pressureCenterLabelsBlue, p.lat, p.lon, p.pressureInMb, false);
                 }
             }
         }
     }
 }
 
-void NexradRenderTextObject::addTextLabelsObservations() {
+void MapTextObject::addTextLabelsObservations() {
     if (RadarPreferences::obs || RadarPreferences::obsWindbarbs) {
-        nexradState->observations.clear();
-        if (nexradState->zoom > obsMinZoom) {
+        mapState->observations.clear();
+        if (mapState->zoom > obsMinZoom) {
             // copies taken under the lock: a worker may be replacing the lists while this runs (every pan step)
             vector<string> obsArr;
             vector<string> obsArrExt;
@@ -146,7 +146,7 @@ void NexradRenderTextObject::addTextLabelsObservations() {
                     const auto tmpArrObs = WString::split(obsArr[index], ":");
                     const auto lat = To::Double(tmpArrObs[0]);
                     const auto lon = To::Double(tmpArrObs[1]);
-                    checkAndDrawText(nexradState->observations, lat, -1.0 * lon, tmpArrObs[2], true);
+                    checkAndDrawText(mapState->observations, lat, -1.0 * lon, tmpArrObs[2], true);
                 }
             }
         }

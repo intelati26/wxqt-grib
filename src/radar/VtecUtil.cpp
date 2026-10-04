@@ -4,11 +4,11 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "NexradUtil.h"
+#include "VtecUtil.h"
 #include "objects/ObjectDateTime.h"
 #include "util/UtilityString.h"
 
-bool NexradUtil::isVtecCurrent(const string& vtec) {
+bool VtecUtil::isVtecCurrent(const string& vtec) {
     // example "190512T1252Z-190512T1545Z"
     const auto vtecTimeRange = UtilityString::parse(vtec, "-([0-9]{6}T[0-9]{4})Z");
     const auto vtecTime = ObjectDateTime::decodeVtecTime(vtecTimeRange);

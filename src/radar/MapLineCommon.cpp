@@ -4,11 +4,11 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "NexradLevel3Common.h"
+#include "MapLineCommon.h"
 #include "external/ExternalGeodeticCalculator.h"
 #include "radar/Projection.h"
 
-vector<double> NexradLevel3Common::drawLineFromEc(
+vector<double> MapLineCommon::drawLineFromEc(
     const ExternalGlobalCoordinates& startEc,
     const ProjectionNumbers& projectionNumbers,
     double startBearing,
@@ -21,7 +21,7 @@ vector<double> NexradLevel3Common::drawLineFromEc(
     return {startCoords[0], startCoords[1], coordinates[0], coordinates[1]};
 }
 
-vector<double> NexradLevel3Common::drawLine(
+vector<double> MapLineCommon::drawLine(
     const vector<double>& startPoint,
     const ProjectionNumbers& projectionNumbers,
     const ExternalGlobalCoordinates& start,

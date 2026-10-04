@@ -36,7 +36,7 @@ QColor RadarPreferences::colorCity;
 QColor RadarPreferences::colorObs;
 QColor RadarPreferences::colorObsWindbarbs;
 QColor RadarPreferences::colorCountyLabels;
-QColor RadarPreferences::nexradRadarBackgroundColor;
+QColor RadarPreferences::mapBackgroundColor;
 
 void RadarPreferences::initialize() {
     // locdotFollowsGps = Utility::readPref("LOCDOT_FOLLOWS_GPS", "false").startsWith("t");
@@ -71,7 +71,7 @@ void RadarPreferences::initializeColors() {
     colorObs = getInitialPreference("RADAR_COLOR_OBS", Color::rgb(255, 255, 255));
     colorObsWindbarbs = getInitialPreference("RADAR_COLOR_OBS_WINDBARBS", Color::rgb(255, 255, 255));
     colorCountyLabels = getInitialPreference("RADAR_COLOR_COUNTY_LABELS", Color::rgb(234, 214, 123));
-    nexradRadarBackgroundColor = getInitialPreference("NEXRAD_RADAR_BACKGROUND_COLOR", Color::rgb(0, 0, 0));
+    mapBackgroundColor = getInitialPreference("NEXRAD_RADAR_BACKGROUND_COLOR", Color::rgb(0, 0, 0));
 }
 
 QColor RadarPreferences::getInitialPreference(const string& pref, int colorAsInt) {

@@ -4,7 +4,7 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "NexradLayerDownload.h"
+#include "MapLayerDownload.h"
 #include "objects/PolygonWarning.h"
 #include "objects/PolygonWatch.h"
 #include "radar/FireDayOne.h"
@@ -14,13 +14,13 @@
 #include "settings/RadarPreferences.h"
 #include "util/UtilityList.h"
 
-NexradLayerDownload::NexradLayerDownload(Window * parent, vector<NexradWidget *> * nexradList)
+MapLayerDownload::MapLayerDownload(Window * parent, vector<MapWidget *> * mapList)
     : parent{parent}
-    , nexradList{nexradList}
+    , mapList{mapList}
     , mtx{std::make_unique<std::mutex>()}
 {}
 
-void NexradLayerDownload::downloadLayers() {
+void MapLayerDownload::downloadLayers() {
     mtx->lock();
     for (auto polygonGenericType : PolygonWarning::polygonList) {
         if (PolygonWarning::byType[polygonGenericType]->isEnabled) {
@@ -46,9 +46,9 @@ void NexradLayerDownload::downloadLayers() {
             [this] { constructFire(); }};
     }
     if (RadarPreferences::obsWindbarbs || RadarPreferences::obs) {
-        for (auto i : range(nexradList->size())) {
-            auto * nw = (*nexradList)[i];
-            nw->runJob([nw] { Metar::getStateMetarArrayForWXOGL(nw->nexradState.getRadarSite(), nw->fileStorage); },
+        for (auto i : range(mapList->size())) {
+            auto * nw = (*mapList)[i];
+            nw->runJob([nw] { Metar::getStateMetarArrayForWXOGL(nw->mapState.getRadarSite(), nw->fileStorage); },
                        [this, i] { constructWBLines(i); });
         }
     }
@@ -60,15 +60,15 @@ void NexradLayerDownload::downloadLayers() {
     mtx->unlock();
 }
 
-void NexradLayerDownload::updateWarnings(PolygonType type) {
-    for (auto nw : *nexradList) {
+void MapLayerDownload::updateWarnings(PolygonType type) {
+    for (auto nw : *mapList) {
         nw->processWarnings(type);
         nw->update();
     }
 }
 
-void NexradLayerDownload::processWatch(PolygonType type) {
-    for (auto nw : *nexradList) {
+void MapLayerDownload::processWatch(PolygonType type) {
+    for (auto nw : *mapList) {
         nw->process(type);
         if (type == Watch) {
             nw->process(WatchTornado);
@@ -77,27 +77,27 @@ void NexradLayerDownload::processWatch(PolygonType type) {
     }
 }
 
-void NexradLayerDownload::constructWBLines(int i) {
-    (*nexradList)[i]->constructWBLines();
-    (*nexradList)[i]->update();
+void MapLayerDownload::constructWBLines(int i) {
+    (*mapList)[i]->constructWBLines();
+    (*mapList)[i]->update();
 }
 
-void NexradLayerDownload::constructSwo() {
-    for (auto nw : *nexradList) {
+void MapLayerDownload::constructSwo() {
+    for (auto nw : *mapList) {
         nw->constructSwo();
         nw->update();
     }
 }
 
-void NexradLayerDownload::constructFire() {
-    for (auto nw : *nexradList) {
+void MapLayerDownload::constructFire() {
+    for (auto nw : *mapList) {
         nw->constructFire();
         nw->update();
     }
 }
 
-void NexradLayerDownload::constructWpcFronts() {
-    for (auto nw : *nexradList) {
+void MapLayerDownload::constructWpcFronts() {
+    for (auto nw : *mapList) {
         nw->constructWpcFronts();
         nw->update();
     }

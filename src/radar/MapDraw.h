@@ -4,8 +4,8 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef NEXRADDRAW_H
-#define NEXRADDRAW_H
+#ifndef MAPDRAW_H
+#define MAPDRAW_H
 
 #include <vector>
 #include <QLineF>
@@ -13,16 +13,16 @@
 #include <QPolygonF>
 #include <QVector>
 #include "objects/FileStorage.h"
-#include "radar/NexradState.h"
+#include "radar/MapState.h"
 #include "radar/RadarGeometryTypeEnum.h"
-#include "radar/NexradRenderTextObject.h"
+#include "radar/MapTextObject.h"
 #include "ui/TextViewMetal.h"
 
 using std::vector;
 
-class NexradDraw {
+class MapDraw {
 public:
-    NexradDraw(NexradState *, FileStorage *, NexradRenderTextObject *);
+    MapDraw(MapState *, FileStorage *, MapTextObject *);
     void initGeom();
     void convertGeomData(RadarGeometryTypeEnum type);
     void initSurface(QPainter *, QPaintEvent *);
@@ -33,10 +33,10 @@ public:
     void drawText(const QColor&, const vector<TextViewMetal>&);
 
 private:
-    NexradState * nexradState;
+    MapState * mapState;
     FileStorage * fileStorage;
-    NexradRenderTextObject * textObject;
+    MapTextObject * textObject;
     QPainter * painter;
 };
 
-#endif  // NEXRADDRAW_H
+#endif  // MAPDRAW_H

@@ -4,8 +4,8 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef NEXRADSTATE_H
-#define NEXRADSTATE_H
+#ifndef MAPSTATE_H
+#define MAPSTATE_H
 
 #include <cstdint>
 #include <memory>
@@ -19,9 +19,9 @@ using std::string;
 using std::vector;
 
 // The state of a map: its centre (the projection is built round a radar site's position), pan, zoom and the text labels drawn on it.
-class NexradState {
+class MapState {
 public:
-    NexradState(int, int, bool, const string&, int, int);
+    MapState(int, int, bool, const string&, int, int);
     void reset();
     ProjectionNumbers getPn() const;
     string getRadarSite() const;
@@ -49,4 +49,4 @@ public: // TODO FIXME
     int originalHeight{};
 };
 
-#endif  // NEXRADSTATE_H
+#endif  // MAPSTATE_H

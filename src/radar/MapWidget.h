@@ -4,8 +4,8 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#ifndef NEXRADWIDGET_H
-#define NEXRADWIDGET_H
+#ifndef MAPWIDGET_H
+#define MAPWIDGET_H
 
 #include <functional>
 #include <memory>
@@ -22,9 +22,9 @@
 #include "objects/FileStorage.h"
 #include "radar/JobGuard.h"
 #include "objects/LatLon.h"
-#include "radar/NexradDraw.h"
-#include "radar/NexradRenderTextObject.h"
-#include "radar/NexradState.h"
+#include "radar/MapDraw.h"
+#include "radar/MapTextObject.h"
+#include "radar/MapState.h"
 #include "radar/PolygonType.h"
 #include "radar/ProjectionNumbers.h"
 #include "ui/TextViewMetal.h"
@@ -38,16 +38,16 @@ using std::vector;
 // The map every map screen is built on: the state, county and highway lines, cities, the location dot and the overlays (warnings, watches
 // and discussions, outlooks, fronts, observations), panned and zoomed by its owner. The owner paints what it shows on it with `dataLayer`
 // (under the lines, in map coordinates) and `topLayer` (over everything, in window units).
-class NexradWidget : public QWidget {
+class MapWidget : public QWidget {
 public:
     // owner callbacks: zoom by a factor (wheel, pinch, click) and pan by pixels (drag); the numbers 0 / 1 / true are the pane and the
     // projection's radar site: the map is centred on `radarToUse`
-    NexradWidget(
+    MapWidget(
         Window *, int, int, bool, const string&, int, int,
         const function<void(double, int)>&,
         const function<void(double, double, int)>&
     );
-    ~NexradWidget() override;
+    ~MapWidget() override;
     // Run `work` on a worker thread, then `done` on the UI thread. The widget is kept alive until the work has finished (its
     // destructor waits), and `done` is skipped if the widget has gone by then.
     void runJob(const function<void()>& work, const function<void()>& done);
@@ -59,9 +59,9 @@ public:
     void constructWpcFronts();
     void draw();
     FileStorage fileStorage;
-    NexradState nexradState;
-    NexradRenderTextObject nexradRenderTextObject;
-    NexradDraw nexradDraw;
+    MapState mapState;
+    MapTextObject mapTextObject;
+    MapDraw mapDraw;
     function<void(QPainter&)> dataLayer;
     function<void(QPainter&)> topLayer;
     // when set, a plain click goes to it first (the point in widget pixels); true means it was used, and the click does not zoom
@@ -108,4 +108,4 @@ private:
     Window * parent;
 };
 
-#endif  // NEXRADWIDGET_H
+#endif  // MAPWIDGET_H

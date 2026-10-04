@@ -57,17 +57,17 @@ MrmsViewer::MrmsViewer(Window * parent)
     setTitle("MRMS");
     const auto dimens = UtilityUI::getScreenBounds();
     const auto side = std::max(300, std::min(dimens[0] - 20, dimens[1] - 160));
-    radar = new NexradWidget{
+    radar = new MapWidget{
         this, 0, 1, true, Location::radarSite(), side, side,
         [this] (double z, [[maybe_unused]] int pane) { changeZoom(z); },
         [this] (double x, double y, [[maybe_unused]] int pane) { changePosition(x, y); }};
     radar->setFixedSize(side, side);   // resized to the window by fitRadar()
-    radar->nexradState.setRadar(Location::radarSite());
-    radar->nexradState.reset();
-    radar->nexradDraw.initGeom();
+    radar->mapState.setRadar(Location::radarSite());
+    radar->mapState.reset();
+    radar->mapDraw.initGeom();
     showConus();
     radarList.push_back(radar);
-    layerDownload = std::make_unique<NexradLayerDownload>(this, &radarList);
+    layerDownload = std::make_unique<MapLayerDownload>(this, &radarList);
     layerDownload->downloadLayers();
     radar->setMouseTracking(true);
     radar->installEventFilter(this);
@@ -220,7 +220,7 @@ const UtilityMrms::Product& MrmsViewer::product() const {
 
 // the radar widget only reports wheel / click / drag requests; the owner changes the view (as the radar screen does)
 void MrmsViewer::changeZoom(double factor) {
-    auto& state = radar->nexradState;
+    auto& state = radar->mapState;
     if (factor < 1.0 && state.zoom <= 0.02) {
         return;
     }
@@ -236,22 +236,22 @@ void MrmsViewer::changeZoom(double factor) {
     }
     state.xPos = u - (u - state.xPos) * change;
     state.yPos = v - (v - state.yPos) * change;
-    radar->nexradRenderTextObject.add();
+    radar->mapTextObject.add();
     radar->update();
 }
 
 void MrmsViewer::changePosition(double dx, double dy) {
-    auto& state = radar->nexradState;
+    auto& state = radar->mapState;
     const double unitsPerPixel = 1000.0 / std::max(1, radar->width());   // the map is drawn on a 1000-unit window
     state.xPos += dx * unitsPerPixel;
     state.yPos += dy * unitsPerPixel;
-    radar->nexradRenderTextObject.add();
+    radar->mapTextObject.add();
     radar->update();
 }
 
 // the whole lower 48 in the middle of the square map (the view the viewer opens with)
 void MrmsViewer::showConus() {
-    auto& state = radar->nexradState;
+    auto& state = radar->mapState;
     const auto [ax, bx, ay, by] = projection();
     const double centerLon = -96.0;
     const double centerLat = 37.5;
@@ -272,9 +272,9 @@ void MrmsViewer::fitRadar() {
     const int side = std::max(300, std::min(width() - 16, height() - above - 32));
     if (radar->width() != side) {
         radar->setFixedSize(side, side);
-        radar->nexradState.originalWidth = side;
-        radar->nexradState.originalHeight = side;
-        radar->nexradRenderTextObject.add();
+        radar->mapState.originalWidth = side;
+        radar->mapState.originalHeight = side;
+        radar->mapTextObject.add();
     }
 }
 
@@ -487,7 +487,7 @@ void MrmsViewer::stepLoop() {
 
 // The radar projection is linear in longitude and in Mercator y (degrees); its coefficients come from three map points.
 MrmsViewer::Projection2 MrmsViewer::projection() const {
-    const auto& pn = radar->nexradState.getPn();
+    const auto& pn = radar->mapState.getPn();
     const auto project = [&pn] (double lat, double lon) {
         return Projection::computeMercatorNumbersFromLatLon(LatLon{lat, lon}.reverseLon(), pn);
     };
@@ -576,7 +576,7 @@ void MrmsViewer::showHover(const QPointF& widgetPos) {
     }
     const auto [ax, bx, ay, by] = projection();
     const auto& grid = current.grid;
-    const auto& state = radar->nexradState;
+    const auto& state = radar->mapState;
     const double u = widgetPos.x() * 1000.0 / radar->width() - 500.0;
     const double v = widgetPos.y() * 1000.0 / radar->height() - 250.0;
     const double x = (u - state.xPos) / state.zoom;
