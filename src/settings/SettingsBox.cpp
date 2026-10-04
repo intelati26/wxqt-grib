@@ -15,7 +15,7 @@
 SettingsBox::SettingsBox(Window * parent)
     : Widget{parent}
     , button{parent, None, "Keyboard Shortcuts"}
-    , homeScreenLabel{parent, "Homescreen widgets:"}
+    , homeScreenLabel{parent, "Homescreen widgets: choose and order them under Home Screen Order (drag, tick)."}
     , generalLabel{parent, "General preferences:"}
     , themeLabel{parent, "Theme (light / dark)"}
     , themeComboBox{parent, UtilityTheme::labels}
@@ -51,15 +51,6 @@ SettingsBox::SettingsBox(Window * parent)
     homeScreenLabel.setWordWrap(false);
     boxLeft.addWidget(homeScreenLabel);
 
-    for (const auto& item : UIPreferences::homeScreenItemsImage) {
-        auto sw = Switch::fromPrefBool(parent, item);
-        boxLeft.addWidget(*sw);
-    }
-
-    for (const auto& item : UIPreferences::homeScreenItemsText) {
-        auto sw = Switch::fromPrefBool(parent, item);
-        boxLeft.addWidget(*sw);
-    }
     generalLabel.setBlue();
     boxCenter.addWidget(generalLabel);
 

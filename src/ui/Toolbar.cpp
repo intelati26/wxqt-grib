@@ -200,6 +200,7 @@ void Toolbar::persistOrder() {
 // Draws the toolbar in the chosen style (ToolbarGroups::mode): the original column of icons, icons with their
 // names under group headings, or just the auto-update control with the entries in a menu bar of group menus.
 void Toolbar::rebuildButtons() {
+    getView()->removeWidget(autoUpdate.getView());   // it is kept and added again: removeChildren() would delete it, and the next rebuild would add a dead widget
     removeChildren();
     buttons.clear();
     parent->menuBar()->clear();
