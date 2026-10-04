@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "NhcStorm.h"
+#include "ui/UiStandards.h"
 #include <QImage>
 #include "util/CrashLog.h"
 #include "misc/ImageViewer.h"
@@ -76,7 +77,7 @@ NhcStorm::NhcStorm(Window * parent, const NhcStormDetails& stormData)
     }
     for ([[maybe_unused]] const auto& unused : fullUrls) {
         images.emplace_back(this);
-        images.back().imageSize = 250;
+        images.back().imageSize = UiStandards::smallImage;
         boxImages.addWidget(images.back());
     }
     for (auto index : range(fullUrls.size())) {

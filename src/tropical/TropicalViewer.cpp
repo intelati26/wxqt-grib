@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "tropical/TropicalViewer.h"
+#include "ui/UiStandards.h"
 #include <memory>
 #include <QWidget>
 #include "climate/ClimateViewer.h"
@@ -96,7 +97,7 @@ void TropicalViewer::build(const vector<UtilityCira::Storm>& storms, const vecto
         auto * tile = new QWidget{this};
         tileBoxes.emplace_back();
         images.emplace_back(this);
-        images.back().imageSize = 330;
+        images.back().imageSize = UiStandards::tileImage;
         captions.emplace_back(this, storm.title);
         captions.back().setWordWrap(true);
         tileBoxes.back().addWidget(images.back());

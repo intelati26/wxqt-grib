@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "MainWindow.h"
+#include "ui/UiStandards.h"
 #include <QApplication>
 #include <QGridLayout>
 #include <QVBoxLayout>
@@ -208,7 +209,7 @@ void MainWindow::updateWatch() {
     images.clear();
     for (auto index : range(urls.size())) {
         images.emplace_back(this);
-        images.back().imageSize = 150;
+        images.back().imageSize = UiStandards::thumbnailImage;
         images.back().setBytes(bytesList[index]);
         images.back().connect([this, index] { launch(index); });
         boxSevereDashboard.addWidget(images.back());

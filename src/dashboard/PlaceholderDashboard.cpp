@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "dashboard/PlaceholderDashboard.h"
+#include "ui/UiStandards.h"
 #include <QLayout>
 #include <QWidget>
 
@@ -57,7 +58,7 @@ PlaceholderDashboard::PlaceholderDashboard(Window * parent, const string& title,
         holder->setLayout(tileBoxes.back().getView());
         holder->layout()->setContentsMargins(8, 6, 8, 6);
         holder->layout()->setSpacing(4);
-        holder->setFixedWidth(380);
+        holder->setFixedWidth(UiStandards::tileWidth);
         flow.addWidgetReal(holder);
     }
 }

@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "SpcSwoDay1.h"
+#include "ui/UiStandards.h"
 #include "misc/ImageViewer.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
@@ -32,7 +33,7 @@ SpcSwoDay1::SpcSwoDay1(Window * parent, int day)
     }
     for ([[maybe_unused]] auto index : range(urls.size())) {
         images.emplace_back(this);
-        images.back().imageSize = 350;
+        images.back().imageSize = UiStandards::tileImage;
         imageVBox.addWidget(images.back());
     }
     imageVBox.addStretch();

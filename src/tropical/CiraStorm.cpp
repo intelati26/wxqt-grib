@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "tropical/CiraStorm.h"
+#include "ui/UiStandards.h"
 #include <QImage>
 #include "misc/ImageViewer.h"
 #include "misc/TextViewerStatic.h"
@@ -79,7 +80,7 @@ void CiraStorm::fill(const UtilityCira::StormPage& page) {
         }
         images.emplace_back(this);
         auto& image = images.back();
-        image.imageSize = 380;
+        image.imageSize = UiStandards::tileImage;
         image.getView()->setToolTip(QString::fromStdString(product.label));
         const auto url = found->second;
         const auto label = product.label;
@@ -150,7 +151,7 @@ void CiraStorm::addJtwc() {
             }
             images.emplace_back(this);
             auto& image = images.back();
-            image.imageSize = 380;
+            image.imageSize = UiStandards::tileImage;
             image.getView()->setToolTip("JTWC warning graphic");
             image.connect([this, url] { new ImageViewer{this, url, "JTWC warning graphic"}; });
             image.setBytes(bytes);

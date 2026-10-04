@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "climate/ClimateViewer.h"
+#include "ui/UiStandards.h"
 #include <algorithm>
 #include <memory>
 #include <QWidget>
@@ -125,13 +126,13 @@ void ClimateViewer::build() {
         auto * holder = new QWidget{this};
         tileBoxes.emplace_back();
         images.emplace_back(this);
-        images.back().imageSize = 400;
+        images.back().imageSize = UiStandards::tileImage;
         captions.emplace_back(this, tile.history.empty() ? tile.label : tile.label + " - click for the history and a loop");
         captions.back().setWordWrap(true);
         tileBoxes.back().addWidget(images.back());
         tileBoxes.back().addWidget(captions.back());
         holder->setLayout(tileBoxes.back().getView());
-        holder->setFixedWidth(410);
+        holder->setFixedWidth(UiStandards::tileWidth);
         flows.back().addWidgetReal(holder);
         const auto big = tile.full.empty() ? tile.url : tile.full;
         const auto label = tile.label;
