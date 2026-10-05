@@ -89,6 +89,7 @@ private:
     SevenDayCollection sevenDayCollection;
     Hazards hazards;
     CardHazards cardHazards;
+    string hourlyGraphJson;   // downloaded off the GUI thread, drawn on it
     WeatherGraph hourlyGraph;   // Added: Hourly weather graph widget
     unordered_map<string, Image> imageWidgets;
     unordered_map<string, Text> textWidgets;

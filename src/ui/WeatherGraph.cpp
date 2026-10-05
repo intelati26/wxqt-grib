@@ -37,7 +37,8 @@ void WeatherGraph::setData(const vector<string>& times, const vector<double>& te
 
     for (size_t i = 0; i < times.size(); ++i) {
         DataPoint point;
-        point.time = std::stod(times[i]);
+        point.time = static_cast<double>(i);   // hours from the first point; the text of the time (e.g. "Mon 10") labels the axis
+        point.label = times[i];
         point.temperature = temperatures[i];
         point.windSpeed = windSpeeds[i];
         point.windDirection = windDirections[i];
@@ -99,7 +100,7 @@ void WeatherGraph::paintEvent(QPaintEvent *) {
     }
 
     // Create plot area
-    QRect plot{60, 40, width() - 120, height() - 80};
+    QRect plot{60, 40, width() - 120, height() - 110};
 
     // Draw grid and axes
     painter.setPen(QColor{225, 225, 225});
@@ -109,12 +110,11 @@ void WeatherGraph::paintEvent(QPaintEvent *) {
     painter.setFont(axisFont);
 
     // Time axis (bottom)
-    int timeSteps = std::max(6, static_cast<int>(dataPoints.size()));
-    for (int i = 0; i <= timeSteps; ++i) {
-        double time = timeLo + (timeHi - timeLo) * i / timeSteps;
-        int x = plot.left() + plot.width() * (time - timeLo) / (timeHi - timeLo);
+    const int labelEvery = std::max(1, static_cast<int>(dataPoints.size()) / std::max(1, plot.width() / 60));   // about 60 px per label
+    for (size_t i = 0; i < dataPoints.size(); i += labelEvery) {
+        const int x = plot.left() + plot.width() * (dataPoints[i].time - timeLo) / (timeHi - timeLo);
         painter.drawLine(x, plot.bottom(), x, plot.bottom() + 5);
-        painter.drawText(x - 15, plot.bottom() + 15, QString::number(time, 'f', 0));
+        painter.drawText(x - 20, plot.bottom() + 15, QString::fromStdString(dataPoints[i].label));
     }
 
     // Temperature axis (left)
@@ -133,15 +133,6 @@ void WeatherGraph::paintEvent(QPaintEvent *) {
         int y = plot.bottom() - plot.height() * i / windSteps;
         painter.drawLine(plot.right() + 2, y, plot.right() - 2, y);
         painter.drawText(plot.right() - 8, y + 4, QString::number(wind, 'f', 1));
-    }
-
-    // Wind direction axis (top)
-    int dirSteps = 8;
-    for (int i = 0; i <= dirSteps; ++i) {
-        double dir = windDirLo + (windDirHi - windDirLo) * i / dirSteps;
-        int x = plot.left() + plot.width() * (dir - windDirLo) / (windDirHi - windDirLo);
-        painter.drawLine(x, plot.top() - 5, x, plot.top() + 5);
-        painter.drawText(x - 15, plot.top() - 10, QString::number(dir, 'f', 0));
     }
 
     // Draw temperature line (red)
@@ -180,7 +171,8 @@ void WeatherGraph::paintEvent(QPaintEvent *) {
 
     // Add condition labels for some points
     painter.setPen(QColor{80, 80, 80});
-    for (size_t i = 0; i < dataPoints.size(); i += 4) {
+    const size_t conditionEvery = std::max<size_t>(1, dataPoints.size() / std::max(1, plot.width() / 110));
+    for (size_t i = 0; i < dataPoints.size(); i += conditionEvery) {
         const auto& point = dataPoints[i];
         int x = plot.left() + plot.width() * (point.time - timeLo) / (timeHi - timeLo);
         int y = plot.top() - 20;

@@ -11,6 +11,8 @@ class UtilityHourly {
 public:
     static string get(int);
     static bool getGraphData(int locationNumber, WeatherGraph* graphWidget);
+    static string getGraphJson(int locationNumber);   // the download, safe off the GUI thread
+    static bool fillGraph(const string& json, int locationNumber, WeatherGraph* graphWidget);   // GUI thread
 
 private:
     static const unordered_map<string, string> hourlyAbbreviations;
@@ -19,6 +21,4 @@ private:
     static string parse(const string&);
     static string shortenConditions(const string&);
     static vector<string> parseColumn(const string& html, const string& pattern);
-    static bool getHourlyGraphData(int locationNumber, WeatherGraph* graphWidget);
-    static bool getHourlyOldApiGraphData(int locationNumber, WeatherGraph* graphWidget);
 };

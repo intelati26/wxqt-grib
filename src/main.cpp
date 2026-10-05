@@ -78,6 +78,9 @@ int main(int argc, char * argv[]) {
         if (const auto size = qEnvironmentVariable("WXQT_SIZE").split('x'); opened != nullptr && size.size() == 2) {
             opened->resize(size[0].toInt(), size[1].toInt());   // WXQT_SIZE=1400x1000: the tool window's size for the picture
         }
+        if (const auto size = qEnvironmentVariable("WXQT_SIZE").split('x'); opened == nullptr && size.size() == 2) {
+            w.resize(size[0].toInt(), size[1].toInt());   // no tool opened: the home screen itself
+        }
         if (const auto tab = qEnvironmentVariable("WXQT_TAB"); opened != nullptr && !tab.isEmpty()) {
             for (auto * tabs : opened->findChildren<QTabWidget *>()) {
                 tabs->setCurrentIndex(tab.toInt());   // WXQT_TAB=<n>: show that tab of a tabbed tool (Settings)

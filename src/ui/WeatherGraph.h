@@ -28,6 +28,7 @@ private:
         double windSpeed;      // wind speed
         double windDirection;  // wind direction
         string condition;      // weather condition
+        string label;          // the time as text, for the axis
     };
 
     vector<DataPoint> dataPoints;

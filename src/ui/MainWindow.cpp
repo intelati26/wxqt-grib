@@ -98,9 +98,9 @@ MainWindow::MainWindow(QWidget * parent)
     forecastLayout.addLayout(boxCc);
     boxCc.addLayout(cardCurrentConditions);
     forecastLayout.addLayout(boxHazards);
-    forecastLayout.addLayout(boxSevenDay);
-    boxHourlyGraph.addWidget(hourlyGraph);   // Add hourly graph to the forecast layout
+    boxHourlyGraph.addWidget(hourlyGraph);   // the hourly graph sits above the long day list, where it is seen (H shows / hides it)
     forecastLayout.addLayout(boxHourlyGraph);
+    forecastLayout.addLayout(boxSevenDay);
     forecastLayout.addStretch();
 
     addWidgets();   // also places the columns right of the toolbar, in the user's order
@@ -151,6 +151,7 @@ void MainWindow::reload() {
         new FutureVoid{this, [this] { getCc(); }, [this] { updateCc(); }};
         new FutureVoid{this, [this] { getHazards(); }, [this] { updateHazards(); }};
         new FutureVoid{this, [this] { get7day(); }, [this] { update7day(); }};
+        new FutureVoid{this, [this] { getHourlyGraphData(); }, [this] { updateHourlyGraph(); }};
 
         for (const auto& item : UIPreferences::homeScreenItemsText) {
             if (item.isEnabled()) {
@@ -395,6 +396,14 @@ void MainWindow::launchImageScreen(const string& token) {
     } else if (const auto * entry = HomeThumbnails::find(token); entry != nullptr && !entry->routeId.empty()) {
         toolbar.launchRoute(entry->routeId);   // any other thumbnail opens its own tool
     }
+}
+
+void MainWindow::getHourlyGraphData() {
+    hourlyGraphJson = UtilityHourly::getGraphJson(Location::getCurrentLocation());
+}
+
+void MainWindow::updateHourlyGraph() {
+    UtilityHourly::fillGraph(hourlyGraphJson, Location::getCurrentLocation(), &hourlyGraph);
 }
 
 void MainWindow::showHourlyGraph() {
