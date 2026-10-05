@@ -25,6 +25,8 @@ QMargins UIPreferences::textPadding;
 const bool UIPreferences::useNwsApi{true};
 const bool UIPreferences::useNwsApiForHourly{true};
 bool UIPreferences::mainScreenSevereDashboard;
+bool UIPreferences::hourlyGraph{true};
+bool UIPreferences::hourlyGraphAbove{true};
 bool UIPreferences::homeCaptions{true};
 bool UIPreferences::mapScrollWheelMotion;
 bool UIPreferences::rememberGOES;
@@ -144,6 +146,8 @@ void UIPreferences::initialize() {
     // useNwsApi = WString::startsWith(Utility::readPref("USE_NWS_API_SEVEN_DAY", "false"), "t");
     // useNwsApiForHourly = WString::startsWith(Utility::readPref("USE_NWS_API_HOURLY", "true"), "t");
     mainScreenSevereDashboard = WString::startsWith(Utility::readPref("MAINSCREEN_SEVERE_DASH", "false"), "t");
+    hourlyGraph = WString::startsWith(Utility::readPref("HOURLY_GRAPH", "true"), "t");
+    hourlyGraphAbove = WString::startsWith(Utility::readPref("HOURLY_GRAPH_ABOVE", "true"), "t");
     homeCaptions = WString::startsWith(Utility::readPref("HOME_CAPTIONS", "true"), "t");
     mapScrollWheelMotion = WString::startsWith(Utility::readPref("NEXRAD_SCROLLWHEEL", "false"), "t");
     rememberGOES = WString::startsWith(Utility::readPref("REMEMBER_GOES", "false"), "t");

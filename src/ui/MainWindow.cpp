@@ -99,8 +99,8 @@ MainWindow::MainWindow(QWidget * parent)
     boxCc.addLayout(cardCurrentConditions);
     forecastLayout.addLayout(boxHazards);
     boxHourlyGraph.addWidget(hourlyGraph);   // the hourly graph sits above the long day list, where it is seen (H shows / hides it)
-    forecastLayout.addLayout(boxHourlyGraph);
     forecastLayout.addLayout(boxSevenDay);
+    forecastLayout.addLayout(boxHourlyGraph);
     forecastLayout.addStretch();
 
     addWidgets();   // also places the columns right of the toolbar, in the user's order
@@ -268,6 +268,7 @@ void MainWindow::getHazards() {
 }
 
 void MainWindow::addWidgets() {
+    placeHourlyGraph();
     imageLayout.removeChildren();
     imageLayout.setEqualRowHeights(true);   // the captions of a row line up along its bottom
     rightMostLayout.removeChildren();
@@ -358,6 +359,7 @@ void MainWindow::arrangeColumns() {
 
 string MainWindow::computeTokenString() {
     string tokenString;
+    tokenString += string{UIPreferences::hourlyGraph ? "graph," : ""} + (UIPreferences::hourlyGraphAbove ? "above," : "");
     tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",");
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
@@ -396,6 +398,15 @@ void MainWindow::launchImageScreen(const string& token) {
     } else if (const auto * entry = HomeThumbnails::find(token); entry != nullptr && !entry->routeId.empty()) {
         toolbar.launchRoute(entry->routeId);   // any other thumbnail opens its own tool
     }
+}
+
+// the hourly graph's place in the forecast column (Settings): above or below the seven day list, or not shown
+void MainWindow::placeHourlyGraph() {
+    auto * column = forecastLayout.getView();
+    column->removeItem(boxHourlyGraph.getView());
+    const auto at = column->indexOf(boxSevenDay.getView());
+    column->insertLayout(UIPreferences::hourlyGraphAbove ? at : at + 1, boxHourlyGraph.getView());
+    hourlyGraph.setVisible(UIPreferences::hourlyGraph);
 }
 
 void MainWindow::getHourlyGraphData() {
