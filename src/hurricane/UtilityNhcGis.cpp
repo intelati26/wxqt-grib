@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "hurricane/UtilityNhcGis.h"
+#include <algorithm>
 #include <cstdlib>
 #include <map>
 #include <regex>
@@ -185,4 +186,53 @@ vector<UtilityNhcGis::WatchWarning> UtilityNhcGis::parseWatchWarnings(const stri
         return {};
     }
     return parseKml(data);
+}
+
+vector<UtilityNhcGis::OutlookArea> UtilityNhcGis::parseOutlook(const string& zip) {
+    vector<OutlookArea> areas;
+    std::map<string, string> files;
+    if (!UtilityZip::read(zip, files)) {
+        return areas;
+    }
+    string shp;
+    string dbf;
+    vector<UtilityShapefile::Feature> features;
+    // the layer names carry a time stamp: gtwo_areas_202610070514.shp
+    for (const auto& [name, data] : files) {
+        if (name.rfind("gtwo_areas_", 0) == 0 && name.size() > 4 && name.compare(name.size() - 4, 4, ".shp") == 0) {
+            shp = data;
+            const auto d = files.find(name.substr(0, name.size() - 3) + "dbf");
+            dbf = d == files.end() ? string{} : d->second;
+        }
+    }
+    if (shp.empty() || !UtilityShapefile::parse(shp, dbf, features)) {
+        return areas;
+    }
+    const auto percent = [] (const string& s) { return s.empty() ? -1 : std::atoi(s.c_str()); };
+    for (const auto& f : features) {
+        OutlookArea a;
+        a.basin = text(f.attributes, "BASIN");
+        a.area = text(f.attributes, "AREA");
+        a.prob2 = percent(text(f.attributes, "PROB2DAY"));
+        a.prob7 = percent(text(f.attributes, "PROB7DAY"));
+        a.risk2 = text(f.attributes, "RISK2DAY");
+        a.risk7 = text(f.attributes, "RISK7DAY");
+        double minLon = 1e9, maxLon = -1e9, minLat = 1e9, maxLat = -1e9;
+        for (const auto& ring : f.parts) {
+            a.rings.push_back(ring);
+            for (const auto& [lon, lat] : ring) {
+                minLon = std::min(minLon, lon);
+                maxLon = std::max(maxLon, lon);
+                minLat = std::min(minLat, lat);
+                maxLat = std::max(maxLat, lat);
+            }
+        }
+        if (a.rings.empty()) {
+            continue;
+        }
+        a.centerLat = (minLat + maxLat) / 2.0;
+        a.centerLon = (minLon + maxLon) / 2.0;
+        areas.push_back(std::move(a));
+    }
+    return areas;
 }

@@ -13,19 +13,30 @@ AdvisoryViewer::AdvisoryViewer(Window * parent, const HurricaneData::StormEntry&
     : Window{parent}
     , textHeadline{this, "Loading NHC's text products..."}
 {
+    build("NHC advisory text - " + HurricaneData::idLabel(entry.id) + " " + entry.name,
+          {{"Public advisory", entry.advisoryUrl}, {"Discussion", entry.discussionUrl}, {"Forecast / advisory", entry.forecastAdvisoryUrl},
+           {"Wind speed probabilities", entry.probabilitiesUrl}});
+}
+
+AdvisoryViewer::AdvisoryViewer(Window * parent, const std::string& title, const std::vector<std::pair<std::string, std::string>>& products)
+    : Window{parent}
+    , textHeadline{this, "Loading NHC's text products..."}
+{
+    build(title, products);
+}
+
+void AdvisoryViewer::build(const std::string& title, const std::vector<std::pair<std::string, std::string>>& products) {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("NHC advisory text - " + HurricaneData::idLabel(entry.id) + " " + entry.name);
+    setTitle(title);
     textHeadline.setWordWrap(true);
     tabs = new QTabWidget{this};
-    const std::vector<std::pair<std::string, std::string>> products{{"Public advisory", entry.advisoryUrl}, {"Discussion", entry.discussionUrl},
-                                                                    {"Forecast / advisory", entry.forecastAdvisoryUrl}, {"Wind speed probabilities", entry.probabilitiesUrl}};
-    for (const auto& [title, url] : products) {
+    for (const auto& [name, url] : products) {
         auto * page = new QPlainTextEdit{this};
         page->setReadOnly(true);
         page->setLineWrapMode(QPlainTextEdit::NoWrap);
         page->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
         page->setPlainText(url.empty() ? "NHC lists no such product for this storm." : "Loading...");
-        tabs->addTab(page, QString::fromStdString(title));
+        tabs->addTab(page, QString::fromStdString(name));
         pages.push_back(page);
     }
     box.addWidget(textHeadline);
@@ -51,6 +62,6 @@ AdvisoryViewer::AdvisoryViewer(Window * parent, const HurricaneData::StormEntry&
                 }
             }
             const auto headline = UtilityNhcText::headline((*texts)[0]);
-            textHeadline.setText(headline.empty() ? std::string{"NHC advisory text"} : headline);
+            textHeadline.setText(headline.empty() ? std::string{"NHC text products"} : headline);
         }};
 }

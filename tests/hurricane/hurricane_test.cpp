@@ -344,6 +344,13 @@ static void gis(const std::string& fixtures) {
     const auto ww = UtilityNhcGis::parseWatchWarnings(readFile(fixtures + "/nhc_ww_al112017_020.kmz"));
     CHECK(ww.size() == 3 && ww[0].kind == "Hurricane Watch" && ww[0].code == "HWA" && ww[0].lines.size() == 1 && ww[0].lines[0].size() == 2);
     CHECK(near(ww[0].lines[0][0].first, -62.83) && near(ww[0].lines[0][0].second, 17.87) && near(ww[0].lines[0][1].first, -63.32) && near(ww[0].lines[0][1].second, 18.3));
+    // the Tropical Weather Outlook shapefiles: today's (two Pacific areas) and NHC's 2023 sample (one Atlantic area at 70 %)
+    const auto outlook = UtilityNhcGis::parseOutlook(readFile(fixtures + "/nhc_gtwo_20261007.zip"));
+    CHECK(outlook.size() == 2 && outlook[0].basin == "Pacific" && outlook[0].area == "1" && outlook[0].prob2 == 90 && outlook[0].prob7 == 90 && outlook[0].risk2 == "High" && outlook[0].risk7 == "High");
+    CHECK(outlook[0].rings.size() == 1 && outlook[0].rings[0].size() == 300 && near(outlook[0].centerLon, (-108.04 + -97.01) / 2.0, 0.01) && near(outlook[0].centerLat, (11.16 + 18.01) / 2.0, 0.01));
+    CHECK(outlook[1].area == "2" && outlook[1].prob2 == 0 && outlook[1].prob7 == 30 && outlook[1].risk2 == "Low" && outlook[1].risk7 == "Low");
+    const auto old = UtilityNhcGis::parseOutlook(readFile(fixtures + "/nhc_gtwo_example_2023.zip"));
+    CHECK(old.size() == 1 && old[0].basin == "Atlantic" && old[0].prob2 == 70 && old[0].rings[0].size() == 72 && UtilityNhcGis::parseOutlook("not a zip").empty());
     CHECK(UtilityNhcGis::nameFor("TWR") == "Tropical Storm Warning" && UtilityNhcGis::colorFor("HWR") == "#ff0000");
     CHECK(UtilityNhcGis::parseWatchWarnings("<kml><Placemark><name>x</name><styleUrl>#TWA</styleUrl><LineString><coordinates>-80.0,25.0,0 -81.0,26.0,0</coordinates></LineString></Placemark></kml>").size() == 1);
 }

@@ -494,3 +494,9 @@ void HurricaneData::loadGis(const StormEntry& entry, GisData& data) {
 string HurricaneData::loadBulletin(const string& url) {
     return UtilityNhcText::bulletin(download(url));
 }
+
+void HurricaneData::loadOutlook(OutlookData& data) {
+    data = OutlookData{};
+    data.areas = UtilityNhcGis::parseOutlook(download("https://www.nhc.noaa.gov/xgtwo/gtwo_shapefiles.zip"));
+    // an empty list is a normal answer ("formation is not expected")
+}

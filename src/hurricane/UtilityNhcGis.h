@@ -49,6 +49,19 @@ public:
         string code;              // HWR, HWA, TWR, TWA ... (the style id)
         vector<Ring> lines;
     };
+    struct OutlookArea {          // an area of possible development in the Tropical Weather Outlook
+        string basin;             // "Atlantic" or "Pacific" (the Eastern and Central Pacific together)
+        string area;              // "1"
+        int prob2{-1};            // percent chance of formation in the next 2 days
+        int prob7{-1};            // ... 7 days
+        string risk2;             // Low, Medium, High
+        string risk7;
+        vector<Ring> rings;
+        double centerLat{0.0};    // the centre of its bounding box, for a label
+        double centerLon{0.0};
+    };
+    // the xgtwo/gtwo_shapefiles.zip layers (areas, points, lines)
+    static vector<OutlookArea> parseOutlook(const string& zip);
     static Cone parseCone(const string& zip);
     static vector<WindRadius> parseRadii(const string& zip);           // forecastradii and initialradii layers
     static vector<WatchWarning> parseWatchWarnings(const string& kmz); // a KMZ (zip) or a bare KML

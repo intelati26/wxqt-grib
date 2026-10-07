@@ -86,6 +86,10 @@ public:
         int filesRead{0};
         string error;
     };
+    struct OutlookData {
+        vector<UtilityNhcGis::OutlookArea> areas;     // every basin; the screen keeps those of the basin on show
+        string error;
+    };
     struct GisData {
         UtilityNhcGis::Cone cone;
         vector<UtilityNhcGis::WindRadius> radii;
@@ -102,6 +106,7 @@ public:
         string error;
     };
     // basin: "al" Atlantic, "ep" Eastern Pacific, "cp" Central Pacific (the NHC / CPHC basins)
+    static void loadOutlook(OutlookData& data);     // the Tropical Weather Outlook areas (the 2 and 7 day formation chances)
     static string loadBulletin(const string& url);   // the text of one of NHC's text products
     static bool loadStormList(vector<StormEntry>& entries, string& error, const string& basin = "al");
     static void loadStorm(const string& id, StormData& data);

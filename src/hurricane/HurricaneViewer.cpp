@@ -105,6 +105,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     , buttonIntensity{this, None, "Intensity chart..."}
     , buttonSeason{this, None, "Season table and ACE..."}
     , buttonText{this, None, "NHC advisory text..."}
+    , buttonOutlook{this, None, "Tropical weather outlook text..."}
     , textStatus{this, "Loading..."}
     , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
 {
@@ -134,7 +135,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     view = std::make_unique<MapView>(this, side);
     auto * map = view->map();
     map->dataLayer = [] (QPainter& painter) { painter.fillRect(QRectF{-1.0e6, -1.0e6, 2.0e6, 2.0e6}, QColor{16, 26, 42}); };   // map coordinates: a huge rectangle
-    map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintPlannedRecon(painter); paintLegend(painter); };
+    map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintOutlook(painter); paintPlannedRecon(painter); paintLegend(painter); };
     view->onPointer = [this] (const QPointF& at) { showHover(at); };
     view->onLeave = [this] { hoverLabel->hide(); if (!hoverTech.empty()) { hoverTech.clear(); view->map()->update(); } };
     view->showRegion(5.0, 50.0, -100.0, -10.0);
@@ -184,6 +185,10 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     podCheck->setChecked(true);
     QObject::connect(podCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
     column->addWidget(podCheck);
+    outlookCheck = new QCheckBox{"Development areas (Tropical Weather Outlook)", panel};
+    outlookCheck->setChecked(true);
+    QObject::connect(outlookCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addWidget(outlookCheck);
     autoCheck = new QCheckBox{"Refresh every 10 minutes, alert on a new advisory", panel};
     autoCheck->setChecked(Utility::readPref("HURRICANE_AUTO", "false") == "true");
     QObject::connect(autoCheck, &QCheckBox::toggled, [this] (bool on) {
@@ -208,6 +213,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     column->addWidget(buttonIntensity.getView());
     column->addWidget(buttonSeason.getView());
     column->addWidget(buttonText.getView());
+    column->addWidget(buttonOutlook.getView());
     column->addWidget(buttonStats.getView());
     column->addWidget(buttonShips.getView());
     column->addWidget(buttonPod.getView());
@@ -238,6 +244,12 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     buttonRefresh.connect([this] { loadList(); });
     buttonZoom.connect([this] { zoomToStorm(); });
     buttonSeason.connect([this] { openSeason(); });
+    buttonOutlook.connect([this] {
+        // the outlook of the basin on show: Atlantic, Eastern Pacific, Central Pacific
+        const auto code = basinCode();
+        const string page = code == "al" ? "MIATWOAT" : code == "ep" ? "MIATWOEP" : "HFOTWOCP";
+        new AdvisoryViewer{this, "NHC Tropical Weather Outlook", {{"Outlook", "https://www.nhc.noaa.gov/text/" + page + ".shtml"}}};
+    });
     buttonText.connect([this] {
         const auto index = comboStorm.getIndex();
         if (index >= 0 && static_cast<size_t>(index) < entries.size() && !entries[static_cast<size_t>(index)].advisoryUrl.empty()) {
@@ -304,6 +316,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     box.getAndShow(this);
     loadList();
     loadPod();
+    loadOutlook();
 }
 
 void HurricaneViewer::resizeEventCustom() {
@@ -563,6 +576,20 @@ void HurricaneViewer::loadGis() {
         }};
 }
 
+void HurricaneViewer::loadOutlook() {
+    auto data = std::make_shared<HurricaneData::OutlookData>();
+    new FutureVoid{this,
+        [data] { HurricaneData::loadOutlook(*data); },
+        [this, data] {
+            if (closed) {
+                return;
+            }
+            outlook = data;
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
 void HurricaneViewer::loadPod() {
     auto data = std::make_shared<HurricaneData::PodData>();
     new FutureVoid{this,
@@ -723,6 +750,17 @@ void HurricaneViewer::updateInfo() {
         }
         html += "<br><b>NHC forecast</b> (" + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + "): peak " + knots(peak) +
             " at " + QString::number(peakTau) + " h, out to " + QString::number(storm->official.fixes.back().tau) + " h<br>";
+    }
+    if (outlook && !outlook->areas.empty()) {
+        QStringList parts;
+        for (const auto& area : outlook->areas) {
+            if (area.basin == (basinCode() == "al" ? "Atlantic" : "Pacific")) {
+                parts << "area " + QString::fromStdString(area.area) + ": " + QString::number(area.prob2) + " % / " + QString::number(area.prob7) + " %";
+            }
+        }
+        if (!parts.isEmpty()) {
+            html += "<br><b>Outlook</b> (2 / 7 day formation chance) " + parts.join(", ") + "<br>";
+        }
     }
     if (!changeLines.empty()) {
         html += "<br><b>" + QString::fromStdString(changeTitle) + "</b><br>";
@@ -1102,6 +1140,44 @@ void HurricaneViewer::paintMap(QPainter& painter) {
     }
 }
 
+// the Tropical Weather Outlook: shaded areas of possible development in NHC's risk colours, labelled with the 2 day and 7 day chances
+void HurricaneViewer::paintOutlook(QPainter& painter) {
+    if (outlookCheck == nullptr || !outlookCheck->isChecked() || !outlook) {
+        return;
+    }
+    const auto t = view->transform();
+    const double px = view->unitsPerPixel();
+    const string name = basinCode() == "al" ? "Atlantic" : "Pacific";
+    QFont font{painter.font()};
+    font.setPixelSize(static_cast<int>(12 * px));
+    font.setBold(true);
+    painter.setFont(font);
+    for (const auto& area : outlook->areas) {
+        if (area.basin != name) {
+            continue;
+        }
+        const auto& risk = area.risk7.empty() ? area.risk2 : area.risk7;
+        const QColor color = risk == "High" ? QColor{255, 60, 60} : risk == "Medium" ? QColor{255, 150, 30} : QColor{255, 225, 60};
+        QPainterPath path;
+        for (const auto& ring : area.rings) {
+            QPolygonF polygon;
+            for (const auto& [lon, lat] : ring) {
+                polygon << t(lat, lon);
+            }
+            path.addPolygon(polygon);
+            path.closeSubpath();
+        }
+        auto fill = color;
+        fill.setAlpha(45);
+        painter.setPen(QPen{color, 2.2 * px, Qt::DashLine});
+        painter.setBrush(fill);
+        painter.drawPath(path);
+        const auto at = t(area.centerLat, area.centerLon);
+        painter.setPen(color.lighter(130));
+        painter.drawText(at + QPointF{-30 * px, 4 * px}, QString::number(area.prob2) + "% / " + QString::number(area.prob7) + "%");
+    }
+}
+
 void HurricaneViewer::paintPlannedRecon(QPainter& painter) {
     if (fixCheck != nullptr && fixCheck->isChecked() && vdm) {
         const auto t = view->transform();
@@ -1232,6 +1308,14 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
     }
     for (const auto& f : storm->best) {
         check(f.lat, f.lon, "Best track\n" + QString::fromStdString(UtilityAtcf::formatTime(f.time)) + ", " + knots(f.wind) + (f.pressure > 0 ? ", " + QString::number(f.pressure) + " mb" : QString{}), "");
+    }
+    if (outlookCheck->isChecked() && outlook) {
+        for (const auto& area : outlook->areas) {
+            if (area.basin == (basinCode() == "al" ? "Atlantic" : "Pacific")) {
+                check(area.centerLat, area.centerLon, "Tropical Weather Outlook area " + QString::fromStdString(area.area) + "\nChance of formation: " + QString::number(area.prob2) + " % in 2 days (" +
+                      QString::fromStdString(area.risk2) + "), " + QString::number(area.prob7) + " % in 7 days (" + QString::fromStdString(area.risk7) + ")", "");
+            }
+        }
     }
     if (wwCheck->isChecked() && gis) {
         for (const auto& w : gis->watchWarnings) {

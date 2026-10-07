@@ -21,8 +21,11 @@
 class AdvisoryViewer : public Window {
 public:
     AdvisoryViewer(Window * parent, const HurricaneData::StormEntry& entry);
+    // any set of NHC text products: a window title and (tab title, page address) pairs
+    AdvisoryViewer(Window * parent, const std::string& title, const std::vector<std::pair<std::string, std::string>>& products);
 
 private:
+    void build(const std::string& title, const std::vector<std::pair<std::string, std::string>>& products);
     VBox box;
     Text textHeadline;
     QTabWidget * tabs{};

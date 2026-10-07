@@ -42,6 +42,7 @@ private:
     void loadEnsembles();
     void loadShips();
     void loadPod();
+    void loadOutlook();
     void loadGis();
     void loadVdm();
     void openSeason();
@@ -52,6 +53,7 @@ private:
     void updateInfo();
     void paintMap(QPainter&);
     void paintPlannedRecon(QPainter&);
+    void paintOutlook(QPainter&);
     void paintLegend(QPainter&);
     void showHover(const QPointF& pixels);
     bool groupShown(UtilityAtcf::Group) const;
@@ -86,6 +88,7 @@ private:
     QCheckBox * radiiCheck{};
     QCheckBox * fixCheck{};                                   // the recon centre fixes (vortex messages)
     QCheckBox * autoCheck{};                                  // refresh every 10 minutes and alert on a new advisory
+    QCheckBox * outlookCheck{};                               // the Tropical Weather Outlook areas
     QCheckBox * podCheck{};                                   // the planned recon flights                                 // the wind radii now
     QCheckBox * ensembleChecks[3]{};                          // AIFS ENS members, IFS ENS members, the unperturbed runs
     Button buttonStats;
@@ -95,6 +98,7 @@ private:
     Button buttonIntensity;
     Button buttonSeason;
     Button buttonText;
+    Button buttonOutlook;
     ComboBox comboRecon;                                      // what colours the flight tracks
     std::vector<vector<std::pair<float, float>>> coast;       // the basin's coastlines and borders (lon, lat)
     vector<HurricaneData::StormEntry> entries;
@@ -104,6 +108,7 @@ private:
     std::shared_ptr<HurricaneData::ShipsData> ships;
     std::shared_ptr<HurricaneData::PodData> pod;
     std::shared_ptr<HurricaneData::GisData> gis;
+    std::shared_ptr<HurricaneData::OutlookData> outlook;
     std::shared_ptr<HurricaneData::VdmData> vdm;
     QTimer refreshTimer;
     vector<string> changeLines;                               // what differs from the advisory before
