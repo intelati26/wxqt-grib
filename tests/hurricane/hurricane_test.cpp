@@ -8,7 +8,9 @@
 #include <sstream>
 #include "hurricane/UtilityEcmwfTracks.h"
 #include "hurricane/UtilityEnsembleStats.h"
+#include "hurricane/UtilityChanges.h"
 #include "hurricane/UtilityNhcGis.h"
+#include "hurricane/UtilityNhcText.h"
 #include "hurricane/UtilityPod.h"
 #include "hurricane/UtilityVdm.h"
 #include "hurricane/UtilitySeason.h"
@@ -346,7 +348,53 @@ static void gis(const std::string& fixtures) {
     CHECK(UtilityNhcGis::parseWatchWarnings("<kml><Placemark><name>x</name><styleUrl>#TWA</styleUrl><LineString><coordinates>-80.0,25.0,0 -81.0,26.0,0</coordinates></LineString></Placemark></kml>").size() == 1);
 }
 
+// NHC's text products (the public advisory for Isaias, advisory 3) and the comparison between two advisories
+static void text(const std::string& fixtures) {
+    const auto b = UtilityNhcText::bulletin(readFile(fixtures + "/nhc_tcp_al09_003.html"));
+    CHECK(b.rfind("000\nWTNT34 KNHC 070852", 0) == 0 && b.find("Tropical Storm Isaias Advisory Number   3") != std::string::npos && b.find("<") == std::string::npos);
+    CHECK(UtilityNhcText::headline(b) == "DEPRESSION BECOMES TROPICAL STORM ISAIAS; FORECAST TO RAPIDLY STRENGTHEN OVER THE NEXT COUPLE OF DAYS");
+    const auto sections = UtilityNhcText::sections(b);
+    CHECK(sections.size() >= 3 && sections[0].first == "Header" && sections[1].first == "SUMMARY OF 400 AM CDT...0900 UTC...INFORMATION");
+    CHECK(sections[1].second.find("MINIMUM CENTRAL PRESSURE...1004 MB") != std::string::npos && sections[2].first == "WATCHES AND WARNINGS");
+    CHECK(UtilityNhcText::bulletin("<html>no bulletin</html>").empty() && UtilityNhcText::bulletin("<pre>a &lt; b &amp; c</pre>") == "a < b & c");
+
+    UtilityChanges::Snapshot before;
+    before.advisory = "002";
+    before.classification = "TD";
+    before.wind = 30;
+    before.pressure = 1005;
+    before.lat = 22.1;
+    before.lon = -95.0;
+    before.moveDir = 80;
+    before.moveSpeed = 5;
+    before.forecastPeak = 80;
+    before.forecastPeakHour = 60;
+    before.ri30 = 9.0;
+    auto after = before;
+    after.advisory = "003";
+    after.classification = "TS";
+    after.wind = 35;
+    after.pressure = 1004;
+    after.lat = 22.0;
+    after.lon = -94.1;
+    after.moveDir = 75;
+    after.moveSpeed = 8;
+    after.forecastPeak = 95;
+    after.forecastPeakHour = 48;
+    after.ri30 = 13.0;
+    const auto lines = UtilityChanges::describe(before, after);
+    CHECK(lines.size() == 7 && lines[0] == "Classification TD to TS" && lines[1] == "Winds 30 kt (TD) to 35 kt (TS) (+5 kt)" && lines[2] == "Pressure 1005 to 1004 mb (-1)");
+    CHECK(lines[3].rfind("Centre moved 9", 0) == 0 && lines[3].find("toward 9") != std::string::npos);   // about 93 km east
+    CHECK(lines[4] == "Motion 80 deg at 5 kt to 75 deg at 8 kt" && lines[5] == "NHC forecast peak 80 kt (Cat 1) at 60 h to 95 kt (Cat 2) at 48 h");
+    CHECK(lines[6] == "SHIPS-RII chance of a 30 kt rise in 24 h 9 % to 13 %");
+    CHECK(UtilityChanges::describe(after, after).empty() && UtilityChanges::describe(UtilityChanges::Snapshot{}, after).empty());
+    const auto round = UtilityChanges::parse(UtilityChanges::serialize(after));
+    CHECK(round.advisory == "003" && round.classification == "TS" && round.wind == 35 && round.pressure == 1004 && near(round.lat, 22.0) && near(round.lon, -94.1) && round.moveDir == 75 && round.forecastPeak == 95 && near(round.ri30, 13.0));
+    CHECK(near(UtilityChanges::distanceKm(0, 0, 0, 1), 111.19, 0.1) && near(UtilityChanges::bearing(0, 0, 1, 0), 0.0) && near(UtilityChanges::bearing(0, 0, 0, 1), 90.0));
+}
+
 int main(int argc, char ** argv) {
+    text(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     gis(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     season(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     vdm(argc > 1 ? argv[1] : "tests/hurricane/fixtures");

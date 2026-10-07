@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 #include <QCheckBox>
+#include <QTimer>
 #include <QLabel>
 #include <QPointF>
 #include <QWidget>
@@ -44,6 +45,7 @@ private:
     void loadGis();
     void loadVdm();
     void openSeason();
+    void updateChanges();                      // compare this advisory with the last one seen
     string basinCode() const;                  // "al", "ep" or "cp"
     void showStorm();                       // after a storm has loaded: the panel text, the map region
     void zoomToStorm();
@@ -83,6 +85,7 @@ private:
     QCheckBox * coneCheck{};                                  // the forecast cone
     QCheckBox * radiiCheck{};
     QCheckBox * fixCheck{};                                   // the recon centre fixes (vortex messages)
+    QCheckBox * autoCheck{};                                  // refresh every 10 minutes and alert on a new advisory
     QCheckBox * podCheck{};                                   // the planned recon flights                                 // the wind radii now
     QCheckBox * ensembleChecks[3]{};                          // AIFS ENS members, IFS ENS members, the unperturbed runs
     Button buttonStats;
@@ -91,6 +94,7 @@ private:
     Button buttonVdm;
     Button buttonIntensity;
     Button buttonSeason;
+    Button buttonText;
     ComboBox comboRecon;                                      // what colours the flight tracks
     std::vector<vector<std::pair<float, float>>> coast;       // the basin's coastlines and borders (lon, lat)
     vector<HurricaneData::StormEntry> entries;
@@ -101,6 +105,9 @@ private:
     std::shared_ptr<HurricaneData::PodData> pod;
     std::shared_ptr<HurricaneData::GisData> gis;
     std::shared_ptr<HurricaneData::VdmData> vdm;
+    QTimer refreshTimer;
+    vector<string> changeLines;                               // what differs from the advisory before
+    string changeTitle;
     string hoverTech;                                         // the guidance line under the pointer, drawn heavier
     int generation{0};
     bool closed{false};

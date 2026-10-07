@@ -41,6 +41,8 @@ public:
         string lastUpdate;
         string discussionUrl;
         string advisoryUrl;
+        string forecastAdvisoryUrl;
+        string probabilitiesUrl;
         string graphicsUrl;
         string advNum;          // the advisory the GIS files belong to ("003")
         string coneZip;         // the "5day" shapefiles: cone, track, forecast points
@@ -100,6 +102,7 @@ public:
         string error;
     };
     // basin: "al" Atlantic, "ep" Eastern Pacific, "cp" Central Pacific (the NHC / CPHC basins)
+    static string loadBulletin(const string& url);   // the text of one of NHC's text products
     static bool loadStormList(vector<StormEntry>& entries, string& error, const string& basin = "al");
     static void loadStorm(const string& id, StormData& data);
     static void loadRecon(ReconData& data, int bulletins, const string& basin = "al");   // the HDOB archive of that basin

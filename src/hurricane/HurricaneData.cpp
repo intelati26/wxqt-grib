@@ -19,6 +19,7 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 #include "hurricane/UtilityEnsembleStats.h"
+#include "hurricane/UtilityNhcText.h"
 #include "hurricane/UtilityVdm.h"
 #include "util/UtilityGzip.h"
 #include "util/UtilityIO.h"
@@ -78,6 +79,8 @@ bool HurricaneData::loadStormList(vector<StormEntry>& entries, string& error, co
         entry.lastUpdate = text(o, "lastUpdate");
         entry.discussionUrl = text(o.value("forecastDiscussion").toObject(), "url");
         entry.advisoryUrl = text(o.value("publicAdvisory").toObject(), "url");
+        entry.forecastAdvisoryUrl = text(o.value("forecastAdvisory").toObject(), "url");
+        entry.probabilitiesUrl = text(o.value("windSpeedProbabilities").toObject(), "url");
         entry.graphicsUrl = text(o.value("forecastGraphics").toObject(), "url");
         const auto cone = o.value("trackCone").toObject();
         entry.advNum = text(cone, "advNum");
@@ -178,6 +181,14 @@ void HurricaneData::loadStorm(const string& id, StormData& data) {
             names = UtilityAtcf::parseTechList(download(atcf + "docs/nhc_techlist.dat"));
         }
         data.longNames = names;
+    }
+    // codes that NHC's own list does not name yet
+    static const std::pair<const char *, const char *> extra[] = {
+        {"HFSA", "HAFS-A (NOAA Hurricane Analysis and Forecast System)"}, {"HFSB", "HAFS-B (NOAA Hurricane Analysis and Forecast System)"},
+        {"GDMN", "Google DeepMind WeatherNext cyclone model (experimental)"}, {"GDMI", "Google DeepMind WeatherNext cyclone model, interpolated (experimental)"},
+        {"AIFS", "ECMWF AIFS (AI forecasting system)"}, {"AIFI", "ECMWF AIFS, interpolated"}};
+    for (const auto& [code, name] : extra) {
+        data.longNames.emplace(code, name);
     }
     if (data.best.empty() && data.guidance.empty() && data.error.empty()) {
         data.error = "NHC has no track data for this storm yet.";
@@ -478,4 +489,8 @@ void HurricaneData::loadGis(const StormEntry& entry, GisData& data) {
             data.watchWarnings = UtilityNhcGis::parseWatchWarnings(kmz);
         }
     }
+}
+
+string HurricaneData::loadBulletin(const string& url) {
+    return UtilityNhcText::bulletin(download(url));
 }

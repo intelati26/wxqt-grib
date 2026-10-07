@@ -8,6 +8,7 @@
 #include <cmath>
 #include <numbers>
 #include <set>
+#include <QApplication>
 #include <QDesktopServices>
 #include <QFile>
 #include <QFont>
@@ -17,10 +18,12 @@
 #include <QScrollArea>
 #include <QUrl>
 #include <QVBoxLayout>
+#include "hurricane/AdvisoryViewer.h"
 #include "hurricane/EnsembleStatsViewer.h"
 #include "hurricane/IntensityViewer.h"
 #include "hurricane/PodViewer.h"
 #include "hurricane/SeasonViewer.h"
+#include "hurricane/UtilityChanges.h"
 #include "hurricane/ShipsViewer.h"
 #include "hurricane/VdmViewer.h"
 #include "objects/FutureVoid.h"
@@ -101,6 +104,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     , buttonVdm{this, None, "Recon vortex messages..."}
     , buttonIntensity{this, None, "Intensity chart..."}
     , buttonSeason{this, None, "Season table and ACE..."}
+    , buttonText{this, None, "NHC advisory text..."}
     , textStatus{this, "Loading..."}
     , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
 {
@@ -180,6 +184,13 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     podCheck->setChecked(true);
     QObject::connect(podCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
     column->addWidget(podCheck);
+    autoCheck = new QCheckBox{"Refresh every 10 minutes, alert on a new advisory", panel};
+    autoCheck->setChecked(Utility::readPref("HURRICANE_AUTO", "false") == "true");
+    QObject::connect(autoCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("HURRICANE_AUTO", on ? "true" : "false");
+        on ? refreshTimer.start() : refreshTimer.stop();
+    });
+    column->addWidget(autoCheck);
     fixCheck = new QCheckBox{"Recon centre fixes (vortex messages)", panel};
     fixCheck->setChecked(true);
     QObject::connect(fixCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
@@ -196,6 +207,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     }
     column->addWidget(buttonIntensity.getView());
     column->addWidget(buttonSeason.getView());
+    column->addWidget(buttonText.getView());
     column->addWidget(buttonStats.getView());
     column->addWidget(buttonShips.getView());
     column->addWidget(buttonPod.getView());
@@ -226,6 +238,19 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     buttonRefresh.connect([this] { loadList(); });
     buttonZoom.connect([this] { zoomToStorm(); });
     buttonSeason.connect([this] { openSeason(); });
+    buttonText.connect([this] {
+        const auto index = comboStorm.getIndex();
+        if (index >= 0 && static_cast<size_t>(index) < entries.size() && !entries[static_cast<size_t>(index)].advisoryUrl.empty()) {
+            new AdvisoryViewer{this, entries[static_cast<size_t>(index)]};
+        } else {
+            textStatus.setText(string{"NHC has no advisory text for this storm (advisories are issued for active storms)."});
+        }
+    });
+    refreshTimer.setInterval(10 * 60 * 1000);
+    refreshTimer.connect(&refreshTimer, &QTimer::timeout, this, [this] { loadList(); });
+    if (autoCheck->isChecked()) {
+        refreshTimer.start();
+    }
     buttonIntensity.connect([this] {
         if (storm) {
             new IntensityViewer{this, storm, ensembles, ships, vdm, recon};
@@ -322,7 +347,20 @@ void HurricaneViewer::loadList() {
             }
             const auto before = comboStorm.getIndex() >= 0 && static_cast<size_t>(comboStorm.getIndex()) < entries.size()
                 ? entries[static_cast<size_t>(comboStorm.getIndex())].id : string{};
+            // a new advisory for the storm on screen (the timer reloads the list): tell the user
+            string newAdvisory;
+            for (const auto& old : entries) {
+                for (const auto& fresh : *list) {
+                    if (old.id == fresh.id && old.id == before && old.active && !old.advNum.empty() && !fresh.advNum.empty() && old.advNum != fresh.advNum) {
+                        newAdvisory = fresh.name + " advisory " + fresh.advNum;
+                    }
+                }
+            }
             entries = *list;
+            if (!newAdvisory.empty()) {
+                textStatus.setText("New NHC advisory: " + newAdvisory);
+                QApplication::alert(this, 0);
+            }
             vector<string> labels;
             for (const auto& entry : entries) {
                 labels.push_back(entry.label);
@@ -365,6 +403,7 @@ void HurricaneViewer::loadStorm() {
             vdm.reset();
             gis.reset();
             showStorm();
+            updateChanges();
             loadEnsembles();
             loadShips();
             loadVdm();
@@ -373,6 +412,76 @@ void HurricaneViewer::loadStorm() {
                 loadRecon();
             }
         }};
+}
+
+// "what changed": the advisory on screen against the one before it (kept in the settings per storm), or, the first time, against the best track six hours earlier
+void HurricaneViewer::updateChanges() {
+    changeLines.clear();
+    const auto index = comboStorm.getIndex();
+    if (!storm || index < 0 || static_cast<size_t>(index) >= entries.size()) {
+        return;
+    }
+    const auto& entry = entries[static_cast<size_t>(index)];
+    if (!entry.active || entry.advNum.empty()) {
+        return;
+    }
+    UtilityChanges::Snapshot now;
+    now.advisory = entry.advNum;
+    now.classification = entry.classification;
+    now.wind = entry.wind;
+    now.pressure = entry.pressure;
+    now.lat = entry.lat;
+    now.lon = entry.lon;
+    now.moveDir = entry.movementDir;
+    now.moveSpeed = entry.movementSpeed;
+    for (const auto& f : storm->official.fixes) {
+        if (f.wind > now.forecastPeak) {
+            now.forecastPeak = f.wind;
+            now.forecastPeakHour = f.tau;
+        }
+    }
+    if (ships && ships->ships.ok) {
+        for (const auto& p : ships->ships.riLines) {
+            if (p.knots == 30 && p.hours == 24) {
+                now.ri30 = p.percent;
+            }
+        }
+    }
+    const string lastKey = "HURRICANE_LAST_" + entry.id;
+    const string priorKey = "HURRICANE_PRIOR_" + entry.id;
+    const auto last = UtilityChanges::parse(Utility::readPref(lastKey, ""));
+    if (last.valid() && last.advisory != now.advisory) {
+        Utility::writePref(priorKey, UtilityChanges::serialize(last));
+    }
+    Utility::writePref(lastKey, UtilityChanges::serialize(now));
+    auto prior = UtilityChanges::parse(Utility::readPref(priorKey, ""));
+    if (prior.valid() && prior.advisory != now.advisory) {
+        changeLines = UtilityChanges::describe(prior, now);
+        changeTitle = "Since advisory " + prior.advisory + " (now " + now.advisory + ")";
+        return;
+    }
+    // no earlier advisory seen by this program: the best track six hours before the newest fix
+    if (storm->best.size() >= 2) {
+        const auto& old = storm->best[storm->best.size() - 2];
+        UtilityChanges::Snapshot before;
+        before.advisory = "6 h earlier";
+        before.classification = old.status;
+        before.wind = old.wind;
+        before.pressure = old.pressure;
+        before.lat = old.lat;
+        before.lon = old.lon;
+        now.classification = storm->best.back().status;
+        now.wind = storm->best.back().wind;
+        now.pressure = storm->best.back().pressure;
+        now.lat = storm->best.back().lat;
+        now.lon = storm->best.back().lon;
+        now.moveDir = -1;
+        now.moveSpeed = -1;
+        now.forecastPeak = -1;
+        now.ri30 = -1.0;
+        changeLines = UtilityChanges::describe(before, now);
+        changeTitle = "Since the previous best-track fix (" + UtilityAtcf::formatTime(old.time) + ")";
+    }
 }
 
 void HurricaneViewer::loadEnsembles() {
@@ -479,6 +588,7 @@ void HurricaneViewer::loadShips() {
                 return;
             }
             ships = data;
+            updateChanges();
             updateInfo();
         }};
 }
@@ -613,6 +723,12 @@ void HurricaneViewer::updateInfo() {
         }
         html += "<br><b>NHC forecast</b> (" + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + "): peak " + knots(peak) +
             " at " + QString::number(peakTau) + " h, out to " + QString::number(storm->official.fixes.back().tau) + " h<br>";
+    }
+    if (!changeLines.empty()) {
+        html += "<br><b>" + QString::fromStdString(changeTitle) + "</b><br>";
+        for (const auto& line : changeLines) {
+            html += "&bull; " + QString::fromStdString(line).toHtmlEscaped() + "<br>";
+        }
     }
     if (gis && !gis->watchWarnings.empty()) {
         std::set<string> kinds;

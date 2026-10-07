@@ -149,6 +149,18 @@ void IntensityChart::paintEvent(QPaintEvent *) {
             }
         }
     }
+    if (shown("hurr")) {
+        for (const auto& track : storm->guidance) {
+            if (UtilityAtcf::groupOf(track.tech) == UtilityAtcf::Group::Hurricane) {
+                for (const auto& f : track.fixes) {
+                    windMax = std::max(windMax, static_cast<double>(f.wind));
+                    if (f.pressure > 0) {
+                        pressLow = std::min(pressLow, static_cast<double>(f.pressure));
+                    }
+                }
+            }
+        }
+    }
     if (shown("recon") && vdm) {
         for (const auto& m : vdm->messages) {
             if (UtilityVdm::has(m.maxFlightWind())) windMax = std::max(windMax, m.maxFlightWind());
@@ -243,6 +255,34 @@ void IntensityChart::paintEvent(QPaintEvent *) {
                 draw(wind, [] (const UtilityEcmwfTracks::Step& s) { return s.wind; });
                 draw(press, [] (const UtilityEcmwfTracks::Step& s) { return s.pressure; });
             }
+        }
+    }
+    // the hurricane-specific models (HWRF, HMON, HAFS, COAMPS-TC): each run's wind and pressure
+    if (shown("hurr")) {
+        for (const auto& track : storm->guidance) {
+            if (UtilityAtcf::groupOf(track.tech) != UtilityAtcf::Group::Hurricane) {
+                continue;
+            }
+            const double at = hoursSince(base, track.cycle);
+            const auto draw = [&] (const Axes& a, bool windValue) {
+                p.setPen(QPen{QColor{230, 70, 200, 170}, 1.2});
+                p.setBrush(Qt::NoBrush);
+                QPainterPath path;
+                bool started = false;
+                for (const auto& f : track.fixes) {
+                    const double v = windValue ? static_cast<double>(f.wind) : static_cast<double>(f.pressure);
+                    if ((windValue ? f.wind < 0 : f.pressure <= 0) || at + f.tau > end) {
+                        started = false;
+                        continue;
+                    }
+                    const auto pt = a.at(at + f.tau, v);
+                    started ? path.lineTo(pt) : path.moveTo(pt);
+                    started = true;
+                }
+                p.drawPath(path);
+            };
+            draw(wind, true);
+            draw(press, false);
         }
     }
     // SHIPS and LGEM
@@ -371,7 +411,8 @@ IntensityViewer::IntensityViewer(Window * parent, const std::shared_ptr<Hurrican
     };
     const Family families[] = {{"best", "Best track", QColor{10, 10, 10}}, {"nhc", "NHC forecast", QColor{255, 255, 255}}, {"ships", "SHIPS / LGEM", QColor{40, 130, 200}},
                                {"AIFS ENS", "AIFS ENS", QColor{0, 150, 100}}, {"IFS ENS", "IFS ENS", QColor{230, 110, 20}}, {"GEFS", "GEFS", QColor{120, 70, 200}},
-                               {"runs", "AIFS / IFS runs", QColor{90, 90, 90}}, {"recon", "Recon", QColor{220, 60, 60}}};
+                               {"runs", "AIFS / IFS runs", QColor{90, 90, 90}}, {"hurr", "HWRF / HMON / HAFS / COAMPS-TC", QColor{230, 70, 200}},
+                               {"recon", "Recon", QColor{220, 60, 60}}};
     for (const auto& family : families) {
         const string id = family.id;
         bool present = true;
@@ -381,6 +422,11 @@ IntensityViewer::IntensityViewer(Window * parent, const std::shared_ptr<Hurrican
                 for (const auto& set : ensembles->sets) {
                     present = present || set.label == id;
                 }
+            }
+        } else if (id == "hurr") {
+            present = false;
+            for (const auto& track : storm->guidance) {
+                present = present || UtilityAtcf::groupOf(track.tech) == UtilityAtcf::Group::Hurricane;
             }
         } else if (id == "ships") {
             present = ships && ships->ships.ok;
