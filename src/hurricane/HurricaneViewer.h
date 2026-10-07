@@ -41,6 +41,7 @@ private:
     void loadEnsembles();
     void loadShips();
     void loadPod();
+    void loadGis();
     void loadVdm();
     void openSeason();
     void showStorm();                       // after a storm has loaded: the panel text, the map region
@@ -76,6 +77,7 @@ private:
     QLabel * hoverLabel{};
     std::vector<std::pair<UtilityAtcf::Group, QCheckBox *>> groupChecks;
     QCheckBox * reconCheck{};
+    QCheckBox * wwCheck{};                                    // watches and warnings
     QCheckBox * coneCheck{};                                  // the forecast cone
     QCheckBox * radiiCheck{};
     QCheckBox * fixCheck{};                                   // the recon centre fixes (vortex messages)
@@ -95,6 +97,7 @@ private:
     std::shared_ptr<HurricaneData::EnsembleData> ensembles;
     std::shared_ptr<HurricaneData::ShipsData> ships;
     std::shared_ptr<HurricaneData::PodData> pod;
+    std::shared_ptr<HurricaneData::GisData> gis;
     std::shared_ptr<HurricaneData::VdmData> vdm;
     string hoverTech;                                         // the guidance line under the pointer, drawn heavier
     int generation{0};

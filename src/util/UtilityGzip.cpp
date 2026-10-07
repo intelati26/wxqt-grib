@@ -202,7 +202,12 @@ bool UtilityGzip::gunzip(const std::string& in, std::string& out) {
     if (pos >= size) {
         return false;
     }
-    Bits bits{p + pos, size - pos};
+    return inflate(p + pos, size - pos, out);
+}
+
+bool UtilityGzip::inflate(const unsigned char * p, size_t size, std::string& out) {
+    out.clear();
+    Bits bits{p, size};
     bool last = false;
     while (!last) {
         last = bits.get(1) != 0;

@@ -8,11 +8,13 @@
 #include <sstream>
 #include "hurricane/UtilityEcmwfTracks.h"
 #include "hurricane/UtilityEnsembleStats.h"
+#include "hurricane/UtilityNhcGis.h"
 #include "hurricane/UtilityPod.h"
 #include "hurricane/UtilityVdm.h"
 #include "hurricane/UtilitySeason.h"
 #include "hurricane/UtilityShips.h"
 #include "util/UtilityGzip.h"
+#include "util/UtilityZip.h"
 
 static int failures = 0;
 #define CHECK(cond) do { if (!(cond)) { std::cerr << "FAILED " << __LINE__ << ": " #cond "\n"; failures++; } } while (0)
@@ -318,7 +320,31 @@ static void season(const std::string& fixtures) {
           "hurdat2-1851-2025-092326.txt");
 }
 
+// NHC's GIS products (NHC's sample files for Irma, advisory 20, 2017) and the zip reader under them; the expected numbers were read with an independent script
+static void gis(const std::string& fixtures) {
+    std::map<std::string, std::string> files;
+    CHECK(UtilityZip::read(readFile(fixtures + "/nhc_5day_al112017_020.zip"), files) && files.size() == 15 && files.contains("al112017-020_5day_pgn.shp"));
+    CHECK(files.at("al112017-020_5day_pgn.dbf").size() == 608 && files.at("al112017-020_5day_pgn.shp").size() == 37884);
+    CHECK(!UtilityZip::read("not a zip file at all, really not a zip", files));
+    const auto cone = UtilityNhcGis::parseCone(readFile(fixtures + "/nhc_5day_al112017_020.zip"));
+    CHECK(cone.ok && cone.polygons.size() == 1 && cone.polygons[0].size() == 2358 && near(cone.polygons[0][0].first, -57.17042) && near(cone.polygons[0][0].second, 15.92974));
+    CHECK(cone.stormName == "Irma" && cone.advisory == "20" && cone.advisoryDate == "500 AM AST Mon Sep 04 2017");
+    CHECK(cone.lines.size() == 1 && cone.lines[0].size() == 9 && near(cone.lines[0][0].first, -52.3) && near(cone.lines[0][0].second, 16.9));
+    CHECK(cone.points.size() == 9 && cone.points[0].tau == 0 && near(cone.points[0].maxWind, 100.0) && cone.points[0].development == "Major Hurricane" && cone.points[0].label == "5:00 AM Mon");
+    CHECK(cone.points[8].tau == 120 && near(cone.points[8].maxWind, 110.0) && near(cone.points[8].lon, -76.5) && near(cone.points[8].lat, 22.0));
+    const auto radii = UtilityNhcGis::parseRadii(readFile(fixtures + "/nhc_fcst_al112017_020.zip"));
+    CHECK(radii.size() == 21);   // 3 initial + 18 forecast
+    CHECK(radii[0].knots == 34 && radii[0].tau == 0 && near(radii[0].ne, 120) && near(radii[0].se, 80) && near(radii[0].sw, 50) && near(radii[0].nw, 90));
+    CHECK(radii.back().knots == 50 && radii.back().tau == 72 && near(radii.back().ne, 80) && near(radii.back().nw, 80));
+    const auto ww = UtilityNhcGis::parseWatchWarnings(readFile(fixtures + "/nhc_ww_al112017_020.kmz"));
+    CHECK(ww.size() == 3 && ww[0].kind == "Hurricane Watch" && ww[0].code == "HWA" && ww[0].lines.size() == 1 && ww[0].lines[0].size() == 2);
+    CHECK(near(ww[0].lines[0][0].first, -62.83) && near(ww[0].lines[0][0].second, 17.87) && near(ww[0].lines[0][1].first, -63.32) && near(ww[0].lines[0][1].second, 18.3));
+    CHECK(UtilityNhcGis::nameFor("TWR") == "Tropical Storm Warning" && UtilityNhcGis::colorFor("HWR") == "#ff0000");
+    CHECK(UtilityNhcGis::parseWatchWarnings("<kml><Placemark><name>x</name><styleUrl>#TWA</styleUrl><LineString><coordinates>-80.0,25.0,0 -81.0,26.0,0</coordinates></LineString></Placemark></kml>").size() == 1);
+}
+
 int main(int argc, char ** argv) {
+    gis(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     season(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     vdm(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     pod(argc > 1 ? argv[1] : "tests/hurricane/fixtures");

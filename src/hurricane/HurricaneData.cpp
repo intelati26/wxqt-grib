@@ -79,6 +79,18 @@ bool HurricaneData::loadStormList(vector<StormEntry>& entries, string& error) {
         entry.discussionUrl = text(o.value("forecastDiscussion").toObject(), "url");
         entry.advisoryUrl = text(o.value("publicAdvisory").toObject(), "url");
         entry.graphicsUrl = text(o.value("forecastGraphics").toObject(), "url");
+        const auto cone = o.value("trackCone").toObject();
+        entry.advNum = text(cone, "advNum");
+        entry.coneZip = text(cone, "zipFile");
+        entry.radiiZip = text(o.value("forecastWindRadiiGIS").toObject(), "zipFile");
+        const auto watches = o.value("windWatchesWarnings").toObject();
+        entry.watchKmz = text(watches, "kmzFile");
+        if (entry.watchKmz.empty() && !entry.advNum.empty()) {
+            // NHC names it like the cone file: AL092026_003adv_WW.kmz (the list names it only while watches are in effect)
+            string upper = entry.id;
+            std::transform(upper.begin(), upper.end(), upper.begin(), [] (unsigned char c) { return static_cast<char>(std::toupper(c)); });
+            entry.watchKmz = "https://www.nhc.noaa.gov/storm_graphics/api/" + upper + "_" + entry.advNum + "adv_WW.kmz";
+        }
         entry.label = entry.name + " (" + entry.classification + ", " + (entry.wind >= 0 ? std::to_string(entry.wind) + " kt" : string{"-"}) + ") - " + idLabel(entry.id);
         activeIds.push_back(entry.id);
         entries.push_back(entry);
@@ -433,6 +445,28 @@ void HurricaneData::loadSeason(SeasonData& data) {
             if (modified.isValid() && modified.secsTo(now) < 2 * 86400) {
                 data.active.push_back(storm.id);
             }
+        }
+    }
+}
+
+void HurricaneData::loadGis(const StormEntry& entry, GisData& data) {
+    data = GisData{};
+    if (entry.coneZip.empty()) {
+        data.error = "NHC publishes no cone for this storm.";
+        return;
+    }
+    data.cone = UtilityNhcGis::parseCone(download(entry.coneZip));
+    if (!data.cone.ok) {
+        data.error = "Could not read NHC's cone file.";
+    }
+    if (!entry.radiiZip.empty()) {
+        data.radii = UtilityNhcGis::parseRadii(download(entry.radiiZip));
+    }
+    if (!entry.watchKmz.empty()) {
+        const auto kmz = download(entry.watchKmz);
+        // no watches or warnings: the address answers with a page, not a file
+        if (kmz.compare(0, 2, "PK") == 0 || kmz.compare(0, 5, "<?xml") == 0) {
+            data.watchWarnings = UtilityNhcGis::parseWatchWarnings(kmz);
         }
     }
 }

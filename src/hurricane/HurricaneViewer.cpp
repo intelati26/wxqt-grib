@@ -161,6 +161,11 @@ HurricaneViewer::HurricaneViewer(Window * parent)
         column->addWidget(check);
         groupChecks.emplace_back(group, check);
     }
+    wwCheck = new QCheckBox{"Watches and warnings", panel};
+    wwCheck->setChecked(true);
+    QObject::connect(wwCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addSpacing(4);
+    column->addWidget(wwCheck);
     coneCheck = new QCheckBox{"NHC forecast cone", panel};
     coneCheck->setChecked(true);
     radiiCheck = new QCheckBox{"Wind radii now (34 / 50 / 64 kt)", panel};
@@ -343,10 +348,12 @@ void HurricaneViewer::loadStorm() {
             ensembles.reset();
             ships.reset();
             vdm.reset();
+            gis.reset();
             showStorm();
             loadEnsembles();
             loadShips();
             loadVdm();
+            loadGis();
             if (reconCheck->isChecked()) {
                 loadRecon();
             }
@@ -406,6 +413,26 @@ void HurricaneViewer::loadVdm() {
                 return;
             }
             vdm = data;
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+void HurricaneViewer::loadGis() {
+    const auto gen = generation;
+    const auto index = comboStorm.getIndex();
+    if (index < 0 || static_cast<size_t>(index) >= entries.size() || !entries[static_cast<size_t>(index)].active || entries[static_cast<size_t>(index)].coneZip.empty()) {
+        return;   // a finished storm or an invest: NHC has no cone file for it
+    }
+    const auto entry = entries[static_cast<size_t>(index)];
+    auto data = std::make_shared<HurricaneData::GisData>();
+    new FutureVoid{this,
+        [entry, data] { HurricaneData::loadGis(entry, *data); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            gis = data;
             updateInfo();
             view->map()->update();
         }};
@@ -570,6 +597,19 @@ void HurricaneViewer::updateInfo() {
         html += "<br><b>NHC forecast</b> (" + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + "): peak " + knots(peak) +
             " at " + QString::number(peakTau) + " h, out to " + QString::number(storm->official.fixes.back().tau) + " h<br>";
     }
+    if (gis && !gis->watchWarnings.empty()) {
+        std::set<string> kinds;
+        for (const auto& w : gis->watchWarnings) {
+            kinds.insert(w.kind.empty() ? UtilityNhcGis::nameFor(w.code) : w.kind);
+        }
+        QStringList names;
+        for (const auto& k : kinds) {
+            names << QString::fromStdString(k);
+        }
+        html += "<br><b>In effect</b> " + names.join(", ") + "<br>";
+    } else if (gis && gis->error.empty() && gis->cone.ok) {
+        html += "<br><b>Watches and warnings</b> none in effect<br>";
+    }
     if (vdm && vdm->error.empty()) {
         html += "<br><b>Vortex messages</b> " + VdmViewer::summary(*vdm) + "<br>";
     }
@@ -705,8 +745,24 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             painter.drawText(end + QPointF{6.0 * px, -4.0 * px}, QString::fromStdString(track.tech));
         }
     }
-    // the forecast cone: the area swept by NHC's error circles along the official forecast (12, 24 ... 120 h)
-    if (coneCheck->isChecked() && storm->id.rfind("al", 0) == 0 && storm->official.fixes.size() >= 2) {
+    // the forecast cone: NHC's own polygon when it has been loaded
+    if (coneCheck->isChecked() && gis && gis->cone.ok) {
+        QPainterPath cone;
+        for (const auto& ring : gis->cone.polygons) {
+            QPolygonF polygon;
+            for (const auto& [lon, lat] : ring) {
+                polygon << t(lat, lon);
+            }
+            QPainterPath piece;
+            piece.addPolygon(polygon);
+            piece.closeSubpath();
+            cone = cone.united(piece);
+        }
+        painter.setPen(QPen{QColor{255, 255, 255, 190}, 1.4 * px, Qt::DashLine});
+        painter.setBrush(QColor{255, 255, 255, 38});
+        painter.drawPath(cone);
+    } else if (coneCheck->isChecked() && storm->id.rfind("al", 0) == 0 && storm->official.fixes.size() >= 2) {
+        // otherwise the area swept by NHC's published error circles along the official forecast (12, 24 ... 120 h)
         const auto circle = [&] (double lat, double lon, double nm) {
             QPolygonF points;
             const double kmPerDegree = 111.2;
@@ -844,6 +900,25 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             painter.setBrush(categoryColor(f.wind >= 0 ? UtilityAtcf::categoryOf(f.wind) : 0));
             const double r = (last ? 7.5 : 3.6) * px;
             painter.drawEllipse(p, r, r);
+        }
+    }
+    // watches and warnings: NHC's lines along the coast, hurricane warning red, hurricane watch pink, tropical storm warning blue, tropical storm watch yellow
+    if (wwCheck->isChecked() && gis) {
+        for (const auto& w : gis->watchWarnings) {
+            QPainterPath path;
+            for (const auto& ring : w.lines) {
+                bool started = false;
+                for (const auto& [lon, lat] : ring) {
+                    const auto pt = t(lat, lon);
+                    started ? path.lineTo(pt) : path.moveTo(pt);
+                    started = true;
+                }
+            }
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen{QColor{0, 0, 0, 220}, 8.0 * px, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+            painter.drawPath(path);
+            painter.setPen(QPen{QColor{QString::fromStdString(UtilityNhcGis::colorFor(w.code))}, 5.0 * px, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+            painter.drawPath(path);
         }
     }
     // the wind radii of the newest best-track fix: 34, 50 and 64 kt, a wedge of each quadrant (NE, SE, SW, NW)
@@ -1022,6 +1097,15 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
     }
     for (const auto& f : storm->best) {
         check(f.lat, f.lon, "Best track\n" + QString::fromStdString(UtilityAtcf::formatTime(f.time)) + ", " + knots(f.wind) + (f.pressure > 0 ? ", " + QString::number(f.pressure) + " mb" : QString{}), "");
+    }
+    if (wwCheck->isChecked() && gis) {
+        for (const auto& w : gis->watchWarnings) {
+            for (const auto& ring : w.lines) {
+                for (const auto& [lon, lat] : ring) {
+                    check(lat, lon, QString::fromStdString(w.kind.empty() ? UtilityNhcGis::nameFor(w.code) : w.kind), "");
+                }
+            }
+        }
     }
     if (fixCheck->isChecked() && vdm) {
         for (const auto& m : vdm->messages) {
