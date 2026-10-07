@@ -296,3 +296,29 @@ void HurricaneData::loadShips(const string& nhcId, ShipsData& data) {
         data.error = "Could not read the SHIPS file " + file + ".";
     }
 }
+
+void HurricaneData::loadPod(PodData& data) {
+    data = PodData{};
+    const auto year = QDateTime::currentDateTimeUtc().date().year();
+    const auto folder = "https://www.nhc.noaa.gov/archive/recon/" + std::to_string(year) + "/REPRPD/";
+    const auto listing = download(folder);
+    const std::regex file{R"re(href="(REPRPD\.(\d{12})\.txt)")re"};
+    string newest;
+    string stamp;
+    for (std::sregex_iterator it{listing.begin(), listing.end(), file}, end; it != end; ++it) {
+        if (string{(*it)[2]} > stamp) {
+            stamp = (*it)[2];
+            newest = (*it)[1];
+        }
+    }
+    if (newest.empty()) {
+        data.error = "Could not find the Plan of the Day in the NHC recon archive.";
+        return;
+    }
+    data.file = newest;
+    data.issued = stamp;
+    data.pod = UtilityPod::parse(download(folder + newest));
+    if (!data.pod.ok) {
+        data.error = "Could not read the Plan of the Day (" + newest + ").";
+    }
+}

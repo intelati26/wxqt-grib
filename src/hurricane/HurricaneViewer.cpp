@@ -18,6 +18,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include "hurricane/EnsembleStatsViewer.h"
+#include "hurricane/PodViewer.h"
 #include "hurricane/ShipsViewer.h"
 #include "objects/FutureVoid.h"
 #include "util/Utility.h"
@@ -88,6 +89,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     , buttonZoom{this, None, "Zoom to the storm"}
     , buttonStats{this, None, "Ensemble statistics..."}
     , buttonShips{this, None, "SHIPS and RI..."}
+    , buttonPod{this, None, "Recon plan of the day..."}
     , textStatus{this, "Loading..."}
     , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
 {
@@ -117,7 +119,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     view = std::make_unique<MapView>(this, side);
     auto * map = view->map();
     map->dataLayer = [] (QPainter& painter) { painter.fillRect(QRectF{-1.0e6, -1.0e6, 2.0e6, 2.0e6}, QColor{16, 26, 42}); };   // map coordinates: a huge rectangle
-    map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintLegend(painter); };
+    map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintPlannedRecon(painter); paintLegend(painter); };
     view->onPointer = [this] (const QPointF& at) { showHover(at); };
     view->onLeave = [this] { hoverLabel->hide(); if (!hoverTech.empty()) { hoverTech.clear(); view->map()->update(); } };
     view->showRegion(5.0, 50.0, -100.0, -10.0);
@@ -158,6 +160,10 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     column->addSpacing(4);
     column->addWidget(coneCheck);
     column->addWidget(radiiCheck);
+    podCheck = new QCheckBox{"Planned recon flights (Plan of the Day)", panel};
+    podCheck->setChecked(true);
+    QObject::connect(podCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addWidget(podCheck);
     static const char * ensembleNames[3] = {"AIFS ENS members (ECMWF AI)", "IFS ENS members (ECMWF)", "AIFS and IFS unperturbed runs"};
     static const QColor ensembleSwatch[3] = {QColor{60, 220, 170}, QColor{255, 150, 60}, QColor{255, 255, 255}};
     column->addSpacing(4);
@@ -170,6 +176,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     }
     column->addWidget(buttonStats.getView());
     column->addWidget(buttonShips.getView());
+    column->addWidget(buttonPod.getView());
     reconCheck = new QCheckBox{"Recon flights (HDOB, the last 6 hours)", panel};
     reconCheck->setChecked(Utility::readPref("HURRICANE_RECON", "false") == "true");
     column->addSpacing(6);
@@ -188,6 +195,13 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     comboStorm.connect([this] { if (!filling) { loadStorm(); } });
     buttonRefresh.connect([this] { loadList(); });
     buttonZoom.connect([this] { zoomToStorm(); });
+    buttonPod.connect([this] {
+        if (pod) {
+            new PodViewer{this, pod};
+        } else {
+            textStatus.setText(string{"The Plan of the Day has not loaded yet."});
+        }
+    });
     buttonShips.connect([this] {
         if (storm && ships) {
             new ShipsViewer{this, ships, storm};
@@ -220,6 +234,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     box.addStretch();
     box.getAndShow(this);
     loadList();
+    loadPod();
 }
 
 void HurricaneViewer::resizeEventCustom() {
@@ -322,6 +337,20 @@ void HurricaneViewer::loadEnsembles() {
             if (!ensembles->error.empty() && ensembles->sets.empty()) {
                 textStatus.setText(ensembles->error);
             }
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+void HurricaneViewer::loadPod() {
+    auto data = std::make_shared<HurricaneData::PodData>();
+    new FutureVoid{this,
+        [data] { HurricaneData::loadPod(*data); },
+        [this, data] {
+            if (closed) {
+                return;
+            }
+            pod = data;
             updateInfo();
             view->map()->update();
         }};
@@ -471,6 +500,9 @@ void HurricaneViewer::updateInfo() {
         }
         html += "<br><b>NHC forecast</b> (" + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + "): peak " + knots(peak) +
             " at " + QString::number(peakTau) + " h, out to " + QString::number(storm->official.fixes.back().tau) + " h<br>";
+    }
+    if (pod && pod->error.empty()) {
+        html += "<br><b>Recon plan</b> " + PodViewer::summary(*pod).mid(PodViewer::summary(*pod).indexOf(' ', 12) + 1) + "<br>";
     }
     if (ships && ships->ships.ok) {
         html += "<br><b>SHIPS</b> " + ShipsChart::summary(ships->ships).mid(6) + "<br>";
@@ -785,6 +817,38 @@ void HurricaneViewer::paintMap(QPainter& painter) {
                 painter.setBrush(color);
                 painter.drawEllipse(p, 2.6 * px, 2.6 * px);
                 previous = &ob;
+            }
+        }
+    }
+}
+
+void HurricaneViewer::paintPlannedRecon(QPainter& painter) {
+    if (podCheck == nullptr || !podCheck->isChecked() || !pod || !pod->error.empty()) {
+        return;
+    }
+    const auto t = view->transform();
+    const double px = view->unitsPerPixel();
+    QFont font{painter.font()};
+    font.setPixelSize(static_cast<int>(11 * px));
+    painter.setFont(font);
+    vector<QPointF> labelled;   // a label only where there is room for it
+    for (const auto& requirement : pod->pod.atlantic) {
+        for (const auto& f : requirement.flights) {
+            if (!f.hasPosition) {
+                continue;
+            }
+            const auto at = t(f.lat, f.lon);
+            // a diamond: the planned centre of the mission
+            QPolygonF diamond;
+            diamond << at + QPointF{0, -7 * px} << at + QPointF{7 * px, 0} << at + QPointF{0, 7 * px} << at + QPointF{-7 * px, 0};
+            painter.setPen(QPen{QColor{20, 20, 20}, 1.2 * px});
+            painter.setBrush(QColor{255, 90, 255, 220});
+            painter.drawPolygon(diamond);
+            const bool room = std::none_of(labelled.begin(), labelled.end(), [&] (const QPointF& other) { return std::hypot(other.x() - at.x(), other.y() - at.y()) < 90 * px; });
+            if (room) {
+                labelled.push_back(at);
+                painter.setPen(QColor{255, 190, 255});
+                painter.drawText(at + QPointF{10 * px, 4 * px}, QString::fromStdString(f.aircraft + " " + f.fixTimes.substr(0, f.fixTimes.find(','))));
             }
         }
     }

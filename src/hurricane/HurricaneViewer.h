@@ -40,10 +40,12 @@ private:
     void loadRecon();
     void loadEnsembles();
     void loadShips();
+    void loadPod();
     void showStorm();                       // after a storm has loaded: the panel text, the map region
     void zoomToStorm();
     void updateInfo();
     void paintMap(QPainter&);
+    void paintPlannedRecon(QPainter&);
     void paintLegend(QPainter&);
     void showHover(const QPointF& pixels);
     bool groupShown(UtilityAtcf::Group) const;
@@ -73,10 +75,12 @@ private:
     std::vector<std::pair<UtilityAtcf::Group, QCheckBox *>> groupChecks;
     QCheckBox * reconCheck{};
     QCheckBox * coneCheck{};                                  // the forecast cone
-    QCheckBox * radiiCheck{};                                 // the wind radii now
+    QCheckBox * radiiCheck{};
+    QCheckBox * podCheck{};                                   // the planned recon flights                                 // the wind radii now
     QCheckBox * ensembleChecks[3]{};                          // AIFS ENS members, IFS ENS members, the unperturbed runs
     Button buttonStats;
     Button buttonShips;
+    Button buttonPod;
     ComboBox comboRecon;                                      // what colours the flight tracks
     std::vector<vector<std::pair<float, float>>> coast;       // the basin's coastlines and borders (lon, lat)
     vector<HurricaneData::StormEntry> entries;
@@ -84,6 +88,7 @@ private:
     std::shared_ptr<HurricaneData::ReconData> recon;
     std::shared_ptr<HurricaneData::EnsembleData> ensembles;
     std::shared_ptr<HurricaneData::ShipsData> ships;
+    std::shared_ptr<HurricaneData::PodData> pod;
     string hoverTech;                                         // the guidance line under the pointer, drawn heavier
     int generation{0};
     bool closed{false};

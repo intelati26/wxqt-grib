@@ -8,6 +8,7 @@
 #include <sstream>
 #include "hurricane/UtilityEcmwfTracks.h"
 #include "hurricane/UtilityEnsembleStats.h"
+#include "hurricane/UtilityPod.h"
 #include "hurricane/UtilityShips.h"
 #include "util/UtilityGzip.h"
 
@@ -224,7 +225,30 @@ static void ships(const std::string& fixtures) {
     CHECK(UtilityShips::newestFile(listing, "al102026").empty());
 }
 
+// the Tropical Cyclone Plan of the Day (a real product: TCPOD 26-128)
+static void pod(const std::string& fixtures) {
+    const auto p = UtilityPod::parse(readFile(fixtures + "/reprpd_20261006.txt"));
+    CHECK(p.ok && p.number == "26-128" && p.valid == "07/1100Z TO 08/1100Z OCTOBER 2026");
+    CHECK(p.atlantic.size() == 1 && p.atlantic[0].title.rfind("SUSPECT AREA AL92", 0) == 0);
+    CHECK(p.atlantic[0].flights.size() == 6 && !p.noAtlantic && p.noPacific && p.pacific.empty());
+    const auto& f1 = p.atlantic[0].flights[0];
+    CHECK(f1.ordinal == "ONE" && f1.aircraft == "TEAL 71" && f1.fixTimes == "07/1200Z" && f1.mission == "AFXXX 0209A CYCLONE" && f1.departure == "07/1000Z");
+    CHECK(f1.position == "22.1N 94.1W" && f1.hasPosition && near(f1.lat, 22.1) && near(f1.lon, -94.1));
+    CHECK(f1.onStation == "07/1130Z TO 07/1500Z" && f1.altitude == "SFC TO 10,000 FT" && f1.type == "FIX" && f1.wra == "WRA ACTIVATION" && f1.remarks == "RESOURCES PERMITTING");
+    const auto& f2 = p.atlantic[0].flights[1];
+    CHECK(f2.ordinal == "TWO" && f2.aircraft == "NOAA 43" && f2.fixTimes == "07/1800Z" && f2.type == "TAIL DOPPLER RADAR & FIX" && near(f2.lon, -93.5));
+    const auto& f3 = p.atlantic[0].flights[2];
+    CHECK(f3.ordinal == "THREE" && f3.aircraft == "NOAA 49" && !f3.hasPosition && f3.position == "NA" && f3.type == "SYNOPTIC SURVEILLANCE" && f3.wra == "NO WRA ACTIVATION");
+    const auto& f4 = p.atlantic[0].flights[3];
+    CHECK(f4.ordinal == "FOUR" && f4.aircraft == "TEAL 72" && f4.fixTimes == "07/2330Z,08/0530Z");
+    CHECK(p.atlantic[0].flights[5].aircraft == "TEAL 73" && p.atlantic[0].flights[5].fixTimes == "08/1130Z,1730Z");
+    CHECK(p.notes.size() >= 2 && p.notes[0].find("SUCCEEDING DAY OUTLOOK") != std::string::npos && p.notes[0].find("CONTINUE 6-HRLY FIXES INTO AL92") != std::string::npos);
+    double lat = 0, lon = 0;
+    CHECK(UtilityPod::parsePosition("12.5S 120.0E", lat, lon) && near(lat, -12.5) && near(lon, 120.0) && !UtilityPod::parsePosition("NA", lat, lon));
+}
+
 int main(int argc, char ** argv) {
+    pod(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     ships(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     ecmwf(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     atcf();

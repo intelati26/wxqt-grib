@@ -11,6 +11,7 @@
 #include <vector>
 #include "hurricane/UtilityAtcf.h"
 #include "hurricane/UtilityEcmwfTracks.h"
+#include "hurricane/UtilityPod.h"
 #include "hurricane/UtilityShips.h"
 #include "hurricane/UtilityHdob.h"
 
@@ -65,6 +66,12 @@ public:
         UtilityShips::Ships ships;
         string error;
     };
+    struct PodData {
+        UtilityPod::Pod pod;
+        string file;            // REPRPD.202610061722.txt
+        string issued;          // yyyymmddhhmm from the file name
+        string error;
+    };
     static bool loadStormList(vector<StormEntry>& entries, string& error);
     static void loadStorm(const string& id, StormData& data);
     static void loadRecon(ReconData& data, int bulletins);
@@ -73,6 +80,7 @@ public:
     // NOAA's GEFS members (ATCF AP01..AP30, control AC00) from the guidance already loaded, in the same shape as the ECMWF sets
     static bool gefsFromGuidance(const string& stormId, const vector<UtilityAtcf::Track>& guidance, EnsembleSet& set);
     static void loadShips(const string& nhcId, ShipsData& data);   // NHC's SHIPS text for the newest cycle
+    static void loadPod(PodData& data);   // the newest Plan of the Day in the NHC recon archive
     static string ecmwfId(const string& nhcId);     // "al092026" -> "09L"
     static string idLabel(const string& id);        // "al092026" -> "AL09"
 };
