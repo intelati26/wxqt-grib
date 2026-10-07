@@ -9,9 +9,11 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <QCheckBox>
 #include <QLabel>
 #include <QPointF>
 #include "radar/MapWidget.h"
+#include "buoys/BuoyData.h"
 #include "rivers/UtilityRivers.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
@@ -32,6 +34,10 @@ public:
 
 private:
     void loadGauges();
+    void loadBuoys();
+    const BuoyData::Marker * buoyAt(const QPointF& widgetPos) const;
+    QColor buoyColor(const BuoyData::Marker&) const;
+    void paintBuoys(QPainter&);
     void summarize();
     bool shown(const UtilityRivers::Gauge&) const;
     const UtilityRivers::Gauge * gaugeAt(const QPointF& widgetPos) const;
@@ -53,11 +59,15 @@ private:
     };
     Projection2 projection() const;
     QPointF widgetOf(const UtilityRivers::Gauge&, const Projection2&) const;
+    QPointF pixelsOf(double lon, double mercatorLat, const Projection2&) const;
 
     VBox box;
     HBox rowTop;
     ComboBox comboFilter;
     Button buttonRefresh;
+    QCheckBox * buoyCheck{};             // the NDBC buoys and coastal stations
+    ComboBox comboBuoyColor;             // wind or water temperature
+    std::shared_ptr<std::vector<BuoyData::Marker>> buoys;
     Text textStatus;
     MapWidget * radar{};
     QLabel * hoverLabel{};

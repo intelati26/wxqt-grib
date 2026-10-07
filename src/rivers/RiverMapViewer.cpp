@@ -13,7 +13,9 @@
 #include <QPainter>
 #include "objects/FutureVoid.h"
 #include "radar/Projection.h"
+#include "buoys/BuoyViewer.h"
 #include "rivers/RiverGaugeViewer.h"
+#include "util/Utility.h"
 #include "settings/Location.h"
 #include "util/UtilityUI.h"
 
@@ -57,6 +59,7 @@ RiverMapViewer::RiverMapViewer(Window * parent)
     : Window{parent}
     , comboFilter{this, {"All gauges", "Action stage or higher", "Flooding (minor or higher)", "Not reporting (no current reading / out of service)"}}
     , buttonRefresh{this, None, "Refresh"}
+    , comboBuoyColor{this, {"Buoys by wind", "Buoys by water temperature"}}
     , textStatus{this, "Loading the river gauges..."}
 {
     setAttribute(Qt::WA_DeleteOnClose);
@@ -77,8 +80,25 @@ RiverMapViewer::RiverMapViewer(Window * parent)
     radar->installEventFilter(this);
     // a click on a gauge opens its page, and does not also zoom the map out (the radar widget's plain-click action)
     radar->clickHandler = [this] (const QPointF& at) {
-        if (const auto * g = gaugeAt(at)) {
+        // the nearer of a gauge and a buoy (a buoy only while its layer is on)
+        const auto * g = gaugeAt(at);
+        const auto * b = buoyCheck != nullptr && buoyCheck->isChecked() ? buoyAt(at) : nullptr;
+        if (g != nullptr && b != nullptr) {
+            const auto p = projection();
+            const auto gp = widgetOf(*g, p);
+            const auto bp = pixelsOf(b->obs.lon, b->mercator, p);
+            if (std::hypot(bp.x() - at.x(), bp.y() - at.y()) < std::hypot(gp.x() - at.x(), gp.y() - at.y())) {
+                g = nullptr;
+            } else {
+                b = nullptr;
+            }
+        }
+        if (g != nullptr) {
             new RiverGaugeViewer{this, g->lid};
+            return true;
+        }
+        if (b != nullptr) {
+            new BuoyViewer{this, *b};
             return true;
         }
         return false;
@@ -88,11 +108,24 @@ RiverMapViewer::RiverMapViewer(Window * parent)
     hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 215); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
     hoverLabel->hide();
     radar->dataLayer = [] (QPainter& painter) { painter.fillRect(painter.viewport(), QColor{18, 24, 34}); };   // no radar: a dark map
-    radar->topLayer = [this] (QPainter& painter) { paintGauges(painter); paintLegend(painter); };
+    radar->topLayer = [this] (QPainter& painter) { paintBuoys(painter); paintGauges(painter); paintLegend(painter); };
     comboFilter.connect([this] { summarize(); radar->update(); });
-    buttonRefresh.connect([this] { loadGauges(); });
+    buttonRefresh.connect([this] { loadGauges(); if (buoyCheck->isChecked()) { loadBuoys(); } });
+    buoyCheck = new QCheckBox{"Buoys (NDBC)", this};
+    buoyCheck->setChecked(Utility::readPref("RIVERS_BUOYS", "false") == "true");
+    buoyCheck->setToolTip("NOAA's National Data Buoy Center buoys and coastal stations: the latest wind, waves, pressure and temperatures; click one for its history");
+    QObject::connect(buoyCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("RIVERS_BUOYS", on ? "true" : "false");
+        if (on && !buoys) {
+            loadBuoys();
+        }
+        radar->update();
+    });
+    comboBuoyColor.connect([this] { radar->update(); });
     rowTop.addWidget(comboFilter);
     rowTop.addWidget(buttonRefresh);
+    rowTop.addWidgetReal(buoyCheck);
+    rowTop.addWidget(comboBuoyColor);
     rowTop.addStretch();
     box.addLayout(rowTop);
     box.addWidget(textStatus);
@@ -100,6 +133,9 @@ RiverMapViewer::RiverMapViewer(Window * parent)
     box.addStretch();
     box.getAndShow(this);
     loadGauges();
+    if (buoyCheck->isChecked()) {
+        loadBuoys();
+    }
 }
 
 void RiverMapViewer::loadGauges() {
@@ -174,10 +210,91 @@ RiverMapViewer::Projection2 RiverMapViewer::projection() const {
 
 // where a gauge is in the widget, in pixels
 QPointF RiverMapViewer::widgetOf(const UtilityRivers::Gauge& g, const Projection2& p) const {
+    return pixelsOf(g.lon, g.mercator, p);
+}
+
+QPointF RiverMapViewer::pixelsOf(double lon, double mercatorLat, const Projection2& p) const {
     const auto& state = radar->mapState;
-    const double u = (p.ax * g.lon + p.bx) * state.zoom + state.xPos;
-    const double v = (p.ay * g.mercator + p.by) * state.zoom + state.yPos;
+    const double u = (p.ax * lon + p.bx) * state.zoom + state.xPos;
+    const double v = (p.ay * mercatorLat + p.by) * state.zoom + state.yPos;
     return QPointF{(u + 500.0) * radar->width() / 1000.0, (v + 250.0) * radar->height() / 1000.0};
+}
+
+void RiverMapViewer::loadBuoys() {
+    auto fresh = std::make_shared<std::vector<BuoyData::Marker>>();
+    auto error = std::make_shared<std::string>();
+    auto ok = std::make_shared<bool>(false);
+    new FutureVoid{this,
+        [fresh, error, ok] { *ok = BuoyData::loadLatest(*fresh, *error); },
+        [this, fresh, error, ok] {
+            if (closed) {
+                return;
+            }
+            if (!*ok) {
+                textStatus.setText(*error);
+                return;
+            }
+            buoys = fresh;
+            radar->update();
+        }};
+}
+
+// wind (kt) or water temperature (F) in the buoy's colour; grey when it does not report the quantity
+QColor RiverMapViewer::buoyColor(const BuoyData::Marker& m) const {
+    if (comboBuoyColor.getIndex() == 1) {
+        if (!UtilityBuoys::has(m.obs.waterTemperature)) {
+            return QColor{120, 120, 130};
+        }
+        const double f = UtilityBuoys::fahrenheit(m.obs.waterTemperature);
+        return f < 40 ? QColor{150, 90, 220} : f < 50 ? QColor{60, 100, 230} : f < 60 ? QColor{40, 190, 220} : f < 70 ? QColor{60, 190, 90} : f < 80 ? QColor{240, 200, 40} : QColor{235, 70, 50};
+    }
+    if (!UtilityBuoys::has(m.obs.windSpeed)) {
+        return QColor{120, 120, 130};
+    }
+    const double kt = UtilityBuoys::knots(m.obs.windSpeed);
+    return kt < 10 ? QColor{130, 170, 205} : kt < 20 ? QColor{60, 190, 90} : kt < 34 ? QColor{240, 210, 40} : kt < 48 ? QColor{255, 140, 0} : kt < 64 ? QColor{230, 40, 40} : QColor{170, 40, 240};
+}
+
+void RiverMapViewer::paintBuoys(QPainter& painter) {
+    if (buoyCheck == nullptr || !buoyCheck->isChecked() || !buoys) {
+        return;
+    }
+    const auto p = projection();
+    const auto& state = radar->mapState;
+    const double perPixel = 1000.0 / std::max(1, radar->width());
+    const double half = (4.2 + std::min(2.5, std::log2(std::max(1.0, state.zoom * 7.0)) * 0.4)) * perPixel;
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    for (const auto& m : *buoys) {
+        const double u = (p.ax * m.obs.lon + p.bx) * state.zoom + state.xPos;
+        const double v = (p.ay * m.mercator + p.by) * state.zoom + state.yPos;
+        if (u < -520.0 || u > 520.0 || v < -270.0 || v > 770.0) {
+            continue;
+        }
+        painter.setPen(QPen{QColor{255, 255, 255, 200}, 1.0 * perPixel});
+        painter.setBrush(buoyColor(m));
+        painter.drawRect(QRectF{u - half, v - half, 2 * half, 2 * half});   // a square: a buoy, as against a gauge's circle
+    }
+}
+
+const BuoyData::Marker * RiverMapViewer::buoyAt(const QPointF& widgetPos) const {
+    if (!buoys) {
+        return nullptr;
+    }
+    const auto p = projection();
+    const BuoyData::Marker * best = nullptr;
+    double bestDistance = 11.0;   // pixels
+    for (const auto& m : *buoys) {
+        const auto at = pixelsOf(m.obs.lon, m.mercator, p);
+        if (std::abs(at.x() - widgetPos.x()) > bestDistance || std::abs(at.y() - widgetPos.y()) > bestDistance) {
+            continue;
+        }
+        const double distance = std::hypot(at.x() - widgetPos.x(), at.y() - widgetPos.y());
+        if (distance <= bestDistance) {
+            bestDistance = distance;
+            best = &m;
+        }
+    }
+    return best;
 }
 
 // the whole lower 48 in the middle of the square map
@@ -287,6 +404,29 @@ void RiverMapViewer::paintLegend(QPainter& painter) {
         painter.drawText(QPointF{x + 16.0, y + 4.0}, label);
         x += 30.0 + QFontMetricsF{font}.horizontalAdvance(label);
     }
+    if (buoyCheck != nullptr && buoyCheck->isChecked() && buoys) {
+        // the buoys' colours: squares, one row above the gauges'
+        const bool temperature = comboBuoyColor.getIndex() == 1;
+        static const std::pair<const char *, QColor> wind[] = {{"<10 kt", QColor{130, 170, 205}}, {"10-20", QColor{60, 190, 90}}, {"20-34", QColor{240, 210, 40}}, {"34-48", QColor{255, 140, 0}},
+                                                               {"48-64", QColor{230, 40, 40}}, {"64+ kt", QColor{170, 40, 240}}, {"no report", QColor{120, 120, 130}}};
+        static const std::pair<const char *, QColor> water[] = {{"<40 F", QColor{150, 90, 220}}, {"40-50", QColor{60, 100, 230}}, {"50-60", QColor{40, 190, 220}}, {"60-70", QColor{60, 190, 90}},
+                                                                {"70-80", QColor{240, 200, 40}}, {"80+ F", QColor{235, 70, 50}}, {"no report", QColor{120, 120, 130}}};
+        double bx = -490.0;
+        const double by = 712.0;
+        painter.setPen(QColor{235, 235, 235});
+        painter.drawText(QPointF{bx, by + 4.0}, temperature ? "Buoys, water:" : "Buoys, wind:");
+        bx += 92.0;
+        for (const auto& [name, color] : (temperature ? std::vector<std::pair<const char *, QColor>>(std::begin(water), std::end(water))
+                                                     : std::vector<std::pair<const char *, QColor>>(std::begin(wind), std::end(wind)))) {
+            painter.setPen(QPen{QColor{255, 255, 255, 200}, 0.9 * perPixel});
+            painter.setBrush(color);
+            painter.drawRect(QRectF{bx, by - 5.0, 10.0, 10.0});
+            painter.setPen(QColor{235, 235, 235});
+            const QString label = name;
+            painter.drawText(QPointF{bx + 15.0, by + 4.0}, label);
+            bx += 28.0 + QFontMetricsF{font}.horizontalAdvance(label);
+        }
+    }
 }
 
 const UtilityRivers::Gauge * RiverMapViewer::gaugeAt(const QPointF& widgetPos) const {
@@ -339,7 +479,28 @@ bool RiverMapViewer::eventFilter(QObject * object, QEvent * event) {
 }
 
 void RiverMapViewer::showHover(const QPointF& widgetPos) {
-    const auto * g = gaugeAt(widgetPos);
+    auto * g = gaugeAt(widgetPos);
+    const auto * b = buoyCheck != nullptr && buoyCheck->isChecked() ? buoyAt(widgetPos) : nullptr;
+    if (b != nullptr && g != nullptr) {
+        const auto p = projection();
+        const auto gp = widgetOf(*g, p);
+        const auto bp = pixelsOf(b->obs.lon, b->mercator, p);
+        if (std::hypot(bp.x() - widgetPos.x(), bp.y() - widgetPos.y()) < std::hypot(gp.x() - widgetPos.x(), gp.y() - widgetPos.y())) {
+            g = nullptr;
+        } else {
+            b = nullptr;
+        }
+    }
+    if (b != nullptr) {
+        radar->setCursor(Qt::PointingHandCursor);
+        const auto& s = b->station;
+        hoverLabel->setText(QString::fromStdString(b->obs.id + (s.name.empty() ? "" : "  " + s.name)) + "\n" + BuoyViewer::summary(*b).replace(";  ", "\n") + "\n(click for its history)");
+        hoverLabel->adjustSize();
+        hoverLabel->move(12, 12);
+        hoverLabel->show();
+        hoverLabel->raise();
+        return;
+    }
     if (g == nullptr) {
         hoverLabel->hide();
         radar->setCursor(Qt::ArrowCursor);
