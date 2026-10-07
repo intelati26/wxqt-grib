@@ -43,6 +43,9 @@ private:
     void loadEnsembles();
     void loadShips();
     void loadPod();
+    void loadDrops();
+    const UtilityDropsonde::Drop * dropAt(const QPointF& pixels) const;   // the dropsonde marker under the pointer
+    bool dropNear(const UtilityDropsonde::Drop&) const;                    // in time and place for the storm on show
     void loadOutlook();
     void loadGis();
     void loadVdm();
@@ -91,6 +94,7 @@ private:
     QCheckBox * fixCheck{};                                   // the recon centre fixes (vortex messages)
     QCheckBox * autoCheck{};                                  // refresh every 10 minutes and alert on a new advisory
     QCheckBox * outlookCheck{};                               // the Tropical Weather Outlook areas
+    QCheckBox * dropCheck{};                                  // dropsonde markers (click: the sounding)
     QCheckBox * podCheck{};                                   // the planned recon flights                                 // the wind radii now
     QCheckBox * ensembleChecks[3]{};                          // AIFS ENS members, IFS ENS members, the unperturbed runs
     Button buttonStats;
@@ -110,6 +114,7 @@ private:
     std::shared_ptr<HurricaneData::ShipsData> ships;
     std::shared_ptr<HurricaneData::PodData> pod;
     std::shared_ptr<HurricaneData::GisData> gis;
+    std::shared_ptr<HurricaneData::DropData> drops;
     std::shared_ptr<HurricaneData::OutlookData> outlook;
     std::shared_ptr<HurricaneData::VdmData> vdm;
     QTimer refreshTimer;

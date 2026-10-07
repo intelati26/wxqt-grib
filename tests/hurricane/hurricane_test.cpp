@@ -9,6 +9,7 @@
 #include "hurricane/UtilityEcmwfTracks.h"
 #include "hurricane/UtilityEnsembleStats.h"
 #include "hurricane/UtilityChanges.h"
+#include "hurricane/UtilityDropsonde.h"
 #include "hurricane/UtilityNhcGis.h"
 #include "hurricane/UtilityNhcText.h"
 #include "hurricane/UtilityPod.h"
@@ -425,7 +426,69 @@ static void text(const std::string& fixtures) {
     CHECK(near(UtilityChanges::distanceKm(0, 0, 0, 1), 111.19, 0.1) && near(UtilityChanges::bearing(0, 0, 1, 0), 0.0) && near(UtilityChanges::bearing(0, 0, 0, 1), 90.0));
 }
 
+// Recon dropsondes in the WMO TEMP DROP code (real messages: NOAA9 over the Gulf on 7 October 2026 and NOAA2 into Rachel on 30 September 2026); the expected values were
+// decoded by hand from the code tables of NOAA AOML's "NHOP sonde drop format" page
+static void drop(const std::string& fixtures) {
+    const auto d = UtilityDropsonde::parse(readFile(fixtures + "/drop_202610070050.txt"), "202610070050");
+    CHECK(d.ok && near(d.lat, 28.1) && near(d.lon, -84.6) && d.seconds == 1791333000L && d.windInKnots);   // 2026-10-07 00:30 UTC (31313: 80030)
+    CHECK(d.mission == "NOAA9 01BBA SURV OB 32");
+    CHECK(near(d.releaseLat, 28.13) && near(d.releaseLon, -84.65) && near(d.splashLat, 28.12) && near(d.splashLon, -84.53));
+    CHECK(near(d.mblDirection, 200) && near(d.mblSpeed, 13) && d.remarks.find("LAST REPORT DLM WND 27519 008148 WL150") != std::string::npos);   // the wrapped line is rejoined
+    const auto at = [&] (double p) -> const UtilityDropsonde::Level * {
+        for (const auto& l : d.levels) {
+            if (near(l.pressure, p, 0.01)) return &l;
+        }
+        return nullptr;
+    };
+    const auto * sfc = d.surface();
+    CHECK(sfc != nullptr && near(sfc->pressure, 1009) && near(sfc->temperature, 26.6) && near(sfc->dewPoint, 24.5) && near(sfc->windDirection, 180) && near(sfc->windSpeed, 13));
+    const auto * p1000 = at(1000);
+    CHECK(p1000 != nullptr && near(p1000->height, 78) && near(p1000->temperature, 26.0) && near(p1000->dewPoint, 24.2) && near(p1000->windDirection, 185) && near(p1000->windSpeed, 15));
+    const auto * p925 = at(925);
+    CHECK(p925 != nullptr && near(p925->height, 763) && near(p925->temperature, 21.6) && near(p925->dewPoint, 19.7) && near(p925->windDirection, 240) && near(p925->windSpeed, 17));
+    const auto * p850 = at(850);
+    CHECK(p850 != nullptr && near(p850->height, 1496) && near(p850->temperature, 18.8) && near(p850->dewPoint, 15.7) && near(p850->windDirection, 285) && near(p850->windSpeed, 12));
+    const auto * p700 = at(700);
+    CHECK(p700 != nullptr && near(p700->height, 3141) && near(p700->temperature, 9.6) && near(p700->windDirection, 295) && near(p700->windSpeed, 19));
+    const auto * p500 = at(500);
+    CHECK(p500 != nullptr && near(p500->height, 5860) && near(p500->temperature, -4.5) && near(p500->dewPoint, -5.0) && near(p500->windDirection, 275) && near(p500->windSpeed, 18));   // odd tenths: below zero
+    const auto * p400 = at(400);
+    CHECK(p400 != nullptr && near(p400->height, 7600) && near(p400->temperature, -13.7));
+    const auto * p300 = at(300);
+    CHECK(p300 != nullptr && near(p300->height, 9730) && near(p300->temperature, -27.9) && near(p300->windDirection, 230) && near(p300->windSpeed, 21));
+    const auto * p250 = at(250);
+    CHECK(p250 != nullptr && near(p250->height, 11010) && near(p250->temperature, -38.9) && near(p250->dewPoint, -49.9) && near(p250->windSpeed, 20));   // a dew point depression code of 61 is 11 degrees
+    const auto * p200 = at(200);
+    CHECK(p200 != nullptr && near(p200->height, 12490) && near(p200->temperature, -52.3) && near(p200->windDirection, 295) && near(p200->windSpeed, 42));
+    const auto * p150 = at(150);
+    CHECK(p150 != nullptr && near(p150->height, 14280) && !UtilityDropsonde::has(p150->temperature) && near(p150->windDirection, 275) && near(p150->windSpeed, 22));   // ///// is missing
+    // significant levels (XXBB) and significant wind levels (21212) are merged in, the lowest level first
+    const auto * s930 = at(930);
+    CHECK(s930 != nullptr && near(s930->temperature, 21.6) && near(s930->dewPoint, 21.6) && !UtilityDropsonde::has(s930->height));
+    const auto * w998 = at(998);
+    CHECK(w998 != nullptr && near(w998->windDirection, 190) && near(w998->windSpeed, 16) && !UtilityDropsonde::has(w998->temperature));
+    const auto * s484 = at(484);
+    CHECK(s484 != nullptr && near(s484->temperature, -5.5) && near(s484->dewPoint, -6.2));
+    bool ordered = d.levels.size() > 30;
+    for (size_t i = 1; i < d.levels.size(); i++) {
+        ordered = ordered && d.levels[i].pressure < d.levels[i - 1].pressure;
+    }
+    CHECK(ordered);
+
+    // the East Pacific drop into Rachel: winds only down to 850 hPa (Id = 8), so the 700 hPa group has two parts, not three
+    const auto e = UtilityDropsonde::parse(readFile(fixtures + "/drop_ep_202609301950.txt"), "202609301950");
+    CHECK(e.ok && near(e.lat, 19.4) && near(e.lon, -106.7) && e.seconds == 1790796840L);   // 2026-09-30 19:34 UTC
+    CHECK(near(e.releaseLat, 19.42) && near(e.releaseLon, -106.68) && near(e.splashLat, 19.47) && near(e.splashLon, -106.72) && near(e.mblDirection, 125) && near(e.mblSpeed, 51));
+    const auto * e850 = [&] () -> const UtilityDropsonde::Level * { for (const auto& l : e.levels) if (near(l.pressure, 850, 0.01)) return &l; return nullptr; }();
+    const auto * e700 = [&] () -> const UtilityDropsonde::Level * { for (const auto& l : e.levels) if (near(l.pressure, 700, 0.01)) return &l; return nullptr; }();
+    CHECK(e850 != nullptr && near(e850->height, 1435) && near(e850->temperature, 17.8) && near(e850->windDirection, 145) && near(e850->windSpeed, 61));
+    CHECK(e700 != nullptr && near(e700->height, 3087) && !UtilityDropsonde::has(e700->temperature) && !UtilityDropsonde::has(e700->windSpeed));
+    CHECK(e.surface() != nullptr && near(e.surface()->pressure, 1001) && near(e.surface()->temperature, 28.8) && near(e.surface()->dewPoint, 22.8) && near(e.surface()->windSpeed, 44));
+    CHECK(!UtilityDropsonde::parse("not a drop", "202610070050").ok);
+}
+
 int main(int argc, char ** argv) {
+    drop(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     text(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     gis(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     season(argc > 1 ? argv[1] : "tests/hurricane/fixtures");

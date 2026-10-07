@@ -1391,6 +1391,30 @@ SoundingViewer::SoundingViewer(Window * parent, const string& site)
     startObserved();
 }
 
+SoundingViewer::SoundingViewer(Window * parent, const SoundingProfile& given, const string& title)
+    : Window{parent}
+    , lon{0.0}
+    , lat{given.latitude}
+    , textInfo{this}
+    , comboSite{this, {"-"}}
+    , comboTime{this, {"-"}}
+    , comboArea{this, {"Point"}}
+    , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
+    , comboLayout{this, {"SPC layout", "Dynamic layout"}}
+    , buttonSave{new QPushButton{"Save", this}}
+    , canvas{new SoundingCanvas{this}}
+    , fixed{true}
+{
+    setTitle(title);
+    status = title;
+    profile = given;
+    analysis = SoundingAnalysis::compute(profile);
+    loaded = true;
+    build();
+    textInfo.setText(QString::fromStdString(title));
+    canvas->setData(&profile, &analysis, QString::fromStdString(title));
+}
+
 void SoundingViewer::build() {
     comboParcel.setIndex(1);
     comboParcel.connect([this] { canvas->setParcel(comboParcel.getIndex()); });
@@ -1404,7 +1428,11 @@ void SoundingViewer::build() {
     QObject::connect(buttonSave, &QPushButton::clicked, this, [this] { onSave(); });
     rowTop.addWidget(textInfo, 1);
     // each mode shows only its own pickers; the others exist (members) but stay hidden
-    if (observed) {
+    if (fixed) {
+        comboArea.setVisible(false);
+        comboSite.setVisible(false);
+        comboTime.setVisible(false);
+    } else if (observed) {
         rowTop.addWidget(comboSite);
         rowTop.addWidget(comboTime);
         comboArea.setVisible(false);
@@ -1550,7 +1578,9 @@ void SoundingViewer::onSave() {
     buffer.open(QIODevice::WriteOnly);
     canvas->renderExport(2).save(&buffer, "PNG");   // SPC's white background at twice its size, whatever the window shows
     QString suggested;
-    if (observed) {
+    if (fixed) {
+        suggested = QString::fromStdString(status).replace(' ', '_').remove(':').replace('/', '-');
+    } else if (observed) {
         const auto code = QString::fromStdString(SoundingSites::sites->codeList[static_cast<size_t>(std::max(0, comboSite.getIndex()))]);
         suggested = UtilityAnimationExport::validName(observedTime, QDateTime{}, "sounding_" + code);
     } else {

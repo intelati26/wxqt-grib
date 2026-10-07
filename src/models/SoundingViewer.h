@@ -35,6 +35,8 @@ public:
     SoundingViewer(Window * parent, double lon, double lat, const QDateTime& validUtc);
     // SPC observed sounding; `site` is a sounding-site code ("OUN"), empty = the site nearest the current location
     SoundingViewer(Window * parent, const string& site);
+    // a sounding already in hand (a recon dropsonde): drawn as it is, no pickers
+    SoundingViewer(Window * parent, const SoundingProfile& profile, const string& title);
 
 private:
     void build();
@@ -62,6 +64,7 @@ private:
     SoundingCanvas * canvas;
 
     bool observed{false};
+    bool fixed{false};               // a profile handed in: nothing to pick or fetch
     std::vector<string> timeCodes;   // yyMMddHH per comboTime entry, "" = latest
     QDateTime observedTime;          // valid time of the loaded observed sounding
     int generation{0};

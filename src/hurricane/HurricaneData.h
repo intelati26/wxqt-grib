@@ -11,6 +11,7 @@
 #include <vector>
 #include "hurricane/UtilityAtcf.h"
 #include "hurricane/UtilityEcmwfTracks.h"
+#include "hurricane/UtilityDropsonde.h"
 #include "hurricane/UtilityNhcGis.h"
 #include "hurricane/UtilityPod.h"
 #include "hurricane/UtilitySeason.h"
@@ -90,6 +91,10 @@ public:
         vector<UtilityNhcGis::OutlookArea> areas;     // every basin; the screen keeps those of the basin on show
         string error;
     };
+    struct DropData {
+        vector<UtilityDropsonde::Drop> drops;     // oldest first
+        string error;
+    };
     struct GisData {
         UtilityNhcGis::Cone cone;
         vector<UtilityNhcGis::WindRadius> radii;
@@ -107,6 +112,7 @@ public:
     };
     // basin: "al" Atlantic, "ep" Eastern Pacific, "cp" Central Pacific (the NHC / CPHC basins)
     static void loadOutlook(OutlookData& data);     // the Tropical Weather Outlook areas (the 2 and 7 day formation chances)
+    static void loadDrops(DropData& data, const string& basin = "al", int reports = 40);   // the newest dropsonde reports of the basin (NHC recon archive, REPNT3 / REPPN3 / REPPA3)
     static string loadBulletin(const string& url);   // the text of one of NHC's text products
     static bool loadStormList(vector<StormEntry>& entries, string& error, const string& basin = "al");
     static void loadStorm(const string& id, StormData& data);

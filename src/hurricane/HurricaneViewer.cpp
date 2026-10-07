@@ -19,11 +19,13 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include "hurricane/AdvisoryViewer.h"
+#include "hurricane/DropProfile.h"
 #include "hurricane/EnsembleStatsViewer.h"
 #include "hurricane/IntensityViewer.h"
 #include "hurricane/PodViewer.h"
 #include "hurricane/SeasonViewer.h"
 #include "hurricane/UtilityChanges.h"
+#include "models/SoundingViewer.h"
 #include "hurricane/ShipsViewer.h"
 #include "hurricane/VdmViewer.h"
 #include "objects/FutureVoid.h"
@@ -137,6 +139,22 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     map->dataLayer = [] (QPainter& painter) { painter.fillRect(QRectF{-1.0e6, -1.0e6, 2.0e6, 2.0e6}, QColor{16, 26, 42}); };   // map coordinates: a huge rectangle
     map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintOutlook(painter); paintPlannedRecon(painter); paintLegend(painter); };
     view->onPointer = [this] (const QPointF& at) { showHover(at); };
+    // a plain click on a dropsonde marker opens its sounding (and does not also zoom the map out)
+    map->clickHandler = [this] (const QPointF& at) {
+        if (dropCheck != nullptr && dropCheck->isChecked()) {
+            if (const auto * d = dropAt(at)) {
+                SoundingProfile profile;
+                string error;
+                if (DropProfile::build(*d, profile, error)) {
+                    new SoundingViewer{this, profile, DropProfile::title(*d)};
+                } else {
+                    textStatus.setText(error);
+                }
+                return true;
+            }
+        }
+        return false;
+    };
     view->onLeave = [this] { hoverLabel->hide(); if (!hoverTech.empty()) { hoverTech.clear(); view->map()->update(); } };
     view->showRegion(5.0, 50.0, -100.0, -10.0);
 
@@ -188,6 +206,10 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     podCheck->setChecked(true);
     QObject::connect(podCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
     column->addWidget(podCheck);
+    dropCheck = new QCheckBox{"Dropsondes (click one for its sounding)", panel};
+    dropCheck->setChecked(true);
+    QObject::connect(dropCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addWidget(dropCheck);
     outlookCheck = new QCheckBox{"Development areas (Tropical Weather Outlook)", panel};
     outlookCheck->setChecked(true);
     QObject::connect(outlookCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
@@ -417,12 +439,14 @@ void HurricaneViewer::loadStorm() {
             ensembles.reset();
             ships.reset();
             vdm.reset();
+            drops.reset();
             gis.reset();
             showStorm();
             updateChanges();
             loadEnsembles();
             loadShips();
             loadVdm();
+            loadDrops();
             loadGis();
             if (reconCheck->isChecked()) {
                 loadRecon();
@@ -588,6 +612,66 @@ void HurricaneViewer::loadOutlook() {
                 return;
             }
             outlook = data;
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+// a dropsonde belongs to the storm on show when it fell within 600 km of the storm's track while the storm was being followed (a day either side of its best track)
+bool HurricaneViewer::dropNear(const UtilityDropsonde::Drop& d) const {
+    if (!storm || storm->best.empty()) {
+        return false;
+    }
+    const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : (UtilityDropsonde::has(d.lat) ? d.lat : -999.0);
+    const double lon = UtilityDropsonde::has(d.splashLon) ? d.splashLon : d.lon;
+    if (lat < -900.0) {
+        return false;
+    }
+    for (const auto& f : storm->best) {
+        const double fixSeconds = UtilityAtcf::hoursBetween("1970010100", f.time) * 3600.0;   // the fix's yyyymmddhh as seconds since 1970
+        if (std::abs(fixSeconds - static_cast<double>(d.seconds)) > 6.0 * 3600.0) {
+            continue;
+        }
+        if (kilometers(f.lat, f.lon, lat, lon) < 600.0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+const UtilityDropsonde::Drop * HurricaneViewer::dropAt(const QPointF& pixels) const {
+    if (!drops) {
+        return nullptr;
+    }
+    const UtilityDropsonde::Drop * best = nullptr;
+    double bestDistance = 12.0;   // pixels
+    for (const auto& d : drops->drops) {
+        const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;
+        const double lon = UtilityDropsonde::has(d.splashLon) ? d.splashLon : d.lon;
+        if (!UtilityDropsonde::has(lat) || !dropNear(d)) {
+            continue;
+        }
+        const auto at = view->toPixels(lat, lon);
+        const double distance = std::hypot(at.x() - pixels.x(), at.y() - pixels.y());
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = &d;
+        }
+    }
+    return best;
+}
+
+void HurricaneViewer::loadDrops() {
+    const auto gen = generation;
+    const auto basin = basinCode();
+    auto data = std::make_shared<HurricaneData::DropData>();
+    new FutureVoid{this,
+        [data, basin] { HurricaneData::loadDrops(*data, basin); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            drops = data;
             updateInfo();
             view->map()->update();
         }};
@@ -783,6 +867,20 @@ void HurricaneViewer::updateInfo() {
         html += "<br><b>In effect</b> " + names.join(", ") + "<br>";
     } else if (gis && gis->error.empty() && gis->cone.ok) {
         html += "<br><b>Watches and warnings</b> none in effect<br>";
+    }
+    if (drops && drops->error.empty()) {
+        int count = 0;
+        double lowest = 9999.0;
+        for (const auto& d : drops->drops) {
+            if (dropNear(d)) {
+                count++;
+                if (const auto * s = d.surface()) {
+                    lowest = std::min(lowest, s->pressure);
+                }
+            }
+        }
+        html += "<br><b>Dropsondes</b> " + (count == 0 ? QString{"none near this storm"} : QString::number(count) + " (click a blue triangle for its sounding), lowest surface pressure " +
+                QString::number(static_cast<int>(lowest)) + " mb") + "<br>";
     }
     if (vdm && vdm->error.empty()) {
         html += "<br><b>Vortex messages</b> " + VdmViewer::summary(*vdm) + "<br>";
@@ -1218,6 +1316,23 @@ void HurricaneViewer::paintOutlook(QPainter& painter) {
 }
 
 void HurricaneViewer::paintPlannedRecon(QPainter& painter) {
+    if (dropCheck != nullptr && dropCheck->isChecked() && drops) {
+        const auto t = view->transform();
+        const double px = view->unitsPerPixel();
+        for (const auto& d : drops->drops) {
+            const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;
+            const double lon = UtilityDropsonde::has(d.splashLon) ? d.splashLon : d.lon;
+            if (!UtilityDropsonde::has(lat) || !dropNear(d)) {
+                continue;
+            }
+            const auto at = t(lat, lon);
+            QPolygonF triangle;
+            triangle << at + QPointF{0, 7 * px} << at + QPointF{-6 * px, -5 * px} << at + QPointF{6 * px, -5 * px};   // a downward triangle: a sonde falling
+            painter.setPen(QPen{QColor{255, 255, 255}, 1.4 * px});
+            painter.setBrush(QColor{60, 140, 255, 230});
+            painter.drawPolygon(triangle);
+        }
+    }
     if (fixCheck != nullptr && fixCheck->isChecked() && vdm) {
         const auto t = view->transform();
         const double px = view->unitsPerPixel();
@@ -1362,6 +1477,22 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
                 for (const auto& [lon, lat] : ring) {
                     check(lat, lon, QString::fromStdString(w.kind.empty() ? UtilityNhcGis::nameFor(w.code) : w.kind), "");
                 }
+            }
+        }
+    }
+    if (dropCheck->isChecked() && drops) {
+        for (const auto& d : drops->drops) {
+            const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;
+            const double lon = UtilityDropsonde::has(d.splashLon) ? d.splashLon : d.lon;
+            if (UtilityDropsonde::has(lat) && dropNear(d)) {
+                QString text = "Dropsonde " + QString::fromStdString(UtilityHdob::timeText(d.seconds)) + "  " + QString::fromStdString(d.mission);
+                if (const auto * s = d.surface()) {
+                    text += "\nSurface " + QString::number(static_cast<int>(s->pressure)) + " mb";
+                    if (UtilityDropsonde::has(s->windSpeed)) text += ", wind " + QString::number(static_cast<int>(s->windDirection)) + " deg " + knotsOf(s->windSpeed);
+                }
+                if (UtilityDropsonde::has(d.mblSpeed)) text += "\nMean boundary layer wind " + QString::number(static_cast<int>(d.mblDirection)) + " deg " + knotsOf(d.mblSpeed);
+                text += "\n(click for the sounding)";
+                check(lat, lon, text, "");
             }
         }
     }

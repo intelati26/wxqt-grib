@@ -19,6 +19,7 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 #include "hurricane/UtilityEnsembleStats.h"
+#include "hurricane/UtilityDropsonde.h"
 #include "hurricane/UtilityNhcText.h"
 #include "hurricane/UtilityVdm.h"
 #include "util/UtilityGzip.h"
@@ -499,4 +500,47 @@ void HurricaneData::loadOutlook(OutlookData& data) {
     data = OutlookData{};
     data.areas = UtilityNhcGis::parseOutlook(download("https://www.nhc.noaa.gov/xgtwo/gtwo_shapefiles.zip"));
     // an empty list is a normal answer ("formation is not expected")
+}
+
+void HurricaneData::loadDrops(DropData& data, const string& basin, int reports) {
+    data = DropData{};
+    const auto year = QDateTime::currentDateTimeUtc().date().year();
+    const string code = basin == "ep" ? "REPPN3" : basin == "cp" ? "REPPA3" : "REPNT3";
+    const auto folder = "https://www.nhc.noaa.gov/archive/recon/" + std::to_string(year) + "/" + code + "/";
+    const auto listing = download(folder);
+    const std::regex file{"href=\"(" + code + R"re(-[A-Z]+\.(\d{12})\.txt)")re"};
+    vector<std::pair<string, string>> files;   // time, name
+    for (std::sregex_iterator it{listing.begin(), listing.end(), file}, end; it != end; ++it) {
+        files.emplace_back((*it)[2], (*it)[1]);
+    }
+    if (files.empty()) {
+        data.error = "Could not read the NHC dropsonde archive.";
+        return;
+    }
+    std::sort(files.begin(), files.end());
+    files.erase(std::unique(files.begin(), files.end()), files.end());
+    static std::mutex mutex;
+    static std::map<string, UtilityDropsonde::Drop> parsed;   // a message that was read stays read
+    const size_t first = files.size() > static_cast<size_t>(reports) ? files.size() - static_cast<size_t>(reports) : 0;
+    for (size_t i = first; i < files.size(); i++) {
+        UtilityDropsonde::Drop drop;
+        bool known = false;
+        {
+            std::lock_guard lock{mutex};
+            const auto found = parsed.find(files[i].second);
+            if (found != parsed.end()) {
+                drop = found->second;
+                known = true;
+            }
+        }
+        if (!known) {
+            drop = UtilityDropsonde::parse(download(folder + files[i].second), files[i].first);
+            std::lock_guard lock{mutex};
+            parsed[files[i].second] = drop;
+        }
+        if (drop.ok) {
+            data.drops.push_back(drop);
+        }
+    }
+    std::sort(data.drops.begin(), data.drops.end(), [] (const auto& a, const auto& b) { return a.seconds < b.seconds; });
 }
