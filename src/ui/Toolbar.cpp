@@ -32,6 +32,7 @@
 #include "climate/ClimateViewer.h"
 #include "rivers/RiverMapViewer.h"
 #include "dashboard/Dashboards.h"
+#include "hurricane/HurricaneViewer.h"
 #include "tropical/TropicalViewer.h"
 #include "models/SpcPostViewer.h"
 #include "models/ModelViewer.h"
@@ -114,6 +115,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("hrrrviewer.png", "ESRL HRRR/RAP", [this] { launchModelViewerGeneric("ESRL"); });
     routeItems.emplace_back("opc.png", "Ocean Prediction Center", [this] { launchOpc(); });
     routeItems.emplace_back("opc.png", "Climate and ocean: sea surface temperature and anomaly, El Niño / La Niña, cycles", [parent] { new ClimateViewer{parent}; });
+    routeItems.emplace_back("tropstorm.png", "Atlantic hurricanes: track, model guidance (spaghetti) and recon flights", [parent] { new HurricaneViewer{parent}; });
     routeItems.emplace_back("hurricane.png", "Tropical Hub (planned): storms, tracks, seasons, recon, ocean", [parent] { Dashboards::openTropicalHub(parent); });
     routeItems.emplace_back("goes16.png", "Space weather (planned): Kp, aurora, flares, sun", [parent] { Dashboards::openSpaceWeather(parent); });
     routeItems.emplace_back("twtornado.png", "Tornado history (planned): tracks, per-day graph, climatology heatmap", [parent] { Dashboards::openTornadoHistory(parent); });
