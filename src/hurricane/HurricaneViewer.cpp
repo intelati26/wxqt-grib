@@ -20,6 +20,7 @@
 #include "hurricane/EnsembleStatsViewer.h"
 #include "hurricane/PodViewer.h"
 #include "hurricane/ShipsViewer.h"
+#include "hurricane/VdmViewer.h"
 #include "objects/FutureVoid.h"
 #include "util/Utility.h"
 #include "util/UtilityUI.h"
@@ -90,6 +91,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     , buttonStats{this, None, "Ensemble statistics..."}
     , buttonShips{this, None, "SHIPS and RI..."}
     , buttonPod{this, None, "Recon plan of the day..."}
+    , buttonVdm{this, None, "Recon vortex messages..."}
     , textStatus{this, "Loading..."}
     , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
 {
@@ -164,6 +166,10 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     podCheck->setChecked(true);
     QObject::connect(podCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
     column->addWidget(podCheck);
+    fixCheck = new QCheckBox{"Recon centre fixes (vortex messages)", panel};
+    fixCheck->setChecked(true);
+    QObject::connect(fixCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addWidget(fixCheck);
     static const char * ensembleNames[3] = {"AIFS ENS members (ECMWF AI)", "IFS ENS members (ECMWF)", "AIFS and IFS unperturbed runs"};
     static const QColor ensembleSwatch[3] = {QColor{60, 220, 170}, QColor{255, 150, 60}, QColor{255, 255, 255}};
     column->addSpacing(4);
@@ -177,6 +183,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     column->addWidget(buttonStats.getView());
     column->addWidget(buttonShips.getView());
     column->addWidget(buttonPod.getView());
+    column->addWidget(buttonVdm.getView());
     reconCheck = new QCheckBox{"Recon flights (HDOB, the last 6 hours)", panel};
     reconCheck->setChecked(Utility::readPref("HURRICANE_RECON", "false") == "true");
     column->addSpacing(6);
@@ -195,6 +202,13 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     comboStorm.connect([this] { if (!filling) { loadStorm(); } });
     buttonRefresh.connect([this] { loadList(); });
     buttonZoom.connect([this] { zoomToStorm(); });
+    buttonVdm.connect([this] {
+        if (vdm && storm) {
+            new VdmViewer{this, vdm, QString::fromStdString(HurricaneData::idLabel(storm->id))};
+        } else {
+            textStatus.setText(string{"The vortex messages have not loaded yet."});
+        }
+    });
     buttonPod.connect([this] {
         if (pod) {
             new PodViewer{this, pod};
@@ -280,8 +294,10 @@ void HurricaneViewer::loadList() {
             filling = true;
             comboStorm.setList(labels);
             size_t pick = 0;
+            // WXQT_STORM=al022026 (a development aid, with WXQT_OPEN) opens on that storm instead of the first
+            const auto wanted = qEnvironmentVariableIsSet("WXQT_STORM") ? qEnvironmentVariable("WXQT_STORM").toStdString() : before;
             for (size_t i = 0; i < entries.size(); i++) {
-                if (entries[i].id == before) {
+                if (entries[i].id == wanted) {
                     pick = i;
                 }
             }
@@ -310,9 +326,11 @@ void HurricaneViewer::loadStorm() {
             storm = data;
             ensembles.reset();
             ships.reset();
+            vdm.reset();
             showStorm();
             loadEnsembles();
             loadShips();
+            loadVdm();
             if (reconCheck->isChecked()) {
                 loadRecon();
             }
@@ -337,6 +355,22 @@ void HurricaneViewer::loadEnsembles() {
             if (!ensembles->error.empty() && ensembles->sets.empty()) {
                 textStatus.setText(ensembles->error);
             }
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+void HurricaneViewer::loadVdm() {
+    const auto gen = generation;
+    const auto id = storm->id;
+    auto data = std::make_shared<HurricaneData::VdmData>();
+    new FutureVoid{this,
+        [id, data] { HurricaneData::loadVdm(id, *data); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            vdm = data;
             updateInfo();
             view->map()->update();
         }};
@@ -500,6 +534,9 @@ void HurricaneViewer::updateInfo() {
         }
         html += "<br><b>NHC forecast</b> (" + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + "): peak " + knots(peak) +
             " at " + QString::number(peakTau) + " h, out to " + QString::number(storm->official.fixes.back().tau) + " h<br>";
+    }
+    if (vdm && vdm->error.empty()) {
+        html += "<br><b>Vortex messages</b> " + VdmViewer::summary(*vdm) + "<br>";
     }
     if (pod && pod->error.empty()) {
         html += "<br><b>Recon plan</b> " + PodViewer::summary(*pod).mid(PodViewer::summary(*pod).indexOf(' ', 12) + 1) + "<br>";
@@ -823,6 +860,21 @@ void HurricaneViewer::paintMap(QPainter& painter) {
 }
 
 void HurricaneViewer::paintPlannedRecon(QPainter& painter) {
+    if (fixCheck != nullptr && fixCheck->isChecked() && vdm) {
+        const auto t = view->transform();
+        const double px = view->unitsPerPixel();
+        for (const auto& m : vdm->messages) {
+            if (!UtilityVdm::has(m.lat) || !UtilityVdm::has(m.lon)) {
+                continue;
+            }
+            const auto at = t(m.lat, m.lon);
+            painter.setPen(QPen{QColor{255, 255, 255}, 1.6 * px});
+            painter.setBrush(QColor{220, 40, 40, 200});
+            painter.drawEllipse(at, 5.5 * px, 5.5 * px);
+            painter.drawLine(at + QPointF{-8 * px, 0}, at + QPointF{8 * px, 0});
+            painter.drawLine(at + QPointF{0, -8 * px}, at + QPointF{0, 8 * px});
+        }
+    }
     if (podCheck == nullptr || !podCheck->isChecked() || !pod || !pod->error.empty()) {
         return;
     }
@@ -935,6 +987,17 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
     }
     for (const auto& f : storm->best) {
         check(f.lat, f.lon, "Best track\n" + QString::fromStdString(UtilityAtcf::formatTime(f.time)) + ", " + knots(f.wind) + (f.pressure > 0 ? ", " + QString::number(f.pressure) + " mb" : QString{}), "");
+    }
+    if (fixCheck->isChecked() && vdm) {
+        for (const auto& m : vdm->messages) {
+            if (UtilityVdm::has(m.lat) && UtilityVdm::has(m.lon)) {
+                QString text = "Recon centre fix " + VdmViewer::timeText(m.seconds) + "  " + QString::fromStdString(m.aircraft);
+                if (UtilityVdm::has(m.pressure)) text += "\nMinimum pressure " + QString::number(static_cast<int>(m.pressure)) + " mb" + (m.extrapolated ? " (extrapolated)" : "");
+                if (UtilityVdm::has(m.maxFlightWind())) text += "\nStrongest flight-level wind " + QString::number(static_cast<int>(m.maxFlightWind())) + " kt";
+                if (!m.eyeCharacter.empty()) text += "\nEye " + QString::fromStdString(m.eyeCharacter + " " + m.eyeShape);
+                check(m.lat, m.lon, text, "");
+            }
+        }
     }
     if (reconCheck->isChecked() && recon) {
         for (const auto& message : recon->messages) {

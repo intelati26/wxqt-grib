@@ -9,6 +9,7 @@
 #include "hurricane/UtilityEcmwfTracks.h"
 #include "hurricane/UtilityEnsembleStats.h"
 #include "hurricane/UtilityPod.h"
+#include "hurricane/UtilityVdm.h"
 #include "hurricane/UtilityShips.h"
 #include "util/UtilityGzip.h"
 
@@ -247,7 +248,34 @@ static void pod(const std::string& fixtures) {
     CHECK(UtilityPod::parsePosition("12.5S 120.0E", lat, lon) && near(lat, -12.5) && near(lon, 120.0) && !UtilityPod::parsePosition("NA", lat, lon));
 }
 
+// Vortex data messages in the format of June 2018 onward (real ones: AL02 Bertha, July 2026)
+static void vdm(const std::string& fixtures) {
+    UtilityVdm::Vdm v;
+    CHECK(UtilityVdm::parse(readFile(fixtures + "/vdm_202607220105.txt"), "202607220105", v));
+    CHECK(v.stormId == "AL022026" && v.fixTime == "22/00:11:26Z" && !v.test);
+    CHECK(near(v.lat, 29.34) && near(v.lon, -87.41) && v.levelMb == 700 && near(v.heightM, 3088) && near(v.pressure, 996) && !v.extrapolated);
+    CHECK(near(v.centerWindDir, 193) && near(v.centerWindKt, 10));
+    CHECK(v.eyeCharacter.empty() && !UtilityVdm::has(v.inboundSurface.kt));
+    CHECK(near(v.inboundFlight.kt, 29) && near(v.inboundFlight.direction, 62) && near(v.inboundFlight.bearing, 329) && near(v.inboundFlight.rangeNm, 33) && v.inboundFlight.time == "00:03:45Z");
+    CHECK(near(v.outboundFlight.kt, 51) && near(v.outboundFlight.bearing, 132) && near(v.outboundFlight.rangeNm, 93) && v.outboundFlight.time == "00:34:46Z");
+    CHECK(near(v.tempOutsideC, 15) && near(v.tempInsideC, 16) && near(v.dewPointInsideC, 9) && !UtilityVdm::has(v.seaSurfaceC));
+    CHECK(v.fixedBy == "1345 / 7" && v.accuracy == "0.01 / .1 nm" && v.aircraft == "NOAA3 0802A BERTHA OB 17" && near(v.maxFlightWind(), 51));
+    CHECK(v.remarks == "MAX FL WIND 51 KT 132 / 93 NM 00:34:46Z");
+    // 2026-07-22 00:11:26 UTC
+    CHECK(v.seconds == 1784679086L);
+    CHECK(UtilityVdm::parse(readFile(fixtures + "/vdm_202607212300.txt"), "202607212300", v));
+    CHECK(v.extrapolated && near(v.pressure, 997) && v.fixTime == "21/22:18:11Z" && near(v.seaSurfaceC, -9999.0) && v.remarks.find("SLP EXTRAP FROM 700 MB") == 0);
+    // a message early in the month that is filed after midnight: the fix day (31) is later than the file day (1), so it is the month before
+    CHECK(UtilityVdm::parse("URNT12 KNHC 010005\nVORTEX DATA MESSAGE  AL012026\nA. 31/23:50:00Z\nB. 20.00 deg N 080.00 deg W\nU. AF300 0101A TEST OB 01\n", "202608010005", v));
+    CHECK(v.seconds == 1785541800L);   // 2026-07-31 23:50:00 UTC
+    CHECK(!UtilityVdm::parse("not a message", "202607220105", v));
+    // the communications check that NHC sends now and then is recognised
+    const std::string check = "URNT12 KWBC 290000\nVORTEX DATA MESSAGE AL992026\nA. 29/00:00:00Z\nB. 00.00 deg N 000.00 deg W\nU. NOAAX WXWXA TRAIN OB 99\nMAX FL WIND 00 KT 0 / 0 NM 00:00:00Z\nTEST TEST TEST COMM CHECK;\n";
+    CHECK(UtilityVdm::parse(check, "202607290000", v) && v.test);
+}
+
 int main(int argc, char ** argv) {
+    vdm(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     pod(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     ships(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     ecmwf(argc > 1 ? argv[1] : "tests/hurricane/fixtures");

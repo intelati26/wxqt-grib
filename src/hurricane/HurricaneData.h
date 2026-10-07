@@ -13,6 +13,7 @@
 #include "hurricane/UtilityEcmwfTracks.h"
 #include "hurricane/UtilityPod.h"
 #include "hurricane/UtilityShips.h"
+#include "hurricane/UtilityVdm.h"
 #include "hurricane/UtilityHdob.h"
 
 using std::string;
@@ -72,6 +73,11 @@ public:
         string issued;          // yyyymmddhhmm from the file name
         string error;
     };
+    struct VdmData {
+        vector<UtilityVdm::Vdm> messages;     // oldest first, this storm's, the communications checks left out
+        int filesRead{0};
+        string error;
+    };
     static bool loadStormList(vector<StormEntry>& entries, string& error);
     static void loadStorm(const string& id, StormData& data);
     static void loadRecon(ReconData& data, int bulletins);
@@ -81,6 +87,7 @@ public:
     static bool gefsFromGuidance(const string& stormId, const vector<UtilityAtcf::Track>& guidance, EnsembleSet& set);
     static void loadShips(const string& nhcId, ShipsData& data);   // NHC's SHIPS text for the newest cycle
     static void loadPod(PodData& data);   // the newest Plan of the Day in the NHC recon archive
+    static void loadVdm(const string& nhcId, VdmData& data);   // the recent vortex data messages for the storm (NHC recon archive, REPNT2)
     static string ecmwfId(const string& nhcId);     // "al092026" -> "09L"
     static string idLabel(const string& id);        // "al092026" -> "AL09"
 };

@@ -16,6 +16,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include "hurricane/UtilityEnsembleStats.h"
+#include "hurricane/UtilityVdm.h"
 #include "util/UtilityGzip.h"
 #include "util/UtilityIO.h"
 
@@ -321,4 +322,53 @@ void HurricaneData::loadPod(PodData& data) {
     if (!data.pod.ok) {
         data.error = "Could not read the Plan of the Day (" + newest + ").";
     }
+}
+
+void HurricaneData::loadVdm(const string& nhcId, VdmData& data) {
+    data = VdmData{};
+    const auto year = QDateTime::currentDateTimeUtc().date().year();
+    const auto folder = "https://www.nhc.noaa.gov/archive/recon/" + std::to_string(year) + "/REPNT2/";
+    const auto listing = download(folder);
+    const std::regex file{R"re(href="(REPNT2-[A-Z]+\.(\d{12})\.txt)")re"};
+    vector<std::pair<string, string>> files;   // time, name
+    for (std::sregex_iterator it{listing.begin(), listing.end(), file}, end; it != end; ++it) {
+        files.emplace_back((*it)[2], (*it)[1]);
+    }
+    if (files.empty()) {
+        data.error = "Could not read the NHC reconnaissance archive.";
+        return;
+    }
+    std::sort(files.begin(), files.end());
+    files.erase(std::unique(files.begin(), files.end()), files.end());
+    string wanted = nhcId;
+    std::transform(wanted.begin(), wanted.end(), wanted.begin(), [] (unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    // each file is one small message; read the newest 80 (parsed ones are remembered, so a refresh costs little)
+    static std::mutex mutex;
+    static std::map<string, std::pair<bool, UtilityVdm::Vdm>> parsed;
+    const size_t first = files.size() > 80 ? files.size() - 80 : 0;
+    for (size_t i = first; i < files.size(); i++) {
+        std::pair<bool, UtilityVdm::Vdm> entry;
+        bool known = false;
+        {
+            std::lock_guard lock{mutex};
+            const auto found = parsed.find(files[i].second);
+            if (found != parsed.end()) {
+                entry = found->second;
+                known = true;
+            }
+        }
+        if (!known) {
+            entry.first = UtilityVdm::parse(download(folder + files[i].second), files[i].first, entry.second);
+            std::lock_guard lock{mutex};
+            parsed[files[i].second] = entry;
+        }
+        data.filesRead++;
+        if (entry.first && !entry.second.test && entry.second.stormId == wanted) {
+            data.messages.push_back(entry.second);
+        }
+    }
+    std::sort(data.messages.begin(), data.messages.end(), [] (const auto& a, const auto& b) { return a.seconds < b.seconds || (a.seconds == b.seconds && a.aircraft < b.aircraft); });
+    // the same message can be filed twice (a retransmission): one per fix time and aircraft
+    data.messages.erase(std::unique(data.messages.begin(), data.messages.end(), [] (const auto& a, const auto& b) { return a.seconds == b.seconds && a.aircraft == b.aircraft; }),
+                        data.messages.end());
 }
