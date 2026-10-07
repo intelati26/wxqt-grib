@@ -25,6 +25,11 @@ static void atcf() {
     CHECK(near(best[1].lat, 21.8) && near(best[1].lon, -94.5));
     CHECK(best[1].wind == 35 && best[1].pressure == 1004 && best[1].status == "TS" && best[1].name == "ISAIAS");
 
+    // wind radii (34 / 50 / 64 kt by quadrant NE SE SW NW) and the forecast cone
+    CHECK(best[1].radii[0][0] == 40 && best[1].radii[0][1] == 0 && best[1].radii[0][2] == 0 && best[1].radii[0][3] == 40 && best[1].radii[1][0] == 0);
+    CHECK(near(UtilityAtcf::coneRadiusNm(0), 0.0) && near(UtilityAtcf::coneRadiusNm(12), 25.0) && near(UtilityAtcf::coneRadiusNm(18), 32.0));
+    CHECK(near(UtilityAtcf::coneRadiusNm(96), 134.0) && near(UtilityAtcf::coneRadiusNm(108), 167.0) && near(UtilityAtcf::coneRadiusNm(120), 200.0) && near(UtilityAtcf::coneRadiusNm(168), 200.0));
+
     const std::string guidance =
         "AL, 09, 2026100618, 03, AVNO,   0, 203N,  954W,  28, 1010, XX,  34, NEQ,    0,    0,    0,    0,  -99,  -99,  46,   0,   0,\n"
         "AL, 09, 2026100700, 03, AVNO,   0, 219N,  950W,  30, 1008, XX,  34, NEQ,    0,    0,    0,    0,  -99,  -99,  46,   0,   0,\n"

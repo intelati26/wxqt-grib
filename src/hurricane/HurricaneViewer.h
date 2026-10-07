@@ -72,6 +72,8 @@ private:
     QLabel * hoverLabel{};
     std::vector<std::pair<UtilityAtcf::Group, QCheckBox *>> groupChecks;
     QCheckBox * reconCheck{};
+    QCheckBox * coneCheck{};                                  // the forecast cone
+    QCheckBox * radiiCheck{};                                 // the wind radii now
     QCheckBox * ensembleChecks[3]{};                          // AIFS ENS members, IFS ENS members, the unperturbed runs
     Button buttonStats;
     Button buttonShips;

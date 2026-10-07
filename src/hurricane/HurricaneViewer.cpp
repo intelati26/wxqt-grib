@@ -14,6 +14,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
+#include <QScrollArea>
 #include <QUrl>
 #include <QVBoxLayout>
 #include "hurricane/EnsembleStatsViewer.h"
@@ -148,6 +149,15 @@ HurricaneViewer::HurricaneViewer(Window * parent)
         column->addWidget(check);
         groupChecks.emplace_back(group, check);
     }
+    coneCheck = new QCheckBox{"NHC forecast cone", panel};
+    coneCheck->setChecked(true);
+    radiiCheck = new QCheckBox{"Wind radii now (34 / 50 / 64 kt)", panel};
+    radiiCheck->setChecked(true);
+    QObject::connect(coneCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    QObject::connect(radiiCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addSpacing(4);
+    column->addWidget(coneCheck);
+    column->addWidget(radiiCheck);
     static const char * ensembleNames[3] = {"AIFS ENS members (ECMWF AI)", "IFS ENS members (ECMWF)", "AIFS and IFS unperturbed runs"};
     static const QColor ensembleSwatch[3] = {QColor{60, 220, 170}, QColor{255, 150, 60}, QColor{255, 255, 255}};
     column->addSpacing(4);
@@ -197,7 +207,13 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     rowTop.addWidget(buttonZoom);
     rowTop.addStretch();
     rowMain.addWidgetReal(map, 0, Qt::AlignTop | Qt::AlignLeft);
-    rowMain.addWidgetReal(panel, 1, Qt::AlignTop | Qt::AlignLeft);
+    auto * scroll = new QScrollArea{this};   // the panel is taller than a small screen
+    scroll->setWidget(panel);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setFixedWidth(panelWidth + 18);
+    rowMain.addWidgetReal(scroll, 1, Qt::AlignTop | Qt::AlignLeft);
     box.addLayout(rowTop);
     box.addWidget(textStatus);
     box.addLayout(rowMain);
@@ -211,7 +227,7 @@ void HurricaneViewer::resizeEventCustom() {
         return;
     }
     const int above = rowTop.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height();
-    view->fit(width() - 330 - 24, height() - above - 40);
+    view->fit(width() - 330 - 18 - 24, height() - above - 40);
 }
 
 bool HurricaneViewer::groupShown(Group group) const {
@@ -585,6 +601,59 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             painter.drawText(end + QPointF{6.0 * px, -4.0 * px}, QString::fromStdString(track.tech));
         }
     }
+    // the forecast cone: the area swept by NHC's error circles along the official forecast (12, 24 ... 120 h)
+    if (coneCheck->isChecked() && storm->id.rfind("al", 0) == 0 && storm->official.fixes.size() >= 2) {
+        const auto circle = [&] (double lat, double lon, double nm) {
+            QPolygonF points;
+            const double kmPerDegree = 111.2;
+            for (int i = 0; i < 48; i++) {
+                const double a = i * 2.0 * std::numbers::pi / 48.0;
+                const double dLat = nm * 1.852 / kmPerDegree * std::cos(a);
+                const double dLon = nm * 1.852 / (kmPerDegree * std::max(0.2, std::cos(lat * std::numbers::pi / 180.0))) * std::sin(a);
+                points << t(lat + dLat, lon + dLon);
+            }
+            return points;
+        };
+        const auto hull = [] (QPolygonF points) {   // the convex hull (monotone chain): two circles joined into one tapered piece
+            std::sort(points.begin(), points.end(), [] (const QPointF& a, const QPointF& b) { return a.x() < b.x() || (a.x() == b.x() && a.y() < b.y()); });
+            const auto cross = [] (const QPointF& o, const QPointF& a, const QPointF& b) { return (a.x() - o.x()) * (b.y() - o.y()) - (a.y() - o.y()) * (b.x() - o.x()); };
+            QPolygonF result;
+            for (int pass = 0; pass < 2; pass++) {
+                const auto start = result.size();
+                for (int i = 0; i < points.size(); i++) {
+                    const auto& p = pass == 0 ? points[i] : points[points.size() - 1 - i];
+                    while (result.size() >= start + 2 && cross(result[result.size() - 2], result[result.size() - 1], p) <= 0) {
+                        result.removeLast();
+                    }
+                    result << p;
+                }
+                result.removeLast();
+            }
+            return result;
+        };
+        static const int hours[] = {0, 12, 24, 36, 48, 60, 72, 96, 120};
+        vector<const UtilityAtcf::Fix *> marks;
+        for (const int h : hours) {
+            for (const auto& f : storm->official.fixes) {
+                if (f.tau == h) {
+                    marks.push_back(&f);
+                    break;
+                }
+            }
+        }
+        QPainterPath cone;
+        for (size_t i = 1; i < marks.size(); i++) {
+            QPolygonF both = circle(marks[i - 1]->lat, marks[i - 1]->lon, UtilityAtcf::coneRadiusNm(marks[i - 1]->tau));
+            both += circle(marks[i]->lat, marks[i]->lon, UtilityAtcf::coneRadiusNm(marks[i]->tau));
+            QPainterPath piece;
+            piece.addPolygon(hull(both));
+            piece.closeSubpath();
+            cone = cone.united(piece);
+        }
+        painter.setPen(QPen{QColor{255, 255, 255, 170}, 1.2 * px, Qt::DashLine});
+        painter.setBrush(QColor{255, 255, 255, 38});
+        painter.drawPath(cone);
+    }
     // ECMWF's ensemble members (thin, one line each), then the unperturbed runs
     if (ensembles) {
         const auto drawTrack = [&] (const UtilityEcmwfTracks::Member& member, const QPen& pen) {
@@ -671,6 +740,30 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             painter.setBrush(categoryColor(f.wind >= 0 ? UtilityAtcf::categoryOf(f.wind) : 0));
             const double r = (last ? 7.5 : 3.6) * px;
             painter.drawEllipse(p, r, r);
+        }
+    }
+    // the wind radii of the newest best-track fix: 34, 50 and 64 kt, a wedge of each quadrant (NE, SE, SW, NW)
+    if (radiiCheck->isChecked() && !storm->best.empty()) {
+        const auto& now = storm->best.back();
+        static const QColor colors[3] = {QColor{255, 235, 80, 70}, QColor{255, 150, 40, 90}, QColor{255, 70, 70, 110}};
+        for (int threshold = 0; threshold < 3; threshold++) {
+            for (int quadrant = 0; quadrant < 4; quadrant++) {
+                const int nm = now.radii[static_cast<size_t>(threshold)][static_cast<size_t>(quadrant)];
+                if (nm <= 0) {
+                    continue;
+                }
+                QPolygonF wedge;
+                wedge << t(now.lat, now.lon);
+                for (int step = 0; step <= 12; step++) {
+                    const double bearing = (quadrant * 90.0 + step * 90.0 / 12.0) * std::numbers::pi / 180.0;   // from north, clockwise
+                    const double dLat = nm / 60.0 * std::cos(bearing);
+                    const double dLon = nm / (60.0 * std::max(0.2, std::cos(now.lat * std::numbers::pi / 180.0))) * std::sin(bearing);
+                    wedge << t(now.lat + dLat, now.lon + dLon);
+                }
+                painter.setPen(QPen{colors[threshold].darker(150), 0.8 * px});
+                painter.setBrush(colors[threshold]);
+                painter.drawPolygon(wedge);
+            }
         }
     }
     // the recon flight tracks

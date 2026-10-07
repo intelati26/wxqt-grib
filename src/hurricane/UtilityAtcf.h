@@ -6,6 +6,7 @@
 #ifndef UTILITYATCF_H
 #define UTILITYATCF_H
 
+#include <array>
 #include <map>
 #include <string>
 #include <vector>
@@ -28,6 +29,7 @@ public:
         int pressure{-1};  // mb, -1 when not given
         string status;     // TD, TS, HU, ...
         string name;       // best track rows carry the storm name
+        std::array<std::array<int, 4>, 3> radii{};   // wind radii in nm for 34 / 50 / 64 kt, by quadrant NE, SE, SW, NW (0 = none)
     };
     struct Track {         // one technique's forecast from one cycle
         string tech;
@@ -46,6 +48,9 @@ public:
     enum class Group { Official, Consensus, Global, Hurricane, Ensemble, Simple, Other };
     static Group groupOf(const string& tech);
     static string groupName(Group);
+    // NHC's forecast cone: the radius (nm) of the circle at a forecast hour (2026 Atlantic: two thirds of the 2021-2025 official track errors),
+    // linear between the published hours (12, 24, 36, 48, 60, 72, 96, 120) and from 0 at hour 0; beyond 120 h the 120 h value
+    static double coneRadiusNm(int hour);
     static int categoryOf(int windKt);                // 0 = TD or weaker, 1 = TS, 2..6 = hurricane category 1..5
     static string categoryName(int category);
     static double hoursBetween(const string& timeA, const string& timeB);   // yyyymmddhh strings, B - A

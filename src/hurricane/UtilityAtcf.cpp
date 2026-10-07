@@ -11,6 +11,15 @@
 #include <sstream>
 
 namespace {
+    // a row's wind radii: column 12 is the threshold (34, 50, 64 kt), columns 13 to 16 the radii of the NE, SE, SW and NW quadrants in nm
+    void readRadii(const vector<string>& parts, UtilityAtcf::Fix& fix);
+    void mergeRadii(UtilityAtcf::Fix& into, const UtilityAtcf::Fix& from) {
+        for (size_t t = 0; t < 3; t++) {
+            for (size_t q = 0; q < 4; q++) {
+                into.radii[t][q] = std::max(into.radii[t][q], from.radii[t][q]);
+            }
+        }
+    }
     string trim(const string& s) {
         const auto a = s.find_first_not_of(" \t\r\n");
         if (a == string::npos) {
@@ -63,6 +72,20 @@ namespace {
         return end != nullptr && *end == '\0' ? static_cast<int>(value) : missing;
     }
 
+    void readRadii(const vector<string>& parts, UtilityAtcf::Fix& fix) {
+        if (parts.size() < 17) {
+            return;
+        }
+        const int threshold = toInt(parts[11], 0);
+        const int index = threshold == 34 ? 0 : threshold == 50 ? 1 : threshold == 64 ? 2 : -1;
+        if (index < 0) {
+            return;
+        }
+        for (size_t q = 0; q < 4; q++) {
+            fix.radii[static_cast<size_t>(index)][q] = std::max(0, toInt(parts[13 + q], 0));
+        }
+    }
+
     // days since 1970-01-01 for a civil date
     long daysFromCivil(int y, int m, int d) {
         y -= m <= 2 ? 1 : 0;
@@ -104,6 +127,7 @@ vector<UtilityAtcf::Fix> UtilityAtcf::parseRows(const string& text, const string
         if (parts.size() > 27) {
             fix.name = parts[27];
         }
+        readRadii(parts, fix);
         rows.push_back(fix);
     }
     return rows;
@@ -115,6 +139,8 @@ vector<UtilityAtcf::Fix> UtilityAtcf::bestTrack(const string& btkText) {
     for (auto& fix : parseRows(btkText, "BEST")) {
         if (seen.insert(fix.time).second) {
             best.push_back(fix);
+        } else {
+            mergeRadii(best.back(), fix);   // the rows of one time are together, one per wind threshold
         }
     }
     return best;
@@ -151,7 +177,14 @@ vector<UtilityAtcf::Track> UtilityAtcf::latestTracks(const string& text) {
             fix.pressure = -1;
         }
         fix.status = parts[10];
-        byTech[parts[4]][parts[2]].emplace(fix.tau, fix);   // the first row of an hour (later rows only add wind radii)
+        readRadii(parts, fix);
+        auto& slot = byTech[parts[4]][parts[2]];
+        const auto existing = slot.find(fix.tau);
+        if (existing == slot.end()) {
+            slot.emplace(fix.tau, fix);
+        } else {
+            mergeRadii(existing->second, fix);   // the later rows of an hour only add the wind radii of the other thresholds
+        }
     }
     vector<Track> tracks;
     for (const auto& [tech, cycles] : byTech) {
@@ -264,4 +297,18 @@ string UtilityAtcf::formatTime(const string& t) {
     }
     const int month = std::stoi(t.substr(4, 2));
     return string{months[std::clamp(month, 1, 12) - 1]} + " " + t.substr(6, 2) + " " + t.substr(8, 2) + "Z";
+}
+
+double UtilityAtcf::coneRadiusNm(int hour) {
+    static const int hours[] = {0, 12, 24, 36, 48, 60, 72, 96, 120};
+    static const double radii[] = {0.0, 25.0, 39.0, 49.0, 62.0, 77.0, 95.0, 134.0, 200.0};
+    if (hour <= 0) {
+        return 0.0;
+    }
+    for (size_t i = 1; i < std::size(hours); i++) {
+        if (hour <= hours[i]) {
+            return radii[i - 1] + (radii[i] - radii[i - 1]) * (hour - hours[i - 1]) / (hours[i] - hours[i - 1]);
+        }
+    }
+    return radii[std::size(radii) - 1];
 }
