@@ -5,6 +5,8 @@
 
 #include "hurricane/HurricaneData.h"
 #include <algorithm>
+#include <cstdio>
+#include <cctype>
 #include <ctime>
 #include <mutex>
 #include <regex>
@@ -13,6 +15,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include "hurricane/UtilityEnsembleStats.h"
 #include "util/UtilityGzip.h"
 #include "util/UtilityIO.h"
 
@@ -184,4 +187,99 @@ void HurricaneData::loadRecon(ReconData& data, int bulletins) {
         auto parsed = UtilityHdob::parse(download(folder + files[i].second));
         data.messages.insert(data.messages.end(), parsed.begin(), parsed.end());
     }
+}
+
+string HurricaneData::ecmwfId(const string& id) {
+    if (id.size() < 8) {
+        return id;
+    }
+    static const std::map<string, char> letters{{"al", 'L'}, {"ep", 'E'}, {"cp", 'C'}};
+    const auto found = letters.find(id.substr(0, 2));
+    return id.substr(2, 2) + string(1, found != letters.end() ? found->second : '?');
+}
+
+namespace {
+    // a download kept for 20 minutes (the ensembles are a megabyte or more each, and the screen asks again on every storm pick)
+    string cachedDownload(const string& url) {
+        static std::mutex mutex;
+        static std::map<string, std::pair<qint64, string>> cache;
+        const auto now = QDateTime::currentSecsSinceEpoch();
+        {
+            std::lock_guard lock{mutex};
+            const auto found = cache.find(url);
+            if (found != cache.end() && now - found->second.first < 1200) {
+                return found->second.second;
+            }
+        }
+        auto bytes = download(url);
+        if (bytes.size() > 1000 && bytes.compare(0, 4, "BUFR") == 0) {
+            std::lock_guard lock{mutex};
+            cache[url] = {now, bytes};
+            return bytes;
+        }
+        return {};
+    }
+}
+
+void HurricaneData::loadEnsembles(const string& nhcId, EnsembleData& data) {
+    data = EnsembleData{};
+    struct Model {
+        const char * label;
+        const char * model;
+        const char * stream;
+    };
+    static const Model models[] = {{"AIFS ENS", "aifs-ens", "enfo"}, {"IFS ENS", "ifs", "enfo"}, {"AIFS", "aifs-single", "oper"}, {"IFS HRES", "ifs", "oper"}};
+    const auto id = ecmwfId(nhcId);
+    const auto now = QDateTime::currentDateTimeUtc();
+    // the newest of the last five cycles that has a track file (the run is posted about seven hours after its time)
+    for (const auto& model : models) {
+        string bytes;
+        string cycle;
+        for (int back = 0; back < 5 && bytes.empty(); back++) {
+            const auto time = now.addSecs(-static_cast<qint64>(back) * 6 * 3600);
+            const int hour = time.time().hour() / 6 * 6;
+            char day[16];
+            std::snprintf(day, sizeof day, "%04d%02d%02d", time.date().year(), time.date().month(), time.date().day());
+            char hh[8];
+            std::snprintf(hh, sizeof hh, "%02d", hour);
+            for (const int steps : {360, 144}) {
+                const string url = string{"https://data.ecmwf.int/forecasts/"} + day + "/" + hh + "z/" + model.model + "/0p25/" + model.stream + "/" + day + hh +
+                    "0000-" + std::to_string(steps) + "h-" + model.stream + "-tf.bufr";
+                bytes = cachedDownload(url);
+                if (!bytes.empty()) {
+                    cycle = string{day} + hh;
+                    break;
+                }
+            }
+        }
+        if (bytes.empty()) {
+            continue;
+        }
+        vector<UtilityEcmwfTracks::Storm> storms;
+        string error;
+        if (!UtilityEcmwfTracks::parse(bytes, storms, error)) {
+            data.error = string{model.label} + ": " + error;
+            continue;
+        }
+        for (auto& storm : storms) {
+            if (storm.id == id) {
+                data.sets.push_back({model.label, cycle, std::move(storm)});
+                break;
+            }
+        }
+    }
+    if (data.sets.empty() && data.error.empty()) {
+        data.error = "ECMWF has no ensemble tracks for this storm (yet).";
+    }
+}
+
+bool HurricaneData::gefsFromGuidance(const string& stormId, const vector<UtilityAtcf::Track>& guidance, EnsembleSet& set) {
+    set = EnsembleSet{};
+    set.label = "GEFS";
+    if (!UtilityEnsembleStats::fromGefs(guidance, set.storm)) {
+        return false;
+    }
+    set.storm.id = ecmwfId(stormId);
+    set.cycle = set.storm.cycle;
+    return true;
 }

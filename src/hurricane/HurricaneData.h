@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include "hurricane/UtilityAtcf.h"
+#include "hurricane/UtilityEcmwfTracks.h"
 #include "hurricane/UtilityHdob.h"
 
 using std::string;
@@ -50,9 +51,23 @@ public:
         vector<UtilityHdob::Message> messages;      // oldest first
         string error;
     };
+    struct EnsembleSet {
+        string label;                               // "AIFS ENS"
+        string cycle;                               // yyyymmddhh of the run
+        UtilityEcmwfTracks::Storm storm;            // every member of it
+    };
+    struct EnsembleData {
+        vector<EnsembleSet> sets;                   // those of ECMWF's open data that have this storm
+        string error;
+    };
     static bool loadStormList(vector<StormEntry>& entries, string& error);
     static void loadStorm(const string& id, StormData& data);
     static void loadRecon(ReconData& data, int bulletins);
+    // ECMWF open data (CC BY 4.0): the member tracks of the IFS and AIFS ensembles and the unperturbed IFS / AIFS runs for this storm
+    static void loadEnsembles(const string& nhcId, EnsembleData& data);
+    // NOAA's GEFS members (ATCF AP01..AP30, control AC00) from the guidance already loaded, in the same shape as the ECMWF sets
+    static bool gefsFromGuidance(const string& stormId, const vector<UtilityAtcf::Track>& guidance, EnsembleSet& set);
+    static string ecmwfId(const string& nhcId);     // "al092026" -> "09L"
     static string idLabel(const string& id);        // "al092026" -> "AL09"
 };
 

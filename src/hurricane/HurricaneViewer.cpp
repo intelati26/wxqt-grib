@@ -16,6 +16,7 @@
 #include <QPixmap>
 #include <QUrl>
 #include <QVBoxLayout>
+#include "hurricane/EnsembleStatsViewer.h"
 #include "objects/FutureVoid.h"
 #include "util/Utility.h"
 #include "util/UtilityUI.h"
@@ -83,6 +84,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     , comboStorm{this, {"Loading the storm list..."}}
     , buttonRefresh{this, None, "Refresh"}
     , buttonZoom{this, None, "Zoom to the storm"}
+    , buttonStats{this, None, "Ensemble statistics..."}
     , textStatus{this, "Loading..."}
     , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
 {
@@ -144,6 +146,17 @@ HurricaneViewer::HurricaneViewer(Window * parent)
         column->addWidget(check);
         groupChecks.emplace_back(group, check);
     }
+    static const char * ensembleNames[3] = {"AIFS ENS members (ECMWF AI)", "IFS ENS members (ECMWF)", "AIFS and IFS unperturbed runs"};
+    static const QColor ensembleSwatch[3] = {QColor{60, 220, 170}, QColor{255, 150, 60}, QColor{255, 255, 255}};
+    column->addSpacing(4);
+    for (int i = 0; i < 3; i++) {
+        ensembleChecks[i] = new QCheckBox{ensembleNames[i], panel};
+        ensembleChecks[i]->setIcon(swatch(ensembleSwatch[i]));
+        ensembleChecks[i]->setChecked(i != 1);
+        QObject::connect(ensembleChecks[i], &QCheckBox::toggled, [this] { view->map()->update(); });
+        column->addWidget(ensembleChecks[i]);
+    }
+    column->addWidget(buttonStats.getView());
     reconCheck = new QCheckBox{"Recon flights (HDOB, the last 6 hours)", panel};
     reconCheck->setChecked(Utility::readPref("HURRICANE_RECON", "false") == "true");
     column->addSpacing(6);
@@ -162,6 +175,13 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     comboStorm.connect([this] { if (!filling) { loadStorm(); } });
     buttonRefresh.connect([this] { loadList(); });
     buttonZoom.connect([this] { zoomToStorm(); });
+    buttonStats.connect([this] {
+        if (storm && ensembles && !ensembles->sets.empty()) {
+            new EnsembleStatsViewer{this, storm, ensembles};
+        } else {
+            textStatus.setText(string{"No ensemble members loaded for this storm yet."});
+        }
+    });
     rowTop.addWidget(comboStorm);
     rowTop.addWidget(buttonRefresh);
     rowTop.addWidget(buttonZoom);
@@ -247,10 +267,35 @@ void HurricaneViewer::loadStorm() {
                 return;
             }
             storm = data;
+            ensembles.reset();
             showStorm();
+            loadEnsembles();
             if (reconCheck->isChecked()) {
                 loadRecon();
             }
+        }};
+}
+
+void HurricaneViewer::loadEnsembles() {
+    const auto gen = generation;
+    const auto id = storm->id;
+    auto data = std::make_shared<HurricaneData::EnsembleData>();
+    new FutureVoid{this,
+        [id, data] { HurricaneData::loadEnsembles(id, *data); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            ensembles = data;
+            HurricaneData::EnsembleSet gefs;
+            if (storm && HurricaneData::gefsFromGuidance(storm->id, storm->guidance, gefs)) {
+                ensembles->sets.push_back(std::move(gefs));   // for the statistics; its lines are drawn by the Ensemble members group
+            }
+            if (!ensembles->error.empty() && ensembles->sets.empty()) {
+                textStatus.setText(ensembles->error);
+            }
+            updateInfo();
+            view->map()->update();
         }};
 }
 
@@ -384,6 +429,29 @@ void HurricaneViewer::updateInfo() {
         html += "<br><b>NHC forecast</b> (" + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + "): peak " + knots(peak) +
             " at " + QString::number(peakTau) + " h, out to " + QString::number(storm->official.fixes.back().tau) + " h<br>";
     }
+    if (ensembles && !ensembles->sets.empty()) {
+        html += "<br><b>Ensembles</b> (ECMWF: contains ECMWF open data, CC BY 4.0)<br>";
+        QStringList singles;
+        for (const auto& set : ensembles->sets) {
+            int members = 0;
+            int alive = 0;
+            for (const auto& m : set.storm.members) {
+                if (m.type >= 2) {
+                    members++;
+                    alive += !m.steps.empty() && UtilityEcmwfTracks::has(m.steps.front().lat) ? 1 : 0;
+                }
+            }
+            if (members > 0) {
+                html += QString::fromStdString(set.label) + " " + QString::fromStdString(UtilityAtcf::formatTime(set.cycle)) + ": " + QString::number(alive) + " of " +
+                    QString::number(members) + " members have a cyclone now<br>";
+            } else {
+                singles << QString::fromStdString(set.label);
+            }
+        }
+        if (!singles.isEmpty()) {
+            html += singles.join(", ") + " (unperturbed runs)<br>";
+        }
+    }
     if (entry != nullptr && !entry->discussionUrl.empty()) {
         html += "<br><a href=\"" + QString::fromStdString(entry->discussionUrl) + "\">Discussion</a> &nbsp; <a href=\"" + QString::fromStdString(entry->advisoryUrl) +
             "\">Advisory</a> &nbsp; <a href=\"" + QString::fromStdString(entry->graphicsUrl) + "\">Graphics</a><br>";
@@ -485,6 +553,46 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             font.setPixelSize(static_cast<int>(12 * px));
             painter.setFont(font);
             painter.drawText(end + QPointF{6.0 * px, -4.0 * px}, QString::fromStdString(track.tech));
+        }
+    }
+    // ECMWF's ensemble members (thin, one line each), then the unperturbed runs
+    if (ensembles) {
+        const auto drawTrack = [&] (const UtilityEcmwfTracks::Member& member, const QPen& pen) {
+            painter.setPen(pen);
+            painter.setBrush(Qt::NoBrush);
+            QPainterPath path;
+            bool started = false;
+            for (const auto& s : member.steps) {
+                if (!UtilityEcmwfTracks::has(s.lat) || !UtilityEcmwfTracks::has(s.lon)) {
+                    started = false;
+                    continue;
+                }
+                const auto p = t(s.lat, s.lon);
+                started ? path.lineTo(p) : path.moveTo(p);
+                started = true;
+            }
+            painter.drawPath(path);
+        };
+        for (const auto& set : ensembles->sets) {
+            if (set.label == "GEFS") {
+                continue;
+            }
+            const bool isEnsemble = set.label == "AIFS ENS" || set.label == "IFS ENS";
+            const int box = set.label == "AIFS ENS" ? 0 : set.label == "IFS ENS" ? 1 : 2;
+            for (const auto& member : set.storm.members) {
+                if (member.type >= 2) {
+                    if (isEnsemble && ensembleChecks[box]->isChecked()) {
+                        const auto color = box == 0 ? QColor{60, 220, 170, 85} : QColor{255, 150, 60, 85};
+                        drawTrack(member, QPen{color, 1.1 * px});
+                    }
+                } else if (ensembleChecks[2]->isChecked()) {
+                    // the control and high-resolution runs of the ensembles, and the single AIFS / IFS runs
+                    const bool aifs = set.label.rfind("AIFS", 0) == 0;
+                    const auto color = aifs ? QColor{40, 255, 170} : QColor{255, 110, 40};
+                    const bool single = !isEnsemble;
+                    drawTrack(member, QPen{color, (single ? 2.6 : 1.6) * px, single ? Qt::SolidLine : Qt::DashLine});
+                }
+            }
         }
     }
     // the official forecast: a heavy line, the intensity colour at each point, a label each day
@@ -605,6 +713,31 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
         const auto title = QString::fromStdString(track.tech + (found != storm->longNames.end() ? " - " + found->second : string{}));
         for (const auto& f : track.fixes) {
             check(f.lat, f.lon, title + "\nrun " + QString::fromStdString(UtilityAtcf::formatTime(track.cycle)) + ", +" + QString::number(f.tau) + " h, " + knots(f.wind), track.tech);
+        }
+    }
+    if (ensembles) {
+        for (const auto& set : ensembles->sets) {
+            if (set.label == "GEFS") {
+                continue;
+            }
+            const bool isEnsemble = set.label == "AIFS ENS" || set.label == "IFS ENS";
+            const int box = set.label == "AIFS ENS" ? 0 : set.label == "IFS ENS" ? 1 : 2;
+            for (const auto& member : set.storm.members) {
+                const bool shownMember = member.type >= 2 ? isEnsemble && ensembleChecks[box]->isChecked()
+                    : ensembleChecks[2]->isChecked();
+                if (!shownMember) {
+                    continue;
+                }
+                const QString who = member.type >= 2 ? QString::fromStdString(set.label) + " member " + QString::number(member.number)
+                    : QString::fromStdString(set.label) + (isEnsemble ? " unperturbed run" : " run");
+                for (const auto& s : member.steps) {
+                    if (UtilityEcmwfTracks::has(s.lat) && UtilityEcmwfTracks::has(s.lon)) {
+                        check(s.lat, s.lon, who + "\nrun " + QString::fromStdString(UtilityAtcf::formatTime(set.cycle)) + ", +" + QString::number(s.hour) + " h" +
+                            (UtilityEcmwfTracks::has(s.wind) ? ", " + QString::number(static_cast<int>(std::lround(s.wind))) + " kt (10 m)" : QString{}) +
+                            (UtilityEcmwfTracks::has(s.pressure) ? ", " + QString::number(static_cast<int>(std::lround(s.pressure))) + " mb" : QString{}), "");
+                    }
+                }
+            }
         }
     }
     if (groupShown(Group::Official)) {

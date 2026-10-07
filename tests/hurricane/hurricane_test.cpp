@@ -4,6 +4,10 @@
 #include <iostream>
 #include "hurricane/UtilityAtcf.h"
 #include "hurricane/UtilityHdob.h"
+#include <fstream>
+#include <sstream>
+#include "hurricane/UtilityEcmwfTracks.h"
+#include "hurricane/UtilityEnsembleStats.h"
 #include "util/UtilityGzip.h"
 
 static int failures = 0;
@@ -96,7 +100,101 @@ static void gzip() {
     CHECK(!UtilityGzip::gunzip("not gzip at all, not at all......", out));
 }
 
-int main() {
+static std::string readFile(const std::string& path) {
+    std::ifstream file{path, std::ios::binary};
+    std::stringstream stream;
+    stream << file.rdbuf();
+    return stream.str();
+}
+
+// ECMWF's tropical cyclone track BUFR; the expected numbers were read with ECMWF's own bufr_dump (eccodes) from the same files
+static void ecmwf(const std::string& fixtures) {
+    std::vector<UtilityEcmwfTracks::Storm> storms;
+    std::string error;
+    CHECK(UtilityEcmwfTracks::parse(readFile(fixtures + "/ecmwf_52_members.bufr"), storms, error));
+    CHECK(storms.size() == 1 && storms[0].id == "35W" && storms[0].name == "NOLO" && storms[0].cycle == "2026100700");
+    CHECK(storms[0].members.size() == 52);
+    const auto& m1 = storms[0].members[0];
+    CHECK(m1.number == 1 && m1.type == 4 && m1.steps.size() == 30);
+    CHECK(near(m1.steps[0].lat, 25.4, 1e-9) && near(m1.steps[0].lon, 164.2, 1e-9) && near(m1.steps[0].pressure, 987.0, 1e-9));
+    CHECK(near(m1.steps[0].wind, 30.9 * 1.943844, 1e-3) && near(m1.steps[0].windLat, 25.5, 1e-9) && near(m1.steps[0].windLon, 164.9, 1e-9));
+    CHECK(m1.steps[1].hour == 6 && near(m1.steps[1].lat, 25.7, 1e-9) && near(m1.steps[1].lon, 162.0, 1e-9) && near(m1.steps[1].pressure, 991.0, 1e-9));
+    CHECK(storms[0].members[1].steps[0].lat == 25.7 && near(storms[0].members[1].steps[0].lon, 163.9, 1e-9));
+    CHECK(storms[0].members[51].type == 0 && storms[0].members[50].type == 1);   // the two unperturbed runs come last
+
+    // weak storms: the positions are missing (all ones), and a one-member storm is not compressed
+    CHECK(UtilityEcmwfTracks::parse(readFile(fixtures + "/ecmwf_compressed_3_members.bufr"), storms, error));
+    CHECK(storms.size() == 1 && storms[0].id == "71A" && storms[0].members.size() == 3);
+    CHECK(!UtilityEcmwfTracks::has(storms[0].members[0].steps[0].lat));
+    CHECK(UtilityEcmwfTracks::parse(readFile(fixtures + "/ecmwf_single_member.bufr"), storms, error));
+    CHECK(storms.size() == 1 && storms[0].id == "72A" && storms[0].members.size() == 1 && storms[0].members[0].number == 17);
+    CHECK(!UtilityEcmwfTracks::parse("not a bufr file", storms, error));
+
+    // IFS files have no leading model identifier; this is the high-resolution run of storm 09L
+    CHECK(UtilityEcmwfTracks::parse(readFile(fixtures + "/ecmwf_ifs_hres.bufr"), storms, error));
+    CHECK(storms.size() == 1 && storms[0].id == "09L" && storms[0].members.size() == 1 && storms[0].members[0].type == 0);
+    const auto& hres = storms[0].members[0];
+    CHECK(near(hres.steps[0].lat, 21.4, 1e-9) && near(hres.steps[0].lon, -95.0, 1e-9) && near(hres.steps[0].pressure, 1005.0, 1e-9));
+    CHECK(near(hres.steps[0].wind, 13.9 * 1.943844, 1e-3) && near(hres.steps[1].lat, 21.4, 1e-9) && near(hres.steps[1].lon, -94.7, 1e-9));
+    CHECK(hres.steps[1].hour == 6 && near(hres.steps[1].pressure, 1006.0, 1e-9));
+
+    // NOAA's GEFS members as an ensemble
+    std::vector<UtilityAtcf::Track> guidance;
+    for (const char * tech : {"AP01", "AP02", "AC00", "AVNO", "AP9X"}) {
+        UtilityAtcf::Track track;
+        track.tech = tech;
+        track.cycle = "2026100700";
+        UtilityAtcf::Fix fix;
+        fix.tau = 0;
+        fix.lat = 20.0;
+        fix.lon = -80.0;
+        fix.wind = 45;
+        fix.pressure = -1;
+        track.fixes.push_back(fix);
+        guidance.push_back(track);
+    }
+    UtilityEcmwfTracks::Storm gefs;
+    CHECK(UtilityEnsembleStats::fromGefs(guidance, gefs));
+    CHECK(gefs.members.size() == 3 && gefs.members[0].number == 1 && gefs.members[0].type == 4 && gefs.members[2].type == 1 && gefs.cycle == "2026100700");
+    CHECK(near(gefs.members[0].steps[0].wind, 45.0) && !UtilityEcmwfTracks::has(gefs.members[0].steps[0].pressure));
+    CHECK(UtilityEnsembleStats::compute(gefs, 6).at(0).total == 2);   // the control is not part of the distribution
+
+    // the distribution
+    UtilityEcmwfTracks::Storm made;
+    made.id = "01L";
+    for (int i = 0; i < 5; i++) {   // five perturbed members, wind 30..70 kt at hour 0; the fifth is gone by hour 6
+        UtilityEcmwfTracks::Member member;
+        member.type = 4;
+        UtilityEcmwfTracks::Step a;
+        a.hour = 0;
+        a.lat = 20.0;
+        a.lon = -60.0 + i * 0.0;
+        a.wind = 30.0 + i * 10.0;
+        a.pressure = 1010.0 - i * 5.0;
+        member.steps.push_back(a);
+        UtilityEcmwfTracks::Step b = a;
+        b.hour = 6;
+        if (i == 4) {
+            b.lat = b.lon = UtilityEcmwfTracks::missing;
+            b.wind = UtilityEcmwfTracks::missing;
+        }
+        member.steps.push_back(b);
+        made.members.push_back(member);
+    }
+    UtilityEcmwfTracks::Member control;   // not part of the distribution
+    control.type = 1;
+    made.members.push_back(control);
+    const auto stats = UtilityEnsembleStats::compute(made, 6);
+    CHECK(stats.size() == 2 && stats[0].total == 5 && stats[0].alive == 5 && stats[1].alive == 4);
+    CHECK(near(stats[0].windMedian, 50.0) && near(stats[0].windMin, 30.0) && near(stats[0].windMax, 70.0) && near(stats[0].wind25, 40.0));
+    CHECK(near(stats[0].probTs, 0.8) && near(stats[0].probHurricane, 0.2) && near(stats[0].probMajor, 0.0));   // only the 70 kt member is a hurricane
+    CHECK(near(stats[1].probAlive, 0.8) && near(stats[1].probTs, 0.6));   // 40, 50, 60 of the 4 alive (30 is below 34), the gone member counts as below
+    CHECK(near(stats[0].radius90, 0.0, 1e-6) && near(stats[0].centerLat, 20.0, 1e-6) && near(stats[0].centerLon, -60.0, 1e-6));
+    CHECK(near(UtilityEnsembleStats::percentile({1.0, 2.0, 3.0, 4.0}, 0.5), 2.5) && !UtilityEcmwfTracks::has(UtilityEnsembleStats::percentile({}, 0.5)));
+}
+
+int main(int argc, char ** argv) {
+    ecmwf(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     atcf();
     hdob();
     gzip();
