@@ -61,8 +61,12 @@ namespace {
         }
     }
 
-    QString knots(int wind) {
-        return wind >= 0 ? QString::number(wind) + " kt" : QString{"-"};
+    QString knots(int wind) {   // "85 kt (Cat 2)"
+        return QString::fromStdString(UtilityAtcf::windLabel(wind));
+    }
+
+    QString knotsOf(double wind) {
+        return UtilityEcmwfTracks::has(wind) ? knots(static_cast<int>(std::lround(wind))) : QString{"-"};
     }
 }
 
@@ -609,8 +613,8 @@ void HurricaneViewer::updateInfo() {
                 QStringList ids;
                 for (const auto& m : missions) ids << QString::fromStdString(m);
                 html += "Aircraft " + ids.join(", ") + ", " + QString::number(count) + " observations, the latest " + QString::fromStdString(UtilityHdob::timeText(newest->seconds)) + "<br>";
-                html += "Peak flight-level wind " + (UtilityHdob::has(peakFlight) ? QString::number(static_cast<int>(peakFlight)) + " kt" : QString{"-"}) +
-                    ", peak SFMR surface wind " + (UtilityHdob::has(peakSfmr) ? QString::number(static_cast<int>(peakSfmr)) + " kt" : QString{"-"}) + "<br>";
+                html += "Peak flight-level wind " + (UtilityHdob::has(peakFlight) ? knotsOf(peakFlight) : QString{"-"}) +
+                    ", peak SFMR surface wind " + (UtilityHdob::has(peakSfmr) ? knotsOf(peakSfmr) : QString{"-"}) + "<br>";
                 if (UtilityHdob::has(lowPressure)) {
                     html += "Lowest extrapolated surface pressure " + QString::number(lowPressure, 'f', 1) + " mb<br>";
                 }
@@ -980,7 +984,7 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
                 for (const auto& s : member.steps) {
                     if (UtilityEcmwfTracks::has(s.lat) && UtilityEcmwfTracks::has(s.lon)) {
                         check(s.lat, s.lon, who + "\nrun " + QString::fromStdString(UtilityAtcf::formatTime(set.cycle)) + ", +" + QString::number(s.hour) + " h" +
-                            (UtilityEcmwfTracks::has(s.wind) ? ", " + QString::number(static_cast<int>(std::lround(s.wind))) + " kt (10 m)" : QString{}) +
+                            (UtilityEcmwfTracks::has(s.wind) ? ", " + knotsOf(s.wind) + " (10 m)" : QString{}) +
                             (UtilityEcmwfTracks::has(s.pressure) ? ", " + QString::number(static_cast<int>(std::lround(s.pressure))) + " mb" : QString{}), "");
                     }
                 }
@@ -1001,7 +1005,7 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
             if (UtilityVdm::has(m.lat) && UtilityVdm::has(m.lon)) {
                 QString text = "Recon centre fix " + VdmViewer::timeText(m.seconds) + "  " + QString::fromStdString(m.aircraft);
                 if (UtilityVdm::has(m.pressure)) text += "\nMinimum pressure " + QString::number(static_cast<int>(m.pressure)) + " mb" + (m.extrapolated ? " (extrapolated)" : "");
-                if (UtilityVdm::has(m.maxFlightWind())) text += "\nStrongest flight-level wind " + QString::number(static_cast<int>(m.maxFlightWind())) + " kt";
+                if (UtilityVdm::has(m.maxFlightWind())) text += "\nStrongest flight-level wind " + knotsOf(m.maxFlightWind());
                 if (!m.eyeCharacter.empty()) text += "\nEye " + QString::fromStdString(m.eyeCharacter + " " + m.eyeShape);
                 check(m.lat, m.lon, text, "");
             }
@@ -1015,10 +1019,10 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
                 }
                 QString text = "Recon " + QString::fromStdString(message.mission.substr(0, message.mission.find(' '))) + "  " + QString::fromStdString(UtilityHdob::timeText(ob.seconds));
                 if (UtilityHdob::has(ob.windSpeed)) {
-                    text += "\nFlight-level wind " + QString::number(static_cast<int>(ob.windSpeed)) + " kt";
+                    text += "\nFlight-level wind " + knotsOf(ob.windSpeed);
                     if (UtilityHdob::has(ob.windDirection)) text += " from " + QString::number(static_cast<int>(ob.windDirection)) + " deg";
                 }
-                if (UtilityHdob::has(ob.sfmrWind)) text += "\nSFMR surface wind " + QString::number(static_cast<int>(ob.sfmrWind)) + " kt";
+                if (UtilityHdob::has(ob.sfmrWind)) text += "\nSFMR surface wind " + knotsOf(ob.sfmrWind);
                 if (UtilityHdob::has(ob.rainRate)) text += ", rain " + QString::number(static_cast<int>(ob.rainRate)) + " mm/h";
                 if (UtilityHdob::has(ob.surfacePressure)) text += "\nSurface pressure (extrapolated) " + QString::number(ob.surfacePressure, 'f', 1) + " mb";
                 if (UtilityHdob::has(ob.height)) text += "\nAltitude " + QString::number(static_cast<int>(ob.height)) + " m";

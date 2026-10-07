@@ -126,12 +126,7 @@ void EnsembleChart::paintEvent(QPaintEvent *) {
     frame(p, press, "Min pressure", "mb", pressMax - pressMin > 60 ? 20.0 : 10.0, xStep);
     frame(p, spread, "Track spread (circle around the mean position)", "km", radiusMax > 800 ? 200.0 : 100.0, xStep);
     frame(p, prob, "Share of members", "%", 25.0, xStep);
-    p.setPen(QPen{QColor{120, 120, 120}, 1.0, Qt::DotLine});
-    for (const double threshold : {34.0, 64.0, 96.0}) {
-        if (threshold < windMax) {
-            p.drawLine(wind.at(0, threshold), wind.at(lastHour, threshold));
-        }
-    }
+    categoryLines(p, wind);
     for (const auto& s : series) {
         if (!shown(s.label)) {
             continue;

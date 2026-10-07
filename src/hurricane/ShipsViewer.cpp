@@ -58,10 +58,10 @@ QString ShipsChart::summary(const UtilityShips::Ships& s) {
     const auto land = peak(s, "V (KT) LAND");
     const auto lgem = peak(s, "V (KT) LGEM");
     if (have(land.first)) {
-        text += " peak " + QString::number(static_cast<int>(land.first)) + " kt at " + QString::number(land.second) + " h";
+        text += " peak " + QString::fromStdString(UtilityAtcf::windLabel(static_cast<int>(land.first))) + " at " + QString::number(land.second) + " h";
     }
     if (have(lgem.first)) {
-        text += " (LGEM " + QString::number(static_cast<int>(lgem.first)) + " kt)";
+        text += " (LGEM " + QString::fromStdString(UtilityAtcf::windLabel(static_cast<int>(lgem.first))) + ")";
     }
     const auto first = [&] (const char * label) {
         const auto * row = s.row(label);
@@ -122,7 +122,7 @@ void ShipsChart::paintEvent(QPaintEvent *) {
     if (lat != nullptr && lon != nullptr && vNow != nullptr && !lat->empty()) {
         p.setPen(QColor{40, 40, 120});
         p.drawText(QRectF{0, 54, leftWidth, 18}, Qt::AlignHCenter, "Now: " + QString::number((*lat)[0], 'f', 1) + " N, " + QString::number((*lon)[0], 'f', 1) + " W, " +
-                                                                  QString::number(static_cast<int>((*vNow)[0])) + " kt");
+                                                                  QString::fromStdString(UtilityAtcf::windLabel(static_cast<int>((*vNow)[0]))));
     }
     p.setPen(QColor{20, 20, 20});
     QFont bold = normal;
@@ -357,12 +357,7 @@ void ShipsChart::paintEvent(QPaintEvent *) {
         }
         const auto a = stripAxes(std::max(10.0, std::floor(lo / 10.0) * 10.0 - 10.0), std::ceil((std::max(high, top1) + 5.0) / 10.0) * 10.0);
         strip("Max wind", "kt", a, (a.yMax - a.yMin) > 80 ? 20.0 : 10.0, false);
-        p.setPen(QPen{QColor{120, 120, 120}, 1.0, Qt::DotLine});
-        for (const double threshold : {34.0, 64.0, 96.0}) {
-            if (threshold > a.yMin && threshold < a.yMax) {
-                p.drawLine(a.at(0, threshold), a.at(hourMax, threshold));
-            }
-        }
+        ChartKit::categoryLines(p, a);
         drawRow(a, "V (KT) NO LAND", QPen{QColor{150, 150, 150}, 2.0});
         drawRow(a, "V (KT) LGEM", QPen{QColor{40, 130, 200}, 1.6, Qt::DashLine});
         drawRow(a, "V (KT) LAND", QPen{QColor{20, 20, 20}, 2.2});
@@ -386,7 +381,7 @@ void ShipsChart::paintEvent(QPaintEvent *) {
             small.setPixelSize(10);
             p.setFont(small);
             p.setPen(QColor{160, 20, 20});
-            p.drawText(pt + QPointF{8.0, -6.0}, QString::number(static_cast<int>(best.first)) + " kt, " + QString::number(best.second) + " h");
+            p.drawText(pt + QPointF{8.0, -6.0}, QString::fromStdString(UtilityAtcf::windLabel(static_cast<int>(best.first))) + ", " + QString::number(best.second) + " h");
         }
         // the key
         p.setFont(normal);

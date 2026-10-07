@@ -281,6 +281,15 @@ string UtilityAtcf::categoryName(int category) {
     return names[std::clamp(category, 0, 6)];
 }
 
+string UtilityAtcf::shortCategory(int wind) {
+    static const char * names[] = {"TD", "TS", "Cat 1", "Cat 2", "Cat 3", "Cat 4", "Cat 5"};
+    return names[std::clamp(categoryOf(wind), 0, 6)];
+}
+
+string UtilityAtcf::windLabel(int wind) {
+    return wind < 0 ? string{"-"} : std::to_string(wind) + " kt (" + shortCategory(wind) + ")";
+}
+
 double UtilityAtcf::hoursBetween(const string& a, const string& b) {
     const auto hours = [] (const string& t) -> double {
         if (t.size() != 10) {

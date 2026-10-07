@@ -53,6 +53,8 @@ public:
     static double coneRadiusNm(int hour);
     static int categoryOf(int windKt);                // 0 = TD or weaker, 1 = TS, 2..6 = hurricane category 1..5
     static string categoryName(int category);
+    static string shortCategory(int windKt);              // "TD", "TS", "Cat 1" ... "Cat 5"
+    static string windLabel(int windKt);                  // "85 kt (Cat 2)"; "-" when the wind is not known (negative)
     static double hoursBetween(const string& timeA, const string& timeB);   // yyyymmddhh strings, B - A
     static string addHours(const string& yyyymmddhh, int hours);            // "2026123118" + 6 -> "2027010100"
     static string formatTime(const string& yyyymmddhh);                    // "Oct 07 00Z"

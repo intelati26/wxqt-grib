@@ -25,7 +25,7 @@ namespace {
         if (!UtilityVdm::has(w.kt)) {
             return "-";
         }
-        QString text = QString::number(static_cast<int>(w.kt)) + " kt";
+        QString text = QString::fromStdString(UtilityAtcf::windLabel(static_cast<int>(w.kt)));
         if (UtilityVdm::has(w.bearing)) {
             text += " at " + QString::number(static_cast<int>(w.bearing)) + " deg / " + QString::number(w.rangeNm, 'f', 0) + " nm";
         }
@@ -47,7 +47,7 @@ QString VdmViewer::summary(const HurricaneData::VdmData& data) {
         text += ": " + QString::number(static_cast<int>(last.pressure)) + " mb" + (last.extrapolated ? " (extrapolated)" : "");
     }
     if (UtilityVdm::has(last.maxFlightWind())) {
-        text += ", max flight-level wind " + QString::number(static_cast<int>(last.maxFlightWind())) + " kt";
+        text += ", max flight-level wind " + QString::fromStdString(UtilityAtcf::windLabel(static_cast<int>(last.maxFlightWind())));
     }
     return text;
 }
@@ -143,7 +143,7 @@ QString tableHtml(const HurricaneData::VdmData& data) {
         const auto& m = *it;
         out += "<tr><td>" + VdmViewer::timeText(m.seconds) + "</td><td>" + number(std::abs(m.lat), 2) + (m.lat >= 0 ? "N " : "S ") + number(std::abs(m.lon), 2) + (m.lon >= 0 ? "E" : "W") + "</td><td>" +
             number(m.pressure) + (m.extrapolated ? " (extrap.)" : "") + "</td><td>" + number(m.heightM) + " m</td><td>" +
-            (UtilityVdm::has(m.centerWindKt) ? number(m.centerWindDir) + " deg " + number(m.centerWindKt) + " kt" : QString{"-"}) + "</td><td>" + q(m.eyeCharacter + (m.eyeShape.empty() ? "" : " " + m.eyeShape)) +
+            (UtilityVdm::has(m.centerWindKt) ? number(m.centerWindDir) + " deg " + QString::fromStdString(UtilityAtcf::windLabel(static_cast<int>(m.centerWindKt))) : QString{"-"}) + "</td><td>" + q(m.eyeCharacter + (m.eyeShape.empty() ? "" : " " + m.eyeShape)) +
             "</td><td>" + wind(m.inboundFlight) + "</td><td>" + wind(m.outboundFlight) + "</td><td>" + number(m.tempOutsideC) + " / " + number(m.tempInsideC) + "</td><td>" + q(m.aircraft) + "</td></tr>";
     }
     return out + "</table>";

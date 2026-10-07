@@ -10,6 +10,7 @@
 #include "hurricane/UtilityEnsembleStats.h"
 #include "hurricane/UtilityPod.h"
 #include "hurricane/UtilityVdm.h"
+#include "hurricane/UtilitySeason.h"
 #include "hurricane/UtilityShips.h"
 #include "util/UtilityGzip.h"
 
@@ -53,6 +54,9 @@ static void atcf() {
     CHECK(near(UtilityAtcf::hoursBetween("2026100700", "2026100806"), 30.0));
     CHECK(near(UtilityAtcf::hoursBetween("2026123118", "2027010100"), 6.0));
     CHECK(UtilityAtcf::formatTime("2026100718") == "Oct 07 18Z");
+    CHECK(UtilityAtcf::shortCategory(30) == "TD" && UtilityAtcf::shortCategory(34) == "TS" && UtilityAtcf::shortCategory(64) == "Cat 1" && UtilityAtcf::shortCategory(83) == "Cat 2");
+    CHECK(UtilityAtcf::shortCategory(96) == "Cat 3" && UtilityAtcf::shortCategory(113) == "Cat 4" && UtilityAtcf::shortCategory(137) == "Cat 5" && UtilityAtcf::shortCategory(180) == "Cat 5");
+    CHECK(UtilityAtcf::windLabel(85) == "85 kt (Cat 2)" && UtilityAtcf::windLabel(35) == "35 kt (TS)" && UtilityAtcf::windLabel(-1) == "-");
     CHECK(UtilityAtcf::addHours("2026123118", 6) == "2027010100" && UtilityAtcf::addHours("2026100700", 0) == "2026100700");
     CHECK(UtilityAtcf::addHours("2026030100", -1) == "2026022823" && UtilityAtcf::addHours("2024030100", -1) == "2024022923");   // leap year
     CHECK(UtilityAtcf::addHours("2026100700", 168) == "2026101400" && UtilityAtcf::addHours("2026100700", -72) == "2026100400");
@@ -277,7 +281,45 @@ static void vdm(const std::string& fixtures) {
     CHECK(UtilityVdm::parse(check, "202607290000", v) && v.test);
 }
 
+// seasons and ACE from HURDAT2 (real records for 2011 and 2025; the expected numbers were computed apart from this code, from the whole file)
+static void season(const std::string& fixtures) {
+    const auto storms = UtilitySeason::parseHurdat2(readFile(fixtures + "/hurdat2_2011_2025.txt"));
+    const auto seasons = UtilitySeason::seasons(storms);
+    CHECK(seasons.size() == 2 && seasons[0].year == 2011 && seasons[1].year == 2025);
+    CHECK(seasons[0].cyclones == 20 && seasons[0].named == 19 && seasons[0].hurricanes == 7 && seasons[0].major == 4 && near(seasons[0].ace, 126.303, 0.001));
+    CHECK(seasons[1].cyclones == 13 && seasons[1].named == 13 && seasons[1].hurricanes == 6 && seasons[1].major == 4 && near(seasons[1].ace, 130.773, 0.001));
+    const UtilitySeason::Storm * irene = nullptr;
+    for (const auto& s : storms) {
+        if (s.id == "AL092011") irene = &s;
+    }
+    CHECK(irene != nullptr && irene->name == "IRENE" && irene->peakWind == 105 && irene->minPressure == 942 && irene->first == "2011082100" && irene->last == "2011083000" && irene->stormStrength);
+    CHECK(UtilitySeason::categoryName(irene->peakWind) == "Category 3" && UtilitySeason::categoryName(30) == "Tropical depression");
+    // a record off the synoptic hours (a landfall at 09:35) and a depression or extratropical record do not add
+    CHECK(near(UtilitySeason::recordAce(12, "HU", 100), 1.0) && near(UtilitySeason::recordAce(1, "HU", 100), 0.0) && near(UtilitySeason::recordAce(0, "TD", 30), 0.0));
+    CHECK(near(UtilitySeason::recordAce(6, "EX", 60), 0.0) && near(UtilitySeason::recordAce(6, "SS", 40), 0.16) && near(UtilitySeason::recordAce(18, "TS", 33), 0.0));
+    // the cache form is lossless for what the table uses
+    const auto again = UtilitySeason::fromCsv(UtilitySeason::csv(storms));
+    CHECK(again.size() == storms.size() && again[0].id == storms[0].id && near(again[5].ace, storms[5].ace, 1e-6) && UtilitySeason::seasons(again)[1].named == 13);
+    CHECK(near(UtilitySeason::mean(seasons, 2011, 2025, &UtilitySeason::Season::named), 16.0));
+    // an ATCF best track in the same terms (storm strength at 06Z and 12Z: 35 kt and 40 kt; the 03Z record is not synoptic)
+    std::vector<UtilityAtcf::Fix> best(4);
+    const char * times[] = {"2026100700", "2026100703", "2026100706", "2026100712"};
+    const int winds[] = {30, 32, 35, 40};
+    for (size_t i = 0; i < 4; i++) {
+        best[i].time = times[i];
+        best[i].wind = winds[i];
+        best[i].pressure = 1010 - static_cast<int>(i);
+        best[i].status = i < 2 ? "TD" : "TS";
+        best[i].name = i == 3 ? "ISAIAS" : "NINE";
+    }
+    const auto now = UtilitySeason::fromBestTrack(best, "al092026");
+    CHECK(now.id == "AL092026" && now.name == "ISAIAS" && now.year == 2026 && now.peakWind == 40 && now.minPressure == 1007 && now.stormStrength && near(now.ace, (35.0 * 35 + 40.0 * 40) / 1e4));
+    CHECK(UtilitySeason::newestHurdatFile("x hurdat2-1851-2024-040425.txt y hurdat2-1851-2025-02272026.txt hurdat2-1851-2025-091226.txt hurdat2-1851-2025-092326.txt z hurdat2-nepac-1949-2025-092926.txt") ==
+          "hurdat2-1851-2025-092326.txt");
+}
+
 int main(int argc, char ** argv) {
+    season(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     vdm(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     pod(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     ships(argc > 1 ? argv[1] : "tests/hurricane/fixtures");

@@ -63,6 +63,24 @@ namespace ChartKit {
         p.drawText(QPointF{a.area.left(), a.area.top() - 6}, title + (yUnit.isEmpty() ? QString{} : "  (" + yUnit + ")"));
     }
 
+    // dotted lines at the category thresholds (tropical storm 34 kt, Cat 1 64, Cat 2 83, Cat 3 96, Cat 4 113, Cat 5 137), named at the right edge
+    inline void categoryLines(QPainter& p, const Axes& a) {
+        static const int thresholds[] = {34, 64, 83, 96, 113, 137};
+        QFont small{p.font()};
+        small.setPixelSize(9);
+        p.setFont(small);
+        for (const int w : thresholds) {
+            if (w <= a.yMin || w >= a.yMax) {
+                continue;
+            }
+            const auto at = a.at(a.xMin, w);
+            p.setPen(QPen{QColor{150, 150, 150}, 1.0, Qt::DotLine});
+            p.drawLine(QPointF{a.area.left(), at.y()}, QPointF{a.area.right(), at.y()});
+            p.setPen(QColor{110, 110, 110});
+            p.drawText(QRectF{a.area.right() - 44, at.y() - 12, 42, 11}, Qt::AlignRight | Qt::AlignBottom, QString::fromStdString(UtilityAtcf::shortCategory(w)));
+        }
+    }
+
     // a band between two series; gaps in the data end it
     template <class Low, class High>
     void band(QPainter& p, const Axes& a, const vector<Stats::Hour>& hours, Low low, High high, const QColor& color) {

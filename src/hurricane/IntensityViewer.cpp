@@ -165,12 +165,7 @@ void IntensityChart::paintEvent(QPaintEvent *) {
     const Axes press{QRectF{marginLeft, 22.0 + height + 30.0, width, height}, 0.0, end, pressLow, pressHigh};
     frame(p, wind, "Maximum wind", "kt", windMax > 120 ? 40.0 : 20.0, xStep, label);
     frame(p, press, "Minimum pressure", "mb", pressHigh - pressLow > 80 ? 20.0 : 10.0, xStep, label);
-    p.setPen(QPen{QColor{120, 120, 120}, 1.0, Qt::DotLine});
-    for (const double threshold : {34.0, 64.0, 96.0}) {
-        if (threshold < windMax) {
-            p.drawLine(wind.at(0, threshold), wind.at(end, threshold));
-        }
-    }
+    categoryLines(p, wind);
     // now
     for (const auto * axes : {&wind, &press}) {
         p.setPen(QPen{QColor{200, 60, 60}, 1.0, Qt::DashLine});
