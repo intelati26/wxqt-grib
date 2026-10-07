@@ -18,6 +18,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include "hurricane/EnsembleStatsViewer.h"
+#include "hurricane/IntensityViewer.h"
 #include "hurricane/PodViewer.h"
 #include "hurricane/ShipsViewer.h"
 #include "hurricane/VdmViewer.h"
@@ -92,6 +93,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     , buttonShips{this, None, "SHIPS and RI..."}
     , buttonPod{this, None, "Recon plan of the day..."}
     , buttonVdm{this, None, "Recon vortex messages..."}
+    , buttonIntensity{this, None, "Intensity chart..."}
     , textStatus{this, "Loading..."}
     , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
 {
@@ -180,6 +182,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
         QObject::connect(ensembleChecks[i], &QCheckBox::toggled, [this] { view->map()->update(); });
         column->addWidget(ensembleChecks[i]);
     }
+    column->addWidget(buttonIntensity.getView());
     column->addWidget(buttonStats.getView());
     column->addWidget(buttonShips.getView());
     column->addWidget(buttonPod.getView());
@@ -202,6 +205,11 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     comboStorm.connect([this] { if (!filling) { loadStorm(); } });
     buttonRefresh.connect([this] { loadList(); });
     buttonZoom.connect([this] { zoomToStorm(); });
+    buttonIntensity.connect([this] {
+        if (storm) {
+            new IntensityViewer{this, storm, ensembles, ships, vdm, recon};
+        }
+    });
     buttonVdm.connect([this] {
         if (vdm && storm) {
             new VdmViewer{this, vdm, QString::fromStdString(HurricaneData::idLabel(storm->id))};

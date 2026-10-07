@@ -7,6 +7,7 @@
 #define CHARTKIT_H
 
 #include <cmath>
+#include <functional>
 #include <vector>
 #include <QColor>
 #include <QFont>
@@ -32,7 +33,8 @@ namespace ChartKit {
         }
     };
 
-    inline void frame(QPainter& p, const Axes& a, const QString& title, const QString& yUnit, double yStep, double xStep, bool pressure = false) {
+    inline void frame(QPainter& p, const Axes& a, const QString& title, const QString& yUnit, double yStep, double xStep,
+                              const std::function<QString(double)>& xLabel = {}) {
         p.setPen(QColor{210, 210, 210});
         p.setBrush(QColor{252, 252, 252});
         p.drawRect(a.area);
@@ -51,7 +53,7 @@ namespace ChartKit {
             p.setPen(QColor{232, 232, 232});
             p.drawLine(QPointF{at.x(), a.area.top()}, QPointF{at.x(), a.area.bottom()});
             p.setPen(QColor{70, 70, 70});
-            p.drawText(QRectF{at.x() - 24, a.area.bottom() + 2, 48, 14}, Qt::AlignHCenter, QString::number(static_cast<int>(x)) + " h");
+            p.drawText(QRectF{at.x() - 40, a.area.bottom() + 2, 80, 14}, Qt::AlignHCenter, xLabel ? xLabel(x) : QString::number(static_cast<int>(x)) + " h");
         }
         QFont bold{p.font()};
         bold.setPixelSize(12);
@@ -59,7 +61,6 @@ namespace ChartKit {
         p.setFont(bold);
         p.setPen(QColor{30, 30, 30});
         p.drawText(QPointF{a.area.left(), a.area.top() - 6}, title + (yUnit.isEmpty() ? QString{} : "  (" + yUnit + ")"));
-        (void)pressure;
     }
 
     // a band between two series; gaps in the data end it

@@ -53,6 +53,9 @@ static void atcf() {
     CHECK(near(UtilityAtcf::hoursBetween("2026100700", "2026100806"), 30.0));
     CHECK(near(UtilityAtcf::hoursBetween("2026123118", "2027010100"), 6.0));
     CHECK(UtilityAtcf::formatTime("2026100718") == "Oct 07 18Z");
+    CHECK(UtilityAtcf::addHours("2026123118", 6) == "2027010100" && UtilityAtcf::addHours("2026100700", 0) == "2026100700");
+    CHECK(UtilityAtcf::addHours("2026030100", -1) == "2026022823" && UtilityAtcf::addHours("2024030100", -1) == "2024022923");   // leap year
+    CHECK(UtilityAtcf::addHours("2026100700", 168) == "2026101400" && UtilityAtcf::addHours("2026100700", -72) == "2026100400");
     const auto names = UtilityAtcf::parseTechList(
         "NUM TECH ERRS RETIRED COLOR DEFAULTS INT-DEFS RADII-DEFS LONG-NAME\n"
         " 03 OFCL   1      0    28      1        1         1                 NHC official forecast\n");

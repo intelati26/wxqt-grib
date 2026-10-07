@@ -6,6 +6,7 @@
 #include "hurricane/UtilityAtcf.h"
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
 #include <set>
 #include <sstream>
@@ -311,4 +312,26 @@ double UtilityAtcf::coneRadiusNm(int hour) {
         }
     }
     return radii[std::size(radii) - 1];
+}
+
+string UtilityAtcf::addHours(const string& t, int hours) {
+    if (t.size() != 10) {
+        return t;
+    }
+    long total = daysFromCivil(std::stoi(t.substr(0, 4)), std::stoi(t.substr(4, 2)), std::stoi(t.substr(6, 2))) * 24L + std::stoi(t.substr(8, 2)) + hours;
+    long days = total >= 0 ? total / 24 : -((-total + 23) / 24);
+    const int hour = static_cast<int>(total - days * 24);
+    // civil date from days since 1970-01-01
+    days += 719468;
+    const long era = (days >= 0 ? days : days - 146096) / 146097;
+    const long doe = days - era * 146097;
+    const long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    const long doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    const long mp = (5 * doy + 2) / 153;
+    const int day = static_cast<int>(doy - (153 * mp + 2) / 5 + 1);
+    const int month = static_cast<int>(mp < 10 ? mp + 3 : mp - 9);
+    const long year = yoe + era * 400 + (month <= 2 ? 1 : 0);
+    char buffer[48];
+    std::snprintf(buffer, sizeof buffer, "%04ld%02d%02d%02d", year, month, day, hour);
+    return buffer;
 }
