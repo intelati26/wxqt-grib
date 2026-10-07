@@ -12,6 +12,7 @@
 #include "hurricane/UtilityAtcf.h"
 #include "hurricane/UtilityEcmwfTracks.h"
 #include "hurricane/UtilityPod.h"
+#include "hurricane/UtilitySeason.h"
 #include "hurricane/UtilityShips.h"
 #include "hurricane/UtilityVdm.h"
 #include "hurricane/UtilityHdob.h"
@@ -78,6 +79,14 @@ public:
         int filesRead{0};
         string error;
     };
+    struct SeasonData {
+        vector<UtilitySeason::Storm> history;      // HURDAT2, 1851 through the last finished season
+        vector<UtilitySeason::Storm> current;      // this season so far, from the ATCF best tracks (numbers 1 to 89)
+        vector<string> active;                     // ids of those whose file was touched in the last two days
+        int currentYear{0};
+        string hurdatFile;
+        string error;
+    };
     static bool loadStormList(vector<StormEntry>& entries, string& error);
     static void loadStorm(const string& id, StormData& data);
     static void loadRecon(ReconData& data, int bulletins);
@@ -88,6 +97,7 @@ public:
     static void loadShips(const string& nhcId, ShipsData& data);   // NHC's SHIPS text for the newest cycle
     static void loadPod(PodData& data);   // the newest Plan of the Day in the NHC recon archive
     static void loadVdm(const string& nhcId, VdmData& data);   // the recent vortex data messages for the storm (NHC recon archive, REPNT2)
+    static void loadSeason(SeasonData& data);   // HURDAT2 (cached on disk) and this season's ATCF best tracks
     static string ecmwfId(const string& nhcId);     // "al092026" -> "09L"
     static string idLabel(const string& id);        // "al092026" -> "AL09"
 };

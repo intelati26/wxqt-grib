@@ -20,6 +20,7 @@
 #include "hurricane/EnsembleStatsViewer.h"
 #include "hurricane/IntensityViewer.h"
 #include "hurricane/PodViewer.h"
+#include "hurricane/SeasonViewer.h"
 #include "hurricane/ShipsViewer.h"
 #include "hurricane/VdmViewer.h"
 #include "objects/FutureVoid.h"
@@ -98,6 +99,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     , buttonPod{this, None, "Recon plan of the day..."}
     , buttonVdm{this, None, "Recon vortex messages..."}
     , buttonIntensity{this, None, "Intensity chart..."}
+    , buttonSeason{this, None, "Season table and ACE..."}
     , textStatus{this, "Loading..."}
     , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
 {
@@ -187,6 +189,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
         column->addWidget(ensembleChecks[i]);
     }
     column->addWidget(buttonIntensity.getView());
+    column->addWidget(buttonSeason.getView());
     column->addWidget(buttonStats.getView());
     column->addWidget(buttonShips.getView());
     column->addWidget(buttonPod.getView());
@@ -209,6 +212,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     comboStorm.connect([this] { if (!filling) { loadStorm(); } });
     buttonRefresh.connect([this] { loadList(); });
     buttonZoom.connect([this] { zoomToStorm(); });
+    buttonSeason.connect([this] { openSeason(); });
     buttonIntensity.connect([this] {
         if (storm) {
             new IntensityViewer{this, storm, ensembles, ships, vdm, recon};
@@ -369,6 +373,25 @@ void HurricaneViewer::loadEnsembles() {
             }
             updateInfo();
             view->map()->update();
+        }};
+}
+
+// the season window: the data is loaded on first use (the history file is large the first time, then kept on disk)
+void HurricaneViewer::openSeason() {
+    textStatus.setText(string{"Loading the hurricane seasons (the first time this downloads NHC's HURDAT2 file, about 7 MB)..."});
+    auto data = std::make_shared<HurricaneData::SeasonData>();
+    new FutureVoid{this,
+        [data] { HurricaneData::loadSeason(*data); },
+        [this, data] {
+            if (closed) {
+                return;
+            }
+            if (!data->error.empty()) {
+                textStatus.setText(data->error);
+                return;
+            }
+            textStatus.setText(string{"Seasons loaded"});
+            new SeasonViewer{this, data};
         }};
 }
 

@@ -13,8 +13,11 @@
 #include <QByteArray>
 #include <QDateTime>
 #include <QJsonArray>
+#include <QDir>
+#include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QStandardPaths>
 #include "hurricane/UtilityEnsembleStats.h"
 #include "hurricane/UtilityVdm.h"
 #include "util/UtilityGzip.h"
@@ -371,4 +374,65 @@ void HurricaneData::loadVdm(const string& nhcId, VdmData& data) {
     // the same message can be filed twice (a retransmission): one per fix time and aircraft
     data.messages.erase(std::unique(data.messages.begin(), data.messages.end(), [] (const auto& a, const auto& b) { return a.seconds == b.seconds && a.aircraft == b.aircraft; }),
                         data.messages.end());
+}
+
+void HurricaneData::loadSeason(SeasonData& data) {
+    data = SeasonData{};
+    const auto year = QDateTime::currentDateTimeUtc().date().year();
+    data.currentYear = year;
+    // the database: the newest file in NHC's directory; read once, then kept on disk as a compact list of storms
+    const auto listing = download("https://www.nhc.noaa.gov/data/hurdat/");
+    data.hurdatFile = UtilitySeason::newestHurdatFile(listing);
+    if (data.hurdatFile.empty()) {
+        data.error = "Could not find the HURDAT2 file on the NHC site.";
+    } else {
+        const auto folder = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/hurricane";
+        QDir{}.mkpath(folder);
+        const auto cachePath = folder + "/" + QString::fromStdString(data.hurdatFile) + ".csv";
+        QFile cache{cachePath};
+        if (cache.open(QIODevice::ReadOnly)) {
+            data.history = UtilitySeason::fromCsv(cache.readAll().toStdString());
+            cache.close();
+        }
+        if (data.history.empty()) {
+            data.history = UtilitySeason::parseHurdat2(download("https://www.nhc.noaa.gov/data/hurdat/" + data.hurdatFile));
+            if (data.history.empty()) {
+                data.error = "Could not read the HURDAT2 file " + data.hurdatFile + ".";
+            } else if (cache.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                cache.write(QByteArray::fromStdString(UtilitySeason::csv(data.history)));
+                cache.close();
+                // older cached versions are no longer needed
+                for (const auto& old : QDir{folder}.entryList({"hurdat2-*.csv"}, QDir::Files)) {
+                    if (old != QString::fromStdString(data.hurdatFile) + ".csv") {
+                        QFile::remove(folder + "/" + old);
+                    }
+                }
+            }
+        }
+    }
+    int through = 0;
+    for (const auto& s : data.history) {
+        through = std::max(through, s.year);
+    }
+    // this season: the storms of the ATCF btk/ directory (numbers 90 and up are invests that have not become anything)
+    if (year > through) {
+        const auto btk = download(atcf + "btk/");
+        const std::regex row{R"re(href="(bal(\d\d)(\d{4})\.dat)"[^\n]*?(\d{4}-\d\d-\d\d \d\d:\d\d))re"};
+        const auto now = QDateTime::currentDateTimeUtc();
+        for (std::sregex_iterator it{btk.begin(), btk.end(), row}, end; it != end; ++it) {
+            if (std::stoi((*it)[3]) != year || std::stoi((*it)[2]) >= 90) {
+                continue;
+            }
+            const string id = "al" + string{(*it)[2]} + string{(*it)[3]};
+            auto storm = UtilitySeason::fromBestTrack(UtilityAtcf::bestTrack(download(atcf + "btk/" + string{(*it)[1]})), id);
+            if (storm.first.empty()) {
+                continue;
+            }
+            data.current.push_back(storm);
+            const auto modified = QDateTime::fromString(QString::fromStdString((*it)[4]), "yyyy-MM-dd HH:mm");
+            if (modified.isValid() && modified.secsTo(now) < 2 * 86400) {
+                data.active.push_back(storm.id);
+            }
+        }
+    }
 }
