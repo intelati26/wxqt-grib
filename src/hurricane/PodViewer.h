@@ -18,7 +18,7 @@ class PodViewer : public Window {
 public:
     PodViewer(Window * parent, const std::shared_ptr<HurricaneData::PodData>& pod);
     static QString html(const HurricaneData::PodData& pod);
-    static QString summary(const HurricaneData::PodData& pod);   // "Plan of the Day 26-128: 6 flights for AL92"
+    static QString summary(const HurricaneData::PodData& pod, bool pacific = false);   // "Plan of the Day 26-128: 6 Atlantic flights for AL92"
 
 private:
     VBox box;

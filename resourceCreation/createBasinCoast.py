@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Builds resourceCreation/res/atlantic.bin: the coastlines and country borders of the Atlantic basin for the hurricane map.
+"""Builds resourceCreation/res/nhc_basins.bin: the coastlines and country borders of the Atlantic and Eastern / Central Pacific basins for the hurricane map.
 
 Source: Natural Earth 1:50m coastline and land boundary lines (public domain, naturalearthdata.com), clipped to the basin and
 simplified. File layout: little-endian float32 pairs (longitude, latitude); a pair of NaN ends each line.
-Usage: createAtlanticCoast.py ne_50m_coastline.geojson ne_50m_admin_0_boundary_lines_land.geojson [tolerance-degrees]
+Usage: createBasinCoast.py ne_50m_coastline.geojson ne_50m_admin_0_boundary_lines_land.geojson [tolerance-degrees]
 """
 import json, math, struct, sys
 
-WEST, EAST, SOUTH, NORTH = -118.0, 25.0, -8.0, 65.0
+WEST, EAST, SOUTH, NORTH = -180.0, 25.0, -8.0, 65.0
 
 def simplify(points, tol):
     if len(points) < 3:
@@ -65,7 +65,7 @@ def main():
                     out += struct.pack("<ff", lon, lat)
                 out += struct.pack("<ff", float("nan"), float("nan"))
                 count += 1
-    open("resourceCreation/res/atlantic.bin", "wb").write(out)
+    open("resourceCreation/res/nhc_basins.bin", "wb").write(out)
     print(count, "lines,", len(out), "bytes")
 
 main()

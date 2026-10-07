@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-// The coastlines and borders of the Atlantic basin (resourceCreation/res/atlantic.bin, Natural Earth): lines of (longitude, latitude) points
+// The coastlines and borders of the Atlantic basin (resourceCreation/res/nhc_basins.bin, Natural Earth): lines of (longitude, latitude) points
 class Coast {
 public:
     static const std::vector<std::vector<std::pair<float, float>>>& lines();

@@ -50,7 +50,7 @@ public:
     static string groupName(Group);
     // NHC's forecast cone: the radius (nm) of the circle at a forecast hour (2026 Atlantic: two thirds of the 2021-2025 official track errors),
     // linear between the published hours (12, 24, 36, 48, 60, 72, 96, 120) and from 0 at hour 0; beyond 120 h the 120 h value
-    static double coneRadiusNm(int hour);
+    static double coneRadiusNm(int hour, bool pacific = false);   // Atlantic, or Eastern and Central Pacific (25 37 48 56 66 78 106 138 nm at 12 ... 120 h in 2026)
     static int categoryOf(int windKt);                // 0 = TD or weaker, 1 = TS, 2..6 = hurricane category 1..5
     static string categoryName(int category);
     static string shortCategory(int windKt);              // "TD", "TS", "Cat 1" ... "Cat 5"

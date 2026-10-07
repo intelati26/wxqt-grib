@@ -91,6 +91,7 @@ QColor HurricaneViewer::categoryColor(int category) {
 
 HurricaneViewer::HurricaneViewer(Window * parent)
     : Window{parent}
+    , comboBasin{this, {"Atlantic", "East Pacific", "Central Pacific"}}
     , comboStorm{this, {"Loading the storm list..."}}
     , buttonRefresh{this, None, "Refresh"}
     , buttonZoom{this, None, "Zoom to the storm"}
@@ -104,11 +105,11 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("Atlantic hurricanes - track, model guidance and recon");
+    setTitle("Tropical cyclones (NHC basins) - track, model guidance and recon");
     textStatus.setWordWrap(false);
 
-    // the coastlines and borders of the basin (resourceCreation/createAtlanticCoast.py): float pairs, a NaN pair ends a line
-    QFile file{":/res/atlantic.bin"};
+    // the coastlines and borders of the basin (resourceCreation/createBasinCoast.py): float pairs, a NaN pair ends a line
+    QFile file{":/res/nhc_basins.bin"};
     if (file.open(QIODevice::ReadOnly)) {
         const auto bytes = file.readAll();
         const auto * values = reinterpret_cast<const float *>(bytes.constData());
@@ -214,6 +215,13 @@ HurricaneViewer::HurricaneViewer(Window * parent)
         updateInfo();
     });
 
+    comboBasin.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("HURRICANE_BASIN", 0), 0, 2)));
+    comboBasin.connect([this] {
+        Utility::writePrefInt("HURRICANE_BASIN", comboBasin.getIndex());
+        recon.reset();
+        storm.reset();
+        loadList();
+    });
     comboStorm.connect([this] { if (!filling) { loadStorm(); } });
     buttonRefresh.connect([this] { loadList(); });
     buttonZoom.connect([this] { zoomToStorm(); });
@@ -251,6 +259,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
             textStatus.setText(string{"No ensemble members loaded for this storm yet."});
         }
     });
+    rowTop.addWidget(comboBasin);
     rowTop.addWidget(comboStorm);
     rowTop.addWidget(buttonRefresh);
     rowTop.addWidget(buttonZoom);
@@ -289,14 +298,20 @@ bool HurricaneViewer::groupShown(Group group) const {
     return false;
 }
 
+string HurricaneViewer::basinCode() const {
+    static const char * codes[] = {"al", "ep", "cp"};
+    return codes[std::clamp(comboBasin.getIndex(), 0, 2)];
+}
+
 void HurricaneViewer::loadList() {
     const auto gen = ++generation;
-    textStatus.setText(string{"Loading the Atlantic storm list..."});
+    textStatus.setText(string{"Loading the storm list..."});
     auto list = std::make_shared<vector<HurricaneData::StormEntry>>();
     auto error = std::make_shared<string>();
     auto ok = std::make_shared<bool>(false);
+    const auto basin = basinCode();
     new FutureVoid{this,
-        [list, error, ok] { *ok = HurricaneData::loadStormList(*list, *error); },
+        [list, error, ok, basin] { *ok = HurricaneData::loadStormList(*list, *error, basin); },
         [this, gen, list, error, ok] {
             if (closed || gen != generation) {
                 return;
@@ -387,8 +402,9 @@ void HurricaneViewer::loadEnsembles() {
 void HurricaneViewer::openSeason() {
     textStatus.setText(string{"Loading the hurricane seasons (the first time this downloads NHC's HURDAT2 file, about 7 MB)..."});
     auto data = std::make_shared<HurricaneData::SeasonData>();
+    const string basin = basinCode() == "al" ? "al" : "ep";   // the northeast Pacific file holds both the Eastern and the Central Pacific
     new FutureVoid{this,
-        [data] { HurricaneData::loadSeason(*data); },
+        [data, basin] { HurricaneData::loadSeason(*data, basin); },
         [this, data] {
             if (closed) {
                 return;
@@ -471,8 +487,9 @@ void HurricaneViewer::loadRecon() {
     const auto gen = generation;
     textStatus.setText(string{"Loading the recent reconnaissance bulletins..."});
     auto data = std::make_shared<HurricaneData::ReconData>();
+    const auto basin = basinCode();
     new FutureVoid{this,
-        [data] { HurricaneData::loadRecon(*data, 36); },
+        [data, basin] { HurricaneData::loadRecon(*data, 36, basin); },
         [this, gen, data] {
             if (closed || gen != generation) {
                 return;
@@ -614,7 +631,7 @@ void HurricaneViewer::updateInfo() {
         html += "<br><b>Vortex messages</b> " + VdmViewer::summary(*vdm) + "<br>";
     }
     if (pod && pod->error.empty()) {
-        html += "<br><b>Recon plan</b> " + PodViewer::summary(*pod).mid(PodViewer::summary(*pod).indexOf(' ', 12) + 1) + "<br>";
+        html += "<br><b>Recon plan</b> " + PodViewer::summary(*pod, basinCode() != "al").mid(PodViewer::summary(*pod, basinCode() != "al").indexOf(' ', 12) + 1) + "<br>";
     }
     if (ships && ships->ships.ok) {
         html += "<br><b>SHIPS</b> " + ShipsChart::summary(ships->ships).mid(6) + "<br>";
@@ -761,7 +778,7 @@ void HurricaneViewer::paintMap(QPainter& painter) {
         painter.setPen(QPen{QColor{255, 255, 255, 190}, 1.4 * px, Qt::DashLine});
         painter.setBrush(QColor{255, 255, 255, 38});
         painter.drawPath(cone);
-    } else if (coneCheck->isChecked() && storm->id.rfind("al", 0) == 0 && storm->official.fixes.size() >= 2) {
+    } else if (coneCheck->isChecked() && storm->official.fixes.size() >= 2) {
         // otherwise the area swept by NHC's published error circles along the official forecast (12, 24 ... 120 h)
         const auto circle = [&] (double lat, double lon, double nm) {
             QPolygonF points;
@@ -803,8 +820,8 @@ void HurricaneViewer::paintMap(QPainter& painter) {
         }
         QPainterPath cone;
         for (size_t i = 1; i < marks.size(); i++) {
-            QPolygonF both = circle(marks[i - 1]->lat, marks[i - 1]->lon, UtilityAtcf::coneRadiusNm(marks[i - 1]->tau));
-            both += circle(marks[i]->lat, marks[i]->lon, UtilityAtcf::coneRadiusNm(marks[i]->tau));
+            QPolygonF both = circle(marks[i - 1]->lat, marks[i - 1]->lon, UtilityAtcf::coneRadiusNm(marks[i - 1]->tau, storm->id.rfind("al", 0) != 0));
+            both += circle(marks[i]->lat, marks[i]->lon, UtilityAtcf::coneRadiusNm(marks[i]->tau, storm->id.rfind("al", 0) != 0));
             QPainterPath piece;
             piece.addPolygon(hull(both));
             piece.closeSubpath();
@@ -994,7 +1011,8 @@ void HurricaneViewer::paintPlannedRecon(QPainter& painter) {
     font.setPixelSize(static_cast<int>(11 * px));
     painter.setFont(font);
     vector<QPointF> labelled;   // a label only where there is room for it
-    for (const auto& requirement : pod->pod.atlantic) {
+    for (const auto * list : {basinCode() == "al" ? &pod->pod.atlantic : &pod->pod.pacific}) {   // the flights of the chosen basin
+      for (const auto& requirement : *list) {
         for (const auto& f : requirement.flights) {
             if (!f.hasPosition) {
                 continue;
@@ -1013,6 +1031,7 @@ void HurricaneViewer::paintPlannedRecon(QPainter& painter) {
                 painter.drawText(at + QPointF{10 * px, 4 * px}, QString::fromStdString(f.aircraft + " " + f.fixTimes.substr(0, f.fixTimes.find(','))));
             }
         }
+      }
     }
 }
 

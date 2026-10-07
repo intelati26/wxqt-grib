@@ -56,19 +56,19 @@ QString PodViewer::html(const HurricaneData::PodData& data) {
     return out;
 }
 
-QString PodViewer::summary(const HurricaneData::PodData& data) {
+QString PodViewer::summary(const HurricaneData::PodData& data, bool pacific) {
     const auto& pod = data.pod;
     int flights = 0;
     QString where;
-    for (const auto& requirement : pod.atlantic) {
+    for (const auto& requirement : pacific ? pod.pacific : pod.atlantic) {
         flights += static_cast<int>(requirement.flights.size());
         const auto title = QString::fromStdString(requirement.title);
         where += (where.isEmpty() ? "" : ", ") + title.left(title.indexOf(" ("));
     }
     if (flights == 0) {
-        return "Plan of the Day " + QString::fromStdString(pod.number) + ": no Atlantic flights";
+        return "Plan of the Day " + QString::fromStdString(pod.number) + (pacific ? ": no Pacific flights" : ": no Atlantic flights");
     }
-    return "Plan of the Day " + QString::fromStdString(pod.number) + ": " + QString::number(flights) + " Atlantic flights for " + where;
+    return "Plan of the Day " + QString::fromStdString(pod.number) + ": " + QString::number(flights) + (pacific ? " Pacific flights for " : " Atlantic flights for ") + where;
 }
 
 PodViewer::PodViewer(Window * parent, const std::shared_ptr<HurricaneData::PodData>& pod)

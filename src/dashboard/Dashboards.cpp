@@ -54,7 +54,7 @@ void Dashboards::openTropicalHub(Window * parent) {
                 "GFS / GEFS (NOMADS); needs the multi-model decision", "Later"},
         },
         {
-            Link{"Atlantic hurricanes: track, spaghetti, recon (new)", [] (Window * w) { new HurricaneViewer{w}; }},
+            Link{"Tropical cyclones: track, spaghetti, recon (new)", [] (Window * w) { new HurricaneViewer{w}; }},
             Link{"Tropical: active storms (existing)", [] (Window * w) { new TropicalViewer{w}; }},
             Link{"Climate and ocean (existing)", [] (Window * w) { new ClimateViewer{w}; }},
             Link{"NHC tool (existing)", [] (Window * w) { new Nhc{w}; }},

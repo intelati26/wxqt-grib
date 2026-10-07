@@ -44,6 +44,7 @@ private:
     void loadGis();
     void loadVdm();
     void openSeason();
+    string basinCode() const;                  // "al", "ep" or "cp"
     void showStorm();                       // after a storm has loaded: the panel text, the map region
     void zoomToStorm();
     void updateInfo();
@@ -67,6 +68,7 @@ private:
     VBox box;
     HBox rowTop;
     HBox rowMain;
+    ComboBox comboBasin;                                      // Atlantic, Eastern Pacific, Central Pacific
     ComboBox comboStorm;
     Button buttonRefresh;
     Button buttonZoom;

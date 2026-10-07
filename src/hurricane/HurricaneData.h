@@ -96,19 +96,21 @@ public:
         vector<string> active;                     // ids of those whose file was touched in the last two days
         int currentYear{0};
         string hurdatFile;
+        string basin;           // "al", or "ep" for the northeast Pacific
         string error;
     };
-    static bool loadStormList(vector<StormEntry>& entries, string& error);
+    // basin: "al" Atlantic, "ep" Eastern Pacific, "cp" Central Pacific (the NHC / CPHC basins)
+    static bool loadStormList(vector<StormEntry>& entries, string& error, const string& basin = "al");
     static void loadStorm(const string& id, StormData& data);
-    static void loadRecon(ReconData& data, int bulletins);
+    static void loadRecon(ReconData& data, int bulletins, const string& basin = "al");   // the HDOB archive of that basin
     // ECMWF open data (CC BY 4.0): the member tracks of the IFS and AIFS ensembles and the unperturbed IFS / AIFS runs for this storm
     static void loadEnsembles(const string& nhcId, EnsembleData& data);
     // NOAA's GEFS members (ATCF AP01..AP30, control AC00) from the guidance already loaded, in the same shape as the ECMWF sets
     static bool gefsFromGuidance(const string& stormId, const vector<UtilityAtcf::Track>& guidance, EnsembleSet& set);
     static void loadShips(const string& nhcId, ShipsData& data);   // NHC's SHIPS text for the newest cycle
     static void loadPod(PodData& data);   // the newest Plan of the Day in the NHC recon archive
-    static void loadVdm(const string& nhcId, VdmData& data);   // the recent vortex data messages for the storm (NHC recon archive, REPNT2)
-    static void loadSeason(SeasonData& data);   // HURDAT2 (cached on disk) and this season's ATCF best tracks
+    static void loadVdm(const string& nhcId, VdmData& data);   // the archive is chosen by the id's basin   // the recent vortex data messages for the storm (NHC recon archive, REPNT2)
+    static void loadSeason(SeasonData& data, const string& basin = "al");   // "al", or "ep" for the Northeast Pacific (Eastern and Central)   // HURDAT2 (cached on disk) and this season's ATCF best tracks
     static void loadGis(const StormEntry& entry, GisData& data);   // NHC's official cone, wind radii and watch / warning lines for an active storm
     static string ecmwfId(const string& nhcId);     // "al092026" -> "09L"
     static string idLabel(const string& id);        // "al092026" -> "AL09"

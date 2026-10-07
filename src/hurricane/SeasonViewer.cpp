@@ -164,7 +164,7 @@ SeasonViewer::SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData:
     , data{seasonData}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("Atlantic hurricane seasons and ACE");
+    setTitle(string{data->basin == "al" ? "Atlantic" : "Northeast Pacific (Eastern and Central)"} + " seasons and ACE");
     textSummary.setWordWrap(true);
     chart = new SeasonChart{this};
     auto all = data->history;
@@ -225,6 +225,9 @@ void SeasonViewer::apply() {
                     QString::number(UtilitySeason::mean(seasons, 1991, 2020, &UtilitySeason::Season::ace), 'f', 0) + ".";
             }
         }
+    }
+    if (data->basin != "al" && !text.isEmpty()) {
+        text += "  Pacific records before the satellite era (about 1971) are incomplete.";
     }
     textSummary.setText(text);
 }

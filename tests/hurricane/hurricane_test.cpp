@@ -33,6 +33,7 @@ static void atcf() {
     // wind radii (34 / 50 / 64 kt by quadrant NE SE SW NW) and the forecast cone
     CHECK(best[1].radii[0][0] == 40 && best[1].radii[0][1] == 0 && best[1].radii[0][2] == 0 && best[1].radii[0][3] == 40 && best[1].radii[1][0] == 0);
     CHECK(near(UtilityAtcf::coneRadiusNm(0), 0.0) && near(UtilityAtcf::coneRadiusNm(12), 25.0) && near(UtilityAtcf::coneRadiusNm(18), 32.0));
+    CHECK(near(UtilityAtcf::coneRadiusNm(12, true), 25.0) && near(UtilityAtcf::coneRadiusNm(48, true), 56.0) && near(UtilityAtcf::coneRadiusNm(120, true), 138.0) && near(UtilityAtcf::coneRadiusNm(84, true), 92.0));
     CHECK(near(UtilityAtcf::coneRadiusNm(96), 134.0) && near(UtilityAtcf::coneRadiusNm(108), 167.0) && near(UtilityAtcf::coneRadiusNm(120), 200.0) && near(UtilityAtcf::coneRadiusNm(168), 200.0));
 
     const std::string guidance =
@@ -318,6 +319,8 @@ static void season(const std::string& fixtures) {
     CHECK(now.id == "AL092026" && now.name == "ISAIAS" && now.year == 2026 && now.peakWind == 40 && now.minPressure == 1007 && now.stormStrength && near(now.ace, (35.0 * 35 + 40.0 * 40) / 1e4));
     CHECK(UtilitySeason::newestHurdatFile("x hurdat2-1851-2024-040425.txt y hurdat2-1851-2025-02272026.txt hurdat2-1851-2025-091226.txt hurdat2-1851-2025-092326.txt z hurdat2-nepac-1949-2025-092926.txt") ==
           "hurdat2-1851-2025-092326.txt");
+    CHECK(UtilitySeason::newestHurdatFile("hurdat2-nepac-1949-2024-031725.txt hurdat2-nepac-1949-2025-02272026.txt hurdat2-nepac-1949-2025-091426.txt hurdat2-nepac-1949-2025-092926.txt hurdat2-1851-2025-092326.txt", "hurdat2-nepac-1949") ==
+          "hurdat2-nepac-1949-2025-092926.txt");
 }
 
 // NHC's GIS products (NHC's sample files for Irma, advisory 20, 2017) and the zip reader under them; the expected numbers were read with an independent script

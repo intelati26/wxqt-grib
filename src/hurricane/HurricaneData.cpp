@@ -49,7 +49,7 @@ string HurricaneData::idLabel(const string& id) {
     return label;
 }
 
-bool HurricaneData::loadStormList(vector<StormEntry>& entries, string& error) {
+bool HurricaneData::loadStormList(vector<StormEntry>& entries, string& error, const string& basin) {
     entries.clear();
     const auto json = download("https://www.nhc.noaa.gov/CurrentStorms.json");
     if (json.empty()) {
@@ -63,8 +63,8 @@ bool HurricaneData::loadStormList(vector<StormEntry>& entries, string& error) {
         const auto o = value.toObject();
         StormEntry entry;
         entry.id = text(o, "id");
-        if (entry.id.rfind("al", 0) != 0) {
-            continue;   // the Atlantic only
+        if (entry.id.rfind(basin, 0) != 0) {
+            continue;   // the chosen basin only
         }
         entry.active = true;
         entry.name = text(o, "name");
@@ -97,7 +97,7 @@ bool HurricaneData::loadStormList(vector<StormEntry>& entries, string& error) {
     }
     // the rest of the season from the btk/ directory: invests (numbers 90-99) touched in the last two days, and the finished storms
     const auto listing = download(atcf + "btk/");
-    const std::regex row{R"re(href="(bal(\d\d)(\d{4})\.dat)"[^\n]*?(\d{4}-\d\d-\d\d \d\d:\d\d))re"};
+    const std::regex row{"href=\"(b" + basin + R"re((\d\d)(\d{4})\.dat)"[^\n]*?(\d{4}-\d\d-\d\d \d\d:\d\d))re"};
     const auto now = QDateTime::currentDateTimeUtc();
     vector<StormEntry> rest;
     for (std::sregex_iterator it{listing.begin(), listing.end(), row}, end; it != end; ++it) {
@@ -107,7 +107,7 @@ bool HurricaneData::loadStormList(vector<StormEntry>& entries, string& error) {
             continue;
         }
         StormEntry entry;
-        entry.id = "al" + number + fileYear;
+        entry.id = basin + number + fileYear;
         if (std::find(activeIds.begin(), activeIds.end(), entry.id) != activeIds.end()) {
             continue;
         }
@@ -118,9 +118,11 @@ bool HurricaneData::loadStormList(vector<StormEntry>& entries, string& error) {
                 continue;   // an old invest
             }
             entry.active = true;
-            entry.label = "Invest " + number + "L (" + idLabel(entry.id) + ")";
+            entry.label = "Invest " + number + (basin == "al" ? "L" : basin == "ep" ? "E" : "C") + " (" + idLabel(entry.id) + ")";
         } else {
-            entry.label = "AL" + number + " " + fileYear + (recent ? " (recent)" : " (finished)");
+            string up = basin;
+            std::transform(up.begin(), up.end(), up.begin(), [] (unsigned char c) { return static_cast<char>(std::toupper(c)); });
+            entry.label = up + number + " " + fileYear + (recent ? " (recent)" : " (finished)");
         }
         rest.push_back(entry);
     }
@@ -129,7 +131,7 @@ bool HurricaneData::loadStormList(vector<StormEntry>& entries, string& error) {
     });
     entries.insert(entries.end(), rest.begin(), rest.end());
     if (entries.empty()) {
-        error = "No Atlantic storms in the NHC lists.";
+        error = "No storms in the NHC lists for this basin.";
         return false;
     }
     return true;
@@ -182,12 +184,14 @@ void HurricaneData::loadStorm(const string& id, StormData& data) {
     }
 }
 
-void HurricaneData::loadRecon(ReconData& data, int bulletins) {
+void HurricaneData::loadRecon(ReconData& data, int bulletins, const string& basin) {
     data = ReconData{};
     const auto year = QDateTime::currentDateTimeUtc().date().year();
-    const auto folder = "https://www.nhc.noaa.gov/archive/recon/" + std::to_string(year) + "/AHONT1/";
+    // the high density observations: AHONT1 Atlantic, AHOPN1 Eastern Pacific, AHOPA1 Central Pacific (the bulletin codes of the recon archive)
+    const string code = basin == "ep" ? "AHOPN1" : basin == "cp" ? "AHOPA1" : "AHONT1";
+    const auto folder = "https://www.nhc.noaa.gov/archive/recon/" + std::to_string(year) + "/" + code + "/";
     const auto listing = download(folder);
-    const std::regex file{R"re(href="(AHONT1-[A-Z]+\.(\d{12})\.txt)")re"};
+    const std::regex file{"href=\"(" + code + R"re(-[A-Z]+\.(\d{12})\.txt)")re"};
     vector<std::pair<string, string>> files;   // time, name
     for (std::sregex_iterator it{listing.begin(), listing.end(), file}, end; it != end; ++it) {
         files.emplace_back((*it)[2], (*it)[1]);
@@ -342,9 +346,11 @@ void HurricaneData::loadPod(PodData& data) {
 void HurricaneData::loadVdm(const string& nhcId, VdmData& data) {
     data = VdmData{};
     const auto year = QDateTime::currentDateTimeUtc().date().year();
-    const auto folder = "https://www.nhc.noaa.gov/archive/recon/" + std::to_string(year) + "/REPNT2/";
+    // the vortex data messages: REPNT2 Atlantic, REPPN2 Eastern Pacific, REPPA2 Central Pacific
+    const string code = nhcId.rfind("ep", 0) == 0 ? "REPPN2" : nhcId.rfind("cp", 0) == 0 ? "REPPA2" : "REPNT2";
+    const auto folder = "https://www.nhc.noaa.gov/archive/recon/" + std::to_string(year) + "/" + code + "/";
     const auto listing = download(folder);
-    const std::regex file{R"re(href="(REPNT2-[A-Z]+\.(\d{12})\.txt)")re"};
+    const std::regex file{"href=\"(" + code + R"re(-[A-Z]+\.(\d{12})\.txt)")re"};
     vector<std::pair<string, string>> files;   // time, name
     for (std::sregex_iterator it{listing.begin(), listing.end(), file}, end; it != end; ++it) {
         files.emplace_back((*it)[2], (*it)[1]);
@@ -388,13 +394,14 @@ void HurricaneData::loadVdm(const string& nhcId, VdmData& data) {
                         data.messages.end());
 }
 
-void HurricaneData::loadSeason(SeasonData& data) {
+void HurricaneData::loadSeason(SeasonData& data, const string& basin) {
     data = SeasonData{};
+    data.basin = basin;
     const auto year = QDateTime::currentDateTimeUtc().date().year();
     data.currentYear = year;
     // the database: the newest file in NHC's directory; read once, then kept on disk as a compact list of storms
     const auto listing = download("https://www.nhc.noaa.gov/data/hurdat/");
-    data.hurdatFile = UtilitySeason::newestHurdatFile(listing);
+    data.hurdatFile = UtilitySeason::newestHurdatFile(listing, basin == "al" ? "hurdat2-1851" : "hurdat2-nepac-1949");
     if (data.hurdatFile.empty()) {
         data.error = "Could not find the HURDAT2 file on the NHC site.";
     } else {
@@ -429,19 +436,21 @@ void HurricaneData::loadSeason(SeasonData& data) {
     // this season: the storms of the ATCF btk/ directory (numbers 90 and up are invests that have not become anything)
     if (year > through) {
         const auto btk = download(atcf + "btk/");
-        const std::regex row{R"re(href="(bal(\d\d)(\d{4})\.dat)"[^\n]*?(\d{4}-\d\d-\d\d \d\d:\d\d))re"};
+        // the Atlantic, or the Eastern and Central Pacific together (HURDAT2's northeast Pacific file holds both)
+        const std::regex row{basin == "al" ? R"re(href="(b(al)(\d\d)(\d{4})\.dat)"[^\n]*?(\d{4}-\d\d-\d\d \d\d:\d\d))re"
+                                           : R"re(href="(b(ep|cp)(\d\d)(\d{4})\.dat)"[^\n]*?(\d{4}-\d\d-\d\d \d\d:\d\d))re"};
         const auto now = QDateTime::currentDateTimeUtc();
         for (std::sregex_iterator it{btk.begin(), btk.end(), row}, end; it != end; ++it) {
-            if (std::stoi((*it)[3]) != year || std::stoi((*it)[2]) >= 90) {
+            if (std::stoi((*it)[4]) != year || std::stoi((*it)[3]) >= 90) {
                 continue;
             }
-            const string id = "al" + string{(*it)[2]} + string{(*it)[3]};
+            const string id = string{(*it)[2]} + string{(*it)[3]} + string{(*it)[4]};
             auto storm = UtilitySeason::fromBestTrack(UtilityAtcf::bestTrack(download(atcf + "btk/" + string{(*it)[1]})), id);
             if (storm.first.empty()) {
                 continue;
             }
             data.current.push_back(storm);
-            const auto modified = QDateTime::fromString(QString::fromStdString((*it)[4]), "yyyy-MM-dd HH:mm");
+            const auto modified = QDateTime::fromString(QString::fromStdString((*it)[5]), "yyyy-MM-dd HH:mm");
             if (modified.isValid() && modified.secsTo(now) < 2 * 86400) {
                 data.active.push_back(storm.id);
             }

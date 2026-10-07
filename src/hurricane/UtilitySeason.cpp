@@ -167,9 +167,9 @@ string UtilitySeason::categoryName(int wind) {
     return UtilityAtcf::categoryName(UtilityAtcf::categoryOf(wind));
 }
 
-string UtilitySeason::newestHurdatFile(const string& listing) {
+string UtilitySeason::newestHurdatFile(const string& listing, const string& prefix) {
     // hurdat2-1851-2025-092326.txt: the date is month day year, with a two or four digit year (02272026 is 27 February 2026)
-    static const std::regex re{R"re(hurdat2-1851-(\d{4})-(\d{2})(\d{2})(\d{2}|\d{4})\.txt)re"};
+    const std::regex re{prefix + R"re(-(\d{4})-(\d{2})(\d{2})(\d{2}|\d{4})\.txt)re"};
     string best;
     long bestKey = -1;
     for (std::sregex_iterator it{listing.begin(), listing.end(), re}, end; it != end; ++it) {

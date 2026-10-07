@@ -309,9 +309,11 @@ string UtilityAtcf::formatTime(const string& t) {
     return string{months[std::clamp(month, 1, 12) - 1]} + " " + t.substr(6, 2) + " " + t.substr(8, 2) + "Z";
 }
 
-double UtilityAtcf::coneRadiusNm(int hour) {
+double UtilityAtcf::coneRadiusNm(int hour, bool pacific) {
     static const int hours[] = {0, 12, 24, 36, 48, 60, 72, 96, 120};
-    static const double radii[] = {0.0, 25.0, 39.0, 49.0, 62.0, 77.0, 95.0, 134.0, 200.0};
+    static const double atlantic[] = {0.0, 25.0, 39.0, 49.0, 62.0, 77.0, 95.0, 134.0, 200.0};
+    static const double eastPacific[] = {0.0, 25.0, 37.0, 48.0, 56.0, 66.0, 78.0, 106.0, 138.0};
+    const double * radii = pacific ? eastPacific : atlantic;
     if (hour <= 0) {
         return 0.0;
     }
@@ -320,7 +322,7 @@ double UtilityAtcf::coneRadiusNm(int hour) {
             return radii[i - 1] + (radii[i] - radii[i - 1]) * (hour - hours[i - 1]) / (hours[i] - hours[i - 1]);
         }
     }
-    return radii[std::size(radii) - 1];
+    return radii[std::size(hours) - 1];
 }
 
 string UtilityAtcf::addHours(const string& t, int hours) {

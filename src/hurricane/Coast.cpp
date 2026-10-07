@@ -10,7 +10,7 @@
 const std::vector<std::vector<std::pair<float, float>>>& Coast::lines() {
     static const auto data = [] {
         std::vector<std::vector<std::pair<float, float>>> all;
-        QFile file{":/res/atlantic.bin"};
+        QFile file{":/res/nhc_basins.bin"};
         if (file.open(QIODevice::ReadOnly)) {
             const auto bytes = file.readAll();
             const auto * values = reinterpret_cast<const float *>(bytes.constData());

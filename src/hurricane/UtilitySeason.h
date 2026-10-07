@@ -59,7 +59,8 @@ public:
         }
         return n == 0 ? 0.0 : sum / n;
     }
-    static string newestHurdatFile(const string& listing);                             // "hurdat2-1851-2025-092326.txt" from the directory listing
+    // "hurdat2-1851-2025-092326.txt" (Atlantic, prefix "hurdat2-1851") or "hurdat2-nepac-1949-2025-092926.txt" (prefix "hurdat2-nepac-1949") from the directory listing
+    static string newestHurdatFile(const string& listing, const string& prefix = "hurdat2-1851");
 };
 
 #endif  // UTILITYSEASON_H
