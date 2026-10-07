@@ -6,6 +6,7 @@
 #include "hurricane/UtilityAtcf.h"
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <set>
@@ -345,4 +346,48 @@ string UtilityAtcf::addHours(const string& t, int hours) {
     char buffer[48];
     std::snprintf(buffer, sizeof buffer, "%04ld%02d%02d%02d", year, month, day, hour);
     return buffer;
+}
+
+UtilityAtcf::Ring UtilityAtcf::windField(double lat, double lon, const std::array<int, 4>& radii, int arcPoints) {
+    Ring ring;
+    const double rad = 3.14159265358979323846 / 180.0;
+    for (int quadrant = 0; quadrant < 4; quadrant++) {
+        for (int i = 0; i <= arcPoints; i++) {
+            const double bearing = (quadrant * 90.0 + i * 90.0 / arcPoints) * rad;   // from north, clockwise
+            const double nm = radii[static_cast<size_t>(quadrant)];
+            ring.emplace_back(lon + nm / (60.0 * std::max(0.2, std::cos(lat * rad))) * std::sin(bearing), lat + nm / 60.0 * std::cos(bearing));
+        }
+    }
+    return ring;
+}
+
+vector<UtilityAtcf::Ring> UtilityAtcf::windSwath(const Track& track, int threshold, int stepHours) {
+    vector<Ring> rings;
+    const auto t = static_cast<size_t>(std::clamp(threshold, 0, 2));
+    const auto any = [t] (const Fix& f) { return f.radii[t][0] + f.radii[t][1] + f.radii[t][2] + f.radii[t][3] > 0; };
+    for (size_t i = 0; i < track.fixes.size(); i++) {
+        const auto& a = track.fixes[i];
+        if (i + 1 == track.fixes.size() || track.fixes[i + 1].tau <= a.tau) {
+            if (any(a)) {
+                rings.push_back(windField(a.lat, a.lon, a.radii[t]));
+            }
+            continue;
+        }
+        const auto& b = track.fixes[i + 1];
+        if (!any(a) && !any(b)) {
+            continue;
+        }
+        const int span = b.tau - a.tau;
+        for (int h = 0; h < span; h += std::max(1, stepHours)) {
+            const double f = static_cast<double>(h) / span;
+            std::array<int, 4> radii{};
+            for (size_t q = 0; q < 4; q++) {
+                radii[q] = static_cast<int>(std::lround(a.radii[t][q] + (b.radii[t][q] - a.radii[t][q]) * f));
+            }
+            if (radii[0] + radii[1] + radii[2] + radii[3] > 0) {
+                rings.push_back(windField(a.lat + (b.lat - a.lat) * f, a.lon + (b.lon - a.lon) * f, radii));
+            }
+        }
+    }
+    return rings;
 }

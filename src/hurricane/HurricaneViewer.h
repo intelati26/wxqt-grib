@@ -6,6 +6,7 @@
 #ifndef HURRICANEVIEWER_H
 #define HURRICANEVIEWER_H
 
+#include <array>
 #include <memory>
 #include <string>
 #include <utility>
@@ -85,6 +86,7 @@ private:
     QCheckBox * reconCheck{};
     QCheckBox * wwCheck{};                                    // watches and warnings
     QCheckBox * coneCheck{};                                  // the forecast cone
+    QCheckBox * swathCheck{};                                 // the forecast wind swath
     QCheckBox * radiiCheck{};
     QCheckBox * fixCheck{};                                   // the recon centre fixes (vortex messages)
     QCheckBox * autoCheck{};                                  // refresh every 10 minutes and alert on a new advisory
@@ -113,6 +115,8 @@ private:
     QTimer refreshTimer;
     vector<string> changeLines;                               // what differs from the advisory before
     string changeTitle;
+    const void * swathFor{nullptr};                           // the storm the cached swaths belong to
+    std::array<QList<QPolygonF>, 3> swaths;             // 34, 50, 64 kt: the joined fields, (lon, lat) points
     string hoverTech;                                         // the guidance line under the pointer, drawn heavier
     int generation{0};
     bool closed{false};

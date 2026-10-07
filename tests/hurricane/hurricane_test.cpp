@@ -34,6 +34,31 @@ static void atcf() {
 
     // wind radii (34 / 50 / 64 kt by quadrant NE SE SW NW) and the forecast cone
     CHECK(best[1].radii[0][0] == 40 && best[1].radii[0][1] == 0 && best[1].radii[0][2] == 0 && best[1].radii[0][3] == 40 && best[1].radii[1][0] == 0);
+    // the wind swath: a stationary 60 nm field gives rings that reach 1 degree of latitude north and south of the centre
+    {
+        UtilityAtcf::Track track;
+        for (const int tau : {0, 12, 24}) {
+            UtilityAtcf::Fix f;
+            f.tau = tau;
+            f.lat = 20.0;
+            f.lon = -80.0 + tau * 0.1;   // moving east 0.1 degree an hour
+            f.radii[0] = {60, 60, 60, 60};
+            track.fixes.push_back(f);
+        }
+        const auto swath = UtilityAtcf::windSwath(track, 0, 3);
+        CHECK(swath.size() == 4 + 4 + 1);   // 3-hourly through the two 12 hour intervals, and the last fix
+        double minLat = 99, maxLat = -99, minLon = 99, maxLon = -99;
+        for (const auto& ring : swath) {
+            for (const auto& [lon, lat] : ring) {
+                minLat = std::min(minLat, lat); maxLat = std::max(maxLat, lat); minLon = std::min(minLon, lon); maxLon = std::max(maxLon, lon);
+            }
+        }
+        CHECK(near(maxLat, 21.0, 1e-9) && near(minLat, 19.0, 1e-9));
+        CHECK(minLon < -81.0 && maxLon > -77.0);   // 60 nm is about 1.06 degrees of longitude at 20N; the track runs from -80 to -77.6
+        CHECK(UtilityAtcf::windSwath(track, 1, 3).empty());   // no 50 kt field
+        const auto field = UtilityAtcf::windField(0.0, 0.0, {60, 0, 0, 0}, 4);
+        CHECK(field.size() == 20 && near(field[0].second, 1.0, 1e-9) && near(field[4].first, 1.0, 1e-9));   // NE arc: due north 60 nm, due east 60 nm
+    }
     CHECK(near(UtilityAtcf::coneRadiusNm(0), 0.0) && near(UtilityAtcf::coneRadiusNm(12), 25.0) && near(UtilityAtcf::coneRadiusNm(18), 32.0));
     CHECK(near(UtilityAtcf::coneRadiusNm(12, true), 25.0) && near(UtilityAtcf::coneRadiusNm(48, true), 56.0) && near(UtilityAtcf::coneRadiusNm(120, true), 138.0) && near(UtilityAtcf::coneRadiusNm(84, true), 92.0));
     CHECK(near(UtilityAtcf::coneRadiusNm(96), 134.0) && near(UtilityAtcf::coneRadiusNm(108), 167.0) && near(UtilityAtcf::coneRadiusNm(120), 200.0) && near(UtilityAtcf::coneRadiusNm(168), 200.0));

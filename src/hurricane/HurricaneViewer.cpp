@@ -174,12 +174,15 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     column->addWidget(wwCheck);
     coneCheck = new QCheckBox{"NHC forecast cone", panel};
     coneCheck->setChecked(true);
+    swathCheck = new QCheckBox{"Forecast wind swath (34 / 50 / 64 kt)", panel};
+    QObject::connect(swathCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
     radiiCheck = new QCheckBox{"Wind radii now (34 / 50 / 64 kt)", panel};
     radiiCheck->setChecked(true);
     QObject::connect(coneCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
     QObject::connect(radiiCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
     column->addSpacing(4);
     column->addWidget(coneCheck);
+    column->addWidget(swathCheck);
     column->addWidget(radiiCheck);
     podCheck = new QCheckBox{"Planned recon flights (Plan of the Day)", panel};
     podCheck->setChecked(true);
@@ -1049,6 +1052,42 @@ void HurricaneViewer::paintMap(QPainter& painter) {
                 painter.setPen(QColor{255, 255, 255});
                 painter.drawText(p + QPointF{7.0 * px, -5.0 * px}, QString::number(f.tau / 24) + " d");
             }
+        }
+    }
+    // the forecast wind swath: where the forecast wind radii say 34, 50 and 64 kt winds can be felt
+    if (swathCheck->isChecked() && !storm->official.fixes.empty()) {
+        if (swathFor != storm.get()) {
+            swathFor = storm.get();
+            for (size_t k = 0; k < 3; k++) {
+                QPainterPath joined;
+                for (const auto& ring : UtilityAtcf::windSwath(storm->official, static_cast<int>(k), 3)) {
+                    QPolygonF polygon;
+                    for (const auto& [lon, lat] : ring) {
+                        polygon << QPointF{lon, lat};
+                    }
+                    QPainterPath piece;
+                    piece.addPolygon(polygon);
+                    piece.closeSubpath();
+                    joined = joined.united(piece);
+                }
+                swaths[k] = joined.toSubpathPolygons();
+            }
+        }
+        static const QColor swathColors[3] = {QColor{255, 235, 80}, QColor{255, 150, 40}, QColor{255, 70, 70}};
+        for (size_t k = 0; k < 3; k++) {
+            QPainterPath path;
+            for (const auto& ring : swaths[k]) {
+                QPolygonF polygon;
+                for (const auto& point : ring) {
+                    polygon << t(point.y(), point.x());
+                }
+                path.addPolygon(polygon);
+            }
+            auto fill = swathColors[k];
+            fill.setAlpha(34 + static_cast<int>(k) * 14);
+            painter.setPen(QPen{swathColors[k], 1.2 * px, Qt::DotLine});
+            painter.setBrush(fill);
+            painter.drawPath(path);
         }
     }
     // the best track so far

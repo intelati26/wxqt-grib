@@ -50,6 +50,12 @@ public:
     static string groupName(Group);
     // NHC's forecast cone: the radius (nm) of the circle at a forecast hour (2026 Atlantic: two thirds of the 2021-2025 official track errors),
     // linear between the published hours (12, 24, 36, 48, 60, 72, 96, 120) and from 0 at hour 0; beyond 120 h the 120 h value
+    using Ring = vector<std::pair<double, double>>;   // (lon, lat)
+    // the wind field of one threshold as a polygon: the radii (nm) of the NE, SE, SW and NW quadrants, each a quarter circle from its bearings
+    static Ring windField(double lat, double lon, const std::array<int, 4>& radiiNm, int arcPoints = 8);
+    // the area swept by a threshold's wind field along a forecast: the field at every `stepHours` between the fixes (position and radii interpolated
+    // linearly), as many overlapping polygons for the caller to join. threshold: 0 = 34 kt, 1 = 50 kt, 2 = 64 kt
+    static vector<Ring> windSwath(const Track& track, int threshold, int stepHours = 3);
     static double coneRadiusNm(int hour, bool pacific = false);   // Atlantic, or Eastern and Central Pacific (25 37 48 56 66 78 106 138 nm at 12 ... 120 h in 2026)
     static int categoryOf(int windKt);                // 0 = TD or weaker, 1 = TS, 2..6 = hurricane category 1..5
     static string categoryName(int category);
