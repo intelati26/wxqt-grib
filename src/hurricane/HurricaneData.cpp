@@ -283,3 +283,16 @@ bool HurricaneData::gefsFromGuidance(const string& stormId, const vector<Utility
     set.cycle = set.storm.cycle;
     return true;
 }
+
+void HurricaneData::loadShips(const string& nhcId, ShipsData& data) {
+    data = ShipsData{};
+    const auto file = UtilityShips::newestFile(download(atcf + "stext/"), nhcId);
+    if (file.empty()) {
+        data.error = "NHC has no SHIPS forecast for this storm (it is made for named storms and some invests).";
+        return;
+    }
+    data.ships = UtilityShips::parse(download(atcf + "stext/" + file));
+    if (!data.ships.ok) {
+        data.error = "Could not read the SHIPS file " + file + ".";
+    }
+}

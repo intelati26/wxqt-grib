@@ -5,5 +5,5 @@ here="$(cd "$(dirname "$0")" && pwd)"
 root="$here/../.."
 out="${TMPDIR:-/tmp}/wxqt_hurricane_test"
 ${CXX:-g++} -std=c++20 -O2 -Wall -Wextra -I"$root/src" "$here/hurricane_test.cpp" \
-    "$root"/src/hurricane/Utility{Atcf,Hdob,EcmwfTracks,EnsembleStats}.cpp "$root"/src/util/UtilityGzip.cpp -o "$out"
+    "$root"/src/hurricane/Utility{Atcf,Hdob,EcmwfTracks,EnsembleStats,Ships}.cpp "$root"/src/util/UtilityGzip.cpp -o "$out"
 "$out" "$here/fixtures"

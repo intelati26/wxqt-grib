@@ -39,6 +39,7 @@ private:
     void loadStorm();
     void loadRecon();
     void loadEnsembles();
+    void loadShips();
     void showStorm();                       // after a storm has loaded: the panel text, the map region
     void zoomToStorm();
     void updateInfo();
@@ -73,12 +74,14 @@ private:
     QCheckBox * reconCheck{};
     QCheckBox * ensembleChecks[3]{};                          // AIFS ENS members, IFS ENS members, the unperturbed runs
     Button buttonStats;
+    Button buttonShips;
     ComboBox comboRecon;                                      // what colours the flight tracks
     std::vector<vector<std::pair<float, float>>> coast;       // the basin's coastlines and borders (lon, lat)
     vector<HurricaneData::StormEntry> entries;
     std::shared_ptr<HurricaneData::StormData> storm;
     std::shared_ptr<HurricaneData::ReconData> recon;
     std::shared_ptr<HurricaneData::EnsembleData> ensembles;
+    std::shared_ptr<HurricaneData::ShipsData> ships;
     string hoverTech;                                         // the guidance line under the pointer, drawn heavier
     int generation{0};
     bool closed{false};

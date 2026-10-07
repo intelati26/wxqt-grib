@@ -8,6 +8,7 @@
 #include <sstream>
 #include "hurricane/UtilityEcmwfTracks.h"
 #include "hurricane/UtilityEnsembleStats.h"
+#include "hurricane/UtilityShips.h"
 #include "util/UtilityGzip.h"
 
 static int failures = 0;
@@ -193,7 +194,33 @@ static void ecmwf(const std::string& fixtures) {
     CHECK(near(UtilityEnsembleStats::percentile({1.0, 2.0, 3.0, 4.0}, 0.5), 2.5) && !UtilityEcmwfTracks::has(UtilityEnsembleStats::percentile({}, 0.5)));
 }
 
+// the SHIPS text product (a real file: AL09 Isaias, 2026-10-07 06 UTC)
+static void ships(const std::string& fixtures) {
+    const auto s = UtilityShips::parse(readFile(fixtures + "/ships_al092026.txt"));
+    CHECK(s.ok && s.name == "ISAIAS" && s.id == "AL092026" && s.cycle == "2026100706");
+    CHECK(s.hours.size() == 17 && s.hours[0] == 0 && s.hours[1] == 6 && s.hours[16] == 168);
+    const auto * land = s.row("V (KT) LAND");
+    CHECK(land != nullptr && near((*land)[0], 35) && near((*land)[6], 77) && near((*land)[7], 82) && !UtilityShips::has((*land)[13]));   // N/A -> missing
+    const auto * shear = s.row("SHEAR (KT)");
+    CHECK(shear != nullptr && near((*shear)[0], 14) && near((*shear)[8], 47));
+    const auto * sst = s.row("SST (C)");
+    CHECK(sst != nullptr && near((*sst)[0], 30.9) && near((*sst)[12], 20.8));
+    const auto * mpi = s.row("POT. INT. (KT)");
+    CHECK(mpi != nullptr && near((*mpi)[0], 169));
+    const auto * vtx = s.row("MODEL VTX (KT)");
+    CHECK(vtx != nullptr && near((*vtx)[12], 11) && !UtilityShips::has((*vtx)[13]));   // LOST -> missing
+    CHECK(s.stormType.size() == 17 && s.stormType[0] == "TROP" && s.stormType[9] == "EXTP");
+    CHECK(near(s.preliminaryRi, 40.7));
+    CHECK(s.riLines.size() == 8 && s.riLines[2].knots == 30 && s.riLines[2].hours == 24 && near(s.riLines[2].percent, 13) && near(s.riLines[2].climatology, 6.8));
+    CHECK(s.riThresholds.size() == 8 && s.riThresholds[0] == "20/12" && s.riThresholds[7] == "65/72");
+    CHECK(s.riMatrix.size() == 6 && s.riMatrix[0].first == "SHIPS-RII" && near(s.riMatrix[0].second[1], 31.5) && near(s.riMatrix[3].second[2], 9.8));
+    const std::string listing = "<a href=\"26100618AL0926_ships.txt\">x</a> <a href=\"26100706AL0926_ships.txt\">x</a> <a href=\"26100706AL9226_ships.txt\">x</a>";
+    CHECK(UtilityShips::newestFile(listing, "al092026") == "26100706AL0926_ships.txt");
+    CHECK(UtilityShips::newestFile(listing, "al102026").empty());
+}
+
 int main(int argc, char ** argv) {
+    ships(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     ecmwf(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     atcf();
     hdob();

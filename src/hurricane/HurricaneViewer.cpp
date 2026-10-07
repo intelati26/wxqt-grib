@@ -17,6 +17,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include "hurricane/EnsembleStatsViewer.h"
+#include "hurricane/ShipsViewer.h"
 #include "objects/FutureVoid.h"
 #include "util/Utility.h"
 #include "util/UtilityUI.h"
@@ -85,6 +86,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     , buttonRefresh{this, None, "Refresh"}
     , buttonZoom{this, None, "Zoom to the storm"}
     , buttonStats{this, None, "Ensemble statistics..."}
+    , buttonShips{this, None, "SHIPS and RI..."}
     , textStatus{this, "Loading..."}
     , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
 {
@@ -157,6 +159,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
         column->addWidget(ensembleChecks[i]);
     }
     column->addWidget(buttonStats.getView());
+    column->addWidget(buttonShips.getView());
     reconCheck = new QCheckBox{"Recon flights (HDOB, the last 6 hours)", panel};
     reconCheck->setChecked(Utility::readPref("HURRICANE_RECON", "false") == "true");
     column->addSpacing(6);
@@ -175,6 +178,13 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     comboStorm.connect([this] { if (!filling) { loadStorm(); } });
     buttonRefresh.connect([this] { loadList(); });
     buttonZoom.connect([this] { zoomToStorm(); });
+    buttonShips.connect([this] {
+        if (storm && ships) {
+            new ShipsViewer{this, ships, storm};
+        } else {
+            textStatus.setText(string{"No SHIPS forecast loaded for this storm yet."});
+        }
+    });
     buttonStats.connect([this] {
         if (storm && ensembles && !ensembles->sets.empty()) {
             new EnsembleStatsViewer{this, storm, ensembles};
@@ -268,8 +278,10 @@ void HurricaneViewer::loadStorm() {
             }
             storm = data;
             ensembles.reset();
+            ships.reset();
             showStorm();
             loadEnsembles();
+            loadShips();
             if (reconCheck->isChecked()) {
                 loadRecon();
             }
@@ -296,6 +308,21 @@ void HurricaneViewer::loadEnsembles() {
             }
             updateInfo();
             view->map()->update();
+        }};
+}
+
+void HurricaneViewer::loadShips() {
+    const auto gen = generation;
+    const auto id = storm->id;
+    auto data = std::make_shared<HurricaneData::ShipsData>();
+    new FutureVoid{this,
+        [id, data] { HurricaneData::loadShips(id, *data); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            ships = data;
+            updateInfo();
         }};
 }
 
@@ -428,6 +455,9 @@ void HurricaneViewer::updateInfo() {
         }
         html += "<br><b>NHC forecast</b> (" + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + "): peak " + knots(peak) +
             " at " + QString::number(peakTau) + " h, out to " + QString::number(storm->official.fixes.back().tau) + " h<br>";
+    }
+    if (ships && ships->ships.ok) {
+        html += "<br><b>SHIPS</b> " + ShipsChart::summary(ships->ships).mid(6) + "<br>";
     }
     if (ensembles && !ensembles->sets.empty()) {
         html += "<br><b>Ensembles</b> (ECMWF: contains ECMWF open data, CC BY 4.0)<br>";

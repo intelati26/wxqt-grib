@@ -11,6 +11,7 @@
 #include <vector>
 #include "hurricane/UtilityAtcf.h"
 #include "hurricane/UtilityEcmwfTracks.h"
+#include "hurricane/UtilityShips.h"
 #include "hurricane/UtilityHdob.h"
 
 using std::string;
@@ -60,6 +61,10 @@ public:
         vector<EnsembleSet> sets;                   // those of ECMWF's open data that have this storm
         string error;
     };
+    struct ShipsData {
+        UtilityShips::Ships ships;
+        string error;
+    };
     static bool loadStormList(vector<StormEntry>& entries, string& error);
     static void loadStorm(const string& id, StormData& data);
     static void loadRecon(ReconData& data, int bulletins);
@@ -67,6 +72,7 @@ public:
     static void loadEnsembles(const string& nhcId, EnsembleData& data);
     // NOAA's GEFS members (ATCF AP01..AP30, control AC00) from the guidance already loaded, in the same shape as the ECMWF sets
     static bool gefsFromGuidance(const string& stormId, const vector<UtilityAtcf::Track>& guidance, EnsembleSet& set);
+    static void loadShips(const string& nhcId, ShipsData& data);   // NHC's SHIPS text for the newest cycle
     static string ecmwfId(const string& nhcId);     // "al092026" -> "09L"
     static string idLabel(const string& id);        // "al092026" -> "AL09"
 };
