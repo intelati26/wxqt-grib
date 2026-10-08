@@ -36,6 +36,7 @@ private:
     void moveBack();
     void moveForward();
     void reload();
+    int drawing{0};
     void getRun();
     void getRunStatus();
     void updateRunStatus();

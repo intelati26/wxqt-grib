@@ -5,6 +5,8 @@
 // *****************************************************************************
 
 #include "ModelViewer.h"
+#include <memory>
+#include "gfs/GfsRender.h"
 #include "models/ObjectModelGet.h"
 #include "models/UtilityModels.h"
 #include "objects/FutureBytes.h"
@@ -114,6 +116,22 @@ void ModelViewer::moveForward() {
 void ModelViewer::reload() {
     objectModel.writePrefs();
     setTitle(objectModel.model + " " + objectModel.sector + " " + objectModel.times[comboboxTime.getIndex()]);
+    if (GfsRender::handles(objectModel.model, objectModel.param)) {
+        // the GFS charts are drawn here from the GRIB data
+        const int mine = ++drawing;
+        const auto param = objectModel.param, sector = objectModel.sector, run = objectModel.run;
+        const int hour = std::atoi(objectModel.getTime().c_str());
+        auto result = std::make_shared<std::pair<QByteArray, string>>();
+        new FutureVoid{this, [=] { result->first = GfsRender::png(param, sector, run, hour, result->second); },
+                       [this, result, mine] {
+                           if (mine == drawing && !result->first.isEmpty()) {
+                               photo.setBytes(result->first);
+                           } else if (mine == drawing) {
+                               setTitle("GFS: " + result->second);
+                           }
+                       }};
+        return;
+    }
     new FutureBytes{this, ObjectModelGet::imageUrl(objectModel), [this] (const auto& ba) { photo.setBytes(ba); }};
 }
 
