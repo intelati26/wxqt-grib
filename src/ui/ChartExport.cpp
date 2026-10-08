@@ -53,7 +53,8 @@ namespace {
 }
 
 bool ChartExport::exporting() {
-    return exportDepth > 0;
+    // only while a picture is being made, and only when "plots only" is chosen in the menu: the default is the whole chart as it is on the screen
+    return exportDepth > 0 && Utility::readPref("CHART_EXPORT_PLOTS_ONLY", "false") == "true";
 }
 
 QImage ChartExport::render(QWidget * chart, const QString& title, int scale) {
@@ -102,8 +103,16 @@ void ChartExport::install(QWidget * chart, const QString& title) {
         auto * pdf = menu.addAction("Save as PDF...");
         menu.addSeparator();
         auto * copy = menu.addAction("Copy to the clipboard");
+        menu.addSeparator();
+        auto * plots = menu.addAction("Plots only (leave out tables and notes)");
+        plots->setCheckable(true);
+        plots->setChecked(Utility::readPref("CHART_EXPORT_PLOTS_ONLY", "false") == "true");
         const auto * chosen = menu.exec(chart->mapToGlobal(at));
         if (chosen == nullptr) {
+            return;
+        }
+        if (chosen == plots) {
+            Utility::writePref("CHART_EXPORT_PLOTS_ONLY", plots->isChecked() ? "true" : "false");
             return;
         }
         if (chosen == copy) {
