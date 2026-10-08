@@ -12,6 +12,7 @@
 #include "misc/TextViewerStatic.h"
 #include "nhc/Nhc.h"
 #include "objects/FutureText.h"
+#include "dashboard/TropicalHub.h"
 #include "hurricane/HurricaneViewer.h"
 #include "tropical/TropicalViewer.h"
 
@@ -30,35 +31,7 @@ namespace {
 }
 
 void Dashboards::openTropicalHub(Window * parent) {
-    new PlaceholderDashboard{parent, "Tropical Hub",
-        "One place for current storms, past tracks, seasons, model guidance, aircraft reconnaissance and the ocean around storms. "
-        "Today's Tropical screen (active storms worldwide) and the Climate and ocean screen already exist; this hub will gather them with the new panels.",
-        {
-            Panel{"Active storms", "A card for each active storm (name, class, wind, pressure, position, movement, advisory time) with a small satellite picture; click for the storm page.",
-                "NHC CurrentStorms.json; CIRA / RAMMB for satellite pictures", "Phase 1"},
-            Panel{"Track map", "Best track so far, the official forecast line and cone, and the model tracks as thin lines with a check-list to switch them; coloured by category.",
-                "NHC ATCF files (btk, fst, aid_public); NHC GIS cone", "Phase 1"},
-            Panel{"Season table and ACE", "Storms, hurricanes, major hurricanes and ACE for the year by basin, and ACE across the years.",
-                "NHC best-track and HURDAT2 files", "Phase 1"},
-            Panel{"Storm page", "Wind and pressure history with the official and SHIPS forecasts, wind radii by quadrant, environment (shear, SST, humidity), parameters table.",
-                "ATCF best track and forecast; SHIPS text", "Phase 2"},
-            Panel{"Historical tracks", "Pick a basin and year or a storm name; filter by category; storms that passed within N km of a point.",
-                "IBTrACS since-1980 file; HURDAT2", "Phase 3"},
-            Panel{"Recon: pending missions", "The Tropical Cyclone Plan of the Day: planned and requested flights (aircraft, storm, times, target point), or 'no flights planned'.",
-                "NHC REPRPD in the recon archive", "Recon step"},
-            Panel{"Recon: flight data", "Mission list, flight track coloured by wind, pressure / wind / temperature strips and vortex-message table from the high-density observations.",
-                "NHC recon archive (HDOB, vortex messages)", "Recon step"},
-            Panel{"SST and ocean", "Sea surface temperature and anomaly, heat content and 20 C depth, regional time series; a 'SST around this storm' shortcut.",
-                "The Climate and ocean screen; ocean heat source still open", "Phase 4"},
-            Panel{"Models", "Tropical model fields: winds, shear, vorticity, moisture, with a forecast-hour slider.",
-                "GFS / GEFS (NOMADS); needs the multi-model decision", "Later"},
-        },
-        {
-            Link{"Tropical cyclones: track, spaghetti, recon (new)", [] (Window * w) { new HurricaneViewer{w}; }},
-            Link{"Tropical: active storms (existing)", [] (Window * w) { new TropicalViewer{w}; }},
-            Link{"Climate and ocean (existing)", [] (Window * w) { new ClimateViewer{w}; }},
-            Link{"NHC tool (existing)", [] (Window * w) { new Nhc{w}; }},
-        }};
+    new TropicalHub{parent};
 }
 
 void Dashboards::openSpaceWeather(Window * parent) {

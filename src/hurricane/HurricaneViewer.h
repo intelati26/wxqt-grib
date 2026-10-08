@@ -34,7 +34,8 @@ using std::vector;
 // the side panel carries the storm's numbers and the recon summary.
 class HurricaneViewer : public Window {
 public:
-    explicit HurricaneViewer(Window * parent);
+    // basin "al" / "ep" / "cp" and a storm id ("al092026") open on that storm instead of the saved basin and the first storm
+    explicit HurricaneViewer(Window * parent, const string& basin = {}, const string& stormId = {});
 
 private:
     void loadList();
@@ -88,6 +89,7 @@ private:
     std::vector<std::pair<UtilityAtcf::Group, QCheckBox *>> groupChecks;
     QCheckBox * reconCheck{};
     QCheckBox * barbCheck{};
+    string startStorm;   // from the dashboard: the storm to select when the first list arrives
     QCheckBox * wwCheck{};                                    // watches and warnings
     QCheckBox * coneCheck{};                                  // the forecast cone
     QCheckBox * swathCheck{};                                 // the forecast wind swath

@@ -132,7 +132,7 @@ QColor HurricaneViewer::categoryColor(int category) {
     return colors[std::clamp(category, 0, 6)];
 }
 
-HurricaneViewer::HurricaneViewer(Window * parent)
+HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const string& stormId)
     : Window{parent}
     , comboBasin{this, {"Atlantic", "East Pacific", "Central Pacific"}}
     , comboStorm{this, {"Loading the storm list..."}}
@@ -304,6 +304,10 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     });
 
     comboBasin.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("HURRICANE_BASIN", 0), 0, 2)));
+    if (basin == "al" || basin == "ep" || basin == "cp") {
+        comboBasin.setIndex(basin == "al" ? 0 : basin == "ep" ? 1 : 2);
+        startStorm = stormId;
+    }
     comboBasin.connect([this] {
         Utility::writePrefInt("HURRICANE_BASIN", comboBasin.getIndex());
         recon.reset();
@@ -452,7 +456,8 @@ void HurricaneViewer::loadList() {
             comboStorm.setList(labels);
             size_t pick = 0;
             // WXQT_STORM=al022026 (a development aid, with WXQT_OPEN) opens on that storm instead of the first
-            const auto wanted = qEnvironmentVariableIsSet("WXQT_STORM") ? qEnvironmentVariable("WXQT_STORM").toStdString() : before;
+            const auto wanted = !startStorm.empty() ? startStorm : qEnvironmentVariableIsSet("WXQT_STORM") ? qEnvironmentVariable("WXQT_STORM").toStdString() : before;
+            startStorm.clear();
             for (size_t i = 0; i < entries.size(); i++) {
                 if (entries[i].id == wanted) {
                     pick = i;
