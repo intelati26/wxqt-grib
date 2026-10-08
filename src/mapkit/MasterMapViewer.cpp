@@ -80,6 +80,10 @@ MasterMapViewer::MasterMapViewer(Window * parent)
     tree->setIndentation(16);
     tree->setMinimumHeight(340);
     column->addWidget(tree, 3);
+    legendCheck = new QCheckBox{"Show the legend", sidePanel};
+    legendCheck->setChecked(Utility::readPref("MASTERMAP_LEGEND", "true") == "true");
+    QObject::connect(legendCheck, &QCheckBox::toggled, [this] (bool on) { Utility::writePref("MASTERMAP_LEGEND", on ? "true" : "false"); redraw(); });
+    column->addWidget(legendCheck);
     optionsTitle = new QLabel{sidePanel};
     optionsTitle->setStyleSheet("font-weight: bold;");
     column->addWidget(optionsTitle);
@@ -337,11 +341,9 @@ void MasterMapViewer::paintMap(QPainter& painter) {
 }
 
 void MasterMapViewer::paintLegend(QPainter& painter) {
-    const double px = mapView->unitsPerPixel();
-    QFont font{painter.font()};
-    font.setPointSizeF(9.0);
-    painter.setFont(font);
-    painter.setRenderHint(QPainter::Antialiasing, true);
+    if (!legendCheck->isChecked()) {
+        return;
+    }
     vector<MapLegendRow> rows;
     for (const auto& layer : layers) {
         if (layer->enabled()) {
@@ -350,32 +352,7 @@ void MasterMapViewer::paintLegend(QPainter& painter) {
             }
         }
     }
-    double y = 735.0;
-    if (!rows.empty()) {   // a dark strip behind the rows so that they read over the marks
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor{12, 18, 30, 190});
-        painter.drawRect(QRectF{-500.0, y - 17.0 * static_cast<double>(rows.size()) + 5.0, 1000.0, 17.0 * static_cast<double>(rows.size()) + 12.0});
-    }
-    for (auto it = rows.rbegin(); it != rows.rend(); ++it) {
-        double x = -490.0;
-        painter.setPen(QColor{235, 235, 235});
-        painter.drawText(QPointF{x, y + 4.0}, it->title);
-        x += QFontMetricsF{font}.horizontalAdvance(it->title) + 10.0;
-        for (const auto& e : it->entries) {
-            painter.setPen(QPen{QColor{255, 255, 255, 200}, 0.9 * px});
-            painter.setBrush(e.color);
-            switch (e.shape) {
-                case MapLegendEntry::Square: painter.drawRect(QRectF{x, y - 5.0, 10.0, 10.0}); break;
-                case MapLegendEntry::Diamond: painter.drawPolygon(QPolygonF{{QPointF{x + 5.0, y - 6.0}, QPointF{x + 10.0, y}, QPointF{x + 5.0, y + 6.0}, QPointF{x, y}}}); break;
-                case MapLegendEntry::Line: painter.setPen(QPen{e.color, 3.0 * px}); painter.drawLine(QPointF{x, y}, QPointF{x + 12.0, y}); break;
-                default: painter.drawEllipse(QPointF{x + 5.0, y}, 5.0, 5.0); break;
-            }
-            painter.setPen(QColor{235, 235, 235});
-            painter.drawText(QPointF{x + 15.0, y + 4.0}, e.label);
-            x += 26.0 + QFontMetricsF{font}.horizontalAdvance(e.label);
-        }
-        y -= 17.0;
-    }
+    MapLegend::draw(painter, rows, mapView->unitsPerPixel());
 }
 
 MapHit MasterMapViewer::bestHit(const QPointF& pixels) const {

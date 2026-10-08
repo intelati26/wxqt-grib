@@ -15,6 +15,7 @@
 #include <QPointF>
 #include <QString>
 #include <QWidget>
+#include "radar/MapLegend.h"
 #include "radar/MapView.h"
 #include "ui/Window.h"
 
@@ -32,17 +33,6 @@ struct MapHit {
     QString text;                                  // the hover popup
     std::function<void(Window *)> open;            // a click opens this (empty: nothing to open)
     bool valid() const { return distance <= reach && !text.isEmpty(); }
-};
-
-struct MapLegendEntry {
-    enum Shape { Circle, Square, Diamond, Line } shape{Circle};
-    QColor color;
-    QString label;
-};
-
-struct MapLegendRow {
-    QString title;                                 // "Buoys, wind:"
-    vector<MapLegendEntry> entries;
 };
 
 class MapHost {

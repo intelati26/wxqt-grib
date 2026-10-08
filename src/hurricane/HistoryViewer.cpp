@@ -11,6 +11,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include "hurricane/Coast.h"
+#include "radar/MapLegend.h"
 #include "hurricane/UtilityAtcf.h"
 #include "hurricane/UtilityEnsembleStats.h"
 #include "objects/FutureVoid.h"
@@ -485,21 +486,14 @@ void HistoryViewer::paintMap(QPainter& painter) {
         painter.drawRect(QRectF{toUnits(dragStart), toUnits(dragNow)}.normalized());
     }
     // the legend
-    QFont font{painter.font()};
-    font.setPointSizeF(9.0);
-    painter.setFont(font);
-    double x = -490.0;
-    const double y = 735.0;
+    MapLegendRow row;
+    row.title = "Intensity along the track:";
     static const char * names[] = {"TD", "TS", "Cat 1", "Cat 2", "Cat 3", "Cat 4", "Cat 5"};
     static const int winds[] = {20, 40, 70, 85, 100, 120, 140};
     for (int c = 0; c <= 6; c++) {
-        painter.setPen(QPen{QColor{0, 0, 0, 200}, 0.9 * px});
-        painter.setBrush(colorOf(winds[c]));
-        painter.drawEllipse(QPointF{x + 6.0, y}, 6.0, 6.0);
-        painter.setPen(QColor{235, 235, 235});
-        painter.drawText(QPointF{x + 16.0, y + 4.0}, names[c]);
-        x += 30.0 + QFontMetricsF{font}.horizontalAdvance(names[c]);
+        row.entries.push_back({MapLegendEntry::Circle, colorOf(winds[c]), names[c]});
     }
+    MapLegend::draw(painter, {row}, px);
 }
 
 void HistoryViewer::showHover(const QPointF& pixels) {

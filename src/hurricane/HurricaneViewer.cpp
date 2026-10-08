@@ -28,6 +28,7 @@
 #include "hurricane/UtilityChanges.h"
 #include "models/SoundingViewer.h"
 #include "hurricane/ShipsViewer.h"
+#include "radar/MapLegend.h"
 #include "hurricane/StrikeReport.h"
 #include "hurricane/VdmViewer.h"
 #include "objects/FutureVoid.h"
@@ -1474,26 +1475,31 @@ void HurricaneViewer::paintPlannedRecon(QPainter& painter) {
 }
 
 void HurricaneViewer::paintLegend(QPainter& painter) {
-    const double px = view->unitsPerPixel();
-    QFont font{painter.font()};
-    font.setPointSizeF(9.0);
-    painter.setFont(font);
-    double x = -490.0;
-    const double y = 735.0;
-    painter.setRenderHint(QPainter::Antialiasing, true);
+    std::vector<MapLegendRow> rows;
     static const char * names[] = {"TD", "TS", "Cat 1", "Cat 2", "Cat 3", "Cat 4", "Cat 5"};
-    painter.setPen(QColor{235, 235, 235});
-    painter.drawText(QPointF{x, y + 4.0}, reconCheck != nullptr && reconCheck->isChecked() ? (comboRecon.getIndex() == 1 ? "SFMR wind:" : "Flight-level wind:") : "Intensity:");
-    x += reconCheck != nullptr && reconCheck->isChecked() ? 118.0 : 62.0;
+    MapLegendRow intensity;
+    intensity.title = reconCheck != nullptr && reconCheck->isChecked() ? (comboRecon.getIndex() == 1 ? "SFMR wind:" : "Flight-level wind:") : "Intensity:";
     for (int c = 0; c <= 6; c++) {
-        painter.setPen(QPen{QColor{0, 0, 0, 200}, 0.9 * px});
-        painter.setBrush(categoryColor(c));
-        painter.drawEllipse(QPointF{x + 6.0, y}, 6.0, 6.0);
-        painter.setPen(QColor{235, 235, 235});
-        const QString label = names[c];
-        painter.drawText(QPointF{x + 16.0, y + 4.0}, label);
-        x += 30.0 + QFontMetricsF{font}.horizontalAdvance(label);
+        intensity.entries.push_back({MapLegendEntry::Circle, categoryColor(c), names[c]});
     }
+    rows.push_back(std::move(intensity));
+    if (wwCheck != nullptr && wwCheck->isChecked() && gis && (!gis->watchWarnings.empty() || !gis->inland.empty())) {
+        MapLegendRow warnings;
+        warnings.title = "Watches and warnings:";
+        warnings.entries = {{MapLegendEntry::Line, QColor{255, 0, 0}, "hurricane warning"}, {MapLegendEntry::Line, QColor{255, 128, 192}, "hurricane watch"},
+                            {MapLegendEntry::Line, QColor{0, 85, 255}, "tropical storm warning"}, {MapLegendEntry::Line, QColor{255, 215, 0}, "tropical storm watch"}};
+        rows.push_back(std::move(warnings));
+    }
+    if ((radiiCheck != nullptr && radiiCheck->isChecked()) || (swathCheck != nullptr && swathCheck->isChecked())) {
+        MapLegendRow radii;
+        radii.title = radiiCheck->isChecked() ? "Wind radii:" : "Wind swath:";
+        radii.entries = {{MapLegendEntry::Square, QColor{255, 235, 80}, "34 kt"}, {MapLegendEntry::Square, QColor{255, 150, 40}, "50 kt"}, {MapLegendEntry::Square, QColor{255, 70, 70}, "64 kt"}};
+        rows.push_back(std::move(radii));
+    }
+    if (outlookCheck != nullptr && outlookCheck->isChecked()) {
+        rows.push_back({"Development chance:", {{MapLegendEntry::Square, QColor{255, 225, 60}, "low"}, {MapLegendEntry::Square, QColor{255, 150, 30}, "medium"}, {MapLegendEntry::Square, QColor{255, 60, 60}, "high"}}});
+    }
+    MapLegend::draw(painter, rows, view->unitsPerPixel());
 }
 
 void HurricaneViewer::showHover(const QPointF& pixels) {

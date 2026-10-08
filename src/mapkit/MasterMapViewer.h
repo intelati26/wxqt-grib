@@ -12,6 +12,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <QCheckBox>
 #include <QLabel>
 #include <QTimer>
 #include <QTreeWidget>
@@ -70,6 +71,7 @@ private:
     QWidget * sidePanel{};
     QTreeWidget * tree{};
     QWidget * optionsBox{};
+    QCheckBox * legendCheck{};
     QVBoxLayout * optionsLayout{};
     QLabel * optionsTitle{};
     vector<std::unique_ptr<MapLayer>> layers;       // in painting order
