@@ -33,6 +33,44 @@
 #include "util/UtilityUI.h"
 
 namespace {
+
+    // a wind barb at `at`: the staff points into the wind, feathers on the clockwise side (the other side south of the equator)
+    void drawBarb(QPainter& painter, const QPointF& at, double fromDegrees, double knots, double length, bool south) {
+        const double rad = fromDegrees * std::numbers::pi / 180.0;
+        const QPointF staff{std::sin(rad), -std::cos(rad)};
+        const QPointF perp = south ? QPointF{staff.y(), -staff.x()} : QPointF{-staff.y(), staff.x()};
+        if (knots < 2.5) {
+            painter.drawEllipse(at, length * 0.12, length * 0.12);
+            return;
+        }
+        painter.drawLine(at, at + staff * length);
+        int remaining = static_cast<int>(std::lround(knots / 5.0)) * 5;
+        double along = length;
+        const double step = length * 0.14;
+        const double feather = length * 0.42;
+        while (remaining >= 50) {
+            const QPointF a = at + staff * along;
+            QPolygonF flag;
+            flag << a << a + perp * feather - staff * (step * 0.4) << a - staff * (step * 1.4);
+            painter.drawPolygon(flag);
+            along -= step * 1.6;
+            remaining -= 50;
+        }
+        while (remaining >= 10) {
+            const QPointF a = at + staff * along;
+            painter.drawLine(a, a + perp * feather - staff * (step * 0.6));
+            along -= step;
+            remaining -= 10;
+        }
+        if (remaining >= 5) {
+            if (along >= length - 1e-6) {
+                along -= step;
+            }
+            const QPointF a = at + staff * along;
+            painter.drawLine(a, a + perp * feather * 0.5 - staff * (step * 0.3));
+        }
+    }
+
     using Group = UtilityAtcf::Group;
 
     // distance in km between two points on the earth
@@ -249,6 +287,13 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     column->addWidget(reconCheck);
     column->addWidget(comboRecon.getView());
     comboRecon.connect([this] { view->map()->update(); });
+    barbCheck = new QCheckBox{"Flight-level wind barbs (knots)", panel};
+    barbCheck->setChecked(Utility::readPref("HURRICANE_BARBS", "true") == "true");
+    column->addWidget(barbCheck);
+    QObject::connect(barbCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("HURRICANE_BARBS", on ? "true" : "false");
+        view->map()->update();
+    });
     QObject::connect(reconCheck, &QCheckBox::toggled, [this] (bool on) {
         Utility::writePref("HURRICANE_RECON", on ? "true" : "false");
         if (on && !recon) {
@@ -333,7 +378,7 @@ HurricaneViewer::HurricaneViewer(Window * parent)
     scroll->setFrameShape(QFrame::NoFrame);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     scroll->setFixedWidth(panelWidth + 18);
-    rowMain.addWidgetReal(scroll, 1, Qt::AlignTop | Qt::AlignLeft);
+    rowMain.addWidgetReal(scroll, 1, Qt::Alignment{});
     box.addLayout(rowTop);
     box.addWidget(textStatus);
     box.addLayout(rowMain);
@@ -1272,6 +1317,28 @@ void HurricaneViewer::paintMap(QPainter& painter) {
                 painter.setBrush(color);
                 painter.drawEllipse(p, 2.6 * px, 2.6 * px);
                 previous = &ob;
+            }
+        }
+        // flight-level wind barbs, thinned to one every ~34 pixels along each flight
+        if (barbCheck->isChecked()) {
+            for (const auto& message : recon->messages) {
+                bool haveLast = false;
+                QPointF last;
+                for (const auto& ob : message.obs) {
+                    if (!reconNear(ob) || !UtilityHdob::has(ob.windSpeed) || !UtilityHdob::has(ob.windDirection)) {
+                        continue;
+                    }
+                    const auto p = t(ob.lat, ob.lon);
+                    if (haveLast && std::hypot(p.x() - last.x(), p.y() - last.y()) < 34.0 * px) {
+                        continue;
+                    }
+                    haveLast = true;
+                    last = p;
+                    const auto color = reconColor(ob).darker(125);
+                    painter.setPen(QPen{color, 1.4 * px});
+                    painter.setBrush(color);
+                    drawBarb(painter, p, ob.windDirection, ob.windSpeed, 26.0 * px, ob.lat < 0.0);
+                }
             }
         }
     }

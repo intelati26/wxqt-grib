@@ -87,6 +87,7 @@ private:
     QLabel * hoverLabel{};
     std::vector<std::pair<UtilityAtcf::Group, QCheckBox *>> groupChecks;
     QCheckBox * reconCheck{};
+    QCheckBox * barbCheck{};
     QCheckBox * wwCheck{};                                    // watches and warnings
     QCheckBox * coneCheck{};                                  // the forecast cone
     QCheckBox * swathCheck{};                                 // the forecast wind swath
