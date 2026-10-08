@@ -19,6 +19,7 @@ class MrmsLayer : public MapLayer {
 public:
     string id() const override { return "radar/mrms"; }
     string path() const override { return "Radar and precipitation/MRMS (radar-derived products)"; }
+    string source() const override { return "NOAA MRMS"; }
     string tip() const override { return "NOAA's Multi-Radar Multi-Sensor products: reflectivity, hail size, rotation, rain rate and totals; the newest scan of the product chosen in the options"; }
     int order() const override { return 10; }
     int refreshSeconds() const override { return 120; }

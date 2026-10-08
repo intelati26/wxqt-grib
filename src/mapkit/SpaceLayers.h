@@ -15,6 +15,7 @@ class AuroraLayer : public MapLayer {
 public:
     string id() const override { return "space/aurora"; }
     string path() const override { return "Space weather/Aurora forecast (OVATION)"; }
+    string source() const override { return "NOAA Space Weather Prediction Center (OVATION)"; }
     string tip() const override { return "The chance of seeing the aurora (NOAA SWPC's OVATION model, for the next half hour or so), on a 1 degree grid"; }
     int order() const override { return 22; }
     int refreshSeconds() const override { return 300; }

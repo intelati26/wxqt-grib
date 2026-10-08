@@ -8,6 +8,10 @@
 #include <cmath>
 #include <sstream>
 #include <QContextMenuEvent>
+#include <QDateTime>
+#include <QFileDialog>
+#include <QPageSize>
+#include <QPdfWriter>
 #include <QHBoxLayout>
 #include <QCoreApplication>
 #include <QFont>
@@ -39,7 +43,7 @@ MasterMapViewer::MasterMapViewer(Window * parent)
     : Window{parent}
     , comboView{this, {"Your layers"}}
     , buttonRefresh{this, None, "Refresh layers"}
-    , buttonSave{this, None, "Save picture..."}
+    , buttonSave{this, None, "Export view..."}
     , textStatus{this, "Switch layers on in the tree"}
 {
     setAttribute(Qt::WA_DeleteOnClose);
@@ -112,11 +116,7 @@ MasterMapViewer::MasterMapViewer(Window * parent)
             }
         }
     });
-    buttonSave.connect([this] {
-        // the same menu as a right-click on the map
-        QContextMenuEvent event{QContextMenuEvent::Mouse, QPoint{10, 10}, mapView->map()->mapToGlobal(QPoint{10, 10})};
-        QCoreApplication::sendEvent(mapView->map(), &event);
-    });
+    buttonSave.connect([this] { exportView(); });
     rowTop.addWidget(comboView);
     rowTop.addWidget(buttonRefresh);
     rowTop.addWidget(buttonSave);
@@ -408,6 +408,103 @@ void MasterMapViewer::advance() {
         next = 0;   // round again, with a pause at the newest
     }
     goTo(next);
+}
+
+// The whole view as one picture: a header with the view's name, the layers that are on, the time of each frame and the region; the map as it is on the screen
+// (legend included) at twice the resolution; a footer with who made the data and when the picture was saved. PNG or PDF.
+void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, bool vector) {
+    (void)vector;
+    const int width = side;
+    QStringList names;
+    QStringList times;
+    QStringList sources;
+    for (const auto& layer : layers) {
+        if (!layer->enabled()) {
+            continue;
+        }
+        names << QString::fromStdString(layer->path()).section('/', -1);
+        if (layer->timeAware() && !layer->timeText().empty()) {
+            times << QString::fromStdString(layer->timeText());
+        }
+        const auto source = QString::fromStdString(layer->source());
+        if (!source.isEmpty() && !sources.contains(source)) {
+            sources << source;
+        }
+    }
+    QFont base{painter.font()};
+    base.setPixelSize(static_cast<int>(13 * scale));
+    QFont bold{base};
+    bold.setBold(true);
+    bold.setPixelSize(static_cast<int>(17 * scale));
+    const int pad = static_cast<int>(8 * scale);
+    const int headerHeight = static_cast<int>(66 * scale);
+    const int footerHeight = static_cast<int>(38 * scale);   // room for two lines of credits
+    painter.fillRect(QRect{0, 0, width, headerHeight}, QColor{250, 250, 250});
+    painter.setPen(QColor{25, 25, 25});
+    painter.setFont(bold);
+    const auto viewName = comboView.getIndex() > 0 ? QString::fromStdString(comboView.getValue()) : QString{"Master map"};
+    painter.drawText(QRect{pad, pad / 2, width - 2 * pad, static_cast<int>(24 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, viewName);
+    painter.setFont(base);
+    painter.setPen(QColor{60, 60, 60});
+    painter.drawText(QRect{pad, static_cast<int>(27 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap,
+        names.isEmpty() ? QString{"No layers on"} : "Layers: " + names.join(", "));
+    painter.drawText(QRect{pad, static_cast<int>(45 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft,
+        (times.isEmpty() ? QString{"Valid now"} : "Valid: " + times.join("   ")));
+    // the map, with its legend, as drawn on the screen
+    auto * map = mapView->map();
+    const double factor = static_cast<double>(width) / std::max(1, map->width());
+    painter.save();
+    painter.translate(0, headerHeight);
+    painter.scale(factor, factor);
+    map->render(&painter);
+    painter.restore();
+    const int mapBottom = headerHeight + static_cast<int>(map->height() * factor);
+    painter.fillRect(QRect{0, mapBottom, width, footerHeight}, QColor{245, 245, 245});
+    QFont small{base};
+    small.setPixelSize(static_cast<int>(11 * scale));
+    painter.setFont(small);
+    painter.setPen(QColor{100, 100, 100});
+    painter.drawText(QRect{pad, mapBottom, width - 2 * pad, footerHeight}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap,
+        (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("d MMM yyyy HH:mm") + " UTC  -  wxqt");
+}
+
+void MasterMapViewer::exportView() {
+    QString filter;
+    const auto path = QFileDialog::getSaveFileName(this, "Export the view", ChartExport::startFolder() + "/" + ChartExport::fileName("master map", "png"),
+                                                   "PNG image (*.png);;PDF document (*.pdf)", &filter);
+    if (path.isEmpty()) {
+        return;
+    }
+    ChartExport::remember(path);
+    exportTo(path);
+}
+
+void MasterMapViewer::exportTo(const QString& path) {
+    auto * map = mapView->map();
+    const double ratio = static_cast<double>(map->height()) / std::max(1, map->width());
+    if (path.endsWith(".pdf", Qt::CaseInsensitive)) {
+        const int side = map->width();
+        const int heightPx = static_cast<int>((66 + 38) + side * ratio);
+        QPdfWriter writer{path};
+        writer.setResolution(150);
+        writer.setPageSize(QPageSize{QSizeF{side * 25.4 / 96.0, heightPx * 25.4 / 96.0}, QPageSize::Millimeter});
+        writer.setPageMargins(QMarginsF{0, 0, 0, 0});
+        QPainter painter{&writer};
+        const double factor = static_cast<double>(writer.width()) / side;
+        painter.scale(factor, factor);
+        paintExport(painter, side, 1.0, true);
+        return;
+    }
+    const double scale = 2.0;
+    const int side = static_cast<int>(map->width() * scale);
+    QImage image{side, static_cast<int>((66 + 38) * scale + side * ratio), QImage::Format_ARGB32};
+    image.fill(Qt::white);
+    image.setDevicePixelRatio(1.0);
+    QPainter painter{&image};
+    paintExport(painter, side, scale, false);
+    painter.end();
+    image.save(path, "PNG");
+    status("Saved " + path.toStdString());
 }
 
 void MasterMapViewer::saveState() {

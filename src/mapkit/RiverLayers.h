@@ -19,6 +19,7 @@ class GaugeLayer : public MapLayer {
 public:
     string id() const override { return "rivers/gauges"; }
     string path() const override { return "Rivers and water/River gauges (NWS)"; }
+    string source() const override { return "NWS National Water Prediction Service river gauges"; }
     string tip() const override { return "About 13,000 NWS river gauges, each in its flood category's colour; click one for its hydrograph, forecast and the National Water Model"; }
     int order() const override { return 40; }
     int refreshSeconds() const override { return 600; }
@@ -44,6 +45,7 @@ class DamLayer : public MapLayer {
 public:
     string id() const override { return "rivers/dams"; }
     string path() const override { return "Rivers and water/Dams (Corps of Engineers)"; }
+    string source() const override { return "US Army Corps of Engineers CWMS"; }
     string tip() const override { return "Corps of Engineers hydropower dams in the Little Rock and Tulsa districts: the latest release, power generated and pool; click one for its history"; }
     int order() const override { return 45; }
     int refreshSeconds() const override { return 600; }
@@ -65,6 +67,7 @@ class BuoyLayer : public MapLayer {
 public:
     string id() const override { return "rivers/buoys"; }
     string path() const override { return "Rivers and water/Buoys and coastal stations (NDBC)"; }
+    string source() const override { return "NOAA National Data Buoy Center"; }
     string tip() const override { return "NOAA's National Data Buoy Center buoys and coastal stations: the latest wind, waves, pressure and temperatures; click one for its history"; }
     int order() const override { return 42; }
     int refreshSeconds() const override { return 600; }

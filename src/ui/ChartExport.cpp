@@ -28,7 +28,7 @@ namespace {
         painter.drawText(QRect{6, top, width - 12, footer}, Qt::AlignVCenter | Qt::AlignLeft, title + "  -  saved " + QDateTime::currentDateTimeUtc().toString("d MMM yyyy HH:mm") + " UTC  -  wxqt");
     }
 
-    QString fileName(const QString& title, const QString& extension) {
+    QString fileNameImpl(const QString& title, const QString& extension) {
         QString base = title.toLower();
         for (auto& c : base) {
             if (!c.isLetterOrNumber()) {
@@ -38,12 +38,12 @@ namespace {
         return base + "_" + QDateTime::currentDateTimeUtc().toString("yyyyMMdd_HHmm") + "." + extension;
     }
 
-    QString startFolder() {
+    QString startFolderImpl() {
         const auto saved = QString::fromStdString(Utility::readPref("CHART_EXPORT_DIR", ""));
         return saved.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) : saved;
     }
 
-    void remember(const QString& path) {
+    void rememberImpl(const QString& path) {
         Utility::writePref("CHART_EXPORT_DIR", QFileInfo{path}.absolutePath().toStdString());
     }
 }
@@ -51,6 +51,10 @@ namespace {
 namespace {
     int exportDepth = 0;
 }
+
+QString ChartExport::startFolder() { return startFolderImpl(); }
+void ChartExport::remember(const QString& path) { rememberImpl(path); }
+QString ChartExport::fileName(const QString& title, const QString& extension) { return fileNameImpl(title, extension); }
 
 bool ChartExport::exporting() {
     // only while a picture is being made, and only when "plots only" is chosen in the menu: the default is the whole chart as it is on the screen

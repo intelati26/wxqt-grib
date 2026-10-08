@@ -17,6 +17,7 @@ class ActiveStormsLayer : public MapLayer {
 public:
     string id() const override { return "tropical/storms"; }
     string path() const override { return "Tropical/Active storms: track, forecast, cone, warnings"; }
+    string source() const override { return "NOAA National Hurricane Center, NWS watches and warnings"; }
     string tip() const override { return "Every active storm and invest of the Atlantic, East and Central Pacific: the best track so far, NHC's forecast and cone, the watches and warnings; click one for its full screen"; }
     int order() const override { return 70; }
     int refreshSeconds() const override { return 600; }
@@ -50,6 +51,7 @@ class OutlookLayer : public MapLayer {
 public:
     string id() const override { return "tropical/outlook"; }
     string path() const override { return "Tropical/Development areas (Tropical Weather Outlook)"; }
+    string source() const override { return "NOAA National Hurricane Center"; }
     string tip() const override { return "NHC's areas of possible tropical development with their 2 and 7 day chances"; }
     int order() const override { return 30; }
     int refreshSeconds() const override { return 1800; }
@@ -71,6 +73,7 @@ class WindProbabilityLayer : public MapLayer {
 public:
     string id() const override { return "tropical/windprob"; }
     string path() const override { return "Tropical/Wind probabilities (NHC, 5 days)"; }
+    string source() const override { return "NOAA National Hurricane Center"; }
     string tip() const override { return "NHC's chance of sustained winds of at least 34, 50 or 64 kt in the next five days, all active storms together"; }
     int order() const override { return 25; }
     int refreshSeconds() const override { return 1800; }

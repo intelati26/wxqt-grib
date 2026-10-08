@@ -19,6 +19,7 @@ public:
     string id() const override { return airports ? "obs/airports" : "obs/mesonet"; }
     string path() const override { return airports ? "Observations/Airports (METAR)" : "Observations/Mesonets and other networks (MADIS)"; }
     string tip() const override;
+    string source() const override { return airports ? "NWS Aviation Weather Center METARs" : "NOAA MADIS mesonet data"; }
     int order() const override { return airports ? 60 : 61; }   // the airports first, so that they win a crowded patch
     int refreshSeconds() const override { return airports ? 120 : 1800; }
     void refresh(MapHost&) override;

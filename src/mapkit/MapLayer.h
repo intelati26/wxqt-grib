@@ -69,6 +69,7 @@ public:
     // its own choices (colour by, filters), shown under the tree when selected; `changed` is called when one of them changes
     virtual QWidget * options(QWidget * /*parent*/, const std::function<void()>& /*changed*/) { return nullptr; }
     virtual string summary() const { return {}; }
+    virtual string source() const { return {}; }                 // who made the data, for the line under an exported picture
     // time: a layer with frames in time (radar scans, a forecast's hours) lists them, and shows the one the time bar asks for
     virtual bool timeAware() const { return false; }
     virtual vector<long> times() const { return {}; }            // seconds since 1970, ascending: the frames that can be shown now

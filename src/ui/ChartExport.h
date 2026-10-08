@@ -18,6 +18,9 @@ namespace ChartExport {
     // The default is the whole chart as on the screen
     bool exporting();
     QImage render(QWidget * chart, const QString& title, int scale = 2);
+    QString startFolder();                     // where the last picture was saved (the pictures folder at first)
+    void remember(const QString& path);
+    QString fileName(const QString& title, const QString& extension);   // "master_map_20261008_1530.png"
     bool savePng(QWidget * chart, const QString& title, const QString& path);
     bool savePdf(QWidget * chart, const QString& title, const QString& path);
 }
