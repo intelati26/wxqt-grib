@@ -19,6 +19,7 @@
 #include "climate/ClimateViewer.h"
 #include "hurricane/AceViewer.h"
 #include "hurricane/AdvisoryViewer.h"
+#include "hurricane/FloaterViewer.h"
 #include "hurricane/HistoryViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "hurricane/PodViewer.h"
@@ -276,7 +277,7 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
     thumbnail->setFixedSize(130, 130);
     thumbnail->setCursor(Qt::PointingHandCursor);
     thumbnail->setStyleSheet("QPushButton { border: none; }");
-    thumbnail->setToolTip("GeoColor satellite picture (NOAA / NESDIS STAR): click for the larger picture");
+    thumbnail->setToolTip("GeoColor satellite picture (NOAA / NESDIS STAR): click for the floater with all the GOES fields");
     thumbnail->hide();
     outer->addWidget(thumbnail, 0, Qt::AlignTop);
     {
@@ -285,7 +286,8 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
         const string folder = "https://cdn.star.nesdis.noaa.gov/FLOATER/data/" + upper + "/GEOCOLOR/";
         QPointer<QPushButton> guard{thumbnail};
         const int mine = generation;
-        new FutureBytes{this, folder + "250x250.jpg", [this, guard, mine, folder, upper] (const QByteArray& bytes) {
+        const string floaterTitle = HurricaneData::idLabel(entry.id) + (entry.name.empty() ? "" : " " + entry.name);
+        new FutureBytes{this, folder + "250x250.jpg", [this, guard, mine, upper, floaterTitle] (const QByteArray& bytes) {
             QPixmap picture;
             if (closed || mine != generation || guard.isNull() || bytes.size() < 500 || !picture.loadFromData(bytes)) {
                 return;
@@ -293,7 +295,7 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
             guard->setIcon(QIcon{picture.scaled(130, 130, Qt::KeepAspectRatio, Qt::SmoothTransformation)});
             guard->setIconSize(QSize{130, 130});
             guard->show();
-            QObject::connect(guard.data(), &QPushButton::clicked, [this, folder, upper] { new ImageViewer{this, folder + "latest.jpg", upper + " GeoColor"}; });
+            QObject::connect(guard.data(), &QPushButton::clicked, [this, upper, floaterTitle] { new FloaterViewer{this, upper, floaterTitle}; });
         }};
     }
     const QString title = QString::fromStdString(HurricaneData::idLabel(entry.id)) + "  " + QString::fromStdString(entry.name) + "  -  " + basinName(basin);
