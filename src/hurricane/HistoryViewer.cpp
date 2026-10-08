@@ -296,7 +296,8 @@ void HistoryViewer::applyFilters() {
         major += t.stormStrength && t.peakWind >= 96 ? 1 : 0;
     }
     string text = std::to_string(shown.size()) + " tracks (" + std::to_string(storms) + " named storms, " + std::to_string(hurricanes) + " hurricanes, " + std::to_string(major) + " major) from " +
-        std::to_string(first) + " to " + std::to_string(last) + "   -   " + data->file + "   -   hover a track for its name, click one in the list to see only it";
+        std::to_string(first) + " to " + std::to_string(last) + "   -   " + data->file + "   -   " +
+        (shown.size() > hoverLimit ? "narrow it to " + std::to_string(hoverLimit) + " tracks or fewer (years, category, an area) to hover a track for its name; or click one in the list" : string{"hover a track for its name, click one in the list to see only it"});
     if (area.kind == Area::Box) {
         text += "   -   in the box " + QString::number(area.minLat, 'f', 1).toStdString() + " to " + QString::number(area.maxLat, 'f', 1).toStdString() + " N, " + QString::number(area.minLon, 'f', 1).toStdString() + " to " + QString::number(area.maxLon, 'f', 1).toStdString() + " E";
     } else if (area.kind == Area::Circle) {
@@ -358,7 +359,7 @@ bool HistoryViewer::passesArea(const UtilityHurdat::Track& t) const {
 }
 
 QString HistoryViewer::describe(const UtilityHurdat::Track& t) const {
-    return QString::number(t.year) + "  " + QString::fromStdString(t.name) + "  " + QString::fromStdString(UtilityAtcf::windLabel(t.peakWind)) + (t.minPressure > 0 ? ", " + QString::number(t.minPressure) + " mb" : QString{});
+    return QString::number(t.year) + "  " + QString::fromStdString(t.id.substr(0, 4)) + " " + QString::fromStdString(t.name) + "  " + QString::fromStdString(UtilityAtcf::windLabel(t.peakWind)) + (t.minPressure > 0 ? ", " + QString::number(t.minPressure) + " mb" : QString{});
 }
 
 void HistoryViewer::showSelected() {
@@ -498,6 +499,15 @@ void HistoryViewer::paintMap(QPainter& painter) {
 
 void HistoryViewer::showHover(const QPointF& pixels) {
     if (!data || selected >= 0) {
+        return;
+    }
+    // with many tracks the search for the one under the pointer is slow and the choice not meaningful: hovering waits until there are few
+    if (shown.size() > hoverLimit) {
+        if (hovered >= 0) {
+            hovered = -1;
+            view->map()->update();
+        }
+        hoverLabel->hide();
         return;
     }
     int best = -1;

@@ -579,6 +579,15 @@ void MasterMapViewer::paintMap(QPainter& painter) {
     const auto t = mapView->transform();
     const double px = mapView->unitsPerPixel();
     painter.setRenderHint(QPainter::Antialiasing, true);
+    cells.clear();
+    // the base layers first (a satellite picture), then the coastlines and borders over them
+    for (auto& layer : layers) {
+        if (layer->enabled() && layer->underCoast()) {
+            painter.save();
+            layer->paint(painter, *this);
+            painter.restore();
+        }
+    }
     // the coastlines and borders of the world's tropics and mid-latitudes
     painter.setPen(QPen{QColor{110, 125, 145}, 1.0 * px});
     painter.setBrush(Qt::NoBrush);
@@ -596,9 +605,8 @@ void MasterMapViewer::paintMap(QPainter& painter) {
         }
         painter.drawPath(path);
     }
-    cells.clear();
     for (auto& layer : layers) {
-        if (layer->enabled()) {
+        if (layer->enabled() && !layer->underCoast()) {
             painter.save();
             layer->paint(painter, *this);
             painter.restore();

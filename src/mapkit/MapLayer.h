@@ -56,6 +56,7 @@ public:
     virtual string id() const = 0;                               // stable, for the saved settings: "obs/airports"
     virtual string path() const = 0;                             // where it sits in the tree: "Observations/Airports (METAR)"
     virtual string tip() const { return {}; }
+    virtual bool underCoast() const { return false; }           // a base layer: painted before the coastlines and borders, so that they stay on top
     virtual int order() const { return 50; }                     // painting order, lowest first: pictures under 20, areas 20-39, lines and marks 40 and up
     virtual int refreshSeconds() const { return 0; }             // 0: only when switched on or refreshed by hand
     void enable(MapHost& host) { on = true; onEnable(host); }

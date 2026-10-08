@@ -75,6 +75,7 @@ private:
     bool dragging{false};
     QPointF dragStart;
     QPointF dragNow;
+    static constexpr size_t hoverLimit = 50;   // the hover highlight works with this many tracks or fewer
     bool filling{false};
     bool closed{false};
     int generation{0};
