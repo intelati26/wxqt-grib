@@ -426,7 +426,7 @@ void HurricaneData::loadSeason(SeasonData& data, const string& basin) {
     } else {
         const auto folder = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/hurricane";
         QDir{}.mkpath(folder);
-        const auto cachePath = folder + "/" + QString::fromStdString(data.hurdatFile) + ".csv";
+        const auto cachePath = folder + "/" + QString::fromStdString(data.hurdatFile) + ".v2.csv";
         QFile cache{cachePath};
         if (cache.open(QIODevice::ReadOnly)) {
             data.history = UtilitySeason::fromCsv(cache.readAll().toStdString());
@@ -441,7 +441,7 @@ void HurricaneData::loadSeason(SeasonData& data, const string& basin) {
                 cache.close();
                 // older cached versions are no longer needed
                 for (const auto& old : QDir{folder}.entryList({"hurdat2-*.csv"}, QDir::Files)) {
-                    if (old != QString::fromStdString(data.hurdatFile) + ".csv") {
+                    if (old != QString::fromStdString(data.hurdatFile) + ".v2.csv") {
                         QFile::remove(folder + "/" + old);
                     }
                 }

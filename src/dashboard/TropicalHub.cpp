@@ -8,18 +8,24 @@
 #include <cmath>
 #include <QDateTime>
 #include <QFrame>
+#include <QIcon>
+#include <QPixmap>
+#include <QPointer>
 #include <QLocale>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
 #include "climate/ClimateViewer.h"
+#include "hurricane/AceViewer.h"
 #include "hurricane/AdvisoryViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "hurricane/PodViewer.h"
 #include "hurricane/SeasonViewer.h"
 #include "hurricane/StrikeReport.h"
 #include "hurricane/UtilityAtcf.h"
+#include "misc/ImageViewer.h"
+#include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "tropical/TropicalViewer.h"
 #include "util/UtilityList.h"
@@ -118,6 +124,7 @@ TropicalHub::TropicalHub(Window * parent)
     , buttonRefresh{this, None, "Refresh"}
     , buttonTracks{this, None, "Tracks, guidance and recon..."}
     , buttonSeason{this, None, "Season charts..."}
+    , buttonAce{this, None, "ACE by day..."}
     , buttonPod{this, None, "Recon plan of the day..."}
     , buttonTropical{this, None, "Tropical (CIRA, JTWC, JMA)..."}
     , buttonClimate{this, None, "Climate and ocean..."}
@@ -125,7 +132,7 @@ TropicalHub::TropicalHub(Window * parent)
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Tropical Hub - active storms, outlook, recon and the season");
-    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonPod, &buttonTropical, &buttonClimate}) {
+    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonPod, &buttonTropical, &buttonClimate}) {
         rowTop.addWidget(*button);
     }
     rowTop.addStretch();
@@ -134,6 +141,11 @@ TropicalHub::TropicalHub(Window * parent)
     buttonSeason.connect([this] {
         if (seasonAtlantic && seasonAtlantic->error.empty()) {
             new SeasonViewer{this, seasonAtlantic};
+        }
+    });
+    buttonAce.connect([this] {
+        if (seasonAtlantic && seasonPacific) {
+            new AceViewer{this, seasonAtlantic, seasonPacific};
         }
     });
     buttonPod.connect([this] {
@@ -250,9 +262,37 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
     const auto color = classColor(entry.wind);
     frame->setObjectName("stormCard");
     frame->setStyleSheet("QFrame#stormCard { border: 1px solid #999; border-left: 6px solid " + color.name() + "; }");
-    auto * layout = new QVBoxLayout{frame};
-    layout->setContentsMargins(10, 6, 8, 6);
+    auto * outer = new QHBoxLayout{frame};
+    outer->setContentsMargins(10, 6, 8, 6);
+    auto * layout = new QVBoxLayout;
     layout->setSpacing(2);
+    outer->addLayout(layout, 1);
+    // the satellite picture of the storm (NOAA / NESDIS STAR's GeoColor floater): a thumbnail that opens the larger picture
+    auto * thumbnail = new QPushButton{frame};
+    thumbnail->setFlat(true);
+    thumbnail->setFixedSize(130, 130);
+    thumbnail->setCursor(Qt::PointingHandCursor);
+    thumbnail->setStyleSheet("QPushButton { border: none; }");
+    thumbnail->setToolTip("GeoColor satellite picture (NOAA / NESDIS STAR): click for the larger picture");
+    thumbnail->hide();
+    outer->addWidget(thumbnail, 0, Qt::AlignTop);
+    {
+        string upper = entry.id;
+        std::transform(upper.begin(), upper.end(), upper.begin(), [] (unsigned char c) { return static_cast<char>(std::toupper(c)); });
+        const string folder = "https://cdn.star.nesdis.noaa.gov/FLOATER/data/" + upper + "/GEOCOLOR/";
+        QPointer<QPushButton> guard{thumbnail};
+        const int mine = generation;
+        new FutureBytes{this, folder + "250x250.jpg", [this, guard, mine, folder, upper] (const QByteArray& bytes) {
+            QPixmap picture;
+            if (closed || mine != generation || guard.isNull() || bytes.size() < 500 || !picture.loadFromData(bytes)) {
+                return;
+            }
+            guard->setIcon(QIcon{picture.scaled(130, 130, Qt::KeepAspectRatio, Qt::SmoothTransformation)});
+            guard->setIconSize(QSize{130, 130});
+            guard->show();
+            QObject::connect(guard.data(), &QPushButton::clicked, [this, folder, upper] { new ImageViewer{this, folder + "latest.jpg", upper + " GeoColor"}; });
+        }};
+    }
     const QString title = QString::fromStdString(HurricaneData::idLabel(entry.id)) + "  " + QString::fromStdString(entry.name) + "  -  " + basinName(basin);
     auto * titleLabel = new QLabel{"<b style='font-size:14px'>" + title.toHtmlEscaped() + "</b>", frame};
     titleLabel->setStyleSheet("border: none;");
@@ -377,6 +417,14 @@ void TropicalHub::fillSeasons() {
             QString::number(UtilitySeason::mean(seasons, 1991, 2020, &S::named), 'f', 1) + " / " + QString::number(UtilitySeason::mean(seasons, 1991, 2020, &S::hurricanes), 'f', 1) + " / " +
             QString::number(UtilitySeason::mean(seasons, 1991, 2020, &S::major), 'f', 1) + ", ACE " + QString::number(UtilitySeason::mean(seasons, 1991, 2020, &S::ace), 'f', 0) + "</span>";
         seasonLayout->addWidget(body(text, content));
+        const auto standing = AceChart::standing(*data);
+        if (!standing.isEmpty()) {
+            seasonLayout->addWidget(body(standing, content));
+        }
+        auto * chart = new AceChart{content};
+        chart->setMinimumHeight(280);
+        chart->setData(data, 0);
+        seasonLayout->addWidget(chart);
     };
     one(seasonAtlantic, "Atlantic");
     one(seasonPacific, "East and Central Pacific");

@@ -314,6 +314,14 @@ static void vdm(const std::string& fixtures) {
 }
 
 // seasons and ACE from HURDAT2 (real records for 2011 and 2025; the expected numbers were computed apart from this code, from the whole file)
+static bool sameDays(const std::vector<std::pair<int, double>>& a, const std::vector<std::pair<int, double>>& b) {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); i++) {
+        if (a[i].first != b[i].first || std::abs(a[i].second - b[i].second) > 1e-9) return false;
+    }
+    return true;
+}
+
 static void season(const std::string& fixtures) {
     const auto storms = UtilitySeason::parseHurdat2(readFile(fixtures + "/hurdat2_2011_2025.txt"));
     const auto seasons = UtilitySeason::seasons(storms);
@@ -331,8 +339,23 @@ static void season(const std::string& fixtures) {
     CHECK(near(UtilitySeason::recordAce(6, "EX", 60), 0.0) && near(UtilitySeason::recordAce(6, "SS", 40), 0.16) && near(UtilitySeason::recordAce(18, "TS", 33), 0.0));
     // the cache form is lossless for what the table uses
     const auto again = UtilitySeason::fromCsv(UtilitySeason::csv(storms));
-    CHECK(again.size() == storms.size() && again[0].id == storms[0].id && near(again[5].ace, storms[5].ace, 1e-6) && UtilitySeason::seasons(again)[1].named == 13);
+    CHECK(again.size() == storms.size() && sameDays(again[static_cast<size_t>(irene - storms.data())].daily, irene->daily) && !irene->daily.empty() && again[0].id == storms[0].id && near(again[5].ace, storms[5].ace, 1e-6) && UtilitySeason::seasons(again)[1].named == 13);
     CHECK(near(UtilitySeason::mean(seasons, 2011, 2025, &UtilitySeason::Season::named), 16.0));
+    // ACE by day: the running total ends at the season's ACE, never falls, and the storm's own days add up to its ACE
+    const auto c2011 = UtilitySeason::cumulativeByDay(storms, 2011);
+    CHECK(c2011.size() == 367 && near(c2011[366], 126.303, 0.001) && near(c2011[0], 0.0) && c2011[100] == 0.0 && c2011[250] > c2011[200] && c2011[250] <= c2011[366]);
+    for (size_t d = 1; d < c2011.size(); d++) {
+        CHECK(c2011[d] >= c2011[d - 1]);
+    }
+    double irenePerDay = 0.0;
+    for (const auto& [day, ace] : irene->daily) {
+        irenePerDay += ace;
+        CHECK(day >= 233 && day <= 242);   // 21 to 30 August 2011
+    }
+    CHECK(near(irenePerDay, irene->ace, 1e-9) && irene->daily.size() >= 8);
+    const auto clim = UtilitySeason::climatology(storms, 2011, 2025);
+    CHECK(clim.years == 15 && near(clim.mean[366], (126.303 + 130.773 + 0.0 * 13) / 15.0, 0.001) && near(clim.highest[366], 130.773, 0.001) && near(clim.lowest[366], 0.0));
+    CHECK(UtilitySeason::dayOfYear("20110301") == 60 && UtilitySeason::dayOfYear("20120301") == 61 && UtilitySeason::dayOfYear("20111231") == 365 && UtilitySeason::dayOfYear("2011") == 0);
     // an ATCF best track in the same terms (storm strength at 06Z and 12Z: 35 kt and 40 kt; the 03Z record is not synoptic)
     std::vector<UtilityAtcf::Fix> best(4);
     const char * times[] = {"2026100700", "2026100703", "2026100706", "2026100712"};

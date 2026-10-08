@@ -6,6 +6,7 @@
 #include "hurricane/UtilitySeason.h"
 #include <algorithm>
 #include <cstdlib>
+#include <iomanip>
 #include <map>
 #include <regex>
 #include <sstream>
@@ -47,7 +48,18 @@ namespace {
         if ((status == "TS" || status == "SS" || status == "HU") && wind >= 34) {
             storm.stormStrength = true;
         }
-        storm.ace += UtilitySeason::recordAce(hour, status, wind);
+        const double ace = UtilitySeason::recordAce(hour, status, wind);
+        storm.ace += ace;
+        if (ace > 0.0) {
+            const int day = UtilitySeason::dayOfYear(time.substr(0, 8));
+            if (day > 0) {
+                if (!storm.daily.empty() && storm.daily.back().first == day) {
+                    storm.daily.back().second += ace;
+                } else {
+                    storm.daily.emplace_back(day, ace);
+                }
+            }
+        }
     }
 }
 
@@ -112,6 +124,60 @@ UtilitySeason::Storm UtilitySeason::fromBestTrack(const vector<UtilityAtcf::Fix>
     return storm;
 }
 
+int UtilitySeason::dayOfYear(const string& date) {
+    if (date.size() != 8) {
+        return 0;
+    }
+    const int y = std::atoi(date.substr(0, 4).c_str());
+    const int m = std::atoi(date.substr(4, 2).c_str());
+    const int d = std::atoi(date.substr(6, 2).c_str());
+    if (y < 1800 || m < 1 || m > 12 || d < 1 || d > 31) {
+        return 0;
+    }
+    static const int before[] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
+    const bool leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    return before[m - 1] + d + (leap && m > 2 ? 1 : 0);
+}
+
+vector<double> UtilitySeason::cumulativeByDay(const vector<Storm>& storms, int year) {
+    vector<double> perDay(367, 0.0);
+    for (const auto& s : storms) {
+        if (s.year != year) {
+            continue;
+        }
+        for (const auto& [day, ace] : s.daily) {
+            perDay[static_cast<size_t>(std::clamp(day, 1, 366))] += ace;
+        }
+    }
+    for (size_t d = 1; d < perDay.size(); d++) {
+        perDay[d] += perDay[d - 1];
+    }
+    return perDay;
+}
+
+UtilitySeason::Climatology UtilitySeason::climatology(const vector<Storm>& storms, int firstYear, int lastYear) {
+    Climatology c;
+    c.mean.assign(367, 0.0);
+    c.lowest.assign(367, 1e18);
+    c.highest.assign(367, 0.0);
+    for (int year = firstYear; year <= lastYear; year++) {
+        const auto cumulative = cumulativeByDay(storms, year);
+        for (size_t d = 0; d < 367; d++) {
+            c.mean[d] += cumulative[d];
+            c.lowest[d] = std::min(c.lowest[d], cumulative[d]);
+            c.highest[d] = std::max(c.highest[d], cumulative[d]);
+        }
+        c.years++;
+    }
+    for (auto& v : c.mean) {
+        v = c.years > 0 ? v / c.years : 0.0;
+    }
+    if (c.years == 0) {
+        c.lowest.assign(367, 0.0);
+    }
+    return c;
+}
+
 vector<UtilitySeason::Season> UtilitySeason::seasons(const vector<Storm>& storms) {
     std::map<int, Season> byYear;
     for (const auto& s : storms) {
@@ -132,9 +198,14 @@ vector<UtilitySeason::Season> UtilitySeason::seasons(const vector<Storm>& storms
 
 string UtilitySeason::csv(const vector<Storm>& storms) {
     std::ostringstream out;
+    out << std::setprecision(12);
     for (const auto& s : storms) {
         out << s.id << ',' << s.name << ',' << s.year << ',' << s.first << ',' << s.last << ',' << s.peakWind << ',' << s.minPressure << ',' << s.ace << ','
-            << (s.stormStrength ? 1 : 0) << '\n';
+            << (s.stormStrength ? 1 : 0) << ',';
+        for (size_t i = 0; i < s.daily.size(); i++) {
+            out << (i == 0 ? "" : "|") << s.daily[i].first << ':' << s.daily[i].second;
+        }
+        out << '\n';
     }
     return out.str();
 }
@@ -145,7 +216,7 @@ vector<UtilitySeason::Storm> UtilitySeason::fromCsv(const string& text) {
     string line;
     while (std::getline(stream, line)) {
         const auto p = splitComma(line);
-        if (p.size() != 9) {
+        if (p.size() != 10) {   // the ten column form (the daily ACE is the last)
             continue;
         }
         Storm s;
@@ -158,6 +229,14 @@ vector<UtilitySeason::Storm> UtilitySeason::fromCsv(const string& text) {
         s.minPressure = std::atoi(p[6].c_str());
         s.ace = std::strtod(p[7].c_str(), nullptr);
         s.stormStrength = p[8] == "1";
+        std::istringstream days{p[9]};
+        string item;
+        while (std::getline(days, item, '|')) {
+            const auto colon = item.find(':');
+            if (colon != string::npos) {
+                s.daily.emplace_back(std::atoi(item.c_str()), std::strtod(item.c_str() + colon + 1, nullptr));
+            }
+        }
         storms.push_back(s);
     }
     return storms;

@@ -7,6 +7,7 @@
 #define UTILITYSEASON_H
 
 #include <string>
+#include <utility>
 #include <vector>
 #include "hurricane/UtilityAtcf.h"
 
@@ -30,6 +31,7 @@ public:
         int minPressure{0};      // mb, 0 when never given
         double ace{0.0};
         bool stormStrength{false};   // reached tropical or subtropical storm strength (counts as a named storm)
+        vector<std::pair<int, double>> daily;   // (day of the year 1..366, the ACE of that UTC day), only days that added some; ascending
     };
     struct Season {
         int year{0};
@@ -43,6 +45,15 @@ public:
     static double recordAce(int hourUtc, const string& status, int windKt);
     static vector<Storm> parseHurdat2(const string& text);
     static Storm fromBestTrack(const vector<UtilityAtcf::Fix>& best, const string& id);   // an ATCF best track in the same terms
+    // the ACE added up through the year: element d (1..366; element 0 unused) is the season's total at the end of day d
+    static vector<double> cumulativeByDay(const vector<Storm>&, int year);
+    // the same over several years, day by day: the mean, the lowest and the highest of the years' cumulative totals (years without a storm count as 0)
+    struct Climatology {
+        vector<double> mean, lowest, highest;   // 367 elements like cumulativeByDay
+        int years{0};
+    };
+    static Climatology climatology(const vector<Storm>&, int firstYear, int lastYear);
+    static int dayOfYear(const string& yyyymmdd);   // 1..366, 0 when it is not a date
     static vector<Season> seasons(const vector<Storm>&);                                // by year, ascending
     static string csv(const vector<Storm>&);                                           // the compact cache form
     static vector<Storm> fromCsv(const string&);
