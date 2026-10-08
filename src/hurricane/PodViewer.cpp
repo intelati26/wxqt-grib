@@ -20,8 +20,8 @@ namespace {
                 continue;
             }
             out += "<table border='1' cellspacing='0' cellpadding='4'>"
-                   "<tr style='background:#cfe2f3'><th>Flight</th><th>Aircraft</th><th>Fix time (Z)</th><th>Mission</th><th>Departs</th><th>Target</th>"
-                   "<th>On station</th><th>Altitude</th><th>Type</th><th>WRA</th><th>Remarks</th></tr>";
+                   "<tr style='background:#cfe2f3'><th style='color:#10243a'>Flight</th><th style='color:#10243a'>Aircraft</th><th style='color:#10243a'>Fix time (Z)</th><th style='color:#10243a'>Mission</th><th style='color:#10243a'>Departs</th><th style='color:#10243a'>Target</th>"
+                   "<th style='color:#10243a'>On station</th><th style='color:#10243a'>Altitude</th><th style='color:#10243a'>Type</th><th style='color:#10243a'>WRA</th><th style='color:#10243a'>Remarks</th></tr>";
             for (const auto& f : requirement.flights) {
                 out += "<tr><td>" + q(f.ordinal) + "</td><td><b>" + q(f.aircraft) + "</b></td><td>" + q(f.fixTimes) + "</td><td>" + q(f.mission) + "</td><td>" + q(f.departure) +
                     "</td><td>" + q(f.position) + "</td><td>" + q(f.onStation) + "</td><td>" + q(f.altitude) + "</td><td>" + q(f.type) + "</td><td>" + q(f.wra) + "</td><td>" +

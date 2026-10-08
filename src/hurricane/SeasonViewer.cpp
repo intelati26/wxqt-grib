@@ -186,7 +186,7 @@ SeasonViewer::SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData:
     if (data->current.empty()) {
         html = "<p>No storms of the " + QString::number(data->currentYear) + " season in the NHC files yet.</p>";
     } else {
-        html = "<table border='1' cellspacing='0' cellpadding='3' style='font-size:12px'><tr style='background:#cfe2f3'><th>Storm</th><th>Name</th><th>Dates</th><th>Peak wind</th><th>Lowest pressure</th><th>ACE</th><th></th></tr>";
+        html = "<table border='1' cellspacing='0' cellpadding='3' style='font-size:12px'><tr style='background:#cfe2f3'><th style='color:#10243a'>Storm</th><th style='color:#10243a'>Name</th><th style='color:#10243a'>Dates</th><th style='color:#10243a'>Peak wind</th><th style='color:#10243a'>Lowest pressure</th><th style='color:#10243a'>ACE</th><th style='color:#10243a'></th></tr>";
         double total = 0.0;
         for (const auto& s : data->current) {
             total += s.ace;
@@ -194,7 +194,7 @@ SeasonViewer::SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData:
             html += "<tr><td>" + q(s.id.substr(0, 4)) + "</td><td>" + q(s.name) + "</td><td>" + dates(s) + "</td><td>" + q(UtilityAtcf::windLabel(s.peakWind)) + "</td><td>" +
                 (s.minPressure > 0 ? QString::number(s.minPressure) + " mb" : QString{"-"}) + "</td><td>" + QString::number(s.ace, 'f', 1) + "</td><td>" + (active ? "active" : "") + "</td></tr>";
         }
-        html += "<tr style='background:#eee'><td colspan='5'><b>Season total</b></td><td><b>" + QString::number(total, 'f', 1) + "</b></td><td></td></tr></table>";
+        html += "<tr style='background:#eee; color:#10243a'><td colspan='5' style='color:#10243a'><b>Season total</b></td><td style='color:#10243a'><b>" + QString::number(total, 'f', 1) + "</b></td><td></td></tr></table>";
     }
     table->setHtml(html);
     box.addWidgetReal(table, 0, Qt::Alignment{});

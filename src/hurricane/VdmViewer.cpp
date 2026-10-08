@@ -137,8 +137,8 @@ void VdmChart::paintEvent(QPaintEvent *) {
 
 namespace {
 QString tableHtml(const HurricaneData::VdmData& data) {
-    QString out = "<table border='1' cellspacing='0' cellpadding='3' style='font-size:12px'><tr style='background:#cfe2f3'><th>Time</th><th>Position</th><th>SLP (mb)</th><th>700 mb height</th>"
-                  "<th>Centre dropsonde wind</th><th>Eye</th><th>Inbound flight wind</th><th>Outbound flight wind</th><th>Temp out / in eye (C)</th><th>Aircraft</th></tr>";
+    QString out = "<table border='1' cellspacing='0' cellpadding='3' style='font-size:12px'><tr style='background:#cfe2f3'><th style='color:#10243a'>Time</th><th style='color:#10243a'>Position</th><th style='color:#10243a'>SLP (mb)</th><th style='color:#10243a'>700 mb height</th>"
+                  "<th style='color:#10243a'>Centre dropsonde wind</th><th style='color:#10243a'>Eye</th><th style='color:#10243a'>Inbound flight wind</th><th style='color:#10243a'>Outbound flight wind</th><th style='color:#10243a'>Temp out / in eye (C)</th><th style='color:#10243a'>Aircraft</th></tr>";
     for (auto it = data.messages.rbegin(); it != data.messages.rend(); ++it) {
         const auto& m = *it;
         out += "<tr><td>" + VdmViewer::timeText(m.seconds) + "</td><td>" + number(std::abs(m.lat), 2) + (m.lat >= 0 ? "N " : "S ") + number(std::abs(m.lon), 2) + (m.lon >= 0 ? "E" : "W") + "</td><td>" +

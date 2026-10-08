@@ -27,6 +27,7 @@
 #include "hurricane/SeasonViewer.h"
 #include "hurricane/UtilityChanges.h"
 #include "models/SoundingViewer.h"
+#include "hurricane/DropsondeViewer.h"
 #include "hurricane/ShipsViewer.h"
 #include "radar/MapLegend.h"
 #include "hurricane/StrikeReport.h"
@@ -147,13 +148,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     map->clickHandler = [this] (const QPointF& at) {
         if (dropCheck != nullptr && dropCheck->isChecked()) {
             if (const auto * d = dropAt(at)) {
-                SoundingProfile profile;
-                string error;
-                if (DropProfile::build(*d, profile, error)) {
-                    new SoundingViewer{this, profile, DropProfile::title(*d)};
-                } else {
-                    textStatus.setText(error);
-                }
+                new DropsondeViewer{this, *d};   // the forecaster's view; the full sounding analysis is a button in it
                 return true;
             }
         }
