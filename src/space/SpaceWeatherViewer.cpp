@@ -105,7 +105,7 @@ void SpaceChart::paintEvent(QPaintEvent *) {
         p.drawLine(QPointF{xOf(t), area.top()}, QPointF{xOf(t), area.bottom()});
         p.setPen(QColor{70, 70, 70});
         const auto text = QString::fromStdString(UtilityHdob::timeText(static_cast<long>(t)));   // "08 Oct 12:00Z"
-        p.drawText(QRectF{xOf(t) - 40, area.bottom() + 3, 80, 14}, Qt::AlignHCenter, isCycle ? QString::number(QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone::UTC).date().year()) : isKp ? text.left(6) : text.mid(7));
+        p.drawText(QRectF{xOf(t) - 40, area.bottom() + 3, 80, 14}, Qt::AlignHCenter, isCycle ? QString::number(QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), Qt::UTC).date().year()) : isKp ? text.left(6) : text.mid(7));
     }
     const auto yTicks = [&] (double lo, double hi, double step2, int decimals) {
         for (double v = std::ceil(lo / step2) * step2; v <= hi + 1e-9; v += step2) {
