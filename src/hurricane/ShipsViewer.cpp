@@ -458,7 +458,7 @@ ShipsViewer::ShipsViewer(Window * parent, const std::shared_ptr<HurricaneData::S
     , textStatus{this, ""}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("SHIPS - intensity forecast, environment and rapid intensification");
+    setTitle("SHIPS - intensity forecast, environment and rapid intensification - " + HurricaneData::idLabel(storm->id) + " " + storm->name);
     textStatus.setWordWrap(false);
     chart = new ShipsChart{this};
     box.addWidget(textStatus);

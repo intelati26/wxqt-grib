@@ -356,6 +356,31 @@ static void season(const std::string& fixtures) {
     CHECK(near(irenePerDay, irene->ace, 1e-9) && irene->daily.size() >= 8);
     const auto clim = UtilitySeason::climatology(storms, 2011, 2025);
     CHECK(clim.years == 15 && near(clim.mean[366], (126.303 + 130.773 + 0.0 * 13) / 15.0, 0.001) && near(clim.highest[366], 130.773, 0.001) && near(clim.lowest[366], 0.0));
+    // TIKE: the energy of a record from its wind radii (hand-worked): 34 kt radius 100 nm, 50 kt 50 nm, 64 kt 25 nm in every quadrant, Vmax 100 kt
+    {
+        const std::array<std::array<int, 4>, 3> radii{{{100, 100, 100, 100}, {50, 50, 50, 50}, {25, 25, 25, 25}}};
+        const double pi = 3.14159265358979;
+        const double area34 = pi * 100.0 * 100.0, area50 = pi * 50.0 * 50.0, area64 = pi * 25.0 * 25.0;   // four quarter circles are one circle
+        const double ms = 0.514444, nm2 = 1852.0 * 1852.0;
+        const double expected = 0.5 * nm2 * ((area34 - area50) * std::pow(42.0 * ms, 2) + (area50 - area64) * std::pow(57.0 * ms, 2) + area64 * std::pow(82.0 * ms, 2)) / 1e12;
+        CHECK(near(UtilitySeason::recordIke(12, "HU", 100, radii), expected, 1e-6) && expected > 10.0 && expected < 200.0);
+        CHECK(near(UtilitySeason::recordIke(3, "HU", 100, radii), 0.0) && near(UtilitySeason::recordIke(12, "TD", 30, radii), 0.0) && near(UtilitySeason::recordIke(12, "EX", 60, radii), 0.0));
+        const std::array<std::array<int, 4>, 3> none{};
+        CHECK(near(UtilitySeason::recordIke(12, "TS", 40, none), 0.0));
+    }
+    // the TIKE of the fixture's storms: radii are in HURDAT2 from 2004, so these have it, and it runs up through the year
+    {
+        const auto tikeIrene = UtilitySeason::cumulativeByDay(storms, 2011, UtilitySeason::Metric::Tike);
+        CHECK(irene->hasRadii && irene->tike > 20.0 && near(tikeIrene[366], UtilitySeason::seasons(storms)[0].tike, 1e-6) && tikeIrene[366] > tikeIrene[200]);
+        double daySum = 0.0;
+        for (const auto& [day, ike] : irene->dailyTike) daySum += ike;
+        CHECK(near(daySum, irene->tike, 1e-9));
+        const auto again2 = UtilitySeason::fromCsv(UtilitySeason::csv(storms));
+        CHECK(near(again2[static_cast<size_t>(irene - storms.data())].tike, irene->tike, 1e-6) && again2[static_cast<size_t>(irene - storms.data())].hasRadii);
+        // a record with -999 radii (before 2004) has no TIKE and is not counted as having radii
+        const auto old = UtilitySeason::parseHurdat2("AL012001,             OLD,      1,\n20010601, 0000,  , TS, 25.0N,  90.0W,  45, 1000, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999,\n");
+        CHECK(old.size() == 1 && !old[0].hasRadii && near(old[0].tike, 0.0) && near(old[0].ace, 0.2025, 1e-6));
+    }
     CHECK(UtilitySeason::dayOfYear("20110301") == 60 && UtilitySeason::dayOfYear("20120301") == 61 && UtilitySeason::dayOfYear("20111231") == 365 && UtilitySeason::dayOfYear("2011") == 0);
     // an ATCF best track in the same terms (storm strength at 06Z and 12Z: 35 kt and 40 kt; the 03Z record is not synoptic)
     std::vector<UtilityAtcf::Fix> best(4);

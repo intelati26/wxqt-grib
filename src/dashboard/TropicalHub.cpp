@@ -107,6 +107,7 @@ namespace {
         int hurricanes{0};
         int major{0};
         double ace{0.0};
+        double tike{0.0};
     };
 
     Tally tally(const vector<UtilitySeason::Storm>& storms) {
@@ -116,6 +117,7 @@ namespace {
             t.hurricanes += s.peakWind >= 64 ? 1 : 0;
             t.major += s.peakWind >= 96 ? 1 : 0;
             t.ace += s.ace;
+            t.tike += s.tike;
         }
         return t;
     }
@@ -418,7 +420,7 @@ void TropicalHub::fillSeasons() {
         const auto seasons = UtilitySeason::seasons(data->history);
         using S = UtilitySeason::Season;
         QString text = "<b>" + name + " " + QString::number(data->currentYear) + "</b>:  " + QString::number(now.named) + " named storms, " + QString::number(now.hurricanes) +
-            " hurricanes, " + QString::number(now.major) + " major, ACE " + QString::number(now.ace, 'f', 1) + ".  <span style='color:gray'>1991-2020 whole season: " +
+            " hurricanes, " + QString::number(now.major) + " major, ACE " + QString::number(now.ace, 'f', 1) + (now.tike > 0.0 ? ", TIKE " + QString::number(std::lround(now.tike)) + " TJ" : QString{}) + ".  <span style='color:gray'>1991-2020 whole season: " +
             QString::number(UtilitySeason::mean(seasons, 1991, 2020, &S::named), 'f', 1) + " / " + QString::number(UtilitySeason::mean(seasons, 1991, 2020, &S::hurricanes), 'f', 1) + " / " +
             QString::number(UtilitySeason::mean(seasons, 1991, 2020, &S::major), 'f', 1) + ", ACE " + QString::number(UtilitySeason::mean(seasons, 1991, 2020, &S::ace), 'f', 0) + "</span>";
         seasonLayout->addWidget(body(text, content));
@@ -426,9 +428,13 @@ void TropicalHub::fillSeasons() {
         if (!standing.isEmpty()) {
             seasonLayout->addWidget(body(standing, content));
         }
+        const auto tikeStanding = AceChart::standing(*data, AceChart::Metric::Tike);
+        if (!tikeStanding.isEmpty()) {
+            seasonLayout->addWidget(body(tikeStanding, content));
+        }
         auto * chart = new AceChart{content};
         chart->setMinimumHeight(280);
-        chart->setData(data, 0);
+        chart->setData(data);
         seasonLayout->addWidget(chart);
     };
     one(seasonAtlantic, "Atlantic");

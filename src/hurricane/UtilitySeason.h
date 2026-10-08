@@ -7,6 +7,7 @@
 #define UTILITYSEASON_H
 
 #include <string>
+#include <array>
 #include <utility>
 #include <vector>
 #include "hurricane/UtilityAtcf.h"
@@ -32,6 +33,9 @@ public:
         double ace{0.0};
         bool stormStrength{false};   // reached tropical or subtropical storm strength (counts as a named storm)
         vector<std::pair<int, double>> daily;   // (day of the year 1..366, the ACE of that UTC day), only days that added some; ascending
+        double tike{0.0};        // track integrated kinetic energy, TJ: the integrated kinetic energy (IKE) of each synoptic record at storm strength, added up
+        bool hasRadii{false};    // some record had wind radii, so the TIKE means something (HURDAT2 has them from 2004)
+        vector<std::pair<int, double>> dailyTike;   // as `daily`, for the TIKE
     };
     struct Season {
         int year{0};
@@ -40,19 +44,26 @@ public:
         int hurricanes{0};
         int major{0};
         double ace{0.0};
+        double tike{0.0};
+        int radiiStorms{0};      // storms of the year with wind radii (a TIKE needs them)
     };
+    enum class Metric { Ace, Tike };
     // ACE of one record: wind squared / 10^4 when it is a synoptic hour and the status counts
     static double recordAce(int hourUtc, const string& status, int windKt);
+    // The integrated kinetic energy (Powell and Reinhold 2007) of one synoptic record in terajoules, estimated from the wind radii: the area of each quadrant
+    // out to the 34, 50 and 64 kt radii (a quarter circle), the wind in each band taken as the mean of its two limits (the top band to the maximum wind),
+    // 1 kg/m3 of air and a layer 1 m deep: IKE = 1/2 rho V^2 per unit volume summed over the bands. Zero for a record that is not at storm strength.
+    static double recordIke(int hourUtc, const string& status, int windKt, const std::array<std::array<int, 4>, 3>& radii);
     static vector<Storm> parseHurdat2(const string& text);
     static Storm fromBestTrack(const vector<UtilityAtcf::Fix>& best, const string& id);   // an ATCF best track in the same terms
     // the ACE added up through the year: element d (1..366; element 0 unused) is the season's total at the end of day d
-    static vector<double> cumulativeByDay(const vector<Storm>&, int year);
+    static vector<double> cumulativeByDay(const vector<Storm>&, int year, Metric metric = Metric::Ace);
     // the same over several years, day by day: the mean, the lowest and the highest of the years' cumulative totals (years without a storm count as 0)
     struct Climatology {
         vector<double> mean, lowest, highest;   // 367 elements like cumulativeByDay
         int years{0};
     };
-    static Climatology climatology(const vector<Storm>&, int firstYear, int lastYear);
+    static Climatology climatology(const vector<Storm>&, int firstYear, int lastYear, Metric metric = Metric::Ace);
     static int dayOfYear(const string& yyyymmdd);   // 1..366, 0 when it is not a date
     static vector<Season> seasons(const vector<Storm>&);                                // by year, ascending
     static string csv(const vector<Storm>&);                                           // the compact cache form

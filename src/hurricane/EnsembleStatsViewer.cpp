@@ -209,7 +209,7 @@ EnsembleStatsViewer::EnsembleStatsViewer(Window * parent, const std::shared_ptr<
     , textStatus{this, ""}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("Ensemble members - distribution");
+    setTitle("Ensemble members - distribution - " + HurricaneData::idLabel(storm->id) + " " + storm->name);
     textStatus.setWordWrap(false);
     chart = new EnsembleChart{this};
     // the families to draw

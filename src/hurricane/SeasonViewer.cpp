@@ -13,7 +13,7 @@
 #include "hurricane/ChartKit.h"
 
 namespace {
-    const char * metricNames[] = {"ACE (accumulated cyclone energy)", "Named storms", "Hurricanes", "Major hurricanes (Cat 3 and up)"};
+    const char * metricNames[] = {"ACE (accumulated cyclone energy)", "Named storms", "Hurricanes", "Major hurricanes (Cat 3 and up)", "TIKE (track integrated kinetic energy, TJ)"};
 
     QString q(const std::string& s) {
         return QString::fromStdString(s).toHtmlEscaped();
@@ -41,6 +41,7 @@ double SeasonChart::value(const UtilitySeason::Season& s) const {
         case 1: return s.named;
         case 2: return s.hurricanes;
         case 3: return s.major;
+        case 4: return s.tike;
         default: return s.ace;
     }
 }
@@ -55,7 +56,7 @@ void SeasonChart::paintEvent(QPaintEvent *) {
     p.fillRect(rect(), QColor{245, 245, 245});
     std::vector<UtilitySeason::Season> shown;
     for (const auto& s : seasons) {
-        if (s.year >= firstYear) {
+        if (s.year >= firstYear && (metric != 4 || s.radiiStorms > 0)) {   // a TIKE needs wind radii (HURDAT2 has them from 2004)
             shown.push_back(s);
         }
     }
@@ -91,7 +92,7 @@ void SeasonChart::paintEvent(QPaintEvent *) {
         double sum = 0.0;
         int n = 0;
         for (const auto& s : seasons) {
-            if (s.year >= 1991 && s.year <= 2020) {
+            if (s.year >= 1991 && s.year <= 2020 && (metric != 4 || s.radiiStorms > 0)) {
                 sum += value(s);
                 n++;
             }
@@ -113,7 +114,7 @@ void SeasonChart::paintEvent(QPaintEvent *) {
         const double py = area.bottom() - area.height() * average / top;
         p.setPen(QPen{QColor{30, 30, 30}, 1.4, Qt::DashLine});
         p.drawLine(QPointF{area.left(), py}, QPointF{area.right(), py});
-        p.drawText(QPointF{area.left() + 6, py - 4}, "1991-2020 average " + QString::number(average, 'f', metric == 0 ? 0 : 1));
+        p.drawText(QPointF{area.left() + 6, py - 4}, (metric == 4 ? "2004-2020 average " : "1991-2020 average ") + QString::number(average, 'f', metric == 0 ? 0 : 1));
     }
     // year labels: every 10 or 5 or 1 depending on the room
     const int every = barWidth > 24 ? 1 : barWidth > 9 ? 5 : 10;
@@ -129,16 +130,16 @@ void SeasonChart::paintEvent(QPaintEvent *) {
     bold.setPixelSize(12);
     p.setFont(bold);
     p.setPen(QColor{30, 30, 30});
-    p.drawText(QPointF{area.left(), area.top() - 8}, QString{metricNames[std::clamp(metric, 0, 3)]} + " by season" + (currentYear > 0 ? "  (red: " + QString::number(currentYear) + " so far)" : QString{}));
+    p.drawText(QPointF{area.left(), area.top() - 8}, QString{metricNames[std::clamp(metric, 0, 4)]} + " by season" + (currentYear > 0 ? "  (red: " + QString::number(currentYear) + " so far)" : QString{}));
     p.setFont(small);
     p.setPen(QColor{90, 90, 90});
-    p.drawText(QPointF{area.left(), height() - 6.0}, "HURDAT2 (NHC) through the last finished season; the current season from the ATCF best tracks. ACE: winds of 34 kt or more at 00, 06, 12, 18 UTC, squared, / 10,000.");
+    p.drawText(QPointF{area.left(), height() - 6.0}, "HURDAT2 (NHC) through the last finished season; the current season from the ATCF best tracks. ACE: winds of 34 kt or more at 00, 06, 12, 18 UTC, squared, / 10,000. TIKE: the kinetic energy in the 34, 50 and 64 kt wind radii of those records, estimated, added up.");
 }
 
 void SeasonChart::mouseMoveEvent(QMouseEvent * event) {
     std::vector<UtilitySeason::Season> shown;
     for (const auto& s : seasons) {
-        if (s.year >= firstYear) {
+        if (s.year >= firstYear && (metric != 4 || s.radiiStorms > 0)) {   // a TIKE needs wind radii (HURDAT2 has them from 2004)
             shown.push_back(s);
         }
     }
@@ -153,12 +154,12 @@ void SeasonChart::mouseMoveEvent(QMouseEvent * event) {
     }
     const auto& s = shown[index];
     QToolTip::showText(event->globalPosition().toPoint(), QString::number(s.year) + ": " + QString::number(s.named) + " named storms, " + QString::number(s.hurricanes) + " hurricanes, " +
-        QString::number(s.major) + " major, ACE " + QString::number(s.ace, 'f', 1), this);
+        QString::number(s.major) + " major, ACE " + QString::number(s.ace, 'f', 1) + (s.radiiStorms > 0 ? ", TIKE " + QString::number(std::lround(s.tike)) + " TJ" : QString{}), this);
 }
 
 SeasonViewer::SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData::SeasonData>& seasonData)
     : Window{parent}
-    , comboMetric{this, {metricNames[0], metricNames[1], metricNames[2], metricNames[3]}}
+    , comboMetric{this, {metricNames[0], metricNames[1], metricNames[2], metricNames[3], metricNames[4]}}
     , comboYears{this, {"Since 1950", "Since 1851 (all)", "Since 1991", "Last 30 seasons"}}
     , textSummary{this, ""}
     , data{seasonData}
@@ -186,15 +187,19 @@ SeasonViewer::SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData:
     if (data->current.empty()) {
         html = "<p>No storms of the " + QString::number(data->currentYear) + " season in the NHC files yet.</p>";
     } else {
-        html = "<table border='1' cellspacing='0' cellpadding='3' style='font-size:12px'><tr style='background:#cfe2f3'><th style='color:#10243a'>Storm</th><th style='color:#10243a'>Name</th><th style='color:#10243a'>Dates</th><th style='color:#10243a'>Peak wind</th><th style='color:#10243a'>Lowest pressure</th><th style='color:#10243a'>ACE</th><th style='color:#10243a'></th></tr>";
+        html = "<table border='1' cellspacing='0' cellpadding='3' style='font-size:12px'><tr style='background:#cfe2f3'><th style='color:#10243a'>Storm</th><th style='color:#10243a'>Name</th><th style='color:#10243a'>Dates</th><th style='color:#10243a'>Peak wind</th><th style='color:#10243a'>Lowest pressure</th><th style='color:#10243a'>ACE</th><th style='color:#10243a'>TIKE (TJ)</th><th style='color:#10243a'></th></tr>";
         double total = 0.0;
+        double totalTike = 0.0;
+        bool anyTike = false;
         for (const auto& s : data->current) {
             total += s.ace;
+            totalTike += s.tike;
+            anyTike = anyTike || s.hasRadii;
             const bool active = std::find(data->active.begin(), data->active.end(), s.id) != data->active.end();
             html += "<tr><td>" + q(s.id.substr(0, 4)) + "</td><td>" + q(s.name) + "</td><td>" + dates(s) + "</td><td>" + q(UtilityAtcf::windLabel(s.peakWind)) + "</td><td>" +
-                (s.minPressure > 0 ? QString::number(s.minPressure) + " mb" : QString{"-"}) + "</td><td>" + QString::number(s.ace, 'f', 1) + "</td><td>" + (active ? "active" : "") + "</td></tr>";
+                (s.minPressure > 0 ? QString::number(s.minPressure) + " mb" : QString{"-"}) + "</td><td>" + QString::number(s.ace, 'f', 1) + "</td><td>" + (s.hasRadii ? QString::number(std::lround(s.tike)) : QString{"-"}) + "</td><td>" + (active ? "active" : "") + "</td></tr>";
         }
-        html += "<tr style='background:#eee; color:#10243a'><td colspan='5' style='color:#10243a'><b>Season total</b></td><td style='color:#10243a'><b>" + QString::number(total, 'f', 1) + "</b></td><td></td></tr></table>";
+        html += "<tr style='background:#eee; color:#10243a'><td colspan='5' style='color:#10243a'><b>Season total</b></td><td style='color:#10243a'><b>" + QString::number(total, 'f', 1) + "</b></td><td style='color:#10243a'><b>" + (anyTike ? QString::number(std::lround(totalTike)) : QString{"-"}) + "</b></td><td></td></tr></table>";
     }
     table->setHtml(html);
     box.addWidgetReal(table, 0, Qt::Alignment{});
@@ -214,6 +219,18 @@ void SeasonViewer::apply() {
     chart->setView(comboMetric.getIndex(), first);
     // the season so far, in words
     QString text;
+    double tikeAverage = 0.0;
+    {
+        double sum = 0.0;
+        int n = 0;
+        for (const auto& x : seasons) {
+            if (x.year >= 2004 && x.year <= 2020 && x.radiiStorms > 0) {
+                sum += x.tike;
+                n++;
+            }
+        }
+        tikeAverage = n > 0 ? sum / n : 0.0;
+    }
     if (!data->current.empty()) {
         for (const auto& s : seasons) {
             if (s.year == data->currentYear) {
@@ -222,7 +239,8 @@ void SeasonViewer::apply() {
                     QString::number(UtilitySeason::mean(seasons, 1991, 2020, &UtilitySeason::Season::named), 'f', 1) + " named, " +
                     QString::number(UtilitySeason::mean(seasons, 1991, 2020, &UtilitySeason::Season::hurricanes), 'f', 1) + " hurricanes, " +
                     QString::number(UtilitySeason::mean(seasons, 1991, 2020, &UtilitySeason::Season::major), 'f', 1) + " major, ACE " +
-                    QString::number(UtilitySeason::mean(seasons, 1991, 2020, &UtilitySeason::Season::ace), 'f', 0) + ".";
+                    QString::number(UtilitySeason::mean(seasons, 1991, 2020, &UtilitySeason::Season::ace), 'f', 0) + "." +
+                    (s.radiiStorms > 0 ? "  TIKE " + QString::number(std::lround(s.tike)) + " TJ so far (an estimate from the wind radii; the 2004-2020 whole-season average is " + QString::number(std::lround(tikeAverage)) + " TJ)." : QString{});
             }
         }
     }
