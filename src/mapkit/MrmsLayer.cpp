@@ -6,6 +6,7 @@
 #include "mapkit/MrmsLayer.h"
 #include <algorithm>
 #include <cmath>
+#include <future>
 #include <numbers>
 #include <QCheckBox>
 #include <QComboBox>
@@ -39,6 +40,43 @@ void MrmsLayer::rebuildColors() {
     }
 }
 
+void MrmsLayer::display(const UtilityMrms::Frame& f) {
+    frame = f;
+    indices = frame.indices();
+    rebuildColors();
+    have = true;
+}
+
+vector<long> MrmsLayer::times() const {
+    vector<long> out;
+    for (const auto& [seconds, f] : frames) {
+        out.push_back(seconds);
+    }
+    return out;
+}
+
+string MrmsLayer::timeText() const {
+    return have ? frame.utc.toString("ddd d MMM HH:mm").toStdString() + "Z  MRMS" : string{};
+}
+
+void MrmsLayer::showTime(long seconds, MapHost& host) {
+    shownSeconds = seconds;
+    if (frames.empty()) {
+        return;
+    }
+    auto it = frames.end();
+    if (seconds == 0) {
+        it = std::prev(frames.end());
+    } else {
+        it = frames.upper_bound(seconds);   // the first after: the one before it is at or before
+        it = it == frames.begin() ? it : std::prev(it);
+    }
+    if (!have || it->second.utc != frame.utc) {
+        display(it->second);
+        host.redraw();
+    }
+}
+
 void MrmsLayer::refresh(MapHost& host) {
     if (loading) {
         return;
@@ -67,12 +105,83 @@ void MrmsLayer::refresh(MapHost& host) {
                 error = result->error;
             } else {
                 error.clear();
-                frame = result->frame;
-                indices = frame.indices();
-                rebuildColors();
-                have = true;
+                scans = result->scans;
+                frames[result->frame.utc.toSecsSinceEpoch()] = result->frame;
+                while (frames.size() > 80) {
+                    frames.erase(frames.begin());
+                }
+                if (shownSeconds == 0 || !have) {
+                    display(result->frame);   // following the newest scan
+                } else {
+                    showTime(shownSeconds, host);
+                }
+                if (loopWanted) {
+                    loopWanted = false;
+                    prepareTimes(host);
+                }
             }
+            host.timesChanged();
             host.redraw();
+        });
+}
+
+// the scans of a loop: the newest few, read side by side (each a small download and a GRIB decode)
+void MrmsLayer::prepareTimes(MapHost& host) {
+    if (preparing) {
+        return;
+    }
+    if (scans.empty()) {
+        loopWanted = true;   // the list first
+        refresh(host);
+        return;
+    }
+    std::vector<UtilityMrms::Scan> wanted;
+    const size_t first = scans.size() > static_cast<size_t>(loopLength) ? scans.size() - static_cast<size_t>(loopLength) : 0;
+    for (size_t i = first; i < scans.size(); i++) {
+        if (frames.count(scans[i].utc.toSecsSinceEpoch()) == 0) {
+            wanted.push_back(scans[i]);
+        }
+    }
+    if (wanted.empty()) {
+        host.timesChanged();
+        return;
+    }
+    preparing = true;
+    const int mine = generation;
+    auto loaded = std::make_shared<std::vector<UtilityMrms::Frame>>();
+    const auto chosen = product();
+    host.background(
+        [chosen, wanted, loaded] {
+            // six at a time
+            for (size_t start = 0; start < wanted.size(); start += 6) {
+                std::vector<std::future<std::pair<bool, UtilityMrms::Frame>>> jobs;
+                for (size_t i = start; i < std::min(wanted.size(), start + 6); i++) {
+                    jobs.push_back(std::async(std::launch::async, [chosen, scan = wanted[i]] {
+                        UtilityMrms::Frame f;
+                        string message;
+                        const bool ok = UtilityMrms::frame(chosen, scan, f, message);
+                        return std::make_pair(ok, f);
+                    }));
+                }
+                for (auto& job : jobs) {
+                    auto [ok, f] = job.get();
+                    if (ok) {
+                        loaded->push_back(std::move(f));
+                    }
+                }
+            }
+        },
+        [this, &host, loaded, mine] {
+            preparing = false;
+            if (mine == generation) {
+                for (auto& f : *loaded) {
+                    frames[f.utc.toSecsSinceEpoch()] = std::move(f);
+                }
+                while (frames.size() > 80) {
+                    frames.erase(frames.begin());
+                }
+            }
+            host.timesChanged();
         });
 }
 
@@ -165,6 +274,12 @@ QWidget * MrmsLayer::options(QWidget * parent, const std::function<void()>& chan
     }
     combo->setCurrentIndex(productIndex);
     layout->addWidget(combo);
+    layout->addWidget(new QLabel{"Frames in a loop (about two minutes apart):", widget});
+    auto * loop = new QComboBox{widget};
+    loop->addItems({"12", "24", "36", "48"});
+    loop->setCurrentIndex(loopLength / 12 - 1);
+    QObject::connect(loop, &QComboBox::currentIndexChanged, [this] (int index) { loopLength = 12 * (index + 1); });
+    layout->addWidget(loop);
     layout->addWidget(new QLabel{"Opacity:", widget});
     auto * slider = new QSlider{Qt::Horizontal, widget};
     slider->setRange(20, 100);
@@ -177,6 +292,9 @@ QWidget * MrmsLayer::options(QWidget * parent, const std::function<void()>& chan
         productIndex = index;
         have = false;
         indices.clear();
+        frames.clear();
+        scans.clear();
+        shownSeconds = 0;
         error.clear();
         loading = false;   // a scan of the old product still on its way is dropped when it arrives (the generation moved on)
         ++generation;

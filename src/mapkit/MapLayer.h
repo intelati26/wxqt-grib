@@ -42,6 +42,7 @@ public:
     virtual Window * hostWindow() = 0;
     virtual void redraw() = 0;                                   // something changed: paint again
     virtual void status(const string&) = 0;                      // a line under the toolbar
+    virtual void timesChanged() = 0;                             // a time-aware layer has new frames (the time bar looks again)
     // a patch of the map (`spacing` pixels square) can be claimed once per painting; true when it was free. Layers that thin their marks use it so that
     // two layers do not both put a mark on the same spot.
     virtual bool claimCell(const QPointF& pixels, double spacing) = 0;
@@ -67,7 +68,13 @@ public:
     virtual vector<MapLegendRow> legend() const { return {}; }
     // its own choices (colour by, filters), shown under the tree when selected; `changed` is called when one of them changes
     virtual QWidget * options(QWidget * /*parent*/, const std::function<void()>& /*changed*/) { return nullptr; }
-    virtual string summary() const { return {}; }                // a short line for the status: "5,300 stations"
+    virtual string summary() const { return {}; }
+    // time: a layer with frames in time (radar scans, a forecast's hours) lists them, and shows the one the time bar asks for
+    virtual bool timeAware() const { return false; }
+    virtual vector<long> times() const { return {}; }            // seconds since 1970, ascending: the frames that can be shown now
+    virtual void prepareTimes(MapHost&) {}                       // load the frames for a loop (the bar calls it when a loop is wanted); timesChanged() when done
+    virtual void showTime(long /*seconds*/, MapHost&) {}         // show the frame at or just before this time; 0 is "live": the newest
+    virtual string timeText() const { return {}; }               // when the frame on show is valid                // a short line for the status: "5,300 stations"
 
 protected:
     virtual void onEnable(MapHost&) {}

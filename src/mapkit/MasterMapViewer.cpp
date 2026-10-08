@@ -8,6 +8,7 @@
 #include <cmath>
 #include <sstream>
 #include <QContextMenuEvent>
+#include <QHBoxLayout>
 #include <QCoreApplication>
 #include <QFont>
 #include <QPainterPath>
@@ -119,10 +120,49 @@ MasterMapViewer::MasterMapViewer(Window * parent)
     rowTop.addWidget(buttonRefresh);
     rowTop.addWidget(buttonSave);
     rowTop.addStretch();
+    // the time bar: shown while a layer with frames is on
+    timeRow = new QWidget{this};
+    auto * timeLayout = new QHBoxLayout{timeRow};
+    timeLayout->setContentsMargins(0, 0, 0, 0);
+    stepBack = new QPushButton{"<", timeRow};
+    playButton = new QPushButton{"Loop", timeRow};
+    stepForward = new QPushButton{">", timeRow};
+    liveButton = new QPushButton{"Latest", timeRow};
+    timeSlider = new QSlider{Qt::Horizontal, timeRow};
+    timeSlider->setMinimum(0);
+    timeSlider->setMaximum(0);
+    speedCombo = new QComboBox{timeRow};
+    speedCombo->addItems({"slow", "medium", "fast"});
+    speedCombo->setCurrentIndex(std::clamp(Utility::readPrefInt("MASTERMAP_SPEED", 1), 0, 2));
+    timeLabel = new QLabel{"live", timeRow};
+    timeLabel->setMinimumWidth(180);
+    for (auto * button : {stepBack, stepForward}) {
+        button->setFixedWidth(34);
+    }
+    timeLayout->addWidget(stepBack);
+    timeLayout->addWidget(playButton);
+    timeLayout->addWidget(stepForward);
+    timeLayout->addWidget(timeSlider, 1);
+    timeLayout->addWidget(speedCombo);
+    timeLayout->addWidget(liveButton);
+    timeLayout->addWidget(timeLabel);
+    timeRow->hide();
+    QObject::connect(stepBack, &QPushButton::clicked, [this] { if (ticks.size() > 1) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(std::max(0, timeSlider->value() - 1)); } });
+    QObject::connect(stepForward, &QPushButton::clicked, [this] { if (ticks.size() > 1) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(std::min(static_cast<int>(ticks.size()) - 1, timeSlider->value() + 1)); } });
+    QObject::connect(playButton, &QPushButton::clicked, [this] { togglePlay(); });
+    QObject::connect(liveButton, &QPushButton::clicked, [this] { goLive(); });
+    QObject::connect(timeSlider, &QSlider::valueChanged, [this] (int value) { if (!settingSlider) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(value); } });
+    QObject::connect(speedCombo, &QComboBox::currentIndexChanged, [this] (int index) {
+        Utility::writePrefInt("MASTERMAP_SPEED", index);
+        playTimer.setInterval(index == 0 ? 1200 : index == 1 ? 650 : 280);
+    });
+    playTimer.setInterval(speedCombo->currentIndex() == 0 ? 1200 : speedCombo->currentIndex() == 1 ? 650 : 280);
+    QObject::connect(&playTimer, &QTimer::timeout, [this] { advance(); });
     rowMain.addWidgetReal(map, 0, Qt::AlignTop | Qt::AlignLeft);
     rowMain.addWidgetReal(sidePanel, 1, Qt::AlignTop | Qt::AlignLeft);
     box.addLayout(rowTop);
     box.addWidget(textStatus);
+    box.addWidgetReal(timeRow, 0, Qt::Alignment{});
     box.addLayout(rowMain);
     box.addStretch();
     box.getAndShow(this);
@@ -236,8 +276,136 @@ void MasterMapViewer::setLayerOn(const string& id, bool on) {
         layer->disable();
     }
     saveState();
+    rebuildTicks();
     updateStatus();
     redraw();
+}
+
+// the frames of every layer that has them, in one list for the bar; the bar is shown only while there is such a layer
+void MasterMapViewer::rebuildTicks() {
+    std::set<long> all;
+    bool any = false;
+    for (const auto& layer : layers) {
+        if (layer->enabled() && layer->timeAware()) {
+            any = true;
+            for (const long t : layer->times()) {
+                all.insert(t);
+            }
+        }
+    }
+    timeRow->setVisible(any);
+    const long keep = !live && timeSlider->value() >= 0 && static_cast<size_t>(timeSlider->value()) < ticks.size() ? ticks[static_cast<size_t>(timeSlider->value())] : 0;
+    ticks.assign(all.begin(), all.end());
+    settingSlider = true;
+    timeSlider->setMaximum(std::max(0, static_cast<int>(ticks.size()) - 1));
+    timeSlider->setEnabled(ticks.size() > 1);
+    int index = static_cast<int>(ticks.size()) - 1;
+    if (!live && keep != 0) {
+        const auto found = std::lower_bound(ticks.begin(), ticks.end(), keep);
+        index = found == ticks.end() ? static_cast<int>(ticks.size()) - 1 : static_cast<int>(found - ticks.begin());
+    }
+    timeSlider->setValue(std::max(0, index));
+    settingSlider = false;
+    if (playWhenReady && ticks.size() > 1) {
+        playWhenReady = false;
+        playing = true;
+        playButton->setText("Stop");
+        playTimer.start();
+    }
+    string text = live ? "latest" : "";
+    for (const auto& layer : layers) {
+        if (layer->enabled() && layer->timeAware() && !layer->timeText().empty()) {
+            text = layer->timeText() + (live ? "  (latest)" : "");
+            break;
+        }
+    }
+    timeLabel->setText(QString::fromStdString(text));
+    if (ticks.size() > 1) {
+        extra.clear();   // the "loading the frames" note
+        if (!playing && playButton->text() == "Loading...") {
+            playButton->setText("Loop");
+        }
+    }
+    updateStatus();
+    redraw();
+}
+
+void MasterMapViewer::goLive() {
+    live = true;
+    playing = false;
+    playTimer.stop();
+    playButton->setText("Loop");
+    for (auto& layer : layers) {
+        if (layer->enabled() && layer->timeAware()) {
+            layer->showTime(0, *this);
+        }
+    }
+    rebuildTicks();
+}
+
+void MasterMapViewer::goTo(int index) {
+    if (ticks.empty() || index < 0 || static_cast<size_t>(index) >= ticks.size()) {
+        return;
+    }
+    live = static_cast<size_t>(index) + 1 == ticks.size() && !playing;
+    const long t = ticks[static_cast<size_t>(index)];
+    for (auto& layer : layers) {
+        if (layer->enabled() && layer->timeAware()) {
+            layer->showTime(live ? 0 : t, *this);
+        }
+    }
+    settingSlider = true;
+    timeSlider->setValue(index);
+    settingSlider = false;
+    string text;
+    for (const auto& layer : layers) {
+        if (layer->enabled() && layer->timeAware() && !layer->timeText().empty()) {
+            text = layer->timeText();
+            break;
+        }
+    }
+    timeLabel->setText(QString::fromStdString(text + (live ? "  (latest)" : "")));
+    updateStatus();
+    redraw();
+}
+
+void MasterMapViewer::togglePlay() {
+    if (playing || playWhenReady) {
+        playing = false;
+        playWhenReady = false;
+        playTimer.stop();
+        playButton->setText("Loop");
+        return;
+    }
+    if (ticks.size() < 2) {   // the frames are not loaded yet: ask for them and start when they are here
+        playWhenReady = true;
+        playButton->setText("Loading...");
+        status("loading the frames for a loop...");
+        for (auto& layer : layers) {
+            if (layer->enabled() && layer->timeAware()) {
+                layer->prepareTimes(*this);
+            }
+        }
+        return;
+    }
+    // from the start of the loop, or from where the slider is when it is not at the end
+    if (timeSlider->value() >= static_cast<int>(ticks.size()) - 1) {
+        timeSlider->setValue(0);
+    }
+    playing = true;
+    playButton->setText("Stop");
+    playTimer.start();
+}
+
+void MasterMapViewer::advance() {
+    if (ticks.size() < 2) {
+        return;
+    }
+    int next = timeSlider->value() + 1;
+    if (next >= static_cast<int>(ticks.size())) {
+        next = 0;   // round again, with a pause at the newest
+    }
+    goTo(next);
 }
 
 void MasterMapViewer::saveState() {

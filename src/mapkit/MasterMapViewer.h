@@ -13,6 +13,9 @@
 #include <string>
 #include <vector>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QPushButton>
+#include <QSlider>
 #include <QLabel>
 #include <QTimer>
 #include <QTreeWidget>
@@ -42,6 +45,7 @@ private:
     void redraw() override { mapView->map()->update(); }
     void status(const string& text) override { extra = text; updateStatus(); }
     bool claimCell(const QPointF& pixels, double spacing) override;
+    void timesChanged() override { rebuildTicks(); }
     void background(std::function<void()> work, std::function<void()> done) override;
 
     void buildTree();
@@ -55,6 +59,12 @@ private:
     MapHit bestHit(const QPointF& pixels) const;
     void showOptions(MapLayer *);
     void tick();
+    // the time bar: stepping and looping through the frames of the layers that have them
+    void rebuildTicks();
+    void goLive();
+    void goTo(int index);
+    void togglePlay();
+    void advance();
     void closeEventCustom() override { closed = true; }
     void resizeEventCustom() override;
     MapLayer * layerOf(const string& id) const;
@@ -72,6 +82,20 @@ private:
     QTreeWidget * tree{};
     QWidget * optionsBox{};
     QCheckBox * legendCheck{};
+    QWidget * timeRow{};
+    QSlider * timeSlider{};
+    QPushButton * playButton{};
+    QPushButton * liveButton{};
+    QPushButton * stepBack{};
+    QPushButton * stepForward{};
+    QComboBox * speedCombo{};
+    QLabel * timeLabel{};
+    QTimer playTimer;
+    vector<long> ticks;             // the times the bar steps through: every frame of every layer that has them, ascending
+    bool live{true};                // the newest of everything (the frames follow new scans)
+    bool playing{false};
+    bool playWhenReady{false};
+    bool settingSlider{false};
     QVBoxLayout * optionsLayout{};
     QLabel * optionsTitle{};
     vector<std::unique_ptr<MapLayer>> layers;       // in painting order

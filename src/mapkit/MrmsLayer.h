@@ -6,6 +6,7 @@
 #ifndef MRMSLAYER_H
 #define MRMSLAYER_H
 
+#include <map>
 #include <memory>
 #include <vector>
 #include "mapkit/MapLayer.h"
@@ -21,6 +22,11 @@ public:
     string tip() const override { return "NOAA's Multi-Radar Multi-Sensor products: reflectivity, hail size, rotation, rain rate and totals; the newest scan of the product chosen in the options"; }
     int order() const override { return 10; }
     int refreshSeconds() const override { return 120; }
+    bool timeAware() const override { return true; }
+    vector<long> times() const override;
+    void prepareTimes(MapHost&) override;
+    void showTime(long seconds, MapHost&) override;
+    string timeText() const override;
     void refresh(MapHost&) override;
     void optionChanged(MapHost& host) override { if (reloadNeeded) { reloadNeeded = false; refresh(host); } }
     void paint(QPainter&, MapHost&) override;
@@ -35,6 +41,7 @@ protected:
 private:
     const UtilityMrms::Product& product() const;
     void rebuildColors();
+    void display(const UtilityMrms::Frame&);
     bool loading{false};
     string error;
     int productIndex{0};
@@ -45,6 +52,12 @@ private:
     QVector<QRgb> colors;
     bool have{false};
     bool reloadNeeded{false};
+    bool preparing{false};
+    bool loopWanted{false};
+    int loopLength{24};      // frames in a loop
+    long shownSeconds{0};    // 0: the newest scan (live); else the scan at or before this time
+    std::vector<UtilityMrms::Scan> scans;               // the server's list for the product, oldest first
+    std::map<long, UtilityMrms::Frame> frames;          // the scans loaded, by time (kept compressed)
     int generation{0};
 };
 
