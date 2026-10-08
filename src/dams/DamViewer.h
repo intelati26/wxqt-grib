@@ -6,6 +6,7 @@
 #ifndef DAMVIEWER_H
 #define DAMVIEWER_H
 
+#include "ui/ChartExport.h"
 #include <memory>
 #include <QString>
 #include <QWidget>
@@ -19,7 +20,7 @@
 // turbines, power generated, inflow, tailwater elevation).
 class DamChart : public QWidget {
 public:
-    explicit DamChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(700, 520); }
+    explicit DamChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(700, 520); ChartExport::install(this, "Dam history"); }
     void setData(const std::shared_ptr<DamData::Data>& data, int hours);
 
 private:

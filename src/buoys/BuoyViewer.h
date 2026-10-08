@@ -6,6 +6,7 @@
 #ifndef BUOYVIEWER_H
 #define BUOYVIEWER_H
 
+#include "ui/ChartExport.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -20,7 +21,7 @@
 // pressure, air and water temperature), for the last day, three days, five days or the whole 45 days the file holds.
 class BuoyChart : public QWidget {
 public:
-    explicit BuoyChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(680, 520); }
+    explicit BuoyChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(680, 520); ChartExport::install(this, "Buoy history"); }
     void setData(const std::shared_ptr<std::vector<UtilityBuoys::Obs>>& series, double hours);
 
 private:

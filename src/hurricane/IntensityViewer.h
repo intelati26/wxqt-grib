@@ -6,6 +6,7 @@
 #ifndef INTENSITYVIEWER_H
 #define INTENSITYVIEWER_H
 
+#include "ui/ChartExport.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -22,7 +23,7 @@ using std::string;
 // observations (strongest flight-level wind and the vortex-message pressures), each family on or off.
 class IntensityChart : public QWidget {
 public:
-    explicit IntensityChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(700, 480); }
+    explicit IntensityChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(700, 480); ChartExport::install(this, "Intensity"); }
     void setData(const std::shared_ptr<HurricaneData::StormData>& storm, const std::shared_ptr<HurricaneData::EnsembleData>& ensembles,
                  const std::shared_ptr<HurricaneData::ShipsData>& ships, const std::shared_ptr<HurricaneData::VdmData>& vdm,
                  const std::shared_ptr<HurricaneData::ReconData>& recon);

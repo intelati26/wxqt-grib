@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ui/WeatherGraph.h"
+#include "ui/ChartExport.h"
 #include <algorithm>
 #include <cmath>
 #include <QPainter>
@@ -16,6 +17,7 @@
 
 WeatherGraph::WeatherGraph(QWidget * parent) : QWidget(parent) {
     setMinimumSize(600, 400);
+    ChartExport::install(this, "Forecast graph");
     axisFont.setPixelSize(10);
     labelFont.setPixelSize(11);
 }

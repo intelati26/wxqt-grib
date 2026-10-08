@@ -6,6 +6,7 @@
 #ifndef VDMVIEWER_H
 #define VDMVIEWER_H
 
+#include "ui/ChartExport.h"
 #include <memory>
 #include <QString>
 #include <QWidget>
@@ -17,7 +18,7 @@
 // each message as a table row (time, position, pressure, winds inbound and outbound, eye, temperatures, aircraft).
 class VdmChart : public QWidget {
 public:
-    explicit VdmChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(640, 230); }
+    explicit VdmChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(640, 230); ChartExport::install(this, "Recon vortex messages"); }
     void setData(const std::shared_ptr<HurricaneData::VdmData>& data);
 
 private:

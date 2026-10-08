@@ -6,6 +6,7 @@
 #ifndef ENSEMBLESTATSVIEWER_H
 #define ENSEMBLESTATSVIEWER_H
 
+#include "ui/ChartExport.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -27,7 +28,7 @@ using std::vector;
 // unperturbed IFS / AIFS runs are drawn over them.
 class EnsembleChart : public QWidget {
 public:
-    explicit EnsembleChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(640, 430); }
+    explicit EnsembleChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(640, 430); ChartExport::install(this, "Ensemble statistics"); }
     void setData(const std::shared_ptr<HurricaneData::StormData>& storm, const std::shared_ptr<HurricaneData::EnsembleData>& ensembles);
     // which families are drawn: the ensembles by label ("AIFS ENS", "IFS ENS", "GEFS"), "runs" (the unperturbed AIFS / IFS), "nhc" (NHC's forecast dots)
     void setShown(const string& family, bool shown);

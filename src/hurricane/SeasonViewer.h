@@ -6,6 +6,7 @@
 #ifndef SEASONVIEWER_H
 #define SEASONVIEWER_H
 
+#include "ui/ChartExport.h"
 #include <memory>
 #include <vector>
 #include <QString>
@@ -21,7 +22,7 @@
 // HURDAT2 database (1851 on) and this season so far from the ATCF best tracks, against the 1991-2020 average, and this season's storms as a table.
 class SeasonChart : public QWidget {
 public:
-    explicit SeasonChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(640, 280); setMouseTracking(true); }
+    explicit SeasonChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(640, 280); setMouseTracking(true); ChartExport::install(this, "Hurricane seasons"); }
     void setData(const std::vector<UtilitySeason::Season>& seasons, int currentYear);
     void setView(int metric, int firstYear);   // metric: 0 ACE, 1 named storms, 2 hurricanes, 3 major hurricanes
 

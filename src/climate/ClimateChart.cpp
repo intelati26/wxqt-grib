@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "climate/ClimateChart.h"
+#include "ui/ChartExport.h"
 #include <algorithm>
 #include <cmath>
 #include <QPainter>
@@ -19,6 +20,7 @@ ClimateChart::ClimateChart(const UtilityClimate::IndexInfo& info, const UtilityC
     , info{info}
 {
     setFixedSize(480, 180);
+    ChartExport::install(this, "Climate index");
     if (all.empty()) {
         return;
     }

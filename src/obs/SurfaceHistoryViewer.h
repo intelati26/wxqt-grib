@@ -6,6 +6,7 @@
 #ifndef SURFACEHISTORYVIEWER_H
 #define SURFACEHISTORYVIEWER_H
 
+#include "ui/ChartExport.h"
 #include <memory>
 #include <QWidget>
 #include "obs/SurfaceStation.h"
@@ -17,7 +18,7 @@
 // Strips against time for the last 24 hours of one airport: temperature and dew point, wind speed and gust, altimeter setting.
 class SurfaceHistoryChart : public QWidget {
 public:
-    explicit SurfaceHistoryChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(640, 480); }
+    explicit SurfaceHistoryChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(640, 480); ChartExport::install(this, "Station history"); }
     void setData(const std::vector<UtilityMetarHistory::Ob>& obs, bool fahrenheit, const QString& message);
 
 private:

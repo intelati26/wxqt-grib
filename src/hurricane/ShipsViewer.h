@@ -6,6 +6,7 @@
 #ifndef SHIPSVIEWER_H
 #define SHIPSVIEWER_H
 
+#include "ui/ChartExport.h"
 #include <memory>
 #include <QWidget>
 #include "hurricane/HurricaneData.h"
@@ -18,7 +19,7 @@
 // potential intensity, vertical wind shear, sea surface temperature, mid-level humidity and ocean heat content.
 class ShipsChart : public QWidget {
 public:
-    explicit ShipsChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(760, 520); }
+    explicit ShipsChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(760, 520); ChartExport::install(this, "SHIPS forecast"); }
     void setData(const std::shared_ptr<HurricaneData::ShipsData>& ships, const std::shared_ptr<HurricaneData::StormData>& storm);
     static QString summary(const UtilityShips::Ships&);   // one line: peak intensity, shear, SST, RI
 

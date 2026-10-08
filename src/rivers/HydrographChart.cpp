@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "rivers/HydrographChart.h"
+#include "ui/ChartExport.h"
 #include <algorithm>
 #include <cmath>
 #include <QDateTime>
@@ -35,6 +36,7 @@ HydrographChart::HydrographChart(QWidget * parent)
 {
     setMouseTracking(true);
     setMinimumHeight(280);
+    ChartExport::install(this, "River hydrograph");
 }
 
 void HydrographChart::setData(const std::vector<Line>& newLines, const std::vector<Level>& newLevels, const QString& newUnit, long long nowTime) {

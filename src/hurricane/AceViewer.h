@@ -6,6 +6,7 @@
 #ifndef ACEVIEWER_H
 #define ACEVIEWER_H
 
+#include "ui/ChartExport.h"
 #include <memory>
 #include <vector>
 #include <QString>
@@ -21,7 +22,7 @@
 // highest of those years (a band), another year to compare if wanted, and the ACE added each day this season as bars underneath. Hover for the day's numbers.
 class AceChart : public QWidget {
 public:
-    explicit AceChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(560, 250); setMouseTracking(true); }
+    explicit AceChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(560, 250); setMouseTracking(true); ChartExport::install(this, "ACE by day"); }
     // `compareYear` 0 for none. The history comes from HURDAT2, the season under way from the ATCF best tracks.
     void setData(const std::shared_ptr<HurricaneData::SeasonData>& data, int compareYear);
     // the season so far against the average up to the same day, in words ("ACE 12.7 by 8 Oct: 38 % of the 1991-2020 average for the date (the 41st highest of 36 years...")
