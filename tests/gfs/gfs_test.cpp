@@ -30,6 +30,11 @@ int main() {
     CHECK(records[2].end == -1 && records[2].forecast == "0-6 hour acc fcst");
     CHECK(find(records, "HGT", "500 mb") && find(records, "HGT", "500 mb")->number == 2);
     CHECK(!find(records, "HGT", "700 mb"));
+    // a trailing * matches the start of the forecast text: the running total, whatever it is called ("0-6 hour acc", "0-1 day acc")
+    const auto totals = parseIdx("1:0:d=2026100800:APCP:surface:6-9 hour acc fcst:\n2:100:d=2026100800:APCP:surface:0-9 hour acc fcst:\n3:200:d=2026100800:APCP:surface:0-1 day acc fcst:\n");
+    CHECK(find(totals, "APCP", "surface", "0-*") && find(totals, "APCP", "surface", "0-*")->number == 2);
+    CHECK(find(totals, "APCP", "surface", "6-*")->number == 1);
+    CHECK(!find(totals, "APCP", "surface", "12-*"));
     CHECK(find(records, "APCP", "surface", "0-6 hour acc fcst"));
 
     // sampling: a field equal to the longitude, wrapping on a global grid

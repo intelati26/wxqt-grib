@@ -40,7 +40,7 @@ int main(int argc, char ** argv) {
     }
     GfsChart::Grids grids;
     std::string error;
-    if (!data.load(run, std::atoi(argv[3]), product->wants, grids, error)) {
+    if (!data.load(run, GfsChart::needs(*product, std::atoi(argv[3])), grids, error)) {
         std::printf("load failed: %s\n", error.c_str());
         return 1;
     }

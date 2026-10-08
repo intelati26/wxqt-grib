@@ -10,6 +10,8 @@
 #include <QFontMetricsF>
 #include <QPainter>
 #include <QPainterPath>
+#include <QStringList>
+#include <tuple>
 #include "ui/WindBarb.h"
 
 namespace GfsChart {
@@ -59,6 +61,26 @@ namespace {
     }
     Ramp vorticityRamp() {   // units of 1e-5 per second; the cyclonic side only
         return {{{0, QColor{255, 255, 255, 0}}, {6, QColor{"#fff7d1"}}, {10, QColor{"#fde8a0"}}, {16, QColor{"#fcc967"}}, {24, QColor{"#f59d47"}}, {34, QColor{"#df6a34"}}, {48, QColor{"#a8402a"}}, {70, QColor{"#6b1f2a"}}}};
+    }
+
+    Ramp precipitation() {   // millimeters
+        return {{{0.0, QColor{217, 239, 208, 0}}, {0.25, QColor{"#d9efd0"}}, {1.0, QColor{"#b6e3b0"}}, {2.5, QColor{"#86d08f"}}, {6.0, QColor{"#4fb98a"}}, {12.0, QColor{"#2fa3a6"}},
+                 {25.0, QColor{"#2b7fc0"}}, {38.0, QColor{"#3a5bb8"}}, {50.0, QColor{"#5b43a8"}}, {75.0, QColor{"#8a3aa6"}}, {100.0, QColor{"#b5368f"}}, {150.0, QColor{"#d9435f"}},
+                 {200.0, QColor{"#ee7a47"}}, {300.0, QColor{"#f6b24e"}}}};
+    }
+    Ramp reflectivity() {   // dBZ
+        return {{{0, QColor{207, 232, 243, 0}}, {5, QColor{"#cfe8f3"}}, {15, QColor{"#8ccbe0"}}, {20, QColor{"#5bb0c8"}}, {25, QColor{"#55a868"}}, {30, QColor{"#86c04a"}},
+                 {35, QColor{"#e3d44a"}}, {40, QColor{"#f0a63a"}}, {45, QColor{"#e0702e"}}, {50, QColor{"#cc3d2c"}}, {55, QColor{"#a8206b"}}, {60, QColor{"#7a2a9a"}}, {70, QColor{"#f2e6f7"}}}};
+    }
+    Ramp humidity() {   // percent
+        return {{{0, QColor{"#7a4a24"}}, {20, QColor{"#b58a52"}}, {40, QColor{"#e3cfa0"}}, {55, QColor{"#f4f0df"}}, {70, QColor{"#c3e3b4"}}, {85, QColor{"#6cc496"}}, {95, QColor{"#2d9aa6"}}, {100, QColor{"#1e5fa8"}}}};
+    }
+    Ramp precipitableWater() {   // millimeters
+        return {{{0, QColor{"#f7f4e8"}}, {13, QColor{"#e3ecc0"}}, {25, QColor{"#b5dd9a"}}, {38, QColor{"#7cc9a0"}}, {50, QColor{"#46aeb8"}}, {63, QColor{"#3a86c4"}}, {75, QColor{"#5a5fb8"}}, {90, QColor{"#8b4aa6"}}}};
+    }
+    Ramp snowChange() {   // centimeters; transparent where nothing changes
+        return {{{-30, QColor{"#8c5a2b"}}, {-10, QColor{"#c99a62"}}, {-1, QColor{"#ecd9b8"}}, {-0.3, QColor{236, 217, 184, 0}}, {0.3, QColor{200, 225, 245, 0}}, {1, QColor{"#c8e1f5"}},
+                 {10, QColor{"#6aa9d2"}}, {30, QColor{"#5a5fb8"}}, {60, QColor{"#8b4aa6"}}}};
     }
 
     GfsGrid::Grid pick(const Grids& g, const std::string& key) {
@@ -153,6 +175,26 @@ const std::vector<Product>& products() {
         const auto speedOf = [] (const char * u, const char * v) {
             return [u, v] (const Grids& g) { return GfsGrid::scaled(GfsGrid::speed(pick(g, u), pick(g, v)), msToKnots); };
         };
+        const auto heights = [] (double interval, bool dark = true) {
+            ContourSet c;
+            c.key = "z";
+            c.scale = 0.1;
+            c.interval = interval;
+            c.title = "Height (dam)";
+            c.color = dark ? QColor{30, 30, 30} : QColor{60, 60, 60};
+            return c;
+        };
+        const auto pressure = [] {
+            ContourSet c;
+            c.key = "p";
+            c.scale = 0.01;
+            c.interval = 4;
+            c.title = "Sea level pressure (mb)";
+            c.highsAndLows = true;
+            return c;
+        };
+        const auto vorticityOf = [] (const Grids& g) { return GfsGrid::scaled(GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1)), 1e5); };
+
         // the upper-air charts: wind speed filled, heights contoured, barbs
         const auto upper = [&] (const char * id, const char * label, const char * level, double interval) {
             Product x;
@@ -163,10 +205,7 @@ const std::vector<Product>& products() {
             x.ramp = windSpeed();
             x.fillTitle = "Wind speed (kt)";
             x.legendStep = 20;
-            x.contourKey = "z";
-            x.contourScale = 0.1;
-            x.contourInterval = interval;
-            x.contourTitle = "Height (dam)";
+            x.contours = {heights(interval)};
             x.barbU = "u";
             x.barbV = "v";
             return x;
@@ -175,35 +214,79 @@ const std::vector<Product>& products() {
         p.push_back(upper("250_wnd_ht", "250mb Wind and Height", "250 mb", 12));
         p.push_back(upper("300_wnd_ht", "300mb Wind and Height", "300 mb", 12));
         p.push_back(upper("500_wnd_ht", "500mb Wind and Height", "500 mb", 6));
-        {
-            auto x = upper("500_vort_ht", "500mb Vorticity, Wind, and Height", "500 mb", 6);
-            x.fill = [] (const Grids& g) { return GfsGrid::scaled(GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1)), 1e5); };
-            x.ramp = vorticityRamp();
-            x.fillTitle = "Relative vorticity (1e-5 /s)";
-            x.legendStep = 10;
-            p.push_back(x);
-        }
-        {
-            auto x = upper("850_vort_ht", "850mb Vorticity, Wind and Height", "850 mb", 3);
-            x.fill = [] (const Grids& g) { return GfsGrid::scaled(GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1)), 1e5); };
+        for (const auto& [id, label, level, interval] : {std::tuple{"500_vort_ht", "500mb Vorticity, Wind, and Height", "500 mb", 6.0}, {"850_vort_ht", "850mb Vorticity, Wind and Height", "850 mb", 3.0}}) {
+            auto x = upper(id, label, level, interval);
+            x.fill = vorticityOf;
             x.ramp = vorticityRamp();
             x.fillTitle = "Relative vorticity (1e-5 /s)";
             x.legendStep = 10;
             p.push_back(x);
         }
         // the lower levels: temperature filled
-        const auto lowTemp = [&] (const char * id, const char * label, const char * level, double interval) {
-            Product x = upper(id, label, level, interval);
+        for (const auto& [id, label, level, interval] : {std::tuple{"850_temp_ht", "850mb Temperature, Wind and Height", "850 mb", 3.0}, {"925_temp_ht", "925mb Temperature, Wind and Height", "925 mb", 3.0}}) {
+            auto x = upper(id, label, level, interval);
             x.wants.push_back(want("t", "TMP", level));
             x.fill = [] (const Grids& g) { return pick(g, "t"); };
             x.ramp = temperature();
             x.fillTitle = "Temperature";
             x.legendStep = 5;
-            x.fahrenheitAware = true;
-            return x;
-        };
-        p.push_back(lowTemp("850_temp_ht", "850mb Temperature, Wind and Height", "850 mb", 3));
-        p.push_back(lowTemp("925_temp_ht", "925mb Temperature, Wind and Height", "925 mb", 3));
+            x.quantity = Quantity::Temperature;
+            p.push_back(x);
+        }
+        {   // humidity
+            auto x = upper("500_rh_ht", "500mb Relative Humidity and Height", "500 mb", 6);
+            x.wants = {want("z", "HGT", "500 mb"), want("rh", "RH", "500 mb")};
+            x.fill = [] (const Grids& g) { return pick(g, "rh"); };
+            x.ramp = humidity();
+            x.fillTitle = "Relative humidity (%)";
+            x.legendStep = 10;
+            x.barbU.clear();
+            x.barbV.clear();
+            p.push_back(x);
+            auto y = x;
+            y.id = "850_rh_ht";
+            y.label = "850mb Relative Humidity and Height";
+            y.wants = {want("z", "HGT", "850 mb"), want("rh", "RH", "850 mb")};
+            y.contours = {heights(3)};
+            p.push_back(y);
+            auto w = x;   // 700 mb: with the vertical motion (omega) as lines, the rising air only
+            w.id = "700_rh_ht";
+            w.label = "700mb Relative Humidity, Height and Omega";
+            w.wants = {want("z", "HGT", "700 mb"), want("rh", "RH", "700 mb"), want("o", "VVEL", "700 mb")};
+            w.contours = {heights(3)};
+            ContourSet omega;
+            omega.key = "o";
+            omega.scale = 10.0;   // Pa/s -> microbar/s
+            omega.interval = 2;
+            omega.title = "Omega (ubar/s, rising air)";
+            omega.color = QColor{20, 110, 70};
+            omega.dashed = true;
+            omega.onlyBelowZero = true;
+            w.contours.push_back(omega);
+            p.push_back(w);
+        }
+        {   // precipitable water
+            auto x = upper("850_pw_ht", "850mb Height, Precipitable Water and Wind", "850 mb", 3);
+            x.wants = {want("z", "HGT", "850 mb"), want("u", "UGRD", "850 mb"), want("v", "VGRD", "850 mb"), {"pw", "PWAT", "entire atmosphere (considered as a single layer)", ""}};
+            x.fill = [] (const Grids& g) { return pick(g, "pw"); };
+            x.ramp = precipitableWater();
+            x.fillTitle = "Precipitable water";
+            x.quantity = Quantity::Millimeters;
+            x.legendStep = 0.5;
+            p.push_back(x);
+        }
+        {   // 850 mb vorticity under the 500 mb heights and the 200 mb wind
+            auto x = upper("850vor_500ht_200wd", "850mb Vorticity, 500mb Height, 200mb Wind", "850 mb", 6);
+            x.wants = {want("z", "HGT", "500 mb"), want("u", "UGRD", "850 mb"), want("v", "VGRD", "850 mb"), want("u2", "UGRD", "200 mb"), want("v2", "VGRD", "200 mb")};
+            x.fill = vorticityOf;
+            x.ramp = vorticityRamp();
+            x.fillTitle = "850mb relative vorticity (1e-5 /s)";
+            x.legendStep = 10;
+            x.contours = {heights(6)};
+            x.barbU = "u2";
+            x.barbV = "v2";
+            p.push_back(x);
+        }
         // the surface: temperature, 10 m wind, sea level pressure
         {
             Product x;
@@ -214,12 +297,159 @@ const std::vector<Product>& products() {
             x.ramp = temperature();
             x.fillTitle = "2 m temperature";
             x.legendStep = 5;
-            x.fahrenheitAware = true;
-            x.contourKey = "p";
-            x.contourScale = 0.01;
-            x.contourInterval = 4;
-            x.contourTitle = "Sea level pressure (mb)";
-            x.highsAndLows = true;
+            x.quantity = Quantity::Temperature;
+            x.contours = {pressure()};
+            x.barbU = "u";
+            x.barbV = "v";
+            p.push_back(x);
+        }
+        // precipitation: the running total from the start of the run is in every file, so a period is the total at its end less the total at its start
+        const auto lastHourOk = [] (int h) { return h <= 120 || (h <= 240 && h % 3 == 0) || h % 6 == 0; };
+        const auto startOf = [lastHourOk] (int hour, int period) {
+            int s = std::max(0, hour - period);
+            while (s > 0 && !lastHourOk(s)) {
+                s--;
+            }
+            return s;
+        };
+        const auto totalNeeds = [startOf] (int hour, int period) {
+            std::vector<GfsData::Need> needs;
+            needs.push_back({hour, {"a1", "APCP", "surface", "0-*"}});
+            const int s = startOf(hour, period);
+            if (s > 0) {
+                needs.push_back({s, {"a0", "APCP", "surface", "0-*"}});
+            }
+            return needs;
+        };
+        const auto totalDerive = [] (Grids& g, int) {
+            auto precip = g["a1"];
+            if (g.find("a0") != g.end()) {
+                precip = GfsGrid::difference(precip, g["a0"]);
+            }
+            for (auto& v : precip.values) {
+                v = std::max(0.0f, v);
+            }
+            g["precip"] = std::move(precip);
+        };
+        const auto precipFill = [] (const Grids& g) { return pick(g, "precip"); };
+        const auto precipTitle = [startOf] (int period) {
+            return [startOf, period] (int hour) {
+                if (period <= 0) {
+                    return std::string{"Precipitation, hours 0-" + std::to_string(hour)};
+                }
+                return "Precipitation, hours " + std::to_string(startOf(hour, period)) + "-" + std::to_string(hour);
+            };
+        };
+        for (const auto& [id, period] : {std::pair{"precip_p01", 1}, {"precip_p03", 3}, {"precip_p06", 6}, {"precip_p12", 12}, {"precip_p24", 24}, {"precip_p36", 36}, {"precip_p48", 48}, {"precip_p60", 60}, {"precip_ptot", 0}}) {
+            Product x;
+            x.id = id;
+            x.label = period == 0 ? "Total Accumulated Precipitation of Period" : "Total Precipitation every " + std::to_string(period) + " hour" + (period == 1 ? "" : "s");
+            x.needs = [totalNeeds, period] (int hour) { return totalNeeds(hour, period > 0 ? period : hour); };
+            x.derive = totalDerive;
+            x.fill = precipFill;
+            x.ramp = precipitation();
+            x.fillTitleFor = precipTitle(period);
+            x.quantity = Quantity::Millimeters;
+            x.legendStep = 0.0;
+            p.push_back(x);
+        }
+        {   // simulated radar
+            Product x;
+            x.id = "sim_radar_comp";
+            x.label = "Simulated Composite Radar Reflectivity";
+            x.wants = {want("r", "REFC", "entire atmosphere")};
+            x.fill = [] (const Grids& g) { return pick(g, "r"); };
+            x.ramp = reflectivity();
+            x.fillTitle = "Composite reflectivity (dBZ)";
+            x.legendStep = 10;
+            p.push_back(x);
+        }
+        {   // snow depth change since the start
+            Product x;
+            x.id = "snodpth_chng";
+            x.label = "Snow Depth Change from F00";
+            x.needs = [] (int hour) {
+                return std::vector<GfsData::Need>{{hour, {"s1", "SNOD", "surface", ""}}, {0, {"s0", "SNOD", "surface", "anl"}}};
+            };
+            x.derive = [] (Grids& g, int) { g["snow"] = GfsGrid::scaled(GfsGrid::difference(g["s1"], g["s0"]), 100.0); };   // meters -> centimeters
+            x.fill = [] (const Grids& g) { return pick(g, "snow"); };
+            x.ramp = snowChange();
+            x.fillTitle = "Snow depth change";
+            x.quantity = Quantity::Centimeters;
+            x.legendStep = 0.0;
+            p.push_back(x);
+        }
+        // sea level pressure with thickness lines (the rain / snow edge) over a precipitation fill
+        const auto thickness = [&] (const char * id, const char * label, const char * low, const char * high, double interval, double edge, const char * what) {
+            Product x;
+            x.id = id;
+            x.label = label;
+            x.needs = [totalNeeds, low, high] (int hour) {
+                auto needs = totalNeeds(hour, hour <= 240 ? 3 : 6);
+                needs.push_back({hour, {"p", "PRMSL", "mean sea level", ""}});
+                needs.push_back({hour, {"zl", "HGT", low, ""}});
+                needs.push_back({hour, {"zh", "HGT", high, ""}});
+                return needs;
+            };
+            x.derive = [totalDerive] (Grids& g, int hour) {
+                totalDerive(g, hour);
+                g["thick"] = GfsGrid::difference(g["zh"], g["zl"]);
+            };
+            x.fill = precipFill;
+            x.ramp = precipitation();
+            x.fillTitleFor = precipTitle(0);
+            x.fillTitleFor = [startOf] (int hour) { return "Precipitation, hours " + std::to_string(startOf(hour, hour <= 240 ? 3 : 6)) + "-" + std::to_string(hour); };
+            x.quantity = Quantity::Millimeters;
+            x.legendStep = 0.0;
+            ContourSet t;
+            t.key = "thick";
+            t.scale = 0.1;
+            t.interval = interval;
+            t.base = 0.0;
+            t.title = what;
+            t.color = QColor{190, 50, 40};
+            t.colorBelow = QColor{40, 90, 190};
+            t.split = edge;
+            t.dashed = true;
+            t.width = 1.3;
+            x.contours = {pressure(), t};
+            return x;
+        };
+        p.push_back(thickness("1000_500_thick", "MSLP, 1000-500mb thickness and precipitation", "1000 mb", "500 mb", 6, 540, "1000-500mb thickness (dam)"));
+        p.push_back(thickness("1000_850_thick", "MSLP, 1000-850mb thickness and precipitation", "1000 mb", "850 mb", 3, 130, "1000-850mb thickness (dam)"));
+        p.push_back(thickness("850_700_thick", "MSLP, 850-700mb thickness and precipitation", "850 mb", "700 mb", 3, 154, "850-700mb thickness (dam)"));
+        {   // 850 mb temperature as lines under the precipitation
+            auto x = thickness("850_temp_mslp_precip", "MSLP, 850mb temperature and precipitation", "850 mb", "500 mb", 6, 0, "");
+            x.needs = [totalNeeds] (int hour) {
+                auto needs = totalNeeds(hour, hour <= 240 ? 3 : 6);
+                needs.push_back({hour, {"p", "PRMSL", "mean sea level", ""}});
+                needs.push_back({hour, {"t", "TMP", "850 mb", ""}});
+                return needs;
+            };
+            x.derive = totalDerive;
+            ContourSet t;
+            t.key = "t";
+            t.interval = 5;
+            t.title = "850mb temperature (C)";
+            t.color = QColor{190, 50, 40};
+            t.colorBelow = QColor{40, 90, 190};
+            t.split = 0.0;
+            t.dashed = true;
+            t.width = 1.3;
+            x.contours = {pressure(), t};
+            p.push_back(x);
+        }
+        {   // 10 m wind over the precipitation, with sea level pressure
+            auto x = thickness("10m_wnd_precip", "MSLP, 10m wind and precipitation", "850 mb", "500 mb", 6, 0, "");
+            x.needs = [totalNeeds] (int hour) {
+                auto needs = totalNeeds(hour, hour <= 240 ? 3 : 6);
+                needs.push_back({hour, {"p", "PRMSL", "mean sea level", ""}});
+                needs.push_back({hour, {"u", "UGRD", "10 m above ground", ""}});
+                needs.push_back({hour, {"v", "VGRD", "10 m above ground", ""}});
+                return needs;
+            };
+            x.derive = totalDerive;
+            x.contours = {pressure()};
             x.barbU = "u";
             x.barbV = "v";
             p.push_back(x);
@@ -238,12 +468,59 @@ const Product * product(const std::string& id) {
     return nullptr;
 }
 
-QImage render(const Product& product, const Sector& sector, const Grids& grids, const GfsData::Run& run, int forecastHour, const Options& options) {
+std::vector<GfsData::Need> needs(const Product& product, int hour) {
+    if (product.needs) {
+        return product.needs(hour);
+    }
+    std::vector<GfsData::Need> list;
     for (const auto& w : product.wants) {
-        if (grids.find(w.key) == grids.end()) {
+        list.push_back({hour, w});
+    }
+    return list;
+}
+
+namespace {
+    // a number shown in the user's units
+    double shown(Quantity quantity, double value, bool us) {
+        if (!us) {
+            return value;
+        }
+        switch (quantity) {
+            case Quantity::Temperature: return value * 1.8 + 32.0;
+            case Quantity::Millimeters: return value / 25.4;
+            case Quantity::Centimeters: return value / 2.54;
+            default: return value;
+        }
+    }
+    QString unitText(Quantity quantity, bool us) {
+        switch (quantity) {
+            case Quantity::Temperature: return us ? "°F" : "°C";
+            case Quantity::Millimeters: return us ? "in" : "mm";
+            case Quantity::Centimeters: return us ? "in" : "cm";
+            default: return {};
+        }
+    }
+    QString numberText(double value) {
+        const double a = std::abs(value);
+        return QString::number(value, 'f', a >= 10 || a == std::floor(a) ? 0 : a >= 1 ? 1 : 2);
+    }
+}
+
+QImage render(const Product& product, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
+    Grids grids = fetched;
+    if (product.derive) {
+        product.derive(grids, forecastHour);
+    }
+    const auto fill = product.fill(grids);
+    if (fill.empty()) {
+        return {};
+    }
+    for (const auto& set : product.contours) {
+        if (grids.find(set.key) == grids.end()) {
             return {};
         }
     }
+    const bool us = options.fahrenheit;
     const int headerHeight = 54, legendHeight = 62, margin = 8;
     const QRectF mapArea{static_cast<double>(margin), static_cast<double>(headerHeight), static_cast<double>(options.width - 2 * margin), 0.0};
     const double mapHeight = std::clamp(View::heightFor(sector, mapArea.width()), 200.0, 1400.0);
@@ -252,17 +529,8 @@ QImage render(const Product& product, const Sector& sector, const Grids& grids, 
     QImage image(options.width, static_cast<int>(headerHeight + mapHeight + legendHeight), QImage::Format_ARGB32_Premultiplied);
     image.fill(QColor{250, 250, 250});
 
-    // the fill, a pixel at a time
-    const auto fill = product.fill(grids);
-    const auto convert = [&] (double value) { return product.fahrenheitAware && options.fahrenheit ? value * 1.8 + 32.0 : value; };
+    // the fill, a pixel at a time (the ramp is in the grid's units; fully clear parts show the pale ground)
     const Ramp * ramp = &product.ramp;
-    Ramp shown;
-    if (product.fahrenheitAware && options.fahrenheit) {   // the same colors against Fahrenheit values
-        for (const auto& stop : product.ramp.stops) {
-            shown.stops.emplace_back(convert(stop.first), stop.second);
-        }
-        ramp = &shown;
-    }
     QImage map(static_cast<int>(area.width()), static_cast<int>(area.height()), QImage::Format_ARGB32_Premultiplied);
     map.fill(QColor{244, 244, 244});
     for (int y = 0; y < map.height(); y++) {
@@ -271,11 +539,11 @@ QImage render(const Product& product, const Sector& sector, const Grids& grids, 
         for (int x = 0; x < map.width(); x++) {
             const float value = fill.sample(view.lonAt(area.left() + x + 0.5), lat);
             if (!std::isnan(value)) {
-                const QRgb c = ramp->at(convert(value));
-                if (qAlpha(c) == 255) {
+                const QRgb c = ramp->at(value);
+                const int a = qAlpha(c);
+                if (a == 255) {
                     row[x] = qPremultiply(c);
-                } else if (qAlpha(c) > 0) {   // a ramp that fades in over the grey
-                    const int a = qAlpha(c);
+                } else if (a > 0) {   // a ramp that fades in over the ground
                     const QRgb under = row[x];
                     row[x] = qRgb((qRed(c) * a + qRed(under) * (255 - a)) / 255, (qGreen(c) * a + qGreen(under) * (255 - a)) / 255, (qBlue(c) * a + qBlue(under) * (255 - a)) / 255);
                 }
@@ -335,58 +603,63 @@ QImage render(const Product& product, const Sector& sector, const Grids& grids, 
 
     // the wider the view, the sparser the lines, the highs and lows, and the barbs
     const double span = sector.east - sector.west;
-    const double interval = product.contourInterval * (span > 150.0 ? 2.0 : 1.0);
     const double extremeRadius = span > 150.0 ? 12.0 : span > 80.0 ? 8.0 : 6.0;
-    // contours
-    if (!product.contourKey.empty() && interval > 0.0) {
-        const auto& grid = grids.at(product.contourKey);
+    for (const auto& set : product.contours) {
+        const double interval = set.interval * (span > 150.0 ? 2.0 : 1.0);
+        const auto& grid = grids.at(set.key);
         double lo = 1e18, hi = -1e18;
         for (int y = 0; y < map.height(); y += 6) {
             for (int x = 0; x < map.width(); x += 6) {
                 const float value = grid.sample(view.lonAt(area.left() + x), view.latAt(area.top() + y));
                 if (!std::isnan(value)) {
-                    lo = std::min<double>(lo, value * product.contourScale);
-                    hi = std::max<double>(hi, value * product.contourScale);
+                    lo = std::min<double>(lo, value * set.scale);
+                    hi = std::max<double>(hi, value * set.scale);
                 }
             }
         }
-        const double first = std::ceil((lo - product.contourBase) / interval) * interval + product.contourBase;
-        const double west = sector.west, east = sector.east;
-        for (double level = first; level <= hi; level += interval) {
-            const bool heavy = std::fmod(std::abs(level - product.contourBase), interval * 5) < 1e-6;
-            for (const auto& line : GfsGrid::contour(grid, level / product.contourScale, west, sector.south, east, sector.north)) {
+        if (set.onlyBelowZero) {
+            hi = std::min(hi, -interval / 2.0);
+        }
+        for (double level = std::ceil((lo - set.base) / interval) * interval + set.base; level <= hi; level += interval) {
+            const bool heavy = std::fmod(std::abs(level - set.base), interval * 5) < 1e-6 || (set.colorBelow.isValid() && std::abs(level - set.split) < 1e-6);
+            const QColor color = set.colorBelow.isValid() && level <= set.split ? set.colorBelow : set.color;
+            for (const auto& line : GfsGrid::contour(grid, level / set.scale, sector.west, sector.south, sector.east, sector.north)) {
                 QPainterPath path;
-                bool outside = true;
+                bool first = true;
                 for (const auto& pt : line) {
                     const auto at = view.toPixel(pt.lon, pt.lat);   // already continuous across west..east
-                    outside ? path.moveTo(at) : path.lineTo(at);
-                    outside = false;
+                    first ? path.moveTo(at) : path.lineTo(at);
+                    first = false;
                 }
                 p.setBrush(Qt::NoBrush);
-                p.setPen(QPen{QColor{30, 30, 30, 230}, heavy ? 1.6 : 1.0});
+                QPen pen{QColor{color.red(), color.green(), color.blue(), 230}, (heavy ? 1.6 : 1.0) * set.width};
+                if (set.dashed) {
+                    pen.setStyle(Qt::DashLine);
+                }
+                p.setPen(pen);
                 p.drawPath(path);
                 // one label near the middle of a line long enough to carry it
                 if (path.length() > 150.0) {
                     const auto mid = path.pointAtPercent(0.5);
                     if (area.adjusted(24, 14, -24, -14).contains(mid)) {
-                        halo(mid, QString::number(static_cast<int>(std::lround(level))), QColor{20, 20, 20});
+                        halo(mid, QString::number(static_cast<int>(std::lround(level))), color.darker(130));
                     }
                 }
             }
         }
-        if (product.highsAndLows) {
-            for (const auto& e : GfsGrid::extremes(grid, extremeRadius, west, sector.south, east, sector.north)) {
+        if (set.highsAndLows) {
+            for (const auto& e : GfsGrid::extremes(grid, extremeRadius, sector.west, sector.south, sector.east, sector.north)) {
                 const auto at = view.toPixel(e.lon, e.lat);
                 if (area.adjusted(20, 20, -20, -20).contains(at)) {
                     halo(at, e.high ? "H" : "L", e.high ? QColor{20, 60, 170} : QColor{190, 30, 30});
-                    halo(at + QPointF{0, 13}, QString::number(static_cast<int>(std::lround(e.value * product.contourScale))), QColor{40, 40, 40});
+                    halo(at + QPointF{0, 13}, QString::number(static_cast<int>(std::lround(e.value * set.scale))), QColor{40, 40, 40});
                 }
             }
         }
     }
 
     // wind barbs on a grid of pixels
-    if (!product.barbU.empty()) {
+    if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
         const auto& u = grids.at(product.barbU);
         const auto& v = grids.at(product.barbV);
         const double spacing = span > 150.0 ? 62.0 : span > 80.0 ? 52.0 : 48.0;
@@ -421,27 +694,62 @@ QImage render(const Product& product, const Sector& sector, const Grids& grids, 
     font.setBold(false);
     p.setFont(font);
     p.setPen(QColor{70, 70, 70});
-    p.drawText(QPointF{static_cast<double>(margin), 43.0},
-               QString::fromStdString(product.fillTitle) + (product.fahrenheitAware ? (options.fahrenheit ? " (\u00b0F)" : " (\u00b0C)") : "") + (product.contourTitle.empty() ? "" : QString::fromStdString(";  lines: " + product.contourTitle)) +
-                   (product.barbU.empty() ? "" : ";  barbs: kt"));
+    const auto unit = unitText(product.quantity, us);
+    QString fillTitle = QString::fromStdString(product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle);
+    if (!unit.isEmpty()) {
+        fillTitle += " (" + unit + ")";
+    }
+    QStringList lines;
+    for (const auto& set : product.contours) {
+        if (!set.title.empty()) {
+            lines << QString::fromStdString(set.title);
+        }
+    }
+    p.drawText(QPointF{static_cast<double>(margin), 43.0}, fillTitle + (lines.isEmpty() ? "" : ";  lines: " + lines.join(", ")) + (product.barbU.empty() ? "" : ";  barbs: kt"));
     const QString times = "Run " + initUtc.toString("ddd dd MMM yyyy HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd dd MMM HH") + "Z";
     p.drawText(QRectF{0, 8, image.width() - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 
-    // legend
+    // legend: even steps in value, or (legendStep 0) one equal-width block per ramp stop
     const double barLeft = margin + 6.0, barTop = area.bottom() + 12.0, barWidth = area.width() - 12.0, barHeight = 16.0;
-    const double first = ramp->stops.front().first, last = ramp->stops.back().first;
+    const auto& stops = ramp->stops;
+    const double first = stops.front().first, last = stops.back().first;
+    const bool stepped = product.legendStep <= 0.0;
+    const auto valueAt = [&] (double t) {   // t 0..1 along the bar
+        if (!stepped) {
+            return first + (last - first) * t;
+        }
+        const double position = t * static_cast<double>(stops.size() - 1);
+        const size_t i = std::min(static_cast<size_t>(position), stops.size() - 2);
+        return stops[i].first + (stops[i + 1].first - stops[i].first) * (position - static_cast<double>(i));
+    };
     for (int x = 0; x < static_cast<int>(barWidth); x++) {
-        const double value = first + (last - first) * x / barWidth;
-        const QRgb c = ramp->at(value);
-        p.fillRect(QRectF{barLeft + x, barTop, 1.5, barHeight}, QColor{qRed(c), qGreen(c), qBlue(c), qAlpha(c) == 0 ? 0 : 255});
+        const QRgb c = ramp->at(valueAt(x / barWidth));
+        // a ramp that begins clear is drawn as the pale ground on the bar
+        const int a = qAlpha(c);
+        const QColor ground{244, 244, 244};
+        p.fillRect(QRectF{barLeft + x, barTop, 1.5, barHeight}, QColor{(qRed(c) * a + ground.red() * (255 - a)) / 255, (qGreen(c) * a + ground.green() * (255 - a)) / 255, (qBlue(c) * a + ground.blue() * (255 - a)) / 255});
     }
     p.setPen(QColor{60, 60, 60});
     p.setBrush(Qt::NoBrush);
     p.drawRect(QRectF{barLeft, barTop, barWidth, barHeight});
-    for (double value = std::ceil(first / product.legendStep) * product.legendStep; value <= last; value += product.legendStep) {
-        const double x = barLeft + (value - first) / (last - first) * barWidth;
+    const auto tick = [&] (double t, double value) {
+        const double x = barLeft + t * barWidth;
         p.drawLine(QPointF{x, barTop + barHeight}, QPointF{x, barTop + barHeight + 4});
-        p.drawText(QRectF{x - 22, barTop + barHeight + 4, 44, 14}, Qt::AlignHCenter, QString::number(value, 'f', 0));
+        p.drawText(QRectF{x - 24, barTop + barHeight + 4, 48, 14}, Qt::AlignHCenter, numberText(shown(product.quantity, value, us)));
+    };
+    if (stepped) {
+        for (size_t i = 0; i < stops.size(); i++) {
+            if (i > 0 || stops[i].second.alpha() == 255) {
+                tick(static_cast<double>(i) / static_cast<double>(stops.size() - 1), stops[i].first);
+            }
+        }
+    } else {
+        // steps are in displayed units: walk them in displayed value and map back
+        const double lowShown = shown(product.quantity, first, us), highShown = shown(product.quantity, last, us);
+        for (double value = std::ceil(lowShown / product.legendStep) * product.legendStep; value <= highShown + 1e-9; value += product.legendStep) {
+            const double base = (value - lowShown) / (highShown - lowShown);
+            tick(base, first + (last - first) * base);
+        }
     }
     p.setPen(QColor{110, 110, 110});
     p.drawText(QRectF{0, image.height() - 16.0, image.width() - static_cast<double>(margin), 14}, Qt::AlignRight, "Data: NOAA/NCEP GFS 0.25 degree");

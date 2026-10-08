@@ -119,10 +119,14 @@ void ModelViewer::reload() {
     if (GfsRender::handles(objectModel.model, objectModel.param)) {
         // the GFS charts are drawn here from the GRIB data
         const int mine = ++drawing;
+        if (!gfsSession) {
+            gfsSession = std::make_shared<GfsRender::Session>();   // its folder goes when this screen does
+        }
+        auto session = gfsSession;
         const auto param = objectModel.param, sector = objectModel.sector, run = objectModel.run;
         const int hour = std::atoi(objectModel.getTime().c_str());
         auto result = std::make_shared<std::pair<QByteArray, string>>();
-        new FutureVoid{this, [=] { result->first = GfsRender::png(param, sector, run, hour, result->second); },
+        new FutureVoid{this, [=] { result->first = GfsRender::png(*session, param, sector, run, hour, result->second); },
                        [this, result, mine] {
                            if (mine == drawing && !result->first.isEmpty()) {
                                photo.setBytes(result->first);

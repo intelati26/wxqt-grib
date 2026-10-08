@@ -34,23 +34,38 @@ namespace GfsChart {
     };
 
     using Grids = std::map<std::string, GfsGrid::Grid>;
+    // What the fill's numbers are, for showing them in the user's units (the grids are in degrees C, millimeters, centimeters and so on)
+    enum class Quantity { Other, Temperature, Millimeters, Centimeters };
+
+    // One family of contour lines
+    struct ContourSet {
+        std::string key;                // the grid
+        double scale{1.0};              // grid value * scale = the number labelled (0.1: meters to decameters)
+        double interval{0.0};
+        double base{0.0};               // levels are base + n * interval
+        std::string title;              // "Height (dam)"
+        QColor color{30, 30, 30};
+        QColor colorBelow;              // lines under the split value in this color instead (a thickness line for the rain / snow edge); invalid = not used
+        double split{0.0};
+        bool dashed{false};
+        bool highsAndLows{false};
+        bool onlyBelowZero{false};      // omega: the rising air only
+        double width{1.0};
+    };
     struct Product {
         std::string id;                         // "500_wnd_ht"
         std::string label;                      // "500mb Wind and Height"
-        std::vector<GfsData::Want> wants;       // the records to fetch
-        // the filled field (by recipe), its scale, the title line for it and the unit shown on the legend
+        // the records to fetch, by forecast hour (default: wants, at the hour shown)
+        std::vector<GfsData::Want> wants;
+        std::function<std::vector<GfsData::Need>(int hour)> needs;
+        std::function<void(Grids&, int hour)> derive;   // adds grids made from the fetched ones
         std::function<GfsGrid::Grid(const Grids&)> fill;
-        Ramp ramp;
+        Ramp ramp;                              // in the grids' own units
         std::string fillTitle;                  // "Wind speed (kt)"
-        double legendStep{10.0};
-        bool fahrenheitAware{false};            // the fill is a temperature in degrees C: shown in F when the user prefers it
-        // contour lines: by the grid of that key, scaled to the label unit
-        std::string contourKey;
-        double contourScale{1.0};               // 0.1 turns meters into decameters
-        double contourInterval{0.0};
-        double contourBase{0.0};                // levels are base + n * interval
-        std::string contourTitle;               // "Height (dam)"
-        bool highsAndLows{false};
+        std::function<std::string(int hour)> fillTitleFor;   // when the title depends on the hour (a precipitation period)
+        Quantity quantity{Quantity::Other};
+        double legendStep{10.0};                // in displayed units; 0: a tick at every ramp stop
+        std::vector<ContourSet> contours;
         // wind barbs (m/s grids), drawn in knots
         std::string barbU, barbV;
     };
@@ -59,10 +74,12 @@ namespace GfsChart {
 
     struct Options {
         int width{1100};
-        bool fahrenheit{true};
+        bool fahrenheit{true};                 // the user's US units: degrees F, inches
         std::vector<std::vector<std::pair<float, float>>> lines;   // coastlines and borders as (longitude, latitude)
     };
-    // The finished picture, with a header (model, product, run and valid times) and a legend. Null when a needed grid is missing.
+    // the records a product needs for a forecast hour
+    std::vector<GfsData::Need> needs(const Product& product, int hour);
+    // The finished picture, with a header (model, product, run and valid times) and a legend. Null when a needed grid is missing. The grids are as fetched; the product derives its own (a precipitation period, a thickness) from them.
     QImage render(const Product& product, const Sector& sector, const Grids& grids, const GfsData::Run& run, int forecastHour, const Options& options);
 }
 

@@ -7,7 +7,9 @@
 #ifndef MODELVIEWER_H
 #define MODELVIEWER_H
 
+#include <memory>
 #include <string>
+#include "gfs/GfsRender.h"
 #include "models/ObjectModel.h"
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
@@ -37,6 +39,7 @@ private:
     void moveForward();
     void reload();
     int drawing{0};
+    std::shared_ptr<GfsRender::Session> gfsSession;
     void getRun();
     void getRunStatus();
     void updateRunStatus();

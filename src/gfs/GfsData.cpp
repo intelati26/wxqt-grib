@@ -90,6 +90,13 @@ bool GfsData::one(const Run& run, int hour, const std::vector<GfsGrid::IdxRecord
         error = "could not download " + want.variable + " " + want.level;
         return false;
     }
+    {   // keep the message in the run's partial file as well
+        const std::lock_guard lock{partialMutex};
+        QFile partial{partialGrib(run, hour)};
+        if (partial.open(QIODevice::WriteOnly | QIODevice::Append)) {
+            partial.write(slice);
+        }
+    }
     const auto gribPath = config.cacheFolder + "/" + name + ".grib2";
     const auto rawPath = config.cacheFolder + "/" + name + ".raw";
     const auto hdrPath = config.cacheFolder + "/" + name + ".hdr";
@@ -174,23 +181,48 @@ bool GfsData::one(const Run& run, int hour, const std::vector<GfsGrid::IdxRecord
     return true;
 }
 
+QString GfsData::partialGrib(const Run& run, int hour) const {
+    return config.cacheFolder + "/gfs." + QString::fromStdString(run.id()) + ".f" + QString::fromStdString(pad(hour, 3)) + ".partial.grib2";
+}
+
 bool GfsData::load(const Run& run, int hour, const std::vector<Want>& wants, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {
-    const auto idxBytes = config.bytes(fileUrl(run, hour) + ".idx", 0, -1);
-    const auto index = GfsGrid::parseIdx(idxBytes.toStdString());
-    if (index.empty()) {
-        error = "could not read the GFS index for " + run.id() + " f" + pad(hour, 3);
-        return false;
+    std::vector<Need> needs;
+    for (const auto& w : wants) {
+        needs.push_back({hour, w});
+    }
+    return load(run, needs, out, error);
+}
+
+bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {
+    // one index per forecast hour involved
+    std::map<int, std::vector<GfsGrid::IdxRecord>> indexes;
+    for (const auto& need : needs) {
+        if (indexes.find(need.hour) == indexes.end()) {
+            const auto idxBytes = config.bytes(fileUrl(run, need.hour) + ".idx", 0, -1);
+            indexes[need.hour] = GfsGrid::parseIdx(idxBytes.toStdString());
+            if (indexes[need.hour].empty()) {
+                error = "could not read the GFS index for " + run.id() + " f" + pad(need.hour, 3);
+                return false;
+            }
+        }
     }
     struct Result {
         GfsGrid::Grid grid;
         std::string error;
         bool ok{false};
+        bool absent{false};
     };
     std::vector<std::future<Result>> jobs;
-    for (const auto& want : wants) {
-        jobs.push_back(std::async(std::launch::async, [&, want] {
+    for (const auto& need : needs) {
+        jobs.push_back(std::async(std::launch::async, [&, need] {
             Result r;
-            r.ok = one(run, hour, index, want, r.grid, r.error);
+            const auto& index = indexes.at(need.hour);
+            if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast)) {
+                r.ok = true;   // nothing accumulated yet at hour 0
+                r.absent = true;
+                return r;
+            }
+            r.ok = one(run, need.hour, index, need.want, r.grid, r.error);
             return r;
         }));
     }
@@ -198,7 +230,9 @@ bool GfsData::load(const Run& run, int hour, const std::vector<Want>& wants, std
     for (size_t i = 0; i < jobs.size(); i++) {
         auto r = jobs[i].get();
         if (r.ok) {
-            out[wants[i].key] = std::move(r.grid);
+            if (!r.absent) {
+                out[needs[i].want.key] = std::move(r.grid);
+            }
         } else if (all) {
             error = r.error;
             all = false;

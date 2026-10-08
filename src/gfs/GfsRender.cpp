@@ -9,6 +9,9 @@
 #include <mutex>
 #include <QBuffer>
 #include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
+#include <QTemporaryDir>
 #include <QStandardPaths>
 #include "common/GlobalVariables.h"
 #include "gfs/GfsChart.h"
@@ -46,10 +49,10 @@ namespace {
         return lines;
     }
 
-    GfsData data() {
+    GfsData data(const QString& folder) {
         GfsData::Config config;
         config.gdalBin = UtilityGrib::gdalBinDir();
-        config.cacheFolder = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/gfs";
+        config.cacheFolder = folder;
         config.bytes = [] (const std::string& url, long long start, long long end) {
             return end < 0 && start == 0 ? URL::getBytes(url) : URL::getBytesRange(url, start, end < 0 ? start + 4 * 1024 * 1024 * 1024LL : end);
         };
@@ -57,11 +60,34 @@ namespace {
     }
 }
 
+GfsRender::Session::Session() {
+    // the first of these screens removes what the earlier versions left in the cache folder (decoded grids that were never cleared)
+    static std::once_flag once;
+    std::call_once(once, [] { QDir{QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/gfs"}.removeRecursively(); });
+    const auto base = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/wxqt_gfs_session_XXXXXX";
+    QTemporaryDir dir{base};
+    dir.setAutoRemove(false);   // removed in the destructor, so the path outlives this scope
+    path = dir.path();
+}
+
+GfsRender::Session::~Session() {
+    QDir{path}.removeRecursively();
+}
+
+QString GfsRender::Session::folder() const {
+    return path;
+}
+
+QString GfsRender::Session::partialGrib(const std::string& cycleRun, int hour) const {
+    const auto file = path + "/gfs." + QString::fromStdString(cycleRun) + ".f" + QString::number(hour).rightJustified(3, '0') + ".partial.grib2";
+    return QFileInfo::exists(file) ? file : QString{};
+}
+
 bool GfsRender::handles(const std::string& model, const std::string& param) {
     return model == "GFS" && GfsChart::product(param) != nullptr;
 }
 
-QByteArray GfsRender::png(const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, std::string& error) {
+QByteArray GfsRender::png(Session& session, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, std::string& error) {
     const auto * product = GfsChart::product(param);
     const auto * sector = GfsChart::sector(sectorId);
     if (!product || !sector) {
@@ -72,7 +98,7 @@ QByteArray GfsRender::png(const std::string& param, const std::string& sectorId,
         error = "GDAL not found - install the 'gdal' package";
         return {};
     }
-    const auto gfs = data();
+    const auto gfs = data(session.folder());
     // the newest published run (looked up at most every ten minutes); an earlier cycle of the screen's choice is that run stepped back to it
     static std::mutex mutex;
     static GfsData::Run latest;
@@ -104,7 +130,7 @@ QByteArray GfsRender::png(const std::string& param, const std::string& sectorId,
         run = {t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
     }
     GfsChart::Grids grids;
-    if (!gfs.load(run, hour, product->wants, grids, error)) {
+    if (!gfs.load(run, GfsChart::needs(*product, hour), grids, error)) {
         return {};
     }
     GfsChart::Options options;

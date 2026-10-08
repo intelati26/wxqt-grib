@@ -21,7 +21,7 @@ namespace GfsGrid {
     };
     // "12:5483620:d=2026100800:HGT:500 mb:6 hour fcst:" per line
     std::vector<IdxRecord> parseIdx(const std::string& text);
-    // the first record of that variable at that level ("TMP", "2 m above ground"); forecast, if given, must match too
+    // the first record of that variable at that level ("TMP", "2 m above ground"); forecast, if given, must match too (a trailing * matches a start: "0-*")
     const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast = "");
 
     // Values at cell centers on a regular grid, row 0 = the northernmost, column 0 = lon0. Longitudes wrap when the grid spans the globe.

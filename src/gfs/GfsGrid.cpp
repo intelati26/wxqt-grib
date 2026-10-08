@@ -62,9 +62,20 @@ std::vector<IdxRecord> parseIdx(const std::string& text) {
     return records;
 }
 
+// "" matches anything; "0-*" matches every forecast string starting with "0-"; otherwise the whole string
+static bool matches(const std::string& have, const std::string& want) {
+    if (want.empty()) {
+        return true;
+    }
+    if (want.back() == '*') {
+        return have.compare(0, want.size() - 1, want, 0, want.size() - 1) == 0;
+    }
+    return have == want;
+}
+
 const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast) {
     for (const auto& r : records) {
-        if (r.variable == variable && r.level == level && (forecast.empty() || r.forecast == forecast)) {
+        if (r.variable == variable && r.level == level && matches(r.forecast, forecast)) {
             return &r;
         }
     }
