@@ -258,7 +258,17 @@ const vector<string> UtilityModelNcepInterface::paramsGfs{
     "850_thetae_ht",
     "500_hgt_anom",
     "700_hgt_anom",
-    "mslp_anom"
+    "mslp_anom",
+    "2m_dewpoint",
+    "rh_700_300",
+    "mslp_pwat",
+    "sbcape_wind",
+    "700_temp_mslp",
+    "mslp_10m_wind",
+    "850_wnd_ht",
+    "precip_type",
+    "mslp_trend",
+    "z500_trend"
 };
 
 const vector<string> UtilityModelNcepInterface::labelsGfs{
@@ -300,7 +310,17 @@ const vector<string> UtilityModelNcepInterface::labelsGfs{
     "850mb Equivalent Potential Temperature, Wind and Height",
     "500mb Height and Anomaly",
     "700mb Height and Anomaly",
-    "MSLP and Anomaly"
+    "MSLP and Anomaly",
+    "MSLP, 10m wind, 2m dewpoint",
+    "700-300mb Mean Relative Humidity, 500mb Height and Wind",
+    "MSLP and Precipitable Water",
+    "Surface-Based CAPE, MSLP and 10m Wind",
+    "700mb Temperature, Wind and MSLP",
+    "MSLP and 10m Wind",
+    "850mb Height and Wind",
+    "MSLP and Precipitation (Rain / Snow / Mixed)",
+    "MSLP and 48-hour Change",
+    "500mb Height and 48-hour Change"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNam{

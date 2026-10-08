@@ -68,6 +68,8 @@ namespace GfsChart {
         std::function<void(Grids&, const Context&)> derive;   // adds grids made from the fetched ones
         std::function<GfsGrid::Grid(const Grids&)> fill;
         Ramp ramp;                              // in the grids' own units
+        // more fills painted over the first where they have a value (the snow and the mixed precipitation over the rain)
+        std::vector<std::pair<std::string, Ramp>> overlays;
         std::string fillTitle;                  // "Wind speed (kt)"
         std::function<std::string(int hour)> fillTitleFor;   // when the title depends on the hour (a precipitation period)
         Quantity quantity{Quantity::Other};

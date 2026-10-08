@@ -104,6 +104,24 @@ namespace {
                  {3, QColor{"#f6e0b8"}}, {8, QColor{"#f0b070"}}, {16, QColor{"#d9633a"}}, {30, QColor{"#a02a2a"}}}};
     }
 
+    Ramp dewpoint() {   // degrees C: dry in the browns, humid in greens and blues
+        return {{{-30, QColor{"#8c5a2b"}}, {-15, QColor{"#c99a62"}}, {-5, QColor{"#e8d9b0"}}, {0, QColor{"#f1ecd2"}}, {8, QColor{"#d4ead0"}}, {14, QColor{"#a6dbb0"}}, {18, QColor{"#6cc496"}},
+                 {22, QColor{"#2fa3a6"}}, {25, QColor{"#2b7fc0"}}, {28, QColor{"#5b43a8"}}, {31, QColor{"#8a3aa6"}}}};
+    }
+    Ramp lowWind() {   // knots, for the near-surface and 850 mb winds
+        return {{{0, QColor{"#f7fbff"}}, {10, QColor{"#e0ecf6"}}, {20, QColor{"#c4dcee"}}, {30, QColor{"#98c5e0"}}, {40, QColor{"#6aa9d2"}}, {50, QColor{"#4687bf"}}, {65, QColor{"#7a72b8"}}, {80, QColor{"#d6618a"}}}};
+    }
+    Ramp capeRamp() {   // J/kg
+        return {{{0, QColor{227, 240, 198, 0}}, {100, QColor{"#e3f0c6"}}, {500, QColor{"#b8dc8a"}}, {1000, QColor{"#f1e27a"}}, {1500, QColor{"#f4bf5a"}}, {2000, QColor{"#ee9144"}}, {3000, QColor{"#dc5a3c"}},
+                 {4000, QColor{"#b8303c"}}, {5000, QColor{"#7a2a8a"}}}};
+    }
+    Ramp snowPrecipitation() {   // millimeters of water
+        return {{{0.0, QColor{214, 230, 247, 0}}, {0.25, QColor{"#d6e6f7"}}, {1.0, QColor{"#a9c9ec"}}, {2.5, QColor{"#7ba7e0"}}, {6.0, QColor{"#4f7fd0"}}, {12.0, QColor{"#3a55b8"}}, {25.0, QColor{"#3a2f9a"}}, {50.0, QColor{"#5b2a8a"}}}};
+    }
+    Ramp mixedPrecipitation() {   // freezing rain and ice pellets
+        return {{{0.0, QColor{243, 208, 230, 0}}, {0.25, QColor{"#f3d0e6"}}, {1.0, QColor{"#ea9fcb"}}, {2.5, QColor{"#d96aa8"}}, {6.0, QColor{"#c03f88"}}, {12.0, QColor{"#8f2a73"}}, {25.0, QColor{"#5c1a5a"}}}};
+    }
+
     // equivalent potential temperature (Bolton 1980) in K from temperature in C, relative humidity in percent and the pressure in hPa
     double thetaE(double tC, double rh, double p) {
         const double t = tC + 273.15;
@@ -661,6 +679,175 @@ const std::vector<Product>& products() {
             x.barbV = "v";
             p.push_back(x);
         }
+        // the quick ones: one or two records each
+        {
+            Product x;
+            x.id = "2m_dewpoint";
+            x.label = "MSLP, 10m wind, 2m dewpoint";
+            x.wants = {want("d", "DPT", "2 m above ground"), want("u", "UGRD", "10 m above ground"), want("v", "VGRD", "10 m above ground"), want("p", "PRMSL", "mean sea level")};
+            x.fill = [] (const Grids& g) { return pick(g, "d"); };
+            x.ramp = dewpoint();
+            x.fillTitle = "2 m dewpoint";
+            x.legendStep = 5;
+            x.quantity = Quantity::Temperature;
+            x.contours = {pressure()};
+            x.barbU = "u";
+            x.barbV = "v";
+            p.push_back(x);
+        }
+        {
+            Product x;
+            x.id = "rh_700_300";
+            x.label = "700-300mb Mean Relative Humidity, 500mb Height and Wind";
+            x.wants = {want("r7", "RH", "700 mb"), want("r5", "RH", "500 mb"), want("r3", "RH", "300 mb"), want("z", "HGT", "500 mb"), want("u", "UGRD", "500 mb"), want("v", "VGRD", "500 mb")};
+            x.derive = [] (Grids& g, const Context&) {
+                auto mean = g["r7"];
+                for (size_t i = 0; i < mean.values.size(); i++) {
+                    mean.values[i] = (g["r7"].values[i] + g["r5"].values[i] + g["r3"].values[i]) / 3.0f;
+                }
+                g["rm"] = std::move(mean);
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "rm"); };
+            x.ramp = humidity();
+            x.fillTitle = "Mean relative humidity, 700-300mb (%)";
+            x.legendStep = 10;
+            x.contours = {heights(6)};
+            x.barbU = "u";
+            x.barbV = "v";
+            p.push_back(x);
+        }
+        {
+            Product x;
+            x.id = "mslp_pwat";
+            x.label = "MSLP and Precipitable Water";
+            x.wants = {want("pw", "PWAT", "entire atmosphere (considered as a single layer)"), want("p", "PRMSL", "mean sea level")};
+            x.fill = [] (const Grids& g) { return pick(g, "pw"); };
+            x.ramp = precipitableWater();
+            x.fillTitle = "Precipitable water";
+            x.quantity = Quantity::Millimeters;
+            x.legendStep = 0.5;
+            x.contours = {pressure()};
+            p.push_back(x);
+        }
+        {
+            Product x;
+            x.id = "sbcape_wind";
+            x.label = "Surface-Based CAPE, MSLP and 10m Wind";
+            x.wants = {want("c", "CAPE", "surface"), want("u", "UGRD", "10 m above ground"), want("v", "VGRD", "10 m above ground"), want("p", "PRMSL", "mean sea level")};
+            x.fill = [] (const Grids& g) { return pick(g, "c"); };
+            x.ramp = capeRamp();
+            x.fillTitle = "Surface-based CAPE (J/kg)";
+            x.legendStep = 500;
+            x.contours = {pressure()};
+            x.contours[0].highsAndLows = false;
+            x.barbU = "u";
+            x.barbV = "v";
+            p.push_back(x);
+        }
+        {
+            Product x;
+            x.id = "700_temp_mslp";
+            x.label = "700mb Temperature, Wind and MSLP";
+            x.wants = {want("t", "TMP", "700 mb"), want("u", "UGRD", "700 mb"), want("v", "VGRD", "700 mb"), want("p", "PRMSL", "mean sea level")};
+            x.fill = [] (const Grids& g) { return pick(g, "t"); };
+            x.ramp = temperature();
+            x.fillTitle = "700mb temperature";
+            x.legendStep = 5;
+            x.quantity = Quantity::Temperature;
+            x.contours = {pressure()};
+            x.contours[0].highsAndLows = false;
+            x.barbU = "u";
+            x.barbV = "v";
+            p.push_back(x);
+        }
+        {
+            Product x;
+            x.id = "mslp_10m_wind";
+            x.label = "MSLP and 10m Wind";
+            x.wants = {want("u", "UGRD", "10 m above ground"), want("v", "VGRD", "10 m above ground"), want("p", "PRMSL", "mean sea level")};
+            x.fill = speedOf("u", "v");
+            x.ramp = lowWind();
+            x.fillTitle = "10 m wind speed (kt)";
+            x.legendStep = 10;
+            x.contours = {pressure()};
+            x.barbU = "u";
+            x.barbV = "v";
+            p.push_back(x);
+        }
+        {
+            auto x = upper("850_wnd_ht", "850mb Height and Wind", "850 mb", 3);
+            x.ramp = lowWind();
+            p.push_back(x);
+        }
+        {   // rain, snow and mixed precipitation in their own colors (the type flags are at the forecast hour; the amount is the 3 or 6 hour total)
+            Product x;
+            x.id = "precip_type";
+            x.label = "MSLP and Precipitation (Rain / Snow / Mixed)";
+            x.needs = [totalNeeds] (int hour) {
+                auto needs = totalNeeds(hour, hour <= 240 ? 3 : 6);
+                needs.push_back({hour, {"p", "PRMSL", "mean sea level", ""}});
+                for (const auto& [key, variable] : {std::pair{"cr", "CRAIN"}, {"cs", "CSNOW"}, {"cf", "CFRZR"}, {"ci", "CICEP"}}) {
+                    needs.push_back({hour, {key, variable, "surface", ""}});
+                }
+                return needs;
+            };
+            x.derive = [totalDerive] (Grids& g, const Context& context) {
+                totalDerive(g, context);
+                const auto& total = g["precip"];
+                auto rain = total, snow = total, mix = total;
+                for (size_t i = 0; i < total.values.size(); i++) {
+                    const bool isSnow = g["cs"].values[i] >= 0.5f;
+                    const bool isMix = g["cf"].values[i] >= 0.5f || g["ci"].values[i] >= 0.5f;
+                    rain.values[i] = (!isSnow && !isMix) ? total.values[i] : 0.0f;   // none of the flags set (or no flags at all): rain
+                    snow.values[i] = isSnow && !isMix ? total.values[i] : 0.0f;
+                    mix.values[i] = isMix ? total.values[i] : 0.0f;
+                }
+                g["rain"] = std::move(rain);
+                g["snow"] = std::move(snow);
+                g["mix"] = std::move(mix);
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "rain"); };
+            x.ramp = precipitation();
+            x.overlays = {{"snow", snowPrecipitation()}, {"mix", mixedPrecipitation()}};
+            x.fillTitleFor = [startOf] (int hour) { return "Precipitation (green rain, blue snow, pink mixed), hours " + std::to_string(startOf(hour, hour <= 240 ? 3 : 6)) + "-" + std::to_string(hour); };
+            x.quantity = Quantity::Millimeters;
+            x.legendStep = 0.0;
+            x.contours = {pressure()};
+            p.push_back(x);
+        }
+        {   // what the last 48 hours did to the pressure and the 500 mb heights
+            const auto trendNeeds = [] (const char * variable, const char * level, int hour) {
+                const int start = std::max(0, hour - 48);
+                return std::vector<GfsData::Need>{{hour, {"now", variable, level, ""}}, {start, {"then", variable, level, ""}}};
+            };
+            const auto trendTitle = [] (const char * what) {
+                return [what] (int hour) { return std::string{what} + " change, hours " + std::to_string(std::max(0, hour - 48)) + "-" + std::to_string(hour); };
+            };
+            Product x;
+            x.id = "mslp_trend";
+            x.label = "MSLP and 48-hour Change";
+            x.needs = [trendNeeds] (int hour) { return trendNeeds("PRMSL", "mean sea level", hour); };
+            x.derive = [] (Grids& g, const Context&) { g["p"] = g["now"]; g["trend"] = GfsGrid::scaled(GfsGrid::difference(g["now"], g["then"]), 0.01); };
+            x.fill = [] (const Grids& g) { return pick(g, "trend"); };
+            x.ramp = pressureAnomaly();
+            x.fillTitleFor = trendTitle("Sea level pressure");
+            x.fillTitle = "Sea level pressure change (mb)";
+            x.legendStep = 5;
+            x.contours = {pressure()};
+            p.push_back(x);
+            Product y;
+            y.id = "z500_trend";
+            y.label = "500mb Height and 48-hour Change";
+            y.needs = [trendNeeds] (int hour) { return trendNeeds("HGT", "500 mb", hour); };
+            y.derive = [] (Grids& g, const Context&) { g["z"] = g["now"]; g["trend"] = GfsGrid::scaled(GfsGrid::difference(g["now"], g["then"]), 0.1); };
+            y.fill = [] (const Grids& g) { return pick(g, "trend"); };
+            y.ramp = heightAnomaly();
+            y.fillTitleFor = trendTitle("500mb height");
+            y.fillTitle = "500mb height change (dam)";
+            y.legendStep = 5;
+            y.contours = {heights(6)};
+            p.push_back(y);
+        }
         return p;
     }();
     return list;
@@ -752,6 +939,28 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
                     row[x] = qPremultiply(c);
                 } else if (a > 0) {   // a ramp that fades in over the ground
                     const QRgb under = row[x];
+                    row[x] = qRgb((qRed(c) * a + qRed(under) * (255 - a)) / 255, (qGreen(c) * a + qGreen(under) * (255 - a)) / 255, (qBlue(c) * a + qBlue(under) * (255 - a)) / 255);
+                }
+            }
+        }
+    }
+    for (const auto& [key, overlayRamp] : product.overlays) {
+        const auto found = grids.find(key);
+        if (found == grids.end()) {
+            continue;
+        }
+        for (int y = 0; y < map.height(); y++) {
+            auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
+            const double lat = view.latAt(area.top() + y + 0.5);
+            for (int x = 0; x < map.width(); x++) {
+                const float value = found->second.sample(view.lonAt(area.left() + x + 0.5), lat);
+                if (std::isnan(value)) {
+                    continue;
+                }
+                const QRgb c = overlayRamp.at(value);
+                const int a = qAlpha(c);
+                if (a > 0) {
+                    const QRgb under = qUnpremultiply(row[x]);
                     row[x] = qRgb((qRed(c) * a + qRed(under) * (255 - a)) / 255, (qGreen(c) * a + qGreen(under) * (255 - a)) / 255, (qBlue(c) * a + qBlue(under) * (255 - a)) / 255);
                 }
             }
@@ -1061,6 +1270,23 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
             const double base = (value - lowShown) / (highShown - lowShown);
             tick(base, first + (last - first) * base);
         }
+    }
+    // a small key for each overlay's colors (the same amounts as the main scale, from light to heavy)
+    double keyLeft = barLeft;
+    for (const auto& [key, overlayRamp] : product.overlays) {
+        const QString name = key == "snow" ? "Snow" : key == "mix" ? "Mixed" : QString::fromStdString(key);
+        const double top = image.height() - 15.0, width = 80.0;
+        p.setPen(QColor{70, 70, 70});
+        p.drawText(QRectF{keyLeft, top - 1, 44, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+        const auto& s = overlayRamp.stops;
+        for (int x = 0; x < static_cast<int>(width); x++) {
+            const QRgb c = overlayRamp.at(s[1].first + (s.back().first - s[1].first) * x / width);
+            p.fillRect(QRectF{keyLeft + 44 + x, top, 1.5, 9}, QColor{qRed(c), qGreen(c), qBlue(c)});
+        }
+        p.setPen(QColor{60, 60, 60});
+        p.setBrush(Qt::NoBrush);
+        p.drawRect(QRectF{keyLeft + 44, top, width, 9});
+        keyLeft += 44 + width + 22;
     }
     p.setPen(QColor{110, 110, 110});
     p.drawText(QRectF{0, image.height() - 16.0, image.width() - static_cast<double>(margin), 14}, Qt::AlignRight, "Data: NOAA/NCEP GFS 0.25 degree");
