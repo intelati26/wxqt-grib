@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdio>
 #include "gfs/GfsClimate.h"
+#include "gfs/GfsData.h"
 #include "gfs/GfsGrid.h"
 
 static int failures = 0;
@@ -72,6 +73,33 @@ int main() {
     }
     CHECK(cubicError < linearError / 3.0);
 
+    // the two models' files, and how a run is found for each
+    {
+        const GfsData::Run run{"20261008", "12"};
+        const auto gfs = GfsData::gfs(), nbm = GfsData::nbm();
+        CHECK(gfs.fileUrl(run, 24) == "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20261008/12/atmos/gfs.t12z.pgrb2.0p25.f024");
+        CHECK(nbm.fileUrl(run, 6) == "https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.20261008/12/core/blend.t12z.core.f006.co.grib2");
+        CHECK(gfs.cycleHours == 6 && gfs.probeHour == 0 && !gfs.warp.enabled && nbm.cycleHours == 1 && nbm.probeHour == 1 && nbm.warp.enabled);
+        for (const auto& source : {gfs, nbm}) {
+            std::vector<std::string> asked;
+            GfsData::Config none;
+            none.bytes = [&asked] (const std::string& url, long long, long long) { asked.push_back(url); return QByteArray{}; };
+            const GfsData nothingThere{none, source};
+            GfsData::Run missing;
+            const bool foundNone = nothingThere.latestRun(missing);
+            CHECK(!foundNone);
+            CHECK(static_cast<int>(asked.size()) == source.cyclesToTry);   // nothing there: every cycle tried, no run
+            asked.clear();
+            GfsData::Config all;
+            all.bytes = [&asked] (const std::string& url, long long, long long) { asked.push_back(url); return QByteArray{"1:0:d=2026100812:TMP:2 m above ground:anl:\n"}; };
+            const GfsData everythingThere{all, source};
+            GfsData::Run found;
+            const bool foundOne = everythingThere.latestRun(found);
+            CHECK(foundOne);
+            CHECK(asked.size() == 1 && asked[0].compare(asked[0].size() - 4, 4, ".idx") == 0 && asked[0].find(source.id == "NBM" ? "f001" : "f000") != std::string::npos);   // the probe hour's index
+            CHECK(found.cycle.size() == 2 && found.date.size() == 8 && std::stoi(found.cycle) % source.cycleHours == 0);
+        }
+    }
     // an anomaly of a fine field against the coarse one it was made from is nothing
     GfsGrid::Grid fine;
     fine.columns = 1440;

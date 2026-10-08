@@ -122,6 +122,18 @@ namespace {
         return {{{0.0, QColor{243, 208, 230, 0}}, {0.25, QColor{"#f3d0e6"}}, {1.0, QColor{"#ea9fcb"}}, {2.5, QColor{"#d96aa8"}}, {6.0, QColor{"#c03f88"}}, {12.0, QColor{"#8f2a73"}}, {25.0, QColor{"#5c1a5a"}}}};
     }
 
+    Ramp cloudCover() {   // percent: clear sky pale, overcast a dark grey-blue
+        return {{{0, QColor{"#eef6fb"}}, {20, QColor{"#cfe3f1"}}, {40, QColor{"#a9c3d8"}}, {60, QColor{"#8da1b4"}}, {80, QColor{"#6e7d8c"}}, {100, QColor{"#4c5560"}}}};
+    }
+    Ramp probability() {   // percent: nothing under 5, then pale green to deep magenta
+        return {{{0, QColor{229, 242, 217, 0}}, {5, QColor{229, 242, 217, 0}}, {10, QColor{"#e5f2d9"}}, {20, QColor{"#c4e3a4"}}, {30, QColor{"#93d17f"}}, {40, QColor{"#5cbf8a"}}, {50, QColor{"#31a8a8"}},
+                 {60, QColor{"#2f86c4"}}, {70, QColor{"#3a5fb8"}}, {80, QColor{"#5b43a8"}}, {90, QColor{"#8a3aa6"}}, {100, QColor{"#b5368f"}}}};
+    }
+    Ramp snowfall() {   // centimeters of new snow, the steps at whole and simple inches (0.1, 1, 2, 4, 8, 12, 20, 30)
+        return {{{0.0, QColor{214, 230, 247, 0}}, {0.254, QColor{"#d6e6f7"}}, {2.54, QColor{"#a9c9ec"}}, {5.08, QColor{"#7ba7e0"}}, {10.16, QColor{"#4f7fd0"}}, {20.32, QColor{"#3a55b8"}}, {30.48, QColor{"#3a2f9a"}},
+                 {50.8, QColor{"#5b2a8a"}}, {76.2, QColor{"#8b4aa6"}}}};
+    }
+
     // equivalent potential temperature (Bolton 1980) in K from temperature in C, relative humidity in percent and the pressure in hPa
     double thetaE(double tC, double rh, double p) {
         const double t = tC + 273.15;
@@ -848,18 +860,178 @@ const std::vector<Product>& products() {
             y.contours = {heights(6)};
             p.push_back(y);
         }
+
+        // ---- the National Blend of Models: the plain field of each (NWS's blend of many models, 2.5 km over the contiguous United States)
+        const auto nbmWant = [] (const std::string& key, const char * variable, const char * level, const std::string& forecast, const std::string& detail = "") {
+            return GfsData::Want{key, variable, level, forecast, detail};
+        };
+        const auto atHour = [] (int hour) { return std::to_string(hour) + " hour fcst"; };
+        const auto window = [] (int hour, int length, const char * kind) { return std::to_string(hour - length) + "-" + std::to_string(hour) + " hour " + kind + " fcst"; };
+        // wind from its speed and direction: u and v in m/s as the barbs and the speed fills want them
+        const auto windComponents = [] (Grids& g, const Context&) {
+            auto u = g["ws"], v = g["ws"];
+            for (size_t i = 0; i < u.values.size(); i++) {
+                const double speedNow = g["ws"].values[i], from = g["wd"].values[i] * pi / 180.0;
+                u.values[i] = static_cast<float>(-speedNow * std::sin(from));
+                v.values[i] = static_cast<float>(-speedNow * std::cos(from));
+            }
+            g["u"] = std::move(u);
+            g["v"] = std::move(v);
+        };
+        const auto nbmSurface = [&] (const char * id, const char * label, const char * variable, const char * level, const Ramp& ramp, const char * title, Quantity quantity, double step) {
+            Product x;
+            x.source = "NBM";
+            x.id = id;
+            x.label = label;
+            x.needs = [=] (int hour) {
+                return std::vector<GfsData::Need>{{hour, nbmWant("f", variable, level, std::to_string(hour) + " hour fcst")}, {hour, nbmWant("ws", "WIND", "10 m above ground", std::to_string(hour) + " hour fcst")},
+                                                  {hour, nbmWant("wd", "WDIR", "10 m above ground", std::to_string(hour) + " hour fcst")}};
+            };
+            x.derive = windComponents;
+            x.fill = [] (const Grids& g) { return pick(g, "f"); };
+            x.ramp = ramp;
+            x.fillTitle = title;
+            x.quantity = quantity;
+            x.legendStep = step;
+            x.barbU = "u";
+            x.barbV = "v";
+            return x;
+        };
+        p.push_back(nbmSurface("2m_temp_10m_wnd", "2 m Temperature and 10 m Wind", "TMP", "2 m above ground", temperature(), "2 m temperature", Quantity::Temperature, 5));
+        p.push_back(nbmSurface("2m_dewp_10m_wnd", "2 m Dewpoint and 10 m Wind", "DPT", "2 m above ground", dewpoint(), "2 m dewpoint", Quantity::Temperature, 5));
+        p.push_back(nbmSurface("2m_relh_10m_wnd", "2 m Relative Humidity and 10 m Wind", "RH", "2 m above ground", humidity(), "2 m relative humidity (%)", Quantity::Other, 10));
+        p.push_back(nbmSurface("2m_apparent_temp", "2 m Apparent Temperature and 10 m Wind", "APTMP", "2 m above ground", temperature(), "2 m apparent temperature", Quantity::Temperature, 5));
+        p.push_back(nbmSurface("total_cloud_cover", "Total Cloud Cover and 10 m Wind", "TCDC", "surface", cloudCover(), "Total cloud cover (%)", Quantity::Other, 10));
+        {   // the gust is the fill; the barbs are the sustained wind
+            auto x = nbmSurface("10m_wnd_gust", "10 m Wind and Gust", "GUST", "10 m above ground", lowWind(), "10 m wind gust (kt)", Quantity::Other, 10);
+            x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), msToKnots); };
+            p.push_back(x);
+        }
+        {   // the temperature extreme of the 12 hours that end at this hour (the blend has them only for the periods it makes: 12 hour minimum and maximum)
+            for (const auto& [id, label, variable, kind] : {std::tuple{"2m_min_temp", "2 m Minimum Temperature (12 hours ending)", "TMIN", "min"}, {"2m_max_temp", "2 m Maximum Temperature (12 hours ending)", "TMAX", "max"}}) {
+                Product x;
+                x.source = "NBM";
+                x.id = id;
+                x.label = label;
+                x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", variable, "2 m above ground", window(hour, 12, kind))}}; };
+                x.fill = [] (const Grids& g) { return pick(g, "f"); };
+                x.ramp = temperature();
+                x.fillTitle = "2 m temperature extreme";
+                x.quantity = Quantity::Temperature;
+                x.legendStep = 5;
+                p.push_back(x);
+            }
+        }
+        // precipitation and snowfall of the 1, 6 and 12 hours that end at the hour; the whole total is the sum of the 6 hour pieces
+        const auto nbmAccum = [&] (const char * id, const char * label, const char * variable, int length, const Ramp& ramp, Quantity quantity, double scale) {
+            Product x;
+            x.source = "NBM";
+            x.id = id;
+            x.label = label;
+            x.needs = [=] (int hour) {
+                std::vector<GfsData::Need> needs;
+                if (length > 0) {
+                    needs.push_back({hour, nbmWant("a0", variable, "surface", window(hour, length, "acc"))});
+                } else {   // the sum of the 6 hour pieces from the start to this hour
+                    int n = 0;
+                    for (int end = hour; end > 0; end -= 6) {
+                        needs.push_back({end, nbmWant("a" + std::to_string(n++), variable, "surface", window(end, std::min(6, end), "acc"))});
+                    }
+                }
+                return needs;
+            };
+            if (length != 1) {   // the 1 hour amounts of the same run added up: for the hours the 6 and 12 hour amounts are not made, as long as the hourly files go (the first 36 hours)
+                x.fallbackNeeds = [=] (int hour) {
+                    std::vector<GfsData::Need> needs;
+                    const int count = length > 0 ? length : hour;
+                    if (hour > 36 || hour - count < 0) {
+                        return needs;
+                    }
+                    for (int i = 0; i < count; i++) {
+                        needs.push_back({hour - i, nbmWant("a" + std::to_string(i), variable, "surface", window(hour - i, 1, "acc"))});
+                    }
+                    return needs;
+                };
+            }
+            x.derive = [scale] (Grids& g, const Context&) {
+                auto sum = g["a0"];
+                for (const auto& [key, grid] : g) {
+                    if (key != "a0" && key.size() >= 2 && key[0] == 'a' && std::isdigit(static_cast<unsigned char>(key[1]))) {
+                        for (size_t i = 0; i < sum.values.size(); i++) {
+                            sum.values[i] += grid.values[i];
+                        }
+                    }
+                }
+                for (auto& v : sum.values) {
+                    v = static_cast<float>(std::max(0.0f, v) * scale);
+                }
+                g["sum"] = std::move(sum);
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "sum"); };
+            x.ramp = ramp;
+            x.quantity = quantity;
+            x.fillTitleFor = [length, label] (int hour) {
+                return length > 0 ? std::string{label} + ", the " + std::to_string(length) + " hours ending at hour " + std::to_string(hour) : std::string{label} + ", from the start to hour " + std::to_string(hour);
+            };
+            x.legendStep = 0.0;
+            return x;
+        };
+        p.push_back(nbmAccum("precip_p01", "Total Precipitation", "APCP", 1, precipitation(), Quantity::Millimeters, 1.0));
+        p.push_back(nbmAccum("precip_p06", "Total Precipitation", "APCP", 6, precipitation(), Quantity::Millimeters, 1.0));
+        p.push_back(nbmAccum("precip_p12", "Total Precipitation", "APCP", 12, precipitation(), Quantity::Millimeters, 1.0));
+        p.push_back(nbmAccum("precip_ptot", "Accumulated Precipitation", "APCP", 0, precipitation(), Quantity::Millimeters, 1.0));
+        p.push_back(nbmAccum("snow_p06", "Snowfall", "ASNOW", 6, snowfall(), Quantity::Centimeters, 100.0));   // the grid is in meters
+        p.push_back(nbmAccum("snow_p12", "Snowfall", "ASNOW", 12, snowfall(), Quantity::Centimeters, 100.0));
+        p.push_back(nbmAccum("snow_ptot", "Accumulated Snowfall", "ASNOW", 0, snowfall(), Quantity::Centimeters, 100.0));
+        {   // the chance of thunder in the 6 hours that end at this hour, and the CAPE
+            Product x;
+            x.source = "NBM";
+            x.id = "tstm_prob";
+            x.label = "Thunderstorm Probability (6 hours ending)";
+            x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", "TSTM", "surface", window(hour, 6, "acc"), "probability forecast")}}; };
+            x.fill = [] (const Grids& g) { return pick(g, "f"); };
+            x.ramp = probability();
+            x.fillTitle = "Chance of a thunderstorm (%)";
+            x.legendStep = 10;
+            p.push_back(x);
+            Product y;
+            y.source = "NBM";
+            y.id = "cape";
+            y.label = "Surface-Based CAPE";
+            y.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", "CAPE", "surface", atHour(hour))}}; };
+            y.fill = [] (const Grids& g) { return pick(g, "f"); };
+            y.ramp = capeRamp();
+            y.fillTitle = "Surface-based CAPE (J/kg)";
+            y.legendStep = 500;
+            p.push_back(y);
+        }
         return p;
     }();
     return list;
 }
 
-const Product * product(const std::string& id) {
+const Product * product(const std::string& id, const std::string& source) {
     for (const auto& p : products()) {
-        if (p.id == id) {
+        if (p.id == id && p.source == source) {
             return &p;
         }
     }
     return nullptr;
+}
+
+std::string sourceLabel(const std::string& source) {
+    return source == "NBM" ? "NOAA/NWS National Blend of Models v4, 2.5 km" : "NOAA/NCEP GFS 0.25 degree";
+}
+
+std::vector<std::string> sectorIds(const std::string& source) {
+    if (source == "NBM") {
+        return {"CONUS", "NORTHEAST", "MID-ATLANTIC", "SOUTHEAST", "GREAT-LAKES", "OHIO-VALLEY", "S-PLAINS", "N-PLAINS", "ROCKIES", "SOUTHWEST", "PACIFIC-NW", "CALIFORNIA", "GULF-COAST"};
+    }
+    std::vector<std::string> all;
+    for (const auto& s : sectors()) {
+        all.push_back(s.id);
+    }
+    return all;
 }
 
 std::vector<GfsData::Need> needs(const Product& product, int hour) {
@@ -871,6 +1043,10 @@ std::vector<GfsData::Need> needs(const Product& product, int hour) {
         list.push_back({hour, w});
     }
     return list;
+}
+
+std::vector<GfsData::Need> fallbackNeeds(const Product& product, int hour) {
+    return product.fallbackNeeds ? product.fallbackNeeds(hour) : std::vector<GfsData::Need>{};
 }
 
 namespace {
@@ -1210,7 +1386,7 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
     big.setPixelSize(17);
     p.setFont(big);
     p.setPen(QColor{25, 25, 25});
-    p.drawText(QPointF{static_cast<double>(margin), 22.0}, QString::fromStdString("GFS  " + product.label));
+    p.drawText(QPointF{static_cast<double>(margin), 22.0}, QString::fromStdString(product.source + "  " + product.label));
     font.setBold(false);
     p.setFont(font);
     p.setPen(QColor{70, 70, 70});
@@ -1289,7 +1465,7 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
         keyLeft += 44 + width + 22;
     }
     p.setPen(QColor{110, 110, 110});
-    p.drawText(QRectF{0, image.height() - 16.0, image.width() - static_cast<double>(margin), 14}, Qt::AlignRight, "Data: NOAA/NCEP GFS 0.25 degree");
+    p.drawText(QRectF{0, image.height() - 16.0, image.width() - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + sourceLabel(product.source)));
     return image;
 }
 }

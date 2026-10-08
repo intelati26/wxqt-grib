@@ -37,6 +37,20 @@ int main() {
     CHECK(!find(totals, "APCP", "surface", "12-*"));
     CHECK(find(records, "APCP", "surface", "0-6 hour acc fcst"));
 
+    // the blend's index: the plain field and the records of the same name that are percentiles, probabilities or the spread are told apart by what follows the forecast text
+    const auto blend = parseIdx(
+        "1:0:d=2026100812:ASNOW:surface:18-24 hour acc fcst:\n"
+        "2:1000:d=2026100812:ASNOW:surface:18-24 hour acc@(fcst,dt=6 hour),missing=0:50% level\n"
+        "3:2000:d=2026100812:VIS:surface:24 hour fcst:prob <1609.34\n"
+        "4:3000:d=2026100812:VIS:surface:24 hour fcst:\n"
+        "5:4000:d=2026100812:TMP:2 m above ground:24 hour fcst:ens std dev\n"
+        "6:5000:d=2026100812:TMP:2 m above ground:24 hour fcst:\n");
+    CHECK(blend.size() == 6 && blend[1].detail == "50% level" && blend[2].detail == "prob <1609.34" && blend[3].detail.empty());
+    CHECK(find(blend, "VIS", "surface", "24 hour fcst") && find(blend, "VIS", "surface", "24 hour fcst")->number == 4);                        // the plain one, not the first VIS
+    CHECK(find(blend, "VIS", "surface", "24 hour fcst", "prob <1609.34")->number == 3);
+    CHECK(find(blend, "TMP", "2 m above ground", "24 hour fcst")->number == 6 && find(blend, "TMP", "2 m above ground", "24 hour fcst", "ens std dev")->number == 5);
+    CHECK(find(blend, "ASNOW", "surface", "18-24 hour acc fcst")->number == 1 && !find(blend, "ASNOW", "surface", "12-24 hour acc fcst"));
+
     // sampling: a field equal to the longitude, wrapping on a global grid
     auto g = make(1440, 721, 0.0, 90.0, 0.25);
     for (int r = 0; r < g.rows; r++) {

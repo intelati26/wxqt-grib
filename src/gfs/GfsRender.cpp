@@ -6,6 +6,7 @@
 #include "gfs/GfsRender.h"
 #include <cmath>
 #include <cstring>
+#include <map>
 #include <mutex>
 #include <QBuffer>
 #include <QDateTime>
@@ -28,7 +29,7 @@ namespace {
     const std::vector<std::vector<std::pair<float, float>>>& borders() {
         static const auto lines = [] {
             auto all = Coast::worldLines();
-            for (const char * name : {"statev2.bin", "ca.bin", "mx.bin"}) {
+            for (const char * name : {"statev2.bin"}) {   // the state lines; the world file has the countries and the coasts
                 const auto raw = UtilityIO::readBinaryFileFromResource(GlobalVariables::resDir + name);
                 const auto floatAt = [&raw] (int offset) {
                     const unsigned char b[4]{static_cast<unsigned char>(raw[offset + 3]), static_cast<unsigned char>(raw[offset + 2]),
@@ -50,14 +51,35 @@ namespace {
         return lines;
     }
 
-    GfsData data(const QString& folder) {
+    GfsData::Source sourceOf(const std::string& model) {
+        return model == "NBM" ? GfsData::nbm() : GfsData::gfs();
+    }
+
+    GfsData data(const QString& folder, const std::string& model) {
         GfsData::Config config;
         config.gdalBin = UtilityGrib::gdalBinDir();
         config.cacheFolder = folder;
         config.bytes = [] (const std::string& url, long long start, long long end) {
             return end < 0 && start == 0 ? URL::getBytes(url) : URL::getBytesRange(url, start, end < 0 ? start + 4 * 1024 * 1024 * 1024LL : end);
         };
-        return GfsData{config};
+        return GfsData{config, sourceOf(model)};
+    }
+
+    // the newest published run of a model, looked up at most every ten minutes
+    bool newestRun(const GfsData& gfs, GfsData::Run& run) {
+        static std::mutex mutex;
+        static std::map<std::string, std::pair<GfsData::Run, qint64>> known;
+        std::lock_guard lock{mutex};
+        auto& entry = known[gfs.model().id];
+        const auto now = QDateTime::currentSecsSinceEpoch();
+        if (entry.first.date.empty() || now - entry.second > 600) {
+            GfsData::Run found;
+            if (gfs.latestRun(found)) {
+                entry = {found, now};
+            }
+        }
+        run = entry.first;
+        return !run.date.empty();
     }
 }
 
@@ -85,54 +107,76 @@ QString GfsRender::Session::partialGrib(const std::string& cycleRun, int hour) c
 }
 
 bool GfsRender::handles(const std::string& model, const std::string& param) {
-    return model == "GFS" && GfsChart::product(param) != nullptr;
+    return (model == "GFS" || model == "NBM") && GfsChart::product(param, model) != nullptr;
 }
 
-QByteArray GfsRender::png(Session& session, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, std::string& error) {
-    const auto * product = GfsChart::product(param);
+bool GfsRender::latestCycle(const std::string& model, std::string& cycle) {
+    const auto gfs = data({}, model);
+    GfsData::Run run;
+    if (!newestRun(gfs, run)) {
+        return false;
+    }
+    cycle = run.cycle + "Z";
+    return true;
+}
+
+QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, std::string& error) {
+    const auto * product = GfsChart::product(param, model);
     const auto * sector = GfsChart::sector(sectorId);
     if (!product || !sector) {
-        error = "no GFS chart for " + param + " " + sectorId;
+        error = "no " + model + " chart for " + param + " " + sectorId;
         return {};
     }
     if (UtilityGrib::gdalBinDir().empty()) {
         error = "GDAL not found - install the 'gdal' package";
         return {};
     }
-    const auto gfs = data(session.folder());
-    // the newest published run (looked up at most every ten minutes); an earlier cycle of the screen's choice is that run stepped back to it
-    static std::mutex mutex;
-    static GfsData::Run latest;
-    static qint64 checked = 0;
+    const auto gfs = data(session.folder(), model);
+    // the newest published run; an earlier cycle of the screen's choice is that run stepped back to it
     GfsData::Run run;
-    {
-        std::lock_guard lock{mutex};
-        const auto now = QDateTime::currentSecsSinceEpoch();
-        if (latest.date.empty() || now - checked > 600) {
-            GfsData::Run found;
-            if (gfs.latestRun(found)) {
-                latest = found;
-                checked = now;
-            }
-        }
-        run = latest;
-    }
-    if (run.date.empty()) {
-        error = "could not find a GFS run on NOAA's open data";
+    if (!newestRun(gfs, run)) {
+        error = "could not find a " + model + " run on NOAA's open data";
         return {};
     }
     const auto wanted = cycle.size() >= 2 ? cycle.substr(0, 2) : run.cycle;
     if (wanted != run.cycle && wanted.size() == 2 && std::isdigit(static_cast<unsigned char>(wanted[0]))) {
         auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
         t.setTimeSpec(Qt::UTC);
-        for (int back = 0; back < 4 && t.toString("HH").toStdString() != wanted; back++) {
-            t = t.addSecs(-6 * 3600);
+        const int step = gfs.model().cycleHours;
+        for (int back = 0; back < 24 / step && t.toString("HH").toStdString() != wanted; back++) {
+            t = t.addSecs(-static_cast<qint64>(step) * 3600);
         }
         run = {t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
     }
     GfsChart::Grids grids;
-    if (!gfs.load(run, GfsChart::needs(*product, hour), grids, error)) {
-        return {};
+    bool loaded = gfs.load(run, GfsChart::needs(*product, hour), grids, error);
+    if (!loaded) {   // the same run's 1 hour pieces, if the product has them (the first 36 hours)
+        const auto pieces = GfsChart::fallbackNeeds(*product, hour);
+        std::string again;
+        grids.clear();
+        loaded = !pieces.empty() && gfs.load(run, pieces, grids, again);
+        if (loaded) {
+            error.clear();
+        }
+    }
+    if (!loaded) {
+        // the blend's runs that are not at 00, 06, 12 or 18Z carry only the 1 hour amounts and fewer fields: the newest of the main runs has the rest, with the forecast hour moved to
+        // keep the same valid time
+        const int cycle = std::atoi(run.cycle.c_str());
+        if (model != "NBM" || cycle % 6 == 0) {
+            return {};
+        }
+        const int earlier = cycle % 6;
+        auto alternative = run;
+        alternative.cycle = (cycle - earlier < 10 ? "0" : "") + std::to_string(cycle - earlier);
+        grids.clear();
+        std::string again;
+        if (!gfs.load(alternative, GfsChart::needs(*product, hour + earlier), grids, again)) {
+            return {};   // the first reason stands
+        }
+        run = alternative;
+        hour += earlier;
+        error.clear();
     }
     GfsChart::Options options;
     static const GfsClimate climate{UtilityGrib::gdalBinDir()};
@@ -141,7 +185,7 @@ QByteArray GfsRender::png(Session& session, const std::string& param, const std:
     options.lines = borders();
     const auto image = GfsChart::render(*product, *sector, grids, run, hour, options);
     if (image.isNull()) {
-        error = product->derive ? "the chart could not be drawn (an anomaly chart needs a connection the first time, to get the climatology)" : "the GFS chart could not be drawn";
+        error = product->derive ? "the chart could not be drawn (some charts need a connection the first time, for the climatology, or the record is not in this run at this hour)" : "the " + model + " chart could not be drawn";
         return {};
     }
     QByteArray bytes;

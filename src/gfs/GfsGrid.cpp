@@ -54,6 +54,7 @@ std::vector<IdxRecord> parseIdx(const std::string& text) {
         r.variable = parts[3];
         r.level = parts[4];
         r.forecast = parts[5];
+        r.detail = parts.size() > 6 ? parts[6] : std::string{};
         if (!records.empty()) {
             records.back().end = r.start - 1;
         }
@@ -73,9 +74,9 @@ static bool matches(const std::string& have, const std::string& want) {
     return have == want;
 }
 
-const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast) {
+const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast, const std::string& detail) {
     for (const auto& r : records) {
-        if (r.variable == variable && r.level == level && matches(r.forecast, forecast)) {
+        if (r.variable == variable && r.level == level && matches(r.forecast, forecast) && r.detail == detail) {
             return &r;
         }
     }

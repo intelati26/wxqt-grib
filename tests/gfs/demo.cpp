@@ -11,7 +11,7 @@ int main(int argc, char ** argv) {
     qputenv("QT_QPA_PLATFORM", "offscreen");
     QGuiApplication app{argc, argv};
     if (argc < 5) {
-        std::printf("usage: demo product sector hour out.png\n");
+        std::printf("usage: demo product sector hour out.png [GFS|NBM [cycle]]\n");
         return 2;
     }
     GfsData::Config config;
@@ -27,13 +27,16 @@ int main(int argc, char ** argv) {
         curl.waitForFinished(130000);
         return curl.readAllStandardOutput();
     };
-    GfsData data{config};
+    GfsData data{config, argc > 5 && std::string{argv[5]} == "NBM" ? GfsData::nbm() : GfsData::gfs()};
     GfsData::Run run;
     if (!data.latestRun(run)) {
         std::printf("no run\n");
         return 1;
     }
-    const auto * product = GfsChart::product(argv[1]);
+    if (argc > 6) {   // a cycle to use instead of the newest ("18")
+        run.cycle = argv[6];
+    }
+    const auto * product = GfsChart::product(argv[1], argc > 5 ? argv[5] : "GFS");
     const auto * sector = GfsChart::sector(argv[2]);
     if (!product || !sector) {
         std::printf("unknown product or sector\n");

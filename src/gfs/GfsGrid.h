@@ -18,11 +18,13 @@ namespace GfsGrid {
         std::string variable;       // "HGT"
         std::string level;          // "500 mb"
         std::string forecast;       // "anl", "6 hour fcst", "0-6 hour acc fcst"
+        std::string detail;         // what follows (the blend's "prob >0.254", "50% level", "ens std dev"); empty for the plain field
     };
     // "12:5483620:d=2026100800:HGT:500 mb:6 hour fcst:" per line
     std::vector<IdxRecord> parseIdx(const std::string& text);
     // the first record of that variable at that level ("TMP", "2 m above ground"); forecast, if given, must match too (a trailing * matches a start: "0-*")
-    const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast = "");
+    // `detail` must match exactly: "" asks for the plain field and never the percentile, probability or spread records that share its name
+    const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast = "", const std::string& detail = "");
 
     // Values at cell centers on a regular grid, row 0 = the northernmost, column 0 = lon0. Longitudes wrap when the grid spans the globe.
     struct Grid {

@@ -21,8 +21,33 @@ namespace {
     }
 }
 
-std::string GfsData::fileUrl(const Run& run, int hour) {
-    return "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs." + run.date + "/" + run.cycle + "/atmos/gfs.t" + run.cycle + "z.pgrb2.0p25.f" + pad(hour, 3);
+GfsData::Source GfsData::gfs() {
+    Source s;
+    s.id = "GFS";
+    s.label = "NOAA/NCEP GFS 0.25 degree";
+    s.fileUrl = [] (const Run& run, int hour) {
+        return "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs." + run.date + "/" + run.cycle + "/atmos/gfs.t" + run.cycle + "z.pgrb2.0p25.f" + pad(hour, 3);
+    };
+    s.cycleHours = 6;
+    s.lagHours = 3;
+    s.probeHour = 0;
+    return s;
+}
+
+GfsData::Source GfsData::nbm() {
+    Source s;
+    s.id = "NBM";
+    s.label = "NOAA/NWS National Blend of Models v4, 2.5 km";
+    s.fileUrl = [] (const Run& run, int hour) {
+        return "https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend." + run.date + "/" + run.cycle + "/core/blend.t" + run.cycle + "z.core.f" + pad(hour, 3) + ".co.grib2";
+    };
+    s.cycleHours = 1;      // a run every hour
+    s.lagHours = 1;
+    s.probeHour = 1;       // there is no hour 0 file
+    s.cyclesToTry = 8;
+    s.warp.enabled = true; // a Lambert conformal grid
+    s.warp.step = 0.025;   // about the 2.5 km of the blend
+    return s;
 }
 
 std::vector<int> GfsData::forecastHours() {
@@ -38,13 +63,13 @@ std::vector<int> GfsData::forecastHours() {
 
 bool GfsData::latestRun(Run& run) const {
     const auto now = QDateTime::currentDateTimeUtc();
-    // a cycle begins to appear about 3.5 hours after its time; start from the last six hour mark and go back
-    auto start = now.addSecs(-3 * 3600);
-    start.setTime(QTime{start.time().hour() / 6 * 6, 0});
-    for (int back = 0; back < 5; back++) {
-        const auto t = start.addSecs(-back * 6 * 3600);
+    // a run appears some time after its own time: start from the last cycle mark that long ago and go back
+    auto start = now.addSecs(-static_cast<qint64>(source.lagHours) * 3600);
+    start.setTime(QTime{start.time().hour() / source.cycleHours * source.cycleHours, 0});
+    for (int back = 0; back < source.cyclesToTry; back++) {
+        const auto t = start.addSecs(-static_cast<qint64>(back) * source.cycleHours * 3600);
         Run candidate{t.toString("yyyyMMdd").toStdString(), pad(t.time().hour(), 2)};
-        const auto head = config.bytes(fileUrl(candidate, 0) + ".idx", 0, 200);
+        const auto head = config.bytes(fileUrl(candidate, source.probeHour) + ".idx", 0, 200);
         if (head.startsWith("1:0:d=")) {
             run = candidate;
             return true;
@@ -54,12 +79,12 @@ bool GfsData::latestRun(Run& run) const {
 }
 
 bool GfsData::one(const Run& run, int hour, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const {
-    const auto * record = GfsGrid::find(index, want.variable, want.level, want.forecast);
+    const auto * record = GfsGrid::find(index, want.variable, want.level, want.forecast, want.detail);
     if (!record) {
-        error = "GFS has no " + want.variable + " " + want.level + (want.forecast.empty() ? "" : " (" + want.forecast + ")") + " in this run";
+        error = source.id + " has no " + want.variable + " " + want.level + (want.forecast.empty() ? "" : " (" + want.forecast + ")") + " in this run";
         return false;
     }
-    QString name = QString::fromStdString(run.id() + "_f" + pad(hour, 3) + "_" + want.variable + "_" + want.level + "_" + want.forecast);
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail);
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     QDir{}.mkpath(config.cacheFolder);
     const auto cachePath = config.cacheFolder + "/" + name + ".gz4";
@@ -115,7 +140,14 @@ bool GfsData::one(const Run& run, int hour, const std::vector<GfsGrid::IdxRecord
         }
     }
     QProcess translate;
-    translate.start(QString::fromStdString(config.gdalBin) + "/gdal_translate", {"-q", "-of", "ENVI", "-ot", "Float32", gribPath, rawPath});
+    if (source.warp.enabled) {   // a grid that is not latitude / longitude: warped to one (bilinear: smooth, with no overshoot at the edge of a rain area)
+        translate.start(QString::fromStdString(config.gdalBin) + "/gdalwarp",
+                        {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-r", "bilinear", "-dstnodata", "-9999", "-of", "ENVI", "-ot", "Float32",
+                         "-te", QString::number(source.warp.west, 'f', 3), QString::number(source.warp.south, 'f', 3), QString::number(source.warp.east, 'f', 3), QString::number(source.warp.north, 'f', 3),
+                         "-tr", QString::number(source.warp.step, 'f', 4), QString::number(source.warp.step, 'f', 4), gribPath, rawPath});
+    } else {
+        translate.start(QString::fromStdString(config.gdalBin) + "/gdal_translate", {"-q", "-of", "ENVI", "-ot", "Float32", gribPath, rawPath});
+    }
     translate.waitForFinished(180000);
     if (translate.exitStatus() != QProcess::NormalExit || translate.exitCode() != 0) {
         error = "gdal_translate failed on " + want.variable + " " + want.level + ": " + translate.readAllStandardError().trimmed().toStdString();
@@ -162,7 +194,7 @@ bool GfsData::one(const Run& run, int hour, const std::vector<GfsGrid::IdxRecord
         }
     }
     for (auto& value : g.values) {
-        if (std::abs(value) > 1e19f) {   // GRIB's missing value
+        if (std::abs(value) > 1e19f || (source.warp.enabled && value < -9998.5f)) {   // GRIB's missing value, and the warp's where the grid does not reach
             value = std::nanf("");
         }
     }
@@ -217,7 +249,7 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
         jobs.push_back(std::async(std::launch::async, [&, need] {
             Result r;
             const auto& index = indexes.at(need.hour);
-            if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast)) {
+            if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast, need.want.detail)) {
                 r.ok = true;   // nothing accumulated yet at hour 0
                 r.absent = true;
                 return r;

@@ -60,11 +60,14 @@ namespace GfsChart {
         double width{1.0};
     };
     struct Product {
+        std::string source{"GFS"};              // the model: "GFS" or "NBM" (an id is only unique within one)
         std::string id;                         // "500_wnd_ht"
         std::string label;                      // "500mb Wind and Height"
         // the records to fetch, by forecast hour (default: wants, at the hour shown)
         std::vector<GfsData::Want> wants;
         std::function<std::vector<GfsData::Need>(int hour)> needs;
+        // what to ask for when the run does not have `needs` (a 6 hour amount that ends between the hours the blend makes them: the 1 hour amounts, added up); empty: nothing else to try
+        std::function<std::vector<GfsData::Need>(int hour)> fallbackNeeds;
         std::function<void(Grids&, const Context&)> derive;   // adds grids made from the fetched ones
         std::function<GfsGrid::Grid(const Grids&)> fill;
         Ramp ramp;                              // in the grids' own units
@@ -81,7 +84,10 @@ namespace GfsChart {
         std::string streamU, streamV;
     };
     const std::vector<Product>& products();
-    const Product * product(const std::string& id);
+    const Product * product(const std::string& id, const std::string& source = "GFS");
+    // the names for under a chart, and the sectors a model can show (the blend covers only the contiguous United States)
+    std::string sourceLabel(const std::string& source);
+    std::vector<std::string> sectorIds(const std::string& source);
 
     struct Options {
         int width{1100};
@@ -91,6 +97,7 @@ namespace GfsChart {
     };
     // the records a product needs for a forecast hour
     std::vector<GfsData::Need> needs(const Product& product, int hour);
+    std::vector<GfsData::Need> fallbackNeeds(const Product& product, int hour);   // empty when there is none
     // The finished picture, with a header (model, product, run and valid times) and a legend. Null when a needed grid is missing. The grids are as fetched; the product derives its own (a precipitation period, a thickness) from them.
     QImage render(const Product& product, const Sector& sector, const Grids& grids, const GfsData::Run& run, int forecastHour, const Options& options);
 }

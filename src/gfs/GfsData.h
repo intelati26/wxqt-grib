@@ -15,8 +15,10 @@
 #include <QString>
 #include "gfs/GfsGrid.h"
 
-// The GFS 0.25 degree fields from NOAA's open data bucket: the records wanted are cut out of the file by their byte ranges (the .idx says where), decoded with GDAL's
-// gdal_translate, and kept on disk as compressed float grids. Nothing here knows about the screen; the network and the GDAL folder are passed in so the tests and the app share it.
+// Model fields from NOAA's open data buckets (the GFS 0.25 degree, the National Blend of Models): the records wanted are cut out of the file by their byte ranges (the .idx says
+// where), decoded with GDAL (gdal_translate for a grid that is already latitude / longitude, gdalwarp for one that is not), and kept on disk as compressed float grids. What differs
+// between the models is only their Source: where the files are, how often a run is made, and whether the grid has to be warped. Nothing here knows about the screen; the network
+// and the GDAL folder are passed in so the tests and the app share it.
 class GfsData {
 public:
     struct Config {
@@ -34,7 +36,25 @@ public:
         std::string variable;      // "HGT"
         std::string level;         // "500 mb"
         std::string forecast;      // "" for any, or "0-6 hour acc fcst"
+        std::string detail;        // "" for the plain field; the blend's "prob >0.254", "50% level" ask for those records instead
     };
+    // One model's files. A grid that is not latitude / longitude (the blend's Lambert grid) is warped to one of `step` degrees over the box.
+    struct Source {
+        std::string id;                                                  // "GFS", "NBM": the model screen's name for it
+        std::string label;                                               // "NOAA/NCEP GFS 0.25 degree", for under a chart
+        std::function<std::string(const Run&, int forecastHour)> fileUrl;   // the GRIB2 file; its index is that + ".idx"
+        int cycleHours{6};                                               // runs are made this often
+        int lagHours{3};                                                 // and a run is looked for from this long after its time
+        int probeHour{0};                                                // the forecast hour whose index says the run is there
+        int cyclesToTry{5};
+        struct Warp {
+            bool enabled{false};
+            double step{0.025};
+            double west{-127.0}, south{22.0}, east{-65.0}, north{52.0};
+        } warp;
+    };
+    static Source gfs();
+    static Source nbm();
 
     // a field at a forecast hour (a precipitation period needs the running total at two hours)
     struct Need {
@@ -42,22 +62,24 @@ public:
         Want want;
     };
 
-    explicit GfsData(Config config) : config{std::move(config)} {}
-    GfsData(const GfsData& other) : config{other.config} {}
-    // the newest cycle whose forecast hour 0 has been published (tries the last four cycles back from now)
+    explicit GfsData(Config config, Source source = gfs()) : config{std::move(config)}, source{std::move(source)} {}
+    GfsData(const GfsData& other) : config{other.config}, source{other.source} {}
+    // the newest cycle whose probe hour has been published (tries the last few cycles back from now)
     bool latestRun(Run& run) const;
+    const Source& model() const { return source; }
     // The forecast hours the run has published (the .idx of f000 .. f384 exist): a 3 hour step to 240, then 6
     static std::vector<int> forecastHours();
     // grids by key, or false with the reason. A need whose record does not exist at hour 0 ("anl" has no precipitation) is simply absent from out; any other missing record fails.
     bool load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const;
     bool load(const Run& run, int forecastHour, const std::vector<Want>& wants, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const;
-    static std::string fileUrl(const Run& run, int forecastHour);
+    std::string fileUrl(const Run& run, int forecastHour) const { return source.fileUrl(run, forecastHour); }
     // the records downloaded so far for a run and hour, joined into one valid GRIB2 file in the cache folder as they arrive ("" if none yet): GRIB messages stand alone, so appending is all it takes
     QString partialGrib(const Run& run, int forecastHour) const;
 
 private:
     bool one(const Run& run, int forecastHour, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const;
     Config config;
+    Source source;
     mutable std::mutex partialMutex;
 };
 

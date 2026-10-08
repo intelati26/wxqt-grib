@@ -216,7 +216,18 @@ const vector<string> UtilityModelNcepInterface::sectorsFirewx{
 
 const vector<string> UtilityModelNcepInterface::sectorsNbm{
     "CONUS",
-    "NAMER"
+    "NORTHEAST",
+    "MID-ATLANTIC",
+    "SOUTHEAST",
+    "GREAT-LAKES",
+    "OHIO-VALLEY",
+    "S-PLAINS",
+    "N-PLAINS",
+    "ROCKIES",
+    "SOUTHWEST",
+    "PACIFIC-NW",
+    "CALIFORNIA",
+    "GULF-COAST"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsGfs{
@@ -1020,8 +1031,6 @@ const vector<string> UtilityModelNcepInterface::labelsHrwArw2{
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNbm{
-    "precip_p06",
-    "precip_ptot",
     "2m_temp_10m_wnd",
     "2m_dewp_10m_wnd",
     "2m_relh_10m_wnd",
@@ -1029,20 +1038,36 @@ const vector<string> UtilityModelNcepInterface::paramsNbm{
     "2m_min_temp",
     "2m_max_temp",
     "10m_wnd_gust",
-    "total_cloud_cover"
+    "total_cloud_cover",
+    "precip_p01",
+    "precip_p06",
+    "precip_p12",
+    "precip_ptot",
+    "snow_p06",
+    "snow_p12",
+    "snow_ptot",
+    "tstm_prob",
+    "cape"
 };
 
 const vector<string> UtilityModelNcepInterface::labelsNbm{
-    "Total precipitation every 6 hours",
-    "Accumulated precip",
-    "2 meter Temperature and 10 meter Wind",
-    "2 meter dew point temp and 10 meter wind",
-    "2 meter Relative Humidity and 10 meter Wind",
-    "2 meter Apparent Temperature and 10 meter Wind",
-    "2 meter minimum Temperature",
-    "2 meter maximum temperature",
-    "10 meter wind and gust",
-    "Total Cloud Cover"
+    "2 m Temperature and 10 m Wind",
+    "2 m Dewpoint and 10 m Wind",
+    "2 m Relative Humidity and 10 m Wind",
+    "2 m Apparent Temperature and 10 m Wind",
+    "2 m Minimum Temperature (12 hours ending)",
+    "2 m Maximum Temperature (12 hours ending)",
+    "10 m Wind and Gust",
+    "Total Cloud Cover and 10 m Wind",
+    "Total Precipitation, 1 hour",
+    "Total Precipitation, 6 hours",
+    "Total Precipitation, 12 hours",
+    "Accumulated Precipitation",
+    "Snowfall, 6 hours",
+    "Snowfall, 12 hours",
+    "Accumulated Snowfall",
+    "Thunderstorm Probability (6 hours ending)",
+    "Surface-Based CAPE"
 };
 
 const vector<string> UtilityModelNcepInterface::modelHrwFv3Params{

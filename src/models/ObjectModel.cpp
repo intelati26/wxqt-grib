@@ -255,12 +255,11 @@ void ObjectModel::setModelVars(const string& modelName) {
         paramLabels = UtilityModelNcepInterface::labelsNbm;
         sectors = UtilityModelNcepInterface::sectorsNbm;
         times.clear();
-        loadTimeList3(0, 264, 3);
+        loadTimeList3(1, 36, 1);       // the blend: hourly for a day and a half, then every 3 hours, then every 6
+        loadTimeList3(39, 192, 3);
+        loadTimeList3(198, 264, 6);
         runs.clear();
-        runs.emplace_back("00Z");
-        runs.emplace_back("06Z");
-        runs.emplace_back("12Z");
-        runs.emplace_back("18Z");
+        loadRunList(0, 23, 1);         // a run every hour
         runTimeData.listRun = runs;
     } else if (modelToken == "NCEP:GEFS-SPAG") {
         params = UtilityModelNcepInterface::paramsGefsSpag;

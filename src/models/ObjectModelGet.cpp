@@ -12,6 +12,7 @@
 #include "UtilityModelNsslWrfInputOutput.h"
 #include "UtilityModelSpcHrefInputOutput.h"
 #include "UtilityModelSpcHrrrInputOutput.h"
+#include "gfs/GfsRender.h"
 #include "UtilityModelSpcSrefInputOutput.h"
 #include "UtilityModelWpcGefsInputOutput.h"
 
@@ -22,6 +23,19 @@ void ObjectModelGet::runStatus(ObjectModel& om) {
         om.runTimeData = UtilityModelEsrlInputOutput::getRunTime(&om);
         om.run = om.runTimeData.mostRecentRun;
         om.runs = om.runTimeData.listRun;
+    } else if (om.prefModel == "NCEP" && (om.model == "GFS" || om.model == "NBM")) {
+        // these two come from NOAA's open data, not the model guidance pages: the newest run is the newest one whose files are there
+        string cycle;
+        RunTimeData found;
+        if (GfsRender::latestCycle(om.model, cycle)) {
+            found.mostRecentRun = cycle;
+            found.timeStringConversion = cycle;
+        } else {   // no connection: what was chosen before, else the first run of the list
+            found.mostRecentRun = !om.run.empty() ? om.run : (om.runs.empty() ? string{"00Z"} : om.runs.front());
+            found.timeStringConversion = found.mostRecentRun;
+        }
+        om.runTimeData = found;
+        om.runTimeData.listRun = om.runs;
     } else if (om.prefModel == "NCEP") {
         om.runTimeData = UtilityModelNcepInputOutput::getRunTime(&om);
         om.runTimeData.listRun = om.runs;
