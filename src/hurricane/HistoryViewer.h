@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <QCheckBox>
 #include <QLabel>
 #include <QListWidget>
 #include "hurricane/HurricaneData.h"
@@ -47,6 +48,7 @@ private:
 
     VBox box;
     HBox rowTop;
+    HBox rowSort;
     HBox rowMain;
     ComboBox comboBasin;
     ComboBox comboFrom;
@@ -54,6 +56,8 @@ private:
     ComboBox comboCategory;
     ComboBox comboNear;
     ComboBox comboRadius;
+    ComboBox comboSort;
+    QCheckBox * checkLowest{};   // the order of the list turned round
     Entry entrySearch;
     Button buttonArea;
     Text textStatus;

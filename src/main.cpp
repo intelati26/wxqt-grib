@@ -15,7 +15,9 @@
 #include <QTimer>
 #include "common/GlobalVariables.h"
 #include "hurricane/ReconViewer.h"
+#include "hurricane/SeasonViewer.h"
 #include "spc/SpcSwoStateGraphics.h"
+#include "tornado/TornadoYearsViewer.h"
 #include "ui/MainWindow.h"
 #include "util/AppState.h"
 #include "util/ContactPrompt.h"
@@ -73,6 +75,12 @@ int main(int argc, char * argv[]) {
             if (route.startsWith("recon:")) {   // WXQT_OPEN=recon:<NHC id>:<name>, e.g. recon:al092026:Isaias: the one-flight recon page
                 const auto parts = route.split(':');
                 new ReconViewer{&w, parts.value(1).toStdString(), parts.value(2).toStdString()};
+            } else if (route.startsWith("season:")) {   // WXQT_OPEN=season:al (or ep): the seasons screen, loaded here (it blocks until the data is read)
+                auto seasons = std::make_shared<HurricaneData::SeasonData>();
+                HurricaneData::loadSeason(*seasons, route.section(':', 1, 1).toStdString());
+                new SeasonViewer{&w, seasons};
+            } else if (route == "tornadoyears") {   // WXQT_OPEN=tornadoyears: the tornado years ranked
+                new TornadoYearsViewer{&w, TornadoData::load(), 0, std::string{}};
             } else if (route.startsWith("swostate:")) {   // WXQT_OPEN=swostate:<day>: the SPC convective outlook's state graphics for that day
                 new SpcSwoStateGraphics{&w, route.section(':', 1, 1).toInt()};
             } else {

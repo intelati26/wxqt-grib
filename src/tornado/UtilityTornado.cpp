@@ -238,3 +238,57 @@ vector<std::pair<int, double>> UtilityTornado::buckets(const vector<const Tornad
     }
     return {sums.begin(), sums.end()};
 }
+
+std::vector<std::string> UtilityTornado::sortNames() {
+    return {"Strongest first", "Longest track first", "Widest first", "Most fatalities first", "Most injuries first", "Newest first", "Oldest first"};
+}
+
+bool UtilityTornado::listedBefore(const Tornado& a, const Tornado& b, Sort sort) {
+    const auto strongest = [&] () -> int {   // -1 a first, 1 b first, 0 equal
+        if (a.mag != b.mag) return a.mag > b.mag ? -1 : 1;
+        if (a.fatalities != b.fatalities) return a.fatalities > b.fatalities ? -1 : 1;
+        if (a.length != b.length) return a.length > b.length ? -1 : 1;
+        return 0;
+    };
+    const auto byDate = [&] () -> int {   // newest first
+        if (a.year != b.year) return a.year > b.year ? -1 : 1;
+        if (a.month != b.month) return a.month > b.month ? -1 : 1;
+        if (a.day != b.day) return a.day > b.day ? -1 : 1;
+        if (a.time != b.time) return a.time > b.time ? -1 : 1;
+        return 0;
+    };
+    int result = 0;
+    switch (sort) {
+        case Sort::Longest: result = a.length != b.length ? (a.length > b.length ? -1 : 1) : 0; break;
+        case Sort::Widest: result = a.width != b.width ? (a.width > b.width ? -1 : 1) : 0; break;
+        case Sort::Fatalities: result = a.fatalities != b.fatalities ? (a.fatalities > b.fatalities ? -1 : 1) : 0; break;
+        case Sort::Injuries: result = a.injuries != b.injuries ? (a.injuries > b.injuries ? -1 : 1) : 0; break;
+        case Sort::Newest: result = byDate(); break;
+        case Sort::Oldest: result = -byDate(); break;
+        case Sort::Strongest: break;
+    }
+    if (result == 0 && sort != Sort::Strongest) {
+        result = strongest();
+    }
+    if (result == 0 && sort == Sort::Strongest) {
+        result = strongest();
+    }
+    if (result == 0) {
+        result = byDate();   // the same in every number: the newer first
+    }
+    return result < 0;
+}
+
+std::string UtilityTornado::sortNote(const Tornado& t, Sort sort) {
+    char text[48];
+    switch (sort) {
+        case Sort::Widest:
+            std::snprintf(text, sizeof text, "%d yd wide", static_cast<int>(t.width));
+            return text;
+        case Sort::Injuries:
+            std::snprintf(text, sizeof text, "%d injuries", t.injuries);
+            return text;
+        default:
+            return {};   // the row already shows the rating, the length, the fatalities and the date
+    }
+}

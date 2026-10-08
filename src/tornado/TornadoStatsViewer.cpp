@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "tornado/TornadoStatsViewer.h"
+#include "tornado/TornadoYearsViewer.h"
 #include "util/UtilityDate.h"
 #include <algorithm>
 #include <cmath>
@@ -497,6 +498,7 @@ TornadoStatsViewer::TornadoStatsViewer(Window * parent, const std::shared_ptr<co
     , buttonClear{this, None, "Clear the years"}
     , buttonTop{this, None, "The 5 highest"}
     , buttonRecent{this, None, "Last 5 years"}
+    , buttonYears{this, None, "Years ranked..."}
     , textSummary{this, ""}
     , db{database}
 {
@@ -571,7 +573,11 @@ TornadoStatsViewer::TornadoStatsViewer(Window * parent, const std::shared_ptr<co
     row.addWidget(comboState);
     row.addWidget(buttonClear);
     row.addWidget(buttonTop);
+    buttonYears.connect([this] {
+        new TornadoYearsViewer{this, db, comboRating.getIndex(), comboState.getIndex() > 0 ? std::string{comboState.getValue()} : std::string{}};
+    });
     row.addWidget(buttonRecent);
+    row.addWidget(buttonYears);
     row.addStretch();
     rowMain.addWidgetReal(list, 0, Qt::AlignTop | Qt::AlignLeft);
     rowMain.addWidgetReal(chart, 1, Qt::Alignment{});

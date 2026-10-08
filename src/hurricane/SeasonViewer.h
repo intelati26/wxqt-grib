@@ -39,6 +39,8 @@ private:
     std::vector<UtilitySeason::Season> grouped(std::vector<double>& divisors) const;   // the seasons shown, as they are or as decades
 };
 
+class QTableWidget;
+
 class SeasonViewer : public Window {
 public:
     SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData::SeasonData>& data);
@@ -52,6 +54,7 @@ private:
     ComboBox comboGroup;
     Text textSummary;
     SeasonChart * chart{};
+    QTableWidget * ranked{};   // every season of the years chosen, to sort by a heading
     std::shared_ptr<HurricaneData::SeasonData> data;
     std::vector<UtilitySeason::Season> seasons;
 };

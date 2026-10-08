@@ -55,7 +55,15 @@ public:
     static string rating(const Tornado&);                  // "EF3" from 2007, "F3" before; "unrated" for -9
     static string ratingOf(int mag, int year);
     static int dayOfYear(int year, int month, int day);
-    static std::string isoDate(int year, int month, int day);   // 2026-10-01: the one way dates are written on the tornado screens
+    static std::string isoDate(int year, int month, int day);
+
+    // How the list of tornadoes is ordered. Strongest is the rating, then the fatalities, then the length; each of the others puts its own number first and falls back on that.
+    enum class Sort { Strongest, Longest, Widest, Fatalities, Injuries, Newest, Oldest };
+    static std::vector<std::string> sortNames();
+    // a is listed ahead of b: a strict weak order (so std::sort may use it); unrated tornadoes come after rated ones in Strongest
+    static bool listedBefore(const Tornado& a, const Tornado& b, Sort sort);
+    // what the sort looked at, for the row of the list when the row does not show it already ("250 yd wide", "12 injuries"); "" if it does
+    static std::string sortNote(const Tornado& t, Sort sort);   // 2026-10-01: the one way dates are written on the tornado screens
     static double kilometers(double lat1, double lon1, double lat2, double lon2);
     // the nearest distance (km) from a point to the track: the start, the end and the straight line between them
     static double distanceToTrack(const Tornado&, double lat, double lon);

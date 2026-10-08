@@ -114,8 +114,7 @@ void ShipsChart::paintEvent(QPaintEvent *) {
     normal.setBold(false);
     p.setFont(normal);
     p.setPen(QColor{60, 60, 60});
-    const auto cycle = QString::fromStdString(s.cycle);
-    p.drawText(QRectF{0, 34, leftWidth, 18}, Qt::AlignHCenter, "Initialized " + QString::fromStdString(UtilityAtcf::formatTime(s.cycle)) + " " + cycle.left(4));
+    p.drawText(QRectF{0, 34, leftWidth, 18}, Qt::AlignHCenter, "Initialized " + QString::fromStdString(UtilityAtcf::formatTime(s.cycle)));
     const auto * lat = s.row("LAT (DEG N)");
     const auto * lon = s.row("LONG(DEG W)");
     const auto * vNow = s.row("V (KT) LAND");

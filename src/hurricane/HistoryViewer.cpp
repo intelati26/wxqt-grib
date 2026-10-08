@@ -5,6 +5,7 @@
 
 #include "hurricane/HistoryViewer.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <numbers>
 #include <QMouseEvent>
@@ -48,6 +49,7 @@ HistoryViewer::HistoryViewer(Window * parent)
     , comboCategory{this, {"All storms", "Tropical storm or stronger", "Hurricane (Cat 1 or more)", "Major hurricane (Cat 3 or more)", "Cat 5"}}
     , comboNear{this, {"Anywhere"}}
     , comboRadius{this, {"within 100 km", "within 200 km", "within 300 km", "within 500 km"}}
+    , comboSort{this, UtilityHurdat::sortNames()}
     , entrySearch{this}
     , buttonArea{this, None, "Search an area"}
     , textStatus{this, "Loading the HURDAT2 database..."}
@@ -84,7 +86,10 @@ HistoryViewer::HistoryViewer(Window * parent)
         showSelected();
     });
     comboBasin.connect([this] { load(); });
-    for (auto * combo : {&comboFrom, &comboTo, &comboCategory, &comboNear, &comboRadius}) {
+    checkLowest = new QCheckBox{"lowest first", this};
+    checkLowest->setToolTip("Turn the list round: the weakest, shortest, lowest-ACE... first");
+    QObject::connect(checkLowest, &QCheckBox::toggled, [this] { applyFilters(); });
+    for (auto * combo : {&comboFrom, &comboTo, &comboCategory, &comboNear, &comboRadius, &comboSort}) {
         combo->connect([this] { applyFilters(); });
     }
     entrySearch.connect([this] { applyFilters(); });
@@ -103,7 +108,11 @@ HistoryViewer::HistoryViewer(Window * parent)
     rowTop.addStretch();
     rowMain.addWidgetReal(map, 0, Qt::AlignTop | Qt::AlignLeft);
     rowMain.addWidgetReal(list, 1, Qt::AlignTop | Qt::AlignLeft);
+    rowSort.addWidget(comboSort);
+    rowSort.addWidgetReal(checkLowest);
+    rowSort.addStretch();
     box.addLayout(rowTop);
+    box.addLayout(rowSort);
     box.addWidget(textStatus);
     box.addLayout(rowMain);
     box.addStretch();
@@ -205,14 +214,24 @@ void HistoryViewer::applyFilters() {
         if (area->active() && !passesArea(t)) continue;
         shown.push_back(i);
     }
-    // the list: the strongest first
-    std::vector<size_t> order = shown;
-    std::stable_sort(order.begin(), order.end(), [this] (size_t a, size_t b) { return data->tracks[a].peakWind > data->tracks[b].peakWind; });
-    shown = order;
+    // the list, in the order chosen (the strongest, the lowest pressure, the highest ACE, the longest track ...); each key falls back on the peak wind, then the ACE
+    const auto sort = static_cast<UtilityHurdat::Sort>(std::clamp(comboSort.getIndex(), 0, 6));
+    const bool lowest = checkLowest != nullptr && checkLowest->isChecked();
+    std::vector<std::pair<std::array<double, 3>, size_t>> keyed;   // the numbers are worked out once for each storm, not at every comparison
+    for (const auto i : shown) {
+        const auto& t = data->tracks[i];
+        keyed.push_back({{UtilityHurdat::sortKey(t, sort), static_cast<double>(t.peakWind), UtilityHurdat::ace(t)}, i});
+    }
+    std::stable_sort(keyed.begin(), keyed.end(), [lowest] (const auto& a, const auto& b) { return lowest ? a.first < b.first : a.first > b.first; });
+    shown.clear();
+    for (const auto& k : keyed) {
+        shown.push_back(k.second);
+    }
     list->blockSignals(true);
     list->clear();
     for (const auto i : shown) {
-        list->addItem(describe(data->tracks[i]));
+        const auto note = UtilityHurdat::sortNote(data->tracks[i], sort);
+        list->addItem(describe(data->tracks[i]) + (note.empty() ? QString{} : "  " + QString::fromStdString(note)));
     }
     list->blockSignals(false);
     int storms = 0;
@@ -276,7 +295,7 @@ void HistoryViewer::resizeEventCustom() {
     if (view == nullptr) {
         return;
     }
-    const int above = rowTop.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height();
+    const int above = rowTop.getView()->sizeHint().height() + rowSort.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height();
     view->fit(width() - 300 - 40, height() - above - 40);
     list->setFixedHeight(view->map()->height());
 }

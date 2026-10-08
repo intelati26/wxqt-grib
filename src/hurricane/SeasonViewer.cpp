@@ -7,10 +7,13 @@
 #include <algorithm>
 #include <cmath>
 #include <QMouseEvent>
+#include <QTableWidget>
+#include <QHeaderView>
 #include <QPainter>
 #include <QTextBrowser>
 #include <QToolTip>
 #include "hurricane/ChartKit.h"
+#include "ui/NumberItem.h"
 
 namespace {
     const char * metricNames[] = {"ACE (accumulated cyclone energy)", "Named storms", "Hurricanes", "Major hurricanes (Cat 3 and up)", "TIKE (track integrated kinetic energy, TJ)"};
@@ -20,7 +23,7 @@ namespace {
     }
 
     QString dates(const UtilitySeason::Storm& s) {
-        return QString::fromStdString(UtilityAtcf::formatTime(s.first)).left(6) + " - " + QString::fromStdString(UtilityAtcf::formatTime(s.last)).left(6);
+        return QString::fromStdString(UtilityAtcf::formatTime(s.first)).left(10) + " - " + QString::fromStdString(UtilityAtcf::formatTime(s.last)).left(10);
     }
 }
 
@@ -220,6 +223,17 @@ SeasonViewer::SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData:
     box.addLayout(row);
     box.addWidget(textSummary);
     box.addWidgetReal(chart, 1, Qt::Alignment{});
+    // every season in a table: a click on a heading ranks them by it (the ACE, the TIKE, the named storms, the hurricanes, the major hurricanes)
+    ranked = new QTableWidget{0, 7, this};
+    ranked->setHorizontalHeaderLabels({"Season", "Systems", "Named storms", "Hurricanes", "Major hurricanes", "ACE", "TIKE (TJ)"});
+    ranked->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    ranked->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ranked->verticalHeader()->hide();
+    ranked->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ranked->setToolTip("Click a heading to rank the seasons by it; click again to turn the order round");
+    ranked->setMinimumHeight(170);
+    ranked->setMaximumHeight(240);
+    box.addWidgetReal(ranked, 0, Qt::Alignment{});
     // this season's storms
     auto * table = new QTextBrowser{this};
     table->setMinimumHeight(190);
@@ -244,7 +258,7 @@ SeasonViewer::SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData:
     table->setHtml(html);
     box.addWidgetReal(table, 0, Qt::Alignment{});
     box.getAndShow(this);
-    resize(1000, 760);
+    resize(1000, 900);
     apply();
 }
 
@@ -257,6 +271,32 @@ void SeasonViewer::apply() {
         default: break;
     }
     chart->setView(comboMetric.getIndex(), first, comboGroup.getIndex());
+    {   // the table of seasons, for the years chosen; the column it was sorted by stays (the ACE, biggest first, to begin with)
+        const bool begun = ranked->rowCount() > 0;
+        const int column = begun ? ranked->horizontalHeader()->sortIndicatorSection() : 5;
+        const auto order = begun ? ranked->horizontalHeader()->sortIndicatorOrder() : Qt::DescendingOrder;
+        ranked->setSortingEnabled(false);
+        std::vector<const UtilitySeason::Season *> chosen;
+        for (const auto& season : seasons) {
+            if (season.year >= first) {
+                chosen.push_back(&season);
+            }
+        }
+        ranked->setRowCount(static_cast<int>(chosen.size()));
+        for (int row = 0; row < static_cast<int>(chosen.size()); row++) {
+            const auto& season = *chosen[static_cast<size_t>(row)];
+            const auto cell = [&] (int c, const QString& text, double value, bool has = true) { ranked->setItem(row, c, new NumberItem{text, value, has}); };
+            cell(0, QString::number(season.year) + (season.year == data->currentYear && !data->current.empty() ? " (so far)" : ""), season.year);
+            cell(1, QString::number(season.cyclones), season.cyclones);
+            cell(2, QString::number(season.named), season.named);
+            cell(3, QString::number(season.hurricanes), season.hurricanes);
+            cell(4, QString::number(season.major), season.major);
+            cell(5, QString::number(season.ace, 'f', 1), season.ace);
+            cell(6, season.radiiStorms > 0 ? QString::number(std::lround(season.tike)) : QString{"-"}, season.tike, season.radiiStorms > 0);   // no wind radii before 2004
+        }
+        ranked->setSortingEnabled(true);
+        ranked->sortByColumn(column, order);
+    }
     // the season so far, in words
     QString text;
     double tikeAverage = 0.0;

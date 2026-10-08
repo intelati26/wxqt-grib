@@ -1,4 +1,5 @@
 // Checks the SPC tornado database reader against rows of the real file (1950-2025_actual_tornadoes.csv).
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -39,6 +40,37 @@ int main(int argc, char ** argv) {
     CHECK(ef5 != nullptr && ef5->fatalities >= 0 && T::ratingOf(-9, 2024) == "unrated" && T::ratingOf(3, 2006) == "F3" && T::ratingOf(3, 2007) == "EF3");
     // days of the year and distances
     CHECK(T::isoDate(2026, 10, 1) == "2026-10-01" && T::isoDate(1950, 1, 31) == "1950-01-31" && T::isoDate(2011, 12, 9) == "2011-12-09");
+    {   // the orderings
+        using S = UtilityTornado::Sort;
+        using Tor = UtilityTornado::Tornado;
+        const auto make = [] (int year, int mag, double length, double width, int fatalities, int injuries) {
+            Tor t;
+            t.year = year; t.month = 5; t.day = 10; t.time = "12:00:00";
+            t.mag = mag; t.length = length; t.width = width; t.fatalities = fatalities; t.injuries = injuries;
+            return t;
+        };
+        std::vector<Tor> v{make(2000, 2, 30.0, 300, 0, 5), make(1990, 4, 10.0, 800, 3, 50), make(2010, 1, 90.0, 100, 0, 0), make(2005, 3, 20.0, 500, 12, 20), make(1980, -9, 5.0, 50, 0, 0)};
+        const auto order = [&] (S sort, bool lowestFirst) {
+            auto copy = v;
+            std::sort(copy.begin(), copy.end(), [&] (const Tor& a, const Tor& b) { return lowestFirst ? T::listedBefore(b, a, sort) : T::listedBefore(a, b, sort); });
+            std::vector<int> years;
+            for (const auto& t : copy) years.push_back(t.year);
+            return years;
+        };
+        CHECK((order(S::Strongest, false) == std::vector<int>{1990, 2005, 2000, 2010, 1980}));     // EF4, EF3, EF2, EF1, unrated
+        CHECK((order(S::Longest, false) == std::vector<int>{2010, 2000, 2005, 1990, 1980}));
+        CHECK((order(S::Widest, false) == std::vector<int>{1990, 2005, 2000, 2010, 1980}));
+        CHECK((order(S::Fatalities, false) == std::vector<int>{2005, 1990, 2000, 2010, 1980}));       // 12, 3, then the rest by rating
+        CHECK((order(S::Injuries, false) == std::vector<int>{1990, 2005, 2000, 2010, 1980}));
+        CHECK((order(S::Newest, false) == std::vector<int>{2010, 2005, 2000, 1990, 1980}));
+        CHECK((order(S::Oldest, false) == std::vector<int>{1980, 1990, 2000, 2005, 2010}));
+        CHECK((order(S::Longest, true) == std::vector<int>{1980, 1990, 2005, 2000, 2010}));       // the lowest first is exactly the reverse
+        CHECK(T::sortNote(v[0], S::Widest) == "300 yd wide" && T::sortNote(v[1], S::Injuries) == "50 injuries" && T::sortNote(v[0], S::Longest).empty());
+        CHECK(T::sortNames().size() == 7);
+        // equal in every number: the newer first, and never both ahead of each other
+        const auto x = make(2001, 2, 10.0, 100, 0, 0), y = make(2002, 2, 10.0, 100, 0, 0);
+        CHECK(T::listedBefore(y, x, S::Longest) && !T::listedBefore(x, y, S::Longest) && !T::listedBefore(x, x, S::Strongest));
+    }
     CHECK(T::dayOfYear(2011, 4, 27) == 117 && T::dayOfYear(2012, 4, 27) == 118 && T::dayOfYear(2011, 12, 31) == 365 && T::dayOfYear(2011, 13, 1) == 0);
     CHECK(near(T::kilometers(36.73, -102.52, 36.88, -102.3), 25.0, 1.0));
     // the distance to a track: the start, the end, or the line between them

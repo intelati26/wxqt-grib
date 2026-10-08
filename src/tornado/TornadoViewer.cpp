@@ -67,6 +67,7 @@ TornadoViewer::TornadoViewer(Window * parent)
     , comboKind{this, {"All", "Fatal ones", "With injuries or fatalities"}}
     , comboNear{this, {"Anywhere"}}
     , comboRadius{this, {"within 25 km", "within 50 km", "within 100 km", "within 200 km"}}
+    , comboSort{this, UtilityTornado::sortNames()}
     , buttonArea{this, None, "Search an area"}
     , buttonCharts{this, None, "Charts..."}
     , textStatus{this, "Loading the SPC tornado database..."}
@@ -105,7 +106,10 @@ TornadoViewer::TornadoViewer(Window * parent)
         static const double radii[] = {25.0, 50.0, 100.0, 200.0};
         return radii[std::clamp(comboRadius.getIndex(), 0, 3)];
     }, [this] { applyFilters(); });
-    for (auto * combo : {&comboSpan, &comboFrom, &comboTo, &comboRating, &comboState, &comboKind, &comboNear, &comboRadius}) {
+    checkLowest = new QCheckBox{"lowest first", this};
+    checkLowest->setToolTip("Turn the list round: the weakest, shortest, narrowest... first (the list holds the first 400 in this order)");
+    QObject::connect(checkLowest, &QCheckBox::toggled, [this] { applyFilters(); });
+    for (auto * combo : {&comboSpan, &comboFrom, &comboTo, &comboRating, &comboState, &comboKind, &comboNear, &comboRadius, &comboSort}) {
         combo->connect([this] { applyFilters(); });
     }
     buttonCharts.connect([this] {
@@ -124,6 +128,8 @@ TornadoViewer::TornadoViewer(Window * parent)
     rowMore.addWidget(comboRadius);
     rowMore.addWidget(buttonArea);
     rowMore.addWidget(buttonCharts);
+    rowMore.addWidget(comboSort);
+    rowMore.addWidgetReal(checkLowest);
     rowMore.addStretch();
     rowMain.addWidgetReal(map, 0, Qt::AlignTop | Qt::AlignLeft);
     rowMain.addWidgetReal(list, 1, Qt::AlignTop | Qt::AlignLeft);
@@ -214,12 +220,12 @@ void TornadoViewer::applyFilters() {
         if (area->active() && !(t.hasEnd() ? area->hitsSegment(t.startLat, t.startLon, t.endLat, t.endLon) : area->hitsPoint(t.startLat, t.startLon))) continue;
         shown.push_back(&t);
     }
-    // the list: the strongest, the deadliest and the longest first, as many as are useful
+    // the list: in the order chosen (the strongest, the longest, the widest, the deadliest ...), as many as are useful
+    const auto sort = static_cast<UtilityTornado::Sort>(std::clamp(comboSort.getIndex(), 0, 6));
+    const bool lowest = checkLowest != nullptr && checkLowest->isChecked();
     listed = shown;
-    std::sort(listed.begin(), listed.end(), [] (const T * a, const T * b) {
-        if (a->mag != b->mag) return a->mag > b->mag;
-        if (a->fatalities != b->fatalities) return a->fatalities > b->fatalities;
-        return a->length > b->length;
+    std::sort(listed.begin(), listed.end(), [sort, lowest] (const T * a, const T * b) {
+        return lowest ? UtilityTornado::listedBefore(*b, *a, sort) : UtilityTornado::listedBefore(*a, *b, sort);
     });
     if (listed.size() > 400) {
         listed.resize(400);
@@ -227,7 +233,8 @@ void TornadoViewer::applyFilters() {
     list->blockSignals(true);
     list->clear();
     for (const auto * t : listed) {
-        list->addItem(describe(*t));
+        const auto note = UtilityTornado::sortNote(*t, sort);
+        list->addItem(describe(*t) + (note.empty() ? QString{} : "  " + QString::fromStdString(note)));
     }
     list->blockSignals(false);
     int deaths = 0;

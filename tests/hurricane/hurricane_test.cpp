@@ -348,6 +348,26 @@ static void season(const std::string& fixtures) {
     for (size_t d = 1; d < c2011.size(); d++) {
         CHECK(c2011[d] >= c2011[d - 1]);
     }
+    {   // ranking storms: the numbers agree with the season code's, and each order puts its own number first
+        const auto hurdatTracks = UtilityHurdat::parse(readFile(fixtures + "/hurdat2_2011_2025.txt"));
+        const UtilityHurdat::Track * ireneTrack = nullptr;
+        for (const auto& t : hurdatTracks) {
+            if (t.id == "AL092011") ireneTrack = &t;
+        }
+        CHECK(ireneTrack != nullptr && near(UtilityHurdat::ace(*ireneTrack), irene->ace, 1e-6));
+        CHECK(ireneTrack != nullptr && UtilityHurdat::lengthKm(*ireneTrack) > 3000.0 && UtilityHurdat::lengthKm(*ireneTrack) < 9000.0);   // Irene: the Caribbean to New England
+        CHECK(ireneTrack != nullptr && near(UtilityHurdat::durationDays(*ireneTrack), 9.0, 0.3));                                       // 2011-08-21 to 2011-08-30
+        CHECK(UtilityHurdat::sortNames().size() == 7);
+        using S = UtilityHurdat::Sort;
+        UtilityHurdat::Track weak, strong;
+        weak.peakWind = 40; weak.minPressure = 1000; weak.year = 2012;
+        strong.peakWind = 120; strong.minPressure = 0; strong.year = 1999;   // no pressure given
+        CHECK(UtilityHurdat::sortKey(strong, S::Strongest) > UtilityHurdat::sortKey(weak, S::Strongest));
+        CHECK(UtilityHurdat::sortKey(weak, S::LowestPressure) > UtilityHurdat::sortKey(strong, S::LowestPressure));   // an unknown pressure ranks last
+        CHECK(UtilityHurdat::sortKey(weak, S::Newest) > UtilityHurdat::sortKey(strong, S::Newest) && UtilityHurdat::sortKey(strong, S::Oldest) > UtilityHurdat::sortKey(weak, S::Oldest));
+        CHECK(ireneTrack != nullptr && UtilityHurdat::sortNote(*ireneTrack, S::Ace).rfind("ACE ", 0) == 0 && UtilityHurdat::sortNote(*ireneTrack, S::Longest).find(" km") != std::string::npos &&
+              UtilityHurdat::sortNote(*ireneTrack, S::Strongest).empty());
+    }
     double irenePerDay = 0.0;
     for (const auto& [day, ace] : irene->daily) {
         irenePerDay += ace;

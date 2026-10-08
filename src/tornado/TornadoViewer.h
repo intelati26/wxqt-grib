@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <QCheckBox>
 #include <QLabel>
 #include <QListWidget>
 #include "radar/AreaSearch.h"
@@ -56,6 +57,8 @@ private:
     ComboBox comboKind;
     ComboBox comboNear;
     ComboBox comboRadius;
+    ComboBox comboSort;
+    QCheckBox * checkLowest{};   // the order of the list turned round
     Button buttonArea;
     Button buttonCharts;
     Text textStatus;

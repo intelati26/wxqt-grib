@@ -78,6 +78,7 @@ private:
     Button buttonClear;
     Button buttonTop;
     Button buttonRecent;
+    Button buttonYears;
     Text textSummary;
     TornadoChart * chart{};
     QListWidget * list{};
