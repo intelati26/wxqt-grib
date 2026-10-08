@@ -26,7 +26,7 @@ namespace {
                                      "radarmosaicnws.png", "mcd_tile.png", "baseline_cloud_black_48dp.png", "goesfulldisk.png",
                                      "lightning.png"}},
             {"Forecast and observations", {"baseline_date_range_black_48dp.png", "baseline_info_black_48dp.png",
-                                           "nwsobs.png", "nwsobssites.png", "spcsoundings.png", "rtma.png"}},
+                                           "nwsobs.png", "nwsobs.png#2", "nwsobssites.png", "spcsoundings.png", "rtma.png"}},
             {"Severe weather", {"baseline_warning_black_48dp.png", "uswarn.png", "report_today.png",
                                 "report_yesterday.png", "spc_sum.png", "day1.png", "day2.png", "day3.png", "day48.png",
                                 "tstorm.png#2", "ntor.png", "fire_outlook.png", "meso.png", "spccompmap.png", "tor.png"}},

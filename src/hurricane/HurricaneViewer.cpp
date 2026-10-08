@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "hurricane/HurricaneViewer.h"
+#include "ui/WindBarb.h"
 #include <algorithm>
 #include <cmath>
 #include <numbers>
@@ -33,43 +34,6 @@
 #include "util/UtilityUI.h"
 
 namespace {
-
-    // a wind barb at `at`: the staff points into the wind, feathers on the clockwise side (the other side south of the equator)
-    void drawBarb(QPainter& painter, const QPointF& at, double fromDegrees, double knots, double length, bool south) {
-        const double rad = fromDegrees * std::numbers::pi / 180.0;
-        const QPointF staff{std::sin(rad), -std::cos(rad)};
-        const QPointF perp = south ? QPointF{staff.y(), -staff.x()} : QPointF{-staff.y(), staff.x()};
-        if (knots < 2.5) {
-            painter.drawEllipse(at, length * 0.12, length * 0.12);
-            return;
-        }
-        painter.drawLine(at, at + staff * length);
-        int remaining = static_cast<int>(std::lround(knots / 5.0)) * 5;
-        double along = length;
-        const double step = length * 0.14;
-        const double feather = length * 0.42;
-        while (remaining >= 50) {
-            const QPointF a = at + staff * along;
-            QPolygonF flag;
-            flag << a << a + perp * feather - staff * (step * 0.4) << a - staff * (step * 1.4);
-            painter.drawPolygon(flag);
-            along -= step * 1.6;
-            remaining -= 50;
-        }
-        while (remaining >= 10) {
-            const QPointF a = at + staff * along;
-            painter.drawLine(a, a + perp * feather - staff * (step * 0.6));
-            along -= step;
-            remaining -= 10;
-        }
-        if (remaining >= 5) {
-            if (along >= length - 1e-6) {
-                along -= step;
-            }
-            const QPointF a = at + staff * along;
-            painter.drawLine(a, a + perp * feather * 0.5 - staff * (step * 0.3));
-        }
-    }
 
     using Group = UtilityAtcf::Group;
 
@@ -1342,7 +1306,7 @@ void HurricaneViewer::paintMap(QPainter& painter) {
                     const auto color = reconColor(ob).darker(125);
                     painter.setPen(QPen{color, 1.4 * px});
                     painter.setBrush(color);
-                    drawBarb(painter, p, ob.windDirection, ob.windSpeed, 26.0 * px, ob.lat < 0.0);
+                    WindBarb::draw(painter, p, ob.windDirection, ob.windSpeed, 26.0 * px, ob.lat < 0.0);
                 }
             }
         }

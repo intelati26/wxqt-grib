@@ -5,6 +5,7 @@
 
 #include "util/UtilityGzip.h"
 #include <array>
+#include <functional>
 #include <cstdint>
 
 namespace {
@@ -15,6 +16,11 @@ namespace {
         uint32_t buffer{0};
         int count{0};
         bool failed{false};
+        // streaming: the decoded bytes leave through the sink once `limit` of them wait, keeping the 32 kB the back references can reach
+        const std::function<bool(const char *, size_t)> * sink{nullptr};
+        size_t limit{0};
+        size_t start{0};     // the first byte of `out` the sink has not seen
+        bool stopped{false};
 
         int get(int n) {   // n bits, least significant first
             while (count < n) {
@@ -31,6 +37,34 @@ namespace {
             return value;
         }
     };
+
+    const size_t window = 32768;
+
+    // true while decoding may go on
+    bool flush(Bits& bits, std::string& out, bool final) {
+        if (bits.sink == nullptr) {
+            return true;
+        }
+        if (final) {
+            if (out.size() > bits.start && !(*bits.sink)(out.data() + bits.start, out.size() - bits.start)) {
+                bits.stopped = true;
+                return false;
+            }
+            bits.start = out.size();
+            return true;
+        }
+        if (out.size() < bits.limit + window) {
+            return true;
+        }
+        const size_t end = out.size() - window;
+        if (end > bits.start && !(*bits.sink)(out.data() + bits.start, end - bits.start)) {
+            bits.stopped = true;
+            return false;
+        }
+        out.erase(0, end);
+        bits.start = 0;
+        return true;
+    }
 
     // canonical Huffman code: counts of codes per length and the symbols in code order
     struct Huffman {
@@ -89,6 +123,9 @@ namespace {
             }
             if (symbol < 256) {
                 out.push_back(static_cast<char>(symbol));
+                if (bits.sink != nullptr && !flush(bits, out, false)) {
+                    return false;
+                }
             } else if (symbol == 256) {
                 return true;
             } else {
@@ -107,6 +144,9 @@ namespace {
                 }
                 for (int i = 0; i < length; i++) {
                     out.push_back(out[out.size() - distance]);
+                }
+                if (bits.sink != nullptr && !flush(bits, out, false)) {
+                    return false;
                 }
             }
         }
@@ -177,37 +217,53 @@ namespace {
     }
 }
 
-bool UtilityGzip::gunzip(const std::string& in, std::string& out) {
-    out.clear();
-    const auto * p = reinterpret_cast<const unsigned char *>(in.data());
-    const size_t size = in.size();
-    if (size < 18 || p[0] != 0x1f || p[1] != 0x8b || p[2] != 8) {
-        return false;
-    }
-    const int flags = p[3];
-    size_t pos = 10;
-    if (flags & 4) {   // extra field
-        if (pos + 2 > size) return false;
-        pos += 2 + (p[pos] | (p[pos + 1] << 8));
-    }
-    for (const int bit : {8, 16}) {   // file name, comment: zero-terminated
-        if (flags & bit) {
-            while (pos < size && p[pos] != 0) pos++;
-            pos++;
+namespace {
+    // where the deflate data starts, 0 when this is not gzip
+    size_t gzipBody(const std::string& in) {
+        const auto * p = reinterpret_cast<const unsigned char *>(in.data());
+        const size_t size = in.size();
+        if (size < 18 || p[0] != 0x1f || p[1] != 0x8b || p[2] != 8) {
+            return 0;
         }
+        const int flags = p[3];
+        size_t pos = 10;
+        if (flags & 4) {   // extra field
+            if (pos + 2 > size) return 0;
+            pos += 2 + (p[pos] | (p[pos + 1] << 8));
+        }
+        for (const int bit : {8, 16}) {   // file name, comment: zero-terminated
+            if (flags & bit) {
+                while (pos < size && p[pos] != 0) pos++;
+                pos++;
+            }
+        }
+        if (flags & 2) {
+            pos += 2;
+        }
+        return pos >= size ? 0 : pos;
     }
-    if (flags & 2) {
-        pos += 2;
-    }
-    if (pos >= size) {
-        return false;
-    }
-    return inflate(p + pos, size - pos, out);
+
+    bool inflateInto(const unsigned char * p, size_t size, std::string& out, const std::function<bool(const char *, size_t)> * sink, size_t chunk);
 }
 
-bool UtilityGzip::inflate(const unsigned char * p, size_t size, std::string& out) {
+bool UtilityGzip::gunzip(const std::string& in, std::string& out) {
+    out.clear();
+    const size_t pos = gzipBody(in);
+    return pos != 0 && inflate(reinterpret_cast<const unsigned char *>(in.data()) + pos, in.size() - pos, out);
+}
+
+bool UtilityGzip::gunzipStream(const std::string& in, size_t chunk, const std::function<bool(const char *, size_t)>& sink) {
+    const size_t pos = gzipBody(in);
+    std::string out;
+    return pos != 0 && inflateInto(reinterpret_cast<const unsigned char *>(in.data()) + pos, in.size() - pos, out, &sink, chunk);
+}
+
+namespace {
+bool inflateInto(const unsigned char * p, size_t size, std::string& out, const std::function<bool(const char *, size_t)> * sink, size_t chunk) {
     out.clear();
     Bits bits{p, size};
+    bits.sink = sink;
+    bits.limit = chunk;
     bool last = false;
     while (!last) {
         last = bits.get(1) != 0;
@@ -225,6 +281,9 @@ bool UtilityGzip::inflate(const unsigned char * p, size_t size, std::string& out
             if ((len ^ 0xffffu) != nlen || bits.pos + len > bits.size) return false;
             out.append(reinterpret_cast<const char *>(bits.data + bits.pos), len);
             bits.pos += len;
+            if (!flush(bits, out, false)) {
+                return false;
+            }
         } else if (type == 1 || type == 2) {
             if (!inflateBlock(bits, out, type)) {
                 return false;
@@ -233,5 +292,10 @@ bool UtilityGzip::inflate(const unsigned char * p, size_t size, std::string& out
             return false;
         }
     }
-    return true;
+    return flush(bits, out, true);
+}
+}
+
+bool UtilityGzip::inflate(const unsigned char * p, size_t size, std::string& out) {
+    return inflateInto(p, size, out, nullptr, 0);
 }
