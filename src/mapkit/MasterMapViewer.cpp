@@ -70,7 +70,6 @@ MasterMapViewer::MasterMapViewer(Window * parent)
         return false;
     };
     mapView->showRegion(20.0, 55.0, -127.0, -65.0);
-    ChartExport::install(map, "Master map");
     hoverLabel = new QLabel{map};
     hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
     hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 220); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
@@ -456,7 +455,7 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
     painter.save();
     painter.translate(0, headerHeight);
     painter.scale(factor, factor);
-    map->render(&painter);
+    map->render(&painter, QPoint{}, QRegion{}, QWidget::DrawWindowBackground);   // without the hover popup
     painter.restore();
     const int mapBottom = headerHeight + static_cast<int>(map->height() * factor);
     painter.fillRect(QRect{0, mapBottom, width, footerHeight}, QColor{245, 245, 245});

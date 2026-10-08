@@ -7,6 +7,7 @@
 #include <mutex>
 #include <QPointer>
 #include "MapWidget.h"
+#include "ui/ChartExport.h"
 #include "radar/RadarSites.h"
 #include <QApplication>
 #include <QMenu>
@@ -56,6 +57,7 @@ MapWidget::MapWidget(
     grabGesture(Qt::PinchGesture);
     show();
     mapDraw.initGeom();
+    ChartExport::install(this, "");   // every map can be saved as drawn: right-click for PNG, PDF or the clipboard
 }
 
 bool MapWidget::event(QEvent * event) {

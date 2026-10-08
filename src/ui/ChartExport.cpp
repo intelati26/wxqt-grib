@@ -61,7 +61,8 @@ bool ChartExport::exporting() {
     return exportDepth > 0 && Utility::readPref("CHART_EXPORT_PLOTS_ONLY", "false") == "true";
 }
 
-QImage ChartExport::render(QWidget * chart, const QString& title, int scale) {
+QImage ChartExport::render(QWidget * chart, const QString& titleGiven, int scale) {
+    const QString title = titleGiven.isEmpty() ? chart->window()->windowTitle() : titleGiven;
     struct Scope {
         Scope() { exportDepth++; }
         ~Scope() { exportDepth--; }
@@ -70,7 +71,7 @@ QImage ChartExport::render(QWidget * chart, const QString& title, int scale) {
     image.fill(Qt::white);
     image.setDevicePixelRatio(scale);
     QPainter painter{&image};
-    chart->render(&painter);
+    chart->render(&painter, QPoint{}, QRegion{}, QWidget::DrawWindowBackground);   // the chart itself, not the labels laid over it (a map's hover popup)
     drawFooter(painter, chart->width(), chart->height(), title);
     return image;
 }
@@ -79,7 +80,8 @@ bool ChartExport::savePng(QWidget * chart, const QString& title, const QString& 
     return render(chart, title).save(path, "PNG");
 }
 
-bool ChartExport::savePdf(QWidget * chart, const QString& title, const QString& path) {
+bool ChartExport::savePdf(QWidget * chart, const QString& titleGiven, const QString& path) {
+    const QString title = titleGiven.isEmpty() ? chart->window()->windowTitle() : titleGiven;
     struct Scope {
         Scope() { exportDepth++; }
         ~Scope() { exportDepth--; }
@@ -94,14 +96,16 @@ bool ChartExport::savePdf(QWidget * chart, const QString& title, const QString& 
     }
     const double factor = static_cast<double>(writer.width()) / chart->width();
     painter.scale(factor, factor);
-    chart->render(&painter);
+    chart->render(&painter, QPoint{}, QRegion{}, QWidget::DrawWindowBackground);   // the chart itself, not the labels laid over it (a map's hover popup)
     drawFooter(painter, chart->width(), chart->height(), title);
     return true;
 }
 
 void ChartExport::install(QWidget * chart, const QString& title) {
     chart->setContextMenuPolicy(Qt::CustomContextMenu);
-    QObject::connect(chart, &QWidget::customContextMenuRequested, chart, [chart, title] (const QPoint& at) {
+    QObject::connect(chart, &QWidget::customContextMenuRequested, chart, [chart, fixedTitle = title] (const QPoint& at) {
+        // an empty title is the name of the window the chart is in (a map: "Rivers - NWS gauges")
+        const QString title = fixedTitle.isEmpty() ? chart->window()->windowTitle() : fixedTitle;
         QMenu menu;
         auto * png = menu.addAction("Save as PNG...");
         auto * pdf = menu.addAction("Save as PDF...");

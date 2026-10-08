@@ -13,7 +13,7 @@
 // Every chart can be saved: install() gives a widget a right-click menu with "Save as PNG...", "Save as PDF..." (vector, so it scales) and "Copy to the
 // clipboard", all drawn by the widget's own paint code at twice the screen resolution, with a footer line naming the chart and the time it was saved.
 namespace ChartExport {
-    void install(QWidget * chart, const QString& title);
+    void install(QWidget * chart, const QString& title);   // title empty: the title of the window the chart is in
     // true while a chart is being drawn for a file or the clipboard AND the menu's "Plots only" is ticked: a chart with tables or explanatory lines leaves them out.
     // The default is the whole chart as on the screen
     bool exporting();
