@@ -19,6 +19,7 @@
 #include "misc/ObservationSites.h"
 #include "misc/Observations.h"
 #include "obs/SurfaceViewer.h"
+#include "mapkit/MasterMapViewer.h"
 #include "misc/Opc.h"
 #include "misc/Rtma.h"
 #include "misc/SevereDashboard.h"
@@ -93,6 +94,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("nwsobssites.png", "Observation Sites", [this] { launchObservationSites(); });
     routeItems.emplace_back("nwsobs.png", "Observations", [this] { launchObservations(); });
     routeItems.emplace_back("nwsobs.png", "Surface observations map: airports and the MADIS mesonets, wind barbs, temperatures", [parent] { new SurfaceViewer{parent}; });
+    routeItems.emplace_back("fmap.png", "Master map: surface stations, river gauges, dams, buoys and tropical storms as layers on one map", [parent] { new MasterMapViewer{parent}; });
     routeItems.emplace_back("rtma.png", "RTMA", [this] { launchRtma(); });
     routeItems.emplace_back("spcsoundings.png", "Soundings", [parent] { new SoundingViewer{parent, string{}}; });
 
