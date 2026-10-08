@@ -16,6 +16,8 @@
 #include <QLabel>
 #include <QPointF>
 #include <QWidget>
+#include "hurricane/GuidanceTree.h"
+#include "hurricane/UtilityEnsembleStats.h"
 #include "hurricane/HurricaneData.h"
 #include "radar/MapView.h"
 #include "ui/Button.h"
@@ -56,13 +58,15 @@ private:
     string basinCode() const;                  // "al", "ep" or "cp"
     void showStorm();                       // after a storm has loaded: the panel text, the map region
     void zoomToStorm();
+    void zoomToCone();
+    int limitHours() const;                                   // forecasts are drawn out to this many hours (the choice in the toolbar)
+    void updateLimitLabels();
     void updateInfo();
     void paintMap(QPainter&);
     void paintPlannedRecon(QPainter&);
     void paintOutlook(QPainter&);
     void paintLegend(QPainter&);
     void showHover(const QPointF& pixels);
-    bool groupShown(UtilityAtcf::Group) const;
     bool reconNear(const UtilityHdob::Ob&) const;
     void closeEventCustom() override { closed = true; }
     void resizeEventCustom() override;
@@ -82,12 +86,14 @@ private:
     ComboBox comboStorm;
     Button buttonRefresh;
     Button buttonZoom;
+    Button buttonCone;
+    ComboBox comboLimit;                                      // how far out the forecast lines are drawn
     Text textStatus;
     std::unique_ptr<MapView> view;
     QWidget * panel{};
     QLabel * infoLabel{};
     QLabel * hoverLabel{};
-    std::vector<std::pair<UtilityAtcf::Group, QCheckBox *>> groupChecks;
+    GuidanceTree * guidanceTree{};                            // which models are drawn
     QCheckBox * reconCheck{};
     QCheckBox * barbCheck{};
     string startStorm;   // from the dashboard: the storm to select when the first list arrives
@@ -101,7 +107,13 @@ private:
     QCheckBox * dropLabelCheck{};                             // the lowest pressure and strongest wind written beside each dropsonde
     QCheckBox * dropCheck{};                                  // dropsonde markers (click: the sounding)
     QCheckBox * podCheck{};                                   // the planned recon flights                                 // the wind radii now
-    QCheckBox * ensembleChecks[3]{};                          // AIFS ENS members, IFS ENS members, the unperturbed runs
+    struct EnsembleMean {
+        string label;                                         // "IFS ENS mean"
+        string id;                                            // the tree leaf that shows it
+        QColor color;
+        vector<UtilityEnsembleStats::Hour> hours;             // the mean position at each hour, while at least half the members are a cyclone
+    };
+    vector<EnsembleMean> ensembleMeans;
     Button buttonStats;
     Button buttonShips;
     Button buttonPod;

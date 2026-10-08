@@ -105,6 +105,8 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     , comboStorm{this, {"Loading the storm list..."}}
     , buttonRefresh{this, None, "Refresh"}
     , buttonZoom{this, None, "Zoom to the storm"}
+    , buttonCone{this, None, "Zoom to the cone"}
+    , comboLimit{this, {"Forecasts out to 24 h", "48 h", "72 h", "96 h", "120 h (the cone)", "168 h", "All of each forecast"}}
     , buttonStats{this, None, "Ensemble statistics..."}
     , buttonShips{this, None, "SHIPS and RI..."}
     , buttonPod{this, None, "Recon plan of the day..."}
@@ -167,23 +169,18 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     panel->setFixedWidth(panelWidth);
     auto * column = new QVBoxLayout{panel};
     column->setContentsMargins(4, 0, 0, 0);
+    auto * heading = new QLabel{"<b>Track guidance</b> (the newest run of each model)", panel};
+    heading->setWordWrap(true);
+    column->addWidget(heading);
+    guidanceTree = new GuidanceTree{panel};
+    guidanceTree->changed = [this] { view->map()->update(); };
+    column->addWidget(guidanceTree);
     infoLabel = new QLabel{panel};
     infoLabel->setWordWrap(true);
     infoLabel->setTextFormat(Qt::RichText);
     infoLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     infoLabel->setOpenExternalLinks(true);
     column->addWidget(infoLabel, 1);
-    auto * heading = new QLabel{"<b>Track guidance</b> (the newest run of each model)", panel};
-    heading->setWordWrap(true);
-    column->addWidget(heading);
-    for (const auto group : allGroups()) {
-        auto * check = new QCheckBox{QString::fromStdString(UtilityAtcf::groupName(group)), panel};
-        check->setIcon(swatch(groupColor(group).alpha() == 255 ? groupColor(group) : QColor{140, 165, 255}));
-        check->setChecked(group != Group::Other);
-        QObject::connect(check, &QCheckBox::toggled, [this] { view->map()->update(); });
-        column->addWidget(check);
-        groupChecks.emplace_back(group, check);
-    }
     wwCheck = new QCheckBox{"Watches and warnings", panel};
     wwCheck->setChecked(true);
     QObject::connect(wwCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
@@ -228,16 +225,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     fixCheck->setChecked(true);
     QObject::connect(fixCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
     column->addWidget(fixCheck);
-    static const char * ensembleNames[3] = {"AIFS ENS members (ECMWF AI)", "IFS ENS members (ECMWF)", "AIFS and IFS unperturbed runs"};
-    static const QColor ensembleSwatch[3] = {QColor{60, 220, 170}, QColor{255, 150, 60}, QColor{255, 255, 255}};
     column->addSpacing(4);
-    for (int i = 0; i < 3; i++) {
-        ensembleChecks[i] = new QCheckBox{ensembleNames[i], panel};
-        ensembleChecks[i]->setIcon(swatch(ensembleSwatch[i]));
-        ensembleChecks[i]->setChecked(i != 1);
-        QObject::connect(ensembleChecks[i], &QCheckBox::toggled, [this] { view->map()->update(); });
-        column->addWidget(ensembleChecks[i]);
-    }
     column->addWidget(buttonIntensity.getView());
     column->addWidget(buttonSeason.getView());
     column->addWidget(buttonText.getView());
@@ -282,6 +270,12 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     comboStorm.connect([this] { if (!filling) { loadStorm(); } });
     buttonRefresh.connect([this] { loadList(); });
     buttonZoom.connect([this] { zoomToStorm(); });
+    buttonCone.connect([this] { zoomToCone(); });
+    comboLimit.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("HURRICANE_LIMIT", 2), 0, 6)));
+    comboLimit.connect([this] {
+        Utility::writePrefInt("HURRICANE_LIMIT", comboLimit.getIndex());
+        view->map()->update();
+    });
     buttonSeason.connect([this] { openSeason(); });
     buttonOutlook.connect([this] {
         // the outlook of the basin on show: Atlantic, Eastern Pacific, Central Pacific
@@ -339,6 +333,8 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     rowTop.addWidget(comboStorm);
     rowTop.addWidget(buttonRefresh);
     rowTop.addWidget(buttonZoom);
+    rowTop.addWidget(buttonCone);
+    rowTop.addWidget(comboLimit);
     rowTop.addStretch();
     rowMain.addWidgetReal(map, 0, Qt::AlignTop | Qt::AlignLeft);
     auto * scroll = new QScrollArea{this};   // the panel is taller than a small screen
@@ -365,15 +361,6 @@ void HurricaneViewer::resizeEventCustom() {
     }
     const int above = rowTop.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height();
     view->fit(width() - 330 - 18 - 24, height() - above - 40);
-}
-
-bool HurricaneViewer::groupShown(Group group) const {
-    for (const auto& [g, check] : groupChecks) {
-        if (g == group) {
-            return check->isChecked();
-        }
-    }
-    return false;
 }
 
 string HurricaneViewer::basinCode() const {
@@ -452,7 +439,10 @@ void HurricaneViewer::loadStorm() {
                 return;
             }
             storm = data;
+            guidanceTree->setAvailable(storm->guidance);
+            updateLimitLabels();
             ensembles.reset();
+            ensembleMeans.clear();
             ships.reset();
             vdm.reset();
             drops.reset();
@@ -557,6 +547,26 @@ void HurricaneViewer::loadEnsembles() {
             }
             if (!ensembles->error.empty() && ensembles->sets.empty()) {
                 textStatus.setText(ensembles->error);
+            }
+            // the mean track of each ECMWF ensemble: the mean position at each hour, as far as half the members are still a cyclone
+            ensembleMeans.clear();
+            for (const auto& set : ensembles->sets) {
+                if (set.label != "AIFS ENS" && set.label != "IFS ENS") {
+                    continue;
+                }
+                EnsembleMean mean;
+                mean.label = set.label + " mean";
+                mean.id = set.label == "AIFS ENS" ? "means/aifs" : "means/ifs";
+                mean.color = set.label == "AIFS ENS" ? QColor{40, 255, 170} : QColor{255, 140, 30};
+                for (const auto& hour : UtilityEnsembleStats::compute(set.storm, 6)) {
+                    if (hour.alive * 2 < hour.total || hour.centerLat <= UtilityEnsembleStats::missing + 1.0) {
+                        break;
+                    }
+                    mean.hours.push_back(hour);
+                }
+                if (mean.hours.size() >= 2) {
+                    ensembleMeans.push_back(std::move(mean));
+                }
             }
             updateInfo();
             view->map()->update();
@@ -769,6 +779,75 @@ void HurricaneViewer::showStorm() {
     zoomToStorm();
 }
 
+int HurricaneViewer::limitHours() const {
+    static const int hours[] = {24, 48, 72, 96, 120, 168, 100000};
+    return hours[std::clamp(comboLimit.getIndex(), 0, 6)];
+}
+
+// the choices of the limit box say when each ends: "Forecasts out to 72 h - Sat 09 Oct 12Z"
+void HurricaneViewer::updateLimitLabels() {
+    if (!storm) {
+        return;
+    }
+    const string cycle = !storm->official.cycle.empty() ? storm->official.cycle : (storm->best.empty() ? string{} : storm->best.back().time);
+    if (cycle.size() != 10) {
+        return;
+    }
+    const auto start = QDateTime::fromString(QString::fromStdString(cycle), "yyyyMMddHH");
+    if (!start.isValid()) {
+        return;
+    }
+    static const int hours[] = {24, 48, 72, 96, 120, 168};
+    std::vector<string> labels;
+    for (const int hour : hours) {
+        const auto when = start.addSecs(hour * 3600LL);
+        labels.push_back(string{hour == 24 ? "Forecasts out to " : ""} + std::to_string(hour) + " h  (" + QLocale{QLocale::English}.toString(when, "ddd d MMM HH").toStdString() + "Z)" + (hour == 120 ? " - the cone" : ""));
+    }
+    labels.push_back("All of each forecast");
+    const auto keep = comboLimit.getIndex();
+    comboLimit.block();
+    comboLimit.setList(labels);
+    comboLimit.setIndex(static_cast<size_t>(keep));
+    comboLimit.unblock();
+}
+
+// the box around NHC's cone and the best track so far (the official forecast points when the cone is not there)
+void HurricaneViewer::zoomToCone() {
+    if (!storm) {
+        return;
+    }
+    double minLat = 90.0, maxLat = -90.0, minLon = 180.0, maxLon = -180.0;
+    const auto take = [&] (double lat, double lon) {
+        minLat = std::min(minLat, lat);
+        maxLat = std::max(maxLat, lat);
+        minLon = std::min(minLon, lon);
+        maxLon = std::max(maxLon, lon);
+    };
+    for (const auto& f : storm->best) take(f.lat, f.lon);
+    if (gis && gis->cone.ok) {
+        for (const auto& ring : gis->cone.polygons) {
+            for (const auto& [lon, lat] : ring) take(lat, lon);
+        }
+    } else {
+        for (const auto& f : storm->official.fixes) take(f.lat, f.lon);
+    }
+    if (minLat > maxLat) {
+        return;
+    }
+    const double padLat = std::max(1.5, (maxLat - minLat) * 0.08);
+    const double padLon = std::max(1.5, (maxLon - minLon) * 0.08);
+    minLat = std::max(-5.0, minLat - padLat);
+    maxLat = std::min(70.0, maxLat + padLat);
+    minLon -= padLon;
+    maxLon += padLon;
+    if (maxLon - minLon < 10.0) {
+        const double mid = (minLon + maxLon) / 2.0;
+        minLon = mid - 5.0;
+        maxLon = mid + 5.0;
+    }
+    view->showRegion(minLat, maxLat, minLon, maxLon);
+}
+
 // the box around the best track, the official forecast and the main models (not the whole ensemble, which strays far)
 void HurricaneViewer::zoomToStorm() {
     if (!storm) {
@@ -782,12 +861,14 @@ void HurricaneViewer::zoomToStorm() {
         maxLon = std::max(maxLon, f.lon);
     };
     for (const auto& f : storm->best) take(f);
-    for (const auto& f : storm->official.fixes) take(f);
+    for (const auto& f : storm->official.fixes) {
+        if (f.tau <= limitHours()) take(f);
+    }
     for (const auto& track : storm->guidance) {
         const auto group = UtilityAtcf::groupOf(track.tech);
         if (group == Group::Consensus || group == Group::Hurricane) {
             for (const auto& f : track.fixes) {
-                if (f.tau <= 120) take(f);
+                if (f.tau <= std::min(120, limitHours())) take(f);
             }
         }
     }
@@ -1037,20 +1118,25 @@ void HurricaneViewer::paintMap(QPainter& painter) {
     std::stable_sort(tracks.begin(), tracks.end(), [] (const auto& a, const auto& b) { return paintRank(UtilityAtcf::groupOf(a.tech)) < paintRank(UtilityAtcf::groupOf(b.tech)); });
     for (const auto& track : tracks) {
         const auto group = UtilityAtcf::groupOf(track.tech);
-        if (!groupShown(group)) {
+        if (!guidanceTree->shown(track.tech)) {
             continue;
         }
         const bool hovered = track.tech == hoverTech;
-        auto color = groupColor(group);
+        auto color = guidanceTree->colorOf(track.tech, groupColor(group));
         QPainterPath path;
-        for (size_t i = 0; i < track.fixes.size(); i++) {
+        size_t last = 0;
+        for (size_t i = 0; i < track.fixes.size() && track.fixes[i].tau <= limitHours(); i++) {
             const auto p = t(track.fixes[i].lat, track.fixes[i].lon);
             i == 0 ? path.moveTo(p) : path.lineTo(p);
+            last = i;
+        }
+        if (last == 0) {
+            continue;
         }
         const double width = hovered ? 3.2 : (group == Group::Ensemble ? 1.0 : group == Group::Consensus ? 2.2 : 1.5);
         painter.setPen(QPen{hovered ? QColor{255, 255, 255} : color, width * px});
         painter.drawPath(path);
-        const auto end = t(track.fixes.back().lat, track.fixes.back().lon);
+        const auto end = t(track.fixes[last].lat, track.fixes[last].lon);
         painter.setBrush(color);
         painter.drawEllipse(end, 1.8 * px * (hovered ? 2.0 : 1.0), 1.8 * px * (hovered ? 2.0 : 1.0));
         painter.setBrush(Qt::NoBrush);
@@ -1139,6 +1225,9 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             QPainterPath path;
             bool started = false;
             for (const auto& s : member.steps) {
+                if (s.hour > limitHours()) {
+                    break;
+                }
                 if (!UtilityEcmwfTracks::has(s.lat) || !UtilityEcmwfTracks::has(s.lon)) {
                     started = false;
                     continue;
@@ -1157,11 +1246,11 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             const int box = set.label == "AIFS ENS" ? 0 : set.label == "IFS ENS" ? 1 : 2;
             for (const auto& member : set.storm.members) {
                 if (member.type >= 2) {
-                    if (isEnsemble && ensembleChecks[box]->isChecked()) {
+                    if (isEnsemble && guidanceTree->isOn(box == 0 ? "members/aifs" : "members/ifs")) {
                         const auto color = box == 0 ? QColor{60, 220, 170, 85} : QColor{255, 150, 60, 85};
                         drawTrack(member, QPen{color, 1.1 * px});
                     }
-                } else if (ensembleChecks[2]->isChecked()) {
+                } else if (guidanceTree->isOn("global/openruns")) {
                     // the control and high-resolution runs of the ensembles, and the single AIFS / IFS runs
                     const bool aifs = set.label.rfind("AIFS", 0) == 0;
                     const auto color = aifs ? QColor{40, 255, 170} : QColor{255, 110, 40};
@@ -1171,14 +1260,38 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             }
         }
     }
+    // the ensemble means (computed from the open-data members): a heavy line with a dot every day
+    for (const auto& mean : ensembleMeans) {
+        if (!guidanceTree->isOn(mean.id)) {
+            continue;
+        }
+        QPainterPath path;
+        for (size_t i = 0; i < mean.hours.size() && mean.hours[i].hour <= limitHours(); i++) {
+            const auto p = t(mean.hours[i].centerLat, mean.hours[i].centerLon);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen{QColor{0, 0, 0, 170}, 4.6 * px});
+        painter.drawPath(path);
+        painter.setPen(QPen{mean.color, 2.6 * px, mean.label.rfind("AIFS", 0) == 0 ? Qt::DashLine : Qt::SolidLine});
+        painter.drawPath(path);
+        painter.setPen(QPen{QColor{0, 0, 0, 200}, 0.9 * px});
+        painter.setBrush(mean.color);
+        for (const auto& h : mean.hours) {
+            if (h.hour > 0 && h.hour % 24 == 0 && h.hour <= limitHours()) {
+                painter.drawEllipse(t(h.centerLat, h.centerLon), 3.4 * px, 3.4 * px);
+            }
+        }
+    }
     // the official forecast: a heavy line, the intensity colour at each point, a label each day
-    if (groupShown(Group::Official) && !storm->official.fixes.empty()) {
+    if (guidanceTree->officialShown() && !storm->official.fixes.empty()) {
         QPainterPath path;
         const auto& fixes = storm->official.fixes;
-        for (size_t i = 0; i < fixes.size(); i++) {
+        for (size_t i = 0; i < fixes.size() && fixes[i].tau <= limitHours(); i++) {
             const auto p = t(fixes[i].lat, fixes[i].lon);
             i == 0 ? path.moveTo(p) : path.lineTo(p);
         }
+        painter.setBrush(Qt::NoBrush);
         painter.setPen(QPen{QColor{0, 0, 0, 200}, 5.0 * px});
         painter.drawPath(path);
         painter.setPen(QPen{QColor{255, 255, 255}, 2.6 * px});
@@ -1187,6 +1300,9 @@ void HurricaneViewer::paintMap(QPainter& painter) {
         font.setPixelSize(static_cast<int>(11 * px));
         painter.setFont(font);
         for (const auto& f : fixes) {
+            if (f.tau > limitHours()) {
+                break;
+            }
             const auto p = t(f.lat, f.lon);
             painter.setPen(QPen{QColor{0, 0, 0, 220}, 1.0 * px});
             painter.setBrush(categoryColor(f.wind >= 0 ? UtilityAtcf::categoryOf(f.wind) : 0));
@@ -1234,7 +1350,7 @@ void HurricaneViewer::paintMap(QPainter& painter) {
         }
     }
     // the best track so far
-    if (!storm->best.empty()) {
+    if (guidanceTree->bestShown() && !storm->best.empty()) {
         QPainterPath path;
         for (size_t i = 0; i < storm->best.size(); i++) {
             const auto p = t(storm->best[i].lat, storm->best[i].lon);
@@ -1594,15 +1710,29 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
         consider(std::hypot(at.x() - pixels.x(), at.y() - pixels.y()), text, tech, pointReach);
     };
     for (const auto& track : storm->guidance) {
-        const auto group = UtilityAtcf::groupOf(track.tech);
-        if (!groupShown(group)) {
+        if (!guidanceTree->shown(track.tech)) {
             continue;
         }
         const auto found = storm->longNames.find(track.tech);
         const auto title = QString::fromStdString(track.tech + (found != storm->longNames.end() ? " - " + found->second : string{}));
         breakLine();
         for (const auto& f : track.fixes) {
+            if (f.tau > limitHours()) {
+                break;
+            }
             check(f.lat, f.lon, title + "\nrun " + QString::fromStdString(UtilityAtcf::formatTime(track.cycle)) + ", +" + QString::number(f.tau) + " h, " + knots(f.wind), track.tech);
+        }
+    }
+    for (const auto& mean : ensembleMeans) {
+        if (!guidanceTree->isOn(mean.id)) {
+            continue;
+        }
+        breakLine();
+        for (const auto& h : mean.hours) {
+            if (h.hour > limitHours()) {
+                break;
+            }
+            check(h.centerLat, h.centerLon, QString::fromStdString(mean.label) + "\n+" + QString::number(h.hour) + " h, " + QString::number(h.alive) + " of " + QString::number(h.total) + " members still a cyclone", mean.label);
         }
     }
     if (ensembles) {
@@ -1613,8 +1743,8 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
             const bool isEnsemble = set.label == "AIFS ENS" || set.label == "IFS ENS";
             const int box = set.label == "AIFS ENS" ? 0 : set.label == "IFS ENS" ? 1 : 2;
             for (const auto& member : set.storm.members) {
-                const bool shownMember = member.type >= 2 ? isEnsemble && ensembleChecks[box]->isChecked()
-                    : ensembleChecks[2]->isChecked();
+                const bool shownMember = member.type >= 2 ? isEnsemble && guidanceTree->isOn(box == 0 ? "members/aifs" : "members/ifs")
+                    : guidanceTree->isOn("global/openruns");
                 if (!shownMember) {
                     continue;
                 }
@@ -1634,9 +1764,12 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
             }
         }
     }
-    if (groupShown(Group::Official)) {
+    if (guidanceTree->officialShown()) {
         breakLine();
         for (const auto& f : storm->official.fixes) {
+            if (f.tau > limitHours()) {
+                break;
+            }
             check(f.lat, f.lon, "NHC official forecast\nrun " + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + ", +" + QString::number(f.tau) + " h, " + knots(f.wind) +
                 (f.pressure > 0 ? ", " + QString::number(f.pressure) + " mb" : QString{}), "");
         }
