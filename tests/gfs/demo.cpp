@@ -12,8 +12,14 @@
 int main(int argc, char ** argv) {
     qputenv("QT_QPA_PLATFORM", "offscreen");
     QGuiApplication app{argc, argv};
+    if (argc == 2 && std::string{argv[1]} == "--list") {   // every chart the registry draws: model, id, label
+        for (const auto& p : GfsChart::products()) {
+            std::printf("%s\t%s\t%s\n", p.source.c_str(), p.id.c_str(), p.label.c_str());
+        }
+        return 0;
+    }
     if (argc < 5) {
-        std::printf("usage: demo product sector hour out.png [GFS|NBM [cycle]]\n");
+        std::printf("usage: demo product sector hour out.png [GFS|NBM|AIGFS|GEFS [cycle]]   or   demo --list\n");
         return 2;
     }
     GfsData::Config config;
@@ -29,7 +35,7 @@ int main(int argc, char ** argv) {
         curl.waitForFinished(130000);
         return curl.readAllStandardOutput();
     };
-    GfsData data{config, argc > 5 && std::string{argv[5]} == "NBM" ? GfsData::nbm() : argc > 5 && std::string{argv[5]} == "AIGFS" ? GfsData::aigfs() : GfsData::gfs()};
+    GfsData data{config, argc > 5 && std::string{argv[5]} == "NBM" ? GfsData::nbm() : argc > 5 && std::string{argv[5]} == "AIGFS" ? GfsData::aigfs() : argc > 5 && std::string{argv[5]} == "GEFS" ? GfsData::gefs() : GfsData::gfs()};
     GfsData::Run run;
     if (!data.latestRun(run)) {
         std::printf("no run\n");

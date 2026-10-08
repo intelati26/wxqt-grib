@@ -52,6 +52,31 @@ GfsData::Source GfsData::aigfs() {
     return s;
 }
 
+// The Global Ensemble Forecast System's mean and spread of its 30 members (0.5 degree to 16 days, every 3 hours to 240 and then 6). Each statistic is its own file ("avg-a", "spr-a"; the "-s"
+// files are the 0.25 degree surface set, to hour 240, which holds what the 0.5 degree one does not: surface-based CAPE, gusts, dew point, helicity), in NOAA's open data bucket on AWS
+GfsData::Source GfsData::gefs() {
+    Source s;
+    s.id = "GEFS";
+    s.label = "NOAA/NCEP GEFS mean and spread, 0.5 degree";
+    s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
+        const bool spread = file.compare(0, 3, "spr") == 0, surface = file.size() > 1 && file.back() == 's';
+        const std::string kind = spread ? "gespr" : "geavg";
+        return "https://noaa-gefs-pds.s3.amazonaws.com/gefs." + run.date + "/" + run.cycle + "/atmos/" + (surface ? "pgrb2sp25/" : "pgrb2ap5/") + kind + ".t" + run.cycle + "z." + (surface ? "pgrb2s.0p25" : "pgrb2a.0p50") +
+            ".f" + pad(hour, 3);
+    };
+    s.fileOf = [] (const Want& want) {
+        const auto& v = want.variable;
+        const bool surfaceSet = v == "GUST" || v == "DPT" || v == "VIS" || v == "HLCY" || v == "MSLET" || (v == "CAPE" && want.level == "surface") || (v == "CIN" && want.level == "surface");
+        return std::string{want.stat == "spr" ? "spr" : "avg"} + (surfaceSet ? "-s" : "-a");
+    };
+    s.defaultDetail = "*";
+    s.probeFile = "avg-a";
+    s.cycleHours = 6;
+    s.lagHours = 6;
+    s.probeHour = 384;   // the files arrive over several hours: the run is there when its last one is
+    return s;
+}
+
 GfsData::Source GfsData::nbm() {
     Source s;
     s.id = "NBM";
@@ -97,7 +122,7 @@ bool GfsData::latestRun(Run& run) const {
 }
 
 bool GfsData::one(const Run& run, int hour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const {
-    const auto * record = GfsGrid::find(index, want.variable, want.level, want.forecast, want.detail);
+    const auto * record = GfsGrid::find(index, want.variable, want.level, want.forecast, want.detail.empty() ? source.defaultDetail : want.detail);
     if (!record) {
         error = source.id + " has no " + want.variable + " " + want.level + (want.forecast.empty() ? "" : " (" + want.forecast + ")") + " in this run";
         return false;

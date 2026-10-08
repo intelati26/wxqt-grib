@@ -35,6 +35,9 @@ public:
     static const vector<string> paramsGfs;
     static const vector<string> paramsAigfs;
     static const vector<string> labelsAigfs;
+    // the GEFS charts are whatever the chart registry has for it (the mean's charts, then the spread's), so these cannot fall out of step with it
+    static vector<string> paramsGefs();
+    static vector<string> labelsGefs();
     static const vector<string> labelsGfs;
     static const vector<string> paramsNam;
     static const vector<string> labelsNam;

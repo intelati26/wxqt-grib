@@ -80,6 +80,15 @@ int main() {
         CHECK(gfs.fileUrl(run, 24, "") == "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20261008/12/atmos/gfs.t12z.pgrb2.0p25.f024");
         CHECK(nbm.fileUrl(run, 6, "") == "https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.20261008/12/core/blend.t12z.core.f006.co.grib2");
         CHECK(gfs.cycleHours == 6 && gfs.probeHour == 0 && !gfs.warp.enabled && nbm.cycleHours == 1 && nbm.probeHour == 1 && nbm.warp.enabled);
+        {
+            const auto ge = GfsData::gefs();
+            const GfsData::Run r{"20261008", "12"};
+            CHECK(ge.fileUrl(r, 24, "avg-a") == "https://noaa-gefs-pds.s3.amazonaws.com/gefs.20261008/12/atmos/pgrb2ap5/geavg.t12z.pgrb2a.0p50.f024");
+            CHECK(ge.fileUrl(r, 24, "spr-s") == "https://noaa-gefs-pds.s3.amazonaws.com/gefs.20261008/12/atmos/pgrb2sp25/gespr.t12z.pgrb2s.0p25.f024");
+            CHECK(ge.fileOf({"s", "TMP", "500 mb", "", "", "spr"}) == "spr-a");
+            CHECK(ge.fileOf({"c", "CAPE", "surface", "", "", ""}) == "avg-s");
+            CHECK(!GfsGrid::find(GfsGrid::parseIdx("1:0:d=2026100812:HGT:500 mb:72 hour fcst:ens mean\n"), "HGT", "500 mb", "", "*") == false);
+        }
         const auto ai = GfsData::aigfs();
         CHECK(ai.fileUrl(run, 24, "pres") == "https://noaa-nws-graphcastgfs-pds.s3.amazonaws.com/aigfs.20261008/12/model/atmos/grib2/aigfs.t12z.pres.f024.grib2");
         CHECK(ai.fileUrl(run, 6, "sfc").find("aigfs.t12z.sfc.f006.grib2") != std::string::npos);

@@ -13,6 +13,7 @@
 #include <QPainterPath>
 #include <QPolygonF>
 #include <QStringList>
+#include <set>
 #include <tuple>
 #include "gfs/GfsClimate.h"
 #include "ui/WindBarb.h"
@@ -125,6 +126,9 @@ namespace {
 
     Ramp cloudCover() {   // percent: clear sky pale, overcast a dark grey-blue
         return {{{0, QColor{"#eef6fb"}}, {20, QColor{"#cfe3f1"}}, {40, QColor{"#a9c3d8"}}, {60, QColor{"#8da1b4"}}, {80, QColor{"#6e7d8c"}}, {100, QColor{"#4c5560"}}}};
+    }
+    Ramp spreadRamp(double top) {   // the spread of an ensemble, from none (white) up through yellow and orange to a deep purple at `top`
+        return {{{0.0, {255, 255, 255}}, {top * 0.1, {255, 247, 188}}, {top * 0.3, {254, 196, 79}}, {top * 0.5, {244, 109, 67}}, {top * 0.75, {200, 30, 80}}, {top, {90, 20, 120}}}};
     }
     Ramp probability() {   // percent: nothing under 5, then pale green to deep magenta
         return {{{0, QColor{229, 242, 217, 0}}, {5, QColor{229, 242, 217, 0}}, {10, QColor{"#e5f2d9"}}, {20, QColor{"#c4e3a4"}}, {30, QColor{"#93d17f"}}, {40, QColor{"#5cbf8a"}}, {50, QColor{"#31a8a8"}},
@@ -1019,10 +1023,10 @@ const std::vector<Product>& products() {
             }
             return out;
         };
-        const auto adapt = [relativeHumidity] (const Product& gfs) {
+        const auto adapt = [relativeHumidity] (const Product& gfs, const char * model, bool specific) {
             Product x = gfs;
-            x.source = "AIGFS";
-            x.needs = [gfs] (int hour) {
+            x.source = model;
+            x.needs = [gfs, specific] (int hour) {
                 std::vector<GfsData::Need> out;
                 int end = -1, start = 0;
                 for (auto need : GfsChart::needs(gfs, hour)) {
@@ -1030,7 +1034,7 @@ const std::vector<Product>& products() {
                         (need.want.key == "a0" ? start : end) = need.hour;
                         continue;
                     }
-                    if (need.want.variable == "RH") {     // the temperature and the specific humidity of that level, the level kept in the keys
+                    if (specific && need.want.variable == "RH") {     // the temperature and the specific humidity of that level, the level kept in the keys
                         const auto key = need.want.key + "|" + need.want.level;
                         auto t = need, q = need;
                         t.want.variable = "TMP";
@@ -1107,8 +1111,102 @@ const std::vector<Product>& products() {
                 }
             }
             if (original != nullptr) {
-                auto x = adapt(*original);
+                auto x = adapt(*original, "AIGFS", true);
                 p.push_back(std::move(x));
+            }
+        }
+
+        // ---- GEFS: the ensemble mean drawn like the GFS (every chart whose fields the mean files hold: they have relative humidity, and precipitation in 6 hour pieces like the AI model),
+        // and the spread (the standard deviation of the 30 members) of the fields that matter, filled under the mean's lines
+        {
+            const std::set<std::string> have{"HGT", "TMP", "RH", "UGRD", "VGRD", "VVEL", "PRMSL", "PWAT", "CAPE", "CIN", "APCP", "CRAIN", "CSNOW", "CFRZR", "CICEP", "TCDC", "DPT", "GUST", "SNOD", "WEASD",
+                                             "TMAX", "TMIN", "HLCY"};
+            const std::set<std::string> levels{"10 mb", "50 mb", "100 mb", "200 mb", "250 mb", "300 mb", "400 mb", "500 mb", "700 mb", "850 mb", "925 mb", "1000 mb"};
+            const auto size = p.size();
+            for (size_t i = 0; i < size; i++) {
+                if (p[i].source != "GFS") {
+                    continue;
+                }
+                bool fits = true;
+                for (const auto& need : GfsChart::needs(p[i], 24)) {
+                    const auto& w = need.want;
+                    const bool pressureLevel = w.level.size() > 3 && w.level.compare(w.level.size() - 3, 3, " mb") == 0;
+                    if (!have.count(w.variable) || (pressureLevel && !levels.count(w.level))) {
+                        fits = false;
+                    }
+                }
+                if (fits) {
+                    auto x = adapt(p[i], "GEFS", false);
+                    x.label = "Mean " + x.label;
+                    p.push_back(std::move(x));
+                }
+            }
+            const auto spr = [] (const char * key, const char * variable, const char * level) { return GfsData::Want{key, variable, level, "", "", "spr"}; };
+            const auto meanHeights = [&heights] (double interval) { auto c = heights(interval); c.title = "Mean height (dam)"; return c; };
+            const auto spread = [&] (const char * id, const char * label, std::vector<GfsData::Want> wants, std::function<GfsGrid::Grid(const Grids&)> fill, const char * title, double top, double step) {
+                Product x;
+                x.source = "GEFS";
+                x.id = id;
+                x.label = label;
+                x.wants = std::move(wants);
+                x.fill = std::move(fill);
+                x.ramp = spreadRamp(top);
+                x.fillTitle = title;
+                x.legendStep = step;
+                return x;
+            };
+            for (const auto& [level, top, interval] : {std::tuple{"250 mb", 120.0, 12.0}, {"500 mb", 60.0, 6.0}, {"700 mb", 40.0, 3.0}, {"850 mb", 30.0, 3.0}}) {
+                const std::string n = std::string{level}.substr(0, std::string{level}.size() - 3);
+                auto z = spread(("spread_" + n + "_ht").c_str(), (n + "mb Height Spread and Mean Height").c_str(), {spr("s", "HGT", level), want("z", "HGT", level)},
+                                [] (const Grids& g) { return pick(g, "s"); }, ("Spread of the " + n + " mb height (m)").c_str(), top, top / 6);
+                z.contours = {meanHeights(interval)};
+                p.push_back(z);
+                auto w = spread(("spread_" + n + "_wnd").c_str(), (n + "mb Wind Spread, Mean Wind and Height").c_str(),
+                                {spr("su", "UGRD", level), spr("sv", "VGRD", level), want("u", "UGRD", level), want("v", "VGRD", level), want("z", "HGT", level)},
+                                speedOf("su", "sv"), ("Spread of the " + n + " mb wind (kt)").c_str(), n == "250" ? 30.0 : 20.0, 5);
+                w.contours = {meanHeights(interval)};
+                w.barbU = "u";
+                w.barbV = "v";
+                p.push_back(w);
+                if (n != "250") {
+                    auto t = spread(("spread_" + n + "_temp").c_str(), (n + "mb Temperature Spread and Mean Height").c_str(), {spr("s", "TMP", level), want("z", "HGT", level)},
+                                    [] (const Grids& g) { return pick(g, "s"); }, ("Spread of the " + n + " mb temperature (C)").c_str(), 5.0, 1);
+                    t.contours = {meanHeights(interval)};
+                    p.push_back(t);
+                }
+            }
+            {
+                auto x = spread("spread_mslp", "Sea Level Pressure Spread and Mean", {spr("s", "PRMSL", "mean sea level"), want("p", "PRMSL", "mean sea level")},
+                                [] (const Grids& g) { return GfsGrid::scaled(pick(g, "s"), 0.01); }, "Spread of the sea level pressure (mb)", 6.0, 1);
+                x.contours = {pressure()};
+                p.push_back(x);
+            }
+            {
+                auto x = spread("spread_2m_temp", "2m Temperature Spread, Mean Pressure and Wind", {spr("s", "TMP", "2 m above ground"), want("p", "PRMSL", "mean sea level"), want("u", "UGRD", "10 m above ground"),
+                                want("v", "VGRD", "10 m above ground")}, [] (const Grids& g) { return pick(g, "s"); }, "Spread of the 2 m temperature (C)", 6.0, 1);
+                x.contours = {pressure()};
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+            {
+                auto x = spread("spread_10m_wnd", "10m Wind Spread and Mean Wind", {spr("su", "UGRD", "10 m above ground"), spr("sv", "VGRD", "10 m above ground"), want("u", "UGRD", "10 m above ground"),
+                                want("v", "VGRD", "10 m above ground"), want("p", "PRMSL", "mean sea level")}, speedOf("su", "sv"), "Spread of the 10 m wind (kt)", 10.0, 2);
+                x.contours = {pressure()};
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+            {
+                auto x = spread("spread_pwat", "Precipitable Water Spread", {spr("s", "PWAT", "entire atmosphere (considered as a single layer)"), want("p", "PRMSL", "mean sea level")},
+                                [] (const Grids& g) { return pick(g, "s"); }, "Spread of the precipitable water (mm)", 12.0, 2);
+                x.contours = {pressure()};
+                p.push_back(x);
+            }
+            {
+                auto x = spread("spread_cape", "Surface-Based CAPE Spread", {spr("s", "CAPE", "surface"), want("c", "CAPE", "surface")}, [] (const Grids& g) { return pick(g, "s"); },
+                                "Spread of the CAPE (J/kg)", 1500.0, 250);
+                p.push_back(x);
             }
         }
         return p;
@@ -1126,7 +1224,7 @@ const Product * product(const std::string& id, const std::string& source) {
 }
 
 std::string sourceLabel(const std::string& source) {
-    return source == "NBM" ? "NOAA/NWS National Blend of Models v4, 2.5 km" : source == "AIGFS" ? "NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)" : "NOAA/NCEP GFS 0.25 degree";
+    return source == "NBM" ? "NOAA/NWS National Blend of Models v4, 2.5 km" : source == "AIGFS" ? "NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)" : source == "GEFS" ? "NOAA/NCEP GEFS 30 member ensemble, 0.5 degree" : "NOAA/NCEP GFS 0.25 degree";
 }
 
 std::vector<std::string> sectorIds(const std::string& source) {
@@ -1181,7 +1279,7 @@ namespace {
                 o.id = "mslp";
                 o.label = "Sea level pressure";
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS"};
+                o.sources = {"GFS", "AIGFS", "GEFS"};
                 o.needs = [=] (int hour) { return std::vector<GfsData::Need>{record("p", "PRMSL", "mean sea level")(hour)}; };
                 o.contour.key = "p";
                 o.contour.scale = 0.01;
@@ -1196,7 +1294,7 @@ namespace {
                 o.id = id;
                 o.label = label;
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS"};
+                o.sources = {"GFS", "AIGFS", "GEFS"};
                 o.needs = [=] (int hour) { return std::vector<GfsData::Need>{record("zl", "HGT", from)(hour), record("zh", "HGT", to)(hour)}; };
                 o.derive = [] (Grids& g, const Context&) { g["thick"] = GfsGrid::difference(g["zh"], g["zl"]); };
                 o.contour.key = "thick";
@@ -1215,7 +1313,7 @@ namespace {
                 o.id = std::string{"z"} + level;
                 o.label = std::string{level} + "mb height";
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS"};
+                o.sources = {"GFS", "AIGFS", "GEFS"};
                 const std::string levelText = std::string{level} + " mb";
                 o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"z", "HGT", levelText, "", ""}}}; };
                 o.contour.key = "z";
@@ -1230,7 +1328,7 @@ namespace {
                 o.id = "t850";
                 o.label = "850mb temperature";
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS"};
+                o.sources = {"GFS", "AIGFS", "GEFS"};
                 o.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", "850 mb", "", ""}}}; };
                 o.contour.key = "t";
                 o.contour.interval = 5;
@@ -1249,7 +1347,7 @@ namespace {
                 o.id = id;
                 o.label = label;
                 o.group = "Wind barbs";
-                o.sources = {"GFS", "AIGFS"};
+                o.sources = {"GFS", "AIGFS", "GEFS"};
                 o.barbs = true;
                 const std::string levelText = level;
                 o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"u", "UGRD", levelText, "", ""}}, {hour, {"v", "VGRD", levelText, "", ""}}}; };

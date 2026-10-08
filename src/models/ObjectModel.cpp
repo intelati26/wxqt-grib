@@ -194,6 +194,13 @@ void ObjectModel::setModelVars(const string& modelName) {
         times.clear();
         loadTimeList3(0, 384, 6);       // every 6 hours to 16 days
         setupListRunZ();
+    } else if (modelToken == "NCEP:GEFS") {
+        params = UtilityModelNcepInterface::paramsGefs();
+        paramLabels = UtilityModelNcepInterface::labelsGefs();
+        sectors = UtilityModelNcepInterface::sectorsGfs;
+        times.clear();
+        loadTimeList3(0, 384, 6);       // the 6 hour pieces of precipitation are why it is every 6 hours
+        setupListRunZ();
     } else if (modelToken == "NCEP:HRRR") {
         params = UtilityModelNcepInterface::paramsHrrr;
         paramLabels = UtilityModelNcepInterface::labelsHrrr;

@@ -37,6 +37,7 @@ public:
         std::string level;         // "500 mb"
         std::string forecast;      // "" for any, or "0-6 hour acc fcst"
         std::string detail;        // "" for the plain field; the blend's "prob >0.254", "50% level" ask for those records instead
+        std::string stat;          // an ensemble's statistic: "" the mean, "spr" the spread (GEFS)
     };
     // One model's files. A grid that is not latitude / longitude (the blend's Lambert grid) is warped to one of `step` degrees over the box.
     struct Source {
@@ -44,6 +45,7 @@ public:
         std::string label;                                               // "NOAA/NCEP GFS 0.25 degree", for under a chart
         std::function<std::string(const Run&, int forecastHour, const std::string& file)> fileUrl;   // the GRIB2 file; its index is that + ".idx". `file` is "" unless fileOf says
         std::function<std::string(const Want&)> fileOf;                  // which of a run's files holds a record (AIGFS: pressure levels in one, the surface in another); empty: one file
+        std::string defaultDetail;                                       // what to ask of the index when a want has none ("*": any; an ensemble labels each record "ens mean" or "ens std dev")
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often
         int lagHours{3};                                                 // and a run is looked for from this long after its time
@@ -58,6 +60,7 @@ public:
     static Source gfs();
     static Source nbm();
     static Source aigfs();
+    static Source gefs();
 
     // a field at a forecast hour (a precipitation period needs the running total at two hours)
     struct Need {

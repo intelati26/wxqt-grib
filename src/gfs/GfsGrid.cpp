@@ -76,7 +76,7 @@ static bool matches(const std::string& have, const std::string& want) {
 
 const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast, const std::string& detail) {
     for (const auto& r : records) {
-        if (r.variable == variable && r.level == level && matches(r.forecast, forecast) && r.detail == detail) {
+        if (r.variable == variable && r.level == level && matches(r.forecast, forecast) && (detail == "*" || r.detail == detail)) {
             return &r;
         }
     }

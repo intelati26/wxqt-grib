@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "UtilityModelNcepInterface.h"
+#include "gfs/GfsChart.h"
 
 const vector<string> UtilityModelNcepInterface::models{
     "ESTOFS",
@@ -13,6 +14,7 @@ const vector<string> UtilityModelNcepInterface::models{
     "GEFS-SPAG",
     "GFS",
     "AIGFS",
+    "GEFS",
     "HREF",
     "HRRR",
     "HRW-ARW",
@@ -1197,3 +1199,23 @@ const vector<string> UtilityModelNcepInterface::modelHrwFv3Labels{
 
 // grep title /tmp/a | egrep -o ">.*</a>" | sed "s/>/\"/" | sed "s/<\/a>/\"\,/"
 // grep title /tmp/a | egrep -o "title=.*\"" | sed "s/title=//" | sed "s/$/\"\,/"| awk -F""" "{print $2}" | sed "s/$/\"\,/" | sed "s/^/\"/"
+
+vector<string> UtilityModelNcepInterface::paramsGefs() {
+    vector<string> out;
+    for (const auto& p : GfsChart::products()) {
+        if (p.source == "GEFS") {
+            out.push_back(p.id);
+        }
+    }
+    return out;
+}
+
+vector<string> UtilityModelNcepInterface::labelsGefs() {
+    vector<string> out;
+    for (const auto& p : GfsChart::products()) {
+        if (p.source == "GEFS") {
+            out.push_back(p.label);
+        }
+    }
+    return out;
+}
