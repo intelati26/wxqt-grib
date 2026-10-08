@@ -40,6 +40,7 @@ private:
     void reload();
     int drawing{0};
     std::shared_ptr<GfsRender::Session> gfsSession;
+    std::vector<std::string> overlays;   // the lines and barbs ticked onto the chart
     void getRun();
     void getRunStatus();
     void updateRunStatus();

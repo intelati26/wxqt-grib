@@ -85,6 +85,17 @@ namespace GfsChart {
     };
     const std::vector<Product>& products();
     const Product * product(const std::string& id, const std::string& source = "GFS");
+    // What can be ticked onto a chart as well: lines (the sea level pressure, the thickness, the heights of a level, the 850 mb temperature) and one set of wind barbs. Each is its own
+    // records, so any base chart can have them: "this and that". group is "Lines" or "Wind barbs".
+    struct OverlayChoice {
+        std::string id;
+        std::string label;
+        std::string group;
+    };
+    std::vector<OverlayChoice> overlayChoices(const std::string& source);
+    // the base chart with the ticked overlays added (the barbs of the last one ticked replace the base's); the base itself when none applies
+    Product compose(const Product& base, const std::vector<std::string>& overlayIds);
+
     // the names for under a chart, and the sectors a model can show (the blend covers only the contiguous United States)
     std::string sourceLabel(const std::string& source);
     std::vector<std::string> sectorIds(const std::string& source);

@@ -120,9 +120,11 @@ bool GfsRender::latestCycle(const std::string& model, std::string& cycle) {
     return true;
 }
 
-QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, std::string& error) {
-    const auto * product = GfsChart::product(param, model);
+QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error) {
+    const auto * base = GfsChart::product(param, model);
     const auto * sector = GfsChart::sector(sectorId);
+    const auto composed = base ? GfsChart::compose(*base, overlays) : GfsChart::Product{};   // the chart with what was ticked onto it
+    const auto * product = base ? &composed : nullptr;
     if (!product || !sector) {
         error = "no " + model + " chart for " + param + " " + sectorId;
         return {};

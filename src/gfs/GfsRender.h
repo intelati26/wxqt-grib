@@ -7,6 +7,7 @@
 #define GFSRENDER_H
 
 #include <string>
+#include <vector>
 #include <QByteArray>
 #include <QString>
 
@@ -30,7 +31,7 @@ namespace GfsRender {
     bool handles(const std::string& model, const std::string& param);
     // The chart as PNG bytes; empty with the reason in error. cycle is the model screen's run ("12Z", or ""/"latest"); hour is the forecast hour.
     // model is "GFS" or "NBM"
-    QByteArray png(Session& session, const std::string& model, const std::string& param, const std::string& sector, const std::string& cycle, int hour, std::string& error);
+    QByteArray png(Session& session, const std::string& model, const std::string& param, const std::string& sector, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error);
     // the newest published run of the model as the screen writes a run ("12Z"); false when none is found (no connection)
     bool latestCycle(const std::string& model, std::string& cycle);
 }

@@ -1,6 +1,8 @@
 // Manual tool: downloads a GFS run and writes the chart as a PNG.   demo <product> <sector> <hour> <out.png>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <sstream>
 #include <QFile>
 #include <QGuiApplication>
 #include <QProcess>
@@ -36,7 +38,14 @@ int main(int argc, char ** argv) {
     if (argc > 6) {   // a cycle to use instead of the newest ("18")
         run.cycle = argv[6];
     }
-    const auto * product = GfsChart::product(argv[1], argc > 5 ? argv[5] : "GFS");
+    const auto * baseProduct = GfsChart::product(argv[1], argc > 5 ? argv[5] : "GFS");
+    std::vector<std::string> overlayIds;   // DEMO_OVERLAYS=mslp,barbs_500
+    if (const char * env = std::getenv("DEMO_OVERLAYS")) {
+        std::stringstream in{env};
+        for (std::string id; std::getline(in, id, ',');) overlayIds.push_back(id);
+    }
+    const auto composed = baseProduct ? GfsChart::compose(*baseProduct, overlayIds) : GfsChart::Product{};
+    const auto * product = baseProduct ? &composed : nullptr;
     const auto * sector = GfsChart::sector(argv[2]);
     if (!product || !sector) {
         std::printf("unknown product or sector\n");

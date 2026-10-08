@@ -1045,6 +1045,235 @@ std::vector<GfsData::Need> needs(const Product& product, int hour) {
     return list;
 }
 
+
+// ---- ticked onto a chart: lines and barbs
+namespace {
+    struct Overlay {
+        std::string id;
+        std::string label;
+        std::string group;
+        std::vector<std::string> sources;
+        std::function<std::vector<GfsData::Need>(int hour)> needs;      // keys are the overlay's own; compose() prefixes them
+        std::function<void(Grids&, const Context&)> derive;             // on the overlay's own keys
+        bool barbs{false};
+        ContourSet contour;
+        std::string barbU, barbV;
+    };
+
+    std::string overlayPrefix(const Overlay& o) {
+        return "o_" + o.id + "_";
+    }
+
+    const std::vector<Overlay>& overlayCatalog() {
+        static const std::vector<Overlay> all = [] {
+            std::vector<Overlay> list;
+            const auto record = [] (const char * key, const char * variable, const char * level) {
+                return [=] (int hour) { return GfsData::Need{hour, {key, variable, level, "", ""}}; };
+            };
+            {   // sea level pressure
+                Overlay o;
+                o.id = "mslp";
+                o.label = "Sea level pressure";
+                o.group = "Lines";
+                o.sources = {"GFS"};
+                o.needs = [=] (int hour) { return std::vector<GfsData::Need>{record("p", "PRMSL", "mean sea level")(hour)}; };
+                o.contour.key = "p";
+                o.contour.scale = 0.01;
+                o.contour.interval = 4;
+                o.contour.title = "Sea level pressure (mb)";
+                o.contour.highsAndLows = true;
+                list.push_back(o);
+            }
+            for (const auto& [id, label, from, to, interval, edge] : {std::tuple{"thick_1000_500", "1000-500mb thickness", "1000 mb", "500 mb", 6.0, 540.0}, {"thick_1000_850", "1000-850mb thickness", "1000 mb", "850 mb", 3.0, 130.0},
+                                                                         {"thick_850_700", "850-700mb thickness", "850 mb", "700 mb", 3.0, 154.0}}) {
+                Overlay o;
+                o.id = id;
+                o.label = label;
+                o.group = "Lines";
+                o.sources = {"GFS"};
+                o.needs = [=] (int hour) { return std::vector<GfsData::Need>{record("zl", "HGT", from)(hour), record("zh", "HGT", to)(hour)}; };
+                o.derive = [] (Grids& g, const Context&) { g["thick"] = GfsGrid::difference(g["zh"], g["zl"]); };
+                o.contour.key = "thick";
+                o.contour.scale = 0.1;
+                o.contour.interval = interval;
+                o.contour.title = std::string{label} + " (dam)";
+                o.contour.color = QColor{190, 50, 40};
+                o.contour.colorBelow = QColor{40, 90, 190};
+                o.contour.split = edge;
+                o.contour.dashed = true;
+                o.contour.width = 1.3;
+                list.push_back(o);
+            }
+            for (const auto& [level, interval] : {std::pair{"200", 12.0}, {"250", 12.0}, {"300", 12.0}, {"500", 6.0}, {"700", 3.0}, {"850", 3.0}}) {
+                Overlay o;
+                o.id = std::string{"z"} + level;
+                o.label = std::string{level} + "mb height";
+                o.group = "Lines";
+                o.sources = {"GFS"};
+                const std::string levelText = std::string{level} + " mb";
+                o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"z", "HGT", levelText, "", ""}}}; };
+                o.contour.key = "z";
+                o.contour.scale = 0.1;
+                o.contour.interval = interval;
+                o.contour.title = std::string{level} + "mb height (dam)";
+                o.contour.color = QColor{70, 70, 70};
+                list.push_back(o);
+            }
+            {   // the 850 mb temperature, blue under freezing and red over it
+                Overlay o;
+                o.id = "t850";
+                o.label = "850mb temperature";
+                o.group = "Lines";
+                o.sources = {"GFS"};
+                o.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", "850 mb", "", ""}}}; };
+                o.contour.key = "t";
+                o.contour.interval = 5;
+                o.contour.title = "850mb temperature (C)";
+                o.contour.color = QColor{190, 50, 40};
+                o.contour.colorBelow = QColor{40, 90, 190};
+                o.contour.split = 0.0;
+                o.contour.dashed = true;
+                o.contour.width = 1.3;
+                list.push_back(o);
+            }
+            // wind barbs: the 10 m wind, and the wind of the main levels
+            for (const auto& [id, label, level] : {std::tuple{"barbs_10m", "10 m wind", "10 m above ground"}, {"barbs_850", "850mb wind", "850 mb"}, {"barbs_700", "700mb wind", "700 mb"},
+                                                    {"barbs_500", "500mb wind", "500 mb"}, {"barbs_300", "300mb wind", "300 mb"}, {"barbs_250", "250mb wind", "250 mb"}, {"barbs_200", "200mb wind", "200 mb"}}) {
+                Overlay o;
+                o.id = id;
+                o.label = label;
+                o.group = "Wind barbs";
+                o.sources = {"GFS"};
+                o.barbs = true;
+                const std::string levelText = level;
+                o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"u", "UGRD", levelText, "", ""}}, {hour, {"v", "VGRD", levelText, "", ""}}}; };
+                o.barbU = "u";
+                o.barbV = "v";
+                list.push_back(o);
+            }
+            {   // the blend gives the 10 m wind as a speed and a direction
+                Overlay o;
+                o.id = "barbs_10m";
+                o.label = "10 m wind";
+                o.group = "Wind barbs";
+                o.sources = {"NBM"};
+                o.barbs = true;
+                o.needs = [] (int hour) {
+                    const auto when = std::to_string(hour) + " hour fcst";
+                    return std::vector<GfsData::Need>{{hour, {"ws", "WIND", "10 m above ground", when, ""}}, {hour, {"wd", "WDIR", "10 m above ground", when, ""}}};
+                };
+                o.derive = [] (Grids& g, const Context&) {
+                    auto u = g["ws"], v = g["ws"];
+                    for (size_t i = 0; i < u.values.size(); i++) {
+                        const double speedNow = g["ws"].values[i], from = g["wd"].values[i] * pi / 180.0;
+                        u.values[i] = static_cast<float>(-speedNow * std::sin(from));
+                        v.values[i] = static_cast<float>(-speedNow * std::cos(from));
+                    }
+                    g["u"] = std::move(u);
+                    g["v"] = std::move(v);
+                };
+                o.barbU = "u";
+                o.barbV = "v";
+                list.push_back(o);
+            }
+            return list;
+        }();
+        return all;
+    }
+
+    const Overlay * overlayNamed(const std::string& id, const std::string& source) {
+        for (const auto& o : overlayCatalog()) {
+            if (o.id == id && std::find(o.sources.begin(), o.sources.end(), source) != o.sources.end()) {
+                return &o;
+            }
+        }
+        return nullptr;
+    }
+}
+
+std::vector<OverlayChoice> overlayChoices(const std::string& source) {
+    std::vector<OverlayChoice> out;
+    for (const auto& o : overlayCatalog()) {
+        if (std::find(o.sources.begin(), o.sources.end(), source) != o.sources.end()) {
+            out.push_back({o.id, o.label, o.group});
+        }
+    }
+    return out;
+}
+
+Product compose(const Product& base, const std::vector<std::string>& ids) {
+    std::vector<const Overlay *> used;
+    for (const auto& id : ids) {
+        const auto * o = overlayNamed(id, base.source);
+        if (o == nullptr || std::find(used.begin(), used.end(), o) != used.end()) {
+            continue;
+        }
+        // a line the base chart already draws is not drawn twice
+        const bool already = !o->barbs && std::any_of(base.contours.begin(), base.contours.end(), [o] (const ContourSet& c) { return c.title == o->contour.title; });
+        if (!already) {
+            used.push_back(o);
+        }
+    }
+    if (used.empty()) {
+        return base;
+    }
+    Product p = base;
+    const auto add = [used] (std::vector<GfsData::Need> needs, int hour) {
+        for (const auto * o : used) {
+            for (auto need : o->needs(hour)) {
+                need.want.key = overlayPrefix(*o) + need.want.key;
+                needs.push_back(std::move(need));
+            }
+        }
+        return needs;
+    };
+    p.needs = [base, add] (int hour) { return add(GfsChart::needs(base, hour), hour); };
+    if (base.fallbackNeeds) {
+        p.fallbackNeeds = [base, add] (int hour) {
+            auto needs = base.fallbackNeeds(hour);
+            return needs.empty() ? needs : add(std::move(needs), hour);
+        };
+    }
+    p.derive = [base, used] (Grids& g, const Context& context) {
+        if (base.derive) {
+            base.derive(g, context);
+        }
+        for (const auto * o : used) {
+            if (!o->derive) {
+                continue;
+            }
+            const auto prefix = overlayPrefix(*o);
+            Grids own;   // the overlay's keys without the prefix, so its derivation is written as if it were alone
+            for (const auto& [key, grid] : g) {
+                if (key.compare(0, prefix.size(), prefix) == 0) {
+                    own[key.substr(prefix.size())] = grid;
+                }
+            }
+            o->derive(own, context);
+            for (auto& [key, grid] : own) {
+                g[prefix + key] = std::move(grid);
+            }
+        }
+    };
+    std::string idText = base.id, labelText = base.label;
+    for (const auto * o : used) {
+        const auto prefix = overlayPrefix(*o);
+        idText += "+" + o->id;
+        labelText += (o == used.front() ? ", with " : ", ") + o->label;
+        if (o->barbs) {
+            p.barbU = prefix + o->barbU;
+            p.barbV = prefix + o->barbV;
+        } else {
+            auto set = o->contour;
+            set.key = prefix + set.key;
+            p.contours.push_back(std::move(set));
+        }
+    }
+    p.id = idText;
+    p.label = labelText;
+    return p;
+}
+
 std::vector<GfsData::Need> fallbackNeeds(const Product& product, int hour) {
     return product.fallbackNeeds ? product.fallbackNeeds(hour) : std::vector<GfsData::Need>{};
 }
