@@ -3,11 +3,14 @@
 
 Source: Natural Earth 1:50m coastline and land boundary lines (public domain, naturalearthdata.com), clipped to the basin and
 simplified. File layout: little-endian float32 pairs (longitude, latitude); a pair of NaN ends each line.
-Usage: createBasinCoast.py ne_50m_coastline.geojson ne_50m_admin_0_boundary_lines_land.geojson [tolerance-degrees]
+Usage: createBasinCoast.py ne_50m_coastline.geojson ne_50m_admin_0_boundary_lines_land.geojson [tolerance-degrees] [--world]
+With --world the whole world is kept and the file is res/world_coast.bin (the master map and the global GFS charts); without it the basin box and res/nhc_basins.bin.
 """
 import json, math, struct, sys
 
-WEST, EAST, SOUTH, NORTH = -180.0, 25.0, -8.0, 65.0
+WORLD = "--world" in sys.argv
+args = [a for a in sys.argv[1:] if a != "--world"]
+WEST, EAST, SOUTH, NORTH = (-180.0, 180.0, -90.0, 90.0) if WORLD else (-180.0, 25.0, -8.0, 65.0)
 
 def simplify(points, tol):
     if len(points) < 3:
@@ -52,10 +55,10 @@ def clipped(points):
         yield run
 
 def main():
-    tolerance = float(sys.argv[3]) if len(sys.argv) > 3 else 0.04
+    tolerance = float(args[2]) if len(args) > 2 else (0.06 if WORLD else 0.04)
     out = bytearray()
     count = 0
-    for path in sys.argv[1:3]:
+    for path in args[:2]:
         for line in lines(path):
             for run in clipped(line):
                 run = simplify(run, tolerance)
@@ -65,7 +68,7 @@ def main():
                     out += struct.pack("<ff", lon, lat)
                 out += struct.pack("<ff", float("nan"), float("nan"))
                 count += 1
-    open("resourceCreation/res/nhc_basins.bin", "wb").write(out)
+    open("resourceCreation/res/world_coast.bin" if WORLD else "resourceCreation/res/nhc_basins.bin", "wb").write(out)
     print(count, "lines,", len(out), "bytes")
 
 main()

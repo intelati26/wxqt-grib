@@ -21,6 +21,7 @@
 #include "hurricane/UtilityWindProbability.h"
 #include "hurricane/UtilityVdm.h"
 #include "hurricane/UtilityHdob.h"
+#include "hurricane/UtilityWeatherLab.h"
 
 using std::string;
 using std::vector;
@@ -135,6 +136,10 @@ public:
     static void loadRecon(ReconData& data, int bulletins, const string& basin = "al");   // the HDOB archive of that basin
     // ECMWF open data (CC BY 4.0): the member tracks of the IFS and AIFS ensembles and the unperturbed IFS / AIFS runs for this storm
     static void loadEnsembles(const string& nhcId, EnsembleData& data);
+    // The newest published run of one DeepMind Weather Lab model ("FNV3" / "WNV3"): every storm in it, in the shape of the ECMWF ensembles. For the world map's layer.
+    // The large ensemble's cyclogenesis file (1000 members, about 37 MB): the clusters of members that form a storm that does not exist yet. Read in place, kept only as the points.
+    static bool loadWeatherLabGenesis(vector<UtilityWeatherLab::Genesis>& clusters, int& members, string& cycle, string& error);
+    static bool loadWeatherLabModel(const string& folder, vector<UtilityEcmwfTracks::Storm>& storms, string& cycle, string& error);
     // NOAA's GEFS members (ATCF AP01..AP30, control AC00) from the guidance already loaded, in the same shape as the ECMWF sets
     static bool gefsFromGuidance(const string& stormId, const vector<UtilityAtcf::Track>& guidance, EnsembleSet& set);
     static void loadShips(const string& nhcId, ShipsData& data);   // NHC's SHIPS text for the newest cycle

@@ -8,10 +8,14 @@
 #include <cmath>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDateTime>
 #include <QLabel>
 #include <QPainterPath>
+#include <QPushButton>
 #include <QVBoxLayout>
+#include "hurricane/EnsembleStyle.h"
 #include "hurricane/HurricaneViewer.h"
+#include "hurricane/UtilityWeatherLab.h"
 #include "hurricane/UtilityAtcf.h"
 #include "hurricane/UtilityNhcGis.h"
 #include "hurricane/UtilityTropicalAlerts.h"
@@ -415,5 +419,443 @@ QWidget * WindProbabilityLayer::options(QWidget * parent, const std::function<vo
     combo->setCurrentIndex(threshold);
     QObject::connect(combo, &QComboBox::currentIndexChanged, [this, changed] (int index) { threshold = index; changed(); });
     layout->addWidget(combo);
+    return widget;
+}
+
+// ---- DeepMind Weather Lab ----
+
+int DeepMindLayer::limitHours() const {
+    static const int hours[] = {10000, 120, 72, 48};
+    return hours[std::clamp(hoursChoice, 0, 3)];
+}
+
+string DeepMindLayer::summary() const {
+    if (loading && !runs) return "reading DeepMind's forecasts...";
+    if (!runs) return error;
+    string text;
+    for (const auto& run : *runs) {
+        text += (text.empty() ? "" : ", ") + run.label + " " + UtilityAtcf::formatTime(run.cycle) + ": " + std::to_string(run.storms.size()) + " storms";
+    }
+    return text.empty() ? error : text;
+}
+
+void DeepMindLayer::refresh(MapHost& host) {
+    if (loading) {
+        return;
+    }
+    loading = true;
+    auto fresh = std::make_shared<vector<Run>>();
+    auto message = std::make_shared<string>();
+    host.background(
+        [fresh, message] {
+            for (const auto& model : UtilityWeatherLab::models()) {
+                Run run;
+                string error;
+                if (!HurricaneData::loadWeatherLabModel(model.folder, run.storms, run.cycle, error)) {
+                    *message = error;
+                    continue;
+                }
+                run.label = model.label;
+                for (const auto& storm : run.storms) {
+                    vector<UtilityEnsembleStats::Hour> mean;
+                    for (const auto& hour : UtilityEnsembleStats::compute(storm, 6)) {
+                        if (hour.alive * 2 < hour.total || hour.centerLat <= UtilityEnsembleStats::missing + 1.0) {
+                            break;
+                        }
+                        mean.push_back(hour);
+                    }
+                    run.means.push_back(std::move(mean));
+                }
+                fresh->push_back(std::move(run));
+            }
+        },
+        [this, &host, fresh, message] {
+            loading = false;
+            runs = fresh;
+            error = fresh->empty() ? (message->empty() ? "no DeepMind forecast was found" : *message) : string{};
+            host.redraw();
+        });
+}
+
+void DeepMindLayer::paint(QPainter& painter, MapHost& host) {
+    if (!runs) {
+        return;
+    }
+    const auto t = host.view().transform();
+    const double px = host.view().unitsPerPixel();
+    QFont font{painter.font()};
+    font.setPixelSize(static_cast<int>(11 * px));
+    font.setBold(true);
+    painter.setFont(font);
+    const int limit = limitHours();
+    // a line is broken where it jumps across the date line, and where a member has no position
+    const auto drawTrack = [&] (const UtilityEcmwfTracks::Member& member, const QPen& pen) {
+        painter.setPen(pen);
+        painter.setBrush(Qt::NoBrush);
+        QPainterPath path;
+        bool started = false;
+        double lastLon = 0.0;
+        for (const auto& s : member.steps) {
+            if (s.hour > limit) {
+                break;
+            }
+            if (!UtilityEcmwfTracks::has(s.lat) || !UtilityEcmwfTracks::has(s.lon)) {
+                started = false;
+                continue;
+            }
+            if (started && std::abs(s.lon - lastLon) > 180.0) {
+                started = false;
+            }
+            const auto p = t(s.lat, s.lon);
+            started ? path.lineTo(p) : path.moveTo(p);
+            started = true;
+            lastLon = s.lon;
+        }
+        painter.drawPath(path);
+    };
+    for (const auto& run : *runs) {
+        const bool wanted = run.label == "DeepMind FNV3" ? showFnv : showWeatherNext;
+        const auto * style = EnsembleStyle::of(run.label);
+        if (!wanted || style == nullptr) {
+            continue;
+        }
+        if (showMembers) {
+            QColor member = style->member;
+            member.setAlpha(60);   // fifty or sixty members from each storm: thin and faint
+            for (const auto& storm : run.storms) {
+                for (const auto& m : storm.members) {
+                    drawTrack(m, QPen{member, 1.0 * px});
+                }
+            }
+        }
+    }
+    for (const auto& run : *runs) {
+        const bool wanted = run.label == "DeepMind FNV3" ? showFnv : showWeatherNext;
+        const auto * style = EnsembleStyle::of(run.label);
+        if (!wanted || style == nullptr || !showMean) {
+            continue;
+        }
+        for (size_t i = 0; i < run.storms.size(); i++) {
+            const auto& hours = run.means[i];
+            if (hours.size() < 2) {
+                continue;
+            }
+            QPainterPath path;
+            bool started = false;
+            double lastLon = 0.0;
+            for (const auto& h : hours) {
+                if (h.hour > limit) {
+                    break;
+                }
+                if (started && std::abs(h.centerLon - lastLon) > 180.0) {
+                    started = false;
+                }
+                const auto p = t(h.centerLat, h.centerLon);
+                started ? path.lineTo(p) : path.moveTo(p);
+                started = true;
+                lastLon = h.centerLon;
+            }
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen{QColor{0, 0, 0, 170}, 4.4 * px});
+            painter.drawPath(path);
+            painter.setPen(QPen{style->mean, 2.4 * px});
+            painter.drawPath(path);
+            for (const auto& h : hours) {   // a dot a day, and where the storm is now with its short id
+                if (h.hour > limit) {
+                    break;
+                }
+                const auto p = t(h.centerLat, h.centerLon);
+                if (h.hour == 0) {
+                    painter.setPen(QPen{QColor{0, 0, 0, 220}, 1.0 * px});
+                    painter.setBrush(style->mean);
+                    painter.drawEllipse(p, 5.0 * px, 5.0 * px);
+                    painter.setPen(QColor{255, 255, 255});
+                    painter.drawText(p + QPointF{7 * px, -6 * px}, QString::fromStdString(run.storms[i].id));
+                } else if (h.hour % 24 == 0) {
+                    painter.setPen(QPen{QColor{0, 0, 0, 200}, 0.9 * px});
+                    painter.setBrush(style->mean);
+                    painter.drawEllipse(p, 3.2 * px, 3.2 * px);
+                }
+            }
+        }
+    }
+}
+
+MapHit DeepMindLayer::pick(const QPointF& pixels, MapHost& host) const {
+    MapHit best;
+    best.reach = 14.0;
+    best.priority = 5;
+    if (!runs || !showMean) {
+        return best;
+    }
+    const auto t = host.view().transform();
+    const int limit = limitHours();
+    for (const auto& run : *runs) {
+        const bool wanted = run.label == "DeepMind FNV3" ? showFnv : showWeatherNext;
+        if (!wanted) {
+            continue;
+        }
+        for (size_t i = 0; i < run.storms.size(); i++) {
+            for (const auto& h : run.means[i]) {
+                if (h.hour > limit) {
+                    break;
+                }
+                const auto p = host.view().toPixels(h.centerLat, h.centerLon);
+                const double d = std::hypot(p.x() - pixels.x(), p.y() - pixels.y());
+                if (d >= best.distance) {
+                    continue;
+                }
+                best.distance = d;
+                QString text = QString::fromStdString(run.label + " " + (run.cycle.size() == 10 ? run.cycle.substr(8, 2) + "z" : string{}) + "   storm " + run.storms[i].id + "\n+" + std::to_string(h.hour) + " h: ");
+                text += QString::number(h.alive) + " of " + QString::number(h.total) + " members still a cyclone";
+                if (h.windMedian > UtilityEnsembleStats::missing + 1.0) text += "\nwind (median) " + QString::number(std::lround(h.windMedian)) + " kt, range " + QString::number(std::lround(h.wind10)) + " to " + QString::number(std::lround(h.wind90)) + " kt";
+                if (h.pressMedian > UtilityEnsembleStats::missing + 1.0) text += "\npressure (median) " + QString::number(std::lround(h.pressMedian)) + " mb";
+                text += "\nexperimental data, not for real world use";
+                best.text = text;
+                const string track = run.storms[i].name;
+                const string basin = track.size() >= 2 ? string{static_cast<char>(std::tolower(static_cast<unsigned char>(track[0]))), static_cast<char>(std::tolower(static_cast<unsigned char>(track[1])))} : string{};
+                if (basin == "al" || basin == "ep" || basin == "cp") {
+                    string lower = track;
+                    std::transform(lower.begin(), lower.end(), lower.begin(), [] (unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                    best.open = [basin, lower] (Window * window) { new HurricaneViewer{window, basin, lower}; };
+                }
+            }
+        }
+    }
+    return best;
+}
+
+vector<MapLegendRow> DeepMindLayer::legend() const {
+    MapLegendRow row;
+    row.title = "(c) 2024-6 Google LLC, DeepMind Weather Lab (experimental; not for real world use; terms: storage.googleapis.com/weathernext-public/terms-of-use.pdf):";
+    for (const auto& model : UtilityWeatherLab::models()) {
+        const bool wanted = string{model.label} == "DeepMind FNV3" ? showFnv : showWeatherNext;
+        const auto * style = EnsembleStyle::of(model.label);
+        if (!wanted || style == nullptr) {
+            continue;
+        }
+        if (showMean) {
+            row.entries.push_back({MapLegendEntry::Line, style->mean, QString::fromStdString(string{model.label} + " mean")});
+        }
+        if (showMembers) {
+            row.entries.push_back({MapLegendEntry::Line, QColor{style->member.red(), style->member.green(), style->member.blue()}, QString::fromStdString(string{model.label} + " members")});
+        }
+    }
+    return {row};
+}
+
+QWidget * DeepMindLayer::options(QWidget * parent, const std::function<void()>& changed) {
+    auto * widget = new QWidget{parent};
+    auto * layout = new QVBoxLayout{widget};
+    layout->setContentsMargins(0, 0, 0, 0);
+    const auto check = [&] (const char * label, bool& value) {
+        auto * c = new QCheckBox{label, widget};
+        c->setChecked(value);
+        QObject::connect(c, &QCheckBox::toggled, [&value, changed] (bool on) { value = on; changed(); });
+        layout->addWidget(c);
+    };
+    check("FNV3 (50 members)", showFnv);
+    check("WeatherNext 3 (64 members, experimental)", showWeatherNext);
+    check("Each member's track", showMembers);
+    check("Ensemble mean", showMean);
+    layout->addWidget(new QLabel{"Forecast shown:", widget});
+    auto * combo = new QComboBox{widget};
+    combo->addItems({"All of it (about 13 days)", "5 days", "3 days", "2 days"});
+    combo->setCurrentIndex(hoursChoice);
+    QObject::connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { hoursChoice = index; changed(); });
+    layout->addWidget(combo);
+    // the map with nothing else on it
+    auto * only = new QPushButton{"Show only this layer", widget};
+    only->setToolTip("Switch every other layer off, so the map shows DeepMind's forecasts alone");
+    QObject::connect(only, &QPushButton::clicked, [this] {
+        if (hostPointer != nullptr) {
+            hostPointer->onlyLayer(id());
+        }
+    });
+    layout->addWidget(only);
+    return widget;
+}
+
+// ---- DeepMind: where new storms may form ----
+
+namespace {
+    const double chanceSteps[] = {0.01, 0.02, 0.05, 0.10, 0.25};
+    const int windowHours[] = {10000, 168, 120, 72};
+}
+
+QColor DeepMindGenesisLayer::colorFor(double chance) {
+    if (chance >= 0.50) return QColor{142, 36, 170};
+    if (chance >= 0.25) return QColor{229, 57, 53};
+    if (chance >= 0.10) return QColor{255, 112, 67};
+    if (chance >= 0.05) return QColor{255, 179, 71};
+    return QColor{255, 224, 102};
+}
+
+vector<DeepMindGenesisLayer::Cluster> DeepMindGenesisLayer::clusters() const {
+    vector<Cluster> out;
+    if (!data || members <= 0) {
+        return out;
+    }
+    const int window = windowHours[std::clamp(windowChoice, 0, 3)];
+    for (const auto& g : *data) {
+        Cluster c;
+        c.track = g.track;
+        for (const auto& point : g.points) {
+            if (point.hour <= window) {
+                c.points.push_back(point);
+            }
+        }
+        c.chance = static_cast<double>(c.points.size()) / members;
+        if (c.chance < chanceSteps[std::clamp(chanceChoice, 0, 4)] || c.points.empty()) {
+            continue;
+        }
+        // the middle of the members' formation points (longitudes taken near the first so that a cluster across the date line is not averaged across the world)
+        std::vector<double> lats, lons, hours, pressures, winds;
+        const double reference = c.points.front().lon;
+        for (const auto& point : c.points) {
+            double lon = point.lon;
+            while (lon - reference > 180.0) lon -= 360.0;
+            while (lon - reference < -180.0) lon += 360.0;
+            lats.push_back(point.lat);
+            lons.push_back(lon);
+            hours.push_back(point.hour);
+            if (point.pressure > -9000.0) pressures.push_back(point.pressure);
+            if (point.wind > -9000.0) winds.push_back(point.wind);
+        }
+        c.lat = UtilityEnsembleStats::percentile(lats, 0.5);
+        c.lon = UtilityEnsembleStats::percentile(lons, 0.5);
+        if (c.lon > 180.0) c.lon -= 360.0;
+        if (c.lon < -180.0) c.lon += 360.0;
+        c.hourMedian = UtilityEnsembleStats::percentile(hours, 0.5);
+        c.pressureMedian = UtilityEnsembleStats::percentile(pressures, 0.5);
+        c.windMedian = UtilityEnsembleStats::percentile(winds, 0.5);
+        out.push_back(std::move(c));
+    }
+    return out;
+}
+
+string DeepMindGenesisLayer::summary() const {
+    if (loading && !data) return "reading DeepMind's large ensemble (37 MB)...";
+    if (!data) return error;
+    return std::to_string(clusters().size()) + " possible new storms (" + UtilityAtcf::formatTime(cycle) + ", " + std::to_string(members) + " members)";
+}
+
+void DeepMindGenesisLayer::refresh(MapHost& host) {
+    if (loading) {
+        return;
+    }
+    loading = true;
+    auto fresh = std::make_shared<vector<UtilityWeatherLab::Genesis>>();
+    auto count = std::make_shared<int>(0);
+    auto when = std::make_shared<string>();
+    auto message = std::make_shared<string>();
+    host.background(
+        [fresh, count, when, message] {
+            if (!HurricaneData::loadWeatherLabGenesis(*fresh, *count, *when, *message)) {
+                fresh->clear();
+            }
+        },
+        [this, &host, fresh, count, when, message] {
+            loading = false;
+            if (!fresh->empty() || message->empty()) {
+                data = fresh;
+                members = *count;
+                cycle = *when;
+                error = fresh->empty() ? string{"no new storms are forecast"} : string{};
+            } else {
+                error = *message;
+            }
+            host.redraw();
+        });
+}
+
+void DeepMindGenesisLayer::paint(QPainter& painter, MapHost& host) {
+    if (!data) {
+        return;
+    }
+    const auto t = host.view().transform();
+    const double px = host.view().unitsPerPixel();
+    QFont font{painter.font()};
+    font.setPixelSize(static_cast<int>(12 * px));
+    font.setBold(true);
+    painter.setFont(font);
+    const auto all = clusters();
+    for (const auto& c : all) {   // the members' points, faint, then the labels over them
+        QColor dot = colorFor(c.chance);
+        dot.setAlpha(80);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(dot);
+        for (const auto& point : c.points) {
+            painter.drawEllipse(t(point.lat, point.lon), 2.4 * px, 2.4 * px);
+        }
+    }
+    for (const auto& c : all) {
+        const auto p = t(c.lat, c.lon);
+        const double radius = (5.0 + 14.0 * std::sqrt(std::min(1.0, c.chance))) * px;
+        painter.setPen(QPen{QColor{0, 0, 0, 200}, 1.4 * px});
+        QColor ring = colorFor(c.chance);
+        ring.setAlpha(60);
+        painter.setBrush(ring);
+        painter.drawEllipse(p, radius, radius);
+        painter.setPen(QColor{255, 255, 255});
+        painter.drawText(p + QPointF{radius + 3 * px, 4 * px}, QString::number(static_cast<int>(std::lround(c.chance * 100.0))) + "%");
+    }
+}
+
+MapHit DeepMindGenesisLayer::pick(const QPointF& pixels, MapHost& host) const {
+    MapHit best;
+    best.reach = 24.0;
+    best.priority = 4;
+    for (const auto& c : clusters()) {
+        const auto p = host.view().toPixels(c.lat, c.lon);
+        const double d = std::hypot(p.x() - pixels.x(), p.y() - pixels.y());
+        if (d >= best.distance) {
+            continue;
+        }
+        best.distance = d;
+        const auto init = QDateTime::fromString(QString::fromStdString(cycle), "yyyyMMddHH");
+        const auto valid = QDateTime{init.date(), init.time(), Qt::UTC}.addSecs(static_cast<qint64>(std::lround(c.hourMedian)) * 3600);
+        QString text = "A storm that does not exist yet (DeepMind 1000-member ensemble, " + QString::fromStdString(cycle.size() == 10 ? cycle.substr(8, 2) : string{}) + "z run)\\n" +
+            QString::number(c.points.size()) + " of " + QString::number(members) + " members (" + QString::number(c.chance * 100.0, 'f', c.chance < 0.1 ? 1 : 0) + "%) form it\\n" +
+            "typically " + valid.toString("yyyy-MM-dd HH") + "Z (+" + QString::number(std::lround(c.hourMedian)) + " h) near " + QString::number(std::abs(c.lat), 'f', 1) + (c.lat < 0 ? "S " : "N ") +
+            QString::number(std::abs(c.lon), 'f', 1) + (c.lon < 0 ? "W" : "E");
+        if (c.pressureMedian > -9000.0) text += "\nwhen it first appears: " + QString::number(std::lround(c.pressureMedian)) + " mb" + (c.windMedian > -9000.0 ? ", " + QString::number(std::lround(c.windMedian)) + " kt" : QString{});
+        text += "\nexperimental data, not for real world use";
+        best.text = text;
+    }
+    return best;
+}
+
+vector<MapLegendRow> DeepMindGenesisLayer::legend() const {
+    MapLegendRow credit;
+    credit.title = "(c) 2024-6 Google LLC, DeepMind Weather Lab (experimental; not for real world use):";
+    credit.entries = {{MapLegendEntry::Circle, colorFor(0.02), "1-5% of members form a storm"}, {MapLegendEntry::Circle, colorFor(0.07), "5-10%"}, {MapLegendEntry::Circle, colorFor(0.15), "10-25%"},
+                      {MapLegendEntry::Circle, colorFor(0.35), "25-50%"}, {MapLegendEntry::Circle, colorFor(0.6), "over 50%"}};
+    return {credit};
+}
+
+QWidget * DeepMindGenesisLayer::options(QWidget * parent, const std::function<void()>& changed) {
+    auto * widget = new QWidget{parent};
+    auto * layout = new QVBoxLayout{widget};
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(new QLabel{"Show storms that at least this share of the members form:", widget});
+    auto * chance = new QComboBox{widget};
+    chance->addItems({"1%", "2%", "5%", "10%", "25%"});
+    chance->setCurrentIndex(chanceChoice);
+    QObject::connect(chance, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { chanceChoice = index; changed(); });
+    layout->addWidget(chance);
+    layout->addWidget(new QLabel{"Forming within:", widget});
+    auto * window = new QComboBox{widget};
+    window->addItems({"All of the forecast (about 13 days)", "7 days", "5 days", "3 days"});
+    window->setCurrentIndex(windowChoice);
+    QObject::connect(window, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { windowChoice = index; changed(); });
+    layout->addWidget(window);
+    auto * only = new QPushButton{"Show only this layer", widget};
+    QObject::connect(only, &QPushButton::clicked, [this] {
+        if (hostPointer != nullptr) {
+            hostPointer->onlyLayer(id());
+        }
+    });
+    layout->addWidget(only);
     return widget;
 }

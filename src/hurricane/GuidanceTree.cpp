@@ -47,6 +47,8 @@ const vector<GuidanceTree::Category>& GuidanceTree::catalog() {
             {"means/eps", "ECMWF ensemble mean", {"EEMN"}, true, QColor{255, 200, 70}},
             {"means/ifs", "IFS ensemble mean (ECMWF open data)", {}, true, QColor{255, 140, 30}},
             {"means/aifs", "AIFS ensemble mean (ECMWF open data)", {}, true, QColor{40, 255, 170}},
+            {"means/fnv3", "DeepMind FNV3 ensemble mean (Google Weather Lab, experimental)", {}, true, QColor{228, 130, 255}},
+            {"means/wnv3", "DeepMind WeatherNext 3 ensemble mean (Google Weather Lab, experimental)", {}, true, QColor{255, 130, 190}},
             {"means/cmc", "Canadian ensemble mean", {"CEMN"}, true, QColor{255, 120, 120}},
             {"means/uk", "UKMET ensemble mean", {"UEMN"}, true, QColor{140, 170, 255}},
         }},
@@ -56,6 +58,8 @@ const vector<GuidanceTree::Category>& GuidanceTree::catalog() {
         {"members", "Ensemble members", false, {
             {"members/ifs", "IFS ENS members (ECMWF open data)", {}, false, QColor{255, 150, 60}},
             {"members/aifs", "AIFS ENS members (ECMWF open data)", {}, false, QColor{60, 220, 170}},
+            {"members/fnv3", "DeepMind FNV3 members (Google Weather Lab, experimental)", {}, false, QColor{214, 110, 255}},
+            {"members/wnv3", "DeepMind WeatherNext 3 members (Google Weather Lab, experimental)", {}, false, QColor{255, 100, 170}},
             {"members/all", "Members (GEFS and others)", {}, false, QColor{140, 165, 255}, false, true},
         }},
         {"simple", "Simple and statistical", false, {

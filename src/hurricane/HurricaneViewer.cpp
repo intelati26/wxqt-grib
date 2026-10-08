@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "hurricane/HurricaneViewer.h"
+#include "hurricane/EnsembleStyle.h"
 #include "ui/ActivityLabel.h"
 #include "ui/WindBarb.h"
 #include <algorithm>
@@ -193,7 +194,11 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     coneCheck = new QCheckBox{"NHC forecast cone", panel};
     coneCheck->setChecked(true);
     swathCheck = new QCheckBox{"Forecast wind swath (34 / 50 / 64 kt)", panel};
-    QObject::connect(swathCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    swathCheck->setChecked(Utility::readPref("HURRICANE_SWATH", "false") == "true");   // remembered
+    QObject::connect(swathCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("HURRICANE_SWATH", on ? "true" : "false");
+        view->map()->update();
+    });
     radiiCheck = new QCheckBox{"Wind radii now (34 / 50 / 64 kt)", panel};
     radiiCheck->setChecked(true);
     QObject::connect(coneCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
@@ -566,13 +571,12 @@ void HurricaneViewer::loadEnsembles() {
             {   // the cycles of the open-data runs, for the tree's lines
                 std::map<string, vector<string>> runs;
                 for (const auto& set : ensembles->sets) {
-                    if (set.label == "AIFS ENS" || set.label == "IFS ENS") {
-                        const bool aifs = set.label == "AIFS ENS";
-                        runs[aifs ? "members/aifs" : "members/ifs"].push_back(set.cycle);
-                        runs[aifs ? "means/aifs" : "means/ifs"].push_back(set.cycle);
+                    if (const auto * style = EnsembleStyle::of(set.label)) {
+                        runs[style->membersId].push_back(set.cycle);
+                        runs[style->meansId].push_back(set.cycle);
                     }
-                    if (set.label != "GEFS") {
-                        runs["global/openruns"].push_back(set.cycle);
+                    if (set.label != "GEFS" && !EnsembleStyle::deepMind(set.label)) {
+                        runs["global/openruns"].push_back(set.cycle);   // the ECMWF single runs
                     }
                 }
                 guidanceTree->setCycles(runs);
@@ -580,14 +584,15 @@ void HurricaneViewer::loadEnsembles() {
             // the mean track of each ECMWF ensemble: the mean position at each hour, as far as half the members are still a cyclone
             ensembleMeans.clear();
             for (const auto& set : ensembles->sets) {
-                if (set.label != "AIFS ENS" && set.label != "IFS ENS") {
+                const auto * style = EnsembleStyle::of(set.label);
+                if (style == nullptr) {
                     continue;
                 }
                 EnsembleMean mean;
                 mean.label = set.label + " mean";
                 mean.cycle = set.cycle;
-                mean.id = set.label == "AIFS ENS" ? "means/aifs" : "means/ifs";
-                mean.color = set.label == "AIFS ENS" ? QColor{40, 255, 170} : QColor{255, 140, 30};
+                mean.id = style->meansId;
+                mean.color = style->mean;
                 for (const auto& hour : UtilityEnsembleStats::compute(set.storm, 6)) {
                     if (hour.alive * 2 < hour.total || hour.centerLat <= UtilityEnsembleStats::missing + 1.0) {
                         break;
@@ -1035,7 +1040,14 @@ void HurricaneViewer::updateInfo() {
         html += "<br><b>SHIPS</b> " + ShipsChart::summary(ships->ships).mid(6) + "<br>";
     }
     if (ensembles && !ensembles->sets.empty()) {
+        bool anyDeepMind = false;
+        for (const auto& set : ensembles->sets) {
+            anyDeepMind = anyDeepMind || EnsembleStyle::deepMind(set.label);
+        }
         html += "<br><b>Ensembles</b> (ECMWF: contains ECMWF open data, CC BY 4.0)<br>";
+        if (anyDeepMind) {
+            html += "<span style='color:gray'>DeepMind (Google Weather Lab): " + QString::fromStdString(EnsembleStyle::deepMindCredit()).toHtmlEscaped() + "</span><br>";
+        }
         QStringList singles;
         for (const auto& set : ensembles->sets) {
             int members = 0;
@@ -1272,13 +1284,12 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             if (set.label == "GEFS") {
                 continue;
             }
-            const bool isEnsemble = set.label == "AIFS ENS" || set.label == "IFS ENS";
-            const int box = set.label == "AIFS ENS" ? 0 : set.label == "IFS ENS" ? 1 : 2;
+            const auto * style = EnsembleStyle::of(set.label);
+            const bool isEnsemble = style != nullptr;
             for (const auto& member : set.storm.members) {
                 if (member.type >= 2) {
-                    if (isEnsemble && guidanceTree->isOn(box == 0 ? "members/aifs" : "members/ifs")) {
-                        const auto color = box == 0 ? QColor{60, 220, 170, 85} : QColor{255, 150, 60, 85};
-                        drawTrack(member, QPen{color, 1.1 * px});
+                    if (isEnsemble && guidanceTree->isOn(style->membersId)) {
+                        drawTrack(member, QPen{style->member, 1.1 * px});
                     }
                 } else if (guidanceTree->isOn("global/openruns")) {
                     // the control and high-resolution runs of the ensembles, and the single AIFS / IFS runs
@@ -1347,17 +1358,61 @@ void HurricaneViewer::paintMap(QPainter& painter) {
     if (swathCheck->isChecked() && !storm->official.fixes.empty()) {
         if (swathFor != storm.get()) {
             swathFor = storm.get();
+            // The wind field is drawn every 3 hours along the forecast. Where the storm moves further in 3 hours than the winds reach, the separate shapes leave a scallop between each
+            // pair: the swath is closed up by the outline that joins each shape to the next (the convex hull of the two), so it is one continuous band with a dotted edge.
+            const auto hullOf = [] (std::vector<QPointF> points) {
+                std::sort(points.begin(), points.end(), [] (const QPointF& a, const QPointF& b) { return a.x() < b.x() || (a.x() == b.x() && a.y() < b.y()); });
+                points.erase(std::unique(points.begin(), points.end()), points.end());
+                if (points.size() < 3) {
+                    return QPolygonF{};
+                }
+                const auto cross = [] (const QPointF& o, const QPointF& a, const QPointF& b) { return (a.x() - o.x()) * (b.y() - o.y()) - (a.y() - o.y()) * (b.x() - o.x()); };
+                std::vector<QPointF> hull(points.size() * 2);
+                size_t n = 0;
+                for (size_t i = 0; i < points.size(); i++) {   // the lower hull, then the upper
+                    while (n >= 2 && cross(hull[n - 2], hull[n - 1], points[i]) <= 0) n--;
+                    hull[n++] = points[i];
+                }
+                for (size_t i = points.size() - 1, lower = n + 1; i > 0; i--) {
+                    while (n >= lower && cross(hull[n - 2], hull[n - 1], points[i - 1]) <= 0) n--;
+                    hull[n++] = points[i - 1];
+                }
+                hull.resize(n - 1);
+                QPolygonF polygon;
+                for (const auto& point : hull) polygon << point;
+                return polygon;
+            };
             for (size_t k = 0; k < 3; k++) {
                 QPainterPath joined;
+                std::vector<QPointF> previous;
                 for (const auto& ring : UtilityAtcf::windSwath(storm->official, static_cast<int>(k), 3)) {
-                    QPolygonF polygon;
+                    std::vector<QPointF> points;
                     for (const auto& [lon, lat] : ring) {
-                        polygon << QPointF{lon, lat};
+                        points.emplace_back(lon, lat);
                     }
+                    QPolygonF polygon;
+                    for (const auto& point : points) polygon << point;
                     QPainterPath piece;
                     piece.addPolygon(polygon);
                     piece.closeSubpath();
                     joined = joined.united(piece);
+                    if (!previous.empty()) {
+                        // joined to the one before only if they are neighbours (a few degrees apart): a gap in the forecast radii is not bridged
+                        const auto centre = [] (const std::vector<QPointF>& v) { QPointF c; for (const auto& p : v) c += p; return c / static_cast<double>(v.size()); };
+                        const auto a = centre(previous), b = centre(points);
+                        if (std::hypot(a.x() - b.x(), a.y() - b.y()) < 4.0) {
+                            std::vector<QPointF> both = previous;
+                            both.insert(both.end(), points.begin(), points.end());
+                            const auto hull = hullOf(both);
+                            if (!hull.isEmpty()) {
+                                QPainterPath bridge;
+                                bridge.addPolygon(hull);
+                                bridge.closeSubpath();
+                                joined = joined.united(bridge);
+                            }
+                        }
+                    }
+                    previous = std::move(points);
                 }
                 swaths[k] = joined.toSubpathPolygons();
             }
@@ -1688,6 +1743,26 @@ void HurricaneViewer::paintLegend(QPainter& painter) {
     if (outlookCheck != nullptr && outlookCheck->isChecked()) {
         rows.push_back({"Development chance:", {{MapLegendEntry::Square, QColor{255, 225, 60}, "low"}, {MapLegendEntry::Square, QColor{255, 150, 30}, "medium"}, {MapLegendEntry::Square, QColor{255, 60, 60}, "high"}}});
     }
+    // DeepMind's data asks for its credit wherever it is shown, so it is in the picture (and so in an export)
+    if (ensembles) {
+        MapLegendRow deepMind;
+        for (const auto& set : ensembles->sets) {
+            const auto * style = EnsembleStyle::of(set.label);
+            if (style == nullptr || !EnsembleStyle::deepMind(set.label)) {
+                continue;
+            }
+            if (guidanceTree->isOn(style->meansId)) {
+                deepMind.entries.push_back({MapLegendEntry::Line, style->mean, QString::fromStdString(set.label + " mean")});
+            }
+            if (guidanceTree->isOn(style->membersId)) {
+                deepMind.entries.push_back({MapLegendEntry::Line, QColor{style->member.red(), style->member.green(), style->member.blue()}, QString::fromStdString(set.label + " members")});
+            }
+        }
+        if (!deepMind.entries.empty()) {
+            deepMind.title = "(c) 2024-6 Google LLC, DeepMind Weather Lab (experimental; not for real world use; terms: storage.googleapis.com/weathernext-public/terms-of-use.pdf):";
+            rows.push_back(std::move(deepMind));
+        }
+    }
     MapLegend::draw(painter, rows, view->unitsPerPixel());
 }
 
@@ -1770,10 +1845,10 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
             if (set.label == "GEFS") {
                 continue;
             }
-            const bool isEnsemble = set.label == "AIFS ENS" || set.label == "IFS ENS";
-            const int box = set.label == "AIFS ENS" ? 0 : set.label == "IFS ENS" ? 1 : 2;
+            const auto * style = EnsembleStyle::of(set.label);
+            const bool isEnsemble = style != nullptr;
             for (const auto& member : set.storm.members) {
-                const bool shownMember = member.type >= 2 ? isEnsemble && guidanceTree->isOn(box == 0 ? "members/aifs" : "members/ifs")
+                const bool shownMember = member.type >= 2 ? isEnsemble && guidanceTree->isOn(style->membersId)
                     : guidanceTree->isOn("global/openruns");
                 if (!shownMember) {
                     continue;

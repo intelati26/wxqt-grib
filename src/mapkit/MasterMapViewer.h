@@ -46,6 +46,7 @@ private:
     void status(const string& text) override { extra = text; updateStatus(); }
     bool claimCell(const QPointF& pixels, double spacing) override;
     void timesChanged() override { rebuildTicks(); }
+    void onlyLayer(const string& id) override;
     void background(std::function<void()> work, std::function<void()> done) override;
 
     void buildTree();

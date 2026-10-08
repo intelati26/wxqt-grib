@@ -27,7 +27,7 @@ namespace {
     // the coastlines of the basins plus the states, Canada and Mexico (line segments in the radar screen's resources: latitude, west longitude)
     const std::vector<std::vector<std::pair<float, float>>>& borders() {
         static const auto lines = [] {
-            auto all = Coast::lines();
+            auto all = Coast::worldLines();
             for (const char * name : {"statev2.bin", "ca.bin", "mx.bin"}) {
                 const auto raw = UtilityIO::readBinaryFileFromResource(GlobalVariables::resDir + name);
                 const auto floatAt = [&raw] (int offset) {

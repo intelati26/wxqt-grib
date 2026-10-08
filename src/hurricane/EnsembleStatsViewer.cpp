@@ -28,7 +28,7 @@ void EnsembleChart::setData(const std::shared_ptr<HurricaneData::StormData>& new
         Series s;
         s.label = set.label;
         s.cycle = set.cycle;
-        s.color = set.label == "AIFS ENS" ? QColor{0, 150, 100} : set.label == "IFS ENS" ? QColor{230, 110, 20} : QColor{120, 70, 200};
+        s.color = EnsembleStyle::chartColor(set.label);
         for (const auto& m : set.storm.members) {
             s.members += m.type >= 2 ? 1 : 0;
         }
@@ -200,7 +200,15 @@ void EnsembleChart::paintEvent(QPaintEvent *) {
     p.drawText(QPointF{marginLeft, y},
                "Wind and pressure: median line, shaded 25-75 %, dashed 90th percentile of wind / 10th of pressure.  Spread: solid 50 %, dashed 90 % of members.  Share: dotted alive, solid 34 kt+, dashed 64 kt+.");
     y += 12.0;
-    p.drawText(QPointF{marginLeft, y}, "Model winds (ECMWF 10 m, GEFS via NHC's ATCF files), not NHC's 1-minute sustained wind.  Contains ECMWF open data, CC BY 4.0.");
+    p.drawText(QPointF{marginLeft, y}, "Model winds (ECMWF 10 m, GEFS via NHC's ATCF files, DeepMind's maximum sustained wind), not NHC's 1-minute sustained wind.  Contains ECMWF open data, CC BY 4.0.");
+    bool deepMind = false;
+    for (const auto& set : ensembles->sets) {
+        deepMind = deepMind || EnsembleStyle::deepMind(set.label);
+    }
+    if (deepMind) {   // the credit the terms of use ask for
+        y += 12.0;
+        p.drawText(QPointF{marginLeft, y}, QString::fromStdString("DeepMind Weather Lab: " + EnsembleStyle::deepMindCredit()));
+    }
 }
 
 EnsembleStatsViewer::EnsembleStatsViewer(Window * parent, const std::shared_ptr<HurricaneData::StormData>& storm,
@@ -219,6 +227,7 @@ EnsembleStatsViewer::EnsembleStatsViewer(Window * parent, const std::shared_ptr<
         QColor color;
     };
     const Family families[] = {{"AIFS ENS", "AIFS ENS", QColor{0, 150, 100}}, {"IFS ENS", "IFS ENS", QColor{230, 110, 20}}, {"GEFS", "GEFS", QColor{120, 70, 200}},
+                               {"DeepMind FNV3", "DeepMind FNV3", QColor{150, 40, 190}}, {"DeepMind WNV3", "DeepMind WNV3", QColor{200, 30, 110}},
                                {"runs", "AIFS / IFS runs", QColor{90, 90, 90}}, {"nhc", "NHC forecast", QColor{255, 255, 255}}};
     for (const auto& family : families) {
         bool present = string{family.id} == "runs" || string{family.id} == "nhc";

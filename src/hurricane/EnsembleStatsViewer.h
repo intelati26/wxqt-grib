@@ -7,6 +7,7 @@
 #define ENSEMBLESTATSVIEWER_H
 
 #include "ui/ChartExport.h"
+#include "hurricane/EnsembleStyle.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -32,7 +33,7 @@ public:
     void setData(const std::shared_ptr<HurricaneData::StormData>& storm, const std::shared_ptr<HurricaneData::EnsembleData>& ensembles);
     // which families are drawn: the ensembles by label ("AIFS ENS", "IFS ENS", "GEFS"), "runs" (the unperturbed AIFS / IFS), "nhc" (NHC's forecast dots)
     void setShown(const string& family, bool shown);
-    static bool isEnsemble(const string& label) { return label == "AIFS ENS" || label == "IFS ENS" || label == "GEFS"; }
+    static bool isEnsemble(const string& label) { return EnsembleStyle::probabilistic(label); }
 
 private:
     struct Series {

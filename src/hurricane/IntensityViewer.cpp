@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "hurricane/IntensityViewer.h"
+#include "hurricane/EnsembleStyle.h"
 #include <algorithm>
 #include <cmath>
 #include <QCheckBox>
@@ -17,7 +18,7 @@ namespace {
     using namespace ChartKit;
 
     QColor ensembleColor(const string& label) {
-        return label == "AIFS ENS" ? QColor{0, 150, 100} : label == "IFS ENS" ? QColor{230, 110, 20} : QColor{120, 70, 200};
+        return EnsembleStyle::chartColor(label);
     }
 
     long daysFromCivil(int y, int m, int d) {
@@ -99,7 +100,7 @@ void IntensityChart::paintEvent(QPaintEvent *) {
     vector<Set> sets;
     if (ensembles) {
         for (const auto& set : ensembles->sets) {
-            if ((set.label == "AIFS ENS" || set.label == "IFS ENS" || set.label == "GEFS") && shown(set.label)) {
+            if (EnsembleStyle::probabilistic(set.label) && shown(set.label)) {
                 Set s{&set, UtilityEnsembleStats::compute(set.storm, 6), hoursSince(base, set.cycle)};
                 int last = 0;
                 for (const auto& h : s.hours) {
@@ -411,12 +412,13 @@ IntensityViewer::IntensityViewer(Window * parent, const std::shared_ptr<Hurrican
     };
     const Family families[] = {{"best", "Best track", QColor{10, 10, 10}}, {"nhc", "NHC forecast", QColor{255, 255, 255}}, {"ships", "SHIPS / LGEM", QColor{40, 130, 200}},
                                {"AIFS ENS", "AIFS ENS", QColor{0, 150, 100}}, {"IFS ENS", "IFS ENS", QColor{230, 110, 20}}, {"GEFS", "GEFS", QColor{120, 70, 200}},
+                               {"DeepMind FNV3", "DeepMind FNV3", QColor{150, 40, 190}}, {"DeepMind WNV3", "DeepMind WNV3", QColor{200, 30, 110}},
                                {"runs", "AIFS / IFS runs", QColor{90, 90, 90}}, {"hurr", "HWRF / HMON / HAFS / COAMPS-TC", QColor{230, 70, 200}},
                                {"recon", "Recon", QColor{220, 60, 60}}};
     for (const auto& family : families) {
         const string id = family.id;
         bool present = true;
-        if (id == "AIFS ENS" || id == "IFS ENS" || id == "GEFS") {
+        if (EnsembleStyle::probabilistic(id)) {
             present = false;
             if (ensembles) {
                 for (const auto& set : ensembles->sets) {

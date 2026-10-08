@@ -178,6 +178,16 @@ MasterMapViewer::MasterMapViewer(Window * parent)
         }
     }
     building = false;
+    // development aid (run with QT_QPA_PLATFORM=offscreen, see main.cpp): WXQT_MAPVIEW=<the start of a view's name> picks that view, as the box does
+    if (const auto wanted = qEnvironmentVariable("WXQT_MAPVIEW").toStdString(); !wanted.empty()) {
+        const auto& all = MapCatalog::presets();
+        for (size_t i = 0; i < all.size(); i++) {
+            if (all[i].name.compare(0, wanted.size(), wanted) == 0) {
+                applyPreset(i);
+                break;
+            }
+        }
+    }
     updateStatus();
     timer.setInterval(30000);
     QObject::connect(&timer, &QTimer::timeout, [this] { tick(); });
@@ -535,6 +545,19 @@ void MasterMapViewer::applyPreset(size_t index) {
     updateStatus();
 }
 
+void MasterMapViewer::onlyLayer(const string& id) {
+    building = true;
+    for (const auto& layer : layers) {
+        const bool want = layer->id() == id;
+        if (auto * item = items.count(layer->id()) != 0 ? items[layer->id()] : nullptr) {
+            item->setCheckState(0, want ? Qt::Checked : Qt::Unchecked);
+        }
+        setLayerOn(layer->id(), want);
+    }
+    building = false;
+    updateStatus();
+}
+
 void MasterMapViewer::updateStatus() {
     string text;
     for (const auto& layer : layers) {
@@ -591,7 +614,7 @@ void MasterMapViewer::paintMap(QPainter& painter) {
     // the coastlines and borders of the world's tropics and mid-latitudes
     painter.setPen(QPen{QColor{110, 125, 145}, 1.0 * px});
     painter.setBrush(Qt::NoBrush);
-    for (const auto& line : Coast::lines()) {
+    for (const auto& line : Coast::worldLines()) {
         QPainterPath path;
         bool started = false;
         for (const auto& [lon, lat] : line) {

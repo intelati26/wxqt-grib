@@ -43,6 +43,7 @@ public:
     virtual void redraw() = 0;                                   // something changed: paint again
     virtual void status(const string&) = 0;                      // a line under the toolbar
     virtual void timesChanged() = 0;                             // a time-aware layer has new frames (the time bar looks again)
+    virtual void onlyLayer(const string& id) = 0;                // switch every other layer off and this one on: the map stripped to one subject
     // a patch of the map (`spacing` pixels square) can be claimed once per painting; true when it was free. Layers that thin their marks use it so that
     // two layers do not both put a mark on the same spot.
     virtual bool claimCell(const QPointF& pixels, double spacing) = 0;

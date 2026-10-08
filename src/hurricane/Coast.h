@@ -13,6 +13,8 @@
 class Coast {
 public:
     static const std::vector<std::vector<std::pair<float, float>>>& lines();
+    // the whole world (resourceCreation/res/world_coast.bin, Natural Earth 1:50m, simplified to 0.03 degrees): the master map and the global charts
+    static const std::vector<std::vector<std::pair<float, float>>>& worldLines();
 };
 
 #endif  // COAST_H

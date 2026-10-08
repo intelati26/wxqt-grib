@@ -15,6 +15,7 @@
 #include <QTimer>
 #include "common/GlobalVariables.h"
 #include "hurricane/ReconViewer.h"
+#include "spc/SpcSwoStateGraphics.h"
 #include "ui/MainWindow.h"
 #include "util/AppState.h"
 #include "util/ContactPrompt.h"
@@ -72,6 +73,8 @@ int main(int argc, char * argv[]) {
             if (route.startsWith("recon:")) {   // WXQT_OPEN=recon:<NHC id>:<name>, e.g. recon:al092026:Isaias: the one-flight recon page
                 const auto parts = route.split(':');
                 new ReconViewer{&w, parts.value(1).toStdString(), parts.value(2).toStdString()};
+            } else if (route.startsWith("swostate:")) {   // WXQT_OPEN=swostate:<day>: the SPC convective outlook's state graphics for that day
+                new SpcSwoStateGraphics{&w, route.section(':', 1, 1).toInt()};
             } else {
                 w.openRoute(route.toStdString());
             }

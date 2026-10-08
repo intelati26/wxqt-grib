@@ -4,8 +4,10 @@
 // *****************************************************************************
 
 #include "hurricane/HurricaneData.h"
+#include "hurricane/UtilityWeatherLab.h"
 #include "util/PermanentCache.h"
 #include <algorithm>
+#include <functional>
 #include <future>
 #include <cstdio>
 #include <cctype>
@@ -306,7 +308,7 @@ string HurricaneData::ecmwfId(const string& id) {
 
 namespace {
     // a download kept for 20 minutes (the ensembles are a megabyte or more each, and the screen asks again on every storm pick)
-    string cachedDownload(const string& url) {
+    string cachedDownload(const string& url, const std::function<bool(const string&)>& valid = [] (const string& bytes) { return bytes.size() > 1000 && bytes.compare(0, 4, "BUFR") == 0; }) {
         static std::mutex mutex;
         static std::map<string, std::pair<qint64, string>> cache;
         const auto now = QDateTime::currentSecsSinceEpoch();
@@ -318,13 +320,53 @@ namespace {
             }
         }
         auto bytes = download(url);
-        if (bytes.size() > 1000 && bytes.compare(0, 4, "BUFR") == 0) {
+        if (valid(bytes)) {
             std::lock_guard lock{mutex};
             cache[url] = {now, bytes};
             return bytes;
         }
         return {};
     }
+}
+
+// DeepMind Weather Lab: the newest run of one model that is published (the run is up about 3 to 5 hours after its time; the last five are tried), every storm in it
+bool HurricaneData::loadWeatherLabModel(const string& folder, vector<UtilityEcmwfTracks::Storm>& storms, string& cycle, string& error) {
+    storms.clear();
+    cycle.clear();
+    const auto now = QDateTime::currentDateTimeUtc();
+    for (int back = 0; back < 5; back++) {
+        const auto time = now.addSecs(-static_cast<qint64>(back) * 6 * 3600);
+        char stamp[16];
+        std::snprintf(stamp, sizeof stamp, "%04d%02d%02d%02d", time.date().year(), time.date().month(), time.date().day(), time.time().hour() / 6 * 6);
+        const auto bytes = cachedDownload(UtilityWeatherLab::url(folder, stamp), [] (const string& body) { return body.size() > 1000 && body.find("init_time") != string::npos; });
+        if (bytes.empty()) {
+            continue;
+        }
+        if (UtilityWeatherLab::parse(bytes, storms, error)) {
+            cycle = stamp;
+            return true;
+        }
+        return false;
+    }
+    error = "Weather Lab has no recent " + folder + " run (it is published about 3 to 5 hours after its time).";
+    return false;
+}
+
+bool HurricaneData::loadWeatherLabGenesis(vector<UtilityWeatherLab::Genesis>& clusters, int& members, string& cycle, string& error) {
+    clusters.clear();
+    const auto now = QDateTime::currentDateTimeUtc();
+    for (int back = 0; back < 5; back++) {
+        const auto time = now.addSecs(-static_cast<qint64>(back) * 6 * 3600);
+        char stamp[16];
+        std::snprintf(stamp, sizeof stamp, "%04d%02d%02d%02d", time.date().year(), time.date().month(), time.date().day(), time.time().hour() / 6 * 6);
+        const auto bytes = UtilityIO::downloadAsByteArray(UtilityWeatherLab::genesisUrl(stamp));   // not kept in the memory cache: it is 37 MB
+        if (bytes.size() < 1000 || !bytes.left(4000).contains("init_time")) {
+            continue;
+        }
+        return UtilityWeatherLab::parseGenesis(std::string_view{bytes.constData(), static_cast<size_t>(bytes.size())}, clusters, members, cycle, error);
+    }
+    error = "Weather Lab has no recent large-ensemble cyclogenesis run (it is published several hours after its time).";
+    return false;
 }
 
 void HurricaneData::loadEnsembles(const string& nhcId, EnsembleData& data) {
@@ -374,8 +416,22 @@ void HurricaneData::loadEnsembles(const string& nhcId, EnsembleData& data) {
             }
         }
     }
+    // DeepMind's Weather Lab ensembles (another server: a failure there leaves the ECMWF sets as they are)
+    for (const auto& model : UtilityWeatherLab::models()) {
+        vector<UtilityEcmwfTracks::Storm> storms;
+        string cycle, error;
+        if (!loadWeatherLabModel(model.folder, storms, cycle, error)) {
+            continue;
+        }
+        for (auto& storm : storms) {
+            if (storm.id == id) {
+                data.sets.push_back({model.label, cycle, std::move(storm)});
+                break;
+            }
+        }
+    }
     if (data.sets.empty() && data.error.empty()) {
-        data.error = "ECMWF has no ensemble tracks for this storm (yet).";
+        data.error = "No ensemble tracks for this storm (yet): ECMWF and DeepMind publish a few hours after each run.";
     }
 }
 
