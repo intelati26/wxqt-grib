@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "tornado/TornadoViewer.h"
+#include "ui/ActivityLabel.h"
 #include <algorithm>
 #include <cmath>
 #include <set>
@@ -130,6 +131,7 @@ TornadoViewer::TornadoViewer(Window * parent)
     box.addLayout(rowTop);
     box.addLayout(rowMore);
     box.addWidget(textStatus);
+    box.addWidgetReal(new ActivityLabel{this});
     box.addLayout(rowMain);
     box.addStretch();
     box.getAndShow(this);

@@ -11,3 +11,7 @@ ${CXX:-g++} -std=c++20 -O2 -Wall -Wextra -I"$root/src" "$here/hurricane_test.cpp
 alerts="${TMPDIR:-/tmp}/wxqt_alerts_test"
 ${CXX:-g++} -std=c++20 -fPIC -O2 -Wall -Wextra -I"$root/src" $(pkg-config --cflags Qt6Core) "$here/alerts_test.cpp" "$root"/src/hurricane/UtilityTropicalAlerts.cpp $(pkg-config --libs Qt6Core) -o "$alerts"
 "$alerts" "$here/fixtures"
+# the floater graticule finder (pure pixel work)
+floater="${TMPDIR:-/tmp}/wxqt_floater_test"
+${CXX:-g++} -std=c++20 -O2 -Wall -Wextra -I"$root/src" "$here/floater_test.cpp" "$root"/src/hurricane/FloaterGeo.cpp -o "$floater"
+"$floater"

@@ -14,6 +14,7 @@
 #include <QThreadPool>
 #include <QTimer>
 #include "common/GlobalVariables.h"
+#include "hurricane/ReconViewer.h"
 #include "ui/MainWindow.h"
 #include "util/AppState.h"
 #include "util/ContactPrompt.h"
@@ -68,7 +69,12 @@ int main(int argc, char * argv[]) {
         QWidget * opened = nullptr;
         if (const auto route = qEnvironmentVariable("WXQT_OPEN"); !route.isEmpty()) {
             const auto before = QApplication::topLevelWidgets();
-            w.openRoute(route.toStdString());
+            if (route.startsWith("recon:")) {   // WXQT_OPEN=recon:<NHC id>:<name>, e.g. recon:al092026:Isaias: the one-flight recon page
+                const auto parts = route.split(':');
+                new ReconViewer{&w, parts.value(1).toStdString(), parts.value(2).toStdString()};
+            } else {
+                w.openRoute(route.toStdString());
+            }
             for (auto * widget : QApplication::topLevelWidgets()) {
                 if (widget != &w && !before.contains(widget) && qobject_cast<QMainWindow *>(widget) != nullptr) {   // not a combo box's hidden popup
                     opened = widget;

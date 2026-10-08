@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "hurricane/HurricaneViewer.h"
+#include "ui/ActivityLabel.h"
 #include "ui/WindBarb.h"
 #include <algorithm>
 #include <cmath>
@@ -24,6 +25,7 @@
 #include "hurricane/EnsembleStatsViewer.h"
 #include "hurricane/IntensityViewer.h"
 #include "hurricane/PodViewer.h"
+#include "hurricane/ReconViewer.h"
 #include "hurricane/SeasonViewer.h"
 #include "hurricane/UtilityChanges.h"
 #include "models/SoundingViewer.h"
@@ -112,6 +114,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     , buttonShips{this, None, "SHIPS and RI..."}
     , buttonPod{this, None, "Recon plan of the day..."}
     , buttonVdm{this, None, "Recon vortex messages..."}
+    , buttonFlight{this, None, "One recon flight on the satellite picture..."}
     , buttonIntensity{this, None, "Intensity chart..."}
     , buttonSeason{this, None, "Season table and ACE..."}
     , buttonText{this, None, "NHC advisory text..."}
@@ -235,6 +238,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     column->addWidget(buttonShips.getView());
     column->addWidget(buttonPod.getView());
     column->addWidget(buttonVdm.getView());
+    column->addWidget(buttonFlight.getView());
     reconCheck = new QCheckBox{"Recon flights (HDOB, the last 6 hours)", panel};
     reconCheck->setChecked(Utility::readPref("HURRICANE_RECON", "false") == "true");
     column->addSpacing(6);
@@ -309,6 +313,13 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
             textStatus.setText(string{"The vortex messages have not loaded yet."});
         }
     });
+    buttonFlight.connect([this] {
+        if (storm) {
+            new ReconViewer{this, storm->id, storm->name};
+        } else {
+            textStatus.setText(string{"Choose a storm first."});
+        }
+    });
     buttonPod.connect([this] {
         if (pod) {
             new PodViewer{this, pod};
@@ -348,6 +359,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     ElidedText::install(panel);   // long check box texts end in "..." with the whole text as the tooltip
     box.addLayout(rowTop);
     box.addWidget(textStatus);
+    box.addWidgetReal(new ActivityLabel{this});
     box.addLayout(rowMain);
     box.addStretch();
     box.getAndShow(this);

@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ModelViewer.h"
+#include "ui/ActivityLabel.h"
 #include <memory>
 #include "gfs/GfsRender.h"
 #include "models/ObjectModelGet.h"
@@ -46,6 +47,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     boxH.addLayout(backForward);
     box.addLayout(boxH);
     box.addWidgetAndCenter(photo);
+    box.addWidgetReal(new ActivityLabel{this});
     box.getAndShow(this);
 
     getRun();

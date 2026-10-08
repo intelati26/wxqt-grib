@@ -119,6 +119,7 @@ private:
     Button buttonShips;
     Button buttonPod;
     Button buttonVdm;
+    Button buttonFlight;
     Button buttonIntensity;
     Button buttonSeason;
     Button buttonText;

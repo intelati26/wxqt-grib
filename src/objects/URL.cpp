@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "objects/URL.h"
+#include "util/Activity.h"
 #include "objects/KnownIntermediates.h"
 #include <deque>
 #include <map>
@@ -110,6 +111,7 @@ namespace {
         if (AppState::quitting) {   // the app is closing and waits for every worker: do not start a download now
             return {};
         }
+        const Activity::Download counted;   // shows on the screens' activity indicator while this request is in flight (the wait for a slot included)
         throttleByHost(url);
         QNetworkAccessManager manager;
         QNetworkRequest request{QUrl{QString::fromStdString(url)}};

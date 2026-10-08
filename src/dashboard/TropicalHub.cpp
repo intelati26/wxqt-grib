@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "dashboard/TropicalHub.h"
+#include "ui/ActivityLabel.h"
 #include <algorithm>
 #include <cmath>
 #include <QDateTime>
@@ -20,6 +21,7 @@
 #include "hurricane/AceViewer.h"
 #include "hurricane/AdvisoryViewer.h"
 #include "hurricane/FloaterViewer.h"
+#include "hurricane/ReconViewer.h"
 #include "hurricane/HistoryViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "hurricane/PodViewer.h"
@@ -188,6 +190,7 @@ TropicalHub::TropicalHub(Window * parent)
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     box.addLayout(rowTop);
     box.addWidget(textStatus);
+    box.addWidgetReal(new ActivityLabel{this});
     box.addWidgetReal(scroll, 1, Qt::Alignment{});
     box.getAndShow(this);
     resize(900, 760);
@@ -335,6 +338,10 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
     };
     const auto id = entry.id;
     addButton("Track map and recon", [this, basin, id] { new HurricaneViewer{this, basin, id}; });
+    if (!invest) {
+        const auto stormName = entry.name;
+        addButton("Recon flight", [this, id, stormName] { new ReconViewer{this, id, stormName}; });
+    }
     if (!entry.advisoryUrl.empty() || !entry.discussionUrl.empty()) {
         const auto copy = entry;
         addButton("Advisory products", [this, copy] { new AdvisoryViewer{this, copy}; });

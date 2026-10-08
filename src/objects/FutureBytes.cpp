@@ -7,6 +7,7 @@
 #include "objects/FutureBytes.h"
 #include <QtConcurrent/QtConcurrent>
 #include "util/AppState.h"
+#include "util/Activity.h"
 #include <QObject>
 #include "util/UtilityIO.h"
 
@@ -15,6 +16,7 @@ FutureBytes::FutureBytes(Window * parent, const string& url, const function<void
     , watcher{new QFutureWatcher<void>}
     , future{QtConcurrent::run([this, url] {
           if (!AppState::quitting) {
+              const Activity::Task counted;
               this->ba = UtilityIO::downloadAsByteArray(url);
           }
       })}

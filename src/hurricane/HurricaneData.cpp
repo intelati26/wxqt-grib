@@ -6,6 +6,7 @@
 #include "hurricane/HurricaneData.h"
 #include "util/PermanentCache.h"
 #include <algorithm>
+#include <future>
 #include <cstdio>
 #include <cctype>
 #include <cmath>
@@ -38,6 +39,46 @@ namespace {
 
     string download(const string& url) {
         return UtilityIO::downloadAsByteArray(url).toStdString();
+    }
+
+    // several small files at once (eight at a time), in the order asked; an empty string where one could not be had
+    vector<string> downloadMany(const vector<string>& urls) {
+        vector<string> out(urls.size());
+        for (size_t start = 0; start < urls.size(); start += 8) {
+            vector<std::future<string>> jobs;
+            const size_t stop = std::min(urls.size(), start + 8);
+            for (size_t i = start; i < stop; i++) {
+                jobs.push_back(std::async(std::launch::async, [url = urls[i]] { return download(url); }));
+            }
+            for (size_t i = start; i < stop; i++) {
+                out[i] = jobs[i - start].get();
+            }
+        }
+        return out;
+    }
+
+    // The recon archive's files, kept for good: a bulletin never changes once it is posted, so each is fetched once, ever (the permanent cache), and a refresh asks only for the new
+    // ones. `code` is the bulletin type folder ("AHONT1"); the names come from its listing. A name that could not be had comes back empty and is not kept.
+    vector<string> archiveBodies(const string& folder, const string& code, const vector<string>& names) {
+        const PermanentCache store{"recon"};
+        vector<string> out(names.size());
+        vector<string> urls;
+        vector<size_t> missing;
+        for (size_t i = 0; i < names.size(); i++) {
+            out[i] = store.read(code + "/" + names[i]);
+            if (out[i].empty()) {
+                urls.push_back(folder + names[i]);
+                missing.push_back(i);
+            }
+        }
+        const auto fetched = downloadMany(urls);
+        for (size_t k = 0; k < missing.size(); k++) {
+            if (!fetched[k].empty()) {
+                store.write(code + "/" + names[missing[k]], fetched[k]);
+            }
+            out[missing[k]] = fetched[k];
+        }
+        return out;
     }
 
     string text(const QJsonObject& object, const char * key) {
@@ -223,9 +264,34 @@ void HurricaneData::loadRecon(ReconData& data, int bulletins, const string& basi
     std::sort(files.begin(), files.end());
     files.erase(std::unique(files.begin(), files.end()), files.end());
     const size_t first = files.size() > static_cast<size_t>(bulletins) ? files.size() - static_cast<size_t>(bulletins) : 0;
-    for (size_t i = first; i < files.size(); i++) {
-        auto parsed = UtilityHdob::parse(download(folder + files[i].second));
-        data.messages.insert(data.messages.end(), parsed.begin(), parsed.end());
+    // a bulletin never changes once it is posted: the ones read stay read (a refresh asks only for the new ones), and the new ones are fetched together
+    static std::mutex mutex;
+    static std::map<string, vector<UtilityHdob::Message>> read;
+    vector<string> names;
+    vector<size_t> wanted;
+    {
+        std::lock_guard lock{mutex};
+        for (size_t i = first; i < files.size(); i++) {
+            if (read.find(files[i].second) == read.end()) {
+                names.push_back(files[i].second);
+                wanted.push_back(i);
+            }
+        }
+    }
+    const auto bodies = archiveBodies(folder, code, names);
+    {
+        std::lock_guard lock{mutex};
+        for (size_t k = 0; k < wanted.size(); k++) {
+            if (!bodies[k].empty()) {
+                read[files[wanted[k]].second] = UtilityHdob::parse(bodies[k]);
+            }
+        }
+        for (size_t i = first; i < files.size(); i++) {
+            const auto found = read.find(files[i].second);
+            if (found != read.end()) {
+                data.messages.insert(data.messages.end(), found->second.begin(), found->second.end());
+            }
+        }
     }
 }
 
@@ -387,21 +453,35 @@ void HurricaneData::loadVdm(const string& nhcId, VdmData& data) {
     static std::mutex mutex;
     static std::map<string, std::pair<bool, UtilityVdm::Vdm>> parsed;
     const size_t first = files.size() > 80 ? files.size() - 80 : 0;
+    {   // the ones not read yet, fetched together
+        vector<string> names;
+        vector<size_t> wanted;
+        {
+            std::lock_guard lock{mutex};
+            for (size_t i = first; i < files.size(); i++) {
+                if (parsed.find(files[i].second) == parsed.end()) {
+                    names.push_back(files[i].second);
+                    wanted.push_back(i);
+                }
+            }
+        }
+        const auto bodies = archiveBodies(folder, code, names);
+        std::lock_guard lock{mutex};
+        for (size_t k = 0; k < wanted.size(); k++) {
+            std::pair<bool, UtilityVdm::Vdm> entry;
+            entry.first = UtilityVdm::parse(bodies[k], files[wanted[k]].first, entry.second);
+            parsed[files[wanted[k]].second] = entry;
+        }
+    }
     for (size_t i = first; i < files.size(); i++) {
         std::pair<bool, UtilityVdm::Vdm> entry;
-        bool known = false;
         {
             std::lock_guard lock{mutex};
             const auto found = parsed.find(files[i].second);
-            if (found != parsed.end()) {
-                entry = found->second;
-                known = true;
+            if (found == parsed.end()) {
+                continue;
             }
-        }
-        if (!known) {
-            entry.first = UtilityVdm::parse(download(folder + files[i].second), files[i].first, entry.second);
-            std::lock_guard lock{mutex};
-            parsed[files[i].second] = entry;
+            entry = found->second;
         }
         data.filesRead++;
         if (entry.first && !entry.second.test && entry.second.stormId == wanted) {
@@ -590,21 +670,33 @@ void HurricaneData::loadDrops(DropData& data, const string& basin, int reports) 
     static std::mutex mutex;
     static std::map<string, UtilityDropsonde::Drop> parsed;   // a message that was read stays read
     const size_t first = files.size() > static_cast<size_t>(reports) ? files.size() - static_cast<size_t>(reports) : 0;
+    {   // the ones not read yet, fetched together
+        vector<string> names;
+        vector<size_t> wanted;
+        {
+            std::lock_guard lock{mutex};
+            for (size_t i = first; i < files.size(); i++) {
+                if (parsed.find(files[i].second) == parsed.end()) {
+                    names.push_back(files[i].second);
+                    wanted.push_back(i);
+                }
+            }
+        }
+        const auto bodies = archiveBodies(folder, code, names);
+        std::lock_guard lock{mutex};
+        for (size_t k = 0; k < wanted.size(); k++) {
+            parsed[files[wanted[k]].second] = UtilityDropsonde::parse(bodies[k], files[wanted[k]].first);
+        }
+    }
     for (size_t i = first; i < files.size(); i++) {
         UtilityDropsonde::Drop drop;
-        bool known = false;
         {
             std::lock_guard lock{mutex};
             const auto found = parsed.find(files[i].second);
-            if (found != parsed.end()) {
-                drop = found->second;
-                known = true;
+            if (found == parsed.end()) {
+                continue;
             }
-        }
-        if (!known) {
-            drop = UtilityDropsonde::parse(download(folder + files[i].second), files[i].first);
-            std::lock_guard lock{mutex};
-            parsed[files[i].second] = drop;
+            drop = found->second;
         }
         if (drop.ok) {
             data.drops.push_back(drop);
