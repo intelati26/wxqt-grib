@@ -13,6 +13,7 @@
 #include "nhc/Nhc.h"
 #include "objects/FutureText.h"
 #include "dashboard/TropicalHub.h"
+#include "space/SpaceWeatherViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "tropical/TropicalViewer.h"
 
@@ -35,32 +36,7 @@ void Dashboards::openTropicalHub(Window * parent) {
 }
 
 void Dashboards::openSpaceWeather(Window * parent) {
-    new PlaceholderDashboard{parent, "Space weather",
-        "Sun, solar wind and Earth's magnetic field from NOAA's Space Weather Prediction Center (SWPC): storm scales, the Kp index, aurora, flares and "
-        "sun pictures. The aurora forecast pictures and the SWPC text products are already in the app; the buttons open them.",
-        {
-            Panel{"Status strip", "The current R / S / G storm scales (radio blackouts, radiation, geomagnetic), today's and the forecast, with the current Kp and any active alerts.",
-                "SWPC noaa-scales.json, alerts.json", "Step 1"},
-            Panel{"Kp index", "Bar chart of the planetary K index with its forecast; the Dst index beside it.",
-                "SWPC noaa-planetary-k-index(-forecast).json, kyoto-dst.json", "Step 1"},
-            Panel{"Aurora", "Our own aurora map drawn from the gridded forecast, north and south, instead of only the picture.",
-                "SWPC json/ovation_aurora_latest.json", "Step 2"},
-            Panel{"Solar flares", "GOES X-ray flux over the last day or longer, with the flare class lines.",
-                "SWPC json/goes/primary/xrays-1-day.json", "Step 1"},
-            Panel{"Sun and corona", "SUVI pictures in several wavelengths and the LASCO coronagraph, with loops; zoom and save like the other pictures.",
-                "SWPC images/animations and products/animations", "Step 2"},
-            Panel{"Solar wind", "Speed, density and magnetic field near Earth.",
-                "SWPC - the address is not found yet (the paths tried returned 404)", "Open"},
-            Panel{"Forecast and outlook text", "The 3-day forecast, geomagnetic forecast, 27-day outlook, discussion and advisory outlook in one place.",
-                "SWPC text products (already used by the app)", "Step 1"},
-            Panel{"Solar cycle", "Sunspot number and 10.7 cm flux with the cycle 25 predicted range.",
-                "SWPC solar-cycle-25 JSON files", "Later"},
-        },
-        {
-            Link{"Aurora forecast - north (existing)", [] (Window * w) { new ImageViewer{w, string{"https://services.swpc.noaa.gov/images/animations/ovation/north/latest.jpg"}, "Aurora forecast - north"}; }},
-            textLink("Space weather discussion", "https://services.swpc.noaa.gov/text/discussion.txt"),
-            textLink("3-day forecast", "https://services.swpc.noaa.gov/text/3-day-forecast.txt"),
-        }};
+    new SpaceWeatherViewer{parent};
 }
 
 void Dashboards::openTornadoHistory(Window * parent) {

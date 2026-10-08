@@ -121,7 +121,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("opc.png", "Climate and ocean: sea surface temperature and anomaly, El Niño / La Niña, cycles", [parent] { new ClimateViewer{parent}; });
     routeItems.emplace_back("tropstorm.png", "Tropical cyclones (Atlantic, East and Central Pacific): track, model guidance (spaghetti) and recon flights", [parent] { new HurricaneViewer{parent}; });
     routeItems.emplace_back("hurricane.png", "Tropical Hub: active storms, outlook, recon plan, season", [parent] { Dashboards::openTropicalHub(parent); });
-    routeItems.emplace_back("goes16.png", "Space weather (planned): Kp, aurora, flares, sun", [parent] { Dashboards::openSpaceWeather(parent); });
+    routeItems.emplace_back("goes16.png", "Space weather: storm scales, Kp, flares, solar wind, aurora, sun", [parent] { Dashboards::openSpaceWeather(parent); });
     routeItems.emplace_back("twtornado.png", "Tornado history (planned): tracks, per-day graph, climatology heatmap", [parent] { Dashboards::openTornadoHistory(parent); });
     routeItems.emplace_back("widget_afd.png", "Forecast discussions (planned): all centres, history, what changed", [parent] { Dashboards::openForecastDiscussions(parent); });
     routeItems.emplace_back("rain_showers.png", "Rivers: NWS river gauges, flood stages, forecasts and the National Water Model", [parent] { new RiverMapViewer{parent}; });
