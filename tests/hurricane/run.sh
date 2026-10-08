@@ -5,7 +5,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 root="$here/../.."
 out="${TMPDIR:-/tmp}/wxqt_hurricane_test"
 ${CXX:-g++} -std=c++20 -O2 -Wall -Wextra -I"$root/src" "$here/hurricane_test.cpp" \
-    "$root"/src/hurricane/Utility{Atcf,Hdob,WindProbability,EcmwfTracks,EnsembleStats,Ships,Pod,Vdm,Season,Shapefile,NhcGis,NhcText,Changes,Dropsonde}.cpp "$root"/src/util/UtilityGzip.cpp "$root"/src/util/UtilityZip.cpp -o "$out"
+    "$root"/src/hurricane/Utility{Atcf,Hdob,WindProbability,Hurdat,EcmwfTracks,EnsembleStats,Ships,Pod,Vdm,Season,Shapefile,NhcGis,NhcText,Changes,Dropsonde}.cpp "$root"/src/util/UtilityGzip.cpp "$root"/src/util/UtilityZip.cpp -o "$out"
 "$out" "$here/fixtures"
 # the inland alerts reader uses Qt's JSON
 alerts="${TMPDIR:-/tmp}/wxqt_alerts_test"

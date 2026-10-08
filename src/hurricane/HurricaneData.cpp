@@ -413,6 +413,42 @@ void HurricaneData::loadVdm(const string& nhcId, VdmData& data) {
                         data.messages.end());
 }
 
+void HurricaneData::loadTracks(TrackData& data, const string& basin) {
+    data = TrackData{};
+    data.basin = basin;
+    const auto listing = download("https://www.nhc.noaa.gov/data/hurdat/");
+    data.file = UtilitySeason::newestHurdatFile(listing, basin == "al" ? "hurdat2-1851" : "hurdat2-nepac-1949");
+    if (data.file.empty()) {
+        data.error = "Could not find the HURDAT2 file on the NHC site.";
+        return;
+    }
+    const auto folder = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/hurricane";
+    QDir{}.mkpath(folder);
+    const auto cachePath = folder + "/" + QString::fromStdString(data.file);   // the raw file, named by NHC's own dated name
+    string text;
+    QFile cache{cachePath};
+    if (cache.open(QIODevice::ReadOnly)) {
+        text = cache.readAll().toStdString();
+        cache.close();
+    }
+    if (text.empty()) {
+        text = download("https://www.nhc.noaa.gov/data/hurdat/" + data.file);
+        if (!text.empty() && cache.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            cache.write(QByteArray::fromStdString(text));
+            cache.close();
+            for (const auto& old : QDir{folder}.entryList({basin == "al" ? "hurdat2-1851-*.txt" : "hurdat2-nepac-1949-*.txt"}, QDir::Files)) {
+                if (old != QString::fromStdString(data.file)) {
+                    QFile::remove(folder + "/" + old);
+                }
+            }
+        }
+    }
+    data.tracks = UtilityHurdat::parse(text);
+    if (data.tracks.empty()) {
+        data.error = "Could not read the HURDAT2 file " + data.file + ".";
+    }
+}
+
 void HurricaneData::loadSeason(SeasonData& data, const string& basin) {
     data = SeasonData{};
     data.basin = basin;

@@ -46,6 +46,7 @@ private:
     Button buttonTracks;
     Button buttonSeason;
     Button buttonAce;
+    Button buttonHistory;
     Button buttonPod;
     Button buttonTropical;
     Button buttonClimate;

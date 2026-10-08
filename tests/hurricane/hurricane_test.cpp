@@ -19,6 +19,7 @@
 #include "util/UtilityGzip.h"
 #include "util/UtilityZip.h"
 #include "hurricane/UtilityWindProbability.h"
+#include "hurricane/UtilityHurdat.h"
 
 static int failures = 0;
 #define CHECK(cond) do { if (!(cond)) { std::cerr << "FAILED " << __LINE__ << ": " #cond "\n"; failures++; } } while (0)
@@ -528,6 +529,24 @@ static void windProbability(const std::string& fixtures) {
     CHECK(UtilityWindProbability::inside(square, 5, 5) && !UtilityWindProbability::inside(square, 5, 15) && !UtilityWindProbability::inside(square, -1, 5));
 }
 
+static void hurdat(const std::string& fixtures) {
+    const auto tracks = UtilityHurdat::parse(readFile(fixtures + "/hurdat2_2011_2025.txt"));
+    const auto storms = UtilitySeason::parseHurdat2(readFile(fixtures + "/hurdat2_2011_2025.txt"));
+    CHECK(tracks.size() == storms.size() && tracks.size() == 33);
+    const UtilityHurdat::Track * irene = nullptr;
+    for (const auto& t : tracks) {
+        if (t.id == "AL092011") irene = &t;
+    }
+    CHECK(irene != nullptr && irene->name == "IRENE" && irene->year == 2011 && irene->peakWind == 105 && irene->minPressure == 942 && irene->stormStrength);
+    CHECK(irene->points.size() > 30 && irene->points.front().time == "2011082100" && irene->points.back().time == "2011083000" && irene->points.front().lon < 0.0 && irene->points.front().lat > 10.0);
+    for (size_t i = 0; i < tracks.size(); i++) {
+        CHECK(tracks[i].id == storms[i].id && tracks[i].peakWind == storms[i].peakWind && tracks[i].minPressure == storms[i].minPressure && tracks[i].stormStrength == storms[i].stormStrength);
+    }
+    double degrees = 0.0;
+    CHECK(UtilityHurdat::parseCoordinate("39.4N", degrees) && near(degrees, 39.4) && UtilityHurdat::parseCoordinate("74.4W", degrees) && near(degrees, -74.4) &&
+          UtilityHurdat::parseCoordinate("12.0S", degrees) && near(degrees, -12.0) && UtilityHurdat::parseCoordinate("179.5E", degrees) && near(degrees, 179.5) && !UtilityHurdat::parseCoordinate("74.4", degrees));
+}
+
 static void strikes() {
     // three members moving east along 30N: one hits (passing 20 km south of the point at 60 kt), one passes 300 km away, one is too weak
     UtilityEcmwfTracks::Storm storm;
@@ -556,6 +575,7 @@ static void strikes() {
 int main(int argc, char ** argv) {
     windProbability(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     strikes();
+    hurdat(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     drop(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     text(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     gis(argc > 1 ? argv[1] : "tests/hurricane/fixtures");

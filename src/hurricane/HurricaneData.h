@@ -17,6 +17,7 @@
 #include "hurricane/UtilitySeason.h"
 #include "hurricane/UtilityShips.h"
 #include "hurricane/UtilityTropicalAlerts.h"
+#include "hurricane/UtilityHurdat.h"
 #include "hurricane/UtilityWindProbability.h"
 #include "hurricane/UtilityVdm.h"
 #include "hurricane/UtilityHdob.h"
@@ -113,6 +114,13 @@ public:
         string basin;           // "al", or "ep" for the northeast Pacific
         string error;
     };
+    struct TrackData {
+        vector<UtilityHurdat::Track> tracks;      // HURDAT2, every storm since the start of the file
+        string file;
+        string basin;
+        string error;
+    };
+    static void loadTracks(TrackData& data, const string& basin = "al");   // the HURDAT2 text is kept on disk once read
     struct WspData {
         UtilityWindProbability::Map map;
         string error;

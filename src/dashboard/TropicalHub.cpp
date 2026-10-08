@@ -19,6 +19,7 @@
 #include "climate/ClimateViewer.h"
 #include "hurricane/AceViewer.h"
 #include "hurricane/AdvisoryViewer.h"
+#include "hurricane/HistoryViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "hurricane/PodViewer.h"
 #include "hurricane/SeasonViewer.h"
@@ -125,6 +126,7 @@ TropicalHub::TropicalHub(Window * parent)
     , buttonTracks{this, None, "Tracks, guidance and recon..."}
     , buttonSeason{this, None, "Season charts..."}
     , buttonAce{this, None, "ACE by day..."}
+    , buttonHistory{this, None, "Historical tracks..."}
     , buttonPod{this, None, "Recon plan of the day..."}
     , buttonTropical{this, None, "Tropical (CIRA, JTWC, JMA)..."}
     , buttonClimate{this, None, "Climate and ocean..."}
@@ -132,7 +134,7 @@ TropicalHub::TropicalHub(Window * parent)
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Tropical Hub - active storms, outlook, recon and the season");
-    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonPod, &buttonTropical, &buttonClimate}) {
+    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonHistory, &buttonPod, &buttonTropical, &buttonClimate}) {
         rowTop.addWidget(*button);
     }
     rowTop.addStretch();
@@ -143,6 +145,7 @@ TropicalHub::TropicalHub(Window * parent)
             new SeasonViewer{this, seasonAtlantic};
         }
     });
+    buttonHistory.connect([this] { new HistoryViewer{this}; });
     buttonAce.connect([this] {
         if (seasonAtlantic && seasonPacific) {
             new AceViewer{this, seasonAtlantic, seasonPacific};
