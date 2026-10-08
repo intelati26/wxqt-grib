@@ -5,6 +5,9 @@
 // *****************************************************************************
 
 #include "ui/Toolbar.h"
+#include <QPolygonF>
+#include <QPixmap>
+#include <QPainter>
 #include "ui/ToolbarGroups.h"
 #include <algorithm>
 #include <string>
@@ -220,7 +223,19 @@ void Toolbar::rebuildButtons() {
         return nullptr;
     };
     if (mode == ToolbarGroups::Icons) {
+        // a group set to be a dropdown is one button, where its first entry would be, that opens a menu of its entries
+        vector<string> placed;
         for (const auto& item : routeItems) {
+            const auto& groups = ToolbarGroups::groups();
+            const auto index = ToolbarGroups::groupOf(item.id);
+            if (index >= 0 && index < static_cast<int>(groups.size()) && ToolbarGroups::isDropdown(groups[static_cast<size_t>(index)].name)) {
+                const auto& group = groups[static_cast<size_t>(index)];
+                if (std::find(placed.begin(), placed.end(), group.name) == placed.end()) {
+                    placed.push_back(group.name);
+                    addDropdownButton(group.name, group.ids);
+                }
+                continue;
+            }
             buttons.emplace_back(parent, item.iconString, item.toolTip);
             buttons.back().connect(item.fn);
             addWidget(buttons.back());
@@ -264,6 +279,52 @@ void Toolbar::rebuildButtons() {
         }
     }
     addStretch();
+}
+
+// One button for a whole group: its menu lists the entries with their icons and names. The glyph is drawn (the blocks of a dashboard) so it needs no picture file.
+void Toolbar::addDropdownButton(const string& groupName, const vector<string>& ids) {
+    buttons.emplace_back(parent, "", groupName + " (menu)");
+    auto& button = buttons.back();
+    const int size = std::max(16, ButtonFlat::getIconSize());
+    QPixmap glyph{size, size};
+    glyph.fill(Qt::transparent);
+    {
+        QPainter p{&glyph};
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor{30, 30, 30});
+        const double u = size / 24.0;   // the 24 unit grid of the other icons
+        const double r = 1.2 * u;
+        p.drawRoundedRect(QRectF{3 * u, 3 * u, 8 * u, 11 * u}, r, r);     // the tall block
+        p.drawRoundedRect(QRectF{13 * u, 3 * u, 8 * u, 5 * u}, r, r);     // top right
+        p.drawRoundedRect(QRectF{13 * u, 10 * u, 8 * u, 11 * u}, r, r);   // tall right
+        p.drawRoundedRect(QRectF{3 * u, 16 * u, 8 * u, 5 * u}, r, r);     // bottom left
+        // a small arrow: it opens a menu
+        p.setBrush(QColor{30, 30, 30});
+        QPolygonF arrow;
+        arrow << QPointF{15 * u, 14.5 * u} << QPointF{19 * u, 14.5 * u} << QPointF{17 * u, 17.5 * u};
+        p.setBrush(Qt::white);
+        p.drawPolygon(arrow);
+    }
+    button.getView()->setIcon(QIcon{glyph});
+    button.getView()->setIconSize(QSize{size, size});
+    QPushButton * view = button.getView();
+    QObject::connect(view, &QPushButton::released, parent, [this, view, ids] {
+        QMenu menu;
+        for (const auto& id : ids) {
+            for (const auto& item : routeItems) {
+                if (item.id != id) {
+                    continue;
+                }
+                auto * action = menu.addAction(QIcon{QString::fromStdString(GlobalVariables::imageDir + item.iconString)}, QString::fromStdString(item.label));
+                action->setToolTip(QString::fromStdString(item.toolTip));
+                QObject::connect(action, &QAction::triggered, parent, item.fn);
+                break;
+            }
+        }
+        menu.exec(view->mapToGlobal(QPoint{view->width(), 0}));   // opens to the right of the column
+    });
+    addWidget(button);
 }
 
 void Toolbar::launchRoute(const string& id) {

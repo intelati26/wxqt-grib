@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "settings/SettingsToolbarOrderBox.h"
+#include <QCheckBox>
+#include <QSignalBlocker>
 #include <algorithm>
 #include <functional>
 #include <memory>
@@ -209,6 +211,28 @@ void SettingsToolbarOrderBox::addStyleAndGroups() {
         }
     });
     box.addWidgetReal(groupList);
+    // a group can be a single dropdown button in the icon column
+    auto * dropdownCheck = new QCheckBox{"Show the selected group as one dropdown button in the \"Icons only\" style", parent};
+    dropdownCheck->setToolTip("Fewer icons on the home screen: the group becomes one button that opens a menu of its entries");
+    const QPointer<QListWidget> listGuard{groupList};
+    const auto sync = [listGuard, dropdownCheck] {
+        const bool valid = !listGuard.isNull() && listGuard->currentRow() >= 0 && listGuard->currentRow() < static_cast<int>(ToolbarGroups::groups().size());
+        const QSignalBlocker blocker{dropdownCheck};
+        dropdownCheck->setEnabled(valid);
+        dropdownCheck->setChecked(valid && ToolbarGroups::isDropdown(ToolbarGroups::groups()[static_cast<size_t>(listGuard->currentRow())].name));
+    };
+    QObject::connect(groupList, &QListWidget::currentRowChanged, dropdownCheck, [sync] (int) { sync(); });
+    QObject::connect(dropdownCheck, &QCheckBox::toggled, dropdownCheck, [this, listGuard] (bool on) {
+        if (!listGuard.isNull() && listGuard->currentRow() >= 0 && listGuard->currentRow() < static_cast<int>(ToolbarGroups::groups().size())) {
+            ToolbarGroups::setDropdown(ToolbarGroups::groups()[static_cast<size_t>(listGuard->currentRow())].name, on);
+            toolbar->rebuild();
+        }
+    });
+    box.addWidgetReal(dropdownCheck);
+    if (groupList->count() > 0) {
+        groupList->setCurrentRow(0);   // so the choice is available straight away
+    }
+    sync();
     hboxList.emplace_back();
     buttons.emplace_back(parent, None, "Add a group");
     buttons.back().setText("Add group");

@@ -14,6 +14,8 @@ namespace {
     const string modePref{"TOOLBAR_MODE"};
     const string groupsPref{"TOOLBAR_GROUPS"};
     const string otherGroup{"Other"};
+    const string dropdownsPref{"TOOLBAR_DROPDOWNS"};
+    const string dashboardsGroup{"Dashboards"};
 
     int currentMode = 0;
     vector<ToolbarGroups::Group> current;
@@ -22,12 +24,14 @@ namespace {
     // built-in grouping: group names in menu order, then the entries (RouteItem ids) of each
     const vector<std::pair<string, vector<string>>>& builtIn() {
         static const vector<std::pair<string, vector<string>>> all{
+            // the multi-panel screens that gather a subject: the severe dashboard, the tropical hub, space weather, tornado history, forecast discussions
+            {dashboardsGroup, {"baseline_warning_black_48dp.png", "hurricane.png", "goes16.png", "twtornado.png", "widget_afd.png"}},
             {"Radar and satellite", {"baseline_flash_on_black_48dp.png", "wxogldualpane.png", "wxoglquadpane.png",
                                      "radarmosaicnws.png", "mcd_tile.png", "baseline_cloud_black_48dp.png", "goesfulldisk.png",
                                      "lightning.png"}},
             {"Forecast and observations", {"baseline_date_range_black_48dp.png", "baseline_info_black_48dp.png",
                                            "nwsobs.png", "nwsobs.png#2", "nwsobssites.png", "spcsoundings.png", "rtma.png"}},
-            {"Severe weather", {"baseline_warning_black_48dp.png", "uswarn.png", "report_today.png",
+            {"Severe weather", {"uswarn.png", "report_today.png",
                                 "report_yesterday.png", "spc_sum.png", "day1.png", "day2.png", "day3.png", "day48.png",
                                 "tstorm.png#2", "ntor.png", "fire_outlook.png", "meso.png", "spccompmap.png", "tor.png"}},
             {"National, tropical and marine", {"fmap.png", "fmap.png#2", "srfd.png", "wpc_rainfall.png", "nhc.png", "nhc.png#2", "tropstorm.png", "opc.png", "opc.png#2"}},
@@ -107,6 +111,45 @@ namespace {
         }
     }
 
+    // the groups shown as one dropdown button in the icon column: a ';' separated pref, "Dashboards" until the user chooses
+    vector<string> dropdownNames() {
+        const auto saved = Utility::readPref(dropdownsPref, "(built-in)");
+        if (saved == "(built-in)") {
+            return {dashboardsGroup};
+        }
+        vector<string> names;
+        for (const auto& name : WString::split(saved, ";")) {
+            if (!name.empty()) {
+                names.push_back(name);
+            }
+        }
+        return names;
+    }
+
+    void saveDropdowns(const vector<string>& names) {
+        Utility::writePref(dropdownsPref, names.empty() ? "" : WString::join(names, ";"));
+    }
+
+    // a saved layout from before the Dashboards group: make the group, and take into it the dashboards that were left in "Other" (those not placed by choice)
+    void addDashboardsToSaved() {
+        if (find(dashboardsGroup) != nullptr) {
+            return;
+        }
+        ToolbarGroups::Group group{dashboardsGroup, {}};
+        if (auto * other = find(otherGroup)) {
+            for (const auto& id : builtIn().front().second) {
+                const auto at = std::find(other->ids.begin(), other->ids.end(), id);
+                if (at != other->ids.end()) {
+                    other->ids.erase(at);
+                    group.ids.push_back(id);
+                }
+            }
+        }
+        if (!group.ids.empty()) {
+            current.insert(current.begin(), group);
+        }
+    }
+
     void buildBuiltIn() {
         current.clear();
         for (const auto& group : builtIn()) {
@@ -150,6 +193,7 @@ void ToolbarGroups::load(const vector<string>& allIds) {
         }
         current.push_back(group);
     }
+    addDashboardsToSaved();
     normalise();
 }
 
@@ -191,7 +235,11 @@ void ToolbarGroups::renameGroup(int group, const string& name) {
     if (taken && current[group].name != cleaned) {
         return;   // names are unique
     }
+    const auto before = current[group].name;
     current[group].name = cleaned;
+    auto dropdowns = dropdownNames();
+    std::replace(dropdowns.begin(), dropdowns.end(), before, cleaned);   // a renamed group keeps its dropdown
+    saveDropdowns(dropdowns);
     save();
 }
 
@@ -212,6 +260,9 @@ void ToolbarGroups::deleteGroup(int group) {
     if (current.size() < 2 || group < 0 || group >= static_cast<int>(current.size())) {
         return;
     }
+    auto dropdowns = dropdownNames();
+    dropdowns.erase(std::remove(dropdowns.begin(), dropdowns.end(), current[group].name), dropdowns.end());
+    saveDropdowns(dropdowns);
     const auto target = group > 0 ? group - 1 : 1;
     for (const auto& id : current[group].ids) {
         current[target].ids.push_back(id);
@@ -232,5 +283,20 @@ void ToolbarGroups::moveGroup(int from, int to) {
 
 void ToolbarGroups::reset() {
     buildBuiltIn();
+    Utility::writePref(dropdownsPref, "(built-in)");   // back to the built-in dropdowns
     save();
+}
+
+bool ToolbarGroups::isDropdown(const string& groupName) {
+    const auto names = dropdownNames();
+    return std::find(names.begin(), names.end(), groupName) != names.end();
+}
+
+void ToolbarGroups::setDropdown(const string& groupName, bool on) {
+    auto names = dropdownNames();
+    names.erase(std::remove(names.begin(), names.end(), groupName), names.end());
+    if (on) {
+        names.push_back(groupName);
+    }
+    saveDropdowns(names);
 }
