@@ -437,7 +437,7 @@ void TornadoChart::paintEvent(QPaintEvent *) {
         key(QColor{60, 60, 70}, Qt::DashLine, QString{"average "} + QString::number(averageFirst) + "-" + QString::number(averageLast));
     }
     p.setPen(QColor{90, 90, 90});
-    p.drawText(QPointF{area.left(), height() - 6.0}, "SPC tornado database (the actual tornadoes, one row each; a multi-state tornado counts once, in the state it began). Records before about 1990 are less complete than later ones.");
+    p.drawText(QPointF{area.left(), height() - 6.0}, "SPC tornado database (the actual tornadoes, one row each; a multi-state tornado counts once, in the state it began). Records before about 1990 are less complete than later ones." + QString{db->preliminaryCount > 0 ? "  " + QString::number(db->preliminaryFrom) + " on is SPC's preliminary point reports (it may count a tornado twice)." : ""});
 }
 
 void TornadoChart::mouseMoveEvent(QMouseEvent * event) {
@@ -551,7 +551,7 @@ TornadoStatsViewer::TornadoStatsViewer(Window * parent, const std::shared_ptr<co
         const std::string state = comboState.getIndex() > 0 ? comboState.getValue() : std::string{};
         const auto metric = static_cast<UtilityTornado::Metric>(comboMetric.getIndex());
         for (const auto& t : db->tornadoes) {
-            if (!t.counts() || (rating >= 1 && rating <= 4 && t.mag < rating) || (rating == 5 && t.mag != 5) || (!state.empty() && t.state != state)) {
+            if (!t.counts() || !UtilityTornado::passesRating(t, rating) || (!state.empty() && t.state != state)) {
                 continue;
             }
             totals[t.year] += UtilityTornado::value(t, metric);
@@ -651,7 +651,7 @@ void TornadoStatsViewer::apply() {
     const std::string state = comboState.getIndex() > 0 ? comboState.getValue() : std::string{};
     std::vector<const T *> filtered;
     for (const auto& t : db->tornadoes) {
-        if (!t.counts() || (rating >= 1 && rating <= 4 && t.mag < rating) || (rating == 5 && t.mag != 5) || (!state.empty() && t.state != state)) {
+        if (!t.counts() || !UtilityTornado::passesRating(t, rating) || (!state.empty() && t.state != state)) {
             continue;
         }
         filtered.push_back(&t);

@@ -39,7 +39,7 @@ QColor TornadoViewer::colorOf(int mag) {
 }
 
 QString TornadoViewer::describe(const T& t) {
-    return dateText(t) + "  " + QString::fromStdString(t.state) + "  " + QString::fromStdString(UtilityTornado::rating(t)) + "  " + QString::number(t.length, 'f', t.length < 10 ? 1 : 0) + " mi" +
+    return dateText(t) + "  " + QString::fromStdString(t.state) + "  " + (t.preliminary ? QString{"prelim. report"} : QString::fromStdString(UtilityTornado::rating(t)) + "  " + QString::number(t.length, 'f', t.length < 10 ? 1 : 0) + " mi") +
         (t.fatalities > 0 ? "  " + QString::number(t.fatalities) + " dead" : QString{});
 }
 
@@ -47,6 +47,10 @@ QString TornadoViewer::details(const T& t) {
     QString text = dateText(t) + "  " + QString::fromStdString(t.time.substr(0, 5)) + (t.timeZone == 3 ? " CST" : t.timeZone == 9 ? " GMT" : "") + "   " + QString::fromStdString(t.state) + "\n" +
         QString::fromStdString(UtilityTornado::rating(t)) + ",  " + QString::number(t.length, 'f', 1) + " miles long, " + QString::number(static_cast<int>(t.width)) + " yards wide\n" +
         QString::number(t.fatalities) + " deaths, " + QString::number(t.injuries) + " injuries";
+    if (t.preliminary) {
+        return dateText(t) + "  " + QString::fromStdString(t.time.substr(0, 5)) + " UTC   " + QString::fromStdString(t.state) + "\nA preliminary report (SPC daily reports): a point, not a surveyed track;\nrating " +
+            (t.mag >= 0 ? QString::fromStdString(UtilityTornado::rating(t)) : QString{"not given"}) + ". It may count a tornado more than once.";
+    }
     if (t.states > 1) {
         text += "\n(crossed " + QString::number(t.states) + " states; counted in the state of touchdown)";
     }
@@ -201,9 +205,7 @@ void TornadoViewer::applyFilters() {
         if (spanned && TornadoData::ordinal(t.year, t.month, t.day) < cutoff) {
             continue;
         }
-        if (rating >= 1 && rating <= 4 && t.mag < rating) continue;
-        if (rating == 5 && t.mag != 5) continue;
-        if (rating == 6 && t.mag >= 0) continue;
+        if (!UtilityTornado::passesRating(t, rating)) continue;
         if (!state.empty() && t.state != state) continue;
         if (kind == 1 && t.fatalities <= 0) continue;
         if (kind == 2 && t.fatalities + t.injuries <= 0) continue;
@@ -238,7 +240,7 @@ void TornadoViewer::applyFilters() {
     string text = QLocale{QLocale::English}.toString(static_cast<qlonglong>(shown.size())).toStdString() + " tornadoes (" + std::to_string(strong) + " rated 3 or more), " + std::to_string(deaths) + " deaths, " +
         std::to_string(injuries) + " injuries";
     text += spanned ? "   -   the " + string{comboSpan.getValue()} : "   -   " + std::to_string(first) + " to " + std::to_string(last);
-    text += "   -   " + db->file + " (to " + std::to_string(db->lastDay) + "/" + std::to_string(db->lastMonth) + "/" + std::to_string(db->lastYear) + ")";
+    text += "   -   " + db->file + (db->preliminaryCount > 0 ? " + " + std::to_string(db->preliminaryCount) + " preliminary reports since" : string{}) + " (to " + std::to_string(db->lastDay) + "/" + std::to_string(db->lastMonth) + "/" + std::to_string(db->lastYear) + ")";
     if (area->active()) {
         text += "   -   " + area->describe().toStdString();
     }

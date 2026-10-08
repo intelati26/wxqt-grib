@@ -6,6 +6,7 @@
 #include "tornado/UtilityTornado.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <map>
 #include <regex>
@@ -83,6 +84,80 @@ vector<UtilityTornado::Tornado> UtilityTornado::parse(const string& csv) {
         all.push_back(std::move(t));
     }
     return all;
+}
+
+void UtilityTornado::nextDay(int& year, int& month, int& day) {
+    static const int lengths[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    const bool leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    const int length = lengths[std::clamp(month, 1, 12) - 1] + (leap && month == 2 ? 1 : 0);
+    if (++day > length) {
+        day = 1;
+        if (++month > 12) {
+            month = 1;
+            year++;
+        }
+    }
+}
+
+vector<UtilityTornado::Tornado> UtilityTornado::parseDailyReport(const string& csv, int year, int month, int day) {
+    vector<Tornado> out;
+    std::istringstream in{csv};
+    string line;
+    bool first = true;
+    while (std::getline(in, line)) {
+        if (first) {
+            first = false;
+            if (line.rfind("Time", 0) != 0) {
+                return {};   // not a report file
+            }
+            continue;
+        }
+        const auto f = UtilityMetarCache::splitCsv(line);
+        if (f.size() < 7) {
+            continue;
+        }
+        Tornado t;
+        const int hhmm = integer(f[0], -1);
+        if (hhmm < 0 || hhmm > 2359) {
+            continue;
+        }
+        int y = year, m = month, d = day;
+        if (hhmm < 1200) {
+            nextDay(y, m, d);
+        }
+        t.year = y;
+        t.month = m;
+        t.day = d;
+        t.dayOfYear = dayOfYear(y, m, d);
+        char buffer[16];
+        std::snprintf(buffer, sizeof buffer, "%02d:%02d:00", hhmm / 100, hhmm % 100);
+        t.time = buffer;
+        t.timeZone = 9;   // UTC
+        t.state = f[4];
+        // "UNK", or "EF1" / "F1" / "1"
+        const string rating = f[1];
+        const auto digit = rating.find_first_of("012345");
+        t.mag = digit != string::npos && rating.find("UNK") == string::npos ? rating[digit] - '0' : -9;
+        t.startLat = number(f[5]);
+        t.startLon = number(f[6]);
+        if (t.startLat == 0.0 && t.startLon == 0.0) {
+            continue;
+        }
+        t.id = "prelim-" + std::to_string(year) + (month < 10 ? "0" : "") + std::to_string(month) + (day < 10 ? "0" : "") + std::to_string(day) + "-" + std::to_string(out.size() + 1);
+        t.preliminary = true;
+        out.push_back(std::move(t));
+    }
+    return out;
+}
+
+bool UtilityTornado::passesRating(const Tornado& t, int level) {
+    if (level <= 0) {
+        return true;
+    }
+    if (level <= 4) {
+        return t.mag >= level || (t.preliminary && t.mag < 0);
+    }
+    return level == 5 ? t.mag == 5 : t.mag < 0 && !t.preliminary;
 }
 
 string UtilityTornado::ratingOf(int mag, int year) {

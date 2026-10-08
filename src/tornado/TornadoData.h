@@ -22,6 +22,8 @@ public:
         int lastYear{0};
         int lastMonth{0};               // the date of the newest tornado in the file (the file runs to about the middle of the year it is named for)
         int lastDay{0};
+        int preliminaryCount{0};        // reports added from the daily files for the years after the file's (a point report each, with no end)
+        int preliminaryFrom{0};         // the year they start in
         std::string error;
     };
     static std::shared_ptr<const Database> load();

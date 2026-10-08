@@ -40,10 +40,18 @@ public:
         int states{1};           // ns: states affected
         int segment{1};          // sg
         int dayOfYear{0};
+        bool preliminary{false}; // a point report from the daily reports of the year the database does not cover yet: no end point, a rating only when the office gave one
         bool hasEnd() const { return endLat != 0.0 || endLon != 0.0; }
         bool counts() const { return segment == 1; }      // one row per tornado (the segments of a multi-state track are not tornadoes of their own)
     };
     static vector<Tornado> parse(const string& csv);
+    // The SPC's preliminary tornado reports of one convective day (www.spc.noaa.gov/climo/reports/yymmdd_rpts_torn.csv: Time,F_Scale,Location,County,State,Lat,Lon,Comments;
+    // the day runs from 12 UTC to 12 UTC, so a time before 1200 belongs to the next calendar day). Each report is one point; a rating of UNK is unrated. The times are UTC.
+    static vector<Tornado> parseDailyReport(const string& csv, int year, int month, int day);
+    static void nextDay(int& year, int& month, int& day);
+    // the rating filter of the screens: level 0 all, 1 to 4 that rating or stronger, 5 only the 5s, 6 only the unrated. A preliminary report with no rating yet
+    // passes the levels 1 to 4 (it may be any), and is not an unrated tornado of the official file
+    static bool passesRating(const Tornado&, int level);
     static string rating(const Tornado&);                  // "EF3" from 2007, "F3" before; "unrated" for -9
     static string ratingOf(int mag, int year);
     static int dayOfYear(int year, int month, int day);

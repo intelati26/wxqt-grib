@@ -61,7 +61,7 @@ bool TornadoLayer::wanted(const UtilityTornado::Tornado& t) const {
     if (t.year <= db->lastYear - spans[std::clamp(years, 0, 3)]) {
         return false;
     }
-    return rating == 0 || t.mag >= rating;
+    return UtilityTornado::passesRating(t, rating);
 }
 
 void TornadoLayer::paint(QPainter& painter, MapHost& host) {

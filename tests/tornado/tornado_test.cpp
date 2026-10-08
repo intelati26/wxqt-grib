@@ -70,6 +70,24 @@ int main(int argc, char ** argv) {
     // the file name on the SPC page, and a file that is not this one
     CHECK(T::newestFile("<a href=\"data/1950-2024_actual_tornadoes.csv\">x</a> <a href=\"data/1950-2025_actual_tornadoes.csv\">y</a>") == "1950-2025_actual_tornadoes.csv" && T::newestFile("nothing").empty());
     CHECK(T::parse("a,b,c\n1,2,3\n").empty());
+    // the preliminary reports of one convective day (28 April 2026): 12 UTC to 12 UTC, so the times before 1200 are the next calendar day
+    const auto daily = T::parseDailyReport(readFile(f + "/daily_260428.csv"), 2026, 4, 28);
+    CHECK(daily.size() == 15 && daily[0].preliminary && daily[0].year == 2026 && daily[0].month == 4 && daily[0].day == 28 && daily[0].state == "TX" && near(daily[0].startLat, 33.55) && near(daily[0].startLon, -98.04));
+    CHECK(daily[0].time == "19:49:00" && daily[0].timeZone == 9 && daily[0].mag == -9 && !daily[0].hasEnd() && daily[0].dayOfYear == 118);
+    CHECK(daily[8].day == 29 && daily[8].time == "00:10:00" && daily[8].dayOfYear == 119 && daily[14].day == 29 && daily[0].id != daily[1].id && daily[0].counts());
+    CHECK(T::parseDailyReport(readFile(f + "/daily_empty.csv"), 2026, 10, 8).empty() && T::parseDailyReport("<html>nope</html>", 2026, 4, 28).empty());
+    const auto rated = T::parseDailyReport("Time,F_Scale,Location,County,State,Lat,Lon,Comments\n2100,EF2,X,Y,OK,35.1,-97.2,\"a, b\"\n2110,UNK,X,Y,OK,35.2,-97.3,c\n", 2026, 5, 3);
+    CHECK(rated.size() == 2 && rated[0].mag == 2 && rated[1].mag == -9 && T::rating(rated[0]) == "EF2");
+    CHECK(T::passesRating(rated[0], 2) && !T::passesRating(rated[0], 3) && T::passesRating(rated[1], 3) && !T::passesRating(rated[1], 6) && T::passesRating(rated[1], 0) && !T::passesRating(rated[1], 5));
+    CHECK(T::passesRating(all[0], 1) && !T::passesRating(all[0], 2) && T::passesRating(all[0], 0) && !T::passesRating(all[0], 6) && T::passesRating(*ef5, 5));
+    int y = 2026, m = 12, d = 31;
+    T::nextDay(y, m, d);
+    CHECK(y == 2027 && m == 1 && d == 1);
+    y = 2028; m = 2; d = 28;
+    T::nextDay(y, m, d);
+    CHECK(m == 2 && d == 29);
+    T::nextDay(y, m, d);
+    CHECK(m == 3 && d == 1);
     if (failures == 0) {
         std::cout << "all tornado database tests passed\n";
     }
