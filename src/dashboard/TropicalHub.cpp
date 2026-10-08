@@ -22,6 +22,7 @@
 #include "hurricane/AdvisoryViewer.h"
 #include "hurricane/FloaterViewer.h"
 #include "hurricane/ReconViewer.h"
+#include "hurricane/HafsViewer.h"
 #include "hurricane/HistoryViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "hurricane/PodViewer.h"
@@ -136,13 +137,14 @@ TropicalHub::TropicalHub(Window * parent)
     , buttonHistory{this, None, "Historical tracks..."}
     , buttonPod{this, None, "Recon plan of the day..."}
     , buttonModels{this, None, "Model charts..."}
+    , buttonHafs{this, None, "Hurricane model (HAFS)..."}
     , buttonTropical{this, None, "Tropical (CIRA, JTWC, JMA)..."}
     , buttonClimate{this, None, "Climate and ocean..."}
     , textStatus{this, ""}
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Tropical Hub - active storms, outlook, recon and the season");
-    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonHistory, &buttonPod, &buttonModels, &buttonTropical, &buttonClimate}) {
+    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonHistory, &buttonPod, &buttonModels, &buttonHafs, &buttonTropical, &buttonClimate}) {
         rowTop.addWidget(*button);
     }
     rowTop.addStretch();
@@ -170,6 +172,7 @@ TropicalHub::TropicalHub(Window * parent)
         Utility::writePref("MODELNCEPSECTORLASTUSED", "WEST-ATL");
         new ModelViewer{this, "NCEP"};
     });
+    buttonHafs.connect([this] { new HafsViewer{this}; });
     buttonTropical.connect([this] { new TropicalViewer{this}; });
     buttonClimate.connect([this] { new ClimateViewer{this}; });
 
@@ -347,6 +350,10 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
     };
     const auto id = entry.id;
     addButton("Track map and recon", [this, basin, id] { new HurricaneViewer{this, basin, id}; });
+    {   // the hurricane model for this storm (it runs for active storms and invests)
+        const auto stormName = entry.name;
+        addButton("HAFS model", [this, id, stormName] { new HafsViewer{this, id, stormName}; });
+    }
     if (!invest) {
         const auto stormName = entry.name;
         addButton("Recon flight", [this, id, stormName] { new ReconViewer{this, id, stormName}; });

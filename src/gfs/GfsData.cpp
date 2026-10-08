@@ -77,6 +77,30 @@ GfsData::Source GfsData::gefs() {
     return s;
 }
 
+// NCEP's hurricane model (HAFS version A and B), run for each active storm and invest on NOMADS: a storm-following grid of 0.02 degrees (the atmosphere and the simulated satellite as files
+// of their own, 3 hourly to 126 hours) and one file of waves for all the hours (the hour is in the record, not the file name)
+GfsData::Source GfsData::hafs(const std::string& model, const std::string& storm) {
+    Source s;
+    const std::string letter = model == "HAFSB" ? "b" : "a";
+    s.id = model + "-" + storm;
+    s.label = std::string{"NOAA/NCEP HAFS-"} + (letter == "b" ? "B" : "A") + " storm-following grid, 2 km";
+    s.fileUrl = [letter, storm] (const Run& run, int hour, const std::string& file) {
+        const auto base = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfs" + letter + "." + run.date + "/" + run.cycle + "/" + storm + "." + run.date + run.cycle + ".hfs" + letter + ".";
+        return file == "ww3" ? base + "ww3.grb2" : base + (file.empty() ? "storm.atm" : file) + ".f" + pad(hour, 3) + ".grb2";
+    };
+    s.fileOf = [] (const Want& want) {
+        return want.stat == "ww3" ? std::string{"ww3"} : want.variable.compare(0, 3, "var") == 0 ? std::string{"storm.sat"} : std::string{"storm.atm"};
+    };
+    s.defaultDetail = "*";
+    s.extraMissing = 9999.0f;
+    s.probeFile = "storm.atm";
+    s.cycleHours = 6;
+    s.lagHours = 4;
+    s.probeHour = 0;
+    s.cyclesToTry = 4;
+    return s;
+}
+
 GfsData::Source GfsData::nbm() {
     Source s;
     s.id = "NBM";
@@ -237,7 +261,7 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
         }
     }
     for (auto& value : g.values) {
-        if (std::abs(value) > 1e19f || (source.warp.enabled && value < -9998.5f)) {   // GRIB's missing value, and the warp's where the grid does not reach
+        if (std::abs(value) > 1e19f || value == source.extraMissing || (source.warp.enabled && value < -9998.5f)) {   // GRIB's missing value, and the warp's where the grid does not reach
             value = std::nanf("");
         }
     }

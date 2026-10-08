@@ -30,12 +30,17 @@ int main(int argc, char ** argv) {
         QStringList args{"-s", "-m", "120", QString::fromStdString(url)};
         if (end >= 0) {
             args << "-r" << QString::number(start) + "-" + QString::number(end);
+        } else if (start > 0) {   // the last record of a file: to the end
+            args << "-r" << QString::number(start) + "-";
         }
         curl.start("curl", args);
         curl.waitForFinished(130000);
         return curl.readAllStandardOutput();
     };
-    GfsData data{config, argc > 5 && std::string{argv[5]} == "NBM" ? GfsData::nbm() : argc > 5 && std::string{argv[5]} == "AIGFS" ? GfsData::aigfs() : argc > 5 && std::string{argv[5]} == "GEFS" ? GfsData::gefs() : GfsData::gfs()};
+    const std::string sourceArg = argc > 5 ? argv[5] : "GFS";
+    const bool hurricane = sourceArg.compare(0, 4, "HAFS") == 0;   // "HAFSA:09l": the model and the storm
+    const std::string modelName = hurricane ? sourceArg.substr(0, sourceArg.find(':')) : sourceArg;
+    GfsData data{config, hurricane ? GfsData::hafs(modelName, sourceArg.substr(sourceArg.find(':') + 1)) : argc > 5 && std::string{argv[5]} == "NBM" ? GfsData::nbm() : argc > 5 && std::string{argv[5]} == "AIGFS" ? GfsData::aigfs() : argc > 5 && std::string{argv[5]} == "GEFS" ? GfsData::gefs() : GfsData::gfs()};
     GfsData::Run run;
     if (!data.latestRun(run)) {
         std::printf("no run\n");
@@ -44,7 +49,7 @@ int main(int argc, char ** argv) {
     if (argc > 6) {   // a cycle to use instead of the newest ("18")
         run.cycle = argv[6];
     }
-    const auto * baseProduct = GfsChart::product(argv[1], argc > 5 ? argv[5] : "GFS");
+    const auto * baseProduct = GfsChart::product(argv[1], modelName);
     std::vector<std::string> overlayIds;   // DEMO_OVERLAYS=mslp,barbs_500
     if (const char * env = std::getenv("DEMO_OVERLAYS")) {
         std::stringstream in{env};
@@ -52,7 +57,8 @@ int main(int argc, char ** argv) {
     }
     const auto composed = baseProduct ? GfsChart::compose(*baseProduct, overlayIds) : GfsChart::Product{};
     const auto * product = baseProduct ? &composed : nullptr;
-    const auto * sector = GfsChart::sector(argv[2]);
+    GfsChart::Sector stormSector;
+    const auto * sector = hurricane ? &stormSector : GfsChart::sector(argv[2]);
     if (!product || !sector) {
         std::printf("unknown product or sector\n");
         return 2;
@@ -62,6 +68,20 @@ int main(int argc, char ** argv) {
     if (!data.load(run, GfsChart::needs(*product, std::atoi(argv[3])), grids, error)) {
         std::printf("load failed: %s\n", error.c_str());
         return 1;
+    }
+    if (hurricane) {   // the chart is the grid of the first field, as the app does
+        for (const auto& need : GfsChart::needs(*product, std::atoi(argv[3]))) {
+            const auto found = grids.find(need.want.key);
+            if (found != grids.end() && !found->second.empty() && need.want.stat != "ww3") {
+                const auto& g = found->second;
+                stormSector = GfsChart::gridSector(argv[2], g);
+                break;
+            }
+        }
+        if (stormSector.id.empty() && !grids.empty()) {
+            const auto& g = grids.begin()->second;
+            stormSector = GfsChart::gridSector(argv[2], g);
+        }
     }
     GfsClimate climate{"/usr/bin"};
     GfsChart::Options options;

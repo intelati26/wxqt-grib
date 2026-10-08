@@ -8,8 +8,10 @@
 #include <cstring>
 #include <map>
 #include <mutex>
+#include <set>
 #include <QBuffer>
 #include <QDateTime>
+#include <QRegularExpression>
 #include <QDir>
 #include <QFileInfo>
 #include <QTemporaryDir>
@@ -51,18 +53,25 @@ namespace {
         return lines;
     }
 
-    GfsData::Source sourceOf(const std::string& model) {
+    bool isHafs(const std::string& model) {
+        return model == "HAFSA" || model == "HAFSB";
+    }
+
+    GfsData::Source sourceOf(const std::string& model, const std::string& storm = "") {
+        if (isHafs(model)) {
+            return GfsData::hafs(model, storm);
+        }
         return model == "NBM" ? GfsData::nbm() : model == "AIGFS" ? GfsData::aigfs() : model == "GEFS" ? GfsData::gefs() : GfsData::gfs();
     }
 
-    GfsData data(const QString& folder, const std::string& model) {
+    GfsData data(const QString& folder, const std::string& model, const std::string& storm = "") {
         GfsData::Config config;
         config.gdalBin = UtilityGrib::gdalBinDir();
         config.cacheFolder = folder;
         config.bytes = [] (const std::string& url, long long start, long long end) {
             return end < 0 && start == 0 ? URL::getBytes(url) : URL::getBytesRange(url, start, end < 0 ? start + 4 * 1024 * 1024 * 1024LL : end);
         };
-        return GfsData{config, sourceOf(model)};
+        return GfsData{config, sourceOf(model, storm)};
     }
 
     // the newest published run of a model, looked up at most every ten minutes
@@ -107,11 +116,11 @@ QString GfsRender::Session::partialGrib(const std::string& cycleRun, int hour) c
 }
 
 bool GfsRender::handles(const std::string& model, const std::string& param) {
-    return (model == "GFS" || model == "NBM" || model == "AIGFS" || model == "GEFS") && GfsChart::product(param, model) != nullptr;
+    return (model == "GFS" || model == "NBM" || model == "AIGFS" || model == "GEFS" || isHafs(model)) && GfsChart::product(param, model) != nullptr;
 }
 
-bool GfsRender::latestCycle(const std::string& model, std::string& cycle) {
-    const auto gfs = data({}, model);
+bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const std::string& storm) {
+    const auto gfs = data({}, model, storm);
     GfsData::Run run;
     if (!newestRun(gfs, run)) {
         return false;
@@ -122,7 +131,12 @@ bool GfsRender::latestCycle(const std::string& model, std::string& cycle) {
 
 QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error) {
     const auto * base = GfsChart::product(param, model);
-    const auto * sector = GfsChart::sector(sectorId);
+    auto sector = GfsChart::sector(sectorId);
+    GfsChart::Sector storm;   // the hurricane model's grid follows the storm: the chart is its whole grid
+    const std::string stormId = isHafs(model) ? sectorId : std::string{};
+    if (isHafs(model)) {
+        sector = &storm;
+    }
     const auto composed = base ? GfsChart::compose(*base, overlays) : GfsChart::Product{};   // the chart with what was ticked onto it
     const auto * product = base ? &composed : nullptr;
     if (!product || !sector) {
@@ -133,7 +147,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         error = "GDAL not found - install the 'gdal' package";
         return {};
     }
-    const auto gfs = data(session.folder(), model);
+    const auto gfs = data(session.folder(), model, stormId);
     // the newest published run; an earlier cycle of the screen's choice is that run stepped back to it
     GfsData::Run run;
     if (!newestRun(gfs, run)) {
@@ -164,6 +178,20 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     if (!loaded) {
         // the blend's runs that are not at 00, 06, 12 or 18Z carry only the 1 hour amounts and fewer fields: the newest of the main runs has the rest, with the forecast hour moved to
         // keep the same valid time
+        if (isHafs(model)) {   // the waves come out after the rest: the cycle before, six hours further on, has the same valid time
+            auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+            t.setTimeSpec(Qt::UTC);
+            t = t.addSecs(-6 * 3600);
+            const GfsData::Run earlier{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+            grids.clear();
+            std::string again;
+            if (!gfs.load(earlier, GfsChart::needs(*product, hour + 6), grids, again)) {
+                return {};   // the first reason stands
+            }
+            run = earlier;
+            hour += 6;
+            error.clear();
+        } else {
         const int cycle = std::atoi(run.cycle.c_str());
         if (model != "NBM" || cycle % 6 == 0) {
             return {};
@@ -179,6 +207,21 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         run = alternative;
         hour += earlier;
         error.clear();
+        }
+    }
+    if (isHafs(model)) {   // the extent of the grid of the first field
+        for (const auto& need : GfsChart::needs(*product, hour)) {
+            const auto found = grids.find(need.want.key);
+            if (found != grids.end() && !found->second.empty() && need.want.stat != "ww3") {
+                const auto& g = found->second;
+                storm = GfsChart::gridSector(sectorId, g);
+                break;
+            }
+        }
+        if (storm.id.empty() && !grids.empty()) {   // only the wave file: its own grid
+            const auto& g = grids.begin()->second;
+            storm = GfsChart::gridSector(sectorId, g);
+        }
     }
     GfsChart::Options options;
     static const GfsClimate climate{UtilityGrib::gdalBinDir()};
@@ -195,4 +238,26 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     buffer.open(QIODevice::WriteOnly);
     image.save(&buffer, "PNG");
     return bytes;
+}
+
+std::vector<std::string> GfsRender::hafsStorms(const std::string& model, std::string& cycle) {
+    std::vector<std::string> storms;
+    if (!isHafs(model)) {
+        return storms;
+    }
+    const std::string letter = model == "HAFSB" ? "b" : "a";
+    auto t = QDateTime::currentDateTimeUtc();
+    t = QDateTime{t.date(), QTime{t.time().hour() / 6 * 6, 0}, Qt::UTC};
+    for (int back = 0; back < 6 && storms.empty(); back++, t = t.addSecs(-6 * 3600)) {   // the newest cycle that has any
+        const auto folder = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfs" + letter + "." + t.toString("yyyyMMdd").toStdString() + "/" + t.toString("HH").toStdString() + "/";
+        const auto text = QString::fromUtf8(URL::getBytes(folder));
+        std::set<std::string> found;
+        const QRegularExpression pattern{"href=\"([0-9]{2}[lecwsa])\\." + QString::fromStdString(t.toString("yyyyMMddHH").toStdString()) + "\\.hfs" + QString::fromStdString(letter) + "\\.storm\\.atm\\.f000\\.grb2\""};
+        for (auto it = pattern.globalMatch(text); it.hasNext();) {
+            found.insert(it.next().captured(1).toStdString());
+        }
+        storms.assign(found.begin(), found.end());
+        cycle = t.toString("HH").toStdString() + "Z";
+    }
+    return storms;
 }

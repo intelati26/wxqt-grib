@@ -130,6 +130,26 @@ namespace {
     Ramp spreadRamp(double top) {   // the spread of an ensemble, from none (white) up through yellow and orange to a deep purple at `top`
         return {{{0.0, {255, 255, 255}}, {top * 0.1, {255, 247, 188}}, {top * 0.3, {254, 196, 79}}, {top * 0.5, {244, 109, 67}}, {top * 0.75, {200, 30, 80}}, {top, {90, 20, 120}}}};
     }
+    Ramp tropicalWind() {   // knots: the Saffir-Simpson steps, tropical depression and storm in the cool colors, hurricanes warm to purple
+        return {{{0, QColor{235, 245, 255}}, {20, QColor{150, 200, 240}}, {34, QColor{0, 210, 160}}, {50, QColor{255, 230, 0}}, {64, QColor{255, 170, 0}}, {83, QColor{255, 100, 0}}, {96, QColor{230, 30, 30}},
+                 {113, QColor{180, 0, 90}}, {137, QColor{130, 0, 170}}, {160, QColor{255, 255, 255}}}};
+    }
+    Ramp satelliteIr() {   // brightness temperature in kelvin: warm surfaces dark, cool cloud light grey, then the cold tops in color to the coldest in white
+        return {{{183, QColor{255, 255, 255}}, {193, QColor{60, 0, 90}}, {203, QColor{200, 0, 200}}, {213, QColor{255, 0, 0}}, {223, QColor{255, 150, 0}}, {233, QColor{255, 255, 0}}, {243, QColor{0, 230, 230}},
+                 {253, QColor{175, 175, 175}}, {273, QColor{95, 95, 95}}, {303, QColor{0, 0, 0}}}};
+    }
+    Ramp waterVapor() {   // brightness temperature in kelvin: the moist, cold air in white through blue, dry air warm in orange to black
+        return {{{185, QColor{255, 255, 255}}, {200, QColor{120, 255, 200}}, {210, QColor{0, 200, 255}}, {220, QColor{30, 100, 255}}, {230, QColor{30, 30, 120}}, {240, QColor{110, 110, 110}},
+                 {250, QColor{190, 170, 120}}, {260, QColor{255, 200, 60}}, {270, QColor{255, 120, 0}}, {285, QColor{0, 0, 0}}}};
+    }
+    Ramp seaSurfaceTemperature() {   // degrees C: fine steps through the range that matters to a storm (26 C is where the warm water starts)
+        return {{{10, QColor{40, 60, 160}}, {20, QColor{30, 150, 220}}, {24, QColor{0, 200, 200}}, {26, QColor{0, 200, 120}}, {28, QColor{250, 230, 0}}, {29.5, QColor{255, 140, 0}}, {31, QColor{220, 30, 30}},
+                 {33, QColor{130, 0, 60}}}};
+    }
+    Ramp waveHeight() {   // meters
+        return {{{0, QColor{235, 245, 255}}, {1, QColor{150, 200, 240}}, {2, QColor{0, 170, 220}}, {3, QColor{0, 200, 120}}, {4, QColor{250, 230, 0}}, {6, QColor{255, 140, 0}}, {8, QColor{220, 30, 30}},
+                 {10, QColor{180, 0, 90}}, {12, QColor{130, 0, 170}}, {15, QColor{255, 255, 255}}}};
+    }
     Ramp probability() {   // percent: nothing under 5, then pale green to deep magenta
         return {{{0, QColor{229, 242, 217, 0}}, {5, QColor{229, 242, 217, 0}}, {10, QColor{"#e5f2d9"}}, {20, QColor{"#c4e3a4"}}, {30, QColor{"#93d17f"}}, {40, QColor{"#5cbf8a"}}, {50, QColor{"#31a8a8"}},
                  {60, QColor{"#2f86c4"}}, {70, QColor{"#3a5fb8"}}, {80, QColor{"#5b43a8"}}, {90, QColor{"#8a3aa6"}}, {100, QColor{"#b5368f"}}}};
@@ -225,6 +245,28 @@ const std::vector<Sector>& sectors() {
         {"CALIFORNIA", -126, 31, -112, 43},
         {"GULF-COAST", -100, 24, -80, 35}};
     return list;
+}
+
+Sector gridSector(const std::string& id, const GfsGrid::Grid& g) {
+    int left = g.columns, right = -1, top = g.rows, bottom = -1;
+    for (int y = 0; y < g.rows; y++) {
+        for (int x = 0; x < g.columns; x++) {
+            if (!std::isnan(g.values[static_cast<size_t>(y) * static_cast<size_t>(g.columns) + static_cast<size_t>(x)])) {
+                left = std::min(left, x);
+                right = std::max(right, x);
+                top = std::min(top, y);
+                bottom = std::max(bottom, y);
+            }
+        }
+    }
+    if (right < 0) {   // nothing valid: the whole grid
+        left = 0;
+        right = g.columns - 1;
+        top = 0;
+        bottom = g.rows - 1;
+    }
+    const double margin = g.step / 2.0;   // half a cell: the data and nothing more (the tilted footprint leaves wedges in the corners)
+    return {id, g.lon0 + left * g.step - margin, g.lat0 - bottom * g.step - margin, g.lon0 + right * g.step + margin, g.lat0 - top * g.step + margin};
 }
 
 const Sector * sector(const std::string& id) {
@@ -1209,6 +1251,109 @@ const std::vector<Product>& products() {
                 p.push_back(x);
             }
         }
+
+        // ---- HAFS: the hurricane model for one storm (the screen picks the storm): wind, simulated radar and satellite, rain, sea surface temperature, shear, waves
+        for (const char * model : {"HAFSA", "HAFSB"}) {
+            const auto hurricaneLines = [&pressure] {
+                auto c = pressure();
+                c.highsAndLows = false;
+                return c;
+            };
+            const auto make = [model] (const char * id, const char * label) {
+                Product x;
+                x.source = model;
+                x.id = id;
+                x.label = label;
+                return x;
+            };
+            {
+                auto x = make("wind_mslp", "10m Wind, MSLP and Barbs");
+                x.wants = {want("u", "UGRD", "10 m above ground"), want("v", "VGRD", "10 m above ground"), want("p", "PRMSL", "mean sea level")};
+                x.fill = speedOf("u", "v");
+                x.ramp = tropicalWind();
+                x.fillTitle = "10 m wind speed (kt)";
+                x.legendStep = 0;
+                x.contours = {hurricaneLines()};
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+            {
+                auto x = make("reflectivity", "Simulated Radar (Composite Reflectivity) and MSLP");
+                x.wants = {want("r", "REFC", "entire atmosphere (considered as a single layer)"), want("p", "PRMSL", "mean sea level")};
+                x.fill = [] (const Grids& g) { return pick(g, "r"); };
+                x.ramp = reflectivity();
+                x.fillTitle = "Composite reflectivity (dBZ)";
+                x.legendStep = 10;
+                x.contours = {hurricaneLines()};
+                p.push_back(x);
+            }
+            // the simulated satellite channels (the file names them only by number): 65 is a window channel (the surface shows through; the cold cloud tops in color), 53 / 54 / 55 are
+            // water vapor channels from the upper level down
+            for (const auto& [band, id, label, vapor] : {std::tuple{65, "sat_ir", "Simulated Satellite: Infrared (window)", false}, {53, "sat_wv_upper", "Simulated Satellite: Water Vapor, upper level", true},
+                                                         {54, "sat_wv_mid", "Simulated Satellite: Water Vapor, middle level", true}, {55, "sat_wv_low", "Simulated Satellite: Water Vapor, lower level", true}}) {
+                auto x = make(id, label);
+                x.wants = {want("s", ("var discipline=3 center=7 local_table=1 parmcat=192 parm=" + std::to_string(band)).c_str(), "top of atmosphere")};
+                x.fill = [] (const Grids& g) { return pick(g, "s"); };
+                x.ramp = vapor ? waterVapor() : satelliteIr();
+                x.fillTitle = "Brightness temperature (K)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            {
+                auto x = make("rain_total", "Rainfall since the start of the run and MSLP");
+                x.wants = {GfsData::Want{"a", "APCP", "surface", "0-*", ""}, want("p", "PRMSL", "mean sea level")};
+                x.fill = [] (const Grids& g) { return pick(g, "a"); };
+                x.ramp = precipitation();
+                x.quantity = Quantity::Millimeters;
+                x.fillTitle = "Rainfall since the start of the run";
+                x.legendStep = 0;
+                x.contours = {hurricaneLines()};
+                p.push_back(x);
+            }
+            {
+                auto x = make("sst", "Sea Surface Temperature and MSLP");
+                x.wants = {want("t", "WTMP", "surface"), want("p", "PRMSL", "mean sea level")};
+                x.fill = [] (const Grids& g) { return pick(g, "t"); };
+                x.ramp = seaSurfaceTemperature();
+                x.quantity = Quantity::Temperature;
+                x.fillTitle = "Sea surface temperature";
+                x.legendStep = 2;
+                x.contours = {hurricaneLines()};
+                p.push_back(x);
+            }
+            for (const char * id : {"shear_850_200", "850_vort_ht"}) {
+                for (const auto& candidate : p) {
+                    if (candidate.id == id && candidate.source == "GFS") {
+                        auto x = candidate;
+                        x.source = model;
+                        p.push_back(std::move(x));
+                        break;
+                    }
+                }
+            }
+            {   // the wave file holds every hour: the record says which ("anl", then "3 hour fcst" ...)
+                auto x = make("waves", "Significant Wave Height, Peak Period and Wind");
+                x.needs = [] (int hour) {
+                    const std::string when = hour == 0 ? "anl" : std::to_string(hour) + " hour fcst";
+                    return std::vector<GfsData::Need>{{hour, {"h", "HTSGW", "surface", when, "", "ww3"}}, {hour, {"t", "PERPW", "surface", when, "", "ww3"}}, {hour, {"u", "UGRD", "surface", when, "", "ww3"}},
+                                                      {hour, {"v", "VGRD", "surface", when, "", "ww3"}}};
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                x.ramp = waveHeight();
+                x.fillTitle = "Significant wave height (m)";
+                x.legendStep = 0;
+                ContourSet period;
+                period.key = "t";
+                period.interval = 2;
+                period.title = "Peak period (s)";
+                period.color = QColor{255, 255, 255};
+                x.contours = {period};
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+        }
         return p;
     }();
     return list;
@@ -1224,7 +1369,7 @@ const Product * product(const std::string& id, const std::string& source) {
 }
 
 std::string sourceLabel(const std::string& source) {
-    return source == "NBM" ? "NOAA/NWS National Blend of Models v4, 2.5 km" : source == "AIGFS" ? "NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)" : source == "GEFS" ? "NOAA/NCEP GEFS 30 member ensemble, 0.5 degree" : "NOAA/NCEP GFS 0.25 degree";
+    return source == "NBM" ? "NOAA/NWS National Blend of Models v4, 2.5 km" : source == "AIGFS" ? "NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)" : source == "GEFS" ? "NOAA/NCEP GEFS 30 member ensemble, 0.5 degree" : source == "HAFSA" ? "NOAA/NCEP HAFS-A, 2 km storm-following grid" : source == "HAFSB" ? "NOAA/NCEP HAFS-B, 2 km storm-following grid" : "NOAA/NCEP GFS 0.25 degree";
 }
 
 std::vector<std::string> sectorIds(const std::string& source) {

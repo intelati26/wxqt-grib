@@ -14,6 +14,7 @@
 #include <QThreadPool>
 #include <QTimer>
 #include "common/GlobalVariables.h"
+#include "hurricane/HafsViewer.h"
 #include "hurricane/ReconViewer.h"
 #include "hurricane/SeasonViewer.h"
 #include "spc/SpcSwoStateGraphics.h"
@@ -79,6 +80,8 @@ int main(int argc, char * argv[]) {
                 auto seasons = std::make_shared<HurricaneData::SeasonData>();
                 HurricaneData::loadSeason(*seasons, route.section(':', 1, 1).toStdString());
                 new SeasonViewer{&w, seasons};
+            } else if (route.startsWith("hafs:")) {   // WXQT_OPEN=hafs:<NHC id>: the hurricane model screen on that storm
+                new HafsViewer{&w, route.section(':', 1, 1).toStdString(), ""};
             } else if (route == "tornadoyears") {   // WXQT_OPEN=tornadoyears: the tornado years ranked
                 new TornadoYearsViewer{&w, TornadoData::load(), 0, std::string{}};
             } else if (route.startsWith("swostate:")) {   // WXQT_OPEN=swostate:<day>: the SPC convective outlook's state graphics for that day

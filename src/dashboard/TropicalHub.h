@@ -49,6 +49,7 @@ private:
     Button buttonHistory;
     Button buttonPod;
     Button buttonModels;
+    Button buttonHafs;
     Button buttonTropical;
     Button buttonClimate;
     Text textStatus;

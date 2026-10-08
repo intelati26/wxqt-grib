@@ -26,6 +26,8 @@ namespace GfsChart {
         double west, south, east, north;
     };
     const std::vector<Sector>& sectors();
+    // The view of a storm-following grid: the box that holds its valid values (the grid is filled only in a tilted footprint), a little outside
+    Sector gridSector(const std::string& id, const GfsGrid::Grid& grid);
     const Sector * sector(const std::string& id);
 
     // A color scale by value: stops are (value, color), linear between them. Values below the first or above the last take the end colors.

@@ -7,6 +7,7 @@
 #define GFSDATA_H
 
 #include <functional>
+#include <limits>
 #include <map>
 #include <mutex>
 #include <string>
@@ -45,6 +46,7 @@ public:
         std::string label;                                               // "NOAA/NCEP GFS 0.25 degree", for under a chart
         std::function<std::string(const Run&, int forecastHour, const std::string& file)> fileUrl;   // the GRIB2 file; its index is that + ".idx". `file` is "" unless fileOf says
         std::function<std::string(const Want&)> fileOf;                  // which of a run's files holds a record (AIGFS: pressure levels in one, the surface in another); empty: one file
+        float extraMissing{std::numeric_limits<float>::quiet_NaN()};     // a value the source uses for "no data" besides GRIB's own (HAFS: 9999 outside its tilted footprint); NaN: none
         std::string defaultDetail;                                       // what to ask of the index when a want has none ("*": any; an ensemble labels each record "ens mean" or "ens std dev")
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often
@@ -61,6 +63,8 @@ public:
     static Source nbm();
     static Source aigfs();
     static Source gefs();
+    // The hurricane model for one active storm ('model' "HAFSA" or "HAFSB", 'storm' "09l": the NHC number and basin letter). Its grid follows the storm and is only there while the storm is.
+    static Source hafs(const std::string& model, const std::string& storm);
 
     // a field at a forecast hour (a precipitation period needs the running total at two hours)
     struct Need {
