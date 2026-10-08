@@ -12,6 +12,7 @@
 #include <QListWidget>
 #include <QString>
 #include <QWidget>
+#include "ui/ChartExport.h"
 #include "hurricane/HurricaneData.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
@@ -27,7 +28,11 @@
 class AceChart : public QWidget {
 public:
     using Metric = UtilitySeason::Metric;
-    explicit AceChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(560, 250); setMouseTracking(true); }
+    explicit AceChart(QWidget * parent = nullptr) : QWidget{parent} {
+        setMinimumSize(560, 250);
+        setMouseTracking(true);
+        ChartExport::install(this, "ACE / TIKE");   // right-click: save as PNG or PDF, or copy (the running total and each day alike)
+    }
     // `years` are the seasons drawn (empty: this season); `daily` false for the running total, true for the amount of each day
     void setData(const std::shared_ptr<HurricaneData::SeasonData>& data, Metric metric = Metric::Ace, bool daily = false, const std::vector<int>& years = {});
     // the season so far against the average up to the same day, in words ("ACE 12.7 through 8 Oct: 12 % of the 1991-2020 average for the date ...")
