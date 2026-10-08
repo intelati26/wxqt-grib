@@ -494,7 +494,7 @@ void TornadoChart::mouseMoveEvent(QMouseEvent * event) {
 
 TornadoStatsViewer::TornadoStatsViewer(Window * parent, const std::shared_ptr<const TornadoData::Database>& database)
     : Window{parent}
-    , comboMetric{this, {"Tornadoes", "Deaths", "Injuries"}}
+    , comboMetric{this, {"Tornadoes", "Fatalities", "Injuries"}}
     , comboGroup{this, {"By day of the year", "By week of the year", "By month", "By year", "By decade", "Heatmap (every year by week)"}}
     , comboMode{this, {"Running total through the year", "Amount in each day / week / month"}}
     , comboRating{this, {"All tornadoes", "EF1 or stronger", "EF2 or stronger", "EF3 or stronger", "EF4 or stronger", "EF5 only"}}

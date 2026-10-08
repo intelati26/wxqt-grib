@@ -19,7 +19,7 @@
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
-// Tornadoes counted over time: by day of the year, week, month, year or decade; the count, the deaths or the injuries. Over the year (day, week, month) the seasons
+// Tornadoes counted over time: by day of the year, week, month, year or decade; the count, the fatalities or the injuries. Over the year (day, week, month) the seasons
 // ticked in the list are drawn against the 1991-2020 average, as a running total through the year (with the lowest to the highest of those years as a band) or the
 // amount in each day, week or month. By year and decade, bars for all the years, the average of 1991-2020 as a line. Hover for the numbers.
 class TornadoChart : public QWidget {
@@ -30,7 +30,7 @@ public:
     // `tornadoes` are those that pass the filters; `years` the seasons drawn for day / week / month; `cumulative` a running total
     void setData(const std::shared_ptr<const TornadoData::Database>& db, const std::vector<const UtilityTornado::Tornado *>& tornadoes, Group group, Metric metric,
                  bool cumulative, const std::vector<int>& years);
-    static QString metricName(Metric m) { return m == Metric::Count ? "Tornadoes" : m == Metric::Deaths ? "Deaths" : "Injuries"; }
+    static QString metricName(Metric m) { return m == Metric::Count ? "Tornadoes" : m == Metric::Deaths ? "Fatalities" : "Injuries"; }
 
 private:
     void paintEvent(QPaintEvent *) override;
