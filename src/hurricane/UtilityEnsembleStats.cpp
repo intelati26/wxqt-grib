@@ -146,3 +146,47 @@ bool UtilityEnsembleStats::fromGefs(const vector<UtilityAtcf::Track>& guidance, 
     }
     return !storm.members.empty();
 }
+
+UtilityEnsembleStats::Strike UtilityEnsembleStats::strike(const UtilityEcmwfTracks::Storm& storm, double lat, double lon, double radiusKm, double minWindKt) {
+    Strike result;
+    vector<double> hours;
+    for (const auto& member : storm.members) {
+        if (member.type < 2) {
+            continue;
+        }
+        result.members++;
+        double bestHour = missing;
+        double bestDistance = 1e18;
+        for (size_t i = 0; i < member.steps.size(); i++) {
+            const auto& a = member.steps[i];
+            if (!UtilityEcmwfTracks::has(a.lat) || !UtilityEcmwfTracks::has(a.lon)) {
+                continue;
+            }
+            // the segment to the next position, in tenths
+            const bool haveNext = i + 1 < member.steps.size() && UtilityEcmwfTracks::has(member.steps[i + 1].lat) && UtilityEcmwfTracks::has(member.steps[i + 1].lon);
+            const auto& b = haveNext ? member.steps[i + 1] : a;
+            for (int part = 0; part <= (haveNext ? 9 : 0); part++) {
+                const double f = part / 10.0;
+                const double wind = UtilityEcmwfTracks::has(a.wind) ? (UtilityEcmwfTracks::has(b.wind) ? a.wind + (b.wind - a.wind) * f : a.wind) : missing;
+                if (!UtilityEcmwfTracks::has(wind) || wind < minWindKt) {
+                    continue;
+                }
+                const double distance = kilometers(lat, lon, a.lat + (b.lat - a.lat) * f, a.lon + (b.lon - a.lon) * f);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestHour = a.hour + (b.hour - a.hour) * f;
+                }
+            }
+        }
+        if (bestDistance <= radiusKm) {
+            result.hits++;
+            hours.push_back(bestHour);
+        }
+    }
+    if (!hours.empty()) {
+        result.earliest = *std::min_element(hours.begin(), hours.end());
+        result.latest = *std::max_element(hours.begin(), hours.end());
+        result.medianHour = percentile(hours, 0.5);
+    }
+    return result;
+}

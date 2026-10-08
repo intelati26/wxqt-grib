@@ -48,6 +48,7 @@ private:
     const UtilityDropsonde::Drop * dropAt(const QPointF& pixels) const;   // the dropsonde marker under the pointer
     bool dropNear(const UtilityDropsonde::Drop&) const;                    // in time and place for the storm on show
     void loadOutlook();
+    void loadWsp();
     void loadGis();
     void loadVdm();
     void openSeason();
@@ -119,6 +120,7 @@ private:
     std::shared_ptr<HurricaneData::GisData> gis;
     std::shared_ptr<HurricaneData::DropData> drops;
     std::shared_ptr<HurricaneData::OutlookData> outlook;
+    std::shared_ptr<HurricaneData::WspData> wsp;
     std::shared_ptr<HurricaneData::VdmData> vdm;
     QTimer refreshTimer;
     vector<string> changeLines;                               // what differs from the advisory before

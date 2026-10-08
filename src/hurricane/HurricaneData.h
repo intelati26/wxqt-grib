@@ -17,6 +17,7 @@
 #include "hurricane/UtilitySeason.h"
 #include "hurricane/UtilityShips.h"
 #include "hurricane/UtilityTropicalAlerts.h"
+#include "hurricane/UtilityWindProbability.h"
 #include "hurricane/UtilityVdm.h"
 #include "hurricane/UtilityHdob.h"
 
@@ -112,6 +113,11 @@ public:
         string basin;           // "al", or "ep" for the northeast Pacific
         string error;
     };
+    struct WspData {
+        UtilityWindProbability::Map map;
+        string error;
+    };
+    static void loadWindProbabilities(WspData& data);   // NHC's five-day wind speed probability bands (kept ten minutes)
     // basin: "al" Atlantic, "ep" Eastern Pacific, "cp" Central Pacific (the NHC / CPHC basins)
     static void loadOutlook(OutlookData& data);     // the Tropical Weather Outlook areas (the 2 and 7 day formation chances)
     static void loadDrops(DropData& data, const string& basin = "al", int reports = 40);   // the newest dropsonde reports of the basin (NHC recon archive, REPNT3 / REPPN3 / REPPA3)

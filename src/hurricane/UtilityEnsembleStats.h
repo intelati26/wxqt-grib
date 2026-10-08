@@ -33,6 +33,17 @@ public:
     static vector<Hour> compute(const UtilityEcmwfTracks::Storm&, int step = 6);
     // NOAA's GEFS as members (ATCF AP01 .. AP30, control AC00), so the same statistics can be taken; false when the guidance has none
     static bool fromGefs(const vector<UtilityAtcf::Track>& guidance, UtilityEcmwfTracks::Storm& storm);
+    // How many perturbed members pass within `radiusKm` of a point while at least `minWindKt` strong (the track is followed between the 6-hourly positions by
+    // straight lines, the wind likewise); the hours at which those members are nearest. Members that are not a cyclone any more do not count.
+    struct Strike {
+        int members{0};
+        int hits{0};
+        double earliest{missing};        // forecast hour of the first member's nearest approach (of those that hit)
+        double medianHour{missing};
+        double latest{missing};
+        double share() const { return members > 0 ? static_cast<double>(hits) / members : 0.0; }
+    };
+    static Strike strike(const UtilityEcmwfTracks::Storm&, double lat, double lon, double radiusKm, double minWindKt);
     static double percentile(vector<double> values, double fraction);   // linear between ranks; missing for an empty set
     static double kilometers(double lat1, double lon1, double lat2, double lon2);
 };

@@ -36,6 +36,7 @@ private:
     void fillOutlook();
     void fillPod();
     void fillSeasons();
+    void fillLocations();
     QWidget * card(const HurricaneData::StormEntry& entry, const string& basin);
     void closeEventCustom() override { closed = true; }
 
@@ -53,6 +54,7 @@ private:
     QVBoxLayout * outlookLayout{};
     QVBoxLayout * podLayout{};
     QVBoxLayout * seasonLayout{};
+    QVBoxLayout * locationsLayout{};
     struct BasinStorms {
         string basin;                                       // "al" "ep" "cp"
         vector<HurricaneData::StormEntry> entries;
@@ -62,6 +64,7 @@ private:
     vector<BasinStorms> storms;
     std::shared_ptr<HurricaneData::OutlookData> outlook;
     std::shared_ptr<HurricaneData::PodData> pod;
+    std::shared_ptr<HurricaneData::WspData> wsp;
     std::shared_ptr<HurricaneData::SeasonData> seasonAtlantic;
     std::shared_ptr<HurricaneData::SeasonData> seasonPacific;
     int generation{0};

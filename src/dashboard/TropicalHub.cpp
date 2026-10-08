@@ -18,6 +18,7 @@
 #include "hurricane/HurricaneViewer.h"
 #include "hurricane/PodViewer.h"
 #include "hurricane/SeasonViewer.h"
+#include "hurricane/StrikeReport.h"
 #include "hurricane/UtilityAtcf.h"
 #include "objects/FutureVoid.h"
 #include "tropical/TropicalViewer.h"
@@ -155,6 +156,9 @@ TropicalHub::TropicalHub(Window * parent)
     column->addWidget(heading("Aircraft reconnaissance - Plan of the Day", content));
     podLayout = new QVBoxLayout;
     column->addLayout(podLayout);
+    column->addWidget(heading("Your locations - chance of tropical storm and hurricane winds", content));
+    locationsLayout = new QVBoxLayout;
+    column->addLayout(locationsLayout);
     column->addWidget(heading("Season so far", content));
     seasonLayout = new QVBoxLayout;
     column->addLayout(seasonLayout);
@@ -183,7 +187,8 @@ void TropicalHub::load() {
     pod.reset();
     seasonAtlantic.reset();
     seasonPacific.reset();
-    for (auto * layout : {stormsLayout, outlookLayout, podLayout, seasonLayout}) {
+    wsp.reset();
+    for (auto * layout : {stormsLayout, outlookLayout, podLayout, seasonLayout, locationsLayout}) {
         clear(layout);
         layout->addWidget(note("Loading...", content));
     }
@@ -216,6 +221,13 @@ void TropicalHub::load() {
         if (!closed && mine == generation) {
             pod = podData;
             fillPod();
+        }
+    }};
+    auto wspData = std::make_shared<HurricaneData::WspData>();
+    new FutureVoid{this, [wspData] { HurricaneData::loadWindProbabilities(*wspData); }, [this, mine, wspData] {
+        if (!closed && mine == generation) {
+            wsp = wspData;
+            fillLocations();
         }
     }};
     auto atlantic = std::make_shared<HurricaneData::SeasonData>();
@@ -332,6 +344,22 @@ void TropicalHub::fillPod() {
         return;
     }
     podLayout->addWidget(body(PodViewer::summary(*pod), content));
+}
+
+void TropicalHub::fillLocations() {
+    clear(locationsLayout);
+    if (!wsp || !wsp->map.ok) {
+        locationsLayout->addWidget(note(wsp && !wsp->error.empty() ? QString::fromStdString(wsp->error) : "No wind probabilities right now.", content));
+        return;
+    }
+    const auto table = StrikeReport::nhcTable(wsp->map);
+    if (table.isEmpty()) {
+        locationsLayout->addWidget(note("Save a location in the Settings to see its chances.", content));
+        return;
+    }
+    locationsLayout->addWidget(body(table, content));
+    locationsLayout->addWidget(note("NHC's five-day chance of sustained winds of at least 34, 50 and 64 kt, from the " + QString::fromStdString(wsp->map.cycle.substr(8)) + "Z cycle (every storm "
+        "together). 'none' means outside every probability band, under 5 %. Open a storm's track map for the ensemble members' view.", content));
 }
 
 void TropicalHub::fillSeasons() {

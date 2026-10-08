@@ -18,6 +18,7 @@
 #include "hurricane/UtilityShips.h"
 #include "util/UtilityGzip.h"
 #include "util/UtilityZip.h"
+#include "hurricane/UtilityWindProbability.h"
 
 static int failures = 0;
 #define CHECK(cond) do { if (!(cond)) { std::cerr << "FAILED " << __LINE__ << ": " #cond "\n"; failures++; } } while (0)
@@ -487,7 +488,51 @@ static void drop(const std::string& fixtures) {
     CHECK(!UtilityDropsonde::parse("not a drop", "202610070050").ok);
 }
 
+static void windProbability(const std::string& fixtures) {
+    const auto map = UtilityWindProbability::parse(readFile(fixtures + "/wsp_120hr5km.zip"));
+    CHECK(map.ok && map.cycle == "2026100806" && map.bands[0].size() == 11 && map.bands[1].size() == 11 && map.bands[2].size() == 11);
+    CHECK(map.bands[0][0].low == 0 && map.bands[0][0].high == 5 && map.bands[0][10].low == 90 && map.bands[0][10].high == 100 && map.bands[0][3].low == 20 && map.bands[0][3].high == 30);
+    // 8 October 2026: Isaias, west of Florida, in the Gulf; the 06Z cycle's five day probabilities
+    CHECK(UtilityWindProbability::at(map, 0, 25.0, -90.0).text() == ">90%" && UtilityWindProbability::at(map, 1, 25.0, -90.0).text() == "50-60%");
+    CHECK(UtilityWindProbability::at(map, 0, 30.16, -85.66).text() == "30-40%" && UtilityWindProbability::at(map, 2, 30.16, -85.66).text() == "<5%");
+    CHECK(UtilityWindProbability::at(map, 0, 35.47, -97.52).text() == "none" && !UtilityWindProbability::at(map, 0, 35.47, -97.52).covered);
+    CHECK(UtilityWindProbability::at(map, 5, 25.0, -90.0).text() == "none");
+    int low = 0, high = 0;
+    CHECK(UtilityWindProbability::parseBand("5-10%", low, high) && low == 5 && high == 10 && UtilityWindProbability::parseBand("<5%", low, high) && low == 0 && high == 5 &&
+          UtilityWindProbability::parseBand(">90%", low, high) && low == 90 && high == 100 && !UtilityWindProbability::parseBand("none", low, high));
+    CHECK(!UtilityWindProbability::parse("not a zip").ok);
+    const std::vector<std::pair<double, double>> square{{0, 0}, {10, 0}, {10, 10}, {0, 10}};
+    CHECK(UtilityWindProbability::inside(square, 5, 5) && !UtilityWindProbability::inside(square, 5, 15) && !UtilityWindProbability::inside(square, -1, 5));
+}
+
+static void strikes() {
+    // three members moving east along 30N: one hits (passing 20 km south of the point at 60 kt), one passes 300 km away, one is too weak
+    UtilityEcmwfTracks::Storm storm;
+    const auto member = [] (int type, double lat, double wind) {
+        UtilityEcmwfTracks::Member m;
+        m.type = type;
+        for (int h = 0; h <= 48; h += 6) {
+            UtilityEcmwfTracks::Step s;
+            s.hour = h;
+            s.lat = lat;
+            s.lon = -90.0 + h * 0.25;   // 1 degree of longitude every 4 hours
+            s.wind = wind;
+            m.steps.push_back(s);
+        }
+        return m;
+    };
+    storm.members = {member(4, 29.8, 60.0), member(4, 32.7, 60.0), member(4, 29.8, 25.0), member(0, 30.0, 90.0)};
+    const auto s = UtilityEnsembleStats::strike(storm, 30.0, -84.0, 100.0, 34.0);
+    CHECK(s.members == 3 && s.hits == 1 && near(s.share(), 1.0 / 3.0) && near(s.medianHour, 24.0, 0.7));
+    const auto weak = UtilityEnsembleStats::strike(storm, 30.0, -84.0, 100.0, 20.0);
+    CHECK(weak.hits == 2);
+    const auto far = UtilityEnsembleStats::strike(storm, 30.0, -60.0, 100.0, 34.0);   // beyond the end of the tracks
+    CHECK(far.hits == 0 && !UtilityEcmwfTracks::has(far.medianHour));
+}
+
 int main(int argc, char ** argv) {
+    windProbability(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
+    strikes();
     drop(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     text(argc > 1 ? argv[1] : "tests/hurricane/fixtures");
     gis(argc > 1 ? argv[1] : "tests/hurricane/fixtures");

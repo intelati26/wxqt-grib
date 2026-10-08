@@ -523,6 +523,28 @@ string HurricaneData::loadBulletin(const string& url) {
     return UtilityNhcText::bulletin(download(url));
 }
 
+void HurricaneData::loadWindProbabilities(WspData& data) {
+    static std::mutex mutex;
+    static UtilityWindProbability::Map cache;
+    static std::time_t cachedAt = 0;
+    data = WspData{};
+    {
+        std::lock_guard lock{mutex};
+        if (cache.ok && std::time(nullptr) - cachedAt < 600) {
+            data.map = cache;
+            return;
+        }
+    }
+    data.map = UtilityWindProbability::parse(download("https://www.nhc.noaa.gov/gis/forecast/archive/wsp_120hr5km_latest.zip"));
+    if (!data.map.ok) {
+        data.error = "NHC's wind speed probabilities are not available (they are issued only while a storm threatens).";
+        return;
+    }
+    std::lock_guard lock{mutex};
+    cache = data.map;
+    cachedAt = std::time(nullptr);
+}
+
 void HurricaneData::loadOutlook(OutlookData& data) {
     data = OutlookData{};
     data.areas = UtilityNhcGis::parseOutlook(download("https://www.nhc.noaa.gov/xgtwo/gtwo_shapefiles.zip"));

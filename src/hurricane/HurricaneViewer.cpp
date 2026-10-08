@@ -28,6 +28,7 @@
 #include "hurricane/UtilityChanges.h"
 #include "models/SoundingViewer.h"
 #include "hurricane/ShipsViewer.h"
+#include "hurricane/StrikeReport.h"
 #include "hurricane/VdmViewer.h"
 #include "objects/FutureVoid.h"
 #include "util/Utility.h"
@@ -355,6 +356,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     loadList();
     loadPod();
     loadOutlook();
+    loadWsp();
 }
 
 void HurricaneViewer::resizeEventCustom() {
@@ -614,6 +616,19 @@ void HurricaneViewer::loadGis() {
             gis = data;
             updateInfo();
             view->map()->update();
+        }};
+}
+
+void HurricaneViewer::loadWsp() {
+    auto data = std::make_shared<HurricaneData::WspData>();
+    new FutureVoid{this,
+        [data] { HurricaneData::loadWindProbabilities(*data); },
+        [this, data] {
+            if (closed) {
+                return;
+            }
+            wsp = data;
+            updateInfo();
         }};
 }
 
@@ -929,6 +944,19 @@ void HurricaneViewer::updateInfo() {
         }
         if (!singles.isEmpty()) {
             html += singles.join(", ") + " (unperturbed runs)<br>";
+        }
+    }
+    // the chance of tropical storm and hurricane winds at the saved locations
+    if (wsp && wsp->map.ok) {
+        const auto table = StrikeReport::nhcTable(wsp->map);
+        if (!table.isEmpty()) {
+            html += "<br><b>At your locations</b> - NHC's chance of at least this wind in the next 5 days (all storms of the cycle)" + table;
+        }
+    }
+    if (ensembles && !ensembles->sets.empty()) {
+        const auto lines = StrikeReport::ensembleLines(ensembles->sets);
+        if (!lines.isEmpty()) {
+            html += "<b>Ensemble members within 100 km at 34 kt or more</b><br>" + lines;
         }
     }
     if (entry != nullptr && !entry->discussionUrl.empty()) {
