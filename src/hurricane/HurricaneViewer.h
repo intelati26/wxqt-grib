@@ -110,6 +110,7 @@ private:
     struct EnsembleMean {
         string label;                                         // "IFS ENS mean"
         string id;                                            // the tree leaf that shows it
+        string cycle;                                         // the run, yyyymmddhh
         QColor color;
         vector<UtilityEnsembleStats::Hour> hours;             // the mean position at each hour, while at least half the members are a cyclone
     };

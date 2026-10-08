@@ -34,6 +34,8 @@ public:
     QColor colorOf(const string& tech, const QColor& fallback) const;
     // the number of runs each model has for the storm on show: a model with none is greyed
     void setAvailable(const vector<UtilityAtcf::Track>& guidance);
+    // the run of models that are not in the ATCF guidance (the ECMWF open data, the official forecast): leaf id -> cycle yyyymmddhh, so the line can say "(06z)"
+    void setCycles(const std::map<string, vector<string>>& cycles);
     std::function<void()> changed;
 
 private:
@@ -63,6 +65,10 @@ private:
     QComboBox * quick{};
     std::map<string, QTreeWidgetItem *> items;
     std::map<string, const Leaf *> byTech;
+    void relabel();
+    std::map<string, int> counts;
+    std::map<string, std::set<string>> cycles;   // leaf id -> the cycles (yyyymmddhh) of the runs it has
+    bool haveGuidance{false};
     bool building{false};
 };
 

@@ -227,20 +227,68 @@ QColor GuidanceTree::colorOf(const string& tech, const QColor& fallback) const {
 }
 
 void GuidanceTree::setAvailable(const vector<UtilityAtcf::Track>& guidance) {
-    std::map<string, int> counts;
+    counts.clear();
+    for (auto it = cycles.begin(); it != cycles.end();) {   // the ATCF leaves are rebuilt from these tracks; the others keep what setCycles gave
+        const auto leafIt = items.find(it->first);
+        bool atcf = false;
+        for (const auto& category : catalog()) {
+            for (const auto& leaf : category.leaves) {
+                if (leaf.id == it->first && (!leaf.techs.empty() || leaf.catchAll || leaf.members)) {
+                    atcf = true;
+                }
+            }
+        }
+        (void)leafIt;
+        it = atcf ? cycles.erase(it) : std::next(it);
+    }
     for (const auto& track : guidance) {
         if (const auto * leaf = leafOf(track.tech)) {
             counts[leaf->id]++;
+            if (track.cycle.size() == 10) {
+                cycles[leaf->id].insert(track.cycle);
+            }
         }
     }
+    haveGuidance = !guidance.empty();
+    relabel();
+}
+
+void GuidanceTree::setCycles(const std::map<string, vector<string>>& given) {
+    for (const auto& [id, list] : given) {
+        auto& set = cycles[id];
+        set.clear();
+        for (const auto& cycle : list) {
+            if (cycle.size() == 10) {
+                set.insert(cycle);
+            }
+        }
+    }
+    relabel();
+}
+
+// "GFS  (2)  (06z)": the runs available, and the hour of the cycle (newest first; two when the runs are of different cycles)
+void GuidanceTree::relabel() {
     building = true;
     for (const auto& category : catalog()) {
         for (const auto& leaf : category.leaves) {
             auto * item = items[leaf.id];
             const int n = counts.count(leaf.id) != 0 ? counts[leaf.id] : 0;
             const bool always = leaf.id == "nhc/official" || (leaf.techs.empty() && !leaf.catchAll && !leaf.members);   // the ones that are not ATCF guidance have no count
-            item->setText(0, QString::fromStdString(leaf.label) + (always || guidance.empty() ? QString{} : (n > 0 ? "  (" + QString::number(n) + ")" : QString{"  (none now)"})));
-            item->setForeground(0, !always && !guidance.empty() && n == 0 ? QBrush{QColor{140, 140, 140}} : QBrush{});
+            QString text = QString::fromStdString(leaf.label);
+            if (!always && haveGuidance) {
+                text += n > 0 ? "  (" + QString::number(n) + ")" : QString{"  (none now)"};
+            }
+            const auto found = cycles.find(leaf.id);
+            if (found != cycles.end() && !found->second.empty()) {
+                QStringList hours;
+                for (auto it = found->second.rbegin(); it != found->second.rend() && hours.size() < 2; ++it) {
+                    hours << QString::fromStdString(it->substr(8, 2)) + "z";
+                }
+                text += "  (" + hours.join(", ") + ")";
+            }
+            item->setText(0, text);
+            item->setToolTip(0, text);   // the whole line, for the ones the panel cuts
+            item->setForeground(0, !always && haveGuidance && n == 0 ? QBrush{QColor{140, 140, 140}} : QBrush{});
         }
     }
     building = false;

@@ -15,6 +15,7 @@
 #include "hurricane/Coast.h"
 #include "objects/FutureVoid.h"
 #include "ui/ChartExport.h"
+#include "ui/ElidedText.h"
 #include "util/Utility.h"
 #include "util/UtilityUI.h"
 
@@ -160,6 +161,7 @@ MasterMapViewer::MasterMapViewer(Window * parent)
     QObject::connect(&playTimer, &QTimer::timeout, [this] { advance(); });
     rowMain.addWidgetReal(map, 0, Qt::AlignTop | Qt::AlignLeft);
     rowMain.addWidgetReal(sidePanel, 1, Qt::AlignTop | Qt::AlignLeft);
+    ElidedText::install(sidePanel);
     box.addLayout(rowTop);
     box.addWidget(textStatus);
     box.addWidgetReal(timeRow, 0, Qt::Alignment{});
