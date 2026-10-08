@@ -48,6 +48,7 @@ private:
     Button buttonAce;
     Button buttonHistory;
     Button buttonPod;
+    Button buttonModels;
     Button buttonTropical;
     Button buttonClimate;
     Text textStatus;

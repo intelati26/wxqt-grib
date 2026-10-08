@@ -26,6 +26,8 @@
 #include "hurricane/HurricaneViewer.h"
 #include "hurricane/PodViewer.h"
 #include "hurricane/SeasonViewer.h"
+#include "models/ModelViewer.h"
+#include "util/Utility.h"
 #include "hurricane/StrikeReport.h"
 #include "hurricane/UtilityAtcf.h"
 #include "misc/ImageViewer.h"
@@ -133,13 +135,14 @@ TropicalHub::TropicalHub(Window * parent)
     , buttonAce{this, None, "ACE by day..."}
     , buttonHistory{this, None, "Historical tracks..."}
     , buttonPod{this, None, "Recon plan of the day..."}
+    , buttonModels{this, None, "Model charts..."}
     , buttonTropical{this, None, "Tropical (CIRA, JTWC, JMA)..."}
     , buttonClimate{this, None, "Climate and ocean..."}
     , textStatus{this, ""}
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Tropical Hub - active storms, outlook, recon and the season");
-    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonHistory, &buttonPod, &buttonTropical, &buttonClimate}) {
+    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonHistory, &buttonPod, &buttonModels, &buttonTropical, &buttonClimate}) {
         rowTop.addWidget(*button);
     }
     rowTop.addStretch();
@@ -160,6 +163,12 @@ TropicalHub::TropicalHub(Window * parent)
         if (pod && pod->error.empty()) {
             new PodViewer{this, pod};
         }
+    });
+    buttonModels.connect([this] {   // the model screen opened on a tropical chart (the deep-layer shear over the western Atlantic); it is the last used choice from then on, as any other
+        Utility::writePref("NCEP", "GFS");
+        Utility::writePref("MODELNCEPPARAMLASTUSED", "shear_850_200");
+        Utility::writePref("MODELNCEPSECTORLASTUSED", "WEST-ATL");
+        new ModelViewer{this, "NCEP"};
     });
     buttonTropical.connect([this] { new TropicalViewer{this}; });
     buttonClimate.connect([this] { new ClimateViewer{this}; });
