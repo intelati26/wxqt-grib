@@ -12,6 +12,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include "hurricane/HurricaneData.h"
+#include "radar/AreaSearch.h"
 #include "radar/MapView.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
@@ -38,8 +39,6 @@ private:
     void showHover(const QPointF& pixels);
     void showSelected();
     void closeEventCustom() override { closed = true; }
-    bool eventFilter(QObject *, QEvent *) override;
-    void toggleArea();
     void resizeEventCustom() override;
     string basinCode() const { return comboBasin.getIndex() == 1 ? "ep" : "al"; }
     static QColor colorOf(int wind);
@@ -65,16 +64,7 @@ private:
     vector<size_t> shown;           // indexes into data->tracks that pass the filters
     int selected{-1};               // an index into data->tracks, or -1
     int hovered{-1};
-    // the area search: drag a box on the map, or click a point for a circle of the radius chosen above
-    struct Area {
-        enum Kind { None, Box, Circle } kind{None};
-        double minLat{0}, maxLat{0}, minLon{0}, maxLon{0};   // a box
-        double lat{0}, lon{0}, radiusKm{0};                  // a circle
-    } area;
-    bool areaMode{false};      // the next drag or click on the map makes an area (the map does not pan)
-    bool dragging{false};
-    QPointF dragStart;
-    QPointF dragNow;
+    std::unique_ptr<AreaSearch> area;                       // the area search (drag a box, or click for a circle)
     static constexpr size_t hoverLimit = 50;   // the hover highlight works with this many tracks or fewer
     bool filling{false};
     bool closed{false};

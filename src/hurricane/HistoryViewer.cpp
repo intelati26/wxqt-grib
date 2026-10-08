@@ -90,9 +90,10 @@ HistoryViewer::HistoryViewer(Window * parent)
         combo->connect([this] { applyFilters(); });
     }
     entrySearch.connect([this] { applyFilters(); });
-    buttonArea.getView()->setToolTip("Drag a box on the map, or click a point for a circle (the radius is set by the 'within' box), to find the storms that passed through it");
-    buttonArea.connect([this] { toggleArea(); });
-    map->installEventFilter(this);
+    area = std::make_unique<AreaSearch>(view.get(), &buttonArea, [this] {
+        static const double radii[] = {100.0, 200.0, 300.0, 500.0};
+        return radii[std::clamp(comboRadius.getIndex(), 0, 3)];
+    }, [this] { applyFilters(); });
     rowTop.addWidget(comboBasin);
     rowTop.addWidget(comboFrom);
     rowTop.addWidget(comboTo);
@@ -110,76 +111,6 @@ HistoryViewer::HistoryViewer(Window * parent)
     box.addStretch();
     box.getAndShow(this);
     load();
-}
-
-void HistoryViewer::toggleArea() {
-    if (area.kind != Area::None) {
-        area = Area{};   // "Clear area"
-        areaMode = false;
-        buttonArea.setText("Search an area");
-        view->map()->setCursor(Qt::ArrowCursor);
-        applyFilters();
-        return;
-    }
-    areaMode = !areaMode;
-    buttonArea.setText(areaMode ? "Drag a box or click a point (click here to cancel)" : "Search an area");
-    view->map()->setCursor(areaMode ? Qt::CrossCursor : Qt::ArrowCursor);
-}
-
-bool HistoryViewer::eventFilter(QObject * object, QEvent * event) {
-    if (object != view->map() || !areaMode) {
-        return false;
-    }
-    switch (event->type()) {
-        case QEvent::MouseButtonPress: {
-            auto * e = static_cast<QMouseEvent *>(event);
-            if (e->button() != Qt::LeftButton) {
-                return false;
-            }
-            dragging = true;
-            dragStart = dragNow = e->position();
-            return true;
-        }
-        case QEvent::MouseMove:
-            if (dragging) {
-                dragNow = static_cast<QMouseEvent *>(event)->position();
-                view->map()->update();
-                return true;
-            }
-            return false;
-        case QEvent::MouseButtonRelease: {
-            if (!dragging) {
-                return false;
-            }
-            dragging = false;
-            const QPointF end = static_cast<QMouseEvent *>(event)->position();
-            areaMode = false;
-            view->map()->setCursor(Qt::ArrowCursor);
-            if (std::hypot(end.x() - dragStart.x(), end.y() - dragStart.y()) < 6.0) {   // a click: a circle round the point
-                static const double radii[] = {100.0, 200.0, 300.0, 500.0};
-                const auto [lat, lon] = view->toLatLon(end);
-                area = Area{};
-                area.kind = Area::Circle;
-                area.lat = lat;
-                area.lon = lon;
-                area.radiusKm = radii[std::clamp(comboRadius.getIndex(), 0, 3)];
-            } else {
-                const auto a = view->toLatLon(dragStart);
-                const auto b = view->toLatLon(end);
-                area = Area{};
-                area.kind = Area::Box;
-                area.minLat = std::min(a.first, b.first);
-                area.maxLat = std::max(a.first, b.first);
-                area.minLon = std::min(a.second, b.second);
-                area.maxLon = std::max(a.second, b.second);
-            }
-            buttonArea.setText("Clear area");
-            applyFilters();
-            return true;
-        }
-        default:
-            return false;
-    }
 }
 
 void HistoryViewer::load() {
@@ -273,7 +204,7 @@ void HistoryViewer::applyFilters() {
             }
             if (!near) continue;
         }
-        if (area.kind != Area::None && !passesArea(t)) continue;
+        if (area->active() && !passesArea(t)) continue;
         shown.push_back(i);
     }
     // the list: the strongest first
@@ -298,10 +229,8 @@ void HistoryViewer::applyFilters() {
     string text = std::to_string(shown.size()) + " tracks (" + std::to_string(storms) + " named storms, " + std::to_string(hurricanes) + " hurricanes, " + std::to_string(major) + " major) from " +
         std::to_string(first) + " to " + std::to_string(last) + "   -   " + data->file + "   -   " +
         (shown.size() > hoverLimit ? "narrow it to " + std::to_string(hoverLimit) + " tracks or fewer (years, category, an area) to hover a track for its name; or click one in the list" : string{"hover a track for its name, click one in the list to see only it"});
-    if (area.kind == Area::Box) {
-        text += "   -   in the box " + QString::number(area.minLat, 'f', 1).toStdString() + " to " + QString::number(area.maxLat, 'f', 1).toStdString() + " N, " + QString::number(area.minLon, 'f', 1).toStdString() + " to " + QString::number(area.maxLon, 'f', 1).toStdString() + " E";
-    } else if (area.kind == Area::Circle) {
-        text += "   -   within " + std::to_string(static_cast<int>(area.radiusKm)) + " km of " + QString::number(area.lat, 'f', 1).toStdString() + " N, " + QString::number(area.lon, 'f', 1).toStdString() + " E";
+    if (area->active()) {
+        text += "   -   " + area->describe().toStdString();
     }
     if (basinCode() == "ep") {
         text += "   (Pacific records before about 1971 are incomplete)";
@@ -313,46 +242,11 @@ void HistoryViewer::applyFilters() {
 // whether a storm's track goes through the area: a point inside it, or (for the 6-hourly points of a fast storm) the straight piece between two points
 bool HistoryViewer::passesArea(const UtilityHurdat::Track& t) const {
     for (size_t k = 0; k < t.points.size(); k++) {
-        const auto& p = t.points[k];
-        if (area.kind == Area::Box) {
-            if (p.lat >= area.minLat && p.lat <= area.maxLat && p.lon >= area.minLon && p.lon <= area.maxLon) {
-                return true;
-            }
-            if (k > 0) {
-                const auto& q = t.points[k - 1];
-                if (std::abs(p.lon - q.lon) > 100.0) {
-                    continue;   // across the date line
-                }
-                // Liang-Barsky: does the piece q -> p cross the box
-                double t0 = 0.0, t1 = 1.0;
-                const double dx = p.lon - q.lon;
-                const double dy = p.lat - q.lat;
-                const double pr[4] = {-dx, dx, -dy, dy};
-                const double qr[4] = {q.lon - area.minLon, area.maxLon - q.lon, q.lat - area.minLat, area.maxLat - q.lat};
-                bool inside = true;
-                for (int e = 0; e < 4 && inside; e++) {
-                    if (pr[e] == 0.0) {
-                        inside = qr[e] >= 0.0;
-                    } else {
-                        const double r = qr[e] / pr[e];
-                        if (pr[e] < 0.0) t0 = std::max(t0, r); else t1 = std::min(t1, r);
-                        inside = t0 <= t1;
-                    }
-                }
-                if (inside) {
-                    return true;
-                }
-            }
-        } else {
-            if (std::abs(p.lat - area.lat) < area.radiusKm / 111.0 + 1.0 && UtilityEnsembleStats::kilometers(area.lat, area.lon, p.lat, p.lon) <= area.radiusKm) {
-                return true;
-            }
-            if (k > 0) {
-                const auto& q = t.points[k - 1];
-                if (std::abs(p.lon - q.lon) < 100.0 && UtilityEnsembleStats::kilometers(area.lat, area.lon, (p.lat + q.lat) / 2.0, (p.lon + q.lon) / 2.0) <= area.radiusKm) {
-                    return true;
-                }
-            }
+        if (area->hitsPoint(t.points[k].lat, t.points[k].lon)) {
+            return true;
+        }
+        if (k > 0 && area->hitsSegment(t.points[k - 1].lat, t.points[k - 1].lon, t.points[k].lat, t.points[k].lon)) {
+            return true;
         }
     }
     return false;
@@ -467,25 +361,7 @@ void HistoryViewer::paintMap(QPainter& painter) {
             }
         }
     }
-    // the area searched, and the box being dragged
-    painter.setBrush(QColor{255, 255, 255, 25});
-    painter.setPen(QPen{QColor{255, 255, 255, 230}, 1.5 * px, Qt::DashLine});
-    if (area.kind == Area::Box) {
-        painter.drawPolygon(QPolygonF{{t(area.maxLat, area.minLon), t(area.maxLat, area.maxLon), t(area.minLat, area.maxLon), t(area.minLat, area.minLon)}});
-    } else if (area.kind == Area::Circle) {
-        QPolygonF ring;
-        for (int step = 0; step < 72; step++) {
-            const double bearing = step * 5.0 * std::numbers::pi / 180.0;
-            ring << t(area.lat + area.radiusKm / 111.0 * std::cos(bearing), area.lon + area.radiusKm / (111.0 * std::max(0.2, std::cos(area.lat * std::numbers::pi / 180.0))) * std::sin(bearing));
-        }
-        painter.drawPolygon(ring);
-    }
-    if (dragging) {
-        const auto toUnits = [this] (const QPointF& pixels) {
-            return QPointF{pixels.x() * 1000.0 / std::max(1, view->map()->width()) - 500.0, pixels.y() * 1000.0 / std::max(1, view->map()->height()) - 250.0};
-        };
-        painter.drawRect(QRectF{toUnits(dragStart), toUnits(dragNow)}.normalized());
-    }
+    area->paint(painter, t, px);
     // the legend
     MapLegendRow row;
     row.title = "Intensity along the track:";

@@ -30,9 +30,10 @@ void SeasonChart::setData(const std::vector<UtilitySeason::Season>& newSeasons, 
     update();
 }
 
-void SeasonChart::setView(int newMetric, int newFirst) {
+void SeasonChart::setView(int newMetric, int newFirst, int newGroup) {
     metric = newMetric;
     firstYear = newFirst;
+    group = newGroup;
     update();
 }
 
@@ -46,6 +47,41 @@ double SeasonChart::value(const UtilitySeason::Season& s) const {
     }
 }
 
+// the seasons shown (those since the first year, those with radii for the TIKE), or the decades made of them; `divisors` is what each is divided by
+std::vector<UtilitySeason::Season> SeasonChart::grouped(std::vector<double>& divisors) const {
+    std::vector<UtilitySeason::Season> shown;
+    divisors.clear();
+    for (const auto& s : seasons) {
+        if (s.year >= firstYear && (metric != 4 || s.radiiStorms > 0)) {   // a TIKE needs wind radii (HURDAT2 has them from 2004)
+            if (group == 0) {
+                shown.push_back(s);
+                divisors.push_back(1.0);
+            } else {
+                const int decade = s.year / 10 * 10;
+                if (shown.empty() || shown.back().year != decade) {
+                    UtilitySeason::Season d;
+                    d.year = decade;
+                    shown.push_back(d);
+                    divisors.push_back(0.0);
+                }
+                auto& d = shown.back();
+                d.cyclones += s.cyclones;
+                d.named += s.named;
+                d.hurricanes += s.hurricanes;
+                d.major += s.major;
+                d.ace += s.ace;
+                d.tike += s.tike;
+                d.radiiStorms += s.radiiStorms;
+                divisors.back() += 1.0;
+            }
+        }
+    }
+    if (group == 2) {
+        std::fill(divisors.begin(), divisors.end(), 1.0);   // the total of the decade
+    }
+    return shown;
+}
+
 QRectF SeasonChart::plot() const {
     return QRectF{54.0, 24.0, width() - 54.0 - 14.0, height() - 24.0 - 34.0};
 }
@@ -54,22 +90,19 @@ void SeasonChart::paintEvent(QPaintEvent *) {
     QPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{245, 245, 245});
-    std::vector<UtilitySeason::Season> shown;
-    for (const auto& s : seasons) {
-        if (s.year >= firstYear && (metric != 4 || s.radiiStorms > 0)) {   // a TIKE needs wind radii (HURDAT2 has them from 2004)
-            shown.push_back(s);
-        }
-    }
+    std::vector<double> divisors;
+    const auto shown = grouped(divisors);
     if (shown.empty()) {
         p.setPen(QColor{100, 100, 100});
         p.drawText(rect(), Qt::AlignCenter, "No season data");
         return;
     }
     double top = 1.0;
-    for (const auto& s : shown) {
-        top = std::max(top, value(s));
+    for (size_t i = 0; i < shown.size(); i++) {
+        top = std::max(top, value(shown[i]) / divisors[i]);
     }
-    const double step = top > 200 ? 50.0 : top > 100 ? 25.0 : top > 40 ? 10.0 : top > 16 ? 5.0 : 2.0;
+    const double step = metric == 4 ? (top > 40000 ? 10000.0 : top > 20000 ? 5000.0 : top > 8000 ? 2000.0 : top > 3000 ? 1000.0 : top > 1000 ? 500.0 : 100.0)
+                                    : (top > 1000 ? 200.0 : top > 400 ? 100.0 : top > 200 ? 50.0 : top > 100 ? 25.0 : top > 40 ? 10.0 : top > 16 ? 5.0 : 2.0);
     top = std::ceil(top / step) * step;
     const auto area = plot();
     const double barWidth = area.width() / static_cast<double>(shown.size());
@@ -98,13 +131,16 @@ void SeasonChart::paintEvent(QPaintEvent *) {
             }
         }
         average = n > 0 ? sum / n : 0.0;
+        if (group == 2) {
+            average *= 10.0;   // a decade's total against ten average seasons
+        }
     }
     for (size_t i = 0; i < shown.size(); i++) {
         const auto& s = shown[i];
-        const double v = value(s);
+        const double v = value(s) / divisors[i];
         const double h = area.height() * v / top;
         const QRectF bar{area.left() + static_cast<double>(i) * barWidth + barWidth * 0.1, area.bottom() - h, barWidth * 0.8, h};
-        const bool now = s.year == currentYear;
+        const bool now = group == 0 ? s.year == currentYear : currentYear / 10 * 10 == s.year;
         // above the average: warmer colour
         p.setPen(Qt::NoPen);
         p.setBrush(now ? QColor{220, 40, 40} : v > average ? QColor{235, 140, 60} : QColor{90, 140, 210});
@@ -114,15 +150,15 @@ void SeasonChart::paintEvent(QPaintEvent *) {
         const double py = area.bottom() - area.height() * average / top;
         p.setPen(QPen{QColor{30, 30, 30}, 1.4, Qt::DashLine});
         p.drawLine(QPointF{area.left(), py}, QPointF{area.right(), py});
-        p.drawText(QPointF{area.left() + 6, py - 4}, (metric == 4 ? "2004-2020 average " : "1991-2020 average ") + QString::number(average, 'f', metric == 0 ? 0 : 1));
+        p.drawText(QPointF{area.left() + 6, py - 4}, QString{metric == 4 ? "2004-2020 average " : "1991-2020 average "} + QString{group == 2 ? "decade (10 seasons) " : "season "} + QString::number(average, 'f', metric == 0 || metric == 4 ? 0 : 1));
     }
     // year labels: every 10 or 5 or 1 depending on the room
-    const int every = barWidth > 24 ? 1 : barWidth > 9 ? 5 : 10;
+    const int every = group != 0 ? 10 : barWidth > 24 ? 1 : barWidth > 9 ? 5 : 10;
     p.setPen(QColor{70, 70, 70});
     for (size_t i = 0; i < shown.size(); i++) {
         if (shown[i].year % every == 0) {
             const double x = area.left() + (static_cast<double>(i) + 0.5) * barWidth;
-            p.drawText(QRectF{x - 20, area.bottom() + 3, 40, 14}, Qt::AlignHCenter, QString::number(shown[i].year));
+            p.drawText(QRectF{x - 20, area.bottom() + 3, 40, 14}, Qt::AlignHCenter, QString::number(shown[i].year) + (group != 0 ? "s" : ""));
         }
     }
     QFont bold{small};
@@ -130,19 +166,15 @@ void SeasonChart::paintEvent(QPaintEvent *) {
     bold.setPixelSize(12);
     p.setFont(bold);
     p.setPen(QColor{30, 30, 30});
-    p.drawText(QPointF{area.left(), area.top() - 8}, QString{metricNames[std::clamp(metric, 0, 4)]} + " by season" + (currentYear > 0 ? "  (red: " + QString::number(currentYear) + " so far)" : QString{}));
+    p.drawText(QPointF{area.left(), area.top() - 8}, QString{metricNames[std::clamp(metric, 0, 4)]} + (group == 0 ? " by season" : group == 1 ? " by decade (the average season of each)" : " by decade (the total)") + (currentYear > 0 ? "  (red: " + QString::number(currentYear) + " so far)" : QString{}));
     p.setFont(small);
     p.setPen(QColor{90, 90, 90});
     p.drawText(QPointF{area.left(), height() - 6.0}, "HURDAT2 (NHC) through the last finished season; the current season from the ATCF best tracks. ACE: winds of 34 kt or more at 00, 06, 12, 18 UTC, squared, / 10,000. TIKE: the kinetic energy in the 34, 50 and 64 kt wind radii of those records, estimated, added up.");
 }
 
 void SeasonChart::mouseMoveEvent(QMouseEvent * event) {
-    std::vector<UtilitySeason::Season> shown;
-    for (const auto& s : seasons) {
-        if (s.year >= firstYear && (metric != 4 || s.radiiStorms > 0)) {   // a TIKE needs wind radii (HURDAT2 has them from 2004)
-            shown.push_back(s);
-        }
-    }
+    std::vector<double> divisors;
+    const auto shown = grouped(divisors);
     const auto area = plot();
     if (shown.empty() || !area.contains(event->position())) {
         QToolTip::hideText();
@@ -153,6 +185,11 @@ void SeasonChart::mouseMoveEvent(QMouseEvent * event) {
         return;
     }
     const auto& s = shown[index];
+    if (group != 0) {
+        QToolTip::showText(event->globalPosition().toPoint(), QString::number(s.year) + "s: " + QString::number(value(s) / divisors[index], 'f', metric == 0 || metric == 4 ? 0 : 1) + (group == 1 ? " a season on average" : " in the decade") +
+            "\n(" + QString::number(s.named) + " named storms, " + QString::number(s.hurricanes) + " hurricanes, " + QString::number(s.major) + " major, ACE " + QString::number(s.ace, 'f', 0) + ")", this);
+        return;
+    }
     QToolTip::showText(event->globalPosition().toPoint(), QString::number(s.year) + ": " + QString::number(s.named) + " named storms, " + QString::number(s.hurricanes) + " hurricanes, " +
         QString::number(s.major) + " major, ACE " + QString::number(s.ace, 'f', 1) + (s.radiiStorms > 0 ? ", TIKE " + QString::number(std::lround(s.tike)) + " TJ" : QString{}), this);
 }
@@ -161,6 +198,7 @@ SeasonViewer::SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData:
     : Window{parent}
     , comboMetric{this, {metricNames[0], metricNames[1], metricNames[2], metricNames[3], metricNames[4]}}
     , comboYears{this, {"Since 1950", "Since 1851 (all)", "Since 1991", "Last 30 seasons"}}
+    , comboGroup{this, {"Each season", "By decade (average season)", "By decade (total)"}}
     , textSummary{this, ""}
     , data{seasonData}
 {
@@ -174,8 +212,10 @@ SeasonViewer::SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData:
     chart->setData(seasons, data->current.empty() ? 0 : data->currentYear);
     comboMetric.connect([this] { apply(); });
     comboYears.connect([this] { apply(); });
+    comboGroup.connect([this] { apply(); });
     row.addWidget(comboMetric);
     row.addWidget(comboYears);
+    row.addWidget(comboGroup);
     row.addStretch();
     box.addLayout(row);
     box.addWidget(textSummary);
@@ -216,7 +256,7 @@ void SeasonViewer::apply() {
         case 3: first = data->currentYear - 30; break;
         default: break;
     }
-    chart->setView(comboMetric.getIndex(), first);
+    chart->setView(comboMetric.getIndex(), first, comboGroup.getIndex());
     // the season so far, in words
     QString text;
     double tikeAverage = 0.0;

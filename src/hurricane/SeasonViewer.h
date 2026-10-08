@@ -24,7 +24,7 @@ class SeasonChart : public QWidget {
 public:
     explicit SeasonChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(640, 280); setMouseTracking(true); ChartExport::install(this, "Hurricane seasons"); }
     void setData(const std::vector<UtilitySeason::Season>& seasons, int currentYear);
-    void setView(int metric, int firstYear);   // metric: 0 ACE, 1 named storms, 2 hurricanes, 3 major hurricanes
+    void setView(int metric, int firstYear, int group = 0);   // metric: 0 ACE, 1 named storms, 2 hurricanes, 3 major hurricanes, 4 TIKE; group: 0 each season, 1 decades (the average season of each), 2 decades (the total)
 
 private:
     double value(const UtilitySeason::Season&) const;
@@ -35,6 +35,8 @@ private:
     int currentYear{0};
     int metric{0};
     int firstYear{1950};
+    int group{0};
+    std::vector<UtilitySeason::Season> grouped(std::vector<double>& divisors) const;   // the seasons shown, as they are or as decades
 };
 
 class SeasonViewer : public Window {
@@ -47,6 +49,7 @@ private:
     HBox row;
     ComboBox comboMetric;
     ComboBox comboYears;
+    ComboBox comboGroup;
     Text textSummary;
     SeasonChart * chart{};
     std::shared_ptr<HurricaneData::SeasonData> data;
