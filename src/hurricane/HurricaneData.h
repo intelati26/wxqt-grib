@@ -16,6 +16,7 @@
 #include "hurricane/UtilityPod.h"
 #include "hurricane/UtilitySeason.h"
 #include "hurricane/UtilityShips.h"
+#include "hurricane/UtilityTropicalAlerts.h"
 #include "hurricane/UtilityVdm.h"
 #include "hurricane/UtilityHdob.h"
 
@@ -99,6 +100,7 @@ public:
         UtilityNhcGis::Cone cone;
         vector<UtilityNhcGis::WindRadius> radii;
         vector<UtilityNhcGis::WatchWarning> watchWarnings;
+        vector<UtilityTropicalAlerts::Area> inland;   // the NWS zone and county alerts within 1,500 km of the storm (they reach inland; NHC's files are coastal lines)
         string error;
     };
     struct SeasonData {

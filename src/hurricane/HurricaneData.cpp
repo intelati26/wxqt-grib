@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cctype>
+#include <cmath>
 #include <ctime>
 #include <mutex>
 #include <regex>
@@ -27,6 +28,12 @@
 
 namespace {
     const string atcf = "https://ftp.nhc.noaa.gov/atcf/";
+
+    double kilometers(double lat1, double lon1, double lat2, double lon2) {
+        const double rad = 3.14159265358979 / 180.0;
+        const double a = std::pow(std::sin((lat2 - lat1) * rad / 2.0), 2) + std::cos(lat1 * rad) * std::cos(lat2 * rad) * std::pow(std::sin((lon2 - lon1) * rad / 2.0), 2);
+        return 12742.0 * std::asin(std::min(1.0, std::sqrt(a)));
+    }
 
     string download(const string& url) {
         return UtilityIO::downloadAsByteArray(url).toStdString();
@@ -472,6 +479,26 @@ void HurricaneData::loadSeason(SeasonData& data, const string& basin) {
 
 void HurricaneData::loadGis(const StormEntry& entry, GisData& data) {
     data = GisData{};
+    // the hurricane / tropical storm watches and warnings of the NWS zones, inland as well as coastal (one request for every storm, kept five minutes)
+    {
+        static std::mutex mutex;
+        static string cached;
+        static std::time_t cachedAt = 0;
+        string json;
+        {
+            std::lock_guard lock{mutex};
+            if (cached.empty() || std::time(nullptr) - cachedAt > 300) {
+                cached = download("https://api.weather.gov/alerts/active?event=Hurricane%20Warning,Hurricane%20Watch,Tropical%20Storm%20Warning,Tropical%20Storm%20Watch,Storm%20Surge%20Warning,Storm%20Surge%20Watch");
+                cachedAt = std::time(nullptr);
+            }
+            json = cached;
+        }
+        for (auto& area : UtilityTropicalAlerts::parse(json)) {
+            if (kilometers(entry.lat, entry.lon, area.lat, area.lon) <= 1500.0) {
+                data.inland.push_back(std::move(area));
+            }
+        }
+    }
     if (entry.coneZip.empty()) {
         data.error = "NHC publishes no cone for this storm.";
         return;

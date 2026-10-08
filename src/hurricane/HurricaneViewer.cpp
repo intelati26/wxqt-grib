@@ -869,16 +869,19 @@ void HurricaneViewer::updateInfo() {
             html += "&bull; " + QString::fromStdString(line).toHtmlEscaped() + "<br>";
         }
     }
-    if (gis && !gis->watchWarnings.empty()) {
+    if (gis && (!gis->watchWarnings.empty() || !gis->inland.empty())) {
         std::set<string> kinds;
         for (const auto& w : gis->watchWarnings) {
             kinds.insert(w.kind.empty() ? UtilityNhcGis::nameFor(w.code) : w.kind);
+        }
+        for (const auto& a : gis->inland) {
+            kinds.insert(a.event);
         }
         QStringList names;
         for (const auto& k : kinds) {
             names << QString::fromStdString(k);
         }
-        html += "<br><b>In effect</b> " + names.join(", ") + "<br>";
+        html += "<br><b>In effect</b> " + names.join(", ") + (gis->inland.empty() ? QString{} : QString{" ("} + QString::number(gis->inland.size()) + " NWS zones and counties, inland too)") + "<br>";
     } else if (gis && gis->error.empty() && gis->cone.ok) {
         html += "<br><b>Watches and warnings</b> none in effect<br>";
     }
@@ -1222,6 +1225,31 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             painter.setBrush(categoryColor(f.wind >= 0 ? UtilityAtcf::categoryOf(f.wind) : 0));
             const double r = (last ? 7.5 : 3.6) * px;
             painter.drawEllipse(p, r, r);
+        }
+    }
+    // the inland watches and warnings: each NWS zone or county in the colour of its alert (the watches under the warnings)
+    if (wwCheck->isChecked() && gis && !gis->inland.empty()) {
+        vector<const UtilityTropicalAlerts::Area *> ordered;
+        for (const auto& a : gis->inland) {
+            ordered.push_back(&a);
+        }
+        std::stable_sort(ordered.begin(), ordered.end(), [] (const auto * a, const auto * b) { return UtilityTropicalAlerts::rank(a->code) < UtilityTropicalAlerts::rank(b->code); });
+        for (const auto * a : ordered) {
+            QColor color{QString::fromStdString(UtilityNhcGis::colorFor(a->code))};
+            QPainterPath path;
+            for (const auto& ring : a->rings) {
+                QPolygonF polygon;
+                for (const auto& [lon, lat] : ring) {
+                    polygon << t(lat, lon);
+                }
+                path.addPolygon(polygon);
+                path.closeSubpath();
+            }
+            QColor fill = color;
+            fill.setAlpha(a->code == "SSW" || a->code == "SSA" ? 55 : 95);
+            painter.setPen(QPen{QColor{color.red(), color.green(), color.blue(), 200}, 1.0 * px});
+            painter.setBrush(fill);
+            painter.drawPath(path);
         }
     }
     // watches and warnings: NHC's lines along the coast, hurricane warning red, hurricane watch pink, tropical storm warning blue, tropical storm watch yellow
@@ -1604,6 +1632,24 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
                 if (UtilityHdob::has(ob.height)) text += "\nAltitude " + QString::number(static_cast<int>(ob.height)) + " m";
                 check(ob.lat, ob.lon, text, "");
             }
+        }
+    }
+    // inside an inland watch / warning area (the warnings over the watches)
+    if (best.text.isEmpty() && wwCheck->isChecked() && gis) {
+        const UtilityTropicalAlerts::Area * inside = nullptr;
+        for (const auto& a : gis->inland) {
+            for (const auto& ring : a.rings) {
+                QPolygonF polygon;
+                for (const auto& [lon, lat] : ring) {
+                    polygon << view->toPixels(lat, lon);
+                }
+                if (polygon.containsPoint(pixels, Qt::OddEvenFill) && (inside == nullptr || UtilityTropicalAlerts::rank(a.code) > UtilityTropicalAlerts::rank(inside->code))) {
+                    inside = &a;
+                }
+            }
+        }
+        if (inside != nullptr) {
+            best = {QString::fromStdString(inside->event + "\n" + inside->zone + (inside->office.empty() ? "" : "\n" + inside->office)), 0.0};
         }
     }
     // keep the line already shown unless the pointer is clearly nearer another
