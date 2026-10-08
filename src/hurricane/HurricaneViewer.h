@@ -122,7 +122,9 @@ private:
     string changeTitle;
     const void * swathFor{nullptr};                           // the storm the cached swaths belong to
     std::array<QList<QPolygonF>, 3> swaths;             // 34, 50, 64 kt: the joined fields, (lon, lat) points
-    string hoverTech;                                         // the guidance line under the pointer, drawn heavier
+    string hoverTech;
+    QString lastHoverText;                                    // what the hover shows now, kept while the pointer stays near its line
+    string lastHoverTech;                                         // the guidance line under the pointer, drawn heavier
     int generation{0};
     bool closed{false};
     bool filling{false};                                      // the combo is being filled: its change is not a pick

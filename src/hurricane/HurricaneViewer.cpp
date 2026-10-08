@@ -1408,15 +1408,49 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
     if (!storm) {
         return;
     }
-    Hit best{QString{}, 11.0};   // pixels
+    // a line is hit when the pointer is within `lineReach` pixels of it (not just of one of its points, which can be a day apart); a lone marker within `pointReach`;
+    // and the line the pointer is already on is kept until it is clearly nearer another
+    const double lineReach = 16.0;
+    const double pointReach = 14.0;
+    Hit best{QString{}, lineReach};   // pixels
     string bestTech;
-    const auto check = [&] (double lat, double lon, const QString& text, const string& tech) {
-        const auto at = view->toPixels(lat, lon);
-        const double distance = std::hypot(at.x() - pixels.x(), at.y() - pixels.y());
-        if (distance < best.distance) {
+    double keptDistance = 1e9;        // how far the pointer is from the line shown now (if it is still a candidate)
+    bool havePrevious = false;
+    QPointF previousAt;
+    QString previousText;
+    string previousTech;
+    const auto consider = [&] (double distance, const QString& text, const string& tech, double reach) {
+        if (text == lastHoverText) {
+            keptDistance = std::min(keptDistance, distance);
+        }
+        if (distance < std::min(best.distance, reach)) {
             best = {text, distance};
             bestTech = tech;
         }
+    };
+    const auto breakLine = [&] { havePrevious = false; };
+    // the next point of the line being walked: its own distance, and the distance to the segment from the point before it
+    const auto check = [&] (double lat, double lon, const QString& text, const string& tech) {
+        const auto at = view->toPixels(lat, lon);
+        consider(std::hypot(at.x() - pixels.x(), at.y() - pixels.y()), text, tech, lineReach);
+        if (havePrevious) {
+            const QPointF d = at - previousAt;
+            const double length2 = d.x() * d.x() + d.y() * d.y();
+            double f = length2 > 0.0 ? ((pixels.x() - previousAt.x()) * d.x() + (pixels.y() - previousAt.y()) * d.y()) / length2 : 0.0;
+            f = std::clamp(f, 0.0, 1.0);
+            const QPointF nearest = previousAt + d * f;
+            consider(std::hypot(nearest.x() - pixels.x(), nearest.y() - pixels.y()), f < 0.5 ? previousText : text, f < 0.5 ? previousTech : tech, lineReach);
+        }
+        havePrevious = true;
+        previousAt = at;
+        previousText = text;
+        previousTech = tech;
+    };
+    // a marker on its own (a dropsonde, a recon fix, an outlook area)
+    const auto checkPoint = [&] (double lat, double lon, const QString& text, const string& tech) {
+        breakLine();
+        const auto at = view->toPixels(lat, lon);
+        consider(std::hypot(at.x() - pixels.x(), at.y() - pixels.y()), text, tech, pointReach);
     };
     for (const auto& track : storm->guidance) {
         const auto group = UtilityAtcf::groupOf(track.tech);
@@ -1425,6 +1459,7 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
         }
         const auto found = storm->longNames.find(track.tech);
         const auto title = QString::fromStdString(track.tech + (found != storm->longNames.end() ? " - " + found->second : string{}));
+        breakLine();
         for (const auto& f : track.fixes) {
             check(f.lat, f.lon, title + "\nrun " + QString::fromStdString(UtilityAtcf::formatTime(track.cycle)) + ", +" + QString::number(f.tau) + " h, " + knots(f.wind), track.tech);
         }
@@ -1444,7 +1479,11 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
                 }
                 const QString who = member.type >= 2 ? QString::fromStdString(set.label) + " member " + QString::number(member.number)
                     : QString::fromStdString(set.label) + (isEnsemble ? " unperturbed run" : " run");
+                breakLine();
                 for (const auto& s : member.steps) {
+                    if (!UtilityEcmwfTracks::has(s.lat) || !UtilityEcmwfTracks::has(s.lon)) {
+                        breakLine();
+                    }
                     if (UtilityEcmwfTracks::has(s.lat) && UtilityEcmwfTracks::has(s.lon)) {
                         check(s.lat, s.lon, who + "\nrun " + QString::fromStdString(UtilityAtcf::formatTime(set.cycle)) + ", +" + QString::number(s.hour) + " h" +
                             (UtilityEcmwfTracks::has(s.wind) ? ", " + knotsOf(s.wind) + " (10 m)" : QString{}) +
@@ -1455,18 +1494,20 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
         }
     }
     if (groupShown(Group::Official)) {
+        breakLine();
         for (const auto& f : storm->official.fixes) {
             check(f.lat, f.lon, "NHC official forecast\nrun " + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + ", +" + QString::number(f.tau) + " h, " + knots(f.wind) +
                 (f.pressure > 0 ? ", " + QString::number(f.pressure) + " mb" : QString{}), "");
         }
     }
+    breakLine();
     for (const auto& f : storm->best) {
         check(f.lat, f.lon, "Best track\n" + QString::fromStdString(UtilityAtcf::formatTime(f.time)) + ", " + knots(f.wind) + (f.pressure > 0 ? ", " + QString::number(f.pressure) + " mb" : QString{}), "");
     }
     if (outlookCheck->isChecked() && outlook) {
         for (const auto& area : outlook->areas) {
             if (area.basin == (basinCode() == "al" ? "Atlantic" : "Pacific")) {
-                check(area.centerLat, area.centerLon, "Tropical Weather Outlook area " + QString::fromStdString(area.area) + "\nChance of formation: " + QString::number(area.prob2) + " % in 2 days (" +
+                checkPoint(area.centerLat, area.centerLon, "Tropical Weather Outlook area " + QString::fromStdString(area.area) + "\nChance of formation: " + QString::number(area.prob2) + " % in 2 days (" +
                       QString::fromStdString(area.risk2) + "), " + QString::number(area.prob7) + " % in 7 days (" + QString::fromStdString(area.risk7) + ")", "");
             }
         }
@@ -1474,6 +1515,7 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
     if (wwCheck->isChecked() && gis) {
         for (const auto& w : gis->watchWarnings) {
             for (const auto& ring : w.lines) {
+                breakLine();
                 for (const auto& [lon, lat] : ring) {
                     check(lat, lon, QString::fromStdString(w.kind.empty() ? UtilityNhcGis::nameFor(w.code) : w.kind), "");
                 }
@@ -1492,7 +1534,7 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
                 }
                 if (UtilityDropsonde::has(d.mblSpeed)) text += "\nMean boundary layer wind " + QString::number(static_cast<int>(d.mblDirection)) + " deg " + knotsOf(d.mblSpeed);
                 text += "\n(click for the sounding)";
-                check(lat, lon, text, "");
+                checkPoint(lat, lon, text, "");
             }
         }
     }
@@ -1503,14 +1545,16 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
                 if (UtilityVdm::has(m.pressure)) text += "\nMinimum pressure " + QString::number(static_cast<int>(m.pressure)) + " mb" + (m.extrapolated ? " (extrapolated)" : "");
                 if (UtilityVdm::has(m.maxFlightWind())) text += "\nStrongest flight-level wind " + knotsOf(m.maxFlightWind());
                 if (!m.eyeCharacter.empty()) text += "\nEye " + QString::fromStdString(m.eyeCharacter + " " + m.eyeShape);
-                check(m.lat, m.lon, text, "");
+                checkPoint(m.lat, m.lon, text, "");
             }
         }
     }
     if (reconCheck->isChecked() && recon) {
         for (const auto& message : recon->messages) {
+            breakLine();
             for (const auto& ob : message.obs) {
                 if (!reconNear(ob)) {
+                    breakLine();
                     continue;
                 }
                 QString text = "Recon " + QString::fromStdString(message.mission.substr(0, message.mission.find(' '))) + "  " + QString::fromStdString(UtilityHdob::timeText(ob.seconds));
@@ -1526,6 +1570,13 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
             }
         }
     }
+    // keep the line already shown unless the pointer is clearly nearer another
+    if (!lastHoverText.isEmpty() && best.text != lastHoverText && keptDistance < lineReach * 1.25 && best.distance > keptDistance - 4.0) {
+        best = {lastHoverText, keptDistance};
+        bestTech = lastHoverTech;
+    }
+    lastHoverText = best.text;
+    lastHoverTech = bestTech;
     if (best.text.isEmpty()) {
         hoverLabel->hide();
         view->map()->setCursor(Qt::ArrowCursor);
