@@ -6,7 +6,7 @@
 #include "obs/UtilityMetarCache.h"
 #include <cmath>
 #include <cstdlib>
-#include <ctime>
+#include <cstdio>
 #include <numbers>
 #include <sstream>
 
@@ -68,14 +68,14 @@ long UtilityMetarCache::parseTime(const string& iso) {
     if (std::sscanf(iso.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d", &y, &mo, &d, &h, &mi, &s) < 5 || y < 1970) {
         return 0;
     }
-    std::tm tm{};
-    tm.tm_year = y - 1900;
-    tm.tm_mon = mo - 1;
-    tm.tm_mday = d;
-    tm.tm_hour = h;
-    tm.tm_min = mi;
-    tm.tm_sec = s;
-    return static_cast<long>(timegm(&tm));
+    // days since 1970-01-01 of a civil date (Howard Hinnant's algorithm), so no platform-specific timegm is needed
+    const long long yy = mo <= 2 ? y - 1 : y;
+    const long long era = (yy >= 0 ? yy : yy - 399) / 400;
+    const long long yoe = yy - era * 400;
+    const long long doy = (153 * (mo + (mo > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    const long long doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    const long long days = era * 146097 + doe - 719468;
+    return static_cast<long>(days * 86400 + h * 3600 + mi * 60 + s);
 }
 
 // the columns, by position (the four sky cover / cloud base pairs repeat their names): raw_text 0, station_id 1, observation_time 2, latitude 3,
