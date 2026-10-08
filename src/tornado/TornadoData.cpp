@@ -15,6 +15,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
+#include "util/PermanentCache.h"
 #include "util/UtilityIO.h"
 
 long TornadoData::ordinal(int year, int month, int day) {
@@ -39,40 +40,14 @@ std::shared_ptr<const TornadoData::Database> TornadoData::load() {
     const std::string base = "https://www.spc.noaa.gov/wcm/";
     // the newest file on the page; if the page cannot be read, the newest one on disk
     std::string name = UtilityTornado::newestFile(UtilityIO::downloadAsByteArray(base).toStdString());
-    const auto folder = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/tornado";
-    QDir{}.mkpath(folder);
-    if (name.empty()) {
-        for (const auto& old : QDir{folder}.entryList({"1950-*_actual_tornadoes.csv"}, QDir::Files, QDir::Name | QDir::Reversed)) {
-            name = old.toStdString();
-            break;
-        }
-    }
-    if (name.empty()) {
-        db->error = "Could not find the SPC tornado database.";
+    // kept for good in the data folder (compressed); the network is only asked whether a newer file exists
+    const PermanentCache store{"tornado", "tornado"};
+    const auto got = store.fetch(name, "1950-*_actual_tornadoes.csv", 100000, [&] { return UtilityIO::downloadAsByteArray(base + "data/" + name).toStdString(); });
+    name = got.name;
+    const std::string& text = got.text;
+    if (name.empty() || text.empty()) {
+        db->error = "Could not find the SPC tornado database. It needs a connection the first time it is opened.";
         return db;
-    }
-    const auto path = folder + "/" + QString::fromStdString(name);
-    std::string text;
-    QFile file{path};
-    const bool fresh = QFileInfo{path}.exists() && QFileInfo{path}.lastModified().secsTo(QDateTime::currentDateTime()) < 7 * 86400;
-    if (fresh && file.open(QIODevice::ReadOnly)) {
-        text = file.readAll().toStdString();
-        file.close();
-    }
-    if (text.empty()) {
-        text = UtilityIO::downloadAsByteArray(base + "data/" + name).toStdString();
-        if (text.size() > 100000 && file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-            file.write(QByteArray::fromStdString(text));
-            file.close();
-            for (const auto& old : QDir{folder}.entryList({"1950-*_actual_tornadoes.csv"}, QDir::Files)) {
-                if (old != QString::fromStdString(name)) {
-                    QFile::remove(folder + "/" + old);
-                }
-            }
-        } else if (text.size() <= 100000 && file.open(QIODevice::ReadOnly)) {   // the download failed: an old copy is better than none
-            text = file.readAll().toStdString();
-            file.close();
-        }
     }
     db->tornadoes = UtilityTornado::parse(text);
     db->file = name;
@@ -96,23 +71,23 @@ std::shared_ptr<const TornadoData::Database> TornadoData::load() {
                     }
                 }
             }
-            QDir{}.mkpath(folder + "/daily");
             for (size_t start = 0; start < days.size(); start += 8) {
                 std::vector<std::future<std::pair<Day, std::string>>> jobs;
                 for (size_t i = start; i < std::min(days.size(), start + 8); i++) {
-                    jobs.push_back(std::async(std::launch::async, [day = days[i], folder, now] {
+                    jobs.push_back(std::async(std::launch::async, [day = days[i], &store, now] {
                         char stamp[16];
                         std::snprintf(stamp, sizeof stamp, "%02d%02d%02d", day.y % 100, day.m, day.d);
-                        const QString path = folder + "/daily/" + stamp + ".csv";
+                        const std::string dayName = std::string{"daily/"} + stamp + ".csv";
                         const bool recent = QDate{day.y, day.m, day.d}.daysTo(now) <= 5;
-                        QFile cache{path};
-                        if (!recent && cache.open(QIODevice::ReadOnly)) {
-                            const auto bytes = cache.readAll();
-                            return std::make_pair(day, bytes.toStdString());
+                        if (!recent) {
+                            auto kept = store.read(dayName);
+                            if (!kept.empty()) {
+                                return std::make_pair(day, std::move(kept));
+                            }
                         }
                         const auto bytes = UtilityIO::downloadAsByteArray(std::string{"https://www.spc.noaa.gov/climo/reports/"} + stamp + "_rpts_torn.csv").toStdString();
-                        if (bytes.rfind("Time", 0) == 0 && cache.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-                            cache.write(QByteArray::fromStdString(bytes));
+                        if (bytes.rfind("Time", 0) == 0) {
+                            store.write(dayName, bytes);
                         }
                         return std::make_pair(day, bytes);
                     }));
