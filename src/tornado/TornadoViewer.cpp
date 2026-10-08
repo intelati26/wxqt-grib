@@ -40,13 +40,13 @@ QColor TornadoViewer::colorOf(int mag) {
 
 QString TornadoViewer::describe(const T& t) {
     return dateText(t) + "  " + QString::fromStdString(t.state) + "  " + (t.preliminary ? QString{"prelim. report"} : QString::fromStdString(UtilityTornado::rating(t)) + "  " + QString::number(t.length, 'f', t.length < 10 ? 1 : 0) + " mi") +
-        (t.fatalities > 0 ? "  " + QString::number(t.fatalities) + " dead" : QString{});
+        (t.fatalities > 0 ? "  " + QString::number(t.fatalities) + " fatalities" : QString{});
 }
 
 QString TornadoViewer::details(const T& t) {
     QString text = dateText(t) + "  " + QString::fromStdString(t.time.substr(0, 5)) + (t.timeZone == 3 ? " CST" : t.timeZone == 9 ? " GMT" : "") + "   " + QString::fromStdString(t.state) + "\n" +
         QString::fromStdString(UtilityTornado::rating(t)) + ",  " + QString::number(t.length, 'f', 1) + " miles long, " + QString::number(static_cast<int>(t.width)) + " yards wide\n" +
-        QString::number(t.fatalities) + " deaths, " + QString::number(t.injuries) + " injuries";
+        QString::number(t.fatalities) + " fatalities, " + QString::number(t.injuries) + " injuries";
     if (t.preliminary) {
         return dateText(t) + "  " + QString::fromStdString(t.time.substr(0, 5)) + " UTC   " + QString::fromStdString(t.state) + "\nA preliminary report (SPC daily reports): a point, not a surveyed track;\nrating " +
             (t.mag >= 0 ? QString::fromStdString(UtilityTornado::rating(t)) : QString{"not given"}) + ". It may count a tornado more than once.";
@@ -64,7 +64,7 @@ TornadoViewer::TornadoViewer(Window * parent)
     , comboTo{this, {"2025"}}
     , comboRating{this, {"All tornadoes", "EF1 or stronger", "EF2 or stronger", "EF3 or stronger", "EF4 or stronger", "EF5 only", "Unrated only"}}
     , comboState{this, {"All states"}}
-    , comboKind{this, {"All", "Fatal ones", "With injuries or deaths"}}
+    , comboKind{this, {"All", "Fatal ones", "With injuries or fatalities"}}
     , comboNear{this, {"Anywhere"}}
     , comboRadius{this, {"within 25 km", "within 50 km", "within 100 km", "within 200 km"}}
     , buttonArea{this, None, "Search an area"}
@@ -237,7 +237,7 @@ void TornadoViewer::applyFilters() {
         injuries += t->injuries;
         strong += t->mag >= 3 ? 1 : 0;
     }
-    string text = QLocale{QLocale::English}.toString(static_cast<qlonglong>(shown.size())).toStdString() + " tornadoes (" + std::to_string(strong) + " rated 3 or more), " + std::to_string(deaths) + " deaths, " +
+    string text = QLocale{QLocale::English}.toString(static_cast<qlonglong>(shown.size())).toStdString() + " tornadoes (" + std::to_string(strong) + " rated 3 or more), " + std::to_string(deaths) + " fatalities, " +
         std::to_string(injuries) + " injuries";
     text += spanned ? "   -   the " + string{comboSpan.getValue()} : "   -   " + std::to_string(first) + " to " + std::to_string(last);
     text += "   -   " + db->file + (db->preliminaryCount > 0 ? " + " + std::to_string(db->preliminaryCount) + " preliminary reports since" : string{}) + " (to " + std::to_string(db->lastDay) + "/" + std::to_string(db->lastMonth) + "/" + std::to_string(db->lastYear) + ")";
