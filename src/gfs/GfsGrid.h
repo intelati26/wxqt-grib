@@ -44,6 +44,8 @@ namespace GfsGrid {
     Grid speed(const Grid& u, const Grid& v);
     // relative vorticity dv/dx - du/dy on the sphere, in 1/s (the poles' rows are left NaN)
     Grid vorticity(const Grid& u, const Grid& v);
+    // horizontal divergence du/dx + dv/dy on the sphere, in 1/s (the poles' rows are left NaN)
+    Grid divergence(const Grid& u, const Grid& v);
     // a - b
     Grid difference(const Grid& a, const Grid& b);
     // out = in * scale + offset

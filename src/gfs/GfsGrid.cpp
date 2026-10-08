@@ -120,28 +120,43 @@ Grid speed(const Grid& u, const Grid& v) {
     return out;
 }
 
-Grid vorticity(const Grid& u, const Grid& v) {
-    Grid out = u;
-    std::fill(out.values.begin(), out.values.end(), nan);
-    const double dy = earthRadius * pi / 180.0 * u.step;
-    for (int row = 1; row < u.rows - 1; row++) {
-        const double lat = u.lat0 - row * u.step;
-        const double cosLat = std::cos(lat * pi / 180.0);
-        if (cosLat < 0.02) {
-            continue;
+namespace {
+    // The two horizontal derivatives the vorticity and divergence share, on the sphere: dx of one field and (1/cos) d(field * cos)/dy of another.
+    // mode 0: vorticity  dv/dx - (1/cos) d(u cos)/dy        mode 1: divergence  du/dx + (1/cos) d(v cos)/dy
+    Grid spherical(const Grid& u, const Grid& v, bool divergence) {
+        Grid out = u;
+        std::fill(out.values.begin(), out.values.end(), nan);
+        const double dy = earthRadius * pi / 180.0 * u.step;
+        for (int row = 1; row < u.rows - 1; row++) {
+            const double lat = u.lat0 - row * u.step;
+            const double cosLat = std::cos(lat * pi / 180.0);
+            if (cosLat < 0.02) {
+                continue;
+            }
+            const double cosNorth = std::cos((lat + u.step) * pi / 180.0), cosSouth = std::cos((lat - u.step) * pi / 180.0);
+            const double dx = dy * cosLat;
+            for (int col = 0; col < u.columns; col++) {
+                const int left = col > 0 ? col - 1 : (u.global() ? u.columns - 1 : col);
+                const int right = col < u.columns - 1 ? col + 1 : (u.global() ? 0 : col);
+                const double span = (left == col || right == col) ? 1.0 : 2.0;
+                const Grid& along = divergence ? u : v;     // differentiated along x
+                const Grid& across = divergence ? v : u;    // differentiated along y (with the cosine)
+                const double dAlong = (along.at(right, row) - along.at(left, row)) / (span * dx);
+                // rows run south: row - 1 is the north neighbor
+                const double dAcross = (across.at(col, row - 1) * cosNorth - across.at(col, row + 1) * cosSouth) / (2.0 * dy * cosLat);
+                out.values[static_cast<size_t>(row) * static_cast<size_t>(u.columns) + static_cast<size_t>(col)] = static_cast<float>(divergence ? dAlong + dAcross : dAlong - dAcross);
+            }
         }
-        const double dx = dy * cosLat;
-        for (int col = 0; col < u.columns; col++) {
-            const int left = col > 0 ? col - 1 : (u.global() ? u.columns - 1 : col);
-            const int right = col < u.columns - 1 ? col + 1 : (u.global() ? 0 : col);
-            const double span = (left == col || right == col) ? 1.0 : 2.0;
-            const double dvdx = (v.at(right, row) - v.at(left, row)) / (span * dx);
-            // rows run south: row - 1 is the north neighbor
-            const double dudy = (u.at(col, row - 1) - u.at(col, row + 1)) / (2.0 * dy);
-            out.values[static_cast<size_t>(row) * static_cast<size_t>(u.columns) + static_cast<size_t>(col)] = static_cast<float>(dvdx - dudy);
-        }
+        return out;
     }
-    return out;
+}
+
+Grid vorticity(const Grid& u, const Grid& v) {
+    return spherical(u, v, false);
+}
+
+Grid divergence(const Grid& u, const Grid& v) {
+    return spherical(u, v, true);
 }
 
 Grid difference(const Grid& a, const Grid& b) {

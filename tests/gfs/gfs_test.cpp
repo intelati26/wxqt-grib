@@ -63,11 +63,28 @@ int main() {
     v.values.assign(v.values.size(), 0.0f);
     for (int r = 0; r < u.rows; r++) {
         for (int c = 0; c < u.columns; c++) {
-            u.values[static_cast<size_t>(r) * 120 + static_cast<size_t>(c)] = static_cast<float>(-10.0 * (70.0 - r * 0.25));
+            u.values[static_cast<size_t>(r) * 120 + static_cast<size_t>(c)] = static_cast<float>(-1.0 * ((70.0 - r * 0.25) - 40.0));
         }
     }
     z = vorticity(u, v);
     CHECK(z.at(60, 60) > 0.0f);
+
+    // divergence: u rising 10 m/s per degree of longitude, v zero
+    for (int r = 0; r < u.rows; r++) {
+        for (int c = 0; c < u.columns; c++) {
+            u.values[static_cast<size_t>(r) * 120 + static_cast<size_t>(c)] = static_cast<float>(10.0 * c * 0.25);
+        }
+    }
+    v.values.assign(v.values.size(), 0.0f);
+    const auto dv = divergence(u, v);
+    CHECK(std::abs(dv.at(60, 60) / expected - 1.0) < 0.01);
+    // and a purely rotational flow has none: solid-body rotation u = -w y, v = w x about the pole has divergence of 0 away from it; use a pure northward v of constant size, whose cosine shrinks poleward
+    for (auto& value : u.values) {
+        value = 0.0f;
+    }
+    v.values.assign(v.values.size(), 10.0f);
+    const auto dn = divergence(u, v);   // (1/cos) d(v cos)/dy = -v tan(lat) / R at 55N
+    CHECK(std::abs(dn.at(60, 60) + 10.0 * std::tan(55.0 * 3.14159265358979 / 180.0) / 6371229.0) < 1e-8);
 
     // a hill: contours of a cone are closed circles of the right radius, and the hill is one high
     auto h = make(81, 81, -10.0, 10.0, 0.25);

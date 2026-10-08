@@ -68,6 +68,8 @@ namespace GfsChart {
         std::vector<ContourSet> contours;
         // wind barbs (m/s grids), drawn in knots
         std::string barbU, barbV;
+        // streamlines of a wind (m/s grids)
+        std::string streamU, streamV;
     };
     const std::vector<Product>& products();
     const Product * product(const std::string& id);

@@ -10,6 +10,7 @@
 #include <QFontMetricsF>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPolygonF>
 #include <QStringList>
 #include <tuple>
 #include "ui/WindBarb.h"
@@ -81,6 +82,27 @@ namespace {
     Ramp snowChange() {   // centimeters; transparent where nothing changes
         return {{{-30, QColor{"#8c5a2b"}}, {-10, QColor{"#c99a62"}}, {-1, QColor{"#ecd9b8"}}, {-0.3, QColor{236, 217, 184, 0}}, {0.3, QColor{200, 225, 245, 0}}, {1, QColor{"#c8e1f5"}},
                  {10, QColor{"#6aa9d2"}}, {30, QColor{"#5a5fb8"}}, {60, QColor{"#8b4aa6"}}}};
+    }
+
+    Ramp shearRamp() {   // knots: calm to violent, the low shear tropical cyclones like in the pale greens
+        return {{{0, QColor{"#f4f9f1"}}, {10, QColor{"#cfe6c8"}}, {20, QColor{"#f0e8a0"}}, {30, QColor{"#f3b86a"}}, {40, QColor{"#e0703e"}}, {60, QColor{"#a22b3a"}}, {80, QColor{"#5c1024"}}}};
+    }
+    Ramp divergenceRamp() {   // 1e-5 per second: convergence in blues, divergence in warm colors, little of either left clear
+        return {{{-30, QColor{"#2b4a9a"}}, {-15, QColor{"#4f86c6"}}, {-6, QColor{"#a9cde8"}}, {-2, QColor{169, 205, 232, 0}}, {2, QColor{246, 216, 154, 0}}, {6, QColor{"#f6d89a"}}, {15, QColor{"#ee9a4a"}}, {30, QColor{"#c0392b"}}}};
+    }
+    Ramp thetaERamp() {   // kelvin
+        return {{{260, QColor{"#4b2d7f"}}, {280, QColor{"#3f74b8"}}, {295, QColor{"#9ad6e6"}}, {305, QColor{"#dcefb4"}}, {315, QColor{"#f3f0a4"}}, {325, QColor{"#f8d97e"}}, {335, QColor{"#f5ac5c"}}, {345, QColor{"#e57741"}}, {355, QColor{"#c5432e"}}, {370, QColor{"#5c1024"}}}};
+    }
+
+    // equivalent potential temperature (Bolton 1980) in K from temperature in C, relative humidity in percent and the pressure in hPa
+    double thetaE(double tC, double rh, double p) {
+        const double t = tC + 273.15;
+        const double es = 6.112 * std::exp(17.67 * tC / (tC + 243.5));
+        const double e = std::max(0.01, rh / 100.0 * es);
+        const double td = 243.5 * std::log(e / 6.112) / (17.67 - std::log(e / 6.112)) + 273.15;
+        const double tl = 1.0 / (1.0 / (td - 56.0) + std::log(t / td) / 800.0) + 56.0;
+        const double r = 0.62197 * e / (p - e);   // kg/kg
+        return t * std::pow(1000.0 / (p - e), 0.2854 * (1.0 - 0.28 * r)) * std::exp((3.376 / tl - 0.00254) * r * 1000.0 * (1.0 + 0.81 * r));
     }
 
     GfsGrid::Grid pick(const Grids& g, const std::string& key) {
@@ -301,6 +323,118 @@ const std::vector<Product>& products() {
             x.contours = {pressure()};
             x.barbU = "u";
             x.barbV = "v";
+            p.push_back(x);
+        }
+        // the tropical set
+        {   // deep-layer shear: the 200 mb wind less the 850 mb wind
+            Product x;
+            x.id = "shear_850_200";
+            x.label = "850-200mb Deep-Layer Wind Shear";
+            x.wants = {want("u8", "UGRD", "850 mb"), want("v8", "VGRD", "850 mb"), want("u2", "UGRD", "200 mb"), want("v2", "VGRD", "200 mb"), want("p", "PRMSL", "mean sea level")};
+            x.derive = [] (Grids& g, int) {
+                g["su"] = GfsGrid::difference(g["u2"], g["u8"]);
+                g["sv"] = GfsGrid::difference(g["v2"], g["v8"]);
+            };
+            x.fill = speedOf("su", "sv");
+            x.ramp = shearRamp();
+            x.fillTitle = "Shear magnitude (kt)";
+            x.legendStep = 10;
+            x.contours = {pressure()};
+            x.contours[0].highsAndLows = false;
+            x.barbU = "su";
+            x.barbV = "sv";
+            p.push_back(x);
+        }
+        {   // upper-level divergence under the 200 mb wind (as barbs) and heights
+            auto x = upper("200_div_wnd", "200mb Divergence, Wind and Height", "200 mb", 12);
+            x.fill = [] (const Grids& g) { return GfsGrid::scaled(GfsGrid::divergence(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1)), 1e5); };
+            x.ramp = divergenceRamp();
+            x.fillTitle = "Divergence (1e-5 /s)";
+            x.legendStep = 10;
+            p.push_back(x);
+        }
+        {   // the same as streamlines
+            auto x = upper("200_stream_div", "200mb Divergence and Streamlines", "200 mb", 12);
+            x.fill = [] (const Grids& g) { return GfsGrid::scaled(GfsGrid::divergence(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1)), 1e5); };
+            x.ramp = divergenceRamp();
+            x.fillTitle = "Divergence (1e-5 /s)";
+            x.legendStep = 10;
+            x.contours.clear();
+            x.barbU.clear();
+            x.barbV.clear();
+            x.streamU = "u";
+            x.streamV = "v";
+            p.push_back(x);
+        }
+        {   // 850 mb vorticity with streamlines: the look of a tropical wave
+            auto x = upper("850_stream_vort", "850mb Vorticity and Streamlines", "850 mb", 3);
+            x.fill = vorticityOf;
+            x.ramp = vorticityRamp();
+            x.fillTitle = "Relative vorticity (1e-5 /s)";
+            x.legendStep = 10;
+            x.contours.clear();
+            x.barbU.clear();
+            x.barbV.clear();
+            x.streamU = "u";
+            x.streamV = "v";
+            p.push_back(x);
+        }
+        {   // the mean wind through the deep layer, which is what steers a tropical cyclone
+            Product x;
+            x.id = "steering_850_200";
+            x.label = "850-200mb Mean Wind (Steering Flow)";
+            const char * levels[] = {"850 mb", "700 mb", "500 mb", "300 mb", "200 mb"};
+            for (int i = 0; i < 5; i++) {
+                x.wants.push_back({"u" + std::to_string(i), "UGRD", levels[i], ""});
+                x.wants.push_back({"v" + std::to_string(i), "VGRD", levels[i], ""});
+            }
+            x.wants.push_back(want("p", "PRMSL", "mean sea level"));
+            x.derive = [] (Grids& g, int) {
+                // pressure-weighted (trapezoid in pressure) mean of the five levels
+                const double pressures[] = {850, 700, 500, 300, 200};
+                double weights[5];
+                for (int i = 0; i < 5; i++) {
+                    const double above = i == 4 ? pressures[i] : (pressures[i] + pressures[i + 1]) / 2.0;
+                    const double below = i == 0 ? pressures[i] : (pressures[i] + pressures[i - 1]) / 2.0;
+                    weights[i] = below - above;
+                }
+                for (const char * name : {"u", "v"}) {
+                    auto mean = g[std::string{name} + "0"];
+                    std::fill(mean.values.begin(), mean.values.end(), 0.0f);
+                    for (int i = 0; i < 5; i++) {
+                        const auto& level = g[std::string{name} + std::to_string(i)];
+                        for (size_t k = 0; k < mean.values.size(); k++) {
+                            mean.values[k] += static_cast<float>(level.values[k] * weights[i] / 650.0);
+                        }
+                    }
+                    g[std::string{"m"} + name] = std::move(mean);
+                }
+            };
+            x.fill = speedOf("mu", "mv");
+            x.ramp = windSpeed();
+            x.fillTitle = "Mean wind speed (kt)";
+            x.legendStep = 20;
+            x.contours = {pressure()};
+            x.contours[0].highsAndLows = false;
+            x.barbU = "mu";
+            x.barbV = "mv";
+            p.push_back(x);
+        }
+        {   // 850 mb equivalent potential temperature: the moist, warm air of the tropics and the fronts' edges
+            auto x = upper("850_thetae_ht", "850mb Equivalent Potential Temperature, Wind and Height", "850 mb", 3);
+            x.wants.push_back(want("t", "TMP", "850 mb"));
+            x.wants.push_back(want("rh", "RH", "850 mb"));
+            x.fill = [] (const Grids& g) {
+                auto out = pick(g, "t");
+                const auto rh = pick(g, "rh");
+                for (size_t i = 0; i < out.values.size(); i++) {
+                    out.values[i] = static_cast<float>(thetaE(out.values[i], std::clamp<double>(rh.values[i], 1.0, 100.0), 850.0));
+                }
+                return out;
+            };
+            x.ramp = thetaERamp();
+            x.fillTitle = "Equivalent potential temperature (K)";
+            x.legendStep = 10;
             p.push_back(x);
         }
         // precipitation: the running total from the start of the run is in every file, so a period is the total at its end less the total at its start
@@ -600,6 +734,110 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
         p.setBrush(color);
         p.drawPath(path);
     };
+
+    // streamlines: evenly spaced lines along the wind (the conformal map puts the wind's direction on the screen as it is: east to the right, north up)
+    if (!product.streamU.empty() && grids.count(product.streamU) && grids.count(product.streamV)) {
+        const auto& su = grids.at(product.streamU);
+        const auto& sv = grids.at(product.streamV);
+        const double separation = 17.0, testDistance = 8.0, step = 2.5;
+        struct Spot {
+            QPointF at;
+        };
+        const double cell = testDistance;
+        const int cols = static_cast<int>(area.width() / cell) + 2, rowsN = static_cast<int>(area.height() / cell) + 2;
+        std::vector<std::vector<QPointF>> hash(static_cast<size_t>(cols) * static_cast<size_t>(rowsN));
+        const auto slot = [&] (const QPointF& pt) { return static_cast<size_t>(static_cast<int>((pt.y() - area.top()) / cell)) * static_cast<size_t>(cols) + static_cast<size_t>(static_cast<int>((pt.x() - area.left()) / cell)); };
+        const auto tooClose = [&] (const QPointF& pt, double distance) {
+            const int cx = static_cast<int>((pt.x() - area.left()) / cell), cy = static_cast<int>((pt.y() - area.top()) / cell);
+            const int reach = static_cast<int>(std::ceil(distance / cell));
+            for (int dy = -reach; dy <= reach; dy++) {
+                for (int dx = -reach; dx <= reach; dx++) {
+                    const int x = cx + dx, y = cy + dy;
+                    if (x < 0 || y < 0 || x >= cols || y >= rowsN) {
+                        continue;
+                    }
+                    for (const auto& other : hash[static_cast<size_t>(y) * static_cast<size_t>(cols) + static_cast<size_t>(x)]) {
+                        if (std::hypot(other.x() - pt.x(), other.y() - pt.y()) < distance) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+        const auto wind = [&] (const QPointF& pt, double& ux, double& vy) {   // the unit direction on the screen, false where there is no wind
+            const double lon = view.lonAt(pt.x()), lat = view.latAt(pt.y());
+            const float uu = su.sample(lon, lat), vv = sv.sample(lon, lat);
+            const double speedNow = std::hypot(uu, vv);
+            if (std::isnan(uu) || std::isnan(vv) || speedNow < 0.3) {
+                return false;
+            }
+            ux = uu / speedNow;
+            vy = -vv / speedNow;
+            return true;
+        };
+        const auto trace = [&] (QPointF from, double sign, std::vector<QPointF>& out) {
+            QPointF at = from;
+            for (int i = 0; i < 500; i++) {
+                double ux, vy;
+                if (!wind(at, ux, vy)) {
+                    break;
+                }
+                const QPointF mid = at + QPointF{ux, vy} * (sign * step / 2.0);
+                double mx, my;
+                if (!wind(mid, mx, my)) {
+                    break;
+                }
+                at += QPointF{mx, my} * (sign * step);
+                if (!area.contains(at) || tooClose(at, testDistance)) {
+                    break;
+                }
+                out.push_back(at);
+            }
+        };
+        p.setBrush(Qt::NoBrush);
+        const QColor lineColor{25, 25, 25, 215};
+        for (double y = area.top() + separation / 2; y < area.bottom(); y += separation) {
+            for (double x = area.left() + separation / 2; x < area.right(); x += separation) {
+                const QPointF seed{x, y};
+                if (tooClose(seed, separation * 0.8)) {
+                    continue;
+                }
+                std::vector<QPointF> forward, backward;
+                trace(seed, 1.0, forward);
+                trace(seed, -1.0, backward);
+                if (forward.size() + backward.size() < 8) {
+                    continue;
+                }
+                std::vector<QPointF> line(backward.rbegin(), backward.rend());
+                line.push_back(seed);
+                line.insert(line.end(), forward.begin(), forward.end());
+                QPainterPath path;
+                path.moveTo(line.front());
+                for (const auto& pt : line) {
+                    path.lineTo(pt);
+                    hash[slot(pt)].push_back(pt);
+                }
+                p.setPen(QPen{lineColor, 1.1});
+                p.drawPath(path);
+                // an arrowhead at the middle
+                const size_t m = line.size() / 2;
+                if (m > 2 && m + 2 < line.size()) {
+                    const QPointF dir = line[m + 2] - line[m - 2];
+                    const double length = std::hypot(dir.x(), dir.y());
+                    if (length > 0.1) {
+                        const QPointF unit = dir / length, normal{-unit.y(), unit.x()};
+                        QPolygonF head;
+                        head << line[m] + unit * 4.0 << line[m] - unit * 3.0 + normal * 3.2 << line[m] - unit * 3.0 - normal * 3.2;
+                        p.setBrush(lineColor);
+                        p.setPen(Qt::NoPen);
+                        p.drawPolygon(head);
+                        p.setBrush(Qt::NoBrush);
+                    }
+                }
+            }
+        }
+    }
 
     // the wider the view, the sparser the lines, the highs and lows, and the barbs
     const double span = sector.east - sector.west;

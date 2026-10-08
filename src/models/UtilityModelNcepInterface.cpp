@@ -249,7 +249,13 @@ const vector<string> UtilityModelNcepInterface::paramsGfs{
     "850_temp_ht",
     "850_vort_ht",
     "850vor_500ht_200wd",
-    "925_temp_ht"
+    "925_temp_ht",
+    "shear_850_200",
+    "steering_850_200",
+    "200_div_wnd",
+    "200_stream_div",
+    "850_stream_vort",
+    "850_thetae_ht"
 };
 
 const vector<string> UtilityModelNcepInterface::labelsGfs{
@@ -282,7 +288,13 @@ const vector<string> UtilityModelNcepInterface::labelsGfs{
     "850mb Temperature, Wind and Height",
     "850mb Vorticity, Wind and Height",
     "850mb Vorticity, 500mb Height, 200mb Wind",
-    "925mb Temperature, Wind and Height"
+    "925mb Temperature, Wind and Height",
+    "850-200mb Deep-Layer Wind Shear",
+    "850-200mb Mean Wind (Steering Flow)",
+    "200mb Divergence, Wind and Height",
+    "200mb Divergence and Streamlines",
+    "850mb Vorticity and Streamlines",
+    "850mb Equivalent Potential Temperature, Wind and Height"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNam{
