@@ -60,6 +60,7 @@ private:
     };
     Projection2 projection() const;
     QColor dotColor(const SurfaceStation&) const;
+    bool networkShown(const SurfaceStation&) const;
     double shownTemperature(double celsius) const { return comboUnits.getIndex() == 0 ? celsius * 1.8 + 32.0 : celsius; }
 
     VBox box;
@@ -71,6 +72,7 @@ private:
     QCheckBox * valueCheck{};
     ComboBox comboColor;      // flight category / temperature
     ComboBox comboUnits;      // F or C
+    ComboBox comboNetwork;    // which of the mesonet networks to draw
     Text textStatus;
     MapWidget * radar{};
     QLabel * hoverLabel{};

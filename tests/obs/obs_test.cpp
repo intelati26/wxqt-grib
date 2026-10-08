@@ -5,6 +5,7 @@
 #include <sstream>
 #include "obs/UtilityMadis.h"
 #include "obs/UtilityMetarCache.h"
+#include "obs/UtilityMetarHistory.h"
 #include "util/UtilityGzip.h"
 
 static int failures = 0;
@@ -45,6 +46,16 @@ int main(int argc, char ** argv) {
 
     const auto names = UtilityMetarCache::parseNames(R"([{"id":"KOUN","icaoId":"KOUN","site":"Norman\/Max Westheimer","lat":35.2,"state":"OK"},{"id":"32012","icaoId":null,"site":"Caf\u00e9 \"X\"","state":""}])");
     CHECK(names.size() == 2 && names.at("KOUN").name == "Norman/Max Westheimer" && names.at("KOUN").state == "OK" && names.at("32012").name == "Caf\xC3\xA9 \"X\"");
+
+    const auto history = UtilityMetarHistory::parse(readFile(fixtures + "/metar_history_koun.json"));
+    CHECK(history.size() == 9 && history.front().seconds < history.back().seconds);
+    CHECK(UtilityMetarHistory::url("KOUN", 24) == "https://aviationweather.gov/api/data/metar?ids=KOUN&format=json&hours=24");
+    CHECK(history.back().raw.rfind("METAR KOUN", 0) == 0 && near(history.back().altimeter, 1017.7 / 33.8639, 0.01));
+    bool sawVariable = false;
+    for (const auto& h : history) {
+        sawVariable = sawVariable || (!SurfaceStation::has(h.windDirection) && !SurfaceStation::has(h.temperature) && near(h.windGust, 12.0));   // "VRB" and a null temperature stay missing
+    }
+    CHECK(sawVariable && UtilityMetarHistory::parse("nope").empty());
 
     // the MADIS file: the same answer however the stream is cut
     const auto packed = readFile(fixtures + "/mesonet_sample.nc.gz");

@@ -34,7 +34,7 @@ namespace ChartKit {
     };
 
     inline void frame(QPainter& p, const Axes& a, const QString& title, const QString& yUnit, double yStep, double xStep,
-                              const std::function<QString(double)>& xLabel = {}) {
+                              const std::function<QString(double)>& xLabel = {}, int yDecimals = 0) {
         p.setPen(QColor{210, 210, 210});
         p.setBrush(QColor{252, 252, 252});
         p.drawRect(a.area);
@@ -46,7 +46,7 @@ namespace ChartKit {
             p.setPen(QColor{232, 232, 232});
             p.drawLine(QPointF{a.area.left(), at.y()}, QPointF{a.area.right(), at.y()});
             p.setPen(QColor{70, 70, 70});
-            p.drawText(QRectF{a.area.left() - 44, at.y() - 7, 40, 14}, Qt::AlignRight | Qt::AlignVCenter, QString::number(y, 'f', 0));
+            p.drawText(QRectF{a.area.left() - 44, at.y() - 7, 40, 14}, Qt::AlignRight | Qt::AlignVCenter, QString::number(y, 'f', yDecimals));
         }
         for (double x = a.xMin; x <= a.xMax + 1e-9; x += xStep) {
             const auto at = a.at(x, a.yMin);

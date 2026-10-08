@@ -15,6 +15,7 @@
 #include <QPainter>
 #include "hurricane/UtilityHdob.h"
 #include "misc/TextViewerStatic.h"
+#include "obs/SurfaceHistoryViewer.h"
 #include "objects/FutureVoid.h"
 #include "obs/SurfaceData.h"
 #include "radar/Projection.h"
@@ -80,6 +81,7 @@ SurfaceViewer::SurfaceViewer(Window * parent)
     , buttonRefresh{this, None, "Refresh"}
     , comboColor{this, {"Dots: flight category / network", "Dots: temperature"}}
     , comboUnits{this, {"Fahrenheit", "Celsius"}}
+    , comboNetwork{this, {"All mesonet networks", "Without citizen stations (APRS)", "RAWS fire weather only", "HADS (hydrologic) only", "MesoWest partners only", "State and road networks only", "Citizen stations (APRS) only"}}
     , textStatus{this, "Loading the airport reports..."}
 {
     setAttribute(Qt::WA_DeleteOnClose);
@@ -105,7 +107,11 @@ SurfaceViewer::SurfaceViewer(Window * parent)
             return false;
         }
         const auto& s = all[static_cast<size_t>(index)];
-        new TextViewerStatic{this, details(s).toStdString(), s.id + (s.name.empty() ? "" : "  " + s.name), 640, 520};
+        if (s.airport) {
+            new SurfaceHistoryViewer{this, s};   // the card and the chart of its day
+        } else {
+            new TextViewerStatic{this, details(s).toStdString(), s.id + (s.name.empty() ? "" : "  " + s.name), 640, 520};
+        }
         return true;
     };
     hoverLabel = new QLabel{radar};
@@ -141,6 +147,8 @@ SurfaceViewer::SurfaceViewer(Window * parent)
     comboColor.connect([this] { Utility::writePrefInt("SURFACE_COLOR", comboColor.getIndex()); radar->update(); });
     comboUnits.setIndex(static_cast<size_t>(Utility::readPrefInt("SURFACE_UNITS", UIPreferences::unitsF ? 0 : 1)));
     comboUnits.connect([this] { Utility::writePrefInt("SURFACE_UNITS", comboUnits.getIndex()); radar->update(); });
+    comboNetwork.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("SURFACE_NETWORK", 0), 0, 6)));
+    comboNetwork.connect([this] { Utility::writePrefInt("SURFACE_NETWORK", comboNetwork.getIndex()); radar->update(); });
     buttonRefresh.connect([this] { loadMetars(); });
     rowTop.addWidget(buttonRefresh);
     rowTop.addWidgetReal(airportCheck);
@@ -149,6 +157,7 @@ SurfaceViewer::SurfaceViewer(Window * parent)
     rowTop.addWidgetReal(valueCheck);
     rowTop.addWidget(comboColor);
     rowTop.addWidget(comboUnits);
+    rowTop.addWidget(comboNetwork);
     rowTop.addStretch();
     box.addLayout(rowTop);
     box.addWidget(textStatus);
@@ -242,6 +251,22 @@ void SurfaceViewer::rebuild() {
     radar->update();
 }
 
+bool SurfaceViewer::networkShown(const SurfaceStation& s) const {
+    if (s.airport) {
+        return true;
+    }
+    const auto& n = s.network;
+    switch (comboNetwork.getIndex()) {
+        case 1: return n != "APRSWXNET";
+        case 2: return n == "RAWS";
+        case 3: return n == "HADS";
+        case 4: return n == "MesoWest";
+        case 5: return n != "APRSWXNET" && n != "RAWS" && n != "HADS" && n != "MesoWest" && n != "NonFedAWOS";
+        case 6: return n == "APRSWXNET";
+        default: return true;
+    }
+}
+
 QColor SurfaceViewer::dotColor(const SurfaceStation& s) const {
     if (comboColor.getIndex() == 1 || !s.airport) {
         if (comboColor.getIndex() == 0) {   // the mesonets without a temperature colouring: steel blue
@@ -286,7 +311,7 @@ void SurfaceViewer::paintStations(QPainter& painter) {
     (void)rows;
     for (size_t i = 0; i < all.size(); i++) {
         const auto& s = all[i];
-        if (s.airport && !airportCheck->isChecked()) {
+        if ((s.airport && !airportCheck->isChecked()) || !networkShown(s)) {
             continue;
         }
         const double u = (p.ax * s.lon + p.bx) * state.zoom + state.xPos;
@@ -493,7 +518,7 @@ void SurfaceViewer::showHover(const QPointF& widgetPos) {
         return;
     }
     radar->setCursor(Qt::PointingHandCursor);
-    hoverLabel->setText(summary(all[static_cast<size_t>(index)], comboUnits.getIndex() == 0) + "\n(click for the whole report)");
+    hoverLabel->setText(summary(all[static_cast<size_t>(index)], comboUnits.getIndex() == 0) + (all[static_cast<size_t>(index)].airport ? "\n(click for the whole report and the last 24 hours)" : "\n(click for the whole report)"));
     hoverLabel->adjustSize();
     hoverLabel->move(12, 12);
     hoverLabel->show();
@@ -570,6 +595,6 @@ QString SurfaceViewer::details(const SurfaceStation& s) {
     if (!s.raw.empty()) {
         text += "\n" + QString::fromStdString(s.raw) + "\n";
     }
-    text += "\nAs reported; the mesonet and citizen stations are not all of the same quality.";
+    text += s.airport ? "\nAs reported." : "\nAs reported; the mesonet and citizen stations are not all of the same quality.";
     return text;
 }
