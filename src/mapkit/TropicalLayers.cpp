@@ -627,7 +627,7 @@ MapHit DeepMindLayer::pick(const QPointF& pixels, MapHost& host) const {
 
 vector<MapLegendRow> DeepMindLayer::legend() const {
     MapLegendRow row;
-    row.title = "(c) 2024-6 Google LLC, DeepMind Weather Lab (experimental; not for real world use; terms: storage.googleapis.com/weathernext-public/terms-of-use.pdf):";
+    row.title = "(c) 2024-6 Google LLC, DeepMind Weather Lab (experimental; not for real world use):";
     for (const auto& model : UtilityWeatherLab::models()) {
         const bool wanted = string{model.label} == "DeepMind FNV3" ? showFnv : showWeatherNext;
         const auto * style = EnsembleStyle::of(model.label);

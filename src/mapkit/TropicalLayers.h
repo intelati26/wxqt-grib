@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include "hurricane/HurricaneData.h"
+#include "hurricane/EnsembleStyle.h"
 #include "hurricane/UtilityEnsembleStats.h"
 #include "mapkit/MapLayer.h"
 
@@ -100,7 +101,7 @@ class DeepMindLayer : public MapLayer {
 public:
     string id() const override { return "tropical/deepmind"; }
     string path() const override { return "Tropical/DeepMind Weather Lab: every cyclone in the world (experimental)"; }
-    string source() const override { return "Google DeepMind Weather Lab; (c) 2024-6 Google LLC; experimental data, not for real world use"; }
+    string source() const override { return "Google DeepMind Weather Lab. " + EnsembleStyle::deepMindCredit(); }
     string tip() const override { return "The ensemble forecasts of DeepMind's cyclone models for every storm in the world: each member's track and the mean. Hover the mean for the winds and pressures; click a storm of the Atlantic or Pacific for its full screen"; }
     int order() const override { return 72; }
     int refreshSeconds() const override { return 3600; }
@@ -143,7 +144,7 @@ class DeepMindGenesisLayer : public MapLayer {
 public:
     string id() const override { return "tropical/deepmind-genesis"; }
     string path() const override { return "Tropical/DeepMind: where new storms may form (1000 members, experimental)"; }
-    string source() const override { return "Google DeepMind Weather Lab; (c) 2024-6 Google LLC; experimental data, not for real world use"; }
+    string source() const override { return "Google DeepMind Weather Lab. " + EnsembleStyle::deepMindCredit(); }
     string tip() const override { return "From DeepMind's 1000-member cyclone ensemble: each dot is a member that forms a new storm, there; the label is the share of the members that do. Reads a 37 MB file"; }
     int order() const override { return 71; }
     int refreshSeconds() const override { return 21600; }
@@ -175,7 +176,7 @@ private:
     string cycle;
     int members{0};
     std::shared_ptr<vector<UtilityWeatherLab::Genesis>> data;
-    int chanceChoice{1};     // the least chance shown
+    int chanceChoice{2};     // the least chance shown: 5% to begin with (1% fills the tropics with dots)
     int windowChoice{0};     // how far ahead
     MapHost * hostPointer{nullptr};
 };
