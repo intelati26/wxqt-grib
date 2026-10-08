@@ -9,6 +9,7 @@
 #include <deque>
 #include <memory>
 #include <string>
+#include "dams/DamData.h"
 #include "rivers/HydrographChart.h"
 #include "rivers/UtilityRivers.h"
 #include "ui/Button.h"
@@ -51,6 +52,10 @@ private:
     Text textTitle;
     Text textSubtitle;
     Text textNow;
+    Text headingDam;                  // a Corps of Engineers dam near this gauge: its release and power
+    Text textDam;
+    Button buttonDam;
+    const UtilityDams::Project * dam{nullptr};
     HydrographChart * chart;
     Text headingCurrent;
     Text textCurrent;

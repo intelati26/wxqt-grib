@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "rivers/RiverGaugeViewer.h"
+#include "dams/DamViewer.h"
 #include <algorithm>
 #include <cmath>
 #include <ctime>
@@ -82,6 +83,9 @@ RiverGaugeViewer::RiverGaugeViewer(Window * parent, const string& lid)
     , textTitle{this, "Loading " + lid + "..."}
     , textSubtitle{this, ""}
     , textNow{this, ""}
+    , headingDam{this, ""}
+    , textDam{this, ""}
+    , buttonDam{this, None, "Dam history"}
     , chart{new HydrographChart{this}}
     , headingCurrent{this, "Now"}
     , textCurrent{this, ""}
@@ -96,11 +100,11 @@ RiverGaugeViewer::RiverGaugeViewer(Window * parent, const string& lid)
     textSubtitle.setGray();
     textSubtitle.setWordWrap(true);
     textNow.setWordWrap(true);
-    for (auto * heading : {&headingCurrent, &headingModel, &headingHistory}) {
+    for (auto * heading : {&headingCurrent, &headingModel, &headingHistory, &headingDam}) {
         heading->setBold();
         heading->setBlue();
     }
-    for (auto * text : {&textCurrent, &textModel, &textHistory}) {
+    for (auto * text : {&textCurrent, &textModel, &textHistory, &textDam}) {
         text->setWordWrap(true);
     }
     comboRange.setIndex(1);
@@ -120,6 +124,17 @@ RiverGaugeViewer::RiverGaugeViewer(Window * parent, const string& lid)
     box.addWidget(textTitle);
     box.addWidget(textSubtitle);
     box.addWidget(textNow);
+    box.addWidget(headingDam);
+    box.addWidget(textDam);
+    box.addWidgetReal(buttonDam.getView(), 0, Qt::AlignLeft | Qt::AlignTop);
+    headingDam.setVisible(false);
+    textDam.setVisible(false);
+    buttonDam.setVisible(false);
+    buttonDam.connect([this] {
+        if (dam != nullptr) {
+            new DamViewer{this, *dam};
+        }
+    });
     box.addLayout(rowTop);
     box.addWidgetReal(chart);
     box.addWidget(headingCurrent);
@@ -185,6 +200,29 @@ void RiverGaugeViewer::build() {
     textModel.setText(modelText());
     textHistory.setText(historyText());
     drawChart();
+    // a Corps of Engineers hydropower dam within 15 km: what it is releasing and generating now
+    double km = 0.0;
+    dam = UtilityDams::nearest(DamData::projects(), d.lat, d.lon, 15.0, &km);
+    if (dam != nullptr) {
+        const auto * project = dam;
+        headingDam.setText(project->name + " (Corps of Engineers), " + std::to_string(static_cast<int>(std::lround(km))) + " km from this gauge");
+        textDam.setText(string{"Loading the dam's release and power..."});
+        headingDam.setVisible(true);
+        textDam.setVisible(true);
+        buttonDam.setVisible(true);
+        auto latest = std::make_shared<DamData::Latest>();
+        new FutureVoid{this,
+            [latest, project] { *latest = DamData::loadLatestOne(*project); },
+            [this, latest, project] {
+                if (!closed && dam == project) {
+                    textDam.setText(DamViewer::summary(*latest));
+                }
+            }};
+    } else {
+        headingDam.setVisible(false);
+        textDam.setVisible(false);
+        buttonDam.setVisible(false);
+    }
     // the pictures: the weekly chance of exceeding each stage, and the NWS's own hydrograph
     flowImages.removeChildren();
     images.clear();

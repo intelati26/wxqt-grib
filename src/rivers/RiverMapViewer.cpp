@@ -14,6 +14,7 @@
 #include "objects/FutureVoid.h"
 #include "radar/Projection.h"
 #include "buoys/BuoyViewer.h"
+#include "dams/DamViewer.h"
 #include "rivers/RiverGaugeViewer.h"
 #include "util/Utility.h"
 #include "settings/Location.h"
@@ -80,37 +81,22 @@ RiverMapViewer::RiverMapViewer(Window * parent)
     radar->installEventFilter(this);
     // a click on a gauge opens its page, and does not also zoom the map out (the radar widget's plain-click action)
     radar->clickHandler = [this] (const QPointF& at) {
-        // the nearer of a gauge and a buoy (a buoy only while its layer is on)
-        const auto * g = gaugeAt(at);
-        const auto * b = buoyCheck != nullptr && buoyCheck->isChecked() ? buoyAt(at) : nullptr;
-        if (g != nullptr && b != nullptr) {
-            const auto p = projection();
-            const auto gp = widgetOf(*g, p);
-            const auto bp = pixelsOf(b->obs.lon, b->mercator, p);
-            if (std::hypot(bp.x() - at.x(), bp.y() - at.y()) < std::hypot(gp.x() - at.x(), gp.y() - at.y())) {
-                g = nullptr;
-            } else {
-                b = nullptr;
-            }
+        const auto pick = pickAt(at);
+        switch (pick.kind) {
+            case Pick::Gauge: new RiverGaugeViewer{this, pick.gauge->lid}; return true;
+            case Pick::Buoy: new BuoyViewer{this, *pick.buoy}; return true;
+            case Pick::Dam: new DamViewer{this, *pick.dam->project}; return true;
+            default: return false;
         }
-        if (g != nullptr) {
-            new RiverGaugeViewer{this, g->lid};
-            return true;
-        }
-        if (b != nullptr) {
-            new BuoyViewer{this, *b};
-            return true;
-        }
-        return false;
     };
     hoverLabel = new QLabel{radar};
     hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
     hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 215); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
     hoverLabel->hide();
     radar->dataLayer = [] (QPainter& painter) { painter.fillRect(painter.viewport(), QColor{18, 24, 34}); };   // no radar: a dark map
-    radar->topLayer = [this] (QPainter& painter) { paintBuoys(painter); paintGauges(painter); paintLegend(painter); };
+    radar->topLayer = [this] (QPainter& painter) { paintBuoys(painter); paintGauges(painter); paintDams(painter); paintLegend(painter); };
     comboFilter.connect([this] { summarize(); radar->update(); });
-    buttonRefresh.connect([this] { loadGauges(); if (buoyCheck->isChecked()) { loadBuoys(); } });
+    buttonRefresh.connect([this] { loadGauges(); if (buoyCheck->isChecked()) { loadBuoys(); } if (damCheck->isChecked()) { loadDams(); } });
     buoyCheck = new QCheckBox{"Buoys (NDBC)", this};
     buoyCheck->setChecked(Utility::readPref("RIVERS_BUOYS", "false") == "true");
     buoyCheck->setToolTip("NOAA's National Data Buoy Center buoys and coastal stations: the latest wind, waves, pressure and temperatures; click one for its history");
@@ -122,8 +108,19 @@ RiverMapViewer::RiverMapViewer(Window * parent)
         radar->update();
     });
     comboBuoyColor.connect([this] { radar->update(); });
+    damCheck = new QCheckBox{"Dams (Corps)", this};
+    damCheck->setChecked(Utility::readPref("RIVERS_DAMS", "false") == "true");
+    damCheck->setToolTip("Corps of Engineers hydropower dams in the Little Rock and Tulsa districts: the latest release, power generated and pool; click one for its history");
+    QObject::connect(damCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("RIVERS_DAMS", on ? "true" : "false");
+        if (on && !dams) {
+            loadDams();
+        }
+        radar->update();
+    });
     rowTop.addWidget(comboFilter);
     rowTop.addWidget(buttonRefresh);
+    rowTop.addWidgetReal(damCheck);
     rowTop.addWidgetReal(buoyCheck);
     rowTop.addWidget(comboBuoyColor);
     rowTop.addStretch();
@@ -135,6 +132,9 @@ RiverMapViewer::RiverMapViewer(Window * parent)
     loadGauges();
     if (buoyCheck->isChecked()) {
         loadBuoys();
+    }
+    if (damCheck->isChecked()) {
+        loadDams();
     }
 }
 
@@ -404,6 +404,24 @@ void RiverMapViewer::paintLegend(QPainter& painter) {
         painter.drawText(QPointF{x + 16.0, y + 4.0}, label);
         x += 30.0 + QFontMetricsF{font}.horizontalAdvance(label);
     }
+    if (damCheck != nullptr && damCheck->isChecked() && dams) {
+        double dx = -490.0;
+        const double dy = 689.0;
+        painter.setPen(QColor{235, 235, 235});
+        painter.drawText(QPointF{dx, dy + 4.0}, "Dams:");
+        dx += 48.0;
+        for (const auto& [name, color] : {std::pair<const char *, QColor>{"generating", QColor{255, 150, 20}}, {"releasing", QColor{50, 130, 235}}, {"no recent data", QColor{130, 130, 140}}}) {
+            QPolygonF diamond;
+            diamond << QPointF{dx + 5.0, dy - 5.0} << QPointF{dx + 10.0, dy} << QPointF{dx + 5.0, dy + 5.0} << QPointF{dx, dy};
+            painter.setPen(QPen{QColor{255, 255, 255}, 0.9 * perPixel});
+            painter.setBrush(color);
+            painter.drawPolygon(diamond);
+            painter.setPen(QColor{235, 235, 235});
+            const QString label = name;
+            painter.drawText(QPointF{dx + 15.0, dy + 4.0}, label);
+            dx += 28.0 + QFontMetricsF{font}.horizontalAdvance(label);
+        }
+    }
     if (buoyCheck != nullptr && buoyCheck->isChecked() && buoys) {
         // the buoys' colours: squares, one row above the gauges'
         const bool temperature = comboBuoyColor.getIndex() == 1;
@@ -479,45 +497,118 @@ bool RiverMapViewer::eventFilter(QObject * object, QEvent * event) {
 }
 
 void RiverMapViewer::showHover(const QPointF& widgetPos) {
-    auto * g = gaugeAt(widgetPos);
-    const auto * b = buoyCheck != nullptr && buoyCheck->isChecked() ? buoyAt(widgetPos) : nullptr;
-    if (b != nullptr && g != nullptr) {
-        const auto p = projection();
-        const auto gp = widgetOf(*g, p);
-        const auto bp = pixelsOf(b->obs.lon, b->mercator, p);
-        if (std::hypot(bp.x() - widgetPos.x(), bp.y() - widgetPos.y()) < std::hypot(gp.x() - widgetPos.x(), gp.y() - widgetPos.y())) {
-            g = nullptr;
-        } else {
-            b = nullptr;
-        }
-    }
-    if (b != nullptr) {
-        radar->setCursor(Qt::PointingHandCursor);
-        const auto& s = b->station;
-        hoverLabel->setText(QString::fromStdString(b->obs.id + (s.name.empty() ? "" : "  " + s.name)) + "\n" + BuoyViewer::summary(*b).replace(";  ", "\n") + "\n(click for its history)");
-        hoverLabel->adjustSize();
-        hoverLabel->move(12, 12);
-        hoverLabel->show();
-        hoverLabel->raise();
-        return;
-    }
-    if (g == nullptr) {
+    const auto pick = pickAt(widgetPos);
+    if (pick.kind == Pick::None) {
         hoverLabel->hide();
         radar->setCursor(Qt::ArrowCursor);
         return;
     }
     radar->setCursor(Qt::PointingHandCursor);
-    QString text = QString::fromStdString(g->lid + "  " + (g->name.empty() ? g->waterbody : g->name)) + "\n" +
-        QString::fromStdString(g->waterbody + ", " + g->state) + "\n" + QString::fromStdString(lookOf(g->status).label);
-    if (UtilityRivers::has(g->observed)) {
-        text += "   " + QString::number(g->observed, 'f', 2) + " " + QString::fromStdString(g->units);
-    }
-    if (!g->obsTime.empty()) {
-        text += "\n" + QString::fromStdString(g->obsTime) + " UTC";
+    QString text;
+    if (pick.kind == Pick::Buoy) {
+        const auto& b = *pick.buoy;
+        text = QString::fromStdString(b.obs.id + (b.station.name.empty() ? "" : "  " + b.station.name)) + "\n" + BuoyViewer::summary(b).replace(";  ", "\n") + "\n(click for its history)";
+    } else if (pick.kind == Pick::Dam) {
+        const auto& d = *pick.dam;
+        text = QString::fromStdString(d.project->name + "  (Corps of Engineers)") + "\n" + DamViewer::summary(d).replace(";  ", "\n") + "\n(click for its history)";
+    } else {
+        const auto * g = pick.gauge;
+        text = QString::fromStdString(g->lid + "  " + (g->name.empty() ? g->waterbody : g->name)) + "\n" +
+            QString::fromStdString(g->waterbody + ", " + g->state) + "\n" + QString::fromStdString(lookOf(g->status).label);
+        if (UtilityRivers::has(g->observed)) {
+            text += "   " + QString::number(g->observed, 'f', 2) + " " + QString::fromStdString(g->units);
+        }
+        if (!g->obsTime.empty()) {
+            text += "\n" + QString::fromStdString(g->obsTime) + " UTC";
+        }
     }
     hoverLabel->setText(text);
     hoverLabel->adjustSize();
     hoverLabel->move(12, 12);
     hoverLabel->show();
     hoverLabel->raise();
+}
+
+RiverMapViewer::Pick RiverMapViewer::pickAt(const QPointF& widgetPos) const {
+    Pick pick;
+    double best = 1e9;
+    const auto p = projection();
+    if (const auto * g = gaugeAt(widgetPos)) {
+        const auto at = widgetOf(*g, p);
+        best = std::hypot(at.x() - widgetPos.x(), at.y() - widgetPos.y());
+        pick.kind = Pick::Gauge;
+        pick.gauge = g;
+    }
+    if (buoyCheck != nullptr && buoyCheck->isChecked()) {
+        if (const auto * b = buoyAt(widgetPos)) {
+            const auto at = pixelsOf(b->obs.lon, b->mercator, p);
+            const double d = std::hypot(at.x() - widgetPos.x(), at.y() - widgetPos.y());
+            if (d < best) {
+                best = d;
+                pick = Pick{};
+                pick.kind = Pick::Buoy;
+                pick.buoy = b;
+            }
+        }
+    }
+    if (damCheck != nullptr && damCheck->isChecked() && dams) {
+        for (const auto& d : *dams) {
+            if (d.project == nullptr) {
+                continue;
+            }
+            const auto at = pixelsOf(d.project->lon, d.project->mercator, p);
+            const double distance = std::hypot(at.x() - widgetPos.x(), at.y() - widgetPos.y());
+            // a dam is a larger mark: it is hit from a little further
+            if (distance < 15.0 && distance < best + 4.0) {
+                best = distance;
+                pick = Pick{};
+                pick.kind = Pick::Dam;
+                pick.dam = &d;
+            }
+        }
+    }
+    return pick;
+}
+
+void RiverMapViewer::loadDams() {
+    auto fresh = std::make_shared<std::vector<DamData::Latest>>();
+    new FutureVoid{this,
+        [fresh] { DamData::loadLatest(*fresh); },
+        [this, fresh] {
+            if (closed) {
+                return;
+            }
+            dams = fresh;
+            radar->update();
+        }};
+}
+
+// a diamond for each dam: orange while it is generating, blue while it only releases water, grey with no recent data; larger for a bigger release
+void RiverMapViewer::paintDams(QPainter& painter) {
+    if (damCheck == nullptr || !damCheck->isChecked() || !dams) {
+        return;
+    }
+    const auto p = projection();
+    const auto& state = radar->mapState;
+    const double perPixel = 1000.0 / std::max(1, radar->width());
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    for (const auto& d : *dams) {
+        if (d.project == nullptr) {
+            continue;
+        }
+        const double u = (p.ax * d.project->lon + p.bx) * state.zoom + state.xPos;
+        const double v = (p.ay * d.project->mercator + p.by) * state.zoom + state.yPos;
+        if (u < -520.0 || u > 520.0 || v < -270.0 || v > 770.0) {
+            continue;
+        }
+        const bool generating = UtilityDams::has(d.generation) && d.generation > 0.0;
+        const QColor color = !d.ok ? QColor{130, 130, 140} : generating ? QColor{255, 150, 20} : QColor{50, 130, 235};
+        const double release = UtilityDams::has(d.outflow) ? d.outflow : 0.0;
+        const double radius = (7.0 + std::min(5.0, std::log10(1.0 + release) * 1.2) + std::min(2.0, std::log2(std::max(1.0, state.zoom * 7.0)) * 0.3)) * perPixel;
+        QPolygonF diamond;
+        diamond << QPointF{u, v - radius} << QPointF{u + radius, v} << QPointF{u, v + radius} << QPointF{u - radius, v};
+        painter.setPen(QPen{QColor{255, 255, 255}, 1.4 * perPixel});
+        painter.setBrush(color);
+        painter.drawPolygon(diamond);
+    }
 }

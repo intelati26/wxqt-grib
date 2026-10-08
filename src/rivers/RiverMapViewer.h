@@ -14,6 +14,7 @@
 #include <QPointF>
 #include "radar/MapWidget.h"
 #include "buoys/BuoyData.h"
+#include "dams/DamData.h"
 #include "rivers/UtilityRivers.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
@@ -35,6 +36,16 @@ public:
 private:
     void loadGauges();
     void loadBuoys();
+    void loadDams();
+    void paintDams(QPainter&);
+    // what is under the pointer: the nearest of a gauge, a buoy and a dam (a layer only while it is on)
+    struct Pick {
+        enum Kind { None, Gauge, Buoy, Dam } kind{None};
+        const UtilityRivers::Gauge * gauge{nullptr};
+        const BuoyData::Marker * buoy{nullptr};
+        const DamData::Latest * dam{nullptr};
+    };
+    Pick pickAt(const QPointF& widgetPos) const;
     const BuoyData::Marker * buoyAt(const QPointF& widgetPos) const;
     QColor buoyColor(const BuoyData::Marker&) const;
     void paintBuoys(QPainter&);
@@ -65,6 +76,8 @@ private:
     HBox rowTop;
     ComboBox comboFilter;
     Button buttonRefresh;
+    QCheckBox * damCheck{};              // the Corps of Engineers hydropower dams
+    std::shared_ptr<std::vector<DamData::Latest>> dams;
     QCheckBox * buoyCheck{};             // the NDBC buoys and coastal stations
     ComboBox comboBuoyColor;             // wind or water temperature
     std::shared_ptr<std::vector<BuoyData::Marker>> buoys;
