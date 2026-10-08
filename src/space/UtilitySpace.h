@@ -41,11 +41,30 @@ public:
         string beginTime;
         string endTime;
     };
+    struct Band {                // a predicted value with its range
+        long seconds{0};
+        double mid{missing};
+        double low{missing};
+        double high{missing};
+    };
+    struct Ovation {             // the OVATION aurora model on a 1 degree grid: the chance (percent) of seeing the aurora
+        string observation;      // when the solar wind it used was measured
+        string forecast;         // the time it is a forecast for
+        vector<float> grid;      // 360 columns (longitude 0 to 359 east) by 181 rows (latitude -90 to 90), row-major from -90
+        bool ok{false};
+        float at(double lat, double lon) const;
+    };
     static vector<ScaleDay> parseScales(const string& json);                   // index 0 is now, then +1 .. +3 days (missing days are left out)
     static vector<Point> parseKp(const string& json);                          // the forecast file: observed, estimated and predicted three-hourly values
     static vector<Point> parseXray(const string& json, int stepMinutes = 1);  // the 0.1-0.8 nm flux (W/m2), thinned to one a `step`
     static vector<Point> parseWind(const string& json, int stepMinutes = 5);  // the proton speed (km/s) and density (/cm3) from the active source
     static vector<Point> parseMag(const string& json, int stepMinutes = 5);   // Bt (nT) and Bz GSM (nT)
+    // the integral particle flux (pfu) of one energy channel from the GOES files: ">=10 MeV" protons, ">=2 MeV" electrons; 5 minute steps
+    static vector<Point> parseFlux(const string& json, const string& energy);
+    // the sunspot number by month: value the monthly number, second the smoothed one (missing when the month has none), since `fromYear`
+    static vector<Point> parseCycleObserved(const string& json, int fromYear = 1990);
+    static vector<Band> parseCyclePredicted(const string& json);              // the predicted smoothed sunspot number and its low / high range, by month
+    static Ovation parseOvation(const string& json);
     static Flare parseFlare(const string& json);
     static vector<string> parseAlerts(const string& json, size_t count = 6);  // the first lines of the newest messages ("ALERT: Electron 2MeV Integral Flux exceeded 1,000pfu")
     static string flareClass(double flux);                                    // 2.3e-6 -> "C2.3"

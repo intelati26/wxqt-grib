@@ -7,12 +7,14 @@
 #include "mapkit/MrmsLayer.h"
 #include "mapkit/ObsLayers.h"
 #include "mapkit/RiverLayers.h"
+#include "mapkit/SpaceLayers.h"
 #include "mapkit/TropicalLayers.h"
 
 // Every layer the master map offers: add a new kind of map data here, with its class, and it appears in the tree.
 vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     vector<std::unique_ptr<MapLayer>> layers;
     layers.push_back(std::make_unique<MrmsLayer>());
+    layers.push_back(std::make_unique<AuroraLayer>());
     layers.push_back(std::make_unique<StationLayer>(true));
     layers.push_back(std::make_unique<StationLayer>(false));
     layers.push_back(std::make_unique<GaugeLayer>());
@@ -32,6 +34,7 @@ const vector<MapCatalog::Preset>& MapCatalog::presets() {
         {"Rivers and water (United States)", {"rivers/gauges", "rivers/dams", "rivers/buoys"}, 20.0, 55.0, -127.0, -65.0},
         {"Tropical Atlantic", {"tropical/storms", "tropical/outlook", "tropical/windprob", "rivers/buoys"}, 5.0, 50.0, -100.0, -10.0},
         {"Tropical East Pacific", {"tropical/storms", "tropical/outlook", "tropical/windprob", "rivers/buoys"}, 0.0, 40.0, -150.0, -80.0},
+        {"Aurora and the weather (North America)", {"space/aurora", "radar/mrms", "obs/airports"}, 25.0, 75.0, -170.0, -50.0},
         {"Gulf Coast: storm, warnings, stations, gauges", {"tropical/storms", "tropical/windprob", "obs/airports", "rivers/gauges"}, 22.0, 36.0, -100.0, -78.0},
     };
     return all;

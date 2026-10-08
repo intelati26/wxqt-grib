@@ -1,4 +1,5 @@
 // Checks the SWPC readers against excerpts of the real feeds (8 October 2026).
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -51,6 +52,25 @@ int main(int argc, char ** argv) {
     const auto alerts = UtilitySpace::parseAlerts(readFile(f + "/alerts.json"), 3);
     CHECK(alerts.size() == 3 && alerts[0].find("CONTINUED ALERT: Electron 2MeV Integral Flux exceeded 1,000pfu") != std::string::npos && alerts[0].rfind("2026-10-08 05:01", 0) == 0);
     CHECK(UtilitySpace::parseAlerts("nope").empty());
+
+    const auto protons = UtilitySpace::parseFlux(readFile(f + "/protons.json"), ">=10 MeV");
+    const auto electrons = UtilitySpace::parseFlux(readFile(f + "/electrons.json"), ">=2 MeV");
+    CHECK(!protons.empty() && protons.size() == 8 && protons.front().seconds < protons.back().seconds && protons.back().value < 10.0);   // no radiation storm: under the S1 line of 10 pfu
+    CHECK(electrons.size() == 12 && electrons.back().value > 1000.0 && UtilitySpace::parseFlux(readFile(f + "/protons.json"), ">=1 MeV").size() == 8);
+    CHECK(UtilitySpace::parseFlux("[]", ">=10 MeV").empty());
+
+    const auto observed = UtilitySpace::parseCycleObserved(readFile(f + "/cycle_observed.json"), 1990);
+    CHECK(observed.size() == 10 && observed.front().seconds < observed.back().seconds && UtilitySpace::has(observed.front().value));   // the 1749 record is before 1990
+    CHECK(UtilitySpace::parseCycleObserved(readFile(f + "/cycle_observed.json"), 1700).size() == 10);   // times before 1970 are not read (the chart starts at 1990)
+    const auto predicted = UtilitySpace::parseCyclePredicted(readFile(f + "/cycle_predicted.json"));
+    CHECK(predicted.size() == 6 && near(predicted[0].mid, 92.3) && near(predicted[0].high, 102.1) && near(predicted[0].low, 83.0) && predicted[0].seconds < predicted[1].seconds);
+
+    const auto ovation = UtilitySpace::parseOvation(readFile(f + "/ovation.json"));
+    CHECK(ovation.ok && ovation.observation == "2026-10-08T14:51:00Z" && ovation.forecast == "2026-10-08T16:06:00Z" && ovation.grid.size() == 360 * 181);
+    float most = 0.0f;
+    for (const auto v : ovation.grid) most = std::max(most, v);
+    CHECK(most > 20.0f && ovation.at(0.0, 0.0) == 0.0f && ovation.at(65.0, 270.0) >= 0.0f && ovation.at(65.0, -90.0) == ovation.at(65.0, 270.0));   // longitude wraps
+    CHECK(!UtilitySpace::parseOvation("{}").ok);
 
     if (failures == 0) {
         std::cout << "all space weather parser tests passed\n";

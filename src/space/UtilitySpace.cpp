@@ -188,6 +188,106 @@ vector<string> UtilitySpace::parseAlerts(const string& json, size_t count) {
     return lines;
 }
 
+vector<UtilitySpace::Point> UtilitySpace::parseFlux(const string& json, const string& energy) {
+    vector<Point> points;
+    for (const auto& value : QJsonDocument::fromJson(QByteArray::fromStdString(json)).array()) {
+        const auto o = value.toObject();
+        if (o.value("energy").toString().toStdString() != energy) {
+            continue;
+        }
+        Point p;
+        p.seconds = timeOf(o, "time_tag");
+        p.value = number(o, "flux");
+        if (p.seconds > 0 && has(p.value) && p.value > 0.0) {
+            points.push_back(p);
+        }
+    }
+    std::sort(points.begin(), points.end(), [] (const Point& a, const Point& b) { return a.seconds < b.seconds; });
+    return points;
+}
+
+namespace {
+    // "2026-04" -> seconds at the middle of that month
+    long monthOf(const QString& tag) {
+        const auto parts = tag.split('-');
+        if (parts.size() < 2) {
+            return 0;
+        }
+        return UtilityMetarCache::parseTime((parts[0] + "-" + parts[1] + "-15T00:00:00").toStdString());
+    }
+}
+
+vector<UtilitySpace::Point> UtilitySpace::parseCycleObserved(const string& json, int fromYear) {
+    vector<Point> points;
+    for (const auto& value : QJsonDocument::fromJson(QByteArray::fromStdString(json)).array()) {
+        const auto o = value.toObject();
+        const auto tag = o.value("time-tag").toString();
+        if (tag.left(4).toInt() < fromYear) {
+            continue;
+        }
+        Point p;
+        p.seconds = monthOf(tag);
+        const double ssn = number(o, "ssn");
+        const double smooth = number(o, "smoothed_ssn");
+        p.value = ssn >= 0.0 ? ssn : missing;      // -1 marks "none"
+        p.second = smooth >= 0.0 ? smooth : missing;
+        if (p.seconds > 0 && (has(p.value) || has(p.second))) {
+            points.push_back(p);
+        }
+    }
+    return points;
+}
+
+vector<UtilitySpace::Band> UtilitySpace::parseCyclePredicted(const string& json) {
+    vector<Band> bands;
+    for (const auto& value : QJsonDocument::fromJson(QByteArray::fromStdString(json)).array()) {
+        const auto o = value.toObject();
+        Band b;
+        b.seconds = monthOf(o.value("time-tag").toString());
+        b.mid = number(o, "predicted_ssn");
+        b.low = number(o, "low_ssn");
+        b.high = number(o, "high_ssn");
+        if (b.seconds > 0 && has(b.mid)) {
+            bands.push_back(b);
+        }
+    }
+    return bands;
+}
+
+float UtilitySpace::Ovation::at(double lat, double lon) const {
+    if (!ok) {
+        return 0.0f;
+    }
+    int column = static_cast<int>(std::lround(lon));
+    column = ((column % 360) + 360) % 360;
+    const int row = std::clamp(static_cast<int>(std::lround(lat)) + 90, 0, 180);
+    return grid[static_cast<size_t>(row) * 360 + static_cast<size_t>(column)];
+}
+
+UtilitySpace::Ovation UtilitySpace::parseOvation(const string& json) {
+    Ovation o;
+    const auto root = QJsonDocument::fromJson(QByteArray::fromStdString(json)).object();
+    o.observation = root.value("Observation Time").toString().toStdString();
+    o.forecast = root.value("Forecast Time").toString().toStdString();
+    o.grid.assign(360 * 181, 0.0f);
+    int filled = 0;
+    for (const auto& value : root.value("coordinates").toArray()) {
+        const auto cell = value.toArray();
+        if (cell.size() < 3) {
+            continue;
+        }
+        const int lon = ((cell[0].toInt() % 360) + 360) % 360;
+        const int lat = cell[1].toInt();
+        if (lat < -90 || lat > 90) {
+            continue;
+        }
+        o.grid[static_cast<size_t>(lat + 90) * 360 + static_cast<size_t>(lon)] = static_cast<float>(cell[2].toDouble());
+        filled++;
+    }
+    o.ok = filled > 10000;
+    return o;
+}
+
 string UtilitySpace::flareClass(double flux) {
     if (!has(flux) || flux <= 0.0) {
         return {};

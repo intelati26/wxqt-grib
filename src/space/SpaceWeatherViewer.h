@@ -21,7 +21,7 @@
 // speed and density, or the interplanetary magnetic field (Bt and Bz).
 class SpaceChart : public QWidget {
 public:
-    enum Kind { Kp, Xray, Wind, Mag };
+    enum Kind { Kp, Xray, Wind, Mag, Particles, Cycle };
     SpaceChart(Kind kind, QWidget * parent);
     void setData(const std::shared_ptr<SpaceData::Bundle>& data);
 
@@ -52,7 +52,7 @@ private:
     QLabel * nowLabel{};
     QLabel * alertsLabel{};
     QHBoxLayout * pictures{};
-    SpaceChart * charts[4]{};
+    SpaceChart * charts[6]{};
     std::shared_ptr<SpaceData::Bundle> data;
     std::vector<Button *> textButtons;
     int generation{0};

@@ -8,6 +8,8 @@
 #include <cmath>
 #include <ctime>
 #include <QDate>
+#include <QDateTime>
+#include <QTimeZone>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -53,7 +55,7 @@ namespace {
 
 SpaceChart::SpaceChart(Kind k, QWidget * parent) : QWidget{parent}, kind{k} {
     setMinimumSize(640, 210);
-    ChartExport::install(this, k == Kp ? "Planetary K index" : k == Xray ? "GOES X-ray flux" : k == Wind ? "Solar wind" : "Interplanetary magnetic field");
+    ChartExport::install(this, k == Kp ? "Planetary K index" : k == Xray ? "GOES X-ray flux" : k == Wind ? "Solar wind" : k == Mag ? "Interplanetary magnetic field" : k == Particles ? "Energetic particles" : "Solar cycle");
 }
 
 void SpaceChart::setData(const std::shared_ptr<SpaceData::Bundle>& d) {
@@ -73,8 +75,9 @@ void SpaceChart::paintEvent(QPaintEvent *) {
     const long now = nowSeconds();
     const bool isKp = kind == Kp;
     // the time span: Kp from four days ago to three days ahead, the rest the last day
-    const double spanBefore = isKp ? 4.0 * 86400.0 : 86400.0;
-    const double spanAfter = isKp ? 3.0 * 86400.0 : 0.0;
+    const bool isCycle = kind == Cycle;
+    const double spanBefore = isCycle ? 6.5 * 365.25 * 86400.0 : isKp ? 4.0 * 86400.0 : 86400.0;
+    const double spanAfter = isCycle ? 5.5 * 365.25 * 86400.0 : isKp ? 3.0 * 86400.0 : 0.0;
     const double t0 = static_cast<double>(now) - spanBefore;
     const double t1 = static_cast<double>(now) + spanAfter;
     const QRectF area{58.0, 26.0, width() - 58.0 - (kind == Wind ? 52.0 : 16.0), height() - 26.0 - 30.0};
@@ -86,21 +89,23 @@ void SpaceChart::paintEvent(QPaintEvent *) {
     bold.setPixelSize(12);
     p.setFont(bold);
     p.setPen(QColor{30, 30, 30});
-    static const char * titles[] = {"Planetary K index (Kp)", "GOES X-ray flux, 0.1 to 0.8 nm (W/m2)", "Solar wind speed (blue, km/s) and density (orange, particles/cm3)", "Interplanetary magnetic field: total Bt (grey) and Bz (nT)"};
+    static const char * titles[] = {"Planetary K index (Kp)", "GOES X-ray flux, 0.1 to 0.8 nm (W/m2)", "Solar wind speed (blue, km/s) and density (orange, particles/cm3)", "Interplanetary magnetic field: total Bt (grey) and Bz (nT)",
+        "Energetic particles at GOES: protons of 10 MeV and more (blue; S1 at 10) and electrons of 2 MeV and more (orange; alert at 1,000), particles/(cm2 s sr)",
+        "Solar cycle 25: monthly sunspot number (dots), smoothed (blue) and NOAA's prediction with its range (red)"};
     p.drawText(QPointF{area.left(), area.top() - 8}, titles[kind]);
     p.setFont(base);
     p.setPen(QColor{190, 190, 190});
     p.setBrush(Qt::white);
     p.drawRect(area);
     // the time axis: days for Kp, every 4 hours for the rest
-    const double step = isKp ? 86400.0 : 4.0 * 3600.0;
+    const double step = isCycle ? 365.25 * 86400.0 : isKp ? 86400.0 : 4.0 * 3600.0;
     const long firstTick = static_cast<long>(std::ceil(t0 / step) * step);
     for (double t = static_cast<double>(firstTick); t <= t1; t += step) {
         p.setPen(QColor{232, 232, 232});
         p.drawLine(QPointF{xOf(t), area.top()}, QPointF{xOf(t), area.bottom()});
         p.setPen(QColor{70, 70, 70});
         const auto text = QString::fromStdString(UtilityHdob::timeText(static_cast<long>(t)));   // "08 Oct 12:00Z"
-        p.drawText(QRectF{xOf(t) - 40, area.bottom() + 3, 80, 14}, Qt::AlignHCenter, isKp ? text.left(6) : text.mid(7));
+        p.drawText(QRectF{xOf(t) - 40, area.bottom() + 3, 80, 14}, Qt::AlignHCenter, isCycle ? QString::number(QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone::UTC).date().year()) : isKp ? text.left(6) : text.mid(7));
     }
     const auto yTicks = [&] (double lo, double hi, double step2, int decimals) {
         for (double v = std::ceil(lo / step2) * step2; v <= hi + 1e-9; v += step2) {
@@ -204,6 +209,99 @@ void SpaceChart::paintEvent(QPaintEvent *) {
         }
         p.save();
         p.setClipRect(area);
+    } else if (kind == Particles) {
+        const double lo = -1.0;
+        const double hi = 5.0;
+        const auto yOf = [&] (double flux) { return area.bottom() - area.height() * (std::log10(std::max(flux, 1e-3)) - lo) / (hi - lo); };
+        for (int e = -1; e <= 5; e++) {
+            const double y = yOf(std::pow(10.0, e));
+            p.setPen(QColor{232, 232, 232});
+            p.drawLine(QPointF{area.left(), y}, QPointF{area.right(), y});
+            p.setPen(QColor{70, 70, 70});
+            p.drawText(QRectF{area.left() - 52, y - 7, 48, 14}, Qt::AlignRight | Qt::AlignVCenter, QString{"1e%1"}.arg(e));
+        }
+        p.setClipRect(area);
+        const auto line = [&] (const std::vector<UtilitySpace::Point>& points, const QColor& color) {
+            QPainterPath path;
+            bool started = false;
+            for (const auto& pt : points) {
+                if (pt.seconds < t0) {
+                    continue;
+                }
+                const QPointF at{xOf(static_cast<double>(pt.seconds)), yOf(pt.value)};
+                started ? path.lineTo(at) : path.moveTo(at);
+                started = true;
+            }
+            p.setPen(QPen{color, 1.8});
+            p.setBrush(Qt::NoBrush);
+            p.drawPath(path);
+        };
+        // the thresholds: S1 at 10 pfu of protons, the electron alert at 1,000 pfu
+        p.setPen(QPen{QColor{30, 90, 200, 160}, 1.0, Qt::DashLine});
+        p.drawLine(QPointF{area.left(), yOf(10.0)}, QPointF{area.right(), yOf(10.0)});
+        p.setPen(QPen{QColor{235, 140, 30, 160}, 1.0, Qt::DashLine});
+        p.drawLine(QPointF{area.left(), yOf(1000.0)}, QPointF{area.right(), yOf(1000.0)});
+        line(data->electron, QColor{235, 140, 30});
+        line(data->proton, QColor{30, 90, 200});
+    } else if (kind == Cycle) {
+        double high = 150.0;
+        for (const auto& pt : data->cycle) {
+            if (UtilitySpace::has(pt.value)) high = std::max(high, pt.value);
+        }
+        for (const auto& b : data->predicted) {
+            high = std::max(high, UtilitySpace::has(b.high) ? b.high : b.mid);
+        }
+        high = std::ceil(high / 50.0) * 50.0;
+        yTicks(0, high, 50, 0);
+        p.setClipRect(area);
+        const auto yOf = [&] (double v) { return area.bottom() - area.height() * v / high; };
+        // the predicted range as a band, its middle dashed
+        if (!data->predicted.empty()) {
+            QPainterPath band;
+            bool first = true;
+            for (const auto& b : data->predicted) {
+                const QPointF at{xOf(static_cast<double>(b.seconds)), yOf(UtilitySpace::has(b.high) ? b.high : b.mid)};
+                first ? band.moveTo(at) : band.lineTo(at);
+                first = false;
+            }
+            for (auto it = data->predicted.rbegin(); it != data->predicted.rend(); ++it) {
+                band.lineTo(QPointF{xOf(static_cast<double>(it->seconds)), yOf(UtilitySpace::has(it->low) ? it->low : it->mid)});
+            }
+            band.closeSubpath();
+            p.setPen(Qt::NoPen);
+            p.setBrush(QColor{225, 70, 60, 50});
+            p.drawPath(band);
+            QPainterPath mid;
+            first = true;
+            for (const auto& b : data->predicted) {
+                const QPointF at{xOf(static_cast<double>(b.seconds)), yOf(b.mid)};
+                first ? mid.moveTo(at) : mid.lineTo(at);
+                first = false;
+            }
+            p.setPen(QPen{QColor{215, 50, 40}, 2.0, Qt::DashLine});
+            p.setBrush(Qt::NoBrush);
+            p.drawPath(mid);
+        }
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor{120, 120, 130, 170});
+        for (const auto& pt : data->cycle) {
+            if (UtilitySpace::has(pt.value) && pt.seconds >= t0) {
+                p.drawEllipse(QPointF{xOf(static_cast<double>(pt.seconds)), yOf(pt.value)}, 1.8, 1.8);
+            }
+        }
+        QPainterPath smooth;
+        bool started = false;
+        for (const auto& pt : data->cycle) {
+            if (!UtilitySpace::has(pt.second) || pt.seconds < t0) {
+                continue;
+            }
+            const QPointF at{xOf(static_cast<double>(pt.seconds)), yOf(pt.second)};
+            started ? smooth.lineTo(at) : smooth.moveTo(at);
+            started = true;
+        }
+        p.setPen(QPen{QColor{30, 90, 200}, 2.4});
+        p.setBrush(Qt::NoBrush);
+        p.drawPath(smooth);
     } else {
         double reach = 10.0;
         for (const auto& pt : data->mag) {
@@ -247,7 +345,7 @@ void SpaceChart::paintEvent(QPaintEvent *) {
         p.drawPath(total);
     }
     // now
-    if (isKp) {
+    if (isKp || isCycle) {
         p.setPen(QPen{QColor{215, 40, 40}, 1.2, Qt::DotLine});
         p.drawLine(QPointF{xOf(static_cast<double>(now)), area.top()}, QPointF{xOf(static_cast<double>(now)), area.bottom()});
     }
@@ -297,7 +395,7 @@ SpaceWeatherViewer::SpaceWeatherViewer(Window * parent)
     nowLabel->setTextFormat(Qt::RichText);
     nowLabel->setWordWrap(true);
     layout->addWidget(nowLabel);
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 6; i++) {
         charts[i] = new SpaceChart{static_cast<SpaceChart::Kind>(i), content};
         layout->addWidget(charts[i]);
     }
