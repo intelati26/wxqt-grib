@@ -187,6 +187,13 @@ void ObjectModel::setModelVars(const string& modelName) {
         loadTimeList3(0, 243, 3);
         loadTimeList3(252, 396, 12);
         setupListRunZ();
+    } else if (modelToken == "NCEP:AIGFS") {
+        params = UtilityModelNcepInterface::paramsAigfs;
+        paramLabels = UtilityModelNcepInterface::labelsAigfs;
+        sectors = UtilityModelNcepInterface::sectorsGfs;
+        times.clear();
+        loadTimeList3(0, 384, 6);       // every 6 hours to 16 days
+        setupListRunZ();
     } else if (modelToken == "NCEP:HRRR") {
         params = UtilityModelNcepInterface::paramsHrrr;
         paramLabels = UtilityModelNcepInterface::labelsHrrr;

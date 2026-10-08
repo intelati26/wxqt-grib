@@ -77,9 +77,13 @@ int main() {
     {
         const GfsData::Run run{"20261008", "12"};
         const auto gfs = GfsData::gfs(), nbm = GfsData::nbm();
-        CHECK(gfs.fileUrl(run, 24) == "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20261008/12/atmos/gfs.t12z.pgrb2.0p25.f024");
-        CHECK(nbm.fileUrl(run, 6) == "https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.20261008/12/core/blend.t12z.core.f006.co.grib2");
+        CHECK(gfs.fileUrl(run, 24, "") == "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20261008/12/atmos/gfs.t12z.pgrb2.0p25.f024");
+        CHECK(nbm.fileUrl(run, 6, "") == "https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.20261008/12/core/blend.t12z.core.f006.co.grib2");
         CHECK(gfs.cycleHours == 6 && gfs.probeHour == 0 && !gfs.warp.enabled && nbm.cycleHours == 1 && nbm.probeHour == 1 && nbm.warp.enabled);
+        const auto ai = GfsData::aigfs();
+        CHECK(ai.fileUrl(run, 24, "pres") == "https://noaa-nws-graphcastgfs-pds.s3.amazonaws.com/aigfs.20261008/12/model/atmos/grib2/aigfs.t12z.pres.f024.grib2");
+        CHECK(ai.fileUrl(run, 6, "sfc").find("aigfs.t12z.sfc.f006.grib2") != std::string::npos);
+        CHECK(ai.fileOf({"k", "HGT", "500 mb", "", ""}) == "pres" && ai.fileOf({"k", "TMP", "2 m above ground", "", ""}) == "sfc" && ai.fileOf({"k", "PRMSL", "mean sea level", "", ""}) == "sfc");
         for (const auto& source : {gfs, nbm}) {
             std::vector<std::string> asked;
             GfsData::Config none;

@@ -25,7 +25,7 @@ GfsData::Source GfsData::gfs() {
     Source s;
     s.id = "GFS";
     s.label = "NOAA/NCEP GFS 0.25 degree";
-    s.fileUrl = [] (const Run& run, int hour) {
+    s.fileUrl = [] (const Run& run, int hour, const std::string&) {
         return "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs." + run.date + "/" + run.cycle + "/atmos/gfs.t" + run.cycle + "z.pgrb2.0p25.f" + pad(hour, 3);
     };
     s.cycleHours = 6;
@@ -34,11 +34,29 @@ GfsData::Source GfsData::gfs() {
     return s;
 }
 
+// NCEP's AI global model (GraphCast-based, 0.25 degree, every 6 hours to 16 days): the pressure levels (height, temperature, humidity as specific humidity, vertical motion, wind) and the
+// surface (10 m wind, 2 m temperature, sea level pressure, precipitation in 6 hour pieces) are separate files, in the NOAA GraphCast GFS open data bucket on AWS (the same layout as NOMADS, and it keeps the history)
+GfsData::Source GfsData::aigfs() {
+    Source s;
+    s.id = "AIGFS";
+    s.label = "NOAA/NCEP AIGFS 0.25 degree (an AI model)";
+    s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
+        return "https://noaa-nws-graphcastgfs-pds.s3.amazonaws.com/aigfs." + run.date + "/" + run.cycle + "/model/atmos/grib2/aigfs.t" + run.cycle + "z." + (file.empty() ? "pres" : file) + ".f" + pad(hour, 3) +
+            ".grib2";
+    };
+    s.fileOf = [] (const Want& want) { return want.level.size() > 3 && want.level.compare(want.level.size() - 3, 3, " mb") == 0 ? std::string{"pres"} : std::string{"sfc"}; };
+    s.probeFile = "pres";
+    s.cycleHours = 6;
+    s.lagHours = 4;
+    s.probeHour = 0;
+    return s;
+}
+
 GfsData::Source GfsData::nbm() {
     Source s;
     s.id = "NBM";
     s.label = "NOAA/NWS National Blend of Models v4, 2.5 km";
-    s.fileUrl = [] (const Run& run, int hour) {
+    s.fileUrl = [] (const Run& run, int hour, const std::string&) {
         return "https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend." + run.date + "/" + run.cycle + "/core/blend.t" + run.cycle + "z.core.f" + pad(hour, 3) + ".co.grib2";
     };
     s.cycleHours = 1;      // a run every hour
@@ -69,7 +87,7 @@ bool GfsData::latestRun(Run& run) const {
     for (int back = 0; back < source.cyclesToTry; back++) {
         const auto t = start.addSecs(-static_cast<qint64>(back) * source.cycleHours * 3600);
         Run candidate{t.toString("yyyyMMdd").toStdString(), pad(t.time().hour(), 2)};
-        const auto head = config.bytes(fileUrl(candidate, source.probeHour) + ".idx", 0, 200);
+        const auto head = config.bytes(fileUrl(candidate, source.probeHour, source.probeFile) + ".idx", 0, 200);
         if (head.startsWith("1:0:d=")) {
             run = candidate;
             return true;
@@ -78,13 +96,13 @@ bool GfsData::latestRun(Run& run) const {
     return false;
 }
 
-bool GfsData::one(const Run& run, int hour, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const {
+bool GfsData::one(const Run& run, int hour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const {
     const auto * record = GfsGrid::find(index, want.variable, want.level, want.forecast, want.detail);
     if (!record) {
         error = source.id + " has no " + want.variable + " " + want.level + (want.forecast.empty() ? "" : " (" + want.forecast + ")") + " in this run";
         return false;
     }
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail);
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail);
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     QDir{}.mkpath(config.cacheFolder);
     const auto cachePath = config.cacheFolder + "/" + name + ".gz4";
@@ -109,7 +127,7 @@ bool GfsData::one(const Run& run, int hour, const std::vector<GfsGrid::IdxRecord
             }
         }
     }
-    const auto url = fileUrl(run, hour);
+    const auto url = fileUrl(run, hour, file);
     const auto slice = config.bytes(url, record->start, record->end);
     if (slice.size() < 100 || !slice.startsWith("GRIB")) {
         error = "could not download " + want.variable + " " + want.level;
@@ -117,7 +135,7 @@ bool GfsData::one(const Run& run, int hour, const std::vector<GfsGrid::IdxRecord
     }
     {   // keep the message in the run's partial file as well
         const std::lock_guard lock{partialMutex};
-        QFile partial{partialGrib(run, hour)};
+        QFile partial{partialGrib(run, hour, file)};
         if (partial.open(QIODevice::WriteOnly | QIODevice::Append)) {
             partial.write(slice);
         }
@@ -213,8 +231,8 @@ bool GfsData::one(const Run& run, int hour, const std::vector<GfsGrid::IdxRecord
     return true;
 }
 
-QString GfsData::partialGrib(const Run& run, int hour) const {
-    return config.cacheFolder + "/gfs." + QString::fromStdString(run.id()) + ".f" + QString::fromStdString(pad(hour, 3)) + ".partial.grib2";
+QString GfsData::partialGrib(const Run& run, int hour, const std::string& file) const {
+    return config.cacheFolder + "/" + QString::fromStdString(source.id) + "." + QString::fromStdString(run.id()) + ".f" + QString::fromStdString(pad(hour, 3)) + (file.empty() ? "" : "." + QString::fromStdString(file)) + ".partial.grib2";
 }
 
 bool GfsData::load(const Run& run, int hour, const std::vector<Want>& wants, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {
@@ -226,14 +244,15 @@ bool GfsData::load(const Run& run, int hour, const std::vector<Want>& wants, std
 }
 
 bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {
-    // one index per forecast hour involved
-    std::map<int, std::vector<GfsGrid::IdxRecord>> indexes;
+    // one index per forecast hour and file involved
+    std::map<std::pair<int, std::string>, std::vector<GfsGrid::IdxRecord>> indexes;
     for (const auto& need : needs) {
-        if (indexes.find(need.hour) == indexes.end()) {
-            const auto idxBytes = config.bytes(fileUrl(run, need.hour) + ".idx", 0, -1);
-            indexes[need.hour] = GfsGrid::parseIdx(idxBytes.toStdString());
-            if (indexes[need.hour].empty()) {
-                error = "could not read the GFS index for " + run.id() + " f" + pad(need.hour, 3);
+        const auto key = std::make_pair(need.hour, fileFor(need.want));
+        if (indexes.find(key) == indexes.end()) {
+            const auto idxBytes = config.bytes(fileUrl(run, need.hour, key.second) + ".idx", 0, -1);
+            indexes[key] = GfsGrid::parseIdx(idxBytes.toStdString());
+            if (indexes[key].empty()) {
+                error = "could not read the " + source.id + " index for " + run.id() + " f" + pad(need.hour, 3) + (key.second.empty() ? "" : " (" + key.second + ")");
                 return false;
             }
         }
@@ -248,13 +267,14 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
     for (const auto& need : needs) {
         jobs.push_back(std::async(std::launch::async, [&, need] {
             Result r;
-            const auto& index = indexes.at(need.hour);
+            const auto file = fileFor(need.want);
+            const auto& index = indexes.at(std::make_pair(need.hour, file));
             if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast, need.want.detail)) {
                 r.ok = true;   // nothing accumulated yet at hour 0
                 r.absent = true;
                 return r;
             }
-            r.ok = one(run, need.hour, index, need.want, r.grid, r.error);
+            r.ok = one(run, need.hour, file, index, need.want, r.grid, r.error);
             return r;
         }));
     }

@@ -29,7 +29,7 @@ int main(int argc, char ** argv) {
         curl.waitForFinished(130000);
         return curl.readAllStandardOutput();
     };
-    GfsData data{config, argc > 5 && std::string{argv[5]} == "NBM" ? GfsData::nbm() : GfsData::gfs()};
+    GfsData data{config, argc > 5 && std::string{argv[5]} == "NBM" ? GfsData::nbm() : argc > 5 && std::string{argv[5]} == "AIGFS" ? GfsData::aigfs() : GfsData::gfs()};
     GfsData::Run run;
     if (!data.latestRun(run)) {
         std::printf("no run\n");

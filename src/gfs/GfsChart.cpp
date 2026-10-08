@@ -6,6 +6,7 @@
 #include "gfs/GfsChart.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <QDateTime>
 #include <QFontMetricsF>
 #include <QPainter>
@@ -1005,6 +1006,111 @@ const std::vector<Product>& products() {
             y.legendStep = 500;
             p.push_back(y);
         }
+
+        // ---- AIGFS: the same charts as the GFS, from its two files. Humidity comes as specific humidity (relative humidity is worked out from it with the temperature), and
+        // precipitation as 6 hour amounts (a period is the amounts of its 6 hour pieces added up).
+        const auto relativeHumidity = [] (const GfsGrid::Grid& temperature, const GfsGrid::Grid& specific, double hPa) {
+            auto out = temperature;
+            for (size_t i = 0; i < out.values.size(); i++) {
+                const double t = temperature.values[i], q = specific.values[i];
+                const double e = q * hPa / (0.622 + 0.378 * q);                       // the vapor pressure, hPa
+                const double es = 6.112 * std::exp(17.67 * t / (t + 243.5));            // the saturation vapor pressure over water
+                out.values[i] = static_cast<float>(std::clamp(100.0 * e / es, 0.0, 100.0));
+            }
+            return out;
+        };
+        const auto adapt = [relativeHumidity] (const Product& gfs) {
+            Product x = gfs;
+            x.source = "AIGFS";
+            x.needs = [gfs] (int hour) {
+                std::vector<GfsData::Need> out;
+                int end = -1, start = 0;
+                for (auto need : GfsChart::needs(gfs, hour)) {
+                    if (need.want.variable == "APCP") {   // the running total is not in the file: its pieces are taken below
+                        (need.want.key == "a0" ? start : end) = need.hour;
+                        continue;
+                    }
+                    if (need.want.variable == "RH") {     // the temperature and the specific humidity of that level, the level kept in the keys
+                        const auto key = need.want.key + "|" + need.want.level;
+                        auto t = need, q = need;
+                        t.want.variable = "TMP";
+                        t.want.key = key + "|t";
+                        q.want.variable = "SPFH";
+                        q.want.key = key + "|q";
+                        out.push_back(t);
+                        out.push_back(q);
+                        continue;
+                    }
+                    out.push_back(std::move(need));
+                }
+                if (end > 0) {
+                    int n = 0;
+                    for (int e = end; e > start && e > 0; e -= 6) {
+                        out.push_back({e, {"w" + std::to_string(n++), "APCP", "surface", std::to_string(e - 6) + "-" + std::to_string(e) + " hour acc fcst", ""}});
+                    }
+                }
+                return out;
+            };
+            x.fallbackNeeds = nullptr;
+            x.derive = [gfs, relativeHumidity] (Grids& g, const Context& context) {
+                // relative humidity from each level's pair
+                std::vector<std::string> keys;
+                for (const auto& [key, grid] : g) {
+                    const auto bar = key.find('|');
+                    if (bar != std::string::npos && key.size() > 2 && key.compare(key.size() - 2, 2, "|q") == 0) {
+                        keys.push_back(key.substr(0, key.size() - 2));
+                    }
+                }
+                for (const auto& key : keys) {
+                    const auto bar = key.find('|');
+                    const double hPa = std::atof(key.c_str() + bar + 1);   // "rh|500 mb" -> 500
+                    g[key.substr(0, bar)] = relativeHumidity(g[key + "|t"], g[key + "|q"], hPa);
+                }
+                // the precipitation of the period: its 6 hour pieces added up, as the running total less nothing (the pieces start where the period does)
+                if (g.count("w0")) {
+                    auto sum = g["w0"];
+                    for (int i = 1; g.count("w" + std::to_string(i)); i++) {
+                        const auto& piece = g["w" + std::to_string(i)];
+                        for (size_t k = 0; k < sum.values.size(); k++) {
+                            sum.values[k] += piece.values[k];
+                        }
+                    }
+                    g["a1"] = std::move(sum);
+                }
+                if (gfs.derive) {
+                    gfs.derive(g, context);
+                }
+            };
+            if (gfs.fillTitleFor) {   // the pieces are 6 hours: the period is told from them
+                x.fillTitleFor = [x, gfs] (int hour) {
+                    int lowest = hour;
+                    for (const auto& need : x.needs(hour)) {
+                        if (need.want.variable == "APCP") {
+                            lowest = std::min(lowest, need.hour - 6);
+                        }
+                    }
+                    const auto original = gfs.fillTitleFor(hour);
+                    const auto at = original.find(", hours ");
+                    return (at == std::string::npos ? original : original.substr(0, at)) + ", hours " + std::to_string(std::max(0, lowest)) + "-" + std::to_string(hour);
+                };
+            }
+            return x;
+        };
+        for (const char * id : {"precip_p06", "precip_p12", "precip_p24", "precip_p36", "precip_p48", "precip_p60", "precip_ptot", "1000_500_thick", "1000_850_thick", "850_700_thick", "850_temp_mslp_precip",
+                                "10m_wnd_precip", "10m_wnd_2m_temp", "200_wnd_ht", "250_wnd_ht", "300_wnd_ht", "500_rh_ht", "500_wnd_ht", "500_vort_ht", "700_rh_ht", "850_rh_ht", "850_temp_ht", "850_vort_ht",
+                                "850vor_500ht_200wd", "925_temp_ht"}) {
+            const Product * original = nullptr;
+            for (const auto& candidate : p) {
+                if (candidate.id == id && candidate.source == "GFS") {
+                    original = &candidate;
+                    break;
+                }
+            }
+            if (original != nullptr) {
+                auto x = adapt(*original);
+                p.push_back(std::move(x));
+            }
+        }
         return p;
     }();
     return list;
@@ -1020,7 +1126,7 @@ const Product * product(const std::string& id, const std::string& source) {
 }
 
 std::string sourceLabel(const std::string& source) {
-    return source == "NBM" ? "NOAA/NWS National Blend of Models v4, 2.5 km" : "NOAA/NCEP GFS 0.25 degree";
+    return source == "NBM" ? "NOAA/NWS National Blend of Models v4, 2.5 km" : source == "AIGFS" ? "NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)" : "NOAA/NCEP GFS 0.25 degree";
 }
 
 std::vector<std::string> sectorIds(const std::string& source) {
@@ -1075,7 +1181,7 @@ namespace {
                 o.id = "mslp";
                 o.label = "Sea level pressure";
                 o.group = "Lines";
-                o.sources = {"GFS"};
+                o.sources = {"GFS", "AIGFS"};
                 o.needs = [=] (int hour) { return std::vector<GfsData::Need>{record("p", "PRMSL", "mean sea level")(hour)}; };
                 o.contour.key = "p";
                 o.contour.scale = 0.01;
@@ -1090,7 +1196,7 @@ namespace {
                 o.id = id;
                 o.label = label;
                 o.group = "Lines";
-                o.sources = {"GFS"};
+                o.sources = {"GFS", "AIGFS"};
                 o.needs = [=] (int hour) { return std::vector<GfsData::Need>{record("zl", "HGT", from)(hour), record("zh", "HGT", to)(hour)}; };
                 o.derive = [] (Grids& g, const Context&) { g["thick"] = GfsGrid::difference(g["zh"], g["zl"]); };
                 o.contour.key = "thick";
@@ -1109,7 +1215,7 @@ namespace {
                 o.id = std::string{"z"} + level;
                 o.label = std::string{level} + "mb height";
                 o.group = "Lines";
-                o.sources = {"GFS"};
+                o.sources = {"GFS", "AIGFS"};
                 const std::string levelText = std::string{level} + " mb";
                 o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"z", "HGT", levelText, "", ""}}}; };
                 o.contour.key = "z";
@@ -1124,7 +1230,7 @@ namespace {
                 o.id = "t850";
                 o.label = "850mb temperature";
                 o.group = "Lines";
-                o.sources = {"GFS"};
+                o.sources = {"GFS", "AIGFS"};
                 o.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", "850 mb", "", ""}}}; };
                 o.contour.key = "t";
                 o.contour.interval = 5;
@@ -1143,7 +1249,7 @@ namespace {
                 o.id = id;
                 o.label = label;
                 o.group = "Wind barbs";
-                o.sources = {"GFS"};
+                o.sources = {"GFS", "AIGFS"};
                 o.barbs = true;
                 const std::string levelText = level;
                 o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"u", "UGRD", levelText, "", ""}}, {hour, {"v", "VGRD", levelText, "", ""}}}; };

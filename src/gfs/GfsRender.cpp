@@ -52,7 +52,7 @@ namespace {
     }
 
     GfsData::Source sourceOf(const std::string& model) {
-        return model == "NBM" ? GfsData::nbm() : GfsData::gfs();
+        return model == "NBM" ? GfsData::nbm() : model == "AIGFS" ? GfsData::aigfs() : GfsData::gfs();
     }
 
     GfsData data(const QString& folder, const std::string& model) {
@@ -107,7 +107,7 @@ QString GfsRender::Session::partialGrib(const std::string& cycleRun, int hour) c
 }
 
 bool GfsRender::handles(const std::string& model, const std::string& param) {
-    return (model == "GFS" || model == "NBM") && GfsChart::product(param, model) != nullptr;
+    return (model == "GFS" || model == "NBM" || model == "AIGFS") && GfsChart::product(param, model) != nullptr;
 }
 
 bool GfsRender::latestCycle(const std::string& model, std::string& cycle) {

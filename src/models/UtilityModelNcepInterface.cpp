@@ -12,6 +12,7 @@ const vector<string> UtilityModelNcepInterface::models{
     "GEFS-MEAN-SPRD",
     "GEFS-SPAG",
     "GFS",
+    "AIGFS",
     "HREF",
     "HRRR",
     "HRW-ARW",
@@ -332,6 +333,62 @@ const vector<string> UtilityModelNcepInterface::labelsGfs{
     "MSLP and Precipitation (Rain / Snow / Mixed)",
     "MSLP and 48-hour Change",
     "500mb Height and 48-hour Change"
+};
+
+const vector<string> UtilityModelNcepInterface::paramsAigfs{
+    "precip_p06",
+    "precip_p12",
+    "precip_p24",
+    "precip_p36",
+    "precip_p48",
+    "precip_p60",
+    "precip_ptot",
+    "1000_500_thick",
+    "1000_850_thick",
+    "850_700_thick",
+    "850_temp_mslp_precip",
+    "10m_wnd_precip",
+    "10m_wnd_2m_temp",
+    "200_wnd_ht",
+    "250_wnd_ht",
+    "300_wnd_ht",
+    "500_rh_ht",
+    "500_wnd_ht",
+    "500_vort_ht",
+    "700_rh_ht",
+    "850_rh_ht",
+    "850_temp_ht",
+    "850_vort_ht",
+    "850vor_500ht_200wd",
+    "925_temp_ht"
+};
+
+const vector<string> UtilityModelNcepInterface::labelsAigfs{
+    "6-hour Accumulated Precipitation",
+    "Total Precipitation every 12 hours",
+    "Total Precipitation every 24 hours",
+    "Total Precipitation every 36 hours",
+    "Total Precipitation every 48 hours",
+    "Total Precipitation every 60 hours",
+    "Total Accumulated Precipitation of Period",
+    "MSLP, 1000-500mb thickness, 3-hourly total precipitation",
+    "MSLP, 1000-850mb thickness, 3-hourly total precipitation",
+    "MSLP, 850-700mb thickness, 3-hourly total precipitation",
+    "MSLP, 850mb temperature, 3- or 12-hourly total precipitation",
+    "MSLP, 10m wind, 2m temperature, and 3- or 12-hourly total precipitation",
+    "MSLP, 10m wind, 2m temperature",
+    "200mb Wind and Height",
+    "250mb Wind and Height",
+    "300mb Wind and Height",
+    "500mb Relative Humidity and Height",
+    "500mb Wind and Height",
+    "500mb Vorticity, Wind, and Height",
+    "700mb Relative Humidity, Height and Omega",
+    "850mb Relative Humidity and Height",
+    "850mb Temperature, Wind and Height",
+    "850mb Vorticity, Wind and Height",
+    "850mb Vorticity, 500mb Height, 200mb Wind",
+    "925mb Temperature, Wind and Height"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNam{

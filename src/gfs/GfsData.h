@@ -42,7 +42,9 @@ public:
     struct Source {
         std::string id;                                                  // "GFS", "NBM": the model screen's name for it
         std::string label;                                               // "NOAA/NCEP GFS 0.25 degree", for under a chart
-        std::function<std::string(const Run&, int forecastHour)> fileUrl;   // the GRIB2 file; its index is that + ".idx"
+        std::function<std::string(const Run&, int forecastHour, const std::string& file)> fileUrl;   // the GRIB2 file; its index is that + ".idx". `file` is "" unless fileOf says
+        std::function<std::string(const Want&)> fileOf;                  // which of a run's files holds a record (AIGFS: pressure levels in one, the surface in another); empty: one file
+        std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often
         int lagHours{3};                                                 // and a run is looked for from this long after its time
         int probeHour{0};                                                // the forecast hour whose index says the run is there
@@ -55,6 +57,7 @@ public:
     };
     static Source gfs();
     static Source nbm();
+    static Source aigfs();
 
     // a field at a forecast hour (a precipitation period needs the running total at two hours)
     struct Need {
@@ -72,12 +75,13 @@ public:
     // grids by key, or false with the reason. A need whose record does not exist at hour 0 ("anl" has no precipitation) is simply absent from out; any other missing record fails.
     bool load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const;
     bool load(const Run& run, int forecastHour, const std::vector<Want>& wants, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const;
-    std::string fileUrl(const Run& run, int forecastHour) const { return source.fileUrl(run, forecastHour); }
+    std::string fileUrl(const Run& run, int forecastHour, const std::string& file = "") const { return source.fileUrl(run, forecastHour, file); }
     // the records downloaded so far for a run and hour, joined into one valid GRIB2 file in the cache folder as they arrive ("" if none yet): GRIB messages stand alone, so appending is all it takes
-    QString partialGrib(const Run& run, int forecastHour) const;
+    QString partialGrib(const Run& run, int forecastHour, const std::string& file = "") const;
 
 private:
-    bool one(const Run& run, int forecastHour, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const;
+    bool one(const Run& run, int forecastHour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const;
+    std::string fileFor(const Want& want) const { return source.fileOf ? source.fileOf(want) : std::string{}; }
     Config config;
     Source source;
     mutable std::mutex partialMutex;

@@ -33,6 +33,8 @@ public:
     static const vector<string> sectorsFirewx;
     static const vector<string> sectorsNbm;
     static const vector<string> paramsGfs;
+    static const vector<string> paramsAigfs;
+    static const vector<string> labelsAigfs;
     static const vector<string> labelsGfs;
     static const vector<string> paramsNam;
     static const vector<string> labelsNam;
