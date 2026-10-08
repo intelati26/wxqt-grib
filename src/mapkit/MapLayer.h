@@ -71,6 +71,7 @@ public:
     void disable() { on = false; onDisable(); }
     bool enabled() const { return on; }
     virtual void refresh(MapHost&) {}
+    virtual void optionChanged(MapHost&) {}                      // one of its options was changed (called before the map is painted again)
     virtual void paint(QPainter&, MapHost&) = 0;                 // in window units, as the radar screens' topLayer
     virtual MapHit pick(const QPointF& /*pixels*/, MapHost&) const { return {}; }
     virtual vector<MapLegendRow> legend() const { return {}; }

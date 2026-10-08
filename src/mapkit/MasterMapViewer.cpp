@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 #include <sstream>
+#include <QContextMenuEvent>
+#include <QCoreApplication>
 #include <QFont>
 #include <QPainterPath>
 #include "hurricane/Coast.h"
@@ -208,7 +210,7 @@ void MasterMapViewer::showOptions(MapLayer * layer) {
     }
     optionsTitle->setText(layer == nullptr ? QString{} : QString::fromStdString(layer->path()).section('/', -1) + " - options");
     if (layer != nullptr) {
-        if (auto * widget = layer->options(optionsBox, [this] { redraw(); })) {
+        if (auto * widget = layer->options(optionsBox, [this, layer] { layer->optionChanged(*this); redraw(); })) {
             optionsLayout->addWidget(widget);
         } else {
             auto * none = new QLabel{"No options for this layer.", optionsBox};
