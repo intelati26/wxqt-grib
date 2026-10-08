@@ -58,6 +58,16 @@ QPointF MapView::toPixels(double lat, double lon) const {
     return QPointF{(u.x() + 500.0) * widget->width() / 1000.0, (u.y() + 250.0) * widget->height() / 1000.0};
 }
 
+std::pair<double, double> MapView::toLatLon(const QPointF& pixels) const {
+    const auto t = transform();
+    const double u = pixels.x() * 1000.0 / std::max(1, widget->width()) - 500.0;
+    const double v = pixels.y() * 1000.0 / std::max(1, widget->height()) - 250.0;
+    const double lon = ((u - t.xPos) / t.zoom - t.bx) / t.ax;
+    const double merc = ((v - t.yPos) / t.zoom - t.by) / t.ay;   // Mercator "degrees"
+    const double lat = (2.0 * std::atan(std::exp(merc * std::numbers::pi / 180.0)) - std::numbers::pi / 2.0) * 180.0 / std::numbers::pi;
+    return {lat, lon};
+}
+
 double MapView::unitsPerPixel() const {
     return 1000.0 / std::max(1, widget->width());
 }

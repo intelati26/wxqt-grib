@@ -7,6 +7,7 @@
 #define MAPVIEW_H
 
 #include <functional>
+#include <utility>
 #include <QObject>
 #include <QPointF>
 #include "radar/MapWidget.h"
@@ -32,6 +33,7 @@ public:
     Transform transform() const;
     QPointF toUnits(double lat, double lon) const;
     QPointF toPixels(double lat, double lon) const;    // widget pixels (what a click or the pointer gives)
+    std::pair<double, double> toLatLon(const QPointF& pixels) const;   // the other way: (latitude, longitude east positive) under a widget pixel
     double unitsPerPixel() const;
     bool inView(const QPointF& units, double margin = 20.0) const;
     void showRegion(double minLat, double maxLat, double minLon, double maxLon);   // the box fills the square, centred
