@@ -38,6 +38,7 @@ int main(int argc, char ** argv) {
     CHECK(twoState != nullptr && twoState->states == 2 && twoState->state == "AL" && twoState->mag == 2 && T::rating(*twoState) == "EF2" && near(twoState->length, 61.51) && twoState->counts());
     CHECK(ef5 != nullptr && ef5->fatalities >= 0 && T::ratingOf(-9, 2024) == "unrated" && T::ratingOf(3, 2006) == "F3" && T::ratingOf(3, 2007) == "EF3");
     // days of the year and distances
+    CHECK(T::isoDate(2026, 10, 1) == "2026-10-01" && T::isoDate(1950, 1, 31) == "1950-01-31" && T::isoDate(2011, 12, 9) == "2011-12-09");
     CHECK(T::dayOfYear(2011, 4, 27) == 117 && T::dayOfYear(2012, 4, 27) == 118 && T::dayOfYear(2011, 12, 31) == 365 && T::dayOfYear(2011, 13, 1) == 0);
     CHECK(near(T::kilometers(36.73, -102.52, 36.88, -102.3), 25.0, 1.0));
     // the distance to a track: the start, the end, or the line between them

@@ -55,6 +55,7 @@ public:
     static string rating(const Tornado&);                  // "EF3" from 2007, "F3" before; "unrated" for -9
     static string ratingOf(int mag, int year);
     static int dayOfYear(int year, int month, int day);
+    static std::string isoDate(int year, int month, int day);   // 2026-10-01: the one way dates are written on the tornado screens
     static double kilometers(double lat1, double lon1, double lat2, double lon2);
     // the nearest distance (km) from a point to the track: the start, the end and the straight line between them
     static double distanceToTrack(const Tornado&, double lat, double lon);

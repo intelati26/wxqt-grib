@@ -25,8 +25,7 @@ namespace {
     }
 
     QString text(const UtilityTornado::Tornado& t) {
-        static const char * months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-        return QString::number(t.day) + " " + months[std::clamp(t.month, 1, 12) - 1] + " " + QString::number(t.year) + "  " + QString::fromStdString(t.state) + "  " + QString::fromStdString(UtilityTornado::rating(t)) +
+        return QString::fromStdString(UtilityTornado::isoDate(t.year, t.month, t.day)) + "  " + QString::fromStdString(t.state) + "  " + QString::fromStdString(UtilityTornado::rating(t)) +
             "\n" + QString::number(t.length, 'f', 1) + " miles, " + QString::number(static_cast<int>(t.width)) + " yards\n" + QString::number(t.fatalities) + " fatalities, " + QString::number(t.injuries) + " injuries";
     }
 }

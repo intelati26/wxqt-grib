@@ -22,8 +22,7 @@ namespace {
     using T = UtilityTornado::Tornado;
 
     QString dateText(const T& t) {
-        static const char * names[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-        return QString::number(t.day) + " " + names[std::clamp(t.month, 1, 12) - 1] + " " + QString::number(t.year);
+        return QString::fromStdString(UtilityTornado::isoDate(t.year, t.month, t.day));
     }
 }
 
@@ -242,7 +241,7 @@ void TornadoViewer::applyFilters() {
     string text = QLocale{QLocale::English}.toString(static_cast<qlonglong>(shown.size())).toStdString() + " tornadoes (" + std::to_string(strong) + " rated 3 or more), " + std::to_string(deaths) + " fatalities, " +
         std::to_string(injuries) + " injuries";
     text += spanned ? "   -   the " + string{comboSpan.getValue()} : "   -   " + std::to_string(first) + " to " + std::to_string(last);
-    text += "   -   " + db->file + (db->preliminaryCount > 0 ? " + " + std::to_string(db->preliminaryCount) + " preliminary reports since" : string{}) + " (to " + std::to_string(db->lastDay) + "/" + std::to_string(db->lastMonth) + "/" + std::to_string(db->lastYear) + ")";
+    text += "   -   " + db->file + (db->preliminaryCount > 0 ? " + " + std::to_string(db->preliminaryCount) + " preliminary reports since" : string{}) + " (to " + UtilityTornado::isoDate(db->lastYear, db->lastMonth, db->lastDay) + ")";
     if (area->active()) {
         text += "   -   " + area->describe().toStdString();
     }

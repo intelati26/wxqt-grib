@@ -603,7 +603,7 @@ void TornadoStatsViewer::fillYears() {
     const bool first = list->count() == 0;
     list->clear();
     for (int y = db->lastYear; y >= db->firstYear; y--) {
-        auto * item = new QListWidgetItem{QString::number(y) + (y == db->lastYear ? "  (to " + QString::number(db->lastDay) + "/" + QString::number(db->lastMonth) + ")" : QString{}), list};
+        auto * item = new QListWidgetItem{QString::number(y) + (y == db->lastYear ? "  (to " + QString::fromStdString(UtilityTornado::isoDate(db->lastYear, db->lastMonth, db->lastDay)) + ")" : QString{}), list};
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
         item->setCheckState(first ? (y == db->lastYear ? Qt::Checked : Qt::Unchecked) : (checked.count(y) != 0 ? Qt::Checked : Qt::Unchecked));
         item->setData(Qt::UserRole, y);
@@ -633,7 +633,7 @@ QString TornadoStatsViewer::standing(const std::vector<const T *>& tornadoes) co
         years++;
         more += through[y] > now ? 1 : 0;
     }
-    QString text = QString::number(db->lastYear) + " through " + QString::number(db->lastDay) + "/" + QString::number(db->lastMonth) + ": " + QString::number(static_cast<long>(now)) + " " + TornadoChart::metricName(metric).toLower();
+    QString text = QString::number(db->lastYear) + " through " + QString::fromStdString(UtilityTornado::isoDate(db->lastYear, db->lastMonth, db->lastDay)) + ": " + QString::number(static_cast<long>(now)) + " " + TornadoChart::metricName(metric).toLower();
     if (average > 0.5) {
         text += ", " + QString::number(std::lround(100.0 * now / average)) + " % of the " + QString::number(averageFirst) + "-" + QString::number(averageLast) + " average for the date (" + QString::number(average, 'f', 0) + ")";
     }
