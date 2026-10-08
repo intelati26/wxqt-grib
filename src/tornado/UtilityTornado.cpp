@@ -148,6 +148,7 @@ vector<std::pair<int, double>> UtilityTornado::buckets(const vector<const Tornad
         int key = 0;
         switch (group) {
             case Group::DayOfYear: key = t->dayOfYear; break;
+            case Group::Heatmap:
             case Group::Week: key = (t->dayOfYear - 1) / 7 + 1; break;
             case Group::Month: key = t->month; break;
             case Group::Year: key = t->year; break;

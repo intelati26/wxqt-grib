@@ -53,7 +53,7 @@ public:
     // the data file named on the SPC page: the newest "1950-YYYY_actual_tornadoes.csv" (and its ".zip" twin "1950-YYYY_torn.csv.zip")
     static string newestFile(const string& pageHtml);
 
-    enum class Group { DayOfYear, Week, Month, Year, Decade };
+    enum class Group { DayOfYear, Week, Month, Year, Decade, Heatmap };   // Heatmap: years down, weeks across (a chart, not a bucketing: buckets() treats it as the week)
     enum class Metric { Count, Deaths, Injuries };
     // the sum of the metric in each bucket: day of the year 1..366, week 1..53 (day 1 to 7 is week 1), month 1..12, the year, or the first year of the decade;
     // returned as pairs (bucket, value) in order, only the buckets that have something

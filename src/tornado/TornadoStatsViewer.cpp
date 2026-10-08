@@ -40,7 +40,7 @@ TornadoChart::TornadoChart(QWidget * parent) : QWidget{parent} {
 }
 
 int TornadoChart::buckets() const {
-    return group == Group::DayOfYear ? 366 : group == Group::Week ? 53 : 12;
+    return group == Group::DayOfYear ? 366 : (group == Group::Week || group == Group::Heatmap) ? 53 : 12;
 }
 
 void TornadoChart::setData(const std::shared_ptr<const TornadoData::Database>& newDb, const std::vector<const T *>& tornadoes, Group newGroup, Metric newMetric, bool newCumulative, const std::vector<int>& years) {
@@ -55,7 +55,36 @@ void TornadoChart::setData(const std::shared_ptr<const TornadoData::Database>& n
     lowest.clear();
     highest.clear();
     highlight = years;
+    heat.clear();
     if (!db) {
+        update();
+        return;
+    }
+    if (group == Group::Heatmap) {
+        std::map<int, std::vector<double>> weeks;
+        for (const auto * t : tornadoes) {
+            if (!t->counts()) {
+                continue;
+            }
+            auto& v = weeks[t->year];
+            if (v.empty()) {
+                v.assign(54, 0.0);
+            }
+            v[static_cast<size_t>(std::clamp((t->dayOfYear - 1) / 7 + 1, 1, 53))] += UtilityTornado::value(*t, metric);
+        }
+        heatMax = 1.0;
+        std::vector<double> mean(54, 0.0);
+        for (int year = db->firstYear; year <= db->lastYear; year++) {
+            auto v = weeks.count(year) != 0 ? weeks[year] : std::vector<double>(54, 0.0);
+            for (size_t w = 1; w <= 53; w++) {
+                heatMax = std::max(heatMax, v[w]);
+                if (year >= averageFirst && year <= averageLast) {
+                    mean[w] += v[w] / (averageLast - averageFirst + 1);
+                }
+            }
+            heat.emplace_back(year, std::move(v));
+        }
+        heat.emplace_back(0, std::move(mean));
         update();
         return;
     }
@@ -156,6 +185,73 @@ QRectF TornadoChart::plot() const {
     return QRectF{58.0, 28.0, width() - 58.0 - 16.0, height() - 28.0 - 50.0};
 }
 
+// years down, weeks across, the colour the count that week on a log scale (so the quiet weeks show), the average of 1991-2020 as the bottom row
+void TornadoChart::paintHeatmap(QPainter& p) {
+    const QRectF area{58.0, 44.0, width() - 58.0 - 70.0, height() - 44.0 - 40.0};
+    const int rows = static_cast<int>(heat.size());   // the years and the average row
+    const double cw = area.width() / 53.0;
+    const double ch = area.height() / (rows + 0.5);
+    QFont small{p.font()};
+    small.setPixelSize(10);
+    QFont bold{small};
+    bold.setBold(true);
+    bold.setPixelSize(12);
+    // white through yellow, orange and red to dark purple as the count rises: log(1 + n) / log(1 + the largest)
+    const auto colorOf = [this] (double v) {
+        if (v <= 0.0) {
+            return QColor{238, 238, 242};
+        }
+        const double f = std::log(1.0 + v) / std::log(1.0 + heatMax);
+        static const QColor stops[] = {QColor{255, 250, 190}, QColor{255, 210, 90}, QColor{245, 140, 40}, QColor{215, 50, 40}, QColor{140, 20, 90}, QColor{60, 10, 90}};
+        const double x = std::clamp(f, 0.0, 1.0) * 5.0;
+        const int i = std::min(4, static_cast<int>(x));
+        const double t = x - i;
+        return QColor::fromRgbF(stops[i].redF() + (stops[i + 1].redF() - stops[i].redF()) * t, stops[i].greenF() + (stops[i + 1].greenF() - stops[i].greenF()) * t,
+                                stops[i].blueF() + (stops[i + 1].blueF() - stops[i].blueF()) * t);
+    };
+    p.setPen(Qt::NoPen);
+    for (int r = 0; r < rows; r++) {
+        const bool averageRow = heat[static_cast<size_t>(r)].first == 0;
+        const double y = area.top() + (averageRow ? r + 0.5 : r) * ch;
+        for (int w = 1; w <= 53; w++) {
+            p.setBrush(colorOf(heat[static_cast<size_t>(r)].second[static_cast<size_t>(w)]));
+            p.drawRect(QRectF{area.left() + (w - 1) * cw, y, cw + 0.4, ch + 0.4});
+        }
+    }
+    p.setFont(small);
+    p.setPen(QColor{70, 70, 70});
+    for (int r = 0; r < rows; r++) {
+        const int year = heat[static_cast<size_t>(r)].first;
+        const double y = area.top() + (year == 0 ? r + 0.5 : r) * ch;
+        if (year == 0) {
+            p.drawText(QRectF{4, y, area.left() - 8, ch}, Qt::AlignRight | Qt::AlignVCenter, "average");
+        } else if (year % 10 == 0) {
+            p.drawText(QRectF{4, y - 4, area.left() - 8, 12}, Qt::AlignRight | Qt::AlignVCenter, QString::number(year));
+        }
+    }
+    static const int starts[] = {1, 5, 9, 13, 18, 22, 26, 31, 35, 40, 44, 48};   // the week each month begins in
+    for (int m = 0; m < 12; m++) {
+        p.drawText(QRectF{area.left() + (starts[m] - 1) * cw, area.top() - 14, 40, 12}, Qt::AlignLeft, monthNames[m]);
+    }
+    p.setFont(bold);
+    p.setPen(QColor{30, 30, 30});
+    p.drawText(QPointF{area.left(), 16.0}, metricName(metric) + " by week of the year, every year (colour: the count that week, log scale)");
+    // the scale
+    p.setFont(small);
+    const double legendLeft = area.right() + 14;
+    for (int i = 0; i < 40; i++) {
+        const double v = std::exp(std::log(1.0 + heatMax) * (1.0 - i / 39.0)) - 1.0;
+        p.setPen(Qt::NoPen);
+        p.setBrush(colorOf(v));
+        p.drawRect(QRectF{legendLeft, area.top() + i * 4.0, 14, 4.2});
+    }
+    p.setPen(QColor{70, 70, 70});
+    p.drawText(QPointF{legendLeft + 18, area.top() + 8}, QString::number(static_cast<long>(heatMax)));
+    p.drawText(QPointF{legendLeft + 18, area.top() + 160}, "1");
+    p.setPen(QColor{90, 90, 90});
+    p.drawText(QPointF{area.left(), height() - 8.0}, "SPC tornado database. The rising counts of the 1950s to the 1990s are partly how tornadoes were found and recorded, not only the weather.");
+}
+
 void TornadoChart::paintEvent(QPaintEvent *) {
     QPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
@@ -163,6 +259,10 @@ void TornadoChart::paintEvent(QPaintEvent *) {
     if (!db) {
         p.setPen(QColor{100, 100, 100});
         p.drawText(rect(), Qt::AlignCenter, "Loading...");
+        return;
+    }
+    if (group == Group::Heatmap) {
+        paintHeatmap(p);
         return;
     }
     const auto area = plot();
@@ -344,6 +444,27 @@ void TornadoChart::mouseMoveEvent(QMouseEvent * event) {
     if (!db) {
         return;
     }
+    if (group == Group::Heatmap) {
+        if (heat.empty()) {
+            return;
+        }
+        const QRectF cells{58.0, 44.0, width() - 58.0 - 70.0, height() - 44.0 - 40.0};
+        const int rows = static_cast<int>(heat.size());
+        const double cw = cells.width() / 53.0;
+        const double ch = cells.height() / (rows + 0.5);
+        const int w = 1 + static_cast<int>((event->position().x() - cells.left()) / cw);
+        const double rowPosition = (event->position().y() - cells.top()) / ch;
+        const int r = static_cast<int>(rowPosition >= rows - 0.5 ? rowPosition - 0.5 : rowPosition);
+        if (w < 1 || w > 53 || r < 0 || r >= rows) {
+            QToolTip::hideText();
+            return;
+        }
+        const auto& row = heat[static_cast<size_t>(r)];
+        const int firstDay = (w - 1) * 7 + 1;
+        QToolTip::showText(event->globalPosition().toPoint(), (row.first == 0 ? QString{"average 1991-2020"} : QString::number(row.first)) + ", the week of " + dateOfDay(std::min(firstDay, 365)) + ": " +
+            QString::number(row.second[static_cast<size_t>(w)], 'f', row.first == 0 ? 1 : 0), this);
+        return;
+    }
     const auto area = plot();
     const double fraction = (event->position().x() - area.left()) / area.width();
     if (fraction < 0.0 || fraction > 1.0) {
@@ -374,7 +495,7 @@ void TornadoChart::mouseMoveEvent(QMouseEvent * event) {
 TornadoStatsViewer::TornadoStatsViewer(Window * parent, const std::shared_ptr<const TornadoData::Database>& database)
     : Window{parent}
     , comboMetric{this, {"Tornadoes", "Deaths", "Injuries"}}
-    , comboGroup{this, {"By day of the year", "By week of the year", "By month", "By year", "By decade"}}
+    , comboGroup{this, {"By day of the year", "By week of the year", "By month", "By year", "By decade", "Heatmap (every year by week)"}}
     , comboMode{this, {"Running total through the year", "Amount in each day / week / month"}}
     , comboRating{this, {"All tornadoes", "EF1 or stronger", "EF2 or stronger", "EF3 or stronger", "EF4 or stronger", "EF5 only"}}
     , comboState{this, {"All states"}}
@@ -542,9 +663,9 @@ void TornadoStatsViewer::apply() {
         }
     }
     const auto group = static_cast<UtilityTornado::Group>(comboGroup.getIndex());
-    const bool yearly = group == UtilityTornado::Group::Year || group == UtilityTornado::Group::Decade;
+    const bool yearly = group == UtilityTornado::Group::Year || group == UtilityTornado::Group::Decade || group == UtilityTornado::Group::Heatmap;
     comboMode.setVisible(!yearly);
-    list->setEnabled(!yearly || group == UtilityTornado::Group::Year);
+    list->setEnabled(group != UtilityTornado::Group::Decade && group != UtilityTornado::Group::Heatmap);
     chart->setData(db, filtered, group, static_cast<UtilityTornado::Metric>(comboMetric.getIndex()), comboMode.getIndex() == 0, years);
     textSummary.setText(standing(filtered).toStdString() + (state.empty() ? std::string{} : "   (" + state + ")"));
 }

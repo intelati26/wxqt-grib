@@ -36,6 +36,7 @@ private:
     void paintEvent(QPaintEvent *) override;
     void mouseMoveEvent(QMouseEvent *) override;
     int buckets() const;                 // 366, 53, 12 for day / week / month
+    void paintHeatmap(QPainter&);
     QRectF plot() const;
     struct Series {
         int year{0};
@@ -54,6 +55,8 @@ private:
     std::vector<std::pair<int, double>> bars;   // year or decade, value
     double barAverage{0.0};
     std::vector<int> highlight;
+    std::vector<std::pair<int, std::vector<double>>> heat;   // the heatmap: each year's weeks (index 1 .. 53), oldest first, then the average of 1991-2020 under year 0
+    double heatMax{1.0};
 };
 
 class TornadoStatsViewer : public Window {
