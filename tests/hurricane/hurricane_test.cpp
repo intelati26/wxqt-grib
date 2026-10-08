@@ -86,7 +86,7 @@ static void atcf() {
     CHECK(UtilityAtcf::categoryOf(113) == 5 && UtilityAtcf::categoryOf(137) == 6);
     CHECK(near(UtilityAtcf::hoursBetween("2026100700", "2026100806"), 30.0));
     CHECK(near(UtilityAtcf::hoursBetween("2026123118", "2027010100"), 6.0));
-    CHECK(UtilityAtcf::formatTime("2026100718") == "Oct 07 18Z");
+    CHECK(UtilityAtcf::formatTime("2026100718") == "2026-10-07 18Z");
     CHECK(UtilityAtcf::shortCategory(30) == "TD" && UtilityAtcf::shortCategory(34) == "TS" && UtilityAtcf::shortCategory(64) == "Cat 1" && UtilityAtcf::shortCategory(83) == "Cat 2");
     CHECK(UtilityAtcf::shortCategory(96) == "Cat 3" && UtilityAtcf::shortCategory(113) == "Cat 4" && UtilityAtcf::shortCategory(137) == "Cat 5" && UtilityAtcf::shortCategory(180) == "Cat 5");
     CHECK(UtilityAtcf::windLabel(85) == "85 kt (Cat 2)" && UtilityAtcf::windLabel(35) == "35 kt (TS)" && UtilityAtcf::windLabel(-1) == "-");
@@ -116,7 +116,7 @@ static void hdob() {
     CHECK(near(a.temperature, 19.2) && near(a.dewPoint, 13.4));
     CHECK(near(a.windDirection, 133) && near(a.windSpeed, 83) && near(a.peakWind, 89) && near(a.sfmrWind, 80));
     CHECK(!UtilityHdob::has(a.rainRate));   // 999 = missing
-    CHECK(UtilityHdob::timeText(a.seconds) == "28 Sep 14:20Z");
+    CHECK(UtilityHdob::timeText(a.seconds) == "2005-09-28 14:20Z");
 
     // a high-altitude survey flight: 148.7 mb (not 1148.7), XXXX is the D-value, missing fields are slashes
     const std::string jet =

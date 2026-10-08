@@ -27,7 +27,7 @@ namespace {
     const int loopCounts[] = {6, 12, 24};
 
     string timeText(const QDateTime& utc) {
-        return utc.toString("ddd MMM d hh:mm").toStdString() + "Z  (" +
+        return utc.toString("ddd yyyy-MM-dd HH:mm").toStdString() + "Z  (" +
             utc.toLocalTime().toString("h:mm AP").toStdString() + " " +
             QTimeZone::systemTimeZone().abbreviation(utc.toLocalTime()).toStdString() + ")";
     }

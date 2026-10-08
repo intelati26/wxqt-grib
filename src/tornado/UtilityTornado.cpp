@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "tornado/UtilityTornado.h"
+#include "util/UtilityDate.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -29,9 +30,7 @@ namespace {
 }
 
 std::string UtilityTornado::isoDate(int year, int month, int day) {
-    char text[16];
-    std::snprintf(text, sizeof text, "%04d-%02d-%02d", year, month, day);
-    return text;
+    return UtilityDate::iso(year, month, day);
 }
 
 int UtilityTornado::dayOfYear(int year, int month, int day) {

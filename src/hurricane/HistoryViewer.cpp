@@ -27,10 +27,8 @@ namespace {
         if (t.points.empty()) {
             return {};
         }
-        static const char * names[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-        const auto one = [] (const string& time) {
-            const int month = std::atoi(time.substr(4, 2).c_str());
-            return QString{names[std::clamp(month, 1, 12) - 1]} + " " + QString::number(std::atoi(time.substr(6, 2).c_str()));
+        const auto one = [] (const string& time) {   // yyyymmddhh -> 2005-08-23
+            return QString::fromStdString(time.substr(0, 4) + "-" + time.substr(4, 2) + "-" + time.substr(6, 2));
         };
         return one(t.points.front().time) + " - " + one(t.points.back().time);
     }

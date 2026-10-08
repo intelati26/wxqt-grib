@@ -977,15 +977,12 @@ private:
         font.setBold(false);
         font.setPixelSize(11);
         painter.setFont(font);
-        const auto monthName = [] (int month) {
-            static const char * names[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-            return QString{names[std::clamp(month - 1, 0, 11)]};
-        };
-        const auto describe = [&] (const QString& id) {   // "yymmddhh.SITE" -> "dd Mon yy HHZ (SITE)"
+        const auto describe = [&] (const QString& id) {   // "yymmddhh.SITE" -> "yyyy-mm-dd HHZ (SITE)" (the analogues run from 1950: 50 to 99 are 19xx)
             const auto parts = id.split('.');
             if (parts.size() != 2 || parts[0].size() != 8) return id;
             const auto d = parts[0];
-            return QString{"%1 %2 %3 %4Z (%5)"}.arg(d.mid(4, 2), monthName(d.mid(2, 2).toInt()), d.left(2), d.mid(6, 2), parts[1]);
+            const int yy = d.left(2).toInt();
+            return QString{"%1-%2-%3 %4Z (%5)"}.arg(yy >= 50 ? 1900 + yy : 2000 + yy).arg(d.mid(2, 2), d.mid(4, 2), d.mid(6, 2), parts[1]);
         };
         const auto drawSide = [&] (double x0, const QString& heading, const SoundingSars::Result& result, bool tornado) {
             painter.setPen(themed(QColor{235, 235, 235}));

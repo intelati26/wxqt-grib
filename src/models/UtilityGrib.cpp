@@ -419,7 +419,7 @@ vector<std::pair<string, string>> UtilityGrib::runOptions() {
         const auto probe = UtilityIO::getHtml(
             baseDir + "/rrfs." + date + "/" + hour + "/rrfs.t" + hour + "z.2dfld.3km.subh.f001.conus.grib2.idx");
         if (WString::contains(probe, ":REFC:")) {
-            options.emplace_back(runTime.toString("MMM d ").toStdString() + hour + "z", date + hour);
+            options.emplace_back(runTime.toString("yyyy-MM-dd ").toStdString() + hour + "z", date + hour);
             found += 1;
         }
     }

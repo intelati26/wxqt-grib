@@ -1226,7 +1226,7 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
         }
     }
     p.drawText(QPointF{static_cast<double>(margin), 43.0}, fillTitle + (lines.isEmpty() ? "" : ";  lines: " + lines.join(", ")) + (product.barbU.empty() ? "" : ";  barbs: kt"));
-    const QString times = "Run " + initUtc.toString("ddd dd MMM yyyy HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd dd MMM HH") + "Z";
+    const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
     p.drawText(QRectF{0, 8, image.width() - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 
     // legend: even steps in value, or (legendStep 0) one equal-width block per ramp stop

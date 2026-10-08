@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "hurricane/AceViewer.h"
+#include "util/UtilityDate.h"
 #include <algorithm>
 #include <cmath>
 #include <QListWidgetItem>
@@ -16,15 +17,8 @@ namespace {
     constexpr int firstDay = 121;   // 1 May
     constexpr int lastDayShown = 365;
 
-    QString dateOf(int day) {   // day of a non-leap year -> "8 Oct"
-        static const int before[] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
-        static const char * names[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-        for (int m = 0; m < 12; m++) {
-            if (day <= before[m + 1]) {
-                return QString::number(day - before[m]) + " " + names[m];
-            }
-        }
-        return "31 Dec";
+    QString dateOf(int day) {   // day of a non-leap year -> "10-08" (a day of any year: no year)
+        return QString::fromStdString(UtilityDate::dayOfYear(day));
     }
 
     int daysOfNewest(const std::vector<UtilitySeason::Storm>& storms) {

@@ -25,7 +25,7 @@ namespace {
     }
 
     string timeText(long long time) {
-        return QDateTime::fromSecsSinceEpoch(time, Qt::UTC).toString("MMM d HH:mm'Z'").toStdString();
+        return QDateTime::fromSecsSinceEpoch(time, Qt::UTC).toString("yyyy-MM-dd HH:mm'Z'").toStdString();
     }
 
     // the change in the last `hours` hours, from the readings at the end of the series

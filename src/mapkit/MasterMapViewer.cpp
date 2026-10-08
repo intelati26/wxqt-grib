@@ -464,7 +464,7 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
     painter.setFont(small);
     painter.setPen(QColor{100, 100, 100});
     painter.drawText(QRect{pad, mapBottom, width - 2 * pad, footerHeight}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap,
-        (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("d MMM yyyy HH:mm") + " UTC  -  wxqt");
+        (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  wxqt");
 }
 
 void MasterMapViewer::exportView() {

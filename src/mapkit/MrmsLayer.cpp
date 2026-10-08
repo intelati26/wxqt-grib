@@ -56,7 +56,7 @@ vector<long> MrmsLayer::times() const {
 }
 
 string MrmsLayer::timeText() const {
-    return have ? frame.utc.toString("ddd d MMM HH:mm").toStdString() + "Z  MRMS" : string{};
+    return have ? frame.utc.toString("ddd yyyy-MM-dd HH:mm").toStdString() + "Z  MRMS" : string{};
 }
 
 void MrmsLayer::showTime(long seconds, MapHost& host) {

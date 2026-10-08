@@ -301,13 +301,11 @@ double UtilityAtcf::hoursBetween(const string& a, const string& b) {
     return hours(b) - hours(a);
 }
 
-string UtilityAtcf::formatTime(const string& t) {
-    static const char * months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+string UtilityAtcf::formatTime(const string& t) {   // yyyymmddhh -> "2026-10-07 18Z"
     if (t.size() != 10) {
         return t;
     }
-    const int month = std::stoi(t.substr(4, 2));
-    return string{months[std::clamp(month, 1, 12) - 1]} + " " + t.substr(6, 2) + " " + t.substr(8, 2) + "Z";
+    return t.substr(0, 4) + "-" + t.substr(4, 2) + "-" + t.substr(6, 2) + " " + t.substr(8, 2) + "Z";
 }
 
 double UtilityAtcf::coneRadiusNm(int hour, bool pacific) {

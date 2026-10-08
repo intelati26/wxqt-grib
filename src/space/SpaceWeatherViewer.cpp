@@ -43,7 +43,7 @@ namespace {
 
     QString dayName(const std::string& date) {
         const auto d = QDate::fromString(QString::fromStdString(date), Qt::ISODate);
-        return d.isValid() ? QLocale{QLocale::English}.toString(d, "ddd d MMM") : QString::fromStdString(date);
+        return d.isValid() ? QLocale{QLocale::English}.toString(d, "ddd yyyy-MM-dd") : QString::fromStdString(date);
     }
 
     long nowSeconds() {

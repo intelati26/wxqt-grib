@@ -42,7 +42,7 @@ int main(int argc, char ** argv) {
     CHECK(!stations.at("13001").met && stations.at("15009").type == "other" && stations.at("15009").name.empty());
     CHECK(UtilityBuoys::parseStations("<station id=\"A&amp;B\" lat=\"1\" lon=\"2\" name=\"Cape &quot;X&quot;\" owner=\"o\" type=\"buoy\" met=\"y\"/>").at("A&amp;B").name == "Cape \"X\"");
     CHECK(near(UtilityBuoys::knots(10.0), 19.43844, 1e-4) && near(UtilityBuoys::feet(2.0), 6.56168, 1e-4) && near(UtilityBuoys::fahrenheit(20.0), 68.0) && !UtilityBuoys::has(UtilityBuoys::knots(UtilityBuoys::missing)));
-    CHECK(UtilityBuoys::timeText(1791367200L) == "07 Oct 10:00Z");
+    CHECK(UtilityBuoys::timeText(1791367200L) == "2026-10-07 10:00Z");
     if (failures == 0) {
         std::cout << "all buoy parser tests passed\n";
     }

@@ -96,7 +96,7 @@ namespace {
 
     QString updatedText(const string& iso) {   // 2026-10-08T12:00:00.000Z -> Oct 08 12:00Z
         const auto when = QDateTime::fromString(QString::fromStdString(iso), Qt::ISODate);
-        return when.isValid() ? QLocale{QLocale::English}.toString(when.toUTC(), "MMM dd HH:mm") + "Z" : QString::fromStdString(iso);
+        return when.isValid() ? QLocale{QLocale::English}.toString(when.toUTC(), "yyyy-MM-dd HH:mm") + "Z" : QString::fromStdString(iso);
     }
 
     QString compass(int degrees) {

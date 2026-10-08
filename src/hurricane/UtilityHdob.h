@@ -44,7 +44,7 @@ public:
     };
     static vector<Message> parse(const string& text);
     static bool has(double value) { return value > missing + 1.0; }
-    static string timeText(long seconds);   // "07 Oct 01:22Z"
+    static string timeText(long seconds);   // "2026-10-07 01:22Z"
 };
 
 #endif  // UTILITYHDOB_H

@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "buoys/UtilityBuoys.h"
+#include "util/UtilityDate.h"
 #include <cstdio>
 #include <cstdlib>
 #include <regex>
@@ -135,18 +136,5 @@ std::map<string, UtilityBuoys::Station> UtilityBuoys::parseStations(const string
 }
 
 string UtilityBuoys::timeText(long seconds) {
-    static const char * months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    long days = seconds / 86400L;
-    const long rest = seconds % 86400L;
-    days += 719468;
-    const long era = (days >= 0 ? days : days - 146096) / 146097;
-    const long doe = days - era * 146097;
-    const long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    const long doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    const long mp = (5 * doy + 2) / 153;
-    const int day = static_cast<int>(doy - (153 * mp + 2) / 5 + 1);
-    const int month = static_cast<int>(mp < 10 ? mp + 3 : mp - 9);
-    char buffer[40];
-    std::snprintf(buffer, sizeof buffer, "%02d %s %02ld:%02ldZ", day, months[month - 1], rest / 3600, rest % 3600 / 60);
-    return buffer;
+    return UtilityDate::isoMinute(seconds);   // "2026-10-07 01:22Z"
 }

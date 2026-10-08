@@ -51,7 +51,7 @@ namespace {
         return QDateTime::fromSecsSinceEpoch(seconds, QTimeZone::utc()).toString("HH:mm") + "Z";
     }
     QString dayClock(long seconds) {
-        return QDateTime::fromSecsSinceEpoch(seconds, QTimeZone::utc()).toString("dd MMM HH:mm") + "Z";
+        return QDateTime::fromSecsSinceEpoch(seconds, QTimeZone::utc()).toString("yyyy-MM-dd HH:mm") + "Z";
     }
     std::string upper(std::string s) {
         std::transform(s.begin(), s.end(), s.begin(), [] (unsigned char c) { return static_cast<char>(std::toupper(c)); });

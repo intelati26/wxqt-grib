@@ -831,7 +831,7 @@ void HurricaneViewer::updateLimitLabels() {
     std::vector<string> labels;
     for (const int hour : hours) {
         const auto when = start.addSecs(hour * 3600LL);
-        labels.push_back(string{hour == 24 ? "Forecasts out to " : ""} + std::to_string(hour) + " h  (" + QLocale{QLocale::English}.toString(when, "ddd d MMM HH").toStdString() + "Z)" + (hour == 120 ? " - the cone" : ""));
+        labels.push_back(string{hour == 24 ? "Forecasts out to " : ""} + std::to_string(hour) + " h  (" + QLocale{QLocale::English}.toString(when, "ddd yyyy-MM-dd HH").toStdString() + "Z)" + (hour == 120 ? " - the cone" : ""));
     }
     labels.push_back("All of each forecast");
     const auto keep = comboLimit.getIndex();

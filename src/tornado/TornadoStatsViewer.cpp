@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "tornado/TornadoStatsViewer.h"
+#include "util/UtilityDate.h"
 #include <algorithm>
 #include <cmath>
 #include <set>
@@ -22,14 +23,8 @@ namespace {
 
     const char * monthNames[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
-    QString dateOfDay(int day) {   // day of a non-leap year
-        static const int before[] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
-        for (int m = 0; m < 12; m++) {
-            if (day <= before[m + 1]) {
-                return QString::number(day - before[m]) + " " + monthNames[m];
-            }
-        }
-        return "31 Dec";
+    QString dateOfDay(int day) {   // day of a non-leap year -> "10-08" (a day of any year: no year)
+        return QString::fromStdString(UtilityDate::dayOfYear(day));
     }
 }
 

@@ -27,7 +27,7 @@ namespace {
     }
 
     QString timeText(long long time, bool withHour) {
-        return QDateTime::fromSecsSinceEpoch(time, Qt::UTC).toString(withHour ? "MMM d HH:mm'Z'" : "MMM d");
+        return QDateTime::fromSecsSinceEpoch(time, Qt::UTC).toString(withHour ? "yyyy-MM-dd HH:mm'Z'" : "MM-dd");
     }
 }
 
