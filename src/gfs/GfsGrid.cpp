@@ -112,6 +112,62 @@ float Grid::sample(double lon, double lat) const {
     return static_cast<float>((a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty);
 }
 
+float Grid::sampleCubic(double lon, double lat) const {
+    if (empty()) {
+        return nan;
+    }
+    const double fy = (lat0 - lat) / step;
+    if (fy < 0.0 || fy > rows - 1) {
+        return nan;
+    }
+    const double fx = (wrap(lon, lon0) - lon0) / step;
+    const int x1 = static_cast<int>(std::floor(fx));
+    const int y1 = static_cast<int>(std::floor(fy));
+    const double tx = fx - x1, ty = fy - y1;
+    const auto weights = [] (double t, double w[4]) {
+        w[0] = 0.5 * (-t * t * t + 2 * t * t - t);
+        w[1] = 0.5 * (3 * t * t * t - 5 * t * t + 2);
+        w[2] = 0.5 * (-3 * t * t * t + 4 * t * t + t);
+        w[3] = 0.5 * (t * t * t - t * t);
+    };
+    double wx[4], wy[4];
+    weights(tx, wx);
+    weights(ty, wy);
+    double sum = 0.0;
+    for (int j = 0; j < 4; j++) {
+        const int row = std::clamp(y1 - 1 + j, 0, rows - 1);
+        double line = 0.0;
+        for (int i = 0; i < 4; i++) {
+            int col = x1 - 1 + i;
+            if (global()) {
+                col = ((col % columns) + columns) % columns;
+            } else {
+                col = std::clamp(col, 0, columns - 1);
+            }
+            const float value = at(col, row);
+            if (std::isnan(value)) {
+                return nan;
+            }
+            line += wx[i] * value;
+        }
+        sum += wy[j] * line;
+    }
+    return static_cast<float>(sum);
+}
+
+Grid anomaly(const Grid& model, const Grid& reference) {
+    Grid out = model;
+    for (int row = 0; row < model.rows; row++) {
+        const double lat = model.lat0 - row * model.step;
+        for (int col = 0; col < model.columns; col++) {
+            const size_t i = static_cast<size_t>(row) * static_cast<size_t>(model.columns) + static_cast<size_t>(col);
+            const float ref = reference.sampleCubic(model.lon0 + col * model.step, lat);
+            out.values[i] = std::isnan(ref) ? nan : model.values[i] - ref;
+        }
+    }
+    return out;
+}
+
 Grid speed(const Grid& u, const Grid& v) {
     Grid out = u;
     for (size_t i = 0; i < out.values.size(); i++) {

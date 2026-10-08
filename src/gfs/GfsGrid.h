@@ -38,6 +38,8 @@ namespace GfsGrid {
         float at(int column, int row) const { return values[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)]; }
         // bilinear; NaN outside the grid (north or south of its rows, or off the edge of a regional grid)
         float sample(double lon, double lat) const;
+        // Catmull-Rom (bicubic) through the cell centers: smooth where bilinear shows its facets, for a coarse grid spread over a fine one. Rows past the first or last repeat them.
+        float sampleCubic(double lon, double lat) const;
     };
 
     // speed = sqrt(u^2 + v^2); the same grid for both inputs is required
@@ -46,6 +48,8 @@ namespace GfsGrid {
     Grid vorticity(const Grid& u, const Grid& v);
     // horizontal divergence du/dx + dv/dy on the sphere, in 1/s (the poles' rows are left NaN)
     Grid divergence(const Grid& u, const Grid& v);
+    // model minus a coarser reference field (a climatology), the reference taken smoothly at each model cell; NaN where either is missing
+    Grid anomaly(const Grid& model, const Grid& reference);
     // a - b
     Grid difference(const Grid& a, const Grid& b);
     // out = in * scale + offset

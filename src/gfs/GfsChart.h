@@ -14,6 +14,7 @@
 #include <QColor>
 #include <QImage>
 #include <QString>
+#include "gfs/GfsClimate.h"
 #include "gfs/GfsData.h"
 #include "gfs/GfsGrid.h"
 
@@ -37,6 +38,12 @@ namespace GfsChart {
     // What the fill's numbers are, for showing them in the user's units (the grids are in degrees C, millimeters, centimeters and so on)
     enum class Quantity { Other, Temperature, Millimeters, Centimeters };
 
+    // what a product's own derivations may need: the hour, the run (for the valid date) and the climatology
+    struct Context {
+        int hour;
+        GfsData::Run run;
+        const GfsClimate * climate;
+    };
     // One family of contour lines
     struct ContourSet {
         std::string key;                // the grid
@@ -58,7 +65,7 @@ namespace GfsChart {
         // the records to fetch, by forecast hour (default: wants, at the hour shown)
         std::vector<GfsData::Want> wants;
         std::function<std::vector<GfsData::Need>(int hour)> needs;
-        std::function<void(Grids&, int hour)> derive;   // adds grids made from the fetched ones
+        std::function<void(Grids&, const Context&)> derive;   // adds grids made from the fetched ones
         std::function<GfsGrid::Grid(const Grids&)> fill;
         Ramp ramp;                              // in the grids' own units
         std::string fillTitle;                  // "Wind speed (kt)"
@@ -76,6 +83,7 @@ namespace GfsChart {
 
     struct Options {
         int width{1100};
+        const GfsClimate * climate{nullptr};   // for the anomaly charts
         bool fahrenheit{true};                 // the user's US units: degrees F, inches
         std::vector<std::vector<std::pair<float, float>>> lines;   // coastlines and borders as (longitude, latitude)
     };

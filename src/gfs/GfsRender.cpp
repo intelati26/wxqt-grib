@@ -15,6 +15,7 @@
 #include <QStandardPaths>
 #include "common/GlobalVariables.h"
 #include "gfs/GfsChart.h"
+#include "gfs/GfsClimate.h"
 #include "gfs/GfsData.h"
 #include "hurricane/Coast.h"
 #include "models/UtilityGrib.h"
@@ -134,11 +135,13 @@ QByteArray GfsRender::png(Session& session, const std::string& param, const std:
         return {};
     }
     GfsChart::Options options;
+    static const GfsClimate climate{UtilityGrib::gdalBinDir()};
+    options.climate = &climate;
     options.fahrenheit = UIPreferences::unitsF;
     options.lines = borders();
     const auto image = GfsChart::render(*product, *sector, grids, run, hour, options);
     if (image.isNull()) {
-        error = "the GFS chart could not be drawn";
+        error = product->derive ? "the chart could not be drawn (an anomaly chart needs a connection the first time, to get the climatology)" : "the GFS chart could not be drawn";
         return {};
     }
     QByteArray bytes;

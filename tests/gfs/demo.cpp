@@ -5,6 +5,7 @@
 #include <QGuiApplication>
 #include <QProcess>
 #include "gfs/GfsChart.h"
+#include "gfs/GfsClimate.h"
 
 int main(int argc, char ** argv) {
     qputenv("QT_QPA_PLATFORM", "offscreen");
@@ -44,7 +45,9 @@ int main(int argc, char ** argv) {
         std::printf("load failed: %s\n", error.c_str());
         return 1;
     }
+    GfsClimate climate{"/usr/bin"};
     GfsChart::Options options;
+    options.climate = &climate;
     QFile coast{"/home/mitch/Claude/wxqt-grib/resourceCreation/res/nhc_basins.bin"};
     if (coast.open(QIODevice::ReadOnly)) {
         const auto bytes = coast.readAll();

@@ -255,7 +255,10 @@ const vector<string> UtilityModelNcepInterface::paramsGfs{
     "200_div_wnd",
     "200_stream_div",
     "850_stream_vort",
-    "850_thetae_ht"
+    "850_thetae_ht",
+    "500_hgt_anom",
+    "700_hgt_anom",
+    "mslp_anom"
 };
 
 const vector<string> UtilityModelNcepInterface::labelsGfs{
@@ -294,7 +297,10 @@ const vector<string> UtilityModelNcepInterface::labelsGfs{
     "200mb Divergence, Wind and Height",
     "200mb Divergence and Streamlines",
     "850mb Vorticity and Streamlines",
-    "850mb Equivalent Potential Temperature, Wind and Height"
+    "850mb Equivalent Potential Temperature, Wind and Height",
+    "500mb Height and Anomaly",
+    "700mb Height and Anomaly",
+    "MSLP and Anomaly"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNam{

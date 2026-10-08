@@ -13,6 +13,7 @@
 #include <QPolygonF>
 #include <QStringList>
 #include <tuple>
+#include "gfs/GfsClimate.h"
 #include "ui/WindBarb.h"
 
 namespace GfsChart {
@@ -92,6 +93,15 @@ namespace {
     }
     Ramp thetaERamp() {   // kelvin
         return {{{260, QColor{"#4b2d7f"}}, {280, QColor{"#3f74b8"}}, {295, QColor{"#9ad6e6"}}, {305, QColor{"#dcefb4"}}, {315, QColor{"#f3f0a4"}}, {325, QColor{"#f8d97e"}}, {335, QColor{"#f5ac5c"}}, {345, QColor{"#e57741"}}, {355, QColor{"#c5432e"}}, {370, QColor{"#5c1024"}}}};
+    }
+
+    Ramp heightAnomaly() {   // decameters: below normal in blues, above in warm colors, within 1.5 clear
+        return {{{-30, QColor{"#2b4a9a"}}, {-20, QColor{"#3f74b8"}}, {-10, QColor{"#86b4dc"}}, {-4, QColor{"#d3e5f2"}}, {-1.5, QColor{211, 229, 242, 0}}, {1.5, QColor{246, 224, 184, 0}},
+                 {4, QColor{"#f6e0b8"}}, {10, QColor{"#f0b070"}}, {20, QColor{"#d9633a"}}, {30, QColor{"#a02a2a"}}}};
+    }
+    Ramp pressureAnomaly() {   // millibars
+        return {{{-30, QColor{"#2b4a9a"}}, {-16, QColor{"#3f74b8"}}, {-8, QColor{"#86b4dc"}}, {-3, QColor{"#d3e5f2"}}, {-1, QColor{211, 229, 242, 0}}, {1, QColor{246, 224, 184, 0}},
+                 {3, QColor{"#f6e0b8"}}, {8, QColor{"#f0b070"}}, {16, QColor{"#d9633a"}}, {30, QColor{"#a02a2a"}}}};
     }
 
     // equivalent potential temperature (Bolton 1980) in K from temperature in C, relative humidity in percent and the pressure in hPa
@@ -331,7 +341,7 @@ const std::vector<Product>& products() {
             x.id = "shear_850_200";
             x.label = "850-200mb Deep-Layer Wind Shear";
             x.wants = {want("u8", "UGRD", "850 mb"), want("v8", "VGRD", "850 mb"), want("u2", "UGRD", "200 mb"), want("v2", "VGRD", "200 mb"), want("p", "PRMSL", "mean sea level")};
-            x.derive = [] (Grids& g, int) {
+            x.derive = [] (Grids& g, const Context&) {
                 g["su"] = GfsGrid::difference(g["u2"], g["u8"]);
                 g["sv"] = GfsGrid::difference(g["v2"], g["v8"]);
             };
@@ -389,7 +399,7 @@ const std::vector<Product>& products() {
                 x.wants.push_back({"v" + std::to_string(i), "VGRD", levels[i], ""});
             }
             x.wants.push_back(want("p", "PRMSL", "mean sea level"));
-            x.derive = [] (Grids& g, int) {
+            x.derive = [] (Grids& g, const Context&) {
                 // pressure-weighted (trapezoid in pressure) mean of the five levels
                 const double pressures[] = {850, 700, 500, 300, 200};
                 double weights[5];
@@ -437,6 +447,69 @@ const std::vector<Product>& products() {
             x.legendStep = 10;
             p.push_back(x);
         }
+        // anomalies: the forecast less the 1991-2020 daily mean for the valid day (GfsClimate), where the heights of the level are real
+        const auto validDay = [] (const Context& context) {
+            auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
+            t.setTimeSpec(Qt::UTC);
+            t = t.addSecs(context.hour * 3600);
+            return GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
+        };
+        for (const auto& [id, label, level, interval] : {std::tuple{"500_hgt_anom", "500mb Height and Anomaly", 500, 6.0}, {"700_hgt_anom", "700mb Height and Anomaly", 700, 3.0}}) {
+            Product x;
+            x.id = id;
+            x.label = label;
+            const std::string levelText = std::to_string(level) + " mb";
+            x.wants = {want("z", "HGT", levelText.c_str()), want("u", "UGRD", levelText.c_str()), want("v", "VGRD", levelText.c_str())};
+            if (level == 700) {
+                x.wants.push_back(want("ps", "PRES", "surface"));   // where the surface is higher than 700 mb the level is underground
+            }
+            x.derive = [validDay, level] (Grids& g, const Context& context) {
+                GfsGrid::Grid normal;
+                std::string error;
+                if (!context.climate || !context.climate->at(GfsClimate::height(level), validDay(context), normal, error)) {
+                    return;
+                }
+                auto anom = GfsGrid::scaled(GfsGrid::anomaly(g["z"], normal), 0.1);   // meters -> decameters
+                if (g.find("ps") != g.end()) {
+                    for (size_t i = 0; i < anom.values.size(); i++) {
+                        if (g["ps"].values[i] < 70000.0f) {
+                            anom.values[i] = std::nanf("");
+                        }
+                    }
+                }
+                g["anom"] = std::move(anom);
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "anom"); };
+            x.ramp = heightAnomaly();
+            x.fillTitle = "Height anomaly from the 1991-2020 mean (dam)";
+            x.legendStep = 5;
+            x.contours = {heights(interval)};
+            x.barbU = "u";
+            x.barbV = "v";
+            p.push_back(x);
+        }
+        {
+            Product x;
+            x.id = "mslp_anom";
+            x.label = "MSLP and Anomaly";
+            x.wants = {want("p", "PRMSL", "mean sea level"), want("u", "UGRD", "10 m above ground"), want("v", "VGRD", "10 m above ground")};
+            x.derive = [validDay] (Grids& g, const Context& context) {
+                GfsGrid::Grid normal;
+                std::string error;
+                if (!context.climate || !context.climate->at(GfsClimate::seaLevelPressure(), validDay(context), normal, error)) {
+                    return;
+                }
+                g["anom"] = GfsGrid::scaled(GfsGrid::anomaly(g["p"], normal), 0.01);   // Pa -> mb
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "anom"); };
+            x.ramp = pressureAnomaly();
+            x.fillTitle = "Pressure anomaly from the 1991-2020 mean (mb)";
+            x.legendStep = 5;
+            x.contours = {pressure()};
+            x.barbU = "u";
+            x.barbV = "v";
+            p.push_back(x);
+        }
         // precipitation: the running total from the start of the run is in every file, so a period is the total at its end less the total at its start
         const auto lastHourOk = [] (int h) { return h <= 120 || (h <= 240 && h % 3 == 0) || h % 6 == 0; };
         const auto startOf = [lastHourOk] (int hour, int period) {
@@ -455,7 +528,7 @@ const std::vector<Product>& products() {
             }
             return needs;
         };
-        const auto totalDerive = [] (Grids& g, int) {
+        const auto totalDerive = [] (Grids& g, const Context&) {
             auto precip = g["a1"];
             if (g.find("a0") != g.end()) {
                 precip = GfsGrid::difference(precip, g["a0"]);
@@ -505,7 +578,7 @@ const std::vector<Product>& products() {
             x.needs = [] (int hour) {
                 return std::vector<GfsData::Need>{{hour, {"s1", "SNOD", "surface", ""}}, {0, {"s0", "SNOD", "surface", "anl"}}};
             };
-            x.derive = [] (Grids& g, int) { g["snow"] = GfsGrid::scaled(GfsGrid::difference(g["s1"], g["s0"]), 100.0); };   // meters -> centimeters
+            x.derive = [] (Grids& g, const Context&) { g["snow"] = GfsGrid::scaled(GfsGrid::difference(g["s1"], g["s0"]), 100.0); };   // meters -> centimeters
             x.fill = [] (const Grids& g) { return pick(g, "snow"); };
             x.ramp = snowChange();
             x.fillTitle = "Snow depth change";
@@ -525,8 +598,8 @@ const std::vector<Product>& products() {
                 needs.push_back({hour, {"zh", "HGT", high, ""}});
                 return needs;
             };
-            x.derive = [totalDerive] (Grids& g, int hour) {
-                totalDerive(g, hour);
+            x.derive = [totalDerive] (Grids& g, const Context& context) {
+                totalDerive(g, context);
                 g["thick"] = GfsGrid::difference(g["zh"], g["zl"]);
             };
             x.fill = precipFill;
@@ -643,7 +716,7 @@ namespace {
 QImage render(const Product& product, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
     Grids grids = fetched;
     if (product.derive) {
-        product.derive(grids, forecastHour);
+        product.derive(grids, Context{forecastHour, run, options.climate});
     }
     const auto fill = product.fill(grids);
     if (fill.empty()) {
