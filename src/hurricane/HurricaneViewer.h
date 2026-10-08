@@ -98,6 +98,7 @@ private:
     QCheckBox * fixCheck{};                                   // the recon centre fixes (vortex messages)
     QCheckBox * autoCheck{};                                  // refresh every 10 minutes and alert on a new advisory
     QCheckBox * outlookCheck{};                               // the Tropical Weather Outlook areas
+    QCheckBox * dropLabelCheck{};                             // the lowest pressure and strongest wind written beside each dropsonde
     QCheckBox * dropCheck{};                                  // dropsonde markers (click: the sounding)
     QCheckBox * podCheck{};                                   // the planned recon flights                                 // the wind radii now
     QCheckBox * ensembleChecks[3]{};                          // AIFS ENS members, IFS ENS members, the unperturbed runs

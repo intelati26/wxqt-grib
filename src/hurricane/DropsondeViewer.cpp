@@ -83,13 +83,15 @@ DropsondeChart::DropsondeChart(const UtilityDropsonde::Drop& d, QWidget * parent
     , drop{d}
 {
     setMinimumSize(1100, 700);
-    ChartExport::install(this, "Dropsonde");
+    ChartExport::install(this, "Dropsonde (NHC reconnaissance)");
 }
 
 void DropsondeChart::paintEvent(QPaintEvent *) {
     QPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), Qt::white);
+    // a saved or copied picture carries the plots only: the tables and the lines of words are for the screen
+    const bool exportMode = ChartExport::exporting();
     const double w = width();
     const double h = height();
     QFont base{p.font()};
@@ -224,8 +226,8 @@ void DropsondeChart::paintEvent(QPaintEvent *) {
     }
 
     // ---- the hodograph ----
-    const double hodoSize = std::min(w * 0.27, h * 0.40);
-    const QRectF hodo{w * 0.545, 60, hodoSize, hodoSize};
+    const double hodoSize = exportMode ? std::min(w * 0.40, h - 150.0) : std::min(w * 0.27, h * 0.40);
+    const QRectF hodo{w * 0.545, exportMode ? 80.0 : 60.0, hodoSize, hodoSize};
     double fastest = 20.0;
     for (const auto * l : winds) {
         if (l->pressure >= 400.0) {
@@ -320,13 +322,16 @@ void DropsondeChart::paintEvent(QPaintEvent *) {
     key(bandColor(900), "925-850");
     key(bandColor(780), "850-700");
     key(bandColor(500), "above 700");
-    if (has(drop.mblSpeed)) {
+    if (has(drop.mblSpeed) && !exportMode) {
         p.setPen(QColor{60, 60, 60});
         p.drawText(QPointF{hodo.left(), ly + 18}, "diamond: the report's mean boundary layer wind");
     }
     p.setFont(base);
 
     // ---- the tables ----
+    if (exportMode) {
+        return;
+    }
     const double tableTop = hodo.bottom() + 40;
     const double col = w * 0.545;
     const auto cell = [&] (double x, double y, double width, const QString& text, const QColor& fill, bool boldText = false) {

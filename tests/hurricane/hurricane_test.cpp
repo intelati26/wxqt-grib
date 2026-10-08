@@ -509,6 +509,8 @@ static void drop(const std::string& fixtures) {
     CHECK(e850 != nullptr && near(e850->height, 1435) && near(e850->temperature, 17.8) && near(e850->windDirection, 145) && near(e850->windSpeed, 61));
     CHECK(e700 != nullptr && near(e700->height, 3087) && !UtilityDropsonde::has(e700->temperature) && !UtilityDropsonde::has(e700->windSpeed));
     CHECK(e.surface() != nullptr && near(e.surface()->pressure, 1001) && near(e.surface()->temperature, 28.8) && near(e.surface()->dewPoint, 22.8) && near(e.surface()->windSpeed, 44));
+    CHECK(near(UtilityDropsonde::minimumPressure(e), e.surfacePressure) && UtilityDropsonde::has(UtilityDropsonde::maxWind(e)) && UtilityDropsonde::maxWind(e) >= 44.0);
+    CHECK(!UtilityDropsonde::has(UtilityDropsonde::maxWind(UtilityDropsonde::Drop{})) && !UtilityDropsonde::has(UtilityDropsonde::minimumPressure(UtilityDropsonde::Drop{})));
     CHECK(!UtilityDropsonde::parse("not a drop", "202610070050").ok);
 }
 

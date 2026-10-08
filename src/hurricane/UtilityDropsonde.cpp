@@ -316,3 +316,22 @@ UtilityDropsonde::Drop UtilityDropsonde::parse(const string& text, const string&
     drop.ok = true;
     return drop;
 }
+
+double UtilityDropsonde::minimumPressure(const Drop& drop) {
+    if (has(drop.surfacePressure)) {
+        return drop.surfacePressure;
+    }
+    // no surface group: the lowest-pressure level of the surface section is the highest-pressure one that is not below the ground; without
+    // the group the first level is the best there is
+    return drop.levels.empty() ? missing : drop.levels.front().pressure;
+}
+
+double UtilityDropsonde::maxWind(const Drop& drop) {
+    double best = missing;
+    for (const auto& l : drop.levels) {
+        if (has(l.windSpeed) && (!has(best) || l.windSpeed > best)) {
+            best = l.windSpeed;
+        }
+    }
+    return best;
+}

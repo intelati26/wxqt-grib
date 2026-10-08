@@ -48,6 +48,9 @@ public:
     // `fileStamp` is yyyymmddhhmm from the archive file name: it supplies the month and year
     static Drop parse(const string& text, const string& fileStamp);
     static bool has(double value) { return value > missing + 1.0; }
+    // the lowest pressure of the report (the surface pressure, else the lowest level kept) and the strongest wind of any level; missing when it has none
+    static double minimumPressure(const Drop&);
+    static double maxWind(const Drop&);
 };
 
 #endif  // UTILITYDROPSONDE_H

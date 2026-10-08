@@ -209,6 +209,10 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     dropCheck->setChecked(true);
     QObject::connect(dropCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
     column->addWidget(dropCheck);
+    dropLabelCheck = new QCheckBox{"  with the lowest pressure and strongest wind", panel};
+    dropLabelCheck->setChecked(Utility::readPref("HURRICANE_DROP_LABELS", "true") == "true");
+    QObject::connect(dropLabelCheck, &QCheckBox::toggled, [this] (bool on) { Utility::writePref("HURRICANE_DROP_LABELS", on ? "true" : "false"); view->map()->update(); });
+    column->addWidget(dropLabelCheck);
     outlookCheck = new QCheckBox{"Development areas (Tropical Weather Outlook)", panel};
     outlookCheck->setChecked(true);
     QObject::connect(outlookCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
@@ -1419,6 +1423,50 @@ void HurricaneViewer::paintPlannedRecon(QPainter& painter) {
             painter.setPen(QPen{QColor{255, 255, 255}, 1.4 * px});
             painter.setBrush(QColor{60, 140, 255, 230});
             painter.drawPolygon(triangle);
+        }
+        // the lowest pressure (the surface) and the strongest wind of each sonde beside its marker, where there is room for the text
+        if (dropLabelCheck != nullptr && dropLabelCheck->isChecked()) {
+            QFont font{painter.font()};
+            font.setPixelSize(static_cast<int>(10 * px));
+            font.setBold(true);
+            painter.setFont(font);
+            const QFontMetricsF metrics{font};
+            std::vector<QRectF> taken;
+            // the lowest pressure first: those in the eye are the ones to read
+            std::vector<const UtilityDropsonde::Drop *> order;
+            for (const auto& d : drops->drops) {
+                const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;
+                if (UtilityDropsonde::has(lat) && dropNear(d)) {
+                    order.push_back(&d);
+                }
+            }
+            std::stable_sort(order.begin(), order.end(), [] (const auto * a, const auto * b) {
+                const double pa = UtilityDropsonde::minimumPressure(*a);
+                const double pb = UtilityDropsonde::minimumPressure(*b);
+                return (UtilityDropsonde::has(pa) ? pa : 9999.0) < (UtilityDropsonde::has(pb) ? pb : 9999.0);
+            });
+            for (const auto * d : order) {
+                const double lat = UtilityDropsonde::has(d->splashLat) ? d->splashLat : d->lat;
+                const double lon = UtilityDropsonde::has(d->splashLon) ? d->splashLon : d->lon;
+                const double pressure = UtilityDropsonde::minimumPressure(*d);
+                const double wind = UtilityDropsonde::maxWind(*d);
+                if (!UtilityDropsonde::has(pressure) && !UtilityDropsonde::has(wind)) {
+                    continue;
+                }
+                const QString text = (UtilityDropsonde::has(pressure) ? QString::number(static_cast<int>(std::lround(pressure))) + " mb" : QString{}) +
+                    (UtilityDropsonde::has(pressure) && UtilityDropsonde::has(wind) ? "  " : "") + (UtilityDropsonde::has(wind) ? QString::number(static_cast<int>(std::lround(wind))) + " kt" : QString{});
+                const auto at = t(lat, lon);
+                const QRectF box{at.x() + 9 * px, at.y() - 7 * px, metrics.horizontalAdvance(text) + 6 * px, 13 * px};
+                if (std::any_of(taken.begin(), taken.end(), [&] (const QRectF& other) { return other.intersects(box); })) {
+                    continue;
+                }
+                taken.push_back(box);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(QColor{10, 20, 40, 190});
+                painter.drawRoundedRect(box, 3 * px, 3 * px);
+                painter.setPen(QColor{150, 205, 255});
+                painter.drawText(box, Qt::AlignCenter, text);
+            }
         }
     }
     if (fixCheck != nullptr && fixCheck->isChecked() && vdm) {

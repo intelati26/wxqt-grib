@@ -48,7 +48,19 @@ namespace {
     }
 }
 
+namespace {
+    int exportDepth = 0;
+}
+
+bool ChartExport::exporting() {
+    return exportDepth > 0;
+}
+
 QImage ChartExport::render(QWidget * chart, const QString& title, int scale) {
+    struct Scope {
+        Scope() { exportDepth++; }
+        ~Scope() { exportDepth--; }
+    } scope;
     QImage image{(chart->width()) * scale, (chart->height() + footer) * scale, QImage::Format_ARGB32};
     image.fill(Qt::white);
     image.setDevicePixelRatio(scale);
@@ -63,6 +75,10 @@ bool ChartExport::savePng(QWidget * chart, const QString& title, const QString& 
 }
 
 bool ChartExport::savePdf(QWidget * chart, const QString& title, const QString& path) {
+    struct Scope {
+        Scope() { exportDepth++; }
+        ~Scope() { exportDepth--; }
+    } scope;
     QPdfWriter writer{path};
     writer.setResolution(150);
     writer.setPageSize(QPageSize{QSizeF{chart->width() * 25.4 / 96.0, (chart->height() + footer) * 25.4 / 96.0}, QPageSize::Millimeter});

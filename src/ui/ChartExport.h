@@ -14,6 +14,8 @@
 // clipboard", all drawn by the widget's own paint code at twice the screen resolution, with a footer line naming the chart and the time it was saved.
 namespace ChartExport {
     void install(QWidget * chart, const QString& title);
+    // true while a chart is being drawn for a file or the clipboard: a chart with tables or explanatory lines that belong to the screen leaves them out
+    bool exporting();
     QImage render(QWidget * chart, const QString& title, int scale = 2);
     bool savePng(QWidget * chart, const QString& title, const QString& path);
     bool savePdf(QWidget * chart, const QString& title, const QString& path);
