@@ -511,6 +511,7 @@ const std::vector<Product>& products() {
             omega.color = QColor{20, 110, 70};
             omega.dashed = true;
             omega.onlyBelowZero = true;
+            omega.smoothKm = 30.0;
             w.contours.push_back(omega);
             p.push_back(w);
         }
@@ -2340,6 +2341,7 @@ const std::vector<Product>& products() {
                 omega.color = QColor{20, 110, 70};
                 omega.dashed = true;
                 omega.onlyBelowZero = true;
+                omega.smoothKm = 30.0;
                 x.contours = {heights(3), omega};
                 p.push_back(x);
             }
@@ -3846,9 +3848,15 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     // the wider the view, the sparser the lines, the highs and lows, and the barbs
     const double span = sector.east - sector.west;
     const double extremeRadius = span > 150.0 ? 12.0 : span > 80.0 ? 8.0 : 6.0;
+    std::vector<QRectF> placed;   // where the numbers on the lines already are
     for (const auto& set : product.contours) {
         const double interval = set.interval * (span > 150.0 ? 2.0 : 1.0);
-        const auto& grid = grids.at(set.key);
+        GfsGrid::Grid smooth;
+        if (set.smoothKm > 0.0) {   // a 3 x 3 average n times spreads as sqrt(2n/3) cells: the passes that reach the radius (at most 60)
+            const double cells = set.smoothKm / (std::max(grids.at(set.key).step, 0.001) * 111.0);
+            smooth = GfsGrid::smoothed(grids.at(set.key), std::clamp(static_cast<int>(std::lround(1.5 * cells * cells)), 1, 60));
+        }
+        const auto& grid = set.smoothKm > 0.0 ? smooth : grids.at(set.key);
         double lo = 1e18, hi = -1e18;
         for (int y = 0; y < map.height(); y += 6) {
             for (int x = 0; x < map.width(); x += 6) {
@@ -3883,7 +3891,11 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 // one label near the middle of a line long enough to carry it
                 if (set.labelled && path.length() > 150.0) {
                     const auto mid = path.pointAtPercent(0.5);
-                    if (area.adjusted(24, 14, -24, -14).contains(mid)) {
+                    const QString text = interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level)));
+                    const QRectF box{mid.x() - text.size() * 4.0 - 4.0, mid.y() - 9.0, text.size() * 8.0 + 8.0, 18.0};
+                    const bool crowded = std::any_of(placed.begin(), placed.end(), [&box] (const QRectF& other) { return other.intersects(box); });   // a number over another is unreadable: skip it
+                    if (!crowded && area.adjusted(24, 14, -24, -14).contains(mid)) {
+                        placed.push_back(box);
                         halo(mid, interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level))), color.darker(130));   // a fractional interval keeps its decimals
                     }
                 }

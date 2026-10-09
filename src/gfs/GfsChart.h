@@ -65,6 +65,7 @@ namespace GfsChart {
         bool dashed{false};
         bool highsAndLows{false};
         bool onlyBelowZero{false};      // omega: the rising air only
+        double smoothKm{0.0};           // smooth the field to about this radius before the lines are drawn (omega is noisy at a storm model's 2 km)
         bool labelled{true};            // a number on the line (off for a line of each of 31 members)
         bool uniform{false};            // every line the same weight (no heavy line at every fifth level)
         double width{1.0};
