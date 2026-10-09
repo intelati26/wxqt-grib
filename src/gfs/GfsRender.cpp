@@ -115,7 +115,7 @@ bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const 
     return true;
 }
 
-QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error) {
+QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe) {
     const auto * base = GfsChart::product(param, model);
     auto sector = GfsChart::sector(sectorId);
     GfsChart::Sector storm;   // the hurricane model's grid follows the storm: the chart is its whole grid
@@ -219,6 +219,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     options.fahrenheit = UIPreferences::unitsF;
     options.magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;   // the settings switch: the model guidance site's color bands
     options.lines = Coast::borders();
+    options.probe = probe;
     options.windRadii = Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0;   // the quadrant wind field toggle of the hurricane model screen
     if (isHafs(model)) {   // the model's own track and wind radii for the storm, drawn on the chart
         const auto text = URL::getBytes(gfs.fileUrl(run, 0, "trak"));

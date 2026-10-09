@@ -16,6 +16,7 @@
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "models/ChartHover.h"
 #include "ui/Photo.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
@@ -64,6 +65,7 @@ private:
     HBox row;
     VBox box;
     Photo photo;
+    std::unique_ptr<ChartHover> hover;   // the value under the pointer
     ComboBox comboModel;
     ComboBox comboStorm;
     ComboBox comboProduct;

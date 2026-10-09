@@ -18,6 +18,7 @@
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/Photo.h"
+#include "models/ChartHover.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -60,6 +61,7 @@ private:
     ComboBox comboboxProduct;
     ComboBox comboboxTime;
     BackForward backForward;
+    std::unique_ptr<ChartHover> hover;   // the value under the pointer, for the charts drawn from GRIB
     Button buttonProducts;
     Button buttonSector;
     QPointer<ProductPicker> sectorPicker;

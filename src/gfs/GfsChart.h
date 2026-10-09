@@ -126,7 +126,27 @@ namespace GfsChart {
     // the points of an ATCF "a-deck" style track file (one line per wind threshold), by forecast hour; empty when it holds none
     std::vector<TrackPoint> parseTrack(const std::string& text);
 
+    // What a point of a drawn chart holds, for a hover read-out: the chart's own fields (kept as drawn, after derivation) and where the picture's map is. read() takes a point of the
+    // picture as fractions (0..1) of its width and height and gives the text: the position, the fill's value, each line's value, the wind.
+    struct Probe {
+        struct Field {
+            std::string label;      // "Wind speed (kt)"
+            GfsGrid::Grid grid;
+            double scale{1.0};      // the number shown = value * scale (before the units)
+            Quantity quantity{Quantity::Other};
+            bool convert{false};    // shown in the user's units
+        };
+        double west{0}, east{0}, south{0}, north{0};
+        double areaLeft{0}, areaTop{0}, areaWidth{0}, areaHeight{0}, imageWidth{1}, imageHeight{1};
+        bool us{true};
+        std::vector<Field> fields;
+        GfsGrid::Grid windU, windV;     // m/s
+        bool valid() const { return areaWidth > 0.0 && !fields.empty(); }
+        QString read(double fx, double fy) const;   // empty outside the map
+    };
+
     struct Options {
+        Probe * probe{nullptr};                // when set, filled in by render() for the hover read-out
         int width{1100};
         const GfsClimate * climate{nullptr};   // for the anomaly charts
         bool fahrenheit{true};                 // the user's US units: degrees F, inches

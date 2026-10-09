@@ -166,13 +166,18 @@ void HafsViewer::draw() {
     setTitle(name + " " + storm + " +" + std::to_string(hour) + " h");
     auto shared = session;
     auto result = std::make_shared<std::pair<QByteArray, string>>();
-    new FutureVoid{this, [=] { result->first = GfsRender::png(*shared, name, param, storm, "", hour, {}, result->second); },
-                   [this, result, mine] {
+    auto probe = std::make_shared<GfsChart::Probe>();
+    new FutureVoid{this, [=] { result->first = GfsRender::png(*shared, name, param, storm, "", hour, {}, result->second, probe.get()); },
+                   [this, result, mine, probe] {
                        if (mine != drawing) {
                            return;
                        }
                        if (!result->first.isEmpty()) {
                            photo.setBytes(result->first);
+                           if (!hover) {
+                               hover = std::make_unique<ChartHover>(photo.getView());
+                           }
+                           hover->set(probe);
                        } else {
                            textStatus.setText("HAFS: " + (result->second.empty() ? string{"nothing could be drawn"} : result->second));
                        }

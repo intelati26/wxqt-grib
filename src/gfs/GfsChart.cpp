@@ -3541,6 +3541,42 @@ namespace {
     }
 }
 
+QString Probe::read(double fx, double fy) const {
+    const double x = fx * imageWidth, y = fy * imageHeight;
+    if (x < areaLeft || x > areaLeft + areaWidth || y < areaTop || y > areaTop + areaHeight) {
+        return {};
+    }
+    const View view{Sector{"", west, south, east, north}, QRectF{areaLeft, areaTop, areaWidth, areaHeight}};
+    double lon = view.lonAt(x);
+    const double lat = view.latAt(y);
+    while (lon > 180.0) {
+        lon -= 360.0;
+    }
+    while (lon < -180.0) {
+        lon += 360.0;
+    }
+    const QChar degree{0x00B0};
+    QStringList lines;
+    lines << QString::number(std::abs(lat), 'f', 2) + degree + (lat >= 0.0 ? " N" : " S") + "   " + QString::number(std::abs(lon), 'f', 2) + degree + (lon >= 0.0 ? " E" : " W");
+    for (const auto& field : fields) {
+        const float value = field.grid.sample(lon, lat);
+        if (std::isnan(value)) {
+            continue;
+        }
+        const double number = field.convert ? shown(field.quantity, value, us) : value * field.scale;
+        lines << QString::fromStdString(field.label) + ": " + numberText(number);
+    }
+    if (!windU.empty() && !windV.empty()) {
+        const double u = windU.sample(lon, lat), v = windV.sample(lon, lat);
+        if (!std::isnan(u) && !std::isnan(v)) {
+            const double speed = std::hypot(u, v) * 1.94384;
+            const double from = std::fmod(std::atan2(-u, -v) * 180.0 / pi + 360.0, 360.0);
+            lines << "Wind: " + QString::number(speed, 'f', 0) + " kt from " + QString::number(from, 'f', 0) + degree;
+        }
+    }
+    return lines.join("\n");
+}
+
 QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
     Product product = drawn;
     if (options.magColors && !drawn.palette.empty()) {   // the model guidance site's color bands in place of ours
@@ -3580,6 +3616,35 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     QImage image(options.width, static_cast<int>(headerHeight + mapHeight + legendHeight), QImage::Format_ARGB32_Premultiplied);
     image.fill(QColor{250, 250, 250});
 
+    if (options.probe) {   // the fields of this chart, kept for the hover read-out
+        auto& probe = *options.probe;
+        probe = {};
+        probe.west = sector.west;
+        probe.east = sector.east;
+        probe.south = sector.south;
+        probe.north = sector.north;
+        probe.areaLeft = area.left();
+        probe.areaTop = area.top();
+        probe.areaWidth = area.width();
+        probe.areaHeight = area.height();
+        probe.imageWidth = image.width();
+        probe.imageHeight = image.height();
+        probe.us = us;
+        if (!product.linesOnly) {
+            QString title = QString::fromStdString(product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle);
+            if (const auto unit = unitText(product.quantity, us); !unit.isEmpty()) {
+                title += " (" + unit + ")";
+            }
+            probe.fields.push_back({title.toStdString(), fill, 1.0, product.quantity, true});
+        }
+        for (const auto& set : product.contours) {
+            probe.fields.push_back({set.title.empty() ? set.key : set.title, grids.at(set.key), set.scale, Quantity::Other, false});
+        }
+        if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
+            probe.windU = grids.at(product.barbU);
+            probe.windV = grids.at(product.barbV);
+        }
+    }
     // the fill, a pixel at a time (the ramp is in the grid's units; fully clear parts show the pale ground)
     const Ramp * ramp = &product.ramp;
     QImage map(static_cast<int>(area.width()), static_cast<int>(area.height()), QImage::Format_ARGB32_Premultiplied);

@@ -147,7 +147,7 @@ bool GfsClimate::anchor(const Field& field, int day, GfsGrid::Grid& out, std::st
     translate.start(QString::fromStdString(gdalBin) + "/gdal_translate",
                     {"-q", "-b", QString::number(band(field, day)), "-of", "ENVI", "-ot", "Float32",
                      QString::fromStdString("NETCDF:/vsicurl/" + baseUrl + field.file + ":" + field.variable), rawPath});
-    translate.waitForFinished(120000);
+    translate.waitForFinished(600000);   // the climatology server is sometimes very slow: wait
     // GDAL prints errors about drivers this machine lacks; only the exit code and the size of the result count
     if (translate.exitStatus() != QProcess::NormalExit || translate.exitCode() != 0) {
         error = "could not get the climatology (" + field.variable + ") from NOAA PSL: " + translate.readAllStandardError().trimmed().toStdString();

@@ -141,17 +141,27 @@ void ModelViewer::reload() {
         const auto overlayIds = overlays;
         const int hour = std::atoi(objectModel.getTime().c_str());
         auto result = std::make_shared<std::pair<QByteArray, string>>();
-        new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second); },
-                       [this, result, mine] {
+        auto probe = std::make_shared<GfsChart::Probe>();
+        new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get()); },
+                       [this, result, mine, probe] {
                            if (mine == drawing && !result->first.isEmpty()) {
                                photo.setBytes(result->first);
+                               if (!hover) {
+                                   hover = std::make_unique<ChartHover>(photo.getView());
+                               }
+                               hover->set(probe);
                            } else if (mine == drawing) {
                                setTitle("GFS: " + result->second);
                            }
                        }};
         return;
     }
-    new FutureBytes{this, ObjectModelGet::imageUrl(objectModel), [this] (const auto& ba) { photo.setBytes(ba); }};
+    new FutureBytes{this, ObjectModelGet::imageUrl(objectModel), [this] (const auto& ba) {
+        photo.setBytes(ba);
+        if (hover) {
+            hover->set(nullptr);
+        }
+    }};
 }
 
 void ModelViewer::getRun() {

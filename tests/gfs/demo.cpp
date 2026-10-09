@@ -132,7 +132,14 @@ int main(int argc, char ** argv) {
             stormSector = GfsChart::cropToTrack(stormSector, options.track, std::atoi(argv[3]), 4.0);
         }
     }
+    GfsChart::Probe probe;   // DEMO_PROBE=fx,fy: what the hover read-out says at that point of the picture (fractions of its width and height)
+    options.probe = &probe;
     const auto image = GfsChart::render(*product, *sector, grids, run, std::atoi(argv[3]), options);
+    if (const char * at = std::getenv("DEMO_PROBE")) {
+        double fx = 0.5, fy = 0.5;
+        std::sscanf(at, "%lf,%lf", &fx, &fy);
+        std::printf("probe %g,%g:\n%s\n", fx, fy, probe.read(fx, fy).toStdString().c_str());
+    }
     if (image.isNull() || !image.save(argv[4])) {
         std::printf("render failed\n");
         return 1;
