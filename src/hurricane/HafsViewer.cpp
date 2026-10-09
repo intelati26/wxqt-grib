@@ -63,7 +63,7 @@ string HafsViewer::modelId(const string& nhcId) {
 
 HafsViewer::HafsViewer(Window * parent, const string& storm, const string& name)
     : Window{parent}
-    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , image{this}
     , comboModel{this, {"HAFS-A", "HAFS-B"}}
     , comboStorm{this, {"Looking for storms..."}}
     , comboProduct{this, productLabels(productIds)}
@@ -98,7 +98,7 @@ HafsViewer::HafsViewer(Window * parent, const string& storm, const string& name)
     buttonIntensity.connect([this] { showIntensity(); });
     box.addLayout(row);
     box.addWidget(textStatus);
-    box.addWidgetAndCenter(photo);
+    box.addWidgetReal(&image, 1, Qt::Alignment{});
     box.addWidgetReal(new ActivityLabel{this});
     box.getAndShow(this);
     loadStorms();
@@ -168,14 +168,20 @@ void HafsViewer::draw() {
     auto result = std::make_shared<std::pair<QByteArray, string>>();
     auto probe = std::make_shared<GfsChart::Probe>();
     new FutureVoid{this, [=] { result->first = GfsRender::png(*shared, name, param, storm, "", hour, {}, result->second, probe.get()); },
-                   [this, result, mine, probe] {
+                   [this, result, mine, probe, name, storm, param] {
                        if (mine != drawing) {
                            return;
                        }
                        if (!result->first.isEmpty()) {
-                           photo.setBytes(result->first);
+                           const string chart = name + "|" + storm + "|" + param;
+                           if (chart == shownChart && image.hasImage()) {   // another hour of the chart: the zoom and the place stay
+                               image.setBytesKeepView(result->first);
+                           } else {
+                               image.setBytes(result->first);
+                           }
+                           shownChart = chart;
                            if (!hover) {
-                               hover = std::make_unique<ChartHover>(photo.getView());
+                               hover = std::make_unique<ChartHover>(&image);
                            }
                            hover->set(probe);
                        } else {

@@ -17,7 +17,7 @@
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "models/ChartHover.h"
-#include "ui/Photo.h"
+#include "ui/ZoomImage.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -64,7 +64,8 @@ private:
     std::vector<string> productIds;   // before the product list that fills it
     HBox row;
     VBox box;
-    Photo photo;
+    ZoomImage image;                     // the chart: wheel / Ctrl + - zoom, drag to pan; the zoom stays across the hours of one chart
+    string shownChart;                   // the model, storm and product on view: another hour of it keeps the zoom
     std::unique_ptr<ChartHover> hover;   // the value under the pointer
     ComboBox comboModel;
     ComboBox comboStorm;
