@@ -181,6 +181,7 @@ DroughtViewer::DroughtViewer(Window * parent)
     , counties{std::make_shared<std::vector<UtilityDrought::Area>>()}
     , offices{std::make_shared<std::vector<UtilityDrought::Area>>()}
     , spc{std::make_shared<std::vector<UtilityDrought::Area>>()}
+    , meso{std::make_shared<std::vector<UtilityDrought::Area>>()}
 {
     setTitle("Drought");
     // above the tabs: the area and the weeks, for all of them
@@ -339,6 +340,7 @@ void DroughtViewer::loadAreas() {
                        *states = std::move(loaded->states);
                        *counties = std::move(loaded->counties);
                        *offices = std::move(loaded->offices);
+                       *meso = UtilityDrought::spcMesoanalysisSectors();
                        map->setLand(states);
                        map->setCounties(counties);
                        loadSpc();
@@ -361,7 +363,7 @@ std::vector<UtilityDrought::Area> DroughtViewer::selectedAreas() const {
     if (areaId == "US") {
         return *states;   // every contiguous state
     }
-    for (const auto& list : {states.get(), counties.get(), offices.get(), spc.get()}) {
+    for (const auto& list : {states.get(), counties.get(), offices.get(), spc.get(), meso.get()}) {
         for (const auto& a : *list) {
             if (a.id == areaId) {
                 out.push_back(a);
@@ -387,6 +389,9 @@ void DroughtViewer::chooseArea() {
         entries.push_back({o.id, o.name, "NWS forecast offices"});
     }
     for (const auto& s : *spc) {
+        entries.push_back({s.id, s.name, s.group});
+    }
+    for (const auto& s : *meso) {
         entries.push_back({s.id, s.name, s.group});
     }
     for (const auto& c : *counties) {

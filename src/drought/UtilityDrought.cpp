@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstring>
 #include <map>
+#include <tuple>
 #include <QImage>
 #include <QPainter>
 #include <QPainterPath>
@@ -434,6 +435,61 @@ namespace UtilityDrought {
             a.name = namePrefix + " " + number;
             a.group = group;
             a.shapes.push_back({ring});
+            bounds(a);
+            out.push_back(std::move(a));
+        }
+        return out;
+    }
+
+    std::vector<Area> spcMesoanalysisSectors() {
+        // the outlines of the sectors on the SPC's clickable national map (582 x 415 pixels): sector number, name, the four corners
+        struct Outline {
+            const char * number;
+            const char * name;
+            double corners[8];
+        };
+        static const Outline outlines[] = {
+            {"11", "Northwest", {18, 9, 254, 14, 251, 171, 15, 168}},
+            {"12", "Southwest", {3, 119, 256, 124, 252, 291, 1, 287}},
+            {"13", "Northern Plains", {183, 23, 400, 28, 393, 175, 180, 168}},
+            {"14", "Central Plains", {186, 116, 395, 123, 388, 261, 181, 259}},
+            {"15", "Southern Plains", {164, 177, 415, 181, 412, 357, 161, 349}},
+            {"16", "Northeast", {339, 9, 571, 14, 567, 190, 334, 180}},
+            {"17", "East Central", {336, 116, 547, 123, 535, 267, 335, 262}},
+            {"18", "Southeast", {301, 211, 506, 217, 502, 360, 300, 355}},
+            {"20", "Midwest", {243, 89, 452, 95, 450, 247, 239, 242}}};
+        // pixels to the Lambert conformal plane (central meridian -98, parallels 25 and 50), fitted to the sectors' centers
+        constexpr double m00 = 733.37640554, m01 = 21.20754248, m10 = -18.43155879, m11 = -778.85169175, m20 = 249.71840031, m21 = -787.70687173;
+        constexpr double lon0 = -98.0, p1 = 25.0 * M_PI / 180.0, p2 = 50.0 * M_PI / 180.0;
+        const double n = std::log(std::cos(p1) / std::cos(p2)) / std::log(std::tan(M_PI / 4 + p2 / 2) / std::tan(M_PI / 4 + p1 / 2));
+        const double F = std::cos(p1) * std::pow(std::tan(M_PI / 4 + p1 / 2), n) / n;
+        const double det = m00 * m11 - m01 * m10;
+        std::vector<Area> out;
+        for (const auto& o : outlines) {
+            Ring ring;
+            for (int i = 0; i < 8; i += 2) {
+                const double dx = o.corners[i] - m20, dy = o.corners[i + 1] - m21;
+                const double x = (dx * m11 - dy * m10) / det, y = (-dx * m01 + dy * m00) / det;
+                const double rho = std::hypot(x, y), theta = std::atan2(x, -y);
+                ring.emplace_back(lon0 + theta / n * 180.0 / M_PI, (2.0 * std::atan(std::pow(F / rho, 1.0 / n)) - M_PI / 2.0) * 180.0 / M_PI);
+            }
+            ring.push_back(ring.front());
+            Area a;
+            a.id = std::string{"SPCMESO"} + o.number;
+            a.name = std::string{"SPC mesoanalysis "} + o.name + " (approximate)";
+            a.group = "SPC mesoanalysis sectors";
+            a.shapes.push_back({ring});
+            bounds(a);
+            out.push_back(std::move(a));
+        }
+        // two sectors the SPC's national map does not outline: a box of the usual size round the sector's center
+        for (const auto& extra : {std::tuple<const char *, const char *, double, double>{"21", "Great Lakes", 44.02, -85.94}, {"22", "Intermountain West", 40.95, -110.63}}) {
+            const double lat = std::get<2>(extra), lon = std::get<3>(extra);
+            Area a;
+            a.id = std::string{"SPCMESO"} + std::get<0>(extra);
+            a.name = std::string{"SPC mesoanalysis "} + std::get<1>(extra) + " (approximate)";
+            a.group = "SPC mesoanalysis sectors";
+            a.shapes.push_back({{{lon - 9.5, lat + 5.5}, {lon + 9.5, lat + 5.5}, {lon + 9.5, lat - 5.5}, {lon - 9.5, lat - 5.5}, {lon - 9.5, lat + 5.5}}});
             bounds(a);
             out.push_back(std::move(a));
         }

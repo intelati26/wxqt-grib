@@ -46,6 +46,9 @@ namespace UtilityDrought {
     bool deserialize(const std::string& bytes, std::vector<Area>& out);
     // Storm Prediction Center polygons from the text of the severe dashboard: "lat lon lat lon ...:" for each one (west longitudes negative), with their numbers "2347:2348:"
     std::vector<Area> parseSpcPolygons(const std::string& latLonList, const std::string& numbers, const std::string& idPrefix, const std::string& namePrefix, const std::string& group);
+    // The map areas of the SPC's mesoscale analysis (the regional sectors of spc.noaa.gov/exper/mesoanalysis). The SPC publishes no coordinates for them, only the outlines it draws on its
+    // clickable national map (pixels): those are placed on the globe by a fit to the sectors' known centers (a Lambert conformal map, residual about one degree), so the extents are approximate.
+    std::vector<Area> spcMesoanalysisSectors();
     // Douglas-Peucker: points that lie within `tolerance` degrees of the line between their neighbors are dropped
     Ring simplify(const Ring& ring, double tolerance);
     // The category of every cell of a grid of squares of `step` degrees over a box: 0 none, 1 to 5 D0 to D4 (the worst that lies over the cell's center)

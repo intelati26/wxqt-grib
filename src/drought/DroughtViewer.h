@@ -82,7 +82,7 @@ private:
     Text textPrecip, textOutlook;
     HBox rowPrecip, rowOutlook;
     std::vector<Product> outlooks;
-    std::shared_ptr<std::vector<UtilityDrought::Area>> states, counties, offices, spc;   // spc: the mesoscale discussions and watches in force now
+    std::shared_ptr<std::vector<UtilityDrought::Area>> states, counties, offices, spc, meso;   // spc: the mesoscale discussions and watches in force now
     std::string areaId{"US"};
     QPointer<ProductPicker> picker;
     std::mutex seriesMutex;

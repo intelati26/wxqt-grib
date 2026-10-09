@@ -66,6 +66,14 @@ int main(int argc, char ** argv) {
     CHECK(UtilityDrought::newestWarningAreaFile("<a href=\"/x/w_30de25.zip\"> <a href=\"/x/w_02ja26.zip\">") == "w_02ja26.zip", "the year decides before the month");
     const auto spc = UtilityDrought::parseSpcPolygons("39.94 -100.51 40.2 -99.0 39.0 -99.5 :38.0 -97.0 38.5 -96.0 37.5 -96.2:", "2347:2348:", "MCD", "Mesoscale Discussion", "SPC");
     CHECK(spc.size() == 2 && spc[0].id == "MCD2347" && spc[1].name == "Mesoscale Discussion 2348" && spc[0].west < -100 && spc[0].north > 40, "SPC polygons");
+    const auto sectors = UtilityDrought::spcMesoanalysisSectors();
+    CHECK(sectors.size() == 11, "the SPC mesoanalysis sectors");
+    for (const auto& s : sectors) {
+        if (s.id == "SPCMESO14") {   // Central Plains: Kansas lies in it
+            CHECK(s.west < -97 && s.east > -95 && s.south < 37 && s.north > 39, "the Central Plains sector holds Kansas");
+        }
+        CHECK(s.east - s.west > 8 && s.east - s.west < 35 && s.north - s.south > 6 && s.north - s.south < 20, "a sector is some 10 to 25 degrees across");
+    }
     const auto same = UtilityDrought::change(raster, raster);
     for (const auto v : same) {
         CHECK(v == 0, "no change from a map to itself");
