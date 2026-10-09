@@ -79,12 +79,20 @@ namespace ReconRenderer {
                     painter.setPen(QPen{QColor{15, 15, 15}, 1.2 * px});
                     painter.setBrush(QColor{15, 15, 15});
                     long lastBarb = 0;
+                    QPointF lastAt;
+                    bool haveAt = false;
                     for (const auto& ob : obs) {
                         if (!UtilityHdob::has(ob.windSpeed) || !UtilityHdob::has(ob.windDirection) || ob.seconds - lastBarb < 300 || !usable(ob)) {   // one barb every five minutes
                             continue;
                         }
+                        const auto at = project(ob.lat, ob.lon);
+                        if (haveAt && std::hypot(at.x() - lastAt.x(), at.y() - lastAt.y()) < 30.0 * px) {   // and not on the one before: zoom in for more of them
+                            continue;
+                        }
                         lastBarb = ob.seconds;
-                        WindBarb::draw(painter, project(ob.lat, ob.lon), ob.windDirection, ob.windSpeed, 18.0 * px, ob.lat < 0.0);
+                        lastAt = at;
+                        haveAt = true;
+                        WindBarb::draw(painter, at, ob.windDirection, ob.windSpeed, 18.0 * px, ob.lat < 0.0);
                     }
                 }
             }
@@ -150,13 +158,21 @@ namespace ReconRenderer {
                 painter.setPen(QPen{QColor{20, 20, 20}, 1.2 * px});
                 painter.setBrush(QColor{255, 210, 60});
                 painter.drawPolygon(diamond);
-                if (UtilityVdm::has(m.pressure)) {
+                if (UtilityVdm::has(m.pressure) && settings.labels) {
                     QFont small = painter.font();
                     small.setPixelSize(static_cast<int>(11 * px));
                     small.setBold(true);
                     painter.setFont(small);
-                    painter.setPen(QColor{255, 232, 140});
-                    painter.drawText(at + QPointF{9 * px, -4 * px}, QString::number(static_cast<int>(std::lround(m.pressure))) + " mb");
+                    const auto text = QString::number(static_cast<int>(std::lround(m.pressure))) + " mb";
+                    const QFontMetricsF metrics{small};
+                    const QRectF box{at.x() + 9 * px, at.y() - 14 * px, metrics.horizontalAdvance(text) + 4 * px, 14 * px};
+                    if (settings.taken == nullptr || std::none_of(settings.taken->begin(), settings.taken->end(), [&] (const QRectF& other) { return other.intersects(box); })) {
+                        if (settings.taken != nullptr) {
+                            settings.taken->push_back(box);
+                        }
+                        painter.setPen(QColor{255, 232, 140});
+                        painter.drawText(at + QPointF{9 * px, -4 * px}, text);
+                    }
                 }
                 continue;
             }
@@ -178,6 +194,7 @@ namespace ReconRenderer {
             small.setPixelSize(static_cast<int>(11 * px));
             small.setBold(true);
             painter.setFont(small);
+            std::vector<const UtilityDropsonde::Drop *> order;
             for (const auto& drop : *data.drops) {
                 const double lat = UtilityDropsonde::has(drop.releaseLat) ? drop.releaseLat : drop.lat, lon = UtilityDropsonde::has(drop.releaseLon) ? drop.releaseLon : drop.lon;
                 if (!UtilityDropsonde::has(lat) || !UtilityDropsonde::has(lon) || !recent(drop.seconds, cut) || (accept && !accept(lat, lon))) {
@@ -185,10 +202,22 @@ namespace ReconRenderer {
                 }
                 const auto at = project(lat, lon);
                 QPolygonF triangle;
-                triangle << at + QPointF{0, -7 * px} << at + QPointF{7 * px, 6 * px} << at + QPointF{-7 * px, 6 * px};
+                triangle << at + QPointF{0, -6 * px} << at + QPointF{6 * px, 5 * px} << at + QPointF{-6 * px, 5 * px};
                 painter.setPen(QPen{QColor{20, 20, 20}, 1.2 * px});
                 painter.setBrush(QColor{120, 220, 255});
                 painter.drawPolygon(triangle);
+                order.push_back(&drop);
+            }
+            // the labels, the lowest pressure first (those in the eye are the ones to read), where there is room
+            std::stable_sort(order.begin(), order.end(), [] (const auto * a, const auto * b) {
+                const double pa = UtilityDropsonde::minimumPressure(*a), pb = UtilityDropsonde::minimumPressure(*b);
+                return (UtilityDropsonde::has(pa) ? pa : 9999.0) < (UtilityDropsonde::has(pb) ? pb : 9999.0);
+            });
+            const QFontMetricsF metrics{small};
+            for (const auto * dropPointer : order) {
+                const auto& drop = *dropPointer;
+                const double lat = UtilityDropsonde::has(drop.releaseLat) ? drop.releaseLat : drop.lat, lon = UtilityDropsonde::has(drop.releaseLon) ? drop.releaseLon : drop.lon;
+                const auto at = project(lat, lon);
                 if (!settings.labels) {
                     continue;
                 }
@@ -201,6 +230,13 @@ namespace ReconRenderer {
                     label += (label.isEmpty() ? "" : " / ") + QString::number(static_cast<int>(std::lround(wind))) + " kt";
                 }
                 if (!label.isEmpty()) {
+                    const QRectF box{at.x() + 9 * px, at.y() + 3 * px, metrics.horizontalAdvance(label) + 4 * px, 14 * px};
+                    if (settings.taken != nullptr && std::any_of(settings.taken->begin(), settings.taken->end(), [&] (const QRectF& other) { return other.intersects(box); })) {
+                        continue;
+                    }
+                    if (settings.taken != nullptr) {
+                        settings.taken->push_back(box);
+                    }
                     painter.setPen(QColor{190, 235, 255});
                     painter.drawText(at + QPointF{9 * px, 14 * px}, label);
                 }

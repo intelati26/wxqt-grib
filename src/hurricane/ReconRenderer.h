@@ -13,6 +13,7 @@
 #include <QComboBox>
 #include <QPainter>
 #include <QPointF>
+#include <QRectF>
 #include "hurricane/UtilityDropsonde.h"
 #include "hurricane/UtilityHdob.h"
 #include "hurricane/UtilityVdm.h"
@@ -32,6 +33,7 @@ namespace ReconRenderer {
         bool barbs{true};
         bool labels{true};          // the pressure and wind beside a dropsonde, where there is room
         bool page{false};           // the look of the one-flight page (a broad line a segment at a time, a barb every five minutes, labelled diamonds and sondes at their release point), not of the track map
+        std::vector<QRectF> * taken{nullptr};        // the places labels already have (page look): a label that would land on one is left out; shared by the calls of one painting
         std::function<QColor(double knots)> color;   // the colour scale of the wind, when it is not the hurricane categories
     };
     using Project = std::function<QPointF(double lat, double lon)>;

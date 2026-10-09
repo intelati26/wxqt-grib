@@ -260,6 +260,8 @@ void ReconMap::paintEvent(QPaintEvent *) {
         settings.barbs = barbs;
         settings.labels = sondeLabels;
         settings.page = true;
+        std::vector<QRectF> taken;   // the labels of the fixes first, then those of the sondes: none on another
+        settings.taken = &taken;
         settings.color = [] (double kt) { return windColor(kt); };
         const auto project = [this] (double lat, double lon) { return toWidget(lon, lat); };
         ReconRenderer::paintFlights(p, project, 1.0, data, settings);
