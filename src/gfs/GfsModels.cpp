@@ -43,6 +43,20 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.clone.specificHumidity = true;
             m.push_back(d);
         }
+        for (const bool ai : {false, true}) {   // ECMWF's open data: the IFS (to 240 hours) and the AIFS (to 360), the GFS charts pointed at their fields
+            Def d;
+            d.id = ai ? "AIFS" : "IFS";
+            d.label = ai ? "ECMWF AIFS 0.25 degree (an AI model; open data, CC BY 4.0)" : "ECMWF IFS 0.25 degree (open data, CC BY 4.0)";
+            d.source = [ai] (const std::string&) { return ai ? GfsData::aifs() : GfsData::ifs(); };
+            d.hours = ai ? std::vector<Hours>{{0, 360, 6}} : std::vector<Hours>{{0, 144, 3}, {150, 240, 6}};
+            d.overlays = true;
+            d.recipeList = true;
+            d.clone.enabled = true;
+            d.clone.variables = {"HGT", "TMP", "RH", "UGRD", "VGRD", "VVEL", "SPFH", "PRMSL", "DPT", "GUST", "TCDC", "PWAT", "CAPE", "APCP", "PRATE"};
+            d.clone.levels = {"1000 mb", "925 mb", "850 mb", "700 mb", "600 mb", "500 mb", "400 mb", "300 mb", "250 mb", "200 mb", "150 mb", "100 mb", "50 mb"};
+            d.clone.pieces = false;   // precipitation is a running total from the start of the run
+            m.push_back(d);
+        }
         {   // the ensemble mean and spread
             Def d;
             d.id = "GEFS";

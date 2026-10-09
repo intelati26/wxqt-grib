@@ -651,7 +651,7 @@ namespace {
     // where a model goes in the picker's tree (after the model sites' own layout: global, regional, convection allowing, ensembles, climate)
     string modelGroup(const string& id) {
         static const std::map<string, string> groups{
-            {"GFS", "Global"}, {"AIGFS", "Global"},
+            {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"},
             {"NAM", "Regional"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Regional"},
             {"HRRR", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"NAM-HIRES", "Convection allowing"}, {"HRW-ARW", "Convection allowing"},
             {"HRW-ARW2", "Convection allowing"}, {"HRW-FV3", "Convection allowing"},

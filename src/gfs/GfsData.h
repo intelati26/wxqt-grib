@@ -48,6 +48,10 @@ public:
         std::function<std::string(const Want&)> fileOf;                  // which of a run's files holds a record (AIGFS: pressure levels in one, the surface in another); empty: one file
         float extraMissing{std::numeric_limits<float>::quiet_NaN()};     // a value the source uses for "no data" besides GRIB's own (HAFS: 9999 outside its tilted footprint); NaN: none
         std::string defaultDetail;                                       // what to ask of the index when a want has none ("*": any; an ensemble labels each record "ens mean" or "ens std dev")
+        std::string indexReplaces;                                       // the file's own extension, which the index's replaces (ECMWF: ".grib2" -> ".index"); empty: the suffix is added
+        std::string indexSuffix{".idx"};                                 // the index is the file + this (ECMWF's is ".index")
+        std::function<std::vector<GfsGrid::IdxRecord>(const std::string& text, const Want&)> parseIndex;   // NOAA's idx lines unless the source says (ECMWF's JSON lines)
+        std::function<double(const Want&)> valueScale;                   // the factor from the file's unit to the one the charts use (ECMWF's precipitation is in meters), 1 when none
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often
         int lagHours{3};                                                 // and a run is looked for from this long after its time
@@ -63,6 +67,9 @@ public:
     static Source gfs();
     static Source nbm();
     static Source aigfs();
+    // ECMWF's open data (CC BY 4.0), 0.25 degree: the IFS single (high resolution) run and the AIFS single run. One file per forecast hour, indexed in JSON; the records are given NOAA's names.
+    static Source ifs();
+    static Source aifs();
     static Source gefs();
     // The Rapid Refresh Forecast System's 3 km CONUS grid (Lambert, warped to latitude / longitude): hourly runs, the 2D fields and the pressure levels as files of their own
     static Source rrfs();
@@ -95,6 +102,13 @@ public:
     bool load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const;
     bool load(const Run& run, int forecastHour, const std::vector<Want>& wants, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const;
     std::string fileUrl(const Run& run, int forecastHour, const std::string& file = "") const { return source.fileUrl(run, forecastHour, file); }
+    std::string indexUrl(const Run& run, int forecastHour, const std::string& file = "") const {
+        auto url = source.fileUrl(run, forecastHour, file);
+        if (!source.indexReplaces.empty() && url.size() >= source.indexReplaces.size() && url.compare(url.size() - source.indexReplaces.size(), source.indexReplaces.size(), source.indexReplaces) == 0) {
+            url.resize(url.size() - source.indexReplaces.size());
+        }
+        return url + source.indexSuffix;
+    }
     // the records downloaded for a run and hour (in this session or an earlier one still in the cache), joined into one valid GRIB2 file ("" if none): GRIB messages stand alone, so joining is all it takes
     QString partialGrib(const Run& run, int forecastHour, const std::string& file = "") const;
 

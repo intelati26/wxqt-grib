@@ -29,6 +29,85 @@ namespace {
     }
 }
 
+namespace {
+    // the value of "key": "value" (or a bare number) in a one-line JSON object
+    std::string jsonValue(const std::string& line, const std::string& key) {
+        const auto at = line.find("\"" + key + "\"");
+        if (at == std::string::npos) {
+            return {};
+        }
+        auto from = line.find(':', at);
+        if (from == std::string::npos) {
+            return {};
+        }
+        from++;
+        while (from < line.size() && (line[from] == ' ' || line[from] == '"')) {
+            from++;
+        }
+        auto to = from;
+        while (to < line.size() && line[to] != '"' && line[to] != ',' && line[to] != '}') {
+            to++;
+        }
+        return line.substr(from, to - from);
+    }
+}
+
+std::vector<IdxRecord> parseEcmwfIndex(const std::string& text, const std::string& member) {
+    // ECMWF parameter -> NOAA name, and the level the record is at
+    struct Name {
+        const char * param;
+        const char * variable;
+        const char * level;   // "" for a pressure level (the record's own)
+    };
+    static const Name names[] = {
+        {"gh", "HGT", ""}, {"t", "TMP", ""}, {"u", "UGRD", ""}, {"v", "VGRD", ""}, {"r", "RH", ""}, {"q", "SPFH", ""}, {"w", "VVEL", ""},
+        {"2t", "TMP", "2 m above ground"}, {"2d", "DPT", "2 m above ground"}, {"10u", "UGRD", "10 m above ground"}, {"10v", "VGRD", "10 m above ground"},
+        {"msl", "PRMSL", "mean sea level"}, {"10fg", "GUST", "surface"}, {"tcc", "TCDC", "entire atmosphere"}, {"tcwv", "PWAT", "entire atmosphere (considered as a single layer)"},
+        {"mucape", "CAPE", "surface"}, {"tp", "APCP", "surface"}, {"tprate", "PRATE", "surface"}};
+    std::vector<IdxRecord> records;
+    std::istringstream in{text};
+    std::string line;
+    int number = 0;
+    while (std::getline(in, line)) {
+        number++;
+        const auto param = jsonValue(line, "param");
+        const auto type = jsonValue(line, "type");
+        if (member.empty() ? type == "pf" : jsonValue(line, "number") != member) {   // a plain field is the unperturbed one; a member is by its number
+            continue;
+        }
+        const Name * name = nullptr;
+        for (const auto& n : names) {
+            if (param == n.param) {
+                name = &n;
+            }
+        }
+        if (!name) {
+            continue;
+        }
+        const auto levtype = jsonValue(line, "levtype");
+        IdxRecord r;
+        r.number = number;
+        r.start = std::atoll(jsonValue(line, "_offset").c_str());
+        r.end = r.start + std::atoll(jsonValue(line, "_length").c_str()) - 1;
+        r.variable = name->variable;
+        if (name->level[0] == '\0') {
+            if (levtype != "pl") {
+                continue;
+            }
+            r.level = jsonValue(line, "levelist") + " mb";
+        } else {
+            if (levtype != "sfc") {
+                continue;
+            }
+            r.level = name->level;
+        }
+        const auto step = jsonValue(line, "step");
+        r.forecast = param == "tp" ? "0-" + step + " hour acc fcst" : step + " hour fcst";
+        records.push_back(std::move(r));
+    }
+    return records;
+}
+
 std::vector<IdxRecord> parseIdx(const std::string& text) {
     std::vector<IdxRecord> records;
     std::istringstream in{text};

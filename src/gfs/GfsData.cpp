@@ -56,6 +56,35 @@ GfsData::Source GfsData::aigfs() {
     return s;
 }
 
+namespace {
+    // ECMWF's index and file names: "20261009000000-24h-oper-fc" (date, cycle, hour, stream, type)
+    GfsData::Source ecmwfSource(const std::string& id, const std::string& label, const std::string& model, const std::string& kind) {
+        GfsData::Source s;
+        s.id = id;
+        s.label = label;
+        s.fileUrl = [model, kind] (const GfsData::Run& run, int hour, const std::string&) {
+            return "https://data.ecmwf.int/forecasts/" + run.date + "/" + run.cycle + "z/" + model + "/0p25/oper/" + run.date + run.cycle + "0000-" + std::to_string(hour) + "h-oper-fc" + kind;
+        };
+        s.indexReplaces = kind;
+        s.indexSuffix = ".index";
+        s.parseIndex = [] (const std::string& text, const GfsData::Want&) { return GfsGrid::parseEcmwfIndex(text); };
+        s.valueScale = [] (const GfsData::Want& want) { return want.variable == "APCP" ? 1000.0 : want.variable == "TCDC" ? 100.0 : 1.0; };   // meters to millimeters, a fraction to per cent
+        s.probeFile = "";
+        s.cycleHours = 6;
+        s.lagHours = 8;
+        s.probeHour = 0;
+        return s;
+    }
+}
+
+GfsData::Source GfsData::ifs() {
+    return ecmwfSource("IFS", "ECMWF IFS 0.25 degree (open data, CC BY 4.0)", "ifs", ".grib2");
+}
+
+GfsData::Source GfsData::aifs() {
+    return ecmwfSource("AIFS", "ECMWF AIFS 0.25 degree (an AI model; open data, CC BY 4.0)", "aifs-single", ".grib2");
+}
+
 // The Global Ensemble Forecast System's mean and spread of its 30 members (0.5 degree to 16 days, every 3 hours to 240 and then 6). Each statistic is its own file ("avg-a", "spr-a"; the "-s"
 // files are the 0.25 degree surface set, to hour 240, which holds what the 0.5 degree one does not: surface-based CAPE, gusts, dew point, helicity), in NOAA's open data bucket on AWS
 GfsData::Source GfsData::gefs() {
@@ -245,8 +274,8 @@ bool GfsData::latestRun(Run& run) const {
     for (int back = 0; back < source.cyclesToTry; back++) {
         const auto t = start.addSecs(-static_cast<qint64>(back) * source.cycleHours * 3600);
         Run candidate{t.toString("yyyyMMdd").toStdString(), pad(t.time().hour(), 2)};
-        const auto head = config.bytes(fileUrl(candidate, source.probeHour, source.probeFile) + ".idx", 0, 200);
-        if (head.startsWith("1:0:d=")) {
+        const auto head = config.bytes(indexUrl(candidate, source.probeHour, source.probeFile), 0, 200);
+        if (source.parseIndex ? head.startsWith("{") : head.startsWith("1:0:d=")) {
             run = candidate;
             return true;
         }
@@ -369,7 +398,11 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
             std::memcpy(&value, b, 4);
         }
     }
+    const double factor = source.valueScale ? source.valueScale(want) : 1.0;
     for (auto& value : g.values) {
+        if (factor != 1.0) {
+            value = static_cast<float>(value * factor);
+        }
         if (std::abs(value) > 1e19f || value == source.extraMissing || (source.warp.enabled && value < -9998.5f)) {   // GRIB's missing value, and the warp's where the grid does not reach
             value = std::nanf("");
         }
@@ -450,10 +483,19 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
             keys.push_back(key);
         }
     }
+    std::vector<Want> wantsOf(keys.size());   // a want of each index: the member to read
+    for (size_t i = 0; i < keys.size(); i++) {
+        for (const auto& need : needs) {
+            if (std::make_pair(need.hour, fileFor(need.want)) == keys[i]) {
+                wantsOf[i] = need.want;
+                break;
+            }
+        }
+    }
     std::vector<std::vector<GfsGrid::IdxRecord>> parsed(keys.size());
     runLimited(keys.size(), source.maxParallel, [&] (size_t i) {
-        const auto idxBytes = config.bytes(fileUrl(run, keys[i].first, keys[i].second) + ".idx", 0, -1);
-        parsed[i] = GfsGrid::parseIdx(idxBytes.toStdString());
+        const auto idxBytes = config.bytes(indexUrl(run, keys[i].first, keys[i].second), 0, -1);
+        parsed[i] = source.parseIndex ? source.parseIndex(idxBytes.toStdString(), wantsOf[i]) : GfsGrid::parseIdx(idxBytes.toStdString());
     });
     std::map<std::pair<int, std::string>, std::vector<GfsGrid::IdxRecord>> indexes;
     for (size_t i = 0; i < keys.size(); i++) {

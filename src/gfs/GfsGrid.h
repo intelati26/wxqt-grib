@@ -22,6 +22,9 @@ namespace GfsGrid {
     };
     // "12:5483620:d=2026100800:HGT:500 mb:6 hour fcst:" per line
     std::vector<IdxRecord> parseIdx(const std::string& text);
+    // An ECMWF open data index (one JSON object per line: param, levtype, levelist, step, _offset, _length) as the records of NOAA's own: the same names (HGT, TMP, UGRD ... "500 mb",
+    // "2 m above ground") so the charts made for the GFS read it unchanged. A field the charts have no name for is left out. `member` picks an ensemble member's records ("" the plain field).
+    std::vector<IdxRecord> parseEcmwfIndex(const std::string& text, const std::string& member = "");
     // the first record of that variable at that level ("TMP", "2 m above ground"); forecast, if given, must match too (a trailing * matches a start: "0-*")
     // `detail` must match exactly: "" asks for the plain field and never the percentile, probability or spread records that share its name
     const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast = "", const std::string& detail = "");
