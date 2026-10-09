@@ -13,6 +13,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QToolTip>
+#include "ui/HoverTip.h"
 
 namespace {
     constexpr int firstDay = 121;   // 1 May
@@ -323,7 +324,7 @@ void AceChart::mouseMoveEvent(QMouseEvent * event) {
     const double fraction = (event->position().x() - area.left()) / area.width();
     const int day = firstDay + static_cast<int>(std::lround(fraction * (lastDayShown - firstDay)));
     if (fraction < 0.0 || fraction > 1.0 || day < firstDay || day > lastDayShown) {
-        QToolTip::hideText();
+        HoverTip::hide();
         return;
     }
     const auto d = static_cast<size_t>(day);
@@ -338,7 +339,7 @@ void AceChart::mouseMoveEvent(QMouseEvent * event) {
     }
     text += daily ? "\naverage day: " + QString::number(meanPerDay[d], 'f', digits)
                   : "\naverage: " + QString::number(climatology.mean[d], 'f', digits) + "  (" + QString::number(climatology.lowest[d], 'f', digits) + " to " + QString::number(climatology.highest[d], 'f', digits) + ")";
-    QToolTip::showText(event->globalPosition().toPoint(), text, this);
+    HoverTip::show(this, event->globalPosition().toPoint(), text);
 }
 
 AceViewer::AceViewer(Window * parent, const std::shared_ptr<HurricaneData::SeasonData>& atlantic, const std::shared_ptr<HurricaneData::SeasonData>& pacific)

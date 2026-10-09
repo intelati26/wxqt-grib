@@ -16,6 +16,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QToolTip>
+#include "ui/HoverTip.h"
 #include "ui/ChartExport.h"
 
 namespace {
@@ -453,19 +454,19 @@ void TornadoChart::mouseMoveEvent(QMouseEvent * event) {
         const double rowPosition = (event->position().y() - cells.top()) / ch;
         const int r = static_cast<int>(rowPosition >= rows - 0.5 ? rowPosition - 0.5 : rowPosition);
         if (w < 1 || w > 53 || r < 0 || r >= rows) {
-            QToolTip::hideText();
+            HoverTip::hide();
             return;
         }
         const auto& row = heat[static_cast<size_t>(r)];
         const int firstDay = (w - 1) * 7 + 1;
-        QToolTip::showText(event->globalPosition().toPoint(), (row.first == 0 ? QString{"average 1991-2020"} : QString::number(row.first)) + ", the week of " + dateOfDay(std::min(firstDay, 365)) + ": " +
-            QString::number(row.second[static_cast<size_t>(w)], 'f', row.first == 0 ? 1 : 0), this);
+        HoverTip::show(this, event->globalPosition().toPoint(), (row.first == 0 ? QString{"average 1991-2020"} : QString::number(row.first)) + ", the week of " + dateOfDay(std::min(firstDay, 365)) + ": " +
+            QString::number(row.second[static_cast<size_t>(w)], 'f', row.first == 0 ? 1 : 0));
         return;
     }
     const auto area = plot();
     const double fraction = (event->position().x() - area.left()) / area.width();
     if (fraction < 0.0 || fraction > 1.0) {
-        QToolTip::hideText();
+        HoverTip::hide();
         return;
     }
     QString text;
@@ -486,7 +487,7 @@ void TornadoChart::mouseMoveEvent(QMouseEvent * event) {
         text += cumulative ? "\naverage: " + QString::number(averageTotal[idx], 'f', 0) + "  (" + QString::number(lowest[idx], 'f', 0) + " to " + QString::number(highest[idx], 'f', 0) + ")"
                            : "\naverage: " + QString::number(averageEach[idx], 'f', 1);
     }
-    QToolTip::showText(event->globalPosition().toPoint(), text, this);
+    HoverTip::show(this, event->globalPosition().toPoint(), text);
 }
 
 TornadoStatsViewer::TornadoStatsViewer(Window * parent, const std::shared_ptr<const TornadoData::Database>& database)

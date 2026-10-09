@@ -17,6 +17,7 @@
 #include <QPainterPath>
 #include <QTimeZone>
 #include <QToolTip>
+#include "ui/HoverTip.h"
 #include "hurricane/Coast.h"
 #include "hurricane/UtilityDropsonde.h"
 #include "hurricane/UtilityVdm.h"
@@ -324,7 +325,7 @@ void ReconMap::mouseMoveEvent(QMouseEvent * event) {
         }
     }
     if (!near) {
-        QToolTip::hideText();
+        HoverTip::hide();
         return;
     }
     QString text = dayClock(near->seconds) + "   " + position(near->lat, near->lon);
@@ -343,7 +344,7 @@ void ReconMap::mouseMoveEvent(QMouseEvent * event) {
     if (has(near->staticPressure)) {
         text += "\nflight level " + QString::number(near->staticPressure, 'f', 1) + " mb" + (has(near->height) ? ", " + QString::number(static_cast<int>(std::lround(near->height))) + " m" : QString{});
     }
-    QToolTip::showText(event->globalPosition().toPoint(), text, this);
+    HoverTip::show(this, event->globalPosition().toPoint(), text);
 }
 
 // ---- the page

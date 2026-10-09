@@ -9,6 +9,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QToolTip>
+#include "ui/HoverTip.h"
 #include <QWheelEvent>
 
 namespace {
@@ -289,7 +290,7 @@ void DroughtMap::mouseMoveEvent(QMouseEvent * event) {
         update();
         return;
     }
-    QToolTip::showText(event->globalPosition().toPoint(), readout(toWorld(event->position())), this);
+    HoverTip::show(this, event->globalPosition().toPoint(), readout(toWorld(event->position())));
 }
 
 void DroughtMap::mouseReleaseEvent(QMouseEvent *) {

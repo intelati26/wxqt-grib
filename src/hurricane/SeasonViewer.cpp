@@ -13,6 +13,7 @@
 #include <QPainter>
 #include <QTextBrowser>
 #include <QToolTip>
+#include "ui/HoverTip.h"
 #include "hurricane/ChartKit.h"
 #include "ui/NumberItem.h"
 
@@ -181,7 +182,7 @@ void SeasonChart::mouseMoveEvent(QMouseEvent * event) {
     const auto shown = grouped(divisors);
     const auto area = plot();
     if (shown.empty() || !area.contains(event->position())) {
-        QToolTip::hideText();
+        HoverTip::hide();
         return;
     }
     const auto index = static_cast<size_t>((event->position().x() - area.left()) / (area.width() / static_cast<double>(shown.size())));
@@ -190,12 +191,12 @@ void SeasonChart::mouseMoveEvent(QMouseEvent * event) {
     }
     const auto& s = shown[index];
     if (group != 0) {
-        QToolTip::showText(event->globalPosition().toPoint(), QString::number(s.year) + "s: " + QString::number(value(s) / divisors[index], 'f', metric == 0 || metric == 4 ? 0 : 1) + (group == 1 ? " a season on average" : " in the decade") +
-            "\n(" + QString::number(s.named) + " named storms, " + QString::number(s.hurricanes) + " hurricanes, " + QString::number(s.major) + " major, ACE " + QString::number(s.ace, 'f', 0) + ")", this);
+        HoverTip::show(this, event->globalPosition().toPoint(), QString::number(s.year) + "s: " + QString::number(value(s) / divisors[index], 'f', metric == 0 || metric == 4 ? 0 : 1) + (group == 1 ? " a season on average" : " in the decade") +
+            "\n(" + QString::number(s.named) + " named storms, " + QString::number(s.hurricanes) + " hurricanes, " + QString::number(s.major) + " major, ACE " + QString::number(s.ace, 'f', 0) + ")");
         return;
     }
-    QToolTip::showText(event->globalPosition().toPoint(), QString::number(s.year) + ": " + QString::number(s.named) + " named storms, " + QString::number(s.hurricanes) + " hurricanes, " +
-        QString::number(s.major) + " major, ACE " + QString::number(s.ace, 'f', 1) + (s.radiiStorms > 0 ? ", TIKE " + QString::number(std::lround(s.tike)) + " TJ" : QString{}), this);
+    HoverTip::show(this, event->globalPosition().toPoint(), QString::number(s.year) + ": " + QString::number(s.named) + " named storms, " + QString::number(s.hurricanes) + " hurricanes, " +
+        QString::number(s.major) + " major, ACE " + QString::number(s.ace, 'f', 1) + (s.radiiStorms > 0 ? ", TIKE " + QString::number(std::lround(s.tike)) + " TJ" : QString{}));
 }
 
 SeasonViewer::SeasonViewer(Window * parent, const std::shared_ptr<HurricaneData::SeasonData>& seasonData)
