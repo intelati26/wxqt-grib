@@ -71,7 +71,7 @@ int main() {
     CHECK(std::find(overlayModels.begin(), overlayModels.end(), "NBM") == overlayModels.end() && std::find(overlayModels.begin(), overlayModels.end(), "HAFSA") == overlayModels.end());
     CHECK(!GfsChart::overlayChoices("NBM").empty());
     {   // the model guidance site's color bands: ascending, flat, nothing drawn under the lowest, and every chart that names one finds it
-        for (const char * name : {"precip", "isotach", "radar_rain", "rh", "spread_mslp", "spread_wind", "helicity", "uh", "prob", "vis", "ceiling", "echo_top", "snowdepth"}) {
+        for (const char * name : {"precip", "isotach", "radar_rain", "rh", "spread_mslp", "spread_wind", "helicity", "uh", "prob", "vis", "ceiling", "echo_top", "snowdepth", "duration"}) {
             const auto * bands = GfsChart::magPalette(name);
             CHECK(bands != nullptr && bands->banded && bands->stops.size() >= 2);
             for (size_t i = 1; bands && i < bands->stops.size(); i++) {

@@ -190,3 +190,37 @@ UtilityEnsembleStats::Strike UtilityEnsembleStats::strike(const UtilityEcmwfTrac
     }
     return result;
 }
+
+UtilityEnsembleStats::Field UtilityEnsembleStats::strikeField(const UtilityEcmwfTracks::Storm& storm, double radiusKm, double minWindKt, double step) {
+    Field field;
+    double south = 90, north = -90, west = 360, east = -360;
+    for (const auto& member : storm.members) {
+        if (member.type < 2) {
+            continue;
+        }
+        for (const auto& s : member.steps) {
+            if (UtilityEcmwfTracks::has(s.lat) && UtilityEcmwfTracks::has(s.lon)) {
+                south = std::min(south, s.lat);
+                north = std::max(north, s.lat);
+                west = std::min(west, s.lon);
+                east = std::max(east, s.lon);
+            }
+        }
+    }
+    if (south > north) {
+        return field;
+    }
+    const double pad = radiusKm / 111.0 + step;
+    field.step = step;
+    field.south = std::floor((std::max(south - pad, -85.0)) / step) * step;
+    field.west = std::floor((west - pad * 1.5) / step) * step;
+    field.rows = static_cast<int>(std::ceil((std::min(north + pad, 85.0) - field.south) / step));
+    field.cols = static_cast<int>(std::ceil((east + pad * 1.5 - field.west) / step));
+    field.share.assign(static_cast<size_t>(field.rows) * field.cols, 0.0f);
+    for (int r = 0; r < field.rows; r++) {
+        for (int c = 0; c < field.cols; c++) {
+            field.share[static_cast<size_t>(r) * field.cols + c] = static_cast<float>(strike(storm, field.south + (r + 0.5) * step, field.west + (c + 0.5) * step, radiusKm, minWindKt).share());
+        }
+    }
+    return field;
+}

@@ -133,6 +133,7 @@ namespace GfsChart {
         bool magColors{true};                  // the charts that have one use the model guidance site's own color bands (drawn at our resolution)
         std::vector<std::vector<std::pair<float, float>>> lines;   // coastlines and borders as (longitude, latitude)
         std::vector<TrackPoint> track;         // a storm track drawn on the chart, with the wind radii of the forecast hour shown
+        bool windRadii{true};                  // the 34 / 50 / 64 kt quadrant wind field of the track's forecast hour
         std::vector<TrackPoint> trackOther;    // another model's track for the same storm, dashed, to compare
         std::string trackName, trackOtherName; // what each is called in the key
     };

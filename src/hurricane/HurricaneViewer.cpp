@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "hurricane/HurricaneViewer.h"
+#include "gfs/GfsChart.h"
 #include "hurricane/EnsembleStyle.h"
 #include "ui/ActivityLabel.h"
 #include "ui/WindBarb.h"
@@ -199,6 +200,12 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
         Utility::writePref("HURRICANE_SWATH", on ? "true" : "false");
         view->map()->update();
     });
+    strikeCheck = new QCheckBox{"GEFS strike probability (within 100 km, 34 kt)", panel};
+    strikeCheck->setChecked(Utility::readPref("HURRICANE_STRIKE", "false") == "true");   // remembered
+    QObject::connect(strikeCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("HURRICANE_STRIKE", on ? "true" : "false");
+        view->map()->update();
+    });
     radiiCheck = new QCheckBox{"Wind radii now (34 / 50 / 64 kt)", panel};
     radiiCheck->setChecked(true);
     QObject::connect(coneCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
@@ -206,6 +213,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     column->addSpacing(4);
     column->addWidget(coneCheck);
     column->addWidget(swathCheck);
+    column->addWidget(strikeCheck);
     column->addWidget(radiiCheck);
     podCheck = new QCheckBox{"Planned recon flights (Plan of the Day)", panel};
     podCheck->setChecked(true);
@@ -561,6 +569,7 @@ void HurricaneViewer::loadEnsembles() {
                 return;
             }
             ensembles = data;
+            strikeFor = nullptr;
             HurricaneData::EnsembleSet gefs;
             if (storm && HurricaneData::gefsFromGuidance(storm->id, storm->guidance, gefs)) {
                 ensembles->sets.push_back(std::move(gefs));   // for the statistics; its lines are drawn by the Ensemble members group
@@ -1432,6 +1441,39 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             painter.setPen(QPen{swathColors[k], 1.2 * px, Qt::DotLine});
             painter.setBrush(fill);
             painter.drawPath(path);
+        }
+    }
+    // the GEFS strike probability: the share of members that pass within 100 km at 34 kt or more, in the banded scale of the model guidance site
+    if (strikeCheck->isChecked() && ensembles) {
+        const HurricaneData::EnsembleSet * gefs = nullptr;
+        for (const auto& set : ensembles->sets) {
+            if (set.label == "GEFS") {
+                gefs = &set;
+            }
+        }
+        if (gefs) {
+            if (strikeFor != gefs) {
+                strikeFor = gefs;
+                strikeField = UtilityEnsembleStats::strikeField(gefs->storm, 100.0, 34.0);
+            }
+            if (const auto * ramp = GfsChart::magPalette("prob")) {
+                painter.setPen(Qt::NoPen);
+                for (int r = 0; r < strikeField.rows; r++) {
+                    for (int c = 0; c < strikeField.cols; c++) {
+                        const auto share = strikeField.share[static_cast<size_t>(r) * strikeField.cols + c];
+                        const auto color = QColor::fromRgba(ramp->at(share * 100.0));
+                        if (share <= 0.0f || color.alpha() == 0) {
+                            continue;
+                        }
+                        const double s = strikeField.south + r * strikeField.step, w = strikeField.west + c * strikeField.step;
+                        const QRectF cell = QRectF{t(s + strikeField.step, w), t(s, w + strikeField.step)}.normalized();
+                        auto fill = color;
+                        fill.setAlpha(150);
+                        painter.setBrush(fill);
+                        painter.drawRect(cell.adjusted(-0.5, -0.5, 0.5, 0.5));
+                    }
+                }
+            }
         }
     }
     // the best track so far

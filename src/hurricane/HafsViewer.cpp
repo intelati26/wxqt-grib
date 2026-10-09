@@ -15,6 +15,7 @@
 #include "ui/ChartExport.h"
 #include "objects/FutureVoid.h"
 #include "ui/ActivityLabel.h"
+#include "util/Utility.h"
 
 namespace {
     // the basin letter of a model id: 09l the Atlantic, 18e the East Pacific
@@ -86,6 +87,13 @@ HafsViewer::HafsViewer(Window * parent, const string& storm, const string& name)
     row.addWidget(comboProduct);
     row.addWidget(comboTime);
     row.addLayout(backForward);
+    radiiCheck = new QCheckBox{"Wind field (34 / 50 / 64 kt)", this};
+    radiiCheck->setChecked(Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0);   // remembered
+    QObject::connect(radiiCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("HAFS_RADII", on ? "true" : "false");
+        draw();
+    });
+    row.addWidgetReal(radiiCheck);
     row.addWidget(buttonIntensity);
     buttonIntensity.connect([this] { showIntensity(); });
     box.addLayout(row);

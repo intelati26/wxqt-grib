@@ -44,6 +44,14 @@ public:
         double share() const { return members > 0 ? static_cast<double>(hits) / members : 0.0; }
     };
     static Strike strike(const UtilityEcmwfTracks::Storm&, double lat, double lon, double radiusKm, double minWindKt);
+    // The share of members that strike each cell of a grid (cell centres at south + (row + 0.5) * step, west + (col + 0.5) * step), row-major from the south, covering every
+    // position of every member plus the radius; empty when no member has a position.
+    struct Field {
+        double south{0.0}, west{0.0}, step{0.5};
+        int rows{0}, cols{0};
+        vector<float> share;
+    };
+    static Field strikeField(const UtilityEcmwfTracks::Storm&, double radiusKm, double minWindKt, double step = 0.5);
     static double percentile(vector<double> values, double fraction);   // linear between ranks; missing for an empty set
     static double kilometers(double lat1, double lon1, double lat2, double lon2);
 };

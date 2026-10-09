@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <QCheckBox>
 #include <QWidget>
 #include "gfs/GfsRender.h"
 #include "ui/Button.h"
@@ -69,6 +70,7 @@ private:
     ComboBox comboTime;
     BackForward backForward;
     Button buttonIntensity;
+    QCheckBox * radiiCheck{};                  // the quadrant wind field (34 / 50 / 64 kt) on the chart
     Text textStatus;
     string first;            // the storm to show when the list arrives
     string firstName;

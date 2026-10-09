@@ -15,6 +15,8 @@ public:
     static const std::vector<std::vector<std::pair<float, float>>>& lines();
     // the whole world (resourceCreation/res/world_coast.bin, Natural Earth 1:50m, simplified to 0.03 degrees): the master map and the global charts
     static const std::vector<std::vector<std::pair<float, float>>>& worldLines();
+    // worldLines() plus the lines of the US states: what every map that can show state outlines draws
+    static const std::vector<std::vector<std::pair<float, float>>>& borders();
 };
 
 #endif  // COAST_H

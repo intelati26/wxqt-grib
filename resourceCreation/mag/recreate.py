@@ -20,7 +20,7 @@ for model, v in inv.items():
     for p in v['products']:
         pid = p['id']; src = source.get(model)
         if model == 'STORM-TRACKS':
-            status, by = ('to recreate', 'the strike-probability map from the GEFS member tracks (ATCF), not drawn yet') if pid == 'GEFS-prob' else ('covered by the hurricane screens', 'the model tracks (ATCF guidance) the hurricane screens draw')
+            status, by = ('recreated (equivalent)', 'hurricane track map layer: share of GEFS members passing within 100 km at 34 kt (HurricaneViewer)') if pid == 'GEFS-prob' else ('covered by the hurricane screens', 'the model tracks (ATCF guidance) the hurricane screens draw')
         elif model == 'STOFS':
             status, by = 'to recreate', 'STOFS is NetCDF on an unstructured grid (not GRIB): its own project'
         elif model == 'ICE-DRIFT':
@@ -36,7 +36,7 @@ for model, v in inv.items():
         elif (model, pid) in alias and alias[(model, pid)] in drawn[src]:
             status, by = 'recreated (equivalent)', f'{src} `{alias[(model, pid)]}`'
         elif (model, pid) == ('NBM', 'precip_duration'):
-            status, by = 'to recreate', 'NBM: no precipitation duration record in the blend files (checked); would need deriving from the hourly amounts'
+            status, by = 'recreated', 'NBM `precip_duration`: hours with measurable precipitation in the 12 h ending at the hour (hourly APCP windows)'
         else:
             status, by = 'to recreate', f'{src}'
         rows.append((model, pid, p['label'], status, by, f'{model}/{pid}' in cap))

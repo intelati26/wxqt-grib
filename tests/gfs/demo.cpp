@@ -101,7 +101,7 @@ int main(int argc, char ** argv) {
     if (const char * mag = std::getenv("DEMO_MAG"); mag && std::string{mag} == "0") {   // DEMO_MAG=0: our own color scales
         options.magColors = false;
     }
-    QFile coast{"/home/mitch/Claude/wxqt-grib/resourceCreation/res/nhc_basins.bin"};
+    QFile coast{"/home/mitch/Claude/wxqt-grib/resourceCreation/res/nhc_basins.bin"};   // (the app itself draws Coast::borders(): the world plus the states)
     if (coast.open(QIODevice::ReadOnly)) {
         const auto bytes = coast.readAll();
         const auto * values = reinterpret_cast<const float *>(bytes.constData());

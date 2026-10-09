@@ -614,7 +614,7 @@ void MasterMapViewer::paintMap(QPainter& painter) {
     // the coastlines and borders of the world's tropics and mid-latitudes
     painter.setPen(QPen{QColor{110, 125, 145}, 1.0 * px});
     painter.setBrush(Qt::NoBrush);
-    for (const auto& line : Coast::worldLines()) {
+    for (const auto& line : Coast::borders()) {
         QPainterPath path;
         bool started = false;
         for (const auto& [lon, lat] : line) {

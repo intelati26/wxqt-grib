@@ -17,6 +17,7 @@
 #include "common/GlobalVariables.h"
 #include "gfs/GfsRender.h"
 #include "hurricane/HafsViewer.h"
+#include "hurricane/HurricaneViewer.h"
 #include "models/ModelViewer.h"
 #include "util/Utility.h"
 #include "hurricane/ReconViewer.h"
@@ -84,6 +85,8 @@ int main(int argc, char * argv[]) {
                 auto seasons = std::make_shared<HurricaneData::SeasonData>();
                 HurricaneData::loadSeason(*seasons, route.section(':', 1, 1).toStdString());
                 new SeasonViewer{&w, seasons};
+            } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm
+                new HurricaneViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString()};
             } else if (route.startsWith("hafs:")) {   // WXQT_OPEN=hafs:<NHC id>: the hurricane model screen on that storm
                 new HafsViewer{&w, route.section(':', 1, 1).toStdString(), ""};
             } else if (route.startsWith("hafsintensity:")) {   // WXQT_OPEN=hafsintensity:<model id, e.g. 15e>: the intensity of that storm from HAFS-A and HAFS-B

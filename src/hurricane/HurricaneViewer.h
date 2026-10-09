@@ -100,6 +100,9 @@ private:
     QCheckBox * wwCheck{};                                    // watches and warnings
     QCheckBox * coneCheck{};                                  // the forecast cone
     QCheckBox * swathCheck{};                                 // the forecast wind swath
+    QCheckBox * strikeCheck{};                                // the share of GEFS members passing within 100 km
+    UtilityEnsembleStats::Field strikeField;                  // cached for the current ensembles
+    const void * strikeFor{nullptr};
     QCheckBox * radiiCheck{};
     QCheckBox * fixCheck{};                                   // the recon centre fixes (vortex messages)
     QCheckBox * autoCheck{};                                  // refresh every 10 minutes and alert on a new advisory

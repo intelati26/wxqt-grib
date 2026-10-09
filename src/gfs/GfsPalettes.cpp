@@ -207,6 +207,23 @@ const GfsChart::Ramp * GfsChart::magPalette(const std::string& name) {
             r.stops.push_back({65.0, QColor{137, 104, 205}});
             p["echo_top"] = r;
         }
+        {   // duration: 12 bands, read by eye from the legend
+            Ramp r;
+            r.banded = true;
+            r.stops.push_back({1.0, QColor{77, 255, 255}});
+            r.stops.push_back({2.0, QColor{30, 144, 255}});
+            r.stops.push_back({3.0, QColor{0, 0, 205}});
+            r.stops.push_back({4.0, QColor{0, 128, 0}});
+            r.stops.push_back({5.0, QColor{50, 205, 50}});
+            r.stops.push_back({6.0, QColor{153, 255, 153}});
+            r.stops.push_back({7.0, QColor{255, 255, 0}});
+            r.stops.push_back({8.0, QColor{255, 165, 0}});
+            r.stops.push_back({9.0, QColor{255, 69, 0}});
+            r.stops.push_back({10.0, QColor{160, 82, 45}});
+            r.stops.push_back({11.0, QColor{238, 130, 238}});
+            r.stops.push_back({12.0, QColor{102, 51, 153}});
+            p["duration"] = r;
+        }
         {   // snowdepth: 18 bands, from GEFS-MEAN-SPRD/snodpth_chng_mean.gif
             Ramp r;
             r.banded = true;

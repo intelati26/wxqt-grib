@@ -24,6 +24,8 @@ PALETTES = {
     'vis':         ('HRRR/vis.gif',                [9, 8, 7, 6, 5, 4, 3, 2, 1.5, 1, 0.75, 0.5, 0.25, 0.125, 0], 1.0, False),              # statute miles
     'ceiling':     ('HRRR/ceiling.gif',            [45, 40, 35, 30, 25, 20, 15, 10, 5, 1, 0.5, 0.3, 0.1, 0], 1000.0, False),             # thousands of feet -> feet
     'echo_top':    ('HRRR/echo_top.gif',           [65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5, 0], 1.0, False),                   # thousands of feet
+    # read down the middle of the bar in NBM/precip_duration.gif: whole hours from 1 to 12 (0 is white and is not drawn)
+    'duration':    ('explicit', [(1, '#4dffff'), (2, '#1e90ff'), (3, '#0000cd'), (4, '#008000'), (5, '#32cd32'), (6, '#99ff99'), (7, '#ffff00'), (8, '#ffa500'), (9, '#ff4500'), (10, '#a0522d'), (11, '#ee82ee'), (12, '#663399')], 1.0, False),
     'snowdepth':   ('GEFS-MEAN-SPRD/snodpth_chng_mean.gif', [72, 60, 48, 36, 30, 24, 18, 15, 12, 10, 8, 6, 4, 3, 2, 1, 0.5, 0.1], 2.54, False),   # inches -> centimeters
 }
 def main(folder):
@@ -33,6 +35,15 @@ def main(folder):
     import crops
     crops.R = folder.rstrip('/') + '/'
     for name, (image, bounds, factor, merge) in PALETTES.items():
+        if image == 'explicit':   # the colors are given: (lower bound, color) from the lowest
+            out.append('        {   // %s: %d bands, read by eye from the legend' % (name, len(bounds)))
+            out.append('            Ramp r;')
+            out.append('            r.banded = true;')
+            for low, hexcolor in bounds:
+                out.append('            r.stops.push_back({%s, QColor{%d, %d, %d}});' % (repr(round(low * factor, 6)), int(hexcolor[1:3], 16), int(hexcolor[3:5], 16), int(hexcolor[5:7], 16)))
+            out.append('            p["%s"] = r;' % name)
+            out.append('        }')
+            continue
         best = crop(image, '/tmp/_palette.png')
         swatches = []
         for r in best:

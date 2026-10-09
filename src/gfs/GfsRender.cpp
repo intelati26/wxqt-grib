@@ -30,32 +30,6 @@
 #include "util/UtilityIO.h"
 
 namespace {
-    // the coastlines of the basins plus the states, Canada and Mexico (line segments in the radar screen's resources: latitude, west longitude)
-    const std::vector<std::vector<std::pair<float, float>>>& borders() {
-        static const auto lines = [] {
-            auto all = Coast::worldLines();
-            for (const char * name : {"statev2.bin"}) {   // the state lines; the world file has the countries and the coasts
-                const auto raw = UtilityIO::readBinaryFileFromResource(GlobalVariables::resDir + name);
-                const auto floatAt = [&raw] (int offset) {
-                    const unsigned char b[4]{static_cast<unsigned char>(raw[offset + 3]), static_cast<unsigned char>(raw[offset + 2]),
-                                             static_cast<unsigned char>(raw[offset + 1]), static_cast<unsigned char>(raw[offset])};
-                    float value = 0.0f;
-                    std::memcpy(&value, b, 4);
-                    return value;
-                };
-                for (int i = 0; i + 15 < static_cast<int>(raw.size()); i += 16) {
-                    const float lat1 = floatAt(i), lon1 = floatAt(i + 4), lat2 = floatAt(i + 8), lon2 = floatAt(i + 12);
-                    if ((lat1 == lat2 && lon1 == lon2) || lat1 < 5.0f || lat1 > 85.0f || lat2 < 5.0f || lat2 > 85.0f) {
-                        continue;
-                    }
-                    all.push_back({{-lon1, lat1}, {-lon2, lat2}});
-                }
-            }
-            return all;
-        }();
-        return lines;
-    }
-
     // a model that follows a storm: the hurricane model
     bool isHafs(const std::string& model) {
         const auto * def = GfsModels::find(model);
@@ -244,7 +218,8 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     options.climate = &climate;
     options.fahrenheit = UIPreferences::unitsF;
     options.magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;   // the settings switch: the model guidance site's color bands
-    options.lines = borders();
+    options.lines = Coast::borders();
+    options.windRadii = Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0;   // the quadrant wind field toggle of the hurricane model screen
     if (isHafs(model)) {   // the model's own track and wind radii for the storm, drawn on the chart
         const auto text = URL::getBytes(gfs.fileUrl(run, 0, "trak"));
         options.track = GfsChart::parseTrack(text.toStdString());

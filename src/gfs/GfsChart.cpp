@@ -1400,6 +1400,39 @@ const std::vector<Product>& products() {
                 x.legendStep = 10;
                 p.push_back(x);
             }
+            {   // the number of hours with precipitation in the last 12: the hourly amounts counted where there is at least 0.01 inch (the blend has the hourly amounts to hour 36)
+                auto x = nbmChart("precip_duration", "Precipitation duration");
+                x.needs = [=] (int hour) {
+                    std::vector<GfsData::Need> out;
+                    for (int k = std::max(hour - 11, 1); k <= hour; k++) {
+                        out.push_back({k, nbmWant("d" + std::to_string(k), "APCP", "surface", window(k, 1, "acc"))});
+                    }
+                    return out;
+                };
+                x.derive = [] (Grids& g, const Context&) {
+                    GfsGrid::Grid count;
+                    for (const auto& [key, grid] : g) {
+                        if (key.size() >= 2 && key[0] == 'd' && std::isdigit(static_cast<unsigned char>(key[1]))) {
+                            if (count.empty()) {
+                                count = grid;
+                                std::fill(count.values.begin(), count.values.end(), 0.0f);
+                            }
+                            for (size_t i = 0; i < count.values.size(); i++) {
+                                count.values[i] = std::isnan(grid.values[i]) || std::isnan(count.values[i]) ? std::nanf("") : count.values[i] + (grid.values[i] >= 0.254f ? 1.0f : 0.0f);
+                            }
+                        }
+                    }
+                    g["count"] = std::move(count);
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "count"); };
+                if (const auto * bands = magPalette("duration")) {
+                    x.ramp = *bands;
+                }
+                x.palette = "duration";
+                x.fillTitle = "Hours with precipitation in the last 12 (0.01 in or more in the hour)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
             for (const auto& [id, label, miles, meters] : {std::tuple{"prob_vis_5mi", "Probability of Visibility 5 miles or less", "5 miles", "8046.73"}, {"prob_vis_3mi", "Probability of Visibility less than 3 miles", "3 miles", "4828.03"},
                                                            {"prob_vis_2mi", "Probability of Visibility less than 2 miles", "2 miles", "3218.69"}, {"prob_vis_1mi", "Probability of Visibility less than 1 mile", "1 mile", "1609.34"}}) {
                 p.push_back(chance(id, label, "VIS", "surface", now, (std::string{"prob <"} + meters).c_str(), (std::string{"Chance of visibility under "} + miles + " (%)").c_str()));
@@ -3855,7 +3888,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 now = &t;
             }
         }
-        if (now) {   // 64 kt over 50 over 34, each quadrant's radius out along its quarter of the circle
+        if (now && options.windRadii) {   // 64 kt over 50 over 34, each quadrant's radius out along its quarter of the circle
             static const QColor colors[3] = {QColor{255, 235, 0, 70}, QColor{255, 140, 0, 90}, QColor{230, 20, 20, 110}};
             for (int row = 0; row < 3; row++) {
                 QPolygonF poly;
