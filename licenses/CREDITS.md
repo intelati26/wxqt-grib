@@ -16,6 +16,8 @@ called as a separate program, or only used to check our own code, that is said.
 ## Data
 - **NOAA / NWS / NCEP / NHC / SPC / WPC / OPC / NESDIS / NSSL / MRMS**: US government works. GFS, GEFS, NBM, HREF, RRFS, REFS, HAFS, GFS-Wave, AIGFS and the rest of the
   model guidance come from NOAA's open data (NOMADS and the AWS Open Data buckets).
+- **U.S. Drought Monitor** (produced jointly by the National Drought Mitigation Center at the University of Nebraska-Lincoln, the USDA and NOAA; droughtmonitor.unl.edu): the weekly maps, the change maps and the area statistics on the drought screen.
+- **NOAA Climate Prediction Center**: the precipitation totals and departures, the drought outlooks, soil moisture and the standardized precipitation index on the drought screen.
 - **ECMWF open data** (CC BY 4.0): "Contains ECMWF open data", see `ecmwf-notice.md`.
 - **Google DeepMind Weather Lab** cyclone ensembles: used under the terms on their download pages (experimental; not for real world use).
 - **CIRA / RAMMB** (Colorado State), **JTWC**, **JMA**, **NOAA PSL** (the NCEP / NCAR reanalysis climatology for the anomaly charts), **Natural Earth** (coastlines,

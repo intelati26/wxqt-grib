@@ -28,6 +28,7 @@
 #include "misc/SevereDashboard.h"
 #include "misc/UsAlerts.h"
 #include "misc/WfoText.h"
+#include "drought/DroughtViewer.h"
 #include "models/CamsViewer.h"
 #include "mrms/MrmsViewer.h"
 #include "models/GribViewer.h"
@@ -127,6 +128,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("goes16.png", "Space weather: storm scales, Kp, flares, solar wind, aurora, sun", [parent] { Dashboards::openSpaceWeather(parent); });
     routeItems.emplace_back("twtornado.png", "Tornado history: SPC tornado tracks since 1950 by year, rating, state and area; counts by day, week, month, year and decade", [parent] { Dashboards::openTornadoHistory(parent); });
     routeItems.emplace_back("widget_afd.png", "Forecast discussions (planned): all centres, history, what changed", [parent] { Dashboards::openForecastDiscussions(parent); });
+    routeItems.emplace_back("fire_outlook.png", "Drought: the U.S. Drought Monitor and how it changed, precipitation and its departure from normal, outlooks, soil moisture", [parent] { new DroughtViewer{parent}; });
     routeItems.emplace_back("rain_showers.png", "Rivers: NWS river gauges, flood stages, forecasts and the National Water Model", [parent] { new RiverMapViewer{parent}; });
     routeItems.emplace_back("nsslwrf.png", "NSSL WRF", [this] { launchModelViewerGeneric("NSSLWRF"); });
     routeItems.emplace_back("wpcgefs.png", "WPC GEFS", [this] { launchModelViewerGeneric("WPCGEFS"); });

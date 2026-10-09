@@ -13,6 +13,7 @@
 #include <QWheelEvent>
 #include "hurricane/ReconViewer.h"
 #include "radar/MapWidget.h"
+#include "drought/DroughtViewer.h"
 #include "objects/NetManager.h"
 #include "objects/URL.h"
 #include "ui/NetStatus.h"
@@ -155,6 +156,8 @@ int main(int argc, char * argv[]) {
                 auto seasons = std::make_shared<HurricaneData::SeasonData>();
                 HurricaneData::loadSeason(*seasons, route.section(':', 1, 1).toStdString());
                 new SeasonViewer{&w, seasons};
+            } else if (route == "drought") {   // WXQT_OPEN=drought: the drought dashboard (WXQT_TAB=<n> for its other tabs)
+                new DroughtViewer{&w};
             } else if (route.startsWith("fetchtest:")) {   // WXQT_OPEN=fetchtest:<url>: two requests for the url at once through the network client, with what it did (retries, sharing), then quit
                 const auto url = route.mid(10).toStdString();
                 QElapsedTimer timer;
