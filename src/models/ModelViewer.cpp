@@ -251,10 +251,16 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         if (n < 2) {
             return;
         }
-        const int next = (strip->current() + 1) % n;
-        if (frames.count(frameKey(std::atoi(objectModel.times[static_cast<size_t>(next)].c_str())))) {   // wait for the frame if it is not drawn yet
-            strip->setCurrent(next);
-            selectHour(next);
+        // the next hour whose charts are all drawn, in every tile: the loop plays what is rendered (and the tiles stay on the same hour); it waits where nothing else is ready yet
+        for (int step = 1; step <= n; step++) {
+            const int next = (strip->current() + step) % n;
+            if (hourReady(std::atoi(objectModel.times[static_cast<size_t>(next)].c_str()))) {
+                if (next != strip->current()) {
+                    strip->setCurrent(next);
+                    selectHour(next);
+                }
+                break;
+            }
         }
         playTimer.setInterval(strip->intervalMs());
     });
@@ -330,6 +336,19 @@ void ModelViewer::moveForward() {
     comboboxTime.setIndex(objectModel.timeIdx);
     comboboxTime.unblock();
     changeTime(objectModel.timeIdx);
+}
+
+bool ModelViewer::hourReady(int hour) const {
+    for (int spec = 0; spec <= tileCount(); spec++) {
+        const auto job = makeJob(spec, hour, false);
+        if (!job.ok || failedAhead.count(job.key)) {
+            continue;
+        }
+        if (!frames.count(job.key)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 string ModelViewer::frameKey(int hour) const {
@@ -598,7 +617,7 @@ void ModelViewer::refreshLoaded() {
     int last = now;
     for (const auto& t : objectModel.times) {
         const int hour = std::atoi(t.c_str());
-        const bool isReady = frames.count(frameKey(hour)) > 0;
+        const bool isReady = hourReady(hour);
         ready.push_back(isReady);
         have += isReady;
         if (hour >= now && hour <= now + ahead) {

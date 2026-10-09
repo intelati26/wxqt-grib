@@ -63,6 +63,7 @@ private:
         std::shared_ptr<GfsChart::Probe> probe;
     };
     string frameKey(int hour) const;
+    bool hourReady(int hour) const;   // the chart of every tile for that hour is drawn (a tile that cannot draw it does not hold the others back)
     // the comparison tiles: 1 x 1 (off), 1 x 2, 1 x 3 or 2 x 2 charts of the same hour. What differs is chosen: the charts (of this model, area and run), the models (the same chart), or the runs (the same
     // valid time from older runs). The first tile is the screen's own chart; the others take their view (zoom, place, hover) from it. Each tile's frames are kept and read ahead like the first one's.
     struct Spec {
