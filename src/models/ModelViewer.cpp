@@ -25,7 +25,7 @@
 
 ModelViewer::ModelViewer(Window * parent, const string& modelType)
     : Window{parent}
-    , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
+    , image{this}
     , objectModel{modelType}
     , comboboxRun{this}
     , comboboxModel{this, objectModel.models}
@@ -79,7 +79,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         boxH.addWidgetReal(more);
     }
     box.addLayout(boxH);
-    box.addWidgetAndCenter(photo);
+    box.addWidgetReal(&image, 1, Qt::Alignment{});
     strip = new TimeStrip{this};
     strip->onSelect = [this] (int index) { selectHour(index); };
     strip->onPlay = [this] (bool on) { startPlaying(on); };
@@ -176,9 +176,18 @@ string ModelViewer::frameKey(int hour) const {
 }
 
 void ModelViewer::showFrame(const Frame& frame) {
-    photo.setBytes(frame.bytes);
+    string chart = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector;
+    for (const auto& id : overlays) {
+        chart += "|" + id;
+    }
+    if (chart == lastChart && image.hasImage()) {   // another hour of the chart on view: the zoom and the place stay
+        image.setBytesKeepView(frame.bytes);
+    } else {
+        image.setBytes(frame.bytes);
+    }
+    lastChart = chart;
     if (!hover) {
-        hover = std::make_unique<ChartHover>(photo.getView());
+        hover = std::make_unique<ChartHover>(&image);
     }
     hover->set(frame.probe);
 }
@@ -302,7 +311,7 @@ void ModelViewer::reload() {
         return;
     }
     new FutureBytes{this, ObjectModelGet::imageUrl(objectModel), [this] (const auto& ba) {
-        photo.setBytes(ba);
+        image.setBytes(ba);
         if (hover) {
             hover->set(nullptr);
         }

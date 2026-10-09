@@ -18,6 +18,7 @@
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/Photo.h"
+#include "ui/ZoomImage.h"
 #include <map>
 #include <QTimer>
 #include "models/ChartHover.h"
@@ -65,6 +66,7 @@ private:
     int prefetchGeneration{0};
     bool prefetching{false};
     bool playing{false};
+    string lastChart;                    // the model, chart, area and extras of the picture shown: a new hour of the same keeps the zoom
     int drawing{0};
     std::shared_ptr<GfsRender::Session> gfsSession;
     std::vector<std::string> overlays;   // the lines and barbs ticked onto the chart
@@ -73,7 +75,7 @@ private:
     void updateRunStatus();
     HBox boxH;
     VBox box;
-    Photo photo;
+    ZoomImage image;                     // the chart: wheel / Ctrl +- zoom, drag to pan
     ObjectModel objectModel;
     ComboBox comboboxRun;
     ComboBox comboboxModel;
