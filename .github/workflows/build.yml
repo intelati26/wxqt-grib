@@ -9,6 +9,11 @@ on:
     paths-ignore: ['docs/**', '**/*.md']
   workflow_dispatch:
 
+# A newer push to the same branch makes the build of the older one pointless (it is the newest that is wanted): cancel it instead of letting a 20 minute Windows build per push queue up
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows-x64:
     runs-on: windows-latest
@@ -119,9 +124,18 @@ jobs:
           # windeployqt6) exists only to let Qt5/Qt6 coexist system-wide.
           python makeAll.py --pro --qt5
 
+      # nmake compiles one file at a time; jom (Qt's parallel nmake, a drop-in for it) uses all the
+      # runner's cores. The Windows build was 18 minutes mostly for that reason.
+      - name: Get jom (parallel nmake)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://download.qt.io/official_releases/jom/jom.zip -OutFile jom.zip
+          Expand-Archive jom.zip -DestinationPath D:/jom
+          "D:/jom" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
       - name: Build
         shell: cmd
-        run: nmake
+        run: jom -j %NUMBER_OF_PROCESSORS%
 
       - name: Package portable folder
         shell: pwsh
