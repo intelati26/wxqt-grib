@@ -70,6 +70,8 @@ public:
     static HomeScreenOrder homeScreenColumnOrder;
     static HomeScreenOrder homeScreenImageOrder;
     static HomeScreenOrder homeScreenTextOrder;
+    // the forecast column below the conditions and hazards: the hourly graph, the seven day forecast and the forecast point, in the user's order (tokens are their preference names)
+    static HomeScreenOrder homeScreenForecastOrder;
     static string homeScreenLabel(const string& token);
 };
 

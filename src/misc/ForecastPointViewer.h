@@ -58,6 +58,7 @@ class CardForecastPoint : public QWidget {
 public:
     explicit CardForecastPoint(Window * parent);
     void setData(const std::shared_ptr<UtilityForecastPoint::Data>& data);
+    void setAllowed(bool on);   // Settings: shown at all (and the data is not asked for when it is not)
     std::function<void()> onOpen;
 
 private:
@@ -65,6 +66,8 @@ private:
     QPushButton * open;
     ForecastPointTable * table;
     ForecastPointOutlooks * outlooks;
+    bool allowed{true};
+    bool have{false};
 };
 
 // The full page, as the NWS "IDSS Forecast Points" page has it: the weekly summary with every row, the outlooks, the hourly graph of any of its series (or all of them one under

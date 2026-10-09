@@ -57,7 +57,8 @@ namespace {
             {"Max temp, F", &D::maxTemp, 0, true, false}, {"Min temp, F", &D::minTemp, 0, true, false}, {"Min wind chill, F", &D::minChill, 0, false, true}, {"Max heat index, F", &D::maxHeat, 0, false, true},
             {"Max wind, mph", &D::maxWind, 2, true, false}, {"Min wind, mph", &D::minWind, 2, false, false}, {"Max gust, mph", &D::maxGust, 2, true, false},
             {"Max chance of precip, %", &D::maxPop, 1, true, false}, {"Max chance of thunder, %", &D::maxThunder, 1, true, false},
-            {"Max dew point, F", &D::maxDew, 3, true, false}, {"Min dew point, F", &D::minDew, 3, false, false}, {"Max RH, %", &D::maxRh, 3, false, false}, {"Min RH, %", &D::minRh, 3, true, false},
+            {"Max dew point, F", &D::maxDew, 3, true, false}, {"Min dew point, F", &D::minDew, 3, false, false},
+            {"Max wet bulb, F", &D::maxWetBulb, 0, true, false}, {"Min wet bulb, F", &D::minWetBulb, 0, true, false}, {"Max wet bulb globe temp, F", &D::maxWbgt, 0, false, true}, {"Max RH, %", &D::maxRh, 3, false, false}, {"Min RH, %", &D::minRh, 3, true, false},
             {"Max cloud cover, %", &D::maxCloud, 3, true, false}, {"Min cloud cover, %", &D::minCloud, 3, false, false}, {"Max wave height, ft", &D::maxWave, 3, false, true},
         };
         return list;
@@ -336,15 +337,21 @@ CardForecastPoint::CardForecastPoint(Window * parent) : QWidget{parent} {
     setVisible(false);
 }
 
+void CardForecastPoint::setAllowed(bool on) {
+    allowed = on;
+    setVisible(allowed && have);
+}
+
 void CardForecastPoint::setData(const std::shared_ptr<UtilityForecastPoint::Data>& data) {
-    if (!data || !data->ok) {
+    have = data && data->ok;
+    if (!have) {
         setVisible(false);
         return;
     }
     title->setText("Forecast point: " + data->place + "  (NWS " + data->office + (data->updated.isValid() ? ", made " + data->updated.toTimeZone(data->zone).toString("ddd h:mm ap") : QString{}) + ")");
     outlooks->setData(*data);
     table->setData(*data, true);
-    setVisible(true);
+    setVisible(allowed);
 }
 
 // ---- the full page ----
@@ -573,7 +580,7 @@ void ForecastPointViewer::fillHourly() {
             auto * item = new QTableWidgetItem{QString::number(v, 'f', std::string{shown[r]->unit} == "in" ? 2 : 0)};
             item->setTextAlignment(Qt::AlignCenter);
             const std::string key = shown[r]->key;
-            const auto color = key == "temperature" || key == "dewpoint" || key == "windChill" || key == "heatIndex" ? temperatureColor(v) : (shown[r]->bars ? chanceColor(shown[r]->unit == std::string{"%"} ? v : v * 100.0) : QColor{});
+            const auto color = key == "temperature" || key == "dewpoint" || key == "windChill" || key == "heatIndex" || key == "wetBulb" || key == "wetBulbGlobeTemperature" ? temperatureColor(v) : (shown[r]->bars ? chanceColor(shown[r]->unit == std::string{"%"} ? v : v * 100.0) : QColor{});
             if (color.isValid()) {
                 item->setBackground(color);
             }

@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "MainWindow.h"
+#include "objects/WString.h"
 #include "ui/UiStandards.h"
 #include <QApplication>
 #include <QGridLayout>
@@ -286,7 +287,7 @@ void MainWindow::getHazards() {
 }
 
 void MainWindow::addWidgets() {
-    placeHourlyGraph();
+    placeForecastColumn();
     imageLayout.removeChildren();
     imageLayout.setEqualRowHeights(true);   // the captions of a row line up along its bottom
     rightMostLayout.removeChildren();
@@ -377,7 +378,7 @@ void MainWindow::arrangeColumns() {
 
 string MainWindow::computeTokenString() {
     string tokenString;
-    tokenString += string{UIPreferences::hourlyGraph ? "graph," : ""} + (UIPreferences::hourlyGraphAbove ? "above," : "");
+    tokenString += string{UIPreferences::hourlyGraph ? "graph," : ""} + (UIPreferences::forecastPoint ? "point," : "") + WString::join(UIPreferences::homeScreenForecastOrder.getTokens(), ",") + ",";
     tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",");
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
@@ -418,13 +419,24 @@ void MainWindow::launchImageScreen(const string& token) {
     }
 }
 
-// the hourly graph's place in the forecast column (Settings): above or below the seven day list, or not shown
-void MainWindow::placeHourlyGraph() {
+// the seven day forecast, the hourly graph and the forecast point, in the order of Settings > Home Screen Order (the graph and the point may be switched off)
+void MainWindow::placeForecastColumn() {
     auto * column = forecastLayout.getView();
+    column->removeItem(boxSevenDay.getView());
     column->removeItem(boxHourlyGraph.getView());
-    const auto at = column->indexOf(boxSevenDay.getView());
-    column->insertLayout(UIPreferences::hourlyGraphAbove ? at : at + 1, boxHourlyGraph.getView());
+    column->removeItem(boxForecastPoint.getView());
+    int at = column->indexOf(boxHazards.getView()) + 1;
+    for (const auto& token : UIPreferences::homeScreenForecastOrder.getTokens()) {
+        if (token == "HOME_SEVEN_DAY") {
+            column->insertLayout(at++, boxSevenDay.getView());
+        } else if (token == "HOURLY_GRAPH") {
+            column->insertLayout(at++, boxHourlyGraph.getView());
+        } else if (token == "HOME_FORECAST_POINT") {
+            column->insertLayout(at++, boxForecastPoint.getView());
+        }
+    }
     hourlyGraph.setVisible(UIPreferences::hourlyGraph);
+    forecastPointCard->setAllowed(UIPreferences::forecastPoint);
 }
 
 void MainWindow::getHourlyGraphData() {

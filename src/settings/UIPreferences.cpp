@@ -60,6 +60,7 @@ namespace {
 
 HomeScreenOrder UIPreferences::homeScreenColumnOrder{"HOME_SCREEN_COLUMN_ORDER", {homeColumnImages, homeColumnForecast, homeColumnText}};
 HomeScreenOrder UIPreferences::homeScreenImageOrder{"HOME_SCREEN_IMAGE_ORDER", tokensOf(homeScreenItemsImage)};
+HomeScreenOrder UIPreferences::homeScreenForecastOrder{"HOME_SCREEN_FORECAST_ORDER", {"HOURLY_GRAPH", "HOME_SEVEN_DAY", "HOME_FORECAST_POINT"}};
 HomeScreenOrder UIPreferences::homeScreenTextOrder{"HOME_SCREEN_TEXT_ORDER", tokensOf(homeScreenItemsText)};
 
 string UIPreferences::homeScreenLabel(const string& token) {
@@ -71,6 +72,15 @@ string UIPreferences::homeScreenLabel(const string& token) {
     }
     if (token == homeColumnText) {
         return "Text (hourly, WFO text)";
+    }
+    if (token == "HOURLY_GRAPH") {
+        return "Hourly graph (temperature and wind)";
+    }
+    if (token == "HOME_SEVEN_DAY") {
+        return "Seven day forecast";
+    }
+    if (token == "HOME_FORECAST_POINT") {
+        return "Forecast point (the week at a glance and the outlooks)";
     }
     for (const auto& items : {&homeScreenItemsImage, &homeScreenItemsText}) {
         for (const auto& item : *items) {
@@ -158,5 +168,9 @@ void UIPreferences::initialize() {
     homeScreenColumnOrder.load();
     HomeLayout::load();
     homeScreenImageOrder.load();
+    if (Utility::readPref("HOME_SCREEN_FORECAST_ORDER", "").empty() && !hourlyGraphAbove) {   // the old "graph below the seven day forecast" switch becomes the order
+        homeScreenForecastOrder.set({"HOME_SEVEN_DAY", "HOURLY_GRAPH", "HOME_FORECAST_POINT"});
+    }
+    homeScreenForecastOrder.load();
     homeScreenTextOrder.load();
 }

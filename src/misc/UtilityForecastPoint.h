@@ -29,6 +29,7 @@ namespace UtilityForecastPoint {
         double maxPop{missing}, maxThunder{missing};
         double maxDew{missing}, minDew{missing}, maxRh{missing}, minRh{missing};
         double maxCloud{missing}, minCloud{missing}, maxWave{missing};
+        double maxWetBulb{missing}, minWetBulb{missing}, maxWbgt{missing};   // the wet bulb temperature (from the temperature and the humidity) and the NWS's wet bulb globe temperature (heat stress)
     };
 
     // an hourly series: the hour (UTC seconds) and its value

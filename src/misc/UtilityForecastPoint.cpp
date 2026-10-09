@@ -28,6 +28,8 @@ namespace UtilityForecastPoint {
             {"snowfallAmount", "Snow", "in", true},
             {"iceAccumulation", "Ice", "in", true},
             {"dewpoint", "Dew point", "F", false},
+            {"wetBulb", "Wet bulb temperature", "F", false},
+            {"wetBulbGlobeTemperature", "Wet bulb globe temperature", "F", false},
             {"relativeHumidity", "Relative humidity", "%", false},
             {"skyCover", "Sky cover", "%", false},
             {"waveHeight", "Wave height", "ft", false},
@@ -151,6 +153,8 @@ namespace UtilityForecastPoint {
         fold("probabilityOfPrecipitation", &Day::maxPop, nullptr);
         fold("probabilityOfThunder", &Day::maxThunder, nullptr);
         fold("dewpoint", &Day::maxDew, &Day::minDew);
+        fold("wetBulb", &Day::maxWetBulb, &Day::minWetBulb);
+        fold("wetBulbGlobeTemperature", &Day::maxWbgt, nullptr);
         fold("relativeHumidity", &Day::maxRh, &Day::minRh);
         fold("skyCover", &Day::maxCloud, &Day::minCloud);
         fold("waveHeight", &Day::maxWave, nullptr);
@@ -199,6 +203,26 @@ namespace UtilityForecastPoint {
             }
             if (!series.empty()) {
                 data.hourly[parameter.key] = std::move(series);
+            }
+        }
+        // the wet bulb temperature of each hour from its temperature and humidity (Stull 2011, good from -20 to 50 C and 5 to 99 per cent; near sea level pressure)
+        if (data.hourly.count("temperature") && data.hourly.count("relativeHumidity")) {
+            std::map<qint64, double> humidity;
+            for (const auto& [t, v] : data.hourly.at("relativeHumidity")) {
+                humidity[t] = v;
+            }
+            Series wet;
+            for (const auto& [t, f] : data.hourly.at("temperature")) {
+                const auto found = humidity.find(t);
+                if (found == humidity.end()) {
+                    continue;
+                }
+                const double c = (f - 32.0) * 5.0 / 9.0, rh = std::clamp(found->second, 5.0, 99.0);
+                const double tw = c * std::atan(0.151977 * std::sqrt(rh + 8.313659)) + std::atan(c + rh) - std::atan(rh - 1.676331) + 0.00391838 * std::pow(rh, 1.5) * std::atan(0.023101 * rh) - 4.686035;
+                wet.emplace_back(t, tw * 9.0 / 5.0 + 32.0);
+            }
+            if (!wet.empty()) {
+                data.hourly["wetBulb"] = std::move(wet);
             }
         }
         const auto today = QDateTime::fromSecsSinceEpoch(now, data.zone).date();

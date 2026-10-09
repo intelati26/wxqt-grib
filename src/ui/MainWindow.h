@@ -66,7 +66,7 @@ private:
     void updateWatch();
     bool launch(int);
     void showHourlyGraph();
-    void placeHourlyGraph();
+    void placeForecastColumn();
     VBox box;
     HBox boxH;
     VBox boxZones;         // right of the toolbar: holds the zone grid chosen under Settings > Home Screen Order

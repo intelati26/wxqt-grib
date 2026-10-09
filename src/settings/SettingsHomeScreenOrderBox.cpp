@@ -35,6 +35,7 @@ void SettingsHomeScreenOrderBox::addItems() {
     box.addWidget(labels.back());
     box.addWidgetReal(new HomeLayoutEditor{this, [] {}});
     addDragList("Image column (top to bottom):", "Drag to reorder, tick to show (the MRMS radar picture is one of these).", UIPreferences::homeScreenImageOrder);
+    addDragList("Forecast column, below the conditions and hazards (top to bottom):", "Drag to reorder, tick to show (the seven day forecast always shows).", UIPreferences::homeScreenForecastOrder);
     addDragList("Text column (top to bottom):", "Drag to reorder, tick to show.", UIPreferences::homeScreenTextOrder);
     // the MRMS home thumbnail: the area around the current location, or all of the lower 48
     hboxList.emplace_back();
@@ -74,8 +75,10 @@ void SettingsHomeScreenOrderBox::addDragList(const string& title, const string& 
         auto * item = new QListWidgetItem{QString::fromStdString(UIPreferences::homeScreenLabel(token)), list};
         item->setData(Qt::UserRole, QString::fromStdString(token));
         item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled);
-        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-        item->setCheckState(isShown(token) ? Qt::Checked : Qt::Unchecked);
+        if (token != "HOME_SEVEN_DAY") {
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+            item->setCheckState(isShown(token) ? Qt::Checked : Qt::Unchecked);
+        }
     }
     const int rows = list->count();
     list->setFixedHeight(rows * std::max(24, list->sizeHintForRow(0)) + 10);
@@ -110,6 +113,9 @@ bool SettingsHomeScreenOrderBox::isShown(const string& token) {
                 return item.isEnabled();
             }
         }
+    }
+    if (token == "HOURLY_GRAPH" || token == "HOME_FORECAST_POINT") {
+        return Utility::readPref(token, "true").compare(0, 1, "t") == 0;
     }
     return true;   // columns
 }
