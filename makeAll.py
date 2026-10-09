@@ -65,6 +65,8 @@ win32-msvc* {
     WXQT_SC = $$(WXQT_SCCACHE)
     !isEmpty(WXQT_SC) {
         QMAKE_CXX = sccache $$QMAKE_CXX
+        # qmake's MSVC makefile compiles files in batches (one cl for many sources): sccache will not cache those ("multiple input files"), so one cl for each file
+        CONFIG += no_batch
     }
 }
 
