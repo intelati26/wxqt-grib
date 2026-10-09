@@ -15,6 +15,9 @@ class ActivityLabel : public QLabel {
 public:
     explicit ActivityLabel(QWidget * parent = nullptr);
 
+protected:
+    void mousePressEvent(QMouseEvent *) override;
+
 private:
     void update();
     QTimer timer;

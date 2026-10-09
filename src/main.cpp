@@ -12,6 +12,7 @@
 #include <QWheelEvent>
 #include "hurricane/ReconViewer.h"
 #include "radar/MapWidget.h"
+#include "ui/NetStatus.h"
 #include "ui/ZoomImage.h"
 #include <QMainWindow>
 #include <exception>
@@ -185,7 +186,7 @@ int main(int argc, char * argv[]) {
                 Utility::writePref("MODELNCEPPARAMLASTUSED", qEnvironmentVariable("WXQT_PARAM", "500_wnd_ht").toStdString());   // WXQT_PARAM=<chart id>: open on that chart
                 Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
                 auto * viewer = new ModelViewer{&w, "NCEP"};
-                qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : viewer->showPicker();   // WXQT_PICK=sector: the area picker
+                qEnvironmentVariable("WXQT_PICK") == "net" ? NetStatus::show(viewer) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : viewer->showPicker();   // WXQT_PICK=sector: the area picker
                 if (const auto file = qEnvironmentVariable("WXQT_PICKER_PNG"); !file.isEmpty()) {   // a picture of the picker itself
                     for (auto * picker : viewer->findChildren<QDialog *>()) {
                         QTimer::singleShot(3000, picker, [picker, file] { picker->grab().save(file); });

@@ -10,6 +10,7 @@
 #include <QMenu>
 #include "misc/ImageViewer.h"
 #include "objects/UtilityAnimationExport.h"
+#include "objects/NetManager.h"
 #include <QPushButton>
 #include "models/CamsViewer.h"
 #include <algorithm>
@@ -427,7 +428,6 @@ void ModelViewer::selectHour(int index) {
 void ModelViewer::startPlaying(bool on) {
     playing = on;
     ++prefetchGeneration;
-    prefetching = false;
     if (on) {
         playTimer.start(strip->intervalMs());
         prefetch(prefetchGeneration);
@@ -437,16 +437,47 @@ void ModelViewer::startPlaying(bool on) {
 }
 
 // Draws the hours ahead of the one shown, one at a time, so that play runs from drawn frames; it stops when everything is drawn or the chart changes.
+void ModelViewer::storeFrame(const string& key, const Frame& frame) {
+    if (!frames.count(key)) {
+        frameOrder.push_back(key);
+    }
+    frames[key] = frame;
+    while (frameOrder.size() > 60) {   // the oldest go first
+        frames.erase(frameOrder.front());
+        frameOrder.pop_front();
+    }
+}
+
+// Draws hours ahead of the one shown, one at a time, with the network's "ahead" priority (what is on screen is always served first). While playing, every hour of the loop, as far as it
+// gets; otherwise the hour after, the one before and the one after that, so stepping with the arrows or the slider finds them drawn. It stops when they are drawn or the chart changes.
 void ModelViewer::prefetch(int generation) {
-    if (!playing || generation != prefetchGeneration || prefetching || !GfsRender::handles(objectModel.model, objectModel.param)) {
+    if (generation != prefetchGeneration || prefetching || !strip->isVisible() || variant.kind == GfsRender::Variant::Kind::Max || !GfsRender::handles(objectModel.model, objectModel.param)) {
         return;
     }
     const int n = strip->count();
+    if (n < 2) {
+        return;
+    }
+    std::vector<int> candidates;
+    if (playing) {
+        for (int i = 1; i <= n; i++) {
+            candidates.push_back((strip->current() + i) % n);
+        }
+    } else {
+        for (const int d : {1, -1, 2}) {
+            const int index = strip->current() + d;
+            if (index >= 0 && index < n) {
+                candidates.push_back(index);
+            }
+        }
+    }
     int want = -1;
-    for (int i = 1; i <= n; i++) {
-        const int index = (strip->current() + i) % n;
-        if (!frames.count(frameKey(std::atoi(objectModel.times[static_cast<size_t>(index)].c_str())))) {
+    string wantKey;
+    for (const int index : candidates) {
+        const auto key = frameKey(std::atoi(objectModel.times[static_cast<size_t>(index)].c_str()));
+        if (!frames.count(key) && !failedAhead.count(key)) {
             want = index;
+            wantKey = key;
             break;
         }
     }
@@ -462,30 +493,32 @@ void ModelViewer::prefetch(int generation) {
     const auto overlayIds = overlays;
     const auto shownVariant = variant.kind == GfsRender::Variant::Kind::Change ? variant : GfsRender::Variant{};
     const int hour = std::atoi(objectModel.times[static_cast<size_t>(want)].c_str());
-    const auto key = frameKey(hour);
     auto result = std::make_shared<std::pair<QByteArray, string>>();
     auto probe = std::make_shared<GfsChart::Probe>();
-    new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get(), shownVariant); },
-                   [this, result, probe, key, generation] {
-                       if (generation != prefetchGeneration) {
-                           return;
-                       }
+    new FutureVoid{this, [=] {
+                       const NetManager::Scope ahead{NetManager::Priority::Ahead};   // behind whatever the user is waiting for
+                       result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get(), shownVariant);
+                   },
+                   [this, result, probe, wantKey, generation] {
                        prefetching = false;
-                       if (result->first.isEmpty()) {   // this hour has no chart: stop rather than ask again
-                           startPlaying(false);
-                           strip->stop();
+                       if (result->first.isEmpty()) {   // no chart at this hour (or the request was dropped as the view changed): not asked for again until the view changes
+                           failedAhead.insert(wantKey);
+                           if (playing && generation == prefetchGeneration) {
+                               startPlaying(false);
+                               strip->stop();
+                           }
+                           prefetch(prefetchGeneration);
                            return;
                        }
-                       if (frames.size() > 90) {
-                           frames.clear();
-                       }
-                       frames[key] = {result->first, probe};
-                       prefetch(generation);
+                       storeFrame(wantKey, {result->first, probe});
+                       prefetch(prefetchGeneration);
                    }};
 }
 
 void ModelViewer::refreshTimeStrip() {
     frames.clear();   // a refreshed run: draw the frames again
+    frameOrder.clear();
+    failedAhead.clear();
     std::vector<string> labels;
     for (const auto& t : objectModel.times) {
         labels.push_back(WString::split(t, " ")[0]);
@@ -503,6 +536,8 @@ void ModelViewer::reload() {
     if (GfsRender::handles(objectModel.model, objectModel.param)) {
         // the GFS charts are drawn here from the GRIB data
         const int mine = ++drawing;
+        NetManager::cancelQueued(NetManager::Priority::Ahead);   // the hours being read ahead for the view that was: dropped, so what is wanted now is not behind them
+        failedAhead.clear();
         if (!gfsSession) {
             gfsSession = std::make_shared<GfsRender::Session>();   // its folder goes when this screen does
         }
@@ -513,6 +548,7 @@ void ModelViewer::reload() {
         const int hour = std::atoi(objectModel.getTime().c_str());
         if (const auto cached = frames.find(frameKey(hour)); cached != frames.end()) {   // drawn already (play, or a visit before)
             showFrame(cached->second);
+            prefetch(prefetchGeneration);
             return;
         }
         const auto key = frameKey(hour);
@@ -521,10 +557,7 @@ void ModelViewer::reload() {
         new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get(), shownVariant); },
                        [this, result, mine, probe, key] {
                            if (mine == drawing && !result->first.isEmpty()) {
-                               if (frames.size() > 90) {
-                                   frames.clear();
-                               }
-                               frames[key] = {result->first, probe};
+                               storeFrame(key, {result->first, probe});
                                showFrame(frames[key]);
                                prefetch(prefetchGeneration);
                            } else if (mine == drawing) {

@@ -8,6 +8,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdio>
 #include <deque>
 #include <map>
 #include <memory>
@@ -24,6 +25,7 @@
 #include "common/GlobalVariables.h"
 #include "objects/KnownIntermediates.h"
 #include "util/Activity.h"
+#include "util/NetPriority.h"
 #include "util/AppState.h"
 #include "util/Utility.h"
 #include "util/UtilityLog.h"
@@ -69,7 +71,6 @@ namespace {
     std::map<std::string, std::pair<int, Clock::time_point>> hosts;    // active requests and the earliest next start
     NetManager::Totals counts;
     std::atomic<bool> stopped{false};
-    thread_local NetManager::Priority callerPriority = NetManager::Priority::Visible;
 
     void finish(const std::shared_ptr<Entry>& entry, NetManager::Result result) {
         for (const auto& w : entry->waiters) {
@@ -225,12 +226,12 @@ bool NetManager::enabled() {
     return Utility::readPref("NETMANAGER", "true").compare(0, 1, "t") == 0;
 }
 
-NetManager::Scope::Scope(Priority priority) : before{callerPriority} {
-    callerPriority = priority;
+NetManager::Scope::Scope(Priority priority) : before{static_cast<Priority>(NetPriority::current)} {
+    NetPriority::current = static_cast<int>(priority);
 }
 
 NetManager::Scope::~Scope() {
-    callerPriority = before;
+    NetPriority::current = static_cast<int>(before);
 }
 
 NetManager::Result NetManager::get(const std::string& url, const QByteArray& range, Priority priority) {
@@ -238,7 +239,10 @@ NetManager::Result NetManager::get(const std::string& url, const QByteArray& ran
         return {};
     }
     if (priority == Priority::Visible) {
-        priority = callerPriority;   // the thread's own say, when it has one
+        priority = static_cast<Priority>(NetPriority::current);   // the thread's own say, when it has one (passed on to the threads it starts: util/NetPriority.h)
+    }
+    if (qEnvironmentVariableIsSet("WXQT_NETLOG")) {   // WXQT_NETLOG=1: each request and its priority, to stderr
+        std::fprintf(stderr, "net %s %s %s\n", priority == Priority::Visible ? "visible" : priority == Priority::Ahead ? "ahead" : "background", url.c_str(), range.constData());
     }
     const Activity::Download counted;   // shows on the screens' activity indicator while the request is waiting or in flight
     ensureThread();

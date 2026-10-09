@@ -39,7 +39,7 @@ namespace GfsModels {
         std::vector<std::string> plain;                // charts whose id starts with one of these are made from the GFS chart without the lines MAG draws on it (an ensemble's precipitation has its spread instead)
     };
     enum class Sectors { World, Conus, Storm };       // the regions of the sector list: everywhere, the contiguous United States only, or the storm's own grid
-    enum class Missing { Nothing, MainRun, PreviousCycle };   // when a run lacks a field: nothing, the newest 00 / 06 / 12 / 18Z run, or the cycle before six hours further on
+    enum class Missing { Nothing, MainRun, PreviousCycle, PreviousRun };   // when a run lacks a field: nothing, the newest 00 / 06 / 12 / 18Z run, the cycle before six hours further on, or (a run still being posted) one of the last few runs before it
     struct Def {
         std::string id;                                // the model screen's name: "GFS", "RRFS"
         std::string label;                             // the credit under a chart

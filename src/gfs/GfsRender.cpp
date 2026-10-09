@@ -201,6 +201,26 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
             run = earlier;
             hour += 6;
             error.clear();
+        } else if (missing == GfsModels::Missing::PreviousRun) {   // the newest run is still being posted: the runs before it have the same valid time, the hour moved on
+            const int step = gfs.model().cycleHours;
+            bool found = false;
+            for (int back = 1; back <= 3 && !found; back++) {
+                auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+                t.setTimeSpec(Qt::UTC);
+                t = t.addSecs(-static_cast<qint64>(back) * step * 3600);
+                const GfsData::Run earlier{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+                grids.clear();
+                std::string again;
+                if (gfs.load(earlier, GfsChart::needs(*product, hour + back * step), grids, again)) {
+                    run = earlier;
+                    hour += back * step;
+                    error.clear();
+                    found = true;
+                }
+            }
+            if (!found) {
+                return {};   // the first reason stands
+            }
         } else if (missing == GfsModels::Missing::MainRun) {   // a run between the main ones has fewer fields: the newest main run has the rest, the hour moved to keep the valid time
             const int cycle = std::atoi(run.cycle.c_str());
             if (cycle % 6 == 0) {

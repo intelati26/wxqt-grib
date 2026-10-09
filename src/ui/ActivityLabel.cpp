@@ -4,11 +4,14 @@
 // *****************************************************************************
 
 #include "ui/ActivityLabel.h"
+#include <QMouseEvent>
+#include "ui/NetStatus.h"
 #include "util/Activity.h"
 
 ActivityLabel::ActivityLabel(QWidget * parent) : QLabel{parent}, baseline{Activity::downloadsDone.load()} {
     setStyleSheet("color: gray;");
-    setToolTip("What the app is doing: network requests in flight and background jobs running");
+    setToolTip("What the app is doing: network requests in flight and background jobs running. Click for the list of requests.");
+    setCursor(Qt::PointingHandCursor);
     timer.setInterval(250);
     QObject::connect(&timer, &QTimer::timeout, [this] { update(); });
     timer.start();
@@ -33,4 +36,8 @@ void ActivityLabel::update() {
     }
     setText(text + parts.join(", ") + "  (" + QString::number(done) + " done)");
     setStyleSheet("color: #1b6ec2; font-weight: bold;");
+}
+
+void ActivityLabel::mousePressEvent(QMouseEvent *) {
+    NetStatus::show(window());
 }

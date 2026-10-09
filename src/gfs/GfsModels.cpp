@@ -82,6 +82,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.sectors = Sectors::Conus;
             d.hours = {{0, 84, 1}};   // only the runs at 00, 06, 12 and 18Z go past 18 hours
             d.hourlyRuns = true;
+            d.onMissing = Missing::PreviousRun;   // the newest run is listed before its files are all there
             d.overlays = true;
             d.recipeList = true;
             d.clone.enabled = true;

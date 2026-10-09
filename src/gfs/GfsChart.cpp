@@ -3702,14 +3702,14 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             if (const auto unit = unitText(product.quantity, us); !unit.isEmpty()) {
                 title += " (" + unit + ")";
             }
-            probe.fields.push_back({title.toStdString(), fill, 1.0, product.quantity, true});
+            probe.fields.push_back({title.toStdString(), GfsGrid::cropped(fill, sector.west, sector.south, sector.east, sector.north), 1.0, product.quantity, true});
         }
         for (const auto& set : product.contours) {
-            probe.fields.push_back({set.title.empty() ? set.key : set.title, grids.at(set.key), set.scale, Quantity::Other, false});
+            probe.fields.push_back({set.title.empty() ? set.key : set.title, GfsGrid::cropped(grids.at(set.key), sector.west, sector.south, sector.east, sector.north), set.scale, Quantity::Other, false});
         }
         if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
-            probe.windU = grids.at(product.barbU);
-            probe.windV = grids.at(product.barbV);
+            probe.windU = GfsGrid::cropped(grids.at(product.barbU), sector.west, sector.south, sector.east, sector.north);
+            probe.windV = GfsGrid::cropped(grids.at(product.barbV), sector.west, sector.south, sector.east, sector.north);
         }
     }
     // the fill, a pixel at a time (the ramp is in the grid's units; fully clear parts show the pale ground)

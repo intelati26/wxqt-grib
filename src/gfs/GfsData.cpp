@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsData.h"
+#include "util/NetPriority.h"
 #include <cctype>
 #include <algorithm>
 #include <chrono>
@@ -470,10 +471,12 @@ namespace {
     // run job(0) ... job(count - 1) on at most `limit` threads (a fetch of every member at once would be dozens of connections and decoders together)
     void runLimited(size_t count, int limit, const std::function<void(size_t)>& job) {
         std::atomic<size_t> next{0};
+        const int priority = NetPriority::current;   // the requests made on these threads go with the priority of the caller
         const size_t workers = std::min<size_t>(static_cast<size_t>(std::max(limit, 1)), count);
         std::vector<std::future<void>> running;
         for (size_t w = 0; w < workers; w++) {
             running.push_back(std::async(std::launch::async, [&] {
+                const NetPriority::Carry carry{priority};
                 for (size_t i = next++; i < count; i = next++) {
                     job(i);
                 }

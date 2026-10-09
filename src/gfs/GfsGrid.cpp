@@ -311,6 +311,29 @@ Grid scaled(const Grid& in, double scale, double offset) {
     return out;
 }
 
+Grid cropped(const Grid& in, double west, double south, double east, double north) {
+    if (in.empty()) {
+        return in;
+    }
+    Grid out;
+    out.step = in.step;
+    const double top = std::min(in.lat0, north + in.step), bottom = std::max(in.lat0 - (in.rows - 1) * in.step, south - in.step);
+    out.rows = static_cast<int>(std::floor((top - bottom) / in.step)) + 1;
+    out.columns = static_cast<int>(std::ceil((east - west) / in.step)) + 3;
+    if (out.rows <= 0 || static_cast<size_t>(out.rows) * static_cast<size_t>(out.columns) >= in.values.size()) {   // the view is the grid (a storm's own): nothing to cut
+        return in;
+    }
+    out.lat0 = top;
+    out.lon0 = west - in.step;
+    out.values.resize(static_cast<size_t>(out.rows) * static_cast<size_t>(out.columns));
+    for (int r = 0; r < out.rows; r++) {
+        for (int c = 0; c < out.columns; c++) {
+            out.values[static_cast<size_t>(r) * static_cast<size_t>(out.columns) + static_cast<size_t>(c)] = in.sample(out.lon0 + c * out.step, out.lat0 - r * out.step);
+        }
+    }
+    return out;
+}
+
 Grid reducedForLines(const Grid& in, size_t maxCells) {
     const size_t cells = in.values.size();
     if (in.step >= 0.1 || cells <= maxCells) {

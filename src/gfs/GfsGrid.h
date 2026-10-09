@@ -59,6 +59,8 @@ namespace GfsGrid {
     Grid difference(const Grid& a, const Grid& b);
     // out = in * scale + offset
     Grid scaled(const Grid& in, double scale, double offset = 0.0);
+    // The part of a grid that a view shows (with a cell of margin), as a regional grid of the same spacing: what a hover read-out keeps of a field, a few per cent of a global grid
+    Grid cropped(const Grid& in, double west, double south, double east, double north);
     // A fine grid (3 km: 3 million cells) block-averaged by a whole number so it has at most about `maxCells`, for drawing lines: contouring every level over all of it costs seconds, and the lines
     // of a field that is smooth at the scale of the picture are smoother from the average. A grid under `maxCells` or already coarser than 0.1 degree is returned as it is.
     Grid reducedForLines(const Grid& in, size_t maxCells = 600000);

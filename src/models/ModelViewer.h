@@ -19,7 +19,9 @@
 #include "ui/HBox.h"
 #include "ui/Photo.h"
 #include "ui/ZoomImage.h"
+#include <deque>
 #include <map>
+#include <set>
 #include <QTimer>
 #include "models/ChartHover.h"
 #include "models/SoundingPick.h"
@@ -85,7 +87,10 @@ private:
     std::array<string, 5> pendingView;          // a saved view of another model: applied when its runs are in
     TimeStrip * strip{};
     QTimer playTimer;
+    void storeFrame(const string& key, const Frame&);
     std::map<string, Frame> frames;
+    std::deque<string> frameOrder;       // the order frames were drawn: the oldest are dropped past 60
+    std::set<string> failedAhead;        // hours that could not be read ahead for this view
     int prefetchGeneration{0};
     bool prefetching{false};
     bool playing{false};
