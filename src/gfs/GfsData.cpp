@@ -86,17 +86,17 @@ GfsData::Source GfsData::hafs(const std::string& model, const std::string& storm
     s.label = std::string{"NOAA/NCEP HAFS-"} + (letter == "b" ? "B" : "A") + " storm-following grid, 2 km";
     s.fileUrl = [letter, storm] (const Run& run, int hour, const std::string& file) {
         const auto base = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfs" + letter + "." + run.date + "/" + run.cycle + "/" + storm + "." + run.date + run.cycle + ".hfs" + letter + ".";
-        return file == "ww3" ? base + "ww3.grb2" : base + (file.empty() ? "storm.atm" : file) + ".f" + pad(hour, 3) + ".grb2";
+        return file == "swath" ? base + "parent.swath.grb2" : file == "trak" ? base + "trak.atcfunix" : file == "ww3" ? base + "ww3.grb2" : base + (file.empty() ? "storm.atm" : file) + ".f" + pad(hour, 3) + ".grb2";
     };
     s.fileOf = [] (const Want& want) {
-        return want.stat == "ww3" ? std::string{"ww3"} : want.variable.compare(0, 3, "var") == 0 ? std::string{"storm.sat"} : std::string{"storm.atm"};
+        return want.stat == "swath" ? std::string{"swath"} : want.stat == "ww3" ? std::string{"ww3"} : want.variable.compare(0, 3, "var") == 0 ? std::string{"storm.sat"} : std::string{"storm.atm"};
     };
     s.defaultDetail = "*";
     s.extraMissing = 9999.0f;
     s.probeFile = "storm.atm";
     s.cycleHours = 6;
     s.lagHours = 4;
-    s.probeHour = 0;
+    s.probeHour = 126;   // a run is written hour by hour, and its track and waves only when it is done: it is there when its last hour is
     s.cyclesToTry = 4;
     return s;
 }

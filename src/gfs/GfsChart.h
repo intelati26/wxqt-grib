@@ -102,11 +102,26 @@ namespace GfsChart {
     std::string sourceLabel(const std::string& source);
     std::vector<std::string> sectorIds(const std::string& source);
 
+    // One point of a forecast track (the hurricane model's ATCF file): position, intensity and the radii of 34, 50 and 64 kt wind in nautical miles by quadrant (NE, SE, SW, NW; 0: none)
+    struct TrackPoint {
+        int hour{0};
+        double lat{0.0}, lon{0.0};     // degrees, west negative
+        int wind{0}, pressure{0};      // knots, millibars
+        double radii[3][4]{};
+    };
+    // The view narrowed to the track up to `hour` (and `margin` degrees round it), kept inside `within`: for the charts whose grid is far wider than the storm
+    Sector cropToTrack(const Sector& within, const std::vector<TrackPoint>& track, int hour, double margin);
+    // the points of an ATCF "a-deck" style track file (one line per wind threshold), by forecast hour; empty when it holds none
+    std::vector<TrackPoint> parseTrack(const std::string& text);
+
     struct Options {
         int width{1100};
         const GfsClimate * climate{nullptr};   // for the anomaly charts
         bool fahrenheit{true};                 // the user's US units: degrees F, inches
         std::vector<std::vector<std::pair<float, float>>> lines;   // coastlines and borders as (longitude, latitude)
+        std::vector<TrackPoint> track;         // a storm track drawn on the chart, with the wind radii of the forecast hour shown
+        std::vector<TrackPoint> trackOther;    // another model's track for the same storm, dashed, to compare
+        std::string trackName, trackOtherName; // what each is called in the key
     };
     // the records a product needs for a forecast hour
     std::vector<GfsData::Need> needs(const Product& product, int hour);

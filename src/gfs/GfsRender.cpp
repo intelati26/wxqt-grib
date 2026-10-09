@@ -228,6 +228,18 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     options.climate = &climate;
     options.fahrenheit = UIPreferences::unitsF;
     options.lines = borders();
+    if (isHafs(model)) {   // the model's own track and wind radii for the storm, drawn on the chart
+        const auto text = URL::getBytes(gfs.fileUrl(run, 0, "trak"));
+        options.track = GfsChart::parseTrack(text.toStdString());
+        options.trackName = model == "HAFSB" ? "HAFS-B" : "HAFS-A";
+        const std::string other = model == "HAFSB" ? "HAFSA" : "HAFSB";   // the other version, for comparing
+        const auto otherText = URL::getBytes(data(session.folder(), other, stormId).fileUrl(run, 0, "trak"));
+        options.trackOther = GfsChart::parseTrack(otherText.toStdString());
+        options.trackOtherName = other == "HAFSB" ? "HAFS-B" : "HAFS-A";
+        if (product->id.compare(0, 5, "swath") == 0) {   // the swaths are of the whole parent domain: only the storm's part is shown
+            storm = GfsChart::cropToTrack(storm, options.track, hour, 4.0);
+        }
+    }
     const auto image = GfsChart::render(*product, *sector, grids, run, hour, options);
     if (image.isNull()) {
         error = product->derive ? "the chart could not be drawn (some charts need a connection the first time, for the climatology, or the record is not in this run at this hour)" : "the " + model + " chart could not be drawn";
@@ -252,7 +264,7 @@ std::vector<std::string> GfsRender::hafsStorms(const std::string& model, std::st
         const auto folder = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfs" + letter + "." + t.toString("yyyyMMdd").toStdString() + "/" + t.toString("HH").toStdString() + "/";
         const auto text = QString::fromUtf8(URL::getBytes(folder));
         std::set<std::string> found;
-        const QRegularExpression pattern{"href=\"([0-9]{2}[lecwsa])\\." + QString::fromStdString(t.toString("yyyyMMddHH").toStdString()) + "\\.hfs" + QString::fromStdString(letter) + "\\.storm\\.atm\\.f000\\.grb2\""};
+        const QRegularExpression pattern{"href=\"([0-9]{2}[lecwsa])\\." + QString::fromStdString(t.toString("yyyyMMddHH").toStdString()) + "\\.hfs" + QString::fromStdString(letter) + "\\.storm\\.atm\\.f126\\.grb2\""};
         for (auto it = pattern.globalMatch(text); it.hasNext();) {
             found.insert(it.next().captured(1).toStdString());
         }

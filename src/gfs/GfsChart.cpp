@@ -269,6 +269,92 @@ Sector gridSector(const std::string& id, const GfsGrid::Grid& g) {
     return {id, g.lon0 + left * g.step - margin, g.lat0 - bottom * g.step - margin, g.lon0 + right * g.step + margin, g.lat0 - top * g.step + margin};
 }
 
+Sector cropToTrack(const Sector& within, const std::vector<TrackPoint>& track, int hour, double margin) {
+    double west = 1e9, east = -1e9, south = 1e9, north = -1e9;
+    for (const auto& t : track) {
+        if (t.hour <= hour) {
+            west = std::min(west, t.lon);
+            east = std::max(east, t.lon);
+            south = std::min(south, t.lat);
+            north = std::max(north, t.lat);
+        }
+    }
+    if (east < west) {
+        return within;
+    }
+    Sector s{within.id, std::max(within.west, west - margin), std::max(within.south, south - margin), std::min(within.east, east + margin), std::min(within.north, north + margin)};
+    const double minimum = 8.0;   // never narrower than this, in either direction
+    if (s.east - s.west < minimum) {
+        const double mid = (s.east + s.west) / 2.0;
+        s.west = std::max(within.west, mid - minimum / 2.0);
+        s.east = std::min(within.east, mid + minimum / 2.0);
+    }
+    if (s.north - s.south < minimum) {
+        const double mid = (s.north + s.south) / 2.0;
+        s.south = std::max(within.south, mid - minimum / 2.0);
+        s.north = std::min(within.north, mid + minimum / 2.0);
+    }
+    return s;
+}
+
+std::vector<TrackPoint> parseTrack(const std::string& text) {
+    std::vector<TrackPoint> points;
+    const auto position = [] (const std::string& s, char negative) {   // "235N" -> 23.5, "906W" -> -90.6
+        if (s.size() < 2) {
+            return 0.0;
+        }
+        const double value = std::atof(s.c_str()) / 10.0;
+        return s.back() == negative ? -value : value;
+    };
+    size_t from = 0;
+    while (from < text.size()) {
+        auto end = text.find('\n', from);
+        if (end == std::string::npos) {
+            end = text.size();
+        }
+        const auto line = text.substr(from, end - from);
+        from = end + 1;
+        std::vector<std::string> f;
+        size_t at = 0;
+        while (true) {
+            const auto comma = line.find(',', at);
+            std::string field = line.substr(at, comma == std::string::npos ? std::string::npos : comma - at);
+            while (!field.empty() && field.front() == ' ') {
+                field.erase(field.begin());
+            }
+            while (!field.empty() && field.back() == ' ') {
+                field.pop_back();
+            }
+            f.push_back(std::move(field));
+            if (comma == std::string::npos) {
+                break;
+            }
+            at = comma + 1;
+        }
+        if (f.size() < 17) {
+            continue;
+        }
+        const int hour = std::atoi(f[5].c_str());
+        if (points.empty() || points.back().hour != hour) {
+            TrackPoint p;
+            p.hour = hour;
+            p.lat = position(f[6], 'S');
+            p.lon = position(f[7], 'W');
+            p.wind = std::atoi(f[8].c_str());
+            p.pressure = std::atoi(f[9].c_str());
+            points.push_back(p);
+        }
+        const int threshold = std::atoi(f[11].c_str());
+        const int row = threshold == 34 ? 0 : threshold == 50 ? 1 : threshold == 64 ? 2 : -1;
+        if (row >= 0) {
+            for (int q = 0; q < 4; q++) {
+                points.back().radii[row][q] = std::atof(f[static_cast<size_t>(13 + q)].c_str());
+            }
+        }
+    }
+    return points;
+}
+
 const Sector * sector(const std::string& id) {
     for (const auto& s : sectors()) {
         if (s.id == id) {
@@ -1332,6 +1418,22 @@ const std::vector<Product>& products() {
                     }
                 }
             }
+            {   // the swaths: the strongest wind (and gust) of the run so far, and the strongest rotation in each 3 hours (from the file of the whole parent domain)
+                const auto window = [] (int hour) { return hour % 24 == 0 ? "0-" + std::to_string(hour / 24) + " day max fcst" : "0-" + std::to_string(hour) + " hour max fcst"; };
+                const auto swath = [&] (const char * id, const char * label, const char * variable, const char * title) {
+                    auto x = make(id, label);
+                    x.needs = [window, variable] (int hour) {
+                        return std::vector<GfsData::Need>{{hour, {"w", variable, "10-10 m above ground", window(hour), "", "swath"}}};
+                    };
+                    x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "w"), msToKnots); };
+                    x.ramp = tropicalWind();
+                    x.fillTitle = title;
+                    x.legendStep = 0;
+                    return x;
+                };
+                p.push_back(swath("swath_wind", "Swath: Strongest 10m Wind so far", "WIND", "Strongest 10 m wind since the start of the run (kt)"));
+                p.push_back(swath("swath_gust", "Swath: Strongest 10m Gust so far", "GUST", "Strongest 10 m gust since the start of the run (kt)"));
+            }
             {   // the wave file holds every hour: the record says which ("anl", then "3 hour fcst" ...)
                 auto x = make("waves", "Significant Wave Height, Peak Period and Wind");
                 x.needs = [] (int hour) {
@@ -1949,6 +2051,112 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
                 const double from = std::fmod(std::atan2(-uu, -vv) * 180.0 / pi + 360.0, 360.0);
                 WindBarb::draw(p, {x, y}, from, std::hypot(uu, vv) * msToKnots, 24.0, lat < 0.0);
             }
+        }
+    }
+    // the other model's track under it, dashed
+    if (!options.trackOther.empty()) {
+        QPolygonF other;
+        for (const auto& t : options.trackOther) {
+            other << view.toPixel(t.lon, t.lat);
+        }
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QPen{QColor{255, 255, 255, 220}, 4.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+        p.drawPolyline(other);
+        p.setPen(QPen{QColor{20, 90, 220}, 2.0, Qt::DashLine, Qt::RoundCap, Qt::RoundJoin});
+        p.drawPolyline(other);
+        for (const auto& t : options.trackOther) {
+            if (t.hour % 24 == 0) {
+                const auto at = view.toPixel(t.lon, t.lat);
+                p.setPen(QPen{QColor{20, 90, 220}, 1.5});
+                p.setBrush(QColor{20, 90, 220});
+                p.drawEllipse(at, 3.0, 3.0);
+            }
+        }
+    }
+    // a storm track with the wind radii of the hour shown
+    if (!options.track.empty()) {
+        const auto destination = [] (double lat, double lon, double bearing, double nm) {
+            const double d = nm * 1.852 / 6371.0, b = bearing * pi / 180.0, la = lat * pi / 180.0;
+            const double lat2 = std::asin(std::sin(la) * std::cos(d) + std::cos(la) * std::sin(d) * std::cos(b));
+            const double lon2 = lon * pi / 180.0 + std::atan2(std::sin(b) * std::sin(d) * std::cos(la), std::cos(d) - std::sin(la) * std::sin(lat2));
+            return std::pair{lon2 * 180.0 / pi, lat2 * 180.0 / pi};
+        };
+        const TrackPoint * now = nullptr;
+        for (const auto& t : options.track) {
+            if (t.hour == forecastHour) {
+                now = &t;
+            }
+        }
+        if (now) {   // 64 kt over 50 over 34, each quadrant's radius out along its quarter of the circle
+            static const QColor colors[3] = {QColor{255, 235, 0, 70}, QColor{255, 140, 0, 90}, QColor{230, 20, 20, 110}};
+            for (int row = 0; row < 3; row++) {
+                QPolygonF poly;
+                bool any = false;
+                for (int q = 0; q < 4; q++) {
+                    const double r = now->radii[row][q];
+                    any = any || r > 0.0;
+                    for (int step = 0; step <= 18; step++) {
+                        const double bearing = q * 90.0 + step * 5.0;
+                        const auto [lon, lat] = destination(now->lat, now->lon, bearing, r);
+                        poly << (r > 0.0 ? view.toPixel(lon, lat) : view.toPixel(now->lon, now->lat));
+                    }
+                }
+                if (any) {
+                    p.setPen(QPen{colors[row].darker(160), 1.5});
+                    p.setBrush(colors[row]);
+                    p.drawPolygon(poly);
+                }
+            }
+        }
+        QPolygonF line;
+        for (const auto& t : options.track) {
+            line << view.toPixel(t.lon, t.lat);
+        }
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QPen{QColor{255, 255, 255, 230}, 4.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+        p.drawPolyline(line);
+        p.setPen(QPen{QColor{20, 20, 20}, 2.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+        p.drawPolyline(line);
+        QFont small = p.font();
+        small.setPixelSize(11);
+        small.setBold(true);
+        p.setFont(small);
+        for (const auto& t : options.track) {
+            if (t.hour % 12 != 0 && &t != now) {
+                continue;
+            }
+            const auto at = view.toPixel(t.lon, t.lat);
+            const bool current = &t == now;
+            p.setPen(QPen{QColor{20, 20, 20}, 1.5});
+            p.setBrush(current ? QColor{255, 255, 255} : QColor{20, 20, 20});
+            p.drawEllipse(at, current ? 6.0 : 3.5, current ? 6.0 : 3.5);
+            if (current || t.hour % 24 == 0) {
+                halo(at + QPointF{9.0, -7.0}, QString{"+%1 h  %2 kt  %3 mb"}.arg(t.hour).arg(t.wind).arg(t.pressure), QColor{20, 20, 20});
+            }
+        }
+    }
+    if (!options.track.empty() && !options.trackName.empty()) {   // the key of the tracks
+        QFont keyFont = p.font();
+        keyFont.setPixelSize(12);
+        keyFont.setBold(true);
+        p.setFont(keyFont);
+        const QString first = QString::fromStdString(options.trackName), second = QString::fromStdString(options.trackOtherName);
+        const double width = 60.0 + QFontMetricsF{keyFont}.horizontalAdvance(first) + (options.trackOther.empty() ? 0.0 : 40.0 + QFontMetricsF{keyFont}.horizontalAdvance(second));
+        const QRectF box{area.right() - width - 8.0, area.top() + 8.0, width, 24.0};
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor{255, 255, 255, 215});
+        p.drawRoundedRect(box, 4.0, 4.0);
+        double x = box.left() + 8.0;
+        const double y = box.center().y();
+        p.setPen(QPen{QColor{20, 20, 20}, 2.0});
+        p.drawLine(QPointF{x, y}, QPointF{x + 22.0, y});
+        p.drawText(QPointF{x + 28.0, y + 4.0}, first);
+        x += 28.0 + QFontMetricsF{keyFont}.horizontalAdvance(first) + 14.0;
+        if (!options.trackOther.empty()) {
+            p.setPen(QPen{QColor{20, 90, 220}, 2.0, Qt::DashLine});
+            p.drawLine(QPointF{x, y}, QPointF{x + 22.0, y});
+            p.setPen(QColor{20, 20, 20});
+            p.drawText(QPointF{x + 28.0, y + 4.0}, second);
         }
     }
     p.setClipping(false);

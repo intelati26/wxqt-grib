@@ -100,6 +100,23 @@ int main(int argc, char ** argv) {
             }
         }
     }
+    if (hurricane) {
+        QProcess curl;
+        curl.start("curl", {"-s", "-m", "60", QString::fromStdString(data.fileUrl(run, 0, "trak"))});
+        curl.waitForFinished(70000);
+        options.track = GfsChart::parseTrack(curl.readAllStandardOutput().toStdString());
+        std::printf("track points: %zu\n", options.track.size());
+        options.trackName = modelName == "HAFSB" ? "HAFS-B" : "HAFS-A";
+        const std::string otherName = modelName == "HAFSB" ? "HAFSA" : "HAFSB";
+        QProcess curl2;
+        curl2.start("curl", {"-s", "-m", "60", QString::fromStdString(GfsData::hafs(otherName, sourceArg.substr(sourceArg.find(':') + 1)).fileUrl(run, 0, "trak"))});
+        curl2.waitForFinished(70000);
+        options.trackOther = GfsChart::parseTrack(curl2.readAllStandardOutput().toStdString());
+        options.trackOtherName = otherName == "HAFSB" ? "HAFS-B" : "HAFS-A";
+        if (std::string{argv[1]}.compare(0, 5, "swath") == 0) {
+            stormSector = GfsChart::cropToTrack(stormSector, options.track, std::atoi(argv[3]), 4.0);
+        }
+    }
     const auto image = GfsChart::render(*product, *sector, grids, run, std::atoi(argv[3]), options);
     if (image.isNull() || !image.save(argv[4])) {
         std::printf("render failed\n");
