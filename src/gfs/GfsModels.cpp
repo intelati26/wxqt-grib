@@ -57,6 +57,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.clone.pieces = true;
             d.clone.labelPrefix = "Mean ";
             d.clone.plain = {"precip_p"};
+            d.clone.skip = {"precip_p06", "precip_p24", "500_vort_ht", "850_vort_ht"};   // these are drawn as mean and spread together
             m.push_back(d);
         }
         {   // the 3 km Rapid Refresh Forecast System: precipitation has running totals, and sea level pressure is MSLET

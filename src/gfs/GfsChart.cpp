@@ -1617,6 +1617,178 @@ const std::vector<Product>& products() {
                                 "Spread of the CAPE (J/kg)", 1500.0, 250);
                 p.push_back(x);
             }
+
+            // ---- the maps of the model guidance site that put the mean and the spread of the 30 members on one chart: the mean as lines and barbs with the spread as the fill, or the mean as the
+            // fill with the spread as lines
+            const auto windSpread = [] (Grids& g) {   // the spread of the wind speed from the spread of its two components
+                auto out = g["su"];
+                for (size_t i = 0; i < out.values.size(); i++) {
+                    out.values[i] = static_cast<float>(std::hypot(g["su"].values[i], g["sv"].values[i]));
+                }
+                g["ws"] = std::move(out);
+            };
+            const auto meanContours = [] (const char * key, double interval, const char * title, QColor color) {
+                ContourSet c;
+                c.key = key;
+                c.interval = interval;
+                c.title = title;
+                c.color = color;
+                return c;
+            };
+            for (const auto& [lvl, top] : {std::pair{"250", 20.0}, {"500", 16.0}, {"700", 12.0}, {"850", 12.0}, {"925", 12.0}}) {   // winds: the mean as barbs, the spread of the speed as the fill (the scale reaches the 10 m/s and more a storm makes)
+                const std::string level = std::string{lvl} + " mb";
+                Product x;
+                x.source = "GEFS";
+                x.id = std::string{lvl} + "_wnd";
+                x.label = "Mean " + std::string{lvl} + "mb Winds and Spread";
+                x.wants = {want("u", "UGRD", level.c_str()), want("v", "VGRD", level.c_str()), spr("su", "UGRD", level.c_str()), spr("sv", "VGRD", level.c_str())};
+                x.derive = [windSpread] (Grids& g, const Context&) { windSpread(g); };
+                x.fill = [] (const Grids& g) { return pick(g, "ws"); };
+                x.ramp = spreadRamp(top);
+                x.fillTitle = "Spread of the " + std::string{lvl} + " mb wind speed (m/s)";
+                x.legendStep = 2;
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+            for (const auto& [lvl, top] : {std::pair{"250", 5.0}, {"500", 3.0}, {"700", 3.0}, {"850", 4.0}}) {   // temperatures: the mean as lines, the spread as the fill
+                const std::string level = std::string{lvl} + " mb";
+                Product x;
+                x.source = "GEFS";
+                x.id = std::string{lvl} + "_temp";
+                x.label = "Mean " + std::string{lvl} + "mb Temperature and Spread";
+                x.wants = {want("t", "TMP", level.c_str()), spr("s", "TMP", level.c_str())};
+                x.fill = [] (const Grids& g) { return pick(g, "s"); };
+                x.ramp = spreadRamp(top);
+                x.fillTitle = "Spread of the " + std::string{lvl} + " mb temperature (K)";
+                x.legendStep = 1;
+                x.contours = {meanContours("t", 5, "Mean temperature (C)", QColor{30, 30, 30})};
+                p.push_back(x);
+            }
+            for (const auto& [lvl, interval, top] : {std::tuple{"500", 6.0, 60.0}, {"700", 3.0, 40.0}, {"850", 3.0, 30.0}}) {   // height (mean solid, spread the fill) with the mean vorticity dashed
+                const std::string level = std::string{lvl} + " mb";
+                Product x;
+                x.source = "GEFS";
+                x.id = std::string{lvl} + "_vort_ht";
+                x.label = "Mean " + std::string{lvl} + "mb Height, Vorticity and Spread";
+                x.wants = {want("z", "HGT", level.c_str()), spr("s", "HGT", level.c_str()), want("u", "UGRD", level.c_str()), want("v", "VGRD", level.c_str())};
+                x.derive = [] (Grids& g, const Context&) { g["vo"] = GfsGrid::scaled(GfsGrid::vorticity(GfsGrid::smoothed(g["u"], 1), GfsGrid::smoothed(g["v"], 1)), 1e5); };
+                x.fill = [] (const Grids& g) { return pick(g, "s"); };
+                x.ramp = spreadRamp(top);
+                x.fillTitle = "Spread of the " + std::string{lvl} + " mb height (m)";
+                x.legendStep = top / 6;
+                auto vort = meanContours("vo", 4, "Mean vorticity (1e-5 /s)", QColor{20, 90, 150});
+                vort.dashed = true;
+                vort.minimum = 4;   // the cyclonic side, as the model guidance site draws it
+                x.contours = {meanHeights(interval), vort};
+                p.push_back(x);
+            }
+            {   // sea level pressure: the mean as lines, the spread as the fill
+                Product x;
+                x.source = "GEFS";
+                x.id = "mslp";
+                x.label = "Mean Sea Level Pressure and Spread";
+                x.wants = {want("p", "PRMSL", "mean sea level"), spr("s", "PRMSL", "mean sea level")};
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "s"), 0.01); };
+                x.ramp = spreadRamp(6.0);
+                x.fillTitle = "Spread of the sea level pressure (mb)";
+                x.legendStep = 1;
+                x.contours = {pressure()};
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = "GEFS";
+                x.id = "10m_wnd";
+                x.label = "Mean 10m Winds and Spread";
+                x.wants = {want("u", "UGRD", "10 m above ground"), want("v", "VGRD", "10 m above ground"), spr("su", "UGRD", "10 m above ground"), spr("sv", "VGRD", "10 m above ground")};
+                x.derive = [windSpread] (Grids& g, const Context&) { windSpread(g); };
+                x.fill = [] (const Grids& g) { return pick(g, "ws"); };
+                x.ramp = spreadRamp(12.0);
+                x.fillTitle = "Spread of the 10 m wind speed (m/s)";
+                x.legendStep = 2;
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = "GEFS";
+                x.id = "2m_temp";
+                x.label = "Mean 2m Temperature and Spread";
+                x.wants = {want("t", "TMP", "2 m above ground"), spr("s", "TMP", "2 m above ground")};
+                x.fill = [] (const Grids& g) { return pick(g, "s"); };
+                x.ramp = spreadRamp(5.0);
+                x.fillTitle = "Spread of the 2 m temperature (K)";
+                x.legendStep = 1;
+                x.contours = {meanContours("t", 5, "Mean temperature (C)", QColor{30, 30, 30})};
+                p.push_back(x);
+            }
+            {   // CAPE: the mean the fill, the spread lines
+                Product x;
+                x.source = "GEFS";
+                x.id = "cape";
+                x.label = "Mean CAPE and Spread";
+                x.wants = {want("c", "CAPE", "surface"), spr("s", "CAPE", "surface")};
+                x.fill = [] (const Grids& g) { return pick(g, "c"); };
+                x.ramp = capeRamp();
+                x.fillTitle = "Mean CAPE (J/kg)";
+                x.legendStep = 500;
+                {
+                    auto c = meanContours("s", 250, "Spread of the CAPE (J/kg)", QColor{30, 30, 30});
+                    c.minimum = 250;
+                    x.contours = {c};
+                }
+                p.push_back(x);
+            }
+            for (const int length : {6, 24}) {   // the precipitation of 6 and 24 hours: the mean the fill, the spread lines. The 24 hour mean is its four 6 hour means; its spread is estimated from theirs
+                Product x;
+                x.source = "GEFS";
+                x.id = length == 6 ? "precip_p06" : "precip_p24";
+                x.label = length == 6 ? "Mean 6-hour Precipitation and Spread" : "Mean 24-hour Precipitation and Spread";
+                const int pieces = length / 6;
+                x.needs = [pieces] (int hour) {
+                    std::vector<GfsData::Need> out;
+                    for (int k = 0; k < pieces; k++) {
+                        const int end = hour - 6 * k;
+                        if (end < 6) {
+                            break;
+                        }
+                        const auto when = std::to_string(end - 6) + "-" + std::to_string(end) + " hour acc fcst";
+                        out.push_back({end, GfsData::Want{"a" + std::to_string(k), "APCP", "surface", when, "", ""}});
+                        out.push_back({end, GfsData::Want{"s" + std::to_string(k), "APCP", "surface", when, "", "spr"}});
+                    }
+                    return out;
+                };
+                x.derive = [pieces] (Grids& g, const Context&) {
+                    auto mean = g["a0"], sprd = g["s0"];
+                    for (size_t i = 0; i < mean.values.size(); i++) {
+                        double m = 0.0, q = 0.0;
+                        for (int k = 0; k < pieces && g.count("a" + std::to_string(k)); k++) {
+                            m += g["a" + std::to_string(k)].values[i];
+                            q += static_cast<double>(g["s" + std::to_string(k)].values[i]) * g["s" + std::to_string(k)].values[i];
+                        }
+                        mean.values[i] = static_cast<float>(m);
+                        sprd.values[i] = static_cast<float>(std::sqrt(q));
+                    }
+                    g["mean"] = mean;
+                    g["spread"] = sprd;
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "mean"); };
+                x.ramp = precipitation();
+                x.quantity = Quantity::Millimeters;
+                x.fillTitle = std::string{"Mean precipitation, "} + std::to_string(length) + " hours";
+                x.legendStep = 0;
+                ContourSet c;
+                c.key = "spread";
+                c.scale = 1.0 / 25.4;   // millimeters -> inches
+                c.interval = 0.1;
+                c.minimum = 0.1;   // lines of real spread, not a 0 line round every dry area
+                c.title = "Spread (in)";
+                c.color = QColor{30, 30, 30};
+                x.contours = {c};
+                p.push_back(x);
+            }
         };
 
         // ---- RRFS: the 3 km Rapid Refresh Forecast System (NAM, HRRR, RAP and the high resolution windows all end up here). Every GFS chart whose fields it holds is made again from it (sea level
@@ -3130,7 +3302,7 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
                 if (path.length() > 150.0) {
                     const auto mid = path.pointAtPercent(0.5);
                     if (area.adjusted(24, 14, -24, -14).contains(mid)) {
-                        halo(mid, QString::number(static_cast<int>(std::lround(level))), color.darker(130));
+                        halo(mid, interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level))), color.darker(130));   // a fractional interval keeps its decimals
                     }
                 }
             }

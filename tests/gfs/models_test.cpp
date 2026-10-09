@@ -39,6 +39,12 @@ int main() {
         CHECK(GfsModels::draws(d.id));
         CHECK(d.storm == (d.sectors == GfsModels::Sectors::Storm));
     }
+    {   // a chart id is the model screen's key for it: two charts of one model must not share one (the first would hide the other)
+        std::set<std::string> seen;
+        for (const auto& p : GfsChart::products()) {
+            CHECK(seen.insert(p.source + "/" + p.id).second);
+        }
+    }
     CHECK(!GfsModels::draws("NAM") && !GfsModels::draws("") && GfsModels::find("HRRR") == nullptr);
     for (const auto& p : GfsChart::products()) {                         // every chart belongs to a registered model, and has a group
         CHECK(GfsModels::find(p.source) != nullptr);
