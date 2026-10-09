@@ -391,7 +391,8 @@ void HurricaneData::loadEnsembles(const string& nhcId, EnsembleData& data) {
             char hh[8];
             std::snprintf(hh, sizeof hh, "%02d", hour);
             for (const int steps : {360, 144}) {
-                const string url = string{"https://data.ecmwf.int/forecasts/"} + day + "/" + hh + "z/" + model.model + "/0p25/" + model.stream + "/" + day + hh +
+                // the open data is replicated on Google Cloud (about ten times quicker to answer than ECMWF's own server, which limits its connections); URL.cpp falls back to ECMWF's when Google does not answer
+                const string url = string{"https://storage.googleapis.com/ecmwf-open-data/"} + day + "/" + hh + "z/" + model.model + "/0p25/" + model.stream + "/" + day + hh +
                     "0000-" + std::to_string(steps) + "h-" + model.stream + "-tf.bufr";
                 bytes = cachedDownload(url);
                 if (!bytes.empty()) {

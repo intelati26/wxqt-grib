@@ -153,7 +153,8 @@ namespace {
     // fetchOnce, then the AWS mirror if NOMADS failed (no response, or a 4xx/5xx)
     Fetched fetchWithMirror(const string& url, const QByteArray& range, bool managed = false) {
         auto result = fetchOnce(url, range, QByteArray{}, managed);
-        if (result.status == 0 || result.status >= 400) {
+        const bool notThere = result.status == 404 && url.compare(0, 8, "https://") == 0 && url.find("storage.googleapis.com/ecmwf-open-data/") != string::npos;   // a file that is not published is not published on ECMWF's server either
+        if ((result.status == 0 || result.status >= 400) && !notThere) {
             const auto mirror = mirrorUrl(url);
             if (!mirror.empty()) {
                 UtilityLog::d("mirror fallback (NOMADS status " + std::to_string(result.status) + ") " + mirror);
