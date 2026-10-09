@@ -1179,8 +1179,24 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             job.overlays = overlays;
         }
         auto v = variant;
-        if (v.kind == GfsRender::Variant::Kind::Max && (show != TilesShow::Charts || ahead)) {
-            v = {};
+        if (v.kind == GfsRender::Variant::Kind::Max && !ahead) {   // the maximum of the same period on every tile: the hours that model has (another model), or the same valid times of the older run
+            std::vector<int> hours;
+            const auto * def = GfsModels::find(job.model);
+            for (const int h : v.hours) {
+                const int hourHere = show == TilesShow::Runs ? h + spec.shift : h;
+                bool offered = def == nullptr;
+                for (const auto& range : def ? def->hours : std::vector<GfsModels::Hours>{}) {
+                    offered = offered || (hourHere >= range.from && hourHere <= range.to && (hourHere - range.from) % range.step == 0);
+                }
+                if (offered) {
+                    hours.push_back(hourHere);
+                }
+            }
+            if (hours.size() < 2 && job.ok) {
+                job.ok = false;
+                job.why = "Not enough hours of " + job.model + " in the range of the maximum.";
+            }
+            v.hours = hours;
         }
         if (ahead && v.kind != GfsRender::Variant::Kind::Change) {
             v = {};
