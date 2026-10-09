@@ -133,9 +133,17 @@ jobs:
           Expand-Archive jom.zip -DestinationPath D:/jom
           "D:/jom" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
+      # compiler cache kept in the GitHub cache service: an unchanged source file is not compiled again
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
       - name: Build
         shell: cmd
-        run: jom -j %NUMBER_OF_PROCESSORS%
+        env:
+          SCCACHE_GHA_ENABLED: 'true'
+        run: |
+          jom -j %NUMBER_OF_PROCESSORS% CXX="sccache cl"
+          sccache --show-stats
 
       - name: Package portable folder
         shell: pwsh
@@ -315,8 +323,15 @@ jobs:
           cd ..
           ./makeAll.py --pro
 
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
       - name: Build
-        run: make -j"$(nproc)"
+        env:
+          SCCACHE_GHA_ENABLED: 'true'
+        run: |
+          make -j"$(nproc)" CXX="sccache g++"
+          sccache --show-stats
 
       - name: Package AppImage
         run: |

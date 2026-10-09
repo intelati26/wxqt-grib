@@ -59,7 +59,7 @@ proFooter: str = """
 # MSVC (Windows packages): debug info in a separate wxqt.pdb, kept as a CI artifact so the address in a crash log can be
 # resolved to a function. It does not change the generated code (the optimiser options are re-stated).
 win32-msvc* {
-    QMAKE_CXXFLAGS_RELEASE += /Zi
+    QMAKE_CXXFLAGS_RELEASE += /Z7
     QMAKE_LFLAGS_RELEASE += /DEBUG /OPT:REF /OPT:ICF
 }
 
