@@ -18,7 +18,10 @@
 #include <QSplitter>
 #include <QVBoxLayout>
 #include "common/GlobalVariables.h"
+#include <QAction>
+#include <QDate>
 #include <QFileDialog>
+#include <QImage>
 #include <QMessageBox>
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
@@ -158,8 +161,38 @@ namespace {
     }
 }
 
+namespace {
+    // A chart or map as a picture: drawn at twice its size on the window's background, written as PNG where the user chooses
+    void savePicture(QWidget * widget, const QString& name) {
+        const auto target = QFileDialog::getSaveFileName(widget->window(), "Save the picture", QString{"%1_%2.png"}.arg(name, QDate::currentDate().toString("yyyyMMdd")), "PNG pictures (*.png)");
+        if (target.isEmpty()) {
+            return;
+        }
+        QImage image{widget->size() * 2, QImage::Format_ARGB32};
+        image.fill(widget->palette().color(QPalette::Window));
+        {
+            QPainter painter{&image};
+            painter.scale(2.0, 2.0);
+            widget->render(&painter);
+        }
+        if (!image.save(target, "PNG")) {
+            QMessageBox::warning(widget->window(), "Save the picture", "The picture could not be written to " + target);
+        }
+    }
+
+    // right-click on a chart or map: save it as a picture
+    void offerPicture(QWidget * widget, const QString& name, bool tip = true) {
+        widget->setContextMenuPolicy(Qt::ActionsContextMenu);
+        auto * action = new QAction{"Save as a picture...", widget};
+        QObject::connect(action, &QAction::triggered, widget, [widget, name] { savePicture(widget, name); });
+        widget->addAction(action);
+        if (tip) widget->setToolTip(widget->toolTip().isEmpty() ? "Right-click to save as a picture" : widget->toolTip());
+    }
+}
+
 PrecipBars::PrecipBars(QWidget * parent) : QWidget{parent} {
     setMinimumHeight(220);
+    offerPicture(this, "drought_rain");
 }
 
 void PrecipBars::setMonths(const std::vector<Month>& m, const QString& t, bool in, bool temp) {
@@ -245,6 +278,7 @@ void PrecipBars::paintEvent(QPaintEvent *) {
 
 HistoryChart::HistoryChart(QWidget * parent) : QWidget{parent} {
     setMinimumHeight(300);
+    offerPicture(this, "drought_history");
 }
 
 void HistoryChart::setSeries(const std::vector<Point>& p, const QString& t, const QString& u, bool b, double ref, bool warm, double lo, double hi) {
@@ -341,6 +375,7 @@ void HistoryChart::paintEvent(QPaintEvent *) {
 
 DroughtChart::DroughtChart(QWidget * parent) : QWidget{parent} {
     setMinimumHeight(250);
+    offerPicture(this, "drought_share_by_week");
 }
 
 void DroughtChart::setWeeks(const std::vector<Week>& w, const QString& t) {
@@ -475,7 +510,19 @@ DroughtViewer::DroughtViewer(Window * parent)
     table->setMaximumHeight(240);
     sideColumn->addWidget(table);
     chart = new DroughtChart{side};
+    {
+        auto * saves = new QHBoxLayout;
+        auto * saveChart = new QPushButton{"Save the weekly chart...", side};
+        auto * saveMap = new QPushButton{"Save the map...", side};
+        QObject::connect(saveChart, &QPushButton::clicked, this, [this] { savePicture(chart, "drought_share_by_week"); });
+        QObject::connect(saveMap, &QPushButton::clicked, this, [this] { savePicture(map, "drought_map"); });
+        saves->addWidget(saveChart);
+        saves->addWidget(saveMap);
+        saves->addStretch();
+        sideColumn->addLayout(saves);
+    }
     sideColumn->addWidget(chart);
+    offerPicture(map, "drought_map", false);   // its own tooltip reads out the cell under the pointer
     split->addWidget(map);
     split->addWidget(side);
     split->setStretchFactor(0, 3);
@@ -538,6 +585,9 @@ DroughtViewer::DroughtViewer(Window * parent)
         auto * exportButton = new QPushButton{"Export the table (CSV)...", widget};
         QObject::connect(exportButton, &QPushButton::clicked, this, [this] { exportHistory(); });
         row->addWidget(exportButton);
+        auto * pictureButton = new QPushButton{"Save the chart as a picture...", widget};
+        QObject::connect(pictureButton, &QPushButton::clicked, this, [this] { savePicture(historyChart, "drought_history"); });
+        row->addWidget(pictureButton);
         row->addStretch();
         column->addLayout(row);
         textHistory.getView()->setWordWrap(true);
