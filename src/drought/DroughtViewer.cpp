@@ -158,7 +158,7 @@ namespace {
 }
 
 PrecipBars::PrecipBars(QWidget * parent) : QWidget{parent} {
-    setMinimumHeight(190);
+    setMinimumHeight(220);
 }
 
 void PrecipBars::setMonths(const std::vector<Month>& m, const QString& t, bool in, bool temp) {
@@ -176,39 +176,59 @@ void PrecipBars::paintEvent(QPaintEvent *) {
     auto font = p.font();
     font.setPointSizeF(font.pointSizeF() * 0.9);
     p.setFont(font);
+    const auto fm = p.fontMetrics();
+    const double line = fm.height();
     p.setPen(palette().color(QPalette::WindowText));
-    p.drawText(QRectF{4, 2, width() - 8.0, 18}, Qt::AlignLeft | Qt::AlignVCenter, p.fontMetrics().elidedText(title, Qt::ElideRight, width() - 8));
+    const double titleHeight = line + 6.0;
+    p.drawText(QRectF{6, 2, width() - 12.0, line + 2}, Qt::AlignLeft | Qt::AlignVCenter, fm.elidedText(title, Qt::ElideRight, width() - 12));
     if (months.empty()) {
         p.drawText(rect(), Qt::AlignCenter, "Loading the months...");
         return;
     }
     const double unit = temperature ? (inches ? 1.8 : 1.0) : (inches ? 1.0 / 25.4 : 1.0);   // degrees: C or the same difference in F
-    double top = temperature ? 1.0 : 1.0;
+    // the scale follows the data (a symmetric axis wastes half the chart when the months all lean one way); it always holds zero
+    double lo = 0.0, hi = 0.0;
     for (const auto& m : months) {
         if (m.ok) {
-            top = std::max(top, std::abs(m.anomaly) * unit);
+            lo = std::min(lo, m.anomaly * unit);
+            hi = std::max(hi, m.anomaly * unit);
         }
     }
-    const QRectF plot{50.0, 26.0, width() - 60.0, height() - 52.0};
-    const double zero = plot.center().y();
-    const double scale = plot.height() / 2.0 / (top * 1.1);
-    p.setPen(QColor{128, 128, 128, 140});
-    p.drawLine(QPointF{plot.left(), zero}, QPointF{plot.right(), zero});
-    p.setPen(palette().color(QPalette::WindowText));
-    p.drawText(QRectF{0, plot.top() - 8, plot.left() - 4, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(top * 1.1, 'f', inches ? 1 : 0));
-    p.drawText(QRectF{0, zero - 8, plot.left() - 4, 16}, Qt::AlignRight | Qt::AlignVCenter, "0");
-    p.drawText(QRectF{0, plot.bottom() - 8, plot.left() - 4, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(-top * 1.1, 'f', inches ? 1 : 0));
+    if (hi - lo < 1e-9) {
+        hi = 1.0;
+    }
+    const int decimals = inches ? 1 : 0;
+    // a value label sits beyond the end of its bar: leave room for it
+    const double room = line + 4.0;
+    const QRectF plot{fm.horizontalAdvance("-00.0") + 12.0, titleHeight + room, width() - fm.horizontalAdvance("-00.0") - 20.0, height() - titleHeight - room * 2.0 - line - 8.0};
+    if (plot.height() < 20 || plot.width() < 20) {
+        return;
+    }
+    const double span = hi - lo;
+    const double scale = plot.height() / span;
+    const auto y = [&] (double v) { return plot.bottom() - (v - lo) * scale; };
+    // gridlines at round numbers
+    const double raw = span / 4.0, mag = std::pow(10.0, std::floor(std::log10(raw)));
+    const double step = mag * (raw / mag > 5 ? 10 : raw / mag > 2 ? 5 : raw / mag > 1 ? 2 : 1);
+    for (double v = std::ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) {
+        const bool zeroLine = std::abs(v) < step * 1e-6;
+        p.setPen(zeroLine ? QColor{128, 128, 128, 200} : QColor{128, 128, 128, 70});
+        p.drawLine(QPointF{plot.left(), y(v)}, QPointF{plot.right(), y(v)});
+        p.setPen(palette().color(QPalette::WindowText));
+        p.drawText(QRectF{0, y(v) - line / 2, plot.left() - 4, line}, Qt::AlignRight | Qt::AlignVCenter, QString::number(zeroLine ? 0.0 : v, 'f', step < 1 ? 1 : decimals));
+    }
+    const double zero = y(0.0);
     const double slot = plot.width() / static_cast<double>(months.size());
     for (size_t i = 0; i < months.size(); i++) {
         const auto& m = months[i];
         const double x = plot.left() + slot * static_cast<double>(i);
         p.setPen(palette().color(QPalette::WindowText));
-        p.drawText(QRectF{x, plot.bottom() + 4, slot, 14}, Qt::AlignHCenter, m.label);
+        p.drawText(QRectF{x, plot.bottom() + room + 2, slot, line}, Qt::AlignHCenter | Qt::AlignTop, fm.elidedText(m.label, Qt::ElideRight, static_cast<int>(slot)));
         if (!m.ok) {
             continue;
         }
         const double value = m.anomaly * unit;
-        const QRectF bar{x + slot * 0.18, value >= 0 ? zero - value * scale : zero, slot * 0.64, std::abs(value) * scale};
+        const QRectF bar{x + slot * 0.18, value >= 0 ? y(value) : zero, slot * 0.64, std::abs(value) * scale};
         p.setPen(Qt::NoPen);
         const QColor up = temperature ? QColor{"#c0392b"} : QColor{"#3b8f5a"}, down = temperature ? QColor{"#2b6cb0"} : QColor{"#b5793a"};
         p.setBrush(value >= 0 ? up : down);
@@ -218,7 +238,7 @@ void PrecipBars::paintEvent(QPaintEvent *) {
         }
         p.drawRect(bar);
         p.setPen(palette().color(QPalette::WindowText));
-        p.drawText(QRectF{x, value >= 0 ? bar.top() - 14 : bar.bottom() + 1, slot, 13}, Qt::AlignHCenter, QString{"%1%2"}.arg(value > 0 ? "+" : "").arg(value, 0, 'f', inches ? 1 : 0));
+        p.drawText(QRectF{x, value >= 0 ? bar.top() - line - 1 : bar.bottom() + 1, slot, line}, Qt::AlignHCenter | Qt::AlignVCenter, QString{"%1%2"}.arg(value > 0 ? "+" : "").arg(value, 0, 'f', decimals));
     }
 }
 
@@ -243,7 +263,7 @@ void HistoryChart::paintEvent(QPaintEvent *) {
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), palette().window());
     p.setPen(palette().color(QPalette::WindowText));
-    p.drawText(QRectF{4, 2, width() - 8.0, 20}, Qt::AlignLeft | Qt::AlignVCenter, title);
+    p.drawText(QRectF{6, 2, width() - 12.0, 20}, Qt::AlignLeft | Qt::AlignVCenter, p.fontMetrics().elidedText(title, Qt::ElideRight, width() - 12));
     const QRectF plot{56.0, 28.0, width() - 70.0, height() - 78.0};
     if (points.size() < 2) {
         p.drawText(plot, Qt::AlignCenter, "Building the history...");
@@ -486,7 +506,7 @@ DroughtViewer::DroughtViewer(Window * parent)
         column->addLayout(rowPrecip.getView());
         column->addWidget(textPrecip.getView());
         auto * vertical = new QSplitter{Qt::Vertical, widget};
-        precipImage.setMinimumHeight(260);
+        precipImage.setMinimumHeight(320);
         vertical->addWidget(&precipImage);
         auto * panel = new QWidget{vertical};
         auto * panelRow = new QHBoxLayout{panel};
@@ -501,8 +521,9 @@ DroughtViewer::DroughtViewer(Window * parent)
         panelRow->addWidget(precipTable, 2);
         panelRow->addWidget(precipBars, 3);
         vertical->addWidget(panel);
-        vertical->setStretchFactor(0, 3);
+        vertical->setStretchFactor(0, 5);
         vertical->setStretchFactor(1, 2);
+        vertical->setSizes({700, 280});
         column->addWidget(vertical, 1);
         tabs->addTab(widget, "Precipitation");
     }
