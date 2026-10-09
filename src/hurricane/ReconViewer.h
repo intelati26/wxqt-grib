@@ -40,6 +40,7 @@ public:
     void setFlight(const Flight& flight);
     void setImage(const QImage& image, const FloaterGeo::Geo& geo);
     void setColoring(bool sfmr) { useSfmr = sfmr; update(); }
+    void resetZoom() { zoom = 1.0; pan = {}; update(); }
     void setBarbs(bool on) { barbs = on; update(); }
     // the colour of a wind in knots (the same scale for the flight level and the surface)
     static QColor windColor(double knots);

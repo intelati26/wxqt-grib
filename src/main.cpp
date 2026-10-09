@@ -5,6 +5,12 @@
 // *****************************************************************************
 
 #include <QApplication>
+#include <QCursor>
+#include <QKeyEvent>
+#include <QWheelEvent>
+#include "hurricane/ReconViewer.h"
+#include "radar/MapWidget.h"
+#include "ui/ZoomImage.h"
 #include <QMainWindow>
 #include <exception>
 #include <QMetaObject>
@@ -50,12 +56,65 @@ namespace {
     };
 }
 
+namespace {
+    // Ctrl + / Ctrl - / Ctrl 0 zoom whatever is zoomable under the pointer (a map, a chart picture, the recon map), as a PDF viewer does:
+    // a wheel step is sent to the widget, so everything that zooms with the wheel zooms with the keys; 0 puts the picture back
+    class ZoomKeys : public QObject {
+    public:
+        explicit ZoomKeys(QObject * parent) : QObject{parent} {}
+        bool eventFilter(QObject *, QEvent * event) override {
+            if (event->type() != QEvent::KeyPress) {
+                return false;
+            }
+            const auto * key = static_cast<QKeyEvent *>(event);
+            if (!(key->modifiers() & Qt::ControlModifier)) {
+                return false;
+            }
+            const bool in = key->key() == Qt::Key_Plus || key->key() == Qt::Key_Equal, out = key->key() == Qt::Key_Minus, reset = key->key() == Qt::Key_0;
+            if (!in && !out && !reset) {
+                return false;
+            }
+            QWidget * target = QApplication::widgetAt(QCursor::pos());
+            if (!target || target->window() != QApplication::activeWindow()) {   // the pointer is elsewhere: the middle of the active window
+                const auto * w = QApplication::activeWindow();
+                target = w ? w->childAt(w->rect().center()) : nullptr;
+            }
+            for (auto * w = target; w != nullptr; w = w->parentWidget()) {
+                if (auto * recon = dynamic_cast<ReconMap *>(w)) {
+                    if (reset) recon->resetZoom();
+                    else send(w, target, in);
+                    return true;
+                }
+                if (auto * image = dynamic_cast<ZoomImage *>(w)) {
+                    if (reset) image->fitToViewport();
+                    else send(w, target, in);
+                    return true;
+                }
+                if (dynamic_cast<MapWidget *>(w)) {
+                    if (!reset) send(w, target, in);
+                    return true;
+                }
+            }
+            return false;
+        }
+    private:
+        static void send(QWidget * zoomable, QWidget * under, bool in) {
+            const QPoint global = under->rect().contains(under->mapFromGlobal(QCursor::pos())) ? QCursor::pos() : under->mapToGlobal(under->rect().center());
+            const QPoint local = under->mapFromGlobal(global);
+            QWheelEvent wheel{local, global, {}, QPoint{0, in ? 120 : -120}, Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false};
+            QApplication::sendEvent(under, &wheel);
+            (void) zoomable;
+        }
+    };
+}
+
 int main(int argc, char * argv[]) {
     WxqtApplication a{argc, argv};
     bool debug = qEnvironmentVariable("WXQT_DEBUG") == "1";
     for (const auto& argument : a.arguments()) {
         debug = debug || argument == "--debug";
     }
+    a.installEventFilter(new ZoomKeys{&a});
     CrashLog::install(debug);
     MyApplication::onCreate();
     UtilityTheme::apply();
