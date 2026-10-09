@@ -52,6 +52,7 @@ namespace GfsChart {
         double scale{1.0};              // grid value * scale = the number labelled (0.1: meters to decameters)
         double interval{0.0};
         double base{0.0};               // levels are base + n * interval
+        double minimum{-1e30};          // no line below this level (the 30, 60 and 90 per cent lines of a chance, not a 0 one round every member)
         std::string title;              // "Height (dam)"
         QColor color{30, 30, 30};
         QColor colorBelow;              // lines under the split value in this color instead (a thickness line for the rain / snow edge); invalid = not used

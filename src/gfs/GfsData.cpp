@@ -120,6 +120,42 @@ GfsData::Source GfsData::rrfs() {
     return s;
 }
 
+GfsData::Source GfsData::refs() {
+    Source s;
+    s.id = "REFS";
+    s.label = "NOAA/NCEP REFS";
+    s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
+        const std::string base = "https://noaa-rrfs-ops-pds.s3.amazonaws.com/";
+        if (file.compare(0, 5, "rrfs/") == 0) {   // the deterministic RRFS run of the same cycle, for the charts that put it with the members
+            return base + "rrfs." + run.date + "/" + run.cycle + "/rrfs.t" + run.cycle + "z." + file.substr(5) + ".f" + pad(hour, 3) + ".conus.grib2";
+        }
+        if (file.compare(0, 4, "ens:") == 0) {   // the ready-made products: the hour has two digits there
+            return base + "refs." + run.date + "/" + run.cycle + "/ensprod/refs.t" + run.cycle + "z." + file.substr(4) + ".f" + pad(hour, 2) + ".conus.grib2";
+        }
+        const auto slash = file.find('/');   // "m003/2dfld": a member and its file
+        const auto member = file.substr(0, slash);
+        return base + "rrfsens." + run.date + "/" + run.cycle + "/" + member + "/rrfs.t" + run.cycle + "z." + member + "." + file.substr(slash + 1) + "nomads.3km.f" + pad(hour, 3) + ".conus.grib2";
+    };
+    s.fileOf = [] (const Want& want) {
+        if (want.stat.compare(0, 4, "ens:") == 0) {
+            return want.stat;
+        }
+        const bool levels = want.level.size() > 3 && want.level.compare(want.level.size() - 3, 3, " mb") == 0 && want.level.find("above ground") == std::string::npos;
+        if (want.stat == "rrfs") {
+            return std::string{"rrfs/"} + (levels ? "prslev.3km" : "2dfld.3km");
+        }
+        return (want.stat.empty() ? std::string{"m001"} : want.stat) + (levels ? "/prslev" : "/2dfld");
+    };
+    s.defaultDetail = "*";
+    s.probeFile = "m001/2dfld";
+    s.cycleHours = 6;
+    s.lagHours = 5;
+    s.probeHour = 60;   // a run is there when its last hour is
+    s.cyclesToTry = 4;
+    s.warp = {true, 0.03, -127.0, 22.0, -65.0, 52.0};
+    return s;
+}
+
 GfsData::Source GfsData::nbm() {
     Source s;
     s.id = "NBM";

@@ -76,6 +76,16 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.clone.rename = {{"PRMSL", "MSLET"}};
             m.push_back(d);
         }
+        {   // the Rapid Refresh Forecast System ensemble: five members at 3 km, and its ready-made probability products (it replaces HREF and SREF)
+            Def d;
+            d.id = "REFS";
+            d.label = "NOAA/NCEP REFS, 5 member 3 km ensemble";
+            d.source = [] (const std::string&) { return GfsData::refs(); };
+            d.sectors = Sectors::Conus;
+            d.hours = {{0, 60, 1}};
+            d.recipeList = true;
+            m.push_back(d);
+        }
         for (const char * version : {"HAFSA", "HAFSB"}) {   // the hurricane model, for one storm at a time
             Def d;
             d.id = version;

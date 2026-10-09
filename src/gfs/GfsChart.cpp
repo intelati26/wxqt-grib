@@ -1585,6 +1585,259 @@ const std::vector<Product>& products() {
             }
         };
 
+        // ---- REFS: the 5 member 3 km ensemble. The ready-made products (the ensemble mean of precipitation, the probabilities of precipitation and snow, flash flood risk) are charts of their own;
+        // the members make the rest: probabilities of strong echoes and rotating updrafts (the fraction of members, neighborhood averaged), the strongest rotation, a paintball of each
+        // member's strong echoes, and the mean and spread of the 2 m temperature.
+        const auto refsRecipes = [&] {
+            const auto make = [] (const char * id, const char * label) {
+                Product x;
+                x.source = "REFS";
+                x.id = id;
+                x.label = label;
+                return x;
+            };
+            const auto sea = [] (int m) { return GfsData::Want{"p" + std::to_string(m), "MSLET", "mean sea level", "", "", "m00" + std::to_string(m)}; };
+            (void) sea;
+            // the same field from each member: keys "<prefix>1" ... "<prefix>5"
+            const auto members = [] (const char * prefix, const char * variable, const char * level, const std::string& forecast) {
+                std::vector<GfsData::Want> out;
+                for (int m = 1; m <= 5; m++) {
+                    out.push_back({std::string{prefix} + std::to_string(m), variable, level, forecast, "", "m00" + std::to_string(m)});
+                }
+                return out;
+            };
+            const auto hourly = [] (int hour) { return std::to_string(std::max(hour - 1, 0)) + "-" + std::to_string(hour) + " hour max fcst"; };
+            // the fraction of the members at or above a threshold, averaged over the neighborhood
+            const auto fraction = [] (const Grids& g, const char * prefix, double threshold) {
+                auto out = pick(g, (std::string{prefix} + "1").c_str());
+                for (size_t i = 0; i < out.values.size(); i++) {
+                    int n = 0, over = 0;
+                    for (int m = 1; m <= 5; m++) {
+                        const float v = g.at(std::string{prefix} + std::to_string(m)).values[i];
+                        if (!std::isnan(v)) {
+                            n++;
+                            over += v >= threshold ? 1 : 0;
+                        }
+                    }
+                    out.values[i] = n > 0 ? static_cast<float>(100.0 * over / n) : std::nanf("");
+                }
+                return GfsGrid::smoothed(out, 6);
+            };
+            const auto reflectivityOf = [&] (const char * id, const char * label, double threshold) {
+                auto x = make(id, label);
+                x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
+                x.fill = [fraction, threshold] (const Grids& g) { return fraction(g, "r", threshold); };
+                x.ramp = probability();
+                x.fillTitle = "Chance of the echo reaching the level (% of the members, nearby)";
+                x.legendStep = 10;
+                return x;
+            };
+            p.push_back(reflectivityOf("prob_refc_40", "Probability of Composite Reflectivity of 40 dBZ or more", 40.0));
+            p.push_back(reflectivityOf("prob_refc_50", "Probability of Composite Reflectivity of 50 dBZ or more", 50.0));
+            {
+                auto x = make("prob_uphl_75", "Probability of 2-5 km Updraft Helicity of 75 or more (last hour)");
+                x.needs = [members, hourly] (int hour) {
+                    std::vector<GfsData::Need> out;
+                    for (auto w : members("h", "MXUPHL", "5000-2000 m above ground", hourly(hour))) {
+                        out.push_back({hour, w});
+                    }
+                    return out;
+                };
+                x.fill = [fraction] (const Grids& g) { return fraction(g, "h", 75.0); };
+                x.ramp = probability();
+                x.fillTitle = "Chance of rotating updrafts (% of the members, nearby)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            {
+                auto x = make("max_uphl", "Strongest 2-5 km Updraft Helicity of any member (last hour)");
+                x.needs = [members, hourly] (int hour) {
+                    std::vector<GfsData::Need> out;
+                    for (auto w : members("h", "MXUPHL", "5000-2000 m above ground", hourly(hour))) {
+                        out.push_back({hour, w});
+                    }
+                    return out;
+                };
+                x.fill = [] (const Grids& g) {
+                    auto out = pick(g, "h1");
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        float best = out.values[i];
+                        for (int m = 2; m <= 5; m++) {
+                            const float v = g.at("h" + std::to_string(m)).values[i];
+                            best = std::isnan(best) || v > best ? v : best;
+                        }
+                        out.values[i] = best;
+                    }
+                    return out;
+                };
+                x.ramp = updraftHelicity();
+                x.fillTitle = "Updraft helicity (m2/s2)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {   // each member's 40 dBZ echoes in a color of its own, so where they agree and where they differ shows
+                auto x = make("refc_paintball", "Paintball: Composite Reflectivity of 40 dBZ or more, each member");
+                x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
+                const char * names[5] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e"};
+                const auto above = [] (const char * color) {
+                    QColor solid{color};
+                    solid.setAlpha(176);
+                    return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "r1"); };
+                x.ramp = above(names[0]);
+                for (int m = 2; m <= 5; m++) {
+                    x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
+                }
+                x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange (40 dBZ or more)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            for (const auto& [id, label, spread] : {std::tuple{"mean_2m_temp", "Ensemble Mean 2 m Temperature", false}, {"spread_2m_temp", "2 m Temperature Spread among the members", true}}) {
+                auto x = make(id, label);
+                x.wants = members("t", "TMP", "2 m above ground", "");
+                x.fill = [spread] (const Grids& g) {
+                    auto out = pick(g, "t1");
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        double sum = 0.0, square = 0.0;
+                        int n = 0;
+                        for (int m = 1; m <= 5; m++) {
+                            const float v = g.at("t" + std::to_string(m)).values[i];
+                            if (!std::isnan(v)) {
+                                sum += v;
+                                square += static_cast<double>(v) * v;
+                                n++;
+                            }
+                        }
+                        out.values[i] = n == 0 ? std::nanf("") : spread ? static_cast<float>(std::sqrt(std::max(0.0, square / n - (sum / n) * (sum / n)))) : static_cast<float>(sum / n);
+                    }
+                    return out;
+                };
+                x.ramp = spread ? spreadRamp(5.0) : temperature();
+                x.quantity = spread ? Quantity::Other : Quantity::Temperature;
+                x.fillTitle = spread ? "Spread of the 2 m temperature (C)" : "Mean 2 m temperature";
+                x.legendStep = spread ? 1 : 5;
+                p.push_back(x);
+            }
+
+            // the combinations: the deterministic RRFS in color, and what the members say about it drawn over it as lines (the model's own run is one thing, the ensemble's chance another)
+            const auto rrfsWant = [] (const char * key, const char * variable, const char * level, const std::string& forecast) {
+                return GfsData::Want{key, variable, level, forecast, "", "rrfs"};
+            };
+            const auto withChance = [] (const char * key, const char * title, QColor color) {
+                ContourSet c;
+                c.key = key;
+                c.base = 30.0;
+                c.minimum = 30.0;
+                c.interval = 30.0;   // the 30, 60 and 90 per cent lines
+                c.title = title;
+                c.color = color;
+                c.width = 2.2;
+                return c;
+            };
+            {
+                auto x = make("combo_refc_chance", "RRFS Radar with the Members' Chance of 40 dBZ or more");
+                x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
+                x.wants.push_back(rrfsWant("d", "REFC", "entire atmosphere (considered as a single layer)", ""));
+                x.derive = [fraction] (Grids& g, const Context&) { g["chance"] = fraction(g, "r", 40.0); };
+                x.fill = [] (const Grids& g) { return pick(g, "d"); };
+                x.ramp = reflectivity();
+                x.fillTitle = "RRFS composite reflectivity (dBZ)";
+                x.legendStep = 10;
+                x.contours = {withChance("chance", "Chance of 40 dBZ or more in the 5 members (%)", QColor{20, 20, 20})};
+                p.push_back(x);
+            }
+            {
+                auto x = make("combo_uphl_chance", "RRFS Updraft Helicity with the Members' Chance of 75 or more");
+                x.needs = [members, rrfsWant, hourly] (int hour) {
+                    std::vector<GfsData::Need> out;
+                    for (auto w : members("h", "MXUPHL", "5000-2000 m above ground", hourly(hour))) {
+                        out.push_back({hour, w});
+                    }
+                    out.push_back({hour, rrfsWant("d", "MXUPHL", "5000-2000 m above ground", hourly(hour))});
+                    return out;
+                };
+                x.derive = [fraction] (Grids& g, const Context&) { g["chance"] = fraction(g, "h", 75.0); };
+                x.fill = [] (const Grids& g) { return pick(g, "d"); };
+                x.ramp = updraftHelicity();
+                x.fillTitle = "RRFS 2-5 km updraft helicity in the last hour (m2/s2)";
+                x.legendStep = 0;
+                x.contours = {withChance("chance", "Chance of 75 or more in the 5 members (%)", QColor{20, 20, 20})};
+                p.push_back(x);
+            }
+            {
+                auto x = make("combo_temp_spread", "RRFS 2 m Temperature with the Members' Spread");
+                x.wants = members("t", "TMP", "2 m above ground", "");
+                x.wants.push_back(rrfsWant("d", "TMP", "2 m above ground", ""));
+                x.derive = [] (Grids& g, const Context&) {
+                    auto out = g["t1"];
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        double sum = 0.0, square = 0.0;
+                        int n = 0;
+                        for (int m = 1; m <= 5; m++) {
+                            const float v = g.at("t" + std::to_string(m)).values[i];
+                            if (!std::isnan(v)) {
+                                sum += v;
+                                square += static_cast<double>(v) * v;
+                                n++;
+                            }
+                        }
+                        out.values[i] = n == 0 ? std::nanf("") : static_cast<float>(std::sqrt(std::max(0.0, square / n - (sum / n) * (sum / n))));
+                    }
+                    g["spread"] = GfsGrid::smoothed(out, 2);
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "d"); };
+                x.ramp = temperature();
+                x.quantity = Quantity::Temperature;
+                x.fillTitle = "RRFS 2 m temperature";
+                x.legendStep = 5;
+                ContourSet spread;
+                spread.key = "spread";
+                spread.base = 1.0;
+                spread.minimum = 1.0;
+                spread.interval = 1.0;
+                spread.title = "Spread of the members (C)";
+                spread.color = QColor{20, 20, 20};
+                spread.width = 1.6;
+                x.contours = {spread};
+                p.push_back(x);
+            }
+            // the ready-made products: the window is (hour - period) to the hour, as the file writes it
+            const auto window = [] (int hour, int period) { return std::to_string(std::max(hour - period, 0)) + "-" + std::to_string(hour) + " hour acc fcst"; };
+            for (const auto period : {1, 3}) {
+                auto x = make(period == 1 ? "mean_precip_p01" : "mean_precip_p03", period == 1 ? "Ensemble Mean Precipitation, 1 hour" : "Ensemble Mean Precipitation, 3 hours");
+                x.needs = [window, period] (int hour) { return std::vector<GfsData::Need>{{hour, {"a", "APCP", "surface", window(hour, period), "wt ens mean", "ens:avrg"}}}; };
+                x.fill = [] (const Grids& g) { return pick(g, "a"); };
+                x.ramp = precipitation();
+                x.quantity = Quantity::Millimeters;
+                x.fillTitle = period == 1 ? "Mean precipitation in the last hour" : "Mean precipitation in the last 3 hours";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            struct Prob {
+                const char * id;
+                const char * variable;
+                int period;
+                const char * detail;
+                const char * title;
+            };
+            for (const auto& q : {Prob{"prob_precip_1h_0.25in", "APCP", 1, "prob >6.35", "Probability of 0.25 in or more of rain in an hour"}, Prob{"prob_precip_1h_0.5in", "APCP", 1, "prob >12.7", "Probability of 0.5 in or more of rain in an hour"},
+                                  Prob{"prob_precip_1h_1in", "APCP", 1, "prob >25.4", "Probability of 1 in or more of rain in an hour"}, Prob{"prob_precip_3h_0.5in", "APCP", 3, "prob >12.7", "Probability of 0.5 in or more of rain in 3 hours"},
+                                  Prob{"prob_precip_3h_1in", "APCP", 3, "prob >25.4", "Probability of 1 in or more of rain in 3 hours"}, Prob{"prob_precip_3h_2in", "APCP", 3, "prob >50.8", "Probability of 2 in or more of rain in 3 hours"},
+                                  Prob{"prob_snow_3h_1in", "ASNOW", 3, "prob >0.025", "Probability of 1 in or more of snow in 3 hours"}, Prob{"prob_snow_3h_3in", "ASNOW", 3, "prob >0.076", "Probability of 3 in or more of snow in 3 hours"}}) {
+                auto x = make(q.id, q.title);
+                const auto variable = std::string{q.variable};
+                const auto detail = std::string{q.detail};
+                const int period = q.period;
+                x.needs = [window, variable, detail, period] (int hour) { return std::vector<GfsData::Need>{{hour, {"a", variable, "surface", window(hour, period), detail, "ens:eas"}}}; };
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "a"), 100.0); };   // a fraction -> percent
+                x.ramp = probability();
+                x.fillTitle = "Chance (%, within the neighborhood)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+        };
+
         // ---- HAFS: the hurricane model for one storm (the screen picks the storm): wind, simulated radar and satellite, rain, sea surface temperature, shear, waves
         const auto hafsRecipes = [&] (const char * model) {
             const auto hurricaneLines = [&pressure] {
@@ -1705,7 +1958,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"RRFS", rrfsRecipes}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"RRFS", rrfsRecipes}, {"REFS", refsRecipes}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);
@@ -2300,7 +2553,7 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
         if (set.onlyBelowZero) {
             hi = std::min(hi, -interval / 2.0);
         }
-        for (double level = std::ceil((lo - set.base) / interval) * interval + set.base; level <= hi; level += interval) {
+        for (double level = std::max(std::ceil((lo - set.base) / interval) * interval + set.base, std::ceil((set.minimum - set.base) / interval) * interval + set.base); level <= hi; level += interval) {
             const bool heavy = std::fmod(std::abs(level - set.base), interval * 5) < 1e-6 || (set.colorBelow.isValid() && std::abs(level - set.split) < 1e-6);
             const QColor color = set.colorBelow.isValid() && level <= set.split ? set.colorBelow : set.color;
             for (const auto& line : GfsGrid::contour(grid, level / set.scale, sector.west, sector.south, sector.east, sector.north)) {
