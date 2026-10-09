@@ -273,3 +273,13 @@ std::vector<std::string> GfsRender::hafsStorms(const std::string& model, std::st
     }
     return storms;
 }
+
+std::vector<GfsChart::TrackPoint> GfsRender::hafsTrack(const std::string& model, const std::string& storm, std::string& cycle) {
+    const auto gfs = data({}, model, storm);
+    GfsData::Run run;
+    if (!isHafs(model) || !newestRun(gfs, run)) {
+        return {};
+    }
+    cycle = run.cycle + "Z";
+    return GfsChart::parseTrack(URL::getBytes(gfs.fileUrl(run, 0, "trak")).toStdString());
+}

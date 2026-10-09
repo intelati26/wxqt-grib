@@ -9,7 +9,9 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <QWidget>
 #include "gfs/GfsRender.h"
+#include "ui/Button.h"
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
@@ -23,6 +25,26 @@ using std::string;
 // NCEP's hurricane model (HAFS-A and HAFS-B) for one storm: its 2 km storm-following grid drawn as wind and pressure, simulated radar and satellite, rain, sea surface
 // temperature, shear and vorticity, and waves. The model is run only for the active storms and invests, so the storm list is whatever has files in the newest cycle.
 // `storm` is the NHC id ("al092026") of the one to show first, "" for the first in the list.
+// The forecast intensity of one storm from each version of the hurricane model against forecast hour: maximum wind and minimum pressure, HAFS-A and HAFS-B together.
+class HafsIntensityChart : public QWidget {
+public:
+    explicit HafsIntensityChart(QWidget * parent = nullptr);
+    void setData(const std::vector<GfsChart::TrackPoint>& a, const std::vector<GfsChart::TrackPoint>& b, const string& title);
+
+private:
+    void paintEvent(QPaintEvent *) override;
+    std::vector<GfsChart::TrackPoint> trackA, trackB;
+    string title;
+};
+
+class HafsIntensityViewer : public Window {
+public:
+    HafsIntensityViewer(Window * parent, const string& storm, const std::vector<GfsChart::TrackPoint>& a, const std::vector<GfsChart::TrackPoint>& b, const string& cycle);
+
+private:
+    VBox box;
+};
+
 class HafsViewer : public Window {
 public:
     HafsViewer(Window * parent, const string& storm = "", const string& name = "");
@@ -34,6 +56,7 @@ private:
     void fillStorms(const std::vector<string>& found, const string& cycle);
     void draw();
     void step(int by);
+    void showIntensity();
     string model() const { return comboModel.getIndex() == 1 ? "HAFSB" : "HAFSA"; }
     std::vector<string> storms;
     std::vector<string> productIds;   // before the product list that fills it
@@ -45,6 +68,7 @@ private:
     ComboBox comboProduct;
     ComboBox comboTime;
     BackForward backForward;
+    Button buttonIntensity;
     Text textStatus;
     string first;            // the storm to show when the list arrives
     string firstName;

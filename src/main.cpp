@@ -14,6 +14,7 @@
 #include <QThreadPool>
 #include <QTimer>
 #include "common/GlobalVariables.h"
+#include "gfs/GfsRender.h"
 #include "hurricane/HafsViewer.h"
 #include "hurricane/ReconViewer.h"
 #include "hurricane/SeasonViewer.h"
@@ -82,6 +83,11 @@ int main(int argc, char * argv[]) {
                 new SeasonViewer{&w, seasons};
             } else if (route.startsWith("hafs:")) {   // WXQT_OPEN=hafs:<NHC id>: the hurricane model screen on that storm
                 new HafsViewer{&w, route.section(':', 1, 1).toStdString(), ""};
+            } else if (route.startsWith("hafsintensity:")) {   // WXQT_OPEN=hafsintensity:<model id, e.g. 15e>: the intensity of that storm from HAFS-A and HAFS-B
+                const auto storm = route.section(':', 1, 1).toStdString();
+                std::string cycle, other;
+                const auto a = GfsRender::hafsTrack("HAFSA", storm, cycle), b = GfsRender::hafsTrack("HAFSB", storm, other);
+                new HafsIntensityViewer{&w, storm, a, b, cycle};
             } else if (route == "tornadoyears") {   // WXQT_OPEN=tornadoyears: the tornado years ranked
                 new TornadoYearsViewer{&w, TornadoData::load(), 0, std::string{}};
             } else if (route.startsWith("swostate:")) {   // WXQT_OPEN=swostate:<day>: the SPC convective outlook's state graphics for that day

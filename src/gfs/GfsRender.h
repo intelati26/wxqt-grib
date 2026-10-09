@@ -10,6 +10,7 @@
 #include <vector>
 #include <QByteArray>
 #include <QString>
+#include "gfs/GfsChart.h"
 
 // The app's side of the GFS charts: the network, the GDAL folder, the borders and the user's units, handed to GfsData / GfsChart.
 namespace GfsRender {
@@ -35,6 +36,8 @@ namespace GfsRender {
     // the newest published run of the model as the screen writes a run ("12Z"); false when none is found (no connection)
     // storm is the HAFS storm ("09l"); it is the "sector" of the HAFS charts, whose grid follows the storm
     bool latestCycle(const std::string& model, std::string& cycle, const std::string& storm = "");
+    // The forecast track of a storm from the hurricane model ("HAFSA" / "HAFSB") in its newest complete run, with the run's name ("12Z"); empty when the model has none for it
+    std::vector<GfsChart::TrackPoint> hafsTrack(const std::string& model, const std::string& storm, std::string& cycle);
     // The storms the hurricane model ("HAFSA" or "HAFSB") has files for in its newest cycle, as NHC ids ("09l", "15e"), and that cycle ("12Z"); empty when none
     std::vector<std::string> hafsStorms(const std::string& model, std::string& cycle);
 }
