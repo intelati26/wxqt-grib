@@ -7,6 +7,7 @@
 #include "objects/URL.h"
 #include "util/Activity.h"
 #include "objects/KnownIntermediates.h"
+#include "objects/NetManager.h"
 #include <deque>
 #include <map>
 #include <mutex>
@@ -82,6 +83,10 @@ namespace {
     // file can be had from AWS. Returns "" for any URL that is not one of
     // those NOMADS trees.
     string mirrorUrl(const string& url) {
+        const string google = "https://storage.googleapis.com/ecmwf-open-data/";   // ECMWF's open data: Google's replica, then ECMWF's own server
+        if (url.compare(0, google.size(), google) == 0) {
+            return "https://data.ecmwf.int/forecasts/" + url.substr(google.size());
+        }
         const string nomads = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/";
         if (url.compare(0, nomads.size(), nomads) != 0) {
             return "";
@@ -107,7 +112,11 @@ namespace {
         QDateTime lastModified;   // the Last-Modified header, if any
     };
 
-    Fetched fetchOnce(const string& url, const QByteArray& range, const QByteArray& accept = QByteArray{}) {
+    Fetched fetchOnce(const string& url, const QByteArray& range, const QByteArray& accept = QByteArray{}, bool managed = false) {
+        if (managed && NetManager::enabled()) {   // the program's one persistent client: connections kept, the same request made once, what is on screen first
+            const auto got = NetManager::get(url, range);
+            return {got.bytes, got.status, got.lastModified};
+        }
         if (AppState::quitting) {   // the app is closing and waits for every worker: do not start a download now
             return {};
         }
@@ -142,13 +151,13 @@ namespace {
     }
 
     // fetchOnce, then the AWS mirror if NOMADS failed (no response, or a 4xx/5xx)
-    Fetched fetchWithMirror(const string& url, const QByteArray& range) {
-        auto result = fetchOnce(url, range);
+    Fetched fetchWithMirror(const string& url, const QByteArray& range, bool managed = false) {
+        auto result = fetchOnce(url, range, QByteArray{}, managed);
         if (result.status == 0 || result.status >= 400) {
             const auto mirror = mirrorUrl(url);
             if (!mirror.empty()) {
                 UtilityLog::d("mirror fallback (NOMADS status " + std::to_string(result.status) + ") " + mirror);
-                auto alt = fetchOnce(mirror, range);
+                auto alt = fetchOnce(mirror, range, QByteArray{}, managed);
                 if (alt.status > 0 && alt.status < 400) {
                     return alt;
                 }
@@ -250,6 +259,18 @@ QByteArray URL::getBytesWithStatus(const string& url, int& status) {
 }
 
 // HTTP range request - byte range is inclusive; pass end < 0 for "to end of file"
+QByteArray URL::getBytesManaged(const string& url) {
+    return fetchWithMirror(url, QByteArray{}, true).bytes;
+}
+
+QByteArray URL::getBytesRangeManaged(const string& url, long long start, long long end) {
+    auto range = QByteArray{"bytes="} + QByteArray::number(start) + "-";
+    if (end >= 0) {
+        range += QByteArray::number(end);
+    }
+    return fetchWithMirror(url, range, true).bytes;
+}
+
 QByteArray URL::getBytesRange(const string& url, long long start, long long end) {
     UtilityLog::d("getByteRange " + url + " " + std::to_string(start) + "-" + std::to_string(end));
     auto range = QByteArray{"bytes="} + QByteArray::number(start) + "-";

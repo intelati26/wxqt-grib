@@ -51,7 +51,7 @@ namespace {
         config.gdalBin = UtilityGrib::gdalBinDir();
         config.cacheFolder = folder;
         config.bytes = [] (const std::string& url, long long start, long long end) {
-            return end < 0 && start == 0 ? URL::getBytes(url) : URL::getBytesRange(url, start, end < 0 ? start + 4 * 1024 * 1024 * 1024LL : end);
+            return end < 0 && start == 0 ? URL::getBytesManaged(url) : URL::getBytesRangeManaged(url, start, end < 0 ? start + 4 * 1024 * 1024 * 1024LL : end);
         };
         return GfsData{config, sourceOf(model, storm)};
     }

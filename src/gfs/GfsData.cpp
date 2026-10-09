@@ -64,7 +64,8 @@ namespace {
         s.id = id;
         s.label = label;
         s.fileUrl = [model, kind] (const GfsData::Run& run, int hour, const std::string&) {
-            return "https://data.ecmwf.int/forecasts/" + run.date + "/" + run.cycle + "z/" + model + "/0p25/oper/" + run.date + run.cycle + "0000-" + std::to_string(hour) + "h-oper-fc" + kind;
+            // the open data is replicated on the cloud providers: Google's copy answers about three times faster than ECMWF's own server (data.ecmwf.int is the fallback, see URL.cpp)
+            return "https://storage.googleapis.com/ecmwf-open-data/" + run.date + "/" + run.cycle + "z/" + model + "/0p25/oper/" + run.date + run.cycle + "0000-" + std::to_string(hour) + "h-oper-fc" + kind;
         };
         s.indexReplaces = kind;
         s.indexSuffix = ".index";

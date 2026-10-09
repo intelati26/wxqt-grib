@@ -6,6 +6,7 @@
 
 #include <QApplication>
 #include <QCursor>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QKeyEvent>
 #include <QWheelEvent>
@@ -152,7 +153,9 @@ int main(int argc, char * argv[]) {
                     GfsRender::Session session;
                     GfsRender::Variant variant;
                     const int hour = parts[4].toInt(), n = parts[6].toInt();
-                    if (parts[5] == "change") {
+                    if (parts[5] == "plain") {
+                        variant.kind = GfsRender::Variant::Kind::None;
+                    } else if (parts[5] == "change") {
                         variant.kind = GfsRender::Variant::Kind::Change;
                         variant.hoursBack = n;
                     } else {
@@ -160,10 +163,12 @@ int main(int argc, char * argv[]) {
                         for (int h = hour - n; h <= hour; h += 3) variant.hours.push_back(h);
                     }
                     std::string error;
+                    QElapsedTimer timer;
+                    timer.start();
                     const auto bytes = GfsRender::png(session, parts[1].toStdString(), parts[2].toStdString(), parts[3].toStdString(), "", hour, {}, error, nullptr, variant);
                     QFile out{parts[7]};
                     if (out.open(QIODevice::WriteOnly)) out.write(bytes);
-                    fprintf(stderr, "variant: %lld bytes %s\n", static_cast<long long>(bytes.size()), error.c_str());
+                    fprintf(stderr, "variant: %lld bytes %.2f s %s\n", static_cast<long long>(bytes.size()), timer.elapsed() / 1000.0, error.c_str());
                 }
                 std::_Exit(0);
             } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm

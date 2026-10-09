@@ -24,6 +24,9 @@ public:
     // should require 2xx.
     static QByteArray getBytesWithStatus(const std::string& url, int& status);
     static QByteArray getBytesRange(const string&, long long, long long);
+    // the same through the program's persistent network client (objects/NetManager): connections kept between requests, the same request made once, no pause between requests to a bucket
+    static QByteArray getBytesManaged(const string&);
+    static QByteArray getBytesRangeManaged(const string&, long long, long long);
 
     // Where a downloaded picture came from and when the server says it was
     // produced (the HTTP Last-Modified header - the radar/outlook/satellite

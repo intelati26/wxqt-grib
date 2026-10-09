@@ -13,3 +13,7 @@ Hurricane Center and the local National Weather Service office.
 
 `src/hurricane/UtilityEcmwfTracks.cpp` decodes the BUFR files itself (WMO BUFR edition 4, master table version 35, template 3 16 082); the expected
 values in `tests/hurricane/` were read with ECMWF's eccodes tools from the same files.
+
+The model screen's IFS and AIFS fields (the open-data GRIB files) are read from the replica of the open data on Google Cloud (storage.googleapis.com/ecmwf-open-data), with ECMWF's own server
+(data.ecmwf.int) as the fallback: ECMWF replicates the open data across AWS, Azure and Google Cloud for reliability and limits its own portal to 500 simultaneous connections
+(https://github.com/ecmwf/ecmwf-opendata). The licence and the attribution are the same.
