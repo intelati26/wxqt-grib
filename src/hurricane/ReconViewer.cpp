@@ -20,6 +20,7 @@
 #include "ui/HoverTip.h"
 #include "hurricane/Coast.h"
 #include "hurricane/UtilityDropsonde.h"
+#include "hurricane/DropsondeViewer.h"
 #include "hurricane/UtilityVdm.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
@@ -130,11 +131,36 @@ void ReconMap::mousePressEvent(QMouseEvent * event) {
     if (event->button() == Qt::LeftButton) {
         dragging = true;
         dragFrom = event->position();
+        pressAt = event->position();
     }
 }
 
-void ReconMap::mouseReleaseEvent(QMouseEvent *) {
+void ReconMap::mouseReleaseEvent(QMouseEvent * event) {
+    const bool click = dragging && std::hypot(event->position().x() - pressAt.x(), event->position().y() - pressAt.y()) < 4.0;
     dragging = false;
+    if (click && onDrop) {
+        if (const auto * drop = dropAt(event->position())) {
+            onDrop(*drop);
+        }
+    }
+}
+
+const UtilityDropsonde::Drop * ReconMap::dropAt(const QPointF& at) const {
+    const UtilityDropsonde::Drop * found = nullptr;
+    double best = 12.0;
+    for (const auto& drop : flight.drops) {
+        const double lat = has(drop.releaseLat) ? drop.releaseLat : drop.lat, lon = has(drop.releaseLon) ? drop.releaseLon : drop.lon;
+        if (!has(lat) || !has(lon)) {
+            continue;
+        }
+        const auto p = toWidget(lon, lat) + QPointF{0, 0};
+        const double d = std::hypot(p.x() - at.x(), p.y() - at.y());
+        if (d < best) {
+            best = d;
+            found = &drop;
+        }
+    }
+    return found;
 }
 
 void ReconMap::mouseDoubleClickEvent(QMouseEvent *) {
@@ -314,6 +340,16 @@ void ReconMap::mouseMoveEvent(QMouseEvent * event) {
         update();
         return;
     }
+    if (const auto * drop = dropAt(event->position())) {   // over a dropsonde: say so, and that it opens
+        setCursor(Qt::PointingHandCursor);
+        const double pressure = UtilityDropsonde::minimumPressure(*drop), wind = UtilityDropsonde::maxWind(*drop);
+        QString text = "Dropsonde " + dayClock(drop->seconds);
+        if (has(pressure)) text += "   lowest pressure " + QString::number(static_cast<int>(std::lround(pressure))) + " mb";
+        if (has(wind)) text += "   strongest wind " + QString::number(static_cast<int>(std::lround(wind))) + " kt";
+        HoverTip::show(this, event->globalPosition().toPoint(), text + "\nClick for the profile");
+        return;
+    }
+    setCursor(Qt::ArrowCursor);
     double best = 14.0;
     const UtilityHdob::Ob * near = nullptr;
     for (const auto& ob : flight.obs) {
@@ -373,6 +409,7 @@ ReconViewer::ReconViewer(Window * parent, const std::string& id, const std::stri
     checkBarbs = new QCheckBox{"Wind barbs", this};
     checkBarbs->setChecked(Utility::readPrefInt("RECON_BARBS", 1) != 0);
     map = new ReconMap{this};
+    map->onDrop = [this] (const UtilityDropsonde::Drop& drop) { new DropsondeViewer{this, drop}; };
     map->setColoring(comboColor.getIndex() == 1);
     map->setBarbs(checkBarbs->isChecked());
     log = new QPlainTextEdit{this};

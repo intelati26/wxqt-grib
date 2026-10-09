@@ -22,6 +22,7 @@
 #include "ui/HBox.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
+#include <functional>
 #include "ui/Window.h"
 
 // One recon flight on its own: the track (coloured by the flight-level or the SFMR surface wind, with barbs), the dropsondes and the vortex fixes, over the storm's GOES floater, and a
@@ -42,6 +43,7 @@ public:
     void setColoring(bool sfmr) { useSfmr = sfmr; update(); }
     void resetZoom() { zoom = 1.0; pan = {}; update(); }
     void setBarbs(bool on) { barbs = on; update(); }
+    std::function<void(const UtilityDropsonde::Drop&)> onDrop;   // a click on a dropsonde (its triangle on the map)
     // the colour of a wind in knots (the same scale for the flight level and the surface)
     static QColor windColor(double knots);
 
@@ -62,8 +64,9 @@ private:
     bool barbs{true};
     double zoom{1.0};                           // wheel to zoom at the pointer, drag to pan, double click to reset
     QPointF pan;                                // the picture's shift in widget pixels
-    QPointF dragFrom;
+    QPointF dragFrom, pressAt;
     bool dragging{false};
+    const UtilityDropsonde::Drop * dropAt(const QPointF& at) const;   // the dropsonde under that point of the widget, if there is one
 };
 
 class ReconViewer : public Window {
