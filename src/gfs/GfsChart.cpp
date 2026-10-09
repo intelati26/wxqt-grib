@@ -1571,6 +1571,233 @@ const std::vector<Product>& products() {
                 x.barbV = "v";
                 p.push_back(x);
             }
+            // the maps the other convection-allowing models have (HRRR, NAM nests, HiResW, RAP) that were not drawn yet
+            for (const auto& [id, label, variable, ramp, title] : {std::tuple{"2m_temp_10m_wnd", "2m Temperature and 10m Wind", "TMP", 0, "2 m temperature"}, {"2m_dewp_10m_wnd", "2m Dew Point and 10m Wind", "DPT", 1, "2 m dew point"}}) {
+                auto x = make(id, label);
+                x.wants = {want("t", variable, "2 m above ground")};
+                wind10(x);
+                x.fill = [] (const Grids& g) { return pick(g, "t"); };
+                x.ramp = ramp == 0 ? temperature() : dewpoint();
+                x.quantity = Quantity::Temperature;
+                x.fillTitle = title;
+                x.legendStep = 5;
+                p.push_back(x);
+            }
+            {   // 700 mb humidity with the rising air as lines: the model's vertical velocity in m/s changed to omega in Pa/s with the density of air at 700 mb (about 0.9 kg per cubic meter)
+                auto x = make("700_rh_ht", "700mb Relative Humidity, Height and Omega");
+                x.wants = {want("z", "HGT", "700 mb"), want("rh", "RH", "700 mb"), want("w", "DZDT", "700 mb")};
+                x.derive = [] (Grids& g, const Context&) { g["o"] = GfsGrid::scaled(g["w"], -0.9 * 9.80665); };
+                x.fill = [] (const Grids& g) { return pick(g, "rh"); };
+                x.ramp = humidity();
+                x.fillTitle = "700 mb relative humidity (%)";
+                x.legendStep = 10;
+                ContourSet omega;
+                omega.key = "o";
+                omega.scale = 10.0;
+                omega.interval = 2;
+                omega.title = "Omega (ubar/s, rising air)";
+                omega.color = QColor{20, 110, 70};
+                omega.dashed = true;
+                omega.onlyBelowZero = true;
+                x.contours = {heights(3), omega};
+                p.push_back(x);
+            }
+            {   // the strongest rotation of the run so far: the hourly maxima of every hour added up by taking their largest
+                auto x = make("accu_max_updraft_hlcy", "Accumulated Maximum 2-5 km Updraft Helicity");
+                x.needs = [] (int hour) {
+                    std::vector<GfsData::Need> out;
+                    for (int k = 1; k <= hour; k++) {
+                        out.push_back({k, {"u" + std::to_string(k), "MXUPHL", "5000-2000 m above ground", std::to_string(k - 1) + "-" + std::to_string(k) + " hour max fcst", ""}});
+                    }
+                    return out;
+                };
+                x.derive = [] (Grids& g, const Context& context) {
+                    auto best = g["u1"];
+                    for (int k = 2; k <= context.hour; k++) {
+                        const auto& next = g["u" + std::to_string(k)];
+                        for (size_t i = 0; i < best.values.size() && i < next.values.size(); i++) {
+                            if (std::isnan(best.values[i]) || next.values[i] > best.values[i]) {
+                                best.values[i] = next.values[i];
+                            }
+                        }
+                    }
+                    g["m"] = best;
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "m"); };
+                x.ramp = updraftHelicity();
+                x.fillTitle = "Strongest updraft helicity since the start of the run (m2/s2)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                auto x = make("helicity", "Helicity and 30m Wind");
+                x.wants = {want("h", "HLCY", "3000-0 m above ground"), want("u", "UGRD", "30 m above ground"), want("v", "VGRD", "30 m above ground")};
+                x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                x.ramp = helicityRamp();
+                x.fillTitle = "0-3 km storm-relative helicity (m2/s2)";
+                x.legendStep = 100;
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+            // the fire weather set: what the fire weather nest of the model guidance site draws, from the 3 km run (the nest itself is a finer grid, a later refinement)
+            for (const auto& [id, label, variable, ramp, title] : {std::tuple{"2m_tmpc", "Shelter (2 m) Temperature", "TMP", 0, "2 m temperature"}, {"2m_dwpc", "Shelter (2 m) Dew Point Temperature", "DPT", 1, "2 m dew point"}}) {
+                auto x = make(id, label);
+                x.wants = {want("t", variable, "2 m above ground")};
+                x.fill = [] (const Grids& g) { return pick(g, "t"); };
+                x.ramp = ramp == 0 ? temperature() : dewpoint();
+                x.quantity = Quantity::Temperature;
+                x.fillTitle = title;
+                x.legendStep = 5;
+                p.push_back(x);
+            }
+            {
+                auto x = make("2m_rh_10m_wnd", "1-hr Minimum Relative Humidity, 10m Wind");
+                x.needs = [] (int hour) {
+                    return std::vector<GfsData::Need>{{hour, {"r", "MINRH", "2 m above ground", std::to_string(std::max(hour - 1, 0)) + "-" + std::to_string(hour) + " hour min fcst", ""}},
+                                                      {hour, {"u", "UGRD", "10 m above ground", "", ""}}, {hour, {"v", "VGRD", "10 m above ground", "", ""}}};
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "r"); };
+                x.ramp = humidity();
+                x.fillTitle = "Lowest relative humidity of the last hour (%)";
+                x.legendStep = 10;
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+            {
+                auto x = make("best_cape", "Best (Most Unstable) CAPE");
+                x.wants = {want("c", "CAPE", "255-0 mb above ground")};
+                x.fill = [] (const Grids& g) { return pick(g, "c"); };
+                x.ramp = capeRamp();
+                x.fillTitle = "Most unstable CAPE (J/kg)";
+                x.legendStep = 500;
+                p.push_back(x);
+            }
+            {   // the Haines index (mid level, 850-700 mb): stability from the temperature drop between the levels (1 under 6 C, 2 up to 10, 3 above), moisture from the dew point depression at 850 mb (1 under 6 C, 2 up to 12, 3 above)
+                auto x = make("haines", "Haines Index (850-700 mb)");
+                x.wants = {want("t8", "TMP", "850 mb"), want("t7", "TMP", "700 mb"), want("d8", "DPT", "850 mb")};
+                x.derive = [] (Grids& g, const Context&) {
+                    auto out = g["t8"];
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        const double a = g["t8"].values[i] - g["t7"].values[i], b = g["t8"].values[i] - g["d8"].values[i];
+                        out.values[i] = std::isnan(a) || std::isnan(b) ? std::nanf("") : static_cast<float>((a < 6 ? 1 : a <= 10 ? 2 : 3) + (b < 6 ? 1 : b <= 12 ? 2 : 3));
+                    }
+                    g["h"] = out;
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                x.ramp = Ramp{{{1.5, QColor{"#a9d98a"}}, {2.5, QColor{"#a9d98a"}}, {3.0, QColor{"#e3d44a"}}, {4.0, QColor{"#f0a63a"}}, {5.0, QColor{"#e0502e"}}, {6.0, QColor{"#a8206b"}}}};
+                x.fillTitle = "Haines index: 2-3 very low, 4 low, 5 moderate, 6 high";
+                x.legendStep = 1;
+                p.push_back(x);
+            }
+            for (const auto& [id, label, variable] : {std::tuple{"max_updraft", "Maximum 1-hr Updraft Vertical Velocity", "MAXUVV"}, {"max_downdraft", "Maximum 1-hr Downdraft Vertical Velocity", "MAXDVV"}}) {
+                auto x = make(id, label);
+                const std::string name = variable;
+                x.needs = [name] (int hour) { return std::vector<GfsData::Need>{{hour, {"w", name, "100-1000 mb", std::to_string(std::max(hour - 1, 0)) + "-" + std::to_string(hour) + " hour max fcst", ""}}}; };
+                x.fill = [name] (const Grids& g) { return GfsGrid::scaled(pick(g, "w"), name == "MAXDVV" ? -1.0 : 1.0); };   // the downdrafts as a positive speed
+                x.ramp = lowWind();
+                x.fillTitle = name == "MAXUVV" ? "Strongest updraft of the last hour (m/s, about)" : "Strongest downdraft of the last hour (m/s, about)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            for (const auto& [id, label] : {std::pair{"pbl_height", "PBL Height"}, {"pbl_rich_height", "PBL Height (Based on Richardson Number)"}}) {
+                auto x = make(id, label);   // the model has the one boundary layer height
+                x.wants = {want("h", "HPBL", "surface")};
+                x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                x.ramp = ceilingRamp();
+                x.ramp = Ramp{{{0, QColor{"#f4f8fb"}}, {500, QColor{"#cfe8f3"}}, {1000, QColor{"#8ccbe0"}}, {1500, QColor{"#55a868"}}, {2000, QColor{"#e3d44a"}}, {3000, QColor{"#f0a63a"}}, {4000, QColor{"#cc3d2c"}}}};
+                x.fillTitle = "Boundary layer height (m)";
+                x.legendStep = 500;
+                p.push_back(x);
+            }
+            {
+                auto x = make("precip_pwat", "Total Column Precipitable Water");
+                x.wants = {want("pw", "PWAT", "entire atmosphere (considered as a single layer)")};
+                x.fill = [] (const Grids& g) { return pick(g, "pw"); };
+                x.ramp = precipitableWater();
+                x.quantity = Quantity::Millimeters;
+                x.fillTitle = "Precipitable water";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {   // transport wind (the mean wind through the mixed layer) is taken here as the mean of the winds at the heights the model gives through the lowest 320 m and the 925 and 850 mb winds when the boundary layer reaches them
+                const auto levels = std::vector<std::pair<const char *, const char *>>{{"10 m above ground", "10"}, {"30 m above ground", "30"}, {"50 m above ground", "50"}, {"80 m above ground", "80"}, {"100 m above ground", "100"},
+                                                                                       {"160 m above ground", "160"}, {"320 m above ground", "320"}};
+                const auto meanWind = [levels] (Grids& g) {
+                    auto u = g["u10"], v = g["v10"];
+                    for (size_t i = 0; i < u.values.size(); i++) {
+                        double su = 0.0, sv = 0.0;
+                        int n = 0;
+                        const double top = g["hp"].values[i];
+                        for (const auto& [level, key] : levels) {
+                            (void) level;
+                            const double height = std::atof(key);
+                            if (n > 0 && height > top) {
+                                break;
+                            }
+                            su += g[std::string{"u"} + key].values[i];
+                            sv += g[std::string{"v"} + key].values[i];
+                            n++;
+                        }
+                        for (const char * level : {"925", "850"}) {
+                            const double metres = std::string{level} == "925" ? 750.0 : 1500.0;
+                            if (top > metres) {
+                                su += g[std::string{"u"} + level].values[i];
+                                sv += g[std::string{"v"} + level].values[i];
+                                n++;
+                            }
+                        }
+                        u.values[i] = n ? static_cast<float>(su / n) : std::nanf("");
+                        v.values[i] = n ? static_cast<float>(sv / n) : std::nanf("");
+                    }
+                    g["mu"] = u;
+                    g["mv"] = v;
+                };
+                const auto windWants = [levels] {
+                    std::vector<GfsData::Want> w{want("hp", "HPBL", "surface"), want("u925", "UGRD", "925 mb"), want("v925", "VGRD", "925 mb"), want("u850", "UGRD", "850 mb"), want("v850", "VGRD", "850 mb")};
+                    for (const auto& [level, key] : levels) {
+                        w.push_back(want((std::string{"u"} + key).c_str(), "UGRD", level));
+                        w.push_back(want((std::string{"v"} + key).c_str(), "VGRD", level));
+                    }
+                    return w;
+                };
+                auto x = make("transport_wind", "Transport Wind and Terrain Height");
+                x.wants = windWants();
+                x.wants.push_back(want("z", "HGT", "surface"));
+                x.derive = [meanWind] (Grids& g, const Context&) { meanWind(g); };
+                x.fill = speedOf("mu", "mv");
+                x.ramp = windSpeed();
+                x.fillTitle = "Transport wind speed (kt)";
+                x.legendStep = 10;
+                ContourSet terrain;
+                terrain.key = "z";
+                terrain.interval = 500;
+                terrain.title = "Terrain height (m)";
+                terrain.color = QColor{110, 80, 40};
+                terrain.width = 0.9;
+                x.contours = {terrain};
+                x.barbU = "mu";
+                x.barbV = "mv";
+                p.push_back(x);
+                auto y = make("vent_rate", "Ventilation Rate");   // the boundary layer height times the transport wind: under 2350 m2/s poor, 2350-4700 fair, above good for burning
+                y.wants = windWants();
+                y.derive = [meanWind] (Grids& g, const Context&) {
+                    meanWind(g);
+                    auto out = g["hp"];
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        out.values[i] = static_cast<float>(g["hp"].values[i] * std::hypot(g["mu"].values[i], g["mv"].values[i]));
+                    }
+                    g["vr"] = out;
+                };
+                y.fill = [] (const Grids& g) { return pick(g, "vr"); };
+                y.ramp = Ramp{{{0, QColor{"#b5368f"}}, {2350, QColor{"#ee7a47"}}, {4700, QColor{"#e3d44a"}}, {9000, QColor{"#7bc47f"}}, {18000, QColor{"#2b7fc0"}}}};
+                y.fillTitle = "Ventilation rate (m2/s): poor under 2350, fair to 4700, then good";
+                y.legendStep = 0;
+                y.barbU = "mu";
+                y.barbV = "mv";
+                p.push_back(y);
+            }
             for (const char * level : {"250", "300"}) {
                 const std::string text = std::string{level} + " mb";
                 auto x = make((std::string{level} + "_wnd").c_str(), (std::string{level} + "mb Wind").c_str());

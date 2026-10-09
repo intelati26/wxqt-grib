@@ -109,7 +109,7 @@ GfsData::Source GfsData::rrfs() {
         return "https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs." + run.date + "/" + run.cycle + "/rrfs.t" + run.cycle + "z." + (file.empty() ? "2dfld.3km" : file) + ".f" + pad(hour, 3) + ".conus.grib2";
     };
     s.fileOf = [] (const Want& want) {
-        return want.level.size() > 3 && want.level.compare(want.level.size() - 3, 3, " mb") == 0 && want.level.find("above ground") == std::string::npos ? std::string{"prslev.3km"} : std::string{"2dfld.3km"};
+        return want.level.size() > 3 && want.level.compare(want.level.size() - 3, 3, " mb") == 0 && want.level.find("above ground") == std::string::npos && want.level.find('-') == std::string::npos ? std::string{"prslev.3km"} : std::string{"2dfld.3km"};
     };
     s.probeFile = "2dfld.3km";
     s.cycleHours = 1;
@@ -140,7 +140,7 @@ GfsData::Source GfsData::refs() {
         if (want.stat.compare(0, 4, "ens:") == 0) {
             return want.stat;
         }
-        const bool levels = want.level.size() > 3 && want.level.compare(want.level.size() - 3, 3, " mb") == 0 && want.level.find("above ground") == std::string::npos;
+        const bool levels = want.level.size() > 3 && want.level.compare(want.level.size() - 3, 3, " mb") == 0 && want.level.find("above ground") == std::string::npos && want.level.find('-') == std::string::npos;
         if (want.stat == "rrfs") {
             return std::string{"rrfs/"} + (levels ? "prslev.3km" : "2dfld.3km");
         }
