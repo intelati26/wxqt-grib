@@ -52,13 +52,14 @@ public:
         bool partial{false}, ok{false};
     };
     explicit PrecipBars(QWidget * parent = nullptr);
-    void setMonths(const std::vector<Month>& months, const QString& title, bool inches);
+    void setMonths(const std::vector<Month>& months, const QString& title, bool inches, bool temperature = false);   // temperature: the anomaly is degrees C, red for warm and blue for cold
 
 private:
     void paintEvent(QPaintEvent *) override;
     std::vector<Month> months;
     QString title;
     bool inches{true};
+    bool temperature{false};
 };
 
 // The drought dashboard. The area (the country, a state or a county) and the weeks to compare are chosen above the tabs and apply to all of them. The Monitor tab draws the U.S.
@@ -100,7 +101,7 @@ private:
     int precipAreaGeneration{0};
     Text textMonitor;
     ZoomImage precipImage, outlookImage;
-    ComboBox comboKind, comboPeriod, comboOutlook;
+    ComboBox comboKind, comboPeriod, comboOutlook, comboMetric;
     Text textPrecip, textOutlook;
     HBox rowPrecip, rowOutlook;
     std::vector<Product> outlooks;
