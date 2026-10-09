@@ -6,6 +6,7 @@
 #include "gfs/GfsData.h"
 #include <cctype>
 #include <algorithm>
+#include <chrono>
 #include <atomic>
 #include <cmath>
 #include <cstring>
@@ -474,6 +475,11 @@ namespace {
     }
 }
 
+namespace {
+    std::mutex indexMutex;
+    std::map<std::string, std::pair<std::chrono::steady_clock::time_point, std::vector<GfsGrid::IdxRecord>>> indexCache;
+}
+
 bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {
     // one index per forecast hour and file involved: fetched together (they do not depend on each other), a few at a time
     std::vector<std::pair<int, std::string>> keys;
@@ -494,8 +500,27 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
     }
     std::vector<std::vector<GfsGrid::IdxRecord>> parsed(keys.size());
     runLimited(keys.size(), source.maxParallel, [&] (size_t i) {
-        const auto idxBytes = config.bytes(indexUrl(run, keys[i].first, keys[i].second), 0, -1);
+        // an index does not change once the run has its file: kept for a few minutes (it is a request of its own, 1.6 s from ECMWF), so drawing the next hour or chart starts at once
+        const auto url = indexUrl(run, keys[i].first, keys[i].second);
+        const auto cacheKey = url + "|" + (source.parseIndex ? wantsOf[i].stat : std::string{});
+        const auto now = std::chrono::steady_clock::now();
+        {
+            const std::lock_guard lock{indexMutex};
+            const auto found = indexCache.find(cacheKey);
+            if (found != indexCache.end() && now - found->second.first < std::chrono::minutes(5)) {
+                parsed[i] = found->second.second;
+                return;
+            }
+        }
+        const auto idxBytes = config.bytes(url, 0, -1);
         parsed[i] = source.parseIndex ? source.parseIndex(idxBytes.toStdString(), wantsOf[i]) : GfsGrid::parseIdx(idxBytes.toStdString());
+        if (!parsed[i].empty()) {
+            const std::lock_guard lock{indexMutex};
+            if (indexCache.size() > 400) {
+                indexCache.clear();
+            }
+            indexCache[cacheKey] = {now, parsed[i]};
+        }
     });
     std::map<std::pair<int, std::string>, std::vector<GfsGrid::IdxRecord>> indexes;
     for (size_t i = 0; i < keys.size(); i++) {

@@ -1,4 +1,5 @@
 // Manual tool: downloads a GFS run and writes the chart as a PNG.   demo <product> <sector> <hour> <out.png>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -139,6 +140,18 @@ int main(int argc, char ** argv) {
         double fx = 0.5, fy = 0.5;
         std::sscanf(at, "%lf,%lf", &fx, &fy);
         std::printf("probe %g,%g:\n%s\n", fx, fy, probe.read(fx, fy).toStdString().c_str());
+    }
+    if (std::getenv("DEMO_REPEAT")) {   // the same chart again in this process (the index kept, the fields on disk): the time the second draw takes, split into loading and drawing
+        for (int again = 0; again < 2; again++) {
+            const auto t0 = std::chrono::steady_clock::now();
+            GfsChart::Grids g2;
+            std::string e2;
+            data.load(run, GfsChart::needs(*product, std::atoi(argv[3])), g2, e2);
+            const auto t1 = std::chrono::steady_clock::now();
+            GfsChart::render(*product, *sector, g2, run, std::atoi(argv[3]), options);
+            const auto t2 = std::chrono::steady_clock::now();
+            std::printf("repeat %d: load %.2f s, draw %.2f s\n", again + 1, std::chrono::duration<double>(t1 - t0).count(), std::chrono::duration<double>(t2 - t1).count());
+        }
     }
     if (image.isNull() || !image.save(argv[4])) {
         std::printf("render failed\n");

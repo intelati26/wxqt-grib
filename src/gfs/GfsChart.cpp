@@ -5,6 +5,9 @@
 
 #include "gfs/GfsChart.h"
 #include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
@@ -3613,6 +3616,15 @@ QString Probe::read(double fx, double fy) const {
 }
 
 QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
+    const bool timing = std::getenv("WXQT_TIMING") != nullptr;   // WXQT_TIMING=1: the seconds each stage of the drawing takes, to stderr
+    auto lapAt = std::chrono::steady_clock::now();
+    const auto lap = [&] (const char * what) {
+        if (timing) {
+            const auto now = std::chrono::steady_clock::now();
+            std::fprintf(stderr, "render %-14s %.2f s\n", what, std::chrono::duration<double>(now - lapAt).count());
+            lapAt = now;
+        }
+    };
     Product product = drawn;
     if (options.magColors && !drawn.palette.empty()) {   // the model guidance site's color bands in place of ours
         if (const auto * bands = magPalette(drawn.palette)) {
@@ -3721,6 +3733,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             }
         }
     }
+    lap("fill");
     for (const auto& [key, overlayRamp] : product.overlays) {
         const auto found = grids.find(key);
         if (found == grids.end()) {
@@ -3748,6 +3761,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     p.drawImage(area.topLeft(), map);
     p.setClipRect(area);
 
+    lap("overlays");
     // coastlines and borders
     p.setPen(QPen{QColor{40, 40, 40, 210}, 0.9});
     for (const auto& line : options.lines) {
@@ -3898,6 +3912,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         }
     }
 
+    lap("coastlines");
     // the wider the view, the sparser the lines, the highs and lows, and the barbs
     const double span = sector.east - sector.west;
     const double extremeRadius = span > 150.0 ? 12.0 : span > 80.0 ? 8.0 : 6.0;
@@ -3909,7 +3924,8 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             const double cells = set.smoothKm / (std::max(grids.at(set.key).step, 0.001) * 111.0);
             smooth = GfsGrid::smoothed(grids.at(set.key), std::clamp(static_cast<int>(std::lround(1.5 * cells * cells)), 1, 60));
         }
-        const auto& grid = set.smoothKm > 0.0 ? smooth : grids.at(set.key);
+        const GfsGrid::Grid fine = set.smoothKm > 0.0 ? GfsGrid::Grid{} : GfsGrid::reducedForLines(grids.at(set.key));   // a 3 km grid is averaged to about 8 km for its lines
+        const auto& grid = set.smoothKm > 0.0 ? smooth : (fine.empty() ? grids.at(set.key) : fine);
         double lo = 1e18, hi = -1e18;
         for (int y = 0; y < map.height(); y += 6) {
             for (int x = 0; x < map.width(); x += 6) {
@@ -3965,6 +3981,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         }
     }
 
+    lap("contours");
     // wind barbs on a grid of pixels
     if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
         const auto& u = grids.at(product.barbU);
