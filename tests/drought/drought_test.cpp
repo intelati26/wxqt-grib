@@ -47,6 +47,25 @@ int main(int argc, char ** argv) {
             CHECK(s.west < -108 && s.west > -110 && s.east > -103 && s.east < -101, "Colorado's bounds");
         }
     }
+    // thinning, keeping and the bytes between runs
+    UtilityDrought::Ring line;   // the edge of a square, 25 points a side, each trembling by 0.0001 degree
+    for (int side = 0; side < 4; side++) {
+        for (int i = 0; i < 25; i++) {
+            const double t = i / 25.0, wobble = 0.0001 * (i % 2);
+            const double x[4] = {t, 1.0 + wobble, 1.0 - t, wobble}, y[4] = {wobble, t, 1.0 + wobble, 1.0 - t};
+            line.emplace_back(x[side], y[side]);
+        }
+    }
+    line.push_back(line.front());
+    CHECK(UtilityDrought::simplify(line, 0.01).size() < 12, "a trembling edge is thinned to its corners");
+    CHECK(UtilityDrought::simplify(line, 0.00001).size() == line.size(), "a fine tolerance keeps the points");
+    const auto bytes = UtilityDrought::serialize(states);
+    std::vector<UtilityDrought::Area> back;
+    CHECK(UtilityDrought::deserialize(bytes, back) && back.size() == states.size() && back[5].name == states[5].name && std::abs(back[5].west - states[5].west) < 0.001, "areas survive being stored");
+    CHECK(UtilityDrought::newestWarningAreaFile("<a href=\"/source/gis/Shapefiles/WSOM/w_18mr25.zip\"> <a href=\"/source/gis/Shapefiles/WSOM/w_16ap26.zip\">") == "w_16ap26.zip", "the newest warning area file");
+    CHECK(UtilityDrought::newestWarningAreaFile("<a href=\"/x/w_30de25.zip\"> <a href=\"/x/w_02ja26.zip\">") == "w_02ja26.zip", "the year decides before the month");
+    const auto spc = UtilityDrought::parseSpcPolygons("39.94 -100.51 40.2 -99.0 39.0 -99.5 :38.0 -97.0 38.5 -96.0 37.5 -96.2:", "2347:2348:", "MCD", "Mesoscale Discussion", "SPC");
+    CHECK(spc.size() == 2 && spc[0].id == "MCD2347" && spc[1].name == "Mesoscale Discussion 2348" && spc[0].west < -100 && spc[0].north > 40, "SPC polygons");
     const auto same = UtilityDrought::change(raster, raster);
     for (const auto v : same) {
         CHECK(v == 0, "no change from a map to itself");

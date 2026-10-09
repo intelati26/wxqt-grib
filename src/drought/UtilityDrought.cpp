@@ -6,6 +6,8 @@
 #include "drought/UtilityDrought.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <map>
 #include <QImage>
 #include <QPainter>
 #include <QPainterPath>
@@ -219,6 +221,223 @@ namespace UtilityDrought {
         }
         std::sort(out.begin(), out.end(), [] (const Area& a, const Area& b) { return a.name < b.name; });
         return !out.empty();
+    }
+
+    Ring simplify(const Ring& ring, double tolerance) {
+        if (ring.size() < 8) {
+            return ring;
+        }
+        std::vector<bool> keep(ring.size(), false);
+        keep.front() = keep.back() = true;
+        std::vector<std::pair<size_t, size_t>> stack{{0, ring.size() - 1}};
+        while (!stack.empty()) {
+            const auto [a, b] = stack.back();
+            stack.pop_back();
+            double worst = 0.0;
+            size_t at = 0;
+            const auto& p = ring[a];
+            const auto& q = ring[b];
+            const double dx = q.first - p.first, dy = q.second - p.second, length = std::hypot(dx, dy);
+            for (size_t i = a + 1; i < b; i++) {
+                const double d = length < 1e-12 ? std::hypot(ring[i].first - p.first, ring[i].second - p.second)
+                                                : std::abs(dy * (ring[i].first - p.first) - dx * (ring[i].second - p.second)) / length;
+                if (d > worst) {
+                    worst = d;
+                    at = i;
+                }
+            }
+            if (worst > tolerance) {
+                keep[at] = true;
+                stack.emplace_back(a, at);
+                stack.emplace_back(at, b);
+            }
+        }
+        Ring out;
+        for (size_t i = 0; i < ring.size(); i++) {
+            if (keep[i]) {
+                out.push_back(ring[i]);
+            }
+        }
+        return out.size() >= 4 ? out : ring;
+    }
+
+    bool parseWarningAreas(const std::string& zip, const std::function<std::string(const std::string&)>& name, std::vector<Area>& out, std::string& error) {
+        std::map<std::string, std::string> files;
+        UtilityZip::read(zip, files);
+        std::string shp, dbf;
+        for (const auto& [file, bytes] : files) {
+            if (file.size() > 4 && file.compare(file.size() - 4, 4, ".shp") == 0) {
+                shp = bytes;
+            } else if (file.size() > 4 && file.compare(file.size() - 4, 4, ".dbf") == 0) {
+                dbf = bytes;
+            }
+        }
+        std::vector<UtilityShapefile::Feature> features;
+        if (shp.empty() || dbf.empty() || !UtilityShapefile::parse(shp, dbf, features)) {
+            error = "could not read the warning area file";
+            return false;
+        }
+        std::map<std::string, Area> byOffice;   // an office's area may be several shapes (islands)
+        for (auto& f : features) {
+            if (f.shapeType != 5) {
+                continue;
+            }
+            const auto code = f.attributes.count("CWA") ? f.attributes["CWA"] : f.attributes.count("WFO") ? f.attributes["WFO"] : std::string{};
+            if (code.empty()) {
+                continue;
+            }
+            auto& a = byOffice[code];
+            a.id = code;
+            auto label = name ? name(code) : std::string{};
+            std::string alias;   // "Kansas City MO|KC": what the office is called, then what people call it for short
+            if (const auto bar = label.find('|'); bar != std::string::npos) {
+                alias = ", " + label.substr(bar + 1);
+                label = label.substr(0, bar);
+            }
+            a.name = "NWS " + (label.empty() ? (f.attributes.count("CITYSTATE") ? f.attributes["CITYSTATE"] : code) : label) + " (" + code + alias + ")";
+            a.group = "NWS forecast offices";
+            Polygon polygon;
+            for (auto& part : f.parts) {
+                polygon.push_back(simplify(part, 0.006));
+            }
+            a.shapes.push_back(std::move(polygon));
+        }
+        for (auto& [code, a] : byOffice) {
+            bounds(a);
+            out.push_back(std::move(a));
+        }
+        std::sort(out.begin(), out.end(), [] (const Area& a, const Area& b) { return a.name < b.name; });
+        return !out.empty();
+    }
+
+    std::string newestWarningAreaFile(const std::string& html) {
+        static const char * months[] = {"ja", "fe", "mr", "ap", "my", "jn", "jl", "au", "sp", "oc", "no", "de"};
+        std::string best;
+        int bestKey = -1;
+        const QRegularExpression re{"/(w_([0-9]{2})([a-z]{2})([0-9]{2})\\.zip)"};
+        auto it = re.globalMatch(QString::fromStdString(html));
+        while (it.hasNext()) {
+            const auto m = it.next();
+            int month = -1;
+            for (int i = 0; i < 12; i++) {
+                if (m.captured(3) == months[i]) {
+                    month = i;
+                }
+            }
+            const int key = m.captured(4).toInt() * 10000 + (month + 1) * 100 + m.captured(2).toInt();
+            if (month >= 0 && key > bestKey) {
+                bestKey = key;
+                best = m.captured(1).toStdString();
+            }
+        }
+        return best;
+    }
+
+    std::string serialize(const std::vector<Area>& areas) {
+        std::string out;
+        const auto put = [&out] (const auto& value) { out.append(reinterpret_cast<const char *>(&value), sizeof value); };
+        const auto putString = [&] (const std::string& s) {
+            put(static_cast<uint32_t>(s.size()));
+            out += s;
+        };
+        put(static_cast<uint32_t>(areas.size()));
+        for (const auto& a : areas) {
+            putString(a.id);
+            putString(a.name);
+            putString(a.group);
+            put(static_cast<uint32_t>(a.shapes.size()));
+            for (const auto& polygon : a.shapes) {
+                put(static_cast<uint32_t>(polygon.size()));
+                for (const auto& ring : polygon) {
+                    put(static_cast<uint32_t>(ring.size()));
+                    for (const auto& [lon, lat] : ring) {
+                        put(static_cast<float>(lon));
+                        put(static_cast<float>(lat));
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    bool deserialize(const std::string& bytes, std::vector<Area>& out) {
+        size_t at = 0;
+        bool ok = true;
+        const auto get = [&] (auto& value) {
+            if (at + sizeof value > bytes.size()) {
+                ok = false;
+                return;
+            }
+            std::memcpy(&value, bytes.data() + at, sizeof value);
+            at += sizeof value;
+        };
+        const auto getString = [&] () {
+            uint32_t n = 0;
+            get(n);
+            if (!ok || at + n > bytes.size()) {
+                ok = false;
+                return std::string{};
+            }
+            std::string s = bytes.substr(at, n);
+            at += n;
+            return s;
+        };
+        uint32_t count = 0;
+        get(count);
+        for (uint32_t i = 0; ok && i < count; i++) {
+            Area a;
+            a.id = getString();
+            a.name = getString();
+            a.group = getString();
+            uint32_t polygons = 0;
+            get(polygons);
+            for (uint32_t p = 0; ok && p < polygons; p++) {
+                Polygon polygon;
+                uint32_t rings = 0;
+                get(rings);
+                for (uint32_t r = 0; ok && r < rings; r++) {
+                    Ring ring;
+                    uint32_t points = 0;
+                    get(points);
+                    for (uint32_t k = 0; ok && k < points; k++) {
+                        float lon = 0, lat = 0;
+                        get(lon);
+                        get(lat);
+                        ring.emplace_back(lon, lat);
+                    }
+                    polygon.push_back(std::move(ring));
+                }
+                a.shapes.push_back(std::move(polygon));
+            }
+            bounds(a);
+            out.push_back(std::move(a));
+        }
+        return ok && !out.empty();
+    }
+
+    std::vector<Area> parseSpcPolygons(const std::string& latLonList, const std::string& numbers, const std::string& idPrefix, const std::string& namePrefix, const std::string& group) {
+        std::vector<Area> out;
+        const auto polygons = QString::fromStdString(latLonList).split(':', Qt::SkipEmptyParts);
+        const auto labels = QString::fromStdString(numbers).split(':', Qt::SkipEmptyParts);
+        for (int i = 0; i < polygons.size(); i++) {
+            Ring ring;
+            const auto values = polygons[i].split(' ', Qt::SkipEmptyParts);
+            for (int k = 0; k + 1 < values.size(); k += 2) {
+                ring.emplace_back(values[k + 1].toDouble(), values[k].toDouble());
+            }
+            if (ring.size() < 3) {
+                continue;
+            }
+            Area a;
+            const auto number = i < labels.size() ? labels[i].toStdString() : std::to_string(i + 1);
+            a.id = idPrefix + number;
+            a.name = namePrefix + " " + number;
+            a.group = group;
+            a.shapes.push_back({ring});
+            bounds(a);
+            out.push_back(std::move(a));
+        }
+        return out;
     }
 
     Raster rasterize(const Monitor& monitor, double west, double south, double east, double north, double step) {

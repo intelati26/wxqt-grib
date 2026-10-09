@@ -57,6 +57,7 @@ private:
     };
     struct Result;   // what a background load of the Monitor brings back
     void loadAreas();
+    void loadSpc();   // the SPC's areas in force now (fetched again each time the picker opens)
     void chooseArea();
     void selectArea(const std::string& id);
     void refreshMonitor();
@@ -81,7 +82,7 @@ private:
     Text textPrecip, textOutlook;
     HBox rowPrecip, rowOutlook;
     std::vector<Product> outlooks;
-    std::shared_ptr<std::vector<UtilityDrought::Area>> states, counties;
+    std::shared_ptr<std::vector<UtilityDrought::Area>> states, counties, offices, spc;   // spc: the mesoscale discussions and watches in force now
     std::string areaId{"US"};
     QPointer<ProductPicker> picker;
     std::mutex seriesMutex;

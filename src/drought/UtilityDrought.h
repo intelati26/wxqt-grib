@@ -7,6 +7,7 @@
 #define UTILITYDROUGHT_H
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,6 +36,18 @@ namespace UtilityDrought {
     // a zip of a Census cartographic boundary shapefile (states or counties); the territories outside the contiguous states are left out unless `all`
     bool parseAreas(const std::string& zip, bool counties, bool all, std::vector<Area>& out, std::string& error);
 
+    // The county warning areas of the National Weather Service, one for each forecast office: from the weather service's boundary shapefile (a zip), the shapes thinned (the file is 27 MB
+    // of detail no map of this size shows). `name` is what the office is called ("Kansas City MO") when the caller knows, by its three letters.
+    bool parseWarningAreas(const std::string& zip, const std::function<std::string(const std::string&)>& name, std::vector<Area>& out, std::string& error);
+    // the newest boundary file named on the weather service's page of them ("w_16ap26.zip": day, month and year), or ""
+    std::string newestWarningAreaFile(const std::string& html);
+    // areas kept as bytes (what is stored between runs of the program): compact, no text to parse
+    std::string serialize(const std::vector<Area>& areas);
+    bool deserialize(const std::string& bytes, std::vector<Area>& out);
+    // Storm Prediction Center polygons from the text of the severe dashboard: "lat lon lat lon ...:" for each one (west longitudes negative), with their numbers "2347:2348:"
+    std::vector<Area> parseSpcPolygons(const std::string& latLonList, const std::string& numbers, const std::string& idPrefix, const std::string& namePrefix, const std::string& group);
+    // Douglas-Peucker: points that lie within `tolerance` degrees of the line between their neighbors are dropped
+    Ring simplify(const Ring& ring, double tolerance);
     // The category of every cell of a grid of squares of `step` degrees over a box: 0 none, 1 to 5 D0 to D4 (the worst that lies over the cell's center)
     struct Raster {
         int columns{0}, rows{0};

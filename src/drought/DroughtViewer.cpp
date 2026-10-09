@@ -11,13 +11,20 @@
 #include <QPainterPath>
 #include <QSplitter>
 #include <QVBoxLayout>
+#include "common/GlobalVariables.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
 #include "objects/FutureVoid.h"
 #include "objects/NetManager.h"
 #include "objects/URL.h"
 #include "ui/ActivityLabel.h"
+#include "objects/PolygonWatch.h"
+#include "util/To.h"
 #include "util/PermanentCache.h"
+#include "util/UtilityIO.h"
+#include "util/UtilityString.h"
+#include "util/WfoSites.h"
+#include "util/DownloadText.h"
 
 namespace {
     const QColor categoryColors[5] = {QColor{"#e8d84c"}, QColor{"#fcd37f"}, QColor{"#ffaa00"}, QColor{"#e60000"}, QColor{"#730000"}};
@@ -172,6 +179,8 @@ DroughtViewer::DroughtViewer(Window * parent)
     , textOutlook{this, ""}
     , states{std::make_shared<std::vector<UtilityDrought::Area>>()}
     , counties{std::make_shared<std::vector<UtilityDrought::Area>>()}
+    , offices{std::make_shared<std::vector<UtilityDrought::Area>>()}
+    , spc{std::make_shared<std::vector<UtilityDrought::Area>>()}
 {
     setTitle("Drought");
     // above the tabs: the area and the weeks, for all of them
@@ -276,20 +285,63 @@ std::string DroughtViewer::mapDate(int weeksBack) const {
 
 // the shapes of the states (the land, and the areas to choose) and the counties, from the Census Bureau: kept for good after the first time
 void DroughtViewer::loadAreas() {
-    auto loaded = std::make_shared<std::pair<std::vector<UtilityDrought::Area>, std::vector<UtilityDrought::Area>>>();
+    struct Loaded {
+        std::vector<UtilityDrought::Area> states, counties, offices;
+    };
+    auto loaded = std::make_shared<Loaded>();
     new FutureVoid{this, [loaded] {
                        std::string error;
-                       UtilityDrought::parseAreas(census(false), false, false, loaded->first, error);
-                       UtilityDrought::parseAreas(census(true), true, false, loaded->second, error);
+                       UtilityDrought::parseAreas(census(false), false, false, loaded->states, error);
+                       UtilityDrought::parseAreas(census(true), true, false, loaded->counties, error);
+                       // the weather service's county warning areas: the boundary file is 19 MB, so the thinned shapes are kept for good after the first time
+                       const PermanentCache store{"drought"};
+                       const std::string kept = "nws_forecast_offices_v1.bin";
+                       if (!store.has(kept) || !UtilityDrought::deserialize(store.read(kept), loaded->offices)) {
+                           loaded->offices.clear();
+                           const auto page = URL::getBytes("https://www.weather.gov/gis/CWABounds").toStdString();
+                           const auto file = UtilityDrought::newestWarningAreaFile(page);
+                           if (!file.empty()) {
+                               const auto zip = URL::getBytes("https://www.weather.gov/source/gis/Shapefiles/WSOM/" + file).toStdString();
+                               UtilityDrought::parseWarningAreas(zip, [] (const std::string& code) {
+                                   if (!WfoSites::sites) {
+                                       return std::string{};
+                                   }
+                                   const auto found = WfoSites::sites->byCode.find(code);
+                                   if (found == WfoSites::sites->byCode.end()) {
+                                       return std::string{};
+                                   }
+                                   // "MO, Kansas City" -> "Kansas City MO", with the city's initials for a name of several words ("KC")
+                                   const auto full = found->second->fullName;
+                                   const auto comma = full.find(", ");
+                                   const auto city = comma == std::string::npos ? full : full.substr(comma + 2), state = comma == std::string::npos ? std::string{} : full.substr(0, comma);
+                                   std::string initials;
+                                   bool word = true;
+                                   for (const char ch : city) {
+                                       if (ch == ' ' || ch == '/') {
+                                           word = true;
+                                       } else if (word && std::isalpha(static_cast<unsigned char>(ch))) {
+                                           initials += static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                                           word = false;
+                                       }
+                                   }
+                                   return city + (state.empty() ? "" : " " + state) + (initials.size() >= 2 ? "|" + initials : std::string{});
+                               }, loaded->offices, error);
+                               if (!loaded->offices.empty()) {
+                                   store.write(kept, UtilityDrought::serialize(loaded->offices));
+                               }
+                           }
+                       }
                    },
                    [this, loaded] {
                        if (closed) {
                            return;
                        }
-                       *states = std::move(loaded->first);
-                       *counties = std::move(loaded->second);
+                       *states = std::move(loaded->states);
+                       *counties = std::move(loaded->counties);
+                       *offices = std::move(loaded->offices);
                        map->setLand(states);
                        map->setCounties(counties);
+                       loadSpc();
                        if (const auto env = qgetenv("WXQT_COMPARE"); !env.isEmpty()) {   // dev: WXQT_COMPARE=<n> opens on that comparison, WXQT_AREA=<id> on that area ("08" Colorado)
                            comboCompare.setIndex(env.toInt());
                        }
@@ -309,7 +361,7 @@ std::vector<UtilityDrought::Area> DroughtViewer::selectedAreas() const {
     if (areaId == "US") {
         return *states;   // every contiguous state
     }
-    for (const auto& list : {states.get(), counties.get()}) {
+    for (const auto& list : {states.get(), counties.get(), offices.get(), spc.get()}) {
         for (const auto& a : *list) {
             if (a.id == areaId) {
                 out.push_back(a);
@@ -326,9 +378,16 @@ void DroughtViewer::chooseArea() {
         picker->activateWindow();
         return;
     }
+    loadSpc();   // fresh for the next time the picker opens (the discussions and watches change through the day)
     std::vector<ProductPicker::Entry> entries{{"US", "Contiguous United States", "Nation"}};
     for (const auto& s : *states) {
         entries.push_back({s.id, s.name, "States"});
+    }
+    for (const auto& o : *offices) {
+        entries.push_back({o.id, o.name, "NWS forecast offices"});
+    }
+    for (const auto& s : *spc) {
+        entries.push_back({s.id, s.name, s.group});
     }
     for (const auto& c : *counties) {
         entries.push_back({c.id, c.name, c.group + " counties"});
@@ -460,7 +519,7 @@ void DroughtViewer::refreshMonitor() {
                                table->setItem(r, 2, new QTableWidgetItem{cell(result->later)});
                                const double delta = value(result->later, r) - value(result->earlier, r);
                                const bool worse = r == 0 ? delta < 0 : delta > 0;   // less "no drought" is worse
-                               auto * item = new QTableWidgetItem{QString{delta > 0 ? "+" : ""} + QString::number(delta, 'f', r == 6 ? 0 : 1) + (r == 6 ? "" : " pts") + (std::abs(delta) < 0.05 ? "" : worse ? "  \xE2\x96\xB2" : "  \xE2\x96\xBC")};
+                               auto * item = new QTableWidgetItem{QString{delta > 0 ? "+" : ""} + QString::number(delta, 'f', r == 6 ? 0 : 1) + (r == 6 ? "" : " pts") + (std::abs(delta) < 0.05 ? "" : delta > 0 ? "  \xE2\x96\xB2" : "  \xE2\x96\xBC")};
                                item->setForeground(std::abs(delta) < 0.05 ? QBrush{} : worse ? QBrush{QColor{"#c0392b"}} : QBrush{QColor{"#2b6cb0"}});
                                table->setItem(r, 3, item);
                            } else {
@@ -551,6 +610,56 @@ void DroughtViewer::loadSeries() {
                            chart->setWeeks(weeks, title);
                        }};
     }
+}
+
+// the SPC's mesoscale discussions and watches in force now, as areas (the same pages and polygons the severe dashboard reads)
+void DroughtViewer::loadSpc() {
+    auto found = std::make_shared<std::vector<UtilityDrought::Area>>();
+    new FutureVoid{this, [found] {
+                       const NetManager::Scope ahead{NetManager::Priority::Ahead};
+                       {
+                           const auto html = UtilityIO::getHtml(GlobalVariables::nwsSPCwebsitePrefix + "/products/md/");
+                           std::string latLon, numbers;
+                           for (const auto& number : UtilityString::parseColumn(html, "<strong><a href=./products/md/md.....html.>Mesoscale Discussion #(.*?)</a></strong>")) {
+                               const auto padded = To::stringPadLeftZeros(To::Int(number), 4);
+                               numbers += padded + ":";
+                               latLon += PolygonWatch::storeWatchMcdLatLon(DownloadText::byProduct("SPCMCD" + padded));
+                           }
+                           for (auto& a : UtilityDrought::parseSpcPolygons(latLon, numbers, "MCD", "SPC Mesoscale Discussion", "SPC mesoscale discussions (in force now)")) {
+                               found->push_back(std::move(a));
+                           }
+                       }
+                       {
+                           const auto html = UtilityIO::getHtml(GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/");
+                           std::string latLon, numbers;
+                           for (const auto& number : UtilityString::parseColumn(html, "[om] Watch #([0-9]*?)</a>")) {
+                               const auto padded = To::stringPadLeftZeros(number, 4);
+                               numbers += padded + ":";
+                               const auto text = UtilityIO::getHtml(GlobalVariables::nwsSPCwebsitePrefix + "/products/watch/wou" + padded + ".html");
+                               latLon += PolygonWatch::storeWatchMcdLatLon(UtilityString::parseMultiLineLastMatch(text, GlobalVariables::pre2Pattern));
+                           }
+                           for (auto& a : UtilityDrought::parseSpcPolygons(latLon, numbers, "WW", "SPC Watch", "SPC watches (in force now)")) {
+                               found->push_back(std::move(a));
+                           }
+                       }
+                   },
+                   [this, found] {
+                       if (closed) {
+                           return;
+                       }
+                       *spc = std::move(*found);   // the picker opened next lists them (one open now keeps what it had)
+                       if (qEnvironmentVariableIsSet("WXQT_NETLOG")) {
+                           for (const auto& a : *spc) {
+                               fprintf(stderr, "spc area %s %s (%.2f..%.2f, %.2f..%.2f)\n", a.id.c_str(), a.name.c_str(), a.west, a.east, a.south, a.north);
+                           }
+                       }
+                       if (areaId.compare(0, 2, "MC") == 0 || areaId.compare(0, 2, "WW") == 0) {
+                           const bool still = std::any_of(spc->begin(), spc->end(), [this] (const auto& a) { return a.id == areaId; });
+                           if (!still) {
+                               buttonArea->setText(buttonArea->text() + "  (no longer in force)");
+                           }
+                       }
+                   }};
 }
 
 // the picture arrives; the status line says what it is
