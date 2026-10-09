@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "gfs/GfsModels.h"
+
 using std::string;
 using std::vector;
 
@@ -33,13 +35,9 @@ public:
     static const vector<string> sectorsFirewx;
     static const vector<string> sectorsNbm;
     static const vector<string> paramsGfs;
-    static const vector<string> paramsAigfs;
-    static const vector<string> labelsAigfs;
-    // the GEFS charts are whatever the chart registry has for it (the mean's charts, then the spread's), so these cannot fall out of step with it
-    static vector<string> paramsRrfs();
-    static vector<string> labelsRrfs();
-    static vector<string> paramsGefs();
-    static vector<string> labelsGefs();
+    // the charts the model screen lists for a model drawn from GRIB: the registry's own charts (so the list cannot fall out of step with what is drawn), or for the models that still list
+    // the model guidance site's names, those
+    static void chartList(const GfsModels::Def& model, vector<string>& params, vector<string>& labels);
     static const vector<string> labelsGfs;
     static const vector<string> paramsNam;
     static const vector<string> labelsNam;

@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ObjectModel.h"
+#include "gfs/GfsModels.h"
 #include "objects/WString.h"
 #include "util/To.h"
 #include "util/Utility.h"
@@ -137,7 +138,22 @@ void ObjectModel::loadRunList(int from, int to, int by) {
 
 void ObjectModel::setModelVars(const string& modelName) {
     modelToken = prefModel + ":" + modelName;
-    if (modelToken == "NSSLWRF:WRF" || modelToken == "NSSLWRF:WRF_3KM") {
+    const auto * gribModel = prefModel == "NCEP" ? GfsModels::find(modelName) : nullptr;   // a model drawn from GRIB: the registry says how its screen is set up
+    if (gribModel != nullptr && !gribModel->storm) {
+        UtilityModelNcepInterface::chartList(*gribModel, params, paramLabels);
+        sectors = gribModel->sectors == GfsModels::Sectors::Conus ? UtilityModelNcepInterface::sectorsNbm : UtilityModelNcepInterface::sectorsGfs;
+        times.clear();
+        for (const auto& h : gribModel->hours) {
+            loadTimeList3(h.from, h.to, h.step);
+        }
+        if (gribModel->hourlyRuns) {
+            runs.clear();
+            loadRunList(0, 23, 1);
+            runTimeData.listRun = runs;
+        } else {
+            setupListRunZ();
+        }
+    } else if (modelToken == "NSSLWRF:WRF" || modelToken == "NSSLWRF:WRF_3KM") {
         params = UtilityModelNsslWrfInterface::paramsNsslWrf;
         paramLabels = UtilityModelNsslWrfInterface::labelsNsslWrf;
         sectors = UtilityModelNsslWrfInterface::sectorsLong;
@@ -179,37 +195,6 @@ void ObjectModel::setModelVars(const string& modelName) {
         sectors = UtilityModelEsrlInterface::sectorsRap;
         times.clear();
         loadTimeList(0, 21, 1);
-    } else if (modelToken == "NCEP:GFS") {
-        params = UtilityModelNcepInterface::paramsGfs;
-        paramLabels = UtilityModelNcepInterface::labelsGfs;
-        sectors = UtilityModelNcepInterface::sectorsGfs;
-        times.clear();
-        loadTimeList3(0, 243, 3);
-        loadTimeList3(252, 396, 12);
-        setupListRunZ();
-    } else if (modelToken == "NCEP:AIGFS") {
-        params = UtilityModelNcepInterface::paramsAigfs;
-        paramLabels = UtilityModelNcepInterface::labelsAigfs;
-        sectors = UtilityModelNcepInterface::sectorsGfs;
-        times.clear();
-        loadTimeList3(0, 384, 6);       // every 6 hours to 16 days
-        setupListRunZ();
-    } else if (modelToken == "NCEP:GEFS") {
-        params = UtilityModelNcepInterface::paramsGefs();
-        paramLabels = UtilityModelNcepInterface::labelsGefs();
-        sectors = UtilityModelNcepInterface::sectorsGfs;
-        times.clear();
-        loadTimeList3(0, 384, 6);       // the 6 hour pieces of precipitation are why it is every 6 hours
-        setupListRunZ();
-    } else if (modelToken == "NCEP:RRFS") {
-        params = UtilityModelNcepInterface::paramsRrfs();
-        paramLabels = UtilityModelNcepInterface::labelsRrfs();
-        sectors = UtilityModelNcepInterface::sectorsNbm;   // the CONUS grid: the same regions as the blend
-        times.clear();
-        loadTimeList3(0, 84, 1);        // hourly; only the runs at 00, 06, 12 and 18Z go past 18 hours
-        runs.clear();
-        loadRunList(0, 23, 1);
-        runTimeData.listRun = runs;
     } else if (modelToken == "NCEP:HRRR") {
         params = UtilityModelNcepInterface::paramsHrrr;
         paramLabels = UtilityModelNcepInterface::labelsHrrr;
@@ -272,17 +257,6 @@ void ObjectModel::setModelVars(const string& modelName) {
         runs.clear();
         runs.emplace_back("00Z");
         runs.emplace_back("12Z");
-        runTimeData.listRun = runs;
-    } else if (modelToken == "NCEP:NBM") {
-        params = UtilityModelNcepInterface::paramsNbm;
-        paramLabels = UtilityModelNcepInterface::labelsNbm;
-        sectors = UtilityModelNcepInterface::sectorsNbm;
-        times.clear();
-        loadTimeList3(1, 36, 1);       // the blend: hourly for a day and a half, then every 3 hours, then every 6
-        loadTimeList3(39, 192, 3);
-        loadTimeList3(198, 264, 6);
-        runs.clear();
-        loadRunList(0, 23, 1);         // a run every hour
         runTimeData.listRun = runs;
     } else if (modelToken == "NCEP:GEFS-SPAG") {
         params = UtilityModelNcepInterface::paramsGefsSpag;

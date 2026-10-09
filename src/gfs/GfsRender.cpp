@@ -20,6 +20,7 @@
 #include "gfs/GfsChart.h"
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsData.h"
+#include "gfs/GfsModels.h"
 #include "hurricane/Coast.h"
 #include "models/UtilityGrib.h"
 #include "objects/URL.h"
@@ -53,15 +54,15 @@ namespace {
         return lines;
     }
 
+    // a model that follows a storm: the hurricane model
     bool isHafs(const std::string& model) {
-        return model == "HAFSA" || model == "HAFSB";
+        const auto * def = GfsModels::find(model);
+        return def != nullptr && def->storm;
     }
 
     GfsData::Source sourceOf(const std::string& model, const std::string& storm = "") {
-        if (isHafs(model)) {
-            return GfsData::hafs(model, storm);
-        }
-        return model == "NBM" ? GfsData::nbm() : model == "AIGFS" ? GfsData::aigfs() : model == "GEFS" ? GfsData::gefs() : model == "RRFS" ? GfsData::rrfs() : GfsData::gfs();
+        const auto * def = GfsModels::find(model);
+        return def ? def->source(storm) : GfsData::gfs();
     }
 
     GfsData data(const QString& folder, const std::string& model, const std::string& storm = "") {
@@ -116,11 +117,11 @@ QString GfsRender::Session::partialGrib(const std::string& cycleRun, int hour) c
 }
 
 bool GfsRender::drawsModel(const std::string& model) {
-    return model == "GFS" || model == "NBM" || model == "AIGFS" || model == "GEFS" || model == "RRFS" || isHafs(model);
+    return GfsModels::draws(model);
 }
 
 bool GfsRender::handles(const std::string& model, const std::string& param) {
-    return (model == "GFS" || model == "NBM" || model == "AIGFS" || model == "GEFS" || model == "RRFS" || isHafs(model)) && GfsChart::product(param, model) != nullptr;
+    return GfsModels::draws(model) && GfsChart::product(param, model) != nullptr;
 }
 
 bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const std::string& storm) {
@@ -182,7 +183,9 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     if (!loaded) {
         // the blend's runs that are not at 00, 06, 12 or 18Z carry only the 1 hour amounts and fewer fields: the newest of the main runs has the rest, with the forecast hour moved to
         // keep the same valid time
-        if (isHafs(model)) {   // the waves come out after the rest: the cycle before, six hours further on, has the same valid time
+        const auto * def = GfsModels::find(model);
+        const auto missing = def ? def->onMissing : GfsModels::Missing::Nothing;
+        if (missing == GfsModels::Missing::PreviousCycle) {   // the cycle before, six hours further on, has the same valid time (the hurricane model's waves come out after the rest)
             auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
             t.setTimeSpec(Qt::UTC);
             t = t.addSecs(-6 * 3600);
@@ -195,22 +198,24 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
             run = earlier;
             hour += 6;
             error.clear();
+        } else if (missing == GfsModels::Missing::MainRun) {   // a run between the main ones has fewer fields: the newest main run has the rest, the hour moved to keep the valid time
+            const int cycle = std::atoi(run.cycle.c_str());
+            if (cycle % 6 == 0) {
+                return {};
+            }
+            const int earlier = cycle % 6;
+            auto alternative = run;
+            alternative.cycle = (cycle - earlier < 10 ? "0" : "") + std::to_string(cycle - earlier);
+            grids.clear();
+            std::string again;
+            if (!gfs.load(alternative, GfsChart::needs(*product, hour + earlier), grids, again)) {
+                return {};   // the first reason stands
+            }
+            run = alternative;
+            hour += earlier;
+            error.clear();
         } else {
-        const int cycle = std::atoi(run.cycle.c_str());
-        if (model != "NBM" || cycle % 6 == 0) {
             return {};
-        }
-        const int earlier = cycle % 6;
-        auto alternative = run;
-        alternative.cycle = (cycle - earlier < 10 ? "0" : "") + std::to_string(cycle - earlier);
-        grids.clear();
-        std::string again;
-        if (!gfs.load(alternative, GfsChart::needs(*product, hour + earlier), grids, again)) {
-            return {};   // the first reason stands
-        }
-        run = alternative;
-        hour += earlier;
-        error.clear();
         }
     }
     if (isHafs(model)) {   // the extent of the grid of the first field

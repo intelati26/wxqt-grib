@@ -17,6 +17,7 @@
 #include <set>
 #include <tuple>
 #include "gfs/GfsClimate.h"
+#include "gfs/GfsModels.h"
 #include "ui/WindBarb.h"
 
 namespace GfsChart {
@@ -1250,47 +1251,67 @@ const std::vector<Product>& products() {
             }
             return x;
         };
-        for (const char * id : {"precip_p06", "precip_p12", "precip_p24", "precip_p36", "precip_p48", "precip_p60", "precip_ptot", "1000_500_thick", "1000_850_thick", "850_700_thick", "850_temp_mslp_precip",
-                                "10m_wnd_precip", "10m_wnd_2m_temp", "200_wnd_ht", "250_wnd_ht", "300_wnd_ht", "500_rh_ht", "500_wnd_ht", "500_vort_ht", "700_rh_ht", "850_rh_ht", "850_temp_ht", "850_vort_ht",
-                                "850vor_500ht_200wd", "925_temp_ht"}) {
-            const Product * original = nullptr;
-            for (const auto& candidate : p) {
-                if (candidate.id == id && candidate.source == "GFS") {
-                    original = &candidate;
-                    break;
+        // The clone: a model's charts made from the GFS ones as its registry entry says (GfsModels.cpp): the whole list, or only the charts whose fields the model has.
+        const auto cloneFrom = [&] (const GfsModels::Def& def) {
+            const auto& rule = def.clone;
+            const auto addChart = [&] (const Product& original) {
+                auto x = adapt(original, def.id.c_str(), rule.specificHumidity, rule.pieces);
+                if (!rule.rename.empty()) {
+                    const auto inner = x.needs;
+                    const auto rename = rule.rename;
+                    x.needs = [inner, rename] (int hour) {
+                        auto list = inner(hour);
+                        for (auto& need : list) {
+                            const auto found = rename.find(need.want.variable);
+                            if (found != rename.end()) {
+                                need.want.variable = found->second;
+                            }
+                        }
+                        return list;
+                    };
+                }
+                x.label = rule.labelPrefix + x.label;
+                p.push_back(std::move(x));
+            };
+            const auto fits = [&] (const Product& chart) {
+                for (const auto& part : rule.skip) {
+                    if (chart.id.find(part) != std::string::npos) {
+                        return false;
+                    }
+                }
+                for (const auto& need : GfsChart::needs(chart, 24)) {
+                    const auto& w = need.want;
+                    const bool pressureLevel = w.level.size() > 3 && w.level.compare(w.level.size() - 3, 3, " mb") == 0 && w.level.find("above ground") == std::string::npos;
+                    if ((!rule.variables.empty() && !rule.variables.count(w.variable)) || (pressureLevel && !rule.levels.empty() && !rule.levels.count(w.level))) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+            const auto size = p.size();
+            if (!rule.ids.empty()) {
+                for (const auto& id : rule.ids) {
+                    for (size_t i = 0; i < size; i++) {
+                        if (p[i].id == id && p[i].source == "GFS") {
+                            if (fits(p[i])) {
+                                addChart(p[i]);
+                            }
+                            break;
+                        }
+                    }
+                }
+            } else {
+                for (size_t i = 0; i < size; i++) {
+                    if (p[i].source == "GFS" && fits(p[i])) {
+                        addChart(p[i]);
+                    }
                 }
             }
-            if (original != nullptr) {
-                auto x = adapt(*original, "AIGFS", true);
-                p.push_back(std::move(x));
-            }
-        }
+        };
 
         // ---- GEFS: the ensemble mean drawn like the GFS (every chart whose fields the mean files hold: they have relative humidity, and precipitation in 6 hour pieces like the AI model),
         // and the spread (the standard deviation of the 30 members) of the fields that matter, filled under the mean's lines
-        {
-            const std::set<std::string> have{"HGT", "TMP", "RH", "UGRD", "VGRD", "VVEL", "PRMSL", "PWAT", "CAPE", "CIN", "APCP", "CRAIN", "CSNOW", "CFRZR", "CICEP", "TCDC", "DPT", "GUST", "SNOD", "WEASD",
-                                             "TMAX", "TMIN", "HLCY"};
-            const std::set<std::string> levels{"10 mb", "50 mb", "100 mb", "200 mb", "250 mb", "300 mb", "400 mb", "500 mb", "700 mb", "850 mb", "925 mb", "1000 mb"};
-            const auto size = p.size();
-            for (size_t i = 0; i < size; i++) {
-                if (p[i].source != "GFS") {
-                    continue;
-                }
-                bool fits = true;
-                for (const auto& need : GfsChart::needs(p[i], 24)) {
-                    const auto& w = need.want;
-                    const bool pressureLevel = w.level.size() > 3 && w.level.compare(w.level.size() - 3, 3, " mb") == 0;
-                    if (!have.count(w.variable) || (pressureLevel && !levels.count(w.level))) {
-                        fits = false;
-                    }
-                }
-                if (fits) {
-                    auto x = adapt(p[i], "GEFS", false);
-                    x.label = "Mean " + x.label;
-                    p.push_back(std::move(x));
-                }
-            }
+        const auto gefsRecipes = [&] {
             const auto spr = [] (const char * key, const char * variable, const char * level) { return GfsData::Want{key, variable, level, "", "", "spr"}; };
             const auto meanHeights = [&heights] (double interval) { auto c = heights(interval); c.title = "Mean height (dam)"; return c; };
             const auto spread = [&] (const char * id, const char * label, std::vector<GfsData::Want> wants, std::function<GfsGrid::Grid(const Grids&)> fill, const char * title, double top, double step) {
@@ -1358,42 +1379,12 @@ const std::vector<Product>& products() {
                                 "Spread of the CAPE (J/kg)", 1500.0, 250);
                 p.push_back(x);
             }
-        }
+        };
 
         // ---- RRFS: the 3 km Rapid Refresh Forecast System (NAM, HRRR, RAP and the high resolution windows all end up here). Every GFS chart whose fields it holds is made again from it (sea level
         // pressure is its MSLET; precipitation has running totals like the GFS), then the charts only a convection-allowing model has: radar, helicity, updraft helicity, echo tops, ceiling,
         // visibility, lightning, gusts and CAPE with CIN.
-        {
-            const std::set<std::string> have{"HGT", "TMP", "RH", "UGRD", "VGRD", "ABSV", "DPT", "PRMSL", "PWAT", "CAPE", "CIN", "APCP", "CRAIN", "CSNOW", "CFRZR", "CICEP", "TCDC", "GUST", "SNOD", "WEASD", "REFC", "HLCY", "VIS"};
-            const std::set<std::string> levels{"200 mb", "250 mb", "300 mb", "400 mb", "500 mb", "700 mb", "850 mb", "925 mb", "1000 mb"};
-            const auto size = p.size();
-            for (size_t i = 0; i < size; i++) {
-                if (p[i].source != "GFS") {
-                    continue;
-                }
-                bool fits = true;
-                for (const auto& need : GfsChart::needs(p[i], 24)) {
-                    const auto& w = need.want;
-                    const bool pressureLevel = w.level.size() > 3 && w.level.compare(w.level.size() - 3, 3, " mb") == 0;
-                    if (!have.count(w.variable) || (pressureLevel && !levels.count(w.level))) {
-                        fits = false;
-                    }
-                }
-                if (fits && p[i].id.find("anom") == std::string::npos) {
-                    auto x = adapt(p[i], "RRFS", false, false);
-                    const auto inner = x.needs;
-                    x.needs = [inner] (int hour) {
-                        auto list = inner(hour);
-                        for (auto& need : list) {
-                            if (need.want.variable == "PRMSL") {
-                                need.want.variable = "MSLET";
-                            }
-                        }
-                        return list;
-                    };
-                    p.push_back(std::move(x));
-                }
-            }
+        const auto rrfsRecipes = [&] {
             const auto make = [] (const char * id, const char * label) {
                 Product x;
                 x.source = "RRFS";
@@ -1592,10 +1583,10 @@ const std::vector<Product>& products() {
                 x.barbV = "v";
                 p.push_back(x);
             }
-        }
+        };
 
         // ---- HAFS: the hurricane model for one storm (the screen picks the storm): wind, simulated radar and satellite, rain, sea surface temperature, shear, waves
-        for (const char * model : {"HAFSA", "HAFSB"}) {
+        const auto hafsRecipes = [&] (const char * model) {
             const auto hurricaneLines = [&pressure] {
                 auto c = pressure();
                 c.highsAndLows = false;
@@ -1711,6 +1702,18 @@ const std::vector<Product>& products() {
                 x.barbV = "v";
                 p.push_back(x);
             }
+        };
+
+        // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"RRFS", rrfsRecipes}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        for (const auto& def : GfsModels::all()) {
+            if (def.clone.enabled) {
+                cloneFrom(def);
+            }
+            const auto found = own.find(def.id);
+            if (found != own.end()) {
+                found->second();
+            }
         }
         return p;
     }();
@@ -1727,11 +1730,13 @@ const Product * product(const std::string& id, const std::string& source) {
 }
 
 std::string sourceLabel(const std::string& source) {
-    return source == "NBM" ? "NOAA/NWS National Blend of Models v4, 2.5 km" : source == "AIGFS" ? "NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)" : source == "GEFS" ? "NOAA/NCEP GEFS 30 member ensemble, 0.5 degree" : source == "RRFS" ? "NOAA/NCEP RRFS 3 km" : source == "HAFSA" ? "NOAA/NCEP HAFS-A, 2 km storm-following grid" : source == "HAFSB" ? "NOAA/NCEP HAFS-B, 2 km storm-following grid" : "NOAA/NCEP GFS 0.25 degree";
+    const auto * def = GfsModels::find(source);
+    return def ? def->label : "NOAA/NCEP GFS 0.25 degree";
 }
 
 std::vector<std::string> sectorIds(const std::string& source) {
-    if (source == "NBM" || source == "RRFS") {
+    const auto * def = GfsModels::find(source);
+    if (def && def->sectors == GfsModels::Sectors::Conus) {   // the contiguous United States and its regions
         return {"CONUS", "NORTHEAST", "MID-ATLANTIC", "SOUTHEAST", "GREAT-LAKES", "OHIO-VALLEY", "S-PLAINS", "N-PLAINS", "ROCKIES", "SOUTHWEST", "PACIFIC-NW", "CALIFORNIA", "GULF-COAST"};
     }
     std::vector<std::string> all;
@@ -1782,7 +1787,7 @@ namespace {
                 o.id = "mslp";
                 o.label = "Sea level pressure";
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS", "GEFS", "RRFS"};
+                o.sources = GfsModels::overlayModels();
                 o.needs = [=] (int hour) { return std::vector<GfsData::Need>{record("p", "PRMSL", "mean sea level")(hour)}; };
                 o.contour.key = "p";
                 o.contour.scale = 0.01;
@@ -1797,7 +1802,7 @@ namespace {
                 o.id = id;
                 o.label = label;
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS", "GEFS", "RRFS"};
+                o.sources = GfsModels::overlayModels();
                 o.needs = [=] (int hour) { return std::vector<GfsData::Need>{record("zl", "HGT", from)(hour), record("zh", "HGT", to)(hour)}; };
                 o.derive = [] (Grids& g, const Context&) { g["thick"] = GfsGrid::difference(g["zh"], g["zl"]); };
                 o.contour.key = "thick";
@@ -1816,7 +1821,7 @@ namespace {
                 o.id = std::string{"z"} + level;
                 o.label = std::string{level} + "mb height";
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS", "GEFS", "RRFS"};
+                o.sources = GfsModels::overlayModels();
                 const std::string levelText = std::string{level} + " mb";
                 o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"z", "HGT", levelText, "", ""}}}; };
                 o.contour.key = "z";
@@ -1831,7 +1836,7 @@ namespace {
                 o.id = "t850";
                 o.label = "850mb temperature";
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS", "GEFS", "RRFS"};
+                o.sources = GfsModels::overlayModels();
                 o.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", "850 mb", "", ""}}}; };
                 o.contour.key = "t";
                 o.contour.interval = 5;
@@ -1850,7 +1855,7 @@ namespace {
                 o.id = id;
                 o.label = label;
                 o.group = "Wind barbs";
-                o.sources = {"GFS", "AIGFS", "GEFS", "RRFS"};
+                o.sources = GfsModels::overlayModels();
                 o.barbs = true;
                 const std::string levelText = level;
                 o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"u", "UGRD", levelText, "", ""}}, {hour, {"v", "VGRD", levelText, "", ""}}}; };

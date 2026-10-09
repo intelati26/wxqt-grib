@@ -8,6 +8,7 @@
 #include <QProcess>
 #include "gfs/GfsChart.h"
 #include "gfs/GfsClimate.h"
+#include "gfs/GfsModels.h"
 
 int main(int argc, char ** argv) {
     qputenv("QT_QPA_PLATFORM", "offscreen");
@@ -40,7 +41,12 @@ int main(int argc, char ** argv) {
     const std::string sourceArg = argc > 5 ? argv[5] : "GFS";
     const bool hurricane = sourceArg.compare(0, 4, "HAFS") == 0;   // "HAFSA:09l": the model and the storm
     const std::string modelName = hurricane ? sourceArg.substr(0, sourceArg.find(':')) : sourceArg;
-    GfsData data{config, hurricane ? GfsData::hafs(modelName, sourceArg.substr(sourceArg.find(':') + 1)) : argc > 5 && std::string{argv[5]} == "NBM" ? GfsData::nbm() : argc > 5 && std::string{argv[5]} == "AIGFS" ? GfsData::aigfs() : argc > 5 && std::string{argv[5]} == "GEFS" ? GfsData::gefs() : argc > 5 && std::string{argv[5]} == "RRFS" ? GfsData::rrfs() : GfsData::gfs()};
+    const auto * def = GfsModels::find(modelName);
+    if (!def) {
+        std::printf("unknown model %s\n", modelName.c_str());
+        return 2;
+    }
+    GfsData data{config, def->source(hurricane ? sourceArg.substr(sourceArg.find(':') + 1) : std::string{})};
     GfsData::Run run;
     if (!data.latestRun(run)) {
         std::printf("no run\n");

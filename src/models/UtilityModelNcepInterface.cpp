@@ -5,33 +5,47 @@
 // *****************************************************************************
 
 #include "UtilityModelNcepInterface.h"
+#include <algorithm>
 #include "gfs/GfsChart.h"
 
-const vector<string> UtilityModelNcepInterface::models{
-    "ESTOFS",
-    "FIREWX",
-    "GEFS-MEAN-SPRD",
-    "GEFS-SPAG",
-    "GFS",
-    "AIGFS",
-    "GEFS",
-    "RRFS",
-    "HREF",
-    "HRRR",
-    "HRW-ARW",
-    "HRW-ARW2",
-    "HRW-FV3",
-    "NAEFS",
-    "NAM",
-    "NAM-HIRES",
-    "NBM",
-    "POLAR",
-    "RAP",
-    "SREF",
-    "WW3",
-    "WW3-ENP",
-    "WW3-WNA"
-};
+namespace {
+    // the screen's own list of the model guidance site's models; the models drawn from GRIB are added from the registry
+    const vector<string> legacyModels{
+        "ESTOFS",
+        "FIREWX",
+        "GEFS-MEAN-SPRD",
+        "GEFS-SPAG",
+        "GFS",
+        "HREF",
+        "HRRR",
+        "HRW-ARW",
+        "HRW-ARW2",
+        "HRW-FV3",
+        "NAEFS",
+        "NAM",
+        "NAM-HIRES",
+        "NBM",
+        "POLAR",
+        "RAP",
+        "SREF",
+        "WW3",
+        "WW3-ENP",
+        "WW3-WNA"
+    };
+
+    vector<string> buildModels() {
+        auto out = legacyModels;
+        for (const auto& def : GfsModels::all()) {
+            if (!def.storm && std::find(out.begin(), out.end(), def.id) == out.end()) {
+                out.push_back(def.id);
+            }
+        }
+        std::sort(out.begin(), out.end());
+        return out;
+    }
+}
+
+const vector<string> UtilityModelNcepInterface::models = buildModels();
 
 const vector<string> UtilityModelNcepInterface::sectorsGfs{
     "CONUS",
@@ -336,62 +350,6 @@ const vector<string> UtilityModelNcepInterface::labelsGfs{
     "MSLP and Precipitation (Rain / Snow / Mixed)",
     "MSLP and 48-hour Change",
     "500mb Height and 48-hour Change"
-};
-
-const vector<string> UtilityModelNcepInterface::paramsAigfs{
-    "precip_p06",
-    "precip_p12",
-    "precip_p24",
-    "precip_p36",
-    "precip_p48",
-    "precip_p60",
-    "precip_ptot",
-    "1000_500_thick",
-    "1000_850_thick",
-    "850_700_thick",
-    "850_temp_mslp_precip",
-    "10m_wnd_precip",
-    "10m_wnd_2m_temp",
-    "200_wnd_ht",
-    "250_wnd_ht",
-    "300_wnd_ht",
-    "500_rh_ht",
-    "500_wnd_ht",
-    "500_vort_ht",
-    "700_rh_ht",
-    "850_rh_ht",
-    "850_temp_ht",
-    "850_vort_ht",
-    "850vor_500ht_200wd",
-    "925_temp_ht"
-};
-
-const vector<string> UtilityModelNcepInterface::labelsAigfs{
-    "6-hour Accumulated Precipitation",
-    "Total Precipitation every 12 hours",
-    "Total Precipitation every 24 hours",
-    "Total Precipitation every 36 hours",
-    "Total Precipitation every 48 hours",
-    "Total Precipitation every 60 hours",
-    "Total Accumulated Precipitation of Period",
-    "MSLP, 1000-500mb thickness, 3-hourly total precipitation",
-    "MSLP, 1000-850mb thickness, 3-hourly total precipitation",
-    "MSLP, 850-700mb thickness, 3-hourly total precipitation",
-    "MSLP, 850mb temperature, 3- or 12-hourly total precipitation",
-    "MSLP, 10m wind, 2m temperature, and 3- or 12-hourly total precipitation",
-    "MSLP, 10m wind, 2m temperature",
-    "200mb Wind and Height",
-    "250mb Wind and Height",
-    "300mb Wind and Height",
-    "500mb Relative Humidity and Height",
-    "500mb Wind and Height",
-    "500mb Vorticity, Wind, and Height",
-    "700mb Relative Humidity, Height and Omega",
-    "850mb Relative Humidity and Height",
-    "850mb Temperature, Wind and Height",
-    "850mb Vorticity, Wind and Height",
-    "850mb Vorticity, 500mb Height, 200mb Wind",
-    "925mb Temperature, Wind and Height"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNam{
@@ -1201,42 +1159,24 @@ const vector<string> UtilityModelNcepInterface::modelHrwFv3Labels{
 // grep title /tmp/a | egrep -o ">.*</a>" | sed "s/>/\"/" | sed "s/<\/a>/\"\,/"
 // grep title /tmp/a | egrep -o "title=.*\"" | sed "s/title=//" | sed "s/$/\"\,/"| awk -F""" "{print $2}" | sed "s/$/\"\,/" | sed "s/^/\"/"
 
-vector<string> UtilityModelNcepInterface::paramsGefs() {
-    vector<string> out;
-    for (const auto& p : GfsChart::products()) {
-        if (p.source == "GEFS") {
-            out.push_back(p.id);
+void UtilityModelNcepInterface::chartList(const GfsModels::Def& model, vector<string>& params, vector<string>& labels) {
+    params.clear();
+    labels.clear();
+    if (model.recipeList) {
+        for (const auto& p : GfsChart::products()) {
+            if (p.source == model.id) {
+                params.push_back(p.id);
+                labels.push_back(p.label);
+            }
         }
+        return;
     }
-    return out;
-}
-
-vector<string> UtilityModelNcepInterface::labelsGefs() {
-    vector<string> out;
-    for (const auto& p : GfsChart::products()) {
-        if (p.source == "GEFS") {
-            out.push_back(p.label);
-        }
+    // the older lists, still holding the model guidance site's names (so a chart not drawn yet is a picture): to go when that site does
+    if (model.id == "NBM") {
+        params = paramsNbm;
+        labels = labelsNbm;
+    } else {
+        params = paramsGfs;
+        labels = labelsGfs;
     }
-    return out;
-}
-
-vector<string> UtilityModelNcepInterface::paramsRrfs() {
-    vector<string> out;
-    for (const auto& p : GfsChart::products()) {
-        if (p.source == "RRFS") {
-            out.push_back(p.id);
-        }
-    }
-    return out;
-}
-
-vector<string> UtilityModelNcepInterface::labelsRrfs() {
-    vector<string> out;
-    for (const auto& p : GfsChart::products()) {
-        if (p.source == "RRFS") {
-            out.push_back(p.label);
-        }
-    }
-    return out;
 }
