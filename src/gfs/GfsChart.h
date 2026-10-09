@@ -86,6 +86,8 @@ namespace GfsChart {
         std::string streamU, streamV;
     };
     const std::vector<Product>& products();
+    // the group a product is listed under in the picker ("Upper air", "Surface", "Precipitation and moisture", "Storms and severe", ...)
+    std::string category(const Product& product);
     const Product * product(const std::string& id, const std::string& source = "GFS");
     // What can be ticked onto a chart as well: lines (the sea level pressure, the thickness, the heights of a level, the 850 mb temperature) and one set of wind barbs. Each is its own
     // records, so any base chart can have them: "this and that". group is "Lines" or "Wind barbs".

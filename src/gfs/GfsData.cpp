@@ -101,6 +101,25 @@ GfsData::Source GfsData::hafs(const std::string& model, const std::string& storm
     return s;
 }
 
+GfsData::Source GfsData::rrfs() {
+    Source s;
+    s.id = "RRFS";
+    s.label = "NOAA/NCEP RRFS 3 km";
+    s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
+        return "https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs." + run.date + "/" + run.cycle + "/rrfs.t" + run.cycle + "z." + (file.empty() ? "2dfld.3km" : file) + ".f" + pad(hour, 3) + ".conus.grib2";
+    };
+    s.fileOf = [] (const Want& want) {
+        return want.level.size() > 3 && want.level.compare(want.level.size() - 3, 3, " mb") == 0 && want.level.find("above ground") == std::string::npos ? std::string{"prslev.3km"} : std::string{"2dfld.3km"};
+    };
+    s.probeFile = "2dfld.3km";
+    s.cycleHours = 1;
+    s.lagHours = 2;
+    s.probeHour = 0;
+    s.cyclesToTry = 8;
+    s.warp = {true, 0.03, -127.0, 22.0, -65.0, 52.0};
+    return s;
+}
+
 GfsData::Source GfsData::nbm() {
     Source s;
     s.id = "NBM";

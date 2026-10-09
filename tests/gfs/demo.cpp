@@ -14,7 +14,7 @@ int main(int argc, char ** argv) {
     QGuiApplication app{argc, argv};
     if (argc == 2 && std::string{argv[1]} == "--list") {   // every chart the registry draws: model, id, label
         for (const auto& p : GfsChart::products()) {
-            std::printf("%s\t%s\t%s\n", p.source.c_str(), p.id.c_str(), p.label.c_str());
+            std::printf("%s\t%s\t%s\t%s\n", p.source.c_str(), p.id.c_str(), p.label.c_str(), GfsChart::category(p).c_str());
         }
         return 0;
     }
@@ -40,7 +40,7 @@ int main(int argc, char ** argv) {
     const std::string sourceArg = argc > 5 ? argv[5] : "GFS";
     const bool hurricane = sourceArg.compare(0, 4, "HAFS") == 0;   // "HAFSA:09l": the model and the storm
     const std::string modelName = hurricane ? sourceArg.substr(0, sourceArg.find(':')) : sourceArg;
-    GfsData data{config, hurricane ? GfsData::hafs(modelName, sourceArg.substr(sourceArg.find(':') + 1)) : argc > 5 && std::string{argv[5]} == "NBM" ? GfsData::nbm() : argc > 5 && std::string{argv[5]} == "AIGFS" ? GfsData::aigfs() : argc > 5 && std::string{argv[5]} == "GEFS" ? GfsData::gefs() : GfsData::gfs()};
+    GfsData data{config, hurricane ? GfsData::hafs(modelName, sourceArg.substr(sourceArg.find(':') + 1)) : argc > 5 && std::string{argv[5]} == "NBM" ? GfsData::nbm() : argc > 5 && std::string{argv[5]} == "AIGFS" ? GfsData::aigfs() : argc > 5 && std::string{argv[5]} == "GEFS" ? GfsData::gefs() : argc > 5 && std::string{argv[5]} == "RRFS" ? GfsData::rrfs() : GfsData::gfs()};
     GfsData::Run run;
     if (!data.latestRun(run)) {
         std::printf("no run\n");

@@ -63,6 +63,8 @@ public:
     static Source nbm();
     static Source aigfs();
     static Source gefs();
+    // The Rapid Refresh Forecast System's 3 km CONUS grid (Lambert, warped to latitude / longitude): hourly runs, the 2D fields and the pressure levels as files of their own
+    static Source rrfs();
     // The hurricane model for one active storm ('model' "HAFSA" or "HAFSB", 'storm' "09l": the NHC number and basin letter). Its grid follows the storm and is only there while the storm is.
     static Source hafs(const std::string& model, const std::string& storm);
 

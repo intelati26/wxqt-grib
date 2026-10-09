@@ -15,6 +15,7 @@ const vector<string> UtilityModelNcepInterface::models{
     "GFS",
     "AIGFS",
     "GEFS",
+    "RRFS",
     "HREF",
     "HRRR",
     "HRW-ARW",
@@ -1214,6 +1215,26 @@ vector<string> UtilityModelNcepInterface::labelsGefs() {
     vector<string> out;
     for (const auto& p : GfsChart::products()) {
         if (p.source == "GEFS") {
+            out.push_back(p.label);
+        }
+    }
+    return out;
+}
+
+vector<string> UtilityModelNcepInterface::paramsRrfs() {
+    vector<string> out;
+    for (const auto& p : GfsChart::products()) {
+        if (p.source == "RRFS") {
+            out.push_back(p.id);
+        }
+    }
+    return out;
+}
+
+vector<string> UtilityModelNcepInterface::labelsRrfs() {
+    vector<string> out;
+    for (const auto& p : GfsChart::products()) {
+        if (p.source == "RRFS") {
             out.push_back(p.label);
         }
     }

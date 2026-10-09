@@ -201,6 +201,15 @@ void ObjectModel::setModelVars(const string& modelName) {
         times.clear();
         loadTimeList3(0, 384, 6);       // the 6 hour pieces of precipitation are why it is every 6 hours
         setupListRunZ();
+    } else if (modelToken == "NCEP:RRFS") {
+        params = UtilityModelNcepInterface::paramsRrfs();
+        paramLabels = UtilityModelNcepInterface::labelsRrfs();
+        sectors = UtilityModelNcepInterface::sectorsNbm;   // the CONUS grid: the same regions as the blend
+        times.clear();
+        loadTimeList3(0, 84, 1);        // hourly; only the runs at 00, 06, 12 and 18Z go past 18 hours
+        runs.clear();
+        loadRunList(0, 23, 1);
+        runTimeData.listRun = runs;
     } else if (modelToken == "NCEP:HRRR") {
         params = UtilityModelNcepInterface::paramsHrrr;
         paramLabels = UtilityModelNcepInterface::labelsHrrr;

@@ -12,7 +12,9 @@
 #include "models/UtilityModels.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
+#include "gfs/GfsChart.h"
 #include "objects/WString.h"
+#include "util/Utility.h"
 #include "util/UtilityList.h"
 #include "util/UtilityString.h"
 
@@ -26,6 +28,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboboxProduct{this, objectModel.paramLabels}
     , comboboxTime{this, objectModel.times}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
+    , buttonProducts{this, None, "Charts..."}
 {
     comboboxModel.setIndexByValue(objectModel.model);
     comboboxModel.connect([this] { changeModelCb(); });
@@ -43,12 +46,15 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     boxH.addWidget(comboboxRun);
     boxH.addWidget(comboboxSector);
     boxH.addWidget(comboboxProduct);
+    boxH.addWidget(buttonProducts);
+    buttonProducts.connect([this] { showPicker(); });
     boxH.addWidget(comboboxTime);
     boxH.addLayout(backForward);
     box.addLayout(boxH);
     box.addWidgetAndCenter(photo);
     box.addWidgetReal(new ActivityLabel{this});
     box.getAndShow(this);
+    refreshProductButton();
 
     getRun();
 }
@@ -81,6 +87,7 @@ void ModelViewer::changeModel(int index) {
 
 void ModelViewer::changeParam(int index) {
     objectModel.param = objectModel.params[index];
+    refreshProductButton();
     reload();
 }
 
@@ -194,5 +201,69 @@ void ModelViewer::updateRunStatus() {
     comboboxProduct.unblock();
     comboboxModel.unblock();
 
+    refreshProductButton();
     reload();
+}
+
+// The charts of a model drawn from GRIB are many: they are chosen in the grouped picker, and the plain list is for the models still fetched as pictures.
+void ModelViewer::refreshProductButton() {
+    const bool grib = GfsRender::drawsModel(objectModel.model);
+    comboboxProduct.setVisible(!grib);
+    buttonProducts.setVisible(grib);
+    if (!grib) {
+        return;
+    }
+    string label = objectModel.param;
+    for (size_t i = 0; i < objectModel.params.size() && i < objectModel.paramLabels.size(); i++) {
+        if (objectModel.params[i] == objectModel.param) {
+            label = objectModel.paramLabels[i];
+        }
+    }
+    buttonProducts.setText(label + (overlays.empty() ? "" : " + " + std::to_string(overlays.size())) + "  \xE2\x96\xBE");
+}
+
+void ModelViewer::showPicker() {
+    if (picker) {
+        picker->raise();
+        picker->activateWindow();
+        return;
+    }
+    const auto model = objectModel.model;
+    std::vector<ProductPicker::Entry> entries;
+    for (size_t i = 0; i < objectModel.params.size() && i < objectModel.paramLabels.size(); i++) {
+        const auto * product = GfsChart::product(objectModel.params[i], model);
+        entries.push_back({objectModel.params[i], objectModel.paramLabels[i], product ? GfsChart::category(*product) : string{"Other"}});
+    }
+    std::vector<string> favorites;
+    const auto stored = Utility::readPref("MODELFAV_" + model, "");
+    for (size_t at = 0; at < stored.size();) {
+        auto end = stored.find(',', at);
+        end = end == string::npos ? stored.size() : end;
+        if (end > at) {
+            favorites.push_back(stored.substr(at, end - at));
+        }
+        at = end + 1;
+    }
+    picker = new ProductPicker{this, model, entries, objectModel.param, favorites, GfsChart::overlayChoices(model), overlays};
+    picker->onPick = [this] (const string& id) {
+        objectModel.param = id;
+        comboboxProduct.block();
+        comboboxProduct.setIndexByValue(id);
+        comboboxProduct.unblock();
+        refreshProductButton();
+        reload();
+    };
+    picker->onOverlays = [this] (const std::vector<string>& ids) {
+        overlays = ids;
+        refreshProductButton();
+        reload();
+    };
+    picker->onFavorites = [model] (const std::vector<string>& ids) {
+        string joined;
+        for (const auto& id : ids) {
+            joined += (joined.empty() ? "" : ",") + id;
+        }
+        Utility::writePref("MODELFAV_" + model, joined);
+    };
+    picker->show();
 }

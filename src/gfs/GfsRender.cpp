@@ -61,7 +61,7 @@ namespace {
         if (isHafs(model)) {
             return GfsData::hafs(model, storm);
         }
-        return model == "NBM" ? GfsData::nbm() : model == "AIGFS" ? GfsData::aigfs() : model == "GEFS" ? GfsData::gefs() : GfsData::gfs();
+        return model == "NBM" ? GfsData::nbm() : model == "AIGFS" ? GfsData::aigfs() : model == "GEFS" ? GfsData::gefs() : model == "RRFS" ? GfsData::rrfs() : GfsData::gfs();
     }
 
     GfsData data(const QString& folder, const std::string& model, const std::string& storm = "") {
@@ -115,8 +115,12 @@ QString GfsRender::Session::partialGrib(const std::string& cycleRun, int hour) c
     return QFileInfo::exists(file) ? file : QString{};
 }
 
+bool GfsRender::drawsModel(const std::string& model) {
+    return model == "GFS" || model == "NBM" || model == "AIGFS" || model == "GEFS" || model == "RRFS" || isHafs(model);
+}
+
 bool GfsRender::handles(const std::string& model, const std::string& param) {
-    return (model == "GFS" || model == "NBM" || model == "AIGFS" || model == "GEFS" || isHafs(model)) && GfsChart::product(param, model) != nullptr;
+    return (model == "GFS" || model == "NBM" || model == "AIGFS" || model == "GEFS" || model == "RRFS" || isHafs(model)) && GfsChart::product(param, model) != nullptr;
 }
 
 bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const std::string& storm) {

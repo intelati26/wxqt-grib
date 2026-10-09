@@ -28,6 +28,8 @@ namespace GfsRender {
         QString path;
     };
 
+    // true when the model's charts are drawn here at all (the model screen then offers the grouped picker instead of a plain list)
+    bool drawsModel(const std::string& model);
     // true when the chart for this model screen product code ("500_wnd_ht") is drawn here rather than fetched as a picture
     bool handles(const std::string& model, const std::string& param);
     // The chart as PNG bytes; empty with the reason in error. cycle is the model screen's run ("12Z", or ""/"latest"); hour is the forecast hour.

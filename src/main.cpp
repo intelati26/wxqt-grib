@@ -12,10 +12,13 @@
 #include <QPixmap>
 #include <QTabWidget>
 #include <QThreadPool>
+#include <QDialog>
 #include <QTimer>
 #include "common/GlobalVariables.h"
 #include "gfs/GfsRender.h"
 #include "hurricane/HafsViewer.h"
+#include "models/ModelViewer.h"
+#include "util/Utility.h"
 #include "hurricane/ReconViewer.h"
 #include "hurricane/SeasonViewer.h"
 #include "spc/SpcSwoStateGraphics.h"
@@ -88,6 +91,17 @@ int main(int argc, char * argv[]) {
                 std::string cycle, other;
                 const auto a = GfsRender::hafsTrack("HAFSA", storm, cycle), b = GfsRender::hafsTrack("HAFSB", storm, other);
                 new HafsIntensityViewer{&w, storm, a, b, cycle};
+            } else if (route.startsWith("modelpicker:")) {   // WXQT_OPEN=modelpicker:<GFS|RRFS|GEFS ...>: the model screen on that model with its chart picker open
+                Utility::writePref("NCEP", route.section(':', 1, 1).toStdString());
+                Utility::writePref("MODELNCEPPARAMLASTUSED", "500_wnd_ht");
+                Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
+                auto * viewer = new ModelViewer{&w, "NCEP"};
+                viewer->showPicker();
+                if (const auto file = qEnvironmentVariable("WXQT_PICKER_PNG"); !file.isEmpty()) {   // a picture of the picker itself
+                    for (auto * picker : viewer->findChildren<QDialog *>()) {
+                        QTimer::singleShot(3000, picker, [picker, file] { picker->grab().save(file); });
+                    }
+                }
             } else if (route == "tornadoyears") {   // WXQT_OPEN=tornadoyears: the tornado years ranked
                 new TornadoYearsViewer{&w, TornadoData::load(), 0, std::string{}};
             } else if (route.startsWith("swostate:")) {   // WXQT_OPEN=swostate:<day>: the SPC convective outlook's state graphics for that day

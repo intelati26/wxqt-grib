@@ -23,7 +23,7 @@ void ObjectModelGet::runStatus(ObjectModel& om) {
         om.runTimeData = UtilityModelEsrlInputOutput::getRunTime(&om);
         om.run = om.runTimeData.mostRecentRun;
         om.runs = om.runTimeData.listRun;
-    } else if (om.prefModel == "NCEP" && (om.model == "GFS" || om.model == "NBM" || om.model == "AIGFS" || om.model == "GEFS")) {
+    } else if (om.prefModel == "NCEP" && (om.model == "GFS" || om.model == "NBM" || om.model == "AIGFS" || om.model == "GEFS" || om.model == "RRFS")) {
         // these two come from NOAA's open data, not the model guidance pages: the newest run is the newest one whose files are there
         string cycle;
         RunTimeData found;

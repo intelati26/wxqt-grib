@@ -5,6 +5,7 @@
 
 #include "gfs/GfsChart.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <QDateTime>
@@ -149,6 +150,27 @@ namespace {
     Ramp waveHeight() {   // meters
         return {{{0, QColor{235, 245, 255}}, {1, QColor{150, 200, 240}}, {2, QColor{0, 170, 220}}, {3, QColor{0, 200, 120}}, {4, QColor{250, 230, 0}}, {6, QColor{255, 140, 0}}, {8, QColor{220, 30, 30}},
                  {10, QColor{180, 0, 90}}, {12, QColor{130, 0, 170}}, {15, QColor{255, 255, 255}}}};
+    }
+    Ramp helicityRamp() {   // m2/s2: storm-relative helicity, the 150 and 300 steps are where rotation starts to matter
+        return {{{0, QColor{240, 244, 250, 0}}, {50, QColor{"#d6e6f2"}}, {100, QColor{"#9fd0e0"}}, {150, QColor{"#7bc47f"}}, {250, QColor{"#f3e04a"}}, {300, QColor{"#f0a63a"}}, {400, QColor{"#e0602e"}},
+                 {500, QColor{"#c4262c"}}, {700, QColor{"#a8206b"}}, {1000, QColor{"#6a2a9a"}}}};
+    }
+    Ramp updraftHelicity() {   // m2/s2: rotating updrafts, from 25 (weak) to 200 and more (a strong supercell)
+        return {{{0, QColor{240, 244, 250, 0}}, {10, QColor{240, 244, 250, 0}}, {25, QColor{"#c4e3a4"}}, {50, QColor{"#7bc47f"}}, {75, QColor{"#f3e04a"}}, {100, QColor{"#f0a63a"}}, {150, QColor{"#e0602e"}},
+                 {200, QColor{"#c4262c"}}, {300, QColor{"#a8206b"}}, {500, QColor{"#6a2a9a"}}}};
+    }
+    Ramp echoTopRamp() {   // thousands of feet
+        return {{{0, QColor{240, 244, 250, 0}}, {5, QColor{240, 244, 250, 0}}, {10, QColor{"#cfe8f3"}}, {20, QColor{"#8ccbe0"}}, {30, QColor{"#55a868"}}, {35, QColor{"#e3d44a"}}, {40, QColor{"#f0a63a"}},
+                 {45, QColor{"#e0702e"}}, {50, QColor{"#cc3d2c"}}, {55, QColor{"#a8206b"}}, {60, QColor{"#7a2a9a"}}}};
+    }
+    Ramp ceilingRamp() {   // feet: the flight category steps (500 LIFR, 1000 IFR, 3000 MVFR) in the strong colors
+        return {{{0, QColor{"#b5368f"}}, {500, QColor{"#d9435f"}}, {1000, QColor{"#ee7a47"}}, {2000, QColor{"#f6b24e"}}, {3000, QColor{"#e3d44a"}}, {5000, QColor{"#a9d98a"}}, {10000, QColor{"#cfe8f3"}}, {20000, QColor{"#f4f8fb"}}}};
+    }
+    Ramp visibilityRamp() {   // statute miles: 1 and 3 are the IFR and MVFR steps
+        return {{{0, QColor{"#b5368f"}}, {0.5, QColor{"#d9435f"}}, {1, QColor{"#ee7a47"}}, {3, QColor{"#f6b24e"}}, {5, QColor{"#e3d44a"}}, {7, QColor{"#a9d98a"}}, {10, QColor{"#f4f8fb"}}}};
+    }
+    Ramp lightningRamp() {   // flashes: any lightning is yellow, a lot is purple
+        return {{{0, QColor{240, 244, 250, 0}}, {0.1, QColor{255, 240, 120, 150}}, {1, QColor{"#ffd34a"}}, {3, QColor{"#f09a2e"}}, {6, QColor{"#e0502e"}}, {12, QColor{"#b02060"}}, {25, QColor{"#6a2a9a"}}}};
     }
     Ramp probability() {   // percent: nothing under 5, then pale green to deep magenta
         return {{{0, QColor{229, 242, 217, 0}}, {5, QColor{229, 242, 217, 0}}, {10, QColor{"#e5f2d9"}}, {20, QColor{"#c4e3a4"}}, {30, QColor{"#93d17f"}}, {40, QColor{"#5cbf8a"}}, {50, QColor{"#31a8a8"}},
@@ -1151,14 +1173,14 @@ const std::vector<Product>& products() {
             }
             return out;
         };
-        const auto adapt = [relativeHumidity] (const Product& gfs, const char * model, bool specific) {
+        const auto adapt = [relativeHumidity] (const Product& gfs, const char * model, bool specific, bool pieces = true) {
             Product x = gfs;
             x.source = model;
-            x.needs = [gfs, specific] (int hour) {
+            x.needs = [gfs, specific, pieces] (int hour) {
                 std::vector<GfsData::Need> out;
                 int end = -1, start = 0;
                 for (auto need : GfsChart::needs(gfs, hour)) {
-                    if (need.want.variable == "APCP") {   // the running total is not in the file: its pieces are taken below
+                    if (pieces && need.want.variable == "APCP") {   // the running total is not in the file: its pieces are taken below
                         (need.want.key == "a0" ? start : end) = need.hour;
                         continue;
                     }
@@ -1175,7 +1197,7 @@ const std::vector<Product>& products() {
                     }
                     out.push_back(std::move(need));
                 }
-                if (end > 0) {
+                if (pieces && end > 0) {
                     int n = 0;
                     for (int e = end; e > start && e > 0; e -= 6) {
                         out.push_back({e, {"w" + std::to_string(n++), "APCP", "surface", std::to_string(e - 6) + "-" + std::to_string(e) + " hour acc fcst", ""}});
@@ -1213,7 +1235,7 @@ const std::vector<Product>& products() {
                     gfs.derive(g, context);
                 }
             };
-            if (gfs.fillTitleFor) {   // the pieces are 6 hours: the period is told from them
+            if (pieces && gfs.fillTitleFor) {   // the pieces are 6 hours: the period is told from them
                 x.fillTitleFor = [x, gfs] (int hour) {
                     int lowest = hour;
                     for (const auto& need : x.needs(hour)) {
@@ -1334,6 +1356,240 @@ const std::vector<Product>& products() {
             {
                 auto x = spread("spread_cape", "Surface-Based CAPE Spread", {spr("s", "CAPE", "surface"), want("c", "CAPE", "surface")}, [] (const Grids& g) { return pick(g, "s"); },
                                 "Spread of the CAPE (J/kg)", 1500.0, 250);
+                p.push_back(x);
+            }
+        }
+
+        // ---- RRFS: the 3 km Rapid Refresh Forecast System (NAM, HRRR, RAP and the high resolution windows all end up here). Every GFS chart whose fields it holds is made again from it (sea level
+        // pressure is its MSLET; precipitation has running totals like the GFS), then the charts only a convection-allowing model has: radar, helicity, updraft helicity, echo tops, ceiling,
+        // visibility, lightning, gusts and CAPE with CIN.
+        {
+            const std::set<std::string> have{"HGT", "TMP", "RH", "UGRD", "VGRD", "ABSV", "DPT", "PRMSL", "PWAT", "CAPE", "CIN", "APCP", "CRAIN", "CSNOW", "CFRZR", "CICEP", "TCDC", "GUST", "SNOD", "WEASD", "REFC", "HLCY", "VIS"};
+            const std::set<std::string> levels{"200 mb", "250 mb", "300 mb", "400 mb", "500 mb", "700 mb", "850 mb", "925 mb", "1000 mb"};
+            const auto size = p.size();
+            for (size_t i = 0; i < size; i++) {
+                if (p[i].source != "GFS") {
+                    continue;
+                }
+                bool fits = true;
+                for (const auto& need : GfsChart::needs(p[i], 24)) {
+                    const auto& w = need.want;
+                    const bool pressureLevel = w.level.size() > 3 && w.level.compare(w.level.size() - 3, 3, " mb") == 0;
+                    if (!have.count(w.variable) || (pressureLevel && !levels.count(w.level))) {
+                        fits = false;
+                    }
+                }
+                if (fits && p[i].id.find("anom") == std::string::npos) {
+                    auto x = adapt(p[i], "RRFS", false, false);
+                    const auto inner = x.needs;
+                    x.needs = [inner] (int hour) {
+                        auto list = inner(hour);
+                        for (auto& need : list) {
+                            if (need.want.variable == "PRMSL") {
+                                need.want.variable = "MSLET";
+                            }
+                        }
+                        return list;
+                    };
+                    p.push_back(std::move(x));
+                }
+            }
+            const auto make = [] (const char * id, const char * label) {
+                Product x;
+                x.source = "RRFS";
+                x.id = id;
+                x.label = label;
+                return x;
+            };
+            const auto scaledOf = [] (const char * key, double factor) { return [key, factor] (const Grids& g) { return GfsGrid::scaled(pick(g, key), factor); }; };
+            const auto sea = [] { return want("p", "MSLET", "mean sea level"); };
+            const auto wind10 = [&] (Product& x) {
+                x.wants.push_back(want("u", "UGRD", "10 m above ground"));
+                x.wants.push_back(want("v", "VGRD", "10 m above ground"));
+                x.barbU = "u";
+                x.barbV = "v";
+            };
+            const auto hourly = [] (int hour) { return std::to_string(std::max(hour - 1, 0)) + "-" + std::to_string(hour) + " hour max fcst"; };   // the last hour's maximum
+            {
+                auto x = make("10m_wnd", "10m Wind and MSLP");
+                wind10(x);
+                x.wants.push_back(sea());
+                x.fill = speedOf("u", "v");
+                x.ramp = lowWind();
+                x.fillTitle = "10 m wind speed (kt)";
+                x.legendStep = 10;
+                x.contours = {pressure()};
+                p.push_back(x);
+            }
+            {
+                auto x = make("10m_wnd_sfc_gust", "10m Wind Barbs and Surface Gust");
+                wind10(x);
+                x.wants.push_back(want("g", "GUST", "surface"));
+                x.fill = scaledOf("g", msToKnots);
+                x.ramp = lowWind();
+                x.fillTitle = "Surface wind gust (kt)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            {
+                auto x = make("10m_maxwnd", "Maximum 10m Wind in the last hour");
+                x.needs = [hourly] (int hour) {
+                    return std::vector<GfsData::Need>{{hour, {"u", "MAXUW", "10 m above ground", hourly(hour), ""}}, {hour, {"v", "MAXVW", "10 m above ground", hourly(hour), ""}}};
+                };
+                x.fill = speedOf("u", "v");
+                x.ramp = lowWind();
+                x.fillTitle = "Strongest 10 m wind of the last hour (kt)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            for (const auto& [id, label, layer] : {std::tuple{"sfc_cape_cin", "Surface-Based CAPE and CIN", "surface"}, {"best_cape_cin", "Most Unstable CAPE and CIN", "255-0 mb above ground"}}) {
+                auto x = make(id, label);
+                x.wants = {want("c", "CAPE", layer), want("n", "CIN", layer)};
+                x.fill = [] (const Grids& g) { return pick(g, "c"); };
+                x.ramp = capeRamp();
+                x.fillTitle = "CAPE (J/kg)";
+                x.legendStep = 500;
+                ContourSet cin;
+                cin.key = "n";
+                cin.interval = 100;
+                cin.title = "CIN (J/kg)";
+                cin.color = QColor{70, 70, 70};
+                cin.dashed = true;
+                x.contours = {cin};
+                p.push_back(x);
+            }
+            for (const auto& [id, label, layer] : {std::tuple{"helicity_1km", "0-1 km Storm-Relative Helicity", "1000-0 m above ground"}, {"helicity_3km", "0-3 km Storm-Relative Helicity", "3000-0 m above ground"}}) {
+                auto x = make(id, label);
+                x.wants = {want("h", "HLCY", layer)};
+                x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                x.ramp = helicityRamp();
+                x.fillTitle = "Storm-relative helicity (m2/s2)";
+                x.legendStep = 100;
+                p.push_back(x);
+            }
+            {
+                auto x = make("max_updraft_hlcy", "Maximum 2-5 km Updraft Helicity in the last hour");
+                x.needs = [hourly] (int hour) { return std::vector<GfsData::Need>{{hour, {"h", "MXUPHL", "5000-2000 m above ground", hourly(hour), ""}}}; };
+                x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                x.ramp = updraftHelicity();
+                x.fillTitle = "Updraft helicity (m2/s2)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                auto x = make("sim_radar_1km", "Simulated Radar at 1 km");
+                x.wants = {want("r", "REFD", "1000 m above ground"), sea()};
+                x.fill = [] (const Grids& g) { return pick(g, "r"); };
+                x.ramp = reflectivity();
+                x.fillTitle = "Reflectivity at 1 km (dBZ)";
+                x.legendStep = 10;
+                x.contours = {pressure()};
+                x.contours[0].highsAndLows = false;
+                p.push_back(x);
+            }
+            {
+                auto x = make("sim_radar_max", "Maximum Simulated Radar of the last hour");
+                x.needs = [hourly] (int hour) { return std::vector<GfsData::Need>{{hour, {"r", "MAXREF", "1000 m above ground", hourly(hour), ""}}}; };
+                x.fill = [] (const Grids& g) { return pick(g, "r"); };
+                x.ramp = reflectivity();
+                x.fillTitle = "Maximum reflectivity of the last hour (dBZ)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            {
+                auto x = make("echo_top", "Echo Top");
+                x.wants = {want("t", "RETOP", "entire atmosphere (considered as a single layer)")};
+                x.fill = scaledOf("t", 3.28084 / 1000.0);
+                x.ramp = echoTopRamp();
+                x.fillTitle = "Echo top (thousands of feet)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            {
+                auto x = make("ceiling", "Cloud Ceiling");
+                x.wants = {want("c", "CEIL", "cloud ceiling")};
+                x.fill = scaledOf("c", 3.28084);
+                x.ramp = ceilingRamp();
+                x.fillTitle = "Ceiling (feet)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                auto x = make("vis", "Surface Visibility");
+                x.wants = {want("v", "VIS", "surface")};
+                x.fill = scaledOf("v", 1.0 / 1609.344);
+                x.ramp = visibilityRamp();
+                x.fillTitle = "Visibility (miles)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                auto x = make("lightning", "Lightning (flashes in the last hour)");
+                x.needs = [hourly] (int hour) { return std::vector<GfsData::Need>{{hour, {"l", "LTNG", "entire atmosphere", hourly(hour), ""}}}; };
+                x.fill = [] (const Grids& g) { return pick(g, "l"); };
+                x.ramp = lightningRamp();
+                x.fillTitle = "Lightning";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                auto x = make("snow_total", "Total Snowfall since the start of the run");
+                x.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"s", "ASNOW", "surface", "0-*", ""}}}; };
+                x.fill = scaledOf("s", 100.0);   // meters -> centimeters
+                x.ramp = snowfall();
+                x.quantity = Quantity::Centimeters;
+                x.fillTitle = "Snowfall since the start of the run";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                auto x = make("precip_rate", "Precipitation Rate");
+                x.wants = {want("r", "PRATE", "surface"), sea()};
+                x.fill = scaledOf("r", 3600.0);   // mm per second -> mm per hour
+                x.ramp = precipitation();
+                x.quantity = Quantity::Millimeters;
+                x.fillTitle = "Precipitation rate (per hour)";
+                x.legendStep = 0;
+                x.contours = {pressure()};
+                x.contours[0].highsAndLows = false;
+                p.push_back(x);
+            }
+            {
+                auto x = make("500_temp_ht", "500mb Temperature and Height");
+                x.wants = {want("t", "TMP", "500 mb"), want("z", "HGT", "500 mb"), want("u", "UGRD", "500 mb"), want("v", "VGRD", "500 mb")};
+                x.fill = [] (const Grids& g) { return pick(g, "t"); };
+                x.ramp = temperature();
+                x.quantity = Quantity::Temperature;
+                x.fillTitle = "500 mb temperature";
+                x.legendStep = 5;
+                x.contours = {heights(6)};
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+            {
+                auto x = make("925_temp_wnd", "925mb Temperature and Wind");
+                x.wants = {want("t", "TMP", "925 mb"), want("u", "UGRD", "925 mb"), want("v", "VGRD", "925 mb"), want("z", "HGT", "925 mb")};
+                x.fill = [] (const Grids& g) { return pick(g, "t"); };
+                x.ramp = temperature();
+                x.quantity = Quantity::Temperature;
+                x.fillTitle = "925 mb temperature";
+                x.legendStep = 5;
+                x.contours = {heights(3)};
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+            for (const char * level : {"250", "300"}) {
+                const std::string text = std::string{level} + " mb";
+                auto x = make((std::string{level} + "_wnd").c_str(), (std::string{level} + "mb Wind").c_str());
+                x.wants = {want("u", "UGRD", text.c_str()), want("v", "VGRD", text.c_str())};
+                x.fill = speedOf("u", "v");
+                x.ramp = windSpeed();
+                x.fillTitle = "Wind speed (kt)";
+                x.legendStep = 20;
+                x.barbU = "u";
+                x.barbV = "v";
                 p.push_back(x);
             }
         }
@@ -1471,11 +1727,11 @@ const Product * product(const std::string& id, const std::string& source) {
 }
 
 std::string sourceLabel(const std::string& source) {
-    return source == "NBM" ? "NOAA/NWS National Blend of Models v4, 2.5 km" : source == "AIGFS" ? "NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)" : source == "GEFS" ? "NOAA/NCEP GEFS 30 member ensemble, 0.5 degree" : source == "HAFSA" ? "NOAA/NCEP HAFS-A, 2 km storm-following grid" : source == "HAFSB" ? "NOAA/NCEP HAFS-B, 2 km storm-following grid" : "NOAA/NCEP GFS 0.25 degree";
+    return source == "NBM" ? "NOAA/NWS National Blend of Models v4, 2.5 km" : source == "AIGFS" ? "NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)" : source == "GEFS" ? "NOAA/NCEP GEFS 30 member ensemble, 0.5 degree" : source == "RRFS" ? "NOAA/NCEP RRFS 3 km" : source == "HAFSA" ? "NOAA/NCEP HAFS-A, 2 km storm-following grid" : source == "HAFSB" ? "NOAA/NCEP HAFS-B, 2 km storm-following grid" : "NOAA/NCEP GFS 0.25 degree";
 }
 
 std::vector<std::string> sectorIds(const std::string& source) {
-    if (source == "NBM") {
+    if (source == "NBM" || source == "RRFS") {
         return {"CONUS", "NORTHEAST", "MID-ATLANTIC", "SOUTHEAST", "GREAT-LAKES", "OHIO-VALLEY", "S-PLAINS", "N-PLAINS", "ROCKIES", "SOUTHWEST", "PACIFIC-NW", "CALIFORNIA", "GULF-COAST"};
     }
     std::vector<std::string> all;
@@ -1526,7 +1782,7 @@ namespace {
                 o.id = "mslp";
                 o.label = "Sea level pressure";
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS", "GEFS"};
+                o.sources = {"GFS", "AIGFS", "GEFS", "RRFS"};
                 o.needs = [=] (int hour) { return std::vector<GfsData::Need>{record("p", "PRMSL", "mean sea level")(hour)}; };
                 o.contour.key = "p";
                 o.contour.scale = 0.01;
@@ -1541,7 +1797,7 @@ namespace {
                 o.id = id;
                 o.label = label;
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS", "GEFS"};
+                o.sources = {"GFS", "AIGFS", "GEFS", "RRFS"};
                 o.needs = [=] (int hour) { return std::vector<GfsData::Need>{record("zl", "HGT", from)(hour), record("zh", "HGT", to)(hour)}; };
                 o.derive = [] (Grids& g, const Context&) { g["thick"] = GfsGrid::difference(g["zh"], g["zl"]); };
                 o.contour.key = "thick";
@@ -1560,7 +1816,7 @@ namespace {
                 o.id = std::string{"z"} + level;
                 o.label = std::string{level} + "mb height";
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS", "GEFS"};
+                o.sources = {"GFS", "AIGFS", "GEFS", "RRFS"};
                 const std::string levelText = std::string{level} + " mb";
                 o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"z", "HGT", levelText, "", ""}}}; };
                 o.contour.key = "z";
@@ -1575,7 +1831,7 @@ namespace {
                 o.id = "t850";
                 o.label = "850mb temperature";
                 o.group = "Lines";
-                o.sources = {"GFS", "AIGFS", "GEFS"};
+                o.sources = {"GFS", "AIGFS", "GEFS", "RRFS"};
                 o.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", "850 mb", "", ""}}}; };
                 o.contour.key = "t";
                 o.contour.interval = 5;
@@ -1594,7 +1850,7 @@ namespace {
                 o.id = id;
                 o.label = label;
                 o.group = "Wind barbs";
-                o.sources = {"GFS", "AIGFS", "GEFS"};
+                o.sources = {"GFS", "AIGFS", "GEFS", "RRFS"};
                 o.barbs = true;
                 const std::string levelText = level;
                 o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"u", "UGRD", levelText, "", ""}}, {hour, {"v", "VGRD", levelText, "", ""}}}; };
@@ -1642,6 +1898,45 @@ namespace {
     }
 }
 
+std::string category(const Product& product) {
+    const auto& id = product.id;
+    const auto has = [&id] (const char * text) { return id.find(text) != std::string::npos; };
+    if (id.compare(0, 7, "spread_") == 0) {
+        return "Ensemble spread";
+    }
+    if (id.compare(0, 5, "swath") == 0) {
+        return "Swaths";
+    }
+    if (has("trend") || has("chng")) {
+        return "Changes and trends";
+    }
+    if (has("anom")) {
+        return "Anomalies";
+    }
+    if (id.compare(0, 4, "sat_") == 0) {
+        return "Satellite";
+    }
+    if (id == "sst" || id == "waves" || has("wave")) {
+        return "Ocean and waves";
+    }
+    if (has("shear") || has("steering") || has("div") || has("stream") || has("thetae") || has("vor") || has("trop") || has("850vor")) {
+        return "Tropical and dynamics";
+    }
+    if (has("cape") || has("helicity") || has("hlcy") || has("radar") || has("reflectivity") || has("echo") || has("lightning") || has("updraft") || has("srh") || has("stp") || has("scp")) {
+        return "Storms and severe";
+    }
+    if (has("vis") || has("ceil") || has("fog") || has("flight") || has("haines") || has("mix")) {
+        return "Aviation and visibility";
+    }
+    if (has("precip") || has("snow") || has("rain") || has("qpf") || has("ptype") || has("thick") || has("pwat") || has("ice")) {
+        return "Precipitation and moisture";
+    }
+    if (id.size() > 3 && std::isdigit(static_cast<unsigned char>(id[0])) && (has("_wnd_ht") || has("_temp") || has("_rh") || has("rh_700") || has("_ht") || id.compare(1, 2, "00") == 0 || id.compare(0, 3, "250") == 0 || id.compare(0, 3, "925") == 0) && id.compare(0, 3, "10m") != 0 && id.compare(0, 2, "2m") != 0) {
+        return "Upper air";
+    }
+    return "Surface";
+}
+
 std::vector<OverlayChoice> overlayChoices(const std::string& source) {
     std::vector<OverlayChoice> out;
     for (const auto& o : overlayCatalog()) {
@@ -1669,10 +1964,14 @@ Product compose(const Product& base, const std::vector<std::string>& ids) {
         return base;
     }
     Product p = base;
-    const auto add = [used] (std::vector<GfsData::Need> needs, int hour) {
+    const bool seaLevelAsMslet = base.source == "RRFS";   // the Rapid Refresh calls its sea level pressure MSLET
+    const auto add = [used, seaLevelAsMslet] (std::vector<GfsData::Need> needs, int hour) {
         for (const auto * o : used) {
             for (auto need : o->needs(hour)) {
                 need.want.key = overlayPrefix(*o) + need.want.key;
+                if (seaLevelAsMslet && need.want.variable == "PRMSL") {
+                    need.want.variable = "MSLET";
+                }
                 needs.push_back(std::move(need));
             }
         }
