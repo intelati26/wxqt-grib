@@ -117,7 +117,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("nhc.png", "NHC product viewer, Ctrl-o", [this] { launchNhc(); });
     routeItems.emplace_back("nhc.png", "Tropical: active storms worldwide (CIRA / RAMMB), with the NHC tool", [parent] { new TropicalViewer{parent}; });
 
-    routeItems.emplace_back("ncep.png", "NCEP Models, Ctrl-m", [this] { launchModelViewer(); });
+    routeItems.emplace_back("ncep.png", "Model Viewer, Ctrl-m", [this] { launchModelViewer(); });
     routeItems.emplace_back("spchrrr.png", "SPC HRRR", [this] { launchModelViewerGeneric("SPCHRRR"); });
     routeItems.emplace_back("spcsref.png", "SPC SREF", [this] { launchModelViewerGeneric("SPCSREF"); });
     routeItems.emplace_back("hrrrviewer.png", "ESRL HRRR/RAP", [this] { launchModelViewerGeneric("ESRL"); });
