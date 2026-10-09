@@ -27,6 +27,9 @@ public:
         std::string gdalBin;       // the folder holding gdal_translate
         QString cacheFolder;       // decoded grids and the GRIB messages they came from (GfsCache keeps the folder: shared by the screens, kept between runs)
     };
+    struct Box {
+        double west{0}, south{0}, east{0}, north{0};   // degrees, whole numbers; west < east, both within -180 .. 180
+    };
     struct Run {
         std::string date;          // "20261008"
         std::string cycle;         // "00", "06", "12", "18"
@@ -52,6 +55,9 @@ public:
         std::string indexSuffix{".idx"};                                 // the index is the file + this (ECMWF's is ".index")
         std::function<std::vector<GfsGrid::IdxRecord>(const std::string& text, const Want&)> parseIndex;   // NOAA's idx lines unless the source says (ECMWF's JSON lines)
         std::function<double(const Want&)> valueScale;                   // the factor from the file's unit to the one the charts use (ECMWF's precipitation is in meters), 1 when none
+        // A server that cuts a box of one hour's fields out of the file for the asking (NOMADS's grib filter): the url for the variables and levels (NOAA's names, "HGT", "500 mb") in that box.
+        // A chart of a region then fetches a few per cent of what the whole globe's messages are (the S3 buckets give nothing smaller than a message).
+        std::function<std::string(const Run&, int forecastHour, const std::vector<std::string>& variables, const std::vector<std::string>& levels, const Box&)> subsetUrl;
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often
         int lagHours{3};                                                 // and a run is looked for from this long after its time
@@ -92,7 +98,12 @@ public:
     };
 
     explicit GfsData(Config config, Source source = gfs()) : config{std::move(config)}, source{std::move(source)} {}
-    GfsData(const GfsData& other) : config{other.config}, source{other.source} {}
+    GfsData(const GfsData& other) : config{other.config}, source{other.source}, box{other.box}, boxEnabled{other.boxEnabled} {}
+    // Fetch only this box when every field asked for can be had that way (otherwise the whole messages, as always): the grids come back as a regional grid, not a global one.
+    void setBox(const Box& wanted) {
+        box = wanted;
+        boxEnabled = static_cast<bool>(source.subsetUrl);
+    }
     // the newest cycle whose probe hour has been published (tries the last few cycles back from now)
     bool latestRun(Run& run) const;
     const Source& model() const { return source; }
@@ -115,8 +126,12 @@ public:
 private:
     bool one(const Run& run, int forecastHour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const;
     std::string fileFor(const Want& want) const { return source.fileOf ? source.fileOf(want) : std::string{}; }
+    // the fields of one hour out of a box request; false when it cannot be had (the caller then goes the usual way)
+    bool loadBox(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out) const;
     Config config;
     Source source;
+    Box box;
+    bool boxEnabled{false};
     mutable std::mutex partialMutex;
 };
 

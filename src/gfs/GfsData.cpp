@@ -16,6 +16,9 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QProcess>
 #include <QSaveFile>
 #include <QRegularExpression>
@@ -33,6 +36,18 @@ GfsData::Source GfsData::gfs() {
     s.label = "NOAA/NCEP GFS 0.25 degree";
     s.fileUrl = [] (const Run& run, int hour, const std::string&) {
         return "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs." + run.date + "/" + run.cycle + "/atmos/gfs.t" + run.cycle + "z.pgrb2.0p25.f" + pad(hour, 3);
+    };
+    s.subsetUrl = [] (const Run& run, int hour, const std::vector<std::string>& variables, const std::vector<std::string>& levels, const Box& box) {
+        std::string url = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?dir=%2Fgfs." + run.date + "%2F" + run.cycle + "%2Fatmos&file=gfs.t" + run.cycle + "z.pgrb2.0p25.f" + pad(hour, 3);
+        for (const auto& v : variables) {
+            url += "&var_" + v + "=on";
+        }
+        for (auto level : levels) {
+            std::replace(level.begin(), level.end(), ' ', '_');
+            url += "&lev_" + level + "=on";
+        }
+        return url + "&subregion=&leftlon=" + std::to_string(static_cast<int>(box.west)) + "&rightlon=" + std::to_string(static_cast<int>(box.east)) + "&toplat=" + std::to_string(static_cast<int>(box.north)) +
+            "&bottomlat=" + std::to_string(static_cast<int>(box.south));
     };
     s.cycleHours = 6;
     s.lagHours = 3;
@@ -494,7 +509,208 @@ namespace {
     std::map<std::string, std::pair<std::chrono::steady_clock::time_point, std::vector<GfsGrid::IdxRecord>>> indexCache;
 }
 
+namespace {
+    // the short name GDAL gives a band's level ("500-ISBL"), from the index's way of writing it ("500 mb"); "" for a level not known (that field goes the usual way)
+    std::string bandLevel(const std::string& level) {
+        if (level.size() > 3 && level.compare(level.size() - 3, 3, " mb") == 0 && std::all_of(level.begin(), level.end() - 3, [] (unsigned char ch) { return std::isdigit(ch); })) {
+            return level.substr(0, level.size() - 3) + "-ISBL";
+        }
+        if (level == "2 m above ground") return "2-HTGL";
+        if (level == "10 m above ground") return "10-HTGL";
+        if (level == "mean sea level") return "0-MSL";
+        if (level == "surface") return "0-SFC";
+        return {};
+    }
+
+    bool readCachedGrid(const QString& path, GfsGrid::Grid& g) {
+        constexpr int header = 4 + 4 + 8 + 8 + 8;
+        QFile file{path};
+        if (!file.open(QIODevice::ReadOnly)) {
+            return false;
+        }
+        const auto all = file.readAll();
+        if (all.size() <= header) {
+            return false;
+        }
+        std::memcpy(&g.columns, all.constData(), 4);
+        std::memcpy(&g.rows, all.constData() + 4, 4);
+        std::memcpy(&g.lon0, all.constData() + 8, 8);
+        std::memcpy(&g.lat0, all.constData() + 16, 8);
+        std::memcpy(&g.step, all.constData() + 24, 8);
+        const auto floats = qUncompress(all.mid(header));
+        if (g.columns <= 0 || g.rows <= 0 || floats.size() != static_cast<qsizetype>(g.columns) * g.rows * 4) {
+            return false;
+        }
+        g.values.resize(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows));
+        std::memcpy(g.values.data(), floats.constData(), static_cast<size_t>(floats.size()));
+        return true;
+    }
+
+    void writeCachedGrid(const QString& path, const GfsGrid::Grid& g) {
+        constexpr int header = 4 + 4 + 8 + 8 + 8;
+        QByteArray store(header, '\0');
+        std::memcpy(store.data(), &g.columns, 4);
+        std::memcpy(store.data() + 4, &g.rows, 4);
+        std::memcpy(store.data() + 8, &g.lon0, 8);
+        std::memcpy(store.data() + 16, &g.lat0, 8);
+        std::memcpy(store.data() + 24, &g.step, 8);
+        store += qCompress(QByteArray::fromRawData(reinterpret_cast<const char *>(g.values.data()), static_cast<qsizetype>(g.values.size() * 4)), 6);
+        QSaveFile keep{path};
+        if (keep.open(QIODevice::WriteOnly)) {
+            keep.write(store);
+            keep.commit();
+        }
+    }
+}
+
+// The fields of one forecast hour from a box request. Every field must be one that can be named to the server (an instantaneous field at a level GDAL names the same way); the file that
+// comes back holds the messages of every variable x level asked for, and each field is picked out by its variable and level. false: the caller goes the usual way for all of them.
+bool GfsData::loadBox(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out) const {
+    if (!boxEnabled || needs.empty()) {
+        return false;
+    }
+    std::map<int, std::vector<const Need *>> byHour;
+    for (const auto& need : needs) {
+        if (!need.want.forecast.empty() || !need.want.detail.empty() || !need.want.stat.empty() || bandLevel(need.want.level).empty() || fileFor(need.want).size() > 0) {
+            return false;   // an accumulation, a statistic, a level GDAL names otherwise: not for the box
+        }
+        byHour[need.hour].push_back(&need);
+    }
+    const QString boxTag = QString{"_b%1_%2_%3_%4"}.arg(static_cast<int>(box.west)).arg(static_cast<int>(box.south)).arg(static_cast<int>(box.east)).arg(static_cast<int>(box.north));
+    const auto cachePath = [&] (const Need& need) {
+        QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(need.hour, 3) + "__" + need.want.variable + "_" + need.want.level + "___p") + boxTag;
+        name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
+        return config.cacheFolder + "/" + name + ".gz4";
+    };
+    std::vector<std::pair<int, std::vector<const Need *>>> hours(byHour.begin(), byHour.end());
+    std::vector<std::map<std::string, GfsGrid::Grid>> parts(hours.size());
+    std::vector<bool> ok(hours.size(), true);
+    runLimited(hours.size(), std::min(source.maxParallel, 4), [&] (size_t i) {
+        const int hour = hours[i].first;
+        std::vector<const Need *> missing;
+        for (const auto * need : hours[i].second) {
+            GfsGrid::Grid g;
+            if (readCachedGrid(cachePath(*need), g)) {
+                parts[i][need->want.key] = std::move(g);
+            } else {
+                missing.push_back(need);
+            }
+        }
+        if (missing.empty()) {
+            return;
+        }
+        std::vector<std::string> variables, levels;
+        for (const auto * need : missing) {
+            if (std::find(variables.begin(), variables.end(), need->want.variable) == variables.end()) {
+                variables.push_back(need->want.variable);
+            }
+            if (std::find(levels.begin(), levels.end(), need->want.level) == levels.end()) {
+                levels.push_back(need->want.level);
+            }
+        }
+        const auto bytes = config.bytes(source.subsetUrl(run, hour, variables, levels, box), 0, -1);
+        if (bytes.size() < 100 || !bytes.startsWith("GRIB")) {
+            ok[i] = false;   // the server said no (a busy server, a run it does not hold any more)
+            return;
+        }
+        const QString base = config.cacheFolder + "/box_" + QString::fromStdString(run.id()) + "_f" + QString::number(hour) + "_" + QString::number(reinterpret_cast<quintptr>(&hours[i]), 16) + "_" +
+            QString::number(QDateTime::currentMSecsSinceEpoch(), 16);
+        const QString gribPath = base + ".grb2";
+        {
+            QFile f{gribPath};
+            if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size()) {
+                ok[i] = false;
+                return;
+            }
+        }
+        // which band is which: GDAL names each message's variable and level
+        QProcess info;
+        info.start(QString::fromStdString(config.gdalBin) + "/gdalinfo", {"-json", gribPath});
+        info.waitForFinished(60000);
+        std::map<std::string, int> bandOf;   // "HGT 500-ISBL" -> band number
+        const auto document = QJsonDocument::fromJson(info.readAllStandardOutput());
+        for (const auto& b : document.object().value("bands").toArray()) {
+            const auto metadata = b.toObject().value("metadata").toObject().value("").toObject();
+            const auto key = metadata.value("GRIB_ELEMENT").toString().toStdString() + " " + metadata.value("GRIB_SHORT_NAME").toString().toStdString();
+            if (!bandOf.count(key)) {
+                bandOf[key] = b.toObject().value("band").toInt();
+            }
+        }
+        for (const auto * need : missing) {
+            const auto found = bandOf.find(need->want.variable + " " + bandLevel(need->want.level));
+            if (found == bandOf.end()) {
+                ok[i] = false;
+                break;
+            }
+            const QString rawPath = base + "_" + QString::number(found->second) + ".raw", hdrPath = base + "_" + QString::number(found->second) + ".hdr";
+            QProcess translate;
+            translate.start(QString::fromStdString(config.gdalBin) + "/gdal_translate", {"-q", "-b", QString::number(found->second), "-of", "ENVI", "-ot", "Float32", gribPath, rawPath});
+            translate.waitForFinished(120000);
+            QFile hdr{hdrPath}, raw{rawPath};
+            const auto hdrText = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
+            const auto data = raw.open(QIODevice::ReadOnly) ? raw.readAll() : QByteArray{};
+            QFile::remove(rawPath);
+            QFile::remove(hdrPath);
+            QFile::remove(rawPath + ".aux.xml");
+            const auto number = [&hdrText] (const QString& key) {
+                const auto m = QRegularExpression{"\\b" + key + "\\s*=\\s*([-0-9.]+)"}.match(hdrText);
+                return m.hasMatch() ? m.captured(1).toDouble() : -1e9;
+            };
+            const auto info2 = QRegularExpression{"map info = \\{[^,]*,\\s*1,\\s*1,\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+)"}.match(hdrText);
+            GfsGrid::Grid g;
+            g.columns = static_cast<int>(number("samples"));
+            g.rows = static_cast<int>(number("lines"));
+            if (g.columns <= 0 || g.rows <= 0 || !info2.hasMatch() || info2.captured(3).toDouble() <= 0.0 || data.size() != static_cast<qsizetype>(g.columns) * g.rows * 4) {
+                ok[i] = false;
+                break;
+            }
+            g.step = info2.captured(3).toDouble();
+            g.lon0 = info2.captured(1).toDouble() + g.step / 2.0;
+            g.lat0 = info2.captured(2).toDouble() - g.step / 2.0;
+            g.values.resize(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows));
+            std::memcpy(g.values.data(), data.constData(), static_cast<size_t>(data.size()));
+            if (QRegularExpression{"byte order\\s*=\\s*1"}.match(hdrText).hasMatch()) {
+                for (auto& v : g.values) {
+                    unsigned char b[4];
+                    std::memcpy(b, &v, 4);
+                    std::swap(b[0], b[3]);
+                    std::swap(b[1], b[2]);
+                    std::memcpy(&v, b, 4);
+                }
+            }
+            for (auto& v : g.values) {
+                if (std::abs(v) > 1e19f) {
+                    v = std::nanf("");
+                }
+            }
+            writeCachedGrid(cachePath(*need), g);
+            parts[i][need->want.key] = std::move(g);
+        }
+        QFile::remove(gribPath);
+    });
+    for (size_t i = 0; i < hours.size(); i++) {
+        if (!ok[i]) {
+            return false;
+        }
+    }
+    for (auto& part : parts) {
+        for (auto& [key, grid] : part) {
+            out[key] = std::move(grid);
+        }
+    }
+    return true;
+}
+
 bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {
+    if (boxEnabled) {   // a box of the fields when they can all be had that way: a few per cent of the download
+        std::map<std::string, GfsGrid::Grid> boxed;
+        if (loadBox(run, needs, boxed)) {
+            for (auto& [key, grid] : boxed) {
+                out[key] = std::move(grid);
+            }
+            return true;
+        }
+    }
     // one index per forecast hour and file involved: fetched together (they do not depend on each other), a few at a time
     std::vector<std::pair<int, std::string>> keys;
     for (const auto& need : needs) {

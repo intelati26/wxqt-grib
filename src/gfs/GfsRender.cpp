@@ -155,7 +155,15 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         error = "GDAL not found - install the 'gdal' package";
         return {};
     }
-    const auto gfs = data(session.folder(), model, stormId);
+    auto gfs = data(session.folder(), model, stormId);
+    if (!isHafs(model) && sector->east > sector->west && sector->west >= -180.0 && sector->east <= 180.0 && Utility::readPref("MODEL_BOX", "true").compare(0, 1, "t") == 0) {
+        // a region: only its box (a few more degrees round it for the lines and the barbs at its edge) of each field is fetched, when the model's server can cut one; whole numbers, so that the
+        // views of nearby regions share what was fetched
+        GfsData::Box box{std::max(-180.0, std::floor(sector->west) - 3.0), std::max(-90.0, std::floor(sector->south) - 3.0), std::min(180.0, std::ceil(sector->east) + 3.0), std::min(90.0, std::ceil(sector->north) + 3.0)};
+        if (box.east - box.west <= 130.0 && box.north - box.south <= 75.0) {
+            gfs.setBox(box);
+        }
+    }
     // the newest published run; an earlier cycle of the screen's choice is that run stepped back to it
     GfsData::Run run;
     if (!newestRun(gfs, run)) {

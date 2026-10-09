@@ -190,7 +190,7 @@ int main(int argc, char * argv[]) {
                     const auto bytes = GfsRender::png(session, parts[1].toStdString(), parts[2].toStdString(), parts[3].toStdString(), "", hour, {}, error, nullptr, variant);
                     QFile out{parts[7]};
                     if (out.open(QIODevice::WriteOnly)) out.write(bytes);
-                    fprintf(stderr, "variant: %lld bytes %.2f s %s\n", static_cast<long long>(bytes.size()), timer.elapsed() / 1000.0, error.c_str());
+                    fprintf(stderr, "variant: %lld bytes %.2f s, %.2f MB received %s\n", static_cast<long long>(bytes.size()), timer.elapsed() / 1000.0, NetManager::totals().bytes / 1048576.0, error.c_str());
                 }
                 std::_Exit(0);
             } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm
