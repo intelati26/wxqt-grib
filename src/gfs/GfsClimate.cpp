@@ -423,3 +423,180 @@ void GfsClimate::buildDeviation(Field field) const {
     std::lock_guard lock{deviationMutex};
     deviationBuilding.erase(name);
 }
+
+// ---- mean and deviation of a near-surface field, from the daily files of every year ----
+
+GfsClimate::Stat GfsClimate::nearSurfaceTemperature() {
+    return {"t995", {"surface/air.sig995"}, {"air"}, false};
+}
+
+GfsClimate::Stat GfsClimate::nearSurfaceWind() {
+    return {"w995", {"surface/uwnd.sig995", "surface/vwnd.sig995"}, {"uwnd", "vwnd"}, true};
+}
+
+GfsClimate::Stat GfsClimate::seaLevelPressureStat() {
+    return {"slp", {"surface/slp"}, {"slp"}, false};
+}
+
+bool GfsClimate::statistics(const Stat& stat, int day, GfsGrid::Grid& mean, GfsGrid::Grid& deviation, std::string& error) const {
+    const PermanentCache store{"climate"};
+    const std::string name = "stat_" + stat.name;
+    if (store.read(name + "_done").empty()) {
+        std::lock_guard lock{deviationMutex};
+        if (deviationFailed.count(name)) {
+            error = "could not work out the statistics: " + deviationFailed[name];
+            return false;
+        }
+        if (!deviationBuilding.count(name)) {
+            deviationBuilding.insert(name);
+            deviationPercent[name] = 0;
+            std::thread{[this, stat] { buildStatistics(stat); }}.detach();
+        }
+        error = "The daily statistics of " + stat.name + " are being worked out from 30 years of the reanalysis (once only, in the background): " + std::to_string(deviationPercent[name]) +
+            " per cent. Choose this chart again in a few minutes.";
+        return false;
+    }
+    int a, b;
+    double weight;
+    anchors(std::clamp(day, 0, 364), a, b, weight);
+    GfsGrid::Grid m1, m2, d1, d2;
+    if (!unpack(store.read(name + "_mean_d" + std::to_string(a) + ".bin"), m1) || !unpack(store.read(name + "_mean_d" + std::to_string(b) + ".bin"), m2) ||
+        !unpack(store.read(name + "_std_d" + std::to_string(a) + ".bin"), d1) || !unpack(store.read(name + "_std_d" + std::to_string(b) + ".bin"), d2)) {
+        error = "the stored statistics are incomplete";
+        return false;
+    }
+    mean = m1;
+    deviation = d1;
+    for (size_t i = 0; i < mean.values.size(); i++) {
+        mean.values[i] = static_cast<float>(m1.values[i] * (1.0 - weight) + m2.values[i] * weight);
+        deviation.values[i] = static_cast<float>(d1.values[i] * (1.0 - weight) + d2.values[i] * weight);
+    }
+    return true;
+}
+
+void GfsClimate::buildStatistics(Stat stat) const {
+    const std::string name = "stat_" + stat.name;
+    const auto fail = [&name] (const std::string& why) {
+        std::lock_guard lock{deviationMutex};
+        deviationFailed[name] = why;
+        deviationBuilding.erase(name);
+    };
+    constexpr int days = 92, firstYear = 1991, lastYear = 2020, columns = 144, rows = 73;
+    constexpr size_t cells = static_cast<size_t>(columns) * rows;
+    std::vector<std::vector<double>> sum(days, std::vector<double>(cells, 0.0)), sumsq(days, std::vector<double>(cells, 0.0));
+    std::vector<int> counts(days, 0);
+    std::mutex sumMutex;
+    std::string dailyBase = baseUrl;
+    if (const auto at = dailyBase.find("ncep.reanalysis.derived"); at != std::string::npos) {
+        dailyBase.replace(at, std::string{"ncep.reanalysis.derived"}.size(), "ncep.reanalysis.dailyavgs");
+    }
+    int done = 0, good = 0;
+    const auto year = [&] (int y) {
+        const bool leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+        std::vector<std::vector<float>> parts;
+        bool ok = true;
+        for (size_t f = 0; f < stat.files.size() && ok; f++) {
+            QStringList arguments{"-q"};
+            for (int k = 0; k < days; k++) {
+                arguments << "-b" << QString::number(k * 4 + (leap && k * 4 >= 59 ? 1 : 0) + 1);
+            }
+            const auto scratch = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/wxqt_stat_" + QUuid::createUuid().toString(QUuid::Id128);
+            const auto rawPath = scratch + ".raw", hdrPath = scratch + ".hdr";
+            arguments << "-of" << "ENVI" << "-ot" << "Float32" << QString::fromStdString("NETCDF:/vsicurl/" + dailyBase + stat.files[f] + "." + std::to_string(y) + ".nc:" + stat.variables[f]) << rawPath;
+            QProcess translate;
+            translate.start(QString::fromStdString(gdalBin) + "/gdal_translate", arguments);
+            translate.waitForFinished(900000);
+            QFile raw{rawPath};
+            QByteArray bytes = translate.exitCode() == 0 && raw.open(QIODevice::ReadOnly) ? raw.readAll() : QByteArray{};
+            raw.close();
+            QFile hdr{hdrPath};
+            const auto hdrText = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
+            hdr.close();
+            QFile::remove(rawPath);
+            QFile::remove(hdrPath);
+            QFile::remove(rawPath + ".aux.xml");
+            if (bytes.size() != static_cast<qsizetype>(cells) * days * 4) {
+                ok = false;
+                break;
+            }
+            std::vector<float> values(cells * static_cast<size_t>(days));
+            std::memcpy(values.data(), bytes.constData(), static_cast<size_t>(bytes.size()));
+            if (QRegularExpression{"byte order\\s*=\\s*1"}.match(hdrText).hasMatch()) {
+                for (auto& value : values) {
+                    unsigned char b[4];
+                    std::memcpy(b, &value, 4);
+                    std::swap(b[0], b[3]);
+                    std::swap(b[1], b[2]);
+                    std::memcpy(&value, b, 4);
+                }
+            }
+            parts.push_back(std::move(values));
+        }
+        std::lock_guard lock{sumMutex};
+        done++;
+        if (ok) {
+            for (int k = 0; k < days; k++) {
+                for (size_t i = 0; i < cells; i++) {
+                    double v = parts[0][static_cast<size_t>(k) * cells + i];
+                    if (stat.speed) {
+                        v = std::hypot(v, static_cast<double>(parts[1][static_cast<size_t>(k) * cells + i]));
+                    }
+                    if (std::isfinite(v) && std::abs(v) < 1e30) {
+                        sum[static_cast<size_t>(k)][i] += v;
+                        sumsq[static_cast<size_t>(k)][i] += v * v;
+                    }
+                }
+                counts[static_cast<size_t>(k)]++;
+            }
+            good++;
+        }
+        const std::lock_guard other{deviationMutex};
+        deviationPercent[name] = done * 100 / (lastYear - firstYear + 1);
+    };
+    {
+        std::vector<std::future<void>> jobs;
+        for (int y = firstYear; y <= lastYear; y++) {
+            jobs.push_back(std::async(std::launch::async, year, y));
+            if ((y - firstYear) % 4 == 3) {
+                for (size_t j = jobs.size() - 4; j < jobs.size(); j++) {
+                    jobs[j].wait();
+                }
+            }
+        }
+        for (auto& job : jobs) {
+            job.get();
+        }
+    }
+    if (good < 20) {
+        fail("only " + std::to_string(good) + " of the 30 years could be read");
+        return;
+    }
+    const PermanentCache store{"climate"};
+    GfsGrid::Grid shape;   // the 2.5 degree grid of the files: 0 to 357.5 east, 90 north to 90 south
+    shape.columns = columns;
+    shape.rows = rows;
+    shape.lon0 = 0.0;
+    shape.lat0 = 90.0;
+    shape.step = 2.5;
+    shape.values.assign(cells, 0.0f);
+    for (int k = 0; k < days; k++) {
+        auto meanGrid = shape, stdGrid = shape;
+        for (size_t i = 0; i < cells; i++) {
+            double total = 0.0, total2 = 0.0;
+            int n = 0;
+            for (const int j : {(k + days - 1) % days, k, (k + 1) % days}) {   // this day and the ones four either side
+                total += sum[static_cast<size_t>(j)][i];
+                total2 += sumsq[static_cast<size_t>(j)][i];
+                n += counts[static_cast<size_t>(j)];
+            }
+            const double mu = n > 0 ? total / n : 0.0;
+            meanGrid.values[i] = static_cast<float>(mu);
+            stdGrid.values[i] = n > 0 ? static_cast<float>(std::sqrt(std::max(0.0, total2 / n - mu * mu))) : 0.0f;
+        }
+        store.write(name + "_mean_d" + std::to_string(k * 4) + ".bin", pack(meanGrid));
+        store.write(name + "_std_d" + std::to_string(k * 4) + ".bin", pack(stdGrid));
+    }
+    store.write(name + "_done", "1");
+    std::lock_guard lock{deviationMutex};
+    deviationBuilding.erase(name);
+}

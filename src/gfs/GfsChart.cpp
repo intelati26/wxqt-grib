@@ -1887,6 +1887,9 @@ const std::vector<Product>& products() {
                         if (!context.climate->at(field, day, normal, error) || !context.climate->deviation(field, day, deviation, error)) {
                             throw std::runtime_error{error};
                         }
+                        if (what == 3 || what == 4) {
+                            normal = GfsGrid::scaled(normal, 1.0, -273.15);   // the reanalysis' kelvins to the degrees C of the forecast fields
+                        }
                         const auto& first = g.at("v" + memberNames.front());
                         auto zero = first;
                         std::fill(zero.values.begin(), zero.values.end(), 0.0f);
@@ -1976,6 +1979,157 @@ const std::vector<Product>& products() {
                     x.legendStep = 10;
                     return x;
                 };
+                // ---- the maps NAEFS has, from GEFS's 31 members alone (NAEFS adds the Canadian members and corrects the bias; neither is open): the 10th, 50th and 90th percentile of the members'
+                // 10 m wind and 2 m temperature, and the extreme forecast index
+                {
+                    const auto windNeeds = [memberNeeds] (int hour) {
+                        if (hour < 3) {
+                            return std::vector<GfsData::Need>{};
+                        }
+                        auto out = memberNeeds("u", "UGRD", "10 m above ground", hour, std::to_string(hour) + " hour fcst");
+                        for (auto& need : memberNeeds("w", "VGRD", "10 m above ground", hour, std::to_string(hour) + " hour fcst")) {
+                            out.push_back(std::move(need));
+                        }
+                        return out;
+                    };
+                    const auto speedOfMembers = [] (Grids& g) {   // "v<member>": the 10 m wind speed (m/s)
+                        for (const auto& name : memberNames) {
+                            auto u = std::move(g.at("u" + name));
+                            const auto& w = g.at("w" + name);
+                            for (size_t i = 0; i < u.values.size(); i++) {
+                                u.values[i] = std::hypot(u.values[i], w.values[i]);
+                            }
+                            g["v" + name] = std::move(u);
+                            g.erase("u" + name);
+                            g.erase("w" + name);
+                        }
+                    };
+                    const auto temperatureNeeds = [memberNeeds] (int hour) { return hour < 3 ? std::vector<GfsData::Need>{} : memberNeeds("v", "TMP", "2 m above ground", hour, std::to_string(hour) + " hour fcst"); };
+                    const auto pressureNeeds = [memberNeeds] (int hour) { return hour < 3 ? std::vector<GfsData::Need>{} : memberNeeds("v", "PRMSL", "mean sea level", hour, std::to_string(hour) + " hour fcst"); };
+                    for (const int percent : {10, 50, 90}) {
+                        for (const bool wind : {true, false}) {
+                            Product x;
+                            x.source = "GEFS";
+                            x.id = std::string{"pct"} + std::to_string(percent) + (wind ? "_10m_wnd" : "_2m_temp");
+                            x.label = std::to_string(percent) + (percent == 10 ? "th" : percent == 50 ? "th" : "th") + " percentile " + (wind ? "10m Winds" : "2m Temperature");
+                            x.needs = wind ? std::function<std::vector<GfsData::Need>(int)>{windNeeds} : std::function<std::vector<GfsData::Need>(int)>{temperatureNeeds};
+                            x.derive = [wind, percent, speedOfMembers] (Grids& g, const Context&) {
+                                if (wind) {
+                                    speedOfMembers(g);
+                                }
+                                auto out = g.at("v" + memberNames.front());
+                                std::vector<float> values;
+                                for (size_t i = 0; i < out.values.size(); i++) {
+                                    values.clear();
+                                    for (const auto& name : memberNames) {
+                                        const float v = g.at("v" + name).values[i];
+                                        if (!std::isnan(v)) {
+                                            values.push_back(v);
+                                        }
+                                    }
+                                    if (values.empty()) {
+                                        out.values[i] = std::nanf("");
+                                        continue;
+                                    }
+                                    std::sort(values.begin(), values.end());
+                                    const double rank = percent / 100.0 * static_cast<double>(values.size() - 1);
+                                    const auto low = static_cast<size_t>(std::floor(rank)), high = static_cast<size_t>(std::ceil(rank));
+                                    out.values[i] = static_cast<float>(values[low] + (values[high] - values[low]) * (rank - static_cast<double>(low)));
+                                }
+                                g["pct"] = wind ? GfsGrid::scaled(out, 1.943844) : out;   // kt
+                                for (const auto& name : memberNames) {
+                                    g.erase("v" + name);
+                                }
+                            };
+                            x.fill = [] (const Grids& g) { return pick(g, "pct"); };
+                            x.ramp = wind ? lowWind() : temperature();
+                            x.quantity = wind ? Quantity::Other : Quantity::Temperature;
+                            x.fillTitle = std::to_string(percent) + "th percentile of the 31 members: " + (wind ? "10 m wind speed (kt)" : "2 m temperature");
+                            x.legendStep = wind ? 10 : 5;
+                            p.push_back(x);
+                        }
+                    }
+                    // the extreme forecast index: where the members' values stand in the climate of the day (the 1991-2020 daily mean and spread of the reanalysis, taken as a normal distribution): +1 when every
+                    // member is above everything the climate has, -1 below. (ECMWF's index, made with a model climate; this one is a stand-in made with the reanalysis')
+                    struct Efi {
+                        const char * id;
+                        const char * label;
+                        const char * what;
+                        int kind;   // 0 temperature, 1 wind, 2 pressure
+                    };
+                    for (const auto& e : {Efi{"efi_2m_temp", "Extreme Forecast Index 2m Temperature", "2 m temperature", 0}, Efi{"efi_10m_wnd", "Extreme Forecast Index 10m Winds", "10 m wind speed", 1},
+                                          Efi{"efi_mslp", "Extreme Forecast Index mslp", "sea level pressure", 2}}) {
+                        Product x;
+                        x.source = "GEFS";
+                        x.id = e.id;
+                        x.label = e.label;
+                        const int kind = e.kind;
+                        x.needs = kind == 0 ? std::function<std::vector<GfsData::Need>(int)>{temperatureNeeds} : kind == 1 ? std::function<std::vector<GfsData::Need>(int)>{windNeeds} : std::function<std::vector<GfsData::Need>(int)>{pressureNeeds};
+                        x.derive = [kind, speedOfMembers] (Grids& g, const Context& context) {
+                            if (!context.climate) {
+                                throw std::runtime_error{"no climatology"};
+                            }
+                            if (kind == 1) {
+                                speedOfMembers(g);
+                            }
+                            auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
+                            t.setTimeSpec(Qt::UTC);
+                            t = t.addSecs(context.hour * 3600LL);
+                            const int day = GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
+                            GfsGrid::Grid mean, deviation;
+                            std::string error;
+                            const auto stat = kind == 0 ? GfsClimate::nearSurfaceTemperature() : kind == 1 ? GfsClimate::nearSurfaceWind() : GfsClimate::seaLevelPressureStat();
+                            if (!context.climate->statistics(stat, day, mean, deviation, error)) {
+                                throw std::runtime_error{error};
+                            }
+                            if (kind == 0) {
+                                mean = GfsGrid::scaled(mean, 1.0, -273.15);   // kelvins -> the degrees C of the forecast
+                            }
+                            auto out = g.at("v" + memberNames.front());
+                            auto zero = out;
+                            std::fill(zero.values.begin(), zero.values.end(), 0.0f);
+                            const auto mu = GfsGrid::scaled(GfsGrid::anomaly(zero, mean), -1.0);       // the climate's mean and spread on the members' grid
+                            const auto sigma = GfsGrid::scaled(GfsGrid::anomaly(zero, deviation), -1.0);
+                            constexpr double pi = 3.14159265358979323846;
+                            std::vector<double> ps;
+                            for (size_t i = 0; i < out.values.size(); i++) {
+                                ps.clear();
+                                const double sd = sigma.values[i];
+                                for (const auto& name : memberNames) {
+                                    const float v = g.at("v" + name).values[i];
+                                    if (!std::isnan(v) && sd > 1e-6) {
+                                        ps.push_back(0.5 * std::erfc(-(v - mu.values[i]) / sd / std::sqrt(2.0)));   // the member's place in the climate (0 to 1)
+                                    }
+                                }
+                                if (ps.empty()) {
+                                    out.values[i] = std::nanf("");
+                                    continue;
+                                }
+                                std::sort(ps.begin(), ps.end());
+                                const double n = static_cast<double>(ps.size());
+                                // EFI = 2/pi * integral over p of (p - F(p)) / sqrt(p (1 - p)), F the members' share at or under the climate's p: exact for the steps of F
+                                const auto up = [] (double p) { return std::asin(std::sqrt(std::clamp(p, 0.0, 1.0))); };
+                                const auto lin = [&up] (double p) { return up(p) - std::sqrt(std::clamp(p * (1.0 - p), 0.0, 1.0)); };   // the integral of p / sqrt(p (1 - p))
+                                double total = 0.0, from = 0.0;
+                                for (size_t j = 0; j <= ps.size(); j++) {
+                                    const double to = j < ps.size() ? ps[j] : 1.0;
+                                    total += (lin(to) - lin(from)) - (static_cast<double>(j) / n) * 2.0 * (up(to) - up(from));
+                                    from = to;
+                                }
+                                out.values[i] = static_cast<float>(2.0 / pi * total);
+                            }
+                            g["efi"] = std::move(out);
+                            for (const auto& name : memberNames) {
+                                g.erase("v" + name);
+                            }
+                        };
+                        x.fill = [] (const Grids& g) { return pick(g, "efi"); };
+                        x.ramp = Ramp{{{-1.0, QColor{"#2b4fb0"}}, {-0.8, QColor{"#2b6cb0"}}, {-0.5, QColor{"#7fb6e0"}}, {-0.2, QColor{"#dbeaf5"}}, {0.0, QColor{245, 245, 245, 0}}, {0.2, QColor{"#fbe1c6"}}, {0.5, QColor{"#f0a060"}}, {0.8, QColor{"#d0402a"}}, {1.0, QColor{"#8b1a1a"}}}};
+                        x.fillTitle = std::string{"Extreme forecast index of the "} + e.what + " (-1 well below to +1 well above the day's climate)";
+                        x.legendStep = 0.2;
+                        p.push_back(x);
+                    }
+                }
                 // The chance that a member's value passes a limit: the template says what to fetch (`needs`, the members' grids named "<prefix><member>"), how to make one value of them (`collapse`, into
                 // "v<member>": a wind speed from its components, a heat index) and how the limit given in the user's unit is in the file's (`toFile`).
                 struct Limit {
@@ -2004,7 +2158,7 @@ const std::vector<Product>& products() {
                         }
                     };
                 };
-                const auto fahrenheit = [] (double f) { return static_cast<float>((f - 32.0) * 5.0 / 9.0 + 273.15); };
+                const auto fahrenheit = [] (double f) { return static_cast<float>((f - 32.0) * 5.0 / 9.0); };   // the grids are in degrees C (GDAL turns the GRIB temperatures from K)
                 const auto scaled = [] (double factor) { return [factor] (double v) { return static_cast<float>(v * factor); }; };
                 const auto together = [memberNeeds] (std::vector<std::function<std::vector<GfsData::Need>(int)>> parts) {
                     return [parts] (int hour) {
@@ -2034,7 +2188,7 @@ const std::vector<Product>& products() {
                         auto t = std::move(g.at("t" + name));
                         const auto& rh = g.at("h" + name);
                         for (size_t i = 0; i < t.values.size(); i++) {
-                            const double f = (t.values[i] - 273.15) * 9.0 / 5.0 + 32.0, r = rh.values[i];
+                            const double f = t.values[i] * 9.0 / 5.0 + 32.0, r = rh.values[i];
                             double hi = f;
                             if (f >= 80.0) {
                                 hi = -42.379 + 2.04901523 * f + 10.14333127 * r - 0.22475541 * f * r - 0.00683783 * f * f - 0.05481717 * r * r + 0.00122874 * f * f * r + 0.00085282 * f * r * r - 0.00000199 * f * f * r * r;
@@ -2044,7 +2198,7 @@ const std::vector<Product>& products() {
                                     hi += (r - 85.0) / 10.0 * (87.0 - f) / 5.0;
                                 }
                             }
-                            t.values[i] = static_cast<float>((hi - 32.0) * 5.0 / 9.0 + 273.15);
+                            t.values[i] = static_cast<float>((hi - 32.0) * 5.0 / 9.0);
                         }
                         g["v" + name] = std::move(t);
                         g.erase("t" + name);
@@ -3339,7 +3493,7 @@ const std::vector<Product>& products() {
                                                       {hour, ens("v", "VGRD", "10 m above ground", atHour(hour), "mean", "wt ens mean")}};
                 };
                 x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "w"), 1.943844); };
-                x.ramp = windSpeed();
+                x.ramp = lowWind();
                 x.fillTitle = "Mean 10 m wind speed (kt)";
                 x.legendStep = 10;
                 x.barbU = "u";

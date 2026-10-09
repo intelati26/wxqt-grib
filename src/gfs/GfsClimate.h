@@ -34,6 +34,19 @@ public:
     // same grid. It is worked out once, in the background (about a thousand slices from the web for each field, kept for good): until then this is false with a message that says how far it is.
     bool deviation(const Field& field, int dayIndex, GfsGrid::Grid& out, std::string& error) const;
 
+    // A near-surface field's mean and standard deviation by day, worked out from the 30 years of the reanalysis' daily averages themselves (for the fields the long-term mean files do not hold in
+    // the form wanted: a wind SPEED, say). The same pooling as deviation(); built once in the background (the files are small), kept for good.
+    struct Stat {
+        std::string name;                    // the stored name: "t995"
+        std::vector<std::string> files;      // under .../ncep.reanalysis.dailyavgs/, without the year: "surface/air.sig995"
+        std::vector<std::string> variables;  // "air"
+        bool speed{false};                   // two components (u, v): the statistics of their speed
+    };
+    static Stat nearSurfaceTemperature();   // K
+    static Stat nearSurfaceWind();          // m/s, the speed at sigma 0.995 (about 40 m)
+    static Stat seaLevelPressureStat();     // Pa
+    bool statistics(const Stat& stat, int dayIndex, GfsGrid::Grid& mean, GfsGrid::Grid& deviation, std::string& error) const;
+
     // The pure parts:
     static int dayIndex(int year, int month, int day);        // 0..364; 29 February counts as 28 February (the means have 365 days)
     static const int * levels();                              // the 17 pressure levels, 1000 .. 10 hPa
@@ -46,6 +59,7 @@ private:
     bool anchor(const Field& field, int day, GfsGrid::Grid& out, std::string& error) const;
     bool storedDeviation(const Field& field, int day, GfsGrid::Grid& out) const;
     void buildDeviation(Field field) const;
+    void buildStatistics(Stat stat) const;
     std::string gdalBin;
     std::string baseUrl;
 };
