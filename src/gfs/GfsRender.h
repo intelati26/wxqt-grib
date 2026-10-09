@@ -37,9 +37,17 @@ namespace GfsRender {
     bool drawsModel(const std::string& model);
     // true when the chart for this model screen product code ("500_wnd_ht") is drawn here rather than fetched as a picture
     bool handles(const std::string& model, const std::string& param);
+    // A chart made from the chart's fill instead of the plain chart: the largest value of it over a list of forecast hours (a 24 hour maximum), or its change since the run
+    // hoursBack hours earlier at the same valid time
+    struct Variant {
+        enum class Kind { None, Max, Change };
+        Kind kind{Kind::None};
+        std::vector<int> hours;
+        int hoursBack{0};
+    };
     // The chart as PNG bytes; empty with the reason in error. cycle is the model screen's run ("12Z", or ""/"latest"); hour is the forecast hour.
     // model is "GFS" or "NBM"
-    QByteArray png(Session& session, const std::string& model, const std::string& param, const std::string& sector, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe = nullptr);
+    QByteArray png(Session& session, const std::string& model, const std::string& param, const std::string& sector, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe = nullptr, const Variant& variant = {});
     // the newest published run of the model as the screen writes a run ("12Z"); false when none is found (no connection)
     // storm is the HAFS storm ("09l"); it is the "sector" of the HAFS charts, whose grid follows the storm
     bool latestCycle(const std::string& model, std::string& cycle, const std::string& storm = "");

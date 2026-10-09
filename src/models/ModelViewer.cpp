@@ -6,7 +6,10 @@
 
 #include "ModelViewer.h"
 #include "ui/ActivityLabel.h"
+#include <QInputDialog>
 #include <QMenu>
+#include "misc/ImageViewer.h"
+#include "objects/UtilityAnimationExport.h"
 #include <QPushButton>
 #include "models/CamsViewer.h"
 #include <algorithm>
@@ -34,6 +37,8 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboboxTime{this, objectModel.times}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonProducts{this, None, "Charts..."}
+    , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
+    , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
     , buttonModel{this, None, "Model..."}
 {
@@ -82,6 +87,51 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         boxH.addWidgetReal(more);
     }
     box.addLayout(boxH);
+    {   // the second row: compare, maxima, saved views, sounding, save
+        comboCompare.getView()->setToolTip("Show how the chart changed since an earlier run: the same valid time from the run 6, 12 or 24 hours older is subtracted (blue = lower now, red = higher now). Charts of lines only have none.");
+        comboCompare.connect([this] {
+            GfsRender::Variant v;
+            const auto i = comboCompare.getIndex();
+            if (i > 0) {
+                v.kind = GfsRender::Variant::Kind::Change;
+                v.hoursBack = i * 6 + (i == 3 ? 6 : 0);   // 6, 12, 24
+            }
+            setVariant(v);
+        });
+        boxH2.addWidget(comboCompare);
+        buttonMax = new QPushButton{"Maximum \xE2\x96\xBE", this};
+        auto * maxMenu = new QMenu{buttonMax};
+        QObject::connect(maxMenu->addAction("Of the 24 hours ending at this hour"), &QAction::triggered, this, [this] { showMax(false); });
+        QObject::connect(maxMenu->addAction("Day 1 (12z to 12z)"), &QAction::triggered, this, [this] { showMax(true); });
+        buttonMax->setMenu(maxMenu);
+        buttonMax->setToolTip("The largest value of the chart's fill over a day (hail, gusts, rain rate ...). Choosing another hour goes back to the plain chart.");
+        boxH2.addWidgetReal(buttonMax);
+        buttonViews = new QPushButton{"Saved views \xE2\x96\xBE", this};
+        menuViews = new QMenu{buttonViews};
+        buttonViews->setMenu(menuViews);
+        boxH2.addWidgetReal(buttonViews);
+        loadViews();
+        boxH2.addWidget(soundingPick.button());
+        auto * save = new QPushButton{"Save...", this};
+        save->setToolTip("Save the picture, or the hours drawn so far as a loop");
+        QObject::connect(save, &QPushButton::clicked, this, [this] { saveLoop(); });
+        boxH2.addWidgetReal(save);
+        boxH2.addStretch();
+        box.addLayout(boxH2);
+    }
+    image.setCrosshairMode(true);   // click a point, then Sounding
+    QObject::connect(&image, &ZoomImage::doubleClicked, this, [this] {
+        if (!shownBytes.isEmpty()) {
+            new ImageViewer{this, shownBytes, objectModel.model + " " + objectModel.param};
+        }
+    });
+    QObject::connect(&image, &ZoomImage::clicked, this, [this] (double fx, double fy) {
+        double lon = 0.0, lat = 0.0;
+        if (shownProbe && shownProbe->locate(fx, fy, lon, lat)) {
+            image.setMarker(fx, fy);
+            soundingPick.pick(lon, lat);
+        }
+    });
     box.addWidgetReal(&image, 1, Qt::Alignment{});
     strip = new TimeStrip{this};
     strip->onSelect = [this] (int index) { selectHour(index); };
@@ -150,6 +200,10 @@ void ModelViewer::changeRun(int index) {
 }
 
 void ModelViewer::changeTime(size_t index) {
+    if (variant.kind == GfsRender::Variant::Kind::Max) {
+        variant = {};
+        variantKey.clear();
+    }
     objectModel.setTimeIdx(index);
     reload();
 }
@@ -175,10 +229,170 @@ string ModelViewer::frameKey(int hour) const {
     for (const auto& id : overlays) {
         key += "|" + id;
     }
-    return key;
+    return key + variantKey;
+}
+
+void ModelViewer::setVariant(GfsRender::Variant v) {
+    variant = std::move(v);
+    variantKey.clear();
+    if (variant.kind == GfsRender::Variant::Kind::Change) {
+        variantKey = "|change" + std::to_string(variant.hoursBack);
+    } else if (variant.kind == GfsRender::Variant::Kind::Max && !variant.hours.empty()) {
+        variantKey = "|max" + std::to_string(variant.hours.front()) + "-" + std::to_string(variant.hours.back());
+    }
+    startPlaying(false);
+    strip->stop();
+    reload();
+}
+
+// the 24 hours ending at the hour shown, or the model's Day 1 (12z to 12z): the chart's fill, largest of those hours
+void ModelViewer::showMax(bool day1) {
+    GfsRender::Variant v;
+    v.kind = GfsRender::Variant::Kind::Max;
+    const int now = std::atoi(objectModel.getTime().c_str());
+    const int cycle = std::atoi(objectModel.run.c_str());
+    int from = now - 24, to = now;
+    if (day1) {
+        const int start = ((12 - cycle) % 24 + 24) % 24;   // the first 12z after the run
+        from = start;
+        to = start + 24;
+    }
+    for (const auto& t : objectModel.times) {
+        const int h = std::atoi(t.c_str());
+        if (h >= from && h <= to) {
+            v.hours.push_back(h);
+        }
+    }
+    if (v.hours.size() < 2) {
+        setTitle(objectModel.model + ": not enough hours in that range for a maximum");
+        return;
+    }
+    comboCompare.block();
+    comboCompare.setIndex(0);
+    comboCompare.unblock();
+    setVariant(v);
+}
+
+namespace {
+    const string viewsPref{"MODEL_SAVED_VIEWS"};   // one view per line: name|model|chart|area|extras
+}
+
+void ModelViewer::loadViews() {
+    views.clear();
+    const auto text = QString::fromStdString(Utility::readPref(viewsPref, ""));
+    for (const auto& line : text.split('\n', Qt::SkipEmptyParts)) {
+        const auto parts = line.split('|');
+        if (parts.size() == 5) {
+            views.push_back({parts[0].toStdString(), parts[1].toStdString(), parts[2].toStdString(), parts[3].toStdString(), parts[4].toStdString()});
+        }
+    }
+    rebuildViewsMenu();
+}
+
+void ModelViewer::rebuildViewsMenu() {
+    menuViews->clear();
+    QObject::connect(menuViews->addAction("Save this view..."), &QAction::triggered, this, [this] { saveView(); });
+    if (!views.empty()) {
+        menuViews->addSeparator();
+    }
+    for (const auto& view : views) {
+        auto * sub = menuViews->addMenu(QString::fromStdString(view[0]));
+        const auto copy = view;
+        QObject::connect(sub->addAction("Show"), &QAction::triggered, this, [this, copy] { applyView(copy); });
+        QObject::connect(sub->addAction("Delete"), &QAction::triggered, this, [this, copy] {
+            views.erase(std::remove_if(views.begin(), views.end(), [&copy] (const auto& v) { return v[0] == copy[0]; }), views.end());
+            QStringList lines;
+            for (const auto& v : views) {
+                lines << QString::fromStdString(v[0] + "|" + v[1] + "|" + v[2] + "|" + v[3] + "|" + v[4]);
+            }
+            Utility::writePref(viewsPref, lines.join('\n').toStdString());
+            rebuildViewsMenu();
+        });
+    }
+}
+
+void ModelViewer::saveView() {
+    bool ok = false;
+    auto name = QInputDialog::getText(this, "Save view", "Name for this view (model, chart, area and extras):", QLineEdit::Normal,
+                                      QString::fromStdString(objectModel.model + " " + objectModel.param), &ok).trimmed();
+    name.remove('|').remove('\n');
+    if (!ok || name.isEmpty()) {
+        return;
+    }
+    string extras;
+    for (const auto& id : overlays) {
+        extras += (extras.empty() ? "" : ",") + id;
+    }
+    const std::array<string, 5> view{name.toStdString(), objectModel.model, objectModel.param, objectModel.sector, extras};
+    const auto existing = std::find_if(views.begin(), views.end(), [&view] (const auto& v) { return v[0] == view[0]; });
+    if (existing != views.end()) {
+        *existing = view;
+    } else {
+        views.push_back(view);
+    }
+    QStringList lines;
+    for (const auto& v : views) {
+        lines << QString::fromStdString(v[0] + "|" + v[1] + "|" + v[2] + "|" + v[3] + "|" + v[4]);
+    }
+    Utility::writePref(viewsPref, lines.join('\n').toStdString());
+    rebuildViewsMenu();
+}
+
+void ModelViewer::applyView(const std::array<string, 5>& view) {
+    const auto items = comboboxModel.getItems();
+    const auto found = std::find(items.begin(), items.end(), view[1]);
+    if (found == items.end()) {
+        return;
+    }
+    pendingView = view;
+    if (view[1] != objectModel.model) {   // another model: its runs come first, then the rest of the view is put in
+        comboboxModel.block();
+        comboboxModel.setIndex(static_cast<size_t>(found - items.begin()));
+        comboboxModel.unblock();
+        changeModel(static_cast<int>(found - items.begin()));
+        return;
+    }
+    objectModel.param = view[2];
+    objectModel.sector = view[3];
+    overlays.clear();
+    for (const auto& id : QString::fromStdString(view[4]).split(',', Qt::SkipEmptyParts)) {
+        overlays.push_back(id.toStdString());
+    }
+    pendingView = {};
+    comboboxProduct.block();
+    comboboxProduct.setIndexByValue(objectModel.param);
+    comboboxProduct.unblock();
+    comboboxSector.block();
+    comboboxSector.setIndexByValue(objectModel.sector);
+    comboboxSector.unblock();
+    refreshProductButton();
+    reload();
+}
+
+// the hours drawn so far of the chart on view, as a loop; or the picture
+void ModelViewer::saveLoop() {
+    if (shownBytes.isEmpty()) {
+        return;
+    }
+    std::vector<std::pair<int, QByteArray>> drawn;
+    for (const auto& t : objectModel.times) {
+        const int hour = std::atoi(t.c_str());
+        const auto found = frames.find(frameKey(hour));
+        if (found != frames.end()) {
+            drawn.emplace_back(hour, found->second.bytes);
+        }
+    }
+    std::vector<QByteArray> loop;
+    for (const auto& [hour, bytes] : drawn) {
+        loop.push_back(bytes);
+    }
+    const auto name = QString::fromStdString(objectModel.model + "_" + objectModel.param + "_" + objectModel.sector + "_" + objectModel.run);
+    UtilityAnimationExport::saveWithDialog(this, loop.size() >= 2 ? loop : std::vector<QByteArray>{}, strip->intervalMs(), shownBytes, name, QByteArray{}, false, name);
 }
 
 void ModelViewer::showFrame(const Frame& frame) {
+    shownBytes = frame.bytes;
+    shownProbe = frame.probe;
     string chart = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector;
     for (const auto& id : overlays) {
         chart += "|" + id;
@@ -199,6 +413,10 @@ void ModelViewer::showFrame(const Frame& frame) {
 void ModelViewer::selectHour(int index) {
     if (index < 0 || index >= static_cast<int>(objectModel.times.size())) {
         return;
+    }
+    if (variant.kind == GfsRender::Variant::Kind::Max) {   // another hour: the plain chart again
+        variant = {};
+        variantKey.clear();
     }
     comboboxTime.block();
     comboboxTime.setIndex(static_cast<size_t>(index));
@@ -242,11 +460,12 @@ void ModelViewer::prefetch(int generation) {
     auto session = gfsSession;
     const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = objectModel.run;
     const auto overlayIds = overlays;
+    const auto shownVariant = variant.kind == GfsRender::Variant::Kind::Change ? variant : GfsRender::Variant{};
     const int hour = std::atoi(objectModel.times[static_cast<size_t>(want)].c_str());
     const auto key = frameKey(hour);
     auto result = std::make_shared<std::pair<QByteArray, string>>();
     auto probe = std::make_shared<GfsChart::Probe>();
-    new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get()); },
+    new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get(), shownVariant); },
                    [this, result, probe, key, generation] {
                        if (generation != prefetchGeneration) {
                            return;
@@ -290,6 +509,7 @@ void ModelViewer::reload() {
         auto session = gfsSession;
         const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = objectModel.run;
         const auto overlayIds = overlays;
+        const auto shownVariant = variant;
         const int hour = std::atoi(objectModel.getTime().c_str());
         if (const auto cached = frames.find(frameKey(hour)); cached != frames.end()) {   // drawn already (play, or a visit before)
             showFrame(cached->second);
@@ -298,7 +518,7 @@ void ModelViewer::reload() {
         const auto key = frameKey(hour);
         auto result = std::make_shared<std::pair<QByteArray, string>>();
         auto probe = std::make_shared<GfsChart::Probe>();
-        new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get()); },
+        new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get(), shownVariant); },
                        [this, result, mine, probe, key] {
                            if (mine == drawing && !result->first.isEmpty()) {
                                if (frames.size() > 90) {
@@ -375,6 +595,11 @@ void ModelViewer::updateRunStatus() {
 
     refreshProductButton();
     refreshTimeStrip();
+    if (!pendingView[0].empty() && pendingView[1] == objectModel.model) {   // a saved view of this model, waiting for its runs
+        const auto view = pendingView;
+        applyView(view);
+        return;
+    }
     reload();
 }
 

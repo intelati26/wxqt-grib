@@ -22,7 +22,9 @@
 #include <map>
 #include <QTimer>
 #include "models/ChartHover.h"
+#include "models/SoundingPick.h"
 #include "models/TimeStrip.h"
+#include <array>
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -61,6 +63,26 @@ private:
     void startPlaying(bool on);
     void prefetch(int generation);
     void refreshTimeStrip();
+    // what the RRFS screen had, now for every model: change since an earlier run, maxima over hours, saved views, a sounding at a clicked point, save as a loop, the full picture
+    void setVariant(GfsRender::Variant);
+    void showMax(bool day1);
+    void saveLoop();
+    void loadViews();
+    void saveView();
+    void applyView(const std::array<string, 5>&);
+    void rebuildViewsMenu();
+    HBox boxH2;
+    ComboBox comboCompare;
+    QPushButton * buttonMax{};
+    QPushButton * buttonViews{};
+    QMenu * menuViews{};
+    SoundingPick soundingPick;
+    GfsRender::Variant variant;
+    string variantKey;                   // the variant as part of a frame's key
+    QByteArray shownBytes;
+    std::shared_ptr<GfsChart::Probe> shownProbe;
+    std::vector<std::array<string, 5>> views;   // name, model, chart, area, extras (comma separated)
+    std::array<string, 5> pendingView;          // a saved view of another model: applied when its runs are in
     TimeStrip * strip{};
     QTimer playTimer;
     std::map<string, Frame> frames;

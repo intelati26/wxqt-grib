@@ -6,6 +6,7 @@
 
 #include <QApplication>
 #include <QCursor>
+#include <QFile>
 #include <QKeyEvent>
 #include <QWheelEvent>
 #include "hurricane/ReconViewer.h"
@@ -144,6 +145,26 @@ int main(int argc, char * argv[]) {
                 auto seasons = std::make_shared<HurricaneData::SeasonData>();
                 HurricaneData::loadSeason(*seasons, route.section(':', 1, 1).toStdString());
                 new SeasonViewer{&w, seasons};
+            } else if (route.startsWith("variant:")) {   // WXQT_OPEN=variant:<model>:<chart>:<area>:<hour>:<change|max>:<hours back | number of hours>:<out.png>: a change / maximum chart written to a file, then quit
+                const auto parts = route.split(':');
+                if (parts.size() >= 8) {
+                    GfsRender::Session session;
+                    GfsRender::Variant variant;
+                    const int hour = parts[4].toInt(), n = parts[6].toInt();
+                    if (parts[5] == "change") {
+                        variant.kind = GfsRender::Variant::Kind::Change;
+                        variant.hoursBack = n;
+                    } else {
+                        variant.kind = GfsRender::Variant::Kind::Max;
+                        for (int h = hour - n; h <= hour; h += 3) variant.hours.push_back(h);
+                    }
+                    std::string error;
+                    const auto bytes = GfsRender::png(session, parts[1].toStdString(), parts[2].toStdString(), parts[3].toStdString(), "", hour, {}, error, nullptr, variant);
+                    QFile out{parts[7]};
+                    if (out.open(QIODevice::WriteOnly)) out.write(bytes);
+                    fprintf(stderr, "variant: %lld bytes %s\n", static_cast<long long>(bytes.size()), error.c_str());
+                }
+                std::_Exit(0);
             } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm
                 new HurricaneViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString()};
             } else if (route.startsWith("hafs:")) {   // WXQT_OPEN=hafs:<NHC id>: the hurricane model screen on that storm

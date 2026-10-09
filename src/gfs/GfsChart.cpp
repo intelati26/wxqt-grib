@@ -3543,19 +3543,52 @@ namespace {
     }
 }
 
-QString Probe::read(double fx, double fy) const {
+GfsGrid::Grid fillOf(const Product& product, const Grids& fetched, const GfsData::Run& run, int forecastHour, const GfsClimate * climate) {
+    Grids grids = fetched;
+    if (product.derive) {
+        product.derive(grids, Context{forecastHour, run, climate});
+    }
+    return product.fill ? product.fill(grids) : GfsGrid::Grid{};
+}
+
+GfsGrid::Grid deltaInUserUnits(const GfsGrid::Grid& delta, Quantity quantity, bool us, std::string& unit) {
+    double factor = 1.0;
+    QString text = unitText(quantity, false);
+    if (us) {
+        switch (quantity) {
+            case Quantity::Temperature: factor = 1.8; break;
+            case Quantity::Millimeters: factor = 1.0 / 25.4; break;
+            case Quantity::Centimeters: factor = 1.0 / 2.54; break;
+            case Quantity::Meters: factor = 3.28084; break;
+            default: break;
+        }
+        text = unitText(quantity, true);
+    }
+    unit = text.toStdString();
+    return factor == 1.0 ? delta : GfsGrid::scaled(delta, factor);
+}
+
+bool Probe::locate(double fx, double fy, double& lon, double& lat) const {
     const double x = fx * imageWidth, y = fy * imageHeight;
     if (x < areaLeft || x > areaLeft + areaWidth || y < areaTop || y > areaTop + areaHeight) {
-        return {};
+        return false;
     }
     const View view{Sector{"", west, south, east, north}, QRectF{areaLeft, areaTop, areaWidth, areaHeight}};
-    double lon = view.lonAt(x);
-    const double lat = view.latAt(y);
+    lon = view.lonAt(x);
+    lat = view.latAt(y);
     while (lon > 180.0) {
         lon -= 360.0;
     }
     while (lon < -180.0) {
         lon += 360.0;
+    }
+    return true;
+}
+
+QString Probe::read(double fx, double fy) const {
+    double lon = 0.0, lat = 0.0;
+    if (!locate(fx, fy, lon, lat)) {
+        return {};
     }
     const QChar degree{0x00B0};
     QStringList lines;
@@ -3594,6 +3627,24 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         product.derive(grids, Context{forecastHour, run, options.climate});
     }
     auto fill = product.fill ? product.fill(grids) : GfsGrid::Grid{};
+    if (!options.fillOverride.empty()) {   // a maximum or a change: the fill is made, and only it is drawn
+        fill = options.fillOverride;
+        const auto title = product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle;
+        product.fillTitle = options.overrideNote + (title.empty() ? "" : ": " + title);
+        product.fillTitleFor = nullptr;
+        product.contours.clear();
+        product.barbU.clear();
+        product.barbV.clear();
+        product.streamU.clear();
+        product.streamV.clear();
+        product.overlays.clear();
+        product.linesOnly = false;
+        if (!options.overrideRamp.stops.empty()) {
+            product.ramp = options.overrideRamp;
+            product.palette.clear();
+        }
+        product.quantity = options.overrideQuantity;
+    }
     if (product.linesOnly && !product.contours.empty()) {   // nothing to fill: a blank grid of the first line's field
         const auto found = grids.find(product.contours.front().key);
         if (found != grids.end()) {
@@ -3632,6 +3683,8 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         probe.imageWidth = image.width();
         probe.imageHeight = image.height();
         probe.us = us;
+        probe.validUtc = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH").addSecs(static_cast<qint64>(forecastHour) * 3600);
+        probe.validUtc.setTimeSpec(Qt::UTC);
         if (!product.linesOnly) {
             QString title = QString::fromStdString(product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle);
             if (const auto unit = unitText(product.quantity, us); !unit.isEmpty()) {

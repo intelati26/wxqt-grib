@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsRender.h"
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <map>
@@ -115,7 +116,7 @@ bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const 
     return true;
 }
 
-QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe) {
+QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe, const Variant& variant) {
     const auto * base = GfsChart::product(param, model);
     auto sector = GfsChart::sector(sectorId);
     GfsChart::Sector storm;   // the hurricane model's grid follows the storm: the chart is its whole grid
@@ -232,6 +233,81 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         if (product->id.compare(0, 5, "swath") == 0) {   // the swaths are of the whole parent domain: only the storm's part is shown
             storm = GfsChart::cropToTrack(storm, options.track, hour, 4.0);
         }
+    }
+    if (variant.kind != Variant::Kind::None && !isHafs(model)) {
+        const auto now = GfsChart::fillOf(*product, grids, run, hour, &climate);
+        auto note = std::string{};
+        if (variant.kind == Variant::Kind::Max) {
+            auto best = now;
+            int first = hour, last = hour, used = 1;
+            for (const int h : variant.hours) {
+                if (h == hour) {
+                    continue;
+                }
+                GfsChart::Grids more;
+                std::string again;
+                bool ok = gfs.load(run, GfsChart::needs(*product, h), more, again);
+                if (!ok) {
+                    const auto pieces = GfsChart::fallbackNeeds(*product, h);
+                    more.clear();
+                    ok = !pieces.empty() && gfs.load(run, pieces, more, again);
+                }
+                if (!ok) {
+                    continue;
+                }
+                const auto g = GfsChart::fillOf(*product, more, run, h, &climate);
+                if (g.values.size() != best.values.size()) {
+                    continue;
+                }
+                for (size_t i = 0; i < best.values.size(); i++) {
+                    if (std::isnan(best.values[i]) || (!std::isnan(g.values[i]) && g.values[i] > best.values[i])) {
+                        best.values[i] = g.values[i];
+                    }
+                }
+                first = std::min(first, h);
+                last = std::max(last, h);
+                used++;
+            }
+            note = "Maximum of " + std::to_string(used) + " hours (" + std::to_string(first) + "-" + std::to_string(last) + ")";
+            options.fillOverride = best;
+            options.overrideQuantity = product->quantity;
+        } else {
+            auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+            t.setTimeSpec(Qt::UTC);
+            t = t.addSecs(-static_cast<qint64>(variant.hoursBack) * 3600);
+            const GfsData::Run earlier{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+            GfsChart::Grids before;
+            std::string again;
+            if (!gfs.load(earlier, GfsChart::needs(*product, hour + variant.hoursBack), before, again)) {
+                error = "the run " + std::to_string(variant.hoursBack) + " hours earlier is not available for this hour";
+                return {};
+            }
+            const auto then = GfsChart::fillOf(*product, before, earlier, hour + variant.hoursBack, &climate);
+            if (then.values.size() != now.values.size() || now.values.empty()) {
+                error = "the earlier run is on another grid";
+                return {};
+            }
+            auto delta = now;
+            for (size_t i = 0; i < delta.values.size(); i++) {
+                delta.values[i] = now.values[i] - then.values[i];   // NaN where either is missing
+            }
+            std::string unit;
+            delta = GfsChart::deltaInUserUnits(delta, product->quantity, options.fahrenheit, unit);
+            std::vector<float> magnitudes;
+            for (size_t i = 0; i < delta.values.size(); i += 7) {
+                if (!std::isnan(delta.values[i])) {
+                    magnitudes.push_back(std::abs(delta.values[i]));
+                }
+            }
+            std::sort(magnitudes.begin(), magnitudes.end());
+            double m = magnitudes.empty() ? 1.0 : magnitudes[static_cast<size_t>(magnitudes.size() * 0.98)];
+            m = m > 100 ? std::round(m / 10) * 10 : m > 10 ? std::round(m) : m > 1 ? std::round(m * 2) / 2 : std::max(0.1, std::round(m * 10) / 10);
+            options.overrideRamp = {{{-m, QColor{"#2b5fbf"}}, {-m / 2, QColor{"#8fb6e8"}}, {-m / 8, QColor{"#f1f4f8"}}, {m / 8, QColor{"#f1f4f8"}}, {m / 2, QColor{"#f0a08a"}}, {m, QColor{"#c0392b"}}}};
+            options.fillOverride = delta;
+            options.overrideQuantity = GfsChart::Quantity::Other;
+            note = "Change since the run " + std::to_string(variant.hoursBack) + " h earlier" + (unit.empty() ? "" : " (" + unit + ")");
+        }
+        options.overrideNote = note;
     }
     const auto image = GfsChart::render(*product, *sector, grids, run, hour, options);
     if (image.isNull()) {

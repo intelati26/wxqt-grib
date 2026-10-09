@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <QColor>
+#include <QDateTime>
 #include <QImage>
 #include <QString>
 #include "gfs/GfsClimate.h"
@@ -142,11 +143,18 @@ namespace GfsChart {
         bool us{true};
         std::vector<Field> fields;
         GfsGrid::Grid windU, windV;     // m/s
+        QDateTime validUtc;             // the valid time of the picture (for a sounding at a clicked point)
         bool valid() const { return areaWidth > 0.0 && !fields.empty(); }
+        bool locate(double fx, double fy, double& lon, double& lat) const;   // the point of the picture as longitude and latitude; false outside the map
         QString read(double fx, double fy) const;   // empty outside the map
     };
 
     struct Options {
+        // a chart of something made from the chart's own fill (a maximum over hours, a change since an earlier run): this replaces the fill, and the lines and barbs go
+        GfsGrid::Grid fillOverride;
+        Ramp overrideRamp;                     // empty: the chart's own scale
+        std::string overrideNote;              // "Change since the run 12 h earlier (F)": goes before the title
+        Quantity overrideQuantity{Quantity::Other};
         Probe * probe{nullptr};                // when set, filled in by render() for the hover read-out
         int width{1100};
         const GfsClimate * climate{nullptr};   // for the anomaly charts
@@ -158,6 +166,10 @@ namespace GfsChart {
         std::vector<TrackPoint> trackOther;    // another model's track for the same storm, dashed, to compare
         std::string trackName, trackOtherName; // what each is called in the key
     };
+    // the fill of a chart for a run and hour, from the grids fetched for it (what render() would paint): for a maximum over hours or a change between runs
+    GfsGrid::Grid fillOf(const Product& product, const Grids& fetched, const GfsData::Run& run, int forecastHour, const GfsClimate * climate);
+    // a change between two fills in the user's units (a difference of temperatures is not shifted by 32): the grid scaled, and the unit it is in
+    GfsGrid::Grid deltaInUserUnits(const GfsGrid::Grid& delta, Quantity quantity, bool us, std::string& unit);
     // the records a product needs for a forecast hour
     std::vector<GfsData::Need> needs(const Product& product, int hour);
     std::vector<GfsData::Need> fallbackNeeds(const Product& product, int hour);   // empty when there is none
