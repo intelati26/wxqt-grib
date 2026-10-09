@@ -144,6 +144,7 @@ namespace GfsChart {
         std::vector<Field> fields;
         GfsGrid::Grid windU, windV;     // m/s
         QDateTime validUtc;             // the valid time of the picture (for a sounding at a clicked point)
+        size_t memory() const { size_t n = (windU.values.size() + windV.values.size()) * sizeof(float); for (const auto& f : fields) n += f.grid.values.size() * sizeof(float); return n; }   // bytes held
         bool valid() const { return areaWidth > 0.0 && !fields.empty(); }
         bool locate(double fx, double fy, double& lon, double& lat) const;   // the point of the picture as longitude and latitude; false outside the map
         QString read(double fx, double fy) const;   // empty outside the map

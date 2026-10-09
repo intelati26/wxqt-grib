@@ -147,7 +147,7 @@ int main(int argc, char ** argv) {
     if (const char * at = std::getenv("DEMO_PROBE")) {
         double fx = 0.5, fy = 0.5;
         std::sscanf(at, "%lf,%lf", &fx, &fy);
-        std::printf("probe %g,%g:\n%s\n", fx, fy, probe.read(fx, fy).toStdString().c_str());
+        std::printf("probe %g,%g (hover grids hold %.2f MB, the picture %.2f MB):\n%s\n", fx, fy, probe.memory() / 1048576.0, image.sizeInBytes() / 1048576.0 / 8.0, probe.read(fx, fy).toStdString().c_str());
     }
     if (std::getenv("DEMO_REPEAT")) {   // the same chart again in this process (the index kept, the fields on disk): the time the second draw takes, split into loading and drawing
         for (int again = 0; again < 2; again++) {

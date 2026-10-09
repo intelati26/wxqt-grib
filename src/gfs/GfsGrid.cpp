@@ -334,39 +334,51 @@ Grid cropped(const Grid& in, double west, double south, double east, double nort
     return out;
 }
 
+namespace {
+    Grid blockAverage(const Grid& in, int factor) {
+        Grid out;
+        out.columns = (in.columns + factor - 1) / factor;
+        out.rows = (in.rows + factor - 1) / factor;
+        out.step = in.step * factor;
+        out.lon0 = in.lon0 + (factor - 1) * in.step / 2.0;
+        out.lat0 = in.lat0 - (factor - 1) * in.step / 2.0;
+        out.values.assign(static_cast<size_t>(out.columns) * static_cast<size_t>(out.rows), std::numeric_limits<float>::quiet_NaN());
+        for (int r = 0; r < out.rows; r++) {
+            for (int c = 0; c < out.columns; c++) {
+                double sum = 0.0;
+                int count = 0, total = 0;
+                for (int dr = 0; dr < factor && r * factor + dr < in.rows; dr++) {
+                    for (int dc = 0; dc < factor && c * factor + dc < in.columns; dc++) {
+                        total++;
+                        const float v = in.at(c * factor + dc, r * factor + dr);
+                        if (!std::isnan(v)) {
+                            sum += v;
+                            count++;
+                        }
+                    }
+                }
+                if (count * 2 > total) {   // a block over the edge of the data stays empty
+                    out.values[static_cast<size_t>(r) * static_cast<size_t>(out.columns) + static_cast<size_t>(c)] = static_cast<float>(sum / count);
+                }
+            }
+        }
+        return out;
+    }
+}
+
+Grid reducedTo(const Grid& in, size_t maxCells) {
+    if (in.values.size() <= maxCells) {
+        return in;
+    }
+    return blockAverage(in, std::max(2, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(in.values.size()) / static_cast<double>(maxCells))))));
+}
+
 Grid reducedForLines(const Grid& in, size_t maxCells) {
     const size_t cells = in.values.size();
     if (in.step >= 0.1 || cells <= maxCells) {
         return in;
     }
-    const int factor = std::max(2, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(cells) / static_cast<double>(maxCells)))));
-    Grid out;
-    out.columns = (in.columns + factor - 1) / factor;
-    out.rows = (in.rows + factor - 1) / factor;
-    out.step = in.step * factor;
-    out.lon0 = in.lon0 + (factor - 1) * in.step / 2.0;
-    out.lat0 = in.lat0 - (factor - 1) * in.step / 2.0;
-    out.values.assign(static_cast<size_t>(out.columns) * static_cast<size_t>(out.rows), std::numeric_limits<float>::quiet_NaN());
-    for (int r = 0; r < out.rows; r++) {
-        for (int c = 0; c < out.columns; c++) {
-            double sum = 0.0;
-            int count = 0, total = 0;
-            for (int dr = 0; dr < factor && r * factor + dr < in.rows; dr++) {
-                for (int dc = 0; dc < factor && c * factor + dc < in.columns; dc++) {
-                    total++;
-                    const float v = in.at(c * factor + dc, r * factor + dr);
-                    if (!std::isnan(v)) {
-                        sum += v;
-                        count++;
-                    }
-                }
-            }
-            if (count * 2 > total) {   // a block over the edge of the data stays empty
-                out.values[static_cast<size_t>(r) * static_cast<size_t>(out.columns) + static_cast<size_t>(c)] = static_cast<float>(sum / count);
-            }
-        }
-    }
-    return out;
+    return blockAverage(in, std::max(2, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(cells) / static_cast<double>(maxCells))))));
 }
 
 Grid smoothed(const Grid& in, int passes) {

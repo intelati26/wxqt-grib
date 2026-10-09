@@ -89,7 +89,8 @@ private:
     QTimer playTimer;
     void storeFrame(const string& key, const Frame&);
     std::map<string, Frame> frames;
-    std::deque<string> frameOrder;       // the order frames were drawn: the oldest are dropped past 60
+    std::deque<string> frameOrder;       // the order frames were drawn: the oldest are dropped past the memory they may hold
+    size_t frameBytes{0};                // what the frames hold (the picture and the hover grids)
     std::set<string> failedAhead;        // hours that could not be read ahead for this view
     int prefetchGeneration{0};
     bool prefetching{false};

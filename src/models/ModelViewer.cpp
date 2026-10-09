@@ -438,12 +438,20 @@ void ModelViewer::startPlaying(bool on) {
 
 // Draws the hours ahead of the one shown, one at a time, so that play runs from drawn frames; it stops when everything is drawn or the chart changes.
 void ModelViewer::storeFrame(const string& key, const Frame& frame) {
-    if (!frames.count(key)) {
+    const auto size = [] (const Frame& f) { return static_cast<size_t>(f.bytes.size()) + (f.probe ? f.probe->memory() : 0); };
+    if (const auto old = frames.find(key); old != frames.end()) {
+        frameBytes -= std::min(frameBytes, size(old->second));
+    } else {
         frameOrder.push_back(key);
     }
     frames[key] = frame;
-    while (frameOrder.size() > 60) {   // the oldest go first
-        frames.erase(frameOrder.front());
+    frameBytes += size(frame);
+    // a loop of a whole run has to fit: the frames may hold 300 MB (a few hundred for a regional chart, fewer for a global one); the oldest go first
+    while (frameBytes > 300u * 1024 * 1024 && frameOrder.size() > 1) {
+        if (const auto oldest = frames.find(frameOrder.front()); oldest != frames.end()) {
+            frameBytes -= std::min(frameBytes, size(oldest->second));
+            frames.erase(oldest);
+        }
         frameOrder.pop_front();
     }
 }
@@ -518,6 +526,7 @@ void ModelViewer::prefetch(int generation) {
 void ModelViewer::refreshTimeStrip() {
     frames.clear();   // a refreshed run: draw the frames again
     frameOrder.clear();
+    frameBytes = 0;
     failedAhead.clear();
     std::vector<string> labels;
     for (const auto& t : objectModel.times) {
