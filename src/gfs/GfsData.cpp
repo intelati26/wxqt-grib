@@ -111,17 +111,18 @@ GfsData::Source GfsData::gefs() {
     s.id = "GEFS";
     s.label = "NOAA/NCEP GEFS mean and spread, 0.5 degree";
     s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
-        const bool spread = file.compare(0, 3, "spr") == 0, surface = file.size() > 1 && file.back() == 's';
+        const bool spread = file.compare(0, 3, "spr") == 0, surface = file.size() > 1 && file.back() == 's', second = file.size() > 1 && file.back() == 'b';   // "-b": the second 0.5 degree set, which holds the most unstable CAPE
         const bool member = file.size() == 5 && (file[0] == 'c' || file[0] == 'p') && std::isdigit(static_cast<unsigned char>(file[1])) && std::isdigit(static_cast<unsigned char>(file[2]));   // "p05-a": member 5
         const std::string kind = member ? "ge" + file.substr(0, 3) : spread ? "gespr" : "geavg";
-        return "https://noaa-gefs-pds.s3.amazonaws.com/gefs." + run.date + "/" + run.cycle + "/atmos/" + (surface ? "pgrb2sp25/" : "pgrb2ap5/") + kind + ".t" + run.cycle + "z." + (surface ? "pgrb2s.0p25" : "pgrb2a.0p50") +
+        return "https://noaa-gefs-pds.s3.amazonaws.com/gefs." + run.date + "/" + run.cycle + "/atmos/" + (surface ? "pgrb2sp25/" : second ? "pgrb2bp5/" : "pgrb2ap5/") + kind + ".t" + run.cycle + "z." + (surface ? "pgrb2s.0p25" : second ? "pgrb2b.0p50" : "pgrb2a.0p50") +
             ".f" + pad(hour, 3);
     };
     s.fileOf = [] (const Want& want) {
         const auto& v = want.variable;
         const bool surfaceSet = v == "GUST" || v == "DPT" || v == "VIS" || v == "HLCY" || v == "MSLET" || (v == "CAPE" && want.level == "surface") || (v == "CIN" && want.level == "surface");
         const bool member = want.stat.size() == 3 && (want.stat[0] == 'c' || want.stat[0] == 'p') && std::isdigit(static_cast<unsigned char>(want.stat[1])) && std::isdigit(static_cast<unsigned char>(want.stat[2]));   // a member: "c00" the control, "p01" ... "p30"
-        return (member ? want.stat : std::string{want.stat == "spr" ? "spr" : "avg"}) + (surfaceSet ? "-s" : "-a");
+        const bool secondSet = v == "CAPE" && want.level.compare(0, 3, "255") == 0;   // the most unstable parcel's CAPE (the lowest 255 mb)
+        return (member ? want.stat : std::string{want.stat == "spr" ? "spr" : "avg"}) + (surfaceSet ? "-s" : secondSet ? "-b" : "-a");
     };
     s.defaultDetail = "*";
     s.probeFile = "avg-a";

@@ -1914,6 +1914,68 @@ const std::vector<Product>& products() {
                     x.legendStep = 10;
                     return x;
                 };
+                // WPC's "heavy rain potential": the share of the members that have, together at a point, precipitable water over so many standard deviations above normal, CAPE over a limit and a
+                // 6 hour amount over a limit ("PROB PW > 2 SIGMA + MUCAPE > 500 + QPF > 0.10 IN"). CAPE is that of the most unstable parcel of the lowest 255 mb (the second 0.5 degree file).
+                made["heavy_rain"] = [memberNeeds, share, sixHourAmount] (const std::vector<double>& v) {   // deviations, CAPE, inches
+                    const double sigmas = v.at(0), cape = v.at(1), inches = v.at(2);
+                    Product x;
+                    x.source = "GEFS";
+                    x.id = generatedId("heavy_rain", {sigmas, cape, inches});
+                    const std::string words = "Chance of precipitable water over " + trimmed(sigmas) + " standard deviation" + (sigmas == 1.0 ? "" : "s") + " above normal, MUCAPE over " + trimmed(cape) +
+                        " and over " + trimmed(inches) + " in of rain in 6 hours";
+                    x.label = "Heavy rain potential: PW > " + trimmed(sigmas) + " sigma, MUCAPE > " + trimmed(cape) + ", rain > " + trimmed(inches) + " in";
+                    x.needs = [memberNeeds, sixHourAmount] (int hour) {
+                        std::vector<GfsData::Need> out;
+                        if (hour < 6 || hour % 6 != 0) {
+                            return out;
+                        }
+                        for (auto& need : memberNeeds("w", "PWAT", "entire atmosphere (considered as a single layer)", hour, std::to_string(hour) + " hour fcst")) {
+                            out.push_back(std::move(need));
+                        }
+                        for (auto& need : memberNeeds("e", "CAPE", "255-0 mb above ground", hour, std::to_string(hour) + " hour fcst")) {
+                            out.push_back(std::move(need));
+                        }
+                        for (auto& need : memberNeeds("a", "APCP", "surface", hour, sixHourAmount(hour))) {
+                            out.push_back(std::move(need));
+                        }
+                        return out;
+                    };
+                    x.derive = [share, sigmas, cape, inches] (Grids& g, const Context& context) {
+                        if (!context.climate) {
+                            throw std::runtime_error{"no climatology"};
+                        }
+                        auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
+                        t.setTimeSpec(Qt::UTC);
+                        t = t.addSecs(context.hour * 3600LL);
+                        const int day = GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
+                        GfsGrid::Grid normal, deviation;
+                        std::string error;
+                        if (!context.climate->at(GfsClimate::precipitableWater(), day, normal, error) || !context.climate->deviation(GfsClimate::precipitableWater(), day, deviation, error)) {
+                            throw std::runtime_error{error};
+                        }
+                        auto zero = g.at("w" + memberNames.front());
+                        std::fill(zero.values.begin(), zero.values.end(), 0.0f);
+                        const auto spreadHere = GfsGrid::scaled(GfsGrid::anomaly(zero, deviation), -1.0);
+                        for (const auto& name : memberNames) {   // the member's precipitable water in standard deviations
+                            auto z = GfsGrid::anomaly(g.at("w" + name), normal);
+                            for (size_t i = 0; i < z.values.size(); i++) {
+                                z.values[i] = spreadHere.values[i] > 1e-6f ? z.values[i] / spreadHere.values[i] : std::nanf("");
+                            }
+                            g["w" + name] = std::move(z);
+                        }
+                        const float mm = static_cast<float>(inches * 25.4);
+                        share(g, [sigmas, cape, mm] (const Grids& grids, const std::string& name, size_t i) {
+                            const float w = grids.at("w" + name).values[i], e = grids.at("e" + name).values[i], a = grids.at("a" + name).values[i];
+                            return std::isnan(w) || std::isnan(e) || std::isnan(a) ? -1 : (w > sigmas && e > cape && a > mm) ? 1 : 0;
+                        }, "share", {"w", "e", "a"});
+                    };
+                    x.fill = [] (const Grids& g) { return pick(g, "share"); };
+                    x.ramp = probability();
+                    x.palette = "prob";
+                    x.fillTitle = words + " (% of the 31 members)";
+                    x.legendStep = 10;
+                    return x;
+                };
                 // The chance that a member's value passes a limit: the template says what to fetch (`needs`, the members' grids named "<prefix><member>"), how to make one value of them (`collapse`, into
                 // "v<member>": a wind speed from its components, a heat index) and how the limit given in the user's unit is in the file's (`toFile`).
                 struct Limit {
@@ -2006,6 +2068,7 @@ const std::vector<Product>& products() {
                     {"cloud_under", "a 6 hour mean cloud cover", "%", false, sixHour("v", "TCDC", "entire atmosphere", "ave"), nullptr, scaled(1.0)},
                     {"cloud_over", "a 6 hour mean cloud cover", "%", true, sixHour("v", "TCDC", "entire atmosphere", "ave"), nullptr, scaled(1.0)},
                     {"cape_over", "surface-based CAPE", "J/kg", true, instant("v", "CAPE", "surface"), nullptr, scaled(1.0)},
+                    {"mucape_over", "most unstable CAPE", "J/kg", true, instant("v", "CAPE", "255-0 mb above ground"), nullptr, scaled(1.0)},
                     {"z500_over", "a 500 mb height", "m", true, instant("v", "HGT", "500 mb"), nullptr, scaled(1.0)},
                 };
                 for (const auto& limit : limits) {
@@ -3559,6 +3622,7 @@ std::vector<Template> templates(const std::string& source) {
         {"rain_over", "Chance of rain over a limit in a period", {{"limit", "Rain over", "in", {0.01, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10}, 1}, {"hours", "in", "hours", {6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 84, 96, 120, 168, 240}, 24}}},
         {"rain_under", "Chance of rain under a limit in a period (dry)", {{"limit", "Rain under", "in", {0.01, 0.1, 0.25, 0.5, 1}, 0.01}, {"hours", "in", "hours", {6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 84, 96, 120, 168, 240}, 120}}},
         {"ptype", "Chance of a precipitation type in 6 hours", {{"type", "Type", "", {1, 2, 3, 4}, 2, {"rain", "snow", "ice pellets", "freezing rain"}}, {"limit", "with at least", "in", {0.01, 0.1, 0.25, 0.5, 1}, 0.01}}},
+        {"heavy_rain", "Heavy rain potential (precipitable water + CAPE + rain)", {{"sigmas", "Precipitable water over", "std. dev. above normal", {1, 1.5, 2, 2.5, 3}, 2}, {"cape", "and MUCAPE over", "J/kg", {100, 250, 500, 1000, 1500, 2000}, 500}, {"qpf", "and rain in 6 hours over", "in", {0.01, 0.1, 0.25, 0.5, 1}, 0.1}}},
         {"stdanom", "Chance of an anomaly of so many standard deviations", {{"what", "Field", "", {1, 2, 3, 4, 5}, 1, {"500 mb height", "700 mb height", "700 mb temperature", "850 mb temperature", "precipitable water"}}, {"direction", "Anomaly", "", {1, 2}, 1, {"below normal", "above normal"}}, {"sigmas", "by more than", "std. dev.", {1, 2, 3, 4, 5}, 1}}},
         one("temp_under", "Chance of a 2 m temperature under a limit", "Temperature under", "F", {-40, -20, 0, 10, 20, 25, 28, 32, 40, 50, 60, 70}, 32),
         one("temp_over", "Chance of a 2 m temperature over a limit", "Temperature over", "F", {70, 80, 90, 95, 100, 105, 110, 115}, 90),
@@ -3576,6 +3640,7 @@ std::vector<Template> templates(const std::string& source) {
         one("cloud_under", "Chance of a 6 hour mean cloud cover under a limit", "Cloud cover under", "%", {10, 30}, 10),
         one("cloud_over", "Chance of a 6 hour mean cloud cover over a limit", "Cloud cover over", "%", {70, 90}, 90),
         one("cape_over", "Chance of CAPE over a limit", "CAPE over", "J/kg", {250, 500, 1000, 1500, 2000, 3000, 4000, 5000, 6000, 8000}, 1000),
+        one("mucape_over", "Chance of the most unstable CAPE over a limit", "MUCAPE over", "J/kg", {250, 500, 1000, 1500, 2000, 3000, 4000}, 500),
         one("z500_over", "Chance of a 500 mb height over a limit", "500 mb height over", "m", {5760, 5820, 5880, 5940, 6000}, 5940),
     };
 }
