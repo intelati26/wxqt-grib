@@ -27,6 +27,7 @@
 #include "hurricane/EnsembleStatsViewer.h"
 #include "hurricane/IntensityViewer.h"
 #include "hurricane/PodViewer.h"
+#include "hurricane/ReconRenderer.h"
 #include "hurricane/ReconViewer.h"
 #include "hurricane/SeasonViewer.h"
 #include "hurricane/UtilityChanges.h"
@@ -252,10 +253,20 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     column->addWidget(buttonPod.getView());
     column->addWidget(buttonVdm.getView());
     column->addWidget(buttonFlight.getView());
-    reconCheck = new QCheckBox{"Recon flights (HDOB, the last 6 hours)", panel};
+    reconCheck = new QCheckBox{"Recon flights (HDOB)", panel};
     reconCheck->setChecked(Utility::readPref("HURRICANE_RECON", "false") == "true");
     column->addSpacing(6);
     column->addWidget(reconCheck);
+    reconHours = ReconRenderer::savedHours("HURRICANE_RECON_HOURS");
+    comboReconHours = ReconRenderer::hoursCombo(panel, "HURRICANE_RECON_HOURS", [this] (int hours) {   // the hours of flights, fixes and sondes that are drawn
+        reconHours = hours;
+        if (reconCheck->isChecked() && ReconRenderer::bulletinsFor(hours) > reconBulletins) {
+            loadRecon();   // more hours than were read
+        }
+        updateInfo();
+        view->map()->update();
+    });
+    column->addWidget(comboReconHours);
     column->addWidget(comboRecon.getView());
     comboRecon.connect([this] { view->map()->update(); });
     barbCheck = new QCheckBox{"Flight-level wind barbs (knots)", panel};
@@ -728,10 +739,11 @@ const UtilityDropsonde::Drop * HurricaneViewer::dropAt(const QPointF& pixels) co
     }
     const UtilityDropsonde::Drop * best = nullptr;
     double bestDistance = 12.0;   // pixels
+    const long cut = reconCut();
     for (const auto& d : drops->drops) {
         const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;
         const double lon = UtilityDropsonde::has(d.splashLon) ? d.splashLon : d.lon;
-        if (!UtilityDropsonde::has(lat) || !dropNear(d)) {
+        if (!UtilityDropsonde::has(lat) || !dropNear(d) || !ReconRenderer::recent(d.seconds, cut)) {
             continue;
         }
         const auto at = view->toPixels(lat, lon);
@@ -795,8 +807,10 @@ void HurricaneViewer::loadRecon() {
     textStatus.setText(string{"Loading the recent reconnaissance bulletins..."});
     auto data = std::make_shared<HurricaneData::ReconData>();
     const auto basin = basinCode();
+    const int bulletins = ReconRenderer::bulletinsFor(reconHours);
+    reconBulletins = bulletins;
     new FutureVoid{this,
-        [data, basin] { HurricaneData::loadRecon(*data, 36, basin); },
+        [data, basin, bulletins] { HurricaneData::loadRecon(*data, bulletins, basin); },
         [this, gen, data] {
             if (closed || gen != generation) {
                 return;
@@ -932,6 +946,48 @@ void HurricaneViewer::zoomToStorm() {
         maxLon = mid + 8.0;
     }
     view->showRegion(minLat, maxLat, minLon, maxLon);
+}
+
+// the reconnaissance that is drawn: the last X hours (the choice of the panel) before the newest observation of this storm
+ReconRenderer::Data HurricaneViewer::reconData(std::vector<UtilityDropsonde::Drop>& nearDrops) const {
+    ReconRenderer::Data data;
+    if (recon) {
+        data.flights = &recon->messages;
+    }
+    if (vdm) {
+        data.fixes = &vdm->messages;
+    }
+    if (drops) {
+        nearDrops.clear();
+        for (const auto& d : drops->drops) {
+            if (dropNear(d)) {
+                nearDrops.push_back(d);
+            }
+        }
+        data.drops = &nearDrops;
+    }
+    return data;
+}
+
+long HurricaneViewer::reconCut() const {
+    std::vector<UtilityDropsonde::Drop> nearDrops;
+    auto data = reconData(nearDrops);
+    // the flights of the storm only (the bulletins are not sorted by storm)
+    std::vector<UtilityHdob::Message> near;
+    if (recon) {
+        for (const auto& message : recon->messages) {
+            UtilityHdob::Message kept = message;
+            kept.obs.clear();
+            for (const auto& ob : message.obs) {
+                if (reconNear(ob)) {
+                    kept.obs.push_back(ob);
+                }
+            }
+            near.push_back(std::move(kept));
+        }
+        data.flights = &near;
+    }
+    return ReconRenderer::cutoff(data, reconHours);
 }
 
 bool HurricaneViewer::reconNear(const UtilityHdob::Ob& ob) const {
@@ -1106,9 +1162,10 @@ void HurricaneViewer::updateInfo() {
             double lowPressure = UtilityHdob::missing;
             const UtilityHdob::Ob * newest = nullptr;
             int count = 0;
+            const long cut = reconCut();
             for (const auto& message : recon->messages) {
                 for (const auto& ob : message.obs) {
-                    if (!reconNear(ob)) {
+                    if (!reconNear(ob) || !ReconRenderer::recent(ob.seconds, cut)) {
                         continue;
                     }
                     count++;
@@ -1120,7 +1177,7 @@ void HurricaneViewer::updateInfo() {
                 }
             }
             if (count == 0) {
-                html += "No flights within 600 km of the storm in the last 6 hours.";
+                html += reconHours > 0 ? "No flights within 600 km of the storm in the last " + QString::number(reconHours) + " hours of reconnaissance." : QString{"No flights within 600 km of the storm."};
             } else {
                 QStringList ids;
                 for (const auto& m : missions) ids << QString::fromStdString(m);
@@ -1566,49 +1623,20 @@ void HurricaneViewer::paintMap(QPainter& painter) {
             }
         }
     }
-    // the recon flight tracks
+    // the recon flight tracks, with their barbs: the shared renderer draws the last hours of them
     if (reconCheck->isChecked() && recon) {
-        for (const auto& message : recon->messages) {
-            const UtilityHdob::Ob * previous = nullptr;
-            for (const auto& ob : message.obs) {
-                if (!reconNear(ob)) {
-                    previous = nullptr;
-                    continue;
-                }
-                const auto p = t(ob.lat, ob.lon);
-                const auto color = reconColor(ob);
-                if (previous != nullptr) {
-                    painter.setPen(QPen{QColor{color.red(), color.green(), color.blue(), 200}, 2.4 * px});
-                    painter.drawLine(t(previous->lat, previous->lon), p);
-                }
-                painter.setPen(Qt::NoPen);
-                painter.setBrush(color);
-                painter.drawEllipse(p, 2.6 * px, 2.6 * px);
-                previous = &ob;
-            }
-        }
-        // flight-level wind barbs, thinned to one every ~34 pixels along each flight
-        if (barbCheck->isChecked()) {
-            for (const auto& message : recon->messages) {
-                bool haveLast = false;
-                QPointF last;
-                for (const auto& ob : message.obs) {
-                    if (!reconNear(ob) || !UtilityHdob::has(ob.windSpeed) || !UtilityHdob::has(ob.windDirection)) {
-                        continue;
-                    }
-                    const auto p = t(ob.lat, ob.lon);
-                    if (haveLast && std::hypot(p.x() - last.x(), p.y() - last.y()) < 34.0 * px) {
-                        continue;
-                    }
-                    haveLast = true;
-                    last = p;
-                    const auto color = reconColor(ob).darker(125);
-                    painter.setPen(QPen{color, 1.4 * px});
-                    painter.setBrush(color);
-                    WindBarb::draw(painter, p, ob.windDirection, ob.windSpeed, 26.0 * px, ob.lat < 0.0);
-                }
-            }
-        }
+        std::vector<UtilityDropsonde::Drop> nearDrops;
+        const auto data = reconData(nearDrops);
+        ReconRenderer::Settings settings;
+        settings.hours = reconHours;
+        settings.sfmr = comboRecon.getIndex() == 1;
+        settings.barbs = barbCheck->isChecked();
+        ReconRenderer::paintFlights(painter, [&t] (double lat, double lon) { return t(lat, lon); }, px, data, settings, [this] (double lat, double lon) {
+            UtilityHdob::Ob ob;
+            ob.lat = lat;
+            ob.lon = lon;
+            return reconNear(ob);
+        });
     }
 }
 
@@ -1651,80 +1679,26 @@ void HurricaneViewer::paintOutlook(QPainter& painter) {
 }
 
 void HurricaneViewer::paintPlannedRecon(QPainter& painter) {
-    if (dropCheck != nullptr && dropCheck->isChecked() && drops) {
+    {   // the dropsondes and the centre fixes: the shared renderer, the last hours of them
         const auto t = view->transform();
         const double px = view->unitsPerPixel();
-        for (const auto& d : drops->drops) {
-            const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;
-            const double lon = UtilityDropsonde::has(d.splashLon) ? d.splashLon : d.lon;
-            if (!UtilityDropsonde::has(lat) || !dropNear(d)) {
-                continue;
-            }
-            const auto at = t(lat, lon);
-            QPolygonF triangle;
-            triangle << at + QPointF{0, 7 * px} << at + QPointF{-6 * px, -5 * px} << at + QPointF{6 * px, -5 * px};   // a downward triangle: a sonde falling
-            painter.setPen(QPen{QColor{255, 255, 255}, 1.4 * px});
-            painter.setBrush(QColor{60, 140, 255, 230});
-            painter.drawPolygon(triangle);
+        std::vector<UtilityDropsonde::Drop> nearDrops;
+        auto data = reconData(nearDrops);
+        ReconRenderer::Settings settings;
+        settings.hours = reconHours;
+        settings.labels = dropLabelCheck != nullptr && dropLabelCheck->isChecked();
+        const auto project = [&t] (double lat, double lon) { return t(lat, lon); };
+        if (dropCheck != nullptr && dropCheck->isChecked() && drops) {
+            auto only = data;
+            only.flights = nullptr;
+            only.fixes = nullptr;
+            ReconRenderer::paintDrops(painter, project, px, only, settings);
         }
-        // the lowest pressure (the surface) and the strongest wind of each sonde beside its marker, where there is room for the text
-        if (dropLabelCheck != nullptr && dropLabelCheck->isChecked()) {
-            QFont font{painter.font()};
-            font.setPixelSize(static_cast<int>(10 * px));
-            font.setBold(true);
-            painter.setFont(font);
-            const QFontMetricsF metrics{font};
-            std::vector<QRectF> taken;
-            // the lowest pressure first: those in the eye are the ones to read
-            std::vector<const UtilityDropsonde::Drop *> order;
-            for (const auto& d : drops->drops) {
-                const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;
-                if (UtilityDropsonde::has(lat) && dropNear(d)) {
-                    order.push_back(&d);
-                }
-            }
-            std::stable_sort(order.begin(), order.end(), [] (const auto * a, const auto * b) {
-                const double pa = UtilityDropsonde::minimumPressure(*a);
-                const double pb = UtilityDropsonde::minimumPressure(*b);
-                return (UtilityDropsonde::has(pa) ? pa : 9999.0) < (UtilityDropsonde::has(pb) ? pb : 9999.0);
-            });
-            for (const auto * d : order) {
-                const double lat = UtilityDropsonde::has(d->splashLat) ? d->splashLat : d->lat;
-                const double lon = UtilityDropsonde::has(d->splashLon) ? d->splashLon : d->lon;
-                const double pressure = UtilityDropsonde::minimumPressure(*d);
-                const double wind = UtilityDropsonde::maxWind(*d);
-                if (!UtilityDropsonde::has(pressure) && !UtilityDropsonde::has(wind)) {
-                    continue;
-                }
-                const QString text = (UtilityDropsonde::has(pressure) ? QString::number(static_cast<int>(std::lround(pressure))) + " mb" : QString{}) +
-                    (UtilityDropsonde::has(pressure) && UtilityDropsonde::has(wind) ? "  " : "") + (UtilityDropsonde::has(wind) ? QString::number(static_cast<int>(std::lround(wind))) + " kt" : QString{});
-                const auto at = t(lat, lon);
-                const QRectF box{at.x() + 9 * px, at.y() - 7 * px, metrics.horizontalAdvance(text) + 6 * px, 13 * px};
-                if (std::any_of(taken.begin(), taken.end(), [&] (const QRectF& other) { return other.intersects(box); })) {
-                    continue;
-                }
-                taken.push_back(box);
-                painter.setPen(Qt::NoPen);
-                painter.setBrush(QColor{10, 20, 40, 190});
-                painter.drawRoundedRect(box, 3 * px, 3 * px);
-                painter.setPen(QColor{150, 205, 255});
-                painter.drawText(box, Qt::AlignCenter, text);
-            }
-        }
-    }
-    if (fixCheck != nullptr && fixCheck->isChecked() && vdm) {
-        const auto t = view->transform();
-        const double px = view->unitsPerPixel();
-        for (const auto& m : vdm->messages) {
-            if (!UtilityVdm::has(m.lat) || !UtilityVdm::has(m.lon)) {
-                continue;
-            }
-            const auto at = t(m.lat, m.lon);
-            painter.setPen(QPen{QColor{255, 255, 255}, 1.6 * px});
-            painter.setBrush(QColor{220, 40, 40, 200});
-            painter.drawEllipse(at, 5.5 * px, 5.5 * px);
-            painter.drawLine(at + QPointF{-8 * px, 0}, at + QPointF{8 * px, 0});
-            painter.drawLine(at + QPointF{0, -8 * px}, at + QPointF{0, 8 * px});
+        if (fixCheck != nullptr && fixCheck->isChecked() && vdm) {
+            auto only = data;
+            only.flights = nullptr;
+            only.drops = nullptr;
+            ReconRenderer::paintFixes(painter, project, px, only, settings);
         }
     }
     if (podCheck == nullptr || !podCheck->isChecked() || !pod || !pod->error.empty()) {
@@ -1944,11 +1918,12 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
             }
         }
     }
+    const long cut = reconCut();
     if (dropCheck->isChecked() && drops) {
         for (const auto& d : drops->drops) {
             const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;
             const double lon = UtilityDropsonde::has(d.splashLon) ? d.splashLon : d.lon;
-            if (UtilityDropsonde::has(lat) && dropNear(d)) {
+            if (UtilityDropsonde::has(lat) && dropNear(d) && ReconRenderer::recent(d.seconds, cut)) {
                 QString text = "Dropsonde " + QString::fromStdString(UtilityHdob::timeText(d.seconds)) + "  " + QString::fromStdString(d.mission);
                 if (const auto * s = d.surface()) {
                     text += "\nSurface " + QString::number(static_cast<int>(s->pressure)) + " mb";
@@ -1962,7 +1937,7 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
     }
     if (fixCheck->isChecked() && vdm) {
         for (const auto& m : vdm->messages) {
-            if (UtilityVdm::has(m.lat) && UtilityVdm::has(m.lon)) {
+            if (UtilityVdm::has(m.lat) && UtilityVdm::has(m.lon) && ReconRenderer::recent(m.seconds, cut)) {
                 QString text = "Recon centre fix " + VdmViewer::timeText(m.seconds) + "  " + QString::fromStdString(m.aircraft);
                 if (UtilityVdm::has(m.pressure)) text += "\nMinimum pressure " + QString::number(static_cast<int>(m.pressure)) + " mb" + (m.extrapolated ? " (extrapolated)" : "");
                 if (UtilityVdm::has(m.maxFlightWind())) text += "\nStrongest flight-level wind " + knotsOf(m.maxFlightWind());
@@ -1975,7 +1950,7 @@ void HurricaneViewer::showHover(const QPointF& pixels) {
         for (const auto& message : recon->messages) {
             breakLine();
             for (const auto& ob : message.obs) {
-                if (!reconNear(ob)) {
+                if (!reconNear(ob) || !ReconRenderer::recent(ob.seconds, cut)) {
                     breakLine();
                     continue;
                 }

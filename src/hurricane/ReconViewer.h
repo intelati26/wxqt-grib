@@ -43,6 +43,7 @@ public:
     void setColoring(bool sfmr) { useSfmr = sfmr; update(); }
     void resetZoom() { zoom = 1.0; pan = {}; update(); }
     void setBarbs(bool on) { barbs = on; update(); }
+    void setHours(int h) { hours = h; update(); }   // only the last X hours of the flight before its newest observation are drawn (0 all)
     std::function<void(const UtilityDropsonde::Drop&)> onDrop;   // a click on a dropsonde (its triangle on the map)
     // the colour of a wind in knots (the same scale for the flight level and the surface)
     static QColor windColor(double knots);
@@ -62,6 +63,8 @@ private:
     FloaterGeo::Geo geo;
     bool useSfmr{false};
     bool barbs{true};
+    int hours{0};
+    long cutNow() const;
     double zoom{1.0};                           // wheel to zoom at the pointer, drag to pan, double click to reset
     QPointF pan;                                // the picture's shift in widget pixels
     QPointF dragFrom, pressAt;

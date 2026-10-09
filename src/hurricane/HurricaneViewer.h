@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QTimer>
 #include <QLabel>
 #include <QPointF>
@@ -19,6 +20,7 @@
 #include "hurricane/GuidanceTree.h"
 #include "hurricane/UtilityEnsembleStats.h"
 #include "hurricane/HurricaneData.h"
+#include "hurricane/ReconRenderer.h"
 #include "radar/MapView.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
@@ -68,6 +70,11 @@ private:
     void paintLegend(QPainter&);
     void showHover(const QPointF& pixels);
     bool reconNear(const UtilityHdob::Ob&) const;
+    ReconRenderer::Data reconData(std::vector<UtilityDropsonde::Drop>& nearDrops) const;   // what the renderer draws
+    long reconCut() const;                                                                // the oldest second of reconnaissance that is drawn
+    QComboBox * comboReconHours{};
+    int reconHours{6};          // the last X hours of reconnaissance drawn (0 all)
+    int reconBulletins{36};     // how many HDOB bulletins are read
     void closeEventCustom() override { closed = true; }
     void resizeEventCustom() override;
     QColor reconColor(const UtilityHdob::Ob&) const;

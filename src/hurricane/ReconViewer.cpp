@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "hurricane/ReconViewer.h"
+#include "hurricane/ReconRenderer.h"
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -145,12 +146,25 @@ void ReconMap::mouseReleaseEvent(QMouseEvent * event) {
     }
 }
 
+// the oldest second drawn: `hours` before the newest observation, fix or sonde of the flight
+long ReconMap::cutNow() const {
+    if (hours <= 0) {
+        return 0;
+    }
+    long newest = 0;
+    for (const auto& ob : flight.obs) newest = std::max(newest, ob.seconds);
+    for (const auto& fix : flight.fixes) newest = std::max(newest, fix.seconds);
+    for (const auto& drop : flight.drops) newest = std::max(newest, drop.seconds);
+    return newest == 0 ? 0 : newest - static_cast<long>(hours) * 3600;
+}
+
 const UtilityDropsonde::Drop * ReconMap::dropAt(const QPointF& at) const {
     const UtilityDropsonde::Drop * found = nullptr;
     double best = 12.0;
+    const long cut = cutNow();
     for (const auto& drop : flight.drops) {
         const double lat = has(drop.releaseLat) ? drop.releaseLat : drop.lat, lon = has(drop.releaseLon) ? drop.releaseLon : drop.lon;
-        if (!has(lat) || !has(lon)) {
+        if (!has(lat) || !has(lon) || !ReconRenderer::recent(drop.seconds, cut)) {
             continue;
         }
         const auto p = toWidget(lon, lat) + QPointF{0, 0};
@@ -228,7 +242,11 @@ void ReconMap::paintEvent(QPaintEvent *) {
     // the flight: a segment at a time, coloured by the wind
     const auto& obs = flight.obs;
     const auto wind = [this] (const UtilityHdob::Ob& ob) { return useSfmr ? ob.sfmrWind : ob.windSpeed; };
+    const long cut = cutNow();
     for (size_t i = 1; i < obs.size(); i++) {
+        if (!ReconRenderer::recent(obs[i - 1].seconds, cut)) {
+            continue;
+        }
         if (obs[i].seconds - obs[i - 1].seconds > 900) {   // a gap of a quarter hour or more: the aircraft was away
             continue;
         }
@@ -243,7 +261,7 @@ void ReconMap::paintEvent(QPaintEvent *) {
         p.setBrush(QColor{15, 15, 15});
         long lastBarb = 0;
         for (const auto& ob : obs) {
-            if (!has(ob.windSpeed) || !has(ob.windDirection) || ob.seconds - lastBarb < 300) {   // one barb every five minutes
+            if (!has(ob.windSpeed) || !has(ob.windDirection) || ob.seconds - lastBarb < 300 || !ReconRenderer::recent(ob.seconds, cut)) {   // one barb every five minutes
                 continue;
             }
             lastBarb = ob.seconds;
@@ -265,7 +283,7 @@ void ReconMap::paintEvent(QPaintEvent *) {
     small.setBold(true);
     p.setFont(small);
     for (const auto& fix : flight.fixes) {
-        if (!has(fix.lat) || !has(fix.lon)) {
+        if (!has(fix.lat) || !has(fix.lon) || !ReconRenderer::recent(fix.seconds, cut)) {
             continue;
         }
         const auto at = toWidget(fix.lon, fix.lat);
@@ -282,7 +300,7 @@ void ReconMap::paintEvent(QPaintEvent *) {
     // dropsondes: where they were released, with the lowest pressure and the strongest wind they measured
     for (const auto& drop : flight.drops) {
         const double lat = has(drop.releaseLat) ? drop.releaseLat : drop.lat, lon = has(drop.releaseLon) ? drop.releaseLon : drop.lon;
-        if (!has(lat) || !has(lon)) {
+        if (!has(lat) || !has(lon) || !ReconRenderer::recent(drop.seconds, cut)) {
             continue;
         }
         const auto at = toWidget(lon, lat);
@@ -352,7 +370,11 @@ void ReconMap::mouseMoveEvent(QMouseEvent * event) {
     setCursor(Qt::ArrowCursor);
     double best = 14.0;
     const UtilityHdob::Ob * near = nullptr;
+    const long hoverCut = cutNow();
     for (const auto& ob : flight.obs) {
+        if (!ReconRenderer::recent(ob.seconds, hoverCut)) {
+            continue;
+        }
         const auto at = toWidget(ob.lon, ob.lat);
         const double d = std::hypot(at.x() - event->position().x(), at.y() - event->position().y());
         if (d < best) {
@@ -442,6 +464,11 @@ ReconViewer::ReconViewer(Window * parent, const std::string& id, const std::stri
     row.addWidget(comboMission, 1);
     row.addWidget(buttonRefresh);
     row2.addWidget(comboFloater);
+    {   // the last X hours of the flight (a long flight with its fixes and sondes is a lot to read)
+        auto * hoursBox = ReconRenderer::hoursCombo(this, "RECON_PAGE_HOURS", [this] (int hours) { map->setHours(hours); }, 0);   // the whole flight to begin with
+        map->setHours(hoursBox->currentData().toInt());
+        row2.addWidgetReal(hoursBox);
+    }
     row2.addWidget(comboColor);
     row2.addWidget(comboRefresh);
     row2.addWidgetReal(checkBarbs);
