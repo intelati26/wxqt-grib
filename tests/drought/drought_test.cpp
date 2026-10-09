@@ -97,6 +97,18 @@ int main(int argc, char ** argv) {
     CHECK(again.size() == 2 && again[0].month == "2026-08" && std::abs(again[0].rain - 41.3) < 0.01 && std::abs(again[0].temperature - 1.25) < 0.001 && !again[0].hasDrought(), "history rows are read back");
     CHECK(again[1].hasDrought() && !again[1].hasWeather() == false && std::isnan(again[1].departure) && again[1].mapDate == "20260929" && std::abs(again[1].d[2] - 40.0) < 0.01, "empty columns stay empty, filled ones come back");
     CHECK(csv.find("# wxqt drought history: Colorado") == 0 && csv.find("\nmonth,rain_mm") != std::string::npos, "the file says what it is and has a header");
+    // the Monitor's weekly statistics: the service's CSV, and the months made from it
+    const std::string weeklyCsv = "MapDate,WeatherForecastOffice,None,D0,D1,D2,D3,D4,ValidStart,ValidEnd,StatisticFormatID\n20260929,EAX,81.00,19.00,5.00,1.00,0.00,0.00,2026-09-29,2026-10-05,1\n"
+                                  "20260922,EAX,80.00,20.00,6.00,2.00,0.50,0.00,2026-09-22,2026-09-28,1\n20260908,EAX,70.00,30.00,10.00,4.00,1.00,0.00,2026-09-08,2026-09-14,1\nbad,row\n";
+    const auto weeks = DroughtHistory::parseWeeks(weeklyCsv);
+    CHECK(weeks.size() == 3 && weeks.front().date == "20260908" && weeks.back().date == "20260929" && std::abs(weeks.back().d[1] - 5.0) < 0.001 && std::abs(weeks.back().dsci() - 25.0) < 0.001, "the weekly statistics are read, oldest first");
+    std::vector<DroughtHistory::Row> months(1);
+    months[0].month = "2026-08";
+    DroughtHistory::fillMonths(months, weeks);
+    CHECK(months.size() == 2 && months[1].month == "2026-09" && months[1].mapDate == "20260929" && std::abs(months[1].d[0] - 19.0) < 0.001 && !months[0].hasDrought(), "a month takes the last week dated in it, and one with no week stays empty");
+    months[1].d[0] = 7.0;
+    DroughtHistory::fillMonths(months, weeks);
+    CHECK(std::abs(months[1].d[0] - 19.0) < 0.001, "the Monitor's statistics replace what was worked out from the shapes");
     const auto same = UtilityDrought::change(raster, raster);
     for (const auto v : same) {
         CHECK(v == 0, "no change from a map to itself");

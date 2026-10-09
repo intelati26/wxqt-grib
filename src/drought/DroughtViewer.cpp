@@ -518,6 +518,8 @@ DroughtViewer::DroughtViewer(Window * parent)
         row->addWidget(exportButton);
         row->addStretch();
         column->addLayout(row);
+        textHistory.getView()->setWordWrap(true);
+        textHistory.getView()->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         column->addWidget(textHistory.getView());
         historyChart = new HistoryChart{widget};
         column->addWidget(historyChart, 1);
@@ -627,6 +629,9 @@ void DroughtViewer::loadAreas() {
                        map->setLand(states);
                        map->setCounties(counties);
                        loadSpc();
+                       if (const auto env = qgetenv("WXQT_HISTORY"); !env.isEmpty()) {   // dev: the history column to chart
+                           comboHistory.setIndex(env.toInt());
+                       }
                        if (const auto env = qgetenv("WXQT_METRIC"); !env.isEmpty()) {
                            comboMetric.setIndex(env.toInt());
                        }
@@ -1083,7 +1088,23 @@ void DroughtViewer::updateHistory() {
     const auto box = boxFor(areas, country, 0.04, 260);
     history = DroughtHistory::read(id);
     showHistory();
-    new FutureVoid{this, [this, id, name, areas, box, mine] {
+    // the Drought Monitor's own weekly statistics, for the kinds of area it keeps them for (the country, a state, a county, a forecast office): the whole record in one request
+    std::string route, aoi;
+    const auto digits = [] (const std::string& s) { return !s.empty() && std::all_of(s.begin(), s.end(), [] (unsigned char ch) { return std::isdigit(ch); }); };
+    if (country) {
+        route = "USStatistics";
+        aoi = "conus";
+    } else if (id.size() == 2 && digits(id)) {
+        route = "StateStatistics";
+        aoi = id;
+    } else if (id.size() == 5 && digits(id)) {
+        route = "CountyStatistics";
+        aoi = id;
+    } else if (std::any_of(offices->begin(), offices->end(), [&id] (const auto& o) { return o.id == id; })) {
+        route = "WeatherForecastOfficeStatistics";
+        aoi = id;
+    }
+    new FutureVoid{this, [this, id, name, areas, box, mine, route, aoi] {
                        const NetManager::Scope background{NetManager::Priority::Background};
                        UtilityDrought::Raster like;
                        like.west = box.west;
@@ -1112,6 +1133,37 @@ void DroughtViewer::updateHistory() {
                                }
                            }, Qt::QueuedConnection);
                        };
+                       bool haveWeeks = false;
+                       if (!route.empty()) {   // the weekly statistics since 2000: only what is newer than the file is asked for
+                           auto weeks = DroughtHistory::readWeeks(id);
+                           const QDate from = weeks.empty() ? QDate{2000, 1, 1} : QDate::fromString(weeks.back().date, "yyyyMMdd").addDays(-21);
+                           const std::string url = "https://usdmdataservices.unl.edu/api/" + route + "/GetDroughtSeverityStatisticsByAreaPercent?aoi=" + aoi + "&startdate=" + from.toString("M/d/yyyy").toStdString() +
+                               "&enddate=" + today.toString("M/d/yyyy").toStdString() + "&statisticsType=1";
+                           const auto fresh = DroughtHistory::parseWeeks(URL::getBytes(url).toStdString());
+                           if (!fresh.empty()) {
+                               std::map<QString, DroughtHistory::Week> byDate;
+                               for (const auto& w : weeks) {
+                                   byDate[w.date] = w;
+                               }
+                               for (const auto& w : fresh) {
+                                   byDate[w.date] = w;   // a newer number for a week replaces the old one
+                               }
+                               weeks.clear();
+                               for (const auto& [date, w] : byDate) {
+                                   weeks.push_back(w);
+                               }
+                               DroughtHistory::writeWeeks(id, name, weeks);
+                           }
+                           if (!weeks.empty()) {
+                               haveWeeks = true;
+                               DroughtHistory::fillMonths(rows, weeks);
+                               at.clear();
+                               for (size_t i = 0; i < rows.size(); i++) {
+                                   at[rows[i].month] = i;
+                               }
+                               save();
+                           }
+                       }
                        for (auto month = lastMonth; month >= QDate{2017, 1, 1}; month = month.addMonths(-1)) {   // the newest first, so the recent years show soonest
                            if (closed || mine != historyGeneration) {
                                return;
@@ -1143,7 +1195,7 @@ void DroughtViewer::updateHistory() {
                                    changed = true;
                                }
                            }
-                           if (!r.hasDrought() && month >= lastMonth.addMonths(-35)) {   // the last 36 months: the map of the last Tuesday of the month
+                           if (!haveWeeks && !r.hasDrought() && month >= lastMonth.addMonths(-35)) {   // the last 36 months: the map of the last Tuesday of the month
                                auto tuesday = month.addMonths(1).addDays(-1);
                                while (tuesday.dayOfWeek() != 2) {
                                    tuesday = tuesday.addDays(-1);
@@ -1198,6 +1250,9 @@ void DroughtViewer::showHistory() {
         p.ok = !std::isnan(v);
         p.value = p.ok ? v : 0.0;
         points.push_back(p);
+    }
+    while (!points.empty() && !points.front().ok) {   // the years before the column begins
+        points.erase(points.begin());
     }
     const QString units[] = {inches ? "in" : "mm", "%", "rank", inches ? "F" : "C", "rank", "%", "index"};
     const bool bars = column == 0 || column == 3;

@@ -30,6 +30,20 @@ namespace DroughtHistory {
     std::string toCsv(const std::string& areaName, const std::vector<Row>& rows);
     std::vector<Row> fromCsv(const std::string& text);   // comment lines (#) and the header are skipped; a missing value is NaN
     std::vector<Row> read(const std::string& areaId);
+    // The Drought Monitor's own weekly statistics for an area back to the first map (4 January 2000): one row a week, the percent of the area in D0 or worse ... D4. Kept in a CSV of its
+    // own (drought/history/<area>_weekly.csv, added to each time), from which the months' drought columns are filled.
+    struct Week {
+        QString date;                                    // "20260929"
+        double d[5]{NAN, NAN, NAN, NAN, NAN};
+        double dsci() const { return d[0] + d[1] + d[2] + d[3] + d[4]; }
+    };
+    // the service's CSV ("MapDate,AreaOfInterest,None,D0,D1,D2,D3,D4,ValidStart,..."; the second column is named as the kind of area is): the cumulative shares; rows that do not parse are skipped
+    std::vector<Week> parseWeeks(const std::string& csv);
+    QString weeklyFileFor(const std::string& areaId);
+    std::vector<Week> readWeeks(const std::string& areaId);
+    bool writeWeeks(const std::string& areaId, const std::string& areaName, const std::vector<Week>& weeks);
+    // the weeks folded into the monthly rows: a month takes the drought columns of the last week whose map is dated in it (replacing any worked out from the shapes); a month that is not there yet is made when it has a week
+    void fillMonths(std::vector<Row>& rows, const std::vector<Week>& weeks);
     bool write(const std::string& areaId, const std::string& areaName, const std::vector<Row>& rows);   // all or nothing
 }
 
