@@ -10,11 +10,13 @@
 #include <vector>
 #include <QByteArray>
 #include <QString>
+#include <QtGlobal>
 #include "gfs/GfsChart.h"
 
 // The app's side of the GFS charts: the network, the GDAL folder, the borders and the user's units, handed to GfsData / GfsChart.
 namespace GfsRender {
-    // The cache of one model screen: the decoded grids and the GRIB records fetched so far, in a temporary folder that is deleted when the session ends (the screen closes)
+    // The handle a model screen holds on the model data cache: the decoded grids and the GRIB records fetched, in a folder shared by every screen and kept between runs of the program (GfsCache:
+    // older than 48 hours by default is removed when the program starts)
     class Session {
     public:
         Session();
@@ -28,6 +30,9 @@ namespace GfsRender {
         QString path;
     };
 
+    // the bytes the model data cache holds, and remove them all (for the settings)
+    qint64 cacheUsage();
+    void clearCache();
     // true when the model's charts are drawn here at all (the model screen then offers the grouped picker instead of a plain list)
     bool drawsModel(const std::string& model);
     // true when the chart for this model screen product code ("500_wnd_ht") is drawn here rather than fetched as a picture

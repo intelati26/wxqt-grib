@@ -17,6 +17,7 @@
 #include <QTemporaryDir>
 #include <QStandardPaths>
 #include "common/GlobalVariables.h"
+#include "gfs/GfsCache.h"
 #include "gfs/GfsChart.h"
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsData.h"
@@ -25,6 +26,7 @@
 #include "models/UtilityGrib.h"
 #include "objects/URL.h"
 #include "settings/UIPreferences.h"
+#include "util/Utility.h"
 #include "util/UtilityIO.h"
 
 namespace {
@@ -94,26 +96,31 @@ namespace {
 }
 
 GfsRender::Session::Session() {
-    // the first of these screens removes what the earlier versions left in the cache folder (decoded grids that were never cleared)
+    // the first screen of a run of the program tidies the shared cache: what is older than the number of hours kept (48 unless the settings say otherwise) goes, and the oldest go first
+    // when it is over its size limit
     static std::once_flag once;
-    std::call_once(once, [] { QDir{QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/gfs"}.removeRecursively(); });
-    const auto base = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/wxqt_gfs_session_XXXXXX";
-    QTemporaryDir dir{base};
-    dir.setAutoRemove(false);   // removed in the destructor, so the path outlives this scope
-    path = dir.path();
+    std::call_once(once, [] {
+        GfsCache::prune(Utility::readPrefInt("MODEL_CACHE_HOURS", GfsCache::defaultHours), static_cast<qint64>(Utility::readPrefInt("MODEL_CACHE_MB", GfsCache::defaultMegabytes)) * 1024 * 1024);
+    });
+    path = GfsCache::folder();   // the same folder for every screen: a field one of them fetched is there for the others, and for the next run of the program
 }
 
-GfsRender::Session::~Session() {
-    QDir{path}.removeRecursively();
-}
+GfsRender::Session::~Session() = default;   // nothing to remove: the cache outlives the screen
 
 QString GfsRender::Session::folder() const {
     return path;
 }
 
-QString GfsRender::Session::partialGrib(const std::string& cycleRun, int hour) const {
-    const auto file = path + "/gfs." + QString::fromStdString(cycleRun) + ".f" + QString::number(hour).rightJustified(3, '0') + ".partial.grib2";
-    return QFileInfo::exists(file) ? file : QString{};
+QString GfsRender::Session::partialGrib(const std::string&, int) const {
+    return {};   // the file of what was downloaded for a run and hour is made by GfsData::partialGrib, from the messages in the cache
+}
+
+qint64 GfsRender::cacheUsage() {
+    return GfsCache::usage();
+}
+
+void GfsRender::clearCache() {
+    GfsCache::clear();
 }
 
 bool GfsRender::drawsModel(const std::string& model) {

@@ -6,6 +6,7 @@
 
 #include "settings/SettingsBox.h"
 #include "common/GlobalVariables.h"
+#include "gfs/GfsRender.h"
 #include "misc/TextViewerStatic.h"
 #include "settings/UIPreferences.h"
 #include "util/Utility.h"
@@ -15,6 +16,8 @@
 SettingsBox::SettingsBox(Window * parent)
     : Widget{parent}
     , button{parent, None, "Keyboard Shortcuts"}
+    , buttonClearCache{parent, None, "Clear the model data cache"}
+    , cacheUsage{parent, ""}
     , homeScreenLabel{parent, "Homescreen widgets: choose and order them under Home Screen Order (drag, tick)."}
     , generalLabel{parent, "General preferences:"}
     , themeLabel{parent, "Theme (light / dark)"}
@@ -44,6 +47,8 @@ SettingsBox::SettingsBox(Window * parent)
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Toolbar icon size", "TOOLBAR_ICON_SIZE", 36, 10, 72, 4));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Forecast icon size", "NWS_ICON_SIZE_PREF", 62, 10, 120, 4));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Font size", "GENERAL_FONT_SIZE", 13, 6, 30, 1));
+    numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Model data kept on disk for this many hours (applied when the program starts)", "MODEL_CACHE_HOURS", 48, 1, 720, 6));
+    numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Model data cache size limit (MB; the oldest go first)", "MODEL_CACHE_MB", 2048, 200, 20000, 200));
 
     button.connect([parent] { new TextViewerStatic{parent, GlobalVariables::mainScreenShortcuts}; });
 
@@ -78,9 +83,22 @@ SettingsBox::SettingsBox(Window * parent)
     for (auto i : range(numberPickers.size())) {
         boxRight.addLayout(*numberPickers[i]);
     }
+    cacheUsage.setWordWrap(true);
+    boxRight.addWidget(cacheUsage);
+    boxRight.addWidget(buttonClearCache);
+    buttonClearCache.connect([this] {
+        GfsRender::clearCache();
+        showCacheUsage();
+    });
+    showCacheUsage();
     boxLeft.addStretch();
     boxCenter.addStretch();
     boxRight.addStretch();
+}
+
+void SettingsBox::showCacheUsage() {
+    const auto megabytes = static_cast<double>(GfsRender::cacheUsage()) / (1024.0 * 1024.0);
+    cacheUsage.setText(string{"The model data cache (the fields of the GFS, RRFS, NBM and the other models drawn from GRIB) holds "} + std::to_string(static_cast<long long>(megabytes + 0.5)) + " MB.");
 }
 
 void SettingsBox::changeTheme() {

@@ -12,6 +12,7 @@
 #include <QDir>
 #include <QFile>
 #include <QProcess>
+#include <QSaveFile>
 #include <QRegularExpression>
 
 namespace {
@@ -234,8 +235,15 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
         error = source.id + " has no " + want.variable + " " + want.level + (want.forecast.empty() ? "" : " (" + want.forecast + ")") + " in this run";
         return false;
     }
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail);
+    // The name says what the field is: the model, the run, the hour, the file, the record, and how it was decoded (the grid it was warped to and which value means "no data"), so a change in
+    // either is a different entry and an old one is never served in its place.
+    const QString decoded = source.warp.enabled ? QString{"w%1_%2_%3_%4_%5"}.arg(source.warp.step).arg(source.warp.west).arg(source.warp.south).arg(source.warp.east).arg(source.warp.north) : QString{"p"};
+    const QString missing = std::isnan(source.extraMissing) ? QString{} : QString{"_m%1"}.arg(static_cast<double>(source.extraMissing));
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_") + QString::fromStdString(want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail) + "_" + decoded + missing;
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
+    if (name.size() > 170) {   // a file name has a limit: the head tells which run and hour (the partial file is found by it), a hash the rest
+        name = name.left(110) + "_" + QString::number(qHash(name), 16);
+    }
     QDir{}.mkpath(config.cacheFolder);
     const auto cachePath = config.cacheFolder + "/" + name + ".gz4";
     constexpr int header = 4 + 4 + 8 + 8 + 8;
@@ -265,25 +273,18 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
         error = "could not download " + want.variable + " " + want.level;
         return false;
     }
-    {   // keep the message in the run's partial file as well
-        const std::lock_guard lock{partialMutex};
-        QFile partial{partialGrib(run, hour, file)};
-        if (partial.open(QIODevice::WriteOnly | QIODevice::Append)) {
-            partial.write(slice);
-        }
-    }
-    const auto gribPath = config.cacheFolder + "/" + name + ".grib2";
+    // the GRIB message stays with the decoded grid (the file made of what was downloaded for a run and hour is joined from these)
+    const auto gribPath = config.cacheFolder + "/" + name + ".grb2";
     const auto rawPath = config.cacheFolder + "/" + name + ".raw";
     const auto hdrPath = config.cacheFolder + "/" + name + ".hdr";
     const auto cleanup = [&] {
-        QFile::remove(gribPath);
         QFile::remove(rawPath);
         QFile::remove(hdrPath);
         QFile::remove(rawPath + ".aux.xml");
     };
     {
-        QFile f{gribPath};
-        if (!f.open(QIODevice::WriteOnly) || f.write(slice) != slice.size()) {
+        QSaveFile f{gribPath};   // written whole or not at all: another screen may be reading the folder
+        if (!f.open(QIODevice::WriteOnly) || f.write(slice) != slice.size() || !f.commit()) {
             error = "could not write " + gribPath.toStdString();
             cleanup();
             return false;
@@ -355,16 +356,37 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     std::memcpy(store.data() + 16, &g.lat0, 8);
     std::memcpy(store.data() + 24, &g.step, 8);
     store += qCompress(QByteArray::fromRawData(reinterpret_cast<const char *>(g.values.data()), static_cast<qsizetype>(g.values.size() * 4)), 6);
-    QFile keep{cachePath};
-    if (keep.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    QSaveFile keep{cachePath};
+    if (keep.open(QIODevice::WriteOnly)) {
         keep.write(store);
+        keep.commit();
     }
     out = std::move(g);
     return true;
 }
 
 QString GfsData::partialGrib(const Run& run, int hour, const std::string& file) const {
-    return config.cacheFolder + "/" + QString::fromStdString(source.id) + "." + QString::fromStdString(run.id()) + ".f" + QString::fromStdString(pad(hour, 3)) + (file.empty() ? "" : "." + QString::fromStdString(file)) + ".partial.grib2";
+    // the messages kept for this run, hour and file, joined (a GRIB file is only messages one after the other): made when asked, from whatever has been downloaded, in any session
+    QString prefix = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_");
+    prefix.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
+    const QDir dir{config.cacheFolder};
+    const auto parts = dir.entryInfoList({prefix + "*.grb2"}, QDir::Files, QDir::Name);
+    if (parts.isEmpty()) {
+        return {};
+    }
+    const std::lock_guard lock{partialMutex};
+    const auto path = config.cacheFolder + "/" + prefix + "joined.partial";   // the pruning removes these: they are made to be read once
+    QSaveFile joined{path};
+    if (!joined.open(QIODevice::WriteOnly)) {
+        return {};
+    }
+    for (const auto& part : parts) {
+        QFile in{part.absoluteFilePath()};
+        if (in.open(QIODevice::ReadOnly)) {
+            joined.write(in.readAll());
+        }
+    }
+    return joined.commit() ? path : QString{};
 }
 
 bool GfsData::load(const Run& run, int hour, const std::vector<Want>& wants, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {

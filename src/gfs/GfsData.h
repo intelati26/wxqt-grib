@@ -25,7 +25,7 @@ public:
     struct Config {
         std::function<QByteArray(const std::string& url, long long start, long long end)> bytes;   // end < 0: the whole file / listing
         std::string gdalBin;       // the folder holding gdal_translate
-        QString cacheFolder;       // decoded grids and the partial GRIB; the caller removes it when the screen using it closes
+        QString cacheFolder;       // decoded grids and the GRIB messages they came from (GfsCache keeps the folder: shared by the screens, kept between runs)
     };
     struct Run {
         std::string date;          // "20261008"
@@ -91,7 +91,7 @@ public:
     bool load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const;
     bool load(const Run& run, int forecastHour, const std::vector<Want>& wants, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const;
     std::string fileUrl(const Run& run, int forecastHour, const std::string& file = "") const { return source.fileUrl(run, forecastHour, file); }
-    // the records downloaded so far for a run and hour, joined into one valid GRIB2 file in the cache folder as they arrive ("" if none yet): GRIB messages stand alone, so appending is all it takes
+    // the records downloaded for a run and hour (in this session or an earlier one still in the cache), joined into one valid GRIB2 file ("" if none): GRIB messages stand alone, so joining is all it takes
     QString partialGrib(const Run& run, int forecastHour, const std::string& file = "") const;
 
 private:
