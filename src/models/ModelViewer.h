@@ -26,7 +26,8 @@ using std::string;
 class ModelViewer : public Window {
 public:
     ModelViewer(Window *, const string&);
-    void showPicker();   // the grouped chart picker (the models drawn from GRIB)
+    void showPicker();
+    void showSectorPicker();   // the same, for the areas   // the grouped chart picker (the models drawn from GRIB)
 
 private:
     void changeModelCb();
@@ -60,6 +61,8 @@ private:
     ComboBox comboboxTime;
     BackForward backForward;
     Button buttonProducts;
+    Button buttonSector;
+    QPointer<ProductPicker> sectorPicker;
     QPointer<ProductPicker> picker;
 };
 

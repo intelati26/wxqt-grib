@@ -31,6 +31,8 @@ public:
     std::function<void(const std::string&)> onPick;
     std::function<void(const std::vector<std::string>&)> onOverlays;
     std::function<void(const std::vector<std::string>&)> onFavorites;
+    // for choosing something else from the same kind of list (the areas): the window title, the search box and the button say so
+    void setWording(const QString& plural, const QString& chooseText);
     // the group names in the order they are listed
     static std::vector<std::string> groupOrder();
 
@@ -46,9 +48,11 @@ private:
     std::vector<std::string> favorites;
     std::vector<GfsChart::OverlayChoice> extras;
     std::string current;
+    std::string title;
     QLineEdit * search{};
     QTreeWidget * tree{};
     QPushButton * star{};
+    QPushButton * choose{};
     std::vector<QCheckBox *> boxes;
 };
 

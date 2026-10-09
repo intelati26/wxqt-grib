@@ -26,6 +26,7 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
     , favorites{favorites}
     , extras{extras}
     , current{current}
+    , title{model}
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle(QString::fromStdString(model) + " charts");
@@ -45,7 +46,7 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
     star = new QPushButton{this};
     row->addWidget(star);
     row->addStretch();
-    auto * choose = new QPushButton{"Show this chart", this};
+    choose = new QPushButton{"Show this chart", this};
     row->addWidget(choose);
     column->addLayout(row);
     if (!extras.empty()) {   // the lines and barbs that go on top of any chart: a section that opens, so the list keeps its room
@@ -109,6 +110,12 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
     QObject::connect(choose, &QPushButton::clicked, [this] { pickCurrent(); });
     QObject::connect(star, &QPushButton::clicked, [this] { toggleFavorite(); });
     search->setFocus();
+}
+
+void ProductPicker::setWording(const QString& plural, const QString& chooseText) {
+    setWindowTitle(QString::fromStdString(title) + " " + plural);
+    search->setPlaceholderText(QString{"Search %1 %2"}.arg(entries.size()).arg(plural));
+    choose->setText(chooseText);
 }
 
 void ProductPicker::fill() {

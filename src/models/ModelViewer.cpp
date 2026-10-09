@@ -6,6 +6,8 @@
 
 #include "ModelViewer.h"
 #include "ui/ActivityLabel.h"
+#include <algorithm>
+#include <map>
 #include <memory>
 #include "gfs/GfsRender.h"
 #include "models/ObjectModelGet.h"
@@ -29,6 +31,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboboxTime{this, objectModel.times}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonProducts{this, None, "Charts..."}
+    , buttonSector{this, None, "Area..."}
 {
     comboboxModel.setIndexByValue(objectModel.model);
     comboboxModel.connect([this] { changeModelCb(); });
@@ -45,6 +48,8 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     boxH.addWidget(comboboxModel);
     boxH.addWidget(comboboxRun);
     boxH.addWidget(comboboxSector);
+    boxH.addWidget(buttonSector);
+    buttonSector.connect([this] { showSectorPicker(); });
     boxH.addWidget(comboboxProduct);
     boxH.addWidget(buttonProducts);
     buttonProducts.connect([this] { showPicker(); });
@@ -209,6 +214,9 @@ void ModelViewer::updateRunStatus() {
 void ModelViewer::refreshProductButton() {
     const bool grib = GfsRender::drawsModel(objectModel.model);
     comboboxProduct.setVisible(!grib);
+    comboboxSector.setVisible(!grib);   // the areas are many too: the grouped picker
+    buttonSector.setVisible(grib);
+    buttonSector.setText(objectModel.sector + "  \xE2\x96\xBE");
     buttonProducts.setVisible(grib);
     if (!grib) {
         return;
@@ -220,6 +228,73 @@ void ModelViewer::refreshProductButton() {
         }
     }
     buttonProducts.setText(label + (overlays.empty() ? "" : " + " + std::to_string(overlays.size())) + "  \xE2\x96\xBE");
+}
+
+namespace {
+    // where an area goes in the picker's tree
+    string sectorGroup(const string& id) {
+        static const std::map<string, string> groups{
+            {"CONUS", "United States"}, {"NORTHEAST", "United States"}, {"MID-ATLANTIC", "United States"}, {"SOUTHEAST", "United States"}, {"GREAT-LAKES", "United States"},
+            {"OHIO-VALLEY", "United States"}, {"S-PLAINS", "United States"}, {"N-PLAINS", "United States"}, {"ROCKIES", "United States"}, {"SOUTHWEST", "United States"},
+            {"PACIFIC-NW", "United States"}, {"CALIFORNIA", "United States"}, {"GULF-COAST", "United States"}, {"ALASKA", "United States"}, {"HAWAII", "United States"},
+            {"NAMER", "North America and the Caribbean"}, {"CENT-AMER", "North America and the Caribbean"}, {"CARIBBEAN", "North America and the Caribbean"},
+            {"GULF-MEXICO", "North America and the Caribbean"},
+            {"SAMER", "Continents"}, {"AFRICA", "Continents"}, {"EUROPE", "Continents"}, {"ASIA", "Continents"}, {"INDIA", "Continents"}, {"E-ASIA", "Continents"},
+            {"SE-ASIA", "Continents"}, {"MIDDLE-EAST", "Continents"}, {"AUSTRALIA", "Continents"},
+            {"WEST-ATL", "Oceans"}, {"ATLANTIC", "Oceans"}, {"NORTH-ATL", "Oceans"}, {"EAST-PAC", "Oceans"}, {"NORTH-PAC", "Oceans"}, {"SOUTH-PAC", "Oceans"},
+            {"INDIAN-OCEAN", "Oceans"}, {"US-SAMOA", "Oceans"},
+            {"GLOBAL", "World and poles"}, {"TROPICS", "World and poles"}, {"NORTHERN-HEMI", "World and poles"}, {"SOUTHERN-HEMI", "World and poles"},
+            {"POLAR", "World and poles"}, {"ARTIC", "World and poles"}};
+        const auto found = groups.find(id);
+        return found == groups.end() ? "Other" : found->second;
+    }
+}
+
+void ModelViewer::showSectorPicker() {
+    if (sectorPicker) {
+        sectorPicker->raise();
+        sectorPicker->activateWindow();
+        return;
+    }
+    const auto model = objectModel.model;
+    std::vector<ProductPicker::Entry> entries;
+    for (const auto& id : objectModel.sectors) {
+        entries.push_back({id, id, sectorGroup(id)});
+    }
+    // the groups in a fixed order: the entries are listed as the model gives them
+    std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
+        static const std::vector<string> order{"United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "Other"};
+        return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
+    });
+    std::vector<string> favorites;
+    const auto stored = Utility::readPref("SECTORFAV_" + model, "");
+    for (size_t at = 0; at < stored.size();) {
+        auto end = stored.find(',', at);
+        end = end == string::npos ? stored.size() : end;
+        if (end > at) {
+            favorites.push_back(stored.substr(at, end - at));
+        }
+        at = end + 1;
+    }
+    sectorPicker = new ProductPicker{this, model, entries, objectModel.sector, favorites, {}, {}};
+    sectorPicker->setWording("areas", "Show this area");
+    sectorPicker->resize(360, 560);
+    sectorPicker->onPick = [this] (const string& id) {
+        objectModel.sector = id;
+        comboboxSector.block();
+        comboboxSector.setIndexByValue(id);
+        comboboxSector.unblock();
+        refreshProductButton();
+        reload();
+    };
+    sectorPicker->onFavorites = [model] (const std::vector<string>& ids) {
+        string joined;
+        for (const auto& id : ids) {
+            joined += (joined.empty() ? "" : ",") + id;
+        }
+        Utility::writePref("SECTORFAV_" + model, joined);
+    };
+    sectorPicker->show();
 }
 
 void ModelViewer::showPicker() {
