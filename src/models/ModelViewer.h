@@ -74,7 +74,7 @@ private:
     void applyView(const std::array<string, 5>&);
     void rebuildViewsMenu();
     HBox boxH2;
-    ComboBox comboCompare;
+    ComboBox comboCompare, comboPreload;
     QPushButton * buttonMax{};
     QPushButton * buttonViews{};
     QMenu * menuViews{};
@@ -93,7 +93,9 @@ private:
     size_t frameBytes{0};                // what the frames hold (the picture and the hover grids)
     std::set<string> failedAhead;        // hours that could not be read ahead for this view
     int prefetchGeneration{0};
-    bool prefetching{false};
+    std::set<string> inFlight;           // the hours being drawn ahead (a few at a time)
+    int preloadAhead() const;            // how many hours ahead of the one shown are drawn on their own: 0 only the neighbours, a large number for the whole run
+    void refreshLoaded();                // the timeline's bar and count of the hours that are ready
     bool playing{false};
     string lastChart;                    // the model, chart, area and extras of the picture shown: a new hour of the same keeps the zoom
     int drawing{0};

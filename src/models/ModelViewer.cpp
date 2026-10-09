@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
 #include "models/ObjectModelGet.h"
 #include "models/UtilityModels.h"
@@ -38,6 +39,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboboxTime{this, objectModel.times}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonProducts{this, None, "Charts..."}
+    , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
@@ -100,6 +102,18 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             setVariant(v);
         });
         boxH2.addWidget(comboCompare);
+        {   // how far ahead the hours are drawn on their own
+            const auto mode = Utility::readPref("MODEL_PRELOAD", "auto");
+            comboPreload.setIndex(mode == "around" ? 1 : mode == "12" ? 2 : mode == "24" ? 3 : mode == "all" ? 4 : 0);
+            comboPreload.getView()->setToolTip("The hours after the one shown are drawn in the background so that stepping and play find them ready. Automatic: 24 hours for the GFS, 12 for the 84 hour RRFS runs, the whole run when it is under a day (the 18 hour hourly RRFS runs).");
+            comboPreload.connect([this] {
+                static const char * modes[] = {"auto", "around", "12", "24", "all"};
+                Utility::writePref("MODEL_PRELOAD", modes[std::clamp(comboPreload.getIndex(), 0, 4)]);
+                prefetch(prefetchGeneration);
+                refreshLoaded();
+            });
+            boxH2.addWidget(comboPreload);
+        }
         buttonMax = new QPushButton{"Maximum \xE2\x96\xBE", this};
         auto * maxMenu = new QMenu{buttonMax};
         QObject::connect(maxMenu->addAction("Of the 24 hours ending at this hour"), &QAction::triggered, this, [this] { showMax(false); });
@@ -456,10 +470,55 @@ void ModelViewer::storeFrame(const string& key, const Frame& frame) {
     }
 }
 
-// Draws hours ahead of the one shown, one at a time, with the network's "ahead" priority (what is on screen is always served first). While playing, every hour of the loop, as far as it
-// gets; otherwise the hour after, the one before and the one after that, so stepping with the arrows or the slider finds them drawn. It stops when they are drawn or the chart changes.
+// How many hours ahead of the one shown to draw without being asked, from the setting: nothing but the neighbours, 12 or 24 hours, the whole run, or (the default) what suits the model: the
+// registry says how far it goes (24 for the GFS, 12 for the 84 hour RRFS) and how long the run is (a run under a day is drawn whole).
+int ModelViewer::preloadAhead() const {
+    const auto mode = Utility::readPref("MODEL_PRELOAD", "auto");
+    if (mode == "around") return 0;
+    if (mode == "12") return 12;
+    if (mode == "24") return 24;
+    if (mode == "all") return 100000;
+    const auto * def = GfsModels::find(objectModel.model);
+    const int cycle = std::atoi(objectModel.run.c_str());
+    if (def && def->runLength && def->runLength(cycle) <= 24) {
+        return 100000;
+    }
+    return def ? def->preloadHours : 24;
+}
+
+void ModelViewer::refreshLoaded() {
+    if (!strip || strip->count() < 2 || !GfsRender::handles(objectModel.model, objectModel.param)) {
+        return;
+    }
+    std::vector<bool> ready;
+    int have = 0, wanted = 0;
+    const int now = std::atoi(objectModel.getTime().c_str());
+    const int ahead = preloadAhead();
+    int last = now;
+    for (const auto& t : objectModel.times) {
+        const int hour = std::atoi(t.c_str());
+        const bool isReady = frames.count(frameKey(hour)) > 0;
+        ready.push_back(isReady);
+        have += isReady;
+        if (hour >= now && hour <= now + ahead) {
+            wanted++;
+            last = hour;
+        }
+    }
+    int windowReady = 0;
+    for (size_t i = 0; i < objectModel.times.size(); i++) {
+        const int hour = std::atoi(objectModel.times[i].c_str());
+        if (ready[i] && hour >= now && hour <= last) {
+            windowReady++;
+        }
+    }
+    strip->setLoaded(ready, windowReady < wanted && ahead > 0 ? QString{"Drawing %1 of %2"}.arg(windowReady).arg(wanted) : QString{"%1 hours ready"}.arg(have));
+}
+
+// Draws the hours after the one shown (and the one before it) without being asked, a few at a time, with the network's "ahead" priority: what is on screen is always served first. While playing,
+// every hour of the loop as far as it gets; otherwise the neighbours first and then as far ahead as the setting says. It stops when they are drawn or the chart changes.
 void ModelViewer::prefetch(int generation) {
-    if (generation != prefetchGeneration || prefetching || !strip->isVisible() || variant.kind == GfsRender::Variant::Kind::Max || !GfsRender::handles(objectModel.model, objectModel.param)) {
+    if (generation != prefetchGeneration || !strip->isVisible() || variant.kind == GfsRender::Variant::Kind::Max || !GfsRender::handles(objectModel.model, objectModel.param)) {
         return;
     }
     const int n = strip->count();
@@ -478,49 +537,55 @@ void ModelViewer::prefetch(int generation) {
                 candidates.push_back(index);
             }
         }
-    }
-    int want = -1;
-    string wantKey;
-    for (const int index : candidates) {
-        const auto key = frameKey(std::atoi(objectModel.times[static_cast<size_t>(index)].c_str()));
-        if (!frames.count(key) && !failedAhead.count(key)) {
-            want = index;
-            wantKey = key;
-            break;
+        const int ahead = preloadAhead();
+        const int now = std::atoi(objectModel.getTime().c_str());
+        for (int index = strip->current() + 3; index < n && ahead > 0; index++) {
+            if (std::atoi(objectModel.times[static_cast<size_t>(index)].c_str()) - now > ahead) {
+                break;
+            }
+            candidates.push_back(index);
         }
     }
-    if (want < 0) {
-        return;
-    }
-    prefetching = true;
-    if (!gfsSession) {
-        gfsSession = std::make_shared<GfsRender::Session>();
-    }
-    auto session = gfsSession;
-    const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = objectModel.run;
-    const auto overlayIds = overlays;
-    const auto shownVariant = variant.kind == GfsRender::Variant::Kind::Change ? variant : GfsRender::Variant{};
-    const int hour = std::atoi(objectModel.times[static_cast<size_t>(want)].c_str());
-    auto result = std::make_shared<std::pair<QByteArray, string>>();
-    auto probe = std::make_shared<GfsChart::Probe>();
-    new FutureVoid{this, [=] {
-                       const NetManager::Scope ahead{NetManager::Priority::Ahead};   // behind whatever the user is waiting for
-                       result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get(), shownVariant);
-                   },
-                   [this, result, probe, wantKey, generation] {
-                       prefetching = false;
-                       if (result->first.isEmpty()) {   // no chart at this hour (or the request was dropped as the view changed): not asked for again until the view changes
-                           failedAhead.insert(wantKey);
-                           if (playing && generation == prefetchGeneration) {
-                               startPlaying(false);
-                               strip->stop();
+    const size_t limit = playing || preloadAhead() > 0 ? 3 : 1;
+    for (const int index : candidates) {
+        if (inFlight.size() >= limit) {
+            break;
+        }
+        const int hour = std::atoi(objectModel.times[static_cast<size_t>(index)].c_str());
+        const auto key = frameKey(hour);
+        if (frames.count(key) || failedAhead.count(key) || inFlight.count(key)) {
+            continue;
+        }
+        inFlight.insert(key);
+        if (!gfsSession) {
+            gfsSession = std::make_shared<GfsRender::Session>();
+        }
+        auto session = gfsSession;
+        const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = objectModel.run;
+        const auto overlayIds = overlays;
+        const auto shownVariant = variant.kind == GfsRender::Variant::Kind::Change ? variant : GfsRender::Variant{};
+        auto result = std::make_shared<std::pair<QByteArray, string>>();
+        auto probe = std::make_shared<GfsChart::Probe>();
+        new FutureVoid{this, [=] {
+                           const NetManager::Scope aheadScope{NetManager::Priority::Ahead};   // behind whatever the user is waiting for
+                           result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get(), shownVariant);
+                       },
+                       [this, result, probe, key, generation] {
+                           inFlight.erase(key);
+                           if (result->first.isEmpty()) {   // no chart at this hour (or the request was dropped as the view changed): not asked for again until the view changes
+                               failedAhead.insert(key);
+                               if (playing && generation == prefetchGeneration && inFlight.empty()) {
+                                   startPlaying(false);
+                                   strip->stop();
+                               }
+                           } else {
+                               storeFrame(key, {result->first, probe});
                            }
+                           refreshLoaded();
                            prefetch(prefetchGeneration);
-                           return;
-                       }
-                       storeFrame(wantKey, {result->first, probe});
-                       prefetch(prefetchGeneration);
-                   }};
+                       }};
+    }
+    refreshLoaded();
 }
 
 void ModelViewer::refreshTimeStrip() {
@@ -534,6 +599,7 @@ void ModelViewer::refreshTimeStrip() {
     }
     strip->setTimes(labels, static_cast<int>(comboboxTime.getIndex()));
     strip->setVisible(GfsRender::drawsModel(objectModel.model));
+    refreshLoaded();
 }
 
 void ModelViewer::reload() {

@@ -51,6 +51,8 @@ namespace GfsModels {
         bool overlays{false};                          // the GFS set of lines and wind barbs can be ticked onto its charts (a model may have overlays of its own besides)
         bool recipeList{false};                        // the model screen lists the charts in the registry (false: the older list kept from the model guidance site)
         Missing onMissing{Missing::Nothing};
+        int preloadHours{24};                          // how many hours ahead of the one shown the model screen draws on its own (a run that is shorter than a day is drawn whole)
+        std::function<int(int cycleHour)> runLength;   // the last forecast hour of the run made at that hour of the day, when it varies (the hourly runs of the RRFS reach 18 hours, the main ones 84)
         Clone clone;
     };
     // in the order they are listed and their charts made

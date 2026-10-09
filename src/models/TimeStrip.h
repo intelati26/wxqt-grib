@@ -13,6 +13,7 @@
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QPainter>
 #include <QPushButton>
 #include <QSlider>
@@ -52,6 +53,9 @@ public:
         button(">", "Forward an hour", [this] { choose(slider->value() + 1); });
         button(">|", "Last hour", [this] { choose(slider->maximum()); });
         row->addSpacing(16);
+        status = new QLabel{this};
+        row->addWidget(status);
+        row->addSpacing(16);
         hours = new QPushButton{"Hours \xE2\x96\xBE", this};
         QObject::connect(hours, &QPushButton::clicked, this, [this] { openGrid(); });
         row->addWidget(hours);
@@ -85,6 +89,12 @@ public:
         quiet = false;
         ticks->update();
     }
+    // the hours that are drawn (a bar under the numbers) and a count beside the buttons: "Ready 37 of 129"
+    void setLoaded(const std::vector<bool>& ready, const QString& summary) {
+        ticks->loaded = ready;
+        ticks->update();
+        status->setText(summary);
+    }
     int current() const { return slider->value(); }
     int count() const { return static_cast<int>(names.size()); }
     int intervalMs() const { return 1400 - (speed->value() - 1) * 140; }   // loop speed 1 .. 10: 1.4 s down to 0.14 s a frame
@@ -99,12 +109,20 @@ private:
     // the hour numbers above the slider, as many as fit
     struct Ticks : public QWidget {
         std::vector<std::string> names;
-        explicit Ticks(QWidget * parent) : QWidget{parent} { setFixedHeight(16); }
+        std::vector<bool> loaded;   // the hours drawn: a bar under the numbers
+        explicit Ticks(QWidget * parent) : QWidget{parent} { setFixedHeight(22); }
         void paintEvent(QPaintEvent *) override {
             if (names.size() < 2) {
                 return;
             }
             QPainter p{this};
+            if (loaded.size() == names.size()) {   // which hours are drawn and ready
+                const double left = 7.0, span = width() - 14.0;
+                const double slot = span / static_cast<double>(names.size());
+                for (size_t i = 0; i < names.size(); i++) {
+                    p.fillRect(QRectF{left + slot * static_cast<double>(i), 17.0, std::max(1.0, slot - 0.5), 4.0}, loaded[i] ? QColor{"#3b8fd9"} : QColor{128, 128, 128, 60});
+                }
+            }
             QFont f = font();
             f.setBold(true);
             f.setPointSizeF(f.pointSizeF() * 0.85);
@@ -149,6 +167,7 @@ private:
     QSlider * speed{};
     QPushButton * play{};
     QPushButton * hours{};
+    QLabel * status{};
     std::vector<std::string> names;
     bool playing{false};
     bool quiet{false};
