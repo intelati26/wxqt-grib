@@ -78,6 +78,16 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.clone.rename = {{"PRMSL", "MSLET"}};
             m.push_back(d);
         }
+        {   // the High-Resolution Ensemble Forecast: its own ready-made means, probability-matched means and probabilities
+            Def d;
+            d.id = "HREF";
+            d.label = "NOAA/NCEP HREF, 10 member 3 km ensemble";
+            d.source = [] (const std::string&) { return GfsData::href(); };
+            d.sectors = Sectors::Conus;
+            d.hours = {{1, 48, 1}};
+            d.recipeList = true;
+            m.push_back(d);
+        }
         {   // the Rapid Refresh Forecast System ensemble: five members at 3 km, and its ready-made probability products (it replaces HREF and SREF)
             Def d;
             d.id = "REFS";

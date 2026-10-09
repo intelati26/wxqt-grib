@@ -6,21 +6,25 @@ for l in open('/tmp/claude-1000/prod/drawn_now.tsv'):
     p = l.rstrip('\n').split('\t')
     if len(p) >= 3: drawn[p[0]].add(p[1])
 # the open data source each MAG model is recreated from (nothing is retired: the old screens stay until a map is recreated and checked)
-source = {'GFS-WAVE': 'GFS-WAVE', 'GEFS-WAVE': 'GEFS-WAVE', 'GFS': 'GFS', 'AIGFS': 'AIGFS', 'NBM': 'NBM', 'GEFS-MEAN-SPRD': 'GEFS', 'NAM': 'RRFS', 'NAM-HIRES': 'RRFS', 'HRRR': 'RRFS', 'RAP': 'RRFS', 'FIREWX': 'RRFS', 'HRW-FV3': 'RRFS', 'HRW-ARW': 'RRFS', 'HRW-ARW2': 'RRFS',
-          'HREF': 'REFS', 'SREF': 'REFS', 'SREF-CLUSTER': 'REFS'}
+source = {'GFS-WAVE': 'GFS-WAVE', 'GEFS-WAVE': 'GEFS-WAVE', 'GEFS-SPAG': 'GEFS', 'GFS': 'GFS', 'AIGFS': 'AIGFS', 'NBM': 'NBM', 'GEFS-MEAN-SPRD': 'GEFS', 'NAM': 'RRFS', 'NAM-HIRES': 'RRFS', 'HRRR': 'RRFS', 'RAP': 'RRFS', 'FIREWX': 'RRFS', 'HRW-FV3': 'RRFS', 'HRW-ARW': 'RRFS', 'HRW-ARW2': 'RRFS',
+          'HREF': 'HREF', 'SREF': 'REFS', 'SREF-CLUSTER': 'REFS'}
 # maps whose id differs but that are the same chart (HREF / SREF -> the REFS chart of the same thing)
 alias = {('HREF', 'mean_precip_p01'): 'mean_precip_p01', ('HREF', 'mean_precip_p03'): 'mean_precip_p03', ('HREF', 'prob_refd_40dbz'): 'prob_refc_40', ('HREF', 'prob_cref_40dbz'): 'prob_refc_40',
          ('HREF', 'prob_cref_50dbz'): 'prob_refc_50', ('HREF', 'prob_3h_rain_0.5in'): 'prob_precip_3h_0.5in', ('HREF', 'prob_3h_rain_1in'): 'prob_precip_3h_1in', ('HREF', 'eas_prob_1h_rain_0.25in'): 'prob_precip_1h_0.25in',
          ('HREF', 'eas_prob_1h_rain_0.5in'): 'prob_precip_1h_0.5in', ('HREF', 'eas_prob_3h_rain_0.5in'): 'prob_precip_3h_0.5in', ('HREF', 'prob_3h_snow_1in'): 'prob_snow_3h_1in', ('HREF', 'prob_3h_snow_3in'): 'prob_snow_3h_3in',
          ('HREF', 'mean_2m_temp'): 'mean_2m_temp', ('HREF', 'max_updraft_hlcy'): 'max_uphl', ('SREF', 'precip_p03'): 'mean_precip_p03', ('SREF', 'mean_2m_temp'): 'mean_2m_temp', ('RAP', 'cape_cin'): 'sfc_cape_cin', ('NBM', '6hour_accu_snow'): 'snow_p06', ('NBM', 'total_accu_snow'): 'snow_ptot'}
 covered = {'SREF', 'SREF-CLUSTER', 'NAEFS'}
-last = {'HREF'}   # to be recreated after everything else (the user's order)   # the usual operational ensembles: the SPC REFS viewer (and the older ensemble screens) already cover them
+last = set()   # to be recreated after everything else (the user's order)   # the usual operational ensembles: the SPC REFS viewer (and the older ensemble screens) already cover them
 rows = []
 for model, v in inv.items():
     for p in v['products']:
         pid = p['id']; src = source.get(model)
-        if model == 'GEFS-MEAN-SPRD':
-            status, by = 'to recreate', 'GEFS: MAG draws the mean AND the spread together (mean fill + spread contour, or the reverse); our charts so far are the mean alone'
+        if model == 'STORM-TRACKS':
+            status, by = ('to recreate', 'the strike-probability map from the GEFS member tracks (ATCF), not drawn yet') if pid == 'GEFS-prob' else ('covered by the hurricane screens', 'the model tracks (ATCF guidance) the hurricane screens draw')
+        elif model == 'STOFS':
+            status, by = 'to recreate', 'STOFS is NetCDF on an unstructured grid (not GRIB): its own project'
+        elif model == 'ICE-DRIFT':
+            status, by = 'to recreate', 'no open GRIB source found for the polar ice drift (the old polar.ncep.noaa.gov path is gone)'
         elif model in covered:
             status, by = 'covered by the SPC REFS viewer', 'existing screens'
         elif model in last and not ((model, pid) in alias and alias[(model, pid)] in drawn[src or '']):

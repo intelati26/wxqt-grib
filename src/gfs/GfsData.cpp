@@ -191,6 +191,25 @@ GfsData::Source GfsData::gefsWave() {
     return s;
 }
 
+GfsData::Source GfsData::href() {
+    Source s;
+    s.id = "HREF";
+    s.label = "NOAA/NCEP HREF, 10 member 3 km ensemble";
+    s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
+        return "https://nomads.ncep.noaa.gov/pub/data/nccf/com/href/prod/href." + run.date + "/ensprod/href.t" + run.cycle + "z.conus." + (file.empty() ? "mean" : file) + ".f" + pad(hour, 2) + ".grib2";
+    };
+    s.fileOf = [] (const Want& want) { return want.stat.empty() ? std::string{"mean"} : want.stat; };
+    s.defaultDetail = "*";
+    s.probeFile = "mean";
+    s.cycleHours = 6;
+    s.lagHours = 4;
+    s.probeHour = 36;   // the 06 and 18Z runs go to 36 hours, the others to 48
+    s.cyclesToTry = 5;
+    s.maxParallel = 4;   // NOMADS
+    s.warp = {true, 0.03, -127.0, 22.0, -65.0, 52.0};
+    return s;
+}
+
 GfsData::Source GfsData::nbm() {
     Source s;
     s.id = "NBM";
