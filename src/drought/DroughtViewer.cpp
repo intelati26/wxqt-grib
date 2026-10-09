@@ -92,6 +92,13 @@ std::string mapDateBefore(const std::string& date) {
 }
 
 namespace {
+    // 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th, 21st
+    QString ordinal(double value) {
+        const int n = static_cast<int>(std::lround(value));
+        const int tens = n % 100, ones = n % 10;
+        return QString::number(n) + ((tens >= 11 && tens <= 13) ? "th" : ones == 1 ? "st" : ones == 2 ? "nd" : ones == 3 ? "rd" : "th");
+    }
+
     // One of the CPC's precipitation grids (one degree, 130.5 W to 66.5 W, 20.5 N to 52.5 N: GrADS GeoTIFFs of the USDM products), kept for good once had. Millimeters; nothing is NaN.
     UtilityDrought::Field precipField(const std::string& name, const std::string& url) {
         UtilityDrought::Field field;
@@ -854,10 +861,14 @@ void DroughtViewer::loadPrecipArea() {
                        const auto mask = UtilityDrought::mask(like, areas);
                        const std::string base = "https://ftp.cpc.ncep.noaa.gov/GIS/USDM_Products/precip/";
                        const auto today = QDate::currentDate();
-                       const auto row = [&] (const QString& label, const std::string& totalName, const std::string& totalUrl, const std::string& anomName, const std::string& anomUrl, bool partial) {
+                       const auto row = [&] (const QString& label, const std::string& totalName, const std::string& totalUrl, const std::string& anomName, const std::string& anomUrl, bool partial, const std::string& rankName = {}, const std::string& rankUrl = {}) {
                            PrecipBars::Month m;
                            m.label = label;
                            m.partial = partial;
+                           if (!rankName.empty()) {   // the percentile of the whole month (there is none for a month so far)
+                               const double r = UtilityDrought::meanOver(precipField(rankName, rankUrl), like, mask);
+                               m.rank = std::isnan(r) ? -1.0 : std::clamp(r, 0.0, 100.0);
+                           }
                            const auto anomaly = precipField(anomName, anomUrl);
                            const double a = UtilityDrought::meanOver(anomaly, like, mask);
                            if (temperature) {   // the departure from normal, in degrees C; there is no total
@@ -877,9 +888,11 @@ void DroughtViewer::loadPrecipArea() {
                            const auto month = QDate{today.year(), today.month(), 1}.addMonths(-back);
                            const auto key = month.toString("yyyyMM").toStdString();
                            if (temperature) {
-                               row(month.toString("MMM yy"), "", "", "t.anom." + key + ".tif", "https://ftp.cpc.ncep.noaa.gov/GIS/USDM_Products/temp/anom/monthly/t.anom." + key + ".tif", false);
+                               row(month.toString("MMM yy"), "", "", "t.anom." + key + ".tif", "https://ftp.cpc.ncep.noaa.gov/GIS/USDM_Products/temp/anom/monthly/t.anom." + key + ".tif", false, "t.rank." + key + ".tif",
+                                   "https://ftp.cpc.ncep.noaa.gov/GIS/USDM_Products/temp/percentile/monthly/t.rank." + key + ".tif");
                            } else {
-                               row(month.toString("MMM yy"), "p.full." + key + ".tif", base + "total/monthly/p.full." + key + ".tif", "p.anom." + key + ".tif", base + "anom/monthly/p.anom." + key + ".tif", false);
+                               row(month.toString("MMM yy"), "p.full." + key + ".tif", base + "total/monthly/p.full." + key + ".tif", "p.anom." + key + ".tif", base + "anom/monthly/p.anom." + key + ".tif", false, "p.rank." + key + ".tif",
+                                   base + "percentile/monthly/p.rank." + key + ".tif");
                            }
                        }
                        for (int back = 1; back <= 3 && today.day() > 1; back++) {   // this month so far: the newest day that has a file
@@ -906,8 +919,10 @@ void DroughtViewer::loadPrecipArea() {
                        const double unit = temperature ? (inches ? 1.8 : 1.0) : (inches ? 1.0 / 25.4 : 1.0);
                        precipBars->setMonths(*rows, (temperature ? "Temperature over " + label + " compared with normal (departure, degrees " + (inches ? "F" : "C") + ")"
                                                                  : "Rain over " + label + " compared with normal (departure, " + (inches ? "inches" : "mm") + ")"), inches, temperature);
-                       precipTable->setColumnCount(temperature ? 2 : 5);
-                       precipTable->setHorizontalHeaderLabels(temperature ? QStringList{"Month", "Warmer (+) or cooler (-) than normal"} : QStringList{"Month", "Rain", "Normal", "Departure", "Of normal"});
+                       precipTable->setColumnCount(temperature ? 3 : 6);
+                       precipTable->setHorizontalHeaderLabels(temperature ? QStringList{"Month", "Warmer (+) or cooler (-) than normal", "Rank"} : QStringList{"Month", "Rain", "Normal", "Departure", "Of normal", "Rank"});
+                       precipTable->horizontalHeaderItem(temperature ? 2 : 5)->setToolTip(temperature ? "Where the month stands among the same month of every year on record: 100 is the warmest, 0 the coolest" :
+                                                                                                         "Where the month stands among the same month of every year on record: 100 is the wettest, 0 the driest");
                        precipTable->setRowCount(static_cast<int>(rows->size()));
                        for (int r = 0; r < static_cast<int>(rows->size()); r++) {
                            const auto& m = (*rows)[static_cast<size_t>(r)];
@@ -917,6 +932,7 @@ void DroughtViewer::loadPrecipArea() {
                                auto * item = new QTableWidgetItem{m.ok ? QString{"%1%2 degrees %3"}.arg(m.anomaly > 0 ? "+" : "").arg(m.anomaly * unit, 0, 'f', 1).arg(inches ? "F" : "C") : "-"};
                                item->setForeground(m.anomaly >= 0 ? QBrush{QColor{"#c0392b"}} : QBrush{QColor{"#2b6cb0"}});
                                precipTable->setItem(r, 1, item);
+                               precipTable->setItem(r, 2, new QTableWidgetItem{m.rank >= 0 ? ordinal(m.rank) : "-"});
                                continue;
                            }
                            const auto number = [unit, inches] (double mm) { return QString::number(mm * unit, 'f', inches ? 2 : 0); };
@@ -927,6 +943,7 @@ void DroughtViewer::loadPrecipArea() {
                            departure->setForeground(m.anomaly >= 0 ? QBrush{QColor{"#2f7d4b"}} : QBrush{QColor{"#a8651f"}});
                            precipTable->setItem(r, 3, departure);
                            precipTable->setItem(r, 4, new QTableWidgetItem{m.ok && normal > 1.0 ? QString::number(m.total / normal * 100.0, 'f', 0) + "%" : "-"});
+                           precipTable->setItem(r, 5, new QTableWidgetItem{m.rank >= 0 ? ordinal(m.rank) : "-"});
                        }
                        precipTable->resizeColumnsToContents();
                    }};

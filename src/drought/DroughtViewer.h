@@ -49,6 +49,7 @@ public:
     struct Month {
         QString label;
         double total{0}, anomaly{0};   // millimeters; the normal is the total less the anomaly
+        double rank{-1};               // the month's place among the same month of every year on record, 0 to 100 (100: the wettest or warmest); -1 when there is none
         bool partial{false}, ok{false};
     };
     explicit PrecipBars(QWidget * parent = nullptr);
