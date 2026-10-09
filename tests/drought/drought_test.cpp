@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <QGuiApplication>
+#include "drought/DroughtHistory.h"
 #include "drought/UtilityDrought.h"
 
 static std::string slurp(const std::string& path) {
@@ -74,6 +75,28 @@ int main(int argc, char ** argv) {
         }
         CHECK(s.east - s.west > 8 && s.east - s.west < 35 && s.north - s.south > 6 && s.north - s.south < 20, "a sector is some 10 to 25 degrees across");
     }
+    // the history file: rows survive being written and read, empty columns stay empty
+    std::vector<DroughtHistory::Row> history(2);
+    history[0].month = "2026-08";
+    history[0].rain = 41.3;
+    history[0].normal = 66.0;
+    history[0].departure = -24.7;
+    history[0].percent = 63;
+    history[0].rainRank = 22;
+    history[0].temperature = 1.25;
+    history[0].temperatureRank = 88;
+    history[1].month = "2026-09";
+    history[1].rain = 80.0;
+    history[1].mapDate = "20260929";
+    for (int k = 0; k < 5; k++) {
+        history[1].d[k] = 80.0 - 20.0 * k;
+    }
+    history[1].dsci = 200;
+    const auto csv = DroughtHistory::toCsv("Colorado", history);
+    const auto again = DroughtHistory::fromCsv(csv);
+    CHECK(again.size() == 2 && again[0].month == "2026-08" && std::abs(again[0].rain - 41.3) < 0.01 && std::abs(again[0].temperature - 1.25) < 0.001 && !again[0].hasDrought(), "history rows are read back");
+    CHECK(again[1].hasDrought() && !again[1].hasWeather() == false && std::isnan(again[1].departure) && again[1].mapDate == "20260929" && std::abs(again[1].d[2] - 40.0) < 0.01, "empty columns stay empty, filled ones come back");
+    CHECK(csv.find("# wxqt drought history: Colorado") == 0 && csv.find("\nmonth,rain_mm") != std::string::npos, "the file says what it is and has a header");
     const auto same = UtilityDrought::change(raster, raster);
     for (const auto v : same) {
         CHECK(v == 0, "no change from a map to itself");

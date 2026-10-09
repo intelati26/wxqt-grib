@@ -17,6 +17,8 @@
 #include <QSplitter>
 #include <QVBoxLayout>
 #include "common/GlobalVariables.h"
+#include <QFileDialog>
+#include <QMessageBox>
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
 #include "objects/FutureVoid.h"
@@ -220,6 +222,102 @@ void PrecipBars::paintEvent(QPaintEvent *) {
     }
 }
 
+HistoryChart::HistoryChart(QWidget * parent) : QWidget{parent} {
+    setMinimumHeight(300);
+}
+
+void HistoryChart::setSeries(const std::vector<Point>& p, const QString& t, const QString& u, bool b, double ref, bool warm, double lo, double hi) {
+    points = p;
+    title = t;
+    unit = u;
+    bars = b;
+    reference = ref;
+    warmIsRed = warm;
+    low = lo;
+    high = hi;
+    update();
+}
+
+void HistoryChart::paintEvent(QPaintEvent *) {
+    QPainter p{this};
+    p.setRenderHint(QPainter::Antialiasing);
+    p.fillRect(rect(), palette().window());
+    p.setPen(palette().color(QPalette::WindowText));
+    p.drawText(QRectF{4, 2, width() - 8.0, 20}, Qt::AlignLeft | Qt::AlignVCenter, title);
+    const QRectF plot{56.0, 28.0, width() - 70.0, height() - 78.0};
+    if (points.size() < 2) {
+        p.drawText(plot, Qt::AlignCenter, "Building the history...");
+        return;
+    }
+    double lo = low, hi = high;
+    for (const auto& pt : points) {
+        if (pt.ok) {
+            lo = std::min(lo, pt.value);
+            hi = std::max(hi, pt.value);
+        }
+    }
+    if (hi - lo < 1e-9) {
+        hi = lo + 1.0;
+    }
+    const double pad = (hi - lo) * 0.06;
+    lo -= bars ? 0.0 : pad;
+    hi += pad;
+    const auto y = [&] (double v) { return plot.bottom() - (v - lo) / (hi - lo) * plot.height(); };
+    const auto x = [&] (size_t i) { return plot.left() + plot.width() * (static_cast<double>(i) + 0.5) / static_cast<double>(points.size()); };
+    // the scale
+    const double step = std::pow(10.0, std::floor(std::log10((hi - lo) / 4.0))) * ((hi - lo) / 4.0 / std::pow(10.0, std::floor(std::log10((hi - lo) / 4.0))) > 5 ? 5 : (hi - lo) / 4.0 / std::pow(10.0, std::floor(std::log10((hi - lo) / 4.0))) > 2 ? 2 : 1);
+    for (double v = std::ceil(lo / step) * step; v <= hi + 1e-9; v += step) {
+        p.setPen(QColor{128, 128, 128, 90});
+        p.drawLine(QPointF{plot.left(), y(v)}, QPointF{plot.right(), y(v)});
+        p.setPen(palette().color(QPalette::WindowText));
+        p.drawText(QRectF{0, y(v) - 8, plot.left() - 4, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(v, 'f', step < 1 ? 1 : 0));
+    }
+    p.drawText(QRectF{0, plot.bottom() + 20, 60, 14}, Qt::AlignLeft, unit);
+    if (!std::isnan(reference)) {
+        p.setPen(QPen{QColor{90, 90, 90}, 1.2, Qt::DashLine});
+        p.drawLine(QPointF{plot.left(), y(reference)}, QPointF{plot.right(), y(reference)});
+    }
+    // the years along the bottom
+    p.setPen(palette().color(QPalette::WindowText));
+    for (size_t i = 0; i < points.size(); i++) {
+        if (points[i].month.endsWith("-01")) {
+            p.drawText(QRectF{x(i) - 24, plot.bottom() + 4, 48, 14}, Qt::AlignHCenter, points[i].month.left(4));
+            p.setPen(QColor{128, 128, 128, 70});
+            p.drawLine(QPointF{x(i), plot.top()}, QPointF{x(i), plot.bottom()});
+            p.setPen(palette().color(QPalette::WindowText));
+        }
+    }
+    const double slot = plot.width() / static_cast<double>(points.size());
+    if (bars) {
+        const double zero = y(0.0);
+        for (size_t i = 0; i < points.size(); i++) {
+            if (!points[i].ok) {
+                continue;
+            }
+            const double v = points[i].value;
+            const QColor up = warmIsRed ? QColor{"#c0392b"} : QColor{"#3b8f5a"}, down = warmIsRed ? QColor{"#2b6cb0"} : QColor{"#b5793a"};
+            p.setPen(Qt::NoPen);
+            p.setBrush(v >= 0 ? up : down);
+            p.drawRect(QRectF{x(i) - slot * 0.4, std::min(zero, y(v)), slot * 0.8, std::abs(y(v) - zero)});
+        }
+    } else {
+        QPainterPath path;
+        bool started = false;
+        for (size_t i = 0; i < points.size(); i++) {
+            if (!points[i].ok) {
+                started = false;
+                continue;
+            }
+            const QPointF at{x(i), y(points[i].value)};
+            started ? path.lineTo(at) : path.moveTo(at);
+            started = true;
+        }
+        p.setPen(QPen{QColor{"#2b6cb0"}, 2.0});
+        p.setBrush(Qt::NoBrush);
+        p.drawPath(path);
+    }
+}
+
 DroughtChart::DroughtChart(QWidget * parent) : QWidget{parent} {
     setMinimumHeight(250);
 }
@@ -311,6 +409,8 @@ DroughtViewer::DroughtViewer(Window * parent)
     , comboKind{this, {"Total precipitation", "Departure from normal", "Percent of normal"}}
     , comboPeriod{this, {"1 and 2 weeks, 1 and 2 months", "3, 4, 5 and 6 months", "9, 12, 18 and 24 months", "2, 3, 4 and 5 years (percent of normal)"}}
     , comboOutlook{this}
+    , comboHistory{this, {"Rain: departure from normal", "Rain: percent of normal", "Rain: rank among the years", "Temperature: departure from normal", "Temperature: rank among the years", "Drought: share of the area in D1 or worse", "Drought: severity and coverage index"}}
+    , textHistory{this, ""}
     , comboMetric{this, {"Area numbers: rain", "Area numbers: temperature"}}
     , textPrecip{this, ""}
     , textOutlook{this, ""}
@@ -407,6 +507,22 @@ DroughtViewer::DroughtViewer(Window * parent)
         tabs->addTab(widget, "Precipitation");
     }
     page("Outlooks and soil moisture", rowOutlook, outlookImage, textOutlook);
+    {   // the history tab: one column of the area's history file as a chart
+        auto * widget = new QWidget{tabs};
+        auto * column = new QVBoxLayout{widget};
+        column->setContentsMargins(4, 4, 4, 4);
+        auto * row = new QHBoxLayout;
+        row->addWidget(comboHistory.getView());
+        auto * exportButton = new QPushButton{"Export the table (CSV)...", widget};
+        QObject::connect(exportButton, &QPushButton::clicked, this, [this] { exportHistory(); });
+        row->addWidget(exportButton);
+        row->addStretch();
+        column->addLayout(row);
+        column->addWidget(textHistory.getView());
+        historyChart = new HistoryChart{widget};
+        column->addWidget(historyChart, 1);
+        tabs->addTab(widget, "History");
+    }
     box.addWidgetReal(tabs, 1, Qt::Alignment{});
     box.addWidgetReal(new ActivityLabel{this});
     box.getAndShow(this);
@@ -433,6 +549,7 @@ DroughtViewer::DroughtViewer(Window * parent)
     comboPeriod.connect([this] { loadPrecip(); });
     comboOutlook.connect([this] { loadOutlook(); });
     comboMetric.connect([this] { loadPrecipArea(); });
+    comboHistory.connect([this] { showHistory(); });
     loadAreas();
     loadPrecip();
     loadOutlook();
@@ -522,6 +639,7 @@ void DroughtViewer::loadAreas() {
                        }
                        refreshMonitor();
                        loadPrecipArea();
+                       updateHistory();
                        if (qEnvironmentVariableIsSet("WXQT_PICKAREA")) {   // dev: open the area picker
                            chooseArea();
                        }
@@ -585,6 +703,7 @@ void DroughtViewer::selectArea(const std::string& id) {
     map->setArea(id == "US" ? std::vector<UtilityDrought::Area>{} : areas, true);
     refreshMonitor();
     loadPrecipArea();
+    updateHistory();
 }
 
 // What the background work brings back for the Monitor tab
@@ -947,6 +1066,167 @@ void DroughtViewer::loadPrecipArea() {
                        }
                        precipTable->resizeColumnsToContents();
                    }};
+}
+
+// The area's history file (drought/history/<area>.csv in the data folder): what it lacks is added in the background, a year of months at a time so that a stop loses little, and the
+// chart is redrawn as it grows. The weather columns go back to January 2017 (where the CPC's rank files begin); the drought shares are taken from the Monitor map of the last Tuesday of each
+// of the last 36 months.
+void DroughtViewer::updateHistory() {
+    if (states->empty()) {
+        return;
+    }
+    const int mine = ++historyGeneration;
+    const auto areas = selectedAreas();
+    const bool country = areaId == "US";
+    const std::string id = areaId;
+    const std::string name = country ? "Contiguous United States" : (areas.empty() ? id : areas.front().name);
+    const auto box = boxFor(areas, country, 0.04, 260);
+    history = DroughtHistory::read(id);
+    showHistory();
+    new FutureVoid{this, [this, id, name, areas, box, mine] {
+                       const NetManager::Scope background{NetManager::Priority::Background};
+                       UtilityDrought::Raster like;
+                       like.west = box.west;
+                       like.north = box.north;
+                       like.step = box.step;
+                       like.columns = std::max(1, static_cast<int>(std::ceil((box.east - box.west) / box.step)));
+                       like.rows = std::max(1, static_cast<int>(std::ceil((box.north - box.south) / box.step)));
+                       const auto mask = UtilityDrought::mask(like, areas);
+                       const std::string root = "https://ftp.cpc.ncep.noaa.gov/GIS/USDM_Products/";
+                       auto rows = DroughtHistory::read(id);
+                       std::map<QString, size_t> at;
+                       for (size_t i = 0; i < rows.size(); i++) {
+                           at[rows[i].month] = i;
+                       }
+                       const auto today = QDate::currentDate();
+                       const auto lastMonth = QDate{today.year(), today.month(), 1}.addMonths(-1);
+                       int sinceSave = 0;
+                       const auto save = [&] {
+                           std::sort(rows.begin(), rows.end(), [] (const auto& a, const auto& b) { return a.month < b.month; });
+                           DroughtHistory::write(id, name, rows);
+                           sinceSave = 0;
+                           QMetaObject::invokeMethod(this, [this, mine, id] {
+                               if (!closed && mine == historyGeneration) {
+                                   history = DroughtHistory::read(id);
+                                   showHistory();
+                               }
+                           }, Qt::QueuedConnection);
+                       };
+                       for (auto month = lastMonth; month >= QDate{2017, 1, 1}; month = month.addMonths(-1)) {   // the newest first, so the recent years show soonest
+                           if (closed || mine != historyGeneration) {
+                               return;
+                           }
+                           const auto key = month.toString("yyyyMM").toStdString();
+                           const auto label = month.toString("yyyy-MM");
+                           if (!at.count(label)) {
+                               DroughtHistory::Row r;
+                               r.month = label;
+                               at[label] = rows.size();
+                               rows.push_back(r);
+                           }
+                           auto& r = rows[at[label]];
+                           bool changed = false;
+                           if (!r.hasWeather()) {
+                               const double total = UtilityDrought::meanOver(precipField("p.full." + key + ".tif", root + "precip/total/monthly/p.full." + key + ".tif"), like, mask);
+                               const double anomaly = UtilityDrought::meanOver(precipField("p.anom." + key + ".tif", root + "precip/anom/monthly/p.anom." + key + ".tif"), like, mask);
+                               const double rank = UtilityDrought::meanOver(precipField("p.rank." + key + ".tif", root + "precip/percentile/monthly/p.rank." + key + ".tif"), like, mask);
+                               const double warm = UtilityDrought::meanOver(precipField("t.anom." + key + ".tif", root + "temp/anom/monthly/t.anom." + key + ".tif"), like, mask);
+                               const double warmRank = UtilityDrought::meanOver(precipField("t.rank." + key + ".tif", root + "temp/percentile/monthly/t.rank." + key + ".tif"), like, mask);
+                               if (!std::isnan(total) && !std::isnan(anomaly)) {
+                                   r.rain = std::max(0.0, total);
+                                   r.departure = anomaly;
+                                   r.normal = r.rain - anomaly;
+                                   r.percent = r.normal > 1.0 ? r.rain / r.normal * 100.0 : NAN;
+                                   r.rainRank = std::isnan(rank) ? NAN : std::clamp(rank, 0.0, 100.0);
+                                   r.temperature = warm;
+                                   r.temperatureRank = std::isnan(warmRank) ? NAN : std::clamp(warmRank, 0.0, 100.0);
+                                   changed = true;
+                               }
+                           }
+                           if (!r.hasDrought() && month >= lastMonth.addMonths(-35)) {   // the last 36 months: the map of the last Tuesday of the month
+                               auto tuesday = month.addMonths(1).addDays(-1);
+                               while (tuesday.dayOfWeek() != 2) {
+                                   tuesday = tuesday.addDays(-1);
+                               }
+                               UtilityDrought::Monitor monitor;
+                               std::string error;
+                               if (loadMonitor(tuesday.toString("yyyyMMdd").toStdString(), monitor, error)) {
+                                   const auto raster = UtilityDrought::rasterize(monitor, like.west, box.south, box.east, box.north, box.step);
+                                   const auto share = UtilityDrought::share(raster, mask);
+                                   r.mapDate = tuesday.toString("yyyyMMdd");
+                                   for (int k = 0; k < 5; k++) {
+                                       r.d[k] = share.atLeast[k];
+                                   }
+                                   r.dsci = share.dsci();
+                                   changed = true;
+                               }
+                           }
+                           if (changed && ++sinceSave >= 6) {
+                               save();
+                           }
+                       }
+                       if (sinceSave > 0) {
+                           save();
+                       }
+                   },
+                   [this, mine] {
+                       if (closed || mine != historyGeneration) {
+                           return;
+                       }
+                       history = DroughtHistory::read(areaId);
+                       showHistory();
+                   }};
+}
+
+void DroughtViewer::showHistory() {
+    const int column = std::clamp(comboHistory.getIndex(), 0, 6);
+    const bool inches = UIPreferences::unitsF;
+    std::vector<HistoryChart::Point> points;
+    for (const auto& r : history) {
+        HistoryChart::Point p;
+        p.month = r.month;
+        double v = NAN;
+        switch (column) {
+            case 0: v = r.departure * (inches ? 1.0 / 25.4 : 1.0); break;
+            case 1: v = r.percent; break;
+            case 2: v = r.rainRank; break;
+            case 3: v = r.temperature * (inches ? 1.8 : 1.0); break;
+            case 4: v = r.temperatureRank; break;
+            case 5: v = r.d[1]; break;
+            default: v = r.dsci; break;
+        }
+        p.ok = !std::isnan(v);
+        p.value = p.ok ? v : 0.0;
+        points.push_back(p);
+    }
+    const QString units[] = {inches ? "in" : "mm", "%", "rank", inches ? "F" : "C", "rank", "%", "index"};
+    const bool bars = column == 0 || column == 3;
+    const double reference = column == 1 ? 100.0 : (column == 2 || column == 4) ? 50.0 : std::nan("");
+    const QString label = areaId == "US" ? "the contiguous U.S." : QString::fromStdString(selectedAreas().empty() ? areaId : selectedAreas().front().name);
+    historyChart->setSeries(points, comboHistory.getValue().c_str() + QString{" - "} + label, units[column], bars, reference, column == 3, (column == 2 || column == 4) ? 0.0 : 0.0, (column == 2 || column == 4) ? 100.0 : 0.0);
+    int weather = 0, drought = 0;
+    for (const auto& r : history) {
+        weather += r.hasWeather();
+        drought += r.hasDrought();
+    }
+    textHistory.setText((QString::number(history.size()) + " months in the history of " + label + " (" + QString::number(weather) + " with rain and temperature, " + QString::number(drought) +
+                         " with drought shares); more are added in the background.  File: " + DroughtHistory::fileFor(areaId)).toStdString());
+}
+
+void DroughtViewer::exportHistory() {
+    const auto source = DroughtHistory::fileFor(areaId);
+    if (!QFile::exists(source)) {
+        QMessageBox::information(this, "Export", "The history of this area is still being built: try again in a moment.");
+        return;
+    }
+    const auto target = QFileDialog::getSaveFileName(this, "Export the history", QString{"drought_history_%1.csv"}.arg(QString::fromStdString(areaId)), "CSV files (*.csv)");
+    if (target.isEmpty()) {
+        return;
+    }
+    QFile::remove(target);
+    if (!QFile::copy(source, target)) {
+        QMessageBox::warning(this, "Export", "The file could not be written.");
+    }
 }
 
 // the picture arrives; the status line says what it is

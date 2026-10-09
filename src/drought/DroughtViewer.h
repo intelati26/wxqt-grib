@@ -17,6 +17,7 @@
 #include <QTableWidget>
 #include <QTabWidget>
 #include <QWidget>
+#include "drought/DroughtHistory.h"
 #include "drought/DroughtMap.h"
 #include "drought/UtilityDrought.h"
 #include "models/ProductPicker.h"
@@ -63,6 +64,26 @@ private:
     bool temperature{false};
 };
 
+// The multi-year line or bars of one column of an area's history.
+class HistoryChart : public QWidget {
+public:
+    struct Point {
+        QString month;
+        double value{0};
+        bool ok{false};
+    };
+    explicit HistoryChart(QWidget * parent = nullptr);
+    // bars: departures (colored by sign, around zero); else a line. `reference` is a line drawn across (100 for percent of normal, 50 for a rank), NaN for none.
+    void setSeries(const std::vector<Point>& points, const QString& title, const QString& unit, bool bars, double reference, bool warmIsRed, double low, double high);
+
+private:
+    void paintEvent(QPaintEvent *) override;
+    std::vector<Point> points;
+    QString title, unit;
+    bool bars{false}, warmIsRed{false};
+    double reference{NAN}, low{0}, high{0};
+};
+
 // The drought dashboard. The area (the country, a state or a county) and the weeks to compare are chosen above the tabs and apply to all of them. The Monitor tab draws the U.S.
 // Drought Monitor's own shapes (its KMZ) over the states: the categories of the week, or the cells that moved between two weeks, with the share of the area in each category at both
 // dates and the weekly share over the last months. The precipitation and outlook tabs show the Climate Prediction Center's pictures.
@@ -83,7 +104,10 @@ private:
     void refreshMonitor();
     void loadSeries();
     void loadPrecip();
-    void loadPrecipArea();   // the area's rain by month (the CPC's one degree analyses)
+    void loadPrecipArea();
+    void updateHistory();    // adds what the area's history file lacks (in the background), then shows it
+    void showHistory();      // the chosen column as a chart
+    void exportHistory();   // the area's rain by month (the CPC's one degree analyses)
     void loadOutlook();
     void showPicture(ZoomImage * target, Text * status, const std::string& url, const std::string& what, int * generation);
     std::string mapDate(int weeksBack) const;
@@ -98,6 +122,11 @@ private:
     QTableWidget * table{};
     DroughtChart * chart{};
     PrecipBars * precipBars{};
+    HistoryChart * historyChart{};
+    ComboBox comboHistory;
+    Text textHistory;
+    int historyGeneration{0};
+    std::vector<DroughtHistory::Row> history;
     QTableWidget * precipTable{};
     int precipAreaGeneration{0};
     Text textMonitor;
