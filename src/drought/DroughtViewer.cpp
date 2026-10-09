@@ -181,12 +181,11 @@ namespace {
     }
 
     // right-click on a chart or map: save it as a picture
-    void offerPicture(QWidget * widget, const QString& name, bool tip = true) {
+    void offerPicture(QWidget * widget, const QString& name) {
         widget->setContextMenuPolicy(Qt::ActionsContextMenu);
         auto * action = new QAction{"Save as a picture...", widget};
         QObject::connect(action, &QAction::triggered, widget, [widget, name] { savePicture(widget, name); });
         widget->addAction(action);
-        if (tip) widget->setToolTip(widget->toolTip().isEmpty() ? "Right-click to save as a picture" : widget->toolTip());
     }
 }
 
@@ -522,7 +521,7 @@ DroughtViewer::DroughtViewer(Window * parent)
         sideColumn->addLayout(saves);
     }
     sideColumn->addWidget(chart);
-    offerPicture(map, "drought_map", false);   // its own tooltip reads out the cell under the pointer
+    offerPicture(map, "drought_map");
     split->addWidget(map);
     split->addWidget(side);
     split->setStretchFactor(0, 3);
