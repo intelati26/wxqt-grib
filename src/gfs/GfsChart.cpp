@@ -1823,6 +1823,60 @@ const std::vector<Product>& products() {
                 p.push_back(spreadChart);
             }
 
+            // ---- the spaghetti maps: one contour (or two) of a field from each of the 31 members, each member a color of its own, and the ensemble mean as the heavy black line
+            const auto spaghetti = [&] (const std::string& id, const std::string& label, const char * variable, const char * level, double scale, std::vector<double> levels, const std::string& what) {
+                Product x;
+                x.source = "GEFS";
+                x.id = id;
+                x.label = label;
+                x.linesOnly = true;
+                x.needs = [memberNeeds, variable, level] (int hour) {
+                    if (hour < 3) {
+                        return std::vector<GfsData::Need>{};   // the members have no forecast record at hour 0
+                    }
+                    const auto when = std::to_string(hour) + " hour fcst";
+                    auto out = memberNeeds("z", variable, level, hour, when);
+                    out.push_back({hour, GfsData::Want{"zm", variable, level, when, "", ""}});
+                    return out;
+                };
+                x.fillTitle = what + ": one thin line for each of the 31 members, the heavy black line the ensemble mean";
+                for (const double value : levels) {
+                    for (size_t m = 0; m < memberNames.size(); m++) {
+                        ContourSet c;
+                        c.key = "z" + memberNames[m];
+                        c.scale = scale;
+                        c.base = value;
+                        c.interval = 100000.0;   // one level: the value
+                        c.color = QColor::fromHsv(static_cast<int>(m * 360 / memberNames.size()), 230, 190);
+                        c.width = 1.0;
+                        c.labelled = false;
+                        c.uniform = true;
+                        x.contours.push_back(c);
+                    }
+                    ContourSet mean;
+                    mean.key = "zm";
+                    mean.scale = scale;
+                    mean.base = value;
+                    mean.interval = 100000.0;
+                    mean.color = QColor{10, 10, 10};
+                    mean.width = 2.6;
+                    mean.uniform = true;
+                    x.contours.push_back(mean);
+                }
+                return x;
+            };
+            for (const int value : {1176, 1188, 1200, 1212, 1224, 1230}) {
+                p.push_back(spaghetti("200_" + std::to_string(value) + "_ht", "200mb " + std::to_string(value) + " Height Contours", "HGT", "200 mb", 0.1, {static_cast<double>(value)}, "200 mb height of " + std::to_string(value) + " dam"));
+            }
+            for (const auto& [low, high] : {std::pair{510, 552}, {516, 558}, {522, 564}, {528, 570}, {534, 576}, {540, 582}}) {
+                p.push_back(spaghetti("500_" + std::to_string(low) + "_" + std::to_string(high) + "_ht", "500mb " + std::to_string(low) + "/" + std::to_string(high) + " Height Contours", "HGT", "500 mb", 0.1,
+                                      {static_cast<double>(low), static_cast<double>(high)}, "500 mb heights of " + std::to_string(low) + " and " + std::to_string(high) + " dam"));
+            }
+            for (const auto& [low, high] : {std::pair{984, 1024}, {996, 1036}, {1000, 1040}, {1004, 1044}, {1008, 1048}, {1012, 1052}}) {
+                p.push_back(spaghetti("mslp_" + std::to_string(low) + "_" + std::to_string(high) + "_iso", "MSLP " + std::to_string(low) + "/" + std::to_string(high) + " Isobar Contours", "PRMSL", "mean sea level", 0.01,
+                                      {static_cast<double>(low), static_cast<double>(high)}, "sea level pressure of " + std::to_string(low) + " and " + std::to_string(high) + " mb"));
+            }
+
             // ---- the maps of the model guidance site that put the mean and the spread of the 30 members on one chart: the mean as lines and barbs with the spread as the fill, or the mean as the
             // fill with the spread as lines
             const auto windSpread = [] (Grids& g) {   // the spread of the wind speed from the spread of its two components
@@ -3273,11 +3327,21 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             product.ramp = *bands;
         }
     }
+    if (product.ramp.stops.empty()) {   // a chart of lines only has no scale: a clear one so nothing reads an empty list
+        product.ramp.stops = {{0.0, QColor{0, 0, 0, 0}}, {1.0, QColor{0, 0, 0, 0}}};
+    }
     Grids grids = fetched;
     if (product.derive) {
         product.derive(grids, Context{forecastHour, run, options.climate});
     }
-    const auto fill = product.fill(grids);
+    auto fill = product.fill ? product.fill(grids) : GfsGrid::Grid{};
+    if (product.linesOnly && !product.contours.empty()) {   // nothing to fill: a blank grid of the first line's field
+        const auto found = grids.find(product.contours.front().key);
+        if (found != grids.end()) {
+            fill = found->second;
+            std::fill(fill.values.begin(), fill.values.end(), std::nanf(""));
+        }
+    }
     if (fill.empty()) {
         return {};
     }
@@ -3513,7 +3577,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             hi = std::min(hi, -interval / 2.0);
         }
         for (double level = std::max(std::ceil((lo - set.base) / interval) * interval + set.base, std::ceil((set.minimum - set.base) / interval) * interval + set.base); level <= hi; level += interval) {
-            const bool heavy = std::fmod(std::abs(level - set.base), interval * 5) < 1e-6 || (set.colorBelow.isValid() && std::abs(level - set.split) < 1e-6);
+            const bool heavy = !set.uniform && std::fmod(std::abs(level - set.base), interval * 5) < 1e-6 || (set.colorBelow.isValid() && std::abs(level - set.split) < 1e-6);
             const QColor color = set.colorBelow.isValid() && level <= set.split ? set.colorBelow : set.color;
             for (const auto& line : GfsGrid::contour(grid, level / set.scale, sector.west, sector.south, sector.east, sector.north)) {
                 QPainterPath path;
@@ -3531,7 +3595,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 p.setPen(pen);
                 p.drawPath(path);
                 // one label near the middle of a line long enough to carry it
-                if (path.length() > 150.0) {
+                if (set.labelled && path.length() > 150.0) {
                     const auto mid = path.pointAtPercent(0.5);
                     if (area.adjusted(24, 14, -24, -14).contains(mid)) {
                         halo(mid, interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level))), color.darker(130));   // a fractional interval keeps its decimals
@@ -3723,7 +3787,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         const size_t i = std::min(static_cast<size_t>(position), stops.size() - 2);
         return stops[i].first + (stops[i + 1].first - stops[i].first) * (position - static_cast<double>(i));
     };
-    for (int x = 0; x < static_cast<int>(barWidth); x++) {
+    for (int x = 0; !product.linesOnly && x < static_cast<int>(barWidth); x++) {
         const QRgb c = ramp->at(valueAt(x / barWidth));
         // a ramp that begins clear is drawn as the pale ground on the bar
         const int a = qAlpha(c);
@@ -3732,13 +3796,19 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
     p.setPen(QColor{60, 60, 60});
     p.setBrush(Qt::NoBrush);
-    p.drawRect(QRectF{barLeft, barTop, barWidth, barHeight});
+    if (!product.linesOnly) {
+        p.drawRect(QRectF{barLeft, barTop, barWidth, barHeight});
+    } else {   // the lines are the chart: a line of explanation where the color bar would be
+        p.drawText(QRectF{barLeft, barTop, barWidth, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(product.fillTitle));
+    }
     const auto tick = [&] (double t, double value) {
         const double x = barLeft + t * barWidth;
         p.drawLine(QPointF{x, barTop + barHeight}, QPointF{x, barTop + barHeight + 4});
         p.drawText(QRectF{x - 24, barTop + barHeight + 4, 48, 14}, Qt::AlignHCenter, numberText(shown(product.quantity, value, us)));
     };
-    if (ramp->banded) {   // the number at the lower edge of each band, as the model guidance site's legends have it
+    if (product.linesOnly) {
+        // no scale to number
+    } else if (ramp->banded) {   // the number at the lower edge of each band, as the model guidance site's legends have it
         for (size_t i = 0; i < stops.size(); i++) {
             tick(static_cast<double>(i) / static_cast<double>(stops.size()), stops[i].first);
         }

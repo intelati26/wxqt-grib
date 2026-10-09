@@ -65,6 +65,8 @@ namespace GfsChart {
         bool dashed{false};
         bool highsAndLows{false};
         bool onlyBelowZero{false};      // omega: the rising air only
+        bool labelled{true};            // a number on the line (off for a line of each of 31 members)
+        bool uniform{false};            // every line the same weight (no heavy line at every fifth level)
         double width{1.0};
     };
     struct Product {
@@ -81,6 +83,7 @@ namespace GfsChart {
         Ramp ramp;                              // in the grids' own units
         // more fills painted over the first where they have a value (the snow and the mixed precipitation over the rain)
         std::vector<std::pair<std::string, Ramp>> overlays;
+        bool linesOnly{false};                  // no fill and no color bar, only the lines (the members' contours): a key line stands in for the legend
         std::string palette;                    // the name of the model guidance site's scale for this chart ("" none): used when Options.magColors is on
         std::string fillTitle;                  // "Wind speed (kt)"
         std::function<std::string(int hour)> fillTitleFor;   // when the title depends on the hour (a precipitation period)
