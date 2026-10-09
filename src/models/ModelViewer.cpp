@@ -80,6 +80,23 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     }
     box.addLayout(boxH);
     box.addWidgetAndCenter(photo);
+    strip = new TimeStrip{this};
+    strip->onSelect = [this] (int index) { selectHour(index); };
+    strip->onPlay = [this] (bool on) { startPlaying(on); };
+    box.addWidgetReal(strip);
+    playTimer.setSingleShot(false);
+    QObject::connect(&playTimer, &QTimer::timeout, this, [this] {
+        const int n = strip->count();
+        if (n < 2) {
+            return;
+        }
+        const int next = (strip->current() + 1) % n;
+        if (frames.count(frameKey(std::atoi(objectModel.times[static_cast<size_t>(next)].c_str())))) {   // wait for the frame if it is not drawn yet
+            strip->setCurrent(next);
+            selectHour(next);
+        }
+        playTimer.setInterval(strip->intervalMs());
+    });
     box.addWidgetReal(new ActivityLabel{this});
     box.getAndShow(this);
     refreshProductButton();
@@ -150,7 +167,106 @@ void ModelViewer::moveForward() {
     changeTime(objectModel.timeIdx);
 }
 
+string ModelViewer::frameKey(int hour) const {
+    string key = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector + "|" + objectModel.run + "|" + std::to_string(hour);
+    for (const auto& id : overlays) {
+        key += "|" + id;
+    }
+    return key;
+}
+
+void ModelViewer::showFrame(const Frame& frame) {
+    photo.setBytes(frame.bytes);
+    if (!hover) {
+        hover = std::make_unique<ChartHover>(photo.getView());
+    }
+    hover->set(frame.probe);
+}
+
+// a time chosen on the timeline: the same as choosing it in the list
+void ModelViewer::selectHour(int index) {
+    if (index < 0 || index >= static_cast<int>(objectModel.times.size())) {
+        return;
+    }
+    comboboxTime.block();
+    comboboxTime.setIndex(static_cast<size_t>(index));
+    comboboxTime.unblock();
+    changeTime(static_cast<size_t>(index));
+}
+
+void ModelViewer::startPlaying(bool on) {
+    playing = on;
+    ++prefetchGeneration;
+    prefetching = false;
+    if (on) {
+        playTimer.start(strip->intervalMs());
+        prefetch(prefetchGeneration);
+    } else {
+        playTimer.stop();
+    }
+}
+
+// Draws the hours ahead of the one shown, one at a time, so that play runs from drawn frames; it stops when everything is drawn or the chart changes.
+void ModelViewer::prefetch(int generation) {
+    if (!playing || generation != prefetchGeneration || prefetching || !GfsRender::handles(objectModel.model, objectModel.param)) {
+        return;
+    }
+    const int n = strip->count();
+    int want = -1;
+    for (int i = 1; i <= n; i++) {
+        const int index = (strip->current() + i) % n;
+        if (!frames.count(frameKey(std::atoi(objectModel.times[static_cast<size_t>(index)].c_str())))) {
+            want = index;
+            break;
+        }
+    }
+    if (want < 0) {
+        return;
+    }
+    prefetching = true;
+    if (!gfsSession) {
+        gfsSession = std::make_shared<GfsRender::Session>();
+    }
+    auto session = gfsSession;
+    const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = objectModel.run;
+    const auto overlayIds = overlays;
+    const int hour = std::atoi(objectModel.times[static_cast<size_t>(want)].c_str());
+    const auto key = frameKey(hour);
+    auto result = std::make_shared<std::pair<QByteArray, string>>();
+    auto probe = std::make_shared<GfsChart::Probe>();
+    new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get()); },
+                   [this, result, probe, key, generation] {
+                       if (generation != prefetchGeneration) {
+                           return;
+                       }
+                       prefetching = false;
+                       if (result->first.isEmpty()) {   // this hour has no chart: stop rather than ask again
+                           startPlaying(false);
+                           strip->stop();
+                           return;
+                       }
+                       if (frames.size() > 90) {
+                           frames.clear();
+                       }
+                       frames[key] = {result->first, probe};
+                       prefetch(generation);
+                   }};
+}
+
+void ModelViewer::refreshTimeStrip() {
+    frames.clear();   // a refreshed run: draw the frames again
+    std::vector<string> labels;
+    for (const auto& t : objectModel.times) {
+        labels.push_back(WString::split(t, " ")[0]);
+    }
+    strip->setTimes(labels, static_cast<int>(comboboxTime.getIndex()));
+    strip->setVisible(GfsRender::drawsModel(objectModel.model));
+}
+
 void ModelViewer::reload() {
+    if (strip) {
+        strip->setCurrent(static_cast<int>(comboboxTime.getIndex()));
+    }
     objectModel.writePrefs();
     setTitle(objectModel.model + " " + objectModel.sector + " " + objectModel.times[comboboxTime.getIndex()]);
     if (GfsRender::handles(objectModel.model, objectModel.param)) {
@@ -163,16 +279,22 @@ void ModelViewer::reload() {
         const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = objectModel.run;
         const auto overlayIds = overlays;
         const int hour = std::atoi(objectModel.getTime().c_str());
+        if (const auto cached = frames.find(frameKey(hour)); cached != frames.end()) {   // drawn already (play, or a visit before)
+            showFrame(cached->second);
+            return;
+        }
+        const auto key = frameKey(hour);
         auto result = std::make_shared<std::pair<QByteArray, string>>();
         auto probe = std::make_shared<GfsChart::Probe>();
         new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get()); },
-                       [this, result, mine, probe] {
+                       [this, result, mine, probe, key] {
                            if (mine == drawing && !result->first.isEmpty()) {
-                               photo.setBytes(result->first);
-                               if (!hover) {
-                                   hover = std::make_unique<ChartHover>(photo.getView());
+                               if (frames.size() > 90) {
+                                   frames.clear();
                                }
-                               hover->set(probe);
+                               frames[key] = {result->first, probe};
+                               showFrame(frames[key]);
+                               prefetch(prefetchGeneration);
                            } else if (mine == drawing) {
                                setTitle("GFS: " + result->second);
                            }
@@ -240,6 +362,7 @@ void ModelViewer::updateRunStatus() {
     comboboxModel.unblock();
 
     refreshProductButton();
+    refreshTimeStrip();
     reload();
 }
 

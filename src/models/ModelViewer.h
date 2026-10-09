@@ -18,7 +18,10 @@
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/Photo.h"
+#include <map>
+#include <QTimer>
 #include "models/ChartHover.h"
+#include "models/TimeStrip.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -45,6 +48,23 @@ private:
     void moveForward();
     void reload();
     void refreshProductButton();
+    // the timeline: frames drawn ahead (play loops through them) and the strip that runs it
+    struct Frame {
+        QByteArray bytes;
+        std::shared_ptr<GfsChart::Probe> probe;
+    };
+    string frameKey(int hour) const;
+    void showFrame(const Frame&);
+    void selectHour(int index);
+    void startPlaying(bool on);
+    void prefetch(int generation);
+    void refreshTimeStrip();
+    TimeStrip * strip{};
+    QTimer playTimer;
+    std::map<string, Frame> frames;
+    int prefetchGeneration{0};
+    bool prefetching{false};
+    bool playing{false};
     int drawing{0};
     std::shared_ptr<GfsRender::Session> gfsSession;
     std::vector<std::string> overlays;   // the lines and barbs ticked onto the chart
