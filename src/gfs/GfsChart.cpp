@@ -1295,6 +1295,45 @@ const std::vector<Product>& products() {
             x.legendStep = 0.0;
             return x;
         };
+        {   // the hours with precipitation in the 12 ending at the hour (the blend has no duration record: counted from its hourly amounts, which go to hour 36)
+            Product x;
+            x.source = "NBM";
+            x.id = "precip_duration";
+            x.label = "Precipitation duration";
+            x.needs = [=] (int hour) {
+                std::vector<GfsData::Need> needs;
+                if (hour < 12 || hour > 36) {
+                    return needs;
+                }
+                for (int i = 0; i < 12; i++) {
+                    needs.push_back({hour - i, nbmWant("a" + std::to_string(i), "APCP", "surface", window(hour - i, 1, "acc"))});
+                }
+                return needs;
+            };
+            x.derive = [] (Grids& g, const Context&) {
+                auto hours = g["a0"];
+                std::fill(hours.values.begin(), hours.values.end(), 0.0f);
+                for (const auto& [key, grid] : g) {
+                    if (key.size() >= 2 && key[0] == 'a' && std::isdigit(static_cast<unsigned char>(key[1]))) {
+                        for (size_t i = 0; i < hours.values.size(); i++) {
+                            hours.values[i] += grid.values[i] >= 0.254f ? 1.0f : 0.0f;   // 0.01 in or more in the hour
+                        }
+                    }
+                }
+                g["hours"] = std::move(hours);
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "hours"); };
+            Ramp ramp;
+            ramp.banded = true;
+            const char * colors[] = {"#ffffff", "#4dffff", "#1e90ff", "#0000cd", "#008000", "#32cd32", "#98fb98", "#ffff00", "#ffa500", "#ff4500", "#a0522d", "#ee82ee", "#6a2c9a"};
+            for (int i = 0; i <= 12; i++) {
+                ramp.stops.push_back({static_cast<double>(i), i == 0 ? QColor{255, 255, 255, 0} : QColor{colors[i]}});   // a count of hours: the band of n starts at n
+            }
+            x.ramp = ramp;
+            x.fillTitle = "Hours with precipitation in the 12 ending at the hour";
+            x.legendStep = 1;
+            p.push_back(x);
+        }
         p.push_back(nbmAccum("precip_p01", "Total Precipitation", "APCP", 1, precipitation(), Quantity::Millimeters, 1.0));
         p.push_back(nbmAccum("precip_p06", "Total Precipitation", "APCP", 6, precipitation(), Quantity::Millimeters, 1.0));
         p.push_back(nbmAccum("precip_p12", "Total Precipitation", "APCP", 12, precipitation(), Quantity::Millimeters, 1.0));
