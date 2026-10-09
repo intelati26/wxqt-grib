@@ -6,6 +6,9 @@
 
 #include "ModelViewer.h"
 #include "ui/ActivityLabel.h"
+#include <QMenu>
+#include <QPushButton>
+#include "models/CamsViewer.h"
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -55,6 +58,26 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     buttonProducts.connect([this] { showPicker(); });
     boxH.addWidget(comboboxTime);
     boxH.addLayout(backForward);
+    {   // the models that are fetched as pictures, in a second menu beside the GRIB ones: each opens its own screen
+        auto * more = new QPushButton{"Image models  \xE2\x96\xBE", this};
+        auto * menu = new QMenu{more};
+        const auto add = [this, menu] (const QString& text, std::function<void()> open) {
+            QObject::connect(menu->addAction(text), &QAction::triggered, this, [open] { open(); });
+        };
+        Window * opener = parent;
+        const auto screen = [this, opener] (const string& type) { return [this, opener, type] { new ModelViewer{opener ? opener : this, type}; }; };
+        add("NSSL WRF (WRF, FV3, HRRRv3)", screen("NSSLWRF"));
+        add("NSSL CAMs (MPAS, WRF, HRRR, RRFS)", [this, opener] { new CamsViewer{opener ? opener : this}; });
+        menu->addSeparator();
+        add("SPC HRRR", screen("SPCHRRR"));
+        add("SPC HREF", screen("SPCHREF"));
+        add("SPC SREF", screen("SPCSREF"));
+        menu->addSeparator();
+        add("ESRL HRRR / RAP", screen("ESRL"));
+        add("WPC GEFS", screen("WPCGEFS"));
+        more->setMenu(menu);
+        boxH.addWidgetReal(more);
+    }
     box.addLayout(boxH);
     box.addWidgetAndCenter(photo);
     box.addWidgetReal(new ActivityLabel{this});
