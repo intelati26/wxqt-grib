@@ -2954,6 +2954,76 @@ const std::vector<Product>& products() {
                 x.legendStep = 500;
                 p.push_back(x);
             }
+            // ---- the "Parametric" indices of the old SPC-style screen (IndexViewer), now charts like the rest (so the maximum over a day, the change since an earlier run, the hover and the compare tiles all
+            // work on them). Formulas as that screen had them (docs/derived-severe-indices-plan.md).
+            {   // SHIP: the significant hail parameter, with the model's own hail size as lines (inches)
+                auto x = make("ship", "SHIP (Significant Hail Parameter)");
+                x.needs = [=] (int hour) {
+                    std::vector<GfsData::Need> out;
+                    if (hour < 1) {
+                        return out;
+                    }
+                    out.push_back({hour, {"hail", "HAIL", "surface", std::to_string(hour - 1) + "-" + std::to_string(hour) + " hour max fcst", ""}});
+                    for (const auto& w : {want("cape", "CAPE", "180-0 mb above ground"), want("d2", "DPT", "2 m above ground"), want("sp", "PRES", "surface"), want("us", "VUCSH", "0-6000 m above ground"),
+                                          want("vs", "VVCSH", "0-6000 m above ground"), want("fz", "HGT", "0C isotherm"), want("terr", "HGT", "surface"), want("t7", "TMP", "700 mb"), want("t5", "TMP", "500 mb"),
+                                          want("z7", "HGT", "700 mb"), want("z5", "HGT", "500 mb")}) {
+                        out.push_back({hour, w});
+                    }
+                    return out;
+                };
+                x.derive = [] (Grids& g, const Context&) {
+                    auto out = g["cape"];
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        const double cape = g["cape"].values[i], d2 = g["d2"].values[i], sp = g["sp"].values[i], t5 = g["t5"].values[i];
+                        const double e = 6.112 * std::exp(17.67 * d2 / (d2 + 243.5));
+                        const double mixr = 622.0 * e / (sp / 100.0 - e);                                                        // g/kg
+                        const double lr75 = (g["t7"].values[i] - t5) / ((g["z5"].values[i] - g["z7"].values[i]) / 1000.0);      // C/km
+                        const double shear = std::hypot(g["us"].values[i], g["vs"].values[i]);                                   // m/s
+                        const double frz = g["fz"].values[i] - g["terr"].values[i];                                             // m above the ground
+                        double ship = cape * std::clamp(mixr, 11.0, 13.6) * lr75 * (-std::min(t5, -5.5)) * std::clamp(shear, 7.0, 27.0) / 42000000.0;
+                        ship *= (cape < 1300.0 ? cape / 1300.0 : 1.0) * (lr75 < 5.8 ? lr75 / 5.8 : 1.0) * (frz < 2400.0 ? frz / 2400.0 : 1.0);
+                        out.values[i] = std::isfinite(ship) ? static_cast<float>(std::max(0.0, ship)) : std::nanf("");
+                    }
+                    g["ship"] = std::move(out);
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "ship"); };
+                x.ramp = Ramp{{{0.0, QColor{0, 0, 40, 0}}, {0.25, QColor{0, 0, 40, 0}}, {0.5, QColor{40, 60, 200}}, {1.0, QColor{60, 170, 90}}, {1.5, QColor{230, 220, 60}}, {2.0, QColor{240, 150, 40}},
+                               {3.0, QColor{220, 40, 40}}, {4.0, QColor{170, 30, 150}}, {6.0, QColor{255, 255, 255}}}};
+                x.fillTitle = "SHIP: under 1 not significant, 1-4 favorable for hail of 2 in or more, over 4 very high (lines: the model's hail size, in)";
+                x.legendStep = 1;
+                ContourSet hail;
+                hail.key = "hail";
+                hail.scale = 39.3701;
+                hail.base = 0.5;
+                hail.interval = 0.5;
+                hail.minimum = 0.75;
+                hail.title = "Hail size (in)";
+                hail.color = QColor{20, 20, 20};
+                hail.width = 1.6;
+                x.contours = {hail};
+                p.push_back(x);
+            }
+            {   // STP: the significant tornado parameter, fixed layer (Thompson et al. 2003)
+                auto x = make("stp", "STP (Significant Tornado Parameter, fixed layer)");
+                x.wants = {want("sbcape", "CAPE", "surface"), want("sbcin", "CIN", "surface"), want("srh1", "HLCY", "1000-0 m above ground"), want("us", "VUCSH", "0-6000 m above ground"),
+                           want("vs", "VVCSH", "0-6000 m above ground"), want("lcl", "HGT", "level of adiabatic condensation from sfc"), want("terr", "HGT", "surface")};
+                x.derive = [] (Grids& g, const Context&) {
+                    auto out = g["sbcape"];
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        const double lcl = g["lcl"].values[i] - g["terr"].values[i], shear = std::hypot(g["us"].values[i], g["vs"].values[i]), cin = g["sbcin"].values[i];
+                        const double stp = (g["sbcape"].values[i] / 1500.0) * (lcl < 1000.0 ? 1.0 : (lcl > 2000.0 ? 0.0 : (2000.0 - lcl) / 1000.0)) * (g["srh1"].values[i] / 150.0) *
+                            (shear > 30.0 ? 1.5 : (shear < 12.5 ? 0.0 : shear / 20.0)) * (cin > -50.0 ? 1.0 : (cin < -200.0 ? 0.0 : (200.0 + cin) / 150.0));
+                        out.values[i] = std::isfinite(stp) ? static_cast<float>(std::max(0.0, stp)) : std::nanf("");
+                    }
+                    g["stp"] = std::move(out);
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "stp"); };
+                x.ramp = Ramp{{{0.0, QColor{0, 0, 40, 0}}, {0.25, QColor{0, 0, 40, 0}}, {0.5, QColor{40, 60, 200}}, {1.0, QColor{60, 170, 90}}, {2.0, QColor{230, 220, 60}}, {3.0, QColor{240, 150, 40}},
+                               {5.0, QColor{220, 40, 40}}, {8.0, QColor{170, 30, 150}}, {12.0, QColor{255, 255, 255}}}};
+                x.fillTitle = "STP: over 1, most significant tornadoes with a supercell; under 1, most non-tornadic ones";
+                x.legendStep = 1;
+                p.push_back(x);
+            }
             {   // the Haines index (mid level, 850-700 mb): stability from the temperature drop between the levels (1 under 6 C, 2 up to 10, 3 above), moisture from the dew point depression at 850 mb (1 under 6 C, 2 up to 12, 3 above)
                 auto x = make("haines", "Haines Index (850-700 mb)");
                 x.wants = {want("t8", "TMP", "850 mb"), want("t7", "TMP", "700 mb"), want("d8", "DPT", "850 mb")};
@@ -4319,7 +4389,7 @@ std::string category(const Product& product) {
     if (has("shear") || has("steering") || has("div") || has("stream") || has("thetae") || has("vor") || has("trop") || has("850vor")) {
         return "Tropical and dynamics";
     }
-    if (has("cape") || has("helicity") || has("hlcy") || has("radar") || has("reflectivity") || has("echo") || has("lightning") || has("updraft") || has("srh") || has("stp") || has("scp")) {
+    if (has("cape") || has("helicity") || has("hlcy") || has("radar") || has("reflectivity") || has("echo") || has("lightning") || has("updraft") || has("srh") || has("stp") || has("scp") || has("ship")) {
         return "Storms and severe";
     }
     if (has("vis") || has("ceil") || has("fog") || has("flight") || has("haines") || has("mix")) {
