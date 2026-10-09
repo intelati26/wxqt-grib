@@ -9,7 +9,7 @@ called as a separate program, or only used to check our own code, that is said.
   and `gdalinfo` programs. https://gdal.org
 - **PROJ** (MIT): map projections, through GDAL. https://proj.org
 - **ECMWF ecCodes** (Apache License 2.0, Copyright ECMWF): the reference GRIB / BUFR decoder. The values the BUFR track reader's tests expect were read with its tools
-  (`tests/hurricane/`), and the open-data GRIB reader planned for ECMWF's models will use its field names and index. https://confluence.ecmwf.int/display/ECC
+  (`tests/hurricane/`), and the open-data GRIB reader for ECMWF's models uses its field names and index (ecCodes is not linked). https://confluence.ecmwf.int/display/ECC
 - **SHARPpy** (BSD): the sounding algorithms ported to C++, see `sharppy-notice.md`.
 - **zstd** (BSD / GPLv2, Meta): vendored for the Zarr reader, see `zstd-LICENSE.txt`.
 
@@ -19,8 +19,9 @@ called as a separate program, or only used to check our own code, that is said.
 - **U.S. Drought Monitor** (produced jointly by the National Drought Mitigation Center at the University of Nebraska-Lincoln, the USDA and NOAA; droughtmonitor.unl.edu): the weekly maps, the change maps and the area statistics on the drought screen.
 - **NOAA Climate Prediction Center**: the precipitation totals and departures, the drought outlooks, soil moisture and the standardized precipitation index on the drought screen.
 - **ECMWF open data** (CC BY 4.0): "Contains ECMWF open data", see `ecmwf-notice.md`.
+- **NWS gridded forecasts** (api.weather.gov) and the **NOAA mapservices outlook layers** (SPC convective and WPC excessive rainfall outlooks): the forecast point card and page.
 - **Google DeepMind Weather Lab** cyclone ensembles: used under the terms on their download pages (experimental; not for real world use).
-- **CIRA / RAMMB** (Colorado State), **JTWC**, **JMA**, **NOAA PSL** (the NCEP / NCAR reanalysis climatology for the anomaly charts), **Natural Earth** (coastlines,
+- **CIRA / RAMMB** (Colorado State), **JTWC**, **JMA**, **NOAA PSL** (the NCEP / NCAR reanalysis: the daily means and the daily standard deviations, worked out from its daily averages, for the anomaly, extreme forecast index and standardized anomaly charts), **Natural Earth** (coastlines,
   public domain, see `naturalearth-notice.md`).
 - The colour scales of the "model guidance site" look were read from the legends of NCEP's Model Analyses and Guidance pages (https://mag.ncep.noaa.gov).
 
