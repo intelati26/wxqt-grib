@@ -35,6 +35,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , buttonProducts{this, None, "Charts..."}
     , buttonSector{this, None, "Area..."}
+    , buttonModel{this, None, "Model..."}
 {
     comboboxModel.setIndexByValue(objectModel.model);
     comboboxModel.connect([this] { changeModelCb(); });
@@ -49,6 +50,8 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     comboboxTime.connect([this] { changeTimeCb(); });
 
     boxH.addWidget(comboboxModel);
+    boxH.addWidget(buttonModel);
+    buttonModel.connect([this] { showModelPicker(); });
     boxH.addWidget(comboboxRun);
     boxH.addWidget(comboboxSector);
     boxH.addWidget(buttonSector);
@@ -377,6 +380,10 @@ void ModelViewer::updateRunStatus() {
 
 // The charts of a model drawn from GRIB are many: they are chosen in the grouped picker, and the plain list is for the models still fetched as pictures.
 void ModelViewer::refreshProductButton() {
+    const bool ncep = objectModel.prefModel == "NCEP";   // the model guidance site's list is long: the grouped picker
+    comboboxModel.setVisible(!ncep);
+    buttonModel.setVisible(ncep);
+    buttonModel.setText(objectModel.model + "  \xE2\x96\xBE");
     const bool grib = GfsRender::drawsModel(objectModel.model);
     comboboxProduct.setVisible(!grib);
     comboboxSector.setVisible(!grib);   // the areas are many too: the grouped picker
@@ -413,6 +420,53 @@ namespace {
         const auto found = groups.find(id);
         return found == groups.end() ? "Other" : found->second;
     }
+}
+
+namespace {
+    // where a model goes in the picker's tree (after the model sites' own layout: global, regional, convection allowing, ensembles, climate)
+    string modelGroup(const string& id) {
+        static const std::map<string, string> groups{
+            {"GFS", "Global"}, {"AIGFS", "Global"},
+            {"NAM", "Regional"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Regional"},
+            {"HRRR", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"NAM-HIRES", "Convection allowing"}, {"HRW-ARW", "Convection allowing"},
+            {"HRW-ARW2", "Convection allowing"}, {"HRW-FV3", "Convection allowing"},
+            {"GEFS", "Ensembles"}, {"REFS", "Ensembles"}, {"HREF", "Ensembles"}, {"SREF", "Ensembles"}, {"NAEFS", "Ensembles"},
+            {"GEFS-MEAN-SPRD", "Ensembles"}, {"GEFS-SPAG", "Ensembles"},
+            {"GFS-WAVE", "Waves and ocean"}, {"GEFS-WAVE", "Waves and ocean"}, {"WW3", "Waves and ocean"}, {"WW3-ENP", "Waves and ocean"}, {"WW3-WNA", "Waves and ocean"},
+            {"ESTOFS", "Waves and ocean"}, {"POLAR", "Waves and ocean"}};
+        const auto found = groups.find(id);
+        return found == groups.end() ? "Other" : found->second;
+    }
+}
+
+void ModelViewer::showModelPicker() {
+    if (modelPicker) {
+        modelPicker->raise();
+        modelPicker->activateWindow();
+        return;
+    }
+    std::vector<ProductPicker::Entry> entries;
+    for (const auto& id : objectModel.models) {
+        entries.push_back({id, id, modelGroup(id)});
+    }
+    static const std::vector<string> order{"Global", "Regional", "Convection allowing", "Ensembles", "Waves and ocean", "Other"};
+    std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
+        return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
+    });
+    modelPicker = new ProductPicker{this, "NCEP", entries, objectModel.model, {}, {}, {}};
+    modelPicker->setWording("models", "Show this model");
+    modelPicker->resize(320, 520);
+    modelPicker->onPick = [this] (const string& id) {
+        const auto items = comboboxModel.getItems();
+        const auto found = std::find(items.begin(), items.end(), id);
+        if (found != items.end()) {
+            comboboxModel.block();
+            comboboxModel.setIndex(static_cast<size_t>(found - items.begin()));
+            comboboxModel.unblock();
+            changeModel(static_cast<int>(found - items.begin()));
+        }
+    };
+    modelPicker->show();
 }
 
 void ModelViewer::showSectorPicker() {

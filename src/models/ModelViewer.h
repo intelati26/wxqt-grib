@@ -32,6 +32,7 @@ class ModelViewer : public Window {
 public:
     ModelViewer(Window *, const string&);
     void showPicker();
+    void showModelPicker();    // the models in groups (global, regional, convection allowing, ensembles, waves ...)
     void showSectorPicker();   // the same, for the areas   // the grouped chart picker (the models drawn from GRIB)
 
 private:
@@ -86,6 +87,8 @@ private:
     std::unique_ptr<ChartHover> hover;   // the value under the pointer, for the charts drawn from GRIB
     Button buttonProducts;
     Button buttonSector;
+    Button buttonModel;
+    QPointer<ProductPicker> modelPicker;
     QPointer<ProductPicker> sectorPicker;
     QPointer<ProductPicker> picker;
 };
