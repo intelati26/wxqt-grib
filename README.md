@@ -96,7 +96,8 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
 NOAA / NWS (NHC, SPC, WPC, OPC, CPC, NESDIS OSPO and Coral Reef Watch, NCEP, NSSL, MRMS), CIRA / RAMMB (Colorado State),
 JTWC, JMA, AWS open data (RRFS mirror). SPC's REFS, CIRA's products and several NSSL models are **experimental**; this is not a
 warning service - see the disclaimer below. Sounding algorithms: SHARPpy (BSD), see `licenses/sharppy-notice.md`.
-zstd (BSD / GPLv2) is vendored for the Zarr reader, see `licenses/zstd-LICENSE.txt`.
+zstd (BSD / GPLv2) is vendored for the Zarr reader, see `licenses/zstd-LICENSE.txt`. GDAL (MIT), PROJ (MIT), ECMWF ecCodes (Apache 2.0), Qt and the
+data providers are credited in `licenses/CREDITS.md`.
 
 Prerequisites:
 * Qt 5.12 or higher (Qt 6 is what the packages are built with)
