@@ -53,6 +53,7 @@ public:
     static const bool useNwsApiForHourly;
     static bool mainScreenSevereDashboard;
     static bool hourlyGraph;        // the hourly graph on the home screen
+    static bool forecastPoint;      // the week at a glance and the outlooks of the point (the NWS forecast points page) on the home screen
     static bool hourlyGraphAbove;   // ... above the seven day forecast, else below it
     static bool homeCaptions;   // a short caption under each home screen picture
     static bool mapScrollWheelMotion;

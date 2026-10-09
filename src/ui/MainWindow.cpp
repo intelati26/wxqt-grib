@@ -101,6 +101,14 @@ MainWindow::MainWindow(QWidget * parent)
     boxHourlyGraph.addWidget(hourlyGraph);   // the hourly graph sits above the long day list, where it is seen (H shows / hides it)
     forecastLayout.addLayout(boxSevenDay);
     forecastLayout.addLayout(boxHourlyGraph);
+    forecastPointCard = new CardForecastPoint{this};
+    forecastPointCard->onOpen = [this] {
+        if (pointData && pointData->ok) {
+            new ForecastPointViewer{this, pointData};
+        }
+    };
+    boxForecastPoint.addWidgetReal(forecastPointCard, 1, Qt::Alignment{});
+    forecastLayout.addLayout(boxForecastPoint);
     forecastLayout.addStretch();
 
     addWidgets();   // also places the columns right of the toolbar, in the user's order
@@ -152,6 +160,16 @@ void MainWindow::reload() {
         new FutureVoid{this, [this] { getHazards(); }, [this] { updateHazards(); }};
         new FutureVoid{this, [this] { get7day(); }, [this] { update7day(); }};
         new FutureVoid{this, [this] { getHourlyGraphData(); }, [this] { updateHourlyGraph(); }};
+        if (UIPreferences::forecastPoint) {
+            const auto where = Location::getLatLonCurrent();
+            auto fetched = std::make_shared<UtilityForecastPoint::Data>();
+            new FutureVoid{this, [where, fetched] { *fetched = UtilityForecastPoint::fetch(where.lat(), where.lon()); }, [this, fetched] {
+                               pointData = fetched;
+                               forecastPointCard->setData(fetched);
+                           }};
+        } else {
+            forecastPointCard->setVisible(false);
+        }
 
         for (const auto& item : UIPreferences::homeScreenItemsText) {
             if (item.isEnabled()) {

@@ -30,6 +30,9 @@
 #include "util/Hazards.h"
 #include "util/SevenDay.h"
 #include "misc/UtilityHourly.h"
+#include "misc/ForecastPointViewer.h"
+#include "misc/UtilityForecastPoint.h"
+#include <memory>
 
 using std::string;
 using std::unordered_map;
@@ -80,6 +83,9 @@ private:
     VBox boxSevenDay;
     VBox boxHazards;
     HBox boxHourlyGraph;   // Added for hourly graph
+    HBox boxForecastPoint;                                     // the forecast point card: the week at a glance and the outlooks
+    CardForecastPoint * forecastPointCard{};
+    std::shared_ptr<UtilityForecastPoint::Data> pointData;     // downloaded off the GUI thread, drawn on it
     FlowBox boxSevereDashboard;   // the mini severe dashboard: warnings, storm reports, watches, discussions
     ScrolledWindow sw;
     ComboBox comboBox;

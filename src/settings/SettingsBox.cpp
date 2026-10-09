@@ -36,6 +36,7 @@ SettingsBox::SettingsBox(Window * parent)
     configs.push_back(std::make_unique<Switch>(parent, "Show mini SevereDashboard on main screen", "MAINSCREEN_SEVERE_DASH", false));
     configs.push_back(std::make_unique<Switch>(parent, "Show the hourly graph on the home screen", "HOURLY_GRAPH", true));
     configs.push_back(std::make_unique<Switch>(parent, "Hourly graph above the seven day forecast (off: below it)", "HOURLY_GRAPH_ABOVE", true));
+    configs.push_back(std::make_unique<Switch>(parent, "Show the forecast point (the week at a glance and the outlooks, as the NWS forecast points page) on the home screen", "HOME_FORECAST_POINT", true));
     configs.push_back(std::make_unique<Switch>(parent, "Captions under the home screen pictures", "HOME_CAPTIONS", true));
     configs.push_back(std::make_unique<Switch>(parent, "Toggle scroll wheel motion", "NEXRAD_SCROLLWHEEL", false));
     configs.push_back(std::make_unique<Switch>(parent, "Remember last GOES image", "REMEMBER_GOES", false));
