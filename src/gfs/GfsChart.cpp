@@ -1162,6 +1162,114 @@ const std::vector<Product>& products() {
             p.push_back(y);
         }
 
+        // ---- the rest of the blend's maps: chances of precipitation and of each type, snow (hourly, the percentiles, the chance of reaching an amount), the snow to liquid ratio, thunderstorm
+        // coverage and chance, visibility, ceiling and echo top, and the chances of low visibility and low ceilings
+        {
+            const auto nbmChart = [&] (const char * id, const char * label) {
+                Product x;
+                x.source = "NBM";
+                x.id = id;
+                x.label = label;
+                return x;
+            };
+            const auto chance = [&] (const char * id, const char * label, const char * variable, const char * level, std::function<std::string(int)> forecast, const char * detail, const char * title) {
+                auto x = nbmChart(id, label);
+                const std::string var = variable, lev = level, det = detail;
+                x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", var.c_str(), lev.c_str(), forecast(hour), det)}}; };
+                x.fill = [] (const Grids& g) { return pick(g, "f"); };
+                x.ramp = probability();
+                x.fillTitle = title;
+                x.legendStep = 10;
+                return x;
+            };
+            const auto accWindow = [window] (int length) { return [window, length] (int hour) { return window(hour, std::min(length, hour), "acc"); }; };
+            p.push_back(chance("1hour_precip_chance", "1-hour Chance of Precipitation", "APCP", "surface", accWindow(1), "prob >0.254", "Chance of 0.01 in or more of precipitation in the hour (%)"));
+            p.push_back(chance("6hour_precip_chance", "6-hour Chance of Precipitation", "APCP", "surface", accWindow(6), "prob >0.254", "Chance of 0.01 in or more of precipitation in 6 hours (%)"));
+            p.push_back(chance("12hour_precip_chance", "12-hour Chance of Precipitation", "APCP", "surface", accWindow(12), "prob >0.254", "Chance of 0.01 in or more of precipitation in 12 hours (%)"));
+            const auto now = [atHour] (int hour) { return atHour(hour); };
+            p.push_back(chance("prob_rain", "Probability of Rain", "PTYPE", "surface", now, "prob >=1 <2", "Chance of rain (%)"));
+            p.push_back(chance("prob_snow", "Probability of Snow", "PTYPE", "surface", now, "prob >=8 <9", "Chance of snow (%)"));
+            p.push_back(chance("prob_sleet", "Probability of Sleet", "PTYPE", "surface", now, "prob >=5 <7", "Chance of sleet (%)"));
+            p.push_back(chance("prob_freezing_rain", "Probability of Freezing Rain", "PTYPE", "surface", now, "prob >=3 <4", "Chance of freezing rain (%)"));
+            for (const auto& [id, label, inches, meters] : {std::tuple{"prob_1h_snow_0.1in", "Probability of 1-hour 0.1 inch of snow", "0.1 in", "0.00254"}, {"prob_1h_snow_0.5in", "Probability of 1-hour 0.5 inch of snow", "0.5 in", "0.0127"},
+                                                            {"prob_1h_snow_1in", "Probability of 1-hour 1 inch of snow", "1 in", "0.0254"}, {"prob_1h_snow_1.5in", "Probability of 1-hour 1.5 inch of snow", "1.5 in", "0.0381"},
+                                                            {"prob_1h_snow_2in", "Probability of 1-hour 2 inches of snow", "2 in", "0.0508"}, {"prob_1h_snow_3in", "Probability of 1-hour 3 inches of snow", "3 in", "0.0762"},
+                                                            {"prob_1h_snow_4in", "Probability of 1-hour 4 inches of snow", "4 in", "0.1016"}}) {
+                p.push_back(chance(id, label, "ASNOW", "surface", accWindow(1), (std::string{"prob >"} + meters).c_str(), (std::string{"Chance of "} + inches + " or more of snow in the hour (%)").c_str()));
+            }
+            p.push_back(nbmAccum("1hour_accu_snow", "1-hour accumulated snow", "ASNOW", 1, snowfall(), Quantity::Centimeters, 100.0));
+            for (const int level : {10, 50, 90}) {   // the amounts that 10, 50 and 90 per cent of the blend's members stay under
+                auto x = nbmChart((std::to_string(level) + "th_percentile_1hr_snow").c_str(), (std::to_string(level) + "th Percentile Hourly Snowfall").c_str());
+                const auto detail = std::to_string(level) + "% level";
+                x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", "ASNOW", "surface", std::to_string(hour - 1) + "-" + std::to_string(hour) + " hour acc@*", detail)}}; };
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), 100.0); };
+                x.ramp = snowfall();
+                x.quantity = Quantity::Centimeters;
+                x.fillTitle = std::to_string(level) + "th percentile of the snow in the hour";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                auto x = nbmChart("snow_liquid_ratio", "Snow Liquid Ratio");
+                x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", "SNOWLR", "surface", atHour(hour))}}; };
+                x.fill = [] (const Grids& g) { return pick(g, "f"); };
+                x.ramp = Ramp{{{0, QColor{"#b5368f"}}, {5, QColor{"#d9435f"}}, {8, QColor{"#ee7a47"}}, {10, QColor{"#f6e04a"}}, {13, QColor{"#a9d98a"}}, {16, QColor{"#55b6a8"}}, {20, QColor{"#2b7fc0"}}, {30, QColor{"#5b43a8"}}}};
+                x.fillTitle = "Inches of snow for an inch of water (x to 1)";
+                x.legendStep = 5;
+                p.push_back(x);
+            }
+            {   // coverage: the 1 hour chance of thunder in the bands the forecasters use (isolated 10-20 %, scattered 30-50 %, numerous from 60 %)
+                auto x = chance("tstm_coverage", "Thunderstorm Coverage", "TSTM", "surface", accWindow(1), "probability forecast", "Thunderstorm coverage in the hour: isolated, scattered, numerous");
+                x.ramp = Ramp{{{0, QColor{255, 255, 255, 0}}, {9.9, QColor{255, 255, 255, 0}}, {10, QColor{"#ffe97a"}}, {29.9, QColor{"#ffe97a"}}, {30, QColor{"#f09a2e"}}, {59.9, QColor{"#f09a2e"}}, {60, QColor{"#c4262c"}}, {100, QColor{"#c4262c"}}}};
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            p.push_back(chance("prob_tstm", "Thunderstorm Probability", "TSTM", "surface", accWindow(1), "probability forecast", "Chance of a thunderstorm in the hour (%)"));
+            {
+                auto x = nbmChart("visibility", "2-meter Visibility");
+                x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", "VIS", "surface", atHour(hour))}}; };
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), 1.0 / 1609.344); };
+                x.ramp = visibilityRamp();
+                x.fillTitle = "Visibility (miles)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                auto x = nbmChart("ceiling", "Ceiling");
+                x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", "CEIL", "cloud ceiling", atHour(hour))}}; };
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), 3.28084); };
+                x.ramp = ceilingRamp();
+                x.fillTitle = "Ceiling (feet)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                auto x = nbmChart("echo_top", "Echo Top Height");
+                x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", "RETOP", "cloud top", atHour(hour))}}; };
+                x.fill = [] (const Grids& g) {   // where there is no echo the blend writes a huge number, not a missing value
+                    auto out = GfsGrid::scaled(pick(g, "f"), 3.28084 / 1000.0);
+                    for (auto& v : out.values) {
+                        if (v > 80.0f || v < 0.0f) {
+                            v = std::nanf("");
+                        }
+                    }
+                    return out;
+                };
+                x.ramp = echoTopRamp();
+                x.fillTitle = "Echo top (thousands of feet)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            for (const auto& [id, label, miles, meters] : {std::tuple{"prob_vis_5mi", "Probability of Visibility 5 miles or less", "5 miles", "8046.73"}, {"prob_vis_3mi", "Probability of Visibility less than 3 miles", "3 miles", "4828.03"},
+                                                           {"prob_vis_2mi", "Probability of Visibility less than 2 miles", "2 miles", "3218.69"}, {"prob_vis_1mi", "Probability of Visibility less than 1 mile", "1 mile", "1609.34"}}) {
+                p.push_back(chance(id, label, "VIS", "surface", now, (std::string{"prob <"} + meters).c_str(), (std::string{"Chance of visibility under "} + miles + " (%)").c_str()));
+            }
+            for (const auto& [id, label, feet, meters] : {std::tuple{"prob_ceil_1000ft", "Probability of Ceiling Less than 1000 feet", "1000 feet", "304.8"}, {"prob_ceil_2000ft", "Probability of Ceiling Less than 2000 feet", "2000 feet", "609.6"},
+                                                          {"prob_ceil_3000ft", "Probability of Ceiling 3000 feet or less", "3000 feet", "914.5"}, {"prob_ceil_6500ft", "Probability of Ceiling 6500 feet or less", "6500 feet", "2011.68"}}) {
+                p.push_back(chance(id, label, "CEIL", "cloud ceiling", now, (std::string{"prob <"} + meters).c_str(), (std::string{"Chance of a ceiling under "} + feet + " (%)").c_str()));
+            }
+        }
+
         // ---- AIGFS: the same charts as the GFS, from its two files. Humidity comes as specific humidity (relative humidity is worked out from it with the temperature), and
         // precipitation as 6 hour amounts (a period is the amounts of its 6 hour pieces added up).
         const auto relativeHumidity = [] (const GfsGrid::Grid& temperature, const GfsGrid::Grid& specific, double hPa) {
