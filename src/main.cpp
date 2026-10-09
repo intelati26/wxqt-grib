@@ -116,6 +116,7 @@ int main(int argc, char * argv[]) {
         debug = debug || argument == "--debug";
     }
     a.installEventFilter(new ZoomKeys{&a});
+    GfsRender::startCacheCleanup();   // the model field cache is tidied in the background, a few seconds in
     CrashLog::install(debug);
     MyApplication::onCreate();
     UtilityTheme::apply();

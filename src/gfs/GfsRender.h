@@ -31,6 +31,9 @@ namespace GfsRender {
     };
 
     // the bytes the model data cache holds, and remove them all (for the settings)
+    // Tidies the shared field cache in the background, a few seconds after the program starts and then every few hours it stays open: what was downloaded more than the number of hours kept
+    // ago (48 unless the settings say otherwise) goes, and the oldest go first if the folder is over its size limit. Nothing waits for it; call it once, from the main thread.
+    void startCacheCleanup();
     qint64 cacheUsage();
     void clearCache();
     // true when the model's charts are drawn here at all (the model screen then offers the grouped picker instead of a plain list)

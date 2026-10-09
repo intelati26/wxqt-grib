@@ -55,7 +55,13 @@ void GfsCache::clear(const QString& folderPath) {
 qint64 GfsCache::prune(int hours, qint64 bytes, const QString& folderPath) {
     const auto path = folderPath.isEmpty() ? folder() : folderPath;
     if (folderPath.isEmpty()) {   // what the earlier versions left: the first cache folder, and the temporary folders of the screens that were open when the program ended badly
-        QDir{QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/gfs"}.removeRecursively();
+        const QDir root{QStandardPaths::writableLocation(QStandardPaths::CacheLocation)};
+        QDir{root.filePath("gfs")}.removeRecursively();
+        for (const auto& old : root.entryList({"gfs-v*"}, QDir::Dirs | QDir::NoDotAndDotDot)) {   // the folders of the earlier formats
+            if (old != QString{"gfs-v%1"}.arg(formatVersion)) {
+                QDir{root.filePath(old)}.removeRecursively();
+            }
+        }
         const QDir temp{QStandardPaths::writableLocation(QStandardPaths::TempLocation)};
         for (const auto& old : temp.entryList({"wxqt_gfs_session_*"}, QDir::Dirs | QDir::NoDotAndDotDot)) {
             QDir{temp.filePath(old)}.removeRecursively();

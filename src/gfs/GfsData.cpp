@@ -301,12 +301,19 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     }
     QDir{}.mkpath(config.cacheFolder);
     const auto cachePath = config.cacheFolder + "/" + name + ".gz4";
-    constexpr int header = 4 + 4 + 8 + 8 + 8;
+    constexpr int header = 4 + 4 + 8 + 8 + 8 + 8 + 8;   // columns, rows, lon0, lat0, step, then the record's first and last byte in the file
     QFile cached{cachePath};
     if (cached.open(QIODevice::ReadOnly)) {
         const auto all = cached.readAll();
         cached.close();
+        long long storedStart = -2, storedEnd = -2;
         if (all.size() > header) {
+            std::memcpy(&storedStart, all.constData() + 32, 8);
+            std::memcpy(&storedEnd, all.constData() + 40, 8);
+        }
+        // The index says where the record is in the file now: the same place and size as when it was kept is the cheap proof that the file was not posted again (a run's files do not
+        // change once published; a replaced one moves or resizes its records). Anything else is fetched again and the entry rewritten.
+        if (all.size() > header && storedStart == record->start && storedEnd == record->end) {
             GfsGrid::Grid g;
             std::memcpy(&g.columns, all.constData(), 4);
             std::memcpy(&g.rows, all.constData() + 4, 4);
@@ -414,6 +421,8 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     std::memcpy(store.data() + 8, &g.lon0, 8);
     std::memcpy(store.data() + 16, &g.lat0, 8);
     std::memcpy(store.data() + 24, &g.step, 8);
+    std::memcpy(store.data() + 32, &record->start, 8);
+    std::memcpy(store.data() + 40, &record->end, 8);
     store += qCompress(QByteArray::fromRawData(reinterpret_cast<const char *>(g.values.data()), static_cast<qsizetype>(g.values.size() * 4)), 6);
     QSaveFile keep{cachePath};
     if (keep.open(QIODevice::WriteOnly)) {

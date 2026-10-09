@@ -13,7 +13,7 @@
 // change once published, so a field fetched once is good until it is old: at the start of the program anything downloaded more than a number of hours ago (48 by default) is removed, and
 // the oldest go first if the folder is over its size limit. The folder carries a format version, so a change in how fields are decoded cannot be served stale ones.
 namespace GfsCache {
-    constexpr int formatVersion = 2;
+    constexpr int formatVersion = 3;   // 3: each entry carries the byte range of its record in the file, so a file posted again is noticed
     constexpr int defaultHours = 48;
     constexpr int defaultMegabytes = 2048;
     // the folder (made if it is not there): <cache folder of the app>/gfs-v<formatVersion>

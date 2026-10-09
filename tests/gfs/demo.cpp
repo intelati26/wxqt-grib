@@ -51,6 +51,10 @@ int main(int argc, char ** argv) {
         std::printf("unknown model %s\n", modelName.c_str());
         return 2;
     }
+    const auto stageStart = std::chrono::steady_clock::now();   // DEMO_STAGES=1: where the seconds of a fresh process go
+    const auto stage = [stageStart] (const char * what) {
+        if (std::getenv("DEMO_STAGES")) std::fprintf(stderr, "%6.2f s  %s\n", std::chrono::duration<double>(std::chrono::steady_clock::now() - stageStart).count(), what);
+    };
     GfsData data{config, def->source(hurricane ? sourceArg.substr(sourceArg.find(':') + 1) : std::string{})};
     GfsData::Run run;
     if (const char * forced = std::getenv("DEMO_RUN"); forced && std::string{forced}.size() == 10) {   // DEMO_RUN=2026100818: that run, not the newest (to set a chart beside the model guidance site's of the same run)
@@ -76,12 +80,14 @@ int main(int argc, char ** argv) {
         std::printf("unknown product or sector\n");
         return 2;
     }
+    stage("run found");
     GfsChart::Grids grids;
     std::string error;
     if (!data.load(run, GfsChart::needs(*product, std::atoi(argv[3])), grids, error)) {
         std::printf("load failed: %s\n", error.c_str());
         return 1;
     }
+    stage("fields loaded (index + cache + decode)");
     if (hurricane) {   // the chart is the grid of the first field, as the app does
         for (const auto& need : GfsChart::needs(*product, std::atoi(argv[3]))) {
             const auto found = grids.find(need.want.key);
@@ -133,9 +139,11 @@ int main(int argc, char ** argv) {
             stormSector = GfsChart::cropToTrack(stormSector, options.track, std::atoi(argv[3]), 4.0);
         }
     }
+    stage("before draw");
     GfsChart::Probe probe;   // DEMO_PROBE=fx,fy: what the hover read-out says at that point of the picture (fractions of its width and height)
     options.probe = &probe;
     const auto image = GfsChart::render(*product, *sector, grids, run, std::atoi(argv[3]), options);
+    stage("drawn");
     if (const char * at = std::getenv("DEMO_PROBE")) {
         double fx = 0.5, fy = 0.5;
         std::sscanf(at, "%lf,%lf", &fx, &fy);
@@ -157,6 +165,7 @@ int main(int argc, char ** argv) {
         std::printf("render failed\n");
         return 1;
     }
+    stage("saved");
     std::printf("wrote %s (%dx%d) run %s\n", argv[4], image.width(), image.height(), run.id().c_str());
     return 0;
 }

@@ -5,11 +5,15 @@
 
 #include "gfs/GfsRender.h"
 #include <algorithm>
+#include <atomic>
+#include <thread>
 #include <cmath>
 #include <cstring>
 #include <map>
 #include <mutex>
 #include <set>
+#include <QCoreApplication>
+#include <QTimer>
 #include <QBuffer>
 #include <QDateTime>
 #include <QRegularExpression>
@@ -71,12 +75,7 @@ namespace {
 }
 
 GfsRender::Session::Session() {
-    // the first screen of a run of the program tidies the shared cache: what is older than the number of hours kept (48 unless the settings say otherwise) goes, and the oldest go first
-    // when it is over its size limit
-    static std::once_flag once;
-    std::call_once(once, [] {
-        GfsCache::prune(Utility::readPrefInt("MODEL_CACHE_HOURS", GfsCache::defaultHours), static_cast<qint64>(Utility::readPrefInt("MODEL_CACHE_MB", GfsCache::defaultMegabytes)) * 1024 * 1024);
-    });
+    // (the cache is tidied by startCacheCleanup, in the background: a screen never waits for it)
     path = GfsCache::folder();   // the same folder for every screen: a field one of them fetched is there for the others, and for the next run of the program
 }
 
@@ -88,6 +87,28 @@ QString GfsRender::Session::folder() const {
 
 QString GfsRender::Session::partialGrib(const std::string&, int) const {
     return {};   // the file of what was downloaded for a run and hour is made by GfsData::partialGrib, from the messages in the cache
+}
+
+void GfsRender::startCacheCleanup() {
+    static std::atomic<bool> running{false};
+    auto * timer = new QTimer{QCoreApplication::instance()};
+    const auto sweep = [] {
+        if (running.exchange(true)) {
+            return;   // one at a time
+        }
+        const int hours = Utility::readPrefInt("MODEL_CACHE_HOURS", GfsCache::defaultHours);
+        const auto bytes = static_cast<qint64>(Utility::readPrefInt("MODEL_CACHE_MB", GfsCache::defaultMegabytes)) * 1024 * 1024;
+        std::thread{[hours, bytes] {
+            GfsCache::prune(hours, bytes);
+            running = false;
+        }}.detach();
+    };
+    QObject::connect(timer, &QTimer::timeout, timer, [timer, sweep] {
+        sweep();
+        timer->start(6 * 3600 * 1000);   // and again every 6 hours while the program is open
+    });
+    timer->setSingleShot(true);
+    timer->start(8000);   // after the program is up and the first screen has drawn
 }
 
 qint64 GfsRender::cacheUsage() {
