@@ -1295,45 +1295,6 @@ const std::vector<Product>& products() {
             x.legendStep = 0.0;
             return x;
         };
-        {   // the hours with precipitation in the 12 ending at the hour (the blend has no duration record: counted from its hourly amounts, which go to hour 36)
-            Product x;
-            x.source = "NBM";
-            x.id = "precip_duration";
-            x.label = "Precipitation duration";
-            x.needs = [=] (int hour) {
-                std::vector<GfsData::Need> needs;
-                if (hour < 12 || hour > 36) {
-                    return needs;
-                }
-                for (int i = 0; i < 12; i++) {
-                    needs.push_back({hour - i, nbmWant("a" + std::to_string(i), "APCP", "surface", window(hour - i, 1, "acc"))});
-                }
-                return needs;
-            };
-            x.derive = [] (Grids& g, const Context&) {
-                auto hours = g["a0"];
-                std::fill(hours.values.begin(), hours.values.end(), 0.0f);
-                for (const auto& [key, grid] : g) {
-                    if (key.size() >= 2 && key[0] == 'a' && std::isdigit(static_cast<unsigned char>(key[1]))) {
-                        for (size_t i = 0; i < hours.values.size(); i++) {
-                            hours.values[i] += grid.values[i] >= 0.254f ? 1.0f : 0.0f;   // 0.01 in or more in the hour
-                        }
-                    }
-                }
-                g["hours"] = std::move(hours);
-            };
-            x.fill = [] (const Grids& g) { return pick(g, "hours"); };
-            Ramp ramp;
-            ramp.banded = true;
-            const char * colors[] = {"#ffffff", "#4dffff", "#1e90ff", "#0000cd", "#008000", "#32cd32", "#98fb98", "#ffff00", "#ffa500", "#ff4500", "#a0522d", "#ee82ee", "#6a2c9a"};
-            for (int i = 0; i <= 12; i++) {
-                ramp.stops.push_back({static_cast<double>(i), i == 0 ? QColor{255, 255, 255, 0} : QColor{colors[i]}});   // a count of hours: the band of n starts at n
-            }
-            x.ramp = ramp;
-            x.fillTitle = "Hours with precipitation in the 12 ending at the hour";
-            x.legendStep = 1;
-            p.push_back(x);
-        }
         p.push_back(nbmAccum("precip_p01", "Total Precipitation", "APCP", 1, precipitation(), Quantity::Millimeters, 1.0));
         p.push_back(nbmAccum("precip_p06", "Total Precipitation", "APCP", 6, precipitation(), Quantity::Millimeters, 1.0));
         p.push_back(nbmAccum("precip_p12", "Total Precipitation", "APCP", 12, precipitation(), Quantity::Millimeters, 1.0));
@@ -3231,6 +3192,312 @@ const std::vector<Product>& products() {
                 x.ramp = probability();
                 x.palette = "prob";
                 x.fillTitle = "Chance (%, within the neighborhood)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            // ---- the maps SREF had (REFS replaces it): the ensemble mean, spread and probability files of REFS itself (kind "mean", "sprd", "prob", "eas": the 5 members, on the 3 km grid) and,
+            // where those hold no such field, the mean of the members' own fields. Five members: the chances come in steps of 20 per cent (the neighborhood ones, "eas", are smoother).
+            const auto ens = [] (const std::string& key, const char * variable, const char * level, const std::string& forecast, const char * kind, const char * detail) {
+                return GfsData::Want{key, variable, level, forecast, detail, std::string{"ens:"} + kind};
+            };
+            const auto atHour = [] (int hour) { return std::to_string(hour) + " hour fcst"; };
+            const auto accum = [] (int from, int to) { return std::to_string(from) + "-" + std::to_string(to) + " hour acc fcst"; };
+            const auto meanOfMembers = [] (Grids& g, const char * prefix, const char * out) {
+                auto mean = g.at(std::string{prefix} + "1");
+                for (size_t i = 0; i < mean.values.size(); i++) {
+                    double sum = 0.0;
+                    int n = 0;
+                    for (int m = 1; m <= 5; m++) {
+                        const float v = g.at(std::string{prefix} + std::to_string(m)).values[i];
+                        if (!std::isnan(v)) {
+                            sum += v;
+                            n++;
+                        }
+                    }
+                    mean.values[i] = n > 0 ? static_cast<float>(sum / n) : std::nanf("");
+                }
+                g[out] = std::move(mean);
+            };
+            for (const int period : {6, 12, 24}) {   // the mean precipitation of 6, 12 and 24 hours: the mean's own 6 hour amounts added up
+                auto x = make(("ens_precip_p" + std::string{period < 10 ? "0" : ""} + std::to_string(period)).c_str(), ("Mean " + std::to_string(period) + "-hour Precipitation").c_str());
+                x.needs = [ens, accum, period] (int hour) {
+                    std::vector<GfsData::Need> out;
+                    if (hour < period) {
+                        return out;
+                    }
+                    int n = 0;
+                    for (int end = hour; end > hour - period; end -= 6) {
+                        out.push_back({end, ens("a" + std::to_string(n++), "APCP", "surface", accum(end - 6, end), "mean", "wt ens mean")});
+                    }
+                    return out;
+                };
+                x.derive = [] (Grids& g, const Context&) {
+                    auto sum = g["a0"];
+                    for (int k = 1; g.count("a" + std::to_string(k)); k++) {
+                        for (size_t i = 0; i < sum.values.size(); i++) {
+                            sum.values[i] += g["a" + std::to_string(k)].values[i];
+                        }
+                    }
+                    g["f"] = std::move(sum);
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "f"); };
+                x.ramp = precipitation();
+                x.palette = "precip";
+                x.quantity = Quantity::Millimeters;
+                x.fillTitle = "Mean precipitation in the last " + std::to_string(period) + " hours";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            for (const auto& [id, inches, millimeters] : {std::tuple{"ens_prob_precip_6h_0.25in", "0.25", "prob >6.35"}, {"ens_prob_precip_6h_0.5in", "0.5", "prob >12.7"}, {"ens_prob_precip_6h_1in", "1", "prob >25.4"}}) {
+                auto x = make(id, (std::string{"Probability of 6-hour Precipitation over "} + inches + " in").c_str());
+                const std::string detail = millimeters;
+                x.needs = [ens, accum, detail] (int hour) { return hour < 6 ? std::vector<GfsData::Need>{} : std::vector<GfsData::Need>{{hour, ens("a", "APCP", "surface", accum(hour - 6, hour), "eas", detail.c_str())}}; };
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "a"), 100.0); };
+                x.ramp = probability();
+                x.palette = "prob";
+                x.fillTitle = std::string{"Chance of more than "} + inches + " in of rain in 6 hours (%, within the neighborhood)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            for (const bool spread : {false, true}) {   // snow since the start of the run: the mean and the spread of the members' own totals (the mean file has the total only for the first 12 hours)
+                auto x = make(spread ? "ens_snow_total_sprd" : "ens_snow_total_mean", spread ? "Snow Total Spread" : "Snow Total Mean");
+                x.needs = [members, accum] (int hour) {
+                    std::vector<GfsData::Need> out;
+                    if (hour < 1) {
+                        return out;
+                    }
+                    for (auto w : members("s", "ASNOW", "surface", accum(0, hour))) {
+                        out.push_back({hour, w});
+                    }
+                    return out;
+                };
+                x.derive = [spread, meanOfMembers] (Grids& g, const Context&) {
+                    meanOfMembers(g, "s", "mean");
+                    auto out = g["mean"];
+                    if (spread) {
+                        for (size_t i = 0; i < out.values.size(); i++) {
+                            double square = 0.0;
+                            int n = 0;
+                            for (int m = 1; m <= 5; m++) {
+                                const float v = g.at("s" + std::to_string(m)).values[i];
+                                if (!std::isnan(v)) {
+                                    square += (v - g["mean"].values[i]) * (v - g["mean"].values[i]);
+                                    n++;
+                                }
+                            }
+                            out.values[i] = n > 0 ? static_cast<float>(std::sqrt(square / n)) : std::nanf("");
+                        }
+                    }
+                    g["f"] = GfsGrid::scaled(out, 100.0);   // the file's meters, as centimeters
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "f"); };
+                x.ramp = snowfall();
+                x.quantity = Quantity::Centimeters;
+                x.fillTitle = spread ? "Spread of the snow since the start of the run (the 5 members)" : "Mean snow since the start of the run (the 5 members)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            // the thickness of a layer: the mean of the high level less the mean of the members' low one (the files have no 1000 mb mean)
+            for (const auto& [id, label, low, high, interval, split] : {std::tuple{"ens_1000_500_thick", "Mean 1000-500mb Thickness", "1000 mb", "500 mb", 6.0, 540.0}, {"ens_1000_850_thick", "Mean 1000-850mb Thickness", "1000 mb", "850 mb", 3.0, 130.0},
+                                                                         {"ens_850_700_thick", "Mean 850-700mb Thickness", "850 mb", "700 mb", 3.0, 154.0}}) {
+                auto x = make(id, label);
+                const std::string lowLevel = low, highLevel = high;
+                x.needs = [ens, members, atHour, lowLevel, highLevel] (int hour) {
+                    std::vector<GfsData::Need> out;
+                    for (auto w : members("l", "HGT", lowLevel.c_str(), "")) {
+                        out.push_back({hour, w});
+                    }
+                    out.push_back({hour, ens("h", "HGT", highLevel.c_str(), atHour(hour), "mean", "wt ens mean")});
+                    return out;
+                };
+                x.derive = [meanOfMembers] (Grids& g, const Context&) {
+                    meanOfMembers(g, "l", "lm");
+                    g["thick"] = GfsGrid::scaled(GfsGrid::difference(g["h"], g["lm"]), 0.1);   // meters -> decameters
+                    g.erase("l1"); g.erase("l2"); g.erase("l3"); g.erase("l4"); g.erase("l5");
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "thick"); };
+                const double lo = split - 8 * interval, hi = split + 8 * interval;
+                x.ramp = Ramp{{{lo, QColor{"#2b4fb0"}}, {lo + (hi - lo) * 0.25, QColor{"#5aa0d8"}}, {lo + (hi - lo) * 0.45, QColor{"#bfe3ee"}}, {split, QColor{"#f4f1c0"}}, {lo + (hi - lo) * 0.65, QColor{"#f5c06a"}},
+                               {lo + (hi - lo) * 0.85, QColor{"#e0642c"}}, {hi, QColor{"#a01c1c"}}}};
+                x.fillTitle = std::string{label} + " (dam)";
+                x.legendStep = static_cast<double>(interval) * 2;
+                ContourSet t;
+                t.key = "thick";
+                t.interval = interval;
+                t.title = std::string{label} + " (dam)";
+                t.color = QColor{190, 50, 40};
+                t.colorBelow = QColor{40, 90, 190};
+                t.split = split;
+                t.width = 1.3;
+                x.contours = {t};
+                p.push_back(x);
+            }
+            {   // the mean 10 m wind (kt) with barbs, and the chance of 25 kt or more from the members
+                auto x = make("ens_10m_wind", "Mean 10m Winds");
+                x.needs = [ens, atHour] (int hour) {
+                    return std::vector<GfsData::Need>{{hour, ens("w", "WIND", "10 m above ground", atHour(hour), "mean", "wt ens mean")}, {hour, ens("u", "UGRD", "10 m above ground", atHour(hour), "mean", "wt ens mean")},
+                                                      {hour, ens("v", "VGRD", "10 m above ground", atHour(hour), "mean", "wt ens mean")}};
+                };
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "w"), 1.943844); };
+                x.ramp = windSpeed();
+                x.fillTitle = "Mean 10 m wind speed (kt)";
+                x.legendStep = 10;
+                x.barbU = "u";
+                x.barbV = "v";
+                p.push_back(x);
+            }
+            {
+                auto x = make("ens_prob_10m_wind_25kt", "Probability of 10m Wind Speeds over 25 kt");
+                x.wants = members("u", "UGRD", "10 m above ground", "");
+                for (auto& w : members("v", "VGRD", "10 m above ground", "")) {
+                    x.wants.push_back(w);
+                }
+                x.derive = [] (Grids& g, const Context&) {
+                    for (int m = 1; m <= 5; m++) {
+                        g["s" + std::to_string(m)] = GfsGrid::speed(g.at("u" + std::to_string(m)), g.at("v" + std::to_string(m)));
+                    }
+                };
+                x.fill = [fraction] (const Grids& g) { return fraction(g, "s", 25.0 * 0.514444); };
+                x.ramp = probability();
+                x.palette = "prob";
+                x.fillTitle = "Chance of a 10 m wind over 25 kt (% of the members, nearby)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            {
+                auto x = make("ens_2m_temp", "Mean 2m Temperature");
+                x.needs = [ens, atHour] (int hour) { return std::vector<GfsData::Need>{{hour, ens("t", "TMP", "2 m above ground", atHour(hour), "mean", "wt ens mean")}}; };
+                x.fill = [] (const Grids& g) { return pick(g, "t"); };
+                x.ramp = temperature();
+                x.quantity = Quantity::Temperature;
+                x.fillTitle = "Mean 2 m temperature";
+                x.legendStep = 5;
+                p.push_back(x);
+            }
+            {
+                auto x = make("ens_prob_2m_temp_0C", "Probability of 2m Temperature under 0 C");
+                x.needs = [ens, atHour] (int hour) { return std::vector<GfsData::Need>{{hour, ens("t", "TMP", "2 m above ground", atHour(hour), "prob", "prob <273.15")}}; };
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "t"), 100.0); };
+                x.ramp = probability();
+                x.palette = "prob";
+                x.fillTitle = "Chance of a 2 m temperature under 0 C (% of the members)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            {
+                auto x = make("ens_cape", "Mean Convective Available Potential Energy");
+                x.needs = [ens, atHour] (int hour) { return std::vector<GfsData::Need>{{hour, ens("c", "CAPE", "surface", atHour(hour), "mean", "wt ens mean")}}; };
+                x.fill = [] (const Grids& g) { return pick(g, "c"); };
+                x.ramp = capeRamp();
+                x.fillTitle = "Mean surface-based CAPE (J/kg)";
+                x.legendStep = 500;
+                p.push_back(x);
+            }
+            {
+                auto x = make("ens_cin", "Mean Convective Inhibition");
+                x.needs = [ens, atHour] (int hour) { return std::vector<GfsData::Need>{{hour, ens("c", "CIN", "surface", atHour(hour), "mean", "wt ens mean")}}; };
+                x.fill = [] (const Grids& g) { return pick(g, "c"); };
+                x.ramp = Ramp{{{-300, QColor{"#5b2a8a"}}, {-200, QColor{"#3a55b8"}}, {-100, QColor{"#5aa0d8"}}, {-25, QColor{"#dff3f8"}}, {0, QColor{223, 243, 248, 0}}}};
+                x.fillTitle = "Mean surface-based CIN (J/kg)";
+                x.legendStep = 50;
+                p.push_back(x);
+            }
+            for (const int joules : {500, 1000, 2000}) {   // the ready-made chances are of the mixed-layer parcel
+                auto x = make(("ens_prob_cape_" + std::to_string(joules)).c_str(), ("Probability of CAPE over " + std::to_string(joules)).c_str());
+                const std::string detail = "prob >" + std::to_string(joules);
+                x.needs = [ens, atHour, detail] (int hour) { return std::vector<GfsData::Need>{{hour, ens("c", "CAPE", "90-0 mb above ground", atHour(hour), "prob", detail.c_str())}}; };
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "c"), 100.0); };
+                x.ramp = probability();
+                x.palette = "prob";
+                x.fillTitle = "Chance of mixed-layer CAPE over " + std::to_string(joules) + " J/kg (% of the members)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            {   // the sea level pressure: the mean as lines, the spread as the fill
+                auto x = make("ens_mslp", "Mean Sea Level Pressure and Spread");
+                x.needs = [ens, atHour] (int hour) {
+                    return std::vector<GfsData::Need>{{hour, ens("p", "MSLET", "mean sea level", atHour(hour), "mean", "wt ens mean")}, {hour, ens("s", "MSLET", "mean sea level", atHour(hour), "sprd", "ens spread")}};
+                };
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "s"), 0.01); };
+                x.ramp = spreadRamp(6.0);
+                x.fillTitle = "Spread of the sea level pressure (mb)";
+                x.legendStep = 1;
+                x.contours = {pressure()};
+                p.push_back(x);
+            }
+            // the mean of the upper-air fields at a level (height, wind, temperature, humidity): filled with what the map is about, heights as lines
+            const auto meanUpper = [make, ens, atHour, heights, speedOf] (const char * id, const char * label, const char * level, double interval, bool temperatureToo, bool humidityToo) {
+                auto x = make(id, label);
+                const std::string where = level;
+                x.needs = [ens, atHour, where, temperatureToo, humidityToo] (int hour) {
+                    std::vector<GfsData::Need> out{{hour, ens("z", "HGT", where.c_str(), atHour(hour), "mean", "wt ens mean")}, {hour, ens("u", "UGRD", where.c_str(), atHour(hour), "mean", "wt ens mean")},
+                                                   {hour, ens("v", "VGRD", where.c_str(), atHour(hour), "mean", "wt ens mean")}};
+                    if (temperatureToo) {
+                        out.push_back({hour, ens("t", "TMP", where.c_str(), atHour(hour), "mean", "wt ens mean")});
+                    }
+                    if (humidityToo) {
+                        out.push_back({hour, ens("rh", "RH", where.c_str(), atHour(hour), "mean", "wt ens mean")});
+                    }
+                    return out;
+                };
+                x.fill = speedOf("u", "v");
+                x.ramp = windSpeed();
+                x.fillTitle = "Mean wind speed (kt)";
+                x.legendStep = 20;
+                x.contours = {heights(interval)};
+                x.barbU = "u";
+                x.barbV = "v";
+                return x;
+            };
+            for (const auto& [id, label, level, interval] : {std::tuple{"ens_250_vort_ht", "250mb Vorticity and Height", "250 mb", 12.0}, {"ens_500_vort_ht", "500mb Vorticity and Height", "500 mb", 6.0}}) {
+                auto x = meanUpper(id, label, level, interval, false, false);
+                x.fill = vorticityOf;
+                x.ramp = vorticityRamp();
+                x.fillTitle = "Vorticity of the mean wind (1e-5 /s)";
+                x.legendStep = 10;
+                x.barbU.clear();
+                x.barbV.clear();
+                p.push_back(x);
+            }
+            for (const auto& [id, label, level, interval] : {std::tuple{"ens_250_wnd", "250mb Wind", "250 mb", 12.0}, {"ens_850_wnd", "850mb Wind", "850 mb", 3.0}}) {
+                p.push_back(meanUpper(id, label, level, interval, false, false));
+            }
+            for (const auto& [id, label, level, interval] : {std::tuple{"ens_700_temp", "700mb Temperature", "700 mb", 3.0}, {"ens_850_temp", "850mb Temperature", "850 mb", 3.0}}) {
+                auto x = meanUpper(id, label, level, interval, true, false);
+                x.fill = [] (const Grids& g) { return pick(g, "t"); };
+                x.ramp = temperature();
+                x.quantity = Quantity::Temperature;
+                x.fillTitle = "Mean temperature";
+                x.legendStep = 5;
+                p.push_back(x);
+            }
+            {
+                auto x = meanUpper("ens_700_rh", "700mb Relative Humidity", "700 mb", 3.0, false, true);
+                x.fill = [] (const Grids& g) { return pick(g, "rh"); };
+                x.ramp = humidity();
+                x.palette = "rh";
+                x.fillTitle = "Mean relative humidity (%)";
+                x.legendStep = 10;
+                p.push_back(x);
+            }
+            {   // 850 mb: the file has no mean humidity there, so the mean of the members'
+                auto x = meanUpper("ens_850_rh", "850mb Relative Humidity", "850 mb", 3.0, false, false);
+                const auto inner = x.needs;
+                x.needs = [inner, members] (int hour) {
+                    auto out = inner(hour);
+                    for (auto w : members("r", "RH", "850 mb", "")) {
+                        out.push_back({hour, w});
+                    }
+                    return out;
+                };
+                x.derive = [meanOfMembers] (Grids& g, const Context&) {
+                    meanOfMembers(g, "r", "rh");
+                    g.erase("r1"); g.erase("r2"); g.erase("r3"); g.erase("r4"); g.erase("r5");
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "rh"); };
+                x.ramp = humidity();
+                x.palette = "rh";
+                x.fillTitle = "Mean relative humidity (%)";
                 x.legendStep = 10;
                 p.push_back(x);
             }
