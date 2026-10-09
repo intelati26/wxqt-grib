@@ -2567,6 +2567,15 @@ const std::vector<Product>& products() {
                 x.contours = {cin};
                 p.push_back(x);
             }
+            {   // the files' "best 4-layer lifted index" of the lowest 180 mb (their surface-based record, LFTX 500-1000 mb, holds temperatures of 260-290 K, not an index: it is not used)
+                auto x = make("lifted_index_ml", "Best Lifted Index (lowest 180 mb)");
+                x.wants = {want("l", "4LFTX", "180-0 mb above ground")};
+                x.fill = [] (const Grids& g) { return pick(g, "l"); };
+                x.ramp = Ramp{{{-14, QColor{"#6a2c9a"}}, {-10, QColor{"#d02fb0"}}, {-8, QColor{"#e0301e"}}, {-6, QColor{"#f07a1a"}}, {-4, QColor{"#f5c842"}}, {-2, QColor{"#f6f0a0"}}, {0, QColor{"#e8f0e8"}}, {2, QColor{232, 240, 232, 0}}}};
+                x.fillTitle = "Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)";
+                x.legendStep = 2;
+                p.push_back(x);
+            }
             for (const auto& [id, label, layer] : {std::tuple{"helicity_1km", "0-1 km Storm-Relative Helicity", "1000-0 m above ground"}, {"helicity_3km", "0-3 km Storm-Relative Helicity", "3000-0 m above ground"}}) {
                 auto x = make(id, label);
                 x.wants = {want("h", "HLCY", layer)};
