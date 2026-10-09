@@ -7,12 +7,23 @@
 #include "misc/ForecastPointViewer.h"
 #include <algorithm>
 #include <cmath>
+#include <QFile>
+#include <QFileDialog>
 #include <QHBoxLayout>
+#include <QInputDialog>
+#include <QMessageBox>
+#include <QRegularExpression>
+#include <QScrollArea>
+#include <QTextStream>
 #include <QHeaderView>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QVBoxLayout>
+#include "misc/TextViewerStatic.h"
+#include "objects/FutureText.h"
+#include "objects/FutureVoid.h"
+#include "settings/Location.h"
 #include "ui/HoverTip.h"
 
 using UtilityForecastPoint::has;
@@ -340,15 +351,96 @@ void CardForecastPoint::setData(const std::shared_ptr<UtilityForecastPoint::Data
 
 ForecastPointViewer::ForecastPointViewer(Window * parent, const std::shared_ptr<UtilityForecastPoint::Data>& d)
     : Window{parent}
+    , comboPoint{this}
+    , buttonOther{this, None, "Other point..."}
+    , buttonRefresh{this, None, "Refresh"}
+    , buttonDiscussion{this, None, "Forecast discussion"}
+    , buttonCsv{this, None, "Hourly table (CSV)..."}
     , comboSeries{this}
     , data{d}
 {
     setAttribute(Qt::WA_DeleteOnClose);
+    // the saved locations first, then the point being looked at when it is none of them
+    std::vector<string> names = Location::listOfNames();
+    for (const auto& latLon : Location::getListLatLons()) {
+        savedPoints.emplace_back(latLon.lat(), latLon.lon());
+    }
+    int at = -1;
+    for (size_t i = 0; i < savedPoints.size(); i++) {
+        if (std::abs(savedPoints[i].first - data->lat) < 0.01 && std::abs(savedPoints[i].second - data->lon) < 0.01) {
+            at = static_cast<int>(i);
+        }
+    }
+    if (at < 0) {
+        names.push_back(data->place.toStdString() + " (" + QString::number(data->lat, 'f', 2).toStdString() + ", " + QString::number(data->lon, 'f', 2).toStdString() + ")");
+        savedPoints.emplace_back(data->lat, data->lon);
+        at = static_cast<int>(names.size()) - 1;
+    }
+    comboPoint.block();
+    comboPoint.setList(names);
+    comboPoint.setIndex(static_cast<size_t>(at));
+    comboPoint.unblock();
+    comboPoint.connect([this] {
+        const auto i = static_cast<size_t>(std::max(0, comboPoint.getIndex()));
+        if (i < savedPoints.size()) {
+            loadPoint(savedPoints[i].first, savedPoints[i].second);
+        }
+    });
+    buttonOther.connect([this] { choosePoint(); });
+    buttonRefresh.connect([this] { loadPoint(data->lat, data->lon); });
+    buttonDiscussion.connect([this] { openDiscussion(); });
+    buttonCsv.connect([this] { exportCsv(); });
+    rowTop.addWidget(comboPoint);
+    rowTop.addWidget(buttonOther);
+    rowTop.addWidget(buttonRefresh);
+    rowTop.addWidget(buttonDiscussion);
+    rowTop.addWidget(buttonCsv);
+    rowTop.addStretch();
+    title = new QLabel{this};
+    tabs = new QTabWidget{this};
+    {   // the summary and one graph
+        auto * page = new QWidget{tabs};
+        auto * column = new QVBoxLayout{page};
+        column->setContentsMargins(0, 4, 0, 0);
+        outlooks = new ForecastPointOutlooks{page};
+        table = new ForecastPointTable{page};
+        chart = new ForecastPointChart{page};
+        column->addWidget(outlooks);
+        column->addWidget(table);
+        column->addWidget(comboSeries.getView());
+        column->addWidget(chart, 1);
+        tabs->addTab(page, "Summary and graph");
+    }
+    hourlyTable = new QTableWidget{tabs};
+    hourlyTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    hourlyTable->setSelectionMode(QAbstractItemView::NoSelection);
+    hourlyTable->verticalHeader()->setDefaultSectionSize(22);
+    hourlyTable->horizontalHeader()->setDefaultSectionSize(48);
+    tabs->addTab(hourlyTable, "Hourly table");
+    {   // every series, one under another
+        auto * scroll = new QScrollArea{tabs};
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        allGraphs = new QWidget{scroll};
+        allLayout = new QVBoxLayout{allGraphs};
+        scroll->setWidget(allGraphs);
+        tabs->addTab(scroll, "All graphs");
+    }
+    comboSeries.connect([this] { showSeries(); });
+    box.addLayout(rowTop);
+    box.addWidgetReal(title);
+    box.addWidgetReal(tabs, 1, Qt::Alignment{});
+    box.getAndShow(this);
+    resize(1000, 860);
+    apply();
+}
+
+// every part of the page from the data of the point
+void ForecastPointViewer::apply() {
     setTitle("Forecast point - " + data->place.toStdString());
-    title = new QLabel{"<b>" + data->place + "</b>  -  NWS " + data->office + (data->updated.isValid() ? ", forecast made " + data->updated.toTimeZone(data->zone).toString("dddd h:mm ap") : QString{}), this};
-    outlooks = new ForecastPointOutlooks{this};
+    title->setText("<b>" + data->place + "</b>  -  NWS " + data->office + (data->updated.isValid() ? ", forecast made " + data->updated.toTimeZone(data->zone).toString("dddd h:mm ap") : QString{}) +
+                   "  -  " + QString::number(data->lat, 'f', 3) + ", " + QString::number(data->lon, 'f', 3));
     outlooks->setData(*data);
-    table = new ForecastPointTable{this};
     table->setData(*data, false);
     std::vector<string> labels;
     for (const auto& parameter : UtilityForecastPoint::parameters()) {
@@ -356,17 +448,66 @@ ForecastPointViewer::ForecastPointViewer(Window * parent, const std::shared_ptr<
             labels.push_back(parameter.label);
         }
     }
+    const auto before = comboSeries.getValue();
+    comboSeries.block();
     comboSeries.setList(labels);
-    comboSeries.connect([this] { showSeries(); });
-    chart = new ForecastPointChart{this};
-    box.addWidgetReal(title);
-    box.addWidgetReal(outlooks);
-    box.addWidgetReal(table);
-    box.addWidget(comboSeries);
-    box.addWidgetReal(chart, 1, Qt::Alignment{});
-    box.getAndShow(this);
-    resize(920, 820);
+    comboSeries.setIndexByValue(before);
+    if (comboSeries.getIndex() < 0 && !labels.empty()) {
+        comboSeries.setIndex(0);
+    }
+    comboSeries.unblock();
     showSeries();
+    fillHourly();
+    fillAllGraphs();
+}
+
+void ForecastPointViewer::loadPoint(double lat, double lon) {
+    const int mine = ++generation;
+    title->setText("Loading the forecast of " + QString::number(lat, 'f', 3) + ", " + QString::number(lon, 'f', 3) + "...");
+    auto fetched = std::make_shared<UtilityForecastPoint::Data>();
+    new FutureVoid{this, [lat, lon, fetched] { *fetched = UtilityForecastPoint::fetch(lat, lon); }, [this, fetched, mine] {
+                       if (closed || mine != generation) {
+                           return;
+                       }
+                       if (!fetched->ok) {
+                           title->setText("<b>" + fetched->error + "</b>");
+                           return;
+                       }
+                       data = fetched;
+                       apply();
+                   }};
+}
+
+// a point of one's own: "35.2, -97.4" (a latitude and a longitude)
+void ForecastPointViewer::choosePoint() {
+    bool ok = false;
+    const auto text = QInputDialog::getText(this, "Other point", "Latitude and longitude of the point (north and east positive), for example 44.8, -92.5:", QLineEdit::Normal, "", &ok);
+    if (!ok) {
+        return;
+    }
+    const auto parts = text.split(QRegularExpression{"[,;\\s]+"}, Qt::SkipEmptyParts);
+    bool a = false, b = false;
+    const double lat = parts.size() >= 2 ? parts[0].toDouble(&a) : 0.0, lon = parts.size() >= 2 ? parts[1].toDouble(&b) : 0.0;
+    if (!a || !b || std::abs(lat) > 90.0 || std::abs(lon) > 180.0) {
+        QMessageBox::information(this, "Other point", "Give the latitude and the longitude as two numbers, like 44.8, -92.5.");
+        return;
+    }
+    // it joins the list, so that the saved locations stay a click away
+    savedPoints.emplace_back(lat, lon);
+    auto names = comboPoint.getItems();
+    names.push_back("Point " + QString::number(lat, 'f', 2).toStdString() + ", " + QString::number(lon, 'f', 2).toStdString());
+    comboPoint.block();
+    comboPoint.setList(names);
+    comboPoint.setIndex(names.size() - 1);
+    comboPoint.unblock();
+    loadPoint(lat, lon);
+}
+
+void ForecastPointViewer::openDiscussion() {
+    const string office = data->office.toStdString();
+    new FutureText{this, "AFD" + office, [this, office] (const string& text) {
+        new TextViewerStatic{this, text.empty() ? string{"The forecast discussion of "} + office + " is not available right now." : text, "Forecast discussion - " + office, 860, 760};
+    }};
 }
 
 void ForecastPointViewer::showSeries() {
@@ -375,5 +516,125 @@ void ForecastPointViewer::showSeries() {
         if (label == parameter.label) {
             chart->setSeries(data, parameter.key);
         }
+    }
+}
+
+namespace {
+    // the hours of the table: from the start of the first series, a week of them
+    std::vector<qint64> tableHours(const UtilityForecastPoint::Data& data) {
+        qint64 first = 0, last = 0;
+        for (const auto& [key, series] : data.hourly) {
+            if (!series.empty()) {
+                first = first == 0 ? series.front().first : std::min(first, series.front().first);
+                last = std::max(last, series.back().first);
+            }
+        }
+        std::vector<qint64> hours;
+        for (qint64 t = first; first != 0 && t <= std::min(last, first + 7 * 24 * 3600); t += 3600) {
+            hours.push_back(t);
+        }
+        return hours;
+    }
+}
+
+void ForecastPointViewer::fillHourly() {
+    const auto hours = tableHours(*data);
+    std::vector<const UtilityForecastPoint::Parameter *> shown;
+    for (const auto& parameter : UtilityForecastPoint::parameters()) {
+        if (data->hourly.count(parameter.key)) {
+            shown.push_back(&parameter);
+        }
+    }
+    hourlyTable->clear();
+    hourlyTable->setRowCount(static_cast<int>(shown.size()));
+    hourlyTable->setColumnCount(static_cast<int>(hours.size()));
+    QStringList heads;
+    for (const auto t : hours) {
+        const auto local = QDateTime::fromSecsSinceEpoch(t, data->zone);
+        heads << (local.time().hour() == 0 ? local.toString("ddd\nM/d") : local.toString("h ap"));
+    }
+    hourlyTable->setHorizontalHeaderLabels(heads);
+    QStringList labels;
+    for (const auto * parameter : shown) {
+        labels << QString{"%1, %2"}.arg(parameter->label, parameter->unit);
+    }
+    hourlyTable->setVerticalHeaderLabels(labels);
+    for (size_t r = 0; r < shown.size(); r++) {
+        std::map<qint64, double> byHour;
+        for (const auto& [t, v] : data->hourly.at(shown[r]->key)) {
+            byHour[t] = v;
+        }
+        for (size_t c = 0; c < hours.size(); c++) {
+            const auto found = byHour.find(hours[c]);
+            if (found == byHour.end()) {
+                continue;
+            }
+            const double v = found->second;
+            auto * item = new QTableWidgetItem{QString::number(v, 'f', std::string{shown[r]->unit} == "in" ? 2 : 0)};
+            item->setTextAlignment(Qt::AlignCenter);
+            const std::string key = shown[r]->key;
+            const auto color = key == "temperature" || key == "dewpoint" || key == "windChill" || key == "heatIndex" ? temperatureColor(v) : (shown[r]->bars ? chanceColor(shown[r]->unit == std::string{"%"} ? v : v * 100.0) : QColor{});
+            if (color.isValid()) {
+                item->setBackground(color);
+            }
+            hourlyTable->setItem(static_cast<int>(r), static_cast<int>(c), item);
+        }
+    }
+    hourlyTable->horizontalHeader()->setFixedHeight(40);
+}
+
+void ForecastPointViewer::fillAllGraphs() {
+    while (auto * item = allLayout->takeAt(0)) {
+        delete item->widget();
+        delete item;
+    }
+    for (const auto& parameter : UtilityForecastPoint::parameters()) {
+        if (!data->hourly.count(parameter.key)) {
+            continue;
+        }
+        auto * one = new ForecastPointChart{allGraphs};
+        one->setMinimumHeight(190);
+        one->setSeries(data, parameter.key);
+        allLayout->addWidget(one);
+    }
+    allLayout->addStretch();
+}
+
+void ForecastPointViewer::exportCsv() {
+    const auto target = QFileDialog::getSaveFileName(this, "Save the hourly table", QString{"forecast_%1.csv"}.arg(data->office), "CSV files (*.csv)");
+    if (target.isEmpty()) {
+        return;
+    }
+    QFile file{target};
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "Hourly table", "The file could not be written.");
+        return;
+    }
+    QTextStream out{&file};
+    const auto hours = tableHours(*data);
+    out << "time (" << data->zone.id() << ")";
+    std::vector<const UtilityForecastPoint::Parameter *> shown;
+    for (const auto& parameter : UtilityForecastPoint::parameters()) {
+        if (data->hourly.count(parameter.key)) {
+            shown.push_back(&parameter);
+            out << "," << parameter.label << " (" << parameter.unit << ")";
+        }
+    }
+    out << "\n";
+    std::vector<std::map<qint64, double>> maps;
+    for (const auto * parameter : shown) {
+        std::map<qint64, double> byHour;
+        for (const auto& [t, v] : data->hourly.at(parameter->key)) {
+            byHour[t] = v;
+        }
+        maps.push_back(std::move(byHour));
+    }
+    for (const auto t : hours) {
+        out << QDateTime::fromSecsSinceEpoch(t, data->zone).toString("yyyy-MM-dd HH:mm");
+        for (const auto& byHour : maps) {
+            const auto found = byHour.find(t);
+            out << "," << (found == byHour.end() ? QString{} : QString::number(found->second, 'f', 2));
+        }
+        out << "\n";
     }
 }

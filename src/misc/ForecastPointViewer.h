@@ -11,8 +11,11 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QTableWidget>
+#include <QTabWidget>
+#include <QVBoxLayout>
 #include <QWidget>
 #include "misc/UtilityForecastPoint.h"
+#include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/VBox.h"
@@ -64,21 +67,42 @@ private:
     ForecastPointOutlooks * outlooks;
 };
 
-// The full page, as the NWS "IDSS Forecast Points" page has it: the weekly summary with every row, the outlooks, and the hourly graph of any of its series.
+// The full page, as the NWS "IDSS Forecast Points" page has it: the weekly summary with every row, the outlooks, the hourly graph of any of its series (or all of them one under
+// another), the hourly table, the forecast discussion of the office, and any of the saved locations or a point of one's own.
 class ForecastPointViewer : public Window {
 public:
     ForecastPointViewer(Window * parent, const std::shared_ptr<UtilityForecastPoint::Data>& data);
 
 private:
+    void apply();                 // fill every part from `data`
+    void loadPoint(double lat, double lon);
     void showSeries();
+    void fillHourly();
+    void fillAllGraphs();
+    void exportCsv();
+    void openDiscussion();
+    void choosePoint();
+    void closeEventCustom() override { closed = true; }
     VBox box;
+    HBox rowTop;
+    ComboBox comboPoint;
+    Button buttonOther;
+    Button buttonRefresh;
+    Button buttonDiscussion;
+    Button buttonCsv;
     QLabel * title;
+    QTabWidget * tabs;
     ForecastPointTable * table;
     ForecastPointOutlooks * outlooks;
-    QWidget * graphHolder;
     ComboBox comboSeries;
     ForecastPointChart * chart;
+    QTableWidget * hourlyTable;
+    QWidget * allGraphs;
+    QVBoxLayout * allLayout;
     std::shared_ptr<UtilityForecastPoint::Data> data;
+    std::vector<std::pair<double, double>> savedPoints;   // the saved locations, as the combo lists them (the last entry is the point of one's own, when there is one)
+    int generation{0};
+    bool closed{false};
 };
 
 #endif  // FORECASTPOINTVIEWER_H

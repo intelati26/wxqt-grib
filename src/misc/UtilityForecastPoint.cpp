@@ -159,6 +159,8 @@ namespace UtilityForecastPoint {
 
     Data fetch(double lat, double lon) {
         Data data;
+        data.lat = lat;
+        data.lon = lon;
         const auto point = QJsonDocument::fromJson(QByteArray::fromStdString(UtilityIO::getHtml("https://api.weather.gov/points/" + QString::number(lat, 'f', 4).toStdString() + "," + QString::number(lon, 'f', 4).toStdString()))).object().value("properties").toObject();
         data.office = point.value("gridId").toString();
         if (data.office.isEmpty()) {

@@ -37,6 +37,7 @@ namespace UtilityForecastPoint {
     struct Data {
         bool ok{false};
         QString error;
+        double lat{0.0}, lon{0.0};
         QString office;     // "OUN"
         QString place;      // "Norman, OK"
         QTimeZone zone;
