@@ -1759,13 +1759,13 @@ const std::vector<Product>& products() {
             // id carries the choice ("gen~rain_over~2~36"), so a view that is saved or restored draws it again, and product() makes it when it is asked for.
             {
                 auto& made = generators();
-                made["rain_over"] = [memberNeeds, share, sixHourAmount] (const std::vector<double>& v) {   // inches, hours
+                const auto makeRain = [memberNeeds, share, sixHourAmount] (bool over) { return [memberNeeds, share, sixHourAmount, over] (const std::vector<double>& v) {   // inches, hours
                     const double inches = v.at(0);
                     const int window = std::max(6, static_cast<int>(std::lround(v.at(1) / 6.0)) * 6);
                     Product x;
                     x.source = "GEFS";
-                    x.id = generatedId("rain_over", {inches, static_cast<double>(window)});
-                    x.label = "Chance of more than " + trimmed(inches) + " in of rain in " + std::to_string(window) + " hours";
+                    x.id = generatedId(over ? "rain_over" : "rain_under", {inches, static_cast<double>(window)});
+                    x.label = std::string{"Chance of "} + (over ? "more" : "less") + " than " + trimmed(inches) + " in of rain in " + std::to_string(window) + " hours";
                     x.needs = [memberNeeds, sixHourAmount, window] (int hour) {
                         std::vector<GfsData::Need> out;
                         if (hour < 6 || hour % 6 != 0) {   // the members' precipitation is in pieces of 6 hours
@@ -1778,7 +1778,7 @@ const std::vector<Product>& products() {
                         }
                         return out;
                     };
-                    x.derive = [share, inches, window] (Grids& g, const Context& context) {
+                    x.derive = [share, inches, window, over] (Grids& g, const Context& context) {
                         const int pieces = std::min(window, context.hour) / 6;
                         for (const auto& name : memberNames) {   // each member's total over the period
                             auto total = g.at("a0_" + name);
@@ -1794,32 +1794,170 @@ const std::vector<Product>& products() {
                             it = it->first.size() > 1 && it->first[0] == 'a' && std::isdigit(static_cast<unsigned char>(it->first[1])) ? g.erase(it) : std::next(it);
                         }
                         const double mm = inches * 25.4;
-                        share(g, [mm] (const Grids& grids, const std::string& name, size_t i) {
+                        share(g, [mm, over] (const Grids& grids, const std::string& name, size_t i) {
                             const float a = grids.at("t" + name).values[i];
-                            return std::isnan(a) ? -1 : a > mm ? 1 : 0;
+                            return std::isnan(a) ? -1 : (over ? a > mm : a < mm) ? 1 : 0;
                         }, "share", {"t"});
                     };
                     x.fill = [] (const Grids& g) { return pick(g, "share"); };
                     x.ramp = probability();
                     x.palette = "prob";
-                    x.fillTitleFor = [inches, window] (int hour) {
+                    x.fillTitleFor = [inches, window, over] (int hour) {
                         const int used = std::min(window, hour);
-                        return "Chance of more than " + trimmed(inches) + " in of precipitation in the " + std::to_string(used) + " hours ending at hour " + std::to_string(hour) + " (% of the 31 members)";
+                        return std::string{"Chance of "} + (over ? "more" : "less") + " than " + trimmed(inches) + " in of precipitation in the " + std::to_string(used) + " hours ending at hour " + std::to_string(hour) + " (% of the 31 members)";
                     };
                     x.legendStep = 10;
                     return x;
+                }; };
+                made["rain_over"] = makeRain(true);
+                made["rain_under"] = makeRain(false);
+                // The precipitation of a type: the share of the members with a 6 hour amount over a limit that fell mostly as rain, snow, ice pellets or freezing rain
+                made["ptype"] = [memberNeeds, share, sixHourAmount] (const std::vector<double>& v) {   // type (1 rain, 2 snow, 3 ice pellets, 4 freezing rain), inches
+                    const int type = std::clamp(static_cast<int>(std::lround(v.at(0))), 1, 4);
+                    const double inches = v.at(1);
+                    static const char * names[] = {"", "rain", "snow", "ice pellets", "freezing rain"};
+                    static const char * variables[] = {"", "CRAIN", "CSNOW", "CICEP", "CFRZR"};
+                    Product x;
+                    x.source = "GEFS";
+                    x.id = generatedId("ptype", {static_cast<double>(type), inches});
+                    x.label = std::string{"Chance of "} + names[type] + " (6 hours, over " + trimmed(inches) + " in)";
+                    x.needs = [memberNeeds, sixHourAmount, type] (int hour) {
+                        std::vector<GfsData::Need> out;
+                        if (hour < 6 || hour % 6 != 0) {
+                            return out;
+                        }
+                        const auto average = std::to_string(hour - 6) + "-" + std::to_string(hour) + " hour ave fcst";
+                        for (auto& need : memberNeeds("a", "APCP", "surface", hour, sixHourAmount(hour))) {
+                            out.push_back(std::move(need));
+                        }
+                        for (auto& need : memberNeeds("k", variables[type], "surface", hour, average)) {
+                            out.push_back(std::move(need));
+                        }
+                        return out;
+                    };
+                    x.derive = [share, inches] (Grids& g, const Context&) {
+                        const float mm = static_cast<float>(inches * 25.4);
+                        share(g, [mm] (const Grids& grids, const std::string& name, size_t i) {
+                            const float a = grids.at("a" + name).values[i], k = grids.at("k" + name).values[i];
+                            return std::isnan(a) || std::isnan(k) ? -1 : (a >= mm && k >= 0.5f) ? 1 : 0;   // the type held most of the 6 hours
+                        }, "share", {"a", "k"});
+                    };
+                    x.fill = [] (const Grids& g) { return pick(g, "share"); };
+                    x.ramp = probability();
+                    x.palette = "prob";
+                    x.fillTitle = std::string{"Chance of "} + names[type] + " in the 6 hours, with at least " + trimmed(inches) + " in of precipitation (% of the 31 members)";
+                    x.legendStep = 10;
+                    return x;
                 };
-                // a member's 2 m temperature or gust at the hour, against a limit
-                const auto atHour = [memberNeeds, share] (const char * kind, const char * variable, const char * level, const char * what, bool above, double toFile, double offset, const char * unit) {
-                    return [=] (const std::vector<double>& v) {
-                        const double limit = v.at(0);
+                // The chance that a member's value passes a limit: the template says what to fetch (`needs`, the members' grids named "<prefix><member>"), how to make one value of them (`collapse`, into
+                // "v<member>": a wind speed from its components, a heat index) and how the limit given in the user's unit is in the file's (`toFile`).
+                struct Limit {
+                    const char * id;
+                    const char * what;     // "a 2 m temperature"
+                    const char * unit;     // "F"
+                    bool above;
+                    std::function<std::vector<GfsData::Need>(int hour)> needs;
+                    std::function<void(Grids&)> collapse;
+                    std::function<float(double)> toFile;
+                };
+                const auto instant = [memberNeeds] (const char * prefix, const char * variable, const char * level) {
+                    return [=] (int hour) { return hour < 3 ? std::vector<GfsData::Need>{} : memberNeeds(prefix, variable, level, hour, std::to_string(hour) + " hour fcst"); };
+                };
+                const auto sixHour = [memberNeeds] (const char * prefix, const char * variable, const char * level, const char * kind) {   // the 6 hours ending at the hour: their largest, smallest or average
+                    return [=] (int hour) {
+                        return hour < 6 || hour % 6 != 0 ? std::vector<GfsData::Need>{} :
+                            memberNeeds(prefix, variable, level, hour, std::to_string(hour - 6) + "-" + std::to_string(hour) + " hour " + kind + " fcst");
+                    };
+                };
+                const auto rename = [] (const char * from) {   // the one grid of each member, under the name the comparison reads
+                    return [from] (Grids& g) {
+                        for (const auto& name : memberNames) {
+                            g["v" + name] = std::move(g.at(std::string{from} + name));
+                            g.erase(std::string{from} + name);
+                        }
+                    };
+                };
+                const auto fahrenheit = [] (double f) { return static_cast<float>((f - 32.0) * 5.0 / 9.0 + 273.15); };
+                const auto scaled = [] (double factor) { return [factor] (double v) { return static_cast<float>(v * factor); }; };
+                const auto together = [memberNeeds] (std::vector<std::function<std::vector<GfsData::Need>(int)>> parts) {
+                    return [parts] (int hour) {
+                        std::vector<GfsData::Need> out;
+                        for (const auto& part : parts) {
+                            for (auto& need : part(hour)) {
+                                out.push_back(std::move(need));
+                            }
+                        }
+                        return out;
+                    };
+                };
+                const auto speed = [] (Grids& g) {   // 10 m wind speed (m/s) from the components
+                    for (const auto& name : memberNames) {
+                        auto u = std::move(g.at("u" + name));
+                        const auto& w = g.at("w" + name);
+                        for (size_t i = 0; i < u.values.size(); i++) {
+                            u.values[i] = std::hypot(u.values[i], w.values[i]);
+                        }
+                        g["v" + name] = std::move(u);
+                        g.erase("u" + name);
+                        g.erase("w" + name);
+                    }
+                };
+                const auto heat = [] (Grids& g) {   // the heat index (K) from the 2 m temperature and humidity: the National Weather Service's regression, with its adjustments
+                    for (const auto& name : memberNames) {
+                        auto t = std::move(g.at("t" + name));
+                        const auto& rh = g.at("h" + name);
+                        for (size_t i = 0; i < t.values.size(); i++) {
+                            const double f = (t.values[i] - 273.15) * 9.0 / 5.0 + 32.0, r = rh.values[i];
+                            double hi = f;
+                            if (f >= 80.0) {
+                                hi = -42.379 + 2.04901523 * f + 10.14333127 * r - 0.22475541 * f * r - 0.00683783 * f * f - 0.05481717 * r * r + 0.00122874 * f * f * r + 0.00085282 * f * r * r - 0.00000199 * f * f * r * r;
+                                if (r < 13.0 && f <= 112.0) {
+                                    hi -= (13.0 - r) / 4.0 * std::sqrt((17.0 - std::abs(f - 95.0)) / 17.0);
+                                } else if (r > 85.0 && f <= 87.0) {
+                                    hi += (r - 85.0) / 10.0 * (87.0 - f) / 5.0;
+                                }
+                            }
+                            t.values[i] = static_cast<float>((hi - 32.0) * 5.0 / 9.0 + 273.15);
+                        }
+                        g["v" + name] = std::move(t);
+                        g.erase("t" + name);
+                        g.erase("h" + name);
+                    }
+                };
+                const std::vector<Limit> limits{
+                    {"temp_under", "a 2 m temperature", "F", false, instant("v", "TMP", "2 m above ground"), nullptr, fahrenheit},
+                    {"temp_over", "a 2 m temperature", "F", true, instant("v", "TMP", "2 m above ground"), nullptr, fahrenheit},
+                    {"tmin_under", "a 6 hour minimum temperature", "F", false, sixHour("v", "TMIN", "2 m above ground", "min"), nullptr, fahrenheit},
+                    {"tmax_over", "a 6 hour maximum temperature", "F", true, sixHour("v", "TMAX", "2 m above ground", "max"), nullptr, fahrenheit},
+                    {"tmax_under", "a 6 hour maximum temperature", "F", false, sixHour("v", "TMAX", "2 m above ground", "max"), nullptr, fahrenheit},
+                    {"dewpoint_over", "a 2 m dewpoint", "F", true, instant("v", "DPT", "2 m above ground"), nullptr, fahrenheit},
+                    {"heat_over", "a heat index", "F", true, together({instant("t", "TMP", "2 m above ground"), instant("h", "RH", "2 m above ground")}), heat, fahrenheit},
+                    {"rh_under", "a 2 m relative humidity", "%", false, instant("v", "RH", "2 m above ground"), nullptr, scaled(1.0)},
+                    {"wind_over", "a 10 m wind", "kt", true, together({instant("u", "UGRD", "10 m above ground"), instant("w", "VGRD", "10 m above ground")}), speed, scaled(0.514444)},
+                    {"gust_over", "wind gusts", "kt", true, instant("v", "GUST", "surface"), nullptr, scaled(0.514444)},
+                    {"mslp_under", "a sea level pressure", "mb", false, instant("v", "PRMSL", "mean sea level"), nullptr, scaled(100.0)},
+                    {"mslp_over", "a sea level pressure", "mb", true, instant("v", "PRMSL", "mean sea level"), nullptr, scaled(100.0)},
+                    {"pw_over", "precipitable water", "in", true, instant("v", "PWAT", "entire atmosphere (considered as a single layer)"), nullptr, scaled(25.4)},
+                    {"cloud_under", "a 6 hour mean cloud cover", "%", false, sixHour("v", "TCDC", "entire atmosphere", "ave"), nullptr, scaled(1.0)},
+                    {"cloud_over", "a 6 hour mean cloud cover", "%", true, sixHour("v", "TCDC", "entire atmosphere", "ave"), nullptr, scaled(1.0)},
+                    {"cape_over", "surface-based CAPE", "J/kg", true, instant("v", "CAPE", "surface"), nullptr, scaled(1.0)},
+                    {"z500_over", "a 500 mb height", "m", true, instant("v", "HGT", "500 mb"), nullptr, scaled(1.0)},
+                };
+                for (const auto& limit : limits) {
+                    made[limit.id] = [limit, share] (const std::vector<double>& v) {
+                        const double value = v.at(0);
                         Product x;
                         x.source = "GEFS";
-                        x.id = generatedId(kind, {limit});
-                        x.label = std::string{"Chance of "} + what + (above ? " over " : " under ") + trimmed(limit) + " " + unit;
-                        x.needs = [=] (int hour) { return hour < 3 ? std::vector<GfsData::Need>{} : memberNeeds("v", variable, level, hour, std::to_string(hour) + " hour fcst"); };
-                        x.derive = [=] (Grids& g, const Context&) {
-                            const float edge = static_cast<float>((limit - offset) * toFile + (offset == 32.0 ? 273.15 : 0.0));
+                        x.id = generatedId(limit.id, {value});
+                        const std::string words = std::string{"Chance of "} + limit.what + (limit.above ? " over " : " under ") + trimmed(value) + " " + limit.unit;
+                        x.label = words;
+                        x.needs = limit.needs;
+                        x.derive = [limit, share, value] (Grids& g, const Context&) {
+                            if (limit.collapse) {
+                                limit.collapse(g);
+                            }
+                            const float edge = limit.toFile(value);
+                            const bool above = limit.above;
                             share(g, [edge, above] (const Grids& grids, const std::string& name, size_t i) {
                                 const float a = grids.at("v" + name).values[i];
                                 return std::isnan(a) ? -1 : (above ? a > edge : a < edge) ? 1 : 0;
@@ -1828,14 +1966,11 @@ const std::vector<Product>& products() {
                         x.fill = [] (const Grids& g) { return pick(g, "share"); };
                         x.ramp = probability();
                         x.palette = "prob";
-                        x.fillTitle = std::string{"Chance of "} + what + (above ? " over " : " under ") + trimmed(limit) + " " + unit + " (% of the 31 members)";
+                        x.fillTitle = words + " (% of the 31 members)";
                         x.legendStep = 10;
                         return x;
                     };
-                };
-                made["temp_under"] = atHour("temp_under", "TMP", "2 m above ground", "a 2 m temperature", false, 5.0 / 9.0, 32.0, "F");
-                made["temp_over"] = atHour("temp_over", "TMP", "2 m above ground", "a 2 m temperature", true, 5.0 / 9.0, 32.0, "F");
-                made["gust_over"] = atHour("gust_over", "GUST", "surface", "wind gusts", true, 0.514444, 0.0, "kt");
+                }
             }
             for (const auto& [id, inches, text] : {std::tuple{"prob_precip_0.25in", 0.25, "0.25"}, {"prob_precip_0.5in", 0.5, "0.50"}, {"prob_precip_1in", 1.0, "1.00"}}) {
                 const double mm = inches * 25.4;
@@ -3352,11 +3487,30 @@ std::vector<Template> templates(const std::string& source) {
     if (source != "GEFS") {
         return {};
     }
+    const auto one = [] (const char * id, const char * title, const char * label, const char * unit, std::vector<double> choices, double standard) {
+        return Template{id, title, {{"limit", label, unit, std::move(choices), standard}}};
+    };
     return {
-        {"rain_over", "Chance of rain over a limit in a period", {{"limit", "Rain over", "in", {0.01, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10}, 1}, {"hours", "in", "hours", {6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 84, 96, 120}, 24}}},
-        {"temp_under", "Chance of a 2 m temperature under a limit", {{"limit", "Temperature under", "F", {-20, -10, 0, 10, 20, 25, 28, 32, 40, 50, 60, 70}, 32}}},
-        {"temp_over", "Chance of a 2 m temperature over a limit", {{"limit", "Temperature over", "F", {70, 80, 90, 95, 100, 105, 110, 115}, 90}}},
-        {"gust_over", "Chance of wind gusts over a limit", {{"limit", "Gusts over", "kt", {20, 25, 30, 35, 40, 50, 60, 70}, 35}}},
+        {"rain_over", "Chance of rain over a limit in a period", {{"limit", "Rain over", "in", {0.01, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10}, 1}, {"hours", "in", "hours", {6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 84, 96, 120, 168, 240}, 24}}},
+        {"rain_under", "Chance of rain under a limit in a period (dry)", {{"limit", "Rain under", "in", {0.01, 0.1, 0.25, 0.5, 1}, 0.01}, {"hours", "in", "hours", {6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 84, 96, 120, 168, 240}, 120}}},
+        {"ptype", "Chance of a precipitation type in 6 hours", {{"type", "Type", "", {1, 2, 3, 4}, 2, {"rain", "snow", "ice pellets", "freezing rain"}}, {"limit", "with at least", "in", {0.01, 0.1, 0.25, 0.5, 1}, 0.01}}},
+        one("temp_under", "Chance of a 2 m temperature under a limit", "Temperature under", "F", {-40, -20, 0, 10, 20, 25, 28, 32, 40, 50, 60, 70}, 32),
+        one("temp_over", "Chance of a 2 m temperature over a limit", "Temperature over", "F", {70, 80, 90, 95, 100, 105, 110, 115}, 90),
+        one("tmin_under", "Chance of a 6 hour minimum temperature under a limit", "Lowest in 6 hours under", "F", {-40, -20, 0, 20, 32, 40}, 32),
+        one("tmax_over", "Chance of a 6 hour maximum temperature over a limit", "Highest in 6 hours over", "F", {70, 80, 90, 100, 110, 120}, 90),
+        one("tmax_under", "Chance of a 6 hour maximum temperature under a limit", "Highest in 6 hours under", "F", {-40, -20, 0, 20, 32}, 20),
+        one("dewpoint_over", "Chance of a dewpoint over a limit", "Dewpoint over", "F", {50, 55, 60, 65, 70, 75, 80}, 65),
+        one("heat_over", "Chance of a heat index over a limit", "Heat index over", "F", {90, 100, 105, 110, 115, 120}, 105),
+        one("rh_under", "Chance of a relative humidity under a limit", "Humidity under", "%", {5, 10, 15, 20, 30}, 15),
+        one("wind_over", "Chance of a 10 m wind over a limit", "Wind over", "kt", {10, 15, 20, 30, 40, 50, 75}, 20),
+        one("gust_over", "Chance of wind gusts over a limit", "Gusts over", "kt", {20, 25, 30, 35, 40, 50, 60, 70}, 35),
+        one("mslp_under", "Chance of a sea level pressure under a limit", "Pressure under", "mb", {960, 965, 970, 980, 990, 1000}, 990),
+        one("mslp_over", "Chance of a sea level pressure over a limit", "Pressure over", "mb", {1020, 1030, 1035, 1040}, 1030),
+        one("pw_over", "Chance of precipitable water over a limit", "Precipitable water over", "in", {1, 1.25, 1.5, 1.75, 2, 2.25}, 1.5),
+        one("cloud_under", "Chance of a 6 hour mean cloud cover under a limit", "Cloud cover under", "%", {10, 30}, 10),
+        one("cloud_over", "Chance of a 6 hour mean cloud cover over a limit", "Cloud cover over", "%", {70, 90}, 90),
+        one("cape_over", "Chance of CAPE over a limit", "CAPE over", "J/kg", {250, 500, 1000, 1500, 2000, 3000, 4000, 5000, 6000, 8000}, 1000),
+        one("z500_over", "Chance of a 500 mb height over a limit", "500 mb height over", "m", {5760, 5820, 5880, 5940, 6000}, 5940),
     };
 }
 

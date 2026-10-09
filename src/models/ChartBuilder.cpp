@@ -71,7 +71,7 @@ void ChartBuilder::rebuildSettings() {
             while (text.contains('.') && (text.endsWith('0') || text.endsWith('.'))) {
                 text.chop(1);
             }
-            box->addItem(text + " " + QString::fromStdString(s.unit), s.choices[i]);
+            box->addItem(i < s.names.size() ? QString::fromStdString(s.names[i]) : text + " " + QString::fromStdString(s.unit), s.choices[i]);
             if (std::abs(s.choices[i] - wanted) < 1e-9) {
                 at = static_cast<int>(i);
             }

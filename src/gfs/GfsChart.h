@@ -106,6 +106,7 @@ namespace GfsChart {
         std::string key, label, unit;
         std::vector<double> choices;
         double standard{0};
+        std::vector<std::string> names;   // what each choice is called, when a number is not it (the precipitation types)
     };
     struct Template {
         std::string id, title;
