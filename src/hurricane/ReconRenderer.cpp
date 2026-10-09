@@ -59,8 +59,37 @@ namespace ReconRenderer {
             return;
         }
         const long cut = cutoff(data, settings.hours);
-        const auto colorOf = [&] (const UtilityHdob::Ob& ob) { return windColor(settings.sfmr ? ob.sfmrWind : ob.windSpeed); };
+        const auto scale = [&] (double knots) { return settings.color ? (UtilityHdob::has(knots) ? settings.color(knots) : QColor{190, 190, 190}) : windColor(knots); };
+        const auto colorOf = [&] (const UtilityHdob::Ob& ob) { return scale(settings.sfmr ? ob.sfmrWind : ob.windSpeed); };
         const auto usable = [&] (const UtilityHdob::Ob& ob) { return recent(ob.seconds, cut) && (!accept || accept(ob.lat, ob.lon)); };
+        if (settings.page) {   // the one-flight page: a segment at a time, coloured by the stronger wind of its ends; a gap of a quarter hour or more means the aircraft was away
+            for (const auto& message : *data.flights) {
+                const auto& obs = message.obs;
+                const auto wind = [&] (const UtilityHdob::Ob& ob) { return settings.sfmr ? ob.sfmrWind : ob.windSpeed; };
+                for (size_t i = 1; i < obs.size(); i++) {
+                    if (!usable(obs[i - 1]) || obs[i].seconds - obs[i - 1].seconds > 900) {
+                        continue;
+                    }
+                    const double a = wind(obs[i - 1]), b = wind(obs[i]);
+                    const double kt = UtilityHdob::has(a) && UtilityHdob::has(b) ? std::max(a, b) : UtilityHdob::has(b) ? b : UtilityHdob::has(a) ? a : UtilityHdob::missing;
+                    painter.setPen(QPen{scale(kt), 3.0 * px, Qt::SolidLine, Qt::RoundCap});
+                    painter.drawLine(project(obs[i - 1].lat, obs[i - 1].lon), project(obs[i].lat, obs[i].lon));
+                }
+                if (settings.barbs) {
+                    painter.setPen(QPen{QColor{15, 15, 15}, 1.2 * px});
+                    painter.setBrush(QColor{15, 15, 15});
+                    long lastBarb = 0;
+                    for (const auto& ob : obs) {
+                        if (!UtilityHdob::has(ob.windSpeed) || !UtilityHdob::has(ob.windDirection) || ob.seconds - lastBarb < 300 || !usable(ob)) {   // one barb every five minutes
+                            continue;
+                        }
+                        lastBarb = ob.seconds;
+                        WindBarb::draw(painter, project(ob.lat, ob.lon), ob.windDirection, ob.windSpeed, 18.0 * px, ob.lat < 0.0);
+                    }
+                }
+            }
+            return;
+        }
         for (const auto& message : *data.flights) {
             const UtilityHdob::Ob * previous = nullptr;
             for (const auto& ob : message.obs) {
@@ -115,6 +144,22 @@ namespace ReconRenderer {
                 continue;
             }
             const auto at = project(m.lat, m.lon);
+            if (settings.page) {   // a diamond with the pressure beside it
+                QPolygonF diamond;
+                diamond << at + QPointF{0, -7 * px} << at + QPointF{7 * px, 0} << at + QPointF{0, 7 * px} << at + QPointF{-7 * px, 0};
+                painter.setPen(QPen{QColor{20, 20, 20}, 1.2 * px});
+                painter.setBrush(QColor{255, 210, 60});
+                painter.drawPolygon(diamond);
+                if (UtilityVdm::has(m.pressure)) {
+                    QFont small = painter.font();
+                    small.setPixelSize(static_cast<int>(11 * px));
+                    small.setBold(true);
+                    painter.setFont(small);
+                    painter.setPen(QColor{255, 232, 140});
+                    painter.drawText(at + QPointF{9 * px, -4 * px}, QString::number(static_cast<int>(std::lround(m.pressure))) + " mb");
+                }
+                continue;
+            }
             painter.setPen(QPen{QColor{255, 255, 255}, 1.6 * px});
             painter.setBrush(QColor{220, 40, 40, 200});
             painter.drawEllipse(at, 5.5 * px, 5.5 * px);
@@ -128,6 +173,40 @@ namespace ReconRenderer {
             return;
         }
         const long cut = cutoff(data, settings.hours);
+        if (settings.page) {   // where each sonde was released, with the lowest pressure and the strongest wind it measured beside it
+            QFont small = painter.font();
+            small.setPixelSize(static_cast<int>(11 * px));
+            small.setBold(true);
+            painter.setFont(small);
+            for (const auto& drop : *data.drops) {
+                const double lat = UtilityDropsonde::has(drop.releaseLat) ? drop.releaseLat : drop.lat, lon = UtilityDropsonde::has(drop.releaseLon) ? drop.releaseLon : drop.lon;
+                if (!UtilityDropsonde::has(lat) || !UtilityDropsonde::has(lon) || !recent(drop.seconds, cut) || (accept && !accept(lat, lon))) {
+                    continue;
+                }
+                const auto at = project(lat, lon);
+                QPolygonF triangle;
+                triangle << at + QPointF{0, -7 * px} << at + QPointF{7 * px, 6 * px} << at + QPointF{-7 * px, 6 * px};
+                painter.setPen(QPen{QColor{20, 20, 20}, 1.2 * px});
+                painter.setBrush(QColor{120, 220, 255});
+                painter.drawPolygon(triangle);
+                if (!settings.labels) {
+                    continue;
+                }
+                const double pressure = UtilityDropsonde::minimumPressure(drop), wind = UtilityDropsonde::maxWind(drop);
+                QString label;
+                if (UtilityDropsonde::has(pressure)) {
+                    label += QString::number(static_cast<int>(std::lround(pressure)));
+                }
+                if (UtilityDropsonde::has(wind)) {
+                    label += (label.isEmpty() ? "" : " / ") + QString::number(static_cast<int>(std::lround(wind))) + " kt";
+                }
+                if (!label.isEmpty()) {
+                    painter.setPen(QColor{190, 235, 255});
+                    painter.drawText(at + QPointF{9 * px, 14 * px}, label);
+                }
+            }
+            return;
+        }
         std::vector<const UtilityDropsonde::Drop *> shown;
         for (const auto& d : *data.drops) {
             const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;

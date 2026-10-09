@@ -80,6 +80,10 @@ ReconMap::ReconMap(QWidget * parent) : QWidget{parent} {
 
 void ReconMap::setFlight(const Flight& f) {
     flight = f;
+    messages.clear();
+    UtilityHdob::Message message;
+    message.obs = flight.obs;
+    messages.push_back(std::move(message));
     update();
 }
 
@@ -239,88 +243,37 @@ void ReconMap::paintEvent(QPaintEvent *) {
         p.drawPath(path);
     }
 
-    // the flight: a segment at a time, coloured by the wind
+    // the flight, the centre fixes and the dropsondes: the shared renderer (as on the track map), in the look of this page
     const auto& obs = flight.obs;
-    const auto wind = [this] (const UtilityHdob::Ob& ob) { return useSfmr ? ob.sfmrWind : ob.windSpeed; };
-    const long cut = cutNow();
-    for (size_t i = 1; i < obs.size(); i++) {
-        if (!ReconRenderer::recent(obs[i - 1].seconds, cut)) {
-            continue;
+    {
+        ReconRenderer::Data data;
+        data.flights = &messages;
+        if (showFixes) {
+            data.fixes = &flight.fixes;
         }
-        if (obs[i].seconds - obs[i - 1].seconds > 900) {   // a gap of a quarter hour or more: the aircraft was away
-            continue;
+        if (showDrops) {
+            data.drops = &flight.drops;
         }
-        const double a = wind(obs[i - 1]), b = wind(obs[i]);
-        const double kt = has(a) && has(b) ? std::max(a, b) : has(b) ? b : has(a) ? a : -1.0;
-        p.setPen(QPen{kt >= 0 ? windColor(kt) : QColor{190, 190, 190}, 3.0, Qt::SolidLine, Qt::RoundCap});
-        p.drawLine(toWidget(obs[i - 1].lon, obs[i - 1].lat), toWidget(obs[i].lon, obs[i].lat));
-    }
-    p.setPen(QPen{QColor{0, 0, 0, 120}, 0.8});   // a thin dark edge under the coloured line is not drawn; the barbs follow
-    if (barbs) {
-        p.setPen(QPen{QColor{15, 15, 15}, 1.2});
-        p.setBrush(QColor{15, 15, 15});
-        long lastBarb = 0;
-        for (const auto& ob : obs) {
-            if (!has(ob.windSpeed) || !has(ob.windDirection) || ob.seconds - lastBarb < 300 || !ReconRenderer::recent(ob.seconds, cut)) {   // one barb every five minutes
-                continue;
-            }
-            lastBarb = ob.seconds;
-            WindBarb::draw(p, toWidget(ob.lon, ob.lat), ob.windDirection, ob.windSpeed, 18.0, ob.lat < 0.0);
+        ReconRenderer::Settings settings;
+        settings.hours = hours;
+        settings.sfmr = useSfmr;
+        settings.barbs = barbs;
+        settings.labels = sondeLabels;
+        settings.page = true;
+        settings.color = [] (double kt) { return windColor(kt); };
+        const auto project = [this] (double lat, double lon) { return toWidget(lon, lat); };
+        ReconRenderer::paintFlights(p, project, 1.0, data, settings);
+        // the newest position of the aircraft
+        if (!obs.empty()) {
+            const auto at = toWidget(obs.back().lon, obs.back().lat);
+            p.setPen(QPen{QColor{20, 20, 20}, 1.5});
+            p.setBrush(QColor{255, 255, 255});
+            p.drawEllipse(at, 6.0, 6.0);
+            p.setPen(QColor{255, 255, 255});
+            p.drawText(at + QPointF{9, 4}, clock(obs.back().seconds));
         }
-    }
-    // the newest position of the aircraft
-    if (!obs.empty()) {
-        const auto at = toWidget(obs.back().lon, obs.back().lat);
-        p.setPen(QPen{QColor{20, 20, 20}, 1.5});
-        p.setBrush(QColor{255, 255, 255});
-        p.drawEllipse(at, 6.0, 6.0);
-        p.setPen(QColor{255, 255, 255});
-        p.drawText(at + QPointF{9, 4}, clock(obs.back().seconds));
-    }
-    // vortex fixes
-    QFont small = p.font();
-    small.setPixelSize(11);
-    small.setBold(true);
-    p.setFont(small);
-    for (const auto& fix : flight.fixes) {
-        if (!has(fix.lat) || !has(fix.lon) || !ReconRenderer::recent(fix.seconds, cut)) {
-            continue;
-        }
-        const auto at = toWidget(fix.lon, fix.lat);
-        QPolygonF diamond;
-        diamond << at + QPointF{0, -7} << at + QPointF{7, 0} << at + QPointF{0, 7} << at + QPointF{-7, 0};
-        p.setPen(QPen{QColor{20, 20, 20}, 1.2});
-        p.setBrush(QColor{255, 210, 60});
-        p.drawPolygon(diamond);
-        if (has(fix.pressure)) {
-            p.setPen(QColor{255, 232, 140});
-            p.drawText(at + QPointF{9, -4}, QString::number(static_cast<int>(std::lround(fix.pressure))) + " mb");
-        }
-    }
-    // dropsondes: where they were released, with the lowest pressure and the strongest wind they measured
-    for (const auto& drop : flight.drops) {
-        const double lat = has(drop.releaseLat) ? drop.releaseLat : drop.lat, lon = has(drop.releaseLon) ? drop.releaseLon : drop.lon;
-        if (!has(lat) || !has(lon) || !ReconRenderer::recent(drop.seconds, cut)) {
-            continue;
-        }
-        const auto at = toWidget(lon, lat);
-        QPolygonF triangle;
-        triangle << at + QPointF{0, -7} << at + QPointF{7, 6} << at + QPointF{-7, 6};
-        p.setPen(QPen{QColor{20, 20, 20}, 1.2});
-        p.setBrush(QColor{120, 220, 255});
-        p.drawPolygon(triangle);
-        const double pressure = UtilityDropsonde::minimumPressure(drop), maxWind = UtilityDropsonde::maxWind(drop);
-        QString label;
-        if (has(pressure)) {
-            label += QString::number(static_cast<int>(std::lround(pressure)));
-        }
-        if (has(maxWind)) {
-            label += (label.isEmpty() ? "" : " / ") + QString::number(static_cast<int>(std::lround(maxWind))) + " kt";
-        }
-        if (!label.isEmpty()) {
-            p.setPen(QColor{190, 235, 255});
-            p.drawText(at + QPointF{9, 14}, label);
-        }
+        ReconRenderer::paintFixes(p, project, 1.0, data, settings);
+        ReconRenderer::paintDrops(p, project, 1.0, data, settings);
     }
     // the storm's own position
     if (flight.haveStorm) {
@@ -430,10 +383,18 @@ ReconViewer::ReconViewer(Window * parent, const std::string& id, const std::stri
     comboColor.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("RECON_COLOR", 0), 0, 1)));
     checkBarbs = new QCheckBox{"Wind barbs", this};
     checkBarbs->setChecked(Utility::readPrefInt("RECON_BARBS", 1) != 0);
+    // what is drawn besides the track: the centre fixes, the dropsondes and their labels
+    checkFixes = new QCheckBox{"Centre fixes", this};
+    checkFixes->setChecked(Utility::readPrefInt("RECON_FIXES", 1) != 0);
+    checkDrops = new QCheckBox{"Dropsondes", this};
+    checkDrops->setChecked(Utility::readPrefInt("RECON_DROPS", 1) != 0);
+    checkSondeLabels = new QCheckBox{"Sonde labels", this};
+    checkSondeLabels->setChecked(Utility::readPrefInt("RECON_SONDE_LABELS", 1) != 0);
     map = new ReconMap{this};
     map->onDrop = [this] (const UtilityDropsonde::Drop& drop) { new DropsondeViewer{this, drop}; };
     map->setColoring(comboColor.getIndex() == 1);
     map->setBarbs(checkBarbs->isChecked());
+    map->setShow(checkFixes->isChecked(), checkDrops->isChecked(), checkSondeLabels->isChecked());
     log = new QPlainTextEdit{this};
     log->setReadOnly(true);
     log->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
@@ -456,6 +417,14 @@ ReconViewer::ReconViewer(Window * parent, const std::string& id, const std::stri
         Utility::writePrefInt("RECON_REFRESH", comboRefresh.getIndex());
         setTimer();
     });
+    for (auto * box : {checkFixes, checkDrops, checkSondeLabels}) {
+        QObject::connect(box, &QCheckBox::toggled, [this] {
+            Utility::writePrefInt("RECON_FIXES", checkFixes->isChecked() ? 1 : 0);
+            Utility::writePrefInt("RECON_DROPS", checkDrops->isChecked() ? 1 : 0);
+            Utility::writePrefInt("RECON_SONDE_LABELS", checkSondeLabels->isChecked() ? 1 : 0);
+            map->setShow(checkFixes->isChecked(), checkDrops->isChecked(), checkSondeLabels->isChecked());
+        });
+    }
     QObject::connect(checkBarbs, &QCheckBox::toggled, [this] (bool on) {
         Utility::writePrefInt("RECON_BARBS", on ? 1 : 0);
         map->setBarbs(on);
@@ -472,6 +441,9 @@ ReconViewer::ReconViewer(Window * parent, const std::string& id, const std::stri
     row2.addWidget(comboColor);
     row2.addWidget(comboRefresh);
     row2.addWidgetReal(checkBarbs);
+    row2.addWidgetReal(checkFixes);
+    row2.addWidgetReal(checkDrops);
+    row2.addWidgetReal(checkSondeLabels);
     row2.addStretch();
     row2.addWidgetReal(new ActivityLabel{this});
     auto * split = new QWidget{this};

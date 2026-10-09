@@ -43,6 +43,7 @@ public:
     void setColoring(bool sfmr) { useSfmr = sfmr; update(); }
     void resetZoom() { zoom = 1.0; pan = {}; update(); }
     void setBarbs(bool on) { barbs = on; update(); }
+    void setShow(bool fixes, bool drops, bool labels) { showFixes = fixes; showDrops = drops; sondeLabels = labels; update(); }   // what is drawn besides the flight track
     void setHours(int h) { hours = h; update(); }   // only the last X hours of the flight before its newest observation are drawn (0 all)
     std::function<void(const UtilityDropsonde::Drop&)> onDrop;   // a click on a dropsonde (its triangle on the map)
     // the colour of a wind in knots (the same scale for the flight level and the surface)
@@ -64,6 +65,8 @@ private:
     bool useSfmr{false};
     bool barbs{true};
     int hours{0};
+    bool showFixes{true}, showDrops{true}, sondeLabels{true};
+    std::vector<UtilityHdob::Message> messages;   // the flight as the renderer takes it
     long cutNow() const;
     double zoom{1.0};                           // wheel to zoom at the pointer, drag to pan, double click to reset
     QPointF pan;                                // the picture's shift in widget pixels
@@ -100,6 +103,7 @@ private:
     ComboBox comboColor;
     ComboBox comboRefresh;
     Button buttonRefresh;
+    QCheckBox * checkFixes{}, * checkDrops{}, * checkSondeLabels{};
     QCheckBox * checkBarbs{};
     Text textStatus;
     ReconMap * map{};

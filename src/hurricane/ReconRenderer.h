@@ -31,6 +31,8 @@ namespace ReconRenderer {
         bool sfmr{false};           // the tracks coloured by the SFMR surface wind, not the flight-level wind
         bool barbs{true};
         bool labels{true};          // the pressure and wind beside a dropsonde, where there is room
+        bool page{false};           // the look of the one-flight page (a broad line a segment at a time, a barb every five minutes, labelled diamonds and sondes at their release point), not of the track map
+        std::function<QColor(double knots)> color;   // the colour scale of the wind, when it is not the hurricane categories
     };
     using Project = std::function<QPointF(double lat, double lon)>;
     using Accept = std::function<bool(double lat, double lon)>;   // false: not this storm's (far from it)
