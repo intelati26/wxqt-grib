@@ -24,6 +24,9 @@
 #include <set>
 #include <QTimer>
 #include "models/ChartHover.h"
+#include "models/CompareTile.h"
+#include <QDateTime>
+#include <QGridLayout>
 #include "models/SoundingPick.h"
 #include "models/TimeStrip.h"
 #include <array>
@@ -60,6 +63,43 @@ private:
         std::shared_ptr<GfsChart::Probe> probe;
     };
     string frameKey(int hour) const;
+    // the comparison tiles: 1 x 1 (off), 1 x 2, 1 x 3 or 2 x 2 charts of the same hour. What differs is chosen: the charts (of this model, area and run), the models (the same chart), or the runs (the same
+    // valid time from older runs). The first tile is the screen's own chart; the others take their view (zoom, place, hover) from it. Each tile's frames are kept and read ahead like the first one's.
+    struct Spec {
+        string model, param, sector;
+        int shift{0};   // runs: hours older than the run chosen
+    };
+    struct Job {
+        string model, param, sector, cycle, key, chart;   // chart: the key without the hour (a new hour of it keeps the zoom)
+        int hour{0};
+        std::vector<string> overlays;
+        GfsRender::Variant variant;
+        bool ok{true};
+        string why;
+    };
+    enum class TilesShow { Charts, Models, Runs };
+    int tileCount() const;                       // the tiles besides the first: 0, 1, 2 or 3
+    TilesShow tilesShow() const;
+    void applyTileLayout();
+    void resetTileSpecs();
+    Job makeJob(int index, int mainHour, bool ahead) const;
+    string caption(const Job&) const;
+    void renderTiles();
+    void renderTile(int index);
+    void showTile(int index, const Job&, const Frame&);
+    void changeTile(int index);
+    void pickFromTiles(int source, double fx, double fy);
+    QByteArray compositePicture() const;
+    QDateTime runTime(const string& run) const;
+    ComboBox comboTiles, comboTilesShow;
+    QWidget * compareArea{};
+    QGridLayout * grid{};
+    QFrame * mainTile{};
+    QLabel * mainCaption{};
+    std::array<CompareTile *, 3> tiles{};
+    std::array<Spec, 3> tileSpecs;
+    std::array<int, 3> tileGeneration{};
+    bool syncingViews{false};
     void showFrame(const Frame&);
     void selectHour(int index);
     void startPlaying(bool on);

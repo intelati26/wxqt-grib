@@ -6,7 +6,10 @@
 
 #include "ModelViewer.h"
 #include "ui/ActivityLabel.h"
+#include <QBuffer>
+#include <QImage>
 #include <QInputDialog>
+#include <QPainter>
 #include <QMenu>
 #include "misc/ImageViewer.h"
 #include "objects/UtilityAnimationExport.h"
@@ -41,6 +44,8 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , buttonProducts{this, None, "Charts..."}
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
+    , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
+    , comboTilesShow{this, {"Compare: charts", "Compare: models", "Compare: runs"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
     , buttonModel{this, None, "Model..."}
@@ -102,6 +107,25 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             setVariant(v);
         });
         boxH2.addWidget(comboCompare);
+        comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
+        comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs.");
+        comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
+        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 2)));
+        comboTiles.connect([this] {
+            Utility::writePref("MODEL_TILES", std::to_string(comboTiles.getIndex()));
+            applyTileLayout();
+            resetTileSpecs();
+            renderTiles();
+            prefetch(prefetchGeneration);
+        });
+        comboTilesShow.connect([this] {
+            Utility::writePref("MODEL_TILES_SHOW", std::to_string(comboTilesShow.getIndex()));
+            resetTileSpecs();
+            renderTiles();
+            prefetch(prefetchGeneration);
+        });
+        boxH2.addWidget(comboTiles);
+        boxH2.addWidget(comboTilesShow);
         {   // how far ahead the hours are drawn on their own
             const auto mode = Utility::readPref("MODEL_PRELOAD", "auto");
             comboPreload.setIndex(mode == "around" ? 1 : mode == "12" ? 2 : mode == "24" ? 3 : mode == "all" ? 4 : 0);
@@ -144,10 +168,74 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         double lon = 0.0, lat = 0.0;
         if (shownProbe && shownProbe->locate(fx, fy, lon, lat)) {
             image.setMarker(fx, fy);
+            for (auto * tile : tiles) {
+                tile->image->setMarker(fx, fy);
+            }
             soundingPick.pick(lon, lat);
         }
     });
-    box.addWidgetReal(&image, 1, Qt::Alignment{});
+    {   // the tiles: the first is the screen's own chart (with everything it does), the others are compared with it
+        compareArea = new QWidget{this};
+        grid = new QGridLayout{compareArea};
+        grid->setContentsMargins(0, 0, 0, 0);
+        grid->setSpacing(4);
+        mainTile = new QFrame{compareArea};
+        auto * mainColumn = new QVBoxLayout{mainTile};
+        mainColumn->setContentsMargins(2, 2, 2, 2);
+        mainColumn->setSpacing(2);
+        mainCaption = new QLabel{mainTile};
+        mainCaption->setStyleSheet("font-weight: bold;");
+        mainColumn->addWidget(mainCaption);
+        mainColumn->addWidget(&image, 1);
+        for (size_t i = 0; i < tiles.size(); i++) {
+            tiles[i] = new CompareTile{compareArea};
+            const int index = static_cast<int>(i) + 1;
+            QObject::connect(tiles[i]->change, &QPushButton::clicked, this, [this, index] { changeTile(index); });
+            QObject::connect(tiles[i]->image, &ZoomImage::clicked, this, [this, index] (double fx, double fy) { pickFromTiles(index, fx, fy); });
+            QObject::connect(tiles[i]->image, &ZoomImage::doubleClicked, this, [this, i] {
+                if (!tiles[i]->shownBytes.isEmpty()) {
+                    new ImageViewer{this, tiles[i]->shownBytes, tiles[i]->caption->text().toStdString()};
+                }
+            });
+        }
+        // one view for all: the zoom and place of the tile touched go to the others, and the read-out of the point under the pointer shows in each
+        std::vector<ZoomImage *> pictures{&image};
+        for (auto * tile : tiles) {
+            pictures.push_back(tile->image);
+        }
+        const auto hoverOf = [this] (size_t i) -> ChartHover * { return i == 0 ? hover.get() : tiles[i - 1]->hover.get(); };
+        for (size_t from = 0; from < pictures.size(); from++) {
+            QObject::connect(pictures[from], &ZoomImage::viewChanged, this, [this, pictures, from] {
+                if (syncingViews) {
+                    return;
+                }
+                syncingViews = true;
+                const auto v = pictures[from]->view();
+                for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
+                    if (to != from) {
+                        pictures[to]->setView(v);
+                    }
+                }
+                syncingViews = false;
+            });
+            QObject::connect(pictures[from], &ZoomImage::hovered, this, [this, from, hoverOf] (double fx, double fy) {
+                for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
+                    if (to != from && hoverOf(to)) {
+                        hoverOf(to)->show(fx, fy, 12, 12);
+                    }
+                }
+            });
+            QObject::connect(pictures[from], &ZoomImage::hoverEnded, this, [this, from, hoverOf] {
+                for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
+                    if (to != from && hoverOf(to)) {
+                        hoverOf(to)->hide();
+                    }
+                }
+            });
+        }
+        applyTileLayout();
+    }
+    box.addWidgetReal(compareArea, 1, Qt::Alignment{});
     strip = new TimeStrip{this};
     strip->onSelect = [this] (int index) { selectHour(index); };
     strip->onPlay = [this] (bool on) { startPlaying(on); };
@@ -389,6 +477,12 @@ void ModelViewer::saveLoop() {
     if (shownBytes.isEmpty()) {
         return;
     }
+    if (tileCount() > 0) {   // the tiles side by side, as one picture
+        const auto picture = compositePicture();
+        const auto stem = QString::fromStdString(objectModel.model + "_compare_" + objectModel.sector + "_" + objectModel.run);
+        UtilityAnimationExport::saveWithDialog(this, std::vector<QByteArray>{}, strip->intervalMs(), picture, stem, QByteArray{}, false, stem);
+        return;
+    }
     std::vector<std::pair<int, QByteArray>> drawn;
     for (const auto& t : objectModel.times) {
         const int hour = std::atoi(t.c_str());
@@ -422,6 +516,8 @@ void ModelViewer::showFrame(const Frame& frame) {
         hover = std::make_unique<ChartHover>(&image);
     }
     hover->set(frame.probe);
+    mainCaption->setText(QString::fromStdString(caption(makeJob(0, std::atoi(objectModel.getTime().c_str()), false))));
+    renderTiles();
 }
 
 // a time chosen on the timeline: the same as choosing it in the list
@@ -546,44 +642,45 @@ void ModelViewer::prefetch(int generation) {
             candidates.push_back(index);
         }
     }
-    const size_t limit = playing || preloadAhead() > 0 ? 3 : 1;
+    const int specs = 1 + tileCount();
+    const size_t limit = std::min<size_t>(6, (playing || preloadAhead() > 0 ? 3 : 1) * static_cast<size_t>(specs));
     for (const int index : candidates) {
-        if (inFlight.size() >= limit) {
-            break;
-        }
-        const int hour = std::atoi(objectModel.times[static_cast<size_t>(index)].c_str());
-        const auto key = frameKey(hour);
-        if (frames.count(key) || failedAhead.count(key) || inFlight.count(key)) {
-            continue;
-        }
-        inFlight.insert(key);
-        if (!gfsSession) {
-            gfsSession = std::make_shared<GfsRender::Session>();
-        }
-        auto session = gfsSession;
-        const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = objectModel.run;
-        const auto overlayIds = overlays;
-        const auto shownVariant = variant.kind == GfsRender::Variant::Kind::Change ? variant : GfsRender::Variant{};
-        auto result = std::make_shared<std::pair<QByteArray, string>>();
-        auto probe = std::make_shared<GfsChart::Probe>();
-        new FutureVoid{this, [=] {
-                           const NetManager::Scope aheadScope{NetManager::Priority::Ahead};   // behind whatever the user is waiting for
-                           result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get(), shownVariant);
-                       },
-                       [this, result, probe, key, generation] {
-                           inFlight.erase(key);
-                           if (result->first.isEmpty()) {   // no chart at this hour (or the request was dropped as the view changed): not asked for again until the view changes
-                               failedAhead.insert(key);
-                               if (playing && generation == prefetchGeneration && inFlight.empty()) {
-                                   startPlaying(false);
-                                   strip->stop();
+        const int mainHour = std::atoi(objectModel.times[static_cast<size_t>(index)].c_str());
+        for (int spec = 0; spec < specs; spec++) {   // the chart of each tile
+            if (inFlight.size() >= limit) {
+                break;
+            }
+            const auto job = makeJob(spec, mainHour, true);
+            const auto key = job.key;
+            if (!job.ok || frames.count(key) || failedAhead.count(key) || inFlight.count(key)) {
+                continue;
+            }
+            inFlight.insert(key);
+            if (!gfsSession) {
+                gfsSession = std::make_shared<GfsRender::Session>();
+            }
+            auto session = gfsSession;
+            auto result = std::make_shared<std::pair<QByteArray, string>>();
+            auto probe = std::make_shared<GfsChart::Probe>();
+            new FutureVoid{this, [=] {
+                               const NetManager::Scope aheadScope{NetManager::Priority::Ahead};   // behind whatever the user is waiting for
+                               result->first = GfsRender::png(*session, job.model, job.param, job.sector, job.cycle, job.hour, job.overlays, result->second, probe.get(), job.variant);
+                           },
+                           [this, result, probe, key, generation] {
+                               inFlight.erase(key);
+                               if (result->first.isEmpty()) {   // no chart at this hour (or the request was dropped as the view changed): not asked for again until the view changes
+                                   failedAhead.insert(key);
+                                   if (playing && generation == prefetchGeneration && inFlight.empty()) {
+                                       startPlaying(false);
+                                       strip->stop();
+                                   }
+                               } else {
+                                   storeFrame(key, {result->first, probe});
                                }
-                           } else {
-                               storeFrame(key, {result->first, probe});
-                           }
-                           refreshLoaded();
-                           prefetch(prefetchGeneration);
-                       }};
+                               refreshLoaded();
+                               prefetch(prefetchGeneration);
+                           }};
+        }
     }
     refreshLoaded();
 }
@@ -730,6 +827,7 @@ void ModelViewer::updateRunStatus() {
 
     refreshProductButton();
     refreshTimeStrip();
+    resetTileSpecs();
     if (!pendingView[0].empty() && pendingView[1] == objectModel.model) {   // a saved view of this model, waiting for its runs
         const auto view = pendingView;
         applyView(view);
@@ -920,4 +1018,359 @@ void ModelViewer::showPicker() {
         Utility::writePref("MODELFAV_" + model, joined);
     };
     picker->show();
+}
+
+// ---- the comparison tiles ----
+
+int ModelViewer::tileCount() const {
+    return std::clamp(comboTiles.getIndex(), 0, 3);
+}
+
+ModelViewer::TilesShow ModelViewer::tilesShow() const {
+    const auto i = comboTilesShow.getIndex();
+    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : TilesShow::Charts;
+}
+
+void ModelViewer::applyTileLayout() {
+    const int n = tileCount();
+    for (auto * widget : std::vector<QWidget *>{mainTile, tiles[0], tiles[1], tiles[2]}) {
+        grid->removeWidget(widget);
+    }
+    mainCaption->setVisible(n > 0);
+    mainTile->setFrameShape(n > 0 ? QFrame::StyledPanel : QFrame::NoFrame);
+    grid->addWidget(mainTile, 0, 0);
+    // 1 x 2: side by side; 1 x 3: a row of three; 2 x 2: two rows of two
+    for (int i = 0; i < 3; i++) {
+        const bool used = i < n;
+        tiles[static_cast<size_t>(i)]->setVisible(used);
+        if (used) {
+            const int row = n == 3 ? (i + 1) / 2 : 0;
+            const int col = n == 3 ? (i + 1) % 2 : i + 1;
+            grid->addWidget(tiles[static_cast<size_t>(i)], row, col);
+        }
+    }
+    const int columns = n == 3 ? 2 : n + 1;
+    for (int c = 0; c < 3; c++) {
+        grid->setColumnStretch(c, c < columns ? 1 : 0);
+    }
+    for (int r = 0; r < 2; r++) {
+        grid->setRowStretch(r, r == 0 || n == 3 ? 1 : 0);
+    }
+    mainTile->setVisible(true);
+}
+
+// what the other tiles show to begin with: the next charts of the list (favorites first), the other models that draw this chart, or the older runs 6, 12 and 18 hours back
+void ModelViewer::resetTileSpecs() {
+    const auto show = tilesShow();
+    std::vector<string> others;
+    if (show == TilesShow::Charts) {
+        const auto stored = Utility::readPref("MODELFAV_" + objectModel.model, "");
+        for (const auto& id : QString::fromStdString(stored).split(',', Qt::SkipEmptyParts)) {
+            const auto name = id.toStdString();
+            if (name != objectModel.param && std::find(objectModel.params.begin(), objectModel.params.end(), name) != objectModel.params.end()) {
+                others.push_back(name);
+            }
+        }
+        const auto at = std::find(objectModel.params.begin(), objectModel.params.end(), objectModel.param);
+        const size_t start = at == objectModel.params.end() ? 0 : static_cast<size_t>(at - objectModel.params.begin()) + 1;
+        for (size_t i = 0; i < objectModel.params.size(); i++) {
+            const auto& name = objectModel.params[(start + i) % objectModel.params.size()];
+            if (name != objectModel.param && std::find(others.begin(), others.end(), name) == others.end()) {
+                others.push_back(name);
+            }
+        }
+    } else if (show == TilesShow::Models) {
+        for (const auto& def : GfsModels::all()) {
+            if (!def.storm && def.id != objectModel.model && GfsRender::handles(def.id, objectModel.param)) {
+                others.push_back(def.id);
+            }
+        }
+    }
+    for (size_t k = 0; k < tileSpecs.size(); k++) {
+        Spec spec{objectModel.model, objectModel.param, objectModel.sector, 0};
+        if (show == TilesShow::Charts) {
+            spec.param = k < others.size() ? others[k] : objectModel.param;
+        } else if (show == TilesShow::Models) {
+            spec.model = k < others.size() ? others[k] : string{};
+        } else {
+            spec.shift = 6 * static_cast<int>(k + 1);
+        }
+        tileSpecs[k] = spec;
+    }
+}
+
+// the actual date and hour of a run of the list (the list gives only the hour: a later hour than the newest run's is the day before)
+QDateTime ModelViewer::runTime(const string& run) const {
+    const auto& data = objectModel.runTimeData;
+    if (data.newestDate.empty() || data.mostRecentRun.size() < 2 || run.size() < 2) {
+        return {};
+    }
+    auto newest = QDateTime::fromString(QString::fromStdString(data.newestDate + data.mostRecentRun.substr(0, 2)), "yyyyMMddHH");
+    bool ok = false;
+    const int hour = QString::fromStdString(run.substr(0, 2)).toInt(&ok);
+    if (!newest.isValid() || !ok) {
+        return {};
+    }
+    newest.setTimeSpec(Qt::UTC);
+    auto t = QDateTime{newest.date(), QTime{hour, 0}, Qt::UTC};
+    return t > newest ? t.addDays(-1) : t;
+}
+
+// what the tile at `index` (0 the screen's own chart) draws at the hour shown by the first tile
+ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const {
+    Job job;
+    job.hour = mainHour;
+    if (index == 0) {
+        job.model = objectModel.model;
+        job.param = objectModel.param;
+        job.sector = objectModel.sector;
+        job.cycle = objectModel.run;
+        job.overlays = overlays;
+        job.variant = ahead && variant.kind != GfsRender::Variant::Kind::Change ? GfsRender::Variant{} : variant;
+        job.key = frameKey(mainHour);
+    } else {
+        const auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
+        const auto show = tilesShow();
+        job.model = spec.model;
+        job.param = spec.param;
+        job.sector = objectModel.sector;
+        job.cycle = objectModel.run;
+        if (spec.model.empty()) {
+            job.ok = false;
+            job.why = "No other model draws this chart.";
+        } else if (show == TilesShow::Runs) {
+            const auto t = runTime(objectModel.run);
+            if (!t.isValid()) {
+                job.ok = false;
+                job.why = "The date of the run is not known yet.";
+            } else {
+                job.cycle = t.addSecs(-3600LL * spec.shift).toString("yyyyMMddHH").toStdString();
+                job.hour = mainHour + spec.shift;   // the same valid time
+            }
+        } else if (show == TilesShow::Models) {
+            job.cycle = spec.model == objectModel.model ? objectModel.run : string{};   // another model: its newest run
+        }
+        if (job.ok && !GfsRender::handles(job.model, job.param)) {
+            job.ok = false;
+            job.why = job.model + " does not draw " + job.param + ".";
+        }
+        if (spec.model == objectModel.model) {
+            job.overlays = overlays;
+        }
+        auto v = variant;
+        if (v.kind == GfsRender::Variant::Kind::Max && (show != TilesShow::Charts || ahead)) {
+            v = {};
+        }
+        if (ahead && v.kind != GfsRender::Variant::Kind::Change) {
+            v = {};
+        }
+        job.variant = v;
+        string vk;
+        if (v.kind == GfsRender::Variant::Kind::Change) {
+            vk = "|change" + std::to_string(v.hoursBack);
+        } else if (v.kind == GfsRender::Variant::Kind::Max && !v.hours.empty()) {
+            vk = "|max" + std::to_string(v.hours.front()) + "-" + std::to_string(v.hours.back());
+        }
+        job.key = job.model + "|" + job.param + "|" + job.sector + "|" + job.cycle + "|" + std::to_string(job.hour);
+        for (const auto& id : job.overlays) {
+            job.key += "|" + id;
+        }
+        job.key += vk;
+    }
+    job.chart = job.model + "|" + job.param + "|" + job.sector;
+    for (const auto& id : job.overlays) {
+        job.chart += "|" + id;
+    }
+    return job;
+}
+
+string ModelViewer::caption(const Job& job) const {
+    const auto * product = GfsChart::product(job.param, job.model);
+    string run;
+    if (job.cycle.size() == 10) {
+        const auto t = QDateTime::fromString(QString::fromStdString(job.cycle), "yyyyMMddHH");
+        run = t.toString("HH").toStdString() + "Z " + t.toString("MMM d").toStdString();
+    } else {
+        run = job.cycle.empty() ? string{"newest run"} : job.cycle;
+    }
+    return job.model + "   " + (product ? product->label : job.param) + "   " + run + (job.variant.kind == GfsRender::Variant::Kind::Change ? "   (change)" : "");
+}
+
+void ModelViewer::renderTiles() {
+    for (int i = 1; i <= tileCount(); i++) {
+        renderTile(i);
+    }
+}
+
+void ModelViewer::renderTile(int index) {
+    if (!GfsRender::handles(objectModel.model, objectModel.param)) {
+        return;
+    }
+    auto * tile = tiles[static_cast<size_t>(index) - 1];
+    const int mainHour = std::atoi(objectModel.getTime().c_str());
+    const auto job = makeJob(index, mainHour, false);
+    tile->caption->setText(QString::fromStdString(caption(job)));
+    const int mine = ++tileGeneration[static_cast<size_t>(index) - 1];
+    if (!job.ok) {
+        tile->setMessage(QString::fromStdString(job.why));
+        return;
+    }
+    if (const auto cached = frames.find(job.key); cached != frames.end()) {
+        showTile(index, job, cached->second);
+        return;
+    }
+    if (!gfsSession) {
+        gfsSession = std::make_shared<GfsRender::Session>();
+    }
+    auto session = gfsSession;
+    auto result = std::make_shared<std::pair<QByteArray, string>>();
+    auto probe = std::make_shared<GfsChart::Probe>();
+    new FutureVoid{this, [=] { result->first = GfsRender::png(*session, job.model, job.param, job.sector, job.cycle, job.hour, job.overlays, result->second, probe.get(), job.variant); },
+                   [this, result, probe, job, index, mine] {
+                       if (mine != tileGeneration[static_cast<size_t>(index) - 1] || index > tileCount()) {
+                           return;
+                       }
+                       if (result->first.isEmpty()) {
+                           tiles[static_cast<size_t>(index) - 1]->setMessage(QString::fromStdString(result->second.empty() ? string{"Could not draw this chart."} : result->second));
+                           return;
+                       }
+                       storeFrame(job.key, {result->first, probe});
+                       showTile(index, job, frames[job.key]);
+                       prefetch(prefetchGeneration);
+                   }};
+}
+
+void ModelViewer::showTile(int index, const Job& job, const Frame& frame) {
+    auto * tile = tiles[static_cast<size_t>(index) - 1];
+    tile->setChart(frame.bytes, frame.probe, job.chart);
+    const auto v = image.view();
+    if (!v.fitted) {
+        syncingViews = true;
+        tile->image->setView(v);
+        syncingViews = false;
+    }
+}
+
+// the button of a tile: another chart, another model or another run, as the comparison is set
+void ModelViewer::changeTile(int index) {
+    auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
+    auto * button = tiles[static_cast<size_t>(index) - 1]->change;
+    const auto show = tilesShow();
+    if (show == TilesShow::Charts) {
+        std::vector<ProductPicker::Entry> entries;
+        for (size_t i = 0; i < objectModel.params.size() && i < objectModel.paramLabels.size(); i++) {
+            const auto * product = GfsChart::product(objectModel.params[i], objectModel.model);
+            entries.push_back({objectModel.params[i], objectModel.paramLabels[i], product ? GfsChart::category(*product) : string{"Other"}});
+        }
+        std::vector<string> favorites;
+        for (const auto& id : QString::fromStdString(Utility::readPref("MODELFAV_" + objectModel.model, "")).split(',', Qt::SkipEmptyParts)) {
+            favorites.push_back(id.toStdString());
+        }
+        auto * choose = new ProductPicker{this, objectModel.model, entries, spec.param, favorites, {}, {}};
+        choose->setAttribute(Qt::WA_DeleteOnClose);
+        choose->onPick = [this, index] (const string& id) {
+            tileSpecs[static_cast<size_t>(index) - 1].param = id;
+            renderTile(index);
+            prefetch(prefetchGeneration);
+        };
+        choose->show();
+        return;
+    }
+    QMenu menu;
+    if (show == TilesShow::Models) {
+        for (const auto& def : GfsModels::all()) {
+            if (def.storm || !GfsRender::handles(def.id, objectModel.param)) {
+                continue;
+            }
+            const auto id = def.id;
+            auto * action = menu.addAction(QString::fromStdString(id));
+            action->setCheckable(true);
+            action->setChecked(spec.model == id);
+            QObject::connect(action, &QAction::triggered, this, [this, index, id] {
+                tileSpecs[static_cast<size_t>(index) - 1].model = id;
+                renderTile(index);
+                prefetch(prefetchGeneration);
+            });
+        }
+    } else {
+        for (const int hours : {6, 12, 18, 24, 36, 48}) {
+            auto * action = menu.addAction(QString{"The run %1 hours older"}.arg(hours));
+            action->setCheckable(true);
+            action->setChecked(spec.shift == hours);
+            QObject::connect(action, &QAction::triggered, this, [this, index, hours] {
+                tileSpecs[static_cast<size_t>(index) - 1].shift = hours;
+                renderTile(index);
+                prefetch(prefetchGeneration);
+            });
+        }
+    }
+    menu.exec(button->mapToGlobal(QPoint{0, button->height()}));
+}
+
+// a click in a tile: the point is marked in all of them and the sounding is for the tile's own chart
+void ModelViewer::pickFromTiles(int source, double fx, double fy) {
+    const auto probe = tiles[static_cast<size_t>(source) - 1]->probe;
+    double lon = 0.0, lat = 0.0;
+    if (probe && probe->locate(fx, fy, lon, lat)) {
+        image.setMarker(fx, fy);
+        for (auto * tile : tiles) {
+            tile->image->setMarker(fx, fy);
+        }
+        soundingPick.pick(lon, lat);
+    }
+}
+
+// all the tiles in one picture, each under its caption
+QByteArray ModelViewer::compositePicture() const {
+    struct Cell {
+        QImage image;
+        QString text;
+    };
+    std::vector<Cell> cells;
+    cells.push_back({QImage::fromData(shownBytes), mainCaption->text()});
+    for (int i = 0; i < tileCount(); i++) {
+        cells.push_back({QImage::fromData(tiles[static_cast<size_t>(i)]->shownBytes), tiles[static_cast<size_t>(i)]->caption->text()});
+    }
+    const int cellWidth = 900, head = 30;
+    const int columns = tileCount() == 3 ? 2 : tileCount() + 1;
+    const int rows = (static_cast<int>(cells.size()) + columns - 1) / columns;
+    std::vector<int> rowHeight(static_cast<size_t>(rows), 100);
+    for (size_t i = 0; i < cells.size(); i++) {
+        if (!cells[i].image.isNull()) {
+            cells[i].image = cells[i].image.scaledToWidth(cellWidth, Qt::SmoothTransformation);
+            auto& h = rowHeight[i / static_cast<size_t>(columns)];
+            h = std::max(h, cells[i].image.height());
+        }
+    }
+    int total = 0;
+    for (const int h : rowHeight) {
+        total += h + head;
+    }
+    QImage out{cellWidth * columns, total, QImage::Format_RGB32};
+    out.fill(Qt::white);
+    QPainter painter{&out};
+    int y = 0;
+    for (size_t r = 0; r < static_cast<size_t>(rows); r++) {
+        for (size_t c = 0; c < static_cast<size_t>(columns); c++) {
+            const size_t i = r * static_cast<size_t>(columns) + c;
+            if (i >= cells.size()) {
+                break;
+            }
+            const int x = static_cast<int>(c) * cellWidth;
+            auto font = painter.font();
+            font.setBold(true);
+            font.setPixelSize(16);
+            painter.setFont(font);
+            painter.setPen(Qt::black);
+            painter.drawText(QRect{x + 6, y, cellWidth - 12, head}, Qt::AlignVCenter | Qt::AlignLeft, cells[i].text);
+            painter.drawImage(x, y + head, cells[i].image);
+        }
+        y += rowHeight[r] + head;
+    }
+    painter.end();
+    QByteArray bytes;
+    QBuffer buffer{&bytes};
+    buffer.open(QIODevice::WriteOnly);
+    out.save(&buffer, "PNG");
+    return bytes;
 }

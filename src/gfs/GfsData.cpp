@@ -16,6 +16,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QThread>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -354,8 +355,10 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     }
     // the GRIB message stays with the decoded grid (the file made of what was downloaded for a run and hour is joined from these)
     const auto gribPath = config.cacheFolder + "/" + name + ".grb2";
-    const auto rawPath = config.cacheFolder + "/" + name + ".raw";
-    const auto hdrPath = config.cacheFolder + "/" + name + ".hdr";
+    // the decoded copy is private to this call: two screens (or two tiles) decoding the same field at once must not share it
+    const auto scratch = name + "_" + QString::number(reinterpret_cast<quintptr>(QThread::currentThreadId()), 16) + "_" + QString::number(QDateTime::currentMSecsSinceEpoch(), 16);
+    const auto rawPath = config.cacheFolder + "/" + scratch + ".raw";
+    const auto hdrPath = config.cacheFolder + "/" + scratch + ".hdr";
     const auto cleanup = [&] {
         QFile::remove(rawPath);
         QFile::remove(hdrPath);

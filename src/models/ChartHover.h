@@ -35,6 +35,9 @@ public:
         QObject::connect(zoom, &ZoomImage::hovered, this, [this] (double fx, double fy) { show(fx, fy, 12, 12); });
         QObject::connect(zoom, &ZoomImage::hoverEnded, this, [this] { box->hide(); });
     }
+    void hide() {
+        box->hide();
+    }
     void set(std::shared_ptr<GfsChart::Probe> p) {
         probe = std::move(p);
         box->hide();

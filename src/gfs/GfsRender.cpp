@@ -173,8 +173,12 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         error = "could not find a " + model + " run on NOAA's open data";
         return {};
     }
+    const bool exact = cycle.size() == 10 && std::all_of(cycle.begin(), cycle.end(), [] (char c) { return std::isdigit(static_cast<unsigned char>(c)); });   // yyyyMMddHH: that very run
+    if (exact) {
+        run = {cycle.substr(0, 8), cycle.substr(8, 2)};
+    }
     const auto wanted = cycle.size() >= 2 ? cycle.substr(0, 2) : run.cycle;
-    if (wanted != run.cycle && wanted.size() == 2 && std::isdigit(static_cast<unsigned char>(wanted[0]))) {
+    if (!exact && wanted != run.cycle && wanted.size() == 2 && std::isdigit(static_cast<unsigned char>(wanted[0]))) {
         auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
         t.setTimeSpec(Qt::UTC);
         const int step = gfs.model().cycleHours;
