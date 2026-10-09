@@ -113,8 +113,8 @@ namespace {
     };
 
     Fetched fetchOnce(const string& url, const QByteArray& range, const QByteArray& accept = QByteArray{}, bool managed = false) {
-        if (managed && NetManager::enabled()) {   // the program's one persistent client: connections kept, the same request made once, what is on screen first
-            const auto got = NetManager::get(url, range);
+        if (NetManager::enabled()) {   // the program's one persistent client: connections kept, the same request made once, what is on screen first, listed in the Network window
+            const auto got = NetManager::get(url, range, NetManager::Priority::Visible, accept);
             return {got.bytes, got.status, got.lastModified};
         }
         if (AppState::quitting) {   // the app is closing and waits for every worker: do not start a download now
@@ -220,23 +220,7 @@ string URL::getTextXmlAcceptHeader(const string& url) {
     if (AppState::quitting) {
         return "";
     }
-    throttleByHost(url);
-    QNetworkAccessManager manager;
-    QNetworkRequest request{QUrl{QString::fromStdString(url)}};
-    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
-    request.setTransferTimeout(30000);   // see fetchOnce
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-    if (KnownIntermediates::needed(request.url())) {
-        request.setSslConfiguration(KnownIntermediates::configuration());
-    }
-    request.setRawHeader(QByteArray{"Accept"}, QByteArray{"application/atom+xml"});
-    QNetworkReply * response = manager.get(request);
-    QEventLoop event;
-    QObject::connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);
-    event.exec();
-    QString html{response->readAll()};
-    delete response;
-    return html.toStdString();
+    return QString{fetchOnce(url, QByteArray{}, QByteArray{"application/atom+xml"}).bytes}.toStdString();
 }
 
 QByteArray URL::getBytes(const string& url) {

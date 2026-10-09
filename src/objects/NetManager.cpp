@@ -14,6 +14,7 @@
 #include <memory>
 #include <mutex>
 #include <QCoreApplication>
+#include <QEventLoop>
 #include <QMetaObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -43,7 +44,7 @@ namespace {
 
     struct Entry {
         std::string key, url;
-        QByteArray range;
+        QByteArray range, accept;
         NetManager::Priority priority;
         Clock::time_point asked;
         bool started{false};
@@ -62,7 +63,14 @@ namespace {
         if (host == "nomads.ncep.noaa.gov") {   // asks for a gap between requests (it answered a tight burst with truncated or failed ones)
             return {300, 4};
         }
-        return {0, 8};   // the cloud buckets and ECMWF's server: the manager's own six connections per host are the limit
+        const auto ends = [&host] (const char * tail) {
+            const std::string t{tail};
+            return host.size() >= t.size() && host.compare(host.size() - t.size(), t.size(), t) == 0;
+        };
+        if (ends("amazonaws.com") || ends("googleapis.com") || ends("data.ecmwf.int") || ends("windows.net")) {   // the cloud buckets and ECMWF's server: the manager's own six connections per host are the limit
+            return {0, 8};
+        }
+        return {300, 6};   // any other server keeps the gap the program always left between requests to one host (found live: a tight burst got truncated answers)
     }
 
     std::mutex tableMutex;
@@ -168,6 +176,9 @@ namespace {
             if (!entry->range.isEmpty()) {
                 request.setRawHeader(QByteArray{"Range"}, entry->range);
             }
+            if (!entry->accept.isEmpty()) {
+                request.setRawHeader(QByteArray{"Accept"}, entry->accept);
+            }
             auto * reply = manager->get(request);
             entry->reply = reply;
             QObject::connect(reply, &QNetworkReply::downloadProgress, this, [entry] (qint64 got, qint64 total) {
@@ -234,7 +245,7 @@ NetManager::Scope::~Scope() {
     NetPriority::current = static_cast<int>(before);
 }
 
-NetManager::Result NetManager::get(const std::string& url, const QByteArray& range, Priority priority) {
+NetManager::Result NetManager::get(const std::string& url, const QByteArray& range, Priority priority, const QByteArray& accept) {
     if (AppState::quitting || stopped) {
         return {};
     }
@@ -247,7 +258,7 @@ NetManager::Result NetManager::get(const std::string& url, const QByteArray& ran
     const Activity::Download counted;   // shows on the screens' activity indicator while the request is waiting or in flight
     ensureThread();
     auto waiter = std::make_shared<Waiter>();
-    const std::string key = url + "|" + range.toStdString();
+    const std::string key = url + "|" + range.toStdString() + "|" + accept.toStdString();
     {
         const std::lock_guard lock{tableMutex};
         const auto found = table.find(key);
@@ -262,6 +273,7 @@ NetManager::Result NetManager::get(const std::string& url, const QByteArray& ran
             entry->key = key;
             entry->url = url;
             entry->range = range;
+            entry->accept = accept;
             entry->priority = priority;
             entry->asked = Clock::now();
             entry->host = QUrl{QString::fromStdString(url)}.host().toStdString();
@@ -271,6 +283,20 @@ NetManager::Result NetManager::get(const std::string& url, const QByteArray& ran
         }
     }
     kickLater();
+    if (QCoreApplication::instance() && QThread::currentThread() == QCoreApplication::instance()->thread()) {   // the interface thread: wait with its event loop running
+        QEventLoop loop;
+        QTimer poll;
+        QObject::connect(&poll, &QTimer::timeout, &loop, [&] {
+            const std::lock_guard lock{waiter->mutex};
+            if (waiter->finished || AppState::quitting) {
+                loop.quit();
+            }
+        });
+        poll.start(15);
+        loop.exec();
+        const std::lock_guard lock{waiter->mutex};
+        return waiter->finished ? waiter->result : Result{};
+    }
     std::unique_lock lock{waiter->mutex};
     while (!waiter->finished) {
         waiter->done.wait_for(lock, std::chrono::milliseconds(500));

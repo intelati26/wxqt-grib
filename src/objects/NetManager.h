@@ -26,7 +26,8 @@ namespace NetManager {
         QDateTime lastModified;
     };
     // range: "" or an HTTP Range header value ("bytes=0-99")
-    Result get(const std::string& url, const QByteArray& range = {}, Priority priority = Priority::Visible);
+    // accept: "" or an Accept header value. Called on the interface thread, the wait keeps the event loop running (as the old per-request code did); on any other thread it blocks.
+    Result get(const std::string& url, const QByteArray& range = {}, Priority priority = Priority::Visible, const QByteArray& accept = {});
     // The priority of the get() calls made on this thread while the object lives (a worker that reads ahead says so once, and everything it asks for goes behind what is on screen)
     class Scope {
     public:
