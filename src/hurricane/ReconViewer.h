@@ -47,6 +47,11 @@ public:
 private:
     void paintEvent(QPaintEvent *) override;
     void mouseMoveEvent(QMouseEvent *) override;
+    void mousePressEvent(QMouseEvent *) override;
+    void mouseReleaseEvent(QMouseEvent *) override;
+    void mouseDoubleClickEvent(QMouseEvent *) override;
+    void wheelEvent(QWheelEvent *) override;
+    QRectF baseRect() const;                    // the picture fitted to the widget, unzoomed
     QPointF toWidget(double lon, double lat) const;
     QRectF pictureRect() const;
     Flight flight;
@@ -54,6 +59,10 @@ private:
     FloaterGeo::Geo geo;
     bool useSfmr{false};
     bool barbs{true};
+    double zoom{1.0};                           // wheel to zoom at the pointer, drag to pan, double click to reset
+    QPointF pan;                                // the picture's shift in widget pixels
+    QPointF dragFrom;
+    bool dragging{false};
 };
 
 class ReconViewer : public Window {

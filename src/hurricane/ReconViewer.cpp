@@ -96,9 +96,50 @@ QColor ReconMap::windColor(double kt) {
     return QColor{"#b05ad0"};
 }
 
-QRectF ReconMap::pictureRect() const {
+QRectF ReconMap::baseRect() const {
     const double side = std::min(width(), height());
     return {(width() - side) / 2.0, (height() - side) / 2.0, side, side};
+}
+
+QRectF ReconMap::pictureRect() const {
+    const auto b = baseRect();
+    const auto c = b.center() + pan;
+    return {c.x() - b.width() * zoom / 2.0, c.y() - b.height() * zoom / 2.0, b.width() * zoom, b.height() * zoom};
+}
+
+void ReconMap::wheelEvent(QWheelEvent * event) {
+    const double factor = std::pow(1.0015, event->angleDelta().y());
+    const double next = std::clamp(zoom * factor, 1.0, 24.0);
+    const auto b = baseRect();
+    const auto anchor = event->position();
+    // keep the point under the pointer where it is
+    const auto old = pictureRect();
+    const double fx = (anchor.x() - old.left()) / old.width(), fy = (anchor.y() - old.top()) / old.height();
+    zoom = next;
+    const double w = b.width() * zoom, h = b.height() * zoom;
+    const QPointF centre{anchor.x() - fx * w + w / 2.0, anchor.y() - fy * h + h / 2.0};
+    pan = centre - b.center();
+    if (zoom == 1.0) {
+        pan = {};
+    }
+    update();
+}
+
+void ReconMap::mousePressEvent(QMouseEvent * event) {
+    if (event->button() == Qt::LeftButton) {
+        dragging = true;
+        dragFrom = event->position();
+    }
+}
+
+void ReconMap::mouseReleaseEvent(QMouseEvent *) {
+    dragging = false;
+}
+
+void ReconMap::mouseDoubleClickEvent(QMouseEvent *) {
+    zoom = 1.0;
+    pan = {};
+    update();
 }
 
 QPointF ReconMap::toWidget(double lon, double lat) const {
@@ -119,6 +160,7 @@ void ReconMap::paintEvent(QPaintEvent *) {
     p.fillRect(rect(), QColor{16, 24, 32});
     const auto r = pictureRect();
     if (!image.isNull() && geo.width > 0) {
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
         p.drawImage(r, image);
     } else {
         // no picture: the coastlines on a plain box centred on the storm, so the flight can still be seen
@@ -141,7 +183,7 @@ void ReconMap::paintEvent(QPaintEvent *) {
             p.drawPath(path);
         }
     }
-    p.setClipRect(r);
+    p.setClipRect(baseRect().united(r).intersected(rect()));
 
     // the storm's own track
     if (flight.stormTrack.size() > 1) {
@@ -250,9 +292,10 @@ void ReconMap::paintEvent(QPaintEvent *) {
     for (const auto& k : key) {
         width += 16 + p.fontMetrics().horizontalAdvance(k.text) + 10;
     }
-    p.fillRect(QRectF{r.left() + 4, r.top() + 4, std::max(width + 8, 170.0), 34}, QColor{0, 0, 0, 150});
-    double x = r.left() + 8;
-    const double y = r.top() + 33;
+    const auto keyBox = baseRect();
+    p.fillRect(QRectF{keyBox.left() + 4, keyBox.top() + 4, std::max(width + 8, 170.0), 34}, QColor{0, 0, 0, 150});
+    double x = keyBox.left() + 8;
+    const double y = keyBox.top() + 33;
     p.setPen(QColor{255, 255, 255});
     p.drawText(QPointF{x, y - 14}, useSfmr ? "SFMR surface wind (kt)" : "Flight-level wind (kt)");
     for (const auto& k : key) {
@@ -264,6 +307,12 @@ void ReconMap::paintEvent(QPaintEvent *) {
 }
 
 void ReconMap::mouseMoveEvent(QMouseEvent * event) {
+    if (dragging) {
+        pan += event->position() - dragFrom;
+        dragFrom = event->position();
+        update();
+        return;
+    }
     double best = 14.0;
     const UtilityHdob::Ob * near = nullptr;
     for (const auto& ob : flight.obs) {
