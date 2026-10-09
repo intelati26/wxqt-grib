@@ -10,12 +10,20 @@
 // threads of its own to make the requests (so a fetch that fans out over a pool keeps its priority). No dependencies, so the model code can carry it without the network client.
 namespace NetPriority {
     inline thread_local int current = 0;
-    struct Carry {   // for a thread started by one that has a priority: the same one for as long as this lives
-        explicit Carry(int value) : before{current} { current = value; }
-        ~Carry() { current = before; }
+    inline thread_local const void * owner = nullptr;   // who the requests of this thread are for (the screen whose task it is): when it closes, what it still waits for is dropped
+    struct Carry {   // for a thread started by one that has a priority and an owner: the same ones for as long as this lives
+        explicit Carry(int value, const void * who = nullptr) : before{current}, was{owner} {
+            current = value;
+            owner = who;
+        }
+        ~Carry() {
+            current = before;
+            owner = was;
+        }
         Carry(const Carry&) = delete;
         Carry& operator=(const Carry&) = delete;
         int before;
+        const void * was;
     };
 }
 

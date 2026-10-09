@@ -10,6 +10,7 @@
 #include <vector>
 #include <QByteArray>
 #include <QDateTime>
+#include <QObject>
 
 // One persistent network client for the whole program: a single long-lived QNetworkAccessManager on a thread of its own, so connections (and HTTP/2) are kept between requests instead of a
 // new manager, handshake and connection for each one, plus a table of every request that is waiting or in flight.
@@ -40,6 +41,10 @@ namespace NetManager {
     };
     // Requests that are queued (not yet started) at this priority or lower are dropped, their callers get an empty answer: the view changed and they are for the old one.
     int cancelQueued(Priority fromPriority);
+    // A screen that closes: what it still waits for is dropped (queued) or cancelled (downloading), unless another screen or a task with no owner also waits on the same request.
+    // Tasks started by the Future* classes say who they are for (util/NetPriority.h); trackOwner() makes the cancel happen when the screen is destroyed.
+    int cancelOwner(const void * owner);
+    void trackOwner(QObject * owner);
 
     struct Row {
         std::string url;
@@ -50,11 +55,14 @@ namespace NetManager {
         long long total;            // -1 unknown
         double seconds;             // since it was asked for
         int waiters;                // callers waiting on it
+        int attempts;               // 0 the first time; a failed request that may pass is tried again, up to twice
     };
     std::vector<Row> snapshot();
     struct Totals {
         long long requests{0};      // finished
         long long reused{0};        // asked for while the same one was already going (saved a download)
+        long long retried{0};       // tried again after a failure that may pass (no answer, 429, 502, 503, 504)
+        long long cancelled{0};     // dropped because the screen that wanted them closed or the view changed
         long long bytes{0};
     };
     Totals totals();

@@ -8,16 +8,19 @@
 #include <QtConcurrent/QtConcurrent>
 #include "util/AppState.h"
 #include <QObject>
+#include "objects/NetManager.h"
+#include "util/NetPriority.h"
 #include "util/DownloadText.h"
 
 FutureText::FutureText(Window * parent, const string& url, const function<void(string)>& updateFunc)
     : updateFunc{updateFunc}
     , watcher{new QFutureWatcher<void>}
-    , future{QtConcurrent::run([this, url] {
+    , future{(NetManager::trackOwner(parent), QtConcurrent::run([this, url, parent] {
           if (!AppState::quitting) {
+              const NetPriority::Carry owned{0, parent};
               html = DownloadText::byProduct(url);
           }
-      })}
+      }))}
 {
     watcher->setFuture(future);
     QObject::connect(watcher, &QFutureWatcher<void>::finished, parent, [&] {

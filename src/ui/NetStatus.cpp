@@ -44,7 +44,7 @@ void NetStatus::refresh() {
     const auto sum = NetManager::totals();
     totals->setText(QString{"%1 waiting or downloading   -   %2 finished, %3 shared with a request already going, %4 MB received   -   %5"}
                         .arg(rows.size()).arg(sum.requests).arg(sum.reused).arg(sum.bytes / 1048576.0, 0, 'f', 1)
-                        .arg(NetManager::enabled() ? "persistent client on" : "persistent client OFF (the old one request at a time path)"));
+                        .arg(QString{"%1 retried, %2 cancelled   -   %3"}.arg(sum.retried).arg(sum.cancelled).arg(NetManager::enabled() ? "persistent client on" : "persistent client OFF")));
     table->setRowCount(static_cast<int>(rows.size()));
     const auto size = [] (long long bytes) { return bytes < 0 ? QString{"?"} : bytes < 10240 ? QString::number(bytes) + " B" : QString::number(bytes / 1024) + " KB"; };
     for (int i = 0; i < static_cast<int>(rows.size()); i++) {
@@ -52,7 +52,7 @@ void NetStatus::refresh() {
         const QUrl url{QString::fromStdString(r.url)};
         const QString name = url.host() + "/..." + url.path().section('/', -1) + (r.range.empty() ? QString{} : "  " + QString::fromStdString(r.range));
         const QStringList cells{r.priority == NetManager::Priority::Visible ? "on screen" : r.priority == NetManager::Priority::Ahead ? "read ahead" : "background",
-                                r.started ? "downloading" : "queued", size(r.received), size(r.total), QString::number(r.seconds, 'f', 1) + " s", QString::number(r.waiters), name};
+                                r.started ? (r.attempts > 0 ? QString{"downloading (try %1)"}.arg(r.attempts + 1) : QString{"downloading"}) : (r.attempts > 0 ? QString{"waiting to retry (%1)"}.arg(r.attempts) : QString{"queued"}), size(r.received), size(r.total), QString::number(r.seconds, 'f', 1) + " s", QString::number(r.waiters), name};
         for (int c = 0; c < cells.size(); c++) {
             table->setItem(i, c, new QTableWidgetItem{cells[c]});
         }

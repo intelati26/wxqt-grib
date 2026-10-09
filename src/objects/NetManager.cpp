@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <deque>
 #include <map>
+#include <set>
 #include <memory>
 #include <mutex>
 #include <QCoreApplication>
@@ -52,6 +53,11 @@ namespace {
         std::vector<std::shared_ptr<Waiter>> waiters;
         QNetworkReply * reply{nullptr};
         std::string host;
+        int attempts{0};
+        Clock::time_point notBefore{};          // a retry waits until then
+        std::set<const void *> owners;          // the screens that wait on it (those with an owner)
+        bool anonymous{false};                  // someone waits on it that no screen owns: it is never cancelled with a screen
+        bool cancelled{false};
     };
 
     // how a host is treated: the gap between starting two requests, and how many may be going at once
@@ -77,6 +83,7 @@ namespace {
     std::map<std::string, std::shared_ptr<Entry>> table;               // everything queued or in flight, by url + range
     std::vector<std::shared_ptr<Entry>> pending;                       // not started
     std::map<std::string, std::pair<int, Clock::time_point>> hosts;    // active requests and the earliest next start
+    std::map<std::string, std::pair<Clock::time_point, long long>> strained;   // a host that answered 429 / 503: the gap it is given and until when
     NetManager::Totals counts;
     std::atomic<bool> stopped{false};
 
@@ -117,7 +124,16 @@ namespace {
                 for (auto it = pending.begin(); it != pending.end();) {
                     const auto& entry = *it;
                     auto& host = hosts[entry->host];
-                    const auto policy = policyFor(entry->host);
+                    auto policy = policyFor(entry->host);
+                    if (const auto s = strained.find(entry->host); s != strained.end() && now < s->second.first) {   // a host that is struggling is asked less often
+                        policy.gapMs = std::max(policy.gapMs, s->second.second);
+                    }
+                    if (now < entry->notBefore) {   // a retry waits out its delay
+                        const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(entry->notBefore - now).count() + 1;
+                        wakeMs = wakeMs < 0 ? wait : std::min<long long>(wakeMs, wait);
+                        ++it;
+                        continue;
+                    }
                     if (host.first >= policy.active) {
                         ++it;
                         continue;
@@ -191,18 +207,38 @@ namespace {
                 result.bytes = reply->readAll();
                 result.status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
                 result.lastModified = reply->header(QNetworkRequest::LastModifiedHeader).toDateTime();
+                const auto retryAfter = reply->rawHeader("Retry-After").toInt();
                 reply->deleteLater();
+                entry->reply = nullptr;
+                // a failure that may pass (no answer, too many requests, a server that is busy): tried again after a wait, the host asked less often for a while
+                const bool transient = result.status == 0 || result.status == 429 || result.status == 502 || result.status == 503 || result.status == 504;
+                bool again = false;
                 {
                     const std::lock_guard lock{tableMutex};
-                    table.erase(entry->key);
                     auto& host = hosts[entry->host];
                     host.first = std::max(0, host.first - 1);
-                    counts.requests++;
-                    counts.bytes += result.bytes.size();
+                    if (transient && !entry->cancelled && !stopped && !AppState::quitting && entry->attempts < 2) {
+                        const long long delayMs = retryAfter > 0 ? std::min(retryAfter, 10) * 1000LL : 600LL << entry->attempts;
+                        entry->attempts++;
+                        entry->started = false;
+                        entry->received = 0;
+                        entry->notBefore = Clock::now() + std::chrono::milliseconds(delayMs);
+                        if (result.status == 429 || result.status == 503) {
+                            strained[entry->host] = {Clock::now() + std::chrono::seconds(60), std::max(500LL, policyFor(entry->host).gapMs * 2)};
+                        }
+                        pending.push_back(entry);
+                        counts.retried++;
+                        again = true;
+                    } else {
+                        table.erase(entry->key);
+                        counts.requests++;
+                        counts.bytes += result.bytes.size();
+                    }
                 }
-                entry->reply = nullptr;
-                finish(entry, std::move(result));
-                kick();   // a slot is free
+                if (!again) {
+                    finish(entry, entry->cancelled ? NetManager::Result{} : std::move(result));
+                }
+                kick();   // a slot is free (or the retry is due)
             });
         }
         QNetworkAccessManager * manager{nullptr};
@@ -264,6 +300,11 @@ NetManager::Result NetManager::get(const std::string& url, const QByteArray& ran
         const auto found = table.find(key);
         if (found != table.end()) {   // the same request is already queued or going: wait on it (and let it go sooner if this caller needs it sooner)
             found->second->waiters.push_back(waiter);
+            if (NetPriority::owner) {
+                found->second->owners.insert(NetPriority::owner);
+            } else {
+                found->second->anonymous = true;
+            }
             if (priority < found->second->priority) {
                 found->second->priority = priority;
             }
@@ -278,6 +319,11 @@ NetManager::Result NetManager::get(const std::string& url, const QByteArray& ran
             entry->asked = Clock::now();
             entry->host = QUrl{QString::fromStdString(url)}.host().toStdString();
             entry->waiters.push_back(waiter);
+            if (NetPriority::owner) {
+                entry->owners.insert(NetPriority::owner);
+            } else {
+                entry->anonymous = true;
+            }
             table[key] = entry;
             pending.push_back(entry);
         }
@@ -321,10 +367,62 @@ int NetManager::cancelQueued(Priority fromPriority) {
             }
         }
     }
+    {
+        const std::lock_guard lock{tableMutex};
+        counts.cancelled += static_cast<long long>(dropped.size());
+    }
     for (const auto& entry : dropped) {
         finish(entry, {});
     }
     return static_cast<int>(dropped.size());
+}
+
+int NetManager::cancelOwner(const void * owner) {
+    std::vector<std::shared_ptr<Entry>> dropped, abort;
+    {
+        const std::lock_guard lock{tableMutex};
+        for (const auto& [key, entry] : table) {
+            if (!entry->owners.erase(owner) || entry->anonymous || !entry->owners.empty()) {
+                continue;   // not this screen's, or someone else still waits on it
+            }
+            entry->cancelled = true;
+            (entry->started ? abort : dropped).push_back(entry);
+        }
+        for (const auto& entry : dropped) {
+            table.erase(entry->key);
+            pending.erase(std::remove(pending.begin(), pending.end(), entry), pending.end());
+        }
+        counts.cancelled += static_cast<long long>(dropped.size() + abort.size());
+    }
+    for (const auto& entry : dropped) {
+        finish(entry, {});
+    }
+    if (!abort.empty() && pump) {
+        QMetaObject::invokeMethod(pump, [abort] {
+            for (const auto& entry : abort) {
+                if (entry->reply) {
+                    entry->reply->abort();   // finished() follows: the waiters get an empty answer
+                }
+            }
+        }, Qt::QueuedConnection);
+    }
+    return static_cast<int>(dropped.size() + abort.size());
+}
+
+void NetManager::trackOwner(QObject * owner) {
+    static std::mutex mutex;
+    static std::set<const void *> known;
+    {
+        const std::lock_guard lock{mutex};
+        if (!known.insert(owner).second) {
+            return;
+        }
+    }
+    QObject::connect(owner, &QObject::destroyed, [owner] {
+        cancelOwner(owner);
+        const std::lock_guard lock{mutex};
+        known.erase(owner);
+    });
 }
 
 std::vector<NetManager::Row> NetManager::snapshot() {
@@ -333,7 +431,7 @@ std::vector<NetManager::Row> NetManager::snapshot() {
     const auto now = Clock::now();
     for (const auto& [key, entry] : table) {
         rows.push_back({entry->url, entry->range.toStdString(), entry->priority, entry->started, entry->received, entry->total,
-                        std::chrono::duration<double>(now - entry->asked).count(), static_cast<int>(entry->waiters.size())});
+                        std::chrono::duration<double>(now - entry->asked).count(), static_cast<int>(entry->waiters.size()), entry->attempts});
     }
     return rows;
 }

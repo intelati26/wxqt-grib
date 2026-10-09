@@ -4,6 +4,7 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include <future>
 #include <QApplication>
 #include <QCursor>
 #include <QElapsedTimer>
@@ -12,6 +13,8 @@
 #include <QWheelEvent>
 #include "hurricane/ReconViewer.h"
 #include "radar/MapWidget.h"
+#include "objects/NetManager.h"
+#include "objects/URL.h"
 #include "ui/NetStatus.h"
 #include "ui/ZoomImage.h"
 #include <QMainWindow>
@@ -72,6 +75,10 @@ namespace {
             const auto * key = static_cast<QKeyEvent *>(event);
             if (!(key->modifiers() & Qt::ControlModifier)) {
                 return false;
+            }
+            if (key->key() == Qt::Key_N && (key->modifiers() & Qt::ShiftModifier)) {   // Ctrl+Shift+N: the Network window
+                NetStatus::show(QApplication::activeWindow());
+                return true;
             }
             const bool in = key->key() == Qt::Key_Plus || key->key() == Qt::Key_Equal, out = key->key() == Qt::Key_Minus, reset = key->key() == Qt::Key_0;
             if (!in && !out && !reset) {
@@ -148,6 +155,17 @@ int main(int argc, char * argv[]) {
                 auto seasons = std::make_shared<HurricaneData::SeasonData>();
                 HurricaneData::loadSeason(*seasons, route.section(':', 1, 1).toStdString());
                 new SeasonViewer{&w, seasons};
+            } else if (route.startsWith("fetchtest:")) {   // WXQT_OPEN=fetchtest:<url>: two requests for the url at once through the network client, with what it did (retries, sharing), then quit
+                const auto url = route.mid(10).toStdString();
+                QElapsedTimer timer;
+                timer.start();
+                auto first = std::async(std::launch::async, [&url] { return URL::getBytesWithStatus(url, *new int); });
+                auto second = std::async(std::launch::async, [&url] { return URL::getBytesWithStatus(url, *new int); });
+                const auto a = first.get(), b = second.get();
+                const auto t = NetManager::totals();
+                fprintf(stderr, "fetchtest: %lld and %lld bytes in %.2f s, finished %lld, shared %lld, retried %lld\n", static_cast<long long>(a.size()), static_cast<long long>(b.size()), timer.elapsed() / 1000.0,
+                        t.requests, t.reused, t.retried);
+                std::_Exit(0);
             } else if (route.startsWith("variant:")) {   // WXQT_OPEN=variant:<model>:<chart>:<area>:<hour>:<change|max>:<hours back | number of hours>:<out.png>: a change / maximum chart written to a file, then quit
                 const auto parts = route.split(':');
                 if (parts.size() >= 8) {
