@@ -41,6 +41,7 @@ SettingsBox::SettingsBox(Window * parent)
     configs.push_back(std::make_unique<Switch>(parent, "Remember last GOES image", "REMEMBER_GOES", false));
     configs.push_back(std::make_unique<Switch>(parent, "Remember last Radar Mosaic image", "REMEMBER_MOSAIC", false));
     configs.push_back(std::make_unique<Switch>(parent, "Tiled Windows", "TILED_WINDOWS", false));
+    configs.push_back(std::make_unique<Switch>(parent, "Model charts in the model guidance site's color bands (where it has them)", "MAG_COLORS", true));
 
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Main screen image size", "MAIN_SCREEN_IMAGE_SIZE", 400, 200, 800, 25));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Main Screen update refresh interval (in minutes)", "MAIN_SCREEN_DATA_REFRESH_INTERVAL", 10, 1, 60, 1));

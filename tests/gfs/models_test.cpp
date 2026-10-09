@@ -70,6 +70,26 @@ int main() {
     }
     CHECK(std::find(overlayModels.begin(), overlayModels.end(), "NBM") == overlayModels.end() && std::find(overlayModels.begin(), overlayModels.end(), "HAFSA") == overlayModels.end());
     CHECK(!GfsChart::overlayChoices("NBM").empty());
+    {   // the model guidance site's color bands: ascending, flat, nothing drawn under the lowest, and every chart that names one finds it
+        for (const char * name : {"precip", "isotach", "radar_rain", "rh", "spread_mslp", "spread_wind", "helicity", "uh"}) {
+            const auto * bands = GfsChart::magPalette(name);
+            CHECK(bands != nullptr && bands->banded && bands->stops.size() >= 2);
+            for (size_t i = 1; bands && i < bands->stops.size(); i++) {
+                CHECK(bands->stops[i].first > bands->stops[i - 1].first);
+            }
+        }
+        CHECK(GfsChart::magPalette("nothing like this") == nullptr);
+        const auto * precip = GfsChart::magPalette("precip");   // in millimeters: the first band starts at 0.01 inch
+        CHECK(std::abs(precip->stops.front().first - 0.254) < 1e-6 && precip->stops.size() == 16);
+        CHECK(qAlpha(precip->at(0.0)) == 0 && qAlpha(precip->at(0.2)) == 0);                  // under 0.01 inch: nothing
+        CHECK(precip->at(0.254) == precip->at(2.0) && precip->at(2.0) != precip->at(2.6));    // flat over a band, a new color at the next stop
+        CHECK(precip->at(1000.0) == precip->stops.back().second.rgba());                      // the top band goes on up
+        for (const auto& p : GfsChart::products()) {
+            if (!p.palette.empty()) {
+                CHECK(GfsChart::magPalette(p.palette) != nullptr);
+            }
+        }
+    }
     std::printf(failures ? "%d failures\n" : "all model registry tests passed\n", failures);
     return failures ? 1 : 0;
 }

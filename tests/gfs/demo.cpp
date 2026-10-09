@@ -98,6 +98,9 @@ int main(int argc, char ** argv) {
     GfsClimate climate{"/usr/bin"};
     GfsChart::Options options;
     options.climate = &climate;
+    if (const char * mag = std::getenv("DEMO_MAG"); mag && std::string{mag} == "0") {   // DEMO_MAG=0: our own color scales
+        options.magColors = false;
+    }
     QFile coast{"/home/mitch/Claude/wxqt-grib/resourceCreation/res/nhc_basins.bin"};
     if (coast.open(QIODevice::ReadOnly)) {
         const auto bytes = coast.readAll();

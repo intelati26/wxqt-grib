@@ -243,6 +243,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     static const GfsClimate climate{UtilityGrib::gdalBinDir()};
     options.climate = &climate;
     options.fahrenheit = UIPreferences::unitsF;
+    options.magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;   // the settings switch: the model guidance site's color bands
     options.lines = borders();
     if (isHafs(model)) {   // the model's own track and wind radii for the storm, drawn on the chart
         const auto text = URL::getBytes(gfs.fileUrl(run, 0, "trak"));

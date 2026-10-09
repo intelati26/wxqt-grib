@@ -211,6 +211,16 @@ QRgb Ramp::at(double value) const {
     if (stops.empty() || std::isnan(value)) {
         return qRgba(0, 0, 0, 0);
     }
+    if (banded) {
+        if (value < stops.front().first) {
+            return qRgba(0, 0, 0, 0);
+        }
+        size_t at = 0;
+        for (size_t i = 1; i < stops.size() && stops[i].first <= value; i++) {
+            at = i;
+        }
+        return stops[at].second.rgba();
+    }
     if (value <= stops.front().first) {
         return stops.front().second.rgba();
     }
@@ -434,18 +444,21 @@ const std::vector<Product>& products() {
         };
         {
             auto x = upper("200_wnd_ht", "200mb Wind and Height", "200 mb", 12);
+            x.palette = "isotach";
             x.barbU.clear();   // the model guidance site draws the isotachs and the heights only
             x.barbV.clear();
             p.push_back(x);
         }
         {
             auto x = upper("250_wnd_ht", "250mb Wind and Height", "250 mb", 12);
+            x.palette = "isotach";
             x.barbU.clear();   // the model guidance site draws the isotachs and the heights only
             x.barbV.clear();
             p.push_back(x);
         }
         {
             auto x = upper("300_wnd_ht", "300mb Wind and Height", "300 mb", 12);
+            x.palette = "isotach";
             x.barbU.clear();   // the model guidance site draws the isotachs and the heights only
             x.barbV.clear();
             p.push_back(x);
@@ -475,6 +488,7 @@ const std::vector<Product>& products() {
             x.wants = {want("z", "HGT", "500 mb"), want("rh", "RH", "500 mb"), want("u", "UGRD", "500 mb"), want("v", "VGRD", "500 mb")};
             x.fill = [] (const Grids& g) { return pick(g, "rh"); };
             x.ramp = humidity();
+            x.palette = "rh";
             x.fillTitle = "Relative humidity (%)";
             x.legendStep = 10;
             p.push_back(x);
@@ -758,6 +772,7 @@ const std::vector<Product>& products() {
             x.derive = totalDerive;
             x.fill = precipFill;
             x.ramp = precipitation();
+            x.palette = "precip";
             x.fillTitleFor = precipTitle(period);
             x.quantity = Quantity::Millimeters;
             x.legendStep = 0.0;
@@ -807,6 +822,7 @@ const std::vector<Product>& products() {
             };
             x.fill = precipFill;
             x.ramp = precipitation();
+            x.palette = "precip";
             x.fillTitleFor = precipTitle(0);
             x.fillTitleFor = [startOf] (int hour) { return "Precipitation, hours " + std::to_string(startOf(hour, hour <= 240 ? 3 : 6)) + "-" + std::to_string(hour); };
             x.quantity = Quantity::Millimeters;
@@ -1038,6 +1054,7 @@ const std::vector<Product>& products() {
             };
             x.fill = [] (const Grids& g) { return pick(g, "rain"); };
             x.ramp = precipitation();
+            x.palette = "precip";
             x.overlays = {{"snow", snowPrecipitation()}, {"mix", mixedPrecipitation()}};
             x.fillTitleFor = [startOf] (int hour) { return "Precipitation (green rain, blue snow, pink mixed), hours " + std::to_string(startOf(hour, hour <= 240 ? 3 : 6)) + "-" + std::to_string(hour); };
             x.quantity = Quantity::Millimeters;
@@ -1083,6 +1100,7 @@ const std::vector<Product>& products() {
             };
             x.fill = [] (const Grids& g) { return pick(g, "rain"); };
             x.ramp = precipitation();
+            x.palette = "precip";
             x.overlays = {{"snow", snowPrecipitation()}, {"mix", mixedPrecipitation()}};
             x.fillTitle = "Precipitation rate per hour (green rain, blue snow, pink mixed)";
             x.quantity = Quantity::Millimeters;
@@ -1645,6 +1663,7 @@ const std::vector<Product>& products() {
                 x.derive = [windSpread] (Grids& g, const Context&) { windSpread(g); };
                 x.fill = [] (const Grids& g) { return pick(g, "ws"); };
                 x.ramp = spreadRamp(top);
+                x.palette = "spread_wind";
                 x.fillTitle = "Spread of the " + std::string{lvl} + " mb wind speed (m/s)";
                 x.legendStep = 2;
                 x.barbU = "u";
@@ -1691,6 +1710,7 @@ const std::vector<Product>& products() {
                 x.wants = {want("p", "PRMSL", "mean sea level"), spr("s", "PRMSL", "mean sea level")};
                 x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "s"), 0.01); };
                 x.ramp = spreadRamp(6.0);
+                x.palette = "spread_mslp";
                 x.fillTitle = "Spread of the sea level pressure (mb)";
                 x.legendStep = 1;
                 x.contours = {pressure()};
@@ -1705,6 +1725,7 @@ const std::vector<Product>& products() {
                 x.derive = [windSpread] (Grids& g, const Context&) { windSpread(g); };
                 x.fill = [] (const Grids& g) { return pick(g, "ws"); };
                 x.ramp = spreadRamp(12.0);
+                x.palette = "spread_wind";
                 x.fillTitle = "Spread of the 10 m wind speed (m/s)";
                 x.legendStep = 2;
                 x.barbU = "u";
@@ -1776,6 +1797,7 @@ const std::vector<Product>& products() {
                 };
                 x.fill = [] (const Grids& g) { return pick(g, "mean"); };
                 x.ramp = precipitation();
+            x.palette = "precip";
                 x.quantity = Quantity::Millimeters;
                 x.fillTitle = std::string{"Mean precipitation, "} + std::to_string(length) + " hours";
                 x.legendStep = 0;
@@ -1864,6 +1886,7 @@ const std::vector<Product>& products() {
                 x.wants = {want("h", "HLCY", layer)};
                 x.fill = [] (const Grids& g) { return pick(g, "h"); };
                 x.ramp = helicityRamp();
+                x.palette = "helicity";
                 x.fillTitle = "Storm-relative helicity (m2/s2)";
                 x.legendStep = 100;
                 p.push_back(x);
@@ -1873,6 +1896,7 @@ const std::vector<Product>& products() {
                 x.needs = [hourly] (int hour) { return std::vector<GfsData::Need>{{hour, {"h", "MXUPHL", "5000-2000 m above ground", hourly(hour), ""}}}; };
                 x.fill = [] (const Grids& g) { return pick(g, "h"); };
                 x.ramp = updraftHelicity();
+                x.palette = "uh";
                 x.fillTitle = "Updraft helicity (m2/s2)";
                 x.legendStep = 0;
                 p.push_back(x);
@@ -1911,6 +1935,7 @@ const std::vector<Product>& products() {
                 x.fill = [] (const Grids& g) { return pick(g, "rain"); };
                 x.ramp = Ramp{{{0, QColor{160, 255, 0, 0}}, {4.9, QColor{160, 255, 0, 0}}, {5, QColor{160, 255, 0}}, {15, QColor{80, 220, 0}}, {25, QColor{0, 170, 0}}, {35, QColor{255, 230, 0}}, {45, QColor{255, 150, 0}},
                                 {55, QColor{230, 0, 0}}, {65, QColor{255, 170, 170}}, {75, QColor{160, 60, 220}}}};   // the rain scale of the model guidance site: greens, then yellow, orange, red, pink and purple for the heaviest
+                x.palette = "radar_rain";
                 x.overlays = {{"snow", shades(QColor{205, 225, 255}, QColor{0, 0, 150})}, {"sleet", shades(QColor{235, 205, 255}, QColor{95, 0, 135})}, {"freezing", shades(QColor{255, 205, 205}, QColor{150, 0, 0})}};
                 x.fillTitle = "Reflectivity at 1 km (dBZ): green rain, blue snow, purple sleet, red freezing rain";
                 x.legendStep = 10;
@@ -1976,6 +2001,7 @@ const std::vector<Product>& products() {
                 x.wants = {want("r", "PRATE", "surface")};
                 x.fill = scaledOf("r", 3600.0);   // mm per second -> mm per hour
                 x.ramp = precipitation();
+            x.palette = "precip";
                 x.quantity = Quantity::Millimeters;
                 x.fillTitle = "Precipitation rate (per hour)";
                 x.legendStep = 0;
@@ -2063,6 +2089,7 @@ const std::vector<Product>& products() {
                 };
                 x.fill = [] (const Grids& g) { return pick(g, "m"); };
                 x.ramp = updraftHelicity();
+                x.palette = "uh";
                 x.fillTitle = "Strongest updraft helicity since the start of the run (m2/s2)";
                 x.legendStep = 0;
                 p.push_back(x);
@@ -2072,6 +2099,7 @@ const std::vector<Product>& products() {
                 x.wants = {want("h", "HLCY", "3000-0 m above ground"), want("u", "UGRD", "30 m above ground"), want("v", "VGRD", "30 m above ground")};
                 x.fill = [] (const Grids& g) { return pick(g, "h"); };
                 x.ramp = helicityRamp();
+                x.palette = "helicity";
                 x.fillTitle = "0-3 km storm-relative helicity (m2/s2)";
                 x.legendStep = 100;
                 x.barbU = "u";
@@ -2336,6 +2364,7 @@ const std::vector<Product>& products() {
                     return out;
                 };
                 x.ramp = updraftHelicity();
+                x.palette = "uh";
                 x.fillTitle = "Updraft helicity (m2/s2)";
                 x.legendStep = 0;
                 p.push_back(x);
@@ -2425,6 +2454,7 @@ const std::vector<Product>& products() {
                 x.derive = [fraction] (Grids& g, const Context&) { g["chance"] = fraction(g, "h", 75.0); };
                 x.fill = [] (const Grids& g) { return pick(g, "d"); };
                 x.ramp = updraftHelicity();
+                x.palette = "uh";
                 x.fillTitle = "RRFS 2-5 km updraft helicity in the last hour (m2/s2)";
                 x.legendStep = 0;
                 x.contours = {withChance("chance", "Chance of 75 or more in the 5 members (%)", QColor{20, 20, 20})};
@@ -2474,6 +2504,7 @@ const std::vector<Product>& products() {
                 x.needs = [window, period] (int hour) { return std::vector<GfsData::Need>{{hour, {"a", "APCP", "surface", window(hour, period), "wt ens mean", "ens:avrg"}}}; };
                 x.fill = [] (const Grids& g) { return pick(g, "a"); };
                 x.ramp = precipitation();
+            x.palette = "precip";
                 x.quantity = Quantity::Millimeters;
                 x.fillTitle = period == 1 ? "Mean precipitation in the last hour" : "Mean precipitation in the last 3 hours";
                 x.legendStep = 0;
@@ -2616,6 +2647,7 @@ const std::vector<Product>& products() {
                 x.wants = {GfsData::Want{"a", "APCP", "surface", "0-*", ""}, want("p", "PRMSL", "mean sea level")};
                 x.fill = [] (const Grids& g) { return pick(g, "a"); };
                 x.ramp = precipitation();
+            x.palette = "precip";
                 x.quantity = Quantity::Millimeters;
                 x.fillTitle = "Rainfall since the start of the run";
                 x.legendStep = 0;
@@ -3034,13 +3066,20 @@ namespace {
             default: return {};
         }
     }
-    QString numberText(double value) {
+    QString numberText(double rough) {
+        const double value = std::round(rough * 1000.0) / 1000.0;   // 3.0000001 inches (from 76.2 millimeters) is 3
         const double a = std::abs(value);
         return QString::number(value, 'f', a >= 10 || a == std::floor(a) ? 0 : a >= 1 ? 1 : 2);
     }
 }
 
-QImage render(const Product& product, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
+QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
+    Product product = drawn;
+    if (options.magColors && !drawn.palette.empty()) {   // the model guidance site's color bands in place of ours
+        if (const auto * bands = magPalette(drawn.palette)) {
+            product.ramp = *bands;
+        }
+    }
     Grids grids = fetched;
     if (product.derive) {
         product.derive(grids, Context{forecastHour, run, options.climate});
@@ -3481,6 +3520,9 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
     const double first = stops.front().first, last = stops.back().first;
     const bool stepped = product.legendStep <= 0.0;
     const auto valueAt = [&] (double t) {   // t 0..1 along the bar
+        if (ramp->banded) {   // one flat block for each band
+            return stops[std::min(static_cast<size_t>(t * static_cast<double>(stops.size())), stops.size() - 1)].first;
+        }
         if (!stepped) {
             return first + (last - first) * t;
         }
@@ -3503,7 +3545,11 @@ QImage render(const Product& product, const Sector& sector, const Grids& fetched
         p.drawLine(QPointF{x, barTop + barHeight}, QPointF{x, barTop + barHeight + 4});
         p.drawText(QRectF{x - 24, barTop + barHeight + 4, 48, 14}, Qt::AlignHCenter, numberText(shown(product.quantity, value, us)));
     };
-    if (stepped) {
+    if (ramp->banded) {   // the number at the lower edge of each band, as the model guidance site's legends have it
+        for (size_t i = 0; i < stops.size(); i++) {
+            tick(static_cast<double>(i) / static_cast<double>(stops.size()), stops[i].first);
+        }
+    } else if (stepped) {
         for (size_t i = 0; i < stops.size(); i++) {
             if (i > 0 || stops[i].second.alpha() == 255) {
                 tick(static_cast<double>(i) / static_cast<double>(stops.size() - 1), stops[i].first);

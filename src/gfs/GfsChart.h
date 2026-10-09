@@ -33,8 +33,13 @@ namespace GfsChart {
     // A color scale by value: stops are (value, color), linear between them. Values below the first or above the last take the end colors.
     struct Ramp {
         std::vector<std::pair<double, QColor>> stops;
+        // banded: each stop's color holds from its value up to the next stop (the flat bands of the model guidance site), and nothing is drawn below the first
+        bool banded{false};
         QRgb at(double value) const;
     };
+    // The scale the model guidance site (MAG) uses for a kind of chart, by name ("precip", "isotach", "radar_rain", "rh", "spread_mslp", "spread_wind", "helicity", "uh"): flat bands read from
+    // its legends (resourceCreation/mag/palettes.py), in the units of our fills. Null when there is none of that name.
+    const Ramp * magPalette(const std::string& name);
 
     using Grids = std::map<std::string, GfsGrid::Grid>;
     // What the fill's numbers are, for showing them in the user's units (the grids are in degrees C, millimeters, centimeters and so on)
@@ -76,6 +81,7 @@ namespace GfsChart {
         Ramp ramp;                              // in the grids' own units
         // more fills painted over the first where they have a value (the snow and the mixed precipitation over the rain)
         std::vector<std::pair<std::string, Ramp>> overlays;
+        std::string palette;                    // the name of the model guidance site's scale for this chart ("" none): used when Options.magColors is on
         std::string fillTitle;                  // "Wind speed (kt)"
         std::function<std::string(int hour)> fillTitleFor;   // when the title depends on the hour (a precipitation period)
         Quantity quantity{Quantity::Other};
@@ -121,6 +127,7 @@ namespace GfsChart {
         int width{1100};
         const GfsClimate * climate{nullptr};   // for the anomaly charts
         bool fahrenheit{true};                 // the user's US units: degrees F, inches
+        bool magColors{true};                  // the charts that have one use the model guidance site's own color bands (drawn at our resolution)
         std::vector<std::vector<std::pair<float, float>>> lines;   // coastlines and borders as (longitude, latitude)
         std::vector<TrackPoint> track;         // a storm track drawn on the chart, with the wind radii of the forecast hour shown
         std::vector<TrackPoint> trackOther;    // another model's track for the same storm, dashed, to compare
