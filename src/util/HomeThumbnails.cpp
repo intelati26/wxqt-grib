@@ -10,7 +10,8 @@
 #include "common/GlobalVariables.h"
 #include "misc/UtilityOpcImages.h"
 #include "mrms/UtilityMrms.h"
-#include "models/UtilityGrib.h"
+#include "gfs/GfsModels.h"
+#include "gfs/GfsRender.h"
 #include "spc/UtilitySpcCompmap.h"
 #include "spc/UtilitySpcFireOutlook.h"
 #include "spc/UtilitySpcSwo.h"
@@ -23,13 +24,6 @@
 #include "util/Utility.h"
 
 namespace {
-    const string gribLastFieldPref{"GRIB_LAST_FIELD"};
-    const string gribLastRegionPref{"GRIB_LAST_REGION"};
-
-    int indexOfLabel(const vector<string>& labels, const string& label) {
-        const auto found = std::find(labels.begin(), labels.end(), label);
-        return found == labels.end() ? 0 : static_cast<int>(found - labels.begin());
-    }
 }
 
 const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
@@ -60,7 +54,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"TROPICAL_WPAC_SAT", "Tropical overview - West Pacific (Himawari satellite, Guam sector)", "nhc.png#2", false, false},
         {"MRMS_RADAR", "MRMS radar - composite reflectivity around your location", "mcd_tile.png", false, false},
         {"MRMS_LATEST", "MRMS - latest scan of your last product, around your location", "mcd_tile.png", false, false},
-        {"GRIB_LATEST", "RRFS GRIB - your last field and region, latest run", "grib.png", true, false},
+        {"GRIB_LATEST", "Model viewer - your last model, chart and area, newest run", "grib.png", true, false},
     };
     return entries;
 }
@@ -97,7 +91,7 @@ namespace {
         {"TROPICAL_WPAC_SAT", {"Western Pacific", "Himawari infrared (colour-enhanced) view of the western Pacific from the Guam sector."}},
         {"MRMS_RADAR", {"MRMS radar", "Multi-Radar Multi-Sensor composite reflectivity around your location."}},
         {"MRMS_LATEST", {"MRMS product", "Latest scan of the MRMS product you looked at last, around your location."}},
-        {"GRIB_LATEST", {"Model field", "Your last model field and region from the newest RRFS run."}},
+        {"GRIB_LATEST", {"Model chart", "The model, chart and area you last looked at in the Model Viewer, from the newest run."}},
         };
         return table;
     }
@@ -152,17 +146,18 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         return ok ? png : QByteArray{};
     }
     if (token == "GRIB_LATEST") {
-        // the viewer remembers the field and region last looked at; the first forecast hour of the newest run
-        const auto field = indexOfLabel(UtilityGrib::fieldLabels(), Utility::readPref(gribLastFieldPref, ""));
-        const auto region = indexOfLabel(UtilityGrib::regions(), Utility::readPref(gribLastRegionPref, ""));
-        const auto hours = UtilityGrib::forecastHours();
-        string status;
-        string samplePath;
-        double lo = 0.0;
-        double hi = 0.0;
-        const auto path = UtilityGrib::render(field, region, hours.empty() ? string{"01"} : hours.front(), "", status, lo, hi, samplePath);
-        QFile file{QString::fromStdString(path)};
-        return !path.empty() && file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray{};
+        // the model screen's last model, chart and area, drawn from the newest run (the model's first forecast hour after the start)
+        auto model = Utility::readPref("NCEP", "RRFS");
+        if (!GfsModels::draws(model) || GfsModels::find(model)->storm) {
+            model = "RRFS";
+        }
+        const auto * def = GfsModels::find(model);
+        const auto hours = def->hours.empty() ? GfsModels::Hours{} : def->hours.front();
+        const int hour = hours.from + (hours.from + hours.step <= hours.to ? hours.step : 0);
+        GfsRender::Session session;
+        string error;
+        const auto png = GfsRender::png(session, model, Utility::readPref("MODELNCEPPARAMLASTUSED", "500_wnd_ht"), Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS"), "", hour, {}, error);
+        return png;
     }
     string url;
     if (token == "SPC_DAY1" || token == "SPC_DAY2" || token == "SPC_DAY3") {
