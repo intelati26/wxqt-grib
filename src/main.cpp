@@ -27,6 +27,7 @@
 #include <QThreadPool>
 #include <QDialog>
 #include <QTimer>
+#include <QThread>
 #include "common/GlobalVariables.h"
 #include "gfs/GfsRender.h"
 #include "hurricane/HafsViewer.h"
@@ -187,7 +188,14 @@ int main(int argc, char * argv[]) {
                     std::string error;
                     QElapsedTimer timer;
                     timer.start();
-                    const auto bytes = GfsRender::png(session, parts[1].toStdString(), parts[2].toStdString(), parts[3].toStdString(), "", hour, {}, error, nullptr, variant);
+                    auto bytes = GfsRender::png(session, parts[1].toStdString(), parts[2].toStdString(), parts[3].toStdString(), "", hour, {}, error, nullptr, variant);
+                    // a chart that waits for something worked out in the background (the standard deviations): ask again every 20 s, up to WXQT_WAIT minutes
+                    for (int waited = 0; bytes.isEmpty() && error.find("worked out") != std::string::npos && waited < qEnvironmentVariableIntValue("WXQT_WAIT") * 3; waited++) {
+                        fprintf(stderr, "variant: %s\n", error.c_str());
+                        QThread::sleep(20);
+                        error.clear();
+                        bytes = GfsRender::png(session, parts[1].toStdString(), parts[2].toStdString(), parts[3].toStdString(), "", hour, {}, error, nullptr, variant);
+                    }
                     QFile out{parts[7]};
                     if (out.open(QIODevice::WriteOnly)) out.write(bytes);
                     fprintf(stderr, "variant: %lld bytes %.2f s, %.2f MB received %s\n", static_cast<long long>(bytes.size()), timer.elapsed() / 1000.0, NetManager::totals().bytes / 1048576.0, error.c_str());

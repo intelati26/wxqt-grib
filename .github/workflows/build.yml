@@ -111,6 +111,8 @@ jobs:
 
       - name: Generate resources + .pro
         shell: pwsh
+        env:
+          WXQT_SCCACHE: '1'   # makeAll.py then has the Makefile run cl through sccache (jom does not pass a CXX on its command line down to the release makefile)
         run: |
           cd resourceCreation
           python createResourcesImage.py
@@ -142,7 +144,7 @@ jobs:
         env:
           SCCACHE_GHA_ENABLED: 'true'
         run: |
-          jom -j %NUMBER_OF_PROCESSORS% CXX="sccache cl"
+          jom -j %NUMBER_OF_PROCESSORS%
           sccache --show-stats
 
       - name: Package portable folder

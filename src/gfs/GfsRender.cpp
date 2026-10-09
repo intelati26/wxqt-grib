@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsRender.h"
+#include <stdexcept>
 #include <algorithm>
 #include <atomic>
 #include <thread>
@@ -141,6 +142,7 @@ bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const 
 }
 
 QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe, const Variant& variant) {
+    try {   // a chart that cannot be made yet (the standard deviations still being worked out) says why
     const auto * base = GfsChart::product(param, model);
     auto sector = GfsChart::sector(sectorId);
     GfsChart::Sector storm;   // the hurricane model's grid follows the storm: the chart is its whole grid
@@ -375,6 +377,10 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     buffer.open(QIODevice::WriteOnly);
     image.save(&buffer, "PNG");
     return bytes;
+    } catch (const std::runtime_error& problem) {
+        error = problem.what();
+        return {};
+    }
 }
 
 std::vector<std::string> GfsRender::hafsStorms(const std::string& model, std::string& cycle) {

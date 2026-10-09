@@ -61,6 +61,11 @@ proFooter: str = """
 win32-msvc* {
     QMAKE_CXXFLAGS_RELEASE += /Z7
     QMAKE_LFLAGS_RELEASE += /DEBUG /OPT:REF /OPT:ICF
+    # the CI build sets WXQT_SCCACHE: the compiler is then run through sccache (a compile of an unchanged file is taken from its cache)
+    WXQT_SC = $$(WXQT_SCCACHE)
+    !isEmpty(WXQT_SC) {
+        QMAKE_CXX = sccache $$QMAKE_CXX
+    }
 }
 
 # Default rules for deployment.

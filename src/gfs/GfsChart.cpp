@@ -1849,6 +1849,71 @@ const std::vector<Product>& products() {
                     x.legendStep = 10;
                     return x;
                 };
+                // The chance of an anomaly of so many standard deviations: each member's value less the day's mean, over the day's standard deviation (both from the 1991-2020 reanalysis; the
+                // standard deviation is worked out on first use, in the background)
+                made["stdanom"] = [memberNeeds, share] (const std::vector<double>& v) {   // what (1-5), direction (1 under, 2 over), deviations
+                    const int what = std::clamp(static_cast<int>(std::lround(v.at(0))), 1, 5);
+                    const bool over = std::lround(v.at(1)) == 2;
+                    const double sigmas = v.at(2);
+                    static const char * names[] = {"", "a 500 mb height", "a 700 mb height", "a 700 mb temperature", "an 850 mb temperature", "precipitable water"};
+                    static const char * variables[] = {"", "HGT", "HGT", "TMP", "TMP", "PWAT"};
+                    static const char * levels[] = {"", "500 mb", "700 mb", "700 mb", "850 mb", "entire atmosphere (considered as a single layer)"};
+                    Product x;
+                    x.source = "GEFS";
+                    x.id = generatedId("stdanom", {static_cast<double>(what), over ? 2.0 : 1.0, sigmas});
+                    const std::string words = std::string{"Chance of "} + names[what] + " more than " + trimmed(sigmas) + " standard deviation" + (sigmas == 1.0 ? "" : "s") + " " + (over ? "above" : "below") + " normal";
+                    x.label = words;
+                    x.needs = [memberNeeds, what] (int hour) {
+                        if (hour < 3) {
+                            return std::vector<GfsData::Need>{};
+                        }
+                        auto out = memberNeeds("v", variables[what], levels[what], hour, std::to_string(hour) + " hour fcst");
+                        if (what == 2 || what == 3 || what == 4) {   // where the surface is above the level, the level is underground: the control run's surface pressure marks it
+                            out.push_back({hour, GfsData::Want{"ps", "PRES", "surface", std::to_string(hour) + " hour fcst", "", "c00"}});
+                        }
+                        return out;
+                    };
+                    x.derive = [share, what, over, sigmas] (Grids& g, const Context& context) {
+                        if (!context.climate) {
+                            throw std::runtime_error{"no climatology"};
+                        }
+                        auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
+                        t.setTimeSpec(Qt::UTC);
+                        t = t.addSecs(context.hour * 3600LL);
+                        const int day = GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
+                        const auto field = what == 1 ? GfsClimate::height(500) : what == 2 ? GfsClimate::height(700) : what == 3 ? GfsClimate::temperature(700) : what == 4 ? GfsClimate::temperature(850) : GfsClimate::precipitableWater();
+                        GfsGrid::Grid normal, deviation;
+                        std::string error;
+                        if (!context.climate->at(field, day, normal, error) || !context.climate->deviation(field, day, deviation, error)) {
+                            throw std::runtime_error{error};
+                        }
+                        const auto& first = g.at("v" + memberNames.front());
+                        auto zero = first;
+                        std::fill(zero.values.begin(), zero.values.end(), 0.0f);
+                        const auto spreadHere = GfsGrid::scaled(GfsGrid::anomaly(zero, deviation), -1.0);   // the standard deviation on the members' grid
+                        const float level = what == 2 ? 70000.0f : what == 3 ? 70000.0f : what == 4 ? 85000.0f : 0.0f;
+                        for (const auto& name : memberNames) {
+                            auto z = GfsGrid::anomaly(g.at("v" + name), normal);
+                            for (size_t i = 0; i < z.values.size(); i++) {
+                                const float sd = spreadHere.values[i];
+                                const bool under = level > 0.0f && g.at("ps").values[i] < level;
+                                z.values[i] = (sd > 1e-6f && !under) ? z.values[i] / sd : std::nanf("");
+                            }
+                            g["v" + name] = std::move(z);
+                        }
+                        g.erase("ps");
+                        share(g, [over, sigmas] (const Grids& grids, const std::string& name, size_t i) {
+                            const float a = grids.at("v" + name).values[i];
+                            return std::isnan(a) ? -1 : (over ? a > sigmas : a < -sigmas) ? 1 : 0;
+                        }, "share", {"v"});
+                    };
+                    x.fill = [] (const Grids& g) { return pick(g, "share"); };
+                    x.ramp = probability();
+                    x.palette = "prob";
+                    x.fillTitle = words + " (% of the 31 members)";
+                    x.legendStep = 10;
+                    return x;
+                };
                 // The chance that a member's value passes a limit: the template says what to fetch (`needs`, the members' grids named "<prefix><member>"), how to make one value of them (`collapse`, into
                 // "v<member>": a wind speed from its components, a heat index) and how the limit given in the user's unit is in the file's (`toFile`).
                 struct Limit {
@@ -3494,6 +3559,7 @@ std::vector<Template> templates(const std::string& source) {
         {"rain_over", "Chance of rain over a limit in a period", {{"limit", "Rain over", "in", {0.01, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10}, 1}, {"hours", "in", "hours", {6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 84, 96, 120, 168, 240}, 24}}},
         {"rain_under", "Chance of rain under a limit in a period (dry)", {{"limit", "Rain under", "in", {0.01, 0.1, 0.25, 0.5, 1}, 0.01}, {"hours", "in", "hours", {6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 84, 96, 120, 168, 240}, 120}}},
         {"ptype", "Chance of a precipitation type in 6 hours", {{"type", "Type", "", {1, 2, 3, 4}, 2, {"rain", "snow", "ice pellets", "freezing rain"}}, {"limit", "with at least", "in", {0.01, 0.1, 0.25, 0.5, 1}, 0.01}}},
+        {"stdanom", "Chance of an anomaly of so many standard deviations", {{"what", "Field", "", {1, 2, 3, 4, 5}, 1, {"500 mb height", "700 mb height", "700 mb temperature", "850 mb temperature", "precipitable water"}}, {"direction", "Anomaly", "", {1, 2}, 1, {"below normal", "above normal"}}, {"sigmas", "by more than", "std. dev.", {1, 2, 3, 4, 5}, 1}}},
         one("temp_under", "Chance of a 2 m temperature under a limit", "Temperature under", "F", {-40, -20, 0, 10, 20, 25, 28, 32, 40, 50, 60, 70}, 32),
         one("temp_over", "Chance of a 2 m temperature over a limit", "Temperature over", "F", {70, 80, 90, 95, 100, 105, 110, 115}, 90),
         one("tmin_under", "Chance of a 6 hour minimum temperature under a limit", "Lowest in 6 hours under", "F", {-40, -20, 0, 20, 32, 40}, 32),
