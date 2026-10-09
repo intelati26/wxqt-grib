@@ -104,6 +104,7 @@ private:
     void getRun();
     void getRunStatus();
     void updateRunStatus();
+    vector<string> runLabels() const;
     HBox boxH;
     VBox box;
     ZoomImage image;                     // the chart: wheel / Ctrl +- zoom, drag to pan

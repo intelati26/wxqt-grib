@@ -127,13 +127,16 @@ bool GfsRender::handles(const std::string& model, const std::string& param) {
     return GfsModels::draws(model) && GfsChart::product(param, model) != nullptr;
 }
 
-bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const std::string& storm) {
+bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const std::string& storm, std::string * date) {
     const auto gfs = data({}, model, storm);
     GfsData::Run run;
     if (!newestRun(gfs, run)) {
         return false;
     }
     cycle = run.cycle + "Z";
+    if (date != nullptr) {
+        *date = run.date;
+    }
     return true;
 }
 

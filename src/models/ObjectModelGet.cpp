@@ -28,7 +28,7 @@ void ObjectModelGet::runStatus(ObjectModel& om) {
         // these two come from NOAA's open data, not the model guidance pages: the newest run is the newest one whose files are there
         string cycle;
         RunTimeData found;
-        if (GfsRender::latestCycle(om.model, cycle)) {
+        if (GfsRender::latestCycle(om.model, cycle, "", &found.newestDate)) {
             found.mostRecentRun = cycle;
             found.timeStringConversion = cycle;
         } else {   // no connection: what was chosen before, else the first run of the list

@@ -26,6 +26,7 @@ public:
     void setIndexByPref(const string&, int);
     void setIndexByValue(const string&);
     void setList(const vector<string>&);
+    void setLabels(const vector<string>&);   // what the items show, when it is more than their value (the value stays the item)
     vector<string> getItems() const;
     void block();
     void unblock();

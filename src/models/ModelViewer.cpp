@@ -658,6 +658,32 @@ void ModelViewer::getRunStatus() {
     objectModel.run = objectModel.runTimeData.mostRecentRun;
 }
 
+// The run list says which runs are today's: a run later in the day than the newest one is the one from the day before (the list alone shows "14Z" with no hint that it is yesterday's)
+vector<string> ModelViewer::runLabels() const {
+    vector<string> labels;
+    const auto newest = QDateTime::fromString(QString::fromStdString(objectModel.runTimeData.newestDate + objectModel.runTimeData.mostRecentRun.substr(0, 2)), "yyyyMMddHH");
+    if (!newest.isValid() || objectModel.runTimeData.mostRecentRun.size() < 2) {
+        return labels;
+    }
+    auto utc = newest;
+    utc.setTimeSpec(Qt::UTC);
+    for (const auto& run : objectModel.runs) {
+        bool ok = false;
+        const int hour = run.size() >= 2 ? QString::fromStdString(run.substr(0, 2)).toInt(&ok) : 0;
+        if (!ok) {
+            labels.push_back(run);
+            continue;
+        }
+        auto t = QDateTime{utc.date(), QTime{hour, 0}, Qt::UTC};
+        if (t > utc) {
+            t = t.addDays(-1);
+        }
+        const int days = static_cast<int>(t.date().daysTo(utc.date()));
+        labels.push_back(t == utc ? run + "  newest" : days == 0 ? run : days == 1 ? run + "  yesterday" : run + "  " + t.toString("MMM d").toStdString());
+    }
+    return labels;
+}
+
 void ModelViewer::updateRunStatus() {
     comboboxTime.block();
     comboboxRun.block();
@@ -687,6 +713,7 @@ void ModelViewer::updateRunStatus() {
 
     comboboxRun.setList(objectModel.runs);
     comboboxRun.setIndexByValue(objectModel.run);
+    comboboxRun.setLabels(runLabels());
 
     comboboxProduct.setList(objectModel.paramLabels);
     auto paramIndex = findex(objectModel.param, objectModel.params);

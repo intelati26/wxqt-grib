@@ -21,6 +21,7 @@ public:
     string mostRecentRun;
     string timeStringConversion;
     string validTime;
+    string newestDate;   // yyyyMMdd (UTC) of the newest run, when it is known: the run list can then say which runs are from the day before
 };
 
 #endif  // RUNTIMEDATA_H
