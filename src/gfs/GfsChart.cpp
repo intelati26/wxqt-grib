@@ -173,6 +173,10 @@ namespace {
     Ramp lightningRamp() {   // flashes: any lightning is yellow, a lot is purple
         return {{{0, QColor{240, 244, 250, 0}}, {0.1, QColor{255, 240, 120, 150}}, {1, QColor{"#ffd34a"}}, {3, QColor{"#f09a2e"}}, {6, QColor{"#e0502e"}}, {12, QColor{"#b02060"}}, {25, QColor{"#6a2a9a"}}}};
     }
+    Ramp wavePeriod() {   // seconds: short choppy seas pale, long swell in deep colors
+        return {{{0, QColor{240, 244, 250}}, {4, QColor{"#cfe8f3"}}, {6, QColor{"#8ccbe0"}}, {8, QColor{"#55b6a8"}}, {10, QColor{"#7bc47f"}}, {12, QColor{"#e3d44a"}}, {14, QColor{"#f0a63a"}}, {16, QColor{"#e0602e"}},
+                 {18, QColor{"#c4262c"}}, {22, QColor{"#6a2a9a"}}}};
+    }
     Ramp probability() {   // percent: nothing under 5, then pale green to deep magenta
         return {{{0, QColor{229, 242, 217, 0}}, {5, QColor{229, 242, 217, 0}}, {10, QColor{"#e5f2d9"}}, {20, QColor{"#c4e3a4"}}, {30, QColor{"#93d17f"}}, {40, QColor{"#5cbf8a"}}, {50, QColor{"#31a8a8"}},
                  {60, QColor{"#2f86c4"}}, {70, QColor{"#3a5fb8"}}, {80, QColor{"#5b43a8"}}, {90, QColor{"#8a3aa6"}}, {100, QColor{"#b5368f"}}}};
@@ -428,9 +432,24 @@ const std::vector<Product>& products() {
             x.barbV = "v";
             return x;
         };
-        p.push_back(upper("200_wnd_ht", "200mb Wind and Height", "200 mb", 12));
-        p.push_back(upper("250_wnd_ht", "250mb Wind and Height", "250 mb", 12));
-        p.push_back(upper("300_wnd_ht", "300mb Wind and Height", "300 mb", 12));
+        {
+            auto x = upper("200_wnd_ht", "200mb Wind and Height", "200 mb", 12);
+            x.barbU.clear();   // the model guidance site draws the isotachs and the heights only
+            x.barbV.clear();
+            p.push_back(x);
+        }
+        {
+            auto x = upper("250_wnd_ht", "250mb Wind and Height", "250 mb", 12);
+            x.barbU.clear();   // the model guidance site draws the isotachs and the heights only
+            x.barbV.clear();
+            p.push_back(x);
+        }
+        {
+            auto x = upper("300_wnd_ht", "300mb Wind and Height", "300 mb", 12);
+            x.barbU.clear();   // the model guidance site draws the isotachs and the heights only
+            x.barbV.clear();
+            p.push_back(x);
+        }
         p.push_back(upper("500_wnd_ht", "500mb Wind and Height", "500 mb", 6));
         for (const auto& [id, label, level, interval] : {std::tuple{"500_vort_ht", "500mb Vorticity, Wind, and Height", "500 mb", 6.0}, {"850_vort_ht", "850mb Vorticity, Wind and Height", "850 mb", 3.0}}) {
             auto x = upper(id, label, level, interval);
@@ -453,24 +472,22 @@ const std::vector<Product>& products() {
         }
         {   // humidity
             auto x = upper("500_rh_ht", "500mb Relative Humidity and Height", "500 mb", 6);
-            x.wants = {want("z", "HGT", "500 mb"), want("rh", "RH", "500 mb")};
+            x.wants = {want("z", "HGT", "500 mb"), want("rh", "RH", "500 mb"), want("u", "UGRD", "500 mb"), want("v", "VGRD", "500 mb")};
             x.fill = [] (const Grids& g) { return pick(g, "rh"); };
             x.ramp = humidity();
             x.fillTitle = "Relative humidity (%)";
             x.legendStep = 10;
-            x.barbU.clear();
-            x.barbV.clear();
             p.push_back(x);
             auto y = x;
             y.id = "850_rh_ht";
             y.label = "850mb Relative Humidity and Height";
-            y.wants = {want("z", "HGT", "850 mb"), want("rh", "RH", "850 mb")};
+            y.wants = {want("z", "HGT", "850 mb"), want("rh", "RH", "850 mb"), want("u", "UGRD", "850 mb"), want("v", "VGRD", "850 mb")};
             y.contours = {heights(3)};
             p.push_back(y);
             auto w = x;   // 700 mb: with the vertical motion (omega) as lines, the rising air only
             w.id = "700_rh_ht";
             w.label = "700mb Relative Humidity, Height and Omega";
-            w.wants = {want("z", "HGT", "700 mb"), want("rh", "RH", "700 mb"), want("o", "VVEL", "700 mb")};
+            w.wants = {want("z", "HGT", "700 mb"), want("rh", "RH", "700 mb"), want("o", "VVEL", "700 mb"), want("u", "UGRD", "700 mb"), want("v", "VGRD", "700 mb")};
             w.contours = {heights(3)};
             ContourSet omega;
             omega.key = "o";
@@ -811,6 +828,48 @@ const std::vector<Product>& products() {
         p.push_back(thickness("1000_500_thick", "MSLP, 1000-500mb thickness and precipitation", "1000 mb", "500 mb", 6, 540, "1000-500mb thickness (dam)"));
         p.push_back(thickness("1000_850_thick", "MSLP, 1000-850mb thickness and precipitation", "1000 mb", "850 mb", 3, 130, "1000-850mb thickness (dam)"));
         p.push_back(thickness("850_700_thick", "MSLP, 850-700mb thickness and precipitation", "850 mb", "700 mb", 3, 154, "850-700mb thickness (dam)"));
+        std::map<std::string, Product> plainPrecip;   // the precipitation charts before the lines are put on them: for the models whose maps have none
+        // MAG draws the sea level pressure and the 1000-500 mb thickness over its precipitation maps (the accumulation of the whole run with the pressure only): the same lines here
+        for (auto& chart : p) {
+            if (chart.source != "GFS" || chart.id.compare(0, 8, "precip_p") != 0) {
+                continue;
+            }
+            plainPrecip[chart.id] = chart;
+            const bool withThickness = chart.id != "precip_ptot";
+            const auto inner = chart.needs;
+            chart.needs = [inner, withThickness] (int hour) {
+                auto needs = inner(hour);
+                needs.push_back({hour, {"p", "PRMSL", "mean sea level", ""}});
+                if (withThickness) {
+                    needs.push_back({hour, {"zl", "HGT", "1000 mb", ""}});
+                    needs.push_back({hour, {"zh", "HGT", "500 mb", ""}});
+                }
+                return needs;
+            };
+            const auto derived = chart.derive;
+            chart.derive = [derived, withThickness] (Grids& g, const Context& context) {
+                if (derived) {
+                    derived(g, context);
+                }
+                if (withThickness) {
+                    g["thick"] = GfsGrid::difference(g["zh"], g["zl"]);
+                }
+            };
+            chart.contours = {pressure()};
+            if (withThickness) {
+                ContourSet t;
+                t.key = "thick";
+                t.scale = 0.1;
+                t.interval = 6;
+                t.title = "1000-500mb thickness (dam)";
+                t.color = QColor{190, 50, 40};
+                t.colorBelow = QColor{40, 90, 190};
+                t.split = 540;
+                t.dashed = true;
+                t.width = 1.3;
+                chart.contours.push_back(t);
+            }
+        }
         {   // 850 mb temperature as lines under the precipitation
             auto x = thickness("850_temp_mslp_precip", "MSLP, 850mb temperature and precipitation", "850 mb", "500 mb", 6, 0, "");
             x.needs = [totalNeeds] (int hour) {
@@ -954,6 +1013,8 @@ const std::vector<Product>& products() {
             x.needs = [totalNeeds] (int hour) {
                 auto needs = totalNeeds(hour, hour <= 240 ? 3 : 6);
                 needs.push_back({hour, {"p", "PRMSL", "mean sea level", ""}});
+                needs.push_back({hour, {"zl", "HGT", "1000 mb", ""}});
+                needs.push_back({hour, {"zh", "HGT", "500 mb", ""}});
                 for (const auto& [key, variable] : {std::pair{"cr", "CRAIN"}, {"cs", "CSNOW"}, {"cf", "CFRZR"}, {"ci", "CICEP"}}) {
                     needs.push_back({hour, {key, variable, "surface", ""}});
                 }
@@ -961,6 +1022,7 @@ const std::vector<Product>& products() {
             };
             x.derive = [totalDerive] (Grids& g, const Context& context) {
                 totalDerive(g, context);
+                g["thick"] = GfsGrid::difference(g["zh"], g["zl"]);
                 const auto& total = g["precip"];
                 auto rain = total, snow = total, mix = total;
                 for (size_t i = 0; i < total.values.size(); i++) {
@@ -980,7 +1042,62 @@ const std::vector<Product>& products() {
             x.fillTitleFor = [startOf] (int hour) { return "Precipitation (green rain, blue snow, pink mixed), hours " + std::to_string(startOf(hour, hour <= 240 ? 3 : 6)) + "-" + std::to_string(hour); };
             x.quantity = Quantity::Millimeters;
             x.legendStep = 0.0;
-            x.contours = {pressure()};
+            ContourSet thick;
+            thick.key = "thick";
+            thick.scale = 0.1;
+            thick.interval = 6;
+            thick.title = "1000-500mb thickness (dam)";
+            thick.color = QColor{190, 50, 40};
+            thick.colorBelow = QColor{40, 90, 190};
+            thick.split = 540;
+            thick.dashed = true;
+            thick.width = 1.3;
+            x.contours = {pressure(), thick};
+            p.push_back(x);
+        }
+        {   // the same by rate: the precipitation rate (inches per hour) in the colors of what is falling, with the pressure and the thickness
+            Product x;
+            x.id = "precip_rate_type";
+            x.label = "MSLP, 1000-500mb thickness and Precipitation Rate (Rain / Snow / Mixed)";
+            x.needs = [] (int hour) {
+                std::vector<GfsData::Need> needs{{hour, {"rate", "PRATE", "surface", ""}}, {hour, {"p", "PRMSL", "mean sea level", ""}}, {hour, {"zl", "HGT", "1000 mb", ""}}, {hour, {"zh", "HGT", "500 mb", ""}}};
+                for (const auto& [key, variable] : {std::pair{"cr", "CRAIN"}, {"cs", "CSNOW"}, {"cf", "CFRZR"}, {"ci", "CICEP"}}) {
+                    needs.push_back({hour, {key, variable, "surface", ""}});
+                }
+                return needs;
+            };
+            x.derive = [] (Grids& g, const Context&) {
+                g["thick"] = GfsGrid::difference(g["zh"], g["zl"]);
+                const auto perHour = GfsGrid::scaled(g["rate"], 3600.0);   // millimeters per second -> millimeters per hour
+                auto rain = perHour, snow = perHour, mix = perHour;
+                for (size_t i = 0; i < perHour.values.size(); i++) {
+                    const bool isSnow = g["cs"].values[i] >= 0.5f;
+                    const bool isMix = g["cf"].values[i] >= 0.5f || g["ci"].values[i] >= 0.5f;
+                    rain.values[i] = (!isSnow && !isMix) ? perHour.values[i] : 0.0f;
+                    snow.values[i] = isSnow && !isMix ? perHour.values[i] : 0.0f;
+                    mix.values[i] = isMix ? perHour.values[i] : 0.0f;
+                }
+                g["rain"] = std::move(rain);
+                g["snow"] = std::move(snow);
+                g["mix"] = std::move(mix);
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "rain"); };
+            x.ramp = precipitation();
+            x.overlays = {{"snow", snowPrecipitation()}, {"mix", mixedPrecipitation()}};
+            x.fillTitle = "Precipitation rate per hour (green rain, blue snow, pink mixed)";
+            x.quantity = Quantity::Millimeters;
+            x.legendStep = 0.0;
+            ContourSet thick;
+            thick.key = "thick";
+            thick.scale = 0.1;
+            thick.interval = 6;
+            thick.title = "1000-500mb thickness (dam)";
+            thick.color = QColor{190, 50, 40};
+            thick.colorBelow = QColor{40, 90, 190};
+            thick.split = 540;
+            thick.dashed = true;
+            thick.width = 1.3;
+            x.contours = {pressure(), thick};
             p.push_back(x);
         }
         {   // what the last 48 hours did to the pressure and the 500 mb heights
@@ -1396,13 +1513,23 @@ const std::vector<Product>& products() {
                 }
                 return true;
             };
+            const auto plainOf = [&] (const Product& chart) -> const Product& {   // the chart before the lines were put on it, when the model's maps have none
+                for (const auto& prefix : rule.plain) {
+                    const auto found = plainPrecip.find(chart.id);
+                    if (chart.id.compare(0, prefix.size(), prefix) == 0 && found != plainPrecip.end()) {
+                        return found->second;
+                    }
+                }
+                return chart;
+            };
             const auto size = p.size();
             if (!rule.ids.empty()) {
                 for (const auto& id : rule.ids) {
                     for (size_t i = 0; i < size; i++) {
                         if (p[i].id == id && p[i].source == "GFS") {
-                            if (fits(p[i])) {
-                                addChart(p[i]);
+                            const auto chart = plainOf(p[i]);
+                            if (fits(chart)) {
+                                addChart(chart);
                             }
                             break;
                         }
@@ -1410,8 +1537,11 @@ const std::vector<Product>& products() {
                 }
             } else {
                 for (size_t i = 0; i < size; i++) {
-                    if (p[i].source == "GFS" && fits(p[i])) {
-                        addChart(p[i]);
+                    if (p[i].source == "GFS") {
+                        const auto chart = plainOf(p[i]);
+                        if (fits(chart)) {
+                            addChart(chart);
+                        }
                     }
                 }
             }
@@ -1576,14 +1706,42 @@ const std::vector<Product>& products() {
                 p.push_back(x);
             }
             {
+                // MAG colors the echoes by what is falling: green rain, blue snow, purple sleet, red freezing rain (the type flags are the model's, at the hour shown)
+                const auto shades = [] (QColor light, QColor dark) {
+                    Ramp r;
+                    r.stops.push_back({0.0, QColor{light.red(), light.green(), light.blue(), 0}});
+                    r.stops.push_back({4.9, QColor{light.red(), light.green(), light.blue(), 0}});
+                    const double dbz[] = {5, 15, 25, 35, 45, 55, 65, 75};
+                    for (int i = 0; i < 8; i++) {
+                        const double f = i / 7.0;
+                        r.stops.push_back({dbz[i], QColor{static_cast<int>(light.red() + (dark.red() - light.red()) * f), static_cast<int>(light.green() + (dark.green() - light.green()) * f),
+                                                         static_cast<int>(light.blue() + (dark.blue() - light.blue()) * f)}});
+                    }
+                    return r;
+                };
                 auto x = make("sim_radar_1km", "Simulated Radar at 1 km");
-                x.wants = {want("r", "REFD", "1000 m above ground"), sea()};
-                x.fill = [] (const Grids& g) { return pick(g, "r"); };
-                x.ramp = reflectivity();
-                x.fillTitle = "Reflectivity at 1 km (dBZ)";
+                x.wants = {want("r", "REFD", "1000 m above ground"), want("cr", "CRAIN", "surface"), want("cs", "CSNOW", "surface"), want("cf", "CFRZR", "surface"), want("ci", "CICEP", "surface")};
+                x.derive = [] (Grids& g, const Context&) {
+                    auto rain = g["r"], snow = g["r"], sleet = g["r"], freezing = g["r"];
+                    for (size_t i = 0; i < rain.values.size(); i++) {
+                        const bool isSnow = g["cs"].values[i] >= 0.5f, isFreezing = g["cf"].values[i] >= 0.5f, isSleet = g["ci"].values[i] >= 0.5f;
+                        const float z = g["r"].values[i], none = std::nanf("");
+                        rain.values[i] = !isSnow && !isFreezing && !isSleet ? z : none;
+                        snow.values[i] = isSnow && !isFreezing && !isSleet ? z : none;
+                        sleet.values[i] = isSleet && !isFreezing ? z : none;
+                        freezing.values[i] = isFreezing ? z : none;
+                    }
+                    g["rain"] = rain;
+                    g["snow"] = snow;
+                    g["sleet"] = sleet;
+                    g["freezing"] = freezing;
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "rain"); };
+                x.ramp = Ramp{{{0, QColor{160, 255, 0, 0}}, {4.9, QColor{160, 255, 0, 0}}, {5, QColor{160, 255, 0}}, {15, QColor{80, 220, 0}}, {25, QColor{0, 170, 0}}, {35, QColor{255, 230, 0}}, {45, QColor{255, 150, 0}},
+                                {55, QColor{230, 0, 0}}, {65, QColor{255, 170, 170}}, {75, QColor{160, 60, 220}}}};   // the rain scale of the model guidance site: greens, then yellow, orange, red, pink and purple for the heaviest
+                x.overlays = {{"snow", shades(QColor{205, 225, 255}, QColor{0, 0, 150})}, {"sleet", shades(QColor{235, 205, 255}, QColor{95, 0, 135})}, {"freezing", shades(QColor{255, 205, 205}, QColor{150, 0, 0})}};
+                x.fillTitle = "Reflectivity at 1 km (dBZ): green rain, blue snow, purple sleet, red freezing rain";
                 x.legendStep = 10;
-                x.contours = {pressure()};
-                x.contours[0].highsAndLows = false;
                 p.push_back(x);
             }
             {
@@ -1643,14 +1801,12 @@ const std::vector<Product>& products() {
             }
             {
                 auto x = make("precip_rate", "Precipitation Rate");
-                x.wants = {want("r", "PRATE", "surface"), sea()};
+                x.wants = {want("r", "PRATE", "surface")};
                 x.fill = scaledOf("r", 3600.0);   // mm per second -> mm per hour
                 x.ramp = precipitation();
                 x.quantity = Quantity::Millimeters;
                 x.fillTitle = "Precipitation rate (per hour)";
                 x.legendStep = 0;
-                x.contours = {pressure()};
-                x.contours[0].highsAndLows = false;
                 p.push_back(x);
             }
             {
@@ -1668,13 +1824,13 @@ const std::vector<Product>& products() {
             }
             {
                 auto x = make("925_temp_wnd", "925mb Temperature and Wind");
-                x.wants = {want("t", "TMP", "925 mb"), want("u", "UGRD", "925 mb"), want("v", "VGRD", "925 mb"), want("z", "HGT", "925 mb")};
+                x.wants = {want("t", "TMP", "925 mb"), want("u", "UGRD", "925 mb"), want("v", "VGRD", "925 mb")};
                 x.fill = [] (const Grids& g) { return pick(g, "t"); };
                 x.ramp = temperature();
                 x.quantity = Quantity::Temperature;
                 x.fillTitle = "925 mb temperature";
                 x.legendStep = 5;
-                x.contours = {heights(3)};
+                // the model guidance site draws no height lines here: the temperature and the wind only
                 x.barbU = "u";
                 x.barbV = "v";
                 p.push_back(x);
@@ -1693,7 +1849,9 @@ const std::vector<Product>& products() {
             }
             {   // 700 mb humidity with the rising air as lines: the model's vertical velocity in m/s changed to omega in Pa/s with the density of air at 700 mb (about 0.9 kg per cubic meter)
                 auto x = make("700_rh_ht", "700mb Relative Humidity, Height and Omega");
-                x.wants = {want("z", "HGT", "700 mb"), want("rh", "RH", "700 mb"), want("w", "DZDT", "700 mb")};
+                x.wants = {want("z", "HGT", "700 mb"), want("rh", "RH", "700 mb"), want("w", "DZDT", "700 mb"), want("u", "UGRD", "700 mb"), want("v", "VGRD", "700 mb")};
+                x.barbU = "u";
+                x.barbV = "v";
                 x.derive = [] (Grids& g, const Context&) { g["o"] = GfsGrid::scaled(g["w"], -0.9 * 9.80665); };
                 x.fill = [] (const Grids& g) { return pick(g, "rh"); };
                 x.ramp = humidity();
@@ -2173,6 +2331,66 @@ const std::vector<Product>& products() {
             }
         };
 
+        // ---- the wave models (GFS-Wave and the GEFS-Wave ensemble mean): each wave component (all of the sea, the wind sea, the three swells) as a height map with the wind, and as the period
+        // with the direction the waves come from drawn as streamlines
+        const auto waveRecipes = [&] (const char * model) {
+            struct Component {
+                const char * name;
+                const char * label;
+                const char * heightId;
+                const char * directionId;
+                const char * height;
+                const char * period;
+                const char * direction;
+                const char * level;
+            };
+            for (const auto& c : {Component{"Significant Wave Height", "Significant Wave Height and Wind", "sig_wv_ht", "peak_dir_per", "HTSGW", "PERPW", "DIRPW", "surface"},
+                                  Component{"Wind Sea", "Wind Sea Wave Height and Wind", "wsea_wv_ht", "wsea_dir_per", "WVHGT", "WVPER", "WVDIR", "surface"},
+                                  Component{"Primary Swell", "Primary Swell Wave Height and Wind", "swell1_wv_ht", "swell1_dir_per", "SWELL", "SWPER", "SWDIR", "1 in sequence"},
+                                  Component{"Secondary Swell", "Secondary Swell Wave Height and Wind", "swell2_wv_ht", "swell2_dir_per", "SWELL", "SWPER", "SWDIR", "2 in sequence"},
+                                  Component{"Tertiary Swell", "Tertiary Swell Wave Height and Wind", "swell3_wv_ht", "swell3_dir_per", "SWELL", "SWPER", "SWDIR", "3 in sequence"}}) {
+                {
+                    Product x;
+                    x.source = model;
+                    x.id = c.heightId;
+                    x.label = c.label;
+                    x.wants = {want("h", c.height, c.level), want("u", "UGRD", "surface"), want("v", "VGRD", "surface")};
+                    x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                    x.ramp = waveHeight();
+                    x.quantity = Quantity::Meters;
+                    x.fillTitle = std::string{c.name} + (std::string{c.heightId} == "sig_wv_ht" ? "" : " height");
+                    x.legendStep = 0;
+                    x.barbU = "u";
+                    x.barbV = "v";
+                    p.push_back(x);
+                }
+                {
+                    Product x;
+                    x.source = model;
+                    x.id = c.directionId;
+                    x.label = std::string{c.name} + " Direction and Period (sec)";
+                    x.wants = {want("t", c.period, c.level), want("d", c.direction, c.level)};
+                    x.derive = [] (Grids& g, const Context&) {   // the direction the waves come from, as a flow toward where they go
+                        auto u = g["d"], v = g["d"];
+                        for (size_t i = 0; i < u.values.size(); i++) {
+                            const double from = g["d"].values[i] * pi / 180.0;
+                            u.values[i] = std::isnan(g["d"].values[i]) ? std::nanf("") : static_cast<float>(-std::sin(from));
+                            v.values[i] = std::isnan(g["d"].values[i]) ? std::nanf("") : static_cast<float>(-std::cos(from));
+                        }
+                        g["su"] = u;
+                        g["sv"] = v;
+                    };
+                    x.fill = [] (const Grids& g) { return pick(g, "t"); };
+                    x.ramp = wavePeriod();
+                    x.fillTitle = std::string{c.name} + " period (s); lines: direction the waves travel";
+                    x.legendStep = 2;
+                    x.streamU = "su";
+                    x.streamV = "sv";
+                    p.push_back(x);
+                }
+            }
+        };
+
         // ---- HAFS: the hurricane model for one storm (the screen picks the storm): wind, simulated radar and satellite, rain, sea surface temperature, shear, waves
         const auto hafsRecipes = [&] (const char * model) {
             const auto hurricaneLines = [&pressure] {
@@ -2293,7 +2511,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"RRFS", rrfsRecipes}, {"REFS", refsRecipes}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"RRFS", rrfsRecipes}, {"REFS", refsRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);
@@ -2631,6 +2849,7 @@ namespace {
             case Quantity::Temperature: return value * 1.8 + 32.0;
             case Quantity::Millimeters: return value / 25.4;
             case Quantity::Centimeters: return value / 2.54;
+            case Quantity::Meters: return value * 3.28084;   // wave heights in feet
             default: return value;
         }
     }
@@ -2639,6 +2858,7 @@ namespace {
             case Quantity::Temperature: return us ? "°F" : "°C";
             case Quantity::Millimeters: return us ? "in" : "mm";
             case Quantity::Centimeters: return us ? "in" : "cm";
+            case Quantity::Meters: return us ? "ft" : "m";
             default: return {};
         }
     }

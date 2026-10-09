@@ -15,7 +15,11 @@ int main(int argc, char ** argv) {
     QGuiApplication app{argc, argv};
     if (argc == 2 && std::string{argv[1]} == "--list") {   // every chart the registry draws: model, id, label
         for (const auto& p : GfsChart::products()) {
-            std::printf("%s\t%s\t%s\t%s\n", p.source.c_str(), p.id.c_str(), p.label.c_str(), GfsChart::category(p).c_str());
+            std::string lines;
+            for (const auto& c : p.contours) {
+                lines += (lines.empty() ? "" : ";") + c.title;
+            }
+            std::printf("%s\t%s\t%s\t%s\t%s\t%d\t%d\t%s\n", p.source.c_str(), p.id.c_str(), p.label.c_str(), GfsChart::category(p).c_str(), lines.c_str(), p.barbU.empty() ? 0 : 1, p.streamU.empty() ? 0 : 1, p.fillTitle.c_str());
         }
         return 0;
     }
@@ -48,7 +52,9 @@ int main(int argc, char ** argv) {
     }
     GfsData data{config, def->source(hurricane ? sourceArg.substr(sourceArg.find(':') + 1) : std::string{})};
     GfsData::Run run;
-    if (!data.latestRun(run)) {
+    if (const char * forced = std::getenv("DEMO_RUN"); forced && std::string{forced}.size() == 10) {   // DEMO_RUN=2026100818: that run, not the newest (to set a chart beside the model guidance site's of the same run)
+        run = {std::string{forced}.substr(0, 8), std::string{forced}.substr(8, 2)};
+    } else if (!data.latestRun(run)) {
         std::printf("no run\n");
         return 1;
     }

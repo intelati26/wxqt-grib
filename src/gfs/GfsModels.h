@@ -36,6 +36,7 @@ namespace GfsModels {
         bool pieces{true};                             // precipitation comes as 6 hour amounts, not running totals
         std::map<std::string, std::string> rename;     // the GFS field name -> the model's own
         std::string labelPrefix;                       // "Mean " for an ensemble mean
+        std::vector<std::string> plain;                // charts whose id starts with one of these are made from the GFS chart without the lines MAG draws on it (an ensemble's precipitation has its spread instead)
     };
     enum class Sectors { World, Conus, Storm };       // the regions of the sector list: everywhere, the contiguous United States only, or the storm's own grid
     enum class Missing { Nothing, MainRun, PreviousCycle };   // when a run lacks a field: nothing, the newest 00 / 06 / 12 / 18Z run, or the cycle before six hours further on

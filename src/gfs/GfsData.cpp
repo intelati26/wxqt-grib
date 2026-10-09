@@ -156,6 +156,34 @@ GfsData::Source GfsData::refs() {
     return s;
 }
 
+GfsData::Source GfsData::gfsWave() {
+    Source s;
+    s.id = "GFS-WAVE";
+    s.label = "NOAA/NCEP GFS-Wave 0.16 degree";
+    s.fileUrl = [] (const Run& run, int hour, const std::string&) {
+        return "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs." + run.date + "/" + run.cycle + "/wave/gridded/gfswave.t" + run.cycle + "z.global.0p16.f" + pad(hour, 3) + ".grib2";
+    };
+    s.cycleHours = 6;
+    s.lagHours = 5;
+    s.probeHour = 384;   // a run is there when its last hour is
+    s.extraMissing = 9999.0f;   // over land
+    return s;
+}
+
+GfsData::Source GfsData::gefsWave() {
+    Source s;
+    s.id = "GEFS-WAVE";
+    s.label = "NOAA/NCEP GEFS-Wave, control member, 0.25 degree";
+    s.fileUrl = [] (const Run& run, int hour, const std::string&) {
+        return "https://noaa-gefs-pds.s3.amazonaws.com/gefs." + run.date + "/" + run.cycle + "/wave/gridded/gefs.wave.t" + run.cycle + "z.c00.global.0p25.f" + pad(hour, 3) + ".grib2";
+    };
+    s.cycleHours = 6;
+    s.lagHours = 7;
+    s.probeHour = 384;
+    s.extraMissing = 9999.0f;
+    return s;
+}
+
 GfsData::Source GfsData::nbm() {
     Source s;
     s.id = "NBM";

@@ -38,7 +38,7 @@ namespace GfsChart {
 
     using Grids = std::map<std::string, GfsGrid::Grid>;
     // What the fill's numbers are, for showing them in the user's units (the grids are in degrees C, millimeters, centimeters and so on)
-    enum class Quantity { Other, Temperature, Millimeters, Centimeters };
+    enum class Quantity { Other, Temperature, Millimeters, Centimeters, Meters };
 
     // what a product's own derivations may need: the hour, the run (for the valid date) and the climatology
     struct Context {

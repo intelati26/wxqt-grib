@@ -68,6 +68,9 @@ public:
     // The Rapid Refresh Forecast System's ensemble (REFS): 5 members at 3 km (the `stat` of a want names the member, "m001" ... "m005") and the ready-made products of its own (the stat "ens:avrg",
     // "ens:eas" for the probabilities, "ens:ffri" for flash flood risk)
     static Source refs();
+    // The wave models: GFS-Wave's global 0.16 degree grid, and the GEFS-Wave control member on 0.25 (the ensemble mean file has no wind components and lists its swells ambiguously) (latitude / longitude grids, one file for the sea state at each hour)
+    static Source gfsWave();
+    static Source gefsWave();
     // The hurricane model for one active storm ('model' "HAFSA" or "HAFSB", 'storm' "09l": the NHC number and basin letter). Its grid follows the storm and is only there while the storm is.
     static Source hafs(const std::string& model, const std::string& storm);
 

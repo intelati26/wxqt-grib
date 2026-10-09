@@ -56,6 +56,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.clone.levels = {"10 mb", "50 mb", "100 mb", "200 mb", "250 mb", "300 mb", "400 mb", "500 mb", "700 mb", "850 mb", "925 mb", "1000 mb"};
             d.clone.pieces = true;
             d.clone.labelPrefix = "Mean ";
+            d.clone.plain = {"precip_p"};
             m.push_back(d);
         }
         {   // the 3 km Rapid Refresh Forecast System: precipitation has running totals, and sea level pressure is MSLET
@@ -69,7 +70,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.overlays = true;
             d.recipeList = true;
             d.clone.enabled = true;
-            d.clone.variables = {"HGT", "TMP", "RH", "UGRD", "VGRD", "ABSV", "DPT", "PRMSL", "PWAT", "CAPE", "CIN", "APCP", "CRAIN", "CSNOW", "CFRZR", "CICEP", "TCDC", "GUST", "SNOD", "WEASD", "REFC", "HLCY", "VIS"};
+            d.clone.variables = {"HGT", "TMP", "RH", "UGRD", "VGRD", "ABSV", "DPT", "PRMSL", "PWAT", "CAPE", "CIN", "APCP", "CRAIN", "CSNOW", "CFRZR", "CICEP", "TCDC", "GUST", "SNOD", "WEASD", "REFC", "HLCY", "VIS", "PRATE"};
             d.clone.levels = {"200 mb", "250 mb", "300 mb", "400 mb", "500 mb", "700 mb", "850 mb", "925 mb", "1000 mb"};
             d.clone.skip = {"anom"};
             d.clone.pieces = false;
@@ -85,6 +86,22 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.hours = {{0, 60, 1}};
             d.recipeList = true;
             m.push_back(d);
+        }
+        {   // the wave models
+            Def d;
+            d.id = "GFS-WAVE";
+            d.label = "NOAA/NCEP GFS-Wave 0.16 degree";
+            d.source = [] (const std::string&) { return GfsData::gfsWave(); };
+            d.hours = {{0, 120, 1}, {123, 384, 3}};
+            d.recipeList = true;
+            m.push_back(d);
+            Def e;
+            e.id = "GEFS-WAVE";
+            e.label = "NOAA/NCEP GEFS-Wave, control member, 0.25 degree";
+            e.source = [] (const std::string&) { return GfsData::gefsWave(); };
+            e.hours = {{0, 240, 3}, {246, 384, 6}};
+            e.recipeList = true;
+            m.push_back(e);
         }
         for (const char * version : {"HAFSA", "HAFSB"}) {   // the hurricane model, for one storm at a time
             Def d;

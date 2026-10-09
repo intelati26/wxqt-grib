@@ -1,0 +1,2403 @@
+{
+ "GFS": {
+  "description": "Global Forecast System Model: (000 - 120 every hour, 123 - 240 every 3 hours 252 - 384 every 12 hours)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p01",
+    "label": "Total Precipitation every hour"
+   },
+   {
+    "id": "precip_p03",
+    "label": "Total Precipitation every 3 hours"
+   },
+   {
+    "id": "precip_p06",
+    "label": "Total Precipitation every 6 hours"
+   },
+   {
+    "id": "precip_p12",
+    "label": "Total Precipitation every 12 hours"
+   },
+   {
+    "id": "precip_p24",
+    "label": "Total Precipitation every 24 hours"
+   },
+   {
+    "id": "precip_p36",
+    "label": "Total Precipitation every 36 hours"
+   },
+   {
+    "id": "precip_p48",
+    "label": "Total Precipitation every 48 hours"
+   },
+   {
+    "id": "precip_p60",
+    "label": "Total Precipitation every 60 hours"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation of Period"
+   },
+   {
+    "id": "precip_rate_type",
+    "label": "Precipitation Rate"
+   },
+   {
+    "id": "sim_radar_comp",
+    "label": "Simulated Composite Radar Reflectivity"
+   },
+   {
+    "id": "snodpth_chng",
+    "label": "Snow Depth Change from F00"
+   },
+   {
+    "id": "1000_500_thick",
+    "label": "MSLP, 1000-500mb thickness and 3-, or 12-hourly total precipitation"
+   },
+   {
+    "id": "1000_850_thick",
+    "label": "MSLP, 1000-850mb thickness and 3- or 12-hourly total precipitation"
+   },
+   {
+    "id": "850_700_thick",
+    "label": "MSLP, 850-700mb thickness, and 3- or 12-hourly total precipitation"
+   },
+   {
+    "id": "850_temp_mslp_precip",
+    "label": "MSLP, 850mb temperature, 3- or 12-hourly total precipitation"
+   },
+   {
+    "id": "10m_wnd_precip",
+    "label": "MSLP, 10m wind, 2m temperature, and 3- or 12-hourly total precipitation"
+   },
+   {
+    "id": "10m_wnd_2m_temp",
+    "label": "MSLP, 10m wind, 2m temperature"
+   },
+   {
+    "id": "200_wnd_ht",
+    "label": "200mb Wind and Height"
+   },
+   {
+    "id": "250_wnd_ht",
+    "label": "250mb Wind and Height"
+   },
+   {
+    "id": "300_wnd_ht",
+    "label": "300mb Wind and Height"
+   },
+   {
+    "id": "500_rh_ht",
+    "label": "500mb Relative Humidity and Height"
+   },
+   {
+    "id": "500_wnd_ht",
+    "label": "500mb Wind and Height"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity, Wind, and Height"
+   },
+   {
+    "id": "700_rh_ht",
+    "label": "700mb Relative Humidity, Height and Omega"
+   },
+   {
+    "id": "850_pw_ht",
+    "label": "850mb Height, Precipitable Water and Wind"
+   },
+   {
+    "id": "850_rh_ht",
+    "label": "850mb Relative Humidity and Height"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind and Height"
+   },
+   {
+    "id": "850_vort_ht",
+    "label": "850mb Vorticity, Wind and Height"
+   },
+   {
+    "id": "850vor_500ht_200wd",
+    "label": "850mb Vorticity, 500mb Height, 200mb Wind"
+   },
+   {
+    "id": "925_temp_ht",
+    "label": "925mb Temperature, Wind and Height"
+   }
+  ]
+ },
+ "NAM": {
+  "description": "North American Mesoscale Model (000 - 084 every 3 hours)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p01",
+    "label": "Total Precipitation every hour"
+   },
+   {
+    "id": "precip_p03",
+    "label": "Total Precipitation every 3 hours"
+   },
+   {
+    "id": "precip_p06",
+    "label": "Total Precipitation every 6 hours"
+   },
+   {
+    "id": "precip_p12",
+    "label": "Total Precipitation every 12 hours"
+   },
+   {
+    "id": "precip_p24",
+    "label": "Total Precipitation every 24 hours"
+   },
+   {
+    "id": "precip_p36",
+    "label": "Total Precipitation every 36 hours"
+   },
+   {
+    "id": "precip_p48",
+    "label": "Total Precipitation every 48 hours"
+   },
+   {
+    "id": "precip_p60",
+    "label": "Total Precipitation every 60 hours"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation of Period"
+   },
+   {
+    "id": "precip_rate_type",
+    "label": "Precipitation Rate"
+   },
+   {
+    "id": "sim_radar_1km",
+    "label": "Simulated Radar Reflectivity 1km"
+   },
+   {
+    "id": "snodpth_chng",
+    "label": "Snow Depth Change from F00"
+   },
+   {
+    "id": "1000_500_thick",
+    "label": "MSLP, 1000-500mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "1000_850_thick",
+    "label": "MSLP, 1000-850mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "850_700_thick",
+    "label": "MSLP, 850-700mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "850_temp_mslp_precip",
+    "label": "MSLP, 850mb temperature, 3-hourly total precipitation"
+   },
+   {
+    "id": "10m_wnd_precip",
+    "label": "MSLP, 10m wind, 2m temperature, and 3-hourly total precip"
+   },
+   {
+    "id": "10m_wnd_2m_temp",
+    "label": "MSLP, 10m wind, 3 hourly total precip, 2m temperature"
+   },
+   {
+    "id": "200_wnd_ht",
+    "label": "200mb Wind and Height"
+   },
+   {
+    "id": "250_wnd_ht",
+    "label": "250mb Wind and Height"
+   },
+   {
+    "id": "300_wnd_ht",
+    "label": "300mb Wind and Height"
+   },
+   {
+    "id": "500_rh_ht",
+    "label": "500mb Relative Humidity and Height"
+   },
+   {
+    "id": "500_wnd_ht",
+    "label": "500mb Wind and Height"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity, Wind, and Height"
+   },
+   {
+    "id": "700_rh_ht",
+    "label": "700mb Relative Humidity, Height and Omega"
+   },
+   {
+    "id": "850_pw_ht",
+    "label": "850mb Height, Precipitable Water and Wind"
+   },
+   {
+    "id": "850_rh_ht",
+    "label": "850mb Relative Humidity and Height"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind and Height"
+   },
+   {
+    "id": "850_vort_ht",
+    "label": "850mb Vorticity, Wind and Height"
+   },
+   {
+    "id": "850vor_500ht_200wd",
+    "label": "850mb Vorticity, 500mb Height, 200mb Wind"
+   },
+   {
+    "id": "925_temp_ht",
+    "label": "925mb Temperature, Wind and Height"
+   }
+  ]
+ },
+ "HRRR": {
+  "description": "High Resolution Rapid Refresh (updated every quarter hour)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p01",
+    "label": "Hourly Total Precipitation"
+   },
+   {
+    "id": "precip_rate_type",
+    "label": "Precipitation Rate"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation"
+   },
+   {
+    "id": "precip_rate",
+    "label": "Precipitation Rate"
+   },
+   {
+    "id": "snow_total",
+    "label": "Total Accumulated Snowfall"
+   },
+   {
+    "id": "sim_radar_1km",
+    "label": "Simulated Radar Reflectivity 1km"
+   },
+   {
+    "id": "sim_radar_comp",
+    "label": "Simulated Composite Radar Reflectivity"
+   },
+   {
+    "id": "sim_radar_max",
+    "label": "Max Simulated Radar Reflectivity"
+   },
+   {
+    "id": "1000_500_thick",
+    "label": "PMSL, 1000-500mb thickness, 1-hourly precipitation"
+   },
+   {
+    "id": "1000_850_thick",
+    "label": "PMSL, 1000-850mb thickness, 1-hourly precipitation"
+   },
+   {
+    "id": "850_700_thick",
+    "label": "PMSL, 850-700mb thickness, 1-hourly precipitation"
+   },
+   {
+    "id": "850_temp_mslp_precip",
+    "label": "MSLP, 850mb temperature, 1hourly precipitation"
+   },
+   {
+    "id": "helicity_1km",
+    "label": "0-1km Helicity and Storm Motion"
+   },
+   {
+    "id": "helicity_3km",
+    "label": "0-3km Helicity and Storm Motion"
+   },
+   {
+    "id": "max_updraft_hlcy",
+    "label": "Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "accu_max_updraft_hlcy",
+    "label": "Acccumulated Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "10m_wnd",
+    "label": "10 meter Wind"
+   },
+   {
+    "id": "10m_maxwnd",
+    "label": "Max 10m Wind Speed"
+   },
+   {
+    "id": "2m_temp_10m_wnd",
+    "label": "2 meter Temperature and 10 meter Wind"
+   },
+   {
+    "id": "2m_dewp_10m_wnd",
+    "label": "2 meter Dew Point and 10 meter wind"
+   },
+   {
+    "id": "10m_wnd_sfc_gust",
+    "label": "10 meter wind gust"
+   },
+   {
+    "id": "sfc_cape_cin",
+    "label": "Surface-Based Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "best_cape_cin",
+    "label": "Most Unstable Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "lightning",
+    "label": "Lightning Flash Rate "
+   },
+   {
+    "id": "echo_top",
+    "label": "Echo Tops"
+   },
+   {
+    "id": "ceiling",
+    "label": "Cloud Ceiling "
+   },
+   {
+    "id": "vis",
+    "label": "Visibility"
+   },
+   {
+    "id": "250_wnd",
+    "label": "250mb Wind"
+   },
+   {
+    "id": "300_wnd",
+    "label": "300mb Wind"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity, Wind, and Height"
+   },
+   {
+    "id": "500_temp_ht",
+    "label": "500mb Temperature, Wind and Height"
+   },
+   {
+    "id": "700_rh_ht",
+    "label": "700mb Relative Humidity, Wind, Height and Omega"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind, and Height"
+   },
+   {
+    "id": "925_temp_wnd",
+    "label": "925mb Temperature and Wind"
+   }
+  ]
+ },
+ "SREF": {
+  "description": "Short Range Ensemble Forecast Model (updated every 6 hours)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p03",
+    "label": "Mean 3-hour Precipitation"
+   },
+   {
+    "id": "precip_p06",
+    "label": "Mean 6-hour Precipitation"
+   },
+   {
+    "id": "precip_p12",
+    "label": "Mean 12-hour Precipitation"
+   },
+   {
+    "id": "precip_p24",
+    "label": "Mean 24-hour Precipitation"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation of Period"
+   },
+   {
+    "id": "prob_precip_0.25in",
+    "label": "Probability of 6-hrly Precipitation > 0.25 (in)"
+   },
+   {
+    "id": "snow_total_mean",
+    "label": "Snow Total Mean"
+   },
+   {
+    "id": "snow_total_sprd",
+    "label": "Snow Total Spread"
+   },
+   {
+    "id": "1000_500_thick",
+    "label": "Mean 1000-500mb Thickness (m)"
+   },
+   {
+    "id": "1000_850_thick",
+    "label": "Mean 1000-850mb Thickness (m)"
+   },
+   {
+    "id": "850_700_thick",
+    "label": "Mean 850-700mb Thickness (m)"
+   },
+   {
+    "id": "10m_wind",
+    "label": "10m Winds"
+   },
+   {
+    "id": "prob_10m_wind",
+    "label": "Probability of 10m Wind Speeds > 25 knots"
+   },
+   {
+    "id": "2m_temp",
+    "label": "2m Temperature"
+   },
+   {
+    "id": "prob_2m_temp_0C",
+    "label": "Probablility of 2m Temperature < 0"
+   },
+   {
+    "id": "lifted_index",
+    "label": "Mean Lifted Index"
+   },
+   {
+    "id": "cape",
+    "label": "Mean Convective Available Potential Energy"
+   },
+   {
+    "id": "prob_cape",
+    "label": "Probability of Cape"
+   },
+   {
+    "id": "cin",
+    "label": "Mean Convective Inhibition"
+   },
+   {
+    "id": "mslp",
+    "label": "Mean Sea Level Pressure"
+   },
+   {
+    "id": "250_vort_ht",
+    "label": "250mb Vorticity and Height"
+   },
+   {
+    "id": "250_wnd",
+    "label": "250mb Wind"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity and Height"
+   },
+   {
+    "id": "700_rh",
+    "label": "700mb Relative Humidity"
+   },
+   {
+    "id": "700_temp",
+    "label": "700mb Temperature"
+   },
+   {
+    "id": "850_rh",
+    "label": "850mb Relative Humidity"
+   },
+   {
+    "id": "850_temp",
+    "label": "850mb Temperature"
+   },
+   {
+    "id": "850_wnd",
+    "label": "850mb Wind"
+   }
+  ]
+ },
+ "GFS-WAVE": {
+  "description": "GFS - Wave Model",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "peak_dir_per",
+    "label": "Peak Wave Direction and Period (sec)"
+   },
+   {
+    "id": "sig_wv_ht",
+    "label": "Significant Wave Height and Wind"
+   },
+   {
+    "id": "wsea_dir_per",
+    "label": "Wind Sea Direction and Period (sec)"
+   },
+   {
+    "id": "wsea_wv_ht",
+    "label": "Wind Sea Wave Height and Wind"
+   },
+   {
+    "id": "swell1_wv_ht",
+    "label": "Primary Swell Wave Height and Wind"
+   },
+   {
+    "id": "swell1_dir_per",
+    "label": "Primary Swell Direction and Period (sec)"
+   },
+   {
+    "id": "swell2_wv_ht",
+    "label": "Secondary Swell Wave Height and Wind"
+   },
+   {
+    "id": "swell2_dir_per",
+    "label": "Secondary Swell Direction and Period (sec)"
+   },
+   {
+    "id": "swell3_dir_per",
+    "label": "Tertiary Swell Direction and Period (sec)"
+   },
+   {
+    "id": "swell3_wv_ht",
+    "label": "Tertiary Swell Wave Height and Wind"
+   }
+  ]
+ },
+ "AIGFS": {
+  "description": "AI Global Forecast System Model",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p06",
+    "label": "6-hour Accumulated Precipitation"
+   },
+   {
+    "id": "precip_p12",
+    "label": "Total Precipitation every 12 hours"
+   },
+   {
+    "id": "precip_p24",
+    "label": "Total Precipitation every 24 hours"
+   },
+   {
+    "id": "precip_p36",
+    "label": "Total Precipitation every 36 hours"
+   },
+   {
+    "id": "precip_p48",
+    "label": "Total Precipitation every 48 hours"
+   },
+   {
+    "id": "precip_p60",
+    "label": "Total Precipitation every 60 hours"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation of Period"
+   },
+   {
+    "id": "1000_500_thick",
+    "label": "MSLP, 1000-500mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "1000_850_thick",
+    "label": "MSLP, 1000-850mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "850_700_thick",
+    "label": "MSLP, 850-700mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "850_temp_mslp_precip",
+    "label": "MSLP, 850mb temperature, 3- or 12-hourly total precipitation"
+   },
+   {
+    "id": "10m_wnd_precip",
+    "label": "MSLP, 10m wind, 2m temperature, and 3- or 12-hourly total precipitation"
+   },
+   {
+    "id": "10m_wnd_2m_temp",
+    "label": "MSLP, 10m wind, 2m temperature"
+   },
+   {
+    "id": "200_wnd_ht",
+    "label": "200mb Wind and Height"
+   },
+   {
+    "id": "250_wnd_ht",
+    "label": "250mb Wind and Height"
+   },
+   {
+    "id": "300_wnd_ht",
+    "label": "300mb Wind and Height"
+   },
+   {
+    "id": "500_rh_ht",
+    "label": "500mb Relative Humidity and Height"
+   },
+   {
+    "id": "500_wnd_ht",
+    "label": "500mb Wind and Height"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity, Wind, and Height"
+   },
+   {
+    "id": "700_rh_ht",
+    "label": "700mb Relative Humidity, Height and Omega"
+   },
+   {
+    "id": "850_rh_ht",
+    "label": "850mb Relative Humidity and Height"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind and Height"
+   },
+   {
+    "id": "850_vort_ht",
+    "label": "850mb Vorticity, Wind and Height"
+   },
+   {
+    "id": "850vor_500ht_200wd",
+    "label": "850mb Vorticity, 500mb Height, 200mb Wind"
+   },
+   {
+    "id": "925_temp_ht",
+    "label": "925mb Temperature, Wind and Height"
+   }
+  ]
+ },
+ "NAM-HIRES": {
+  "description": "United States Mesoscale Model 3km (000 - 060 every hour)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p01",
+    "label": "Total Precipitation every hour"
+   },
+   {
+    "id": "precip_p03",
+    "label": "Total Precipitation every 3 hours"
+   },
+   {
+    "id": "precip_p06",
+    "label": "Total Precipitation every 6 hours"
+   },
+   {
+    "id": "precip_p12",
+    "label": "Total Precipitation every 12 hours"
+   },
+   {
+    "id": "precip_p24",
+    "label": "Total Precipitation every 24 hours"
+   },
+   {
+    "id": "precip_p36",
+    "label": "Total Precipitation every 36 hours"
+   },
+   {
+    "id": "precip_p48",
+    "label": "Total Precipitation every 48 hours"
+   },
+   {
+    "id": "precip_p60",
+    "label": "Total Precipitation every 60 hours"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation of Period"
+   },
+   {
+    "id": "precip_rate_type",
+    "label": "Precipitation Rate"
+   },
+   {
+    "id": "sim_radar_1km",
+    "label": "Simulated Radar Reflectivity 1km"
+   },
+   {
+    "id": "sim_radar_comp",
+    "label": "Simulated Composite Radar Reflectivity"
+   },
+   {
+    "id": "snodpth_chng",
+    "label": "Snow Depth Change from F00"
+   },
+   {
+    "id": "1000_500_thick",
+    "label": "MSLP, 1000-500mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "1000_850_thick",
+    "label": "MSLP, 1000-850mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "850_700_thick",
+    "label": "MSLP, 850-700mb thickness, 3 hourly total precipitation"
+   },
+   {
+    "id": "850_temp_mslp_precip",
+    "label": "MSLP, 850mb temperature, 3 hourly total precipitation"
+   },
+   {
+    "id": "10m_wnd",
+    "label": "10 meter Wind"
+   },
+   {
+    "id": "10m_maxwnd",
+    "label": "Max 10m Wind Speed"
+   },
+   {
+    "id": "10m_wnd_precip",
+    "label": "MSLP, 10m wind, 3 hourly total precip, 2m temperature"
+   },
+   {
+    "id": "10m_wnd_sfc_gust",
+    "label": "10 meter wind gust"
+   },
+   {
+    "id": "2m_dewp_10m_wnd",
+    "label": "2 meter Dew Point and 10 meter wind"
+   },
+   {
+    "id": "2m_temp_10m_wnd",
+    "label": "2 meter Temperature and 10 meter Wind"
+   },
+   {
+    "id": "best_cape_cin",
+    "label": "Most Unstable Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "sfc_cape_cin",
+    "label": "Surface-Based Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "helicity_1km",
+    "label": "0-1km Helicity and Storm Motion"
+   },
+   {
+    "id": "helicity_3km",
+    "label": "0-3km Helicity and Storm Motion"
+   },
+   {
+    "id": "max_updraft_hlcy",
+    "label": "Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "accu_max_updraft_hlcy",
+    "label": "Acccumulated Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "echo_top",
+    "label": "Echo Tops"
+   },
+   {
+    "id": "ceiling",
+    "label": "Cloud Ceiling "
+   },
+   {
+    "id": "vis",
+    "label": "Visibility"
+   },
+   {
+    "id": "200_wnd_ht",
+    "label": "200mb Wind and Height"
+   },
+   {
+    "id": "250_wnd_ht",
+    "label": "250mb Wind and Height"
+   },
+   {
+    "id": "300_wnd_ht",
+    "label": "300mb Wind and Height"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity, Wind, and Height"
+   },
+   {
+    "id": "500_temp_ht",
+    "label": "500mb Temperature, Wind and Height"
+   },
+   {
+    "id": "700_rh_ht",
+    "label": "700mb Relative Humidity, Height and Omega"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind and Height"
+   },
+   {
+    "id": "850_vort_ht",
+    "label": "850mb Vorticity, Wind and Height"
+   },
+   {
+    "id": "850_pw_ht",
+    "label": "850mb Height, Precipitable Water and Wind"
+   },
+   {
+    "id": "850vor_500ht_200wd",
+    "label": "850mb Vorticity, 500mb Height, 200mb Wind"
+   },
+   {
+    "id": "925_temp_ht",
+    "label": "925mb Temperature, Wind and Height"
+   }
+  ]
+ },
+ "HRW-FV3": {
+  "description": "High Resolution Window/Non-Hydrostatic, hybrid, vert coordinate Mesoscale Model",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p01",
+    "label": "Total Precipitation every 1 hour"
+   },
+   {
+    "id": "precip_p03",
+    "label": "Total Precipitation every 3 hours"
+   },
+   {
+    "id": "precip_p06",
+    "label": "Total Precipitation every 6 hours"
+   },
+   {
+    "id": "precip_p12",
+    "label": "Total Precipitation every 12 hours"
+   },
+   {
+    "id": "precip_p24",
+    "label": "Total Precipitation every 24 hours"
+   },
+   {
+    "id": "precip_p36",
+    "label": "Total Precipitation every 36 hours"
+   },
+   {
+    "id": "precip_p48",
+    "label": "Total Precipitation every 48 hours"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation"
+   },
+   {
+    "id": "sim_radar_1km",
+    "label": "Simulated Radar Reflectivity 1km"
+   },
+   {
+    "id": "sim_radar_comp",
+    "label": "Simulated Composite Radar Reflectivity"
+   },
+   {
+    "id": "1000_500_thick",
+    "label": "MSLP, 1000-500mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "1000_850_thick",
+    "label": "MSLP, 1000-850mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "850_700_thick",
+    "label": "MSLP, 850-700mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "10m_wnd",
+    "label": "10 meter Wind"
+   },
+   {
+    "id": "10m_wnd_precip",
+    "label": "MSLP, 10m wind, 3-hourly total precip, 2m temperature"
+   },
+   {
+    "id": "10m_wnd_sfc_gust",
+    "label": "10 meter wind gust"
+   },
+   {
+    "id": "2m_dewp_10m_wnd",
+    "label": "2 meter Dew Point and 10 meter wind"
+   },
+   {
+    "id": "2m_temp_10m_wnd",
+    "label": "2 meter Temperature and 10 meter Wind"
+   },
+   {
+    "id": "best_cape_cin",
+    "label": "Most Unstable Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "sfc_cape_cin",
+    "label": "Surface-Based Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "helicity_1km",
+    "label": "0-1km Helicity and Storm Motion"
+   },
+   {
+    "id": "helicity_3km",
+    "label": "0-3km Helicity and Storm Motion"
+   },
+   {
+    "id": "max_updraft_hlcy",
+    "label": "Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "accu_max_updraft_hlcy",
+    "label": "Acccumulated Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "echo_top",
+    "label": "Echo Tops"
+   },
+   {
+    "id": "ceiling",
+    "label": "Cloud Ceiling "
+   },
+   {
+    "id": "vis",
+    "label": "Visibility"
+   },
+   {
+    "id": "250_wnd_ht",
+    "label": "250mb Wind and Height"
+   },
+   {
+    "id": "300_wnd_ht",
+    "label": "300mb Wind and Height"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity, Wind, and Height"
+   },
+   {
+    "id": "700_rh_ht",
+    "label": "700mb Relative Humidity, Wind, and Height"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind, and Height"
+   }
+  ]
+ },
+ "HREF": {
+  "description": "High Resolution Ensemble Forecast (every 1h)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "mean_precip_p01",
+    "label": "1h mean precip"
+   },
+   {
+    "id": "mean_precip_p03",
+    "label": "3h mean precip"
+   },
+   {
+    "id": "mean_precip_ptot",
+    "label": "Accumulated mean precip"
+   },
+   {
+    "id": "blend_mean_precip_p01",
+    "label": "1h blend mean precip"
+   },
+   {
+    "id": "blend_mean_precip_p03",
+    "label": "3h blend mean precip"
+   },
+   {
+    "id": "blend_mean_precip_ptot",
+    "label": "Accumulated blend mean precip"
+   },
+   {
+    "id": "lpmm_mean_precip_p01",
+    "label": "1h localized probability matched mean precip"
+   },
+   {
+    "id": "lpmm_mean_precip_p03",
+    "label": "3h localized probability matched mean precip"
+   },
+   {
+    "id": "lpmm_mean_precip_ptot",
+    "label": "Accumulated localized probability matched mean precip"
+   },
+   {
+    "id": "pmm_refd_1km",
+    "label": "PMM REFD 1 KM"
+   },
+   {
+    "id": "pmm_refd_1km_emsl",
+    "label": "PMM REFD 1 KM"
+   },
+   {
+    "id": "pmm_refd_max",
+    "label": "PMM COL MAX REFD"
+   },
+   {
+    "id": "pmm_refd_max_emsl",
+    "label": "PMM COL MAX REFD"
+   },
+   {
+    "id": "prob_refd_40dbz",
+    "label": "Probability of 1km REFD greater than 40dBZ"
+   },
+   {
+    "id": "prob_refd_max_40dbz",
+    "label": "Probability of 1km MAX REFD greater than 40dBZ"
+   },
+   {
+    "id": "prob_cref_40dbz",
+    "label": "Probability of COMP MAX REFC greater than 40dBZ"
+   },
+   {
+    "id": "prob_cref_50dbz",
+    "label": "Probability of COMP MAX REFC greater than 50dBZ"
+   },
+   {
+    "id": "prob_rain",
+    "label": "Probability of rain"
+   },
+   {
+    "id": "prob_snow",
+    "label": "Probability of snow"
+   },
+   {
+    "id": "prob_sleet",
+    "label": "Probability of sleet"
+   },
+   {
+    "id": "prob_freezing_rain",
+    "label": "Probability of freezing rain "
+   },
+   {
+    "id": "prob_3h_rain_0.5in",
+    "label": "Probability of rain greater than 0.5in in 3h"
+   },
+   {
+    "id": "prob_3h_rain_1in",
+    "label": "Probability of rain greater than 1in in 3hr"
+   },
+   {
+    "id": "eas_prob_1h_rain_0.01in",
+    "label": "EAS Probability of rain greater than 0.01in in 1hr"
+   },
+   {
+    "id": "eas_prob_1h_rain_0.25in",
+    "label": "EAS Probability of rain greater than 0.25in in 1hr"
+   },
+   {
+    "id": "eas_prob_1h_rain_0.5in",
+    "label": "EAS Probability of rain greater than 0.5in in 1hr"
+   },
+   {
+    "id": "eas_prob_3h_rain_0.01in",
+    "label": "EAS Probability of rain greater than 0.01in in 3hr"
+   },
+   {
+    "id": "eas_prob_3h_rain_0.25in",
+    "label": "EAS Probability of rain greater than 0.25in in 3hr"
+   },
+   {
+    "id": "eas_prob_3h_rain_0.5in",
+    "label": "EAS Probability of rain greater than 0.5in in 3hr"
+   },
+   {
+    "id": "mean_snow_1h",
+    "label": "1-hr mean snow "
+   },
+   {
+    "id": "mean_snow_3h",
+    "label": "3-hr mean snow "
+   },
+   {
+    "id": "mean_snow_total",
+    "label": "Mean snow total"
+   },
+   {
+    "id": "prob_1h_snow_1in",
+    "label": "Probability of snow greater than 1in in 1h"
+   },
+   {
+    "id": "prob_3h_snow_1in",
+    "label": "Probability of snow greater than 1in in 3h"
+   },
+   {
+    "id": "prob_3h_snow_3in",
+    "label": "Probability of snow greater than 3in in 3hr"
+   },
+   {
+    "id": "eas_prob_1h_snow_0.1in",
+    "label": "EAS Probability of snow greater than 0.1in in 1hr"
+   },
+   {
+    "id": "eas_prob_1h_snow_0.3in",
+    "label": "EAS Probability of snow greater than 0.3in in 1hr"
+   },
+   {
+    "id": "eas_prob_3h_snow_0.1in",
+    "label": "EAS Probability of snow greater than 0.1in in 3hr"
+   },
+   {
+    "id": "eas_prob_3h_snow_0.3in",
+    "label": "EAS Probability of snow greater than 0.3in in 3hr"
+   },
+   {
+    "id": "mean_pwat",
+    "label": "Mean precipitable water "
+   },
+   {
+    "id": "prob_pwat_1.5in",
+    "label": "Probability of PWAT greater than 1.5in"
+   },
+   {
+    "id": "prob_pwat_2in",
+    "label": "Probability of PWAT greater than 2.0in"
+   },
+   {
+    "id": "mean_2m_temp",
+    "label": "Mean 2m temp"
+   },
+   {
+    "id": "prob_2m_temp_0C",
+    "label": "Probability of 2m temp less than 0C "
+   },
+   {
+    "id": "mean_2m_dewp",
+    "label": "Mean 2m dewpoint temp"
+   },
+   {
+    "id": "prob_2m_dewp_55F",
+    "label": "Probability of 2m dewpoint temp greater than 55F "
+   },
+   {
+    "id": "prob_2m_dewp_65F",
+    "label": "Probability of 2m dewpoint temp greater than 65F "
+   },
+   {
+    "id": "prob_10m_wspd_20kt",
+    "label": "Probability of 10m wind speed greater than 20kt"
+   },
+   {
+    "id": "prob_10m_wspd_30kt",
+    "label": "Probability of 10m wind speed greater than 30kt"
+   },
+   {
+    "id": "mean_vis",
+    "label": "Mean visibility "
+   },
+   {
+    "id": "prob_vis_0.5mi",
+    "label": "Probability of visibility less than 0.5mile"
+   },
+   {
+    "id": "prob_etop_30000ft",
+    "label": "Probability of etop greater than 30000ft"
+   },
+   {
+    "id": "prob_etop_35000ft",
+    "label": "Probability of etop greater than 35000ft"
+   },
+   {
+    "id": "prob_ceil_1000ft",
+    "label": "Probability of ceil hght less than 1000ft"
+   },
+   {
+    "id": "prob_ceil_2000ft",
+    "label": "Probability of ceil hght less than 2000ft"
+   },
+   {
+    "id": "prob_ceil_3000ft",
+    "label": "Probability of ceil hght less than 3000ft"
+   },
+   {
+    "id": "prob_lowIFR_IFR",
+    "label": "Probability of low instrument flt rule and instrument flt rule"
+   },
+   {
+    "id": "prob_low_IFR",
+    "label": "Probability of low instrument flt rule"
+   },
+   {
+    "id": "prob_IFR",
+    "label": "Probability of instrument flt rule"
+   },
+   {
+    "id": "prob_marginal_VFR",
+    "label": "Probability of marginal visual flt rule"
+   },
+   {
+    "id": "prob_VFR",
+    "label": "Probability of visual flt rule"
+   },
+   {
+    "id": "mean_ml_cape",
+    "label": "Mean mixed layer CAPE "
+   },
+   {
+    "id": "prob_cape_500",
+    "label": "Probability of mixed layer CAPE greater than 500J/kg"
+   },
+   {
+    "id": "prob_cape_1000",
+    "label": "Probability of mixed layer CAPE greater than 1000J/kg"
+   },
+   {
+    "id": "prob_cape_2000",
+    "label": "Probability of mixed layer CAPE greater than 2000J/kg"
+   },
+   {
+    "id": "prob_cape_3000",
+    "label": "Probability of mixed layer CAPE greater than 3000J/kg"
+   },
+   {
+    "id": "mean_vwshr",
+    "label": "Mean vertical wind shear "
+   },
+   {
+    "id": "prob_vwshr_30kt",
+    "label": "Probability of vertical wind shear greater than 30kts"
+   },
+   {
+    "id": "prob_max_hlcy_25",
+    "label": "Probability of max updraft helicity greater than 25m**2/s**2"
+   },
+   {
+    "id": "prob_max_hlcy_75",
+    "label": "Probability of max updraft helicity greater than 75m**2/s**2"
+   },
+   {
+    "id": "prob_max_hlcy_150",
+    "label": "Probability of max updraft helicity greater than 150m**2/s**2"
+   }
+  ]
+ },
+ "GEFS-WAVE": {
+  "description": "GEFS - Wave Model",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "peak_dir_per",
+    "label": "Peak Wave Direction and Period (sec)"
+   },
+   {
+    "id": "sig_wv_ht",
+    "label": "Significant Wave Height and Wind"
+   },
+   {
+    "id": "wsea_dir_per",
+    "label": "Wind Sea Direction and Period (sec)"
+   },
+   {
+    "id": "wsea_wv_ht",
+    "label": "Wind Sea Wave Height and Wind"
+   },
+   {
+    "id": "swell1_wv_ht",
+    "label": "Primary Swell Wave Height and Wind"
+   },
+   {
+    "id": "swell1_dir_per",
+    "label": "Primary Swell Direction and Period (sec)"
+   },
+   {
+    "id": "swell2_wv_ht",
+    "label": "Secondary Swell Wave Height and Wind"
+   },
+   {
+    "id": "swell2_dir_per",
+    "label": "Secondary Swell Direction and Period (sec)"
+   },
+   {
+    "id": "swell3_wv_ht",
+    "label": "Tertiary Swell Wave Height and Wind"
+   },
+   {
+    "id": "swell3_dir_per",
+    "label": "Tertiary Swell Direction and Period (sec)"
+   }
+  ]
+ },
+ "GEFS-SPAG": {
+  "description": "Global Ensemble Forecast System - individual members (every 6 hours)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "200_1176_ht",
+    "label": "200mb 1176 Height Contours"
+   },
+   {
+    "id": "200_1188_ht",
+    "label": "200mb 1188 Height Contours"
+   },
+   {
+    "id": "200_1200_ht",
+    "label": "200mb 1200 Height Contours"
+   },
+   {
+    "id": "200_1212_ht",
+    "label": "200mb 1212 Height Contours"
+   },
+   {
+    "id": "200_1224_ht",
+    "label": "200mb 1224 Height Contours"
+   },
+   {
+    "id": "200_1230_ht",
+    "label": "200mb 1230 Height Contours"
+   },
+   {
+    "id": "500_510_552_ht",
+    "label": "500mb 510/552 Height Contours"
+   },
+   {
+    "id": "500_516_558_ht",
+    "label": "500mb 516/558 Height Contours"
+   },
+   {
+    "id": "500_522_564_ht",
+    "label": "500mb 522/564 Height Contours"
+   },
+   {
+    "id": "500_528_570_ht",
+    "label": "500mb 528/570 Height Contours"
+   },
+   {
+    "id": "500_534_576_ht",
+    "label": "500mb 534/576 Height Contours"
+   },
+   {
+    "id": "500_540_582_ht",
+    "label": "500mb 540/582 Height Contours"
+   },
+   {
+    "id": "mslp_984_1024_iso",
+    "label": "MSLP 984/1024 Isobar Contours"
+   },
+   {
+    "id": "mslp_996_1036_iso",
+    "label": "MSLP 996/1036 Isobar Contours"
+   },
+   {
+    "id": "mslp_1000_1040_iso",
+    "label": "MSLP 1000/1040 Isobar Contour"
+   },
+   {
+    "id": "mslp_1004_1044_iso",
+    "label": "MSLP 1004/1044 Isobar Contours"
+   },
+   {
+    "id": "mslp_1008_1048_iso",
+    "label": "MSLP 1008/1048 Isobar Contours"
+   },
+   {
+    "id": "mslp_1012_1052_iso",
+    "label": "MSLP 1012/1052 Isobar Contours"
+   }
+  ]
+ },
+ "FIREWX": {
+  "description": "NAM Fire Weather High Resolution Nested Runs",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p01",
+    "label": "Sea-level Pressure, 1-hr Accumulated Precip"
+   },
+   {
+    "id": "precip_p12",
+    "label": "12-H Accumulated Precipitation"
+   },
+   {
+    "id": "precip_p24",
+    "label": "24-H Accumulated Precipitation"
+   },
+   {
+    "id": "precip_p36",
+    "label": "36-H Accumulated Precipitation"
+   },
+   {
+    "id": "precip_pwat",
+    "label": "Total Column Precipitable Water"
+   },
+   {
+    "id": "snodpth_chng",
+    "label": "Snow Depth Change from F00 "
+   },
+   {
+    "id": "sim_radar_1km",
+    "label": "1000 m AGL Radar Reflectivity"
+   },
+   {
+    "id": "sim_radar_comp",
+    "label": "Simulated Composite Radar Reflectivity"
+   },
+   {
+    "id": "2m_tmpc",
+    "label": "Shelter (2-m) Temperature"
+   },
+   {
+    "id": "2m_dwpc",
+    "label": "Shelter (2-m) Dew Point Temperature"
+   },
+   {
+    "id": "2m_rh_10m_wnd",
+    "label": "1-hr Minimum Relative Humidity, 10-m Wind"
+   },
+   {
+    "id": "10m_maxwnd",
+    "label": "Maximum 1-hr 10-m Wind"
+   },
+   {
+    "id": "haines",
+    "label": "Haines Index"
+   },
+   {
+    "id": "vent_rate",
+    "label": "Ventilation Rate"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind and Height"
+   },
+   {
+    "id": "max_downdraft",
+    "label": "Maximum 1-hr Downdraft Vertical Velocity"
+   },
+   {
+    "id": "max_updraft",
+    "label": "Maximum 1-hr Updraft Vertical Velocity"
+   },
+   {
+    "id": "max_updraft_hlcy",
+    "label": "Maximum 2-5 km Updraft Helicity"
+   },
+   {
+    "id": "accu_max_updraft_hlcy",
+    "label": "Acccumulated Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "best_cape",
+    "label": "Best CAPE"
+   },
+   {
+    "id": "pbl_rich_height",
+    "label": "PBL Height (Based on Richardson Number)"
+   },
+   {
+    "id": "pbl_height",
+    "label": "PBL Height"
+   },
+   {
+    "id": "transport_wind",
+    "label": "Transport Wind and Terrain Height "
+   }
+  ]
+ },
+ "HRW-ARW": {
+  "description": "High Resolution Window/Advanced Research Weather Research and Forecast Model",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p01",
+    "label": "Total Precipitation every 1 hour"
+   },
+   {
+    "id": "precip_p03",
+    "label": "Total Precipitation every 3 hours"
+   },
+   {
+    "id": "precip_p06",
+    "label": "Total Precipitation every 6 hours"
+   },
+   {
+    "id": "precip_p12",
+    "label": "Total Precipitation every 12 hours"
+   },
+   {
+    "id": "precip_p24",
+    "label": "Total Precipitation every 24 hours"
+   },
+   {
+    "id": "precip_p36",
+    "label": "Total Precipitation every 36 hours"
+   },
+   {
+    "id": "precip_p48",
+    "label": "Total Precipitation every 48 hours"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation"
+   },
+   {
+    "id": "sim_radar_1km",
+    "label": "Simulated Radar Reflectivity 1km"
+   },
+   {
+    "id": "sim_radar_comp",
+    "label": "Simulated Composite Radar Reflectivity"
+   },
+   {
+    "id": "1000_500_thick",
+    "label": "MSLP, 1000-500mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "1000_850_thick",
+    "label": "MSLP, 1000-850mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "850_700_thick",
+    "label": "MSLP, 850-700mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "10m_wnd",
+    "label": "10 meter Wind"
+   },
+   {
+    "id": "10m_wnd_precip",
+    "label": "MSLP, 10m wind, 3-hourly total precip, 2m temperature"
+   },
+   {
+    "id": "10m_wnd_sfc_gust",
+    "label": "10 meter wind gust"
+   },
+   {
+    "id": "2m_dewp_10m_wnd",
+    "label": "2 meter Dew Point and 10 meter wind"
+   },
+   {
+    "id": "2m_temp_10m_wnd",
+    "label": "2 meter Temperature and 10 meter Wind"
+   },
+   {
+    "id": "best_cape_cin",
+    "label": "Most Unstable Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "sfc_cape_cin",
+    "label": "Surface-Based Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "helicity_1km",
+    "label": "0-1km Helicity and Storm Motion"
+   },
+   {
+    "id": "helicity_3km",
+    "label": "0-3km Helicity and Storm Motion"
+   },
+   {
+    "id": "max_updraft_hlcy",
+    "label": "Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "accu_max_updraft_hlcy",
+    "label": "Acccumulated Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "echo_top",
+    "label": "Echo Tops"
+   },
+   {
+    "id": "ceiling",
+    "label": "Cloud Ceiling "
+   },
+   {
+    "id": "vis",
+    "label": "Visibility"
+   },
+   {
+    "id": "250_wnd_ht",
+    "label": "250mb Wind and Height"
+   },
+   {
+    "id": "300_wnd_ht",
+    "label": "300mb Wind and Height"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity, Wind, and Height"
+   },
+   {
+    "id": "700_rh_ht",
+    "label": "700mb Relative Humidity, Wind, and Height"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind, and Height"
+   }
+  ]
+ },
+ "NBM": {
+  "description": "National Blend of Models (every 1h)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p01",
+    "label": "1-hour precipitation"
+   },
+   {
+    "id": "precip_p06",
+    "label": "Total precipitation every 6 hours"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Accumulated precip"
+   },
+   {
+    "id": "1hour_precip_chance",
+    "label": "1-hour chance of precipitation"
+   },
+   {
+    "id": "6hour_precip_chance",
+    "label": "6-hour chance of precipitation"
+   },
+   {
+    "id": "12hour_precip_chance",
+    "label": "12-hour chance of precipitation"
+   },
+   {
+    "id": "precip_duration",
+    "label": "Precipitation duration"
+   },
+   {
+    "id": "prob_rain",
+    "label": "Probability of rain"
+   },
+   {
+    "id": "prob_snow",
+    "label": "Probability of snow"
+   },
+   {
+    "id": "prob_sleet",
+    "label": "Probability of sleet"
+   },
+   {
+    "id": "prob_freezing_rain",
+    "label": "Probability of freezing rain"
+   },
+   {
+    "id": "snow_liquid_ratio",
+    "label": "Snow Liquid Ratio"
+   },
+   {
+    "id": "1hour_accu_snow",
+    "label": "1-hour accumulated snow"
+   },
+   {
+    "id": "6hour_accu_snow",
+    "label": "6-hour accumulated snow"
+   },
+   {
+    "id": "total_accu_snow",
+    "label": "Total Accumulated Snowfall"
+   },
+   {
+    "id": "10th_percentile_1hr_snow",
+    "label": "10th Percentile Hourly Snowfall"
+   },
+   {
+    "id": "50th_percentile_1hr_snow",
+    "label": "50th Percentile Hourly Snowfall"
+   },
+   {
+    "id": "90th_percentile_1hr_snow",
+    "label": "90th Percentile Hourly Snowfall"
+   },
+   {
+    "id": "prob_1h_snow_0.1in",
+    "label": "Probability of 1-hour 0.1 inch of snow"
+   },
+   {
+    "id": "prob_1h_snow_0.5in",
+    "label": "Probability of 1-hour 0.5 inch of snow"
+   },
+   {
+    "id": "prob_1h_snow_1in",
+    "label": "Probability of 1-hour 1 inch of snow"
+   },
+   {
+    "id": "prob_1h_snow_1.5in",
+    "label": "Probability of 1-hour 1.5 inch of snow"
+   },
+   {
+    "id": "prob_1h_snow_2in",
+    "label": "Probability of 1-hour 2 inches of snow"
+   },
+   {
+    "id": "prob_1h_snow_3in",
+    "label": "Probability of 1-hour 3 inches of snow"
+   },
+   {
+    "id": "prob_1h_snow_4in",
+    "label": "Probability of 1-hour 4 inches of snow"
+   },
+   {
+    "id": "2m_temp_10m_wnd",
+    "label": "2 meter Temperature and 10 meter Wind"
+   },
+   {
+    "id": "2m_dewp_10m_wnd",
+    "label": "2 meter dew point temp and 10 meter wind"
+   },
+   {
+    "id": "2m_relh_10m_wnd",
+    "label": "2 meter Relative Humidity and 10 meter Wind"
+   },
+   {
+    "id": "2m_apparent_temp",
+    "label": "2 meter Apparent Temperature and 10 meter Wind"
+   },
+   {
+    "id": "2m_min_temp",
+    "label": "2 meter minimum Temperature"
+   },
+   {
+    "id": "2m_max_temp",
+    "label": "2 meter maximum temperature"
+   },
+   {
+    "id": "10m_wnd_gust",
+    "label": "10 meter wind and gust"
+   },
+   {
+    "id": "total_cloud_cover",
+    "label": "Total Cloud Cover"
+   },
+   {
+    "id": "tstm_coverage",
+    "label": "Thunderstorm Coverage"
+   },
+   {
+    "id": "visibility",
+    "label": "2-meter Visibility"
+   },
+   {
+    "id": "ceiling",
+    "label": "Ceiling"
+   },
+   {
+    "id": "cape",
+    "label": "Surface-based CAPE"
+   },
+   {
+    "id": "echo_top",
+    "label": "Echo Top Height"
+   },
+   {
+    "id": "prob_tstm",
+    "label": "Thunderstorm Probability"
+   },
+   {
+    "id": "prob_vis_5mi",
+    "label": "Probability of Visibility 5 miles or less"
+   },
+   {
+    "id": "prob_vis_3mi",
+    "label": "Probability of Visibility less than 3 miles"
+   },
+   {
+    "id": "prob_vis_2mi",
+    "label": "Probability of Visibility less than 2 miles"
+   },
+   {
+    "id": "prob_vis_1mi",
+    "label": "Probability of Visibility less than 1 mile"
+   },
+   {
+    "id": "prob_ceil_1000ft",
+    "label": "Probability of Ceiling Less than 1000 feet"
+   },
+   {
+    "id": "prob_ceil_2000ft",
+    "label": "Probability of Ceiling Less than 2000 feet"
+   },
+   {
+    "id": "prob_ceil_3000ft",
+    "label": "Probability of Ceiling 3000 feet or less"
+   },
+   {
+    "id": "prob_ceil_6500ft",
+    "label": "Probability of Ceiling 6500 feet or less"
+   }
+  ]
+ },
+ "STOFS": {
+  "description": "Surge and Tide Operational Forecast System - storm surge and total water level",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "storm_surge",
+    "label": "Storm Surge"
+   },
+   {
+    "id": "total_water_level",
+    "label": "Total Water Level"
+   }
+  ]
+ },
+ "GEFS-MEAN-SPRD": {
+  "description": "Global Ensemble Forecast System - mean and spread (every 6 hours)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p06",
+    "label": "Mean 6-hour Precipitation"
+   },
+   {
+    "id": "precip_p24",
+    "label": "Mean 24-hour Precipitation"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation of Period"
+   },
+   {
+    "id": "dom_precip_type",
+    "label": "Dominant Precipitation Type"
+   },
+   {
+    "id": "prob_precip_0.25in",
+    "label": "Probability of 6-hrly Precipitation > 0.25 (in)"
+   },
+   {
+    "id": "prob_precip_0.5in",
+    "label": "Probability of 6-hrly Precipitation > 0.50 (in)"
+   },
+   {
+    "id": "prob_precip_1in",
+    "label": "Probability of 6-hrly Precipitation > 1.00 (in)"
+   },
+   {
+    "id": "prob_ice_0.25in",
+    "label": "Probability of Ice > 0.25 (in)"
+   },
+   {
+    "id": "snodpth_chng_mean",
+    "label": "Mean Snow Depth Change from F00"
+   },
+   {
+    "id": "snodpth_chng_sprd",
+    "label": "Spread of Snow Depth Change from F00"
+   },
+   {
+    "id": "mslp",
+    "label": "Mean Sea Level Pressure"
+   },
+   {
+    "id": "10m_wnd",
+    "label": "10m Winds"
+   },
+   {
+    "id": "2m_temp",
+    "label": "2 meter Temperature"
+   },
+   {
+    "id": "cape",
+    "label": "Mean Convective Available Potential Energy"
+   },
+   {
+    "id": "prob_cape_250",
+    "label": "Probability of CAPE > 250"
+   },
+   {
+    "id": "prob_cape_500",
+    "label": "Probability of CAPE > 500"
+   },
+   {
+    "id": "prob_cape_2000",
+    "label": "Probability of CAPE > 2000"
+   },
+   {
+    "id": "prob_cape_4000",
+    "label": "Probability of CAPE > 4000"
+   },
+   {
+    "id": "250_temp",
+    "label": "250mb Temperature"
+   },
+   {
+    "id": "250_wnd",
+    "label": "250mb Winds"
+   },
+   {
+    "id": "500_temp",
+    "label": "500mb Temperature"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity and Height"
+   },
+   {
+    "id": "500_wnd",
+    "label": "500mb Winds"
+   },
+   {
+    "id": "700_temp",
+    "label": "700mb Temperature"
+   },
+   {
+    "id": "700_vort_ht",
+    "label": "700mb Vorticity and Height"
+   },
+   {
+    "id": "700_wnd",
+    "label": "700mb Winds"
+   },
+   {
+    "id": "850_temp",
+    "label": "850mb Temperature"
+   },
+   {
+    "id": "850_vort_ht",
+    "label": "850mb Vorticity and Height"
+   },
+   {
+    "id": "850_wnd",
+    "label": "850mb Winds"
+   },
+   {
+    "id": "925_wnd",
+    "label": "925mb Winds"
+   }
+  ]
+ },
+ "RAP": {
+  "description": "Rapid Refresh Model (updated every hour)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p01",
+    "label": "Hourly Total Precipitation"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation"
+   },
+   {
+    "id": "precip_rate",
+    "label": "Precipitation Rate"
+   },
+   {
+    "id": "snow_total",
+    "label": "Total Accumulated Snowfall"
+   },
+   {
+    "id": "sim_radar_1km",
+    "label": "Simulated Radar Reflectivity 1km"
+   },
+   {
+    "id": "sim_radar_comp",
+    "label": "Simulated Composite Radar Reflectivity"
+   },
+   {
+    "id": "1000_500_thick",
+    "label": "MSLP, 1000-500mb thickness, 1-hourly precipitation"
+   },
+   {
+    "id": "1000_850_thick",
+    "label": "MSLP, 1000-850mb thickness, 1-hourly precipitation"
+   },
+   {
+    "id": "850_700_thick",
+    "label": "MSLP, 850-700mb thickness, 1-hourly precipitation"
+   },
+   {
+    "id": "cape_cin",
+    "label": "Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "helicity",
+    "label": "Helicity and 30m Wind"
+   },
+   {
+    "id": "2m_temp_10m_wnd",
+    "label": "2 meter Temperature and 10 meter Wind"
+   },
+   {
+    "id": "2m_dewp_10m_wnd",
+    "label": "2 meter Dew Point and 10 meter wind"
+   },
+   {
+    "id": "10m_wnd_sfc_gust",
+    "label": "10 meter wind gust"
+   },
+   {
+    "id": "echo_top",
+    "label": "Echo Tops"
+   },
+   {
+    "id": "vis",
+    "label": "Visibility"
+   },
+   {
+    "id": "200_wnd_ht",
+    "label": "200mb Wind and Height"
+   },
+   {
+    "id": "250_wnd_ht",
+    "label": "250mb Wind and Height"
+   },
+   {
+    "id": "300_wnd_ht",
+    "label": "300mb Wind and Height"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity, Wind, and Height"
+   },
+   {
+    "id": "500_temp_ht",
+    "label": "500mb Temperature, Wind and Height"
+   },
+   {
+    "id": "700_rh_ht",
+    "label": "700mb Relative Humidity, Wind, Height and Omega"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind, and Height"
+   },
+   {
+    "id": "925_temp_ht",
+    "label": "925mb Temperature, Wind and Height"
+   }
+  ]
+ },
+ "HRW-ARW2": {
+  "description": "High Resolution Window/Advanced Research Weather Research and Forecast Model- Member 2",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p01",
+    "label": "Total Precipitation every 1 hour"
+   },
+   {
+    "id": "precip_p03",
+    "label": "Total Precipitation every 3 hours"
+   },
+   {
+    "id": "precip_p06",
+    "label": "Total Precipitation every 6 hours"
+   },
+   {
+    "id": "precip_p12",
+    "label": "Total Precipitation every 12 hours"
+   },
+   {
+    "id": "precip_p24",
+    "label": "Total Precipitation every 24 hours"
+   },
+   {
+    "id": "precip_p36",
+    "label": "Total Precipitation every 36 hours"
+   },
+   {
+    "id": "precip_p48",
+    "label": "Total Precipitation every 48 hours"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation"
+   },
+   {
+    "id": "sim_radar_1km",
+    "label": "Simulated Radar Reflectivity 1km"
+   },
+   {
+    "id": "sim_radar_comp",
+    "label": "Simulated Composite Radar Reflectivity"
+   },
+   {
+    "id": "1000_500_thick",
+    "label": "MSLP, 1000-500mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "1000_850_thick",
+    "label": "MSLP, 1000-850mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "850_700_thick",
+    "label": "MSLP, 850-700mb thickness, 3-hourly total precipitation"
+   },
+   {
+    "id": "10m_wnd",
+    "label": "10 meter Wind"
+   },
+   {
+    "id": "10m_wnd_precip",
+    "label": "MSLP, 10m wind, 3-hourly total precip, 2m temperature"
+   },
+   {
+    "id": "10m_wnd_sfc_gust",
+    "label": "10 meter wind gust"
+   },
+   {
+    "id": "2m_dewp_10m_wnd",
+    "label": "2 meter Dew Point and 10 meter wind"
+   },
+   {
+    "id": "2m_temp_10m_wnd",
+    "label": "2 meter Temperature and 10 meter Wind"
+   },
+   {
+    "id": "best_cape_cin",
+    "label": "Most Unstable Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "sfc_cape_cin",
+    "label": "Surface-Based Convective Available Potential Energy and Convective Inhibition"
+   },
+   {
+    "id": "helicity_1km",
+    "label": "0-1km Helicity and Storm Motion"
+   },
+   {
+    "id": "helicity_3km",
+    "label": "0-3km Helicity and Storm Motion"
+   },
+   {
+    "id": "max_updraft_hlcy",
+    "label": "Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "accu_max_updraft_hlcy",
+    "label": "Acccumulated Max 2-5km Updraft Helicity "
+   },
+   {
+    "id": "echo_top",
+    "label": "Echo Tops"
+   },
+   {
+    "id": "ceiling",
+    "label": "Cloud Ceiling "
+   },
+   {
+    "id": "vis",
+    "label": "Visibility"
+   },
+   {
+    "id": "250_wnd_ht",
+    "label": "250mb Wind and Height"
+   },
+   {
+    "id": "300_wnd_ht",
+    "label": "300mb Wind and Height"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity, Wind, and Height"
+   },
+   {
+    "id": "700_rh_ht",
+    "label": "700mb Relative Humidity, Wind, and Height"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind, and Height"
+   }
+  ]
+ },
+ "SREF-CLUSTER": {
+  "description": "Short Range Ensemble Forecast Model Clusters (updated every 6 hours)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "1000_500_thick",
+    "label": "Mean 1000-500mb Thickness (m)"
+   },
+   {
+    "id": "10m_wnd_2m_temp",
+    "label": "MSLP, 10m wind, 2m temperature"
+   },
+   {
+    "id": "250_wnd_ht",
+    "label": "250mb Wind and Height"
+   },
+   {
+    "id": "300_wnd_ht",
+    "label": "300mb Wind and Height"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity and Height"
+   },
+   {
+    "id": "700_rh_ht",
+    "label": "700mb Relative Humidity, Height and Omega"
+   },
+   {
+    "id": "850_temp_ht",
+    "label": "850mb Temperature, Wind and Height"
+   }
+  ]
+ },
+ "ICE-DRIFT": {
+  "description": "Polar Ice Drift Forecast Model (updated at 00 UTC daily)",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "ice_drift",
+    "label": "Polar Ice Drift"
+   }
+  ]
+ },
+ "NAEFS": {
+  "description": "North American Ensemble Forecast System - Bias Correction",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "precip_p06",
+    "label": "Mean 6-hour Precipitation"
+   },
+   {
+    "id": "precip_p24",
+    "label": "Mean 24-hour Precipitation"
+   },
+   {
+    "id": "precip_ptot",
+    "label": "Total Accumulated Precipitation of Period"
+   },
+   {
+    "id": "prob_precip_0.25in",
+    "label": "Probability of 6-hrly Precipitation > 0.25 (in)"
+   },
+   {
+    "id": "prob_precip_0.5in",
+    "label": "Probability of 6-hrly Precipitation > 0.50 (in)"
+   },
+   {
+    "id": "prob_precip_1in",
+    "label": "Probability of 6-hrly Precipitation > 1.0 (in)"
+   },
+   {
+    "id": "10m_wnd",
+    "label": "10m Winds"
+   },
+   {
+    "id": "10th_percentile_10m_wnd",
+    "label": "10th percentile 10m Winds"
+   },
+   {
+    "id": "50th_percentile_10m_wnd",
+    "label": "50th percentile 10m Winds"
+   },
+   {
+    "id": "90th_percentile_10m_wnd",
+    "label": "90th percentile 10m Winds"
+   },
+   {
+    "id": "extreme_index_10m_wnd",
+    "label": "Extreme Forecast Index 10m Winds"
+   },
+   {
+    "id": "2m_temp",
+    "label": "2 meter Temperature"
+   },
+   {
+    "id": "10th_percentile_2m_temp",
+    "label": "10th percentile 2m Temperature"
+   },
+   {
+    "id": "50th_percentile_2m_temp",
+    "label": "50th percentile 2m Temperature"
+   },
+   {
+    "id": "90th_percentile_2m_temp",
+    "label": "90th percentile 2m Temperature"
+   },
+   {
+    "id": "extreme_index_2m_temp",
+    "label": "Extreme Forecast Index 2m Temperature"
+   },
+   {
+    "id": "mslp",
+    "label": "Mean Sea Level Pressure"
+   },
+   {
+    "id": "extreme_index_mslp",
+    "label": "Extreme Forecast Index mslp"
+   },
+   {
+    "id": "250_temp",
+    "label": "250mb Temperature"
+   },
+   {
+    "id": "250_wnd",
+    "label": "250mb Winds"
+   },
+   {
+    "id": "500_temp",
+    "label": "500mb Temperature"
+   },
+   {
+    "id": "500_vort_ht",
+    "label": "500mb Vorticity and Height"
+   },
+   {
+    "id": "500_wnd",
+    "label": "500mb Winds"
+   },
+   {
+    "id": "700_temp",
+    "label": "700mb Temperature"
+   },
+   {
+    "id": "700_vort_ht",
+    "label": "700mb Vorticity and Height"
+   },
+   {
+    "id": "700_wnd",
+    "label": "700mb Winds"
+   },
+   {
+    "id": "850_temp",
+    "label": "850mb Temperature"
+   },
+   {
+    "id": "850_vort_ht",
+    "label": "850mb Vorticity and Height"
+   },
+   {
+    "id": "850_wnd",
+    "label": "850mb Winds"
+   },
+   {
+    "id": "925_wnd",
+    "label": "925mb Winds"
+   }
+  ]
+ },
+ "PANELS": {
+  "description": "Model Four-Panels",
+  "area": null,
+  "products": []
+ },
+ "STORM-TRACKS": {
+  "description": "Storm-tracks",
+  "area": "CONUS",
+  "products": [
+   {
+    "id": "GFS",
+    "label": "GFS"
+   },
+   {
+    "id": "NAM",
+    "label": "NAM"
+   },
+   {
+    "id": "GEFS",
+    "label": "GEFS"
+   },
+   {
+    "id": "GFS-NAM",
+    "label": "GFS-NAM"
+   },
+   {
+    "id": "GEFS-prob",
+    "label": "GEFS-prob"
+   }
+  ]
+ }
+}
