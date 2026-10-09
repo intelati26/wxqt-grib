@@ -117,7 +117,6 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
 
     routeItems.emplace_back("ncep.png", "Model Viewer, Ctrl-m", [this] { launchModelViewer(); });
     routeItems.emplace_back("spchrrr.png", "SPC HRRR", [this] { launchModelViewerGeneric("SPCHRRR"); });
-    routeItems.emplace_back("spcsref.png", "SPC SREF", [this] { launchModelViewerGeneric("SPCSREF"); });
     routeItems.emplace_back("hrrrviewer.png", "ESRL HRRR/RAP", [this] { launchModelViewerGeneric("ESRL"); });
     routeItems.emplace_back("opc.png", "Ocean Prediction Center", [this] { launchOpc(); });
     routeItems.emplace_back("opc.png", "Climate and ocean: sea surface temperature and anomaly, El Niño / La Niña, cycles", [parent] { new ClimateViewer{parent}; });

@@ -27,7 +27,6 @@ namespace {
         "NBM",
         "POLAR",
         "RAP",
-        "SREF",
         "WW3",
         "WW3-ENP",
         "WW3-WNA"
@@ -122,11 +121,6 @@ const vector<string> UtilityModelNcepInterface::sectorsHrrr{
     "US-SC",
     "US-NE",
     "US-SE"
-};
-
-const vector<string> UtilityModelNcepInterface::sectorsSref{
-    "NAMER",
-    "ALASKA"
 };
 
 const vector<string> UtilityModelNcepInterface::sectorsNaefs{
@@ -628,68 +622,6 @@ const vector<string> UtilityModelNcepInterface::labelsNamHires{
     "850mb Height, Precipitable Water and Wind",
     "850mb Vorticity, 500mb Height, 200mb Wind",
     "925mb Temperature, Wind and Height"
-};
-
-const vector<string> UtilityModelNcepInterface::paramsSref{
-    "precip_p03",
-    "precip_p06",
-    "precip_p12",
-    "precip_p24",
-    "precip_ptot",
-    "prob_precip_0.25in",
-    "snow_total_mean",
-    "snow_total_sprd",
-    "1000_500_thick",
-    "1000_850_thick",
-    "850_700_thick",
-    "10m_wind",
-    "prob_10m_wind",
-    "2m_temp",
-    "prob_2m_temp_0C",
-    "lifted_index",
-    "cape",
-    "prob_cape",
-    "cin",
-    "mslp",
-    "250_vort_ht",
-    "250_wnd",
-    "500_vort_ht",
-    "700_rh",
-    "700_temp",
-    "850_rh",
-    "850_temp",
-    "850_wnd"
-};
-
-const vector<string> UtilityModelNcepInterface::labelsSref{
-    "Mean 3-hour Precipitation",
-    "Mean 6-hour Precipitation",
-    "Mean 12-hour Precipitation",
-    "Mean 24-hour Precipitation",
-    "Total Accumulated Precipitation of Period",
-    "Probability of 6-hrly Precipitation > 0.25 (in};",
-    "Snow Total Mean",
-    "Snow Total Spread",
-    "Mean 1000-500mb Thickness (m};",
-    "Mean 1000-850mb Thickness (m};",
-    "Mean 850-700mb Thickness (m};",
-    "10m Winds",
-    "Probability of 10m Wind Speeds > 25 knots",
-    "2m Temperature",
-    "Probablility of 2m Temperature < 0",
-    "Mean Lifted Index",
-    "Mean Convective Available Potential Energy",
-    "Probability of Cape",
-    "Mean Convective Inhibition",
-    "Mean Sea Level Pressure",
-    "250mb Vorticity and Height",
-    "250mb Wind",
-    "500mb Vorticity and Height",
-    "700mb Relative Humidity",
-    "700mb Temperature",
-    "850mb Relative Humidity",
-    "850mb Temperature",
-    "850mb Wind"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNaefs{

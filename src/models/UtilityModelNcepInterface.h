@@ -23,7 +23,6 @@ public:
     static const vector<string> sectorsNamHires;
     static const vector<string> sectorsRap;
     static const vector<string> sectorsHrrr;
-    static const vector<string> sectorsSref;
     static const vector<string> sectorsNaefs;
     static const vector<string> sectorsPolar;
     static const vector<string> sectorsHrwNmm;
@@ -47,8 +46,6 @@ public:
     static const vector<string> labelsHrrr;
     static const vector<string> paramsNamHires;
     static const vector<string> labelsNamHires;
-    static const vector<string> paramsSref;
-    static const vector<string> labelsSref;
     static const vector<string> paramsNaefs;
     static const vector<string> labelsNaefs;
     static const vector<string> paramsPolar;

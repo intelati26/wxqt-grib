@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ObjectModel.h"
+#include <algorithm>
 #include "gfs/GfsModels.h"
 #include "objects/WString.h"
 #include "util/To.h"
@@ -15,7 +16,6 @@
 #include "UtilityModelNsslWrfInterface.h"
 #include "UtilityModelSpcHrefInterface.h"
 #include "UtilityModelSpcHrrrInterface.h"
-#include "UtilityModelSpcSrefInterface.h"
 #include "UtilityModelWpcGefsInterface.h"
 
 ObjectModel::ObjectModel(const string& prefModel)
@@ -89,21 +89,17 @@ ObjectModel::ObjectModel(const string& prefModel)
         model = "HREF";
         models = {"HREF"};
         sector = "CONUS";
-    } else if (prefModel == "SPCSREF") {
-        run = "00Z";
-        timeStr = "03";
-        timeIdx = 1;
-        param = "SREFH5";
-        model = "SREF";
-        models = {"SREF"};
-        sector = "US";
     }
     getPrefs();
     setModelVars(model);
 }
 
 void ObjectModel::getPrefs() {
+    const auto standard = model;
     model = Utility::readPref(prefModel, model);
+    if (!models.empty() && std::find(models.begin(), models.end(), model) == models.end()) {   // a model that is no longer offered (the SREF): the standard one
+        model = standard;
+    }
     param = Utility::readPref(prefParam, param);
     sector = Utility::readPref(prefSector, sector);
     timeStr = Utility::readPref(prefRunPosn, timeStr);
@@ -274,13 +270,6 @@ void ObjectModel::setModelVars(const string& modelName) {
         loadTimeList3(0, 180, 6);
         loadTimeList3(192, 384, 12);
         setupListRunZ();
-    } else if (modelToken == "NCEP:SREF") {
-        params = UtilityModelNcepInterface::paramsSref;
-        paramLabels = UtilityModelNcepInterface::labelsSref;
-        sectors = UtilityModelNcepInterface::sectorsSref;
-        times.clear();
-        loadTimeList3(0, 87, 3);
-        setupListRunZWithStart("03Z");
     } else if (modelToken == "NCEP:NAEFS") {
         params = UtilityModelNcepInterface::paramsNaefs;
         paramLabels = UtilityModelNcepInterface::labelsNaefs;
@@ -338,13 +327,6 @@ void ObjectModel::setModelVars(const string& modelName) {
         sectors = UtilityModelSpcHrefInterface::sectorsLong;
         times.clear();
         loadTimeList(1, 49, 1);
-        runs = runTimeData.listRun;
-    } else if (modelToken == "SPCSREF:SREF") {
-        params = UtilityModelSpcSrefInterface::params;
-        paramLabels = UtilityModelSpcSrefInterface::labels;
-        sectors.clear();
-        times.clear();
-        loadTimeList3(0, 90, 3);
         runs = runTimeData.listRun;
     }
     if (!sectors.empty()) {

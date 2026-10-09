@@ -88,7 +88,6 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         menu->addSeparator();
         add("SPC HRRR", screen("SPCHRRR"));
         add("SPC HREF", screen("SPCHREF"));
-        add("SPC SREF", screen("SPCSREF"));
         menu->addSeparator();
         add("ESRL HRRR / RAP", screen("ESRL"));
         add("WPC GEFS", screen("WPCGEFS"));
@@ -796,7 +795,7 @@ void ModelViewer::updateRunStatus() {
     comboboxTime.setList(objectModel.times);
     if (objectModel.model == "GLCFS") {
         // pass
-    } else if (objectModel.model != "SREF" && objectModel.model != "HRRR" && objectModel.model != "HREF" && objectModel.model != "ESRL") {
+    } else if (objectModel.model != "HRRR" && objectModel.model != "HREF" && objectModel.model != "ESRL") {
         for (auto index : range(objectModel.times.size())) {
             auto timeStr = objectModel.times[index];
             auto newValue = WString::split(timeStr, " ")[0] + " " + UtilityModels::convertTimeRuntoTimeString(WString::replace(objectModel.runTimeData.timeStringConversion, "Z", ""), WString::split(timeStr, " ")[0]);
@@ -910,7 +909,7 @@ namespace {
             {"NAM", "Regional"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Regional"},
             {"HRRR", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"NAM-HIRES", "Convection allowing"}, {"HRW-ARW", "Convection allowing"},
             {"HRW-ARW2", "Convection allowing"}, {"HRW-FV3", "Convection allowing"},
-            {"GEFS", "Ensembles"}, {"REFS", "Ensembles"}, {"HREF", "Ensembles"}, {"SREF", "Ensembles"}, {"NAEFS", "Ensembles"},
+            {"GEFS", "Ensembles"}, {"REFS", "Ensembles"}, {"HREF", "Ensembles"}, {"NAEFS", "Ensembles"},
             {"GEFS-MEAN-SPRD", "Ensembles"}, {"GEFS-SPAG", "Ensembles"},
             {"GFS-WAVE", "Waves and ocean"}, {"GEFS-WAVE", "Waves and ocean"}, {"WW3", "Waves and ocean"}, {"WW3-ENP", "Waves and ocean"}, {"WW3-WNA", "Waves and ocean"},
             {"ESTOFS", "Waves and ocean"}, {"POLAR", "Waves and ocean"}};

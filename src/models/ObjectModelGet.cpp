@@ -14,7 +14,6 @@
 #include "UtilityModelSpcHrrrInputOutput.h"
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
-#include "UtilityModelSpcSrefInputOutput.h"
 #include "UtilityModelWpcGefsInputOutput.h"
 
 void ObjectModelGet::runStatus(ObjectModel& om) {
@@ -47,8 +46,6 @@ void ObjectModelGet::runStatus(ObjectModel& om) {
         om.runTimeData = UtilityModelSpcHrrrInputOutput::getRunTime();
     } else if (om.prefModel == "SPCHREF") {
         om.runTimeData = UtilityModelSpcHrefInputOutput::getRunTime();
-    } else if (om.prefModel == "SPCSREF") {
-        om.runTimeData = UtilityModelSpcSrefInputOutput::getRunTime();
     }
 }
 
@@ -73,8 +70,6 @@ string ObjectModelGet::imageUrl(ObjectModel& om) {
         return UtilityModelWpcGefsInputOutput::getImageUrl(&om);
     } else if (om.prefModel == "SPCHRRR") {
         return UtilityModelSpcHrrrInputOutput::getImageUrl(&om);
-    } else if (om.prefModel == "SPCSREF") {
-        return UtilityModelSpcSrefInputOutput::getImageUrl(&om);
     } else {
         return "";
     }
