@@ -43,6 +43,24 @@ private:
     QString title;
 };
 
+// Bars of how much rain fell each month in the area and how far that was from normal.
+class PrecipBars : public QWidget {
+public:
+    struct Month {
+        QString label;
+        double total{0}, anomaly{0};   // millimeters; the normal is the total less the anomaly
+        bool partial{false}, ok{false};
+    };
+    explicit PrecipBars(QWidget * parent = nullptr);
+    void setMonths(const std::vector<Month>& months, const QString& title, bool inches);
+
+private:
+    void paintEvent(QPaintEvent *) override;
+    std::vector<Month> months;
+    QString title;
+    bool inches{true};
+};
+
 // The drought dashboard. The area (the country, a state or a county) and the weeks to compare are chosen above the tabs and apply to all of them. The Monitor tab draws the U.S.
 // Drought Monitor's own shapes (its KMZ) over the states: the categories of the week, or the cells that moved between two weeks, with the share of the area in each category at both
 // dates and the weekly share over the last months. The precipitation and outlook tabs show the Climate Prediction Center's pictures.
@@ -63,6 +81,7 @@ private:
     void refreshMonitor();
     void loadSeries();
     void loadPrecip();
+    void loadPrecipArea();   // the area's rain by month (the CPC's one degree analyses)
     void loadOutlook();
     void showPicture(ZoomImage * target, Text * status, const std::string& url, const std::string& what, int * generation);
     std::string mapDate(int weeksBack) const;
@@ -76,6 +95,9 @@ private:
     DroughtMap * map{};
     QTableWidget * table{};
     DroughtChart * chart{};
+    PrecipBars * precipBars{};
+    QTableWidget * precipTable{};
+    int precipAreaGeneration{0};
     Text textMonitor;
     ZoomImage precipImage, outlookImage;
     ComboBox comboKind, comboPeriod, comboOutlook;

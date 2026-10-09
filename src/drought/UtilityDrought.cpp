@@ -548,6 +548,35 @@ namespace UtilityDrought {
         return out;
     }
 
+    double meanOver(const Field& f, const Raster& r, const std::vector<uint8_t>& mask) {
+        double sum = 0.0, weights = 0.0;
+        for (int y = 0; y < r.rows; y++) {
+            const double lat = r.north - (y + 0.5) * r.step;
+            const int fy = static_cast<int>(std::floor((f.north - lat) / f.step));
+            if (fy < 0 || fy >= f.rows) {
+                continue;
+            }
+            const double weight = std::cos(lat * M_PI / 180.0);
+            for (int x = 0; x < r.columns; x++) {
+                if (!mask[static_cast<size_t>(y) * static_cast<size_t>(r.columns) + static_cast<size_t>(x)]) {
+                    continue;
+                }
+                const double lon = r.west + (x + 0.5) * r.step;
+                const int fx = static_cast<int>(std::floor((lon - f.west) / f.step));
+                if (fx < 0 || fx >= f.columns) {
+                    continue;
+                }
+                const float v = f.values[static_cast<size_t>(fy) * static_cast<size_t>(f.columns) + static_cast<size_t>(fx)];
+                if (std::isnan(v)) {
+                    continue;
+                }
+                sum += v * weight;
+                weights += weight;
+            }
+        }
+        return weights > 0.0 ? sum / weights : std::nan("");
+    }
+
     Share share(const Raster& r, const std::vector<uint8_t>& mask) {
         Share s;
         double total = 0.0, none = 0.0, atLeast[5]{};

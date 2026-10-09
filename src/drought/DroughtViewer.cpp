@@ -7,7 +7,12 @@
 #include <algorithm>
 #include <cmath>
 #include <QHeaderView>
+#include <QDir>
+#include <QFile>
 #include <QPainter>
+#include <QTemporaryFile>
+#include <QProcess>
+#include <QRegularExpression>
 #include <QPainterPath>
 #include <QSplitter>
 #include <QVBoxLayout>
@@ -20,6 +25,8 @@
 #include "ui/ActivityLabel.h"
 #include "objects/PolygonWatch.h"
 #include "util/To.h"
+#include "models/UtilityGrib.h"
+#include "settings/UIPreferences.h"
 #include "util/PermanentCache.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityString.h"
@@ -81,6 +88,126 @@ std::string mapDateBefore(const std::string& date) {
         const PermanentCache store{"drought"};
         const std::string name = counties ? "cb_2023_us_county_5m.zip" : "cb_2023_us_state_5m.zip";
         return store.fetch(name, name, 100000, [&name] { return URL::getBytes("https://www2.census.gov/geo/tiger/GENZ2023/shp/" + name).toStdString(); }).text;
+    }
+}
+
+namespace {
+    // One of the CPC's precipitation grids (one degree, 130.5 W to 66.5 W, 20.5 N to 52.5 N: GrADS GeoTIFFs of the USDM products), kept for good once had. Millimeters; nothing is NaN.
+    UtilityDrought::Field precipField(const std::string& name, const std::string& url) {
+        UtilityDrought::Field field;
+        const PermanentCache store{"drought"};
+        const auto got = store.fetch(name, name, 2000, [&url] { return URL::getBytes(url).toStdString(); });
+        if (got.text.empty() || UtilityGrib::gdalBinDir().empty()) {
+            return field;
+        }
+        QTemporaryFile tif{QDir::tempPath() + "/wxqt_precip_XXXXXX.tif"};
+        if (!tif.open()) {
+            return field;
+        }
+        tif.write(got.text.data(), static_cast<qint64>(got.text.size()));
+        tif.flush();
+        const QString raw = tif.fileName() + ".raw";
+        QProcess translate;
+        translate.start(QString::fromStdString(UtilityGrib::gdalBinDir()) + "/gdal_translate", {"-q", "-of", "ENVI", "-ot", "Float32", tif.fileName(), raw});
+        translate.waitForFinished(60000);
+        QFile data{raw}, header{raw.left(raw.size() - 4) + ".hdr"};
+        const auto bytes = data.open(QIODevice::ReadOnly) ? data.readAll() : QByteArray{};
+        const auto hdr = header.open(QIODevice::ReadOnly) ? QString::fromUtf8(header.readAll()) : QString{};
+        QFile::remove(raw);
+        QFile::remove(raw + ".aux.xml");
+        QFile::remove(raw.left(raw.size() - 4) + ".hdr");
+        const auto number = [&hdr] (const char * key) {
+            const auto m = QRegularExpression{QString{"\\b%1\\s*=\\s*([-0-9.]+)"}.arg(key)}.match(hdr);
+            return m.hasMatch() ? m.captured(1).toInt() : -1;
+        };
+        field.columns = number("samples");
+        field.rows = number("lines");
+        if (field.columns != 64 || field.rows != 32 || bytes.size() != 64 * 32 * 4) {
+            return {};
+        }
+        field.west = -130.5;
+        field.north = 52.5;
+        field.step = 1.0;
+        field.values.resize(64 * 32);
+        std::memcpy(field.values.data(), bytes.constData(), static_cast<size_t>(bytes.size()));
+        if (QRegularExpression{"byte order\\s*=\\s*1"}.match(hdr).hasMatch()) {
+            for (auto& v : field.values) {
+                unsigned char b[4];
+                std::memcpy(b, &v, 4);
+                std::swap(b[0], b[3]);
+                std::swap(b[1], b[2]);
+                std::memcpy(&v, b, 4);
+            }
+        }
+        for (auto& v : field.values) {
+            if (v < -1e8f || std::abs(v) > 1e6f) {
+                v = std::nanf("");
+            }
+        }
+        return field;
+    }
+}
+
+PrecipBars::PrecipBars(QWidget * parent) : QWidget{parent} {
+    setMinimumHeight(190);
+}
+
+void PrecipBars::setMonths(const std::vector<Month>& m, const QString& t, bool in) {
+    months = m;
+    title = t;
+    inches = in;
+    update();
+}
+
+void PrecipBars::paintEvent(QPaintEvent *) {
+    QPainter p{this};
+    p.setRenderHint(QPainter::Antialiasing);
+    p.fillRect(rect(), palette().window());
+    auto font = p.font();
+    font.setPointSizeF(font.pointSizeF() * 0.9);
+    p.setFont(font);
+    p.setPen(palette().color(QPalette::WindowText));
+    p.drawText(QRectF{4, 2, width() - 8.0, 18}, Qt::AlignLeft | Qt::AlignVCenter, p.fontMetrics().elidedText(title, Qt::ElideRight, width() - 8));
+    if (months.empty()) {
+        p.drawText(rect(), Qt::AlignCenter, "Loading the months...");
+        return;
+    }
+    const double unit = inches ? 1.0 / 25.4 : 1.0;
+    double top = 1.0;
+    for (const auto& m : months) {
+        if (m.ok) {
+            top = std::max(top, std::abs(m.anomaly) * unit);
+        }
+    }
+    const QRectF plot{50.0, 26.0, width() - 60.0, height() - 52.0};
+    const double zero = plot.center().y();
+    const double scale = plot.height() / 2.0 / (top * 1.1);
+    p.setPen(QColor{128, 128, 128, 140});
+    p.drawLine(QPointF{plot.left(), zero}, QPointF{plot.right(), zero});
+    p.setPen(palette().color(QPalette::WindowText));
+    p.drawText(QRectF{0, plot.top() - 8, plot.left() - 4, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(top * 1.1, 'f', inches ? 1 : 0));
+    p.drawText(QRectF{0, zero - 8, plot.left() - 4, 16}, Qt::AlignRight | Qt::AlignVCenter, "0");
+    p.drawText(QRectF{0, plot.bottom() - 8, plot.left() - 4, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(-top * 1.1, 'f', inches ? 1 : 0));
+    const double slot = plot.width() / static_cast<double>(months.size());
+    for (size_t i = 0; i < months.size(); i++) {
+        const auto& m = months[i];
+        const double x = plot.left() + slot * static_cast<double>(i);
+        p.setPen(palette().color(QPalette::WindowText));
+        p.drawText(QRectF{x, plot.bottom() + 4, slot, 14}, Qt::AlignHCenter, m.label);
+        if (!m.ok) {
+            continue;
+        }
+        const double value = m.anomaly * unit;
+        const QRectF bar{x + slot * 0.18, value >= 0 ? zero - value * scale : zero, slot * 0.64, std::abs(value) * scale};
+        p.setPen(Qt::NoPen);
+        p.setBrush(value >= 0 ? QColor{"#3b8f5a"} : QColor{"#b5793a"});
+        if (m.partial) {
+            p.setBrush(QBrush{value >= 0 ? QColor{"#3b8f5a"} : QColor{"#b5793a"}, Qt::BDiagPattern});
+            p.setPen(value >= 0 ? QColor{"#3b8f5a"} : QColor{"#b5793a"});
+        }
+        p.drawRect(bar);
+        p.setPen(palette().color(QPalette::WindowText));
+        p.drawText(QRectF{x, value >= 0 ? bar.top() - 14 : bar.bottom() + 1, slot, 13}, Qt::AlignHCenter, QString{"%1%2"}.arg(value > 0 ? "+" : "").arg(value, 0, 'f', inches ? 1 : 0));
     }
 }
 
@@ -240,7 +367,34 @@ DroughtViewer::DroughtViewer(Window * parent)
     rowPrecip.addWidget(comboKind);
     rowPrecip.addWidget(comboPeriod);
     rowOutlook.addWidget(comboOutlook);
-    page("Precipitation", rowPrecip, precipImage, textPrecip);
+    {   // the precipitation tab: the national pictures above, the area's rain month by month below
+        auto * widget = new QWidget{tabs};
+        auto * column = new QVBoxLayout{widget};
+        column->setContentsMargins(4, 4, 4, 4);
+        rowPrecip.addStretch();
+        column->addLayout(rowPrecip.getView());
+        column->addWidget(textPrecip.getView());
+        auto * vertical = new QSplitter{Qt::Vertical, widget};
+        precipImage.setMinimumHeight(260);
+        vertical->addWidget(&precipImage);
+        auto * panel = new QWidget{vertical};
+        auto * panelRow = new QHBoxLayout{panel};
+        panelRow->setContentsMargins(0, 0, 0, 0);
+        precipTable = new QTableWidget{0, 5, panel};
+        precipTable->setHorizontalHeaderLabels({"Month", "Rain", "Normal", "Departure", "Of normal"});
+        precipTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        precipTable->setSelectionMode(QAbstractItemView::NoSelection);
+        precipTable->verticalHeader()->hide();
+        precipTable->horizontalHeader()->setStretchLastSection(true);
+        precipBars = new PrecipBars{panel};
+        panelRow->addWidget(precipTable, 2);
+        panelRow->addWidget(precipBars, 3);
+        vertical->addWidget(panel);
+        vertical->setStretchFactor(0, 3);
+        vertical->setStretchFactor(1, 2);
+        column->addWidget(vertical, 1);
+        tabs->addTab(widget, "Precipitation");
+    }
     page("Outlooks and soil moisture", rowOutlook, outlookImage, textOutlook);
     box.addWidgetReal(tabs, 1, Qt::Alignment{});
     box.addWidgetReal(new ActivityLabel{this});
@@ -352,6 +506,7 @@ void DroughtViewer::loadAreas() {
                            return;
                        }
                        refreshMonitor();
+                       loadPrecipArea();
                        if (qEnvironmentVariableIsSet("WXQT_PICKAREA")) {   // dev: open the area picker
                            chooseArea();
                        }
@@ -414,6 +569,7 @@ void DroughtViewer::selectArea(const std::string& id) {
     buttonArea->setText(QString::fromStdString("Area: " + label) + "  \xE2\x96\xBE");
     map->setArea(id == "US" ? std::vector<UtilityDrought::Area>{} : areas, true);
     refreshMonitor();
+    loadPrecipArea();
 }
 
 // What the background work brings back for the Monitor tab
@@ -664,6 +820,80 @@ void DroughtViewer::loadSpc() {
                                buttonArea->setText(buttonArea->text() + "  (no longer in force)");
                            }
                        }
+                   }};
+}
+
+// The area's rain by month over the last year, from the CPC's one degree analyses of the monthly totals and of how far each was from normal (the month so far from the day before)
+void DroughtViewer::loadPrecipArea() {
+    if (states->empty()) {
+        return;
+    }
+    const int mine = ++precipAreaGeneration;
+    const auto areas = selectedAreas();
+    const bool country = areaId == "US";
+    const auto box = boxFor(areas, country, 0.04, 260);
+    const QString label = country ? "the contiguous U.S." : QString::fromStdString(areas.empty() ? areaId : areas.front().name);
+    auto rows = std::make_shared<std::vector<PrecipBars::Month>>();
+    new FutureVoid{this, [rows, areas, box] {
+                       const NetManager::Scope background{NetManager::Priority::Ahead};
+                       UtilityDrought::Raster like;
+                       like.west = box.west;
+                       like.north = box.north;
+                       like.step = box.step;
+                       like.columns = std::max(1, static_cast<int>(std::ceil((box.east - box.west) / box.step)));
+                       like.rows = std::max(1, static_cast<int>(std::ceil((box.north - box.south) / box.step)));
+                       const auto mask = UtilityDrought::mask(like, areas);
+                       const std::string base = "https://ftp.cpc.ncep.noaa.gov/GIS/USDM_Products/precip/";
+                       const auto today = QDate::currentDate();
+                       const auto row = [&] (const QString& label, const std::string& totalName, const std::string& totalUrl, const std::string& anomName, const std::string& anomUrl, bool partial) {
+                           PrecipBars::Month m;
+                           m.label = label;
+                           m.partial = partial;
+                           const auto total = precipField(totalName, totalUrl), anomaly = precipField(anomName, anomUrl);
+                           const double t = UtilityDrought::meanOver(total, like, mask), a = UtilityDrought::meanOver(anomaly, like, mask);
+                           m.ok = !std::isnan(t) && !std::isnan(a) && !(partial && t - a < -1.0);   // the month so far: a departure that is more than the rain itself cannot be right (the daily analysis is not the monthly one): left out
+                           m.total = std::max(0.0, t);
+                           m.anomaly = a;
+                           rows->push_back(m);
+                       };
+                       for (int back = 12; back >= 1; back--) {   // the last twelve whole months
+                           const auto month = QDate{today.year(), today.month(), 1}.addMonths(-back);
+                           const auto key = month.toString("yyyyMM").toStdString();
+                           row(month.toString("MMM yy"), "p.full." + key + ".tif", base + "total/monthly/p.full." + key + ".tif", "p.anom." + key + ".tif", base + "anom/monthly/p.anom." + key + ".tif", false);
+                       }
+                       for (int back = 1; back <= 3 && today.day() > 1; back++) {   // this month so far: the newest day that has a file
+                           const auto day = today.addDays(-back).toString("yyyyMMdd").toStdString();
+                           const auto before = rows->size();
+                           row(today.toString("MMM d") + " so far", "p.full.1stday_month_" + day + ".tif", base + "total/daily/p.full.1stday_month_" + day + ".tif", "p.anom.1stday_month_" + day + ".tif",
+                               base + "anom/daily/p.anom.1stday_month_" + day + ".tif", true);
+                           if (rows->back().ok) {
+                               rows->back().label = "To " + QDate::fromString(QString::fromStdString(day), "yyyyMMdd").toString("MMM d");
+                               break;
+                           }
+                           rows->resize(before);
+                       }
+                   },
+                   [this, rows, mine, label] {
+                       if (closed || mine != precipAreaGeneration) {
+                           return;
+                       }
+                       const bool inches = UIPreferences::unitsF;
+                       const double unit = inches ? 1.0 / 25.4 : 1.0;
+                       precipBars->setMonths(*rows, "Rain over " + label + " compared with normal (departure, " + (inches ? "inches" : "mm") + ")", inches);
+                       precipTable->setRowCount(static_cast<int>(rows->size()));
+                       for (int r = 0; r < static_cast<int>(rows->size()); r++) {
+                           const auto& m = (*rows)[static_cast<size_t>(r)];
+                           const double normal = m.total - m.anomaly;
+                           const auto number = [unit, inches] (double mm) { return QString::number(mm * unit, 'f', inches ? 2 : 0); };
+                           precipTable->setItem(r, 0, new QTableWidgetItem{m.label});
+                           precipTable->setItem(r, 1, new QTableWidgetItem{m.ok ? number(m.total) : "-"});
+                           precipTable->setItem(r, 2, new QTableWidgetItem{m.ok ? number(normal) : "-"});
+                           auto * departure = new QTableWidgetItem{m.ok ? QString{"%1%2"}.arg(m.anomaly > 0 ? "+" : "").arg(number(m.anomaly)) : "-"};
+                           departure->setForeground(m.anomaly >= 0 ? QBrush{QColor{"#2f7d4b"}} : QBrush{QColor{"#a8651f"}});
+                           precipTable->setItem(r, 3, departure);
+                           precipTable->setItem(r, 4, new QTableWidgetItem{m.ok && normal > 1.0 ? QString::number(m.total / normal * 100.0, 'f', 0) + "%" : "-"});
+                       }
+                       precipTable->resizeColumnsToContents();
                    }};
 }
 

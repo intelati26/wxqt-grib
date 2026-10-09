@@ -17,6 +17,7 @@
 // at it by (the Census Bureau's cartographic boundary files of the states and the counties), and what comes of putting the two together: the share of an area in each category on a
 // date, and how that changed between two dates. Everything here works on the shapes, so the map is sharp at any zoom and the numbers follow the area the user picked.
 namespace UtilityDrought {
+    struct Raster;
     using Ring = std::vector<std::pair<double, double>>;     // (longitude, latitude)
     using Polygon = std::vector<Ring>;                        // the outer ring, then its holes
     struct Monitor {
@@ -51,6 +52,14 @@ namespace UtilityDrought {
     std::vector<Area> spcMesoanalysisSectors();
     // Douglas-Peucker: points that lie within `tolerance` degrees of the line between their neighbors are dropped
     Ring simplify(const Ring& ring, double tolerance);
+    // A coarse field on a regular grid, rows from the north (the CPC's one degree precipitation grids)
+    struct Field {
+        int columns{0}, rows{0};
+        double west{0}, north{0}, step{1.0};
+        std::vector<float> values;     // NaN where there is nothing
+    };
+    // The mean of a field over the masked cells of a raster (each cell's value is the field's cell it lies in; weighted by the cosine of latitude); NaN when no cell has a value
+    double meanOver(const Field& field, const Raster& like, const std::vector<uint8_t>& mask);
     // The category of every cell of a grid of squares of `step` degrees over a box: 0 none, 1 to 5 D0 to D4 (the worst that lies over the cell's center)
     struct Raster {
         int columns{0}, rows{0};
