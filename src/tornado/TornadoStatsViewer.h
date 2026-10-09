@@ -36,7 +36,7 @@ private:
     void paintEvent(QPaintEvent *) override;
     void mouseMoveEvent(QMouseEvent *) override;
     int buckets() const;                 // 366, 53, 12 for day / week / month
-    void paintHeatmap(QPainter&);
+    void paintHeatmap(class ChartPainter&);
     QRectF plot() const;
     struct Series {
         int year{0};

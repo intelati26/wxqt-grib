@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "drought/DroughtViewer.h"
 #include <algorithm>
 #include <cmath>
@@ -170,7 +171,7 @@ void PrecipBars::setMonths(const std::vector<Month>& m, const QString& t, bool i
 }
 
 void PrecipBars::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), palette().window());
     auto font = p.font();
@@ -259,7 +260,7 @@ void HistoryChart::setSeries(const std::vector<Point>& p, const QString& t, cons
 }
 
 void HistoryChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), palette().window());
     p.setPen(palette().color(QPalette::WindowText));
@@ -349,7 +350,7 @@ void DroughtChart::setWeeks(const std::vector<Week>& w, const QString& t) {
 }
 
 void DroughtChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), palette().window());
     p.setPen(palette().color(QPalette::WindowText));

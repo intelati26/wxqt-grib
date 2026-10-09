@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "hurricane/ShipsViewer.h"
 #include <algorithm>
 #include <cmath>
@@ -88,7 +89,7 @@ void ShipsChart::setData(const std::shared_ptr<HurricaneData::ShipsData>& newShi
 }
 
 void ShipsChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{250, 250, 250});
     if (!ships || !ships->ships.ok) {

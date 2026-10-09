@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include <array>
+#include "ui/ChartPainter.h"
 #include "dams/DamViewer.h"
 #include <algorithm>
 #include <cmath>
@@ -55,7 +56,7 @@ void DamChart::setData(const std::shared_ptr<DamData::Data>& newData, int newHou
 }
 
 void DamChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{245, 245, 245});
     if (!data) {

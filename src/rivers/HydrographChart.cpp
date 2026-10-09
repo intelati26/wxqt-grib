@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "rivers/HydrographChart.h"
 #include "ui/ChartExport.h"
 #include <algorithm>
@@ -95,7 +96,7 @@ double HydrographChart::yOf(double value) const {
 }
 
 void HydrographChart::paintEvent(QPaintEvent *) {
-    QPainter painter{this};
+    ChartPainter painter{this};
     painter.setRenderHint(QPainter::Antialiasing, true);
     const auto& pal = palette();
     painter.fillRect(rect(), pal.color(QPalette::Base));

@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "hurricane/IntensityViewer.h"
 #include "hurricane/EnsembleStyle.h"
 #include <algorithm>
@@ -63,7 +64,7 @@ bool IntensityChart::shown(const string& family) const {
 }
 
 void IntensityChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{245, 245, 245});
     if (!storm || storm->best.empty()) {

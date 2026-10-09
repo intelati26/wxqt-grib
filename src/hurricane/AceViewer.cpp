@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "hurricane/AceViewer.h"
 #include "util/UtilityDate.h"
 #include <algorithm>
@@ -140,7 +141,7 @@ QRectF AceChart::barsArea() const {
 }
 
 void AceChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{245, 245, 245});
     if (!data || !data->error.empty() || series.empty()) {

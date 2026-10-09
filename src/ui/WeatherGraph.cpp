@@ -4,6 +4,7 @@
 // * Refer to the COPYING file for the official project for license.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "ui/WeatherGraph.h"
 #include "ui/ChartExport.h"
 #include <algorithm>
@@ -52,7 +53,7 @@ void WeatherGraph::setData(const vector<string>& times, const vector<double>& te
 }
 
 void WeatherGraph::paintEvent(QPaintEvent *) {
-    QPainter painter{this};
+    ChartPainter painter{this};
     painter.setRenderHint(QPainter::Antialiasing);
     painter.fillRect(rect(), QColor{250, 250, 250});
 

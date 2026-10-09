@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "hurricane/VdmViewer.h"
 #include <algorithm>
 #include <cmath>
@@ -58,7 +59,7 @@ void VdmChart::setData(const std::shared_ptr<HurricaneData::VdmData>& newData) {
 }
 
 void VdmChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{245, 245, 245});
     if (!data || data->messages.empty()) {

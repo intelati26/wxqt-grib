@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "space/SpaceWeatherViewer.h"
 #include <algorithm>
 #include <cmath>
@@ -64,7 +65,7 @@ void SpaceChart::setData(const std::shared_ptr<SpaceData::Bundle>& d) {
 }
 
 void SpaceChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{250, 250, 250});
     if (!data) {

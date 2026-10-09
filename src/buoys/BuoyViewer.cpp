@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "buoys/BuoyViewer.h"
 #include <algorithm>
 #include <cmath>
@@ -70,7 +71,7 @@ void BuoyChart::setData(const std::shared_ptr<std::vector<Obs>>& data, double ne
 }
 
 void BuoyChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{245, 245, 245});
     if (!series || series->empty()) {

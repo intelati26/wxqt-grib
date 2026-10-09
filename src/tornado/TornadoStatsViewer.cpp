@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "tornado/TornadoStatsViewer.h"
 #include "tornado/TornadoYearsViewer.h"
 #include "util/UtilityDate.h"
@@ -182,7 +183,7 @@ QRectF TornadoChart::plot() const {
 }
 
 // years down, weeks across, the colour the count that week on a log scale (so the quiet weeks show), the average of 1991-2020 as the bottom row
-void TornadoChart::paintHeatmap(QPainter& p) {
+void TornadoChart::paintHeatmap(ChartPainter& p) {
     const QRectF area{58.0, 44.0, width() - 58.0 - 70.0, height() - 44.0 - 40.0};
     const int rows = static_cast<int>(heat.size());   // the years and the average row
     const double cw = area.width() / 53.0;
@@ -249,7 +250,7 @@ void TornadoChart::paintHeatmap(QPainter& p) {
 }
 
 void TornadoChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{245, 245, 245});
     if (!db) {

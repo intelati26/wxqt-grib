@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "models/SoundingViewer.h"
 #include "util/Utility.h"
 #include <algorithm>
@@ -44,7 +45,7 @@ namespace {
     }
 
     // wind barb, northern-hemisphere convention: staff points into the wind, feathers on the clockwise side
-    void drawBarb(QPainter& painter, const QPointF& at, double dirDeg, double speedKt, double length) {
+    void drawBarb(ChartPainter& painter, const QPointF& at, double dirDeg, double speedKt, double length) {
         if (!have(dirDeg) || !have(speedKt)) return;
         if (speedKt < 2.5) {
             painter.drawEllipse(at, 3.0, 3.0);
@@ -148,7 +149,7 @@ public:
         QImage image{1180 * scale, 968 * scale, QImage::Format_ARGB32};
         image.fill(Qt::white);
         {
-            QPainter painter{&image};
+            ChartPainter painter{&image};
             paintInto(painter, image.width(), image.height());
         }
         lightTheme = false;
@@ -158,12 +159,12 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *) override {
-        QPainter painter{this};
+        ChartPainter painter{this};
         paintInto(painter, width(), height());
     }
 
     // the whole picture into a painter of the given size (the screen widget, or the export image)
-    void paintInto(QPainter& painter, int width, int height) {
+    void paintInto(ChartPainter& painter, int width, int height) {
         const QRect rect{0, 0, width, height};
         painter.setRenderHint(QPainter::Antialiasing);
         painter.fillRect(rect, themed(QColor{12, 12, 16}));
@@ -291,7 +292,7 @@ private:
         return parcelIndex == 0 ? analysis->sb : parcelIndex == 2 ? analysis->mu : analysis->ml;
     }
 
-    void strokePolyline(QPainter& painter, const Geometry& g, const std::vector<double>& temps, const std::vector<double>& pres) const {
+    void strokePolyline(ChartPainter& painter, const Geometry& g, const std::vector<double>& temps, const std::vector<double>& pres) const {
         QPainterPath path;
         bool started = false;
         for (size_t i = 0; i < temps.size() && i < pres.size(); i += 1) {
@@ -328,7 +329,7 @@ private:
     // SPC's / SHARPpy's extra marks on the Skew-T: height labels along the left edge (km above ground, SFC with the station
     // elevation), the freezing level and the -20 / -30 C levels (feet above ground), the layer of steepest 2 km lapse rate between
     // 2 and 6 km (when it is at least 4.5 C/km) and the effective inflow layer with its effective SRH
-    void drawAnnotations(QPainter& painter, const Geometry& g, const QRect& plot) const {
+    void drawAnnotations(ChartPainter& painter, const Geometry& g, const QRect& plot) const {
         const auto& prof = *profile;
         painter.save();
         QFont font = painter.font();
@@ -419,7 +420,7 @@ private:
         painter.restore();
     }
 
-    void drawSkewT(QPainter& painter, const QRect& plot) {
+    void drawSkewT(ChartPainter& painter, const QRect& plot) {
         const auto g = geometry(plot);
         painter.save();
         painter.setClipRect(plot);
@@ -547,7 +548,7 @@ private:
     // rings every 10 kt, the trace coloured by height AGL (red under 3 km, bright green 3-6, dark green 6-9, purple 9-12), a dot
     // and number at every km, the storm motions (circle with a cross) and mean wind (square), SPC's Corfidi points (UP / DP)
     // and the effective inflow layer's vectors from the right mover to the hodograph
-    void drawHodograph(QPainter& painter, const QRect& area) {
+    void drawHodograph(ChartPainter& painter, const QRect& area) {
         using namespace SoundingIndices;
         painter.save();
         painter.fillRect(area, themed(QColor{0, 0, 0}));
@@ -674,7 +675,7 @@ private:
     // two wind barbs, at 1 km and 6 km above ground (SPC's small inset)
     // wind speed against pressure beside the skew-T (same vertical scale), one bar per level coloured by height above
     // ground: under 3 km red, 3-6 bright green, 6-9 dark green, 9-12 purple, above 12 km cyan; 0-140 kt, dashed every 20 kt
-    void drawWindSpeed(QPainter& painter, const QRect& area) {
+    void drawWindSpeed(ChartPainter& painter, const QRect& area) {
         const auto& p = *profile;
         const auto g = geometry(skewRect());
         constexpr double maxSpeed = 120.0;
@@ -728,7 +729,7 @@ private:
 
     // inferred temperature advection (SHARPpy's panel): one box per 100 mb layer from the surface, from the centre line out
     // to the value (-13 .. +13 C/hr across the width), red warm, blue cold, the value printed in the layer
-    void drawTempAdvection(QPainter& painter, const QRect& area) {
+    void drawTempAdvection(ChartPainter& painter, const QRect& area) {
         const auto g = geometry(skewRect());
         const auto layers = SoundingAdvection::inferred(*profile, profile->latitude);
         painter.save();
@@ -763,7 +764,7 @@ private:
     }
 
     // theta-e against pressure, 1025-400 mb (SHARPpy's thetae panel); the x range is the data's own +-10 K; TEI beneath
-    void drawThetaE(QPainter& painter, const QRect& area) {
+    void drawThetaE(ChartPainter& painter, const QRect& area) {
         const auto& p = *profile;
         double low = 1e9;
         double high = -1e9;
@@ -832,7 +833,7 @@ private:
     // storm-relative wind speed (right-mover storm motion) against height above ground, 0-16 km and 0-80 kt, as SHARPpy's
     // srwinds panel: the trace, the 0-2 / 4-6 / 9-11 km mean storm-relative winds as short bars, and the 40-70 kt
     // classic-supercell envelope above 8 km
-    void drawStormRelativeWinds(QPainter& painter, const QRect& area) {
+    void drawStormRelativeWinds(ChartPainter& painter, const QRect& area) {
         const auto& p = *profile;
         const auto storm = analysis->rightMover;
         if (!storm.valid() || p.size() == 0) return;
@@ -910,7 +911,7 @@ private:
 
     // a box-and-whisker inset: each row of `boxes` is {low whisker end, box bottom, median, box top, high whisker end};
     // the y axis runs 0..yMax with a dashed line at every `yStep`; `value` is drawn as a line across the plot in `valueColor`
-    void drawBoxPlot(QPainter& painter, const QRect& area, const QString& title, double yMax, double yStep, const std::vector<QString>& names,
+    void drawBoxPlot(ChartPainter& painter, const QRect& area, const QString& title, double yMax, double yStep, const std::vector<QString>& names,
                      const double * boxes, int count, bool median, double value, const QColor& valueColor) {
         painter.save();
         painter.fillRect(area, themed(QColor{0, 0, 0}));
@@ -959,7 +960,7 @@ private:
 
     // SARS (SHARPpy's analogues panel): supercell analogues on the left, significant hail on the right - the probability
     // line, the number of loose matches, then the quality matches (date, site, and the tornado class or hail size)
-    void drawSars(QPainter& painter, const QRect& area) {
+    void drawSars(ChartPainter& painter, const QRect& area) {
         painter.save();
         painter.fillRect(area, themed(QColor{0, 0, 0}));
         painter.setPen(themed(QColor{200, 200, 200}));
@@ -1031,7 +1032,7 @@ private:
     }
 
     // SHARPpy's text box in the STP panel: the chance of an EF2+ tornado given each parameter alone (SPC prints the same list)
-    void drawTornadoProbBox(QPainter& painter, const QRect& area) {
+    void drawTornadoProbBox(ChartPainter& painter, const QRect& area) {
         const auto& a = *analysis;
         painter.save();
         painter.fillRect(area, themed(QColor{0, 0, 0}));
@@ -1070,7 +1071,7 @@ private:
         painter.restore();
     }
 
-    void drawWindInset(QPainter& painter, const QRect& area) {
+    void drawWindInset(ChartPainter& painter, const QRect& area) {
         const auto& p = *profile;
         painter.save();
         const QColor colors[2] = {themed(QColor{255, 110, 110}), themed(QColor{120, 190, 255})};
@@ -1110,7 +1111,7 @@ private:
     };
 
     // `group` picks the part of the table band (-1: everything): 0 parcels / thermodynamics / lapse rates, 1 winds and storm motion, 2 indices and precip type
-    void drawTable(QPainter& painter, const QRect& area, int group) {
+    void drawTable(ChartPainter& painter, const QRect& area, int group) {
         using namespace SoundingIndices;
         const auto& a = *analysis;
         vector<GridSection> sections;

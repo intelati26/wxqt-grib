@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "obs/SurfaceHistoryViewer.h"
 #include <algorithm>
 #include <cmath>
@@ -22,7 +23,7 @@ void SurfaceHistoryChart::setData(const std::vector<UtilityMetarHistory::Ob>& ne
 }
 
 void SurfaceHistoryChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{245, 245, 245});
     if (obs.empty()) {

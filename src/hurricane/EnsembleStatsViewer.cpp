@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "hurricane/EnsembleStatsViewer.h"
 #include "hurricane/ChartKit.h"
 #include <algorithm>
@@ -60,7 +61,7 @@ bool EnsembleChart::shown(const string& family) const {
 }
 
 void EnsembleChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{245, 245, 245});
     if (series.empty() || !ensembles) {

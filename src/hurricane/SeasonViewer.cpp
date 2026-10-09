@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "hurricane/SeasonViewer.h"
 #include <algorithm>
 #include <cmath>
@@ -90,7 +91,7 @@ QRectF SeasonChart::plot() const {
 }
 
 void SeasonChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), QColor{245, 245, 245});
     std::vector<double> divisors;

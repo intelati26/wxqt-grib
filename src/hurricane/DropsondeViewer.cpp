@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "hurricane/DropsondeViewer.h"
 #include <algorithm>
 #include <cmath>
@@ -87,7 +88,7 @@ DropsondeChart::DropsondeChart(const UtilityDropsonde::Drop& d, QWidget * parent
 }
 
 void DropsondeChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
     p.fillRect(rect(), Qt::white);
     // a saved or copied picture carries the plots only: the tables and the lines of words are for the screen
