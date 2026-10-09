@@ -134,6 +134,102 @@ const GfsChart::Ramp * GfsChart::magPalette(const std::string& name) {
             r.stops.push_back({300.0, QColor{255, 174, 185}});
             p["uh"] = r;
         }
+        {   // prob: 10 bands, from GEFS-MEAN-SPRD/prob_cape_500.gif
+            Ramp r;
+            r.banded = true;
+            r.stops.push_back({5.0, QColor{0, 139, 0}});
+            r.stops.push_back({10.0, QColor{0, 205, 0}});
+            r.stops.push_back({20.0, QColor{16, 78, 139}});
+            r.stops.push_back({30.0, QColor{30, 144, 255}});
+            r.stops.push_back({40.0, QColor{0, 255, 255}});
+            r.stops.push_back({50.0, QColor{255, 255, 0}});
+            r.stops.push_back({60.0, QColor{255, 127, 0}});
+            r.stops.push_back({70.0, QColor{238, 64, 0}});
+            r.stops.push_back({80.0, QColor{255, 0, 0}});
+            r.stops.push_back({90.0, QColor{255, 106, 106}});
+            p["prob"] = r;
+        }
+        {   // vis: 15 bands, from HRRR/vis.gif
+            Ramp r;
+            r.banded = true;
+            r.stops.push_back({0.0, QColor{255, 106, 106}});
+            r.stops.push_back({0.125, QColor{205, 0, 0}});
+            r.stops.push_back({0.25, QColor{139, 0, 139}});
+            r.stops.push_back({0.5, QColor{145, 44, 238}});
+            r.stops.push_back({0.75, QColor{137, 104, 205}});
+            r.stops.push_back({1.0, QColor{255, 255, 0}});
+            r.stops.push_back({1.5, QColor{255, 215, 0}});
+            r.stops.push_back({2.0, QColor{205, 133, 0}});
+            r.stops.push_back({3.0, QColor{0, 0, 255}});
+            r.stops.push_back({4.0, QColor{30, 144, 255}});
+            r.stops.push_back({5.0, QColor{0, 255, 255}});
+            r.stops.push_back({6.0, QColor{0, 139, 0}});
+            r.stops.push_back({7.0, QColor{0, 205, 0}});
+            r.stops.push_back({8.0, QColor{0, 255, 0}});
+            r.stops.push_back({9.0, QColor{127, 255, 0}});
+            p["vis"] = r;
+        }
+        {   // ceiling: 14 bands, from HRRR/ceiling.gif
+            Ramp r;
+            r.banded = true;
+            r.stops.push_back({0.0, QColor{205, 0, 0}});
+            r.stops.push_back({100.0, QColor{255, 0, 0}});
+            r.stops.push_back({300.0, QColor{255, 127, 0}});
+            r.stops.push_back({500.0, QColor{255, 165, 79}});
+            r.stops.push_back({1000.0, QColor{255, 255, 0}});
+            r.stops.push_back({5000.0, QColor{238, 238, 0}});
+            r.stops.push_back({10000.0, QColor{127, 255, 0}});
+            r.stops.push_back({15000.0, QColor{0, 205, 0}});
+            r.stops.push_back({20000.0, QColor{0, 139, 0}});
+            r.stops.push_back({25000.0, QColor{30, 144, 255}});
+            r.stops.push_back({30000.0, QColor{0, 0, 255}});
+            r.stops.push_back({35000.0, QColor{16, 78, 139}});
+            r.stops.push_back({40000.0, QColor{145, 44, 238}});
+            r.stops.push_back({45000.0, QColor{139, 0, 139}});
+            p["ceiling"] = r;
+        }
+        {   // echo_top: 14 bands, from HRRR/echo_top.gif
+            Ramp r;
+            r.banded = true;
+            r.stops.push_back({0.0, QColor{0, 178, 238}});
+            r.stops.push_back({5.0, QColor{30, 144, 255}});
+            r.stops.push_back({10.0, QColor{16, 78, 139}});
+            r.stops.push_back({15.0, QColor{127, 255, 0}});
+            r.stops.push_back({20.0, QColor{0, 205, 0}});
+            r.stops.push_back({25.0, QColor{0, 139, 0}});
+            r.stops.push_back({30.0, QColor{255, 255, 0}});
+            r.stops.push_back({35.0, QColor{255, 215, 0}});
+            r.stops.push_back({40.0, QColor{255, 127, 0}});
+            r.stops.push_back({45.0, QColor{255, 0, 0}});
+            r.stops.push_back({50.0, QColor{238, 64, 0}});
+            r.stops.push_back({55.0, QColor{205, 0, 0}});
+            r.stops.push_back({60.0, QColor{255, 174, 185}});
+            r.stops.push_back({65.0, QColor{137, 104, 205}});
+            p["echo_top"] = r;
+        }
+        {   // snowdepth: 18 bands, from GEFS-MEAN-SPRD/snodpth_chng_mean.gif
+            Ramp r;
+            r.banded = true;
+            r.stops.push_back({0.254, QColor{0, 238, 238}});
+            r.stops.push_back({1.27, QColor{0, 178, 238}});
+            r.stops.push_back({2.54, QColor{16, 78, 139}});
+            r.stops.push_back({5.08, QColor{0, 255, 0}});
+            r.stops.push_back({7.62, QColor{0, 205, 0}});
+            r.stops.push_back({10.16, QColor{0, 139, 0}});
+            r.stops.push_back({15.24, QColor{255, 0, 255}});
+            r.stops.push_back({20.32, QColor{139, 0, 139}});
+            r.stops.push_back({25.4, QColor{145, 44, 238}});
+            r.stops.push_back({30.48, QColor{255, 255, 0}});
+            r.stops.push_back({38.1, QColor{255, 215, 0}});
+            r.stops.push_back({45.72, QColor{205, 133, 0}});
+            r.stops.push_back({60.96, QColor{205, 0, 0}});
+            r.stops.push_back({76.2, QColor{238, 64, 0}});
+            r.stops.push_back({91.44, QColor{255, 127, 0}});
+            r.stops.push_back({121.92, QColor{255, 165, 79}});
+            r.stops.push_back({152.4, QColor{255, 174, 185}});
+            r.stops.push_back({182.88, QColor{255, 228, 220}});
+            p["snowdepth"] = r;
+        }
         return p;
     }();
     const auto found = palettes.find(name);

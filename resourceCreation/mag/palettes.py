@@ -19,6 +19,12 @@ PALETTES = {
     'spread_wind': ('GEFS-MEAN-SPRD/500_wnd.gif',  [30, 26, 22, 18, 14, 10, 8, 6, 4, 2, 1.5, 1], 1.0, False),                            # meters per second
     'helicity':    ('HRRR/helicity_1km.gif',       [700, 600, 500, 400, 300, 250, 200, 150, 100, 50], 1.0, False),                        # m2/s2
     'uh':          ('HRRR/max_updraft_hlcy.gif',   [300, 275, 250, 225, 200, 175, 150, 125, 100, 75, 50, 25], 1.0, False),                # m2/s2
+    # these legends print each number at the TOP edge of a swatch (and one more at the very top), so a swatch starts at the number at its bottom edge; the lowest swatch starts at 0
+    'prob':        ('GEFS-MEAN-SPRD/prob_cape_500.gif', [90, 80, 70, 60, 50, 40, 30, 20, 10, 5], 1.0, False),                           # per cent (shared by 52 of the images)
+    'vis':         ('HRRR/vis.gif',                [9, 8, 7, 6, 5, 4, 3, 2, 1.5, 1, 0.75, 0.5, 0.25, 0.125, 0], 1.0, False),              # statute miles
+    'ceiling':     ('HRRR/ceiling.gif',            [45, 40, 35, 30, 25, 20, 15, 10, 5, 1, 0.5, 0.3, 0.1, 0], 1000.0, False),             # thousands of feet -> feet
+    'echo_top':    ('HRRR/echo_top.gif',           [65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5, 0], 1.0, False),                   # thousands of feet
+    'snowdepth':   ('GEFS-MEAN-SPRD/snodpth_chng_mean.gif', [72, 60, 48, 36, 30, 24, 18, 15, 12, 10, 8, 6, 4, 3, 2, 1, 0.5, 0.1], 2.54, False),   # inches -> centimeters
 }
 def main(folder):
     out = ['// *****************************************************************************', '// * This file is part of wxqt.  Licensed under the GNU General Public License v3.', '// * See the COPYING file for the full license text.', '// *****************************************************************************', '',

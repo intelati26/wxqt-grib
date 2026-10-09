@@ -4,6 +4,9 @@
 // *****************************************************************************
 
 #include "gfs/GfsData.h"
+#include <cctype>
+#include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <future>
@@ -61,14 +64,16 @@ GfsData::Source GfsData::gefs() {
     s.label = "NOAA/NCEP GEFS mean and spread, 0.5 degree";
     s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
         const bool spread = file.compare(0, 3, "spr") == 0, surface = file.size() > 1 && file.back() == 's';
-        const std::string kind = spread ? "gespr" : "geavg";
+        const bool member = file.size() == 5 && (file[0] == 'c' || file[0] == 'p') && std::isdigit(static_cast<unsigned char>(file[1])) && std::isdigit(static_cast<unsigned char>(file[2]));   // "p05-a": member 5
+        const std::string kind = member ? "ge" + file.substr(0, 3) : spread ? "gespr" : "geavg";
         return "https://noaa-gefs-pds.s3.amazonaws.com/gefs." + run.date + "/" + run.cycle + "/atmos/" + (surface ? "pgrb2sp25/" : "pgrb2ap5/") + kind + ".t" + run.cycle + "z." + (surface ? "pgrb2s.0p25" : "pgrb2a.0p50") +
             ".f" + pad(hour, 3);
     };
     s.fileOf = [] (const Want& want) {
         const auto& v = want.variable;
         const bool surfaceSet = v == "GUST" || v == "DPT" || v == "VIS" || v == "HLCY" || v == "MSLET" || (v == "CAPE" && want.level == "surface") || (v == "CIN" && want.level == "surface");
-        return std::string{want.stat == "spr" ? "spr" : "avg"} + (surfaceSet ? "-s" : "-a");
+        const bool member = want.stat.size() == 3 && (want.stat[0] == 'c' || want.stat[0] == 'p') && std::isdigit(static_cast<unsigned char>(want.stat[1])) && std::isdigit(static_cast<unsigned char>(want.stat[2]));   // a member: "c00" the control, "p01" ... "p30"
+        return (member ? want.stat : std::string{want.stat == "spr" ? "spr" : "avg"}) + (surfaceSet ? "-s" : "-a");
     };
     s.defaultDetail = "*";
     s.probeFile = "avg-a";
@@ -98,6 +103,7 @@ GfsData::Source GfsData::hafs(const std::string& model, const std::string& storm
     s.cycleHours = 6;
     s.lagHours = 4;
     s.probeHour = 126;   // a run is written hour by hour, and its track and waves only when it is done: it is there when its last hour is
+    s.maxParallel = 4;   // NOMADS limits the number of requests at once
     s.cyclesToTry = 4;
     return s;
 }
@@ -397,19 +403,46 @@ bool GfsData::load(const Run& run, int hour, const std::vector<Want>& wants, std
     return load(run, needs, out, error);
 }
 
+namespace {
+    // run job(0) ... job(count - 1) on at most `limit` threads (a fetch of every member at once would be dozens of connections and decoders together)
+    void runLimited(size_t count, int limit, const std::function<void(size_t)>& job) {
+        std::atomic<size_t> next{0};
+        const size_t workers = std::min<size_t>(static_cast<size_t>(std::max(limit, 1)), count);
+        std::vector<std::future<void>> running;
+        for (size_t w = 0; w < workers; w++) {
+            running.push_back(std::async(std::launch::async, [&] {
+                for (size_t i = next++; i < count; i = next++) {
+                    job(i);
+                }
+            }));
+        }
+        for (auto& r : running) {
+            r.get();
+        }
+    }
+}
+
 bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {
-    // one index per forecast hour and file involved
-    std::map<std::pair<int, std::string>, std::vector<GfsGrid::IdxRecord>> indexes;
+    // one index per forecast hour and file involved: fetched together (they do not depend on each other), a few at a time
+    std::vector<std::pair<int, std::string>> keys;
     for (const auto& need : needs) {
         const auto key = std::make_pair(need.hour, fileFor(need.want));
-        if (indexes.find(key) == indexes.end()) {
-            const auto idxBytes = config.bytes(fileUrl(run, need.hour, key.second) + ".idx", 0, -1);
-            indexes[key] = GfsGrid::parseIdx(idxBytes.toStdString());
-            if (indexes[key].empty()) {
-                error = "could not read the " + source.id + " index for " + run.id() + " f" + pad(need.hour, 3) + (key.second.empty() ? "" : " (" + key.second + ")");
-                return false;
-            }
+        if (std::find(keys.begin(), keys.end(), key) == keys.end()) {
+            keys.push_back(key);
         }
+    }
+    std::vector<std::vector<GfsGrid::IdxRecord>> parsed(keys.size());
+    runLimited(keys.size(), source.maxParallel, [&] (size_t i) {
+        const auto idxBytes = config.bytes(fileUrl(run, keys[i].first, keys[i].second) + ".idx", 0, -1);
+        parsed[i] = GfsGrid::parseIdx(idxBytes.toStdString());
+    });
+    std::map<std::pair<int, std::string>, std::vector<GfsGrid::IdxRecord>> indexes;
+    for (size_t i = 0; i < keys.size(); i++) {
+        if (parsed[i].empty()) {
+            error = "could not read the " + source.id + " index for " + run.id() + " f" + pad(keys[i].first, 3) + (keys[i].second.empty() ? "" : " (" + keys[i].second + ")");
+            return false;
+        }
+        indexes[keys[i]] = std::move(parsed[i]);
     }
     struct Result {
         GfsGrid::Grid grid;
@@ -417,24 +450,22 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
         bool ok{false};
         bool absent{false};
     };
-    std::vector<std::future<Result>> jobs;
-    for (const auto& need : needs) {
-        jobs.push_back(std::async(std::launch::async, [&, need] {
-            Result r;
-            const auto file = fileFor(need.want);
-            const auto& index = indexes.at(std::make_pair(need.hour, file));
-            if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast, need.want.detail)) {
-                r.ok = true;   // nothing accumulated yet at hour 0
-                r.absent = true;
-                return r;
-            }
-            r.ok = one(run, need.hour, file, index, need.want, r.grid, r.error);
-            return r;
-        }));
-    }
+    std::vector<Result> results(needs.size());
+    runLimited(needs.size(), source.maxParallel, [&] (size_t i) {   // the downloads and the decoding, a few at a time
+        const auto& need = needs[i];
+        Result& r = results[i];
+        const auto file = fileFor(need.want);
+        const auto& index = indexes.at(std::make_pair(need.hour, file));
+        if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast, need.want.detail)) {
+            r.ok = true;   // nothing accumulated yet at hour 0
+            r.absent = true;
+            return;
+        }
+        r.ok = one(run, need.hour, file, index, need.want, r.grid, r.error);
+    });
     bool all = true;
-    for (size_t i = 0; i < jobs.size(); i++) {
-        auto r = jobs[i].get();
+    for (size_t i = 0; i < results.size(); i++) {
+        auto& r = results[i];
         if (r.ok) {
             if (!r.absent) {
                 out[needs[i].want.key] = std::move(r.grid);

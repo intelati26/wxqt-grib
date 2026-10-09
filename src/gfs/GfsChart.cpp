@@ -1282,6 +1282,7 @@ const std::vector<Product>& products() {
             x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", "TSTM", "surface", window(hour, 6, "acc"), "probability forecast")}}; };
             x.fill = [] (const Grids& g) { return pick(g, "f"); };
             x.ramp = probability();
+                x.palette = "prob";
             x.fillTitle = "Chance of a thunderstorm (%)";
             x.legendStep = 10;
             p.push_back(x);
@@ -1313,6 +1314,7 @@ const std::vector<Product>& products() {
                 x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", var.c_str(), lev.c_str(), forecast(hour), det)}}; };
                 x.fill = [] (const Grids& g) { return pick(g, "f"); };
                 x.ramp = probability();
+                x.palette = "prob";
                 x.fillTitle = title;
                 x.legendStep = 10;
                 return x;
@@ -1365,6 +1367,7 @@ const std::vector<Product>& products() {
                 x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", "VIS", "surface", atHour(hour))}}; };
                 x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), 1.0 / 1609.344); };
                 x.ramp = visibilityRamp();
+                x.palette = "vis";
                 x.fillTitle = "Visibility (miles)";
                 x.legendStep = 0;
                 p.push_back(x);
@@ -1374,6 +1377,7 @@ const std::vector<Product>& products() {
                 x.needs = [=] (int hour) { return std::vector<GfsData::Need>{{hour, nbmWant("f", "CEIL", "cloud ceiling", atHour(hour))}}; };
                 x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), 3.28084); };
                 x.ramp = ceilingRamp();
+                x.palette = "ceiling";
                 x.fillTitle = "Ceiling (feet)";
                 x.legendStep = 0;
                 p.push_back(x);
@@ -1391,6 +1395,7 @@ const std::vector<Product>& products() {
                     return out;
                 };
                 x.ramp = echoTopRamp();
+                x.palette = "echo_top";
                 x.fillTitle = "Echo top (thousands of feet)";
                 x.legendStep = 10;
                 p.push_back(x);
@@ -1634,6 +1639,188 @@ const std::vector<Product>& products() {
                 auto x = spread("spread_cape", "Surface-Based CAPE Spread", {spr("s", "CAPE", "surface"), want("c", "CAPE", "surface")}, [] (const Grids& g) { return pick(g, "s"); },
                                 "Spread of the CAPE (J/kg)", 1500.0, 250);
                 p.push_back(x);
+            }
+
+            // ---- the maps that count the members: the share of the 31 (the control and the 30) that pass a limit, and the spread of a change. Each is 31 fetches of one field (the cache keeps them).
+            static const std::vector<std::string> memberNames = [] {
+                std::vector<std::string> names{"c00"};
+                for (int i = 1; i <= 30; i++) {
+                    names.push_back(std::string{"p"} + (i < 10 ? "0" : "") + std::to_string(i));
+                }
+                return names;
+            }();
+            // the same record from every member: the grids are named "<prefix><member>"
+            const auto memberNeeds = [] (const char * prefix, const char * variable, const char * level, int hour, const std::string& forecast) {
+                std::vector<GfsData::Need> out;
+                for (const auto& name : memberNames) {
+                    out.push_back({hour, GfsData::Want{std::string{prefix} + name, variable, level, forecast, "", name}});
+                }
+                return out;
+            };
+            // The percentage of the members that pass a test at each point (1 passes, 0 does not, -1 no data), into `out`; the members' grids are dropped then, 31 of them are a lot to carry.
+            const auto share = [] (Grids& g, const std::function<int(const Grids&, const std::string&, size_t)>& test, const char * out, std::initializer_list<const char *> prefixes) {
+                auto result = g.at(std::string{*prefixes.begin()} + memberNames.front());
+                for (size_t i = 0; i < result.values.size(); i++) {
+                    int n = 0, passed = 0;
+                    for (const auto& name : memberNames) {
+                        const int r = test(g, name, i);
+                        if (r >= 0) {
+                            n++;
+                            passed += r;
+                        }
+                    }
+                    result.values[i] = n > 0 ? 100.0f * static_cast<float>(passed) / static_cast<float>(n) : std::nanf("");
+                }
+                g[out] = std::move(result);
+                for (const auto * prefix : prefixes) {
+                    for (const auto& name : memberNames) {
+                        g.erase(std::string{prefix} + name);
+                    }
+                }
+            };
+            const auto shareChart = [&] (const char * id, const std::string& label, const std::string& title, std::function<std::vector<GfsData::Need>(int)> needs, std::function<void(Grids&)> derive) {
+                Product x;
+                x.source = "GEFS";
+                x.id = id;
+                x.label = label;
+                x.needs = std::move(needs);
+                x.derive = [derive] (Grids& g, const Context&) { derive(g); };
+                x.fill = [] (const Grids& g) { return pick(g, "share"); };
+                x.ramp = probability();
+                x.palette = "prob";
+                x.fillTitle = title;
+                x.legendStep = 10;
+                return x;
+            };
+            const auto sixHourAmount = [] (int hour) { return std::to_string(hour - 6) + "-" + std::to_string(hour) + " hour acc fcst"; };
+            const auto sixHourAverage = [] (int hour) { return std::to_string(hour - 6) + "-" + std::to_string(hour) + " hour ave fcst"; };
+            for (const auto& [id, inches, text] : {std::tuple{"prob_precip_0.25in", 0.25, "0.25"}, {"prob_precip_0.5in", 0.5, "0.50"}, {"prob_precip_1in", 1.0, "1.00"}}) {
+                const double mm = inches * 25.4;
+                p.push_back(shareChart(id, std::string{"Probability of 6-hour Precipitation over "} + text + " in", std::string{"Chance of more than "} + text + " in of precipitation in 6 hours (% of the 31 members)",
+                                       [memberNeeds, sixHourAmount] (int hour) { return hour < 6 ? std::vector<GfsData::Need>{} : memberNeeds("a", "APCP", "surface", hour, sixHourAmount(hour)); },
+                                       [share, mm] (Grids& g) {
+                                           share(g, [mm] (const Grids& grids, const std::string& name, size_t i) {
+                                               const float a = grids.at("a" + name).values[i];
+                                               return std::isnan(a) ? -1 : a > mm ? 1 : 0;
+                                           }, "share", {"a"});
+                                       }));
+            }
+            p.push_back(shareChart("prob_ice_0.25in", "Probability of Ice Pellets over 0.25 in", "Chance of 0.25 in or more of precipitation falling as ice pellets in 6 hours (% of the 31 members)",
+                                   [memberNeeds, sixHourAmount, sixHourAverage] (int hour) {
+                                       if (hour < 6) {
+                                           return std::vector<GfsData::Need>{};
+                                       }
+                                       auto out = memberNeeds("a", "APCP", "surface", hour, sixHourAmount(hour));
+                                       for (auto& need : memberNeeds("i", "CICEP", "surface", hour, sixHourAverage(hour))) {   // the share of the 6 hours with ice pellets
+                                           out.push_back(std::move(need));
+                                       }
+                                       return out;
+                                   },
+                                   [share] (Grids& g) {   // a member counts when it makes the amount and most of that time is ice pellets (an approximation: the amount of the ice pellets alone is not in the files)
+                                       share(g, [] (const Grids& grids, const std::string& name, size_t i) {
+                                           const float a = grids.at("a" + name).values[i], ice = grids.at("i" + name).values[i];
+                                           return std::isnan(a) || std::isnan(ice) ? -1 : (a >= 6.35f && ice >= 0.5f) ? 1 : 0;
+                                       }, "share", {"a", "i"});
+                                   }));
+            for (const int joules : {250, 500, 2000, 4000}) {
+                p.push_back(shareChart(("prob_cape_" + std::to_string(joules)).c_str(), "Probability of CAPE over " + std::to_string(joules), "Chance of surface-based CAPE over " + std::to_string(joules) + " J/kg (% of the 31 members)",
+                                       [memberNeeds] (int hour) { return memberNeeds("c", "CAPE", "surface", hour, std::to_string(hour) + " hour fcst"); },
+                                       [share, joules] (Grids& g) {
+                                           share(g, [joules] (const Grids& grids, const std::string& name, size_t i) {
+                                               const float c = grids.at("c" + name).values[i];
+                                               return std::isnan(c) ? -1 : c > static_cast<float>(joules) ? 1 : 0;
+                                           }, "share", {"c"});
+                                       }));
+            }
+            {   // the precipitation type that most of the members' 6 hours had (the shares of the time with rain, snow, freezing rain and ice pellets are in the mean files): 1 rain, 2 snow, 3 freezing rain, 4 ice pellets
+                Product x;
+                x.source = "GEFS";
+                x.id = "dom_precip_type";
+                x.label = "Dominant Precipitation Type";
+                x.needs = [sixHourAmount, sixHourAverage] (int hour) {
+                    if (hour < 6) {
+                        return std::vector<GfsData::Need>{};
+                    }
+                    return std::vector<GfsData::Need>{{hour, {"a", "APCP", "surface", sixHourAmount(hour), "", ""}}, {hour, {"r", "CRAIN", "surface", sixHourAverage(hour), "", ""}}, {hour, {"s", "CSNOW", "surface", sixHourAverage(hour), "", ""}},
+                                                      {hour, {"f", "CFRZR", "surface", sixHourAverage(hour), "", ""}}, {hour, {"i", "CICEP", "surface", sixHourAverage(hour), "", ""}}};
+                };
+                x.derive = [] (Grids& g, const Context&) {
+                    auto type = g["a"];
+                    for (size_t i = 0; i < type.values.size(); i++) {
+                        if (std::isnan(g["a"].values[i]) || g["a"].values[i] < 0.254f) {   // under 0.01 inch: no precipitation to name
+                            type.values[i] = std::nanf("");
+                            continue;
+                        }
+                        const float shares[4] = {g["r"].values[i], g["s"].values[i], g["f"].values[i], g["i"].values[i]};
+                        int best = 0;
+                        for (int k = 1; k < 4; k++) {
+                            best = shares[k] > shares[best] ? k : best;
+                        }
+                        type.values[i] = static_cast<float>(best + 1);
+                    }
+                    g["type"] = std::move(type);
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "type"); };
+                x.ramp = Ramp{{{1, QColor{0, 200, 0}}, {2, QColor{30, 100, 255}}, {3, QColor{230, 20, 20}}, {4, QColor{150, 40, 200}}}, true};
+                x.fillTitle = "Dominant precipitation type: 1 rain (green), 2 snow (blue), 3 freezing rain (red), 4 ice pellets (purple)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {   // the change of the snow depth over the 24 hours before: the mean of the members, and how much the members differ in it
+                const auto depthNeeds = [memberNeeds] (int hour, bool members) {
+                    const int start = std::max(hour - 24, 0);
+                    std::vector<GfsData::Need> out;
+                    if (members) {
+                        out = memberNeeds("n", "SNOD", "surface", hour, std::to_string(hour) + " hour fcst");
+                        for (auto& need : memberNeeds("o", "SNOD", "surface", start, std::to_string(start) + " hour fcst")) {
+                            out.push_back(std::move(need));
+                        }
+                    } else {
+                        out = {{hour, {"n", "SNOD", "surface", std::to_string(hour) + " hour fcst", "", ""}}, {start, {"o", "SNOD", "surface", std::to_string(start) + " hour fcst", "", ""}}};
+                    }
+                    return out;
+                };
+                Product mean;
+                mean.source = "GEFS";
+                mean.id = "snodpth_chng_mean";
+                mean.label = "Mean Snow Depth Change from the previous 24 hours";
+                mean.needs = [depthNeeds] (int hour) { return depthNeeds(hour, false); };
+                mean.fill = [] (const Grids& g) { return GfsGrid::scaled(GfsGrid::difference(pick(g, "n"), pick(g, "o")), 100.0); };   // meters -> centimeters
+                mean.ramp = snowChange();
+                mean.palette = "snowdepth";
+                mean.quantity = Quantity::Centimeters;
+                mean.fillTitle = "Mean change of the snow depth in the previous 24 hours";
+                mean.legendStep = 0;
+                p.push_back(mean);
+                Product spreadChart = mean;
+                spreadChart.id = "snodpth_chng_sprd";
+                spreadChart.label = "Spread of the Snow Depth Change from the previous 24 hours";
+                spreadChart.needs = [depthNeeds] (int hour) { return depthNeeds(hour, true); };
+                spreadChart.derive = [] (Grids& g, const Context&) {   // the spread (standard deviation) among the members of each one's change
+                    auto result = g.at("n" + memberNames.front());
+                    for (size_t i = 0; i < result.values.size(); i++) {
+                        double sum = 0.0, square = 0.0;
+                        int n = 0;
+                        for (const auto& name : memberNames) {
+                            const float change = g.at("n" + name).values[i] - g.at("o" + name).values[i];
+                            if (!std::isnan(change)) {
+                                sum += change;
+                                square += static_cast<double>(change) * change;
+                                n++;
+                            }
+                        }
+                        result.values[i] = n > 1 ? static_cast<float>(100.0 * std::sqrt(std::max(0.0, square / n - (sum / n) * (sum / n)))) : std::nanf("");   // centimeters
+                    }
+                    g["spread"] = std::move(result);
+                    for (const auto& name : memberNames) {
+                        g.erase("n" + name);
+                        g.erase("o" + name);
+                    }
+                };
+                spreadChart.fill = [] (const Grids& g) { return pick(g, "spread"); };
+                spreadChart.ramp = spreadRamp(10.0);
+                spreadChart.fillTitle = "Spread among the members of the snow depth change";
+                p.push_back(spreadChart);
             }
 
             // ---- the maps of the model guidance site that put the mean and the spread of the 30 members on one chart: the mean as lines and barbs with the spread as the fill, or the mean as the
@@ -1955,6 +2142,7 @@ const std::vector<Product>& products() {
                 x.wants = {want("t", "RETOP", "entire atmosphere (considered as a single layer)")};
                 x.fill = scaledOf("t", 3.28084 / 1000.0);
                 x.ramp = echoTopRamp();
+                x.palette = "echo_top";
                 x.fillTitle = "Echo top (thousands of feet)";
                 x.legendStep = 10;
                 p.push_back(x);
@@ -1964,6 +2152,7 @@ const std::vector<Product>& products() {
                 x.wants = {want("c", "CEIL", "cloud ceiling")};
                 x.fill = scaledOf("c", 3.28084);
                 x.ramp = ceilingRamp();
+                x.palette = "ceiling";
                 x.fillTitle = "Ceiling (feet)";
                 x.legendStep = 0;
                 p.push_back(x);
@@ -1973,6 +2162,7 @@ const std::vector<Product>& products() {
                 x.wants = {want("v", "VIS", "surface")};
                 x.fill = scaledOf("v", 1.0 / 1609.344);
                 x.ramp = visibilityRamp();
+                x.palette = "vis";
                 x.fillTitle = "Visibility (miles)";
                 x.legendStep = 0;
                 p.push_back(x);
@@ -2321,6 +2511,7 @@ const std::vector<Product>& products() {
                 x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
                 x.fill = [fraction, threshold] (const Grids& g) { return fraction(g, "r", threshold); };
                 x.ramp = probability();
+                x.palette = "prob";
                 x.fillTitle = "Chance of the echo reaching the level (% of the members, nearby)";
                 x.legendStep = 10;
                 return x;
@@ -2338,6 +2529,7 @@ const std::vector<Product>& products() {
                 };
                 x.fill = [fraction] (const Grids& g) { return fraction(g, "h", 75.0); };
                 x.ramp = probability();
+                x.palette = "prob";
                 x.fillTitle = "Chance of rotating updrafts (% of the members, nearby)";
                 x.legendStep = 10;
                 p.push_back(x);
@@ -2528,6 +2720,7 @@ const std::vector<Product>& products() {
                 x.needs = [window, variable, detail, period] (int hour) { return std::vector<GfsData::Need>{{hour, {"a", variable, "surface", window(hour, period), detail, "ens:eas"}}}; };
                 x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "a"), 100.0); };   // a fraction -> percent
                 x.ramp = probability();
+                x.palette = "prob";
                 x.fillTitle = "Chance (%, within the neighborhood)";
                 x.legendStep = 10;
                 p.push_back(x);

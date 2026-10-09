@@ -38,7 +38,7 @@ public:
         std::string level;         // "500 mb"
         std::string forecast;      // "" for any, or "0-6 hour acc fcst"
         std::string detail;        // "" for the plain field; the blend's "prob >0.254", "50% level" ask for those records instead
-        std::string stat;          // an ensemble's statistic: "" the mean, "spr" the spread (GEFS)
+        std::string stat;          // an ensemble's statistic or member: "" the mean, "spr" the spread, "c00" the control and "p01" ... "p30" the members (GEFS); "m001" ... (REFS)
     };
     // One model's files. A grid that is not latitude / longitude (the blend's Lambert grid) is warped to one of `step` degrees over the box.
     struct Source {
@@ -53,6 +53,7 @@ public:
         int lagHours{3};                                                 // and a run is looked for from this long after its time
         int probeHour{0};                                                // the forecast hour whose index says the run is there
         int cyclesToTry{5};
+        int maxParallel{8};                                              // fetches and decodes going at once (NOMADS is asked for fewer)
         struct Warp {
             bool enabled{false};
             double step{0.025};
