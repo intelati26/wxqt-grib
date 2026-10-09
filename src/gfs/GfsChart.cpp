@@ -25,6 +25,30 @@
 
 namespace GfsChart {
 namespace {
+
+// the number without trailing zeros: 2, 0.25
+std::string trimmed(double value) {
+    auto text = QString::number(value, 'f', 2);
+    while (text.contains('.') && (text.endsWith('0') || text.endsWith('.'))) {
+        text.chop(1);
+    }
+    return text.toStdString();
+}
+
+// template id -> a function making the product for the chosen values (filled when the registry is built)
+std::map<std::string, std::function<Product(const std::vector<double>&)>>& generators() {
+    static std::map<std::string, std::function<Product(const std::vector<double>&)>> table;
+    return table;
+}
+
+std::string generatedId(const std::string& templateId, const std::vector<double>& values) {
+    std::string id = "gen~" + templateId;
+    for (const double v : values) {
+        id += "~" + trimmed(v);
+    }
+    return id;
+}
+
     constexpr double pi = 3.14159265358979323846;
     constexpr double msToKnots = 1.943844;
 
@@ -1731,6 +1755,88 @@ const std::vector<Product>& products() {
             };
             const auto sixHourAmount = [] (int hour) { return std::to_string(hour - 6) + "-" + std::to_string(hour) + " hour acc fcst"; };
             const auto sixHourAverage = [] (int hour) { return std::to_string(hour - 6) + "-" + std::to_string(hour) + " hour ave fcst"; };
+            // ---- made on request: the same maps with a limit and a period of the user's choosing ("rain over 2 in in 36 hours"). The model screen's "Build a chart" lists the templates; the chart's
+            // id carries the choice ("gen~rain_over~2~36"), so a view that is saved or restored draws it again, and product() makes it when it is asked for.
+            {
+                auto& made = generators();
+                made["rain_over"] = [memberNeeds, share, sixHourAmount] (const std::vector<double>& v) {   // inches, hours
+                    const double inches = v.at(0);
+                    const int window = std::max(6, static_cast<int>(std::lround(v.at(1) / 6.0)) * 6);
+                    Product x;
+                    x.source = "GEFS";
+                    x.id = generatedId("rain_over", {inches, static_cast<double>(window)});
+                    x.label = "Chance of more than " + trimmed(inches) + " in of rain in " + std::to_string(window) + " hours";
+                    x.needs = [memberNeeds, sixHourAmount, window] (int hour) {
+                        std::vector<GfsData::Need> out;
+                        if (hour < 6 || hour % 6 != 0) {   // the members' precipitation is in pieces of 6 hours
+                            return out;
+                        }
+                        for (int end = hour, k = 0; end >= 6 && end > hour - window; end -= 6, k++) {
+                            for (auto& need : memberNeeds(("a" + std::to_string(k) + "_").c_str(), "APCP", "surface", end, sixHourAmount(end))) {
+                                out.push_back(std::move(need));
+                            }
+                        }
+                        return out;
+                    };
+                    x.derive = [share, inches, window] (Grids& g, const Context& context) {
+                        const int pieces = std::min(window, context.hour) / 6;
+                        for (const auto& name : memberNames) {   // each member's total over the period
+                            auto total = g.at("a0_" + name);
+                            for (int k = 1; k < pieces; k++) {
+                                const auto& more = g.at("a" + std::to_string(k) + "_" + name);
+                                for (size_t i = 0; i < total.values.size(); i++) {
+                                    total.values[i] += more.values[i];
+                                }
+                            }
+                            g["t" + name] = std::move(total);
+                        }
+                        for (auto it = g.begin(); it != g.end();) {   // the pieces are not needed again: 31 members of 10 of them are a lot to carry
+                            it = it->first.size() > 1 && it->first[0] == 'a' && std::isdigit(static_cast<unsigned char>(it->first[1])) ? g.erase(it) : std::next(it);
+                        }
+                        const double mm = inches * 25.4;
+                        share(g, [mm] (const Grids& grids, const std::string& name, size_t i) {
+                            const float a = grids.at("t" + name).values[i];
+                            return std::isnan(a) ? -1 : a > mm ? 1 : 0;
+                        }, "share", {"t"});
+                    };
+                    x.fill = [] (const Grids& g) { return pick(g, "share"); };
+                    x.ramp = probability();
+                    x.palette = "prob";
+                    x.fillTitleFor = [inches, window] (int hour) {
+                        const int used = std::min(window, hour);
+                        return "Chance of more than " + trimmed(inches) + " in of precipitation in the " + std::to_string(used) + " hours ending at hour " + std::to_string(hour) + " (% of the 31 members)";
+                    };
+                    x.legendStep = 10;
+                    return x;
+                };
+                // a member's 2 m temperature or gust at the hour, against a limit
+                const auto atHour = [memberNeeds, share] (const char * kind, const char * variable, const char * level, const char * what, bool above, double toFile, double offset, const char * unit) {
+                    return [=] (const std::vector<double>& v) {
+                        const double limit = v.at(0);
+                        Product x;
+                        x.source = "GEFS";
+                        x.id = generatedId(kind, {limit});
+                        x.label = std::string{"Chance of "} + what + (above ? " over " : " under ") + trimmed(limit) + " " + unit;
+                        x.needs = [=] (int hour) { return hour < 3 ? std::vector<GfsData::Need>{} : memberNeeds("v", variable, level, hour, std::to_string(hour) + " hour fcst"); };
+                        x.derive = [=] (Grids& g, const Context&) {
+                            const float edge = static_cast<float>((limit - offset) * toFile + (offset == 32.0 ? 273.15 : 0.0));
+                            share(g, [edge, above] (const Grids& grids, const std::string& name, size_t i) {
+                                const float a = grids.at("v" + name).values[i];
+                                return std::isnan(a) ? -1 : (above ? a > edge : a < edge) ? 1 : 0;
+                            }, "share", {"v"});
+                        };
+                        x.fill = [] (const Grids& g) { return pick(g, "share"); };
+                        x.ramp = probability();
+                        x.palette = "prob";
+                        x.fillTitle = std::string{"Chance of "} + what + (above ? " over " : " under ") + trimmed(limit) + " " + unit + " (% of the 31 members)";
+                        x.legendStep = 10;
+                        return x;
+                    };
+                };
+                made["temp_under"] = atHour("temp_under", "TMP", "2 m above ground", "a 2 m temperature", false, 5.0 / 9.0, 32.0, "F");
+                made["temp_over"] = atHour("temp_over", "TMP", "2 m above ground", "a 2 m temperature", true, 5.0 / 9.0, 32.0, "F");
+                made["gust_over"] = atHour("gust_over", "GUST", "surface", "wind gusts", true, 0.514444, 0.0, "kt");
+            }
             for (const auto& [id, inches, text] : {std::tuple{"prob_precip_0.25in", 0.25, "0.25"}, {"prob_precip_0.5in", 0.5, "0.50"}, {"prob_precip_1in", 1.0, "1.00"}}) {
                 const double mm = inches * 25.4;
                 p.push_back(shareChart(id, std::string{"Probability of 6-hour Precipitation over "} + text + " in", std::string{"Chance of more than "} + text + " in of precipitation in 6 hours (% of the 31 members)",
@@ -3209,7 +3315,53 @@ const Product * product(const std::string& id, const std::string& source) {
             return &p;
         }
     }
+    if (id.compare(0, 4, "gen~") == 0) {   // a chart made on request: built from its template and kept
+        static std::mutex mutex;
+        static std::map<std::string, Product> made;
+        std::lock_guard lock{mutex};
+        const auto key = source + "|" + id;
+        if (const auto found = made.find(key); found != made.end()) {
+            return &found->second;
+        }
+        std::vector<std::string> parts;
+        for (const auto& part : QString::fromStdString(id).split('~')) {
+            parts.push_back(part.toStdString());
+        }
+        const auto generator = parts.size() >= 3 ? generators().find(parts[1]) : generators().end();
+        if (generator == generators().end()) {
+            return nullptr;
+        }
+        std::vector<double> values;
+        for (size_t i = 2; i < parts.size(); i++) {
+            values.push_back(QString::fromStdString(parts[i]).toDouble());
+        }
+        try {
+            auto product = generator->second(values);
+            if (product.source != source || product.id != id) {   // the id spells the values the way the template does: another spelling is not that chart
+                return nullptr;
+            }
+            return &(made[key] = std::move(product));
+        } catch (const std::exception&) {
+            return nullptr;
+        }
+    }
     return nullptr;
+}
+
+std::vector<Template> templates(const std::string& source) {
+    if (source != "GEFS") {
+        return {};
+    }
+    return {
+        {"rain_over", "Chance of rain over a limit in a period", {{"limit", "Rain over", "in", {0.01, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10}, 1}, {"hours", "in", "hours", {6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 84, 96, 120}, 24}}},
+        {"temp_under", "Chance of a 2 m temperature under a limit", {{"limit", "Temperature under", "F", {-20, -10, 0, 10, 20, 25, 28, 32, 40, 50, 60, 70}, 32}}},
+        {"temp_over", "Chance of a 2 m temperature over a limit", {{"limit", "Temperature over", "F", {70, 80, 90, 95, 100, 105, 110, 115}, 90}}},
+        {"gust_over", "Chance of wind gusts over a limit", {{"limit", "Gusts over", "kt", {20, 25, 30, 35, 40, 50, 60, 70}, 35}}},
+    };
+}
+
+std::string generatedChart(const std::string& templateId, const std::vector<double>& values) {
+    return generatedId(templateId, values);
 }
 
 std::string sourceLabel(const std::string& source) {
@@ -3388,6 +3540,9 @@ namespace {
 
 std::string category(const Product& product) {
     const auto& id = product.id;
+    if (id.compare(0, 4, "gen~") == 0) {
+        return "Built charts";
+    }
     const auto has = [&id] (const char * text) { return id.find(text) != std::string::npos; };
     if (id.compare(0, 7, "spread_") == 0) {
         return "Ensemble spread";

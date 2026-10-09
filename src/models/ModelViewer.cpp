@@ -16,6 +16,7 @@
 #include "objects/NetManager.h"
 #include <QPushButton>
 #include "models/CamsViewer.h"
+#include "models/ChartBuilder.h"
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -126,6 +127,11 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         });
         boxH2.addWidget(comboTiles);
         boxH2.addWidget(comboTilesShow);
+        buttonBuild = new QPushButton{"Build a chart \xE2\x96\xBE", this};
+        buttonBuild->setToolTip("Maps made to order: the chance of rain over a limit in a period of your choosing, of a temperature under or over a limit, of gusts over one.");
+        menuBuild = new QMenu{buttonBuild};
+        buttonBuild->setMenu(menuBuild);
+        boxH2.addWidgetReal(buttonBuild);
         {   // how far ahead the hours are drawn on their own
             const auto mode = Utility::readPref("MODEL_PRELOAD", "auto");
             comboPreload.setIndex(mode == "around" ? 1 : mode == "12" ? 2 : mode == "24" ? 3 : mode == "all" ? 4 : 0);
@@ -812,6 +818,21 @@ void ModelViewer::updateRunStatus() {
     comboboxRun.setIndexByValue(objectModel.run);
     comboboxRun.setLabels(runLabels());
 
+    {   // the charts made to order (the recent ones, and the one on view) are in the list with the rest
+        QStringList built = QString::fromStdString(Utility::readPref("MODEL_BUILT_" + objectModel.model, "")).split(',', Qt::SkipEmptyParts);
+        if (objectModel.param.compare(0, 4, "gen~") == 0) {
+            built << QString::fromStdString(objectModel.param);
+        }
+        for (const auto& id : built) {
+            const auto name = id.toStdString();
+            if (std::find(objectModel.params.begin(), objectModel.params.end(), name) == objectModel.params.end()) {
+                if (const auto * product = GfsChart::product(name, objectModel.model)) {
+                    objectModel.params.push_back(name);
+                    objectModel.paramLabels.push_back(product->label);
+                }
+            }
+        }
+    }
     comboboxProduct.setList(objectModel.paramLabels);
     auto paramIndex = findex(objectModel.param, objectModel.params);
     comboboxProduct.setIndex(paramIndex);
@@ -848,6 +869,7 @@ void ModelViewer::refreshProductButton() {
     buttonSector.setVisible(grib);
     buttonSector.setText(objectModel.sector + "  \xE2\x96\xBE");
     buttonProducts.setVisible(grib);
+    refreshBuildMenu();
     if (!grib) {
         return;
     }
@@ -1373,4 +1395,65 @@ QByteArray ModelViewer::compositePicture() const {
     buffer.open(QIODevice::WriteOnly);
     out.save(&buffer, "PNG");
     return bytes;
+}
+
+// ---- charts made to order ----
+
+void ModelViewer::refreshBuildMenu() {
+    if (!buttonBuild) {
+        return;
+    }
+    const auto templates = GfsRender::drawsModel(objectModel.model) ? GfsChart::templates(objectModel.model) : std::vector<GfsChart::Template>{};
+    buttonBuild->setVisible(!templates.empty());
+    menuBuild->clear();
+    if (templates.empty()) {
+        return;
+    }
+    QObject::connect(menuBuild->addAction("New chart..."), &QAction::triggered, this, [this] { buildChart(); });
+    const auto stored = QString::fromStdString(Utility::readPref("MODEL_BUILT_" + objectModel.model, "")).split(',', Qt::SkipEmptyParts);
+    bool first = true;
+    for (const auto& id : stored) {
+        const auto * product = GfsChart::product(id.toStdString(), objectModel.model);
+        if (!product) {
+            continue;
+        }
+        if (first) {
+            menuBuild->addSeparator();
+            first = false;
+        }
+        const auto chart = id.toStdString();
+        QObject::connect(menuBuild->addAction(QString::fromStdString(product->label)), &QAction::triggered, this, [this, chart] { showBuilt(chart); });
+    }
+}
+
+void ModelViewer::buildChart() {
+    auto * builder = new ChartBuilder{this, objectModel.model, GfsChart::templates(objectModel.model)};
+    builder->onBuilt = [this] (const string& id) { showBuilt(id); };
+    builder->show();
+}
+
+// a chart made to order goes into the model's chart list (and the recent ones of the Build menu), then is drawn
+void ModelViewer::showBuilt(const string& id) {
+    const auto * product = GfsChart::product(id, objectModel.model);
+    if (!product) {
+        return;
+    }
+    if (std::find(objectModel.params.begin(), objectModel.params.end(), id) == objectModel.params.end()) {
+        objectModel.params.push_back(id);
+        objectModel.paramLabels.push_back(product->label);
+    }
+    QStringList recent{QString::fromStdString(id)};
+    for (const auto& old : QString::fromStdString(Utility::readPref("MODEL_BUILT_" + objectModel.model, "")).split(',', Qt::SkipEmptyParts)) {
+        if (old.toStdString() != id && recent.size() < 8) {
+            recent << old;
+        }
+    }
+    Utility::writePref("MODEL_BUILT_" + objectModel.model, recent.join(',').toStdString());
+    objectModel.param = id;
+    comboboxProduct.block();
+    comboboxProduct.setList(objectModel.paramLabels);
+    comboboxProduct.setIndexByValue(objectModel.paramLabels.back());
+    comboboxProduct.unblock();
+    refreshProductButton();
+    reload();
 }

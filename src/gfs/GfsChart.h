@@ -101,6 +101,18 @@ namespace GfsChart {
     // the group a product is listed under in the picker ("Upper air", "Surface", "Precipitation and moisture", "Storms and severe", ...)
     std::string category(const Product& product);
     const Product * product(const std::string& id, const std::string& source = "GFS");
+    // Charts made on request: a template (the chance of rain over a limit in a period) with the user's values. Each setting has the values offered and the one to start from.
+    struct Setting {
+        std::string key, label, unit;
+        std::vector<double> choices;
+        double standard{0};
+    };
+    struct Template {
+        std::string id, title;
+        std::vector<Setting> settings;
+    };
+    std::vector<Template> templates(const std::string& source);                                      // none for a model that cannot count members
+    std::string generatedChart(const std::string& templateId, const std::vector<double>& values);   // the chart's id: product() makes the chart from it
     // What can be ticked onto a chart as well: lines (the sea level pressure, the thickness, the heights of a level, the 850 mb temperature) and one set of wind barbs. Each is its own
     // records, so any base chart can have them: "this and that". group is "Lines" or "Wind barbs".
     struct OverlayChoice {

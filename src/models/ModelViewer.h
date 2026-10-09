@@ -116,6 +116,11 @@ private:
     HBox boxH2;
     ComboBox comboCompare, comboPreload;
     QPushButton * buttonMax{};
+    QPushButton * buttonBuild{};
+    QMenu * menuBuild{};
+    void refreshBuildMenu();
+    void buildChart();
+    void showBuilt(const string& id);
     QPushButton * buttonViews{};
     QMenu * menuViews{};
     SoundingPick soundingPick;
