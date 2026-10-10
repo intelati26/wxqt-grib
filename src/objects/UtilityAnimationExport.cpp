@@ -725,9 +725,9 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
     }
     const auto list = formats(animated);
 
-    // dialog entries, the most recently used format first
+    // dialog entries, the most recently used format first (animated WebP, the most widely played of the small formats, until one has been chosen; animated PNG when its tool is missing)
     const std::string prefKey = animated ? "ANIM_EXPORT_FORMAT" : "STILL_EXPORT_FORMAT";
-    const auto preferred = QString::fromStdString(Utility::readPref(prefKey, animated ? "jxl" : "png"));
+    const auto preferred = QString::fromStdString(Utility::readPref(prefKey, animated ? "webp" : "png"));
     vector<Format> ordered;
     for (const auto& format : list) {
         if (format.id == preferred) {
