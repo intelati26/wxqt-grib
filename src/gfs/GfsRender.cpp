@@ -31,6 +31,7 @@
 #include "hurricane/Coast.h"
 #include "models/UtilityGrib.h"
 #include "objects/URL.h"
+#include "radar/CitiesExtended.h"
 #include "settings/UIPreferences.h"
 #include "util/Utility.h"
 #include "util/UtilityIO.h"
@@ -278,6 +279,19 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     options.fahrenheit = UIPreferences::unitsF;
     options.magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;   // the settings switch: the model guidance site's color bands
     options.lines = Coast::borders();
+    {   // the cities, biggest first: where a chart's point numbers go (the median / 10th / 90th temperature chart)
+        static const auto places = [] {
+            CitiesExtended::create();
+            auto cities = CitiesExtended::cities;
+            std::stable_sort(cities.begin(), cities.end(), [] (const CityExt& a, const CityExt& b) { return a.population > b.population; });
+            std::vector<std::pair<float, float>> out;
+            for (const auto& city : cities) {
+                out.emplace_back(static_cast<float>(city.longitude), static_cast<float>(city.latitude));
+            }
+            return out;
+        }();
+        options.places = places;
+    }
     options.probe = probe;
     options.windRadii = Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0;   // the quadrant wind field toggle of the hurricane model screen
     if (isHafs(model)) {   // the model's own track and wind radii for the storm, drawn on the chart

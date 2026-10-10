@@ -96,6 +96,14 @@ namespace GfsChart {
         std::string barbU, barbV;
         // streamlines of a wind (m/s grids)
         std::string streamU, streamV;
+        // Numbers printed over the fill, side by side at each point ("41 63"): the grids named here (made by `derive`), in the chart's `quantity` and the user's units. Placed at
+        // Options::places (cities), biggest first and never on one another, then evenly over what is left of the map (oceans, outside the US). Each grid is also offered in the hover read-out.
+        struct PointValue {
+            std::string key;
+            QColor color;
+            std::string title;   // for the hover read-out: "10th percentile"
+        };
+        std::vector<PointValue> pointValues;
     };
     const std::vector<Product>& products();
     // the group a product is listed under in the picker ("Upper air", "Surface", "Precipitation and moisture", "Storms and severe", ...)
@@ -175,6 +183,7 @@ namespace GfsChart {
         bool fahrenheit{true};                 // the user's US units: degrees F, inches
         bool magColors{true};                  // the charts that have one use the model guidance site's own color bands (drawn at our resolution)
         std::vector<std::vector<std::pair<float, float>>> lines;   // coastlines and borders as (longitude, latitude)
+        std::vector<std::pair<float, float>> places;               // cities as (longitude, latitude), biggest first: where a chart's point numbers (Product::pointValues) go first
         std::vector<TrackPoint> track;         // a storm track drawn on the chart, with the wind radii of the forecast hour shown
         bool windRadii{true};                  // the 34 / 50 / 64 kt quadrant wind field of the track's forecast hour
         std::vector<TrackPoint> trackOther;    // another model's track for the same storm, dashed, to compare
