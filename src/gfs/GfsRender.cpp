@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsRender.h"
+#include "models/PaletteStore.h"
 #include <stdexcept>
 #include <algorithm>
 #include <atomic>
@@ -281,6 +282,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     options.climate = &climate;
     options.fahrenheit = UIPreferences::unitsF;
     options.magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;   // the settings switch: the model guidance site's color bands
+    options.palettes = PaletteStore::all();   // the user's own scales (the Colors editor)
     options.lines = Coast::borders();
     {   // the cities, biggest first: where a chart's point numbers go (the median / 10th / 90th temperature chart)
         static const auto places = [] {

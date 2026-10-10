@@ -41,10 +41,22 @@ namespace GfsChart {
     // The scale the model guidance site (MAG) uses for a kind of chart, by name ("precip", "isotach", "radar_rain", "rh", "spread_mslp", "spread_wind", "helicity", "uh"): flat bands read from
     // its legends (resourceCreation/mag/palettes.py), in the units of our fills. Null when there is none of that name.
     const Ramp * magPalette(const std::string& name);
+    // The user's own scales (the palette editor): a scale replaces every default one with the same stop values, so one edit changes all the charts of a kind (every temperature chart).
+    // rampKey names a default scale; "" for a scale with no stops.
+    std::string rampKey(const Ramp& ramp);
+    struct Product;
+    Ramp defaultRamp(const Product& product, bool magColors);   // the scale render() uses for the chart before the user's own: the model guidance site's bands when it has them and they are on
+    // the text of a scale and back, for keeping it and for the import and export files: a "banded" line, then "value red green blue alpha" per stop
+    std::string rampToText(const Ramp& ramp);
+    bool rampFromText(const std::string& text, Ramp& ramp, std::string& error);
 
     using Grids = std::map<std::string, GfsGrid::Grid>;
     // What the fill's numbers are, for showing them in the user's units (the grids are in degrees C, millimeters, centimeters and so on)
     enum class Quantity { Other, Temperature, Millimeters, Centimeters, Meters };
+    // a number of the grids in the user's units (degrees F, inches, feet when `us`), the other way, and the unit's name ("" for none)
+    double shownValue(Quantity quantity, double value, bool us);
+    double storedValue(Quantity quantity, double shown, bool us);
+    std::string unitLabel(Quantity quantity, bool us);
 
     // what a product's own derivations may need: the hour, the run (for the valid date) and the climatology
     struct Context {
@@ -190,6 +202,7 @@ namespace GfsChart {
         const GfsClimate * climate{nullptr};   // for the anomaly charts
         bool fahrenheit{true};                 // the user's US units: degrees F, inches
         bool magColors{true};                  // the charts that have one use the model guidance site's own color bands (drawn at our resolution)
+        std::map<std::string, Ramp> palettes;  // the user's scales by rampKey of the default one they replace
         std::vector<std::vector<std::pair<float, float>>> lines;   // coastlines and borders as (longitude, latitude)
         std::vector<std::pair<float, float>> places;               // cities as (longitude, latitude), biggest first: where a chart's point numbers (Product::pointValues) go first
         std::vector<TrackPoint> track;         // a storm track drawn on the chart, with the wind radii of the forecast hour shown

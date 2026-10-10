@@ -2,6 +2,8 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
+#include <iterator>
 #include <cstdlib>
 #include <sstream>
 #include <QFile>
@@ -107,6 +109,17 @@ int main(int argc, char ** argv) {
     }
     GfsClimate climate{"/usr/bin"};
     GfsChart::Options options;
+    if (const char * env = std::getenv("DEMO_PALETTE"); env && product) {   // DEMO_PALETTE=<file>: a scale in the editor's text form replaces the chart's own
+        std::ifstream in{env};
+        const std::string text{std::istreambuf_iterator<char>{in}, std::istreambuf_iterator<char>{}};
+        GfsChart::Ramp ramp;
+        std::string why;
+        if (!GfsChart::rampFromText(text, ramp, why)) {
+            std::printf("palette: %s\n", why.c_str());
+            return 2;
+        }
+        options.palettes[GfsChart::rampKey(GfsChart::defaultRamp(*product, options.magColors))] = ramp;
+    }
     options.climate = &climate;
     if (const char * mag = std::getenv("DEMO_MAG"); mag && std::string{mag} == "0") {   // DEMO_MAG=0: our own color scales
         options.magColors = false;

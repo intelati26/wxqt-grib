@@ -128,6 +128,8 @@ private:
     void showBuilt(const string& id);
     QPushButton * buttonMembers{};   // REFS charts: each member's value at the picked point over the hours (the old REFS screen's plume graph)
     void openMemberGraph();
+    void editColors();   // the color scale of the chart on screen (PaletteEditor)
+    QPushButton * buttonColors{};
     QPushButton * buttonViews{};
     QMenu * menuViews{};
     SoundingPick soundingPick;

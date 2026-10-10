@@ -14,6 +14,7 @@
 #include <QDateTime>
 #include <QFontMetricsF>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QPainterPath>
 #include <QPolygonF>
 #include <QStringList>
@@ -4820,6 +4821,93 @@ QString Probe::read(double fx, double fy) const {
     return lines.join("\n");
 }
 
+double shownValue(Quantity quantity, double value, bool us) {
+    return shown(quantity, value, us);
+}
+
+double storedValue(Quantity quantity, double value, bool us) {
+    if (!us) {
+        return value;
+    }
+    switch (quantity) {
+        case Quantity::Temperature: return (value - 32.0) / 1.8;
+        case Quantity::Millimeters: return value * 25.4;
+        case Quantity::Centimeters: return value * 2.54;
+        case Quantity::Meters: return value / 3.28084;
+        default: return value;
+    }
+}
+
+std::string unitLabel(Quantity quantity, bool us) {
+    return unitText(quantity, us).toStdString();
+}
+
+Ramp defaultRamp(const Product& product, bool magColors) {
+    if (magColors && !product.palette.empty()) {   // the model guidance site's color bands in place of ours
+        if (const auto * bands = magPalette(product.palette)) {
+            return *bands;
+        }
+    }
+    return product.ramp;
+}
+
+std::string rampKey(const Ramp& ramp) {
+    if (ramp.stops.empty()) {
+        return {};
+    }
+    QByteArray text = ramp.banded ? "b" : "s";
+    for (const auto& stop : ramp.stops) {
+        text += ":" + QByteArray::number(stop.first, 'g', 8);
+    }
+    return "r" + std::to_string(ramp.stops.size()) + "_" + QByteArray::number(qHash(text), 16).toStdString();
+}
+
+std::string rampToText(const Ramp& ramp) {
+    std::string out = std::string{"banded "} + (ramp.banded ? "1" : "0") + "\n";
+    for (const auto& [value, color] : ramp.stops) {
+        out += QByteArray::number(value, 'g', 10).toStdString() + " " + std::to_string(color.red()) + " " + std::to_string(color.green()) + " " + std::to_string(color.blue()) + " " + std::to_string(color.alpha()) + "\n";
+    }
+    return out;
+}
+
+bool rampFromText(const std::string& text, Ramp& ramp, std::string& error) {
+    Ramp parsed;
+    int lineNumber = 0;
+    for (const auto& raw : QString::fromStdString(text).split('\n')) {
+        lineNumber++;
+        const auto line = raw.trimmed();
+        if (line.isEmpty() || line.startsWith('#')) {
+            continue;
+        }
+        const auto parts = line.split(QRegularExpression{"[\\s,;]+"}, Qt::SkipEmptyParts);
+        if (parts[0].compare("banded", Qt::CaseInsensitive) == 0) {
+            parsed.banded = parts.size() > 1 && parts[1] != "0" && parts[1].compare("false", Qt::CaseInsensitive) != 0;
+            continue;
+        }
+        bool okValue = false;
+        const double value = parts[0].toDouble(&okValue);
+        int channel[4] = {0, 0, 0, 255};
+        bool okChannels = parts.size() >= 4 && parts.size() <= 5;
+        for (int c = 0; okChannels && c < parts.size() - 1; c++) {
+            bool ok = false;
+            channel[c] = parts[c + 1].toInt(&ok);
+            okChannels = ok && channel[c] >= 0 && channel[c] <= 255;
+        }
+        if (!okValue || !okChannels) {
+            error = "line " + std::to_string(lineNumber) + " is not \"value red green blue [alpha]\": " + line.toStdString();
+            return false;
+        }
+        parsed.stops.emplace_back(value, QColor{channel[0], channel[1], channel[2], channel[3]});
+    }
+    if (parsed.stops.size() < 2) {
+        error = "a scale needs at least two stops";
+        return false;
+    }
+    std::stable_sort(parsed.stops.begin(), parsed.stops.end(), [] (const auto& a, const auto& b) { return a.first < b.first; });
+    ramp = std::move(parsed);
+    return true;
+}
+
 QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
     const bool timing = std::getenv("WXQT_TIMING") != nullptr;   // WXQT_TIMING=1: the seconds each stage of the drawing takes, to stderr
     auto lapAt = std::chrono::steady_clock::now();
@@ -4831,10 +4919,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         }
     };
     Product product = drawn;
-    if (options.magColors && !drawn.palette.empty()) {   // the model guidance site's color bands in place of ours
-        if (const auto * bands = magPalette(drawn.palette)) {
-            product.ramp = *bands;
-        }
+    product.ramp = defaultRamp(drawn, options.magColors);
+    if (const auto found = options.palettes.find(rampKey(product.ramp)); found != options.palettes.end()) {   // the user's own scale for this kind of chart
+        product.ramp = found->second;
     }
     if (product.ramp.stops.empty()) {   // a chart of lines only has no scale: a clear one so nothing reads an empty list
         product.ramp.stops = {{0.0, QColor{0, 0, 0, 0}}, {1.0, QColor{0, 0, 0, 0}}};

@@ -23,6 +23,9 @@
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
 #include "models/ObjectModelGet.h"
+#include "models/PaletteEditor.h"
+#include "settings/UIPreferences.h"
+#include "models/PaletteStore.h"
 #include "models/RefsPointGraph.h"
 #include "models/UtilityModels.h"
 #include "objects/FutureBytes.h"
@@ -172,6 +175,10 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonMembers->setToolTip("REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
         QObject::connect(buttonMembers, &QPushButton::clicked, this, [this] { openMemberGraph(); });
         boxH2.addWidgetReal(buttonMembers);
+        buttonColors = new QPushButton{"Colors...", this};
+        buttonColors->setToolTip("Edit the color scale of this kind of chart: the stops, their colors and transparency, flat bands or smooth. Kept for every chart that uses the same scale.");
+        QObject::connect(buttonColors, &QPushButton::clicked, this, [this] { editColors(); });
+        boxH2.addWidgetReal(buttonColors);
         auto * save = new QPushButton{"Save...", this};
         save->setToolTip("Save the picture, or the hours drawn so far as a loop");
         QObject::connect(save, &QPushButton::clicked, this, [this] { saveLoop(); });
@@ -1583,4 +1590,30 @@ void ModelViewer::refreshMembers() {
         comboMember.unblock();
     }
     comboMember.setVisible(!memberValues.empty());
+}
+
+void ModelViewer::editColors() {
+    const auto * product = GfsRender::drawsModel(objectModel.model) ? GfsChart::product(objectModel.param, objectModel.model) : nullptr;
+    if (product == nullptr) {
+        setTitle("Model screen - the color editor is for the charts drawn from GRIB (not the pictures fetched from other sites)");
+        return;
+    }
+    if (variant.kind == GfsRender::Variant::Kind::Change) {
+        setTitle("Model screen - a change chart has its own blue / red scale; show the plain chart to edit its colors");
+        return;
+    }
+    const bool magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;
+    const auto ramp = GfsChart::defaultRamp(*product, magColors);
+    if (ramp.stops.empty()) {
+        setTitle("Model screen - this chart is lines only, it has no color scale");
+        return;
+    }
+    new PaletteEditor{this, product->label, ramp, product->quantity, UIPreferences::unitsF, [this] {
+        frames.clear();   // every picture drawn so far was drawn with the old colors
+        frameOrder.clear();
+        frameBytes = 0;
+        failedAhead.clear();
+        refreshLoaded();
+        reload();
+    }};
 }

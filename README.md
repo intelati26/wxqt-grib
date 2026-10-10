@@ -24,6 +24,12 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   cut one. Fields are kept for 48 hours (2 GB) in the cache; Settings shows its size.
 - **Compare tiles** - 1 x 2, 1 x 3 or 2 x 2 charts of one hour: other charts of the model, the same chart from other models, or the same valid time
   from older runs, with one zoom, pan and read-out across them and Play stepping through the hours drawn in every tile.
+- **Ensemble members** - a member picker for GEFS (the control and 30 members), GEPS (the control and 20) and REFS (5): the chart for one member
+  instead of the mean, on the charts made of the mean's fields. REFS charts also have a Members graph (each member's value at a clicked point over
+  the hours). GEPS is Environment and Climate Change Canada's ensemble from its open data server: the mean charts, the spread of the members, and
+  the chance of freezing or 90 F.
+- **Colors** - the Colors button edits the color scale of the chart on screen: stops, colors and transparency, flat bands or smooth, import and
+  export as a text file. A scale replaces the default one for every chart that uses it (every temperature chart), and "Back to default" undoes it.
 - **Build a chart** - maps made to order from the members of the GEFS: the chance of rain over a limit in a period of 6 to 240 hours (or under
   it), of a precipitation type, a temperature, dew point, heat index, humidity, wind, gust, pressure, precipitable water, cloud, CAPE or height over
   or under a limit, of an anomaly of so many standard deviations, and "heavy rain potential" (precipitable water, MUCAPE and rain together). The
