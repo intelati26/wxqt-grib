@@ -32,6 +32,12 @@ void SoundingPick::pick(double pickedLon, double pickedLat) {
     owner->setTitle(titleBase + " - sounding point " + To::string(lat) + " N, " + To::string(lon) + " E (press Sounding)");
 }
 
+bool SoundingPick::point(double& pickedLon, double& pickedLat) const {
+    pickedLon = lon;
+    pickedLat = lat;
+    return havePoint;
+}
+
 void SoundingPick::open() {
     if (!havePoint) {
         owner->setTitle(titleBase + " - click the map to pick a sounding point first");

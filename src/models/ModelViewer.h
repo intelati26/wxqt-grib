@@ -122,6 +122,8 @@ private:
     void refreshBuildMenu();
     void buildChart();
     void showBuilt(const string& id);
+    QPushButton * buttonMembers{};   // REFS charts: each member's value at the picked point over the hours (the old REFS screen's plume graph)
+    void openMemberGraph();
     QPushButton * buttonViews{};
     QMenu * menuViews{};
     SoundingPick soundingPick;

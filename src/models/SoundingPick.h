@@ -25,6 +25,7 @@ public:
     SoundingPick(Window * owner, std::function<QDateTime()> validTime, std::string titleBase);
     Button& button() { return buttonSounding; }
     void pick(double lon, double lat);
+    bool point(double& pickedLon, double& pickedLat) const;   // the last picked point, if any
 
 private:
     void open();

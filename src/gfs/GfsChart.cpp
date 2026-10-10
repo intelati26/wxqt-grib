@@ -3324,6 +3324,48 @@ const std::vector<Product>& products() {
                 x.legendStep = 0;
                 p.push_back(x);
             }
+            // each member on its own (the old REFS screen's "RRFS Ensemble Member" rows): the same field from member 1 to 5, drawn as the chart it is
+            for (int m = 1; m <= 5; m++) {
+                const std::string member = "m00" + std::to_string(m);
+                const std::string tag = "member" + std::to_string(m) + "_";
+                const std::string name = "Member " + std::to_string(m) + ": ";
+                const auto one = [&] (const char * key, const char * label, const char * variable, const char * level, const std::string& forecast, const Ramp& ramp, const char * title, int legendStep,
+                                      Quantity quantity, float scale) {
+                    auto x = make((tag + key).c_str(), (name + label).c_str());
+                    const GfsData::Want want{"v", variable, level, forecast, "", member};
+                    if (forecast.empty()) {
+                        x.wants = {want};
+                    } else {
+                        x.needs = [want, forecast] (int hour) {
+                            auto w = want;
+                            w.forecast = std::to_string(std::max(hour - 1, 0)) + "-" + std::to_string(hour) + " hour max fcst";
+                            return std::vector<GfsData::Need>{{hour, w}};
+                        };
+                    }
+                    x.fill = [scale] (const Grids& g) {
+                        auto out = pick(g, "v");
+                        if (scale != 1.0f) {
+                            for (auto& v : out.values) {
+                                v *= scale;
+                            }
+                        }
+                        return out;
+                    };
+                    x.ramp = ramp;
+                    if (!forecast.empty()) {
+                        x.palette = "uh";
+                    }
+                    x.quantity = quantity;
+                    x.fillTitle = title;
+                    x.legendStep = legendStep;
+                    p.push_back(x);
+                };
+                one("refc", "Composite Reflectivity", "REFC", "entire atmosphere (considered as a single layer)", "", reflectivity(), "Composite reflectivity (dBZ)", 10, Quantity::Other, 1.0f);
+                one("tmp2m", "2 m Temperature", "TMP", "2 m above ground", "", temperature(), "2 m temperature", 5, Quantity::Temperature, 1.0f);
+                one("cape", "Surface CAPE", "CAPE", "surface", "", capeRamp(), "Surface CAPE (J/kg)", 500, Quantity::Other, 1.0f);
+                one("gust", "Surface Wind Gust", "GUST", "surface", "", windSpeed(), "Surface wind gust (kt)", 20, Quantity::Other, 1.943844f);
+                one("uphl", "2-5 km Updraft Helicity (last hour)", "MXUPHL", "5000-2000 m above ground", "hourly", updraftHelicity(), "Updraft helicity (m2/s2)", 0, Quantity::Other, 1.0f);
+            }
             for (const auto& [id, label, spread] : {std::tuple{"mean_2m_temp", "Ensemble Mean 2 m Temperature", false}, {"spread_2m_temp", "2 m Temperature Spread among the members", true}}) {
                 auto x = make(id, label);
                 x.wants = members("t", "TMP", "2 m above ground", "");

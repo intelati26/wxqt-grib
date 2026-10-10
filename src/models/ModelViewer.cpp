@@ -23,6 +23,7 @@
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
 #include "models/ObjectModelGet.h"
+#include "models/RefsPointGraph.h"
 #include "models/UtilityModels.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
@@ -156,6 +157,10 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         boxH2.addWidgetReal(buttonViews);
         loadViews();
         boxH2.addWidget(soundingPick.button());
+        buttonMembers = new QPushButton{"Members graph", this};
+        buttonMembers->setToolTip("REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
+        QObject::connect(buttonMembers, &QPushButton::clicked, this, [this] { openMemberGraph(); });
+        boxH2.addWidgetReal(buttonMembers);
         auto * save = new QPushButton{"Save...", this};
         save->setToolTip("Save the picture, or the hours drawn so far as a loop");
         QObject::connect(save, &QPushButton::clicked, this, [this] { saveLoop(); });
@@ -877,6 +882,7 @@ void ModelViewer::updateRunStatus() {
 
 // The charts of a model drawn from GRIB are many: they are chosen in the grouped picker, and the plain list is for the models still fetched as pictures.
 void ModelViewer::refreshProductButton() {
+    buttonMembers->setVisible(objectModel.model == "REFS");
     const bool ncep = objectModel.prefModel == "NCEP";   // the model guidance site's list is long: the grouped picker
     comboboxModel.setVisible(!ncep);
     buttonModel.setVisible(ncep);
@@ -1490,4 +1496,47 @@ void ModelViewer::showBuilt(const string& id) {
     comboboxProduct.unblock();
     refreshProductButton();
     reload();
+}
+
+// the member plume graph (RefsPointGraph) for the REFS chart on screen: which member field a chart is made from, and the threshold of the probability charts
+void ModelViewer::openMemberGraph() {
+    const auto& id = objectModel.param;
+    const auto has = [&id] (const char * part) { return id.find(part) != string::npos; };
+    string key;
+    double threshold = std::nan("");
+    if (has("refc")) {
+        key = "refc";
+        threshold = has("prob_refc_50") ? 50.0 : has("member") ? std::nan("") : 40.0;
+    } else if (has("uphl")) {
+        key = "uphl25";
+        threshold = has("prob_uphl") || has("combo_uphl") ? 75.0 : std::nan("");
+    } else if (has("tmp2m") || has("2m_temp") || has("temp_spread")) {
+        key = "tmp2m";
+    } else if (has("cape")) {
+        key = "cape";
+    } else if (has("gust")) {
+        key = "gust";
+    }
+    int index = -1;
+    for (size_t i = 0; i < UtilityRefs::fields.size(); i++) {
+        if (UtilityRefs::fields[i].key == key + "_m1") {
+            index = static_cast<int>(i);
+        }
+    }
+    UtilityRefs::MemberBasis basis;
+    if (key.empty() || index < 0 || !UtilityRefs::memberBasis(index, std::nan(""), basis)) {
+        setTitle("Model screen - the members graph is for the REFS reflectivity, temperature, CAPE, gust and updraft helicity charts");
+        return;
+    }
+    double lon = 0.0, lat = 0.0;
+    if (!soundingPick.point(lon, lat)) {
+        setTitle("Model screen - click the map to pick a point for the members graph first");
+        return;
+    }
+    if (!std::isnan(threshold)) {
+        basis.hasThreshold = true;
+        basis.threshold = threshold;
+    }
+    const auto run = runTime(objectModel.run);
+    new RefsPointGraph{this, basis, lon, lat, run.isValid() ? run.toString("yyyyMMddHH").toStdString() : string{}};
 }
