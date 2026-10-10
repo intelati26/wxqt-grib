@@ -21,8 +21,8 @@ using std::vector;
 
 // One place for "save this animation (or still image) as ...", used by every
 // screen with a play/save bar. The file type is chosen in the Save dialog:
-//   always available (built in, no external tools): Animated PNG
-//   (GIF is deliberately not offered: 256 colours and 1-bit transparency)
+//   always available (built in, no external tools): Animated PNG, and Animated GIF (one palette of
+//   256 colours chosen from all the frames, no transparency: smooth colour ramps band a little)
 //   if installed:  JPEG XL (cjxl), AVIF (avifenc), WebP (img2webp - bundled
 //                  with the portable packages - else ffmpeg), MP4 (ffmpeg)
 // A format whose tool is missing is simply not offered, and any encode/write
@@ -31,7 +31,7 @@ using std::vector;
 class UtilityAnimationExport {
 public:
     struct Format {
-        QString id;      // "apng", "jxl", "avif", "webp", "mp4", "png"
+        QString id;      // "apng", "gif", "jxl", "avif", "webp", "mp4", "png"
         QString label;   // shown in the dialog's file-type list
         QString ext;     // without the dot
     };

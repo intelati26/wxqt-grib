@@ -37,6 +37,7 @@
 #include "models/UtilityGrib.h"
 #include "objects/URL.h"
 #include "objects/UtilityApng.h"
+#include "objects/UtilityGif.h"
 #include "objects/UtilityJxl.h"
 #include "objects/UtilityTools.h"
 #include "util/Utility.h"
@@ -297,6 +298,7 @@ vector<UtilityAnimationExport::Format> UtilityAnimationExport::formats(bool anim
     vector<Format> list;
     if (animated) {
         list.push_back({"apng", "Animated PNG", "png"});
+        list.push_back({"gif", "Animated GIF (256 colors, plays everywhere)", "gif"});
     } else {
         list.push_back({"png", "PNG image", "png"});
     }
@@ -351,6 +353,9 @@ bool UtilityAnimationExport::encodeToFile(const Format& format, const vector<QBy
 
     if (format.id == "apng") {
         return writeBytes(UtilityApng::fromFrames(frames, frameDelayMs));
+    }
+    if (format.id == "gif") {
+        return writeBytes(UtilityGif::fromImages(images, frameDelayMs));
     }
     if (format.id == "png") {
         return writeBytes(stillPng());

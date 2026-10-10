@@ -106,7 +106,7 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   RTMA, observations, lightning, national images, OPC and the other original screens.
 
 ### Saving, exporting and the renderer
-- One Save for every picture and loop: animated PNG always; **JPEG XL, AVIF, WebP and MP4** when their free tools are installed
+- One Save for every picture and loop: animated PNG and animated GIF always (the GIF is written by the app itself: one 256 color palette for the whole loop); **JPEG XL, AVIF, WebP and MP4** when their free tools are installed
   (a "how to add them" help is in the Save dialog; the Windows package bundles `img2webp`). Files default to
   `yyyyMMdd_HHmmZ_product` using the time the server says the picture was produced; model images carry run / hour / valid time and
   SPC-style header bars. Right-click "Save image..." on any picture.
