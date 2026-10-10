@@ -142,9 +142,9 @@ void ObjectModel::setModelVars(const string& modelName) {
         for (const auto& h : gribModel->hours) {
             loadTimeList3(h.from, h.to, h.step);
         }
-        if (gribModel->hourlyRuns) {
+        if (gribModel->hourlyRuns || gribModel->cycleStep != 6) {
             runs.clear();
-            loadRunList(0, 23, 1);
+            loadRunList(0, 23, gribModel->hourlyRuns ? 1 : gribModel->cycleStep);
             runTimeData.listRun = runs;
         } else {
             setupListRunZ();

@@ -1594,6 +1594,9 @@ const std::vector<Product>& products() {
                     if ((!rule.variables.empty() && !rule.variables.count(w.variable)) || (pressureLevel && !rule.levels.empty() && !rule.levels.count(w.level))) {
                         return false;
                     }
+                    if (pressureLevel && !rule.fields.empty() && !rule.fields.count(w.variable + "|" + w.level)) {
+                        return false;
+                    }
                 }
                 return true;
             };
@@ -4185,8 +4188,65 @@ const std::vector<Product>& products() {
             }
         };
 
+        // ---- GEPS (Canada): the clone of the GFS charts is the 21 members' mean; its own are the spread of the members and the chance of a temperature either side of a limit
+        const auto gepsRecipes = [&] {
+            const auto spreadOf = [] (const char * id, const char * label, const char * variable, const char * level, double top, double step, const char * title, Quantity quantity) {
+                Product x;
+                x.source = "GEPS";
+                x.id = id;
+                x.label = label;
+                x.wants = {GfsData::Want{"s", variable, level, "", "", "spr"}};
+                x.fill = [] (const Grids& g) { return pick(g, "s"); };
+                x.ramp = spreadRamp(top);
+                x.quantity = quantity;
+                x.fillTitle = title;
+                x.legendStep = step;
+                return x;
+            };
+            p.push_back(spreadOf("spread_2m_temp", "2m Temperature Spread among the members", "TMP", "2 m above ground", 6.0, 1.0, "Spread of the 2 m temperature (C)", Quantity::Other));
+            p.push_back(spreadOf("spread_mslp", "Sea Level Pressure Spread among the members", "PRMSL", "mean sea level", 600.0, 100.0, "Spread of the sea level pressure (Pa)", Quantity::Other));
+            for (const char * level : {"500", "850"}) {
+                const std::string l = std::string{level} + " mb";
+                p.push_back(spreadOf((std::string{"spread_"} + level + "_ht").c_str(), (std::string{level} + "mb Height Spread among the members").c_str(), "HGT", l.c_str(), std::string{level} == "500" ? 60.0 : 30.0,
+                                     std::string{level} == "500" ? 10.0 : 5.0, ("Spread of the " + std::string{level} + " mb height (m)").c_str(), Quantity::Other));
+            }
+            // the share of the 21 members at or under / over a temperature, each member its own fetch of the field (the cache keeps them)
+            const auto chance = [&] (const char * id, const char * label, double limit, bool under, const char * title) {
+                Product x;
+                x.source = "GEPS";
+                x.id = id;
+                x.label = label;
+                for (int m = 0; m < 21; m++) {
+                    const std::string name = m == 0 ? "c00" : "p" + std::string{m < 10 ? "0" : ""} + std::to_string(m);
+                    x.wants.push_back(GfsData::Want{"t" + std::to_string(m), "TMP", "2 m above ground", "", "", name});
+                }
+                x.fill = [limit, under] (const Grids& g) {
+                    auto out = pick(g, "t0");
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        int n = 0, hit = 0;
+                        for (int m = 0; m < 21; m++) {
+                            const float v = g.at("t" + std::to_string(m)).values[i];
+                            if (!std::isnan(v)) {
+                                n++;
+                                hit += (under ? v <= limit : v >= limit) ? 1 : 0;
+                            }
+                        }
+                        out.values[i] = n > 0 ? static_cast<float>(100.0 * hit / n) : std::nanf("");
+                    }
+                    return out;
+                };
+                x.ramp = probability();
+                x.palette = "prob";
+                x.fillTitle = title;
+                x.legendStep = 10;
+                p.push_back(x);
+            };
+            chance("prob_2m_temp_freezing", "Probability of 2m Temperature at or under Freezing", 0.0, true, "Chance of 0 C or colder (% of the 21 members)");
+            chance("prob_2m_temp_90f", "Probability of 2m Temperature at or over 90 F", (90.0 - 32.0) * 5.0 / 9.0, false, "Chance of 90 F or hotter (% of the 21 members)");
+        };
+
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"RRFS", rrfsRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"RRFS", rrfsRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);
@@ -4523,7 +4583,7 @@ std::vector<MemberChoice> memberChoices(const Product& product) {
         }
         return out;
     }
-    if (product.source == "GEFS") {
+    if (product.source == "GEFS" || product.source == "GEPS") {
         // the charts made of the mean's fields alone: a spread among the wants (its lines, its derivations) has no one member's version
         for (const auto& w : wanted) {
             if (!w.stat.empty()) {
@@ -4532,7 +4592,7 @@ std::vector<MemberChoice> memberChoices(const Product& product) {
         }
         out.push_back({"", "Ensemble mean"});
         out.push_back({"c00", "Control"});
-        for (int m = 1; m <= 30; m++) {
+        for (int m = 1; m <= (product.source == "GEPS" ? 20 : 30); m++) {
             out.push_back({"p" + std::string{m < 10 ? "0" : ""} + std::to_string(m), "Member " + std::to_string(m)});
         }
     }

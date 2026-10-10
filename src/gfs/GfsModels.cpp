@@ -74,6 +74,38 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.clone.skip = {"precip_p06", "precip_p24", "500_vort_ht", "850_vort_ht"};   // these are drawn as mean and spread together
             m.push_back(d);
         }
+        {   // Canada's ensemble: the mean of its 21 members drawn like the GFS, with the spread and chances of its own; one file per field holds the members
+            Def d;
+            d.id = "GEPS";
+            d.label = "ECCC GEPS 21 member ensemble, 0.5 degree";
+            d.source = [] (const std::string&) { return GfsData::geps(); };
+            d.hours = {{0, 192, 3}, {198, 384, 6}};
+            d.cycleStep = 12;
+            d.overlays = true;
+            d.recipeList = true;
+            d.clone.enabled = true;
+            d.clone.variables = {"HGT", "TMP", "RH", "UGRD", "VGRD", "VVEL", "PRMSL", "PWAT", "CAPE", "CIN", "APCP", "TCDC", "SNOD", "WEASD", "TMAX", "TMIN"};
+            // the server has each variable at its own levels (no temperature or humidity at 300 mb, no vertical velocity but at 850)
+            for (const char * level : {"10", "50", "100", "200", "250", "500", "700", "850", "925", "1000"}) {
+                for (const char * variable : {"HGT", "TMP", "UGRD", "VGRD"}) {
+                    d.clone.fields.insert(std::string{variable} + "|" + level + " mb");
+                }
+            }
+            for (const char * level : {"10", "50", "100", "200", "250", "500", "700", "850", "925", "1000"}) {
+                d.clone.fields.insert(std::string{"RH|"} + level + " mb");
+            }
+            for (const char * level : {"300", "400"}) {
+                d.clone.fields.insert(std::string{"HGT|"} + level + " mb");
+                d.clone.fields.insert(std::string{"UGRD|"} + level + " mb");
+                d.clone.fields.insert(std::string{"VGRD|"} + level + " mb");
+            }
+            d.clone.fields.insert("VVEL|850 mb");
+            d.clone.levels = {};
+            d.clone.pieces = false;   // precipitation is a running total from the start of the run
+            d.clone.labelPrefix = "Mean ";
+            d.clone.skip = {"anom", "500_vort_ht", "850_vort_ht", "850_stream_vort", "850vor_500ht_200wd", "precip_p01"};
+            m.push_back(d);
+        }
         {   // the 3 km Rapid Refresh Forecast System: precipitation has running totals, and sea level pressure is MSLET
             Def d;
             d.id = "RRFS";

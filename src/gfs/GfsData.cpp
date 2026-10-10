@@ -294,6 +294,13 @@ bool GfsData::latestRun(Run& run) const {
     for (int back = 0; back < source.cyclesToTry; back++) {
         const auto t = start.addSecs(-static_cast<qint64>(back) * source.cycleHours * 3600);
         Run candidate{t.toString("yyyyMMdd").toStdString(), pad(t.time().hour(), 2)};
+        if (source.wholeFile) {   // no index: the first bytes of a file say the run is there
+            if (config.bytes(fileUrl(candidate, source.probeHour, source.probeFile), 0, 3).startsWith("GRIB")) {
+                run = candidate;
+                return true;
+            }
+            continue;
+        }
         const auto head = config.bytes(indexUrl(candidate, source.probeHour, source.probeFile), 0, 200);
         if (source.parseIndex ? head.startsWith("{") : head.startsWith("1:0:d=")) {
             run = candidate;
@@ -301,6 +308,52 @@ bool GfsData::latestRun(Run& run) const {
         }
     }
     return false;
+}
+
+namespace {
+    // The ENVI file gdal wrote (the header and the raw floats) as the geometry of a plain latitude / longitude grid and the values of every band, one band after the other. false with the reason
+    // when the grid is not that or the file is not the size it says.
+    bool readEnvi(const QString& rawPath, const QString& hdrPath, GfsGrid::Grid& g, int& bands, std::vector<float>& values, std::string& error) {
+        QFile hdr{hdrPath};
+        const auto hdrText = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
+        const auto number = [&hdrText] (const QString& key) {
+            const auto m = QRegularExpression{"\\b" + key + "\\s*=\\s*([-0-9.]+)"}.match(hdrText);
+            return m.hasMatch() ? m.captured(1).toDouble() : -1e9;
+        };
+        const auto info = QRegularExpression{"map info = \\{[^,]*,\\s*1,\\s*1,\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+)"}.match(hdrText);
+        g.columns = static_cast<int>(number("samples"));
+        g.rows = static_cast<int>(number("lines"));
+        bands = std::max(1, static_cast<int>(number("bands")));
+        const bool plain = g.columns > 0 && g.rows > 0 && info.hasMatch() && info.captured(3).toDouble() > 0.0 && std::abs(info.captured(3).toDouble() - info.captured(4).toDouble()) < 1e-6;
+        if (!plain) {
+            error = "the GFS grid is not a plain latitude / longitude grid";
+            return false;
+        }
+        g.step = info.captured(3).toDouble();
+        g.lon0 = info.captured(1).toDouble() + g.step / 2.0;   // the header gives the corner of the first cell
+        g.lat0 = info.captured(2).toDouble() - g.step / 2.0;
+        QFile raw{rawPath};
+        const QByteArray bytes = raw.open(QIODevice::ReadOnly) ? raw.readAll() : QByteArray{};
+        const auto cells = static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows);
+        if (static_cast<size_t>(bytes.size()) != cells * static_cast<size_t>(bands) * 4) {
+            error = "the decoded GFS field has the wrong size";
+            return false;
+        }
+        // ENVI float data is stored in the machine's byte order unless the header says "byte order = 1"
+        const bool bigEndian = QRegularExpression{"byte order\\s*=\\s*1"}.match(hdrText).hasMatch();
+        values.resize(cells * static_cast<size_t>(bands));
+        std::memcpy(values.data(), bytes.constData(), static_cast<size_t>(bytes.size()));
+        if (bigEndian) {
+            for (auto& value : values) {
+                unsigned char b[4];
+                std::memcpy(b, &value, 4);
+                std::swap(b[0], b[3]);
+                std::swap(b[1], b[2]);
+                std::memcpy(&value, b, 4);
+            }
+        }
+        return true;
+    }
 }
 
 bool GfsData::one(const Run& run, int hour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const {
@@ -388,45 +441,15 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
         cleanup();
         return false;
     }
-    QFile hdr{hdrPath};
-    const auto hdrText = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
-    const auto number = [&hdrText] (const QString& key) {
-        const auto m = QRegularExpression{"\\b" + key + "\\s*=\\s*([-0-9.]+)"}.match(hdrText);
-        return m.hasMatch() ? m.captured(1).toDouble() : -1e9;
-    };
-    const auto info = QRegularExpression{"map info = \\{[^,]*,\\s*1,\\s*1,\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+)"}.match(hdrText);
     GfsGrid::Grid g;
-    g.columns = static_cast<int>(number("samples"));
-    g.rows = static_cast<int>(number("lines"));
-    const bool plain = g.columns > 0 && g.rows > 0 && info.hasMatch() && info.captured(3).toDouble() > 0.0 && std::abs(info.captured(3).toDouble() - info.captured(4).toDouble()) < 1e-6;
-    if (!plain) {
-        error = "the GFS grid is not a plain latitude / longitude grid";
-        cleanup();
-        return false;
-    }
-    g.step = info.captured(3).toDouble();
-    g.lon0 = info.captured(1).toDouble() + g.step / 2.0;   // the header gives the corner of the first cell
-    g.lat0 = info.captured(2).toDouble() - g.step / 2.0;
-    QFile raw{rawPath};
-    QByteArray bytes = raw.open(QIODevice::ReadOnly) ? raw.readAll() : QByteArray{};
+    int bands = 0;
+    std::vector<float> all;
+    const bool read = readEnvi(rawPath, hdrPath, g, bands, all, error);
     cleanup();
-    if (bytes.size() != static_cast<qsizetype>(g.columns) * g.rows * 4) {
-        error = "the decoded GFS field has the wrong size";
+    if (!read) {
         return false;
     }
-    // ENVI float data is stored in the machine's byte order unless the header says "byte order = 1"
-    const bool bigEndian = QRegularExpression{"byte order\\s*=\\s*1"}.match(hdrText).hasMatch();
-    g.values.resize(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows));
-    std::memcpy(g.values.data(), bytes.constData(), static_cast<size_t>(bytes.size()));
-    if (bigEndian) {
-        for (auto& value : g.values) {
-            unsigned char b[4];
-            std::memcpy(b, &value, 4);
-            std::swap(b[0], b[3]);
-            std::swap(b[1], b[2]);
-            std::memcpy(&value, b, 4);
-        }
-    }
+    g.values.assign(all.begin(), all.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows)));
     const double factor = source.valueScale ? source.valueScale(want) : 1.0;
     for (auto& value : g.values) {
         if (factor != 1.0) {
@@ -452,6 +475,165 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     }
     out = std::move(g);
     return true;
+}
+
+// A field of a source whose file holds the members (GEPS): the file is kept whole for the run and hour, and the field is the mean or spread of its messages or one member's.
+bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_");
+    name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
+    const QString wholePath = config.cacheFolder + "/" + name + "all.grb2";
+    const QString statName = QString::fromStdString(want.stat.empty() ? "mean" : want.stat);
+    const QString cachePath = config.cacheFolder + "/" + name + statName + ".gz4";
+    QDir{}.mkpath(config.cacheFolder);
+    constexpr int header = 4 + 4 + 8 + 8 + 8;
+    {
+        QFile cached{cachePath};
+        if (cached.open(QIODevice::ReadOnly)) {
+            const auto all = cached.readAll();
+            GfsGrid::Grid g;
+            if (all.size() > header) {
+                std::memcpy(&g.columns, all.constData(), 4);
+                std::memcpy(&g.rows, all.constData() + 4, 4);
+                std::memcpy(&g.lon0, all.constData() + 8, 8);
+                std::memcpy(&g.lat0, all.constData() + 16, 8);
+                std::memcpy(&g.step, all.constData() + 24, 8);
+                const auto floats = qUncompress(all.mid(header));
+                if (g.columns > 0 && g.rows > 0 && floats.size() == static_cast<qsizetype>(g.columns) * g.rows * 4) {
+                    g.values.resize(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows));
+                    std::memcpy(g.values.data(), floats.constData(), static_cast<size_t>(floats.size()));
+                    out = std::move(g);
+                    return true;
+                }
+            }
+        }
+    }
+    const int band = source.memberBand && !want.stat.empty() && want.stat != "spr" ? source.memberBand(want.stat) : 0;
+    if (!want.stat.empty() && want.stat != "spr" && band <= 0) {
+        error = source.id + " has no member " + want.stat;
+        return false;
+    }
+    if (!QFileInfo::exists(wholePath) || QFileInfo{wholePath}.size() < 100) {
+        const auto bytes = config.bytes(fileUrl(run, hour, file), 0, -1);
+        if (bytes.size() < 100 || !bytes.startsWith("GRIB")) {
+            error = "could not download " + want.variable + " " + want.level + " (" + source.id + " " + run.id() + " f" + pad(hour, 3) + ")";
+            return false;
+        }
+        QSaveFile f{wholePath};
+        if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size() || !f.commit()) {
+            error = "could not write " + wholePath.toStdString();
+            return false;
+        }
+    }
+    const auto scratch = name + statName + "_" + QString::number(reinterpret_cast<quintptr>(QThread::currentThreadId()), 16) + "_" + QString::number(QDateTime::currentMSecsSinceEpoch(), 16);
+    const auto rawPath = config.cacheFolder + "/" + scratch + ".raw";
+    const auto hdrPath = config.cacheFolder + "/" + scratch + ".hdr";
+    const auto cleanup = [&] {
+        QFile::remove(rawPath);
+        QFile::remove(hdrPath);
+        QFile::remove(rawPath + ".aux.xml");
+    };
+    QStringList args{"-q", "-of", "ENVI", "-ot", "Float32"};
+    if (band > 0) {
+        args << "-b" << QString::number(band);
+    }
+    args << wholePath << rawPath;
+    QProcess translate;
+    translate.start(QString::fromStdString(config.gdalBin) + "/gdal_translate", args);
+    translate.waitForFinished(180000);
+    if (translate.exitStatus() != QProcess::NormalExit || translate.exitCode() != 0) {
+        error = "gdal_translate failed on " + want.variable + " " + want.level + ": " + translate.readAllStandardError().trimmed().toStdString();
+        cleanup();
+        return false;
+    }
+    GfsGrid::Grid g;
+    int bands = 0;
+    std::vector<float> all;
+    const bool read = readEnvi(rawPath, hdrPath, g, bands, all, error);
+    cleanup();
+    if (!read) {
+        return false;
+    }
+    const size_t cells = static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows);
+    g.values.assign(cells, std::nanf(""));
+    const double factor = source.valueScale ? source.valueScale(want) : 1.0;
+    for (size_t i = 0; i < cells; i++) {
+        double sum = 0.0, square = 0.0;
+        int n = 0;
+        for (int b = 0; b < bands; b++) {
+            const float v = all[static_cast<size_t>(b) * cells + i];
+            if (std::abs(v) < 1e19f && v == v && v != source.extraMissing) {
+                sum += v;
+                square += static_cast<double>(v) * v;
+                n++;
+            }
+        }
+        if (n == 0 || (band > 0 && n != 1)) {
+            continue;
+        }
+        const double mean = sum / n;
+        const double value = want.stat == "spr" ? std::sqrt(std::max(0.0, square / n - mean * mean)) : mean;
+        g.values[i] = static_cast<float>(value * factor);
+    }
+    QByteArray store(header, '\0');
+    std::memcpy(store.data(), &g.columns, 4);
+    std::memcpy(store.data() + 4, &g.rows, 4);
+    std::memcpy(store.data() + 8, &g.lon0, 8);
+    std::memcpy(store.data() + 16, &g.lat0, 8);
+    std::memcpy(store.data() + 24, &g.step, 8);
+    store += qCompress(QByteArray::fromRawData(reinterpret_cast<const char *>(g.values.data()), static_cast<qsizetype>(g.values.size() * 4)), 6);
+    QSaveFile keep{cachePath};
+    if (keep.open(QIODevice::WriteOnly)) {
+        keep.write(store);
+        keep.commit();
+    }
+    out = std::move(g);
+    return true;
+}
+
+GfsData::Source GfsData::geps() {
+    Source s;
+    s.id = "GEPS";
+    s.label = "ECCC GEPS 21 member ensemble, 0.5 degree";
+    s.wholeFile = true;
+    s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
+        const auto h = pad(hour, 3);
+        return "https://dd.weather.gc.ca/" + run.date + "/WXO-DD/ensemble/geps/grib2/raw/" + run.cycle + "/" + h + "/CMC_geps-raw_" + file + "_latlon0p5x0p5_" + run.date + run.cycle + "_P" + h + "_allmbrs.grib2";
+    };
+    s.fileOf = [] (const Want& want) {   // the server's name of a field: "TMP_TGL_2m", "HGT_ISBL_0500", "PRMSL_MSL_0"
+        const auto& v = want.variable;
+        const auto& l = want.level;
+        std::string where;
+        if (l.size() > 3 && l.compare(l.size() - 3, 3, " mb") == 0 && l.find("above ground") == std::string::npos) {
+            where = "ISBL_" + std::string(4 - std::min<size_t>(4, l.size() - 3), '0') + l.substr(0, l.size() - 3);
+        } else if (l == "2 m above ground") {
+            where = v == "SPFH" ? "TGL_2" : "TGL_2m";
+        } else if (l == "10 m above ground") {
+            where = v == "WIND" ? "TGL_10" : "TGL_10m";
+        } else if (l == "mean sea level") {
+            where = "MSL_0";
+        } else if (l.compare(0, 17, "entire atmosphere") == 0) {
+            where = "EATM_0";
+        } else {
+            where = "SFC_0";
+        }
+        return v + "_" + where;
+    };
+    s.memberBand = [] (const std::string& stat) {   // "c00" is the first message, "p01" ... "p20" the ones after it
+        if (stat == "c00") {
+            return 1;
+        }
+        if (stat.size() == 3 && stat[0] == 'p' && std::isdigit(static_cast<unsigned char>(stat[1])) && std::isdigit(static_cast<unsigned char>(stat[2]))) {
+            const int n = (stat[1] - '0') * 10 + (stat[2] - '0');
+            return n >= 1 && n <= 20 ? n + 1 : 0;
+        }
+        return 0;
+    };
+    s.probeFile = "TMP_TGL_2m";
+    s.cycleHours = 12;
+    s.lagHours = 6;     // the 00 and 12Z runs are on the server about five and a half hours after their time
+    s.probeHour = 384;
+    s.cyclesToTry = 4;
+    return s;
 }
 
 QString GfsData::partialGrib(const Run& run, int hour, const std::string& file) const {
@@ -705,6 +887,15 @@ bool GfsData::loadBox(const Run& run, const std::vector<Need>& needs, std::map<s
     return true;
 }
 
+namespace {
+    struct Result {
+        GfsGrid::Grid grid;
+        std::string error;
+        bool ok{false};
+        bool absent{false};
+    };
+}
+
 bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {
     if (boxEnabled) {   // a box of the fields when they can all be had that way: a few per cent of the download
         std::map<std::string, GfsGrid::Grid> boxed;
@@ -731,6 +922,22 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
                 break;
             }
         }
+    }
+    if (source.wholeFile) {   // no index to read: each want is a file of its own, and the file holds the members
+        std::vector<Result> whole(needs.size());
+        runLimited(needs.size(), source.maxParallel, [&] (size_t i) {
+            whole[i].ok = oneWhole(run, needs[i].hour, fileFor(needs[i].want), needs[i].want, whole[i].grid, whole[i].error);
+        });
+        bool every = true;
+        for (size_t i = 0; i < whole.size(); i++) {
+            if (whole[i].ok) {
+                out[needs[i].want.key] = std::move(whole[i].grid);
+            } else if (every) {
+                error = whole[i].error;
+                every = false;
+            }
+        }
+        return every;
     }
     std::vector<std::vector<GfsGrid::IdxRecord>> parsed(keys.size());
     runLimited(keys.size(), source.maxParallel, [&] (size_t i) {
@@ -764,12 +971,6 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
         }
         indexes[keys[i]] = std::move(parsed[i]);
     }
-    struct Result {
-        GfsGrid::Grid grid;
-        std::string error;
-        bool ok{false};
-        bool absent{false};
-    };
     std::vector<Result> results(needs.size());
     runLimited(needs.size(), source.maxParallel, [&] (size_t i) {   // the downloads and the decoding, a few at a time
         const auto& need = needs[i];

@@ -31,6 +31,7 @@ namespace GfsModels {
         std::vector<std::string> ids;                  // only these GFS charts (empty: every chart whose fields the model has)
         std::set<std::string> variables;               // the fields the model has (empty: not checked)
         std::set<std::string> levels;                  // the pressure levels it has (empty: not checked)
+        std::set<std::string> fields;                  // the pressure level fields it has, "TMP|850 mb" (empty: not checked): for a model that lacks some variable at some levels
         std::vector<std::string> skip;                 // a chart whose id holds any of these is not made
         bool specificHumidity{false};                  // relative humidity has to be worked out from specific humidity
         bool pieces{true};                             // precipitation comes as 6 hour amounts, not running totals
@@ -47,6 +48,7 @@ namespace GfsModels {
         Sectors sectors{Sectors::World};
         std::vector<Hours> hours;                      // the forecast hours the model screen offers
         bool hourlyRuns{false};                        // a run every hour in the run list, not four a day
+        int cycleStep{6};                              // hours between runs when not hourly (GEPS: 12, so the run list is 00Z and 12Z)
         bool storm{false};                             // the model is run for a storm: its screen picks the storm, and its grid is the storm's
         bool overlays{false};                          // the GFS set of lines and wind barbs can be ticked onto its charts (a model may have overlays of its own besides)
         bool recipeList{false};                        // the model screen lists the charts in the registry (false: the older list kept from the model guidance site)

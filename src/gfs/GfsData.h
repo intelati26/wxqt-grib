@@ -58,6 +58,10 @@ public:
         // A server that cuts a box of one hour's fields out of the file for the asking (NOMADS's grib filter): the url for the variables and levels (NOAA's names, "HGT", "500 mb") in that box.
         // A chart of a region then fetches a few per cent of what the whole globe's messages are (the S3 buckets give nothing smaller than a message).
         std::function<std::string(const Run&, int forecastHour, const std::vector<std::string>& variables, const std::vector<std::string>& levels, const Box&)> subsetUrl;
+        // A source with no index: one file per field and hour that holds one message for each member of the ensemble (Canada's GEPS). A want's `stat` then says which of them is wanted:
+        // "" the mean of the members, "spr" their standard deviation, or a member's name that `memberBand` turns into the band to read.
+        bool wholeFile{false};
+        std::function<int(const std::string& stat)> memberBand;           // the 1-based message of a member's name ("c00" 1, "p01" 2 ...); 0 when it is not one
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often
         int lagHours{3};                                                 // and a run is looked for from this long after its time
@@ -82,6 +86,8 @@ public:
     // The Rapid Refresh Forecast System's ensemble (REFS): 5 members at 3 km (the `stat` of a want names the member, "m001" ... "m005") and the ready-made products of its own (the stat "ens:avrg",
     // "ens:eas" for the probabilities, "ens:ffri" for flash flood risk)
     static Source refs();
+    // Canada's ensemble (GEPS): 21 members at 0.5 degree, every 12 hours to 384, from the open data server. One file per field and hour holds all the members (no index: `wholeFile`).
+    static Source geps();
     // The High-Resolution Ensemble Forecast (HREF) on NOMADS: its own ready-made products of the 10 members on the 3 km CONUS grid; the `stat` of a want names the file ("mean" the default,
     // "pmmn", "lpmm", "avrg", "sprd", "prob", "eas", "ffri"). The hour has two digits.
     static Source href();
@@ -125,6 +131,7 @@ public:
 
 private:
     bool one(const Run& run, int forecastHour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const;
+    bool oneWhole(const Run& run, int forecastHour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const;   // a `wholeFile` source's field
     std::string fileFor(const Want& want) const { return source.fileOf ? source.fileOf(want) : std::string{}; }
     // the fields of one hour out of a box request; false when it cannot be had (the caller then goes the usual way)
     bool loadBox(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out) const;
