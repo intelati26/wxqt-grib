@@ -72,7 +72,10 @@ int main(int argc, char ** argv) {
         std::stringstream in{env};
         for (std::string id; std::getline(in, id, ',');) overlayIds.push_back(id);
     }
-    const auto composed = baseProduct ? GfsChart::compose(*baseProduct, overlayIds) : GfsChart::Product{};
+    auto composed = baseProduct ? GfsChart::compose(*baseProduct, overlayIds) : GfsChart::Product{};
+    if (const char * env = std::getenv("DEMO_MEMBER"); env && baseProduct) {   // DEMO_MEMBER=p07 (GEFS) or m003 (REFS): one member instead of the mean
+        composed = GfsChart::withMember(composed, env);
+    }
     const auto * product = baseProduct ? &composed : nullptr;
     GfsChart::Sector stormSector;
     const auto * sector = hurricane ? &stormSector : GfsChart::sector(argv[2]);

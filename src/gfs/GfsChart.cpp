@@ -3324,19 +3324,16 @@ const std::vector<Product>& products() {
                 x.legendStep = 0;
                 p.push_back(x);
             }
-            // each member on its own (the old REFS screen's "RRFS Ensemble Member" rows): the same field from member 1 to 5, drawn as the chart it is
-            for (int m = 1; m <= 5; m++) {
-                const std::string member = "m00" + std::to_string(m);
-                const std::string tag = "member" + std::to_string(m) + "_";
-                const std::string name = "Member " + std::to_string(m) + ": ";
-                const auto one = [&] (const char * key, const char * label, const char * variable, const char * level, const std::string& forecast, const Ramp& ramp, const char * title, int legendStep,
+            // one member of the field on its own (the old REFS screen's "RRFS Ensemble Member" rows): member 1 here, the screen's member picker swaps it for 2 to 5 (withMember)
+            {
+                const auto one = [&] (const char * key, const char * label, const char * variable, const char * level, bool hourlyMax, const Ramp& ramp, const char * title, int legendStep,
                                       Quantity quantity, float scale) {
-                    auto x = make((tag + key).c_str(), (name + label).c_str());
-                    const GfsData::Want want{"v", variable, level, forecast, "", member};
-                    if (forecast.empty()) {
+                    auto x = make((std::string{"member_"} + key).c_str(), (std::string{"Member: "} + label).c_str());
+                    const GfsData::Want want{"v", variable, level, "", "", "m001"};
+                    if (!hourlyMax) {
                         x.wants = {want};
                     } else {
-                        x.needs = [want, forecast] (int hour) {
+                        x.needs = [want] (int hour) {
                             auto w = want;
                             w.forecast = std::to_string(std::max(hour - 1, 0)) + "-" + std::to_string(hour) + " hour max fcst";
                             return std::vector<GfsData::Need>{{hour, w}};
@@ -3352,7 +3349,7 @@ const std::vector<Product>& products() {
                         return out;
                     };
                     x.ramp = ramp;
-                    if (!forecast.empty()) {
+                    if (hourlyMax) {
                         x.palette = "uh";
                     }
                     x.quantity = quantity;
@@ -3360,11 +3357,11 @@ const std::vector<Product>& products() {
                     x.legendStep = legendStep;
                     p.push_back(x);
                 };
-                one("refc", "Composite Reflectivity", "REFC", "entire atmosphere (considered as a single layer)", "", reflectivity(), "Composite reflectivity (dBZ)", 10, Quantity::Other, 1.0f);
-                one("tmp2m", "2 m Temperature", "TMP", "2 m above ground", "", temperature(), "2 m temperature", 5, Quantity::Temperature, 1.0f);
-                one("cape", "Surface CAPE", "CAPE", "surface", "", capeRamp(), "Surface CAPE (J/kg)", 500, Quantity::Other, 1.0f);
-                one("gust", "Surface Wind Gust", "GUST", "surface", "", windSpeed(), "Surface wind gust (kt)", 20, Quantity::Other, 1.943844f);
-                one("uphl", "2-5 km Updraft Helicity (last hour)", "MXUPHL", "5000-2000 m above ground", "hourly", updraftHelicity(), "Updraft helicity (m2/s2)", 0, Quantity::Other, 1.0f);
+                one("refc", "Composite Reflectivity", "REFC", "entire atmosphere (considered as a single layer)", false, reflectivity(), "Composite reflectivity (dBZ)", 10, Quantity::Other, 1.0f);
+                one("tmp2m", "2 m Temperature", "TMP", "2 m above ground", false, temperature(), "2 m temperature", 5, Quantity::Temperature, 1.0f);
+                one("cape", "Surface CAPE", "CAPE", "surface", false, capeRamp(), "Surface CAPE (J/kg)", 500, Quantity::Other, 1.0f);
+                one("gust", "Surface Wind Gust", "GUST", "surface", false, windSpeed(), "Surface wind gust (kt)", 20, Quantity::Other, 1.943844f);
+                one("uphl", "2-5 km Updraft Helicity (last hour)", "MXUPHL", "5000-2000 m above ground", true, updraftHelicity(), "Updraft helicity (m2/s2)", 0, Quantity::Other, 1.0f);
             }
             for (const auto& [id, label, spread] : {std::tuple{"mean_2m_temp", "Ensemble Mean 2 m Temperature", false}, {"spread_2m_temp", "2 m Temperature Spread among the members", true}}) {
                 auto x = make(id, label);
@@ -4503,6 +4500,82 @@ std::vector<OverlayChoice> overlayChoices(const std::string& source) {
         if (std::find(o.sources.begin(), o.sources.end(), source) != o.sources.end()) {
             out.push_back({o.id, o.label, o.group});
         }
+    }
+    return out;
+}
+
+std::vector<MemberChoice> memberChoices(const Product& product) {
+    std::vector<GfsData::Want> wanted = product.wants;
+    if (product.needs) {
+        for (const auto& need : product.needs(12)) {
+            wanted.push_back(need.want);
+        }
+    }
+    std::vector<MemberChoice> out;
+    if (wanted.empty() || product.linesOnly) {
+        return out;
+    }
+    if (product.source == "REFS") {
+        if (product.id.compare(0, 7, "member_") == 0) {
+            for (int m = 1; m <= 5; m++) {
+                out.push_back({"m00" + std::to_string(m), "Member " + std::to_string(m)});
+            }
+        }
+        return out;
+    }
+    if (product.source == "GEFS") {
+        // the charts made of the mean's fields alone: a spread among the wants (its lines, its derivations) has no one member's version
+        for (const auto& w : wanted) {
+            if (!w.stat.empty()) {
+                return out;
+            }
+        }
+        out.push_back({"", "Ensemble mean"});
+        out.push_back({"c00", "Control"});
+        for (int m = 1; m <= 30; m++) {
+            out.push_back({"p" + std::string{m < 10 ? "0" : ""} + std::to_string(m), "Member " + std::to_string(m)});
+        }
+    }
+    return out;
+}
+
+Product withMember(const Product& product, const std::string& member) {
+    if (member.empty()) {
+        return product;
+    }
+    const auto choices = memberChoices(product);
+    const auto chosen = std::find_if(choices.begin(), choices.end(), [&member] (const MemberChoice& c) { return c.value == member; });
+    if (chosen == choices.end()) {
+        return product;
+    }
+    const bool refs = product.source == "REFS";
+    const auto swap = [refs, member] (GfsData::Want w) {
+        if (refs ? w.stat.compare(0, 3, "m00") == 0 : w.stat.empty()) {
+            w.stat = member;
+        }
+        return w;
+    };
+    Product out = product;
+    for (auto& w : out.wants) {
+        w = swap(w);
+    }
+    for (auto * f : {&out.needs, &out.fallbackNeeds}) {
+        if (*f) {
+            *f = [original = *f, swap] (int hour) {
+                auto list = original(hour);
+                for (auto& need : list) {
+                    need.want = swap(need.want);
+                }
+                return list;
+            };
+        }
+    }
+    const auto named = [&chosen] (const std::string& text) {   // "Mean 500mb Height" -> "Member 7 500mb Height"; the rest gets the member in front
+        return text.compare(0, 5, "Mean ") == 0 ? chosen->label + text.substr(4) : chosen->label + ": " + text;
+    };
+    out.label = refs ? chosen->label + ": " + product.label.substr(std::min<size_t>(product.label.find(": ") + 2, product.label.size())) : named(product.label);
+    if (!refs && product.fillTitle.compare(0, 5, "Mean ") == 0) {
+        out.fillTitle = chosen->label + product.fillTitle.substr(4);
     }
     return out;
 }

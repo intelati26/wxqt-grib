@@ -132,6 +132,14 @@ namespace GfsChart {
     std::vector<OverlayChoice> overlayChoices(const std::string& source);
     // the base chart with the ticked overlays added (the barbs of the last one ticked replace the base's); the base itself when none applies
     Product compose(const Product& base, const std::vector<std::string>& overlayIds);
+    // One member of the ensemble instead of the mean: the choices a chart offers (empty when it cannot show a single member: spread, probability and counting charts) and the chart for one.
+    // `value` is the member's name in the model's files ("" the mean, "c00" the control and "p01" ... "p30" in GEFS; "m001" ... "m005" in REFS).
+    struct MemberChoice {
+        std::string value;
+        std::string label;
+    };
+    std::vector<MemberChoice> memberChoices(const Product& product);
+    Product withMember(const Product& product, const std::string& member);
 
     // the names for under a chart, and the sectors a model can show (the blend covers only the contiguous United States)
     std::string sourceLabel(const std::string& source);

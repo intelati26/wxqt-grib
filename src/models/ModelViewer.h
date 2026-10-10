@@ -93,6 +93,7 @@ private:
     QByteArray compositePicture() const;
     QDateTime runTime(const string& run) const;
     ComboBox comboTiles, comboTilesShow;
+    ComboBox comboMember;                 // one member of the ensemble instead of the mean (GEFS: 31, REFS: 5), for the charts that can show one
     QWidget * compareArea{};
     QGridLayout * grid{};
     QFrame * mainTile{};
@@ -116,6 +117,9 @@ private:
     void rebuildViewsMenu();
     HBox boxH2;
     ComboBox comboCompare, comboPreload;
+    std::vector<std::string> memberValues;   // the members' names in the model's files, as the combo lists them
+    std::string member;                   // the one chosen: "" the chart as it is
+    void refreshMembers();
     QPushButton * buttonMax{};
     QPushButton * buttonBuild{};
     QMenu * menuBuild{};

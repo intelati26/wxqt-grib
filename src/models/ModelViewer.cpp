@@ -48,6 +48,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
     , comboTilesShow{this, {"Compare: charts", "Compare: models", "Compare: runs"}}
+    , comboMember{this, {"Ensemble mean"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
     , buttonModel{this, None, "Model..."}
@@ -108,6 +109,16 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             setVariant(v);
         });
         boxH2.addWidget(comboCompare);
+        comboMember.getView()->setToolTip("An ensemble's charts for one member instead of the mean: the GEFS control and its 30 members, the 5 REFS members. Charts that are made from all the members (spread, chances, percentiles) have no single member.");
+        comboMember.connect([this] {
+            const auto i = static_cast<size_t>(std::max(comboMember.getIndex(), 0));
+            member = i < memberValues.size() ? memberValues[i] : string{};
+            startPlaying(false);
+            strip->stop();
+            reload();
+        });
+        boxH2.addWidget(comboMember);
+        comboMember.setVisible(false);
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
         comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs.");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
@@ -361,7 +372,7 @@ string ModelViewer::frameKey(int hour) const {
     for (const auto& id : overlays) {
         key += "|" + id;
     }
-    return key + variantKey;
+    return key + variantKey + (member.empty() ? string{} : "|member=" + member);
 }
 
 void ModelViewer::setVariant(GfsRender::Variant v) {
@@ -894,6 +905,7 @@ void ModelViewer::refreshProductButton() {
     buttonSector.setText(objectModel.sector + "  \xE2\x96\xBE");
     buttonProducts.setVisible(grib);
     refreshBuildMenu();
+    refreshMembers();
     if (!grib) {
         return;
     }
@@ -1173,6 +1185,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.cycle = objectModel.run;
         job.overlays = overlays;
         job.variant = ahead && variant.kind != GfsRender::Variant::Kind::Change ? GfsRender::Variant{} : variant;
+        job.variant.member = member;
         job.key = frameKey(mainHour);
     } else {
         const auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
@@ -1226,6 +1239,9 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         if (ahead && v.kind != GfsRender::Variant::Kind::Change) {
             v = {};
         }
+        if (spec.model == objectModel.model) {   // the same model's tiles show the member too (another model's charts have none)
+            v.member = member;
+        }
         job.variant = v;
         string vk;
         if (v.kind == GfsRender::Variant::Kind::Change) {
@@ -1238,6 +1254,9 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             job.key += "|" + id;
         }
         job.key += vk;
+        if (!v.member.empty()) {
+            job.key += "|member=" + v.member;
+        }
     }
     job.chart = job.model + "|" + job.param + "|" + job.sector;
     for (const auto& id : job.overlays) {
@@ -1539,4 +1558,29 @@ void ModelViewer::openMemberGraph() {
     }
     const auto run = runTime(objectModel.run);
     new RefsPointGraph{this, basis, lon, lat, run.isValid() ? run.toString("yyyyMMddHH").toStdString() : string{}};
+}
+
+// the member choices of the chart on screen: the combo shows for the ensembles whose chart can be drawn from one member, and goes back to the mean when the chart or the model changes
+void ModelViewer::refreshMembers() {
+    std::vector<GfsChart::MemberChoice> choices;
+    if (GfsRender::drawsModel(objectModel.model)) {
+        if (const auto * product = GfsChart::product(objectModel.param, objectModel.model)) {
+            choices = GfsChart::memberChoices(*product);
+        }
+    }
+    std::vector<string> values;
+    std::vector<string> labels;
+    for (const auto& c : choices) {
+        values.push_back(c.value);
+        labels.push_back(c.label);
+    }
+    if (values != memberValues) {
+        memberValues = values;
+        member = memberValues.empty() ? string{} : memberValues.front();
+        comboMember.block();
+        comboMember.setList(labels);
+        comboMember.setIndex(0);
+        comboMember.unblock();
+    }
+    comboMember.setVisible(!memberValues.empty());
 }

@@ -47,6 +47,7 @@ namespace GfsRender {
         Kind kind{Kind::None};
         std::vector<int> hours;
         int hoursBack{0};
+        std::string member;   // one ensemble member instead of the mean (GfsChart::withMember); "" the chart as it is
     };
     // The chart as PNG bytes; empty with the reason in error. cycle is the model screen's run ("12Z", or ""/"latest"); hour is the forecast hour.
     // model is "GFS" or "NBM"

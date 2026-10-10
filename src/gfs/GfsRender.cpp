@@ -151,7 +151,10 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     if (isHafs(model)) {
         sector = &storm;
     }
-    const auto composed = base ? GfsChart::compose(*base, overlays) : GfsChart::Product{};   // the chart with what was ticked onto it
+    auto composed = base ? GfsChart::compose(*base, overlays) : GfsChart::Product{};   // the chart with what was ticked onto it
+    if (base && !variant.member.empty()) {
+        composed = GfsChart::withMember(composed, variant.member);
+    }
     const auto * product = base ? &composed : nullptr;
     if (!product || !sector) {
         error = "no " + model + " chart for " + param + " " + sectorId;
