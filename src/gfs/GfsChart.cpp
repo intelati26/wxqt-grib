@@ -2049,6 +2049,57 @@ const std::vector<Product>& products() {
                             p.push_back(x);
                         }
                     }
+                    // the members' 2 m temperature in one picture: the median as the shading, the 10th and 90th percentile as numbers at cities (and evenly elsewhere) - the range the
+                    // ensemble gives at each place. One sort per point makes all three.
+                    {
+                        Product x;
+                        x.source = "GEFS";
+                        x.id = "pct50_2m_temp_range";
+                        x.label = "Median 2m Temperature with 10th / 90th percentiles";
+                        x.needs = temperatureNeeds;
+                        x.derive = [] (Grids& g, const Context&) {
+                            auto p10 = g.at("v" + memberNames.front());
+                            auto p50 = p10;
+                            auto p90 = p10;
+                            std::vector<float> values;
+                            const auto at = [&values] (int percent) {
+                                const double rank = percent / 100.0 * static_cast<double>(values.size() - 1);
+                                const auto low = static_cast<size_t>(std::floor(rank)), high = static_cast<size_t>(std::ceil(rank));
+                                return static_cast<float>(values[low] + (values[high] - values[low]) * (rank - static_cast<double>(low)));
+                            };
+                            for (size_t i = 0; i < p50.values.size(); i++) {
+                                values.clear();
+                                for (const auto& name : memberNames) {
+                                    const float v = g.at("v" + name).values[i];
+                                    if (!std::isnan(v)) {
+                                        values.push_back(v);
+                                    }
+                                }
+                                if (values.empty()) {
+                                    p10.values[i] = p50.values[i] = p90.values[i] = std::nanf("");
+                                    continue;
+                                }
+                                std::sort(values.begin(), values.end());
+                                p10.values[i] = at(10);
+                                p50.values[i] = at(50);
+                                p90.values[i] = at(90);
+                            }
+                            for (const auto& name : memberNames) {
+                                g.erase("v" + name);
+                            }
+                            g["p10"] = std::move(p10);
+                            g["p50"] = std::move(p50);
+                            g["p90"] = std::move(p90);
+                        };
+                        x.fill = [] (const Grids& g) { return pick(g, "p50"); };
+                        x.ramp = temperature();
+                        x.quantity = Quantity::Temperature;
+                        x.fillTitle = "Median of the 31 members: 2 m temperature. Numbers: 10th percentile (blue), 90th percentile (red)";
+                        x.legendStep = 5;
+                        x.pointValues = {{"p10", QColor{30, 80, 200}, "10th percentile 2 m temperature"},
+                                         {"p90", QColor{200, 40, 30}, "90th percentile 2 m temperature"}};
+                        p.push_back(x);
+                    }
                     // the extreme forecast index: where the members' values stand in the climate of the day (the 1991-2020 daily mean and spread of the reanalysis, taken as a normal distribution): +1 when every
                     // member is above everything the climate has, -1 below. (ECMWF's index, made with a model climate; this one is a stand-in made with the reanalysis')
                     struct Efi {
@@ -4686,6 +4737,11 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         for (const auto& set : product.contours) {
             probe.fields.push_back({set.title.empty() ? set.key : set.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.key), sector.west, sector.south, sector.east, sector.north), 120000), set.scale, Quantity::Other, false});
         }
+        for (const auto& value : product.pointValues) {
+            if (grids.count(value.key)) {
+                probe.fields.push_back({value.title.empty() ? value.key : value.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(value.key), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
+            }
+        }
         if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
             probe.windU = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(product.barbU), sector.west, sector.south, sector.east, sector.north), 120000);
             probe.windV = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(product.barbV), sector.west, sector.south, sector.east, sector.north), 120000);
@@ -4977,6 +5033,94 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 }
                 const double from = std::fmod(std::atan2(-uu, -vv) * 180.0 / pi + 360.0, 360.0);
                 WindBarb::draw(p, {x, y}, from, std::hypot(uu, vv) * msToKnots, 24.0, lat < 0.0);
+            }
+        }
+    }
+    // numbers at points ("41 63": the 10th and 90th percentile): at cities, biggest first, then evenly over what is left of the map; never one box on another
+    if (!product.pointValues.empty()) {
+        bool all = true;
+        for (const auto& value : product.pointValues) {
+            all = all && grids.count(value.key) > 0;
+        }
+        if (all) {
+            QFont numberFont = font;
+            numberFont.setBold(true);
+            numberFont.setPointSizeF(std::max(7.0, font.pointSizeF() * 0.9));
+            const QFontMetricsF numberMetrics{numberFont};
+            const double gap = 5.0;   // between the numbers of one point
+            std::vector<QRectF> boxes;
+            // one point's numbers side by side, centred on `at`; false (nothing drawn) when no value there or the box would cover another
+            const auto place = [&] (const QPointF& at, double lon, double lat) {
+                std::vector<QString> texts;
+                double width = -gap;
+                for (const auto& value : product.pointValues) {
+                    const float v = grids.at(value.key).sample(lon, lat);
+                    if (std::isnan(v)) {
+                        return false;
+                    }
+                    texts.push_back(QString::number(static_cast<int>(std::lround(shown(product.quantity, v, us)))));
+                    width += numberMetrics.horizontalAdvance(texts.back()) + gap;
+                }
+                const QRectF box{at.x() - width / 2.0 - 3.0, at.y() - numberMetrics.height() / 2.0 - 2.0, width + 6.0, numberMetrics.height() + 4.0};
+                if (!area.adjusted(4, 4, -4, -4).contains(box)) {
+                    return false;
+                }
+                for (const auto& other : boxes) {
+                    if (other.intersects(box.adjusted(-2, -1, 2, 1))) {
+                        return false;
+                    }
+                }
+                boxes.push_back(box);
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor{255, 255, 255, 150});
+                p.drawRoundedRect(box, 3.0, 3.0);
+                double x = at.x() - width / 2.0;
+                for (size_t i = 0; i < texts.size(); i++) {
+                    QPainterPath path;
+                    path.addText(QPointF{x, at.y() + numberMetrics.ascent() / 2.0 - 1.0}, numberFont, texts[i]);
+                    p.setPen(QPen{QColor{255, 255, 255, 230}, 2.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+                    p.setBrush(Qt::NoBrush);
+                    p.drawPath(path);
+                    p.setPen(Qt::NoPen);
+                    p.setBrush(product.pointValues[i].color);
+                    p.drawPath(path);
+                    x += numberMetrics.horizontalAdvance(texts[i]) + gap;
+                }
+                return true;
+            };
+            // the cities (Options::places, biggest first) that fall inside the view
+            std::vector<std::pair<float, float>> inView;
+            for (const auto& city : options.places) {
+                if (city.first >= sector.west && city.first <= sector.east && city.second >= sector.south && city.second <= sector.north) {
+                    inView.push_back(city);
+                }
+            }
+            const double ground = span > 150.0 ? 120.0 : span > 80.0 ? 96.0 : 80.0;   // pixels apart, at the least, so the wider the view the fewer
+            std::vector<QPointF> spots;
+            for (const auto& city : inView) {
+                const auto at = view.toPixel(city.first, city.second);
+                bool near = false;
+                for (const auto& other : spots) {
+                    near = near || std::hypot(at.x() - other.x(), at.y() - other.y()) < ground;
+                }
+                if (!near && place(at, city.first, city.second)) {
+                    spots.push_back(at);
+                }
+                if (spots.size() >= 60) {
+                    break;
+                }
+            }
+            // what the cities left out (oceans, other countries): an even grid, skipping any spot near a number already there
+            for (double y = area.top() + ground / 2.0; y < area.bottom(); y += ground) {
+                for (double x = area.left() + ground / 2.0; x < area.right(); x += ground) {
+                    bool near = false;
+                    for (const auto& other : spots) {
+                        near = near || std::hypot(x - other.x(), y - other.y()) < ground * 0.8;
+                    }
+                    if (!near && place({x, y}, view.lonAt(x), view.latAt(y))) {
+                        spots.emplace_back(x, y);
+                    }
+                }
             }
         }
     }

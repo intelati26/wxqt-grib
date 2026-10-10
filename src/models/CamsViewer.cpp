@@ -5,7 +5,6 @@
 
 #include "models/CamsViewer.h"
 #include <algorithm>
-#include <future>
 #include <memory>
 #include "objects/FutureVoid.h"
 #include "util/To.h"
@@ -172,19 +171,11 @@ void CamsViewer::loadModel(const string& modelId) {
     new FutureVoid{this,
         [loaded, modelId, rememberedSector] {
             loaded->modelId = modelId;
-            // three independent questions to the site, asked together
-            string runsError;
+            // one request at a time (see UtilityCams); the model info and sector names usually come from disk
+            if (!UtilityCams::model(modelId, loaded->model, loaded->error)) return;
+            if (!UtilityCams::recentRuns(modelId, 24, loaded->runs, loaded->error)) return;
             string sectorsError;
-            auto runsRequest = std::async(std::launch::async, [&] { return UtilityCams::recentRuns(modelId, 24, loaded->runs, runsError); });
-            auto sectorsRequest = std::async(std::launch::async, [&] { return UtilityCams::sectorNames(loaded->sectors, sectorsError); });
-            const bool haveModel = UtilityCams::model(modelId, loaded->model, loaded->error);
-            const bool haveRuns = runsRequest.get();
-            sectorsRequest.get();   // sector names are only labels; the ids work without them
-            if (!haveModel) return;
-            if (!haveRuns) {
-                loaded->error = runsError;
-                return;
-            }
+            UtilityCams::sectorNames(loaded->sectors, sectorsError);   // only labels; the ids work without them
             loaded->run = loaded->runs.front();
             const auto& sectors = loaded->model.sectors;
             loaded->sector = std::find(sectors.begin(), sectors.end(), rememberedSector) != sectors.end()

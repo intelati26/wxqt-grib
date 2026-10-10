@@ -5,16 +5,20 @@
 
 #include "models/UtilityCams.h"
 #include <algorithm>
-#include <future>
 #include <mutex>
 #include <QBuffer>
+#include <QCryptographicHash>
 #include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
 #include <QRegularExpression>
+#include <QStandardPaths>
 #include <QString>
 #include <QTimeZone>
 #include "objects/URL.h"
@@ -26,21 +30,68 @@ namespace {
         return site + "query.php?" + parameters;
     }
 
-    // one JSON call; false (with a plain-language message) if the site cannot be reached or answers with
-    // something that is not JSON
-    bool fetchJson(const string& url, QJsonDocument& out, string& error) {
-        const auto text = URL::getText(url);
-        if (text.empty()) {
-            error = "no answer from cams.nssl.noaa.gov (offline, blocked, or the site is down)";
-            return false;
-        }
-        QJsonParseError parse;
-        out = QJsonDocument::fromJson(QByteArray::fromStdString(text), &parse);
-        if (parse.error != QJsonParseError::NoError) {
-            error = "cams.nssl.noaa.gov sent something unexpected: " + parse.errorString().toStdString();
+    // How long a saved answer is used before the site is asked again (seconds). The slow-changing
+    // answers - which models exist, what each one is, sector and category names - are kept on disk, so
+    // opening the viewer does not ask for them every time: on networks where IPv6 to the host is broken
+    // every new connection first waits for that attempt to time out, and the model list alone is one
+    // request per model. Runs, products, the latest time and the images are always asked live.
+    constexpr qint64 live = 0;
+    constexpr qint64 sixHours = 6 * 3600;
+    constexpr qint64 oneDay = 24 * 3600;
+    constexpr qint64 oneWeek = 7 * 24 * 3600;
+
+    QString cachePath(const string& url) {
+        const auto dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/cams";
+        QDir{}.mkpath(dir);
+        const auto hash = QCryptographicHash::hash(QByteArray::fromStdString(url), QCryptographicHash::Sha1).toHex();
+        return dir + "/" + QString::fromLatin1(hash) + ".json";
+    }
+
+    bool parse(const QByteArray& bytes, QJsonDocument& out, string& error) {
+        QJsonParseError parseError;
+        out = QJsonDocument::fromJson(bytes, &parseError);
+        if (parseError.error != QJsonParseError::NoError) {
+            error = "cams.nssl.noaa.gov sent something unexpected: " + parseError.errorString().toStdString();
             return false;
         }
         return true;
+    }
+
+    // one JSON call; false (with a plain-language message) if the site cannot be reached or answers with
+    // something that is not JSON. With maxAge > 0 a saved answer younger than that is used instead, a good
+    // answer is saved, and a saved answer of any age is used when the site cannot be reached.
+    bool fetchJson(const string& url, QJsonDocument& out, string& error, qint64 maxAge = live) {
+        const auto path = maxAge > 0 ? cachePath(url) : QString{};
+        QByteArray saved;
+        if (maxAge > 0) {
+            QFile file{path};
+            if (file.open(QIODevice::ReadOnly)) {
+                saved = file.readAll();
+                const auto age = QFileInfo{path}.lastModified().secsTo(QDateTime::currentDateTime());
+                string ignored;
+                if (age >= 0 && age < maxAge && parse(saved, out, ignored)) {
+                    return true;
+                }
+            }
+        }
+        const auto text = URL::getText(url);
+        if (!text.empty() && parse(QByteArray::fromStdString(text), out, error)) {
+            if (maxAge > 0) {
+                QFile file{path};
+                if (file.open(QIODevice::WriteOnly)) {
+                    file.write(QByteArray::fromStdString(text));
+                }
+            }
+            return true;
+        }
+        string ignored;
+        if (!saved.isEmpty() && parse(saved, out, ignored)) {
+            return true;   // offline or a bad answer: the last good one is better than nothing
+        }
+        if (text.empty()) {
+            error = "no answer from cams.nssl.noaa.gov (offline, blocked, or the site is down)";
+        }
+        return false;
     }
 
     string text(const QJsonValue& value) {
@@ -100,24 +151,17 @@ namespace UtilityCams {
 
 bool models(vector<std::pair<string, string>>& out, string& error) {
     QJsonDocument document;
-    if (!fetchJson(query("type=models"), document, error)) {
+    if (!fetchJson(query("type=models"), document, error, sixHours)) {
         return false;
     }
     out.clear();
-    // the display names are one small request per model; ask for them all at once (a slow connection setup,
-    // e.g. an IPv6 attempt that times out before IPv4 is used, would otherwise be paid once per model)
-    const auto ids = strings(document.array());
-    vector<std::future<string>> names;
-    for (const auto& id : ids) {
-        names.push_back(std::async(std::launch::async, [id] {
-            Model info;
-            string ignored;
-            return model(id, info, ignored) ? info.name : string{};
-        }));
-    }
-    for (size_t i = 0; i < ids.size(); i += 1) {
-        const auto name = names[i].get();
-        out.emplace_back(ids[i], name.empty() ? ids[i] : name);
+    // one small request per model for its display name - one at a time (parallel connections to this host
+    // are what made discovery slow on networks with broken IPv6), and saved, so it is paid once a day
+    for (const auto& id : strings(document.array())) {
+        Model info;
+        string ignored;
+        const auto name = model(id, info, ignored) ? info.name : string{};
+        out.emplace_back(id, name.empty() ? id : name);
     }
     if (out.empty()) {
         error = "cams.nssl.noaa.gov lists no models";
@@ -128,7 +172,7 @@ bool models(vector<std::pair<string, string>>& out, string& error) {
 
 bool model(const string& id, Model& out, string& error) {
     QJsonDocument document;
-    if (!fetchJson(query("model=" + id + "&type=model"), document, error)) {
+    if (!fetchJson(query("model=" + id + "&type=model"), document, error, sixHours)) {
         return false;
     }
     const auto object = document.object();
@@ -176,7 +220,7 @@ bool recentRuns(const string& modelId, size_t limit, vector<Run>& out, string& e
 
 bool sectorNames(std::map<string, string>& out, string& error) {
     QJsonDocument document;
-    if (!fetchJson(query("type=sectors"), document, error)) {
+    if (!fetchJson(query("type=sectors"), document, error, oneWeek)) {
         return false;
     }
     out.clear();
@@ -190,14 +234,11 @@ bool sectorNames(std::map<string, string>& out, string& error) {
 bool catalog(const Model& modelInfo, const Run& run, const string& sector, Catalog& out, string& error) {
     out = Catalog{};
     QJsonDocument groups;
-    bool haveGroups = false;
     string groupError;
-    // the category tree and the product list are independent requests: ask for both at once
-    auto categoriesRequest = std::async(std::launch::async, [&] { haveGroups = fetchJson(query("type=deterministic_categories"), groups, groupError); });
+    const bool haveGroups = fetchJson(query("type=deterministic_categories"), groups, groupError, oneDay);
     QJsonDocument document;
     const bool haveProducts = fetchJson(query("model=" + modelInfo.id + "&rd=" + run.date + "&rt=" + run.time + "&sector=" + sector +
                                               "&type=products&metadata=true"), document, error);
-    categoriesRequest.get();
     if (haveGroups) {
         const auto top = groups.object();
         for (auto group = top.begin(); group != top.end(); ++group) {

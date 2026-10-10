@@ -1,5 +1,6 @@
 // Tests of the model registry: every model is described completely, and the chart code, the sector and label lookups and the overlay set all agree with it.
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <set>
 #include "gfs/GfsChart.h"
@@ -88,6 +89,33 @@ int main() {
             if (!p.palette.empty()) {
                 CHECK(GfsChart::magPalette(p.palette) != nullptr);
             }
+        }
+    }
+    // the median / 10th / 90th percentile temperature chart: the members' grids go in, p10 <= p50 <= p90 come out, and each number is where a sort of the members puts it
+    {
+        const auto * range = GfsChart::product("pct50_2m_temp_range", "GEFS");
+        CHECK(range != nullptr);
+        if (range != nullptr) {
+            CHECK(range->pointValues.size() == 2 && range->pointValues[0].key == "p10" && range->pointValues[1].key == "p90");
+            CHECK(range->quantity == GfsChart::Quantity::Temperature);
+            GfsChart::Grids grids;
+            std::vector<std::string> names{"c00"};
+            for (int i = 1; i <= 30; i++) {
+                names.push_back(std::string{"p"} + (i < 10 ? "0" : "") + std::to_string(i));
+            }
+            for (size_t m = 0; m < names.size(); m++) {
+                GfsGrid::Grid g;
+                g.columns = 2;
+                g.rows = 1;
+                g.step = 1.0;
+                g.values = {static_cast<float>(m), static_cast<float>(100 - 3 * m)};   // 0..30 up, 100..10 down: member order is not rank order
+                grids["v" + names[m]] = g;
+            }
+            range->derive(grids, GfsChart::Context{24, GfsData::Run{"20261010", "12"}, nullptr});
+            const auto & p10 = grids.at("p10"), & p50 = grids.at("p50"), & p90 = grids.at("p90");
+            CHECK(std::abs(p10.values[0] - 3.0f) < 1e-4f && std::abs(p50.values[0] - 15.0f) < 1e-4f && std::abs(p90.values[0] - 27.0f) < 1e-4f);   // the 10th of 0..30 is 3
+            CHECK(std::abs(p10.values[1] - 19.0f) < 1e-4f && std::abs(p50.values[1] - 55.0f) < 1e-4f && std::abs(p90.values[1] - 91.0f) < 1e-4f);
+            CHECK(grids.count("vc00") == 0 && range->fill(grids).values[1] == p50.values[1]);
         }
     }
     std::printf(failures ? "%d failures\n" : "all model registry tests passed\n", failures);
