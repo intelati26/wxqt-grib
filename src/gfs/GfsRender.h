@@ -48,6 +48,8 @@ namespace GfsRender {
         std::vector<int> hours;
         int hoursBack{0};
         std::string member;   // one ensemble member instead of the mean (GfsChart::withMember); "" the chart as it is
+        // other models whose lines are drawn over this one's, each in a color of its own, for the same valid time: the chart's first set of lines (heights, pressure) of each, and no fill
+        std::vector<std::string> overlayModels;
     };
     // The chart as PNG bytes; empty with the reason in error. cycle is the model screen's run ("12Z", or ""/"latest"); hour is the forecast hour.
     // model is "GFS" or "NBM"

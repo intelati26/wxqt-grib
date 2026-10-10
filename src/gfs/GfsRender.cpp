@@ -143,6 +143,110 @@ bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const 
     return true;
 }
 
+namespace {
+    // The first set of lines of the chart from each of `others`, for the same valid time as `run` + `hour`, drawn on `chart` over the screen's own lines: one color for each model and no fill. The
+    // others' runs are their newest one at or before this run's time that they make (a model that runs every 12 hours uses its 12Z run for an 18Z one), the hour moved to keep the valid time.
+    bool addOverlays(GfsRender::Session& session, GfsChart::Product& chart, GfsChart::Grids& grids, const std::string& model, const GfsData::Run& run, int hour, const std::vector<std::string>& others, std::string& error) {
+        if (chart.contours.empty()) {
+            error = "this chart has no lines (heights, pressure) to put the other models' over; pick a chart with lines";
+            return false;
+        }
+        static const char * const colors[] = {"#111111", "#d62728", "#1f77b4", "#2ca02c", "#9467bd"};
+        auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+        start.setTimeSpec(Qt::UTC);
+        const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
+        static const GfsClimate climate{UtilityGrib::gdalBinDir()};
+        auto first = chart.contours.front();
+        chart.contours.clear();
+        first.color = QColor{colors[0]};
+        first.title = model + ": " + first.title;
+        first.width = std::max(first.width, 1.6);
+        chart.contours.push_back(first);
+        std::string names = model;
+        int index = 0;
+        for (const auto& other : others) {
+            index++;
+            if (other == model || index >= 5) {
+                continue;
+            }
+            const auto * product = GfsChart::product(chart.id, other);
+            if (product == nullptr) {
+                error = other + " has no chart " + chart.id;
+                return false;
+            }
+            auto gfs = data(session.folder(), other);
+            GfsData::Run newest;
+            if (!newestRun(gfs, newest)) {
+                error = "could not find a " + other + " run";
+                return false;
+            }
+            auto newestTime = QDateTime::fromString(QString::fromStdString(newest.id()), "yyyyMMddHH");
+            newestTime.setTimeSpec(Qt::UTC);
+            auto t = std::min(start, newestTime);
+            const int step = gfs.model().cycleHours;
+            while (t.time().hour() % step != 0) {
+                t = t.addSecs(-3600);
+            }
+            const auto * def = GfsModels::find(other);
+            GfsChart::Grids loaded;
+            GfsData::Run used;
+            int usedHour = 0;
+            std::string why;
+            bool ok = false;
+            for (int back = 0; back < 3 && !ok; back++, t = t.addSecs(-static_cast<qint64>(step) * 3600)) {
+                const int h = static_cast<int>((valid.toSecsSinceEpoch() - t.toSecsSinceEpoch()) / 3600);
+                bool offered = def == nullptr;
+                for (const auto& range : def ? def->hours : std::vector<GfsModels::Hours>{}) {
+                    offered = offered || (h >= range.from && h <= range.to && (h - range.from) % range.step == 0);
+                }
+                if (!offered) {
+                    why = other + " has no forecast for " + valid.toString("ddd HH").toStdString() + "Z from its " + t.toString("HH").toStdString() + "Z run (hour " + std::to_string(h) + ")";
+                    continue;
+                }
+                used = {t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+                usedHour = h;
+                loaded.clear();
+                ok = gfs.load(used, GfsChart::needs(*product, h), loaded, why);
+            }
+            if (!ok) {
+                error = why.empty() ? other + " could not be read" : why;
+                return false;
+            }
+            if (product->derive) {
+                product->derive(loaded, GfsChart::Context{usedHour, used, &climate});
+            }
+            if (product->contours.empty() || loaded.find(product->contours.front().key) == loaded.end()) {
+                error = other + "'s chart has no lines to compare";
+                return false;
+            }
+            auto lines = product->contours.front();
+            const std::string key = "overlay" + std::to_string(index) + "_" + lines.key;
+            grids[key] = loaded.at(lines.key);
+            lines.key = key;
+            lines.color = QColor{colors[std::min(index, 4)]};
+            lines.title = other + " (" + used.cycle + "Z): " + product->contours.front().title;
+            lines.labelled = false;
+            lines.width = std::max(lines.width, 1.6);
+            lines.highsAndLows = false;
+            chart.contours.push_back(lines);
+            names += ", " + other;
+        }
+        chart.fill = nullptr;
+        chart.fillTitle.clear();
+        chart.fillTitleFor = nullptr;
+        chart.ramp.stops.clear();
+        chart.overlays.clear();
+        chart.barbU.clear();
+        chart.barbV.clear();
+        chart.streamU.clear();
+        chart.streamV.clear();
+        chart.pointValues.clear();
+        chart.linesOnly = true;
+        chart.label = "Models compared: " + names + ", " + chart.label;
+        return true;
+    }
+}
+
 QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe, const Variant& variant) {
     try {   // a chart that cannot be made yet (the standard deviations still being worked out) says why
     const auto * base = GfsChart::product(param, model);
@@ -275,6 +379,11 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         if (storm.id.empty() && !grids.empty()) {   // only the wave file: its own grid
             const auto& g = grids.begin()->second;
             storm = GfsChart::gridSector(sectorId, g);
+        }
+    }
+    if (!variant.overlayModels.empty() && variant.kind == Variant::Kind::None && !isHafs(model)) {   // the other models' lines over this one's
+        if (!addOverlays(session, composed, grids, model, run, hour, variant.overlayModels, error)) {
+            return {};
         }
     }
     GfsChart::Options options;

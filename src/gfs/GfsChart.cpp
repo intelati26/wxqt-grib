@@ -5520,7 +5520,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             lines << QString::fromStdString(set.title);
         }
     }
-    p.drawText(QPointF{static_cast<double>(margin), 43.0}, fillTitle + (lines.isEmpty() ? "" : ";  lines: " + lines.join(", ")) + (product.barbU.empty() ? "" : ";  barbs: kt"));
+    p.drawText(QPointF{static_cast<double>(margin), 43.0}, fillTitle + (lines.isEmpty() ? "" : (fillTitle.isEmpty() ? "lines: " : ";  lines: ") + lines.join(", ")) + (product.barbU.empty() ? "" : ";  barbs: kt"));
     const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
     p.drawText(QRectF{0, 8, image.width() - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 
@@ -5551,6 +5551,17 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     p.setBrush(Qt::NoBrush);
     if (!product.linesOnly) {
         p.drawRect(QRectF{barLeft, barTop, barWidth, barHeight});
+    } else if (product.contours.size() > 1) {   // lines of several sets (models compared): a key, a sample of each line's color and what it is
+        double x = barLeft;
+        for (const auto& set : product.contours) {
+            const QString name = QString::fromStdString(set.title);
+            const double width = QFontMetricsF{p.font()}.horizontalAdvance(name);
+            p.setPen(QPen{set.color, 3.0});
+            p.drawLine(QPointF{x, barTop + barHeight / 2.0}, QPointF{x + 26.0, barTop + barHeight / 2.0});
+            p.setPen(QColor{60, 60, 60});
+            p.drawText(QRectF{x + 32.0, barTop, width + 4.0, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            x += 32.0 + width + 22.0;
+        }
     } else {   // the lines are the chart: a line of explanation where the color bar would be
         p.drawText(QRectF{barLeft, barTop, barWidth, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(product.fillTitle));
     }

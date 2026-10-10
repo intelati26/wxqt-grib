@@ -23,6 +23,11 @@
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
 #include "models/ObjectModelGet.h"
+#include <QCheckBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QLabel>
+#include <QVBoxLayout>
 #include "models/PaletteEditor.h"
 #include "settings/UIPreferences.h"
 #include "models/PaletteStore.h"
@@ -175,6 +180,10 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonMembers->setToolTip("REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
         QObject::connect(buttonMembers, &QPushButton::clicked, this, [this] { openMemberGraph(); });
         boxH2.addWidgetReal(buttonMembers);
+        buttonOverlay = new QPushButton{"Overlay models...", this};
+        buttonOverlay->setToolTip("Draw the lines (heights, pressure) of other models over this chart's for the same valid time, each model in its own color. Save... writes it as a loop.");
+        QObject::connect(buttonOverlay, &QPushButton::clicked, this, [this] { chooseOverlays(); });
+        boxH2.addWidgetReal(buttonOverlay);
         buttonColors = new QPushButton{"Colors...", this};
         buttonColors->setToolTip("Edit the color scale of this kind of chart: the stops, their colors and transparency, flat bands or smooth. Kept for every chart that uses the same scale.");
         QObject::connect(buttonColors, &QPushButton::clicked, this, [this] { editColors(); });
@@ -379,7 +388,11 @@ string ModelViewer::frameKey(int hour) const {
     for (const auto& id : overlays) {
         key += "|" + id;
     }
-    return key + variantKey + (member.empty() ? string{} : "|member=" + member);
+    string overlay;
+    for (const auto& other : overlayModels) {
+        overlay += (overlay.empty() ? "|overlay=" : ",") + other;
+    }
+    return key + variantKey + (member.empty() ? string{} : "|member=" + member) + overlay;
 }
 
 void ModelViewer::setVariant(GfsRender::Variant v) {
@@ -542,7 +555,11 @@ void ModelViewer::saveLoop() {
     for (const auto& [hour, bytes] : drawn) {
         loop.push_back(bytes);
     }
-    const auto name = QString::fromStdString(objectModel.model + "_" + objectModel.param + "_" + objectModel.sector + "_" + objectModel.run);
+    string versus;
+    for (const auto& other : overlayModels) {
+        versus += "_" + other;
+    }
+    const auto name = QString::fromStdString(objectModel.model + (versus.empty() ? "" : "_vs" + versus) + "_" + objectModel.param + "_" + objectModel.sector + "_" + objectModel.run);
     UtilityAnimationExport::saveWithDialog(this, loop.size() >= 2 ? loop : std::vector<QByteArray>{}, strip->intervalMs(), shownBytes, name, QByteArray{}, false, name);
 }
 
@@ -913,6 +930,7 @@ void ModelViewer::refreshProductButton() {
     buttonProducts.setVisible(grib);
     refreshBuildMenu();
     refreshMembers();
+    refreshOverlays();
     if (!grib) {
         return;
     }
@@ -1193,6 +1211,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.overlays = overlays;
         job.variant = ahead && variant.kind != GfsRender::Variant::Kind::Change ? GfsRender::Variant{} : variant;
         job.variant.member = member;
+        job.variant.overlayModels = overlayModels;
         job.key = frameKey(mainHour);
     } else {
         const auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
@@ -1616,4 +1635,75 @@ void ModelViewer::editColors() {
         refreshLoaded();
         reload();
     }};
+}
+
+void ModelViewer::refreshOverlays() {
+    if (buttonOverlay == nullptr) {
+        return;
+    }
+    const bool grib = GfsRender::drawsModel(objectModel.model);
+    std::vector<string> kept;
+    for (const auto& other : overlayModels) {
+        if (grib && other != objectModel.model && GfsChart::product(objectModel.param, other) != nullptr) {
+            kept.push_back(other);
+        }
+    }
+    overlayModels = kept;
+    buttonOverlay->setVisible(grib);
+    buttonOverlay->setText(overlayModels.empty() ? "Overlay models..." : "Overlay: " + QString::number(overlayModels.size()) + " model" + (overlayModels.size() == 1 ? "" : "s") + "...");
+}
+
+void ModelViewer::chooseOverlays() {
+    const auto * here = GfsRender::drawsModel(objectModel.model) ? GfsChart::product(objectModel.param, objectModel.model) : nullptr;
+    if (here == nullptr || here->contours.empty()) {
+        setTitle("Model screen - pick a chart with lines (heights or pressure) to put other models' lines over it");
+        return;
+    }
+    QDialog dialog{this};
+    dialog.setWindowTitle("Overlay models");
+    auto * layout = new QVBoxLayout{&dialog};
+    auto * about = new QLabel{"Lines of " + QString::fromStdString(here->label) + " from these models are drawn over " + QString::fromStdString(objectModel.model) +
+                              "'s, for the same valid time, each in its own color (at most four). The fill is left out so the lines can be read. Models are listed when they draw this chart.", &dialog};
+    about->setWordWrap(true);
+    layout->addWidget(about);
+    std::vector<QCheckBox *> boxes;
+    for (const auto& def : GfsModels::all()) {
+        if (def.id == objectModel.model || def.storm || GfsChart::product(objectModel.param, def.id) == nullptr) {
+            continue;
+        }
+        auto * box = new QCheckBox{QString::fromStdString(def.id + "   " + def.label), &dialog};
+        box->setProperty("model", QString::fromStdString(def.id));
+        box->setChecked(std::find(overlayModels.begin(), overlayModels.end(), def.id) != overlayModels.end());
+        layout->addWidget(box);
+        boxes.push_back(box);
+    }
+    if (boxes.empty()) {
+        layout->addWidget(new QLabel{"No other model draws this chart.", &dialog});
+    }
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    std::vector<string> chosen;
+    for (auto * box : boxes) {
+        if (box->isChecked() && chosen.size() < 4) {
+            chosen.push_back(box->property("model").toString().toStdString());
+        }
+    }
+    if (chosen == overlayModels) {
+        return;
+    }
+    overlayModels = chosen;
+    refreshOverlays();
+    startPlaying(false);
+    strip->stop();
+    frames.clear();
+    frameOrder.clear();
+    frameBytes = 0;
+    failedAhead.clear();
+    refreshLoaded();
+    reload();
 }

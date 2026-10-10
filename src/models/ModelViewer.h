@@ -128,6 +128,10 @@ private:
     void showBuilt(const string& id);
     QPushButton * buttonMembers{};   // REFS charts: each member's value at the picked point over the hours (the old REFS screen's plume graph)
     void openMemberGraph();
+    void chooseOverlays();                 // the other models whose lines are drawn over this chart's (a dialog of the models that have the chart)
+    void refreshOverlays();                // keeps the ones that still have the chart on screen, and the button's text
+    std::vector<std::string> overlayModels;
+    QPushButton * buttonOverlay{};
     void editColors();   // the color scale of the chart on screen (PaletteEditor)
     QPushButton * buttonColors{};
     QPushButton * buttonViews{};
