@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "CardNhcStormReportItem.h"
+#include "ui/UiStandards.h"
 #include "misc/ImageViewer.h"
 #include "nhc/NhcStorm.h"
 #include "objects/WString.h"
@@ -23,7 +24,7 @@ CardNhcStormReportItem::CardNhcStormReportItem(Window * parent, const NhcStormDe
 {
     button.connect([stormData, parent] { new NhcStorm{parent, stormData}; });
 
-    image.imageSize = 250;
+    image.imageSize = UiStandards::smallImage;
     image.connect([stormData, parent] {
         if (stormData.coneBytes.isEmpty()) {
             new NhcStorm{parent, stormData};   // no cone to enlarge: open the storm's other graphics

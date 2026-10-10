@@ -1,7 +1,3 @@
-// Standalone demo with its own main(): compiled only with -DWXQT_WEATHER_GRAPH_DEMO (makeAll.py builds every .cpp
-// under src/, and a second main() would break the app's link).
-#ifdef WXQT_WEATHER_GRAPH_DEMO
-
 // *****************************************************************************
 // * Example: Creating a weather graph from UtilityHourly.cpp
 // * This demonstrates how to use the WeatherGraph widget with UtilityHourly data
@@ -26,7 +22,9 @@ public:
         layout.getAndShow(this);
 
         // Load weather data and update graph
-        graph->setData(UtilityHourly::getGraphData(0), "location 1");   // location index 0 = the first saved location
+        if (UtilityHourly::getGraphData(12345, graph)) {  // Replace with actual location number
+            graph->show();
+        }
     }
 };
 
@@ -36,5 +34,3 @@ int main(int argc, char *argv[]) {
     window.show();
     return app.exec();
 }
-
-#endif  // WXQT_WEATHER_GRAPH_DEMO

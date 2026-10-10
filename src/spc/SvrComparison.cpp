@@ -28,7 +28,7 @@ namespace {
     const vector<string> abpgProducts{"PRALLC01", "PRALLC05"};   // percent of analogs with 1+ / 5+ severe reports
 
     string stamp(const QDateTime& utc) {
-        return utc.toString("ddd M/d HH").toStdString() + "Z";
+        return utc.toString("ddd yyyy-MM-dd HH").toStdString() + "Z";
     }
 
     // "valid 12Z Thu 10/01 - 12Z Fri 10/02", with a warning once the period is over (a stale picture must not look current)

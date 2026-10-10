@@ -27,7 +27,7 @@ namespace {
         const auto local = valid.toLocalTime();
         return QString{"F%1  %2Z  (%3 %4)"}
             .arg(hour, 2, 10, QChar{'0'})
-            .arg(valid.toUTC().toString("ddd MMM d HH:mm"))
+            .arg(valid.toUTC().toString("ddd yyyy-MM-dd HH:mm"))
             .arg(local.toString("h AP"), QTimeZone::systemTimeZone().abbreviation(local));
     }
 

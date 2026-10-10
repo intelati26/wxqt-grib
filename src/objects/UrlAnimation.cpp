@@ -16,7 +16,7 @@ namespace {
     constexpr int frameDelayMs = 400;   // per-frame dwell for the exported APNG, matches AnimationBar
 
     // A readable label per frame from the digits in the URL's file name
-    // (GOES: 11 digits yyyydddhhmm; SPC meso: 8 digits yymmddhh). Falls back
+    // (GOES: 11 digits yyyydddhhmm; SPC meso: 8 digits yymmddhh), as an ISO date. Falls back
     // to the frame number.
     string labelFor(const string& url, size_t index) {
         const auto name = QString::fromStdString(url).section('/', -1);
@@ -24,11 +24,11 @@ namespace {
         if (goes.hasMatch() && name.indexOf(goes.captured(0)) == 0) {
             // day-of-year -> month/day
             const auto date = QDate{goes.captured(1).toInt(), 1, 1}.addDays(goes.captured(2).toInt() - 1);
-            return (date.toString("MM/dd") + " " + goes.captured(3) + ":" + goes.captured(4) + "Z").toStdString();
+            return (date.toString("yyyy-MM-dd") + " " + goes.captured(3) + ":" + goes.captured(4) + "Z").toStdString();
         }
         const auto spc = QRegularExpression{R"(_(\d{2})(\d{2})(\d{2})(\d{2})\.)"}.match(name);
         if (spc.hasMatch()) {
-            return (spc.captured(2) + "/" + spc.captured(3) + " " + spc.captured(4) + "Z").toStdString();
+            return ("20" + spc.captured(1) + "-" + spc.captured(2) + "-" + spc.captured(3) + " " + spc.captured(4) + "Z").toStdString();
         }
         return To::string(static_cast<int>(index) + 1);
     }

@@ -7,7 +7,7 @@
 #include "ui/RouteItem.h"
 
 namespace {
-    // "Nexrad radar viewer, Ctrl-r" -> "Nexrad radar viewer"; "NSSL CAMs (experimental ...)" -> "NSSL CAMs"
+    // "MRMS (radar-derived: ...)" -> "MRMS"; "NSSL CAMs (experimental ...)" -> "NSSL CAMs"
     string shortLabel(string text) {
         for (const auto& cut : {string{", Ctrl-"}, string{" ("}}) {
             const auto at = text.find(cut);

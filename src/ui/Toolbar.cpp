@@ -5,6 +5,9 @@
 // *****************************************************************************
 
 #include "ui/Toolbar.h"
+#include <QPolygonF>
+#include <QPixmap>
+#include <QPainter>
 #include "ui/ToolbarGroups.h"
 #include <algorithm>
 #include <string>
@@ -18,25 +21,29 @@
 #include "misc/Hourly.h"
 #include "misc/ObservationSites.h"
 #include "misc/Observations.h"
+#include "obs/SurfaceViewer.h"
+#include "mapkit/MasterMapViewer.h"
 #include "misc/Opc.h"
 #include "misc/Rtma.h"
 #include "misc/SevereDashboard.h"
 #include "misc/UsAlerts.h"
 #include "misc/WfoText.h"
+#include "drought/DroughtViewer.h"
 #include "models/CamsViewer.h"
 #include "mrms/MrmsViewer.h"
-#include "models/GribViewer.h"
 #include "models/IndexViewer.h"
 #include "models/RefsViewer.h"
 #include "spcrefs/SpcRefsViewer.h"
 #include "climate/ClimateViewer.h"
+#include "rivers/RiverMapViewer.h"
+#include "dashboard/Dashboards.h"
+#include "hurricane/HurricaneViewer.h"
 #include "tropical/TropicalViewer.h"
 #include "models/SpcPostViewer.h"
 #include "models/ModelViewer.h"
 #include "nhc/Nhc.h"
 #include "objects/Route.h"
 #include "objects/WString.h"
-#include "radar/Nexrad.h"
 #include "radar/RadarMosaic.h"
 #include "settings/SettingsMain.h"
 #include "settings/UIPreferences.h"
@@ -72,11 +79,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_date_range_black_48dp.png", "Hourly Forecast, Ctrl-h", [this] { launchHourly(); });
     routeItems.emplace_back("baseline_info_black_48dp.png", "WFO Text products, Ctrl-a", [this] { launchWfoText(); });
 
-    routeItems.emplace_back("baseline_flash_on_black_48dp.png", "Nexrad radar viewer, Ctrl-r", [this] { launchNexrad(1); });
-    routeItems.emplace_back("wxogldualpane.png", "Nexrad radar viewer, dual pane, Ctrl-2", [this] { launchNexrad(2); });
-    routeItems.emplace_back("wxoglquadpane.png", "Nexrad radar viewer, quad pane, Ctrl-4", [this] { launchNexrad(4); });
 
-    routeItems.emplace_back("grib.png", "RRFS GRIB Viewer", [parent] { new GribViewer{parent}; });
     routeItems.emplace_back("refs.png", "REFS Ensemble Viewer (4-panel mean/spread comparison)", [parent] { new RefsViewer{parent}; });
     routeItems.emplace_back("refs.png", "SPC REFS (SPC's ensemble products: probabilities, paintballs, updraft helicity)", [parent] { new SpcRefsViewer{parent}; });
     routeItems.emplace_back("nsslwrf.png", "NSSL CAMs (experimental convection-allowing models: MPAS, WRF, HRRR, RRFS)", [parent] { new CamsViewer{parent}; });
@@ -92,6 +95,8 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("meso.png", "SPC Mesoanalysis, Ctrl-z", [this] { launchSpcMeso(); });
     routeItems.emplace_back("nwsobssites.png", "Observation Sites", [this] { launchObservationSites(); });
     routeItems.emplace_back("nwsobs.png", "Observations", [this] { launchObservations(); });
+    routeItems.emplace_back("nwsobs.png", "Surface observations map: airports and the MADIS mesonets, wind barbs, temperatures", [parent] { new SurfaceViewer{parent}; });
+    routeItems.emplace_back("fmap.png", "Master map: surface stations, river gauges, dams, buoys and tropical storms as layers on one map", [parent] { new MasterMapViewer{parent}; });
     routeItems.emplace_back("rtma.png", "RTMA", [this] { launchRtma(); });
     routeItems.emplace_back("spcsoundings.png", "Soundings", [parent] { new SoundingViewer{parent, string{}}; });
 
@@ -110,12 +115,18 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("nhc.png", "NHC product viewer, Ctrl-o", [this] { launchNhc(); });
     routeItems.emplace_back("nhc.png", "Tropical: active storms worldwide (CIRA / RAMMB), with the NHC tool", [parent] { new TropicalViewer{parent}; });
 
-    routeItems.emplace_back("ncep.png", "NCEP Models, Ctrl-m", [this] { launchModelViewer(); });
+    routeItems.emplace_back("ncep.png", "Model Viewer, Ctrl-m", [this] { launchModelViewer(); });
     routeItems.emplace_back("spchrrr.png", "SPC HRRR", [this] { launchModelViewerGeneric("SPCHRRR"); });
-    routeItems.emplace_back("spcsref.png", "SPC SREF", [this] { launchModelViewerGeneric("SPCSREF"); });
     routeItems.emplace_back("hrrrviewer.png", "ESRL HRRR/RAP", [this] { launchModelViewerGeneric("ESRL"); });
     routeItems.emplace_back("opc.png", "Ocean Prediction Center", [this] { launchOpc(); });
     routeItems.emplace_back("opc.png", "Climate and ocean: sea surface temperature and anomaly, El Niño / La Niña, cycles", [parent] { new ClimateViewer{parent}; });
+    routeItems.emplace_back("tropstorm.png", "Tropical cyclones (Atlantic, East and Central Pacific): track, model guidance (spaghetti) and recon flights", [parent] { new HurricaneViewer{parent}; });
+    routeItems.emplace_back("hurricane.png", "Tropical Hub: active storms, outlook, recon plan, season", [parent] { Dashboards::openTropicalHub(parent); });
+    routeItems.emplace_back("goes16.png", "Space weather: storm scales, Kp, flares, solar wind, aurora, sun", [parent] { Dashboards::openSpaceWeather(parent); });
+    routeItems.emplace_back("twtornado.png", "Tornado history: SPC tornado tracks since 1950 by year, rating, state and area; counts by day, week, month, year and decade", [parent] { Dashboards::openTornadoHistory(parent); });
+    routeItems.emplace_back("widget_afd.png", "Forecast discussions (planned): all centres, history, what changed", [parent] { Dashboards::openForecastDiscussions(parent); });
+    routeItems.emplace_back("fire_outlook.png", "Drought: the U.S. Drought Monitor and how it changed, precipitation and its departure from normal, outlooks, soil moisture", [parent] { new DroughtViewer{parent}; });
+    routeItems.emplace_back("rain_showers.png", "Rivers: NWS river gauges, flood stages, forecasts and the National Water Model", [parent] { new RiverMapViewer{parent}; });
     routeItems.emplace_back("nsslwrf.png", "NSSL WRF", [this] { launchModelViewerGeneric("NSSLWRF"); });
     routeItems.emplace_back("wpcgefs.png", "WPC GEFS", [this] { launchModelViewerGeneric("WPCGEFS"); });
     // routeItems.emplace_back("spchref.png", "SPC HREF", [this] { launchModelViewerGeneric("SPCHREF"); });
@@ -195,6 +206,7 @@ void Toolbar::persistOrder() {
 // Draws the toolbar in the chosen style (ToolbarGroups::mode): the original column of icons, icons with their
 // names under group headings, or just the auto-update control with the entries in a menu bar of group menus.
 void Toolbar::rebuildButtons() {
+    getView()->removeWidget(autoUpdate.getView());   // it is kept and added again: removeChildren() would delete it, and the next rebuild would add a dead widget
     removeChildren();
     buttons.clear();
     parent->menuBar()->clear();
@@ -210,7 +222,19 @@ void Toolbar::rebuildButtons() {
         return nullptr;
     };
     if (mode == ToolbarGroups::Icons) {
+        // a group set to be a dropdown is one button, where its first entry would be, that opens a menu of its entries
+        vector<string> placed;
         for (const auto& item : routeItems) {
+            const auto& groups = ToolbarGroups::groups();
+            const auto index = ToolbarGroups::groupOf(item.id);
+            if (index >= 0 && index < static_cast<int>(groups.size()) && ToolbarGroups::isDropdown(groups[static_cast<size_t>(index)].name)) {
+                const auto& group = groups[static_cast<size_t>(index)];
+                if (std::find(placed.begin(), placed.end(), group.name) == placed.end()) {
+                    placed.push_back(group.name);
+                    addDropdownButton(group.name, group.ids);
+                }
+                continue;
+            }
             buttons.emplace_back(parent, item.iconString, item.toolTip);
             buttons.back().connect(item.fn);
             addWidget(buttons.back());
@@ -256,6 +280,52 @@ void Toolbar::rebuildButtons() {
     addStretch();
 }
 
+// One button for a whole group: its menu lists the entries with their icons and names. The glyph is drawn (the blocks of a dashboard) so it needs no picture file.
+void Toolbar::addDropdownButton(const string& groupName, const vector<string>& ids) {
+    buttons.emplace_back(parent, "", groupName + " (menu)");
+    auto& button = buttons.back();
+    const int size = std::max(16, ButtonFlat::getIconSize());
+    QPixmap glyph{size, size};
+    glyph.fill(Qt::transparent);
+    {
+        QPainter p{&glyph};
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor{30, 30, 30});
+        const double u = size / 24.0;   // the 24 unit grid of the other icons
+        const double r = 1.2 * u;
+        p.drawRoundedRect(QRectF{3 * u, 3 * u, 8 * u, 11 * u}, r, r);     // the tall block
+        p.drawRoundedRect(QRectF{13 * u, 3 * u, 8 * u, 5 * u}, r, r);     // top right
+        p.drawRoundedRect(QRectF{13 * u, 10 * u, 8 * u, 11 * u}, r, r);   // tall right
+        p.drawRoundedRect(QRectF{3 * u, 16 * u, 8 * u, 5 * u}, r, r);     // bottom left
+        // a small arrow: it opens a menu
+        p.setBrush(QColor{30, 30, 30});
+        QPolygonF arrow;
+        arrow << QPointF{15 * u, 14.5 * u} << QPointF{19 * u, 14.5 * u} << QPointF{17 * u, 17.5 * u};
+        p.setBrush(Qt::white);
+        p.drawPolygon(arrow);
+    }
+    button.getView()->setIcon(QIcon{glyph});
+    button.getView()->setIconSize(QSize{size, size});
+    QPushButton * view = button.getView();
+    QObject::connect(view, &QPushButton::released, parent, [this, view, ids] {
+        QMenu menu;
+        for (const auto& id : ids) {
+            for (const auto& item : routeItems) {
+                if (item.id != id) {
+                    continue;
+                }
+                auto * action = menu.addAction(QIcon{QString::fromStdString(GlobalVariables::imageDir + item.iconString)}, QString::fromStdString(item.label));
+                action->setToolTip(QString::fromStdString(item.toolTip));
+                QObject::connect(action, &QAction::triggered, parent, item.fn);
+                break;
+            }
+        }
+        menu.exec(view->mapToGlobal(QPoint{view->width(), 0}));   // opens to the right of the column
+    });
+    addWidget(button);
+}
+
 void Toolbar::launchRoute(const string& id) {
     for (const auto& item : routeItems) {
         if (item.id == id) {
@@ -267,10 +337,6 @@ void Toolbar::launchRoute(const string& id) {
 
 void Toolbar::rebuild() {
     rebuildButtons();
-}
-
-void Toolbar::launchNexrad(int numberOfPanes) {
-    Route::nexradRadar(parent, numberOfPanes);
 }
 
 void Toolbar::launchHourly() {

@@ -35,7 +35,7 @@ LocationEditBox::LocationEditBox(Window * parent)
     table.addRow("Name", editName);
     table.addRow("Latitude", editLat);
     table.addRow("Longitude", editLon);
-    table.addRow("Nexrad", editNexrad);
+    table.addRow("Radar site (map centre)", editNexrad);
     table.addRow("", saveButton);
     table.addRow("", mapButton);
     boxMain.addLayout(table);

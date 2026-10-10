@@ -1,0 +1,27 @@
+
+343 
+URNT12 KWBC 220105
+VORTEX DATA MESSAGE  AL022026
+A. 22/00:11:26Z
+B. 29.34 deg N 087.41 deg W
+C. 700 MB 3088 m
+D. 996 mb
+E. 193 deg 10 kt
+F. NA
+G. NA
+H. NA
+I. NA
+J. 062 deg 29 kt
+K. 329 deg 33 nm 00:03:45Z
+L. NA
+M. NA
+N. 194 deg 51 kt
+O. 132 deg 93 nm 00:34:46Z
+P. 15 C / 3063 m
+Q. 16 C / 3063 m
+R. 9 C / NA
+S. 1345 / 7
+T. 0.01 / .1 nm
+U. NOAA3 0802A BERTHA OB 17
+MAX FL WIND 51 KT 132 / 93 NM 00:34:46Z
+

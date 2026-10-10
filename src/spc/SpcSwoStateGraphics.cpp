@@ -36,6 +36,7 @@ SpcSwoStateGraphics::SpcSwoStateGraphics(Window * parent, int day)
     }
     box.addStretch();
     reload();
+    ready = true;
 }
 
 void SpcSwoStateGraphics::reload() {
@@ -57,7 +58,11 @@ void SpcSwoStateGraphics::launchImage(int index) {
 }
 
 void SpcSwoStateGraphics::resizeEventCustom() {
-    for (auto& image : images) {
-        image.resizeToWidth(width() / numberAcross);
+    // showing the window while the pictures are still being added sends a resize at once: images is half built then (and a crash if it is walked)
+    if (!ready) {
+        return;
+    }
+    for (size_t index = 0; index < images.size(); index++) {
+        images[index].resizeToWidth(static_cast<float>(width()) / numberAcross);
     }
 }

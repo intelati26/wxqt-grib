@@ -378,7 +378,7 @@ string validLabel(const Run& run, int seconds) {
     const QDateTime start{QDate::fromString(QString::fromStdString(run.date), "yyyyMMdd"),
                           QTime{QString::fromStdString(run.time.substr(0, 2)).toInt(), QString::fromStdString(run.time.substr(2, 2)).toInt()},
                           QTimeZone::utc()};
-    return start.addSecs(seconds).toString("ddd MM/dd HH'Z'").toStdString();
+    return start.addSecs(seconds).toString("ddd yyyy-MM-dd HH'Z'").toStdString();
 }
 
 }  // namespace UtilityCams

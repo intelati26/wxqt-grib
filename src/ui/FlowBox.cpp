@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "ui/FlowBox.h"
+#include <vector>
+using std::vector;
 #include <algorithm>
 #include "settings/UIPreferences.h"
 #include "util/UtilityUI.h"
@@ -67,29 +69,47 @@ QSize FlowLayout::minimumSize() const {
     return size + QSize{margins.left() + margins.right(), margins.top() + margins.bottom()};
 }
 
-// returns the height used
+// returns the height used; the items of a row are centred on it vertically (pictures of different heights share a middle line, not a top)
 int FlowLayout::doLayout(const QRect& rect, bool onlyMeasure) const {
     const auto margins = contentsMargins();
     const auto area = rect.adjusted(margins.left(), margins.top(), -margins.right(), -margins.bottom());
     int x = area.x();
     int y = area.y();
     int rowHeight = 0;
+    struct Placed {
+        QLayoutItem * item;
+        int x;
+        QSize size;
+    };
+    vector<Placed> row;
+    const auto flushRow = [&] {
+        if (!onlyMeasure) {
+            for (const auto& placed : row) {
+                if (equalHeights) {
+                    placed.item->setGeometry(QRect{QPoint{placed.x, y}, QSize{placed.size.width(), rowHeight}});
+                } else {
+                    placed.item->setGeometry(QRect{QPoint{placed.x, y + (rowHeight - placed.size.height()) / 2}, placed.size});
+                }
+            }
+        }
+        row.clear();
+    };
     for (auto * item : items) {
         if (item->isEmpty()) {
             continue;
         }
         const auto size = item->sizeHint();
         if (x > area.x() && x + size.width() > area.right() + 1) {
+            flushRow();
             x = area.x();
             y += rowHeight + gap;
             rowHeight = 0;
         }
-        if (!onlyMeasure) {
-            item->setGeometry(QRect{QPoint{x, y}, size});
-        }
+        row.push_back(Placed{item, x, size});
         x += size.width() + gap;
         rowHeight = std::max(rowHeight, size.height());
     }
+    flushRow();
     return y + rowHeight - rect.y() + margins.bottom();
 }
 

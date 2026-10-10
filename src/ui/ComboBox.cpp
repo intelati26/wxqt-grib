@@ -79,8 +79,15 @@ void ComboBox::setVisible(bool b) {
     comboBox->setVisible(b);
 }
 
+void ComboBox::setLabels(const vector<string>& labels) {
+    for (size_t i = 0; i < labels.size() && static_cast<int>(i) < comboBox->count(); i++) {
+        comboBox->setItemText(static_cast<int>(i), QString::fromStdString(labels[i]));
+    }
+}
+
 string ComboBox::getValue() const {
-    return comboBox->currentText().toStdString();
+    const auto index = comboBox->currentIndex();
+    return index >= 0 && index < static_cast<int>(items.size()) ? items[static_cast<size_t>(index)] : comboBox->currentText().toStdString();
 }
 
 void ComboBox::addItemsQt() {

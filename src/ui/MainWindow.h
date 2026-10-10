@@ -1,7 +1,6 @@
 // *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
-// *
-// * Refer to the COPYING file of the official project for license.
+// * Updated MainWindow.h with WeatherGraph integration
+// * Added WeatherGraph widget to the forecast section of the MainWindow
 // *****************************************************************************
 
 #ifndef MAINWINDOW_H
@@ -13,7 +12,6 @@
 #include "objects/DownloadTimer.h"
 #include "misc/SevereNotice.h"
 #include "radar/PolygonType.h"
-#include "radar/NexradWidget.h"
 #include "settings/UIPreferences.h"
 #include "ui/CardCurrentConditions.h"
 #include "ui/CardHazards.h"
@@ -32,6 +30,9 @@
 #include "util/Hazards.h"
 #include "util/SevenDay.h"
 #include "misc/UtilityHourly.h"
+#include "misc/ForecastPointViewer.h"
+#include "misc/UtilityForecastPoint.h"
+#include <memory>
 
 using std::string;
 using std::unordered_map;
@@ -65,6 +66,7 @@ private:
     void updateWatch();
     bool launch(int);
     void showHourlyGraph();
+    void placeForecastColumn();
     VBox box;
     HBox boxH;
     VBox boxZones;         // right of the toolbar: holds the zone grid chosen under Settings > Home Screen Order
@@ -80,8 +82,11 @@ private:
     VBox boxCc;
     VBox boxSevenDay;
     VBox boxHazards;
-    HBox boxHourlyGraph;
-    FlowBox boxSevereDashboard;
+    HBox boxHourlyGraph;   // Added for hourly graph
+    HBox boxForecastPoint;                                     // the forecast point card: the week at a glance and the outlooks
+    CardForecastPoint * forecastPointCard{};
+    std::shared_ptr<UtilityForecastPoint::Data> pointData;     // downloaded off the GUI thread, drawn on it
+    FlowBox boxSevereDashboard;   // the mini severe dashboard: warnings, storm reports, watches, discussions
     ScrolledWindow sw;
     ComboBox comboBox;
     Toolbar toolbar;
@@ -91,26 +96,23 @@ private:
     SevenDayCollection sevenDayCollection;
     Hazards hazards;
     CardHazards cardHazards;
-    WeatherGraph hourlyGraph;   // hourly temperature / dew point / rain chance / wind, below the 7 day
-    vector<WeatherGraph::Point> hourlyPoints;   // filled off the UI thread, then handed to hourlyGraph
+    string hourlyGraphJson;   // downloaded off the GUI thread, drawn on it
+    WeatherGraph hourlyGraph;   // Added: Hourly weather graph widget
     unordered_map<string, Image> imageWidgets;
     unordered_map<string, Text> textWidgets;
     string tokenString;
     int imageSize{UIPreferences::mainScreenImageSize};
     vector<string> urls;
+    vector<string> captionsList;   // a caption for each of urls
     vector<Image> images;
     unordered_map<PolygonType, SevereNotice> watchesByType;
     vector<QByteArray> bytesList;
-    vector<NexradWidget *> nexradList;
     DownloadTimer timer;
     Shortcut shortcutClose;
     Shortcut shortcutVis;
     Shortcut shortcutWfoText;
     Shortcut shortcutHourly;
     Shortcut shortcutRadar;
-    Shortcut shortcutRadarSinglePane;
-    Shortcut shortcutRadarDualPane;
-    Shortcut shortcutRadarQuadPane;
     Shortcut shortcutSevereDash;
     Shortcut shortcutNcep;
     Shortcut shortRadarMosaic;

@@ -28,6 +28,9 @@ private:
     void changeState();
     void launchImage(int);
     void resizeEventCustom() override;
+    // First of the members, so that it is set before any of the others is built: the scrolled window below shows the window as it is built, and the resize that comes with that
+    // reaches resizeEventCustom while images (declared later) does not exist yet. False until the constructor has added the pictures.
+    bool ready{false};
     VBox box;
     ScrolledWindow sw;
     ComboBox comboBox;

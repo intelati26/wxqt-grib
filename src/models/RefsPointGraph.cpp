@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "models/RefsPointGraph.h"
 #include <algorithm>
 #include <cmath>
@@ -39,7 +40,7 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *) override {
-        QPainter painter{this};
+        ChartPainter painter{this};
         painter.setRenderHint(QPainter::Antialiasing);
         painter.fillRect(rect(), QColor{250, 250, 250});
         const QRect plot{58, 16, width() - 58 - 130, height() - 16 - 42};

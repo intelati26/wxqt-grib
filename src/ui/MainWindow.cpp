@@ -5,15 +5,22 @@
 // *****************************************************************************
 
 #include "MainWindow.h"
+#include "objects/WString.h"
+#include "ui/UiStandards.h"
 #include <QApplication>
 #include <QGridLayout>
+#include <algorithm>
+#include <QLabel>
+#include <QPalette>
 #include <QVBoxLayout>
 #include "common/GlobalVariables.h"
+#include "mrms/MrmsViewer.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
 #include "objects/FutureVoid.h"
 #include "objects/PolygonWatch.h"
 #include "settings/HomeLayout.h"
+#include "ui/CaptionedTile.h"
 #include "util/HomeThumbnails.h"
 #include <memory>
 #include "objects/Route.h"
@@ -23,7 +30,6 @@
 #include "spc/SpcStormReports.h"
 #include "settings/Location.h"
 #include "util/DownloadImage.h"
-#include "util/Utility.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityList.h"
 #include "util/UtilityUI.h"
@@ -43,9 +49,6 @@ MainWindow::MainWindow(QWidget * parent)
     , shortcutWfoText{{"A"}, this}
     , shortcutHourly{{"H"}, this}
     , shortcutRadar{{"R"}, this}
-    , shortcutRadarSinglePane{{"1"}, this}
-    , shortcutRadarDualPane{{"2"}, this}
-    , shortcutRadarQuadPane{{"4"}, this}
     , shortcutSevereDash{{"D"}, this}
     , shortcutNcep{{"N"}, this}
     , shortRadarMosaic{{"M"}, this}
@@ -83,6 +86,7 @@ MainWindow::MainWindow(QWidget * parent)
 
     // each large section lives in a holder widget so arrangeColumns can put it in any zone
     severeHolder = new QWidget{this};
+    boxSevereDashboard.setEqualRowHeights(true);
     severeHolder->setLayout(boxSevereDashboard.getView());
     imagesHolder = new QWidget{this};
     imagesHolder->setLayout(imageLayout.getView());
@@ -95,13 +99,20 @@ MainWindow::MainWindow(QWidget * parent)
     forecastLayout.addLayout(boxCc);
     boxCc.addLayout(cardCurrentConditions);
     forecastLayout.addLayout(boxHazards);
+    boxHourlyGraph.addWidget(hourlyGraph);   // the hourly graph sits above the long day list, where it is seen (H shows / hides it)
     forecastLayout.addLayout(boxSevenDay);
-    boxHourlyGraph.addWidget(hourlyGraph);   // hourly graph below the 7 day forecast; H shows / hides it
     forecastLayout.addLayout(boxHourlyGraph);
+    forecastPointCard = new CardForecastPoint{this};
+    forecastPointCard->onOpen = [this] {
+        if (pointData && pointData->ok) {
+            new ForecastPointViewer{this, pointData};
+        }
+    };
+    boxForecastPoint.addWidgetReal(forecastPointCard, 1, Qt::Alignment{});
+    forecastLayout.addLayout(boxForecastPoint);
     forecastLayout.addStretch();
 
     addWidgets();   // also places the columns right of the toolbar, in the user's order
-    hourlyGraph.setVisible(Utility::readPref("HOURLY_GRAPH_MAIN_SCREEN", "true") == "true");
 
     reload();
 
@@ -109,11 +120,8 @@ MainWindow::MainWindow(QWidget * parent)
     shortcutClose.connect([this] { close(); });
     shortcutVis.connect([this] { Route::vis(this); });
     shortcutWfoText.connect([this] { toolbar.launchWfoText(); });
-    shortcutHourly.connect([this] { showHourlyGraph(); });   // show / hide the hourly graph
-    shortcutRadar.connect([this] { toolbar.launchNexrad(1); });
-    shortcutRadarSinglePane.connect([this] { toolbar.launchNexrad(1); });
-    shortcutRadarDualPane.connect([this] { toolbar.launchNexrad(2); });
-    shortcutRadarQuadPane.connect([this] { toolbar.launchNexrad(4); });
+    shortcutHourly.connect([this] { showHourlyGraph(); });   // Show/hide hourly graph
+    shortcutRadar.connect([this] { new MrmsViewer{this}; });
     shortcutSevereDash.connect([this] { toolbar.launchSevereDashboard(); });
     shortcutNcep.connect([this] { toolbar.launchModelViewerGeneric("NCEP"); });
     shortRadarMosaic.connect([this] { toolbar.launchRadarMosaicViewer(); });
@@ -152,6 +160,17 @@ void MainWindow::reload() {
         new FutureVoid{this, [this] { getCc(); }, [this] { updateCc(); }};
         new FutureVoid{this, [this] { getHazards(); }, [this] { updateHazards(); }};
         new FutureVoid{this, [this] { get7day(); }, [this] { update7day(); }};
+        new FutureVoid{this, [this] { getHourlyGraphData(); }, [this] { updateHourlyGraph(); }};
+        if (UIPreferences::forecastPoint) {
+            const auto where = Location::getLatLonCurrent();
+            auto fetched = std::make_shared<UtilityForecastPoint::Data>();
+            new FutureVoid{this, [where, fetched] { *fetched = UtilityForecastPoint::fetch(where.lat(), where.lon()); }, [this, fetched] {
+                               pointData = fetched;
+                               forecastPointCard->setData(fetched);
+                           }};
+        } else {
+            forecastPointCard->setVisible(false);
+        }
 
         for (const auto& item : UIPreferences::homeScreenItemsText) {
             if (item.isEnabled()) {
@@ -174,20 +193,6 @@ void MainWindow::reload() {
                     }};
             }
         }
-        if (!hourlyGraph.isHidden()) {   // not while H has it hidden
-            new FutureVoid{this, [this] { getHourlyGraphData(); }, [this] { updateHourlyGraph(); }};
-        }
-        if (UIPreferences::nexradMainScreen) {
-            const auto pane = 0;
-            nexradList[pane]->nexradState.setRadar(Location::radarSite());
-            nexradList[pane]->nexradState.reset();
-            nexradList[pane]->nexradState.zoom = 0.6;
-            nexradList[pane]->nexradDraw.initGeom();
-
-            for (auto nw : nexradList) {
-                nw->runJob([nw] { nw->downloadData(); }, [nw] { nw->update(); });
-            }
-        }
         if (UIPreferences::mainScreenSevereDashboard) {
             new FutureVoid{this, [this] { downloadWatch(); }, [this] { updateWatch(); }};
         } else {
@@ -199,12 +204,18 @@ void MainWindow::reload() {
 void MainWindow::downloadWatch() {
     bytesList.clear();
     urls.clear();
+    captionsList.clear();
     urls.push_back(DownloadImage::byProduct("USWARN"));
+    captionsList.push_back("Warnings");
     urls.push_back(DownloadImage::byProduct("STRPT"));
+    captionsList.push_back("Storm reports");
     for (auto type : {Watch, Mcd, Mpd}) {
         PolygonWatch::byType[type]->download();
         watchesByType.at(type).getBitmaps();
         addAll(urls, watchesByType.at(type).urls);
+        for ([[maybe_unused]] const auto& url : watchesByType.at(type).urls) {
+            captionsList.push_back(type == Watch ? "Watch" : type == Mcd ? "Meso discussion" : "Precip discussion");
+        }
     }
     for (auto index : range(urls.size())) {
         bytesList.push_back(UtilityIO::downloadAsByteArray(urls[index]));
@@ -216,10 +227,11 @@ void MainWindow::updateWatch() {
     images.clear();
     for (auto index : range(urls.size())) {
         images.emplace_back(this);
-        images.back().imageSize = 150;
+        images.back().imageSize = UiStandards::thumbnailImage;
         images.back().setBytes(bytesList[index]);
         images.back().connect([this, index] { launch(index); });
-        boxSevereDashboard.addWidget(images.back());
+        const auto caption = UIPreferences::homeCaptions && index < captionsList.size() ? QString::fromStdString(captionsList[index]) : QString{};
+        boxSevereDashboard.addWidgetReal(CaptionedTile::make(this, images.back().getView(), caption, caption, UiStandards::thumbnailImage));
     }
 }
 
@@ -275,48 +287,25 @@ void MainWindow::getHazards() {
 }
 
 void MainWindow::addWidgets() {
+    placeForecastColumn();
     imageLayout.removeChildren();
+    imageLayout.setEqualRowHeights(true);   // the captions of a row line up along its bottom
     rightMostLayout.removeChildren();
     imageWidgets.clear();
     textWidgets.clear();
     boxSevereDashboard.removeChildren();
-    nexradList.clear();
-
-    if (UIPreferences::nexradMainScreen) {
-        nexradList.push_back(
-            new NexradWidget{
-                this,
-                0,
-                1,
-                true,
-                Location::radarSite(),
-                UIPreferences::mainScreenImageSize,
-                UIPreferences::mainScreenImageSize,
-                [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& prod) {},
-                [] ([[maybe_unused]] int pane, [[maybe_unused]] const string& sector) {},
-                [] ([[maybe_unused]] double z, [[maybe_unused]] int pane) {},
-                [] ([[maybe_unused]] double x, [[maybe_unused]] double y, [[maybe_unused]] int pane) {},
-                [] {}
-            });
-        nexradList[0]->onClick = [this] { toolbar.launchNexrad(1); };   // click the home screen radar to open the radar window
-        nexradList[0]->setFixedHeight(UIPreferences::mainScreenImageSize);
-        nexradList[0]->setFixedWidth(UIPreferences::mainScreenImageSize);
-    }
     //
     // image setup
     //
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
-        if (token == UIPreferences::homeScreenNexradToken) {
-            if (!nexradList.empty()) {
-                imageLayout.addWidgetReal(nexradList[0]);
-            }
-            continue;
-        }
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
             if (item.getPrefToken() == token && item.isEnabled()) {
                 imageWidgets.insert({token, Image{this}});
                 imageWidgets.at(token).connect([this, token] { launchImageScreen(token); });
-                imageLayout.addWidget(imageWidgets.at(token));
+                // the picture over its short caption (when captions are on); the longer description is the tooltip either way
+                const auto caption = UIPreferences::homeCaptions ? QString::fromStdString(HomeThumbnails::caption(token)) : QString{};
+                imageLayout.addWidgetReal(CaptionedTile::make(this, imageWidgets.at(token).getView(), caption,
+                                                              QString::fromStdString(HomeThumbnails::tip(token)), UIPreferences::mainScreenImageSize));
             }
         }
     }
@@ -389,14 +378,9 @@ void MainWindow::arrangeColumns() {
 
 string MainWindow::computeTokenString() {
     string tokenString;
-    tokenString += HomeLayout::signature() + ",";
+    tokenString += string{UIPreferences::hourlyGraph ? "graph," : ""} + (UIPreferences::forecastPoint ? "point," : "") + WString::join(UIPreferences::homeScreenForecastOrder.getTokens(), ",") + ",";
+    tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",");
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
-        if (token == UIPreferences::homeScreenNexradToken) {
-            if (UIPreferences::nexradMainScreen) {
-                tokenString += token + ",";
-            }
-            continue;
-        }
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
             if (item.getPrefToken() == token && item.isEnabled()) {
                 tokenString += token + ",";
@@ -435,19 +419,34 @@ void MainWindow::launchImageScreen(const string& token) {
     }
 }
 
-void MainWindow::showHourlyGraph() {
-    const bool show = hourlyGraph.isHidden();
-    hourlyGraph.setVisible(show);
-    Utility::writePref("HOURLY_GRAPH_MAIN_SCREEN", show ? "true" : "false");
-    if (show) {
-        new FutureVoid{this, [this] { getHourlyGraphData(); }, [this] { updateHourlyGraph(); }};
+// the seven day forecast, the hourly graph and the forecast point, in the order of Settings > Home Screen Order (the graph and the point may be switched off)
+void MainWindow::placeForecastColumn() {
+    auto * column = forecastLayout.getView();
+    column->removeItem(boxSevenDay.getView());
+    column->removeItem(boxHourlyGraph.getView());
+    column->removeItem(boxForecastPoint.getView());
+    int at = column->indexOf(boxHazards.getView()) + 1;
+    for (const auto& token : UIPreferences::homeScreenForecastOrder.getTokens()) {
+        if (token == "HOME_SEVEN_DAY") {
+            column->insertLayout(at++, boxSevenDay.getView());
+        } else if (token == "HOURLY_GRAPH") {
+            column->insertLayout(at++, boxHourlyGraph.getView());
+        } else if (token == "HOME_FORECAST_POINT") {
+            column->insertLayout(at++, boxForecastPoint.getView());
+        }
     }
+    hourlyGraph.setVisible(UIPreferences::hourlyGraph);
+    forecastPointCard->setAllowed(UIPreferences::forecastPoint);
 }
 
 void MainWindow::getHourlyGraphData() {
-    hourlyPoints = UtilityHourly::getGraphData(Location::getCurrentLocation());
+    hourlyGraphJson = UtilityHourly::getGraphJson(Location::getCurrentLocation());
 }
 
 void MainWindow::updateHourlyGraph() {
-    hourlyGraph.setData(hourlyPoints, Location::name());
+    UtilityHourly::fillGraph(hourlyGraphJson, Location::getCurrentLocation(), &hourlyGraph);
+}
+
+void MainWindow::showHourlyGraph() {
+    hourlyGraph.setVisible(!hourlyGraph.isVisible());
 }

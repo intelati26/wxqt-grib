@@ -1,0 +1,94 @@
+// *****************************************************************************
+// * This file is part of wxqt.  Licensed under the GNU General Public License v3.
+// * See the COPYING file for the full license text.
+// *****************************************************************************
+
+#ifndef RIVERMAPVIEWER_H
+#define RIVERMAPVIEWER_H
+
+#include <memory>
+#include <string>
+#include <vector>
+#include <QCheckBox>
+#include <QLabel>
+#include <QPointF>
+#include "radar/MapWidget.h"
+#include "buoys/BuoyData.h"
+#include "dams/DamData.h"
+#include "rivers/UtilityRivers.h"
+#include "ui/Button.h"
+#include "ui/ComboBox.h"
+#include "ui/HBox.h"
+#include "ui/Text.h"
+#include "ui/VBox.h"
+#include "ui/Window.h"
+
+using std::string;
+using std::vector;
+
+// The NWS river gauges on the same scrollable, zoomable map as the radar screens (state, county and highway lines, cities, your
+// location), each a dot in its flood category's colour: click one for its page (the hydrograph, the NWS forecast, the National Water Model
+// and the record). The gauge list comes from the NWPS map service (about 13,000 gauges, read once and kept for ten minutes).
+class RiverMapViewer : public Window {
+public:
+    explicit RiverMapViewer(Window * parent);
+
+private:
+    void loadGauges();
+    void loadBuoys();
+    void loadDams();
+    void paintDams(QPainter&);
+    // what is under the pointer: the nearest of a gauge, a buoy and a dam (a layer only while it is on)
+    struct Pick {
+        enum Kind { None, Gauge, Buoy, Dam } kind{None};
+        const UtilityRivers::Gauge * gauge{nullptr};
+        const BuoyData::Marker * buoy{nullptr};
+        const DamData::Latest * dam{nullptr};
+    };
+    Pick pickAt(const QPointF& widgetPos) const;
+    const BuoyData::Marker * buoyAt(const QPointF& widgetPos) const;
+    QColor buoyColor(const BuoyData::Marker&) const;
+    void paintBuoys(QPainter&);
+    void summarize();
+    bool shown(const UtilityRivers::Gauge&) const;
+    const UtilityRivers::Gauge * gaugeAt(const QPointF& widgetPos) const;
+    void paintGauges(QPainter&);
+    void paintLegend(QPainter&);
+    void showHover(const QPointF&);
+    void closeEventCustom() override { closed = true; }
+    void resizeEventCustom() override;
+    void changeZoom(double factor);
+    void changePosition(double dx, double dy);
+    void fitRadar();
+    void showConus();
+    bool eventFilter(QObject *, QEvent *) override;
+    struct Projection2 {   // the radar projection as x = ax * lon + bx, y = ay * mercator(lat) + by
+        double ax;
+        double bx;
+        double ay;
+        double by;
+    };
+    Projection2 projection() const;
+    QPointF widgetOf(const UtilityRivers::Gauge&, const Projection2&) const;
+    QPointF pixelsOf(double lon, double mercatorLat, const Projection2&) const;
+
+    VBox box;
+    HBox rowTop;
+    ComboBox comboFilter;
+    Button buttonRefresh;
+    QCheckBox * damCheck{};              // the Corps of Engineers hydropower dams
+    std::shared_ptr<std::vector<DamData::Latest>> dams;
+    QCheckBox * buoyCheck{};             // the NDBC buoys and coastal stations
+    ComboBox comboBuoyColor;             // wind or water temperature
+    std::shared_ptr<std::vector<BuoyData::Marker>> buoys;
+    Text textStatus;
+    MapWidget * radar{};
+    QLabel * hoverLabel{};
+    std::shared_ptr<vector<UtilityRivers::Gauge>> gauges;
+    QPointF pointer;
+    bool pointerInside{false};
+    bool closed{false};
+    int generation{0};
+};
+
+#endif  // RIVERMAPVIEWER_H

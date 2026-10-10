@@ -9,7 +9,6 @@
 #include "util/HomeThumbnails.h"
 #include <algorithm>
 #include "objects/WString.h"
-#include "radarcolorpalette/ColorPalettes.h"
 #include "util/Utility.h"
 
 const int UIPreferences::boxPadding{2};
@@ -25,9 +24,12 @@ bool UIPreferences::tiledWindows{false};
 QMargins UIPreferences::textPadding;
 const bool UIPreferences::useNwsApi{true};
 const bool UIPreferences::useNwsApiForHourly{true};
-bool UIPreferences::nexradMainScreen;
 bool UIPreferences::mainScreenSevereDashboard;
-bool UIPreferences::nexradScrollWheelMotion;
+bool UIPreferences::hourlyGraph{true};
+bool UIPreferences::hourlyGraphAbove{true};
+bool UIPreferences::forecastPoint{true};
+bool UIPreferences::homeCaptions{true};
+bool UIPreferences::mapScrollWheelMotion;
 bool UIPreferences::rememberGOES;
 bool UIPreferences::rememberMosaic;
 vector<PrefBool> UIPreferences::homeScreenItemsImage = [] {
@@ -42,7 +44,6 @@ vector<PrefBool> UIPreferences::homeScreenItemsText{
     PrefBool{"Wfo Text", "WFO_TEXT", false}
 };
 
-const string UIPreferences::homeScreenNexradToken{"NEXRAD_MAIN"};
 const string UIPreferences::homeColumnImages{"IMAGES"};
 const string UIPreferences::homeColumnForecast{"FORECAST"};
 const string UIPreferences::homeColumnText{"TEXT"};
@@ -58,7 +59,8 @@ namespace {
 }
 
 HomeScreenOrder UIPreferences::homeScreenColumnOrder{"HOME_SCREEN_COLUMN_ORDER", {homeColumnImages, homeColumnForecast, homeColumnText}};
-HomeScreenOrder UIPreferences::homeScreenImageOrder{"HOME_SCREEN_IMAGE_ORDER", tokensOf(homeScreenItemsImage, {homeScreenNexradToken})};
+HomeScreenOrder UIPreferences::homeScreenImageOrder{"HOME_SCREEN_IMAGE_ORDER", tokensOf(homeScreenItemsImage)};
+HomeScreenOrder UIPreferences::homeScreenForecastOrder{"HOME_SCREEN_FORECAST_ORDER", {"HOURLY_GRAPH", "HOME_SEVEN_DAY", "HOME_FORECAST_POINT"}};
 HomeScreenOrder UIPreferences::homeScreenTextOrder{"HOME_SCREEN_TEXT_ORDER", tokensOf(homeScreenItemsText)};
 
 string UIPreferences::homeScreenLabel(const string& token) {
@@ -71,8 +73,14 @@ string UIPreferences::homeScreenLabel(const string& token) {
     if (token == homeColumnText) {
         return "Text (hourly, WFO text)";
     }
-    if (token == homeScreenNexradToken) {
-        return "Nexrad";
+    if (token == "HOURLY_GRAPH") {
+        return "Hourly graph (temperature and wind)";
+    }
+    if (token == "HOME_SEVEN_DAY") {
+        return "Seven day forecast";
+    }
+    if (token == "HOME_FORECAST_POINT") {
+        return "Forecast point (the week at a glance and the outlooks)";
     }
     for (const auto& items : {&homeScreenItemsImage, &homeScreenItemsText}) {
         for (const auto& item : *items) {
@@ -109,6 +117,23 @@ void HomeScreenOrder::load() {
     }
 }
 
+void HomeScreenOrder::set(const vector<string>& order) {
+    vector<string> next;
+    for (const auto& token : order) {
+        const auto known = std::find(defaults.begin(), defaults.end(), token) != defaults.end();
+        if (known && std::find(next.begin(), next.end(), token) == next.end()) {
+            next.push_back(token);
+        }
+    }
+    for (const auto& token : tokens) {
+        if (std::find(next.begin(), next.end(), token) == next.end()) {
+            next.push_back(token);
+        }
+    }
+    tokens = next;
+    Utility::writePref(prefToken, WString::join(tokens, ","));
+}
+
 void HomeScreenOrder::move(int from, int to) {
     const auto count = static_cast<int>(tokens.size());
     if (count < 2 || from < 0 || from >= count) {
@@ -124,7 +149,6 @@ const vector<string>& HomeScreenOrder::getTokens() const {
 }
 
 void UIPreferences::initialize() {
-    ColorPalettes::initialize();
     textPadding = QMargins(padding, padding, padding, padding);
     fontSize = Utility::readPrefInt("GENERAL_FONT_SIZE", UIPreferences::fontSize);
     mainScreenImageSize = Utility::readPrefInt("MAIN_SCREEN_IMAGE_SIZE", mainScreenImageSize);
@@ -132,14 +156,21 @@ void UIPreferences::initialize() {
     nwsIconSize = Utility::readPrefInt("NWS_ICON_SIZE_PREF", nwsIconSize);
     // useNwsApi = WString::startsWith(Utility::readPref("USE_NWS_API_SEVEN_DAY", "false"), "t");
     // useNwsApiForHourly = WString::startsWith(Utility::readPref("USE_NWS_API_HOURLY", "true"), "t");
-    nexradMainScreen = WString::startsWith(Utility::readPref("NEXRAD_ON_MAIN_SCREEN", "false"), "t");
     mainScreenSevereDashboard = WString::startsWith(Utility::readPref("MAINSCREEN_SEVERE_DASH", "false"), "t");
-    nexradScrollWheelMotion = WString::startsWith(Utility::readPref("NEXRAD_SCROLLWHEEL", "false"), "t");
+    hourlyGraph = WString::startsWith(Utility::readPref("HOURLY_GRAPH", "true"), "t");
+    hourlyGraphAbove = WString::startsWith(Utility::readPref("HOURLY_GRAPH_ABOVE", "true"), "t");
+    forecastPoint = WString::startsWith(Utility::readPref("HOME_FORECAST_POINT", "true"), "t");
+    homeCaptions = WString::startsWith(Utility::readPref("HOME_CAPTIONS", "true"), "t");
+    mapScrollWheelMotion = WString::startsWith(Utility::readPref("NEXRAD_SCROLLWHEEL", "false"), "t");
     rememberGOES = WString::startsWith(Utility::readPref("REMEMBER_GOES", "false"), "t");
     rememberMosaic = WString::startsWith(Utility::readPref("REMEMBER_MOSAIC", "false"), "t");
     tiledWindows = WString::startsWith(Utility::readPref("TILED_WINDOWS", "false"), "t");
     homeScreenColumnOrder.load();
     HomeLayout::load();
     homeScreenImageOrder.load();
+    if (Utility::readPref("HOME_SCREEN_FORECAST_ORDER", "").empty() && !hourlyGraphAbove) {   // the old "graph below the seven day forecast" switch becomes the order
+        homeScreenForecastOrder.set({"HOME_SEVEN_DAY", "HOURLY_GRAPH", "HOME_FORECAST_POINT"});
+    }
+    homeScreenForecastOrder.load();
     homeScreenTextOrder.load();
 }

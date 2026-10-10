@@ -12,7 +12,8 @@
 #include "UtilityModelNsslWrfInputOutput.h"
 #include "UtilityModelSpcHrefInputOutput.h"
 #include "UtilityModelSpcHrrrInputOutput.h"
-#include "UtilityModelSpcSrefInputOutput.h"
+#include "gfs/GfsModels.h"
+#include "gfs/GfsRender.h"
 #include "UtilityModelWpcGefsInputOutput.h"
 
 void ObjectModelGet::runStatus(ObjectModel& om) {
@@ -22,6 +23,19 @@ void ObjectModelGet::runStatus(ObjectModel& om) {
         om.runTimeData = UtilityModelEsrlInputOutput::getRunTime(&om);
         om.run = om.runTimeData.mostRecentRun;
         om.runs = om.runTimeData.listRun;
+    } else if (om.prefModel == "NCEP" && GfsModels::draws(om.model)) {
+        // these two come from NOAA's open data, not the model guidance pages: the newest run is the newest one whose files are there
+        string cycle;
+        RunTimeData found;
+        if (GfsRender::latestCycle(om.model, cycle, "", &found.newestDate)) {
+            found.mostRecentRun = cycle;
+            found.timeStringConversion = cycle;
+        } else {   // no connection: what was chosen before, else the first run of the list
+            found.mostRecentRun = !om.run.empty() ? om.run : (om.runs.empty() ? string{"00Z"} : om.runs.front());
+            found.timeStringConversion = found.mostRecentRun;
+        }
+        om.runTimeData = found;
+        om.runTimeData.listRun = om.runs;
     } else if (om.prefModel == "NCEP") {
         om.runTimeData = UtilityModelNcepInputOutput::getRunTime(&om);
         om.runTimeData.listRun = om.runs;
@@ -32,8 +46,6 @@ void ObjectModelGet::runStatus(ObjectModel& om) {
         om.runTimeData = UtilityModelSpcHrrrInputOutput::getRunTime();
     } else if (om.prefModel == "SPCHREF") {
         om.runTimeData = UtilityModelSpcHrefInputOutput::getRunTime();
-    } else if (om.prefModel == "SPCSREF") {
-        om.runTimeData = UtilityModelSpcSrefInputOutput::getRunTime();
     }
 }
 
@@ -58,8 +70,6 @@ string ObjectModelGet::imageUrl(ObjectModel& om) {
         return UtilityModelWpcGefsInputOutput::getImageUrl(&om);
     } else if (om.prefModel == "SPCHRRR") {
         return UtilityModelSpcHrrrInputOutput::getImageUrl(&om);
-    } else if (om.prefModel == "SPCSREF") {
-        return UtilityModelSpcSrefInputOutput::getImageUrl(&om);
     } else {
         return "";
     }

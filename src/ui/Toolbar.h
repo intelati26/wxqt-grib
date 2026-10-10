@@ -23,7 +23,6 @@ class Toolbar : public VBox {
 public:
     Toolbar(Window *, const function<void()>&);
     void launchSettings();
-    void launchNexrad(int);
     void launchHourly();
     void launchWfoText();
     void launchSpcSwoSummary();
@@ -58,6 +57,7 @@ private:
     void applySavedOrder();
     void persistOrder();
     void rebuildButtons();
+    void addDropdownButton(const string& groupName, const vector<string>& ids);
     Window * parent;
     function<void()> reloadFn;
     const string orderPrefToken{"TOOLBAR_ORDER"};

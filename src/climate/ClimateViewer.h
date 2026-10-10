@@ -62,8 +62,6 @@ private:
     std::deque<Text> headings;
     std::deque<FlowBox> flows;
     std::deque<Image> images;
-    std::deque<Text> captions;
-    std::deque<VBox> tileBoxes;
     std::shared_ptr<Data> data;
     bool built{false};
     bool closed{false};

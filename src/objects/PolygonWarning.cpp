@@ -7,7 +7,7 @@
 #include "PolygonWarning.h"
 #include "objects/Color.h"
 #include "objects/WString.h"
-#include "radar/NexradUtil.h"
+#include "radar/VtecUtil.h"
 #include "radar/Warnings.h"
 #include "util/Utility.h"
 #include "util/UtilityIO.h"
@@ -153,7 +153,7 @@ int PolygonWarning::getCount() const {
     const auto vtecAl = UtilityString::parseColumn(storage.getValue(), pVtec);
     auto count = 0;
     for (const auto& vtec : vtecAl) {
-        if (!WString::startsWith(vtec, "O.EXP") && !WString::startsWith(vtec, "O.CAN") && NexradUtil::isVtecCurrent(vtec)) {
+        if (!WString::startsWith(vtec, "O.EXP") && !WString::startsWith(vtec, "O.CAN") && VtecUtil::isVtecCurrent(vtec)) {
             count += 1;
         }
     }

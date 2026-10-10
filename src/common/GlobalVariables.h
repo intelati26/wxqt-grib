@@ -15,7 +15,6 @@ class GlobalVariables {
 public:
     static const string aboutString;
     static const string mainScreenShortcuts;
-    static const string nexradShortcuts;
     // QSettings organization key - must stay stable across builds/forks:
     // changing it points every future run at a different settings file/
     // registry key, silently orphaning whatever a user already has saved

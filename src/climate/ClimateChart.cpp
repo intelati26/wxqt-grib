@@ -3,7 +3,9 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartPainter.h"
 #include "climate/ClimateChart.h"
+#include "ui/ChartExport.h"
 #include <algorithm>
 #include <cmath>
 #include <QPainter>
@@ -19,6 +21,7 @@ ClimateChart::ClimateChart(const UtilityClimate::IndexInfo& info, const UtilityC
     , info{info}
 {
     setFixedSize(480, 180);
+    ChartExport::install(this, "Climate index");
     if (all.empty()) {
         return;
     }
@@ -37,7 +40,7 @@ ClimateChart::ClimateChart(const UtilityClimate::IndexInfo& info, const UtilityC
 }
 
 void ClimateChart::paintEvent(QPaintEvent *) {
-    QPainter p{this};
+    ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing, false);
     p.fillRect(rect(), palette().window());
     const QRect plot{44, 26, width() - 54, height() - 48};

@@ -32,6 +32,9 @@ private:
     vector<std::unique_ptr<Switch>> configsLeft;
     vector<std::unique_ptr<Switch>> configs;
     Button button;
+    Button buttonClearCache;
+    Text cacheUsage;
+    void showCacheUsage();
     VBox boxLeft;
     VBox boxCenter;
     VBox boxRight;

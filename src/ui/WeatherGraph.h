@@ -9,40 +9,44 @@
 
 #include <string>
 #include <vector>
-#include <QDateTime>
 #include <QWidget>
+#include "ui/Window.h"
 #include "ui/Widget2.h"
 
 using std::string;
 using std::vector;
 
-// The hourly forecast as a graph: temperature and dew point lines (left axis, F), chance of precipitation as bars
-// (right axis, %), and a wind row (arrow pointing where the wind blows to, speed in mph) under the time axis.
-// Shows the next `hoursShown` hours; days are marked at local midnight. Colours follow the light / dark theme.
 class WeatherGraph : public QWidget, public Widget2 {
 public:
-    struct Point {
-        QDateTime time;
-        double temperature{0.0};           // F
-        double dewpoint{-999.0};           // F, -999 when the forecast has none
-        double precipitationChance{0.0};   // 0-100
-        double windSpeed{0.0};             // mph (the higher number of a "5 to 10 mph" range)
-        double windDirection{-1.0};        // degrees the wind blows from, -1 when unknown
-        string condition;
+    QWidget * getView() override;
+    virtual ~WeatherGraph() override {};
+
+private:
+    struct DataPoint {
+        double time;           // hour value
+        double temperature;    // temperature in degrees
+        double windSpeed;      // wind speed
+        double windDirection;  // wind direction
+        string condition;      // weather condition
+        string label;          // the time as text, for the axis
     };
 
-    explicit WeatherGraph(QWidget * parent = nullptr);
-    ~WeatherGraph() override = default;
-    QWidget * getView() override;
-    void setData(const vector<Point>& points, const string& location);
+    vector<DataPoint> dataPoints;
+    string locationName;
+    QFont axisFont;
+    QFont labelFont;
 
-    static constexpr int hoursShown{48};
+public:
+    WeatherGraph(QWidget * parent = nullptr);
+    void setData(const vector<string>& times, const vector<double>& temperatures,
+                 const vector<double>& windSpeeds, const vector<double>& windDirections,
+                 const vector<string>& conditions, const string& location);
+    
+    const vector<DataPoint>& getDataPoints() const { return dataPoints; }
 
 private:
     void paintEvent(QPaintEvent *) override;
-    vector<Point> points;
-    string locationName;
-    bool answered{false};   // setData was called (an empty answer means the forecast could not be had)
+    void resizeEvent(QResizeEvent *) override;
 };
 
-#endif  // WEATHERGRAPH_H
+#endif // WEATHERGRAPH_H

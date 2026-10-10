@@ -1,7 +1,3 @@
-// Standalone demo with its own main(): compiled only with -DWXQT_WEATHER_GRAPH_DEMO (makeAll.py builds every .cpp
-// under src/, and a second main() would break the app's link).
-#ifdef WXQT_WEATHER_GRAPH_DEMO
-
 // *****************************************************************************
 // * Demo: Creating a graph from UtilityHourly.cpp data
 // * This example shows how to visualize hourly weather data
@@ -86,19 +82,18 @@ private slots:
         statusLabel->setStyleSheet("QLabel { color: #0066cc; }");
 
         // Load weather data and update graph
-        const auto points = UtilityHourly::getGraphData(locationNumber);
-        if (!points.empty()) {
-            graphWidget->setData(points, "location " + std::to_string(locationNumber));
+        if (UtilityHourly::getGraphData(locationNumber, graphWidget)) {
             statusLabel->setText("Successfully loaded weather data for location " + 
                                QString::number(locationNumber));
             statusLabel->setStyleSheet("QLabel { color: #009900; }");
             infoText->setText("Weather graph has been loaded with " +
-                             QString::number(points.size()) +
-                             " hours.\n\n" +
+                             QString::number(graphWidget->getDataPoints().size()) +
+                             " data points.\n\n" +
                              "The graph shows:\n" +
-                             "- Temperature (red) and dew point (green) lines\n" +
-                             "- Chance of precipitation (blue bars)\n" +
-                             "- Wind arrows and speeds under the time axis");
+                             "- Temperature (red line) over time\n" +
+                             "- Wind speed (blue line) over time\n" +
+                             "- Wind direction (top axis)\n" +
+                             "- Weather conditions (text labels)");
         } else {
             statusLabel->setText("Failed to load weather data for location " + 
                                QString::number(locationNumber));
@@ -123,5 +118,3 @@ int main(int argc, char *argv[]) {
     window.show();
     return app.exec();
 }
-
-#endif  // WXQT_WEATHER_GRAPH_DEMO

@@ -17,8 +17,6 @@ public:
     static void initialize();
     static void initializeColors();
     static QColor getInitialPreference(const string&, int);
-    static bool locdotFollowsGps;
-    static bool dualpaneshareposn;
     static bool obs;
     static bool obsWindbarbs;
     static bool swo;
@@ -26,19 +24,11 @@ public:
     static bool cities;
     static bool locationDot;
     static bool countyLabels;
-    static bool sti;
-    static bool hailIndex;
-    static bool useS3;     // radar pictures from the Unidata S3 bucket (super-resolution), the NWS server as the fallback
-    static bool tvs;
-    static bool colorLegend;
     static int textSize;
     static bool wpcFronts;
-    static bool showControls;
-    static bool rememberLocation;
     static double warnLinesize;
     static double watmcdLinesize;
 //    static double gpsCircleLinesize;
-    static double stiLinesize;
     static double swoLinesize;
     static double wbLinesize;
     static double lineFactor;
@@ -46,13 +36,10 @@ public:
     static double aviationSize;
     static QColor colorLocdot;
     static QColor colorCity;
-    static QColor colorSti;
-    static QColor colorHi;
-    static QColor colorTvs;
     static QColor colorObs;
     static QColor colorObsWindbarbs;
     static QColor colorCountyLabels;
-    static QColor nexradRadarBackgroundColor;
+    static QColor mapBackgroundColor;
 };
 
 #endif  // RADARPREFERENCES_H

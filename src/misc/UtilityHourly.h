@@ -1,12 +1,3 @@
-// *****************************************************************************
-// * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
-// *
-// * Refer to the COPYING file of the official project for license.
-// *****************************************************************************
-
-#ifndef UTILITYHOURLY_H
-#define UTILITYHOURLY_H
-
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -19,11 +10,9 @@ using std::vector;
 class UtilityHourly {
 public:
     static string get(int);
-    // the same NWS hourly forecast the table shows, as numbers for WeatherGraph (blocks on the network: call it
-    // off the UI thread); empty when the forecast cannot be had
-    static vector<WeatherGraph::Point> getGraphData(int locationNumber);
-    // the parsing half of getGraphData: NWS gridpoints/.../forecast/hourly JSON -> points
-    static vector<WeatherGraph::Point> parseGraphData(const string& json);
+    static bool getGraphData(int locationNumber, WeatherGraph* graphWidget);
+    static string getGraphJson(int locationNumber);   // the download, safe off the GUI thread
+    static bool fillGraph(const string& json, int locationNumber, WeatherGraph* graphWidget);   // GUI thread
 
 private:
     static const unordered_map<string, string> hourlyAbbreviations;
@@ -31,6 +20,5 @@ private:
     static string getHourlyString(int);
     static string parse(const string&);
     static string shortenConditions(const string&);
+    static vector<string> parseColumn(const string& html, const string& pattern);
 };
-
-#endif  // UTILITYHOURLY_H

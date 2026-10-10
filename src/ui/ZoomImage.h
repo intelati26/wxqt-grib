@@ -30,6 +30,13 @@ public:
     void setCrosshairMode(bool);
     void setMarker(double fx, double fy);
     void clearMarker();
+    // the zoom and place, to put several pictures of the same area on the same view (the comparison tiles): the zoom as a multiple of the fitted size, the centre as fractions of the picture
+    struct View {
+        bool fitted{true};
+        double zoom{1.0}, cx{0.5}, cy{0.5};
+    };
+    View view() const;
+    void setView(const View&);
 
 signals:
     void doubleClicked();
@@ -38,6 +45,8 @@ signals:
     void hoverEnded();
     // a left click that did not turn into a drag; fx / fy as for hovered()
     void clicked(double fx, double fy);
+    // the user zoomed or panned (not a refit or setView)
+    void viewChanged();
 
 protected:
     void wheelEvent(QWheelEvent *) override;
@@ -59,6 +68,7 @@ private:
     double scale{1.0};
     bool userZoomed{false};
     bool dragging{false};
+    bool applying{false};   // a view being put in: not the user's doing
     bool crosshairMode{false};
     bool markerActive{false};
     double markerFx{0.0};

@@ -59,6 +59,9 @@ ZoomImage::ZoomImage(Window * parent)
     viewport()->setMouseTracking(true);
     label->installEventFilter(this);
     updateRestingCursor();
+    const auto changed = [this] { if (!applying && !source.isNull()) { emit viewChanged(); } };
+    QObject::connect(horizontalScrollBar(), &QScrollBar::valueChanged, this, changed);
+    QObject::connect(verticalScrollBar(), &QScrollBar::valueChanged, this, changed);
 
     marker->setPixmap(makeCrosshair());
     marker->setFixedSize(marker->pixmap().size());
@@ -175,6 +178,8 @@ void ZoomImage::applyScale(double newScale, const QPoint& anchor) {
     if (source.isNull()) {
         return;
     }
+    const struct Guard { bool& flag; bool before; ~Guard() { flag = before; } } guard{applying, applying};
+    applying = true;
     const auto minScale = fitScale();
     newScale = std::clamp(newScale, minScale, maxAbsoluteScale);
 
@@ -208,6 +213,7 @@ void ZoomImage::wheelEvent(QWheelEvent * event) {
     const auto factor = steps > 0.0 ? zoomStep : 1.0 / zoomStep;
     applyScale(scale * factor, event->position().toPoint());
     event->accept();
+    emit viewChanged();
 }
 
 void ZoomImage::mousePressEvent(QMouseEvent * event) {
@@ -259,4 +265,32 @@ void ZoomImage::resizeEvent(QResizeEvent * event) {
     if (!userZoomed) {
         fitToViewport();
     }
+}
+
+ZoomImage::View ZoomImage::view() const {
+    View v;
+    v.fitted = !userZoomed;
+    const double fit = fitScale();
+    v.zoom = fit > 0.0 ? scale / fit : 1.0;
+    if (label->width() > 0 && label->height() > 0) {
+        v.cx = std::clamp((horizontalScrollBar()->value() + viewport()->width() / 2.0) / label->width(), 0.0, 1.0);
+        v.cy = std::clamp((verticalScrollBar()->value() + viewport()->height() / 2.0) / label->height(), 0.0, 1.0);
+    }
+    return v;
+}
+
+void ZoomImage::setView(const View& v) {
+    if (source.isNull()) {
+        return;
+    }
+    const struct Guard { bool& flag; bool before; ~Guard() { flag = before; } } guard{applying, applying};
+    applying = true;
+    if (v.fitted) {
+        fitToViewport();
+        return;
+    }
+    userZoomed = true;
+    applyScale(fitScale() * v.zoom, QPoint{});
+    horizontalScrollBar()->setValue(static_cast<int>(v.cx * label->width() - viewport()->width() / 2.0));
+    verticalScrollBar()->setValue(static_cast<int>(v.cy * label->height() - viewport()->height() / 2.0));
 }

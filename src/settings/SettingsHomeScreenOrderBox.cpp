@@ -4,7 +4,10 @@
 // *****************************************************************************
 
 #include "settings/SettingsHomeScreenOrderBox.h"
+#include <QAbstractItemView>
+#include <QListWidget>
 #include <QTimer>
+#include <algorithm>
 #include "settings/HomeLayoutEditor.h"
 #include "util/Utility.h"
 #include "util/UtilityList.h"
@@ -23,37 +26,17 @@ void SettingsHomeScreenOrderBox::refresh() {
 }
 
 void SettingsHomeScreenOrderBox::addItems() {
-    buttons.clear();
     labels.clear();
     hboxList.clear();
     combos.clear();
-    // one control for the home screen's radar picture: the live Nexrad tile, a still MRMS reflectivity picture, or none
-    hboxList.emplace_back();
-    labels.emplace_back(parent, "Radar on the home screen:");
-    labels.back().setWordWrap(false);
-    hboxList.back().addWidget(labels.back());
-    combos.emplace_back(parent, vector<string>{"Live radar (Nexrad)", "MRMS radar picture (still, around your location)", "None"});
-    combos.back().getView()->setToolTip("The live Nexrad tile downloads and decodes radar data in the background; the MRMS picture is a single image");
-    const bool live = Utility::readPref("NEXRAD_ON_MAIN_SCREEN", "false").rfind("t", 0) == 0;
-    const bool still = Utility::readPref("MRMS_RADAR", "false").rfind("t", 0) == 0;
-    combos.back().setIndex(live ? 0 : (still ? 1 : 2));
-    const auto * radarCombo = &combos.back();
-    combos.back().connect([this, radarCombo] {
-        const int choice = radarCombo->getIndex();
-        Utility::writePref("NEXRAD_ON_MAIN_SCREEN", choice == 0 ? "true" : "false");
-        Utility::writePref("MRMS_RADAR", choice == 1 ? "true" : "false");
-        UIPreferences::initialize();
-        QTimer::singleShot(0, this, [this] { refresh(); });   // after this handler returns: the lists below show which items are hidden
-    });
-    hboxList.back().addWidget(combos.back());
-    box.addLayout(hboxList.back());
     labels.emplace_back(parent, "Layout - pick a layout, then drag the sections into its zones (or click a section for a menu):");
     labels.back().setBlue();
     labels.back().setWordWrap(false);
     box.addWidget(labels.back());
     box.addWidgetReal(new HomeLayoutEditor{this, [] {}});
-    addSection("Image column (top to bottom):", "Show or hide these under General (Nexrad: \"Show Nexrad on main screen\").", UIPreferences::homeScreenImageOrder);
-    addSection("Text column (top to bottom):", "", UIPreferences::homeScreenTextOrder);
+    addDragList("Image column (top to bottom):", "Drag to reorder, tick to show (the MRMS radar picture is one of these).", UIPreferences::homeScreenImageOrder);
+    addDragList("Forecast column, below the conditions and hazards (top to bottom):", "Drag to reorder, tick to show (the seven day forecast always shows).", UIPreferences::homeScreenForecastOrder);
+    addDragList("Text column (top to bottom):", "Drag to reorder, tick to show.", UIPreferences::homeScreenTextOrder);
     // the MRMS home thumbnail: the area around the current location, or all of the lower 48
     hboxList.emplace_back();
     labels.emplace_back(parent, "MRMS thumbnail area:");
@@ -70,7 +53,8 @@ void SettingsHomeScreenOrderBox::addItems() {
     box.addStretch();
 }
 
-void SettingsHomeScreenOrderBox::addSection(const string& title, const string& note, HomeScreenOrder& order) {
+// one column of the home screen as a list: drag a row to move it, tick it to show it
+void SettingsHomeScreenOrderBox::addDragList(const string& title, const string& note, HomeScreenOrder& order) {
     labels.emplace_back(parent, title);
     labels.back().setBlue();
     labels.back().setWordWrap(false);
@@ -80,41 +64,58 @@ void SettingsHomeScreenOrderBox::addSection(const string& title, const string& n
         labels.back().setWordWrap(false);
         box.addWidget(labels.back());
     }
-    const auto& tokens = order.getTokens();
-    for (auto index : range(tokens.size())) {
-        const auto position = static_cast<int>(index);
-        hboxList.emplace_back();
-
-        buttons.emplace_back(parent, Down, "Move down");
-        buttons.back().connect([this, &order, position] { order.move(position, position + 1); refresh(); });
-        hboxList.back().addWidget(buttons.back());
-
-        buttons.emplace_back(parent, Up, "Move up");
-        buttons.back().connect([this, &order, position] { order.move(position, position - 1); refresh(); });
-        hboxList.back().addWidget(buttons.back());
-
-        auto label = UIPreferences::homeScreenLabel(tokens[index]);
-        if (!isShown(tokens[index])) {
-            label += "  (hidden)";
+    auto * list = new QListWidget{this};
+    list->setDragDropMode(QAbstractItemView::InternalMove);
+    list->setDefaultDropAction(Qt::MoveAction);
+    list->setSelectionMode(QAbstractItemView::SingleSelection);
+    list->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    list->setAlternatingRowColors(true);
+    list->setToolTip("Drag a row to move it; tick it to show it on the home screen");
+    for (const auto& token : order.getTokens()) {
+        auto * item = new QListWidgetItem{QString::fromStdString(UIPreferences::homeScreenLabel(token)), list};
+        item->setData(Qt::UserRole, QString::fromStdString(token));
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled);
+        if (token != "HOME_SEVEN_DAY") {
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+            item->setCheckState(isShown(token) ? Qt::Checked : Qt::Unchecked);
         }
-        labels.emplace_back(parent, label);
-        labels.back().setWordWrap(false);
-        hboxList.back().addWidget(labels.back());
-
-        box.addLayout(hboxList.back());
     }
+    const int rows = list->count();
+    list->setFixedHeight(rows * std::max(24, list->sizeHintForRow(0)) + 10);
+    const auto sync = [list, &order] {
+        vector<string> next;
+        for (int row = 0; row < list->count(); row += 1) {
+            next.push_back(list->item(row)->data(Qt::UserRole).toString().toStdString());
+        }
+        order.set(next);
+    };
+    // a drop moves the row (or removes and inserts it): read the new order once the move is finished
+    QObject::connect(list->model(), &QAbstractItemModel::rowsMoved, list, [sync] { QTimer::singleShot(0, sync); });
+    QObject::connect(list->model(), &QAbstractItemModel::rowsInserted, list, [sync] { QTimer::singleShot(0, sync); });
+    QObject::connect(list, &QListWidget::itemChanged, list, [] (QListWidgetItem * item) {
+        if ((item->flags() & Qt::ItemIsUserCheckable) == 0) {
+            return;
+        }
+        const auto token = item->data(Qt::UserRole).toString().toStdString();
+        const bool shown = item->checkState() == Qt::Checked;
+        if (isShown(token) != shown) {   // not the move itself
+            Utility::writePref(token, shown ? "true" : "false");
+            UIPreferences::initialize();
+        }
+    });
+    box.addWidgetReal(list);
 }
 
 bool SettingsHomeScreenOrderBox::isShown(const string& token) {
-    if (token == UIPreferences::homeScreenNexradToken) {
-        return UIPreferences::nexradMainScreen;
-    }
     for (const auto& items : {&UIPreferences::homeScreenItemsImage, &UIPreferences::homeScreenItemsText}) {
         for (const auto& item : *items) {
             if (item.getPrefToken() == token) {
                 return item.isEnabled();
             }
         }
+    }
+    if (token == "HOURLY_GRAPH" || token == "HOME_FORECAST_POINT") {
+        return Utility::readPref(token, "true").compare(0, 1, "t") == 0;
     }
     return true;   // columns
 }

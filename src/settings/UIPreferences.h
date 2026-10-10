@@ -25,6 +25,8 @@ public:
     void load();
     // swaps with the neighbour, wrapping at each end (like Toolbar Order)
     void move(int from, int to);
+    // takes a whole new order (from dragging in Settings): unknown tokens are ignored, any missing ones keep their place at the end
+    void set(const vector<string>& order);
     const vector<string>& getTokens() const;
 
 private:
@@ -49,23 +51,27 @@ public:
     static QMargins textPadding;
     static const bool useNwsApi;
     static const bool useNwsApiForHourly;
-    static bool nexradMainScreen;
     static bool mainScreenSevereDashboard;
-    static bool nexradScrollWheelMotion;
+    static bool hourlyGraph;        // the hourly graph on the home screen
+    static bool forecastPoint;      // the week at a glance and the outlooks of the point (the NWS forecast points page) on the home screen
+    static bool hourlyGraphAbove;   // ... above the seven day forecast, else below it
+    static bool homeCaptions;   // a short caption under each home screen picture
+    static bool mapScrollWheelMotion;
     static bool rememberGOES;
     static bool rememberMosaic;
     static vector<PrefBool> homeScreenItemsImage;
     static vector<PrefBool> homeScreenItemsText;
     // Settings > Home Screen Order: the columns right of the toolbar, and the
     // items within the image column (homeScreenItemsImage tokens plus
-    // homeScreenNexradToken) and the text column
-    static const string homeScreenNexradToken;
+    // the pictures) and the text column
     static const string homeColumnImages;
     static const string homeColumnForecast;
     static const string homeColumnText;
     static HomeScreenOrder homeScreenColumnOrder;
     static HomeScreenOrder homeScreenImageOrder;
     static HomeScreenOrder homeScreenTextOrder;
+    // the forecast column below the conditions and hazards: the hourly graph, the seven day forecast and the forecast point, in the user's order (tokens are their preference names)
+    static HomeScreenOrder homeScreenForecastOrder;
     static string homeScreenLabel(const string& token);
 };
 

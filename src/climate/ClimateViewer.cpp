@@ -4,12 +4,13 @@
 // *****************************************************************************
 
 #include "climate/ClimateViewer.h"
+#include "ui/UiStandards.h"
 #include <algorithm>
 #include <memory>
-#include <QWidget>
 #include "climate/ClimateChart.h"
 #include "climate/ClimateHistoryViewer.h"
 #include "misc/ImageViewer.h"
+#include "ui/CaptionedTile.h"
 #include "misc/TextViewerStatic.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
@@ -108,8 +109,6 @@ void ClimateViewer::build() {
     headings.clear();
     flows.clear();
     images.clear();
-    captions.clear();
-    tileBoxes.clear();
     string currentSection;
     for (const auto& tile : UtilityClimate::tiles()) {
         if (tile.section != currentSection) {
@@ -119,20 +118,14 @@ void ClimateViewer::build() {
             headings.back().setBlue();
             boxSections.addWidget(headings.back());
             flows.emplace_back();
+            flows.back().setEqualRowHeights(true);
             boxSections.addLayout(flows.back());
         }
         // a tile: the picture over its caption
-        auto * holder = new QWidget{this};
-        tileBoxes.emplace_back();
         images.emplace_back(this);
-        images.back().imageSize = 400;
-        captions.emplace_back(this, tile.history.empty() ? tile.label : tile.label + " - click for the history and a loop");
-        captions.back().setWordWrap(true);
-        tileBoxes.back().addWidget(images.back());
-        tileBoxes.back().addWidget(captions.back());
-        holder->setLayout(tileBoxes.back().getView());
-        holder->setFixedWidth(410);
-        flows.back().addWidgetReal(holder);
+        images.back().imageSize = UiStandards::tileImage;
+        const auto caption = QString::fromStdString(tile.history.empty() ? tile.label : tile.label + " - click for the history and a loop");
+        flows.back().addWidgetReal(CaptionedTile::make(this, images.back().getView(), caption, caption, UiStandards::tileImage, true, UiStandards::tileWidth));
         const auto big = tile.full.empty() ? tile.url : tile.full;
         const auto label = tile.label;
         const auto history = tile.history;

@@ -343,7 +343,7 @@ vector<std::pair<string, string>> UtilitySpcPost::runOptions(int productIndex) {
             if (options.size() > maxOptions) {
                 break;
             }
-            const auto label = qDate.toString("MMM d").toStdString() + " " + cyc + "z";
+            const auto label = qDate.toString("yyyy-MM-dd").toStdString() + " " + cyc + "z";
             options.emplace_back(label, dateStr + cyc);
         }
     }

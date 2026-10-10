@@ -42,7 +42,12 @@ namespace ToolbarGroups {
     void addGroup(const string& name);
     void deleteGroup(int group);      // its entries move to the group before it (after it for the first)
     void moveGroup(int from, int to);
-    void reset();                     // back to the built-in grouping
+    void reset();                     // back to the built-in grouping (and the built-in dropdowns)
+
+    // In the icon column ("Icons only"), a group can be one button that opens a menu of its entries instead of a button each: fewer icons on the home screen. The Dashboards
+    // group is one by default. The other styles already show groups as headings or menus, so this is only used by the icon column.
+    bool isDropdown(const string& groupName);
+    void setDropdown(const string& groupName, bool on);
 }
 
 #endif  // TOOLBARGROUPS_H

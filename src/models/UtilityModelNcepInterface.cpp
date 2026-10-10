@@ -5,29 +5,46 @@
 // *****************************************************************************
 
 #include "UtilityModelNcepInterface.h"
+#include <algorithm>
+#include "gfs/GfsChart.h"
 
-const vector<string> UtilityModelNcepInterface::models{
-    "ESTOFS",
-    "FIREWX",
-    "GEFS-MEAN-SPRD",
-    "GEFS-SPAG",
-    "GFS",
-    "HREF",
-    "HRRR",
-    "HRW-ARW",
-    "HRW-ARW2",
-    "HRW-FV3",
-    "NAEFS",
-    "NAM",
-    "NAM-HIRES",
-    "NBM",
-    "POLAR",
-    "RAP",
-    "SREF",
-    "WW3",
-    "WW3-ENP",
-    "WW3-WNA"
-};
+namespace {
+    // the screen's own list of the model guidance site's models; the models drawn from GRIB are added from the registry
+    const vector<string> legacyModels{
+        "ESTOFS",
+        "FIREWX",
+        "GEFS-MEAN-SPRD",
+        "GEFS-SPAG",
+        "GFS",
+        "HREF",
+        "HRRR",
+        "HRW-ARW",
+        "HRW-ARW2",
+        "HRW-FV3",
+        "NAEFS",
+        "NAM",
+        "NAM-HIRES",
+        "NBM",
+        "POLAR",
+        "RAP",
+        "WW3",
+        "WW3-ENP",
+        "WW3-WNA"
+    };
+
+    vector<string> buildModels() {
+        auto out = legacyModels;
+        for (const auto& def : GfsModels::all()) {
+            if (!def.storm && std::find(out.begin(), out.end(), def.id) == out.end()) {
+                out.push_back(def.id);
+            }
+        }
+        std::sort(out.begin(), out.end());
+        return out;
+    }
+}
+
+const vector<string> UtilityModelNcepInterface::models = buildModels();
 
 const vector<string> UtilityModelNcepInterface::sectorsGfs{
     "CONUS",
@@ -45,7 +62,33 @@ const vector<string> UtilityModelNcepInterface::sectorsGfs{
     "SOUTH-PAC",
     "ARTIC",
     "INDIA",
-    "US-SAMOA"
+    "US-SAMOA",
+    "GLOBAL",
+    "TROPICS",
+    "NORTHERN-HEMI",
+    "SOUTHERN-HEMI",
+    "AUSTRALIA",
+    "MIDDLE-EAST",
+    "INDIAN-OCEAN",
+    "E-ASIA",
+    "SE-ASIA",
+    "NORTH-ATL",
+    "CARIBBEAN",
+    "GULF-MEXICO",
+    "CENT-AMER",
+    "HAWAII",
+    "NORTHEAST",
+    "MID-ATLANTIC",
+    "SOUTHEAST",
+    "GREAT-LAKES",
+    "OHIO-VALLEY",
+    "S-PLAINS",
+    "N-PLAINS",
+    "ROCKIES",
+    "SOUTHWEST",
+    "PACIFIC-NW",
+    "CALIFORNIA",
+    "GULF-COAST"
 };
 
 const vector<string> UtilityModelNcepInterface::sectorsNam{
@@ -78,11 +121,6 @@ const vector<string> UtilityModelNcepInterface::sectorsHrrr{
     "US-SC",
     "US-NE",
     "US-SE"
-};
-
-const vector<string> UtilityModelNcepInterface::sectorsSref{
-    "NAMER",
-    "ALASKA"
 };
 
 const vector<string> UtilityModelNcepInterface::sectorsNaefs{
@@ -190,7 +228,18 @@ const vector<string> UtilityModelNcepInterface::sectorsFirewx{
 
 const vector<string> UtilityModelNcepInterface::sectorsNbm{
     "CONUS",
-    "NAMER"
+    "NORTHEAST",
+    "MID-ATLANTIC",
+    "SOUTHEAST",
+    "GREAT-LAKES",
+    "OHIO-VALLEY",
+    "S-PLAINS",
+    "N-PLAINS",
+    "ROCKIES",
+    "SOUTHWEST",
+    "PACIFIC-NW",
+    "CALIFORNIA",
+    "GULF-COAST"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsGfs{
@@ -223,7 +272,26 @@ const vector<string> UtilityModelNcepInterface::paramsGfs{
     "850_temp_ht",
     "850_vort_ht",
     "850vor_500ht_200wd",
-    "925_temp_ht"
+    "925_temp_ht",
+    "shear_850_200",
+    "steering_850_200",
+    "200_div_wnd",
+    "200_stream_div",
+    "850_stream_vort",
+    "850_thetae_ht",
+    "500_hgt_anom",
+    "700_hgt_anom",
+    "mslp_anom",
+    "2m_dewpoint",
+    "rh_700_300",
+    "mslp_pwat",
+    "sbcape_wind",
+    "700_temp_mslp",
+    "mslp_10m_wind",
+    "850_wnd_ht",
+    "precip_type",
+    "mslp_trend",
+    "z500_trend"
 };
 
 const vector<string> UtilityModelNcepInterface::labelsGfs{
@@ -256,7 +324,26 @@ const vector<string> UtilityModelNcepInterface::labelsGfs{
     "850mb Temperature, Wind and Height",
     "850mb Vorticity, Wind and Height",
     "850mb Vorticity, 500mb Height, 200mb Wind",
-    "925mb Temperature, Wind and Height"
+    "925mb Temperature, Wind and Height",
+    "850-200mb Deep-Layer Wind Shear",
+    "850-200mb Mean Wind (Steering Flow)",
+    "200mb Divergence, Wind and Height",
+    "200mb Divergence and Streamlines",
+    "850mb Vorticity and Streamlines",
+    "850mb Equivalent Potential Temperature, Wind and Height",
+    "500mb Height and Anomaly",
+    "700mb Height and Anomaly",
+    "MSLP and Anomaly",
+    "MSLP, 10m wind, 2m dewpoint",
+    "700-300mb Mean Relative Humidity, 500mb Height and Wind",
+    "MSLP and Precipitable Water",
+    "Surface-Based CAPE, MSLP and 10m Wind",
+    "700mb Temperature, Wind and MSLP",
+    "MSLP and 10m Wind",
+    "850mb Height and Wind",
+    "MSLP and Precipitation (Rain / Snow / Mixed)",
+    "MSLP and 48-hour Change",
+    "500mb Height and 48-hour Change"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNam{
@@ -535,68 +622,6 @@ const vector<string> UtilityModelNcepInterface::labelsNamHires{
     "850mb Height, Precipitable Water and Wind",
     "850mb Vorticity, 500mb Height, 200mb Wind",
     "925mb Temperature, Wind and Height"
-};
-
-const vector<string> UtilityModelNcepInterface::paramsSref{
-    "precip_p03",
-    "precip_p06",
-    "precip_p12",
-    "precip_p24",
-    "precip_ptot",
-    "prob_precip_0.25in",
-    "snow_total_mean",
-    "snow_total_sprd",
-    "1000_500_thick",
-    "1000_850_thick",
-    "850_700_thick",
-    "10m_wind",
-    "prob_10m_wind",
-    "2m_temp",
-    "prob_2m_temp_0C",
-    "lifted_index",
-    "cape",
-    "prob_cape",
-    "cin",
-    "mslp",
-    "250_vort_ht",
-    "250_wnd",
-    "500_vort_ht",
-    "700_rh",
-    "700_temp",
-    "850_rh",
-    "850_temp",
-    "850_wnd"
-};
-
-const vector<string> UtilityModelNcepInterface::labelsSref{
-    "Mean 3-hour Precipitation",
-    "Mean 6-hour Precipitation",
-    "Mean 12-hour Precipitation",
-    "Mean 24-hour Precipitation",
-    "Total Accumulated Precipitation of Period",
-    "Probability of 6-hrly Precipitation > 0.25 (in};",
-    "Snow Total Mean",
-    "Snow Total Spread",
-    "Mean 1000-500mb Thickness (m};",
-    "Mean 1000-850mb Thickness (m};",
-    "Mean 850-700mb Thickness (m};",
-    "10m Winds",
-    "Probability of 10m Wind Speeds > 25 knots",
-    "2m Temperature",
-    "Probablility of 2m Temperature < 0",
-    "Mean Lifted Index",
-    "Mean Convective Available Potential Energy",
-    "Probability of Cape",
-    "Mean Convective Inhibition",
-    "Mean Sea Level Pressure",
-    "250mb Vorticity and Height",
-    "250mb Wind",
-    "500mb Vorticity and Height",
-    "700mb Relative Humidity",
-    "700mb Temperature",
-    "850mb Relative Humidity",
-    "850mb Temperature",
-    "850mb Wind"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNaefs{
@@ -956,8 +981,6 @@ const vector<string> UtilityModelNcepInterface::labelsHrwArw2{
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNbm{
-    "precip_p06",
-    "precip_ptot",
     "2m_temp_10m_wnd",
     "2m_dewp_10m_wnd",
     "2m_relh_10m_wnd",
@@ -965,20 +988,36 @@ const vector<string> UtilityModelNcepInterface::paramsNbm{
     "2m_min_temp",
     "2m_max_temp",
     "10m_wnd_gust",
-    "total_cloud_cover"
+    "total_cloud_cover",
+    "precip_p01",
+    "precip_p06",
+    "precip_p12",
+    "precip_ptot",
+    "snow_p06",
+    "snow_p12",
+    "snow_ptot",
+    "tstm_prob",
+    "cape"
 };
 
 const vector<string> UtilityModelNcepInterface::labelsNbm{
-    "Total precipitation every 6 hours",
-    "Accumulated precip",
-    "2 meter Temperature and 10 meter Wind",
-    "2 meter dew point temp and 10 meter wind",
-    "2 meter Relative Humidity and 10 meter Wind",
-    "2 meter Apparent Temperature and 10 meter Wind",
-    "2 meter minimum Temperature",
-    "2 meter maximum temperature",
-    "10 meter wind and gust",
-    "Total Cloud Cover"
+    "2 m Temperature and 10 m Wind",
+    "2 m Dewpoint and 10 m Wind",
+    "2 m Relative Humidity and 10 m Wind",
+    "2 m Apparent Temperature and 10 m Wind",
+    "2 m Minimum Temperature (12 hours ending)",
+    "2 m Maximum Temperature (12 hours ending)",
+    "10 m Wind and Gust",
+    "Total Cloud Cover and 10 m Wind",
+    "Total Precipitation, 1 hour",
+    "Total Precipitation, 6 hours",
+    "Total Precipitation, 12 hours",
+    "Accumulated Precipitation",
+    "Snowfall, 6 hours",
+    "Snowfall, 12 hours",
+    "Accumulated Snowfall",
+    "Thunderstorm Probability (6 hours ending)",
+    "Surface-Based CAPE"
 };
 
 const vector<string> UtilityModelNcepInterface::modelHrwFv3Params{
@@ -1051,3 +1090,25 @@ const vector<string> UtilityModelNcepInterface::modelHrwFv3Labels{
 
 // grep title /tmp/a | egrep -o ">.*</a>" | sed "s/>/\"/" | sed "s/<\/a>/\"\,/"
 // grep title /tmp/a | egrep -o "title=.*\"" | sed "s/title=//" | sed "s/$/\"\,/"| awk -F""" "{print $2}" | sed "s/$/\"\,/" | sed "s/^/\"/"
+
+void UtilityModelNcepInterface::chartList(const GfsModels::Def& model, vector<string>& params, vector<string>& labels) {
+    params.clear();
+    labels.clear();
+    if (model.recipeList) {
+        for (const auto& p : GfsChart::products()) {
+            if (p.source == model.id) {
+                params.push_back(p.id);
+                labels.push_back(p.label);
+            }
+        }
+        return;
+    }
+    // the older lists, still holding the model guidance site's names (so a chart not drawn yet is a picture): to go when that site does
+    if (model.id == "NBM") {
+        params = paramsNbm;
+        labels = labelsNbm;
+    } else {
+        params = paramsGfs;
+        labels = labelsGfs;
+    }
+}

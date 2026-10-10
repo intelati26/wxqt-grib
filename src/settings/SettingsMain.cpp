@@ -36,7 +36,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
         settingsHomeScreenOrderBox = make_unique<SettingsHomeScreenOrderBox>(parent);
     }
     tabWidget.addTab(settingsBox.get(), "General");
-    tabWidget.addTab(settingsRadarBox.get(), "Radar");
+    tabWidget.addTab(settingsRadarBox.get(), "Map");
     tabWidget.addTab(settingsColorsBox.get(), "Colors");
     if (showLocationItems) {
         tabWidget.addTab(settingsLocationsBox.get(), "Locations");

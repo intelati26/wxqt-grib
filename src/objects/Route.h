@@ -17,8 +17,6 @@ class Route {
 public:
     static void adhocLocation(Window *, const LatLon&);
     static void lightning(Window *);
-    static void nexradRadar(Window *, int);
-    static void nexradRadarSpecificSite(Window *, const string&);
     static void radarMosaicBySector(Window *, const string&);
     static void radarMosaic(Window *);
     static void spcSoundingBySector(Window *, const string& = "");

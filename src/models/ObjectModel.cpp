@@ -5,6 +5,8 @@
 // *****************************************************************************
 
 #include "ObjectModel.h"
+#include <algorithm>
+#include "gfs/GfsModels.h"
 #include "objects/WString.h"
 #include "util/To.h"
 #include "util/Utility.h"
@@ -14,7 +16,6 @@
 #include "UtilityModelNsslWrfInterface.h"
 #include "UtilityModelSpcHrefInterface.h"
 #include "UtilityModelSpcHrrrInterface.h"
-#include "UtilityModelSpcSrefInterface.h"
 #include "UtilityModelWpcGefsInterface.h"
 
 ObjectModel::ObjectModel(const string& prefModel)
@@ -88,21 +89,17 @@ ObjectModel::ObjectModel(const string& prefModel)
         model = "HREF";
         models = {"HREF"};
         sector = "CONUS";
-    } else if (prefModel == "SPCSREF") {
-        run = "00Z";
-        timeStr = "03";
-        timeIdx = 1;
-        param = "SREFH5";
-        model = "SREF";
-        models = {"SREF"};
-        sector = "US";
     }
     getPrefs();
     setModelVars(model);
 }
 
 void ObjectModel::getPrefs() {
+    const auto standard = model;
     model = Utility::readPref(prefModel, model);
+    if (!models.empty() && std::find(models.begin(), models.end(), model) == models.end()) {   // a model that is no longer offered (the SREF): the standard one
+        model = standard;
+    }
     param = Utility::readPref(prefParam, param);
     sector = Utility::readPref(prefSector, sector);
     timeStr = Utility::readPref(prefRunPosn, timeStr);
@@ -137,7 +134,22 @@ void ObjectModel::loadRunList(int from, int to, int by) {
 
 void ObjectModel::setModelVars(const string& modelName) {
     modelToken = prefModel + ":" + modelName;
-    if (modelToken == "NSSLWRF:WRF" || modelToken == "NSSLWRF:WRF_3KM") {
+    const auto * gribModel = prefModel == "NCEP" ? GfsModels::find(modelName) : nullptr;   // a model drawn from GRIB: the registry says how its screen is set up
+    if (gribModel != nullptr && !gribModel->storm) {
+        UtilityModelNcepInterface::chartList(*gribModel, params, paramLabels);
+        sectors = gribModel->sectors == GfsModels::Sectors::Conus ? UtilityModelNcepInterface::sectorsNbm : UtilityModelNcepInterface::sectorsGfs;
+        times.clear();
+        for (const auto& h : gribModel->hours) {
+            loadTimeList3(h.from, h.to, h.step);
+        }
+        if (gribModel->hourlyRuns) {
+            runs.clear();
+            loadRunList(0, 23, 1);
+            runTimeData.listRun = runs;
+        } else {
+            setupListRunZ();
+        }
+    } else if (modelToken == "NSSLWRF:WRF" || modelToken == "NSSLWRF:WRF_3KM") {
         params = UtilityModelNsslWrfInterface::paramsNsslWrf;
         paramLabels = UtilityModelNsslWrfInterface::labelsNsslWrf;
         sectors = UtilityModelNsslWrfInterface::sectorsLong;
@@ -179,14 +191,6 @@ void ObjectModel::setModelVars(const string& modelName) {
         sectors = UtilityModelEsrlInterface::sectorsRap;
         times.clear();
         loadTimeList(0, 21, 1);
-    } else if (modelToken == "NCEP:GFS") {
-        params = UtilityModelNcepInterface::paramsGfs;
-        paramLabels = UtilityModelNcepInterface::labelsGfs;
-        sectors = UtilityModelNcepInterface::sectorsGfs;
-        times.clear();
-        loadTimeList3(0, 243, 3);
-        loadTimeList3(252, 396, 12);
-        setupListRunZ();
     } else if (modelToken == "NCEP:HRRR") {
         params = UtilityModelNcepInterface::paramsHrrr;
         paramLabels = UtilityModelNcepInterface::labelsHrrr;
@@ -250,18 +254,6 @@ void ObjectModel::setModelVars(const string& modelName) {
         runs.emplace_back("00Z");
         runs.emplace_back("12Z");
         runTimeData.listRun = runs;
-    } else if (modelToken == "NCEP:NBM") {
-        params = UtilityModelNcepInterface::paramsNbm;
-        paramLabels = UtilityModelNcepInterface::labelsNbm;
-        sectors = UtilityModelNcepInterface::sectorsNbm;
-        times.clear();
-        loadTimeList3(0, 264, 3);
-        runs.clear();
-        runs.emplace_back("00Z");
-        runs.emplace_back("06Z");
-        runs.emplace_back("12Z");
-        runs.emplace_back("18Z");
-        runTimeData.listRun = runs;
     } else if (modelToken == "NCEP:GEFS-SPAG") {
         params = UtilityModelNcepInterface::paramsGefsSpag;
         paramLabels = UtilityModelNcepInterface::labelsGefsSpag;
@@ -278,13 +270,6 @@ void ObjectModel::setModelVars(const string& modelName) {
         loadTimeList3(0, 180, 6);
         loadTimeList3(192, 384, 12);
         setupListRunZ();
-    } else if (modelToken == "NCEP:SREF") {
-        params = UtilityModelNcepInterface::paramsSref;
-        paramLabels = UtilityModelNcepInterface::labelsSref;
-        sectors = UtilityModelNcepInterface::sectorsSref;
-        times.clear();
-        loadTimeList3(0, 87, 3);
-        setupListRunZWithStart("03Z");
     } else if (modelToken == "NCEP:NAEFS") {
         params = UtilityModelNcepInterface::paramsNaefs;
         paramLabels = UtilityModelNcepInterface::labelsNaefs;
@@ -342,13 +327,6 @@ void ObjectModel::setModelVars(const string& modelName) {
         sectors = UtilityModelSpcHrefInterface::sectorsLong;
         times.clear();
         loadTimeList(1, 49, 1);
-        runs = runTimeData.listRun;
-    } else if (modelToken == "SPCSREF:SREF") {
-        params = UtilityModelSpcSrefInterface::params;
-        paramLabels = UtilityModelSpcSrefInterface::labels;
-        sectors.clear();
-        times.clear();
-        loadTimeList3(0, 90, 3);
         runs = runTimeData.listRun;
     }
     if (!sectors.empty()) {

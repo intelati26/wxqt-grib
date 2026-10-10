@@ -22,9 +22,9 @@ using std::string;
 
 // Settings tab that lets the user rearrange the home screen: the order of
 // the image / forecast / text columns, and of the items within the image and
-// text columns (up/down, wrapping at each end, like Toolbar Order). Hidden
-// items are listed too, so they keep their place when turned back on. The
-// main screen picks the new order up when Settings closes.
+// text columns: drag a row to move it, tick a row to show it. Hidden items
+// are listed too, so they keep their place when ticked again. The main
+// screen picks the new order up when Settings closes.
 class SettingsHomeScreenOrderBox : public Widget {
 public:
     explicit SettingsHomeScreenOrderBox(Window *);
@@ -32,12 +32,11 @@ public:
 
 private:
     void addItems();
-    void addSection(const string&, const string&, HomeScreenOrder&);
+    void addDragList(const string&, const string&, HomeScreenOrder&);
     static bool isShown(const string&);
     VBox box;
     Window * parent;
     // deques: elements must not move once their views are in the layout
-    deque<Button> buttons;
     deque<Text> labels;
     deque<HBox> hboxList;
     deque<ComboBox> combos;

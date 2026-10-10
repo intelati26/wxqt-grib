@@ -5,7 +5,9 @@
 // *****************************************************************************
 
 #include "objects/URL.h"
+#include "util/Activity.h"
 #include "objects/KnownIntermediates.h"
+#include "objects/NetManager.h"
 #include <deque>
 #include <map>
 #include <mutex>
@@ -81,6 +83,10 @@ namespace {
     // file can be had from AWS. Returns "" for any URL that is not one of
     // those NOMADS trees.
     string mirrorUrl(const string& url) {
+        const string google = "https://storage.googleapis.com/ecmwf-open-data/";   // ECMWF's open data: Google's replica, then ECMWF's own server
+        if (url.compare(0, google.size(), google) == 0) {
+            return "https://data.ecmwf.int/forecasts/" + url.substr(google.size());
+        }
         const string nomads = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/";
         if (url.compare(0, nomads.size(), nomads) != 0) {
             return "";
@@ -106,10 +112,15 @@ namespace {
         QDateTime lastModified;   // the Last-Modified header, if any
     };
 
-    Fetched fetchOnce(const string& url, const QByteArray& range, const QByteArray& accept = QByteArray{}) {
+    Fetched fetchOnce(const string& url, const QByteArray& range, const QByteArray& accept = QByteArray{}, bool managed = false) {
+        if (NetManager::enabled()) {   // the program's one persistent client: connections kept, the same request made once, what is on screen first, listed in the Network window
+            const auto got = NetManager::get(url, range, NetManager::Priority::Visible, accept);
+            return {got.bytes, got.status, got.lastModified};
+        }
         if (AppState::quitting) {   // the app is closing and waits for every worker: do not start a download now
             return {};
         }
+        const Activity::Download counted;   // shows on the screens' activity indicator while this request is in flight (the wait for a slot included)
         throttleByHost(url);
         QNetworkAccessManager manager;
         QNetworkRequest request{QUrl{QString::fromStdString(url)}};
@@ -140,13 +151,14 @@ namespace {
     }
 
     // fetchOnce, then the AWS mirror if NOMADS failed (no response, or a 4xx/5xx)
-    Fetched fetchWithMirror(const string& url, const QByteArray& range) {
-        auto result = fetchOnce(url, range);
-        if (result.status == 0 || result.status >= 400) {
+    Fetched fetchWithMirror(const string& url, const QByteArray& range, bool managed = false) {
+        auto result = fetchOnce(url, range, QByteArray{}, managed);
+        const bool notThere = result.status == 404 && url.compare(0, 8, "https://") == 0 && url.find("storage.googleapis.com/ecmwf-open-data/") != string::npos;   // a file that is not published is not published on ECMWF's server either
+        if ((result.status == 0 || result.status >= 400) && !notThere) {
             const auto mirror = mirrorUrl(url);
             if (!mirror.empty()) {
                 UtilityLog::d("mirror fallback (NOMADS status " + std::to_string(result.status) + ") " + mirror);
-                auto alt = fetchOnce(mirror, range);
+                auto alt = fetchOnce(mirror, range, QByteArray{}, managed);
                 if (alt.status > 0 && alt.status < 400) {
                     return alt;
                 }
@@ -209,23 +221,7 @@ string URL::getTextXmlAcceptHeader(const string& url) {
     if (AppState::quitting) {
         return "";
     }
-    throttleByHost(url);
-    QNetworkAccessManager manager;
-    QNetworkRequest request{QUrl{QString::fromStdString(url)}};
-    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
-    request.setTransferTimeout(30000);   // see fetchOnce
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-    if (KnownIntermediates::needed(request.url())) {
-        request.setSslConfiguration(KnownIntermediates::configuration());
-    }
-    request.setRawHeader(QByteArray{"Accept"}, QByteArray{"application/atom+xml"});
-    QNetworkReply * response = manager.get(request);
-    QEventLoop event;
-    QObject::connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);
-    event.exec();
-    QString html{response->readAll()};
-    delete response;
-    return html.toStdString();
+    return QString{fetchOnce(url, QByteArray{}, QByteArray{"application/atom+xml"}).bytes}.toStdString();
 }
 
 QByteArray URL::getBytes(const string& url) {
@@ -248,6 +244,18 @@ QByteArray URL::getBytesWithStatus(const string& url, int& status) {
 }
 
 // HTTP range request - byte range is inclusive; pass end < 0 for "to end of file"
+QByteArray URL::getBytesManaged(const string& url) {
+    return fetchWithMirror(url, QByteArray{}, true).bytes;
+}
+
+QByteArray URL::getBytesRangeManaged(const string& url, long long start, long long end) {
+    auto range = QByteArray{"bytes="} + QByteArray::number(start) + "-";
+    if (end >= 0) {
+        range += QByteArray::number(end);
+    }
+    return fetchWithMirror(url, range, true).bytes;
+}
+
 QByteArray URL::getBytesRange(const string& url, long long start, long long end) {
     UtilityLog::d("getByteRange " + url + " " + std::to_string(start) + "-" + std::to_string(end));
     auto range = QByteArray{"bytes="} + QByteArray::number(start) + "-";

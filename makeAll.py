@@ -59,8 +59,15 @@ proFooter: str = """
 # MSVC (Windows packages): debug info in a separate wxqt.pdb, kept as a CI artifact so the address in a crash log can be
 # resolved to a function. It does not change the generated code (the optimiser options are re-stated).
 win32-msvc* {
-    QMAKE_CXXFLAGS_RELEASE += /Zi
+    QMAKE_CXXFLAGS_RELEASE += /Z7
     QMAKE_LFLAGS_RELEASE += /DEBUG /OPT:REF /OPT:ICF
+    # the CI build sets WXQT_SCCACHE: the compiler is then run through sccache (a compile of an unchanged file is taken from its cache)
+    WXQT_SC = $$(WXQT_SCCACHE)
+    !isEmpty(WXQT_SC) {
+        QMAKE_CXX = sccache $$QMAKE_CXX
+        # qmake's MSVC makefile compiles files in batches (one cl for many sources): sccache will not cache those ("multiple input files"), so one cl for each file
+        CONFIG += no_batch
+    }
 }
 
 # Default rules for deployment.
@@ -91,8 +98,11 @@ def run(command: str):
 
 
 def makePro(extraFooter: str = "\n", webEngine: bool = False) -> None:
-    # sources only (.c / .cpp) - a stray "Foo.cpp.backup" next to them must not be compiled
-    cppFiles: List[str] = glob.glob("src/*.cpp") + glob.glob("src/*/*.cpp") + glob.glob("src/*/*.c")
+    # real sources only: not backup copies (MainWindow.cpp.backup) and not the stand-alone demos, which have a main() of their own
+    standalone = {"src/weather_graph_demo.cpp", "src/weather_graph_example.cpp"}
+    # glob returns backslashes on Windows, so compare with forward slashes
+    cppFiles: List[str] = [f for f in glob.glob("src/*.cpp") + glob.glob("src/*/*.c*")
+                           if f.endswith((".c", ".cpp")) and f.replace("\\", "/") not in standalone]
     headerFiles: List[str] = glob.glob("src/*/*.h")
     proTargetFile: str = "wxqt.pro"
     with open(proTargetFile, "w") as fh:

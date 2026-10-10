@@ -7,7 +7,6 @@
 #include "Route.h"
 #include "misc/AdhocLocation.h"
 #include "misc/WfoText.h"
-#include "radar/Nexrad.h"
 #include "radar/RadarMosaic.h"
 #include "settings/UIPreferences.h"
 #include "spc/SpcMeso.h"
@@ -22,14 +21,6 @@ void Route::adhocLocation(Window * parent, const LatLon& latLon) {
 
 void Route::lightning(Window * parent) {
     new GoesViewer{parent, "", "GLM", "CONUS", false};
-}
-
-void Route::nexradRadar(Window * parent, int paneCount) {
-    new Nexrad{parent, paneCount, false, ""};
-}
-
-void Route::nexradRadarSpecificSite(Window * parent, const string& radarSite) {
-    new Nexrad{parent, 1, true, radarSite};
 }
 
 void Route::radarMosaicBySector(Window * parent, const string& sector) {

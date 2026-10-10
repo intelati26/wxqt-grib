@@ -17,7 +17,6 @@ using std::unordered_map;
 class GlobalDictionaries {
 public:
     static const unordered_map<string, string> nexradProductString;
-    static const unordered_map<string, int16_t> radarProductStringToShortInt;
 };
 
 #endif  // GLOBALDICTIONARIES_H

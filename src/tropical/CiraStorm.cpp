@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "tropical/CiraStorm.h"
+#include "ui/CaptionedTile.h"
+#include "ui/UiStandards.h"
 #include <QImage>
 #include "misc/ImageViewer.h"
 #include "misc/TextViewerStatic.h"
@@ -36,6 +38,7 @@ CiraStorm::CiraStorm(Window * parent, const string& stormId, const string& title
     box.addWidget(textHeader);
     box.addWidget(textNote);
     box.addLayout(rowButtons);
+    flowImages.setEqualRowHeights(true);
     box.addLayout(flowImages);
     box.addWidget(textForecast);
     box.addWidget(textHistory);
@@ -79,12 +82,13 @@ void CiraStorm::fill(const UtilityCira::StormPage& page) {
         }
         images.emplace_back(this);
         auto& image = images.back();
-        image.imageSize = 380;
+        image.imageSize = UiStandards::tileImage;
         image.getView()->setToolTip(QString::fromStdString(product.label));
         const auto url = found->second;
         const auto label = product.label;
         image.connect([this, url, label] { new ImageViewer{this, url, label}; });
-        flowImages.addWidget(image);
+        flowImages.addWidgetReal(CaptionedTile::make(this, image.getView(), QString::fromStdString(label), QString::fromStdString(label),
+                                                     UiStandards::tileImage, true, UiStandards::tileWidth));
         const auto index = images.size() - 1;
         new FutureBytes{this, url, [this, index] (const auto& bytes) {
             if (!closed && index < images.size()) {
@@ -150,11 +154,11 @@ void CiraStorm::addJtwc() {
             }
             images.emplace_back(this);
             auto& image = images.back();
-            image.imageSize = 380;
+            image.imageSize = UiStandards::tileImage;
             image.getView()->setToolTip("JTWC warning graphic");
             image.connect([this, url] { new ImageViewer{this, url, "JTWC warning graphic"}; });
             image.setBytes(bytes);
-            flowImages.addWidget(image);
+            flowImages.addWidgetReal(CaptionedTile::make(this, image.getView(), "JTWC warning graphic", "JTWC warning graphic", UiStandards::tileImage, true, UiStandards::tileWidth));
         }};
     } else if (basin == "wp" || basin == "io") {
         const auto outlook = basin == "wp" ? "abpwweb.txt" : "abioweb.txt";

@@ -1,0 +1,2013 @@
+// *****************************************************************************
+// * This file is part of wxqt.  Licensed under the GNU General Public License v3.
+// * See the COPYING file for the full license text.
+// *****************************************************************************
+
+#include "hurricane/HurricaneViewer.h"
+#include "gfs/GfsChart.h"
+#include "hurricane/EnsembleStyle.h"
+#include "ui/ActivityLabel.h"
+#include "ui/WindBarb.h"
+#include <algorithm>
+#include <cmath>
+#include <numbers>
+#include <set>
+#include <QApplication>
+#include <QDesktopServices>
+#include <QFile>
+#include <QFont>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPixmap>
+#include <QScrollArea>
+#include <QUrl>
+#include <QVBoxLayout>
+#include "hurricane/AdvisoryViewer.h"
+#include "hurricane/DropProfile.h"
+#include "hurricane/EnsembleStatsViewer.h"
+#include "hurricane/IntensityViewer.h"
+#include "hurricane/PodViewer.h"
+#include "hurricane/ReconRenderer.h"
+#include "hurricane/ReconViewer.h"
+#include "hurricane/SeasonViewer.h"
+#include "hurricane/UtilityChanges.h"
+#include "models/SoundingViewer.h"
+#include "hurricane/DropsondeViewer.h"
+#include "hurricane/ShipsViewer.h"
+#include "radar/MapLegend.h"
+#include "ui/ElidedText.h"
+#include "hurricane/StrikeReport.h"
+#include "hurricane/VdmViewer.h"
+#include "objects/FutureVoid.h"
+#include "util/Utility.h"
+#include "util/UtilityUI.h"
+
+namespace {
+
+    using Group = UtilityAtcf::Group;
+
+    // distance in km between two points on the earth
+    double kilometers(double lat1, double lon1, double lat2, double lon2) {
+        const double rad = std::numbers::pi / 180.0;
+        const double a = std::pow(std::sin((lat2 - lat1) * rad / 2.0), 2) +
+            std::cos(lat1 * rad) * std::cos(lat2 * rad) * std::pow(std::sin((lon2 - lon1) * rad / 2.0), 2);
+        return 12742.0 * std::asin(std::min(1.0, std::sqrt(a)));
+    }
+
+    QIcon swatch(const QColor& color) {
+        QPixmap pixmap{14, 14};
+        pixmap.fill(color);
+        return QIcon{pixmap};
+    }
+
+    const std::vector<Group>& allGroups() {
+        static const std::vector<Group> groups{Group::Official, Group::Consensus, Group::Global, Group::Hurricane, Group::Ensemble, Group::Simple, Group::Other};
+        return groups;
+    }
+
+    // painting order: the broad background first, the official forecast last
+    int paintRank(Group group) {
+        switch (group) {
+            case Group::Ensemble: return 0;
+            case Group::Other: return 1;
+            case Group::Simple: return 2;
+            case Group::Global: return 3;
+            case Group::Hurricane: return 4;
+            case Group::Consensus: return 5;
+            default: return 6;
+        }
+    }
+
+    QString knots(int wind) {   // "85 kt (Cat 2)"
+        return QString::fromStdString(UtilityAtcf::windLabel(wind));
+    }
+
+    QString knotsOf(double wind) {
+        return UtilityEcmwfTracks::has(wind) ? knots(static_cast<int>(std::lround(wind))) : QString{"-"};
+    }
+}
+
+QColor HurricaneViewer::groupColor(Group group) {
+    switch (group) {
+        case Group::Official: return QColor{255, 255, 255};
+        case Group::Consensus: return QColor{255, 214, 0};
+        case Group::Global: return QColor{0, 200, 255};
+        case Group::Hurricane: return QColor{255, 90, 220};
+        case Group::Ensemble: return QColor{140, 165, 255, 105};
+        case Group::Simple: return QColor{120, 225, 120};
+        default: return QColor{190, 190, 190};
+    }
+}
+
+QColor HurricaneViewer::categoryColor(int category) {
+    static const QColor colors[] = {QColor{94, 186, 255}, QColor{0, 250, 244}, QColor{255, 255, 204}, QColor{255, 231, 117},
+                                    QColor{255, 193, 64}, QColor{255, 143, 32}, QColor{255, 96, 96}};
+    return colors[std::clamp(category, 0, 6)];
+}
+
+HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const string& stormId)
+    : Window{parent}
+    , comboBasin{this, {"Atlantic", "East Pacific", "Central Pacific"}}
+    , comboStorm{this, {"Loading the storm list..."}}
+    , buttonRefresh{this, None, "Refresh"}
+    , buttonZoom{this, None, "Zoom to the storm"}
+    , buttonCone{this, None, "Zoom to the cone"}
+    , comboLimit{this, {"Forecasts out to 24 h", "48 h", "72 h", "96 h", "120 h (the cone)", "168 h", "All of each forecast"}}
+    , buttonStats{this, None, "Ensemble statistics..."}
+    , buttonShips{this, None, "SHIPS and RI..."}
+    , buttonPod{this, None, "Recon plan of the day..."}
+    , buttonVdm{this, None, "Recon vortex messages..."}
+    , buttonFlight{this, None, "One recon flight on the satellite picture..."}
+    , buttonIntensity{this, None, "Intensity chart..."}
+    , buttonSeason{this, None, "Season table and ACE..."}
+    , buttonText{this, None, "NHC advisory text..."}
+    , buttonOutlook{this, None, "Tropical weather outlook text..."}
+    , textStatus{this, "Loading..."}
+    , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
+{
+    setAttribute(Qt::WA_DeleteOnClose);
+    setTitle("Tropical cyclones (NHC basins) - track, model guidance and recon");
+    textStatus.setWordWrap(false);
+
+    // the coastlines and borders of the basin (resourceCreation/createBasinCoast.py): float pairs, a NaN pair ends a line
+    QFile file{":/res/nhc_basins.bin"};
+    if (file.open(QIODevice::ReadOnly)) {
+        const auto bytes = file.readAll();
+        const auto * values = reinterpret_cast<const float *>(bytes.constData());
+        std::vector<std::pair<float, float>> line;
+        for (qsizetype i = 0; i + 1 < bytes.size() / 4; i += 2) {
+            if (std::isnan(values[i])) {
+                coast.push_back(std::move(line));
+                line.clear();
+            } else {
+                line.emplace_back(values[i], values[i + 1]);
+            }
+        }
+    }
+
+    const auto dimens = UtilityUI::getScreenBounds();
+    const int panelWidth = 330;
+    const auto side = std::max(320, std::min(dimens[0] - panelWidth - 40, dimens[1] - 170));
+    view = std::make_unique<MapView>(this, side);
+    auto * map = view->map();
+    map->dataLayer = [] (QPainter& painter) { painter.fillRect(QRectF{-1.0e6, -1.0e6, 2.0e6, 2.0e6}, QColor{16, 26, 42}); };   // map coordinates: a huge rectangle
+    map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintOutlook(painter); paintPlannedRecon(painter); paintLegend(painter); };
+    view->onPointer = [this] (const QPointF& at) { showHover(at); };
+    // a plain click on a dropsonde marker opens its sounding (and does not also zoom the map out)
+    map->clickHandler = [this] (const QPointF& at) {
+        if (dropCheck != nullptr && dropCheck->isChecked()) {
+            if (const auto * d = dropAt(at)) {
+                new DropsondeViewer{this, *d};   // the forecaster's view; the full sounding analysis is a button in it
+                return true;
+            }
+        }
+        return false;
+    };
+    view->onLeave = [this] { hoverLabel->hide(); if (!hoverTech.empty()) { hoverTech.clear(); view->map()->update(); } };
+    view->showRegion(5.0, 50.0, -100.0, -10.0);
+
+    hoverLabel = new QLabel{map};
+    hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+    hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 220); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
+    hoverLabel->hide();
+
+    // the side panel: the storm's numbers, the guidance families, the recon switch
+    panel = new QWidget{this};
+    panel->setFixedWidth(panelWidth);
+    auto * column = new QVBoxLayout{panel};
+    column->setContentsMargins(4, 0, 0, 0);
+    auto * heading = new QLabel{"<b>Track guidance</b> (the newest run of each model)", panel};
+    heading->setWordWrap(true);
+    column->addWidget(heading);
+    guidanceTree = new GuidanceTree{panel};
+    guidanceTree->changed = [this] { view->map()->update(); };
+    column->addWidget(guidanceTree);
+    infoLabel = new QLabel{panel};
+    infoLabel->setWordWrap(true);
+    infoLabel->setTextFormat(Qt::RichText);
+    infoLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    infoLabel->setOpenExternalLinks(true);
+    column->addWidget(infoLabel, 1);
+    wwCheck = new QCheckBox{"Watches and warnings", panel};
+    wwCheck->setChecked(true);
+    QObject::connect(wwCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addSpacing(4);
+    column->addWidget(wwCheck);
+    coneCheck = new QCheckBox{"NHC forecast cone", panel};
+    coneCheck->setChecked(true);
+    swathCheck = new QCheckBox{"Forecast wind swath (34 / 50 / 64 kt)", panel};
+    swathCheck->setChecked(Utility::readPref("HURRICANE_SWATH", "false") == "true");   // remembered
+    QObject::connect(swathCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("HURRICANE_SWATH", on ? "true" : "false");
+        view->map()->update();
+    });
+    strikeCheck = new QCheckBox{"GEFS strike probability (within 100 km, 34 kt)", panel};
+    strikeCheck->setChecked(Utility::readPref("HURRICANE_STRIKE", "false") == "true");   // remembered
+    QObject::connect(strikeCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("HURRICANE_STRIKE", on ? "true" : "false");
+        view->map()->update();
+    });
+    radiiCheck = new QCheckBox{"Wind radii now (34 / 50 / 64 kt)", panel};
+    radiiCheck->setChecked(true);
+    QObject::connect(coneCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    QObject::connect(radiiCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addSpacing(4);
+    column->addWidget(coneCheck);
+    column->addWidget(swathCheck);
+    column->addWidget(strikeCheck);
+    column->addWidget(radiiCheck);
+    podCheck = new QCheckBox{"Planned recon flights (Plan of the Day)", panel};
+    podCheck->setChecked(true);
+    QObject::connect(podCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addWidget(podCheck);
+    dropCheck = new QCheckBox{"Dropsondes (click one for its sounding)", panel};
+    dropCheck->setChecked(true);
+    QObject::connect(dropCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addWidget(dropCheck);
+    dropLabelCheck = new QCheckBox{"  with the lowest pressure and strongest wind", panel};
+    dropLabelCheck->setChecked(Utility::readPref("HURRICANE_DROP_LABELS", "true") == "true");
+    QObject::connect(dropLabelCheck, &QCheckBox::toggled, [this] (bool on) { Utility::writePref("HURRICANE_DROP_LABELS", on ? "true" : "false"); view->map()->update(); });
+    column->addWidget(dropLabelCheck);
+    outlookCheck = new QCheckBox{"Development areas (Tropical Weather Outlook)", panel};
+    outlookCheck->setChecked(true);
+    QObject::connect(outlookCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addWidget(outlookCheck);
+    autoCheck = new QCheckBox{"Refresh every 10 minutes, alert on a new advisory", panel};
+    autoCheck->setChecked(Utility::readPref("HURRICANE_AUTO", "false") == "true");
+    QObject::connect(autoCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("HURRICANE_AUTO", on ? "true" : "false");
+        on ? refreshTimer.start() : refreshTimer.stop();
+    });
+    column->addWidget(autoCheck);
+    fixCheck = new QCheckBox{"Recon centre fixes (vortex messages)", panel};
+    fixCheck->setChecked(true);
+    QObject::connect(fixCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    column->addWidget(fixCheck);
+    column->addSpacing(4);
+    column->addWidget(buttonIntensity.getView());
+    column->addWidget(buttonSeason.getView());
+    column->addWidget(buttonText.getView());
+    column->addWidget(buttonOutlook.getView());
+    column->addWidget(buttonStats.getView());
+    column->addWidget(buttonShips.getView());
+    column->addWidget(buttonPod.getView());
+    column->addWidget(buttonVdm.getView());
+    column->addWidget(buttonFlight.getView());
+    reconCheck = new QCheckBox{"Recon flights (HDOB)", panel};
+    reconCheck->setChecked(Utility::readPref("HURRICANE_RECON", "false") == "true");
+    column->addSpacing(6);
+    column->addWidget(reconCheck);
+    reconHours = ReconRenderer::savedHours("HURRICANE_RECON_HOURS");
+    comboReconHours = ReconRenderer::hoursCombo(panel, "HURRICANE_RECON_HOURS", [this] (int hours) {   // the hours of flights, fixes and sondes that are drawn
+        reconHours = hours;
+        if (reconCheck->isChecked() && ReconRenderer::bulletinsFor(hours) > reconBulletins) {
+            loadRecon();   // more hours than were read
+        }
+        updateInfo();
+        view->map()->update();
+    });
+    column->addWidget(comboReconHours);
+    column->addWidget(comboRecon.getView());
+    comboRecon.connect([this] { view->map()->update(); });
+    barbCheck = new QCheckBox{"Flight-level wind barbs (knots)", panel};
+    barbCheck->setChecked(Utility::readPref("HURRICANE_BARBS", "true") == "true");
+    column->addWidget(barbCheck);
+    QObject::connect(barbCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("HURRICANE_BARBS", on ? "true" : "false");
+        view->map()->update();
+    });
+    QObject::connect(reconCheck, &QCheckBox::toggled, [this] (bool on) {
+        Utility::writePref("HURRICANE_RECON", on ? "true" : "false");
+        if (on && !recon) {
+            loadRecon();
+        }
+        view->map()->update();
+        updateInfo();
+    });
+
+    comboBasin.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("HURRICANE_BASIN", 0), 0, 2)));
+    if (basin == "al" || basin == "ep" || basin == "cp") {
+        comboBasin.setIndex(basin == "al" ? 0 : basin == "ep" ? 1 : 2);
+        startStorm = stormId;
+    }
+    comboBasin.connect([this] {
+        Utility::writePrefInt("HURRICANE_BASIN", comboBasin.getIndex());
+        recon.reset();
+        storm.reset();
+        loadList();
+    });
+    comboStorm.connect([this] { if (!filling) { loadStorm(); } });
+    buttonRefresh.connect([this] { loadList(); });
+    buttonZoom.connect([this] { zoomToStorm(); });
+    buttonCone.connect([this] { zoomToCone(); });
+    comboLimit.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("HURRICANE_LIMIT", 2), 0, 6)));
+    comboLimit.connect([this] {
+        Utility::writePrefInt("HURRICANE_LIMIT", comboLimit.getIndex());
+        view->map()->update();
+    });
+    buttonSeason.connect([this] { openSeason(); });
+    buttonOutlook.connect([this] {
+        // the outlook of the basin on show: Atlantic, Eastern Pacific, Central Pacific
+        const auto code = basinCode();
+        const string page = code == "al" ? "MIATWOAT" : code == "ep" ? "MIATWOEP" : "HFOTWOCP";
+        new AdvisoryViewer{this, "NHC Tropical Weather Outlook", {{"Outlook", "https://www.nhc.noaa.gov/text/" + page + ".shtml"}}};
+    });
+    buttonText.connect([this] {
+        const auto index = comboStorm.getIndex();
+        if (index >= 0 && static_cast<size_t>(index) < entries.size() && !entries[static_cast<size_t>(index)].advisoryUrl.empty()) {
+            new AdvisoryViewer{this, entries[static_cast<size_t>(index)]};
+        } else {
+            textStatus.setText(string{"NHC has no advisory text for this storm (advisories are issued for active storms)."});
+        }
+    });
+    refreshTimer.setInterval(10 * 60 * 1000);
+    refreshTimer.connect(&refreshTimer, &QTimer::timeout, this, [this] { loadList(); });
+    if (autoCheck->isChecked()) {
+        refreshTimer.start();
+    }
+    buttonIntensity.connect([this] {
+        if (storm) {
+            new IntensityViewer{this, storm, ensembles, ships, vdm, recon};
+        }
+    });
+    buttonVdm.connect([this] {
+        if (vdm && storm) {
+            new VdmViewer{this, vdm, QString::fromStdString(HurricaneData::idLabel(storm->id))};
+        } else {
+            textStatus.setText(string{"The vortex messages have not loaded yet."});
+        }
+    });
+    buttonFlight.connect([this] {
+        if (storm) {
+            new ReconViewer{this, storm->id, storm->name};
+        } else {
+            textStatus.setText(string{"Choose a storm first."});
+        }
+    });
+    buttonPod.connect([this] {
+        if (pod) {
+            new PodViewer{this, pod};
+        } else {
+            textStatus.setText(string{"The Plan of the Day has not loaded yet."});
+        }
+    });
+    buttonShips.connect([this] {
+        if (storm && ships) {
+            new ShipsViewer{this, ships, storm};
+        } else {
+            textStatus.setText(string{"No SHIPS forecast loaded for this storm yet."});
+        }
+    });
+    buttonStats.connect([this] {
+        if (storm && ensembles && !ensembles->sets.empty()) {
+            new EnsembleStatsViewer{this, storm, ensembles};
+        } else {
+            textStatus.setText(string{"No ensemble members loaded for this storm yet."});
+        }
+    });
+    rowTop.addWidget(comboBasin);
+    rowTop.addWidget(comboStorm);
+    rowTop.addWidget(buttonRefresh);
+    rowTop.addWidget(buttonZoom);
+    rowTop.addWidget(buttonCone);
+    rowTop.addWidget(comboLimit);
+    rowTop.addStretch();
+    rowMain.addWidgetReal(map, 0, Qt::AlignTop | Qt::AlignLeft);
+    auto * scroll = new QScrollArea{this};   // the panel is taller than a small screen
+    scroll->setWidget(panel);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setFixedWidth(panelWidth + 18);
+    rowMain.addWidgetReal(scroll, 1, Qt::Alignment{});
+    ElidedText::install(panel);   // long check box texts end in "..." with the whole text as the tooltip
+    box.addLayout(rowTop);
+    box.addWidget(textStatus);
+    box.addWidgetReal(new ActivityLabel{this});
+    box.addLayout(rowMain);
+    box.addStretch();
+    box.getAndShow(this);
+    loadList();
+    loadPod();
+    loadOutlook();
+    loadWsp();
+}
+
+void HurricaneViewer::resizeEventCustom() {
+    if (view == nullptr) {
+        return;
+    }
+    const int above = rowTop.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height();
+    view->fit(width() - 330 - 18 - 24, height() - above - 40);
+}
+
+string HurricaneViewer::basinCode() const {
+    static const char * codes[] = {"al", "ep", "cp"};
+    return codes[std::clamp(comboBasin.getIndex(), 0, 2)];
+}
+
+void HurricaneViewer::loadList() {
+    const auto gen = ++generation;
+    textStatus.setText(string{"Loading the storm list..."});
+    auto list = std::make_shared<vector<HurricaneData::StormEntry>>();
+    auto error = std::make_shared<string>();
+    auto ok = std::make_shared<bool>(false);
+    const auto basin = basinCode();
+    new FutureVoid{this,
+        [list, error, ok, basin] { *ok = HurricaneData::loadStormList(*list, *error, basin); },
+        [this, gen, list, error, ok] {
+            if (closed || gen != generation) {
+                return;
+            }
+            if (!*ok) {
+                textStatus.setText(*error);
+                return;
+            }
+            const auto before = comboStorm.getIndex() >= 0 && static_cast<size_t>(comboStorm.getIndex()) < entries.size()
+                ? entries[static_cast<size_t>(comboStorm.getIndex())].id : string{};
+            // a new advisory for the storm on screen (the timer reloads the list): tell the user
+            string newAdvisory;
+            for (const auto& old : entries) {
+                for (const auto& fresh : *list) {
+                    if (old.id == fresh.id && old.id == before && old.active && !old.advNum.empty() && !fresh.advNum.empty() && old.advNum != fresh.advNum) {
+                        newAdvisory = fresh.name + " advisory " + fresh.advNum;
+                    }
+                }
+            }
+            entries = *list;
+            if (!newAdvisory.empty()) {
+                textStatus.setText("New NHC advisory: " + newAdvisory);
+                QApplication::alert(this, 0);
+            }
+            vector<string> labels;
+            for (const auto& entry : entries) {
+                labels.push_back(entry.label);
+            }
+            filling = true;
+            comboStorm.setList(labels);
+            size_t pick = 0;
+            // WXQT_STORM=al022026 (a development aid, with WXQT_OPEN) opens on that storm instead of the first
+            const auto wanted = !startStorm.empty() ? startStorm : qEnvironmentVariableIsSet("WXQT_STORM") ? qEnvironmentVariable("WXQT_STORM").toStdString() : before;
+            startStorm.clear();
+            for (size_t i = 0; i < entries.size(); i++) {
+                if (entries[i].id == wanted) {
+                    pick = i;
+                }
+            }
+            comboStorm.setIndex(pick);
+            filling = false;
+            recon.reset();
+            loadStorm();
+        }};
+}
+
+void HurricaneViewer::loadStorm() {
+    const auto index = comboStorm.getIndex();
+    if (index < 0 || static_cast<size_t>(index) >= entries.size()) {
+        return;
+    }
+    const auto id = entries[static_cast<size_t>(index)].id;
+    const auto gen = ++generation;
+    textStatus.setText("Loading " + HurricaneData::idLabel(id) + ": best track, forecast and model guidance...");
+    auto data = std::make_shared<HurricaneData::StormData>();
+    new FutureVoid{this,
+        [id, data] { HurricaneData::loadStorm(id, *data); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            storm = data;
+            guidanceTree->setAvailable(storm->guidance);
+            guidanceTree->setCycles({{"nhc/official", {storm->official.cycle}}});
+            updateLimitLabels();
+            ensembles.reset();
+            ensembleMeans.clear();
+            ships.reset();
+            vdm.reset();
+            drops.reset();
+            gis.reset();
+            showStorm();
+            updateChanges();
+            loadEnsembles();
+            loadShips();
+            loadVdm();
+            loadDrops();
+            loadGis();
+            if (reconCheck->isChecked()) {
+                loadRecon();
+            }
+        }};
+}
+
+// "what changed": the advisory on screen against the one before it (kept in the settings per storm), or, the first time, against the best track six hours earlier
+void HurricaneViewer::updateChanges() {
+    changeLines.clear();
+    const auto index = comboStorm.getIndex();
+    if (!storm || index < 0 || static_cast<size_t>(index) >= entries.size()) {
+        return;
+    }
+    const auto& entry = entries[static_cast<size_t>(index)];
+    if (!entry.active || entry.advNum.empty()) {
+        return;
+    }
+    UtilityChanges::Snapshot now;
+    now.advisory = entry.advNum;
+    now.classification = entry.classification;
+    now.wind = entry.wind;
+    now.pressure = entry.pressure;
+    now.lat = entry.lat;
+    now.lon = entry.lon;
+    now.moveDir = entry.movementDir;
+    now.moveSpeed = entry.movementSpeed;
+    for (const auto& f : storm->official.fixes) {
+        if (f.wind > now.forecastPeak) {
+            now.forecastPeak = f.wind;
+            now.forecastPeakHour = f.tau;
+        }
+    }
+    if (ships && ships->ships.ok) {
+        for (const auto& p : ships->ships.riLines) {
+            if (p.knots == 30 && p.hours == 24) {
+                now.ri30 = p.percent;
+            }
+        }
+    }
+    const string lastKey = "HURRICANE_LAST_" + entry.id;
+    const string priorKey = "HURRICANE_PRIOR_" + entry.id;
+    const auto last = UtilityChanges::parse(Utility::readPref(lastKey, ""));
+    if (last.valid() && last.advisory != now.advisory) {
+        Utility::writePref(priorKey, UtilityChanges::serialize(last));
+    }
+    Utility::writePref(lastKey, UtilityChanges::serialize(now));
+    auto prior = UtilityChanges::parse(Utility::readPref(priorKey, ""));
+    if (prior.valid() && prior.advisory != now.advisory) {
+        changeLines = UtilityChanges::describe(prior, now);
+        changeTitle = "Since advisory " + prior.advisory + " (now " + now.advisory + ")";
+        return;
+    }
+    // no earlier advisory seen by this program: the best track six hours before the newest fix
+    if (storm->best.size() >= 2) {
+        const auto& old = storm->best[storm->best.size() - 2];
+        UtilityChanges::Snapshot before;
+        before.advisory = "6 h earlier";
+        before.classification = old.status;
+        before.wind = old.wind;
+        before.pressure = old.pressure;
+        before.lat = old.lat;
+        before.lon = old.lon;
+        now.classification = storm->best.back().status;
+        now.wind = storm->best.back().wind;
+        now.pressure = storm->best.back().pressure;
+        now.lat = storm->best.back().lat;
+        now.lon = storm->best.back().lon;
+        now.moveDir = -1;
+        now.moveSpeed = -1;
+        now.forecastPeak = -1;
+        now.ri30 = -1.0;
+        changeLines = UtilityChanges::describe(before, now);
+        changeTitle = "Since the previous best-track fix (" + UtilityAtcf::formatTime(old.time) + ")";
+    }
+}
+
+void HurricaneViewer::loadEnsembles() {
+    const auto gen = generation;
+    const auto id = storm->id;
+    auto data = std::make_shared<HurricaneData::EnsembleData>();
+    new FutureVoid{this,
+        [id, data] { HurricaneData::loadEnsembles(id, *data); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            ensembles = data;
+            strikeFor = nullptr;
+            HurricaneData::EnsembleSet gefs;
+            if (storm && HurricaneData::gefsFromGuidance(storm->id, storm->guidance, gefs)) {
+                ensembles->sets.push_back(std::move(gefs));   // for the statistics; its lines are drawn by the Ensemble members group
+            }
+            if (!ensembles->error.empty() && ensembles->sets.empty()) {
+                textStatus.setText(ensembles->error);
+            }
+            {   // the cycles of the open-data runs, for the tree's lines
+                std::map<string, vector<string>> runs;
+                for (const auto& set : ensembles->sets) {
+                    if (const auto * style = EnsembleStyle::of(set.label)) {
+                        runs[style->membersId].push_back(set.cycle);
+                        runs[style->meansId].push_back(set.cycle);
+                    }
+                    if (set.label != "GEFS" && !EnsembleStyle::deepMind(set.label)) {
+                        runs["global/openruns"].push_back(set.cycle);   // the ECMWF single runs
+                    }
+                }
+                guidanceTree->setCycles(runs);
+            }
+            // the mean track of each ECMWF ensemble: the mean position at each hour, as far as half the members are still a cyclone
+            ensembleMeans.clear();
+            for (const auto& set : ensembles->sets) {
+                const auto * style = EnsembleStyle::of(set.label);
+                if (style == nullptr) {
+                    continue;
+                }
+                EnsembleMean mean;
+                mean.label = set.label + " mean";
+                mean.cycle = set.cycle;
+                mean.id = style->meansId;
+                mean.color = style->mean;
+                for (const auto& hour : UtilityEnsembleStats::compute(set.storm, 6)) {
+                    if (hour.alive * 2 < hour.total || hour.centerLat <= UtilityEnsembleStats::missing + 1.0) {
+                        break;
+                    }
+                    mean.hours.push_back(hour);
+                }
+                if (mean.hours.size() >= 2) {
+                    ensembleMeans.push_back(std::move(mean));
+                }
+            }
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+// the season window: the data is loaded on first use (the history file is large the first time, then kept on disk)
+void HurricaneViewer::openSeason() {
+    textStatus.setText(string{"Loading the hurricane seasons (the first time this downloads NHC's HURDAT2 file, about 7 MB)..."});
+    auto data = std::make_shared<HurricaneData::SeasonData>();
+    const string basin = basinCode() == "al" ? "al" : "ep";   // the northeast Pacific file holds both the Eastern and the Central Pacific
+    new FutureVoid{this,
+        [data, basin] { HurricaneData::loadSeason(*data, basin); },
+        [this, data] {
+            if (closed) {
+                return;
+            }
+            if (!data->error.empty()) {
+                textStatus.setText(data->error);
+                return;
+            }
+            textStatus.setText(string{"Seasons loaded"});
+            new SeasonViewer{this, data};
+        }};
+}
+
+void HurricaneViewer::loadVdm() {
+    const auto gen = generation;
+    const auto id = storm->id;
+    auto data = std::make_shared<HurricaneData::VdmData>();
+    new FutureVoid{this,
+        [id, data] { HurricaneData::loadVdm(id, *data); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            vdm = data;
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+void HurricaneViewer::loadGis() {
+    const auto gen = generation;
+    const auto index = comboStorm.getIndex();
+    if (index < 0 || static_cast<size_t>(index) >= entries.size() || !entries[static_cast<size_t>(index)].active || entries[static_cast<size_t>(index)].coneZip.empty()) {
+        return;   // a finished storm or an invest: NHC has no cone file for it
+    }
+    const auto entry = entries[static_cast<size_t>(index)];
+    auto data = std::make_shared<HurricaneData::GisData>();
+    new FutureVoid{this,
+        [entry, data] { HurricaneData::loadGis(entry, *data); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            gis = data;
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+void HurricaneViewer::loadWsp() {
+    auto data = std::make_shared<HurricaneData::WspData>();
+    new FutureVoid{this,
+        [data] { HurricaneData::loadWindProbabilities(*data); },
+        [this, data] {
+            if (closed) {
+                return;
+            }
+            wsp = data;
+            updateInfo();
+        }};
+}
+
+void HurricaneViewer::loadOutlook() {
+    auto data = std::make_shared<HurricaneData::OutlookData>();
+    new FutureVoid{this,
+        [data] { HurricaneData::loadOutlook(*data); },
+        [this, data] {
+            if (closed) {
+                return;
+            }
+            outlook = data;
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+// a dropsonde belongs to the storm on show when it fell within 600 km of the storm's track while the storm was being followed (a day either side of its best track)
+bool HurricaneViewer::dropNear(const UtilityDropsonde::Drop& d) const {
+    if (!storm || storm->best.empty()) {
+        return false;
+    }
+    const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : (UtilityDropsonde::has(d.lat) ? d.lat : -999.0);
+    const double lon = UtilityDropsonde::has(d.splashLon) ? d.splashLon : d.lon;
+    if (lat < -900.0) {
+        return false;
+    }
+    for (const auto& f : storm->best) {
+        const double fixSeconds = UtilityAtcf::hoursBetween("1970010100", f.time) * 3600.0;   // the fix's yyyymmddhh as seconds since 1970
+        if (std::abs(fixSeconds - static_cast<double>(d.seconds)) > 6.0 * 3600.0) {
+            continue;
+        }
+        if (kilometers(f.lat, f.lon, lat, lon) < 600.0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+const UtilityDropsonde::Drop * HurricaneViewer::dropAt(const QPointF& pixels) const {
+    if (!drops) {
+        return nullptr;
+    }
+    const UtilityDropsonde::Drop * best = nullptr;
+    double bestDistance = 12.0;   // pixels
+    const long cut = reconCut();
+    for (const auto& d : drops->drops) {
+        const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;
+        const double lon = UtilityDropsonde::has(d.splashLon) ? d.splashLon : d.lon;
+        if (!UtilityDropsonde::has(lat) || !dropNear(d) || !ReconRenderer::recent(d.seconds, cut)) {
+            continue;
+        }
+        const auto at = view->toPixels(lat, lon);
+        const double distance = std::hypot(at.x() - pixels.x(), at.y() - pixels.y());
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = &d;
+        }
+    }
+    return best;
+}
+
+void HurricaneViewer::loadDrops() {
+    const auto gen = generation;
+    const auto basin = basinCode();
+    auto data = std::make_shared<HurricaneData::DropData>();
+    new FutureVoid{this,
+        [data, basin] { HurricaneData::loadDrops(*data, basin); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            drops = data;
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+void HurricaneViewer::loadPod() {
+    auto data = std::make_shared<HurricaneData::PodData>();
+    new FutureVoid{this,
+        [data] { HurricaneData::loadPod(*data); },
+        [this, data] {
+            if (closed) {
+                return;
+            }
+            pod = data;
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+void HurricaneViewer::loadShips() {
+    const auto gen = generation;
+    const auto id = storm->id;
+    auto data = std::make_shared<HurricaneData::ShipsData>();
+    new FutureVoid{this,
+        [id, data] { HurricaneData::loadShips(id, *data); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            ships = data;
+            updateChanges();
+            updateInfo();
+        }};
+}
+
+void HurricaneViewer::loadRecon() {
+    const auto gen = generation;
+    textStatus.setText(string{"Loading the recent reconnaissance bulletins..."});
+    auto data = std::make_shared<HurricaneData::ReconData>();
+    const auto basin = basinCode();
+    const int bulletins = ReconRenderer::bulletinsFor(reconHours);
+    reconBulletins = bulletins;
+    new FutureVoid{this,
+        [data, basin, bulletins] { HurricaneData::loadRecon(*data, bulletins, basin); },
+        [this, gen, data] {
+            if (closed || gen != generation) {
+                return;
+            }
+            recon = data;
+            textStatus.setText(recon->error.empty() ? "Recon bulletins loaded: flights within 600 km of the storm are drawn" : recon->error);
+            updateInfo();
+            view->map()->update();
+        }};
+}
+
+void HurricaneViewer::showStorm() {
+    if (!storm) {
+        return;
+    }
+    if (!storm->error.empty()) {
+        textStatus.setText(storm->error);
+    } else {
+        const auto& cycle = storm->guidance.empty() ? string{} : storm->guidance.front().cycle;
+        textStatus.setText(std::to_string(storm->guidance.size()) + " guidance tracks" + (cycle.empty() ? "" : ", the newest run " + UtilityAtcf::formatTime(cycle)) +
+            "   -   hover a line for its model, drag to pan, wheel to zoom");
+    }
+    updateInfo();
+    zoomToStorm();
+}
+
+int HurricaneViewer::limitHours() const {
+    static const int hours[] = {24, 48, 72, 96, 120, 168, 100000};
+    return hours[std::clamp(comboLimit.getIndex(), 0, 6)];
+}
+
+// the choices of the limit box say when each ends: "Forecasts out to 72 h - Sat 09 Oct 12Z"
+void HurricaneViewer::updateLimitLabels() {
+    if (!storm) {
+        return;
+    }
+    const string cycle = !storm->official.cycle.empty() ? storm->official.cycle : (storm->best.empty() ? string{} : storm->best.back().time);
+    if (cycle.size() != 10) {
+        return;
+    }
+    const auto start = QDateTime::fromString(QString::fromStdString(cycle), "yyyyMMddHH");
+    if (!start.isValid()) {
+        return;
+    }
+    static const int hours[] = {24, 48, 72, 96, 120, 168};
+    std::vector<string> labels;
+    for (const int hour : hours) {
+        const auto when = start.addSecs(hour * 3600LL);
+        labels.push_back(string{hour == 24 ? "Forecasts out to " : ""} + std::to_string(hour) + " h  (" + QLocale{QLocale::English}.toString(when, "ddd yyyy-MM-dd HH").toStdString() + "Z)" + (hour == 120 ? " - the cone" : ""));
+    }
+    labels.push_back("All of each forecast");
+    const auto keep = comboLimit.getIndex();
+    comboLimit.block();
+    comboLimit.setList(labels);
+    comboLimit.setIndex(static_cast<size_t>(keep));
+    comboLimit.unblock();
+}
+
+// the box around NHC's cone and the best track so far (the official forecast points when the cone is not there)
+void HurricaneViewer::zoomToCone() {
+    if (!storm) {
+        return;
+    }
+    double minLat = 90.0, maxLat = -90.0, minLon = 180.0, maxLon = -180.0;
+    const auto take = [&] (double lat, double lon) {
+        minLat = std::min(minLat, lat);
+        maxLat = std::max(maxLat, lat);
+        minLon = std::min(minLon, lon);
+        maxLon = std::max(maxLon, lon);
+    };
+    for (const auto& f : storm->best) take(f.lat, f.lon);
+    if (gis && gis->cone.ok) {
+        for (const auto& ring : gis->cone.polygons) {
+            for (const auto& [lon, lat] : ring) take(lat, lon);
+        }
+    } else {
+        for (const auto& f : storm->official.fixes) take(f.lat, f.lon);
+    }
+    if (minLat > maxLat) {
+        return;
+    }
+    const double padLat = std::max(1.5, (maxLat - minLat) * 0.08);
+    const double padLon = std::max(1.5, (maxLon - minLon) * 0.08);
+    minLat = std::max(-5.0, minLat - padLat);
+    maxLat = std::min(70.0, maxLat + padLat);
+    minLon -= padLon;
+    maxLon += padLon;
+    if (maxLon - minLon < 10.0) {
+        const double mid = (minLon + maxLon) / 2.0;
+        minLon = mid - 5.0;
+        maxLon = mid + 5.0;
+    }
+    view->showRegion(minLat, maxLat, minLon, maxLon);
+}
+
+// the box around the best track, the official forecast and the main models (not the whole ensemble, which strays far)
+void HurricaneViewer::zoomToStorm() {
+    if (!storm) {
+        return;
+    }
+    double minLat = 90.0, maxLat = -90.0, minLon = 180.0, maxLon = -180.0;
+    const auto take = [&] (const UtilityAtcf::Fix& f) {
+        minLat = std::min(minLat, f.lat);
+        maxLat = std::max(maxLat, f.lat);
+        minLon = std::min(minLon, f.lon);
+        maxLon = std::max(maxLon, f.lon);
+    };
+    for (const auto& f : storm->best) take(f);
+    for (const auto& f : storm->official.fixes) {
+        if (f.tau <= limitHours()) take(f);
+    }
+    for (const auto& track : storm->guidance) {
+        const auto group = UtilityAtcf::groupOf(track.tech);
+        if (group == Group::Consensus || group == Group::Hurricane) {
+            for (const auto& f : track.fixes) {
+                if (f.tau <= std::min(120, limitHours())) take(f);
+            }
+        }
+    }
+    if (minLat > maxLat) {
+        return;
+    }
+    const double padLat = std::max(2.0, (maxLat - minLat) * 0.18);
+    const double padLon = std::max(2.0, (maxLon - minLon) * 0.18);
+    minLat = std::max(-5.0, minLat - padLat);
+    maxLat = std::min(70.0, maxLat + padLat);
+    minLon -= padLon;
+    maxLon += padLon;
+    // at least a 16 degree view, so a storm that has just formed is not a dot
+    if (maxLon - minLon < 16.0) {
+        const double mid = (minLon + maxLon) / 2.0;
+        minLon = mid - 8.0;
+        maxLon = mid + 8.0;
+    }
+    view->showRegion(minLat, maxLat, minLon, maxLon);
+}
+
+// the reconnaissance that is drawn: the last X hours (the choice of the panel) before the newest observation of this storm
+ReconRenderer::Data HurricaneViewer::reconData(std::vector<UtilityDropsonde::Drop>& nearDrops) const {
+    ReconRenderer::Data data;
+    if (recon) {
+        data.flights = &recon->messages;
+    }
+    if (vdm) {
+        data.fixes = &vdm->messages;
+    }
+    if (drops) {
+        nearDrops.clear();
+        for (const auto& d : drops->drops) {
+            if (dropNear(d)) {
+                nearDrops.push_back(d);
+            }
+        }
+        data.drops = &nearDrops;
+    }
+    return data;
+}
+
+long HurricaneViewer::reconCut() const {
+    std::vector<UtilityDropsonde::Drop> nearDrops;
+    auto data = reconData(nearDrops);
+    // the flights of the storm only (the bulletins are not sorted by storm)
+    std::vector<UtilityHdob::Message> near;
+    if (recon) {
+        for (const auto& message : recon->messages) {
+            UtilityHdob::Message kept = message;
+            kept.obs.clear();
+            for (const auto& ob : message.obs) {
+                if (reconNear(ob)) {
+                    kept.obs.push_back(ob);
+                }
+            }
+            near.push_back(std::move(kept));
+        }
+        data.flights = &near;
+    }
+    return ReconRenderer::cutoff(data, reconHours);
+}
+
+bool HurricaneViewer::reconNear(const UtilityHdob::Ob& ob) const {
+    // the bulletins are not sorted by storm: keep what is within 600 km of the selected storm's newest position
+    if (!storm || storm->best.empty()) {
+        return true;
+    }
+    const auto& centre = storm->best.back();
+    return kilometers(centre.lat, centre.lon, ob.lat, ob.lon) < 600.0;
+}
+
+QColor HurricaneViewer::reconColor(const UtilityHdob::Ob& ob) const {
+    const double wind = comboRecon.getIndex() == 1 ? ob.sfmrWind : ob.windSpeed;
+    if (!UtilityHdob::has(wind)) {
+        return QColor{150, 150, 150};
+    }
+    return categoryColor(UtilityAtcf::categoryOf(static_cast<int>(wind)));
+}
+
+void HurricaneViewer::updateInfo() {
+    if (!storm) {
+        return;
+    }
+    const auto index = comboStorm.getIndex();
+    const HurricaneData::StormEntry * entry = index >= 0 && static_cast<size_t>(index) < entries.size() ? &entries[static_cast<size_t>(index)] : nullptr;
+    QString html;
+    const auto name = !storm->name.empty() ? storm->name : (entry != nullptr ? entry->name : string{});
+    html += "<h3>" + QString::fromStdString(HurricaneData::idLabel(storm->id) + (name.empty() ? "" : " " + name)) + "</h3>";
+    if (!storm->best.empty()) {
+        const auto& last = storm->best.back();
+        const int category = last.wind >= 0 ? UtilityAtcf::categoryOf(last.wind) : 0;
+        html += "<b>" + QString::fromStdString(UtilityAtcf::categoryName(category)) + "</b> at " + QString::fromStdString(UtilityAtcf::formatTime(last.time)) + "<br>";
+        html += "Wind " + knots(last.wind) + (last.pressure >= 0 ? ", pressure " + QString::number(last.pressure) + " mb" : QString{}) + "<br>";
+        html += "Position " + QString::number(std::abs(last.lat), 'f', 1) + (last.lat >= 0 ? "N " : "S ") +
+            QString::number(std::abs(last.lon), 'f', 1) + (last.lon >= 0 ? "E" : "W") + "<br>";
+        if (entry != nullptr && entry->movementSpeed >= 0) {
+            html += "Moving " + QString::number(entry->movementDir) + " deg at " + QString::number(entry->movementSpeed) + " kt<br>";
+        }
+        int peak = -1;
+        string peakTime;
+        for (const auto& f : storm->best) {
+            if (f.wind > peak) {
+                peak = f.wind;
+                peakTime = f.time;
+            }
+        }
+        html += "Peak so far " + knots(peak) + " (" + QString::fromStdString(UtilityAtcf::formatTime(peakTime)) + ")<br>";
+    }
+    if (!storm->official.fixes.empty()) {
+        int peak = -1;
+        int peakTau = 0;
+        for (const auto& f : storm->official.fixes) {
+            if (f.wind > peak) {
+                peak = f.wind;
+                peakTau = f.tau;
+            }
+        }
+        html += "<br><b>NHC forecast</b> (" + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + "): peak " + knots(peak) +
+            " at " + QString::number(peakTau) + " h, out to " + QString::number(storm->official.fixes.back().tau) + " h<br>";
+    }
+    if (outlook && !outlook->areas.empty()) {
+        QStringList parts;
+        for (const auto& area : outlook->areas) {
+            if (area.basin == (basinCode() == "al" ? "Atlantic" : "Pacific")) {
+                parts << "area " + QString::fromStdString(area.area) + ": " + QString::number(area.prob2) + " % / " + QString::number(area.prob7) + " %";
+            }
+        }
+        if (!parts.isEmpty()) {
+            html += "<br><b>Outlook</b> (2 / 7 day formation chance) " + parts.join(", ") + "<br>";
+        }
+    }
+    if (!changeLines.empty()) {
+        html += "<br><b>" + QString::fromStdString(changeTitle) + "</b><br>";
+        for (const auto& line : changeLines) {
+            html += "&bull; " + QString::fromStdString(line).toHtmlEscaped() + "<br>";
+        }
+    }
+    if (gis && (!gis->watchWarnings.empty() || !gis->inland.empty())) {
+        std::set<string> kinds;
+        for (const auto& w : gis->watchWarnings) {
+            kinds.insert(w.kind.empty() ? UtilityNhcGis::nameFor(w.code) : w.kind);
+        }
+        for (const auto& a : gis->inland) {
+            kinds.insert(a.event);
+        }
+        QStringList names;
+        for (const auto& k : kinds) {
+            names << QString::fromStdString(k);
+        }
+        html += "<br><b>In effect</b> " + names.join(", ") + (gis->inland.empty() ? QString{} : QString{" ("} + QString::number(gis->inland.size()) + " NWS zones and counties, inland too)") + "<br>";
+    } else if (gis && gis->error.empty() && gis->cone.ok) {
+        html += "<br><b>Watches and warnings</b> none in effect<br>";
+    }
+    if (drops && drops->error.empty()) {
+        int count = 0;
+        double lowest = 9999.0;
+        for (const auto& d : drops->drops) {
+            if (dropNear(d)) {
+                count++;
+                if (const auto * s = d.surface()) {
+                    lowest = std::min(lowest, s->pressure);
+                }
+            }
+        }
+        html += "<br><b>Dropsondes</b> " + (count == 0 ? QString{"none near this storm"} : QString::number(count) + " (click a blue triangle for its sounding), lowest surface pressure " +
+                QString::number(static_cast<int>(lowest)) + " mb") + "<br>";
+    }
+    if (vdm && vdm->error.empty()) {
+        html += "<br><b>Vortex messages</b> " + VdmViewer::summary(*vdm) + "<br>";
+    }
+    if (pod && pod->error.empty()) {
+        html += "<br><b>Recon plan</b> " + PodViewer::summary(*pod, basinCode() != "al").mid(PodViewer::summary(*pod, basinCode() != "al").indexOf(' ', 12) + 1) + "<br>";
+    }
+    if (ships && ships->ships.ok) {
+        html += "<br><b>SHIPS</b> " + ShipsChart::summary(ships->ships).mid(6) + "<br>";
+    }
+    if (ensembles && !ensembles->sets.empty()) {
+        bool anyDeepMind = false;
+        for (const auto& set : ensembles->sets) {
+            anyDeepMind = anyDeepMind || EnsembleStyle::deepMind(set.label);
+        }
+        html += "<br><b>Ensembles</b> (ECMWF: contains ECMWF open data, CC BY 4.0)<br>";
+        if (anyDeepMind) {
+            html += "<span style='color:gray'>DeepMind (Google Weather Lab): " + QString::fromStdString(EnsembleStyle::deepMindCredit()).toHtmlEscaped() + "</span><br>";
+        }
+        QStringList singles;
+        for (const auto& set : ensembles->sets) {
+            int members = 0;
+            int alive = 0;
+            for (const auto& m : set.storm.members) {
+                if (m.type >= 2) {
+                    members++;
+                    alive += !m.steps.empty() && UtilityEcmwfTracks::has(m.steps.front().lat) ? 1 : 0;
+                }
+            }
+            if (members > 0) {
+                html += QString::fromStdString(set.label) + " " + QString::fromStdString(UtilityAtcf::formatTime(set.cycle)) + ": " + QString::number(alive) + " of " +
+                    QString::number(members) + " members have a cyclone now<br>";
+            } else {
+                singles << QString::fromStdString(set.label);
+            }
+        }
+        if (!singles.isEmpty()) {
+            html += singles.join(", ") + " (unperturbed runs)<br>";
+        }
+    }
+    // the chance of tropical storm and hurricane winds at the saved locations
+    if (wsp && wsp->map.ok) {
+        const auto table = StrikeReport::nhcTable(wsp->map);
+        if (!table.isEmpty()) {
+            html += "<br><b>At your locations</b> - NHC's chance of at least this wind in the next 5 days (all storms of the cycle)" + table;
+        }
+    }
+    if (ensembles && !ensembles->sets.empty()) {
+        const auto lines = StrikeReport::ensembleLines(ensembles->sets);
+        if (!lines.isEmpty()) {
+            html += "<b>Ensemble members within 100 km at 34 kt or more</b><br>" + lines;
+        }
+    }
+    if (entry != nullptr && !entry->discussionUrl.empty()) {
+        html += "<br><a href=\"" + QString::fromStdString(entry->discussionUrl) + "\">Discussion</a> &nbsp; <a href=\"" + QString::fromStdString(entry->advisoryUrl) +
+            "\">Advisory</a> &nbsp; <a href=\"" + QString::fromStdString(entry->graphicsUrl) + "\">Graphics</a><br>";
+    }
+    if (reconCheck != nullptr && reconCheck->isChecked()) {
+        html += "<br><b>Recon</b><br>";
+        if (!recon) {
+            html += "loading...";
+        } else {
+            std::set<string> missions;
+            double peakFlight = UtilityHdob::missing;
+            double peakSfmr = UtilityHdob::missing;
+            double lowPressure = UtilityHdob::missing;
+            const UtilityHdob::Ob * newest = nullptr;
+            int count = 0;
+            const long cut = reconCut();
+            for (const auto& message : recon->messages) {
+                for (const auto& ob : message.obs) {
+                    if (!reconNear(ob) || !ReconRenderer::recent(ob.seconds, cut)) {
+                        continue;
+                    }
+                    count++;
+                    missions.insert(message.mission.substr(0, message.mission.find(' ')));
+                    if (UtilityHdob::has(ob.peakWind)) peakFlight = std::max(peakFlight, ob.peakWind);
+                    if (UtilityHdob::has(ob.sfmrWind)) peakSfmr = std::max(peakSfmr, ob.sfmrWind);
+                    if (UtilityHdob::has(ob.surfacePressure) && (!UtilityHdob::has(lowPressure) || ob.surfacePressure < lowPressure)) lowPressure = ob.surfacePressure;
+                    if (newest == nullptr || ob.seconds > newest->seconds) newest = &ob;
+                }
+            }
+            if (count == 0) {
+                html += reconHours > 0 ? "No flights within 600 km of the storm in the last " + QString::number(reconHours) + " hours of reconnaissance." : QString{"No flights within 600 km of the storm."};
+            } else {
+                QStringList ids;
+                for (const auto& m : missions) ids << QString::fromStdString(m);
+                html += "Aircraft " + ids.join(", ") + ", " + QString::number(count) + " observations, the latest " + QString::fromStdString(UtilityHdob::timeText(newest->seconds)) + "<br>";
+                html += "Peak flight-level wind " + (UtilityHdob::has(peakFlight) ? knotsOf(peakFlight) : QString{"-"}) +
+                    ", peak SFMR surface wind " + (UtilityHdob::has(peakSfmr) ? knotsOf(peakSfmr) : QString{"-"}) + "<br>";
+                if (UtilityHdob::has(lowPressure)) {
+                    html += "Lowest extrapolated surface pressure " + QString::number(lowPressure, 'f', 1) + " mb<br>";
+                }
+            }
+        }
+    }
+    infoLabel->setText(html);
+}
+
+void HurricaneViewer::paintMap(QPainter& painter) {
+    const auto t = view->transform();
+    const double px = view->unitsPerPixel();
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    // coastlines and borders
+    painter.setPen(QPen{QColor{150, 165, 185}, 1.0 * px});
+    painter.setBrush(Qt::NoBrush);
+    for (const auto& line : coast) {
+        QPainterPath path;
+        bool started = false;
+        for (const auto& [lon, lat] : line) {
+            const auto p = t(lat, lon);
+            if (p.x() < -1500.0 || p.x() > 1500.0 || p.y() < -1250.0 || p.y() > 1750.0) {
+                started = false;   // far outside: skip it, and do not join across the gap
+                continue;
+            }
+            if (!started) {
+                path.moveTo(p);
+                started = true;
+            } else {
+                path.lineTo(p);
+            }
+        }
+        painter.drawPath(path);
+    }
+    if (!storm) {
+        return;
+    }
+    // the model guidance, the background families first
+    auto tracks = storm->guidance;
+    std::stable_sort(tracks.begin(), tracks.end(), [] (const auto& a, const auto& b) { return paintRank(UtilityAtcf::groupOf(a.tech)) < paintRank(UtilityAtcf::groupOf(b.tech)); });
+    for (const auto& track : tracks) {
+        const auto group = UtilityAtcf::groupOf(track.tech);
+        if (!guidanceTree->shown(track.tech)) {
+            continue;
+        }
+        const bool hovered = track.tech == hoverTech;
+        auto color = guidanceTree->colorOf(track.tech, groupColor(group));
+        QPainterPath path;
+        size_t last = 0;
+        for (size_t i = 0; i < track.fixes.size() && track.fixes[i].tau <= limitHours(); i++) {
+            const auto p = t(track.fixes[i].lat, track.fixes[i].lon);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+            last = i;
+        }
+        if (last == 0) {
+            continue;
+        }
+        const double width = hovered ? 3.2 : (group == Group::Ensemble ? 1.0 : group == Group::Consensus ? 2.2 : 1.5);
+        painter.setPen(QPen{hovered ? QColor{255, 255, 255} : color, width * px});
+        painter.drawPath(path);
+        const auto end = t(track.fixes[last].lat, track.fixes[last].lon);
+        painter.setBrush(color);
+        painter.drawEllipse(end, 1.8 * px * (hovered ? 2.0 : 1.0), 1.8 * px * (hovered ? 2.0 : 1.0));
+        painter.setBrush(Qt::NoBrush);
+        if (hovered) {
+            painter.setPen(QColor{255, 255, 255});
+            QFont font{painter.font()};
+            font.setPixelSize(static_cast<int>(12 * px));
+            painter.setFont(font);
+            painter.drawText(end + QPointF{6.0 * px, -4.0 * px}, QString::fromStdString(track.tech));
+        }
+    }
+    // the forecast cone: NHC's own polygon when it has been loaded
+    if (coneCheck->isChecked() && gis && gis->cone.ok) {
+        QPainterPath cone;
+        for (const auto& ring : gis->cone.polygons) {
+            QPolygonF polygon;
+            for (const auto& [lon, lat] : ring) {
+                polygon << t(lat, lon);
+            }
+            QPainterPath piece;
+            piece.addPolygon(polygon);
+            piece.closeSubpath();
+            cone = cone.united(piece);
+        }
+        painter.setPen(QPen{QColor{255, 255, 255, 190}, 1.4 * px, Qt::DashLine});
+        painter.setBrush(QColor{255, 255, 255, 38});
+        painter.drawPath(cone);
+    } else if (coneCheck->isChecked() && storm->official.fixes.size() >= 2) {
+        // otherwise the area swept by NHC's published error circles along the official forecast (12, 24 ... 120 h)
+        const auto circle = [&] (double lat, double lon, double nm) {
+            QPolygonF points;
+            const double kmPerDegree = 111.2;
+            for (int i = 0; i < 48; i++) {
+                const double a = i * 2.0 * std::numbers::pi / 48.0;
+                const double dLat = nm * 1.852 / kmPerDegree * std::cos(a);
+                const double dLon = nm * 1.852 / (kmPerDegree * std::max(0.2, std::cos(lat * std::numbers::pi / 180.0))) * std::sin(a);
+                points << t(lat + dLat, lon + dLon);
+            }
+            return points;
+        };
+        const auto hull = [] (QPolygonF points) {   // the convex hull (monotone chain): two circles joined into one tapered piece
+            std::sort(points.begin(), points.end(), [] (const QPointF& a, const QPointF& b) { return a.x() < b.x() || (a.x() == b.x() && a.y() < b.y()); });
+            const auto cross = [] (const QPointF& o, const QPointF& a, const QPointF& b) { return (a.x() - o.x()) * (b.y() - o.y()) - (a.y() - o.y()) * (b.x() - o.x()); };
+            QPolygonF result;
+            for (int pass = 0; pass < 2; pass++) {
+                const auto start = result.size();
+                for (int i = 0; i < points.size(); i++) {
+                    const auto& p = pass == 0 ? points[i] : points[points.size() - 1 - i];
+                    while (result.size() >= start + 2 && cross(result[result.size() - 2], result[result.size() - 1], p) <= 0) {
+                        result.removeLast();
+                    }
+                    result << p;
+                }
+                result.removeLast();
+            }
+            return result;
+        };
+        static const int hours[] = {0, 12, 24, 36, 48, 60, 72, 96, 120};
+        vector<const UtilityAtcf::Fix *> marks;
+        for (const int h : hours) {
+            for (const auto& f : storm->official.fixes) {
+                if (f.tau == h) {
+                    marks.push_back(&f);
+                    break;
+                }
+            }
+        }
+        QPainterPath cone;
+        for (size_t i = 1; i < marks.size(); i++) {
+            QPolygonF both = circle(marks[i - 1]->lat, marks[i - 1]->lon, UtilityAtcf::coneRadiusNm(marks[i - 1]->tau, storm->id.rfind("al", 0) != 0));
+            both += circle(marks[i]->lat, marks[i]->lon, UtilityAtcf::coneRadiusNm(marks[i]->tau, storm->id.rfind("al", 0) != 0));
+            QPainterPath piece;
+            piece.addPolygon(hull(both));
+            piece.closeSubpath();
+            cone = cone.united(piece);
+        }
+        painter.setPen(QPen{QColor{255, 255, 255, 170}, 1.2 * px, Qt::DashLine});
+        painter.setBrush(QColor{255, 255, 255, 38});
+        painter.drawPath(cone);
+    }
+    // ECMWF's ensemble members (thin, one line each), then the unperturbed runs
+    if (ensembles) {
+        const auto drawTrack = [&] (const UtilityEcmwfTracks::Member& member, const QPen& pen) {
+            painter.setPen(pen);
+            painter.setBrush(Qt::NoBrush);
+            QPainterPath path;
+            bool started = false;
+            for (const auto& s : member.steps) {
+                if (s.hour > limitHours()) {
+                    break;
+                }
+                if (!UtilityEcmwfTracks::has(s.lat) || !UtilityEcmwfTracks::has(s.lon)) {
+                    started = false;
+                    continue;
+                }
+                const auto p = t(s.lat, s.lon);
+                started ? path.lineTo(p) : path.moveTo(p);
+                started = true;
+            }
+            painter.drawPath(path);
+        };
+        for (const auto& set : ensembles->sets) {
+            if (set.label == "GEFS") {
+                continue;
+            }
+            const auto * style = EnsembleStyle::of(set.label);
+            const bool isEnsemble = style != nullptr;
+            for (const auto& member : set.storm.members) {
+                if (member.type >= 2) {
+                    if (isEnsemble && guidanceTree->isOn(style->membersId)) {
+                        drawTrack(member, QPen{style->member, 1.1 * px});
+                    }
+                } else if (guidanceTree->isOn("global/openruns")) {
+                    // the control and high-resolution runs of the ensembles, and the single AIFS / IFS runs
+                    const bool aifs = set.label.rfind("AIFS", 0) == 0;
+                    const auto color = aifs ? QColor{40, 255, 170} : QColor{255, 110, 40};
+                    const bool single = !isEnsemble;
+                    drawTrack(member, QPen{color, (single ? 2.6 : 1.6) * px, single ? Qt::SolidLine : Qt::DashLine});
+                }
+            }
+        }
+    }
+    // the ensemble means (computed from the open-data members): a heavy line with a dot every day
+    for (const auto& mean : ensembleMeans) {
+        if (!guidanceTree->isOn(mean.id)) {
+            continue;
+        }
+        QPainterPath path;
+        for (size_t i = 0; i < mean.hours.size() && mean.hours[i].hour <= limitHours(); i++) {
+            const auto p = t(mean.hours[i].centerLat, mean.hours[i].centerLon);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen{QColor{0, 0, 0, 170}, 4.6 * px});
+        painter.drawPath(path);
+        painter.setPen(QPen{mean.color, 2.6 * px, mean.label.rfind("AIFS", 0) == 0 ? Qt::DashLine : Qt::SolidLine});
+        painter.drawPath(path);
+        painter.setPen(QPen{QColor{0, 0, 0, 200}, 0.9 * px});
+        painter.setBrush(mean.color);
+        for (const auto& h : mean.hours) {
+            if (h.hour > 0 && h.hour % 24 == 0 && h.hour <= limitHours()) {
+                painter.drawEllipse(t(h.centerLat, h.centerLon), 3.4 * px, 3.4 * px);
+            }
+        }
+    }
+    // the official forecast: a heavy line, the intensity colour at each point, a label each day
+    if (guidanceTree->officialShown() && !storm->official.fixes.empty()) {
+        QPainterPath path;
+        const auto& fixes = storm->official.fixes;
+        for (size_t i = 0; i < fixes.size() && fixes[i].tau <= limitHours(); i++) {
+            const auto p = t(fixes[i].lat, fixes[i].lon);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen{QColor{0, 0, 0, 200}, 5.0 * px});
+        painter.drawPath(path);
+        painter.setPen(QPen{QColor{255, 255, 255}, 2.6 * px});
+        painter.drawPath(path);
+        QFont font{painter.font()};
+        font.setPixelSize(static_cast<int>(11 * px));
+        painter.setFont(font);
+        for (const auto& f : fixes) {
+            if (f.tau > limitHours()) {
+                break;
+            }
+            const auto p = t(f.lat, f.lon);
+            painter.setPen(QPen{QColor{0, 0, 0, 220}, 1.0 * px});
+            painter.setBrush(categoryColor(f.wind >= 0 ? UtilityAtcf::categoryOf(f.wind) : 0));
+            painter.drawEllipse(p, 4.2 * px, 4.2 * px);
+            if (f.tau > 0 && f.tau % 24 == 0) {
+                painter.setPen(QColor{255, 255, 255});
+                painter.drawText(p + QPointF{7.0 * px, -5.0 * px}, QString::number(f.tau / 24) + " d");
+            }
+        }
+    }
+    // the forecast wind swath: where the forecast wind radii say 34, 50 and 64 kt winds can be felt
+    if (swathCheck->isChecked() && !storm->official.fixes.empty()) {
+        if (swathFor != storm.get()) {
+            swathFor = storm.get();
+            // The wind field is drawn every 3 hours along the forecast. Where the storm moves further in 3 hours than the winds reach, the separate shapes leave a scallop between each
+            // pair: the swath is closed up by the outline that joins each shape to the next (the convex hull of the two), so it is one continuous band with a dotted edge.
+            const auto hullOf = [] (std::vector<QPointF> points) {
+                std::sort(points.begin(), points.end(), [] (const QPointF& a, const QPointF& b) { return a.x() < b.x() || (a.x() == b.x() && a.y() < b.y()); });
+                points.erase(std::unique(points.begin(), points.end()), points.end());
+                if (points.size() < 3) {
+                    return QPolygonF{};
+                }
+                const auto cross = [] (const QPointF& o, const QPointF& a, const QPointF& b) { return (a.x() - o.x()) * (b.y() - o.y()) - (a.y() - o.y()) * (b.x() - o.x()); };
+                std::vector<QPointF> hull(points.size() * 2);
+                size_t n = 0;
+                for (size_t i = 0; i < points.size(); i++) {   // the lower hull, then the upper
+                    while (n >= 2 && cross(hull[n - 2], hull[n - 1], points[i]) <= 0) n--;
+                    hull[n++] = points[i];
+                }
+                for (size_t i = points.size() - 1, lower = n + 1; i > 0; i--) {
+                    while (n >= lower && cross(hull[n - 2], hull[n - 1], points[i - 1]) <= 0) n--;
+                    hull[n++] = points[i - 1];
+                }
+                hull.resize(n - 1);
+                QPolygonF polygon;
+                for (const auto& point : hull) polygon << point;
+                return polygon;
+            };
+            for (size_t k = 0; k < 3; k++) {
+                QPainterPath joined;
+                std::vector<QPointF> previous;
+                for (const auto& ring : UtilityAtcf::windSwath(storm->official, static_cast<int>(k), 3)) {
+                    std::vector<QPointF> points;
+                    for (const auto& [lon, lat] : ring) {
+                        points.emplace_back(lon, lat);
+                    }
+                    QPolygonF polygon;
+                    for (const auto& point : points) polygon << point;
+                    QPainterPath piece;
+                    piece.addPolygon(polygon);
+                    piece.closeSubpath();
+                    joined = joined.united(piece);
+                    if (!previous.empty()) {
+                        // joined to the one before only if they are neighbours (a few degrees apart): a gap in the forecast radii is not bridged
+                        const auto centre = [] (const std::vector<QPointF>& v) { QPointF c; for (const auto& p : v) c += p; return c / static_cast<double>(v.size()); };
+                        const auto a = centre(previous), b = centre(points);
+                        if (std::hypot(a.x() - b.x(), a.y() - b.y()) < 4.0) {
+                            std::vector<QPointF> both = previous;
+                            both.insert(both.end(), points.begin(), points.end());
+                            const auto hull = hullOf(both);
+                            if (!hull.isEmpty()) {
+                                QPainterPath bridge;
+                                bridge.addPolygon(hull);
+                                bridge.closeSubpath();
+                                joined = joined.united(bridge);
+                            }
+                        }
+                    }
+                    previous = std::move(points);
+                }
+                swaths[k] = joined.toSubpathPolygons();
+            }
+        }
+        static const QColor swathColors[3] = {QColor{255, 235, 80}, QColor{255, 150, 40}, QColor{255, 70, 70}};
+        for (size_t k = 0; k < 3; k++) {
+            QPainterPath path;
+            for (const auto& ring : swaths[k]) {
+                QPolygonF polygon;
+                for (const auto& point : ring) {
+                    polygon << t(point.y(), point.x());
+                }
+                path.addPolygon(polygon);
+            }
+            auto fill = swathColors[k];
+            fill.setAlpha(34 + static_cast<int>(k) * 14);
+            painter.setPen(QPen{swathColors[k], 1.2 * px, Qt::DotLine});
+            painter.setBrush(fill);
+            painter.drawPath(path);
+        }
+    }
+    // the GEFS strike probability: the share of members that pass within 100 km at 34 kt or more, in the banded scale of the model guidance site
+    if (strikeCheck->isChecked() && ensembles) {
+        const HurricaneData::EnsembleSet * gefs = nullptr;
+        for (const auto& set : ensembles->sets) {
+            if (set.label == "GEFS") {
+                gefs = &set;
+            }
+        }
+        if (gefs) {
+            if (strikeFor != gefs) {
+                strikeFor = gefs;
+                strikeField = UtilityEnsembleStats::strikeField(gefs->storm, 100.0, 34.0);
+            }
+            if (const auto * ramp = GfsChart::magPalette("prob")) {
+                painter.setPen(Qt::NoPen);
+                for (int r = 0; r < strikeField.rows; r++) {
+                    for (int c = 0; c < strikeField.cols; c++) {
+                        const auto share = strikeField.share[static_cast<size_t>(r) * strikeField.cols + c];
+                        const auto color = QColor::fromRgba(ramp->at(share * 100.0));
+                        if (share <= 0.0f || color.alpha() == 0) {
+                            continue;
+                        }
+                        const double s = strikeField.south + r * strikeField.step, w = strikeField.west + c * strikeField.step;
+                        const QRectF cell = QRectF{t(s + strikeField.step, w), t(s, w + strikeField.step)}.normalized();
+                        auto fill = color;
+                        fill.setAlpha(150);
+                        painter.setBrush(fill);
+                        painter.drawRect(cell.adjusted(-0.5, -0.5, 0.5, 0.5));
+                    }
+                }
+            }
+        }
+    }
+    // the best track so far
+    if (guidanceTree->bestShown() && !storm->best.empty()) {
+        QPainterPath path;
+        for (size_t i = 0; i < storm->best.size(); i++) {
+            const auto p = t(storm->best[i].lat, storm->best[i].lon);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen{QColor{0, 0, 0, 200}, 4.4 * px});
+        painter.drawPath(path);
+        painter.setPen(QPen{QColor{200, 215, 235}, 2.0 * px});
+        painter.drawPath(path);
+        for (size_t i = 0; i < storm->best.size(); i++) {
+            const auto& f = storm->best[i];
+            const auto p = t(f.lat, f.lon);
+            const bool last = i + 1 == storm->best.size();
+            painter.setPen(QPen{QColor{0, 0, 0, 220}, 1.0 * px});
+            painter.setBrush(categoryColor(f.wind >= 0 ? UtilityAtcf::categoryOf(f.wind) : 0));
+            const double r = (last ? 7.5 : 3.6) * px;
+            painter.drawEllipse(p, r, r);
+        }
+    }
+    // the inland watches and warnings: each NWS zone or county in the colour of its alert (the watches under the warnings)
+    if (wwCheck->isChecked() && gis && !gis->inland.empty()) {
+        vector<const UtilityTropicalAlerts::Area *> ordered;
+        for (const auto& a : gis->inland) {
+            ordered.push_back(&a);
+        }
+        std::stable_sort(ordered.begin(), ordered.end(), [] (const auto * a, const auto * b) { return UtilityTropicalAlerts::rank(a->code) < UtilityTropicalAlerts::rank(b->code); });
+        for (const auto * a : ordered) {
+            QColor color{QString::fromStdString(UtilityNhcGis::colorFor(a->code))};
+            QPainterPath path;
+            for (const auto& ring : a->rings) {
+                QPolygonF polygon;
+                for (const auto& [lon, lat] : ring) {
+                    polygon << t(lat, lon);
+                }
+                path.addPolygon(polygon);
+                path.closeSubpath();
+            }
+            QColor fill = color;
+            fill.setAlpha(a->code == "SSW" || a->code == "SSA" ? 55 : 95);
+            painter.setPen(QPen{QColor{color.red(), color.green(), color.blue(), 200}, 1.0 * px});
+            painter.setBrush(fill);
+            painter.drawPath(path);
+        }
+    }
+    // watches and warnings: NHC's lines along the coast, hurricane warning red, hurricane watch pink, tropical storm warning blue, tropical storm watch yellow
+    if (wwCheck->isChecked() && gis) {
+        for (const auto& w : gis->watchWarnings) {
+            QPainterPath path;
+            for (const auto& ring : w.lines) {
+                bool started = false;
+                for (const auto& [lon, lat] : ring) {
+                    const auto pt = t(lat, lon);
+                    started ? path.lineTo(pt) : path.moveTo(pt);
+                    started = true;
+                }
+            }
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen{QColor{0, 0, 0, 220}, 8.0 * px, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+            painter.drawPath(path);
+            painter.setPen(QPen{QColor{QString::fromStdString(UtilityNhcGis::colorFor(w.code))}, 5.0 * px, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+            painter.drawPath(path);
+        }
+    }
+    // the wind radii of the newest best-track fix: 34, 50 and 64 kt, a wedge of each quadrant (NE, SE, SW, NW)
+    if (radiiCheck->isChecked() && !storm->best.empty()) {
+        const auto& now = storm->best.back();
+        static const QColor colors[3] = {QColor{255, 235, 80, 70}, QColor{255, 150, 40, 90}, QColor{255, 70, 70, 110}};
+        for (int threshold = 0; threshold < 3; threshold++) {
+            for (int quadrant = 0; quadrant < 4; quadrant++) {
+                const int nm = now.radii[static_cast<size_t>(threshold)][static_cast<size_t>(quadrant)];
+                if (nm <= 0) {
+                    continue;
+                }
+                QPolygonF wedge;
+                wedge << t(now.lat, now.lon);
+                for (int step = 0; step <= 12; step++) {
+                    const double bearing = (quadrant * 90.0 + step * 90.0 / 12.0) * std::numbers::pi / 180.0;   // from north, clockwise
+                    const double dLat = nm / 60.0 * std::cos(bearing);
+                    const double dLon = nm / (60.0 * std::max(0.2, std::cos(now.lat * std::numbers::pi / 180.0))) * std::sin(bearing);
+                    wedge << t(now.lat + dLat, now.lon + dLon);
+                }
+                painter.setPen(QPen{colors[threshold].darker(150), 0.8 * px});
+                painter.setBrush(colors[threshold]);
+                painter.drawPolygon(wedge);
+            }
+        }
+    }
+    // the recon flight tracks, with their barbs: the shared renderer draws the last hours of them
+    if (reconCheck->isChecked() && recon) {
+        std::vector<UtilityDropsonde::Drop> nearDrops;
+        const auto data = reconData(nearDrops);
+        ReconRenderer::Settings settings;
+        settings.hours = reconHours;
+        settings.sfmr = comboRecon.getIndex() == 1;
+        settings.barbs = barbCheck->isChecked();
+        ReconRenderer::paintFlights(painter, [&t] (double lat, double lon) { return t(lat, lon); }, px, data, settings, [this] (double lat, double lon) {
+            UtilityHdob::Ob ob;
+            ob.lat = lat;
+            ob.lon = lon;
+            return reconNear(ob);
+        });
+    }
+}
+
+// the Tropical Weather Outlook: shaded areas of possible development in NHC's risk colours, labelled with the 2 day and 7 day chances
+void HurricaneViewer::paintOutlook(QPainter& painter) {
+    if (outlookCheck == nullptr || !outlookCheck->isChecked() || !outlook) {
+        return;
+    }
+    const auto t = view->transform();
+    const double px = view->unitsPerPixel();
+    const string name = basinCode() == "al" ? "Atlantic" : "Pacific";
+    QFont font{painter.font()};
+    font.setPixelSize(static_cast<int>(12 * px));
+    font.setBold(true);
+    painter.setFont(font);
+    for (const auto& area : outlook->areas) {
+        if (area.basin != name) {
+            continue;
+        }
+        const auto& risk = area.risk7.empty() ? area.risk2 : area.risk7;
+        const QColor color = risk == "High" ? QColor{255, 60, 60} : risk == "Medium" ? QColor{255, 150, 30} : QColor{255, 225, 60};
+        QPainterPath path;
+        for (const auto& ring : area.rings) {
+            QPolygonF polygon;
+            for (const auto& [lon, lat] : ring) {
+                polygon << t(lat, lon);
+            }
+            path.addPolygon(polygon);
+            path.closeSubpath();
+        }
+        auto fill = color;
+        fill.setAlpha(45);
+        painter.setPen(QPen{color, 2.2 * px, Qt::DashLine});
+        painter.setBrush(fill);
+        painter.drawPath(path);
+        const auto at = t(area.centerLat, area.centerLon);
+        painter.setPen(color.lighter(130));
+        painter.drawText(at + QPointF{-30 * px, 4 * px}, QString::number(area.prob2) + "% / " + QString::number(area.prob7) + "%");
+    }
+}
+
+void HurricaneViewer::paintPlannedRecon(QPainter& painter) {
+    {   // the dropsondes and the centre fixes: the shared renderer, the last hours of them
+        const auto t = view->transform();
+        const double px = view->unitsPerPixel();
+        std::vector<UtilityDropsonde::Drop> nearDrops;
+        auto data = reconData(nearDrops);
+        ReconRenderer::Settings settings;
+        settings.hours = reconHours;
+        settings.labels = dropLabelCheck != nullptr && dropLabelCheck->isChecked();
+        const auto project = [&t] (double lat, double lon) { return t(lat, lon); };
+        if (dropCheck != nullptr && dropCheck->isChecked() && drops) {
+            auto only = data;
+            only.flights = nullptr;
+            only.fixes = nullptr;
+            ReconRenderer::paintDrops(painter, project, px, only, settings);
+        }
+        if (fixCheck != nullptr && fixCheck->isChecked() && vdm) {
+            auto only = data;
+            only.flights = nullptr;
+            only.drops = nullptr;
+            ReconRenderer::paintFixes(painter, project, px, only, settings);
+        }
+    }
+    if (podCheck == nullptr || !podCheck->isChecked() || !pod || !pod->error.empty()) {
+        return;
+    }
+    const auto t = view->transform();
+    const double px = view->unitsPerPixel();
+    QFont font{painter.font()};
+    font.setPixelSize(static_cast<int>(11 * px));
+    painter.setFont(font);
+    vector<QPointF> labelled;   // a label only where there is room for it
+    for (const auto * list : {basinCode() == "al" ? &pod->pod.atlantic : &pod->pod.pacific}) {   // the flights of the chosen basin
+      for (const auto& requirement : *list) {
+        for (const auto& f : requirement.flights) {
+            if (!f.hasPosition) {
+                continue;
+            }
+            const auto at = t(f.lat, f.lon);
+            // a diamond: the planned centre of the mission
+            QPolygonF diamond;
+            diamond << at + QPointF{0, -7 * px} << at + QPointF{7 * px, 0} << at + QPointF{0, 7 * px} << at + QPointF{-7 * px, 0};
+            painter.setPen(QPen{QColor{20, 20, 20}, 1.2 * px});
+            painter.setBrush(QColor{255, 90, 255, 220});
+            painter.drawPolygon(diamond);
+            const bool room = std::none_of(labelled.begin(), labelled.end(), [&] (const QPointF& other) { return std::hypot(other.x() - at.x(), other.y() - at.y()) < 90 * px; });
+            if (room) {
+                labelled.push_back(at);
+                painter.setPen(QColor{255, 190, 255});
+                painter.drawText(at + QPointF{10 * px, 4 * px}, QString::fromStdString(f.aircraft + " " + f.fixTimes.substr(0, f.fixTimes.find(','))));
+            }
+        }
+      }
+    }
+}
+
+void HurricaneViewer::paintLegend(QPainter& painter) {
+    std::vector<MapLegendRow> rows;
+    static const char * names[] = {"TD", "TS", "Cat 1", "Cat 2", "Cat 3", "Cat 4", "Cat 5"};
+    MapLegendRow intensity;
+    intensity.title = reconCheck != nullptr && reconCheck->isChecked() ? (comboRecon.getIndex() == 1 ? "SFMR wind:" : "Flight-level wind:") : "Intensity:";
+    for (int c = 0; c <= 6; c++) {
+        intensity.entries.push_back({MapLegendEntry::Circle, categoryColor(c), names[c]});
+    }
+    rows.push_back(std::move(intensity));
+    if (wwCheck != nullptr && wwCheck->isChecked() && gis && (!gis->watchWarnings.empty() || !gis->inland.empty())) {
+        MapLegendRow warnings;
+        warnings.title = "Watches and warnings:";
+        warnings.entries = {{MapLegendEntry::Line, QColor{255, 0, 0}, "hurricane warning"}, {MapLegendEntry::Line, QColor{255, 128, 192}, "hurricane watch"},
+                            {MapLegendEntry::Line, QColor{0, 85, 255}, "tropical storm warning"}, {MapLegendEntry::Line, QColor{255, 215, 0}, "tropical storm watch"}};
+        rows.push_back(std::move(warnings));
+    }
+    if ((radiiCheck != nullptr && radiiCheck->isChecked()) || (swathCheck != nullptr && swathCheck->isChecked())) {
+        MapLegendRow radii;
+        radii.title = radiiCheck->isChecked() ? "Wind radii:" : "Wind swath:";
+        radii.entries = {{MapLegendEntry::Square, QColor{255, 235, 80}, "34 kt"}, {MapLegendEntry::Square, QColor{255, 150, 40}, "50 kt"}, {MapLegendEntry::Square, QColor{255, 70, 70}, "64 kt"}};
+        rows.push_back(std::move(radii));
+    }
+    if (outlookCheck != nullptr && outlookCheck->isChecked()) {
+        rows.push_back({"Development chance:", {{MapLegendEntry::Square, QColor{255, 225, 60}, "low"}, {MapLegendEntry::Square, QColor{255, 150, 30}, "medium"}, {MapLegendEntry::Square, QColor{255, 60, 60}, "high"}}});
+    }
+    // DeepMind's data asks for its credit wherever it is shown, so it is in the picture (and so in an export)
+    if (ensembles) {
+        MapLegendRow deepMind;
+        for (const auto& set : ensembles->sets) {
+            const auto * style = EnsembleStyle::of(set.label);
+            if (style == nullptr || !EnsembleStyle::deepMind(set.label)) {
+                continue;
+            }
+            if (guidanceTree->isOn(style->meansId)) {
+                deepMind.entries.push_back({MapLegendEntry::Line, style->mean, QString::fromStdString(set.label + " mean")});
+            }
+            if (guidanceTree->isOn(style->membersId)) {
+                deepMind.entries.push_back({MapLegendEntry::Line, QColor{style->member.red(), style->member.green(), style->member.blue()}, QString::fromStdString(set.label + " members")});
+            }
+        }
+        if (!deepMind.entries.empty()) {
+            deepMind.title = "(c) 2024-6 Google LLC, DeepMind Weather Lab (experimental; not for real world use; terms: storage.googleapis.com/weathernext-public/terms-of-use.pdf):";
+            rows.push_back(std::move(deepMind));
+        }
+    }
+    MapLegend::draw(painter, rows, view->unitsPerPixel());
+}
+
+void HurricaneViewer::showHover(const QPointF& pixels) {
+    if (!storm) {
+        return;
+    }
+    // a line is hit when the pointer is within `lineReach` pixels of it (not just of one of its points, which can be a day apart); a lone marker within `pointReach`;
+    // and the line the pointer is already on is kept until it is clearly nearer another
+    const double lineReach = 16.0;
+    const double pointReach = 14.0;
+    Hit best{QString{}, lineReach};   // pixels
+    string bestTech;
+    double keptDistance = 1e9;        // how far the pointer is from the line shown now (if it is still a candidate)
+    bool havePrevious = false;
+    QPointF previousAt;
+    QString previousText;
+    string previousTech;
+    const auto consider = [&] (double distance, const QString& text, const string& tech, double reach) {
+        if (text == lastHoverText) {
+            keptDistance = std::min(keptDistance, distance);
+        }
+        if (distance < std::min(best.distance, reach)) {
+            best = {text, distance};
+            bestTech = tech;
+        }
+    };
+    const auto breakLine = [&] { havePrevious = false; };
+    // the next point of the line being walked: its own distance, and the distance to the segment from the point before it
+    const auto check = [&] (double lat, double lon, const QString& text, const string& tech) {
+        const auto at = view->toPixels(lat, lon);
+        consider(std::hypot(at.x() - pixels.x(), at.y() - pixels.y()), text, tech, lineReach);
+        if (havePrevious) {
+            const QPointF d = at - previousAt;
+            const double length2 = d.x() * d.x() + d.y() * d.y();
+            double f = length2 > 0.0 ? ((pixels.x() - previousAt.x()) * d.x() + (pixels.y() - previousAt.y()) * d.y()) / length2 : 0.0;
+            f = std::clamp(f, 0.0, 1.0);
+            const QPointF nearest = previousAt + d * f;
+            consider(std::hypot(nearest.x() - pixels.x(), nearest.y() - pixels.y()), f < 0.5 ? previousText : text, f < 0.5 ? previousTech : tech, lineReach);
+        }
+        havePrevious = true;
+        previousAt = at;
+        previousText = text;
+        previousTech = tech;
+    };
+    // a marker on its own (a dropsonde, a recon fix, an outlook area)
+    const auto checkPoint = [&] (double lat, double lon, const QString& text, const string& tech) {
+        breakLine();
+        const auto at = view->toPixels(lat, lon);
+        consider(std::hypot(at.x() - pixels.x(), at.y() - pixels.y()), text, tech, pointReach);
+    };
+    for (const auto& track : storm->guidance) {
+        if (!guidanceTree->shown(track.tech)) {
+            continue;
+        }
+        const auto found = storm->longNames.find(track.tech);
+        const auto title = QString::fromStdString(track.tech + (found != storm->longNames.end() ? " - " + found->second : string{}) + (track.cycle.size() == 10 ? " (" + track.cycle.substr(8, 2) + "z)" : string{}));
+        breakLine();
+        for (const auto& f : track.fixes) {
+            if (f.tau > limitHours()) {
+                break;
+            }
+            check(f.lat, f.lon, title + "\nrun " + QString::fromStdString(UtilityAtcf::formatTime(track.cycle)) + ", +" + QString::number(f.tau) + " h, " + knots(f.wind), track.tech);
+        }
+    }
+    for (const auto& mean : ensembleMeans) {
+        if (!guidanceTree->isOn(mean.id)) {
+            continue;
+        }
+        breakLine();
+        for (const auto& h : mean.hours) {
+            if (h.hour > limitHours()) {
+                break;
+            }
+            check(h.centerLat, h.centerLon, QString::fromStdString(mean.label) + (mean.cycle.size() == 10 ? " (" + QString::fromStdString(mean.cycle.substr(8, 2)) + "z)" : QString{}) + "\n+" + QString::number(h.hour) + " h, " + QString::number(h.alive) + " of " + QString::number(h.total) + " members still a cyclone", mean.label);
+        }
+    }
+    if (ensembles) {
+        for (const auto& set : ensembles->sets) {
+            if (set.label == "GEFS") {
+                continue;
+            }
+            const auto * style = EnsembleStyle::of(set.label);
+            const bool isEnsemble = style != nullptr;
+            for (const auto& member : set.storm.members) {
+                const bool shownMember = member.type >= 2 ? isEnsemble && guidanceTree->isOn(style->membersId)
+                    : guidanceTree->isOn("global/openruns");
+                if (!shownMember) {
+                    continue;
+                }
+                const QString cycleText = set.cycle.size() == 10 ? " (" + QString::fromStdString(set.cycle.substr(8, 2)) + "z)" : QString{};
+                const QString who = member.type >= 2 ? QString::fromStdString(set.label) + cycleText + " member " + QString::number(member.number)
+                    : QString::fromStdString(set.label) + cycleText + (isEnsemble ? " unperturbed run" : " run");
+                breakLine();
+                for (const auto& s : member.steps) {
+                    if (!UtilityEcmwfTracks::has(s.lat) || !UtilityEcmwfTracks::has(s.lon)) {
+                        breakLine();
+                    }
+                    if (UtilityEcmwfTracks::has(s.lat) && UtilityEcmwfTracks::has(s.lon)) {
+                        check(s.lat, s.lon, who + "\nrun " + QString::fromStdString(UtilityAtcf::formatTime(set.cycle)) + ", +" + QString::number(s.hour) + " h" +
+                            (UtilityEcmwfTracks::has(s.wind) ? ", " + knotsOf(s.wind) + " (10 m)" : QString{}) +
+                            (UtilityEcmwfTracks::has(s.pressure) ? ", " + QString::number(static_cast<int>(std::lround(s.pressure))) + " mb" : QString{}), "");
+                    }
+                }
+            }
+        }
+    }
+    if (guidanceTree->officialShown()) {
+        breakLine();
+        for (const auto& f : storm->official.fixes) {
+            if (f.tau > limitHours()) {
+                break;
+            }
+            check(f.lat, f.lon, "NHC official forecast\nrun " + QString::fromStdString(UtilityAtcf::formatTime(storm->official.cycle)) + ", +" + QString::number(f.tau) + " h, " + knots(f.wind) +
+                (f.pressure > 0 ? ", " + QString::number(f.pressure) + " mb" : QString{}), "");
+        }
+    }
+    breakLine();
+    for (const auto& f : storm->best) {
+        check(f.lat, f.lon, "Best track\n" + QString::fromStdString(UtilityAtcf::formatTime(f.time)) + ", " + knots(f.wind) + (f.pressure > 0 ? ", " + QString::number(f.pressure) + " mb" : QString{}), "");
+    }
+    if (outlookCheck->isChecked() && outlook) {
+        for (const auto& area : outlook->areas) {
+            if (area.basin == (basinCode() == "al" ? "Atlantic" : "Pacific")) {
+                checkPoint(area.centerLat, area.centerLon, "Tropical Weather Outlook area " + QString::fromStdString(area.area) + "\nChance of formation: " + QString::number(area.prob2) + " % in 2 days (" +
+                      QString::fromStdString(area.risk2) + "), " + QString::number(area.prob7) + " % in 7 days (" + QString::fromStdString(area.risk7) + ")", "");
+            }
+        }
+    }
+    if (wwCheck->isChecked() && gis) {
+        for (const auto& w : gis->watchWarnings) {
+            for (const auto& ring : w.lines) {
+                breakLine();
+                for (const auto& [lon, lat] : ring) {
+                    check(lat, lon, QString::fromStdString(w.kind.empty() ? UtilityNhcGis::nameFor(w.code) : w.kind), "");
+                }
+            }
+        }
+    }
+    const long cut = reconCut();
+    if (dropCheck->isChecked() && drops) {
+        for (const auto& d : drops->drops) {
+            const double lat = UtilityDropsonde::has(d.splashLat) ? d.splashLat : d.lat;
+            const double lon = UtilityDropsonde::has(d.splashLon) ? d.splashLon : d.lon;
+            if (UtilityDropsonde::has(lat) && dropNear(d) && ReconRenderer::recent(d.seconds, cut)) {
+                QString text = "Dropsonde " + QString::fromStdString(UtilityHdob::timeText(d.seconds)) + "  " + QString::fromStdString(d.mission);
+                if (const auto * s = d.surface()) {
+                    text += "\nSurface " + QString::number(static_cast<int>(s->pressure)) + " mb";
+                    if (UtilityDropsonde::has(s->windSpeed)) text += ", wind " + QString::number(static_cast<int>(s->windDirection)) + " deg " + knotsOf(s->windSpeed);
+                }
+                if (UtilityDropsonde::has(d.mblSpeed)) text += "\nMean boundary layer wind " + QString::number(static_cast<int>(d.mblDirection)) + " deg " + knotsOf(d.mblSpeed);
+                text += "\n(click for the sounding)";
+                checkPoint(lat, lon, text, "");
+            }
+        }
+    }
+    if (fixCheck->isChecked() && vdm) {
+        for (const auto& m : vdm->messages) {
+            if (UtilityVdm::has(m.lat) && UtilityVdm::has(m.lon) && ReconRenderer::recent(m.seconds, cut)) {
+                QString text = "Recon centre fix " + VdmViewer::timeText(m.seconds) + "  " + QString::fromStdString(m.aircraft);
+                if (UtilityVdm::has(m.pressure)) text += "\nMinimum pressure " + QString::number(static_cast<int>(m.pressure)) + " mb" + (m.extrapolated ? " (extrapolated)" : "");
+                if (UtilityVdm::has(m.maxFlightWind())) text += "\nStrongest flight-level wind " + knotsOf(m.maxFlightWind());
+                if (!m.eyeCharacter.empty()) text += "\nEye " + QString::fromStdString(m.eyeCharacter + " " + m.eyeShape);
+                checkPoint(m.lat, m.lon, text, "");
+            }
+        }
+    }
+    if (reconCheck->isChecked() && recon) {
+        for (const auto& message : recon->messages) {
+            breakLine();
+            for (const auto& ob : message.obs) {
+                if (!reconNear(ob) || !ReconRenderer::recent(ob.seconds, cut)) {
+                    breakLine();
+                    continue;
+                }
+                QString text = "Recon " + QString::fromStdString(message.mission.substr(0, message.mission.find(' '))) + "  " + QString::fromStdString(UtilityHdob::timeText(ob.seconds));
+                if (UtilityHdob::has(ob.windSpeed)) {
+                    text += "\nFlight-level wind " + knotsOf(ob.windSpeed);
+                    if (UtilityHdob::has(ob.windDirection)) text += " from " + QString::number(static_cast<int>(ob.windDirection)) + " deg";
+                }
+                if (UtilityHdob::has(ob.sfmrWind)) text += "\nSFMR surface wind " + knotsOf(ob.sfmrWind);
+                if (UtilityHdob::has(ob.rainRate)) text += ", rain " + QString::number(static_cast<int>(ob.rainRate)) + " mm/h";
+                if (UtilityHdob::has(ob.surfacePressure)) text += "\nSurface pressure (extrapolated) " + QString::number(ob.surfacePressure, 'f', 1) + " mb";
+                if (UtilityHdob::has(ob.height)) text += "\nAltitude " + QString::number(static_cast<int>(ob.height)) + " m";
+                check(ob.lat, ob.lon, text, "");
+            }
+        }
+    }
+    // inside an inland watch / warning area (the warnings over the watches)
+    if (best.text.isEmpty() && wwCheck->isChecked() && gis) {
+        const UtilityTropicalAlerts::Area * inside = nullptr;
+        for (const auto& a : gis->inland) {
+            for (const auto& ring : a.rings) {
+                QPolygonF polygon;
+                for (const auto& [lon, lat] : ring) {
+                    polygon << view->toPixels(lat, lon);
+                }
+                if (polygon.containsPoint(pixels, Qt::OddEvenFill) && (inside == nullptr || UtilityTropicalAlerts::rank(a.code) > UtilityTropicalAlerts::rank(inside->code))) {
+                    inside = &a;
+                }
+            }
+        }
+        if (inside != nullptr) {
+            best = {QString::fromStdString(inside->event + "\n" + inside->zone + (inside->office.empty() ? "" : "\n" + inside->office)), 0.0};
+        }
+    }
+    // keep the line already shown unless the pointer is clearly nearer another
+    if (!lastHoverText.isEmpty() && best.text != lastHoverText && keptDistance < lineReach * 1.25 && best.distance > keptDistance - 4.0) {
+        best = {lastHoverText, keptDistance};
+        bestTech = lastHoverTech;
+    }
+    lastHoverText = best.text;
+    lastHoverTech = bestTech;
+    if (best.text.isEmpty()) {
+        hoverLabel->hide();
+        view->map()->setCursor(Qt::ArrowCursor);
+        if (!hoverTech.empty()) {
+            hoverTech.clear();
+            view->map()->update();
+        }
+        return;
+    }
+    if (hoverTech != bestTech) {
+        hoverTech = bestTech;
+        view->map()->update();
+    }
+    hoverLabel->setText(best.text);
+    hoverLabel->adjustSize();
+    hoverLabel->move(12, 12);
+    hoverLabel->show();
+    hoverLabel->raise();
+}

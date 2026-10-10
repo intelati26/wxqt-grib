@@ -7,16 +7,21 @@
 #include "objects/FutureVoid.h"
 #include <QtConcurrent/QtConcurrent>
 #include "util/AppState.h"
+#include "util/Activity.h"
+#include "util/NetPriority.h"
+#include "objects/NetManager.h"
 #include <QObject>
 
 FutureVoid::FutureVoid(Window * parent, const function<void()>& downloadFunc, const function<void()>& updateFunc)
     : updateFunc{updateFunc}
     , watcher{new QFutureWatcher<void>}
-    , future{QtConcurrent::run([downloadFunc] {
+    , future{(NetManager::trackOwner(parent), QtConcurrent::run([downloadFunc, parent] {
           if (!AppState::quitting) {   // queued behind other work when the app starts closing: skip it
+              const Activity::Task counted;
+              const NetPriority::Carry owned{0, parent};   // its requests are the screen's: dropped if the screen closes first
               downloadFunc();
           }
-      })}
+      }))}
 {
     watcher->setFuture(future);
     QObject::connect(watcher, &QFutureWatcher<void>::finished, parent, [this] {
