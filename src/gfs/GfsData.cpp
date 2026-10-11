@@ -777,6 +777,10 @@ GfsData::Source GfsData::spcPost(bool gefs) {
         }
         return urls;
     };
+    s.fileUrl = [candidates = s.candidates] (const Run& run, int hour, const std::string& file) {   // the first place (the real area)
+        const auto urls = candidates(run, hour, file);
+        return urls.empty() ? std::string{} : urls.front();
+    };
     s.fileOf = [] (const Want& want) { return want.level; };   // the product's file is the want's level
     s.memberBand = [] (const std::string& stat) {   // "b1" ... "b3": the message of a file of several
         return stat.size() == 2 && stat[0] == 'b' && stat[1] >= '1' && stat[1] <= '9' ? stat[1] - '0' : 0;
