@@ -126,7 +126,8 @@ namespace GfsChart {
         int periodHours{0};   // the chart is of a period that ends at the hour (12 hour extremes, 6 hour chances): only the forecast hours that are multiples of this have it. 0: any hour
         std::string sigmaUnit;      // the chart's own unit for the legend's second row and the read-out: "dam", "mb"
         std::string sigmaSizeKey;   // the grid of one standard deviation in that unit: the legend's second row uses its middle value
-        std::string sigmaReadKey;   // the grid of the anomaly in that unit, for the hover read-out
+        std::string sigmaReadKey;   // the grid of the anomaly in that unit: drawn as dashed lines over the deviations, and in the hover read-out
+        double sigmaInterval{0.0};  // the spacing of those lines, in that unit
     };
     const std::vector<Product>& products();
     // the group a product is listed under in the picker ("Upper air", "Surface", "Precipitation and moisture", "Storms and severe", ...)

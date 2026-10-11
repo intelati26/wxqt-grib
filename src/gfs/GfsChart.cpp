@@ -769,6 +769,7 @@ const std::vector<Product>& products() {
             x.sigmaUnit = "dam";
             x.sigmaSizeKey = "sd_size";
             x.sigmaReadKey = "anom_unit";
+            x.sigmaInterval = interval;
             x.contours = {heights(interval)};
             x.barbU = "u";
             x.barbV = "v";
@@ -799,6 +800,7 @@ const std::vector<Product>& products() {
             x.sigmaUnit = "mb";
             x.sigmaSizeKey = "sd_size";
             x.sigmaReadKey = "anom_unit";
+            x.sigmaInterval = 4.0;
             x.contours = {pressure()};
             x.barbU = "u";
             x.barbV = "v";
@@ -4948,6 +4950,17 @@ Product withStandardDeviations(const Product& product) {
     out.fillTitle = "Anomaly from the 1991-2020 mean in standard deviations";
     out.legendStep = 1;
     out.label = product.label + " (std dev)";
+    if (!product.sigmaReadKey.empty() && product.sigmaInterval > 0.0) {   // the plain anomaly beside the deviations: dashed, in its own color, so the three read together
+        ContourSet anomaly;
+        anomaly.key = product.sigmaReadKey;
+        anomaly.interval = product.sigmaInterval;
+        anomaly.title = "Anomaly (" + product.sigmaUnit + ")";
+        anomaly.color = QColor{110, 60, 160};
+        anomaly.dashed = true;
+        anomaly.uniform = true;
+        anomaly.width = 1.2;
+        out.contours.push_back(anomaly);
+    }
     return out;
 }
 
@@ -5316,9 +5329,6 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 title += " (" + unit + ")";
             }
             probe.fields.push_back({title.toStdString(), GfsGrid::reducedTo(GfsGrid::cropped(fill, sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
-        }
-        if (!product.sigmaReadKey.empty() && grids.count(product.sigmaReadKey)) {   // the anomaly in the chart's own unit beside the deviations
-            probe.fields.push_back({"Anomaly (" + product.sigmaUnit + ")", GfsGrid::reducedTo(GfsGrid::cropped(grids.at(product.sigmaReadKey), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, Quantity::Other, false});
         }
         for (const auto& set : product.contours) {
             probe.fields.push_back({set.title.empty() ? set.key : set.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.key), sector.west, sector.south, sector.east, sector.north), 120000), set.scale, Quantity::Other, false});
