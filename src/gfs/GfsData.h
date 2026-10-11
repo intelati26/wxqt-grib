@@ -96,6 +96,9 @@ public:
     // (the machine-learning severe and the daily thunder; 00 and 12Z) rather than the REFS based one (6 hourly). A file name is "directory/name", with {ee} the run's own cycle and {pe} the one
     // before for the GEFS cycle a REFS run was made with; a band is the stat "b1", "b2" ...
     static Source spcPost(bool gefs);
+    // SPC's surface objective analysis with the HRRR as background (SFCOA-HRRR: the SPC mesoanalysis, one NetCDF file an hour, `run.cycle` the valid hour) and the same fields computed from the
+    // RRFS forecasts (RRFSD, an hour per file for each run). Files of 0.5 to 1 GB: a field is read by range (want.variable is the NetCDF variable), a few megabytes and about 40 seconds.
+    static Source mesoanalysis(bool rrfs);
     // The High-Resolution Ensemble Forecast (HREF) on NOMADS: its own ready-made products of the 10 members on the 3 km CONUS grid; the `stat` of a want names the file ("mean" the default,
     // "pmmn", "lpmm", "avrg", "sprd", "prob", "eas", "ffri"). The hour has two digits.
     static Source href();

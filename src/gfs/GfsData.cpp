@@ -747,6 +747,34 @@ GfsData::Source GfsData::geps() {
     return s;
 }
 
+GfsData::Source GfsData::mesoanalysis(bool rrfs) {
+    Source s;
+    s.id = rrfs ? "RRFSD" : "SFCOA";
+    s.label = rrfs ? "SPC severe weather fields from the RRFS" : "SPC mesoanalysis (SFCOA-HRRR)";
+    s.wholeFile = true;
+    s.netcdf = true;
+    s.candidates = [rrfs] (const Run& run, int hour, const std::string&) {
+        std::vector<std::string> urls;
+        for (const char * area : {"prod", "para"}) {
+            const std::string base = std::string{"https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/"} + area + "/spc_post." + run.date + "/";
+            urls.push_back(rrfs ? base + "rrfsd/spc_post.t" + run.cycle + "z.rrfs_d.f" + pad(hour, 3) + ".nc" : base + "sfcoa-hrrr/spc_post.t" + run.cycle + "z.sfcoa_hrrr.final.nc");
+        }
+        return urls;
+    };
+    s.fileUrl = [candidates = s.candidates] (const Run& run, int hour, const std::string& file) {
+        const auto urls = candidates(run, hour, file);
+        return urls.empty() ? std::string{} : urls.front();
+    };
+    s.probeFile = "";
+    s.probeHour = rrfs ? 1 : 0;
+    s.cycleHours = 1;
+    s.lagHours = rrfs ? 3 : 1;
+    s.cyclesToTry = rrfs ? 8 : 6;
+    s.maxParallel = 4;   // NOMADS
+    s.warp = {true, 0.03, -127.0, 22.0, -65.0, 52.0};
+    return s;
+}
+
 GfsData::Source GfsData::spcPost(bool gefs) {
     Source s;
     s.id = gefs ? "SPCGEFS" : "SPCPOST";

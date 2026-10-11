@@ -158,6 +158,22 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.recipeList = true;
             m.push_back(d);
         }
+        for (const bool rrfs : {false, true}) {   // SPC's severe weather fields: the mesoanalysis (hourly) and the same fields from the RRFS
+            Def d;
+            d.id = rrfs ? "RRFSD" : "SFCOA";
+            d.label = rrfs ? "SPC severe weather fields from the RRFS (RRFSD)" : "SPC mesoanalysis (SFCOA-HRRR)";
+            d.source = [rrfs] (const std::string&) { return GfsData::mesoanalysis(rrfs); };
+            d.sectors = Sectors::Conus;
+            d.hours = rrfs ? std::vector<Hours>{{0, 84, 1}} : std::vector<Hours>{{0, 0, 1}};
+            d.hourlyRuns = true;
+            if (rrfs) {
+                d.onMissing = Missing::PreviousRun;
+                d.preloadHours = 6;
+                d.runLength = [] (int cycle) { return cycle % 6 == 0 ? 84 : 18; };
+            }
+            d.recipeList = true;
+            m.push_back(d);
+        }
         {   // the wave models
             Def d;
             d.id = "GFS-WAVE";

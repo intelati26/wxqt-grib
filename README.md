@@ -28,6 +28,10 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   instead of the mean, on the charts made of the mean's fields. REFS charts also have a Members graph (each member's value at a clicked point over
   the hours). GEPS is Environment and Climate Change Canada's ensemble from its open data server: the mean charts, the spread of the members, and
   the chance of freezing or 90 F.
+- **SPC models** - SPC's post-processing of the NWS models as Model Viewer models, from NOMADS (the test area until the Nov 3 2026 change
+  notice takes effect): SPCPOST (REFS calibrated thunder, tornado, hail and wind probabilities), SPCGEFS (GEFSCT daily thunder, GEFS-MLP severe), and the
+  mesoanalysis fields SFCOA-HRRR (the SPC mesoanalysis: CAPE, CIN, SRH, STP, SCP, SHIP, shear, lapse rates, ...) and RRFSD (the same from the RRFS to 84 h).
+  The two NetCDF ones are read by range, a field at a time (0.5 to 1 GB files, about a minute or two a field).
 - **Colors** - the Colors button edits the color scale of the chart on screen: stops, colors and transparency, flat bands or smooth, import and
   export as a text file. A scale replaces the default one for every chart that uses it (every temperature chart), and "Back to default" undoes it.
 - **Build a chart** - maps made to order from the members of the GEFS: the chance of rain over a limit in a period of 6 to 240 hours (or under
