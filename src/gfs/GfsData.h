@@ -147,6 +147,9 @@ public:
     }
     // the records downloaded for a run and hour (in this session or an earlier one still in the cache), joined into one valid GRIB2 file ("" if none): GRIB messages stand alone, so joining is all it takes
     QString partialGrib(const Run& run, int forecastHour, const std::string& file = "") const;
+    // Whether a run has what `needs` asks for, without downloading any field: the index of each file lists the records (or, for a source with no index, the file answers; a NetCDF file's
+    // variables and a Zarr store's arrays are not looked into). `detail` says what was found or what is missing.
+    bool check(const Run& run, const std::vector<Need>& needs, std::string& detail) const;
 
 private:
     bool one(const Run& run, int forecastHour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const;

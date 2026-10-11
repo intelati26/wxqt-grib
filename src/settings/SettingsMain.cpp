@@ -17,6 +17,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     , tabWidget{this}
     , settingsBox{make_unique<SettingsBox>(parent)}
     , settingsRadarBox{make_unique<SettingsRadarBox>(parent)}
+    , settingsSourcesBox{make_unique<SettingsSourcesBox>()}
     , settingsColorsBox{make_unique<SettingsColorsBox>(parent)}
     , settingsAboutBox{make_unique<TextViewerStaticBox>(parent, GlobalVariables::aboutString)}
     , settingsString{getSettings()}
@@ -46,6 +47,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
         tabWidget.addTab(settingsToolbarOrderBox.get(), "Toolbar Order");
         tabWidget.addTab(settingsHomeScreenOrderBox.get(), "Home Screen Order");
     }
+    tabWidget.addTab(settingsSourcesBox.get(), "Model Sources");
     tabWidget.addTab(settingsAboutBox.get(), "About");
     if (showRadarFirst) {
         tabWidget.setIndex(1);
@@ -62,6 +64,12 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     } else {
         tabWidget.setIndex(1);
     }
+    // the sources are looked at only when their tab is entered
+    QObject::connect(tabWidget.getView(), &QTabWidget::currentChanged, this, [this] (int) {
+        if (tabWidget.getView()->currentWidget() == settingsSourcesBox.get()) {
+            settingsSourcesBox->entered();
+        }
+    });
     box.addWidget(tabWidget);
 
     shortcutGeneral.connect([this] { tabWidget.setIndex(0); });

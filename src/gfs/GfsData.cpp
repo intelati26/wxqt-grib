@@ -888,6 +888,72 @@ GfsData::Source GfsData::spcPost(bool gefs) {
     return s;
 }
 
+bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string& detail) const {
+    if (needs.empty()) {
+        detail = "no chart to check";
+        return false;
+    }
+    if (source.custom) {
+        const std::lock_guard lock{loaderMutex};
+        const bool have = loaders().count(source.id) > 0;
+        detail = have ? "store found (arrays not checked)" : "no reader registered in this build";
+        return have;
+    }
+    std::set<std::pair<int, std::string>> files;
+    for (const auto& need : needs) {
+        files.insert({need.hour, fileFor(need.want)});
+    }
+    if (source.wholeFile) {
+        for (const auto& [hour, file] : files) {
+            bool there = false;
+            for (const auto& candidate : urlsFor(run, hour, file)) {
+                const auto url = resolveUrl(candidate);
+                if (url.empty()) {
+                    continue;
+                }
+                const auto head = config.bytes(url, 0, 3);
+                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF")) {
+                    there = true;
+                    break;
+                }
+            }
+            if (!there) {
+                detail = "f" + pad(hour, 3) + (file.empty() ? "" : " " + file) + " is not there";
+                return false;
+            }
+        }
+        detail = source.netcdf ? "files found (variables not checked)" : "files found";
+        return true;
+    }
+    for (const auto& [hour, file] : files) {
+        const auto bytes = config.bytes(indexUrl(run, hour, file), 0, -1).toStdString();
+        Want first;
+        for (const auto& need : needs) {
+            if (need.hour == hour && fileFor(need.want) == file) {
+                first = need.want;
+                break;
+            }
+        }
+        const auto index = source.parseIndex ? source.parseIndex(bytes, first) : GfsGrid::parseIdx(bytes);
+        if (index.empty()) {
+            detail = "no index for f" + pad(hour, 3) + (file.empty() ? "" : " (" + file + ")");
+            return false;
+        }
+        for (const auto& need : needs) {
+            if (need.hour != hour || fileFor(need.want) != file || (hour == 0 && !need.want.forecast.empty())) {
+                continue;
+            }
+            const auto& w = need.want;
+            if (!GfsGrid::find(index, w.variable, w.level, w.forecast, w.detail.empty() ? source.defaultDetail : w.detail)) {
+                detail = "no " + w.variable + " " + w.level + (w.forecast.empty() ? "" : " (" + w.forecast + ")") + " in f" + pad(hour, 3);
+                return false;
+            }
+        }
+    }
+    detail = "index lists the chart's fields";
+    return true;
+}
+
 QString GfsData::partialGrib(const Run& run, int hour, const std::string& file) const {
     // the messages kept for this run, hour and file, joined (a GRIB file is only messages one after the other): made when asked, from whatever has been downloaded, in any session
     QString prefix = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_");

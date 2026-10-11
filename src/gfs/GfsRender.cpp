@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <thread>
 #include <cmath>
 #include <cstring>
@@ -120,6 +121,57 @@ qint64 GfsRender::cacheUsage() {
 
 void GfsRender::clearCache() {
     GfsCache::clear();
+}
+
+GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::string& model) {
+    SourceCheck result;
+    result.model = model;
+    const auto started = std::chrono::steady_clock::now();
+    const auto finish = [&] {
+        result.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+        return result;
+    };
+    const auto * def = GfsModels::find(model);
+    if (def == nullptr) {
+        result.detail = "not a model of this build";
+        return finish();
+    }
+    result.label = def->label;
+    if (def->storm) {
+        result.skipped = true;
+        result.detail = "needs an active storm to look at";
+        return finish();
+    }
+    if (UtilityGrib::gdalBinDir().empty()) {
+        result.detail = "GDAL not found";
+        return finish();
+    }
+    const auto gfs = data(session.folder(), model);
+    GfsData::Run run;
+    if (!gfs.latestRun(run)) {
+        result.detail = "no run found on the server (offline, or the files moved)";
+        return finish();
+    }
+    result.run = run.id();
+    const GfsChart::Product * product = nullptr;
+    for (const auto& p : GfsChart::products()) {
+        if (p.source == model) {
+            product = &p;
+            break;
+        }
+    }
+    if (product == nullptr) {
+        result.detail = "run " + run.id() + " found; the model has no charts";
+        return finish();
+    }
+    int hour = def->hours.empty() ? 0 : def->hours.front().from;
+    if (hour == 0 && !GfsChart::needs(*product, 6).empty() && def->hours.size() && def->hours.front().to >= 6) {
+        hour = def->hours.front().step > 6 ? def->hours.front().step : 6;   // hour 0 has no accumulations: a chart is checked at a later hour
+    }
+    std::string detail;
+    result.ok = gfs.check(run, GfsChart::needs(*product, hour), detail);
+    result.detail = "run " + run.id() + ", " + product->id + " f" + std::to_string(hour) + ": " + detail;
+    return finish();
 }
 
 bool GfsRender::drawsModel(const std::string& model) {
