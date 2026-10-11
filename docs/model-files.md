@@ -15,8 +15,9 @@ Lines are `key = value`; `#` at the start of a line is a comment. Values with sp
 | `id`, `label` | the name in the picker, and the credit under a chart |
 | `source_label` | the credit when it differs from `label` |
 | `group` | the picker's group for it |
-| `kind` | `grib` (an index beside each file), `whole` (one field per file; the members are its messages), `netcdf` (variables read by range) |
-| `url` | the place of a file, repeatable (more are other places, tried in order). Tokens: `{date}` `{cycle}` `{prev_cycle}` `{hour}` `{hour2}` `{hour3}` `{file}` `{dir}` `{name}` |
+| `kind` | `grib` (an index beside each file), `whole` (one field per file; the members are its messages), `netcdf` (variables read by range), `custom` (read by code registered for the id: SPCREFS) |
+| `url` | the place of a file, repeatable (more are other places, tried in order). Tokens: `{date}` `{year}` `{month}` `{day}` `{cycle}` `{prev_cycle}` `{hour}` `{hour2}` `{hour3}` `{file}` `{/file}` (a slash and the file, or nothing) `{file3}` (its first three letters) `{dir}` `{name}` (the file split at `/`) `{tag}` `{tail}` (split at `:`) `{storm}`. `url = when file~"-s$" => ...` is chosen by the file's name: the first conditional url that matches is the place; with none, the plain ones. Several plain urls are places to try in order |
+| `subset_url` | a server's box request: tokens as above plus `{variables}` `{levels}` (made from `subset_variable = &var_{v}=on` and `subset_level = &lev_{l}=on`) and `{west}` `{east}` `{north}` `{south}` |
 | `file` | which file holds a field: `when <conditions> => template`, the first that matches; a line without `when` is the default. Conditions: `variable=A,B`, `level="2 m above ground"`, `level~"regex"`, `stat=` (none), `stat~regex`. Template tokens: `{variable}` `{level}` `{stat}` `{stat|default}` `{mb}` `{mb4}` |
 | `file_default` | what `{file}` is when a want has none (the run check, the first file) |
 | `index_format`, `index_suffix`, `index_replaces`, `default_detail` | `noaa` (`.idx`) or `ecmwf` (JSON); the index's name; what record detail to ask for |
@@ -27,9 +28,22 @@ Lines are `key = value`; `#` at the start of a line is a comment. Values with sp
 | `cycle_hours`, `lag_hours`, `probe_file`, `probe_hour`, `cycles_to_try`, `max_parallel` | how runs are looked for |
 | `hours` | `0-192/3, 198-384/6` |
 | `run_every`, `hourly_runs`, `on_missing`, `preload_hours`, `run_length` | the run list and what to do when a run lacks a field |
-| `sectors`, `overlays`, `list` | `world` or `conus`; lines and barbs can be ticked on; the charts are the registry's |
+| `sectors`, `overlays`, `list` | `world`, `conus` or `storm`; lines and barbs can be ticked on; the charts are the registry's |
+| `storm` | the model is run for one storm at a time: its grid is the storm's and its source is named `ID-<storm>` |
 | `clone`, `clone_ids`, `clone_variables`, `clone_levels`, `clone_fields`, `clone_skip`, `clone_plain`, `clone_rename`, `clone_prefix`, `clone_pieces`, `clone_specific_humidity` | draw the GFS charts from this model's fields: only those whose variables (and levels, `TMP\|850 mb`) the model has |
 
 A model that needs its own charts (a spread, a probability) needs a recipe in `GfsChart.cpp`; the clone gives the standard map set.
 
-`tests/gfs/run_modelfile.sh` checks that the files describe the models they replaced, byte for byte (urls, file names, hours, clone rules).
+All 19 built-in models are written this way. `tests/gfs/run_modelfile.sh` checks that the files describe the models the code had been, byte for byte (urls, file names, hours, clone rules, a storm model's urls, the GFS's box request).
+
+## Edge cases the format had to take in
+
+- **File names that depend on the want**: the GEFS's three sets of files (`file = when variable=GUST,... => {stat}-s`), the REFS's three places (`url = when file~...`), the AI model's pressure and surface files.
+- **A url that depends on the file**: the GEFS names a file after the first three letters of the file token (`ge{file3}`), the REFS has one place for the deterministic run, one for the products and one for members.
+- **A default file**: the run check asks for no particular field (`file_default`).
+- **Alternatives and globs**: SPC's guidance names a file by the GEFS cycle it was made with, or the one before (`{ee}`, `{pe}`, a `;` between alternatives), and by an accumulation that varies (`*` in the name).
+- **A place that is in the test area until it is in the real one**: two plain `url` lines.
+- **Hour 0 and hour-less files**: `{hour3}` is simply left out of the url (the mesoanalysis has one file an hour).
+- **A model that follows a storm**: `{storm}` in the url and in the source's name.
+- **Units**: `value_scale = APCP:1000` (meters to millimeters).
+- **What stays code**: the readers (the Zarr store, the NetCDF range reads, GDAL warping) and the models' own charts (`GfsChart.cpp`).

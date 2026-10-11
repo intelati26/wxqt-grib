@@ -81,22 +81,10 @@ public:
             double west{-127.0}, south{22.0}, east{-65.0}, north{52.0};
         } warp;
     };
-    // The sources that are code: file names or protocols the model definition files (GfsModelFile.h) do not describe. The others (the IFS, the AI models, the RRFS, the HREF, the GEPS, the wave
-    // models, SPC's post-processing and mesoanalysis) are definition files.
-    static Source gfs();
-    static Source nbm();
-    // The Global Ensemble Forecast System's mean, spread and members (see the .cpp)
-    static Source gefs();
-    // The Rapid Refresh Forecast System's ensemble (REFS): 5 members at 3 km (the `stat` of a want names the member, "m001" ... "m005") and the ready-made products of its own (the stat "ens:avrg",
-    // "ens:eas" for the probabilities, "ens:ffri" for flash flood risk)
-    static Source refs();
-    // SPC's REFS ensemble products (the open Zarr store its own viewer draws): one store a cycle, ready-made means, maxima, probabilities, paintball masks, hundreds of arrays. `custom`:
-    // want.variable is the array's name, want.stat "m001" ... a member of one that has them, and the field is read by the loader the app registers (spcrefs/SpcRefsLoader.cpp).
-    static Source spcRefs();
+    // Every model's Source is made from its definition file (GfsModelFile.h; GfsBuiltInModels.cpp for those that ship with the program). A model whose files need code to be read has a loader:
+    // a Source with `custom` is read by the function registered for its id (the SPC REFS Zarr store, spcrefs/SpcRefsLoader.cpp).
     using Loader = std::function<bool(const Run&, int forecastHour, const Want&, GfsGrid::Grid&, std::string& error)>;
     static void setLoader(const std::string& sourceId, Loader loader);
-    // The hurricane model for one active storm ('model' "HAFSA" or "HAFSB", 'storm' "09l": the NHC number and basin letter). Its grid follows the storm and is only there while the storm is.
-    static Source hafs(const std::string& model, const std::string& storm);
 
     // a field at a forecast hour (a precipitation period needs the running total at two hours)
     struct Need {
@@ -104,7 +92,7 @@ public:
         Want want;
     };
 
-    explicit GfsData(Config config, Source source = gfs()) : config{std::move(config)}, source{std::move(source)} {}
+    explicit GfsData(Config config, Source source) : config{std::move(config)}, source{std::move(source)} {}
     GfsData(const GfsData& other) : config{other.config}, source{other.source}, box{other.box}, boxEnabled{other.boxEnabled} {}
     // Fetch only this box when every field asked for can be had that way (otherwise the whole messages, as always): the grids come back as a regional grid, not a global one.
     void setBox(const Box& wanted) {

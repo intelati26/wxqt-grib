@@ -44,15 +44,17 @@ namespace {
 
     // one condition of a file rule: a field of the want must be one of a list, or match a regular expression
     struct Condition {
-        enum class Field { Variable, Level, Stat } field{Field::Variable};
+        enum class Field { Variable, Level, Stat, File } field{Field::Variable};
         std::vector<std::string> values;
         std::shared_ptr<QRegularExpression> pattern;
-        bool matches(const Want& w) const {
-            const auto& text = field == Field::Variable ? w.variable : field == Field::Level ? w.level : w.stat;
+        bool matchesText(const std::string& text) const {
             if (pattern) {
                 return pattern->match(QString::fromStdString(text)).hasMatch();
             }
             return std::find(values.begin(), values.end(), text) != values.end();
+        }
+        bool matches(const Want& w) const {
+            return matchesText(field == Field::Variable ? w.variable : field == Field::Level ? w.level : w.stat);
         }
     };
 
@@ -63,7 +65,11 @@ namespace {
 
     // what a definition says, kept by the functions it makes
     struct Definition {
-        std::vector<std::string> urls;
+        std::vector<Rule> urls;                  // `url` lines: with `when file...` the first that matches is the place; the plain ones are the places when none does
+        std::string storm;                       // {storm} in a url (a model that follows a storm)
+        std::string subsetUrl;                   // the server's box request, with {variables} and {levels}
+        std::string subsetVariable{"&var_{v}=on"};
+        std::string subsetLevel{"&lev_{l}=on"};
         std::vector<Rule> rules;
         std::string fileDefault;
         std::vector<std::pair<std::string, double>> scales;           // variable -> factor
@@ -113,14 +119,37 @@ namespace {
         }
     }
 
-    // the places a field may be: each alternative of the file (`;` between them) in each url
+    // {date} {cycle} {prev_cycle} {hour} {hour2} {hour3} {file} {/file} {file3} {dir} {name} {tag} {tail} {storm} {year} {month} {day}
+    std::string expandUrl(std::string url, const Definition& d, const Run& run, int hour, const std::string& alt, const std::string& previous) {
+        const auto slash = alt.find('/');
+        const auto directory = slash == std::string::npos ? std::string{} : alt.substr(0, slash);
+        const auto name = slash == std::string::npos ? alt : alt.substr(slash + 1);
+        const auto colon = alt.find(':');
+        replaceAll(url, "{date}", run.date);
+        replaceAll(url, "{year}", run.date.substr(0, 4));
+        replaceAll(url, "{month}", run.date.substr(4, 2));
+        replaceAll(url, "{day}", run.date.substr(6, 2));
+        replaceAll(url, "{cycle}", run.cycle);
+        replaceAll(url, "{prev_cycle}", previous);
+        replaceAll(url, "{hour3}", padded(hour, 3));
+        replaceAll(url, "{hour2}", padded(hour, 2));
+        replaceAll(url, "{hour}", std::to_string(hour));
+        replaceAll(url, "{/file}", alt.empty() ? std::string{} : "/" + alt);
+        replaceAll(url, "{file3}", alt.substr(0, 3));
+        replaceAll(url, "{file}", alt);
+        replaceAll(url, "{dir}", directory);
+        replaceAll(url, "{name}", name);
+        replaceAll(url, "{tag}", colon == std::string::npos ? alt : alt.substr(0, colon));
+        replaceAll(url, "{tail}", colon == std::string::npos ? alt : alt.substr(colon + 1));
+        replaceAll(url, "{storm}", d.storm);
+        return url;
+    }
+
+    // the places a field may be: each alternative of the file (`;` between them) in each url that applies
     std::vector<std::string> urlsOf(const Definition& d, const Run& run, int hour, const std::string& file) {
         const int cycle = std::atoi(run.cycle.c_str());
         const auto previous = padded((cycle + 18) % 24, 2);
-        std::vector<std::string> alternatives;
-        for (const auto& alt : split(file, ';')) {
-            alternatives.push_back(alt);
-        }
+        std::vector<std::string> alternatives = split(file, ';');
         if (alternatives.empty()) {
             alternatives.push_back({});
         }
@@ -133,21 +162,26 @@ namespace {
             }
             const auto slash = alt.find('/');
             const auto directory = slash == std::string::npos ? std::string{} : alt.substr(0, slash);
-            const auto name = slash == std::string::npos ? alt : alt.substr(slash + 1);
-            for (auto url : d.urls) {
-                if (directory.empty() && url.find("{dir}") != std::string::npos) {
+            // a conditional url that matches is the one place; with none, the plain urls
+            const Rule * chosen = nullptr;
+            for (const auto& rule : d.urls) {
+                if (!rule.conditions.empty() && std::all_of(rule.conditions.begin(), rule.conditions.end(), [&alt] (const Condition& c) { return c.matchesText(alt); })) {
+                    chosen = &rule;
+                    break;
+                }
+            }
+            if (chosen != nullptr) {
+                out.push_back(expandUrl(chosen->pattern, d, run, hour, alt, previous));
+                continue;
+            }
+            for (const auto& rule : d.urls) {
+                if (!rule.conditions.empty()) {
+                    continue;
+                }
+                if (directory.empty() && rule.pattern.find("{dir}") != std::string::npos) {
                     continue;   // a file that is not "directory/name" has no place where the url wants one
                 }
-                replaceAll(url, "{date}", run.date);
-                replaceAll(url, "{cycle}", run.cycle);
-                replaceAll(url, "{prev_cycle}", previous);
-                replaceAll(url, "{hour3}", padded(hour, 3));
-                replaceAll(url, "{hour2}", padded(hour, 2));
-                replaceAll(url, "{hour}", std::to_string(hour));
-                replaceAll(url, "{file}", alt);
-                replaceAll(url, "{dir}", directory);
-                replaceAll(url, "{name}", name);
-                out.push_back(url);
+                out.push_back(expandUrl(rule.pattern, d, run, hour, alt, previous));
             }
         }
         return out;
@@ -221,8 +255,10 @@ namespace {
                 c.field = Condition::Field::Level;
             } else if (field == "stat") {
                 c.field = Condition::Field::Stat;
+            } else if (field == "file") {
+                c.field = Condition::Field::File;
             } else {
-                return reader.fail("unknown condition field " + field + " (variable, level, stat)");
+                return reader.fail("unknown condition field " + field + " (variable, level, stat, file)");
             }
             const bool regex = head[stop] == '~';
             i = stop + 1;
@@ -310,8 +346,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
     std::string kind = "grib";
     GfsData::Source source;   // the parts that are plain values
     std::string indexFormat = "noaa";
-    bool candidatesWanted = false;
     std::string sourceLabel;
+    bool stormModel = false;
     std::istringstream in{text};
     std::string raw;
     std::vector<std::string> hourSegments;
@@ -353,13 +389,30 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
             }
             def.links.push_back({parts[0], parts[1], parts[2]});
         } else if (key == "kind") {
-            if (value != "grib" && value != "whole" && value != "netcdf") {
-                reader.fail("kind is grib, whole or netcdf");
+            if (value != "grib" && value != "whole" && value != "netcdf" && value != "custom") {
+                reader.fail("kind is grib, whole, netcdf or custom");
                 break;
             }
             kind = value;
         } else if (key == "url") {
-            definition->urls.push_back(value);
+            Rule rule;
+            if (!parseRule(value, rule, reader)) {
+                break;
+            }
+            for (const auto& c : rule.conditions) {
+                if (c.field != Condition::Field::File) {
+                    reader.fail("a url is chosen by the file only: when file...");
+                }
+            }
+            definition->urls.push_back(rule);
+        } else if (key == "subset_url") {
+            definition->subsetUrl = value;
+        } else if (key == "subset_variable") {
+            definition->subsetVariable = value;
+        } else if (key == "subset_level") {
+            definition->subsetLevel = value;
+        } else if (key == "storm") {
+            stormModel = toBool(value);
         } else if (key == "file") {
             Rule rule;
             if (!parseRule(value, rule, reader)) {
@@ -433,11 +486,11 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
         } else if (key == "hourly_runs") {
             def.hourlyRuns = toBool(value);
         } else if (key == "sectors") {
-            if (value != "world" && value != "conus") {
-                reader.fail("sectors is world or conus");
+            if (value != "world" && value != "conus" && value != "storm") {
+                reader.fail("sectors is world, conus or storm");
                 break;
             }
-            def.sectors = value == "conus" ? GfsModels::Sectors::Conus : GfsModels::Sectors::World;
+            def.sectors = value == "conus" ? GfsModels::Sectors::Conus : value == "storm" ? GfsModels::Sectors::Storm : GfsModels::Sectors::World;
         } else if (key == "overlays") {
             def.overlays = toBool(value);
         } else if (key == "list") {
@@ -539,56 +592,86 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
         result.error = reader.error;
         return result;
     }
-    // the source: the same value in each call, with what the definition says in the functions
-    candidatesWanted = definition->urls.size() > 1;
-    source.id = def.id;
+    // the source: made for each call (a model that follows a storm has the storm in its urls and its name), with what the definition says in the functions
     source.label = sourceLabel.empty() ? def.label : sourceLabel;
     source.wholeFile = kind != "grib";
     source.netcdf = kind == "netcdf";
-    if (!definition->rules.empty()) {
-        source.fileOf = [definition] (const Want& w) {
-            for (const auto& rule : definition->rules) {
-                const bool all = std::all_of(rule.conditions.begin(), rule.conditions.end(), [&w] (const Condition& c) { return c.matches(w); });
-                if (all) {
-                    return expandWant(rule.pattern, w);
+    source.custom = kind == "custom";
+    const bool candidatesWanted = std::count_if(definition->urls.begin(), definition->urls.end(), [] (const Rule& r) { return r.conditions.empty(); }) > 1;
+    const bool ecmwf = indexFormat == "ecmwf";
+    const std::string id = def.id;
+    def.source = [definition, source, candidatesWanted, ecmwf, stormModel, id] (const std::string& storm) {
+        auto d = std::make_shared<Definition>(*definition);
+        d->storm = storm;
+        GfsData::Source made = source;
+        made.id = stormModel ? id + "-" + storm : id;
+        if (!d->rules.empty()) {
+            made.fileOf = [d] (const Want& w) {
+                for (const auto& rule : d->rules) {
+                    const bool all = std::all_of(rule.conditions.begin(), rule.conditions.end(), [&w] (const Condition& c) { return c.matches(w); });
+                    if (all) {
+                        return expandWant(rule.pattern, w);
+                    }
                 }
-            }
-            return std::string{};
-        };
-    }
-    if (candidatesWanted) {
-        source.candidates = [definition] (const Run& run, int hour, const std::string& file) { return urlsOf(*definition, run, hour, file); };
-        source.fileUrl = [definition] (const Run& run, int hour, const std::string& file) {
-            const auto urls = urlsOf(*definition, run, hour, file);
+                return std::string{};
+            };
+        }
+        made.fileUrl = [d] (const Run& run, int hour, const std::string& file) {
+            const auto urls = urlsOf(*d, run, hour, file);
             return urls.empty() ? std::string{} : urls.front();
         };
-    } else {
-        source.fileUrl = [definition] (const Run& run, int hour, const std::string& file) {
-            const auto urls = urlsOf(*definition, run, hour, file);
-            return urls.empty() ? std::string{} : urls.front();
-        };
-    }
-    if (indexFormat == "ecmwf") {
-        source.parseIndex = [] (const std::string& text, const Want&) { return GfsGrid::parseEcmwfIndex(text); };
-    }
-    if (!definition->scales.empty()) {
-        source.valueScale = [definition] (const Want& w) {
-            for (const auto& [variable, factor] : definition->scales) {
-                if (variable == w.variable) {
-                    return factor;
+        if (candidatesWanted) {
+            made.candidates = [d] (const Run& run, int hour, const std::string& file) { return urlsOf(*d, run, hour, file); };
+        }
+        if (ecmwf) {
+            made.parseIndex = [] (const std::string& text, const Want&) { return GfsGrid::parseEcmwfIndex(text); };
+        }
+        if (!d->scales.empty()) {
+            made.valueScale = [d] (const Want& w) {
+                for (const auto& [variable, factor] : d->scales) {
+                    if (variable == w.variable) {
+                        return factor;
+                    }
                 }
-            }
-            return 1.0;
-        };
-    }
-    if (!definition->memberBand.empty()) {
-        source.memberBand = [definition] (const std::string& stat) {
-            const auto found = definition->memberBand.find(stat);
-            return found == definition->memberBand.end() ? 0 : found->second;
-        };
-    }
-    const auto finished = source;
-    def.source = [finished] (const std::string&) { return finished; };
+                return 1.0;
+            };
+        }
+        if (!d->memberBand.empty()) {
+            made.memberBand = [d] (const std::string& stat) {
+                const auto found = d->memberBand.find(stat);
+                return found == d->memberBand.end() ? 0 : found->second;
+            };
+        }
+        if (!d->subsetUrl.empty()) {   // a box of the fields cut out by the server (NOMADS's grib filter)
+            made.subsetUrl = [d] (const Run& run, int hour, const std::vector<std::string>& variables, const std::vector<std::string>& levels, const GfsData::Box& box) {
+                std::string url = d->subsetUrl;
+                std::string vars, levs;
+                for (const auto& v : variables) {
+                    auto one = d->subsetVariable;
+                    replaceAll(one, "{v}", v);
+                    vars += one;
+                }
+                for (auto l : levels) {
+                    std::replace(l.begin(), l.end(), ' ', '_');
+                    auto one = d->subsetLevel;
+                    replaceAll(one, "{l}", l);
+                    levs += one;
+                }
+                replaceAll(url, "{variables}", vars);
+                replaceAll(url, "{levels}", levs);
+                replaceAll(url, "{west}", std::to_string(static_cast<int>(box.west)));
+                replaceAll(url, "{east}", std::to_string(static_cast<int>(box.east)));
+                replaceAll(url, "{north}", std::to_string(static_cast<int>(box.north)));
+                replaceAll(url, "{south}", std::to_string(static_cast<int>(box.south)));
+                replaceAll(url, "{date}", run.date);
+                replaceAll(url, "{cycle}", run.cycle);
+                replaceAll(url, "{hour3}", padded(hour, 3));
+                return url;
+            };
+        }
+        return made;
+    };
+    def.storm = stormModel;
     result.def = def;
     result.ok = true;
     return result;

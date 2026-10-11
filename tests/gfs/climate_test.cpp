@@ -6,6 +6,10 @@
 #include "gfs/GfsModels.h"
 #include "gfs/GfsGrid.h"
 
+static GfsData::Source modelSource(const std::string& id, const std::string& storm = "") {
+    return GfsModels::find(id)->source(storm);
+}
+
 static int failures = 0;
 #define CHECK(c) do { if (!(c)) { std::printf("FAIL line %d: %s\n", __LINE__, #c); failures++; } } while (0)
 
@@ -77,12 +81,12 @@ int main() {
     // the two models' files, and how a run is found for each
     {
         const GfsData::Run run{"20261008", "12"};
-        const auto gfs = GfsData::gfs(), nbm = GfsData::nbm();
+        const auto gfs = modelSource("GFS"), nbm = modelSource("NBM");
         CHECK(gfs.fileUrl(run, 24, "") == "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20261008/12/atmos/gfs.t12z.pgrb2.0p25.f024");
         CHECK(nbm.fileUrl(run, 6, "") == "https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.20261008/12/core/blend.t12z.core.f006.co.grib2");
         CHECK(gfs.cycleHours == 6 && gfs.probeHour == 0 && !gfs.warp.enabled && nbm.cycleHours == 1 && nbm.probeHour == 1 && nbm.warp.enabled);
         {
-            const auto ge = GfsData::gefs();
+            const auto ge = modelSource("GEFS");
             const GfsData::Run r{"20261008", "12"};
             CHECK(ge.fileUrl(r, 24, "avg-a") == "https://noaa-gefs-pds.s3.amazonaws.com/gefs.20261008/12/atmos/pgrb2ap5/geavg.t12z.pgrb2a.0p50.f024");
             CHECK(ge.fileUrl(r, 24, "spr-s") == "https://noaa-gefs-pds.s3.amazonaws.com/gefs.20261008/12/atmos/pgrb2sp25/gespr.t12z.pgrb2s.0p25.f024");
@@ -91,11 +95,11 @@ int main() {
             CHECK(!GfsGrid::find(GfsGrid::parseIdx("1:0:d=2026100812:HGT:500 mb:72 hour fcst:ens mean\n"), "HGT", "500 mb", "", "*") == false);
         }
         {
-            const auto h = GfsData::hafs("HAFSA", "09l");
+            const auto h = modelSource("HAFSA", "09l");
             const GfsData::Run r{"20261008", "18"};
             CHECK(h.fileUrl(r, 24, "storm.atm") == "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.20261008/18/09l.2026100818.hfsa.storm.atm.f024.grb2");
             CHECK(h.fileUrl(r, 24, "ww3") == "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.20261008/18/09l.2026100818.hfsa.ww3.grb2");
-            CHECK(GfsData::hafs("HAFSB", "18e").fileUrl(r, 6, "storm.sat").find("hfsb.20261008/18/18e.2026100818.hfsb.storm.sat.f006.grb2") != std::string::npos);
+            CHECK(modelSource("HAFSB", "18e").fileUrl(r, 6, "storm.sat").find("hfsb.20261008/18/18e.2026100818.hfsb.storm.sat.f006.grb2") != std::string::npos);
             CHECK(h.fileOf({"s", "var discipline=3 center=7 local_table=1 parmcat=192 parm=65", "top of atmosphere", "", "", ""}) == "storm.sat");
             CHECK(h.fileOf({"h", "HTSGW", "surface", "", "", "ww3"}) == "ww3");
             CHECK(h.fileOf({"u", "UGRD", "10 m above ground", "", "", ""}) == "storm.atm");

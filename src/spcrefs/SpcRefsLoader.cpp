@@ -11,6 +11,7 @@
 #include <mutex>
 #include <QDateTime>
 #include "gfs/GfsData.h"
+#include "gfs/GfsModels.h"
 #include "spcrefs/LambertGrid.h"
 #include "zarr/ZarrStore.h"
 
@@ -87,7 +88,12 @@ namespace {
     }
 
     bool load(const GfsData::Run& run, int hour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) {
-        const auto url = GfsData::spcRefs().fileUrl(run, hour, "");
+        const auto * def = GfsModels::find("SPCREFS");
+        const auto url = def != nullptr ? def->source("").fileUrl(run, hour, "") : std::string{};
+        if (url.empty()) {
+            error = "the SPCREFS model is not defined";
+            return false;
+        }
         Opened opened;
         if (!open(url, run.id(), opened, error)) {
             error = "could not open the REFS store of " + run.id() + ": " + error;

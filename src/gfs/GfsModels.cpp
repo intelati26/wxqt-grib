@@ -69,88 +69,25 @@ std::vector<std::string> GfsModels::userProblems() {
 const std::vector<GfsModels::Def>& GfsModels::all() {
     static const std::vector<Def> models = [] {
         std::vector<Def> m;
-        {   // the GFS: the charts everything else is made from
-            Def d;
-            d.id = "GFS";
-            d.label = "NOAA/NCEP GFS 0.25 degree";
-            d.source = [] (const std::string&) { return GfsData::gfs(); };
-            d.hours = {{0, 243, 3}, {252, 396, 12}};
-            d.overlays = true;
-            m.push_back(d);
-        }
-        {   // the National Blend of Models: hourly runs, its own charts, only the contiguous United States
-            Def d;
-            d.id = "NBM";
-            d.label = "NOAA/NWS National Blend of Models v4, 2.5 km";
-            d.source = [] (const std::string&) { return GfsData::nbm(); };
-            d.sectors = Sectors::Conus;
-            d.hours = {{1, 36, 1}, {39, 192, 3}, {198, 264, 6}};   // hourly for a day and a half, then every 3 hours, then every 6
-            d.hourlyRuns = true;
-            d.onMissing = Missing::MainRun;   // a run that is not at 00, 06, 12 or 18Z has fewer fields: the newest of the main runs has the rest
-            m.push_back(d);
-        }
+        m.push_back(fromFile("GFS"));
+        m.push_back(fromFile("NBM"));
         m.push_back(fromFile("AIGFS"));
         m.push_back(fromFile("IFS"));
         m.push_back(fromFile("AIFS"));
-        {   // the ensemble mean and spread
-            Def d;
-            d.id = "GEFS";
-            d.label = "NOAA/NCEP GEFS 30 member ensemble, 0.5 degree";
-            d.source = [] (const std::string&) { return GfsData::gefs(); };
-            d.hours = {{0, 384, 6}};   // 6 hourly: the precipitation pieces are 6 hours
-            d.overlays = true;
-            d.recipeList = true;
-            d.clone.enabled = true;
-            d.clone.variables = {"HGT", "TMP", "RH", "UGRD", "VGRD", "VVEL", "PRMSL", "PWAT", "CAPE", "CIN", "APCP", "CRAIN", "CSNOW", "CFRZR", "CICEP", "TCDC", "DPT", "GUST", "SNOD", "WEASD", "TMAX", "TMIN", "HLCY"};
-            d.clone.levels = {"10 mb", "50 mb", "100 mb", "200 mb", "250 mb", "300 mb", "400 mb", "500 mb", "700 mb", "850 mb", "925 mb", "1000 mb"};
-            d.clone.pieces = true;
-            d.clone.labelPrefix = "Mean ";
-            d.clone.plain = {"precip_p"};
-            d.clone.skip = {"precip_p06", "precip_p24", "500_vort_ht", "850_vort_ht"};   // these are drawn as mean and spread together
-            m.push_back(d);
-        }
+        m.push_back(fromFile("GEFS"));
         m.push_back(fromFile("GEPS"));
         m.push_back(fromFile("RRFS"));
         m.push_back(fromFile("HREF"));
-        {   // the Rapid Refresh Forecast System ensemble: five members at 3 km, and its ready-made probability products (it replaces HREF and SREF)
-            Def d;
-            d.id = "REFS";
-            d.label = "NOAA/NCEP REFS, 5 member 3 km ensemble";
-            d.source = [] (const std::string&) { return GfsData::refs(); };
-            d.sectors = Sectors::Conus;
-            d.hours = {{0, 60, 1}};
-            d.recipeList = true;
-            m.push_back(d);
-        }
+        m.push_back(fromFile("REFS"));
         m.push_back(fromFile("SPCPOST"));
         m.push_back(fromFile("SPCGEFS"));
         m.push_back(fromFile("SFCOA"));
         m.push_back(fromFile("RRFSD"));
-        {   // SPC's REFS ensemble products from its open Zarr store: means, maxima, probabilities and paintballs of the 10 members, on the 3 km grid
-            Def d;
-            d.id = "SPCREFS";
-            d.label = "SPC REFS ensemble products (open Zarr data)";
-            d.source = [] (const std::string&) { return GfsData::spcRefs(); };
-            d.sectors = Sectors::Conus;
-            d.hours = {{1, 60, 1}};
-            d.cycleStep = 6;
-            d.recipeList = true;
-            m.push_back(d);
-        }
+        m.push_back(fromFile("SPCREFS"));
         m.push_back(fromFile("GFS-WAVE"));
         m.push_back(fromFile("GEFS-WAVE"));
-        for (const char * version : {"HAFSA", "HAFSB"}) {   // the hurricane model, for one storm at a time
-            Def d;
-            d.id = version;
-            d.label = std::string{"NOAA/NCEP HAFS-"} + (std::string{version} == "HAFSB" ? "B" : "A") + ", 2 km storm-following grid";
-            const std::string id = version;
-            d.source = [id] (const std::string& storm) { return GfsData::hafs(id, storm); };
-            d.sectors = Sectors::Storm;
-            d.hours = {{0, 126, 3}};
-            d.storm = true;
-            d.onMissing = Missing::PreviousCycle;   // the waves come out after the rest
-            m.push_back(d);
-        }
+        m.push_back(fromFile("HAFSA"));
+        m.push_back(fromFile("HAFSB"));
         for (auto& d : m) {   // what each is and why it matters
             for (const auto& [name, text] : GfsModelFile::aboutBuiltIn()) {
                 if (name == d.id && d.why.empty()) {

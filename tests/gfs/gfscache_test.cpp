@@ -7,6 +7,7 @@
 #include <QTemporaryDir>
 #include "gfs/GfsCache.h"
 #include "gfs/GfsData.h"
+#include "gfs/GfsModels.h"
 
 static int failures = 0;
 #define CHECK(c) do { if (!(c)) { std::printf("FAIL line %d: %s\n", __LINE__, #c); failures++; } } while (0)
@@ -52,7 +53,7 @@ int main(int argc, char ** argv) {
     // the joined file: the messages kept for one run, hour and file, one after the other, and not those of another hour
     GfsData::Config config;
     config.cacheFolder = folder;
-    GfsData data{config, GfsData::gfs()};
+    GfsData data{config, GfsModels::find("GFS")->source("")};
     const GfsData::Run run{"20261008", "12"};
     make(folder, "GFS_2026100812_f024__HGT_500-mb_24-hour-fcst__p.grb2", 3, 1);
     make(folder, "GFS_2026100812_f024__TMP_500-mb_24-hour-fcst__p.grb2", 5, 1);

@@ -9,6 +9,178 @@
 // file names or protocols this format does not describe and stay in GfsData.cpp.
 const std::vector<std::pair<std::string, std::string>>& GfsModelFile::builtIn() {
     static const std::vector<std::pair<std::string, std::string>> list{
+        {"GFS", R"MODEL(
+# the GFS: the charts everything else is made from; NOMADS can cut a box of the fields out of a file, which is what a regional chart fetches
+id = GFS
+label = NOAA/NCEP GFS 0.25 degree
+kind = grib
+url = https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{date}/{cycle}/atmos/gfs.t{cycle}z.pgrb2.0p25.f{hour3}
+subset_url = https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?dir=%2Fgfs.{date}%2F{cycle}%2Fatmos&file=gfs.t{cycle}z.pgrb2.0p25.f{hour3}{variables}{levels}&subregion=&leftlon={west}&rightlon={east}&toplat={north}&bottomlat={south}
+cycle_hours = 6
+lag_hours = 3
+probe_hour = 0
+hours = 0-243/3, 252-396/12
+overlays = true
+)MODEL"},
+        {"NBM", R"MODEL(
+# the National Blend of Models: a run every hour (no hour 0 file), a Lambert grid warped to latitude / longitude, only the contiguous United States
+id = NBM
+label = NOAA/NWS National Blend of Models v4, 2.5 km
+kind = grib
+url = https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.{date}/{cycle}/core/blend.t{cycle}z.core.f{hour3}.co.grib2
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 1
+cycles_to_try = 8
+warp = 0.025, -127.0, 22.0, -65.0, 52.0
+sectors = conus
+hours = 1-36/1, 39-192/3, 198-264/6
+hourly_runs = true
+on_missing = main_run
+)MODEL"},
+        {"GEFS", R"MODEL(
+# the GEFS: the mean ("avg"), spread ("spr") and members (c00, p01 ... p30) are files of their own, in three sets: the 0.5 degree "a" set, the 0.25 degree surface set "s" (gusts, dew point, visibility,
+# helicity, surface-based CAPE and CIN) and the second 0.5 degree set "b" (the most unstable parcel's CAPE). A file here is "<avg|spr|member>-<a|s|b>"; the name is "ge" and its first three letters.
+id = GEFS
+label = NOAA/NCEP GEFS 30 member ensemble, 0.5 degree
+source_label = NOAA/NCEP GEFS mean and spread, 0.5 degree
+kind = grib
+url = when file~"-s$" => https://noaa-gefs-pds.s3.amazonaws.com/gefs.{date}/{cycle}/atmos/pgrb2sp25/ge{file3}.t{cycle}z.pgrb2s.0p25.f{hour3}
+url = when file~"-b$" => https://noaa-gefs-pds.s3.amazonaws.com/gefs.{date}/{cycle}/atmos/pgrb2bp5/ge{file3}.t{cycle}z.pgrb2b.0p50.f{hour3}
+url = https://noaa-gefs-pds.s3.amazonaws.com/gefs.{date}/{cycle}/atmos/pgrb2ap5/ge{file3}.t{cycle}z.pgrb2a.0p50.f{hour3}
+file_default = avg-a
+file = when variable=GUST,DPT,VIS,HLCY,MSLET stat~"^[cp][0-9][0-9]$" => {stat}-s
+file = when variable=GUST,DPT,VIS,HLCY,MSLET stat=spr => spr-s
+file = when variable=GUST,DPT,VIS,HLCY,MSLET => avg-s
+file = when variable=CAPE,CIN level=surface stat~"^[cp][0-9][0-9]$" => {stat}-s
+file = when variable=CAPE,CIN level=surface stat=spr => spr-s
+file = when variable=CAPE,CIN level=surface => avg-s
+file = when variable=CAPE level~"^255" stat~"^[cp][0-9][0-9]$" => {stat}-b
+file = when variable=CAPE level~"^255" stat=spr => spr-b
+file = when variable=CAPE level~"^255" => avg-b
+file = when stat~"^[cp][0-9][0-9]$" => {stat}-a
+file = when stat=spr => spr-a
+file = avg-a
+default_detail = *
+probe_file = avg-a
+cycle_hours = 6
+lag_hours = 6
+probe_hour = 384
+hours = 0-384/6
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, VVEL, PRMSL, PWAT, CAPE, CIN, APCP, CRAIN, CSNOW, CFRZR, CICEP, TCDC, DPT, GUST, SNOD, WEASD, TMAX, TMIN, HLCY
+clone_levels = 10 mb, 50 mb, 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_pieces = true
+clone_prefix = "Mean "
+clone_plain = precip_p
+clone_skip = precip_p06, precip_p24, 500_vort_ht, 850_vort_ht
+)MODEL"},
+        {"REFS", R"MODEL(
+# the RRFS ensemble: each member's files (rrfsens), the ready-made products (refs ensprod: "ens:avrg", "ens:eas", "ens:ffri") and the deterministic RRFS run of the same cycle (rrfs/...) for the charts
+# that put it with the members. A member's file is "<m001>/<2dfld|prslev>".
+id = REFS
+label = NOAA/NCEP REFS, 5 member 3 km ensemble
+source_label = NOAA/NCEP REFS
+kind = grib
+url = when file~"^rrfs/" => https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{name}.f{hour3}.conus.grib2
+url = when file~"^ens:" => https://noaa-rrfs-ops-pds.s3.amazonaws.com/refs.{date}/{cycle}/ensprod/refs.t{cycle}z.{tail}.f{hour2}.conus.grib2
+url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfsens.{date}/{cycle}/{dir}/rrfs.t{cycle}z.{dir}.{name}nomads.3km.f{hour3}.conus.grib2
+file = when stat~"^ens:" => {stat}
+file = when stat=rrfs level~"^[0-9]+ mb$" => rrfs/prslev.3km
+file = when stat=rrfs => rrfs/2dfld.3km
+file = when stat= level~"^[0-9]+ mb$" => m001/prslev
+file = when stat= => m001/2dfld
+file = when level~"^[0-9]+ mb$" => {stat}/prslev
+file = {stat}/2dfld
+default_detail = *
+probe_file = m001/2dfld
+cycle_hours = 6
+lag_hours = 5
+probe_hour = 60
+cycles_to_try = 4
+warp = 0.03, -127.0, 22.0, -65.0, 52.0
+sectors = conus
+hours = 0-60/1
+list = true
+)MODEL"},
+        {"HAFSA", R"MODEL(
+# NCEP's hurricane model, version A, for one storm at a time ({storm} is the NHC number and basin letter, "09l"): a storm-following grid of 0.02 degrees (the atmosphere and the simulated
+# satellite are files of their own, 3 hourly to 126 hours), the parent domain's swath, the track, and one file of waves for all the hours (the hour is in the record, not the file name)
+id = HAFSA
+label = NOAA/NCEP HAFS-A, 2 km storm-following grid
+source_label = NOAA/NCEP HAFS-A storm-following grid, 2 km
+kind = grib
+storm = true
+url = when file=swath => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.parent.swath.grb2
+url = when file=trak => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.trak.atcfunix
+url = when file=ww3 => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.ww3.grb2
+url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.{file}.f{hour3}.grb2
+file_default = storm.atm
+file = when stat=swath => swath
+file = when stat=ww3 => ww3
+file = when variable~"^var" => storm.sat
+file = storm.atm
+default_detail = *
+extra_missing = 9999
+probe_file = storm.atm
+cycle_hours = 6
+lag_hours = 4
+probe_hour = 126
+max_parallel = 4
+cycles_to_try = 4
+sectors = storm
+hours = 0-126/3
+on_missing = previous_cycle
+)MODEL"},
+        {"HAFSB", R"MODEL(
+# NCEP's hurricane model, version B, for one storm at a time ({storm} is the NHC number and basin letter, "09l"): a storm-following grid of 0.02 degrees (the atmosphere and the simulated
+# satellite are files of their own, 3 hourly to 126 hours), the parent domain's swath, the track, and one file of waves for all the hours (the hour is in the record, not the file name)
+id = HAFSB
+label = NOAA/NCEP HAFS-B, 2 km storm-following grid
+source_label = NOAA/NCEP HAFS-B storm-following grid, 2 km
+kind = grib
+storm = true
+url = when file=swath => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.parent.swath.grb2
+url = when file=trak => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.trak.atcfunix
+url = when file=ww3 => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.ww3.grb2
+url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.{file}.f{hour3}.grb2
+file_default = storm.atm
+file = when stat=swath => swath
+file = when stat=ww3 => ww3
+file = when variable~"^var" => storm.sat
+file = storm.atm
+default_detail = *
+extra_missing = 9999
+probe_file = storm.atm
+cycle_hours = 6
+lag_hours = 4
+probe_hour = 126
+max_parallel = 4
+cycles_to_try = 4
+sectors = storm
+hours = 0-126/3
+on_missing = previous_cycle
+)MODEL"},
+        {"SPCREFS", R"MODEL(
+# SPC's REFS ensemble products, an open Zarr store a cycle: read by the program's own reader (the loader registered for this id), not by a download; the file is the store's own path
+id = SPCREFS
+label = SPC REFS ensemble products (open Zarr data)
+kind = custom
+url = https://www.spc.noaa.gov/exper/refs/data/{year}/{month}/{day}/refs-spc_{date}_{cycle}00.zarr{/file}
+probe_file = .zgroup
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 3
+cycles_to_try = 6
+max_parallel = 4
+warp = 0.03, -127.0, 22.0, -65.0, 52.0
+sectors = conus
+hours = 1-60/1
+run_every = 6
+list = true
+)MODEL"},
         {"AIGFS", R"MODEL(
 # NOAA's AI global model (GraphCast based): the pressure levels and the surface are files of their own
 id = AIGFS

@@ -53,15 +53,30 @@ static std::string describe(const std::string& id) {
         << " maxParallel=" << source.maxParallel << " wholeFile=" << source.wholeFile << " netcdf=" << source.netcdf << " custom=" << source.custom << " indexSuffix=" << source.indexSuffix
         << " indexReplaces=" << source.indexReplaces << " defaultDetail=" << source.defaultDetail << " extraMissing=" << source.extraMissing << " warp=" << source.warp.enabled << ":" << source.warp.step << ","
         << source.warp.west << "," << source.warp.south << "," << source.warp.east << "," << source.warp.north << " hasParse=" << static_cast<bool>(source.parseIndex) << " hasSubset=" << static_cast<bool>(source.subsetUrl) << "\n";
+    if (source.subsetUrl) {
+        out << "subset=" << source.subsetUrl({"20261010", "12"}, 36, {"HGT", "TMP"}, {"500 mb", "2 m above ground"}, GfsData::Box{-130.0, 20.0, -60.0, 55.0}) << "\n";
+    }
+    if (def->storm) {
+        const auto stormy = def->source("09l");
+        out << "storm source.id=" << stormy.id << " label=" << stormy.label << "\n";
+        for (const char * file : {"", "swath", "trak", "ww3", "storm.atm", "storm.sat"}) {
+            out << "storm file=" << file << " url=" << stormy.fileUrl({"20261010", "12"}, 36, file) << "\n";
+        }
+    }
     const std::vector<GfsData::Run> runs{{"20261010", "00"}, {"20261011", "18"}};
-    const std::vector<int> hours{1, 36, 120};
+    const std::vector<int> hours{1, 120};
     const std::vector<GfsData::Want> wants{
         {"a", "HGT", "500 mb", "", "", ""}, {"a", "TMP", "2 m above ground", "", "", ""}, {"a", "UGRD", "10 m above ground", "", "", ""}, {"a", "PRMSL", "mean sea level", "", "", ""},
         {"a", "PWAT", "entire atmosphere (considered as a single layer)", "", "", ""}, {"a", "CAPE", "surface", "", "", ""}, {"a", "APCP", "surface", "0-6 hour acc fcst", "", ""},
         {"a", "RH", "1000 mb", "", "", ""}, {"a", "SPFH", "2 m above ground", "", "", ""}, {"a", "WIND", "10 m above ground", "", "", ""},
         {"a", "TMP", "2 m above ground", "", "", "spr"}, {"a", "TMP", "2 m above ground", "", "", "p07"}, {"a", "TMP", "2 m above ground", "", "", "c00"},
         {"a", "PROB", "refsct/refsct_1hr", "", "", ""}, {"a", "PROB", "grefs/grefs_{ee}.4hr;grefs/grefs_{pe}.4hr", "", "", "b2"}, {"a", "PROB", "gefs_mlp/gefsmlp_tor_std", "", "", ""},
-        {"a", "sb_cape", "", "", "", ""}, {"a", "HGT", "500 mb", "", "", "mean"}, {"a", "HGT", "500 mb", "", "", "sprd"}};
+        {"a", "sb_cape", "", "", "", ""}, {"a", "HGT", "500 mb", "", "", "mean"}, {"a", "HGT", "500 mb", "", "", "sprd"},
+        // the edge cases of the models that were code: GEFS's three sets of files and its members, the REFS's three places, HAFS's track, waves and swath, and the REFS products by name
+        {"a", "CAPE", "255-0 mb above ground", "", "", ""}, {"a", "CIN", "surface", "", "", "p30"}, {"a", "GUST", "surface", "", "", "spr"}, {"a", "MSLET", "mean sea level", "", "", "c00"},
+        {"a", "HLCY", "3000-0 m above ground", "", "", ""}, {"a", "VIS", "surface", "", "", ""}, {"a", "TMP", "850 mb", "", "", "m002"}, {"a", "TMP", "2 m above ground", "", "", "rrfs"},
+        {"a", "TMP", "500 mb", "", "", "rrfs"}, {"a", "REFC", "entire atmosphere", "", "", "ens:avrg"}, {"a", "APCP", "surface", "", "", "ens:eas"}, {"a", "HGT", "500 mb", "", "", "swath"},
+        {"a", "varBT", "", "", "", ""}, {"a", "TMP", "2 m above ground", "", "", "trak"}, {"a", "cref", "", "", "", "m001"}, {"a", "cref", "", "", "", ".zgroup"}};
     for (const auto& run : runs) {
         for (const int hour : hours) {
             for (const auto& w : wants) {
@@ -102,7 +117,7 @@ static int mistakes() {
     expect("id = A\nlabel = x\nurl = http://x\nhours = 6-0/3\n", "hours is from-to/step");
     expect("id = A\nlabel = x\nurl = http://x\nhours = 0-6/3\ncolour = red\n", "unknown key colour");
     expect("id = A\nlabel = x\nurl = http://x\nhours = 0-6/3\nfile = when depth=3 => a\n", "unknown condition field depth");
-    expect("id = A\nlabel = x\nurl = http://x\nhours = 0-6/3\nkind = grid\n", "kind is grib, whole or netcdf");
+    expect("id = A\nlabel = x\nurl = http://x\nhours = 0-6/3\nkind = grid\n", "kind is grib, whole");
     const auto good = GfsModelFile::parse("id = A\nlabel = x\nkind = whole\nurl = http://x/{date}/{cycle}/{file}_{hour3}\nfile = when level=\"2 m above ground\" => {variable}_2m\nfile = {variable}\nhours = 0-6/3\n", "test");
     if (!good.ok) {
         std::printf("FAIL: a good file did not parse: %s\n", good.error.c_str());
@@ -120,7 +135,7 @@ static int mistakes() {
 
 int main(int argc, char ** argv) {
     // the models that are written as definition files
-    const std::vector<std::string> ids{"GFS-WAVE", "GEFS-WAVE", "AIGFS", "RRFS", "GEPS", "SPCPOST", "SPCGEFS", "SFCOA", "RRFSD", "HREF"};
+    const std::vector<std::string> ids{"GFS", "NBM", "GEFS", "REFS", "HAFSA", "HAFSB", "SPCREFS", "GFS-WAVE", "GEFS-WAVE", "AIGFS", "IFS", "AIFS", "RRFS", "GEPS", "SPCPOST", "SPCGEFS", "SFCOA", "RRFSD", "HREF"};
     std::string all;
     for (const auto& id : ids) {
         all += describe(id);

@@ -47,7 +47,7 @@ namespace {
 
     GfsData::Source sourceOf(const std::string& model, const std::string& storm = "") {
         const auto * def = GfsModels::find(model);
-        return def ? def->source(storm) : GfsData::gfs();
+        return def ? def->source(storm) : GfsData::Source{};   // (every caller has found the model before this)
     }
 
     GfsData data(const QString& folder, const std::string& model, const std::string& storm = "") {
