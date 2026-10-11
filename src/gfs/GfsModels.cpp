@@ -33,6 +33,25 @@ namespace {
     }
 }
 
+std::string GfsModels::pickerGroup(const std::string& id) {
+    if (const auto * def = find(id); def != nullptr && !def->group.empty()) {
+        return def->group;
+    }
+    static const std::map<std::string, std::string> groups{
+        {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"},
+        {"NAM", "Regional"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Regional"},
+        {"HRRR", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"NAM-HIRES", "Convection allowing"}, {"HRW-ARW", "Convection allowing"},
+        {"HRW-ARW2", "Convection allowing"}, {"HRW-FV3", "Convection allowing"},
+        {"GEFS", "Ensembles"}, {"GEPS", "Ensembles"}, {"REFS", "Ensembles"}, {"HREF", "Ensembles"}, {"NAEFS", "Ensembles"},
+        {"GEFS-MEAN-SPRD", "Ensembles"}, {"GEFS-SPAG", "Ensembles"},
+        {"SPCPOST", "SPC guidance and mesoanalysis"}, {"SPCGEFS", "SPC guidance and mesoanalysis"}, {"SPCREFS", "SPC guidance and mesoanalysis"},
+        {"SFCOA", "SPC guidance and mesoanalysis"}, {"RRFSD", "SPC guidance and mesoanalysis"},
+        {"GFS-WAVE", "Waves and ocean"}, {"GEFS-WAVE", "Waves and ocean"}, {"WW3", "Waves and ocean"}, {"WW3-ENP", "Waves and ocean"}, {"WW3-WNA", "Waves and ocean"},
+        {"ESTOFS", "Waves and ocean"}, {"POLAR", "Waves and ocean"}, {"HAFSA", "Tropical cyclones"}, {"HAFSB", "Tropical cyclones"}};
+    const auto found = groups.find(id);
+    return found == groups.end() ? "Other" : found->second;
+}
+
 void GfsModels::setUserFolder(const std::string& folder) {
     userFolder = folder;
 }
@@ -131,6 +150,13 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.storm = true;
             d.onMissing = Missing::PreviousCycle;   // the waves come out after the rest
             m.push_back(d);
+        }
+        for (auto& d : m) {   // what each is and why it matters
+            for (const auto& [name, text] : GfsModelFile::aboutBuiltIn()) {
+                if (name == d.id && d.why.empty()) {
+                    GfsModelFile::applyAbout(d, text);
+                }
+            }
         }
         // the models of the user's folder, after the built-in ones (a file that does not parse, or repeats an id, is left out: userProblems says why)
         for (auto& parsed : GfsModelFile::loadFolder(userFolder)) {

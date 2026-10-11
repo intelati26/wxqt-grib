@@ -45,6 +45,13 @@ namespace GfsModels {
         std::string id;                                // the model screen's name: "GFS", "RRFS"
         std::string label;                             // the credit under a chart
         std::string group;                             // where the model screen's picker puts it ("": by its id, or Other)
+        std::string why;                               // why the model matters, in a few sentences (the Help screen)
+        struct Link {
+            std::string kind;                          // wikipedia (an article about the model), background (about the idea), docs (the people who run it), source (where the data is read from)
+            std::string label;
+            std::string url;
+        };
+        std::vector<Link> links;
         std::function<GfsData::Source(const std::string& storm)> source;   // storm only means anything to a model that follows one
         Sectors sectors{Sectors::World};
         std::vector<Hours> hours;                      // the forecast hours the model screen offers
@@ -58,6 +65,8 @@ namespace GfsModels {
         std::function<int(int cycleHour)> runLength;   // the last forecast hour of the run made at that hour of the day, when it varies (the hourly runs of the RRFS reach 18 hours, the main ones 84)
         Clone clone;
     };
+    // where a model goes in the model picker's tree and in the Help screen (global, regional, convection allowing, ensembles ...): the file's `group`, else by its id
+    std::string pickerGroup(const std::string& id);
     // the folder of the user's own *.model files (set before the first call of all(): the registry is made once), and the files in it that were not used and why
     void setUserFolder(const std::string& folder);
     std::vector<std::string> userProblems();

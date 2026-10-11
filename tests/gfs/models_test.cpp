@@ -14,6 +14,11 @@ int main() {
     for (const auto& d : GfsModels::all()) {
         CHECK(!d.id.empty() && ids.insert(d.id).second);               // named, and named once
         CHECK(!d.label.empty());
+        CHECK(!d.why.empty() && d.why.size() > 80);   // every model says why it matters
+        CHECK(std::any_of(d.links.begin(), d.links.end(), [] (const GfsModels::Def::Link& l) { return l.kind == "source" && l.url.compare(0, 8, "https://") == 0; }));   // and where its data is read from
+        for (const auto& l : d.links) {
+            CHECK(l.url.compare(0, 8, "https://") == 0 && !l.label.empty() && (l.kind == "wikipedia" || l.kind == "background" || l.kind == "docs" || l.kind == "source"));
+        }
         CHECK(static_cast<bool>(d.source));
         const auto source = d.source("09l");
         CHECK(!source.id.empty() && source.id.compare(0, d.id.size(), d.id) == 0);   // the data source is the model's (a storm model adds its storm)

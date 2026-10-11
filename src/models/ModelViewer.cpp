@@ -962,25 +962,6 @@ namespace {
     }
 }
 
-namespace {
-    // where a model goes in the picker's tree (after the model sites' own layout: global, regional, convection allowing, ensembles, climate)
-    string modelGroup(const string& id) {
-        static const std::map<string, string> groups{
-            {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"},
-            {"NAM", "Regional"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Regional"},
-            {"HRRR", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"NAM-HIRES", "Convection allowing"}, {"HRW-ARW", "Convection allowing"},
-            {"HRW-ARW2", "Convection allowing"}, {"HRW-FV3", "Convection allowing"},
-            {"GEFS", "Ensembles"}, {"GEPS", "Ensembles"}, {"REFS", "Ensembles"}, {"HREF", "Ensembles"}, {"NAEFS", "Ensembles"},
-            {"GEFS-MEAN-SPRD", "Ensembles"}, {"GEFS-SPAG", "Ensembles"},
-            {"SPCPOST", "SPC guidance and mesoanalysis"}, {"SPCGEFS", "SPC guidance and mesoanalysis"}, {"SPCREFS", "SPC guidance and mesoanalysis"},
-            {"SFCOA", "SPC guidance and mesoanalysis"}, {"RRFSD", "SPC guidance and mesoanalysis"},
-            {"GFS-WAVE", "Waves and ocean"}, {"GEFS-WAVE", "Waves and ocean"}, {"WW3", "Waves and ocean"}, {"WW3-ENP", "Waves and ocean"}, {"WW3-WNA", "Waves and ocean"},
-            {"ESTOFS", "Waves and ocean"}, {"POLAR", "Waves and ocean"}};
-        const auto found = groups.find(id);
-        return found == groups.end() ? "Other" : found->second;
-    }
-}
-
 void ModelViewer::showModelPicker() {
     if (modelPicker) {
         modelPicker->raise();
@@ -989,7 +970,7 @@ void ModelViewer::showModelPicker() {
     }
     std::vector<ProductPicker::Entry> entries;
     for (const auto& id : objectModel.models) {
-        const auto group = modelGroup(id);
+        const auto group = GfsModels::pickerGroup(id);
         const auto * def = group == "SPC guidance and mesoanalysis" ? GfsModels::find(id) : nullptr;   // the SPC ones say what they are: their names are not known by heart
         entries.push_back({id, def ? id + "  -  " + def->label : id, group});
     }

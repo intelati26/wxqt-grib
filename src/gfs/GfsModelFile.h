@@ -30,6 +30,10 @@ namespace GfsModelFile {
     Parsed parse(const std::string& text, const std::string& origin);
     // the definitions that are part of the program: (id, text), in the order of the registry
     const std::vector<std::pair<std::string, std::string>>& builtIn();
+    // what the built-in models are and why they matter (`why` and `link` lines), for every built-in model including those that are code
+    const std::vector<std::pair<std::string, std::string>>& aboutBuiltIn();
+    // `why = ...` and `link = kind | label | url` lines into the model's entry
+    void applyAbout(GfsModels::Def& def, const std::string& text);
     // every *.model file of a folder (empty when there is none), each parsed
     std::vector<Parsed> loadFolder(const std::string& folder);
 }

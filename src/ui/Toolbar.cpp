@@ -38,6 +38,7 @@
 #include "hurricane/HurricaneViewer.h"
 #include "tropical/TropicalViewer.h"
 #include "models/SpcPostViewer.h"
+#include "misc/HelpViewer.h"
 #include "models/ModelViewer.h"
 #include "nhc/Nhc.h"
 #include "objects/Route.h"
@@ -76,6 +77,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_cloud_black_48dp.png", "GOES imagery, Ctrl-c", [this] { launchGoesViewer(); });
     routeItems.emplace_back("baseline_date_range_black_48dp.png", "Hourly Forecast, Ctrl-h", [this] { launchHourly(); });
     routeItems.emplace_back("baseline_info_black_48dp.png", "WFO Text products, Ctrl-a", [this] { launchWfoText(); });
+    routeItems.emplace_back("baseline_info_black_48dp.png", "Help and further reading: the models, why they matter, where the data comes from", [parent] { new HelpViewer{parent}; });
 
 
     routeItems.emplace_back("refs.png", "SPC REFS (SPC's ensemble products: probabilities, paintballs, updraft helicity)", [parent] { new SpcRefsViewer{parent}; });

@@ -343,6 +343,15 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
             def.group = value;
         } else if (key == "source_label") {
             sourceLabel = value;
+        } else if (key == "why") {
+            def.why = value;
+        } else if (key == "link") {   // kind | label | url
+            const auto parts = split(value, '|');
+            if (parts.size() != 3 || parts[2].empty()) {
+                reader.fail("link is kind | label | url");
+                break;
+            }
+            def.links.push_back({parts[0], parts[1], parts[2]});
         } else if (key == "kind") {
             if (value != "grib" && value != "whole" && value != "netcdf") {
                 reader.fail("kind is grib, whole or netcdf");
@@ -583,6 +592,22 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
     result.def = def;
     result.ok = true;
     return result;
+}
+
+void GfsModelFile::applyAbout(GfsModels::Def& def, const std::string& text) {
+    std::istringstream in{text};
+    std::string raw;
+    while (std::getline(in, raw)) {
+        const auto line = trim(raw);
+        if (line.compare(0, 6, "why = ") == 0) {
+            def.why = trim(line.substr(6));
+        } else if (line.compare(0, 7, "link = ") == 0) {
+            const auto parts = split(line.substr(7), '|');
+            if (parts.size() == 3) {
+                def.links.push_back({parts[0], parts[1], parts[2]});
+            }
+        }
+    }
 }
 
 std::vector<GfsModelFile::Parsed> GfsModelFile::loadFolder(const std::string& folder) {
