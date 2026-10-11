@@ -16,6 +16,9 @@ namespace {
     const string otherGroup{"Other"};
     const string dropdownsPref{"TOOLBAR_DROPDOWNS"};
     const string dashboardsGroup{"Dashboards"};
+    // the screens that draw pictures fetched from the model guidance site (MAG) and from SPC, which the Model Viewer's own charts replace: kept together until they are removed
+    const string pendingGroup{"Pending discontinuation (MAG / SPC)"};
+    const string pendingMigratedPref{"TOOLBAR_PENDING_GROUP"};
 
     int currentMode = 0;
     vector<ToolbarGroups::Group> current;
@@ -35,8 +38,9 @@ namespace {
                                 "report_yesterday.png", "spc_sum.png", "day1.png", "day2.png", "day3.png", "day48.png",
                                 "tstorm.png#2", "ntor.png", "fire_outlook.png", "meso.png", "spccompmap.png", "tor.png"}},
             {"National, tropical and marine", {"fmap.png", "fmap.png#2", "srfd.png", "wpc_rainfall.png", "nhc.png", "nhc.png#2", "tropstorm.png", "opc.png", "opc.png#2"}},
-            {"Models", {"grib.png", "refs.png", "refs.png#2", "nsslwrf.png", "tstorm.png", "ncep.png", "spchrrr.png", "spcsref.png",
-                        "hrrrviewer.png", "nsslwrf.png#2", "wpcgefs.png"}},
+            {"Models", {"grib.png", "refs.png", "refs.png#2", "nsslwrf.png", "ncep.png"}},
+            // SPC HRRR, the Parametric Index Viewer (SHIP / STP are RRFS charts now), ESRL HRRR / RAP, NSSL WRF, WPC GEFS
+            {pendingGroup, {"spchrrr.png", "tstorm.png", "spcsref.png", "hrrrviewer.png", "nsslwrf.png#2", "wpcgefs.png"}},
             {"Tools", {"baseline_settings_black_48dp.png"}},
         };
         return all;
@@ -115,7 +119,7 @@ namespace {
     vector<string> dropdownNames() {
         const auto saved = Utility::readPref(dropdownsPref, "(built-in)");
         if (saved == "(built-in)") {
-            return {dashboardsGroup};
+            return {dashboardsGroup, pendingGroup};
         }
         vector<string> names;
         for (const auto& name : WString::split(saved, ";")) {
@@ -150,6 +154,44 @@ namespace {
         }
     }
 
+    // a saved layout from before the pending group: once, make the group (before "Tools") and move the screens into it; a user who deletes it later is not given it again
+    void addPendingToSaved() {
+        if (Utility::readPref(pendingMigratedPref, "") == "1") {
+            return;
+        }
+        Utility::writePref(pendingMigratedPref, "1");
+        if (find(pendingGroup) != nullptr) {
+            return;
+        }
+        ToolbarGroups::Group group{pendingGroup, {}};
+        for (const auto& built : builtIn()) {
+            if (built.first != pendingGroup) {
+                continue;
+            }
+            for (const auto& id : built.second) {
+                for (auto& other : current) {
+                    const auto at = std::find(other.ids.begin(), other.ids.end(), id);
+                    if (at != other.ids.end()) {
+                        other.ids.erase(at);
+                        group.ids.push_back(id);
+                        break;
+                    }
+                }
+            }
+        }
+        if (group.ids.empty()) {
+            return;
+        }
+        auto at = std::find_if(current.begin(), current.end(), [] (const auto& g) { return g.name == "Tools"; });
+        current.insert(at, group);
+        const auto saved = Utility::readPref(dropdownsPref, "(built-in)");
+        if (saved != "(built-in)") {   // the user's own list of folders: this one is a folder too
+            auto names = dropdownNames();
+            names.push_back(pendingGroup);
+            saveDropdowns(names);
+        }
+    }
+
     void buildBuiltIn() {
         current.clear();
         for (const auto& group : builtIn()) {
@@ -178,6 +220,7 @@ void ToolbarGroups::load(const vector<string>& allIds) {
     current.clear();
     const auto saved = Utility::readPref(groupsPref, "");
     if (saved.empty()) {
+        Utility::writePref(pendingMigratedPref, "1");   // the built-in layout has it
         buildBuiltIn();
         return;
     }
@@ -194,6 +237,7 @@ void ToolbarGroups::load(const vector<string>& allIds) {
         current.push_back(group);
     }
     addDashboardsToSaved();
+    addPendingToSaved();
     normalise();
 }
 

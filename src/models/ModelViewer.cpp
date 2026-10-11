@@ -86,19 +86,19 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     boxH.addWidget(comboboxTime);
     boxH.addLayout(backForward);
     {   // the models that are fetched as pictures, in a second menu beside the GRIB ones: each opens its own screen
-        auto * more = new QPushButton{"Image models  \xE2\x96\xBE", this};
+        auto * more = new QPushButton{"Image models (some pending)  \xE2\x96\xBE", this};
         auto * menu = new QMenu{more};
         const auto add = [this, menu] (const QString& text, std::function<void()> open) {
             QObject::connect(menu->addAction(text), &QAction::triggered, this, [open] { open(); });
         };
         Window * opener = parent;
         const auto screen = [this, opener] (const string& type) { return [this, opener, type] { new ModelViewer{opener ? opener : this, type}; }; };
-        add("NSSL WRF (WRF, FV3, HRRRv3)", screen("NSSLWRF"));
         add("NSSL CAMs (MPAS, WRF, HRRR, RRFS)", [this, opener] { new CamsViewer{opener ? opener : this}; });
         menu->addSeparator();
+        menu->addSection("Pending discontinuation (pictures from MAG / SPC)");
+        add("NSSL WRF (WRF, FV3, HRRRv3)", screen("NSSLWRF"));
         add("SPC HRRR", screen("SPCHRRR"));
         add("SPC HREF", screen("SPCHREF"));
-        menu->addSeparator();
         add("ESRL HRRR / RAP", screen("ESRL"));
         add("WPC GEFS", screen("WPCGEFS"));
         more->setMenu(menu);
