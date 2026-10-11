@@ -47,6 +47,7 @@ namespace GfsRender {
         Kind kind{Kind::None};
         std::vector<int> hours;
         int hoursBack{0};
+        bool standardDeviations{false};   // an anomaly chart in standard deviations (GfsChart::withStandardDeviations)
         std::string member;   // one ensemble member instead of the mean (GfsChart::withMember); "" the chart as it is
         // other models whose lines are drawn over this one's, each in a color of its own, for the same valid time: the chart's first set of lines (heights, pressure) of each, and no fill
         std::vector<std::string> overlayModels;

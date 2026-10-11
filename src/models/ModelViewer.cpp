@@ -130,6 +130,17 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         });
         boxH2.addWidget(comboMember);
         comboMember.setVisible(false);
+        buttonSigma = new QPushButton{"Std deviations", this};
+        buttonSigma->setCheckable(true);
+        buttonSigma->setVisible(false);
+        buttonSigma->setToolTip("The anomaly in standard deviations from the 1991-2020 mean (the day's own spread of the reanalysis) instead of in decameters or millibars. The legend gives both, and the read-out shows both. The first time takes a few minutes to work the deviations out.");
+        QObject::connect(buttonSigma, &QPushButton::toggled, this, [this] (bool on) {
+            standardDeviations = on;
+            startPlaying(false);
+            strip->stop();
+            reload();
+        });
+        boxH2.addWidgetReal(buttonSigma);
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
         comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs.");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
@@ -395,7 +406,7 @@ string ModelViewer::frameKey(int hour) const {
     for (const auto& other : overlayModels) {
         overlay += (overlay.empty() ? "|overlay=" : ",") + other;
     }
-    return key + variantKey + (member.empty() ? string{} : "|member=" + member) + overlay;
+    return key + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay;
 }
 
 void ModelViewer::setVariant(GfsRender::Variant v) {
@@ -1200,6 +1211,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.overlays = overlays;
         job.variant = ahead && variant.kind != GfsRender::Variant::Kind::Change ? GfsRender::Variant{} : variant;
         job.variant.member = member;
+        job.variant.standardDeviations = standardDeviations;
         job.variant.overlayModels = overlayModels;
         job.key = frameKey(mainHour);
     } else {
@@ -1256,6 +1268,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         }
         if (spec.model == objectModel.model) {   // the same model's tiles show the member too (another model's charts have none)
             v.member = member;
+            v.standardDeviations = standardDeviations;
         }
         job.variant = v;
         string vk;
@@ -1271,6 +1284,9 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.key += vk;
         if (!v.member.empty()) {
             job.key += "|member=" + v.member;
+        }
+        if (v.standardDeviations) {
+            job.key += "|sd";
         }
     }
     job.chart = job.model + "|" + job.param + "|" + job.sector;
@@ -1598,6 +1614,15 @@ void ModelViewer::refreshMembers() {
         comboMember.unblock();
     }
     comboMember.setVisible(!memberValues.empty());
+    const auto * shown = GfsRender::drawsModel(objectModel.model) ? GfsChart::product(objectModel.param, objectModel.model) : nullptr;
+    const bool offered = shown != nullptr && GfsChart::hasStandardDeviations(*shown);
+    if (!offered && standardDeviations) {
+        standardDeviations = false;
+        buttonSigma->blockSignals(true);
+        buttonSigma->setChecked(false);
+        buttonSigma->blockSignals(false);
+    }
+    buttonSigma->setVisible(offered);
 }
 
 void ModelViewer::editColors() {

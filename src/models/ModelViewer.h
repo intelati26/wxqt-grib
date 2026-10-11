@@ -121,6 +121,8 @@ private:
     std::vector<std::string> memberValues;   // the members' names in the model's files, as the combo lists them
     std::string member;                   // the one chosen: "" the chart as it is
     void refreshMembers();
+    QPushButton * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
+    bool standardDeviations{false};
     QPushButton * buttonMax{};
     QPushButton * buttonBuild{};
     QMenu * menuBuild{};

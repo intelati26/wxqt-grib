@@ -116,6 +116,12 @@ namespace GfsChart {
             std::string title;   // for the hover read-out: "10th percentile"
         };
         std::vector<PointValue> pointValues;
+        // An anomaly chart that can also be drawn in standard deviations (withStandardDeviations): `sigma` makes the grids of that view (the fill "anom" in deviations, and the two named
+        // below in the chart's own unit). Set only on the charts that have a climatology with deviations.
+        std::function<void(Grids&, const Context&)> sigma;
+        std::string sigmaUnit;      // the chart's own unit for the legend's second row and the read-out: "dam", "mb"
+        std::string sigmaSizeKey;   // the grid of one standard deviation in that unit: the legend's second row uses its middle value
+        std::string sigmaReadKey;   // the grid of the anomaly in that unit, for the hover read-out
     };
     const std::vector<Product>& products();
     // the group a product is listed under in the picker ("Upper air", "Surface", "Precipitation and moisture", "Storms and severe", ...)
@@ -152,6 +158,9 @@ namespace GfsChart {
     };
     std::vector<MemberChoice> memberChoices(const Product& product);
     Product withMember(const Product& product, const std::string& member);
+    // The anomaly chart in standard deviations from the 1991-2020 mean (the legend gives the unit's equivalents too); the chart itself when it has none (see Product::sigma)
+    bool hasStandardDeviations(const Product& product);
+    Product withStandardDeviations(const Product& product);
 
     // the names for under a chart, and the sectors a model can show (the blend covers only the contiguous United States)
     std::string sourceLabel(const std::string& source);

@@ -132,6 +132,10 @@ std::string generatedId(const std::string& templateId, const std::vector<double>
         return {{{-30, QColor{"#2b4a9a"}}, {-20, QColor{"#3f74b8"}}, {-10, QColor{"#86b4dc"}}, {-4, QColor{"#d3e5f2"}}, {-1.5, QColor{211, 229, 242, 0}}, {1.5, QColor{246, 224, 184, 0}},
                  {4, QColor{"#f6e0b8"}}, {10, QColor{"#f0b070"}}, {20, QColor{"#d9633a"}}, {30, QColor{"#a02a2a"}}}};
     }
+    Ramp standardAnomaly() {   // standard deviations: within a quarter of one clear
+        return {{{-3, QColor{"#2b4a9a"}}, {-2, QColor{"#3f74b8"}}, {-1, QColor{"#86b4dc"}}, {-0.5, QColor{"#d3e5f2"}}, {-0.25, QColor{211, 229, 242, 0}}, {0.25, QColor{246, 224, 184, 0}},
+                 {0.5, QColor{"#f6e0b8"}}, {1, QColor{"#f0b070"}}, {2, QColor{"#d9633a"}}, {3, QColor{"#a02a2a"}}}};
+    }
     Ramp pressureAnomaly() {   // millibars
         return {{{-30, QColor{"#2b4a9a"}}, {-16, QColor{"#3f74b8"}}, {-8, QColor{"#86b4dc"}}, {-3, QColor{"#d3e5f2"}}, {-1, QColor{211, 229, 242, 0}}, {1, QColor{246, 224, 184, 0}},
                  {3, QColor{"#f6e0b8"}}, {8, QColor{"#f0b070"}}, {16, QColor{"#d9633a"}}, {30, QColor{"#a02a2a"}}}};
@@ -701,6 +705,37 @@ const std::vector<Product>& products() {
             t = t.addSecs(context.hour * 3600);
             return GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
         };
+        // the anomaly over the day's standard deviation, on the forecast's grid: "anom" in deviations, "sd_size" and "anom_unit" in the chart's own unit (scale: meters to dam, pascals to mb)
+        const auto sigmaOf = [validDay] (const GfsClimate::Field& field, double scale, bool maskUnderground) {
+            return [validDay, field, scale, maskUnderground] (Grids& g, const Context& context) {
+                if (!context.climate) {
+                    throw std::runtime_error{"no climatology"};
+                }
+                GfsGrid::Grid normal, deviation;
+                std::string error;
+                const int day = validDay(context);
+                if (!context.climate->at(field, day, normal, error) || !context.climate->deviation(field, day, deviation, error)) {
+                    throw std::runtime_error{error};
+                }
+                auto anom = GfsGrid::anomaly(g["z"], normal);
+                auto zero = g["z"];
+                std::fill(zero.values.begin(), zero.values.end(), 0.0f);
+                auto size = GfsGrid::scaled(GfsGrid::anomaly(zero, deviation), -1.0);   // one standard deviation on the forecast's grid
+                auto inUnit = GfsGrid::scaled(anom, scale);
+                for (size_t i = 0; i < anom.values.size(); i++) {
+                    const bool under = maskUnderground && g.find("ps") != g.end() && g["ps"].values[i] < 70000.0f;
+                    const float sd = size.values[i];
+                    anom.values[i] = (sd > 1e-6f && !under) ? anom.values[i] / sd : std::nanf("");
+                    if (under) {
+                        inUnit.values[i] = std::nanf("");
+                    }
+                }
+                size = GfsGrid::scaled(size, scale);
+                g["anom"] = std::move(anom);
+                g["sd_size"] = std::move(size);
+                g["anom_unit"] = std::move(inUnit);
+            };
+        };
         for (const auto& [id, label, level, interval] : {std::tuple{"500_hgt_anom", "500mb Height and Anomaly", 500, 6.0}, {"700_hgt_anom", "700mb Height and Anomaly", 700, 3.0}}) {
             Product x;
             x.id = id;
@@ -730,6 +765,10 @@ const std::vector<Product>& products() {
             x.ramp = heightAnomaly();
             x.fillTitle = "Height anomaly from the 1991-2020 mean (dam)";
             x.legendStep = 5;
+            x.sigma = sigmaOf(GfsClimate::height(level), 0.1, level == 700);
+            x.sigmaUnit = "dam";
+            x.sigmaSizeKey = "sd_size";
+            x.sigmaReadKey = "anom_unit";
             x.contours = {heights(interval)};
             x.barbU = "u";
             x.barbV = "v";
@@ -752,6 +791,14 @@ const std::vector<Product>& products() {
             x.ramp = pressureAnomaly();
             x.fillTitle = "Pressure anomaly from the 1991-2020 mean (mb)";
             x.legendStep = 5;
+            x.sigma = [sigma = sigmaOf(GfsClimate::seaLevelPressure(), 0.01, false)] (Grids& g, const Context& context) {
+                g["z"] = g.at("p");   // the sigma helper reads the field as "z"
+                sigma(g, context);
+                g.erase("z");
+            };
+            x.sigmaUnit = "mb";
+            x.sigmaSizeKey = "sd_size";
+            x.sigmaReadKey = "anom_unit";
             x.contours = {pressure()};
             x.barbU = "u";
             x.barbV = "v";
@@ -4844,6 +4891,24 @@ Product withMember(const Product& product, const std::string& member) {
     return out;
 }
 
+bool hasStandardDeviations(const Product& product) {
+    return static_cast<bool>(product.sigma);
+}
+
+Product withStandardDeviations(const Product& product) {
+    if (!product.sigma) {
+        return product;
+    }
+    Product out = product;
+    out.derive = product.sigma;
+    out.ramp = standardAnomaly();
+    out.palette.clear();
+    out.fillTitle = "Anomaly from the 1991-2020 mean in standard deviations";
+    out.legendStep = 1;
+    out.label = product.label + " (std dev)";
+    return out;
+}
+
 Product compose(const Product& base, const std::vector<std::string>& ids) {
     std::vector<const Overlay *> used;
     for (const auto& id : ids) {
@@ -5168,7 +5233,17 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         }
     }
     const bool us = options.fahrenheit;
-    const int headerHeight = 54, legendHeight = 62, margin = 8;
+    // a chart in standard deviations also gives the unit of the plain anomaly: one deviation's typical size (the median over the map) turns the scale's numbers into it
+    double deviationSize = 0.0;
+    if (!product.sigmaSizeKey.empty() && grids.count(product.sigmaSizeKey) && !product.linesOnly) {
+        auto values = GfsGrid::cropped(grids.at(product.sigmaSizeKey), sector.west, sector.south, sector.east, sector.north).values;
+        values.erase(std::remove_if(values.begin(), values.end(), [] (float v) { return !std::isfinite(v); }), values.end());
+        if (!values.empty()) {
+            std::nth_element(values.begin(), values.begin() + static_cast<long>(values.size() / 2), values.end());
+            deviationSize = values[values.size() / 2];
+        }
+    }
+    const int headerHeight = 54, legendHeight = 62 + (deviationSize > 0.0 ? 14 : 0), margin = 8;
     const QRectF mapArea{static_cast<double>(margin), static_cast<double>(headerHeight), static_cast<double>(options.width - 2 * margin), 0.0};
     const double mapHeight = std::clamp(View::heightFor(sector, mapArea.width()), 200.0, 1400.0);
     const QRectF area{mapArea.left(), mapArea.top(), mapArea.width(), mapHeight};
@@ -5198,6 +5273,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 title += " (" + unit + ")";
             }
             probe.fields.push_back({title.toStdString(), GfsGrid::reducedTo(GfsGrid::cropped(fill, sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
+        }
+        if (!product.sigmaReadKey.empty() && grids.count(product.sigmaReadKey)) {   // the anomaly in the chart's own unit beside the deviations
+            probe.fields.push_back({"Anomaly (" + product.sigmaUnit + ")", GfsGrid::reducedTo(GfsGrid::cropped(grids.at(product.sigmaReadKey), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, Quantity::Other, false});
         }
         for (const auto& set : product.contours) {
             probe.fields.push_back({set.title.empty() ? set.key : set.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.key), sector.west, sector.south, sector.east, sector.north), 120000), set.scale, Quantity::Other, false});
@@ -5791,6 +5869,26 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         for (double value = std::ceil(lowShown / product.legendStep) * product.legendStep; value <= highShown + 1e-9; value += product.legendStep) {
             const double base = (value - lowShown) / (highShown - lowShown);
             tick(base, first + (last - first) * base);
+        }
+    }
+    if (deviationSize > 0.0) {   // the second row: the same ticks in the plain unit (one deviation is about `deviationSize` of it, here)
+        const double rowTop = barTop + barHeight + 18.0;
+        p.setPen(QColor{90, 90, 90});
+        for (const auto& stop : stops) {
+            if (stop.second.alpha() == 0 || std::fabs(stop.first) < 1e-9) {
+                continue;
+            }
+            const double t = (stop.first - first) / (last - first);
+            const double value = stop.first * deviationSize;
+            const QString text = QString{"%1 %2"}.arg(value, 0, 'f', std::fabs(value) < 10 ? 1 : 0).arg(QString::fromStdString(product.sigmaUnit));
+            const double x = barLeft + t * barWidth;
+            if (t < 0.03) {   // the ends of the bar: the text stays inside the picture
+                p.drawText(QRectF{x, rowTop, 60, 14}, Qt::AlignLeft, text);
+            } else if (t > 0.97) {
+                p.drawText(QRectF{x - 60, rowTop, 60, 14}, Qt::AlignRight, text);
+            } else {
+                p.drawText(QRectF{x - 30, rowTop, 60, 14}, Qt::AlignHCenter, text);
+            }
         }
     }
     // a small key for each overlay's colors (the same amounts as the main scale, from light to heavy)

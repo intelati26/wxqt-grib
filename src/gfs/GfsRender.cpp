@@ -325,6 +325,9 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     if (base && !variant.member.empty()) {
         composed = GfsChart::withMember(composed, variant.member);
     }
+    if (base && variant.standardDeviations) {
+        composed = GfsChart::withStandardDeviations(composed);
+    }
     const auto * product = base ? &composed : nullptr;
     if (!product || !sector) {
         error = "no " + model + " chart for " + param + " " + sectorId;
