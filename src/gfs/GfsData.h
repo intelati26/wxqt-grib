@@ -62,6 +62,10 @@ public:
         // "" the mean of the members, "spr" their standard deviation, or a member's name that `memberBand` turns into the band to read.
         bool wholeFile{false};
         std::function<int(const std::string& stat)> memberBand;           // the 1-based message of a member's name ("c00" 1, "p01" 2 ...); 0 when it is not one
+        // Where a `wholeFile` field may be, in the order to try (a file that is in the test area until it is in the real one, the GEFS cycle that is the run's own or the one before). A url
+        // may end in a name with '?' for one character and '*' for any: the directory is listed and the first match is the file. Empty: just fileUrl.
+        std::function<std::vector<std::string>(const Run&, int forecastHour, const std::string& file)> candidates;
+        bool netcdf{false};                                               // a `wholeFile` source whose files are NetCDF: want.variable is the variable's name in them, read by range (they are 0.5 to 1 GB)
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often
         int lagHours{3};                                                 // and a run is looked for from this long after its time
@@ -88,6 +92,10 @@ public:
     static Source refs();
     // Canada's ensemble (GEPS): 21 members at 0.5 degree, every 12 hours to 384, from the open data server. One file per field and hour holds all the members (no index: `wholeFile`).
     static Source geps();
+    // SPC's post-processing of the NWS models (SPC_POST, NWS SCN 26-77): calibrated guidance as 40 km Lambert grids, one file per product and hour on NOMADS. `gefs` is the GEFS based set
+    // (the machine-learning severe and the daily thunder; 00 and 12Z) rather than the REFS based one (6 hourly). A file name is "directory/name", with {ee} the run's own cycle and {pe} the one
+    // before for the GEFS cycle a REFS run was made with; a band is the stat "b1", "b2" ...
+    static Source spcPost(bool gefs);
     // The High-Resolution Ensemble Forecast (HREF) on NOMADS: its own ready-made products of the 10 members on the 3 km CONUS grid; the `stat` of a want names the file ("mean" the default,
     // "pmmn", "lpmm", "avrg", "sprd", "prob", "eas", "ffri"). The hour has two digits.
     static Source href();
@@ -131,7 +139,9 @@ public:
 
 private:
     bool one(const Run& run, int forecastHour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const;
-    bool oneWhole(const Run& run, int forecastHour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const;   // a `wholeFile` source's field
+    bool oneWhole(const Run& run, int forecastHour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const;
+    std::vector<std::string> urlsFor(const Run& run, int forecastHour, const std::string& file) const;
+    std::string resolveUrl(const std::string& url) const;   // a url with '?' / '*' in its name: the listed file that matches (empty when none)   // a `wholeFile` source's field
     std::string fileFor(const Want& want) const { return source.fileOf ? source.fileOf(want) : std::string{}; }
     // the fields of one hour out of a box request; false when it cannot be had (the caller then goes the usual way)
     bool loadBox(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out) const;

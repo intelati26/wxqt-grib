@@ -4246,8 +4246,46 @@ const std::vector<Product>& products() {
             chance("prob_2m_temp_90f", "Probability of 2m Temperature at or over 90 F", (90.0 - 32.0) * 5.0 / 9.0, false, "Chance of 90 F or hotter (% of the 21 members)");
         };
 
+        // ---- SPC's post-processing (SPC_POST v3, effective Nov 3 2026; in the test area before): probabilities in per cent, one product per file, a variable per message
+        const auto spcRecipes = [&] (const char * source, bool gefs) {
+            const auto add = [&] (const std::string& id, const std::string& label, const std::string& file, const char * stat, const std::string& title) {
+                Product x;
+                x.source = source;
+                x.id = id;
+                x.label = label;
+                x.wants = {GfsData::Want{"p", "PROB", file, "", "", stat}};
+                x.fill = [] (const Grids& g) { return pick(g, "p"); };
+                x.ramp = probability();
+                x.palette = "prob";
+                x.fillTitle = title;
+                x.legendStep = 10;
+                p.push_back(x);
+            };
+            if (!gefs) {
+                for (const auto& [id, period, text] : {std::tuple<const char *, const char *, const char *>{"1hr", "refsct_1hr", "1-hour"}, {"4hr", "refsct_4hr", "4-hour"}, {"full", "refsct_full", "rest of the convective day"}}) {
+                    add(std::string{"thunder_"} + id, std::string{"REFSCT Thunderstorm Probability ("} + text + ")", std::string{"refsct/"} + period, "", std::string{"Chance of a thunderstorm, "} + text + " (%)");
+                }
+                const std::pair<const char *, const char *> kinds[] = {{"tor", "Tornado"}, {"hail", "Hail"}, {"wind", "Wind"}};
+                for (int k = 0; k < 3; k++) {
+                    const std::string band = "b" + std::to_string(k + 1);
+                    add(std::string{"severe_"} + kinds[k].first + "_4hr", std::string{"GREFS Calibrated "} + kinds[k].second + " Probability (4-hour)", "grefs/grefs_{ee}.4hr;grefs/grefs_{pe}.4hr", band.c_str(),
+                        std::string{"Chance of "} + kinds[k].first + " severe within 25 miles, 4 hours (%)");
+                    add(std::string{"severe_"} + kinds[k].first + "_full", std::string{"GREFS Calibrated "} + kinds[k].second + " Probability (rest of the convective day)", "grefs/grefs_{ee}.*hr;grefs/grefs_{pe}.*hr", band.c_str(),
+                        std::string{"Chance of "} + kinds[k].first + " severe within 25 miles, rest of the convective day (%)");
+                }
+            } else {
+                add("thunder_24hr", "GEFSCT Thunderstorm Probability (24-hour, 12Z to 12Z)", "gefsct/gefsct", "", "Chance of a thunderstorm in the convective day (%)");
+                for (const auto& [what, label] : {std::pair<const char *, const char *>{"tor", "Tornado"}, {"wind", "Wind"}, {"hail", "Hail"}, {"severe", "Any Severe"}}) {
+                    for (const auto& [level, text] : {std::pair<const char *, const char *>{"std", "(Any Severe)"}, {"sig", "(Significant)"}}) {
+                        add(std::string{"gefsmlp_"} + what + "_" + level, std::string{"GEFS-MLP "} + label + " Probability " + text, std::string{"gefs_mlp/gefsmlp_"} + what + "_" + level, "",
+                            std::string{"Chance of "} + what + " severe within 25 miles (%)");
+                    }
+                }
+            }
+        };
+
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"RRFS", rrfsRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"RRFS", rrfsRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);

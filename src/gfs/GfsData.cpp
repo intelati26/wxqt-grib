@@ -295,7 +295,19 @@ bool GfsData::latestRun(Run& run) const {
         const auto t = start.addSecs(-static_cast<qint64>(back) * source.cycleHours * 3600);
         Run candidate{t.toString("yyyyMMdd").toStdString(), pad(t.time().hour(), 2)};
         if (source.wholeFile) {   // no index: the first bytes of a file say the run is there
-            if (config.bytes(fileUrl(candidate, source.probeHour, source.probeFile), 0, 3).startsWith("GRIB")) {
+            bool there = false;
+            for (const auto& url : urlsFor(candidate, source.probeHour, source.probeFile)) {
+                const auto resolved = resolveUrl(url);
+                if (resolved.empty()) {
+                    continue;
+                }
+                const auto head = config.bytes(resolved, 0, 3);
+                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF")) {
+                    there = true;
+                    break;
+                }
+            }
+            if (there) {
                 run = candidate;
                 return true;
             }
@@ -477,10 +489,67 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     return true;
 }
 
-// A field of a source whose file holds the members (GEPS): the file is kept whole for the run and hour, and the field is the mean or spread of its messages or one member's.
+std::vector<std::string> GfsData::urlsFor(const Run& run, int hour, const std::string& file) const {
+    if (source.candidates) {
+        return source.candidates(run, hour, file);
+    }
+    return {fileUrl(run, hour, file)};
+}
+
+// a listing of a directory is kept for two minutes: the fields of one chart are all in the same one
+std::string GfsData::resolveUrl(const std::string& url) const {
+    const auto slash = url.rfind('/');
+    if (slash == std::string::npos || url.find_first_of("?*", slash) == std::string::npos) {
+        return url;
+    }
+    static std::mutex mutex;
+    static std::map<std::string, std::pair<std::chrono::steady_clock::time_point, std::string>> listings;
+    const auto directory = url.substr(0, slash + 1);
+    std::string html;
+    {
+        const std::lock_guard lock{mutex};
+        const auto found = listings.find(directory);
+        if (found != listings.end() && std::chrono::steady_clock::now() - found->second.first < std::chrono::minutes(2)) {
+            html = found->second.second;
+        }
+    }
+    if (html.empty()) {
+        html = config.bytes(directory, 0, -1).toStdString();
+        if (!html.empty()) {
+            const std::lock_guard lock{mutex};
+            listings[directory] = {std::chrono::steady_clock::now(), html};
+        }
+    }
+    QString pattern = QRegularExpression::escape(QString::fromStdString(url.substr(slash + 1)));
+    pattern.replace("\\?", "([^/\"])").replace("\\*", "([^/\"]*)");
+    const QRegularExpression re{"href=\"(" + pattern + ")\""};
+    // of several matches the one whose '?' and '*' hold the longest, then the largest, text (the rest of the convective day is "24hr" or "9hr", and the 4 hour period is always there too)
+    std::string best;
+    QString bestKey;
+    auto matches = re.globalMatch(QString::fromStdString(html));
+    while (matches.hasNext()) {
+        const auto match = matches.next();
+        QString key;
+        for (int i = 2; i <= match.lastCapturedIndex(); i++) {
+            key += match.captured(i);
+        }
+        const auto rank = QString::number(key.size()).rightJustified(3, '0') + key;
+        if (best.empty() || rank > bestKey) {
+            best = match.captured(1).toStdString();
+            bestKey = rank;
+        }
+    }
+    return best.empty() ? std::string{} : directory + best;
+}
+
+// A field of a source with no index (GEPS, SPC's post-processing): the file is kept whole for the run and hour (a NetCDF one is read by range), and the field is the mean or spread of its
+// messages, or one of them (a member, a variable of a file of several).
 bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_");
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + (source.netcdf ? want.variable : std::string{}) + "_");
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
+    if (name.size() > 110) {
+        name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
+    }
     const QString wholePath = config.cacheFolder + "/" + name + "all.grb2";
     const QString statName = QString::fromStdString(want.stat.empty() ? "mean" : want.stat);
     const QString cachePath = config.cacheFolder + "/" + name + statName + ".gz4";
@@ -512,15 +581,42 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         error = source.id + " has no member " + want.stat;
         return false;
     }
-    if (!QFileInfo::exists(wholePath) || QFileInfo{wholePath}.size() < 100) {
-        const auto bytes = config.bytes(fileUrl(run, hour, file), 0, -1);
-        if (bytes.size() < 100 || !bytes.startsWith("GRIB")) {
-            error = "could not download " + want.variable + " " + want.level + " (" + source.id + " " + run.id() + " f" + pad(hour, 3) + ")";
-            return false;
+    // the first place the field is: the kept file, or the first of the urls that answers
+    QString input = wholePath;
+    if (!source.netcdf && QFileInfo::exists(wholePath) && QFileInfo{wholePath}.size() >= 100) {
+        // kept
+    } else {
+        std::string failed;
+        bool have = false;
+        for (const auto& candidate : urlsFor(run, hour, file)) {
+            const auto url = resolveUrl(candidate);
+            if (url.empty()) {
+                failed = "not in the listing";
+                continue;
+            }
+            if (source.netcdf) {
+                const auto head = config.bytes(url, 0, 3);
+                if (head.startsWith("CDF") || head.startsWith("\x89HDF")) {
+                    input = "NETCDF:\"/vsicurl/" + QString::fromStdString(url) + "\":" + QString::fromStdString(want.variable);
+                    have = true;
+                    break;
+                }
+                continue;
+            }
+            const auto bytes = config.bytes(url, 0, -1);
+            if (bytes.size() < 100 || !bytes.startsWith("GRIB")) {
+                continue;
+            }
+            QSaveFile f{wholePath};
+            if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size() || !f.commit()) {
+                error = "could not write " + wholePath.toStdString();
+                return false;
+            }
+            have = true;
+            break;
         }
-        QSaveFile f{wholePath};
-        if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size() || !f.commit()) {
-            error = "could not write " + wholePath.toStdString();
+        if (!have) {
+            error = source.id + " does not have " + (want.variable.empty() ? file : want.variable) + " for " + run.id() + " f" + pad(hour, 3) + (failed.empty() ? "" : " (" + failed + ")");
             return false;
         }
     }
@@ -532,16 +628,31 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         QFile::remove(hdrPath);
         QFile::remove(rawPath + ".aux.xml");
     };
-    QStringList args{"-q", "-of", "ENVI", "-ot", "Float32"};
-    if (band > 0) {
-        args << "-b" << QString::number(band);
+    QStringList args;
+    QString program = "/gdal_translate";
+    if (source.warp.enabled) {   // a grid that is not latitude / longitude: warped to one
+        program = "/gdalwarp";
+        args << "-q" << "-overwrite" << "-t_srs" << "EPSG:4326" << "-r" << "bilinear" << "-dstnodata" << "-9999" << "-of" << "ENVI" << "-ot" << "Float32"
+             << "-te" << QString::number(source.warp.west, 'f', 3) << QString::number(source.warp.south, 'f', 3) << QString::number(source.warp.east, 'f', 3) << QString::number(source.warp.north, 'f', 3)
+             << "-tr" << QString::number(source.warp.step, 'f', 4) << QString::number(source.warp.step, 'f', 4);
+        if (band > 0) {
+            args << "-srcband" << QString::number(band);
+        }
+    } else {
+        args << "-q" << "-of" << "ENVI" << "-ot" << "Float32";
+        if (band > 0) {
+            args << "-b" << QString::number(band);
+        }
     }
-    args << wholePath << rawPath;
+    if (source.netcdf) {   // by range: a few requests of a megabyte or so, not the file
+        args << "--config" << "CPL_VSIL_CURL_CHUNK_SIZE" << "2097152" << "--config" << "GDAL_HTTP_USERAGENT" << "wxqt";
+    }
+    args << input << rawPath;
     QProcess translate;
-    translate.start(QString::fromStdString(config.gdalBin) + "/gdal_translate", args);
-    translate.waitForFinished(180000);
+    translate.start(QString::fromStdString(config.gdalBin) + program, args);
+    translate.waitForFinished(300000);
     if (translate.exitStatus() != QProcess::NormalExit || translate.exitCode() != 0) {
-        error = "gdal_translate failed on " + want.variable + " " + want.level + ": " + translate.readAllStandardError().trimmed().toStdString();
+        error = "gdal failed on " + want.variable + " " + want.level + ": " + translate.readAllStandardError().trimmed().toStdString();
         cleanup();
         return false;
     }
@@ -561,13 +672,13 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         int n = 0;
         for (int b = 0; b < bands; b++) {
             const float v = all[static_cast<size_t>(b) * cells + i];
-            if (std::abs(v) < 1e19f && v == v && v != source.extraMissing) {
+            if (std::abs(v) < 1e19f && v == v && v != source.extraMissing && !(source.warp.enabled && v < -9998.5f)) {
                 sum += v;
                 square += static_cast<double>(v) * v;
                 n++;
             }
         }
-        if (n == 0 || (band > 0 && n != 1)) {
+        if (n == 0) {
             continue;
         }
         const double mean = sum / n;
@@ -633,6 +744,50 @@ GfsData::Source GfsData::geps() {
     s.lagHours = 6;     // the 00 and 12Z runs are on the server about five and a half hours after their time
     s.probeHour = 384;
     s.cyclesToTry = 4;
+    return s;
+}
+
+GfsData::Source GfsData::spcPost(bool gefs) {
+    Source s;
+    s.id = gefs ? "SPCGEFS" : "SPCPOST";
+    s.label = gefs ? "SPC post-processing of the GEFS" : "SPC post-processing of the REFS";
+    s.wholeFile = true;
+    s.candidates = [] (const Run& run, int hour, const std::string& specs) {
+        const int cycle = std::atoi(run.cycle.c_str());
+        const std::string previous = pad((cycle + 18) % 24, 2);
+        std::vector<std::string> urls;
+        std::string rest = specs;
+        while (!rest.empty()) {
+            const auto cut = rest.find(';');
+            auto spec = rest.substr(0, cut);
+            rest = cut == std::string::npos ? std::string{} : rest.substr(cut + 1);
+            for (const auto& [token, value] : {std::pair<std::string, std::string>{"{ee}", run.cycle}, {"{pe}", previous}}) {
+                for (auto at = spec.find(token); at != std::string::npos; at = spec.find(token)) {
+                    spec.replace(at, token.size(), value);
+                }
+            }
+            const auto slash = spec.find('/');
+            if (slash == std::string::npos) {
+                continue;
+            }
+            // the real area from the day the products start, the test one before (the hour is three digits in both)
+            for (const char * area : {"prod", "para"}) {
+                urls.push_back(std::string{"https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/"} + area + "/spc_post." + run.date + "/" + spec.substr(0, slash) + "/spc_post.t" + run.cycle + "z." + spec.substr(slash + 1) + ".f" + pad(hour, 3) + ".grib2");
+            }
+        }
+        return urls;
+    };
+    s.fileOf = [] (const Want& want) { return want.level; };   // the product's file is the want's level
+    s.memberBand = [] (const std::string& stat) {   // "b1" ... "b3": the message of a file of several
+        return stat.size() == 2 && stat[0] == 'b' && stat[1] >= '1' && stat[1] <= '9' ? stat[1] - '0' : 0;
+    };
+    s.probeFile = gefs ? "gefsct/gefsct" : "refsct/refsct_1hr";
+    s.probeHour = gefs ? 36 : 1;
+    s.cycleHours = gefs ? 12 : 6;
+    s.lagHours = gefs ? 6 : 5;
+    s.cyclesToTry = 4;
+    s.maxParallel = 4;   // NOMADS
+    s.warp = {true, 0.1, -170.0, 10.0, -50.0, 72.0};
     return s;
 }
 

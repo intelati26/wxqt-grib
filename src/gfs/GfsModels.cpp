@@ -147,6 +147,17 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.recipeList = true;
             m.push_back(d);
         }
+        for (const bool gefs : {false, true}) {   // SPC's post-processing: the calibrated thunder and severe guidance of the REFS (6 hourly) and of the GEFS (00 and 12Z)
+            Def d;
+            d.id = gefs ? "SPCGEFS" : "SPCPOST";
+            d.label = gefs ? "SPC post-processing of the GEFS: daily calibrated thunder, machine-learning severe" : "SPC post-processing of the REFS: calibrated thunder and severe guidance";
+            d.source = [gefs] (const std::string&) { return GfsData::spcPost(gefs); };
+            d.sectors = Sectors::Conus;
+            d.hours = gefs ? std::vector<Hours>{{36, 204, 24}} : std::vector<Hours>{{1, 60, 1}};
+            d.cycleStep = gefs ? 12 : 6;
+            d.recipeList = true;
+            m.push_back(d);
+        }
         {   // the wave models
             Def d;
             d.id = "GFS-WAVE";
