@@ -2814,6 +2814,36 @@ const std::vector<Product>& products() {
                 x.legendStep = 0;
                 p.push_back(x);
             }
+            for (auto& chart : p) {   // the composite reflectivity (the GFS chart cloned above) with the rotating storms outlined: the last hour's strongest 2-5 km updraft helicity, 40 and over
+                if (chart.source != "RRFS" || chart.id != "sim_radar_comp") {
+                    continue;
+                }
+                chart.wants.clear();
+                chart.needs = [hourly] (int hour) {   // the RRFS files call the whole-column level by its long name
+                    std::vector<GfsData::Need> out;
+                    out.push_back({hour, {"r", "REFC", "entire atmosphere (considered as a single layer)", "", ""}});
+                    out.push_back({hour, {"uh", "MXUPHL", "5000-2000 m above ground", hourly(hour), ""}});
+                    return out;
+                };
+                chart.derive = [] (Grids& g, const Context&) {
+                    if (g.find("uh") == g.end()) {   // the start of the run has no hour's maximum yet
+                        g["uh"] = g.at("r");
+                        std::fill(g["uh"].values.begin(), g["uh"].values.end(), 0.0f);
+                    }
+                };
+                ContourSet uh;
+                uh.key = "uh";
+                uh.interval = 40;
+                uh.base = 40;
+                uh.minimum = 39;
+                uh.title = "2-5 km updraft helicity of the last hour, 40 and over (m2/s2)";
+                uh.color = QColor{10, 10, 10};
+                uh.width = 2.5;
+                uh.uniform = true;
+                chart.contours = {uh};
+                chart.label = "Composite Reflectivity with Updraft Helicity of 40 or more";
+                break;
+            }
             {
                 // MAG colors the echoes by what is falling: green rain, blue snow, purple sleet, red freezing rain (the type flags are the model's, at the hour shown)
                 const auto shades = [] (QColor light, QColor dark) {
