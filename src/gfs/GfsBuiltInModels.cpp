@@ -9,6 +9,53 @@
 // file names or protocols this format does not describe and stay in GfsData.cpp.
 const std::vector<std::pair<std::string, std::string>>& GfsModelFile::builtIn() {
     static const std::vector<std::pair<std::string, std::string>> list{
+        {"GEOS-FP", R"MODEL(
+# NASA's GEOS-FP (Goddard Earth Observing System, forecast): the global 0.25 x 0.3125 degree system of the Global Modeling and Assimilation Office. The files are NetCDF-4, one per hour and
+# collection; this reads the hourly time-averaged single-level collection (tavg1_2d_slv_Nx), which has the 2 m and 10 m fields, the sea level pressure and the heights, temperatures and winds
+# at 1000, 850, 500 and 250 mb. The 3 hourly pressure-level collection (inst3_3d_asm_Np, 0.5 GB a file) would have every level. The 00Z run goes 10 days, the 12Z 5 days, the others 30 hours.
+id = GEOS-FP
+label = NASA GMAO GEOS-FP 0.25 degree
+kind = netcdf
+# the directory is the run; the file name has the run, then the time the average is for (stamped half an hour after the hour it begins); `+` is %2B in a url
+url = https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y{year}/M{month}/D{day}/H{cycle}/GEOS.fp.fcst.{file}.{date}_{cycle}%2B{valid}.V01.nc4
+file = tavg1_2d_slv_Nx
+valid_offset = 30
+# the NOAA names the charts use -> this file's names
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => H{mb}
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => T{mb}
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => U{mb}
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => V{mb}
+nc_variable = when variable=SPFH level~"^[0-9]+ mb$" => Q{mb}
+nc_variable = when variable=VVEL level~"^[0-9]+ mb$" => OMEGA{mb}
+nc_variable = when variable=TMP level="2 m above ground" => T2M
+nc_variable = when variable=SPFH level="2 m above ground" => QV2M
+nc_variable = when variable=UGRD level="10 m above ground" => U10M
+nc_variable = when variable=VGRD level="10 m above ground" => V10M
+nc_variable = when variable=PRMSL => SLP
+nc_variable = when variable=PRES level=surface => PS
+nc_variable = when variable=PWAT => TQV
+# Kelvin to degrees C, as the GRIB models arrive
+value_offset = TMP:-273.15
+# the grid is 0.3125 degrees of longitude by 0.25 of latitude: warped to a square 0.25 degree grid
+warp = 0.25, -180.0, -90.0, 180.0, 90.0
+probe_file = tavg1_2d_slv_Nx
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 8
+cycles_to_try = 4
+max_parallel = 4
+hours = 0-239/1
+run_length = 0:240, 12:120, else:30
+run_every = 6
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, UGRD, VGRD, SPFH, VVEL, PRMSL, PWAT, PRES
+clone_fields = HGT|1000 mb, HGT|850 mb, HGT|500 mb, HGT|250 mb, TMP|850 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|500 mb, SPFH|250 mb, VVEL|500 mb
+clone_pieces = false
+clone_specific_humidity = true
+clone_skip = anom, precip, thick, 850_vort_ht, 500_vort_ht
+)MODEL"},
         {"GFS", R"MODEL(
 # the GFS: the charts everything else is made from; NOMADS can cut a box of the fields out of a file, which is what a regional chart fetches
 id = GFS

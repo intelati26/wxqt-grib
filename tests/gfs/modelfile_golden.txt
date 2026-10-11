@@ -2922,3 +2922,157 @@ source cycleHours=6 lagHours=4 probeHour=36 probeFile=mean cyclesToTry=5 maxPara
 2026101118 f120 TMP|2 m above ground|trak file=trak url=https://nomads.ncep.noaa.gov/pub/data/nccf/com/href/prod/href.20261011/ensprod/href.t18z.conus.trak.f120.grib2
 2026101118 f120 cref||m001 file=m001 url=https://nomads.ncep.noaa.gov/pub/data/nccf/com/href/prod/href.20261011/ensprod/href.t18z.conus.m001.f120.grib2
 2026101118 f120 cref||.zgroup file=.zgroup url=https://nomads.ncep.noaa.gov/pub/data/nccf/com/href/prod/href.20261011/ensprod/href.t18z.conus..zgroup.f120.grib2
+== GEOS-FP
+label=NASA GMAO GEOS-FP 0.25 degree source.id=GEOS-FP source.label=NASA GMAO GEOS-FP 0.25 degree
+sectors=0 hourlyRuns=0 cycleStep=6 overlays=1 recipeList=1 onMissing=0 preloadHours=24 storm=0
+hours=0-239/1,
+runLength=240,30,30,30,30,30,30,30,30,30,30,30,120,30,30,30,30,30,30,30,30,30,30,30,
+clone enabled=1 specificHumidity=1 pieces=0 prefix=
+ids=
+variables=HGT,PRES,PRMSL,PWAT,SPFH,TMP,UGRD,VGRD,VVEL,
+levels=
+fields=HGT|1000 mb,HGT|250 mb,HGT|500 mb,HGT|850 mb,SPFH|250 mb,SPFH|500 mb,SPFH|850 mb,TMP|250 mb,TMP|500 mb,TMP|850 mb,UGRD|250 mb,UGRD|500 mb,UGRD|850 mb,VGRD|250 mb,VGRD|500 mb,VGRD|850 mb,VVEL|500 mb,
+skip=anom,precip,thick,850_vort_ht,500_vort_ht,
+plain=
+rename=
+source cycleHours=6 lagHours=8 probeHour=0 probeFile=tavg1_2d_slv_Nx cyclesToTry=4 maxParallel=4 wholeFile=1 netcdf=1 custom=0 indexSuffix=.idx indexReplaces= defaultDetail= extraMissing=nan warp=1:0.25,-180,-90,180,90 hasParse=0 hasSubset=0
+2026101000 f1 HGT|500 mb| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 TMP|2 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 UGRD|10 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 PRMSL|mean sea level| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 PWAT|entire atmosphere (considered as a single layer)| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 CAPE|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 APCP|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 RH|1000 mb| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 SPFH|2 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 WIND|10 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 TMP|2 m above ground|spr file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 TMP|2 m above ground|p07 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 TMP|2 m above ground|c00 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 PROB|refsct/refsct_1hr| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 PROB|grefs/grefs_{ee}.4hr;grefs/grefs_{pe}.4hr|b2 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 PROB|gefs_mlp/gefsmlp_tor_std| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 sb_cape|| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 HGT|500 mb|mean file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 HGT|500 mb|sprd file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 CAPE|255-0 mb above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 CIN|surface|p30 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 GUST|surface|spr file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 MSLET|mean sea level|c00 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 HLCY|3000-0 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 VIS|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 TMP|850 mb|m002 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 TMP|2 m above ground|rrfs file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 TMP|500 mb|rrfs file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 REFC|entire atmosphere|ens:avrg file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 APCP|surface|ens:eas file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 HGT|500 mb|swath file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 varBT|| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 TMP|2 m above ground|trak file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 cref||m001 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f1 cref||.zgroup file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261010_0130.V01.nc4
+2026101000 f120 HGT|500 mb| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 TMP|2 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 UGRD|10 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 PRMSL|mean sea level| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 PWAT|entire atmosphere (considered as a single layer)| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 CAPE|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 APCP|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 RH|1000 mb| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 SPFH|2 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 WIND|10 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 TMP|2 m above ground|spr file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 TMP|2 m above ground|p07 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 TMP|2 m above ground|c00 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 PROB|refsct/refsct_1hr| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 PROB|grefs/grefs_{ee}.4hr;grefs/grefs_{pe}.4hr|b2 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 PROB|gefs_mlp/gefsmlp_tor_std| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 sb_cape|| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 HGT|500 mb|mean file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 HGT|500 mb|sprd file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 CAPE|255-0 mb above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 CIN|surface|p30 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 GUST|surface|spr file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 MSLET|mean sea level|c00 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 HLCY|3000-0 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 VIS|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 TMP|850 mb|m002 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 TMP|2 m above ground|rrfs file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 TMP|500 mb|rrfs file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 REFC|entire atmosphere|ens:avrg file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 APCP|surface|ens:eas file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 HGT|500 mb|swath file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 varBT|| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 TMP|2 m above ground|trak file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 cref||m001 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101000 f120 cref||.zgroup file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H00/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_00%2B20261015_0030.V01.nc4
+2026101118 f1 HGT|500 mb| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 TMP|2 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 UGRD|10 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 PRMSL|mean sea level| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 PWAT|entire atmosphere (considered as a single layer)| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 CAPE|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 APCP|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 RH|1000 mb| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 SPFH|2 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 WIND|10 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 TMP|2 m above ground|spr file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 TMP|2 m above ground|p07 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 TMP|2 m above ground|c00 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 PROB|refsct/refsct_1hr| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 PROB|grefs/grefs_{ee}.4hr;grefs/grefs_{pe}.4hr|b2 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 PROB|gefs_mlp/gefsmlp_tor_std| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 sb_cape|| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 HGT|500 mb|mean file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 HGT|500 mb|sprd file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 CAPE|255-0 mb above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 CIN|surface|p30 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 GUST|surface|spr file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 MSLET|mean sea level|c00 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 HLCY|3000-0 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 VIS|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 TMP|850 mb|m002 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 TMP|2 m above ground|rrfs file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 TMP|500 mb|rrfs file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 REFC|entire atmosphere|ens:avrg file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 APCP|surface|ens:eas file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 HGT|500 mb|swath file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 varBT|| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 TMP|2 m above ground|trak file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 cref||m001 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f1 cref||.zgroup file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261011_1930.V01.nc4
+2026101118 f120 HGT|500 mb| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 TMP|2 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 UGRD|10 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 PRMSL|mean sea level| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 PWAT|entire atmosphere (considered as a single layer)| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 CAPE|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 APCP|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 RH|1000 mb| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 SPFH|2 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 WIND|10 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 TMP|2 m above ground|spr file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 TMP|2 m above ground|p07 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 TMP|2 m above ground|c00 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 PROB|refsct/refsct_1hr| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 PROB|grefs/grefs_{ee}.4hr;grefs/grefs_{pe}.4hr|b2 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 PROB|gefs_mlp/gefsmlp_tor_std| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 sb_cape|| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 HGT|500 mb|mean file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 HGT|500 mb|sprd file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 CAPE|255-0 mb above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 CIN|surface|p30 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 GUST|surface|spr file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 MSLET|mean sea level|c00 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 HLCY|3000-0 m above ground| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 VIS|surface| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 TMP|850 mb|m002 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 TMP|2 m above ground|rrfs file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 TMP|500 mb|rrfs file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 REFC|entire atmosphere|ens:avrg file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 APCP|surface|ens:eas file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 HGT|500 mb|swath file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 varBT|| file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 TMP|2 m above ground|trak file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 cref||m001 file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4
+2026101118 f120 cref||.zgroup file=tavg1_2d_slv_Nx url=https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D11/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261011_18%2B20261016_1830.V01.nc4

@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QRegularExpression>
@@ -73,6 +74,9 @@ namespace {
         std::vector<Rule> rules;
         std::string fileDefault;
         std::vector<std::pair<std::string, double>> scales;           // variable -> factor
+        std::vector<std::pair<std::string, double>> offsets;          // variable -> amount added after the factor (Kelvin to degrees C)
+        std::vector<Rule> variables;                                  // `nc_variable` rules: a NetCDF file's name for a want
+        int validOffsetMinutes{0};                                    // {valid} is the run's time plus the hour plus this (a time average is stamped half an hour after)
         std::vector<std::pair<std::string, std::pair<int, int>>> members;   // "p01".."p20" -> bands, kept as expanded names
         std::map<std::string, int> memberBand;
     };
@@ -131,6 +135,15 @@ namespace {
         replaceAll(url, "{day}", run.date.substr(6, 2));
         replaceAll(url, "{cycle}", run.cycle);
         replaceAll(url, "{prev_cycle}", previous);
+        if (url.find("{valid") != std::string::npos) {   // the time the file is for: the run's time, the hour and the offset
+            auto t = QDateTime::fromString(QString::fromStdString(run.date + run.cycle), "yyyyMMddHH");
+            t.setTimeSpec(Qt::UTC);
+            t = t.addSecs(static_cast<qint64>(hour) * 3600 + static_cast<qint64>(d.validOffsetMinutes) * 60);
+            replaceAll(url, "{valid_date}", t.toString("yyyyMMdd").toStdString());
+            replaceAll(url, "{valid_hour2}", t.toString("HH").toStdString());
+            replaceAll(url, "{valid_minute2}", t.toString("mm").toStdString());
+            replaceAll(url, "{valid}", t.toString("yyyyMMdd_HHmm").toStdString());
+        }
         replaceAll(url, "{hour3}", padded(hour, 3));
         replaceAll(url, "{hour2}", padded(hour, 2));
         replaceAll(url, "{hour}", std::to_string(hour));
@@ -405,6 +418,28 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
                 }
             }
             definition->urls.push_back(rule);
+        } else if (key == "nc_variable") {
+            Rule rule;
+            if (!parseRule(value, rule, reader)) {
+                break;
+            }
+            definition->variables.push_back(rule);
+        } else if (key == "value_offset") {   // VARIABLE:amount, ...
+            for (const auto& item : split(value, ',')) {
+                const auto colon = item.find(':');
+                double amount = 0.0;
+                if (colon == std::string::npos || !toDouble(item.substr(colon + 1), amount)) {
+                    reader.fail("value_offset is VARIABLE:amount");
+                    break;
+                }
+                definition->offsets.emplace_back(item.substr(0, colon), amount);
+            }
+        } else if (key == "valid_offset") {
+            if (!toInt(value, n)) {
+                reader.fail("valid_offset is minutes");
+                break;
+            }
+            definition->validOffsetMinutes = n;
         } else if (key == "subset_url") {
             definition->subsetUrl = value;
         } else if (key == "subset_variable") {
@@ -580,12 +615,40 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
     if (reader.error.empty() && !runLength.empty()) {   // "every 6 : 84 , else : 18"
         QRegularExpression re{"^every\\s+(\\d+)\\s*:\\s*(\\d+)\\s*,\\s*else\\s*:\\s*(\\d+)$"};
         const auto m = re.match(QString::fromStdString(runLength));
-        if (!m.hasMatch()) {
-            reader.line = 0;
-            reader.fail("run_length is `every 6 : 84 , else : 18`");
-        } else {
+        if (m.hasMatch()) {
             const int every = m.captured(1).toInt(), whole = m.captured(2).toInt(), other = m.captured(3).toInt();
             def.runLength = [every, whole, other] (int cycle) { return cycle % every == 0 ? whole : other; };
+        } else {   // "0:240, 12:120, else:30": the last hour of the run of each cycle
+            std::map<int, int> byCycle;
+            int other = -1;
+            bool ok = true;
+            for (const auto& item : split(runLength, ',')) {
+                const auto colon = item.find(':');
+                int amount = 0;
+                if (colon == std::string::npos || !toInt(trim(item.substr(colon + 1)), amount)) {
+                    ok = false;
+                    break;
+                }
+                const auto left = trim(item.substr(0, colon));
+                int cycle = 0;
+                if (left == "else") {
+                    other = amount;
+                } else if (toInt(left, cycle)) {
+                    byCycle[cycle] = amount;
+                } else {
+                    ok = false;
+                    break;
+                }
+            }
+            if (!ok || other < 0) {
+                reader.line = 0;
+                reader.fail("run_length is `every 6 : 84 , else : 18` or `0:240, 12:120, else:30`");
+            } else {
+                def.runLength = [byCycle, other] (int cycle) {
+                    const auto found = byCycle.find(cycle);
+                    return found == byCycle.end() ? other : found->second;
+                };
+            }
         }
     }
     if (!reader.error.empty()) {
@@ -625,6 +688,27 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
         }
         if (ecmwf) {
             made.parseIndex = [] (const std::string& text, const Want&) { return GfsGrid::parseEcmwfIndex(text); };
+        }
+        if (!d->variables.empty()) {
+            made.variableOf = [d] (const Want& w) {
+                for (const auto& rule : d->variables) {
+                    const bool all = std::all_of(rule.conditions.begin(), rule.conditions.end(), [&w] (const Condition& c) { return c.matches(w); });
+                    if (all) {
+                        return expandWant(rule.pattern, w);
+                    }
+                }
+                return w.variable;
+            };
+        }
+        if (!d->offsets.empty()) {
+            made.valueOffset = [d] (const Want& w) {
+                for (const auto& [variable, amount] : d->offsets) {
+                    if (variable == w.variable) {
+                        return amount;
+                    }
+                }
+                return 0.0;
+            };
         }
         if (!d->scales.empty()) {
             made.valueScale = [d] (const Want& w) {

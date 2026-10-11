@@ -33,6 +33,7 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   mesoanalysis fields SFCOA-HRRR (the SPC mesoanalysis: CAPE, CIN, SRH, STP, SCP, SHIP, shear, lapse rates, ...) and RRFSD (the same from the RRFS to 84 h).
   SPCREFS is SPC's own REFS viewer data (its open Zarr store: means, maxima, probabilities and paintballs of 10 members, about 100 products, with a member picker for the
   one-member products). The two NetCDF ones are read by range, a field at a time (0.5 to 1 GB files, about a minute or two a field).
+- **GEOS-FP** - NASA's global forecast system (NetCDF-4 from the NASA Center for Climate Simulation), read by range through GDAL: heights, temperatures, winds and humidity at 1000/850/500/250 mb, the 2 m and 10 m fields and sea level pressure, out to 10 days. It is a model file like the others (`docs/model-files.md`), the first made from a server found by the user.
 - **Colors** - the Colors button edits the color scale of the chart on screen: stops, colors and transparency, flat bands or smooth, import and
   export as a text file. A scale replaces the default one for every chart that uses it (every temperature chart), and "Back to default" undoes it.
 - **Build a chart** - maps made to order from the members of the GEFS: the chance of rain over a limit in a period of 6 to 240 hours (or under

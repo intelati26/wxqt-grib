@@ -229,9 +229,11 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     }
     g.values.assign(all.begin(), all.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows)));
     const double factor = source.valueScale ? source.valueScale(want) : 1.0;
+    const double shift = source.valueOffset ? source.valueOffset(want) : 0.0;
     for (auto& value : g.values) {
-        if (factor != 1.0) {
-            value = static_cast<float>(value * factor);
+        const bool missing = std::abs(value) > 1e19f || value == source.extraMissing || (source.warp.enabled && value < -9998.5f);
+        if (!missing && (factor != 1.0 || shift != 0.0)) {
+            value = static_cast<float>(value * factor + shift);
         }
         if (std::abs(value) > 1e19f || value == source.extraMissing || (source.warp.enabled && value < -9998.5f)) {   // GRIB's missing value, and the warp's where the grid does not reach
             value = std::nanf("");
@@ -311,7 +313,8 @@ std::string GfsData::resolveUrl(const std::string& url) const {
 // A field of a source with no index (GEPS, SPC's post-processing): the file is kept whole for the run and hour (a NetCDF one is read by range), and the field is the mean or spread of its
 // messages, or one of them (a member, a variable of a file of several).
 bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom) ? want.variable : std::string{}) + "_");
+    const std::string variable = source.variableOf ? source.variableOf(want) : want.variable;   // what a NetCDF file calls the field
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom) ? variable : std::string{}) + "_");
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
         name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
@@ -395,7 +398,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
             if (source.netcdf) {
                 const auto head = config.bytes(url, 0, 3);
                 if (head.startsWith("CDF") || head.startsWith("\x89HDF")) {
-                    input = "NETCDF:\"/vsicurl/" + QString::fromStdString(url) + "\":" + QString::fromStdString(want.variable);
+                    input = "NETCDF:\"/vsicurl/" + QString::fromStdString(url) + "\":" + QString::fromStdString(variable);
                     have = true;
                     break;
                 }
@@ -414,7 +417,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
             break;
         }
         if (!have) {
-            error = source.id + " does not have " + (want.variable.empty() ? file : want.variable) + " for " + run.id() + " f" + pad(hour, 3) + (failed.empty() ? "" : " (" + failed + ")");
+            error = source.id + " does not have " + (variable.empty() ? file : variable) + " for " + run.id() + " f" + pad(hour, 3) + (failed.empty() ? "" : " (" + failed + ")");
             return false;
         }
     }
@@ -465,6 +468,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
     const size_t cells = static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows);
     g.values.assign(cells, std::nanf(""));
     const double factor = source.valueScale ? source.valueScale(want) : 1.0;
+    const double offset = source.valueOffset ? source.valueOffset(want) : 0.0;
     for (size_t i = 0; i < cells; i++) {
         double sum = 0.0, square = 0.0;
         int n = 0;
@@ -481,7 +485,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         }
         const double mean = sum / n;
         const double value = want.stat == "spr" ? std::sqrt(std::max(0.0, square / n - mean * mean)) : mean;
-        g.values[i] = static_cast<float>(value * factor);
+        g.values[i] = static_cast<float>(value * factor + (want.stat == "spr" ? 0.0 : offset));
     }
     QByteArray store(header, '\0');
     std::memcpy(store.data(), &g.columns, 4);

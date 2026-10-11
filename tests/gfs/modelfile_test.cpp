@@ -130,12 +130,37 @@ static int mistakes() {
             bad++;
         }
     }
+    // GEOS-FP: the edge cases of the first user-found server (the time in the file name, a name for each variable, Kelvin, the length of a run by cycle)
+    const auto * geos = GfsModels::find("GEOS-FP");
+    if (geos == nullptr) {
+        std::printf("FAIL: no GEOS-FP\n");
+        return bad + 1;
+    }
+    const auto source = geos->source("");
+    const std::string url = source.fileUrl({"20261010", "18"}, 12, "tavg1_2d_slv_Nx");   // 12 hours after 18Z crosses midnight; the average is stamped half an hour later
+    if (url != "https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y2026/M10/D10/H18/GEOS.fp.fcst.tavg1_2d_slv_Nx.20261010_18%2B20261011_0630.V01.nc4") {
+        std::printf("FAIL: GEOS-FP url %s\n", url.c_str());
+        bad++;
+    }
+    const auto named = [&source] (const char * variable, const char * level) { return source.variableOf({"a", variable, level, "", "", ""}); };
+    if (named("HGT", "500 mb") != "H500" || named("TMP", "2 m above ground") != "T2M" || named("PRMSL", "mean sea level") != "SLP" || named("VGRD", "10 m above ground") != "V10M") {
+        std::printf("FAIL: GEOS-FP variable names\n");
+        bad++;
+    }
+    if (!source.valueOffset || source.valueOffset({"a", "TMP", "850 mb", "", "", ""}) != -273.15 || source.valueOffset({"a", "HGT", "850 mb", "", "", ""}) != 0.0) {
+        std::printf("FAIL: GEOS-FP Kelvin\n");
+        bad++;
+    }
+    if (!geos->runLength || geos->runLength(0) != 240 || geos->runLength(12) != 120 || geos->runLength(6) != 30 || geos->runLength(18) != 30) {
+        std::printf("FAIL: GEOS-FP run lengths\n");
+        bad++;
+    }
     return bad;
 }
 
 int main(int argc, char ** argv) {
     // the models that are written as definition files
-    const std::vector<std::string> ids{"GFS", "NBM", "GEFS", "REFS", "HAFSA", "HAFSB", "SPCREFS", "GFS-WAVE", "GEFS-WAVE", "AIGFS", "IFS", "AIFS", "RRFS", "GEPS", "SPCPOST", "SPCGEFS", "SFCOA", "RRFSD", "HREF"};
+    const std::vector<std::string> ids{"GFS", "NBM", "GEFS", "REFS", "HAFSA", "HAFSB", "SPCREFS", "GFS-WAVE", "GEFS-WAVE", "AIGFS", "IFS", "AIFS", "RRFS", "GEPS", "SPCPOST", "SPCGEFS", "SFCOA", "RRFSD", "HREF", "GEOS-FP"};
     std::string all;
     for (const auto& id : ids) {
         all += describe(id);
