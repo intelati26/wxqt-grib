@@ -133,7 +133,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonSigma = new QPushButton{"Std deviations", this};
         buttonSigma->setCheckable(true);
         buttonSigma->setVisible(false);
-        buttonSigma->setToolTip("The anomaly in standard deviations from the 1991-2020 mean (the day's own spread of the reanalysis) instead of in decameters or millibars. The legend gives both, and the read-out shows both. The deviations are downloaded once, from Settings, Model Sources, Climatology.");
+        buttonSigma->setToolTip("The anomaly in standard deviations from the 1991-2020 mean (the day's own spread of the reanalysis) instead of in decameters or millibars. The legend says how big one deviation is over the map (it differs by place), and the read-out shows both values at the point. The deviations are downloaded once, from Settings, Model Sources, Climatology.");
         QObject::connect(buttonSigma, &QPushButton::toggled, this, [this] (bool on) {
             standardDeviations = on;
             startPlaying(false);

@@ -5233,17 +5233,18 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         }
     }
     const bool us = options.fahrenheit;
-    // a chart in standard deviations also gives the unit of the plain anomaly: one deviation's typical size (the median over the map) turns the scale's numbers into it
-    double deviationSize = 0.0;
+    // a chart in standard deviations says how big one deviation is in the plain unit over the view: it differs from place to place, so a range (the 10th to 90th percentile), not a number
+    double deviationLow = 0.0, deviationHigh = 0.0;
     if (!product.sigmaSizeKey.empty() && grids.count(product.sigmaSizeKey) && !product.linesOnly) {
         auto values = GfsGrid::cropped(grids.at(product.sigmaSizeKey), sector.west, sector.south, sector.east, sector.north).values;
         values.erase(std::remove_if(values.begin(), values.end(), [] (float v) { return !std::isfinite(v); }), values.end());
-        if (!values.empty()) {
-            std::nth_element(values.begin(), values.begin() + static_cast<long>(values.size() / 2), values.end());
-            deviationSize = values[values.size() / 2];
+        if (values.size() >= 10) {
+            std::sort(values.begin(), values.end());
+            deviationLow = values[values.size() / 10];
+            deviationHigh = values[values.size() * 9 / 10];
         }
     }
-    const int headerHeight = 54, legendHeight = 62 + (deviationSize > 0.0 ? 14 : 0), margin = 8;
+    const int headerHeight = 54, legendHeight = 62 + (deviationHigh > 0.0 ? 14 : 0), margin = 8;
     const QRectF mapArea{static_cast<double>(margin), static_cast<double>(headerHeight), static_cast<double>(options.width - 2 * margin), 0.0};
     const double mapHeight = std::clamp(View::heightFor(sector, mapArea.width()), 200.0, 1400.0);
     const QRectF area{mapArea.left(), mapArea.top(), mapArea.width(), mapHeight};
@@ -5871,25 +5872,14 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             tick(base, first + (last - first) * base);
         }
     }
-    if (deviationSize > 0.0) {   // the second row: the same ticks in the plain unit (one deviation is about `deviationSize` of it, here)
-        const double rowTop = barTop + barHeight + 18.0;
+    if (deviationHigh > 0.0) {   // a line under the ticks: how big one deviation is here (it is not the same everywhere)
+        const auto number = [] (double v) { return QString::number(v, 'f', v < 10.0 ? 1 : 0); };
         p.setPen(QColor{90, 90, 90});
-        for (const auto& stop : stops) {
-            if (stop.second.alpha() == 0 || std::fabs(stop.first) < 1e-9) {
-                continue;
-            }
-            const double t = (stop.first - first) / (last - first);
-            const double value = stop.first * deviationSize;
-            const QString text = QString{"%1 %2"}.arg(value, 0, 'f', std::fabs(value) < 10 ? 1 : 0).arg(QString::fromStdString(product.sigmaUnit));
-            const double x = barLeft + t * barWidth;
-            if (t < 0.03) {   // the ends of the bar: the text stays inside the picture
-                p.drawText(QRectF{x, rowTop, 60, 14}, Qt::AlignLeft, text);
-            } else if (t > 0.97) {
-                p.drawText(QRectF{x - 60, rowTop, 60, 14}, Qt::AlignRight, text);
-            } else {
-                p.drawText(QRectF{x - 30, rowTop, 60, 14}, Qt::AlignHCenter, text);
-            }
-        }
+        const QString unitName = QString::fromStdString(product.sigmaUnit);
+        const QString low = number(deviationLow), high = number(deviationHigh);
+        const QString text = low == high ? "1 std dev = about " + high + " " + unitName
+                                         : "1 std dev = " + low + " to " + high + " " + unitName + " over this map (it varies by place; hover for the value here)";
+        p.drawText(QRectF{barLeft, barTop + barHeight + 18.0, barWidth, 14}, Qt::AlignLeft, text);
     }
     // a small key for each overlay's colors (the same amounts as the main scale, from light to heavy)
     double keyLeft = barLeft;
