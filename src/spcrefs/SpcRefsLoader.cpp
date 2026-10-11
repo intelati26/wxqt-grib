@@ -5,6 +5,7 @@
 
 #include "spcrefs/SpcRefsLoader.h"
 #include <cmath>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <mutex>

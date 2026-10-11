@@ -6,6 +6,7 @@
 #include "objects/UtilityGif.h"
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <unordered_map>

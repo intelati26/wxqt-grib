@@ -10,6 +10,7 @@
 #include <chrono>
 #include <atomic>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <future>
 #include <mutex>
