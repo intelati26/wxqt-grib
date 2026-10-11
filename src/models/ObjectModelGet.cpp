@@ -7,7 +7,6 @@
 #include "ObjectModelGet.h"
 #include "objects/WString.h"
 #include "util/UtilityString.h"
-#include "UtilityModelEsrlInputOutput.h"
 #include "UtilityModelNcepInputOutput.h"
 #include "UtilityModelNsslWrfInputOutput.h"
 #include "UtilityModelSpcHrefInputOutput.h"
@@ -19,10 +18,6 @@
 void ObjectModelGet::runStatus(ObjectModel& om) {
     if (om.prefModel == "NSSLWRF") {
         om.runTimeData = UtilityModelNsslWrfInputOutput::getRunTime();
-    } else if (om.prefModel == "ESRL") {
-        om.runTimeData = UtilityModelEsrlInputOutput::getRunTime(&om);
-        om.run = om.runTimeData.mostRecentRun;
-        om.runs = om.runTimeData.listRun;
     } else if (om.prefModel == "NCEP" && GfsModels::draws(om.model)) {
         // these two come from NOAA's open data, not the model guidance pages: the newest run is the newest one whose files are there
         string cycle;
@@ -52,8 +47,6 @@ void ObjectModelGet::runStatus(ObjectModel& om) {
 string ObjectModelGet::imageUrl(ObjectModel& om) {
     if (om.prefModel == "NSSLWRF") {
         return UtilityModelNsslWrfInputOutput::getImageUrl(&om);
-    } else if (om.prefModel == "ESRL") {
-        return UtilityModelEsrlInputOutput::getImageUrl(&om);
     } else if (om.prefModel == "NCEP") {
         if (om.model == "NAM4KM") {
             om.model = "NAM-HIRES";

@@ -36,11 +36,11 @@ namespace {
                                            "nwsobs.png", "nwsobs.png#2", "nwsobssites.png", "spcsoundings.png", "rtma.png"}},
             {"Severe weather", {"uswarn.png", "report_today.png",
                                 "report_yesterday.png", "spc_sum.png", "day1.png", "day2.png", "day3.png", "day48.png",
-                                "tstorm.png#2", "ntor.png", "fire_outlook.png", "meso.png", "spccompmap.png", "tor.png"}},
+                                "tstorm.png", "ntor.png", "fire_outlook.png", "meso.png", "spccompmap.png", "tor.png"}},
             {"National, tropical and marine", {"fmap.png", "fmap.png#2", "srfd.png", "wpc_rainfall.png", "nhc.png", "nhc.png#2", "tropstorm.png", "opc.png", "opc.png#2"}},
             {"Models", {"grib.png", "refs.png", "refs.png#2", "nsslwrf.png", "ncep.png"}},
             // SPC HRRR, the Parametric Index Viewer (SHIP / STP are RRFS charts now), ESRL HRRR / RAP, NSSL WRF, WPC GEFS
-            {pendingGroup, {"spchrrr.png", "tstorm.png", "spcsref.png", "hrrrviewer.png", "nsslwrf.png#2", "wpcgefs.png"}},
+            {pendingGroup, {"spchrrr.png", "spcsref.png", "nsslwrf.png#2", "wpcgefs.png"}},
             {"Tools", {"baseline_settings_black_48dp.png"}},
         };
         return all;

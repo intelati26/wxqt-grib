@@ -99,7 +99,6 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         add("NSSL WRF (WRF, FV3, HRRRv3)", screen("NSSLWRF"));
         add("SPC HRRR", screen("SPCHRRR"));
         add("SPC HREF", screen("SPCHREF"));
-        add("ESRL HRRR / RAP", screen("ESRL"));
         add("WPC GEFS", screen("WPCGEFS"));
         more->setMenu(menu);
         boxH.addWidgetReal(more);
@@ -854,13 +853,13 @@ void ModelViewer::updateRunStatus() {
     comboboxTime.setList(objectModel.times);
     if (objectModel.model == "GLCFS") {
         // pass
-    } else if (objectModel.model != "HRRR" && objectModel.model != "HREF" && objectModel.model != "ESRL") {
+    } else if (objectModel.model != "HRRR" && objectModel.model != "HREF") {
         for (auto index : range(objectModel.times.size())) {
             auto timeStr = objectModel.times[index];
             auto newValue = WString::split(timeStr, " ")[0] + " " + UtilityModels::convertTimeRuntoTimeString(WString::replace(objectModel.runTimeData.timeStringConversion, "Z", ""), WString::split(timeStr, " ")[0]);
             objectModel.setTimeArr(index, newValue);
         }
-    } else if (objectModel.prefModel == "SPCHRRR" || objectModel.prefModel == "ESRL") {
+    } else if (objectModel.prefModel == "SPCHRRR") {
         objectModel.runs = objectModel.runTimeData.listRun;
         objectModel.times = UtilityModels::updateTime(UtilityString::getLastXChars(objectModel.run, 2), objectModel.run, objectModel.times, "");
     } else {

@@ -31,7 +31,6 @@
 #include "drought/DroughtViewer.h"
 #include "models/CamsViewer.h"
 #include "mrms/MrmsViewer.h"
-#include "models/IndexViewer.h"
 #include "spcrefs/SpcRefsViewer.h"
 #include "climate/ClimateViewer.h"
 #include "rivers/RiverMapViewer.h"
@@ -82,7 +81,6 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("refs.png", "SPC REFS (SPC's ensemble products: probabilities, paintballs, updraft helicity)", [parent] { new SpcRefsViewer{parent}; });
     routeItems.emplace_back("nsslwrf.png", "NSSL CAMs (experimental convection-allowing models: MPAS, WRF, HRRR, RRFS)", [parent] { new CamsViewer{parent}; });
     routeItems.emplace_back("tor.png", "SPC Post Slideshow (thunder / severe / lightning probability)", [parent] { new SpcPostViewer{parent}; });
-    routeItems.emplace_back("tstorm.png", "Parametric Index Viewer (SHIP hail parameter)", [parent] { new IndexViewer{parent}; });
 
     routeItems.emplace_back("spc_sum.png", "SPC Convective Outlook Summary, Ctrl-s", [this] { launchSpcSwoSummary(); });
     for (const int day : {1, 2, 3, 48}) {
@@ -115,7 +113,6 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
 
     routeItems.emplace_back("ncep.png", "Model Viewer, Ctrl-m", [this] { launchModelViewer(); });
     routeItems.emplace_back("spchrrr.png", "SPC HRRR", [this] { launchModelViewerGeneric("SPCHRRR"); });
-    routeItems.emplace_back("hrrrviewer.png", "ESRL HRRR/RAP", [this] { launchModelViewerGeneric("ESRL"); });
     routeItems.emplace_back("opc.png", "Ocean Prediction Center", [this] { launchOpc(); });
     routeItems.emplace_back("opc.png", "Climate and ocean: sea surface temperature and anomaly, El Niño / La Niña, cycles", [parent] { new ClimateViewer{parent}; });
     routeItems.emplace_back("tropstorm.png", "Tropical cyclones (Atlantic, East and Central Pacific): track, model guidance (spaghetti) and recon flights", [parent] { new HurricaneViewer{parent}; });

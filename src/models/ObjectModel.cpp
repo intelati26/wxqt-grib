@@ -11,7 +11,6 @@
 #include "util/To.h"
 #include "util/Utility.h"
 #include "util/UtilityList.h"
-#include "UtilityModelEsrlInterface.h"
 #include "UtilityModelNcepInterface.h"
 #include "UtilityModelNsslWrfInterface.h"
 #include "UtilityModelSpcHrefInterface.h"
@@ -41,14 +40,6 @@ ObjectModel::ObjectModel(const string& prefModel)
         sector = "CONUS";
         model = "WRF";
         models = UtilityModelNsslWrfInterface::models;
-    } else if (prefModel == "ESRL") {
-        run = "00Z";
-        timeStr = "01";
-        timeIdx = 1;
-        param = "1ref_sfc";
-        model = "HRRR_NCEP";
-        sector = "US";
-        models = UtilityModelEsrlInterface::models;
     } else if (prefModel == "GLCFS") {
         run = "00Z";
         timeStr = "01";
@@ -167,30 +158,6 @@ void ObjectModel::setModelVars(const string& modelName) {
         sectors = UtilityModelNsslWrfInterface::sectorsLong;
         times.clear();
         loadTimeList(1, 36, 1);
-    } else if (modelToken == "ESRL:HRRR" || modelToken == "ESRL:HRRR_NCEP") {
-        params = UtilityModelEsrlInterface::modelHrrrParams;
-        paramLabels = UtilityModelEsrlInterface::modelHrrrLabels;
-        sectors = UtilityModelEsrlInterface::sectorsHrrr;
-        times.clear();
-        loadTimeList(0, 36, 1);
-    } else if (modelToken == "ESRL:HRRR_AK") {
-        params = UtilityModelEsrlInterface::modelHrrrParams;
-        paramLabels = UtilityModelEsrlInterface::modelHrrrLabels;
-        sectors = UtilityModelEsrlInterface::sectorsHrrrAk;
-        times.clear();
-        loadTimeList(0, 36, 1);
-    } else if (modelToken == "ESRL:HRRR_SMOKE") {
-        params = UtilityModelEsrlInterface::modelHrrrSmokeParams;
-        paramLabels = UtilityModelEsrlInterface::modelHrrrSmokeLabels;
-        sectors = UtilityModelEsrlInterface::sectorsHrrrSmoke;
-        times.clear();
-        loadTimeList(0, 48, 1);
-    } else if (modelToken == "ESRL:RAP" || modelToken == "ESRL:RAP_NCEP") {
-        params = UtilityModelEsrlInterface::modelRapParams;
-        paramLabels = UtilityModelEsrlInterface::modelRapLabels;
-        sectors = UtilityModelEsrlInterface::sectorsRap;
-        times.clear();
-        loadTimeList(0, 21, 1);
     } else if (modelToken == "NCEP:HRRR") {
         params = UtilityModelNcepInterface::paramsHrrr;
         paramLabels = UtilityModelNcepInterface::labelsHrrr;
