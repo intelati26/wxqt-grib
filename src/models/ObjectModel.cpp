@@ -131,11 +131,11 @@ void ObjectModel::setModelVars(const string& modelName) {
         sectors = gribModel->sectors == GfsModels::Sectors::Conus ? UtilityModelNcepInterface::sectorsNbm : UtilityModelNcepInterface::sectorsGfs;
         times.clear();
         for (const auto& h : gribModel->hours) {
-            loadTimeList3(h.from, h.to, h.step);
+            loadTimeList3(h.from, h.to + 1, h.step);   // the registry's ranges end at an hour that is in them (the list helper stops short of its end)
         }
         if (gribModel->hourlyRuns || gribModel->cycleStep != 6) {
             runs.clear();
-            loadRunList(0, 23, gribModel->hourlyRuns ? 1 : gribModel->cycleStep);
+            loadRunList(0, 24, gribModel->hourlyRuns ? 1 : gribModel->cycleStep);   // 00Z .. 23Z
             runTimeData.listRun = runs;
         } else {
             setupListRunZ();

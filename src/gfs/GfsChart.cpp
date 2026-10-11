@@ -4533,8 +4533,11 @@ const std::vector<Product>& products() {
             if (chart.source == "NBM") {
                 if (chart.id == "2m_min_temp" || chart.id == "2m_max_temp") {
                     chart.mainCycleStep = 12;
+                    chart.periodHours = 12;
+                    chart.periodEndHourUtc = chart.id == "2m_min_temp" ? 12 : 0;
                 } else if (chart.id == "tstm_prob" || chart.id == "6hour_precip_chance" || chart.id == "12hour_precip_chance") {
                     chart.mainCycleStep = 6;
+                    chart.periodHours = chart.id == "12hour_precip_chance" ? 12 : 6;
                 }
             }
         }

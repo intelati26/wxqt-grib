@@ -794,37 +794,74 @@ void ModelViewer::applyMainRunRule() {
         comboboxRun.unblock();
     };
     const int step = product != nullptr ? product->mainCycleStep : 0;
-    if (step > 0 && hourOf(objectModel.run) >= 0 && hourOf(objectModel.run) % step != 0) {
-        const auto chosen = runTime(objectModel.run);
+    const string chosen = runSwappedFrom.empty() ? objectModel.run : runSwappedFrom;   // the run the person has, whatever a chart moved the screen to
+    QStringList notes;
+    if (step > 0 && hourOf(chosen) >= 0 && hourOf(chosen) % step != 0) {
+        const auto chosenTime = runTime(chosen);
         string best;
         QDateTime bestTime;
         for (const auto& run : objectModel.runs) {
             const auto t = runTime(run);
-            if (hourOf(run) % step == 0 && t.isValid() && chosen.isValid() && t <= chosen && (!bestTime.isValid() || t > bestTime)) {
+            if (hourOf(run) % step == 0 && t.isValid() && chosenTime.isValid() && t <= chosenTime && (!bestTime.isValid() || t > bestTime)) {
                 best = run;
                 bestTime = t;
             }
         }
+        const QString only = step == 12 ? "00 and 12Z" : "00, 06, 12 and 18Z";
         if (!best.empty()) {
-            if (runSwappedFrom.empty()) {
-                runSwappedFrom = objectModel.run;
-            }
-            const auto from = runSwappedFrom;
+            runSwappedFrom = chosen;
             select(best);
-            strip->setNotice(QString::fromStdString("This chart is drawn from the " + best + " run, not the " + from + " one: " + product->label + " exists only in the " + (step == 12 ? "00 and 12Z" : "00, 06, 12 and 18Z") + " runs "
-                                                    "(the others carry 1 hour fields only). Choose another chart and the run goes back to " + from + "."));
-            return;
+            notes << QString::fromStdString("This chart is drawn from the " + best + " run, not the " + chosen + " one: " + product->label + " exists only in the ") + only +
+                         QString::fromStdString(" runs (the others carry 1 hour fields only). Choose another chart and the run goes back to " + chosen + ".");
+        } else {
+            notes << QString::fromStdString("No ") + (step == 12 ? "00 or 12Z" : "00, 06, 12 or 18Z") + QString::fromStdString(" run is in the list: " + product->label + " exists only in those runs.");
         }
-        strip->setNotice(QString::fromStdString("No " + string{step == 12 ? "00 or 12Z" : "00, 06, 12 or 18Z"} + " run is in the list: " + product->label + " exists only in those runs."));
-        return;
-    }
-    if (!runSwappedFrom.empty()) {   // a chart that does not need it: the run the person had
+    } else if (!runSwappedFrom.empty()) {   // a chart that does not need it: the run the person had
         if (std::find(objectModel.runs.begin(), objectModel.runs.end(), runSwappedFrom) != objectModel.runs.end()) {
             select(runSwappedFrom);
         }
         runSwappedFrom.clear();
     }
-    strip->setNotice({});
+    // a chart of a period that ends at the hour has it only at some hours: the timeline moves to the next one
+    const int period = product != nullptr ? product->periodHours : 0;
+    if (period > 0) {
+        const int shown = std::atoi(objectModel.getTime().c_str());
+        const int cycle = std::max(hourOf(objectModel.run), 0);
+        const int endHour = product->periodEndHourUtc;
+        const auto has = [&] (int hour) { return hour >= period && hour % period == 0 && (endHour < 0 || (cycle + hour) % 24 == endHour); };
+        if (!has(shown)) {
+            int target = -1;   // the next hour that has it, else the last one before
+            int bestBefore = -1;
+            for (const auto& t : objectModel.times) {
+                const int h = std::atoi(t.c_str());
+                if (has(h) && h >= shown && (target < 0 || h < target)) {
+                    target = h;
+                }
+                if (has(h) && h < shown && h > bestBefore) {
+                    bestBefore = h;
+                }
+            }
+            if (target < 0) {
+                target = bestBefore;
+            }
+            for (size_t i = 0; target >= 0 && i < objectModel.times.size(); i++) {
+                if (std::atoi(objectModel.times[i].c_str()) == target) {
+                    comboboxTime.block();
+                    comboboxTime.setIndex(i);
+                    comboboxTime.unblock();
+                    objectModel.setTimeIdx(i);
+                    QString every = QString{"every %1th forecast hour"}.arg(period);
+                    if (endHour >= 0) {
+                        every = QString{"the forecast hours that end at %1Z (every %2 hours)"}.arg(endHour, 2, 10, QChar{'0'}).arg(24);
+                    }
+                    notes << QString{"This chart is of the %1 hours that end at the forecast hour, and the %2Z run has it at %3: the timeline moved from F%4 to F%5."}
+                                 .arg(period).arg(cycle, 2, 10, QChar{'0'}).arg(every).arg(shown, 3, 10, QChar{'0'}).arg(target, 3, 10, QChar{'0'});
+                    break;
+                }
+            }
+        }
+    }
+    strip->setNotice(notes.join("\n"));
 }
 
 void ModelViewer::reload() {
@@ -835,7 +872,7 @@ void ModelViewer::reload() {
     objectModel.writePrefs();
     const auto shownIndex = comboboxTime.getIndex();
     setTitle(objectModel.model + " " + objectModel.sector + (shownIndex >= 0 && static_cast<size_t>(shownIndex) < objectModel.times.size() ? " " + objectModel.times[static_cast<size_t>(shownIndex)] : string{}) +
-             (runSwappedFrom.empty() ? string{} : "  (" + objectModel.run + " run: " + objectModel.param + " is not in the " + runSwappedFrom + " run)"));
+             (runSwappedFrom.empty() ? string{} : "  (shown from the " + objectModel.run + " run: the " + runSwappedFrom + " run does not have this chart)"));
     if (GfsRender::handles(objectModel.model, objectModel.param)) {
         // the GFS charts are drawn here from the GRIB data
         const int mine = ++drawing;

@@ -122,6 +122,8 @@ namespace GfsChart {
         // The chart's fields are made only by the runs whose hour is a multiple of this (the NBM: 6 for the 6 and 12 hour chances, 12 for the 12 hour extremes; the hourly runs have the 1 hour
         // fields only). 0: every run has them.
         int mainCycleStep{0};
+        int periodEndHourUtc{-1};   // with periodHours: the period must end at this hour of the day (the NBM's night minimum ends at 12Z, the day maximum at 00Z); -1: any
+        int periodHours{0};   // the chart is of a period that ends at the hour (12 hour extremes, 6 hour chances): only the forecast hours that are multiples of this have it. 0: any hour
         std::string sigmaUnit;      // the chart's own unit for the legend's second row and the read-out: "dam", "mb"
         std::string sigmaSizeKey;   // the grid of one standard deviation in that unit: the legend's second row uses its middle value
         std::string sigmaReadKey;   // the grid of the anomaly in that unit, for the hover read-out
