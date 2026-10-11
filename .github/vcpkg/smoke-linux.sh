@@ -38,5 +38,7 @@ run gdalinfo -mm "$t/w.tif"
 # NetCDF-4 (HDF5, deflate) and ranged reads over http: the models that read NetCDF files by range need both
 run gdal_translate -q -of netCDF -co FORMAT=NC4 -co COMPRESS=DEFLATE "$t/f.tif" "$t/n.nc"
 run gdalinfo -mm "$t/n.nc"
-gdalinfo --debug ON "/vsicurl/http://127.0.0.1:9/x.tif" 2>&1 | grep -q libcurl || { echo "GDAL has no /vsicurl (built without curl)"; exit 1; }
+# (captured first: grep -q closing the pipe early would fail the pipeline under pipefail)
+curl_out="$(gdalinfo --debug ON "/vsicurl/http://127.0.0.1:9/x.tif" 2>&1 || true)"
+grep -q libcurl <<<"$curl_out" || { echo "GDAL has no /vsicurl (built without curl)"; exit 1; }
 echo "bundled GDAL OK"
