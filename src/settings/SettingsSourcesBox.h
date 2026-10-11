@@ -15,6 +15,7 @@
 class QLabel;
 class QPushButton;
 class QTableWidget;
+class QTimer;
 
 // The "Model sources" tab of the settings: for each model the Model Viewer draws, whether the server still has a run and lists the first chart's fields (the data moves and
 // retires: a source that has gone is found here and not by a chart that fails). It looks only when the tab is entered, or on Check again; nothing runs in the background otherwise.
@@ -27,6 +28,11 @@ public:
 private:
     void start();
     void setRow(int row, const GfsRender::SourceCheck&);
+    void refreshClimate();   // the climatology rows: stored, or how far the background work is
+    QTableWidget * climateTable{};
+    QPushButton * climateButton{};
+    QLabel * climateSummary{};
+    QTimer * climateTimer{};
     QTableWidget * table{};
     QLabel * summary{};
     QPushButton * again{};

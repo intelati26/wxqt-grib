@@ -31,8 +31,20 @@ public:
     bool at(const Field& field, int dayIndex, GfsGrid::Grid& out, std::string& error) const;
 
     // The standard deviation of a field's daily value about its daily mean (the 30 years 1991-2020 of the reanalysis' daily averages, the days within four of the one asked for pooled), on the
-    // same grid. It is worked out once, in the background (about a thousand slices from the web for each field, kept for good): until then this is false with a message that says how far it is.
+    // same grid. It is worked out once, in the background (about a thousand slices from the web for each field, kept for good), and only when prepareDeviation is called: until then this is false
+    // with a message that says where to download it (nothing is fetched behind a chart's back).
     bool deviation(const Field& field, int dayIndex, GfsGrid::Grid& out, std::string& error) const;
+
+    // Where the work of deviation() stands, and a way to start it ahead of the first chart (the settings page's download): prepareDeviation starts the background work when the field's
+    // deviations are neither stored nor being worked out (and forgets an earlier failure, so it is also the retry).
+    struct Readiness {
+        bool ready{false};
+        bool building{false};
+        int percent{0};
+        std::string failed;   // why the last try stopped, empty when it did not
+    };
+    Readiness deviationState(const Field& field) const;
+    void prepareDeviation(const Field& field) const;
 
     // A near-surface field's mean and standard deviation by day, worked out from the 30 years of the reanalysis' daily averages themselves (for the fields the long-term mean files do not hold in
     // the form wanted: a wind SPEED, say). The same pooling as deviation(); built once in the background (the files are small), kept for good.
@@ -45,6 +57,8 @@ public:
     static Stat nearSurfaceTemperature();   // K
     static Stat nearSurfaceWind();          // m/s, the speed at sigma 0.995 (about 40 m)
     static Stat seaLevelPressureStat();     // Pa
+    Readiness statisticsState(const Stat& stat) const;
+    void prepareStatistics(const Stat& stat) const;   // as prepareDeviation: nothing is downloaded until this is asked for (the settings page's button)
     bool statistics(const Stat& stat, int dayIndex, GfsGrid::Grid& mean, GfsGrid::Grid& deviation, std::string& error) const;
 
     // The pure parts:

@@ -253,6 +253,41 @@ bool GfsClimate::storedDeviation(const Field& field, int day, GfsGrid::Grid& out
     return unpack(store.read(deviationName(field) + "_d" + std::to_string(day) + ".bin"), out);
 }
 
+GfsClimate::Readiness GfsClimate::deviationState(const Field& field) const {
+    Readiness state;
+    if (field.file.empty()) {
+        return state;
+    }
+    const auto name = deviationName(field);
+    const PermanentCache store{"climate"};
+    state.ready = !store.read(name + "_done").empty();
+    const std::lock_guard lock{deviationMutex};
+    state.building = !state.ready && deviationBuilding.count(name) > 0;
+    state.percent = state.ready ? 100 : deviationPercent.count(name) ? deviationPercent[name] : 0;
+    if (!state.ready && deviationFailed.count(name)) {
+        state.failed = deviationFailed[name];
+    }
+    return state;
+}
+
+void GfsClimate::prepareDeviation(const Field& field) const {
+    if (field.file.empty()) {
+        return;
+    }
+    const auto name = deviationName(field);
+    const PermanentCache store{"climate"};
+    if (!store.read(name + "_done").empty()) {
+        return;
+    }
+    const std::lock_guard lock{deviationMutex};
+    deviationFailed.erase(name);
+    if (!deviationBuilding.count(name)) {
+        deviationBuilding.insert(name);
+        deviationPercent[name] = 0;
+        std::thread{[this, field] { buildDeviation(field); }}.detach();
+    }
+}
+
 bool GfsClimate::deviation(const Field& field, int day, GfsGrid::Grid& out, std::string& error) const {
     if (field.file.empty()) {
         error = "no climatology for this level";
@@ -266,13 +301,13 @@ bool GfsClimate::deviation(const Field& field, int day, GfsGrid::Grid& out, std:
             error = "could not work out the standard deviations: " + deviationFailed[name];
             return false;
         }
-        if (!deviationBuilding.count(name)) {
-            deviationBuilding.insert(name);
-            deviationPercent[name] = 0;
-            std::thread{[this, field] { buildDeviation(field); }}.detach();
+        if (deviationBuilding.count(name)) {
+            error = "The standard deviations of " + field.variable + " are being worked out from 30 years of the reanalysis: " + std::to_string(deviationPercent[name]) +
+                " per cent. Choose this chart again in a few minutes.";
+        } else {
+            error = "The standard deviations of " + field.variable + " have not been downloaded yet (30 years of the reanalysis, about a thousand small files, once only). "
+                "Download them in Settings, Model Sources, Climatology.";
         }
-        error = "The standard deviations of " + field.variable + " are being worked out from 30 years of the reanalysis (once only, in the background): " + std::to_string(deviationPercent[name]) +
-            " per cent. Choose this chart again in a few minutes.";
         return false;
     }
     int a, b;
@@ -438,6 +473,35 @@ GfsClimate::Stat GfsClimate::seaLevelPressureStat() {
     return {"slp", {"surface/slp"}, {"slp"}, false};
 }
 
+GfsClimate::Readiness GfsClimate::statisticsState(const Stat& stat) const {
+    Readiness state;
+    const std::string name = "stat_" + stat.name;
+    const PermanentCache store{"climate"};
+    state.ready = !store.read(name + "_done").empty();
+    const std::lock_guard lock{deviationMutex};
+    state.building = !state.ready && deviationBuilding.count(name) > 0;
+    state.percent = state.ready ? 100 : deviationPercent.count(name) ? deviationPercent[name] : 0;
+    if (!state.ready && deviationFailed.count(name)) {
+        state.failed = deviationFailed[name];
+    }
+    return state;
+}
+
+void GfsClimate::prepareStatistics(const Stat& stat) const {
+    const std::string name = "stat_" + stat.name;
+    const PermanentCache store{"climate"};
+    if (!store.read(name + "_done").empty()) {
+        return;
+    }
+    const std::lock_guard lock{deviationMutex};
+    deviationFailed.erase(name);
+    if (!deviationBuilding.count(name)) {
+        deviationBuilding.insert(name);
+        deviationPercent[name] = 0;
+        std::thread{[this, stat] { buildStatistics(stat); }}.detach();
+    }
+}
+
 bool GfsClimate::statistics(const Stat& stat, int day, GfsGrid::Grid& mean, GfsGrid::Grid& deviation, std::string& error) const {
     const PermanentCache store{"climate"};
     const std::string name = "stat_" + stat.name;
@@ -447,13 +511,12 @@ bool GfsClimate::statistics(const Stat& stat, int day, GfsGrid::Grid& mean, GfsG
             error = "could not work out the statistics: " + deviationFailed[name];
             return false;
         }
-        if (!deviationBuilding.count(name)) {
-            deviationBuilding.insert(name);
-            deviationPercent[name] = 0;
-            std::thread{[this, stat] { buildStatistics(stat); }}.detach();
+        if (deviationBuilding.count(name)) {
+            error = "The daily statistics of " + stat.name + " are being worked out from 30 years of the reanalysis: " + std::to_string(deviationPercent[name]) +
+                " per cent. Choose this chart again in a few minutes.";
+        } else {
+            error = "The daily statistics of " + stat.name + " have not been downloaded yet (30 years of the reanalysis, once only). Download them in Settings, Model Sources, Climatology.";
         }
-        error = "The daily statistics of " + stat.name + " are being worked out from 30 years of the reanalysis (once only, in the background): " + std::to_string(deviationPercent[name]) +
-            " per cent. Choose this chart again in a few minutes.";
         return false;
     }
     int a, b;

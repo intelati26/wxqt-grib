@@ -15,7 +15,36 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QVBoxLayout>
+#include <QTimer>
+#include "gfs/GfsClimate.h"
 #include "gfs/GfsModels.h"
+#include "models/UtilityGrib.h"
+
+namespace {
+    // the fields the standard-deviation charts (anomalies in deviations, the chance of an anomaly of so many) use, and what for
+    struct ClimateField {
+        const char * name;
+        GfsClimate::Field field;
+        const char * usedBy;
+        bool isStat{false};
+        GfsClimate::Stat stat{};
+    };
+    std::vector<ClimateField> climateFields() {
+        return {{"500 mb height", GfsClimate::height(500), "Height anomaly in std dev; chance of a 500 mb height anomaly"},
+                {"700 mb height", GfsClimate::height(700), "Height anomaly in std dev; chance of a 700 mb height anomaly"},
+                {"Sea level pressure", GfsClimate::seaLevelPressure(), "MSLP anomaly in std dev"},
+                {"700 mb temperature", GfsClimate::temperature(700), "Chance of a 700 mb temperature anomaly"},
+                {"850 mb temperature", GfsClimate::temperature(850), "Chance of an 850 mb temperature anomaly"},
+                {"Precipitable water", GfsClimate::precipitableWater(), "Chance of a precipitable water anomaly"},
+                {"Near-surface temperature", {}, "Chance of a 2 m temperature anomaly (daily means of the reanalysis)", true, GfsClimate::nearSurfaceTemperature()},
+                {"Near-surface wind speed", {}, "Chance of a 10 m wind speed anomaly", true, GfsClimate::nearSurfaceWind()},
+                {"Sea level pressure (daily)", {}, "Chance of a sea level pressure anomaly", true, GfsClimate::seaLevelPressureStat()}};
+    }
+    const GfsClimate& climate() {
+        static const GfsClimate instance{UtilityGrib::gdalBinDir()};
+        return instance;
+    }
+}
 
 SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
     : QWidget{parent}
@@ -42,6 +71,51 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
     row->addWidget(summary, 1);
     row->addWidget(again);
     layout->addLayout(row);
+    {   // the 1991-2020 reanalysis the anomaly charts compare with: its daily means come a slice at a time, the standard deviations are worked out once from 30 years of daily values
+        auto * heading = new QLabel{"<b>Climatology (NOAA PSL, NCEP/NCAR reanalysis 1991-2020)</b><br>The anomaly charts in standard deviations need each field's daily spread, worked out once "
+                                    "from 30 years of the reanalysis (about a thousand small downloads a field, a few hundred MB in all). Nothing is downloaded until you press Download all; a chart that needs "
+                                    "a field not stored yet says so. It is kept for good.", this};
+        heading->setWordWrap(true);
+        layout->addWidget(heading);
+        climateTable = new QTableWidget{0, 3, this};
+        climateTable->setHorizontalHeaderLabels({"Field", "Standard deviations", "Used by"});
+        climateTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+        climateTable->horizontalHeader()->setStretchLastSection(true);
+        climateTable->verticalHeader()->setVisible(false);
+        climateTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        climateTable->setSelectionMode(QAbstractItemView::NoSelection);
+        int r = 0;
+        for (const auto& f : climateFields()) {
+            climateTable->insertRow(r);
+            climateTable->setItem(r, 0, new QTableWidgetItem{f.name});
+            climateTable->setItem(r, 1, new QTableWidgetItem{"-"});
+            climateTable->setItem(r, 2, new QTableWidgetItem{f.usedBy});
+            r++;
+        }
+        climateTable->setMaximumHeight(climateTable->horizontalHeader()->height() + r * 28 + 6);
+        layout->addWidget(climateTable);
+        auto * climateRow = new QHBoxLayout;
+        climateSummary = new QLabel{this};
+        climateButton = new QPushButton{"Download all", this};
+        climateButton->setToolTip("Works out the standard deviations of every field above that is not stored yet, a few at a time, in the background. Safe to leave; it carries on while the app is open.");
+        QObject::connect(climateButton, &QPushButton::clicked, this, [this] {
+            for (const auto& f : climateFields()) {
+                if (f.isStat) {
+                    climate().prepareStatistics(f.stat);
+                } else {
+                    climate().prepareDeviation(f.field);
+                }
+            }
+            refreshClimate();
+        });
+        climateRow->addWidget(climateSummary, 1);
+        climateRow->addWidget(climateButton);
+        layout->addLayout(climateRow);
+        climateTimer = new QTimer{this};
+        climateTimer->setInterval(1500);
+        QObject::connect(climateTimer, &QTimer::timeout, this, [this] { refreshClimate(); });
+        refreshClimate();
+    }
     int index = 0;
     for (const auto& def : GfsModels::all()) {
         table->insertRow(index);
@@ -59,8 +133,43 @@ SettingsSourcesBox::~SettingsSourcesBox() {
 }
 
 void SettingsSourcesBox::entered() {
+    refreshClimate();
     if (!looked) {
         start();
+    }
+}
+
+void SettingsSourcesBox::refreshClimate() {
+    const auto fields = climateFields();
+    int ready = 0, working = 0, failed = 0;
+    for (size_t i = 0; i < fields.size(); i++) {
+        const auto state = fields[i].isStat ? climate().statisticsState(fields[i].stat) : climate().deviationState(fields[i].field);
+        auto * item = climateTable->item(static_cast<int>(i), 1);
+        if (state.ready) {
+            item->setText("stored");
+            item->setForeground(QBrush{QColor{30, 140, 60}});
+            ready++;
+        } else if (state.building) {
+            item->setText("working out: " + QString::number(state.percent) + " %");
+            item->setForeground(QBrush{});
+            working++;
+        } else if (!state.failed.empty()) {
+            item->setText("failed: " + QString::fromStdString(state.failed));
+            item->setForeground(QBrush{QColor{200, 40, 40}});
+            failed++;
+        } else {
+            item->setText("not yet");
+            item->setForeground(QBrush{Qt::gray});
+        }
+    }
+    const int total = static_cast<int>(fields.size());
+    climateSummary->setText(QString::number(ready) + " of " + QString::number(total) + " stored" + (working ? ", " + QString::number(working) + " being worked out" : QString{}) +
+                            (failed ? ", " + QString::number(failed) + " failed (Download all tries again)" : QString{}) + ".");
+    climateButton->setEnabled(ready + working < total);
+    if (working > 0 && !climateTimer->isActive()) {
+        climateTimer->start();
+    } else if (working == 0) {
+        climateTimer->stop();
     }
 }
 
