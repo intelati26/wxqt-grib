@@ -1552,7 +1552,7 @@ ids=
 variables=APCP,CAPE,DPT,GUST,HGT,PRATE,PRMSL,PWAT,RH,SPFH,TCDC,TMP,UGRD,VGRD,VVEL,
 levels=100 mb,1000 mb,150 mb,200 mb,250 mb,300 mb,400 mb,50 mb,500 mb,600 mb,700 mb,850 mb,925 mb,
 fields=
-skip=
+skip=precip_p01,
 plain=
 rename=
 source cycleHours=6 lagHours=8 probeHour=0 probeFile= cyclesToTry=5 maxParallel=8 wholeFile=0 netcdf=0 custom=0 indexSuffix=.index indexReplaces=.grib2 defaultDetail= extraMissing=nan warp=0:0.025,-127,22,-65,52 hasParse=1 hasSubset=0
@@ -1702,10 +1702,10 @@ sectors=0 hourlyRuns=0 cycleStep=6 overlays=1 recipeList=1 onMissing=0 preloadHo
 hours=0-360/6,
 clone enabled=1 specificHumidity=0 pieces=0 prefix=
 ids=
-variables=APCP,CAPE,DPT,GUST,HGT,PRATE,PRMSL,PWAT,RH,SPFH,TCDC,TMP,UGRD,VGRD,VVEL,
+variables=APCP,DPT,GUST,HGT,PRATE,PRMSL,SPFH,TCDC,TMP,UGRD,VGRD,VVEL,
 levels=100 mb,1000 mb,150 mb,200 mb,250 mb,300 mb,400 mb,50 mb,500 mb,600 mb,700 mb,850 mb,925 mb,
 fields=
-skip=
+skip=precip_p01,precip_p03,1000_500_thick,1000_850_thick,850_700_thick,850_temp_mslp_precip,10m_wnd_precip,
 plain=
 rename=
 source cycleHours=6 lagHours=8 probeHour=0 probeFile= cyclesToTry=5 maxParallel=8 wholeFile=0 netcdf=0 custom=0 indexSuffix=.index indexReplaces=.grib2 defaultDetail= extraMissing=nan warp=0:0.025,-127,22,-65,52 hasParse=1 hasSubset=0
