@@ -8,7 +8,7 @@ t="$1"
 mkdir -p "$t"
 
 formats="$(gdalinfo --formats; ogrinfo --formats)"
-for driver in GRIB GTiff PNG XYZ ENVI VRT MEM GeoJSON; do
+for driver in GRIB GTiff PNG XYZ ENVI VRT MEM GeoJSON netCDF; do
     echo "$formats" | grep -Eq "^ *$driver\b" || { echo "GDAL driver $driver missing"; exit 1; }
 done
 
@@ -35,4 +35,8 @@ run gdalinfo -mm "$t/f.grb2"
 run gdalinfo -mm "$t/j.grb2"
 run gdallocationinfo -valonly -wgs84 "$t/f.tif" -100 30
 run gdalinfo -mm "$t/w.tif"
+# NetCDF-4 (HDF5, deflate) and ranged reads over http: the models that read NetCDF files by range need both
+run gdal_translate -q -of netCDF -co FORMAT=NC4 -co COMPRESS=DEFLATE "$t/f.tif" "$t/n.nc"
+run gdalinfo -mm "$t/n.nc"
+gdalinfo --debug ON "/vsicurl/http://127.0.0.1:9/x.tif" 2>&1 | grep -q libcurl || { echo "GDAL has no /vsicurl (built without curl)"; exit 1; }
 echo "bundled GDAL OK"
