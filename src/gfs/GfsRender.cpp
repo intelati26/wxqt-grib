@@ -16,6 +16,7 @@
 #include <mutex>
 #include <set>
 #include <QCoreApplication>
+#include <QProcess>
 #include <QTimer>
 #include <QBuffer>
 #include <QDateTime>
@@ -147,6 +148,18 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
         return finish();
     }
     const auto gfs = data(session.folder(), model);
+    if (gfs.model().netcdf) {   // its fields are read through GDAL's NetCDF driver, which a trimmed GDAL (the Windows package's) may not have
+        static const bool hasDriver = [] {
+            QProcess formats;
+            formats.start(QString::fromStdString(UtilityGrib::gdalBinDir()) + "/gdalinfo", {"--formats"});
+            formats.waitForFinished(15000);
+            return QString::fromUtf8(formats.readAllStandardOutput()).contains("netCDF", Qt::CaseInsensitive);
+        }();
+        if (!hasDriver) {
+            result.detail = "the GDAL in use has no NetCDF driver, so this model's fields cannot be read";
+            return finish();
+        }
+    }
     GfsData::Run run;
     if (!gfs.latestRun(run)) {
         result.detail = "no run found on the server (offline, or the files moved)";
