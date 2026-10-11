@@ -29,6 +29,9 @@
 #include <QTimer>
 #include <QThread>
 #include "common/GlobalVariables.h"
+#include "gfs/GfsModels.h"
+#include <QDir>
+#include <QStandardPaths>
 #include "gfs/GfsRender.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsViewer.h"
@@ -128,6 +131,11 @@ int main(int argc, char * argv[]) {
         debug = debug || argument == "--debug";
     }
     a.installEventFilter(new ZoomKeys{&a});
+    {   // the user's own model files (*.model), read when the registry is first made: before anything asks for it
+        const auto folder = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/models";
+        QDir{}.mkpath(folder);
+        GfsModels::setUserFolder(folder.toStdString());
+    }
     SpcRefsLoader::registerLoader();   // SPC's REFS Zarr store as a Model Viewer model
     GfsRender::startCacheCleanup();   // the model field cache is tidied in the background, a few seconds in
     CrashLog::install(debug);

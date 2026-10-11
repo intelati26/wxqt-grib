@@ -58,54 +58,6 @@ GfsData::Source GfsData::gfs() {
     return s;
 }
 
-// NCEP's AI global model (GraphCast-based, 0.25 degree, every 6 hours to 16 days): the pressure levels (height, temperature, humidity as specific humidity, vertical motion, wind) and the
-// surface (10 m wind, 2 m temperature, sea level pressure, precipitation in 6 hour pieces) are separate files, in the NOAA GraphCast GFS open data bucket on AWS (the same layout as NOMADS, and it keeps the history)
-GfsData::Source GfsData::aigfs() {
-    Source s;
-    s.id = "AIGFS";
-    s.label = "NOAA/NCEP AIGFS 0.25 degree (an AI model)";
-    s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
-        return "https://noaa-nws-graphcastgfs-pds.s3.amazonaws.com/aigfs." + run.date + "/" + run.cycle + "/model/atmos/grib2/aigfs.t" + run.cycle + "z." + (file.empty() ? "pres" : file) + ".f" + pad(hour, 3) +
-            ".grib2";
-    };
-    s.fileOf = [] (const Want& want) { return want.level.size() > 3 && want.level.compare(want.level.size() - 3, 3, " mb") == 0 ? std::string{"pres"} : std::string{"sfc"}; };
-    s.probeFile = "pres";
-    s.cycleHours = 6;
-    s.lagHours = 4;
-    s.probeHour = 0;
-    return s;
-}
-
-namespace {
-    // ECMWF's index and file names: "20261009000000-24h-oper-fc" (date, cycle, hour, stream, type)
-    GfsData::Source ecmwfSource(const std::string& id, const std::string& label, const std::string& model, const std::string& kind) {
-        GfsData::Source s;
-        s.id = id;
-        s.label = label;
-        s.fileUrl = [model, kind] (const GfsData::Run& run, int hour, const std::string&) {
-            // the open data is replicated on the cloud providers: Google's copy answers about three times faster than ECMWF's own server (data.ecmwf.int is the fallback, see URL.cpp)
-            return "https://storage.googleapis.com/ecmwf-open-data/" + run.date + "/" + run.cycle + "z/" + model + "/0p25/oper/" + run.date + run.cycle + "0000-" + std::to_string(hour) + "h-oper-fc" + kind;
-        };
-        s.indexReplaces = kind;
-        s.indexSuffix = ".index";
-        s.parseIndex = [] (const std::string& text, const GfsData::Want&) { return GfsGrid::parseEcmwfIndex(text); };
-        s.valueScale = [] (const GfsData::Want& want) { return want.variable == "APCP" ? 1000.0 : want.variable == "TCDC" ? 100.0 : 1.0; };   // meters to millimeters, a fraction to per cent
-        s.probeFile = "";
-        s.cycleHours = 6;
-        s.lagHours = 8;
-        s.probeHour = 0;
-        return s;
-    }
-}
-
-GfsData::Source GfsData::ifs() {
-    return ecmwfSource("IFS", "ECMWF IFS 0.25 degree (open data, CC BY 4.0)", "ifs", ".grib2");
-}
-
-GfsData::Source GfsData::aifs() {
-    return ecmwfSource("AIFS", "ECMWF AIFS 0.25 degree (an AI model; open data, CC BY 4.0)", "aifs-single", ".grib2");
-}
-
 // The Global Ensemble Forecast System's mean and spread of its 30 members (0.5 degree to 16 days, every 3 hours to 240 and then 6). Each statistic is its own file ("avg-a", "spr-a"; the "-s"
 // files are the 0.25 degree surface set, to hour 240, which holds what the 0.5 degree one does not: surface-based CAPE, gusts, dew point, helicity), in NOAA's open data bucket on AWS
 GfsData::Source GfsData::gefs() {
@@ -159,25 +111,6 @@ GfsData::Source GfsData::hafs(const std::string& model, const std::string& storm
     return s;
 }
 
-GfsData::Source GfsData::rrfs() {
-    Source s;
-    s.id = "RRFS";
-    s.label = "NOAA/NCEP RRFS 3 km";
-    s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
-        return "https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs." + run.date + "/" + run.cycle + "/rrfs.t" + run.cycle + "z." + (file.empty() ? "2dfld.3km" : file) + ".f" + pad(hour, 3) + ".conus.grib2";
-    };
-    s.fileOf = [] (const Want& want) {
-        return want.level.size() > 3 && want.level.compare(want.level.size() - 3, 3, " mb") == 0 && want.level.find("above ground") == std::string::npos && want.level.find('-') == std::string::npos ? std::string{"prslev.3km"} : std::string{"2dfld.3km"};
-    };
-    s.probeFile = "2dfld.3km";
-    s.cycleHours = 1;
-    s.lagHours = 2;
-    s.probeHour = 0;
-    s.cyclesToTry = 8;
-    s.warp = {true, 0.03, -127.0, 22.0, -65.0, 52.0};
-    return s;
-}
-
 GfsData::Source GfsData::refs() {
     Source s;
     s.id = "REFS";
@@ -210,53 +143,6 @@ GfsData::Source GfsData::refs() {
     s.lagHours = 5;
     s.probeHour = 60;   // a run is there when its last hour is
     s.cyclesToTry = 4;
-    s.warp = {true, 0.03, -127.0, 22.0, -65.0, 52.0};
-    return s;
-}
-
-GfsData::Source GfsData::gfsWave() {
-    Source s;
-    s.id = "GFS-WAVE";
-    s.label = "NOAA/NCEP GFS-Wave 0.16 degree";
-    s.fileUrl = [] (const Run& run, int hour, const std::string&) {
-        return "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs." + run.date + "/" + run.cycle + "/wave/gridded/gfswave.t" + run.cycle + "z.global.0p16.f" + pad(hour, 3) + ".grib2";
-    };
-    s.cycleHours = 6;
-    s.lagHours = 5;
-    s.probeHour = 384;   // a run is there when its last hour is
-    s.extraMissing = 9999.0f;   // over land
-    return s;
-}
-
-GfsData::Source GfsData::gefsWave() {
-    Source s;
-    s.id = "GEFS-WAVE";
-    s.label = "NOAA/NCEP GEFS-Wave, control member, 0.25 degree";
-    s.fileUrl = [] (const Run& run, int hour, const std::string&) {
-        return "https://noaa-gefs-pds.s3.amazonaws.com/gefs." + run.date + "/" + run.cycle + "/wave/gridded/gefs.wave.t" + run.cycle + "z.c00.global.0p25.f" + pad(hour, 3) + ".grib2";
-    };
-    s.cycleHours = 6;
-    s.lagHours = 7;
-    s.probeHour = 384;
-    s.extraMissing = 9999.0f;
-    return s;
-}
-
-GfsData::Source GfsData::href() {
-    Source s;
-    s.id = "HREF";
-    s.label = "NOAA/NCEP HREF, 10 member 3 km ensemble";
-    s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
-        return "https://nomads.ncep.noaa.gov/pub/data/nccf/com/href/prod/href." + run.date + "/ensprod/href.t" + run.cycle + "z.conus." + (file.empty() ? "mean" : file) + ".f" + pad(hour, 2) + ".grib2";
-    };
-    s.fileOf = [] (const Want& want) { return want.stat.empty() ? std::string{"mean"} : want.stat; };
-    s.defaultDetail = "*";
-    s.probeFile = "mean";
-    s.cycleHours = 6;
-    s.lagHours = 4;
-    s.probeHour = 36;   // the 06 and 18Z runs go to 36 hours, the others to 48
-    s.cyclesToTry = 5;
-    s.maxParallel = 4;   // NOMADS
     s.warp = {true, 0.03, -127.0, 22.0, -65.0, 52.0};
     return s;
 }
@@ -743,52 +629,6 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
     return true;
 }
 
-GfsData::Source GfsData::geps() {
-    Source s;
-    s.id = "GEPS";
-    s.label = "ECCC GEPS 21 member ensemble, 0.5 degree";
-    s.wholeFile = true;
-    s.fileUrl = [] (const Run& run, int hour, const std::string& file) {
-        const auto h = pad(hour, 3);
-        return "https://dd.weather.gc.ca/" + run.date + "/WXO-DD/ensemble/geps/grib2/raw/" + run.cycle + "/" + h + "/CMC_geps-raw_" + file + "_latlon0p5x0p5_" + run.date + run.cycle + "_P" + h + "_allmbrs.grib2";
-    };
-    s.fileOf = [] (const Want& want) {   // the server's name of a field: "TMP_TGL_2m", "HGT_ISBL_0500", "PRMSL_MSL_0"
-        const auto& v = want.variable;
-        const auto& l = want.level;
-        std::string where;
-        if (l.size() > 3 && l.compare(l.size() - 3, 3, " mb") == 0 && l.find("above ground") == std::string::npos) {
-            where = "ISBL_" + std::string(4 - std::min<size_t>(4, l.size() - 3), '0') + l.substr(0, l.size() - 3);
-        } else if (l == "2 m above ground") {
-            where = v == "SPFH" ? "TGL_2" : "TGL_2m";
-        } else if (l == "10 m above ground") {
-            where = v == "WIND" ? "TGL_10" : "TGL_10m";
-        } else if (l == "mean sea level") {
-            where = "MSL_0";
-        } else if (l.compare(0, 17, "entire atmosphere") == 0) {
-            where = "EATM_0";
-        } else {
-            where = "SFC_0";
-        }
-        return v + "_" + where;
-    };
-    s.memberBand = [] (const std::string& stat) {   // "c00" is the first message, "p01" ... "p20" the ones after it
-        if (stat == "c00") {
-            return 1;
-        }
-        if (stat.size() == 3 && stat[0] == 'p' && std::isdigit(static_cast<unsigned char>(stat[1])) && std::isdigit(static_cast<unsigned char>(stat[2]))) {
-            const int n = (stat[1] - '0') * 10 + (stat[2] - '0');
-            return n >= 1 && n <= 20 ? n + 1 : 0;
-        }
-        return 0;
-    };
-    s.probeFile = "TMP_TGL_2m";
-    s.cycleHours = 12;
-    s.lagHours = 6;     // the 00 and 12Z runs are on the server about five and a half hours after their time
-    s.probeHour = 384;
-    s.cyclesToTry = 4;
-    return s;
-}
-
 void GfsData::setLoader(const std::string& sourceId, Loader loader) {
     const std::lock_guard lock{loaderMutex};
     loaders()[sourceId] = std::move(loader);
@@ -811,82 +651,6 @@ GfsData::Source GfsData::spcRefs() {
     s.cyclesToTry = 6;
     s.maxParallel = 4;
     s.warp = {true, 0.03, -127.0, 22.0, -65.0, 52.0};   // the grid the loader makes
-    return s;
-}
-
-GfsData::Source GfsData::mesoanalysis(bool rrfs) {
-    Source s;
-    s.id = rrfs ? "RRFSD" : "SFCOA";
-    s.label = rrfs ? "SPC severe weather fields from the RRFS" : "SPC mesoanalysis (SFCOA-HRRR)";
-    s.wholeFile = true;
-    s.netcdf = true;
-    s.candidates = [rrfs] (const Run& run, int hour, const std::string&) {
-        std::vector<std::string> urls;
-        for (const char * area : {"prod", "para"}) {
-            const std::string base = std::string{"https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/"} + area + "/spc_post." + run.date + "/";
-            urls.push_back(rrfs ? base + "rrfsd/spc_post.t" + run.cycle + "z.rrfs_d.f" + pad(hour, 3) + ".nc" : base + "sfcoa-hrrr/spc_post.t" + run.cycle + "z.sfcoa_hrrr.final.nc");
-        }
-        return urls;
-    };
-    s.fileUrl = [candidates = s.candidates] (const Run& run, int hour, const std::string& file) {
-        const auto urls = candidates(run, hour, file);
-        return urls.empty() ? std::string{} : urls.front();
-    };
-    s.probeFile = "";
-    s.probeHour = rrfs ? 1 : 0;
-    s.cycleHours = 1;
-    s.lagHours = rrfs ? 3 : 1;
-    s.cyclesToTry = rrfs ? 8 : 6;
-    s.maxParallel = 4;   // NOMADS
-    s.warp = {true, 0.03, -127.0, 22.0, -65.0, 52.0};
-    return s;
-}
-
-GfsData::Source GfsData::spcPost(bool gefs) {
-    Source s;
-    s.id = gefs ? "SPCGEFS" : "SPCPOST";
-    s.label = gefs ? "SPC post-processing of the GEFS" : "SPC post-processing of the REFS";
-    s.wholeFile = true;
-    s.candidates = [] (const Run& run, int hour, const std::string& specs) {
-        const int cycle = std::atoi(run.cycle.c_str());
-        const std::string previous = pad((cycle + 18) % 24, 2);
-        std::vector<std::string> urls;
-        std::string rest = specs;
-        while (!rest.empty()) {
-            const auto cut = rest.find(';');
-            auto spec = rest.substr(0, cut);
-            rest = cut == std::string::npos ? std::string{} : rest.substr(cut + 1);
-            for (const auto& [token, value] : {std::pair<std::string, std::string>{"{ee}", run.cycle}, {"{pe}", previous}}) {
-                for (auto at = spec.find(token); at != std::string::npos; at = spec.find(token)) {
-                    spec.replace(at, token.size(), value);
-                }
-            }
-            const auto slash = spec.find('/');
-            if (slash == std::string::npos) {
-                continue;
-            }
-            // the real area from the day the products start, the test one before (the hour is three digits in both)
-            for (const char * area : {"prod", "para"}) {
-                urls.push_back(std::string{"https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/"} + area + "/spc_post." + run.date + "/" + spec.substr(0, slash) + "/spc_post.t" + run.cycle + "z." + spec.substr(slash + 1) + ".f" + pad(hour, 3) + ".grib2");
-            }
-        }
-        return urls;
-    };
-    s.fileUrl = [candidates = s.candidates] (const Run& run, int hour, const std::string& file) {   // the first place (the real area)
-        const auto urls = candidates(run, hour, file);
-        return urls.empty() ? std::string{} : urls.front();
-    };
-    s.fileOf = [] (const Want& want) { return want.level; };   // the product's file is the want's level
-    s.memberBand = [] (const std::string& stat) {   // "b1" ... "b3": the message of a file of several
-        return stat.size() == 2 && stat[0] == 'b' && stat[1] >= '1' && stat[1] <= '9' ? stat[1] - '0' : 0;
-    };
-    s.probeFile = gefs ? "gefsct/gefsct" : "refsct/refsct_1hr";
-    s.probeHour = gefs ? 36 : 1;
-    s.cycleHours = gefs ? 12 : 6;
-    s.lagHours = gefs ? 6 : 5;
-    s.cyclesToTry = 4;
-    s.maxParallel = 4;   // NOMADS
-    s.warp = {true, 0.1, -170.0, 10.0, -50.0, 72.0};
     return s;
 }
 

@@ -4,6 +4,48 @@
 // *****************************************************************************
 
 #include "gfs/GfsModels.h"
+#include <algorithm>
+#include <cstdio>
+#include "gfs/GfsModelFile.h"
+
+namespace {
+    std::string userFolder;
+
+    // a built-in model written as a definition file; a mistake in one is a mistake in the program, which the registry test shows
+    GfsModels::Def fromFile(const std::string& id) {
+        for (const auto& [name, text] : GfsModelFile::builtIn()) {
+            if (name == id) {
+                auto parsed = GfsModelFile::parse(text, "built in");
+                if (!parsed.ok) {
+                    std::fprintf(stderr, "model definition %s: %s\n", id.c_str(), parsed.error.c_str());
+                    GfsModels::Def broken;
+                    broken.id = id;
+                    broken.label = "(definition error: " + parsed.error + ")";
+                    return broken;
+                }
+                return parsed.def;
+            }
+        }
+        GfsModels::Def missing;
+        missing.id = id;
+        missing.label = "(no definition)";
+        return missing;
+    }
+}
+
+void GfsModels::setUserFolder(const std::string& folder) {
+    userFolder = folder;
+}
+
+std::vector<std::string> GfsModels::userProblems() {
+    std::vector<std::string> out;
+    for (const auto& parsed : GfsModelFile::loadFolder(userFolder)) {
+        if (!parsed.ok) {
+            out.push_back(parsed.origin + ": " + parsed.error);
+        }
+    }
+    return out;
+}
 
 const std::vector<GfsModels::Def>& GfsModels::all() {
     static const std::vector<Def> models = [] {
@@ -28,35 +70,9 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.onMissing = Missing::MainRun;   // a run that is not at 00, 06, 12 or 18Z has fewer fields: the newest of the main runs has the rest
             m.push_back(d);
         }
-        {   // the AI model: the same charts as the GFS, from its two files; humidity from specific humidity and precipitation from 6 hour pieces
-            Def d;
-            d.id = "AIGFS";
-            d.label = "NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)";
-            d.source = [] (const std::string&) { return GfsData::aigfs(); };
-            d.hours = {{0, 384, 6}};
-            d.overlays = true;
-            d.recipeList = true;
-            d.clone.enabled = true;
-            d.clone.ids = {"precip_p06", "precip_p12", "precip_p24", "precip_p36", "precip_p48", "precip_p60", "precip_ptot", "1000_500_thick", "1000_850_thick", "850_700_thick", "850_temp_mslp_precip",
-                           "10m_wnd_precip", "10m_wnd_2m_temp", "200_wnd_ht", "250_wnd_ht", "300_wnd_ht", "500_rh_ht", "500_wnd_ht", "500_vort_ht", "700_rh_ht", "850_rh_ht", "850_temp_ht", "850_vort_ht",
-                           "850vor_500ht_200wd", "925_temp_ht"};
-            d.clone.specificHumidity = true;
-            m.push_back(d);
-        }
-        for (const bool ai : {false, true}) {   // ECMWF's open data: the IFS (to 240 hours) and the AIFS (to 360), the GFS charts pointed at their fields
-            Def d;
-            d.id = ai ? "AIFS" : "IFS";
-            d.label = ai ? "ECMWF AIFS 0.25 degree (an AI model; open data, CC BY 4.0)" : "ECMWF IFS 0.25 degree (open data, CC BY 4.0)";
-            d.source = [ai] (const std::string&) { return ai ? GfsData::aifs() : GfsData::ifs(); };
-            d.hours = ai ? std::vector<Hours>{{0, 360, 6}} : std::vector<Hours>{{0, 144, 3}, {150, 240, 6}};
-            d.overlays = true;
-            d.recipeList = true;
-            d.clone.enabled = true;
-            d.clone.variables = {"HGT", "TMP", "RH", "UGRD", "VGRD", "VVEL", "SPFH", "PRMSL", "DPT", "GUST", "TCDC", "PWAT", "CAPE", "APCP", "PRATE"};
-            d.clone.levels = {"1000 mb", "925 mb", "850 mb", "700 mb", "600 mb", "500 mb", "400 mb", "300 mb", "250 mb", "200 mb", "150 mb", "100 mb", "50 mb"};
-            d.clone.pieces = false;   // precipitation is a running total from the start of the run
-            m.push_back(d);
-        }
+        m.push_back(fromFile("AIGFS"));
+        m.push_back(fromFile("IFS"));
+        m.push_back(fromFile("AIFS"));
         {   // the ensemble mean and spread
             Def d;
             d.id = "GEFS";
@@ -74,69 +90,9 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.clone.skip = {"precip_p06", "precip_p24", "500_vort_ht", "850_vort_ht"};   // these are drawn as mean and spread together
             m.push_back(d);
         }
-        {   // Canada's ensemble: the mean of its 21 members drawn like the GFS, with the spread and chances of its own; one file per field holds the members
-            Def d;
-            d.id = "GEPS";
-            d.label = "ECCC GEPS 21 member ensemble, 0.5 degree";
-            d.source = [] (const std::string&) { return GfsData::geps(); };
-            d.hours = {{0, 192, 3}, {198, 384, 6}};
-            d.cycleStep = 12;
-            d.overlays = true;
-            d.recipeList = true;
-            d.clone.enabled = true;
-            d.clone.variables = {"HGT", "TMP", "RH", "UGRD", "VGRD", "VVEL", "PRMSL", "PWAT", "CAPE", "CIN", "APCP", "TCDC", "SNOD", "WEASD", "TMAX", "TMIN"};
-            // the server has each variable at its own levels (no temperature or humidity at 300 mb, no vertical velocity but at 850)
-            for (const char * level : {"10", "50", "100", "200", "250", "500", "700", "850", "925", "1000"}) {
-                for (const char * variable : {"HGT", "TMP", "UGRD", "VGRD"}) {
-                    d.clone.fields.insert(std::string{variable} + "|" + level + " mb");
-                }
-            }
-            for (const char * level : {"10", "50", "100", "200", "250", "500", "700", "850", "925", "1000"}) {
-                d.clone.fields.insert(std::string{"RH|"} + level + " mb");
-            }
-            for (const char * level : {"300", "400"}) {
-                d.clone.fields.insert(std::string{"HGT|"} + level + " mb");
-                d.clone.fields.insert(std::string{"UGRD|"} + level + " mb");
-                d.clone.fields.insert(std::string{"VGRD|"} + level + " mb");
-            }
-            d.clone.fields.insert("VVEL|850 mb");
-            d.clone.levels = {};
-            d.clone.pieces = false;   // precipitation is a running total from the start of the run
-            d.clone.labelPrefix = "Mean ";
-            d.clone.skip = {"anom", "500_vort_ht", "850_vort_ht", "850_stream_vort", "850vor_500ht_200wd", "precip_p01"};
-            m.push_back(d);
-        }
-        {   // the 3 km Rapid Refresh Forecast System: precipitation has running totals, and sea level pressure is MSLET
-            Def d;
-            d.id = "RRFS";
-            d.label = "NOAA/NCEP RRFS 3 km";
-            d.source = [] (const std::string&) { return GfsData::rrfs(); };
-            d.sectors = Sectors::Conus;
-            d.hours = {{0, 84, 1}};   // only the runs at 00, 06, 12 and 18Z go past 18 hours
-            d.hourlyRuns = true;
-            d.onMissing = Missing::PreviousRun;   // the newest run is listed before its files are all there
-            d.preloadHours = 12;
-            d.runLength = [] (int cycle) { return cycle % 6 == 0 ? 84 : 18; };
-            d.overlays = true;
-            d.recipeList = true;
-            d.clone.enabled = true;
-            d.clone.variables = {"HGT", "TMP", "RH", "UGRD", "VGRD", "ABSV", "DPT", "PRMSL", "PWAT", "CAPE", "CIN", "APCP", "CRAIN", "CSNOW", "CFRZR", "CICEP", "TCDC", "GUST", "SNOD", "WEASD", "REFC", "HLCY", "VIS", "PRATE"};
-            d.clone.levels = {"200 mb", "250 mb", "300 mb", "400 mb", "500 mb", "700 mb", "850 mb", "925 mb", "1000 mb"};
-            d.clone.skip = {"anom"};
-            d.clone.pieces = false;
-            d.clone.rename = {{"PRMSL", "MSLET"}};
-            m.push_back(d);
-        }
-        {   // the High-Resolution Ensemble Forecast: its own ready-made means, probability-matched means and probabilities
-            Def d;
-            d.id = "HREF";
-            d.label = "NOAA/NCEP HREF, 10 member 3 km ensemble";
-            d.source = [] (const std::string&) { return GfsData::href(); };
-            d.sectors = Sectors::Conus;
-            d.hours = {{1, 48, 1}};
-            d.recipeList = true;
-            m.push_back(d);
-        }
+        m.push_back(fromFile("GEPS"));
+        m.push_back(fromFile("RRFS"));
+        m.push_back(fromFile("HREF"));
         {   // the Rapid Refresh Forecast System ensemble: five members at 3 km, and its ready-made probability products (it replaces HREF and SREF)
             Def d;
             d.id = "REFS";
@@ -147,33 +103,10 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.recipeList = true;
             m.push_back(d);
         }
-        for (const bool gefs : {false, true}) {   // SPC's post-processing: the calibrated thunder and severe guidance of the REFS (6 hourly) and of the GEFS (00 and 12Z)
-            Def d;
-            d.id = gefs ? "SPCGEFS" : "SPCPOST";
-            d.label = gefs ? "SPC post-processing of the GEFS: daily calibrated thunder, machine-learning severe" : "SPC post-processing of the REFS: calibrated thunder and severe guidance";
-            d.source = [gefs] (const std::string&) { return GfsData::spcPost(gefs); };
-            d.sectors = Sectors::Conus;
-            d.hours = gefs ? std::vector<Hours>{{36, 204, 24}} : std::vector<Hours>{{1, 60, 1}};
-            d.cycleStep = gefs ? 12 : 6;
-            d.recipeList = true;
-            m.push_back(d);
-        }
-        for (const bool rrfs : {false, true}) {   // SPC's severe weather fields: the mesoanalysis (hourly) and the same fields from the RRFS
-            Def d;
-            d.id = rrfs ? "RRFSD" : "SFCOA";
-            d.label = rrfs ? "SPC severe weather fields from the RRFS (RRFSD)" : "SPC mesoanalysis (SFCOA-HRRR)";
-            d.source = [rrfs] (const std::string&) { return GfsData::mesoanalysis(rrfs); };
-            d.sectors = Sectors::Conus;
-            d.hours = rrfs ? std::vector<Hours>{{0, 84, 1}} : std::vector<Hours>{{0, 0, 1}};
-            d.hourlyRuns = true;
-            if (rrfs) {
-                d.onMissing = Missing::PreviousRun;
-                d.preloadHours = 6;
-                d.runLength = [] (int cycle) { return cycle % 6 == 0 ? 84 : 18; };
-            }
-            d.recipeList = true;
-            m.push_back(d);
-        }
+        m.push_back(fromFile("SPCPOST"));
+        m.push_back(fromFile("SPCGEFS"));
+        m.push_back(fromFile("SFCOA"));
+        m.push_back(fromFile("RRFSD"));
         {   // SPC's REFS ensemble products from its open Zarr store: means, maxima, probabilities and paintballs of the 10 members, on the 3 km grid
             Def d;
             d.id = "SPCREFS";
@@ -185,22 +118,8 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.recipeList = true;
             m.push_back(d);
         }
-        {   // the wave models
-            Def d;
-            d.id = "GFS-WAVE";
-            d.label = "NOAA/NCEP GFS-Wave 0.16 degree";
-            d.source = [] (const std::string&) { return GfsData::gfsWave(); };
-            d.hours = {{0, 120, 1}, {123, 384, 3}};
-            d.recipeList = true;
-            m.push_back(d);
-            Def e;
-            e.id = "GEFS-WAVE";
-            e.label = "NOAA/NCEP GEFS-Wave, control member, 0.25 degree";
-            e.source = [] (const std::string&) { return GfsData::gefsWave(); };
-            e.hours = {{0, 240, 3}, {246, 384, 6}};
-            e.recipeList = true;
-            m.push_back(e);
-        }
+        m.push_back(fromFile("GFS-WAVE"));
+        m.push_back(fromFile("GEFS-WAVE"));
         for (const char * version : {"HAFSA", "HAFSB"}) {   // the hurricane model, for one storm at a time
             Def d;
             d.id = version;
@@ -212,6 +131,13 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.storm = true;
             d.onMissing = Missing::PreviousCycle;   // the waves come out after the rest
             m.push_back(d);
+        }
+        // the models of the user's folder, after the built-in ones (a file that does not parse, or repeats an id, is left out: userProblems says why)
+        for (auto& parsed : GfsModelFile::loadFolder(userFolder)) {
+            if (parsed.ok && std::none_of(m.begin(), m.end(), [&parsed] (const Def& d) { return d.id == parsed.def.id; })) {
+                parsed.def.clone.enabled = parsed.def.clone.enabled;
+                m.push_back(parsed.def);
+            }
         }
         return m;
     }();

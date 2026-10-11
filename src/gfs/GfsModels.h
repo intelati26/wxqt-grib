@@ -14,10 +14,10 @@
 #include "gfs/GfsData.h"
 
 // The models drawn from GRIB, each described once. To add a model:
-//   1. its Source in GfsData.cpp (the files, the cycle timing, a warp if the grid is not latitude / longitude)
-//   2. its entry in the table in GfsModels.cpp (label, sectors, forecast hours, run style, whether it clones the GFS charts and which fields it has)
-//   3. its own charts, if it has any the GFS does not, in GfsChart.cpp (one function, listed in the map `own` there)
-//   4. run tests/gfs/run_models.sh: it fails when a model is described incompletely
+//   - a *.model file (GfsModelFile.h, docs/model-files.md) in the user's models folder, or a definition in GfsBuiltInModels.cpp for one that ships with the program: no other code
+//   - a model whose files this format cannot describe: its Source in GfsData.cpp and its entry in the table in GfsModels.cpp
+//   - its own charts, if it has any the GFS does not, in GfsChart.cpp (one function, listed in the map `own` there)
+//   - run tests/gfs/run_models.sh (a model that is described incompletely fails) and tests/gfs/run_modelfile.sh (the files make the models they replaced)
 // The chart code, the renderer, the model screen and the tests all read this table and name no model themselves. (The models screen still lists the model guidance site's chart names for
 // the GFS and the blend until that site goes: `recipeList` is false for them.)
 namespace GfsModels {
@@ -44,6 +44,7 @@ namespace GfsModels {
     struct Def {
         std::string id;                                // the model screen's name: "GFS", "RRFS"
         std::string label;                             // the credit under a chart
+        std::string group;                             // where the model screen's picker puts it ("": by its id, or Other)
         std::function<GfsData::Source(const std::string& storm)> source;   // storm only means anything to a model that follows one
         Sectors sectors{Sectors::World};
         std::vector<Hours> hours;                      // the forecast hours the model screen offers
@@ -57,6 +58,9 @@ namespace GfsModels {
         std::function<int(int cycleHour)> runLength;   // the last forecast hour of the run made at that hour of the day, when it varies (the hourly runs of the RRFS reach 18 hours, the main ones 84)
         Clone clone;
     };
+    // the folder of the user's own *.model files (set before the first call of all(): the registry is made once), and the files in it that were not used and why
+    void setUserFolder(const std::string& folder);
+    std::vector<std::string> userProblems();
     // in the order they are listed and their charts made
     const std::vector<Def>& all();
     const Def * find(const std::string& id);

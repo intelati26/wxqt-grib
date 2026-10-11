@@ -3,6 +3,7 @@
 #include <cstdio>
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsData.h"
+#include "gfs/GfsModels.h"
 #include "gfs/GfsGrid.h"
 
 static int failures = 0;
@@ -100,7 +101,7 @@ int main() {
             CHECK(h.fileOf({"u", "UGRD", "10 m above ground", "", "", ""}) == "storm.atm");
             CHECK(h.id == "HAFSA-09l");
         }
-        const auto ai = GfsData::aigfs();
+        const auto ai = GfsModels::find("AIGFS")->source("");
         CHECK(ai.fileUrl(run, 24, "pres") == "https://noaa-nws-graphcastgfs-pds.s3.amazonaws.com/aigfs.20261008/12/model/atmos/grib2/aigfs.t12z.pres.f024.grib2");
         CHECK(ai.fileUrl(run, 6, "sfc").find("aigfs.t12z.sfc.f006.grib2") != std::string::npos);
         CHECK(ai.fileOf({"k", "HGT", "500 mb", "", ""}) == "pres" && ai.fileOf({"k", "TMP", "2 m above ground", "", ""}) == "sfc" && ai.fileOf({"k", "PRMSL", "mean sea level", "", ""}) == "sfc");

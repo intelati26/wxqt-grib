@@ -81,38 +81,20 @@ public:
             double west{-127.0}, south{22.0}, east{-65.0}, north{52.0};
         } warp;
     };
+    // The sources that are code: file names or protocols the model definition files (GfsModelFile.h) do not describe. The others (the IFS, the AI models, the RRFS, the HREF, the GEPS, the wave
+    // models, SPC's post-processing and mesoanalysis) are definition files.
     static Source gfs();
     static Source nbm();
-    static Source aigfs();
-    // ECMWF's open data (CC BY 4.0), 0.25 degree: the IFS single (high resolution) run and the AIFS single run. One file per forecast hour, indexed in JSON; the records are given NOAA's names.
-    static Source ifs();
-    static Source aifs();
+    // The Global Ensemble Forecast System's mean, spread and members (see the .cpp)
     static Source gefs();
-    // The Rapid Refresh Forecast System's 3 km CONUS grid (Lambert, warped to latitude / longitude): hourly runs, the 2D fields and the pressure levels as files of their own
-    static Source rrfs();
     // The Rapid Refresh Forecast System's ensemble (REFS): 5 members at 3 km (the `stat` of a want names the member, "m001" ... "m005") and the ready-made products of its own (the stat "ens:avrg",
     // "ens:eas" for the probabilities, "ens:ffri" for flash flood risk)
     static Source refs();
-    // Canada's ensemble (GEPS): 21 members at 0.5 degree, every 12 hours to 384, from the open data server. One file per field and hour holds all the members (no index: `wholeFile`).
-    static Source geps();
-    // SPC's post-processing of the NWS models (SPC_POST, NWS SCN 26-77): calibrated guidance as 40 km Lambert grids, one file per product and hour on NOMADS. `gefs` is the GEFS based set
-    // (the machine-learning severe and the daily thunder; 00 and 12Z) rather than the REFS based one (6 hourly). A file name is "directory/name", with {ee} the run's own cycle and {pe} the one
-    // before for the GEFS cycle a REFS run was made with; a band is the stat "b1", "b2" ...
-    static Source spcPost(bool gefs);
-    // SPC's surface objective analysis with the HRRR as background (SFCOA-HRRR: the SPC mesoanalysis, one NetCDF file an hour, `run.cycle` the valid hour) and the same fields computed from the
-    // RRFS forecasts (RRFSD, an hour per file for each run). Files of 0.5 to 1 GB: a field is read by range (want.variable is the NetCDF variable), a few megabytes and about 40 seconds.
-    static Source mesoanalysis(bool rrfs);
     // SPC's REFS ensemble products (the open Zarr store its own viewer draws): one store a cycle, ready-made means, maxima, probabilities, paintball masks, hundreds of arrays. `custom`:
     // want.variable is the array's name, want.stat "m001" ... a member of one that has them, and the field is read by the loader the app registers (spcrefs/SpcRefsLoader.cpp).
     static Source spcRefs();
     using Loader = std::function<bool(const Run&, int forecastHour, const Want&, GfsGrid::Grid&, std::string& error)>;
     static void setLoader(const std::string& sourceId, Loader loader);
-    // The High-Resolution Ensemble Forecast (HREF) on NOMADS: its own ready-made products of the 10 members on the 3 km CONUS grid; the `stat` of a want names the file ("mean" the default,
-    // "pmmn", "lpmm", "avrg", "sprd", "prob", "eas", "ffri"). The hour has two digits.
-    static Source href();
-    // The wave models: GFS-Wave's global 0.16 degree grid, and the GEFS-Wave control member on 0.25 (the ensemble mean file has no wind components and lists its swells ambiguously) (latitude / longitude grids, one file for the sea state at each hour)
-    static Source gfsWave();
-    static Source gefsWave();
     // The hurricane model for one active storm ('model' "HAFSA" or "HAFSB", 'storm' "09l": the NHC number and basin letter). Its grid follows the storm and is only there while the storm is.
     static Source hafs(const std::string& model, const std::string& storm);
 
