@@ -19,6 +19,24 @@
 #include "spcrefs/LambertGrid.h"
 
 namespace UtilitySpcRefs {
+    vector<Product> catalog(const ZarrStore& store) {
+        vector<Product> out;
+        for (const auto& id : store.arrayNames()) {
+            const auto * a = store.array(id);
+            if (a == nullptr || a->shape.size() < 3 || a->shape[a->shape.size() - 1] != LambertGrid::columns ||
+                a->shape[a->shape.size() - 2] != LambertGrid::rows || id == "ptype_consensus") {   // (the precipitation-type codes have no documented key)
+                continue;
+            }
+            out.push_back(describe(id, *a));
+        }
+        std::stable_sort(out.begin(), out.end(), [] (const Product& a, const Product& b) {
+            const auto pa = menuPosition(a);
+            const auto pb = menuPosition(b);
+            return pa != pb ? pa < pb : a.id < b.id;
+        });
+        return out;
+    }
+
     string cycleUrl(const QDateTime& initUtc) {
         const auto utc = initUtc.toUTC();
         return "https://www.spc.noaa.gov/exper/refs/data/" + utc.toString("yyyy/MM/dd").toStdString() + "/refs-spc_" +

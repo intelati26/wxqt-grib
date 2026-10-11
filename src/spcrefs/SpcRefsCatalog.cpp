@@ -468,39 +468,17 @@ namespace UtilitySpcRefs {
         return p;
     }
 
-    vector<Product> catalog(const ZarrStore& store) {
-        vector<Product> out;
-        for (const auto& id : store.arrayNames()) {
-            const auto * a = store.array(id);
-            if (a == nullptr || a->shape.size() < 3 || a->shape[a->shape.size() - 1] != LambertGrid::columns ||
-                a->shape[a->shape.size() - 2] != LambertGrid::rows || id == "ptype_consensus") {   // (the precipitation-type codes have no documented key)
-                continue;
-            }
-            out.push_back(describe(id, *a));
-        }
+    // where a product sits in SPC's menu order: its group, then its place in the curated list (unlisted ones last)
+    std::pair<int, int> menuPosition(const Product& p) {
         static const vector<string> groupOrder{severeGroup, instabilityGroup, precipitationGroup, surfaceGroup, fireGroup, otherGroup};
-        const auto position = [] (const Product& p) {
-            size_t i = 0;
-            for (; i < curated().size(); i += 1) {
-                if (p.id == curated()[i].id) {
-                    break;
-                }
+        int place = 0;
+        for (; place < static_cast<int>(curated().size()); place += 1) {
+            if (p.id == curated()[static_cast<size_t>(place)].id) {
+                break;
             }
-            return i;
-        };
-        std::stable_sort(out.begin(), out.end(), [&] (const Product& a, const Product& b) {
-            const auto ga = std::find(groupOrder.begin(), groupOrder.end(), a.group) - groupOrder.begin();
-            const auto gb = std::find(groupOrder.begin(), groupOrder.end(), b.group) - groupOrder.begin();
-            if (ga != gb) {
-                return ga < gb;
-            }
-            const auto pa = position(a);
-            const auto pb = position(b);
-            return pa != pb ? pa < pb : a.id < b.id;
-        });
-        return out;
+        }
+        return {static_cast<int>(std::find(groupOrder.begin(), groupOrder.end(), p.group) - groupOrder.begin()), place};
     }
-
 
     unsigned memberColour(const string& name) {
         const auto found = memberColours().find(name);
