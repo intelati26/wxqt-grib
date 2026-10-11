@@ -28,6 +28,11 @@ public:
         auto * column = new QVBoxLayout{this};
         column->setContentsMargins(26, 0, 26, 0);
         column->setSpacing(2);
+        notice = new QLabel{this};
+        notice->setWordWrap(true);
+        notice->setVisible(false);
+        notice->setStyleSheet("QLabel { background: #fff3cd; color: #5c4400; border: 1px solid #e0b800; border-radius: 3px; padding: 4px 8px; }");
+        column->addWidget(notice);
         ticks = new Ticks{this};
         column->addWidget(ticks);
         slider = new QSlider{Qt::Horizontal, this};
@@ -94,6 +99,11 @@ public:
         ticks->loaded = ready;
         ticks->update();
         status->setText(summary);
+    }
+    // A line above the timeline, in amber, for what the person would not guess from the chart: "this chart shows the 12Z run, not the 13Z one". Empty hides it.
+    void setNotice(const QString& text) {
+        notice->setText(text);
+        notice->setVisible(!text.isEmpty());
     }
     int current() const { return slider->value(); }
     int count() const { return static_cast<int>(names.size()); }
@@ -168,6 +178,7 @@ private:
     QPushButton * play{};
     QPushButton * hours{};
     QLabel * status{};
+    QLabel * notice{};
     std::vector<std::string> names;
     bool playing{false};
     bool quiet{false};

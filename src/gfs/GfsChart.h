@@ -119,6 +119,9 @@ namespace GfsChart {
         // An anomaly chart that can also be drawn in standard deviations (withStandardDeviations): `sigma` makes the grids of that view (the fill "anom" in deviations, and the two named
         // below in the chart's own unit). Set only on the charts that have a climatology with deviations.
         std::function<void(Grids&, const Context&)> sigma;
+        // The chart's fields are made only by the runs whose hour is a multiple of this (the NBM: 6 for the 6 and 12 hour chances, 12 for the 12 hour extremes; the hourly runs have the 1 hour
+        // fields only). 0: every run has them.
+        int mainCycleStep{0};
         std::string sigmaUnit;      // the chart's own unit for the legend's second row and the read-out: "dam", "mb"
         std::string sigmaSizeKey;   // the grid of one standard deviation in that unit: the legend's second row uses its middle value
         std::string sigmaReadKey;   // the grid of the anomaly in that unit, for the hover read-out

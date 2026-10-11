@@ -338,6 +338,7 @@ void ModelViewer::changeTimeCb() {
 }
 
 void ModelViewer::changeModel(int index) {
+    runSwappedFrom.clear();
     objectModel.model = objectModel.models[index];
     objectModel.setModelVars(objectModel.model);
     getRun();
@@ -356,6 +357,7 @@ void ModelViewer::changeSector(int index) {
 
 void ModelViewer::changeRun(int index) {
     objectModel.run = objectModel.runs[index];
+    runSwappedFrom.clear();   // the person chose: that is the run, whatever the chart
     reload();
 }
 
@@ -777,13 +779,63 @@ void ModelViewer::refreshTimeStrip() {
     refreshLoaded();
 }
 
+// The NBM's hourly runs (01Z, 13Z ...) make only the 1 hour fields: the 12 hour extremes and the 6 / 12 hour chances are in the 00, 06, 12 and 18Z runs. A chart of those moves the run to
+// the newest main run at or before the one chosen, and the amber line above the timeline says what happened and how to undo it; another chart puts the run back.
+void ModelViewer::applyMainRunRule() {
+    if (!strip) {
+        return;
+    }
+    const auto * product = GfsRender::drawsModel(objectModel.model) ? GfsChart::product(objectModel.param, objectModel.model) : nullptr;
+    const auto hourOf = [] (const string& run) { return run.size() >= 2 ? std::atoi(run.substr(0, 2).c_str()) : -1; };
+    const auto select = [this] (const string& run) {
+        objectModel.run = run;
+        comboboxRun.block();
+        comboboxRun.setIndexByValue(run);
+        comboboxRun.unblock();
+    };
+    const int step = product != nullptr ? product->mainCycleStep : 0;
+    if (step > 0 && hourOf(objectModel.run) >= 0 && hourOf(objectModel.run) % step != 0) {
+        const auto chosen = runTime(objectModel.run);
+        string best;
+        QDateTime bestTime;
+        for (const auto& run : objectModel.runs) {
+            const auto t = runTime(run);
+            if (hourOf(run) % step == 0 && t.isValid() && chosen.isValid() && t <= chosen && (!bestTime.isValid() || t > bestTime)) {
+                best = run;
+                bestTime = t;
+            }
+        }
+        if (!best.empty()) {
+            if (runSwappedFrom.empty()) {
+                runSwappedFrom = objectModel.run;
+            }
+            const auto from = runSwappedFrom;
+            select(best);
+            strip->setNotice(QString::fromStdString("This chart is drawn from the " + best + " run, not the " + from + " one: " + product->label + " exists only in the " + (step == 12 ? "00 and 12Z" : "00, 06, 12 and 18Z") + " runs "
+                                                    "(the others carry 1 hour fields only). Choose another chart and the run goes back to " + from + "."));
+            return;
+        }
+        strip->setNotice(QString::fromStdString("No " + string{step == 12 ? "00 or 12Z" : "00, 06, 12 or 18Z"} + " run is in the list: " + product->label + " exists only in those runs."));
+        return;
+    }
+    if (!runSwappedFrom.empty()) {   // a chart that does not need it: the run the person had
+        if (std::find(objectModel.runs.begin(), objectModel.runs.end(), runSwappedFrom) != objectModel.runs.end()) {
+            select(runSwappedFrom);
+        }
+        runSwappedFrom.clear();
+    }
+    strip->setNotice({});
+}
+
 void ModelViewer::reload() {
+    applyMainRunRule();
     if (strip) {
         strip->setCurrent(static_cast<int>(comboboxTime.getIndex()));
     }
     objectModel.writePrefs();
     const auto shownIndex = comboboxTime.getIndex();
-    setTitle(objectModel.model + " " + objectModel.sector + (shownIndex >= 0 && static_cast<size_t>(shownIndex) < objectModel.times.size() ? " " + objectModel.times[static_cast<size_t>(shownIndex)] : string{}));
+    setTitle(objectModel.model + " " + objectModel.sector + (shownIndex >= 0 && static_cast<size_t>(shownIndex) < objectModel.times.size() ? " " + objectModel.times[static_cast<size_t>(shownIndex)] : string{}) +
+             (runSwappedFrom.empty() ? string{} : "  (" + objectModel.run + " run: " + objectModel.param + " is not in the " + runSwappedFrom + " run)"));
     if (GfsRender::handles(objectModel.model, objectModel.param)) {
         // the GFS charts are drawn here from the GRIB data
         const int mine = ++drawing;

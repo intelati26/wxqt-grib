@@ -4529,6 +4529,15 @@ const std::vector<Product>& products() {
                 found->second();
             }
         }
+        for (auto& chart : p) {   // the NBM's hourly runs (01Z, 13Z ...) carry the 1 hour fields only; the 12 hour extremes are in the 00 and 12Z runs, the 6 and 12 hour chances in 00, 06, 12 and 18Z
+            if (chart.source == "NBM") {
+                if (chart.id == "2m_min_temp" || chart.id == "2m_max_temp") {
+                    chart.mainCycleStep = 12;
+                } else if (chart.id == "tstm_prob" || chart.id == "6hour_precip_chance" || chart.id == "12hour_precip_chance") {
+                    chart.mainCycleStep = 6;
+                }
+            }
+        }
         return p;
     }();
     return list;
