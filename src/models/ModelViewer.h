@@ -16,6 +16,7 @@
 #include "ui/BackForward.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
+#include "ui/FlowBox.h"
 #include "ui/HBox.h"
 #include "ui/Photo.h"
 #include "ui/ZoomImage.h"
@@ -115,7 +116,7 @@ private:
     void saveView();
     void applyView(const std::array<string, 5>&);
     void rebuildViewsMenu();
-    HBox boxH2;
+    FlowBox boxH2;   // wraps onto more rows when the window is narrowed, so the buttons never set a minimum width
     ComboBox comboCompare, comboPreload;
     std::vector<std::string> memberValues;   // the members' names in the model's files, as the combo lists them
     std::string member;                   // the one chosen: "" the chart as it is
@@ -163,7 +164,7 @@ private:
     void getRunStatus();
     void updateRunStatus();
     vector<string> runLabels() const;
-    HBox boxH;
+    FlowBox boxH;
     VBox box;
     ZoomImage image;                     // the chart: wheel / Ctrl +- zoom, drag to pan
     ObjectModel objectModel;

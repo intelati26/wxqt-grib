@@ -84,7 +84,11 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     boxH.addWidget(buttonProducts);
     buttonProducts.connect([this] { showPicker(); });
     boxH.addWidget(comboboxTime);
-    boxH.addLayout(backForward);
+    {   // a flow holds widgets, not layouts
+        auto * stepper = new QWidget{this};
+        stepper->setLayout(backForward.getView());
+        boxH.addWidgetReal(stepper);
+    }
     {   // the models that are fetched as pictures, in a second menu beside the GRIB ones: each opens its own screen
         auto * more = new QPushButton{"Image models (some pending)  \xE2\x96\xBE", this};
         auto * menu = new QMenu{more};
