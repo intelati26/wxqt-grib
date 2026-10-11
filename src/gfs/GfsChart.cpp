@@ -22,6 +22,7 @@
 #include <tuple>
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsModels.h"
+#include "spcrefs/UtilitySpcRefs.h"
 #include "ui/WindBarb.h"
 
 namespace GfsChart {
@@ -4370,8 +4371,78 @@ const std::vector<Product>& products() {
             }
         };
 
+        // ---- SPC's REFS products (the open Zarr store): the curated list of SPC's own viewer, each as the colors and units it has there
+        const auto spcRefsRecipes = [&] {
+            static const unsigned memberColors[] = {0x1f77b4, 0xd62728, 0x2ca02c, 0x9467bd, 0xff7f0e, 0x8c564b, 0xe377c2, 0x17becf, 0xbcbd22, 0x7f7f7f};
+            for (const auto& source : UtilitySpcRefs::curatedProducts()) {
+                Product x;
+                x.source = "SPCREFS";
+                x.id = source.id;
+                x.label = source.label;
+                x.wants = {GfsData::Want{"a", source.id, "", "", "", source.members ? "m001" : ""}};
+                if (source.kind == UtilitySpcRefs::Kind::Paintball) {   // bit i of the mask: member i is over the limit
+                    x.derive = [] (Grids& g, const Context&) {
+                        const auto mask = g.at("a");
+                        for (int m = 0; m < 10; m++) {
+                            auto bit = mask;
+                            for (auto& v : bit.values) {
+                                v = std::isnan(v) ? v : ((static_cast<long long>(v) >> m) & 1LL) ? 1.0f : 0.0f;
+                            }
+                            g["Member " + std::to_string(m + 1)] = std::move(bit);
+                        }
+                    };
+                    const auto solid = [] (unsigned rgb) {
+                        QColor c{static_cast<QRgb>(rgb)};
+                        c.setAlpha(170);
+                        return Ramp{{{0.0, QColor{255, 255, 255, 0}}, {0.49, QColor{255, 255, 255, 0}}, {0.5, c}, {1.0, c}}};
+                    };
+                    x.fill = [] (const Grids& g) { return pick(g, "Member 1"); };
+                    x.ramp = solid(memberColors[0]);
+                    for (int m = 1; m < 10; m++) {
+                        x.overlays.push_back({"Member " + std::to_string(m + 1), solid(memberColors[m])});
+                    }
+                    x.fillTitle = source.label + ": each member over the limit in its own color";
+                    x.legendStep = 0;
+                    p.push_back(x);
+                    continue;
+                }
+                const double factor = source.factor, offset = source.offset;
+                x.fill = [factor, offset] (const Grids& g) {
+                    auto out = pick(g, "a");
+                    for (auto& v : out.values) {
+                        v = std::isnan(v) ? v : static_cast<float>(v * factor + offset);
+                    }
+                    return out;
+                };
+                Ramp ramp;
+                for (const auto& stop : source.stops) {
+                    ramp.stops.emplace_back(stop.value, QColor{stop.r, stop.g, stop.b});
+                }
+                if (ramp.stops.empty()) {   // no table of its own: SPC's rainbow over a usual range
+                    ramp.stops = {{0.0, QColor{"#3b4cc0"}}, {50.0, QColor{"#e6e61e"}}, {100.0, QColor{"#8c0a0a"}}};
+                }
+                ramp.banded = source.kind == UtilitySpcRefs::Kind::Banded;
+                if (!ramp.banded && source.hideBelow > -1e29 && source.hideBelow > ramp.stops.front().first) {   // a smooth scale with nothing drawn below a value
+                    const auto at = QColor::fromRgba(ramp.at(source.hideBelow));
+                    Ramp cut;
+                    cut.stops.emplace_back(source.hideBelow - 1e-6, QColor{at.red(), at.green(), at.blue(), 0});
+                    cut.stops.emplace_back(source.hideBelow, at);
+                    for (const auto& stop : ramp.stops) {
+                        if (stop.first > source.hideBelow) {
+                            cut.stops.push_back(stop);
+                        }
+                    }
+                    ramp = cut;
+                }
+                x.ramp = ramp;
+                x.fillTitle = source.label + (source.units.empty() ? "" : " (" + source.units + ")");
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+        };
+
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", rrfsRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", rrfsRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);
@@ -4700,6 +4771,14 @@ std::vector<MemberChoice> memberChoices(const Product& product) {
     if (wanted.empty() || product.linesOnly) {
         return out;
     }
+    if (product.source == "SPCREFS") {   // the arrays with a member axis: ten members (SPC's viewer names them HRRR, RRFS and the REFS members)
+        if (!product.wants.empty() && product.wants.front().stat == "m001") {
+            for (int m = 1; m <= 10; m++) {
+                out.push_back({"m" + std::string{m < 10 ? "00" : "0"} + std::to_string(m), "Member " + std::to_string(m)});
+            }
+        }
+        return out;
+    }
     if (product.source == "REFS") {
         if (product.id.compare(0, 7, "member_") == 0) {
             for (int m = 1; m <= 5; m++) {
@@ -4733,7 +4812,7 @@ Product withMember(const Product& product, const std::string& member) {
     if (chosen == choices.end()) {
         return product;
     }
-    const bool refs = product.source == "REFS";
+    const bool refs = product.source == "REFS" || product.source == "SPCREFS";
     const auto swap = [refs, member] (GfsData::Want w) {
         if (refs ? w.stat.compare(0, 3, "m00") == 0 : w.stat.empty()) {
             w.stat = member;

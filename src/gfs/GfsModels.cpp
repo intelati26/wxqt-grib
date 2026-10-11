@@ -174,6 +174,17 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             d.recipeList = true;
             m.push_back(d);
         }
+        {   // SPC's REFS ensemble products from its open Zarr store: means, maxima, probabilities and paintballs of the 10 members, on the 3 km grid
+            Def d;
+            d.id = "SPCREFS";
+            d.label = "SPC REFS ensemble products (open Zarr data)";
+            d.source = [] (const std::string&) { return GfsData::spcRefs(); };
+            d.sectors = Sectors::Conus;
+            d.hours = {{1, 60, 1}};
+            d.cycleStep = 6;
+            d.recipeList = true;
+            m.push_back(d);
+        }
         {   // the wave models
             Def d;
             d.id = "GFS-WAVE";

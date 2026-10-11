@@ -65,6 +65,9 @@ public:
         // Where a `wholeFile` field may be, in the order to try (a file that is in the test area until it is in the real one, the GEFS cycle that is the run's own or the one before). A url
         // may end in a name with '?' for one character and '*' for any: the directory is listed and the first match is the file. Empty: just fileUrl.
         std::function<std::vector<std::string>(const Run&, int forecastHour, const std::string& file)> candidates;
+        // A source read by code the registry does not know (SPC's Zarr store): the loader registered for its id (setLoader) makes the field's grid on a latitude / longitude grid. The cache,
+        // the several fields of a chart at once and the run search are as for any other. Without a loader (a build without it) every field fails with a message.
+        bool custom{false};
         bool netcdf{false};                                               // a `wholeFile` source whose files are NetCDF: want.variable is the variable's name in them, read by range (they are 0.5 to 1 GB)
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often
@@ -99,6 +102,11 @@ public:
     // SPC's surface objective analysis with the HRRR as background (SFCOA-HRRR: the SPC mesoanalysis, one NetCDF file an hour, `run.cycle` the valid hour) and the same fields computed from the
     // RRFS forecasts (RRFSD, an hour per file for each run). Files of 0.5 to 1 GB: a field is read by range (want.variable is the NetCDF variable), a few megabytes and about 40 seconds.
     static Source mesoanalysis(bool rrfs);
+    // SPC's REFS ensemble products (the open Zarr store its own viewer draws): one store a cycle, ready-made means, maxima, probabilities, paintball masks, hundreds of arrays. `custom`:
+    // want.variable is the array's name, want.stat "m001" ... a member of one that has them, and the field is read by the loader the app registers (spcrefs/SpcRefsLoader.cpp).
+    static Source spcRefs();
+    using Loader = std::function<bool(const Run&, int forecastHour, const Want&, GfsGrid::Grid&, std::string& error)>;
+    static void setLoader(const std::string& sourceId, Loader loader);
     // The High-Resolution Ensemble Forecast (HREF) on NOMADS: its own ready-made products of the 10 members on the 3 km CONUS grid; the `stat` of a want names the file ("mean" the default,
     // "pmmn", "lpmm", "avrg", "sprd", "prob", "eas", "ffri"). The hour has two digits.
     static Source href();

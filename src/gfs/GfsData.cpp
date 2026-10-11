@@ -302,7 +302,7 @@ bool GfsData::latestRun(Run& run) const {
                     continue;
                 }
                 const auto head = config.bytes(resolved, 0, 3);
-                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF")) {
+                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("{")) {
                     there = true;
                     break;
                 }
@@ -320,6 +320,14 @@ bool GfsData::latestRun(Run& run) const {
         }
     }
     return false;
+}
+
+namespace {
+    std::mutex loaderMutex;
+    std::map<std::string, GfsData::Loader>& loaders() {
+        static std::map<std::string, GfsData::Loader> list;
+        return list;
+    }
 }
 
 namespace {
@@ -545,7 +553,7 @@ std::string GfsData::resolveUrl(const std::string& url) const {
 // A field of a source with no index (GEPS, SPC's post-processing): the file is kept whole for the run and hour (a NetCDF one is read by range), and the field is the mean or spread of its
 // messages, or one of them (a member, a variable of a file of several).
 bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + (source.netcdf ? want.variable : std::string{}) + "_");
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom) ? want.variable : std::string{}) + "_");
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
         name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
@@ -575,6 +583,38 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
                 }
             }
         }
+    }
+    if (source.custom) {   // the registered loader makes the grid; it is kept like the others
+        Loader loader;
+        {
+            const std::lock_guard lock{loaderMutex};
+            const auto found = loaders().find(source.id);
+            if (found != loaders().end()) {
+                loader = found->second;
+            }
+        }
+        if (!loader) {
+            error = source.id + " is not available in this build";
+            return false;
+        }
+        GfsGrid::Grid g;
+        if (!loader(run, hour, want, g, error)) {
+            return false;
+        }
+        QByteArray store(header, '\0');
+        std::memcpy(store.data(), &g.columns, 4);
+        std::memcpy(store.data() + 4, &g.rows, 4);
+        std::memcpy(store.data() + 8, &g.lon0, 8);
+        std::memcpy(store.data() + 16, &g.lat0, 8);
+        std::memcpy(store.data() + 24, &g.step, 8);
+        store += qCompress(QByteArray::fromRawData(reinterpret_cast<const char *>(g.values.data()), static_cast<qsizetype>(g.values.size() * 4)), 6);
+        QSaveFile keep{cachePath};
+        if (keep.open(QIODevice::WriteOnly)) {
+            keep.write(store);
+            keep.commit();
+        }
+        out = std::move(g);
+        return true;
     }
     const int band = source.memberBand && !want.stat.empty() && want.stat != "spr" ? source.memberBand(want.stat) : 0;
     if (!want.stat.empty() && want.stat != "spr" && band <= 0) {
@@ -744,6 +784,31 @@ GfsData::Source GfsData::geps() {
     s.lagHours = 6;     // the 00 and 12Z runs are on the server about five and a half hours after their time
     s.probeHour = 384;
     s.cyclesToTry = 4;
+    return s;
+}
+
+void GfsData::setLoader(const std::string& sourceId, Loader loader) {
+    const std::lock_guard lock{loaderMutex};
+    loaders()[sourceId] = std::move(loader);
+}
+
+GfsData::Source GfsData::spcRefs() {
+    Source s;
+    s.id = "SPCREFS";
+    s.label = "SPC REFS ensemble products (open Zarr data)";
+    s.wholeFile = true;
+    s.custom = true;
+    s.fileUrl = [] (const Run& run, int, const std::string& file) {
+        const auto base = "https://www.spc.noaa.gov/exper/refs/data/" + run.date.substr(0, 4) + "/" + run.date.substr(4, 2) + "/" + run.date.substr(6, 2) + "/refs-spc_" + run.date + "_" + run.cycle + "00.zarr";
+        return file.empty() ? base : base + "/" + file;
+    };
+    s.probeFile = ".zgroup";
+    s.probeHour = 0;
+    s.cycleHours = 6;
+    s.lagHours = 3;
+    s.cyclesToTry = 6;
+    s.maxParallel = 4;
+    s.warp = {true, 0.03, -127.0, 22.0, -65.0, 52.0};   // the grid the loader makes
     return s;
 }
 

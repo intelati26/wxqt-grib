@@ -85,6 +85,10 @@ namespace UtilitySpcRefs {
     // text for the read-out at a grid point ("42.5 dBZ", "6 of 10 members")
     string readout(const Product& product, const vector<float>& values, int column, int row, const vector<string>& memberNames);
     string memberDisplayName(const string& raw);
+    unsigned memberColour(const string& name);          // the colour of a member's paintball (grey for one that is not known)
+    vector<Stop> rainbowStops(double low, double high);   // the colour table of a field with none of its own, over its range
+    // the products SPC's own viewer lists, described from their names (no store needed): what the chart registry makes charts of
+    vector<Product> curatedProducts();
 }
 
 #endif  // UTILITYSPCREFS_H
