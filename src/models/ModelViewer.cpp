@@ -973,6 +973,8 @@ namespace {
             {"HRW-ARW2", "Convection allowing"}, {"HRW-FV3", "Convection allowing"},
             {"GEFS", "Ensembles"}, {"GEPS", "Ensembles"}, {"REFS", "Ensembles"}, {"HREF", "Ensembles"}, {"NAEFS", "Ensembles"},
             {"GEFS-MEAN-SPRD", "Ensembles"}, {"GEFS-SPAG", "Ensembles"},
+            {"SPCPOST", "SPC guidance and mesoanalysis"}, {"SPCGEFS", "SPC guidance and mesoanalysis"}, {"SPCREFS", "SPC guidance and mesoanalysis"},
+            {"SFCOA", "SPC guidance and mesoanalysis"}, {"RRFSD", "SPC guidance and mesoanalysis"},
             {"GFS-WAVE", "Waves and ocean"}, {"GEFS-WAVE", "Waves and ocean"}, {"WW3", "Waves and ocean"}, {"WW3-ENP", "Waves and ocean"}, {"WW3-WNA", "Waves and ocean"},
             {"ESTOFS", "Waves and ocean"}, {"POLAR", "Waves and ocean"}};
         const auto found = groups.find(id);
@@ -988,7 +990,9 @@ void ModelViewer::showModelPicker() {
     }
     std::vector<ProductPicker::Entry> entries;
     for (const auto& id : objectModel.models) {
-        entries.push_back({id, id, modelGroup(id)});
+        const auto group = modelGroup(id);
+        const auto * def = group == "SPC guidance and mesoanalysis" ? GfsModels::find(id) : nullptr;   // the SPC ones say what they are: their names are not known by heart
+        entries.push_back({id, def ? id + "  -  " + def->label : id, group});
     }
     static const std::vector<string> order{"Global", "Regional", "Convection allowing", "Ensembles", "Waves and ocean", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
