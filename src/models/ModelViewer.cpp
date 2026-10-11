@@ -767,7 +767,8 @@ void ModelViewer::reload() {
         strip->setCurrent(static_cast<int>(comboboxTime.getIndex()));
     }
     objectModel.writePrefs();
-    setTitle(objectModel.model + " " + objectModel.sector + " " + objectModel.times[comboboxTime.getIndex()]);
+    const auto shownIndex = comboboxTime.getIndex();
+    setTitle(objectModel.model + " " + objectModel.sector + (shownIndex >= 0 && static_cast<size_t>(shownIndex) < objectModel.times.size() ? " " + objectModel.times[static_cast<size_t>(shownIndex)] : string{}));
     if (GfsRender::handles(objectModel.model, objectModel.param)) {
         // the GFS charts are drawn here from the GRIB data
         const int mine = ++drawing;

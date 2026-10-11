@@ -306,8 +306,10 @@ void ObjectModel::setModelVars(const string& modelName) {
             param = params[0];
         }
     }
-    if (timeIdx > times.size()) {
-        setTimeIdx(2);
+    // the hour kept from the last time may not be one of this model's (a model with a single hour, a shorter run): the nearest that is
+    if (!times.empty() && timeIdx >= times.size()) {
+        timeIdx = times.size() - 1;
+        timeStr = times[timeIdx];
     }
 }
 
