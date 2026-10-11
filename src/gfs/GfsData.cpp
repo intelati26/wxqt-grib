@@ -13,6 +13,7 @@
 #include <cstring>
 #include <future>
 #include <mutex>
+#include <set>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
