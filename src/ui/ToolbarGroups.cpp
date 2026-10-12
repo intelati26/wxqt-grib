@@ -27,8 +27,8 @@ namespace {
     // built-in grouping: group names in menu order, then the entries (RouteItem ids) of each
     const vector<std::pair<string, vector<string>>>& builtIn() {
         static const vector<std::pair<string, vector<string>>> all{
-            // the multi-panel screens that gather a subject: the severe dashboard, the tropical hub, space weather, tornado history, forecast discussions
-            {dashboardsGroup, {"baseline_warning_black_48dp.png", "hurricane.png", "goes16.png", "twtornado.png", "widget_afd.png"}},
+            // the multi-panel screens that gather a subject: the severe dashboard, the tropical hub, space weather, tornado history, forecast discussions, drought, rivers
+            {dashboardsGroup, {"baseline_warning_black_48dp.png", "hurricane.png", "goes16.png", "twtornado.png", "widget_afd.png", "fire_outlook.png#2", "rain_showers.png"}},
             {"Radar and satellite", {"baseline_flash_on_black_48dp.png", "wxogldualpane.png", "wxoglquadpane.png",
                                      "radarmosaicnws.png", "mcd_tile.png", "baseline_cloud_black_48dp.png", "goesfulldisk.png",
                                      "lightning.png"}},
@@ -134,9 +134,18 @@ namespace {
         Utility::writePref(dropdownsPref, names.empty() ? "" : WString::join(names, ";"));
     }
 
-    // a saved layout from before the Dashboards group: make the group, and take into it the dashboards that were left in "Other" (those not placed by choice)
+    // a saved layout from before the Dashboards group (or before a dashboard joined it): make the group, and take into it the dashboards that were left in "Other" (those not placed by choice)
     void addDashboardsToSaved() {
-        if (find(dashboardsGroup) != nullptr) {
+        if (auto * existing = find(dashboardsGroup)) {
+            if (auto * other = find(otherGroup)) {
+                for (const auto& id : builtIn().front().second) {
+                    const auto at = std::find(other->ids.begin(), other->ids.end(), id);
+                    if (at != other->ids.end()) {
+                        other->ids.erase(at);
+                        existing->ids.push_back(id);
+                    }
+                }
+            }
             return;
         }
         ToolbarGroups::Group group{dashboardsGroup, {}};
