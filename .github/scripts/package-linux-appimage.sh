@@ -173,7 +173,8 @@ chmod +x "$appDir/AppRun"
 # the bundled img2webp must run from the AppDir's own libraries
 LD_LIBRARY_PATH="$appDir/usr/lib" "$appDir/usr/bin/img2webp" -version
 
-wget -q -O /tmp/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+# GitHub's release downloads fail now and then (a 5xx): try a few times
+wget -q --tries=5 --waitretry=10 --retry-on-http-error=429,500,502,503,504 -O /tmp/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
 chmod +x /tmp/appimagetool
 
 mkdir -p dist
