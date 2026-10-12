@@ -22,6 +22,7 @@
 #include <memory>
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
+#include "settings/Location.h"
 #include "models/ObjectModelGet.h"
 #include <QCheckBox>
 #include <QDialog>
@@ -947,6 +948,10 @@ vector<string> ModelViewer::runLabels() const {
         labels.push_back(t == utc ? run + "  newest" : days == 0 ? run : days == 1 ? run + "  yesterday" : run + "  " + t.toString("MMM d").toStdString());
     }
     return labels;
+}
+
+namespace {
+    std::string sectorLabel(const std::string& id);   // defined with the sector picker below
 }
 
 // The saved locations as areas of the model's own: a square of 300, 600 and 1200 kilometers a side centered on each (moved in from the edge of a regional grid), for the models drawn from GRIB
