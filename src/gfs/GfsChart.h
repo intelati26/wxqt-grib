@@ -30,6 +30,11 @@ namespace GfsChart {
     // The view of a storm-following grid: the box that holds its valid values (the grid is filled only in a tilted footprint), a little outside
     Sector gridSector(const std::string& id, const GfsGrid::Grid& grid);
     const Sector * sector(const std::string& id);
+    // A square of a number of kilometers a side round a place ("LOCAL:35.47,-97.52,600,Oklahoma City": latitude, longitude, kilometers, the name). The square is moved, not shrunk, to stay inside
+    // the box a model covers (a city near the edge of the regional grid is as near its center as the grid lets it be); too big for the grid, it is the grid.
+    std::string localId(double lat, double lon, double km, const std::string& name);
+    bool parseLocalId(const std::string& id, double& lat, double& lon, double& km, std::string& name);
+    Sector localSector(const std::string& id, double west, double south, double east, double north);   // the model's coverage; the sector has the id's own id
 
     // A color scale by value: stops are (value, color), linear between them. Values below the first or above the last take the end colors.
     struct Ramp {
@@ -215,6 +220,10 @@ namespace GfsChart {
         Probe * probe{nullptr};                // when set, filled in by render() for the hover read-out
         int width{1100};
         const GfsClimate * climate{nullptr};   // for the anomaly charts
+        bool ticks{false};                     // latitude and longitude marks along the frame, numbered
+        bool hasMarker{false};                 // a mark at a place (the saved location a local area is round) with its name
+        double markerLat{0}, markerLon{0};
+        std::string markerName;
         bool fahrenheit{true};                 // the user's US units: degrees F, inches
         bool magColors{true};                  // the charts that have one use the model guidance site's own color bands (drawn at our resolution)
         std::map<std::string, Ramp> palettes;  // the user's scales by rampKey of the default one they replace

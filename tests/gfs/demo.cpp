@@ -80,7 +80,15 @@ int main(int argc, char ** argv) {
     }
     const auto * product = baseProduct ? &composed : nullptr;
     GfsChart::Sector stormSector;
-    const auto * sector = hurricane ? &stormSector : GfsChart::sector(argv[2]);
+    GfsChart::Sector localArea;   // "LOCAL:36.97,-94.54,600,Joplin": a square round a place, inside what the model covers
+    double localLat = 0, localLon = 0, localKm = 0;
+    std::string localName;
+    const bool isLocal = GfsChart::parseLocalId(argv[2], localLat, localLon, localKm, localName);
+    if (isLocal) {
+        const auto source = def->source("");
+        localArea = source.warp.enabled ? GfsChart::localSector(argv[2], source.warp.west, source.warp.south, source.warp.east, source.warp.north) : GfsChart::localSector(argv[2], -180, -85, 180, 85);
+    }
+    const auto * sector = hurricane ? &stormSector : isLocal ? &localArea : GfsChart::sector(argv[2]);
     if (!product || !sector) {
         std::printf("unknown product or sector\n");
         return 2;
@@ -121,6 +129,13 @@ int main(int argc, char ** argv) {
         options.palettes[GfsChart::rampKey(GfsChart::defaultRamp(*product, options.magColors))] = ramp;
     }
     options.climate = &climate;
+    if (isLocal) {
+        options.ticks = true;
+        options.hasMarker = true;
+        options.markerLat = localLat;
+        options.markerLon = localLon;
+        options.markerName = localName;
+    }
     if (const char * mag = std::getenv("DEMO_MAG"); mag && std::string{mag} == "0") {   // DEMO_MAG=0: our own color scales
         options.magColors = false;
     }

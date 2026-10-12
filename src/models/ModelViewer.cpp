@@ -949,6 +949,23 @@ vector<string> ModelViewer::runLabels() const {
     return labels;
 }
 
+// The saved locations as areas of the model's own: a square of 300, 600 and 1200 kilometers a side centered on each (moved in from the edge of a regional grid), for the models drawn from GRIB
+void ModelViewer::addLocalSectors() {
+    auto& sectors = objectModel.sectors;
+    sectors.erase(std::remove_if(sectors.begin(), sectors.end(), [] (const string& id) { return id.compare(0, 6, "LOCAL:") == 0; }), sectors.end());
+    if (!GfsRender::drawsModel(objectModel.model)) {
+        return;
+    }
+    const auto places = Location::getListLatLons();
+    const auto names = Location::listOfNames();
+    for (size_t i = 0; i < places.size(); i++) {
+        const string name = i < names.size() ? names[i] : string{};
+        for (const double km : {300.0, 600.0, 1200.0}) {
+            sectors.push_back(GfsChart::localId(places[i].lat(), places[i].lon(), km, name));
+        }
+    }
+}
+
 void ModelViewer::updateRunStatus() {
     comboboxTime.block();
     comboboxRun.block();
@@ -973,7 +990,15 @@ void ModelViewer::updateRunStatus() {
     }
     comboboxModel.setIndexByValue(objectModel.model);
 
+    addLocalSectors();
     comboboxSector.setList(objectModel.sectors);
+    {
+        vector<string> labels;
+        for (const auto& id : objectModel.sectors) {
+            labels.push_back(sectorLabel(id));
+        }
+        comboboxSector.setLabels(labels);
+    }
     comboboxSector.setIndexByValue(objectModel.sector);
 
     comboboxRun.setList(objectModel.runs);
@@ -1062,8 +1087,21 @@ namespace {
             {"INDIAN-OCEAN", "Oceans"}, {"US-SAMOA", "Oceans"},
             {"GLOBAL", "World and poles"}, {"TROPICS", "World and poles"}, {"NORTHERN-HEMI", "World and poles"}, {"SOUTHERN-HEMI", "World and poles"},
             {"POLAR", "World and poles"}, {"ARTIC", "World and poles"}};
+        if (id.compare(0, 6, "LOCAL:") == 0) {
+            return "Around a saved location";
+        }
         const auto found = groups.find(id);
         return found == groups.end() ? "Other" : found->second;
+    }
+
+    // what a sector is called in a list: the areas round a saved location say the place and the kilometers a side
+    string sectorLabel(const string& id) {
+        double lat = 0, lon = 0, km = 0;
+        string name;
+        if (GfsChart::parseLocalId(id, lat, lon, km, name)) {
+            return (name.empty() ? string{"Saved location"} : name) + ", " + std::to_string(static_cast<int>(km)) + " km square";
+        }
+        return id;
     }
 }
 
@@ -1108,11 +1146,11 @@ void ModelViewer::showSectorPicker() {
     const auto model = objectModel.model;
     std::vector<ProductPicker::Entry> entries;
     for (const auto& id : objectModel.sectors) {
-        entries.push_back({id, id, sectorGroup(id)});
+        entries.push_back({id, sectorLabel(id), sectorGroup(id)});
     }
     // the groups in a fixed order: the entries are listed as the model gives them
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
-        static const std::vector<string> order{"United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "Other"};
+        static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "Other"};
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
     });
     std::vector<string> favorites;

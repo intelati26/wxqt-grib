@@ -321,6 +321,26 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     if (isHafs(model)) {
         sector = &storm;
     }
+    GfsChart::Sector local;   // an area round a saved location: its kilometers, placed inside what the model covers
+    double localLat = 0, localLon = 0, localKm = 0;
+    std::string localName;
+    if (!isHafs(model) && GfsChart::parseLocalId(sectorId, localLat, localLon, localKm, localName)) {
+        double west = -180.0, south = -85.0, east = 180.0, north = 85.0;
+        if (const auto * def = GfsModels::find(model)) {
+            const auto source = def->source("");
+            if (source.warp.enabled) {
+                west = source.warp.west;
+                south = source.warp.south;
+                east = source.warp.east;
+                north = source.warp.north;
+            }
+        }
+        if (localLon > 180.0) {
+            localLon -= 360.0;
+        }
+        local = GfsChart::localSector(sectorId, west, south, east, north);
+        sector = &local;
+    }
     auto composed = base ? GfsChart::compose(*base, overlays) : GfsChart::Product{};   // the chart with what was ticked onto it
     if (base && !variant.member.empty()) {
         composed = GfsChart::withMember(composed, variant.member);
@@ -455,6 +475,17 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         }
     }
     GfsChart::Options options;
+    {   // latitude / longitude marks: always on an area round a saved location, and on every chart when the settings pref says "all"
+        const bool isLocal = sectorId.compare(0, 6, "LOCAL:") == 0;
+        const auto mode = Utility::readPref("MODEL_TICKS", "local");
+        options.ticks = mode == "all" || (isLocal && mode != "off");
+        if (isLocal) {
+            options.hasMarker = true;
+            options.markerLat = localLat;
+            options.markerLon = localLon;
+            options.markerName = localName;
+        }
+    }
     static const GfsClimate climate{UtilityGrib::gdalBinDir()};
     options.climate = &climate;
     options.fahrenheit = UIPreferences::unitsF;

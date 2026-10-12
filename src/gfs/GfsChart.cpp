@@ -425,6 +425,66 @@ std::vector<TrackPoint> parseTrack(const std::string& text) {
     return points;
 }
 
+std::string localId(double lat, double lon, double km, const std::string& name) {
+    std::string clean = name;
+    for (auto& c : clean) {
+        if (c == ',' || c == '|' || c == ':') {
+            c = ' ';
+        }
+    }
+    char text[64];
+    std::snprintf(text, sizeof text, "%.3f,%.3f,%d,", lat, lon, static_cast<int>(std::lround(km)));
+    return std::string{"LOCAL:"} + text + clean;
+}
+
+bool parseLocalId(const std::string& id, double& lat, double& lon, double& km, std::string& name) {
+    if (id.compare(0, 6, "LOCAL:") != 0) {
+        return false;
+    }
+    const auto parts = QString::fromStdString(id.substr(6)).split(',');
+    if (parts.size() < 3) {
+        return false;
+    }
+    bool a = false, b = false, c = false;
+    lat = parts[0].toDouble(&a);
+    lon = parts[1].toDouble(&b);
+    km = parts[2].toDouble(&c);
+    name = parts.size() > 3 ? parts.mid(3).join(',').toStdString() : std::string{};
+    return a && b && c && km > 10.0 && std::fabs(lat) <= 90.0 && std::fabs(lon) <= 360.0;
+}
+
+Sector localSector(const std::string& id, double west, double south, double east, double north) {
+    double lat = 0, lon = 0, km = 0;
+    std::string name;
+    Sector out{id, west, south, east, north};
+    if (!parseLocalId(id, lat, lon, km, name)) {
+        return out;
+    }
+    const double halfLat = km / 111.32 / 2.0;
+    const double halfLon = km / (111.32 * std::max(std::cos(lat * pi / 180.0), 0.2)) / 2.0;
+    // a window of that size round the place, moved inside the coverage (not narrowed: the same kilometers wherever it is)
+    const auto place = [] (double center, double half, double low, double high, double& from, double& to) {
+        if (2.0 * half >= high - low) {
+            from = low;
+            to = high;
+            return;
+        }
+        from = center - half;
+        to = center + half;
+        if (from < low) {
+            to += low - from;
+            from = low;
+        }
+        if (to > high) {
+            from -= to - high;
+            to = high;
+        }
+    };
+    place(lat, halfLat, std::max(south, -85.0), std::min(north, 85.0), out.south, out.north);
+    place(lon, halfLon, west, east, out.west, out.east);
+    return out;
+}
+
 const Sector * sector(const std::string& id) {
     for (const auto& s : sectors()) {
         if (s.id == id) {
@@ -5904,6 +5964,80 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     p.setPen(QPen{QColor{60, 60, 60}, 1.0});
     p.setBrush(Qt::NoBrush);
     p.drawRect(area);
+    if (options.hasMarker) {   // the place a local area is round: a ring and its name
+        const auto at = view.toPixel(options.markerLon, options.markerLat);
+        if (area.contains(at)) {
+            p.setClipRect(area);
+            p.setPen(QPen{QColor{255, 255, 255}, 4.0});
+            p.drawEllipse(at, 6.0, 6.0);
+            p.setPen(QPen{QColor{200, 20, 20}, 2.0});
+            p.drawEllipse(at, 6.0, 6.0);
+            p.drawLine(QPointF{at.x() - 10, at.y()}, QPointF{at.x() + 10, at.y()});
+            p.drawLine(QPointF{at.x(), at.y() - 10}, QPointF{at.x(), at.y() + 10});
+            if (!options.markerName.empty()) {
+                QFont f = p.font();
+                f.setBold(true);
+                p.setFont(f);
+                const QString label = QString::fromStdString(options.markerName);
+                p.setPen(QColor{255, 255, 255});
+                for (const QPointF d : {QPointF{1, 1}, QPointF{-1, 1}, QPointF{1, -1}, QPointF{-1, -1}}) {
+                    p.drawText(at + QPointF{10, -8} + d, label);
+                }
+                p.setPen(QColor{140, 10, 10});
+                p.drawText(at + QPointF{10, -8}, label);
+            }
+            p.setClipping(false);
+        }
+    }
+    if (options.ticks) {   // latitude and longitude marks along the frame: a step that gives five or six across, numbered along the bottom and the left
+        const auto stepFor = [] (double span) {
+            static const double steps[] = {0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 30.0};
+            for (const double step : steps) {
+                if (span / step <= 7.0) {
+                    return step;
+                }
+            }
+            return 30.0;
+        };
+        const auto numberOf = [] (double v, double step, const char * plus, const char * minus) {
+            const double a = std::fabs(v);
+            return QString::number(a, 'f', step < 1.0 ? (step < 0.25 ? 2 : 1) : 0) + QString::fromUtf8("\xC2\xB0") + (v >= 0 ? plus : minus);
+        };
+        QFont f = p.font();
+        f.setBold(false);
+        f.setPixelSize(11);
+        p.setFont(f);
+        p.setPen(QColor{40, 40, 40});
+        const double lonStep = stepFor(sector.east - sector.west);
+        for (double lon = std::ceil(sector.west / lonStep) * lonStep; lon <= sector.east + 1e-9; lon += lonStep) {
+            const double x = view.toPixel(lon, sector.south).x();
+            if (x < area.left() + 18 || x > area.right() - 18) {
+                continue;
+            }
+            for (const double y : {area.top(), area.bottom()}) {
+                const double dir = y == area.top() ? 1.0 : -1.0;
+                p.drawLine(QPointF{x, y}, QPointF{x, y + dir * 7.0});
+            }
+            double shownLon = lon;
+            if (shownLon > 180.0) {
+                shownLon -= 360.0;
+            }
+            p.drawText(QRectF{x - 30, area.bottom() - 22, 60, 14}, Qt::AlignHCenter, numberOf(shownLon, lonStep, "E", "W"));
+        }
+        const double latStep = stepFor(sector.north - sector.south);
+        for (double lat = std::ceil(sector.south / latStep) * latStep; lat <= sector.north + 1e-9; lat += latStep) {
+            const double y = view.toPixel(sector.west, lat).y();
+            if (y < area.top() + 10 || y > area.bottom() - 10) {
+                continue;
+            }
+            for (const double x : {area.left(), area.right()}) {
+                const double dir = x == area.left() ? 1.0 : -1.0;
+                p.drawLine(QPointF{x, y}, QPointF{x + dir * 7.0, y});
+            }
+            p.drawText(QRectF{area.left() + 9, y - 7, 60, 14}, Qt::AlignLeft | Qt::AlignVCenter, numberOf(lat, latStep, "N", "S"));
+        }
+        p.setPen(QPen{QColor{60, 60, 60}, 1.0});
+    }
 
     // header
     const auto init = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");

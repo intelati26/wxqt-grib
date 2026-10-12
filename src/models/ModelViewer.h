@@ -121,6 +121,7 @@ private:
     std::vector<std::string> memberValues;   // the members' names in the model's files, as the combo lists them
     std::string member;                   // the one chosen: "" the chart as it is
     void refreshMembers();
+    void addLocalSectors();
     void applyMainRunRule();   // a chart only a model's main runs have: shows the main run in its place, and says so above the timeline
     std::string runSwappedFrom;   // the run that was chosen before the chart made the screen move to a main run ("" when none)
     QPushButton * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
