@@ -414,6 +414,8 @@ void MainWindow::launchImageScreen(const string& token) {
         toolbar.launchSpcMeso("pmsl");
     } else if (token == "SPC_MESO_500MB") {
         toolbar.launchSpcMeso("500mb");
+    } else if (token == "GRIB_LATEST") {
+        toolbar.launchModelViewer();   // the Model Viewer opens on the model, chart and area the thumbnail shows (the same saved choices)
     } else if (const auto * entry = HomeThumbnails::find(token); entry != nullptr && !entry->routeId.empty()) {
         toolbar.launchRoute(entry->routeId);   // any other thumbnail opens its own tool
     }
