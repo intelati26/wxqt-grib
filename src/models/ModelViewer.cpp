@@ -42,6 +42,10 @@
 #include "util/UtilityList.h"
 #include "util/UtilityString.h"
 
+namespace {
+    std::string sectorLabel(const std::string& id);   // defined with the sector picker below
+}
+
 ModelViewer::ModelViewer(Window * parent, const string& modelType)
     : Window{parent}
     , image{this}
@@ -872,7 +876,7 @@ void ModelViewer::reload() {
     }
     objectModel.writePrefs();
     const auto shownIndex = comboboxTime.getIndex();
-    setTitle(objectModel.model + " " + objectModel.sector + (shownIndex >= 0 && static_cast<size_t>(shownIndex) < objectModel.times.size() ? " " + objectModel.times[static_cast<size_t>(shownIndex)] : string{}) +
+    setTitle(objectModel.model + " " + sectorLabel(objectModel.sector) + (shownIndex >= 0 && static_cast<size_t>(shownIndex) < objectModel.times.size() ? " " + objectModel.times[static_cast<size_t>(shownIndex)] : string{}) +
              (runSwappedFrom.empty() ? string{} : "  (shown from the " + objectModel.run + " run: the " + runSwappedFrom + " run does not have this chart)"));
     if (GfsRender::handles(objectModel.model, objectModel.param)) {
         // the GFS charts are drawn here from the GRIB data
@@ -948,10 +952,6 @@ vector<string> ModelViewer::runLabels() const {
         labels.push_back(t == utc ? run + "  newest" : days == 0 ? run : days == 1 ? run + "  yesterday" : run + "  " + t.toString("MMM d").toStdString());
     }
     return labels;
-}
-
-namespace {
-    std::string sectorLabel(const std::string& id);   // defined with the sector picker below
 }
 
 // The saved locations as areas of the model's own: a square of 300, 600 and 1200 kilometers a side centered on each (moved in from the edge of a regional grid), for the models drawn from GRIB
