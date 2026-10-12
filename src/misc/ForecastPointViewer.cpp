@@ -13,6 +13,7 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QRegularExpression>
+#include <QSignalBlocker>
 #include <QScrollArea>
 #include <QTextStream>
 #include <QHeaderView>
@@ -25,6 +26,7 @@
 #include "objects/FutureVoid.h"
 #include "settings/Location.h"
 #include "ui/HoverTip.h"
+#include "util/Utility.h"
 
 using UtilityForecastPoint::has;
 
@@ -64,6 +66,52 @@ namespace {
         return list;
     }
 
+    // The order of the table's rows is the person's: dragged on a row's name, kept as the names (one list for the home card and the full screen, which show different subsets of the rows)
+    const char * rowOrderPref = "FORECAST_POINT_ROW_ORDER";
+
+    std::vector<std::string> savedRowOrder() {
+        std::vector<std::string> out;
+        const auto text = QString::fromStdString(Utility::readPref(rowOrderPref, ""));
+        for (const auto& part : text.split('|', Qt::SkipEmptyParts)) {
+            out.push_back(part.toStdString());
+        }
+        return out;
+    }
+
+    // the rows to show in the saved order; rows the list does not know yet keep their own order, after the ones it does
+    void orderRows(std::vector<const Row *>& shown) {
+        const auto saved = savedRowOrder();
+        const auto rank = [&saved] (const Row * row) {
+            const auto found = std::find(saved.begin(), saved.end(), std::string{row->label});
+            return found == saved.end() ? saved.size() : static_cast<size_t>(found - saved.begin());
+        };
+        std::stable_sort(shown.begin(), shown.end(), [&rank] (const Row * a, const Row * b) { return rank(a) < rank(b); });
+    }
+
+    // The new order of the rows on show, merged into the saved list: the shown rows keep the places they had in it, in their new order, and the rest stay where they were
+    void saveRowOrder(const std::vector<std::string>& shownInNewOrder) {
+        auto order = savedRowOrder();
+        for (const auto& row : rows()) {   // the full list, so a row never seen is placed too
+            if (std::find(order.begin(), order.end(), std::string{row.label}) == order.end()) {
+                order.push_back(row.label);
+            }
+        }
+        std::vector<size_t> places;
+        for (size_t i = 0; i < order.size(); i++) {
+            if (std::find(shownInNewOrder.begin(), shownInNewOrder.end(), order[i]) != shownInNewOrder.end()) {
+                places.push_back(i);
+            }
+        }
+        for (size_t k = 0; k < places.size() && k < shownInNewOrder.size(); k++) {
+            order[places[k]] = shownInNewOrder[k];
+        }
+        QStringList parts;
+        for (const auto& name : order) {
+            parts << QString::fromStdString(name);
+        }
+        Utility::writePref(rowOrderPref, parts.join('|').toStdString());
+    }
+
     QColor outlookColor(const QString& category) {
         const auto c = category.toLower();
         if (c.isEmpty()) return QColor{};
@@ -89,6 +137,18 @@ ForecastPointTable::ForecastPointTable(QWidget * parent) : QTableWidget{parent} 
     verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // drag a row's name to move the row; the order is kept
+    verticalHeader()->setSectionsMovable(true);
+    verticalHeader()->setToolTip("Drag a row's name up or down to put the rows in the order you like");
+    QObject::connect(verticalHeader(), &QHeaderView::sectionMoved, this, [this] (int, int, int) {
+        std::vector<std::string> names;
+        for (int visual = 0; visual < rowCount(); visual++) {
+            if (const auto * item = verticalHeaderItem(verticalHeader()->logicalIndex(visual))) {
+                names.push_back(item->text().toStdString());
+            }
+        }
+        saveRowOrder(names);
+    });
 }
 
 void ForecastPointTable::setData(const UtilityForecastPoint::Data& data, bool compact) {
@@ -100,6 +160,13 @@ void ForecastPointTable::setData(const UtilityForecastPoint::Data& data, bool co
         }
         if ((!compact || row.compact) && (any || !row.onlyWithData)) {
             shown.push_back(&row);
+        }
+    }
+    orderRows(shown);
+    {   // a refresh starts from the sections in their own order again (the saved order is applied to the rows, not to the header)
+        QSignalBlocker blocker{verticalHeader()};
+        for (int i = 0; i < verticalHeader()->count(); i++) {
+            verticalHeader()->moveSection(verticalHeader()->visualIndex(i), i);
         }
     }
     setRowCount(static_cast<int>(shown.size()));
