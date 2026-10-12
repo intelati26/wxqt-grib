@@ -185,6 +185,34 @@ void IntensityChart::paintEvent(QPaintEvent *) {
         p.setPen(QPen{QColor{200, 60, 60}, 1.0, Qt::DashLine});
         p.drawLine(axes->at(now, axes->yMin), axes->at(now, axes->yMax));
     }
+    // each member of the ensembles as a thin line, under the bands and medians
+    if (shown("members")) {
+        for (const auto& s : sets) {
+            auto color = ensembleColor(s.set->label);
+            color.setAlpha(80);
+            for (const auto& member : s.set->storm.members) {
+                const auto draw = [&] (const Axes& a, auto value) {
+                    p.setPen(QPen{color, 1.0});
+                    p.setBrush(Qt::NoBrush);
+                    QPainterPath path;
+                    bool started = false;
+                    for (const auto& step : member.steps) {
+                        const double v = value(step);
+                        if (!has(v) || s.offset + step.hour > end) {
+                            started = false;
+                            continue;
+                        }
+                        const auto pt = a.at(s.offset + step.hour, v);
+                        started ? path.lineTo(pt) : path.moveTo(pt);
+                        started = true;
+                    }
+                    p.drawPath(path);
+                };
+                draw(wind, [] (const UtilityEcmwfTracks::Step& step) { return step.wind; });
+                draw(press, [] (const UtilityEcmwfTracks::Step& step) { return step.pressure; });
+            }
+        }
+    }
     // ensembles: band and median
     for (const auto& s : sets) {
         auto soft = ensembleColor(s.set->label);
@@ -414,7 +442,7 @@ IntensityViewer::IntensityViewer(Window * parent, const std::shared_ptr<Hurrican
     const Family families[] = {{"best", "Best track", QColor{10, 10, 10}}, {"nhc", "NHC forecast", QColor{255, 255, 255}}, {"ships", "SHIPS / LGEM", QColor{40, 130, 200}},
                                {"AIFS ENS", "AIFS ENS", QColor{0, 150, 100}}, {"IFS ENS", "IFS ENS", QColor{230, 110, 20}}, {"GEFS", "GEFS", QColor{120, 70, 200}},
                                {"DeepMind FNV3", "DeepMind FNV3", QColor{150, 40, 190}}, {"DeepMind WNV3", "DeepMind WNV3", QColor{200, 30, 110}},
-                               {"runs", "AIFS / IFS runs", QColor{90, 90, 90}}, {"hurr", "HWRF / HMON / HAFS / COAMPS-TC", QColor{230, 70, 200}},
+                               {"members", "Each member", QColor{150, 150, 150}}, {"runs", "AIFS / IFS runs", QColor{90, 90, 90}}, {"hurr", "HWRF / HMON / HAFS / COAMPS-TC", QColor{230, 70, 200}},
                                {"recon", "Recon", QColor{220, 60, 60}}};
     for (const auto& family : families) {
         const string id = family.id;
@@ -426,6 +454,8 @@ IntensityViewer::IntensityViewer(Window * parent, const std::shared_ptr<Hurrican
                     present = present || set.label == id;
                 }
             }
+        } else if (id == "members") {
+            present = ensembles && !ensembles->sets.empty();
         } else if (id == "hurr") {
             present = false;
             for (const auto& track : storm->guidance) {
