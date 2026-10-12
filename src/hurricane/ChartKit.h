@@ -53,7 +53,7 @@ namespace ChartKit {
             p.setPen(QColor{232, 232, 232});
             p.drawLine(QPointF{at.x(), a.area.top()}, QPointF{at.x(), a.area.bottom()});
             p.setPen(QColor{70, 70, 70});
-            p.drawText(QRectF{at.x() - 40, a.area.bottom() + 2, 80, 14}, Qt::AlignHCenter, xLabel ? xLabel(x) : QString::number(static_cast<int>(x)) + " h");
+            p.drawText(QRectF{at.x() - 40, a.area.bottom() + 2, 80, 28}, Qt::AlignHCenter, xLabel ? xLabel(x) : QString::number(static_cast<int>(x)) + " h");
         }
         QFont bold{p.font()};
         bold.setPixelSize(12);

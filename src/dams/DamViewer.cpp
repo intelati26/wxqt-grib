@@ -144,7 +144,9 @@ void DamChart::paintEvent(QPaintEvent *) {
         }
         top = std::ceil(top / step) * step;
         const ChartKit::Axes a{QRectF{left, 22.0 + static_cast<double>(index) * (each + gap), width, each}, 0.0, span, bottom, top};
-        ChartKit::frame(p, a, strip.title, strip.unit, step, xStep, xLabel);
+        // the times go under the bottom strip only; a decimal on the scale when the step is smaller than one
+        const bool last = index + 1 == strips.size();
+        ChartKit::frame(p, a, strip.title, strip.unit, step, xStep, last ? xLabel : std::function<QString(double)>{[] (double) { return QString{}; }}, step < 1.0 ? 1 : 0);
         for (const auto& line : strip.lines) {
             p.setPen(QPen{line.color, line.width});
             p.setBrush(Qt::NoBrush);
