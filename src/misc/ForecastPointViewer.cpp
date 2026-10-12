@@ -7,7 +7,16 @@
 #include "misc/ForecastPointViewer.h"
 #include <algorithm>
 #include <cmath>
+#include <QApplication>
+#include <QCheckBox>
+#include <QClipboard>
+#include <QComboBox>
+#include <QDialog>
 #include <QFile>
+#include <QGroupBox>
+#include <QListWidget>
+#include <QPushButton>
+#include <future>
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QInputDialog>
@@ -429,7 +438,7 @@ ForecastPointViewer::ForecastPointViewer(Window * parent, const std::shared_ptr<
     , buttonOther{this, None, "Other point..."}
     , buttonRefresh{this, None, "Refresh"}
     , buttonDiscussion{this, None, "Forecast discussion"}
-    , buttonCsv{this, None, "Hourly table (CSV)..."}
+    , buttonCsv{this, None, "Export..."}
     , comboSeries{this}
     , data{d}
 {
@@ -674,41 +683,336 @@ void ForecastPointViewer::fillAllGraphs() {
     allLayout->addStretch();
 }
 
+namespace {
+    struct ExportPoint {
+        QString name;
+        double lat{0.0}, lon{0.0};
+        std::shared_ptr<UtilityForecastPoint::Data> data;   // empty until fetched
+    };
+
+    // Which forecast points, which rows and which days go into a table that is saved or copied: the weekly summary or the hourly values, a day to a column as on the screen or a line to
+    // a day (hour), as comma separated text for a spreadsheet.
+    class ExportDialog : public QDialog {
+    public:
+        ExportDialog(QWidget * parent, std::vector<ExportPoint> list, size_t current)
+            : QDialog{parent}
+            , points{std::move(list)}
+            , currentIndex{current}
+        {
+            setWindowTitle("Export forecast points");
+            auto * column = new QVBoxLayout{this};
+            auto * top = new QHBoxLayout;
+            kind = new QComboBox{this};
+            kind->addItems({"Weekly summary (a value for each day)", "Hourly values"});
+            layout = new QComboBox{this};
+            layout->addItems({"Days across (as on the screen)", "One line for each day or hour"});
+            step = new QComboBox{this};
+            step->addItems({"every hour", "every 3 hours", "every 6 hours", "every 12 hours"});
+            step->setEnabled(false);
+            header = new QCheckBox{"Say where and when", this};
+            header->setChecked(true);
+            header->setToolTip("A first line with the place, the NWS office and the time the forecast was made");
+            top->addWidget(kind);
+            top->addWidget(layout);
+            top->addWidget(step);
+            top->addWidget(header);
+            top->addStretch();
+            column->addLayout(top);
+            auto * lists = new QHBoxLayout;
+            pointList = addColumn(lists, "Points");
+            rowList = addColumn(lists, "Rows");
+            dayList = addColumn(lists, "Days");
+            column->addLayout(lists, 1);
+            status = new QLabel{this};
+            column->addWidget(status);
+            auto * buttons = new QHBoxLayout;
+            auto * save = new QPushButton{"Save CSV...", this};
+            auto * copy = new QPushButton{"Copy (for a spreadsheet)", this};
+            auto * close = new QPushButton{"Close", this};
+            buttons->addStretch();
+            buttons->addWidget(save);
+            buttons->addWidget(copy);
+            buttons->addWidget(close);
+            column->addLayout(buttons);
+            for (size_t i = 0; i < points.size(); i++) {
+                auto * item = new QListWidgetItem{points[i].name, pointList};
+                item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+                item->setCheckState(i == currentIndex ? Qt::Checked : Qt::Unchecked);
+            }
+            QObject::connect(kind, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this] (int) { step->setEnabled(kind->currentIndex() == 1); fillRows(); });
+            QObject::connect(save, &QPushButton::clicked, this, [this] { save_(); });
+            QObject::connect(copy, &QPushButton::clicked, this, [this] { copy_(); });
+            QObject::connect(close, &QPushButton::clicked, this, &QDialog::accept);
+            fillRows();
+            fillDays();
+            resize(760, 520);
+        }
+
+    private:
+        QListWidget * addColumn(QHBoxLayout * lists, const char * title) {
+            auto * box = new QGroupBox{title, this};
+            auto * inner = new QVBoxLayout{box};
+            auto * list = new QListWidget{box};
+            list->setSelectionMode(QAbstractItemView::NoSelection);
+            auto * row = new QHBoxLayout;
+            auto * all = new QPushButton{"All", box};
+            auto * none = new QPushButton{"None", box};
+            const auto setAll = [list] (Qt::CheckState state) {
+                for (int i = 0; i < list->count(); i++) list->item(i)->setCheckState(state);
+            };
+            QObject::connect(all, &QPushButton::clicked, list, [setAll] { setAll(Qt::Checked); });
+            QObject::connect(none, &QPushButton::clicked, list, [setAll] { setAll(Qt::Unchecked); });
+            row->addWidget(all);
+            row->addWidget(none);
+            row->addStretch();
+            inner->addWidget(list, 1);
+            inner->addLayout(row);
+            lists->addWidget(box, 1);
+            return list;
+        }
+        const UtilityForecastPoint::Data * reference() const {
+            const auto& d = points[currentIndex].data;
+            return d ? d.get() : nullptr;
+        }
+        void addItem(QListWidget * list, const QString& text, const QVariant& value, bool checked) {
+            auto * item = new QListWidgetItem{text, list};
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+            item->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
+            item->setData(Qt::UserRole, value);
+        }
+        void fillRows() {
+            rowList->clear();
+            const auto * d = reference();
+            if (d == nullptr) {
+                return;
+            }
+            if (kind->currentIndex() == 0) {
+                std::vector<const Row *> shown;
+                for (const auto& row : rows()) shown.push_back(&row);
+                orderRows(shown);
+                for (const auto * row : shown) {
+                    bool any = false;
+                    for (const auto& day : d->days) any = any || has(day.*row->value);
+                    addItem(rowList, row->label, QString::fromStdString(row->label), any);
+                }
+            } else {
+                for (const auto& parameter : UtilityForecastPoint::parameters()) {
+                    if (d->hourly.count(parameter.key)) {
+                        addItem(rowList, QString{"%1, %2"}.arg(parameter.label, parameter.unit), QString{parameter.key}, true);
+                    }
+                }
+            }
+        }
+        void fillDays() {
+            dayList->clear();
+            if (const auto * d = reference()) {
+                for (const auto& day : d->days) {
+                    addItem(dayList, day.date.toString("dddd MMM d"), day.date.toJulianDay(), true);
+                }
+            }
+        }
+        static std::vector<QVariant> checked(const QListWidget * list) {
+            std::vector<QVariant> out;
+            for (int i = 0; i < list->count(); i++) {
+                if (list->item(i)->checkState() == Qt::Checked) out.push_back(list->item(i)->data(Qt::UserRole));
+            }
+            return out;
+        }
+        static QString field(QString text, bool csv) {
+            if (!csv) {
+                return text.replace('\t', ' ').replace('\n', ' ');
+            }
+            if (text.contains(',') || text.contains('"') || text.contains('\n')) {
+                text.replace('"', "\"\"");
+                return '"' + text + '"';
+            }
+            return text;
+        }
+        // fetch the points that were not loaded yet, a few at a time, with the window kept alive
+        bool gather() {
+            std::vector<size_t> wanted;
+            for (int i = 0; i < pointList->count(); i++) {
+                if (pointList->item(i)->checkState() == Qt::Checked) wanted.push_back(static_cast<size_t>(i));
+            }
+            if (wanted.empty()) {
+                status->setText("Tick at least one point.");
+                return false;
+            }
+            std::vector<std::pair<size_t, std::future<UtilityForecastPoint::Data>>> pending;
+            for (const auto i : wanted) {
+                if (!points[i].data) {
+                    const double lat = points[i].lat, lon = points[i].lon;
+                    pending.emplace_back(i, std::async(std::launch::async, [lat, lon] { return UtilityForecastPoint::fetch(lat, lon); }));
+                }
+            }
+            for (size_t n = 0; n < pending.size(); n++) {
+                status->setText(QString{"Reading the forecast of %1 (%2 of %3)..."}.arg(points[pending[n].first].name).arg(n + 1).arg(pending.size()));
+                while (pending[n].second.wait_for(std::chrono::milliseconds(40)) != std::future_status::ready) {
+                    QApplication::processEvents();
+                }
+                auto fetched = std::make_shared<UtilityForecastPoint::Data>(pending[n].second.get());
+                if (fetched->ok) points[pending[n].first].data = fetched;
+            }
+            status->clear();
+            return true;
+        }
+        QString build(bool csv) {
+            if (!gather()) {
+                return {};
+            }
+            const auto rowKeys = checked(rowList);
+            const auto dayKeys = checked(dayList);
+            if (rowKeys.empty() || dayKeys.empty()) {
+                status->setText("Tick at least one row and one day.");
+                return {};
+            }
+            std::vector<qint64> julian;
+            for (const auto& v : dayKeys) julian.push_back(v.toLongLong());
+            const auto sep = csv ? QString{","} : QString{"\t"};
+            const bool hourly = kind->currentIndex() == 1;
+            const bool wide = layout->currentIndex() == 0;
+            static const int steps[] = {1, 3, 6, 12};
+            const int every = steps[std::clamp(step->currentIndex(), 0, 3)];
+            const auto number = [] (double v) {   // two decimals at most, no trailing zeros
+                if (!has(v)) return QString{};
+                auto text = QString::number(v, 'f', 2);
+                while (text.contains('.') && (text.endsWith('0') || text.endsWith('.'))) text.chop(1);
+                return text;
+            };
+            QString out;
+            int count = 0;
+            for (int i = 0; i < pointList->count(); i++) {
+                if (pointList->item(i)->checkState() != Qt::Checked || !points[static_cast<size_t>(i)].data) continue;
+                const auto& d = *points[static_cast<size_t>(i)].data;
+                const bool several = pointList->count() > 0 && checked(pointList).size() > 1;
+                if (count++ > 0) out += "\n";
+                if (header->isChecked() || several) {
+                    out += field("# " + points[static_cast<size_t>(i)].name + "  " + d.place + " (NWS " + d.office + ", " + QString::number(d.lat, 'f', 3) + ", " + QString::number(d.lon, 'f', 3) + ")" +
+                                 (d.updated.isValid() ? ", forecast made " + d.updated.toTimeZone(d.zone).toString("yyyy-MM-dd HH:mm t") : QString{}), false) + "\n";
+                }
+                // the columns of the wide layout / the lines of the long one: a day, or an hour of a chosen day
+                struct Col { QString label; QDate date; qint64 time{0}; };
+                std::vector<Col> cols;
+                if (!hourly) {
+                    for (const auto& day : d.days) {
+                        if (std::find(julian.begin(), julian.end(), day.date.toJulianDay()) != julian.end()) cols.push_back({day.date.toString("yyyy-MM-dd"), day.date, 0});
+                    }
+                } else {
+                    for (const auto t : tableHours(d)) {
+                        const auto local = QDateTime::fromSecsSinceEpoch(t, d.zone);
+                        if (std::find(julian.begin(), julian.end(), local.date().toJulianDay()) != julian.end() && local.time().hour() % every == 0) {
+                            cols.push_back({local.toString("yyyy-MM-dd HH:mm"), local.date(), t});
+                        }
+                    }
+                }
+                // each row's label and a way to read its value in a column
+                struct RowOut { QString label; std::function<QString(const Col&)> value; };
+                std::vector<RowOut> rowsOut;
+                std::vector<std::map<qint64, double>> hourlyMaps;
+                for (const auto& key : rowKeys) {
+                    if (!hourly) {
+                        for (const auto& row : rows()) {
+                            if (QString::fromStdString(row.label) != key.toString()) continue;
+                            const auto member = row.value;
+                            rowsOut.push_back({QString::fromStdString(row.label), [&d, member, number] (const Col& c) {
+                                for (const auto& day : d.days) if (day.date == c.date) return number(day.*member);
+                                return QString{};
+                            }});
+                        }
+                    } else {
+                        for (const auto& parameter : UtilityForecastPoint::parameters()) {
+                            if (QString{parameter.key} != key.toString() || !d.hourly.count(parameter.key)) continue;
+                            auto map = std::make_shared<std::map<qint64, double>>();
+                            for (const auto& [t, v] : d.hourly.at(parameter.key)) (*map)[t] = v;
+                            rowsOut.push_back({QString{"%1, %2"}.arg(parameter.label, parameter.unit), [map, number] (const Col& c) {
+                                const auto found = map->find(c.time);
+                                return found == map->end() ? QString{} : number(found->second);
+                            }});
+                        }
+                    }
+                }
+                const QString first = hourly ? QString{"time (%1)"}.arg(QString::fromLatin1(d.zone.id())) : QString{"date"};
+                if (wide) {
+                    QStringList head{field(first, csv)};
+                    for (const auto& c : cols) head << field(c.label, csv);
+                    out += head.join(sep) + "\n";
+                    for (const auto& row : rowsOut) {
+                        QStringList line{field(row.label, csv)};
+                        for (const auto& c : cols) line << field(row.value(c), csv);
+                        out += line.join(sep) + "\n";
+                    }
+                } else {
+                    QStringList head{field(first, csv)};
+                    for (const auto& row : rowsOut) head << field(row.label, csv);
+                    out += head.join(sep) + "\n";
+                    for (const auto& c : cols) {
+                        QStringList line{field(c.label, csv)};
+                        for (const auto& row : rowsOut) line << field(row.value(c), csv);
+                        out += line.join(sep) + "\n";
+                    }
+                }
+            }
+            return out;
+        }
+        void save_() {
+            const auto text = build(true);
+            if (text.isEmpty()) {
+                return;
+            }
+            const auto target = QFileDialog::getSaveFileName(this, "Save the forecast points", "forecast_points.csv", "CSV files (*.csv)");
+            if (target.isEmpty()) {
+                return;
+            }
+            QFile file{target};
+            if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                QMessageBox::warning(this, "Export", "The file could not be written.");
+                return;
+            }
+            QTextStream out{&file};
+            out << text;
+            status->setText("Saved " + target);
+        }
+        void copy_() {
+            const auto text = build(false);
+            if (!text.isEmpty()) {
+                QApplication::clipboard()->setText(text);
+                status->setText("Copied: paste it into a spreadsheet.");
+            }
+        }
+        std::vector<ExportPoint> points;
+        size_t currentIndex;
+        QComboBox * kind;
+        QComboBox * layout;
+        QComboBox * step;
+        QCheckBox * header;
+        QListWidget * pointList;
+        QListWidget * rowList;
+        QListWidget * dayList;
+        QLabel * status;
+    };
+}
+
 void ForecastPointViewer::exportCsv() {
-    const auto target = QFileDialog::getSaveFileName(this, "Save the hourly table", QString{"forecast_%1.csv"}.arg(data->office), "CSV files (*.csv)");
-    if (target.isEmpty()) {
-        return;
-    }
-    QFile file{target};
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Hourly table", "The file could not be written.");
-        return;
-    }
-    QTextStream out{&file};
-    const auto hours = tableHours(*data);
-    out << "time (" << data->zone.id() << ")";
-    std::vector<const UtilityForecastPoint::Parameter *> shown;
-    for (const auto& parameter : UtilityForecastPoint::parameters()) {
-        if (data->hourly.count(parameter.key)) {
-            shown.push_back(&parameter);
-            out << "," << parameter.label << " (" << parameter.unit << ")";
+    std::vector<ExportPoint> points;
+    const auto names = Location::listOfNames();
+    size_t current = 0;
+    bool found = false;
+    for (size_t i = 0; i < savedPoints.size(); i++) {
+        ExportPoint point;
+        point.lat = savedPoints[i].first;
+        point.lon = savedPoints[i].second;
+        point.name = i < names.size() ? QString::fromStdString(names[i]) : data->place;
+        if (std::abs(point.lat - data->lat) < 0.01 && std::abs(point.lon - data->lon) < 0.01) {
+            point.data = data;
+            current = i;
+            found = true;
         }
+        points.push_back(point);
     }
-    out << "\n";
-    std::vector<std::map<qint64, double>> maps;
-    for (const auto * parameter : shown) {
-        std::map<qint64, double> byHour;
-        for (const auto& [t, v] : data->hourly.at(parameter->key)) {
-            byHour[t] = v;
-        }
-        maps.push_back(std::move(byHour));
+    if (!found) {
+        points.push_back({data->place, data->lat, data->lon, data});
+        current = points.size() - 1;
     }
-    for (const auto t : hours) {
-        out << QDateTime::fromSecsSinceEpoch(t, data->zone).toString("yyyy-MM-dd HH:mm");
-        for (const auto& byHour : maps) {
-            const auto found = byHour.find(t);
-            out << "," << (found == byHour.end() ? QString{} : QString::number(found->second, 'f', 2));
-        }
-        out << "\n";
-    }
+    ExportDialog dialog{this, std::move(points), current};
+    dialog.exec();
 }
