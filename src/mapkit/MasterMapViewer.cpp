@@ -39,7 +39,7 @@ namespace {
     }
 }
 
-MasterMapViewer::MasterMapViewer(Window * parent)
+MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     : Window{parent}
     , comboView{this, {"Your layers"}}
     , buttonRefresh{this, None, "Refresh layers"}
@@ -179,7 +179,7 @@ MasterMapViewer::MasterMapViewer(Window * parent)
     }
     building = false;
     // development aid (run with QT_QPA_PLATFORM=offscreen, see main.cpp): WXQT_MAPVIEW=<the start of a view's name> picks that view, as the box does
-    if (const auto wanted = qEnvironmentVariable("WXQT_MAPVIEW").toStdString(); !wanted.empty()) {
+    if (const auto wanted = startView.empty() ? qEnvironmentVariable("WXQT_MAPVIEW").toStdString() : startView; !wanted.empty()) {
         const auto& all = MapCatalog::presets();
         for (size_t i = 0; i < all.size(); i++) {
             if (all[i].name.compare(0, wanted.size(), wanted) == 0) {

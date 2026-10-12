@@ -140,6 +140,10 @@ public:
     // The large ensemble's cyclogenesis file (1000 members, about 37 MB): the clusters of members that form a storm that does not exist yet. Read in place, kept only as the points.
     static bool loadWeatherLabGenesis(vector<UtilityWeatherLab::Genesis>& clusters, int& members, string& cycle, string& error);
     static bool loadWeatherLabModel(const string& folder, vector<UtilityEcmwfTracks::Storm>& storms, string& cycle, string& error);
+    // every storm in the newest ECMWF open-data track file of a model / stream ("aifs-ens" / "enfo", "ifs" / "enfo", ...); false with an empty error when no run is posted
+    static bool loadEcmwfModel(const string& model, const string& stream, vector<UtilityEcmwfTracks::Storm>& storms, string& cycle, string& error);
+    // NOAA's GEFS for every active system and invest of the NHC basins (ATCF AP01..AP30 and AC00 of each); storm.name is the NHC id ("al092026")
+    static bool loadGefsAll(vector<UtilityEcmwfTracks::Storm>& storms, string& cycle, string& error);
     // NOAA's GEFS members (ATCF AP01..AP30, control AC00) from the guidance already loaded, in the same shape as the ECMWF sets
     static bool gefsFromGuidance(const string& stormId, const vector<UtilityAtcf::Track>& guidance, EnsembleSet& set);
     static void loadShips(const string& nhcId, ShipsData& data);   // NHC's SHIPS text for the newest cycle

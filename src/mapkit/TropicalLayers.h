@@ -138,6 +138,52 @@ private:
     MapHost * hostPointer{nullptr};
 };
 
+// The ensembles' raw tracks, every member of every system and every forecast hour, whether or not a storm has a name or a screen of its own: NOAA's GEFS (the systems NHC has files for), ECMWF's
+// IFS and AIFS ensembles, and DeepMind's FNV3 and WeatherNext 3 for the whole world. Colored by model, by forecast hour or by the wind of the member there.
+class EnsembleSpaghettiLayer : public MapLayer {
+public:
+    string id() const override { return "tropical/spaghetti"; }
+    string path() const override { return "Tropical/Raw ensemble spaghetti: every member, every system, every forecast hour"; }
+    string source() const override { return "NOAA / NHC ATCF (GEFS), ECMWF open data (CC BY 4.0), Google DeepMind Weather Lab. " + EnsembleStyle::deepMindCredit(); }
+    string tip() const override { return "All the members of GEFS, the ECMWF IFS and AIFS ensembles and DeepMind's FNV3 / WeatherNext 3, for every system they track (named or not), colored by model, forecast hour or wind. Hover a line for the member and hour; click a storm of the Atlantic or Pacific for its screen"; }
+    int order() const override { return 73; }
+    int refreshSeconds() const override { return 3600; }
+    void refresh(MapHost&) override;
+    void paint(QPainter&, MapHost&) override;
+    MapHit pick(const QPointF&, MapHost&) const override;
+    vector<MapLegendRow> legend() const override;
+    QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
+    string summary() const override;
+
+protected:
+    void onEnable(MapHost& host) override {
+        hostPointer = &host;
+        refresh(host);
+    }
+
+private:
+    struct Run {
+        string label;
+        string cycle;
+        vector<UtilityEcmwfTracks::Storm> storms;
+        vector<vector<UtilityEnsembleStats::Hour>> means;
+    };
+    static constexpr int modelCount = 5;
+    static int modelIndex(const string& label);
+    int limitHours() const;
+    QColor colorOf(const Run& run, int hour, double wind) const;
+    bool loading{false};
+    string error;
+    std::shared_ptr<vector<Run>> runs;
+    bool showModel[modelCount]{true, true, true, true, true};   // GEFS, IFS ENS, AIFS ENS, FNV3, WNV3
+    bool showMembers{true};
+    bool showMean{true};
+    bool showDays{false};
+    int colorMode{0};      // 0 model, 1 forecast hour, 2 wind
+    int hoursChoice{0};
+    MapHost * hostPointer{nullptr};
+};
+
 // DeepMind's large (1000 member) ensemble: where storms that do not exist yet may form, and how many members form them. One point per member that forms the storm, one cluster per
 // possible storm, labelled with the share of the members. The file is large (about 37 MB), so it is read only when this layer is on.
 class DeepMindGenesisLayer : public MapLayer {

@@ -369,6 +369,71 @@ bool HurricaneData::loadWeatherLabGenesis(vector<UtilityWeatherLab::Genesis>& cl
     return false;
 }
 
+// ECMWF open data: the newest of the last five cycles that has a track file (the run is posted about seven hours after its time), every storm in it. error stays empty when there is no file.
+bool HurricaneData::loadEcmwfModel(const string& model, const string& stream, vector<UtilityEcmwfTracks::Storm>& storms, string& cycle, string& error) {
+    storms.clear();
+    cycle.clear();
+    error.clear();
+    const auto now = QDateTime::currentDateTimeUtc();
+    string bytes;
+    for (int back = 0; back < 5 && bytes.empty(); back++) {
+        const auto time = now.addSecs(-static_cast<qint64>(back) * 6 * 3600);
+        const int hour = time.time().hour() / 6 * 6;
+        char day[16];
+        std::snprintf(day, sizeof day, "%04d%02d%02d", time.date().year(), time.date().month(), time.date().day());
+        char hh[8];
+        std::snprintf(hh, sizeof hh, "%02d", hour);
+        for (const int steps : {360, 144}) {
+            // the open data is replicated on Google Cloud (about ten times quicker to answer than ECMWF's own server, which limits its connections); URL.cpp falls back to ECMWF's when Google does not answer
+            const string url = string{"https://storage.googleapis.com/ecmwf-open-data/"} + day + "/" + hh + "z/" + model + "/0p25/" + stream + "/" + day + hh +
+                "0000-" + std::to_string(steps) + "h-" + stream + "-tf.bufr";
+            bytes = cachedDownload(url);
+            if (!bytes.empty()) {
+                cycle = string{day} + hh;
+                break;
+            }
+        }
+    }
+    if (bytes.empty()) {
+        return false;
+    }
+    return UtilityEcmwfTracks::parse(bytes, storms, error);
+}
+
+// NOAA's GEFS for every system NHC has a file for in the last two days (named storms and invests of the Atlantic, East and Central Pacific): all members, in the shape of the ECMWF ensembles
+bool HurricaneData::loadGefsAll(vector<UtilityEcmwfTracks::Storm>& storms, string& cycle, string& error) {
+    storms.clear();
+    cycle.clear();
+    for (const string basin : {"al", "ep", "cp"}) {
+        vector<StormEntry> entries;
+        string listError;
+        if (!loadStormList(entries, listError, basin)) {
+            continue;
+        }
+        for (const auto& entry : entries) {
+            if (!entry.active) {
+                continue;
+            }
+            StormData data;
+            loadStorm(entry.id, data);
+            EnsembleSet set;
+            if (!gefsFromGuidance(entry.id, data.guidance, set)) {
+                continue;
+            }
+            set.storm.name = entry.id;   // the NHC id: the map opens the storm's screen from it
+            if (cycle.empty() || set.cycle > cycle) {
+                cycle = set.cycle;
+            }
+            storms.push_back(std::move(set.storm));
+        }
+    }
+    if (storms.empty()) {
+        error = "NHC has no GEFS tracks for an active system right now.";
+        return false;
+    }
+    return true;
+}
+
 void HurricaneData::loadEnsembles(const string& nhcId, EnsembleData& data) {
     data = EnsembleData{};
     struct Model {
@@ -378,36 +443,13 @@ void HurricaneData::loadEnsembles(const string& nhcId, EnsembleData& data) {
     };
     static const Model models[] = {{"AIFS ENS", "aifs-ens", "enfo"}, {"IFS ENS", "ifs", "enfo"}, {"AIFS", "aifs-single", "oper"}, {"IFS HRES", "ifs", "oper"}};
     const auto id = ecmwfId(nhcId);
-    const auto now = QDateTime::currentDateTimeUtc();
-    // the newest of the last five cycles that has a track file (the run is posted about seven hours after its time)
     for (const auto& model : models) {
-        string bytes;
-        string cycle;
-        for (int back = 0; back < 5 && bytes.empty(); back++) {
-            const auto time = now.addSecs(-static_cast<qint64>(back) * 6 * 3600);
-            const int hour = time.time().hour() / 6 * 6;
-            char day[16];
-            std::snprintf(day, sizeof day, "%04d%02d%02d", time.date().year(), time.date().month(), time.date().day());
-            char hh[8];
-            std::snprintf(hh, sizeof hh, "%02d", hour);
-            for (const int steps : {360, 144}) {
-                // the open data is replicated on Google Cloud (about ten times quicker to answer than ECMWF's own server, which limits its connections); URL.cpp falls back to ECMWF's when Google does not answer
-                const string url = string{"https://storage.googleapis.com/ecmwf-open-data/"} + day + "/" + hh + "z/" + model.model + "/0p25/" + model.stream + "/" + day + hh +
-                    "0000-" + std::to_string(steps) + "h-" + model.stream + "-tf.bufr";
-                bytes = cachedDownload(url);
-                if (!bytes.empty()) {
-                    cycle = string{day} + hh;
-                    break;
-                }
-            }
-        }
-        if (bytes.empty()) {
-            continue;
-        }
         vector<UtilityEcmwfTracks::Storm> storms;
-        string error;
-        if (!UtilityEcmwfTracks::parse(bytes, storms, error)) {
-            data.error = string{model.label} + ": " + error;
+        string cycle, error;
+        if (!loadEcmwfModel(model.model, model.stream, storms, cycle, error)) {
+            if (!error.empty()) {
+                data.error = string{model.label} + ": " + error;
+            }
             continue;
         }
         for (auto& storm : storms) {

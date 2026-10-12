@@ -36,7 +36,8 @@ using std::vector;
 // region (the old Rivers, Tropical and Surface observation screens as presets). What is on is remembered.
 class MasterMapViewer : public Window, private MapHost {
 public:
-    explicit MasterMapViewer(Window * parent);
+    // startView: the start of a saved view's name to open with (empty: what was on last time)
+    explicit MasterMapViewer(Window * parent, const string& startView = {});
 
 private:
     // MapHost

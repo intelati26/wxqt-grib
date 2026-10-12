@@ -118,6 +118,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("opc.png", "Ocean Prediction Center", [this] { launchOpc(); });
     routeItems.emplace_back("opc.png", "Climate and ocean: sea surface temperature and anomaly, El Niño / La Niña, cycles", [parent] { new ClimateViewer{parent}; });
     routeItems.emplace_back("tropstorm.png", "Tropical cyclones (Atlantic, East and Central Pacific): track, model guidance (spaghetti) and recon flights", [parent] { new HurricaneViewer{parent}; });
+    routeItems.emplace_back("tropical_storm.png", "Raw ensemble spaghetti: every member and forecast hour of GEFS, ECMWF IFS / AIFS and DeepMind, for every system (named or not)", [parent] { new MasterMapViewer{parent, "Raw ensemble spaghetti: every"}; });
     routeItems.emplace_back("hurricane.png", "Tropical Hub: active storms, outlook, recon plan, season", [parent] { Dashboards::openTropicalHub(parent); });
     routeItems.emplace_back("goes16.png", "Space weather: storm scales, Kp, flares, solar wind, aurora, sun", [parent] { Dashboards::openSpaceWeather(parent); });
     routeItems.emplace_back("twtornado.png", "Tornado history: SPC tornado tracks since 1950 by year, rating, state and area; counts by day, week, month, year and decade", [parent] { Dashboards::openTornadoHistory(parent); });

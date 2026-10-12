@@ -676,6 +676,366 @@ QWidget * DeepMindLayer::options(QWidget * parent, const std::function<void()>& 
     return widget;
 }
 
+// ---- raw ensemble spaghetti ----
+
+int EnsembleSpaghettiLayer::modelIndex(const string& label) {
+    static const char * labels[modelCount] = {"GEFS", "IFS ENS", "AIFS ENS", "DeepMind FNV3", "DeepMind WNV3"};
+    for (int i = 0; i < modelCount; i++) {
+        if (label == labels[i]) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int EnsembleSpaghettiLayer::limitHours() const {
+    static const int hours[] = {10000, 240, 168, 120, 72, 48, 24};
+    return hours[std::clamp(hoursChoice, 0, 6)];
+}
+
+string EnsembleSpaghettiLayer::summary() const {
+    if (loading && !runs) return "reading the ensembles' tracks (GEFS, ECMWF, DeepMind)...";
+    if (!runs) return error;
+    string text;
+    for (const auto& run : *runs) {
+        size_t members = 0;
+        for (const auto& storm : run.storms) members += storm.members.size();
+        text += (text.empty() ? "" : "; ") + run.label + " " + (run.cycle.size() == 10 ? run.cycle.substr(8, 2) + "z" : string{}) + ": " + std::to_string(run.storms.size()) + " systems, " + std::to_string(members) + " tracks";
+    }
+    return text.empty() ? error : text;
+}
+
+void EnsembleSpaghettiLayer::refresh(MapHost& host) {
+    if (loading) {
+        return;
+    }
+    loading = true;
+    auto fresh = std::make_shared<vector<Run>>();
+    auto message = std::make_shared<string>();
+    host.background(
+        [fresh, message] {
+            const auto add = [&] (Run run) {
+                for (const auto& storm : run.storms) {
+                    vector<UtilityEnsembleStats::Hour> mean;
+                    for (const auto& hour : UtilityEnsembleStats::compute(storm, 6)) {
+                        if (hour.alive * 2 < hour.total || hour.centerLat <= UtilityEnsembleStats::missing + 1.0) {
+                            break;
+                        }
+                        mean.push_back(hour);
+                    }
+                    run.means.push_back(std::move(mean));
+                }
+                fresh->push_back(std::move(run));
+            };
+            {
+                Run run;
+                string e;
+                run.label = "GEFS";
+                if (HurricaneData::loadGefsAll(run.storms, run.cycle, e)) add(std::move(run)); else *message = e;
+            }
+            struct Ecmwf { const char * label; const char * model; const char * stream; };
+            for (const auto& m : {Ecmwf{"IFS ENS", "ifs", "enfo"}, Ecmwf{"AIFS ENS", "aifs-ens", "enfo"}}) {
+                Run run;
+                string e;
+                run.label = m.label;
+                if (HurricaneData::loadEcmwfModel(m.model, m.stream, run.storms, run.cycle, e)) add(std::move(run)); else if (!e.empty()) *message = string{m.label} + ": " + e;
+            }
+            for (const auto& model : UtilityWeatherLab::models()) {
+                Run run;
+                string e;
+                run.label = model.label;
+                if (HurricaneData::loadWeatherLabModel(model.folder, run.storms, run.cycle, e)) add(std::move(run)); else *message = e;
+            }
+        },
+        [this, &host, fresh, message] {
+            loading = false;
+            runs = fresh;
+            error = fresh->empty() ? (message->empty() ? "no ensemble tracks were found" : *message) : string{};
+            host.redraw();
+        });
+}
+
+QColor EnsembleSpaghettiLayer::colorOf(const Run& run, int hour, double wind) const {
+    if (colorMode == 1) {
+        return QColor::fromHsvF(0.78 * (1.0 - std::min(hour, 240) / 240.0), 0.9, 0.95);
+    }
+    if (colorMode == 2) {
+        return UtilityEcmwfTracks::has(wind) ? categoryColor(static_cast<int>(std::lround(wind))) : QColor{150, 150, 150};
+    }
+    static const QColor colors[modelCount] = {QColor{70, 150, 255}, QColor{255, 140, 30}, QColor{40, 255, 170}, QColor{214, 110, 255}, QColor{255, 110, 180}};
+    const int index = modelIndex(run.label);
+    return index >= 0 ? colors[index] : QColor{200, 200, 200};
+}
+
+void EnsembleSpaghettiLayer::paint(QPainter& painter, MapHost& host) {
+    if (!runs) {
+        return;
+    }
+    const auto t = host.view().transform();
+    const double px = host.view().unitsPerPixel();
+    QFont font{painter.font()};
+    font.setPixelSize(static_cast<int>(11 * px));
+    font.setBold(true);
+    painter.setFont(font);
+    const int limit = limitHours();
+    painter.setBrush(Qt::NoBrush);
+    if (showMembers) {
+        for (const auto& run : *runs) {
+            const int index = modelIndex(run.label);
+            if (index < 0 || !showModel[index]) {
+                continue;
+            }
+            for (const auto& storm : run.storms) {
+                for (const auto& m : storm.members) {
+                    if (colorMode == 0) {   // one path per member
+                        QColor color = colorOf(run, 0, 0.0);
+                        color.setAlpha(110);
+                        painter.setPen(QPen{color, 1.1 * px});
+                        QPainterPath path;
+                        bool started = false;
+                        double lastLon = 0.0;
+                        for (const auto& s : m.steps) {
+                            if (s.hour > limit) break;
+                            if (!UtilityEcmwfTracks::has(s.lat) || !UtilityEcmwfTracks::has(s.lon)) { started = false; continue; }
+                            if (started && std::abs(s.lon - lastLon) > 180.0) started = false;
+                            const auto p = t(s.lat, s.lon);
+                            started ? path.lineTo(p) : path.moveTo(p);
+                            started = true;
+                            lastLon = s.lon;
+                        }
+                        painter.drawPath(path);
+                    } else {                // a segment at a time, colored by its hour or its wind
+                        const UtilityEcmwfTracks::Step * before = nullptr;
+                        for (const auto& s : m.steps) {
+                            if (s.hour > limit) break;
+                            if (!UtilityEcmwfTracks::has(s.lat) || !UtilityEcmwfTracks::has(s.lon)) { before = nullptr; continue; }
+                            if (before != nullptr && std::abs(s.lon - before->lon) < 180.0) {
+                                QColor color = colorOf(run, s.hour, s.wind);
+                                color.setAlpha(150);
+                                painter.setPen(QPen{color, 1.3 * px});
+                                painter.drawLine(t(before->lat, before->lon), t(s.lat, s.lon));
+                            }
+                            before = &s;
+                        }
+                    }
+                    if (showDays) {   // a dot at each whole day of the member
+                        for (const auto& s : m.steps) {
+                            if (s.hour > limit) break;
+                            if (s.hour == 0 || s.hour % 24 != 0 || !UtilityEcmwfTracks::has(s.lat) || !UtilityEcmwfTracks::has(s.lon)) continue;
+                            QColor color = colorOf(run, s.hour, s.wind);
+                            color.setAlpha(210);
+                            painter.setPen(Qt::NoPen);
+                            painter.setBrush(color);
+                            painter.drawEllipse(t(s.lat, s.lon), 1.7 * px, 1.7 * px);
+                        }
+                        painter.setBrush(Qt::NoBrush);
+                    }
+                }
+            }
+        }
+    }
+    if (!showMean) {
+        return;
+    }
+    for (const auto& run : *runs) {
+        const int index = modelIndex(run.label);
+        if (index < 0 || !showModel[index]) {
+            continue;
+        }
+        QColor color = colorOf(run, 0, 0.0);
+        if (colorMode != 0) {
+            color = QColor{255, 255, 255};
+        }
+        for (size_t i = 0; i < run.storms.size(); i++) {
+            const auto& hours = run.means[i];
+            if (hours.size() < 2) {
+                continue;
+            }
+            QPainterPath path;
+            bool started = false;
+            double lastLon = 0.0;
+            for (const auto& h : hours) {
+                if (h.hour > limit) break;
+                if (started && std::abs(h.centerLon - lastLon) > 180.0) started = false;
+                const auto p = t(h.centerLat, h.centerLon);
+                started ? path.lineTo(p) : path.moveTo(p);
+                started = true;
+                lastLon = h.centerLon;
+            }
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen{QColor{0, 0, 0, 170}, 3.6 * px});
+            painter.drawPath(path);
+            painter.setPen(QPen{color, 2.0 * px});
+            painter.drawPath(path);
+            const auto& first = hours.front();
+            const auto p = t(first.centerLat, first.centerLon);
+            painter.setPen(QPen{QColor{0, 0, 0, 220}, 1.0 * px});
+            painter.setBrush(color);
+            painter.drawEllipse(p, 4.0 * px, 4.0 * px);
+        }
+    }
+    // one label for each system, from the first model that has it
+    std::vector<string> labelled;
+    for (const auto& run : *runs) {
+        const int index = modelIndex(run.label);
+        if (index < 0 || !showModel[index]) {
+            continue;
+        }
+        for (size_t i = 0; i < run.storms.size(); i++) {
+            const auto& hours = run.means[i];
+            const string name = run.storms[i].id;
+            if (hours.empty() || std::find(labelled.begin(), labelled.end(), name) != labelled.end()) {
+                continue;
+            }
+            labelled.push_back(name);
+            const auto p = t(hours.front().centerLat, hours.front().centerLon);
+            painter.setPen(QColor{255, 255, 255});
+            painter.drawText(p + QPointF{7 * px, -6 * px}, QString::fromStdString(name));
+        }
+    }
+}
+
+MapHit EnsembleSpaghettiLayer::pick(const QPointF& pixels, MapHost& host) const {
+    MapHit best;
+    best.reach = 12.0;
+    best.priority = 5;
+    if (!runs) {
+        return best;
+    }
+    const int limit = limitHours();
+    const auto consider = [&] (const Run& run, const UtilityEcmwfTracks::Storm& storm, int hour, double lat, double lon, const string& what) {
+        const auto p = host.view().toPixels(lat, lon);
+        const double d = std::hypot(p.x() - pixels.x(), p.y() - pixels.y());
+        if (d >= best.distance) {
+            return;
+        }
+        best.distance = d;
+        best.text = QString::fromStdString(run.label + " " + (run.cycle.size() == 10 ? run.cycle.substr(8, 2) + "z" : string{}) + "   system " + storm.id + "\n+" + std::to_string(hour) + " h  " + what);
+        // the screen of a storm of the NHC basins: the NHC id when the file has it, else the number and the basin letter of the short id
+        string nhc;
+        string lower = storm.name;
+        std::transform(lower.begin(), lower.end(), lower.begin(), [] (unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (lower.size() == 8 && std::isalpha(static_cast<unsigned char>(lower[0])) && std::isdigit(static_cast<unsigned char>(lower[2]))) {
+            nhc = lower;
+        } else if (storm.id.size() == 3 && run.cycle.size() == 10) {
+            const char letter = storm.id[2];
+            const string basin = letter == 'L' ? "al" : letter == 'E' ? "ep" : letter == 'C' ? "cp" : "";
+            if (!basin.empty()) {
+                nhc = basin + storm.id.substr(0, 2) + run.cycle.substr(0, 4);
+            }
+        }
+        const string basin = nhc.size() >= 2 ? nhc.substr(0, 2) : string{};
+        if (basin == "al" || basin == "ep" || basin == "cp") {
+            best.open = [basin, nhc] (Window * window) { new HurricaneViewer{window, basin, nhc}; };
+        } else {
+            best.open = nullptr;
+        }
+    };
+    for (const auto& run : *runs) {
+        const int index = modelIndex(run.label);
+        if (index < 0 || !showModel[index]) {
+            continue;
+        }
+        for (size_t i = 0; i < run.storms.size(); i++) {
+            const auto& storm = run.storms[i];
+            if (showMembers) {
+                for (const auto& m : storm.members) {
+                    for (const auto& s : m.steps) {
+                        if (s.hour > limit) break;
+                        if (!UtilityEcmwfTracks::has(s.lat) || !UtilityEcmwfTracks::has(s.lon)) continue;
+                        string what = "member " + std::to_string(m.number);
+                        if (UtilityEcmwfTracks::has(s.wind)) what += ", " + std::to_string(std::lround(s.wind)) + " kt";
+                        if (UtilityEcmwfTracks::has(s.pressure)) what += ", " + std::to_string(std::lround(s.pressure)) + " mb";
+                        consider(run, storm, s.hour, s.lat, s.lon, what);
+                    }
+                }
+            }
+            if (showMean) {
+                for (const auto& h : run.means[i]) {
+                    if (h.hour > limit) break;
+                    string what = "mean of " + std::to_string(h.alive) + " of " + std::to_string(h.total) + " members still a cyclone";
+                    if (h.windMedian > UtilityEnsembleStats::missing + 1.0) what += ", median " + std::to_string(std::lround(h.windMedian)) + " kt (" + std::to_string(std::lround(h.wind10)) + " to " + std::to_string(std::lround(h.wind90)) + ")";
+                    consider(run, storm, h.hour, h.centerLat, h.centerLon, what);
+                }
+            }
+        }
+    }
+    return best;
+}
+
+vector<MapLegendRow> EnsembleSpaghettiLayer::legend() const {
+    vector<MapLegendRow> rows;
+    MapLegendRow row;
+    if (colorMode == 0) {
+        row.title = "Ensemble tracks (each line a member):";
+        static const char * labels[modelCount] = {"GEFS (NOAA)", "IFS ENS (ECMWF)", "AIFS ENS (ECMWF)", "DeepMind FNV3", "DeepMind WNV3"};
+        static const QColor colors[modelCount] = {QColor{70, 150, 255}, QColor{255, 140, 30}, QColor{40, 255, 170}, QColor{214, 110, 255}, QColor{255, 110, 180}};
+        for (int i = 0; i < modelCount; i++) {
+            if (showModel[i]) row.entries.push_back({MapLegendEntry::Line, colors[i], labels[i]});
+        }
+    } else if (colorMode == 1) {
+        row.title = "Forecast hour:";
+        for (const int hour : {0, 48, 96, 144, 192, 240}) {
+            row.entries.push_back({MapLegendEntry::Line, QColor::fromHsvF(0.78 * (1.0 - hour / 240.0), 0.9, 0.95), QString::number(hour) + " h"});
+        }
+    } else {
+        row.title = "Wind of the member (kt):";
+        for (const auto& [wind, label] : {std::pair<int, const char *>{20, "<34"}, {40, "34-63"}, {70, "64-82"}, {90, "83-95"}, {100, "96-112"}, {120, "113-136"}, {150, "137+"}}) {
+            row.entries.push_back({MapLegendEntry::Line, categoryColor(wind), label});
+        }
+    }
+    if (showMean) {
+        row.entries.push_back({MapLegendEntry::Line, QColor{255, 255, 255}, "mean (thick)"});
+    }
+    rows.push_back(row);
+    if (showModel[3] || showModel[4]) {
+        MapLegendRow credit;
+        credit.title = "(c) 2024-6 Google LLC, DeepMind Weather Lab (experimental; not for real world use)";
+        rows.push_back(credit);
+    }
+    return rows;
+}
+
+QWidget * EnsembleSpaghettiLayer::options(QWidget * parent, const std::function<void()>& changed) {
+    auto * widget = new QWidget{parent};
+    auto * layout = new QVBoxLayout{widget};
+    layout->setContentsMargins(0, 0, 0, 0);
+    const auto check = [&] (const char * label, bool& value) {
+        auto * c = new QCheckBox{label, widget};
+        c->setChecked(value);
+        QObject::connect(c, &QCheckBox::toggled, [&value, changed] (bool on) { value = on; changed(); });
+        layout->addWidget(c);
+    };
+    check("GEFS (31 members, NHC's systems)", showModel[0]);
+    check("ECMWF IFS ENS (51)", showModel[1]);
+    check("ECMWF AIFS ENS (51)", showModel[2]);
+    check("DeepMind FNV3 (50)", showModel[3]);
+    check("DeepMind WeatherNext 3 (64, experimental)", showModel[4]);
+    check("Each member's track", showMembers);
+    check("A dot for each day of a member", showDays);
+    check("Ensemble mean", showMean);
+    layout->addWidget(new QLabel{"Colored by:", widget});
+    auto * colors = new QComboBox{widget};
+    colors->addItems({"Model", "Forecast hour", "Wind of the member"});
+    colors->setCurrentIndex(colorMode);
+    QObject::connect(colors, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { colorMode = index; changed(); });
+    layout->addWidget(colors);
+    layout->addWidget(new QLabel{"Forecast shown:", widget});
+    auto * combo = new QComboBox{widget};
+    combo->addItems({"All of it", "10 days", "7 days", "5 days", "3 days", "2 days", "1 day"});
+    combo->setCurrentIndex(hoursChoice);
+    QObject::connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { hoursChoice = index; changed(); });
+    layout->addWidget(combo);
+    auto * only = new QPushButton{"Show only this layer", widget};
+    QObject::connect(only, &QPushButton::clicked, [this] {
+        if (hostPointer != nullptr) {
+            hostPointer->onlyLayer(id());
+        }
+    });
+    layout->addWidget(only);
+    return widget;
+}
+
 // ---- DeepMind: where new storms may form ----
 
 namespace {

@@ -28,6 +28,7 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     layers.push_back(std::make_unique<ActiveStormsLayer>());
     layers.push_back(std::make_unique<DeepMindLayer>());
     layers.push_back(std::make_unique<DeepMindGenesisLayer>());
+    layers.push_back(std::make_unique<EnsembleSpaghettiLayer>());
     layers.push_back(std::make_unique<OutlookLayer>());
     layers.push_back(std::make_unique<WindProbabilityLayer>());
     layers.push_back(std::make_unique<ForecastPointLayer>());
@@ -42,6 +43,8 @@ const vector<MapCatalog::Preset>& MapCatalog::presets() {
         {"Rivers and water (United States)", {"rivers/gauges", "rivers/dams", "rivers/buoys"}, 20.0, 55.0, -127.0, -65.0},
         {"DeepMind Weather Lab: every cyclone in the world", {"tropical/deepmind"}, -50.0, 55.0, -180.0, 180.0},
         {"DeepMind: where new storms may form", {"tropical/deepmind", "tropical/deepmind-genesis"}, -50.0, 55.0, -180.0, 180.0},
+        {"Raw ensemble spaghetti: every member of every system (world)", {"tropical/spaghetti"}, -50.0, 55.0, -180.0, 180.0},
+        {"Raw ensemble spaghetti (Atlantic)", {"tropical/spaghetti", "tropical/storms"}, 5.0, 50.0, -100.0, -10.0},
         {"DeepMind and NHC (Atlantic)", {"tropical/deepmind", "tropical/storms"}, 5.0, 50.0, -100.0, -10.0},
         {"Tropical Atlantic", {"tropical/storms", "tropical/outlook", "tropical/windprob", "rivers/buoys"}, 5.0, 50.0, -100.0, -10.0},
         {"Tropical East Pacific", {"tropical/storms", "tropical/outlook", "tropical/windprob", "rivers/buoys"}, 0.0, 40.0, -150.0, -80.0},
