@@ -18,8 +18,11 @@ label = NASA GMAO GEOS-FP 0.25 degree
 kind = netcdf
 # the directory is the run; the file name has the run, then the time the average is for (stamped half an hour after the hour it begins); `+` is %2B in a url
 url = https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y{year}/M{month}/D{day}/H{cycle}/GEOS.fp.fcst.{file}.{date}_{cycle}%2B{valid}.V01.nc4
+file = when level="aerosol" => tavg3_2d_aer_Nx
 file = tavg1_2d_slv_Nx
 valid_offset = 30
+# the 3 hour aerosol averages are stamped in the middle of their period: the one that ends at forecast hour 3 of the 12Z run is 13:30
+valid_offset_file = tavg3_2d_aer_Nx:-90
 # the NOAA names the charts use -> this file's names
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => H{mb}
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => T{mb}

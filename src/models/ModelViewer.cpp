@@ -850,7 +850,7 @@ void ModelViewer::applyMainRunRule() {
                     comboboxTime.setIndex(i);
                     comboboxTime.unblock();
                     objectModel.setTimeIdx(i);
-                    QString every = QString{"every %1th forecast hour"}.arg(period);
+                    QString every = QString{"every %1 hours"}.arg(period);
                     if (endHour >= 0) {
                         every = QString{"the forecast hours that end at %1Z (every %2 hours)"}.arg(endHour, 2, 10, QChar{'0'}).arg(24);
                     }

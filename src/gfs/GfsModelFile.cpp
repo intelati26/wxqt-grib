@@ -76,6 +76,7 @@ namespace {
         std::vector<std::pair<std::string, double>> scales;           // variable -> factor
         std::vector<std::pair<std::string, double>> offsets;          // variable -> amount added after the factor (Kelvin to degrees C)
         std::vector<Rule> variables;                                  // `nc_variable` rules: a NetCDF file's name for a want
+        std::map<std::string, int> validOffsetByFile;                 // `valid_offset_file` FILE:minutes: a collection stamped differently (a 3 hour average is stamped in the middle of its period)
         int validOffsetMinutes{0};                                    // {valid} is the run's time plus the hour plus this (a time average is stamped half an hour after)
         std::vector<std::pair<std::string, std::pair<int, int>>> members;   // "p01".."p20" -> bands, kept as expanded names
         std::map<std::string, int> memberBand;
@@ -138,7 +139,9 @@ namespace {
         if (url.find("{valid") != std::string::npos) {   // the time the file is for: the run's time, the hour and the offset
             auto t = QDateTime::fromString(QString::fromStdString(run.date + run.cycle), "yyyyMMddHH");
             t.setTimeSpec(Qt::UTC);
-            t = t.addSecs(static_cast<qint64>(hour) * 3600 + static_cast<qint64>(d.validOffsetMinutes) * 60);
+            const auto own = d.validOffsetByFile.find(alt);
+            const int offset = own != d.validOffsetByFile.end() ? own->second : d.validOffsetMinutes;
+            t = t.addSecs(static_cast<qint64>(hour) * 3600 + static_cast<qint64>(offset) * 60);
             replaceAll(url, "{valid_date}", t.toString("yyyyMMdd").toStdString());
             replaceAll(url, "{valid_hour2}", t.toString("HH").toStdString());
             replaceAll(url, "{valid_minute2}", t.toString("mm").toStdString());
@@ -440,6 +443,13 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
                 break;
             }
             definition->validOffsetMinutes = n;
+        } else if (key == "valid_offset_file") {
+            const auto colon = value.find(':');
+            if (colon == std::string::npos || !toInt(value.substr(colon + 1), n)) {
+                reader.fail("valid_offset_file is FILE:minutes");
+                break;
+            }
+            definition->validOffsetByFile[value.substr(0, colon)] = n;
         } else if (key == "subset_url") {
             definition->subsetUrl = value;
         } else if (key == "subset_variable") {

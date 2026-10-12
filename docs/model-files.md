@@ -24,6 +24,7 @@ Lines are `key = value`; `#` at the start of a line is a comment. Values with sp
 | `member` | members of a `whole` file as bands: `c00:1, p01-p20:2-21` |
 | `value_scale`, `value_offset` | `VARIABLE:factor, ...` and `VARIABLE:amount, ...`: units (meters to millimeters; Kelvin to degrees C is `TMP:-273.15`) |
 | `nc_variable` | a NetCDF file's name for a want, rules as `file`: `nc_variable = when variable=HGT level~"^[0-9]+ mb$" => H{mb}` |
+| `valid_offset_file` | `FILE:minutes`: a collection (`{file}`) stamped differently from the rest (GEOS-FP's 3 hour aerosol averages are stamped in the middle of their period, `tavg3_2d_aer_Nx:-90`) |
 | `valid_offset` | minutes added to the run's time plus the hour for the tokens `{valid}` (`yyyyMMdd_HHmm`), `{valid_date}`, `{valid_hour2}`, `{valid_minute2}`: a time average is stamped half an hour after it starts |
 | `warp` | `step,west,south,east,north` for a grid that is not latitude / longitude |
 | `extra_missing` | a value that means "no data" besides GRIB's |
@@ -48,5 +49,5 @@ All 19 built-in models are written this way. `tests/gfs/run_modelfile.sh` checks
 - **Hour 0 and hour-less files**: `{hour3}` is simply left out of the url (the mesoanalysis has one file an hour).
 - **A model that follows a storm**: `{storm}` in the url and in the source's name.
 - **Units**: `value_scale = APCP:1000` (meters to millimeters).
-- **A server found by the user** (NASA GEOS-FP, NetCDF-4): the time in the file name is the run plus the hour plus half an hour (`{valid}`, `valid_offset`); the file names its fields its own way (`nc_variable`); temperatures are Kelvin (`value_offset`); the grid is 0.3125 by 0.25 degrees, which the charts' square-cell grids cannot hold, so it is warped to 0.25 (`warp`); the 00Z run is 10 days, the 12Z 5, the others 30 hours (`run_length` by cycle); a run takes about eight hours to appear (`lag_hours`); and below-ground points in pressure levels are fill values, drawn as holes.
+- **A server found by the user** (NASA GEOS-FP, NetCDF-4): the time in the file name is the run plus the hour plus half an hour (`{valid}`, `valid_offset`); the file names its fields its own way (`nc_variable`); temperatures are Kelvin (`value_offset`); the aerosol collection (`file = when level="aerosol" => tavg3_2d_aer_Nx`) is 3 hour averages stamped in their middle (`valid_offset_file`); the grid is 0.3125 by 0.25 degrees, which the charts' square-cell grids cannot hold, so it is warped to 0.25 (`warp`); the 00Z run is 10 days, the 12Z 5, the others 30 hours (`run_length` by cycle); a run takes about eight hours to appear (`lag_hours`); and below-ground points in pressure levels are fill values, drawn as holes.
 - **What stays code**: the readers (the Zarr store, the NetCDF range reads, GDAL warping) and the models' own charts (`GfsChart.cpp`).
