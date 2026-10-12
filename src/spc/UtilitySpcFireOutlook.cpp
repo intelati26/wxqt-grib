@@ -5,6 +5,27 @@
 // *****************************************************************************
 
 #include "UtilitySpcFireOutlook.h"
+#include <QRegularExpression>
+#include <QString>
+
+string UtilitySpcFireOutlook::Issuance::line() const {
+    string out = "Forecaster " + forecaster + "   Issued " + issued + "   Valid " + valid;
+    if (!risk.empty()) {
+        out += "   Risk: " + risk;
+    }
+    return out;
+}
+
+vector<UtilitySpcFireOutlook::Issuance> UtilitySpcFireOutlook::issuances(const string& pageHtml) {
+    const auto page = QString::fromUtf8(pageHtml.data(), static_cast<qsizetype>(pageHtml.size())).remove(QRegularExpression{"<[^>]*>"}).replace("&nbsp;", " ").simplified();
+    static const QRegularExpression who{"Forecaster:\\s*(\\S+)\\s*Issued:\\s*(\\S+)\\s*Valid:\\s*(\\S+\\s*-\\s*\\S+|\\S+)(?:\\s*Forecast Risk of Fire Weather:\\s*(.+?))?(?=\\s*(?:Current|Day|Fire Weather|Forecaster:)|$)"};
+    vector<Issuance> out;
+    for (auto it = who.globalMatch(page); it.hasNext() && out.size() < 3;) {
+        const auto m = it.next();
+        out.push_back({m.captured(1).toStdString(), m.captured(2).toStdString(), m.captured(3).toStdString(), m.captured(4).trimmed().toStdString()});
+    }
+    return out;
+}
 
 const vector<string> UtilitySpcFireOutlook::products{
     "fwddy1",

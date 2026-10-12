@@ -5,7 +5,6 @@
 // *****************************************************************************
 
 #include "spc/SpcFireWeatherOutlook.h"
-#include <QRegularExpression>
 #include <QString>
 #include "misc/ImageViewer.h"
 #include "objects/FutureBytes.h"
@@ -59,16 +58,9 @@ SpcFireWeatherOutlook::SpcFireWeatherOutlook(Window * parent, int day)
     shortcutImage.connect([this, parent] { new ImageViewer{parent, photo.bytes}; });
     // who issued each and when comes from the SPC's fire weather page (the text products carry it too, in a form that is harder to read)
     new FutureBytes{this, "https://www.spc.noaa.gov/products/fire_wx/", [this] (const auto& ba) {
-        const auto page = QString::fromUtf8(ba).remove(QRegularExpression{"<[^>]*>"}).replace("&nbsp;", " ").simplified();
-        static const QRegularExpression who{"Forecaster:\\s*(\\S+)\\s*Issued:\\s*(\\S+)\\s*Valid:\\s*(\\S+\\s*-\\s*\\S+|\\S+)(?:\\s*Forecast Risk of Fire Weather:\\s*(.+?))?(?=\\s*(?:Current|Day|Fire Weather|Forecaster:)|$)"};
-        int i = 0;
-        for (auto it = who.globalMatch(page); it.hasNext() && i < 3; i++) {
-            const auto m = it.next();
-            auto line = "Forecaster " + m.captured(1) + "   Issued " + m.captured(2) + "   Valid " + m.captured(3);
-            if (!m.captured(4).isEmpty()) {
-                line += "   Risk: " + m.captured(4).trimmed();
-            }
-            issuance[i] = line.toStdString();
+        const auto found = UtilitySpcFireOutlook::issuances(QString::fromUtf8(ba).toStdString());
+        for (size_t i = 0; i < found.size() && i < 3; i++) {
+            issuance[i] = found[i].line();
         }
         showDay(comboDay.getIndex());
     }};
