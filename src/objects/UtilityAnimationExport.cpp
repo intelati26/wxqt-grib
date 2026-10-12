@@ -98,6 +98,43 @@ namespace {
         return true;
     }
 
+    // The picture with a line of its own under it: "exported by wxqt-grib", small and gray at the right, on a strip the height of the text (so nothing of the picture is covered).
+    // Pictures that are not images (or that cannot be read) are saved as they are. Switched off by the EXPORT_STAMP preference.
+    QByteArray stamped(const QByteArray& bytes) {
+        if (bytes.isEmpty() || Utility::readPref("EXPORT_STAMP", "true").compare(0, 1, "t") != 0) {
+            return bytes;
+        }
+        const QImage source = QImage::fromData(bytes);
+        if (source.isNull() || source.width() < 160) {
+            return bytes;
+        }
+        const int strip = std::clamp(source.height() / 60, 16, 26);
+        QImage image{source.width(), source.height() + strip, QImage::Format_ARGB32};
+        image.fill(QColor{250, 250, 250});
+        QPainter painter{&image};
+        painter.drawImage(0, 0, source);
+        QFont font = painter.font();
+        font.setPixelSize(std::max(10, strip - 8));
+        painter.setFont(font);
+        painter.setPen(QColor{110, 110, 110});
+        painter.drawText(QRect{6, source.height(), source.width() - 12, strip}, Qt::AlignVCenter | Qt::AlignRight, "exported by wxqt-grib");
+        painter.end();
+        QByteArray out;
+        QBuffer buffer{&out};
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        return out.isEmpty() ? bytes : out;
+    }
+
+    vector<QByteArray> stampedAll(const vector<QByteArray>& frames) {
+        vector<QByteArray> out;
+        out.reserve(frames.size());
+        for (const auto& frame : frames) {
+            out.push_back(stamped(frame));
+        }
+        return out;
+    }
+
     vector<QImage> decode(const vector<QByteArray>& frames) {
         vector<QImage> images;
         for (const auto& bytes : frames) {
@@ -317,9 +354,11 @@ vector<UtilityAnimationExport::Format> UtilityAnimationExport::formats(bool anim
     return list;
 }
 
-bool UtilityAnimationExport::encodeToFile(const Format& format, const vector<QByteArray>& frames, int frameDelayMs,
-                                          const QByteArray& still, const QString& path, QString& error) {
+bool UtilityAnimationExport::encodeToFile(const Format& format, const vector<QByteArray>& framesIn, int frameDelayMs,
+                                          const QByteArray& stillIn, const QString& path, QString& error) {
     error.clear();
+    const auto frames = stampedAll(framesIn);   // every picture saved says where it came from
+    const auto still = stamped(stillIn);
     const bool animated = frames.size() >= 2;
     const auto images = decode(frames);
     if (animated && images.size() < 2) {

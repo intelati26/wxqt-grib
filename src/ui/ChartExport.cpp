@@ -25,7 +25,7 @@ namespace {
         font.setPixelSize(10);
         painter.setFont(font);
         painter.setPen(QColor{110, 110, 110});
-        painter.drawText(QRect{6, top, width - 12, footer}, Qt::AlignVCenter | Qt::AlignLeft, title + "  -  saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  wxqt");
+        painter.drawText(QRect{6, top, width - 12, footer}, Qt::AlignVCenter | Qt::AlignLeft, title + "  -  saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
     }
 
     QString fileNameImpl(const QString& title, const QString& extension) {
