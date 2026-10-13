@@ -5010,7 +5010,7 @@ std::vector<MemberChoice> memberChoices(const Product& product) {
     if (product.source == "REFS") {
         if (product.id.compare(0, 7, "member_") == 0) {
             for (int m = 1; m <= 5; m++) {
-                out.push_back({"m00" + std::to_string(m), "Member " + std::to_string(m)});
+                out.push_back({"m00" + std::to_string(m), "REFS M0" + std::to_string(m)});
             }
         }
         return out;
