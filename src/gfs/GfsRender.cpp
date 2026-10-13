@@ -479,7 +479,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         const bool isLocal = sectorId.compare(0, 6, "LOCAL:") == 0;
         const auto mode = Utility::readPref("MODEL_TICKS", "local");
         options.ticks = mode == "all" || (isLocal && mode != "off");
-        if (isLocal) {
+        if (isLocal && Utility::readPref("MODEL_PLACE_MARK", "true").compare(0, 1, "t") == 0) {   // the ring and the name; the model screen's "Mark the place"
             options.hasMarker = true;
             options.markerLat = localLat;
             options.markerLon = localLon;

@@ -135,6 +135,21 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         });
         boxH2.addWidget(comboMember);
         comboMember.setVisible(false);
+        buttonPlace = new QPushButton{"Mark the place", this};
+        buttonPlace->setCheckable(true);
+        buttonPlace->setChecked(Utility::readPref("MODEL_PLACE_MARK", "true").compare(0, 1, "t") == 0);
+        buttonPlace->setVisible(false);
+        buttonPlace->setToolTip("The ring and the name of the saved location an area is centered on. Off leaves the map clean, in the window and in what is saved or exported.");
+        QObject::connect(buttonPlace, &QPushButton::toggled, this, [this] (bool on) {
+            Utility::writePref("MODEL_PLACE_MARK", on ? "true" : "false");
+            frames.clear();   // every picture drawn so far has the mark (or has not)
+            frameOrder.clear();
+            frameBytes = 0;
+            failedAhead.clear();
+            refreshLoaded();
+            reload();
+        });
+        boxH2.addWidgetReal(buttonPlace);
         buttonSigma = new QPushButton{"Std deviations", this};
         buttonSigma->setCheckable(true);
         buttonSigma->setVisible(false);
@@ -871,6 +886,9 @@ void ModelViewer::applyMainRunRule() {
 
 void ModelViewer::reload() {
     applyMainRunRule();
+    if (buttonPlace != nullptr) {
+        buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
+    }
     if (strip) {
         strip->setCurrent(static_cast<int>(comboboxTime.getIndex()));
     }
