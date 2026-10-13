@@ -70,6 +70,8 @@ private:
     struct Spec {
         string model, param, sector;
         int shift{0};   // runs: hours older than the run chosen
+        string member;  // members: the member this tile shows (when picked with its button)
+        bool memberPicked{false};
     };
     struct Job {
         string model, param, sector, cycle, key, chart;   // chart: the key without the hour (a new hour of it keeps the zoom)
@@ -79,12 +81,14 @@ private:
         bool ok{true};
         string why;
     };
-    enum class TilesShow { Charts, Models, Runs };
+    enum class TilesShow { Charts, Models, Runs, Members };
     int tileCount() const;                       // the tiles besides the first: 0, 1, 2 or 3
     TilesShow tilesShow() const;
     void applyTileLayout();
     void resetTileSpecs();
     Job makeJob(int index, int mainHour, bool ahead) const;
+    string tileMember(int index) const;          // the member a tile of the members comparison shows: the one it was given, else the ones after the first tile's, in the list's order
+    string memberLabel(const string& value) const;
     string caption(const Job&) const;
     void renderTiles();
     void renderTile(int index);
@@ -94,6 +98,7 @@ private:
     QByteArray compositePicture() const;
     QDateTime runTime(const string& run) const;
     ComboBox comboTiles, comboTilesShow;
+    std::vector<string> memberLabels;     // what comboMember lists, by memberValues
     ComboBox comboMember;                 // one member of the ensemble instead of the mean (GEFS: 31, REFS: 5), for the charts that can show one
     QWidget * compareArea{};
     QGridLayout * grid{};

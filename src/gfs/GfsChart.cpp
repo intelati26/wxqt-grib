@@ -5063,7 +5063,7 @@ Product withMember(const Product& product, const std::string& member) {
     const auto named = [&chosen] (const std::string& text) {   // "Mean 500mb Height" -> "Member 7 500mb Height"; the rest gets the member in front
         return text.compare(0, 5, "Mean ") == 0 ? chosen->label + text.substr(4) : chosen->label + ": " + text;
     };
-    out.label = refs ? chosen->label + ": " + product.label.substr(std::min<size_t>(product.label.find(": ") + 2, product.label.size())) : named(product.label);
+    out.label = refs ? chosen->label + ": " + product.label.substr(product.label.find(": ") == std::string::npos ? 0 : product.label.find(": ") + 2) : named(product.label);
     if (!refs && product.fillTitle.compare(0, 5, "Mean ") == 0) {
         out.fillTitle = chosen->label + product.fillTitle.substr(4);
     }

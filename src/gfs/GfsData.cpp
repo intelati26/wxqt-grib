@@ -915,7 +915,7 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
         Result& r = results[i];
         const auto file = fileFor(need.want);
         const auto& index = indexes.at(std::make_pair(need.hour, file));
-        if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast, need.want.detail)) {
+        if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast, need.want.detail.empty() ? source.defaultDetail : need.want.detail)) {
             r.ok = true;   // nothing accumulated yet at hour 0
             r.absent = true;
             return;

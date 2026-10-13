@@ -306,10 +306,39 @@ void ObjectModel::setModelVars(const string& modelName) {
             param = params[0];
         }
     }
-    // the hour kept from the last time may not be one of this model's (a model with a single hour, a shorter run): the nearest that is
-    if (!times.empty() && timeIdx >= times.size()) {
-        timeIdx = times.size() - 1;
-        timeStr = times[timeIdx];
+    // the hour kept from the last time may not be one of this model's (a model with a single hour, a shorter run, another model's steps): the same hour where there is one, else the nearest
+    if (!times.empty()) {
+        const auto first = [] (const string& text) { return WString::contains(text, " ") ? WString::split(text, " ")[0] : text; };
+        const auto numeric = [] (const string& text) { return !text.empty() && std::all_of(text.begin(), text.end(), [] (unsigned char c) { return std::isdigit(c) != 0; }); };
+        const auto wanted = getTime();
+        size_t found = times.size();
+        for (size_t i = 0; i < times.size(); i++) {
+            if (first(times[i]) == wanted) {
+                found = i;
+                break;
+            }
+        }
+        if (found == times.size() && numeric(wanted)) {   // the nearest hour of the list
+            int bestDiff = 1 << 30;
+            for (size_t i = 0; i < times.size(); i++) {
+                const auto token = first(times[i]);
+                if (!numeric(token)) {
+                    continue;
+                }
+                const int diff = std::abs(std::atoi(token.c_str()) - std::atoi(wanted.c_str()));
+                if (diff < bestDiff) {
+                    bestDiff = diff;
+                    found = i;
+                }
+            }
+        }
+        if (found < times.size()) {
+            timeIdx = found;
+            timeStr = times[found];
+        } else if (timeIdx >= times.size()) {
+            timeIdx = times.size() - 1;
+            timeStr = times[timeIdx];
+        }
     }
 }
 

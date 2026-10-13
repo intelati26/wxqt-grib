@@ -185,6 +185,7 @@ int main(int argc, char * argv[]) {
                 if (parts.size() >= 8) {
                     GfsRender::Session session;
                     GfsRender::Variant variant;
+                    variant.member = qEnvironmentVariable("WXQT_MEMBER").toStdString();   // WXQT_MEMBER=p05 / m002: one member of an ensemble's chart
                     const int hour = parts[4].toInt(), n = parts[6].toInt();
                     if (parts[5] == "plain") {
                         variant.kind = GfsRender::Variant::Kind::None;

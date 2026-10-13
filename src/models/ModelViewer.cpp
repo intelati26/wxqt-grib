@@ -60,7 +60,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
-    , comboTilesShow{this, {"Compare: charts", "Compare: models", "Compare: runs"}}
+    , comboTilesShow{this, {"Compare: charts", "Compare: models", "Compare: runs", "Compare: members"}}
     , comboMember{this, {"Ensemble mean"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
@@ -164,7 +164,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
         comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs.");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
-        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 2)));
+        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 3)));
         comboTiles.connect([this] {
             Utility::writePref("MODEL_TILES", std::to_string(comboTiles.getIndex()));
             applyTileLayout();
@@ -1261,7 +1261,7 @@ int ModelViewer::tileCount() const {
 
 ModelViewer::TilesShow ModelViewer::tilesShow() const {
     const auto i = comboTilesShow.getIndex();
-    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : TilesShow::Charts;
+    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : TilesShow::Charts;
 }
 
 void ModelViewer::applyTileLayout() {
@@ -1325,6 +1325,8 @@ void ModelViewer::resetTileSpecs() {
             spec.param = k < others.size() ? others[k] : objectModel.param;
         } else if (show == TilesShow::Models) {
             spec.model = k < others.size() ? others[k] : string{};
+        } else if (show == TilesShow::Members) {
+            spec.member.clear();   // the next members after the first tile's (tileMember)
         } else {
             spec.shift = 6 * static_cast<int>(k + 1);
         }
@@ -1349,6 +1351,24 @@ QDateTime ModelViewer::runTime(const string& run) const {
     return t > newest ? t.addDays(-1) : t;
 }
 
+string ModelViewer::tileMember(int index) const {
+    const auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
+    if (spec.memberPicked && std::find(memberValues.begin(), memberValues.end(), spec.member) != memberValues.end()) {
+        return spec.member;
+    }
+    if (memberValues.empty()) {
+        return {};
+    }
+    const auto at = std::find(memberValues.begin(), memberValues.end(), member);
+    const size_t base = at == memberValues.end() ? 0 : static_cast<size_t>(at - memberValues.begin());
+    return memberValues[(base + static_cast<size_t>(index)) % memberValues.size()];
+}
+
+string ModelViewer::memberLabel(const string& value) const {
+    const auto at = std::find(memberValues.begin(), memberValues.end(), value);
+    return at != memberValues.end() && static_cast<size_t>(at - memberValues.begin()) < memberLabels.size() ? memberLabels[static_cast<size_t>(at - memberValues.begin())] : value;
+}
+
 // what the tile at `index` (0 the screen's own chart) draws at the hour shown by the first tile
 ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const {
     Job job;
@@ -1367,11 +1387,14 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
     } else {
         const auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
         const auto show = tilesShow();
-        job.model = spec.model;
-        job.param = spec.param;
+        job.model = show == TilesShow::Members ? objectModel.model : spec.model;
+        job.param = show == TilesShow::Members ? objectModel.param : spec.param;
         job.sector = objectModel.sector;
         job.cycle = objectModel.run;
-        if (spec.model.empty()) {
+        if (show == TilesShow::Members && memberValues.size() < 2) {
+            job.ok = false;
+            job.why = "This chart has no single members to compare: pick an ensemble chart made of one member (a GEFS chart, a REFS or SPC REFS 'Member' chart).";
+        } else if (job.model.empty()) {
             job.ok = false;
             job.why = "No other model draws this chart.";
         } else if (show == TilesShow::Runs) {
@@ -1416,7 +1439,10 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         if (ahead && v.kind != GfsRender::Variant::Kind::Change) {
             v = {};
         }
-        if (spec.model == objectModel.model) {   // the same model's tiles show the member too (another model's charts have none)
+        if (show == TilesShow::Members) {   // each tile its own member of the same chart
+            v.member = tileMember(index);
+            v.standardDeviations = standardDeviations;
+        } else if (spec.model == objectModel.model) {   // the same model's tiles show the member too (another model's charts have none)
             v.member = member;
             v.standardDeviations = standardDeviations;
         }
@@ -1455,7 +1481,8 @@ string ModelViewer::caption(const Job& job) const {
     } else {
         run = job.cycle.empty() ? string{"newest run"} : job.cycle;
     }
-    return job.model + "   " + (product ? product->label : job.param) + "   " + run + (job.variant.kind == GfsRender::Variant::Kind::Change ? "   (change)" : "");
+    return job.model + "   " + (product ? product->label : job.param) + "   " + run + (job.variant.member.empty() ? string{} : "   " + memberLabel(job.variant.member)) +
+        (job.variant.kind == GfsRender::Variant::Kind::Change ? "   (change)" : "");
 }
 
 void ModelViewer::renderTiles() {
@@ -1550,6 +1577,20 @@ void ModelViewer::changeTile(int index) {
             action->setChecked(spec.model == id);
             QObject::connect(action, &QAction::triggered, this, [this, index, id] {
                 tileSpecs[static_cast<size_t>(index) - 1].model = id;
+                renderTile(index);
+                prefetch(prefetchGeneration);
+            });
+        }
+    } else if (show == TilesShow::Members) {
+        for (size_t i = 0; i < memberValues.size(); i++) {
+            const auto value = memberValues[i];
+            auto * action = menu.addAction(QString::fromStdString(i < memberLabels.size() ? memberLabels[i] : value));
+            action->setCheckable(true);
+            action->setChecked(tileMember(index) == value);
+            QObject::connect(action, &QAction::triggered, this, [this, index, value] {
+                auto& picked = tileSpecs[static_cast<size_t>(index) - 1];
+                picked.member = value;
+                picked.memberPicked = true;
                 renderTile(index);
                 prefetch(prefetchGeneration);
             });
@@ -1757,6 +1798,10 @@ void ModelViewer::refreshMembers() {
     }
     if (values != memberValues) {
         memberValues = values;
+        memberLabels = labels;
+        for (auto& spec : tileSpecs) {   // a member picked for a tile of another chart is not one of this chart's
+            spec.memberPicked = false;
+        }
         member = memberValues.empty() ? string{} : memberValues.front();
         comboMember.block();
         comboMember.setList(labels);
