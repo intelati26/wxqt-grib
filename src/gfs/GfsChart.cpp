@@ -4986,7 +4986,7 @@ std::vector<OverlayChoice> overlayChoices(const std::string& source) {
     return out;
 }
 
-std::vector<MemberChoice> memberChoices(const Product& product) {
+std::vector<MemberChoice> memberChoices(const Product& product, const std::string& runId) {
     std::vector<GfsData::Want> wanted = product.wants;
     if (product.needs) {
         for (const auto& need : product.needs(12)) {
@@ -4999,7 +4999,7 @@ std::vector<MemberChoice> memberChoices(const Product& product) {
     }
     if (product.source == "SPCREFS") {   // the arrays with a member axis: ten members (SPC's viewer names them HRRR, RRFS and the REFS members)
         if (!product.wants.empty() && product.wants.front().stat == "m001") {
-            const auto names = UtilitySpcRefs::memberNames();   // the store's own names once one has been opened ("RRFS Ctl", "HRRR -6h" ...)
+            const auto names = UtilitySpcRefs::memberNames(runId);   // the store's own names once one has been opened ("RRFS Ctl", "HRRR -6h" ...)
             for (int m = 1; m <= 10; m++) {
                 const auto index = static_cast<size_t>(m - 1);
                 out.push_back({"m" + std::string{m < 10 ? "00" : "0"} + std::to_string(m), index < names.size() && !names[index].empty() ? names[index] : "Member " + std::to_string(m)});
@@ -5031,11 +5031,11 @@ std::vector<MemberChoice> memberChoices(const Product& product) {
     return out;
 }
 
-Product withMember(const Product& product, const std::string& member) {
+Product withMember(const Product& product, const std::string& member, const std::string& runId) {
     if (member.empty()) {
         return product;
     }
-    const auto choices = memberChoices(product);
+    const auto choices = memberChoices(product, runId);
     const auto chosen = std::find_if(choices.begin(), choices.end(), [&member] (const MemberChoice& c) { return c.value == member; });
     if (chosen == choices.end()) {
         return product;

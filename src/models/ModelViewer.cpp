@@ -1790,7 +1790,8 @@ void ModelViewer::refreshMembers() {
     std::vector<GfsChart::MemberChoice> choices;
     if (GfsRender::drawsModel(objectModel.model)) {
         if (const auto * product = GfsChart::product(objectModel.param, objectModel.model)) {
-            choices = GfsChart::memberChoices(*product);
+            const auto when = runTime(objectModel.run);   // the run on show, for the names of SPC REFS members
+            choices = GfsChart::memberChoices(*product, when.isValid() ? when.toString("yyyyMMddHH").toStdString() : string{});
         }
     }
     std::vector<string> values;

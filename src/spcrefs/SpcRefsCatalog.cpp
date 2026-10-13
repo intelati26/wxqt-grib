@@ -453,27 +453,60 @@ namespace UtilitySpcRefs {
 
     namespace {
         std::mutex memberNamesMutex;
-        vector<string> knownMemberNames;
-    }
+        std::vector<std::pair<string, vector<string>>> knownMemberNames;   // oldest first; the last twelve runs, kept between starts
+        bool memberNamesLoaded = false;
+        const char * memberNamesPref = "SPCREFS_MEMBER_NAMES_BY_RUN";
 
-    void setMemberNames(const vector<string>& displayNames) {
-        const std::lock_guard lock{memberNamesMutex};
-        knownMemberNames = displayNames;
-        QStringList joined;   // kept for the next start: a chart read from the disk cache never opens a store
-        for (const auto& name : displayNames) {
-            joined << QString::fromStdString(name);
-        }
-        Utility::writePref("SPCREFS_MEMBER_NAMES", joined.join('|').toStdString());
-    }
-
-    vector<string> memberNames() {
-        const std::lock_guard lock{memberNamesMutex};
-        if (knownMemberNames.empty()) {
-            for (const auto& name : QString::fromStdString(Utility::readPref("SPCREFS_MEMBER_NAMES", "")).split('|', Qt::SkipEmptyParts)) {
-                knownMemberNames.push_back(name.toStdString());
+        void loadMemberNames() {
+            if (memberNamesLoaded) {
+                return;
+            }
+            memberNamesLoaded = true;
+            for (const auto& entry : QString::fromStdString(Utility::readPref(memberNamesPref, "")).split(';', Qt::SkipEmptyParts)) {
+                const auto at = entry.indexOf(':');
+                if (at <= 0) {
+                    continue;
+                }
+                vector<string> names;
+                for (const auto& name : entry.mid(at + 1).split('|', Qt::SkipEmptyParts)) {
+                    names.push_back(name.toStdString());
+                }
+                knownMemberNames.emplace_back(entry.left(at).toStdString(), names);
             }
         }
-        return knownMemberNames;
+    }
+
+    void setMemberNames(const string& runId, const vector<string>& displayNames) {
+        const std::lock_guard lock{memberNamesMutex};
+        loadMemberNames();
+        for (auto it = knownMemberNames.begin(); it != knownMemberNames.end();) {
+            it = it->first == runId ? knownMemberNames.erase(it) : std::next(it);
+        }
+        knownMemberNames.emplace_back(runId, displayNames);
+        std::stable_sort(knownMemberNames.begin(), knownMemberNames.end(), [] (const auto& a, const auto& b) { return a.first < b.first; });
+        while (knownMemberNames.size() > 12) {
+            knownMemberNames.erase(knownMemberNames.begin());
+        }
+        QStringList entries;   // kept for the next start: a chart read from the disk cache never opens a store
+        for (const auto& [id, names] : knownMemberNames) {
+            QStringList joined;
+            for (const auto& name : names) {
+                joined << QString::fromStdString(name);
+            }
+            entries << QString::fromStdString(id) + ":" + joined.join('|');
+        }
+        Utility::writePref(memberNamesPref, entries.join(';').toStdString());
+    }
+
+    vector<string> memberNames(const string& runId) {
+        const std::lock_guard lock{memberNamesMutex};
+        loadMemberNames();
+        for (const auto& [id, names] : knownMemberNames) {
+            if (id == runId) {
+                return names;
+            }
+        }
+        return knownMemberNames.empty() ? vector<string>{} : knownMemberNames.back().second;   // a run not read yet: the newest one's
     }
 
     Product describe(const string& id, const ZarrStore::Array& array) {

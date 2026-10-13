@@ -87,8 +87,9 @@ namespace UtilitySpcRefs {
     string readout(const Product& product, const vector<float>& values, int column, int row, const vector<string>& memberNames);
     string memberDisplayName(const string& raw);
     // the names of the ten members of the newest store opened ("RRFS Ctl", "HRRR -6h" ...), kept for the lists that offer one member; empty until a store has been opened
-    void setMemberNames(const vector<string>& displayNames);
-    vector<string> memberNames();
+    // keyed by the run ("yyyyMMddHH"): the names of another run's members are not assumed to be these. memberNames of a run that is not known gives the newest run's.
+    void setMemberNames(const string& runId, const vector<string>& displayNames);
+    vector<string> memberNames(const string& runId = {});
     std::pair<int, int> menuPosition(const Product& product);   // (group, place in SPC's list): the order of the menu
     unsigned memberColour(const string& name);          // the colour of a member's paintball (grey for one that is not known)
     vector<Stop> rainbowStops(double low, double high);   // the colour table of a field with none of its own, over its range

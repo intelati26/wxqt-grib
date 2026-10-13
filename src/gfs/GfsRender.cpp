@@ -33,6 +33,7 @@
 #include "gfs/GfsModels.h"
 #include "hurricane/Coast.h"
 #include "models/UtilityGrib.h"
+#include "spcrefs/SpcRefsLoader.h"
 #include "objects/URL.h"
 #include "radar/CitiesExtended.h"
 #include "settings/UIPreferences.h"
@@ -342,13 +343,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         sector = &local;
     }
     auto composed = base ? GfsChart::compose(*base, overlays) : GfsChart::Product{};   // the chart with what was ticked onto it
-    if (base && !variant.member.empty()) {
-        composed = GfsChart::withMember(composed, variant.member);
-    }
-    if (base && variant.standardDeviations) {
-        composed = GfsChart::withStandardDeviations(composed);
-    }
-    const auto * product = base ? &composed : nullptr;
+    const auto * product = base ? &composed : nullptr;   // the member and the standard deviations are applied below, once the run is known (SPC REFS names its members by run)
     if (!product || !sector) {
         error = "no " + model + " chart for " + param + " " + sectorId;
         return {};
@@ -387,6 +382,15 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         run = {t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
     }
     GfsChart::Grids grids;
+    if (base && !variant.member.empty()) {
+        if (model == "SPCREFS") {
+            SpcRefsLoader::readMemberNames(run);   // the chart's title names the member, as its run's store does
+        }
+        composed = GfsChart::withMember(composed, variant.member, run.id());
+    }
+    if (base && variant.standardDeviations) {
+        composed = GfsChart::withStandardDeviations(composed);
+    }
     bool loaded = gfs.load(run, GfsChart::needs(*product, hour), grids, error);
     if (!loaded) {   // the same run's 1 hour pieces, if the product has them (the first 36 hours)
         const auto pieces = GfsChart::fallbackNeeds(*product, hour);

@@ -48,7 +48,7 @@ namespace {
                 for (const auto& name : raw) {
                     names.push_back(UtilitySpcRefs::memberDisplayName(name));
                 }
-                UtilitySpcRefs::setMemberNames(names);
+                UtilitySpcRefs::setMemberNames(runId, names);
             }
         }
         auto init = QDateTime::fromString(QString::fromStdString(runId), "yyyyMMddHH");   // the cycle's own time
@@ -197,6 +197,17 @@ namespace {
         }
         return true;
     }
+}
+
+void SpcRefsLoader::readMemberNames(const GfsData::Run& run) {
+    const auto * def = GfsModels::find("SPCREFS");
+    const auto url = def != nullptr ? def->source("").fileUrl(run, 0, "") : std::string{};
+    if (url.empty()) {
+        return;
+    }
+    Opened opened;
+    std::string ignored;
+    open(url, run.id(), opened, ignored);
 }
 
 void SpcRefsLoader::registerLoader() {

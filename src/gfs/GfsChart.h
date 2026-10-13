@@ -167,8 +167,9 @@ namespace GfsChart {
         std::string value;
         std::string label;
     };
-    std::vector<MemberChoice> memberChoices(const Product& product);
-    Product withMember(const Product& product, const std::string& member);
+    // runId ("yyyyMMddHH") names the run the members are of: SPC REFS names its members in each run's store
+    std::vector<MemberChoice> memberChoices(const Product& product, const std::string& runId = {});
+    Product withMember(const Product& product, const std::string& member, const std::string& runId = {});
     // The anomaly chart in standard deviations from the 1991-2020 mean (the legend gives the unit's equivalents too); the chart itself when it has none (see Product::sigma)
     bool hasStandardDeviations(const Product& product);
     Product withStandardDeviations(const Product& product);
