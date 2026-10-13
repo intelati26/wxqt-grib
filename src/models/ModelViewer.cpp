@@ -335,6 +335,47 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     refreshProductButton();
 
     getRun();
+    // a screen left open sees a run that is published later: the newest run is looked for again every 15 minutes
+    recheckTimer.setInterval(qEnvironmentVariableIntValue("WXQT_RECHECK_SECONDS") > 0 ? qEnvironmentVariableIntValue("WXQT_RECHECK_SECONDS") * 1000 : 15 * 60 * 1000);   // (the variable is for testing)
+    QObject::connect(&recheckTimer, &QTimer::timeout, this, [this] { recheckRuns(); });
+    recheckTimer.start();
+}
+
+void ModelViewer::recheckRuns() {
+    if (rechecking || !GfsRender::drawsModel(objectModel.model)) {
+        return;
+    }
+    rechecking = true;
+    const auto model = objectModel.model;
+    auto cycle = std::make_shared<string>();
+    auto date = std::make_shared<string>();
+    auto found = std::make_shared<bool>(false);
+    new FutureVoid{this, [model, cycle, date, found] { *found = GfsRender::latestCycle(model, *cycle, "", date.get()); }, [this, model, cycle, date, found] {
+        rechecking = false;
+        if (!*found || model != objectModel.model || cycle->empty()) {
+            return;
+        }
+        auto& known = objectModel.runTimeData;
+        if (known.mostRecentRun == *cycle && known.newestDate == *date) {
+            return;   // nothing newer
+        }
+        const bool following = objectModel.run == known.mostRecentRun;   // the newest run was the one on show
+        if (following) {
+            frames.clear();   // the pictures drawn so far are of the run before
+            frameOrder.clear();
+            frameBytes = 0;
+            failedAhead.clear();
+            getRun();         // the list, the hours and the chart of the new run
+            return;
+        }
+        known.mostRecentRun = *cycle;   // another run was chosen on purpose: it stays, and the list marks the new newest
+        known.newestDate = *date;
+        comboboxRun.block();
+        comboboxRun.setList(objectModel.runs);
+        comboboxRun.setIndexByValue(objectModel.run);
+        comboboxRun.setLabels(runLabels());
+        comboboxRun.unblock();
+    }};
 }
 
 void ModelViewer::changeModelCb() {

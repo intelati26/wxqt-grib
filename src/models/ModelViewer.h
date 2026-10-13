@@ -172,6 +172,9 @@ private:
     std::shared_ptr<GfsRender::Session> gfsSession;
     std::vector<std::string> overlays;   // the lines and barbs ticked onto the chart
     void getRun();
+    void recheckRuns();                   // every 15 minutes: has a newer run been published?
+    QTimer recheckTimer;
+    bool rechecking{false};
     void getRunStatus();
     void updateRunStatus();
     vector<string> runLabels() const;
