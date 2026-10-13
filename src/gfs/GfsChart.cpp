@@ -308,6 +308,7 @@ const std::vector<Sector>& sectors() {
         {"GREAT-LAKES", -96, 40, -74, 50},
         {"OHIO-VALLEY", -92, 34, -78, 43},
         {"S-PLAINS", -107, 25, -90, 40},
+        {"C-PLAINS", -106, 34, -90, 44},
         {"N-PLAINS", -113, 39, -94, 50},
         {"ROCKIES", -118, 35, -101, 50},
         {"SOUTHWEST", -122, 30, -102, 42},
@@ -4767,7 +4768,7 @@ std::string sourceLabel(const std::string& source) {
 std::vector<std::string> sectorIds(const std::string& source) {
     const auto * def = GfsModels::find(source);
     if (def && def->sectors == GfsModels::Sectors::Conus) {   // the contiguous United States and its regions
-        return {"CONUS", "NORTHEAST", "MID-ATLANTIC", "SOUTHEAST", "GREAT-LAKES", "OHIO-VALLEY", "S-PLAINS", "N-PLAINS", "ROCKIES", "SOUTHWEST", "PACIFIC-NW", "CALIFORNIA", "GULF-COAST"};
+        return {"CONUS", "NORTHEAST", "MID-ATLANTIC", "SOUTHEAST", "GREAT-LAKES", "OHIO-VALLEY", "S-PLAINS", "C-PLAINS", "N-PLAINS", "ROCKIES", "SOUTHWEST", "PACIFIC-NW", "CALIFORNIA", "GULF-COAST"};
     }
     std::vector<std::string> all;
     for (const auto& s : sectors()) {
