@@ -249,6 +249,9 @@ Grid anomaly(const Grid& model, const Grid& reference) {
 }
 
 Grid speed(const Grid& u, const Grid& v) {
+    if (u.values.size() != v.values.size()) {
+        return Grid{};
+    }
     Grid out = u;
     for (size_t i = 0; i < out.values.size(); i++) {
         out.values[i] = std::hypot(u.values[i], v.values[i]);
@@ -296,6 +299,9 @@ Grid divergence(const Grid& u, const Grid& v) {
 }
 
 Grid difference(const Grid& a, const Grid& b) {
+    if (a.values.size() != b.values.size()) {   // a field that is missing (or of another grid): nothing to subtract, not a read past the end
+        return Grid{};
+    }
     Grid out = a;
     for (size_t i = 0; i < out.values.size(); i++) {
         out.values[i] = a.values[i] - b.values[i];
