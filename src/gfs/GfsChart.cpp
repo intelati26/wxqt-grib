@@ -4999,8 +4999,10 @@ std::vector<MemberChoice> memberChoices(const Product& product) {
     }
     if (product.source == "SPCREFS") {   // the arrays with a member axis: ten members (SPC's viewer names them HRRR, RRFS and the REFS members)
         if (!product.wants.empty() && product.wants.front().stat == "m001") {
+            const auto names = UtilitySpcRefs::memberNames();   // the store's own names once one has been opened ("RRFS Ctl", "HRRR -6h" ...)
             for (int m = 1; m <= 10; m++) {
-                out.push_back({"m" + std::string{m < 10 ? "00" : "0"} + std::to_string(m), "Member " + std::to_string(m)});
+                const auto index = static_cast<size_t>(m - 1);
+                out.push_back({"m" + std::string{m < 10 ? "00" : "0"} + std::to_string(m), index < names.size() && !names[index].empty() ? names[index] : "Member " + std::to_string(m)});
             }
         }
         return out;

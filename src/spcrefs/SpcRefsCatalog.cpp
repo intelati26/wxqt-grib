@@ -9,6 +9,9 @@
 #include <cmath>
 #include <map>
 #include "spcrefs/LambertGrid.h"
+#include <mutex>
+#include <QStringList>
+#include "util/Utility.h"
 #include "spcrefs/UtilitySpcRefs.h"
 
 namespace UtilitySpcRefs {
@@ -446,6 +449,31 @@ namespace UtilitySpcRefs {
             return "RRFS Ctl -12h";
         }
         return raw;
+    }
+
+    namespace {
+        std::mutex memberNamesMutex;
+        vector<string> knownMemberNames;
+    }
+
+    void setMemberNames(const vector<string>& displayNames) {
+        const std::lock_guard lock{memberNamesMutex};
+        knownMemberNames = displayNames;
+        QStringList joined;   // kept for the next start: a chart read from the disk cache never opens a store
+        for (const auto& name : displayNames) {
+            joined << QString::fromStdString(name);
+        }
+        Utility::writePref("SPCREFS_MEMBER_NAMES", joined.join('|').toStdString());
+    }
+
+    vector<string> memberNames() {
+        const std::lock_guard lock{memberNamesMutex};
+        if (knownMemberNames.empty()) {
+            for (const auto& name : QString::fromStdString(Utility::readPref("SPCREFS_MEMBER_NAMES", "")).split('|', Qt::SkipEmptyParts)) {
+                knownMemberNames.push_back(name.toStdString());
+            }
+        }
+        return knownMemberNames;
     }
 
     Product describe(const string& id, const ZarrStore::Array& array) {

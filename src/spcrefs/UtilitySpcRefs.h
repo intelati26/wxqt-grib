@@ -86,6 +86,9 @@ namespace UtilitySpcRefs {
     // text for the read-out at a grid point ("42.5 dBZ", "6 of 10 members")
     string readout(const Product& product, const vector<float>& values, int column, int row, const vector<string>& memberNames);
     string memberDisplayName(const string& raw);
+    // the names of the ten members of the newest store opened ("RRFS Ctl", "HRRR -6h" ...), kept for the lists that offer one member; empty until a store has been opened
+    void setMemberNames(const vector<string>& displayNames);
+    vector<string> memberNames();
     std::pair<int, int> menuPosition(const Product& product);   // (group, place in SPC's list): the order of the menu
     unsigned memberColour(const string& name);          // the colour of a member's paintball (grey for one that is not known)
     vector<Stop> rainbowStops(double low, double high);   // the colour table of a field with none of its own, over its range

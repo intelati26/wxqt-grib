@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "spcrefs/SpcRefsLoader.h"
+#include "spcrefs/UtilitySpcRefs.h"
 #include <cmath>
 #include <cstdlib>
 #include <map>
@@ -39,6 +40,16 @@ namespace {
         opened.store = std::make_shared<ZarrStore>();
         if (!opened.store->open(url, error)) {
             return false;
+        }
+        {   // the names of the ten members, for the lists that offer one
+            std::vector<std::string> raw, names;
+            std::string ignored;
+            if (opened.store->readStrings("member", raw, ignored)) {
+                for (const auto& name : raw) {
+                    names.push_back(UtilitySpcRefs::memberDisplayName(name));
+                }
+                UtilitySpcRefs::setMemberNames(names);
+            }
         }
         auto init = QDateTime::fromString(QString::fromStdString(runId), "yyyyMMddHH");   // the cycle's own time
         init.setTimeSpec(Qt::UTC);

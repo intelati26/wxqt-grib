@@ -600,6 +600,9 @@ void ModelViewer::saveLoop() {
 }
 
 void ModelViewer::showFrame(const Frame& frame) {
+    if (objectModel.model == "SPCREFS") {
+        refreshMembers();   // the members' names are known once a run has been read
+    }
     shownBytes = frame.bytes;
     shownProbe = frame.probe;
     string chart = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector;
@@ -1806,6 +1809,13 @@ void ModelViewer::refreshMembers() {
         comboMember.block();
         comboMember.setList(labels);
         comboMember.setIndex(0);
+        comboMember.unblock();
+    } else if (labels != memberLabels) {   // the same members, named now (SPC REFS knows its members' names once a run has been opened)
+        memberLabels = labels;
+        const auto at = comboMember.getIndex();
+        comboMember.block();
+        comboMember.setList(labels);
+        comboMember.setIndex(static_cast<size_t>(std::max(at, 0)));
         comboMember.unblock();
     }
     comboMember.setVisible(!memberValues.empty());
