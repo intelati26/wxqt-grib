@@ -40,6 +40,8 @@ public:
 private:
     void rebuildProducts(const string& selectId);   // the grouped product list: hand-set ones, then the rest of the server's
     void refreshNewest();                           // auto-update: a newer scan than the one shown?
+    void showProductTree();                         // the product list as groups that open and close, in place of the combo's flat list
+    void updateLocations();                         // the shown product's value at each saved location, as a line of text
     bool us() const { return comboUnits.getIndex() == 0; }
     void loadScans();                 // the scan list for the chosen product, then the newest scan
     void showScan(int comboIndex);
@@ -85,6 +87,7 @@ private:
     std::vector<MapWidget *> radarList;                  // the one map, in the form the overlay downloader takes
     std::unique_ptr<MapLayerDownload> layerDownload;      // warnings, watches, outlooks, fronts, observations (the Map settings)
     QLabel * hoverLabel{};     // the coordinate / value popup over the map
+    QLabel * labelLocations{}; // "Home: 0.82 in   Springfield: none" under the status line
     bool hoverShown{false};    // draw the crosshair at `pointer`
     QPointF pointer;           // last position of the mouse over the map, for zooming about it
     bool pointerInside{false};

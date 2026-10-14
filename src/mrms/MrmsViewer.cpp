@@ -4,6 +4,10 @@
 // *****************************************************************************
 
 #include "mrms/MrmsViewer.h"
+#include <QKeyEvent>
+#include <QMouseEvent>
+#include <QTreeWidget>
+#include "settings/Location.h"
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -78,6 +82,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     radar->dataLayer = [this] (QPainter& painter) { paintData(painter); };
     radar->topLayer = [this] (QPainter& painter) { paintLegend(painter); };
 
+    comboProduct.getView()->installEventFilter(this);   // its list is the grouped tree (showProductTree)
     comboProduct.connect([this] {
         stopLoop();
         userPickedProduct = true;
@@ -89,6 +94,7 @@ MrmsViewer::MrmsViewer(Window * parent)
         Utility::writePref("MRMS_UNITS", us() ? "us" : "metric");
         radar->update();
         textStatus.setText(product().label + "  " + timeText(current.utc));
+        updateLocations();
     });
     comboLoop.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_LOOP", 0), 0, 2)));
     comboLoop.connect([this] { Utility::writePrefInt("MRMS_LOOP", comboLoop.getIndex()); });
@@ -125,6 +131,9 @@ MrmsViewer::MrmsViewer(Window * parent)
     box.addLayout(rowTop);
     textStatus.setWordWrap(false);   // a wrapped status would make the controls taller than fitRadar() allowed for
     box.addWidget(textStatus);
+    labelLocations = new QLabel{this};
+    labelLocations->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);   // a long line is cut, not made the width of the window (the full text is its tooltip)
+    box.addWidgetReal(labelLocations, 0, Qt::Alignment{});
     box.addWidgetReal(radar, 0, Qt::AlignTop | Qt::AlignLeft);
     box.addStretch();
     box.getAndShow(this);
@@ -151,9 +160,32 @@ MrmsViewer::MrmsViewer(Window * parent)
 }
 
 void MrmsViewer::rebuildProducts(const string& selectId) {
-    static const vector<string> order{"Reflectivity", "Hail", "Rotation", "Precipitation", "Storm structure", "Lightning", "Other products"};
+    static const vector<string> order{"Reflectivity", "More reflectivity", "Dual-polarization", "Hail", "Rotation", "Precipitation", "Precipitation estimates (QPE)", "Precipitation type and melting layer",
+                                      "Storm structure", "Lightning", "Model environment", "Quality and gauge indices", "Other products"};
     auto list = UtilityMrms::products();
-    list.insert(list.end(), extraProducts.begin(), extraProducts.end());
+    // what the server lists beyond the hand-set products goes into bins by the family of its name
+    const auto bin = [] (const string& id) -> string {
+        const auto starts = [&id] (const char * prefix) { return id.rfind(prefix, 0) == 0; };
+        if (starts("MultiSensor_QPE") || starts("RadarOnly_QPE")) return "Precipitation estimates (QPE)";
+        if (starts("GaugeInflIndex") || starts("RadarAccumulationQualityIndex") || starts("RadarQualityIndex")) return "Quality and gauge indices";
+        if (starts("MergedRhoHV") || starts("MergedZdr")) return "Dual-polarization";
+        if (id.find("Reflectivity") != string::npos || starts("BREF_") || starts("CREF_") || starts("SeamlessHSR")) return "More reflectivity";
+        if (starts("RotationTrack")) return "Rotation";
+        if (starts("Lightning") || starts("Ltg") || starts("NLDN")) return "Lightning";
+        if (starts("H50_") || starts("H60_") || starts("SHI") || starts("VII") || starts("VIL") || starts("EchoTop") || starts("LVL3_")) return "Storm structure";
+        if (starts("Model_")) return "Model environment";
+        if (starts("PrecipFlag") || starts("SyntheticPrecipRate") || starts("WarmRain") || starts("BrightBand")) return "Precipitation type and melting layer";
+        return {};
+    };
+    for (auto extra : extraProducts) {
+        if (extra.group == "Other products") {
+            const auto binned = bin(extra.id);
+            if (!binned.empty()) {
+                extra.group = binned;
+            }
+        }
+        list.push_back(extra);
+    }
     const auto rank = [] (const UtilityMrms::Product& p) {
         const auto found = std::find(order.begin(), order.end(), p.group);
         return found == order.end() ? order.size() : static_cast<size_t>(found - order.begin());
@@ -268,7 +300,7 @@ void MrmsViewer::fitRadar() {
         return;
     }
     // the controls and the status line above the map (each one line: the status does not wrap)
-    const int above = rowTop.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height();
+    const int above = rowTop.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height() + (labelLocations != nullptr ? labelLocations->sizeHint().height() : 0);
     const int side = std::max(300, std::min(width() - 16, height() - above - 32));
     if (radar->width() != side) {
         radar->setFixedSize(side, side);
@@ -360,7 +392,92 @@ void MrmsViewer::setFrame(const UtilityMrms::Frame& frame) {
     currentColors = UtilityMrms::colorTable(product(), frame);
     setTitle("MRMS - " + product().label + " - " + timeText(frame.utc));
     textStatus.setText(product().label + "  " + timeText(frame.utc));
+    updateLocations();
     radar->update();
+}
+
+// the value of the shown scan at each saved location ("Home: 0.82 in   Springfield: none")
+void MrmsViewer::updateLocations() {
+    if (labelLocations == nullptr) {
+        return;
+    }
+    const auto names = Location::listOfNames();
+    const auto places = Location::getListLatLons();
+    QStringList parts;
+    const auto& grid = current.grid;
+    for (size_t i = 0; i < places.size() && !currentIndices.isEmpty(); i++) {
+        const int column = static_cast<int>(std::floor((places[i].lon() - grid.west) / grid.cell));
+        const int row = static_cast<int>(std::floor((grid.north - places[i].lat()) / grid.cell));
+        if (column < 0 || column >= grid.columns || row < 0 || row >= grid.rows) {
+            continue;   // outside the MRMS grid
+        }
+        const int index = static_cast<uchar>(currentIndices[static_cast<qsizetype>(row) * grid.columns + column]);
+        const QString name = i < names.size() ? QString::fromStdString(names[i]) : QString{"Location %1"}.arg(i + 1);
+        parts << name + ": " + (index == 0 ? QString{"none"} : QString::number(UtilityMrms::shown(product(), current.valueAt(index), us()), 'g', 3) + " " +
+                                                           QString::fromStdString(UtilityMrms::unitsShown(product(), us())));
+    }
+    labelLocations->setText(parts.join("     "));
+    labelLocations->setToolTip(parts.join("\n"));
+    labelLocations->setVisible(!parts.isEmpty());
+}
+
+// the products by group, each group opening and closing; the group of the shown product starts open
+void MrmsViewer::showProductTree() {
+    auto * combo = comboProduct.getView();
+    auto * tree = new QTreeWidget{this};
+    tree->setWindowFlags(Qt::Popup);
+    tree->setAttribute(Qt::WA_DeleteOnClose);
+    tree->setHeaderHidden(true);
+    tree->setIndentation(14);
+    tree->setRootIsDecorated(true);
+    const int shownIndex = comboProduct.getIndex();
+    std::vector<string> groups;
+    for (const auto& p : productList) {
+        if (std::find(groups.begin(), groups.end(), p.group) == groups.end()) {
+            groups.push_back(p.group);
+        }
+    }
+    for (const auto& group : groups) {
+        int count = 0;
+        for (const auto& p : productList) {
+            count += p.group == group ? 1 : 0;
+        }
+        auto * top = new QTreeWidgetItem{tree, QStringList{QString::fromStdString(group) + QString{"  (%1)"}.arg(count)}};
+        QFont bold = top->font(0);
+        bold.setBold(true);
+        top->setFont(0, bold);
+        top->setData(0, Qt::UserRole, -1);
+        bool holdsShown = false;
+        for (size_t i = 0; i < productList.size(); i++) {
+            if (productList[i].group != group) {
+                continue;
+            }
+            auto * item = new QTreeWidgetItem{top, QStringList{QString::fromStdString(productList[i].label)}};
+            item->setData(0, Qt::UserRole, static_cast<int>(i));
+            if (static_cast<int>(i) == shownIndex) {
+                holdsShown = true;
+                QFont current = item->font(0);
+                current.setBold(true);
+                item->setFont(0, current);
+                tree->setCurrentItem(item);
+            }
+        }
+        top->setExpanded(holdsShown);
+    }
+    QObject::connect(tree, &QTreeWidget::itemClicked, tree, [this, tree] (QTreeWidgetItem * item, int) {
+        const int index = item->data(0, Qt::UserRole).toInt();
+        if (index < 0) {
+            item->setExpanded(!item->isExpanded());   // a group: open or close it
+            return;
+        }
+        tree->close();
+        comboProduct.setIndex(static_cast<size_t>(index));
+    });
+    const int width = std::max(combo->width(), 380);
+    tree->resize(width, std::min(520, std::max(200, height() - 120)));
+    tree->move(combo->mapToGlobal(QPoint{0, combo->height()}));
+    tree->show();
+    tree->setFocus();
 }
 
 // one scan drawn the way it is on screen (map, lines, legend), with the information bars of the other model viewers:
@@ -550,6 +667,20 @@ void MrmsViewer::paintData(QPainter& painter) {
 }
 
 bool MrmsViewer::eventFilter(QObject * object, QEvent * event) {
+    if (object == comboProduct.getView()) {   // the product list: the grouped tree
+        if (event->type() == QEvent::MouseButtonPress && static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton) {
+            showProductTree();
+            return true;
+        }
+        if (event->type() == QEvent::KeyPress) {
+            const auto * key = static_cast<QKeyEvent *>(event);
+            if (key->key() == Qt::Key_F4 || key->key() == Qt::Key_Space || (key->key() == Qt::Key_Down && (key->modifiers() & Qt::AltModifier))) {
+                showProductTree();
+                return true;
+            }
+        }
+        return false;
+    }
     if (object == radar && (event->type() == QEvent::MouseMove || event->type() == QEvent::MouseButtonPress)) {
         pointer = static_cast<QMouseEvent *>(event)->position();
         pointerInside = true;
