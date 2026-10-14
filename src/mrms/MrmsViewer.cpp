@@ -52,6 +52,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     , comboLoop{this, {"Loop: last 6 scans", "Loop: last 12 scans", "Loop: last 24 scans"}}
     , comboUnits{this, {"US units", "Metric units"}}
     , comboAuto{this, {"Auto-update: 2 min", "Auto-update: 5 min", "Auto-update: off"}}
+    , comboLightning{this, {"Lightning: off", "Lightning: last 1 min", "Lightning: last 5 min", "Lightning: last 15 min", "Lightning: last 30 min"}}
     , buttonLoop{this, Icon::Play, "Loop"}
     , buttonSave{this, Icon::None, "Save"}
     , shortcutSave{QKeySequence{"Ctrl+S"}, this}
@@ -108,7 +109,14 @@ MrmsViewer::MrmsViewer(Window * parent)
         }
     };
     comboAuto.connect([this, applyAuto] { Utility::writePrefInt("MRMS_AUTO", comboAuto.getIndex()); applyAuto(); });
-    QObject::connect(&autoTimer, &QTimer::timeout, this, [this] { refreshNewest(); });
+    QObject::connect(&autoTimer, &QTimer::timeout, this, [this] { refreshNewest(); loadLightning(); });
+    comboLightning.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_LIGHTNING", 0), 0, 4)));
+    comboLightning.connect([this] {
+        Utility::writePrefInt("MRMS_LIGHTNING", comboLightning.getIndex());
+        lightningPoints.clear();
+        loadLightning();
+        radar->update();
+    });
     applyAuto();
     comboScan.connect([this] { stopLoop(); showScan(comboScan.getIndex()); });
     buttonLoop.getView()->setToolTip("Play the latest scans as a loop (they are downloaded and decoded first)");
@@ -125,6 +133,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     rowTop.addWidget(comboLoop);
     rowTop.addWidget(comboUnits);
     rowTop.addWidget(comboAuto);
+    rowTop.addWidget(comboLightning);
     rowTop.addWidget(buttonLoop);
     rowTop.addWidget(buttonSave);
     rowTop.addStretch();
@@ -140,6 +149,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     fitRadar();
     rebuildProducts(Utility::readPref("MRMS_LAST_PRODUCT", UtilityMrms::products().front().id));
     loadScans();
+    loadLightning();
     // the rest of the server's products, found in the background
     auto found = std::make_shared<vector<UtilityMrms::Product>>();
     new FutureVoid{this,
@@ -394,6 +404,56 @@ void MrmsViewer::setFrame(const UtilityMrms::Frame& frame) {
     textStatus.setText(product().label + "  " + timeText(frame.utc));
     updateLocations();
     radar->update();
+}
+
+// the lightning overlay: the newest scan of MRMS's cloud-to-ground strike density for the chosen period, each cell with a strike kept as a point
+void MrmsViewer::loadLightning() {
+    static const char * ids[] = {"", "NLDN_CG_001min_AvgDensity", "NLDN_CG_005min_AvgDensity", "NLDN_CG_015min_AvgDensity", "NLDN_CG_030min_AvgDensity"};
+    const int which = std::clamp(comboLightning.getIndex(), 0, 4);
+    if (which == 0 || lightningLoading || closed) {
+        if (which == 0) {
+            lightningPoints.clear();
+        }
+        return;
+    }
+    lightningLoading = true;
+    const string wanted = ids[which];
+    const int mine = ++lightningGeneration;
+    auto frame = std::make_shared<UtilityMrms::Frame>();
+    auto ok = std::make_shared<bool>(false);
+    new FutureVoid{this,
+        [wanted, frame, ok] {
+            vector<UtilityMrms::Product> more;
+            string error;
+            UtilityMrms::discoverMore(more, error);
+            const auto found = std::find_if(more.begin(), more.end(), [&wanted] (const auto& p) { return p.id == wanted; });
+            if (found == more.end()) {
+                return;
+            }
+            vector<UtilityMrms::Scan> list;
+            if (UtilityMrms::scans(*found, list, error) && !list.empty()) {
+                *ok = UtilityMrms::frame(*found, list.back(), *frame, error);
+            }
+        },
+        [this, frame, ok, mine] {
+            lightningLoading = false;
+            if (closed || mine != lightningGeneration || !*ok) {
+                return;
+            }
+            lightningPoints.clear();
+            lightningTime = frame->utc;
+            const auto cells = frame->indices();
+            const auto& grid = frame->grid;
+            for (int row = 0; row < grid.rows; row++) {
+                const auto * line = reinterpret_cast<const uchar *>(cells.constData()) + static_cast<qsizetype>(row) * grid.columns;
+                for (int column = 0; column < grid.columns; column++) {
+                    if (lightningPoints.size() < 200000 && line[column] != 0 && frame->valueAt(line[column]) > 0.0) {   // the density of a cell that had a strike (index 1 can be zero)
+                        lightningPoints.emplace_back(static_cast<float>(grid.west + (column + 0.5) * grid.cell), static_cast<float>(grid.north - (row + 0.5) * grid.cell));
+                    }
+                }
+            }
+            radar->update();
+        }};
 }
 
 // the value of the shown scan at each saved location ("Home: 0.82 in   Springfield: none")
@@ -741,6 +801,24 @@ void MrmsViewer::showHover(const QPointF& widgetPos) {
 void MrmsViewer::paintLegend(QPainter& painter) {
     if (currentIndices.isEmpty()) {
         return;
+    }
+    if (!lightningPoints.empty() && comboLightning.getIndex() > 0) {   // the strikes, a small cross at each cell (the map's window units, as the crosshair is drawn)
+        const auto [ax, bx, ay, by] = projection();
+        const auto& state = radar->mapState;
+        const double arm = 2.6 * 1000.0 / radar->width();
+        for (const auto& pen : {QPen{QColor{0, 0, 0, 170}, 3.2}, QPen{QColor{255, 235, 40}, 1.5}}) {
+            painter.setPen(pen);
+            for (const auto& [lon, lat] : lightningPoints) {
+                const double mercator = std::log(std::tan(std::numbers::pi / 4.0 + lat * std::numbers::pi / 360.0)) * 180.0 / std::numbers::pi;
+                const double u = (ax * lon + bx) * state.zoom + state.xPos;
+                const double v = (ay * mercator + by) * state.zoom + state.yPos;
+                if (u < -520.0 || u > 520.0 || v < -270.0 || v > 770.0) {
+                    continue;
+                }
+                painter.drawLine(QPointF{u - arm, v}, QPointF{u + arm, v});
+                painter.drawLine(QPointF{u, v - arm}, QPointF{u, v + arm});
+            }
+        }
     }
     if (hoverShown && !looping) {
         // the crosshair at the pointer (window units: the map is drawn on a 1000 x 1000 window)
