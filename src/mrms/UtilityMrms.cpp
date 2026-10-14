@@ -292,15 +292,58 @@ bool UtilityMrms::scans(const Product& product, vector<Scan>& out, string& error
     return true;
 }
 
+bool UtilityMrms::scansAws(const Product& product, const string& level, vector<Scan>& out, string& error) {
+    out.clear();
+    const string folder = "CONUS/" + product.id + "_" + level + "/";
+    const auto now = QDateTime::currentDateTimeUtc();
+    // today's, then yesterday's folder (just after midnight); only keys after twenty minutes ago are asked for
+    for (const int back : {0, 1}) {
+        const auto day = now.addDays(-back);
+        const auto dayText = day.toString("yyyyMMdd").toStdString();
+        const auto from = back == 0 ? now.addSecs(-20 * 60) : QDateTime{day.date(), QTime{23, 0}, QTimeZone::utc()};
+        const string startAfter = folder + dayText + "/MRMS_" + product.id + "_" + level + "_" + dayText + "-" + from.toString("HHmm").toStdString() + "00.grib2.gz";
+        const auto url = "https://noaa-mrms-pds.s3.amazonaws.com/?list-type=2&prefix=" + folder + dayText + "/&start-after=" + startAfter;
+        const auto listing = URL::getText(url);
+        const QRegularExpression key{QString::fromStdString("<Key>(" + folder + dayText + "/(MRMS_" + product.id + "_" + level + "_(\\d{8})-(\\d{6})\\.grib2\\.gz))</Key>")};
+        auto matches = key.globalMatch(QString::fromStdString(listing));
+        while (matches.hasNext()) {
+            const auto match = matches.next();
+            const auto utc = QDateTime::fromString(match.captured(3) + match.captured(4), "yyyyMMddhhmmss");
+            if (utc.isValid()) {
+                out.push_back({match.captured(2).toStdString(), QDateTime{utc.date(), utc.time(), QTimeZone::utc()}, "https://noaa-mrms-pds.s3.amazonaws.com/" + match.captured(1).toStdString()});
+            }
+        }
+        if (!out.empty()) {
+            break;
+        }
+    }
+    std::sort(out.begin(), out.end(), [] (const Scan& a, const Scan& b) { return a.utc < b.utc; });
+    if (out.empty()) {
+        error = product.label + ": the open data bucket lists no recent scans";
+        return false;
+    }
+    return true;
+}
+
 namespace {
     bool frameOnce(const UtilityMrms::Product&, const UtilityMrms::Scan&, UtilityMrms::Frame&, string&);
 }
 
 // a scan that fails to decode is fetched afresh once (a truncated or odd download looks the same as a real fault)
 bool UtilityMrms::frame(const Product& product, const Scan& scan, Frame& out, string& error) {
-    // one decode at a time: two of the same scan (viewer, thumbnail, auto-update) would delete each other's scratch files
-    static std::mutex decodeMutex;
-    const std::lock_guard<std::mutex> lock{decodeMutex};
+    // one decode at a time of the same scan: two of it (viewer, thumbnail, auto-update) would delete each other's scratch files; other scans go side by side
+    static std::mutex tableMutex;
+    static std::map<string, std::shared_ptr<std::mutex>> decodeMutexes;
+    std::shared_ptr<std::mutex> decodeMutex;
+    {
+        const std::lock_guard<std::mutex> table{tableMutex};
+        auto& slot = decodeMutexes[scan.file];
+        if (!slot) {
+            slot = std::make_shared<std::mutex>();
+        }
+        decodeMutex = slot;
+    }
+    const std::lock_guard<std::mutex> lock{*decodeMutex};
     if (frameOnce(product, scan, out, error)) {
         return true;
     }
@@ -346,7 +389,7 @@ bool frameOnce(const UtilityMrms::Product& product, const UtilityMrms::Scan& sca
     }
     const auto gzPath = QString::fromStdString(pathFor("mrmsg_" + scan.file));
     if (!QFile::exists(gzPath)) {
-        const auto bytes = URL::getBytes(site + product.id + "/" + scan.file);
+        const auto bytes = URL::getBytes(scan.url.empty() ? site + product.id + "/" + scan.file : scan.url);
         QFile gz{gzPath};
         if (bytes.size() < 100 || !gz.open(QIODevice::WriteOnly) || gz.write(bytes) != bytes.size()) {
             error = "could not download " + scan.file;

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <future>
 #include <numbers>
 #include <set>
 #include <QBuffer>
@@ -432,28 +433,54 @@ void MrmsViewer::loadLightning() {
             vector<UtilityMrms::Product> more;
             string error;
             UtilityMrms::discoverMore(more, error);
-            std::set<std::pair<int, int>> seen;   // cells already placed by a shorter period
+            // the periods are separate small files on the open data server: fetched and decoded side by side
+            struct Period {
+                UtilityMrms::Frame frame;
+                bool ok{false};
+            };
+            vector<std::future<Period>> pending;
             for (int period = 0; period < periods; period++) {
                 const string wanted = ids[period];
                 const auto found = std::find_if(more.begin(), more.end(), [&wanted] (const auto& p) { return p.id == wanted; });
                 if (found == more.end()) {
+                    pending.emplace_back();   // not offered: an invalid future
                     continue;
                 }
-                vector<UtilityMrms::Scan> list;
-                UtilityMrms::Frame frame;
-                if (!UtilityMrms::scans(*found, list, error) || list.empty() || !UtilityMrms::frame(*found, list.back(), frame, error)) {
+                const auto product = *found;
+                pending.push_back(std::async(std::launch::async, [product] {
+                    Period out;
+                    string e;
+                    vector<UtilityMrms::Scan> list;
+                    // the open data bucket on AWS first (the lightning products are on one level), the NCEP server when it gives nothing
+                    bool listed = UtilityMrms::scansAws(product, "00.00", list, e);
+                    if (!listed) {
+                        listed = UtilityMrms::scans(product, list, e);
+                    }
+                    out.ok = listed && !list.empty() && UtilityMrms::frame(product, list.back(), out.frame, e);
+                    return out;
+                }));
+            }
+            std::set<std::pair<int, int>> seen;   // cells already placed by a shorter period
+            for (int period = 0; period < periods; period++) {
+                if (!pending[static_cast<size_t>(period)].valid()) {
                     continue;
                 }
+                const auto data = pending[static_cast<size_t>(period)].get();
+                if (!data.ok) {
+                    continue;
+                }
+                const auto& frame = data.frame;
                 result->ok = true;
                 if (period == 0) {
                     result->utc = frame.utc;
                 }
                 const auto cells = frame.indices();
                 const auto& grid = frame.grid;
+                const int firstStrike = frame.valueAt(1) > 0.0 ? 1 : 2;   // the lowest index that is a density above zero (index 1 can be zero)
                 for (int row = 0; row < grid.rows; row++) {
                     const auto * line = reinterpret_cast<const uchar *>(cells.constData()) + static_cast<qsizetype>(row) * grid.columns;
                     for (int column = 0; column < grid.columns; column++) {
-                        if (line[column] == 0 || frame.valueAt(line[column]) <= 0.0 || result->points.size() >= 300000) {   // a cell that had a strike (index 1 can be zero)
+                        if (line[column] < firstStrike || result->points.size() >= 300000) {
                             continue;
                         }
                         if (!seen.insert({column, row}).second) {

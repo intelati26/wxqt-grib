@@ -52,6 +52,7 @@ namespace UtilityMrms {
     struct Scan {
         string file;               // MRMS_<product>_<level>_<yyyymmdd-hhmmss>.grib2.gz
         QDateTime utc;
+        string url;                // where it is, when not in the product's folder of the NCEP server (the open data bucket)
     };
 
     // most products are on one grid: 7000 x 3500 cells of 0.01 degrees, north-up, from (west, north); a few (azimuthal
@@ -87,6 +88,8 @@ namespace UtilityMrms {
     bool thumbnail(const Product&, double latSouth, double latNorth, double lonWest, double lonEast, int width, QByteArray& png, string& error);
     // the scans the server has for a product, oldest first
     bool scans(const Product&, vector<Scan>& out, string& error);
+    // the newest scans of a product (one level folder, "00.00" ...) from NOAA's open data bucket on AWS (noaa-mrms-pds): the last half hour, oldest first
+    bool scansAws(const Product&, const string& level, vector<Scan>& out, string& error);
     bool frame(const Product&, const Scan&, Frame& out, string& error);
     // the colour table of a scan at 256 entries (index 0 transparent)
     QVector<QRgb> colorTable(const Product&, const Frame&);
