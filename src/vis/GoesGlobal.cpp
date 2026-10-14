@@ -21,7 +21,7 @@ GoesGlobal::GoesGlobal(Window * parent)
     , objectAnimate{this, &image, &UtilityGoesFullDisk::getAnimation}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
 {
-    index = Utility::readPrefInt(prefToken, 0);
+    index = std::clamp(Utility::readPrefInt(prefToken, 0), 0, static_cast<int>(UtilityGoesFullDisk::labels.size()) - 1);   // a number kept from a longer list is not an index here
     comboboxProduct.setIndexByValue(UtilityGoesFullDisk::labels[index]);
     comboboxProduct.connect([this] { changeProduct(); });
 
