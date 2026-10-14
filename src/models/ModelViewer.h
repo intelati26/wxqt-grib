@@ -81,7 +81,7 @@ private:
         bool ok{true};
         string why;
     };
-    enum class TilesShow { Charts, Models, Runs, Members };
+    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime };
     int tileCount() const;                       // the tiles besides the first: 0, 1, 2 or 3
     TilesShow tilesShow() const;
     void applyTileLayout();

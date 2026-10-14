@@ -382,6 +382,28 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         run = {t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
     }
     GfsChart::Grids grids;
+    if (!variant.validTime.empty()) {   // by the clock: the hour of the run used that is this valid time
+        auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+        auto valid = QDateTime::fromString(QString::fromStdString(variant.validTime), "yyyyMMddHH");
+        start.setTimeSpec(Qt::UTC);   // both are UTC: no daylight saving between them
+        valid.setTimeSpec(Qt::UTC);
+        const auto seconds = start.secsTo(valid);
+        const auto label = valid.toString("ddd HH").toStdString() + "Z";
+        if (!start.isValid() || !valid.isValid() || seconds < 0 || seconds % 3600 != 0) {
+            error = model + " has no forecast for " + label + " (its newest run, " + run.id() + ", " + (seconds < 0 ? "starts after it)" : "does not reach it)");
+            return {};
+        }
+        hour = static_cast<int>(seconds / 3600);
+        const auto * modelDef = GfsModels::find(model);
+        bool offered = modelDef == nullptr;
+        for (const auto& range : modelDef ? modelDef->hours : std::vector<GfsModels::Hours>{}) {
+            offered = offered || (hour >= range.from && hour <= range.to && (hour - range.from) % range.step == 0);
+        }
+        if (!offered) {
+            error = model + " does not make an F" + std::to_string(hour) + " forecast for " + label + " from its " + run.id() + " run.";
+            return {};
+        }
+    }
     if (base && !variant.member.empty()) {
         if (model == "SPCREFS") {
             SpcRefsLoader::readMemberNames(run);   // the chart's title names the member, as its run's store does

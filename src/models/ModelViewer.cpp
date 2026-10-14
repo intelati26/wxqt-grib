@@ -60,7 +60,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
-    , comboTilesShow{this, {"Compare: charts", "Compare: models", "Compare: runs", "Compare: members"}}
+    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)"}}
     , comboMember{this, {"Ensemble mean"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
@@ -164,7 +164,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
         comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs.");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
-        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 3)));
+        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 4)));
         comboTiles.connect([this] {
             Utility::writePref("MODEL_TILES", std::to_string(comboTiles.getIndex()));
             applyTileLayout();
@@ -1305,7 +1305,7 @@ int ModelViewer::tileCount() const {
 
 ModelViewer::TilesShow ModelViewer::tilesShow() const {
     const auto i = comboTilesShow.getIndex();
-    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : TilesShow::Charts;
+    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : i == 4 ? TilesShow::ModelsByTime : TilesShow::Charts;
 }
 
 void ModelViewer::applyTileLayout() {
@@ -1356,7 +1356,7 @@ void ModelViewer::resetTileSpecs() {
                 others.push_back(name);
             }
         }
-    } else if (show == TilesShow::Models) {
+    } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
         for (const auto& def : GfsModels::all()) {
             if (!def.storm && def.id != objectModel.model && GfsRender::handles(def.id, objectModel.param)) {
                 others.push_back(def.id);
@@ -1367,7 +1367,7 @@ void ModelViewer::resetTileSpecs() {
         Spec spec{objectModel.model, objectModel.param, objectModel.sector, 0};
         if (show == TilesShow::Charts) {
             spec.param = k < others.size() ? others[k] : objectModel.param;
-        } else if (show == TilesShow::Models) {
+        } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
             spec.model = k < others.size() ? others[k] : string{};
         } else if (show == TilesShow::Members) {
             spec.member.clear();   // the next members after the first tile's (tileMember)
@@ -1450,7 +1450,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
                 job.cycle = t.addSecs(-3600LL * spec.shift).toString("yyyyMMddHH").toStdString();
                 job.hour = mainHour + spec.shift;   // the same valid time
             }
-        } else if (show == TilesShow::Models) {
+        } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
             job.cycle = spec.model == objectModel.model ? objectModel.run : string{};   // another model: its newest run
         }
         if (job.ok && !GfsRender::handles(job.model, job.param)) {
@@ -1490,6 +1490,15 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             v.member = member;
             v.standardDeviations = standardDeviations;
         }
+        if (show == TilesShow::ModelsByTime && job.ok) {   // by the clock: each model's own hour for the first tile's valid time
+            const auto start = runTime(objectModel.run);
+            if (!start.isValid()) {
+                job.ok = false;
+                job.why = "The date of the run is not known yet.";
+            } else {
+                v.validTime = start.addSecs(3600LL * mainHour).toString("yyyyMMddHH").toStdString();
+            }
+        }
         job.variant = v;
         string vk;
         if (v.kind == GfsRender::Variant::Kind::Change) {
@@ -1507,6 +1516,9 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         }
         if (v.standardDeviations) {
             job.key += "|sd";
+        }
+        if (!v.validTime.empty()) {
+            job.key += "|vt=" + v.validTime;
         }
     }
     job.chart = job.model + "|" + job.param + "|" + job.sector;
@@ -1610,7 +1622,7 @@ void ModelViewer::changeTile(int index) {
         return;
     }
     QMenu menu;
-    if (show == TilesShow::Models) {
+    if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
         for (const auto& def : GfsModels::all()) {
             if (def.storm || !GfsRender::handles(def.id, objectModel.param)) {
                 continue;
