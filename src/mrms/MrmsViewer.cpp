@@ -12,6 +12,7 @@
 #include <cmath>
 #include <memory>
 #include <numbers>
+#include <set>
 #include <QBuffer>
 #include <QFont>
 #include <QImage>
@@ -52,7 +53,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     , comboLoop{this, {"Loop: last 6 scans", "Loop: last 12 scans", "Loop: last 24 scans"}}
     , comboUnits{this, {"US units", "Metric units"}}
     , comboAuto{this, {"Auto-update: 2 min", "Auto-update: 5 min", "Auto-update: off"}}
-    , comboLightning{this, {"Lightning: off", "Lightning: last 1 min", "Lightning: last 5 min", "Lightning: last 15 min", "Lightning: last 30 min"}}
+    , comboLightning{this, {"Lightning: off", "Lightning: last 1 min", "Lightning: last 5 min (by age)", "Lightning: last 15 min (by age)", "Lightning: last 30 min (by age)"}}
     , buttonLoop{this, Icon::Play, "Loop"}
     , buttonSave{this, Icon::None, "Save"}
     , shortcutSave{QKeySequence{"Ctrl+S"}, this}
@@ -406,9 +407,10 @@ void MrmsViewer::setFrame(const UtilityMrms::Frame& frame) {
     radar->update();
 }
 
-// the lightning overlay: the newest scan of MRMS's cloud-to-ground strike density for the chosen period, each cell with a strike kept as a point
+// the lightning overlay: MRMS's cloud-to-ground strike density of the last 1, 5, 15 and 30 minutes (as far as the choice goes), each cell with a strike kept as a point of the
+// shortest period it is in, so the colors give a little time series
 void MrmsViewer::loadLightning() {
-    static const char * ids[] = {"", "NLDN_CG_001min_AvgDensity", "NLDN_CG_005min_AvgDensity", "NLDN_CG_015min_AvgDensity", "NLDN_CG_030min_AvgDensity"};
+    static const char * ids[] = {"NLDN_CG_001min_AvgDensity", "NLDN_CG_005min_AvgDensity", "NLDN_CG_015min_AvgDensity", "NLDN_CG_030min_AvgDensity"};
     const int which = std::clamp(comboLightning.getIndex(), 0, 4);
     if (which == 0 || lightningLoading || closed) {
         if (which == 0) {
@@ -417,41 +419,59 @@ void MrmsViewer::loadLightning() {
         return;
     }
     lightningLoading = true;
-    const string wanted = ids[which];
+    const int periods = which;   // 1: the last minute only ... 4: all four
     const int mine = ++lightningGeneration;
-    auto frame = std::make_shared<UtilityMrms::Frame>();
-    auto ok = std::make_shared<bool>(false);
+    struct Result {
+        vector<Strike> points;
+        QDateTime utc;
+        bool ok{false};
+    };
+    auto result = std::make_shared<Result>();
     new FutureVoid{this,
-        [wanted, frame, ok] {
+        [periods, result] {
             vector<UtilityMrms::Product> more;
             string error;
             UtilityMrms::discoverMore(more, error);
-            const auto found = std::find_if(more.begin(), more.end(), [&wanted] (const auto& p) { return p.id == wanted; });
-            if (found == more.end()) {
-                return;
-            }
-            vector<UtilityMrms::Scan> list;
-            if (UtilityMrms::scans(*found, list, error) && !list.empty()) {
-                *ok = UtilityMrms::frame(*found, list.back(), *frame, error);
-            }
-        },
-        [this, frame, ok, mine] {
-            lightningLoading = false;
-            if (closed || mine != lightningGeneration || !*ok) {
-                return;
-            }
-            lightningPoints.clear();
-            lightningTime = frame->utc;
-            const auto cells = frame->indices();
-            const auto& grid = frame->grid;
-            for (int row = 0; row < grid.rows; row++) {
-                const auto * line = reinterpret_cast<const uchar *>(cells.constData()) + static_cast<qsizetype>(row) * grid.columns;
-                for (int column = 0; column < grid.columns; column++) {
-                    if (lightningPoints.size() < 200000 && line[column] != 0 && frame->valueAt(line[column]) > 0.0) {   // the density of a cell that had a strike (index 1 can be zero)
-                        lightningPoints.emplace_back(static_cast<float>(grid.west + (column + 0.5) * grid.cell), static_cast<float>(grid.north - (row + 0.5) * grid.cell));
+            std::set<std::pair<int, int>> seen;   // cells already placed by a shorter period
+            for (int period = 0; period < periods; period++) {
+                const string wanted = ids[period];
+                const auto found = std::find_if(more.begin(), more.end(), [&wanted] (const auto& p) { return p.id == wanted; });
+                if (found == more.end()) {
+                    continue;
+                }
+                vector<UtilityMrms::Scan> list;
+                UtilityMrms::Frame frame;
+                if (!UtilityMrms::scans(*found, list, error) || list.empty() || !UtilityMrms::frame(*found, list.back(), frame, error)) {
+                    continue;
+                }
+                result->ok = true;
+                if (period == 0) {
+                    result->utc = frame.utc;
+                }
+                const auto cells = frame.indices();
+                const auto& grid = frame.grid;
+                for (int row = 0; row < grid.rows; row++) {
+                    const auto * line = reinterpret_cast<const uchar *>(cells.constData()) + static_cast<qsizetype>(row) * grid.columns;
+                    for (int column = 0; column < grid.columns; column++) {
+                        if (line[column] == 0 || frame.valueAt(line[column]) <= 0.0 || result->points.size() >= 300000) {   // a cell that had a strike (index 1 can be zero)
+                            continue;
+                        }
+                        if (!seen.insert({column, row}).second) {
+                            continue;   // a shorter period has it
+                        }
+                        result->points.push_back({static_cast<float>(grid.west + (column + 0.5) * grid.cell), static_cast<float>(grid.north - (row + 0.5) * grid.cell),
+                                                  static_cast<unsigned char>(period)});
                     }
                 }
             }
+        },
+        [this, result, mine] {
+            lightningLoading = false;
+            if (closed || mine != lightningGeneration || !result->ok) {
+                return;
+            }
+            lightningPoints = std::move(result->points);
+            lightningTime = result->utc;
             radar->update();
         }};
 }
@@ -802,21 +822,45 @@ void MrmsViewer::paintLegend(QPainter& painter) {
     if (currentIndices.isEmpty()) {
         return;
     }
-    if (!lightningPoints.empty() && comboLightning.getIndex() > 0) {   // the strikes, a small cross at each cell (the map's window units, as the crosshair is drawn)
+    if (!lightningPoints.empty() && comboLightning.getIndex() > 0) {   // the strikes, a small cross at each cell (the map's window units, as the crosshair is drawn), the oldest first
         const auto [ax, bx, ay, by] = projection();
         const auto& state = radar->mapState;
         const double arm = 2.6 * 1000.0 / radar->width();
-        for (const auto& pen : {QPen{QColor{0, 0, 0, 170}, 3.2}, QPen{QColor{255, 235, 40}, 1.5}}) {
-            painter.setPen(pen);
-            for (const auto& [lon, lat] : lightningPoints) {
-                const double mercator = std::log(std::tan(std::numbers::pi / 4.0 + lat * std::numbers::pi / 360.0)) * 180.0 / std::numbers::pi;
-                const double u = (ax * lon + bx) * state.zoom + state.xPos;
-                const double v = (ay * mercator + by) * state.zoom + state.yPos;
-                if (u < -520.0 || u > 520.0 || v < -270.0 || v > 770.0) {
-                    continue;
+        static const QColor colors[4] = {QColor{255, 255, 255}, QColor{255, 235, 40}, QColor{255, 150, 20}, QColor{235, 40, 40}};
+        static const char * names[4] = {"last minute", "1-5 min", "5-15 min", "15-30 min"};
+        const int periods = comboLightning.getIndex();
+        for (int age = periods - 1; age >= 0; age--) {
+            for (const auto& pen : {QPen{QColor{0, 0, 0, 170}, 3.2}, QPen{colors[age], 1.5}}) {
+                painter.setPen(pen);
+                for (const auto& strike : lightningPoints) {
+                    if (strike.age != age) {
+                        continue;
+                    }
+                    const double mercator = std::log(std::tan(std::numbers::pi / 4.0 + strike.lat * std::numbers::pi / 360.0)) * 180.0 / std::numbers::pi;
+                    const double u = (ax * strike.lon + bx) * state.zoom + state.xPos;
+                    const double v = (ay * mercator + by) * state.zoom + state.yPos;
+                    if (u < -520.0 || u > 520.0 || v < -270.0 || v > 770.0) {
+                        continue;
+                    }
+                    painter.drawLine(QPointF{u - arm, v}, QPointF{u + arm, v});
+                    painter.drawLine(QPointF{u, v - arm}, QPointF{u, v + arm});
                 }
-                painter.drawLine(QPointF{u - arm, v}, QPointF{u + arm, v});
-                painter.drawLine(QPointF{u, v - arm}, QPointF{u, v + arm});
+            }
+        }
+        {   // the key: the colors by age
+            QFont keyFont{painter.font()};
+            keyFont.setPointSizeF(9.0);
+            painter.setFont(keyFont);
+            double x = -490.0;
+            const double y = -236.0;
+            painter.fillRect(QRectF{-496.0, y - 12.0, 20.0 + 100.0 * periods, 20.0}, QColor{0, 0, 0, 170});
+            for (int age = 0; age < periods; age++) {
+                painter.setPen(QPen{colors[age], 2.0});
+                painter.drawLine(QPointF{x, y}, QPointF{x + 8.0, y});
+                painter.drawLine(QPointF{x + 4.0, y - 4.0}, QPointF{x + 4.0, y + 4.0});
+                painter.setPen(Qt::white);
+                painter.drawText(QPointF{x + 12.0, y + 4.0}, names[age]);
+                x += 100.0;
             }
         }
     }

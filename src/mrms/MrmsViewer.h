@@ -90,7 +90,11 @@ private:
     std::unique_ptr<MapLayerDownload> layerDownload;      // warnings, watches, outlooks, fronts, observations (the Map settings)
     QLabel * hoverLabel{};     // the coordinate / value popup over the map
     QLabel * labelLocations{}; // "Home: 0.82 in   Springfield: none" under the status line
-    vector<std::pair<float, float>> lightningPoints;   // longitude, latitude of each cell with a strike
+    struct Strike {
+        float lon, lat;
+        unsigned char age;   // 0 the last minute, 1 the last 5, 2 the last 15, 3 the last 30
+    };
+    vector<Strike> lightningPoints;   // each cell with a strike, by how recent
     QDateTime lightningTime;
     int lightningGeneration{0};
     bool lightningLoading{false};
