@@ -14,6 +14,7 @@
 #include "hurricane/ReconViewer.h"
 #include "radar/MapWidget.h"
 #include "drought/DroughtViewer.h"
+#include "util/HomeThumbnails.h"
 #include "objects/NetManager.h"
 #include "objects/URL.h"
 #include "ui/NetStatus.h"
@@ -167,6 +168,12 @@ int main(int argc, char * argv[]) {
                 auto seasons = std::make_shared<HurricaneData::SeasonData>();
                 HurricaneData::loadSeason(*seasons, route.section(':', 1, 1).toStdString());
                 new SeasonViewer{&w, seasons};
+            } else if (route.startsWith("thumb:")) {   // WXQT_OPEN=thumb:<home thumbnail token>:<out file>: what that home tile would show
+                const auto bytes = HomeThumbnails::fetch(route.section(':', 1, 1).toStdString());
+                QFile out{route.section(':', 2, 2)};
+                if (out.open(QIODevice::WriteOnly)) out.write(bytes);
+                fprintf(stderr, "thumb: %lld bytes\n", static_cast<long long>(bytes.size()));
+                std::_Exit(0);
             } else if (route == "drought") {   // WXQT_OPEN=drought: the drought dashboard (WXQT_TAB=<n> for its other tabs)
                 new DroughtViewer{&w};
             } else if (route.startsWith("fetchtest:")) {   // WXQT_OPEN=fetchtest:<url>: two requests for the url at once through the network client, with what it did (retries, sharing), then quit

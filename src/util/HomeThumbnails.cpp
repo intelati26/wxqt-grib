@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <map>
 #include <QFile>
+#include <QImage>
 #include "common/GlobalVariables.h"
 #include "misc/UtilityOpcImages.h"
 #include "mrms/UtilityMrms.h"
@@ -116,6 +117,14 @@ const HomeThumbnails::Entry * HomeThumbnails::find(const string& token) {
     return nullptr;
 }
 
+namespace {
+    // a picture that really is one (an error page, an empty answer or a stub is not drawn as a tile)
+    bool decodes(const QByteArray& bytes) {
+        QImage image;
+        return !bytes.isEmpty() && image.loadFromData(bytes) && image.width() >= 32 && image.height() >= 32;
+    }
+}
+
 QByteArray HomeThumbnails::fetch(const string& token) {
     if (token == "MRMS_LATEST" || token == "MRMS_RADAR") {
         // the product last looked at in the MRMS viewer (else composite reflectivity), the newest scan, drawn around the
@@ -177,7 +186,21 @@ QByteArray HomeThumbnails::fetch(const string& token) {
     } else if (token == "OPC_SURFACE") {
         url = UtilityOpcImages::urls.front();
     } else if (token == "GOES_GLOBAL") {
-        url = UtilityGoesFullDisk::urls.front();
+        // the product last chosen on the Global GOES screen; when its server does not answer with a picture, the GOES full disk of NESDIS's own site
+        std::vector<string> candidates;
+        const auto chosen = static_cast<size_t>(std::max(0, Utility::readPrefInt("GOESFULLDISK_IMG_FAV_URL", 0)));
+        if (chosen < UtilityGoesFullDisk::urls.size()) {
+            candidates.push_back(UtilityGoesFullDisk::urls[chosen]);
+        }
+        candidates.push_back("https://cdn.star.nesdis.noaa.gov/GOES19/ABI/FD/GEOCOLOR/678x678.jpg");
+        candidates.push_back("https://cdn.star.nesdis.noaa.gov/GOES18/ABI/FD/GEOCOLOR/678x678.jpg");
+        for (const auto& candidate : candidates) {
+            const auto bytes = UtilityIO::downloadAsByteArray(candidate);
+            if (decodes(bytes)) {
+                return bytes;
+            }
+        }
+        return {};
     } else if (token == "LIGHTNING") {
         url = UtilityGoes::getImage("GLM", "CONUS");
     } else if (token == "TROPICAL_ATL_SAT") {
@@ -191,5 +214,9 @@ QByteArray HomeThumbnails::fetch(const string& token) {
     } else {
         url = DownloadImage::byProduct(token);
     }
-    return url.empty() ? QByteArray{} : UtilityIO::downloadAsByteArray(url);
+    if (url.empty()) {
+        return {};
+    }
+    const auto bytes = UtilityIO::downloadAsByteArray(url);
+    return decodes(bytes) ? bytes : QByteArray{};
 }
