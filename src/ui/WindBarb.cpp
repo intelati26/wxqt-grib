@@ -24,14 +24,14 @@ void WindBarb::draw(QPainter& painter, const QPointF& at, double fromDegrees, do
     while (remaining >= 50) {
         const QPointF a = at + staff * along;
         QPolygonF flag;
-        flag << a << a + perp * feather - staff * (step * 0.4) << a - staff * (step * 1.4);
+        flag << a << a + perp * feather << a - staff * (step * 1.4);
         painter.drawPolygon(flag);
         along -= step * 1.6;
         remaining -= 50;
     }
     while (remaining >= 10) {
         const QPointF a = at + staff * along;
-        painter.drawLine(a, a + perp * feather - staff * (step * 0.6));
+        painter.drawLine(a, a + perp * feather + staff * (step * 0.9));   // leaning to the free end, like the feathers of an arrow
         along -= step;
         remaining -= 10;
     }
@@ -40,6 +40,6 @@ void WindBarb::draw(QPainter& painter, const QPointF& at, double fromDegrees, do
             along -= step;   // a lone half barb sits one step in from the end
         }
         const QPointF a = at + staff * along;
-        painter.drawLine(a, a + perp * feather * 0.5 - staff * (step * 0.3));
+        painter.drawLine(a, a + perp * feather * 0.5 + staff * (step * 0.45));
     }
 }
