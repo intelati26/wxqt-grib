@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "hurricane/HistoryViewer.h"
+#include "hurricane/SarWindsViewer.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -84,8 +85,18 @@ HistoryViewer::HistoryViewer(Window * parent)
     QObject::connect(list, &QListWidget::currentRowChanged, [this] (int row) {
         selected = row >= 0 && static_cast<size_t>(row) < shown.size() ? static_cast<int>(shown[static_cast<size_t>(row)]) : -1;
         showSelected();
+        buttonSar->setEnabled(selected >= 0 && data && data->tracks[static_cast<size_t>(selected)].year >= 2015 && data->tracks[static_cast<size_t>(selected)].name != "UNNAMED");
     });
     comboBasin.connect([this] { load(); });
+    buttonSar = new QPushButton{"SAR winds of the storm...", this};
+    buttonSar->setToolTip("NOAA STAR's synthetic aperture radar winds: the scenes made of the selected storm (named storms of 2015 and later) with their pictures and measurements");
+    buttonSar->setEnabled(false);
+    QObject::connect(buttonSar, &QPushButton::clicked, [this] {
+        if (selected >= 0 && data) {
+            const auto& t = data->tracks[static_cast<size_t>(selected)];
+            new SarWindsViewer{this, t.id, t.name, t.year};
+        }
+    });
     checkLowest = new QCheckBox{"lowest first", this};
     checkLowest->setToolTip("Turn the list round: the weakest, shortest, lowest-ACE... first");
     QObject::connect(checkLowest, &QCheckBox::toggled, [this] { applyFilters(); });
@@ -110,6 +121,7 @@ HistoryViewer::HistoryViewer(Window * parent)
     rowMain.addWidgetReal(list, 1, Qt::AlignTop | Qt::AlignLeft);
     rowSort.addWidget(comboSort);
     rowSort.addWidgetReal(checkLowest);
+    rowSort.addWidgetReal(buttonSar);
     rowSort.addStretch();
     box.addLayout(rowTop);
     box.addLayout(rowSort);

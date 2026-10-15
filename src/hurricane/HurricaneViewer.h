@@ -129,6 +129,7 @@ private:
     Button buttonShips;
     Button buttonPod;
     Button buttonVdm;
+    Button buttonSar;      // NOAA STAR's SAR winds of the storm: the schedule and the scenes
     Button buttonFlight;
     Button buttonIntensity;
     Button buttonSeason;

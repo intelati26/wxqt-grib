@@ -14,6 +14,7 @@
 #include "hurricane/ReconViewer.h"
 #include "radar/MapWidget.h"
 #include "drought/DroughtViewer.h"
+#include "hurricane/SarWindsViewer.h"
 #include "util/HomeThumbnails.h"
 #include "objects/NetManager.h"
 #include "objects/URL.h"
@@ -174,6 +175,8 @@ int main(int argc, char * argv[]) {
                 if (out.open(QIODevice::WriteOnly)) out.write(bytes);
                 fprintf(stderr, "thumb: %lld bytes\n", static_cast<long long>(bytes.size()));
                 std::_Exit(0);
+            } else if (route.startsWith("sar:")) {   // WXQT_OPEN=sar:<NHC id>:<name>:<year>, e.g. sar:ep202026:Simon:2026: NOAA STAR's SAR winds of the storm
+                new SarWindsViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString(), route.section(':', 3, 3).toInt()};
             } else if (route == "drought") {   // WXQT_OPEN=drought: the drought dashboard (WXQT_TAB=<n> for its other tabs)
                 new DroughtViewer{&w};
             } else if (route.startsWith("fetchtest:")) {   // WXQT_OPEN=fetchtest:<url>: two requests for the url at once through the network client, with what it did (retries, sharing), then quit

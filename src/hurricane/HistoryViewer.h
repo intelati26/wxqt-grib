@@ -12,6 +12,7 @@
 #include <QCheckBox>
 #include <QLabel>
 #include <QListWidget>
+#include <QPushButton>
 #include "hurricane/HurricaneData.h"
 #include "radar/AreaSearch.h"
 #include "radar/MapView.h"
@@ -57,6 +58,7 @@ private:
     ComboBox comboNear;
     ComboBox comboRadius;
     ComboBox comboSort;
+    QPushButton * buttonSar{};   // NOAA STAR's SAR winds of the selected storm (2015 and later)
     QCheckBox * checkLowest{};   // the order of the list turned round
     Entry entrySearch;
     Button buttonArea;

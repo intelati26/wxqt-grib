@@ -29,6 +29,7 @@
 #include "hurricane/PodViewer.h"
 #include "hurricane/ReconRenderer.h"
 #include "hurricane/ReconViewer.h"
+#include "hurricane/SarWindsViewer.h"
 #include "hurricane/SeasonViewer.h"
 #include "hurricane/UtilityChanges.h"
 #include "models/SoundingViewer.h"
@@ -117,6 +118,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     , buttonShips{this, None, "SHIPS and RI..."}
     , buttonPod{this, None, "Recon plan of the day..."}
     , buttonVdm{this, None, "Recon vortex messages..."}
+    , buttonSar{this, None, "SAR winds (NOAA STAR)..."}
     , buttonFlight{this, None, "One recon flight on the satellite picture..."}
     , buttonIntensity{this, None, "Intensity chart..."}
     , buttonSeason{this, None, "Season table and ACE..."}
@@ -252,6 +254,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     column->addWidget(buttonShips.getView());
     column->addWidget(buttonPod.getView());
     column->addWidget(buttonVdm.getView());
+    column->addWidget(buttonSar.getView());
     column->addWidget(buttonFlight.getView());
     reconCheck = new QCheckBox{"Recon flights (HDOB)", panel};
     reconCheck->setChecked(Utility::readPref("HURRICANE_RECON", "false") == "true");
@@ -335,6 +338,14 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
             new VdmViewer{this, vdm, QString::fromStdString(HurricaneData::idLabel(storm->id))};
         } else {
             textStatus.setText(string{"The vortex messages have not loaded yet."});
+        }
+    });
+    buttonSar.connect([this] {
+        if (storm && storm->id.size() >= 8) {
+            const int year = std::atoi(storm->id.substr(storm->id.size() - 4).c_str());
+            new SarWindsViewer{this, storm->id, storm->name, year};
+        } else {
+            textStatus.setText(string{"Choose a storm first."});
         }
     });
     buttonFlight.connect([this] {
