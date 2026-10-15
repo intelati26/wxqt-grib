@@ -98,7 +98,7 @@ void GoesLayer::paint(QPainter& painter, MapHost& host) {
             lonOf[static_cast<size_t>(i)] = (((u - t.xPos) / t.zoom - t.bx) / t.ax) * std::numbers::pi / 180.0;
         }
         for (int j = 0; j < height; j++) {
-            const double v = (j + 0.5) / ratio * 1000.0 / view.map()->height() - 250.0;
+            const double v = (j + 0.5) / ratio * 1000.0 / view.map()->width() - 250.0;
             const double mercator = ((v - t.yPos) / t.zoom - t.by) / t.ay;
             const double lat = std::atan(std::sinh(mercator * std::numbers::pi / 180.0));
             auto * out = reinterpret_cast<QRgb *>(cache.scanLine(j));

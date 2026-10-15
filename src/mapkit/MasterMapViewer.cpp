@@ -171,7 +171,10 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     buildTree();
     // what was on last time
     building = true;
-    for (const auto& id : split(Utility::readPref("MASTERMAP_ON", "obs/airports"), ',')) {
+    for (auto id : split(Utility::readPref("MASTERMAP_ON", "obs/airports"), ',')) {
+        if (id == "tropical/deepmind") {
+            id = "tropical/spaghetti";   // DeepMind's layer became part of the ensemble tracks layer
+        }
         setLayerOn(id, true);
         if (auto * item = items.count(id) != 0 ? items[id] : nullptr) {
             item->setCheckState(0, Qt::Checked);
@@ -649,7 +652,8 @@ void MasterMapViewer::paintLegend(QPainter& painter) {
             }
         }
     }
-    MapLegend::draw(painter, rows, mapView->unitsPerPixel());
+    const auto * map = mapView->map();
+    MapLegend::draw(painter, rows, mapView->unitsPerPixel(), -250.0 + 1000.0 * map->height() / std::max(1, map->width()) - 2.0);
 }
 
 MapHit MasterMapViewer::bestHit(const QPointF& pixels) const {
@@ -689,5 +693,5 @@ void MasterMapViewer::resizeEventCustom() {
         return;
     }
     const int above = ControlRow::heightIn(rowTop.getView(), width()) + textStatus.getView()->sizeHint().height();
-    mapView->fit(width() - panelWidth - 30, height() - above - 40);
+    mapView->fitRectangle(width() - panelWidth - 30, height() - above - 40);
 }

@@ -9,6 +9,7 @@
 #include <QPainter>
 #include <QPaintEvent>
 #include <numbers>
+#include <algorithm>
 #include <cmath>
 #include "radar/Projection.h"
 #include "radar/RadarGeometry.h"
@@ -92,7 +93,11 @@ void MapDraw::initSurface(QPainter * painter, QPaintEvent * event) {
     painter->setBrush(QBrush{RadarPreferences::mapBackgroundColor, Qt::SolidPattern});
     painter->drawRect(event->rect());
     painter->setRenderHints(QPainter::Antialiasing, false);
-    painter->setWindow(QRect{-500, -250, 1000, 1000});
+    int windowHeight = 1000;
+    if (mapState->rectangular && painter->device()->width() > 0) {   // the same units per pixel across and down: the window is as tall as the widget's shape makes it
+        windowHeight = std::max(1, static_cast<int>(std::lround(1000.0 * painter->device()->height() / painter->device()->width())));
+    }
+    painter->setWindow(QRect{-500, -250, 1000, windowHeight});
     painter->translate(mapState->xPos, mapState->yPos);
     painter->scale(mapState->zoom, mapState->zoom);
 }

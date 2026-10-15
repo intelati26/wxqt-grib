@@ -41,7 +41,7 @@ namespace {
     };
 }
 
-double MapLegend::draw(QPainter& painter, const std::vector<MapLegendRow>& rows, double perPixel) {
+double MapLegend::draw(QPainter& painter, const std::vector<MapLegendRow>& rows, double perPixel, double bottomUnits) {
     if (rows.empty()) {
         return 750.0;
     }
@@ -79,7 +79,7 @@ double MapLegend::draw(QPainter& painter, const std::vector<MapLegendRow>& rows,
         lineHasRow = true;
     }
     const int lines = line + 1;
-    const double bottom = 748.0;
+    const double bottom = bottomUnits;   // the window's bottom edge (748 for the square)
     const double top = bottom - lines * lineHeight - 2.0 * p;
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setPen(Qt::NoPen);

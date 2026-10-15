@@ -38,6 +38,7 @@ public:
     bool inView(const QPointF& units, double margin = 20.0) const;
     void showRegion(double minLat, double maxLat, double minLon, double maxLon);   // the box fills the square, centred
     void fit(int availableWidth, int availableHeight);                              // a square no larger than the space
+    void fitRectangle(int availableWidth, int availableHeight);                     // the whole space, the same scale both ways
     void zoomBy(double factor);
     void panBy(double dxPixels, double dyPixels);
 

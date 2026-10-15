@@ -48,7 +48,7 @@ void ForecastPointLayer::paint(QPainter& painter, MapHost& host) {
     const QFontMetricsF metrics{font};
     for (const auto& entry : *points) {
         const QPointF at = t(entry.lat, entry.lon);
-        if (at.x() < -500.0 || at.x() > 500.0 || at.y() < -250.0 || at.y() > 750.0) {
+        if (at.x() < -500.0 || at.x() > 500.0 || at.y() < -250.0 || at.y() > -250.0 + 1000.0 * view.map()->height() / std::max(1, view.map()->width())) {
             continue;
         }
         const double r = 5.0 * perPixel;

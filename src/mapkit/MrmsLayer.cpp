@@ -206,7 +206,7 @@ void MrmsLayer::paint(QPainter& painter, MapHost& host) {
     QImage image{pixelWidth, pixelHeight, QImage::Format_ARGB32_Premultiplied};
     const auto * cells = reinterpret_cast<const uchar *>(indices.constData());
     for (int j = 0; j < pixelHeight; j++) {
-        const double v = (j + 0.5) / ratio * 1000.0 / view.map()->height() - 250.0;
+        const double v = (j + 0.5) / ratio * 1000.0 / view.map()->width() - 250.0;
         const double mercator = ((v - t.yPos) / t.zoom - t.by) / t.ay;
         const double lat = std::atan(std::sinh(mercator * std::numbers::pi / 180.0)) * 180.0 / std::numbers::pi;
         const int row = static_cast<int>(std::floor((grid.north - lat) / grid.cell));

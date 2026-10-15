@@ -143,7 +143,7 @@ private:
 class EnsembleSpaghettiLayer : public MapLayer {
 public:
     string id() const override { return "tropical/spaghetti"; }
-    string path() const override { return "Tropical/Raw ensemble spaghetti: every member, every system, every forecast hour"; }
+    string path() const override { return "Tropical/Ensemble tracks: GEFS, ECMWF and DeepMind, every member (spaghetti)"; }
     string source() const override { return "NOAA / NHC ATCF (GEFS), ECMWF open data (CC BY 4.0), Google DeepMind Weather Lab. " + EnsembleStyle::deepMindCredit(); }
     string tip() const override { return "All the members of GEFS, the ECMWF IFS and AIFS ensembles and DeepMind's FNV3 / WeatherNext 3, for every system they track (named or not), colored by model, forecast hour or wind. Hover a line for the member and hour; click a storm of the Atlantic or Pacific for its screen"; }
     int order() const override { return 73; }
@@ -189,7 +189,7 @@ private:
 class DeepMindGenesisLayer : public MapLayer {
 public:
     string id() const override { return "tropical/deepmind-genesis"; }
-    string path() const override { return "Tropical/DeepMind: where new storms may form (1000 members, experimental)"; }
+    string path() const override { return "Tropical/Ensemble tracks: where new storms may form (DeepMind 1000 members)"; }
     string source() const override { return "Google DeepMind Weather Lab. " + EnsembleStyle::deepMindCredit(); }
     string tip() const override { return "From DeepMind's 1000-member cyclone ensemble: each dot is a member that forms a new storm, there; the label is the share of the members that do. Reads a 37 MB file"; }
     int order() const override { return 71; }

@@ -47,6 +47,7 @@ private:
 public: // TODO FIXME
     int originalWidth{};
     int originalHeight{};
+    bool rectangular{false};   // the widget is a rectangle with the same units per pixel both ways (the window is 1000 wide and as tall as the shape makes it), not a square
 };
 
 #endif  // MAPSTATE_H

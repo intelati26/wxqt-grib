@@ -166,7 +166,7 @@ void StationLayer::paint(QPainter& painter, MapHost& host) {
             continue;
         }
         const QPointF at = t(s.lat, s.lon);
-        if (at.x() < -500.0 || at.x() > 500.0 || at.y() < -250.0 || at.y() > 750.0) {
+        if (at.x() < -500.0 || at.x() > 500.0 || at.y() < -250.0 || at.y() > -250.0 + 1000.0 * host.view().map()->height() / std::max(1, host.view().map()->width())) {
             continue;
         }
         const QPointF pixels{(at.x() + 500.0) / perPixel, (at.y() + 250.0) / perPixel};

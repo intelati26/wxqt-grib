@@ -171,7 +171,7 @@ void AreaSearch::paint(QPainter& painter, const MapView::Transform& t, double px
     }
     if (dragging) {
         const auto toUnits = [this] (const QPointF& pixels) {
-            return QPointF{pixels.x() * 1000.0 / std::max(1, view->map()->width()) - 500.0, pixels.y() * 1000.0 / std::max(1, view->map()->height()) - 250.0};
+            return QPointF{pixels.x() * 1000.0 / std::max(1, view->map()->width()) - 500.0, pixels.y() * 1000.0 / std::max(1, view->map()->width()) - 250.0};
         };
         painter.drawRect(QRectF{toUnits(dragStart), toUnits(dragNow)}.normalized());
     }
