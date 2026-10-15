@@ -58,12 +58,15 @@ jobs:
       # distro GDAL (MSYS2's, used before) pulls in Arrow/Parquet, HEIF video
       # codecs, PDF, HDF5, OpenBLAS... - over 100 MB of DLLs nothing here loads.
       # The install tree is cached, so the ~20 min build only reruns when the
-      # manifest or the runner image's vcpkg checkout changes.
+      # manifest changes (the runner image's vcpkg commit is NOT in the key: the
+      # image is refreshed about weekly and that alone rebuilt GDAL every time).
+      # A changed manifest starts from the previous tree (restore-keys), so
+      # vcpkg only builds the ports that differ.
       - name: vcpkg cache key
         id: vcpkg-key
         shell: pwsh
         run: |
-          $commit = git -C "$env:VCPKG_INSTALLATION_ROOT" rev-parse HEAD
+          $commit = 'v1'   # bump to force a clean rebuild
           $manifest = (Get-FileHash .github/vcpkg/vcpkg.json).Hash
           "key=gdal-x64-windows-release-$commit-$manifest" >> $env:GITHUB_OUTPUT
           $webpManifest = (Get-FileHash .github/vcpkg-webp/vcpkg.json).Hash
@@ -75,6 +78,7 @@ jobs:
         with:
           path: D:/gdal-vcpkg
           key: ${{ steps.vcpkg-key.outputs.key }}
+          restore-keys: gdal-x64-windows-release-
 
       - name: Build GDAL (vcpkg)
         if: steps.gdal-cache.outputs.cache-hit != 'true'
