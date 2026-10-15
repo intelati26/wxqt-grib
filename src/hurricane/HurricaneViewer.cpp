@@ -30,6 +30,7 @@
 #include "hurricane/ReconRenderer.h"
 #include "hurricane/ReconViewer.h"
 #include "hurricane/SarWindsViewer.h"
+#include "hurricane/UtilitySarWinds.h"
 #include "hurricane/SeasonViewer.h"
 #include "hurricane/UtilityChanges.h"
 #include "models/SoundingViewer.h"
@@ -500,6 +501,7 @@ void HurricaneViewer::loadStorm() {
             showStorm();
             updateChanges();
             loadEnsembles();
+            loadSar();
             loadShips();
             loadVdm();
             loadDrops();
@@ -578,6 +580,22 @@ void HurricaneViewer::updateChanges() {
         changeLines = UtilityChanges::describe(before, now);
         changeTitle = "Since the previous best-track fix (" + UtilityAtcf::formatTime(old.time) + ")";
     }
+}
+
+void HurricaneViewer::loadSar() {
+    const auto gen = generation;
+    const auto id = storm ? storm->id : string{};
+    if (id.empty()) {
+        return;
+    }
+    auto line = std::make_shared<string>();
+    new FutureVoid{this, [id, line] { *line = UtilitySarWinds::summary(UtilitySarWinds::index(), id); }, [this, gen, line] {
+        if (closed || gen != generation) {
+            return;
+        }
+        sarLine = *line;
+        updateInfo();
+    }};
 }
 
 void HurricaneViewer::loadEnsembles() {
@@ -1105,6 +1123,9 @@ void HurricaneViewer::updateInfo() {
         }
         html += "<br><b>Dropsondes</b> " + (count == 0 ? QString{"none near this storm"} : QString::number(count) + " (click a blue triangle for its sounding), lowest surface pressure " +
                 QString::number(static_cast<int>(lowest)) + " mb") + "<br>";
+    }
+    if (!sarLine.empty()) {
+        html += "<br><b>SAR winds (NOAA STAR)</b> " + QString::fromStdString(sarLine) + "<br>";
     }
     if (vdm && vdm->error.empty()) {
         html += "<br><b>Vortex messages</b> " + VdmViewer::summary(*vdm) + "<br>";

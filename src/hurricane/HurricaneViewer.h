@@ -129,6 +129,8 @@ private:
     Button buttonShips;
     Button buttonPod;
     Button buttonVdm;
+    string sarLine;        // STAR's latest SAR scene and next pass of the storm
+    void loadSar();
     Button buttonSar;      // NOAA STAR's SAR winds of the storm: the schedule and the scenes
     Button buttonFlight;
     Button buttonIntensity;

@@ -39,12 +39,27 @@ public:
         vector<string> measurements;   // "Quadrant 1 NE VMax (kts): 89.16", "RMax (nmi): 5.00 - 7.00" ...
         double lat{-999.0}, lon{-999.0};   // the storm centre found in the scene
     };
+    struct Latest {          // the newest scene of a storm on STAR's front page
+        string id;           // EP202026
+        string name;
+        string sensor;       // "S1D - VH"
+        string time;         // "2026-10-13  1:05:00 UTC"
+    };
+    struct Index {           // the schedule and the newest scene of every storm, all basins, from the one front page
+        Schedule schedule;
+        vector<Latest> latest;
+        bool ok{false};
+    };
     static const string base;                                             // https://www.star.nesdis.noaa.gov/socd/mecb/sar/
     static string stormUrl(int year, const string& id, const string& name);   // the page of a storm: EP202026, SIMON
     static Schedule parseSchedule(const string& html);
     static vector<Scene> parseStorm(const string& html);                   // newest first, as the page has them
     static string storm(const string& id, const string& name, int year, vector<Scene>& out);   // fetches; the error text, or empty
     static string fetchSchedule(Schedule& out);
+    static vector<Latest> parseLatest(const string& html);
+    static Index index();   // the front page, kept ten minutes; blocks on the network
+    // "latest Oct 13 01:05Z S1D, next Oct 15 13:03Z RCM-2" for a storm id (any case); empty when STAR has neither
+    static string summary(const Index&, const string& id);
 };
 
 #endif  // UTILITYSARWINDS_H

@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include "tropical/UtilityCira.h"
+#include "hurricane/UtilitySarWinds.h"
 #include "ui/Button.h"
 #include "ui/FlowBox.h"
 #include "ui/HBox.h"
@@ -31,7 +32,7 @@ public:
 
 private:
     void reload();
-    void build(const vector<UtilityCira::Storm>&, const std::vector<string>& infraredUrls);
+    void build(const vector<UtilityCira::Storm>&, const std::vector<string>& infraredUrls, const UtilitySarWinds::Index&);
     void closeEventCustom() override { closed = true; }
     VBox box;
     ScrolledWindow sw;

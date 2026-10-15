@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "tropical/TropicalViewer.h"
+#include "hurricane/UtilitySarWinds.h"
 #include "ui/UiStandards.h"
 #include <memory>
 #include <QWidget>
@@ -44,8 +45,9 @@ void TropicalViewer::reload() {
     auto storms = std::make_shared<vector<UtilityCira::Storm>>();
     auto infrared = std::make_shared<vector<string>>();
     auto error = std::make_shared<string>();
+    auto sar = std::make_shared<UtilitySarWinds::Index>();
     new FutureVoid{this,
-        [storms, infrared, error] {
+        [storms, infrared, error, sar] {
             if (!UtilityCira::activeStorms(*storms, *error)) {
                 return;
             }
@@ -56,8 +58,9 @@ void TropicalViewer::reload() {
                 const auto found = page.imageUrl.find("4kmirimg");
                 infrared->push_back(found == page.imageUrl.end() ? string{} : found->second);
             }
+            *sar = UtilitySarWinds::index();   // the SAR passes of every storm of every basin, from the one page
         },
-        [this, storms, infrared, error] {
+        [this, storms, infrared, error, sar] {
             if (closed) {
                 return;
             }
@@ -65,11 +68,11 @@ void TropicalViewer::reload() {
                 textNote.setText(*error);
                 return;
             }
-            build(*storms, *infrared);
+            build(*storms, *infrared, *sar);
         }};
 }
 
-void TropicalViewer::build(const vector<UtilityCira::Storm>& storms, const vector<string>& infraredUrls) {
+void TropicalViewer::build(const vector<UtilityCira::Storm>& storms, const vector<string>& infraredUrls, const UtilitySarWinds::Index& sar) {
     // start again (a refresh)
     boxStorms.removeChildren();
     headings.clear();
@@ -96,7 +99,9 @@ void TropicalViewer::build(const vector<UtilityCira::Storm>& storms, const vecto
         // a tile: the infrared picture over the storm's title
         images.emplace_back(this);
         images.back().imageSize = UiStandards::tileImage;
-        flows.back().addWidgetReal(CaptionedTile::make(this, images.back().getView(), QString::fromStdString(storm.title), QString::fromStdString(storm.title),
+        const auto sarText = UtilitySarWinds::summary(sar, storm.id);
+        const auto caption = QString::fromStdString(storm.title) + (sarText.empty() ? QString{} : "\nSAR: " + QString::fromStdString(sarText));
+        flows.back().addWidgetReal(CaptionedTile::make(this, images.back().getView(), caption, caption,
                                                        UiStandards::tileImage, true, UiStandards::tileWidth));
         const auto id = storm.id;
         const auto title = storm.title;

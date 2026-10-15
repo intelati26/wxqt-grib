@@ -8,6 +8,9 @@
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
+#include <chrono>
+#include <mutex>
+#include <QDateTime>
 #include "util/UtilityIO.h"
 
 const string UtilitySarWinds::base{"https://www.star.nesdis.noaa.gov/socd/mecb/sar/"};
@@ -119,4 +122,89 @@ string UtilitySarWinds::fetchSchedule(Schedule& out) {
     }
     out = parseSchedule(html);
     return out.passes.empty() ? "no passes are listed right now" : string{};
+}
+
+vector<UtilitySarWinds::Latest> UtilitySarWinds::parseLatest(const string& htmlText) {
+    vector<Latest> out;
+    const auto html = QString::fromStdString(htmlText);
+    const auto blocks = html.split(QRegularExpression{"size=\"\\+2\"><a href=\"\\?year="}, Qt::SkipEmptyParts);
+    for (int b = 1; b < blocks.size(); b++) {
+        const auto& block = blocks[b];
+        const auto head = QRegularExpression{"storm=([A-Z]{2}\\d{6})_([^\"]+)\""}.match(block);
+        if (!head.hasMatch()) {
+            continue;
+        }
+        Latest latest;
+        latest.id = head.captured(1).toStdString();
+        latest.name = head.captured(2).toStdString();
+        const auto sensor = QRegularExpression{"card-header\"[^>]*>([^<]*)<"}.match(block);
+        const auto time = QRegularExpression{"card-subtitle[^>]*>([^<]*)<"}.match(block);
+        if (!sensor.hasMatch() || !time.hasMatch()) {
+            continue;
+        }
+        latest.sensor = sensor.captured(1).trimmed().toStdString();
+        latest.time = QString{time.captured(1)}.replace("&nbsp;", " ").trimmed().toStdString();
+        const bool seen = std::any_of(out.begin(), out.end(), [&latest] (const Latest& l) { return l.id == latest.id; });
+        if (!seen) {
+            out.push_back(latest);
+        }
+    }
+    return out;
+}
+
+UtilitySarWinds::Index UtilitySarWinds::index() {
+    static std::mutex mutex;
+    static Index cached;
+    static std::chrono::steady_clock::time_point when{};
+    const std::lock_guard lock{mutex};
+    const auto now = std::chrono::steady_clock::now();
+    if (cached.ok && now - when < std::chrono::minutes{10}) {
+        return cached;
+    }
+    // the season's page: the schedule, and the scenes of its most recent storms (the front page without a year has the schedule only)
+    const auto html = UtilityIO::getHtml(base + "sarwinds_tropical.php?year=" + std::to_string(QDate::currentDate().year()));
+    if (html.empty()) {
+        return cached;   // the last one, or an empty one that is not ok
+    }
+    Index fresh;
+    fresh.schedule = parseSchedule(html);
+    fresh.latest = parseLatest(html);
+    fresh.ok = true;
+    cached = fresh;
+    when = now;
+    return cached;
+}
+
+string UtilitySarWinds::summary(const Index& index, const string& idText) {
+    string id = idText;
+    std::transform(id.begin(), id.end(), id.begin(), [] (unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    string text;
+    for (const auto& latest : index.latest) {
+        if (latest.id != id) {
+            continue;
+        }
+        auto time = QString::fromStdString(latest.time).replace("UTC", "").simplified();
+        auto parsed = QDateTime::fromString(time, "yyyy-MM-dd H:mm:ss");
+        auto sensor = QString::fromStdString(latest.sensor);
+        sensor = sensor.left(sensor.indexOf(" - ") < 0 ? sensor.size() : sensor.indexOf(" - "));   // "RCM2 - VH" -> "RCM2"
+        text = "latest " + (parsed.isValid() ? parsed.toString("MMM d HH:mm").toStdString() : latest.time) + "Z " + sensor.toStdString();
+        break;
+    }
+    const auto now = QDateTime::currentDateTimeUtc();
+    const Pass * next = nullptr;
+    for (const auto& pass : index.schedule.passes) {
+        if (pass.id != id) {
+            continue;
+        }
+        auto when = QDateTime::fromString(QString::fromStdString(pass.time), "yyyy-MM-dd HH:mm");
+        when.setTimeSpec(Qt::UTC);
+        if (when >= now.addSecs(-1800) && (next == nullptr || pass.time < next->time)) {
+            next = &pass;
+        }
+    }
+    if (next != nullptr) {
+        auto when = QDateTime::fromString(QString::fromStdString(next->time), "yyyy-MM-dd HH:mm");
+        text += (text.empty() ? "" : ", ") + string{"next "} + (when.isValid() ? when.toString("MMM d HH:mm").toStdString() : next->time) + "Z " + next->sensor;
+    }
+    return text;
 }
