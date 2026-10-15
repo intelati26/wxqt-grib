@@ -246,6 +246,19 @@ MapHit DamLayer::pick(const QPointF& pixels, MapHost& host) const {
             hit.text = QString::fromStdString(d.project->name + "  (" + UtilityDams::sourceLabel(*d.project) + ")") + "\n" + DamViewer::summary(d).replace(";  ", "\n");
             const auto * project = d.project;
             hit.open = [project] (Window * parent) { new DamViewer{parent, *project}; };
+            // the dam's graphs on the hover, as on its page: pool, release and power over the last week (read when the pointer rests on it)
+            hit.chartKey = "dam:" + project->office + ":" + project->id;
+            hit.chart = [project, &host] (std::function<void(QImage)> deliver) {
+                auto data = std::make_shared<DamData::Data>();
+                host.background([project, data] { DamData::loadProject(*project, 168, *data); },
+                                [data, deliver] {
+                                    DamChart chart;
+                                    chart.setMinimumSize(0, 0);
+                                    chart.setData(data, 168);
+                                    chart.resize(560, 470);
+                                    deliver(chart.grab().toImage());
+                                });
+            };
         }
     }
     return hit;

@@ -18,7 +18,6 @@ NWS	TODA1	Black Warrior River at Oliver Lock and Dam	33.20917	-87.59639		AL	TODA
 NWS	ARKA1	Black Warrior River at Smith Dam	33.94222	-87.10778		AL	ARKA1		ARKA1#flow			
 NWS	WLDA1	Black Warrior River below Selden Dam	32.77722	-87.84139		AL	WLDA1		WLDA1#flow			
 NWS	MOHA3	Colorado River at Lake Mohave/Davis Dam	35.19722	-114.56861		AZ	MOHA3		MOHA3#flow			
-NWS	BHDA3	Colorado River below Hoover Dam	36.01528	-114.73780		AZ	BHDA3		BHDA3#flow			
 NWS	GCDW1	Columbia River above Grand Coulee Dam	47.95556	-118.98389		WA	GCDW1		GCDW1#flow			
 NWS	BONO3	Columbia River at Bonneville Dam	45.63308	-121.96073		OR	BONO3		BONO3#flow			
 NWS	CHJW1	Columbia River at Chief Joseph Dam	47.99611	-119.63250		WA	CHJW1		CHJW1#flow			
@@ -168,3 +167,209 @@ NWS	WUUW3	Wisconsin River below Wausau Dam	44.96028	-89.63444		WI	WUUW3		WUUW3#f
 NWS	WTGW3	Wisconsin River below Whiting Dam	44.48639	-89.57528		WI	WTGW3		WTGW3#flow			
 NWS	WDSW3	Wisconsin River below Wisconsin Rapids Dam	44.39472	-89.82333		WI	WDSW3		WDSW3#flow			
 USGS	09379900	Lake Powell at Glen Canyon Dam	36.93730	-111.48400	Page	AZ	09379900:62614		09380000:00060			
+USBR	7181	Hungry Horse Reservoir, Dam, and Powerplant (HGH)	48.34108	-114.01353			130875			130877		
+USBR	7325	Conconully Reservoir and Dam (CCR)	48.53806	-119.74722			134086					
+USBR	7306	Gerber Reservoir and Dam (GER)	42.20127	-121.12980			134035					
+USBR	7307	Lost River Reservoir and Diversion Dam (LRD)	42.14282	-121.67289			134042					
+USBR	7309	Clear Lake Reservoir East Lobe (LRS)	41.92603	-121.07588			134051					
+USBR	7311	Clear Lake Reservoir West Lobe (CLK)	41.84663	-121.20962			134027					
+USBR	7326	Rifle Gap Reservoir and Dam	39.62790	-107.75950			134099		134096			
+USBR	7327	Vega Reservoir and Dam	39.22430	-107.81083			134107					
+USBR	7083	Cheney Reservoir and Dam	37.72529	-97.79755			133978					
+USBR	7301	Helena Valley Reservoir and Dam	46.63810	-111.88220			134001					
+USBR	7302	Lake Meredith and Sanford Dam	35.71060	-101.55080			134006					
+USBR	7303	Lake of the Arbuckles and Arbuckle Dam	34.43060	-97.03060			133975					
+USBR	7304	Twin Buttes Reservoir and Dam	31.37690	-100.53360			134009					
+USBR	3	Gray Reef Reservoir and Dam	42.56560	-106.69890			134111					
+USBR	3652	Hugh Butler Lake and Red Willow Dam	40.35750	-100.66720			133991		133993			
+USBR	508	Willow Creek Reservoir and Dam (MT)	47.54670	-112.42920			857		861			
+USBR	3672	Warm Springs Reservoir and Dam (WAR)	43.58505	-118.20929			133695					
+USBR	3671	Unity Reservoir and Dam (UNY)	44.50420	-118.18060			133627					
+USBR	3668	Thief Valley Reservoir and Dam (THF)	45.01300	-117.78108			133473					
+USBR	3666	Prineville Reservoir and Arthur R. Bowman Dam (PRV)	44.11125	-120.78738			132576					
+USBR	3665	Ochoco Reservoir and Dam (OCH)	44.29903	-120.72506			132076					
+USBR	3664	McKay Reservoir and Dam (MCK)	45.60541	-118.79577			131674					
+USBR	3663	Mann Creek Reservoir and Dam (MAN)	44.39235	-116.89539			131642					
+USBR	3661	Lake Waha (WAH)	46.21020	-116.83800			133689					
+USBR	7188	Lake Lowell and Deer Flat Dams (LOW)	43.58333	-116.73333			131591					
+USBR	3653	Lake Como and Como Dam (CMO)	46.06170	-114.23330			129825					
+USBR	3651	Henry Hagg Lake and Scoggins Dam (SCO)	45.47240	-123.19965			132998					
+USBR	3649	Deadwood Reservoir and Dam	44.29323	-115.64595			130056					
+USBR	3645	Lake Cascade and Cascade Dam (CSC)	44.52500	-116.05028			129979					
+USBR	3647	Bumping Lake and Bumping Lake Dam (BUM)	46.87120	-121.29936			129606					
+USBR	3646	Bully Creek Reservoir and Dam (BUL)	44.01473	-117.39690			129588					
+USBR	3643	Beulah Reservoir and Agency Valley Dam (BEU)	43.91174	-118.15435			129309					
+USBR	3642	Arrowrock Reservoir and Dam (ARK)	43.59520	-115.92300			129218					
+USBR	3641	Anderson Ranch Reservoir, Dam, and Powerplant (AND)	43.35951	-115.45017			129153			129160		
+USBR	7192	Lake Owyhee and Owyhee Dam (OWY)	43.64156	-117.24305			132262					
+USBR	7196	Rimrock Lake and Tieton Dam (RIM)	46.65660	-121.12893			132730					
+USBR	7170	Cle Elum Lake and Dam (CLE)	47.24556	-121.07333			129799					
+USBR	7199	Soldiers Meadow Reservoir and Dam (SOL)	46.16722	-116.73666			133228					
+USBR	7197	Ririe Reservoir and Dam (RIR)	43.58214	-111.74284			132746					
+USBR	7184	Island Park Reservoir and Dam (ISL)	44.41893	-111.39843			131169					
+USBR	7182	Howard Prairie Lake and Dam (HPD)	42.21663	-122.37753			130955					
+USBR	3683	Crawford Dam and Reservoir	38.68294	-107.60285			128730		128731			
+USBR	3511	Nambe Falls Reservoir and Dam	35.97499	-105.91753			6112		6117			
+USBR	365	Heron Reservoir and Dam	36.69730	-106.69920			421		4501			
+USBR	324	El Vado Lake and Dam	36.59480	-106.73660			336		4502			
+USBR	509	Whiskeytown Lake and Dam	40.59800	-122.53700			10828		10825	10832		
+USBR	3203	Trinity Lake Dam and Powerplant	40.80100	-122.76200			10853		10859	10856		
+USBR	471	Shasta Lake Dam and Powerplant	40.71800	-122.42000			10863		10869	10866		
+USBR	397	Lewiston Lake Dam and Powerplant	40.72700	-122.79300			10799		10796	10801		
+USBR	387	Keswick Reservoir Dam and Powerplant	40.60100	-122.44300			10795		10792			
+USBR	388	Keyhole Reservoir and Dam	44.38190	-104.77920			478		482			
+USBR	3658	Foss Reservoir and Dam	35.55000	-99.18330			133988					
+USBR	3657	Fort Cobb Reservoir and Dam	35.16670	-98.45000			133981					
+USBR	3656	Enders Reservoir and Dam	40.42080	-101.51750			133984		133985			
+USBR	268	Box Butte Reservoir and Dam	42.45830	-103.06670			142					
+USBR	257	Angostura Reservoir and Dam	43.34330	-103.43830			106		110			
+USBR	498	Turquoise Lake and Sugar Loaf Dam	39.25280	-106.37420			815		817			
+USBR	3670	Tom Steed Reservoir and Mountain Park Dam	34.73860	-98.98750			133814					
+USBR	424	Nelson Reservoir and Nelson Dikes	48.52970	-107.51860			619		621			
+USBR	3674	Lake Thunderbird and Norman Dam	35.22080	-97.21810			134003					
+USBR	3650	Harry Strunk Lake and Medicine Creek Dam	40.37830	-100.21670			133996		133998			
+USBR	275	Bighorn Lake Yellowtail Dam and Powerplant	45.30720	-107.95690			164		167			
+USBR	3667	Swanson Lake and Trenton Dam	40.17000	-101.06000			134012		134014			
+USBR	1	Marys Lake	40.34408	-105.53431			4223		4225			
+USBR	274	Belle Fourche Reservoir and Dam	44.73670	-103.67420			159		162			
+USBR	281	Boysen Reservoir Dam and Powerplant	43.40000	-108.17690			196		199			
+USBR	269	Buffalo Bill Reservoir Dam and Powerplant	44.50140	-109.18330			146		148			
+USBR	287	Calamus Reservoir and Virginia Smith Dam	41.82720	-99.21970			215					
+USBR	294	Clark Canyon Reservoir and Dam	45.00170	-112.85750			239		242			
+USBR	331	Flatiron Reservoir and Dam	40.36500	-105.23610			344		346			
+USBR	334	Folsom Lake Dam and Powerplant	38.68300	-121.18300			10775		10772	10779		
+USBR	337	Fresno Reservoir and Dam	48.60830	-109.94580			355		357			
+USBR	342	Gibson Reservoir and Dam	47.60080	-112.76170			365		367			
+USBR	345	Glendo Reservoir Dam and Powerplant	42.47720	-104.95060			374		377			
+USBR	357	Guernsey Reservoir Dam and Powerplant	42.28860	-104.76250			395					
+USBR	402	Lake Tschida and Heart Butte Dam	46.59670	-101.80940			550		554			
+USBR	372	Hyrum Reservoir and Dam	41.62117	-111.86099			442		4341			
+USBR	379	Jamestown Dam and Reservoir	46.93060	-98.70640			451		453			
+USBR	390	Keith Sebelius Lake and Norton Dam	39.80750	-99.93420			489		492			
+USBR	391	Kirwin Reservoir and Dam	39.66360	-99.12470			495		499			
+USBR	429	Lake Estes and Olympus Dam	40.37300	-105.48780			632		635			
+USBR	318	Edward Arthur Patterson Lake	46.86970	-102.82690			305		308			
+USBR	3515	Lake Havasu Parker Dam and Powerplant	34.29640	-114.13850			6128		6130			
+USBR	396	Lake Elwell and Tiber Dam	48.31830	-111.09080			526		528			
+USBR	422	Lake Natoma Nimbus Dam and Powerplant	38.65000	-121.18300			10820		10817	10823		
+USBR	413	Millerton Lake and Friant Dam	37.00100	-119.70500			10808		10805			
+USBR	292	Cachuma Lake and Bradbury Dam	34.58300	-119.98000			10786		10789			
+USBR	272	Lake Berryessa and Monticello Dam	38.51300	-122.10400			10785		10784			
+USBR	6	Spring Creek Reservoir and Debris Dam	40.62900	-122.47400			10836		10839			
+USBR	394	Little Lake Alice Reservoir	41.96250	-103.57220			516					
+USBR	515	Willow Creek Reservoir and Dam (CO)	40.14780	-105.94200			872		874			
+USBR	507	Winters Creek Lake	41.95750	-103.53220			853					
+USBR	506	Webster Reservoir and Dam	39.39140	-99.42580			847		850			
+USBR	504	Waconda Lake and Glen Elder Dam	39.49610	-98.31330			841		844			
+USBR	499	Twin Lakes Reservoir and Dam	39.08030	-106.31390			819		823			
+USBR	476	Shadehill Reservoir and Dam	45.75330	-102.20330			749		753			
+USBR	475	Lake Sherburne and Dam	48.82830	-113.52110			742		744			
+USBR	473	Shadow Mountain Lake and Dam	40.20720	-105.84170			738		740			
+USBR	467	Seminoe Reservoir Dam and Powerplant	42.15580	-106.90810			733		735			
+USBR	456	Ruedi Reservoir and Dam	39.36390	-106.81800			712		716			
+USBR	445	Pueblo Reservoir and Dam	38.25970	-104.71810			682		684			
+USBR	444	Pactola Reservoir and Dam	44.07220	-103.48810			675		679			
+USBR	443	Pishkun Reservoir and Dikes	47.67670	-112.49670			671		673			
+USBR	438	Pinewood Reservoir and Rattlesnake Dam	40.36800	-105.28640			658		660			
+USBR	435	Pilot Butte Reservoir and Dam	43.20000	-108.75000			649		651			
+USBR	433	Pathfinder Reservoir and Dam	42.46810	-106.85360			645		647			
+USBR	421	Lake Nasworthy and Dam	31.38860	-100.47810			607					
+USBR	419	Mount Elbert Forebay Reservoir and Dam	39.10220	-106.35330			603					
+USBR	408	Mcgee Creek Reservoir and Dam	34.31450	-95.87500			564					
+USBR	404	Lovewell Reservoir and Dam	39.88450	-98.02810			557		560			
+USBR	399	Lake Minatare and Dam	41.91830	-103.48860			542					
+USBR	398	Lima Reservoir Upstream of Clark Canyon Reservoir	44.65610	-112.37060			535					
+USBR	369	Horsetooth Reservoir and Dam	40.59940	-105.17110			87		90			
+USBR	353	Green Mountain Reservoir Dam and Powerplant	39.87890	-106.31330			22		23			
+USBR	351	Lake Granby and Dam	40.18200	-105.87110			384		386			
+USBR	344	Grand Lake	40.24170	-105.80220			372					
+USBR	315	Deerfield Reservoir and Dam	44.02810	-103.78580			296		300			
+USBR	311	Davis Creek Reservoir and Dam	41.40470	-98.70780			284					
+USBR	295	Canyon Ferry Lake Dam Powerplant and Helena Valley Pumping Plant	46.64920	-111.72750			14					
+USBR	293	Cawker City Dike	39.49890	-98.44060			237					
+USBR	291	Choke Canyon Reservoir and Dam	28.46670	-98.16670			232					
+USBR	288	Carter Lake Reservoir and Dam	40.32420	-105.21190			217					
+USBR	278	Bull Lake Reservoir and Dam	43.20970	-109.04170			184		186			
+USBR	276	Bighorn River and BIA Canal near St. Xavier	45.31670	-107.91800			172					
+USBR	271	South Fork Dike at Buffalo Bill Reservoir	44.44250	-109.21250			152					
+USBR	266	Lake Alice and Dams	41.98670	-103.63220			135					
+USBR	262	Anchor Reservoir and Dam	43.66390	-108.82420			126		128			
+USBR	259	Alcova Reservoir Dam and Powerplant	42.54890	-106.72060			114		116			
+USBR	2	Audubon Lake North Dakota	47.61140	-101.26560			3					
+USBR	3512	Platoro Reservoir and Dam	37.34060	-106.56400			6119		6121			
+USBR	477	Silver Jack Reservoir and Dam	38.23280	-107.54110			4845		4844			
+USBR	448	Ridgway Reservoir and Dam	38.22281	-107.74781			4838		4837			
+USBR	431	Paonia Reservoir and Dam	38.94420	-107.35170			4830		4829			
+USBR	338	Fruitgrowers Reservoir and Dam	38.82675	-107.95428			4823					
+USBR	3209	Lost Lake	40.67410	-110.94130			4529		4526			
+USBR	3208	Trial Lake	40.67990	-110.95684			4522		4519			
+USBR	3207	Washington Lake	40.67650	-110.96400			4536		4533			
+USBR	3204	New Melones Lake Dam and Powerplant	37.94810	-120.52500			10842		10848	10845		
+USBR	1536	Fontenelle Reservoir Dam and Powerplant	42.05781	-110.09665			349		4313	4305		
+USBR	1535	Flaming Gorge Reservoir Dam and Powerplant	40.97789	-109.57304			341		4314	4306		
+USBR	1534	Crystal Reservoir Dam and Powerplant	38.50322	-107.61758			276		4312	4304		
+USBR	1533	Blue Mesa Reservoir Dam and Powerplant	38.46421	-107.22457			78		4310	4302		
+USBR	512	Willard Bay Reservoir and Arthur V Watkins Dam	41.37738	-112.08339			869					
+USBR	501	Vallecito Reservoir and Dam	37.38956	-107.55602			834		4323			
+USBR	500	Upper Stillwater Reservoir and Dam	40.56565	-110.70044			829		4346			
+USBR	491	Taylor Park Reservoir and Dam	38.83269	-106.58564			796		4309			
+USBR	488	Strawberry Reservoir and Soldier Creek Dam	40.16882	-111.13110			782		4345			
+USBR	486	Steinaker Reservoir and Dam	40.51456	-109.53275			778		4318			
+USBR	485	Stateline Reservoir and Dam	40.98291	-110.39038			773		4336			
+USBR	484	Starvation Reservoir and Dam	40.19324	-110.44722			767		4319			
+USBR	466	Scofield Reservoir and Dam	39.77656	-111.05074			730		4321			
+USBR	453	Rockport Reservoir and Wanship Dam	40.77498	-111.39859			709		4335			
+USBR	447	Red Fleet Reservoir and Dam	40.57832	-109.42853			688		4344			
+USBR	437	Pineview Reservoir Dam and Powerplant	41.26543	-111.80998			656		4334			
+USBR	425	Newton Reservoir and Dam	41.89980	-111.97562			626		4343			
+USBR	423	Navajo Reservoir and Dam	36.85932	-107.53047			612		4316			
+USBR	417	Morrow Point Reservoir Dam and Powerplant	38.44437	-107.50955			594		4311	4303		
+USBR	416	Moon Lake Reservoir and Dam	40.57445	-110.50665			590		4320			
+USBR	411	Meeks Cabin Reservoir and Dam	41.01664	-110.58344			577		4333			
+USBR	410	Mcphee Reservoir and Dam	37.53968	-108.54219			572		4342			
+USBR	400	Lost Creek Reservoir and Dam	41.18887	-111.39628			547		4331			
+USBR	395	Lemon Reservoir and Dam	37.39538	-107.66269			523		4324			
+USBR	392	Lake Nighthorse and Ridges Basin Dam	37.22392	-107.91694			505		4423			
+USBR	384	Jordanelle Reservoir Dam and Powerplant	40.60689	-111.41655			471		4347	4542		
+USBR	383	Joes Valley Reservoir and Dam	39.29010	-111.27888			466		4322			
+USBR	378	Jackson Gulch Reservoir and Dam	37.40186	-108.27342			448		4325			
+USBR	370	Huntington North Reservoir and Dam	39.38458	-111.09082			435		4340			
+USBR	323	Elephant Butte Reservoir Dam and Powerplant	33.22488	-107.17589			332		4377			
+USBR	321	Eden Reservoir and Dam	42.22500	-109.37060			322		4339			
+USBR	320	Echo Reservoir and Dam	40.95740	-111.41790			317		4330			
+USBR	319	East Canyon Reservoir and Dam	40.91017	-111.59293			313		4329			
+USBR	314	Deer Creek Reservoir Dam and Powerplant	40.43511	-111.50035			293		4338	4308		
+USBR	310	Currant Creek Reservoir and Dam	40.33841	-111.05821			281		4337			
+USBR	289	Causey Reservoir and Dam	41.29828	-111.58591			222		4328			
+USBR	286	Caballo Reservoir and Dam	32.92443	-107.29932			212		4374			
+USBR	277	Big Sandy Reservoir and Dam	42.26841	-109.43201			181		4326			
+USBR	7266	Scooteney Reservoir and Dikes (SCT)	46.66926	-119.03264			133022					
+USBR	7265	Potholes Reservoir and O'Sullivan Dam (POT)	46.98312	-119.27551			132564					
+USBR	7264	Banks Lake and Dry Falls Dam (BNK)	47.61712	-119.29932			129466					
+USBR	7202	Little Wood River Reservoir and Dam (WOD)	43.42528	-114.02723			133736					
+USBR	7201	Wickiup Reservoir and Dam (WIC)	43.68382	-121.68976			133727					
+USBR	7200	Clear Lake and Wasco Dam (WAS)	45.17639	-121.69444			133711					
+USBR	7198	Mann Lake and Reservoir A Dam (RSA)	46.37111	-116.85750			132897					
+USBR	7195	Phillips Lake and Mason Dam (PHL)	44.67167	-118.00000			132419					
+USBR	7194	Payette Lake and Payette Lake Dam (PAY)	44.91220	-116.11930			132375					
+USBR	7193	Palisades Reservoir, Dam, and Powerplant (PAL)	43.33052	-111.20635			132285					
+USBR	7190	Milner Lake and Dam (MIL)	42.52336	-114.01394			131793					
+USBR	7189	Lucky Peak Lake and Dam (LUC)	43.52791	-116.05302			131597					
+USBR	7187	Keechelus Lake and Dam (KEE)	47.32222	-121.33889			131247					
+USBR	7186	Kachess Lake and Dam (KAC)	47.26472	-121.20444			131228					
+USBR	7183	Hyatt Reservoir and Dam (HYA)	42.17222	-122.46667			131064					
+USBR	7180	Henrys Lake and Henrys Lake Dam (HEN)	44.59722	-111.35361			130841					
+USBR	7179	Haystack Reservoir and Dam (HAY)	44.49944	-121.15444			130822					
+USBR	7178	Grassy Lake and Grassy Lake Dam (GRS)	44.12966	-110.81939			130756					
+USBR	7177	Fourmile Lake and Fourmile Lake Dam (FOR)	42.45592	-122.24340			130545					
+USBR	7176	Fish Lake and Fish Lake Dam (FIS)	42.37814	-122.34799			130494					
+USBR	7175	Black Canyon Reservoir, Diversion Dam, and Powerplant (EMM)	43.93050	-116.43710			130358			130362		
+USBR	7174	Emigrant Lake and Dam (EMI)	42.16130	-122.60537			130339					
+USBR	7173	Crescent Lake and Crescent Lake Dam (CRE)	43.50166	-121.97348			129880					
+USBR	7172	Crane Prairie Reservoir and Dam (CRA)	43.75514	-121.78501			129874					
+USBR	7171	Cold Springs Reservoir and Dam (CLS)	45.86000	-119.17083			129819					
+USBR	7169	Conconully Lake and Salmon Lake Dam (CCL)	48.55854	-119.74500			129647					
+USBR	7168	Billy Clapp Lake and Pinto Dam (BCP)	47.44806	-119.25444			129301					
+USBR	7167	American Falls Reservoir and Dam (AMF)	42.77916	-112.87917			129133					
+USBR	7166	Agate Reservoir and Dam (AGA)	42.41500	-122.77222			129060					
+USBR	3514	Lake Mead, Hoover Dam and Powerplant	36.01630	-114.73740	Boulder City	NV	6123		6125			

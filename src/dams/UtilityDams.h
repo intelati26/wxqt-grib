@@ -51,7 +51,7 @@ public:
     static double kilometers(double lat1, double lon1, double lat2, double lon2);
     static bool has(double v) { return v > missing + 1.0; }
     // who reports it: "Corps of Engineers SWL", "NWS river gauge" or "USGS"
-    static string sourceLabel(const Project& p) { return p.office == "NWS" ? "NWS river gauge" : p.office == "USGS" ? "USGS" : "Corps of Engineers " + p.office; }
+    static string sourceLabel(const Project& p) { return p.office == "NWS" ? "NWS river gauge" : p.office == "USGS" ? "USGS" : p.office == "USBR" ? "Bureau of Reclamation" : "Corps of Engineers " + p.office; }
 };
 
 #endif  // UTILITYDAMS_H

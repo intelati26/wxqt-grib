@@ -108,12 +108,12 @@ void DamChart::paintEvent(QPaintEvent *) {
     const double left = 62.0;
     const double width = this->width() - left - 14.0;
     const double gap = 24.0;
-    const double each = (this->height() - 44.0 - gap * (static_cast<double>(strips.size()) - 1)) / static_cast<double>(std::max<size_t>(1, strips.size()));
+    const double each = (this->height() - 64.0 - gap * (static_cast<double>(strips.size()) - 1)) / static_cast<double>(std::max<size_t>(1, strips.size()));
     const double xStep = span > 400 ? 120.0 : span > 200 ? 48.0 : span > 100 ? 24.0 : span > 40 ? 12.0 : 6.0;
     const auto xLabel = [&] (double x) {
         const long t = newest - static_cast<long>((span - x) * 3600.0);
         const auto text = QString::fromStdString(UtilityHdob::timeText(t));   // "07 Oct 10:00Z"
-        return text.left(6) + "\n" + text.mid(7);
+        return text.mid(5, 5) + "\n" + text.mid(11, 5) + "Z";   // "10-07" over "01:22Z" (the text is "2026-10-07 01:22Z")
     };
     for (size_t index = 0; index < strips.size(); index++) {
         const auto& strip = strips[index];
@@ -137,8 +137,16 @@ void DamChart::paintEvent(QPaintEvent *) {
         double range = std::max(hi - lo, strip.fromZero ? 1.0 : 0.5);
         double top = hi + range * 0.08;
         double bottom = strip.fromZero ? 0.0 : lo - range * 0.08;
-        const double step = (top - bottom) > 3000 ? 1000.0 : (top - bottom) > 1000 ? 500.0 : (top - bottom) > 300 ? 100.0 : (top - bottom) > 100 ? 50.0 : (top - bottom) > 30 ? 10.0 :
+        double step = (top - bottom) > 3000 ? 1000.0 : (top - bottom) > 1000 ? 500.0 : (top - bottom) > 300 ? 100.0 : (top - bottom) > 100 ? 50.0 : (top - bottom) > 30 ? 10.0 :
             (top - bottom) > 10 ? 2.0 : (top - bottom) > 3 ? 0.5 : (top - bottom) > 1 ? 0.2 : 0.1;
+        {   // a scale label needs about 14 pixels: a short strip (the hover graph) gets a wider step, 1, 2 or 5 times a power of ten, so the numbers do not run into each other
+            const double minStep = (top - bottom) * 14.0 / std::max(1.0, each);
+            if (step < minStep) {
+                const double power = std::pow(10.0, std::floor(std::log10(minStep)));
+                const double m = minStep / power;
+                step = (m <= 1.0 ? 1.0 : m <= 2.0 ? 2.0 : m <= 5.0 ? 5.0 : 10.0) * power;
+            }
+        }
         if (!strip.fromZero) {
             bottom = std::floor(bottom / step) * step;
         }
@@ -153,6 +161,13 @@ void DamChart::paintEvent(QPaintEvent *) {
             QPainterPath path;
             bool started = false;
             double lastX = -1e9;
+            // a gap of more than three hours breaks the line; a series that is daily (a Reclamation reservoir) is joined, with its points marked
+            double typical = 0.0;
+            if (line.series->points.size() > 2) {
+                typical = static_cast<double>(line.series->points.back().seconds - line.series->points.front().seconds) / 3600.0 / static_cast<double>(line.series->points.size() - 1);
+            }
+            const double gapLimit = std::max(3.0, typical * 2.5);
+            const bool sparse = typical > 3.0;
             for (const auto& pt : line.series->points) {
                 const double age = static_cast<double>(newest - pt.seconds) / 3600.0;
                 if (age > span) {
@@ -165,7 +180,14 @@ void DamChart::paintEvent(QPaintEvent *) {
                     p.drawLine(base, at);
                 } else {
                     // a gap of more than three hours breaks the line
-                    (!started || x - lastX > 3.0) ? path.moveTo(at) : path.lineTo(at);
+                    (!started || x - lastX > gapLimit) ? path.moveTo(at) : path.lineTo(at);
+                    if (sparse) {
+                        p.save();
+                        p.setPen(Qt::NoPen);
+                        p.setBrush(line.color);
+                        p.drawEllipse(at, 2.5, 2.5);
+                        p.restore();
+                    }
                     started = true;
                     lastX = x;
                 }

@@ -77,6 +77,29 @@ namespace {
         return out;
     }
 
+    // a Reclamation RISE item (an elevation, a release ...): its newest daily or hourly results of the last `hours`
+    UtilityDams::Series usbrSeries(const string& item, int hours) {
+        UtilityDams::Series out;
+        const int count = std::max(4, hours / 24 + 4);
+        const string after = QDateTime::currentDateTimeUtc().addSecs(-static_cast<qint64>(hours) * 3600 - 86400).toString("yyyy-MM-dd'T'HH:mm:ss").toStdString();
+        const string url = "https://data.usbr.gov/rise/api/result?itemId=" + item + "&itemsPerPage=" + std::to_string(std::min(2000, hours * 2 + 8)) +
+            "&order%5BdateTime%5D=DESC&dateTime%5Bafter%5D=" + after;
+        const auto document = QJsonDocument::fromJson(UtilityIO::downloadAsByteArray(url));
+        const auto data = document.object().value("data").toArray();
+        const auto since = QDateTime::currentSecsSinceEpoch() - static_cast<qint64>(hours) * 3600 - 86400;
+        (void)count;
+        for (auto it = data.end(); it != data.begin();) {   // newest first in the answer: oldest first here
+            --it;
+            const auto a = it->toObject().value("attributes").toObject();
+            const auto at = QDateTime::fromString(a.value("dateTime").toString(), Qt::ISODate).toSecsSinceEpoch();
+            if (a.value("result").isNull() || at < since) {
+                continue;
+            }
+            out.points.push_back({static_cast<long>(at), a.value("result").toDouble()});
+        }
+        return out;
+    }
+
     // a USGS instantaneous value series, "site:parameter" (62614 lake elevation, 00060 flow, 00054 reservoir storage)
     UtilityDams::Series usgsSeries(const string& name, int hours) {
         UtilityDams::Series out;
@@ -116,6 +139,9 @@ UtilityDams::Series DamData::loadSeries(const UtilityDams::Project& project, con
     }
     if (project.office == "USGS") {
         return usgsSeries(name, hours);
+    }
+    if (project.office == "USBR") {
+        return usbrSeries(name, hours);
     }
     const auto end = QDateTime::currentDateTimeUtc();
     const auto begin = end.addSecs(-static_cast<qint64>(hours) * 3600);
@@ -194,10 +220,81 @@ void DamData::loadLatest(vector<Latest>& all) {
             gauges[g.lid] = std::move(g);
         }
     }
+    // Reclamation's reservoirs: the newest results of all their items in one request (the service takes a list of item ids)
+    std::map<string, std::pair<long, double>> usbr;   // item id -> time, value
+    {
+        string ids;
+        for (const auto& project : list) {
+            if (project.office == "USBR") {
+                for (const auto& item : {project.pool, project.outflow, project.power}) {
+                    if (!item.empty()) {
+                        ids += (ids.empty() ? "" : ",") + item;
+                    }
+                }
+            }
+        }
+        // a bounded time window, in batches of a hundred items: the whole table without one takes the service a minute and times out
+        const string after = QDateTime::currentDateTimeUtc().addDays(-4).toString("yyyy-MM-dd'T'00:00:00").toStdString();
+        vector<string> batch;
+        size_t start = 0;
+        while (start <= ids.size() && !ids.empty()) {
+            size_t end = start;
+            int count = 0;
+            while (end < ids.size() && count < 100) {
+                const auto comma = ids.find(',', end);
+                end = comma == string::npos ? ids.size() : comma + 1;
+                count++;
+            }
+            batch.push_back(ids.substr(start, end - start));
+            if (!batch.back().empty() && batch.back().back() == ',') {
+                batch.back().pop_back();
+            }
+            if (end >= ids.size()) {
+                break;
+            }
+            start = end;
+        }
+        vector<std::future<QByteArray>> answers;
+        for (const auto& list100 : batch) {
+            answers.push_back(std::async(std::launch::async, [list100, after] {
+                return UtilityIO::downloadAsByteArray("https://data.usbr.gov/rise/api/result?itemId=" + list100 + "&itemsPerPage=1000&order%5BdateTime%5D=DESC&dateTime%5Bafter%5D=" + after);
+            }));
+        }
+        for (auto& answer : answers) {
+            const auto data = QJsonDocument::fromJson(answer.get()).object().value("data").toArray();
+            for (const auto& item : data) {   // newest first: the first of each item is its latest
+                const auto a = item.toObject().value("attributes").toObject();
+                const string id = std::to_string(a.value("itemId").toInt());
+                if (usbr.count(id) > 0 || a.value("result").isNull()) {
+                    continue;
+                }
+                usbr[id] = {static_cast<long>(QDateTime::fromString(a.value("dateTime").toString(), Qt::ISODate).toSecsSinceEpoch()), a.value("result").toDouble()};
+            }
+        }
+    }
     all.assign(list.size(), Latest{});
     vector<size_t> remote;
     for (size_t i = 0; i < list.size(); i++) {
         const auto& project = list[i];
+        if (project.office == "USBR") {
+            Latest latest;
+            latest.project = &project;
+            long newest = 0;
+            const auto take = [&usbr, &newest] (const string& item, double& into) {
+                const auto found = usbr.find(item);
+                if (found != usbr.end()) {
+                    into = found->second.second;
+                    newest = std::max(newest, found->second.first);
+                }
+            };
+            take(project.pool, latest.pool);
+            take(project.outflow, latest.outflow);
+            take(project.power, latest.power);
+            latest.seconds = newest;
+            latest.ok = newest > 0 && std::time(nullptr) - newest < 10 * 86400;
+            all[i] = latest;
+            continue;
+        }
         if (project.office != "NWS") {
             remote.push_back(i);
             continue;

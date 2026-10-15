@@ -44,7 +44,7 @@ private:
 class DamLayer : public MapLayer {
 public:
     string id() const override { return "rivers/dams"; }
-    string path() const override { return "Rivers and water/Dams and reservoirs (Corps, locks and dams, Colorado)"; }
+    string path() const override { return "Rivers and water/Dams and reservoirs (Corps, locks and dams, Colorado, Reclamation)"; }
     string source() const override { return "US Army Corps of Engineers CWMS, NWS river gauges, USGS"; }
     string tip() const override { return "Dams, locks and dams and reservoirs: the Corps' hydropower dams in the Little Rock and Tulsa districts (release, power, pool), the locks and dams of the Mississippi, Ohio, Missouri and other rivers (their NWS gauges: pool or tailwater stage and flow) and Lake Powell; click one for its history"; }
     int order() const override { return 45; }
