@@ -807,14 +807,17 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
     // the suggested name must be a legal Windows file name (no : , ; / \\ ? * " < > | or control characters, no trailing dot or space)
     auto windowsSafe = [](QString text) {
         for (auto & c : text) {
-            if (c.unicode() < 32 || QString{"<>:\"/\\|?*,;"}.contains(c)) {
+            if (c.unicode() < 32 || c.isSpace() || QString{"<>:\"/\\|?*,;"}.contains(c)) {
                 c = '_';
             }
         }
-        while (text.endsWith('.') || text.endsWith(' ')) {
-            text.chop(1);
+        while (text.contains("__")) {
+            text.replace("__", "_");
         }
-        return text.trimmed();
+        while (text.startsWith('_') || text.endsWith('_') || text.endsWith('.')) {
+            text = text.startsWith('_') ? text.mid(1) : text.chopped(1);
+        }
+        return text;
     };
     const auto datedBase = windowsSafe(datePrefix ? datedName(name, metaSource) : name);
     const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
