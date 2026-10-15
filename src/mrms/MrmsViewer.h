@@ -54,6 +54,7 @@ private:
     void paintData(QPainter&);
     void drawGrid(QPainter&, const UtilityMrms::Grid&, const QByteArray& indices, const QVector<QRgb>& colors, bool outline);
     void loadChance();     // the lightning probability of the next 30 / 60 minutes as contour lines over the map
+    void loadHail();       // the hail swaths over the product (MRMS MESH maximum of a period), from nickel size up
     void loadRotation();   // the rotation tracks over the product (MRMS low- or mid-level rotation track of a period), strong rotation only
     void paintLegend(QPainter&);
     void moveScan(int step);
@@ -111,6 +112,11 @@ private:
     vector<ChanceLine> chanceLines;
     int chanceGeneration{0};
     bool chanceLoading{false};
+    ComboBox comboHail;        // hail swaths over any product: off, or the largest MESH of the last 30 min .. 24 h
+    vector<std::pair<UtilityMrms::Grid, QByteArray>> hailLevels;   // the swath at 1 / 4 / 16 cell blocks, like the rotation tracks
+    QVector<QRgb> hailColors;
+    int hailGeneration{0};
+    bool hailLoading{false};
     UtilityMrms::Frame rotationFrame;
     QByteArray rotationIndices;
     // the tracks at coarser cells too (the largest value of each 4 x 4 and 16 x 16 block): a track a few hundred meters wide still shows when a pixel spans kilometers

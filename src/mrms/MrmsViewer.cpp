@@ -56,6 +56,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     , comboAuto{this, {"Auto-update: 2 min", "Auto-update: 5 min", "Auto-update: off"}}
     , comboLightning{this, {"Lightning: off", "Lightning: last 1 min", "Lightning: last 5 min (by age)", "Lightning: last 15 min (by age)", "Lightning: last 30 min (by age)"}}
     , comboChance{this, {"Lightning chance: off", "Lightning chance: next 30 min", "Lightning chance: next 60 min"}}
+    , comboHail{this, {"Hail swaths: off", "Hail: last 30 min", "Hail: last hour", "Hail: last 2 hours", "Hail: last 6 hours", "Hail: last 24 hours"}}
     , comboRotation{this, {"Rotation tracks: off", "Rotation 0-2 km: last 30 min", "Rotation 0-2 km: last hour", "Rotation 0-2 km: last 2 hours", "Rotation 0-2 km: last 6 hours",
                             "Rotation 0-2 km: last 24 hours", "Rotation 3-6 km: last hour", "Rotation 3-6 km: last 2 hours", "Rotation 3-6 km: last 6 hours"}}
     , buttonLoop{this, Icon::Play, "Loop"}
@@ -114,13 +115,21 @@ MrmsViewer::MrmsViewer(Window * parent)
         }
     };
     comboAuto.connect([this, applyAuto] { Utility::writePrefInt("MRMS_AUTO", comboAuto.getIndex()); applyAuto(); });
-    QObject::connect(&autoTimer, &QTimer::timeout, this, [this] { refreshNewest(); loadLightning(); loadChance(); loadRotation(); });
+    QObject::connect(&autoTimer, &QTimer::timeout, this, [this] { refreshNewest(); loadLightning(); loadChance(); loadHail(); loadRotation(); });
     comboChance.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_LIGHTNING_CHANCE", 0), 0, 2)));
     comboChance.getView()->setToolTip("The chance of lightning in the next 30 or 60 minutes (MRMS), as contour lines at 10, 30, 50 and 70 percent over any product");
     comboChance.connect([this] {
         Utility::writePrefInt("MRMS_LIGHTNING_CHANCE", comboChance.getIndex());
         chanceLines.clear();
         loadChance();
+        radar->update();
+    });
+    comboHail.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_HAIL", 0), 0, 5)));
+    comboHail.getView()->setToolTip("MRMS hail swaths over any product: the largest estimated hail size (MESH) of the period, of at least 1 inch (marginally severe)");
+    comboHail.connect([this] {
+        Utility::writePrefInt("MRMS_HAIL", comboHail.getIndex());
+        hailLevels.clear();
+        loadHail();
         radar->update();
     });
     comboRotation.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_ROTATION", 0), 0, 8)));
@@ -157,6 +166,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     rowTop.addWidget(comboAuto);
     rowTop.addWidget(comboLightning);
     rowTop.addWidget(comboChance);
+    rowTop.addWidget(comboHail);
     rowTop.addWidget(comboRotation);
     rowTop.addWidget(buttonLoop);
     rowTop.addWidget(buttonSave);
@@ -175,6 +185,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     loadScans();
     loadLightning();
     loadChance();
+    loadHail();
     loadRotation();
     // the rest of the server's products, found in the background
     auto found = std::make_shared<vector<UtilityMrms::Product>>();
@@ -759,6 +770,19 @@ void MrmsViewer::paintData(QPainter& painter) {
         return;
     }
     drawGrid(painter, current.grid, currentIndices, currentColors, false);
+    if (comboHail.getIndex() > 0 && !hailLevels.empty()) {   // the hail swaths, under the rotation tracks
+        const auto [ax, bx, ay, by] = projection();
+        const auto& state = radar->mapState;
+        const double ratio = std::max(1.0, radar->devicePixelRatioF());
+        const double degreesPerPixel = std::abs(1000.0 / (radar->width() * ratio) / state.zoom / ax);
+        size_t level = 0;
+        for (size_t i = 0; i < hailLevels.size(); i++) {
+            if (hailLevels[i].first.cell <= degreesPerPixel * 1.5) {
+                level = i;
+            }
+        }
+        drawGrid(painter, hailLevels[level].first, hailLevels[level].second, hailColors, true);
+    }
     if (comboRotation.getIndex() > 0 && !rotationLevels.empty()) {   // the rotation tracks over the product: strong rotation only, in the colors of its key
         // the coarsest level whose cell is no bigger than a pixel of the map: each pixel shows the strongest rotation under it
         const auto [ax, bx, ay, by] = projection();
@@ -844,6 +868,7 @@ namespace {
     const RotationBand rotationBands[] = {{8.0, QColor{255, 255, 255, 235}, "8"}, {12.0, QColor{120, 230, 255, 245}, "12"}, {16.0, QColor{40, 120, 255, 250}, "16"},
                                           {20.0, QColor{150, 40, 255, 255}, "20+"}};
 }
+
 
 // the lightning chance as contour lines: the newest scan of the next 30 / 60 minute probability, taken at 5 x 5 cell blocks and traced at four levels (marching squares)
 void MrmsViewer::loadChance() {
@@ -945,6 +970,102 @@ void MrmsViewer::loadChance() {
                 return;
             }
             chanceLines = std::move(*lines);
+            radar->update();
+        }};
+}
+
+namespace {
+    // the hail key: MESH in mm (inches in the label): at least marginally severe (1 in), then golf ball, baseball, softball
+    struct HailBand {
+        double from;
+        QColor color;
+        const char * label;
+    };
+    const HailBand hailBands[] = {{25.4, QColor{255, 240, 0, 245}, "1"}, {44.5, QColor{255, 150, 0, 250}, "1.75"},
+                                  {63.5, QColor{255, 30, 30, 255}, "2.5"}, {101.6, QColor{255, 0, 255, 255}, "4+"}};
+}
+
+// the hail overlay: the newest scan of MRMS's MESH maximum of the chosen period, at least marginally severe size (1 in) and up
+void MrmsViewer::loadHail() {
+    static const char * ids[] = {"", "MESH_Max_30min", "MESH_Max_60min", "MESH_Max_120min", "MESH_Max_360min", "MESH_Max_1440min"};
+    const int which = std::clamp(comboHail.getIndex(), 0, 5);
+    if (which == 0 || hailLoading || closed) {
+        if (which == 0) {
+            hailLevels.clear();
+        }
+        return;
+    }
+    hailLoading = true;
+    const string wanted = ids[which];
+    const int mine = ++hailGeneration;
+    auto frame = std::make_shared<UtilityMrms::Frame>();
+    auto ok = std::make_shared<bool>(false);
+    new FutureVoid{this,
+        [wanted, frame, ok] {
+            vector<UtilityMrms::Product> list = UtilityMrms::products();
+            const auto found = std::find_if(list.begin(), list.end(), [&wanted] (const auto& p) { return p.id == wanted; });
+            if (found == list.end()) {
+                return;
+            }
+            vector<UtilityMrms::Scan> scans;
+            string error;
+            bool listed = UtilityMrms::scansAws(*found, "00.50", scans, error);
+            if (!listed) {
+                listed = UtilityMrms::scans(*found, scans, error);
+            }
+            *ok = listed && !scans.empty() && UtilityMrms::frame(*found, scans.back(), *frame, error);
+        },
+        [this, frame, ok, mine] {
+            hailLoading = false;
+            if (closed || mine != hailGeneration || !*ok) {
+                return;
+            }
+            // only 1 in and up (25.4 mm): the indices rise with the value, so the first index at or above it is the cut
+            int first = 256;
+            for (int index = 1; index < 256; index++) {
+                if (frame->valueAt(index) >= hailBands[0].from) {
+                    first = index;
+                    break;
+                }
+            }
+            QByteArray cut = frame->indices();
+            auto * cells = reinterpret_cast<uchar *>(cut.data());
+            for (qsizetype i = 0; i < cut.size(); i++) {
+                if (cells[i] < first) {
+                    cells[i] = 0;
+                }
+            }
+            hailLevels.clear();
+            hailLevels.emplace_back(frame->grid, cut);
+            for (const int factor : {4, 16}) {
+                const auto& fine = frame->grid;
+                UtilityMrms::Grid coarse = fine;
+                coarse.columns = (fine.columns + factor - 1) / factor;
+                coarse.rows = (fine.rows + factor - 1) / factor;
+                coarse.cell = fine.cell * factor;
+                QByteArray pooled(static_cast<qsizetype>(coarse.columns) * coarse.rows, 0);
+                auto * dst = reinterpret_cast<uchar *>(pooled.data());
+                const auto * src = reinterpret_cast<const uchar *>(cut.constData());
+                for (int row = 0; row < fine.rows; row++) {
+                    const auto * line = src + static_cast<qsizetype>(row) * fine.columns;
+                    auto * target = dst + static_cast<qsizetype>(row / factor) * coarse.columns;
+                    for (int column = 0; column < fine.columns; column++) {
+                        if (line[column] > target[column / factor]) {
+                            target[column / factor] = line[column];
+                        }
+                    }
+                }
+                hailLevels.emplace_back(coarse, pooled);
+            }
+            hailColors = QVector<QRgb>(256, qRgba(0, 0, 0, 0));
+            for (int index = 1; index < 256; index++) {
+                const double value = frame->valueAt(index);
+                for (const auto& band : hailBands) {
+                    if (value >= band.from) {
+                        hailColors[index] = qPremultiply(band.color.rgba());
+                    }
+                }
+            }
             radar->update();
         }};
 }
@@ -1261,6 +1382,22 @@ void MrmsViewer::paintLegend(QPainter& painter) {
             painter.setPen(Qt::white);
             painter.drawText(QPointF{x + 18.0, y + 4.0}, names[level]);
             x += 50.0;
+        }
+    }
+    if (comboHail.getIndex() > 0 && !hailLevels.empty()) {   // the hail key, under the rotation one
+        QFont keyFont{painter.font()};
+        keyFont.setPointSizeF(9.0);
+        painter.setFont(keyFont);
+        const double y = -236.0 + 22.0 * 3;
+        painter.fillRect(QRectF{-496.0, y - 12.0, 300.0, 20.0}, QColor{0, 0, 0, 170});
+        painter.setPen(Qt::white);
+        painter.drawText(QPointF{-490.0, y + 4.0}, "Hail size (in):");
+        double x = -400.0;
+        for (const auto& band : hailBands) {
+            painter.fillRect(QRectF{x, y - 6.0, 12.0, 12.0}, QColor{band.color.red(), band.color.green(), band.color.blue()});
+            painter.setPen(Qt::white);
+            painter.drawText(QPointF{x + 15.0, y + 4.0}, band.label);
+            x += 48.0;
         }
     }
     if (comboRotation.getIndex() > 0 && !rotationLevels.empty()) {   // the rotation key, under the lightning one
