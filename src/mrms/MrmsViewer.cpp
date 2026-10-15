@@ -52,6 +52,11 @@ namespace {
     };
 }
 
+namespace {
+    const auto& hailBands = MrmsOverlays::hailBands();
+    const auto& rotationBands = MrmsOverlays::rotationBands();
+}
+
 MrmsViewer::MrmsViewer(Window * parent)
     : Window{parent}
     , comboProduct{this, {"Loading products..."}}
@@ -143,7 +148,6 @@ MrmsViewer::MrmsViewer(Window * parent)
     comboRotation.getView()->setToolTip("MRMS rotation tracks over any product: where the strongest rotation passed (supercells, mesocyclones), from 6 thousandths per second up");
     comboRotation.connect([this] {
         Utility::writePrefInt("MRMS_ROTATION", comboRotation.getIndex());
-        rotationIndices.clear();
         rotationLevels.clear();
         loadRotation();
         radar->update();
@@ -457,7 +461,6 @@ void MrmsViewer::setFrame(const UtilityMrms::Frame& frame) {
 // the lightning overlay: MRMS's cloud-to-ground strike density of the last 1, 5, 15 and 30 minutes (as far as the choice goes), each cell with a strike kept as a point of the
 // shortest period it is in, so the colors give a little time series
 void MrmsViewer::loadLightning() {
-    static const char * ids[] = {"NLDN_CG_001min_AvgDensity", "NLDN_CG_005min_AvgDensity", "NLDN_CG_015min_AvgDensity", "NLDN_CG_030min_AvgDensity"};
     const int which = std::clamp(comboLightning.getIndex(), 0, 4);
     if (which == 0 || lightningLoading || closed) {
         if (which == 0) {
@@ -466,78 +469,10 @@ void MrmsViewer::loadLightning() {
         return;
     }
     lightningLoading = true;
-    const int periods = which;   // 1: the last minute only ... 4: all four
     const int mine = ++lightningGeneration;
-    struct Result {
-        vector<Strike> points;
-        QDateTime utc;
-        bool ok{false};
-    };
-    auto result = std::make_shared<Result>();
+    auto result = std::make_shared<MrmsOverlays::Lightning>();
     new FutureVoid{this,
-        [periods, result] {
-            vector<UtilityMrms::Product> more;
-            string error;
-            UtilityMrms::discoverMore(more, error);
-            // the periods are separate small files on the open data server: fetched and decoded side by side
-            struct Period {
-                UtilityMrms::Frame frame;
-                bool ok{false};
-            };
-            vector<std::future<Period>> pending;
-            for (int period = 0; period < periods; period++) {
-                const string wanted = ids[period];
-                const auto found = std::find_if(more.begin(), more.end(), [&wanted] (const auto& p) { return p.id == wanted; });
-                if (found == more.end()) {
-                    pending.emplace_back();   // not offered: an invalid future
-                    continue;
-                }
-                const auto product = *found;
-                pending.push_back(std::async(std::launch::async, [product] {
-                    Period out;
-                    string e;
-                    vector<UtilityMrms::Scan> list;
-                    // the open data bucket on AWS first (the lightning products are on one level), the NCEP server when it gives nothing
-                    bool listed = UtilityMrms::scansAws(product, "00.00", list, e);
-                    if (!listed) {
-                        listed = UtilityMrms::scans(product, list, e);
-                    }
-                    out.ok = listed && !list.empty() && UtilityMrms::frame(product, list.back(), out.frame, e);
-                    return out;
-                }));
-            }
-            std::set<std::pair<int, int>> seen;   // cells already placed by a shorter period
-            for (int period = 0; period < periods; period++) {
-                if (!pending[static_cast<size_t>(period)].valid()) {
-                    continue;
-                }
-                const auto data = pending[static_cast<size_t>(period)].get();
-                if (!data.ok) {
-                    continue;
-                }
-                const auto& frame = data.frame;
-                result->ok = true;
-                if (period == 0) {
-                    result->utc = frame.utc;
-                }
-                const auto cells = frame.indices();
-                const auto& grid = frame.grid;
-                const int firstStrike = frame.valueAt(1) > 0.0 ? 1 : 2;   // the lowest index that is a density above zero (index 1 can be zero)
-                for (int row = 0; row < grid.rows; row++) {
-                    const auto * line = reinterpret_cast<const uchar *>(cells.constData()) + static_cast<qsizetype>(row) * grid.columns;
-                    for (int column = 0; column < grid.columns; column++) {
-                        if (line[column] < firstStrike || result->points.size() >= 300000) {
-                            continue;
-                        }
-                        if (!seen.insert({column, row}).second) {
-                            continue;   // a shorter period has it
-                        }
-                        result->points.push_back({static_cast<float>(grid.west + (column + 0.5) * grid.cell), static_cast<float>(grid.north - (row + 0.5) * grid.cell),
-                                                  static_cast<unsigned char>(period)});
-                    }
-                }
-            }
-        },
+        [which, result] { *result = MrmsOverlays::lightning(which); },
         [this, result, mine] {
             lightningLoading = false;
             if (closed || mine != lightningGeneration || !result->ok) {
@@ -924,21 +859,8 @@ void MrmsViewer::drawGrid(QPainter& painter, const UtilityMrms::Grid& grid, cons
     painter.drawImage(QRectF{QPointF{projectedX(0.0), projectedY(0.0)}, QPointF{projectedX(pixelWidth), projectedY(pixelHeight)}}, image, QRectF{image.rect()});
 }
 
-namespace {
-    // the rotation key: 1e-3 / s of azimuthal shear, nothing under 8 (the weak shear of most storms and of clutter), then strong to very strong rotation (supercells)
-    struct RotationBand {
-        double from;
-        QColor color;
-        const char * label;
-    };
-    const RotationBand rotationBands[] = {{8.0, QColor{255, 255, 255, 235}, "8"}, {12.0, QColor{120, 230, 255, 245}, "12"}, {16.0, QColor{40, 120, 255, 250}, "16"},
-                                          {20.0, QColor{150, 40, 255, 255}, "20+"}};
-}
-
-
-// the lightning chance as contour lines: the newest scan of the next 30 / 60 minute probability, taken at 5 x 5 cell blocks and traced at four levels (marching squares)
+// the lightning chance as contour lines: the newest scan of the next 30 / 60 minute probability, traced at four levels
 void MrmsViewer::loadChance() {
-    static const char * ids[] = {"", "LightningProbabilityNext30min", "LightningProbabilityNext60min"};
     const int which = std::clamp(comboChance.getIndex(), 0, 2);
     if (which == 0 || chanceLoading || closed) {
         if (which == 0) {
@@ -947,113 +869,22 @@ void MrmsViewer::loadChance() {
         return;
     }
     chanceLoading = true;
-    const string wanted = ids[which];
     const int mine = ++chanceGeneration;
-    auto lines = std::make_shared<vector<ChanceLine>>();
-    auto ok = std::make_shared<bool>(false);
+    auto result = std::make_shared<MrmsOverlays::Chance>();
     new FutureVoid{this,
-        [wanted, lines, ok] {
-            vector<UtilityMrms::Product> list = UtilityMrms::products();
-            string error;
-            if (std::none_of(list.begin(), list.end(), [&wanted] (const auto& p) { return p.id == wanted; })) {
-                vector<UtilityMrms::Product> more;
-                UtilityMrms::discoverMore(more, error);
-                list.insert(list.end(), more.begin(), more.end());
-            }
-            const auto found = std::find_if(list.begin(), list.end(), [&wanted] (const auto& p) { return p.id == wanted; });
-            if (found == list.end()) {
-                return;
-            }
-            vector<UtilityMrms::Scan> scans;
-            bool listed = UtilityMrms::scansAws(*found, "Grid_scale_1", scans, error);
-            if (!listed) {
-                listed = UtilityMrms::scans(*found, scans, error);
-            }
-            UtilityMrms::Frame frame;
-            if (!listed || scans.empty() || !UtilityMrms::frame(*found, scans.back(), frame, error)) {
-                return;
-            }
-            *ok = true;
-            const int block = 5;
-            const auto& grid = frame.grid;
-            const int columns = grid.columns / block, rows = grid.rows / block;
-            const auto cells = frame.indices();
-            const auto * in = reinterpret_cast<const uchar *>(cells.constData());
-            vector<float> field(static_cast<size_t>(columns) * rows, 0.0f);   // the largest chance in each block
-            for (int row = 0; row < rows; row++) {
-                for (int column = 0; column < columns; column++) {
-                    int best = 0;
-                    for (int dr = 0; dr < block; dr++) {
-                        const auto * line = in + static_cast<qsizetype>(row * block + dr) * grid.columns + column * block;
-                        for (int dc = 0; dc < block; dc++) {
-                            best = std::max<int>(best, line[dc]);
-                        }
-                    }
-                    field[static_cast<size_t>(row) * columns + column] = best == 0 ? 0.0f : static_cast<float>(frame.valueAt(best));
-                }
-            }
-            const double cell = grid.cell * block;
-            const auto lon = [&] (double c) { return static_cast<float>(grid.west + (c + 0.5) * cell); };
-            const auto lat = [&] (double r) { return static_cast<float>(grid.north - (r + 0.5) * cell); };
-            for (const int level : {10, 30, 50, 70}) {
-                const float t = static_cast<float>(level);
-                for (int row = 0; row + 1 < rows; row++) {
-                    for (int column = 0; column + 1 < columns; column++) {
-                        const float a = field[static_cast<size_t>(row) * columns + column], b = field[static_cast<size_t>(row) * columns + column + 1];
-                        const float d = field[static_cast<size_t>(row + 1) * columns + column], c = field[static_cast<size_t>(row + 1) * columns + column + 1];
-                        const int code = (a >= t ? 1 : 0) | (b >= t ? 2 : 0) | (c >= t ? 4 : 0) | (d >= t ? 8 : 0);
-                        if (code == 0 || code == 15) {
-                            continue;
-                        }
-                        // the crossing of each edge (top, right, bottom, left), by linear interpolation
-                        const auto cross = [t] (float v1, float v2) { return v1 == v2 ? 0.5f : std::clamp((t - v1) / (v2 - v1), 0.0f, 1.0f); };
-                        const double x0 = column, y0 = row;
-                        const double topX = x0 + cross(a, b), topY = y0;
-                        const double rightX = x0 + 1, rightY = y0 + cross(b, c);
-                        const double bottomX = x0 + cross(d, c), bottomY = y0 + 1;
-                        const double leftX = x0, leftY = y0 + cross(a, d);
-                        const auto add = [&] (double x1, double y1, double x2, double y2) {
-                            lines->push_back({static_cast<unsigned char>(level), lon(x1), lat(y1), lon(x2), lat(y2)});
-                        };
-                        switch (code) {
-                            case 1: case 14: add(leftX, leftY, topX, topY); break;
-                            case 2: case 13: add(topX, topY, rightX, rightY); break;
-                            case 3: case 12: add(leftX, leftY, rightX, rightY); break;
-                            case 4: case 11: add(rightX, rightY, bottomX, bottomY); break;
-                            case 6: case 9: add(topX, topY, bottomX, bottomY); break;
-                            case 7: case 8: add(leftX, leftY, bottomX, bottomY); break;
-                            case 5: add(leftX, leftY, topX, topY); add(rightX, rightY, bottomX, bottomY); break;
-                            case 10: add(topX, topY, rightX, rightY); add(leftX, leftY, bottomX, bottomY); break;
-                            default: break;
-                        }
-                    }
-                }
-            }
-        },
-        [this, lines, ok, mine] {
+        [which, result] { *result = MrmsOverlays::chance(which); },
+        [this, result, mine] {
             chanceLoading = false;
-            if (closed || mine != chanceGeneration || !*ok) {
+            if (closed || mine != chanceGeneration || !result->ok) {
                 return;
             }
-            chanceLines = std::move(*lines);
+            chanceLines = std::move(result->lines);
             radar->update();
         }};
 }
 
-namespace {
-    // the hail key: MESH in mm (inches in the label): at least marginally severe (1 in), then golf ball, baseball, softball
-    struct HailBand {
-        double from;
-        QColor color;
-        const char * label;
-    };
-    const HailBand hailBands[] = {{25.4, QColor{255, 240, 0, 245}, "1"}, {44.5, QColor{255, 150, 0, 250}, "1.75"},
-                                  {63.5, QColor{255, 30, 30, 255}, "2.5"}, {101.6, QColor{255, 0, 255, 255}, "4+"}};
-}
-
 // the hail overlay: the newest scan of MRMS's MESH maximum of the chosen period, at least marginally severe size (1 in) and up
 void MrmsViewer::loadHail() {
-    static const char * ids[] = {"", "MESH_Max_30min", "MESH_Max_60min", "MESH_Max_120min", "MESH_Max_360min", "MESH_Max_1440min"};
     const int which = std::clamp(comboHail.getIndex(), 0, 5);
     if (which == 0 || hailLoading || closed) {
         if (which == 0) {
@@ -1062,234 +893,42 @@ void MrmsViewer::loadHail() {
         return;
     }
     hailLoading = true;
-    const string wanted = ids[which];
     const int mine = ++hailGeneration;
-    auto frame = std::make_shared<UtilityMrms::Frame>();
-    auto ok = std::make_shared<bool>(false);
+    auto result = std::make_shared<MrmsOverlays::Swath>();
     new FutureVoid{this,
-        [wanted, frame, ok] {
-            vector<UtilityMrms::Product> list = UtilityMrms::products();
-            const auto found = std::find_if(list.begin(), list.end(), [&wanted] (const auto& p) { return p.id == wanted; });
-            if (found == list.end()) {
-                return;
-            }
-            vector<UtilityMrms::Scan> scans;
-            string error;
-            bool listed = UtilityMrms::scansAws(*found, "00.50", scans, error);
-            if (!listed) {
-                listed = UtilityMrms::scans(*found, scans, error);
-            }
-            *ok = listed && !scans.empty() && UtilityMrms::frame(*found, scans.back(), *frame, error);
-        },
-        [this, frame, ok, mine] {
+        [which, result] { *result = MrmsOverlays::hail(which); },
+        [this, result, mine] {
             hailLoading = false;
-            if (closed || mine != hailGeneration || !*ok) {
+            if (closed || mine != hailGeneration || !result->ok) {
                 return;
             }
-            // only 1 in and up (25.4 mm): the indices rise with the value, so the first index at or above it is the cut
-            int first = 256;
-            for (int index = 1; index < 256; index++) {
-                if (frame->valueAt(index) >= hailBands[0].from) {
-                    first = index;
-                    break;
-                }
-            }
-            QByteArray cut = frame->indices();
-            auto * cells = reinterpret_cast<uchar *>(cut.data());
-            for (qsizetype i = 0; i < cut.size(); i++) {
-                if (cells[i] < first) {
-                    cells[i] = 0;
-                }
-            }
-            hailLevels.clear();
-            hailLevels.emplace_back(frame->grid, cut);
-            for (const int factor : {4, 16}) {
-                const auto& fine = frame->grid;
-                UtilityMrms::Grid coarse = fine;
-                coarse.columns = (fine.columns + factor - 1) / factor;
-                coarse.rows = (fine.rows + factor - 1) / factor;
-                coarse.cell = fine.cell * factor;
-                QByteArray pooled(static_cast<qsizetype>(coarse.columns) * coarse.rows, 0);
-                auto * dst = reinterpret_cast<uchar *>(pooled.data());
-                const auto * src = reinterpret_cast<const uchar *>(cut.constData());
-                for (int row = 0; row < fine.rows; row++) {
-                    const auto * line = src + static_cast<qsizetype>(row) * fine.columns;
-                    auto * target = dst + static_cast<qsizetype>(row / factor) * coarse.columns;
-                    for (int column = 0; column < fine.columns; column++) {
-                        if (line[column] > target[column / factor]) {
-                            target[column / factor] = line[column];
-                        }
-                    }
-                }
-                hailLevels.emplace_back(coarse, pooled);
-            }
-            hailColors = QVector<QRgb>(256, qRgba(0, 0, 0, 0));
-            for (int index = 1; index < 256; index++) {
-                const double value = frame->valueAt(index);
-                for (const auto& band : hailBands) {
-                    if (value >= band.from) {
-                        hailColors[index] = qPremultiply(band.color.rgba());
-                    }
-                }
-            }
+            hailLevels = std::move(result->levels);
+            hailColors = std::move(result->colors);
             radar->update();
         }};
 }
 
 // the rotation overlay: the newest scan of MRMS's low-level (0-2 km) or mid-level (3-6 km) rotation track over the chosen period
 void MrmsViewer::loadRotation() {
-    static const char * ids[] = {"", "RotationTrack30min", "RotationTrack60min", "RotationTrack120min", "RotationTrack360min", "RotationTrack1440min",
-                                 "RotationTrackML60min", "RotationTrackML120min", "RotationTrackML360min"};
     const int which = std::clamp(comboRotation.getIndex(), 0, 8);
     if (which == 0 || rotationLoading || closed) {
         if (which == 0) {
-            rotationIndices.clear();
             rotationLevels.clear();
         }
         return;
     }
     rotationLoading = true;
-    const string wanted = ids[which];
     const int mine = ++rotationGeneration;
-    auto frame = std::make_shared<UtilityMrms::Frame>();
-    auto cleaned = std::make_shared<QByteArray>();
-    auto ok = std::make_shared<bool>(false);
+    auto result = std::make_shared<MrmsOverlays::Swath>();
     new FutureVoid{this,
-        [wanted, frame, cleaned, ok] {
-            vector<UtilityMrms::Product> list = UtilityMrms::products();
-            vector<UtilityMrms::Product> more;
-            string error;
-            if (std::none_of(list.begin(), list.end(), [&wanted] (const auto& p) { return p.id == wanted; })) {
-                UtilityMrms::discoverMore(more, error);
-                list.insert(list.end(), more.begin(), more.end());
-            }
-            const auto found = std::find_if(list.begin(), list.end(), [&wanted] (const auto& p) { return p.id == wanted; });
-            if (found == list.end()) {
-                return;
-            }
-            vector<UtilityMrms::Scan> scans;
-            bool listed = UtilityMrms::scansAws(*found, "00.50", scans, error);   // the open data bucket first
-            if (!listed) {
-                listed = UtilityMrms::scans(*found, scans, error);
-            }
-            *ok = listed && !scans.empty() && UtilityMrms::frame(*found, scans.back(), *frame, error);
-            if (!*ok) {
-                return;
-            }
-            // strong rotation only where the radars see well: MRMS's radar quality index (0 to 1) masks the beam-blocked and far-range areas, where clutter and the
-            // edges of the coverage make false rotation (Canada, the mountains, the coasts)
-            *cleaned = frame->indices();
-            UtilityMrms::Frame quality;
-            bool haveQuality = false;
-            {
-                const auto rqi = std::find_if(list.begin(), list.end(), [] (const auto& p) { return p.id == "RadarQualityIndex"; });
-                UtilityMrms::Product product;
-                if (rqi != list.end()) {
-                    product = *rqi;
-                } else {
-                    product.id = "RadarQualityIndex";
-                    product.label = "Radar quality index";
-                    product.validMin = -1.0;
-                    product.hi = 1.0;
-                    product.autoRange = true;
-                    product.stops = {{0.0, 0, 0, 0}, {1.0, 255, 255, 255}};
-                }
-                vector<UtilityMrms::Scan> qualityScans;
-                string e;
-                bool qualityListed = UtilityMrms::scansAws(product, "00.00", qualityScans, e);
-                if (!qualityListed) {
-                    qualityListed = UtilityMrms::scans(product, qualityScans, e);
-                }
-                haveQuality = qualityListed && !qualityScans.empty() && UtilityMrms::frame(product, qualityScans.back(), quality, e) && quality.grid.columns > 0;
-            }
-            const auto& grid = frame->grid;
-            auto * out = reinterpret_cast<uchar *>(cleaned->data());
-            int firstStrong = 256;
-            for (int index = 1; index < 256; index++) {
-                if (frame->valueAt(index) >= rotationBands[0].from) {
-                    firstStrong = index;
-                    break;
-                }
-            }
-            const QByteArray qualityCells = haveQuality ? quality.indices() : QByteArray{};
-            const auto * good = reinterpret_cast<const uchar *>(qualityCells.constData());
-            const auto& q = quality.grid;   // the quality grid is coarser (0.01 against the tracks' 0.005 degree): the cell under each track cell
-            vector<int> qualityColumn(static_cast<size_t>(grid.columns), -1);
-            for (int column = 0; column < grid.columns && haveQuality; column++) {
-                const int c = static_cast<int>(std::floor((grid.west + (column + 0.5) * grid.cell - q.west) / q.cell));
-                qualityColumn[static_cast<size_t>(column)] = c >= 0 && c < q.columns ? c : -1;
-            }
-            // north of the border the grid has Canada's radars and its edges: their rotation is mostly clutter, so only the United States side is kept (the border taken
-            // as a few straight pieces: 49N in the west, the Lakes, the St. Lawrence and Maine)
-            const auto borderLat = [] (double lon) {
-                if (lon < -95.2) return 49.05;
-                if (lon < -89.0) return 49.4;
-                if (lon < -84.5) return 48.3;
-                if (lon < -79.0) return 46.0;
-                if (lon < -74.7) return 45.05;
-                if (lon < -71.0) return 45.3;
-                if (lon < -67.8) return 47.5;
-                return 0.0;   // New Brunswick and the sea east of Maine
-            };
-            for (int row = 0; row < grid.rows; row++) {
-                const int qr = haveQuality ? static_cast<int>(std::floor((q.north - (grid.north - (row + 0.5) * grid.cell)) / q.cell)) : -1;
-                const double lat = grid.north - (row + 0.5) * grid.cell;
-                auto * line = out + static_cast<qsizetype>(row) * grid.columns;
-                for (int column = 0; column < grid.columns; column++) {
-                    if (line[column] >= firstStrong && lat > borderLat(grid.west + (column + 0.5) * grid.cell)) {
-                        line[column] = 0;
-                        continue;
-                    }
-                    if (line[column] < firstStrong) {
-                        line[column] = 0;
-                    } else if (haveQuality) {
-                        const int qc = qualityColumn[static_cast<size_t>(column)];
-                        const int index = qr >= 0 && qr < q.rows && qc >= 0 ? good[static_cast<qsizetype>(qr) * q.columns + qc] : 0;
-                        if (index == 0 || quality.valueAt(index) < 0.6) {
-                            line[column] = 0;
-                        }
-                    }
-                }
-            }
-        },
-        [this, frame, cleaned, ok, mine] {
+        [which, result] { *result = MrmsOverlays::rotation(which); },
+        [this, result, mine] {
             rotationLoading = false;
-            if (closed || mine != rotationGeneration || !*ok) {
+            if (closed || mine != rotationGeneration || !result->ok) {
                 return;
             }
-            rotationFrame = *frame;
-            rotationIndices = *cleaned;
-            rotationLevels.clear();
-            rotationLevels.emplace_back(frame->grid, *cleaned);
-            for (const int factor : {4, 16}) {   // blocks of the finest grid, keeping the largest index (the indices rise with the value)
-                const auto& fine = frame->grid;
-                UtilityMrms::Grid coarse = fine;
-                coarse.columns = (fine.columns + factor - 1) / factor;
-                coarse.rows = (fine.rows + factor - 1) / factor;
-                coarse.cell = fine.cell * factor;
-                QByteArray pooled(static_cast<qsizetype>(coarse.columns) * coarse.rows, 0);
-                auto * dst = reinterpret_cast<uchar *>(pooled.data());
-                const auto * src = reinterpret_cast<const uchar *>(cleaned->constData());
-                for (int row = 0; row < fine.rows; row++) {
-                    const auto * line = src + static_cast<qsizetype>(row) * fine.columns;
-                    auto * target = dst + static_cast<qsizetype>(row / factor) * coarse.columns;
-                    for (int column = 0; column < fine.columns; column++) {
-                        if (line[column] > target[column / factor]) {
-                            target[column / factor] = line[column];
-                        }
-                    }
-                }
-                rotationLevels.emplace_back(coarse, pooled);
-            }
-            rotationColors = QVector<QRgb>(256, qRgba(0, 0, 0, 0));
-            for (int index = 1; index < 256; index++) {
-                const double value = frame->valueAt(index);
-                for (const auto& band : rotationBands) {
-                    if (value >= band.from) {
-                        rotationColors[index] = qPremultiply(band.color.rgba());
-                    }
-                }
-            }
+            rotationLevels = std::move(result->levels);
+            rotationColors = std::move(result->colors);
             radar->update();
         }};
 }

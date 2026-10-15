@@ -16,6 +16,7 @@
 #include <QPointF>
 #include <QVector>
 #include <QTimer>
+#include "mrms/MrmsOverlays.h"
 #include "mrms/UtilityMrms.h"
 #include "radar/MapLayerDownload.h"
 #include "radar/MapWidget.h"
@@ -103,18 +104,12 @@ private:
     std::unique_ptr<MapLayerDownload> layerDownload;      // warnings, watches, outlooks, fronts, observations (the Map settings)
     QLabel * hoverLabel{};     // the coordinate / value popup over the map
     QLabel * labelLocations{}; // "Home: 0.82 in   Springfield: none" under the status line
-    struct Strike {
-        float lon, lat;
-        unsigned char age;   // 0 the last minute, 1 the last 5, 2 the last 15, 3 the last 30
-    };
+    using Strike = MrmsOverlays::Strike;
     vector<Strike> lightningPoints;   // each cell with a strike, by how recent
     QDateTime lightningTime;
     int lightningGeneration{0};
     bool lightningLoading{false};
-    struct ChanceLine {   // one contour segment: the level (percent) and its two ends, longitude / latitude
-        unsigned char level;
-        float lon1, lat1, lon2, lat2;
-    };
+    using ChanceLine = MrmsOverlays::ChanceLine;
     vector<ChanceLine> chanceLines;
     int chanceGeneration{0};
     bool chanceLoading{false};
@@ -123,8 +118,6 @@ private:
     QVector<QRgb> hailColors;
     int hailGeneration{0};
     bool hailLoading{false};
-    UtilityMrms::Frame rotationFrame;
-    QByteArray rotationIndices;
     // the tracks at coarser cells too (the largest value of each 4 x 4 and 16 x 16 block): a track a few hundred meters wide still shows when a pixel spans kilometers
     vector<std::pair<UtilityMrms::Grid, QByteArray>> rotationLevels;
     QVector<QRgb> rotationColors;
