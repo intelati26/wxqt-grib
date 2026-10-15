@@ -10,13 +10,11 @@
 #include "models/CamsViewer.h"
 #include "models/ModelViewer.h"
 #include "models/SpcPostViewer.h"
-#include "spcrefs/SpcRefsViewer.h"
 #include "util/Utility.h"
 
 const std::vector<ModelScreen::Source>& ModelScreen::sources() {
     static const std::vector<Source> all{
         {"NCEP", "Models drawn here (GFS, ECMWF, RRFS, REFS, GEFS, NBM, SPC REFS ...)"},
-        {"SPCREFS", "SPC REFS store: every product (members, paintballs, swaths)"},
         {"SPCPOST", "SPC Post: calibrated thunder, severe and lightning chances, GEFS-MLP"},
         {"CAMS", "NSSL CAMs pictures (MPAS, WRF, HRRR, RRFS)"},
         {"SPCHRRR", "SPC HRRR pictures (pending discontinuation)"},
@@ -59,9 +57,7 @@ ModelScreen::ModelScreen(Window * parent, const string& source)
 Window * ModelScreen::make(const string& id) {
     Window::embedNextWindow();
     Window * page = nullptr;
-    if (id == "SPCREFS") {
-        page = new SpcRefsViewer{this};
-    } else if (id == "SPCPOST") {
+    if (id == "SPCPOST") {
         page = new SpcPostViewer{this};
     } else if (id == "CAMS") {
         page = new CamsViewer{this};
@@ -82,6 +78,16 @@ Window * ModelScreen::make(const string& id) {
 
 void ModelScreen::showSource(const string& requested) {
     string id = requested;
+    if (id == "SPCREFS") {   // SPC's REFS store is a model of the Model Viewer (every field of it, members, paintballs): that page, on that model
+        if (pages.count("NCEP") == 0) {
+            Utility::writePref("NCEP", "SPCREFS");   // the page opens on the model last used
+        }
+        showSource("NCEP");
+        if (auto * viewer = dynamic_cast<ModelViewer *>(pages["NCEP"])) {
+            viewer->selectModel("SPCREFS");
+        }
+        return;
+    }
     int index = -1;
     for (size_t i = 0; i < sources().size(); i++) {
         if (id == sources()[i].id) {

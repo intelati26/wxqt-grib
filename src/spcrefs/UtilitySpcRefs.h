@@ -95,6 +95,9 @@ namespace UtilitySpcRefs {
     vector<Stop> rainbowStops(double low, double high);   // the colour table of a field with none of its own, over its range
     // the products SPC's own viewer lists, described from their names (no store needed): what the chart registry makes charts of
     vector<Product> curatedProducts();
+    // every field of the store (the curated ones and the rest), for the model screen's SPC REFS model; rememberArrays keeps the list a store has for the next start
+    vector<Product> allProducts();
+    void rememberArrays(const ZarrStore& store);
 }
 
 #endif  // UTILITYSPCREFS_H

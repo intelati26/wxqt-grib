@@ -89,6 +89,7 @@ namespace GfsChart {
         double width{1.0};
     };
     struct Product {
+        std::string pickerGroup;   // the group of the chart picker when it is the source's own (SPC REFS: SPC's groups); empty: worked out from the chart's id
         std::string source{"GFS"};              // the model: "GFS" or "NBM" (an id is only unique within one)
         std::string id;                         // "500_wnd_ht"
         std::string label;                      // "500mb Wind and Height"

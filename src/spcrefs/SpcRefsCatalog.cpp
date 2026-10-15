@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <set>
 #include "spcrefs/LambertGrid.h"
 #include <mutex>
 #include <QStringList>
@@ -571,6 +572,81 @@ namespace UtilitySpcRefs {
         if (starts("pmsl")) return "pascal";
         if (starts("cld") || starts("rh2m")) return "percent";
         return "";
+    }
+
+    // every field of SPC's store: the ones a store had when this was written, and any a store has had since (kept by rememberArrays), each described as its store would
+    // describe it (a member axis for the 4-D ones, the units its name implies)
+    vector<Product> allProducts() {
+        static const char * known[] = {
+        "bliz_prob_t<0p250_t>035_t>0p010", "bliz_prob_t<0p500_t>030_t>0p010", "cld_high_mean", "cld_low_mean", "cld_mid_mean", "cref", "cref_max", "cref_nmep_r013_t040",
+        "cref_pb_t040", "fosberg_max", "fosberg_mean", "fosberg_min", "fosberg_prob_t>050", "fosberg_prob_t>075", "frzr_fram_03h_acc_mean",
+        "frzr_fram_24h_acc_overlap12h_mean", "frzr_qpf_03h_acc_max", "frzr_qpf_03h_acc_mean", "frzr_qpf_03h_acc_prob_t>0p060", "frzr_qpf_24h_acc_overlap12h_max",
+        "frzr_qpf_24h_acc_overlap12h_mean", "frzr_qpf_24h_acc_overlap12h_prob_t>0p060", "gust_max", "gust_mean", "gust_min", "lr75_mean",
+        "maxref1km_04h_max_overlap_max", "maxref1km_24h_max_overlap12h_max", "maxref1km_mucape_04h_max_overlap_nmep_r013_t>040",
+        "maxref1km_mucape_04h_max_overlap_pb_t>040", "maxref1km_mucape_24h_max_overlap12h_nmep_r013_t>040", "maxref1km_mucape_24h_max_overlap12h_pb_t>040",
+        "mucape_mean", "pmsl_mean", "pwat_mean", "pwat_prob_t>0p500_t<0p800", "qpf_01h_acc_mean", "qpf_01h_acc_prob_t>001", "qpf_01h_acc_prob_t>0p010",
+        "qpf_03h_acc_max", "qpf_03h_acc_mean", "qpf_03h_acc_nmep_r013_t>001", "qpf_03h_acc_nmep_r013_t>003", "qpf_03h_acc_pmmean", "qpf_06h_acc", "qpf_06h_acc_max",
+        "qpf_06h_acc_mean", "qpf_06h_acc_nmep_r013_t>0p100", "qpf_06h_acc_nmep_r013_t>0p250", "qpf_06h_acc_pmmean", "qpf_06h_acc_prob_t>001", "qpf_06h_acc_prob_t>002",
+        "qpf_06h_acc_prob_t>003", "qpf_06h_acc_prob_t>0p010", "qpf_24h_acc_overlap12h", "qpf_24h_acc_overlap12h_max", "qpf_24h_acc_overlap12h_mean",
+        "qpf_24h_acc_overlap12h_pmmean", "qpf_48h_acc_overlap12h_max", "qpf_48h_acc_overlap12h_mean", "qpf_48h_acc_overlap12h_pmmean", "rh2m_max", "rh2m_mean",
+        "rh2m_min", "rh2m_s10m_prob_t<010_t>030", "rh2m_s10m_prob_t<015_t>015", "rh2m_s10m_prob_t<015_t>020", "rh2m_s10m_prob_t<015_t>025", "rh2m_s10m_prob_t<020_t>015",
+        "rh2m_s10m_prob_t<020_t>020", "rh2m_s10m_prob_t<020_t>025", "rh2m_s10m_prob_t<025_t>015", "rh2m_s10m_prob_t<025_t>020", "rh2m_s10m_prob_t<025_t>025",
+        "rh2m_s10m_prob_t<030_t>015", "rh2m_s10m_prob_t<030_t>020", "rh2m_s10m_prob_t<035_t>010", "rh2m_s10m_prob_t<035_t>015", "s10m_01h_max_max", "s10m_01h_max_mean",
+        "s10m_01h_max_min", "s10m_04h_max_overlap_max", "s10m_04h_max_overlap_nmep_r013_t030", "s10m_04h_max_overlap_nmep_r013_t050", "s10m_04h_max_overlap_pb_t030",
+        "s10m_24h_max_overlap12h_max", "s10m_24h_max_overlap12h_nmep_r013_t030", "s10m_24h_max_overlap12h_nmep_r013_t050", "s10m_24h_max_overlap12h_pb_t030",
+        "sbcape_max", "sbcape_mean", "sbcape_min", "sbcape_prob_t>1000", "sbcape_prob_t>2000", "sbcape_prob_t>500", "sbcape_smooth_mean", "sbcinh_mean", "shrmag06_mean",
+        "snow_01h_acc_mean", "snow_01h_acc_prob_t>001", "snow_01h_acc_prob_t>002", "snow_12h_acc_max", "snow_12h_acc_mean", "snow_12h_acc_pmmean",
+        "snow_12h_acc_prob_t>004", "snow_12h_acc_prob_t>008", "snow_12h_acc_prob_t>012", "snow_24h_acc_overlap12h_max", "snow_24h_acc_overlap12h_mean",
+        "snow_24h_acc_overlap12h_pmmean", "snow_24h_acc_overlap12h_prob_t>004", "snow_24h_acc_overlap12h_prob_t>008", "snow_24h_acc_overlap12h_prob_t>012", "srh01_mean",
+        "srh03_mean", "stp_fixed_24h_max_overlap12h_mean", "stp_fixed_mean", "stp_fixed_prob_t>001", "stp_fixed_prob_t>003", "t2m_mean", "t500_mean", "t700_mean",
+        "t850_mean", "td2m_mean", "u10m_mean", "u500_mean", "u700_mean", "u850_mean", "uh03_04h_max_overlap", "uh25_01h_max_max", "uh25_04h_max_overlap",
+        "uh25_04h_max_overlap_max", "uh25_04h_max_overlap_nmep_r013_t>99.85p", "uh25_04h_max_overlap_nmep_r013_t>99.95p", "uh25_04h_max_overlap_pb_t>99.85p",
+        "uh25_04h_max_overlap_pb_t>99.95p", "uh25_24h_max_overlap12h", "uh25_24h_max_overlap12h_max", "uh25_24h_max_overlap12h_nmep_r013_t>99.85p",
+        "uh25_24h_max_overlap12h_nmep_r013_t>99.95p", "uh25_24h_max_overlap12h_pb_t>99.85p", "uh25_24h_max_overlap12h_pb_t>99.95p", "uh25min_04h_min_overlap",
+        "uh25min_04h_min_overlap_min", "uh25min_04h_min_overlap_nmep_r013_t<-35", "uh25min_04h_min_overlap_nmep_r013_t<-70", "uh25min_24h_min_overlap12h",
+        "uh25min_24h_min_overlap12h_min", "uh25min_24h_min_overlap12h_nmep_r013_t<-35", "uh25min_24h_min_overlap12h_nmep_r013_t<-70", "ushr06_mean", "v10m_mean",
+        "v500_mean", "v700_mean", "v850_mean", "vshr06_mean", "wmax_04h_max_overlap_max", "wmax_04h_max_overlap_nmep_r013_t020", "wmax_04h_max_overlap_nmep_r013_t030",
+        "wmax_04h_max_overlap_pb_t020", "wmax_24h_max_overlap12h_max", "wmax_24h_max_overlap12h_nmep_r013_t020", "wmax_24h_max_overlap12h_nmep_r013_t030",
+        "wmax_24h_max_overlap12h_pb_t020", "z500_mean", "z700_mean", "z850_mean",
+        };
+        static const std::set<string> withMembers{"cref", "qpf_06h_acc", "qpf_24h_acc_overlap12h", "uh03_04h_max_overlap", "uh25_04h_max_overlap", "uh25_24h_max_overlap12h",
+                                                  "uh25min_04h_min_overlap", "uh25min_24h_min_overlap12h"};
+        std::map<string, int> ranks;
+        for (const auto * id : known) {
+            ranks[id] = withMembers.count(id) ? 4 : 3;
+        }
+        for (const auto& entry : QString::fromStdString(Utility::readPref("SPCREFS_ARRAYS", "")).split('|', Qt::SkipEmptyParts)) {
+            const auto at = entry.lastIndexOf(':');
+            if (at > 0) {
+                ranks[entry.left(at).toStdString()] = entry.mid(at + 1).toInt() == 4 ? 4 : 3;
+            }
+        }
+        vector<Product> out;
+        for (const auto& [id, rank] : ranks) {
+            ZarrStore::Array array;
+            array.dims = rank == 4 ? vector<string>{"member", "valid_time", "y", "x"} : vector<string>{"valid_time", "y", "x"};
+            array.attrs.insert("units", QString::fromStdString(unitsOf(id)));
+            out.push_back(describe(id, array));
+        }
+        std::stable_sort(out.begin(), out.end(), [] (const Product& a, const Product& b) {
+            const auto pa = menuPosition(a);
+            const auto pb = menuPosition(b);
+            return pa != pb ? pa < pb : a.id < b.id;
+        });
+        return out;
+    }
+
+    void rememberArrays(const ZarrStore& store) {
+        QStringList entries;
+        for (const auto& id : store.arrayNames()) {
+            const auto * a = store.array(id);
+            if (a != nullptr && a->shape.size() >= 3 && a->shape.back() == LambertGrid::columns && a->shape[a->shape.size() - 2] == LambertGrid::rows && id != "ptype_consensus") {
+                entries << QString::fromStdString(id) + ":" + QString::number(a->shape.size());
+            }
+        }
+        if (!entries.isEmpty()) {
+            Utility::writePref("SPCREFS_ARRAYS", entries.join('|').toStdString());
+        }
     }
 
     vector<Product> curatedProducts() {

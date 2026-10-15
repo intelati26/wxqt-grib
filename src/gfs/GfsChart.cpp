@@ -4514,11 +4514,12 @@ const std::vector<Product>& products() {
         // ---- SPC's REFS products (the open Zarr store): the curated list of SPC's own viewer, each as the colors and units it has there
         const auto spcRefsRecipes = [&] {
             static const unsigned memberColors[] = {0x1f77b4, 0xd62728, 0x2ca02c, 0x9467bd, 0xff7f0e, 0x8c564b, 0xe377c2, 0x17becf, 0xbcbd22, 0x7f7f7f};
-            for (const auto& source : UtilitySpcRefs::curatedProducts()) {
+            for (const auto& source : UtilitySpcRefs::allProducts()) {   // every field of the store, as the SPC REFS screen had them
                 Product x;
                 x.source = "SPCREFS";
                 x.id = source.id;
                 x.label = source.label;
+                x.pickerGroup = "SPC REFS: " + source.group;
                 x.wants = {GfsData::Want{"a", source.id, "", "", "", source.members ? "m001" : ""}};
                 if (source.kind == UtilitySpcRefs::Kind::Paintball) {   // bit i of the mask: member i is over the limit
                     x.derive = [] (Grids& g, const Context&) {
@@ -4935,6 +4936,9 @@ namespace {
 }
 
 std::string category(const Product& product) {
+    if (!product.pickerGroup.empty()) {
+        return product.pickerGroup;
+    }
     const auto& id = product.id;
     if (id.compare(0, 4, "gen~") == 0) {
         return "Built charts";

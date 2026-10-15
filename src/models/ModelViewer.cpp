@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ModelViewer.h"
+#include "spcrefs/SpcRefsLoader.h"
 #include "ui/ActivityLabel.h"
 #include <QBuffer>
 #include <QImage>
@@ -378,6 +379,15 @@ void ModelViewer::recheckRuns() {
         comboboxRun.setLabels(runLabels());
         comboboxRun.unblock();
     }};
+}
+
+void ModelViewer::selectModel(const string& id) {
+    for (size_t i = 0; i < objectModel.models.size(); i++) {
+        if (objectModel.models[i] == id) {
+            comboboxModel.setIndex(i);   // its handler changes the model
+            return;
+        }
+    }
 }
 
 void ModelViewer::changeModelCb() {
@@ -950,6 +960,23 @@ void ModelViewer::fitHoursToRun() {
             wanted = allTimes;
         }
     }
+    if (objectModel.model == "SPCREFS") {   // a field of SPC's store has its own hours: 3 or 6 hourly, the 12 and 24 hour periods that end at 00 and 12Z
+        const auto when = runTime(objectModel.run);
+        const auto known = fieldHours.find((when.isValid() ? when.toString("yyyyMMddHH").toStdString() : objectModel.run) + "|" + objectModel.param);
+        if (known == fieldHours.end()) {
+            askFieldHours();
+        } else if (!known->second.empty()) {
+            std::vector<string> kept;
+            for (const auto& t : wanted) {
+                if (std::find(known->second.begin(), known->second.end(), std::atoi(t.c_str())) != known->second.end()) {
+                    kept.push_back(t);
+                }
+            }
+            if (!kept.empty()) {
+                wanted = kept;
+            }
+        }
+    }
     if (wanted == objectModel.times) {
         return;
     }
@@ -969,6 +996,30 @@ void ModelViewer::fitHoursToRun() {
     if (strip) {
         refreshTimeStrip();
     }
+}
+
+// the hours of the SPC REFS field on show, read from its store in the background; the list is fitted to them when they come
+void ModelViewer::askFieldHours() {
+    const auto when = runTime(objectModel.run);
+    if (!when.isValid()) {
+        return;
+    }
+    const auto runId = when.toString("yyyyMMddHH").toStdString();
+    const auto key = runId + "|" + objectModel.param;
+    if (fieldHoursAsked.count(key) != 0) {
+        return;
+    }
+    fieldHoursAsked.insert(key);
+    const auto param = objectModel.param;
+    auto hours = std::make_shared<std::vector<int>>();
+    new FutureVoid{this, [runId, param, hours] { *hours = SpcRefsLoader::fieldHours(GfsData::Run{runId.substr(0, 8), runId.substr(8, 2)}, param); }, [this, key, hours] {
+        fieldHours[key] = *hours;
+        const auto before = objectModel.getTime();
+        fitHoursToRun();
+        if (objectModel.getTime() != before) {
+            reload();
+        }
+    }};
 }
 
 void ModelViewer::reload() {

@@ -50,6 +50,7 @@ namespace {
                 }
                 UtilitySpcRefs::setMemberNames(runId, names);
             }
+            UtilitySpcRefs::rememberArrays(*opened.store);   // the fields of this store, for the chart list of the next start
         }
         auto init = QDateTime::fromString(QString::fromStdString(runId), "yyyyMMddHH");   // the cycle's own time
         init.setTimeSpec(Qt::UTC);
@@ -208,6 +209,41 @@ void SpcRefsLoader::readMemberNames(const GfsData::Run& run) {
     Opened opened;
     std::string ignored;
     open(url, run.id(), opened, ignored);
+}
+
+std::vector<int> SpcRefsLoader::fieldHours(const GfsData::Run& run, const std::string& variable) {
+    std::vector<int> hours;
+    const auto * def = GfsModels::find("SPCREFS");
+    const auto url = def != nullptr ? def->source("").fileUrl(run, 0, "") : std::string{};
+    Opened opened;
+    std::string error;
+    if (url.empty() || !open(url, run.id(), opened, error)) {
+        return hours;
+    }
+    const auto * a = opened.store->array(variable);
+    if (a == nullptr || a->dims.size() < 3) {
+        return hours;
+    }
+    const auto& dimension = a->dims[a->dims.size() - 3];
+    std::vector<double> times;
+    {
+        const std::lock_guard lock{mutex};
+        const auto found = stores[url].times.find(dimension);
+        if (found != stores[url].times.end()) {
+            times = found->second;
+        }
+    }
+    if (times.empty()) {
+        if (!opened.store->readNumbers(dimension, times, error)) {
+            return hours;
+        }
+        const std::lock_guard lock{mutex};
+        stores[url].times[dimension] = times;
+    }
+    for (const auto t : times) {
+        hours.push_back(static_cast<int>(std::lround((t - opened.initSeconds) / 3600.0)));
+    }
+    return hours;
 }
 
 void SpcRefsLoader::registerLoader() {

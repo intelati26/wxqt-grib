@@ -42,6 +42,7 @@ public:
     ModelViewer(Window *, const string&);
     // set when this viewer is a page of the model screen: another source is shown there (its id, ModelScreen::sources) instead of in a window of its own
     std::function<void(const string&)> openSource;
+    void selectModel(const string& id);   // show this model ("SPCREFS" ...), as the model box would
     void showPicker();
     void showModelPicker();    // the models in groups (global, regional, convection allowing, ensembles, waves ...)
     void showSectorPicker();   // the same, for the areas   // the grouped chart picker (the models drawn from GRIB)
@@ -177,6 +178,9 @@ private:
     void getRun();
     std::vector<string> allTimes;         // every hour the model offers; objectModel.times is the part the run on show reaches (the RRFS's hourly runs stop at 18 h)
     void fitHoursToRun();
+    std::map<string, std::vector<int>> fieldHours;   // "run|chart" -> the hours an SPC REFS field has (its own time coordinate)
+    std::set<string> fieldHoursAsked;
+    void askFieldHours();
     void recheckRuns();                   // every 15 minutes: has a newer run been published?
     QTimer recheckTimer;
     bool rechecking{false};
