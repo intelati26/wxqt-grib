@@ -168,11 +168,25 @@ QSize ZoomImage::pictureSize() const {
     return label->size();
 }
 
+void ZoomImage::setOverlayClip(const QRectF& fractions) {
+    overlayClip = fractions;
+    repositionPins();
+}
+
 void ZoomImage::repositionPins() {
+    const QRect clip{static_cast<int>(std::lround(overlayClip.left() * label->width())), static_cast<int>(std::lround(overlayClip.top() * label->height())),
+                     static_cast<int>(std::lround(overlayClip.width() * label->width())), static_cast<int>(std::lround(overlayClip.height() * label->height()))};
     for (const auto& o : overlays) {
         const int x = static_cast<int>(std::lround(o.fx * label->width()));
         const int y = static_cast<int>(std::lround(o.fy * label->height()));
         o.widget->move(x - o.widget->width() / 2, y - o.widget->height() / 2);
+        const QRect inside = clip.translated(-o.widget->pos()).intersected(o.widget->rect());   // the part of the widget in the frame, in its own coordinates
+        if (inside.isEmpty()) {
+            o.widget->clearMask();
+            o.widget->hide();
+            continue;
+        }
+        o.widget->setMask(QRegion{inside});
         o.widget->setVisible(!label->pixmap().isNull());
         o.widget->raise();
     }

@@ -54,6 +54,7 @@ public:
     void moveOverlay(QWidget *, double fx, double fy);
     void removeOverlay(QWidget *);
     void clearOverlays();
+    void setOverlayClip(const QRectF& fractions);   // the overlays are cut to this part of the picture (a map's frame, so they do not cover its title)
     QRectF visibleFraction() const;   // the part of the picture in view, as fractions of it
     QSize pictureSize() const;        // the picture as shown (pixels)
 
@@ -89,6 +90,7 @@ private:
         double fx, fy;
     };
     std::vector<Overlay> overlays;
+    QRectF overlayClip{0.0, 0.0, 1.0, 1.0};
     void updateRestingCursor();
     QLabel * label;
     QLabel * marker;

@@ -756,8 +756,8 @@ void ModelViewer::refreshStationPins() {
     image.setPins(pins);
 }
 
-// the stations that get a glyph: those in `visible` (fractions of the picture of width x height pixels), the NWS offices' first, then the other airports, none nearer than
-// `spacing` pixels to another (up to 150)
+// the stations that get a glyph: those in `visible` (fractions of the picture of width x height pixels), the NWS offices' first, then the other US airports, then the rest, none nearer than
+// `spacing` pixels to another (up to 150); every station of the feed is a candidate
 std::vector<ModelViewer::GlyphPick> ModelViewer::glyphStations(const GfsChart::Probe& probe, const QRectF& visible, double width, double height, double spacing) const {
     std::vector<GlyphPick> inView, picks;
     const auto& offices = UtilityBufkit::officeStations();
@@ -772,8 +772,8 @@ std::vector<ModelViewer::GlyphPick> ModelViewer::glyphStations(const GfsChart::P
     };
     std::stable_sort(inView.begin(), inView.end(), [&rank] (const GlyphPick& a, const GlyphPick& b) { return rank(a) < rank(b); });
     for (const auto& pick : inView) {
-        if (rank(pick) > 1 || picks.size() >= 150) {
-            continue;   // stations outside the United States (and the odd ids) stay as buttons
+        if (picks.size() >= 150) {
+            break;
         }
         const double x = pick.fx * width, y = pick.fy * height;
         const bool free = std::none_of(picks.begin(), picks.end(), [&] (const GlyphPick& other) {
@@ -798,6 +798,9 @@ QByteArray ModelViewer::withGlyphs(const QByteArray& bytes, const std::shared_pt
     const double size = picture.width() * 84.0 / 1100.0;   // as large, against the picture, as on a screen showing it 1100 pixels wide
     const string valid = probe->validUtc.isValid() ? probe->validUtc.toUTC().toString("yyMMdd/HHmm").toStdString() : string{};
     QPainter painter{&picture};
+    // inside the chart's frame only (the same mask as on screen)
+    painter.setClipRect(QRectF{probe->areaLeft / probe->imageWidth * picture.width(), probe->areaTop / probe->imageHeight * picture.height(),
+                               probe->areaWidth / probe->imageWidth * picture.width(), probe->areaWidth > 0.0 ? probe->areaHeight / probe->imageHeight * picture.height() : 0.0});
     int drawn = 0;
     for (const auto& pick : glyphStations(*probe, QRectF{0, 0, 1, 1}, 1100.0, 1100.0 * probe->imageHeight / std::max(1.0, probe->imageWidth), 88.0)) {
         const auto run = bufkitRuns.find(pick.id);
@@ -841,6 +844,8 @@ void ModelViewer::refreshHodographs() {
         return;
     }
     const auto& probe = *shownProbe;
+    // the glyphs stay inside the chart's own frame: not over the title, the legend or the credits
+    image.setOverlayClip(QRectF{probe.areaLeft / probe.imageWidth, probe.areaTop / probe.imageHeight, probe.areaWidth / probe.imageWidth, probe.areaHeight / probe.imageHeight});
     const QRectF visible = image.visibleFraction();
     const QSize size = image.pictureSize();
     const auto picks = glyphStations(probe, visible, size.width(), size.height(), 88.0);
