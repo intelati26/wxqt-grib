@@ -4513,7 +4513,8 @@ const std::vector<Product>& products() {
 
         // ---- SPC's REFS products (the open Zarr store): the curated list of SPC's own viewer, each as the colors and units it has there
         const auto spcRefsRecipes = [&] {
-            static const unsigned memberColors[] = {0x1f77b4, 0xd62728, 0x2ca02c, 0x9467bd, 0xff7f0e, 0x8c564b, 0xe377c2, 0x17becf, 0xbcbd22, 0x7f7f7f};
+            // SPC's own colors for the paintball of each member, in the store's order: HRRR, RRFS control, REFS M01, M02, M03, M05, then HRRR and RRFS control 6 and 12 hours older
+            static const unsigned memberColors[] = {0x4c4c4c, 0x007399, 0x009985, 0x009947, 0x009909, 0x469900, 0x7f7f7f, 0x4cd3ff, 0xb3b3b3, 0xb3ecff};
             for (const auto& source : UtilitySpcRefs::allProducts()) {   // every field of the store, as the SPC REFS screen had them
                 Product x;
                 x.source = "SPCREFS";
@@ -6166,7 +6167,31 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
     // a small key for each overlay's colors (the same amounts as the main scale, from light to heavy)
     double keyLeft = barLeft;
+    const bool paintball = product.source == "SPCREFS" && !product.overlays.empty() && product.overlays.front().first.rfind("Member ", 0) == 0;
+    if (paintball) {   // the members' colors, each with its name (the old REFS screen's key): the first is the chart's own fill
+        const auto names = UtilitySpcRefs::memberNames();
+        std::vector<QColor> colors{product.ramp.stops.back().second};
+        for (const auto& overlay : product.overlays) {
+            colors.push_back(overlay.second.stops.back().second);
+        }
+        const double top = image.height() - 15.0;
+        const QFontMetricsF metrics{p.font()};
+        p.setPen(QColor{70, 70, 70});
+        for (size_t i = 0; i < colors.size(); i++) {
+            const QString name = i < names.size() ? QString::fromStdString(names[i]) : QString{"Member %1"}.arg(i + 1);
+            p.setBrush(QColor{colors[i].red(), colors[i].green(), colors[i].blue()});
+            p.setPen(QColor{60, 60, 60});
+            p.drawRect(QRectF{keyLeft, top, 9, 9});
+            p.setPen(QColor{70, 70, 70});
+            p.drawText(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            keyLeft += 13 + metrics.horizontalAdvance(name) + 14;
+        }
+        p.setBrush(Qt::NoBrush);
+    }
     for (const auto& [key, overlayRamp] : product.overlays) {
+        if (paintball) {
+            break;
+        }
         const QString name = key == "snow" ? "Snow" : key == "mix" ? "Mixed" : QString::fromStdString(key);
         const double top = image.height() - 15.0, width = 80.0;
         p.setPen(QColor{70, 70, 70});

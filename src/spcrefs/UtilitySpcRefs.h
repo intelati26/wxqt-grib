@@ -11,7 +11,6 @@
 #include <vector>
 #include <QByteArray>
 #include <QDateTime>
-#include <QImage>
 #include "zarr/ZarrStore.h"
 
 using std::string;
@@ -53,45 +52,12 @@ namespace UtilitySpcRefs {
 
     // how an array is shown (SPC's own titles for its main products, a tidied name for the rest) and which colours
     Product describe(const string& id, const ZarrStore::Array& array);
-    // every field of a store, in menu order (groups, then SPC's order within a group)
-    vector<Product> catalog(const ZarrStore& store);
-
-    // "https://www.spc.noaa.gov/exper/refs/data/2026/10/01/refs-spc_20261001_1800.zarr"
-    string cycleUrl(const QDateTime& initUtc);
-    // the newest cycles that exist on the server, newest first (probes 00 / 06 / 12 / 18 UTC cycles back from now)
-    vector<QDateTime> findCycles(int wanted);
-
-    // The part of the grid that is shown: a window of grid cells (columns from the west, rows from the south) drawn `scale`
-    // pixels per cell. The whole grid is 1799 x 1059 cells at scale 1; a mesoscale sector is a few hundred cells wide and is
-    // drawn larger, resampled smoothly (the data's real resolution is still 3 km).
-    struct View {
-        int col0{0};
-        int row0{0};
-        int cols{1799};
-        int rows{1059};
-        int scale{1};
-        string name{"CONUS"};
-    };
-    // the window around a latitude / longitude box (west-negative longitudes), drawn 4 x 4 pixels per 3 km cell and smoothed
-    View viewForBox(const string& name, double west, double south, double east, double north, int pixelsPerCell = 4);
-    // grid cell under a pixel position given as fractions (0..1) of the picture
-    void cellAt(const View& view, double fx, double fy, int& column, int& row);
-
-    // the data layer as an image (north at the top), transparent where there is nothing to show
-    QImage dataImage(const Product& product, const vector<float>& values, const vector<string>& memberNames, const View& view);
-    // the finished picture: light map background, county and state lines, the data, a colour key
-    QByteArray renderPng(const Product& product, const vector<float>& values, const vector<string>& memberNames, const View& view);
-    // the value under a grid point as shown (NaN when there is none)
-    double shownValue(const Product& product, const vector<float>& values, int column, int row);
-    // text for the read-out at a grid point ("42.5 dBZ", "6 of 10 members")
-    string readout(const Product& product, const vector<float>& values, int column, int row, const vector<string>& memberNames);
     string memberDisplayName(const string& raw);
     // the names of the ten members of the newest store opened ("RRFS Ctl", "HRRR -6h" ...), kept for the lists that offer one member; empty until a store has been opened
     // keyed by the run ("yyyyMMddHH"): the names of another run's members are not assumed to be these. memberNames of a run that is not known gives the newest run's.
     void setMemberNames(const string& runId, const vector<string>& displayNames);
     vector<string> memberNames(const string& runId = {});
     std::pair<int, int> menuPosition(const Product& product);   // (group, place in SPC's list): the order of the menu
-    unsigned memberColour(const string& name);          // the colour of a member's paintball (grey for one that is not known)
     vector<Stop> rainbowStops(double low, double high);   // the colour table of a field with none of its own, over its range
     // the products SPC's own viewer lists, described from their names (no store needed): what the chart registry makes charts of
     vector<Product> curatedProducts();

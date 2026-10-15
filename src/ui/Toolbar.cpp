@@ -31,7 +31,6 @@
 #include "drought/DroughtViewer.h"
 #include "models/CamsViewer.h"
 #include "mrms/MrmsViewer.h"
-#include "spcrefs/SpcRefsViewer.h"
 #include "climate/ClimateViewer.h"
 #include "rivers/RiverMapViewer.h"
 #include "dashboard/Dashboards.h"

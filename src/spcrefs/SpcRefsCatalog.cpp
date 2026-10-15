@@ -285,13 +285,6 @@ namespace UtilitySpcRefs {
             return list;
         }
 
-        const std::map<string, unsigned>& memberColours() {   // the colours SPC's viewer uses for each member's paintball
-            static const std::map<string, unsigned> colours{
-                {"HRRR", 0x4c4c4c}, {"RRFS", 0x007399}, {"REFS M01", 0x009985}, {"REFS M02", 0x009947}, {"REFS M03", 0x009909},
-                {"REFS M05", 0x469900}, {"HRRR TL06", 0x7f7f7f}, {"RRFS TL06", 0x4cd3ff}, {"HRRR TL12", 0xb3b3b3}, {"RRFS TL12", 0xb3ecff}};
-            return colours;
-        }
-
         bool contains(const string& text, const char * part) { return text.find(part) != string::npos; }
         bool startsWith(const string& text, const char * part) { return text.rfind(part, 0) == 0; }
 
@@ -540,11 +533,6 @@ namespace UtilitySpcRefs {
             }
         }
         return {static_cast<int>(std::find(groupOrder.begin(), groupOrder.end(), p.group) - groupOrder.begin()), place};
-    }
-
-    unsigned memberColour(const string& name) {
-        const auto found = memberColours().find(name);
-        return found == memberColours().end() ? 0x808080u : found->second;
     }
 
     vector<Stop> rainbowStops(double lo, double hi) {
