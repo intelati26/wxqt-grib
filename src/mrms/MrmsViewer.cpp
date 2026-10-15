@@ -4,7 +4,13 @@
 // *****************************************************************************
 
 #include "mrms/MrmsViewer.h"
+#include <QButtonGroup>
+#include <QDialog>
+#include <QGridLayout>
+#include <QGroupBox>
 #include <QKeyEvent>
+#include <QRadioButton>
+#include <QVBoxLayout>
 #include <QMouseEvent>
 #include <QTreeWidget>
 #include "settings/Location.h"
@@ -59,6 +65,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     , comboHail{this, {"Hail swaths: off", "Hail: last 30 min", "Hail: last hour", "Hail: last 2 hours", "Hail: last 6 hours", "Hail: last 24 hours"}}
     , comboRotation{this, {"Rotation tracks: off", "Rotation 0-2 km: last 30 min", "Rotation 0-2 km: last hour", "Rotation 0-2 km: last 2 hours", "Rotation 0-2 km: last 6 hours",
                             "Rotation 0-2 km: last 24 hours", "Rotation 3-6 km: last hour", "Rotation 3-6 km: last 2 hours", "Rotation 3-6 km: last 6 hours"}}
+    , buttonOverlays{this, Icon::None, "Overlays: off"}
     , buttonLoop{this, Icon::Play, "Loop"}
     , buttonSave{this, Icon::None, "Save"}
     , shortcutSave{QKeySequence{"Ctrl+S"}, this}
@@ -164,10 +171,12 @@ MrmsViewer::MrmsViewer(Window * parent)
     rowTop.addWidget(comboLoop);
     rowTop.addWidget(comboUnits);
     rowTop.addWidget(comboAuto);
-    rowTop.addWidget(comboLightning);
-    rowTop.addWidget(comboChance);
-    rowTop.addWidget(comboHail);
-    rowTop.addWidget(comboRotation);
+    for (auto * combo : {&comboLightning, &comboChance, &comboHail, &comboRotation}) {   // the choices live in these; the panel sets them
+        combo->setVisible(false);
+    }
+    buttonOverlays.getView()->setToolTip("Lightning strikes, lightning chance, hail swaths and rotation tracks over the product: several at once");
+    buttonOverlays.connect([this] { showOverlays(); });
+    rowTop.addWidget(buttonOverlays);
     rowTop.addWidget(buttonLoop);
     rowTop.addWidget(buttonSave);
     rowTop.addStretch();
@@ -187,6 +196,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     loadChance();
     loadHail();
     loadRotation();
+    refreshOverlayLabel();
     // the rest of the server's products, found in the background
     auto found = std::make_shared<vector<UtilityMrms::Product>>();
     new FutureVoid{this,
@@ -565,6 +575,62 @@ void MrmsViewer::updateLocations() {
 }
 
 // the products by group, each group opening and closing; the group of the shown product starts open
+void MrmsViewer::refreshOverlayLabel() {
+    static const char * names[] = {"lightning", "chance", "hail", "rotation"};
+    ComboBox * combos[] = {&comboLightning, &comboChance, &comboHail, &comboRotation};
+    string text;
+    for (int i = 0; i < 4; i++) {
+        if (combos[i]->getIndex() > 0) {
+            text += (text.empty() ? "" : ", ") + string{names[i]};
+        }
+    }
+    buttonOverlays.setText("Overlays: " + (text.empty() ? string{"off"} : text));
+}
+
+void MrmsViewer::showOverlays() {
+    if (overlayDialog) {
+        overlayDialog->raise();
+        overlayDialog->activateWindow();
+        return;
+    }
+    auto * dialog = new QDialog{this};
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowTitle("MRMS overlays");
+    auto * layout = new QGridLayout{dialog};
+    struct Entry {
+        ComboBox * combo;
+        const char * title;
+    };
+    const Entry entries[] = {{&comboLightning, "Lightning strikes"}, {&comboChance, "Lightning chance (contours)"}, {&comboHail, "Hail swaths (1 in and up)"},
+                             {&comboRotation, "Rotation tracks"}};
+    int slot = 0;
+    for (const auto& entry : entries) {
+        auto * box = new QGroupBox{entry.title, dialog};
+        auto * inner = new QVBoxLayout{box};
+        auto * group = new QButtonGroup{box};
+        const auto items = entry.combo->getView();
+        for (int i = 0; i < items->count(); i++) {
+            auto * radio = new QRadioButton{i == 0 ? QString{"Off"} : items->itemText(i), box};
+            radio->setChecked(i == entry.combo->getIndex());
+            group->addButton(radio, i);
+            inner->addWidget(radio);
+        }
+        inner->addStretch();
+        ComboBox * combo = entry.combo;
+        QObject::connect(group, &QButtonGroup::idClicked, box, [this, combo] (int id) {
+            combo->setIndex(static_cast<size_t>(id));   // its own handler stores the pref and loads the data
+            refreshOverlayLabel();
+        });
+        layout->addWidget(box, slot / 2, slot % 2);
+        slot++;
+    }
+    auto * close = new QPushButton{"Close", dialog};
+    QObject::connect(close, &QPushButton::clicked, dialog, &QDialog::close);
+    layout->addWidget(close, 2, 0, 1, 2, Qt::AlignRight);
+    overlayDialog = dialog;
+    dialog->show();
+}
+
 void MrmsViewer::showProductTree() {
     auto * combo = comboProduct.getView();
     auto * tree = new QTreeWidget{this};

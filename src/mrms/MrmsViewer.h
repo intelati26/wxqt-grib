@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 #include <QByteArray>
+#include <QDialog>
+#include <QPointer>
 #include <QLabel>
 #include <QPointF>
 #include <QVector>
@@ -56,6 +58,8 @@ private:
     void loadChance();     // the lightning probability of the next 30 / 60 minutes as contour lines over the map
     void loadHail();       // the hail swaths over the product (MRMS MESH maximum of a period), from nickel size up
     void loadRotation();   // the rotation tracks over the product (MRMS low- or mid-level rotation track of a period), strong rotation only
+    void showOverlays();            // the panel of the overlays: stays open while several are chosen
+    void refreshOverlayLabel();
     void paintLegend(QPainter&);
     void moveScan(int step);
     void onSave();                    // the map (or the loaded loop) with a title / valid time / save time border, as PNG / WebP / ...
@@ -88,6 +92,8 @@ private:
     ComboBox comboLightning;
     ComboBox comboChance;      // the lightning probability contours: off, next 30 or 60 minutes
     ComboBox comboRotation;    // rotation tracks over any product: off, or a period of the 0-2 / 3-6 km track   // lightning points over any product: off, or the last 1 / 5 / 15 / 30 minutes
+    Button buttonOverlays;     // opens the overlay panel (the four combos below hold the choices; they are not shown)
+    QPointer<QDialog> overlayDialog;
     Button buttonLoop;
     Button buttonSave;
     Shortcut shortcutSave;
