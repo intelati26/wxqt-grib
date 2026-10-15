@@ -8,6 +8,11 @@
 #include <cmath>
 #include <numbers>
 #include <QComboBox>
+#include <QTimeZone>
+#include <QStandardPaths>
+#include <QFile>
+#include <QDir>
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QLabel>
 #include <QPainter>
@@ -35,6 +40,7 @@ const std::vector<GibsLayer::Product>& GibsLayer::products() {
 GibsLayer::GibsLayer() {
     productIndex = std::clamp(Utility::readPrefInt("MM_GIBS_PRODUCT", 0), 0, static_cast<int>(products().size()) - 1);
     daysBack = std::clamp(Utility::readPrefInt("MM_GIBS_DAYS", 1), 0, 60);
+    liveDays = daysBack;
 }
 
 string GibsLayer::dateText() const {
@@ -53,12 +59,51 @@ namespace {
     }
 }
 
-void GibsLayer::paint(QPainter& painter, MapHost& host) {
+string GibsLayer::tileKey(const Product& product, const string& date, const Tile& tile) {
+    return string{product.id} + "|" + date + "|" + std::to_string(tile.z) + "/" + std::to_string(tile.y) + "/" + std::to_string(tile.x);
+}
+
+string GibsLayer::urlOf(const Product& product, const string& date, const Tile& tile) const {
+    return string{"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"} + product.id + "/default/" + date + "/" + product.matrixSet + "/" + std::to_string(tile.z) + "/" +
+        std::to_string(tile.y) + "/" + std::to_string(tile.x) + "." + product.extension;
+}
+
+namespace {
+    // the disk copies of complete days (a day that is still being made is not kept): one file a tile, dropped after a month or when the folder passes a size
+    QString cacheFile(const std::string& key, const char * extension) {
+        const auto folder = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/gibs";
+        QDir{}.mkpath(folder);
+        const auto hash = QCryptographicHash::hash(QByteArray::fromStdString(key), QCryptographicHash::Sha1).toHex();
+        return folder + "/" + QString::fromLatin1(hash) + "." + extension;
+    }
+
+    void pruneCache() {
+        static bool done = false;
+        if (done) {
+            return;
+        }
+        done = true;
+        const QDir dir{QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/gibs"};
+        auto files = dir.entryInfoList(QDir::Files, QDir::Time);   // newest first
+        const auto cutoff = QDateTime::currentDateTime().addDays(-30);
+        qint64 total = 0;
+        for (const auto& f : files) {
+            total += f.size();
+        }
+        for (int i = static_cast<int>(files.size()) - 1; i >= 0; i--) {   // the oldest first
+            if (files[static_cast<qsizetype>(i)].lastModified() < cutoff || total > 600LL * 1024 * 1024) {
+                total -= files[static_cast<qsizetype>(i)].size();
+                QFile::remove(files[static_cast<qsizetype>(i)].filePath());
+            }
+        }
+    }
+}
+
+// the tiles that cover the view, at the zoom whose tile (256 pixels) is about the size of the pixels it covers; coarser when that would be a great many tiles
+std::vector<GibsLayer::Tile> GibsLayer::tilesInView(MapHost& host, int& zoom) const {
     auto& view = host.view();
     const auto& product = products()[static_cast<size_t>(productIndex)];
-    const auto t = view.transform();
     const auto * map = view.map();
-    // the part of the world in view, from the corners of the widget
     const auto topLeft = view.toLatLon(QPointF{0.0, 0.0});
     const auto bottomRight = view.toLatLon(QPointF{static_cast<double>(map->width()), static_cast<double>(map->height())});
     const double north = std::min(topLeft.first, 85.0), south = std::max(bottomRight.first, -85.0);
@@ -67,21 +112,18 @@ void GibsLayer::paint(QPainter& painter, MapHost& host) {
         west = -180.0;
         east = 180.0;
     }
-    // the zoom whose tile (256 pixels) is about the size of the pixels it covers; coarser when that would be a great many tiles
     const double pixelsPerDegree = map->width() / std::max(1.0e-6, east - west);
     int z = std::clamp(static_cast<int>(std::lround(std::log2(pixelsPerDegree * 360.0 / 256.0))), 1, product.maxZoom);
-    const auto range = [&] (int zoom, int& x0, int& x1, int& y0, int& y1) {
-        const double n = std::pow(2.0, zoom);
-        x0 = static_cast<int>(std::floor((west + 180.0) / 360.0 * n));
-        x1 = static_cast<int>(std::floor((east + 180.0) / 360.0 * n));
+    const auto range = [&] (int level, int& x0, int& x1, int& y0, int& y1) {
+        const double n = std::pow(2.0, level);
+        x0 = std::max(0, static_cast<int>(std::floor((west + 180.0) / 360.0 * n)));
+        x1 = std::min(static_cast<int>(n) - 1, static_cast<int>(std::floor((east + 180.0) / 360.0 * n)));
         const auto row = [n] (double lat) {
             const double r = lat * std::numbers::pi / 180.0;
             return static_cast<int>(std::floor((1.0 - std::log(std::tan(r) + 1.0 / std::cos(r)) / std::numbers::pi) / 2.0 * n));
         };
         y0 = std::max(0, row(north));
         y1 = std::min(static_cast<int>(n) - 1, row(south));
-        x0 = std::max(0, x0);
-        x1 = std::min(static_cast<int>(n) - 1, x1);
     };
     int x0, x1, y0, y1;
     range(z, x0, x1, y0, y1);
@@ -89,59 +131,136 @@ void GibsLayer::paint(QPainter& painter, MapHost& host) {
         z--;
         range(z, x0, x1, y0, y1);
     }
+    zoom = z;
+    std::vector<Tile> out;
+    for (int y = y0; y <= y1; y++) {
+        for (int x = x0; x <= x1; x++) {
+            out.push_back({z, x, y});
+        }
+    }
+    return out;
+}
+
+// one tile: the disk copy if it is there, else the network (and kept on disk when the day is complete); asked for once, the map painted again as it arrives
+void GibsLayer::request(MapHost& host, const Product& product, const string& date, const Tile& tile) {
+    const string key = tileKey(product, date, tile);
+    if (tiles.count(key) > 0 || asked.count(key) > 0) {
+        return;
+    }
+    asked.insert(key);
+    const string url = urlOf(product, date, tile);
+    const bool keep = date < QDateTime::currentDateTimeUtc().addDays(-1).toString("yyyy-MM-dd").toStdString();
+    const QString file = cacheFile(key, product.extension);
+    auto bytes = std::make_shared<QByteArray>();
+    host.background([url, bytes, keep, file] {
+                        QFile disk{file};
+                        if (keep && disk.open(QIODevice::ReadOnly)) {
+                            *bytes = disk.readAll();
+                            return;
+                        }
+                        *bytes = UtilityIO::downloadAsByteArray(url);
+                        if (keep && !bytes->isEmpty() && !QImage::fromData(*bytes).isNull() && disk.open(QIODevice::WriteOnly)) {
+                            disk.write(*bytes);
+                        }
+                    },
+                    [this, key, bytes, &host] {
+                        if (!bytes->isEmpty()) {
+                            const auto decoded = QImage::fromData(*bytes);
+                            if (!decoded.isNull()) {
+                                tiles[key] = decoded;
+                            }
+                        }
+                        host.redraw();
+                    });
+}
+
+void GibsLayer::paint(QPainter& painter, MapHost& host) {
+    pruneCache();
+    auto& view = host.view();
+    const auto& product = products()[static_cast<size_t>(productIndex)];
+    const auto t = view.transform();
+    int z = 1;
+    const auto wanted = tilesInView(host, z);
     shownZoom = z;
     const string date = dateText();
-    const string base = string{"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/"} + product.id + "/default/" + date + "/" + product.matrixSet + "/";
-    const auto keyOf = [&] (int zoom, int x, int y) { return string{product.id} + "|" + date + "|" + std::to_string(zoom) + "/" + std::to_string(y) + "/" + std::to_string(x); };
+    const double bleed = 0.5 * view.unitsPerPixel();   // a half pixel over each edge: no hairline between tiles
     painter.save();
     painter.setOpacity(opacity / 100.0);
     painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
     int started = 0;
-    for (int y = y0; y <= y1; y++) {
-        for (int x = x0; x <= x1; x++) {
-            const string key = keyOf(z, x, y);
-            const auto found = tiles.find(key);
-            QImage * image = found == tiles.end() ? nullptr : &found->second;
-            if (image == nullptr && asked.count(key) == 0 && started < 8) {   // asked for once, a few at a time; the picture is painted again as each arrives
-                asked.insert(key);
-                started++;
-                const string url = base + std::to_string(z) + "/" + std::to_string(y) + "/" + std::to_string(x) + "." + product.extension;
-                auto bytes = std::make_shared<QByteArray>();
-                host.background([url, bytes] { *bytes = UtilityIO::downloadAsByteArray(url); },
-                                [this, key, bytes, &host] {
-                                    if (!bytes->isEmpty()) {
-                                        const auto decoded = QImage::fromData(*bytes);
-                                        if (!decoded.isNull()) {
-                                            tiles[key] = decoded;
-                                        }
-                                    }
-                                    host.redraw();
-                                });
+    for (const auto& tile : wanted) {
+        const string key = tileKey(product, date, tile);
+        const auto found = tiles.find(key);
+        const QPointF a = t(tileLat(tile.y, tile.z), tileLon(tile.x, tile.z)), b = t(tileLat(tile.y + 1, tile.z), tileLon(tile.x + 1, tile.z));
+        const QRectF where = QRectF{a, b}.normalized().adjusted(-bleed, -bleed, bleed, bleed);
+        if (found != tiles.end()) {
+            painter.drawImage(where, found->second);
+            continue;
+        }
+        if (started < 8 && asked.count(key) == 0) {
+            started++;
+            request(host, product, date, tile);
+        }
+        // while a tile is on its way a coarser one that is already here stands in (up to three levels)
+        for (int up = 1; up <= 3 && tile.z - up >= 0; up++) {
+            const auto parent = tiles.find(tileKey(product, date, {tile.z - up, tile.x >> up, tile.y >> up}));
+            if (parent != tiles.end()) {
+                const int span = 1 << up;
+                const int px = tile.x & (span - 1), py = tile.y & (span - 1);
+                const QImage part = parent->second.copy(parent->second.width() * px / span, parent->second.height() * py / span, parent->second.width() / span, parent->second.height() / span);
+                painter.drawImage(where, part);
+                break;
             }
-            if (image == nullptr) {
-                // while a tile is on its way a coarser one that is already here stands in (up to three levels)
-                for (int up = 1; up <= 3 && image == nullptr && z - up >= 0; up++) {
-                    const auto parent = tiles.find(keyOf(z - up, x >> up, y >> up));
-                    if (parent != tiles.end()) {
-                        const int span = 1 << up;
-                        const int px = (x & (span - 1)), py = (y & (span - 1));
-                        const QImage part = parent->second.copy(parent->second.width() * px / span, parent->second.height() * py / span, parent->second.width() / span, parent->second.height() / span);
-                        const QPointF a = t(tileLat(y, z), tileLon(x, z)), b = t(tileLat(y + 1, z), tileLon(x + 1, z));
-                        painter.drawImage(QRectF{a, b}, part);
-                        break;
-                    }
-                }
-                continue;
-            }
-            const QPointF a = t(tileLat(y, z), tileLon(x, z)), b = t(tileLat(y + 1, z), tileLon(x + 1, z));
-            painter.drawImage(QRectF{a, b}, *image);
         }
     }
     painter.restore();
-    if (tiles.size() > 600) {   // the session's tiles are kept up to a few hundred, then started over
+    if (tiles.size() > 600) {   // the session's tiles are kept up to a few hundred, then started over (the disk copies stay)
         tiles.clear();
         asked.clear();
     }
+}
+
+// the days as the map's frames: noon UTC of each of the last fifteen days, oldest first (today is the partial day)
+vector<long> GibsLayer::times() const {
+    vector<long> out;
+    const auto today = QDateTime::currentDateTimeUtc().date();
+    for (int back = 14; back >= 0; back--) {
+        out.push_back(static_cast<long>(QDateTime{today.addDays(-back), QTime{12, 0}, QTimeZone::utc()}.toSecsSinceEpoch()));
+    }
+    return out;
+}
+
+string GibsLayer::timeText() const {
+    return string{products()[static_cast<size_t>(productIndex)].label} + "  " + dateText();
+}
+
+void GibsLayer::showTime(long seconds, MapHost& host) {
+    if (seconds == 0) {
+        daysBack = liveDays;   // live: the day chosen in the options
+    } else {
+        const auto day = QDateTime::fromSecsSinceEpoch(seconds, QTimeZone::utc()).date();
+        daysBack = std::clamp(static_cast<int>(day.daysTo(QDateTime::currentDateTimeUtc().date())), 0, 60);
+    }
+    host.redraw();
+}
+
+// a loop through the days: the tiles of the view for each of them, read ahead (from disk when kept), a few at a time as the map is painted
+void GibsLayer::prepareTimes(MapHost& host) {
+    const auto& product = products()[static_cast<size_t>(productIndex)];
+    int z = 1;
+    const auto wanted = tilesInView(host, z);
+    const auto today = QDateTime::currentDateTimeUtc().date();
+    int started = 0;
+    for (int back = 14; back >= 0 && started < 160; back--) {
+        const string date = today.addDays(-back).toString("yyyy-MM-dd").toStdString();
+        for (const auto& tile : wanted) {
+            if (tiles.count(tileKey(product, date, tile)) == 0 && asked.count(tileKey(product, date, tile)) == 0) {
+                request(host, product, date, tile);
+                started++;
+            }
+        }
+    }
+    host.timesChanged();
 }
 
 QWidget * GibsLayer::options(QWidget * parent, const std::function<void()>& changed) {
@@ -176,6 +295,7 @@ QWidget * GibsLayer::options(QWidget * parent, const std::function<void()>& chan
     });
     QObject::connect(day, &QComboBox::currentIndexChanged, [this, changed] (int index) {
         daysBack = index;
+        liveDays = index;
         Utility::writePrefInt("MM_GIBS_DAYS", index);
         changed();
     });

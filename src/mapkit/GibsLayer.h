@@ -8,6 +8,7 @@
 
 #include <map>
 #include <set>
+#include <vector>
 #include <QImage>
 #include "mapkit/MapLayer.h"
 
@@ -23,6 +24,12 @@ public:
     bool underCoast() const override { return true; }
     int order() const override { return 6; }
     void paint(QPainter&, MapHost&) override;
+    // the days as frames of the map's time bar: stepping or looping through them with the other layers on top
+    bool timeAware() const override { return true; }
+    vector<long> times() const override;
+    void prepareTimes(MapHost&) override;
+    void showTime(long seconds, MapHost&) override;
+    string timeText() const override;
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     string summary() const override;
 
@@ -39,12 +46,20 @@ private:
     };
     static const std::vector<Product>& products();
     string dateText() const;   // yyyy-MM-dd of the day shown
+    struct Tile {
+        int z, x, y;
+    };
+    std::vector<Tile> tilesInView(MapHost&, int& zoom) const;   // the tiles that cover the view, at the zoom that matches its pixels
+    void request(MapHost&, const Product&, const string& date, const Tile&);   // from the disk copy, or the network, once
+    static string tileKey(const Product&, const string& date, const Tile&);
+    string urlOf(const Product&, const string& date, const Tile&) const;
     std::map<string, QImage> tiles;
     std::set<string> asked;
     int productIndex{0};
     int daysBack{1};           // 0 today (a partial day), 1 yesterday ...
     int opacity{100};
     int shownZoom{0};
+    int liveDays{1};           // the day the bar's "latest" shows (the choice in the options)
 };
 
 #endif  // GIBSLAYER_H
