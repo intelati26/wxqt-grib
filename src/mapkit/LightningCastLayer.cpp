@@ -31,7 +31,7 @@ namespace {
                 auto start = QDateTime::fromString(parts.value(0), Qt::ISODate);
                 start.setTimeSpec(Qt::UTC);
                 if (start.isValid()) {
-                    frames.push_back({start.toSecsSinceEpoch(), {}});
+                    frames.push_back({static_cast<long>(start.toSecsSinceEpoch()), {}});
                 }
             } else if (line.startsWith("Color:")) {
                 const auto parts = line.mid(6).trimmed().split(' ', Qt::SkipEmptyParts);
