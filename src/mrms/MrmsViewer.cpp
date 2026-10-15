@@ -736,18 +736,17 @@ void MrmsViewer::paintData(QPainter& painter) {
     }
     const auto [ax, bx, ay, by] = projection();
     const auto& grid = current.grid;
-    const auto inverse = painter.combinedTransform().inverted();   // device pixel -> projected coordinates
-    // fractional (125 %) scales too: the int devicePixelRatio() rounds them down, and the painter's transform includes the scale
-    const double ratio = painter.device()->devicePixelRatioF();
-    // the rectangle of the paint device the radar occupies (the device itself can be a bigger window pixmap), in device pixels
-    const QRect viewport = painter.viewport();
-    const double left = viewport.left() * ratio;
-    const double top = viewport.top() * ratio;
-    const int pixelWidth = static_cast<int>(std::lround(viewport.width() * ratio));
-    const int pixelHeight = static_cast<int>(std::lround(viewport.height() * ratio));
+    // one image pixel per device pixel of the map widget. Where each pixel is comes from the map's own state (the same arithmetic as the hover read-out), not from the
+    // painter: a grab for a picture paints through a device whose transform and ratio differ from the screen's
+    const auto& state = radar->mapState;
+    const double ratio = std::max(1.0, radar->devicePixelRatioF());
+    const int pixelWidth = static_cast<int>(std::lround(radar->width() * ratio));
+    const int pixelHeight = static_cast<int>(std::lround(radar->height() * ratio));
+    const auto projectedX = [&] (double px) { return (px * 1000.0 / pixelWidth - 500.0 - state.xPos) / state.zoom; };
+    const auto projectedY = [&] (double py) { return (py * 1000.0 / pixelHeight - 250.0 - state.yPos) / state.zoom; };
     vector<int> columnOf(static_cast<size_t>(pixelWidth));
     for (int i = 0; i < pixelWidth; i += 1) {
-        const double x = inverse.m11() * (left + i + 0.5) + inverse.dx();
+        const double x = projectedX(i + 0.5);
         const double lon = (x - bx) / ax;
         const int column = static_cast<int>(std::floor((lon - grid.west) / grid.cell));
         columnOf[static_cast<size_t>(i)] = (column >= 0 && column < grid.columns) ? column : -1;
@@ -755,7 +754,7 @@ void MrmsViewer::paintData(QPainter& painter) {
     QImage image{pixelWidth, pixelHeight, QImage::Format_ARGB32_Premultiplied};
     const auto * cells = reinterpret_cast<const uchar *>(currentIndices.constData());
     for (int j = 0; j < pixelHeight; j += 1) {
-        const double y = inverse.m22() * (top + j + 0.5) + inverse.dy();
+        const double y = projectedY(j + 0.5);
         const double lat = std::atan(std::sinh((y - by) / ay * std::numbers::pi / 180.0)) * 180.0 / std::numbers::pi;
         const int row = static_cast<int>(std::floor((grid.north - lat) / grid.cell));
         auto * out = reinterpret_cast<QRgb *>(image.scanLine(j));
@@ -771,7 +770,7 @@ void MrmsViewer::paintData(QPainter& painter) {
     }
     // the image is one pixel per device pixel; drawn through the current transform onto exactly the area it was sampled for
     painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
-    painter.drawImage(inverse.mapRect(QRectF{left, top, static_cast<double>(pixelWidth), static_cast<double>(pixelHeight)}), image, QRectF{image.rect()});
+    painter.drawImage(QRectF{QPointF{projectedX(0.0), projectedY(0.0)}, QPointF{projectedX(pixelWidth), projectedY(pixelHeight)}}, image, QRectF{image.rect()});
 }
 
 bool MrmsViewer::eventFilter(QObject * object, QEvent * event) {
