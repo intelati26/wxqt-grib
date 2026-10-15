@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <QPointF>
+#include <QRectF>
 #include <QString>
 #include <QWidget>
 #include "sounding/SoundingProfile.h"
@@ -24,6 +25,8 @@ public:
     static bool measure(const SoundingProfile& profile, std::vector<QPointF>& tips, QPointF& rightMover, double& srh03);
     void set(const std::vector<QPointF>& tips, const QPointF& rightMover, double srh03);
     QString station() const { return id; }
+    // the drawing, into any painter: a square `box` of it (the widget is 84 pixels; a saved picture draws it larger)
+    static void paint(class QPainter&, const QRectF& box, const std::vector<QPointF>& tips, const QPointF& rightMover);
 
 signals:
     void clicked(const QString& station);

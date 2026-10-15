@@ -61,15 +61,16 @@ void HodographGlyph::set(const std::vector<QPointF>& points, const QPointF& stor
     update();
 }
 
-void HodographGlyph::paintEvent(QPaintEvent *) {
+void HodographGlyph::paint(QPainter& painter, const QRectF& box, const std::vector<QPointF>& tips, const QPointF& rightMover) {
     // the look of Pivotal Weather's hodograph maps: brown rings at 20 and 40 kt, the layers pink (0-1 km), red (1-3), green (3-6) and yellow (6-9 km), each line edged in dark
-    QPainter painter{this};
+    painter.save();
     painter.setRenderHint(QPainter::Antialiasing);
-    const QPointF centre{width() / 2.0, height() / 2.0};
-    const double radius = width() / 2.0 - 2.0;
+    const double s = box.width() / 84.0;   // the widget is 84 pixels; a saved picture scales the same drawing
+    const QPointF centre = box.center();
+    const double radius = box.width() / 2.0 - 2.0 * s;
     const double perKt = radius / scaleKt;
     painter.setBrush(Qt::NoBrush);
-    for (const auto& pen : {QPen{QColor{255, 255, 255, 150}, 3.0}, QPen{QColor{140, 110, 90, 230}, 1.2}}) {
+    for (const auto& pen : {QPen{QColor{255, 255, 255, 150}, 3.0 * s}, QPen{QColor{140, 110, 90, 230}, 1.2 * s}}) {
         painter.setPen(pen);
         painter.drawEllipse(centre, 20.0 * perKt, 20.0 * perKt);
         painter.drawEllipse(centre, 40.0 * perKt, 40.0 * perKt);
@@ -85,15 +86,21 @@ void HodographGlyph::paintEvent(QPaintEvent *) {
     };
     for (const bool edge : {true, false}) {
         for (size_t i = 0; i + 1 < tips.size(); i++) {
-            painter.setPen(edge ? QPen{QColor{20, 20, 20, 230}, 4.6, Qt::SolidLine, Qt::RoundCap} : QPen{colorOf(heights[i + 1]), 2.6, Qt::SolidLine, Qt::RoundCap});
+            painter.setPen(edge ? QPen{QColor{20, 20, 20, 230}, 4.6 * s, Qt::SolidLine, Qt::RoundCap} : QPen{colorOf(heights[i + 1]), 2.6 * s, Qt::SolidLine, Qt::RoundCap});
             painter.drawLine(at(tips[i]), at(tips[i + 1]));
         }
     }
     if (std::abs(rightMover.x()) + std::abs(rightMover.y()) > 0.0) {
-        painter.setPen(QPen{Qt::black, 1.0});
+        painter.setPen(QPen{Qt::black, 1.0 * s});
         painter.setBrush(QColor{255, 140, 0});
-        painter.drawEllipse(at(rightMover), 2.6, 2.6);   // the right-mover's motion
+        painter.drawEllipse(at(rightMover), 2.6 * s, 2.6 * s);   // the right-mover's motion
     }
+    painter.restore();
+}
+
+void HodographGlyph::paintEvent(QPaintEvent *) {
+    QPainter painter{this};
+    paint(painter, QRectF{0.0, 0.0, static_cast<double>(width()), static_cast<double>(height())}, tips, rightMover);
 }
 
 void HodographGlyph::mouseReleaseEvent(QMouseEvent * event) {

@@ -147,6 +147,12 @@ private:
     std::deque<string> bufkitQueue;
     int bufkitRunning{0};
     std::map<string, HodographGlyph *> hodoGlyphs;
+    struct GlyphPick {
+        string id;
+        double fx, fy;
+    };
+    std::vector<GlyphPick> glyphStations(const GfsChart::Probe&, const QRectF& visible, double width, double height, double spacing) const;
+    QByteArray withGlyphs(const QByteArray& bytes, const std::shared_ptr<GfsChart::Probe>&) const;
     void refreshHodographs();
     void pumpBufkit();
     QPushButton * buttonStations{nullptr};   // a button on the map at each BUFKIT station: opens that station's model sounding (laid over the view, never in a saved picture)

@@ -8,6 +8,7 @@
 #include "spcrefs/SpcRefsLoader.h"
 #include "ui/ActivityLabel.h"
 #include <QBuffer>
+#include <QFile>
 #include <QImage>
 #include <QInputDialog>
 #include <QPainter>
@@ -174,7 +175,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonHodos->setCheckable(true);
         buttonHodos->setChecked(Utility::readPref("MODEL_BUFKIT_HODOS", "false").compare(0, 1, "t") == 0);
         buttonHodos->setToolTip("A small hodograph of the RRFS sounding at each station in view, for the hour on the map: wind from the surface to 9 km (pink 0-1 km, red to 3, green to 6, yellow above), "
-                                "rings at 20 and 40 kt and the right-mover storm motion (orange dot); the 0-3 km helicity is in the tooltip. Each station is one small file (about 0.4 MB, every hour), read as it comes "
+                                "rings at 20 and 40 kt and the right-mover storm motion (orange dot); the 0-3 km helicity is in the tooltip. Pictures you save or open full size have them too. Each station is one small file (about 0.4 MB, every hour), read as it comes "
                                 "into view; zoom in for more stations. Click one for its sounding. Not part of saved pictures.");
         hodoTimer.setSingleShot(true);
         QObject::connect(&hodoTimer, &QTimer::timeout, this, [this] { refreshHodographs(); });
@@ -288,7 +289,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     image.setCrosshairMode(true);   // click a point, then Sounding
     QObject::connect(&image, &ZoomImage::doubleClicked, this, [this] {
         if (!shownBytes.isEmpty()) {
-            new ImageViewer{this, shownBytes, objectModel.model + " " + objectModel.param};
+            new ImageViewer{this, withGlyphs(shownBytes, shownProbe), objectModel.model + " " + objectModel.param};
         }
     });
     QObject::connect(&image, &ZoomImage::clicked, this, [this] (double fx, double fy) {
@@ -680,7 +681,7 @@ void ModelViewer::saveLoop() {
         return;
     }
     if (tileCount() > 0) {   // the tiles side by side, as one picture
-        const auto picture = compositePicture();
+        const auto picture = compositePicture();   // (the tiles' pictures go as they are)
         const auto stem = QString::fromStdString(objectModel.model + "_compare_" + objectModel.sector + "_" + objectModel.run);
         UtilityAnimationExport::saveWithDialog(this, std::vector<QByteArray>{}, strip->intervalMs(), picture, stem, QByteArray{}, false, stem);
         return;
@@ -690,7 +691,7 @@ void ModelViewer::saveLoop() {
         const int hour = std::atoi(t.c_str());
         const auto found = frames.find(frameKey(hour));
         if (found != frames.end()) {
-            drawn.emplace_back(hour, found->second.bytes);
+            drawn.emplace_back(hour, withGlyphs(found->second.bytes, found->second.probe));
         }
     }
     std::vector<QByteArray> loop;
@@ -702,7 +703,7 @@ void ModelViewer::saveLoop() {
         versus += "_" + other;
     }
     const auto name = QString::fromStdString(objectModel.model + (versus.empty() ? "" : "_vs" + versus) + "_" + objectModel.param + "_" + objectModel.sector + "_" + objectModel.run);
-    UtilityAnimationExport::saveWithDialog(this, loop.size() >= 2 ? loop : std::vector<QByteArray>{}, strip->intervalMs(), shownBytes, name, QByteArray{}, false, name);
+    UtilityAnimationExport::saveWithDialog(this, loop.size() >= 2 ? loop : std::vector<QByteArray>{}, strip->intervalMs(), withGlyphs(shownBytes, shownProbe), name, QByteArray{}, false, name);
 }
 
 void ModelViewer::showFrame(const Frame& frame) {
@@ -755,6 +756,77 @@ void ModelViewer::refreshStationPins() {
     image.setPins(pins);
 }
 
+// the stations that get a glyph: those in `visible` (fractions of the picture of width x height pixels), the NWS offices' first, then the other airports, none nearer than
+// `spacing` pixels to another (up to 150)
+std::vector<ModelViewer::GlyphPick> ModelViewer::glyphStations(const GfsChart::Probe& probe, const QRectF& visible, double width, double height, double spacing) const {
+    std::vector<GlyphPick> inView, picks;
+    const auto& offices = UtilityBufkit::officeStations();
+    for (const auto& station : UtilityBufkit::stations()) {
+        double fx = 0.0, fy = 0.0;
+        if (probe.place(station.longitude, station.latitude, fx, fy) && visible.contains(QPointF{fx, fy})) {
+            inView.push_back({station.id, fx, fy});
+        }
+    }
+    const auto rank = [&offices] (const GlyphPick& pick) {
+        return offices.count(pick.id) > 0 ? 0 : (pick.id.size() == 4 && pick.id[0] == 'K' ? 1 : 2);
+    };
+    std::stable_sort(inView.begin(), inView.end(), [&rank] (const GlyphPick& a, const GlyphPick& b) { return rank(a) < rank(b); });
+    for (const auto& pick : inView) {
+        if (rank(pick) > 1 || picks.size() >= 150) {
+            continue;   // stations outside the United States (and the odd ids) stay as buttons
+        }
+        const double x = pick.fx * width, y = pick.fy * height;
+        const bool free = std::none_of(picks.begin(), picks.end(), [&] (const GlyphPick& other) {
+            return std::hypot(other.fx * width - x, other.fy * height - y) < spacing;
+        });
+        if (free) {
+            picks.push_back(pick);
+        }
+    }
+    return picks;
+}
+
+// a picture of the map with the hodographs drawn on it (when the Hodographs button is on): those of the stations whose files have been read, for the picture's own hour
+QByteArray ModelViewer::withGlyphs(const QByteArray& bytes, const std::shared_ptr<GfsChart::Probe>& probe) const {
+    if (buttonHodos == nullptr || !buttonHodos->isChecked() || !probe || !probe->valid() || bytes.isEmpty()) {
+        return bytes;
+    }
+    QImage picture = QImage::fromData(bytes);
+    if (picture.isNull()) {
+        return bytes;
+    }
+    const double size = picture.width() * 84.0 / 1100.0;   // as large, against the picture, as on a screen showing it 1100 pixels wide
+    const string valid = probe->validUtc.isValid() ? probe->validUtc.toUTC().toString("yyMMdd/HHmm").toStdString() : string{};
+    QPainter painter{&picture};
+    int drawn = 0;
+    for (const auto& pick : glyphStations(*probe, QRectF{0, 0, 1, 1}, 1100.0, 1100.0 * probe->imageHeight / std::max(1.0, probe->imageWidth), 88.0)) {
+        const auto run = bufkitRuns.find(pick.id);
+        if (run == bufkitRuns.end()) {
+            continue;
+        }
+        const auto& times = run->second->validTimes;
+        const auto at = std::find(times.begin(), times.end(), valid);
+        std::vector<QPointF> tips;
+        QPointF storm;
+        double srh = 0.0;
+        if (at == times.end() || !HodographGlyph::measure(run->second->profiles[static_cast<size_t>(at - times.begin())], tips, storm, srh)) {
+            continue;
+        }
+        const double x = pick.fx * picture.width(), y = pick.fy * picture.height();
+        HodographGlyph::paint(painter, QRectF{x - size / 2.0, y - size / 2.0, size, size}, tips, storm);
+        drawn++;
+    }
+    painter.end();
+    if (drawn == 0) {
+        return bytes;
+    }
+    QByteArray out;
+    QBuffer buffer{&out};
+    buffer.open(QIODevice::WriteOnly);
+    picture.save(&buffer, "PNG");
+    return out;
+}
+
 // the hodograph glyphs: the NWS offices' stations first, then the other airports, none closer than a glyph to another (up to 150); each station's file is read the first time it
 // is wanted, four at a time, and the glyph appears when it is in
 void ModelViewer::refreshHodographs() {
@@ -771,42 +843,18 @@ void ModelViewer::refreshHodographs() {
     const auto& probe = *shownProbe;
     const QRectF visible = image.visibleFraction();
     const QSize size = image.pictureSize();
-    struct Pick {
-        const UtilityBufkit::Station * station;
-        double fx, fy;
-    };
-    std::vector<Pick> picks;
-    // what is on view, then the NWS offices' stations first (the national view is theirs), then the other K stations, then the rest, each taking a free cell of the picture
-    std::vector<Pick> inView;
-    const auto& offices = UtilityBufkit::officeStations();
-    for (const auto& station : UtilityBufkit::stations()) {
-        double fx = 0.0, fy = 0.0;
-        if (probe.place(station.longitude, station.latitude, fx, fy) && visible.contains(QPointF{fx, fy})) {
-            inView.push_back({&station, fx, fy});
-        }
-    }
-    const auto rank = [&offices] (const Pick& pick) {
-        const auto& id = pick.station->id;
-        return offices.count(id) > 0 ? 0 : (id.size() == 4 && id[0] == 'K' ? 1 : 2);
-    };
-    std::stable_sort(inView.begin(), inView.end(), [&rank] (const Pick& a, const Pick& b) { return rank(a) < rank(b); });
-    for (const auto& pick : inView) {
-        if (rank(pick) > 1 || picks.size() >= 150) {
-            continue;   // stations outside the United States (and the odd ids) stay as buttons
-        }
-        const double x = pick.fx * size.width(), y = pick.fy * size.height();
-        const bool free = std::none_of(picks.begin(), picks.end(), [&] (const Pick& other) {
-            return std::hypot(other.fx * size.width() - x, other.fy * size.height() - y) < 88.0;   // the glyphs are 84 pixels: none over another
-        });
-        if (free) {
-            picks.push_back(pick);
+    const auto picks = glyphStations(probe, visible, size.width(), size.height(), 88.0);
+    // what a saved picture of the whole map will need is read too, so it has its glyphs when saved
+    for (const auto& pick : glyphStations(probe, QRectF{0, 0, 1, 1}, 1100.0, 1100.0 * probe.imageHeight / std::max(1.0, probe.imageWidth), 88.0)) {
+        if (bufkitRuns.count(pick.id) == 0 && bufkitAsked.insert(pick.id).second) {
+            bufkitQueue.push_back(pick.id);
         }
     }
     // the picture's hour as BUFKIT writes it: yymmdd/hhmm UTC
     const string valid = probe.validUtc.isValid() ? probe.validUtc.toUTC().toString("yyMMdd/HHmm").toStdString() : string{};
     std::set<string> wanted;
     for (const auto& pick : picks) {
-        const string& id = pick.station->id;
+        const string& id = pick.id;
         wanted.insert(id);
         const auto run = bufkitRuns.find(id);
         if (run == bufkitRuns.end()) {
