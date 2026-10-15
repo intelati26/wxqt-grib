@@ -140,5 +140,4 @@ void ChartExport::install(QWidget * chart, const QString& title) {
             remember(path);
         }
     });
-    chart->setToolTip(chart->toolTip().isEmpty() ? "Right-click to save the chart as PNG or PDF, or copy it" : chart->toolTip());
 }
