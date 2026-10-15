@@ -39,7 +39,7 @@ const std::vector<GibsLayer::Product>& GibsLayer::products() {
 
 GibsLayer::GibsLayer() {
     productIndex = std::clamp(Utility::readPrefInt("MM_GIBS_PRODUCT", 0), 0, static_cast<int>(products().size()) - 1);
-    daysBack = std::clamp(Utility::readPrefInt("MM_GIBS_DAYS", 1), 0, 60);
+    daysBack = std::clamp(Utility::readPrefInt("MM_GIBS_DAYS", 1), 0, 4000);
     liveDays = daysBack;
 }
 
@@ -239,7 +239,7 @@ void GibsLayer::showTime(long seconds, MapHost& host) {
         daysBack = liveDays;   // live: the day chosen in the options
     } else {
         const auto day = QDateTime::fromSecsSinceEpoch(seconds, QTimeZone::utc()).date();
-        daysBack = std::clamp(static_cast<int>(day.daysTo(QDateTime::currentDateTimeUtc().date())), 0, 60);
+        daysBack = std::clamp(static_cast<int>(day.daysTo(QDateTime::currentDateTimeUtc().date())), 0, 4000);
     }
     host.redraw();
 }

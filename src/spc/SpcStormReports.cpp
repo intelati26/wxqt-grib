@@ -20,6 +20,12 @@
 
 using std::set;
 
+namespace {
+    bool isDate(const std::string& day) {   // "261015": a day given as yymmdd (not "today" / "yesterday")
+        return day.size() == 6 && std::all_of(day.begin(), day.end(), [] (char c) { return c >= '0' && c <= '9'; });
+    }
+}
+
 SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsDay)
     : Window{parent}
     , sw{this, box}
@@ -28,8 +34,8 @@ SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsD
     , comboBox{this}
     , lsrWfoButton{this, None, "LSR by WFO"}
     , spcStormReportsDay{spcStormReportsDay}
-    , url{GlobalVariables::nwsSPCwebsitePrefix + "/climo/reports/" + spcStormReportsDay + ".gif"}
-    , stormReportsUrl{GlobalVariables::nwsSPCwebsitePrefix + "/climo/reports/" + spcStormReportsDay + ".csv"}
+    , url{GlobalVariables::nwsSPCwebsitePrefix + "/climo/reports/" + spcStormReportsDay + (isDate(spcStormReportsDay) ? "_rpts" : "") + ".gif"}
+    , stormReportsUrl{GlobalVariables::nwsSPCwebsitePrefix + "/climo/reports/" + spcStormReportsDay + (isDate(spcStormReportsDay) ? "_rpts" : "") + ".csv"}
 {
     setTitle("SPC Storm Reports");
     calendar.connect([this] { onDateChanged(); });
