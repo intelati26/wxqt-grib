@@ -6,14 +6,18 @@
 #ifndef CAMSVIEWER_H
 #define CAMSVIEWER_H
 
+#include <map>
 #include <mutex>
+#include <set>
+#include <QPushButton>
+#include <QTimer>
 #include <string>
 #include <utility>
 #include <vector>
 #include <QLabel>
 #include "models/UtilityCams.h"
-#include "objects/UrlAnimation.h"
-#include "ui/BackForward.h"
+#include "models/TimeStrip.h"
+#include "util/Utility.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/ControlRow.h"
@@ -43,8 +47,11 @@ private:
     void productChanged();                       // times for the product, then the picture and the loop
     void fillTimes(int latestSeconds);
     void showFrame();
-    void refreshLoop();
-    void moveTime(int step);
+    void selectIndex(int index);
+    void prefetch(int generation);
+    void refreshStrip();
+    void startPlaying(bool on);
+    void saveFrames();
     void notify(const string& message);          // a visible note above the picture; empty hides it
     UtilityCams::Run currentRun() const;
     const UtilityCams::Product * currentProduct() const;
@@ -59,10 +66,15 @@ private:
     ComboBox comboSector;
     ComboBox comboCategory;
     ComboBox comboProduct;
-    ComboBox comboTime;
-    BackForward backForward;
+    QLabel labelValid;                             // "F01  Thu 2026-10-15 13Z": the forecast hour and the valid time of the picture
+    QPushButton buttonSave;
     ZoomImage image;
-    UrlAnimation animation;
+    TimeStrip * strip{};                           // the forecast hours as the model screen has them: a timeline, the hours drawn, play and a grid of the hours
+    QTimer playTimer;
+    std::map<int, QByteArray> frames;              // by forecast seconds: the pictures drawn so far for the product on view
+    std::set<int> inFlight;
+    int prefetchGeneration{0};
+    QByteArray shown;
 
     vector<std::pair<string, string>> modelList;   // id, display name
     UtilityCams::Model model;
@@ -75,9 +87,6 @@ private:
 
     int generation{0};
     bool closed{false};
-    std::mutex loopMutex;
-    vector<string> loopSpecs;                      // layer specs of the loop, read by the animation's worker
-    std::mutex errorMutex;
     string lastFrameError;
 };
 

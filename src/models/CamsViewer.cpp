@@ -8,6 +8,7 @@
 #include <memory>
 #include "objects/FutureVoid.h"
 #include "util/To.h"
+#include "objects/UtilityAnimationExport.h"
 #include "util/Utility.h"
 
 using UtilityCams::Run;
@@ -37,41 +38,14 @@ CamsViewer::CamsViewer(Window * parent)
     , comboSector{this, {"-"}}
     , comboCategory{this, {"-"}}
     , comboProduct{this, {"-"}}
-    , comboTime{this, {"-"}}
-    , backForward{this, [this] { moveTime(-1); }, [this] { moveTime(1); }}
+    , labelValid{this}
+    , buttonSave{"Save image / loop...", this}
     , image{this}
-    , animation{this, &image, [this] (string, string, int) {
-        std::lock_guard<std::mutex> lock{loopMutex};
-        return loopSpecs;
-    }}
 {
     setTitle("NSSL CAMs");
     notice.setWordWrap(true);
     notice.setStyleSheet("QLabel { background: #fff3cd; color: #664d03; padding: 4px 8px; border-radius: 3px; }");
     notice.hide();
-
-    // the loop frames are layer specs: composited here, a failure reported on screen instead of dropped
-    animation.frameFetcher = [this] (const string& spec) {
-        string error;
-        auto bytes = UtilityCams::composite(spec, error);
-        if (bytes.isEmpty()) {
-            std::lock_guard<std::mutex> lock{errorMutex};
-            lastFrameError = error;
-        }
-        return bytes;
-    };
-    animation.labeler = [] (const string& spec, size_t index) {
-        const auto label = UtilityCams::frameLabel(spec);
-        return label.empty() ? To::string(static_cast<int>(index) + 1) : label;
-    };
-    animation.onFailure = [this] (const string& message) {
-        string detail;
-        {
-            std::lock_guard<std::mutex> lock{errorMutex};
-            detail = lastFrameError;
-        }
-        notify(message + (detail.empty() ? string{} : " (" + detail + ")"));
-    };
 
     comboModel.connect([this] {
         const auto index = comboModel.getIndex();
@@ -83,19 +57,34 @@ CamsViewer::CamsViewer(Window * parent)
     comboSector.connect([this] { reloadCatalog(); });
     comboCategory.connect([this] { fillProducts(); productChanged(); });
     comboProduct.connect([this] { productChanged(); });
-    comboTime.connect([this] { showFrame(); });
 
     rowTop.addWidget(comboModel);
     rowTop.addWidget(comboRun);
     rowTop.addWidget(comboSector);
     rowTop.addWidget(comboCategory);
     rowTop.addWidget(comboProduct);
-    rowTop.addWidget(comboTime);
-    rowTop.addLayout(backForward);
+    rowTop.addWidgetReal(&labelValid);
+    rowTop.addWidgetReal(&buttonSave);
     box.addLayout(rowTop);
     box.addWidgetReal(&notice);
-    animation.addTo(box);
+    strip = new TimeStrip{this};
+    strip->onSelect = [this] (int index) { playTimer.stop(); if (strip->current() == index) { selectIndex(index); } };
+    strip->onPlay = [this] (bool on) { startPlaying(on); };
+    box.addWidgetReal(strip, 0, Qt::Alignment{});
     box.addWidgetReal(&image, 1, Qt::Alignment{});
+    QObject::connect(&playTimer, &QTimer::timeout, [this] {
+        // the next picture that is drawn (a frame still on its way is waited for); the loop starts again after the last
+        const int count = strip->count();
+        for (int step = 1; step <= count; step++) {
+            const int next = (strip->current() + step) % std::max(1, count);
+            if (next < static_cast<int>(times.size()) && frames.count(times[static_cast<size_t>(next)]) > 0) {
+                strip->setCurrent(next);
+                selectIndex(next);
+                break;
+            }
+        }
+    });
+    QObject::connect(&buttonSave, &QPushButton::clicked, [this] { saveFrames(); });
     box.getAndShow(this);
     setSize(1100, 900);
     discoverModels();
@@ -112,7 +101,7 @@ void CamsViewer::notify(const string& message) {
 
 void CamsViewer::closeEventCustom() {
     closed = true;
-    animation.stopAnimateNoDownload();
+    playTimer.stop();
 }
 
 UtilityCams::Run CamsViewer::currentRun() const {
@@ -164,7 +153,9 @@ void CamsViewer::loadModel(const string& modelId) {
     notify("");
     generation += 1;
     const int thisGeneration = generation;
-    animation.stopAnimateNoDownload();
+    startPlaying(false);
+    frames.clear();
+    inFlight.clear();
     setTitle("NSSL CAMs - loading " + modelId + "...");
     const auto rememberedSector = Utility::readPref("CAMS_SECTOR", "");
     auto loaded = std::make_shared<Loaded>();
@@ -202,7 +193,9 @@ void CamsViewer::reloadCatalog() {
     notify("");
     generation += 1;
     const int thisGeneration = generation;
-    animation.stopAnimateNoDownload();
+    startPlaying(false);
+    frames.clear();
+    inFlight.clear();
     const auto keepProduct = currentProduct() != nullptr ? currentProduct()->id : string{};
     auto loaded = std::make_shared<Loaded>();
     loaded->modelId = model.id;
@@ -342,12 +335,16 @@ void CamsViewer::productChanged() {
         [this, latest, thisGeneration] {
             if (closed || thisGeneration != generation) return;
             fillTimes(*latest);
+            prefetchGeneration += 1;
             showFrame();
-            refreshLoop();
+            prefetch(prefetchGeneration);
         }};
 }
 
 void CamsViewer::fillTimes(int latestSeconds) {
+    startPlaying(false);
+    frames.clear();
+    inFlight.clear();
     times.clear();
     vector<string> labels;
     const auto * product = currentProduct();
@@ -356,69 +353,135 @@ void CamsViewer::fillTimes(int latestSeconds) {
     for (const auto seconds : product->times) {
         if (latestSeconds >= 0 && seconds > latestSeconds) continue;   // not published yet
         times.push_back(seconds);
-        string frame = UtilityCams::frameLabel(UtilityCams::imageUrl(model.id, run, product->id, "x", seconds));
-        labels.push_back(frame + "  " + UtilityCams::validLabel(run, seconds));
+        string frame = UtilityCams::frameLabel(UtilityCams::imageUrl(model.id, run, product->id, "x", seconds));   // "F06" (":30" for a half hour)
+        labels.push_back(frame.size() > 1 && frame[0] == 'F' ? frame.substr(1).size() < 2 ? "0" + frame.substr(1) : frame.substr(1) : frame);
     }
-    comboTime.block();
-    comboTime.setList(labels.empty() ? vector<string>{"none published yet"} : labels);
-    comboTime.setIndex(0);
-    comboTime.unblock();
+    strip->setTimes(labels, 0);
+    refreshStrip();
     if (times.empty()) {
+        labelValid.setText("none published yet");
         notify("No forecast times of this product are published for this run yet - try an older run.");
     }
 }
 
-void CamsViewer::moveTime(int step) {
-    if (times.empty()) return;
-    const auto next = std::clamp(comboTime.getIndex() + step, 0, static_cast<int>(times.size()) - 1);
-    comboTime.block();
-    comboTime.setIndex(static_cast<size_t>(next));
-    comboTime.unblock();
+// the bar of the hours that are drawn, and the count
+void CamsViewer::refreshStrip() {
+    std::vector<bool> ready;
+    int have = 0;
+    for (const auto seconds : times) {
+        const bool drawn = frames.count(seconds) > 0;
+        ready.push_back(drawn);
+        have += drawn ? 1 : 0;
+    }
+    strip->setLoaded(ready, QString{"Ready %1 of %2"}.arg(have).arg(times.size()));
+}
+
+void CamsViewer::selectIndex(int index) {
+    if (index < 0 || index >= static_cast<int>(times.size())) {
+        return;
+    }
     showFrame();
+}
+
+void CamsViewer::startPlaying(bool on) {
+    if (on) {
+        playTimer.start(strip->intervalMs());
+    } else {
+        playTimer.stop();
+        if (strip != nullptr) {
+            strip->stop();
+        }
+    }
+}
+
+// every hour of the product, three at a time, so the loop can play and the strip shows what is ready
+void CamsViewer::prefetch(int generationNow) {
+    const auto * product = currentProduct();
+    if (product == nullptr || generationNow != prefetchGeneration) {
+        return;
+    }
+    for (const auto seconds : times) {
+        if (static_cast<int>(inFlight.size()) >= 3) {
+            return;
+        }
+        if (frames.count(seconds) > 0 || inFlight.count(seconds) > 0) {
+            continue;
+        }
+        inFlight.insert(seconds);
+        const auto spec = UtilityCams::layerSpec(model.id, currentRun(), *product, currentSector(), seconds);
+        auto bytes = std::make_shared<QByteArray>();
+        auto error = std::make_shared<string>();
+        new FutureVoid{this,
+            [bytes, error, spec] { *bytes = UtilityCams::composite(spec, *error); },
+            [this, bytes, error, seconds, generationNow] {
+                if (closed || generationNow != prefetchGeneration) {
+                    return;
+                }
+                inFlight.erase(seconds);
+                if (!bytes->isEmpty()) {
+                    frames[seconds] = *bytes;
+                } else {
+                    lastFrameError = *error;
+                }
+                refreshStrip();
+                prefetch(generationNow);
+            }};
+    }
 }
 
 void CamsViewer::showFrame() {
     const auto * product = currentProduct();
-    const auto timeIndex = comboTime.getIndex();
+    const auto timeIndex = strip->current();
     if (product == nullptr || timeIndex < 0 || timeIndex >= static_cast<int>(times.size())) {
         return;
     }
     const auto seconds = times[static_cast<size_t>(timeIndex)];
-    const auto spec = UtilityCams::layerSpec(model.id, currentRun(), *product, currentSector(), seconds);
-    setTitle("NSSL CAMs - " + model.name + " - " + product->label + " - " + UtilityCams::frameLabel(spec));
+    const auto run = currentRun();
+    const auto spec = UtilityCams::layerSpec(model.id, run, *product, currentSector(), seconds);
+    const auto label = UtilityCams::frameLabel(spec);
+    setTitle("NSSL CAMs - " + model.name + " - " + product->label + " - " + label);
+    labelValid.setText(QString::fromStdString(label + "  valid " + UtilityCams::validLabel(run, seconds)));
+    const auto have = frames.find(seconds);
+    if (have != frames.end()) {
+        notify("");
+        shown = have->second;
+        image.setBytesKeepView(shown);
+        return;
+    }
     generation += 1;
     const int thisGeneration = generation;
     auto bytes = std::make_shared<QByteArray>();
     auto error = std::make_shared<string>();
     new FutureVoid{this,
         [bytes, error, spec] { *bytes = UtilityCams::composite(spec, *error); },
-        [this, bytes, error, thisGeneration] {
+        [this, bytes, error, thisGeneration, seconds] {
             if (closed || thisGeneration != generation) return;
             if (bytes->isEmpty()) {
                 notify("Could not load this picture: " + *error);
                 return;
             }
             notify("");
-            image.setBytesKeepView(*bytes);
-            animation.setCurrentBytes(*bytes);
+            frames[seconds] = *bytes;
+            shown = *bytes;
+            image.setBytesKeepView(shown);
+            refreshStrip();
         }};
 }
 
-void CamsViewer::refreshLoop() {
-    const auto * product = currentProduct();
-    if (product == nullptr || times.empty()) {
-        animation.clear();
+// the picture on view, or all the hours drawn so far as a loop
+void CamsViewer::saveFrames() {
+    if (shown.isEmpty()) {
         return;
     }
-    {
-        std::lock_guard<std::mutex> lock{loopMutex};
-        loopSpecs.clear();
-        for (const auto seconds : times) {
-            loopSpecs.push_back(UtilityCams::layerSpec(model.id, currentRun(), *product, currentSector(), seconds));
+    const auto * product = currentProduct();
+    vector<QByteArray> loop;
+    for (const auto seconds : times) {
+        const auto found = frames.find(seconds);
+        if (found != frames.end()) {
+            loop.push_back(found->second);
         }
     }
     const auto run = currentRun();
-    animation.product = model.id + "_" + run.key() + "_" + product->id;   // names a saved file
-    animation.sector = currentSector();
-    animation.refresh();
+    const QString name = QString::fromStdString(model.id + "_" + run.key() + "_" + (product != nullptr ? product->id : string{"cams"}) + "_" + currentSector());
+    UtilityAnimationExport::saveWithDialog(this, loop.size() >= 2 ? loop : vector<QByteArray>{}, strip->intervalMs(), shown, name, QByteArray{}, false, name);
 }
