@@ -52,6 +52,8 @@ private:
     void stepLoop();
     void setFrame(const UtilityMrms::Frame&);
     void paintData(QPainter&);
+    void drawGrid(QPainter&, const UtilityMrms::Grid&, const QByteArray& indices, const QVector<QRgb>& colors, bool outline);
+    void loadRotation();   // the rotation tracks over the product (MRMS low- or mid-level rotation track of a period), strong rotation only
     void paintLegend(QPainter&);
     void moveScan(int step);
     void onSave();                    // the map (or the loaded loop) with a title / valid time / save time border, as PNG / WebP / ...
@@ -81,7 +83,8 @@ private:
     ComboBox comboLoop;
     ComboBox comboUnits;   // US (inches, kft) or metric
     ComboBox comboAuto;    // how often to look for a newer scan
-    ComboBox comboLightning;   // lightning points over any product: off, or the last 1 / 5 / 15 / 30 minutes
+    ComboBox comboLightning;
+    ComboBox comboRotation;    // rotation tracks over any product: off, or a period of the 0-2 / 3-6 km track   // lightning points over any product: off, or the last 1 / 5 / 15 / 30 minutes
     Button buttonLoop;
     Button buttonSave;
     Shortcut shortcutSave;
@@ -99,6 +102,13 @@ private:
     QDateTime lightningTime;
     int lightningGeneration{0};
     bool lightningLoading{false};
+    UtilityMrms::Frame rotationFrame;
+    QByteArray rotationIndices;
+    // the tracks at coarser cells too (the largest value of each 4 x 4 and 16 x 16 block): a track a few hundred meters wide still shows when a pixel spans kilometers
+    vector<std::pair<UtilityMrms::Grid, QByteArray>> rotationLevels;
+    QVector<QRgb> rotationColors;
+    int rotationGeneration{0};
+    bool rotationLoading{false};
     bool hoverShown{false};    // draw the crosshair at `pointer`
     QPointF pointer;           // last position of the mouse over the map, for zooming about it
     bool pointerInside{false};

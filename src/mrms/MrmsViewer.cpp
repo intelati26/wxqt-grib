@@ -55,6 +55,8 @@ MrmsViewer::MrmsViewer(Window * parent)
     , comboUnits{this, {"US units", "Metric units"}}
     , comboAuto{this, {"Auto-update: 2 min", "Auto-update: 5 min", "Auto-update: off"}}
     , comboLightning{this, {"Lightning: off", "Lightning: last 1 min", "Lightning: last 5 min (by age)", "Lightning: last 15 min (by age)", "Lightning: last 30 min (by age)"}}
+    , comboRotation{this, {"Rotation tracks: off", "Rotation 0-2 km: last 30 min", "Rotation 0-2 km: last hour", "Rotation 0-2 km: last 2 hours", "Rotation 0-2 km: last 6 hours",
+                            "Rotation 0-2 km: last 24 hours", "Rotation 3-6 km: last hour", "Rotation 3-6 km: last 2 hours", "Rotation 3-6 km: last 6 hours"}}
     , buttonLoop{this, Icon::Play, "Loop"}
     , buttonSave{this, Icon::None, "Save"}
     , shortcutSave{QKeySequence{"Ctrl+S"}, this}
@@ -111,7 +113,16 @@ MrmsViewer::MrmsViewer(Window * parent)
         }
     };
     comboAuto.connect([this, applyAuto] { Utility::writePrefInt("MRMS_AUTO", comboAuto.getIndex()); applyAuto(); });
-    QObject::connect(&autoTimer, &QTimer::timeout, this, [this] { refreshNewest(); loadLightning(); });
+    QObject::connect(&autoTimer, &QTimer::timeout, this, [this] { refreshNewest(); loadLightning(); loadRotation(); });
+    comboRotation.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_ROTATION", 0), 0, 8)));
+    comboRotation.getView()->setToolTip("MRMS rotation tracks over any product: where the strongest rotation passed (supercells, mesocyclones), from 6 thousandths per second up");
+    comboRotation.connect([this] {
+        Utility::writePrefInt("MRMS_ROTATION", comboRotation.getIndex());
+        rotationIndices.clear();
+        rotationLevels.clear();
+        loadRotation();
+        radar->update();
+    });
     comboLightning.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_LIGHTNING", 0), 0, 4)));
     comboLightning.connect([this] {
         Utility::writePrefInt("MRMS_LIGHTNING", comboLightning.getIndex());
@@ -136,6 +147,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     rowTop.addWidget(comboUnits);
     rowTop.addWidget(comboAuto);
     rowTop.addWidget(comboLightning);
+    rowTop.addWidget(comboRotation);
     rowTop.addWidget(buttonLoop);
     rowTop.addWidget(buttonSave);
     rowTop.addStretch();
@@ -152,6 +164,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     rebuildProducts(Utility::readPref("MRMS_LAST_PRODUCT", UtilityMrms::products().front().id));
     loadScans();
     loadLightning();
+    loadRotation();
     // the rest of the server's products, found in the background
     auto found = std::make_shared<vector<UtilityMrms::Product>>();
     new FutureVoid{this,
@@ -734,10 +747,27 @@ void MrmsViewer::paintData(QPainter& painter) {
     if (currentIndices.isEmpty()) {
         return;
     }
+    drawGrid(painter, current.grid, currentIndices, currentColors, false);
+    if (comboRotation.getIndex() > 0 && !rotationLevels.empty()) {   // the rotation tracks over the product: strong rotation only, in the colors of its key
+        // the coarsest level whose cell is no bigger than a pixel of the map: each pixel shows the strongest rotation under it
+        const auto [ax, bx, ay, by] = projection();
+        const auto& state = radar->mapState;
+        const double ratio = std::max(1.0, radar->devicePixelRatioF());
+        const double degreesPerPixel = std::abs(1000.0 / (radar->width() * ratio) / state.zoom / ax);
+        size_t level = 0;
+        for (size_t i = 0; i < rotationLevels.size(); i++) {
+            if (rotationLevels[i].first.cell <= degreesPerPixel * 1.5) {
+                level = i;
+            }
+        }
+        drawGrid(painter, rotationLevels[level].first, rotationLevels[level].second, rotationColors, true);
+    }
+}
+
+// a grid of 8-bit indices drawn through a colour table over the map: one image pixel per device pixel of the map widget. Where each pixel is comes from the map's own
+// state (the same arithmetic as the hover read-out), not from the painter: a grab for a picture paints through a device whose transform and ratio differ from the screen's
+void MrmsViewer::drawGrid(QPainter& painter, const UtilityMrms::Grid& grid, const QByteArray& indices, const QVector<QRgb>& colors, bool outline) {
     const auto [ax, bx, ay, by] = projection();
-    const auto& grid = current.grid;
-    // one image pixel per device pixel of the map widget. Where each pixel is comes from the map's own state (the same arithmetic as the hover read-out), not from the
-    // painter: a grab for a picture paints through a device whose transform and ratio differ from the screen's
     const auto& state = radar->mapState;
     const double ratio = std::max(1.0, radar->devicePixelRatioF());
     const int pixelWidth = static_cast<int>(std::lround(radar->width() * ratio));
@@ -752,7 +782,7 @@ void MrmsViewer::paintData(QPainter& painter) {
         columnOf[static_cast<size_t>(i)] = (column >= 0 && column < grid.columns) ? column : -1;
     }
     QImage image{pixelWidth, pixelHeight, QImage::Format_ARGB32_Premultiplied};
-    const auto * cells = reinterpret_cast<const uchar *>(currentIndices.constData());
+    const auto * cells = reinterpret_cast<const uchar *>(indices.constData());
     for (int j = 0; j < pixelHeight; j += 1) {
         const double y = projectedY(j + 0.5);
         const double lat = std::atan(std::sinh((y - by) / ay * std::numbers::pi / 180.0)) * 180.0 / std::numbers::pi;
@@ -765,12 +795,201 @@ void MrmsViewer::paintData(QPainter& painter) {
         const auto * source = cells + static_cast<qsizetype>(row) * grid.columns;
         for (int i = 0; i < pixelWidth; i += 1) {
             const int column = columnOf[static_cast<size_t>(i)];
-            out[i] = column < 0 ? qRgba(0, 0, 0, 0) : currentColors[source[column]];
+            out[i] = column < 0 ? qRgba(0, 0, 0, 0) : colors[source[column]];
         }
     }
-    // the image is one pixel per device pixel; drawn through the current transform onto exactly the area it was sampled for
+    if (outline) {   // an overlay over the colors of a product: its shapes edged in black, so they read whatever is under them
+        const QImage filled = image.copy();
+        const int edge = std::max(1, static_cast<int>(std::lround(ratio)));
+        for (int j = 0; j < pixelHeight; j++) {
+            auto * out = reinterpret_cast<QRgb *>(image.scanLine(j));
+            const auto * in = reinterpret_cast<const QRgb *>(filled.constScanLine(j));
+            for (int i = 0; i < pixelWidth; i++) {
+                if (qAlpha(in[i]) == 0) {
+                    continue;
+                }
+                bool border = false;
+                for (int d = 1; d <= edge && !border; d++) {
+                    border = i - d < 0 || i + d >= pixelWidth || j - d < 0 || j + d >= pixelHeight || qAlpha(in[i - d]) == 0 || qAlpha(in[i + d]) == 0 ||
+                        qAlpha(reinterpret_cast<const QRgb *>(filled.constScanLine(j - d))[i]) == 0 || qAlpha(reinterpret_cast<const QRgb *>(filled.constScanLine(j + d))[i]) == 0;
+                }
+                if (border) {
+                    out[i] = qRgba(0, 0, 0, 255);
+                }
+            }
+        }
+    }
     painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
     painter.drawImage(QRectF{QPointF{projectedX(0.0), projectedY(0.0)}, QPointF{projectedX(pixelWidth), projectedY(pixelHeight)}}, image, QRectF{image.rect()});
+}
+
+namespace {
+    // the rotation key: 1e-3 / s of azimuthal shear, nothing under 8 (the weak shear of most storms and of clutter), then strong to very strong rotation (supercells)
+    struct RotationBand {
+        double from;
+        QColor color;
+        const char * label;
+    };
+    const RotationBand rotationBands[] = {{8.0, QColor{255, 255, 255, 235}, "8"}, {12.0, QColor{120, 230, 255, 245}, "12"}, {16.0, QColor{40, 120, 255, 250}, "16"},
+                                          {20.0, QColor{150, 40, 255, 255}, "20+"}};
+}
+
+// the rotation overlay: the newest scan of MRMS's low-level (0-2 km) or mid-level (3-6 km) rotation track over the chosen period
+void MrmsViewer::loadRotation() {
+    static const char * ids[] = {"", "RotationTrack30min", "RotationTrack60min", "RotationTrack120min", "RotationTrack360min", "RotationTrack1440min",
+                                 "RotationTrackML60min", "RotationTrackML120min", "RotationTrackML360min"};
+    const int which = std::clamp(comboRotation.getIndex(), 0, 8);
+    if (which == 0 || rotationLoading || closed) {
+        if (which == 0) {
+            rotationIndices.clear();
+            rotationLevels.clear();
+        }
+        return;
+    }
+    rotationLoading = true;
+    const string wanted = ids[which];
+    const int mine = ++rotationGeneration;
+    auto frame = std::make_shared<UtilityMrms::Frame>();
+    auto cleaned = std::make_shared<QByteArray>();
+    auto ok = std::make_shared<bool>(false);
+    new FutureVoid{this,
+        [wanted, frame, cleaned, ok] {
+            vector<UtilityMrms::Product> list = UtilityMrms::products();
+            vector<UtilityMrms::Product> more;
+            string error;
+            if (std::none_of(list.begin(), list.end(), [&wanted] (const auto& p) { return p.id == wanted; })) {
+                UtilityMrms::discoverMore(more, error);
+                list.insert(list.end(), more.begin(), more.end());
+            }
+            const auto found = std::find_if(list.begin(), list.end(), [&wanted] (const auto& p) { return p.id == wanted; });
+            if (found == list.end()) {
+                return;
+            }
+            vector<UtilityMrms::Scan> scans;
+            bool listed = UtilityMrms::scansAws(*found, "00.50", scans, error);   // the open data bucket first
+            if (!listed) {
+                listed = UtilityMrms::scans(*found, scans, error);
+            }
+            *ok = listed && !scans.empty() && UtilityMrms::frame(*found, scans.back(), *frame, error);
+            if (!*ok) {
+                return;
+            }
+            // strong rotation only where the radars see well: MRMS's radar quality index (0 to 1) masks the beam-blocked and far-range areas, where clutter and the
+            // edges of the coverage make false rotation (Canada, the mountains, the coasts)
+            *cleaned = frame->indices();
+            UtilityMrms::Frame quality;
+            bool haveQuality = false;
+            {
+                const auto rqi = std::find_if(list.begin(), list.end(), [] (const auto& p) { return p.id == "RadarQualityIndex"; });
+                UtilityMrms::Product product;
+                if (rqi != list.end()) {
+                    product = *rqi;
+                } else {
+                    product.id = "RadarQualityIndex";
+                    product.label = "Radar quality index";
+                    product.validMin = -1.0;
+                    product.hi = 1.0;
+                    product.autoRange = true;
+                    product.stops = {{0.0, 0, 0, 0}, {1.0, 255, 255, 255}};
+                }
+                vector<UtilityMrms::Scan> qualityScans;
+                string e;
+                bool qualityListed = UtilityMrms::scansAws(product, "00.00", qualityScans, e);
+                if (!qualityListed) {
+                    qualityListed = UtilityMrms::scans(product, qualityScans, e);
+                }
+                haveQuality = qualityListed && !qualityScans.empty() && UtilityMrms::frame(product, qualityScans.back(), quality, e) && quality.grid.columns > 0;
+            }
+            const auto& grid = frame->grid;
+            auto * out = reinterpret_cast<uchar *>(cleaned->data());
+            int firstStrong = 256;
+            for (int index = 1; index < 256; index++) {
+                if (frame->valueAt(index) >= rotationBands[0].from) {
+                    firstStrong = index;
+                    break;
+                }
+            }
+            const QByteArray qualityCells = haveQuality ? quality.indices() : QByteArray{};
+            const auto * good = reinterpret_cast<const uchar *>(qualityCells.constData());
+            const auto& q = quality.grid;   // the quality grid is coarser (0.01 against the tracks' 0.005 degree): the cell under each track cell
+            vector<int> qualityColumn(static_cast<size_t>(grid.columns), -1);
+            for (int column = 0; column < grid.columns && haveQuality; column++) {
+                const int c = static_cast<int>(std::floor((grid.west + (column + 0.5) * grid.cell - q.west) / q.cell));
+                qualityColumn[static_cast<size_t>(column)] = c >= 0 && c < q.columns ? c : -1;
+            }
+            // north of the border the grid has Canada's radars and its edges: their rotation is mostly clutter, so only the United States side is kept (the border taken
+            // as a few straight pieces: 49N in the west, the Lakes, the St. Lawrence and Maine)
+            const auto borderLat = [] (double lon) {
+                if (lon < -95.2) return 49.05;
+                if (lon < -89.0) return 49.4;
+                if (lon < -84.5) return 48.3;
+                if (lon < -79.0) return 46.0;
+                if (lon < -74.7) return 45.05;
+                if (lon < -71.0) return 45.3;
+                if (lon < -67.8) return 47.5;
+                return 0.0;   // New Brunswick and the sea east of Maine
+            };
+            for (int row = 0; row < grid.rows; row++) {
+                const int qr = haveQuality ? static_cast<int>(std::floor((q.north - (grid.north - (row + 0.5) * grid.cell)) / q.cell)) : -1;
+                const double lat = grid.north - (row + 0.5) * grid.cell;
+                auto * line = out + static_cast<qsizetype>(row) * grid.columns;
+                for (int column = 0; column < grid.columns; column++) {
+                    if (line[column] >= firstStrong && lat > borderLat(grid.west + (column + 0.5) * grid.cell)) {
+                        line[column] = 0;
+                        continue;
+                    }
+                    if (line[column] < firstStrong) {
+                        line[column] = 0;
+                    } else if (haveQuality) {
+                        const int qc = qualityColumn[static_cast<size_t>(column)];
+                        const int index = qr >= 0 && qr < q.rows && qc >= 0 ? good[static_cast<qsizetype>(qr) * q.columns + qc] : 0;
+                        if (index == 0 || quality.valueAt(index) < 0.6) {
+                            line[column] = 0;
+                        }
+                    }
+                }
+            }
+        },
+        [this, frame, cleaned, ok, mine] {
+            rotationLoading = false;
+            if (closed || mine != rotationGeneration || !*ok) {
+                return;
+            }
+            rotationFrame = *frame;
+            rotationIndices = *cleaned;
+            rotationLevels.clear();
+            rotationLevels.emplace_back(frame->grid, *cleaned);
+            for (const int factor : {4, 16}) {   // blocks of the finest grid, keeping the largest index (the indices rise with the value)
+                const auto& fine = frame->grid;
+                UtilityMrms::Grid coarse = fine;
+                coarse.columns = (fine.columns + factor - 1) / factor;
+                coarse.rows = (fine.rows + factor - 1) / factor;
+                coarse.cell = fine.cell * factor;
+                QByteArray pooled(static_cast<qsizetype>(coarse.columns) * coarse.rows, 0);
+                auto * dst = reinterpret_cast<uchar *>(pooled.data());
+                const auto * src = reinterpret_cast<const uchar *>(cleaned->constData());
+                for (int row = 0; row < fine.rows; row++) {
+                    const auto * line = src + static_cast<qsizetype>(row) * fine.columns;
+                    auto * target = dst + static_cast<qsizetype>(row / factor) * coarse.columns;
+                    for (int column = 0; column < fine.columns; column++) {
+                        if (line[column] > target[column / factor]) {
+                            target[column / factor] = line[column];
+                        }
+                    }
+                }
+                rotationLevels.emplace_back(coarse, pooled);
+            }
+            rotationColors = QVector<QRgb>(256, qRgba(0, 0, 0, 0));
+            for (int index = 1; index < 256; index++) {
+                const double value = frame->valueAt(index);
+                for (const auto& band : rotationBands) {
+                    if (value >= band.from) {
+                        rotationColors[index] = qPremultiply(band.color.rgba());
+                    }
+                }
+            }
+            radar->update();
+        }};
 }
 
 bool MrmsViewer::eventFilter(QObject * object, QEvent * event) {
@@ -889,6 +1108,22 @@ void MrmsViewer::paintLegend(QPainter& painter) {
                 painter.drawText(QPointF{x + 12.0, y + 4.0}, names[age]);
                 x += 100.0;
             }
+        }
+    }
+    if (comboRotation.getIndex() > 0 && !rotationLevels.empty()) {   // the rotation key, under the lightning one
+        QFont keyFont{painter.font()};
+        keyFont.setPointSizeF(9.0);
+        painter.setFont(keyFont);
+        const double y = -214.0;
+        painter.fillRect(QRectF{-496.0, y - 12.0, 300.0, 20.0}, QColor{0, 0, 0, 170});
+        painter.setPen(Qt::white);
+        painter.drawText(QPointF{-490.0, y + 4.0}, comboRotation.getIndex() >= 6 ? "Rotation 3-6 km:" : "Rotation 0-2 km:");
+        double x = -380.0;
+        for (const auto& band : rotationBands) {
+            painter.fillRect(QRectF{x, y - 6.0, 12.0, 12.0}, QColor{band.color.red(), band.color.green(), band.color.blue()});
+            painter.setPen(Qt::white);
+            painter.drawText(QPointF{x + 15.0, y + 4.0}, band.label);
+            x += 42.0;
         }
     }
     if (hoverShown && !looping) {
