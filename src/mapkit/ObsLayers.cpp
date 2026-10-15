@@ -14,7 +14,7 @@
 #include "misc/TextViewerStatic.h"
 #include "obs/SurfaceData.h"
 #include "obs/SurfaceHistoryViewer.h"
-#include "obs/SurfaceViewer.h"
+#include "obs/SurfaceStationText.h"
 #include "settings/UIPreferences.h"
 #include "ui/WindBarb.h"
 #include "util/Utility.h"
@@ -216,12 +216,12 @@ MapHit StationLayer::pick(const QPointF& pixels, MapHost&) const {
         if (distance < hit.distance) {
             hit.distance = distance;
             const auto& s = (*stations)[d.index];
-            hit.text = SurfaceViewer::summary(s, style().units == 0);
+            hit.text = SurfaceStationText::summary(s, style().units == 0);
             hit.open = [s] (Window * parent) {
                 if (s.airport) {
                     new SurfaceHistoryViewer{parent, s};
                 } else {
-                    new TextViewerStatic{parent, SurfaceViewer::details(s).toStdString(), s.id + (s.name.empty() ? "" : "  " + s.name), 640, 520};
+                    new TextViewerStatic{parent, SurfaceStationText::details(s).toStdString(), s.id + (s.name.empty() ? "" : "  " + s.name), 640, 520};
                 }
             };
         }

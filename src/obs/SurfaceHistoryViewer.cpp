@@ -11,7 +11,7 @@
 #include "hurricane/ChartKit.h"
 #include "hurricane/UtilityHdob.h"
 #include "objects/FutureVoid.h"
-#include "obs/SurfaceViewer.h"
+#include "obs/SurfaceStationText.h"
 #include "settings/UIPreferences.h"
 #include "util/UtilityIO.h"
 
@@ -120,7 +120,7 @@ void SurfaceHistoryChart::paintEvent(QPaintEvent *) {
 
 SurfaceHistoryViewer::SurfaceHistoryViewer(Window * parent, const SurfaceStation& station)
     : Window{parent}
-    , textCard{this, SurfaceViewer::details(station).toStdString()}
+    , textCard{this, SurfaceStationText::details(station).toStdString()}
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle(station.id + (station.name.empty() ? "" : "  " + station.name));

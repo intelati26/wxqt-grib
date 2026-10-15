@@ -21,7 +21,6 @@
 #include "misc/Hourly.h"
 #include "misc/ObservationSites.h"
 #include "misc/Observations.h"
-#include "obs/SurfaceViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "misc/Opc.h"
 #include "misc/Rtma.h"
@@ -32,7 +31,6 @@
 #include "models/CamsViewer.h"
 #include "mrms/MrmsViewer.h"
 #include "climate/ClimateViewer.h"
-#include "rivers/RiverMapViewer.h"
 #include "dashboard/Dashboards.h"
 #include "hurricane/HurricaneViewer.h"
 #include "tropical/TropicalViewer.h"
@@ -97,7 +95,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("meso.png", "SPC Mesoanalysis, Ctrl-z", [this] { launchSpcMeso(); });
     routeItems.emplace_back("nwsobssites.png", "Observation Sites", [this] { launchObservationSites(); });
     routeItems.emplace_back("nwsobs.png", "Observations", [this] { launchObservations(); });
-    routeItems.emplace_back("nwsobs.png", "Surface observations", [parent] { new SurfaceViewer{parent}; });
+    routeItems.emplace_back("nwsobs.png", "Surface observations", [parent] { new MasterMapViewer{parent, "Surface observations"}; });
     routeItems.emplace_back("fmap.png", "Master map", [parent] { new MasterMapViewer{parent}; });
     routeItems.emplace_back("rtma.png", "RTMA", [this] { launchRtma(); });
     routeItems.emplace_back("spcsoundings.png", "Soundings", [parent] { new SoundingViewer{parent, string{}}; });
@@ -128,7 +126,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("twtornado.png", "Tornado history", [parent] { Dashboards::openTornadoHistory(parent); });
     routeItems.emplace_back("widget_afd.png", "Forecast discussions", [parent] { Dashboards::openForecastDiscussions(parent); });
     routeItems.emplace_back("fire_outlook.png", "U.S. Drought Monitor", [parent] { new DroughtViewer{parent}; });
-    routeItems.emplace_back("rain_showers.png", "River, flood, dam, and the National Water Model", [parent] { new RiverMapViewer{parent}; });
+    routeItems.emplace_back("rain_showers.png", "River, flood, dam, and the National Water Model", [parent] { new MasterMapViewer{parent, "Rivers and water"}; });
     routeItems.emplace_back("nsslwrf.png", "NSSL WRF", [this] { launchModelViewerGeneric("NSSLWRF"); });
     routeItems.emplace_back("wpcgefs.png", "WPC GEFS", [this] { launchModelViewerGeneric("WPCGEFS"); });
     // routeItems.emplace_back("spchref.png", "SPC HREF", [this] { launchModelViewerGeneric("SPCHREF"); });

@@ -651,6 +651,11 @@ void MasterMapViewer::applyPreset(size_t index) {
         setLayerOn(layer->id(), want);
     }
     building = false;
+    if (comboView.getIndex() != static_cast<int>(index) + 1) {   // the box names the view that was applied (also when it was applied by the start of its name)
+        comboView.block();
+        comboView.setIndex(index + 1);
+        comboView.unblock();
+    }
     mapView->showRegion(preset.minLat, preset.maxLat, preset.minLon, preset.maxLon);
     updateStatus();
 }
