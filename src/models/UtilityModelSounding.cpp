@@ -6,6 +6,7 @@
 #include "models/UtilityModelSounding.h"
 #include <cmath>
 #include <map>
+#include <set>
 #include <vector>
 #include <QDir>
 #include <QFile>
@@ -40,6 +41,12 @@ namespace {
         f.idxMatch = idxMatch;
         f.product = product;
         return f;
+    }
+
+    // the levels whose wind is fetched (the u and v records are 2/3 of the download); the other levels' wind is interpolated in log pressure between these
+    bool hasWind(int mb) {
+        static const std::set<int> list{1000, 950, 900, 850, 800, 750, 700, 600, 500, 400, 300, 200};
+        return list.count(mb) > 0;
     }
 
     string levelKey(const string& variable, int mb) { return "snd_" + variable + "_" + To::string(mb); }
@@ -77,6 +84,9 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
     const vector<std::pair<string, string>> variables = {{"t", "TMP"}, {"rh", "RH"}, {"u", "UGRD"}, {"v", "VGRD"}};
     for (const int mb : levels()) {
         for (const auto& [name, grib] : variables) {
+            if (!hasWind(mb) && (name == "u" || name == "v")) {
+                continue;
+            }
             wanted.push_back(field(levelKey(name, mb), ":" + grib + ":" + To::string(mb) + " mb:", "prslev"));
         }
     }
@@ -101,11 +111,17 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
     for (const int mb : levels()) {
         bool complete = true;
         for (const auto& [name, grib] : variables) {
+            if (!hasWind(mb) && (name == "u" || name == "v")) {
+                continue;
+            }
             complete = complete && paths.count(levelKey(name, mb)) > 0;
         }
         if (complete) {
             usableLevels.push_back(mb);
             for (const auto& [name, grib] : variables) {
+                if (!hasWind(mb) && (name == "u" || name == "v")) {
+                    continue;
+                }
                 order.push_back(levelKey(name, mb));
             }
         }
@@ -215,6 +231,29 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
         profile.wspd.push_back(speed);
     };
     add(psfc, value["snd_zsfc"], toCelsius(value["snd_t2"]), toCelsius(value["snd_td2"]), value["snd_u10"], value["snd_v10"]);
+    // the wind of the levels that were not fetched: linear in log pressure between the nearest fetched levels above and below
+    for (const int mb : usableLevels) {
+        if (hasWind(mb)) {
+            continue;
+        }
+        int below = 0, above = 0;
+        for (const int other : usableLevels) {
+            if (!hasWind(other) || value[levelKey("u", other)] < -9000.0 || value[levelKey("v", other)] < -9000.0) {
+                continue;
+            }
+            if (other > mb && (below == 0 || other < below)) below = other;
+            if (other < mb && (above == 0 || other > above)) above = other;
+        }
+        for (const char * name : {"u", "v"}) {
+            if (below > 0 && above > 0) {
+                const double f = std::log(static_cast<double>(below) / mb) / std::log(static_cast<double>(below) / above);
+                value[levelKey(name, mb)] = value[levelKey(name, below)] + f * (value[levelKey(name, above)] - value[levelKey(name, below)]);
+            } else {
+                value[levelKey(name, mb)] = -9999.0;   // no wind on one side: the level keeps its temperature and humidity only
+            }
+        }
+    }
+
     // height by the hypsometric equation from the surface up, in the virtual temperature of each layer (a few metres against the model's own height field)
     double lastP = psfc, lastZ = value["snd_zsfc"], lastTv = SoundingThermo::virtualTemp(psfc, toCelsius(value["snd_t2"]), toCelsius(value["snd_td2"]));
     for (const int mb : usableLevels) {
