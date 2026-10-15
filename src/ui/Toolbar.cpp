@@ -68,8 +68,12 @@ using std::string;
 Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     : parent{parent}
     , reloadFn{reloadFn}
-    , autoUpdate{parent, "MAIN_SCREEN_DATA_REFRESH_INTERVAL", 10, reloadFn}
+    , autoUpdate{parent, "MAIN_SCREEN_DATA_REFRESH_INTERVAL", 10, reloadFn, "MAIN_SCREEN_AUTO_REFRESH"}
+    , refreshNow{parent, None, "Refresh"}
 {
+    refreshNow.setCheckable(false);
+    refreshNow.getView()->setToolTip("Refresh the home screen now, F5 (the automatic refresh keeps its own schedule)");
+    refreshNow.connect([reloadFn] { reloadFn(); });
     // routeItems.emplace_back("reload.png", "Reload data, Ctrl-u", [reloadFn] { reloadFn(); });
     routeItems.emplace_back("baseline_settings_black_48dp.png", "Settings", [this] { launchSettings(); });
 
@@ -204,6 +208,7 @@ void Toolbar::persistOrder() {
 // Draws the toolbar in the chosen style (ToolbarGroups::mode): the original column of icons, icons with their
 // names under group headings, or just the auto-update control with the entries in a menu bar of group menus.
 void Toolbar::rebuildButtons() {
+    getView()->removeWidget(refreshNow.getView());
     getView()->removeWidget(autoUpdate.getView());   // it is kept and added again: removeChildren() would delete it, and the next rebuild would add a dead widget
     removeChildren();
     buttons.clear();
@@ -211,6 +216,7 @@ void Toolbar::rebuildButtons() {
     const auto mode = ToolbarGroups::mode();
     parent->menuBar()->setVisible(mode == ToolbarGroups::MenuBar);
     addWidget(autoUpdate);
+    addWidget(refreshNow);
     const auto itemFor = [this] (const string& id) -> const RouteItem * {
         for (const auto& item : routeItems) {
             if (item.id == id) {

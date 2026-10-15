@@ -124,6 +124,7 @@ private:
     Shortcut shortcutSpcFire;
     Shortcut shortcutLightning;
     Shortcut shortcutReload;
+    Shortcut shortcutRefreshNow;
     Shortcut shortcutKeyboard;
     Shortcut shortcutWpcText;
     Shortcut shortcutRainfallOutlook;

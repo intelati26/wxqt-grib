@@ -36,6 +36,7 @@ SettingsBox::SettingsBox(Window * parent)
     configs.push_back(std::make_unique<Switch>(parent, "Show mini SevereDashboard on main screen", "MAINSCREEN_SEVERE_DASH", false));
     configs.push_back(std::make_unique<Switch>(parent, "Show the hourly graph on the home screen", "HOURLY_GRAPH", true));
     configs.push_back(std::make_unique<Switch>(parent, "Show the forecast point (the week at a glance and the outlooks, as the NWS forecast points page) on the home screen", "HOME_FORECAST_POINT", true));
+    configs.push_back(std::make_unique<Switch>(parent, "Refresh the home screen automatically (every interval below; the toolbar's update button and Ctrl-U toggle it)", "MAIN_SCREEN_AUTO_REFRESH", true));
     configs.push_back(std::make_unique<Switch>(parent, "Captions under the home screen pictures", "HOME_CAPTIONS", true));
     configs.push_back(std::make_unique<Switch>(parent, "Toggle scroll wheel motion", "NEXRAD_SCROLLWHEEL", false));
     configs.push_back(std::make_unique<Switch>(parent, "Remember last GOES image", "REMEMBER_GOES", false));
@@ -44,7 +45,7 @@ SettingsBox::SettingsBox(Window * parent)
     configs.push_back(std::make_unique<Switch>(parent, "Model charts in the model guidance site's color bands (where it has them)", "MAG_COLORS", true));
 
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Main screen image size", "MAIN_SCREEN_IMAGE_SIZE", 400, 200, 800, 25));
-    numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Main Screen update refresh interval (in minutes)", "MAIN_SCREEN_DATA_REFRESH_INTERVAL", 10, 1, 60, 1));
+    numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Home screen refresh interval (in minutes)", "MAIN_SCREEN_DATA_REFRESH_INTERVAL", 10, 1, 60, 1));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Toolbar icon size", "TOOLBAR_ICON_SIZE", 36, 10, 72, 4));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Forecast icon size", "NWS_ICON_SIZE_PREF", 62, 10, 120, 4));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Font size", "GENERAL_FONT_SIZE", 13, 6, 30, 1));

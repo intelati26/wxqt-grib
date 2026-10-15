@@ -10,6 +10,7 @@
 #include <functional>
 #include <vector>
 #include "objects/AutoUpdate.h"
+#include "ui/ButtonToggle.h"
 #include "ui/ButtonFlat.h"
 #include "ui/ComboBox.h"
 #include "ui/RouteItem.h"
@@ -66,6 +67,7 @@ private:
 
 public:
     AutoUpdate autoUpdate;
+    ButtonToggle refreshNow;   // one reload of the home screen, now
 };
 
 #endif  // TOOLBAR_H

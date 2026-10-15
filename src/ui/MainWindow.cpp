@@ -60,6 +60,7 @@ MainWindow::MainWindow(QWidget * parent)
     , shortcutSpcFire{{"F"}, this}
     , shortcutLightning{{"L"}, this}
     , shortcutReload{{"U"}, this}
+    , shortcutRefreshNow{{"F5"}, this}
     , shortcutKeyboard{{"/"}, this}
     , shortcutWpcText{{"T"}, this}
     , shortcutRainfallOutlook{{"G"}, this}
@@ -133,6 +134,7 @@ MainWindow::MainWindow(QWidget * parent)
     shortcutSpcFire.connect([this] { toolbar.launchSpcFireWeatherOutlookSummary(); });
     shortcutLightning.connect([this] { Route::lightning(this); });
     shortcutReload.connect([this] { toolbar.autoUpdate.toggleAutoUpdate(); });
+    shortcutRefreshNow.connect([this] { reload(); });
     shortcutKeyboard.connect([this] { new TextViewerStatic{this, GlobalVariables::mainScreenShortcuts, "Shortcuts", 700, 600}; });
     shortcutWpcText.connect([this] { toolbar.launchNationalText(); });
     shortcutRainfallOutlook.connect([this] { toolbar.launchRainfallOutlookSummary(); });
@@ -154,6 +156,7 @@ MainWindow::MainWindow(QWidget * parent)
 
 void MainWindow::reload() {
     // if (timer.isRefreshNeeded()) {
+        toolbar.autoUpdate.syncWithSettings();   // the settings may have changed the interval or the automatic refresh itself
         setTitle("wX " + toolbar.autoUpdate.titleAdd);
         configChangeCheck();
 

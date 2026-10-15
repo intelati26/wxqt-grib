@@ -23,7 +23,8 @@ using std::string;
 
 class AutoUpdate : public Widget2 {
 public:
-    AutoUpdate(Window *, const string &, int, const function<void()> &);
+    // stateToken: a preference that keeps whether it is on ("": not kept). The interval is in minutes, from the preference prefToken.
+    AutoUpdate(Window *, const string &, int, const function<void()> &, const string& stateToken = {});
     void toggleAutoUpdate();
     void updateTitle();
     void updateTitleForAutoRefresh();
@@ -32,12 +33,16 @@ public:
     void stopNoDownload();
     void start();
     void restart();
+    void startQuiet();            // the timer and the button, without a download now
+    void syncWithSettings();      // follow the kept state and the interval after they were changed in the settings (a download is not made)
     QPushButton * getView();
     string titleAdd;
 
 private:
     void localDownload();
     string prefToken;
+    string stateToken;
+    int activeInterval{0};
     int defaultValue;
     function<void()> downloadData;
     ButtonToggle button;
