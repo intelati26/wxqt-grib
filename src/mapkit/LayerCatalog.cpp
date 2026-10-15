@@ -8,6 +8,7 @@
 #include "mapkit/GoesLayer.h"
 #include "mapkit/GibsLayer.h"
 #include "mapkit/GoesHistoryLayer.h"
+#include "mapkit/LightningCastLayer.h"
 #include "mapkit/MrmsLayer.h"
 #include "mapkit/MrmsOverlayLayers.h"
 #include "mapkit/ObsLayers.h"
@@ -22,6 +23,7 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     layers.push_back(std::make_unique<GoesLayer>());
     layers.push_back(std::make_unique<GibsLayer>());
     layers.push_back(std::make_unique<GoesHistoryLayer>());
+    layers.push_back(std::make_unique<LightningCastLayer>());
     layers.push_back(std::make_unique<MrmsLayer>());
     layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Hail));
     layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Rotation));
