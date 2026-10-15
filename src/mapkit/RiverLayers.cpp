@@ -157,6 +157,27 @@ MapHit GaugeLayer::pick(const QPointF& pixels, MapHost& host) const {
             hit.text = text;
             const string lid = g.lid;
             hit.open = [lid] (Window * parent) { new RiverGaugeViewer{parent, lid}; };
+            // the gauge's own graph on the hover: the observed stage, the NWS forecast and the National Water Model, flood levels marked
+            hit.chartKey = "gauge:" + lid;
+            hit.chart = [lid, &host] (std::function<void(QImage)> deliver) {
+                auto detail = std::make_shared<UtilityRivers::Detail>();
+                auto ok = std::make_shared<bool>(false);
+                host.background([lid, detail, ok] { string error; *ok = UtilityRivers::loadDetail(lid, *detail, error); },
+                                [detail, ok, deliver] {
+                                    if (!*ok) {
+                                        deliver(QImage{});
+                                        return;
+                                    }
+                                    std::vector<HydrographChart::Line> lines;
+                                    std::vector<HydrographChart::Level> levels;
+                                    QString unit;
+                                    RiverGaugeViewer::chartLines(*detail, false, 5, lines, levels, unit);
+                                    HydrographChart chart;
+                                    chart.setData(lines, levels, unit, static_cast<long long>(std::time(nullptr)));
+                                    chart.resize(560, 300);
+                                    deliver(chart.grab().toImage());
+                                });
+            };
         }
     }
     return hit;

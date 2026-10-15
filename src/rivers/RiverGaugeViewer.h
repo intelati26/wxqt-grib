@@ -29,6 +29,7 @@ using std::string;
 // and the numbers around it - now, modelled, and the record (crests, outlook, what each stage floods).
 class RiverGaugeViewer : public Window {
 public:
+    static void chartLines(const UtilityRivers::Detail&, bool flow, int days, std::vector<HydrographChart::Line>& lines, std::vector<HydrographChart::Level>& levels, QString& unit);
     RiverGaugeViewer(Window * parent, const string& lid);
 
 private:

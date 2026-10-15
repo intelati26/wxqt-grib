@@ -246,15 +246,10 @@ void RiverGaugeViewer::build() {
     addPicture(d.hydrographUrl, "NWS hydrograph");
 }
 
-void RiverGaugeViewer::drawChart() {
-    if (!detail) {
-        return;
-    }
-    const auto& d = *detail;
-    const bool flow = comboMode.getIndex() == 1;
-    static const int days[] = {3, 7, 14, 30};
+// the lines and flood levels of a gauge's graph: what was observed, the NWS forecast and the National Water Model, over the last `days` and ahead; shared with the map's hover
+void RiverGaugeViewer::chartLines(const UtilityRivers::Detail& d, bool flow, int days, std::vector<HydrographChart::Line>& lines, std::vector<HydrographChart::Level>& levels, QString& unit) {
     const auto now = static_cast<long long>(std::time(nullptr));
-    const auto from = now - days[std::clamp(comboRange.getIndex(), 0, 3)] * 86400LL;
+    const auto from = now - days * 86400LL;
     const auto within = [from] (const UtilityRivers::Series& series) {
         std::vector<UtilityRivers::Point> out;
         for (const auto& point : series.points) {
@@ -264,8 +259,6 @@ void RiverGaugeViewer::drawChart() {
         }
         return out;
     };
-    std::vector<HydrographChart::Line> lines;
-    std::vector<HydrographChart::Level> levels;
     HydrographChart::Line observed{"Observed", QColor{42, 120, 214}, Qt::SolidLine, 2.2, within(flow ? d.observedFlow : d.observedStage)};
     HydrographChart::Line forecast{"NWS forecast", QColor{98, 80, 214}, Qt::SolidLine, 2.2, flow ? d.forecastFlow.points : d.forecastStage.points};
     // the National Water Model: the analysis (the model's estimate of the past) and the forecast, continuous; its flow goes through the rating curve for the stage view
@@ -294,7 +287,19 @@ void RiverGaugeViewer::drawChart() {
     level("Minor", d.minor, "minor");
     level("Moderate", d.moderate, "moderate");
     level("Major", d.major, "major");
-    chart->setData(lines, levels, flow ? "Flow (cfs)" : "Stage (" + QString::fromStdString(d.stageUnit) + ")", now);
+    unit = flow ? "Flow (cfs)" : "Stage (" + QString::fromStdString(d.stageUnit) + ")";
+}
+
+void RiverGaugeViewer::drawChart() {
+    if (!detail) {
+        return;
+    }
+    static const int days[] = {3, 7, 14, 30};
+    std::vector<HydrographChart::Line> lines;
+    std::vector<HydrographChart::Level> levels;
+    QString unit;
+    chartLines(*detail, comboMode.getIndex() == 1, days[std::clamp(comboRange.getIndex(), 0, 3)], lines, levels, unit);
+    chart->setData(lines, levels, unit, static_cast<long long>(std::time(nullptr)));
 }
 
 string RiverGaugeViewer::currentText() const {

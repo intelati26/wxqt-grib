@@ -82,7 +82,7 @@ void HydrographChart::setData(const std::vector<Line>& newLines, const std::vect
 }
 
 QRectF HydrographChart::plotArea() const {
-    return QRectF{64.0, 14.0, width() - 64.0 - 14.0, height() - 14.0 - 34.0};
+    return QRectF{64.0, 36.0, width() - 64.0 - 14.0, height() - 36.0 - 34.0};   // the key has its own row above the plot, clear of the lines
 }
 
 double HydrographChart::xOf(long long time) const {
@@ -181,8 +181,8 @@ void HydrographChart::paintEvent(QPaintEvent *) {
     painter.restore();
 
     // the key
-    double keyX = area.left() + 8.0;
-    const double keyY = area.top() + 8.0;
+    double keyX = area.left() + 4.0;
+    const double keyY = 6.0;
     for (const auto& line : lines) {
         if (line.points.empty()) {
             continue;
