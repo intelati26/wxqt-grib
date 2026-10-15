@@ -15,6 +15,7 @@
 #include <QHBoxLayout>
 #include <QCoreApplication>
 #include <QFont>
+#include <QStyle>
 #include <QPainterPath>
 #include "hurricane/Coast.h"
 #include "objects/FutureVoid.h"
@@ -80,22 +81,35 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     sidePanel->setFixedWidth(panelWidth);
     auto * column = new QVBoxLayout{sidePanel};
     column->setContentsMargins(4, 0, 0, 0);
+    // the layers that are on, each with its options one click away; the whole tree (every layer there is) is in the "Add layers" window
+    auto * activeTitle = new QLabel{"Layers on", sidePanel};
+    activeTitle->setStyleSheet("font-weight: bold;");
+    column->addWidget(activeTitle);
+    activeBox = new QWidget{sidePanel};
+    activeLayout = new QVBoxLayout{activeBox};
+    activeLayout->setContentsMargins(0, 0, 0, 0);
+    activeLayout->setSpacing(2);
+    column->addWidget(activeBox);
+    auto * addButton = new QPushButton{"Add layers...", sidePanel};
+    addButton->setToolTip("Every layer the map has, in a tree: switch any on or off, and set its options");
+    QObject::connect(addButton, &QPushButton::clicked, [this] { showAddLayers(); });
+    column->addWidget(addButton);
     tree = new QTreeWidget{sidePanel};
     tree->setHeaderHidden(true);
     tree->setIndentation(16);
     tree->setMinimumHeight(340);
-    column->addWidget(tree, 3);
+    tree->hide();   // lives in the Add layers window
     legendCheck = new QCheckBox{"Show the legend", sidePanel};
     legendCheck->setChecked(Utility::readPref("MASTERMAP_LEGEND", "true") == "true");
     QObject::connect(legendCheck, &QCheckBox::toggled, [this] (bool on) { Utility::writePref("MASTERMAP_LEGEND", on ? "true" : "false"); redraw(); });
     column->addWidget(legendCheck);
     optionsTitle = new QLabel{sidePanel};
     optionsTitle->setStyleSheet("font-weight: bold;");
-    column->addWidget(optionsTitle);
+    optionsTitle->hide();
     optionsBox = new QWidget{sidePanel};
     optionsLayout = new QVBoxLayout{optionsBox};
     optionsLayout->setContentsMargins(0, 0, 0, 0);
-    column->addWidget(optionsBox, 1);
+    optionsBox->hide();
     column->addStretch();
 
     std::vector<string> views{"Your layers"};
@@ -181,6 +195,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
         }
     }
     building = false;
+    refreshActiveList();
     // development aid (run with QT_QPA_PLATFORM=offscreen, see main.cpp): WXQT_MAPVIEW=<the start of a view's name> picks that view, as the box does
     if (const auto wanted = startView.empty() ? qEnvironmentVariable("WXQT_MAPVIEW").toStdString() : startView; !wanted.empty()) {
         const auto& all = MapCatalog::presets();
@@ -192,6 +207,8 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
         }
     }
     updateStatus();
+    listTimer.setSingleShot(true);
+    QObject::connect(&listTimer, &QTimer::timeout, [this] { refreshActiveList(); });
     timer.setInterval(30000);
     QObject::connect(&timer, &QTimer::timeout, [this] { tick(); });
     timer.start();
@@ -289,10 +306,100 @@ void MasterMapViewer::setLayerOn(const string& id, bool on) {
     } else {
         layer->disable();
     }
+    if (auto found = items.find(id); found != items.end() && (found->second->checkState(0) == Qt::Checked) != on) {   // the tree follows (it may be hidden)
+        const bool was = building;
+        building = true;
+        found->second->setCheckState(0, on ? Qt::Checked : Qt::Unchecked);
+        building = was;
+    }
     saveState();
     rebuildTicks();
     updateStatus();
     redraw();
+    QTimer::singleShot(0, this, [this] { refreshActiveList(); });
+}
+
+// the layers that are on, in painting order: a check to switch one off, its name and what it has read, and a gear for its options
+void MasterMapViewer::refreshActiveList() {
+    if (activeLayout == nullptr) {
+        return;
+    }
+    while (auto * item = activeLayout->takeAt(0)) {
+        if (auto * widget = item->widget()) {
+            widget->deleteLater();
+        }
+        delete item;
+    }
+    int shown = 0;
+    for (const auto& layer : layers) {
+        if (!layer->enabled()) {
+            continue;
+        }
+        shown++;
+        auto * row = new QWidget{activeBox};
+        auto * rowLayout = new QHBoxLayout{row};
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        rowLayout->setSpacing(4);
+        auto * check = new QCheckBox{QString::fromStdString(layer->path()).section('/', -1), row};
+        check->setChecked(true);
+        check->setToolTip(QString::fromStdString(layer->tip()) + "\n(uncheck to switch it off)");
+        const string id = layer->id();
+        QObject::connect(check, &QCheckBox::clicked, [this, id] (bool on) { setLayerOn(id, on); comboView.setIndex(0); });
+        rowLayout->addWidget(check, 1);
+        auto * gear = new QToolButton{row};
+        gear->setIcon(style()->standardIcon(QStyle::SP_FileDialogDetailedView));   // no text: the panel's button eliding leaves it alone
+        gear->setAutoRaise(true);
+        gear->setToolTip("Options: the period, product and the rest of this layer's options");
+        QObject::connect(gear, &QToolButton::clicked, [this, id] { showLayerOptions(layerOf(id)); });
+        rowLayout->addWidget(gear);
+        activeLayout->addWidget(row);
+        if (const auto text = layer->summary(); !text.empty()) {
+            auto * note = new QLabel{QString::fromStdString(text), activeBox};
+            note->setStyleSheet("color: gray; font-size: 9pt; margin-left: 22px;");
+            activeLayout->addWidget(note);
+        }
+    }
+    if (shown == 0) {
+        auto * none = new QLabel{"Nothing is on: choose a view above, or add layers.", activeBox};
+        none->setWordWrap(true);
+        none->setEnabled(false);
+        activeLayout->addWidget(none);
+    }
+}
+
+// the options of one layer in a small window of their own, by its gear
+void MasterMapViewer::showLayerOptions(MapLayer * layer) {
+    if (layer == nullptr) {
+        return;
+    }
+    auto * dialog = new QDialog{this};
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowTitle(QString::fromStdString(layer->path()).section('/', -1) + " - options");
+    auto * column = new QVBoxLayout{dialog};
+    if (auto * widget = layer->options(dialog, [this, layer] { layer->optionChanged(*this); redraw(); QTimer::singleShot(0, this, [this] { refreshActiveList(); }); })) {
+        column->addWidget(widget);
+    } else {
+        column->addWidget(new QLabel{"No options for this layer.", dialog});
+    }
+    dialog->setMinimumWidth(280);
+    dialog->show();
+}
+
+void MasterMapViewer::showAddLayers() {
+    if (addDialog == nullptr) {
+        addDialog = new QDialog{this};
+        addDialog->setWindowTitle("Layers");
+        auto * column = new QVBoxLayout{addDialog};
+        column->addWidget(tree, 3);
+        column->addWidget(optionsTitle);
+        column->addWidget(optionsBox, 1);
+        tree->show();
+        optionsTitle->show();
+        optionsBox->show();
+        addDialog->resize(420, 640);
+    }
+    addDialog->show();
+    addDialog->raise();
 }
 
 // the frames of every layer that has them, in one list for the bar; the bar is shown only while there is such a layer

@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 #include <QCheckBox>
+#include <QDialog>
+#include <QToolButton>
 #include <QComboBox>
 #include <QPushButton>
 #include <QSlider>
@@ -44,7 +46,7 @@ private:
     // MapHost
     MapView& view() override { return *mapView; }
     Window * hostWindow() override { return this; }
-    void redraw() override { mapView->map()->update(); }
+    void redraw() override { mapView->map()->update(); listTimer.start(500); }   // (a layer that has read something has a new summary for the list)
     void status(const string& text) override { extra = text; updateStatus(); }
     bool claimCell(const QPointF& pixels, double spacing) override;
     void timesChanged() override { rebuildTicks(); }
@@ -61,6 +63,9 @@ private:
     void showHover(const QPointF& pixels);
     MapHit bestHit(const QPointF& pixels) const;
     void showOptions(MapLayer *);
+    void refreshActiveList();
+    void showLayerOptions(MapLayer *);
+    void showAddLayers();
     void tick();
     void exportView();
     void exportTo(const QString& path);          // PNG, or PDF by the ending of the name
@@ -86,6 +91,9 @@ private:
     QLabel * hoverLabel{};
     QWidget * sidePanel{};
     QTreeWidget * tree{};
+    QWidget * activeBox{};
+    QVBoxLayout * activeLayout{};
+    QDialog * addDialog{};
     QWidget * optionsBox{};
     QCheckBox * legendCheck{};
     QWidget * timeRow{};
@@ -109,6 +117,7 @@ private:
     std::set<long long> cells;                      // the patches claimed in this painting
     std::map<string, std::time_t> refreshed;
     QTimer timer;
+    QTimer listTimer;   // the list of layers on is made again a moment after the map is painted again
     string extra;
     bool building{false};
     bool closed{false};
