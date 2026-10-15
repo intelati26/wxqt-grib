@@ -175,6 +175,8 @@ private:
     std::shared_ptr<GfsRender::Session> gfsSession;
     std::vector<std::string> overlays;   // the lines and barbs ticked onto the chart
     void getRun();
+    std::vector<string> allTimes;         // every hour the model offers; objectModel.times is the part the run on show reaches (the RRFS's hourly runs stop at 18 h)
+    void fitHoursToRun();
     void recheckRuns();                   // every 15 minutes: has a newer run been published?
     QTimer recheckTimer;
     bool rechecking{false};

@@ -930,8 +930,50 @@ void ModelViewer::applyMainRunRule() {
     strip->setNotice(notes.join("\n"));
 }
 
+// The hours of the list as far as the run on show goes: a model whose runs differ in length (the RRFS: 84 hours from 00, 06, 12 and 18Z, 18 from the others) lists only the hours
+// the run has; an hour past its end moves to its last hour
+void ModelViewer::fitHoursToRun() {
+    const auto * def = GfsRender::drawsModel(objectModel.model) ? GfsModels::find(objectModel.model) : nullptr;
+    if (allTimes.empty()) {
+        return;
+    }
+    std::vector<string> wanted = allTimes;
+    if (def != nullptr && def->runLength && objectModel.run.size() >= 2 && std::isdigit(static_cast<unsigned char>(objectModel.run[0]))) {
+        const int last = def->runLength(std::atoi(objectModel.run.substr(0, 2).c_str()));
+        wanted.clear();
+        for (const auto& t : allTimes) {
+            if (std::atoi(t.c_str()) <= last) {
+                wanted.push_back(t);
+            }
+        }
+        if (wanted.empty()) {
+            wanted = allTimes;
+        }
+    }
+    if (wanted == objectModel.times) {
+        return;
+    }
+    const int shown = std::atoi(objectModel.getTime().c_str());
+    size_t index = 0;
+    for (size_t i = 0; i < wanted.size(); i++) {
+        if (std::atoi(wanted[i].c_str()) <= shown) {
+            index = i;   // the same hour, else the last one the run has
+        }
+    }
+    objectModel.times = wanted;
+    objectModel.setTimeIdx(static_cast<int>(index));
+    comboboxTime.block();
+    comboboxTime.setList(objectModel.times);
+    comboboxTime.setIndex(index);
+    comboboxTime.unblock();
+    if (strip) {
+        refreshTimeStrip();
+    }
+}
+
 void ModelViewer::reload() {
     applyMainRunRule();
+    fitHoursToRun();
     if (buttonPlace != nullptr) {
         buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
     }
@@ -1093,6 +1135,7 @@ void ModelViewer::updateRunStatus() {
     auto paramIndex = findex(objectModel.param, objectModel.params);
     comboboxProduct.setIndex(paramIndex);
 
+    allTimes = objectModel.times;
     comboboxTime.setList(objectModel.times);
     comboboxTime.setIndexByValue(objectModel.getTime());
 
