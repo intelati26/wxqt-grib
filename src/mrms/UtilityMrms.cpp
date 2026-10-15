@@ -645,3 +645,38 @@ vector<UtilityMrms::Product> UtilityMrms::groupedProducts(const vector<Product>&
     std::stable_sort(list.begin(), list.end(), [&rank] (const auto& a, const auto& b) { return rank(a) < rank(b); });
     return list;
 }
+
+bool UtilityMrms::scansAwsAt(const Product& product, const string& level, const QDateTime& when, int minutesBefore, int minutesAfter, vector<Scan>& out, string& error) {
+    out.clear();
+    const string joined = level.rfind("Grid", 0) == 0 ? level : "_" + level;
+    const string folder = "CONUS/" + product.id + joined + "/";
+    const auto from = when.toUTC().addSecs(-60LL * minutesBefore);
+    const auto to = when.toUTC().addSecs(60LL * minutesAfter);
+    // the day folders the window touches (one, or two across midnight)
+    for (auto day = from.date(); day <= to.date(); day = day.addDays(1)) {
+        const auto dayText = day.toString("yyyyMMdd").toStdString();
+        const auto first = day == from.date() ? from.time() : QTime{0, 0};
+        const string startAfter = folder + dayText + "/MRMS_" + product.id + joined + "_" + dayText + "-" + first.toString("HHmm").toStdString() + "00.grib2.gz";
+        const auto url = "https://noaa-mrms-pds.s3.amazonaws.com/?list-type=2&prefix=" + folder + dayText + "/&start-after=" + startAfter + "&max-keys=1000";
+        const auto listing = URL::getText(url);
+        const QRegularExpression key{QString::fromStdString("<Key>(" + folder + dayText + "/(MRMS_" + product.id + joined + "_(\\d{8})-(\\d{6})\\.grib2\\.gz))</Key>")};
+        auto matches = key.globalMatch(QString::fromStdString(listing));
+        while (matches.hasNext()) {
+            const auto match = matches.next();
+            const auto utc = QDateTime::fromString(match.captured(3) + match.captured(4), "yyyyMMddhhmmss");
+            if (!utc.isValid()) {
+                continue;
+            }
+            const QDateTime at{utc.date(), utc.time(), QTimeZone::utc()};
+            if (at >= from && at <= to) {
+                out.push_back({match.captured(2).toStdString(), at, "https://noaa-mrms-pds.s3.amazonaws.com/" + match.captured(1).toStdString()});
+            }
+        }
+    }
+    std::sort(out.begin(), out.end(), [] (const Scan& a, const Scan& b) { return a.utc < b.utc; });
+    if (out.empty()) {
+        error = product.label + ": the open data bucket has no scans near " + when.toUTC().toString("yyyy-MM-dd HH:mm").toStdString() + "Z (it begins in October 2020)";
+        return false;
+    }
+    return true;
+}

@@ -117,3 +117,10 @@ void ModelScreen::closeEventCustom() {
         page->close();
     }
 }
+
+void ModelScreen::openAt(const string& model, const QDateTime& validUtc) {
+    showSource("NCEP");
+    if (auto * viewer = dynamic_cast<ModelViewer *>(pages["NCEP"])) {
+        viewer->openAt(model, validUtc);
+    }
+}

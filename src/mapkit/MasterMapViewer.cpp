@@ -660,6 +660,29 @@ void MasterMapViewer::applyPreset(size_t index) {
     updateStatus();
 }
 
+void MasterMapViewer::openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds) {
+    building = true;
+    for (const auto& layer : layers) {
+        const bool want = std::find(layerIds.begin(), layerIds.end(), layer->id()) != layerIds.end();
+        if (auto * item = items.count(layer->id()) != 0 ? items[layer->id()] : nullptr) {
+            item->setCheckState(0, want ? Qt::Checked : Qt::Unchecked);
+        }
+        setLayerOn(layer->id(), want);
+    }
+    building = false;
+    for (const auto& layer : layers) {
+        if (layer->enabled()) {
+            layer->setAsOf(utc, *this);
+        }
+    }
+    const double degrees = std::max(0.5, radiusKm / 111.0);
+    const double lonDegrees = degrees / std::max(0.2, std::cos(lat * 3.14159265358979 / 180.0));
+    mapView->showRegion(lat - degrees * 1.2, lat + degrees * 1.2, lon - lonDegrees * 1.6, lon + lonDegrees * 1.6);
+    extra = "as of " + utc.toUTC().toString("yyyy-MM-dd HH:mm").toStdString() + "Z";
+    updateStatus();
+    setTitle("Master map - " + extra);
+}
+
 void MasterMapViewer::onlyLayer(const string& id) {
     building = true;
     for (const auto& layer : layers) {

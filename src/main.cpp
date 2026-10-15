@@ -39,6 +39,7 @@
 #include "hurricane/HafsViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
+#include "models/ModelScreen.h"
 #include "models/ModelViewer.h"
 #include "history/EventsViewer.h"
 #include "settings/CacheSummaryViewer.h"
@@ -166,7 +167,19 @@ int main(int argc, char * argv[]) {
         QWidget * opened = nullptr;
         if (const auto route = qEnvironmentVariable("WXQT_OPEN"); !route.isEmpty()) {
             const auto before = QApplication::topLevelWidgets();
-            if (route == "events") {   // WXQT_OPEN=events: the history page
+            if (route.startsWith("mrmsat:")) {   // WXQT_OPEN=mrmsat:<yyyyMMddHHmm UTC>[:lat:lon:km]: the master map at that time, MRMS only
+                const auto parts = route.split(':');
+                auto * map = new MasterMapViewer{&w};
+                auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
+                when.setTimeSpec(Qt::UTC);
+                map->openAt(when, parts.value(2, "35.3").toDouble(), parts.value(3, "-97.5").toDouble(), parts.value(4, "300").toDouble(), {"radar/mrms"});
+            } else if (route.startsWith("modelat:")) {   // WXQT_OPEN=modelat:<model>:<yyyyMMddHHmm UTC>: the Model Viewer on that model at the run and hour of that time
+                const auto parts = route.split(':');
+                auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
+                when.setTimeSpec(Qt::UTC);
+                auto * screen = new ModelScreen{&w, "NCEP"};
+                screen->openAt(parts.value(1).toStdString(), when);
+            } else if (route == "events") {   // WXQT_OPEN=events: the history page
                 new EventsViewer{&w};
             } else if (route == "cache") {   // WXQT_OPEN=cache: the summary of what is kept on disk
                 new CacheSummaryViewer{&w};

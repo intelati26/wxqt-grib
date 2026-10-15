@@ -28,6 +28,7 @@ public:
     vector<long> times() const override;
     void prepareTimes(MapHost&) override;
     void showTime(long seconds, MapHost&) override;
+    void setAsOf(const QDateTime& utc, MapHost&) override;
     string timeText() const override;
     void refresh(MapHost&) override;
     void optionChanged(MapHost& host) override { if (reloadNeeded) { reloadNeeded = false; refresh(host); } }
@@ -65,6 +66,8 @@ private:
     std::vector<UtilityMrms::Scan> scans;               // the server's list for the product, oldest first
     std::map<long, UtilityMrms::Frame> frames;          // the scans loaded, by time (kept compressed)
     int generation{0};
+    QDateTime asOf;          // valid: the scan nearest this time of the past, not the newest
+    long target{0};          // the scan shown in that case (seconds)
 };
 
 #endif  // MRMSLAYER_H

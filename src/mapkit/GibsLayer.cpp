@@ -302,3 +302,9 @@ QWidget * GibsLayer::options(QWidget * parent, const std::function<void()>& chan
     QObject::connect(slider, &QSlider::valueChanged, [this, changed] (int value) { opacity = value; changed(); });
     return widget;
 }
+
+void GibsLayer::setAsOf(const QDateTime& utc, MapHost& host) {
+    daysBack = std::clamp(static_cast<int>(utc.toUTC().date().daysTo(QDateTime::currentDateTimeUtc().date())), 0, 4000);
+    liveDays = daysBack;
+    host.redraw();
+}

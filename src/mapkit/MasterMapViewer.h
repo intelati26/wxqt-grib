@@ -41,6 +41,9 @@ class MasterMapViewer : public Window, private MapHost {
 public:
     // startView: the start of a saved view's name to open with (empty: what was on last time)
     explicit MasterMapViewer(Window * parent, const string& startView = {});
+    // the map at a time of the past and a place (the history page): only the layers given (those that can show a past time), each set to that time; the region is the point
+    // with its radius
+    void openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds);
 
 private:
     // MapHost

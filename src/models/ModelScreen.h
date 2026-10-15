@@ -9,6 +9,7 @@
 #include <map>
 #include <string>
 #include <QComboBox>
+#include <QDateTime>
 #include <QStackedWidget>
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -23,6 +24,8 @@ public:
     // source: one of the ids of sources() ("" the one used last)
     explicit ModelScreen(Window * parent, const string& source = {});
     void showSource(const string& id);
+    // the Model Viewer on a model, at the run and hour whose valid time is `validUtc` (the history page)
+    void openAt(const string& model, const QDateTime& validUtc);
     struct Source {
         const char * id;
         const char * label;

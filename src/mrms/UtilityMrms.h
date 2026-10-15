@@ -92,6 +92,8 @@ namespace UtilityMrms {
     bool scans(const Product&, vector<Scan>& out, string& error);
     // the newest scans of a product (one level folder, "00.00" ...) from NOAA's open data bucket on AWS (noaa-mrms-pds): the last half hour, oldest first
     bool scansAws(const Product&, const string& level, vector<Scan>& out, string& error);
+    // the scans of the open data bucket from `minutesBefore` to `minutesAfter` of a time in the past (any day since the bucket began in 2020), oldest first
+    bool scansAwsAt(const Product&, const string& level, const QDateTime& when, int minutesBefore, int minutesAfter, vector<Scan>& out, string& error);
     bool frame(const Product&, const Scan&, Frame& out, string& error);
     // the colour table of a scan at 256 entries (index 0 transparent)
     QVector<QRgb> colorTable(const Product&, const Frame&);

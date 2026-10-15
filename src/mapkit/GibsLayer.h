@@ -30,6 +30,7 @@ public:
     void prepareTimes(MapHost&) override;
     void showTime(long seconds, MapHost&) override;
     string timeText() const override;
+    void setAsOf(const QDateTime& utc, MapHost&) override;
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     string summary() const override;
 

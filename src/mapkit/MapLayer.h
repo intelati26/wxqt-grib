@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <QColor>
+#include <QDateTime>
 #include <QPainter>
 #include <QPointF>
 #include <QString>
@@ -83,6 +84,10 @@ public:
 protected:
     virtual void onEnable(MapHost&) {}
     virtual void onDisable() {}
+public:
+    // show this time of the past instead of the newest (the history page opens the map at an event's time); layers of live feeds ignore it
+    virtual void setAsOf(const QDateTime& /*utc*/, MapHost&) {}
+protected:
 
 private:
     bool on{false};

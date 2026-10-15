@@ -8,6 +8,7 @@
 #include "spcrefs/SpcRefsLoader.h"
 #include "ui/ActivityLabel.h"
 #include <QBuffer>
+#include <QTimeZone>
 #include <QFile>
 #include <QImage>
 #include <QInputDialog>
@@ -400,7 +401,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
 }
 
 void ModelViewer::recheckRuns() {
-    if (rechecking || !GfsRender::drawsModel(objectModel.model)) {
+    if (rechecking || pinnedValid.isValid() || !GfsRender::drawsModel(objectModel.model)) {
         return;
     }
     rechecking = true;
@@ -436,6 +437,23 @@ void ModelViewer::recheckRuns() {
     }};
 }
 
+void ModelViewer::openAt(const string& model, const QDateTime& validUtc) {
+    pinnedValid = validUtc.toUTC();
+    pinnedModel = model;
+    pinnedApply = true;
+    for (size_t i = 0; i < objectModel.models.size(); i++) {
+        if (objectModel.models[i] == model) {
+            comboboxModel.block();
+            comboboxModel.setIndex(i);
+            comboboxModel.unblock();
+            objectModel.model = model;
+            objectModel.setModelVars(model);
+            getRun();   // getRunStatus puts the run of the past in place of the newest
+            return;
+        }
+    }
+}
+
 void ModelViewer::selectModel(const string& id) {
     for (size_t i = 0; i < objectModel.models.size(); i++) {
         if (objectModel.models[i] == id) {
@@ -466,6 +484,9 @@ void ModelViewer::changeTimeCb() {
 }
 
 void ModelViewer::changeModel(int index) {
+    if (objectModel.models[index] != pinnedModel) {
+        pinnedValid = QDateTime{};   // another model: back to the newest runs
+    }
     runSwappedFrom.clear();
     objectModel.model = objectModel.models[index];
     objectModel.setModelVars(objectModel.model);
@@ -528,7 +549,15 @@ bool ModelViewer::hourReady(int hour) const {
 }
 
 string ModelViewer::frameKey(int hour) const {
-    string key = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector + "|" + objectModel.run + "|" + std::to_string(hour);
+    // a run of the past carries its date (the same "18Z" of another day is another run)
+    string run = objectModel.run;
+    if (pinnedValid.isValid() && objectModel.model == pinnedModel) {
+        const auto t = runTime(objectModel.run);
+        if (t.isValid()) {
+            run = t.toString("yyyyMMddHH").toStdString();
+        }
+    }
+    string key = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector + "|" + run + "|" + std::to_string(hour);
     for (const auto& id : overlays) {
         key += "|" + id;
     }
@@ -1315,7 +1344,14 @@ void ModelViewer::reload() {
             gfsSession = std::make_shared<GfsRender::Session>();   // its folder goes when this screen does
         }
         auto session = gfsSession;
-        const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = objectModel.run;
+        string runToDraw = objectModel.run;
+        if (pinnedValid.isValid() && objectModel.model == pinnedModel) {   // a run of the past: its date as well, not "the newest 18Z"
+            const auto t = runTime(objectModel.run);
+            if (t.isValid()) {
+                runToDraw = t.toString("yyyyMMddHH").toStdString();
+            }
+        }
+        const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = runToDraw;
         const auto overlayIds = overlays;
         const auto shownVariant = variant;
         const int hour = std::atoi(objectModel.getTime().c_str());
@@ -1354,6 +1390,7 @@ void ModelViewer::getRun() {
 void ModelViewer::getRunStatus() {
     ObjectModelGet::runStatus(objectModel);
     objectModel.run = objectModel.runTimeData.mostRecentRun;
+    applyPinnedRun();   // (a run of the past: the date and the cycle are given, not looked for)
 }
 
 // The run list says which runs are today's: a run later in the day than the newest one is the one from the day before (the list alone shows "14Z" with no hint that it is yesterday's)
@@ -1377,7 +1414,7 @@ vector<string> ModelViewer::runLabels() const {
             t = t.addDays(-1);
         }
         const int days = static_cast<int>(t.date().daysTo(utc.date()));
-        labels.push_back(t == utc ? run + "  newest" : days == 0 ? run : days == 1 ? run + "  yesterday" : run + "  " + t.toString("MMM d").toStdString());
+        labels.push_back(pinnedValid.isValid() && t == utc ? run + "  " + t.toString("yyyy-MM-dd").toStdString() + " (history)" : t == utc ? run + "  newest" : days == 0 ? run : days == 1 ? run + "  yesterday" : run + "  " + t.toString("MMM d").toStdString());
     }
     return labels;
 }
@@ -1422,7 +1459,20 @@ void ModelViewer::refreshSectorList() {
     comboboxSector.unblock();
 }
 
+// the run of the past (openAt) in place of the newest one in the run data; done again when the data comes in, whichever search of the newest run finished last
+void ModelViewer::applyPinnedRun() {
+    if (!pinnedValid.isValid() || objectModel.model != pinnedModel) {
+        return;
+    }
+    const QDateTime run{pinnedValid.date(), QTime{pinnedValid.time().hour() / 6 * 6, 0}, QTimeZone::utc()};
+    objectModel.runTimeData.newestDate = run.toString("yyyyMMdd").toStdString();
+    objectModel.runTimeData.mostRecentRun = run.toString("HH").toStdString() + "Z";
+    objectModel.runTimeData.timeStringConversion = objectModel.runTimeData.mostRecentRun;
+    objectModel.run = objectModel.runTimeData.mostRecentRun;
+}
+
 void ModelViewer::updateRunStatus() {
+    applyPinnedRun();
     comboboxTime.block();
     comboboxRun.block();
     comboboxSector.block();
@@ -1483,6 +1533,18 @@ void ModelViewer::updateRunStatus() {
     allTimes = objectModel.times;
     comboboxTime.setList(objectModel.times);
     comboboxTime.setIndexByValue(objectModel.getTime());
+    if (pinnedApply && pinnedValid.isValid()) {   // the hour of the valid time within the run
+        pinnedApply = false;
+        const QDateTime run{pinnedValid.date(), QTime{pinnedValid.time().hour() / 6 * 6, 0}, QTimeZone::utc()};
+        const int hour = static_cast<int>(run.secsTo(pinnedValid) / 3600);
+        for (size_t i = 0; i < objectModel.times.size(); i++) {
+            if (std::atoi(objectModel.times[i].c_str()) == hour) {
+                objectModel.setTimeIdx(i);
+                comboboxTime.setIndex(i);
+                break;
+            }
+        }
+    }
 
     comboboxTime.unblock();
     comboboxRun.unblock();
@@ -1812,7 +1874,13 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.param = objectModel.param;
         job.sector = objectModel.sector;
         job.cycle = objectModel.run;
-        job.overlays = overlays;
+        if (pinnedValid.isValid() && objectModel.model == pinnedModel) {   // a run of the past: its date as well, not "the newest 18Z"
+            const auto t = runTime(objectModel.run);
+            if (t.isValid()) {
+                job.cycle = t.toString("yyyyMMddHH").toStdString();
+            }
+        }
+            job.overlays = overlays;
         job.variant = ahead && variant.kind != GfsRender::Variant::Kind::Change ? GfsRender::Variant{} : variant;
         job.variant.member = member;
         job.variant.standardDeviations = standardDeviations;

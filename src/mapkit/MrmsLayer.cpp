@@ -107,7 +107,23 @@ string MrmsLayer::timeText() const {
     return have ? frame.utc.toString("ddd yyyy-MM-dd HH:mm").toStdString() + "Z  MRMS" : string{};
 }
 
+void MrmsLayer::setAsOf(const QDateTime& utc, MapHost& host) {
+    asOf = utc;
+    have = false;
+    indices.clear();
+    frames.clear();
+    scans.clear();
+    shownSeconds = 0;
+    target = 0;
+    loading = false;
+    ++generation;
+    refresh(host);
+}
+
 void MrmsLayer::showTime(long seconds, MapHost& host) {
+    if (seconds == 0 && asOf.isValid() && target != 0) {
+        seconds = target;   // "latest" of a time of the past is that time
+    }
     shownSeconds = seconds;
     if (frames.empty()) {
         return;
@@ -129,8 +145,12 @@ void MrmsLayer::refresh(MapHost& host) {
     if (loading) {
         return;
     }
+    if (asOf.isValid() && have && !frames.empty()) {
+        return;   // a time of the past does not change: what was read stays
+    }
     loading = true;
     const int mine = ++generation;
+    const QDateTime when = asOf;
     struct Loaded {
         std::vector<UtilityMrms::Scan> scans;
         UtilityMrms::Frame frame;
@@ -139,7 +159,23 @@ void MrmsLayer::refresh(MapHost& host) {
     auto result = std::make_shared<Loaded>();
     const auto chosen = product();
     host.background(
-        [chosen, result] {
+        [chosen, result, when] {
+            if (when.isValid()) {   // a time of the past: the open data bucket, an hour either side; the scan nearest the time is the one decoded
+                vector<UtilityMrms::Scan> window;
+                const auto level = chosen.id.rfind("MultiSensor_QPE", 0) == 0 || chosen.id.rfind("PrecipRate", 0) == 0 || chosen.id.rfind("NLDN", 0) == 0 ? "00.00" : "00.50";
+                if (!UtilityMrms::scansAwsAt(chosen, level, when, 60, 60, window, result->error)) {
+                    return;
+                }
+                result->scans = window;
+                size_t best = 0;
+                for (size_t i = 0; i < window.size(); i++) {
+                    if (std::abs(window[i].utc.secsTo(when)) < std::abs(window[best].utc.secsTo(when))) {
+                        best = i;
+                    }
+                }
+                UtilityMrms::frame(chosen, window[best], result->frame, result->error);
+                return;
+            }
             if (UtilityMrms::scans(chosen, result->scans, result->error) && !result->scans.empty()) {
                 UtilityMrms::frame(chosen, result->scans.back(), result->frame, result->error);
             }
@@ -158,7 +194,11 @@ void MrmsLayer::refresh(MapHost& host) {
                 while (frames.size() > 80) {
                     frames.erase(frames.begin());
                 }
-                if (shownSeconds == 0 || !have) {
+                if (asOf.isValid()) {
+                    target = result->frame.utc.toSecsSinceEpoch();
+                    shownSeconds = target;
+                    display(result->frame);
+                } else if (shownSeconds == 0 || !have) {
                     display(result->frame);   // following the newest scan
                 } else {
                     showTime(shownSeconds, host);

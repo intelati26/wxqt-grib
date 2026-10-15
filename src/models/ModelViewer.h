@@ -49,6 +49,9 @@ public:
     // set when this viewer is a page of the model screen: another source is shown there (its id, ModelScreen::sources) instead of in a window of its own
     std::function<void(const string&)> openSource;
     void selectModel(const string& id);   // show this model ("SPCREFS" ...), as the model box would
+    // a model's run and hour of the past: the latest run (every 6 hours) at or before this valid time, at that forecast hour; it stays (the newest run is not looked for) until
+    // another model is chosen
+    void openAt(const string& model, const QDateTime& validUtc);
     void showPicker();
     void showModelPicker();    // the models in groups (global, regional, convection allowing, ensembles, waves ...)
     void showSectorPicker();   // the same, for the areas   // the grouped chart picker (the models drawn from GRIB)
@@ -208,8 +211,12 @@ private:
     std::map<string, std::vector<int>> fieldHours;   // "run|chart" -> the hours an SPC REFS field has (its own time coordinate)
     std::set<string> fieldHoursAsked;
     void askFieldHours();
+    void applyPinnedRun();
     void recheckRuns();                   // every 15 minutes: has a newer run been published?
     QTimer recheckTimer;
+    QDateTime pinnedValid;                // set: the screen is on a run of the past (openAt)
+    string pinnedModel;
+    bool pinnedApply{false};              // the hour of it is chosen once the run's hours are in
     bool rechecking{false};
     void getRunStatus();
     void updateRunStatus();

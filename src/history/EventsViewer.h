@@ -7,9 +7,12 @@
 #define EVENTSVIEWER_H
 
 #include <vector>
+#include <QComboBox>
 #include <QDateTimeEdit>
+#include <QLabel>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
+#include <QTimer>
 #include <QListWidget>
 #include <QPlainTextEdit>
 #include <QTableWidget>
@@ -27,6 +30,9 @@ private:
     void showEvent(size_t index);
     void readForm(HistoryEvent&) const;
     void fillAvailability(const HistoryEvent&);
+    QDateTime atTime() const;          // the moment the screens open at: the start, a moment of the event, or the end
+    void fillAtBox(const HistoryEvent&);
+    void loadOutlooks();               // the SPC day 1 outlook of the event's convective day, added to the event on its own
     void newEvent();
     void saveEvent();
     void deleteEvent();
@@ -45,6 +51,12 @@ private:
     QPlainTextEdit * note{};
     QPlainTextEdit * moments{};
     QTableWidget * table{};
+    QComboBox * atBox{};
+    QComboBox * issuance{};
+    std::vector<QLabel *> outlookImages;
+    QLabel * outlookNote{};
+    int outlookGeneration{0};
+    QTimer outlookTimer;
 };
 
 #endif  // EVENTSVIEWER_H
