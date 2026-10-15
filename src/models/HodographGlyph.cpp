@@ -17,7 +17,7 @@ namespace {
 }
 
 HodographGlyph::HodographGlyph(QWidget * parent, const QString& station) : QWidget{parent}, id{station} {
-    setFixedSize(84, 84);
+    setFixedSize(60, 60);
     setCursor(Qt::PointingHandCursor);
     setToolTip(station + "  hodograph 0-9 km: pink 0-1, red 1-3, green 3-6, yellow 6-9 km AGL; rings at 20 and 40 kt\nClick for the sounding");
 }
@@ -65,7 +65,7 @@ void HodographGlyph::paint(QPainter& painter, const QRectF& box, const std::vect
     // the look of Pivotal Weather's hodograph maps: brown rings at 20 and 40 kt, the layers pink (0-1 km), red (1-3), green (3-6) and yellow (6-9 km), each line edged in dark
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing);
-    const double s = box.width() / 84.0;   // the widget is 84 pixels; a saved picture scales the same drawing
+    const double s = box.width() / 84.0;   // drawn for an 84 pixel square; the widget (60) and a saved picture scale the same drawing
     const QPointF centre = box.center();
     const double radius = box.width() / 2.0 - 2.0 * s;
     const double perKt = radius / scaleKt;
