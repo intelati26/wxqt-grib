@@ -101,8 +101,9 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             QObject::connect(menu->addAction(text), &QAction::triggered, this, [open] { open(); });
         };
         Window * opener = parent;
-        const auto screen = [this, opener] (const string& type) { return [this, opener, type] { new ModelViewer{opener ? opener : this, type}; }; };
-        add("NSSL CAMs (MPAS, WRF, HRRR, RRFS)", [this, opener] { new CamsViewer{opener ? opener : this}; });
+        // a page of the model screen changes the page; on its own it opens a window
+        const auto screen = [this, opener] (const string& type) { return [this, opener, type] { openSource ? openSource(type) : (void) new ModelViewer{opener ? opener : this, type}; }; };
+        add("NSSL CAMs (MPAS, WRF, HRRR, RRFS)", [this, opener] { openSource ? openSource("CAMS") : (void) new CamsViewer{opener ? opener : this}; });
         menu->addSeparator();
         menu->addSection("Pending discontinuation (pictures from MAG / SPC)");
         add("NSSL WRF (WRF, FV3, HRRRv3)", screen("NSSLWRF"));
@@ -110,6 +111,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         add("SPC HREF", screen("SPCHREF"));
         add("WPC GEFS", screen("WPCGEFS"));
         more->setMenu(menu);
+        more->setVisible(!isEmbedded());   // in the model screen its Source box offers them
         boxH.addWidgetReal(more);
     }
     box.addLayout(boxH);

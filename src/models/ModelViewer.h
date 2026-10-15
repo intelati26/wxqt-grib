@@ -31,6 +31,7 @@
 #include "models/SoundingPick.h"
 #include "models/TimeStrip.h"
 #include <array>
+#include <functional>
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -39,6 +40,8 @@ using std::string;
 class ModelViewer : public Window {
 public:
     ModelViewer(Window *, const string&);
+    // set when this viewer is a page of the model screen: another source is shown there (its id, ModelScreen::sources) instead of in a window of its own
+    std::function<void(const string&)> openSource;
     void showPicker();
     void showModelPicker();    // the models in groups (global, regional, convection allowing, ensembles, waves ...)
     void showSectorPicker();   // the same, for the areas   // the grouped chart picker (the models drawn from GRIB)

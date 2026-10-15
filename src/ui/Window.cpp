@@ -24,12 +24,26 @@ Window::Window(QWidget * parent)
     // background follows the application palette / theme (see UtilityTheme)
     shortcutClose1.connect([this] { close(); });
     shortcutClose2.connect([this] { close(); });
+    if (embedNext) {   // a page of another screen
+        embedNext = false;
+        embedded = true;
+        setWindowFlags(Qt::Widget);
+        shortcutClose1.get()->setEnabled(false);
+        shortcutClose2.get()->setEnabled(false);
+        return;
+    }
     if (!UIPreferences::tiledWindows) {
         maximize();
     } else {
         const auto dims = UtilityUI::getScreenBounds();
         setSize(static_cast<int>(dims[0] / 2), static_cast<int>(dims[1] / 2));
     }
+}
+
+bool Window::embedNext = false;
+
+void Window::embedNextWindow() {
+    embedNext = true;
 }
 
 void Window::setTitle(const string& s) {
@@ -81,7 +95,7 @@ string Window::geometryKey() const {
 // connected screen)
 void Window::showEvent(QShowEvent * event) {
     QMainWindow::showEvent(event);
-    if (geometryRestored) {
+    if (geometryRestored || embedded) {
         return;
     }
     geometryRestored = true;
@@ -103,7 +117,7 @@ void Window::showEvent(QShowEvent * event) {
 
 void Window::closeEvent(QCloseEvent * event) {
     const auto g = geometry();
-    Utility::writePref(geometryKey(), std::to_string(g.x()) + "," + std::to_string(g.y()) + "," + std::to_string(g.width()) + "," + std::to_string(g.height()));
+    if (!embedded) Utility::writePref(geometryKey(), std::to_string(g.x()) + "," + std::to_string(g.y()) + "," + std::to_string(g.width()) + "," + std::to_string(g.height()));
     closeEventCustom();
     event->accept();
 }

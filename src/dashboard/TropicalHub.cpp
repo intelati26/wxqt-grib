@@ -27,6 +27,7 @@
 #include "hurricane/HurricaneViewer.h"
 #include "hurricane/PodViewer.h"
 #include "hurricane/SeasonViewer.h"
+#include "models/ModelScreen.h"
 #include "models/ModelViewer.h"
 #include "util/Utility.h"
 #include "hurricane/StrikeReport.h"
@@ -170,7 +171,7 @@ TropicalHub::TropicalHub(Window * parent)
         Utility::writePref("NCEP", "GFS");
         Utility::writePref("MODELNCEPPARAMLASTUSED", "shear_850_200");
         Utility::writePref("MODELNCEPSECTORLASTUSED", "WEST-ATL");
-        new ModelViewer{this, "NCEP"};
+        new ModelScreen{this, "NCEP"};
     });
     buttonHafs.connect([this] { new HafsViewer{this}; });
     buttonTropical.connect([this] { new TropicalViewer{this}; });

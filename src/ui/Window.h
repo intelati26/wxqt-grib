@@ -25,6 +25,10 @@ public:
     int getWindowWidth();
     int getWindowHeight();
     void maximize();
+    // The next Window made is a page of another screen (the model screen's sources), not a window of its own: no size or place of its own, no close keys
+    // (the screen's are used), shown inside the screen that holds it.
+    static void embedNextWindow();
+    bool isEmbedded() const { return embedded; }
     QWidget * centralWidget;
 
 protected:
@@ -35,6 +39,8 @@ protected:
 private:
     string geometryKey() const;   // one saved size / position per kind of screen
     bool geometryRestored{false};
+    bool embedded{false};
+    static bool embedNext;
     virtual void resizeEventCustom();
     virtual void closeEventCustom();
     Shortcut shortcutClose1;

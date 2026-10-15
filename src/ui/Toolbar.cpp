@@ -39,6 +39,7 @@
 #include "tropical/TropicalViewer.h"
 #include "models/SpcPostViewer.h"
 #include "misc/HelpViewer.h"
+#include "models/ModelScreen.h"
 #include "models/ModelViewer.h"
 #include "nhc/Nhc.h"
 #include "objects/Route.h"
@@ -84,9 +85,9 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_info_black_48dp.png", "Help and further reading: the models, why they matter, where the data comes from", [parent] { new HelpViewer{parent}; });
 
 
-    routeItems.emplace_back("refs.png", "SPC REFS (SPC's ensemble products: probabilities, paintballs, updraft helicity)", [parent] { new SpcRefsViewer{parent}; });
-    routeItems.emplace_back("nsslwrf.png", "NSSL CAMs (experimental convection-allowing models: MPAS, WRF, HRRR, RRFS)", [parent] { new CamsViewer{parent}; });
-    routeItems.emplace_back("tor.png", "SPC Post Slideshow (thunder / severe / lightning probability)", [parent] { new SpcPostViewer{parent}; });
+    routeItems.emplace_back("refs.png", "SPC REFS (SPC's ensemble products: probabilities, paintballs, updraft helicity)", [parent] { new ModelScreen{parent, "SPCREFS"}; });
+    routeItems.emplace_back("nsslwrf.png", "NSSL CAMs (experimental convection-allowing models: MPAS, WRF, HRRR, RRFS)", [parent] { new ModelScreen{parent, "CAMS"}; });
+    routeItems.emplace_back("tor.png", "SPC Post Slideshow (thunder / severe / lightning probability)", [parent] { new ModelScreen{parent, "SPCPOST"}; });
 
     routeItems.emplace_back("spc_sum.png", "SPC Convective Outlook Summary, Ctrl-s", [this] { launchSpcSwoSummary(); });
     for (const int day : {1, 2, 3, 48}) {
@@ -404,11 +405,11 @@ void Toolbar::launchSpcMeso(const string& product) {
 }
 
 void Toolbar::launchModelViewer() {
-    new ModelViewer{parent, "NCEP"};
+    new ModelScreen{parent, "NCEP"};
 }
 
 void Toolbar::launchModelViewerGeneric(const string& modelType) {
-    new ModelViewer{parent, modelType};
+    new ModelScreen{parent, modelType};
 }
 
 void Toolbar::launchNationalImages() {
