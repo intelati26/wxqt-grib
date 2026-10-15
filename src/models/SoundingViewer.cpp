@@ -1441,7 +1441,8 @@ void SoundingViewer::build() {
         const bool already = refined || Utility::readPref("SOUNDING_REFINE", "0") == "1";   // the first column may be fetched before this row exists
         buttonRefine = new QPushButton{already ? "Refined" : "Refine", this};
         buttonRefine->setEnabled(!already);
-        buttonRefine->setToolTip("Fetch every 25 mb level with wind on each (the quick column has 20 levels, wind on 12) and redraw: about 100 MB more for a new hour");
+        buttonRefine->setToolTip("Refine: downloads more data (about 100 MB more for a run/hour not seen before, about 160 MB in all) for every 25 mb level with wind on each, then redraws. "
+                                 "The quick column (about 62 MB) has 20 levels with wind on 12 and the rest interpolated.");
         QObject::connect(buttonRefine, &QPushButton::clicked, this, [this] {
             refined = true;
             buttonRefine->setEnabled(false);
@@ -1449,7 +1450,7 @@ void SoundingViewer::build() {
             start();
         });
         checkRefine = new QCheckBox{"Always", this};
-        checkRefine->setToolTip("Open model soundings refined");
+        checkRefine->setToolTip("Always refine: open every model sounding with the full column (about 160 MB for a new run/hour instead of 62 MB)");
         checkRefine->setChecked(Utility::readPref("SOUNDING_REFINE", "0") == "1");
         QObject::connect(checkRefine, &QCheckBox::toggled, this, [] (bool on) { Utility::writePref("SOUNDING_REFINE", on ? "1" : "0"); });
         rowTop.addWidgetReal(buttonRefine);
