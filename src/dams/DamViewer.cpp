@@ -179,7 +179,7 @@ void DamChart::paintEvent(QPaintEvent *) {
     QFont small = p.font();
     small.setPixelSize(10);
     p.setFont(small);
-    p.drawText(QPointF{left, this->height() - 4.0}, "U.S. Army Corps of Engineers hourly data (CWMS Data API), times in UTC. Provisional: subject to revision.");
+    p.drawText(QPointF{left, this->height() - 4.0}, "Provisional data, subject to revision. Times in UTC. Source: Corps of Engineers CWMS Data API, NWS river gauges, or USGS (see the title).");
 }
 
 DamViewer::DamViewer(Window * parent, const UtilityDams::Project& project)
@@ -192,7 +192,7 @@ DamViewer::DamViewer(Window * parent, const UtilityDams::Project& project)
     setTitle("Dam - " + project.name);
     textStatus.setWordWrap(true);
     textStatus.getView()->setMinimumHeight(56);
-    textStatus.setText(QString::fromStdString(project.name + (project.city.empty() ? "" : "  near " + project.city + ", " + project.state) + "  (Corps of Engineers " + project.office + ")") + "\nLoading...");
+    textStatus.setText(QString::fromStdString(project.name + (project.city.empty() ? "" : "  near " + project.city + ", " + project.state) + "  (" + UtilityDams::sourceLabel(project) + ")") + "\nLoading...");
     chart = new DamChart{this};
     comboRange.setIndex(2);
     comboRange.connect([this] { load(); });
@@ -234,7 +234,7 @@ void DamViewer::load() {
             last(data->inflow, latest.inflow);
             last(data->generation, latest.generation);
             latest.ok = latest.seconds > 0;
-            QString text = QString::fromStdString(project->name + (project->city.empty() ? "" : "  near " + project->city + ", " + project->state) + "  (Corps of Engineers " + project->office + ")") +
+            QString text = QString::fromStdString(project->name + (project->city.empty() ? "" : "  near " + project->city + ", " + project->state) + "  (" + UtilityDams::sourceLabel(*project) + ")") +
                 "\n" + summary(latest);
             // statistics over the span shown
             const auto stats = [&] (const UtilityDams::Series& s) {

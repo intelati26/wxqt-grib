@@ -1,0 +1,170 @@
+NWS	TYLA1	Alabama River at Henry Lock and Dam	32.32222	-86.78389		AL	TYLA1		TYLA1#flow			
+NWS	CLBA1	Alabama River near Claiborne Dam	31.61333	-87.55056		AL	CLBA1		CLBA1#flow			
+NWS	ACMP1	Allegheny River at C.W. Bill Young Lock and Dam	40.53611	-79.81500		PA	ACMP1		ACMP1#flow			
+NWS	CLNP1	Allegheny River at Clinton Lock and Dam	40.71667	-79.58111		PA	CLNP1		CLNP1#flow			
+NWS	FREP1	Allegheny River at Freeport Lock and Dam	40.68472	-79.66750		PA	FREP1		FREP1#flow			
+NWS	KIZP1	Allegheny River at Kinzua Dam Outflow	41.84139	-79.01222		PA	KIZP1		KIZP1#flow			
+NWS	KTTP1	Allegheny River at Kittanning Lock and Dam	40.82028	-79.53167		PA	KTTP1		KTTP1#flow			
+NWS	MOSP1	Allegheny River at Mosgrove Lock and Dam	40.89444	-79.47639		PA	MOSP1		MOSP1#flow			
+NWS	NATP1	Allegheny River at Natrona Lock and Dam	40.61528	-79.71861		PA	NATP1		NATP1#flow			
+NWS	RMRP1	Allegheny River at Rimer Lock and Dam	40.95833	-79.54722		PA	RMRP1		RMRP1#flow			
+NWS	SHRP1	Allegheny River at Sharpsburg Lock and Dam	40.48750	-79.91528		PA	SHRP1		SHRP1#flow			
+NWS	WDRF1	Apalachicola River at Woodruff Dam (in NGVD29)	30.70806	-84.86556		FL	WDRF1		WDRF1#flow			
+NWS	CDMC2	Arkansas River at Catlin Dam	38.12584	-103.91190		CO	CDMC2		CDMC2#flow			
+NWS	TODA4	Arkansas River at Toad Suck Lock and Dam	35.07722	-92.53972		AR	TODA4		TODA4#flow			
+NWS	BLDA1	Black Warrior River at Bankhead Lock and Dam	33.45694	-87.35500		AL	BLDA1		BLDA1#flow			
+NWS	TCLA1	Black Warrior River at Holt Lock and Dam	33.25278	-87.45139		AL	TCLA1		TCLA1#flow			
+NWS	TODA1	Black Warrior River at Oliver Lock and Dam	33.20917	-87.59639		AL	TODA1		TODA1#flow			
+NWS	ARKA1	Black Warrior River at Smith Dam	33.94222	-87.10778		AL	ARKA1		ARKA1#flow			
+NWS	WLDA1	Black Warrior River below Selden Dam	32.77722	-87.84139		AL	WLDA1		WLDA1#flow			
+NWS	MOHA3	Colorado River at Lake Mohave/Davis Dam	35.19722	-114.56861		AZ	MOHA3		MOHA3#flow			
+NWS	BHDA3	Colorado River below Hoover Dam	36.01528	-114.73780		AZ	BHDA3		BHDA3#flow			
+NWS	GCDW1	Columbia River above Grand Coulee Dam	47.95556	-118.98389		WA	GCDW1		GCDW1#flow			
+NWS	BONO3	Columbia River at Bonneville Dam	45.63308	-121.96073		OR	BONO3		BONO3#flow			
+NWS	CHJW1	Columbia River at Chief Joseph Dam	47.99611	-119.63250		WA	CHJW1		CHJW1#flow			
+NWS	RISW1	Columbia River at Rock Island Dam	47.33250	-120.08000		WA	RISW1		RISW1#flow			
+NWS	RRHW1	Columbia River at Rocky Reach Dam	47.53028	-120.29694		WA	RRHW1		RRHW1#flow			
+NWS	TDAO3	Columbia River at The Dalles Dam	45.60828	-121.18992		OR	TDAO3		TDAO3#flow			
+NWS	WANW1	Columbia River at Wanapum Dam	46.87333	-119.97083		WA	WANW1		WANW1#flow			
+NWS	WELW1	Columbia River at Wells Dam	47.95000	-119.86667		WA	WELW1		WELW1#flow			
+NWS	PRDW1	Columbia River below Priest Rapids Dam	46.62874	-119.86470		WA	PRDW1		PRDW1#flow			
+NWS	OHHT1	Cumberland River above Old Hickory Dam	36.26410	-86.63912		TN	OHHT1		OHHT1#flow			
+NWS	BAHK2	Cumberland River at Barkley Lake Pool	37.01694	-88.22361		KY	BAHK2		BAHK2#flow			
+NWS	CHET1	Cumberland River at Cheatham Lock and Dam	36.32444	-87.22444		TN	CHET1		CHET1#flow			
+NWS	OHIT1	Cumberland River at Old Hickory Dam	36.29667	-86.65833		TN	OHIT1		OHIT1#flow			
+NWS	CALK2	Green River (KY) at Calhoun Lock and Dam	37.53389	-87.26389		KY	CALK2		CALK2#flow			
+NWS	EFLN7	Green River (NC) at Lake Summit Dam	35.23358	-82.39940		NC	EFLN7		EFLN7#flow			
+NWS	HAHW1	Green River (WA) below Howard Hanson Dam	47.28389	-121.79667		WA	HAHW1		HAHW1#flow			
+NWS	GBFW4	Green River (WY-UT-CO) below Fontenelle Dam	42.02097	-110.04981		WY	GBFW4		GBFW4#flow			
+NWS	CDII2	Illinois River at Dresden Lock (tailwater)	41.39806	-88.27917		IL	CDII2		CDII2#flow			
+NWS	NLGI2	Illinois River at LaGrange Lock and Dam	39.93952	-90.53527		IL	NLGI2		NLGI2#flow			
+NWS	MMOI2	Illinois River at Marseilles Lock (tailwater)	41.32841	-88.75514		IL	MMOI2		MMOI2#flow			
+NWS	PRAI2	Illinois River at Peoria Lock and Dam	40.63058	-89.62593		IL	PRAI2		PRAI2#flow			
+NWS	SRDI2	Illinois River at Starved Rock Lock (tailwater)	41.32506	-88.98742		IL	SRDI2		SRDI2#flow			
+NWS	CRVI4	Iowa River above Coralville Dam	41.72474	-91.52795		IA	CRVI4		CRVI4#flow			
+NWS	CHLW2	Kanawha River at Charleston Old Lock 6	38.37139	-81.70278		WV	CHLW2		CHLW2#flow			
+NWS	CRRK2	Kentucky River above Kentucky Lock 1 at Carrollton	38.65870	-85.14479		KY	CRRK2		CRRK2#flow			
+NWS	FODK2	Kentucky River at Ford Lock	37.89397	-84.26049		KY	FODK2		FODK2#flow			
+NWS	FFTK2	Kentucky River at Frankfort Lock	38.21133	-84.87411		KY	FFTK2		FFTK2#flow			
+NWS	HIBK2	Kentucky River at High Bridge Lock	37.82924	-84.72383		KY	HIBK2		HIBK2#flow			
+NWS	CHLK2	Kentucky River at Lock 11 near College Hill	37.78389	-84.10333		KY	CHLK2		CHLK2#flow			
+NWS	WLWK2	Kentucky River at Lock 13 near Willow	37.60194	-83.83306		KY	WLWK2		WLWK2#flow			
+NWS	LQRM5	Minnesota River at Lac Qui Parle Dam Tail (S of hwy 13)	45.02139	-95.86806		MN	LQRM5		LQRM5#flow			
+NWS	MLDM5	Minnesota River below Marsh Lake Dam (Tailwater)	45.17118	-96.09373		MN	MLDM5		MLDM5#flow			
+NWS	ODAM5	Minnesota River near Odessa Hwy 75 Dam (Tailwater)	45.24889	-96.29750		MN	ODAM5		ODAM5#flow			
+NWS	HSTM5	Mississippi River Below Lock and Dam 2 - Hastings	44.75694	-92.86611		MN	HSTM5		HSTM5#flow			
+NWS	WPNI4	Mississippi River above Waupeton (Pool 11)	42.66907	-90.88165		IA	WPNI4		WPNI4#flow			
+NWS	ALAL1	Mississippi River at Algiers Lock	29.91611	-89.97111		LA	ALAL1		ALAL1#flow			
+NWS	AMAW3	Mississippi River at Alma - Pool 5	44.28420	-91.92670		WI	AMAW3		AMAW3#flow			
+NWS	CANM7	Mississippi River at Canton Lock and Dam 20	40.14240	-91.51503		MO	CANM7		CANM7#flow			
+NWS	CLKM7	Mississippi River at Clarksville Lock and Dam 24	39.37333	-90.90472		MO	CLKM7		CLKM7#flow			
+NWS	HLHL1	Mississippi River at Harvey Lock	29.90861	-90.08389		LA	HLHL1		HLHL1#flow			
+NWS	IHML1	Mississippi River at Inner Harbor Navigational Canal Lock	29.96444	-90.02750		LA	IHML1		IHML1#flow			
+NWS	LACW3	Mississippi River at La Crosse - Pool 8	43.81360	-91.25890		WI	LACW3		LACW3#flow			
+NWS	LNSI4	Mississippi River at Lansing - Pool 9	43.36030	-91.21310		IA	LNSI4		LNSI4#flow			
+NWS	ALNI2	Mississippi River at Mel Price (Alton) Lock and Dam	38.86639	-90.14639		IL	ALNI2		ALNI2#flow			
+NWS	PREW3	Mississippi River at Prescott - Pool 3	44.74583	-92.80000		WI	PREW3		PREW3#flow			
+NWS	QLDI2	Mississippi River at Quincy Lock and Dam 21	39.90225	-91.43030		IL	QLDI2		QLDI2#flow			
+NWS	SVRM7	Mississippi River at Saverton Lock and Dam 22	39.63457	-91.24820		MO	SVRM7		SVRM7#flow			
+NWS	SSPM5	Mississippi River at South St. Paul - Pool 2	44.89550	-93.02960		MN	SSPM5		SSPM5#flow			
+NWS	WABM5	Mississippi River at Wabasha - Pool 4	44.38720	-92.03690		MN	WABM5		WABM5#flow			
+NWS	CAGM7	Mississippi River at Winfield Lock and Dam 25	39.00083	-90.68750		MO	CAGM7		CAGM7#flow			
+NWS	WNAM5	Mississippi River at Winona - Pool 6	44.05560	-91.63750		MN	WNAM5		WNAM5#flow			
+NWS	GTTI4	Mississippi River below Lock and Dam 10 - Guttenberg	42.78400	-91.09480		IA	GTTI4		GTTI4#flow			
+NWS	RDWM5	Mississippi River below Lock and Dam 3 - Red Wing	44.61030	-92.61030		MN	RDWM5		RDWM5#flow			
+NWS	ALMW3	Mississippi River below Lock and Dam 4 - Alma	44.32400	-91.91850		WI	ALMW3		ALMW3#flow			
+NWS	MSCM5	Mississippi River below Lock and Dam 5 - Minnesota City	44.15950	-91.81000		MN	MSCM5		MSCM5#flow			
+NWS	WIDM5	Mississippi River below Lock and Dam 5a - Winona	44.08650	-91.66850		MN	WIDM5		WIDM5#flow			
+NWS	TREW3	Mississippi River below Lock and Dam 6 - Trempealeau	43.99860	-91.43570		WI	TREW3		TREW3#flow			
+NWS	LCRM5	Mississippi River below Lock and Dam 7 - La Crescent	43.86460	-91.30780		MN	LCRM5		LCRM5#flow			
+NWS	GENW3	Mississippi River below Lock and Dam 8 - Genoa	43.56880	-91.23040		WI	GENW3		GENW3#flow			
+NWS	LYNW3	Mississippi River below Lock and Dam 9 - Lynxville	43.21060	-91.10100		WI	LYNW3		LYNW3#flow			
+NWS	BBDS2	Missouri River at Big Bend Dam	44.03833	-99.44583		SD	BBDS2		BBDS2#flow			
+NWS	FRDS2	Missouri River at Fort Randall Dam	43.06806	-98.55417		SD	FRDS2		FRDS2#flow			
+NWS	GPDN1	Missouri River at Gavins Point Dam	42.84889	-97.48167		NE	GPDN1		GPDN1#flow			
+NWS	PIES2	Missouri River at Oahe Dam	44.45833	-100.39028		SD	PIES2		PIES2#flow			
+NWS	GARN8	Missouri River at the Garrison Dam	47.50278	-101.43056		ND	GARN8		GARN8#flow			
+NWS	HASM8	Missouri River below Hauser Dam near Helena	46.76611	-111.88889		MT	HASM8		HASM8#flow			
+NWS	HTRM8	Missouri River below Holter Dam near Wolf Creek	46.99472	-112.01028		MT	HTRM8		HTRM8#flow			
+NWS	BDDP1	Monongahela River at Braddock Lock and Dam	40.39250	-79.86028		PA	BDDP1		BDDP1#flow			
+NWS	CHRP1	Monongahela River at Charleroi Lock and Dam	40.14944	-79.90167		PA	CHRP1		CHRP1#flow			
+NWS	ELZP1	Monongahela River at Elizabeth Lock and Dam	40.26222	-79.90139		PA	ELZP1		ELZP1#flow			
+NWS	GYLP1	Monongahela River at Grays Landing Lock and Dam	39.82500	-79.92306		PA	GYLP1		GYLP1#flow			
+NWS	MGTW2	Monongahela River at Hilderbrand Lock and Dam	39.58167	-80.01083		WV	MGTW2		MGTW2#flow			
+NWS	MAXP1	Monongahela River at Maxwell Lock and Dam (lower pool)	40.00167	-79.96111		PA	MAXP1		MAXP1#flow			
+NWS	MORW2	Monongahela River at Morgantown Lock and Dam	39.62000	-79.96917		WV	MORW2		MORW2#flow			
+NWS	OKKW2	Monongahela River at Opekiska Lock and Dam	39.56444	-80.05083		WV	OKKW2		OKKW2#flow			
+NWS	PMRP1	Monongahela River at Point Marion Lock and Dam (lower pool)	39.72697	-79.91143		PA	PMRP1		PMRP1#flow			
+NWS	EMXP1	Ohio River above Emsworth L/d  Pool	40.50528	-80.08972		PA	EMXP1		EMXP1#flow			
+NWS	BEVW2	Ohio River at Belleville Lock	39.11902	-81.73787		WV	BEVW2		BEVW2#flow			
+NWS	CNNI3	Ohio River at Cannelton Lock and Dam	37.89950	-86.70554		IN	CNNI3		CNNI3#flow			
+NWS	DSHP1	Ohio River at Dashields Lock and Dam	40.54917	-80.20583		PA	DSHP1		DSHP1#flow			
+NWS	ELVO1	Ohio River at East Liverpool	40.62028	-80.56333		OH	ELVO1		ELVO1#flow			
+NWS	HANO1	Ohio River at Hannibal Lock and Dam	39.66722	-80.86611		OH	HANO1		HANO1#flow			
+NWS	UNWK2	Ohio River at J.T. Myers Lock and Dam	37.78333	-87.97944		IN	UNWK2		UNWK2#flow			
+NWS	GNUK2	Ohio River at Lloyd Greenup Lock	38.64667	-82.86056		KY	GNUK2		GNUK2#flow			
+NWS	MELO1	Ohio River at Meldahl Dam	38.79711	-84.17114		OH	MELO1		MELO1#flow			
+NWS	MGYP1	Ohio River at Montgomery Lock and Dam	40.64722	-80.38889		PA	MGYP1		MGYP1#flow			
+NWS	NCUW2	Ohio River at New Cumberland Lock and Dam	40.52806	-80.62583		OH	NCUW2		NCUW2#flow			
+NWS	NBGI3	Ohio River at Newburgh Lock and Dam	37.92833	-87.37500		IN	NBGI3		NBGI3#flow			
+NWS	OLMI2	Ohio River at Olmsted Lock and Dam Headwater	37.17917	-89.05833		IL	OLMI2		OLMI2#flow			
+NWS	OLTI2	Ohio River at Olmsted Lock and Dam Tailwater	37.17861	-89.07000		IL	OLTI2		OLTI2#flow			
+NWS	WHLW2	Ohio River at Pike Island Lock and Dam	40.14972	-80.70167		WV	WHLW2		WHLW2#flow			
+NWS	GALW2	Ohio River at R C Byrd Lock	38.68028	-82.18750		WV	GALW2		GALW2#flow			
+NWS	RACW2	Ohio River at Racine Lock	38.91667	-81.91222		WV	RACW2		RACW2#flow			
+NWS	SMLI2	Ohio River at Smithland Lock and Dam	37.15833	-88.42611		IL	SMLI2		SMLI2#flow			
+NWS	RNOO1	Ohio River at Willow Island Lock	39.36028	-81.32083		OH	RNOO1		RNOO1#flow			
+NWS	LKSM7	Osage River at Bagnell Dam	38.20250	-92.62639		MO	LKSM7		LKSM7#flow			
+NWS	TKZM7	Osage River at Truman Dam	38.25667	-93.39528		MO	TKZM7		TKZM7#flow			
+NWS	BMDA4	Ouachita River at Blakely Mtn Dam	34.57222	-93.19722		AR	BMDA4		BMDA4#flow			
+NWS	COLL1	Ouachita River at Columbia Lock and Dam	32.16680	-92.11260		LA	COLL1		COLL1#flow			
+NWS	FELA4	Ouachita River at Felsenthal Lock and Dam	33.03207	-92.08764		AR	FELA4		FELA4#flow			
+NWS	RDTA4	Ouachita River at Remmel Dam above Jones Mill	34.42611	-92.89083		AR	RDTA4		RDTA4#flow			
+NWS	CALA4	Ouachita River at Thatcher L&D	33.31111	-92.48500		AR	CALA4		CALA4#flow			
+NWS	RRAL1	Red River above Red River Lock 1	31.25145	-91.95977		LA	RRAL1		RRAL1#flow			
+NWS	RRBL1	Red River above Red River Lock 2	31.18842	-92.29498		LA	RRBL1		RRBL1#flow			
+NWS	RFDI2	Rock River at Rockford (Fordam Dam)	42.26653	-89.09603		IL	RFDI2		RFDI2#flow			
+NWS	HRTG1	Savannah River at Hartwell Dam	34.35730	-82.82240		GA	HRTG1		HRTG1#flow			
+NWS	LGSW1	Snake River (WA) at Little Goose Dam	46.58300	-118.03270		WA	LGSW1		LGSW1#flow			
+NWS	BRNI1	Snake River at Brownlee Dam	44.83633	-116.89859		ID	BRNI1		BRNI1#flow			
+NWS	METN1	Snake River at Merritt Dam	42.63500	-100.87167		NE	METN1		METN1#flow			
+NWS	BBDI1	Snake River below Bliss Dam near Bliss	42.91417	-115.09333		ID	BBDI1		BBDI1#flow			
+NWS	JLKW4	Snake River below Jackson Dam	43.85832	-110.58580		WY	JLKW4		JLKW4#flow			
+NWS	MDMI1	Snake River below Minidoka Dam (at Howells Ferry)	42.67289	-113.50034		ID	MDMI1		MDMI1#flow			
+NWS	FLDT1	Tennessee River above Ft. Loudoun Dam (Lenoir City 1E)	35.79056	-84.24000		TN	FLDT1		FLDT1#flow			
+NWS	GVHA1	Tennessee River above Guntersville Dam Headwater/Pool Elevation	34.42170	-86.39270		AL	GVHA1		GVHA1#flow			
+NWS	NKJT1	Tennessee River above Nickajack Dam (Jasper 5S)	34.99917	-85.61917		TN	NKJT1		NKJT1#flow			
+NWS	WBOT1	Tennessee River above Watts Bar Dam	35.62556	-84.77889		TN	WBOT1		WBOT1#flow			
+NWS	CKDT1	Tennessee River at Chickamauga Dam	35.10250	-85.22817		TN	CKDT1		CKDT1#flow			
+NWS	KYDK2	Tennessee River at Kentucky Lake Pool	37.01361	-88.26833		KY	KYDK2		KYDK2#flow			
+NWS	KYTK2	Tennessee River at Kentucky Lake Tailwater	37.01780	-88.27000		KY	KYTK2		KYTK2#flow			
+NWS	PICT1	Tennessee River at Pickwick Dam Tailwater	35.07056	-88.25056		TN	PICT1		PICT1#flow			
+NWS	FDTT1	Tennessee River below Ft. Loudoun Dam (Lenoir City 1E)	35.78750	-84.24972		TN	FDTT1		FDTT1#flow			
+NWS	NKTT1	Tennessee River below Nickajack Dam (Jasper 5S)	35.00861	-85.62722		TN	NKTT1		NKTT1#flow			
+NWS	WBTT1	Tennessee River below Watts Bar Dam	35.60889	-84.77806		TN	WBTT1		WBTT1#flow			
+NWS	ABEM6	Tombigbee River at Aberdeen Lock and Dam	33.82940	-88.54020		MS	ABEM6		ABEM6#flow			
+NWS	AVLA1	Tombigbee River at Bevill Lock and Dam	33.21028	-88.28861		AL	AVLA1		AVLA1#flow			
+NWS	DLDA1	Tombigbee River at Demopolis Lock and Dam	32.52083	-87.88000		AL	DLDA1		DLDA1#flow			
+NWS	GNSA1	Tombigbee River at Gainesville Lock and Dam	32.85222	-88.15417		AL	GNSA1		GNSA1#flow			
+NWS	CBUM6	Tombigbee River at Stennis Lock and Dam	33.51750	-88.48940		MS	CBUM6		CBUM6#flow			
+NWS	CLDA1	Tombigbee River near Coffeeville Dam	31.75833	-88.12917		AL	CLDA1		CLDA1#flow			
+NWS	BBDI3	White River (IN) below Broad Ripple Dam	39.87417	-86.14083		IN	BBDI3		BBDI3#flow			
+NWS	PSZM7	White River (MO) at Ozark Beach Dam	36.65972	-93.12583		MO	PSZM7		PSZM7#flow			
+NWS	MMRW1	White River at Mud Mtn. Dam - Outflow	47.14083	-121.93000		WA	MMRW1		MMRW1#flow			
+NWS	NOGA4	White River at Norrell Lock and Dam	34.02094	-91.18567		AR	NOGA4		NOGA4#flow			
+NWS	MMDW1	White River below Mud Mountain Dam	47.15139	-121.94861		WA	MMDW1		MMDW1#flow			
+NWS	OTTW3	Wisconsin River above Otter Rapids Dam	45.90361	-89.31972		WI	OTTW3		OTTW3#flow			
+NWS	CROW3	Wisconsin River at Castle Rock Dam	43.86580	-89.95470		WI	CROW3		CROW3#flow			
+NWS	PETW3	Wisconsin River at Petenwell Dam	44.05750	-90.02090		WI	PETW3		PETW3#flow			
+NWS	ALXW3	Wisconsin River below Alexander Dam	45.18806	-89.75500		WI	ALXW3		ALXW3#flow			
+NWS	BIRW3	Wisconsin River below Biron Dam	44.43361	-89.78194		WI	BIRW3		BIRW3#flow			
+NWS	WRMW3	Wisconsin River below Castle Rock Dam near Mauston	43.85610	-89.94900		WI	WRMW3		WRMW3#flow			
+NWS	DUBW3	Wisconsin River below Dubay Dam	44.66500	-89.65083		WI	DUBW3		DUBW3#flow			
+NWS	GRFW3	Wisconsin River below Grandfather Dam	45.31306	-89.78389		WI	GRFW3		GRFW3#flow			
+NWS	PDSW3	Wisconsin River below Prairie Du Sac Dam	43.30853	-89.72683		WI	PDSW3		PDSW3#flow			
+NWS	STPW3	Wisconsin River below Stevens Point Dam	44.50306	-89.58389		WI	STPW3		STPW3#flow			
+NWS	TKDW3	Wisconsin River below Tomahawk Dam	45.44167	-89.73056		WI	TKDW3		TKDW3#flow			
+NWS	WUUW3	Wisconsin River below Wausau Dam	44.96028	-89.63444		WI	WUUW3		WUUW3#flow			
+NWS	WTGW3	Wisconsin River below Whiting Dam	44.48639	-89.57528		WI	WTGW3		WTGW3#flow			
+NWS	WDSW3	Wisconsin River below Wisconsin Rapids Dam	44.39472	-89.82333		WI	WDSW3		WDSW3#flow			
+USGS	09379900	Lake Powell at Glen Canyon Dam	36.93730	-111.48400	Page	AZ	09379900:62614		09380000:00060			

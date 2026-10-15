@@ -188,7 +188,7 @@ QWidget * GaugeLayer::options(QWidget * parent, const std::function<void()>& cha
 // ---- dams ----
 
 string DamLayer::summary() const {
-    return loading && !dams ? "reading the dams..." : dams ? std::to_string(dams->size()) + " Corps dams" : string{};
+    return loading && !dams ? "reading the dams..." : dams ? std::to_string(dams->size()) + " dams and reservoirs" : string{};
 }
 
 void DamLayer::refresh(MapHost& host) {
@@ -243,7 +243,7 @@ MapHit DamLayer::pick(const QPointF& pixels, MapHost& host) const {
         const double distance = std::hypot(at.x() - pixels.x(), at.y() - pixels.y());
         if (distance < hit.distance) {
             hit.distance = distance;
-            hit.text = QString::fromStdString(d.project->name + "  (Corps of Engineers)") + "\n" + DamViewer::summary(d).replace(";  ", "\n");
+            hit.text = QString::fromStdString(d.project->name + "  (" + UtilityDams::sourceLabel(*d.project) + ")") + "\n" + DamViewer::summary(d).replace(";  ", "\n");
             const auto * project = d.project;
             hit.open = [project] (Window * parent) { new DamViewer{parent, *project}; };
         }
@@ -252,7 +252,7 @@ MapHit DamLayer::pick(const QPointF& pixels, MapHost& host) const {
 }
 
 vector<MapLegendRow> DamLayer::legend() const {
-    return {MapLegendRow{"Dams:", {{MapLegendEntry::Diamond, QColor{255, 150, 20}, "generating"}, {MapLegendEntry::Diamond, QColor{50, 130, 235}, "releasing"},
+    return {MapLegendRow{"Dams:", {{MapLegendEntry::Diamond, QColor{255, 150, 20}, "generating"}, {MapLegendEntry::Diamond, QColor{50, 130, 235}, "reporting (releasing or pool)"},
                                    {MapLegendEntry::Diamond, QColor{130, 130, 140}, "no recent data"}}}};
 }
 
