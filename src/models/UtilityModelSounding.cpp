@@ -12,6 +12,7 @@
 #include <QFileInfo>
 #include <QProcess>
 #include "models/UtilityGrib.h"
+#include "sounding/SoundingThermo.h"
 #include "util/To.h"
 
 namespace {
@@ -25,7 +26,8 @@ namespace {
     const vector<int>& levels() {
         static const vector<int> list = [] {
             vector<int> out;
-            for (int mb = 1000; mb >= 100; mb -= 25) {
+            // 25 mb steps through the lower atmosphere, 50 mb above 600 (each level is four 1-1.5 MB records of the whole grid)
+            for (int mb = 1000; mb >= 100; mb -= mb > 600 ? 25 : 50) {
                 out.push_back(mb);
             }
             return out;
@@ -72,7 +74,9 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
     for (const auto& [key, match] : surface) {
         wanted.push_back(field(key, match, "2dfld"));
     }
-    const vector<std::pair<string, string>> variables = {{"t", "TMP"}, {"td", "DPT"}, {"z", "HGT"}, {"u", "UGRD"}, {"v", "VGRD"}};
+    // temperature, relative humidity and wind only: the dewpoint field (DPT) is three times the size of RH and the height field (HGT) is
+    // as big again, and both follow from these (Td from T and RH; height by integrating the hydrostatic equation up from the surface)
+    const vector<std::pair<string, string>> variables = {{"t", "TMP"}, {"rh", "RH"}, {"u", "UGRD"}, {"v", "VGRD"}};
     for (const int mb : levels()) {
         for (const auto& [name, grib] : variables) {
             wanted.push_back(field(levelKey(name, mb), ":" + grib + ":" + To::string(mb) + " mb:", "prslev"));
@@ -190,7 +194,7 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
         value[order[record]] = count > 0 ? sum / count : -9999.0;
     }
     for (const auto& [key, v] : value) {
-        if (v < -9000.0 && key.rfind("snd_t_", 0) != 0 && key.rfind("snd_td_", 0) != 0 && key.rfind("snd_z_", 0) != 0 &&
+        if (v < -9000.0 && key.rfind("snd_t_", 0) != 0 && key.rfind("snd_rh_", 0) != 0 &&
             key.rfind("snd_u_", 0) != 0 && key.rfind("snd_v_", 0) != 0) {
             status = "Model sounding: no model data at " + To::string(lat) + ", " + To::string(lon) + " (outside the domain?)";
             return false;
@@ -213,15 +217,26 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
         profile.wspd.push_back(speed);
     };
     add(psfc, value["snd_zsfc"], toCelsius(value["snd_t2"]), toCelsius(value["snd_td2"]), value["snd_u10"], value["snd_v10"]);
+    // height by the hypsometric equation from the surface up, in the virtual temperature of each layer (a few metres against the model's own height field)
+    double lastP = psfc, lastZ = value["snd_zsfc"], lastTv = SoundingThermo::virtualTemp(psfc, toCelsius(value["snd_t2"]), toCelsius(value["snd_td2"]));
     for (const int mb : usableLevels) {
         if (mb >= psfc - 1.0) {
             continue;   // at or under the ground
         }
-        const double t = value[levelKey("t", mb)], td = value[levelKey("td", mb)], z = value[levelKey("z", mb)];
-        if (t < -9000.0 || td < -9000.0 || z < -9000.0) {
+        const double t = value[levelKey("t", mb)], rh = value[levelKey("rh", mb)];
+        if (t < -9000.0 || rh < -9000.0) {
             continue;
         }
-        add(mb, z, toCelsius(t), toCelsius(td), value[levelKey("u", mb)], value[levelKey("v", mb)]);
+        const double tC = toCelsius(t);
+        const double e = std::max(0.01, std::min(100.0, rh)) / 100.0 * SoundingThermo::vaporPressure(tC);   // mb
+        const double ln = std::log(e / 6.112);
+        const double td = std::min(tC, 243.5 * ln / (17.67 - ln));   // Bolton's inverse of the saturation vapor pressure
+        const double tv = SoundingThermo::virtualTemp(mb, tC, td);
+        const double z = lastZ + 287.05 / 9.80665 * (0.5 * (lastTv + tv) + kelvin) * std::log(lastP / mb);
+        lastP = mb;
+        lastZ = z;
+        lastTv = tv;
+        add(mb, z, tC, td, value[levelKey("u", mb)], value[levelKey("v", mb)]);
     }
     if (profile.pres.size() < 8) {
         status = "Model sounding: too few valid levels at this point";
