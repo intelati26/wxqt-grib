@@ -55,6 +55,87 @@ void DamChart::setData(const std::shared_ptr<DamData::Data>& newData, int newHou
     update();
 }
 
+// the pointer over the strips: a line through them at its time, a dot on each line at the nearest reading, and a box with the time and the exact numbers
+void DamChart::paintPointer(QPainter& p) {
+    if (!pointerInside || drawn.empty() || drawnNewest == 0) {
+        return;
+    }
+    const auto& first = drawn.front();
+    if (pointer.x() < first.plot.left() || pointer.x() > first.plot.right()) {
+        return;
+    }
+    const double x = std::clamp((pointer.x() - first.plot.left()) / first.plot.width(), 0.0, 1.0);
+    const double wantedTime = static_cast<double>(drawnNewest) - (1.0 - x) * drawnSpan * 3600.0;
+    QStringList rows;
+    const double lineBottom = drawn.back().plot.bottom();
+    p.save();
+    p.setPen(QPen{QColor{60, 60, 60, 170}, 1.0, Qt::DashLine});
+    p.drawLine(QPointF{pointer.x(), first.plot.top()}, QPointF{pointer.x(), lineBottom});
+    long shownTime = 0;
+    for (const auto& strip : drawn) {
+        for (const auto& line : strip.lines) {
+            const UtilityDams::Point * best = nullptr;
+            double bestGap = 1e18;
+            for (const auto& pt : line.series->points) {
+                const double gap = std::abs(static_cast<double>(pt.seconds) - wantedTime);
+                if (gap < bestGap) {
+                    bestGap = gap;
+                    best = &pt;
+                }
+            }
+            // a reading further than a day and a half from the pointer is another day's, not this one's
+            if (best == nullptr || bestGap > 36.0 * 3600.0) {
+                continue;
+            }
+            shownTime = shownTime == 0 ? best->seconds : shownTime;
+            const double age = static_cast<double>(drawnNewest - best->seconds) / 3600.0;
+            const double fx = strip.plot.left() + (1.0 - age / drawnSpan) * strip.plot.width();
+            const double fy = strip.plot.bottom() - (best->value - strip.bottom) / std::max(1e-9, strip.top - strip.bottom) * strip.plot.height();
+            p.setPen(QPen{Qt::white, 1.0});
+            p.setBrush(line.color);
+            p.drawEllipse(QPointF{fx, std::clamp(fy, strip.plot.top(), strip.plot.bottom())}, 4.0, 4.0);
+            rows << line.name + ": " + QString::number(best->value, 'f', strip.unit == "ft" ? 2 : strip.unit == "MWh" ? 1 : 0) + " " + strip.unit;
+        }
+    }
+    if (!rows.isEmpty()) {
+        const QString head = QString::fromStdString(UtilityHdob::timeText(shownTime));
+        QFont font = p.font();
+        font.setPixelSize(12);
+        p.setFont(font);
+        const QFontMetricsF metrics{font};
+        double width = metrics.horizontalAdvance(head);
+        for (const auto& row : rows) {
+            width = std::max(width, metrics.horizontalAdvance(row));
+        }
+        const double height = (rows.size() + 1) * 16.0 + 8.0;
+        double bx = pointer.x() + 14.0;
+        if (bx + width + 12.0 > this->width()) {
+            bx = pointer.x() - width - 26.0;
+        }
+        const double by = std::clamp(pointer.y() - height / 2.0, 4.0, this->height() - height - 4.0);
+        p.setPen(QPen{QColor{40, 40, 40}, 1.0});
+        p.setBrush(QColor{255, 255, 235, 240});
+        p.drawRoundedRect(QRectF{bx, by, width + 12.0, height}, 4, 4);
+        p.setPen(QColor{20, 20, 20});
+        p.drawText(QPointF{bx + 6.0, by + 16.0}, head);
+        for (int i = 0; i < rows.size(); i++) {
+            p.drawText(QPointF{bx + 6.0, by + 16.0 + (i + 1) * 16.0}, rows[i]);
+        }
+    }
+    p.restore();
+}
+
+void DamChart::mouseMoveEvent(QMouseEvent * event) {
+    pointer = event->position();
+    pointerInside = true;
+    update();
+}
+
+void DamChart::leaveEvent(QEvent *) {
+    pointerInside = false;
+    update();
+}
+
 void DamChart::paintEvent(QPaintEvent *) {
     ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
@@ -76,11 +157,15 @@ void DamChart::paintEvent(QPaintEvent *) {
         return;
     }
     const double span = hours;
+    drawn.clear();
+    drawnNewest = newest;
+    drawnSpan = span;
     struct Line {
         const Series * series;
         QColor color;
         double width;
         bool filled;   // bars from zero (the generation)
+        const char * name;
     };
     struct Strip {
         QString title;
@@ -91,19 +176,19 @@ void DamChart::paintEvent(QPaintEvent *) {
     };
     vector<Strip> strips;
     if (!data->pool.points.empty()) {
-        strips.push_back({"Pool elevation", "ft", {{&data->pool, QColor{20, 90, 180}, 2.0, false}}, -1e9, false});
+        strips.push_back({"Pool elevation", "ft", {{&data->pool, QColor{20, 90, 180}, 2.0, false, "Pool"}}, -1e9, false});
     }
     if (!data->outflow.points.empty() || !data->power.points.empty()) {
-        strips.push_back({"Release (blue) and flow through the turbines (orange)", "cfs", {{&data->outflow, QColor{20, 90, 180}, 2.2, false}, {&data->power, QColor{230, 120, 20}, 1.6, false}}, 0.0, true});
+        strips.push_back({"Release (blue) and flow through the turbines (orange)", "cfs", {{&data->outflow, QColor{20, 90, 180}, 2.2, false, "Release"}, {&data->power, QColor{230, 120, 20}, 1.6, false, "Through the turbines"}}, 0.0, true});
     }
     if (!data->generation.points.empty()) {
-        strips.push_back({"Power generated each hour", "MWh", {{&data->generation, QColor{200, 150, 20}, 2.0, true}}, 0.0, true});
+        strips.push_back({"Power generated each hour", "MWh", {{&data->generation, QColor{200, 150, 20}, 2.0, true, "Generated"}}, 0.0, true});
     }
     if (!data->inflow.points.empty()) {
-        strips.push_back({"Inflow to the lake", "cfs", {{&data->inflow, QColor{40, 150, 90}, 2.0, false}}, 0.0, true});
+        strips.push_back({"Inflow to the lake", "cfs", {{&data->inflow, QColor{40, 150, 90}, 2.0, false, "Inflow"}}, 0.0, true});
     }
     if (!data->tailwater.points.empty()) {
-        strips.push_back({"Tailwater elevation", "ft", {{&data->tailwater, QColor{110, 60, 160}, 2.0, false}}, -1e9, false});
+        strips.push_back({"Tailwater elevation", "ft", {{&data->tailwater, QColor{110, 60, 160}, 2.0, false, "Tailwater"}}, -1e9, false});
     }
     const double left = 62.0;
     const double width = this->width() - left - 14.0;
@@ -154,6 +239,18 @@ void DamChart::paintEvent(QPaintEvent *) {
         const ChartKit::Axes a{QRectF{left, 22.0 + static_cast<double>(index) * (each + gap), width, each}, 0.0, span, bottom, top};
         // the times go under the bottom strip only; a decimal on the scale when the step is smaller than one
         const bool last = index + 1 == strips.size();
+        {   // kept for the pointer: where this strip is and what it draws
+            Drawn d;
+            d.plot = QRectF{left, 22.0 + static_cast<double>(index) * (each + gap), width, each};
+            d.title = strip.title;
+            d.unit = strip.unit;
+            d.bottom = bottom;
+            d.top = top;
+            for (const auto& line : strip.lines) {
+                d.lines.push_back({line.series, line.color, QString::fromUtf8(line.name)});
+            }
+            drawn.push_back(std::move(d));
+        }
         ChartKit::frame(p, a, strip.title, strip.unit, step, xStep, last ? xLabel : std::function<QString(double)>{[] (double) { return QString{}; }}, step < 1.0 ? 1 : 0);
         for (const auto& line : strip.lines) {
             p.setPen(QPen{line.color, line.width});
@@ -197,6 +294,7 @@ void DamChart::paintEvent(QPaintEvent *) {
             }
         }
     }
+    paintPointer(p);
     p.setPen(QColor{90, 90, 90});
     QFont small = p.font();
     small.setPixelSize(10);

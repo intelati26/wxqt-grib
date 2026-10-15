@@ -89,10 +89,6 @@ private:
     Text textStatus;
     std::unique_ptr<MapView> mapView;
     QLabel * hoverLabel{};
-    QLabel * hoverChart{};                                        // the graph under the hover text, for the layers that have one
-    std::map<string, std::pair<std::time_t, QImage>> chartCache;
-    std::set<string> chartAsked;
-    string hoverKey;
     QWidget * sidePanel{};
     QTreeWidget * tree{};
     QWidget * activeBox{};

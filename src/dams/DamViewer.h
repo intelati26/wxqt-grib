@@ -20,11 +20,30 @@
 // turbines, power generated, inflow, tailwater elevation).
 class DamChart : public QWidget {
 public:
-    explicit DamChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(700, 520); ChartExport::install(this, "Dam history"); }
+    explicit DamChart(QWidget * parent = nullptr) : QWidget{parent} { setMinimumSize(700, 520); setMouseTracking(true); ChartExport::install(this, "Dam history"); }
     void setData(const std::shared_ptr<DamData::Data>& data, int hours);
 
 private:
     void paintEvent(QPaintEvent *) override;
+    void mouseMoveEvent(QMouseEvent *) override;
+    void leaveEvent(QEvent *) override;
+    void paintPointer(QPainter&);
+    struct Drawn {   // one strip as it was drawn: where, its scale and the lines in it
+        struct L {
+            const UtilityDams::Series * series;
+            QColor color;
+            QString name;
+        };
+        QRectF plot;
+        QString title, unit;
+        double bottom{0.0}, top{1.0};
+        std::vector<L> lines;
+    };
+    std::vector<Drawn> drawn;
+    long drawnNewest{0};
+    double drawnSpan{168.0};
+    QPointF pointer;
+    bool pointerInside{false};
     std::shared_ptr<DamData::Data> data;
     int hours{168};
 };

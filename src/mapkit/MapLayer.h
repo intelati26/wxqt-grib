@@ -33,8 +33,6 @@ struct MapHit {
     int priority{0};                               // between layers: the higher is offered first (a dam over the gauge under it)
     QString text;                                  // the hover popup
     std::function<void(Window *)> open;            // a click opens this (empty: nothing to open)
-    std::string chartKey;                          // a graph with the hover: asked for once per key (and kept ten minutes), by `chart`
-    std::function<void(std::function<void(QImage)>)> chart;   // starts reading what the graph needs; calls back with the picture on the main thread
     bool valid() const { return distance <= reach && !text.isEmpty(); }
 };
 

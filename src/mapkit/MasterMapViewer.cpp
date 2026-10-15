@@ -60,7 +60,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     map->dataLayer = [] (QPainter& painter) { painter.fillRect(QRectF{-1.0e6, -1.0e6, 2.0e6, 2.0e6}, QColor{16, 26, 42}); };
     map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintLegend(painter); };
     mapView->onPointer = [this] (const QPointF& at) { showHover(at); };
-    mapView->onLeave = [this] { hoverLabel->hide(); hoverChart->hide(); hoverKey.clear(); };
+    mapView->onLeave = [this] { hoverLabel->hide(); };
     // a click on a mark opens what it has (and does not also zoom the map out)
     map->clickHandler = [this] (const QPointF& at) {
         const auto hit = bestHit(at);
@@ -75,10 +75,6 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
     hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 220); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
     hoverLabel->hide();
-    hoverChart = new QLabel{map};
-    hoverChart->setAttribute(Qt::WA_TransparentForMouseEvents);
-    hoverChart->setStyleSheet("QLabel { background-color: #f5f5f5; border: 1px solid #555; border-radius: 3px; }");
-    hoverChart->hide();
 
     // the side panel: the tree, the options of the layer chosen in it
     sidePanel = new QWidget{this};
@@ -793,8 +789,6 @@ void MasterMapViewer::showHover(const QPointF& pixels) {
     const auto hit = bestHit(pixels);
     if (!hit.valid()) {
         hoverLabel->hide();
-        hoverChart->hide();
-        hoverKey.clear();
         mapView->map()->setCursor(Qt::ArrowCursor);
         return;
     }
@@ -804,38 +798,6 @@ void MasterMapViewer::showHover(const QPointF& pixels) {
     hoverLabel->move(12, 12);
     hoverLabel->show();
     hoverLabel->raise();
-    // the graph, when the layer has one: from the cache, or asked for once (the text is there meanwhile)
-    const auto placeChart = [this] (const QImage& image) {
-        hoverChart->setPixmap(QPixmap::fromImage(image));
-        hoverChart->adjustSize();
-        hoverChart->move(12, 12 + hoverLabel->height() + 4);
-        hoverChart->show();
-        hoverChart->raise();
-    };
-    hoverKey = hit.chartKey;
-    if (hit.chartKey.empty()) {
-        hoverChart->hide();
-        return;
-    }
-    const auto cached = chartCache.find(hit.chartKey);
-    if (cached != chartCache.end() && std::time(nullptr) - cached->second.first < 600) {
-        placeChart(cached->second.second);
-        return;
-    }
-    hoverChart->hide();
-    if (hit.chart && chartAsked.insert(hit.chartKey).second) {
-        const string key = hit.chartKey;
-        hit.chart([this, key, placeChart] (QImage image) {
-            chartAsked.erase(key);
-            if (image.isNull()) {
-                return;
-            }
-            chartCache[key] = {std::time(nullptr), image};
-            if (hoverKey == key && hoverLabel->isVisible()) {
-                placeChart(image);
-            }
-        });
-    }
 }
 
 void MasterMapViewer::resizeEventCustom() {
