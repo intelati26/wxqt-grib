@@ -40,6 +40,7 @@
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "models/ModelViewer.h"
+#include "settings/CacheSummaryViewer.h"
 #include "models/SoundingViewer.h"
 #include "util/Utility.h"
 #include "hurricane/ReconViewer.h"
@@ -164,7 +165,9 @@ int main(int argc, char * argv[]) {
         QWidget * opened = nullptr;
         if (const auto route = qEnvironmentVariable("WXQT_OPEN"); !route.isEmpty()) {
             const auto before = QApplication::topLevelWidgets();
-            if (route.startsWith("master:")) {   // WXQT_OPEN=master:<the start of a view's name>: the master map on that view (the preset the box lists)
+            if (route == "cache") {   // WXQT_OPEN=cache: the summary of what is kept on disk
+                new CacheSummaryViewer{&w};
+            } else if (route.startsWith("master:")) {   // WXQT_OPEN=master:<the start of a view's name>: the master map on that view (the preset the box lists)
                 new MasterMapViewer{&w, route.mid(7).toStdString()};
             } else if (route.startsWith("bufkit:")) {   // WXQT_OPEN=bufkit:KSGF[:RRFS]: a BUFKIT model sounding of that station
                 const auto parts = route.split(':');
