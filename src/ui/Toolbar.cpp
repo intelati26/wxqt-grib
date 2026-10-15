@@ -140,7 +140,12 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     vector<string> seen;
     for (auto& item : routeItems) {
         if (std::find(seen.begin(), seen.end(), item.id) != seen.end()) {
-            item.id += "#2";
+            const auto base = item.id;
+            int n = 2;
+            while (std::find(seen.begin(), seen.end(), base + "#" + std::to_string(n)) != seen.end()) {
+                n++;
+            }
+            item.id = base + "#" + std::to_string(n);   // third and later uses of one icon get #3, #4 ... (a second #2 hid one of the items)
         }
         seen.push_back(item.id);
     }
