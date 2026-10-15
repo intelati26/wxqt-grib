@@ -25,11 +25,9 @@ namespace {
 
     const vector<int>& levels() {
         static const vector<int> list = [] {
-            vector<int> out;
-            // 25 mb steps through the lower atmosphere, 50 mb above 600 (each level is four 1-1.5 MB records of the whole grid)
-            for (int mb = 1000; mb >= 100; mb -= mb > 600 ? 25 : 50) {
-                out.push_back(mb);
-            }
+            // the levels that matter, densest near the ground (each level is four 1-1.5 MB records of the whole grid): 25 mb to 850 for the boundary layer,
+            // 50 mb to 500 for the low and mid levels (storm-relative helicity, 0-6 km shear), then the jet-level marks
+            vector<int> out{1000, 975, 950, 925, 900, 875, 850, 800, 750, 700, 650, 600, 550, 500, 400, 300, 250, 200, 150, 100};
             return out;
         }();
         return list;
@@ -112,7 +110,7 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
             }
         }
     }
-    if (usableLevels.size() < 10) {
+    if (usableLevels.size() < 8) {
         status = "Model sounding: only " + To::string(static_cast<int>(usableLevels.size())) +
             " of " + To::string(static_cast<int>(levels().size())) + " pressure levels could be fetched - try again";
         return false;
