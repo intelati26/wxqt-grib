@@ -7,6 +7,7 @@
 #include "mapkit/ForecastPointLayer.h"
 #include "mapkit/GoesLayer.h"
 #include "mapkit/MrmsLayer.h"
+#include "mapkit/MrmsOverlayLayers.h"
 #include "mapkit/ObsLayers.h"
 #include "mapkit/RiverLayers.h"
 #include "mapkit/SpaceLayers.h"
@@ -18,6 +19,10 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     vector<std::unique_ptr<MapLayer>> layers;
     layers.push_back(std::make_unique<GoesLayer>());
     layers.push_back(std::make_unique<MrmsLayer>());
+    layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Hail));
+    layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Rotation));
+    layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Chance));
+    layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Lightning));
     layers.push_back(std::make_unique<AuroraLayer>());
     layers.push_back(std::make_unique<StationLayer>(true));
     layers.push_back(std::make_unique<StationLayer>(false));
@@ -45,6 +50,7 @@ const vector<MapCatalog::Preset>& MapCatalog::presets() {
         {"Raw ensemble spaghetti (Atlantic)", {"tropical/spaghetti", "tropical/storms"}, 5.0, 50.0, -100.0, -10.0},
         {"Tropical Atlantic", {"tropical/storms", "tropical/outlook", "tropical/windprob", "rivers/buoys"}, 5.0, 50.0, -100.0, -10.0},
         {"Tropical East Pacific", {"tropical/storms", "tropical/outlook", "tropical/windprob", "rivers/buoys"}, 0.0, 40.0, -150.0, -80.0},
+        {"Severe storms: radar, hail, rotation and lightning (United States)", {"radar/mrms", "radar/mrms-hail", "radar/mrms-rotation", "radar/mrms-lightning", "obs/airports"}, 24.0, 50.0, -105.0, -75.0},
         {"Tornado tracks and radar (United States)", {"severe/tornadoes", "radar/mrms", "obs/airports"}, 24.0, 50.0, -105.0, -75.0},
         {"Satellite and storms (Atlantic)", {"satellite/goes", "tropical/storms", "tropical/outlook", "tropical/windprob"}, 5.0, 50.0, -100.0, -10.0},
         {"Aurora and the weather (North America)", {"space/aurora", "radar/mrms", "obs/airports"}, 25.0, 75.0, -170.0, -50.0},
