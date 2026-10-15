@@ -55,6 +55,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     , comboUnits{this, {"US units", "Metric units"}}
     , comboAuto{this, {"Auto-update: 2 min", "Auto-update: 5 min", "Auto-update: off"}}
     , comboLightning{this, {"Lightning: off", "Lightning: last 1 min", "Lightning: last 5 min (by age)", "Lightning: last 15 min (by age)", "Lightning: last 30 min (by age)"}}
+    , comboChance{this, {"Lightning chance: off", "Lightning chance: next 30 min", "Lightning chance: next 60 min"}}
     , comboRotation{this, {"Rotation tracks: off", "Rotation 0-2 km: last 30 min", "Rotation 0-2 km: last hour", "Rotation 0-2 km: last 2 hours", "Rotation 0-2 km: last 6 hours",
                             "Rotation 0-2 km: last 24 hours", "Rotation 3-6 km: last hour", "Rotation 3-6 km: last 2 hours", "Rotation 3-6 km: last 6 hours"}}
     , buttonLoop{this, Icon::Play, "Loop"}
@@ -113,7 +114,15 @@ MrmsViewer::MrmsViewer(Window * parent)
         }
     };
     comboAuto.connect([this, applyAuto] { Utility::writePrefInt("MRMS_AUTO", comboAuto.getIndex()); applyAuto(); });
-    QObject::connect(&autoTimer, &QTimer::timeout, this, [this] { refreshNewest(); loadLightning(); loadRotation(); });
+    QObject::connect(&autoTimer, &QTimer::timeout, this, [this] { refreshNewest(); loadLightning(); loadChance(); loadRotation(); });
+    comboChance.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_LIGHTNING_CHANCE", 0), 0, 2)));
+    comboChance.getView()->setToolTip("The chance of lightning in the next 30 or 60 minutes (MRMS), as contour lines at 10, 30, 50 and 70 percent over any product");
+    comboChance.connect([this] {
+        Utility::writePrefInt("MRMS_LIGHTNING_CHANCE", comboChance.getIndex());
+        chanceLines.clear();
+        loadChance();
+        radar->update();
+    });
     comboRotation.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MRMS_ROTATION", 0), 0, 8)));
     comboRotation.getView()->setToolTip("MRMS rotation tracks over any product: where the strongest rotation passed (supercells, mesocyclones), from 6 thousandths per second up");
     comboRotation.connect([this] {
@@ -147,6 +156,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     rowTop.addWidget(comboUnits);
     rowTop.addWidget(comboAuto);
     rowTop.addWidget(comboLightning);
+    rowTop.addWidget(comboChance);
     rowTop.addWidget(comboRotation);
     rowTop.addWidget(buttonLoop);
     rowTop.addWidget(buttonSave);
@@ -164,6 +174,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     rebuildProducts(Utility::readPref("MRMS_LAST_PRODUCT", UtilityMrms::products().front().id));
     loadScans();
     loadLightning();
+    loadChance();
     loadRotation();
     // the rest of the server's products, found in the background
     auto found = std::make_shared<vector<UtilityMrms::Product>>();
@@ -834,6 +845,110 @@ namespace {
                                           {20.0, QColor{150, 40, 255, 255}, "20+"}};
 }
 
+// the lightning chance as contour lines: the newest scan of the next 30 / 60 minute probability, taken at 5 x 5 cell blocks and traced at four levels (marching squares)
+void MrmsViewer::loadChance() {
+    static const char * ids[] = {"", "LightningProbabilityNext30min", "LightningProbabilityNext60min"};
+    const int which = std::clamp(comboChance.getIndex(), 0, 2);
+    if (which == 0 || chanceLoading || closed) {
+        if (which == 0) {
+            chanceLines.clear();
+        }
+        return;
+    }
+    chanceLoading = true;
+    const string wanted = ids[which];
+    const int mine = ++chanceGeneration;
+    auto lines = std::make_shared<vector<ChanceLine>>();
+    auto ok = std::make_shared<bool>(false);
+    new FutureVoid{this,
+        [wanted, lines, ok] {
+            vector<UtilityMrms::Product> list = UtilityMrms::products();
+            string error;
+            if (std::none_of(list.begin(), list.end(), [&wanted] (const auto& p) { return p.id == wanted; })) {
+                vector<UtilityMrms::Product> more;
+                UtilityMrms::discoverMore(more, error);
+                list.insert(list.end(), more.begin(), more.end());
+            }
+            const auto found = std::find_if(list.begin(), list.end(), [&wanted] (const auto& p) { return p.id == wanted; });
+            if (found == list.end()) {
+                return;
+            }
+            vector<UtilityMrms::Scan> scans;
+            bool listed = UtilityMrms::scansAws(*found, "Grid_scale_1", scans, error);
+            if (!listed) {
+                listed = UtilityMrms::scans(*found, scans, error);
+            }
+            UtilityMrms::Frame frame;
+            if (!listed || scans.empty() || !UtilityMrms::frame(*found, scans.back(), frame, error)) {
+                return;
+            }
+            *ok = true;
+            const int block = 5;
+            const auto& grid = frame.grid;
+            const int columns = grid.columns / block, rows = grid.rows / block;
+            const auto cells = frame.indices();
+            const auto * in = reinterpret_cast<const uchar *>(cells.constData());
+            vector<float> field(static_cast<size_t>(columns) * rows, 0.0f);   // the largest chance in each block
+            for (int row = 0; row < rows; row++) {
+                for (int column = 0; column < columns; column++) {
+                    int best = 0;
+                    for (int dr = 0; dr < block; dr++) {
+                        const auto * line = in + static_cast<qsizetype>(row * block + dr) * grid.columns + column * block;
+                        for (int dc = 0; dc < block; dc++) {
+                            best = std::max<int>(best, line[dc]);
+                        }
+                    }
+                    field[static_cast<size_t>(row) * columns + column] = best == 0 ? 0.0f : static_cast<float>(frame.valueAt(best));
+                }
+            }
+            const double cell = grid.cell * block;
+            const auto lon = [&] (double c) { return static_cast<float>(grid.west + (c + 0.5) * cell); };
+            const auto lat = [&] (double r) { return static_cast<float>(grid.north - (r + 0.5) * cell); };
+            for (const int level : {10, 30, 50, 70}) {
+                const float t = static_cast<float>(level);
+                for (int row = 0; row + 1 < rows; row++) {
+                    for (int column = 0; column + 1 < columns; column++) {
+                        const float a = field[static_cast<size_t>(row) * columns + column], b = field[static_cast<size_t>(row) * columns + column + 1];
+                        const float d = field[static_cast<size_t>(row + 1) * columns + column], c = field[static_cast<size_t>(row + 1) * columns + column + 1];
+                        const int code = (a >= t ? 1 : 0) | (b >= t ? 2 : 0) | (c >= t ? 4 : 0) | (d >= t ? 8 : 0);
+                        if (code == 0 || code == 15) {
+                            continue;
+                        }
+                        // the crossing of each edge (top, right, bottom, left), by linear interpolation
+                        const auto cross = [t] (float v1, float v2) { return v1 == v2 ? 0.5f : std::clamp((t - v1) / (v2 - v1), 0.0f, 1.0f); };
+                        const double x0 = column, y0 = row;
+                        const double topX = x0 + cross(a, b), topY = y0;
+                        const double rightX = x0 + 1, rightY = y0 + cross(b, c);
+                        const double bottomX = x0 + cross(d, c), bottomY = y0 + 1;
+                        const double leftX = x0, leftY = y0 + cross(a, d);
+                        const auto add = [&] (double x1, double y1, double x2, double y2) {
+                            lines->push_back({static_cast<unsigned char>(level), lon(x1), lat(y1), lon(x2), lat(y2)});
+                        };
+                        switch (code) {
+                            case 1: case 14: add(leftX, leftY, topX, topY); break;
+                            case 2: case 13: add(topX, topY, rightX, rightY); break;
+                            case 3: case 12: add(leftX, leftY, rightX, rightY); break;
+                            case 4: case 11: add(rightX, rightY, bottomX, bottomY); break;
+                            case 6: case 9: add(topX, topY, bottomX, bottomY); break;
+                            case 7: case 8: add(leftX, leftY, bottomX, bottomY); break;
+                            case 5: add(leftX, leftY, topX, topY); add(rightX, rightY, bottomX, bottomY); break;
+                            case 10: add(topX, topY, rightX, rightY); add(leftX, leftY, bottomX, bottomY); break;
+                            default: break;
+                        }
+                    }
+                }
+            }
+        },
+        [this, lines, ok, mine] {
+            chanceLoading = false;
+            if (closed || mine != chanceGeneration || !*ok) {
+                return;
+            }
+            chanceLines = std::move(*lines);
+            radar->update();
+        }};
+}
+
 // the rotation overlay: the newest scan of MRMS's low-level (0-2 km) or mid-level (3-6 km) rotation track over the chosen period
 void MrmsViewer::loadRotation() {
     static const char * ids[] = {"", "RotationTrack30min", "RotationTrack60min", "RotationTrack120min", "RotationTrack360min", "RotationTrack1440min",
@@ -1108,6 +1223,44 @@ void MrmsViewer::paintLegend(QPainter& painter) {
                 painter.drawText(QPointF{x + 12.0, y + 4.0}, names[age]);
                 x += 100.0;
             }
+        }
+    }
+    if (comboChance.getIndex() > 0 && !chanceLines.empty()) {   // the lightning chance: contour lines at 10, 30, 50 and 70 percent
+        const auto [ax, bx, ay, by] = projection();
+        const auto& state = radar->mapState;
+        static const QColor colors[4] = {QColor{160, 220, 255}, QColor{255, 240, 90}, QColor{255, 150, 30}, QColor{255, 70, 70}};
+        const auto mercator = [] (double lat) { return std::log(std::tan(std::numbers::pi / 4.0 + lat * std::numbers::pi / 360.0)) * 180.0 / std::numbers::pi; };
+        for (int pass = 0; pass < 2; pass++) {   // a dark edge under the colour
+            for (int level = 0; level < 4; level++) {
+                painter.setPen(pass == 0 ? QPen{QColor{0, 0, 0, 190}, 3.0} : QPen{colors[level], 1.3});
+                for (const auto& line : chanceLines) {
+                    if (line.level != static_cast<unsigned char>(10 + 20 * level)) {
+                        continue;
+                    }
+                    const double u1 = (ax * line.lon1 + bx) * state.zoom + state.xPos, v1 = (ay * mercator(line.lat1) + by) * state.zoom + state.yPos;
+                    const double u2 = (ax * line.lon2 + bx) * state.zoom + state.xPos, v2 = (ay * mercator(line.lat2) + by) * state.zoom + state.yPos;
+                    if ((u1 < -520.0 && u2 < -520.0) || (u1 > 520.0 && u2 > 520.0) || (v1 < -270.0 && v2 < -270.0) || (v1 > 770.0 && v2 > 770.0)) {
+                        continue;
+                    }
+                    painter.drawLine(QPointF{u1, v1}, QPointF{u2, v2});
+                }
+            }
+        }
+        QFont keyFont{painter.font()};
+        keyFont.setPointSizeF(9.0);
+        painter.setFont(keyFont);
+        const double y = -192.0;
+        painter.fillRect(QRectF{-496.0, y - 12.0, 300.0, 20.0}, QColor{0, 0, 0, 170});
+        painter.setPen(Qt::white);
+        painter.drawText(QPointF{-490.0, y + 4.0}, comboChance.getIndex() == 1 ? "Lightning, next 30 min:" : "Lightning, next 60 min:");
+        double x = -355.0;
+        static const char * names[4] = {"10%", "30%", "50%", "70%"};
+        for (int level = 0; level < 4; level++) {
+            painter.setPen(QPen{colors[level], 2.0});
+            painter.drawLine(QPointF{x, y}, QPointF{x + 14.0, y});
+            painter.setPen(Qt::white);
+            painter.drawText(QPointF{x + 18.0, y + 4.0}, names[level]);
+            x += 50.0;
         }
     }
     if (comboRotation.getIndex() > 0 && !rotationLevels.empty()) {   // the rotation key, under the lightning one

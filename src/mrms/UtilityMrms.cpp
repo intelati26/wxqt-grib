@@ -295,17 +295,19 @@ bool UtilityMrms::scans(const Product& product, vector<Scan>& out, string& error
 
 bool UtilityMrms::scansAws(const Product& product, const string& level, vector<Scan>& out, string& error) {
     out.clear();
-    const string folder = "CONUS/" + product.id + "_" + level + "/";
+    // the level folder ("_00.50"), or the name the lightning probability's folder has instead (level "Grid_scale_1": ...Next60minGrid_scale_1)
+    const string joined = level.rfind("Grid", 0) == 0 ? level : "_" + level;
+    const string folder = "CONUS/" + product.id + joined + "/";
     const auto now = QDateTime::currentDateTimeUtc();
     // today's, then yesterday's folder (just after midnight); only keys after twenty minutes ago are asked for
     for (const int back : {0, 1}) {
         const auto day = now.addDays(-back);
         const auto dayText = day.toString("yyyyMMdd").toStdString();
         const auto from = back == 0 ? now.addSecs(-20 * 60) : QDateTime{day.date(), QTime{23, 0}, QTimeZone::utc()};
-        const string startAfter = folder + dayText + "/MRMS_" + product.id + "_" + level + "_" + dayText + "-" + from.toString("HHmm").toStdString() + "00.grib2.gz";
+        const string startAfter = folder + dayText + "/MRMS_" + product.id + joined + "_" + dayText + "-" + from.toString("HHmm").toStdString() + "00.grib2.gz";
         const auto url = "https://noaa-mrms-pds.s3.amazonaws.com/?list-type=2&prefix=" + folder + dayText + "/&start-after=" + startAfter;
         const auto listing = URL::getText(url);
-        const QRegularExpression key{QString::fromStdString("<Key>(" + folder + dayText + "/(MRMS_" + product.id + "_" + level + "_(\\d{8})-(\\d{6})\\.grib2\\.gz))</Key>")};
+        const QRegularExpression key{QString::fromStdString("<Key>(" + folder + dayText + "/(MRMS_" + product.id + joined + "_(\\d{8})-(\\d{6})\\.grib2\\.gz))</Key>")};
         auto matches = key.globalMatch(QString::fromStdString(listing));
         while (matches.hasNext()) {
             const auto match = matches.next();

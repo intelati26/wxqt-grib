@@ -53,6 +53,7 @@ private:
     void setFrame(const UtilityMrms::Frame&);
     void paintData(QPainter&);
     void drawGrid(QPainter&, const UtilityMrms::Grid&, const QByteArray& indices, const QVector<QRgb>& colors, bool outline);
+    void loadChance();     // the lightning probability of the next 30 / 60 minutes as contour lines over the map
     void loadRotation();   // the rotation tracks over the product (MRMS low- or mid-level rotation track of a period), strong rotation only
     void paintLegend(QPainter&);
     void moveScan(int step);
@@ -84,6 +85,7 @@ private:
     ComboBox comboUnits;   // US (inches, kft) or metric
     ComboBox comboAuto;    // how often to look for a newer scan
     ComboBox comboLightning;
+    ComboBox comboChance;      // the lightning probability contours: off, next 30 or 60 minutes
     ComboBox comboRotation;    // rotation tracks over any product: off, or a period of the 0-2 / 3-6 km track   // lightning points over any product: off, or the last 1 / 5 / 15 / 30 minutes
     Button buttonLoop;
     Button buttonSave;
@@ -102,6 +104,13 @@ private:
     QDateTime lightningTime;
     int lightningGeneration{0};
     bool lightningLoading{false};
+    struct ChanceLine {   // one contour segment: the level (percent) and its two ends, longitude / latitude
+        unsigned char level;
+        float lon1, lat1, lon2, lat2;
+    };
+    vector<ChanceLine> chanceLines;
+    int chanceGeneration{0};
+    bool chanceLoading{false};
     UtilityMrms::Frame rotationFrame;
     QByteArray rotationIndices;
     // the tracks at coarser cells too (the largest value of each 4 x 4 and 16 x 16 block): a track a few hundred meters wide still shows when a pixel spans kilometers
