@@ -189,6 +189,14 @@ Chance chance(int which) {
     const double cell = grid.cell * block;
     const auto lon = [&] (double c) { return static_cast<float>(grid.west + (c + 0.5) * cell); };
     const auto lat = [&] (double r) { return static_cast<float>(grid.north - (r + 0.5) * cell); };
+    for (int row = 0; row < rows; row++) {
+        for (int column = 0; column < columns; column++) {
+            const float value = field[static_cast<size_t>(row) * columns + column];
+            if (value >= 10.0f) {
+                out.cells.push_back({lon(column), lat(row), static_cast<float>(cell), static_cast<unsigned char>(std::min(100.0f, value))});
+            }
+        }
+    }
     for (const int level : {10, 30, 50, 70}) {   // marching squares at each level
         const float t = static_cast<float>(level);
         for (int row = 0; row + 1 < rows; row++) {

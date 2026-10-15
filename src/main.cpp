@@ -164,15 +164,22 @@ int main(int argc, char * argv[]) {
         // development aids (run with QT_QPA_PLATFORM=offscreen): WXQT_OPEN=<toolbar entry id, e.g. ntor.png> opens that
         // tool; WXQT_GRAB=<file.png>[,<milliseconds>] saves a picture of the newest tool window (else the main
         // window) and quits, so a screen can be checked without a display; WXQT_SIZE=<w>x<h> sizes the tool window first; WXQT_TAB=<n> picks a tab
+        const auto extraLayers = [] (const QString& list) {
+            std::vector<std::string> ids;
+            for (const auto& id : list.split(',', Qt::SkipEmptyParts)) {
+                ids.push_back(id.toStdString());
+            }
+            return ids.empty() ? std::vector<std::string>{"radar/mrms"} : ids;
+        };
         QWidget * opened = nullptr;
         if (const auto route = qEnvironmentVariable("WXQT_OPEN"); !route.isEmpty()) {
             const auto before = QApplication::topLevelWidgets();
-            if (route.startsWith("mrmsat:")) {   // WXQT_OPEN=mrmsat:<yyyyMMddHHmm UTC>[:lat:lon:km]: the master map at that time, MRMS only
+            if (route.startsWith("mrmsat:")) {   // WXQT_OPEN=mrmsat:<yyyyMMddHHmm UTC>[:lat:lon:km[:layer,layer]]: the master map at that time, MRMS (or the layers named) only
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
                 when.setTimeSpec(Qt::UTC);
-                map->openAt(when, parts.value(2, "35.3").toDouble(), parts.value(3, "-97.5").toDouble(), parts.value(4, "300").toDouble(), {"radar/mrms"});
+                map->openAt(when, parts.value(2, "35.3").toDouble(), parts.value(3, "-97.5").toDouble(), parts.value(4, "300").toDouble(), extraLayers(parts.value(5)));
             } else if (route.startsWith("goesat:")) {   // WXQT_OPEN=goesat:<yyyyMMddHHmm UTC>: the master map at that time with the GOES history layer
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};

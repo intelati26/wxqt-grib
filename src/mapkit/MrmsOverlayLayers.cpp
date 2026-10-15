@@ -11,6 +11,7 @@
 #include <QImage>
 #include <QLabel>
 #include <QPainter>
+#include <QPainterPath>
 #include <QVBoxLayout>
 #include "radar/MapView.h"
 
@@ -95,6 +96,7 @@ void MrmsOverlayLayer::refresh(MapHost& host) {
                 case Kind::Chance:
                     have = result->chance.ok;
                     lines = std::move(result->chance.lines);
+                    chanceCells = std::move(result->chance.cells);
                     break;
                 default:
                     have = result->swath.ok;
@@ -205,7 +207,26 @@ void MrmsOverlayLayer::paint(QPainter& painter, MapHost& host) {
         }
         return;
     }
-    // the chance: lines, each with a dark edge under it
+    // the chance: the bands shaded (one path per band, so touching blocks do not double the shading), then the lines, each with a dark edge under it
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(Qt::NoPen);
+    QPainterPath bands[4];
+    for (const auto& block : chanceCells) {
+        const int step = block.percent >= 70 ? 3 : block.percent >= 50 ? 2 : block.percent >= 30 ? 1 : 0;
+        const double h = block.size / 2.0;
+        const QPointF a = t(block.lat + h, block.lon - h), b = t(block.lat - h, block.lon + h);
+        if (b.x() < -520.0 || a.x() > 520.0 || b.y() < -270.0 || a.y() > bottom + 20.0) {
+            continue;
+        }
+        bands[step].addRect(QRectF{a, b}.normalized().adjusted(-0.25 * perPixel, -0.25 * perPixel, 0.25 * perPixel, 0.25 * perPixel));
+    }
+    for (int step = 0; step < 4; step++) {
+        QColor fill = chanceColors[step];
+        fill.setAlpha(step == 0 ? 60 : 90);
+        bands[step].setFillRule(Qt::WindingFill);
+        painter.fillPath(bands[step].simplified(), fill);
+    }
+    painter.setBrush(Qt::NoBrush);
     painter.setRenderHint(QPainter::Antialiasing, true);
     for (const bool edge : {true, false}) {
         for (int step = 0; step < 4; step++) {

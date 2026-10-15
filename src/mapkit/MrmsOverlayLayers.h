@@ -45,6 +45,7 @@ private:
     QDateTime utc;
     std::vector<MrmsOverlays::Strike> strikes;
     std::vector<MrmsOverlays::ChanceLine> lines;
+    std::vector<MrmsOverlays::ChanceCell> chanceCells;
     MrmsOverlays::Swath swath;
 };
 

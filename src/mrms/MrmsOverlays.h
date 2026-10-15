@@ -34,8 +34,13 @@ namespace MrmsOverlays {
         unsigned char level;
         float lon1, lat1, lon2, lat2;
     };
+    struct ChanceCell {   // one 5 km block with a chance of 10 percent or more: its centre, its size in degrees and the chance
+        float lon, lat, size;
+        unsigned char percent;
+    };
     struct Chance {
         std::vector<ChanceLine> lines;
+        std::vector<ChanceCell> cells;   // for the shaded bands under the lines
         bool ok{false};
     };
     // the chance of lightning in the next 30 (which 1) or 60 (2) minutes, contoured at 10, 30, 50 and 70 percent
