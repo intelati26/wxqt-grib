@@ -6,6 +6,9 @@
 #include <set>
 #include <QPushButton>
 #include "ui/ZoomImage.h"
+#include <QMenu>
+#include <QRegularExpression>
+#include "objects/UtilityAnimationExport.h"
 #include <algorithm>
 #include <cmath>
 #include <QEvent>
@@ -60,6 +63,19 @@ ZoomImage::ZoomImage(Window * parent)
     label->setMouseTracking(true);
     viewport()->setMouseTracking(true);
     label->installEventFilter(this);
+    label->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(label, &QLabel::customContextMenuRequested, this, [this] (const QPoint& point) {
+        if (!saveMenu || sourceBytes.isEmpty()) {
+            return;
+        }
+        QMenu menu{this};
+        auto * save = menu.addAction("Save image...");
+        if (menu.exec(label->mapToGlobal(point)) == save) {
+            QString name = window()->windowTitle();
+            name.replace(QRegularExpression{"[^A-Za-z0-9]+"}, "_");
+            UtilityAnimationExport::saveWithDialog(window(), {}, 0, sourceBytes, name.left(60).isEmpty() ? QString{"image"} : name.left(60));
+        }
+    });
     updateRestingCursor();
     const auto changed = [this] { if (!applying && !source.isNull()) { emit viewChanged(); } };
     QObject::connect(horizontalScrollBar(), &QScrollBar::valueChanged, this, changed);
@@ -255,6 +271,7 @@ double ZoomImage::fitScale() const {
 }
 
 void ZoomImage::setBytes(const QByteArray& bytes) {
+    sourceBytes = bytes;
     source = QPixmap::fromImage(QImage::fromData(bytes));
     userZoomed = false;
     fitToViewport();
@@ -267,6 +284,7 @@ void ZoomImage::setBytesKeepView(const QByteArray& bytes) {
         source = previous;
         return;
     }
+    sourceBytes = bytes;
     // keep the same magnification and scroll offsets across frames
     if (previous.isNull() || previous.size() != source.size()) {
         userZoomed = false;

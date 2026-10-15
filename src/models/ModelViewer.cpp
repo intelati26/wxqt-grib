@@ -167,6 +167,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             stationPinKey.clear();
             refreshStationPins();
         });
+        image.setSaveMenu(false);   // the Save button here is the one that adds the glyphs and names the file
         QObject::connect(&image, &ZoomImage::pinClicked, this, [this] (const QString& id) {
             new SoundingViewer{this, "RRFS", id.toStdString(), true};
         });

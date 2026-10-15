@@ -24,6 +24,8 @@ class ZoomImage : public QScrollArea {
 public:
     explicit ZoomImage(Window * parent = nullptr);
     void setBytes(const QByteArray&);
+    // a right-click "Save image..." for the picture shown, as every other screen's pictures have (on by default; a screen with its own save of the picture turns it off)
+    void setSaveMenu(bool on) { saveMenu = on; }
     // swap the image without disturbing the current zoom / pan (for animation)
     void setBytesKeepView(const QByteArray&);
     void fitToViewport();
@@ -95,6 +97,8 @@ private:
     QLabel * label;
     QLabel * marker;
     QPixmap source;
+    QByteArray sourceBytes;   // the picture as it came (what a save writes)
+    bool saveMenu{true};
     double scale{1.0};
     bool userZoomed{false};
     bool dragging{false};
