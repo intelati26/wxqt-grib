@@ -15,7 +15,7 @@ SoundingPick::SoundingPick(Window * owner, std::function<std::pair<std::string, 
 {
     buttonSounding.getView()->setToolTip("Click the map to pick a point, then open the RRFS model sounding (Skew-T, hodograph, "
                                          "parameters) there for the run and forecast hour selected now. A run/hour not "
-                                         "fetched before downloads about 265 MB; further points at the same run and hour are instant.");
+                                         "fetched before downloads about 62 MB (Refine in the sounding window: about 160 MB); further points at the same run and hour are instant.");
     buttonSounding.connect([this] { open(); });
 }
 

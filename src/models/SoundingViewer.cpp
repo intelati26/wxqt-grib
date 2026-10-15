@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <QBuffer>
+#include <QCheckBox>
 #include <QDateTime>
 #include <vector>
 #include <QPainter>
@@ -1437,6 +1438,22 @@ void SoundingViewer::build() {
     } else {
         comboArea.connect([this] { start(); });
         rowTop.addWidget(comboArea);
+        const bool already = refined || Utility::readPref("SOUNDING_REFINE", "0") == "1";   // the first column may be fetched before this row exists
+        buttonRefine = new QPushButton{already ? "Refined" : "Refine", this};
+        buttonRefine->setEnabled(!already);
+        buttonRefine->setToolTip("Fetch every 25 mb level with wind on each (the quick column has 20 levels, wind on 12) and redraw: about 100 MB more for a new hour");
+        QObject::connect(buttonRefine, &QPushButton::clicked, this, [this] {
+            refined = true;
+            buttonRefine->setEnabled(false);
+            buttonRefine->setText("Refined");
+            start();
+        });
+        checkRefine = new QCheckBox{"Always", this};
+        checkRefine->setToolTip("Open model soundings refined");
+        checkRefine->setChecked(Utility::readPref("SOUNDING_REFINE", "0") == "1");
+        QObject::connect(checkRefine, &QCheckBox::toggled, this, [] (bool on) { Utility::writePref("SOUNDING_REFINE", on ? "1" : "0"); });
+        rowTop.addWidgetReal(buttonRefine);
+        rowTop.addWidgetReal(checkRefine);
         comboSite.setVisible(false);
         comboTime.setVisible(false);
     }
@@ -1450,11 +1467,17 @@ void SoundingViewer::build() {
 }
 
 void SoundingViewer::start() {
+    if (!refinedSet) {
+        refinedSet = true;
+        refined = Utility::readPref("SOUNDING_REFINE", "0") == "1";
+    }
     generation += 1;
+    const bool refinedNow = refined;
     const int thisGeneration = generation;
-    textInfo.setText(QString{"%1 N, %2 W  -  fetching the model column (about 265 MB for a new run/hour, cached afterwards)..."}
-                         .arg(lat, 0, 'f', 2).arg(-lon, 0, 'f', 2));
-    canvas->setMessage("Fetching the RRFS column...\n\nA run/hour not seen before downloads about 265 MB (all 25 mb levels);\nafter that, every other point at the same run and hour is instant.");
+    textInfo.setText(QString{"%1 N, %2 W  -  fetching the model column (about %3 MB for a new run/hour, cached afterwards)..."}
+                         .arg(lat, 0, 'f', 2).arg(-lon, 0, 'f', 2).arg(refined ? 160 : 62));
+    canvas->setMessage(QString{"Fetching the RRFS column...\n\nA run/hour not seen before downloads about %1 MB (%2);\nafter that, every other point at the same run and hour is instant."}
+                           .arg(refined ? 160 : 62).arg(refined ? "every 25 mb level, wind on each" : "20 levels, wind on 12: press Refine for more"));
     auto result = std::make_shared<Result>();
     const auto lonNow = lon, latNow = lat;
     const auto runNow = runId;
@@ -1463,7 +1486,7 @@ void SoundingViewer::start() {
     static const double radii[] = {0.0, 15.0, 30.0, 60.0};
     const double radiusNow = radii[std::clamp(comboArea.getIndex(), 0, 3)];
     new FutureVoid{this,
-        [result, lonNow, latNow, runNow, validNow, hourNow, radiusNow]() mutable {
+        [result, lonNow, latNow, runNow, validNow, hourNow, radiusNow, refinedNow]() mutable {
             string date;
             string cycle;
             if (!UtilityGrib::resolveSynopticRun(runNow, date, cycle)) {
@@ -1483,7 +1506,7 @@ void SoundingViewer::start() {
                 hourNow = To::string(lead);
             }
             string detail;
-            result->ok = UtilityModelSounding::buildProfile(date, cycle, hourNow, lonNow, latNow, result->profile, detail, radiusNow);
+            result->ok = UtilityModelSounding::buildProfile(date, cycle, hourNow, lonNow, latNow, result->profile, detail, radiusNow, refinedNow);
             if (!result->ok) {
                 result->status = detail;
                 return;

@@ -24,14 +24,18 @@ namespace {
     constexpr double kelvin = 273.15;
     constexpr double msToKnots = 1.0 / 0.514444;
 
-    const vector<int>& levels() {
-        static const vector<int> list = [] {
-            // the levels that matter, densest near the ground (each level is four 1-1.5 MB records of the whole grid): 25 mb to 850 for the boundary layer,
-            // 50 mb to 500 for the low and mid levels (storm-relative helicity, 0-6 km shear), then the jet-level marks
-            vector<int> out{1000, 975, 950, 925, 900, 875, 850, 800, 750, 700, 650, 600, 550, 500, 400, 300, 250, 200, 150, 100};
+    const vector<int>& levels(bool refined) {
+        static const vector<int> quick{1000, 975, 950, 925, 900, 875, 850, 800, 750, 700, 650, 600, 550, 500, 400, 300, 250, 200, 150, 100};
+        // the levels that matter, densest near the ground (each level is four 1-1.5 MB records of the whole grid): 25 mb to 850 for the boundary layer,
+        // 50 mb to 500 for the low and mid levels (storm-relative helicity, 0-6 km shear), then the jet-level marks
+        static const vector<int> full = [] {
+            vector<int> out;
+            for (int mb = 1000; mb >= 100; mb -= 25) {
+                out.push_back(mb);
+            }
             return out;
         }();
-        return list;
+        return refined ? full : quick;
     }
 
     UtilityGrib::Field field(const string& key, const string& idxMatch, const string& product) {
@@ -44,7 +48,10 @@ namespace {
     }
 
     // the levels whose wind is fetched (the u and v records are 2/3 of the download); the other levels' wind is interpolated in log pressure between these
-    bool hasWind(int mb) {
+    bool hasWind(int mb, bool refined) {
+        if (refined) {
+            return true;
+        }
         static const std::set<int> list{1000, 950, 900, 850, 800, 750, 700, 600, 500, 400, 300, 200};
         return list.count(mb) > 0;
     }
@@ -64,7 +71,7 @@ namespace {
 namespace UtilityModelSounding {
 
 bool buildProfile(const string& dateStr, const string& cycle, const string& forecastHour, double lon, double lat,
-                  SoundingProfile& out, string& status, double radiusKm) {
+                  SoundingProfile& out, string& status, double radiusKm, bool refined) {
     const auto binDir = UtilityGrib::gdalBinDir();
     if (binDir.empty()) {
         status = "GDAL not found - install the 'gdal' package";
@@ -82,9 +89,9 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
     // temperature, relative humidity and wind only: the dewpoint field (DPT) is three times the size of RH and the height field (HGT) is
     // as big again, and both follow from these (Td from T and RH; height by integrating the hydrostatic equation up from the surface)
     const vector<std::pair<string, string>> variables = {{"t", "TMP"}, {"rh", "RH"}, {"u", "UGRD"}, {"v", "VGRD"}};
-    for (const int mb : levels()) {
+    for (const int mb : levels(refined)) {
         for (const auto& [name, grib] : variables) {
-            if (!hasWind(mb) && (name == "u" || name == "v")) {
+            if (!hasWind(mb, refined) && (name == "u" || name == "v")) {
                 continue;
             }
             wanted.push_back(field(levelKey(name, mb), ":" + grib + ":" + To::string(mb) + " mb:", "prslev"));
@@ -108,10 +115,10 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
         order.push_back(key);
     }
     vector<int> usableLevels;
-    for (const int mb : levels()) {
+    for (const int mb : levels(refined)) {
         bool complete = true;
         for (const auto& [name, grib] : variables) {
-            if (!hasWind(mb) && (name == "u" || name == "v")) {
+            if (!hasWind(mb, refined) && (name == "u" || name == "v")) {
                 continue;
             }
             complete = complete && paths.count(levelKey(name, mb)) > 0;
@@ -119,7 +126,7 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
         if (complete) {
             usableLevels.push_back(mb);
             for (const auto& [name, grib] : variables) {
-                if (!hasWind(mb) && (name == "u" || name == "v")) {
+                if (!hasWind(mb, refined) && (name == "u" || name == "v")) {
                     continue;
                 }
                 order.push_back(levelKey(name, mb));
@@ -128,7 +135,7 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
     }
     if (usableLevels.size() < 8) {
         status = "Model sounding: only " + To::string(static_cast<int>(usableLevels.size())) +
-            " of " + To::string(static_cast<int>(levels().size())) + " pressure levels could be fetched - try again";
+            " of " + To::string(static_cast<int>(levels(refined).size())) + " pressure levels could be fetched - try again";
         return false;
     }
 
@@ -233,12 +240,12 @@ bool buildProfile(const string& dateStr, const string& cycle, const string& fore
     add(psfc, value["snd_zsfc"], toCelsius(value["snd_t2"]), toCelsius(value["snd_td2"]), value["snd_u10"], value["snd_v10"]);
     // the wind of the levels that were not fetched: linear in log pressure between the nearest fetched levels above and below
     for (const int mb : usableLevels) {
-        if (hasWind(mb)) {
+        if (hasWind(mb, refined)) {
             continue;
         }
         int below = 0, above = 0;
         for (const int other : usableLevels) {
-            if (!hasWind(other) || value[levelKey("u", other)] < -9000.0 || value[levelKey("v", other)] < -9000.0) {
+            if (!hasWind(other, refined) || value[levelKey("u", other)] < -9000.0 || value[levelKey("v", other)] < -9000.0) {
                 continue;
             }
             if (other > mb && (below == 0 || other < below)) below = other;

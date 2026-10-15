@@ -15,7 +15,7 @@
 // surface pressure, terrain height). Levels below the model ground are dropped and
 // the surface becomes the lowest level, as in an observed sounding.
 //
-// Every field is a whole CONUS grid, so one forecast hour is roughly 265 MB. The
+// Every field is a whole CONUS grid, so one forecast hour is roughly 62 MB (160 MB refined). The
 // fetched records are cached by UtilityGrib, so further points at the same run and
 // hour cost no download.
 namespace UtilityModelSounding {
@@ -24,7 +24,8 @@ namespace UtilityModelSounding {
     // `radiusKm` > 0 averages the column over points spaced across that radius around the point (3 km at the smallest)
     // (same download; temperature, dewpoint, height, pressure and the wind components are averaged level by level).
     bool buildProfile(const std::string& dateStr, const std::string& cycle, const std::string& forecastHour,
-                      double lon, double lat, SoundingProfile& out, std::string& status, double radiusKm = 0.0);
+                      double lon, double lat, SoundingProfile& out, std::string& status, double radiusKm = 0.0, bool refined = false);
+    // refined: every 25 mb level from 1000 to 100 with wind on each (about 160 MB a new hour); not refined: 20 levels, wind on 12 (about 62 MB)
 }
 
 #endif  // UTILITYMODELSOUNDING_H

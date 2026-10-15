@@ -11,6 +11,7 @@
 #include <vector>
 #include <QDateTime>
 #include <QPushButton>
+#include <QCheckBox>
 #include "sounding/SoundingAnalysis.h"
 #include "sounding/SoundingProfile.h"
 #include "ui/ComboBox.h"
@@ -62,6 +63,10 @@ private:
     ComboBox comboParcel;
     ComboBox comboLayout;   // SPC's fixed layout, or the layout that fills the window
     QPushButton * buttonSave;
+    QPushButton * buttonRefine{};   // model mode: fetch every 25 mb level with wind on each (the quick column has 20 levels, wind on 12)
+    QCheckBox * checkRefine{};      // always refine (remembered)
+    bool refined{false};
+    bool refinedSet{false};
     SoundingCanvas * canvas;
 
     bool observed{false};
