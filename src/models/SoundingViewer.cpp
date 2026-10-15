@@ -34,8 +34,8 @@ namespace {
     bool have(double v) { return v > -9998.0; }
     constexpr double pBottom = 1050.0;
     constexpr double pTop = 100.0;
-    // SPC's sounding graphic: 100 - 1050 mb, -40 to +60 C along the bottom edge, isotherms leaning at 45 degrees of the
-    // picture (measured from SPC's own image: one pixel to the right per pixel up). The plot is clipped, so isotherms
+    // SPC's sounding graphic: 100 - 1050 mb, -40 to +60 C along the bottom edge, isotherms leaning 0.69 pixel to the right
+    // per pixel up (measured from SPC's own image, whose plot is square: 565 x 565 pixels for 100 C across). The plot is clipped, so isotherms
     // and traces that lean out of it are simply cut at its border.
     constexpr double tLeft = -40.0;    // temperature at the bottom-left corner of the Skew-T
     constexpr double tSpan = 100.0;    // degrees C shown across the bottom
@@ -284,7 +284,7 @@ private:
         Geometry g;
         g.plot = plot;
         g.sx = plot.width() / tSpan;
-        g.k = 1.0;   // 45 degrees: as many pixels right as up
+        g.k = 0.69;   // SPC's lean, measured on its image: 0.69 pixel right per pixel up
         return g;
     }
 
