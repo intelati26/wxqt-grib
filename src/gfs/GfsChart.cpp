@@ -5246,7 +5246,8 @@ bool Probe::locate(double fx, double fy, double& lon, double& lat) const {
     if (x < areaLeft || x > areaLeft + areaWidth || y < areaTop || y > areaTop + areaHeight) {
         return false;
     }
-    const View view{Sector{"", west, south, east, north}, QRectF{areaLeft, areaTop, areaWidth, areaHeight}};
+    const Sector sector{"", west, south, east, north};   // View holds a reference: a temporary would be gone
+    const View view{sector, QRectF{areaLeft, areaTop, areaWidth, areaHeight}};
     lon = view.lonAt(x);
     lat = view.latAt(y);
     while (lon > 180.0) {
@@ -5255,6 +5256,21 @@ bool Probe::locate(double fx, double fy, double& lon, double& lat) const {
     while (lon < -180.0) {
         lon += 360.0;
     }
+    return true;
+}
+
+bool Probe::place(double lon, double lat, double& fx, double& fy) const {
+    if (areaWidth <= 0.0 || imageWidth <= 0.0 || imageHeight <= 0.0) {
+        return false;
+    }
+    const Sector sector{"", west, south, east, north};   // View holds a reference: a temporary would be gone
+    const View view{sector, QRectF{areaLeft, areaTop, areaWidth, areaHeight}};
+    const auto point = view.toPixel(lon, lat);
+    if (point.x() < areaLeft || point.x() > areaLeft + areaWidth || point.y() < areaTop || point.y() > areaTop + areaHeight) {
+        return false;
+    }
+    fx = point.x() / imageWidth;
+    fy = point.y() / imageHeight;
     return true;
 }
 

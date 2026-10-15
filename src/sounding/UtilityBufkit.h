@@ -13,6 +13,13 @@
 // BUFKIT model sounding files: one small text file per station and run holding every forecast hour of the model's column
 // (Penn State's feed: https://www.meteo.psu.edu/bufkit/data/<MODEL>/<cycle>/<model>_<station>.buf, about 0.4 MB for RRFS).
 namespace UtilityBufkit {
+    struct Station {
+        std::string id;   // "KSGF"
+        double latitude{0.0};
+        double longitude{0.0};
+    };
+    // the stations of the Penn State RRFS feed (about 1500 airports and sounding sites, from its site map)
+    const std::vector<Station>& stations();
     struct Run {
         std::string model;                     // "RRFS", "HRRR", "RAP", "NAM", "NAMNEST", "GFS"
         std::string station;                   // "KSGF"

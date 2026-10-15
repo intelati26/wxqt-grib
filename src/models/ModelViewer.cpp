@@ -38,6 +38,8 @@
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "gfs/GfsChart.h"
+#include "models/SoundingViewer.h"
+#include "sounding/UtilityBufkit.h"
 #include "objects/WString.h"
 #include "util/Utility.h"
 #include "util/UtilityList.h"
@@ -153,6 +155,20 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             reload();
         });
         boxH2.addWidgetReal(buttonPlace);
+        buttonStations = new QPushButton{"Stations", this};
+        buttonStations->setCheckable(true);
+        buttonStations->setChecked(Utility::readPref("MODEL_BUFKIT_STATIONS", "false").compare(0, 1, "t") == 0);
+        buttonStations->setToolTip("A button on the map at each station of the BUFKIT model soundings (airports and sounding sites): click one for that station's RRFS sounding, every forecast hour "
+                                   "from one small file (about 0.4 MB). The buttons are not part of the map, so saved and exported pictures do not have them.");
+        QObject::connect(buttonStations, &QPushButton::toggled, this, [this] (bool on) {
+            Utility::writePref("MODEL_BUFKIT_STATIONS", on ? "true" : "false");
+            stationPinKey.clear();
+            refreshStationPins();
+        });
+        QObject::connect(&image, &ZoomImage::pinClicked, this, [this] (const QString& id) {
+            new SoundingViewer{this, "RRFS", id.toStdString(), true};
+        });
+        boxH2.addWidgetReal(buttonStations);
         comboLocalKm = new QComboBox{this};
         for (const int km : {150, 300, 600, 1200, 2400}) {
             comboLocalKm->addItem(QString::number(km) + " km square", km);
@@ -694,8 +710,33 @@ void ModelViewer::showFrame(const Frame& frame) {
         hover = std::make_unique<ChartHover>(&image);
     }
     hover->set(frame.probe);
+    refreshStationPins();
     mainCaption->setText(QString::fromStdString(caption(makeJob(0, std::atoi(objectModel.getTime().c_str()), false))));
     renderTiles();
+}
+
+// the station buttons for the map on view: placed again only when the map itself changed (not for another hour of it)
+void ModelViewer::refreshStationPins() {
+    if (buttonStations == nullptr || !buttonStations->isChecked() || !shownProbe || !shownProbe->valid()) {
+        image.clearPins();
+        stationPinKey.clear();
+        return;
+    }
+    const auto& p = *shownProbe;
+    const string key = QString{"%1|%2|%3|%4|%5|%6|%7|%8|%9|%10"}.arg(p.west).arg(p.east).arg(p.south).arg(p.north).arg(p.areaLeft).arg(p.areaTop).arg(p.areaWidth)
+                           .arg(p.areaHeight).arg(p.imageWidth).arg(p.imageHeight).toStdString();
+    if (key == stationPinKey) {
+        return;
+    }
+    stationPinKey = key;
+    std::vector<ZoomImage::Pin> pins;
+    for (const auto& station : UtilityBufkit::stations()) {
+        double fx = 0.0, fy = 0.0;
+        if (p.place(station.longitude, station.latitude, fx, fy)) {
+            pins.push_back({fx, fy, QString::fromStdString(station.id), QString::fromStdString(station.id) + "  RRFS sounding"});
+        }
+    }
+    image.setPins(pins);
 }
 
 // a time chosen on the timeline: the same as choosing it in the list

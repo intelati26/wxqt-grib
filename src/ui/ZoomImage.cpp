@@ -3,6 +3,8 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include <set>
+#include <QPushButton>
 #include "ui/ZoomImage.h"
 #include <algorithm>
 #include <cmath>
@@ -95,7 +97,54 @@ void ZoomImage::clearMarker() {
     marker->hide();
 }
 
+void ZoomImage::setPins(const std::vector<Pin>& list) {
+    clearPins();
+    pins = list;
+    for (const auto& pin : pins) {
+        auto * button = new QPushButton{label};
+        button->setFixedSize(11, 11);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setFocusPolicy(Qt::NoFocus);
+        button->setToolTip(pin.tip);
+        button->setStyleSheet("QPushButton{background:#ffd400;border:1px solid #000;border-radius:5px;} QPushButton:hover{background:#ffffff;}");
+        const QString id = pin.id;
+        QObject::connect(button, &QPushButton::clicked, this, [this, id] { emit pinClicked(id); });
+        button->hide();
+        pinButtons.push_back(button);
+    }
+    repositionPins();
+}
+
+void ZoomImage::clearPins() {
+    for (auto * button : pinButtons) {
+        button->deleteLater();
+    }
+    pinButtons.clear();
+    pins.clear();
+}
+
+void ZoomImage::repositionPins() {
+    if (pinButtons.empty()) {
+        return;
+    }
+    const bool have = !label->pixmap().isNull();
+    std::set<std::pair<int, int>> taken;
+    for (size_t i = 0; i < pinButtons.size() && i < pins.size(); i++) {
+        auto * button = pinButtons[i];
+        const int x = static_cast<int>(std::lround(pins[i].fx * label->width()));
+        const int y = static_cast<int>(std::lround(pins[i].fy * label->height()));
+        if (!have || !taken.insert({x / 13, y / 13}).second) {
+            button->hide();
+            continue;
+        }
+        button->move(x - button->width() / 2, y - button->height() / 2);
+        button->show();
+        button->raise();
+    }
+}
+
 void ZoomImage::repositionMarker() {
+    repositionPins();
     if (!markerActive || !crosshairMode || label->pixmap().isNull()) {
         marker->hide();
         return;

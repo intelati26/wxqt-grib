@@ -10,6 +10,9 @@
 #include <QPixmap>
 #include <QPoint>
 #include <QScrollArea>
+#include <QString>
+#include <vector>
+class QPushButton;
 #include "ui/Window.h"
 
 // A scrollable image view with mouse-wheel zoom and left-drag panning.
@@ -37,6 +40,15 @@ public:
     };
     View view() const;
     void setView(const View&);
+    // small round buttons over the picture, each at a 0..1 fraction of the source image (the stations of a map). They are widgets laid over the view, not part of the picture,
+    // so nothing saved or exported from the picture has them; where they would crowd each other at the zoom shown, only the first of them is shown.
+    struct Pin {
+        double fx{0.0}, fy{0.0};
+        QString id;
+        QString tip;
+    };
+    void setPins(const std::vector<Pin>&);
+    void clearPins();
 
 signals:
     void doubleClicked();
@@ -47,6 +59,7 @@ signals:
     void clicked(double fx, double fy);
     // the user zoomed or panned (not a refit or setView)
     void viewChanged();
+    void pinClicked(const QString& id);
 
 protected:
     void wheelEvent(QWheelEvent *) override;
@@ -61,6 +74,9 @@ private:
     void applyScale(double newScale, const QPoint& anchor);
     double fitScale() const;
     void repositionMarker();
+    void repositionPins();
+    std::vector<Pin> pins;
+    std::vector<QPushButton *> pinButtons;
     void updateRestingCursor();
     QLabel * label;
     QLabel * marker;

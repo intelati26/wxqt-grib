@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <QDateTime>
+#include "common/GlobalVariables.h"
 #include "util/UtilityIO.h"
 
 namespace {
@@ -38,6 +39,21 @@ namespace {
 }
 
 namespace UtilityBufkit {
+
+const std::vector<Station>& stations() {
+    static const std::vector<Station> list = [] {
+        std::vector<Station> out;
+        for (const auto& line : UtilityIO::rawFileToStringArray(GlobalVariables::resDir + "bufkit_stations.txt")) {
+            std::istringstream parts{line};
+            std::string id, lat, lon;
+            if (std::getline(parts, id, ',') && std::getline(parts, lat, ',') && std::getline(parts, lon, ',') && !id.empty()) {
+                out.push_back({id, std::atof(lat.c_str()), std::atof(lon.c_str())});
+            }
+        }
+        return out;
+    }();
+    return list;
+}
 
 bool parse(const std::string& text, Run& out, std::string& error) {
     out.hours.clear();
