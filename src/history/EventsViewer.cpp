@@ -396,6 +396,10 @@ void EventsViewer::fillAvailability(const HistoryEvent& e) {
         auto * map = new MasterMapViewer{this};
         map->openAt(at, eventLat, eventLon, eventRadius, {"radar/mrms"});
     };
+    const auto openGoes = [this, at, eventLat, eventLon, eventRadius] {
+        auto * map = new MasterMapViewer{this};
+        map->openAt(at, eventLat, eventLon, std::max(eventRadius, 400.0), {"satellite/goes-history"});
+    };
     const auto openModel = [this, at] {
         auto * screen = new ModelScreen{this, "NCEP"};
         screen->openAt("GFS", at);
@@ -412,6 +416,7 @@ void EventsViewer::fillAvailability(const HistoryEvent& e) {
         {"SPC storm reports (map and list for the day)", QDate{2004, 1, 1}, "about 2004", openStormReports, {}},
         {"SPC convective outlooks (archive page, 16:30Z day 1)", QDate{2010, 1, 1}, "2010 checked", openUrl("https://www.spc.noaa.gov/products/outlook/archive/" + day.toString("yyyy") + "/day1otlk_" + ymd + "_1630.html"), {}},
         {"Satellite: daily true color (Terra MODIS from 2000, NOAA-20 from 2018)", QDate{2000, 2, 24}, "2000-02-24", openSatellite, {}},
+        {"Satellite: GOES infrared / visible / water vapor, 4 km CONUS, every 15 min (Iowa Mesonet)", QDate{2010, 1, 1}, "about 2010", openGoes, {}},
         {"Radar: MRMS composite reflectivity (AWS), map at the event", QDate{2020, 10, 14}, "2020-10-14", openRadar, {}},
         {"Model: GFS run and hour of that time (AWS, from 2021)", QDate{2021, 1, 1}, "2021", openModel, {}},
         {"Model: HRRR, NAM and the others (pictures from NOMADS: the last days only)", QDate{2026, 10, 1}, "recent only", nullptr, "its screen cannot open at a time yet"},

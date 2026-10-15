@@ -173,6 +173,12 @@ int main(int argc, char * argv[]) {
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
                 when.setTimeSpec(Qt::UTC);
                 map->openAt(when, parts.value(2, "35.3").toDouble(), parts.value(3, "-97.5").toDouble(), parts.value(4, "300").toDouble(), {"radar/mrms"});
+            } else if (route.startsWith("goesat:")) {   // WXQT_OPEN=goesat:<yyyyMMddHHmm UTC>: the master map at that time with the GOES history layer
+                const auto parts = route.split(':');
+                auto * map = new MasterMapViewer{&w};
+                auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
+                when.setTimeSpec(Qt::UTC);
+                map->openAt(when, 37.0, -97.0, 900.0, {"satellite/goes-history"});
             } else if (route.startsWith("modelat:")) {   // WXQT_OPEN=modelat:<model>:<yyyyMMddHHmm UTC>: the Model Viewer on that model at the run and hour of that time
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
