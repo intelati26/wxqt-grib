@@ -15,6 +15,7 @@
 #include "ui/ComboBox.h"
 #include "ui/FlowBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Image.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Text.h"
@@ -46,7 +47,7 @@ private:
     };
     VBox box;
     ScrolledWindow sw;
-    HBox rowTop;
+    ControlRow rowTop;
     Button buttonRefresh;
     Button buttonDiscussion;
     Text textYears;

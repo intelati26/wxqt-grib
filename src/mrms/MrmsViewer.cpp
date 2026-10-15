@@ -312,8 +312,9 @@ void MrmsViewer::fitRadar() {
         return;
     }
     // the controls and the status line above the map (each one line: the status does not wrap)
-    const int above = rowTop.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height() + (labelLocations != nullptr ? labelLocations->sizeHint().height() : 0);
-    const int side = std::max(300, std::min(width() - 16, height() - above - 32));
+    const int above = ControlRow::heightIn(rowTop.getView(), width()) + textStatus.getView()->sizeHint().height() +
+        (labelLocations != nullptr ? labelLocations->sizeHint().height() : 0);
+    const int side = std::max(300, std::min(width() - 16, height() - above - 56));
     if (radar->width() != side) {
         radar->setFixedSize(side, side);
         radar->mapState.originalWidth = side;

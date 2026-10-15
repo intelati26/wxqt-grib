@@ -13,6 +13,7 @@
 #include <QWidget>
 #include "hurricane/HurricaneData.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -48,7 +49,7 @@ public:
 
 private:
     VBox box;
-    HBox rowFamilies;
+    ControlRow rowFamilies;
     IntensityChart * chart{};
 };
 

@@ -15,6 +15,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/ZoomImage.h"
 #include "ui/PopoverMenu.h"
 #include "ui/Shortcut.h"
@@ -37,7 +38,7 @@ private:
     void changeProductByCode(const string&);
     void changeSector();
     void closeEventCustom() override;
-    HBox boxH;
+    ControlRow boxH;
     VBox box;
     VBox boxFav;
     HBox imageLayout;

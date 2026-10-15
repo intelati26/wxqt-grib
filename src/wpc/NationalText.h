@@ -11,6 +11,7 @@
 #include <vector>
 #include "ui/BackForward.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/PopoverMenu.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Text.h"
@@ -30,7 +31,7 @@ private:
     void moveForward();
     void changeProductByCode(const string&);
     VBox box;
-    HBox hbox;
+    ControlRow hbox;
     ScrolledWindow sw;
     Text text;
     BackForward backForward;

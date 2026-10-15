@@ -17,6 +17,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -69,7 +70,7 @@ private:
     void fillYears();
     QString standingText() const;
     VBox box;
-    HBox row;
+    ControlRow row;
     HBox rowMain;
     ComboBox comboBasin;
     ComboBox comboMetric;

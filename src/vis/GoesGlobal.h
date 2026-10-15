@@ -13,6 +13,7 @@
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/ZoomImage.h"
 #include "ui/Shortcut.h"
 #include "ui/Window.h"
@@ -32,7 +33,7 @@ private:
     void changeSector();
     void changeCount();
     void closeEventCustom() override;
-    HBox boxH;
+    ControlRow boxH;
     VBox box;
     ZoomImage image;
     ComboBox comboboxProduct;

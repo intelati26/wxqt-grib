@@ -11,6 +11,7 @@
 #include <vector>
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
@@ -28,7 +29,7 @@ private:
     void changeProduct();
     void changeSector();
     VBox box;
-    HBox boxH;
+    ControlRow boxH;
     HBox boxText;
     ScrolledWindow sw;
     ComboBox comboboxSector;

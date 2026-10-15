@@ -14,6 +14,7 @@
 #include "ui/Button.h"
 #include "ui/FlowBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Image.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Text.h"
@@ -36,7 +37,7 @@ private:
     void closeEventCustom() override { closed = true; }
     VBox box;
     ScrolledWindow sw;
-    HBox rowTop;
+    ControlRow rowTop;
     Button buttonNhc;
     Button buttonClimate;
     Button buttonRefresh;

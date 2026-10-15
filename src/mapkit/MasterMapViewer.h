@@ -24,6 +24,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -75,7 +76,7 @@ private:
     MapLayer * layerOf(const string& id) const;
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     HBox rowMain;
     ComboBox comboView;
     Button buttonRefresh;

@@ -15,6 +15,7 @@
 #include "sounding/SoundingProfile.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -53,7 +54,7 @@ private:
     string status;   // same "RRFS <date> <cycle>z    F<hh> valid ..." form the map screens use, for names and headers
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     Text textInfo;
     ComboBox comboSite;
     ComboBox comboTime;

@@ -13,6 +13,7 @@
 #include "ui/Button.h"
 #include "ui/FlowBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
@@ -43,7 +44,7 @@ private:
     ScrolledWindow sw;
     Text textIntro;
     Text textNote;
-    HBox rowLinks;
+    ControlRow rowLinks;
     FlowBox flow;
     std::deque<Button> linkButtons;
     std::deque<Text> texts;

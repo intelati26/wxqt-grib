@@ -25,6 +25,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -87,7 +88,7 @@ private:
     };
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     HBox rowMain;
     ComboBox comboBasin;                                      // Atlantic, Eastern Pacific, Central Pacific
     ComboBox comboStorm;

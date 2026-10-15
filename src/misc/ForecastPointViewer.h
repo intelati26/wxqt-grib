@@ -18,6 +18,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -87,7 +88,7 @@ private:
     void choosePoint();
     void closeEventCustom() override { closed = true; }
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     ComboBox comboPoint;
     Button buttonOther;
     Button buttonRefresh;

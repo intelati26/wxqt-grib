@@ -14,6 +14,7 @@
 #include "ui/Button.h"
 #include "ui/FlowBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Image.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Text.h"
@@ -39,7 +40,7 @@ private:
     string title;
     VBox box;
     ScrolledWindow sw;
-    HBox rowButtons;
+    ControlRow rowButtons;
     Text textHeader;
     Text textNote;
     FlowBox flowImages;

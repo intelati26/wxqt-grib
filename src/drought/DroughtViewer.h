@@ -23,6 +23,7 @@
 #include "models/ProductPicker.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -114,7 +115,7 @@ private:
     std::vector<UtilityDrought::Area> selectedAreas() const;
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     QPushButton * buttonArea{};
     ComboBox comboWeek, comboCompare;
     QTabWidget * tabs{};

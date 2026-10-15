@@ -12,6 +12,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Photo.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -35,7 +36,7 @@ private:
     Button buttonForText;
     Button buttonNative;
     VBox box;
-    HBox boxH;
+    ControlRow boxH;
     ComboBox comboboxProduct;
 };
 

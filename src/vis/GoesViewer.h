@@ -14,6 +14,7 @@
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/ZoomImage.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -39,7 +40,7 @@ private:
     void resizeEventCustom() override;
     void closeEventCustom() override;
     AutoUpdate autoUpdate;
-    HBox boxH;
+    ControlRow boxH;
     VBox box;
     ZoomImage image;
     ComboBox comboboxSector;

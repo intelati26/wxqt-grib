@@ -12,6 +12,7 @@
 #include "models/UtilityRefs.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -45,7 +46,7 @@ private:
     string cycle;
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     Text textInfo;
     ComboBox comboHorizon;
     PlumeCanvas * canvas;

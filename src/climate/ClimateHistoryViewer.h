@@ -14,6 +14,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 #include "ui/ZoomImage.h"
@@ -34,7 +35,7 @@ private:
     void showLatest(const QByteArray&);
     string endDate() const;
     VBox box;
-    HBox row;
+    ControlRow row;
     ZoomImage image;
     ComboBox comboProduct;
     ComboBox comboCount;

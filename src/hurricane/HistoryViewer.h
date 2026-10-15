@@ -20,6 +20,7 @@
 #include "ui/ComboBox.h"
 #include "ui/Entry.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -48,8 +49,8 @@ private:
     QString describe(const UtilityHurdat::Track&) const;
 
     VBox box;
-    HBox rowTop;
-    HBox rowSort;
+    ControlRow rowTop;
+    ControlRow rowSort;
     HBox rowMain;
     ComboBox comboBasin;
     ComboBox comboFrom;

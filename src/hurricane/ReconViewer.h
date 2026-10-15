@@ -20,6 +20,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include <functional>
@@ -96,7 +97,7 @@ private:
     void closeEventCustom() override { closed = true; }
     static std::string basinOf(const std::string& id);
     VBox box;
-    HBox row;
+    ControlRow row;
     HBox row2;
     ComboBox comboMission;
     ComboBox comboFloater;

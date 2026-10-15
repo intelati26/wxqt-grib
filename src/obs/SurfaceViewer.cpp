@@ -430,7 +430,7 @@ void SurfaceViewer::fitRadar() {
     if (radar == nullptr) {
         return;
     }
-    const int above = rowTop.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height();
+    const int above = ControlRow::heightIn(rowTop.getView(), width()) + textStatus.getView()->sizeHint().height();
     const int side = std::max(300, std::min(width() - 16, height() - above - 32));
     if (radar->width() != side) {
         radar->setFixedSize(side, side);

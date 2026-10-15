@@ -11,6 +11,7 @@
 #include "hurricane/UtilityDropsonde.h"
 #include "ui/Button.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -37,7 +38,7 @@ public:
 
 private:
     VBox box;
-    HBox row;
+    ControlRow row;
     Button buttonFull;
     DropsondeChart * chart{};
     UtilityDropsonde::Drop drop;

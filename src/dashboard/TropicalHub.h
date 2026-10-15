@@ -15,6 +15,7 @@
 #include "hurricane/HurricaneData.h"
 #include "ui/Button.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -41,7 +42,7 @@ private:
     void closeEventCustom() override { closed = true; }
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     Button buttonRefresh;
     Button buttonTracks;
     Button buttonSeason;

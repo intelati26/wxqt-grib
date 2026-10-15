@@ -21,6 +21,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Shortcut.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
@@ -73,7 +74,7 @@ private:
     const UtilityMrms::Product& product() const;
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     ComboBox comboProduct;
     ComboBox comboScan;
     BackForward backForward;

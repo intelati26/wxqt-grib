@@ -10,6 +10,7 @@
 #include <string>
 #include "ui/Button.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/VBox.h"
 #include "ui/WebViewer.h"
 #include "ui/Window.h"
@@ -23,7 +24,7 @@ public:
 private:
     static void launchAlert(const string&);
     VBox box;
-    HBox boxH;
+    ControlRow boxH;
     Button button1;
     Button button2;
     string layers;

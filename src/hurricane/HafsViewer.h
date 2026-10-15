@@ -16,6 +16,7 @@
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "models/ChartHover.h"
 #include "ui/ZoomImage.h"
 #include "ui/Text.h"
@@ -62,7 +63,7 @@ private:
     string model() const { return comboModel.getIndex() == 1 ? "HAFSB" : "HAFSA"; }
     std::vector<string> storms;
     std::vector<string> productIds;   // before the product list that fills it
-    HBox row;
+    ControlRow row;
     VBox box;
     ZoomImage image;                     // the chart: wheel / Ctrl + - zoom, drag to pan; the zoom stays across the hours of one chart
     string shownChart;                   // the model, storm and product on view: another hour of it keeps the zoom

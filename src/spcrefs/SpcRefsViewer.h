@@ -17,6 +17,7 @@
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -64,7 +65,7 @@ private:
     int memberIndex() const;
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     ComboBox comboProduct;
     ComboBox comboCycle;
     ComboBox comboTime;

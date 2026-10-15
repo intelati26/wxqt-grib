@@ -307,7 +307,7 @@ void HistoryViewer::resizeEventCustom() {
     if (view == nullptr) {
         return;
     }
-    const int above = rowTop.getView()->sizeHint().height() + rowSort.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height();
+    const int above = ControlRow::heightIn(rowTop.getView(), width()) + ControlRow::heightIn(rowSort.getView(), width()) + textStatus.getView()->sizeHint().height();
     view->fit(width() - 300 - 40, height() - above - 40);
     list->setFixedHeight(view->map()->height());
 }

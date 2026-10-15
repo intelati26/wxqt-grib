@@ -12,6 +12,7 @@
 #include "objects/UrlAnimation.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 #include "ui/ZoomImage.h"
@@ -32,7 +33,7 @@ private:
     string stormTitle;
     vector<string> productKeys;   // the products worth looping, parallel to comboProduct
     VBox box;
-    HBox row;
+    ControlRow row;
     ZoomImage image;
     ComboBox comboProduct;
     ComboBox comboCount;

@@ -18,6 +18,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -46,8 +47,8 @@ private:
     static QString details(const UtilityTornado::Tornado&);
 
     VBox box;
-    HBox rowTop;
-    HBox rowMore;
+    ControlRow rowTop;
+    ControlRow rowMore;
     HBox rowMain;
     ComboBox comboSpan;
     ComboBox comboFrom;

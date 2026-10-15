@@ -14,6 +14,7 @@
 #include "hurricane/HurricaneData.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -48,7 +49,7 @@ public:
 private:
     void apply();
     VBox box;
-    HBox row;
+    ControlRow row;
     ComboBox comboMetric;
     ComboBox comboYears;
     ComboBox comboGroup;

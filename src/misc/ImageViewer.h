@@ -11,6 +11,7 @@
 #include <QByteArray>
 #include "ui/Button.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Shortcut.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -29,7 +30,7 @@ private:
     void save();
     string suggestedFileName(const QByteArray& savedBytes) const;
     VBox box;
-    HBox boxTop;
+    ControlRow boxTop;
     ZoomImage image;
     Button saveButton;
     Shortcut saveShortcut;

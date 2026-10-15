@@ -11,6 +11,7 @@
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Photo.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -27,7 +28,7 @@ private:
     void moveForward();
     const string prefToken{"SFC_OBS_IMG_IDX"};
     Photo photo;
-    HBox boxH;
+    ControlRow boxH;
     VBox box;
     ComboBox comboBox;
     BackForward backForward;

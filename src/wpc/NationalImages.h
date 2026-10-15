@@ -11,6 +11,7 @@
 #include <vector>
 #include "ui/BackForward.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "objects/UrlAnimation.h"
 #include "ui/PopoverMenu.h"
 #include "ui/VBox.h"
@@ -32,7 +33,7 @@ private:
     void closeEventCustom() override;
     void showLatest(const QByteArray&);
     VBox box;
-    HBox hbox;
+    ControlRow hbox;
     ZoomImage image;                 // zoom / pan; a loop through the menu group's charts (forecast days / hours) below it
     UrlAnimation objectAnimate;
     BackForward backForward;

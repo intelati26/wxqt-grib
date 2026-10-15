@@ -277,7 +277,7 @@ void TornadoViewer::resizeEventCustom() {
     if (view == nullptr) {
         return;
     }
-    const int above = rowTop.getView()->sizeHint().height() * 2 + textStatus.getView()->sizeHint().height();
+    const int above = ControlRow::heightIn(rowTop.getView(), width()) + ControlRow::heightIn(rowMore.getView(), width()) + textStatus.getView()->sizeHint().height();
     view->fit(width() - 310 - 40, height() - above - 40);
     list->setFixedHeight(view->map()->height());
 }

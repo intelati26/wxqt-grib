@@ -19,6 +19,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -73,7 +74,7 @@ private:
     QPointF pixelsOf(double lon, double mercatorLat, const Projection2&) const;
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     ComboBox comboFilter;
     Button buttonRefresh;
     QCheckBox * damCheck{};              // the Corps of Engineers hydropower dams

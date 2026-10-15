@@ -11,6 +11,7 @@
 #include <vector>
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Image.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
@@ -39,7 +40,7 @@ private:
     void resizeEventCustom() override;
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     HBox rowTitles;
     HBox rowValid;
     HBox rowImages;

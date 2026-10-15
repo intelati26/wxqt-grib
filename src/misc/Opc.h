@@ -9,6 +9,7 @@
 
 #include <string>
 #include "ui/BackForward.h"
+#include "ui/ControlRow.h"
 #include "ui/ComboBox.h"
 #include "objects/UrlAnimation.h"
 #include "ui/VBox.h"
@@ -31,7 +32,7 @@ private:
     ZoomImage image;                 // zoom / pan; a loop through the run of charts (analysis, 24, 48, 96 hour) below it
     UrlAnimation objectAnimate;
     VBox box;
-    HBox boxH;
+    ControlRow boxH;
     ComboBox comboBox;
     BackForward backForward;
 };

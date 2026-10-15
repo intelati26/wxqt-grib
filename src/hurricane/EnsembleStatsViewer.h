@@ -16,6 +16,7 @@
 #include "hurricane/HurricaneData.h"
 #include "hurricane/UtilityEnsembleStats.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -58,7 +59,7 @@ public:
 
 private:
     VBox box;
-    HBox rowFamilies;
+    ControlRow rowFamilies;
     Text textStatus;
     EnsembleChart * chart{};
 };

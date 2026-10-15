@@ -19,6 +19,7 @@
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -64,7 +65,7 @@ private:
     double shownTemperature(double celsius) const { return comboUnits.getIndex() == 0 ? celsius * 1.8 + 32.0 : celsius; }
 
     VBox box;
-    HBox rowTop;
+    ControlRow rowTop;
     Button buttonRefresh;
     QCheckBox * airportCheck{};
     QCheckBox * mesoCheck{};

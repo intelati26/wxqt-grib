@@ -13,6 +13,7 @@
 #include "space/SpaceData.h"
 #include "ui/Button.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -43,7 +44,7 @@ private:
     void addPicture(const QString& title, const std::string& url);
     void closeEventCustom() override { closed = true; }
     VBox box;
-    HBox row;
+    ControlRow row;
     Button buttonRefresh;
     Text textStatus;
     QWidget * content{};

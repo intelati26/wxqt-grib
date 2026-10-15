@@ -11,6 +11,7 @@
 #include "ui/BackForward.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
+#include "ui/ControlRow.h"
 #include "ui/Photo.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -28,7 +29,7 @@ private:
     void changeProduct();
     const string prefToken{"SPCCOMPMAP_LAYERSTRIOS"};
     VBox box;
-    HBox boxH;
+    ControlRow boxH;
     Photo photo;
     ComboBox comboBox;
     BackForward backForward;

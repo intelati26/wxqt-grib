@@ -409,7 +409,7 @@ void HurricaneViewer::resizeEventCustom() {
     if (view == nullptr) {
         return;
     }
-    const int above = rowTop.getView()->sizeHint().height() + textStatus.getView()->sizeHint().height();
+    const int above = ControlRow::heightIn(rowTop.getView(), width()) + textStatus.getView()->sizeHint().height();
     view->fit(width() - 330 - 18 - 24, height() - above - 40);
 }
 
