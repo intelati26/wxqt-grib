@@ -274,7 +274,8 @@ bool UtilityMrms::scans(const Product& product, vector<Scan>& out, string& error
         error = "no answer from mrms.ncep.noaa.gov (offline, blocked, or the site is down)";
         return false;
     }
-    const QRegularExpression pattern{QString::fromStdString("MRMS_" + product.id + "_[0-9.]+_(\\d{8})-(\\d{6})\\.grib2\\.gz")};
+    // MRMS_<product>_<level>_<time>, and a few named otherwise (MRMS_LightningProbabilityNext60minGrid_scale_1_<time>)
+    const QRegularExpression pattern{QString::fromStdString("MRMS_" + product.id + "[A-Za-z0-9_.]*?_(\\d{8})-(\\d{6})\\.grib2\\.gz")};
     auto matches = pattern.globalMatch(QString::fromStdString(listing));
     while (matches.hasNext()) {
         const auto match = matches.next();
