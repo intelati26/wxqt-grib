@@ -10,7 +10,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <sstream>
+#include <QDate>
 #include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QTime>
+#include <QTimeZone>
 #include "common/GlobalVariables.h"
 #include "util/UtilityIO.h"
 #include "util/WfoSites.h"
@@ -195,11 +200,52 @@ bool parse(const std::string& text, Run& out, std::string& error) {
     return true;
 }
 
+namespace {
+    // the compressed copies of the files read: one per station and model, in the folder of the GRIB cache, named bk_<station>_<run yymmdd-hhmm>_<model>.z
+    QString cacheFolder() {
+        const auto path = QDir::tempPath() + "/wxqt_grib";
+        QDir{}.mkpath(path);
+        return path;
+    }
+
+    QDateTime runDateTime(const std::string& runTime) {   // "261015/0600" -> UTC
+        if (runTime.size() < 11) {
+            return {};
+        }
+        return QDateTime{QDate{2000 + std::atoi(runTime.substr(0, 2).c_str()), std::atoi(runTime.substr(2, 2).c_str()), std::atoi(runTime.substr(4, 2).c_str())},
+                         QTime{std::atoi(runTime.substr(7, 2).c_str()), std::atoi(runTime.substr(9, 2).c_str())}, QTimeZone::utc()};
+    }
+}
+
 bool fetchLatest(const std::string& model, const std::string& station, Run& out, std::string& error) {
+    // a read file is kept (compressed) until the next cycle of the model can be out: the run's time plus its 6 hours plus the 3 hours and a half the feed takes to publish
+    const QString folder = cacheFolder();
+    const QString upper = QString::fromStdString(station).toUpper(), modelName = QString::fromStdString(model).toUpper();
+    {
+        QDir dir{folder};
+        auto names = dir.entryList({"bk_" + upper + "_*_" + modelName + ".z"}, QDir::Files, QDir::Name);
+        if (!names.isEmpty()) {
+            const QString name = names.last();
+            const QString run = name.mid(4 + upper.size() + 1, 11).replace('-', '/');
+            const auto runAt = runDateTime(run.toStdString());
+            QFile file{dir.filePath(name)};
+            if (runAt.isValid() && QDateTime::currentDateTimeUtc() < runAt.addSecs(static_cast<qint64>(9.5 * 3600.0)) && file.open(QIODevice::ReadOnly)) {
+                const auto text = qUncompress(file.readAll());
+                std::string e;
+                Run cached;
+                if (!text.isEmpty() && parse(text.toStdString(), cached, e)) {
+                    cached.model = model;
+                    out = cached;
+                    return true;
+                }
+            }
+        }
+    }
     // the cycles the feed carries (RRFS: 00 06 12 18). A cycle's folder holds its last run, so one not yet published still holds yesterday's:
     // the two most recent cycles are read and the later run kept.
     const int latest = (QDateTime::currentDateTimeUtc().addSecs(-2 * 3600).time().hour() / 6) * 6;   // runs appear a few hours after their time
     bool found = false;
+    std::string foundText;
     for (int back = 0; back < 2; back++) {
         const int hour = ((latest - 6 * back) % 24 + 24) % 24;
         char cycle[3];
@@ -214,13 +260,34 @@ bool fetchLatest(const std::string& model, const std::string& station, Run& out,
         candidate.model = model;
         if (!found || candidate.runTime > out.runTime) {
             out = candidate;
+            foundText = text;
             found = true;
         }
     }
     if (!found) {
         error = "no BUFKIT " + model + " file for " + station + " (stations are airports and sounding sites, e.g. KSGF)";
+        return false;
     }
-    return found;
+    // keep it compressed (about a third of the text), and let go of what is from an older run: this station's earlier file, and any other station's of the model
+    // from a run before this one, as the GRIB cache drops the slices of old runs
+    QString runName = QString::fromStdString(out.runTime);
+    runName.replace('/', '-');
+    const QString mine = "bk_" + upper + "_" + runName + "_" + modelName + ".z";
+    QDir dir{folder};
+    for (const auto& name : dir.entryList({"bk_*_" + modelName + ".z"}, QDir::Files)) {
+        const auto parts = name.split('_');   // bk, station, run, model.z
+        if (name != mine && (parts.size() >= 4 && (parts[1] == upper || parts[2] < runName))) {
+            dir.remove(name);
+        }
+    }
+    QFile part{dir.filePath(mine + ".part")};
+    if (part.open(QIODevice::WriteOnly)) {
+        part.write(qCompress(QByteArray::fromRawData(foundText.data(), static_cast<qsizetype>(foundText.size())), 6));
+        part.close();
+        QFile::remove(dir.filePath(mine));
+        part.rename(dir.filePath(mine));
+    }
+    return true;
 }
 
 }  // namespace UtilityBufkit
