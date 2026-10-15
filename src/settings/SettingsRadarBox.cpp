@@ -29,6 +29,7 @@ SettingsRadarBox::SettingsRadarBox(Window * parent)
     alertConfigs.push_back(std::make_unique<Switch>(parent, "Cities", "COD_CITIES_DEFAULT", false));
     alertConfigs.push_back(std::make_unique<Switch>(parent, "Highways", "COD_HW_DEFAULT", false));
     alertConfigs.push_back(std::make_unique<Switch>(parent, "Location Markers", "COD_LOCDOT_DEFAULT", true));
+    alertConfigs.push_back(std::make_unique<Switch>(parent, "Wind barbs of model charts, observations and recon point downwind, like an arrow (off: the standard barb, its staff toward where the wind comes from)", "WIND_BARB_ARROW", true));
     // alertConfigs.push_back(std::make_unique<Switch>(parent, "Location marker follows GPS", "LOCDOT_FOLLOWS_GPS", false},
     alertConfigs.push_back(std::make_unique<Switch>(parent, "Mexico Borders", "RADARMEXICOLINES", false));
     alertConfigs.push_back(std::make_unique<Switch>(parent, "Observations", "WXOGL_OBS", false));

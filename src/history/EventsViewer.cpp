@@ -66,7 +66,11 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     end = new QDateTimeEdit{QDateTime::currentDateTimeUtc().addDays(-1), this};
     for (auto * edit : {start, end}) {
         edit->setDisplayFormat("yyyy-MM-dd HH:mm");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
         edit->setTimeZone(QTimeZone::utc());
+#else
+        edit->setTimeSpec(Qt::UTC);   // (the Linux build's Qt 6.4 has no setTimeZone on the date box)
+#endif
         edit->setCalendarPopup(true);
         edit->setToolTip("UTC");
     }
