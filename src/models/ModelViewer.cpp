@@ -153,6 +153,28 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             reload();
         });
         boxH2.addWidgetReal(buttonPlace);
+        comboLocalKm = new QComboBox{this};
+        for (const int km : {150, 300, 600, 1200, 2400}) {
+            comboLocalKm->addItem(QString::number(km) + " km square", km);
+        }
+        comboLocalKm->setToolTip("How big the area round the saved location is (the area list has one entry for each place)");
+        comboLocalKm->setVisible(false);
+        QObject::connect(comboLocalKm, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this] (int index) {
+            double lat = 0, lon = 0, km = 0;
+            string name;
+            if (index < 0 || !GfsChart::parseLocalId(objectModel.sector, lat, lon, km, name)) {
+                return;
+            }
+            const int wanted = comboLocalKm->itemData(index).toInt();
+            if (static_cast<int>(km) == wanted) {
+                return;
+            }
+            Utility::writePrefInt("MODEL_LOCAL_KM", wanted);
+            objectModel.sector = GfsChart::localId(lat, lon, wanted, name);
+            refreshSectorList();
+            reload();
+        });
+        boxH2.addWidgetReal(comboLocalKm);
         buttonSigma = new QPushButton{"Std deviations", this};
         buttonSigma->setCheckable(true);
         buttonSigma->setVisible(false);
@@ -1028,6 +1050,23 @@ void ModelViewer::reload() {
     if (buttonPlace != nullptr) {
         buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
     }
+    if (comboLocalKm != nullptr) {   // the size of an area round a saved location, beside it
+        double lat = 0, lon = 0, km = 0;
+        string name;
+        const bool local = GfsChart::parseLocalId(objectModel.sector, lat, lon, km, name);
+        comboLocalKm->setVisible(local);
+        if (local) {
+            const int at = comboLocalKm->findData(static_cast<int>(km));
+            comboLocalKm->blockSignals(true);
+            if (at >= 0) {
+                comboLocalKm->setCurrentIndex(at);
+            } else {
+                comboLocalKm->addItem(QString::number(static_cast<int>(km)) + " km square", static_cast<int>(km));
+                comboLocalKm->setCurrentIndex(comboLocalKm->count() - 1);
+            }
+            comboLocalKm->blockSignals(false);
+        }
+    }
     if (strip) {
         strip->setCurrent(static_cast<int>(comboboxTime.getIndex()));
     }
@@ -1118,14 +1157,37 @@ void ModelViewer::addLocalSectors() {
     if (!GfsRender::drawsModel(objectModel.model)) {
         return;
     }
+    // one entry per place, at the size chosen beside the area box (the size of the area on show, when it is one of these)
+    double km = std::clamp(Utility::readPrefInt("MODEL_LOCAL_KM", 600), 100, 5000);
+    {
+        double lat = 0, lon = 0, shownKm = 0;
+        string name;
+        if (GfsChart::parseLocalId(objectModel.sector, lat, lon, shownKm, name) && shownKm > 0) {
+            km = shownKm;
+        }
+    }
     const auto places = Location::getListLatLons();
     const auto names = Location::listOfNames();
     for (size_t i = 0; i < places.size(); i++) {
         const string name = i < names.size() ? names[i] : string{};
-        for (const double km : {300.0, 600.0, 1200.0}) {
-            sectors.push_back(GfsChart::localId(places[i].lat(), places[i].lon(), km, name));
-        }
+        sectors.push_back(GfsChart::localId(places[i].lat(), places[i].lon(), km, name));
     }
+    if (objectModel.sector.compare(0, 6, "LOCAL:") == 0 && std::find(sectors.begin(), sectors.end(), objectModel.sector) == sectors.end()) {
+        sectors.push_back(objectModel.sector);   // an area kept from before (a place since renamed or moved, a saved view): still in the list
+    }
+}
+
+void ModelViewer::refreshSectorList() {
+    addLocalSectors();
+    comboboxSector.block();
+    comboboxSector.setList(objectModel.sectors);
+    vector<string> labels;
+    for (const auto& id : objectModel.sectors) {
+        labels.push_back(sectorLabel(id));
+    }
+    comboboxSector.setLabels(labels);
+    comboboxSector.setIndexByValue(objectModel.sector);
+    comboboxSector.unblock();
 }
 
 void ModelViewer::updateRunStatus() {
@@ -1218,7 +1280,7 @@ void ModelViewer::refreshProductButton() {
     comboboxProduct.setVisible(!grib);
     comboboxSector.setVisible(!grib);   // the areas are many too: the grouped picker
     buttonSector.setVisible(grib);
-    buttonSector.setText(objectModel.sector + "  \xE2\x96\xBE");
+    buttonSector.setText(sectorLabel(objectModel.sector) + "  \xE2\x96\xBE");
     buttonProducts.setVisible(grib);
     refreshBuildMenu();
     refreshMembers();

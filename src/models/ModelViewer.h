@@ -23,6 +23,7 @@
 #include <deque>
 #include <map>
 #include <set>
+#include <QComboBox>
 #include <QTimer>
 #include "models/ChartHover.h"
 #include "models/CompareTile.h"
@@ -133,7 +134,9 @@ private:
     void addLocalSectors();
     void applyMainRunRule();   // a chart only a model's main runs have: shows the main run in its place, and says so above the timeline
     std::string runSwappedFrom;   // the run that was chosen before the chart made the screen move to a main run ("" when none)
-    QPushButton * buttonPlace{nullptr};   // the ring and the name of the place on an area round a saved location (a pref, MODEL_PLACE_MARK)
+    QPushButton * buttonPlace{nullptr};
+    QComboBox * comboLocalKm{nullptr};   // the size of an area round a saved location (one entry per place in the area list, this sets how big)
+    void refreshSectorList();   // the ring and the name of the place on an area round a saved location (a pref, MODEL_PLACE_MARK)
     QPushButton * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
     bool standardDeviations{false};
     QPushButton * buttonMax{};

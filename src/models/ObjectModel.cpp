@@ -297,7 +297,7 @@ void ObjectModel::setModelVars(const string& modelName) {
         runs = runTimeData.listRun;
     }
     if (!sectors.empty()) {
-        if (!contains(sectors, sector)) {
+        if (!contains(sectors, sector) && sector.compare(0, 6, "LOCAL:") != 0) {   // an area round a saved location is added to the list later (the model screen)
             sector = sectors[0];
         }
     }
