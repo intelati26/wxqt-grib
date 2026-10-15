@@ -221,37 +221,7 @@ MrmsViewer::MrmsViewer(Window * parent)
 }
 
 void MrmsViewer::rebuildProducts(const string& selectId) {
-    static const vector<string> order{"Reflectivity", "More reflectivity", "Dual-polarization", "Hail", "Rotation", "Precipitation", "Precipitation estimates (QPE)", "Precipitation type and melting layer",
-                                      "Storm structure", "Lightning", "Model environment", "Quality and gauge indices", "Other products"};
-    auto list = UtilityMrms::products();
-    // what the server lists beyond the hand-set products goes into bins by the family of its name
-    const auto bin = [] (const string& id) -> string {
-        const auto starts = [&id] (const char * prefix) { return id.rfind(prefix, 0) == 0; };
-        if (starts("MultiSensor_QPE") || starts("RadarOnly_QPE")) return "Precipitation estimates (QPE)";
-        if (starts("GaugeInflIndex") || starts("RadarAccumulationQualityIndex") || starts("RadarQualityIndex")) return "Quality and gauge indices";
-        if (starts("MergedRhoHV") || starts("MergedZdr")) return "Dual-polarization";
-        if (id.find("Reflectivity") != string::npos || starts("BREF_") || starts("CREF_") || starts("SeamlessHSR")) return "More reflectivity";
-        if (starts("RotationTrack")) return "Rotation";
-        if (starts("Lightning") || starts("Ltg") || starts("NLDN")) return "Lightning";
-        if (starts("H50_") || starts("H60_") || starts("SHI") || starts("VII") || starts("VIL") || starts("EchoTop") || starts("LVL3_")) return "Storm structure";
-        if (starts("Model_")) return "Model environment";
-        if (starts("PrecipFlag") || starts("SyntheticPrecipRate") || starts("WarmRain") || starts("BrightBand")) return "Precipitation type and melting layer";
-        return {};
-    };
-    for (auto extra : extraProducts) {
-        if (extra.group == "Other products") {
-            const auto binned = bin(extra.id);
-            if (!binned.empty()) {
-                extra.group = binned;
-            }
-        }
-        list.push_back(extra);
-    }
-    const auto rank = [] (const UtilityMrms::Product& p) {
-        const auto found = std::find(order.begin(), order.end(), p.group);
-        return found == order.end() ? order.size() : static_cast<size_t>(found - order.begin());
-    };
-    std::stable_sort(list.begin(), list.end(), [&rank] (const auto& a, const auto& b) { return rank(a) < rank(b); });
+    const auto list = UtilityMrms::groupedProducts(extraProducts);
     productList = list;
     vector<string> labels;
     size_t selected = 0;

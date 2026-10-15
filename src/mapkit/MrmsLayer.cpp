@@ -11,21 +11,69 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QImage>
+#include <QPushButton>
+#include <QTreeWidget>
 #include <QLabel>
 #include <QSlider>
 #include <QVBoxLayout>
+#include "settings/Location.h"
 #include "util/Utility.h"
 
+MrmsLayer::MrmsLayer() : productList{UtilityMrms::groupedProducts({})} {
+    productId = Utility::readPref("MM_MRMS_PRODUCT", productList.front().id);
+}
+
 const UtilityMrms::Product& MrmsLayer::product() const {
-    const auto& all = UtilityMrms::products();
-    return all[static_cast<size_t>(std::clamp(productIndex, 0, static_cast<int>(all.size()) - 1))];
+    const auto found = std::find_if(productList.begin(), productList.end(), [this] (const auto& p) { return p.id == productId; });
+    return found == productList.end() ? productList.front() : *found;
+}
+
+// what the server lists beyond the hand-set products (some two hundred), read once in the background
+void MrmsLayer::discover(MapHost& host) {
+    if (discovering || productList.size() > UtilityMrms::products().size()) {
+        return;
+    }
+    discovering = true;
+    auto more = std::make_shared<std::vector<UtilityMrms::Product>>();
+    host.background(
+        [more] { string error; UtilityMrms::discoverMore(*more, error); },
+        [this, more] {
+            discovering = false;
+            if (!more->empty()) {
+                productList = UtilityMrms::groupedProducts(*more);
+            }
+        });
+}
+
+// "Home: 0.82 in   Springfield: none": the scan on view at the saved locations
+string MrmsLayer::locationsText() const {
+    if (!have || indices.isEmpty()) {
+        return {};
+    }
+    const auto names = Location::listOfNames();
+    const auto places = Location::getListLatLons();
+    const auto& grid = frame.grid;
+    string out;
+    for (size_t i = 0; i < places.size(); i++) {
+        const int column = static_cast<int>(std::floor((places[i].lon() - grid.west) / grid.cell));
+        const int row = static_cast<int>(std::floor((grid.north - places[i].lat()) / grid.cell));
+        if (column < 0 || column >= grid.columns || row < 0 || row >= grid.rows) {
+            continue;
+        }
+        const int index = static_cast<uchar>(indices[static_cast<qsizetype>(row) * grid.columns + column]);
+        const string name = i < names.size() ? names[i] : "Location " + std::to_string(i + 1);
+        out += (out.empty() ? "" : "   ") + name + ": " +
+            (index == 0 ? string{"none"} : QString::number(UtilityMrms::shown(product(), frame.valueAt(index), us), 'g', 3).toStdString() + " " + UtilityMrms::unitsShown(product(), us));
+    }
+    return out;
 }
 
 string MrmsLayer::summary() const {
     if (loading && !have) return "reading the MRMS scan...";
     if (!error.empty()) return error;
     if (!have) return {};
-    return "MRMS " + product().label + " " + frame.utc.toString("HH:mm").toStdString() + "Z";
+    const auto places = locationsText();
+    return "MRMS " + product().label + " " + frame.utc.toString("HH:mm").toStdString() + "Z" + (places.empty() ? string{} : "\n" + places);
 }
 
 void MrmsLayer::rebuildColors() {
@@ -268,12 +316,9 @@ QWidget * MrmsLayer::options(QWidget * parent, const std::function<void()>& chan
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Product:", widget});
-    auto * combo = new QComboBox{widget};
-    for (const auto& p : UtilityMrms::products()) {
-        combo->addItem(QString::fromStdString((p.group.empty() ? "" : p.group + ": ") + p.label));
-    }
-    combo->setCurrentIndex(productIndex);
-    layout->addWidget(combo);
+    auto * choose = new QPushButton{QString::fromStdString(product().group + " - " + product().label), widget};
+    choose->setToolTip("The products in groups (reflectivity, hail, rotation, precipitation, storm structure ...)");
+    layout->addWidget(choose);
     layout->addWidget(new QLabel{"Frames in a loop (about two minutes apart):", widget});
     auto * loop = new QComboBox{widget};
     loop->addItems({"12", "24", "36", "48"});
@@ -288,18 +333,64 @@ QWidget * MrmsLayer::options(QWidget * parent, const std::function<void()>& chan
     auto * units = new QCheckBox{"US units (inches, kft)", widget};
     units->setChecked(us);
     layout->addWidget(units);
-    QObject::connect(combo, &QComboBox::currentIndexChanged, [this, changed] (int index) {
-        productIndex = index;
-        have = false;
-        indices.clear();
-        frames.clear();
-        scans.clear();
-        shownSeconds = 0;
-        error.clear();
-        loading = false;   // a scan of the old product still on its way is dropped when it arrives (the generation moved on)
-        ++generation;
-        reloadNeeded = true;
-        changed();
+    QObject::connect(choose, &QPushButton::clicked, [this, choose, changed] {
+        // the tree of groups, as a popup under the button
+        auto * tree = new QTreeWidget{choose};
+        tree->setWindowFlags(Qt::Popup);
+        tree->setAttribute(Qt::WA_DeleteOnClose);
+        tree->setHeaderHidden(true);
+        tree->setIndentation(14);
+        std::vector<string> groups;
+        for (const auto& p : productList) {
+            if (std::find(groups.begin(), groups.end(), p.group) == groups.end()) {
+                groups.push_back(p.group);
+            }
+        }
+        for (const auto& group : groups) {
+            auto * top = new QTreeWidgetItem{tree, QStringList{QString::fromStdString(group)}};
+            QFont bold = top->font(0);
+            bold.setBold(true);
+            top->setFont(0, bold);
+            top->setData(0, Qt::UserRole, QString{});
+            bool holdsShown = false;
+            for (const auto& p : productList) {
+                if (p.group != group) {
+                    continue;
+                }
+                auto * item = new QTreeWidgetItem{top, QStringList{QString::fromStdString(p.label)}};
+                item->setData(0, Qt::UserRole, QString::fromStdString(p.id));
+                if (p.id == productId) {
+                    holdsShown = true;
+                    tree->setCurrentItem(item);
+                }
+            }
+            top->setExpanded(holdsShown);
+        }
+        QObject::connect(tree, &QTreeWidget::itemClicked, tree, [this, tree, choose, changed] (QTreeWidgetItem * item, int) {
+            const auto id = item->data(0, Qt::UserRole).toString().toStdString();
+            if (id.empty()) {
+                item->setExpanded(!item->isExpanded());   // a group: open or close it
+                return;
+            }
+            tree->close();
+            productId = id;
+            Utility::writePref("MM_MRMS_PRODUCT", id);
+            choose->setText(QString::fromStdString(product().group + " - " + product().label));
+            have = false;
+            indices.clear();
+            frames.clear();
+            scans.clear();
+            shownSeconds = 0;
+            error.clear();
+            loading = false;   // a scan of the old product still on its way is dropped when it arrives (the generation moved on)
+            ++generation;
+            reloadNeeded = true;
+            changed();
+        });
+        tree->resize(std::max(choose->width(), 360), 460);
+        tree->move(choose->mapToGlobal(QPoint{0, choose->height()}));
+        tree->show();
+        tree->setFocus();
     });
     QObject::connect(slider, &QSlider::valueChanged, [this, changed] (int value) { opacity = value; if (have) rebuildColors(); changed(); });
     QObject::connect(units, &QCheckBox::toggled, [this, changed] (bool on) { us = on; changed(); });

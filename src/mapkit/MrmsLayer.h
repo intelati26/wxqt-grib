@@ -17,6 +17,7 @@
 // raster layers; the opacity is set in the options so that the marks below and above can be read.
 class MrmsLayer : public MapLayer {
 public:
+    MrmsLayer();
     string id() const override { return "radar/mrms"; }
     string path() const override { return "Radar and precipitation/MRMS (radar-derived products)"; }
     string source() const override { return "NOAA MRMS"; }
@@ -37,15 +38,19 @@ public:
     string summary() const override;
 
 protected:
-    void onEnable(MapHost& host) override { refresh(host); }
+    void onEnable(MapHost& host) override { refresh(host); discover(host); }
 
 private:
     const UtilityMrms::Product& product() const;
+    void discover(MapHost&);               // the products the server lists beyond the hand-set ones, in the tree
+    string locationsText() const;          // the value of the scan on view at each saved location
     void rebuildColors();
     void display(const UtilityMrms::Frame&);
     bool loading{false};
     string error;
-    int productIndex{0};
+    std::vector<UtilityMrms::Product> productList;   // the hand-set products and the server's others, in groups
+    string productId;
+    bool discovering{false};
     int opacity{80};         // percent
     bool us{true};
     UtilityMrms::Frame frame;

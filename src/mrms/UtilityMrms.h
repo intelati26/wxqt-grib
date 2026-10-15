@@ -80,6 +80,8 @@ namespace UtilityMrms {
     // the hand-set products, then every other folder the server has (found once per session, generic colours)
     const vector<Product>& products();
     bool discoverMore(vector<Product>& out, string& error);
+    // the hand-set products and what the server lists beyond them (`discovered`, from discoverMore), each in a group by the family of its name, the groups in the order of the menus
+    vector<Product> groupedProducts(const vector<Product>& discovered);
     // value in the units shown: US (inches, kft) or the native metric ones
     double shown(const Product&, double value, bool us);
     string unitsShown(const Product&, bool us);
