@@ -45,7 +45,7 @@ namespace {
 
     string sanitize(string name) {
         for (auto& c : name) {
-            if (c == '/' || c == '\\' || c == ':' || c == '?' || c == '*' || c == '"' || c == '<' || c == '>' || c == '|') {
+            if (c == '/' || c == '\\' || c == ':' || c == '?' || c == '*' || c == '"' || c == '<' || c == '>' || c == '|' || c == ',' || c == ';' || static_cast<unsigned char>(c) < 32) {
                 c = '_';
             }
         }

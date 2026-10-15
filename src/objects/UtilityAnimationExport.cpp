@@ -804,7 +804,19 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
 
     const auto & metaSource = !metaBytes.isEmpty() ? metaBytes
         : (!still.isEmpty() ? still : (frames.empty() ? still : frames.back()));
-    const auto datedBase = datePrefix ? datedName(name, metaSource) : name;
+    // the suggested name must be a legal Windows file name (no : , ; / \\ ? * " < > | or control characters, no trailing dot or space)
+    auto windowsSafe = [](QString text) {
+        for (auto & c : text) {
+            if (c.unicode() < 32 || QString{"<>:\"/\\|?*,;"}.contains(c)) {
+                c = '_';
+            }
+        }
+        while (text.endsWith('.') || text.endsWith(' ')) {
+            text.chop(1);
+        }
+        return text.trimmed();
+    };
+    const auto datedBase = windowsSafe(datePrefix ? datedName(name, metaSource) : name);
     const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
     const auto stem = picturesDir.isEmpty() ? datedBase : picturesDir + "/" + datedBase;
     QString selectedFilter = filters.first();
