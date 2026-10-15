@@ -13,6 +13,7 @@
 #include <QPushButton>
 #include <QCheckBox>
 #include "sounding/SoundingAnalysis.h"
+#include "sounding/UtilityBufkit.h"
 #include "sounding/SoundingProfile.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
@@ -39,11 +40,15 @@ public:
     SoundingViewer(Window * parent, const string& site);
     // a sounding already in hand (a recon dropsonde): drawn as it is, no pickers
     SoundingViewer(Window * parent, const SoundingProfile& profile, const string& title);
+    // a BUFKIT model sounding for a station ("RRFS", "KSGF"): the whole run in one small file, the forecast hours in the time box
+    SoundingViewer(Window * parent, const string& bufkitModel, const string& bufkitStation, bool);
 
 private:
     void build();
     void start();
     void startObserved();
+    void startBufkit();
+    void showBufkitHour();
     void onSave();
     void closeEventCustom() override;
 
@@ -70,6 +75,9 @@ private:
     SoundingCanvas * canvas;
 
     bool observed{false};
+    bool bufkitMode{false};
+    string bufkitModel, bufkitStation;
+    UtilityBufkit::Run bufkit;
     bool fixed{false};               // a profile handed in: nothing to pick or fetch
     std::vector<string> timeCodes;   // yyMMddHH per comboTime entry, "" = latest
     QDateTime observedTime;          // valid time of the loaded observed sounding

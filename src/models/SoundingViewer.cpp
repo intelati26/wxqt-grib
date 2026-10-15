@@ -1414,6 +1414,82 @@ SoundingViewer::SoundingViewer(Window * parent, const SoundingProfile& given, co
     canvas->setData(&profile, &analysis, QString::fromStdString(title));
 }
 
+SoundingViewer::SoundingViewer(Window * parent, const string& model, const string& station, bool)
+    : Window{parent}
+    , lon{0.0}
+    , lat{0.0}
+    , textInfo{this}
+    , comboSite{this, {"-"}}
+    , comboTime{this, {"-"}}
+    , comboArea{this, {"Point"}}
+    , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
+    , comboLayout{this, {"SPC layout", "Dynamic layout"}}
+    , buttonSave{new QPushButton{"Save", this}}
+    , canvas{new SoundingCanvas{this}}
+    , bufkitMode{true}
+    , bufkitModel{model}
+    , bufkitStation{station}
+{
+    setTitle(model + " BUFKIT Sounding");
+    comboTime.connect([this] { showBufkitHour(); });
+    build();
+    startBufkit();
+}
+
+void SoundingViewer::startBufkit() {
+    generation += 1;
+    const int thisGeneration = generation;
+    textInfo.setText(QString::fromStdString(bufkitModel + " BUFKIT " + bufkitStation + " - fetching..."));
+    canvas->setMessage(QString::fromStdString("Fetching the " + bufkitModel + " BUFKIT file for " + bufkitStation + " (about 0.4 MB, every forecast hour)..."));
+    auto result = std::make_shared<UtilityBufkit::Run>();
+    auto error = std::make_shared<string>();
+    auto ok = std::make_shared<bool>(false);
+    const auto model = bufkitModel, station = bufkitStation;
+    new FutureVoid{this,
+        [result, error, ok, model, station] { *ok = UtilityBufkit::fetchLatest(model, station, *result, *error); },
+        [this, result, error, ok, thisGeneration] {
+            if (closed || thisGeneration != generation) return;
+            if (!*ok) {
+                loaded = false;
+                textInfo.setText(QString{"No BUFKIT sounding"});
+                canvas->setMessage(QString::fromStdString(*error));
+                return;
+            }
+            bufkit = *result;
+            lat = bufkit.latitude;
+            lon = bufkit.longitude;
+            vector<string> labels;
+            for (size_t i = 0; i < bufkit.hours.size(); i++) {
+                const auto& v = bufkit.validTimes[i];   // yymmdd/hhmm
+                const QDateTime utc{QDate{2000 + To::Int(v.substr(0, 2)), To::Int(v.substr(2, 2)), To::Int(v.substr(4, 2))},
+                                    QTime{To::Int(v.substr(7, 2)), To::Int(v.substr(9, 2))}, QTimeZone::utc()};
+                labels.push_back("F" + string{bufkit.hours[i] < 10 ? "0" : ""} + To::string(bufkit.hours[i]) + "  " + utc.toLocalTime().toString("ddd h:mm AP").toStdString());
+            }
+            comboTime.block();
+            comboTime.setList(labels);
+            comboTime.setIndex(0);
+            comboTime.unblock();
+            showBufkitHour();
+        }};
+}
+
+void SoundingViewer::showBufkitHour() {
+    const auto index = static_cast<size_t>(std::max(0, comboTime.getIndex()));
+    if (index >= bufkit.profiles.size()) {
+        return;
+    }
+    profile = bufkit.profiles[index];
+    analysis = SoundingAnalysis::compute(profile);
+    loaded = true;
+    const auto& v = bufkit.validTimes[index];
+    const QDateTime utc{QDate{2000 + To::Int(v.substr(0, 2)), To::Int(v.substr(2, 2)), To::Int(v.substr(4, 2))},
+                        QTime{To::Int(v.substr(7, 2)), To::Int(v.substr(9, 2))}, QTimeZone::utc()};
+    status = bufkit.model + " " + bufkit.station + " " + bufkit.runTime.substr(0, 6) + " " + bufkit.cycle + "z    F" +
+        (bufkit.hours[index] < 10 ? "0" : "") + To::string(bufkit.hours[index]) + " valid " + utc.toLocalTime().toString("ddd h:mm AP").toStdString();
+    textInfo.setText(QString::fromStdString(status));
+    canvas->setData(&profile, &analysis, QString::fromStdString(status) + "    BUFKIT");
+}
+
 void SoundingViewer::build() {
     comboParcel.setIndex(1);
     comboParcel.connect([this] { canvas->setParcel(comboParcel.getIndex()); });
@@ -1431,6 +1507,10 @@ void SoundingViewer::build() {
         comboArea.setVisible(false);
         comboSite.setVisible(false);
         comboTime.setVisible(false);
+    } else if (bufkitMode) {
+        comboArea.setVisible(false);
+        comboSite.setVisible(false);
+        rowTop.addWidget(comboTime);
     } else if (observed) {
         rowTop.addWidget(comboSite);
         rowTop.addWidget(comboTime);
@@ -1600,7 +1680,7 @@ void SoundingViewer::onSave() {
     buffer.open(QIODevice::WriteOnly);
     canvas->renderExport(2).save(&buffer, "PNG");   // SPC's white background at twice its size, whatever the window shows
     QString suggested;
-    if (fixed) {
+    if (fixed || bufkitMode) {
         suggested = QString::fromStdString(status).replace(' ', '_').remove(':').replace('/', '-');
     } else if (observed) {
         const auto code = QString::fromStdString(SoundingSites::sites->codeList[static_cast<size_t>(std::max(0, comboSite.getIndex()))]);

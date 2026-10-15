@@ -1,0 +1,172 @@
+// *****************************************************************************
+// * This file is part of wxqt.  Licensed under the GNU General Public License v3.
+// * See the COPYING file for the full license text.
+// *****************************************************************************
+
+#include "sounding/UtilityBufkit.h"
+#include <algorithm>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <sstream>
+#include <QDateTime>
+#include "util/UtilityIO.h"
+
+namespace {
+    std::string lower(std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(), [] (unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return s;
+    }
+
+    // the value after "KEY =" on a line of "KEY = value KEY2 = value2" pairs
+    std::string valueOf(const std::string& text, const std::string& key) {
+        const auto at = text.find(key + " =");
+        if (at == std::string::npos) {
+            return {};
+        }
+        std::istringstream words{text.substr(at + key.size() + 2)};
+        std::string word;
+        words >> word;
+        return word;
+    }
+
+    bool isNumber(const std::string& token) {
+        char * end = nullptr;
+        std::strtod(token.c_str(), &end);
+        return end != token.c_str() && *end == '\0';
+    }
+}
+
+namespace UtilityBufkit {
+
+bool parse(const std::string& text, Run& out, std::string& error) {
+    out.hours.clear();
+    out.validTimes.clear();
+    out.profiles.clear();
+    // each forecast time starts at "STID = "; what comes before is the parameter list
+    size_t at = text.find("STID =");
+    if (at == std::string::npos) {
+        error = "not a BUFKIT file";
+        return false;
+    }
+    while (at != std::string::npos) {
+        const auto next = text.find("STID =", at + 6);
+        const std::string block = text.substr(at, next == std::string::npos ? std::string::npos : next - at);
+        at = next;
+        const auto time = valueOf(block, "TIME");
+        const auto stim = valueOf(block, "STIM");
+        std::vector<std::string> names;
+        std::vector<double> numbers;
+        std::istringstream lines{block};
+        std::string line;
+        bool inColumns = false;
+        while (std::getline(lines, line)) {
+            if (line.empty()) {
+                continue;
+            }
+            std::istringstream words{line};
+            std::vector<std::string> tokens;
+            std::string token;
+            while (words >> token) {
+                tokens.push_back(token);
+            }
+            if (tokens.empty()) {
+                continue;
+            }
+            if (!inColumns) {
+                // the column names: the line that starts with PRES, and the line or two of names after it
+                if (tokens[0] == "PRES") {
+                    inColumns = true;
+                    names = tokens;
+                }
+                continue;
+            }
+            if (std::all_of(tokens.begin(), tokens.end(), [] (const std::string& t) { return !isNumber(t); }) && numbers.empty()) {
+                names.insert(names.end(), tokens.begin(), tokens.end());   // CFRL HGHT on a second line
+                continue;
+            }
+            for (const auto& t : tokens) {
+                if (isNumber(t)) {
+                    numbers.push_back(std::strtod(t.c_str(), nullptr));
+                }
+            }
+        }
+        const auto column = [&names] (const char * name) {
+            const auto found = std::find(names.begin(), names.end(), name);
+            return found == names.end() ? -1 : static_cast<int>(found - names.begin());
+        };
+        const int ip = column("PRES"), it = column("TMPC"), id = column("DWPC"), idir = column("DRCT"), ispd = column("SKNT"), ih = column("HGHT");
+        if (ip < 0 || it < 0 || id < 0 || idir < 0 || ispd < 0 || ih < 0 || names.empty()) {
+            continue;
+        }
+        const size_t width = names.size();
+        SoundingProfile profile;
+        for (size_t i = 0; i + width <= numbers.size(); i += width) {
+            const double pres = numbers[i + static_cast<size_t>(ip)];
+            if (pres <= 0.0) {
+                continue;
+            }
+            profile.pres.push_back(pres);
+            profile.hght.push_back(numbers[i + static_cast<size_t>(ih)]);
+            profile.tmpc.push_back(numbers[i + static_cast<size_t>(it)]);
+            profile.dwpc.push_back(numbers[i + static_cast<size_t>(id)]);
+            profile.wdir.push_back(numbers[i + static_cast<size_t>(idir)]);
+            profile.wspd.push_back(numbers[i + static_cast<size_t>(ispd)]);
+        }
+        if (profile.pres.size() < 8) {
+            continue;
+        }
+        if (out.profiles.empty()) {
+            out.station = valueOf(block, "STID");
+            out.latitude = std::strtod(valueOf(block, "SLAT").c_str(), nullptr);
+            out.longitude = std::strtod(valueOf(block, "SLON").c_str(), nullptr);
+            out.elevation = std::strtod(valueOf(block, "SELV").c_str(), nullptr);
+            out.runTime = time;
+        }
+        profile.station = out.station;
+        profile.latitude = out.latitude;
+        profile.validTime = time;
+        profile.finalize();
+        out.hours.push_back(std::atoi(stim.c_str()));
+        out.validTimes.push_back(time);
+        out.profiles.push_back(std::move(profile));
+    }
+    if (out.profiles.empty()) {
+        error = "no profiles in the BUFKIT file";
+        return false;
+    }
+    // the run's own time is the one at hour 0 (the TIME of each block is its valid time)
+    out.runTime = out.validTimes.front();
+    out.cycle = out.runTime.size() >= 9 ? out.runTime.substr(7, 2) : std::string{};
+    return true;
+}
+
+bool fetchLatest(const std::string& model, const std::string& station, Run& out, std::string& error) {
+    // the cycles the feed carries (RRFS: 00 06 12 18). A cycle's folder holds its last run, so one not yet published still holds yesterday's:
+    // the two most recent cycles are read and the later run kept.
+    const int latest = (QDateTime::currentDateTimeUtc().addSecs(-2 * 3600).time().hour() / 6) * 6;   // runs appear a few hours after their time
+    bool found = false;
+    for (int back = 0; back < 2; back++) {
+        const int hour = ((latest - 6 * back) % 24 + 24) % 24;
+        char cycle[3];
+        std::snprintf(cycle, sizeof(cycle), "%02d", hour);
+        const std::string url = "https://www.meteo.psu.edu/bufkit/data/" + model + "/" + cycle + "/" + lower(model) + "_" + lower(station) + ".buf";
+        const auto text = UtilityIO::getHtml(url);
+        Run candidate;
+        std::string e;
+        if (text.empty() || !parse(text, candidate, e)) {
+            continue;
+        }
+        candidate.model = model;
+        if (!found || candidate.runTime > out.runTime) {
+            out = candidate;
+            found = true;
+        }
+    }
+    if (!found) {
+        error = "no BUFKIT " + model + " file for " + station + " (stations are airports and sounding sites, e.g. KSGF)";
+    }
+    return found;
+}
+
+}  // namespace UtilityBufkit

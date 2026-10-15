@@ -39,6 +39,7 @@
 #include "hurricane/HafsViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "models/ModelViewer.h"
+#include "models/SoundingViewer.h"
 #include "util/Utility.h"
 #include "hurricane/ReconViewer.h"
 #include "hurricane/SeasonViewer.h"
@@ -162,7 +163,10 @@ int main(int argc, char * argv[]) {
         QWidget * opened = nullptr;
         if (const auto route = qEnvironmentVariable("WXQT_OPEN"); !route.isEmpty()) {
             const auto before = QApplication::topLevelWidgets();
-            if (route.startsWith("recon:")) {   // WXQT_OPEN=recon:<NHC id>:<name>, e.g. recon:al092026:Isaias: the one-flight recon page
+            if (route.startsWith("bufkit:")) {   // WXQT_OPEN=bufkit:KSGF[:RRFS]: a BUFKIT model sounding of that station
+                const auto parts = route.split(':');
+                new SoundingViewer{&w, parts.value(2, "RRFS").toStdString(), parts.value(1).toStdString(), true};
+            } else if (route.startsWith("recon:")) {   // WXQT_OPEN=recon:<NHC id>:<name>, e.g. recon:al092026:Isaias: the one-flight recon page
                 const auto parts = route.split(':');
                 new ReconViewer{&w, parts.value(1).toStdString(), parts.value(2).toStdString()};
             } else if (route.startsWith("season:")) {   // WXQT_OPEN=season:al (or ep): the seasons screen, loaded here (it blocks until the data is read)
