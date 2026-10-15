@@ -6,6 +6,7 @@
 #ifndef UTILITYBUFKIT_H
 #define UTILITYBUFKIT_H
 
+#include <set>
 #include <string>
 #include <vector>
 #include "sounding/SoundingProfile.h"
@@ -20,6 +21,8 @@ namespace UtilityBufkit {
     };
     // the stations of the Penn State RRFS feed (about 1500 airports and sounding sites, from its site map)
     const std::vector<Station>& stations();
+    // the station of each NWS forecast office (its own airport when the feed has it, else the nearest K station within about 0.3 degrees): these are the ones a national view shows first
+    const std::set<std::string>& officeStations();
     struct Run {
         std::string model;                     // "RRFS", "HRRR", "RAP", "NAM", "NAMNEST", "GFS"
         std::string station;                   // "KSGF"

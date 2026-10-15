@@ -38,6 +38,11 @@
 
 using std::string;
 
+namespace UtilityBufkit {
+    struct Run;
+}
+class HodographGlyph;
+
 class ModelViewer : public Window {
 public:
     ModelViewer(Window *, const string&);
@@ -134,6 +139,16 @@ private:
     void addLocalSectors();
     void applyMainRunRule();   // a chart only a model's main runs have: shows the main run in its place, and says so above the timeline
     std::string runSwappedFrom;   // the run that was chosen before the chart made the screen move to a main run ("" when none)
+    // a hodograph of each station's model sounding on the map, for the hour on view (laid over the view like the station buttons: not in a saved picture)
+    QPushButton * buttonHodos{nullptr};
+    QTimer hodoTimer;
+    std::map<string, std::shared_ptr<UtilityBufkit::Run>> bufkitRuns;   // by station: the newest RRFS run of its BUFKIT file (every forecast hour)
+    std::set<string> bufkitAsked;
+    std::deque<string> bufkitQueue;
+    int bufkitRunning{0};
+    std::map<string, HodographGlyph *> hodoGlyphs;
+    void refreshHodographs();
+    void pumpBufkit();
     QPushButton * buttonStations{nullptr};   // a button on the map at each BUFKIT station: opens that station's model sounding (laid over the view, never in a saved picture)
     string stationPinKey;                    // the map the pins were placed on
     void refreshStationPins();

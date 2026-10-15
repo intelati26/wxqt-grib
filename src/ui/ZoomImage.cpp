@@ -123,7 +123,59 @@ void ZoomImage::clearPins() {
     pins.clear();
 }
 
+void ZoomImage::addOverlay(QWidget * widget, double fx, double fy) {
+    widget->setParent(label);
+    overlays.push_back({widget, fx, fy});
+    repositionPins();
+}
+
+void ZoomImage::moveOverlay(QWidget * widget, double fx, double fy) {
+    for (auto& o : overlays) {
+        if (o.widget == widget) {
+            o.fx = fx;
+            o.fy = fy;
+        }
+    }
+    repositionPins();
+}
+
+void ZoomImage::removeOverlay(QWidget * widget) {
+    overlays.erase(std::remove_if(overlays.begin(), overlays.end(), [widget] (const Overlay& o) { return o.widget == widget; }), overlays.end());
+    widget->deleteLater();
+}
+
+void ZoomImage::clearOverlays() {
+    for (auto& o : overlays) {
+        o.widget->deleteLater();
+    }
+    overlays.clear();
+}
+
+QRectF ZoomImage::visibleFraction() const {
+    if (label->width() <= 0 || label->height() <= 0) {
+        return {};
+    }
+    const double w = label->width(), h = label->height();
+    const double left = horizontalScrollBar()->value() - std::max(0, (viewport()->width() - label->width()) / 2);
+    const double top = verticalScrollBar()->value() - std::max(0, (viewport()->height() - label->height()) / 2);
+    const QRectF view{left, top, static_cast<double>(viewport()->width()), static_cast<double>(viewport()->height())};
+    const QRectF all{0.0, 0.0, w, h};
+    const QRectF shown = view.intersected(all);
+    return {shown.left() / w, shown.top() / h, shown.width() / w, shown.height() / h};
+}
+
+QSize ZoomImage::pictureSize() const {
+    return label->size();
+}
+
 void ZoomImage::repositionPins() {
+    for (const auto& o : overlays) {
+        const int x = static_cast<int>(std::lround(o.fx * label->width()));
+        const int y = static_cast<int>(std::lround(o.fy * label->height()));
+        o.widget->move(x - o.widget->width() / 2, y - o.widget->height() / 2);
+        o.widget->setVisible(!label->pixmap().isNull());
+        o.widget->raise();
+    }
     if (pinButtons.empty()) {
         return;
     }

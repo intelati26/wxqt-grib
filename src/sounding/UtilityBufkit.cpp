@@ -6,12 +6,14 @@
 #include "sounding/UtilityBufkit.h"
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <sstream>
 #include <QDateTime>
 #include "common/GlobalVariables.h"
 #include "util/UtilityIO.h"
+#include "util/WfoSites.h"
 
 namespace {
     std::string lower(std::string s) {
@@ -39,6 +41,42 @@ namespace {
 }
 
 namespace UtilityBufkit {
+
+const std::set<std::string>& officeStations() {
+    static const std::set<std::string> list = [] {
+        std::set<std::string> out;
+        if (WfoSites::sites == nullptr) {
+            return out;
+        }
+        const auto& all = stations();
+        for (const auto& wfo : WfoSites::sites->sites) {
+            const double lat = wfo.latLon.lat(), lon = wfo.latLon.lon();
+            const std::string code = wfo.codeName;
+            const Station * best = nullptr;
+            double bestDistance = 0.3;
+            for (const auto& s : all) {
+                if (s.id == "K" + code) {
+                    best = &s;
+                    bestDistance = -1.0;
+                    break;
+                }
+                if (s.id.size() != 4 || s.id[0] != 'K') {
+                    continue;
+                }
+                const double d = std::hypot(s.latitude - lat, (s.longitude - lon) * std::cos(lat * 3.14159265358979 / 180.0));
+                if (d < bestDistance) {
+                    bestDistance = d;
+                    best = &s;
+                }
+            }
+            if (best != nullptr) {
+                out.insert(best->id);
+            }
+        }
+        return out;
+    }();
+    return list;
+}
 
 const std::vector<Station>& stations() {
     static const std::vector<Station> list = [] {

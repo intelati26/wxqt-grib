@@ -38,6 +38,7 @@
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "gfs/GfsChart.h"
+#include "models/HodographGlyph.h"
 #include "models/SoundingViewer.h"
 #include "sounding/UtilityBufkit.h"
 #include "objects/WString.h"
@@ -169,6 +170,20 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             new SoundingViewer{this, "RRFS", id.toStdString(), true};
         });
         boxH2.addWidgetReal(buttonStations);
+        buttonHodos = new QPushButton{"Hodographs", this};
+        buttonHodos->setCheckable(true);
+        buttonHodos->setChecked(Utility::readPref("MODEL_BUFKIT_HODOS", "false").compare(0, 1, "t") == 0);
+        buttonHodos->setToolTip("A small hodograph of the RRFS sounding at each station in view, for the hour on the map: wind from the surface to 9 km (pink 0-1 km, red to 3, green to 6, yellow above), "
+                                "rings at 20 and 40 kt and the right-mover storm motion (orange dot); the 0-3 km helicity is in the tooltip. Each station is one small file (about 0.4 MB, every hour), read as it comes "
+                                "into view; zoom in for more stations. Click one for its sounding. Not part of saved pictures.");
+        hodoTimer.setSingleShot(true);
+        QObject::connect(&hodoTimer, &QTimer::timeout, this, [this] { refreshHodographs(); });
+        QObject::connect(buttonHodos, &QPushButton::toggled, this, [this] (bool on) {
+            Utility::writePref("MODEL_BUFKIT_HODOS", on ? "true" : "false");
+            refreshHodographs();
+        });
+        QObject::connect(&image, &ZoomImage::viewChanged, this, [this] { hodoTimer.start(250); });
+        boxH2.addWidgetReal(buttonHodos);
         comboLocalKm = new QComboBox{this};
         for (const int km : {150, 300, 600, 1200, 2400}) {
             comboLocalKm->addItem(QString::number(km) + " km square", km);
@@ -711,6 +726,7 @@ void ModelViewer::showFrame(const Frame& frame) {
     }
     hover->set(frame.probe);
     refreshStationPins();
+    hodoTimer.start(120);
     mainCaption->setText(QString::fromStdString(caption(makeJob(0, std::atoi(objectModel.getTime().c_str()), false))));
     renderTiles();
 }
@@ -737,6 +753,127 @@ void ModelViewer::refreshStationPins() {
         }
     }
     image.setPins(pins);
+}
+
+// the hodograph glyphs: the NWS offices' stations first, then the other airports, none closer than a glyph to another (up to 150); each station's file is read the first time it
+// is wanted, four at a time, and the glyph appears when it is in
+void ModelViewer::refreshHodographs() {
+    const auto clear = [this] {
+        for (auto& [id, glyph] : hodoGlyphs) {
+            image.removeOverlay(glyph);
+        }
+        hodoGlyphs.clear();
+    };
+    if (buttonHodos == nullptr || !buttonHodos->isChecked() || !shownProbe || !shownProbe->valid() || !image.hasImage()) {
+        clear();
+        return;
+    }
+    const auto& probe = *shownProbe;
+    const QRectF visible = image.visibleFraction();
+    const QSize size = image.pictureSize();
+    struct Pick {
+        const UtilityBufkit::Station * station;
+        double fx, fy;
+    };
+    std::vector<Pick> picks;
+    // what is on view, then the NWS offices' stations first (the national view is theirs), then the other K stations, then the rest, each taking a free cell of the picture
+    std::vector<Pick> inView;
+    const auto& offices = UtilityBufkit::officeStations();
+    for (const auto& station : UtilityBufkit::stations()) {
+        double fx = 0.0, fy = 0.0;
+        if (probe.place(station.longitude, station.latitude, fx, fy) && visible.contains(QPointF{fx, fy})) {
+            inView.push_back({&station, fx, fy});
+        }
+    }
+    const auto rank = [&offices] (const Pick& pick) {
+        const auto& id = pick.station->id;
+        return offices.count(id) > 0 ? 0 : (id.size() == 4 && id[0] == 'K' ? 1 : 2);
+    };
+    std::stable_sort(inView.begin(), inView.end(), [&rank] (const Pick& a, const Pick& b) { return rank(a) < rank(b); });
+    for (const auto& pick : inView) {
+        if (rank(pick) > 1 || picks.size() >= 150) {
+            continue;   // stations outside the United States (and the odd ids) stay as buttons
+        }
+        const double x = pick.fx * size.width(), y = pick.fy * size.height();
+        const bool free = std::none_of(picks.begin(), picks.end(), [&] (const Pick& other) {
+            return std::hypot(other.fx * size.width() - x, other.fy * size.height() - y) < 88.0;   // the glyphs are 84 pixels: none over another
+        });
+        if (free) {
+            picks.push_back(pick);
+        }
+    }
+    // the picture's hour as BUFKIT writes it: yymmdd/hhmm UTC
+    const string valid = probe.validUtc.isValid() ? probe.validUtc.toUTC().toString("yyMMdd/HHmm").toStdString() : string{};
+    std::set<string> wanted;
+    for (const auto& pick : picks) {
+        const string& id = pick.station->id;
+        wanted.insert(id);
+        const auto run = bufkitRuns.find(id);
+        if (run == bufkitRuns.end()) {
+            if (bufkitAsked.insert(id).second) {
+                bufkitQueue.push_back(id);
+            }
+            continue;
+        }
+        const auto& times = run->second->validTimes;
+        const auto at = std::find(times.begin(), times.end(), valid);
+        std::vector<QPointF> tips;
+        QPointF storm;
+        double srh = -9999.0;
+        const bool have = at != times.end() &&
+            HodographGlyph::measure(run->second->profiles[static_cast<size_t>(at - times.begin())], tips, storm, srh);
+        auto glyph = hodoGlyphs.find(id);
+        if (!have) {
+            if (glyph != hodoGlyphs.end()) {
+                image.removeOverlay(glyph->second);
+                hodoGlyphs.erase(glyph);
+            }
+            continue;
+        }
+        if (glyph == hodoGlyphs.end()) {
+            auto * created = new HodographGlyph{nullptr, QString::fromStdString(id)};
+            QObject::connect(created, &HodographGlyph::clicked, this, [this] (const QString& station) {
+                new SoundingViewer{this, "RRFS", station.toStdString(), true};
+            });
+            image.addOverlay(created, pick.fx, pick.fy);
+            glyph = hodoGlyphs.emplace(id, created).first;
+        } else {
+            image.moveOverlay(glyph->second, pick.fx, pick.fy);
+        }
+        glyph->second->set(tips, storm, srh);
+    }
+    for (auto it = hodoGlyphs.begin(); it != hodoGlyphs.end();) {   // the stations no longer in view
+        if (wanted.count(it->first) == 0) {
+            image.removeOverlay(it->second);
+            it = hodoGlyphs.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    pumpBufkit();
+}
+
+void ModelViewer::pumpBufkit() {
+    while (bufkitRunning < 4 && !bufkitQueue.empty()) {
+        const string id = bufkitQueue.front();
+        bufkitQueue.pop_front();
+        bufkitRunning++;
+        auto run = std::make_shared<UtilityBufkit::Run>();
+        auto ok = std::make_shared<bool>(false);
+        new FutureVoid{this,
+            [run, ok, id] {
+                string error;
+                *ok = UtilityBufkit::fetchLatest("RRFS", id, *run, error);
+            },
+            [this, run, ok, id] {
+                bufkitRunning--;
+                if (*ok) {
+                    bufkitRuns[id] = run;
+                    hodoTimer.start(150);
+                }
+                pumpBufkit();
+            }};
+    }
 }
 
 // a time chosen on the timeline: the same as choosing it in the list

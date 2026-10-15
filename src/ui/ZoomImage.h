@@ -49,6 +49,13 @@ public:
     };
     void setPins(const std::vector<Pin>&);
     void clearPins();
+    // any widget laid over the picture at a fraction of it, centered there (the glyphs of a map); the picture owns them. The same as the pins, they are not part of the picture.
+    void addOverlay(QWidget *, double fx, double fy);
+    void moveOverlay(QWidget *, double fx, double fy);
+    void removeOverlay(QWidget *);
+    void clearOverlays();
+    QRectF visibleFraction() const;   // the part of the picture in view, as fractions of it
+    QSize pictureSize() const;        // the picture as shown (pixels)
 
 signals:
     void doubleClicked();
@@ -77,6 +84,11 @@ private:
     void repositionPins();
     std::vector<Pin> pins;
     std::vector<QPushButton *> pinButtons;
+    struct Overlay {
+        QWidget * widget;
+        double fx, fy;
+    };
+    std::vector<Overlay> overlays;
     void updateRestingCursor();
     QLabel * label;
     QLabel * marker;
