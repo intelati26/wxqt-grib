@@ -95,49 +95,6 @@ private:
     std::shared_ptr<HurricaneData::WspData> data;
 };
 
-// Google DeepMind's Weather Lab cyclone ensembles (FNV3 and the experimental WeatherNext 3) for every storm in the world: each member's track, and the mean of the members.
-// The terms of use ask for a credit wherever the data is shown, so the legend carries it (and so does an exported picture).
-class DeepMindLayer : public MapLayer {
-public:
-    string id() const override { return "tropical/deepmind"; }
-    string path() const override { return "Tropical/DeepMind Weather Lab: every cyclone in the world (experimental)"; }
-    string source() const override { return "Google DeepMind Weather Lab. " + EnsembleStyle::deepMindCredit(); }
-    string tip() const override { return "The ensemble forecasts of DeepMind's cyclone models for every storm in the world: each member's track and the mean. Hover the mean for the winds and pressures; click a storm of the Atlantic or Pacific for its full screen"; }
-    int order() const override { return 72; }
-    int refreshSeconds() const override { return 3600; }
-    void refresh(MapHost&) override;
-    void paint(QPainter&, MapHost&) override;
-    MapHit pick(const QPointF&, MapHost&) const override;
-    vector<MapLegendRow> legend() const override;
-    QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
-    string summary() const override;
-
-protected:
-    void onEnable(MapHost& host) override {
-        hostPointer = &host;
-        refresh(host);
-    }
-
-private:
-    struct Run {
-        string label;
-        string cycle;
-        vector<UtilityEcmwfTracks::Storm> storms;
-        vector<vector<UtilityEnsembleStats::Hour>> means;   // of each storm, as far as half its members are still a cyclone
-        bool shown{true};
-    };
-    int limitHours() const;
-    bool loading{false};
-    string error;
-    std::shared_ptr<vector<Run>> runs;
-    bool showFnv{true};
-    bool showWeatherNext{true};
-    bool showMembers{true};
-    bool showMean{true};
-    int hoursChoice{0};
-    MapHost * hostPointer{nullptr};
-};
-
 // The ensembles' raw tracks, every member of every system and every forecast hour, whether or not a storm has a name or a screen of its own: NOAA's GEFS (the systems NHC has files for), ECMWF's
 // IFS and AIFS ensembles, and DeepMind's FNV3 and WeatherNext 3 for the whole world. Colored by model, by forecast hour or by the wind of the member there.
 class EnsembleSpaghettiLayer : public MapLayer {
