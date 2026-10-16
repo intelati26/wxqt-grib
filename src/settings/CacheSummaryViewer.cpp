@@ -74,6 +74,7 @@ namespace {
             {"MRMS scans (decoded)", temp + "/wxqt_mrms", "dropped after a few hours when a scan list is read", false, By::Token3},
             {"SPC Post pictures", temp + "/wxqt_spcpost", "by run", false, By::Prefix},
             {"Satellite tiles (NASA GIBS)", cache + "/gibs", "complete days only: older than 30 days go, then the oldest past 600 MB", false, By::Nothing},
+            {"CPC daily rain analysis (master map)", cache + "/cpc-precip", "days past 120 are removed; the last two weeks are asked for again until the analysis is reprocessed", false, By::Nothing},
             {"NSSL CAMs answers", cache + "/cams", "model list 6 hours, sectors a week, the rest asked live", false, By::Nothing},
             {"Hurricane files", cache + "/hurricane", "by age", false, By::Nothing},
             {"Tornado files", cache + "/tornado", "by age", false, By::Nothing},
