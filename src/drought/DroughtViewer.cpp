@@ -162,19 +162,33 @@ namespace {
 }
 
 namespace {
-    // A chart or map as a picture: drawn at twice its size on the window's background, written as PNG where the user chooses
+    // A chart, map or table as a picture: drawn at twice its size on white with dark text whatever the dark mode of the window, written as PNG where the user chooses
     void savePicture(QWidget * widget, const QString& name) {
         const auto target = QFileDialog::getSaveFileName(widget->window(), "Save the picture", QString{"%1_%2.png"}.arg(name, QDate::currentDate().toString("yyyyMMdd")), "PNG pictures (*.png)");
         if (target.isEmpty()) {
             return;
         }
+        QPalette light;
+        light.setColor(QPalette::Window, Qt::white);
+        light.setColor(QPalette::WindowText, Qt::black);
+        light.setColor(QPalette::Base, Qt::white);
+        light.setColor(QPalette::AlternateBase, QColor{242, 242, 242});
+        light.setColor(QPalette::Text, Qt::black);
+        light.setColor(QPalette::Button, QColor{240, 240, 240});
+        light.setColor(QPalette::ButtonText, Qt::black);
+        light.setColor(QPalette::Mid, QColor{190, 190, 190});
+        light.setColor(QPalette::Dark, QColor{150, 150, 150});
+        const bool hadPalette = widget->testAttribute(Qt::WA_SetPalette);
+        const QPalette before = widget->palette();
+        widget->setPalette(light);
         QImage image{widget->size() * 2, QImage::Format_ARGB32};
-        image.fill(widget->palette().color(QPalette::Window));
+        image.fill(Qt::white);
         {
             QPainter painter{&image};
             painter.scale(2.0, 2.0);
             widget->render(&painter);
         }
+        widget->setPalette(hadPalette ? before : QPalette{});
         if (!image.save(target, "PNG")) {
             QMessageBox::warning(widget->window(), "Save the picture", "The picture could not be written to " + target);
         }
@@ -502,6 +516,7 @@ DroughtViewer::DroughtViewer(Window * parent)
     auto * sideColumn = new QVBoxLayout{side};
     sideColumn->setContentsMargins(0, 0, 0, 0);
     table = new QTableWidget{0, 4, side};
+    offerPicture(table, "drought_summary_table");
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionMode(QAbstractItemView::NoSelection);
     table->verticalHeader()->hide();
@@ -567,12 +582,13 @@ DroughtViewer::DroughtViewer(Window * parent)
         precipBars = new PrecipBars{panel};
         panelRow->addWidget(precipTable, 2);
         panelRow->addWidget(precipBars, 3);
+        offerPicture(precipTable, "drought_normals_table");
         vertical->addWidget(panel);
         vertical->setStretchFactor(0, 5);
         vertical->setStretchFactor(1, 2);
         vertical->setSizes({700, 280});
         column->addWidget(vertical, 1);
-        tabs->addTab(widget, "Precipitation");
+        tabs->addTab(widget, "Normals");   // rain and temperature against the normal
     }
     page("Outlooks and soil moisture", rowOutlook, outlookImage, textOutlook);
     {   // the history tab: one column of the area's history file as a chart
