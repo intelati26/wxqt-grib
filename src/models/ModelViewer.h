@@ -158,6 +158,8 @@ private:
     QByteArray withGlyphs(const QByteArray& bytes, const std::shared_ptr<GfsChart::Probe>&) const;
     void refreshHodographs();
     void pumpBufkit();
+    void cancelBufkit();       // the Hodographs button went off: what is queued is dropped, what is downloading is stopped
+    char bufkitOwner{0};       // its address says whose network requests the station files are (so they can be cancelled without touching the chart)
     QPushButton * buttonStations{nullptr};   // a button on the map at each BUFKIT station: opens that station's model sounding (laid over the view, never in a saved picture)
     string stationPinKey;                    // the map the pins were placed on
     void refreshStationPins();

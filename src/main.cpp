@@ -43,6 +43,7 @@
 #include "models/ModelViewer.h"
 #include "history/EventsViewer.h"
 #include "settings/CacheSummaryViewer.h"
+#include "ui/NetStatus.h"
 #include "models/SoundingViewer.h"
 #include "util/Utility.h"
 #include "hurricane/ReconViewer.h"
@@ -194,6 +195,8 @@ int main(int argc, char * argv[]) {
                 screen->openAt(parts.value(1).toStdString(), when);
             } else if (route == "events") {   // WXQT_OPEN=events: the history page
                 new EventsViewer{&w};
+            } else if (route == "network") {   // WXQT_OPEN=network: the list of what the network client has queued and in flight
+                NetStatus::show(&w);
             } else if (route == "cache") {   // WXQT_OPEN=cache: the summary of what is kept on disk
                 new CacheSummaryViewer{&w};
             } else if (route.startsWith("master:")) {   // WXQT_OPEN=master:<the start of a view's name>: the master map on that view (the preset the box lists)

@@ -409,6 +409,38 @@ int NetManager::cancelOwner(const void * owner) {
     return static_cast<int>(dropped.size() + abort.size());
 }
 
+int NetManager::cancelMatching(const std::function<bool(const std::string&, const std::string&, Priority)>& match) {
+    std::vector<std::shared_ptr<Entry>> dropped, abort;
+    {
+        const std::lock_guard lock{tableMutex};
+        for (const auto& [key, entry] : table) {
+            if (entry->cancelled || !match(entry->url, entry->range.toStdString(), entry->priority)) {
+                continue;
+            }
+            entry->cancelled = true;
+            (entry->started ? abort : dropped).push_back(entry);
+        }
+        for (const auto& entry : dropped) {
+            table.erase(entry->key);
+            pending.erase(std::remove(pending.begin(), pending.end(), entry), pending.end());
+        }
+        counts.cancelled += static_cast<long long>(dropped.size() + abort.size());
+    }
+    for (const auto& entry : dropped) {
+        finish(entry, {});
+    }
+    if (!abort.empty() && pump) {
+        QMetaObject::invokeMethod(pump, [abort] {
+            for (const auto& entry : abort) {
+                if (entry->reply) {
+                    entry->reply->abort();
+                }
+            }
+        }, Qt::QueuedConnection);
+    }
+    return static_cast<int>(dropped.size() + abort.size());
+}
+
 void NetManager::trackOwner(QObject * owner) {
     static std::mutex mutex;
     static std::set<const void *> known;

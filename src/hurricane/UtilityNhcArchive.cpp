@@ -8,6 +8,7 @@
 #include <set>
 #include <cmath>
 #include <atomic>
+#include <mutex>
 #include <thread>
 #include <QDir>
 #include <QFile>
@@ -16,10 +17,16 @@
 #include <QStandardPaths>
 #include <QTextStream>
 #include <QTimeZone>
+#include "objects/NetManager.h"
 #include "objects/URL.h"
 #include "util/UtilityGzip.h"
 
 namespace {
+    std::mutex progressMutex;
+    string stageText;
+    std::atomic<int> zipsRead{0};
+    std::atomic<int> zipsAsked{0};
+
     const string base = "https://www.nhc.noaa.gov/gis/forecast/archive/";
 
     QString folder() {
@@ -35,11 +42,14 @@ namespace {
         const QString path = folder() + "/" + QString::fromStdString(id + "_5day_" + number) + ".zip";
         QFile kept{path};
         if (kept.open(QIODevice::ReadOnly)) {
+            zipsRead++;
             return kept.readAll();
         }
+        zipsAsked++;
         int status = 0;
         const auto bytes = URL::getBytesWithStatus(base + id + "_5day_" + number + ".zip", status);
         if (status == 200 && isZip(bytes)) {
+            zipsRead++;
             QFile out{path};
             if (out.open(QIODevice::WriteOnly)) {
                 out.write(bytes);
@@ -54,6 +64,7 @@ namespace {
         vector<QByteArray> out(wanted.size());
         std::atomic<size_t> next{0};
         const auto work = [&] {
+            const NetManager::Scope background{NetManager::Priority::Ahead};   // behind what is on screen, through the program's one network client
             for (;;) {
                 const size_t i = next++;
                 if (i >= wanted.size()) {
@@ -161,6 +172,7 @@ vector<UtilityNhcArchive::StormRef> UtilityNhcArchive::stormsOfYear(int year) {
         }
     }
     for (const char * basin : {"al", "ep", "cp"}) {
+        setStage("listing the " + std::to_string(year) + " storms (" + basin + ")");
         int misses = 0;
         for (int first = 1; first <= 40 && misses < 3; first += 8) {
             vector<std::pair<string, vector<string>>> wanted;
@@ -192,6 +204,7 @@ vector<UtilityNhcArchive::StormRef> UtilityNhcArchive::stormsOfYear(int year) {
 UtilityNhcArchive::Storm UtilityNhcArchive::load(const string& id, bool withBest) {
     Storm storm;
     storm.id = id;
+    setStage("reading the advisories of " + id);
     const int year = id.size() >= 8 ? std::stoi(id.substr(4, 4)) : 0;
     // the advisories found before (the manifest) are read from the folder; the next numbers are asked for, unless the season is over
     const QString manifestPath = folder() + "/" + QString::fromStdString(id) + ".idx";
@@ -341,4 +354,109 @@ double UtilityNhcArchive::distanceNm(double lat1, double lon1, double lat2, doub
     const double a = std::sin((lat2 - lat1) * r / 2.0), b = std::sin((lon2 - lon1) * r / 2.0);
     const double h = a * a + std::cos(lat1 * r) * std::cos(lat2 * r) * b * b;
     return 2.0 * 3440.065 * std::asin(std::min(1.0, std::sqrt(h)));
+}
+
+string UtilityNhcArchive::progressText() {
+    std::lock_guard<std::mutex> lock{progressMutex};
+    return stageText + " (" + std::to_string(zipsRead.load()) + " files read" + (zipsAsked.load() > 0 ? ", " + std::to_string(zipsAsked.load()) + " downloaded" : string{}) + ")";
+}
+
+void UtilityNhcArchive::setStage(const string& stage) {
+    std::lock_guard<std::mutex> lock{progressMutex};
+    if (stage != stageText && stage.find("storm ") == 0) {
+        // a new storm of the same piece of work keeps the counts
+    }
+    stageText = stage;
+}
+
+vector<UtilityNhcArchive::Outlook> UtilityNhcArchive::outlooks(const QDateTime& from, const QDateTime& to) {
+    // the directory page, as the list of issuance times (kept six hours)
+    const QString listPath = folder() + "/gtwo-index.txt";
+    QStringList names;
+    {
+        const QFileInfo info{listPath};
+        if (info.exists() && info.lastModified().secsTo(QDateTime::currentDateTime()) < 6 * 3600) {
+            QFile file{listPath};
+            if (file.open(QIODevice::ReadOnly)) {
+                names = QString::fromUtf8(file.readAll()).split('\n', Qt::SkipEmptyParts);
+            }
+        }
+        if (names.isEmpty()) {
+            setStage("reading the outlook archive's list");
+            const auto page = URL::getBytes("https://www.nhc.noaa.gov/gis/gtwo/archive/");
+            static const QRegularExpression re{R"(href="(\d{12})_gtwo\.zip")"};
+            auto it = re.globalMatch(QString::fromUtf8(page));
+            while (it.hasNext()) {
+                names << it.next().captured(1);
+            }
+            names.removeDuplicates();
+            if (!names.isEmpty()) {
+                QFile out{listPath};
+                if (out.open(QIODevice::WriteOnly)) {
+                    out.write(names.join('\n').toUtf8());
+                }
+            } else {
+                QFile file{listPath};   // an old list is better than none
+                if (file.open(QIODevice::ReadOnly)) {
+                    names = QString::fromUtf8(file.readAll()).split('\n', Qt::SkipEmptyParts);
+                }
+            }
+        }
+    }
+    vector<std::pair<QDateTime, QString>> wanted;
+    for (const auto& name : names) {
+        auto time = QDateTime::fromString(name, "yyyyMMddHHmm");
+        time.setTimeZone(QTimeZone::utc());
+        if (time.isValid() && time >= from && time <= to) {
+            wanted.push_back({time, name});
+        }
+    }
+    std::sort(wanted.begin(), wanted.end());
+    QDir{}.mkpath(folder() + "/gtwo");
+    vector<Outlook> out(wanted.size());
+    std::atomic<size_t> next{0}, done{0};
+    const auto work = [&] {
+        const NetManager::Scope background{NetManager::Priority::Ahead};
+        for (;;) {
+            const size_t i = next++;
+            if (i >= wanted.size()) {
+                return;
+            }
+            const QString path = folder() + "/gtwo/" + wanted[i].second + ".zip";
+            QByteArray bytes;
+            QFile kept{path};
+            if (kept.open(QIODevice::ReadOnly)) {
+                bytes = kept.readAll();
+            } else {
+                int status = 0;
+                bytes = URL::getBytesWithStatus("https://www.nhc.noaa.gov/gis/gtwo/archive/" + wanted[i].second.toStdString() + "_gtwo.zip", status);
+                if (status == 200 && isZip(bytes)) {
+                    QFile file{path};
+                    if (file.open(QIODevice::WriteOnly)) {
+                        file.write(bytes);
+                    }
+                } else {
+                    bytes.clear();
+                }
+                zipsAsked++;
+            }
+            if (!bytes.isEmpty()) {
+                out[i].issued = wanted[i].first;
+                out[i].areas = UtilityNhcGis::parseOutlook(bytes.toStdString());
+            }
+            zipsRead++;
+            done++;
+            setStage("reading the outlooks (" + std::to_string(done.load()) + " of " + std::to_string(wanted.size()) + ")");
+        }
+    };
+    setStage("reading the outlooks (0 of " + std::to_string(wanted.size()) + ")");
+    vector<std::thread> pool;
+    for (size_t k = 0; k < std::min<size_t>(6, wanted.size()); k++) {
+        pool.emplace_back(work);
+    }
+    for (auto& thread : pool) {
+        thread.join();
+    }
+    out.erase(std::remove_if(out.begin(), out.end(), [] (const Outlook& o) { return !o.issued.isValid(); }), out.end());
+    return out;
 }

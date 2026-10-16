@@ -4,6 +4,10 @@
 // *****************************************************************************
 
 #include "ui/NetStatus.h"
+#include <set>
+#include <tuple>
+#include <QHBoxLayout>
+#include <QPushButton>
 #include <QHeaderView>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -31,15 +35,44 @@ NetStatus::NetStatus(QWidget * parent) : QDialog{parent, Qt::Tool} {
     table->setHorizontalHeaderLabels({"Priority", "State", "In", "Of", "Waited", "Callers", "Request"});
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setSelectionMode(QAbstractItemView::ExtendedSelection);
     table->verticalHeader()->hide();
     table->horizontalHeader()->setStretchLastSection(true);
     column->addWidget(table, 1);
+    auto * buttons = new QHBoxLayout;
+    for (const auto& [label, tip, what] : {std::tuple<const char *, const char *, int>{"Stop selected", "Cancel the selected requests: what waits on them gets nothing, and asks again only if you do", 0},
+                                           {"Stop read-ahead and background", "Cancel every request that is not for what is on screen (hours read ahead, station files, tiles, archives)", 1},
+                                           {"Stop everything", "Cancel every request, the ones for what is on screen too", 2}}) {
+        auto * button = new QPushButton{label, this};
+        button->setToolTip(tip);
+        QObject::connect(button, &QPushButton::clicked, this, [this, what] { stop(what); });
+        buttons->addWidget(button);
+    }
+    buttons->addStretch();
+    column->addLayout(buttons);
     QObject::connect(&timer, &QTimer::timeout, this, [this] { refresh(); });
     timer.start(500);
     refresh();
 }
 
+void NetStatus::stop(int what) {
+    if (what == 0) {
+        std::set<std::string> urls;
+        for (const auto& index : table->selectionModel()->selectedRows()) {
+            urls.insert(table->item(index.row(), 6)->data(Qt::UserRole).toString().toStdString());
+        }
+        NetManager::cancelMatching([&urls] (const std::string& url, const std::string& range, NetManager::Priority) { return urls.count(url + "|" + range) > 0; });
+    } else {
+        NetManager::cancelMatching([what] (const std::string&, const std::string&, NetManager::Priority priority) { return what == 2 || priority != NetManager::Priority::Visible; });
+    }
+    refresh();
+}
+
 void NetStatus::refresh() {
+    std::set<QString> selected;   // the table is rebuilt twice a second: what was selected stays selected
+    for (const auto& index : table->selectionModel()->selectedRows()) {
+        selected.insert(table->item(index.row(), 6)->data(Qt::UserRole).toString());
+    }
     const auto rows = NetManager::snapshot();
     const auto sum = NetManager::totals();
     totals->setText(QString{"%1 waiting or downloading   -   %2 finished, %3 shared with a request already going, %4 MB received   -   %5"}
@@ -57,6 +90,11 @@ void NetStatus::refresh() {
             table->setItem(i, c, new QTableWidgetItem{cells[c]});
         }
         table->item(i, 6)->setToolTip(QString::fromStdString(r.url));
+        const QString key = QString::fromStdString(r.url + "|" + r.range);
+        table->item(i, 6)->setData(Qt::UserRole, key);
+        if (selected.count(key) > 0) {
+            table->selectionModel()->select(table->model()->index(i, 0), QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        }
     }
     table->resizeColumnsToContents();
 }

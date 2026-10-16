@@ -46,6 +46,17 @@ public:
     // where the storm was at a time: the best track interpolated, false before it starts or after it ends
     static bool observedAt(const vector<UtilityAtcf::Fix>& best, const QDateTime& utc, double& lat, double& lon, int& wind);
     static double distanceNm(double lat1, double lon1, double lat2, double lon2);
+
+    // the Tropical Weather Outlook of each issuance (gis/gtwo/archive/<yyyyMMddHHmm>_gtwo.zip, 2018 on in this form): the directory page is 1.4 MB, kept for six hours
+    struct Outlook {
+        QDateTime issued;                                   // from the file name, UTC
+        vector<UtilityNhcGis::OutlookArea> areas;
+    };
+    static vector<Outlook> outlooks(const QDateTime& from, const QDateTime& to);
+
+    // what the reading is doing now, for a progress line (safe to ask from the interface thread while a worker reads)
+    static string progressText();
+    static void setStage(const string& stage);
 };
 
 #endif  // UTILITYNHCARCHIVE_H

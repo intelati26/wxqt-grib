@@ -84,6 +84,17 @@ UtilityNhcGis::Cone UtilityNhcGis::parseCone(const string& zip) {
             cone.points.push_back(p);
         }
     }
+    if (layer(files, "_ww_wwlin", shp, dbf) && UtilityShapefile::parse(shp, dbf, features)) {
+        for (const auto& f : features) {
+            WatchWarning w;
+            w.code = text(f.attributes, "TCWW");
+            w.kind = nameFor(w.code);
+            w.lines = f.parts;
+            if (!w.code.empty() && !w.lines.empty()) {
+                cone.warnings.push_back(std::move(w));
+            }
+        }
+    }
     return cone;
 }
 

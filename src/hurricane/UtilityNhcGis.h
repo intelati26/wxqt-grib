@@ -30,6 +30,11 @@ public:
         string development;       // "Major Hurricane", "Tropical Storm", "Post-Tropical" ...
         string validTime;         // "04/0600"
     };
+    struct WatchWarning {
+        string kind;              // "Hurricane Warning", "Tropical Storm Watch", ...
+        string code;              // HWR, HWA, TWR, TWA ... (the style id)
+        vector<Ring> lines;
+    };
     struct Cone {
         vector<Ring> polygons;    // the cone (pgn); usually one ring
         vector<Ring> lines;       // the forecast track (lin)
@@ -37,17 +42,13 @@ public:
         string stormName;
         string advisory;          // "20"
         string advisoryDate;      // "500 AM AST Mon Sep 04 2017"
+        vector<WatchWarning> warnings;   // the watches and warnings of this advisory (the ww_wwlin layer of the zip)
         bool ok{false};
     };
     struct WindRadius {           // one threshold at one forecast hour, a quadrant radius in nm
         int knots{0};
         int tau{0};
         double ne{0}, se{0}, sw{0}, nw{0};
-    };
-    struct WatchWarning {
-        string kind;              // "Hurricane Warning", "Tropical Storm Watch", ...
-        string code;              // HWR, HWA, TWR, TWA ... (the style id)
-        vector<Ring> lines;
     };
     struct OutlookArea {          // an area of possible development in the Tropical Weather Outlook
         string basin;             // "Atlantic" or "Pacific" (the Eastern and Central Pacific together)

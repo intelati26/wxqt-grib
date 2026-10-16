@@ -42,7 +42,9 @@
 #include "gfs/GfsChart.h"
 #include "models/HodographGlyph.h"
 #include "models/SoundingViewer.h"
+#include "objects/NetManager.h"
 #include "sounding/UtilityBufkit.h"
+#include "util/NetPriority.h"
 #include "objects/WString.h"
 #include "util/Utility.h"
 #include "util/UtilityList.h"
@@ -179,6 +181,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonHodos->setToolTip("A small hodograph of the RRFS sounding at each station in view, for the hour on the map: wind from the surface to 9 km (pink 0-1 km, red to 3, green to 6, yellow above), "
                                 "rings at 20 and 40 kt and the right-mover storm motion (orange dot); the 0-3 km helicity is in the tooltip. Pictures you save or open full size have them too. Each station is one small file (about 0.4 MB, every hour), read as it comes "
                                 "into view; zoom in for more stations. Click one for its sounding. Not part of saved pictures.");
+        QObject::connect(this, &QObject::destroyed, [owner = static_cast<const void *>(&bufkitOwner)] { NetManager::cancelOwner(owner); });   // the screen closes: its station files stop too
         hodoTimer.setSingleShot(true);
         QObject::connect(&hodoTimer, &QTimer::timeout, this, [this] { refreshHodographs(); });
         QObject::connect(buttonHodos, &QPushButton::toggled, this, [this] (bool on) {
@@ -869,6 +872,9 @@ void ModelViewer::refreshHodographs() {
         }
         hodoGlyphs.clear();
     };
+    if (buttonHodos == nullptr || !buttonHodos->isChecked()) {
+        cancelBufkit();
+    }
     if (buttonHodos == nullptr || !buttonHodos->isChecked() || !shownProbe || !shownProbe->valid() || !image.hasImage()) {
         clear();
         return;
@@ -936,6 +942,22 @@ void ModelViewer::refreshHodographs() {
     pumpBufkit();
 }
 
+void ModelViewer::cancelBufkit() {
+    if (bufkitQueue.empty() && bufkitRunning == 0) {
+        return;
+    }
+    for (const auto& id : bufkitQueue) {
+        bufkitAsked.erase(id);   // never started: asked for again when the button goes on
+    }
+    bufkitQueue.clear();
+    if (bufkitRunning > 0) {
+        NetManager::cancelOwner(&bufkitOwner);   // the files on their way: their callers get an empty answer, the tasks end, and the stations are asked for again next time
+        for (auto it = bufkitAsked.begin(); it != bufkitAsked.end();) {
+            it = bufkitRuns.count(*it) == 0 ? bufkitAsked.erase(it) : std::next(it);
+        }
+    }
+}
+
 void ModelViewer::pumpBufkit() {
     while (bufkitRunning < 4 && !bufkitQueue.empty()) {
         const string id = bufkitQueue.front();
@@ -944,12 +966,20 @@ void ModelViewer::pumpBufkit() {
         auto run = std::make_shared<UtilityBufkit::Run>();
         auto ok = std::make_shared<bool>(false);
         new FutureVoid{this,
-            [run, ok, id] {
+            [run, ok, id, owner = static_cast<const void *>(&bufkitOwner)] {
+                const NetPriority::Carry station{2, owner};   // background, and the Hodographs button's own: cancelOwner(owner) stops these and nothing else
                 string error;
                 *ok = UtilityBufkit::fetchLatest("RRFS", id, *run, error);
             },
             [this, run, ok, id] {
                 bufkitRunning--;
+                if (buttonHodos == nullptr || !buttonHodos->isChecked()) {
+                    bufkitAsked.erase(id);
+                    if (*ok) {
+                        bufkitRuns[id] = run;   // it did arrive: kept for when the button goes on again
+                    }
+                    return;
+                }
                 if (*ok) {
                     bufkitRuns[id] = run;
                     hodoTimer.start(150);

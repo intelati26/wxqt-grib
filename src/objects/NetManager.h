@@ -6,6 +6,7 @@
 #ifndef NETMANAGER_H
 #define NETMANAGER_H
 
+#include <functional>
 #include <string>
 #include <vector>
 #include <QByteArray>
@@ -44,6 +45,8 @@ namespace NetManager {
     // A screen that closes: what it still waits for is dropped (queued) or cancelled (downloading), unless another screen or a task with no owner also waits on the same request.
     // Tasks started by the Future* classes say who they are for (util/NetPriority.h); trackOwner() makes the cancel happen when the screen is destroyed.
     int cancelOwner(const void * owner);
+    // What the person stops by hand in the Network window: every request (queued or downloading) the predicate accepts, whoever waits on it; the callers get an empty answer.
+    int cancelMatching(const std::function<bool(const std::string& url, const std::string& range, Priority)>& match);
     void trackOwner(QObject * owner);
 
     struct Row {

@@ -11,6 +11,7 @@
 #include <QLabel>
 #include <QPainterPath>
 #include <QTimeZone>
+#include <QTimer>
 #include <QVBoxLayout>
 #include "radar/MapView.h"
 #include "util/Utility.h"
@@ -110,6 +111,18 @@ void ConeHistoryLayer::refresh(MapHost& host) {
     }
     loading = true;
     relist = false;
+    UtilityNhcArchive::setStage("looking for storms");
+    {   // the progress line, twice a second, until the reading is done
+        const auto flag = alive;
+        auto tick = std::make_shared<std::function<void()>>();
+        *tick = [this, &host, flag, tick] {
+            if (*flag && loading) {
+                host.status(summary());
+                QTimer::singleShot(500, [tick] { (*tick)(); });
+            }
+        };
+        QTimer::singleShot(500, [tick] { (*tick)(); });
+    }
     const string chosen = stormChoice;
     const QDateTime at = when();
     const int year = yearChoice != 0 ? yearChoice : at.date().year();
@@ -134,7 +147,9 @@ void ConeHistoryLayer::refresh(MapHost& host) {
                     }
                 }
             }
+            size_t number = 0;
             for (const auto& id : ids) {
+                UtilityNhcArchive::setStage("storm " + std::to_string(++number) + " of " + std::to_string(ids.size()) + ", " + id);
                 auto storm = std::make_shared<UtilityNhcArchive::Storm>(UtilityNhcArchive::load(id, true));
                 if (!storm->advisories.empty()) {
                     result->push_back(std::move(storm));
@@ -251,6 +266,20 @@ void ConeHistoryLayer::paint(QPainter& painter, MapHost& host) {
         painter.drawPath(line);
         painter.setPen(QPen{QColor{255, 255, 255}, 2.2 * px});
         painter.drawPath(line);
+        for (const auto& warning : current.cone.warnings) {   // the coast under a watch or warning of this advisory
+            QPainterPath coast;
+            for (const auto& ring : warning.lines) {
+                for (size_t i = 0; i < ring.size(); i++) {
+                    const auto p = t(ring[i].second, ring[i].first);
+                    i == 0 ? coast.moveTo(p) : coast.lineTo(p);
+                }
+            }
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen{QColor{0, 0, 0, 200}, 7.0 * px, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+            painter.drawPath(coast);
+            painter.setPen(QPen{QColor{QString::fromStdString(UtilityNhcGis::colorFor(warning.code))}, 4.4 * px, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+            painter.drawPath(coast);
+        }
         if (points) {
             for (const auto& p : current.cone.points) {
                 const auto at = t(p.lat, p.lon);
@@ -330,12 +359,20 @@ vector<MapLegendRow> ConeHistoryLayer::legend() const {
     if (observed) {
         row.entries.push_back({MapLegendEntry::Line, QColor{255, 70, 200}, "track the storm took"});
     }
+    std::set<string> codes;
+    for (const auto& [storm, index] : shownNow()) {
+        for (const auto& w : storm->advisories[index].cone.warnings) {
+            if (codes.insert(w.code).second) {
+                row.entries.push_back({MapLegendEntry::Line, QColor{QString::fromStdString(UtilityNhcGis::colorFor(w.code))}, QString::fromStdString(w.kind)});
+            }
+        }
+    }
     return {row};
 }
 
 string ConeHistoryLayer::summary() const {
-    if (loading && storms.empty()) {
-        return "reading the NHC archive...";
+    if (loading) {
+        return "reading the NHC archive: " + UtilityNhcArchive::progressText();
     }
     if (!error.empty()) {
         return error;

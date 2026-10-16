@@ -18,6 +18,7 @@
 class ConeHistoryLayer : public MapLayer {
 public:
     ConeHistoryLayer();
+    ~ConeHistoryLayer() override { *alive = false; }
     string id() const override { return "tropical/cone-history"; }
     string path() const override { return "Tropical/Forecast cone history: each advisory against the track the storm took (NHC archive)"; }
     string source() const override { return "NHC advisory cones (gis/forecast/archive) and ATCF best tracks"; }
@@ -60,6 +61,7 @@ private:
     bool relist{false};
     string error;
     MapHost * hostPointer{nullptr};
+    std::shared_ptr<bool> alive{std::make_shared<bool>(true)};   // the progress line asks it before it touches the layer
     QPointer<QComboBox> stormBox;
 };
 

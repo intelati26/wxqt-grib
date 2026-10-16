@@ -21,6 +21,7 @@ public:
 private:
     explicit NetStatus(QWidget * parent);
     void refresh();
+    void stop(int what);   // 0 the selected rows, 1 read ahead and background, 2 everything
     QLabel * totals{};
     QTableWidget * table{};
     QTimer timer;
