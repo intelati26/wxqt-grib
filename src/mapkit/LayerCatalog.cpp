@@ -8,6 +8,7 @@
 #include "mapkit/GoesLayer.h"
 #include "mapkit/GibsLayer.h"
 #include "mapkit/ClimateGridLayer.h"
+#include "mapkit/CfsOutlookLayer.h"
 #include "mapkit/ConeHistoryLayer.h"
 #include "mapkit/OutlookHistoryLayer.h"
 #include "mapkit/CpcPrecipLayer.h"
@@ -32,6 +33,7 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     layers.push_back(std::make_unique<LightningCastLayer>());
     layers.push_back(std::make_unique<CpcPrecipLayer>());
     layers.push_back(std::make_unique<ClimateGridLayer>());
+    layers.push_back(std::make_unique<CfsOutlookLayer>());
     layers.push_back(std::make_unique<ConeHistoryLayer>());
     layers.push_back(std::make_unique<OutlookHistoryLayer>());
     layers.push_back(std::make_unique<MrmsLayer>());
