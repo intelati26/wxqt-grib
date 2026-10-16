@@ -50,6 +50,7 @@ public:
         std::function<std::string(const Run&, int forecastHour, const std::string& file)> fileUrl;   // the GRIB2 file; its index is that + ".idx". `file` is "" unless fileOf says
         std::function<std::string(const Want&)> fileOf;                  // which of a run's files holds a record (AIGFS: pressure levels in one, the surface in another); empty: one file
         float extraMissing{std::numeric_limits<float>::quiet_NaN()};     // a value the source uses for "no data" besides GRIB's own (HAFS: 9999 outside its tilted footprint); NaN: none
+        std::string forecastText;                                        // a file that holds every forecast hour as records (the CFS): the index text of the hour, "{hour} hour fcst"; empty: one hour to a file
         std::string defaultDetail;                                       // what to ask of the index when a want has none ("*": any; an ensemble labels each record "ens mean" or "ens std dev")
         std::string indexReplaces;                                       // the file's own extension, which the index's replaces (ECMWF: ".grib2" -> ".index"); empty: the suffix is added
         std::string indexSuffix{".idx"};                                 // the index is the file + this (ECMWF's is ".index")

@@ -513,6 +513,17 @@ bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string&
         detail = "no chart to check";
         return false;
     }
+    if (!source.forecastText.empty() && std::any_of(needs.begin(), needs.end(), [] (const Need& n) { return n.want.forecast.empty(); })) {   // the hour is a record of the file, not a file
+        auto fixed = needs;
+        for (auto& n : fixed) {
+            if (n.want.forecast.empty()) {
+                n.want.forecast = source.forecastText;
+                n.want.forecast.replace(n.want.forecast.find("{hour}"), 6, std::to_string(n.hour));
+            }
+        }
+        return check(run, fixed, detail);
+    }
+
     if (source.custom) {
         const std::lock_guard lock{loaderMutex};
         const bool have = loaders().count(source.id) > 0;
@@ -835,6 +846,16 @@ namespace {
 }
 
 bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {
+    if (!source.forecastText.empty() && std::any_of(needs.begin(), needs.end(), [] (const Need& n) { return n.want.forecast.empty(); })) {   // the hour is a record of the file, not a file
+        auto fixed = needs;
+        for (auto& n : fixed) {
+            if (n.want.forecast.empty()) {
+                n.want.forecast = source.forecastText;
+                n.want.forecast.replace(n.want.forecast.find("{hour}"), 6, std::to_string(n.hour));
+            }
+        }
+        return load(run, fixed, out, error);
+    }
     if (boxEnabled) {   // a box of the fields when they can all be had that way: a few per cent of the download
         std::map<std::string, GfsGrid::Grid> boxed;
         if (loadBox(run, needs, boxed)) {

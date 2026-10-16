@@ -357,6 +357,45 @@ clone_skip = anom
 clone_pieces = false
 clone_rename = PRMSL:MSLET
 )MODEL"},
+        {"CFS", R"MODEL(
+# NOAA's Climate Forecast System version 2 on AWS (open data bucket noaa-cfs-pds, 31 October 2018 on): a nine month forecast four times a day, 1 degree, 6 hourly. Each variable is a file of its own
+# (time_grib_01 is the first member) that holds every forecast hour as a record, found by the index. The grid is a Gaussian one, put on a regular 1 degree grid. Temperatures come in degrees C.
+id = CFS
+label = NOAA/NCEP CFSv2 seasonal forecast, member 1, 1 degree
+kind = grib
+url = https://noaa-cfs-pds.s3.amazonaws.com/cfs.{date}/{cycle}/time_grib_01/{file}.01.{date}{cycle}.daily.grb2
+forecast_text = {hour} hour fcst
+file_default = tmp2m
+file = when variable=TMP level="2 m above ground" => tmp2m
+file = when variable=TMAX => tmax
+file = when variable=TMIN => tmin
+file = when variable=PRMSL => prmsl
+file = when variable=PWAT => pwat
+file = when variable=PRATE => prate
+file = when variable=UGRD,VGRD level="10 m above ground" => wnd10m
+file = when variable=HGT level~"^[0-9]+ mb$" => z{mb}
+file = when variable=TMP level~"^[0-9]+ mb$" => t{mb}
+file = when variable=UGRD,VGRD level~"^[0-9]+ mb$" => wnd{mb}
+file = when variable=SPFH level~"^[0-9]+ mb$" => q{mb}
+file = when variable=VVEL level="500 mb" => vvel500
+probe_file = tmp2m
+probe_hour = 6
+cycle_hours = 6
+lag_hours = 8
+cycles_to_try = 6
+max_parallel = 4
+warp = 1.0, -180.0, -90.0, 180.0, 90.0
+sectors = world
+hours = 6-240/6, 264-6552/24
+preload_hours = 24
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, UGRD, VGRD, PRMSL, PWAT, SPFH
+clone_levels = 250 mb, 500 mb, 700 mb, 850 mb
+clone_skip = precip, thick, 850_vort_ht, 500_vort_ht
+clone_pieces = false
+)MODEL"},
         {"HRRR", R"MODEL(
 # the 3 km High-Resolution Rapid Refresh on AWS (NOAA's open data bucket, kept from mid 2014): the 2D fields (sfc) and the pressure levels (prs) are files of their own
 id = HRRR

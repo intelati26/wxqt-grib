@@ -38,7 +38,7 @@ std::string GfsModels::pickerGroup(const std::string& id) {
         return def->group;
     }
     static const std::map<std::string, std::string> groups{
-        {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"}, {"GEOS-FP", "Global"},
+        {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"}, {"GEOS-FP", "Global"}, {"CFS", "Seasonal"},
         {"NAM", "Regional"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Regional"},
         {"HRRR", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"NAM-HIRES", "Convection allowing"}, {"HRW-ARW", "Convection allowing"},
         {"HRW-ARW2", "Convection allowing"}, {"HRW-FV3", "Convection allowing"},
@@ -77,6 +77,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GEFS"));
         m.push_back(fromFile("GEPS"));
         m.push_back(fromFile("GEOS-FP"));
+        m.push_back(fromFile("CFS"));
         m.push_back(fromFile("RRFS"));
         m.push_back(fromFile("HRRR"));
         m.push_back(fromFile("HREF"));
