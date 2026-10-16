@@ -39,6 +39,7 @@ public:
     };
     struct Result {
         QString title;
+        double runFraction{0.0};                 // the run's hour of its day, as a part of a day
         QDate runDay;                            // the run's own day
         QString units;
         std::vector<double> days;                // days from the run's time, for the daily lines

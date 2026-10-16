@@ -7,6 +7,7 @@
 #define UTILITYCFS_H
 
 #include <string>
+#include <QDateTime>
 #include <vector>
 #include "gfs/GfsData.h"
 
@@ -49,6 +50,8 @@ namespace UtilityCfs {
     bool gfsPointSeries(const Run& run, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error);
     // the months a run's monthly files cover, from its own month: "202610" ... ("202707")
     std::vector<std::string> months(const Run& run);
+    // the run's own time (UTC)
+    QDateTime runTime(const Run& run);
     // the run's own time as a QDateTime-free text: "2026-10-14 00Z"
     std::string runText(const Run& run);
 }

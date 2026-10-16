@@ -9,6 +9,7 @@
 #include <map>
 #include <QDate>
 #include <QDateTime>
+#include <QTimeZone>
 #include "gfs/GfsCache.h"
 #include "gfs/GfsModels.h"
 #include "models/UtilityGrib.h"
@@ -90,7 +91,7 @@ bool UtilityCfs::latestRun(Run& run) {
     }
     // the monthly means come after the 6 hourly files: a run whose first whole month is not there yet is the one before (the later months may still be arriving)
     for (int back = 0; back < 4; back++) {
-        const auto t = QDateTime::fromString(QString::fromStdString(run.date + run.cycle), "yyyyMMddHH").addSecs(-static_cast<qint64>(back) * 6 * 3600);
+        const auto t = runTime(run).addSecs(-static_cast<qint64>(back) * 6 * 3600);
         const Run candidate{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
         const auto months = UtilityCfs::months(candidate);
         const auto url = source(4, true).fileUrl(candidate, 0, "flxf." + months[1]) + ".idx";
@@ -196,13 +197,17 @@ std::vector<std::string> UtilityCfs::months(const Run& run) {
     return out;
 }
 
+QDateTime UtilityCfs::runTime(const Run& run) {
+    return QDateTime{QDate::fromString(QString::fromStdString(run.date), "yyyyMMdd"), QTime{std::stoi(run.cycle), 0}, QTimeZone::utc()};
+}
+
 std::string UtilityCfs::runText(const Run& run) {
     return run.date.substr(0, 4) + "-" + run.date.substr(4, 2) + "-" + run.date.substr(6, 2) + " " + run.cycle + "Z";
 }
 
 std::vector<UtilityCfs::Run> UtilityCfs::recentRuns(const Run& newest, int count, int stepHours) {
     std::vector<Run> out;
-    const auto start = QDateTime::fromString(QString::fromStdString(newest.date + newest.cycle), "yyyyMMddHH");
+    const auto start = runTime(newest);
     for (int i = 0; i < count; i++) {
         const auto t = start.addSecs(-static_cast<qint64>(i) * stepHours * 3600);
         out.push_back({t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()});
@@ -253,8 +258,18 @@ bool UtilityCfs::gfsPointSeries(const Run& run, const Variable& variable, const 
         }
         std::map<std::string, GfsGrid::Grid> got;
         std::string message;
-        if (!data.load(run, needs, got, message)) {
-            error = message;
+        for (int attempt = 0; attempt < 3 && got.size() < needs.size(); attempt++) {   // a busy server drops some: ask again for what is missing
+            std::vector<GfsData::Need> still;
+            for (const auto& need : needs) {
+                if (got.count(need.want.key) == 0) {
+                    still.push_back(need);
+                }
+            }
+            std::map<std::string, GfsGrid::Grid> more;
+            if (!data.load(run, still, more, message)) {
+                error = message;
+            }
+            got.insert(more.begin(), more.end());
         }
         for (const auto& [key, grid] : got) {
             const float v = grid.sample(lon, lat);

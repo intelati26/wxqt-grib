@@ -337,6 +337,27 @@ int main(int argc, char * argv[]) {
                     }
                 }
                 QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("gfsprobe")) {   // WXQT_OPEN=gfsprobe: the newest GFS runs' 2 m temperature at Kansas City every 6 hours to 5 days: how many values each could read
+                UtilityCfs::Run run;
+                std::vector<int> hours;
+                for (int h = 6; h <= 120; h += 6) {
+                    hours.push_back(h);
+                }
+                if (UtilityCfs::gfsLatestRun(run)) {
+                    for (const auto& past : UtilityCfs::recentRuns(run, 8, 6)) {
+                        std::vector<float> values;
+                        std::string error;
+                        const bool ok = UtilityCfs::gfsPointSeries(past, UtilityCfs::gfsVariables().front(), hours, 39.1, -94.6, values, error);
+                        QString line;
+                        int good = 0;
+                        for (size_t i = 0; i < values.size(); i++) {
+                            good += std::isnan(values[i]) ? 0 : 1;
+                            line += std::isnan(values[i]) ? " -" : " +";
+                        }
+                        qWarning("gfsprobe: run %s ok=%d %d of %zu [%s]%s", UtilityCfs::runText(past).c_str(), ok ? 1 : 0, good, values.size(), error.c_str(), qPrintable(line));
+                    }
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
             } else if (route.startsWith("cfsplume")) {   // WXQT_OPEN=cfsplume[:<cfs|gfs>:<runs>:<hours between>]: the plume window
                 const auto parts = route.split(':');
                 auto * plume = new CfsPlumeViewer{&w};

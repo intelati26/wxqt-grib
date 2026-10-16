@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <future>
+#include <semaphore>
 #include <QDateTime>
 #include <QHBoxLayout>
 #include <QPainter>
@@ -134,11 +135,12 @@ private:
         const auto yOf = [&] (double v) { return area.bottom() - (v - from) / (to - from) * area.height(); };
         // the day marks
         const double dayStep = maxDay > 60 ? 10 : maxDay > 20 ? 5 : 1;
-        for (double d = std::ceil(minDay / dayStep) * dayStep; d <= maxDay; d += dayStep) {
+        for (double n = std::ceil((minDay + result.runFraction) / dayStep) * dayStep; n - result.runFraction <= maxDay; n += dayStep) {   // the marks are at midnight UTC
+            const double d = n - result.runFraction;
             p.setPen(QColor{235, 235, 235});
             p.drawLine(QPointF{xOf(d), area.top()}, QPointF{xOf(d), area.bottom()});
             p.setPen(Qt::black);
-            p.drawText(QRectF{xOf(d) - 30, area.bottom() + 2, 60, 16}, Qt::AlignCenter, result.runDay.addDays(static_cast<qint64>(d)).toString("d MMM"));
+            p.drawText(QRectF{xOf(d) - 30, area.bottom() + 2, 60, 16}, Qt::AlignCenter, result.runDay.addDays(static_cast<qint64>(n)).toString("d MMM"));
         }
         // the spread of the runs: the shading runs from the lowest to the highest at each day
         {
@@ -332,10 +334,10 @@ void CfsPlumeViewer::fillChoices() {
     }
     span->clear();
     if (gfs) {
-        span->addItems({"5 days, 6 hourly", "10 days, 12 hourly", "16 days, 12 hourly"});
-        span->setCurrentIndex(1);
+        span->addItems({"5 days, 6 hourly", "10 days, 6 hourly", "16 days, daily (00Z)"});
+        span->setCurrentIndex(0);   // (each run is a field for every step: 12 runs of 10 days at 6 hours is 480 reads, minutes the first time)
     } else {
-        span->addItems({"15 days, 6 hourly", "45 days, daily", "90 days, every other day"});
+        span->addItems({"15 days, 6 hourly", "45 days, daily (00Z)", "90 days, every other day"});
         span->setCurrentIndex(1);
     }
 }
@@ -350,20 +352,16 @@ void CfsPlumeViewer::load() {
     const bool gfs = model->currentData().toString() == "gfs";
     const std::string key = field->currentData().toString().toStdString();
     const auto variable = gfs ? *std::find_if(UtilityCfs::gfsVariables().begin(), UtilityCfs::gfsVariables().end(), [&key] (const auto& v) { return v.key == key; }) : *UtilityCfs::find(key);
-    std::vector<int> hours;
+    // the valid times are the same for every run (a multiple of the step from midnight UTC, after the newest run's own time): each run is read at the hour that lands on them
+    int stepHours = 24, spanHours = 1080;
     if (gfs) {
-        switch (span->currentIndex()) {
-            case 0: for (int h = 6; h <= 120; h += 6) hours.push_back(h); break;
-            case 2: for (int h = 12; h <= 384; h += 12) hours.push_back(h); break;
-            default: for (int h = 12; h <= 240; h += 12) hours.push_back(h); break;
-        }
+        stepHours = span->currentIndex() == 2 ? 24 : 6;
+        spanHours = span->currentIndex() == 0 ? 120 : span->currentIndex() == 1 ? 240 : 384;
     } else {
-        switch (span->currentIndex()) {
-            case 0: for (int h = 6; h <= 360; h += 6) hours.push_back(h); break;
-            case 2: for (int h = 24; h <= 2160; h += 48) hours.push_back(h); break;
-            default: for (int h = 24; h <= 1080; h += 24) hours.push_back(h); break;
-        }
+        stepHours = span->currentIndex() == 0 ? 6 : span->currentIndex() == 1 ? 24 : 48;
+        spanHours = span->currentIndex() == 0 ? 360 : span->currentIndex() == 1 ? 1080 : 2160;
     }
+    const int longestHour = gfs ? 384 : 6984;
     const int runCount = count->currentData().toInt(), strideHours = stride->currentData().toInt();
     const int earlierDays = 0;
     auto result = std::make_shared<Result>();
@@ -380,16 +378,49 @@ void CfsPlumeViewer::load() {
                 *error = gfs ? "no GFS run found" : "no CFSv2 run found";
                 return;
             }
-            const auto runTime = QDateTime::fromString(QString::fromStdString(run.date + run.cycle), "yyyyMMddHH");
+            const auto runTime = UtilityCfs::runTime(run);
             result->title = QString::fromStdString(variable.label + " at " + std::to_string(lat).substr(0, std::to_string(lat).find('.') + 3) + ", " + std::to_string(lon).substr(0, std::to_string(lon).find('.') + 3) + (gfs ? "   GFS run " : "   CFSv2 run ") + UtilityCfs::runText(run));
             result->units = QString::fromStdString(variable.units);
             result->runDay = runTime.date();
-            for (const int h : hours) {
-                result->days.push_back(h / 24.0);
+            result->runFraction = runTime.time().hour() / 24.0;
+            const qint64 runSeconds = runTime.toSecsSinceEpoch();
+            std::vector<qint64> validTimes;
+            for (qint64 t = (runSeconds / (stepHours * 3600) + 1) * stepHours * 3600; t <= runSeconds + static_cast<qint64>(spanHours) * 3600; t += static_cast<qint64>(stepHours) * 3600) {
+                validTimes.push_back(t);
+                result->days.push_back((t - runSeconds) / 86400.0);
             }
+            // one run's values at those times: the hour is the time minus the run's own, and a time beyond the run's end stays empty
+            const auto seriesOf = [=] (const UtilityCfs::Run& past) {
+                const auto at = UtilityCfs::runTime(past).toSecsSinceEpoch();
+                std::vector<int> hours;
+                std::vector<size_t> where;
+                for (size_t i = 0; i < validTimes.size(); i++) {
+                    const qint64 h = (validTimes[i] - at) / 3600;
+                    if (h > 0 && h <= longestHour) {
+                        hours.push_back(static_cast<int>(h));
+                        where.push_back(i);
+                    }
+                }
+                std::vector<float> got, all(validTimes.size(), std::nanf(""));
+                std::string message;
+                if (gfs) {
+                    UtilityCfs::gfsPointSeries(past, variable, hours, lat, lon, got, message);
+                } else {
+                    UtilityCfs::pointSeries(past, 1, variable, hours, lat, lon, got, message);
+                }
+                for (size_t i = 0; i < where.size() && i < got.size(); i++) {
+                    all[where[i]] = got[i];
+                }
+                if (qEnvironmentVariableIsSet("WXQT_PLUME_DEBUG")) {
+                    int good = 0;
+                    for (const float v : got) good += std::isnan(v) ? 0 : 1;
+                    qWarning("plume: run %s%s asked %zu hours (%d .. %d) got %d [%s]", past.date.c_str(), past.cycle.c_str(), hours.size(), hours.empty() ? 0 : hours.front(), hours.empty() ? 0 : hours.back(), good, message.c_str());
+                }
+                return all;
+            };
             const auto runs = UtilityCfs::recentRuns(run, runCount, strideHours);
             for (size_t k = 0; k < runs.size(); k++) {
-                const auto t = QDateTime::fromString(QString::fromStdString(runs[k].date + runs[k].cycle), "yyyyMMddHH");
+                const auto t = UtilityCfs::runTime(runs[k]);
                 result->runNames.push_back(QString::fromStdString(runs[k].cycle) + "Z " + t.toString("d MMM"));
             }
             struct Job {
@@ -399,23 +430,13 @@ void CfsPlumeViewer::load() {
                 std::future<std::vector<float>> values;
             };
             std::vector<Job> jobs;
+            std::counting_semaphore<16> gate{gfs ? 3 : 6};
             for (size_t k = 0; k < runs.size(); k++) {
                 const auto past = runs[k];
-                jobs.push_back({static_cast<int>(k) + 1, static_cast<double>(k) * strideHours / 24.0, false, std::async(std::launch::async, [=] {
-                    std::vector<float> v;
-                    std::string message;
-                    if (gfs) { UtilityCfs::gfsPointSeries(past, variable, hours, lat, lon, v, message); } else { UtilityCfs::pointSeries(past, 1, variable, hours, lat, lon, v, message); }
-                    doneCount->fetch_add(1);
-                    return v;
-                })});
-            }
-            for (int ago = 1; ago <= earlierDays; ago++) {
-                const auto t = runTime.addDays(-ago);
-                const UtilityCfs::Run past{t.toString("yyyyMMdd").toStdString(), run.cycle};
-                jobs.push_back({0, static_cast<double>(ago), true, std::async(std::launch::async, [=] {
-                    std::vector<float> v;
-                    std::string message;
-                    UtilityCfs::pointSeries(past, 1, variable, hours, lat, lon, v, message);
+                jobs.push_back({static_cast<int>(k) + 1, 0.0, false, std::async(std::launch::async, [=, &gate] {
+                    gate.acquire();   // NOMADS answers a few requests at a time: the runs are read three at a time
+                    auto v = seriesOf(past);
+                    gate.release();
                     doneCount->fetch_add(1);
                     return v;
                 })});
@@ -430,8 +451,8 @@ void CfsPlumeViewer::load() {
             }
             Line mean;
             mean.name = "mean";
-            mean.values.assign(hours.size(), 0.0f);
-            for (size_t i = 0; i < hours.size(); i++) {
+            mean.values.assign(validTimes.size(), 0.0f);
+            for (size_t i = 0; i < validTimes.size(); i++) {
                 double sum = 0.0;
                 int n = 0;
                 for (const auto& l : result->daily) {
