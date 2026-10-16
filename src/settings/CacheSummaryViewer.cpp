@@ -135,6 +135,7 @@ CacheSummaryViewer::CacheSummaryViewer(Window * parent) : Window{parent} {
     central->setLayout(column);
     setCentralWidget(central);
     setSize(1100, 640);
+    show();
     QObject::connect(refresh, &QPushButton::clicked, [this] { scan(); });
     QObject::connect(open, &QPushButton::clicked, [this] {
         auto * item = tree->currentItem();

@@ -48,6 +48,7 @@ PointPicker::PointPicker(Window * parent, double lat, double lon, bool have, con
     auto * central = new QWidget{this};
     central->setLayout(column);
     setCentralWidget(central);
+    show();
 }
 
 void PointPicker::paintMarker(QPainter& painter) {

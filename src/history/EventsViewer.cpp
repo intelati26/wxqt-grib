@@ -170,6 +170,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     central->setLayout(all);
     setCentralWidget(central);
     setSize(1000, 720);
+    show();
 
     QObject::connect(newButton, &QPushButton::clicked, [this] { newEvent(); });
     QObject::connect(save, &QPushButton::clicked, [this] { saveEvent(); });
