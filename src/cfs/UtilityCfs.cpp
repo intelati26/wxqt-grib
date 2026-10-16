@@ -337,7 +337,9 @@ bool UtilityCfs::climatologyOn(const Variable& variable, const std::string& yyyy
                 // (GDAL takes 273.15 off every temperature field, a spread of temperatures too: put it back)
                 v = static_cast<float>((deviation && variable.units == "deg C" ? v + 273.15 : v) * variable.scale + (deviation ? 0.0 : variable.offset));
             }
-            store.write(keyFor(bucket), GfsClimate::pack(out));
+            if (yyyymmdd.substr(6, 2) == "01" || yyyymmdd.substr(6, 2) == "16") {   // the permanent cache holds the 1st and the 16th only (any other date is for a check)
+                store.write(keyFor(bucket), GfsClimate::pack(out));
+            }
             return true;
         }
         error = message;
