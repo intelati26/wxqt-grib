@@ -13,6 +13,7 @@
 #include <QWheelEvent>
 #include "cfs/CfsPlumeViewer.h"
 #include "cfs/UtilityCfs.h"
+#include "gfs/GfsClimate.h"
 #include "hurricane/ReconViewer.h"
 #include "radar/MapWidget.h"
 #include "drought/DroughtViewer.h"
@@ -342,6 +343,168 @@ int main(int argc, char * argv[]) {
                             qWarning("cfsprobe: f%d: %s", hour, error.c_str());
                         }
                     }
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("cfsinterp:")) {   // WXQT_OPEN=cfsinterp:<variable key>:<lead month>: how well the normal of a start date is had by interpolating between start dates further apart
+                const auto parts = route.split(':');
+                const auto * variable = UtilityCfs::find(parts.value(1, "t2m").toStdString());
+                const int lead = parts.value(2, "1").toInt();
+                if (variable != nullptr) {
+                    const auto get = [&] (const QDate& d, GfsGrid::Grid& g) {
+                        std::string error;
+                        return UtilityCfs::climatology(*variable, {d.toString("yyyyMMdd").toStdString(), "00"}, lead, false, 1999, g, error);
+                    };
+                    struct Spacing {
+                        const char * name;
+                        int before, after;   // days either side of the 16th
+                    };
+                    const Spacing spacings[] = {{"5 days either side (the stored spacing)", 5, 5}, {"10 days either side", 10, 10}, {"15 days either side (1st and 1st)", 15, 15}, {"30 days either side (16th to 16th)", 30, 30}, {"60 days either side", 60, 60}};
+                    for (const int month : {1, 4, 7, 10}) {
+                        const QDate target{2025, month, 16};
+                        GfsGrid::Grid truth;
+                        if (!get(target, truth)) {
+                            qWarning("cfsinterp: no normal for %s", qPrintable(target.toString()));
+                            continue;
+                        }
+                        for (const auto& spacing : spacings) {
+                            // the stored dates nearest the asked spacing (the 1st, 6th ... of a month)
+                            const auto snap = [] (QDate d) {
+                                const int day = std::min(26, (d.day() - 1) / 5 * 5 + 1);
+                                return QDate{d.year(), d.month(), day};
+                            };
+                            const QDate a = snap(target.addDays(-spacing.before)), b = snap(target.addDays(spacing.after));
+                            GfsGrid::Grid ga, gb;
+                            if (!get(a, ga) || !get(b, gb) || ga.values.size() != truth.values.size()) {
+                                continue;
+                            }
+                            const double wb = static_cast<double>(a.daysTo(target)) / static_cast<double>(a.daysTo(b));
+                            double square = 0.0, biggest = 0.0, usSquare = 0.0;
+                            size_t n = 0, usN = 0;
+                            for (int r = 0; r < truth.rows; r++) {
+                                for (int c = 0; c < truth.columns; c++) {
+                                    const size_t i = static_cast<size_t>(r) * static_cast<size_t>(truth.columns) + static_cast<size_t>(c);
+                                    const double guess = ga.values[i] * (1.0 - wb) + gb.values[i] * wb, d = guess - truth.values[i];
+                                    if (std::isnan(d)) {
+                                        continue;
+                                    }
+                                    square += d * d;
+                                    biggest = std::max(biggest, std::abs(d));
+                                    n++;
+                                    const double lat = truth.lat0 - r * truth.step, lon = truth.lon0 + c * truth.step;
+                                    if (lat > 24.0 && lat < 50.0 && lon > 235.0 - 360.0 && lon < 294.0 - 360.0 || lat > 24.0 && lat < 50.0 && lon > 235.0 && lon < 294.0) {
+                                        usSquare += d * d;
+                                        usN++;
+                                    }
+                                }
+                            }
+                            qWarning("cfsinterp: %s lead %d, the 16th of month %d from %s to %s (%s): rms %.3f (US %.3f), largest %.2f %s", variable->key.c_str(), lead, month, qPrintable(a.toString("MM-dd")), qPrintable(b.toString("MM-dd")),
+                                     spacing.name, std::sqrt(square / static_cast<double>(n)), std::sqrt(usSquare / static_cast<double>(std::max<size_t>(1, usN))), biggest, variable->units.c_str());
+                        }
+                    }
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("cfsnormal:")) {   // WXQT_OPEN=cfsnormal:<variable key>:<out.png>[:<lead month>]: the CFS normal at 1 degree beside the same on a 2 degree grid, and their difference
+                const auto parts = route.split(':');
+                const auto * variable = UtilityCfs::find(parts.value(1, "t2m").toStdString());
+                UtilityCfs::Run run;
+                std::string error;
+                GfsGrid::Grid full;
+                const int lead = parts.value(3, "1").toInt();
+                if (variable != nullptr && UtilityCfs::latestRun(run) && UtilityCfs::climatology(*variable, run, lead, false, 1999, full, error)) {
+                    // the 2 degree grid: the mean of each block of four cells
+                    GfsGrid::Grid coarse;
+                    coarse.columns = full.columns / 2;
+                    coarse.rows = full.rows / 2;
+                    coarse.step = full.step * 2.0;
+                    coarse.lon0 = full.lon0 + full.step / 2.0;
+                    coarse.lat0 = full.lat0 - full.step / 2.0;
+                    coarse.values.assign(static_cast<size_t>(coarse.columns) * static_cast<size_t>(coarse.rows), std::nanf(""));
+                    for (int r = 0; r < coarse.rows; r++) {
+                        for (int c = 0; c < coarse.columns; c++) {
+                            double sum = 0.0;
+                            int n = 0;
+                            for (int dr = 0; dr < 2; dr++) {
+                                for (int dc = 0; dc < 2; dc++) {
+                                    const float v = full.at(c * 2 + dc, r * 2 + dr);
+                                    if (!std::isnan(v)) {
+                                        sum += v;
+                                        n++;
+                                    }
+                                }
+                            }
+                            if (n > 0) {
+                                coarse.values[static_cast<size_t>(r) * static_cast<size_t>(coarse.columns) + static_cast<size_t>(c)] = static_cast<float>(sum / n);
+                            }
+                        }
+                    }
+                    // back to 1 degree cells (bicubic) and the difference
+                    GfsGrid::Grid back = full, diff = full;
+                    double sumSquare = 0.0, biggest = 0.0, sumAbs = 0.0, usSquare = 0.0, usBiggest = 0.0;
+                    size_t count = 0, usCount = 0;
+                    for (int r = 0; r < full.rows; r++) {
+                        for (int c = 0; c < full.columns; c++) {
+                            const double lon = full.lon0 + c * full.step, lat = full.lat0 - r * full.step;
+                            const float b = coarse.sampleCubic(lon, lat), f = full.at(c, r);
+                            const size_t i = static_cast<size_t>(r) * static_cast<size_t>(full.columns) + static_cast<size_t>(c);
+                            back.values[i] = b;
+                            diff.values[i] = b - f;
+                            if (!std::isnan(b) && !std::isnan(f)) {
+                                const double d = b - f;
+                                sumSquare += d * d;
+                                sumAbs += std::abs(d);
+                                biggest = std::max(biggest, std::abs(d));
+                                count++;
+                                if (lat > 24.0 && lat < 50.0 && lon > 235.0 - 360.0 && lon < 294.0 - 360.0 || lat > 24.0 && lat < 50.0 && lon > 235.0 && lon < 294.0) {   // the contiguous United States
+                                    usSquare += d * d;
+                                    usBiggest = std::max(usBiggest, std::abs(d));
+                                    usCount++;
+                                }
+                            }
+                        }
+                    }
+                    const auto fullPacked = qCompress(QByteArray::fromStdString(GfsClimate::pack(full)), 6).size();
+                    const auto coarsePacked = qCompress(QByteArray::fromStdString(GfsClimate::pack(coarse)), 6).size();
+                    qWarning("cfsnormal: %s lead %d: 1 degree %lld bytes stored, 2 degree %lld bytes (%.0f%%); 2 degree back on 1 degree minus the full: mean |d| %.3f, rms %.3f, largest %.2f %s",
+                             variable->key.c_str(), lead, static_cast<long long>(fullPacked), static_cast<long long>(coarsePacked), 100.0 * static_cast<double>(coarsePacked) / static_cast<double>(fullPacked), sumAbs / static_cast<double>(count),
+                             std::sqrt(sumSquare / static_cast<double>(count)), biggest, variable->units.c_str());
+                    qWarning("cfsnormal: over the contiguous United States: rms %.3f, largest %.2f %s (%zu cells)", std::sqrt(usSquare / static_cast<double>(std::max<size_t>(1, usCount))), usBiggest, variable->units.c_str(), usCount);
+                    // three maps, the difference at a tenth of the range of the field
+                    double lo = 1e30, hi = -1e30;
+                    for (const float v : full.values) {
+                        if (!std::isnan(v)) {
+                            lo = std::min<double>(lo, v);
+                            hi = std::max<double>(hi, v);
+                        }
+                    }
+                    const auto shade = [] (double f) {   // blue to red
+                        f = std::clamp(f, 0.0, 1.0);
+                        return f < 0.5 ? qRgb(static_cast<int>(40 + 430 * f), static_cast<int>(80 + 340 * f), static_cast<int>(200 + 50 * f)) : qRgb(static_cast<int>(250 - 60 * (f - 0.5) * 2), static_cast<int>(250 - 210 * (f - 0.5) * 2), static_cast<int>(250 - 210 * (f - 0.5) * 2));
+                    };
+                    const int w = full.columns * 2, h = full.rows * 2;
+                    QImage out{w, h * 3 + 90, QImage::Format_RGB32};
+                    out.fill(Qt::white);
+                    const auto paintMap = [&] (const GfsGrid::Grid& g, int top, double a, double b, bool differenceMap) {
+                        for (int y = 0; y < h; y++) {
+                            for (int x = 0; x < w; x++) {
+                                const float v = g.at(x / 2, y / 2);
+                                out.setPixel(x, top + y, std::isnan(v) ? qRgb(230, 230, 230) : shade((v - a) / (b - a)));
+                            }
+                        }
+                        Q_UNUSED(differenceMap)
+                    };
+                    paintMap(full, 30, lo, hi, false);
+                    paintMap(back, 60 + h, lo, hi, false);
+                    const double range = std::max(0.2, biggest);
+                    paintMap(diff, 90 + 2 * h - 30, -range, range, true);
+                    QPainter label{&out};
+                    label.setPen(Qt::black);
+                    label.drawText(8, 20, QString{"%1, lead %2: the CFS normal at 1 degree (%3 to %4 %5)"}.arg(variable->label.c_str()).arg(lead).arg(lo, 0, 'f', 0).arg(hi, 0, 'f', 0).arg(variable->units.c_str()));
+                    label.drawText(8, 50 + h, "the same through a 2 degree grid (block mean, bicubic back)");
+                    label.drawText(8, 80 + 2 * h - 30 + 0, QString{"2 degree minus 1 degree, blue to red = -%1 to +%1 %2"}.arg(range, 0, 'f', 2).arg(variable->units.c_str()));
+                    label.end();
+                    out.save(parts.value(2, "/tmp/cfsnormal.png"));
+                } else {
+                    qWarning("cfsnormal: %s", error.c_str());
                 }
                 QTimer::singleShot(100, [] { QApplication::quit(); });
             } else if (route.startsWith("gfsprobe")) {   // WXQT_OPEN=gfsprobe: the newest GFS runs' 2 m temperature at Kansas City every 6 hours to 5 days: how many values each could read
