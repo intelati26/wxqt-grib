@@ -273,3 +273,164 @@ AcisClimate::Result AcisClimate::read(const Product& product, const Region& regi
     }
     return result;
 }
+
+// ---- the daily record of one place ----
+
+namespace {
+    QJsonDocument acisGet(const char * service, const QJsonObject& params, std::string& error) {
+        const std::string url = std::string{"https://data.rcc-acis.org/"} + service + "?params=" + QUrl::toPercentEncoding(QString::fromUtf8(QJsonDocument{params}.toJson(QJsonDocument::Compact))).toStdString();
+        std::string text;
+        for (int attempt = 0; attempt < 2 && text.empty(); attempt++) {
+            text = URL::getText(url);
+        }
+        const auto doc = QJsonDocument::fromJson(QByteArray::fromStdString(text));
+        if (!doc.isObject() || doc.object().contains("error")) {
+            error = doc.isObject() ? doc.object().value("error").toString().toStdString() : "no answer from ACIS";
+            return {};
+        }
+        return doc;
+    }
+
+    float dayValue(const QJsonValue& v) {
+        const QString text = v.toString();
+        if (text.isEmpty() || text == "M") {
+            return std::numeric_limits<float>::quiet_NaN();
+        }
+        if (text == "T") {
+            return 0.0f;   // a trace
+        }
+        bool ok = false;
+        const float value = text.toFloat(&ok);
+        return ok ? value : std::numeric_limits<float>::quiet_NaN();
+    }
+}
+
+AcisClimate::StationRecord AcisClimate::readStationRecord(double lat, double lon) {
+    StationRecord record;
+    {
+        std::lock_guard<std::mutex> lock{progressMutex};
+        stage = "finding the station nearest the place";
+    }
+    tilesAll = 0;
+    // the stations near the point, with their records: a ThreadEx record ("SGFthr") of a city is the long one, with a station's own name
+    const QJsonObject meta{{"bbox", QString{"%1,%2,%3,%4"}.arg(lon - 1.2).arg(lat - 0.9).arg(lon + 1.2).arg(lat + 0.9)}, {"elems", QJsonArray{"snow", "pcpn", "maxt"}}, {"meta", "name,ll,sids,valid_daterange"}};
+    std::string error;
+    const auto found = acisGet("StnMeta", meta, error);
+    if (found.isNull()) {
+        record.error = error;
+        return record;
+    }
+    double bestScore = -1e9;
+    QString bestSid, bestName;
+    double bestLat = lat, bestLon = lon;
+    struct Airport {
+        double km;
+        QString faa;
+        double lat, lon;
+    };
+    std::vector<Airport> airports;   // the stations with an airport code: a city's ThreadEx record is named from it ("SGF" -> "SGFthr")
+    for (const auto& item : found.object().value("meta").toArray()) {
+        const auto station = item.toObject();
+        const auto ll = station.value("ll").toArray();
+        if (ll.size() < 2) {
+            continue;
+        }
+        QString threaded, other;
+        for (const auto& sid : station.value("sids").toArray()) {
+            const QString text = sid.toString();
+            if (text.contains("thr")) {
+                threaded = text.section(' ', 0, 0);
+            } else if (other.isEmpty() && text.endsWith(" 2")) {
+                other = text.section(' ', 0, 0);   // a COOP id
+            } else if (text.endsWith(" 3") && text.section(' ', 0, 0).size() == 3) {
+                airports.push_back({std::hypot((ll[1].toDouble() - lat) * 111.2, (ll[0].toDouble() - lon) * 111.2 * std::cos(lat * M_PI / 180.0)), text.section(' ', 0, 0), ll[1].toDouble(), ll[0].toDouble()});
+            }
+        }
+        const QString use = !threaded.isEmpty() ? threaded : other;
+        if (use.isEmpty()) {
+            continue;
+        }
+        // the years of record (the first range, the snow or the rain), and a station still reporting
+        int years = 0;
+        bool current = false;
+        for (const auto& range : station.value("valid_daterange").toArray()) {
+            const auto r = range.toArray();
+            if (r.size() == 2) {
+                const auto first = QDate::fromString(r[0].toString(), "yyyy-MM-dd"), last = QDate::fromString(r[1].toString(), "yyyy-MM-dd");
+                years = std::max(years, static_cast<int>(first.daysTo(last) / 365));
+                current = current || last >= QDate::currentDate().addDays(-60);
+            }
+        }
+        const double dy = (ll[1].toDouble() - lat) * 111.2, dx = (ll[0].toDouble() - lon) * 111.2 * std::cos(lat * M_PI / 180.0);
+        const double km = std::hypot(dx, dy);
+        const double score = (threaded.isEmpty() ? 0.0 : 60.0) + std::min(years, 130) * 0.6 - km * 0.5 - (current ? 0.0 : 80.0);
+        if (score > bestScore) {
+            bestScore = score;
+            bestSid = use;
+            bestName = station.value("name").toString();
+            bestLat = ll[1].toDouble();
+            bestLon = ll[0].toDouble();
+        }
+    }
+    // a city's ThreadEx record, from the nearest airports' codes (it has no position of its own, so the bounding box cannot find it)
+    std::sort(airports.begin(), airports.end(), [] (const Airport& a, const Airport& b) { return a.km < b.km; });
+    for (size_t i = 0; i < airports.size() && i < 4; i++) {
+        std::string ignored;
+        const auto check = acisGet("StnMeta", QJsonObject{{"sids", airports[i].faa + "thr"}, {"meta", "name"}}, ignored);
+        const auto list = check.isNull() ? QJsonArray{} : check.object().value("meta").toArray();
+        if (!list.isEmpty()) {
+            bestSid = airports[i].faa + "thr";
+            bestName = list[0].toObject().value("name").toString();
+            bestLat = airports[i].lat;
+            bestLon = airports[i].lon;
+            break;
+        }
+    }
+    if (bestSid.isEmpty()) {
+        record.error = "no long-record station within about 100 km of that point";
+        return record;
+    }
+    record.sid = bestSid.toStdString();
+    record.name = bestName.toStdString();
+    record.lat = bestLat;
+    record.lon = bestLon;
+    // kept on disk twelve hours (a record of 100 years is a few MB)
+    const QString path = folder() + "/record_" + bestSid + ".json";
+    QByteArray bytes;
+    {
+        const QFileInfo info{path};
+        QFile file{path};
+        if (info.exists() && info.lastModified().secsTo(QDateTime::currentDateTime()) < 12 * 3600 && file.open(QIODevice::ReadOnly)) {
+            bytes = file.readAll();
+        }
+    }
+    QJsonDocument doc = bytes.isEmpty() ? QJsonDocument{} : QJsonDocument::fromJson(bytes);
+    if (doc.isNull()) {
+        {
+            std::lock_guard<std::mutex> lock{progressMutex};
+            stage = "reading the record of " + bestName.toStdString();
+        }
+        const QJsonObject params{{"sid", bestSid}, {"sdate", "por"}, {"edate", QDate::currentDate().toString("yyyy-MM-dd")},
+                                 {"elems", QJsonArray{QJsonObject{{"name", "snow"}}, QJsonObject{{"name", "pcpn"}}, QJsonObject{{"name", "maxt"}}, QJsonObject{{"name", "mint"}}}}};
+        doc = acisGet("StnData", params, error);
+        if (doc.isNull()) {
+            record.error = error;
+            return record;
+        }
+        QFile out{path};
+        if (out.open(QIODevice::WriteOnly)) {
+            out.write(doc.toJson(QJsonDocument::Compact));
+        }
+    }
+    for (const auto& row : doc.object().value("data").toArray()) {
+        const auto cells = row.toArray();
+        if (cells.size() < 5) {
+            continue;
+        }
+        record.days.push_back({QDate::fromString(cells[0].toString(), "yyyy-MM-dd"), dayValue(cells[1]), dayValue(cells[2]), dayValue(cells[3]), dayValue(cells[4])});
+    }
+    if (record.days.empty()) {
+        record.error = "the station has no daily record";
+    }
+    return record;
+}

@@ -67,6 +67,25 @@ namespace AcisClimate {
     Result read(const Product&, const Region&, const QDate& from, const QDate& to);
 
     std::string progressText();   // what the reading is doing, to show while it goes
+
+    // The daily record of one place: the long-record station nearest a point (a ThreadEx "threaded" record of a city where there is one, else the longest record near), from its
+    // first day to now: snowfall and precipitation (inches), the highest and lowest temperature (F); a day without a value is NaN. Blocking; kept on disk for twelve hours.
+    struct Day {
+        QDate date;
+        float snow;
+        float rain;
+        float maxt;
+        float mint;
+    };
+    struct StationRecord {
+        std::string name;
+        std::string sid;
+        double lat{0.0};
+        double lon{0.0};
+        std::vector<Day> days;
+        std::string error;
+    };
+    StationRecord readStationRecord(double lat, double lon);
 }
 
 #endif  // UTILITYACISCLIMATE_H

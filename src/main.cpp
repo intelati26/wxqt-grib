@@ -27,6 +27,7 @@
 #include <QPixmap>
 #include <QTabWidget>
 #include <QThreadPool>
+#include <QComboBox>
 #include <QDialog>
 #include <QTimer>
 #include <QThread>
@@ -208,6 +209,19 @@ int main(int argc, char * argv[]) {
             } else if (route == "catalog") {   // WXQT_OPEN=catalog: the history page's catalog of tornado outbreaks
                 auto * viewer = new EventsViewer{&w};
                 viewer->openCatalog();
+                if (const auto kind = qEnvironmentVariable("WXQT_KIND"); !kind.isEmpty()) {   // WXQT_KIND=<n>: the catalog of that number (0 tornadoes, 1 biggest days, 2 storms); WXQT_WHAT=<n> its measure
+                    for (auto * dialog : viewer->findChildren<QDialog *>()) {
+                        if (auto * box = dialog->findChild<QComboBox *>()) {
+                            if (const auto what = qEnvironmentVariable("WXQT_WHAT"); !what.isEmpty()) {
+                                const auto boxes = dialog->findChildren<QComboBox *>();
+                                if (boxes.size() > 1) {
+                                    boxes[1]->blockSignals(true);
+                                }
+                            }
+                            box->setCurrentIndex(kind.toInt());
+                        }
+                    }
+                }
                 if (const auto file = qEnvironmentVariable("WXQT_PICKER_PNG"); !file.isEmpty()) {   // a picture of the catalog dialog itself, after WXQT_WAIT seconds (the database is read first)
                     for (auto * dialog : viewer->findChildren<QDialog *>()) {
                         QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_WAIT") * 1000, dialog, [dialog, file] { dialog->grab().save(file); });
