@@ -24,6 +24,7 @@ namespace GridAnalysis {
         double baseKm{0.0};          // above 0: the usual reach, shorter where stations are close (finer detail); it grows, up to reachKm, until `fewest` points near (and the 4th nearest) are in
         double nearestKm{90.0};      // a cell with no point this near is left empty
         int fewest{2};               // and one with fewer than this many within reach
+        double fillGapsKm{0.0};      // above 0: holes in the field smaller than about this (between stations that are far apart) are filled from the wide reach; the outer edge does not move
     };
     struct Field {
         Spec spec;

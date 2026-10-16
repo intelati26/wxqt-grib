@@ -108,6 +108,7 @@ void ClimateGridLayer::refresh(MapHost& host) {
                 spec.north = region.north;
                 spec.step = region.step;
                 spec.reachKm = region.reachKm;
+                spec.fillGapsKm = region.nearestKm * 1.7;   // holes between far apart stations are filled; the outer edge stays
                 spec.baseKm = level == 0 ? 0.0 : region.reachKm * (level == 1 ? 0.35 : 0.2);   // detailed and fine: a short reach, longer where the stations are far apart
                 spec.nearestKm = region.nearestKm;
                 part.field = GridAnalysis::analyze(points, spec);
