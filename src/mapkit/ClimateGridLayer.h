@@ -50,6 +50,7 @@ private:
     int periodChoice{1};                // the index into the period list
     string productId{"avgt-dep"};
     int opacity{85};
+    int detail{1};                      // 0 smooth (one wide reach), 1 detailed, 2 fine: how far a station carries where the stations are close
     bool changeRequested{false};
     QDateTime asOf;
     std::vector<Part> parts;

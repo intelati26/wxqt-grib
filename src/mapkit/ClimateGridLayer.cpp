@@ -31,6 +31,7 @@ ClimateGridLayer::ClimateGridLayer() {
     }
     periodChoice = std::clamp(Utility::readPrefInt("MM_ACIS_PERIOD", 1), 0, periodCount - 1);
     opacity = std::clamp(Utility::readPrefInt("MM_ACIS_OPACITY", 85), 20, 100);
+    detail = std::clamp(Utility::readPrefInt("MM_ACIS_DETAIL", 1), 0, 2);
 }
 
 // the days of the period: ending yesterday (or the day before the time asked for: the day itself is not over)
@@ -78,9 +79,10 @@ void ClimateGridLayer::refresh(MapHost& host) {
         std::string error;
     };
     auto result = std::make_shared<Loaded>();
+    const int level = detail;
     LoadingTicker::start(host, alive, [this] { return loading; }, [] { return "ACIS: " + AcisClimate::progressText(); });
     host.background(
-        [product, from, to, result] {
+        [product, from, to, result, level] {
             for (const auto& region : AcisClimate::regions()) {
                 auto read = AcisClimate::read(*product, region, from, to);
                 if (read.stations.empty()) {
@@ -106,6 +108,7 @@ void ClimateGridLayer::refresh(MapHost& host) {
                 spec.north = region.north;
                 spec.step = region.step;
                 spec.reachKm = region.reachKm;
+                spec.baseKm = level == 0 ? 0.0 : region.reachKm * (level == 1 ? 0.35 : 0.2);   // detailed and fine: a short reach, longer where the stations are far apart
                 spec.nearestKm = region.nearestKm;
                 part.field = GridAnalysis::analyze(points, spec);
                 part.image = QImage{part.field.columns, part.field.rows, QImage::Format_ARGB32_Premultiplied};
@@ -229,6 +232,11 @@ QWidget * ClimateGridLayer::options(QWidget * parent, const std::function<void()
     }
     days->setCurrentIndex(periodChoice);
     layout->addWidget(days);
+    layout->addWidget(new QLabel{"Detail:", widget});
+    auto * level = new QComboBox{widget};
+    level->addItems({"Smooth (each station carries far)", "Detailed", "Fine (follows the stations closely)"});
+    level->setCurrentIndex(detail);
+    layout->addWidget(level);
     layout->addWidget(new QLabel{"Opacity:", widget});
     auto * slider = new QSlider{Qt::Horizontal, widget};
     slider->setRange(20, 100);
@@ -244,6 +252,12 @@ QWidget * ClimateGridLayer::options(QWidget * parent, const std::function<void()
     QObject::connect(days, &QComboBox::currentIndexChanged, [this, changed] (int index) {
         periodChoice = std::clamp(index, 0, periodCount - 1);
         Utility::writePrefInt("MM_ACIS_PERIOD", periodChoice);
+        changeRequested = true;
+        changed();
+    });
+    QObject::connect(level, &QComboBox::currentIndexChanged, [this, changed] (int index) {
+        detail = std::clamp(index, 0, 2);
+        Utility::writePrefInt("MM_ACIS_DETAIL", detail);
         changeRequested = true;
         changed();
     });

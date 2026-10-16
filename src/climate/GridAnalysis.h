@@ -20,7 +20,8 @@ namespace GridAnalysis {
     struct Spec {
         double west{0.0}, south{0.0}, east{0.0}, north{0.0};
         double step{0.1};            // degrees
-        double reachKm{200.0};       // points farther than this from a cell do not count for it
+        double reachKm{200.0};       // points farther than this from a cell do not count for it (the widest reach)
+        double baseKm{0.0};          // above 0: the usual reach, shorter where stations are close (finer detail); it grows, up to reachKm, until `fewest` points near (and the 4th nearest) are in
         double nearestKm{90.0};      // a cell with no point this near is left empty
         int fewest{2};               // and one with fewer than this many within reach
     };

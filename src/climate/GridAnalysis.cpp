@@ -63,8 +63,9 @@ GridAnalysis::Field GridAnalysis::analyze(const std::vector<Point>& points, cons
             if (!bucketOf(lat, lon, bx, by)) {
                 continue;
             }
-            double sum = 0.0, weights = 0.0, nearest = 1e9;
-            int count = 0;
+            // the points within the widest reach, with their distances; the reach actually used is the usual one (baseKm) or, where the stations are far apart, what takes in the 4th nearest
+            thread_local std::vector<std::pair<double, int>> near;
+            near.clear();
             for (int y = std::max(0, by - spanLat); y <= std::min(bucketsLat - 1, by + spanLat); y++) {
                 for (int x = std::max(0, bx - spanLon); x <= std::min(bucketsLon - 1, bx + spanLon); x++) {
                     for (const int index : buckets[static_cast<size_t>(y) * bucketsLon + x]) {
@@ -72,16 +73,30 @@ GridAnalysis::Field GridAnalysis::analyze(const std::vector<Point>& points, cons
                         const double dy = (p.lat - lat) * kmPerDegree;
                         const double dx = (p.lon - lon) * kmPerDegree * cosLat;
                         const double d2 = dx * dx + dy * dy;
-                        if (d2 > r2) {
-                            continue;
+                        if (d2 <= r2) {
+                            near.push_back({std::sqrt(d2), index});
                         }
-                        const double w = (r2 - d2) / (r2 + d2);
-                        sum += w * p.value;
-                        weights += w;
-                        nearest = std::min(nearest, std::sqrt(d2));
-                        count++;
                     }
                 }
+            }
+            double reach = spec.reachKm;
+            if (spec.baseKm > 0.0 && !near.empty()) {
+                const size_t k = std::min<size_t>(near.size(), 4);
+                std::nth_element(near.begin(), near.begin() + static_cast<long>(k - 1), near.end());
+                reach = std::clamp(std::max(spec.baseKm, near[k - 1].first * 1.15), spec.baseKm, spec.reachKm);
+            }
+            const double rr = reach * reach;
+            double sum = 0.0, weights = 0.0, nearest = 1e9;
+            int count = 0;
+            for (const auto& [d, index] : near) {
+                if (d > reach) {
+                    continue;
+                }
+                const double w = (rr - d * d) / (rr + d * d);
+                sum += w * points[static_cast<size_t>(index)].value;
+                weights += w;
+                nearest = std::min(nearest, d);
+                count++;
             }
             if (count >= spec.fewest && nearest <= spec.nearestKm && weights > 0.0) {
                 field.values[static_cast<size_t>(row) * field.columns + column] = static_cast<float>(sum / weights);
