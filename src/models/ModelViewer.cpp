@@ -1290,6 +1290,16 @@ void ModelViewer::fitHoursToRun() {
             }
         }
     }
+    if (def != nullptr && objectModel.model != "SPCREFS" && !def->hours.empty() && def->hours.front().from == 0 && objectModel.run.size() >= 2) {   // an hour 0 the run has no file for is not offered
+        const auto when = runTime(objectModel.run);
+        const auto key = objectModel.model + "|" + (when.isValid() ? when.toString("yyyyMMddHH").toStdString() : objectModel.run) + "|" + objectModel.param;
+        const auto known = firstHourMissing.find(key);
+        if (known == firstHourMissing.end()) {
+            askFirstHour();
+        } else if (known->second && wanted.size() > 1) {
+            wanted.erase(std::remove_if(wanted.begin(), wanted.end(), [] (const string& t) { return std::atoi(t.c_str()) == 0; }), wanted.end());
+        }
+    }
     if (wanted == objectModel.times) {
         return;
     }
@@ -1327,6 +1337,37 @@ void ModelViewer::askFieldHours() {
     auto hours = std::make_shared<std::vector<int>>();
     new FutureVoid{this, [runId, param, hours] { *hours = SpcRefsLoader::fieldHours(GfsData::Run{runId.substr(0, 8), runId.substr(8, 2)}, param); }, [this, key, hours] {
         fieldHours[key] = *hours;
+        const auto before = objectModel.getTime();
+        fitHoursToRun();
+        if (objectModel.getTime() != before) {
+            reload();
+        }
+    }};
+}
+
+// whether the run has hour 0 for the chart on show, read from its index in the background; the list is fitted to the answer when it comes
+void ModelViewer::askFirstHour() {
+    const auto when = runTime(objectModel.run);
+    if (!when.isValid() || !GfsRender::handles(objectModel.model, objectModel.param)) {
+        return;
+    }
+    const auto runId = when.toString("yyyyMMddHH").toStdString();
+    const auto key = objectModel.model + "|" + runId + "|" + objectModel.param;
+    if (firstHourAsked.count(key) != 0) {
+        return;
+    }
+    firstHourAsked.insert(key);
+    if (!gfsSession) {
+        gfsSession = std::make_shared<GfsRender::Session>();
+    }
+    const auto session = gfsSession;
+    const auto model = objectModel.model, param = objectModel.param;
+    auto missing = std::make_shared<bool>(false);
+    new FutureVoid{this, [session, model, param, runId, missing] { *missing = GfsRender::firstHourMissing(*session, model, param, runId); }, [this, key, missing] {
+        firstHourMissing[key] = *missing;
+        if (!*missing) {
+            return;
+        }
         const auto before = objectModel.getTime();
         fitHoursToRun();
         if (objectModel.getTime() != before) {

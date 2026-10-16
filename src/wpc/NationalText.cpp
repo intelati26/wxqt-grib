@@ -38,6 +38,7 @@ NationalText::NationalText(Window * parent, const string& prod)
         hbox.addWidget(popoverMenus.back());
     }
     box.addLayout(hbox);
+    text.fillWidth();
     box.addWidget(text);
     box.addStretch();
     reload();

@@ -21,6 +21,7 @@ public:
     void setText(const string&);
     void setWordWrap(bool);
     void setFixedWidth();
+    void fillWidth();   // for a text product: the label takes the width of its window (up to 12 inches, a sheet of paper) and wraps there
     void setBlue();
     void setGray();
     void setBold();

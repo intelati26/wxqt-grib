@@ -40,6 +40,9 @@ WfoText::WfoText(Window * parent, const string& site)
     for ([[maybe_unused]] auto unused : range(productCount)) {
         textList.emplace_back(this);
         textList.back().setFixedWidth();
+        if (textList.size() == 1) {   // the others are not shown; they must not take the width too
+            textList.back().fillWidth();
+        }
         boxText.addWidget(textList.back());
     }
     reload();

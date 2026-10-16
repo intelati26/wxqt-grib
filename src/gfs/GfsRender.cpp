@@ -188,6 +188,32 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
     return finish();
 }
 
+bool GfsRender::firstHourMissing(Session& session, const std::string& model, const std::string& param, const std::string& runId) {
+    const auto * def = GfsModels::find(model);
+    const auto * product = GfsChart::product(param, model);
+    if (def == nullptr || product == nullptr || def->hours.empty() || def->hours.front().from != 0 || runId.size() != 10) {
+        return false;
+    }
+    const auto gfs = data(session.folder(), model);
+    const GfsData::Run run{runId.substr(0, 8), runId.substr(8, 2)};
+    const auto atFirst = GfsChart::needs(*product, 0);
+    if (atFirst.empty()) {
+        return false;
+    }
+    std::string detail;
+    const int next = def->hours.front().step > 0 ? def->hours.front().step : 1;
+    const auto atNext = GfsChart::needs(*product, next);
+    // a chart made only of accumulations has nothing at hour 0 (and is then there at the next hour)
+    const bool onlyAccumulations = std::all_of(atFirst.begin(), atFirst.end(), [] (const GfsData::Need& need) { return !need.want.forecast.empty(); });
+    if (gfs.check(run, atFirst, detail) && !onlyAccumulations) {
+        return false;
+    }
+    if (atNext.empty() || !gfs.check(run, atNext, detail)) {
+        return false;   // the next hour is not there either: the run is not there, or the connection is lost; that says nothing about hour 0
+    }
+    return true;
+}
+
 bool GfsRender::drawsModel(const std::string& model) {
     return GfsModels::draws(model);
 }

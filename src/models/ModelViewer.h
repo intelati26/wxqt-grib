@@ -212,6 +212,9 @@ private:
     void fitHoursToRun();
     std::map<string, std::vector<int>> fieldHours;   // "run|chart" -> the hours an SPC REFS field has (its own time coordinate)
     std::set<string> fieldHoursAsked;
+    std::map<string, bool> firstHourMissing;   // "model|run|chart" -> the run has nothing for the chart at hour 0 (no file, or only an accumulation): the hour is not listed
+    std::set<string> firstHourAsked;
+    void askFirstHour();
     void askFieldHours();
     void applyPinnedRun();
     void recheckRuns();                   // every 15 minutes: has a newer run been published?

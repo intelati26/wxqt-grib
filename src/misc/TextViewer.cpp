@@ -22,6 +22,7 @@ TextViewer::TextViewer(Window * parent, const string& url, bool fixedWidth, cons
         text.setFixedWidth();
     }
     box.addMargins();
+    text.fillWidth();
     box.addWidget(text);
     new FutureText{this, url, [this] (const auto& s) { text.setText(s); }};
 }
