@@ -76,8 +76,8 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     refreshNow.connect([reloadFn] { reloadFn(); });
     // routeItems.emplace_back("reload.png", "Reload data, Ctrl-u", [reloadFn] { reloadFn(); });
     routeItems.emplace_back("baseline_settings_black_48dp.png", "Settings", [this] { launchSettings(); });
-    routeItems.emplace_back("baseline_settings_black_48dp.png", "Data kept: caches and what is in them", [parent] { new CacheSummaryViewer{parent}; });
-    routeItems.emplace_back("baseline_settings_black_48dp.png", "History: events (outbreaks, storms, your own dates and places)", [parent] { new EventsViewer{parent}; });
+    routeItems.emplace_back("baseline_storage_black_48dp.png", "Data kept: caches and what is in them", [parent] { new CacheSummaryViewer{parent}; });
+    routeItems.emplace_back("baseline_history_black_48dp.png", "History: events (outbreaks, storms, your own dates and places)", [parent] { new EventsViewer{parent}; });
 
     routeItems.emplace_back("baseline_warning_black_48dp.png", "Severe Dashboard, Ctrl-d", [this] { launchSevereDashboard(); });
     routeItems.emplace_back("baseline_cloud_black_48dp.png", "GOES imagery, Ctrl-c", [this] { launchGoesViewer(); });
@@ -195,11 +195,21 @@ void Toolbar::applySavedOrder() {
             }
         }
     }
-    for (const auto& item : routeItems) {
-        const auto known = std::find(saved.begin(), saved.end(), item.id) != saved.end();
-        if (!known) {
-            ordered.push_back(item);
+    // an entry added since the order was saved goes right after the one before it in the built-in order (not at the very end, where it would not be found)
+    for (size_t i = 0; i < routeItems.size(); i++) {
+        const auto& item = routeItems[i];
+        if (std::find(saved.begin(), saved.end(), item.id) != saved.end()) {
+            continue;
         }
+        auto at = ordered.end();
+        for (size_t before = i; before > 0; before--) {
+            const auto found = std::find_if(ordered.begin(), ordered.end(), [&] (const RouteItem& o) { return o.id == routeItems[before - 1].id; });
+            if (found != ordered.end()) {
+                at = found + 1;
+                break;
+            }
+        }
+        ordered.insert(at, item);
     }
     routeItems = ordered;
 }
