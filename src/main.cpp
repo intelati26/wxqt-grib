@@ -379,6 +379,21 @@ int main(int argc, char * argv[]) {
                                     }
                                 }
                             }
+                            if (day == 26) {   // the size of the field and of its spread, to read the error against
+                                GfsGrid::Grid spread;
+                                if (UtilityCfs::climatologyOn(*variable, name, lead, true, 1999, spread, error)) {
+                                    double mean = 0.0, spreadMean = 0.0;
+                                    size_t k = 0;
+                                    for (size_t i = 0; i < truth.values.size(); i++) {
+                                        if (!std::isnan(truth.values[i]) && !std::isnan(spread.values[i])) {
+                                            mean += std::abs(truth.values[i]);
+                                            spreadMean += spread.values[i];
+                                            k++;
+                                        }
+                                    }
+                                    qWarning("cfsinterp: %s %s: the normal averages %.2f in size, its year-to-year spread %.2f %s", variable->key.c_str(), qPrintable(d.toString("MM-dd")), mean / static_cast<double>(k), spreadMean / static_cast<double>(k), variable->units.c_str());
+                                }
+                            }
                             qWarning("cfsinterp: %s lead %d %s: rms %.3f (US %.3f), largest %.2f %s", variable->key.c_str(), lead, qPrintable(d.toString("MM-dd")), std::sqrt(square / static_cast<double>(n)),
                                      std::sqrt(usSquare / static_cast<double>(std::max<size_t>(1, usN))), biggest, variable->units.c_str());
                         }
