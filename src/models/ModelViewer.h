@@ -141,9 +141,12 @@ private:
     std::string member;                   // the one chosen: "" the chart as it is
     void refreshMembers();
     void addLocalSectors();
+    std::string hourText(const std::string& timeItem, bool forList) const;   // "264 Wed 7am" as "d11" (a run longer than ten days is counted in days) for the strip, with the date for the list
     void applyMainRunRule();   // a chart only a model's main runs have: shows the main run in its place, and says so above the timeline
     std::string runSwappedFrom;   // the run that was chosen before the chart made the screen move to a main run ("" when none)
     // a hodograph of each station's model sounding on the map, for the hour on view (laid over the view like the station buttons: not in a saved picture)
+    double clickedLat{0.0}, clickedLon{0.0};   // the point last clicked on the chart (the crosshair)
+    bool haveClicked{false};
     QDateTimeEdit * timePick{nullptr};      // a calendar and clock (UTC) to open the run of any past time
     QPushButton * buttonHodos{nullptr};
     QTimer hodoTimer;

@@ -237,7 +237,7 @@ private:
     bool have{false};
 };
 
-CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon) : Window{parent} {
+CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon, const QString& modelId) : Window{parent} {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("CFSv2 forecast at a place");
     auto * column = new QVBoxLayout;
@@ -260,6 +260,7 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon) : Window
     model = new QComboBox{this};
     model->addItem("CFSv2 (9 months)", "cfs");
     model->addItem("GFS (16 days)", "gfs");
+    model->setCurrentIndex(std::max(0, model->findData(modelId)));
     field = new QComboBox{this};
     span = new QComboBox{this};
     fillChoices();

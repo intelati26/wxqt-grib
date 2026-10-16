@@ -26,7 +26,7 @@ class CfsPlume;
 
 class CfsPlumeViewer : public Window {
 public:
-    explicit CfsPlumeViewer(Window * parent, double lat = 39.1, double lon = -94.6);
+    explicit CfsPlumeViewer(Window * parent, double lat = 39.1, double lon = -94.6, const QString& modelId = "cfs");
     // set the model ("cfs", "gfs"), the number of runs and the hours between them, and load (a route of the development aids, and a way to open it ready)
     void choose(const QString& modelId, int runs, int everyHours, int monthly = 0);
 

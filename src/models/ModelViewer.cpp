@@ -41,6 +41,7 @@
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "gfs/GfsChart.h"
+#include "cfs/CfsPlumeViewer.h"
 #include "history/HistoryCursor.h"
 #include "models/HodographGlyph.h"
 #include "models/SoundingViewer.h"
@@ -302,6 +303,14 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonMembers->setToolTip("REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
         QObject::connect(buttonMembers, &QPushButton::clicked, this, [this] { openMemberGraph(); });
         boxH2.addWidgetReal(buttonMembers);
+        auto * plume = new QPushButton{"Plume here", this};
+        plume->setToolTip("The forecast at the point last clicked on the chart, from the newest runs, each at the same valid times: opens the plume window (CFSv2 for the CFS, the GFS for the others)");
+        QObject::connect(plume, &QPushButton::clicked, this, [this] {
+            const auto * place = Location::getListLatLons().empty() ? nullptr : &Location::getListLatLons().front();
+            const double lat = haveClicked ? clickedLat : (place != nullptr ? place->lat() : 39.1), lon = haveClicked ? clickedLon : (place != nullptr ? place->lon() : -94.6);
+            new CfsPlumeViewer{this, lat, lon, objectModel.model.compare(0, 3, "CFS") == 0 ? "cfs" : "gfs"};
+        });
+        boxH2.addWidgetReal(plume);
         buttonOverlay = new QPushButton{"Overlay models...", this};
         buttonOverlay->setToolTip("Draw the lines (heights, pressure) of other models over this chart's for the same valid time, each model in its own color. Save... writes it as a loop.");
         QObject::connect(buttonOverlay, &QPushButton::clicked, this, [this] { chooseOverlays(); });
@@ -331,6 +340,9 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
                 tile->image->setMarker(fx, fy);
             }
             soundingPick.pick(lon, lat);
+            clickedLat = lat;
+            clickedLon = lon;
+            haveClicked = true;
         }
     });
     {   // the tiles: the first is the screen's own chart (with everything it does), the others are compared with it
@@ -1218,6 +1230,26 @@ void ModelViewer::prefetch(int generation) {
     refreshLoaded();
 }
 
+// A run longer than ten days (the CFS: 6984 hours) is labelled by the date of each hour, MM-DD, in the strip and the list: the hours mean nothing at that length. The list also has the weekday and
+// the clock, and the day of the run.
+std::string ModelViewer::hourText(const std::string& timeItem, bool forList) const {
+    const int hour = std::atoi(timeItem.c_str());
+    const bool longRun = !objectModel.times.empty() && std::atoi(objectModel.times.back().c_str()) > 240;
+    if (!longRun) {
+        return forList ? timeItem : WString::split(timeItem, " ")[0];
+    }
+    const auto run = runTime(objectModel.run);
+    if (!run.isValid()) {
+        return WString::split(timeItem, " ")[0];
+    }
+    const auto local = run.addSecs(3600LL * hour).toLocalTime();
+    const auto date = local.toString("MM-dd").toStdString();
+    if (!forList) {
+        return date;
+    }
+    return date + "  " + local.toString("ddd").toStdString() + "  " + std::to_string(local.time().hour() % 12 == 0 ? 12 : local.time().hour() % 12) + (local.time().hour() >= 12 ? "pm" : "am") + "   (day " + QString::number(hour / 24.0, 'f', hour % 24 == 0 ? 0 : 2).toStdString() + ")";
+}
+
 void ModelViewer::refreshTimeStrip() {
     frames.clear();   // a refreshed run: draw the frames again
     frameOrder.clear();
@@ -1225,7 +1257,7 @@ void ModelViewer::refreshTimeStrip() {
     failedAhead.clear();
     std::vector<string> labels;
     for (const auto& t : objectModel.times) {
-        labels.push_back(WString::split(t, " ")[0]);
+        labels.push_back(hourText(t, false));
     }
     strip->setTimes(labels, static_cast<int>(comboboxTime.getIndex()));
     strip->setVisible(GfsRender::drawsModel(objectModel.model));
@@ -1378,6 +1410,13 @@ void ModelViewer::fitHoursToRun() {
     objectModel.setTimeIdx(static_cast<int>(index));
     comboboxTime.block();
     comboboxTime.setList(objectModel.times);
+    {
+        vector<string> shown;
+        for (const auto& t : objectModel.times) {
+            shown.push_back(hourText(t, true));
+        }
+        comboboxTime.setLabels(shown);
+    }
     comboboxTime.setIndex(index);
     comboboxTime.unblock();
     if (strip) {
@@ -1621,6 +1660,13 @@ void ModelViewer::updateRunStatus() {
     comboboxProduct.block();
     comboboxModel.block();
     comboboxTime.setList(objectModel.times);
+    {
+        vector<string> shown;
+        for (const auto& t : objectModel.times) {
+            shown.push_back(hourText(t, true));
+        }
+        comboboxTime.setLabels(shown);
+    }
     if (objectModel.model == "GLCFS") {
         // pass
     } else if (objectModel.model != "HRRR" && objectModel.model != "HREF") {
@@ -1690,6 +1736,13 @@ void ModelViewer::updateRunStatus() {
 
     allTimes = objectModel.times;
     comboboxTime.setList(objectModel.times);
+    {
+        vector<string> shown;
+        for (const auto& t : objectModel.times) {
+            shown.push_back(hourText(t, true));
+        }
+        comboboxTime.setLabels(shown);
+    }
     comboboxTime.setIndexByValue(objectModel.getTime());
     if (pinnedApply && pinnedValid.isValid()) {   // the hour of the valid time within the run
         pinnedApply = false;

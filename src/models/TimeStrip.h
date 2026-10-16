@@ -138,7 +138,11 @@ private:
             f.setPointSizeF(f.pointSizeF() * 0.85);
             p.setFont(f);
             const double margin = 7.0, span = width() - 2 * margin;
-            const int labelWidth = p.fontMetrics().horizontalAdvance("000") + 14;
+            int widest = p.fontMetrics().horizontalAdvance("000");
+            for (const auto& n : names) {
+                widest = std::max(widest, p.fontMetrics().horizontalAdvance(QString::fromStdString(n)));
+            }
+            const int labelWidth = widest + 14;
             const int every = std::max(1, static_cast<int>(std::ceil(labelWidth / (span / (names.size() - 1)))));
             for (size_t i = 0; i < names.size(); i += static_cast<size_t>(every)) {
                 const double x = margin + span * i / (names.size() - 1);
@@ -162,7 +166,7 @@ private:
             auto * b = new QPushButton{QString::fromStdString(names[i]), popup};
             b->setCheckable(true);
             b->setChecked(static_cast<int>(i) == slider->value());
-            b->setFixedWidth(46);
+            b->setMinimumWidth(46);
             QObject::connect(b, &QPushButton::clicked, popup, [this, popup, i] {
                 choose(static_cast<int>(i));
                 popup->close();
