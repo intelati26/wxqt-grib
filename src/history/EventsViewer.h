@@ -26,6 +26,7 @@ class EventsViewer : public Window {
 public:
     explicit EventsViewer(Window * parent);
     void openCatalog();                // tornado outbreaks (and later storms) to take an event from
+    void openMap();                    // the master map at the event with the chosen set of layers
 
 private:
     void fillList(const std::string& select = {});
@@ -56,6 +57,7 @@ private:
     QPlainTextEdit * moments{};
     QTableWidget * table{};
     QComboBox * atBox{};
+    QComboBox * mapSet{};              // the set of map layers the event opens with (history/HistoryLayerSets)
     QComboBox * issuance{};
     std::vector<QLabel *> outlookImages;
     QLabel * outlookNote{};

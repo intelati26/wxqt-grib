@@ -28,6 +28,7 @@
 #include "history/CatalogDialog.h"
 #include "history/CatalogSources.h"
 #include "history/HistoryCursor.h"
+#include "history/HistoryLayerSets.h"
 #include "history/PointPicker.h"
 #include "mapkit/MasterMapViewer.h"
 #include "spc/SpcStormReports.h"
@@ -148,6 +149,19 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     auto * dataColumn = new QVBoxLayout{dataPage};
     dataColumn->setContentsMargins(0, 0, 0, 0);
     dataColumn->addLayout(atRow);
+    // the master map with a set of layers that suits the kind of event: the event's catalog picks one, the person may pick another
+    mapSet = new QComboBox{this};
+    for (const auto& set : HistoryLayerSets::all()) {
+        mapSet->addItem(set.label, QString::fromStdString(set.id));
+    }
+    auto * mapButton = new QPushButton{"Open the map", this};
+    mapButton->setToolTip("The master map at the time chosen above, over the event's place, with these layers on");
+    auto * mapRow = new QHBoxLayout;
+    mapRow->addWidget(new QLabel{"Map with", this});
+    mapRow->addWidget(mapSet, 1);
+    mapRow->addWidget(mapButton);
+    dataColumn->addLayout(mapRow);
+    QObject::connect(mapButton, &QPushButton::clicked, [this] { openMap(); });
     dataColumn->addWidget(table, 1);
     tabs->addTab(dataPage, "What there is for this time and place");
     // the SPC outlook, added to every event on its own: the categorical and the tornado, wind and hail chances of the event's convective day
@@ -287,7 +301,17 @@ void EventsViewer::showEvent(size_t index) {
     moments->setPlainText(momentsText(e));
     fillAvailability(e);
     outlookTimer.start(200);
+    mapSet->setCurrentIndex(HistoryLayerSets::defaultFor(e));   // the kind of event picks the layers to begin with
     HistoryCursor::get().set(atTime(), QString::fromStdString(e.shownName()), this);   // the screens already open from an event go to this one's time
+}
+
+void EventsViewer::openMap() {
+    HistoryEvent e;
+    readForm(e);
+    const auto& sets = HistoryLayerSets::all();
+    const auto& set = sets[static_cast<size_t>(std::clamp(mapSet->currentIndex(), 0, static_cast<int>(sets.size()) - 1))];
+    auto * map = new MasterMapViewer{this};
+    map->openAt(atTime(), e.lat, e.lon, std::max(e.radiusKm, set.minimumRadiusKm), set.layers);
 }
 
 void EventsViewer::readForm(HistoryEvent& e) const {
