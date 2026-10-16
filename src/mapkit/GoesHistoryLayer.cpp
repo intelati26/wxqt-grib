@@ -13,6 +13,8 @@
 #include <QLabel>
 #include <QPainter>
 #include <QProcess>
+#include <QRegularExpression>
+#include <mutex>
 #include <QSlider>
 #include <QStandardPaths>
 #include <QTimeZone>
@@ -28,6 +30,105 @@ namespace {
     // the composite's own frame: 4 km (0.04 degree) cells over 130 W - 60 W, 22 N - 52 N
     constexpr double west = -130.0, east = -60.0, north = 52.0, south = 22.0;
     constexpr long step = 15 * 60;
+}
+
+namespace {
+    // The NOAA open data (AWS) GOES CONUS sector, one frame: the file nearest the time is found in the hour's listing, read by GDAL, and made into a picture on the same 0.02 degree
+    // frame as the Iowa Mesonet composites (gray plus a mask for outside the sector). Empty when the bucket has nothing near the time.
+    std::vector<string> awsListing(const string& bucket, const QDateTime& hour) {
+        static std::mutex lock;
+        static std::map<string, std::vector<string>> cache;
+        const string prefix = "ABI-L2-CMIPC/" + hour.toString("yyyy/").toStdString() + QString{"%1"}.arg(hour.date().dayOfYear(), 3, 10, QChar{'0'}).toStdString() + hour.toString("/HH/").toStdString();
+        const string key = bucket + "|" + prefix;
+        {
+            std::lock_guard<std::mutex> guard{lock};
+            if (cache.count(key) > 0) {
+                return cache[key];
+            }
+        }
+        std::vector<string> keys;
+        const auto xml = QString::fromUtf8(UtilityIO::downloadAsByteArray("https://" + bucket + ".s3.amazonaws.com/?list-type=2&prefix=" + prefix));
+        auto found = QRegularExpression{"<Key>([^<]*)</Key>"}.globalMatch(xml);
+        while (found.hasNext()) {
+            keys.push_back(found.next().captured(1).toStdString());
+        }
+        if (!keys.empty() || hour.secsTo(QDateTime::currentDateTimeUtc()) > 7200) {   // an empty hour of the past stays empty; the hour just passed may still be filling
+            std::lock_guard<std::mutex> guard{lock};
+            cache[key] = keys;
+        }
+        return keys;
+    }
+
+    QByteArray awsFrame(int product, long seconds) {
+        const auto wanted = QDateTime::fromSecsSinceEpoch(seconds, QTimeZone::utc());
+        if (wanted < QDateTime{QDate{2017, 3, 1}, QTime{0, 0}, QTimeZone::utc()}) {
+            return {};
+        }
+        static const char * channels[] = {"C13", "C03", "C09"};   // infrared; "visible" is the 0.86 micron band (1 km, 16 MB a frame: the red band is 75 MB); water vapor
+        std::vector<string> buckets = wanted >= QDateTime{QDate{2025, 4, 8}, QTime{0, 0}, QTimeZone::utc()} ? std::vector<string>{"noaa-goes19", "noaa-goes16"} : std::vector<string>{"noaa-goes16"};
+        for (const auto& bucket : buckets) {
+            string best;
+            long bestGap = 8 * 60;
+            for (const auto& hour : {wanted, wanted.addSecs(-8 * 60)}) {   // the picture may have begun in the hour before
+                for (const auto& key : awsListing(bucket, hour)) {
+                    if (key.find(string{channels[product]} + "_G") == string::npos) {
+                        continue;
+                    }
+                    const auto at = key.find("_s20");
+                    if (at == string::npos) {
+                        continue;
+                    }
+                    const int day = QString::fromStdString(key.substr(at + 6, 3)).toInt();
+                    const auto start = QDateTime{QDate{QString::fromStdString(key.substr(at + 2, 4)).toInt(), 1, 1}.addDays(day - 1), QTime{QString::fromStdString(key.substr(at + 9, 2)).toInt(), QString::fromStdString(key.substr(at + 11, 2)).toInt()}, QTimeZone::utc()};
+                    const long gap = std::labs(static_cast<long>(start.toSecsSinceEpoch()) - seconds);
+                    if (gap < bestGap) {
+                        bestGap = gap;
+                        best = key;
+                    }
+                }
+            }
+            if (best.empty()) {
+                continue;
+            }
+            const auto bytes = UtilityIO::downloadAsByteArray("https://" + bucket + ".s3.amazonaws.com/" + best);
+            if (bytes.isEmpty()) {
+                continue;
+            }
+            const QString folder = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/wxqt_goes";
+            QDir{}.mkpath(folder);
+            const QString stem = folder + "/aws_" + QString::number(seconds) + "_" + QString::number(product);
+            QFile file{stem + ".nc"};
+            if (!file.open(QIODevice::WriteOnly)) {
+                return {};
+            }
+            file.write(bytes);
+            file.close();
+            const QString bin = QString::fromStdString(UtilityGrib::gdalBinDir());
+            const auto run = [] (const QString& program, const QStringList& arguments) {
+                QProcess process;
+                process.start(program, arguments);
+                return process.waitForFinished(120000) && process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+            };
+            // the calibrated values, onto the plate carree frame of the composites, then 8 bits (cold white for the infrared and the water vapor; the visible's square root of the reflectance)
+            const QStringList scale = product == 0 ? QStringList{"-scale_1", "180", "329", "255", "1"} : product == 1 ? QStringList{"-scale_1", "0", "1", "1", "255", "-exponent_1", "0.5"} : QStringList{"-scale_1", "190", "270", "255", "1"};
+            QByteArray picture;
+            if (run(bin + "/gdal_translate", {"-q", "-unscale", "-ot", "Float32", "NETCDF:\"" + stem + ".nc\":CMI", stem + "_f.tif"}) &&
+                run(bin + "/gdalwarp", {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-te", "-130", "22", "-60", "52", "-ts", "3500", "1500", "-r", "bilinear", "-dstnodata", "-999", stem + "_f.tif", stem + "_w.tif"}) &&
+                run(bin + "/gdal_translate", QStringList{"-q", "-of", "PNG", "-ot", "Byte", "-b", "1", "-b", "mask"} + scale + QStringList{stem + "_w.tif", stem + ".png"})) {
+                QFile out{stem + ".png"};
+                if (out.open(QIODevice::ReadOnly)) {
+                    picture = out.readAll();
+                }
+            }
+            for (const char * ending : {".nc", "_f.tif", "_w.tif", ".png", ".png.aux.xml", "_w.tif.aux.xml"}) {
+                QFile::remove(stem + ending);
+            }
+            if (!picture.isEmpty()) {
+                return picture;
+            }
+        }
+        return {};
+    }
 }
 
 GoesHistoryLayer::GoesHistoryLayer() {
@@ -59,7 +160,7 @@ string GoesHistoryLayer::urlOf(long seconds) const {
 
 string GoesHistoryLayer::timeText() const {
     const long s = shown != 0 ? shown : times().back();
-    return string{labels[product]} + "  " + QDateTime::fromSecsSinceEpoch(s, QTimeZone::utc()).toString("ddd yyyy-MM-dd HH:mm").toStdString() + "Z  GOES (4 km)";
+    return string{labels[product]} + "  " + QDateTime::fromSecsSinceEpoch(s, QTimeZone::utc()).toString("ddd yyyy-MM-dd HH:mm").toStdString() + "Z  GOES";
 }
 
 string GoesHistoryLayer::summary() const {
@@ -72,7 +173,11 @@ string GoesHistoryLayer::summary() const {
 
 // the GeoTIFF as an image: the Qt TIFF reader when the build has it, GDAL's translate otherwise; the enhancement of the cold cloud tops of the infrared is applied here
 QImage GoesHistoryLayer::decode(const QByteArray& bytes) const {
-    QImage gray = QImage::fromData(bytes, "TIFF");
+    QImage gray = QImage::fromData(bytes);   // PNG (the AWS frames) or TIFF (the Iowa Mesonet)
+    QImage mask;
+    if (!gray.isNull() && gray.hasAlphaChannel()) {
+        mask = gray.convertToFormat(QImage::Format_ARGB32);   // outside the sector: transparent
+    }
     if (gray.isNull()) {
         const QString folder = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/wxqt_goes";
         QDir{}.mkpath(folder);
@@ -98,7 +203,7 @@ QImage GoesHistoryLayer::decode(const QByteArray& bytes) const {
         auto * out = reinterpret_cast<QRgb *>(result.scanLine(y));
         for (int x = 0; x < gray.width(); x++) {
             const int v = in[x];
-            if (v == 0) {
+            if (v == 0 || (!mask.isNull() && qAlpha(mask.pixel(x, y)) == 0)) {
                 out[x] = qRgba(0, 0, 0, 0);   // outside the composite
             } else if (colored && v >= 150) {   // the cold cloud tops: blue, cyan, green, yellow, orange, red, magenta
                 static const QColor ramp[] = {QColor{70, 70, 230}, QColor{40, 200, 230}, QColor{60, 220, 70}, QColor{250, 240, 40}, QColor{250, 150, 30}, QColor{230, 40, 40}, QColor{230, 40, 220}};
@@ -123,7 +228,13 @@ void GoesHistoryLayer::request(MapHost& host, long seconds) {
     asked.insert(key);
     const string url = urlOf(seconds);
     auto bytes = std::make_shared<QByteArray>();
-    host.background([url, bytes] { *bytes = UtilityIO::downloadAsByteArray(url); },
+    const int chosen = product;
+    host.background([url, bytes, seconds, chosen] {
+                        *bytes = awsFrame(chosen, seconds);   // the open data bucket (2017 on) first
+                        if (bytes->isEmpty()) {
+                            *bytes = UtilityIO::downloadAsByteArray(url);
+                        }
+                    },
                     [this, key, bytes, &host] {
                         if (!bytes->isEmpty()) {
                             const auto image = decode(*bytes);

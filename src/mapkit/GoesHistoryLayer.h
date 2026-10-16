@@ -13,13 +13,13 @@
 #include "mapkit/MapLayer.h"
 
 // GOES imagery of any past time over the United States, from the Iowa Mesonet's archive of 4 km composites (GOES East and West joined, infrared, visible and water vapor, every 15
-// minutes back to about 2010). The map's time bar steps through the hours around the time asked for. Full resolution (the NOAA AWS NetCDF) is a separate, later layer.
+// minutes back to about 2010). The map's time bar steps through the hours around the time asked for. From 2017 the frames are the NOAA open data (AWS) GOES-East CONUS sector, 2 km, read through GDAL; the Iowa Mesonet files are the fallback.
 class GoesHistoryLayer : public MapLayer {
 public:
     GoesHistoryLayer();
     string id() const override { return "satellite/goes-history"; }
     string path() const override { return "Satellite/GOES history, United States (Iowa Mesonet archive, 4 km)"; }
-    string source() const override { return "Iowa Environmental Mesonet GOES composites (NOAA GOES East / West)"; }
+    string source() const override { return "NOAA GOES-East on AWS (2017 on), Iowa Environmental Mesonet GOES composites"; }
     string tip() const override { return "GOES infrared, visible or water vapor imagery of a past time (or the last hours), 4 km, every 15 minutes: the time bar steps through them. A composite of GOES East and West, so a seam shows where they join"; }
     bool underCoast() const override { return true; }
     int order() const override { return 7; }
