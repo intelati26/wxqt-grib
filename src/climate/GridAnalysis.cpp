@@ -34,7 +34,9 @@ GridAnalysis::Field GridAnalysis::analyze(const std::vector<Point>& points, cons
         return field;
     }
     // the points in one degree buckets, so that a cell looks at its neighbourhood only
-    const double reachDegrees = spec.reachKm / kmPerDegree;
+    // the widest reach of the fills: they may carry a station farther than the analysis proper does
+    const double fillReach = spec.fillGapsKm > 0.0 ? std::max(spec.reachKm, spec.fillGapsKm * 1.8) : spec.reachKm;
+    const double reachDegrees = fillReach / kmPerDegree;
     const double minCos = std::max(0.2, std::cos(std::max(std::abs(spec.south), std::abs(spec.north)) * M_PI / 180.0));
     const int padLon = static_cast<int>(std::ceil(reachDegrees / minCos)) + 1, padLat = static_cast<int>(std::ceil(reachDegrees)) + 1;
     const int bucketsLon = static_cast<int>(std::ceil(spec.east - spec.west)) + 2 * padLon + 1;
@@ -51,13 +53,14 @@ GridAnalysis::Field GridAnalysis::analyze(const std::vector<Point>& points, cons
             buckets[static_cast<size_t>(by) * bucketsLon + bx].push_back(static_cast<int>(i));
         }
     }
-    const double r2 = spec.reachKm * spec.reachKm;
     // the value of one cell: from the stations within `base` (longer where they are far apart, up to the widest reach), or nothing when too few / too far
-    const auto cell = [&] (int row, int column, double base, double nearestLimit, int fewest, float& out) {
+    const auto cell = [&] (int row, int column, double base, double nearestLimit, int fewest, double maxReach, float& out) {
+        const double r2 = maxReach * maxReach;
+        const double degrees = maxReach / kmPerDegree;
         const double lat = spec.north - (row + 0.5) * spec.step;
         const double cosLat = std::max(0.2, std::cos(lat * M_PI / 180.0));
-        const int spanLon = static_cast<int>(std::ceil(reachDegrees / cosLat));
-        const int spanLat = static_cast<int>(std::ceil(reachDegrees));
+        const int spanLon = static_cast<int>(std::ceil(degrees / cosLat));
+        const int spanLat = static_cast<int>(std::ceil(degrees));
         const double lon = spec.west + (column + 0.5) * spec.step;
         int bx, by;
         if (!bucketOf(lat, lon, bx, by)) {
@@ -81,11 +84,11 @@ GridAnalysis::Field GridAnalysis::analyze(const std::vector<Point>& points, cons
         if (near.empty()) {
             return false;
         }
-        double reach = spec.reachKm;
+        double reach = maxReach;
         if (base > 0.0) {
             const size_t k = std::min<size_t>(near.size(), 4);
             std::nth_element(near.begin(), near.begin() + static_cast<long>(k - 1), near.end());
-            reach = std::clamp(std::max(base, near[k - 1].first * 1.15), base, spec.reachKm);
+            reach = std::clamp(std::max(base, near[k - 1].first * 1.15), base, maxReach);
         }
         const double rr = reach * reach;
         double sum = 0.0, weights = 0.0, nearest = 1e9;
@@ -110,7 +113,7 @@ GridAnalysis::Field GridAnalysis::analyze(const std::vector<Point>& points, cons
     for (int row = 0; row < field.rows; row++) {
         for (int column = 0; column < field.columns; column++) {
             float value;
-            if (cell(row, column, spec.baseKm, spec.nearestKm, spec.fewest, value)) {
+            if (cell(row, column, spec.baseKm, spec.nearestKm, spec.fewest, spec.reachKm, value)) {
                 field.values[static_cast<size_t>(row) * field.columns + column] = value;
                 have[static_cast<size_t>(row) * field.columns + column] = 1;
             }
@@ -178,52 +181,53 @@ GridAnalysis::Field GridAnalysis::analyze(const std::vector<Point>& points, cons
             }
             for (const size_t i : hole) {
                 float value;
-                if (cell(static_cast<int>(i / field.columns), static_cast<int>(i % field.columns), 0.0, 1e9, 1, value)) {
+                if (cell(static_cast<int>(i / field.columns), static_cast<int>(i % field.columns), 0.0, 1e9, 1, fillReach, value)) {
                     field.values[i] = value;
                 }
             }
         }
-        // the scallops of the edge (each outermost station carries a circle): the covered cells are blurred twice and the cells that come out mostly covered are added, so the notches
-        // between the circles fill and the edge runs smoothly; nothing is taken away
-        const int blurCells = std::max(1, static_cast<int>(std::lround(spec.fillGapsKm * 0.35 / (spec.step * kmPerDegree))));
-        std::vector<float> weight(total);
-        for (size_t i = 0; i < total; i++) {
-            weight[i] = !std::isnan(field.values[i]) ? 1.0f : 0.0f;
-        }
-        const auto blur = [&] (std::vector<float>& v) {
-            std::vector<float> tmp(total, 0.0f);
-            for (int row = 0; row < field.rows; row++) {   // along the rows, with a running sum
-                double sum = 0.0;
-                const size_t base = static_cast<size_t>(row) * field.columns;
-                for (int c = 0; c < std::min(blurCells, field.columns); c++) {
-                    sum += v[base + c];
-                }
-                for (int column = 0; column < field.columns; column++) {
-                    const int add = column + blurCells, drop = column - blurCells - 1;
-                    if (add < field.columns) { sum += v[base + add]; }
-                    if (drop >= 0) { sum -= v[base + drop]; }
-                    tmp[base + column] = static_cast<float>(sum / (2 * blurCells + 1));
+        // the bays of the edge (each outermost station carries a circle, and where stations are far apart the edge falls back, as in the north-west of North Dakota): a closing with a
+        // round element (the covered cells grown by a radius, then shrunk by it, by distances): bays and notches narrower than twice the radius fill, the outline stays round and nothing
+        // is taken away
+        const int radius3 = std::max(3, static_cast<int>(std::lround(spec.fillGapsKm * 1.45 / (spec.step * kmPerDegree) * 3.0)));   // in thirds of a cell (the distance below counts 3 per cell)
+        const auto distance = [&] (const std::vector<char>& seeds, bool outsideIsSeed) {   // chamfer 3-4: the distance to the nearest seed, 3 per cell and 4 per diagonal step
+            const int inf = 1 << 28;
+            std::vector<int> d(total, inf);
+            const auto at = [&] (int r, int c) -> int { return r < 0 || r >= field.rows || c < 0 || c >= field.columns ? (outsideIsSeed ? 0 : inf) : d[static_cast<size_t>(r) * field.columns + c]; };
+            for (size_t i = 0; i < total; i++) {
+                if (seeds[i]) {
+                    d[i] = 0;
                 }
             }
-            for (int column = 0; column < field.columns; column++) {   // and down the columns
-                double sum = 0.0;
-                for (int r = 0; r < std::min(blurCells, field.rows); r++) {
-                    sum += tmp[static_cast<size_t>(r) * field.columns + column];
-                }
-                for (int row = 0; row < field.rows; row++) {
-                    const int add = row + blurCells, drop = row - blurCells - 1;
-                    if (add < field.rows) { sum += tmp[static_cast<size_t>(add) * field.columns + column]; }
-                    if (drop >= 0) { sum -= tmp[static_cast<size_t>(drop) * field.columns + column]; }
-                    v[static_cast<size_t>(row) * field.columns + column] = static_cast<float>(sum / (2 * blurCells + 1));
+            for (int r = 0; r < field.rows; r++) {
+                for (int c = 0; c < field.columns; c++) {
+                    int& v = d[static_cast<size_t>(r) * field.columns + c];
+                    v = std::min({v, at(r, c - 1) + 3, at(r - 1, c) + 3, at(r - 1, c - 1) + 4, at(r - 1, c + 1) + 4});
                 }
             }
+            for (int r = field.rows - 1; r >= 0; r--) {
+                for (int c = field.columns - 1; c >= 0; c--) {
+                    int& v = d[static_cast<size_t>(r) * field.columns + c];
+                    v = std::min({v, at(r, c + 1) + 3, at(r + 1, c) + 3, at(r + 1, c + 1) + 4, at(r + 1, c - 1) + 4});
+                }
+            }
+            return d;
         };
-        blur(weight);
-        blur(weight);
+        std::vector<char> covered(total);
         for (size_t i = 0; i < total; i++) {
-            if (std::isnan(field.values[i]) && weight[i] > 0.5f) {
+            covered[i] = !std::isnan(field.values[i]) ? 1 : 0;
+        }
+        const auto toCovered = distance(covered, false);
+        std::vector<char> grown(total), notGrown(total);
+        for (size_t i = 0; i < total; i++) {
+            grown[i] = toCovered[i] <= radius3 ? 1 : 0;
+            notGrown[i] = grown[i] ? 0 : 1;
+        }
+        const auto toGap = distance(notGrown, false);   // beyond the grid is not a gap: the grid's own edge does not eat the field
+        for (size_t i = 0; i < total; i++) {
+            if (std::isnan(field.values[i]) && grown[i] && toGap[i] > radius3) {   // inside the closing, not covered yet: but no farther from a station than the closing's own reach
                 float value;
-                if (cell(static_cast<int>(i / field.columns), static_cast<int>(i % field.columns), 0.0, 1e9, 1, value)) {
+                if (cell(static_cast<int>(i / field.columns), static_cast<int>(i % field.columns), 0.0, spec.fillGapsKm * 1.8, 1, fillReach, value)) {
                     field.values[i] = value;
                 }
             }
