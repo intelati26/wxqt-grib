@@ -40,6 +40,7 @@
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "gfs/GfsChart.h"
+#include "history/HistoryCursor.h"
 #include "models/HodographGlyph.h"
 #include "models/SoundingViewer.h"
 #include "objects/NetManager.h"
@@ -440,7 +441,41 @@ void ModelViewer::recheckRuns() {
     }};
 }
 
+// the hour chosen by the person is the cursor's new time (the run's time plus the hour)
+void ModelViewer::announceTime() {
+    if (!following || !pinnedValid.isValid()) {
+        return;
+    }
+    const auto run = runTime(objectModel.run);
+    if (run.isValid()) {
+        HistoryCursor::get().setTime(run.addSecs(3600LL * std::atoi(objectModel.getTime().c_str())), this);
+    }
+}
+
+// the cursor moved (another screen, or the History page): the run and hour of that time, a moment after the last move (a loop on another screen moves it often)
+void ModelViewer::followCursor(QObject * origin) {
+    if (!following || origin == this) {
+        return;
+    }
+    cursorTimer.start(500);
+}
+
 void ModelViewer::openAt(const string& model, const QDateTime& validUtc) {
+    if (!following) {
+        following = true;
+        cursorTimer.setSingleShot(true);
+        QObject::connect(&cursorTimer, &QTimer::timeout, this, [this] {
+            const auto at = HistoryCursor::get().time();
+            if (at.isValid() && at != pinnedValid) {
+                const auto model = pinnedModel;
+                if (!model.empty()) {
+                    pinnedValid = at;   // the same model, the run and hour of the new time
+                    openAt(model, at);
+                }
+            }
+        });
+        QObject::connect(&HistoryCursor::get(), &HistoryCursor::moved, this, [this] (QObject * origin) { followCursor(origin); });
+    }
     pinnedValid = validUtc.toUTC();
     pinnedModel = model;
     pinnedApply = true;
@@ -520,6 +555,7 @@ void ModelViewer::changeTime(size_t index) {
     }
     objectModel.setTimeIdx(index);
     reload();
+    announceTime();
 }
 
 void ModelViewer::moveBack() {

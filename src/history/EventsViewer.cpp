@@ -25,6 +25,7 @@
 #include <QTimeZone>
 #include <QUrl>
 #include <QVBoxLayout>
+#include "history/HistoryCursor.h"
 #include "history/PointPicker.h"
 #include "mapkit/MasterMapViewer.h"
 #include "spc/SpcStormReports.h"
@@ -241,6 +242,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
         HistoryEvent e;
         readForm(e);
         fillAvailability(e);
+        HistoryCursor::get().set(atTime(), QString::fromStdString(e.shownName()), this);   // the open screens follow the time the page opens at
     });
     fillList();
     if (events.empty()) {
@@ -283,6 +285,7 @@ void EventsViewer::showEvent(size_t index) {
     moments->setPlainText(momentsText(e));
     fillAvailability(e);
     outlookTimer.start(200);
+    HistoryCursor::get().set(atTime(), QString::fromStdString(e.shownName()), this);   // the screens already open from an event go to this one's time
 }
 
 void EventsViewer::readForm(HistoryEvent& e) const {

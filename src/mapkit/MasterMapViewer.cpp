@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "mapkit/MasterMapViewer.h"
+#include "history/HistoryCursor.h"
+#include <QTimeZone>
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -161,11 +163,12 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     timeLayout->addWidget(liveButton);
     timeLayout->addWidget(timeLabel);
     timeRow->hide();
-    QObject::connect(stepBack, &QPushButton::clicked, [this] { if (ticks.size() > 1) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(std::max(0, timeSlider->value() - 1)); } });
-    QObject::connect(stepForward, &QPushButton::clicked, [this] { if (ticks.size() > 1) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(std::min(static_cast<int>(ticks.size()) - 1, timeSlider->value() + 1)); } });
+    QObject::connect(stepBack, &QPushButton::clicked, [this] { if (ticks.size() > 1) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(std::max(0, timeSlider->value() - 1)); announceTime(); } });
+    QObject::connect(stepForward, &QPushButton::clicked, [this] { if (ticks.size() > 1) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(std::min(static_cast<int>(ticks.size()) - 1, timeSlider->value() + 1)); announceTime(); } });
     QObject::connect(playButton, &QPushButton::clicked, [this] { togglePlay(); });
     QObject::connect(liveButton, &QPushButton::clicked, [this] { goLive(); });
-    QObject::connect(timeSlider, &QSlider::valueChanged, [this] (int value) { if (!settingSlider) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(value); } });
+    QObject::connect(timeSlider, &QSlider::valueChanged, [this] (int value) { if (!settingSlider) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(value); announceTime(); } });
+    QObject::connect(&HistoryCursor::get(), &HistoryCursor::moved, this, [this] (QObject * origin) { followCursor(origin); });
     QObject::connect(speedCombo, &QComboBox::currentIndexChanged, [this] (int index) {
         Utility::writePrefInt("MASTERMAP_SPEED", index);
         playTimer.setInterval(index == 0 ? 1200 : index == 1 ? 650 : 280);
@@ -660,7 +663,49 @@ void MasterMapViewer::applyPreset(size_t index) {
     updateStatus();
 }
 
+// the time bar was moved by the person: the other history screens go to that time
+void MasterMapViewer::announceTime() {
+    const int index = timeSlider->value();
+    if (following && !applyingCursor && index >= 0 && static_cast<size_t>(index) < ticks.size()) {
+        HistoryCursor::get().setTime(QDateTime::fromSecsSinceEpoch(ticks[static_cast<size_t>(index)], QTimeZone::utc()), this);
+    }
+}
+
+// another history screen (or the page) moved the time: the newest frame at or before it, or the layers' own "as of"
+void MasterMapViewer::followCursor(QObject * origin) {
+    if (!following || origin == this) {
+        return;
+    }
+    const auto utc = HistoryCursor::get().time();
+    const long seconds = static_cast<long>(utc.toSecsSinceEpoch());
+    applyingCursor = true;
+    if (ticks.empty() || seconds < ticks.front() || seconds > ticks.back() + 1800) {   // outside the frames on hand: the layers look again around the new time
+        for (const auto& layer : layers) {
+            if (layer->enabled()) {
+                layer->setAsOf(utc, *this);
+            }
+        }
+        rebuildTicks();
+    }
+    if (ticks.size() > 1) {
+        int index = 0;
+        for (size_t i = 0; i < ticks.size(); i++) {
+            if (ticks[i] <= seconds) {
+                index = static_cast<int>(i);
+            }
+        }
+        playing = false;
+        playTimer.stop();
+        playButton->setText("Loop");
+        goTo(index);
+    }
+    extra = "history cursor " + utc.toString("yyyy-MM-dd HH:mm").toStdString() + "Z";
+    applyingCursor = false;
+    updateStatus();
+}
+
 void MasterMapViewer::openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds) {
+    following = true;
     building = true;
     for (const auto& layer : layers) {
         const bool want = std::find(layerIds.begin(), layerIds.end(), layer->id()) != layerIds.end();

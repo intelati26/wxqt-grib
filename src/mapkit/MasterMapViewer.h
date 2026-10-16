@@ -108,6 +108,10 @@ private:
     QComboBox * speedCombo{};
     QLabel * timeLabel{};
     QTimer playTimer;
+    bool following{false};          // opened at a time by the History page: follows the history cursor, and moves it when its own time bar is moved
+    bool applyingCursor{false};
+    void followCursor(QObject * origin);
+    void announceTime();
     vector<long> ticks;             // the times the bar steps through: every frame of every layer that has them, ascending
     bool live{true};                // the newest of everything (the frames follow new scans)
     bool playing{false};

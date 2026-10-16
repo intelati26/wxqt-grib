@@ -42,6 +42,7 @@
 #include "models/ModelScreen.h"
 #include "models/ModelViewer.h"
 #include "history/EventsViewer.h"
+#include "history/HistoryCursor.h"
 #include "settings/CacheSummaryViewer.h"
 #include "ui/NetStatus.h"
 #include "models/SoundingViewer.h"
@@ -195,6 +196,15 @@ int main(int argc, char * argv[]) {
                 screen->openAt(parts.value(1).toStdString(), when);
             } else if (route == "events") {   // WXQT_OPEN=events: the history page
                 new EventsViewer{&w};
+            } else if (route.startsWith("cursorat:")) {   // WXQT_OPEN=cursorat:<yyyyMMddHHmm>:<yyyyMMddHHmm>: a master map (GOES history) opened at the first time, the history cursor moved to the second after 4 s
+                const auto parts = route.split(':');
+                auto * map = new MasterMapViewer{&w};
+                auto first = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
+                first.setTimeSpec(Qt::UTC);
+                auto second = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
+                second.setTimeSpec(Qt::UTC);
+                map->openAt(first, 37.0, -97.0, 900.0, {"satellite/goes-history"});
+                QTimer::singleShot(4000, map, [second] { HistoryCursor::get().set(second, "test", nullptr); });
             } else if (route == "catalog") {   // WXQT_OPEN=catalog: the history page's catalog of tornado outbreaks
                 auto * viewer = new EventsViewer{&w};
                 viewer->openCatalog();
