@@ -13,6 +13,7 @@
 namespace GfsGrid {
     struct IdxRecord {
         int number{0};
+        std::string date;           // the idx line's d= ("2026101000"): for an index of many times (the CFS monthly files)
         int band{1};                // a message holds more than one field (the CFS files put U and V in one: "172.1", "172.2"): the field's place in it
         long long start{0};
         long long end{-1};          // the byte before the next record (-1 for the last one: to the end of the file)
@@ -28,7 +29,7 @@ namespace GfsGrid {
     std::vector<IdxRecord> parseEcmwfIndex(const std::string& text, const std::string& member = "");
     // the first record of that variable at that level ("TMP", "2 m above ground"); forecast, if given, must match too (a trailing * matches a start: "0-*")
     // `detail` must match exactly: "" asks for the plain field and never the percentile, probability or spread records that share its name
-    const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast = "", const std::string& detail = "");
+    const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast = "", const std::string& detail = "", const std::string& date = "");
 
     // Values at cell centers on a regular grid, row 0 = the northernmost, column 0 = lon0. Longitudes wrap when the grid spans the globe.
     struct Grid {

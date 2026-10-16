@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QKeyEvent>
 #include <QWheelEvent>
+#include "cfs/CfsArchiveIndex.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "cfs/UtilityCfs.h"
 #include "gfs/GfsClimate.h"
@@ -341,6 +342,19 @@ int main(int argc, char * argv[]) {
                                      grid.sample(lon < 0 ? lon + 360.0 : lon, lat), variable->units.c_str());
                         } else {
                             qWarning("cfsprobe: f%d: %s", hour, error.c_str());
+                        }
+                    }
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("cfsscan:")) {   // WXQT_OPEN=cfsscan:<a GRIB2 file>: the index lines made from its messages (a check of CfsArchiveIndex::scan)
+                QFile file{route.mid(8)};
+                if (file.open(QIODevice::ReadOnly)) {
+                    const auto text = CfsArchiveIndex::scan(file.readAll());
+                    qWarning("cfsscan: %zu lines", static_cast<size_t>(std::count(text.begin(), text.end(), '\n')));
+                    int shown = 0;
+                    for (const auto& line : QString::fromStdString(text).split('\n')) {
+                        if (shown++ < 400 && (line.contains(":HGT:500 mb") || line.contains(":TMP:850 mb") || line.contains("PRMSL") || line.contains(":UGRD:500") || line.contains(":VGRD:500") || shown < 4)) {
+                            qWarning("cfsscan: %s", qPrintable(line));
                         }
                     }
                 }

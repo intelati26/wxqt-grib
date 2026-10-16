@@ -33,6 +33,53 @@ namespace {
     }
 }
 
+namespace {
+    // the file that holds a want in NCEI's monthly CFS analyses (a file for each variable and level) by its stem: "z500", "t850", "wnd850", "tmp2m"
+    std::string cfsStem(const GfsData::Want& w) {
+        const auto& v = w.variable;
+        const auto& l = w.level;
+        if (v == "TMP" && l == "2 m above ground") return "tmp2m";
+        if ((v == "UGRD" || v == "VGRD") && l == "10 m above ground") return "wnd10m";
+        if (v == "PRMSL") return "prmsl";
+        if (v == "PWAT") return "pwat";
+        if (l.size() > 3 && l.compare(l.size() - 3, 3, " mb") == 0) {
+            const auto mb = l.substr(0, l.size() - 3);
+            if (v == "HGT") return "z" + mb;
+            if (v == "TMP") return "t" + mb;
+            if (v == "UGRD" || v == "VGRD") return "wnd" + mb;
+            if (v == "SPFH") return "q" + mb;
+            if (v == "VVEL") return "vvel" + mb;
+        }
+        return "pgrblanl";
+    }
+
+    // The CFS analysis through the years: the open data bucket since 22 April 2023 (files of every field of an analysis, with an index), NCEI's monthly files before (the operational analysis
+    // from April 2011, the CFSR before that) which have a file for each variable and no index of their own (CfsArchiveIndex makes one). The charts are the ones whose fields the monthly files
+    // have at the levels they have (1000, 850, 700, 500 and 200 mb heights; 850, 700, 500 and 250 mb temperatures and winds; humidity at 850, 700 and 500).
+    GfsModels::Def cfsAnalysis() {
+        auto def = fromFile("CFS-ANL");
+        const auto base = def.source;
+        def.source = [base] (const std::string& storm) {
+            auto s = base(storm);
+            s.matchRunTime = true;
+            s.fileOf = [] (const GfsData::Want& w) { return cfsStem(w); };
+            s.fileUrl = [] (const GfsData::Run& run, int, const std::string& stem) {
+                if (run.date >= "20230422") {
+                    const std::string name = stem == "tmp2m" || stem == "wnd10m" ? "sfluxgrbf00" : "pgrblanl";
+                    return "https://noaa-cfs-pds.s3.amazonaws.com/cdas." + run.date + "/cdas1.t" + run.cycle + "z." + name + ".grib2";
+                }
+                const auto month = run.date.substr(0, 6);
+                const std::string ncei = "https://www.ncei.noaa.gov/thredds/fileServer/";
+                const std::string name = stem + ".l.gdas." + month + (run.date >= "20110401" ? ".grib2" : ".grb2");
+                return run.date >= "20110401" ? ncei + "model-cfs-allfile-operational-analysis/time-series/" + run.date.substr(0, 4) + "/" + month + "/" + name
+                                              : ncei + "model-cfs-allfile-reanalysis/time-series/" + month + "/" + name;
+            };
+            return s;
+        };
+        return def;
+    }
+}
+
 std::string GfsModels::pickerGroup(const std::string& id) {
     if (const auto * def = find(id); def != nullptr && !def->group.empty()) {
         return def->group;
@@ -78,7 +125,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GEPS"));
         m.push_back(fromFile("GEOS-FP"));
         m.push_back(fromFile("CFS"));
-        m.push_back(fromFile("CFS-ANL"));
+        m.push_back(cfsAnalysis());
         m.push_back(fromFile("RRFS"));
         m.push_back(fromFile("HRRR"));
         m.push_back(fromFile("HREF"));

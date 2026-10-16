@@ -39,6 +39,7 @@
 #include "settings/UIPreferences.h"
 #include "util/Utility.h"
 #include "util/UtilityIO.h"
+#include "cfs/CfsArchiveIndex.h"
 
 namespace {
     // a model that follows a storm: the hurricane model
@@ -57,6 +58,9 @@ namespace {
         config.gdalBin = UtilityGrib::gdalBinDir();
         config.cacheFolder = folder;
         config.bytes = [] (const std::string& url, long long start, long long end) {
+            if (CfsArchiveIndex::handles(url)) {   // NCEI's monthly CFS analyses have no index: one is made from the file and kept
+                return CfsArchiveIndex::index(url);
+            }
             return end < 0 && start == 0 ? URL::getBytesManaged(url) : URL::getBytesRangeManaged(url, start, end < 0 ? start + 4 * 1024 * 1024 * 1024LL : end);
         };
         return GfsData{config, sourceOf(model, storm)};

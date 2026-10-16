@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "cfs/UtilityCfs.h"
+#include "cfs/CfsArchiveIndex.h"
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -29,6 +30,9 @@ namespace {
         c.gdalBin = UtilityGrib::gdalBinDir();
         c.cacheFolder = GfsCache::folder();
         c.bytes = [] (const std::string& url, long long start, long long end) {
+            if (CfsArchiveIndex::handles(url)) {
+                return CfsArchiveIndex::index(url);
+            }
             return end < 0 && start == 0 ? URL::getBytesManaged(url) : URL::getBytesRangeManaged(url, start, end < 0 ? start + 4 * 1024 * 1024 * 1024LL : end);
         };
         return c;

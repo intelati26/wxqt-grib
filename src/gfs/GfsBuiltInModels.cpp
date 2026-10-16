@@ -381,8 +381,9 @@ hours = 0-0/1
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, UGRD, VGRD, SPFH, RH, PRMSL, PWAT, VVEL
-clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
+clone_variables = HGT, TMP, UGRD, VGRD, SPFH, PRMSL, PWAT
+# (the fields the NCEI monthly files have, so that the same charts draw for 1979 on)
+clone_fields = HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb
 clone_skip = precip, thick, 850_vort_ht, 500_vort_ht
 clone_pieces = false
 )MODEL"},

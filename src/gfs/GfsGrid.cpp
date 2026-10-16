@@ -133,6 +133,9 @@ std::vector<IdxRecord> parseIdx(const std::string& text) {
             r.band = std::max(1, std::atoi(parts[0].c_str() + dot + 1));
         }
         r.start = std::atoll(parts[1].c_str());
+        if (parts[2].compare(0, 2, "d=") == 0) {
+            r.date = parts[2].substr(2);
+        }
         r.variable = parts[3];
         r.level = parts[4];
         r.forecast = parts[5];
@@ -158,9 +161,9 @@ static bool matches(const std::string& have, const std::string& want) {
     return have == want;
 }
 
-const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast, const std::string& detail) {
+const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast, const std::string& detail, const std::string& date) {
     for (const auto& r : records) {
-        if (r.variable == variable && r.level == level && matches(r.forecast, forecast) && (detail == "*" || r.detail == detail)) {
+        if (r.variable == variable && r.level == level && matches(r.forecast, forecast) && (detail == "*" || r.detail == detail) && (date.empty() || r.date == date)) {
             return &r;
         }
     }

@@ -135,7 +135,7 @@ namespace {
 }
 
 bool GfsData::one(const Run& run, int hour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const {
-    const auto * record = GfsGrid::find(index, want.variable, want.level, want.forecast, want.detail.empty() ? source.defaultDetail : want.detail);
+    const auto * record = GfsGrid::find(index, want.variable, want.level, want.forecast, want.detail.empty() ? source.defaultDetail : want.detail, source.matchRunTime ? run.id() : std::string{});
     if (!record) {
         error = source.id + " has no " + want.variable + " " + want.level + (want.forecast.empty() ? "" : " (" + want.forecast + ")") + " in this run";
         return false;
@@ -582,7 +582,7 @@ bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string&
                 continue;
             }
             const auto& w = need.want;
-            if (!GfsGrid::find(index, w.variable, w.level, w.forecast, w.detail.empty() ? source.defaultDetail : w.detail)) {
+            if (!GfsGrid::find(index, w.variable, w.level, w.forecast, w.detail.empty() ? source.defaultDetail : w.detail, source.matchRunTime ? run.id() : std::string{})) {
                 detail = "no " + w.variable + " " + w.level + (w.forecast.empty() ? "" : " (" + w.forecast + ")") + " in f" + pad(hour, 3);
                 return false;
             }
@@ -943,7 +943,7 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
         Result& r = results[i];
         const auto file = fileFor(need.want);
         const auto& index = indexes.at(std::make_pair(need.hour, file));
-        if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast, need.want.detail.empty() ? source.defaultDetail : need.want.detail)) {
+        if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast, need.want.detail.empty() ? source.defaultDetail : need.want.detail, source.matchRunTime ? run.id() : std::string{})) {
             r.ok = true;   // nothing accumulated yet at hour 0
             r.absent = true;
             return;
