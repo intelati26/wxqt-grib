@@ -6,12 +6,15 @@
 #ifndef EVENTSVIEWER_H
 #define EVENTSVIEWER_H
 
+#include <atomic>
+#include <memory>
 #include <vector>
 #include <QComboBox>
 #include <QDateTimeEdit>
 #include <QLabel>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QTabWidget>
 #include <QTimer>
 #include <QListWidget>
@@ -27,6 +30,8 @@ public:
     explicit EventsViewer(Window * parent);
     void openCatalog();                // tornado outbreaks (and later storms) to take an event from
     void openMap();                    // the master map at the event with the chosen set of layers
+    void refreshCase();                // what is kept offline for the event, on the page
+    void keepCase();                   // fetch the event's outlooks, surface maps and storm reports into its case folder (history/EventCase)
 
 private:
     void fillList(const std::string& select = {});
@@ -57,7 +62,15 @@ private:
     QPlainTextEdit * moments{};
     QTableWidget * table{};
     QComboBox * atBox{};
-    QComboBox * mapSet{};              // the set of map layers the event opens with (history/HistoryLayerSets)
+    QComboBox * mapSet{};
+    QLabel * caseLabel{};
+    QPushButton * keepButton{};
+    QPushButton * folderButton{};
+    QPushButton * forgetButton{};
+    std::shared_ptr<std::atomic<int>> caseDone{std::make_shared<std::atomic<int>>(0)};
+    std::shared_ptr<std::atomic<int>> caseTotal{std::make_shared<std::atomic<int>>(0)};
+    QTimer caseTimer;
+    bool keeping{false};              // the set of map layers the event opens with (history/HistoryLayerSets)
     QComboBox * issuance{};
     std::vector<QLabel *> outlookImages;
     QLabel * outlookNote{};

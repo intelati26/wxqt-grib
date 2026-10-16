@@ -28,6 +28,8 @@
 #include <QTabWidget>
 #include <QThreadPool>
 #include <QComboBox>
+#include <QListWidget>
+#include <QPushButton>
 #include <QDialog>
 #include <QTimer>
 #include <QThread>
@@ -195,6 +197,12 @@ int main(int argc, char * argv[]) {
                 when.setTimeSpec(Qt::UTC);
                 auto * screen = new ModelScreen{&w, "NCEP"};
                 screen->openAt(parts.value(1).toStdString(), when);
+            } else if (route == "events" && !qEnvironmentVariable("WXQT_KEEP").isEmpty()) {   // WXQT_OPEN=events WXQT_KEEP=1: the first saved event is selected and its offline copy is made
+                auto * viewer = new EventsViewer{&w};
+                QTimer::singleShot(1500, viewer, [viewer] {
+                    for (auto * list : viewer->findChildren<QListWidget *>()) { list->setCurrentRow(0); }
+                    for (auto * button : viewer->findChildren<QPushButton *>()) { if (button->text() == "Keep offline") { button->click(); } }
+                });
             } else if (route == "events") {   // WXQT_OPEN=events: the history page
                 new EventsViewer{&w};
             } else if (route.startsWith("cursorat:")) {   // WXQT_OPEN=cursorat:<yyyyMMddHHmm>:<yyyyMMddHHmm>: a master map (GOES history) opened at the first time, the history cursor moved to the second after 4 s

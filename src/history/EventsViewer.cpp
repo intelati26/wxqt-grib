@@ -8,6 +8,8 @@
 #include <QComboBox>
 #include <QPointer>
 #include <QDesktopServices>
+#include <QMessageBox>
+#include <QDir>
 #include <QDialog>
 #include <QScrollArea>
 #include <QSpinBox>
@@ -27,6 +29,7 @@
 #include <QVBoxLayout>
 #include "history/CatalogDialog.h"
 #include "history/CatalogSources.h"
+#include "history/EventCase.h"
 #include "history/HistoryCursor.h"
 #include "history/HistoryLayerSets.h"
 #include "history/PointPicker.h"
@@ -162,6 +165,38 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     mapRow->addWidget(mapButton);
     dataColumn->addLayout(mapRow);
     QObject::connect(mapButton, &QPushButton::clicked, [this] { openMap(); });
+    // the offline copy of the event (history/EventCase): its outlooks, surface maps and storm reports, kept in a folder the page reads before the network
+    caseLabel = new QLabel{this};
+    keepButton = new QPushButton{"Keep offline", this};
+    keepButton->setToolTip("Download the SPC outlooks, the WPC surface maps (every 3 hours) and the SPC storm reports of the event into a folder of its own, so that they open with no connection");
+    folderButton = new QPushButton{"Open folder", this};
+    forgetButton = new QPushButton{"Forget the copy", this};
+    auto * caseRow = new QHBoxLayout;
+    caseRow->addWidget(new QLabel{"Offline copy", this});
+    caseRow->addWidget(caseLabel, 1);
+    caseRow->addWidget(keepButton);
+    caseRow->addWidget(folderButton);
+    caseRow->addWidget(forgetButton);
+    dataColumn->addLayout(caseRow);
+    QObject::connect(keepButton, &QPushButton::clicked, [this] { keepCase(); });
+    QObject::connect(folderButton, &QPushButton::clicked, [this] {
+        if (current >= 0 && current < static_cast<int>(events.size())) {
+            QDir{}.mkpath(EventCase::folder(events[static_cast<size_t>(current)]));
+            QDesktopServices::openUrl(QUrl::fromLocalFile(EventCase::folder(events[static_cast<size_t>(current)])));
+        }
+    });
+    QObject::connect(forgetButton, &QPushButton::clicked, [this] {
+        if (current >= 0 && current < static_cast<int>(events.size()) && QMessageBox::question(this, "Forget the copy", "Delete the files kept for this event? They can be downloaded again while the archives are there.") == QMessageBox::Yes) {
+            EventCase::forget(events[static_cast<size_t>(current)]);
+            refreshCase();
+        }
+    });
+    caseTimer.setInterval(400);
+    QObject::connect(&caseTimer, &QTimer::timeout, [this] {
+        if (keeping) {
+            caseLabel->setText(QString{"downloading %1 of %2..."}.arg(caseDone->load()).arg(caseTotal->load()));
+        }
+    });
     dataColumn->addWidget(table, 1);
     tabs->addTab(dataPage, "What there is for this time and place");
     // the SPC outlook, added to every event on its own: the categorical and the tornado, wind and hail chances of the event's convective day
@@ -302,7 +337,42 @@ void EventsViewer::showEvent(size_t index) {
     fillAvailability(e);
     outlookTimer.start(200);
     mapSet->setCurrentIndex(HistoryLayerSets::defaultFor(e));   // the kind of event picks the layers to begin with
+    refreshCase();
     HistoryCursor::get().set(atTime(), QString::fromStdString(e.shownName()), this);   // the screens already open from an event go to this one's time
+}
+
+void EventsViewer::refreshCase() {
+    const bool saved = current >= 0 && current < static_cast<int>(events.size());
+    keepButton->setEnabled(saved && !keeping);
+    folderButton->setEnabled(saved);
+    forgetButton->setEnabled(saved && !keeping);
+    if (!saved) {
+        caseLabel->setText("save the event first");
+        return;
+    }
+    const auto s = EventCase::summary(events[static_cast<size_t>(current)]);
+    caseLabel->setText(s.files == 0 ? QString{"none kept (%1 files would be fetched)"}.arg(s.wanted)
+                                    : QString{"%1 files, %2 MB kept (of up to %3)"}.arg(s.files).arg(s.bytes / 1048576.0, 0, 'f', 1).arg(s.wanted));
+}
+
+void EventsViewer::keepCase() {
+    if (keeping || current < 0 || current >= static_cast<int>(events.size())) {
+        return;
+    }
+    keeping = true;
+    *caseDone = 0;
+    *caseTotal = 0;
+    keepButton->setEnabled(false);
+    forgetButton->setEnabled(false);
+    caseTimer.start();
+    const HistoryEvent e = events[static_cast<size_t>(current)];
+    const auto done = caseDone, total = caseTotal;
+    new FutureVoid{this, [e, done, total] { EventCase::keep(e, [done, total] (int d, int t) { *done = d; *total = t; }); }, [this] {
+        keeping = false;
+        caseTimer.stop();
+        refreshCase();
+        outlookTimer.start(100);   // the tabs read what is kept
+    }};
 }
 
 void EventsViewer::openMap() {
@@ -349,6 +419,7 @@ void EventsViewer::newEvent() {
     HistoryEvent e;
     readForm(e);
     fillAvailability(e);
+    refreshCase();
 }
 
 // The catalogs (history/CatalogSources): tornado outbreaks, the biggest days at the page's place, tropical storms. The entry chosen is added as an event (or the event of that catalog id that is
@@ -467,7 +538,14 @@ void EventsViewer::loadSurface() {
     surfaceNote->setText(QString{"WPC surface analysis archive, %1 %2Z (every 3 hours from 2006-03-29 18Z)."}.arg(day.toString("yyyy-MM-dd")).arg(hour, 2, 10, QChar{'0'}));
     const int mine = ++surfaceGeneration;
     auto bytes = std::make_shared<QByteArray>();
-    new FutureVoid{this, [bytes, url] { *bytes = UtilityIO::downloadAsByteArray(url.toStdString()); }, [this, bytes, mine] {
+    const HistoryEvent kept = e;
+    const auto keptName = EventCase::surfaceName(kind, QDateTime{day, QTime{hour, 0}, QTimeZone::utc()});
+    new FutureVoid{this, [bytes, url, kept, keptName] {
+        *bytes = kept.id.empty() ? QByteArray{} : EventCase::read(kept, keptName);   // kept offline first
+        if (bytes->isEmpty()) {
+            *bytes = UtilityIO::downloadAsByteArray(url.toStdString());
+        }
+    }, [this, bytes, mine] {
         if (mine != surfaceGeneration) {
             return;
         }
@@ -496,10 +574,20 @@ void EventsViewer::loadOutlooks() {
     outlookNote->setText("Convective day " + day.toString("yyyy-MM-dd") + " (12Z to 12Z), issued " + issued.toString("yyyy-MM-dd") + " " + QString{times[pick]}.insert(2, ':') + "Z. SPC archive.");
     const int mine = ++outlookGeneration;
     auto bytes = std::make_shared<std::vector<QByteArray>>(4);
+    const HistoryEvent kept = e;   // what is kept offline for the event (the 16:30Z set) is read before the network
+    const bool useKept = pick == 0 && !kept.id.empty();
     new FutureVoid{this,
-        [bytes, names] {
+        [bytes, names, kept, useKept, day] {
             static const char * suffixes[4] = {"_prt.png", ".gif", "_prt.gif", ".png"};
+            static const char * keptKinds[4] = {"cat", "torn", "wind", "hail"};
             for (int i = 0; i < 4; i++) {
+                if (useKept) {
+                    const auto copy = EventCase::read(kept, EventCase::outlookName(day, keptKinds[i]));
+                    if (!copy.isEmpty()) {
+                        (*bytes)[static_cast<size_t>(i)] = copy;
+                        continue;
+                    }
+                }
                 for (const auto * suffix : suffixes) {
                     QPixmap probe;
                     const auto data = UtilityIO::downloadAsByteArray((names[i] + suffix).toStdString());
