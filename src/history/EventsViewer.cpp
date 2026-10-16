@@ -536,6 +536,10 @@ void EventsViewer::fillAvailability(const HistoryEvent& e) {
         auto * screen = new ModelScreen{this, "NCEP"};
         screen->openAt("GFS", at);
     };
+    const auto openHrrr = [this, at] {
+        auto * screen = new ModelScreen{this, "NCEP"};
+        screen->openAt("HRRR", at);
+    };
     const auto openSatellite = [this, day] {
         const int back = static_cast<int>(day.daysTo(QDateTime::currentDateTimeUtc().date()));
         Utility::writePrefInt("MM_GIBS_DAYS", std::clamp(back, 0, 4000));
@@ -553,7 +557,8 @@ void EventsViewer::fillAvailability(const HistoryEvent& e) {
         {"Climate: how far from normal the days before were (ACIS stations, temperature or rain; 1991-2020 normals)", QDate{1950, 1, 1}, "about 1950 (stations)", openClimate, {}},
         {"Radar: MRMS composite reflectivity (AWS), map at the event", QDate{2020, 10, 14}, "2020-10-14", openRadar, {}},
         {"Model: GFS run and hour of that time (AWS, from 2021)", QDate{2021, 1, 1}, "2021", openModel, {}},
-        {"Model: HRRR, NAM and the others (pictures from NOMADS: the last days only)", QDate{2026, 10, 1}, "recent only", nullptr, "its screen cannot open at a time yet"},
+        {"Model: HRRR 3 km, the run of that hour (AWS archive)", QDate{2014, 7, 30}, "mid 2014", openHrrr, {}},
+        {"Model: NAM and the other picture models (NOMADS: the last days only)", QDate{2026, 10, 1}, "recent only", nullptr, "its screen cannot open at a time yet"},
         {"Observed soundings (SPC)", QDate{1998, 1, 1}, "recent archive; check", nullptr, "its screen cannot open at a time yet"},
         {"Surface obs and warnings (Iowa Mesonet)", QDate{1990, 1, 1}, "varies", openUrl("https://mesonet.agron.iastate.edu/"), {}},
         {"Daily climate: snow, rain, temperature (ACIS / xmACIS)", QDate{1940, 1, 1}, "station dependent (Springfield 1940)", openUrl("https://xmacis.rcc-acis.org/"), {}},

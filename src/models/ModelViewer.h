@@ -158,6 +158,7 @@ private:
     QByteArray withGlyphs(const QByteArray& bytes, const std::shared_ptr<GfsChart::Probe>&) const;
     void refreshHodographs();
     void pumpBufkit();
+    int pinnedRunHour() const;
     bool following{false};            // opened at a time by the History page: goes to the history cursor, and moves it when the person changes the hour
     QTimer cursorTimer;
     void announceTime();

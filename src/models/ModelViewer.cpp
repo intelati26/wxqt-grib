@@ -1566,12 +1566,19 @@ void ModelViewer::refreshSectorList() {
     comboboxSector.unblock();
 }
 
+// the hour of the run a past time is looked at from: the same hour for a model with a run every hour (its analysis), else the run before it (00 / 06 / 12 / 18Z, or the model's own step)
+int ModelViewer::pinnedRunHour() const {
+    const auto * def = GfsModels::find(pinnedModel);
+    const int step = def == nullptr ? 6 : def->hourlyRuns ? 1 : std::max(1, def->cycleStep);
+    return pinnedValid.time().hour() / step * step;
+}
+
 // the run of the past (openAt) in place of the newest one in the run data; done again when the data comes in, whichever search of the newest run finished last
 void ModelViewer::applyPinnedRun() {
     if (!pinnedValid.isValid() || objectModel.model != pinnedModel) {
         return;
     }
-    const QDateTime run{pinnedValid.date(), QTime{pinnedValid.time().hour() / 6 * 6, 0}, QTimeZone::utc()};
+    const QDateTime run{pinnedValid.date(), QTime{pinnedRunHour(), 0}, QTimeZone::utc()};
     objectModel.runTimeData.newestDate = run.toString("yyyyMMdd").toStdString();
     objectModel.runTimeData.mostRecentRun = run.toString("HH").toStdString() + "Z";
     objectModel.runTimeData.timeStringConversion = objectModel.runTimeData.mostRecentRun;
@@ -1589,10 +1596,16 @@ void ModelViewer::updateRunStatus() {
     if (objectModel.model == "GLCFS") {
         // pass
     } else if (objectModel.model != "HRRR" && objectModel.model != "HREF") {
+        const auto runStart = runTime(objectModel.run);   // the run's own date: a run of the past (the History page) is not today's
         for (auto index : range(objectModel.times.size())) {
             auto timeStr = objectModel.times[index];
-            auto newValue = WString::split(timeStr, " ")[0] + " " + UtilityModels::convertTimeRuntoTimeString(WString::replace(objectModel.runTimeData.timeStringConversion, "Z", ""), WString::split(timeStr, " ")[0]);
-            objectModel.setTimeArr(index, newValue);
+            const auto hourText = WString::split(timeStr, " ")[0];
+            string text = UtilityModels::convertTimeRuntoTimeString(WString::replace(objectModel.runTimeData.timeStringConversion, "Z", ""), hourText);
+            if (runStart.isValid() && pinnedValid.isValid()) {
+                const auto local = runStart.addSecs(3600LL * std::atoi(hourText.c_str())).toLocalTime();
+                text = local.toString("ddd").toStdString() + "  " + std::to_string(local.time().hour() % 12 == 0 ? 12 : local.time().hour() % 12) + (local.time().hour() >= 12 ? "pm" : "am");
+            }
+            objectModel.setTimeArr(index, hourText + " " + text);
         }
     } else if (objectModel.prefModel == "SPCHRRR") {
         objectModel.runs = objectModel.runTimeData.listRun;
@@ -1600,6 +1613,16 @@ void ModelViewer::updateRunStatus() {
     } else {
         objectModel.runs = objectModel.runTimeData.listRun;
         objectModel.times = UtilityModels::updateTime(UtilityString::getLastXChars(objectModel.run, 3), objectModel.run, objectModel.times, "");
+    }
+    if (pinnedValid.isValid() && objectModel.model == pinnedModel && GfsRender::drawsModel(objectModel.model)) {   // a run of the past: the weekday and hour of each of its hours from its own date (the labels above count from today)
+        const auto runStart = runTime(objectModel.run);
+        if (runStart.isValid()) {
+            for (auto index : range(objectModel.times.size())) {
+                const auto hourText = WString::split(objectModel.times[index], " ")[0];
+                const auto local = runStart.addSecs(3600LL * std::atoi(hourText.c_str())).toLocalTime();
+                objectModel.setTimeArr(index, hourText + " " + local.toString("ddd").toStdString() + "  " + std::to_string(local.time().hour() % 12 == 0 ? 12 : local.time().hour() % 12) + (local.time().hour() >= 12 ? "pm" : "am"));
+            }
+        }
     }
     comboboxModel.setIndexByValue(objectModel.model);
 
@@ -1642,7 +1665,7 @@ void ModelViewer::updateRunStatus() {
     comboboxTime.setIndexByValue(objectModel.getTime());
     if (pinnedApply && pinnedValid.isValid()) {   // the hour of the valid time within the run
         pinnedApply = false;
-        const QDateTime run{pinnedValid.date(), QTime{pinnedValid.time().hour() / 6 * 6, 0}, QTimeZone::utc()};
+        const QDateTime run{pinnedValid.date(), QTime{pinnedRunHour(), 0}, QTimeZone::utc()};
         const int hour = static_cast<int>(run.secsTo(pinnedValid) / 3600);
         for (size_t i = 0; i < objectModel.times.size(); i++) {
             if (std::atoi(objectModel.times[i].c_str()) == hour) {

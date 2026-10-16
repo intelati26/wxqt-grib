@@ -78,6 +78,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GEPS"));
         m.push_back(fromFile("GEOS-FP"));
         m.push_back(fromFile("RRFS"));
+        m.push_back(fromFile("HRRR"));
         m.push_back(fromFile("HREF"));
         m.push_back(fromFile("REFS"));
         m.push_back(fromFile("SPCPOST"));

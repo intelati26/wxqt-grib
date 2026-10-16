@@ -357,6 +357,36 @@ clone_skip = anom
 clone_pieces = false
 clone_rename = PRMSL:MSLET
 )MODEL"},
+        {"HRRR", R"MODEL(
+# the 3 km High-Resolution Rapid Refresh on AWS (NOAA's open data bucket, kept from mid 2014): the 2D fields (sfc) and the pressure levels (prs) are files of their own
+id = HRRR
+label = NOAA/NCEP HRRR 3 km
+kind = grib
+url = https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.{date}/conus/hrrr.t{cycle}z.wrf{file}f{hour2}.grib2
+file_default = sfc
+file = when level~"^[0-9]+ mb$" => prs
+file = sfc
+probe_file = sfc
+cycle_hours = 1
+lag_hours = 2
+probe_hour = 0
+cycles_to_try = 8
+warp = 0.03, -127.0, 22.0, -65.0, 52.0
+sectors = conus
+hours = 0-48/1
+hourly_runs = true
+on_missing = previous_run
+preload_hours = 12
+run_length = every 6 : 48 , else : 18
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, MSLMA, PWAT, CAPE, CIN, APCP, CRAIN, CSNOW, CFRZR, CICEP, TCDC, GUST, SNOD, WEASD, REFC, VIS, PRATE
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom
+clone_pieces = false
+clone_rename = PRMSL:MSLMA
+)MODEL"},
         {"HREF", R"MODEL(
 # the High-Resolution Ensemble Forecast on NOMADS: its own ready-made products (mean, pmmn, lpmm, avrg, sprd, prob, eas, ffri)
 id = HREF
