@@ -345,60 +345,42 @@ int main(int argc, char * argv[]) {
                     }
                 }
                 QTimer::singleShot(100, [] { QApplication::quit(); });
-            } else if (route.startsWith("cfsinterp:")) {   // WXQT_OPEN=cfsinterp:<variable key>:<lead month>: how well the normal of a start date is had by interpolating between start dates further apart
+            } else if (route.startsWith("cfsinterp:")) {   // WXQT_OPEN=cfsinterp:<variable key>:<lead month>: the blended normal of a start date (from the 1st and 16th) against the file of that date
                 const auto parts = route.split(':');
                 const auto * variable = UtilityCfs::find(parts.value(1, "t2m").toStdString());
                 const int lead = parts.value(2, "1").toInt();
                 if (variable != nullptr) {
-                    const auto get = [&] (const QDate& d, GfsGrid::Grid& g) {
-                        std::string error;
-                        return UtilityCfs::climatology(*variable, {d.toString("yyyyMMdd").toStdString(), "00"}, lead, false, 1999, g, error);
-                    };
-                    struct Spacing {
-                        const char * name;
-                        int before, after;   // days either side of the 16th
-                    };
-                    const Spacing spacings[] = {{"5 days either side (the stored spacing)", 5, 5}, {"10 days either side", 10, 10}, {"15 days either side (1st and 1st)", 15, 15}, {"30 days either side (16th to 16th)", 30, 30}, {"60 days either side", 60, 60}};
                     for (const int month : {1, 4, 7, 10}) {
-                        const QDate target{2025, month, 16};
-                        GfsGrid::Grid truth;
-                        if (!get(target, truth)) {
-                            qWarning("cfsinterp: no normal for %s", qPrintable(target.toString()));
-                            continue;
-                        }
-                        for (const auto& spacing : spacings) {
-                            // the stored dates nearest the asked spacing (the 1st, 6th ... of a month)
-                            const auto snap = [] (QDate d) {
-                                const int day = std::min(26, (d.day() - 1) / 5 * 5 + 1);
-                                return QDate{d.year(), d.month(), day};
-                            };
-                            const QDate a = snap(target.addDays(-spacing.before)), b = snap(target.addDays(spacing.after));
-                            GfsGrid::Grid ga, gb;
-                            if (!get(a, ga) || !get(b, gb) || ga.values.size() != truth.values.size()) {
+                        for (const int day : {6, 11, 21, 26}) {
+                            const QDate d{2025, month, day};
+                            GfsGrid::Grid truth, blended;
+                            std::string error;
+                            const auto name = d.toString("yyyyMMdd").toStdString();
+                            if (!UtilityCfs::climatologyOn(*variable, name, lead, false, 1999, truth, error) || !UtilityCfs::climatology(*variable, {name, "00"}, lead, false, 1999, blended, error)) {
+                                qWarning("cfsinterp: %s: %s", qPrintable(d.toString()), error.c_str());
                                 continue;
                             }
-                            const double wb = static_cast<double>(a.daysTo(target)) / static_cast<double>(a.daysTo(b));
-                            double square = 0.0, biggest = 0.0, usSquare = 0.0;
+                            double square = 0.0, usSquare = 0.0, biggest = 0.0;
                             size_t n = 0, usN = 0;
                             for (int r = 0; r < truth.rows; r++) {
                                 for (int c = 0; c < truth.columns; c++) {
                                     const size_t i = static_cast<size_t>(r) * static_cast<size_t>(truth.columns) + static_cast<size_t>(c);
-                                    const double guess = ga.values[i] * (1.0 - wb) + gb.values[i] * wb, d = guess - truth.values[i];
-                                    if (std::isnan(d)) {
+                                    const double e = blended.values[i] - truth.values[i];
+                                    if (std::isnan(e)) {
                                         continue;
                                     }
-                                    square += d * d;
-                                    biggest = std::max(biggest, std::abs(d));
+                                    square += e * e;
+                                    biggest = std::max(biggest, std::abs(e));
                                     n++;
                                     const double lat = truth.lat0 - r * truth.step, lon = truth.lon0 + c * truth.step;
-                                    if (lat > 24.0 && lat < 50.0 && lon > 235.0 - 360.0 && lon < 294.0 - 360.0 || lat > 24.0 && lat < 50.0 && lon > 235.0 && lon < 294.0) {
-                                        usSquare += d * d;
+                                    if (lat > 24.0 && lat < 50.0 && ((lon > -125.0 && lon < -66.0) || (lon > 235.0 && lon < 294.0))) {
+                                        usSquare += e * e;
                                         usN++;
                                     }
                                 }
                             }
-                            qWarning("cfsinterp: %s lead %d, the 16th of month %d from %s to %s (%s): rms %.3f (US %.3f), largest %.2f %s", variable->key.c_str(), lead, month, qPrintable(a.toString("MM-dd")), qPrintable(b.toString("MM-dd")),
-                                     spacing.name, std::sqrt(square / static_cast<double>(n)), std::sqrt(usSquare / static_cast<double>(std::max<size_t>(1, usN))), biggest, variable->units.c_str());
+                            qWarning("cfsinterp: %s lead %d %s: rms %.3f (US %.3f), largest %.2f %s", variable->key.c_str(), lead, qPrintable(d.toString("MM-dd")), std::sqrt(square / static_cast<double>(n)),
+                                     std::sqrt(usSquare / static_cast<double>(std::max<size_t>(1, usN))), biggest, variable->units.c_str());
                         }
                     }
                 }

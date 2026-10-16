@@ -307,18 +307,14 @@ namespace {
     }
 }
 
-bool UtilityCfs::climatology(const Variable& variable, const Run& run, int leadMonth, bool deviation, int baseline, GfsGrid::Grid& out, std::string& error) {
+bool UtilityCfs::climatologyOn(const Variable& variable, const std::string& yyyymmdd, int leadMonth, bool deviation, int baseline, GfsGrid::Grid& out, std::string& error) {
     if (leadMonth < 1 || leadMonth > 9) {
         error = "the CFS normal covers lead months 1 to 9";
         return false;
     }
     const std::string base = baseline == 1982 ? "1982" : "1999";
     const PermanentCache store{"climate"};
-    // The normal changes slowly with the start date, so one serves five days (the 1st, 6th, 11th, 16th, 21st and 26th of the month) and the 00 UTC cycle serves them all: a year of use
-    // keeps 72 start dates a field instead of 365 x 4
-    const int day = std::min(26, (std::stoi(run.date.substr(6, 2)) - 1) / 5 * 5 + 1);
-    const Run bucket{run.date.substr(0, 6) + (day < 10 ? "0" : "") + std::to_string(day), "00"};
-    // (the day of the year and cycle are the key: one normal serves every year)
+    const Run bucket{yyyymmdd, "00"};
     const auto keyFor = [&] (const Run& r) {
         return "cfs/" + base + "/" + variable.key + "_" + r.date.substr(4, 4) + "_l" + std::to_string(leadMonth) + (deviation ? "_std" : "_mean") + ".bin";
     };
@@ -347,6 +343,39 @@ bool UtilityCfs::climatology(const Variable& variable, const Run& run, int leadM
         error = message;
     }
     return false;
+}
+
+
+// The normal of any start date: the two stored dates around it (the 1st and the 16th of the month, 15 days apart) blended by the days between. The lead month is counted from the month of the
+// start, so a stored date in the next month has a lead one less for the same calendar month; a date from the 16th on, asking for the very next month, has no such file (there is no lead 0): it
+// takes the 16th's normal as it is.
+bool UtilityCfs::climatology(const Variable& variable, const Run& run, int leadMonth, bool deviation, int baseline, GfsGrid::Grid& out, std::string& error) {
+    if (leadMonth < 1 || leadMonth > 9) {
+        error = "the CFS normal covers lead months 1 to 9";
+        return false;
+    }
+    const auto t = runTime(run).date();
+    const auto name = [] (const QDate& d) { return d.toString("yyyyMMdd").toStdString(); };
+    const QDate first{t.year(), t.month(), 1}, middle{t.year(), t.month(), 16}, nextFirst = first.addMonths(1);
+    if (t.day() == 1 || t.day() == 16) {
+        return climatologyOn(variable, name(t.day() == 1 ? first : middle), leadMonth, deviation, baseline, out, error);
+    }
+    const QDate a = t.day() < 16 ? first : middle, b = t.day() < 16 ? middle : nextFirst;
+    const int leadB = t.day() < 16 ? leadMonth : leadMonth - 1;
+    GfsGrid::Grid ga, gb;
+    if (!climatologyOn(variable, name(a), leadMonth, deviation, baseline, ga, error)) {
+        return false;
+    }
+    if (leadB < 1 || !climatologyOn(variable, name(b), leadB, deviation, baseline, gb, error) || gb.values.size() != ga.values.size()) {
+        out = ga;
+        return true;
+    }
+    const double w = static_cast<double>(a.daysTo(t)) / static_cast<double>(a.daysTo(b));
+    out = ga;
+    for (size_t i = 0; i < out.values.size(); i++) {
+        out.values[i] = static_cast<float>(ga.values[i] * (1.0 - w) + gb.values[i] * w);
+    }
+    return true;
 }
 
 bool UtilityCfs::monthlyDeparture(const Run& run, int member, const Variable& variable, const std::string& yyyymm, bool inDeviations, int baseline, GfsGrid::Grid& out, std::string& error) {

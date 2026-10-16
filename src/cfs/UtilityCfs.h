@@ -49,6 +49,8 @@ namespace UtilityCfs {
     // month: lead 1 is the month after the run's own). Each is a field of NCEI's reforecast bucket read by byte range and kept for good (PermanentCache "climate") packed in 16 bits, a few tens
     // of KB. `leadMonth` 1-9; the start date is the run's (the nearest day with a file if its own has none). The values are in the shown unit.
     bool climatology(const Variable& variable, const Run& run, int leadMonth, bool deviation, int baseline, GfsGrid::Grid& out, std::string& error);
+    // The normal of one start date as the file has it (cycle 00, kept for good): what climatology() blends. Only the 1st and the 16th of each month are asked for by it, about 15 days apart.
+    bool climatologyOn(const Variable& variable, const std::string& yyyymmdd, int leadMonth, bool deviation, int baseline, GfsGrid::Grid& out, std::string& error);
     // a member's monthly mean minus the normal of the run's start date (or divided by the standard deviation when `inDeviations`); the run's own month, which has no normal, fails
     bool monthlyDeparture(const Run& run, int member, const Variable& variable, const std::string& yyyymm, bool inDeviations, int baseline, GfsGrid::Grid& out, std::string& error);
     // The GFS beside it, for the same plume window (the GFS is a run every six hours to 16 days): the newest run, and a field's values at a point for forecast hours, each read as a small box
