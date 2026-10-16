@@ -1153,7 +1153,7 @@ void ModelViewer::refreshLoaded() {
             windowReady++;
         }
     }
-    strip->setLoaded(ready, windowReady < wanted && ahead > 0 ? QString{"Drawing %1 of %2"}.arg(windowReady).arg(wanted) : QString{"%1 hours ready"}.arg(have));
+    strip->setLoaded(ready, windowReady < wanted && ahead > 0 ? QString{"Drawing %1 of %2"}.arg(windowReady).arg(wanted) : QString{"%1 of %2 frames ready"}.arg(have).arg(objectModel.times.size()));
 }
 
 // Draws the hours after the one shown (and the one before it) without being asked, a few at a time, with the network's "ahead" priority: what is on screen is always served first. While playing,
