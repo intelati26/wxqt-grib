@@ -11,6 +11,7 @@
 #include <sstream>
 #include <QContextMenuEvent>
 #include <QDateTime>
+#include <QDateTimeEdit>
 #include <QFileDialog>
 #include <QPageSize>
 #include <QPdfWriter>
@@ -161,8 +162,23 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     timeLayout->addWidget(timeSlider, 1);
     timeLayout->addWidget(speedCombo);
     timeLayout->addWidget(liveButton);
+    // a calendar and clock to go to any time (UTC) of the past
+    timePick = new QDateTimeEdit{QDateTime::currentDateTimeUtc(), timeRow};
+    timePick->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    timePick->setTimeZone(QTimeZone::utc());
+#else
+    timePick->setTimeSpec(Qt::UTC);   // (Qt 6.4 has no setTimeZone on the date box)
+#endif
+    timePick->setCalendarPopup(true);
+    timePick->setToolTip("Pick a day and time (UTC) and press Go: the layers with a past (radar, satellite, reports, cones) show it");
+    timeGo = new QPushButton{"Go", timeRow};
+    timeGo->setFixedWidth(40);
+    timeLayout->addWidget(timePick);
+    timeLayout->addWidget(timeGo);
     timeLayout->addWidget(timeLabel);
     timeRow->hide();
+    QObject::connect(timeGo, &QPushButton::clicked, [this] { jumpTo(timePick->dateTime().toUTC()); });
     QObject::connect(stepBack, &QPushButton::clicked, [this] { if (ticks.size() > 1) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(std::max(0, timeSlider->value() - 1)); announceTime(); } });
     QObject::connect(stepForward, &QPushButton::clicked, [this] { if (ticks.size() > 1) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(std::min(static_cast<int>(ticks.size()) - 1, timeSlider->value() + 1)); announceTime(); } });
     QObject::connect(playButton, &QPushButton::clicked, [this] { togglePlay(); });
@@ -454,6 +470,34 @@ void MasterMapViewer::rebuildTicks() {
     redraw();
 }
 
+void MasterMapViewer::jumpTo(const QDateTime& utc) {
+    following = true;
+    live = false;
+    playing = false;
+    playTimer.stop();
+    playButton->setText("Loop");
+    for (const auto& layer : layers) {
+        if (layer->enabled()) {
+            layer->setAsOf(utc, *this);
+        }
+    }
+    rebuildTicks();
+    const long seconds = static_cast<long>(utc.toSecsSinceEpoch());
+    int index = 0;
+    for (size_t i = 0; i < ticks.size(); i++) {
+        if (ticks[i] <= seconds) {
+            index = static_cast<int>(i);
+        }
+    }
+    live = false;
+    goTo(index);
+    live = false;
+    extra = "as of " + utc.toString("yyyy-MM-dd HH:mm").toStdString() + "Z";
+    updateStatus();
+    setTitle("Master map - " + extra);
+    HistoryCursor::get().setTime(utc, this);
+}
+
 void MasterMapViewer::goLive() {
     live = true;
     playing = false;
@@ -489,6 +533,9 @@ void MasterMapViewer::goTo(int index) {
         }
     }
     timeLabel->setText(QString::fromStdString(text + (live ? "  (latest)" : "")));
+    if (timePick != nullptr && !live) {
+        timePick->setDateTime(QDateTime::fromSecsSinceEpoch(ticks[static_cast<size_t>(index)], QTimeZone::utc()));
+    }
     updateStatus();
     redraw();
 }
@@ -723,6 +770,7 @@ void MasterMapViewer::openAt(const QDateTime& utc, double lat, double lon, doubl
     const double degrees = std::max(0.5, radiusKm / 111.0);
     const double lonDegrees = degrees / std::max(0.2, std::cos(lat * 3.14159265358979 / 180.0));
     mapView->showRegion(lat - degrees * 1.2, lat + degrees * 1.2, lon - lonDegrees * 1.6, lon + lonDegrees * 1.6);
+    timePick->setDateTime(utc.toUTC());
     extra = "as of " + utc.toUTC().toString("yyyy-MM-dd HH:mm").toStdString() + "Z";
     updateStatus();
     setTitle("Master map - " + extra);

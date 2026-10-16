@@ -18,6 +18,7 @@
 #include <QComboBox>
 #include <QPushButton>
 #include <QSlider>
+#include <QDateTimeEdit>
 #include <QLabel>
 #include <QTimer>
 #include <QTreeWidget>
@@ -76,6 +77,7 @@ private:
     // the time bar: stepping and looping through the frames of the layers that have them
     void rebuildTicks();
     void goLive();
+    void jumpTo(const QDateTime& utc);   // a time of the person's choosing: the layers look at the hours around it
     void goTo(int index);
     void togglePlay();
     void advance();
@@ -107,6 +109,8 @@ private:
     QPushButton * stepForward{};
     QComboBox * speedCombo{};
     QLabel * timeLabel{};
+    QDateTimeEdit * timePick{};
+    QPushButton * timeGo{};
     QTimer playTimer;
     bool following{false};          // opened at a time by the History page: follows the history cursor, and moves it when its own time bar is moved
     bool applyingCursor{false};
