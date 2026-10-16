@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QKeyEvent>
 #include <QWheelEvent>
+#include "cfs/UtilityCfs.h"
 #include "hurricane/ReconViewer.h"
 #include "radar/MapWidget.h"
 #include "drought/DroughtViewer.h"
@@ -304,6 +305,37 @@ int main(int argc, char * argv[]) {
                     fprintf(stderr, "variant: %lld bytes %.2f s, %.2f MB received %s\n", static_cast<long long>(bytes.size()), timer.elapsed() / 1000.0, NetManager::totals().bytes / 1048576.0, error.c_str());
                 }
                 std::_Exit(0);
+            } else if (route.startsWith("cfsprobe:")) {   // WXQT_OPEN=cfsprobe:<variable key>:<month yyyymm>:<lat>:<lon>: prints the CFS run's field values (no window), then quits
+                const auto parts = route.split(':');
+                const auto * variable = UtilityCfs::find(parts.value(1, "t2m").toStdString());
+                UtilityCfs::Run run;
+                std::string error;
+                GfsGrid::Grid grid;
+                if (variable == nullptr || !UtilityCfs::latestRun(run)) {
+                    qWarning("cfsprobe: no run (%s)", variable == nullptr ? "unknown variable" : "none found");
+                } else {
+                    qWarning("cfsprobe: newest run %s", UtilityCfs::runText(run).c_str());
+                    const auto months = UtilityCfs::months(run);
+                    const auto month = parts.value(2).isEmpty() ? months[1] : parts.value(2).toStdString();
+                    const double lat = parts.value(3, "39.1").toDouble(), lon = parts.value(4, "-94.6").toDouble();
+                    for (int member = 1; member <= 2; member++) {
+                        if (UtilityCfs::monthly(run, member, *variable, month, grid, error)) {
+                            qWarning("cfsprobe: member %d %s monthly mean %s: grid %dx%d, value at %.1f,%.1f = %.2f %s", member, variable->key.c_str(), month.c_str(), grid.columns, grid.rows, lat, lon,
+                                     grid.sample(lon < 0 ? lon + 360.0 : lon, lat), variable->units.c_str());
+                        } else {
+                            qWarning("cfsprobe: member %d monthly %s: %s", member, month.c_str(), error.c_str());
+                        }
+                    }
+                    for (const int hour : {6, 240, 1200}) {
+                        if (UtilityCfs::daily(run, 1, *variable, hour, grid, error)) {
+                            qWarning("cfsprobe: member 1 %s f%d: grid %dx%d lon0 %.1f lat0 %.1f, value at %.1f,%.1f = %.2f %s", variable->key.c_str(), hour, grid.columns, grid.rows, grid.lon0, grid.lat0, lat, lon,
+                                     grid.sample(lon < 0 ? lon + 360.0 : lon, lat), variable->units.c_str());
+                        } else {
+                            qWarning("cfsprobe: f%d: %s", hour, error.c_str());
+                        }
+                    }
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
             } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm
                 new HurricaneViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString()};
             } else if (route.startsWith("hafs:")) {   // WXQT_OPEN=hafs:<NHC id>: the hurricane model screen on that storm
