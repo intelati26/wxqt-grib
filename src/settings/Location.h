@@ -35,6 +35,8 @@ public:
     static void checkCurrentLocationValidity();
     static vector<string> save(const LatLon&, const string&);
     static void deleteLocation(int);
+    static void update(int, const LatLon&, const string& name, const string& wfo, const string& radarSite);   // rewrites one saved location in place
+    static vector<string> wfoAndRadarFor(const LatLon&);   // {wfo, radar site} of a point: the NWS points service, else the nearest of each
     static void setCurrentLocationStr(const string&);
     static vector<string> listOfNames();
     static void setCurrentLocation(int);

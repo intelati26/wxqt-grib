@@ -114,6 +114,32 @@ vector<string> Location::save(const LatLon& latLon, const string& labelStr) {
     return {locNum, "Saving location " + locNum + " as " + labelStr + " (" + latLon.latStr() + "," + latLon.lonStr() + ") " + "/" + " " + WString::toUpper(wfo) + "(" + WString::toUpper(radarSite) + ")"};
 }
 
+vector<string> Location::wfoAndRadarFor(const LatLon& latLon) {
+    const auto found = getWfoRadarSiteFromPoint(latLon);
+    auto wfo = found[0];
+    auto radarSite = found[1];
+    if (wfo.empty()) {
+        wfo = WfoSites::sites->getNearest(latLon);
+    }
+    if (radarSite.empty()) {
+        radarSite = RadarSites::getNearestCode(latLon);
+    }
+    return {WString::toUpper(wfo), WString::toUpper(radarSite)};
+}
+
+void Location::update(int index, const LatLon& latLon, const string& name, const string& wfo, const string& radarSite) {
+    if (index < 0 || index >= numberOfLocations) {
+        return;
+    }
+    const auto n = To::string(index + 1);
+    Utility::writePref("LOC" + n + "_X", latLon.latStr());
+    Utility::writePref("LOC" + n + "_Y", latLon.lonStr());
+    Utility::writePref("LOC" + n + "_LABEL", name);
+    Utility::writePref("NWS" + n, WString::toUpper(wfo));
+    Utility::writePref("RID" + n, WString::toUpper(radarSite));
+    refresh();
+}
+
 void Location::deleteLocation(int index) {
     if (index > numberOfLocations) {
         return;

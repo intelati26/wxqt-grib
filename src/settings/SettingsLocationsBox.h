@@ -24,6 +24,7 @@ public:
 private:
     void addLocations();
     void deleteClicked(int);
+    void editClicked(int);
     void moveDownClicked(int);
     void moveUpClicked(int);
     VBox box;
