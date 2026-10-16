@@ -16,6 +16,7 @@
 #include <QSlider>
 #include <QStandardPaths>
 #include <QVBoxLayout>
+#include "mapkit/PlateCarreeImage.h"
 #include "util/Utility.h"
 #include "util/UtilityIO.h"
 
@@ -185,36 +186,7 @@ void CpcPrecipLayer::refresh(MapHost& host) {
 }
 
 void CpcPrecipLayer::paint(QPainter& painter, MapHost& host) {
-    if (picture.isNull()) {
-        return;
-    }
-    const auto t = host.view().transform();
-    // the strips go into one buffer first (they overlap a hair so that no seam shows), then the buffer is laid over the map once at the chosen opacity
-    const auto * device = painter.device();
-    QImage buffer{device->width(), device->height(), QImage::Format_ARGB32_Premultiplied};
-    buffer.fill(Qt::transparent);
-    {
-        QPainter strip{&buffer};
-        strip.setWindow(painter.window());      // the map is painted in window units
-        strip.setViewport(painter.viewport());
-        strip.setWorldTransform(painter.worldTransform());
-        strip.setCompositionMode(QPainter::CompositionMode_Source);
-        strip.setRenderHint(QPainter::SmoothPixmapTransform, false);   // blocks: it is a quarter degree analysis, not a smoothed field
-        const int strips = 60;
-        for (int s = 0; s < strips; s++) {
-            const int r0 = rows * s / strips, r1 = rows * (s + 1) / strips;
-            const double lat0 = north - (north - south) * r0 / rows, lat1 = north - (north - south) * r1 / rows;
-            const QPointF a = t(lat0, west), b = t(lat1, east);
-            strip.drawImage(QRectF{a, b}.normalized().adjusted(0.0, -0.3, 0.0, 0.3), picture, QRectF{0.0, static_cast<double>(r0), static_cast<double>(columns), static_cast<double>(r1 - r0)});
-        }
-    }
-    painter.save();
-    painter.resetTransform();
-    painter.setWindow(0, 0, buffer.width(), buffer.height());
-    painter.setViewport(0, 0, buffer.width(), buffer.height());
-    painter.setOpacity(opacity / 100.0);
-    painter.drawImage(0, 0, buffer);
-    painter.restore();
+    PlateCarreeImage::paint(painter, host, picture, west, south, east, north, opacity / 100.0);   // blocks: it is a quarter degree analysis, not a smoothed field
 }
 
 MapHit CpcPrecipLayer::pick(const QPointF& pixels, MapHost& host) const {
