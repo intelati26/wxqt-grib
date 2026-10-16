@@ -5,6 +5,7 @@
 
 #include "ui/ChartPainter.h"
 #include "models/SoundingViewer.h"
+#include "ui/WindBarb.h"
 #include "util/Utility.h"
 #include <algorithm>
 #include <cmath>
@@ -45,41 +46,10 @@ namespace {
         return have(v) ? QString::number(v, 'f', decimals) + unit : QStringLiteral("--");
     }
 
-    // wind barb, northern-hemisphere convention: staff points into the wind, feathers on the clockwise side
+    // a wind barb: the program's one routine (ui/WindBarb), the staff into the wind
     void drawBarb(ChartPainter& painter, const QPointF& at, double dirDeg, double speedKt, double length) {
         if (!have(dirDeg) || !have(speedKt)) return;
-        if (speedKt < 2.5) {
-            painter.drawEllipse(at, 3.0, 3.0);
-            return;
-        }
-        const double rad = dirDeg * pi / 180.0;
-        const QPointF staff{std::sin(rad), -std::cos(rad)};
-        const QPointF perp{-staff.y(), staff.x()};
-        const QPointF end = at + staff * length;
-        painter.drawLine(at, end);
-        int remaining = static_cast<int>(std::lround(speedKt / 5.0)) * 5;
-        double along = length;
-        const double step = length * 0.14;
-        const double feather = length * 0.42;
-        while (remaining >= 50) {
-            const QPointF a = at + staff * along, b = at + staff * (along - step * 1.4);
-            QPolygonF flag;
-            flag << a << a + perp * feather + staff * (-step * 0.4) << b;
-            painter.drawPolygon(flag);
-            along -= step * 1.6;
-            remaining -= 50;
-        }
-        while (remaining >= 10) {
-            const QPointF a = at + staff * along;
-            painter.drawLine(a, a + perp * feather - staff * (step * 0.6));
-            along -= step;
-            remaining -= 10;
-        }
-        if (remaining >= 5) {
-            if (along >= length - 1e-6) along -= step;   // a lone half barb sits one step in from the end
-            const QPointF a = at + staff * along;
-            painter.drawLine(a, a + perp * feather * 0.5 - staff * (step * 0.3));
-        }
+        WindBarb::draw(painter, at, dirDeg, speedKt, length);
     }
 }
 

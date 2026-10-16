@@ -11,6 +11,7 @@
 #include "objects/WString.h"
 #include "radar/MapLineCommon.h"
 #include "radar/Projection.h"
+#include "ui/WindBarb.h"
 #include "util/To.h"
 #include "util/UtilityList.h"
 
@@ -21,94 +22,37 @@ vector<double> MapWindBarbs::decodeAndPlot(const ProjectionNumbers& projectionNu
         const std::lock_guard<std::mutex> guard{*fileStorage.lock};   // a worker may be replacing the lists
         arrWb = (!isGust) ? fileStorage.obsArrWb : fileStorage.obsArrWbGust;
     }
-    const auto degreeShift = 180.0;
-    const auto arrowLength = 2.5;
-    const auto arrowSpacing = 3.0;
-    const auto barbLengthScaleFactor = 0.4;
-    const auto arrowBend = 60.0;
-    const auto nmScaleFactor = -1852.0;
-    const auto barbLength = 15.0;
-    const auto barbOffset = 0.0;
+    const auto staffMeters = 6.0 * 1852.0;   // the staff of a barb on the map: 6 nautical miles
     for (const auto& windBarb : arrWb) {
         const auto metarArr = WString::split(windBarb, ":");
-        auto angle = 0;
-        auto length = 0;
-        auto locXDbl = 0.0;
-        auto locYDbl = 0.0;
-        if (metarArr.size() > 3) {
-            locXDbl = To::Double(metarArr[0]);
-            locYDbl = To::Double(metarArr[1]);
-            angle = To::Int(metarArr[2]);
-            length = To::Int(metarArr[3]);
+        if (metarArr.size() <= 3) {
+            continue;
         }
-        if (length > 4) {
-            const auto degree = 0.0;
-            const auto nm = 0.0;
-            const auto degree2 = angle;
-            const auto startLength = nm * nmScaleFactor;
-            auto above50 = false;
-            auto start = ExternalGlobalCoordinates{locXDbl, locYDbl};
-            auto ec = ExternalGeodeticCalculator::calculateEndingGlobalCoordinates(start, degree, nm * nmScaleFactor * barbLengthScaleFactor);
-            addAll(stormList, Projection::computeMercatorNumbersFromEc(ec, projectionNumbers));
-            start = ExternalGlobalCoordinates{ec.getLatitude(), ec.getLongitude()};
-            ec = ExternalGeodeticCalculator::calculateEndingGlobalCoordinates(start, degree2 + degreeShift, barbLength * nmScaleFactor * barbLengthScaleFactor);
-            const auto end = ExternalGlobalCoordinates{ec.getLatitude(), ec.getLongitude()};
-            addAll(stormList, Projection::computeMercatorNumbersFromEc(ec, projectionNumbers));
-            auto barbCount = static_cast<int>(length / 10);
-            auto halfBarb = false;
-            auto oneHalfBarb = false;
-            if (((length - barbCount * 10) > 4 && length > 10) || length < 10) {
-                halfBarb = true;
-            }
-            if (length < 10) {
-                oneHalfBarb = true;
-            }
-            if (length > 49) {
-                above50 = true;
-                barbCount -= 4;
-            } else {
-                above50 = false;
-            }
-            auto index = 0;
-            if (above50) {
-                // initial angled line;
-                ec = ExternalGeodeticCalculator::calculateEndingGlobalCoordinates(
-                    end,
-                    degree2,
-                    barbOffset + startLength + index * arrowSpacing * nmScaleFactor * barbLengthScaleFactor);
-                addAll(stormList, MapLineCommon::drawLineFromEc(ec, projectionNumbers, degree2 - arrowBend * 2.0, startLength + arrowLength * nmScaleFactor));
-                // perpendicular line from main barb;
-                ec = ExternalGeodeticCalculator::calculateEndingGlobalCoordinates(
-                    end,
-                    degree2,
-                    barbOffset + startLength + -1.0 * arrowSpacing * nmScaleFactor * barbLengthScaleFactor);
-                addAll(stormList, MapLineCommon::drawLineFromEc(ec, projectionNumbers, degree2 - 90.0, startLength + 0.80 * arrowLength * nmScaleFactor));
-                // connecting line parallel to main barb;
-                ec = ExternalGeodeticCalculator::calculateEndingGlobalCoordinates(
-                    end,
-                    degree2,
-                    barbOffset + startLength + index * arrowSpacing * nmScaleFactor * barbLengthScaleFactor);
-                addAll(stormList, MapLineCommon::drawLineFromEc(ec, projectionNumbers, degree2 - 180.0, startLength + 0.5 * arrowLength * nmScaleFactor));
-                index += 1;
-            }
-            for ([[maybe_unused]] auto i : range2(index, barbCount)) {
-                ec = ExternalGeodeticCalculator::calculateEndingGlobalCoordinates(
-                    end,
-                    degree2,
-                    barbOffset + startLength + index * arrowSpacing * nmScaleFactor * barbLengthScaleFactor);
-                addAll(stormList, MapLineCommon::drawLineFromEc(ec, projectionNumbers, degree2 - arrowBend * 2.0, startLength + arrowLength * nmScaleFactor));
-                index += 1;
-            }
-            auto halfBarbOffsetFudge = 0.0;
-            if (oneHalfBarb) {
-                halfBarbOffsetFudge = nmScaleFactor * 1.0;
-            }
-            if (halfBarb) {
-                ec = ExternalGeodeticCalculator::calculateEndingGlobalCoordinates(
-                    end,
-                    degree2,
-                    barbOffset + halfBarbOffsetFudge + startLength + index * arrowSpacing * nmScaleFactor * barbLengthScaleFactor);
-                addAll(stormList, MapLineCommon::drawLineFromEc(ec, projectionNumbers, degree2 - arrowBend * 2.0, startLength + arrowLength / 2.0 * nmScaleFactor));
+        const auto locX = To::Double(metarArr[0]);
+        const auto locY = To::Double(metarArr[1]);
+        const auto angle = To::Int(metarArr[2]);
+        const auto knots = To::Int(metarArr[3]);
+        if (knots <= 4) {
+            continue;
+        }
+        // the program's one barb (ui/WindBarb): its lines and pennants, in staff lengths from the station, turned into distances and bearings on the earth
+        const auto barb = WindBarb::shape(angle, knots, 1.0, locX < 0.0);
+        const ExternalGlobalCoordinates start{locX, locY};
+        const auto place = [&] (const QPointF& offset) {
+            const auto meters = std::hypot(offset.x(), offset.y()) * staffMeters;
+            const auto bearing = std::atan2(offset.x(), -offset.y()) * 180.0 / M_PI;
+            return Projection::computeMercatorNumbersFromEc(meters < 1.0 ? start : ExternalGeodeticCalculator::calculateEndingGlobalCoordinates(start, bearing, meters), projectionNumbers);
+        };
+        const auto addLine = [&] (const QPointF& a, const QPointF& b) {
+            addAll(stormList, place(a));
+            addAll(stormList, place(b));
+        };
+        for (const auto& [a, b] : barb.lines) {
+            addLine(a, b);
+        }
+        for (const auto& flag : barb.pennants) {
+            for (int i = 0; i < flag.size(); i++) {
+                addLine(flag[i], flag[(i + 1) % flag.size()]);
             }
         }
     }

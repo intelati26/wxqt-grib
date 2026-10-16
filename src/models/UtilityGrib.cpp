@@ -5,6 +5,7 @@
 
 #include "objects/RenderLock.h"
 #include "models/UtilityGrib.h"
+#include "ui/WindBarb.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -1031,43 +1032,12 @@ void UtilityGrib::labelContours(const QString& pngPath, const QString& geoJsonPa
 }
 
 namespace {
-    // one wind barb (knots) at a screen point; staff points upwind
+    // one wind barb (knots) at a screen point; staff points upwind: the program's one routine (ui/WindBarb)
     void drawBarb(QPainter& painter, const QPointF& at, double dirX, double dirY, double knots) {
-        if (knots < 2.5) {
-            painter.drawEllipse(at, 3.0, 3.0);
-            return;
-        }
-        const double staffLength = 30.0;
-        const QPointF tip = at + QPointF{dirX, dirY} * staffLength;
-        painter.drawLine(at, tip);
-        const double angle = -68.0 * M_PI / 180.0;
-        const QPointF side{dirX * std::cos(angle) - dirY * std::sin(angle),
-                           dirX * std::sin(angle) + dirY * std::cos(angle)};
-        const QPointF towardStation{-dirX, -dirY};
-        int remaining = static_cast<int>(std::round(knots / 5.0)) * 5;
-        double along = 0.0;
-        const double step = 5.2;
-        while (remaining >= 50) {
-            const QPointF base = tip + towardStation * along;
-            const QPointF apex = base + side * 11.0;
-            QPolygonF pennant;
-            pennant << base << apex << (tip + towardStation * (along + step * 1.7));
-            painter.setBrush(painter.pen().color());
-            painter.drawPolygon(pennant);
-            painter.setBrush(Qt::NoBrush);
-            along += step * 2.0;
-            remaining -= 50;
-        }
-        while (remaining >= 10) {
-            const QPointF base = tip + towardStation * along;
-            painter.drawLine(base, base + side * 11.0);
-            along += step;
-            remaining -= 10;
-        }
-        if (remaining >= 5) {
-            const QPointF base = tip + towardStation * std::max(along, step);
-            painter.drawLine(base, base + side * 6.0);
-        }
+        const double from = std::fmod(std::atan2(dirX, -dirY) * 180.0 / M_PI + 360.0, 360.0);
+        painter.setBrush(painter.pen().color());
+        WindBarb::draw(painter, at, from, knots, 30.0);
+        painter.setBrush(Qt::NoBrush);
     }
 
     // read a "lon lat value" XYZ dump into parallel vectors
