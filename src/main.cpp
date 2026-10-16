@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QKeyEvent>
 #include <QWheelEvent>
+#include "cfs/CfsPlumeViewer.h"
 #include "cfs/UtilityCfs.h"
 #include "hurricane/ReconViewer.h"
 #include "radar/MapWidget.h"
@@ -336,6 +337,8 @@ int main(int argc, char * argv[]) {
                     }
                 }
                 QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("cfsplume")) {   // WXQT_OPEN=cfsplume: the CFSv2 plume window
+                new CfsPlumeViewer{&w};
             } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm
                 new HurricaneViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString()};
             } else if (route.startsWith("hafs:")) {   // WXQT_OPEN=hafs:<NHC id>: the hurricane model screen on that storm

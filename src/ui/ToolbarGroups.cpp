@@ -41,7 +41,7 @@ namespace {
             {"Models", {"grib.png", "refs.png", "refs.png#2", "nsslwrf.png", "ncep.png"}},
             // SPC HRRR, the Parametric Index Viewer (SHIP / STP are RRFS charts now), ESRL HRRR / RAP, NSSL WRF, WPC GEFS
             {pendingGroup, {"spchrrr.png", "spcsref.png", "nsslwrf.png#2", "wpcgefs.png"}},
-            {"Tools", {"baseline_settings_black_48dp.png", "baseline_storage_black_48dp.png", "baseline_history_black_48dp.png", "baseline_info_black_48dp.png#2"}},
+            {"Tools", {"baseline_settings_black_48dp.png", "baseline_storage_black_48dp.png", "baseline_history_black_48dp.png", "baseline_show_chart_black_48dp.png", "baseline_info_black_48dp.png#2"}},
         };
         return all;
     }

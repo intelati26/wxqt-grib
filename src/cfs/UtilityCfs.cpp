@@ -4,6 +4,9 @@
 // *****************************************************************************
 
 #include "cfs/UtilityCfs.h"
+#include <algorithm>
+#include <cmath>
+#include <map>
 #include <QDate>
 #include <QDateTime>
 #include "gfs/GfsCache.h"
@@ -133,6 +136,56 @@ bool UtilityCfs::monthly(const Run& run, int member, const Variable& variable, c
     return true;
 }
 
+bool UtilityCfs::pointSeries(const Run& run, int member, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error) {
+    values.assign(hours.size(), std::nanf(""));
+    const GfsData data{config(), source(member, false)};
+    bool any = false;
+    for (size_t first = 0; first < hours.size(); first += 12) {   // twelve fields to a call: one index read for them all
+        std::vector<GfsData::Need> needs;
+        for (size_t i = first; i < std::min(hours.size(), first + 12); i++) {
+            GfsData::Want want;
+            want.key = std::to_string(i);
+            want.variable = variable.variable;
+            want.level = variable.level;
+            want.forecast = std::to_string(hours[i]) + " hour fcst";
+            want.stat = variable.dailyFile;
+            needs.push_back({hours[i], want});
+        }
+        std::map<std::string, GfsGrid::Grid> got;
+        std::string message;
+        if (!data.load(run, needs, got, message)) {
+            error = message;
+        }
+        for (const auto& [key, grid] : got) {
+            const float v = grid.sample(lon > 180.0 ? lon - 360.0 : lon, lat);
+            if (!std::isnan(v)) {
+                values[static_cast<size_t>(std::stoi(key))] = static_cast<float>(v * variable.scale + variable.offset);
+                any = true;
+            }
+        }
+    }
+    return any;
+}
+
+bool UtilityCfs::pointMonthly(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, double lat, double lon, std::vector<float>& values, std::string& error) {
+    values.assign(months.size(), std::nanf(""));
+    bool any = false;
+    for (size_t i = 0; i < months.size(); i++) {
+        GfsGrid::Grid g;
+        std::string message;
+        if (monthly(run, member, variable, months[i], g, message)) {
+            const float v = g.sample(lon > 180.0 ? lon - 360.0 : lon, lat);
+            if (!std::isnan(v)) {
+                values[i] = v;
+                any = true;
+            }
+        } else {
+            error = message;
+        }
+    }
+    return any;
+}
+
 std::vector<std::string> UtilityCfs::months(const Run& run) {
     std::vector<std::string> out;
     const QDate start = QDate::fromString(QString::fromStdString(run.date), "yyyyMMdd");
@@ -144,4 +197,14 @@ std::vector<std::string> UtilityCfs::months(const Run& run) {
 
 std::string UtilityCfs::runText(const Run& run) {
     return run.date.substr(0, 4) + "-" + run.date.substr(4, 2) + "-" + run.date.substr(6, 2) + " " + run.cycle + "Z";
+}
+
+std::vector<UtilityCfs::Run> UtilityCfs::recentRuns(const Run& newest, int count) {
+    std::vector<Run> out;
+    const auto start = QDateTime::fromString(QString::fromStdString(newest.date + newest.cycle), "yyyyMMddHH");
+    for (int i = 0; i < count; i++) {
+        const auto t = start.addSecs(-static_cast<qint64>(i) * 6 * 3600);
+        out.push_back({t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()});
+    }
+    return out;
 }

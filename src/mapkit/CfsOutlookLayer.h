@@ -13,7 +13,7 @@
 #include "cfs/UtilityCfs.h"
 #include "mapkit/MapLayer.h"
 
-// The seasonal outlook of NOAA's CFSv2: the newest run's monthly means (the month in progress and the nine after it) of one field, the mean of its four members or one member. The time bar
+// The seasonal outlook of NOAA's CFSv2: the newest run's monthly means (the month in progress and the nine after it) of one field, the mean of the four newest runs (member 1 of each cycle: whole nine month forecasts six hours apart) or the newest alone. The time bar
 // steps through the months. Of a time of the past the run is that day's 00 UTC one (the open bucket begins 31 October 2018). The values are the model's own, not departures from
 // normal: the anomaly views come with the climatology (docs/outstanding-work.md).
 class CfsOutlookLayer : public MapLayer {
@@ -23,7 +23,7 @@ public:
     string id() const override { return "climate/cfs-outlook"; }
     string path() const override { return "Climate/CFSv2 seasonal outlook (monthly means of the newest run)"; }
     string source() const override { return "NOAA/NCEP Climate Forecast System version 2 (CFSv2), open data on AWS"; }
-    string tip() const override { return "NOAA's CFSv2 nine-month forecast: the monthly mean of a field for each month ahead, the average of the run's four members or one member, 1 degree. The time bar steps through the months"; }
+    string tip() const override { return "NOAA's CFSv2 nine-month forecast: the monthly mean of a field for each month ahead, , 1 degree. The time bar steps through the months"; }
     bool underCoast() const override { return true; }
     int order() const override { return 11; }
     int refreshSeconds() const override { return 6 * 3600; }
@@ -54,7 +54,7 @@ private:
     long middleOf(const string& yyyymm) const;     // the 15th of the month, UTC
     string monthShown() const;                     // the month on view ("202611")
     string variableKey{"t2m"};
-    int memberChoice{0};          // 0 the mean of the four members, 1-4 one
+    int memberChoice{0};          // 0 the mean of the four newest runs, 1 the newest alone
     int opacity{85};
     long shown{0};
     bool loading{false};

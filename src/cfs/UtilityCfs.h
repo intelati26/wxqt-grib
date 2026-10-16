@@ -31,10 +31,17 @@ namespace UtilityCfs {
     using Run = GfsData::Run;
     // the newest run published (tries the last few cycles)
     bool latestRun(Run& run);
+    // The runs of the last `count` cycles ending at `newest`, newest first. Member 01 of every cycle is a nine month run (the other members are 110 days at 00Z and 45 days at 06, 12 and 18Z),
+    // so the newest four cycles' member 1 are four whole forecasts started six hours apart: a lagged ensemble of the whole length.
+    std::vector<Run> recentRuns(const Run& newest, int count);
     // a 6 hourly field: forecast hour 6, 12 ... 6552
     bool daily(const Run& run, int member, const Variable& variable, int forecastHour, GfsGrid::Grid& out, std::string& error);
     // a month's mean: yyyymm is the month ("202611"); the run's own month is the part still ahead of it
     bool monthly(const Run& run, int member, const Variable& variable, const std::string& yyyymm, GfsGrid::Grid& out, std::string& error);
+    // a field's value at a point for several forecast hours (or months) of one member, the fields not kept: each is read, sampled and dropped. A value that could not be had is NaN; false
+    // when none could (error says why). lon east positive.
+    bool pointSeries(const Run& run, int member, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error);
+    bool pointMonthly(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, double lat, double lon, std::vector<float>& values, std::string& error);
     // the months a run's monthly files cover, from its own month: "202610" ... ("202707")
     std::vector<std::string> months(const Run& run);
     // the run's own time as a QDateTime-free text: "2026-10-14 00Z"

@@ -58,7 +58,7 @@ CfsOutlookLayer::CfsOutlookLayer() {
     if (UtilityCfs::find(variableKey) == nullptr) {
         variableKey = "t2m";
     }
-    memberChoice = std::clamp(Utility::readPrefInt("MM_CFS_MEMBER", 0), 0, 4);
+    memberChoice = std::clamp(Utility::readPrefInt("MM_CFS_MEMBER", 0), 0, 1);
 }
 
 long CfsOutlookLayer::middleOf(const string& yyyymm) const {
@@ -111,7 +111,7 @@ string CfsOutlookLayer::summary() const {
     if (!haveRun || variable == nullptr) {
         return {};
     }
-    return "CFSv2 " + UtilityCfs::runText(run) + ", " + variable->label + ", " + (memberChoice == 0 ? string{"mean of 4 members"} : "member " + std::to_string(memberChoice)) + (loading ? "  (more months coming)" : "");
+    return "CFSv2 " + UtilityCfs::runText(run) + ", " + variable->label + ", " + (memberChoice == 0 ? string{"mean of the 4 newest runs"} : string{"newest run only"}) + (loading ? "  (more months coming)" : "");
 }
 
 void CfsOutlookLayer::showTime(long seconds, MapHost& host) {
@@ -217,13 +217,14 @@ void CfsOutlookLayer::load(MapHost& host) {
     const int memberWanted = memberChoice;
     host.background(
         [loaded, wanted, chosen, theRun, memberWanted] {
+            const auto runs = UtilityCfs::recentRuns(theRun, memberWanted == 0 ? 4 : 1);   // member 1 of the newest cycles: whole nine month runs
             for (const auto& month : wanted) {
                 std::vector<std::future<std::pair<bool, GfsGrid::Grid>>> jobs;
-                for (int member = (memberWanted == 0 ? 1 : memberWanted); member <= (memberWanted == 0 ? 4 : memberWanted); member++) {
-                    jobs.push_back(std::async(std::launch::async, [chosen, theRun, member, month] {
+                for (const auto& past : runs) {
+                    jobs.push_back(std::async(std::launch::async, [chosen, past, month] {
                         GfsGrid::Grid g;
                         string message;
-                        const bool ok = UtilityCfs::monthly(theRun, member, chosen, month, g, message);
+                        const bool ok = UtilityCfs::monthly(past, 1, chosen, month, g, message);
                         return std::make_pair(ok, g);
                     }));
                 }
@@ -364,9 +365,9 @@ QWidget * CfsOutlookLayer::options(QWidget * parent, const std::function<void()>
     }
     field->setCurrentIndex(index);
     layout->addWidget(field);
-    layout->addWidget(new QLabel{"Members:", widget});
+    layout->addWidget(new QLabel{"Forecasts:", widget});
     auto * members = new QComboBox{widget};
-    members->addItems({"Mean of the 4 members", "Member 1", "Member 2", "Member 3", "Member 4"});
+    members->addItems({"Mean of the 4 newest runs (every 6 hours, 9 months)", "The newest run only"});
     members->setCurrentIndex(memberChoice);
     layout->addWidget(members);
     layout->addWidget(new QLabel{"Opacity:", widget});
