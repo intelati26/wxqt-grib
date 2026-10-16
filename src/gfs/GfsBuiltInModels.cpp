@@ -392,7 +392,9 @@ overlays = true
 list = true
 clone = true
 clone_variables = HGT, TMP, UGRD, VGRD, PRMSL, PWAT, SPFH
-clone_levels = 250 mb, 500 mb, 700 mb, 850 mb
+# only the fields the bucket has (checked for 404: no 250 mb height, 925 mb temperature or 250 / 1000 mb humidity)
+clone_fields = HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb
+on_missing = previous_run
 clone_skip = precip, thick, 850_vort_ht, 500_vort_ht
 clone_pieces = false
 )MODEL"},
