@@ -47,12 +47,15 @@ protected:
         p.setFont(bold);
         p.drawText(QRectF{10, 4, width() - 20.0, 22}, Qt::AlignLeft | Qt::AlignVCenter, result.title);
         p.setFont(base);
-        const double left = 62, right = 190, top = 34, gap = 46, bottomMargin = 34;
+        const double left = 62, right = 200, top = 34, gap = 46, bottomMargin = 34;
         const double plotWidth = width() - left - right;
-        const double dailyHeight = (height() - top - bottomMargin - gap) * 0.62;
+        const bool months = !result.months.empty();
+        const double dailyHeight = months ? (height() - top - bottomMargin - gap) * 0.62 : height() - top - bottomMargin;
         const double monthlyHeight = (height() - top - bottomMargin - gap) - dailyHeight;
         drawDaily(p, QRectF{left, top, plotWidth, dailyHeight});
-        drawMonthly(p, QRectF{left, top + dailyHeight + gap, plotWidth, monthlyHeight});
+        if (months) {
+            drawMonthly(p, QRectF{left, top + dailyHeight + gap, plotWidth, monthlyHeight});
+        }
         // the key
         double y = top + 6;
         const auto key = [&] (const QColor& color, const QString& text, double widthOf) {
@@ -62,17 +65,21 @@ protected:
             p.drawText(QPointF{width() - right + 44, y + 11}, text);
             y += 18;
         };
-        for (int m = 1; m <= 4 && static_cast<size_t>(m) <= result.runNames.size(); m++) {
-            key(memberColor(m), result.runNames[static_cast<size_t>(m) - 1], 1.4);
+        if (!result.runNames.empty()) {
+            key(memberColor(1), result.runNames.front() + " (newest)", 1.4);
+            if (result.runNames.size() > 2) {
+                key(memberColor(static_cast<int>(result.runNames.size()) / 2 + 1), QString{"%1 runs between"}.arg(result.runNames.size() - 2), 1.4);
+            }
+            key(memberColor(static_cast<int>(result.runNames.size())), result.runNames.back() + " (oldest)", 1.4);
         }
         key(Qt::black, "mean of the runs", 2.6);
-        key(QColor{150, 150, 150}, "same cycle, earlier days", 1.0);
     }
 
 private:
-    static QColor memberColor(int m) {
-        static const QColor c[] = {QColor{40, 110, 210}, QColor{235, 130, 30}, QColor{40, 160, 80}, QColor{150, 60, 190}};
-        return c[(m - 1) & 3];
+    // the newest run is blue, the oldest orange, the ones between along the way
+    QColor memberColor(int m) const {
+        const double n = std::max<size_t>(2, result.runNames.size());
+        return QColor::fromHsv(static_cast<int>(225.0 - 195.0 * (m - 1) / (n - 1.0)), 210, 215);
     }
     static void niceRange(double lo, double hi, double& from, double& to, double& step) {
         if (!(hi > lo)) {
@@ -132,6 +139,27 @@ private:
             p.drawLine(QPointF{xOf(d), area.top()}, QPointF{xOf(d), area.bottom()});
             p.setPen(Qt::black);
             p.drawText(QRectF{xOf(d) - 30, area.bottom() + 2, 60, 16}, Qt::AlignCenter, result.runDay.addDays(static_cast<qint64>(d)).toString("d MMM"));
+        }
+        // the spread of the runs: the shading runs from the lowest to the highest at each day
+        {
+            QPolygonF upper, lower;
+            for (size_t i = 0; i < result.days.size(); i++) {
+                float a = 1e30f, b = -1e30f;
+                for (const auto& l : result.daily) {
+                    if (l.member > 0 && i < l.values.size() && !std::isnan(l.values[i])) {
+                        a = std::min(a, l.values[i]);
+                        b = std::max(b, l.values[i]);
+                    }
+                }
+                if (a <= b) {
+                    upper << QPointF{xOf(result.days[i]), yOf(b)};
+                    lower.prepend(QPointF{xOf(result.days[i]), yOf(a)});
+                }
+            }
+            p.setPen(Qt::NoPen);
+            p.setBrush(QColor{120, 120, 120, 45});
+            p.drawPolygon(upper + lower);
+            p.setBrush(Qt::NoBrush);
         }
         auto order = result.daily;
         std::stable_sort(order.begin(), order.end(), [] (const CfsPlumeViewer::Line& a, const CfsPlumeViewer::Line& b) { return (a.earlier ? 0 : a.member == 0 ? 2 : 1) < (b.earlier ? 0 : b.member == 0 ? 2 : 1); });
@@ -227,15 +255,22 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon) : Window
     lonBox->setRange(-180.0, 180.0);
     lonBox->setDecimals(2);
     lonBox->setValue(lon);
+    model = new QComboBox{this};
+    model->addItem("CFSv2 (9 months)", "cfs");
+    model->addItem("GFS (16 days)", "gfs");
     field = new QComboBox{this};
-    for (const auto& v : UtilityCfs::variables()) {
-        field->addItem(QString::fromStdString(v.label), QString::fromStdString(v.key));
-    }
     span = new QComboBox{this};
-    span->addItems({"15 days, 6 hourly", "45 days, daily", "90 days, every other day"});
-    span->setCurrentIndex(1);
-    earlier = new QComboBox{this};
-    earlier->addItems({"The 4 newest runs", "and the same cycle of the 3 days before"});
+    fillChoices();
+    count = new QComboBox{this};
+    count->addItem("4 runs", 4);
+    count->addItem("8 runs", 8);
+    count->addItem("12 runs", 12);
+    count->addItem("16 runs", 16);
+    count->setCurrentIndex(0);
+    stride = new QComboBox{this};
+    stride->addItem("every 6 hours", 6);
+    stride->addItem("every 12 hours", 12);
+    stride->addItem("every 24 hours", 24);
     go = new QPushButton{"Load", this};
     status = new QLabel{"", this};
     top->addWidget(place);
@@ -243,9 +278,11 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon) : Window
     top->addWidget(latBox);
     top->addWidget(new QLabel{"lon", this});
     top->addWidget(lonBox);
+    top->addWidget(model);
     top->addWidget(field);
     top->addWidget(span);
-    top->addWidget(earlier);
+    top->addWidget(count);
+    top->addWidget(stride);
     top->addWidget(go);
     top->addStretch();
     column->addLayout(top);
@@ -264,6 +301,7 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon) : Window
             latBox->setValue(point.y());
         }
     });
+    QObject::connect(model, &QComboBox::currentIndexChanged, this, [this] (int) { fillChoices(); });
     QObject::connect(go, &QPushButton::clicked, this, [this] { load(); });
     progress.setInterval(300);
     QObject::connect(&progress, &QTimer::timeout, this, [this] {
@@ -274,6 +312,34 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon) : Window
     load();
 }
 
+void CfsPlumeViewer::choose(const QString& modelId, int runs, int everyHours) {
+    model->setCurrentIndex(std::max(0, model->findData(modelId)));
+    count->setCurrentIndex(std::max(0, count->findData(runs)));
+    stride->setCurrentIndex(std::max(0, stride->findData(everyHours)));
+    if (loading) {
+        again = true;
+    } else {
+        load();
+    }
+}
+
+// the field and span choices of the model
+void CfsPlumeViewer::fillChoices() {
+    const bool gfs = model->currentData().toString() == "gfs";
+    field->clear();
+    for (const auto& v : gfs ? UtilityCfs::gfsVariables() : UtilityCfs::variables()) {
+        field->addItem(QString::fromStdString(v.label), QString::fromStdString(v.key));
+    }
+    span->clear();
+    if (gfs) {
+        span->addItems({"5 days, 6 hourly", "10 days, 12 hourly", "16 days, 12 hourly"});
+        span->setCurrentIndex(1);
+    } else {
+        span->addItems({"15 days, 6 hourly", "45 days, daily", "90 days, every other day"});
+        span->setCurrentIndex(1);
+    }
+}
+
 void CfsPlumeViewer::load() {
     if (loading) {
         return;
@@ -281,36 +347,47 @@ void CfsPlumeViewer::load() {
     loading = true;
     go->setEnabled(false);
     const double lat = latBox->value(), lon = lonBox->value();
-    const auto variable = *UtilityCfs::find(field->currentData().toString().toStdString());
+    const bool gfs = model->currentData().toString() == "gfs";
+    const std::string key = field->currentData().toString().toStdString();
+    const auto variable = gfs ? *std::find_if(UtilityCfs::gfsVariables().begin(), UtilityCfs::gfsVariables().end(), [&key] (const auto& v) { return v.key == key; }) : *UtilityCfs::find(key);
     std::vector<int> hours;
-    switch (span->currentIndex()) {
-        case 0: for (int h = 6; h <= 360; h += 6) hours.push_back(h); break;
-        case 2: for (int h = 24; h <= 2160; h += 48) hours.push_back(h); break;
-        default: for (int h = 24; h <= 1080; h += 24) hours.push_back(h); break;
+    if (gfs) {
+        switch (span->currentIndex()) {
+            case 0: for (int h = 6; h <= 120; h += 6) hours.push_back(h); break;
+            case 2: for (int h = 12; h <= 384; h += 12) hours.push_back(h); break;
+            default: for (int h = 12; h <= 240; h += 12) hours.push_back(h); break;
+        }
+    } else {
+        switch (span->currentIndex()) {
+            case 0: for (int h = 6; h <= 360; h += 6) hours.push_back(h); break;
+            case 2: for (int h = 24; h <= 2160; h += 48) hours.push_back(h); break;
+            default: for (int h = 24; h <= 1080; h += 24) hours.push_back(h); break;
+        }
     }
-    const int earlierDays = earlier->currentIndex() == 1 ? 3 : 0;
+    const int runCount = count->currentData().toInt(), strideHours = stride->currentData().toInt();
+    const int earlierDays = 0;
     auto result = std::make_shared<Result>();
     auto error = std::make_shared<std::string>();
     done->store(0);
-    total->store(4 + earlierDays + 4);
+    total->store(gfs ? runCount : 2 * runCount);
     progress.start();
     status->setText("looking for the newest run...");
     const auto doneCount = done;
     new FutureVoid{this,
         [=] {
             UtilityCfs::Run run;
-            if (!UtilityCfs::latestRun(run)) {
-                *error = "no CFSv2 run found";
+            if (!(gfs ? UtilityCfs::gfsLatestRun(run) : UtilityCfs::latestRun(run))) {
+                *error = gfs ? "no GFS run found" : "no CFSv2 run found";
                 return;
             }
             const auto runTime = QDateTime::fromString(QString::fromStdString(run.date + run.cycle), "yyyyMMddHH");
-            result->title = QString::fromStdString(variable.label + " at " + std::to_string(lat).substr(0, std::to_string(lat).find('.') + 3) + ", " + std::to_string(lon).substr(0, std::to_string(lon).find('.') + 3) + "   CFSv2 run " + UtilityCfs::runText(run));
+            result->title = QString::fromStdString(variable.label + " at " + std::to_string(lat).substr(0, std::to_string(lat).find('.') + 3) + ", " + std::to_string(lon).substr(0, std::to_string(lon).find('.') + 3) + (gfs ? "   GFS run " : "   CFSv2 run ") + UtilityCfs::runText(run));
             result->units = QString::fromStdString(variable.units);
             result->runDay = runTime.date();
             for (const int h : hours) {
                 result->days.push_back(h / 24.0);
             }
-            const auto runs = UtilityCfs::recentRuns(run, 4);
+            const auto runs = UtilityCfs::recentRuns(run, runCount, strideHours);
             for (size_t k = 0; k < runs.size(); k++) {
                 const auto t = QDateTime::fromString(QString::fromStdString(runs[k].date + runs[k].cycle), "yyyyMMddHH");
                 result->runNames.push_back(QString::fromStdString(runs[k].cycle) + "Z " + t.toString("d MMM"));
@@ -324,10 +401,10 @@ void CfsPlumeViewer::load() {
             std::vector<Job> jobs;
             for (size_t k = 0; k < runs.size(); k++) {
                 const auto past = runs[k];
-                jobs.push_back({static_cast<int>(k) + 1, static_cast<double>(k) * 0.25, false, std::async(std::launch::async, [=] {
+                jobs.push_back({static_cast<int>(k) + 1, static_cast<double>(k) * strideHours / 24.0, false, std::async(std::launch::async, [=] {
                     std::vector<float> v;
                     std::string message;
-                    UtilityCfs::pointSeries(past, 1, variable, hours, lat, lon, v, message);
+                    if (gfs) { UtilityCfs::gfsPointSeries(past, variable, hours, lat, lon, v, message); } else { UtilityCfs::pointSeries(past, 1, variable, hours, lat, lon, v, message); }
                     doneCount->fetch_add(1);
                     return v;
                 })});
@@ -366,6 +443,9 @@ void CfsPlumeViewer::load() {
                 mean.values[i] = n > 0 ? static_cast<float>(sum / n) : std::nanf("");
             }
             result->daily.push_back(std::move(mean));
+            if (gfs) {
+                return;   // (no monthly means: the GFS is 16 days)
+            }
             // the months
             const auto months = UtilityCfs::months(run);
             std::vector<std::future<std::vector<float>>> monthlyJobs;
@@ -416,6 +496,11 @@ void CfsPlumeViewer::load() {
                 return;
             }
             status->setText("");
+            if (again) {
+                again = false;
+                load();
+                return;
+            }
             chart->set(*result);
         }};
 }

@@ -27,6 +27,8 @@ class CfsPlume;
 class CfsPlumeViewer : public Window {
 public:
     explicit CfsPlumeViewer(Window * parent, double lat = 39.1, double lon = -94.6);
+    // set the model ("cfs", "gfs"), the number of runs and the hours between them, and load (a route of the development aids, and a way to open it ready)
+    void choose(const QString& modelId, int runs, int everyHours);
 
     struct Line {
         QString name;
@@ -48,13 +50,16 @@ public:
 
 private:
     void load();
+    void fillChoices();
     void closeEventCustom() override { closed = true; }
     QComboBox * place{};
     QDoubleSpinBox * latBox{};
     QDoubleSpinBox * lonBox{};
+    QComboBox * model{};
     QComboBox * field{};
     QComboBox * span{};
-    QComboBox * earlier{};
+    QComboBox * count{};
+    QComboBox * stride{};
     QPushButton * go{};
     QLabel * status{};
     CfsPlume * chart{};
@@ -63,6 +68,7 @@ private:
     std::shared_ptr<std::atomic<int>> total{std::make_shared<std::atomic<int>>(0)};
     bool closed{false};
     bool loading{false};
+    bool again{false};          // the choices changed while a load was going on: load again when it ends
     int generation{0};
 };
 

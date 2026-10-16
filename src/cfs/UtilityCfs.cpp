@@ -10,6 +10,7 @@
 #include <QDate>
 #include <QDateTime>
 #include "gfs/GfsCache.h"
+#include "gfs/GfsModels.h"
 #include "models/UtilityGrib.h"
 #include "objects/URL.h"
 
@@ -199,12 +200,69 @@ std::string UtilityCfs::runText(const Run& run) {
     return run.date.substr(0, 4) + "-" + run.date.substr(4, 2) + "-" + run.date.substr(6, 2) + " " + run.cycle + "Z";
 }
 
-std::vector<UtilityCfs::Run> UtilityCfs::recentRuns(const Run& newest, int count) {
+std::vector<UtilityCfs::Run> UtilityCfs::recentRuns(const Run& newest, int count, int stepHours) {
     std::vector<Run> out;
     const auto start = QDateTime::fromString(QString::fromStdString(newest.date + newest.cycle), "yyyyMMddHH");
     for (int i = 0; i < count; i++) {
-        const auto t = start.addSecs(-static_cast<qint64>(i) * 6 * 3600);
+        const auto t = start.addSecs(-static_cast<qint64>(i) * stepHours * 3600);
         out.push_back({t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()});
     }
     return out;
+}
+
+const std::vector<UtilityCfs::Variable>& UtilityCfs::gfsVariables() {
+    static const std::vector<Variable> list{
+        {"t2m", "2 m temperature", "TMP", "2 m above ground", "", "", "deg C", 1.0, 0.0},
+        {"dpt", "2 m dew point", "DPT", "2 m above ground", "", "", "deg C", 1.0, 0.0},
+        {"mslp", "sea level pressure", "PRMSL", "mean sea level", "", "", "hPa", 0.01, 0.0},
+        {"z500", "500 mb height", "HGT", "500 mb", "", "", "gpm", 1.0, 0.0},
+        {"t850", "850 mb temperature", "TMP", "850 mb", "", "", "deg C", 1.0, 0.0},
+        {"pwat", "precipitable water", "PWAT", "entire atmosphere (considered as a single layer)", "", "", "mm", 1.0, 0.0},
+    };
+    return list;
+}
+
+bool UtilityCfs::gfsLatestRun(Run& run) {
+    const auto * def = GfsModels::find("GFS");
+    return def != nullptr && GfsData{config(), def->source("")}.latestRun(run);
+}
+
+bool UtilityCfs::gfsPointSeries(const Run& run, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error) {
+    values.assign(hours.size(), std::nanf(""));
+    const auto * def = GfsModels::find("GFS");
+    if (def == nullptr) {
+        error = "no GFS model";
+        return false;
+    }
+    GfsData data{config(), def->source("")};
+    GfsData::Box box;
+    box.west = std::floor(lon) - 2.0;
+    box.east = std::floor(lon) + 3.0;
+    box.south = std::max(-90.0, std::floor(lat) - 2.0);
+    box.north = std::min(90.0, std::floor(lat) + 3.0);
+    data.setBox(box);
+    bool any = false;
+    for (size_t first = 0; first < hours.size(); first += 8) {
+        std::vector<GfsData::Need> needs;
+        for (size_t i = first; i < std::min(hours.size(), first + 8); i++) {
+            GfsData::Want want;
+            want.key = std::to_string(i);
+            want.variable = variable.variable;
+            want.level = variable.level;
+            needs.push_back({hours[i], want});
+        }
+        std::map<std::string, GfsGrid::Grid> got;
+        std::string message;
+        if (!data.load(run, needs, got, message)) {
+            error = message;
+        }
+        for (const auto& [key, grid] : got) {
+            const float v = grid.sample(lon, lat);
+            if (!std::isnan(v)) {
+                values[static_cast<size_t>(std::stoi(key))] = static_cast<float>(v * variable.scale + variable.offset);
+                any = true;
+            }
+        }
+    }
+    return any;
 }
