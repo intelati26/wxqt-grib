@@ -58,6 +58,10 @@ namespace UtilityCfs {
     const std::vector<Variable>& gfsVariables();
     bool gfsLatestRun(Run& run);
     bool gfsPointSeries(const Run& run, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error);
+    // The GEFS (31 members, 0.5 degree, 16 days) for the plume window: the newest run, and one member's (c00, p01 ... p30; "" the mean of them, "spr" their spread) value at a point at forecast hours
+    const std::vector<Variable>& gefsVariables();
+    bool gefsLatestRun(Run& run);
+    bool gefsPointSeries(const Run& run, const Variable& variable, const std::string& member, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error);
     // the months a run's monthly files cover, from its own month: "202610" ... ("202707")
     std::vector<std::string> months(const Run& run);
     // the run's own time (UTC)

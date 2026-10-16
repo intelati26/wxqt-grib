@@ -428,3 +428,65 @@ bool UtilityCfs::pointMonthlyDeparture(const Run& run, int member, const Variabl
     }
     return any;
 }
+
+const std::vector<UtilityCfs::Variable>& UtilityCfs::gefsVariables() {
+    static const std::vector<Variable> list{
+        {"t2m", "2 m temperature", "TMP", "2 m above ground", "", "", "deg C", 1.0, 0.0},
+        {"mslp", "sea level pressure", "PRMSL", "mean sea level", "", "", "hPa", 0.01, 0.0},
+        {"z500", "500 mb height", "HGT", "500 mb", "", "", "gpm", 1.0, 0.0},
+        {"t850", "850 mb temperature", "TMP", "850 mb", "", "", "deg C", 1.0, 0.0},
+        {"pwat", "precipitable water", "PWAT", "entire atmosphere (considered as a single layer)", "", "", "mm", 1.0, 0.0},
+    };
+    return list;
+}
+
+bool UtilityCfs::gefsLatestRun(Run& run) {
+    const auto * def = GfsModels::find("GEFS");
+    return def != nullptr && GfsData{config(), def->source("")}.latestRun(run);
+}
+
+bool UtilityCfs::gefsPointSeries(const Run& run, const Variable& variable, const std::string& member, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error) {
+    values.assign(hours.size(), std::nanf(""));
+    const auto * def = GfsModels::find("GEFS");
+    if (def == nullptr) {
+        error = "no GEFS model";
+        return false;
+    }
+    const GfsData data{config(), def->source("")};
+    bool any = false;
+    for (size_t first = 0; first < hours.size(); first += 6) {
+        std::vector<GfsData::Need> needs;
+        for (size_t i = first; i < std::min(hours.size(), first + 6); i++) {
+            GfsData::Want want;
+            want.key = std::to_string(i);
+            want.variable = variable.variable;
+            want.level = variable.level;
+            want.stat = member;
+            needs.push_back({hours[i], want});
+        }
+        std::map<std::string, GfsGrid::Grid> got;
+        std::string message;
+        for (int attempt = 0; attempt < 2 && got.size() < needs.size(); attempt++) {
+            std::vector<GfsData::Need> still;
+            for (const auto& need : needs) {
+                if (got.count(need.want.key) == 0) {
+                    still.push_back(need);
+                }
+            }
+            std::map<std::string, GfsGrid::Grid> more;
+            if (!data.load(run, still, more, message)) {
+                error = message;
+            }
+            got.insert(more.begin(), more.end());
+        }
+        for (const auto& [key, grid] : got) {
+            const float v = grid.sample(lon > 180.0 ? lon - 360.0 : lon, lat);
+            const bool sampled = !std::isnan(v);
+            if (sampled) {
+                values[static_cast<size_t>(std::stoi(key))] = static_cast<float>(v * variable.scale + variable.offset);
+                any = true;
+            }
+        }
+    }
+    return any;
+}

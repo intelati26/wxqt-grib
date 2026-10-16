@@ -26,7 +26,7 @@ class CfsPlume;
 
 class CfsPlumeViewer : public Window {
 public:
-    explicit CfsPlumeViewer(Window * parent, double lat = 39.1, double lon = -94.6, const QString& modelId = "cfs");
+    explicit CfsPlumeViewer(Window * parent, double lat = 39.1, double lon = -94.6, const QString& modelId = "gefs");
     // set the model ("cfs", "gfs"), the number of runs and the hours between them, and load (a route of the development aids, and a way to open it ready)
     void choose(const QString& modelId, int runs, int everyHours, int monthly = 0);
 
@@ -45,6 +45,8 @@ public:
         QString monthlyUnits;                    // the monthly panel's axis
         std::vector<double> days;                // days from the run's time, for the daily lines
         std::vector<Line> daily;
+        bool ensemble{false};                    // the lines are the members of one ensemble run (drawn alike), not runs of a model
+        std::vector<float> low, high;            // a band to shade at each day when the members are not drawn (the mean and its spread)
         std::vector<QString> runNames;           // the four runs: "00Z 16 Oct" ...
         std::vector<QString> months;             // "Nov" ...
         std::vector<Line> monthly;

@@ -304,11 +304,11 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         QObject::connect(buttonMembers, &QPushButton::clicked, this, [this] { openMemberGraph(); });
         boxH2.addWidgetReal(buttonMembers);
         auto * plume = new QPushButton{"Plume here", this};
-        plume->setToolTip("The forecast at the point last clicked on the chart, from the newest runs, each at the same valid times: opens the plume window (CFSv2 for the CFS, the GFS for the others)");
+        plume->setToolTip("The forecast at the point last clicked on the chart, from the newest runs, each at the same valid times: opens the plume window (CFSv2 for the CFS, the GEFS members for the GEFS, the GFS runs for the others)");
         QObject::connect(plume, &QPushButton::clicked, this, [this] {
             const auto * place = Location::getListLatLons().empty() ? nullptr : &Location::getListLatLons().front();
             const double lat = haveClicked ? clickedLat : (place != nullptr ? place->lat() : 39.1), lon = haveClicked ? clickedLon : (place != nullptr ? place->lon() : -94.6);
-            new CfsPlumeViewer{this, lat, lon, objectModel.model.compare(0, 3, "CFS") == 0 ? "cfs" : "gfs"};
+            new CfsPlumeViewer{this, lat, lon, objectModel.model.compare(0, 3, "CFS") == 0 ? "cfs" : objectModel.model.compare(0, 4, "GEFS") == 0 ? "gefs" : "gfs"};
         });
         boxH2.addWidgetReal(plume);
         buttonOverlay = new QPushButton{"Overlay models...", this};
