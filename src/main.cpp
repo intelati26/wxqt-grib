@@ -195,6 +195,14 @@ int main(int argc, char * argv[]) {
                 screen->openAt(parts.value(1).toStdString(), when);
             } else if (route == "events") {   // WXQT_OPEN=events: the history page
                 new EventsViewer{&w};
+            } else if (route == "catalog") {   // WXQT_OPEN=catalog: the history page's catalog of tornado outbreaks
+                auto * viewer = new EventsViewer{&w};
+                viewer->openCatalog();
+                if (const auto file = qEnvironmentVariable("WXQT_PICKER_PNG"); !file.isEmpty()) {   // a picture of the catalog dialog itself, after WXQT_WAIT seconds (the database is read first)
+                    for (auto * dialog : viewer->findChildren<QDialog *>()) {
+                        QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_WAIT") * 1000, dialog, [dialog, file] { dialog->grab().save(file); });
+                    }
+                }
             } else if (route == "network") {   // WXQT_OPEN=network: the list of what the network client has queued and in flight
                 NetStatus::show(&w);
             } else if (route == "cache") {   // WXQT_OPEN=cache: the summary of what is kept on disk

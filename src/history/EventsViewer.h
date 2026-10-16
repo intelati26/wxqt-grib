@@ -24,6 +24,7 @@
 class EventsViewer : public Window {
 public:
     explicit EventsViewer(Window * parent);
+    void openCatalog();                // tornado outbreaks (and later storms) to take an event from
 
 private:
     void fillList(const std::string& select = {});

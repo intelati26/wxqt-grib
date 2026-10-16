@@ -5,7 +5,12 @@
 
 #include "history/EventsViewer.h"
 #include <algorithm>
+#include <QComboBox>
+#include <QPointer>
 #include <QDesktopServices>
+#include <QDialog>
+#include <QSpinBox>
+#include <QTableWidget>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QTabWidget>
@@ -22,6 +27,8 @@
 #include "history/PointPicker.h"
 #include "mapkit/MasterMapViewer.h"
 #include "spc/SpcStormReports.h"
+#include "tornado/TornadoData.h"
+#include "tornado/UtilityOutbreaks.h"
 #include "util/Utility.h"
 
 namespace {
@@ -55,10 +62,13 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     list = new QListWidget{this};
     list->setMinimumWidth(240);
     auto * newButton = new QPushButton{"New event", this};
+    auto * catalogButton = new QPushButton{"From the catalog...", this};
+    catalogButton->setToolTip("Take an event from a list: tornado outbreaks since 1950 (more kinds later)");
     auto * left = new QVBoxLayout;
     left->addWidget(new QLabel{"Events", this});
     left->addWidget(list, 1);
     left->addWidget(newButton);
+    left->addWidget(catalogButton);
 
     name = new QLineEdit{this};
     name->setPlaceholderText("(left empty: the date and position)");
@@ -173,6 +183,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     show();
 
     QObject::connect(newButton, &QPushButton::clicked, [this] { newEvent(); });
+    QObject::connect(catalogButton, &QPushButton::clicked, [this] { openCatalog(); });
     QObject::connect(save, &QPushButton::clicked, [this] { saveEvent(); });
     QObject::connect(remove, &QPushButton::clicked, [this] { deleteEvent(); });
     QObject::connect(pick, &QPushButton::clicked, [this] { pickPoint(); });
@@ -271,6 +282,161 @@ void EventsViewer::newEvent() {
     HistoryEvent e;
     readForm(e);
     fillAvailability(e);
+}
+
+// The catalog of tornado outbreaks (the SPC database, 1950 on): tornadoes grouped by time and place; one is taken as an event with its dates, centre, extent, a note and the moments
+// worth opening a screen at (the first tornado, the strongest, the busiest hour).
+void EventsViewer::openCatalog() {
+    auto * dialog = new QDialog{this};
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowTitle("Catalog: tornado outbreaks");
+    dialog->resize(900, 600);
+    auto * column = new QVBoxLayout{dialog};
+    auto * status = new QLabel{"Reading the SPC tornado database (about 9 MB the first time)...", dialog};
+    column->addWidget(status);
+    auto * filters = new QHBoxLayout;
+    auto * from = new QSpinBox{dialog};
+    from->setRange(1950, 2100);
+    from->setValue(1950);
+    auto * to = new QSpinBox{dialog};
+    to->setRange(1950, 2100);
+    to->setValue(QDate::currentDate().year());
+    auto * minimum = new QSpinBox{dialog};
+    minimum->setRange(5, 200);
+    minimum->setValue(15);
+    minimum->setToolTip("At least this many tornadoes in the group");
+    auto * order = new QComboBox{dialog};
+    order->addItems({"Deadliest", "Most tornadoes", "Strongest", "Newest", "Oldest"});
+    filters->addWidget(new QLabel{"From", dialog});
+    filters->addWidget(from);
+    filters->addWidget(new QLabel{"to", dialog});
+    filters->addWidget(to);
+    filters->addWidget(new QLabel{"at least", dialog});
+    filters->addWidget(minimum);
+    filters->addWidget(new QLabel{"tornadoes   Order", dialog});
+    filters->addWidget(order);
+    filters->addStretch();
+    column->addLayout(filters);
+    auto * table = new QTableWidget{0, 6, dialog};
+    table->setHorizontalHeaderLabels({"Dates (UTC)", "Tornadoes", "Strongest", "Deaths", "Injuries", "States"});
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setSelectionMode(QAbstractItemView::SingleSelection);
+    table->verticalHeader()->hide();
+    table->horizontalHeader()->setStretchLastSection(true);
+    column->addWidget(table, 1);
+    auto * buttons = new QHBoxLayout;
+    auto * add = new QPushButton{"Add as an event", dialog};
+    add->setEnabled(false);
+    auto * close = new QPushButton{"Close", dialog};
+    buttons->addStretch();
+    buttons->addWidget(add);
+    buttons->addWidget(close);
+    column->addLayout(buttons);
+    QObject::connect(close, &QPushButton::clicked, dialog, &QDialog::close);
+
+    struct Catalog {
+        std::vector<UtilityOutbreaks::Outbreak> all;     // every group of 5 or more
+        std::vector<const UtilityOutbreaks::Outbreak *> shown;
+        std::string error;
+        int lastYear{0};
+    };
+    auto catalog = std::make_shared<Catalog>();
+    const auto fill = [this, catalog, table, status, from, to, minimum, order, add] {
+        auto& c = *catalog;
+        c.shown.clear();
+        for (const auto& o : c.all) {
+            const int y = o.start.date().year();
+            if (y >= from->value() && y <= to->value() && o.count >= minimum->value()) {
+                c.shown.push_back(&o);
+            }
+        }
+        const int sort = order->currentIndex();
+        std::stable_sort(c.shown.begin(), c.shown.end(), [sort] (const auto * a, const auto * b) {
+            switch (sort) {
+                case 0: return a->fatalities != b->fatalities ? a->fatalities > b->fatalities : a->count > b->count;
+                case 1: return a->count > b->count;
+                case 2: return a->strongest != b->strongest ? a->strongest > b->strongest : a->fatalities > b->fatalities;
+                case 3: return a->start > b->start;
+                default: return a->start < b->start;
+            }
+        });
+        table->setRowCount(static_cast<int>(c.shown.size()));
+        for (size_t i = 0; i < c.shown.size(); i++) {
+            const auto& o = *c.shown[i];
+            QString states;
+            for (size_t k = 0; k < o.states.size() && k < 8; k++) {
+                states += (k > 0 ? " " : "") + QString::fromStdString(o.states[k]);
+            }
+            const QString dates = o.start.toString("yyyy-MM-dd HH:mm") + (o.end.date() == o.start.date() ? " - " + o.end.toString("HH:mm") : " to " + o.end.toString("MM-dd HH:mm"));
+            const QStringList cells{dates, QString::number(o.count), o.strongest >= 0 ? QString::fromStdString(UtilityTornado::ratingOf(o.strongest, o.start.date().year())) : QString{"-"},
+                                    QString::number(o.fatalities), QString::number(o.injuries), states};
+            for (int col = 0; col < cells.size(); col++) {
+                table->setItem(static_cast<int>(i), col, new QTableWidgetItem{cells[col]});
+            }
+        }
+        table->resizeColumnsToContents();
+        status->setText(c.error.empty() ? QString{"%1 outbreaks (tornadoes joined when they start within 10 hours and 450 km of each other; SPC database to %2). Pick one and add it as an event."}.arg(c.shown.size()).arg(c.lastYear)
+                                        : QString::fromStdString(c.error));
+        add->setEnabled(false);
+    };
+    auto * rows = new FutureVoid{this, [catalog] {
+        const auto database = TornadoData::load();
+        if (!database || database->tornadoes.empty()) {
+            catalog->error = database ? database->error : "the tornado database could not be read";
+            return;
+        }
+        catalog->all = UtilityOutbreaks::find(database->tornadoes, 5);
+        catalog->lastYear = database->lastYear;
+    }, [fill, catalog, guard = QPointer<QDialog>{dialog}] {
+        if (guard) {   // the dialog may have been closed while the database was read
+            fill();
+        }
+    }};
+    (void) rows;
+    for (auto * spin : {from, to, minimum}) {
+        QObject::connect(spin, &QSpinBox::valueChanged, dialog, [fill] (int) { fill(); });
+    }
+    QObject::connect(order, &QComboBox::currentIndexChanged, dialog, [fill] (int) { fill(); });
+    QObject::connect(table, &QTableWidget::itemSelectionChanged, dialog, [table, add] { add->setEnabled(!table->selectedItems().isEmpty()); });
+    QObject::connect(add, &QPushButton::clicked, dialog, [this, catalog, table, dialog] {
+        const int row = table->currentRow();
+        if (row < 0 || row >= static_cast<int>(catalog->shown.size())) {
+            return;
+        }
+        const auto& o = *catalog->shown[static_cast<size_t>(row)];
+        const auto have = std::find_if(events.begin(), events.end(), [&o] (const HistoryEvent& e) { return e.catalogId == o.id(); });
+        std::string select;
+        if (have != events.end()) {
+            select = have->id;
+        } else {
+            HistoryEvent e;
+            e.id = QDateTime::currentDateTimeUtc().toString("yyyyMMddHHmmsszzz").toStdString();
+            e.source = "tornado-outbreak";
+            e.catalogId = o.id();
+            e.name = o.title();
+            e.start = o.start.addSecs(-2 * 3600);
+            e.end = o.end.addSecs(2 * 3600);
+            e.lat = o.centerLat;
+            e.lon = o.centerLon;
+            e.radiusKm = std::min(1500.0, o.radiusKm + 60.0);
+            e.note = o.summary();
+            e.moments.push_back({o.start, "first tornado"});
+            if (o.strongest >= 0) {
+                e.moments.push_back({o.strongestTime, "strongest: " + UtilityTornado::ratingOf(o.strongest, o.start.date().year()) + " (" + o.strongestState + ")"});
+            }
+            if (o.busiestCount > 1) {
+                e.moments.push_back({o.busiestHour, "most touchdowns in an hour (" + std::to_string(o.busiestCount) + ")"});
+            }
+            std::sort(e.moments.begin(), e.moments.end(), [] (const auto& a, const auto& b) { return a.time < b.time; });
+            events.push_back(e);
+            HistoryEvents::save(events);
+            select = e.id;
+        }
+        fillList(select);
+        dialog->close();
+    });
+    dialog->show();
 }
 
 void EventsViewer::saveEvent() {
