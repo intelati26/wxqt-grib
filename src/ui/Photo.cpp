@@ -102,6 +102,7 @@ void Photo::setNoScale() {
 }
 
 void Photo::setToWidth(int width) {
+    this->width = width;   // kept: a picture set later (setBytes) is scaled to the width asked for
     // const auto pixmap = QPixmap::fromImage(QImage::fromData(ba));
     // const auto pixmapResized = pixmap.scaled(width, width, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     // set(pixmapResized);

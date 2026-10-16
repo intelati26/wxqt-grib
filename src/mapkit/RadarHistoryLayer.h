@@ -13,7 +13,7 @@
 #include "mapkit/MapLayer.h"
 
 // The national radar mosaic of any past time, from the Iowa Mesonet's archive of the composites (the 5 minute base reflectivity picture, about 1 km back to 2010 and 2 km before that,
-// to the late 1990s). It is the radar of the dates before the open MRMS bucket begins (October 2020); the time bar steps through the hour either side of the time asked for.
+// to the late 1990s). It is the radar of the dates before the open MRMS bucket begins (14 October 2020); the time bar steps through the hour either side of the time asked for.
 class RadarHistoryLayer : public MapLayer {
 public:
     RadarHistoryLayer();

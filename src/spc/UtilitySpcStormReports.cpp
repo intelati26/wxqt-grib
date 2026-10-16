@@ -24,7 +24,7 @@ vector<StormReport> UtilitySpcStormReports::process(const vector<string>& lines)
         string city;
         string output;
         string damageHeader;
-        if (WString::contains(line, ",F_Scale,")) {
+        if (WString::contains(line, ",F_Scale,") || WString::contains(line, ",F-Scale,")) {
             damageHeader = "Tornado Reports";
         } else if (WString::contains(line, ",Speed,")) {
             damageHeader = "Wind Reports";

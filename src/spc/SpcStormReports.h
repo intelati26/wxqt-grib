@@ -37,6 +37,7 @@ private:
     void tableClicked(const QModelIndex&);
     void launchUrl(const string&);
     void reload();
+    void exportCsv();
     vector<DividerLine> dividerLines;
     vector<CardStormReportItem> reportItems;
     vector<CardBlackHeaderText> headerTextItems;
@@ -48,6 +49,8 @@ private:
     Photo photo;
     ComboBox comboBox;
     Button lsrWfoButton;
+    Button exportButton;
+    int plotWidth{1000};
     string spcStormReportsDay;
     string url;
     string stormReportsUrl;

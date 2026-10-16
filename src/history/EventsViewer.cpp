@@ -382,7 +382,7 @@ void EventsViewer::openMap() {
     const auto& set = sets[static_cast<size_t>(std::clamp(mapSet->currentIndex(), 0, static_cast<int>(sets.size()) - 1))];
     auto * map = new MasterMapViewer{this};
     auto layers = set.layers;
-    if (atTime() < QDateTime{QDate{2020, 10, 15}, QTime{0, 0}, QTimeZone::utc()}) {   // the open MRMS bucket begins in October 2020: the Iowa Mesonet's radar mosaic before
+    if (atTime() < QDateTime{QDate{2020, 10, 14}, QTime{0, 0}, QTimeZone::utc()}) {   // the open MRMS bucket begins 14 October 2020: the Iowa Mesonet's radar mosaic before
         std::replace(layers.begin(), layers.end(), std::string{"radar/mrms"}, std::string{"radar/composite-history"});
     }
     map->openAt(atTime(), e.lat, e.lon, std::max(e.radiusKm, set.minimumRadiusKm), layers);

@@ -13,6 +13,7 @@
 #include "mapkit/CpcPrecipLayer.h"
 #include "mapkit/GoesHistoryLayer.h"
 #include "mapkit/RadarHistoryLayer.h"
+#include "mapkit/StormReportsLayer.h"
 #include "mapkit/LightningCastLayer.h"
 #include "mapkit/MrmsLayer.h"
 #include "mapkit/MrmsOverlayLayers.h"
@@ -35,6 +36,7 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     layers.push_back(std::make_unique<OutlookHistoryLayer>());
     layers.push_back(std::make_unique<MrmsLayer>());
     layers.push_back(std::make_unique<RadarHistoryLayer>());
+    layers.push_back(std::make_unique<StormReportsLayer>());
     layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Hail));
     layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Rotation));
     layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Chance));
