@@ -13,6 +13,7 @@
 namespace GfsGrid {
     struct IdxRecord {
         int number{0};
+        int band{1};                // a message holds more than one field (the CFS files put U and V in one: "172.1", "172.2"): the field's place in it
         long long start{0};
         long long end{-1};          // the byte before the next record (-1 for the last one: to the end of the file)
         std::string variable;       // "HGT"

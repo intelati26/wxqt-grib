@@ -129,13 +129,18 @@ std::vector<IdxRecord> parseIdx(const std::string& text) {
         }
         IdxRecord r;
         r.number = std::atoi(parts[0].c_str());
+        if (const auto dot = parts[0].find('.'); dot != std::string::npos) {
+            r.band = std::max(1, std::atoi(parts[0].c_str() + dot + 1));
+        }
         r.start = std::atoll(parts[1].c_str());
         r.variable = parts[3];
         r.level = parts[4];
         r.forecast = parts[5];
         r.detail = parts.size() > 6 ? parts[6] : std::string{};
-        if (!records.empty()) {
-            records.back().end = r.start - 1;
+        if (!records.empty() && r.start != records.back().start) {   // (the fields of one message share its bytes: they all end where the next message begins)
+            for (auto k = records.rbegin(); k != records.rend() && k->start == records.back().start; ++k) {
+                k->end = r.start - 1;
+            }
         }
         records.push_back(std::move(r));
     }

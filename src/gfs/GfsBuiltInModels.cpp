@@ -357,6 +357,35 @@ clone_skip = anom
 clone_pieces = false
 clone_rename = PRMSL:MSLET
 )MODEL"},
+        {"CFS-ANL", R"MODEL(
+# The CFS analysis (the Climate Data Assimilation System, the CFSR kept going): four analyses a day, 1 degree, on AWS (open data bucket noaa-cfs-pds, 22 April 2023 on, about a day behind). The
+# pressure levels, the sea level pressure and the precipitable water are in `pgrblanl`; the 2 m and 10 m fields are in the surface flux file `sfluxgrbf00`. Older analyses (2011 on, and the CFSR
+# of 1979-2010) are in NCEI's monthly files, which have no index: not read here yet.
+id = CFS-ANL
+label = NOAA/NCEP CFS analysis (CDAS), 1 degree
+kind = grib
+url = https://noaa-cfs-pds.s3.amazonaws.com/cdas.{date}/cdas1.t{cycle}z.{file}.grib2
+file_default = pgrblanl
+file = when level="2 m above ground" => sfluxgrbf00
+file = when level="10 m above ground" => sfluxgrbf00
+file = pgrblanl
+probe_file = pgrblanl
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 8
+cycles_to_try = 8
+max_parallel = 4
+warp = 1.0, -180.0, -90.0, 180.0, 90.0
+sectors = world
+hours = 0-0/1
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, UGRD, VGRD, SPFH, RH, PRMSL, PWAT, VVEL
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
+clone_skip = precip, thick, 850_vort_ht, 500_vort_ht
+clone_pieces = false
+)MODEL"},
         {"CFS", R"MODEL(
 # NOAA's Climate Forecast System version 2 on AWS (open data bucket noaa-cfs-pds, 31 October 2018 on): a nine month forecast four times a day, 1 degree, 6 hourly. Each variable is a file of its own
 # (time_grib_01 is the first member) that holds every forecast hour as a record, found by the index. The grid is a Gaussian one, put on a regular 1 degree grid. Temperatures come in degrees C.

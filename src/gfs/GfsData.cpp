@@ -227,7 +227,14 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     if (!read) {
         return false;
     }
-    g.values.assign(all.begin(), all.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows)));
+    const size_t cells = static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows);
+    const size_t skip = static_cast<size_t>(std::max(1, record->band) - 1) * cells;   // a message of several fields (U and V together): the band of this one
+    if (all.size() < skip + cells) {
+        error = "the message of " + want.variable + " " + want.level + " has no field " + std::to_string(record->band);
+        cleanup();
+        return false;
+    }
+    g.values.assign(all.begin() + static_cast<std::ptrdiff_t>(skip), all.begin() + static_cast<std::ptrdiff_t>(skip + cells));
     const double factor = source.valueScale ? source.valueScale(want) : 1.0;
     const double shift = source.valueOffset ? source.valueOffset(want) : 0.0;
     for (auto& value : g.values) {
