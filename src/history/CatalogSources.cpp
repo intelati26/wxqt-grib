@@ -6,7 +6,9 @@
 #include "history/CatalogSources.h"
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <mutex>
+#include <QFile>
 #include <QTimeZone>
 #include "climate/UtilityAcisClimate.h"
 #include "hurricane/HurricaneData.h"
@@ -167,6 +169,109 @@ CatalogDialog::Source CatalogSources::biggestDays() {
     return source;
 }
 
+// The days of a Day 1 High risk of the SPC: the list is a resource (res/spc_high_risk_days.txt, made from the IEM archive of the outlooks), the verification the tornado database's
+CatalogDialog::Source CatalogSources::highRiskDays() {
+    CatalogDialog::Source source;
+    source.name = "SPC Day 1 High risk days (2002 on) and the tornadoes that followed";
+    source.columns = {"Convective day", "High first issued (UTC)", "Issuances", "Tornadoes", "Strongest", "Deaths", "Area"};
+    source.orders = {"Deadliest", "Most tornadoes", "Strongest", "Newest", "Oldest"};
+    source.sizeLabel = "tornadoes";
+    source.sizeDefault = 0;
+    source.note = "The convective day runs 12Z to 12Z. The tornadoes are those of the SPC database that day (the days before the database's last year are final).";
+    source.load = [] (const CatalogDialog::Params&, std::string& error) {
+        std::vector<Entry> out;
+        QFile file{":/res/spc_high_risk_days.txt"};
+        if (!file.open(QIODevice::ReadOnly)) {
+            error = "the list of High risk days is not in this build";
+            return out;
+        }
+        const auto database = TornadoData::load();
+        struct Timed {
+            qint64 time;
+            const UtilityTornado::Tornado * tornado;
+        };
+        std::vector<Timed> timed;
+        if (database) {
+            for (const auto& t : database->tornadoes) {
+                if (t.counts() && t.year >= 2002) {
+                    timed.push_back({UtilityOutbreaks::utcOf(t).toSecsSinceEpoch(), &t});
+                }
+            }
+            std::sort(timed.begin(), timed.end(), [] (const Timed& a, const Timed& b) { return a.time < b.time; });
+        }
+        for (const auto& line : QString::fromUtf8(file.readAll()).split('\n', Qt::SkipEmptyParts)) {
+            if (line.startsWith('#')) {
+                continue;
+            }
+            const auto parts = line.split(' ', Qt::SkipEmptyParts);
+            if (parts.size() < 7) {
+                continue;
+            }
+            auto ends = QDateTime::fromString(parts[0] + "12", "yyyyMMddHH");
+            ends.setTimeZone(QTimeZone::utc());
+            auto issued = QDateTime::fromString(parts[1], "yyyyMMddHHmm");
+            issued.setTimeZone(QTimeZone::utc());
+            const auto starts = ends.addDays(-1);
+            const double west = parts[3].toDouble(), south = parts[4].toDouble(), east = parts[5].toDouble(), north = parts[6].toDouble();
+            const double lat = (south + north) / 2.0, lon = (west + east) / 2.0;
+            const double radius = std::clamp(UtilityTornado::kilometers(south, west, north, east) / 2.0 + 150.0, 300.0, 1400.0);
+            // what the database says of that day
+            int count = 0, deaths = 0, injuries = 0, strongest = -9;
+            QDateTime strongestTime;
+            std::string strongestState;
+            std::map<qint64, int> byHour;
+            const auto first = std::lower_bound(timed.begin(), timed.end(), starts.toSecsSinceEpoch(), [] (const Timed& t, qint64 v) { return t.time < v; });
+            for (auto it = first; it != timed.end() && it->time < ends.toSecsSinceEpoch(); ++it) {
+                count++;
+                deaths += it->tornado->fatalities;
+                injuries += it->tornado->injuries;
+                byHour[it->time / 3600]++;
+                if (it->tornado->mag > strongest) {
+                    strongest = it->tornado->mag;
+                    strongestTime = QDateTime::fromSecsSinceEpoch(it->time, QTimeZone::utc());
+                    strongestState = it->tornado->state;
+                }
+            }
+            const QString area = QString{"%1 to %2 N, %3 to %4 W"}.arg(south, 0, 'f', 0).arg(north, 0, 'f', 0).arg(-east, 0, 'f', 0).arg(-west, 0, 'f', 0);
+            Entry e;
+            e.cells = {starts.toString("yyyy-MM-dd") + " 12Z", issued.toString("MM-dd HH:mm"), parts[2], count > 0 || timed.empty() ? QString::number(count) : QString{"0"},
+                       strongest >= 0 ? QString::fromStdString(UtilityTornado::ratingOf(strongest, starts.date().year())) : QString{"-"}, QString::number(deaths), area};
+            e.keys = {deaths * 1000.0 + count, static_cast<double>(count), strongest * 100000.0 + deaths, static_cast<double>(starts.toSecsSinceEpoch()), -static_cast<double>(starts.toSecsSinceEpoch())};
+            e.size = count;
+            e.year = starts.date().year();
+            e.event.source = "spc-high-risk";
+            e.event.catalogId = "spc-high:" + parts[0].toStdString();
+            e.event.name = ("SPC High risk, " + starts.toString("MMM d yyyy") + (count > 0 ? ": " + QString::number(count) + " tornadoes" : QString{})).toStdString();
+            e.event.start = starts;
+            e.event.end = ends;
+            e.event.lat = lat;
+            e.event.lon = lon;
+            e.event.radiusKm = radius;
+            e.event.note = ("SPC Day 1 outlook with a High risk for the convective day of " + starts.toString("yyyy-MM-dd") + ", first issued " + issued.toString("yyyy-MM-dd HH:mm") + "Z (" + parts[2] + " issuances). " +
+                            (count > 0 ? QString{"The SPC database has %1 tornadoes that day, %2 deaths, %3 injuries."}.arg(count).arg(deaths).arg(injuries) : QString{"No tornado counts for that day yet."})).toStdString();
+            e.event.moments.push_back({issued, "High risk first issued"});
+            if (strongest >= 0) {
+                e.event.moments.push_back({strongestTime, "strongest tornado: " + UtilityTornado::ratingOf(strongest, starts.date().year()) + " (" + strongestState + ")"});
+            }
+            int busiest = 0;
+            qint64 busiestHour = 0;
+            for (const auto& [hour, n] : byHour) {
+                if (n > busiest) {
+                    busiest = n;
+                    busiestHour = hour;
+                }
+            }
+            if (busiest > 1) {
+                e.event.moments.push_back({QDateTime::fromSecsSinceEpoch(busiestHour * 3600, QTimeZone::utc()), "most touchdowns in an hour (" + std::to_string(busiest) + ")"});
+            }
+            std::sort(e.event.moments.begin(), e.event.moments.end(), [] (const auto& a, const auto& b) { return a.time < b.time; });
+            out.push_back(std::move(e));
+        }
+        return out;
+    };
+    return source;
+}
+
 CatalogDialog::Source CatalogSources::tropicalStorms() {
     CatalogDialog::Source source;
     source.name = "Tropical storms and hurricanes (HURDAT2, Atlantic and eastern Pacific)";
@@ -244,5 +349,5 @@ CatalogDialog::Source CatalogSources::tropicalStorms() {
 }
 
 std::vector<CatalogDialog::Source> CatalogSources::all() {
-    return {tornadoOutbreaks(), biggestDays(), tropicalStorms()};
+    return {tornadoOutbreaks(), highRiskDays(), biggestDays(), tropicalStorms()};
 }
