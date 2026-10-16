@@ -129,6 +129,110 @@ namespace {
         }
         return {};
     }
+
+    // Before the open data bucket (2012 to early 2017): the Iowa Mesonet's pictures of the GOES East and West sectors (4 km, in a Lambert conformal frame, an index of 0 to 255 for the
+    // brightness), put on the same frame as the others and joined (the East sector over the West where both have the ground).
+    std::vector<string> sectorListing(const QDateTime& day) {
+        static std::mutex lock;
+        static std::map<string, std::vector<string>> cache;
+        const string key = day.toString("yyyy/MM/dd").toStdString();
+        {
+            std::lock_guard<std::mutex> guard{lock};
+            if (cache.count(key) > 0) {
+                return cache[key];
+            }
+        }
+        std::vector<string> names;
+        const auto html = QString::fromUtf8(UtilityIO::downloadAsByteArray("https://mesonet.agron.iastate.edu/archive/data/" + key + "/GIS/sat/awips211/"));
+        auto found = QRegularExpression{"GOES_(?:EAST|WEST)_(?:IR|VIS|WV)_[0-9]{12}\\.png"}.globalMatch(html);
+        while (found.hasNext()) {
+            names.push_back(found.next().captured(0).toStdString());
+        }
+        if (!names.empty() || day.secsTo(QDateTime::currentDateTimeUtc()) > 2 * 86400) {
+            std::lock_guard<std::mutex> guard{lock};
+            cache[key] = names;
+        }
+        return names;
+    }
+
+    QByteArray sectorFrame(int product, long seconds) {
+        const auto wanted = QDateTime::fromSecsSinceEpoch(seconds, QTimeZone::utc());
+        if (wanted < QDateTime{QDate{2012, 1, 1}, QTime{0, 0}, QTimeZone::utc()}) {
+            return {};
+        }
+        static const char * kinds[] = {"IR", "VIS", "WV"};
+        const QString folder = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/wxqt_goes";
+        QDir{}.mkpath(folder);
+        const QString stem = folder + "/sec_" + QString::number(seconds) + "_" + QString::number(product);
+        const QString bin = QString::fromStdString(UtilityGrib::gdalBinDir());
+        const auto run = [] (const QString& program, const QStringList& arguments) {
+            QProcess process;
+            process.start(program, arguments);
+            return process.waitForFinished(120000) && process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+        };
+        QStringList inputs, temporary;
+        for (const char * side : {"WEST", "EAST"}) {   // the East last: it is painted over the West
+            string best;
+            long bestGap = 16 * 60;
+            for (const auto& day : {wanted, wanted.addSecs(-16 * 60), wanted.addSecs(16 * 60)}) {
+                for (const auto& name : sectorListing(day)) {
+                    const string head = string{"GOES_"} + side + "_" + kinds[product] + "_";
+                    if (name.rfind(head, 0) != 0) {
+                        continue;
+                    }
+                    const auto at = QDateTime::fromString(QString::fromStdString(name.substr(head.size(), 12)), "yyyyMMddHHmm");
+                    const long gap = std::labs(static_cast<long>(QDateTime{at.date(), at.time(), QTimeZone::utc()}.toSecsSinceEpoch()) - seconds);
+                    if (gap < bestGap) {
+                        bestGap = gap;
+                        best = name;
+                    }
+                }
+            }
+            if (best.empty()) {
+                continue;
+            }
+            const auto day = best.substr(best.size() - 16, 8);
+            const string base = "https://mesonet.agron.iastate.edu/archive/data/" + day.substr(0, 4) + "/" + day.substr(4, 2) + "/" + day.substr(6, 2) + "/GIS/sat/awips211/" + best.substr(0, best.size() - 4);
+            const auto png = UtilityIO::downloadAsByteArray(base + ".png");
+            const auto world = QString::fromUtf8(UtilityIO::downloadAsByteArray(base + ".wld")).split('\n', Qt::SkipEmptyParts);
+            QImage indexed = QImage::fromData(png);
+            if (indexed.isNull() || world.size() < 6) {
+                continue;
+            }
+            // some years are 8-bit gray, some a coloured palette (the Mesonet's colouring): the plain index is the brightness either way
+            QImage gray{indexed.width(), indexed.height(), QImage::Format_Grayscale8};
+            if (indexed.format() == QImage::Format_Indexed8) {
+                for (int y = 0; y < indexed.height(); y++) {
+                    std::copy(indexed.constScanLine(y), indexed.constScanLine(y) + indexed.width(), gray.scanLine(y));
+                }
+            } else {
+                gray = indexed.convertToFormat(QImage::Format_Grayscale8);
+            }
+            const double px = world[0].trimmed().toDouble(), py = -world[3].trimmed().toDouble();
+            const double ulx = world[4].trimmed().toDouble() - px / 2.0, uly = world[5].trimmed().toDouble() + py / 2.0;
+            const QString tag = stem + "_" + side;
+            if (!gray.save(tag + ".png") || !run(bin + "/gdal_translate", {"-q", "-of", "GTiff", "-a_srs", "+proj=lcc +lat_1=25 +lat_2=25 +lat_0=25 +lon_0=-95 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs",
+                                                                        "-a_ullr", QString::number(ulx, 'f', 3), QString::number(uly, 'f', 3), QString::number(ulx + px * gray.width(), 'f', 3), QString::number(uly - py * gray.height(), 'f', 3),
+                                                                        "-a_nodata", "0", tag + ".png", tag + ".tif"})) {
+                continue;
+            }
+            inputs << tag + ".tif";
+            temporary << tag + ".png" << tag + ".tif" << tag + ".png.aux.xml";
+        }
+        QByteArray picture;
+        if (!inputs.isEmpty() &&
+            run(bin + "/gdalwarp", QStringList{"-q", "-overwrite", "-t_srs", "EPSG:4326", "-te", "-130", "22", "-60", "52", "-ts", "3500", "1500", "-r", "bilinear", "-srcnodata", "0", "-dstnodata", "0"} + inputs + QStringList{stem + "_w.tif"}) &&
+            run(bin + "/gdal_translate", QStringList{"-q", "-of", "PNG", "-ot", "Byte", "-b", "1", "-b", "mask"} + (product == 0 ? QStringList{"-scale_1", "40", "255", "0", "215"} : QStringList{}) + QStringList{stem + "_w.tif", stem + ".png"})) {   // (the infrared's index runs warmer than the calibrated frames: eased down so that the colours start at the same cold)
+            QFile out{stem + ".png"};
+            if (out.open(QIODevice::ReadOnly)) {
+                picture = out.readAll();
+            }
+        }
+        for (const auto& file : temporary + QStringList{stem + "_w.tif", stem + ".png", stem + ".png.aux.xml", stem + "_w.tif.aux.xml"}) {
+            QFile::remove(file);
+        }
+        return picture;
+    }
 }
 
 GoesHistoryLayer::GoesHistoryLayer() {
@@ -231,6 +335,9 @@ void GoesHistoryLayer::request(MapHost& host, long seconds) {
     const int chosen = product;
     host.background([url, bytes, seconds, chosen] {
                         *bytes = awsFrame(chosen, seconds);   // the open data bucket (2017 on) first
+                        if (bytes->isEmpty() || qEnvironmentVariableIsSet("WXQT_GOES_SECTOR")) {
+                            *bytes = sectorFrame(chosen, seconds);   // 2012 to early 2017: the Mesonet's sector pictures
+                        }
                         if (bytes->isEmpty()) {
                             *bytes = UtilityIO::downloadAsByteArray(url);
                         }
