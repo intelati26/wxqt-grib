@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <set>
 #include <cmath>
+#include <numbers>
 #include <atomic>
 #include <mutex>
 #include <thread>
@@ -350,7 +351,7 @@ bool UtilityNhcArchive::observedAt(const vector<UtilityAtcf::Fix>& best, const Q
 }
 
 double UtilityNhcArchive::distanceNm(double lat1, double lon1, double lat2, double lon2) {
-    const double r = M_PI / 180.0;
+    const double r = std::numbers::pi / 180.0;
     const double a = std::sin((lat2 - lat1) * r / 2.0), b = std::sin((lon2 - lon1) * r / 2.0);
     const double h = a * a + std::cos(lat1 * r) * std::cos(lat2 * r) * b * b;
     return 2.0 * 3440.065 * std::asin(std::min(1.0, std::sqrt(h)));

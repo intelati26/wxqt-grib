@@ -6,6 +6,7 @@
 #include "climate/GridAnalysis.h"
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <limits>
 
 namespace {
@@ -37,7 +38,7 @@ GridAnalysis::Field GridAnalysis::analyze(const std::vector<Point>& points, cons
     // the widest reach of the fills: they may carry a station farther than the analysis proper does
     const double fillReach = spec.fillGapsKm > 0.0 ? std::max(spec.reachKm, spec.fillGapsKm * 1.8) : spec.reachKm;
     const double reachDegrees = fillReach / kmPerDegree;
-    const double minCos = std::max(0.2, std::cos(std::max(std::abs(spec.south), std::abs(spec.north)) * M_PI / 180.0));
+    const double minCos = std::max(0.2, std::cos(std::max(std::abs(spec.south), std::abs(spec.north)) * std::numbers::pi / 180.0));
     const int padLon = static_cast<int>(std::ceil(reachDegrees / minCos)) + 1, padLat = static_cast<int>(std::ceil(reachDegrees)) + 1;
     const int bucketsLon = static_cast<int>(std::ceil(spec.east - spec.west)) + 2 * padLon + 1;
     const int bucketsLat = static_cast<int>(std::ceil(spec.north - spec.south)) + 2 * padLat + 1;
@@ -58,7 +59,7 @@ GridAnalysis::Field GridAnalysis::analyze(const std::vector<Point>& points, cons
         const double r2 = maxReach * maxReach;
         const double degrees = maxReach / kmPerDegree;
         const double lat = spec.north - (row + 0.5) * spec.step;
-        const double cosLat = std::max(0.2, std::cos(lat * M_PI / 180.0));
+        const double cosLat = std::max(0.2, std::cos(lat * std::numbers::pi / 180.0));
         const int spanLon = static_cast<int>(std::ceil(degrees / cosLat));
         const int spanLat = static_cast<int>(std::ceil(degrees));
         const double lon = spec.west + (column + 0.5) * spec.step;
@@ -149,8 +150,8 @@ GridAnalysis::Field GridAnalysis::analyze(const std::vector<Point>& points, cons
             if (column > 0) { seed(row, column - 1); }
             if (column + 1 < field.columns) { seed(row, column + 1); }
         }
-        const double cellKm2 = spec.step * kmPerDegree * spec.step * kmPerDegree * std::cos(((spec.north + spec.south) / 2.0) * M_PI / 180.0);
-        const size_t largest = static_cast<size_t>(M_PI * (spec.fillGapsKm * 0.75) * (spec.fillGapsKm * 0.75) / std::max(1e-9, cellKm2));
+        const double cellKm2 = spec.step * kmPerDegree * spec.step * kmPerDegree * std::cos(((spec.north + spec.south) / 2.0) * std::numbers::pi / 180.0);
+        const size_t largest = static_cast<size_t>(std::numbers::pi * (spec.fillGapsKm * 0.75) * (spec.fillGapsKm * 0.75) / std::max(1e-9, cellKm2));
         std::vector<char> seen(total, 0);
         for (size_t start = 0; start < total; start++) {
             if (have[start] || outside[start] || seen[start]) {

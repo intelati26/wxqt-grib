@@ -6,6 +6,7 @@
 #include "mapkit/ClimateGridLayer.h"
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <QComboBox>
 #include <QLabel>
 #include <QSlider>
@@ -168,7 +169,7 @@ MapHit ClimateGridLayer::pick(const QPointF& pixels, MapHost& host) const {
         const AcisClimate::Station * nearest = nullptr;
         double best = 1e9;
         for (const auto& s : part.stations) {
-            const double dy = (s.lat - lat) * 111.2, dx = (s.lon - lon) * 111.2 * std::cos(lat * M_PI / 180.0);
+            const double dy = (s.lat - lat) * 111.2, dx = (s.lon - lon) * 111.2 * std::cos(lat * std::numbers::pi / 180.0);
             const double d = std::hypot(dx, dy);
             if (d < best) {
                 best = d;

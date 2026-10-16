@@ -7,10 +7,12 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <numbers>
 #include <limits>
 #include <mutex>
 #include <set>
 #include <thread>
+#include <tuple>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -343,7 +345,7 @@ AcisClimate::StationRecord AcisClimate::readStationRecord(double lat, double lon
             } else if (other.isEmpty() && text.endsWith(" 2")) {
                 other = text.section(' ', 0, 0);   // a COOP id
             } else if (text.endsWith(" 3") && text.section(' ', 0, 0).size() == 3) {
-                airports.push_back({std::hypot((ll[1].toDouble() - lat) * 111.2, (ll[0].toDouble() - lon) * 111.2 * std::cos(lat * M_PI / 180.0)), text.section(' ', 0, 0), ll[1].toDouble(), ll[0].toDouble()});
+                airports.push_back({std::hypot((ll[1].toDouble() - lat) * 111.2, (ll[0].toDouble() - lon) * 111.2 * std::cos(lat * std::numbers::pi / 180.0)), text.section(' ', 0, 0), ll[1].toDouble(), ll[0].toDouble()});
             }
         }
         const QString use = !threaded.isEmpty() ? threaded : other;
@@ -361,7 +363,7 @@ AcisClimate::StationRecord AcisClimate::readStationRecord(double lat, double lon
                 current = current || last >= QDate::currentDate().addDays(-60);
             }
         }
-        const double dy = (ll[1].toDouble() - lat) * 111.2, dx = (ll[0].toDouble() - lon) * 111.2 * std::cos(lat * M_PI / 180.0);
+        const double dy = (ll[1].toDouble() - lat) * 111.2, dx = (ll[0].toDouble() - lon) * 111.2 * std::cos(lat * std::numbers::pi / 180.0);
         const double km = std::hypot(dx, dy);
         const double score = (threaded.isEmpty() ? 0.0 : 60.0) + std::min(years, 130) * 0.6 - km * 0.5 - (current ? 0.0 : 80.0);
         if (score > bestScore) {
