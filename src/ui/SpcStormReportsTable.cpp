@@ -54,6 +54,14 @@ SpcStormReportsTable::SpcStormReportsTable(QWidget * parent, const vector<StormR
     tableView->resizeRowsToContents();
     tableView->setMinimumHeight(100);
     tableView->setFixedHeight(std::clamp(Utility::readPrefInt("STORM_REPORTS_TABLE_HEIGHT", 800), 150, 3000));
+    // a double click on a column's edge fits it to its longest entry (up to a screen's width)
+    QObject::connect(tableView->horizontalHeader(), &QHeaderView::sectionHandleDoubleClicked, tableView, [t = tableView] (int column) {
+        t->resizeColumnToContents(column);
+        if (t->columnWidth(column) > 1400) {
+            t->setColumnWidth(column, 1400);
+        }
+        t->resizeRowsToContents();
+    });
     // wrapped rows follow a column that is widened or narrowed
     QObject::connect(tableView->horizontalHeader(), &QHeaderView::sectionResized, tableView, [t = tableView] { t->resizeRowsToContents(); });
     tableView->show();
