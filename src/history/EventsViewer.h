@@ -12,6 +12,7 @@
 #include <QLabel>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
+#include <QTabWidget>
 #include <QTimer>
 #include <QListWidget>
 #include <QPlainTextEdit>
@@ -33,6 +34,8 @@ private:
     void fillAvailability(const HistoryEvent&);
     QDateTime atTime() const;          // the moment the screens open at: the start, a moment of the event, or the end
     void fillAtBox(const HistoryEvent&);
+    void syncSurface();
+    void loadSurface();                // the WPC surface analysis of the event's day (from 2006), with where the older daily weather maps are
     void loadOutlooks();               // the SPC day 1 outlook of the event's convective day, added to the event on its own
     void newEvent();
     void saveEvent();
@@ -58,6 +61,13 @@ private:
     QLabel * outlookNote{};
     int outlookGeneration{0};
     QTimer outlookTimer;
+    QTabWidget * tabs{};
+    QComboBox * surfaceHour{};
+    QComboBox * surfaceKind{};
+    QLabel * surfaceNote{};
+    QLabel * surfaceImage{};
+    int surfaceGeneration{0};
+    QDate surfaceDay;
 };
 
 #endif  // EVENTSVIEWER_H

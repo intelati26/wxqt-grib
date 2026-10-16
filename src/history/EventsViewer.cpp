@@ -9,6 +9,7 @@
 #include <QPointer>
 #include <QDesktopServices>
 #include <QDialog>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QTableWidget>
 #include <QFormLayout>
@@ -139,7 +140,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     auto * atRow = new QHBoxLayout;
     atRow->addWidget(new QLabel{"Open the screens at", this});
     atRow->addWidget(atBox, 1);
-    auto * tabs = new QTabWidget{this};
+    tabs = new QTabWidget{this};
     auto * dataPage = new QWidget{this};
     auto * dataColumn = new QVBoxLayout{dataPage};
     dataColumn->setContentsMargins(0, 0, 0, 0);
@@ -167,8 +168,45 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     }
     outlookColumn->addLayout(grid, 1);
     tabs->addTab(outlookPage, "SPC outlook (added automatically)");
+    // the weather map of the day: WPC's surface analysis archive from 2006 (every 3 hours), and where the scanned maps before it are
+    auto * surfacePage = new QWidget{this};
+    auto * surfaceColumn = new QVBoxLayout{surfacePage};
+    auto * surfaceRow = new QHBoxLayout;
+    surfaceHour = new QComboBox{this};
+    for (int h = 0; h < 24; h += 3) {
+        surfaceHour->addItem(QString{"%1Z"}.arg(h, 2, 10, QChar{'0'}), h);
+    }
+    surfaceKind = new QComboBox{this};
+    surfaceKind->addItem("Surface analysis, North America", "namussfc");
+    surfaceKind->addItem("Fronts and pressure, United States", "usfntsfc");
+    surfaceKind->addItem("With the satellite picture", "ussatsfc");
+    surfaceKind->addItem("With the radar", "radsfcus_exp");
+    auto * scanned = new QPushButton{"Scanned Daily Weather Map (1871-2002)...", this};
+    scanned->setToolTip("NOAA Central Library: the printed Daily Weather Map of the day, by date (daily to April 1968, weekly from May 1968)");
+    auto * reanalysis = new QPushButton{"20th Century Reanalysis (1836-2015)...", this};
+    reanalysis->setToolTip("NOAA PSL: weather maps for any date back to 1836, made from surface pressure observations");
+    surfaceRow->addWidget(new QLabel{"Time", this});
+    surfaceRow->addWidget(surfaceHour);
+    surfaceRow->addWidget(surfaceKind, 1);
+    surfaceRow->addWidget(scanned);
+    surfaceRow->addWidget(reanalysis);
+    surfaceNote = new QLabel{this};
+    surfaceNote->setWordWrap(true);
+    surfaceImage = new QLabel{this};
+    surfaceImage->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    auto * surfaceScroll = new QScrollArea{this};
+    surfaceScroll->setWidget(surfaceImage);
+    surfaceScroll->setWidgetResizable(true);
+    surfaceColumn->addLayout(surfaceRow);
+    surfaceColumn->addWidget(surfaceNote);
+    surfaceColumn->addWidget(surfaceScroll, 1);
+    tabs->addTab(surfacePage, "Weather map of the day");
+    QObject::connect(scanned, &QPushButton::clicked, [] { QDesktopServices::openUrl(QUrl{"https://library.noaa.gov/weather-climate/daily-weather-maps"}); });
+    QObject::connect(reanalysis, &QPushButton::clicked, [] { QDesktopServices::openUrl(QUrl{"https://psl.noaa.gov/data/20thC_Rean/"}); });
+    QObject::connect(surfaceHour, &QComboBox::currentIndexChanged, [this] { loadSurface(); });
+    QObject::connect(surfaceKind, &QComboBox::currentIndexChanged, [this] { loadSurface(); });
     QObject::connect(issuance, &QComboBox::currentIndexChanged, [this] { loadOutlooks(); });
-    QObject::connect(tabs, &QTabWidget::currentChanged, [this] (int) { loadOutlooks(); });
+    QObject::connect(tabs, &QTabWidget::currentChanged, [this] (int) { loadOutlooks(); syncSurface(); loadSurface(); });
     auto * right = new QVBoxLayout;
     right->addLayout(form);
     right->addLayout(buttons);
@@ -198,7 +236,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     QObject::connect(lat, &QDoubleSpinBox::valueChanged, refresh);
     QObject::connect(lon, &QDoubleSpinBox::valueChanged, refresh);
     outlookTimer.setSingleShot(true);
-    QObject::connect(&outlookTimer, &QTimer::timeout, [this] { loadOutlooks(); });
+    QObject::connect(&outlookTimer, &QTimer::timeout, [this] { loadOutlooks(); syncSurface(); loadSurface(); });
     QObject::connect(atBox, &QComboBox::currentIndexChanged, [this] (int) {
         HistoryEvent e;
         readForm(e);
@@ -503,6 +541,52 @@ void EventsViewer::fillAtBox(const HistoryEvent& e) {
 }
 
 // the convective day's outlook (12Z to 12Z) of the time the event starts: the categorical map and the three chances, from SPC's archive, shown on their own
+// the day and the 3 hour box of the weather map follow the time the screens open at (called when the event or that time changes, not when the hour is chosen by hand)
+void EventsViewer::syncSurface() {
+    const auto at = atTime().toUTC();
+    const int rounded = (at.time().hour() * 60 + at.time().minute() + 90) / 180 * 3;   // the nearest 3 hours
+    surfaceDay = rounded >= 24 ? at.date().addDays(1) : at.date();
+    surfaceHour->blockSignals(true);
+    surfaceHour->setCurrentIndex((rounded % 24) / 3);
+    surfaceHour->blockSignals(false);
+}
+
+void EventsViewer::loadSurface() {
+    if (tabs == nullptr || tabs->currentIndex() != 2) {
+        return;   // only when its tab is on show
+    }
+    HistoryEvent e;
+    readForm(e);
+    if (!e.start.isValid()) {
+        return;
+    }
+    const QDate day = surfaceDay.isValid() ? surfaceDay : atTime().toUTC().date();
+    const QDate firstDay{2006, 3, 29};
+    const int hour = surfaceHour->currentData().toInt();
+    if (day < firstDay) {
+        surfaceImage->clear();
+        surfaceNote->setText("WPC's surface analysis archive starts on 2006-03-29. Before that: the scanned Daily Weather Map (NOAA Central Library, 1871 to 2002: search the library page for the date as " +
+                             day.toString("yyyyMMdd") + ") or the 20th Century Reanalysis (maps of any date back to 1836, made from surface pressure observations).");
+        return;
+    }
+    const QString kind = surfaceKind->currentData().toString();
+    const QString url = QString{"https://www.wpc.ncep.noaa.gov/archives/sfc/%1/%2%3%4.gif"}.arg(day.toString("yyyy"), kind, day.toString("yyyyMMdd"), QString{"%1"}.arg(hour, 2, 10, QChar{'0'}));
+    surfaceNote->setText(QString{"WPC surface analysis archive, %1 %2Z (every 3 hours from 2006-03-29 18Z)."}.arg(day.toString("yyyy-MM-dd")).arg(hour, 2, 10, QChar{'0'}));
+    const int mine = ++surfaceGeneration;
+    auto bytes = std::make_shared<QByteArray>();
+    new FutureVoid{this, [bytes, url] { *bytes = UtilityIO::downloadAsByteArray(url.toStdString()); }, [this, bytes, mine] {
+        if (mine != surfaceGeneration) {
+            return;
+        }
+        QPixmap pixmap;
+        if (!bytes->isEmpty() && pixmap.loadFromData(*bytes)) {
+            surfaceImage->setPixmap(pixmap);
+        } else {
+            surfaceImage->setText("not in the archive for this time and kind of map");
+        }
+    }};
+}
+
 void EventsViewer::loadOutlooks() {
     HistoryEvent e;
     readForm(e);
