@@ -327,7 +327,14 @@ int main(int argc, char * argv[]) {
                             qWarning("cfsprobe: member %d monthly %s: %s", member, month.c_str(), error.c_str());
                         }
                     }
-                    for (const int hour : {6, 240, 1200}) {
+                    for (const bool deviations : {false, true}) {
+                        if (UtilityCfs::monthlyDeparture(run, 1, *variable, month, deviations, 1999, grid, error)) {
+                            qWarning("cfsprobe: member 1 %s %s departure from the 1999-2010 normal at %.1f,%.1f = %.2f %s", variable->key.c_str(), month.c_str(), lat, lon, grid.sample(lon < 0 ? lon + 360.0 : lon, lat), deviations ? "standard deviations" : variable->units.c_str());
+                        } else {
+                            qWarning("cfsprobe: departure (%s): %s", deviations ? "deviations" : "units", error.c_str());
+                        }
+                    }
+                    for (const int hour : {6}) {
                         if (UtilityCfs::daily(run, 1, *variable, hour, grid, error)) {
                             qWarning("cfsprobe: member 1 %s f%d: grid %dx%d lon0 %.1f lat0 %.1f, value at %.1f,%.1f = %.2f %s", variable->key.c_str(), hour, grid.columns, grid.rows, grid.lon0, grid.lat0, lat, lon,
                                      grid.sample(lon < 0 ? lon + 360.0 : lon, lat), variable->units.c_str());
@@ -362,7 +369,7 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto * plume = new CfsPlumeViewer{&w};
                 if (parts.size() > 1) {
-                    plume->choose(parts.value(1), parts.value(2, "4").toInt(), parts.value(3, "6").toInt());
+                    plume->choose(parts.value(1), parts.value(2, "4").toInt(), parts.value(3, "6").toInt(), parts.value(4, "0").toInt());
                 }
             } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm
                 new HurricaneViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString()};

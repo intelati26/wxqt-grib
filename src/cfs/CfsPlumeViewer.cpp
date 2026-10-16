@@ -201,7 +201,7 @@ private:
         }
         double from, to, step;
         niceRange(lo, hi, from, to, step);
-        axes(p, area, from, to, step, result.units + "  (month mean)");
+        axes(p, area, from, to, step, result.monthlyUnits);
         const size_t n = result.months.size();
         const auto xOf = [&] (size_t i) { return area.left() + (i + 0.5) / n * area.width(); };
         const auto yOf = [&] (double v) { return area.bottom() - (v - from) / (to - from) * area.height(); };
@@ -273,6 +273,10 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon) : Window
     stride->addItem("every 6 hours", 6);
     stride->addItem("every 12 hours", 12);
     stride->addItem("every 24 hours", 24);
+    monthlyShow = new QComboBox{this};
+    monthlyShow->addItem("months: values", 0);
+    monthlyShow->addItem("months: departure from the CFS normal", 1);
+    monthlyShow->addItem("months: departure in std deviations", 2);
     go = new QPushButton{"Load", this};
     status = new QLabel{"", this};
     top->addWidget(place);
@@ -285,6 +289,7 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon) : Window
     top->addWidget(span);
     top->addWidget(count);
     top->addWidget(stride);
+    top->addWidget(monthlyShow);
     top->addWidget(go);
     top->addStretch();
     column->addLayout(top);
@@ -314,7 +319,8 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon) : Window
     load();
 }
 
-void CfsPlumeViewer::choose(const QString& modelId, int runs, int everyHours) {
+void CfsPlumeViewer::choose(const QString& modelId, int runs, int everyHours, int monthly) {
+    monthlyShow->setCurrentIndex(std::clamp(monthly, 0, 2));
     model->setCurrentIndex(std::max(0, model->findData(modelId)));
     count->setCurrentIndex(std::max(0, count->findData(runs)));
     stride->setCurrentIndex(std::max(0, stride->findData(everyHours)));
@@ -362,6 +368,8 @@ void CfsPlumeViewer::load() {
         spanHours = span->currentIndex() == 0 ? 360 : span->currentIndex() == 1 ? 1080 : 2160;
     }
     const int longestHour = gfs ? 384 : 6984;
+    const int monthlyMode = gfs ? 0 : monthlyShow->currentData().toInt();
+    const int baseline = Utility::readPrefInt("MM_CFS_BASE", 1999) == 1982 ? 1982 : 1999;
     const int runCount = count->currentData().toInt(), strideHours = stride->currentData().toInt();
     const int earlierDays = 0;
     auto result = std::make_shared<Result>();
@@ -381,6 +389,7 @@ void CfsPlumeViewer::load() {
             const auto runTime = UtilityCfs::runTime(run);
             result->title = QString::fromStdString(variable.label + " at " + std::to_string(lat).substr(0, std::to_string(lat).find('.') + 3) + ", " + std::to_string(lon).substr(0, std::to_string(lon).find('.') + 3) + (gfs ? "   GFS run " : "   CFSv2 run ") + UtilityCfs::runText(run));
             result->units = QString::fromStdString(variable.units);
+            result->monthlyUnits = monthlyMode == 0 ? result->units + "  (month mean)" : monthlyMode == 1 ? result->units + "  (month, departure)" : QString{"standard deviations  (month)"};
             result->runDay = runTime.date();
             result->runFraction = runTime.time().hour() / 24.0;
             const qint64 runSeconds = runTime.toSecsSinceEpoch();
@@ -475,7 +484,7 @@ void CfsPlumeViewer::load() {
                 monthlyJobs.push_back(std::async(std::launch::async, [=] {
                     std::vector<float> v;
                     std::string message;
-                    UtilityCfs::pointMonthly(past, 1, variable, months, lat, lon, v, message);
+                    if (monthlyMode == 0) { UtilityCfs::pointMonthly(past, 1, variable, months, lat, lon, v, message); } else { UtilityCfs::pointMonthlyDeparture(past, 1, variable, months, monthlyMode == 2, baseline, lat, lon, v, message); }
                     doneCount->fetch_add(1);
                     return v;
                 }));

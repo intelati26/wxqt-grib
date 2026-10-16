@@ -42,7 +42,15 @@ namespace UtilityCfs {
     // a field's value at a point for several forecast hours (or months) of one member, the fields not kept: each is read, sampled and dropped. A value that could not be had is NaN; false
     // when none could (error says why). lon east positive.
     bool pointSeries(const Run& run, int member, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error);
+    // the same as departures from the CFS normal (or in standard deviations); the month in progress stays NaN
+    bool pointMonthlyDeparture(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, bool inDeviations, int baseline, double lat, double lon, std::vector<float>& values, std::string& error);
     bool pointMonthly(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, double lat, double lon, std::vector<float>& values, std::string& error);
+    // The CFS's own normal: NOAA's calibration climatologies of the reforecasts (1999-2010 or 1982-2010; mean "fclm" and standard deviation "fstd" of the monthly means, by start date, cycle and lead
+    // month: lead 1 is the month after the run's own). Each is a field of NCEI's reforecast bucket read by byte range and kept for good (PermanentCache "climate") packed in 16 bits, a few tens
+    // of KB. `leadMonth` 1-9; the start date is the run's (the nearest day with a file if its own has none). The values are in the shown unit.
+    bool climatology(const Variable& variable, const Run& run, int leadMonth, bool deviation, int baseline, GfsGrid::Grid& out, std::string& error);
+    // a member's monthly mean minus the normal of the run's start date (or divided by the standard deviation when `inDeviations`); the run's own month, which has no normal, fails
+    bool monthlyDeparture(const Run& run, int member, const Variable& variable, const std::string& yyyymm, bool inDeviations, int baseline, GfsGrid::Grid& out, std::string& error);
     // The GFS beside it, for the same plume window (the GFS is a run every six hours to 16 days): the newest run, and a field's values at a point for forecast hours, each read as a small box
     // of the field (the box request of NOMADS when it answers, the whole message from the open bucket when it does not).
     const std::vector<Variable>& gfsVariables();

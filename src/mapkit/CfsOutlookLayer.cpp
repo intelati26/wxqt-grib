@@ -59,6 +59,8 @@ CfsOutlookLayer::CfsOutlookLayer() {
         variableKey = "t2m";
     }
     memberChoice = std::clamp(Utility::readPrefInt("MM_CFS_MEMBER", 0), 0, 1);
+    mode = std::clamp(Utility::readPrefInt("MM_CFS_MODE", 0), 0, 2);
+    baseline = Utility::readPrefInt("MM_CFS_BASE", 1999) == 1982 ? 1982 : 1999;
 }
 
 long CfsOutlookLayer::middleOf(const string& yyyymm) const {
@@ -111,7 +113,7 @@ string CfsOutlookLayer::summary() const {
     if (!haveRun || variable == nullptr) {
         return {};
     }
-    return "CFSv2 " + UtilityCfs::runText(run) + ", " + variable->label + ", " + (memberChoice == 0 ? string{"mean of the 4 newest runs"} : string{"newest run only"}) + (loading ? "  (more months coming)" : "");
+    return "CFSv2 " + UtilityCfs::runText(run) + ", " + variable->label + (mode == 0 ? string{} : mode == 1 ? string{" departure"} : string{" departure (std dev)"}) + ", " + (memberChoice == 0 ? string{"mean of the 4 newest runs"} : string{"newest run only"}) + (loading ? "  (more months coming)" : "");
 }
 
 void CfsOutlookLayer::showTime(long seconds, MapHost& host) {
@@ -214,17 +216,17 @@ void CfsOutlookLayer::load(MapHost& host) {
     auto loaded = std::make_shared<Loaded>();
     const auto chosen = *UtilityCfs::find(variableKey);
     const auto theRun = run;
-    const int memberWanted = memberChoice;
+    const int memberWanted = memberChoice, modeNow = mode, baseNow = baseline;
     host.background(
-        [loaded, wanted, chosen, theRun, memberWanted] {
+        [loaded, wanted, chosen, theRun, memberWanted, modeNow, baseNow] {
             const auto runs = UtilityCfs::recentRuns(theRun, memberWanted == 0 ? 4 : 1);   // member 1 of the newest cycles: whole nine month runs
             for (const auto& month : wanted) {
                 std::vector<std::future<std::pair<bool, GfsGrid::Grid>>> jobs;
                 for (const auto& past : runs) {
-                    jobs.push_back(std::async(std::launch::async, [chosen, past, month] {
+                    jobs.push_back(std::async(std::launch::async, [chosen, past, month, modeNow, baseNow] {
                         GfsGrid::Grid g;
                         string message;
-                        const bool ok = UtilityCfs::monthly(past, 1, chosen, month, g, message);
+                        const bool ok = modeNow == 0 ? UtilityCfs::monthly(past, 1, chosen, month, g, message) : UtilityCfs::monthlyDeparture(past, 1, chosen, month, modeNow == 2, baseNow, g, message);
                         return std::make_pair(ok, g);
                     }));
                 }
@@ -278,6 +280,26 @@ void CfsOutlookLayer::load(MapHost& host) {
 }
 
 // the rows within 85 degrees of the equator (the map is Mercator: the poles are off it)
+// the values have a ramp for each field; a departure has a blue-white-red one (brown-white-green for rain) as wide as such a departure usually is
+std::vector<std::pair<double, QColor>> CfsOutlookLayer::stops() const {
+    std::vector<std::pair<double, QColor>> out;
+    if (mode == 0) {
+        for (const auto& stop : ramp(variableKey)) {
+            out.emplace_back(stop.value, stop.color);
+        }
+        return out;
+    }
+    double half = 2.5;
+    if (mode == 1) {
+        half = variableKey == "precip" ? 3.0 : variableKey == "z500" ? 80.0 : variableKey == "mslp" ? 8.0 : variableKey == "pwat" ? 8.0 : 6.0;
+    }
+    const bool wet = variableKey == "precip" || variableKey == "pwat";
+    const QColor low = wet ? QColor{150, 90, 30} : QColor{40, 80, 190}, lowMid = wet ? QColor{225, 195, 140} : QColor{150, 200, 235};
+    const QColor highMid = wet ? QColor{150, 215, 160} : QColor{245, 180, 140}, high = wet ? QColor{30, 140, 70} : QColor{190, 40, 40};
+    out = {{-half, low}, {-half / 2.0, lowMid}, {0.0, QColor{250, 250, 250}}, {half / 2.0, highMid}, {half, high}};
+    return out;
+}
+
 QImage CfsOutlookLayer::colored(const GfsGrid::Grid& grid) const {
     int first = 0, last = grid.rows - 1;
     while (first < last && grid.lat0 - first * grid.step > 85.0) {
@@ -289,14 +311,17 @@ QImage CfsOutlookLayer::colored(const GfsGrid::Grid& grid) const {
     // the 1 degree cells smoothed (bicubic) onto a grid three times as fine, so that the colours run on and no cell shows
     const int up = 3;
     QImage image{grid.columns * up, (last - first + 1) * up, QImage::Format_ARGB32_Premultiplied};
-    const auto& stops = ramp(variableKey);
+    std::vector<Stop> table;
+    for (const auto& [value, color] : stops()) {
+        table.push_back({value, color});
+    }
     for (int y = 0; y < image.height(); y++) {
         auto * out = reinterpret_cast<QRgb *>(image.scanLine(y));
         const double lat = grid.lat0 - first * grid.step + grid.step / 2.0 - (y + 0.5) * grid.step / up;
         for (int x = 0; x < image.width(); x++) {
             const double lon = grid.lon0 - grid.step / 2.0 + (x + 0.5) * grid.step / up;
             const float v = grid.sampleCubic(lon, lat);
-            out[x] = std::isnan(v) ? qRgba(0, 0, 0, 0) : (colorOf(stops, v) | 0xff000000u);
+            out[x] = std::isnan(v) ? qRgba(0, 0, 0, 0) : (colorOf(table, v) | 0xff000000u);
         }
     }
     return image;
@@ -332,7 +357,7 @@ MapHit CfsOutlookLayer::pick(const QPointF& pixels, MapHost& host) const {
         return hit;
     }
     hit.distance = 0.0;
-    hit.text = QString::fromStdString("CFSv2 " + variable->label + ", " + timeText()) + "\n" + QString::number(v, 'f', variable->key == "precip" ? 1 : 1) + " " + QString::fromStdString(variable->units);
+    hit.text = QString::fromStdString("CFSv2 " + variable->label + ", " + timeText()) + "\n" + QString{mode != 0 && v > 0 ? "+" : ""} + QString::number(v, 'f', 1) + " " + (mode == 2 ? QString{"standard deviations"} : QString::fromStdString(variable->units));
     return hit;
 }
 
@@ -342,9 +367,9 @@ vector<MapLegendRow> CfsOutlookLayer::legend() const {
         return {};
     }
     MapLegendRow row;
-    row.title = QString::fromStdString(variable->label + " (" + variable->units + "):");
-    for (const auto& stop : ramp(variableKey)) {
-        row.entries.push_back({MapLegendEntry::Square, stop.color, QString::number(stop.value, 'f', 0)});
+    row.title = QString::fromStdString((mode == 0 ? variable->label + " (" + variable->units + "):" : mode == 1 ? variable->label + ", departure from the " + std::to_string(baseline) + "-2010 normal (" + variable->units + "):" : variable->label + ", departure in standard deviations:"));
+    for (const auto& [value, color] : stops()) {
+        row.entries.push_back({MapLegendEntry::Square, color, (mode != 0 && value > 0 ? "+" : "") + QString::number(value, 'f', mode == 2 || std::abs(value) < 10 && std::abs(value - std::round(value)) > 0.01 ? 1 : 0)});
     }
     return {row};
 }
@@ -370,6 +395,17 @@ QWidget * CfsOutlookLayer::options(QWidget * parent, const std::function<void()>
     members->addItems({"Mean of the 4 newest runs (every 6 hours, 9 months)", "The newest run only"});
     members->setCurrentIndex(memberChoice);
     layout->addWidget(members);
+    layout->addWidget(new QLabel{"Show:", widget});
+    auto * how = new QComboBox{widget};
+    how->addItems({"The forecast values", "Departure from the CFS normal", "Departure in standard deviations"});
+    how->setCurrentIndex(mode);
+    layout->addWidget(how);
+    layout->addWidget(new QLabel{"Normal of the years:", widget});
+    auto * years = new QComboBox{widget};
+    years->addItem("1999-2010 (the more recent)", 1999);
+    years->addItem("1982-2010", 1982);
+    years->setCurrentIndex(baseline == 1982 ? 1 : 0);
+    layout->addWidget(years);
     layout->addWidget(new QLabel{"Opacity:", widget});
     auto * slider = new QSlider{Qt::Horizontal, widget};
     slider->setRange(20, 100);
@@ -385,6 +421,18 @@ QWidget * CfsOutlookLayer::options(QWidget * parent, const std::function<void()>
         memberChoice = value;
         Utility::writePrefInt("MM_CFS_MEMBER", value);
         changeRequested = true;
+        changed();
+    });
+    QObject::connect(how, &QComboBox::currentIndexChanged, [this, changed] (int value) {
+        mode = value;
+        Utility::writePrefInt("MM_CFS_MODE", value);
+        changeRequested = true;
+        changed();
+    });
+    QObject::connect(years, &QComboBox::currentIndexChanged, [this, years, changed] (int) {
+        baseline = years->currentData().toInt();
+        Utility::writePrefInt("MM_CFS_BASE", baseline);
+        changeRequested = mode != 0;
         changed();
     });
     QObject::connect(slider, &QSlider::valueChanged, [this, changed] (int value) { opacity = value; changed(); });

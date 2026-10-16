@@ -14,8 +14,8 @@
 #include "mapkit/MapLayer.h"
 
 // The seasonal outlook of NOAA's CFSv2: the newest run's monthly means (the month in progress and the nine after it) of one field, the mean of the four newest runs (member 1 of each cycle: whole nine month forecasts six hours apart) or the newest alone. The time bar
-// steps through the months. Of a time of the past the run is that day's 00 UTC one (the open bucket begins 31 October 2018). The values are the model's own, not departures from
-// normal: the anomaly views come with the climatology (docs/outstanding-work.md).
+// steps through the months. Of a time of the past the run is that day's 00 UTC one (the open bucket begins 31 October 2018). The values are the model's own, or their departure from the CFS's own normal for the start date (NOAA's calibration climatology of the reforecasts, 1999-2010 or
+// 1982-2010; the month in progress has none).
 class CfsOutlookLayer : public MapLayer {
 public:
     CfsOutlookLayer();
@@ -51,10 +51,13 @@ private:
     };
     void load(MapHost&);
     QImage colored(const GfsGrid::Grid&) const;
+    std::vector<std::pair<double, QColor>> stops() const;   // the colours of what is shown: value stops
     long middleOf(const string& yyyymm) const;     // the 15th of the month, UTC
     string monthShown() const;                     // the month on view ("202611")
     string variableKey{"t2m"};
     int memberChoice{0};          // 0 the mean of the four newest runs, 1 the newest alone
+    int mode{0};                  // 0 the values, 1 the departure from the CFS normal, 2 the departure in standard deviations
+    int baseline{1999};           // the years of the normal: 1999-2010 or 1982-2010
     int opacity{85};
     long shown{0};
     bool loading{false};

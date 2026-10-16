@@ -11,6 +11,8 @@
 #include <QDateTime>
 #include <QTimeZone>
 #include "gfs/GfsCache.h"
+#include "gfs/GfsClimate.h"
+#include "util/PermanentCache.h"
 #include "gfs/GfsModels.h"
 #include "models/UtilityGrib.h"
 #include "objects/URL.h"
@@ -277,6 +279,116 @@ bool UtilityCfs::gfsPointSeries(const Run& run, const Variable& variable, const 
                 values[static_cast<size_t>(std::stoi(key))] = static_cast<float>(v * variable.scale + variable.offset);
                 any = true;
             }
+        }
+    }
+    return any;
+}
+
+namespace {
+    // the calibration climatologies: one file for each start date, cycle, lead month and statistic
+    GfsData::Source climateSource(int baseline) {
+        GfsData::Source s;
+        s.id = "CFSNORMAL" + std::to_string(baseline);
+        s.label = "NOAA/NCEP CFSv2 reforecast climatology";
+        s.warp = {true, 1.0, -180.0, -90.0, 180.0, 90.0};
+        s.indexReplaces = ".grb2";
+        s.indexSuffix = ".inv";
+        s.fileUrl = [baseline] (const GfsData::Run& run, int, const std::string& file) {
+            // file: "<family>.<lead>.<stat>" ("flxf.l01.fclm")
+            const auto first = file.find('.');
+            const auto family = file.substr(0, first), rest = file.substr(first + 1);
+            const auto mm = run.date.substr(4, 2), dd = run.date.substr(6, 2);
+            return std::string{"https://www.ncei.noaa.gov/oa/prod-cfs-reforecast/calibration-climatologies/"} + (family == "flxf" ? "flux" : "by-pressure-level") + "-" + std::to_string(baseline) + "-2010/" + mm + "/" + family +
+                   "." + mm + "." + dd + "." + run.cycle + "." + rest + "." + std::to_string(baseline) + ".2010.grb2";
+        };
+        s.fileOf = [] (const GfsData::Want& want) { return want.stat; };
+        s.probeFile = "flxf.l01.fclm";
+        return s;
+    }
+}
+
+bool UtilityCfs::climatology(const Variable& variable, const Run& run, int leadMonth, bool deviation, int baseline, GfsGrid::Grid& out, std::string& error) {
+    if (leadMonth < 1 || leadMonth > 9) {
+        error = "the CFS normal covers lead months 1 to 9";
+        return false;
+    }
+    const std::string base = baseline == 1982 ? "1982" : "1999";
+    const PermanentCache store{"climate"};
+    // The normal changes slowly with the start date, so one serves five days (the 1st, 6th, 11th, 16th, 21st and 26th of the month) and the 00 UTC cycle serves them all: a year of use
+    // keeps 72 start dates a field instead of 365 x 4
+    const int day = std::min(26, (std::stoi(run.date.substr(6, 2)) - 1) / 5 * 5 + 1);
+    const Run bucket{run.date.substr(0, 6) + (day < 10 ? "0" : "") + std::to_string(day), "00"};
+    // (the day of the year and cycle are the key: one normal serves every year)
+    const auto keyFor = [&] (const Run& r) {
+        return "cfs/" + base + "/" + variable.key + "_" + r.date.substr(4, 4) + "_l" + std::to_string(leadMonth) + (deviation ? "_std" : "_mean") + ".bin";
+    };
+    if (store.has(keyFor(bucket)) && GfsClimate::unpack(store.read(keyFor(bucket)), out)) {
+        return true;
+    }
+    for (const int shift : {0, 1, -1, 2, -2, 3, -3}) {   // the nearest day that has a file
+        const auto t = runTime(bucket).addDays(shift);
+        const Run near{t.toString("yyyyMMdd").toStdString(), "00"};
+        GfsData::Want want;
+        want.key = "n";
+        want.variable = variable.variable;
+        want.level = variable.level;
+        want.stat = variable.family + ".l0" + std::to_string(leadMonth) + (deviation ? ".fstd" : ".fclm");
+        std::map<std::string, GfsGrid::Grid> got;
+        std::string message;
+        if (GfsData{config(), climateSource(baseline == 1982 ? 1982 : 1999)}.load(near, 0, {want}, got, message) && !got.empty()) {
+            out = got.begin()->second;
+            for (auto& v : out.values) {
+                // (GDAL takes 273.15 off every temperature field, a spread of temperatures too: put it back)
+                v = static_cast<float>((deviation && variable.units == "deg C" ? v + 273.15 : v) * variable.scale + (deviation ? 0.0 : variable.offset));
+            }
+            store.write(keyFor(bucket), GfsClimate::pack(out));
+            return true;
+        }
+        error = message;
+    }
+    return false;
+}
+
+bool UtilityCfs::monthlyDeparture(const Run& run, int member, const Variable& variable, const std::string& yyyymm, bool inDeviations, int baseline, GfsGrid::Grid& out, std::string& error) {
+    const auto list = months(run);
+    const auto at = std::find(list.begin(), list.end(), yyyymm);
+    if (at == list.end() || at == list.begin()) {
+        error = "the month in progress has no normal";
+        return false;
+    }
+    GfsGrid::Grid field, normal, spread;
+    if (!monthly(run, member, variable, yyyymm, field, error) || !climatology(variable, run, static_cast<int>(at - list.begin()), false, baseline, normal, error)) {
+        return false;
+    }
+    if (inDeviations && !climatology(variable, run, static_cast<int>(at - list.begin()), true, baseline, spread, error)) {
+        return false;
+    }
+    if (normal.values.size() != field.values.size() || (inDeviations && spread.values.size() != field.values.size())) {
+        error = "the normal is on another grid";
+        return false;
+    }
+    out = field;
+    for (size_t i = 0; i < out.values.size(); i++) {
+        const float d = field.values[i] - normal.values[i];
+        out.values[i] = inDeviations ? (spread.values[i] > 1e-6f ? d / spread.values[i] : std::nanf("")) : d;
+    }
+    return true;
+}
+
+bool UtilityCfs::pointMonthlyDeparture(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, bool inDeviations, int baseline, double lat, double lon, std::vector<float>& values, std::string& error) {
+    values.assign(months.size(), std::nanf(""));
+    bool any = false;
+    for (size_t i = 1; i < months.size(); i++) {
+        GfsGrid::Grid g;
+        std::string message;
+        if (monthlyDeparture(run, member, variable, months[i], inDeviations, baseline, g, message)) {
+            const float v = g.sample(lon > 180.0 ? lon - 360.0 : lon, lat);
+            if (!std::isnan(v)) {
+                values[i] = v;
+                any = true;
+            }
+        } else {
+            error = message;
         }
     }
     return any;

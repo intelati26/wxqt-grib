@@ -28,7 +28,7 @@ class CfsPlumeViewer : public Window {
 public:
     explicit CfsPlumeViewer(Window * parent, double lat = 39.1, double lon = -94.6);
     // set the model ("cfs", "gfs"), the number of runs and the hours between them, and load (a route of the development aids, and a way to open it ready)
-    void choose(const QString& modelId, int runs, int everyHours);
+    void choose(const QString& modelId, int runs, int everyHours, int monthly = 0);
 
     struct Line {
         QString name;
@@ -42,6 +42,7 @@ public:
         double runFraction{0.0};                 // the run's hour of its day, as a part of a day
         QDate runDay;                            // the run's own day
         QString units;
+        QString monthlyUnits;                    // the monthly panel's axis
         std::vector<double> days;                // days from the run's time, for the daily lines
         std::vector<Line> daily;
         std::vector<QString> runNames;           // the four runs: "00Z 16 Oct" ...
@@ -61,6 +62,7 @@ private:
     QComboBox * span{};
     QComboBox * count{};
     QComboBox * stride{};
+    QComboBox * monthlyShow{};
     QPushButton * go{};
     QLabel * status{};
     CfsPlume * chart{};
