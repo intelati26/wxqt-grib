@@ -43,6 +43,7 @@ namespace UtilityBufkit {
 }
 class HodographGlyph;
 
+class QDateTimeEdit;
 class ModelViewer : public Window {
 public:
     ModelViewer(Window *, const string&);
@@ -143,6 +144,7 @@ private:
     void applyMainRunRule();   // a chart only a model's main runs have: shows the main run in its place, and says so above the timeline
     std::string runSwappedFrom;   // the run that was chosen before the chart made the screen move to a main run ("" when none)
     // a hodograph of each station's model sounding on the map, for the hour on view (laid over the view like the station buttons: not in a saved picture)
+    QDateTimeEdit * timePick{nullptr};      // a calendar and clock (UTC) to open the run of any past time
     QPushButton * buttonHodos{nullptr};
     QTimer hodoTimer;
     std::map<string, std::shared_ptr<UtilityBufkit::Run>> bufkitRuns;   // by station: the newest RRFS run of its BUFKIT file (every forecast hour)

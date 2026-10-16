@@ -17,6 +17,7 @@
 #include "misc/ImageViewer.h"
 #include "objects/UtilityAnimationExport.h"
 #include "objects/NetManager.h"
+#include <QDateTimeEdit>
 #include <QPushButton>
 #include "models/CamsViewer.h"
 #include "models/ChartBuilder.h"
@@ -91,6 +92,30 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     boxH.addWidget(buttonModel);
     buttonModel.connect([this] { showModelPicker(); });
     boxH.addWidget(comboboxRun);
+    {   // any time of the past: its date and clock (UTC) open the run at or before it, at the hour that lands on it
+        auto * holder = new QWidget{this};
+        auto * row = new QHBoxLayout{holder};
+        row->setContentsMargins(0, 0, 0, 0);
+        timePick = new QDateTimeEdit{QDateTime::currentDateTimeUtc(), holder};
+        timePick->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+        timePick->setTimeZone(QTimeZone::utc());
+#else
+        timePick->setTimeSpec(Qt::UTC);   // (Qt 6.4 has no setTimeZone on the date box)
+#endif
+        timePick->setCalendarPopup(true);
+        timePick->setToolTip("A day and time (UTC): Go opens the run at or before it, at the hour that is that time. The other open history screens follow");
+        auto * go = new QPushButton{"Go", holder};
+        go->setFixedWidth(40);
+        row->addWidget(timePick);
+        row->addWidget(go);
+        boxH.addWidgetReal(holder);
+        QObject::connect(go, &QPushButton::clicked, this, [this] {
+            const auto at = timePick->dateTime().toUTC();
+            openAt(objectModel.model, at);
+            HistoryCursor::get().setTime(at, this);
+        });
+    }
     boxH.addWidget(comboboxSector);
     boxH.addWidget(buttonSector);
     buttonSector.connect([this] { showSectorPicker(); });
@@ -477,6 +502,9 @@ void ModelViewer::openAt(const string& model, const QDateTime& validUtc) {
         QObject::connect(&HistoryCursor::get(), &HistoryCursor::moved, this, [this] (QObject * origin) { followCursor(origin); });
     }
     pinnedValid = validUtc.toUTC();
+    if (timePick != nullptr) {
+        timePick->setDateTime(pinnedValid);
+    }
     pinnedModel = model;
     pinnedApply = true;
     for (size_t i = 0; i < objectModel.models.size(); i++) {
