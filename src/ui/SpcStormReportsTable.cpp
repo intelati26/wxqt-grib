@@ -5,7 +5,9 @@
 // *****************************************************************************
 
 #include "SpcStormReportsTable.h"
+#include <algorithm>
 #include <iostream>
+#include "util/Utility.h"
 
 
 SpcStormReportsTable::SpcStormReportsTable(QWidget * parent, const vector<StormReport>& stormReports, const string& filter1) {
@@ -38,15 +40,22 @@ SpcStormReportsTable::SpcStormReportsTable(QWidget * parent, const vector<StormR
     tableView = new QTableView(parent);
     tableView->setModel(model);
     tableView->verticalHeader()->hide();
-    tableView->horizontalHeader()->hide();
+    model->setHorizontalHeaderLabels({"Lat, lon", "State, county", "Time (UTC)", "Location", "Report"});
+    tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);   // the person drags the column edges
+    tableView->horizontalHeader()->setStretchLastSection(true);
+    tableView->horizontalHeader()->setMinimumSectionSize(50);
     tableView->setWordWrap(true);
     tableView->setShowGrid(true);
     tableView->setColumnWidth(0, 160);
     tableView->setColumnWidth(1, 200);
     tableView->setColumnWidth(2, 200);
-    tableView->setColumnWidth(3, 1000);
+    tableView->setColumnWidth(3, 400);
+    tableView->setColumnWidth(4, 500);
     tableView->resizeRowsToContents();
-    tableView->setMinimumHeight(800);
+    tableView->setMinimumHeight(100);
+    tableView->setFixedHeight(std::clamp(Utility::readPrefInt("STORM_REPORTS_TABLE_HEIGHT", 800), 150, 3000));
+    // wrapped rows follow a column that is widened or narrowed
+    QObject::connect(tableView->horizontalHeader(), &QHeaderView::sectionResized, tableView, [t = tableView] { t->resizeRowsToContents(); });
     tableView->show();
 }
 

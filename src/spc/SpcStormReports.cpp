@@ -66,11 +66,24 @@ SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsD
     slider->setValue(plotWidth);
     slider->setFixedWidth(300);
     sizeLayout->addWidget(slider);
-    sizeLayout->addStretch();
     QObject::connect(slider, &QSlider::valueChanged, this, [this] (int value) {
         plotWidth = value;
         photo.setToWidth(plotWidth + 100);
         Utility::writePrefInt("STORM_REPORTS_PLOT_WIDTH", value);
+    });
+    sizeLayout->addSpacing(20);
+    sizeLayout->addWidget(new QLabel{"Height of the table:", sizeRow});
+    auto * tall = new QSlider{Qt::Horizontal, sizeRow};
+    tall->setRange(150, 3000);
+    tall->setValue(std::clamp(Utility::readPrefInt("STORM_REPORTS_TABLE_HEIGHT", 800), 150, 3000));
+    tall->setFixedWidth(300);
+    sizeLayout->addWidget(tall);
+    sizeLayout->addStretch();
+    QObject::connect(tall, &QSlider::valueChanged, this, [this] (int value) {
+        Utility::writePrefInt("STORM_REPORTS_TABLE_HEIGHT", value);
+        if (tableView && tableView->tableView) {
+            tableView->tableView->setFixedHeight(value);
+        }
     });
     box.addWidgetReal(sizeRow);
     box.addWidget(comboBox);
