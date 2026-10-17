@@ -920,6 +920,13 @@ void MasterMapViewer::resizeEventCustom() {
     if (mapView == nullptr) {
         return;
     }
+    // The time bar is one row: when the window is narrow the calendar and Go (the rarely used) give way first, and the time label may be cut instead of widening the window
+    if (timePick != nullptr) {
+        const bool room = width() >= 1000;
+        timePick->setVisible(room);
+        timeGo->setVisible(room);
+        timeLabel->setMinimumWidth(room ? 180 : 40);
+    }
     const int above = ControlRow::heightIn(rowTop.getView(), width()) + textStatus.getView()->sizeHint().height();
     mapView->fitRectangle(width() - panelWidth - 30, height() - above - 40);
 }
