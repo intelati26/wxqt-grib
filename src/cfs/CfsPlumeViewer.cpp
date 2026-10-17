@@ -148,7 +148,15 @@ private:
         const auto xOf = [&] (double day) { return area.left() + (day - minDay) / (maxDay - minDay) * area.width(); };
         const auto yOf = [&] (double v) { return area.bottom() - (v - from) / (to - from) * area.height(); };
         // the day marks
-        const double dayStep = maxDay > 60 ? 10 : maxDay > 20 ? 5 : 1;
+        // a mark about every 62 pixels or more: 1, 2, 5, 10, 20 ... days
+        const double perDay = area.width() / std::max(1.0, maxDay - minDay);
+        double dayStep = 1.0;
+        for (const double candidate : {1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0}) {
+            dayStep = candidate;
+            if (candidate * perDay >= 62.0) {
+                break;
+            }
+        }
         for (double n = std::ceil((minDay + result.runFraction) / dayStep) * dayStep; n - result.runFraction <= maxDay; n += dayStep) {   // the marks are at midnight UTC
             const double d = n - result.runFraction;
             p.setPen(QColor{235, 235, 235});
@@ -219,7 +227,7 @@ private:
         }
         double from, to, step;
         niceRange(lo, hi, from, to, step);
-        axes(p, area, from, to, step, result.monthlyUnits);
+        axes(p, area, from, to, step, area.height() < 170 ? result.monthlyUnits.section("  ", 0, 0) : result.monthlyUnits);
         const size_t n = result.months.size();
         const auto xOf = [&] (size_t i) { return area.left() + (i + 0.5) / n * area.width(); };
         const auto yOf = [&] (double v) { return area.bottom() - (v - from) / (to - from) * area.height(); };
@@ -335,6 +343,11 @@ CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, doubl
     }
 }
 
+void CfsPlumePanel::setCompact(bool on) {
+    compact = on;
+    fillChoices();
+}
+
 void CfsPlumePanel::setPoint(double lat, double lon) {
     latBox->setValue(lat);
     lonBox->setValue(lon);
@@ -381,6 +394,10 @@ void CfsPlumePanel::fillChoices() {
     if (gefs) {
         count->addItem("all 31 members", 31);
         count->addItem("mean and spread (fast)", 0);
+        count->setCurrentIndex(compact ? 1 : 0);
+        stride->setEnabled(false);
+        monthlyShow->setEnabled(false);
+        return;
     } else {
         count->addItem("4 runs", 4);
         count->addItem("8 runs", 8);

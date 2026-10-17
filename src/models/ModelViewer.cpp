@@ -426,6 +426,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     strip->onPlay = [this] (bool on) { startPlaying(on); };
     box.addWidgetReal(strip);
     plumePanel = new CfsPlumePanel{this, panes, 0.0, 0.0, "gefs", false};   // (shown, and reading, only while the pane is on)
+    plumePanel->setCompact(true);   // (the GEFS pane begins with the mean and spread: all the members are a choice, 600 reads the first time)
     plumePanel->setMinimumWidth(520);
     compareArea->setMinimumWidth(420);
     plumePanel->setVisible(false);

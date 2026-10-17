@@ -144,9 +144,15 @@ private:
             }
             const int labelWidth = widest + 14;
             const int every = std::max(1, static_cast<int>(std::ceil(labelWidth / (span / (names.size() - 1)))));
+            double lastRight = -1e9;
             for (size_t i = 0; i < names.size(); i += static_cast<size_t>(every)) {
                 const double x = margin + span * i / (names.size() - 1);
-                p.drawText(QRectF{x - labelWidth / 2.0, 0, static_cast<double>(labelWidth), 16.0}, Qt::AlignCenter, QString::fromStdString(names[i]));
+                const double left = std::clamp(x - labelWidth / 2.0, 0.0, std::max(0.0, width() - static_cast<double>(labelWidth)));   // (the first and last labels stay inside the strip)
+                if (left < lastRight + 4.0) {   // a label that would run into the one before is left out
+                    continue;
+                }
+                p.drawText(QRectF{left, 0, static_cast<double>(labelWidth), 16.0}, Qt::AlignCenter, QString::fromStdString(names[i]));
+                lastRight = left + labelWidth;
             }
         }
     };

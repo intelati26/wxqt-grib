@@ -37,6 +37,7 @@ public:
     void setPoint(double lat, double lon);
     void setModel(const QString& modelId);
     void reload() { reloadSoon.start(300); }
+    void setCompact(bool on);
 
     struct Line {
         QString name;
@@ -64,6 +65,7 @@ private:
     void load();
     void fillChoices();
     Window * owner{nullptr};
+    bool compact{false};         // a pane beside a chart: the GEFS begins with its mean and spread (40 reads), not all members (620)
     QTimer reloadSoon;
     QString loadedKey;
     QComboBox * place{};
