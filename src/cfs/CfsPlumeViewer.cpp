@@ -298,6 +298,10 @@ CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, doubl
     monthlyShow->addItem("months: departure from the CFS normal", 1);
     monthlyShow->addItem("months: departure in std deviations", 2);
     fillChoices();
+    runChoice = new QComboBox{this};
+    runChoice->addItem("run of the page", 0);
+    runChoice->addItem("newest run", 1);
+    runChoice->setToolTip("Which run the plume is of: the one the chart beside it is on, or always the newest");
     go = new QPushButton{"Load", this};
     status = new QLabel{"", this};
     top->addWidget(place);
@@ -313,6 +317,7 @@ CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, doubl
     second->addWidget(count);
     second->addWidget(stride);
     second->addWidget(monthlyShow);
+    second->addWidget(runChoice);
     second->addWidget(go);
     second->addStretch();
     column->addLayout(top);
@@ -321,6 +326,7 @@ CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, doubl
     chart = new CfsPlume{this};
     column->addWidget(chart, 1);
     setLayout(column);
+    QObject::connect(runChoice, &QComboBox::currentIndexChanged, this, [this] (int) { reload(); });
     reloadSoon.setSingleShot(true);
     QObject::connect(&reloadSoon, &QTimer::timeout, this, [this] { load(); });
     QObject::connect(place, &QComboBox::currentIndexChanged, this, [this] (int index) {
@@ -346,6 +352,20 @@ CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, doubl
 void CfsPlumePanel::setCompact(bool on) {
     compact = on;
     fillChoices();
+}
+
+void CfsPlumePanel::setPageRun(const std::string& date, const std::string& cycle, bool canFollow) {
+    const bool changed = date != pageDate || cycle != pageCycle || canFollow != followable;
+    pageDate = date;
+    pageCycle = cycle;
+    followable = canFollow;
+    runChoice->setEnabled(canFollow);
+    if (!canFollow) {
+        runChoice->setCurrentIndex(1);
+    }
+    if (changed && canFollow && runChoice->currentIndex() == 0) {
+        reload();
+    }
 }
 
 void CfsPlumePanel::setPoint(double lat, double lon) {
@@ -441,6 +461,8 @@ void CfsPlumePanel::load() {
     const int monthlyMode = gfs || gefs ? 0 : monthlyShow->currentData().toInt();
     const int baseline = Utility::readPrefInt("MM_CFS_BASE", 1999) == 1982 ? 1982 : 1999;
     const int runCount = count->currentData().toInt(), strideHours = stride->currentData().toInt();
+    const bool followRun = followable && runChoice->currentIndex() == 0 && !pageDate.empty();
+    const UtilityCfs::Run pageRun{pageDate, pageCycle};
     auto result = std::make_shared<Result>();
     auto error = std::make_shared<std::string>();
     done->store(0);
@@ -451,7 +473,9 @@ void CfsPlumePanel::load() {
     new FutureVoid{owner,
         [=] {
             UtilityCfs::Run run;
-            if (!(gefs ? UtilityCfs::gefsLatestRun(run) : gfs ? UtilityCfs::gfsLatestRun(run) : UtilityCfs::latestRun(run))) {
+            if (followRun) {
+                run = pageRun;
+            } else if (!(gefs ? UtilityCfs::gefsLatestRun(run) : gfs ? UtilityCfs::gfsLatestRun(run) : UtilityCfs::latestRun(run))) {
                 *error = gefs ? "no GEFS run found" : gfs ? "no GFS run found" : "no CFSv2 run found";
                 return;
             }

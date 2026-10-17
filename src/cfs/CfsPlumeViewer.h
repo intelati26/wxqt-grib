@@ -36,6 +36,9 @@ public:
     // a new place or model: loaded a moment later (a click that moves on, or the page's model changes, asks again before the first is read)
     void setPoint(double lat, double lon);
     void setModel(const QString& modelId);
+    // The run of the chart the panel is beside (the CFS and GEFS pages): the plume follows it ("run of the page") or takes the newest run, as the person chooses. `followable` false (a page of another model)
+    // leaves only the newest.
+    void setPageRun(const std::string& date, const std::string& cycle, bool followable);
     void reload() { reloadSoon.start(300); }
     void setCompact(bool on);
 
@@ -77,6 +80,9 @@ private:
     QComboBox * count{};
     QComboBox * stride{};
     QComboBox * monthlyShow{};
+    QComboBox * runChoice{};
+    std::string pageDate, pageCycle;
+    bool followable{false};
     QPushButton * go{};
     QLabel * status{};
     CfsPlume * chart{};

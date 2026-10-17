@@ -1303,6 +1303,10 @@ void ModelViewer::updatePlumePanel() {
         plumePanel->setPoint(lat, lon);
     }
     plumePanel->setModel(id == "CFS" ? "cfs" : id.compare(0, 4, "GEFS") == 0 ? "gefs" : "gfs");
+    const auto run = runTime(objectModel.run);   // the chart's run: the plume follows it unless the person has it take the newest
+    if (run.isValid()) {
+        plumePanel->setPageRun(run.toString("yyyyMMdd").toStdString(), run.toString("HH").toStdString(), id == "CFS" || id == "GEFS");
+    }
 }
 
 void ModelViewer::refreshTimeStrip() {
