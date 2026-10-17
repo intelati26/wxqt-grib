@@ -32,6 +32,7 @@
 #include "history/EventCase.h"
 #include "history/HistoryCursor.h"
 #include "history/HistoryLayerSets.h"
+#include "ui/FlowBox.h"
 #include "history/PointPicker.h"
 #include "mapkit/MasterMapViewer.h"
 #include "spc/SpcStormReports.h"
@@ -112,7 +113,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     form->addRow("Name", name);
     form->addRow("From (UTC)", start);
     form->addRow("To (UTC)", end);
-    auto * point = new QHBoxLayout;
+    auto * point = new FlowLayout{6};
     point->addWidget(lat);
     point->addWidget(lon);
     point->addWidget(pick);
@@ -120,12 +121,11 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     form->addRow("Radius", radius);
     form->addRow("Note", note);
     form->addRow("Moments", moments);
-    auto * buttons = new QHBoxLayout;
+    auto * buttons = new FlowLayout{6};
     auto * save = new QPushButton{"Save", this};
     auto * remove = new QPushButton{"Delete", this};
     buttons->addWidget(save);
     buttons->addWidget(remove);
-    buttons->addStretch();
 
     table = new QTableWidget{0, 4, this};
     table->setHorizontalHeaderLabels({"Data", "Open from", "For this event", ""});
@@ -144,9 +144,11 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
 
     atBox = new QComboBox{this};
     atBox->setToolTip("The time the screens open at");
-    auto * atRow = new QHBoxLayout;
+    atBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    atBox->setMinimumContentsLength(34);
+    auto * atRow = new FlowLayout{6};
     atRow->addWidget(new QLabel{"Open the screens at", this});
-    atRow->addWidget(atBox, 1);
+    atRow->addWidget(atBox);
     tabs = new QTabWidget{this};
     auto * dataPage = new QWidget{this};
     auto * dataColumn = new QVBoxLayout{dataPage};
@@ -159,9 +161,11 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     }
     auto * mapButton = new QPushButton{"Open the map", this};
     mapButton->setToolTip("The master map at the time chosen above, over the event's place, with these layers on");
-    auto * mapRow = new QHBoxLayout;
+    mapSet->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    mapSet->setMinimumContentsLength(40);
+    auto * mapRow = new FlowLayout{6};
     mapRow->addWidget(new QLabel{"Map with", this});
-    mapRow->addWidget(mapSet, 1);
+    mapRow->addWidget(mapSet);
     mapRow->addWidget(mapButton);
     dataColumn->addLayout(mapRow);
     QObject::connect(mapButton, &QPushButton::clicked, [this] { openMap(); });
@@ -171,9 +175,10 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     keepButton->setToolTip("Download the SPC outlooks, the WPC surface maps (every 3 hours) and the SPC storm reports of the event into a folder of its own, so that they open with no connection");
     folderButton = new QPushButton{"Open folder", this};
     forgetButton = new QPushButton{"Forget the copy", this};
-    auto * caseRow = new QHBoxLayout;
+    caseLabel->setMinimumWidth(180);
+    auto * caseRow = new FlowLayout{6};
     caseRow->addWidget(new QLabel{"Offline copy", this});
-    caseRow->addWidget(caseLabel, 1);
+    caseRow->addWidget(caseLabel);
     caseRow->addWidget(keepButton);
     caseRow->addWidget(folderButton);
     caseRow->addWidget(forgetButton);
@@ -223,7 +228,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     // the weather map of the day: WPC's surface analysis archive from 2006 (every 3 hours), and where the scanned maps before it are
     auto * surfacePage = new QWidget{this};
     auto * surfaceColumn = new QVBoxLayout{surfacePage};
-    auto * surfaceRow = new QHBoxLayout;
+    auto * surfaceRow = new FlowLayout{6};
     surfaceHour = new QComboBox{this};
     for (int h = 0; h < 24; h += 3) {
         surfaceHour->addItem(QString{"%1Z"}.arg(h, 2, 10, QChar{'0'}), h);
@@ -239,7 +244,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     reanalysis->setToolTip("NOAA PSL: weather maps for any date back to 1836, made from surface pressure observations");
     surfaceRow->addWidget(new QLabel{"Time", this});
     surfaceRow->addWidget(surfaceHour);
-    surfaceRow->addWidget(surfaceKind, 1);
+    surfaceRow->addWidget(surfaceKind);
     surfaceRow->addWidget(scanned);
     surfaceRow->addWidget(reanalysis);
     surfaceNote = new QLabel{this};

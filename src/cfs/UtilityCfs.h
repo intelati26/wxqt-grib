@@ -6,6 +6,7 @@
 #ifndef UTILITYCFS_H
 #define UTILITYCFS_H
 
+#include <atomic>
 #include <string>
 #include <QDateTime>
 #include <vector>
@@ -41,10 +42,10 @@ namespace UtilityCfs {
     bool monthly(const Run& run, int member, const Variable& variable, const std::string& yyyymm, GfsGrid::Grid& out, std::string& error);
     // a field's value at a point for several forecast hours (or months) of one member, the fields not kept: each is read, sampled and dropped. A value that could not be had is NaN; false
     // when none could (error says why). lon east positive.
-    bool pointSeries(const Run& run, int member, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error);
+    bool pointSeries(const Run& run, int member, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error, std::atomic<int> * progress = nullptr);
     // the same as departures from the CFS normal (or in standard deviations); the month in progress stays NaN
-    bool pointMonthlyDeparture(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, bool inDeviations, int baseline, double lat, double lon, std::vector<float>& values, std::string& error);
-    bool pointMonthly(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, double lat, double lon, std::vector<float>& values, std::string& error);
+    bool pointMonthlyDeparture(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, bool inDeviations, int baseline, double lat, double lon, std::vector<float>& values, std::string& error, std::atomic<int> * progress = nullptr);
+    bool pointMonthly(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, double lat, double lon, std::vector<float>& values, std::string& error, std::atomic<int> * progress = nullptr);
     // The CFS's own normal: NOAA's calibration climatologies of the reforecasts (1999-2010 or 1982-2010; mean "fclm" and standard deviation "fstd" of the monthly means, by start date, cycle and lead
     // month: lead 1 is the month after the run's own). Each is a field of NCEI's reforecast bucket read by byte range and kept for good (PermanentCache "climate") packed in 16 bits, a few tens
     // of KB. `leadMonth` 1-9; the start date is the run's (the nearest day with a file if its own has none). The values are in the shown unit.
@@ -57,11 +58,11 @@ namespace UtilityCfs {
     // of the field (the box request of NOMADS when it answers, the whole message from the open bucket when it does not).
     const std::vector<Variable>& gfsVariables();
     bool gfsLatestRun(Run& run);
-    bool gfsPointSeries(const Run& run, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error);
+    bool gfsPointSeries(const Run& run, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error, std::atomic<int> * progress = nullptr);
     // The GEFS (31 members, 0.5 degree, 16 days) for the plume window: the newest run, and one member's (c00, p01 ... p30; "" the mean of them, "spr" their spread) value at a point at forecast hours
     const std::vector<Variable>& gefsVariables();
     bool gefsLatestRun(Run& run);
-    bool gefsPointSeries(const Run& run, const Variable& variable, const std::string& member, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error);
+    bool gefsPointSeries(const Run& run, const Variable& variable, const std::string& member, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error, std::atomic<int> * progress = nullptr);
     // the months a run's monthly files cover, from its own month: "202610" ... ("202707")
     std::vector<std::string> months(const Run& run);
     // the run's own time (UTC)

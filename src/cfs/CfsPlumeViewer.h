@@ -71,6 +71,7 @@ private:
     bool compact{false};         // a pane beside a chart: the GEFS begins with its mean and spread (40 reads), not all members (620)
     QTimer reloadSoon;
     QString loadedKey;
+    QString loadingWhat{"forecast"};
     QComboBox * place{};
     QDoubleSpinBox * latBox{};
     QDoubleSpinBox * lonBox{};

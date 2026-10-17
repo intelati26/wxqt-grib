@@ -19,6 +19,7 @@
 #include "settings/UIPreferences.h"
 #include "util/DisplayUnits.h"
 #include "ui/ChartExport.h"
+#include "ui/FlowBox.h"
 #include "util/Utility.h"
 
 // the chart: the daily lines on top, the monthly means below
@@ -265,7 +266,7 @@ private:
 
 CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, double lon, const QString& modelId, bool loadNow) : QWidget{parent}, owner{owner} {
     auto * column = new QVBoxLayout;
-    auto * top = new QHBoxLayout;
+    auto * top = new FlowLayout{6};   // one flow: the choices wrap onto more rows when the pane is narrow
     place = new QComboBox{this};
     place->addItem("Latitude / longitude");
     const auto names = Location::listOfNames();
@@ -302,6 +303,8 @@ CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, doubl
     runChoice->addItem("run of the page", 0);
     runChoice->addItem("newest run", 1);
     runChoice->setToolTip("Which run the plume is of: the one the chart beside it is on, or always the newest");
+    runChoice->setCurrentIndex(1);   // (a window of its own has no chart to follow: the pane turns the choice on)
+    runChoice->setEnabled(false);
     go = new QPushButton{"Load", this};
     status = new QLabel{"", this};
     top->addWidget(place);
@@ -311,17 +314,13 @@ CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, doubl
     top->addWidget(lonBox);
     top->addWidget(model);
     top->addWidget(field);
-    top->addStretch();
-    auto * second = new QHBoxLayout;   // two rows, so that the choices still fit when the pane is narrow
-    second->addWidget(span);
-    second->addWidget(count);
-    second->addWidget(stride);
-    second->addWidget(monthlyShow);
-    second->addWidget(runChoice);
-    second->addWidget(go);
-    second->addStretch();
+    top->addWidget(span);
+    top->addWidget(count);
+    top->addWidget(stride);
+    top->addWidget(monthlyShow);
+    top->addWidget(runChoice);
+    top->addWidget(go);
     column->addLayout(top);
-    column->addLayout(second);
     column->addWidget(status);
     chart = new CfsPlume{this};
     column->addWidget(chart, 1);
@@ -341,7 +340,7 @@ CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, doubl
     progress.setInterval(300);
     QObject::connect(&progress, &QTimer::timeout, this, [this] {
         if (loading) {
-            status->setText(QString{"reading the CFSv2 run: %1 of %2 parts"}.arg(done->load()).arg(total->load()));
+            status->setText(QString{"reading the %1: %2 of %3 fields"}.arg(loadingWhat).arg(done->load()).arg(total->load()));
         }
     });
     if (loadNow) {
@@ -468,7 +467,8 @@ void CfsPlumePanel::load() {
     done->store(0);
     total->store(gefs ? (runCount > 0 ? runCount : 2) : gfs ? runCount : 2 * runCount);
     progress.start();
-    status->setText("looking for the newest run...");
+    loadingWhat = gefs ? (runCount > 0 ? "GEFS members" : "GEFS mean and spread") : gfs ? "GFS runs" : "CFSv2 runs";   // what the status line says it is reading
+    status->setText(QString{"looking for the %1 run..."}.arg(gefs ? "GEFS" : gfs ? "GFS" : "CFSv2"));
     const auto doneCount = done;
     new FutureVoid{owner,
         [=] {
@@ -491,6 +491,11 @@ void CfsPlumePanel::load() {
                 validTimes.push_back(t);
                 result->days.push_back((t - runSeconds) / 86400.0);
             }
+            {   // the reads to make, for the status line: a field for each time of each run or member, and each month
+                const size_t jobsCount = gefs ? (runCount > 0 ? 31 : 2) : static_cast<size_t>(runCount);
+                const size_t months = gfs || gefs ? 0 : UtilityCfs::months(run).size() * static_cast<size_t>(runCount);
+                total->store(static_cast<int>(jobsCount * validTimes.size() + months));
+            }
             // one run's (or one member's) values at those times: the hour is the time minus the run's own, and a time beyond the run's end stays empty
             const auto seriesOf = [=] (const UtilityCfs::Run& past, const std::string& member) {
                 const auto at = UtilityCfs::runTime(past).toSecsSinceEpoch();
@@ -506,11 +511,11 @@ void CfsPlumePanel::load() {
                 std::vector<float> got, all(validTimes.size(), std::nanf(""));
                 std::string message;
                 if (gefs) {
-                    UtilityCfs::gefsPointSeries(past, variable, member, hours, lat, lon, got, message);
+                    UtilityCfs::gefsPointSeries(past, variable, member, hours, lat, lon, got, message, doneCount.get());
                 } else if (gfs) {
-                    UtilityCfs::gfsPointSeries(past, variable, hours, lat, lon, got, message);
+                    UtilityCfs::gfsPointSeries(past, variable, hours, lat, lon, got, message, doneCount.get());
                 } else {
-                    UtilityCfs::pointSeries(past, 1, variable, hours, lat, lon, got, message);
+                    UtilityCfs::pointSeries(past, 1, variable, hours, lat, lon, got, message, doneCount.get());
                 }
                 for (size_t i = 0; i < where.size() && i < got.size(); i++) {
                     all[where[i]] = got[i];
@@ -533,7 +538,6 @@ void CfsPlumePanel::load() {
                     gate.acquire();   // NOMADS answers a few requests at a time (the GFS runs are read three at a time)
                     auto v = seriesOf(past, name);
                     gate.release();
-                    doneCount->fetch_add(1);
                     return v;
                 })});
             };
@@ -626,8 +630,7 @@ void CfsPlumePanel::load() {
                 monthlyJobs.push_back(std::async(std::launch::async, [=] {
                     std::vector<float> v;
                     std::string message;
-                    if (monthlyMode == 0) { UtilityCfs::pointMonthly(past, 1, variable, months, lat, lon, v, message); } else { UtilityCfs::pointMonthlyDeparture(past, 1, variable, months, monthlyMode == 2, baseline, lat, lon, v, message); }
-                    doneCount->fetch_add(1);
+                    if (monthlyMode == 0) { UtilityCfs::pointMonthly(past, 1, variable, months, lat, lon, v, message, doneCount.get()); } else { UtilityCfs::pointMonthlyDeparture(past, 1, variable, months, monthlyMode == 2, baseline, lat, lon, v, message, doneCount.get()); }
                     return v;
                 }));
             }

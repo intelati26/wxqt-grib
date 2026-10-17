@@ -14,6 +14,7 @@
 #include <QMessageBox>
 #include <QObject>
 #include <QSlider>
+#include "ui/FlowBox.h"
 #include "util/Utility.h"
 #include "common/GlobalVariables.h"
 #include "objects/FutureBytes.h"
@@ -58,8 +59,8 @@ SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsD
     box.addWidget(exportButton);
     // the picture's size is the person's: the slider sets its width (kept for the next time)
     auto * sizeRow = new QWidget{this};
-    auto * sizeLayout = new QHBoxLayout{sizeRow};
-    sizeLayout->setContentsMargins(0, 0, 0, 0);
+    auto * sizeLayout = new FlowLayout{8};   // wraps when the window is narrow
+    sizeRow->setLayout(sizeLayout);
     sizeLayout->addWidget(new QLabel{"Size of the map:", sizeRow});
     auto * slider = new QSlider{Qt::Horizontal, sizeRow};
     slider->setRange(300, 2400);
@@ -71,14 +72,12 @@ SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsD
         photo.setToWidth(plotWidth + 100);
         Utility::writePrefInt("STORM_REPORTS_PLOT_WIDTH", value);
     });
-    sizeLayout->addSpacing(20);
     sizeLayout->addWidget(new QLabel{"Height of the table:", sizeRow});
     auto * tall = new QSlider{Qt::Horizontal, sizeRow};
     tall->setRange(150, 3000);
     tall->setValue(std::clamp(Utility::readPrefInt("STORM_REPORTS_TABLE_HEIGHT", 800), 150, 3000));
     tall->setFixedWidth(300);
     sizeLayout->addWidget(tall);
-    sizeLayout->addStretch();
     QObject::connect(tall, &QSlider::valueChanged, this, [this] (int value) {
         Utility::writePrefInt("STORM_REPORTS_TABLE_HEIGHT", value);
         if (tableView && tableView->tableView) {

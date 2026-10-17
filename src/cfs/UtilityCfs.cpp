@@ -144,7 +144,7 @@ bool UtilityCfs::monthly(const Run& run, int member, const Variable& variable, c
     return true;
 }
 
-bool UtilityCfs::pointSeries(const Run& run, int member, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error) {
+bool UtilityCfs::pointSeries(const Run& run, int member, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error, std::atomic<int> * progress) {
     values.assign(hours.size(), std::nanf(""));
     const GfsData data{config(), source(member, false)};
     bool any = false;
@@ -164,6 +164,9 @@ bool UtilityCfs::pointSeries(const Run& run, int member, const Variable& variabl
         if (!data.load(run, needs, got, message)) {
             error = message;
         }
+        if (progress != nullptr) {
+            progress->fetch_add(static_cast<int>(needs.size()));
+        }
         for (const auto& [key, grid] : got) {
             const float v = grid.sample(lon > 180.0 ? lon - 360.0 : lon, lat);
             if (!std::isnan(v)) {
@@ -175,10 +178,13 @@ bool UtilityCfs::pointSeries(const Run& run, int member, const Variable& variabl
     return any;
 }
 
-bool UtilityCfs::pointMonthly(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, double lat, double lon, std::vector<float>& values, std::string& error) {
+bool UtilityCfs::pointMonthly(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, double lat, double lon, std::vector<float>& values, std::string& error, std::atomic<int> * progress) {
     values.assign(months.size(), std::nanf(""));
     bool any = false;
     for (size_t i = 0; i < months.size(); i++) {
+        if (progress != nullptr) {
+            progress->fetch_add(1);
+        }
         GfsGrid::Grid g;
         std::string message;
         if (monthly(run, member, variable, months[i], g, message)) {
@@ -238,7 +244,7 @@ bool UtilityCfs::gfsLatestRun(Run& run) {
     return def != nullptr && GfsData{config(), def->source("")}.latestRun(run);
 }
 
-bool UtilityCfs::gfsPointSeries(const Run& run, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error) {
+bool UtilityCfs::gfsPointSeries(const Run& run, const Variable& variable, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error, std::atomic<int> * progress) {
     values.assign(hours.size(), std::nanf(""));
     const auto * def = GfsModels::find("GFS");
     if (def == nullptr) {
@@ -276,6 +282,9 @@ bool UtilityCfs::gfsPointSeries(const Run& run, const Variable& variable, const 
                 error = message;
             }
             got.insert(more.begin(), more.end());
+        }
+        if (progress != nullptr) {
+            progress->fetch_add(static_cast<int>(needs.size()));
         }
         for (const auto& [key, grid] : got) {
             const float v = grid.sample(lon, lat);
@@ -410,10 +419,13 @@ bool UtilityCfs::monthlyDeparture(const Run& run, int member, const Variable& va
     return true;
 }
 
-bool UtilityCfs::pointMonthlyDeparture(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, bool inDeviations, int baseline, double lat, double lon, std::vector<float>& values, std::string& error) {
+bool UtilityCfs::pointMonthlyDeparture(const Run& run, int member, const Variable& variable, const std::vector<std::string>& months, bool inDeviations, int baseline, double lat, double lon, std::vector<float>& values, std::string& error, std::atomic<int> * progress) {
     values.assign(months.size(), std::nanf(""));
     bool any = false;
     for (size_t i = 1; i < months.size(); i++) {
+        if (progress != nullptr) {
+            progress->fetch_add(1);
+        }
         GfsGrid::Grid g;
         std::string message;
         if (monthlyDeparture(run, member, variable, months[i], inDeviations, baseline, g, message)) {
@@ -445,7 +457,7 @@ bool UtilityCfs::gefsLatestRun(Run& run) {
     return def != nullptr && GfsData{config(), def->source("")}.latestRun(run);
 }
 
-bool UtilityCfs::gefsPointSeries(const Run& run, const Variable& variable, const std::string& member, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error) {
+bool UtilityCfs::gefsPointSeries(const Run& run, const Variable& variable, const std::string& member, const std::vector<int>& hours, double lat, double lon, std::vector<float>& values, std::string& error, std::atomic<int> * progress) {
     values.assign(hours.size(), std::nanf(""));
     const auto * def = GfsModels::find("GEFS");
     if (def == nullptr) {
@@ -478,6 +490,9 @@ bool UtilityCfs::gefsPointSeries(const Run& run, const Variable& variable, const
                 error = message;
             }
             got.insert(more.begin(), more.end());
+        }
+        if (progress != nullptr) {
+            progress->fetch_add(static_cast<int>(needs.size()));
         }
         for (const auto& [key, grid] : got) {
             const float v = grid.sample(lon > 180.0 ? lon - 360.0 : lon, lat);
