@@ -21,6 +21,11 @@ ActivityLabel::ActivityLabel(QWidget * parent) : QLabel{parent}, baseline{Activi
 void ActivityLabel::update() {
     const int downloads = Activity::downloads.load(), tasks = Activity::tasks.load();
     const long done = Activity::downloadsDone.load() - baseline;
+    if (const auto note = Activity::note(); !note.empty()) {   // a long job says what it is doing
+        setText("Working - " + QString::fromStdString(note));
+        setStyleSheet("color: #1b6ec2; font-weight: bold;");
+        return;
+    }
     if (downloads == 0 && tasks == 0) {
         setText("Idle  (" + QString::number(done) + " downloads since this screen opened)");
         setStyleSheet("color: gray;");

@@ -10,6 +10,7 @@
 #include <sstream>
 #include <vector>
 #include "objects/URL.h"
+#include "util/Activity.h"
 #include "util/PermanentCache.h"
 
 namespace {
@@ -138,10 +139,30 @@ QByteArray CfsArchiveIndex::index(const std::string& url) {
     if (store().has(key)) {
         return QByteArray::fromStdString(store().read(key));
     }
-    const auto file = URL::getBytesManaged(url.substr(0, url.size() - 4));
+    // the file in pieces, so that the status line can say how far it is (it is 14 to 60 MB, the first time for each variable and month)
+    const auto fileUrl = url.substr(0, url.size() - 4);
+    const auto slash = fileUrl.rfind('/');
+    const std::string what = slash == std::string::npos ? fileUrl : fileUrl.substr(slash + 1);
+    struct Note {
+        ~Note() { Activity::setNote({}); }
+    } note;
+    QByteArray file;
+    constexpr long long piece = 4LL * 1024 * 1024;
+    while (true) {
+        Activity::setNote("reading NCEI's " + what + " (the first time for this month, kept after): " + std::to_string(file.size() / (1024 * 1024)) + " MB so far");
+        const auto part = URL::getBytesRangeManaged(fileUrl, file.size(), file.size() + piece - 1);
+        if (part.isEmpty() || (file.isEmpty() && !part.startsWith("GRIB"))) {
+            break;
+        }
+        file += part;
+        if (part.size() < piece) {
+            break;
+        }
+    }
     if (file.size() < 100 || !file.startsWith("GRIB")) {
         return {};
     }
+    Activity::setNote("scanning " + what + " for its messages...");
     const auto text = scan(file);
     if (!text.empty()) {
         store().write(key, text);

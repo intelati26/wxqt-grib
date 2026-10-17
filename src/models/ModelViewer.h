@@ -44,6 +44,8 @@ namespace UtilityBufkit {
 class HodographGlyph;
 
 class QDateTimeEdit;
+class CfsPlumePanel;
+class QSplitter;
 class ModelViewer : public Window {
 public:
     ModelViewer(Window *, const string&);
@@ -52,7 +54,8 @@ public:
     void selectModel(const string& id);   // show this model ("SPCREFS" ...), as the model box would
     // a model's run and hour of the past: the latest run (every 6 hours) at or before this valid time, at that forecast hour; it stays (the newest run is not looked for) until
     // another model is chosen
-    void openAt(const string& model, const QDateTime& validUtc);
+    // `runStart`: the time is a RUN's (the cycle at or before it, at its first hour) instead of a valid time (the run at or before it, at the hour that lands on the time)
+    void openAt(const string& model, const QDateTime& validUtc, bool runStart = false);
     void showPicker();
     void showModelPicker();    // the models in groups (global, regional, convection allowing, ensembles, waves ...)
     void showSectorPicker();   // the same, for the areas   // the grouped chart picker (the models drawn from GRIB)
@@ -147,6 +150,10 @@ private:
     // a hodograph of each station's model sounding on the map, for the hour on view (laid over the view like the station buttons: not in a saved picture)
     double clickedLat{0.0}, clickedLon{0.0};   // the point last clicked on the chart (the crosshair)
     bool haveClicked{false};
+    QSplitter * panes{nullptr};             // the chart and the plume pane
+    QPushButton * buttonPlume{nullptr};
+    CfsPlumePanel * plumePanel{nullptr};    // under the chart of the CFS and GEFS: the forecast at the clicked point from the newest runs
+    void updatePlumePanel();
     QDateTimeEdit * timePick{nullptr};      // a calendar and clock (UTC) to open the run of any past time
     QPushButton * buttonHodos{nullptr};
     QTimer hodoTimer;
@@ -229,6 +236,8 @@ private:
     void applyPinnedRun();
     void recheckRuns();                   // every 15 minutes: has a newer run been published?
     QTimer recheckTimer;
+    bool pinnedRunStart{false};           // openAt was asked for a run: its first hour is shown
+    QComboBox * pickKind{nullptr};        // the picker's "valid time" or "run time"
     QDateTime pinnedValid;                // set: the screen is on a run of the past (openAt)
     string pinnedModel;
     bool pinnedApply{false};              // the hour of it is chosen once the run's hours are in

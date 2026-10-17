@@ -51,6 +51,8 @@ private:
     };
     void load(MapHost&);
     QImage colored(const GfsGrid::Grid&) const;
+    double inUnits(double value) const;       // a value of the file in the program's units (degrees F and inches, or C and mm; a departure in F is x1.8 with no 32)
+    QString unitsShown() const;
     std::vector<std::pair<double, QColor>> stops() const;   // the colours of what is shown: value stops
     long middleOf(const string& yyyymm) const;     // the 15th of the month, UTC
     string monthShown() const;                     // the month on view ("202611")

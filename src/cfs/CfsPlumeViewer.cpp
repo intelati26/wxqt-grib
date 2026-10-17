@@ -17,6 +17,7 @@
 #include "objects/FutureVoid.h"
 #include "settings/Location.h"
 #include "settings/UIPreferences.h"
+#include "util/DisplayUnits.h"
 #include "ui/ChartExport.h"
 #include "util/Utility.h"
 
@@ -24,10 +25,10 @@
 class CfsPlume : public QWidget {
 public:
     explicit CfsPlume(QWidget * parent) : QWidget{parent} {
-        setMinimumSize(760, 520);
+        setMinimumSize(560, 300);
         ChartExport::install(this, "CFSv2 plume");
     }
-    void set(const CfsPlumeViewer::Result& r) {
+    void set(const CfsPlumePanel::Result& r) {
         result = r;
         have = true;
         update();
@@ -181,7 +182,7 @@ private:
             p.setBrush(Qt::NoBrush);
         }
         auto order = result.daily;
-        std::stable_sort(order.begin(), order.end(), [] (const CfsPlumeViewer::Line& a, const CfsPlumeViewer::Line& b) { return (a.earlier ? 0 : a.member == 0 ? 2 : 1) < (b.earlier ? 0 : b.member == 0 ? 2 : 1); });
+        std::stable_sort(order.begin(), order.end(), [] (const CfsPlumePanel::Line& a, const CfsPlumePanel::Line& b) { return (a.earlier ? 0 : a.member == 0 ? 2 : 1) < (b.earlier ? 0 : b.member == 0 ? 2 : 1); });
         for (const auto& line : order) {
             QPainterPath path;
             bool started = false;
@@ -250,13 +251,11 @@ private:
             }
         }
     }
-    CfsPlumeViewer::Result result;
+    CfsPlumePanel::Result result;
     bool have{false};
 };
 
-CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon, const QString& modelId) : Window{parent} {
-    setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("CFSv2 forecast at a place");
+CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, double lon, const QString& modelId, bool loadNow) : QWidget{parent}, owner{owner} {
     auto * column = new QVBoxLayout;
     auto * top = new QHBoxLayout;
     place = new QComboBox{this};
@@ -282,7 +281,6 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon, const QS
     field = new QComboBox{this};
     span = new QComboBox{this};
     count = new QComboBox{this};
-    count = new QComboBox{this};
     stride = new QComboBox{this};
     stride->addItem("every 6 hours", 6);
     stride->addItem("every 12 hours", 12);
@@ -301,21 +299,22 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon, const QS
     top->addWidget(lonBox);
     top->addWidget(model);
     top->addWidget(field);
-    top->addWidget(span);
-    top->addWidget(count);
-    top->addWidget(stride);
-    top->addWidget(monthlyShow);
-    top->addWidget(go);
     top->addStretch();
+    auto * second = new QHBoxLayout;   // two rows, so that the choices still fit when the pane is narrow
+    second->addWidget(span);
+    second->addWidget(count);
+    second->addWidget(stride);
+    second->addWidget(monthlyShow);
+    second->addWidget(go);
+    second->addStretch();
     column->addLayout(top);
+    column->addLayout(second);
     column->addWidget(status);
     chart = new CfsPlume{this};
     column->addWidget(chart, 1);
-    auto * central = new QWidget{this};
-    central->setLayout(column);
-    setCentralWidget(central);
-    setSize(1100, 760);
-    QWidget::show();
+    setLayout(column);
+    reloadSoon.setSingleShot(true);
+    QObject::connect(&reloadSoon, &QTimer::timeout, this, [this] { load(); });
     QObject::connect(place, &QComboBox::currentIndexChanged, this, [this] (int index) {
         if (index > 0) {
             const auto point = place->itemData(index).toPointF();
@@ -331,10 +330,26 @@ CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon, const QS
             status->setText(QString{"reading the CFSv2 run: %1 of %2 parts"}.arg(done->load()).arg(total->load()));
         }
     });
-    load();
+    if (loadNow) {
+        load();
+    }
 }
 
-void CfsPlumeViewer::choose(const QString& modelId, int runs, int everyHours, int monthly) {
+void CfsPlumePanel::setPoint(double lat, double lon) {
+    latBox->setValue(lat);
+    lonBox->setValue(lon);
+    place->setCurrentIndex(0);
+    reload();
+}
+
+void CfsPlumePanel::setModel(const QString& modelId) {
+    if (model->currentData().toString() != modelId) {
+        model->setCurrentIndex(std::max(0, model->findData(modelId)));   // (its handler fills the choices)
+        reload();
+    }
+}
+
+void CfsPlumePanel::choose(const QString& modelId, int runs, int everyHours, int monthly) {
     monthlyShow->setCurrentIndex(std::clamp(monthly, 0, 2));
     model->setCurrentIndex(std::max(0, model->findData(modelId)));
     count->setCurrentIndex(std::max(0, count->findData(runs)));
@@ -347,7 +362,7 @@ void CfsPlumeViewer::choose(const QString& modelId, int runs, int everyHours, in
 }
 
 // the field and span choices of the model
-void CfsPlumeViewer::fillChoices() {
+void CfsPlumePanel::fillChoices() {
     const QString id = model->currentData().toString();
     const bool gfs = id == "gfs", gefs = id == "gefs";
     field->clear();
@@ -377,8 +392,9 @@ void CfsPlumeViewer::fillChoices() {
     monthlyShow->setEnabled(!gefs && !gfs);
 }
 
-void CfsPlumeViewer::load() {
+void CfsPlumePanel::load() {
     if (loading) {
+        again = true;   // (asked while one is being read: read again with the new choices when it ends)
         return;
     }
     loading = true;
@@ -408,7 +424,6 @@ void CfsPlumeViewer::load() {
     const int monthlyMode = gfs || gefs ? 0 : monthlyShow->currentData().toInt();
     const int baseline = Utility::readPrefInt("MM_CFS_BASE", 1999) == 1982 ? 1982 : 1999;
     const int runCount = count->currentData().toInt(), strideHours = stride->currentData().toInt();
-    const bool us = UIPreferences::unitsF;   // the program's units: Fahrenheit and inches, or Celsius and millimeters
     auto result = std::make_shared<Result>();
     auto error = std::make_shared<std::string>();
     done->store(0);
@@ -416,7 +431,7 @@ void CfsPlumeViewer::load() {
     progress.start();
     status->setText("looking for the newest run...");
     const auto doneCount = done;
-    new FutureVoid{this,
+    new FutureVoid{owner,
         [=] {
             UtilityCfs::Run run;
             if (!(gefs ? UtilityCfs::gefsLatestRun(run) : gfs ? UtilityCfs::gfsLatestRun(run) : UtilityCfs::latestRun(run))) {
@@ -535,22 +550,15 @@ void CfsPlumeViewer::load() {
                 }
                 result->daily.push_back(std::move(mean));
             }
-            // the units of the program: a temperature in degrees F and a depth in inches unless the settings say metric
-            const bool temperature = variable.units == "deg C";
-            const bool depth = variable.units == "mm" || variable.units == "mm/day";
+            // the units of the program (util/DisplayUnits): a temperature in degrees F and a depth in inches unless the settings say metric
             const auto convert = [&] (std::vector<float>& values, bool delta) {
                 for (auto& v : values) {
-                    if (std::isnan(v)) {
-                        continue;
-                    }
-                    if (us && temperature) {
-                        v = static_cast<float>(v * 1.8 + (delta ? 0.0 : 32.0));
-                    } else if (us && depth) {
-                        v = static_cast<float>(v / 25.4);
+                    if (!std::isnan(v)) {
+                        v = static_cast<float>(DisplayUnits::value(v, variable.units, delta ? DisplayUnits::Kind::Delta : DisplayUnits::Kind::Absolute));
                     }
                 }
             };
-            const QString unitText = us && temperature ? QString{"deg F"} : us && depth ? QString::fromStdString(variable.units == "mm" ? "in" : "in/day") : QString::fromStdString(variable.units);
+            const QString unitText = QString::fromStdString(DisplayUnits::label(variable.units));
             result->units = unitText;
             const auto finish = [&] {
                 for (auto& line : result->daily) {
@@ -608,23 +616,32 @@ void CfsPlumeViewer::load() {
             result->monthly.push_back(std::move(monthlyMean));
             finish();
         },
-        [this, result, error] {
-            if (closed) {
+        [self = QPointer<CfsPlumePanel>{this}, result, error] {
+            if (!self) {
                 return;
             }
-            loading = false;
-            progress.stop();
-            go->setEnabled(true);
+            self->loading = false;
+            self->progress.stop();
+            self->go->setEnabled(true);
             if (!error->empty()) {
-                status->setText(QString::fromStdString(*error));
+                self->status->setText(QString::fromStdString(*error));
                 return;
             }
-            status->setText("");
-            if (again) {
-                again = false;
-                load();
+            self->status->setText("");
+            if (self->again) {
+                self->again = false;
+                self->load();
                 return;
             }
-            chart->set(*result);
+            self->chart->set(*result);
         }};
+}
+
+CfsPlumeViewer::CfsPlumeViewer(Window * parent, double lat, double lon, const QString& modelId) : Window{parent} {
+    setAttribute(Qt::WA_DeleteOnClose);
+    setTitle("Forecast plume at a place");
+    panel = new CfsPlumePanel{this, nullptr, lat, lon, modelId};
+    setCentralWidget(panel);
+    setSize(1100, 760);
+    QWidget::show();
 }

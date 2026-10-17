@@ -16,6 +16,7 @@
 #include "mapkit/PlateCarreeImage.h"
 #include "radar/MapLegend.h"
 #include "radar/MapView.h"
+#include "util/DisplayUnits.h"
 #include "util/Utility.h"
 
 namespace {
@@ -264,6 +265,9 @@ void CfsOutlookLayer::load(MapHost& host) {
             }
             loading = false;
             for (auto& [month, grid] : loaded->grids) {
+                for (auto& v : grid.values) {
+                    v = static_cast<float>(inUnits(v));   // the program's units, for the colours, the hover and the legend alike
+                }
                 Frame f;
                 f.image = colored(grid);
                 f.grid = std::move(grid);
@@ -280,12 +284,28 @@ void CfsOutlookLayer::load(MapHost& host) {
 }
 
 // the rows within 85 degrees of the equator (the map is Mercator: the poles are off it)
+double CfsOutlookLayer::inUnits(double value) const {
+    const auto * variable = UtilityCfs::find(variableKey);
+    if (variable == nullptr || mode == 2) {
+        return value;
+    }
+    return DisplayUnits::value(value, variable->units, mode == 0 ? DisplayUnits::Kind::Absolute : DisplayUnits::Kind::Delta);
+}
+
+QString CfsOutlookLayer::unitsShown() const {
+    const auto * variable = UtilityCfs::find(variableKey);
+    if (variable == nullptr) {
+        return {};
+    }
+    return mode == 2 ? QString{"standard deviations"} : QString::fromStdString(DisplayUnits::label(variable->units));
+}
+
 // the values have a ramp for each field; a departure has a blue-white-red one (brown-white-green for rain) as wide as such a departure usually is
 std::vector<std::pair<double, QColor>> CfsOutlookLayer::stops() const {
     std::vector<std::pair<double, QColor>> out;
     if (mode == 0) {
         for (const auto& stop : ramp(variableKey)) {
-            out.emplace_back(stop.value, stop.color);
+            out.emplace_back(inUnits(stop.value), stop.color);
         }
         return out;
     }
@@ -296,7 +316,7 @@ std::vector<std::pair<double, QColor>> CfsOutlookLayer::stops() const {
     const bool wet = variableKey == "precip" || variableKey == "pwat";
     const QColor low = wet ? QColor{150, 90, 30} : QColor{40, 80, 190}, lowMid = wet ? QColor{225, 195, 140} : QColor{150, 200, 235};
     const QColor highMid = wet ? QColor{150, 215, 160} : QColor{245, 180, 140}, high = wet ? QColor{30, 140, 70} : QColor{190, 40, 40};
-    out = {{-half, low}, {-half / 2.0, lowMid}, {0.0, QColor{250, 250, 250}}, {half / 2.0, highMid}, {half, high}};
+    out = {{inUnits(-half), low}, {inUnits(-half / 2.0), lowMid}, {0.0, QColor{250, 250, 250}}, {inUnits(half / 2.0), highMid}, {inUnits(half), high}};
     return out;
 }
 
@@ -357,7 +377,7 @@ MapHit CfsOutlookLayer::pick(const QPointF& pixels, MapHost& host) const {
         return hit;
     }
     hit.distance = 0.0;
-    hit.text = QString::fromStdString("CFSv2 " + variable->label + ", " + timeText()) + "\n" + QString{mode != 0 && v > 0 ? "+" : ""} + QString::number(v, 'f', 1) + " " + (mode == 2 ? QString{"standard deviations"} : QString::fromStdString(variable->units));
+    hit.text = QString::fromStdString("CFSv2 " + variable->label + ", " + timeText()) + "\n" + QString{mode != 0 && v > 0 ? "+" : ""} + QString::number(v, 'f', std::abs(v) < 1.0 && mode != 2 && unitsShown().startsWith("in") ? 2 : 1) + " " + unitsShown();
     return hit;
 }
 
@@ -367,9 +387,9 @@ vector<MapLegendRow> CfsOutlookLayer::legend() const {
         return {};
     }
     MapLegendRow row;
-    row.title = QString::fromStdString((mode == 0 ? variable->label + " (" + variable->units + "):" : mode == 1 ? variable->label + ", departure from the " + std::to_string(baseline) + "-2010 normal (" + variable->units + "):" : variable->label + ", departure in standard deviations:"));
+    row.title = mode == 0 ? QString::fromStdString(variable->label) + " (" + unitsShown() + "):" : mode == 1 ? QString::fromStdString(variable->label + ", departure from the " + std::to_string(baseline) + "-2010 normal (") + unitsShown() + "):" : QString::fromStdString(variable->label + ", departure in standard deviations:");
     for (const auto& [value, color] : stops()) {
-        row.entries.push_back({MapLegendEntry::Square, color, (mode != 0 && value > 0 ? "+" : "") + QString::number(value, 'f', mode == 2 || std::abs(value) < 10 && std::abs(value - std::round(value)) > 0.01 ? 1 : 0)});
+        row.entries.push_back({MapLegendEntry::Square, color, (mode != 0 && value > 0 ? "+" : "") + QString::number(value, 'f', (std::abs(value) < 1.0 && value != 0.0 && unitsShown().startsWith("in")) ? 2 : (mode == 2 || (std::abs(value) < 10 && std::abs(value - std::round(value)) > 0.01)) ? 1 : 0)});
     }
     return {row};
 }

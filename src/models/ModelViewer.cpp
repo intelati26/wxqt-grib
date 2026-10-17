@@ -18,6 +18,7 @@
 #include "objects/UtilityAnimationExport.h"
 #include "objects/NetManager.h"
 #include <QDateTimeEdit>
+#include <QSplitter>
 #include <QPushButton>
 #include "models/CamsViewer.h"
 #include "models/ChartBuilder.h"
@@ -108,13 +109,18 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         timePick->setToolTip("A day and time (UTC): Go opens the run at or before it, at the hour that is that time. The other open history screens follow");
         auto * go = new QPushButton{"Go", holder};
         go->setFixedWidth(40);
+        pickKind = new QComboBox{holder};
+        pickKind->addItem("valid time", 0);
+        pickKind->addItem("run time", 1);
+        pickKind->setToolTip("Valid time: the run at or before the time, at the hour that is that time. Run time: the run (cycle) at or before the time, at its first hour, to step through from there");
+        row->addWidget(pickKind);
         row->addWidget(timePick);
         row->addWidget(go);
         boxH.addWidgetReal(holder);
         QObject::connect(go, &QPushButton::clicked, this, [this] {
             const auto at = timePick->dateTime().toUTC();
-            openAt(objectModel.model, at);
-            HistoryCursor::get().setTime(at, this);
+            openAt(objectModel.model, at, pickKind->currentData().toInt() == 1);
+            HistoryCursor::get().setTime(pinnedValid.isValid() ? pinnedValid : at, this);
         });
     }
     boxH.addWidget(comboboxSector);
@@ -303,14 +309,14 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonMembers->setToolTip("REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
         QObject::connect(buttonMembers, &QPushButton::clicked, this, [this] { openMemberGraph(); });
         boxH2.addWidgetReal(buttonMembers);
-        auto * plume = new QPushButton{"Plume here", this};
-        plume->setToolTip("The forecast at the point last clicked on the chart, from the newest runs, each at the same valid times: opens the plume window (CFSv2 for the CFS, the GEFS members for the GEFS, the GFS runs for the others)");
-        QObject::connect(plume, &QPushButton::clicked, this, [this] {
-            const auto * place = Location::getListLatLons().empty() ? nullptr : &Location::getListLatLons().front();
-            const double lat = haveClicked ? clickedLat : (place != nullptr ? place->lat() : 39.1), lon = haveClicked ? clickedLon : (place != nullptr ? place->lon() : -94.6);
-            new CfsPlumeViewer{this, lat, lon, objectModel.model.compare(0, 3, "CFS") == 0 ? "cfs" : objectModel.model.compare(0, 4, "GEFS") == 0 ? "gefs" : "gfs"};
+        buttonPlume = new QPushButton{"Plume pane", this};
+        buttonPlume->setCheckable(true);
+        buttonPlume->setToolTip("A second pane beside the chart with the forecast plume at the point clicked (or the first saved location): the CFSv2 runs for the CFS, the 31 members for the GEFS, the GFS runs for the others. It has all the plume window's choices");
+        QObject::connect(buttonPlume, &QPushButton::clicked, this, [this] (bool on) {
+            Utility::writePref("MODEL_PLUME_PANE", on ? "on" : "off");
+            updatePlumePanel();
         });
-        boxH2.addWidgetReal(plume);
+        boxH2.addWidgetReal(buttonPlume);
         buttonOverlay = new QPushButton{"Overlay models...", this};
         buttonOverlay->setToolTip("Draw the lines (heights, pressure) of other models over this chart's for the same valid time, each model in its own color. Save... writes it as a loop.");
         QObject::connect(buttonOverlay, &QPushButton::clicked, this, [this] { chooseOverlays(); });
@@ -343,6 +349,9 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             clickedLat = lat;
             clickedLon = lon;
             haveClicked = true;
+            if (plumePanel != nullptr && plumePanel->isVisible()) {
+                plumePanel->setPoint(lat, lon);   // the plume follows the point clicked
+            }
         }
     });
     {   // the tiles: the first is the screen's own chart (with everything it does), the others are compared with it
@@ -406,11 +415,23 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         }
         applyTileLayout();
     }
-    box.addWidgetReal(compareArea, 1, Qt::Alignment{});
+    {   // the chart and, beside it when it is asked for, the plume: one splitter, so that the person gives each the room it wants
+        panes = new QSplitter{Qt::Horizontal, this};
+        panes->setChildrenCollapsible(false);
+        panes->addWidget(compareArea);
+        box.addWidgetReal(panes, 1, Qt::Alignment{});
+    }
     strip = new TimeStrip{this};
     strip->onSelect = [this] (int index) { selectHour(index); };
     strip->onPlay = [this] (bool on) { startPlaying(on); };
     box.addWidgetReal(strip);
+    plumePanel = new CfsPlumePanel{this, panes, 0.0, 0.0, "gefs", false};   // (shown, and reading, only while the pane is on)
+    plumePanel->setMinimumWidth(520);
+    compareArea->setMinimumWidth(420);
+    plumePanel->setVisible(false);
+    panes->addWidget(plumePanel);
+    panes->setStretchFactor(0, 3);
+    panes->setStretchFactor(1, 2);
     playTimer.setSingleShot(false);
     QObject::connect(&playTimer, &QTimer::timeout, this, [this] {
         const int n = strip->count();
@@ -497,7 +518,8 @@ void ModelViewer::followCursor(QObject * origin) {
     cursorTimer.start(500);
 }
 
-void ModelViewer::openAt(const string& model, const QDateTime& validUtc) {
+void ModelViewer::openAt(const string& model, const QDateTime& validUtc, bool runStart) {
+    pinnedRunStart = runStart;
     if (!following) {
         following = true;
         cursorTimer.setSingleShot(true);
@@ -514,6 +536,11 @@ void ModelViewer::openAt(const string& model, const QDateTime& validUtc) {
         QObject::connect(&HistoryCursor::get(), &HistoryCursor::moved, this, [this] (QObject * origin) { followCursor(origin); });
     }
     pinnedValid = validUtc.toUTC();
+    pinnedModel = model;
+    if (runStart) {   // the cycle at or before it, whose first hour is the time of the run
+        const QDateTime run{pinnedValid.date(), QTime{pinnedRunHour(), 0}, QTimeZone::utc()};
+        pinnedValid = run;
+    }
     if (timePick != nullptr) {
         timePick->setDateTime(pinnedValid);
     }
@@ -1250,6 +1277,33 @@ std::string ModelViewer::hourText(const std::string& timeItem, bool forList) con
     return date + "  " + local.toString("ddd").toStdString() + "  " + std::to_string(local.time().hour() % 12 == 0 ? 12 : local.time().hour() % 12) + (local.time().hour() >= 12 ? "pm" : "am") + "   (day " + QString::number(hour / 24.0, 'f', hour % 24 == 0 ? 0 : 2).toStdString() + ")";
 }
 
+// The plume under the chart of the CFS and GEFS pages: at the point clicked, or the first saved location; the model of the page picks the plume's (CFS: the nine month runs, GEFS: the members).
+void ModelViewer::updatePlumePanel() {
+    if (plumePanel == nullptr || buttonPlume == nullptr) {
+        return;
+    }
+    const auto& id = objectModel.model;
+    const bool analysis = id == "CFS-ANL";   // (an analysis has no forecast to plume)
+    const string setting = Utility::readPref("MODEL_PLUME_PANE", "auto");   // "on", "off", or "auto": on for the CFS and GEFS pages
+    const bool wanted = !analysis && (setting == "on" || (setting == "auto" && (id == "CFS" || id == "GEFS")));
+    buttonPlume->setEnabled(!analysis);
+    buttonPlume->setChecked(wanted);
+    const bool first = wanted && !plumePanel->isVisible();
+    plumePanel->setVisible(wanted);
+    if (first) {   // the chart keeps its room: half and half to begin with, the person moves the bar
+        QTimer::singleShot(0, this, [this] { panes->setSizes({std::max(480, panes->width() / 2), std::max(520, panes->width() / 2)}); });
+    }
+    if (!wanted) {
+        return;
+    }
+    if (first) {
+        const auto places = Location::getListLatLons();
+        const double lat = haveClicked ? clickedLat : (places.empty() ? 39.1 : places.front().lat()), lon = haveClicked ? clickedLon : (places.empty() ? -94.6 : places.front().lon());
+        plumePanel->setPoint(lat, lon);
+    }
+    plumePanel->setModel(id == "CFS" ? "cfs" : id.compare(0, 4, "GEFS") == 0 ? "gefs" : "gfs");
+}
+
 void ModelViewer::refreshTimeStrip() {
     frames.clear();   // a refreshed run: draw the frames again
     frameOrder.clear();
@@ -1260,6 +1314,7 @@ void ModelViewer::refreshTimeStrip() {
         labels.push_back(hourText(t, false));
     }
     strip->setTimes(labels, static_cast<int>(comboboxTime.getIndex()));
+    updatePlumePanel();
     strip->setVisible(GfsRender::drawsModel(objectModel.model));
     refreshLoaded();
 }
@@ -1747,7 +1802,7 @@ void ModelViewer::updateRunStatus() {
     if (pinnedApply && pinnedValid.isValid()) {   // the hour of the valid time within the run
         pinnedApply = false;
         const QDateTime run{pinnedValid.date(), QTime{pinnedRunHour(), 0}, QTimeZone::utc()};
-        const int hour = static_cast<int>(run.secsTo(pinnedValid) / 3600);
+        const int hour = pinnedRunStart && !objectModel.times.empty() ? std::atoi(objectModel.times.front().c_str()) : static_cast<int>(run.secsTo(pinnedValid) / 3600);   // a run: its first hour
         for (size_t i = 0; i < objectModel.times.size(); i++) {
             if (std::atoi(objectModel.times[i].c_str()) == hour) {
                 objectModel.setTimeIdx(i);

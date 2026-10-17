@@ -15,7 +15,9 @@
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QPushButton>
+#include <QPointer>
 #include <QTimer>
+#include <QWidget>
 #include "cfs/UtilityCfs.h"
 #include "ui/Window.h"
 
@@ -24,11 +26,17 @@
 // time and nothing after (the fields are kept by the model cache).
 class CfsPlume;
 
-class CfsPlumeViewer : public Window {
+// The plume as a widget: the Plume window holds one, and the Model Viewer holds one under the chart of the CFS and GEFS pages. `owner` is the window it works for (the background jobs end with it);
+// `loadNow` false: it waits until it is asked (setPoint / setModel / reload), so that a page that has it hidden costs nothing.
+class CfsPlumePanel : public QWidget {
 public:
-    explicit CfsPlumeViewer(Window * parent, double lat = 39.1, double lon = -94.6, const QString& modelId = "gefs");
-    // set the model ("cfs", "gfs"), the number of runs and the hours between them, and load (a route of the development aids, and a way to open it ready)
+    CfsPlumePanel(Window * owner, QWidget * parent, double lat, double lon, const QString& modelId, bool loadNow = true);
+    // set the model ("cfs", "gfs", "gefs"), the number of runs and the hours between them, and load (a route of the development aids, and a way to open it ready)
     void choose(const QString& modelId, int runs, int everyHours, int monthly = 0);
+    // a new place or model: loaded a moment later (a click that moves on, or the page's model changes, asks again before the first is read)
+    void setPoint(double lat, double lon);
+    void setModel(const QString& modelId);
+    void reload() { reloadSoon.start(300); }
 
     struct Line {
         QString name;
@@ -55,7 +63,9 @@ public:
 private:
     void load();
     void fillChoices();
-    void closeEventCustom() override { closed = true; }
+    Window * owner{nullptr};
+    QTimer reloadSoon;
+    QString loadedKey;
     QComboBox * place{};
     QDoubleSpinBox * latBox{};
     QDoubleSpinBox * lonBox{};
@@ -71,10 +81,19 @@ private:
     QTimer progress;
     std::shared_ptr<std::atomic<int>> done{std::make_shared<std::atomic<int>>(0)};
     std::shared_ptr<std::atomic<int>> total{std::make_shared<std::atomic<int>>(0)};
-    bool closed{false};
     bool loading{false};
     bool again{false};          // the choices changed while a load was going on: load again when it ends
     int generation{0};
+};
+
+// The Plume window: a panel in a window of its own.
+class CfsPlumeViewer : public Window {
+public:
+    explicit CfsPlumeViewer(Window * parent, double lat = 39.1, double lon = -94.6, const QString& modelId = "gefs");
+    void choose(const QString& modelId, int runs, int everyHours, int monthly = 0) { panel->choose(modelId, runs, everyHours, monthly); }
+
+private:
+    CfsPlumePanel * panel{nullptr};
 };
 
 #endif  // CFSPLUMEVIEWER_H
