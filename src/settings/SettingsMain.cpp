@@ -18,6 +18,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     , settingsBox{make_unique<SettingsBox>(parent)}
     , settingsRadarBox{make_unique<SettingsRadarBox>(parent)}
     , settingsSourcesBox{make_unique<SettingsSourcesBox>()}
+    , settingsAccountsBox{make_unique<SettingsAccountsBox>()}
     , settingsColorsBox{make_unique<SettingsColorsBox>(parent)}
     , settingsAboutBox{make_unique<TextViewerStaticBox>(parent, GlobalVariables::aboutString)}
     , settingsString{getSettings()}
@@ -48,6 +49,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
         tabWidget.addTab(settingsHomeScreenOrderBox.get(), "Home Screen Order");
     }
     tabWidget.addTab(settingsSourcesBox.get(), "Model Sources");
+    tabWidget.addTab(settingsAccountsBox.get(), "Accounts");
     tabWidget.addTab(settingsAboutBox.get(), "About");
     if (showRadarFirst) {
         tabWidget.setIndex(1);

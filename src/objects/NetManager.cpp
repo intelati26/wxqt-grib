@@ -20,6 +20,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include "util/Earthdata.h"
 #include <QObject>
 #include <QThread>
 #include <QTimer>
@@ -191,6 +192,9 @@ namespace {
             }
             if (!entry->range.isEmpty()) {
                 request.setRawHeader(QByteArray{"Range"}, entry->range);
+            }
+            if (const auto login = Earthdata::authorizationFor(entry->url); !login.isEmpty()) {   // the person's own NASA token, to NASA's hosts only
+                request.setRawHeader(QByteArray{"Authorization"}, login);
             }
             if (!entry->accept.isEmpty()) {
                 request.setRawHeader(QByteArray{"Accept"}, entry->accept);

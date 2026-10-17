@@ -16,6 +16,7 @@
 #include "settings/SettingsColorsBox.h"
 #include "settings/SettingsLocationsBox.h"
 #include "settings/SettingsRadarBox.h"
+#include "settings/SettingsAccountsBox.h"
 #include "settings/SettingsSourcesBox.h"
 #include "settings/SettingsHomeScreenOrderBox.h"
 #include "settings/SettingsToolbarOrderBox.h"
@@ -46,6 +47,7 @@ private:
     unique_ptr<SettingsBox> settingsBox;
     unique_ptr<SettingsRadarBox> settingsRadarBox;
     unique_ptr<SettingsSourcesBox> settingsSourcesBox;
+    unique_ptr<SettingsAccountsBox> settingsAccountsBox;
     unique_ptr<SettingsColorsBox> settingsColorsBox;
     unique_ptr<SettingsLocationsBox> settingsLocationsBox;
     unique_ptr<LocationEditBox> locationEditBox;
