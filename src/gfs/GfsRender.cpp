@@ -372,6 +372,10 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         local = GfsChart::localSector(sectorId, west, south, east, north);
         sector = &local;
     }
+    GfsChart::Sector boxed;   // the exact view of the scrollable map
+    if (!isHafs(model) && GfsChart::parseBoxId(sectorId, boxed)) {
+        sector = &boxed;
+    }
     auto composed = base ? GfsChart::compose(*base, overlays) : GfsChart::Product{};   // the chart with what was ticked onto it
     const auto * product = base ? &composed : nullptr;   // the member and the standard deviations are applied below, once the run is known (SPC REFS names its members by run)
     if (!product || !sector) {
@@ -561,7 +565,17 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         }();
         options.places = places;
     }
-    options.probe = probe;
+    GfsChart::Probe bareProbe;   // (a bare chart needs the place of its map to cut it out)
+    options.probe = probe != nullptr ? probe : (variant.bare ? &bareProbe : nullptr);
+    if (variant.bare) {
+        options.lines.clear();
+        options.places.clear();
+        options.hasMarker = false;
+        options.ticks = false;
+    }
+    if (variant.width > 0) {
+        options.width = variant.width;
+    }
     options.windRadii = Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0;   // the quadrant wind field toggle of the hurricane model screen
     if (isHafs(model)) {   // the model's own track and wind radii for the storm, drawn on the chart
         const auto text = URL::getBytes(gfs.fileUrl(run, 0, "trak"));
@@ -658,6 +672,27 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     QByteArray bytes;
     QBuffer buffer{&bytes};
     buffer.open(QIODevice::WriteOnly);
+    if (variant.bare && options.probe != nullptr && options.probe->valid()) {   // the map part alone, with the ground clear
+        auto * p = options.probe;
+        QImage cut = image.copy(QRect{static_cast<int>(p->areaLeft), static_cast<int>(p->areaTop), static_cast<int>(p->areaWidth), static_cast<int>(p->areaHeight)}).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        const QRgb ground = qPremultiply(qRgb(244, 244, 244));
+        for (int y = 0; y < cut.height(); y++) {
+            auto * row = reinterpret_cast<QRgb *>(cut.scanLine(y));
+            for (int x = 0; x < cut.width(); x++) {
+                if (row[x] == ground) {
+                    row[x] = 0;
+                }
+            }
+        }
+        p->areaLeft = 0.0;
+        p->areaTop = 0.0;
+        p->areaWidth = cut.width();
+        p->areaHeight = cut.height();
+        p->imageWidth = cut.width();
+        p->imageHeight = cut.height();
+        cut.save(&buffer, "PNG");
+        return bytes;
+    }
     image.save(&buffer, "PNG");
     return bytes;
     } catch (const std::runtime_error& problem) {

@@ -53,6 +53,10 @@ namespace GfsRender {
         std::string member;   // one ensemble member instead of the mean (GfsChart::withMember); "" the chart as it is
         // other models whose lines are drawn over this one's, each in a color of its own, for the same valid time: the chart's first set of lines (heights, pressure) of each, and no fill
         std::vector<std::string> overlayModels;
+        // the chart as a layer for the scrollable map: only the map part of the picture (no header, legend or frame, no coastlines or places), the ground left clear, `width` pixels wide (0: the default);
+        // the probe then covers the picture whole
+        bool bare{false};
+        int width{0};
     };
     // The chart as PNG bytes; empty with the reason in error. cycle is the model screen's run ("12Z", or ""/"latest"); hour is the forecast hour.
     // model is "GFS" or "NBM"

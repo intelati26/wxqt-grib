@@ -454,6 +454,29 @@ bool parseLocalId(const std::string& id, double& lat, double& lon, double& km, s
     return a && b && c && km > 10.0 && std::fabs(lat) <= 90.0 && std::fabs(lon) <= 360.0;
 }
 
+std::string boxId(double west, double south, double east, double north) {
+    char text[96];
+    std::snprintf(text, sizeof text, "BOX:%.3f,%.3f,%.3f,%.3f", west, south, east, north);
+    return text;
+}
+
+bool parseBoxId(const std::string& id, Sector& out) {
+    if (id.compare(0, 4, "BOX:") != 0) {
+        return false;
+    }
+    const auto parts = QString::fromStdString(id.substr(4)).split(',');
+    if (parts.size() != 4) {
+        return false;
+    }
+    bool ok[4];
+    const double west = parts[0].toDouble(&ok[0]), south = parts[1].toDouble(&ok[1]), east = parts[2].toDouble(&ok[2]), north = parts[3].toDouble(&ok[3]);
+    if (!ok[0] || !ok[1] || !ok[2] || !ok[3] || !(east - west > 0.2) || !(north - south > 0.2) || west < -180.0 || east > 180.0 || south < -85.0 || north > 85.0) {
+        return false;
+    }
+    out = Sector{id, west, south, east, north};
+    return true;
+}
+
 Sector localSector(const std::string& id, double west, double south, double east, double north) {
     double lat = 0, lon = 0, km = 0;
     std::string name;

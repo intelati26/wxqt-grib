@@ -40,6 +40,7 @@ using std::vector;
 // region (the old Rivers, Tropical and Surface observation screens as presets). What is on is remembered.
 class MasterMapViewer : public Window, private MapHost {
 public:
+    bool saveModelChart(const QString& path, std::string& problem);   // the model chart layer's Model Viewer picture of what is in view (false: none is on, or why it could not be made)
     // startView: the start of a saved view's name to open with (empty: what was on last time)
     explicit MasterMapViewer(Window * parent, const string& startView = {});
     // the map at a time of the past and a place (the history page): only the layers given (those that can show a past time), each set to that time; the region is the point

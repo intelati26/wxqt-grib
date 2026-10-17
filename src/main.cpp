@@ -189,6 +189,17 @@ int main(int argc, char * argv[]) {
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
                 when.setTimeSpec(Qt::UTC);
                 map->openAt(when, parts.value(2, "35.3").toDouble(), parts.value(3, "-97.5").toDouble(), parts.value(4, "300").toDouble(), extraLayers(parts.value(5)));
+            } else if (route.startsWith("mcexport:")) {   // WXQT_OPEN=mcexport:<yyyyMMddHH UTC>:<lat>:<lon>:<km>:<out.png>: the master map with the model chart, and, after a while, its titled export
+                const auto parts = route.split(':');
+                auto * map = new MasterMapViewer{&w};
+                auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHH");
+                when.setTimeSpec(Qt::UTC);
+                map->openAt(when, parts.value(2, "39").toDouble(), parts.value(3, "-98").toDouble(), parts.value(4, "2200").toDouble(), {"model/chart"});
+                const QString out = parts.value(5, "/tmp/mcexport.png");
+                QTimer::singleShot(40000, map, [map, out] {
+                    std::string problem;
+                    qWarning("mcexport: %s %s", map->saveModelChart(out, problem) ? "saved" : "failed:", problem.c_str());
+                });
             } else if (route.startsWith("goesat:")) {   // WXQT_OPEN=goesat:<yyyyMMddHHmm UTC>: the master map at that time with the GOES history layer
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};

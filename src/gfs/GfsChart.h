@@ -35,6 +35,9 @@ namespace GfsChart {
     std::string localId(double lat, double lon, double km, const std::string& name);
     bool parseLocalId(const std::string& id, double& lat, double& lon, double& km, std::string& name);
     Sector localSector(const std::string& id, double west, double south, double east, double north);   // the model's coverage; the sector has the id's own id
+    // An exact box ("BOX:-100.5,30,-80,45": west, south, east, north): the view of the scrollable map, which a chart is then drawn for. Longitudes within -180 .. 180 (west < east), latitudes within +-85.
+    std::string boxId(double west, double south, double east, double north);
+    bool parseBoxId(const std::string& id, Sector& out);
 
     // A color scale by value: stops are (value, color), linear between them. Values below the first or above the last take the end colors.
     struct Ramp {

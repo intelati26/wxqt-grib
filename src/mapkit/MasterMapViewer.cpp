@@ -13,6 +13,7 @@
 #include <QDateTime>
 #include <QDateTimeEdit>
 #include <QFileDialog>
+#include <QMessageBox>
 #include <QPageSize>
 #include <QPdfWriter>
 #include <QHBoxLayout>
@@ -21,6 +22,7 @@
 #include <QStyle>
 #include <QPainterPath>
 #include "hurricane/Coast.h"
+#include "mapkit/ModelChartLayer.h"
 #include "objects/FutureVoid.h"
 #include "ui/ChartExport.h"
 #include "ui/ElidedText.h"
@@ -637,7 +639,56 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
         (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
 }
 
+bool MasterMapViewer::saveModelChart(const QString& path, string& problem) {
+    for (const auto& layer : layers) {
+        if (layer->id() == "model/chart" && layer->enabled()) {
+            QImage image;
+            if (!static_cast<ModelChartLayer *>(layer.get())->titled(*this, image, problem)) {
+                return false;
+            }
+            if (!image.save(path, "PNG")) {
+                problem = "the file could not be written: " + path.toStdString();
+                return false;
+            }
+            return true;
+        }
+    }
+    problem = "no model chart is on the map";
+    return false;
+}
+
 void MasterMapViewer::exportView() {
+    // A model chart on the map can be saved as the Model Viewer's own picture of it (its title with the model, chart, run and valid times, the legend and the credit), for what is in view
+    for (const auto& layer : layers) {
+        if (layer->id() != "model/chart" || !layer->enabled()) {
+            continue;
+        }
+        QMessageBox ask{this};
+        ask.setWindowTitle("Export the view");
+        ask.setText("A model chart is on the map. Save it as the Model Viewer's picture (with its title, run and valid times and legend), or the map as it is?");
+        auto * titledButton = ask.addButton("Model chart, titled", QMessageBox::AcceptRole);
+        auto * mapButton = ask.addButton("The map as it is", QMessageBox::ActionRole);
+        ask.addButton(QMessageBox::Cancel);
+        ask.exec();
+        if (ask.clickedButton() == titledButton) {
+            const auto path = QFileDialog::getSaveFileName(this, "Save the model chart", ChartExport::startFolder() + "/" + ChartExport::fileName("model chart", "png"), "PNG image (*.png)");
+            if (path.isEmpty()) {
+                return;
+            }
+            string problem;
+            if (!saveModelChart(path, problem)) {
+                QMessageBox::warning(this, "Export the view", QString::fromStdString(problem));
+                return;
+            }
+            ChartExport::remember(path);
+            status("Saved " + path.toStdString());
+            return;
+        }
+        if (ask.clickedButton() != mapButton) {
+            return;
+        }
+        break;
+    }
     QString filter;
     const auto path = QFileDialog::getSaveFileName(this, "Export the view", ChartExport::startFolder() + "/" + ChartExport::fileName("master map", "png"),
                                                    "PNG image (*.png);;PDF document (*.pdf)", &filter);
