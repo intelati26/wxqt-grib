@@ -296,6 +296,73 @@ clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 
 clone_pieces = false
 clone_skip = precip_p01, precip_p03, 1000_500_thick, 1000_850_thick, 850_700_thick, 850_temp_mslp_precip, 10m_wnd_precip
 )MODEL"},
+        {"HRDPS", R"MODEL(
+# Canada's High Resolution Deterministic Prediction System: 2.5 km over Canada and the northern United States (a rotated latitude / longitude grid, put on a regular 0.05 degree one), every
+# 6 hours to 48 hours, from Environment and Climate Change Canada's Datamart. A file for each field and hour (3 to 4 MB); only the last day or two are kept there.
+id = HRDPS
+label = ECCC HRDPS 2.5 km (Canada)
+kind = whole
+url = https://dd.weather.gc.ca/{date}/WXO-DD/model_hrdps/continental/2.5km/{cycle}/{hour3}/{date}T{cycle}Z_MSC_HRDPS_{file}_RLatLon0.0225_PT{hour3}H.grib2
+file = when level~"^[0-9]+ mb$" => {variable}_ISBL_{mb4}
+file = when variable=GUST => GUST_AGL-10m
+file = when level="2 m above ground" => {variable}_AGL-2m
+file = when level="10 m above ground" => {variable}_AGL-10m
+file = when level="mean sea level" => PRMSL_MSL
+file = {variable}_Sfc
+probe_file = TMP_AGL-2m
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 5
+cycles_to_try = 4
+max_parallel = 4
+warp = 0.05, -165.0, 20.0, -45.0, 78.0
+sectors = world
+hours = 0-48/1
+run_every = 6
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, DPT, PRMSL, CAPE, TCDC, GUST, SPFH
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"ICON-D2", R"MODEL(
+# DWD's ICON-D2: 2.2 km over Germany and the countries round it, a run every 3 hours to 48 hours, hourly (opendata.dwd.de). A file for each field and hour, compressed with bzip2. The upper air
+# of this model is only on its own triangular grid (not read here), so this has the surface: the 2 m temperature and dew point, the 10 m wind and gusts, the sea level pressure, the CAPE and
+# the cloud cover. Only the last day is kept.
+id = ICON-D2
+label = DWD ICON-D2 2.2 km (Germany and central Europe)
+kind = whole
+url = https://opendata.dwd.de/weather/nwp/icon-d2/grib/{cycle}/{file}/icon-d2_germany_regular-lat-lon_single-level_{date}{cycle}_{hour3}_2d_{file}.grib2.bz2
+file = when variable=TMP level="2 m above ground" => t_2m
+file = when variable=DPT level="2 m above ground" => td_2m
+file = when variable=RH level="2 m above ground" => relhum_2m
+file = when variable=UGRD level="10 m above ground" => u_10m
+file = when variable=VGRD level="10 m above ground" => v_10m
+file = when variable=GUST => vmax_10m
+file = when variable=PRMSL => pmsl
+file = when variable=CAPE => cape_ml
+file = when variable=TCDC => clct
+file = none
+extra_missing = 9999
+probe_file = t_2m
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 3
+cycles_to_try = 4
+max_parallel = 4
+sectors = world
+hours = 0-48/1
+run_every = 3
+overlays = false
+list = true
+clone = true
+clone_variables = TMP, DPT, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
         {"GEPS", R"MODEL(
 # Canada's ensemble: one file per field and hour, the 21 members as its messages
 id = GEPS

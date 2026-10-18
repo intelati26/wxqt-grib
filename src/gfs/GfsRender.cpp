@@ -5,6 +5,7 @@
 
 #include "gfs/GfsRender.h"
 #include "gfs/NceiInventory.h"
+#include "external/bzlib.h"
 #include "models/PaletteStore.h"
 #include <stdexcept>
 #include <algorithm>
@@ -59,6 +60,26 @@ namespace {
         config.gdalBin = UtilityGrib::gdalBinDir();
         config.cacheFolder = folder;
         config.bytes = [] (const std::string& url, long long start, long long end) {
+            if (url.size() > 4 && url.compare(url.size() - 4, 4, ".bz2") == 0) {   // DWD's files are bzip2: the field is the file unpacked (a first-bytes look gets as much of it)
+                const auto packed = URL::getBytesManaged(url);
+                if (packed.size() < 20) {
+                    return QByteArray{};
+                }
+                QByteArray unpacked(static_cast<qsizetype>(packed.size()) * 6, 0);
+                for (int attempt = 0; attempt < 6; attempt++) {
+                    unsigned int size = static_cast<unsigned int>(unpacked.size());
+                    const int code = BZ2_bzBuffToBuffDecompress(unpacked.data(), &size, const_cast<char *>(packed.constData()), static_cast<unsigned int>(packed.size()), 0, 0);
+                    if (code == BZ_OK) {
+                        unpacked.resize(size);
+                        return end >= 0 ? unpacked.mid(static_cast<qsizetype>(start), static_cast<qsizetype>(end - start + 1)) : unpacked;
+                    }
+                    if (code != BZ_OUTBUFF_FULL) {
+                        return QByteArray{};
+                    }
+                    unpacked.resize(unpacked.size() * 2);
+                }
+                return QByteArray{};
+            }
             if (NceiInventory::handles(url)) {   // NCEI's archive: the GRIB1 files' wgrib inventories are put in NOAA's form
                 return NceiInventory::index(url);
             }

@@ -279,6 +279,8 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GEPS"));
         m.push_back(fromFile("GEOS-FP"));
         m.push_back(fromFile("CFS"));
+        m.push_back(fromFile("HRDPS"));
+        m.push_back(fromFile("ICON-D2"));
         m.push_back(cfsAnalysis());
         m.push_back(rapAnalysis());
         m.push_back(fromFile("GFS-ANL"));
