@@ -22,6 +22,8 @@
 #include "models/ChartBuilder.h"
 #include "models/PaletteEditor.h"
 #include "models/ProductPicker.h"
+#include "models/SoundingViewer.h"
+#include "objects/FutureVoid.h"
 #include "models/RefsPointGraph.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "ui/Window.h"
@@ -169,6 +171,35 @@ QDateTime ModelChartLayer::validTime() const {
         return {};
     }
     return runTimeOf(run).addSecs(hourShown() * 3600LL);
+}
+
+bool ModelChartLayer::openSounding(Window * parent, double lat, double lon, string& why) const {
+    if (run.size() < 10 || hours.empty()) {
+        why = "no run is on the map yet";
+        return false;
+    }
+    if (!GfsRender::drawsModel(model) || model == "CFS" || model == "CFS-ANL") {
+        why = model + " has no pressure level columns to make a sounding from";
+        return false;
+    }
+    const string modelNow = model, runNow = run;
+    const int hour = hourShown();
+    auto * session_ = const_cast<GfsRender::Session *>(&session);
+    auto profile = std::make_shared<SoundingProfile>();
+    auto problem = std::make_shared<string>();
+    auto ok = std::make_shared<bool>(false);
+    parent->setTitle("Master map - reading the " + modelNow + " column at " + std::to_string(lat).substr(0, 5) + ", " + std::to_string(lon).substr(0, 7) + " ...");
+    new FutureVoid{parent,
+        [=] { *ok = GfsRender::columnProfile(*session_, modelNow, runNow, hour, lat, lon, *profile, *problem); },
+        [=] {
+            if (!*ok) {
+                parent->setTitle("Master map - no sounding: " + *problem);
+                return;
+            }
+            parent->setTitle("Master map");
+            new SoundingViewer{parent, *profile, modelNow + " " + runNow + "Z F" + std::to_string(hour) + "  at " + std::to_string(lat).substr(0, 5) + ", " + std::to_string(lon).substr(0, 7)};
+        }};
+    return true;
 }
 
 bool ModelChartLayer::openMembers(Window * parent, double lat, double lon, string& why) const {

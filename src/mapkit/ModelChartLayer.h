@@ -51,6 +51,8 @@ public:
     // the valid time of the chart on view (invalid before a run is known), for the tools at a point
     QDateTime validTime() const;
     // the members graph of a REFS chart at a point (a window); false with the reason when the chart has none
+    // the sounding of the chart's own model over a point (a window; the column is read in the background): false with the reason when this model has none
+    bool openSounding(Window * parent, double lat, double lon, string& why) const;
     bool openMembers(Window * parent, double lat, double lon, string& why) const;
 
     // The chart in the Model Viewer's own picture for the part of the world in view (header with the model, chart, run and valid times, the legend, the credit): false with the reason.

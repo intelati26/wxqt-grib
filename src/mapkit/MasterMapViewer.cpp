@@ -190,11 +190,18 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     buttonCompare.connect([this] { openCompare(); });
     buttonArea.getView()->setToolTip("Move the map to a named area: a region of the world (the United States and its regions, continents, oceans, the poles) or a square round one of your saved locations");
     buttonArea.connect([this] { chooseArea(); });
-    buttonSounding.getView()->setToolTip("The model sounding (RRFS, skew-T with the parameters) at the place the pointer was last on the map, for the valid time on the time bar");
+    buttonSounding.getView()->setToolTip("The sounding at the place the pointer was last on the map for the valid time on the time bar: the column of the chart's own model (GFS, HRRR, IFS ...) read from its pressure levels, or the RRFS sounding when no model chart is on");
     buttonSounding.connect([this] {
         double lat = 0.0, lon = 0.0;
         pointFor(lat, lon);
         const auto * chart = modelLayer();
+        if (chart != nullptr && chart->modelName() != "RRFS") {   // the chart's own model: its column over the point
+            string why;
+            if (chart->openSounding(this, lat, lon > 180.0 ? lon - 360.0 : lon, why)) {
+                return;
+            }
+            status(why + "; the RRFS sounding instead");
+        }
         auto valid = chart != nullptr ? chart->validTime() : QDateTime{};
         if (!valid.isValid()) {
             valid = timePick->dateTime().toUTC();

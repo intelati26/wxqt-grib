@@ -12,6 +12,7 @@
 #include <QString>
 #include <QtGlobal>
 #include "gfs/GfsChart.h"
+#include "sounding/SoundingProfile.h"
 
 // The app's side of the GFS charts: the network, the GDAL folder, the borders and the user's units, handed to GfsData / GfsChart.
 namespace GfsRender {
@@ -38,6 +39,9 @@ namespace GfsRender {
     void clearCache();
     // true when the model's charts are drawn here at all (the model screen then offers the grouped picker instead of a plain list)
     bool drawsModel(const std::string& model);
+    // The column of a model over a point for one run and forecast hour ("yyyyMMddHH"), as a sounding: the pressure levels 1000 to 100 mb (those the model has, above the ground) and the surface
+    // (pressure, 2 m temperature and dewpoint, 10 m wind). Fields are read like a chart's (byte ranges, a box round the point where the server can cut one). False with the reason when too little came.
+    bool columnProfile(Session& session, const std::string& model, const std::string& run, int hour, double lat, double lon, SoundingProfile& out, std::string& error);
     // true when the chart for this model screen product code ("500_wnd_ht") is drawn here rather than fetched as a picture
     bool handles(const std::string& model, const std::string& param);
     // A chart made from the chart's fill instead of the plain chart: the largest value of it over a list of forecast hours (a 24 hour maximum), or its change since the run

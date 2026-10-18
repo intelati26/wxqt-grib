@@ -226,6 +226,124 @@ bool GfsRender::handles(const std::string& model, const std::string& param) {
     return GfsModels::draws(model) && GfsChart::product(param, model) != nullptr;
 }
 
+bool GfsRender::columnProfile(Session& session, const std::string& model, const std::string& runId, int hour, double lat, double lon, SoundingProfile& out, std::string& error) {
+    auto gfs = data(session.folder(), model);
+    if (runId.size() < 10) {
+        error = "no run";
+        return false;
+    }
+    GfsData::Run run{runId.substr(0, 8), runId.substr(8, 2)};
+    GfsData::Box box;
+    box.west = std::max(-180.0, std::floor(lon) - 2.0);
+    box.east = std::min(180.0, std::floor(lon) + 3.0);
+    box.south = std::max(-90.0, std::floor(lat) - 2.0);
+    box.north = std::min(90.0, std::floor(lat) + 3.0);
+    gfs.setBox(box);
+    static const int levels[] = {1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500, 450, 400, 350, 300, 250, 200, 150, 100};
+    std::vector<GfsData::Need> needs;
+    const auto want = [&] (const std::string& key, const std::string& variable, const std::string& level) {
+        GfsData::Want w;
+        w.key = key;
+        w.variable = variable;
+        w.level = level;
+        needs.push_back({hour, w});
+    };
+    for (const int p : levels) {
+        const auto level = std::to_string(p) + " mb", tag = std::to_string(p);
+        want("H" + tag, "HGT", level);
+        want("T" + tag, "TMP", level);
+        want("R" + tag, "RH", level);
+        want("U" + tag, "UGRD", level);
+        want("V" + tag, "VGRD", level);
+    }
+    want("PS", "PRES", "surface");
+    want("HS", "HGT", "surface");
+    want("T2", "TMP", "2 m above ground");
+    want("D2", "DPT", "2 m above ground");
+    want("R2", "RH", "2 m above ground");
+    want("U10", "UGRD", "10 m above ground");
+    want("V10", "VGRD", "10 m above ground");
+    std::map<std::string, GfsGrid::Grid> got;
+    std::string message;
+    for (int attempt = 0; attempt < 3; attempt++) {   // a busy server drops some: ask again for what is missing
+        std::vector<GfsData::Need> still;
+        for (const auto& need : needs) {
+            if (got.count(need.want.key) == 0) {
+                still.push_back(need);
+            }
+        }
+        if (still.empty()) {
+            break;
+        }
+        std::map<std::string, GfsGrid::Grid> more;
+        gfs.load(run, still, more, message);
+        got.insert(more.begin(), more.end());
+        if (more.empty() && attempt > 0) {
+            break;
+        }
+    }
+    const auto at = [&] (const std::string& key) {
+        const auto found = got.find(key);
+        return found == got.end() ? static_cast<double>(std::nanf("")) : static_cast<double>(found->second.sample(lon, lat));
+    };
+    const auto dewpoint = [] (double tc, double rh) {   // Magnus
+        if (std::isnan(rh) || rh <= 0.0) {
+            return std::nan("");
+        }
+        const double g = std::log(rh / 100.0) + 17.625 * tc / (243.04 + tc);
+        return 243.04 * g / (17.625 - g);
+    };
+    SoundingProfile p;
+    // (GDAL hands temperatures over in Celsius already; a source that gave Kelvin is told by its size)
+    const auto celsius = [] (double v) { return v > 150.0 ? v - 273.15 : v; };
+    const double psfc = at("PS") / 100.0;
+    const auto addLevel = [&p] (double pres, double hght, double tc, double td, double u, double v) {
+        p.pres.push_back(pres);
+        p.hght.push_back(std::isnan(hght) ? -9999.0 : hght);
+        p.tmpc.push_back(std::isnan(tc) ? -9999.0 : tc);
+        p.dwpc.push_back(std::isnan(td) ? -9999.0 : td);
+        if (std::isnan(u) || std::isnan(v)) {
+            p.wdir.push_back(-9999.0);
+            p.wspd.push_back(-9999.0);
+        } else {
+            double dir = std::fmod(270.0 - std::atan2(v, u) * 180.0 / 3.14159265358979, 360.0);
+            dir = dir < 0 ? dir + 360.0 : dir;
+            p.wdir.push_back(dir);
+            p.wspd.push_back(std::hypot(u, v) * 1.943844);
+        }
+    };
+    if (!std::isnan(psfc)) {
+        const double t2 = celsius(at("T2"));
+        double td2 = celsius(at("D2"));
+        if (std::isnan(td2)) {
+            td2 = dewpoint(t2, at("R2"));
+        }
+        addLevel(psfc, at("HS"), t2, td2, at("U10"), at("V10"));
+    }
+    for (const int level : levels) {
+        if (!std::isnan(psfc) && level >= psfc - 1.0) {   // below the ground: the model fills these in, they are not the air
+            continue;
+        }
+        const auto tag = std::to_string(level);
+        const double tc = celsius(at("T" + tag));
+        if (std::isnan(tc)) {
+            continue;
+        }
+        addLevel(level, at("H" + tag), tc, dewpoint(tc, at("R" + tag)), at("U" + tag), at("V" + tag));
+    }
+    if (p.size() < 5) {
+        error = "only " + std::to_string(p.size()) + " levels of " + model + " could be read" + (message.empty() ? std::string{} : ": " + message);
+        return false;
+    }
+    p.station = model + " " + runId + " F" + std::to_string(hour);
+    p.latitude = lat;
+    const auto valid = QDateTime::fromString(QString::fromStdString(runId), "yyyyMMddHH").addSecs(hour * 3600LL);
+    p.validTime = valid.toString("yyMMdd/HHmm").toStdString();
+    p.finalize();
+    out = std::move(p);
+    return true;
+}
+
 bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const std::string& storm, std::string * date) {
     const auto gfs = data({}, model, storm);
     GfsData::Run run;

@@ -255,6 +255,19 @@ int main(int argc, char * argv[]) {
                         QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_WAIT") * 1000, dialog, [dialog, file] { dialog->grab().save(file); });
                     }
                 }
+            } else if (route.startsWith("colsound:")) {   // WXQT_OPEN=colsound:<model>:<yyyyMMddHH>:<hour>:<lat>:<lon>: the sounding of that model's column over the point
+                const auto parts = route.split(':');
+                GfsRender::Session session;
+                SoundingProfile profile;
+                std::string problem;
+                const bool ok = GfsRender::columnProfile(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(3).toInt(), parts.value(4).toDouble(), parts.value(5).toDouble(), profile, problem);
+                qWarning("colsound: %s %zu levels %s", ok ? "ok" : "failed", profile.size(), problem.c_str());
+                for (size_t i = 0; i < profile.size(); i++) {
+                    qWarning("  p %.0f h %.0f t %.1f td %.1f wd %.0f ws %.1f", profile.pres[i], profile.hght[i], profile.tmpc[i], profile.dwpc[i], profile.wdir[i], profile.wspd[i]);
+                }
+                if (ok) {
+                    new SoundingViewer{&w, profile, "test column"};
+                }
             } else if (route.startsWith("looprange:")) {   // WXQT_OPEN=looprange:<yyyyMMddHHmm from>:<yyyyMMddHHmm to>:<layer id>: the master map looping between the two times
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};
