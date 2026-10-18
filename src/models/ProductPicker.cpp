@@ -5,6 +5,7 @@
 
 #include "models/ProductPicker.h"
 #include <algorithm>
+#include <map>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -266,3 +267,25 @@ void ProductPicker::ticked() {
         onOverlays(out);
     }
 }
+
+// where an area goes in the picker's tree
+std::string ProductPicker::sectorGroup(const std::string& id) {
+    static const std::map<std::string, std::string> groups{
+        {"CONUS", "United States"}, {"NORTHEAST", "United States"}, {"MID-ATLANTIC", "United States"}, {"SOUTHEAST", "United States"}, {"GREAT-LAKES", "United States"},
+        {"OHIO-VALLEY", "United States"}, {"S-PLAINS", "United States"}, {"C-PLAINS", "United States"}, {"N-PLAINS", "United States"}, {"ROCKIES", "United States"}, {"SOUTHWEST", "United States"},
+        {"PACIFIC-NW", "United States"}, {"CALIFORNIA", "United States"}, {"GULF-COAST", "United States"}, {"ALASKA", "United States"}, {"HAWAII", "United States"},
+        {"NAMER", "North America and the Caribbean"}, {"CENT-AMER", "North America and the Caribbean"}, {"CARIBBEAN", "North America and the Caribbean"},
+        {"GULF-MEXICO", "North America and the Caribbean"},
+        {"SAMER", "Continents"}, {"AFRICA", "Continents"}, {"EUROPE", "Continents"}, {"ASIA", "Continents"}, {"INDIA", "Continents"}, {"E-ASIA", "Continents"},
+        {"SE-ASIA", "Continents"}, {"MIDDLE-EAST", "Continents"}, {"AUSTRALIA", "Continents"},
+        {"WEST-ATL", "Oceans"}, {"ATLANTIC", "Oceans"}, {"NORTH-ATL", "Oceans"}, {"EAST-PAC", "Oceans"}, {"NORTH-PAC", "Oceans"}, {"SOUTH-PAC", "Oceans"},
+        {"INDIAN-OCEAN", "Oceans"}, {"US-SAMOA", "Oceans"},
+        {"GLOBAL", "World and poles"}, {"TROPICS", "World and poles"}, {"NORTHERN-HEMI", "World and poles"}, {"SOUTHERN-HEMI", "World and poles"},
+        {"POLAR", "World and poles"}, {"ARTIC", "World and poles"}};
+    if (id.compare(0, 6, "LOCAL:") == 0) {
+        return "Around a saved location";
+    }
+    const auto found = groups.find(id);
+    return found == groups.end() ? "Other" : found->second;
+}
+

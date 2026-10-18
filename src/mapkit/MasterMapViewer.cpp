@@ -25,7 +25,9 @@
 #include "hurricane/Coast.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "mapkit/ModelChartLayer.h"
+#include "models/ProductPicker.h"
 #include "models/SoundingViewer.h"
+#include "settings/Location.h"
 #include "objects/FutureVoid.h"
 #include "ui/ChartExport.h"
 #include "ui/ElidedText.h"
@@ -54,6 +56,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     , buttonRefresh{this, None, "Refresh layers"}
     , buttonSave{this, None, "Export view..."}
     , buttonPlume{this, None, "Plume..."}
+    , buttonArea{this, None, "Area..."}
     , buttonSounding{this, None, "Sounding..."}
     , buttonMembers{this, None, "Members graph..."}
     , textStatus{this, "Switch layers on in the tree"}
@@ -149,6 +152,8 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     });
     buttonSave.connect([this] { exportView(); });
     buttonPlume.getView()->setToolTip("The forecast plume (every member or run, at the same valid times) at the place the pointer was last on the map: the model of the chart on the map (CFS: the nine month runs, GEFS: the members, any other: the GFS runs), or the GEFS");
+    buttonArea.getView()->setToolTip("Move the map to a named area: a region of the world (the United States and its regions, continents, oceans, the poles) or a square round one of your saved locations");
+    buttonArea.connect([this] { chooseArea(); });
     buttonSounding.getView()->setToolTip("The model sounding (RRFS, skew-T with the parameters) at the place the pointer was last on the map, for the valid time on the time bar");
     buttonSounding.connect([this] {
         double lat = 0.0, lon = 0.0;
@@ -191,6 +196,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     rowTop.addWidget(buttonRefresh);
     rowTop.addWidget(buttonSave);
     rowTop.addWidget(buttonPlume);
+    rowTop.addWidget(buttonArea);
     rowTop.addWidget(buttonSounding);
     rowTop.addWidget(buttonMembers);
     rowTop.addStretch();
@@ -494,6 +500,10 @@ void MasterMapViewer::rebuildTicks() {
         }
     }
     timeRow->setVisible(any);
+    {   // the members graph is for the REFS charts
+        const auto * chart = modelLayer();
+        buttonMembers.getView()->setVisible(chart != nullptr && chart->modelName() == "REFS");
+    }
     const long keep = !live && timeSlider->value() >= 0 && static_cast<size_t>(timeSlider->value()) < ticks.size() ? ticks[static_cast<size_t>(timeSlider->value())] : 0;
     ticks.assign(all.begin(), all.end());
     settingSlider = true;
@@ -969,6 +979,41 @@ void MasterMapViewer::followCursor(QObject * origin) {
     extra = "history cursor " + utc.toString("yyyy-MM-dd HH:mm").toStdString() + "Z";
     applyingCursor = false;
     updateStatus();
+}
+
+void MasterMapViewer::chooseArea() {
+    std::vector<ProductPicker::Entry> entries;
+    const auto places = Location::getListLatLons();
+    const auto names = Location::listOfNames();
+    const double km = std::clamp(Utility::readPrefInt("MODEL_LOCAL_KM", 600), 100, 5000);
+    for (size_t i = 0; i < places.size(); i++) {
+        const string name = i < names.size() && !names[i].empty() ? names[i] : string{"Saved location"};
+        entries.push_back({GfsChart::localId(places[i].lat(), places[i].lon(), km, name), name + ", " + std::to_string(static_cast<int>(km)) + " km square", "Around a saved location"});
+    }
+    for (const auto& sector : GfsChart::sectors()) {
+        entries.push_back({sector.id, sector.id, ProductPicker::sectorGroup(sector.id)});
+    }
+    static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "Other"};
+    std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
+        return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
+    });
+    auto * picker = new ProductPicker{this, "areas", entries, "", {}, {}, {}};
+    picker->setAttribute(Qt::WA_DeleteOnClose);
+    picker->setWording("areas", "Show this area");
+    picker->resize(360, 560);
+    picker->onPick = [this] (const string& id) {
+        double lat = 0, lon = 0, size = 0;
+        string name;
+        if (GfsChart::parseLocalId(id, lat, lon, size, name)) {
+            const double degrees = size / 111.0 / 2.0;
+            const double lonDegrees = degrees / std::max(0.2, std::cos(lat * 3.14159265358979 / 180.0));
+            mapView->showRegion(lat - degrees, lat + degrees, lon - lonDegrees, lon + lonDegrees);
+        } else if (const auto * sector = GfsChart::sector(id)) {
+            mapView->showRegion(sector->south, sector->north, sector->west, sector->east);
+        }
+        redraw();
+    };
+    picker->show();
 }
 
 bool MasterMapViewer::pointFor(double& lat, double& lon) const {

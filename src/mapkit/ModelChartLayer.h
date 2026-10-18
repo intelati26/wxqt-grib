@@ -7,6 +7,7 @@
 #define MODELCHARTLAYER_H
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <QImage>
 #include "gfs/GfsChart.h"
@@ -38,6 +39,7 @@ public:
     bool timeAware() const override { return true; }
     vector<long> times() const override;
     void showTime(long seconds, MapHost&) override;
+    void prepareTimes(MapHost& host) override { fillAhead(1000); prefetch(host); }   // a loop: every hour of the run
     string timeText() const override;
     void setAsOf(const QDateTime& utc, MapHost&) override;
     void setRange(const QDateTime& from, const QDateTime&, MapHost& host) override { setAsOf(from, host); }   // (the run of the first time: its hours run on from there)
@@ -67,6 +69,9 @@ private:
     bool visibleBox(MapHost&, double& west, double& south, double& east, double& north) const;
     void render(MapHost&);
     string keyFor(int hour) const;
+    void forget();                             // every picture drawn so far is of another chart, run or variant
+    void fillAhead(int count);                 // the hours after the one shown, to be drawn in the background for stepping and loops
+    void prefetch(MapHost&);                   // draws the next of them (one at a time, behind the one on view)
     string variantKey() const;
     GfsRender::Variant variantNow(int hour) const;
     string model{"GFS"};
@@ -90,6 +95,10 @@ private:
     string error;
     string source_{"NOAA/NCEP model data"};
     std::shared_ptr<Rendered> current;
+    std::map<string, std::shared_ptr<Rendered>> frames;   // the hours drawn so far for the box on view (key -> picture)
+    std::vector<int> ahead;                    // hours still to draw ahead of the one shown
+    bool aheadBusy{false};
+    int aheadTotal{0};                         // hours asked for in all (for the 'N of M ready' line)
     std::shared_ptr<Rendered> previous;        // the chart before this hour or view, drawn until the new one is in
     GfsRender::Session session;
     std::shared_ptr<bool> alive{std::make_shared<bool>(true)};

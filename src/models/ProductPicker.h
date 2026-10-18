@@ -35,6 +35,8 @@ public:
     void setWording(const QString& plural, const QString& chooseText);
     // the group names in the order they are listed
     static std::vector<std::string> groupOrder();
+    // where a sector (area) of the models goes in the tree, and the order of those groups
+    static std::string sectorGroup(const std::string& id);
 
 private:
     void fill();

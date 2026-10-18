@@ -99,8 +99,10 @@ private:
     Button buttonRefresh;
     Button buttonSave;
     Button buttonPlume;
+    Button buttonArea;
     Button buttonSounding;
     Button buttonMembers;
+    void chooseArea();                               // the map to a named area (a region of the world, or round a saved location)
     bool pointFor(double& lat, double& lon) const;   // the pointer's last place on the map, or the middle
     ModelChartLayer * modelLayer() const;            // the model chart layer when it is on
     double pointerLat{0.0}, pointerLon{0.0};   // where the pointer last was on the map: the plume button opens at it

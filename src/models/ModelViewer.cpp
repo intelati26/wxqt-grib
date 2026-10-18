@@ -1863,25 +1863,8 @@ void ModelViewer::refreshProductButton() {
 }
 
 namespace {
-    // where an area goes in the picker's tree
     string sectorGroup(const string& id) {
-        static const std::map<string, string> groups{
-            {"CONUS", "United States"}, {"NORTHEAST", "United States"}, {"MID-ATLANTIC", "United States"}, {"SOUTHEAST", "United States"}, {"GREAT-LAKES", "United States"},
-            {"OHIO-VALLEY", "United States"}, {"S-PLAINS", "United States"}, {"C-PLAINS", "United States"}, {"N-PLAINS", "United States"}, {"ROCKIES", "United States"}, {"SOUTHWEST", "United States"},
-            {"PACIFIC-NW", "United States"}, {"CALIFORNIA", "United States"}, {"GULF-COAST", "United States"}, {"ALASKA", "United States"}, {"HAWAII", "United States"},
-            {"NAMER", "North America and the Caribbean"}, {"CENT-AMER", "North America and the Caribbean"}, {"CARIBBEAN", "North America and the Caribbean"},
-            {"GULF-MEXICO", "North America and the Caribbean"},
-            {"SAMER", "Continents"}, {"AFRICA", "Continents"}, {"EUROPE", "Continents"}, {"ASIA", "Continents"}, {"INDIA", "Continents"}, {"E-ASIA", "Continents"},
-            {"SE-ASIA", "Continents"}, {"MIDDLE-EAST", "Continents"}, {"AUSTRALIA", "Continents"},
-            {"WEST-ATL", "Oceans"}, {"ATLANTIC", "Oceans"}, {"NORTH-ATL", "Oceans"}, {"EAST-PAC", "Oceans"}, {"NORTH-PAC", "Oceans"}, {"SOUTH-PAC", "Oceans"},
-            {"INDIAN-OCEAN", "Oceans"}, {"US-SAMOA", "Oceans"},
-            {"GLOBAL", "World and poles"}, {"TROPICS", "World and poles"}, {"NORTHERN-HEMI", "World and poles"}, {"SOUTHERN-HEMI", "World and poles"},
-            {"POLAR", "World and poles"}, {"ARTIC", "World and poles"}};
-        if (id.compare(0, 6, "LOCAL:") == 0) {
-            return "Around a saved location";
-        }
-        const auto found = groups.find(id);
-        return found == groups.end() ? "Other" : found->second;
+        return ProductPicker::sectorGroup(id);
     }
 
     // what a sector is called in a list: the areas round a saved location say the place and the kilometers a side

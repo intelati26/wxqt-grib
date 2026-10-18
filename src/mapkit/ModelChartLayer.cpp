@@ -182,7 +182,15 @@ string ModelChartLayer::summary() const {
     if (run.empty()) {
         return finding ? "looking for the newest " + model + " run..." : string{};
     }
-    return model + " " + run + (busy ? "  (drawing the chart for this view...)" : "");
+    string ready;
+    if (aheadTotal > 1) {
+        int have = 0;
+        for (const int h : hours) {
+            have += frames.count(keyFor(h)) > 0 ? 1 : 0;
+        }
+        ready = "  (" + std::to_string(have) + " of " + std::to_string(hours.size()) + " hours ready)";
+    }
+    return model + " " + run + (busy ? "  (drawing the chart for this view...)" : "") + ready;
 }
 
 void ModelChartLayer::showTime(long seconds, MapHost& host) {
@@ -201,8 +209,7 @@ void ModelChartLayer::setAsOf(const QDateTime& utc, MapHost& host) {
     }
     hours = hoursOf(model, run);
     shown = static_cast<long>(asOf.toSecsSinceEpoch());
-    current.reset();
-    previous.reset();
+    forget();
     error.clear();
     host.timesChanged();
     render(host);
@@ -249,8 +256,7 @@ void ModelChartLayer::refresh(MapHost& host) {
                 } else if (newest != run) {
                     run = newest;
                     hours = hoursOf(model, run);
-                    current.reset();
-                    previous.reset();
+                    forget();
                 }
             }
             host.timesChanged();
@@ -259,8 +265,7 @@ void ModelChartLayer::refresh(MapHost& host) {
 }
 
 void ModelChartLayer::optionChanged(MapHost& host) {
-    current.reset();
-    previous.reset();
+    forget();
     run.clear();
     hours.clear();
     error.clear();
@@ -270,6 +275,84 @@ void ModelChartLayer::optionChanged(MapHost& host) {
         refresh(host);
     }
     host.timesChanged();
+}
+
+void ModelChartLayer::forget() {
+    current.reset();
+    previous.reset();
+    frames.clear();
+    ahead.clear();
+    aheadTotal = 0;
+}
+
+void ModelChartLayer::fillAhead(int count) {
+    ahead.clear();
+    aheadTotal = 0;
+    const int now = hourShown();
+    for (const int h : hours) {
+        if (h >= now && static_cast<int>(ahead.size()) < count) {
+            ahead.push_back(h);
+        }
+    }
+    aheadTotal = static_cast<int>(ahead.size());
+}
+
+// the next hour of `ahead` that is not drawn yet, drawn with the box and size of the picture on view
+void ModelChartLayer::prefetch(MapHost& host) {
+    if (busy || aheadBusy || !current || run.size() < 10) {
+        return;
+    }
+    while (!ahead.empty() && frames.count(keyFor(ahead.front())) > 0) {
+        ahead.erase(ahead.begin());
+    }
+    if (ahead.empty()) {
+        return;
+    }
+    const int hour = ahead.front();
+    ahead.erase(ahead.begin());
+    aheadBusy = true;
+    const string key = keyFor(hour);
+    const double w = current->west, s = current->south, e = current->east, n = current->north;
+    const int width = current->widthPixels;
+    auto result = std::make_shared<std::shared_ptr<Rendered>>();
+    const string modelNow = model, paramNow = param, runNow = run;
+    const auto overlaysNow = overlays;
+    const auto variantBase = variantNow(hour);
+    const auto * session_ = &session;
+    host.background(
+        [result, key, modelNow, paramNow, runNow, overlaysNow, variantBase, hour, w, s, e, n, width, session_] {
+            GfsRender::Variant variant = variantBase;
+            variant.bare = true;
+            variant.width = width;
+            auto rendered = std::make_shared<Rendered>();
+            string message;
+            const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(*session_), modelNow, paramNow, GfsChart::boxId(w, s, e, n), runNow, hour, overlaysNow, message, &rendered->probe, variant);
+            if (bytes.isEmpty() || !rendered->image.loadFromData(bytes, "PNG")) {
+                return;
+            }
+            rendered->west = w;
+            rendered->south = s;
+            rendered->east = e;
+            rendered->north = n;
+            rendered->widthPixels = rendered->image.width();
+            rendered->key = key;
+            *result = rendered;
+        },
+        [this, &host, result, key, w, s, e, n, alive = alive] {
+            if (!*alive) {
+                return;
+            }
+            aheadBusy = false;
+            // kept only when the view has not moved to another box meanwhile
+            if (*result && current && current->west == w && current->south == s && current->east == e && current->north == n) {
+                if (frames.size() > 70) {
+                    frames.erase(frames.begin());
+                }
+                frames[key] = *result;
+                host.redraw();
+            }
+            prefetch(host);
+        });
 }
 
 string ModelChartLayer::keyFor(int hour) const {
@@ -354,6 +437,20 @@ void ModelChartLayer::render(MapHost& host) {
     const int hour = hourShown();
     const string key = keyFor(hour);
     const int widthNow = host.view().map()->width();
+    {   // an hour drawn ahead
+        const auto ready = frames.find(key);
+        const auto fits = [&] (const Rendered& r) {
+            const double pixelsPerDegree = r.widthPixels / std::max(0.1, r.east - r.west), needed = widthNow / std::max(0.1, east - west);
+            return west >= r.west - 0.5 && east <= r.east + 0.5 && south >= r.south - 0.5 && north <= r.north + 0.5 && pixelsPerDegree >= needed * 0.7;
+        };
+        if (ready != frames.end() && current && current->key != key && fits(*ready->second)) {
+            previous = current;
+            current = ready->second;
+            fillAhead(24);
+            prefetch(host);
+            return;
+        }
+    }
     // is what is on hand this chart, covering the view, fine enough?
     if (current && current->key == key) {
         const double pixelsPerDegree = current->widthPixels / std::max(0.1, current->east - current->west), needed = widthNow / std::max(0.1, east - west);
@@ -407,9 +504,15 @@ void ModelChartLayer::render(MapHost& host) {
             }
             busy = false;
             if (*result) {
+                if (current && (current->west != (*result)->west || current->south != (*result)->south || current->east != (*result)->east || current->north != (*result)->north)) {
+                    frames.clear();   // another box: the hours drawn ahead were of the old one
+                }
                 previous = current;
                 current = *result;
+                frames[current->key] = current;
                 error.clear();
+                fillAhead(24);
+                prefetch(host);
             } else {
                 error = *problem;
             }
@@ -420,7 +523,8 @@ void ModelChartLayer::render(MapHost& host) {
 }
 
 void ModelChartLayer::paint(QPainter& painter, MapHost& host) {
-    const auto shownImage = current && current->key == keyFor(hourShown()) ? current : (current ? current : previous);
+    const auto here = frames.find(keyFor(hourShown()));
+    const auto shownImage = here != frames.end() ? here->second : (current && current->key == keyFor(hourShown()) ? current : (current ? current : previous));
     if (!shownImage || shownImage->image.isNull()) {
         render(host);
         return;
