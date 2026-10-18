@@ -38,6 +38,7 @@
 #include "models/ModelScreen.h"
 #include "climate/TempHistoryViewer.h"
 #include "mapkit/ComboChartLayer.h"
+#include <QEventLoop>
 #include "mapkit/GlobeViewer.h"
 #include "settings/RadarPreferences.h"
 #include "models/ProductPicker.h"
@@ -886,7 +887,7 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
     painter.setFont(small);
     painter.setPen(QColor{100, 100, 100});
     painter.drawText(QRect{pad, mapBottom, width - 2 * pad, footerHeight}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap,
-        (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
+        (highNote.empty() ? QString{} : QString::fromStdString("Runs: " + highNote + "  -  ")) + (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
 }
 
 // the hours of the model chart as a loop (GIF or video) of the Model Viewer's titled pictures, for the part of the world in view
@@ -1001,13 +1002,49 @@ void MasterMapViewer::exportWorld() {
     centerBox->addItem("Centered on the Pacific (180)", 180);
     centerBox->addItem("Centered on Asia (90)", 90);
     auto * widthBox = new QComboBox{&dialog};
-    for (const int w : {2400, 3600, 4800, 6000}) {
-        widthBox->addItem(QString::number(w) + " pixels wide", w);
-    }
-    widthBox->setCurrentIndex(1);
+    const auto standardWidths = [widthBox] {
+        widthBox->clear();
+        for (const int w : {2400, 3600, 4800, 6000}) {
+            widthBox->addItem(QString::number(w) + " pixels wide", w);
+        }
+        widthBox->setCurrentIndex(1);
+    };
+    standardWidths();
     column->addWidget(projectionBox);
     column->addWidget(centerBox);
     column->addWidget(widthBox);
+    // high resolution: the model chart (or the combo) painted from the model grids themselves, as big as the finest model has detail
+    string specChart;
+    vector<string> specModels;
+    QDateTime specWhen;
+    QCheckBox * highBox = nullptr;
+    int nativeWidth = 0;
+    if (modelSpec(specChart, specModels, specWhen)) {
+        double finest = 1e9;
+        for (const auto& name : specModels) {
+            if (const double km = ComboChartLayer::kmOf(name); km > 0.0) {
+                finest = std::min(finest, km);
+            }
+        }
+        // one pixel for a grid cell along the equator: the width beyond which zooming in shows nothing new
+        nativeWidth = finest < 1e8 ? std::clamp(static_cast<int>(std::lround(360.0 * 111.19 / finest / 500.0)) * 500, 4000, 16000) : 10000;
+        highBox = new QCheckBox{QString{"High resolution: the model data at its own resolution (finest here %1 km), the model chart only, no other layers"}.arg(finest < 1e8 ? QString::number(finest, 'f', 1) : QString{"?"}), &dialog};
+        column->addWidget(highBox);
+        QObject::connect(highBox, &QCheckBox::toggled, [=] (bool on) {
+            if (!on) {
+                standardWidths();
+                return;
+            }
+            widthBox->clear();
+            widthBox->addItem(QString{"Native: %1 pixels wide (as much detail as the models have)"}.arg(nativeWidth), nativeWidth);
+            for (const int w : {8000, 10000, 12000, 16000}) {
+                if (w != nativeWidth) {
+                    widthBox->addItem(QString::number(w) + " pixels wide", w);
+                }
+            }
+            widthBox->setCurrentIndex(0);
+        });
+    }
     auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -1022,14 +1059,93 @@ void MasterMapViewer::exportWorld() {
     if (path.isEmpty()) {
         return;
     }
-    exportWorldTo(path, projection, centre, width);
+    exportWorldTo(path, projection, centre, width, highBox != nullptr && highBox->isChecked());
 }
 
-void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centre, int width) {
+// what the model chart (or the combo) on the map is: the chart, the models of the stack, the valid time
+bool MasterMapViewer::modelSpec(string& chart, vector<string>& models, QDateTime& when) const {
+    chart.clear();
+    models.clear();
+    for (const auto& layer : layers) {
+        if (layer->enabled() && layer->id() == "model/combo") {
+            const auto * combo = static_cast<ComboChartLayer *>(layer.get());
+            chart = combo->chart();
+            models = combo->modelNames();
+            when = combo->validTime();
+        }
+    }
+    if (chart.empty()) {
+        if (const auto * one = modelLayer()) {
+            chart = one->chartId();
+            models = {one->modelName()};
+            when = one->validTime();
+        }
+    }
+    if (chart.empty()) {
+        return false;
+    }
+    if (!when.isValid()) {
+        when = timePick->dateTime().toUTC();
+    }
+    bool global = false;   // a regional model alone gets a global one under it
+    for (const auto& m : models) {
+        global = global || ComboChartLayer::kmOf(m) >= 20.0;
+    }
+    if (!global) {
+        for (const char * base : {"IFS", "GFS"}) {
+            if (GfsChart::product(chart, base) != nullptr) {
+                models.push_back(base);
+                break;
+            }
+        }
+    }
+    return true;
+}
+
+void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centre, int width, bool highResolution) {
     status("drawing the world ...");
     QCoreApplication::processEvents();
-    const auto skin = makeSkin(-85.0, 85.0, centre - 180.0, centre + 180.0, std::min(6000, static_cast<int>(width * 1.4)), 1300.0 / 360.0);   // (marks spaced as on a world map 1300 pixels wide)
-    const QImage world = GlobeMapView::projectWorld(skin, projection, centre, width);
+    QImage world;
+    string highNote;
+    if (highResolution) {
+        string chart;
+        vector<string> models;
+        QDateTime when;
+        if (!modelSpec(chart, models, when)) {
+            QMessageBox::warning(this, "Export the whole world", "Put the model chart (or the combo) on the map for a high resolution picture.");
+            return;
+        }
+        // the models' grids (a download the first time), then the pixels
+        std::vector<GlobeViewer::Source> sources;
+        {
+            QEventLoop loop;
+            status("reading the models' fields ...");
+            new FutureVoid{this, [&] { sources = GlobeViewer::loadSources(chart, models, when); }, [&loop] { loop.quit(); }};
+            loop.exec();
+        }
+        if (sources.empty()) {
+            QMessageBox::warning(this, "Export the whole world", "No model has this chart for that time.");
+            return;
+        }
+        std::atomic<int> rows{0};
+        double halfW, halfH;
+        GlobeMapView::extent(projection, halfW, halfH);
+        const int totalRows = static_cast<int>(std::lround(width * halfH / halfW));
+        {
+            QEventLoop loop;
+            QTimer ticker;
+            QObject::connect(&ticker, &QTimer::timeout, [&] { status("painting the world: " + std::to_string(rows.load() * 100 / std::max(1, totalRows)) + " %"); });
+            ticker.start(500);
+            new FutureVoid{this, [&] { world = GlobeViewer::renderWorld(sources, static_cast<int>(projection), centre, width, &rows); }, [&loop] { loop.quit(); }};
+            loop.exec();
+        }
+        for (const auto& s : sources) {
+            highNote += (highNote.empty() ? "" : ", ") + s.model + " " + s.run.substr(4) + "Z F" + std::to_string(s.hour);
+        }
+    } else {
+        const auto skin = makeSkin(-85.0, 85.0, centre - 180.0, centre + 180.0, std::min(6000, static_cast<int>(width * 1.4)), 1300.0 / 360.0);   // (marks spaced as on a world map 1300 pixels wide)
+        world = GlobeMapView::projectWorld(skin, projection, centre, width);
+    }
     // the pieces around it, as the flat export has them
     QStringList names, times, sources;
     for (const auto& layer : layers) {
@@ -1070,7 +1186,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         painter.drawText(QRect{pad, pad / 2, width - 2 * pad, static_cast<int>(24 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, QString{"The world, "} + GlobeMapView::projectionName(projection));
         painter.setFont(base);
         painter.setPen(QColor{60, 60, 60});
-        painter.drawText(QRect{pad, static_cast<int>(27 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, names.isEmpty() ? QString{"No layers on"} : "Layers: " + names.join(", "));
+        painter.drawText(QRect{pad, static_cast<int>(27 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, names.isEmpty() ? QString{"No layers on"} : (highNote.empty() ? "Layers: " + names.join(", ") : QString{"The model data at its own resolution, the finest model on top (the runs are in the line below)"}));
         painter.drawText(QRect{pad, static_cast<int>(45 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, times.isEmpty() ? QString{"Valid now"} : "Valid: " + times.join("   "));
         painter.drawImage(0, header, world);
         if (!rows.empty()) {   // the legend, in window units as on the map
@@ -1079,7 +1195,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
             {
                 QPainter legendPainter{&legend};
                 legendPainter.setWindow(QRect{-500, -250, 1000, std::max(1, static_cast<int>(std::lround(1000.0 * legendHeight / width)))});
-                MapLegend::draw(legendPainter, rows, 1000.0 / width, -250.0 + 1000.0 * legendHeight / width - 2.0);
+                MapLegend::draw(legendPainter, rows, 1.0, -250.0 + 1000.0 * legendHeight / width - 2.0);   // (the 1000 unit wide window as a screen 1000 pixels wide: the legend as big as on the map, in proportion)
             }
             painter.drawImage(0, header + world.height(), legend);
         }

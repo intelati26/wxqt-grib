@@ -307,7 +307,7 @@ int main(int argc, char * argv[]) {
                 if (parts.value(7) == "export") {   // globemap:...:<globe|equal|mollweide>:export:<out.png>:<center lon>: also the whole world as a picture, after a while
                     const QString out = parts.value(8);
                     const double centre = parts.value(9).toDouble();
-                    QTimer::singleShot(20000, map, [map, out, projection, centre] { map->exportWorldTo(out, projection == GlobeMapView::Projection::Globe ? GlobeMapView::Projection::EqualEarth : projection, centre, 3000); });
+                    QTimer::singleShot(20000, map, [map, out, projection, centre] { map->exportWorldTo(out, projection == GlobeMapView::Projection::Globe ? GlobeMapView::Projection::EqualEarth : projection, centre, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 3000, qEnvironmentVariableIntValue("WXQT_WORLD_HIGH") > 0); });
                 }
             } else if (route.startsWith("globe:")) {   // WXQT_OPEN=globe:<lat>:<lon>:<chart id>:<model,model>:<yyyyMMddHH UTC>: the globe window
                 const auto parts = route.split(':');

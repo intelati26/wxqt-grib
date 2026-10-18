@@ -6,6 +6,7 @@
 #include "mapkit/GlobeViewer.h"
 #include <algorithm>
 #include <cmath>
+#include <thread>
 #include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QPainter>
@@ -17,6 +18,7 @@
 #include "gfs/GfsModels.h"
 #include "hurricane/Coast.h"
 #include "mapkit/ComboChartLayer.h"
+#include "mapkit/GlobeMapView.h"
 #include "objects/FutureVoid.h"
 #include "settings/UIPreferences.h"
 
@@ -314,16 +316,10 @@ GlobeViewer::GlobeViewer(Window * parent, const std::string& chart, const std::v
     load();
 }
 
-// the fill grid of each model for the valid time: its own run and hour
-void GlobeViewer::load() {
-    const int mine = ++generation;
-    status->setText("Reading " + QString::number(models.size()) + " models for " + valid.toString("ddd yyyy-MM-dd HH:mm") + "Z ...");
+// the fill grid of each model for the valid time (its own run and hour), coarse to fine: blocking, for a thread
+std::vector<GlobeViewer::Source> GlobeViewer::loadSources(const std::string& chart, const std::vector<std::string>& names, const QDateTime& when) {
     auto result = std::make_shared<std::vector<Source>>();
-    const auto names = models;
-    const auto chart = param;
-    const auto when = valid;
-    new FutureVoid{this, [=] {
-        GfsRender::Session session;
+    GfsRender::Session session;
         std::vector<std::pair<double, std::string>> order;
         for (const auto& m : names) {
             order.emplace_back(ComboChartLayer::kmOf(m), m);
@@ -370,6 +366,19 @@ void GlobeViewer::load() {
                 result->push_back(std::move(s));
             }
         }
+    return std::move(*result);
+}
+
+// the fill grid of each model for the valid time: its own run and hour
+void GlobeViewer::load() {
+    const int mine = ++generation;
+    status->setText("Reading " + QString::number(models.size()) + " models for " + valid.toString("ddd yyyy-MM-dd HH:mm") + "Z ...");
+    auto result = std::make_shared<std::vector<Source>>();
+    const auto names = models;
+    const auto chart = param;
+    const auto when = valid;
+    new FutureVoid{this, [=] {
+        *result = loadSources(chart, names, when);
     }, [=] {
         if (closed || mine != generation) {
             return;
@@ -389,4 +398,81 @@ void GlobeViewer::load() {
         status->setText(used + ". Drag to turn, wheel to zoom.");
         canvas->update();
     }};
+}
+
+// the world on an export projection, painted from the grids at their own resolution
+QImage GlobeViewer::renderWorld(const std::vector<Source>& sources, int projectionId, double centerLon, int width, std::atomic<int> * done) {
+    const auto projection = static_cast<GlobeMapView::Projection>(projectionId);
+    double halfW, halfH;
+    GlobeMapView::extent(projection, halfW, halfH);
+    const int height = static_cast<int>(std::lround(width * halfH / halfW));
+    QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::transparent);
+    const double scale = width / (2.0 * halfW);
+    const QRgb land = qRgb(24, 30, 44);   // where no model has a value
+    const unsigned threads = std::max(1u, std::thread::hardware_concurrency());
+    std::vector<std::thread> workers;
+    for (unsigned t = 0; t < threads; t++) {
+        workers.emplace_back([&, t] {
+            for (int py = static_cast<int>(t); py < height; py += static_cast<int>(threads)) {
+                auto * row = reinterpret_cast<QRgb *>(image.scanLine(py));
+                const double y = (height / 2.0 - py - 0.5) / scale;
+                for (int px = 0; px < width; px++) {
+                    double lat, relative;
+                    if (!GlobeMapView::inverse(projection, (px + 0.5 - width / 2.0) / scale, y, lat, relative)) {
+                        continue;
+                    }
+                    const double lon = centerLon + relative;
+                    QRgb color = land;
+                    for (size_t i = sources.size(); i > 0; i--) {   // the finest first
+                        const float v = sampleAt(sources[i - 1].grid, lon, lat);
+                        if (!std::isnan(v)) {
+                            const QRgb c = sources[i - 1].ramp.at(v);
+                            if (qAlpha(c) > 0) {
+                                color = c;
+                                break;
+                            }
+                        }
+                    }
+                    row[px] = color | 0xff000000u;
+                }
+                if (done != nullptr) {
+                    done->fetch_add(1);
+                }
+            }
+        });
+    }
+    for (auto& w : workers) {
+        w.join();
+    }
+    // the coastlines and borders
+    QPainter p{&image};
+    p.setRenderHint(QPainter::Antialiasing, true);
+    p.setPen(QPen{QColor{20, 20, 28, 210}, std::max(1.0, width / 6000.0)});
+    for (const auto& line : Coast::borders()) {
+        QPainterPath path;
+        bool started = false;
+        double previous = 0.0;
+        for (const auto& [lon, lat] : line) {
+            double relative = lon - centerLon;
+            while (relative > 180.0) {
+                relative -= 360.0;
+            }
+            while (relative < -180.0) {
+                relative += 360.0;
+            }
+            double x, y;
+            GlobeMapView::forward(projection, lat, relative, x, y);
+            const QPointF q{width / 2.0 + x * scale, height / 2.0 - y * scale};
+            if (started && std::abs(relative - previous) < 180.0) {
+                path.lineTo(q);
+            } else {
+                path.moveTo(q);
+            }
+            started = true;
+            previous = relative;
+        }
+        p.drawPath(path);
+    }
+    return image;
 }

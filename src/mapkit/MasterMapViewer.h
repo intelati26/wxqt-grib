@@ -81,10 +81,11 @@ private:
     void showAddLayers();
     void tick();
     void exportView();
+    bool modelSpec(string& chart, vector<string>& models, QDateTime& when) const;   // the model chart or combo on the map
     void exportWorld();                          // the whole world, equal area, as one picture (asks)
 
 public:
-    void exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centerLongitude, int width);
+    void exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centerLongitude, int width, bool highResolution = false);
 
 private:
     void exportTo(const QString& path);          // PNG, or PDF by the ending of the name
