@@ -46,6 +46,9 @@ public:
     void setRange(const QDateTime& from, const QDateTime&, MapHost& host) override { setAsOf(from, host); }   // (the run of the first time: its hours run on from there)
 
     const string& modelName() const { return model; }
+    // for a layer that is part of another (the combo): the model and chart without touching the settings, and the start a switch-on would make
+    void configure(const string& modelId, const string& chartId, int opacityPercent) { model = modelId; param = chartId; opacity = opacityPercent; overlays.clear(); overlayModels.clear(); member.clear(); sigma = false; changeBack = 0; maxDay = false; pinnedRun.clear(); }
+    void start(MapHost& host) { refresh(host); }
     // the model, chart and variants as one line (for a saved view) and back
     string settings() const;
     void setSettings(const string& line, MapHost&);

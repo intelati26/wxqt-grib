@@ -5,6 +5,7 @@
 
 #include "mapkit/MapLayer.h"
 #include "mapkit/BufkitStationsLayer.h"
+#include "mapkit/ComboChartLayer.h"
 #include "mapkit/ForecastPointLayer.h"
 #include "mapkit/UpperAirLayer.h"
 #include "mapkit/GoesLayer.h"
@@ -38,6 +39,7 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     layers.push_back(std::make_unique<ClimateGridLayer>());
     layers.push_back(std::make_unique<CfsOutlookLayer>());
     layers.push_back(std::make_unique<ModelChartLayer>());
+    layers.push_back(std::make_unique<ComboChartLayer>());
     layers.push_back(std::make_unique<ConeHistoryLayer>());
     layers.push_back(std::make_unique<OutlookHistoryLayer>());
     layers.push_back(std::make_unique<MrmsLayer>());
