@@ -17,6 +17,8 @@ namespace CfsArchiveIndex {
     QByteArray index(const std::string& url);      // its text, empty when the file could not be had
     // the lines of a month file's bytes (no network): the part that can be tested
     std::string scan(const QByteArray& file);
+    // the same for a file out on the network, from the head of each message only (the RTMA and URMA analyses of the open data buckets, which have no index before 2017)
+    std::string scanRemote(const std::string& fileUrl);
 }
 
 #endif  // CFSARCHIVEINDEX_H

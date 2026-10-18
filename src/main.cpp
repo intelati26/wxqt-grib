@@ -280,6 +280,17 @@ int main(int argc, char * argv[]) {
                 if (ok) {
                     new SoundingViewer{&w, profile, "observed " + parts.value(1).toStdString()};
                 }
+            } else if (route.startsWith("idxprobe:")) {   // WXQT_OPEN=idxprobe:<model>:<url of an index handled by CfsArchiveIndex>: the index text it makes, and the model's chart ids
+                const auto parts = route.split(':');
+                const auto text = CfsArchiveIndex::index(route.section(':', 2).toStdString());
+                qWarning("idxprobe: %d bytes\n%s", static_cast<int>(text.size()), text.constData());
+                std::string ids;
+                for (const auto& product : GfsChart::products()) {
+                    if (product.source == parts.value(1).toStdString()) {
+                        ids += product.id + " ";
+                    }
+                }
+                qWarning("idxprobe charts: %s", ids.c_str());
             } else if (route.startsWith("looprange:")) {   // WXQT_OPEN=looprange:<yyyyMMddHHmm from>:<yyyyMMddHHmm to>:<layer id>: the master map looping between the two times
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};

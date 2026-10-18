@@ -1361,6 +1361,48 @@ const std::vector<Product>& products() {
             x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), msToKnots); };
             p.push_back(x);
         }
+        // ---- the RTMA and URMA surface analyses (2.5 km, the hour of the analysis only): the blend's surface charts made from the analysis's own fields
+        for (const char * source : {"RTMA", "URMA"}) {
+            const auto analysisChart = [&, source] (const char * id, const char * label, const char * variable, const char * level, const Ramp& ramp, const char * title, Quantity quantity, double step, bool barbs) {
+                Product x;
+                x.source = source;
+                x.id = id;
+                x.label = label;
+                x.needs = [=] (int hour) {
+                    std::vector<GfsData::Need> needs{{hour, nbmWant("f", variable, level, "anl")}};
+                    if (barbs) {
+                        needs.push_back({hour, nbmWant("ws", "WIND", "10 m above ground", "anl")});
+                        needs.push_back({hour, nbmWant("wd", "WDIR", "10 m above ground", "anl")});
+                    }
+                    return needs;
+                };
+                if (barbs) {
+                    x.derive = windComponents;
+                    x.barbU = "u";
+                    x.barbV = "v";
+                }
+                x.fill = [] (const Grids& g) { return pick(g, "f"); };
+                x.ramp = ramp;
+                x.fillTitle = title;
+                x.quantity = quantity;
+                x.legendStep = step;
+                return x;
+            };
+            p.push_back(analysisChart("2m_temp_10m_wnd", "2 m Temperature and 10 m Wind", "TMP", "2 m above ground", temperature(), "2 m temperature", Quantity::Temperature, 5, true));
+            p.push_back(analysisChart("2m_dewp_10m_wnd", "2 m Dewpoint and 10 m Wind", "DPT", "2 m above ground", dewpoint(), "2 m dewpoint", Quantity::Temperature, 5, true));
+            p.push_back(analysisChart("total_cloud_cover", "Total Cloud Cover and 10 m Wind", "TCDC", "entire atmosphere (considered as a single layer)", cloudCover(), "Total cloud cover (%)", Quantity::Other, 10, true));
+            {   // the gust is the fill; the barbs are the sustained wind
+                auto x = analysisChart("10m_wnd_gust", "10 m Wind and Gust", "GUST", "10 m above ground", lowWind(), "10 m wind gust (kt)", Quantity::Other, 10, true);
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), msToKnots); };
+                p.push_back(x);
+            }
+            {
+                auto x = analysisChart("visibility", "2-meter Visibility", "VIS", "surface", visibilityRamp(), "Visibility (miles)", Quantity::Other, 0, false);
+                x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), 1.0 / 1609.344); };
+                x.palette = "vis";
+                p.push_back(x);
+            }
+        }
         {   // the temperature extreme of the 12 hours that end at this hour (the blend has them only for the periods it makes: 12 hour minimum and maximum)
             for (const auto& [id, label, variable, kind] : {std::tuple{"2m_min_temp", "2 m Minimum Temperature (12 hours ending)", "TMIN", "min"}, {"2m_max_temp", "2 m Maximum Temperature (12 hours ending)", "TMAX", "max"}}) {
                 Product x;

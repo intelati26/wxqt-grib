@@ -53,6 +53,7 @@ public:
         bool matchRunTime{false};                                        // the index lists many times (a month of analyses, the CFS): a record is the run's own by its d= date
         std::string forecastText;                                        // a file that holds every forecast hour as records (the CFS): the index text of the hour, "{hour} hour fcst"; empty: one hour to a file
         std::string defaultDetail;                                       // what to ask of the index when a want has none ("*": any; an ensemble labels each record "ens mean" or "ens std dev")
+        std::function<std::string(const std::string& fileUrl)> indexOf;   // when set: the index url made from the file url (files whose index changes its name over the years)
         std::string indexReplaces;                                       // the file's own extension, which the index's replaces (ECMWF: ".grib2" -> ".index"); empty: the suffix is added
         std::string indexSuffix{".idx"};                                 // the index is the file + this (ECMWF's is ".index")
         std::function<std::vector<GfsGrid::IdxRecord>(const std::string& text, const Want&)> parseIndex;   // NOAA's idx lines unless the source says (ECMWF's JSON lines)
@@ -114,6 +115,9 @@ public:
     std::string fileUrl(const Run& run, int forecastHour, const std::string& file = "") const { return source.fileUrl(run, forecastHour, file); }
     std::string indexUrl(const Run& run, int forecastHour, const std::string& file = "") const {
         auto url = source.fileUrl(run, forecastHour, file);
+        if (source.indexOf) {
+            return source.indexOf(url);
+        }
         // (more than one ending can be given, "|" between: the first the file has is the one taken off)
         for (size_t from = 0; !source.indexReplaces.empty() && from <= source.indexReplaces.size();) {
             auto end = source.indexReplaces.find('|', from);

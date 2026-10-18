@@ -36,6 +36,11 @@ namespace {
                 case 300: return "PRES";
                 case 301: return "PRMSL";
                 case 305: return "HGT";
+                case 600 + 1: return "TCDC";
+                case 200: return "WDIR";
+                case 201: return "WIND";
+                case 222: return "GUST";
+                case 1900: return "VIS";
                 case 202: return "UGRD";
                 case 203: return "VGRD";
                 case 208: return "VVEL";
@@ -52,6 +57,7 @@ namespace {
             case 100: return std::to_string(static_cast<long>(std::lround(value / 100.0))) + " mb";
             case 101: return "mean sea level";
             case 103: return std::to_string(static_cast<long>(std::lround(value))) + " m above ground";
+            case 200: return "entire atmosphere (considered as a single layer)";
             default: return "level" + std::to_string(type);
         }
     }
@@ -75,6 +81,9 @@ namespace {
 }
 
 bool CfsArchiveIndex::handles(const std::string& url) {
+    if (url.size() > 4 && url.compare(url.size() - 4, 4, ".idx") == 0 && (url.find("noaa-rtma-pds.") != std::string::npos || url.find("noaa-urma-pds.") != std::string::npos)) {
+        return true;   // the RTMA and URMA analyses of the open data buckets: an index where the bucket has one, else made from the messages' headers
+    }
     const bool ends = (url.size() > 9 && url.compare(url.size() - 9, 9, ".grb2.idx") == 0) || (url.size() > 10 && url.compare(url.size() - 10, 10, ".grib2.idx") == 0);
     return ends && url.find("ncei.noaa.gov/thredds/fileServer/model-cfs-allfile-") != std::string::npos;
 }
@@ -132,7 +141,73 @@ std::string CfsArchiveIndex::scan(const QByteArray& file) {
     return out.str();
 }
 
+// the index of a file made from the head of each message (a few hundred bytes of each, by ranged reads): the messages follow one another, each says how long it is
+std::string CfsArchiveIndex::scanRemote(const std::string& fileUrl) {
+    std::ostringstream out;
+    unsigned long long offset = 0;
+    for (int n = 1; n <= 80; n++) {
+        const auto part = URL::getBytesRangeManaged(fileUrl, static_cast<long long>(offset), static_cast<long long>(offset) + 399);
+        if (part.size() < 40 || !part.startsWith("GRIB")) {
+            break;
+        }
+        const auto * d = reinterpret_cast<const uchar *>(part.constData());
+        const size_t size = static_cast<size_t>(part.size());
+        const int discipline = d[6];
+        const uint64_t length = be64(d + 8);
+        if (length < 20) {
+            break;
+        }
+        int year = 0, month = 0, day = 0, hour = 0;
+        std::string name = "UNK", level = "surface";
+        size_t p = 16;
+        while (p + 5 <= size) {
+            const uint32_t sectionLength = be32(d + p);
+            const int section = d[p + 4];
+            if (sectionLength < 5) {
+                break;
+            }
+            if (section == 1 && p + 19 <= size) {
+                year = (d[p + 12] << 8) | d[p + 13];
+                month = d[p + 14];
+                day = d[p + 15];
+                hour = d[p + 16];
+            } else if (section == 4 && p + 28 <= size) {
+                name = nameOf(discipline, d[p + 9], d[p + 10]);
+                int scale = d[p + 23];
+                if (scale > 127) {
+                    scale = -(scale - 128);
+                }
+                level = levelOf(d[p + 22], static_cast<double>(be32(d + p + 24)) * std::pow(10.0, -scale));
+                break;
+            }
+            p += sectionLength;
+        }
+        char date[16];
+        std::snprintf(date, sizeof date, "%04d%02d%02d%02d", year, month, day, hour);
+        out << n << ":" << offset << ":d=" << date << ":" << name << ":" << level << ":anl:\n";
+        offset += length;
+    }
+    return out.str();
+}
+
 QByteArray CfsArchiveIndex::index(const std::string& url) {
+    if (url.find("noaa-rtma-pds.") != std::string::npos || url.find("noaa-urma-pds.") != std::string::npos) {
+        const auto real = URL::getBytesManaged(url);   // (the bucket's own index, where it has one)
+        if (real.startsWith("1:")) {
+            return real;
+        }
+        static std::mutex scanLock;
+        std::lock_guard<std::mutex> guard{scanLock};
+        const auto key = keyOf(url);
+        if (store().has(key)) {
+            return QByteArray::fromStdString(store().read(key));
+        }
+        const auto text = scanRemote(url.substr(0, url.size() - 4));
+        if (!text.empty()) {
+            store().write(key, text);
+        }
+        return QByteArray::fromStdString(text);
+    }
     static std::mutex lock;   // one file is scanned at a time: the screen asks for several variables at once and each is a big download
     std::lock_guard<std::mutex> guard{lock};
     const auto key = keyOf(url);

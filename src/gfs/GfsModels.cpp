@@ -88,8 +88,14 @@ namespace {
         def.source = [base] (const std::string& storm) {
             auto s = base(storm);
             s.fileUrl = [] (const GfsData::Run& run, int, const std::string&) {
+                if (run.date >= "20200516") {   // the folder that goes on to the present (its indexes are named ".grb2.inv")
+                    return "https://www.ncei.noaa.gov/oa/prod-model/rapid-refresh/access/rap-130-13km/analysis/" + run.date.substr(0, 6) + "/" + run.date + "/rap_130_" + run.date + "_" + run.cycle + "00_000.grb2";
+                }
                 const std::string stem = run.date >= "20120501" ? "rap_130_" : "ruc2anl_130_";
                 return "https://www.ncei.noaa.gov/oa/prod-model/rapid-refresh/access/historical/analysis/" + run.date.substr(0, 6) + "/" + run.date + "/" + stem + run.date + "_" + run.cycle + "00_000.grb2";
+            };
+            s.indexOf = [] (const std::string& url) {
+                return url.find("/rap-130-13km/") != std::string::npos ? url + ".inv" : url.substr(0, url.size() - 5) + ".inv";
             };
             return s;
         };
@@ -108,6 +114,26 @@ namespace {
             s.fileUrl = [first] (const GfsData::Run& run, int hour, const std::string& file) {
                 auto url = first(run, hour, file);
                 return run.date >= "20170407" ? url + "2" : url;
+            };
+            return s;
+        };
+        return def;
+    }
+}
+
+namespace {
+    // the RTMA and URMA files: a different ending in each era of the buckets
+    GfsModels::Def surfaceAnalysis(const std::string& id) {
+        auto def = fromFile(id);
+        const auto base = def.source;
+        const bool rtma = id == "RTMA";
+        def.source = [base, rtma] (const std::string& storm) {
+            auto s = base(storm);
+            s.fileUrl = [rtma] (const GfsData::Run& run, int, const std::string&) {
+                const std::string low = rtma ? "rtma" : "urma";
+                // RTMA: ".grb2" to 28 Jan 2014, "_ext" to 1 May 2017, then "_wexp"; URMA: "_ext" to 30 Apr 2017, then "_wexp"
+                const std::string ending = rtma && run.date <= "20140128" ? "grb2" : run.date < (rtma ? "20170502" : "20170501") ? "grb2_ext" : "grb2_wexp";
+                return "https://noaa-" + low + "-pds.s3.amazonaws.com/" + low + "2p5." + run.date + "/" + low + "2p5.t" + run.cycle + "z.2dvaranl_ndfd." + ending;
             };
             return s;
         };
@@ -166,6 +192,8 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("NAM-ANL"));
         m.push_back(gfs1Analysis());
         m.push_back(fromFile("NARR"));
+        m.push_back(surfaceAnalysis("RTMA"));
+        m.push_back(surfaceAnalysis("URMA"));
         m.push_back(fromFile("RRFS"));
         m.push_back(fromFile("HRRR"));
         m.push_back(fromFile("HREF"));

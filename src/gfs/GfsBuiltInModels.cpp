@@ -506,6 +506,46 @@ clone_levels = 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 9
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"RTMA", R"MODEL(
+# The Real-Time Mesoscale Analysis, hourly, from the open data bucket noaa-rtma-pds (19 March 2013 on). The 2.5 km CONUS Lambert grid is put on a regular 0.03 degree one. Surface fields only: the 2 m temperature and dew point, the 10 m wind and gust, the visibility and the cloud cover (the charts are
+# this model's own, in GfsChart.cpp). Before May 2017 there is no index file: one is made from the head of each message and kept.
+id = RTMA
+label = NOAA/NCEP RTMA surface analysis, 2.5 km
+group = Archive
+kind = grib
+url = https://noaa-rtma-pds.s3.amazonaws.com/rtma2p5.{date}/rtma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 3
+warp = 0.03, -135.0, 20.0, -60.0, 55.0
+sectors = conus
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"URMA", R"MODEL(
+# The UnRestricted Mesoscale Analysis (the RTMA made again with later observations), hourly, from the open data bucket noaa-urma-pds (29 January 2014 on). The 2.5 km CONUS Lambert grid is put on a regular 0.03 degree one. Surface fields only: the 2 m temperature and dew point, the 10 m wind and gust, the visibility and the cloud cover (the charts are
+# this model's own, in GfsChart.cpp). Before May 2017 there is no index file: one is made from the head of each message and kept.
+id = URMA
+label = NOAA/NCEP URMA surface analysis, 2.5 km
+group = Archive
+kind = grib
+url = https://noaa-urma-pds.s3.amazonaws.com/urma2p5.{date}/urma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 3
+warp = 0.03, -135.0, 20.0, -60.0, 55.0
+sectors = conus
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
         {"NARR", R"MODEL(
 # The North American Regional Reanalysis, 32 km, every 3 hours from January 1979 to September 2014 (NCEI's archive; GRIB1 with wgrib inventories). A file of 55 MB for each analysis. The Lambert grid is
 # put on a regular 0.25 degree one. The pressure levels are every 25 mb; the fields the charts need at them are height, temperature, wind and humidity (no relative humidity or vorticity).
@@ -558,8 +598,8 @@ clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
         {"RAP-ANL", R"MODEL(
-# The hourly analysis of the Rapid Update Cycle (to April 2012) and the Rapid Refresh that followed it, 13 km over North America, from NCEI's model archive (5 January 2005 to 15 May 2020; the
-# open data bucket takes over in 2021). A file of 20 MB for every hour, with its own index. The grid is a Lambert one, put on a regular 0.1 degree one. The only forecast hour is the analysis.
+# The hourly analysis of the Rapid Update Cycle (to April 2012) and the Rapid Refresh that followed it, 13 km over North America, from NCEI's model archive (5 January 2005 on; the
+# open data bucket takes over in 2021; NCEI's own folder goes on to the present, with its files from 16 May 2020 on). A file of 20 MB for every hour, with its own index. The grid is a Lambert one, put on a regular 0.1 degree one. The only forecast hour is the analysis.
 id = RAP-ANL
 label = NOAA/NCEP RUC / RAP hourly analysis (NCEI archive), 13 km
 group = Archive
