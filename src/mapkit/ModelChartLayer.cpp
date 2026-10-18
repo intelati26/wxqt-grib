@@ -10,6 +10,8 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QHBoxLayout>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QLabel>
 #include <QPainter>
@@ -17,7 +19,12 @@
 #include <QTimeZone>
 #include <QVBoxLayout>
 #include "gfs/GfsModels.h"
+#include "models/ChartBuilder.h"
+#include "models/PaletteEditor.h"
 #include "models/ProductPicker.h"
+#include "models/RefsPointGraph.h"
+#include "spcrefs/SpcRefsLoader.h"
+#include "ui/Window.h"
 #include "radar/MapLegend.h"
 #include "radar/MapView.h"
 #include "settings/UIPreferences.h"
@@ -122,6 +129,50 @@ string ModelChartLayer::timeText() const {
     const int hour = hourShown();
     return model + " " + product->label + "  " + runTimeOf(run).toString("yyyy-MM-dd HH").toStdString() + "Z run, F" + std::to_string(hour) + "  valid " +
            runTimeOf(run).addSecs(hour * 3600LL).toString("ddd yyyy-MM-dd HH:mm").toStdString() + "Z";
+}
+
+QDateTime ModelChartLayer::validTime() const {
+    if (run.size() < 10 || hours.empty()) {
+        return {};
+    }
+    return runTimeOf(run).addSecs(hourShown() * 3600LL);
+}
+
+bool ModelChartLayer::openMembers(Window * parent, double lat, double lon, string& why) const {
+    const auto& id = param;
+    const auto has = [&id] (const char * part) { return id.find(part) != string::npos; };
+    string key;
+    double threshold = std::nan("");
+    if (has("refc")) {
+        key = "refc";
+        threshold = has("prob_refc_50") ? 50.0 : has("member") ? std::nan("") : 40.0;
+    } else if (has("uphl")) {
+        key = "uphl25";
+        threshold = has("prob_uphl") || has("combo_uphl") ? 75.0 : std::nan("");
+    } else if (has("tmp2m") || has("2m_temp") || has("temp_spread")) {
+        key = "tmp2m";
+    } else if (has("cape")) {
+        key = "cape";
+    } else if (has("gust")) {
+        key = "gust";
+    }
+    int index = -1;
+    for (size_t i = 0; i < UtilityRefs::fields.size(); i++) {
+        if (UtilityRefs::fields[i].key == key + "_m1") {
+            index = static_cast<int>(i);
+        }
+    }
+    UtilityRefs::MemberBasis basis;
+    if (model != "REFS" || key.empty() || index < 0 || !UtilityRefs::memberBasis(index, std::nan(""), basis)) {
+        why = "the members graph is for the REFS reflectivity, temperature, CAPE, gust and updraft helicity charts";
+        return false;
+    }
+    if (!std::isnan(threshold)) {
+        basis.hasThreshold = true;
+        basis.threshold = threshold;
+    }
+    new RefsPointGraph{parent, basis, lon, lat, run.size() >= 10 ? run : string{}};
+    return true;
 }
 
 string ModelChartLayer::summary() const {
@@ -475,6 +526,14 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     changeBox->addItems({"Plain chart", "Change since the run 6 h earlier", "Change since the run 12 h earlier", "Change since the run 24 h earlier", "Maximum of the 24 hours ending at this hour"});
     changeBox->setToolTip("How the chart changed since an earlier run: the same valid time from the older run is subtracted (blue = lower now, red = higher now). Charts of lines only have none");
     layout->addWidget(changeBox);
+    auto * toolsRow = new QHBoxLayout;
+    auto * colorsButton = new QPushButton{"Colors...", widget};
+    colorsButton->setToolTip("Edit the color scale this kind of chart is drawn with (stops, banded or smooth, transparency, import and export a file)");
+    auto * buildButton = new QPushButton{"Build a chart...", widget};
+    buildButton->setToolTip("A chart made to order from a template of the model (the chance of rain over a limit in a period, of a temperature under a limit, of gusts over one)");
+    toolsRow->addWidget(colorsButton);
+    toolsRow->addWidget(buildButton);
+    layout->addLayout(toolsRow);
     auto * overlayButton = new QPushButton{widget};
     overlayButton->setToolTip("Lines (heights, pressure) of other models drawn over this chart, for the same valid time, each in its own color (at most four); the fill is left out so the lines can be read");
     layout->addWidget(overlayButton);
@@ -645,6 +704,44 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
         maxDay = i == 4;
         changeBack = i == 0 || i == 4 ? 0 : i == 1 ? 6 : i == 2 ? 12 : 24;
         changed();
+    });
+    QObject::connect(colorsButton, &QPushButton::clicked, [this, widget, changed] {
+        const auto * product = GfsChart::product(param, model);
+        if (product == nullptr) {
+            return;
+        }
+        if (changeBack > 0) {
+            QMessageBox::information(widget->window(), "Colors", "A change chart has its own blue / red scale; show the plain chart to edit its colors.");
+            return;
+        }
+        const bool magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;
+        const auto ramp = GfsChart::defaultRamp(*product, magColors);
+        if (ramp.stops.empty()) {
+            QMessageBox::information(widget->window(), "Colors", "This chart is lines only, it has no color scale.");
+            return;
+        }
+        auto * editor = new PaletteEditor{widget->window(), product->label, ramp, product->quantity, UIPreferences::unitsF, [changed] { changed(); }};
+        editor->show();
+    });
+    QObject::connect(buildButton, &QPushButton::clicked, [this, widget, refresh, save, changed] {
+        const auto templates = GfsChart::templates(model);
+        if (templates.empty()) {
+            QMessageBox::information(widget->window(), "Build a chart", QString::fromStdString(model + " has no templates (only models that count members can build a chance chart)."));
+            return;
+        }
+        auto * builder = new ChartBuilder{widget->window(), model, templates};
+        const string forModel = model;
+        builder->onBuilt = [this, forModel, refresh, save, changed] (const string& id) {
+            if (forModel != model || GfsChart::product(id, model) == nullptr) {
+                return;
+            }
+            param = id;
+            member.clear();
+            save();
+            refresh();
+            changed();
+        };
+        builder->show();
     });
     QObject::connect(overlayButton, &QPushButton::clicked, [this, widget, refresh, changed] {
         QDialog dialog{widget->window()};

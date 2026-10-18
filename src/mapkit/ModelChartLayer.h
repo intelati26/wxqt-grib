@@ -11,6 +11,7 @@
 #include <QImage>
 #include "gfs/GfsChart.h"
 #include "gfs/GfsRender.h"
+class Window;
 #include "mapkit/MapLayer.h"
 
 // Any chart of the Model Viewer (any model, any of its charts: the fill, the lines, the barbs) as a layer of the scrollable master map: the chart is drawn for the part of the world in view (a
@@ -42,6 +43,10 @@ public:
     void setRange(const QDateTime& from, const QDateTime&, MapHost& host) override { setAsOf(from, host); }   // (the run of the first time: its hours run on from there)
 
     const string& modelName() const { return model; }
+    // the valid time of the chart on view (invalid before a run is known), for the tools at a point
+    QDateTime validTime() const;
+    // the members graph of a REFS chart at a point (a window); false with the reason when the chart has none
+    bool openMembers(Window * parent, double lat, double lon, string& why) const;
 
     // The chart in the Model Viewer's own picture for the part of the world in view (header with the model, chart, run and valid times, the legend, the credit): false with the reason.
     bool titled(MapHost&, QImage& out, string& error) const;

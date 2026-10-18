@@ -38,6 +38,7 @@ using std::vector;
 // The master map: one map with every kind of thing that is drawn on a map as a layer in a tree - surface stations, river gauges, dams, buoys, tropical
 // storms and the rest - switched on and off, each with its own options, over the same coastlines. A "view" in the box is a saved set of layers and a
 // region (the old Rivers, Tropical and Surface observation screens as presets). What is on is remembered.
+class ModelChartLayer;
 class MasterMapViewer : public Window, private MapHost {
 public:
     void applyRange(const QDateTime& from, const QDateTime& to);   // loop from one time to another
@@ -98,6 +99,10 @@ private:
     Button buttonRefresh;
     Button buttonSave;
     Button buttonPlume;
+    Button buttonSounding;
+    Button buttonMembers;
+    bool pointFor(double& lat, double& lon) const;   // the pointer's last place on the map, or the middle
+    ModelChartLayer * modelLayer() const;            // the model chart layer when it is on
     double pointerLat{0.0}, pointerLon{0.0};   // where the pointer last was on the map: the plume button opens at it
     bool havePointer{false};
     Text textStatus;

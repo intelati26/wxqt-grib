@@ -25,6 +25,7 @@
 #include "hurricane/Coast.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "mapkit/ModelChartLayer.h"
+#include "models/SoundingViewer.h"
 #include "objects/FutureVoid.h"
 #include "ui/ChartExport.h"
 #include "ui/ElidedText.h"
@@ -53,6 +54,8 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     , buttonRefresh{this, None, "Refresh layers"}
     , buttonSave{this, None, "Export view..."}
     , buttonPlume{this, None, "Plume..."}
+    , buttonSounding{this, None, "Sounding..."}
+    , buttonMembers{this, None, "Members graph..."}
     , textStatus{this, "Switch layers on in the tree"}
 {
     setAttribute(Qt::WA_DeleteOnClose);
@@ -146,6 +149,27 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     });
     buttonSave.connect([this] { exportView(); });
     buttonPlume.getView()->setToolTip("The forecast plume (every member or run, at the same valid times) at the place the pointer was last on the map: the model of the chart on the map (CFS: the nine month runs, GEFS: the members, any other: the GFS runs), or the GEFS");
+    buttonSounding.getView()->setToolTip("The model sounding (RRFS, skew-T with the parameters) at the place the pointer was last on the map, for the valid time on the time bar");
+    buttonSounding.connect([this] {
+        double lat = 0.0, lon = 0.0;
+        pointFor(lat, lon);
+        const auto * chart = modelLayer();
+        auto valid = chart != nullptr ? chart->validTime() : QDateTime{};
+        if (!valid.isValid()) {
+            valid = timePick->dateTime().toUTC();
+        }
+        new SoundingViewer{this, lon > 180.0 ? lon - 360.0 : lon, lat, valid};
+    });
+    buttonMembers.getView()->setToolTip("REFS charts: each of the 5 members' value at the place the pointer was last on the map over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
+    buttonMembers.connect([this] {
+        double lat = 0.0, lon = 0.0;
+        pointFor(lat, lon);
+        string why;
+        const auto * chart = modelLayer();
+        if (chart == nullptr || !chart->openMembers(this, lat, lon > 180.0 ? lon - 360.0 : lon, why)) {
+            status(chart == nullptr ? "put a REFS chart on the map for the members graph" : why);
+        }
+    });
     buttonPlume.connect([this] {
         double lat = pointerLat, lon = pointerLon;
         if (!havePointer) {   // no pointer yet: the middle of the map
@@ -167,6 +191,8 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     rowTop.addWidget(buttonRefresh);
     rowTop.addWidget(buttonSave);
     rowTop.addWidget(buttonPlume);
+    rowTop.addWidget(buttonSounding);
+    rowTop.addWidget(buttonMembers);
     rowTop.addStretch();
     // the time bar: shown while a layer with frames is on
     timeRow = new QWidget{this};
@@ -943,6 +969,27 @@ void MasterMapViewer::followCursor(QObject * origin) {
     extra = "history cursor " + utc.toString("yyyy-MM-dd HH:mm").toStdString() + "Z";
     applyingCursor = false;
     updateStatus();
+}
+
+bool MasterMapViewer::pointFor(double& lat, double& lon) const {
+    lat = pointerLat;
+    lon = pointerLon;
+    if (!havePointer) {   // no pointer yet: the middle of the map
+        const auto * widget = mapView->map();
+        const auto middle = mapView->toLatLon(QPointF{widget->width() / 2.0, widget->height() / 2.0});
+        lat = middle.first;
+        lon = middle.second;
+    }
+    return havePointer;
+}
+
+ModelChartLayer * MasterMapViewer::modelLayer() const {
+    for (const auto& layer : layers) {
+        if (layer->id() == "model/chart" && layer->enabled()) {
+            return static_cast<ModelChartLayer *>(layer.get());
+        }
+    }
+    return nullptr;
 }
 
 void MasterMapViewer::openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds) {
