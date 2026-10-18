@@ -92,6 +92,9 @@ private:
     ComboBox comboView;
     Button buttonRefresh;
     Button buttonSave;
+    Button buttonPlume;
+    double pointerLat{0.0}, pointerLon{0.0};   // where the pointer last was on the map: the plume button opens at it
+    bool havePointer{false};
     Text textStatus;
     std::unique_ptr<MapView> mapView;
     QLabel * hoverLabel{};

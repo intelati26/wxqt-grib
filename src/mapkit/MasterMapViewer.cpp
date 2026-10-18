@@ -22,6 +22,7 @@
 #include <QStyle>
 #include <QPainterPath>
 #include "hurricane/Coast.h"
+#include "cfs/CfsPlumeViewer.h"
 #include "mapkit/ModelChartLayer.h"
 #include "objects/FutureVoid.h"
 #include "ui/ChartExport.h"
@@ -50,6 +51,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     , comboView{this, {"Your layers"}}
     , buttonRefresh{this, None, "Refresh layers"}
     , buttonSave{this, None, "Export view..."}
+    , buttonPlume{this, None, "Plume..."}
     , textStatus{this, "Switch layers on in the tree"}
 {
     setAttribute(Qt::WA_DeleteOnClose);
@@ -64,7 +66,13 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     auto * map = mapView->map();
     map->dataLayer = [] (QPainter& painter) { painter.fillRect(QRectF{-1.0e6, -1.0e6, 2.0e6, 2.0e6}, QColor{16, 26, 42}); };
     map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintLegend(painter); };
-    mapView->onPointer = [this] (const QPointF& at) { showHover(at); };
+    mapView->onPointer = [this] (const QPointF& at) {
+        showHover(at);
+        const auto [lat, lon] = mapView->toLatLon(at);
+        pointerLat = lat;
+        pointerLon = lon;
+        havePointer = true;
+    };
     mapView->onLeave = [this] { hoverLabel->hide(); };
     // a click on a mark opens what it has (and does not also zoom the map out)
     map->clickHandler = [this] (const QPointF& at) {
@@ -135,9 +143,28 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
         }
     });
     buttonSave.connect([this] { exportView(); });
+    buttonPlume.getView()->setToolTip("The forecast plume (every member or run, at the same valid times) at the place the pointer was last on the map: the model of the chart on the map (CFS: the nine month runs, GEFS: the members, any other: the GFS runs), or the GEFS");
+    buttonPlume.connect([this] {
+        double lat = pointerLat, lon = pointerLon;
+        if (!havePointer) {   // no pointer yet: the middle of the map
+            const auto * widget = mapView->map();
+            const auto middle = mapView->toLatLon(QPointF{widget->width() / 2.0, widget->height() / 2.0});
+            lat = middle.first;
+            lon = middle.second;
+        }
+        QString modelId = "gefs";
+        for (const auto& layer : layers) {
+            if (layer->id() == "model/chart" && layer->enabled()) {
+                const auto& name = static_cast<ModelChartLayer *>(layer.get())->modelName();
+                modelId = name == "CFS" ? "cfs" : name.compare(0, 4, "GEFS") == 0 ? "gefs" : "gfs";
+            }
+        }
+        new CfsPlumeViewer{this, lat, lon > 180.0 ? lon - 360.0 : lon, modelId};
+    });
     rowTop.addWidget(comboView);
     rowTop.addWidget(buttonRefresh);
     rowTop.addWidget(buttonSave);
+    rowTop.addWidget(buttonPlume);
     rowTop.addStretch();
     // the time bar: shown while a layer with frames is on
     timeRow = new QWidget{this};

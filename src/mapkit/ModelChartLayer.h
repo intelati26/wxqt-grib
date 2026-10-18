@@ -39,6 +39,8 @@ public:
     string timeText() const override;
     void setAsOf(const QDateTime& utc, MapHost&) override;
 
+    const string& modelName() const { return model; }
+
     // The chart in the Model Viewer's own picture for the part of the world in view (header with the model, chart, run and valid times, the legend, the credit): false with the reason.
     bool titled(MapHost&, QImage& out, string& error) const;
 
