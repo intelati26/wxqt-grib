@@ -394,6 +394,129 @@ clone_pieces = false
 clone_prefix = "Mean "
 clone_skip = anom, 500_vort_ht, 850_vort_ht, 850_stream_vort, 850vor_500ht_200wd, precip_p01
 )MODEL"},
+        {"RRFS-AK", R"MODEL(
+# The RRFS for Alaska (the same open data bucket and runs as the contiguous United States one): 3 km, every hour, to 84 hours from 00, 06, 12 and 18Z. The 2D fields and the pressure levels
+# are files of their own; the grid is put on a regular 0.04 degree one.
+id = RRFS-AK
+label = NOAA/NCEP RRFS Alaska, 3 km
+kind = grib
+url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.ak.grib2
+file_default = 2dfld.3km
+file = when level~"^[0-9]+ mb$" => prslev.3km
+file = 2dfld.3km
+probe_file = 2dfld.3km
+cycle_hours = 1
+lag_hours = 2
+probe_hour = 0
+cycles_to_try = 8
+warp = 0.04, -180.0, 40.0, -90.0, 75.0
+sectors = world
+hours = 0-84/1
+hourly_runs = true
+on_missing = previous_run
+preload_hours = 12
+run_length = every 6 : 84 , else : 18
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, PRMSL, PWAT, CAPE, CIN, APCP, CRAIN, CSNOW, CFRZR, CICEP, TCDC, GUST, SNOD, WEASD, REFC, HLCY, VIS, PRATE
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom
+clone_pieces = false
+clone_rename = PRMSL:MSLET
+)MODEL"},
+        {"RRFS-HI", R"MODEL(
+# The RRFS for Hawaii (the same open data bucket and runs as the contiguous United States one): 2.5 km, every hour, to 84 hours from 00, 06, 12 and 18Z. The 2D fields and the pressure levels
+# are files of their own; the grid is put on a regular 0.025 degree one.
+id = RRFS-HI
+label = NOAA/NCEP RRFS Hawaii, 2.5 km
+kind = grib
+url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.hi.grib2
+file_default = 2dfld.2p5km
+file = when level~"^[0-9]+ mb$" => prslev.2p5km
+file = 2dfld.2p5km
+probe_file = 2dfld.2p5km
+cycle_hours = 1
+lag_hours = 2
+probe_hour = 0
+cycles_to_try = 8
+warp = 0.025, -162.5, 17.5, -153.0, 23.5
+sectors = world
+hours = 0-84/1
+hourly_runs = true
+on_missing = previous_run
+preload_hours = 12
+run_length = every 6 : 84 , else : 18
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, PRMSL, PWAT, CAPE, CIN, APCP, CRAIN, CSNOW, CFRZR, CICEP, TCDC, GUST, SNOD, WEASD, REFC, HLCY, VIS, PRATE
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom
+clone_pieces = false
+clone_rename = PRMSL:MSLET
+)MODEL"},
+        {"RRFS-PR", R"MODEL(
+# The RRFS for Puerto Rico and the Virgin Islands (the same open data bucket and runs as the contiguous United States one): 2.5 km, every hour, to 84 hours from 00, 06, 12 and 18Z. The 2D fields and the pressure levels
+# are files of their own; the grid is put on a regular 0.025 degree one.
+id = RRFS-PR
+label = NOAA/NCEP RRFS Puerto Rico and the Virgin Islands, 2.5 km
+kind = grib
+url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.pr.grib2
+file_default = 2dfld.2p5km
+file = when level~"^[0-9]+ mb$" => prslev.2p5km
+file = 2dfld.2p5km
+probe_file = 2dfld.2p5km
+cycle_hours = 1
+lag_hours = 2
+probe_hour = 0
+cycles_to_try = 8
+warp = 0.025, -76.5, 14.0, -62.0, 23.0
+sectors = world
+hours = 0-84/1
+hourly_runs = true
+on_missing = previous_run
+preload_hours = 12
+run_length = every 6 : 84 , else : 18
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, PRMSL, PWAT, CAPE, CIN, APCP, CRAIN, CSNOW, CFRZR, CICEP, TCDC, GUST, SNOD, WEASD, REFC, HLCY, VIS, PRATE
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom
+clone_pieces = false
+clone_rename = PRMSL:MSLET
+)MODEL"},
+        {"RRFS-NA", R"MODEL(
+# The RRFS for North America (the same open data bucket and runs as the contiguous United States one): 13 km, every hour, to 84 hours, from the 00, 06, 12 and 18Z runs only (the other hours' runs have no North America files). The 2D fields and the pressure levels
+# are files of their own; the grid is put on a regular 0.1 degree one.
+id = RRFS-NA
+label = NOAA/NCEP RRFS North America, 13 km
+kind = grib
+url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.na.grib2
+file_default = 2dfld.13km
+file = when level~"^[0-9]+ mb$" => prslev.13km
+file = 2dfld.13km
+probe_file = 2dfld.13km
+cycle_hours = 6
+lag_hours = 5
+probe_hour = 0
+cycles_to_try = 4
+warp = 0.1, -180.0, 0.0, -5.0, 85.0
+sectors = world
+hours = 0-84/1
+run_every = 6
+on_missing = previous_run
+preload_hours = 12
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, PRMSL, PWAT, CAPE, CIN, APCP, CRAIN, CSNOW, CFRZR, CICEP, TCDC, GUST, SNOD, WEASD, REFC, HLCY, VIS, PRATE
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom
+clone_pieces = false
+clone_rename = PRMSL:MSLET
+)MODEL"},
         {"RRFS", R"MODEL(
 # the 3 km Rapid Refresh Forecast System: the 2D fields and the pressure levels are files of their own
 id = RRFS
