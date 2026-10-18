@@ -46,6 +46,7 @@
 #include "hurricane/HafsViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
+#include "mapkit/ModelChartLayer.h"
 #include "models/ModelScreen.h"
 #include "models/ModelViewer.h"
 #include "history/EventsViewer.h"
@@ -189,8 +190,14 @@ int main(int argc, char * argv[]) {
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
                 when.setTimeSpec(Qt::UTC);
                 map->openAt(when, parts.value(2, "35.3").toDouble(), parts.value(3, "-97.5").toDouble(), parts.value(4, "300").toDouble(), extraLayers(parts.value(5)));
-            } else if (route.startsWith("mcexport:")) {   // WXQT_OPEN=mcexport:<yyyyMMddHH UTC>:<lat>:<lon>:<km>:<out.png>: the master map with the model chart, and, after a while, its titled export
+            } else if (route.startsWith("mcexport:")) {   // WXQT_OPEN=mcexport:<yyyyMMddHH UTC>:<lat>:<lon>:<km>:<out.png>[:PREF=value...]: the master map with the model chart, and, after a while, its titled export
                 const auto parts = route.split(':');
+                for (int i = 6; i < parts.size(); i++) {   // further parts: "PREF=value" of the chart layer (MM_MODELCHART_MODEL, _PARAM, _OVERLAYS)
+                    const auto pair = parts[i].split('=');
+                    if (pair.size() == 2) {
+                        Utility::writePref(pair[0].toStdString(), pair[1].toStdString());
+                    }
+                }
                 auto * map = new MasterMapViewer{&w};
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHH");
                 when.setTimeSpec(Qt::UTC);
@@ -250,6 +257,21 @@ int main(int argc, char * argv[]) {
                         QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_WAIT") * 1000, dialog, [dialog, file] { dialog->grab().save(file); });
                     }
                 }
+            } else if (route.startsWith("mcoptions:")) {   // WXQT_OPEN=mcoptions:<out.png>: the model chart layer's option controls on their own, with the chart picker opened
+                auto * layer = new ModelChartLayer;
+                auto * options = layer->options(nullptr, [] {});
+                options->setMinimumWidth(320);
+                options->show();
+                options->findChildren<QPushButton *>().at(1)->click();
+                const QString out = route.mid(10);
+                QTimer::singleShot(2000, options, [options, out] {
+                    options->grab().save(out);
+                    for (auto * dialog : QApplication::topLevelWidgets()) {
+                        if (dialog != options && dialog->isVisible()) {
+                            dialog->grab().save(out + ".picker.png");
+                        }
+                    }
+                });
             } else if (route == "network") {   // WXQT_OPEN=network: the list of what the network client has queued and in flight
                 NetStatus::show(&w);
             } else if (route == "cache") {   // WXQT_OPEN=cache: the summary of what is kept on disk

@@ -60,8 +60,14 @@ private:
     bool visibleBox(MapHost&, double& west, double& south, double& east, double& north) const;
     void render(MapHost&);
     string keyFor(int hour) const;
+    string variantKey() const;
+    GfsRender::Variant variantNow() const;
     string model{"GFS"};
     string param{"500_wnd_ht"};
+    std::vector<string> overlays;              // lines and barbs ticked onto the chart (ProductPicker)
+    string member;                             // one ensemble member instead of the mean
+    bool sigma{false};                         // in standard deviations from the normal
+    int changeBack{0};                         // hours: the change since the run that much older (0: the plain chart)
     string run;                                // the run found, "yyyyMMddHH"
     QDateTime asOf;
     std::vector<int> hours;                    // the forecast hours the run has

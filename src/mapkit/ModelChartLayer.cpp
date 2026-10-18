@@ -6,19 +6,41 @@
 #include "mapkit/ModelChartLayer.h"
 #include <algorithm>
 #include <cmath>
+#include <QCheckBox>
 #include <QComboBox>
+#include <QPushButton>
 #include <QLabel>
 #include <QPainter>
 #include <QSlider>
 #include <QTimeZone>
 #include <QVBoxLayout>
 #include "gfs/GfsModels.h"
+#include "models/ProductPicker.h"
 #include "radar/MapLegend.h"
 #include "radar/MapView.h"
 #include "settings/UIPreferences.h"
 #include "util/Utility.h"
 
 namespace {
+    std::vector<string> splitList(const string& text) {
+        std::vector<string> out;
+        for (size_t at = 0; at < text.size();) {
+            auto end = text.find(',', at);
+            end = end == string::npos ? text.size() : end;
+            if (end > at) {
+                out.push_back(text.substr(at, end - at));
+            }
+            at = end + 1;
+        }
+        return out;
+    }
+    string joinList(const std::vector<string>& list) {
+        string out;
+        for (const auto& item : list) {
+            out += (out.empty() ? "" : ",") + item;
+        }
+        return out;
+    }
     QDateTime runTimeOf(const string& run) {
         return QDateTime{QDate::fromString(QString::fromStdString(run.substr(0, 8)), "yyyyMMdd"), QTime{std::stoi(run.substr(8, 2)), 0}, QTimeZone::utc()};
     }
@@ -32,6 +54,7 @@ ModelChartLayer::ModelChartLayer() {
         param = "500_wnd_ht";
     }
     opacity = std::clamp(Utility::readPrefInt("MM_MODELCHART_OPACITY", 90), 20, 100);
+    overlays = splitList(Utility::readPref("MM_MODELCHART_OVERLAYS", ""));
 }
 
 string ModelChartLayer::runOf() const {
@@ -184,7 +207,27 @@ void ModelChartLayer::optionChanged(MapHost& host) {
 }
 
 string ModelChartLayer::keyFor(int hour) const {
-    return model + "|" + param + "|" + run + "|" + std::to_string(hour);
+    return model + "|" + param + "|" + run + "|" + std::to_string(hour) + variantKey();
+}
+
+// what the chart is besides model, chart, run and hour: its extra lines, one member, deviations, the change since an older run
+string ModelChartLayer::variantKey() const {
+    string key;
+    for (const auto& id : overlays) {
+        key += "|+" + id;
+    }
+    return key + (member.empty() ? string{} : "|m" + member) + (sigma ? "|sd" : "") + (changeBack > 0 ? "|chg" + std::to_string(changeBack) : string{});
+}
+
+GfsRender::Variant ModelChartLayer::variantNow() const {
+    GfsRender::Variant v;
+    if (changeBack > 0) {
+        v.kind = GfsRender::Variant::Kind::Change;
+        v.hoursBack = changeBack;
+    }
+    v.member = member;
+    v.standardDeviations = sigma;
+    return v;
 }
 
 // the part of the world in view, as longitudes and latitudes (the map widget's corners)
@@ -251,15 +294,17 @@ void ModelChartLayer::render(MapHost& host) {
     auto result = std::make_shared<std::shared_ptr<Rendered>>();
     auto problem = std::make_shared<string>();
     const string modelNow = model, paramNow = param, runNow = run;
+    const auto overlaysNow = overlays;
+    auto variantBase = variantNow();
     const auto * session_ = &session;
     host.background(
-        [result, problem, modelNow, paramNow, runNow, hour, w, s, e, n, width, session_] {
-            GfsRender::Variant variant;
+        [result, problem, key, modelNow, paramNow, runNow, overlaysNow, variantBase, hour, w, s, e, n, width, session_] {
+            GfsRender::Variant variant = variantBase;
             variant.bare = true;
             variant.width = width;
             auto rendered = std::make_shared<Rendered>();
             string message;
-            const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(*session_), modelNow, paramNow, GfsChart::boxId(w, s, e, n), runNow, hour, {}, message, &rendered->probe, variant);
+            const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(*session_), modelNow, paramNow, GfsChart::boxId(w, s, e, n), runNow, hour, overlaysNow, message, &rendered->probe, variant);
             if (bytes.isEmpty() || !rendered->image.loadFromData(bytes, "PNG")) {
                 *problem = message.empty() ? "the chart could not be drawn" : message;
                 return;
@@ -269,7 +314,7 @@ void ModelChartLayer::render(MapHost& host) {
             rendered->east = e;
             rendered->north = n;
             rendered->widthPixels = rendered->image.width();
-            rendered->key = modelNow + "|" + paramNow + "|" + runNow + "|" + std::to_string(hour);
+            rendered->key = key;
             *result = rendered;
         },
         [this, &host, result, problem, alive = alive] {
@@ -333,7 +378,7 @@ MapHit ModelChartLayer::pick(const QPointF& pixels, MapHost& host) const {
 
 vector<MapLegendRow> ModelChartLayer::legend() const {
     const auto * product = GfsChart::product(param, model);
-    if (product == nullptr || product->linesOnly) {
+    if (product == nullptr || product->linesOnly || changeBack > 0 || sigma) {
         return {};
     }
     const bool us = UIPreferences::unitsF;
@@ -369,9 +414,9 @@ bool ModelChartLayer::titled(MapHost& host, QImage& out, string& problem) const 
     e = std::min(180.0, e);
     s = std::max(-85.0, s);
     n = std::min(85.0, n);
-    GfsRender::Variant variant;
+    auto variant = variantNow();
     variant.width = 1400;
-    const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(session), model, param, GfsChart::boxId(w, s, e, n), run, hourShown(), {}, problem, nullptr, variant);
+    const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(session), model, param, GfsChart::boxId(w, s, e, n), run, hourShown(), overlays, problem, nullptr, variant);
     if (bytes.isEmpty() || !out.loadFromData(bytes, "PNG")) {
         if (problem.empty()) {
             problem = "the chart could not be drawn";
@@ -381,57 +426,156 @@ bool ModelChartLayer::titled(MapHost& host, QImage& out, string& problem) const 
     return true;
 }
 
+// The same pickers as the Model Viewer's page: models in groups, charts in groups with a search box, favorites and the lines and barbs that can be ticked on, the member of an ensemble,
+// deviations, the change since an older run
 QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>& changed) {
     auto * widget = new QWidget{parent};
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(new QLabel{"Model:", widget});
-    auto * models = new QComboBox{widget};
-    for (const auto& def : GfsModels::all()) {
-        if (!def.storm && GfsRender::drawsModel(def.id)) {
-            models->addItem(QString::fromStdString(def.id + "  " + def.label), QString::fromStdString(def.id));
-        }
-    }
-    models->setCurrentIndex(std::max(0, models->findData(QString::fromStdString(model))));
-    layout->addWidget(models);
-    layout->addWidget(new QLabel{"Chart:", widget});
-    auto * charts = new QComboBox{widget};
-    layout->addWidget(charts);
-    const auto fillCharts = [this, charts] {
-        charts->blockSignals(true);
-        charts->clear();
-        std::vector<std::pair<QString, QString>> list;
-        for (const auto& product : GfsChart::products()) {
-            if (product.source == model && !product.id.empty() && product.id.compare(0, 4, "gen~") != 0) {
-                list.emplace_back(QString::fromStdString(GfsChart::category(product) + ": " + product.label), QString::fromStdString(product.id));
-            }
-        }
-        std::sort(list.begin(), list.end());
-        for (const auto& [label, id] : list) {
-            charts->addItem(label, id);
-        }
-        charts->setCurrentIndex(std::max(0, charts->findData(QString::fromStdString(param))));
-        charts->blockSignals(false);
-    };
-    fillCharts();
+    auto * modelButton = new QPushButton{widget};
+    auto * chartButton = new QPushButton{widget};
+    modelButton->setToolTip("The model of the chart: opens the list of models in groups (global, regional, convection allowing, ensembles ...), with a search box");
+    chartButton->setToolTip("The chart: opens the list of the model's charts in groups, with a search box, favorites (the star) and lines and wind barbs to tick onto it");
+    layout->addWidget(modelButton);
+    layout->addWidget(chartButton);
+    auto * changeBox = new QComboBox{widget};
+    changeBox->addItems({"Plain chart", "Change since the run 6 h earlier", "Change since the run 12 h earlier", "Change since the run 24 h earlier"});
+    changeBox->setToolTip("How the chart changed since an earlier run: the same valid time from the older run is subtracted (blue = lower now, red = higher now). Charts of lines only have none");
+    layout->addWidget(changeBox);
+    auto * memberBox = new QComboBox{widget};
+    memberBox->setToolTip("An ensemble's chart for one member instead of the mean");
+    layout->addWidget(memberBox);
+    auto * sigmaBox = new QCheckBox{"In standard deviations from the normal", widget};
+    layout->addWidget(sigmaBox);
     layout->addWidget(new QLabel{"Opacity:", widget});
     auto * slider = new QSlider{Qt::Horizontal, widget};
     slider->setRange(20, 100);
     slider->setValue(opacity);
     layout->addWidget(slider);
-    QObject::connect(models, &QComboBox::currentIndexChanged, [this, models, fillCharts, charts, changed] (int) {
-        model = models->currentData().toString().toStdString();
-        fillCharts();
-        if (charts->count() > 0) {
-            param = charts->currentData().toString().toStdString();
+
+    // what the buttons say and which of the extra boxes the chart has
+    const auto refresh = [this, modelButton, chartButton, changeBox, memberBox, sigmaBox] {
+        const auto * product = GfsChart::product(param, model);
+        modelButton->setText(QString::fromStdString("Model: " + model + "  \xE2\x96\xBE"));
+        chartButton->setText(QString::fromStdString("Chart: " + (product ? product->label : param) + (overlays.empty() ? "" : "  + " + std::to_string(overlays.size()) + " more") + "  \xE2\x96\xBE"));
+        changeBox->blockSignals(true);
+        changeBox->setCurrentIndex(changeBack == 0 ? 0 : changeBack == 6 ? 1 : changeBack == 12 ? 2 : 3);
+        changeBox->setVisible(product != nullptr && !product->linesOnly);
+        changeBox->blockSignals(false);
+        std::vector<GfsChart::MemberChoice> choices;
+        if (product != nullptr) {
+            choices = GfsChart::memberChoices(*product, run);
         }
+        if (choices.empty()) {
+            member.clear();
+        }
+        memberBox->blockSignals(true);
+        memberBox->clear();
+        memberBox->addItem("The ensemble's mean (or its own chart)", "");
+        for (const auto& c : choices) {
+            memberBox->addItem(QString::fromStdString(c.label), QString::fromStdString(c.value));
+        }
+        memberBox->setCurrentIndex(std::max(0, memberBox->findData(QString::fromStdString(member))));
+        memberBox->setVisible(!choices.empty());
+        memberBox->blockSignals(false);
+        const bool offered = product != nullptr && GfsChart::hasStandardDeviations(*product);
+        if (!offered) {
+            sigma = false;
+        }
+        sigmaBox->blockSignals(true);
+        sigmaBox->setChecked(sigma);
+        sigmaBox->setVisible(offered);
+        sigmaBox->blockSignals(false);
+    };
+    refresh();
+    const auto save = [this] {
         Utility::writePref("MM_MODELCHART_MODEL", model);
         Utility::writePref("MM_MODELCHART_PARAM", param);
+        Utility::writePref("MM_MODELCHART_OVERLAYS", joinList(overlays));
+    };
+    QObject::connect(modelButton, &QPushButton::clicked, [this, widget, refresh, save, changed] {
+        std::vector<ProductPicker::Entry> entries;
+        for (const auto& def : GfsModels::all()) {
+            if (!def.storm && GfsRender::drawsModel(def.id)) {
+                const auto group = GfsModels::pickerGroup(def.id);
+                entries.push_back({def.id, group == "SPC guidance and mesoanalysis" ? def.id + "  -  " + def.label : def.id, group});
+            }
+        }
+        static const std::vector<string> order{"Global", "Regional", "Convection allowing", "Ensembles", "Waves and ocean", "Other"};
+        std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
+            return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
+        });
+        auto * picker = new ProductPicker{widget->window(), "NCEP", entries, model, {}, {}, {}};
+        picker->setAttribute(Qt::WA_DeleteOnClose);
+        picker->setWording("models", "Show this model");
+        picker->resize(320, 520);
+        picker->onPick = [this, refresh, save, changed] (const string& id) {
+            if (id == model) {
+                return;
+            }
+            model = id;
+            overlays.clear();
+            member.clear();
+            sigma = false;
+            changeBack = 0;
+            // the first chart of the model (the one it opens with)
+            for (const auto& product : GfsChart::products()) {
+                if (product.source == model && !product.id.empty() && product.id.compare(0, 4, "gen~") != 0) {
+                    param = product.id;
+                    break;
+                }
+            }
+            save();
+            refresh();
+            changed();
+        };
+        picker->show();
+    });
+    QObject::connect(chartButton, &QPushButton::clicked, [this, widget, refresh, save, changed] {
+        std::vector<ProductPicker::Entry> entries;
+        for (const auto& product : GfsChart::products()) {
+            if (product.source == model && !product.id.empty() && product.id.compare(0, 4, "gen~") != 0) {
+                entries.push_back({product.id, product.label, GfsChart::category(product)});
+            }
+        }
+        const auto favorites = splitList(Utility::readPref("MODELFAV_" + model, ""));
+        auto * picker = new ProductPicker{widget->window(), model, entries, param, favorites, GfsChart::overlayChoices(model), overlays};
+        picker->setAttribute(Qt::WA_DeleteOnClose);
+        const string forModel = model;
+        picker->onPick = [this, forModel, refresh, save, changed] (const string& id) {
+            if (forModel != model) {
+                return;
+            }
+            param = id;
+            member.clear();
+            save();
+            refresh();
+            changed();
+        };
+        picker->onOverlays = [this, forModel, refresh, save, changed] (const std::vector<string>& ids) {
+            if (forModel != model) {
+                return;
+            }
+            overlays = ids;
+            save();
+            refresh();
+            changed();
+        };
+        picker->onFavorites = [forModel] (const std::vector<string>& ids) {
+            Utility::writePref("MODELFAV_" + forModel, joinList(ids));
+        };
+        picker->show();
+    });
+    QObject::connect(changeBox, &QComboBox::currentIndexChanged, [this, changed] (int i) {
+        changeBack = i == 0 ? 0 : i == 1 ? 6 : i == 2 ? 12 : 24;
         changed();
     });
-    QObject::connect(charts, &QComboBox::currentIndexChanged, [this, charts, changed] (int) {
-        param = charts->currentData().toString().toStdString();
-        Utility::writePref("MM_MODELCHART_PARAM", param);
+    QObject::connect(memberBox, &QComboBox::currentIndexChanged, [this, memberBox, changed] (int) {
+        member = memberBox->currentData().toString().toStdString();
+        changed();
+    });
+    QObject::connect(sigmaBox, &QCheckBox::toggled, [this, changed] (bool on) {
+        sigma = on;
         changed();
     });
     QObject::connect(slider, &QSlider::valueChanged, [this, changed] (int value) {
