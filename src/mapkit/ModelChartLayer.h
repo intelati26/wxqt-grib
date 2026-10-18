@@ -6,6 +6,7 @@
 #ifndef MODELCHARTLAYER_H
 #define MODELCHARTLAYER_H
 
+#include <functional>
 #include <memory>
 #include <QImage>
 #include "gfs/GfsChart.h"
@@ -61,12 +62,16 @@ private:
     void render(MapHost&);
     string keyFor(int hour) const;
     string variantKey() const;
-    GfsRender::Variant variantNow() const;
+    GfsRender::Variant variantNow(int hour) const;
     string model{"GFS"};
     string param{"500_wnd_ht"};
     std::vector<string> overlays;              // lines and barbs ticked onto the chart (ProductPicker)
     string member;                             // one ensemble member instead of the mean
     bool sigma{false};                         // in standard deviations from the normal
+    bool maxDay{false};                        // the largest of the fill over the 24 hours ending at the hour shown
+    string pinnedRun;                          // "yyyyMMddHH" of a run picked from the list; empty: the newest, or the time bar's
+    std::function<void()> optionsRefresh;      // redraws the option panel's boxes (while it is open)
+    string newestRun;                          // the newest run found
     int changeBack{0};                         // hours: the change since the run that much older (0: the plain chart)
     string run;                                // the run found, "yyyyMMddHH"
     QDateTime asOf;

@@ -55,6 +55,8 @@ ModelChartLayer::ModelChartLayer() {
     }
     opacity = std::clamp(Utility::readPrefInt("MM_MODELCHART_OPACITY", 90), 20, 100);
     overlays = splitList(Utility::readPref("MM_MODELCHART_OVERLAYS", ""));
+    pinnedRun = Utility::readPref("MM_MODELCHART_RUN", "");   // (for the dev routes: the panel does not keep a run)
+    maxDay = Utility::readPref("MM_MODELCHART_MAX", "") == "1";
 }
 
 string ModelChartLayer::runOf() const {
@@ -140,6 +142,9 @@ void ModelChartLayer::setAsOf(const QDateTime& utc, MapHost& host) {
     const auto * def = GfsModels::find(model);
     const int step = def == nullptr ? 6 : def->hourlyRuns ? 1 : std::max(1, def->cycleStep);
     run = QDateTime{asOf.date(), QTime{asOf.time().hour() / step * step, 0}, QTimeZone::utc()}.toString("yyyyMMddHH").toStdString();
+    if (!pinnedRun.empty()) {
+        run = pinnedRun;
+    }
     hours = hoursOf(model, run);
     shown = static_cast<long>(asOf.toSecsSinceEpoch());
     current.reset();
@@ -180,7 +185,14 @@ void ModelChartLayer::refresh(MapHost& host) {
             } else {
                 error.clear();
                 const string newest = found->first + found->second;
-                if (newest != run) {
+                newestRun = newest;
+                if (optionsRefresh) {
+                    optionsRefresh();
+                }
+                if (!pinnedRun.empty()) {
+                    run = pinnedRun;
+                    hours = hoursOf(model, run);
+                } else if (newest != run) {
                     run = newest;
                     hours = hoursOf(model, run);
                     current.reset();
@@ -216,12 +228,23 @@ string ModelChartLayer::variantKey() const {
     for (const auto& id : overlays) {
         key += "|+" + id;
     }
-    return key + (member.empty() ? string{} : "|m" + member) + (sigma ? "|sd" : "") + (changeBack > 0 ? "|chg" + std::to_string(changeBack) : string{});
+    return key + (member.empty() ? string{} : "|m" + member) + (sigma ? "|sd" : "") + (changeBack > 0 ? "|chg" + std::to_string(changeBack) : string{}) + (maxDay ? "|max" : "");
 }
 
-GfsRender::Variant ModelChartLayer::variantNow() const {
+GfsRender::Variant ModelChartLayer::variantNow(int hour) const {
     GfsRender::Variant v;
-    if (changeBack > 0) {
+    if (maxDay) {   // the largest of the chart's fill over the 24 hours ending at this hour
+        for (const int h : hours) {
+            if (h >= hour - 24 && h <= hour) {
+                v.hours.push_back(h);
+            }
+        }
+        if (v.hours.size() >= 2) {
+            v.kind = GfsRender::Variant::Kind::Max;
+        } else {
+            v.hours.clear();
+        }
+    } else if (changeBack > 0) {
         v.kind = GfsRender::Variant::Kind::Change;
         v.hoursBack = changeBack;
     }
@@ -295,7 +318,7 @@ void ModelChartLayer::render(MapHost& host) {
     auto problem = std::make_shared<string>();
     const string modelNow = model, paramNow = param, runNow = run;
     const auto overlaysNow = overlays;
-    auto variantBase = variantNow();
+    auto variantBase = variantNow(hour);
     const auto * session_ = &session;
     host.background(
         [result, problem, key, modelNow, paramNow, runNow, overlaysNow, variantBase, hour, w, s, e, n, width, session_] {
@@ -414,7 +437,7 @@ bool ModelChartLayer::titled(MapHost& host, QImage& out, string& problem) const 
     e = std::min(180.0, e);
     s = std::max(-85.0, s);
     n = std::min(85.0, n);
-    auto variant = variantNow();
+    auto variant = variantNow(hourShown());
     variant.width = 1400;
     const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(session), model, param, GfsChart::boxId(w, s, e, n), run, hourShown(), overlays, problem, nullptr, variant);
     if (bytes.isEmpty() || !out.loadFromData(bytes, "PNG")) {
@@ -439,9 +462,12 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     layout->addWidget(modelButton);
     layout->addWidget(chartButton);
     auto * changeBox = new QComboBox{widget};
-    changeBox->addItems({"Plain chart", "Change since the run 6 h earlier", "Change since the run 12 h earlier", "Change since the run 24 h earlier"});
+    changeBox->addItems({"Plain chart", "Change since the run 6 h earlier", "Change since the run 12 h earlier", "Change since the run 24 h earlier", "Maximum of the 24 hours ending at this hour"});
     changeBox->setToolTip("How the chart changed since an earlier run: the same valid time from the older run is subtracted (blue = lower now, red = higher now). Charts of lines only have none");
     layout->addWidget(changeBox);
+    auto * runBox = new QComboBox{widget};
+    runBox->setToolTip("The run of the chart: the newest (or the one of the time bar's time), or one of the earlier runs of the model. The time bar then steps through that run's hours");
+    layout->addWidget(runBox);
     auto * memberBox = new QComboBox{widget};
     memberBox->setToolTip("An ensemble's chart for one member instead of the mean");
     layout->addWidget(memberBox);
@@ -454,14 +480,31 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     layout->addWidget(slider);
 
     // what the buttons say and which of the extra boxes the chart has
-    const auto refresh = [this, modelButton, chartButton, changeBox, memberBox, sigmaBox] {
+    const auto refresh = [this, modelButton, chartButton, changeBox, runBox, memberBox, sigmaBox] {
         const auto * product = GfsChart::product(param, model);
         modelButton->setText(QString::fromStdString("Model: " + model + "  \xE2\x96\xBE"));
         chartButton->setText(QString::fromStdString("Chart: " + (product ? product->label : param) + (overlays.empty() ? "" : "  + " + std::to_string(overlays.size()) + " more") + "  \xE2\x96\xBE"));
         changeBox->blockSignals(true);
-        changeBox->setCurrentIndex(changeBack == 0 ? 0 : changeBack == 6 ? 1 : changeBack == 12 ? 2 : 3);
+        changeBox->setCurrentIndex(maxDay ? 4 : changeBack == 0 ? 0 : changeBack == 6 ? 1 : changeBack == 12 ? 2 : 3);
         changeBox->setVisible(product != nullptr && !product->linesOnly);
         changeBox->blockSignals(false);
+        // the runs: this one or the newest, then the earlier ones on the model's steps
+        runBox->blockSignals(true);
+        runBox->clear();
+        runBox->addItem("Run: the newest (or the time bar's)", "");
+        const auto base = !newestRun.empty() ? newestRun : run;
+        if (base.size() >= 10) {
+            const auto * def = GfsModels::find(model);
+            const int step = def == nullptr ? 6 : def->hourlyRuns ? 1 : std::max(1, def->cycleStep);
+            auto when = runTimeOf(base);
+            for (int i = 0; i < 24; i++) {
+                const auto id = when.toString("yyyyMMddHH");
+                runBox->addItem(when.toString("yyyy-MM-dd HH") + "Z run", id);
+                when = when.addSecs(-3600LL * step);
+            }
+        }
+        runBox->setCurrentIndex(std::max(0, runBox->findData(QString::fromStdString(pinnedRun))));
+        runBox->blockSignals(false);
         std::vector<GfsChart::MemberChoice> choices;
         if (product != nullptr) {
             choices = GfsChart::memberChoices(*product, run);
@@ -488,6 +531,8 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
         sigmaBox->blockSignals(false);
     };
     refresh();
+    optionsRefresh = refresh;   // (the run list is filled when the newest run is found)
+    QObject::connect(widget, &QObject::destroyed, [this] { optionsRefresh = nullptr; });
     const auto save = [this] {
         Utility::writePref("MM_MODELCHART_MODEL", model);
         Utility::writePref("MM_MODELCHART_PARAM", param);
@@ -518,6 +563,9 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
             member.clear();
             sigma = false;
             changeBack = 0;
+            maxDay = false;
+            pinnedRun.clear();
+            newestRun.clear();
             // the first chart of the model (the one it opens with)
             for (const auto& product : GfsChart::products()) {
                 if (product.source == model && !product.id.empty() && product.id.compare(0, 4, "gen~") != 0) {
@@ -567,7 +615,12 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
         picker->show();
     });
     QObject::connect(changeBox, &QComboBox::currentIndexChanged, [this, changed] (int i) {
-        changeBack = i == 0 ? 0 : i == 1 ? 6 : i == 2 ? 12 : 24;
+        maxDay = i == 4;
+        changeBack = i == 0 || i == 4 ? 0 : i == 1 ? 6 : i == 2 ? 12 : 24;
+        changed();
+    });
+    QObject::connect(runBox, &QComboBox::currentIndexChanged, [this, runBox, changed] (int) {
+        pinnedRun = runBox->currentData().toString().toStdString();
         changed();
     });
     QObject::connect(memberBox, &QComboBox::currentIndexChanged, [this, memberBox, changed] (int) {
