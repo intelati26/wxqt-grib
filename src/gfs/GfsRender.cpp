@@ -515,11 +515,11 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     }
     // the newest published run; an earlier cycle of the screen's choice is that run stepped back to it
     GfsData::Run run;
-    if (!newestRun(gfs, run)) {
+    const bool exact = cycle.size() == 10 && std::all_of(cycle.begin(), cycle.end(), [] (char c) { return std::isdigit(static_cast<unsigned char>(c)); });   // yyyyMMddHH: that very run
+    if (!exact && !newestRun(gfs, run)) {   // (an archive that stops years ago has no newest run: the run asked for is read as it is)
         error = "could not find a " + model + " run on NOAA's open data";
         return {};
     }
-    const bool exact = cycle.size() == 10 && std::all_of(cycle.begin(), cycle.end(), [] (char c) { return std::isdigit(static_cast<unsigned char>(c)); });   // yyyyMMddHH: that very run
     if (exact) {
         run = {cycle.substr(0, 8), cycle.substr(8, 2)};
     }

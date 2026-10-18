@@ -458,6 +458,33 @@ clone_skip = anom
 clone_pieces = false
 clone_rename = PRMSL:MSLMA
 )MODEL"},
+        {"RAP-ANL", R"MODEL(
+# The hourly analysis of the Rapid Update Cycle (to April 2012) and the Rapid Refresh that followed it, 13 km over North America, from NCEI's model archive (5 January 2005 to 15 May 2020; the
+# open data bucket takes over in 2021). A file of 20 MB for every hour, with its own index. The grid is a Lambert one, put on a regular 0.1 degree one. The only forecast hour is the analysis.
+id = RAP-ANL
+label = NOAA/NCEP RUC / RAP hourly analysis (NCEI archive), 13 km
+group = Archive
+kind = grib
+url = https://www.ncei.noaa.gov/oa/prod-model/rapid-refresh/access/historical/analysis/{year}{month}/{date}/rap_130_{date}_{cycle}00_000.grb2
+index_replaces = .grb2
+index_suffix = .inv
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 2
+warp = 0.1, -142.0, 15.0, -50.0, 58.0
+sectors = conus
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, DPT, MSLMA, PWAT, CAPE, CIN, REFC, HLCY, GUST, VIS, SPFH
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom, precip
+clone_pieces = false
+clone_rename = PRMSL:MSLMA
+)MODEL"},
         {"HREF", R"MODEL(
 # the High-Resolution Ensemble Forecast on NOMADS: its own ready-made products (mean, pmmn, lpmm, avrg, sprd, prob, eas, ffri)
 id = HREF

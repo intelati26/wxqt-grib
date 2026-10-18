@@ -80,6 +80,23 @@ namespace {
     }
 }
 
+namespace {
+    // The RUC / RAP analysis through the years: the RUC's files before May 2012 (ruc2anl_130) and the RAP's after (rap_130), in NCEI's historical folder
+    GfsModels::Def rapAnalysis() {
+        auto def = fromFile("RAP-ANL");
+        const auto base = def.source;
+        def.source = [base] (const std::string& storm) {
+            auto s = base(storm);
+            s.fileUrl = [] (const GfsData::Run& run, int, const std::string&) {
+                const std::string stem = run.date >= "20120501" ? "rap_130_" : "ruc2anl_130_";
+                return "https://www.ncei.noaa.gov/oa/prod-model/rapid-refresh/access/historical/analysis/" + run.date.substr(0, 6) + "/" + run.date + "/" + stem + run.date + "_" + run.cycle + "00_000.grb2";
+            };
+            return s;
+        };
+        return def;
+    }
+}
+
 std::string GfsModels::pickerGroup(const std::string& id) {
     if (const auto * def = find(id); def != nullptr && !def->group.empty()) {
         return def->group;
@@ -126,6 +143,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GEOS-FP"));
         m.push_back(fromFile("CFS"));
         m.push_back(cfsAnalysis());
+        m.push_back(rapAnalysis());
         m.push_back(fromFile("RRFS"));
         m.push_back(fromFile("HRRR"));
         m.push_back(fromFile("HREF"));
