@@ -301,7 +301,11 @@ void ModelChartLayer::paint(QPainter& painter, MapHost& host) {
     painter.save();
     painter.setOpacity(opacity / 100.0);
     painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
-    painter.drawImage(QRectF{a, b}.normalized(), shownImage->image);
+    // on whole pixels: the copies of a whole-world chart meet at the date line, and an edge between pixels would let the dark map show through as a line
+    const double px = host.view().unitsPerPixel();
+    const auto snap = [px] (double v) { return std::round(v / px) * px; };
+    const QRectF drawn = QRectF{a, b}.normalized();
+    painter.drawImage(QRectF{QPointF{snap(drawn.left()), snap(drawn.top())}, QPointF{snap(drawn.right()), snap(drawn.bottom())}}, shownImage->image);
     painter.restore();
     render(host);   // (asks only when what is on hand no longer fits the view)
 }

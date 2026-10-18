@@ -684,6 +684,21 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
                 }
             }
         }
+        // the chart's frame and its soft edge are on the first pixels of the map: they take the colour of the pixel inside them (else a line shows where the copies of a whole-world chart meet, at the date line)
+        constexpr int rim = 3;
+        if (cut.width() > 4 * rim && cut.height() > 4 * rim) {
+            for (int y = 0; y < cut.height(); y++) {
+                auto * row = reinterpret_cast<QRgb *>(cut.scanLine(y));
+                for (int i = 0; i < rim; i++) {
+                    row[i] = row[rim];
+                    row[cut.width() - 1 - i] = row[cut.width() - 1 - rim];
+                }
+            }
+            for (int i = 0; i < rim; i++) {
+                std::memcpy(cut.scanLine(i), cut.scanLine(rim), static_cast<size_t>(cut.bytesPerLine()));
+                std::memcpy(cut.scanLine(cut.height() - 1 - i), cut.scanLine(cut.height() - 1 - rim), static_cast<size_t>(cut.bytesPerLine()));
+            }
+        }
         p->areaLeft = 0.0;
         p->areaTop = 0.0;
         p->areaWidth = cut.width();
