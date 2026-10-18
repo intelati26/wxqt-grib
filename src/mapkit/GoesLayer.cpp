@@ -75,8 +75,8 @@ void GoesLayer::paint(QPainter& painter, MapHost& host) {
     auto& view = host.view();
     const auto t = view.transform();
     const double ratio = painter.device()->devicePixelRatioF();
-    const int width = std::max(1, static_cast<int>(std::lround(view.map()->width() * ratio)));
-    const int height = std::max(1, static_cast<int>(std::lround(view.map()->height() * ratio)));
+    const int width = std::max(1, static_cast<int>(std::lround(view.pixelWidth() * ratio)));
+    const int height = std::max(1, static_cast<int>(std::lround(view.pixelHeight() * ratio)));
     const bool same = cacheWidth == width && cacheHeight == height && cacheZoom == t.zoom && cacheX == t.xPos && cacheY == t.yPos && cacheSatellite == satelliteIndex &&
         cacheBrightness == brightness && cachePicture == picture.get();
     if (!same) {
@@ -94,11 +94,11 @@ void GoesLayer::paint(QPainter& painter, MapHost& host) {
         // the longitude of each column (the map is Mercator: longitude is linear in x)
         std::vector<double> lonOf(static_cast<size_t>(width));
         for (int i = 0; i < width; i++) {
-            const double u = (i + 0.5) / ratio * 1000.0 / view.map()->width() - 500.0;
+            const double u = (i + 0.5) / ratio * 1000.0 / view.pixelWidth() - 500.0;
             lonOf[static_cast<size_t>(i)] = (((u - t.xPos) / t.zoom - t.bx) / t.ax) * std::numbers::pi / 180.0;
         }
         for (int j = 0; j < height; j++) {
-            const double v = (j + 0.5) / ratio * 1000.0 / view.map()->width() - 250.0;
+            const double v = (j + 0.5) / ratio * 1000.0 / view.pixelWidth() - 250.0;
             const double mercator = ((v - t.yPos) / t.zoom - t.by) / t.ay;
             const double lat = std::atan(std::sinh(mercator * std::numbers::pi / 180.0));
             auto * out = reinterpret_cast<QRgb *>(cache.scanLine(j));
@@ -143,7 +143,7 @@ void GoesLayer::paint(QPainter& painter, MapHost& host) {
         cachePicture = picture.get();
     }
     painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
-    painter.drawImage(QRectF{-500.0, -250.0, 1000.0, 1000.0 * view.map()->height() / std::max(1, view.map()->width())}, cache, QRectF{cache.rect()});
+    painter.drawImage(QRectF{-500.0, -250.0, 1000.0, 1000.0 * view.pixelHeight() / std::max(1, view.pixelWidth())}, cache, QRectF{cache.rect()});
 }
 
 QWidget * GoesLayer::options(QWidget * parent, const std::function<void()>& changed) {

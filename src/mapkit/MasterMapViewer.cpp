@@ -39,6 +39,7 @@
 #include "climate/TempHistoryViewer.h"
 #include "mapkit/ComboChartLayer.h"
 #include "mapkit/GlobeViewer.h"
+#include "settings/RadarPreferences.h"
 #include "models/ProductPicker.h"
 #include "objects/UtilityAnimationExport.h"
 #include "models/SoundingViewer.h"
@@ -202,50 +203,8 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     buttonCompare.connect([this] { openCompare(); });
     buttonArea.getView()->setToolTip("Move the map to a named area: a region of the world (the United States and its regions, continents, oceans, the poles) or a square round one of your saved locations");
     buttonArea.connect([this] { chooseArea(); });
-    buttonGlobe.getView()->setToolTip("The model chart (or the combo of every model that has it) on a globe seen from space, with no map distortion: turn it with the mouse, zoom with the wheel, hover for the value of the finest model, step the time by 3 hours");
-    buttonGlobe.connect([this] {
-        string chart;
-        vector<string> models;
-        QDateTime when;
-        for (const auto& layer : layers) {
-            if (layer->enabled() && layer->id() == "model/combo") {
-                const auto * combo = static_cast<ComboChartLayer *>(layer.get());
-                chart = combo->chart();
-                models = combo->modelNames();
-                when = combo->validTime();
-            }
-        }
-        if (chart.empty()) {
-            if (const auto * one = modelLayer()) {
-                chart = one->chartId();
-                models = {one->modelName()};
-                when = one->validTime();
-            }
-        }
-        if (chart.empty()) {
-            status("put the model chart or the combo on the map first (Add layers > Models)");
-            return;
-        }
-        if (!when.isValid()) {
-            when = timePick->dateTime().toUTC();
-        }
-        // a regional model alone gets a global one under it
-        bool global = false;
-        for (const auto& m : models) {
-            global = global || ComboChartLayer::kmOf(m) >= 20.0;
-        }
-        if (!global) {
-            for (const char * base : {"IFS", "GFS"}) {
-                if (GfsChart::product(chart, base) != nullptr) {
-                    models.push_back(base);
-                    break;
-                }
-            }
-        }
-        const auto * widget = mapView->map();
-        const auto middle = mapView->toLatLon(QPointF{widget->width() / 2.0, widget->height() / 2.0});
-        new GlobeViewer{this, chart, models, when, middle.first, middle.second};
-    });
+    buttonGlobe.getView()->setToolTip("Every layer on a globe seen from space instead of the flat map, with nothing stretched toward the poles: turn it with the mouse, zoom with the wheel; hover and click work as on the map. The button turns it back into the map");
+    buttonGlobe.connect([this] { setGlobe(!globeOn); });
     buttonTemps.getView()->setToolTip("How warm the week, month or year up to a date has been against the same stretch of every year since 1940 (ERA5), at the place the pointer was last on the map: bars by year, the rank, the warmest and coldest years");
     buttonTemps.connect([this] {
         double lat = 0.0, lon = 0.0;
@@ -369,6 +328,9 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     playTimer.setInterval(speedCombo->currentIndex() == 0 ? 1200 : speedCombo->currentIndex() == 1 ? 650 : 280);
     QObject::connect(&playTimer, &QTimer::timeout, [this] { advance(); });
     rowMain.addWidgetReal(map, 1, Qt::Alignment{});   // the controls above are laid out first and the map takes what is left
+    globeView = new GlobeMapView{this};
+    globeView->hide();
+    rowMain.addWidgetReal(globeView, 1, Qt::Alignment{});
     rowMain.addWidgetReal(sidePanel, 0, Qt::AlignTop | Qt::AlignLeft);
     ElidedText::install(sidePanel);
     box.addLayout(rowTop);
@@ -1301,6 +1263,95 @@ void MasterMapViewer::applySaved(const SavedView& v) {
     updateStatus();
 }
 
+// the picture of a region of the world as the layers paint it (Mercator, at a width), for the globe's skin
+GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width) {
+    GlobeMapView::Skin skin;
+    const auto saved = mapView->saveState();
+    mapView->setRenderSize(width, width);
+    mapView->showRegion(minLat, maxLat, minLon, maxLon);
+    const auto first = mapView->transform();
+    const double mercatorSpan = MapView::mercator(std::min(85.0, maxLat)) - MapView::mercator(std::max(-85.0, minLat)), lonSpan = std::max(1.0, maxLon - minLon);
+    const int height = std::clamp(static_cast<int>(std::lround(width * (std::abs(first.ay) * mercatorSpan) / (std::abs(first.ax) * lonSpan))), 256, 6000);
+    mapView->setRenderSize(width, height);
+    mapView->showRegion(minLat, maxLat, minLon, maxLon);
+    QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
+    image.fill(RadarPreferences::mapBackgroundColor);
+    {
+        QPainter painter{&image};
+        painter.setWindow(QRect{-500, -250, 1000, std::max(1, static_cast<int>(std::lround(1000.0 * height / width)))});
+        paintMap(painter);
+    }
+    skin.image = std::move(image);
+    skin.transform = mapView->transform();
+    skin.state = mapView->saveState();
+    skin.width = width;
+    skin.height = height;
+    skin.west = minLon;
+    skin.east = maxLon;
+    skin.south = minLat;
+    skin.north = maxLat;
+    mapView->setRenderSize(0, 0);
+    mapView->restoreState(saved);
+    return skin;
+}
+
+// the map or the globe
+void MasterMapViewer::setGlobe(bool on) {
+    globeOn = on;
+    buttonGlobe.getView()->setText(on ? "Flat map" : "Globe");
+    mapView->map()->setVisible(!on);
+    globeView->setVisible(on);
+    if (!on) {
+        redraw();
+        return;
+    }
+    const auto * widget = mapView->map();
+    const auto middle = mapView->toLatLon(QPointF{widget->width() / 2.0, widget->height() / 2.0});
+    globeView->makeSkin = [this] (double a, double b, double c, double d, int w) { return makeSkin(a, b, c, d, w); };
+    globeView->pick = [this] (const GlobeMapView::Skin& skin, double lat, double lon) {
+        const auto saved = mapView->saveState();
+        mapView->restoreState(skin.state);
+        mapView->setRenderSize(skin.width, skin.height);
+        double lonSkin = lon;
+        const double centre = (skin.west + skin.east) / 2.0;
+        while (lonSkin - centre > 180.0) {
+            lonSkin -= 360.0;
+        }
+        while (lonSkin - centre < -180.0) {
+            lonSkin += 360.0;
+        }
+        const auto hit = bestHit(mapView->toPixels(lat, lonSkin));
+        mapView->setRenderSize(0, 0);
+        mapView->restoreState(saved);
+        return hit;
+    };
+    globeView->paintLegend = [this] (QPainter& painter, int width, int height) {
+        if (!legendCheck->isChecked()) {
+            return;
+        }
+        vector<MapLegendRow> rows;
+        for (const auto& layer : layers) {
+            if (layer->enabled()) {
+                for (auto& row : layer->legend()) {
+                    rows.push_back(std::move(row));
+                }
+            }
+        }
+        if (rows.empty()) {
+            return;
+        }
+        QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::transparent);
+        {
+            QPainter legendPainter{&image};
+            legendPainter.setWindow(QRect{-500, -250, 1000, std::max(1, static_cast<int>(std::lround(1000.0 * height / width)))});
+            MapLegend::draw(legendPainter, rows, 1000.0 / std::max(1, width), -250.0 + 1000.0 * height / std::max(1, width) - 2.0);
+        }
+        painter.drawImage(0, 0, image);
+    };
+    globeView->setCenter(middle.first, middle.second);
+}
+
 void MasterMapViewer::openCompare() {
     const auto * widget = mapView->map();
     const auto top = mapView->toLatLon(QPointF{widget->width() / 2.0, 0.0});
@@ -1501,7 +1552,7 @@ void MasterMapViewer::tick() {
 }
 
 bool MasterMapViewer::claimCell(const QPointF& pixels, double spacing) {
-    const long long columns = static_cast<long long>(std::ceil(mapView->map()->width() / spacing)) + 2;
+    const long long columns = static_cast<long long>(std::ceil(mapView->pixelWidth() / spacing)) + 2;
     const long long cell = static_cast<long long>(std::floor(pixels.y() / spacing) + 1) * columns + static_cast<long long>(std::floor(pixels.x() / spacing) + 1);
     // two spacings share nothing: the spacing is part of the key
     return cells.insert(cell * 64 + static_cast<long long>(spacing) % 64).second;
@@ -1593,7 +1644,7 @@ MapHit MasterMapViewer::bestHit(const QPointF& at) const {
         if (copy != 0) {
             const auto middle = mapView->transform();
             const double signedWorld = middle(0.0, 360.0).x() - middle(0.0, 0.0).x();   // units, east to the right or not as the projection has it
-            pixels.setX(at.x() - copy * signedWorld / 1000.0 * std::max(1, mapView->map()->width()));
+            pixels.setX(at.x() - copy * signedWorld / 1000.0 * std::max(1, mapView->pixelWidth()));
         }
     }
     MapHit best;

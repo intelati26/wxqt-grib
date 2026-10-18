@@ -152,7 +152,7 @@ void LightningCastLayer::paint(QPainter& painter, MapHost& host) {
     auto& view = host.view();
     const auto t = view.transform();
     const double perPixel = view.unitsPerPixel();
-    const double bottom = -250.0 + 1000.0 * view.map()->height() / std::max(1, view.map()->width());
+    const double bottom = -250.0 + 1000.0 * view.pixelHeight() / std::max(1, view.pixelWidth());
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing, true);
     for (const bool edge : {true, false}) {

@@ -103,16 +103,15 @@ namespace {
 std::vector<GibsLayer::Tile> GibsLayer::tilesInView(MapHost& host, int& zoom) const {
     auto& view = host.view();
     const auto& product = products()[static_cast<size_t>(productIndex)];
-    const auto * map = view.map();
     const auto topLeft = view.toLatLon(QPointF{0.0, 0.0});
-    const auto bottomRight = view.toLatLon(QPointF{static_cast<double>(map->width()), static_cast<double>(map->height())});
+    const auto bottomRight = view.toLatLon(QPointF{static_cast<double>(view.pixelWidth()), static_cast<double>(view.pixelHeight())});
     const double north = std::min(topLeft.first, 85.0), south = std::max(bottomRight.first, -85.0);
     double west = topLeft.second, east = bottomRight.second;
     if (east - west < 1.0e-6 || east - west > 360.0) {
         west = -180.0;
         east = 180.0;
     }
-    const double pixelsPerDegree = map->width() / std::max(1.0e-6, east - west);
+    const double pixelsPerDegree = view.pixelWidth() / std::max(1.0e-6, east - west);
     int z = std::clamp(static_cast<int>(std::lround(std::log2(pixelsPerDegree * 360.0 / 256.0))), 1, product.maxZoom);
     const auto range = [&] (int level, int& x0, int& x1, int& y0, int& y1) {
         const double n = std::pow(2.0, level);

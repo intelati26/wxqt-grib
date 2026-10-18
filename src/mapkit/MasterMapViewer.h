@@ -23,6 +23,7 @@
 #include <QTimer>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include "mapkit/GlobeMapView.h"
 #include "mapkit/MapLayer.h"
 #include "ui/Button.h"
 #include "ui/ComboBox.h"
@@ -41,6 +42,7 @@ using std::vector;
 class ModelChartLayer;
 class MasterMapViewer : public Window, private MapHost {
 public:
+    void setGlobe(bool on);                                   // the layers on a globe instead of the flat map
     void applyRange(const QDateTime& from, const QDateTime& to);   // loop from one time to another
     bool saveModelChart(const QString& path, std::string& problem);   // the model chart layer's Model Viewer picture of what is in view (false: none is on, or why it could not be made)
     // startView: the start of a saved view's name to open with (empty: what was on last time)
@@ -56,7 +58,7 @@ private:
     // MapHost
     MapView& view() override { return *mapView; }
     Window * hostWindow() override { return this; }
-    void redraw() override { mapView->map()->update(); listTimer.start(500); }   // (a layer that has read something has a new summary for the list)
+    void redraw() override { mapView->map()->update(); listTimer.start(500); if (globeView != nullptr && globeOn) { globeView->scheduleSkin(); } }   // (a layer that has read something has a new summary for the list)
     void status(const string& text) override { extra = text; updateStatus(); }
     bool claimCell(const QPointF& pixels, double spacing) override;
     void timesChanged() override { rebuildTicks(); }
@@ -107,6 +109,9 @@ private:
     Button buttonCompare;
     Button buttonArea;
     Button buttonGlobe;
+    GlobeMapView * globeView{};
+    bool globeOn{false};
+    GlobeMapView::Skin makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width);
     Button buttonTemps;
     Button buttonSounding;
     Button buttonMembers;

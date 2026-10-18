@@ -514,11 +514,11 @@ GfsRender::Variant ModelChartLayer::variantNow(int hour) const {
 bool ModelChartLayer::visibleBox(MapHost& host, double& west, double& south, double& east, double& north) const {
     auto& view = host.view();
     const auto * widget = view.map();
-    if (widget == nullptr || widget->width() < 50) {
+    if (widget == nullptr || view.pixelWidth() < 50) {
         return false;
     }
     const auto [latTop, lonLeft] = view.toLatLonRaw(QPointF{0.0, 0.0});
-    const auto [latBottom, lonRight] = view.toLatLonRaw(QPointF{static_cast<double>(widget->width()), static_cast<double>(widget->height())});
+    const auto [latBottom, lonRight] = view.toLatLonRaw(QPointF{static_cast<double>(view.pixelWidth()), static_cast<double>(view.pixelHeight())});
     west = lonLeft;
     east = lonRight;
     north = latTop;
@@ -549,7 +549,7 @@ void ModelChartLayer::render(MapHost& host) {
     }
     const int hour = hourShown();
     const string key = keyFor(hour);
-    const int widthNow = host.view().map()->width();
+    const int widthNow = host.view().pixelWidth();
     {   // an hour drawn ahead
         const auto ready = frames.find(key);
         const auto fits = [&] (const Rendered& r) {

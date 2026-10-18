@@ -39,7 +39,7 @@ std::vector<BufkitStationsLayer::Shown> BufkitStationsLayer::choose(MapHost& hos
     }
     std::stable_sort(order.begin(), order.end(), [&offices] (const auto * a, const auto * b) { return offices.count(a->id) > offices.count(b->id); });
     std::set<std::pair<int, int>> taken;
-    const double w = widget->width(), h = widget->height();
+    const double w = view.pixelWidth(), h = view.pixelHeight();
     for (const auto * station : order) {
         const auto p = view.toPixels(station->latitude, station->longitude);
         if (p.x() < 0 || p.y() < 0 || p.x() > w || p.y() > h) {

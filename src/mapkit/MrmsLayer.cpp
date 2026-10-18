@@ -282,11 +282,11 @@ void MrmsLayer::paint(QPainter& painter, MapHost& host) {
     const auto t = view.transform();
     const auto& grid = frame.grid;
     const double ratio = painter.device()->devicePixelRatioF();
-    const int pixelWidth = std::max(1, static_cast<int>(std::lround(view.map()->width() * ratio)));
-    const int pixelHeight = std::max(1, static_cast<int>(std::lround(view.map()->height() * ratio)));
+    const int pixelWidth = std::max(1, static_cast<int>(std::lround(view.pixelWidth() * ratio)));
+    const int pixelHeight = std::max(1, static_cast<int>(std::lround(view.pixelHeight() * ratio)));
     vector<int> columnOf(static_cast<size_t>(pixelWidth));
     for (int i = 0; i < pixelWidth; i++) {
-        const double u = (i + 0.5) / ratio * 1000.0 / view.map()->width() - 500.0;
+        const double u = (i + 0.5) / ratio * 1000.0 / view.pixelWidth() - 500.0;
         const double lon = ((u - t.xPos) / t.zoom - t.bx) / t.ax;
         const int column = static_cast<int>(std::floor((lon - grid.west) / grid.cell));
         columnOf[static_cast<size_t>(i)] = column >= 0 && column < grid.columns ? column : -1;
@@ -294,7 +294,7 @@ void MrmsLayer::paint(QPainter& painter, MapHost& host) {
     QImage image{pixelWidth, pixelHeight, QImage::Format_ARGB32_Premultiplied};
     const auto * cells = reinterpret_cast<const uchar *>(indices.constData());
     for (int j = 0; j < pixelHeight; j++) {
-        const double v = (j + 0.5) / ratio * 1000.0 / view.map()->width() - 250.0;
+        const double v = (j + 0.5) / ratio * 1000.0 / view.pixelWidth() - 250.0;
         const double mercator = ((v - t.yPos) / t.zoom - t.by) / t.ay;
         const double lat = std::atan(std::sinh(mercator * std::numbers::pi / 180.0)) * 180.0 / std::numbers::pi;
         const int row = static_cast<int>(std::floor((grid.north - lat) / grid.cell));
@@ -310,7 +310,7 @@ void MrmsLayer::paint(QPainter& painter, MapHost& host) {
         }
     }
     painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
-    painter.drawImage(QRectF{-500.0, -250.0, 1000.0, 1000.0 * view.map()->height() / std::max(1, view.map()->width())}, image, QRectF{image.rect()});
+    painter.drawImage(QRectF{-500.0, -250.0, 1000.0, 1000.0 * view.pixelHeight() / std::max(1, view.pixelWidth())}, image, QRectF{image.rect()});
 }
 
 MapHit MrmsLayer::pick(const QPointF& pixels, MapHost& host) const {

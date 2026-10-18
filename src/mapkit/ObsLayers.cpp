@@ -153,7 +153,7 @@ void StationLayer::paint(QPainter& painter, MapHost& host) {
     auto& view = host.view();
     const auto t = view.transform();
     const double perPixel = view.unitsPerPixel();
-    const int widthPx = std::max(1, view.map()->width());
+    const int widthPx = std::max(1, view.pixelWidth());
     const double spacing = (style().barbs || style().values) ? 46.0 : 14.0;
     QFont font{painter.font()};
     font.setPixelSize(std::max(6, static_cast<int>(std::lround(11.0 * perPixel))));
@@ -166,7 +166,7 @@ void StationLayer::paint(QPainter& painter, MapHost& host) {
             continue;
         }
         const QPointF at = t(s.lat, s.lon);
-        if (at.x() < -500.0 || at.x() > 500.0 || at.y() < -250.0 || at.y() > -250.0 + 1000.0 * host.view().map()->height() / std::max(1, host.view().map()->width())) {
+        if (at.x() < -500.0 || at.x() > 500.0 || at.y() < -250.0 || at.y() > -250.0 + 1000.0 * host.view().pixelHeight() / std::max(1, host.view().pixelWidth())) {
             continue;
         }
         const QPointF pixels{(at.x() + 500.0) / perPixel, (at.y() + 250.0) / perPixel};

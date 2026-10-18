@@ -40,6 +40,18 @@ public:
     QPointF toPixels(double lat, double lon) const;    // widget pixels (what a click or the pointer gives)
     std::pair<double, double> toLatLon(const QPointF& pixels) const;   // the other way: (latitude, longitude east positive, within -180 .. 180) under a widget pixel
     double unitsPerPixel() const;
+    // The map drawn at another size than the widget's (a picture of a region for the globe's skin): while a size is set the pixel conversions, units per pixel and the region's fit are those of
+    // that picture. 0, 0 clears it.
+    void setRenderSize(int width, int height) { renderWidth = width; renderHeight = height; }
+    int pixelWidth() const;
+    int pixelHeight() const;
+    struct SavedState {
+        double zoom, xPos, yPos;
+        bool keepRegion;
+        double minLat, maxLat, minLon, maxLon;
+    };
+    SavedState saveState() const;
+    void restoreState(const SavedState&);
     bool inView(const QPointF& units, double margin = 20.0) const;
     void showRegion(double minLat, double maxLat, double minLon, double maxLon);   // the box fills the square, centred
     void fit(int availableWidth, int availableHeight);                              // a square no larger than the space
@@ -58,6 +70,7 @@ public:
     static double mercator(double lat);
 
 private:
+    int renderWidth{0}, renderHeight{0};
     struct Coefficients {
         double ax;
         double bx;

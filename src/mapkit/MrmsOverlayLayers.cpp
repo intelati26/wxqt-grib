@@ -112,8 +112,8 @@ void MrmsOverlayLayer::paintSwath(QPainter& painter, MapHost& host) {
     auto& view = host.view();
     const auto t = view.transform();
     const double ratio = std::max(1.0, painter.device()->devicePixelRatioF());
-    const int pixelWidth = std::max(1, static_cast<int>(std::lround(view.map()->width() * ratio)));
-    const int pixelHeight = std::max(1, static_cast<int>(std::lround(view.map()->height() * ratio)));
+    const int pixelWidth = std::max(1, static_cast<int>(std::lround(view.pixelWidth() * ratio)));
+    const int pixelHeight = std::max(1, static_cast<int>(std::lround(view.pixelHeight() * ratio)));
     // the coarsest level whose cell is no bigger than a pixel of the map: each pixel shows the largest value under it
     const double degreesPerPixel = std::abs(1000.0 / pixelWidth / t.zoom / t.ax);
     size_t level = 0;
@@ -186,7 +186,7 @@ void MrmsOverlayLayer::paint(QPainter& painter, MapHost& host) {
     auto& view = host.view();
     const auto t = view.transform();
     const double perPixel = view.unitsPerPixel();
-    const double bottom = -250.0 + 1000.0 * view.map()->height() / std::max(1, view.map()->width());
+    const double bottom = -250.0 + 1000.0 * view.pixelHeight() / std::max(1, view.pixelWidth());
     if (kind == Kind::Lightning) {
         const double arm = 2.6 * perPixel;
         for (int age = std::clamp(choice, 1, 4) - 1; age >= 0; age--) {   // the oldest first

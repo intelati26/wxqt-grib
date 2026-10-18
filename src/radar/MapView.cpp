@@ -31,6 +31,32 @@ double MapView::mercator(double lat) {
     return 180.0 / std::numbers::pi * std::log(std::tan(std::numbers::pi / 4.0 + lat * std::numbers::pi / 360.0));
 }
 
+// the size the map is being drawn at: the widget's, or the picture's while one is drawn for something else (the globe's texture)
+int MapView::pixelWidth() const {
+    return renderWidth > 0 ? renderWidth : widget->width();
+}
+
+int MapView::pixelHeight() const {
+    return renderHeight > 0 ? renderHeight : widget->height();
+}
+
+MapView::SavedState MapView::saveState() const {
+    const auto& s = widget->mapState;
+    return {s.zoom, s.xPos, s.yPos, keepRegion, regionMinLat, regionMaxLat, regionMinLon, regionMaxLon};
+}
+
+void MapView::restoreState(const SavedState& saved) {
+    auto& s = widget->mapState;
+    s.zoom = saved.zoom;
+    s.xPos = saved.xPos;
+    s.yPos = saved.yPos;
+    keepRegion = saved.keepRegion;
+    regionMinLat = saved.minLat;
+    regionMaxLat = saved.maxLat;
+    regionMinLon = saved.minLon;
+    regionMaxLon = saved.maxLon;
+}
+
 MapView::Coefficients MapView::coefficients() const {
     const auto& pn = widget->mapState.getPn();
     const auto project = [&pn] (double lat, double lon) {
@@ -61,7 +87,7 @@ QPointF MapView::toUnits(double lat, double lon) const {
 
 QPointF MapView::toPixels(double lat, double lon) const {
     const auto u = toUnits(lat, lon);
-    const double perUnit = std::max(1, widget->width()) / 1000.0;   // pixels per unit, the same down as across
+    const double perUnit = std::max(1, pixelWidth()) / 1000.0;   // pixels per unit, the same down as across
     return QPointF{(u.x() + 500.0) * perUnit, (u.y() + 250.0) * perUnit};
 }
 
@@ -76,8 +102,8 @@ std::pair<double, double> MapView::toLatLon(const QPointF& pixels) const {
 
 std::pair<double, double> MapView::toLatLonRaw(const QPointF& pixels) const {
     const auto t = transform();
-    const double u = pixels.x() * 1000.0 / std::max(1, widget->width()) - 500.0;
-    const double v = pixels.y() * 1000.0 / std::max(1, widget->width()) - 250.0;
+    const double u = pixels.x() * 1000.0 / std::max(1, pixelWidth()) - 500.0;
+    const double v = pixels.y() * 1000.0 / std::max(1, pixelWidth()) - 250.0;
     const double lon = ((u - t.xPos) / t.zoom - t.bx) / t.ax;
     const double merc = ((v - t.yPos) / t.zoom - t.by) / t.ay;   // Mercator "degrees"
     const double lat = (2.0 * std::atan(std::exp(merc * std::numbers::pi / 180.0)) - std::numbers::pi / 2.0) * 180.0 / std::numbers::pi;
@@ -85,11 +111,11 @@ std::pair<double, double> MapView::toLatLonRaw(const QPointF& pixels) const {
 }
 
 double MapView::unitsPerPixel() const {
-    return 1000.0 / std::max(1, widget->width());
+    return 1000.0 / std::max(1, pixelWidth());
 }
 
 bool MapView::inView(const QPointF& units, double margin) const {
-    return units.x() > -500.0 - margin && units.x() < 500.0 + margin && units.y() > -250.0 - margin && units.y() < -250.0 + 1000.0 * widget->height() / std::max(1, widget->width()) + margin;
+    return units.x() > -500.0 - margin && units.x() < 500.0 + margin && units.y() > -250.0 - margin && units.y() < -250.0 + 1000.0 * pixelHeight() / std::max(1, pixelWidth()) + margin;
 }
 
 void MapView::showRegion(double minLat, double maxLat, double minLon, double maxLon) {
@@ -101,7 +127,7 @@ void MapView::showRegion(double minLat, double maxLat, double minLon, double max
     const double centerMerc = (mercator(minLat) + mercator(maxLat)) / 2.0;
     const double lonSpan = std::max(1.0, maxLon - minLon);
     const double mercSpan = std::max(1.0, mercator(maxLat) - mercator(minLat));
-    const double unitsTall = 1000.0 * widget->height() / std::max(1, widget->width());   // 1000 for the square
+    const double unitsTall = 1000.0 * pixelHeight() / std::max(1, pixelWidth());   // 1000 for the square
     state.zoom = std::min(1000.0 / (std::abs(k.ax) * lonSpan), unitsTall / (std::abs(k.ay) * mercSpan));
     state.xPos = -(k.ax * centerLon + k.bx) * state.zoom;
     state.yPos = (-250.0 + unitsTall / 2.0) - (k.ay * centerMerc + k.by) * state.zoom;
@@ -158,8 +184,8 @@ void MapView::zoomBy(double factor) {
     double u = 0.0;
     double v = 0.0;
     if (pointerInside) {
-        u = pointer.x() * 1000.0 / std::max(1, widget->width()) - 500.0;
-        v = pointer.y() * 1000.0 / std::max(1, widget->width()) - 250.0;
+        u = pointer.x() * 1000.0 / std::max(1, pixelWidth()) - 500.0;
+        v = pointer.y() * 1000.0 / std::max(1, pixelWidth()) - 250.0;
     }
     state.xPos = u - (u - state.xPos) * change;
     state.yPos = v - (v - state.yPos) * change;

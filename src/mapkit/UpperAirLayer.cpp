@@ -118,7 +118,7 @@ void UpperAirLayer::paint(QPainter& painter, MapHost& host) {
     for (const auto& code : SoundingSites::sites->codeList) {
         const auto& site = *SoundingSites::sites->byCode[code];
         const auto pixels = view.toPixels(site.latLon.lat(), site.latLon.lon());
-        if (pixels.x() < 0 || pixels.y() < 0 || pixels.x() > view.map()->width() || pixels.y() > view.map()->height()) {
+        if (pixels.x() < 0 || pixels.y() < 0 || pixels.x() > view.pixelWidth() || pixels.y() > view.pixelHeight()) {
             continue;
         }
         const QPointF at = t(site.latLon.lat(), site.latLon.lon());

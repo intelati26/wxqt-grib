@@ -296,6 +296,13 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("temphist:")) {   // WXQT_OPEN=temphist:<lat>:<lon>[:<yyyyMMdd up to>]: the temperature history window
                 const auto parts = route.split(':');
                 (new TempHistoryViewer{&w, parts.value(1).toDouble(), parts.value(2).toDouble(), QDate::fromString(parts.value(3), "yyyyMMdd"), parts.value(4) == "station"})->setMetric(parts.value(5).toInt());
+            } else if (route.startsWith("globemap:")) {   // WXQT_OPEN=globemap:<yyyyMMddHHmm UTC>:<lat>:<lon>:<km>:<layer,layer>: the master map in globe mode
+                const auto parts = route.split(':');
+                auto * map = new MasterMapViewer{&w};
+                auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
+                when.setTimeZone(QTimeZone::utc());
+                map->openAt(when, parts.value(2).toDouble(), parts.value(3).toDouble(), parts.value(4).toDouble(), extraLayers(parts.value(5)));
+                map->setGlobe(true);
             } else if (route.startsWith("globe:")) {   // WXQT_OPEN=globe:<lat>:<lon>:<chart id>:<model,model>:<yyyyMMddHH UTC>: the globe window
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(5), "yyyyMMddHH");
