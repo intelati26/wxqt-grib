@@ -29,7 +29,6 @@
 #include "hurricane/SeasonViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "models/ModelScreen.h"
-#include "models/ModelViewer.h"
 #include "util/Utility.h"
 #include "hurricane/StrikeReport.h"
 #include "hurricane/UtilityAtcf.h"

@@ -9,7 +9,6 @@
 #include <QWidget>
 #include "mapkit/MasterMapViewer.h"
 #include "models/CamsViewer.h"
-#include "models/ModelViewer.h"
 #include "models/SpcPostViewer.h"
 #include "util/Utility.h"
 
@@ -17,10 +16,6 @@ const std::vector<ModelScreen::Source>& ModelScreen::sources() {
     static const std::vector<Source> all{
         {"SPCPOST", "SPC Post: calibrated thunder, severe and lightning chances, GEFS-MLP"},
         {"CAMS", "NSSL CAMs pictures (MPAS, WRF, HRRR, RRFS)"},
-        {"SPCHRRR", "SPC HRRR pictures (pending discontinuation)"},
-        {"NSSLWRF", "NSSL WRF pictures (pending discontinuation)"},
-        {"WPCGEFS", "WPC GEFS pictures (pending discontinuation)"},
-        {"SPCHREF", "SPC HREF pictures (pending discontinuation)"},
     };
     return all;
 }
@@ -62,9 +57,7 @@ Window * ModelScreen::make(const string& id) {
     } else if (id == "CAMS") {
         page = new CamsViewer{this};
     } else {
-        auto * viewer = new ModelViewer{this, id};
-        viewer->openSource = [this] (const string& other) { showSource(other); };   // its "Image models" menu changes the page, not the window
-        page = viewer;
+        page = new CamsViewer{this};
     }
     page->setAttribute(Qt::WA_DeleteOnClose, false);   // the page goes with the window
     QObject::connect(page, &QWidget::windowTitleChanged, this, [this, page] (const QString& title) {
@@ -78,6 +71,9 @@ Window * ModelScreen::make(const string& id) {
 
 void ModelScreen::showSource(const string& requested) {
     string id = requested;
+    if (id == "SPCHRRR" || id == "WPCGEFS" || id == "SPCHREF" || id == "NSSLWRF") {   // the retired picture models
+        id = id == "NSSLWRF" ? "CAMS" : (MasterMapViewer::openModels(this, id == "SPCHRRR" ? "HRRR" : id == "WPCGEFS" ? "GEFS" : "HREF"), "SPCPOST");
+    }
     if (id == "NCEP" || id == "SPCREFS") {   // the models drawn from GRIB (SPC REFS among them) are the master map's model chart now
         MasterMapViewer::openModels(this, id == "SPCREFS" ? "SPCREFS" : string{});
         if (shown.empty()) {

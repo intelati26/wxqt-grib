@@ -48,7 +48,6 @@
 #include "mapkit/MasterMapViewer.h"
 #include "mapkit/ModelChartLayer.h"
 #include "models/ModelScreen.h"
-#include "models/ModelViewer.h"
 #include "history/EventsViewer.h"
 #include "history/HistoryCursor.h"
 #include "settings/CacheSummaryViewer.h"
@@ -594,17 +593,6 @@ int main(int argc, char * argv[]) {
                 std::string cycle, other;
                 const auto a = GfsRender::hafsTrack("HAFSA", storm, cycle), b = GfsRender::hafsTrack("HAFSB", storm, other);
                 new HafsIntensityViewer{&w, storm, a, b, cycle};
-            } else if (route.startsWith("modelpicker:")) {   // WXQT_OPEN=modelpicker:<GFS|RRFS|GEFS ...>: the model screen on that model with its chart picker open
-                Utility::writePref("NCEP", route.section(':', 1, 1).toStdString());
-                Utility::writePref("MODELNCEPPARAMLASTUSED", qEnvironmentVariable("WXQT_PARAM", "500_wnd_ht").toStdString());   // WXQT_PARAM=<chart id>: open on that chart
-                Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
-                auto * viewer = new ModelViewer{&w, "NCEP"};
-                qEnvironmentVariable("WXQT_PICK") == "net" ? NetStatus::show(viewer) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : viewer->showPicker();   // WXQT_PICK=sector: the area picker
-                if (const auto file = qEnvironmentVariable("WXQT_PICKER_PNG"); !file.isEmpty()) {   // a picture of the picker itself
-                    for (auto * picker : viewer->findChildren<QDialog *>()) {
-                        QTimer::singleShot(3000, picker, [picker, file] { picker->grab().save(file); });
-                    }
-                }
             } else if (route == "tornadoyears") {   // WXQT_OPEN=tornadoyears: the tornado years ranked
                 new TornadoYearsViewer{&w, TornadoData::load(), 0, std::string{}};
             } else if (route.startsWith("swostate:")) {   // WXQT_OPEN=swostate:<day>: the SPC convective outlook's state graphics for that day
