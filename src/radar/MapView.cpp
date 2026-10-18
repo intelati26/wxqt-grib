@@ -93,6 +93,8 @@ bool MapView::inView(const QPointF& units, double margin) const {
 }
 
 void MapView::showRegion(double minLat, double maxLat, double minLon, double maxLon) {
+    minLat = std::clamp(minLat, -85.0, 85.0);   // (Mercator has no poles: past 85 the view came out empty)
+    maxLat = std::clamp(maxLat, -85.0, 85.0);
     auto& state = widget->mapState;
     const auto k = coefficients();
     const double centerLon = (minLon + maxLon) / 2.0;
