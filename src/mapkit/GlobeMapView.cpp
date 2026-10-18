@@ -235,7 +235,7 @@ void GlobeMapView::makeNow() {
         east = lon0 + lonHalf;
         pixels = std::clamp(static_cast<int>(std::max(width(), height()) * 2.0), 1024, 4096);
     }
-    skin = makeSkin(south, north, west, east, pixels);
+    skin = makeSkin(south, north, west, east, pixels, radius() * rad);   // the pixels a degree is on the screen, at the middle of the globe
     update();
 }
 

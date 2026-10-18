@@ -38,7 +38,8 @@ public:
     // the world as one picture of `width` pixels in an equal-area projection, from a skin of the whole world centred on `centerLon` (transparent outside the shape)
     static QImage projectWorld(const Skin& skin, Projection p, double centerLon, int width);
     // the picture of a region (degrees) at a width in pixels, painted by the layers; the legend rows for under the globe
-    std::function<Skin(double minLat, double maxLat, double minLon, double maxLon, int width)> makeSkin;
+    // (referencePixelsPerDegree: the scale the person sees the globe at, so that marks are not thinned for a picture finer than the screen)
+    std::function<Skin(double minLat, double maxLat, double minLon, double maxLon, int width, double referencePixelsPerDegree)> makeSkin;
     std::function<MapHit(const Skin&, double lat, double lon)> pick;
     std::function<void(QPainter&, int width, int height)> paintLegend;
 

@@ -1028,7 +1028,7 @@ void MasterMapViewer::exportWorld() {
 void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centre, int width) {
     status("drawing the world ...");
     QCoreApplication::processEvents();
-    const auto skin = makeSkin(-85.0, 85.0, centre - 180.0, centre + 180.0, std::min(6000, static_cast<int>(width * 1.4)));
+    const auto skin = makeSkin(-85.0, 85.0, centre - 180.0, centre + 180.0, std::min(6000, static_cast<int>(width * 1.4)), 1300.0 / 360.0);   // (marks spaced as on a world map 1300 pixels wide)
     const QImage world = GlobeMapView::projectWorld(skin, projection, centre, width);
     // the pieces around it, as the flat export has them
     QStringList names, times, sources;
@@ -1395,8 +1395,10 @@ void MasterMapViewer::applySaved(const SavedView& v) {
 }
 
 // the picture of a region of the world as the layers paint it (Mercator, at a width), for the globe's skin
-GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width) {
+GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width, double referencePixelsPerDegree) {
     GlobeMapView::Skin skin;
+    // the labels and marks that thin themselves (claimCell) are spaced as they would be at the reference scale, whatever the picture's size: automatic thinning
+    thinning = referencePixelsPerDegree > 0.0 ? std::max(1.0, (width / std::max(1.0, maxLon - minLon)) / referencePixelsPerDegree) : 1.0;
     const auto saved = mapView->saveState();
     mapView->setRenderSize(width, width);
     mapView->showRegion(minLat, maxLat, minLon, maxLon);
@@ -1423,6 +1425,7 @@ GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, doubl
     skin.north = maxLat;
     mapView->setRenderSize(0, 0);
     mapView->restoreState(saved);
+    thinning = 1.0;
     return skin;
 }
 
@@ -1438,7 +1441,7 @@ void MasterMapViewer::setGlobe(bool on) {
     }
     const auto * widget = mapView->map();
     const auto middle = mapView->toLatLon(QPointF{widget->width() / 2.0, widget->height() / 2.0});
-    globeView->makeSkin = [this] (double a, double b, double c, double d, int w) { return makeSkin(a, b, c, d, w); };
+    globeView->makeSkin = [this] (double a, double b, double c, double d, int w, double reference) { return makeSkin(a, b, c, d, w, reference); };
     globeView->pick = [this] (const GlobeMapView::Skin& skin, double lat, double lon) {
         const auto saved = mapView->saveState();
         mapView->restoreState(skin.state);
@@ -1683,6 +1686,7 @@ void MasterMapViewer::tick() {
 }
 
 bool MasterMapViewer::claimCell(const QPointF& pixels, double spacing) {
+    spacing *= thinning;   // a picture made for the globe or an export is finer than the screen: the marks keep the spacing, in degrees, they have on screen
     const long long columns = static_cast<long long>(std::ceil(mapView->pixelWidth() / spacing)) + 2;
     const long long cell = static_cast<long long>(std::floor(pixels.y() / spacing) + 1) * columns + static_cast<long long>(std::floor(pixels.x() / spacing) + 1);
     // two spacings share nothing: the spacing is part of the key
