@@ -39,6 +39,7 @@ public:
     void showTime(long seconds, MapHost&) override;
     string timeText() const override;
     void setAsOf(const QDateTime& utc, MapHost&) override;
+    void setRange(const QDateTime& from, const QDateTime&, MapHost& host) override { setAsOf(from, host); }   // (the run of the first time: its hours run on from there)
 
     const string& modelName() const { return model; }
 
@@ -65,6 +66,7 @@ private:
     GfsRender::Variant variantNow(int hour) const;
     string model{"GFS"};
     string param{"500_wnd_ht"};
+    std::vector<string> overlayModels;         // other models whose lines (heights, pressure) are drawn over this one's, for the same valid time
     std::vector<string> overlays;              // lines and barbs ticked onto the chart (ProductPicker)
     string member;                             // one ensemble member instead of the mean
     bool sigma{false};                         // in standard deviations from the normal

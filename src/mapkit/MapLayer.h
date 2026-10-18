@@ -87,6 +87,8 @@ protected:
 public:
     // show this time of the past instead of the newest (the history page opens the map at an event's time); layers of live feeds ignore it
     virtual void setAsOf(const QDateTime& /*utc*/, MapHost&) {}
+    // a loop from one time to another: layers that can read any stretch of their archive show frames from `from` to `to` (every so many, when it is long); the others show their frames around `to`
+    virtual void setRange(const QDateTime& /*from*/, const QDateTime& to, MapHost& host) { setAsOf(to, host); }
 protected:
 
 private:

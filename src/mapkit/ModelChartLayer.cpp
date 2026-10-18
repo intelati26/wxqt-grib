@@ -8,6 +8,8 @@
 #include <cmath>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QPushButton>
 #include <QLabel>
 #include <QPainter>
@@ -55,6 +57,7 @@ ModelChartLayer::ModelChartLayer() {
     }
     opacity = std::clamp(Utility::readPrefInt("MM_MODELCHART_OPACITY", 90), 20, 100);
     overlays = splitList(Utility::readPref("MM_MODELCHART_OVERLAYS", ""));
+    overlayModels = splitList(Utility::readPref("MM_MODELCHART_OVERLAYMODELS", ""));
     pinnedRun = Utility::readPref("MM_MODELCHART_RUN", "");   // (for the dev routes: the panel does not keep a run)
     maxDay = Utility::readPref("MM_MODELCHART_MAX", "") == "1";
 }
@@ -228,7 +231,11 @@ string ModelChartLayer::variantKey() const {
     for (const auto& id : overlays) {
         key += "|+" + id;
     }
-    return key + (member.empty() ? string{} : "|m" + member) + (sigma ? "|sd" : "") + (changeBack > 0 ? "|chg" + std::to_string(changeBack) : string{}) + (maxDay ? "|max" : "");
+    key += (member.empty() ? string{} : "|m" + member) + (sigma ? "|sd" : "") + (changeBack > 0 ? "|chg" + std::to_string(changeBack) : string{}) + (maxDay ? "|max" : "");
+    for (const auto& other : overlayModels) {
+        key += (key.find("|om=") == string::npos ? "|om=" : ",") + other;
+    }
+    return key;
 }
 
 GfsRender::Variant ModelChartLayer::variantNow(int hour) const {
@@ -250,6 +257,9 @@ GfsRender::Variant ModelChartLayer::variantNow(int hour) const {
     }
     v.member = member;
     v.standardDeviations = sigma;
+    if (v.kind == GfsRender::Variant::Kind::None) {
+        v.overlayModels = overlayModels;
+    }
     return v;
 }
 
@@ -401,7 +411,7 @@ MapHit ModelChartLayer::pick(const QPointF& pixels, MapHost& host) const {
 
 vector<MapLegendRow> ModelChartLayer::legend() const {
     const auto * product = GfsChart::product(param, model);
-    if (product == nullptr || product->linesOnly || changeBack > 0 || sigma) {
+    if (product == nullptr || product->linesOnly || changeBack > 0 || sigma || !overlayModels.empty()) {
         return {};
     }
     const bool us = UIPreferences::unitsF;
@@ -465,6 +475,9 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     changeBox->addItems({"Plain chart", "Change since the run 6 h earlier", "Change since the run 12 h earlier", "Change since the run 24 h earlier", "Maximum of the 24 hours ending at this hour"});
     changeBox->setToolTip("How the chart changed since an earlier run: the same valid time from the older run is subtracted (blue = lower now, red = higher now). Charts of lines only have none");
     layout->addWidget(changeBox);
+    auto * overlayButton = new QPushButton{widget};
+    overlayButton->setToolTip("Lines (heights, pressure) of other models drawn over this chart, for the same valid time, each in its own color (at most four); the fill is left out so the lines can be read");
+    layout->addWidget(overlayButton);
     auto * runBox = new QComboBox{widget};
     runBox->setToolTip("The run of the chart: the newest (or the one of the time bar's time), or one of the earlier runs of the model. The time bar then steps through that run's hours");
     layout->addWidget(runBox);
@@ -480,10 +493,22 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     layout->addWidget(slider);
 
     // what the buttons say and which of the extra boxes the chart has
-    const auto refresh = [this, modelButton, chartButton, changeBox, runBox, memberBox, sigmaBox] {
+    const auto refresh = [this, modelButton, chartButton, overlayButton, changeBox, runBox, memberBox, sigmaBox] {
         const auto * product = GfsChart::product(param, model);
         modelButton->setText(QString::fromStdString("Model: " + model + "  \xE2\x96\xBE"));
         chartButton->setText(QString::fromStdString("Chart: " + (product ? product->label : param) + (overlays.empty() ? "" : "  + " + std::to_string(overlays.size()) + " more") + "  \xE2\x96\xBE"));
+        {   // other models' lines go with charts that have lines, and the models that draw the same chart
+            const bool lines = product != nullptr && !product->contours.empty();
+            std::vector<string> kept;
+            for (const auto& other : overlayModels) {
+                if (lines && other != model && GfsChart::product(param, other) != nullptr) {
+                    kept.push_back(other);
+                }
+            }
+            overlayModels = kept;
+            overlayButton->setVisible(lines);
+            overlayButton->setText(overlayModels.empty() ? "Overlay models..." : QString::fromStdString("Overlay: " + std::to_string(overlayModels.size()) + " model" + (overlayModels.size() == 1 ? "" : "s") + "..."));
+        }
         changeBox->blockSignals(true);
         changeBox->setCurrentIndex(maxDay ? 4 : changeBack == 0 ? 0 : changeBack == 6 ? 1 : changeBack == 12 ? 2 : 3);
         changeBox->setVisible(product != nullptr && !product->linesOnly);
@@ -537,6 +562,7 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
         Utility::writePref("MM_MODELCHART_MODEL", model);
         Utility::writePref("MM_MODELCHART_PARAM", param);
         Utility::writePref("MM_MODELCHART_OVERLAYS", joinList(overlays));
+        Utility::writePref("MM_MODELCHART_OVERLAYMODELS", joinList(overlayModels));
     };
     QObject::connect(modelButton, &QPushButton::clicked, [this, widget, refresh, save, changed] {
         std::vector<ProductPicker::Entry> entries;
@@ -560,6 +586,7 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
             }
             model = id;
             overlays.clear();
+            overlayModels.clear();
             member.clear();
             sigma = false;
             changeBack = 0;
@@ -617,6 +644,45 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     QObject::connect(changeBox, &QComboBox::currentIndexChanged, [this, changed] (int i) {
         maxDay = i == 4;
         changeBack = i == 0 || i == 4 ? 0 : i == 1 ? 6 : i == 2 ? 12 : 24;
+        changed();
+    });
+    QObject::connect(overlayButton, &QPushButton::clicked, [this, widget, refresh, changed] {
+        QDialog dialog{widget->window()};
+        dialog.setWindowTitle("Overlay models");
+        auto * column = new QVBoxLayout{&dialog};
+        auto * about = new QLabel{QString::fromStdString("Lines of the chart from these models are drawn over " + model + "'s, for the same valid time, each in its own color (at most four). The fill is left out so the lines can be read. Models are listed when they draw this chart."), &dialog};
+        about->setWordWrap(true);
+        column->addWidget(about);
+        std::vector<QCheckBox *> boxes;
+        for (const auto& def : GfsModels::all()) {
+            if (def.id == model || def.storm || !GfsRender::drawsModel(def.id) || GfsChart::product(param, def.id) == nullptr) {
+                continue;
+            }
+            auto * box = new QCheckBox{QString::fromStdString(def.id + "   " + def.label), &dialog};
+            box->setProperty("model", QString::fromStdString(def.id));
+            box->setChecked(std::find(overlayModels.begin(), overlayModels.end(), def.id) != overlayModels.end());
+            column->addWidget(box);
+            boxes.push_back(box);
+        }
+        if (boxes.empty()) {
+            column->addWidget(new QLabel{"No other model draws this chart.", &dialog});
+        }
+        auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+        QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        column->addWidget(buttons);
+        if (dialog.exec() != QDialog::Accepted) {
+            return;
+        }
+        std::vector<string> chosen;
+        for (auto * box : boxes) {
+            if (box->isChecked() && chosen.size() < 4) {
+                chosen.push_back(box->property("model").toString().toStdString());
+            }
+        }
+        overlayModels = chosen;
+        Utility::writePref("MM_MODELCHART_OVERLAYMODELS", joinList(overlayModels));
+        refresh();
         changed();
     });
     QObject::connect(runBox, &QComboBox::currentIndexChanged, [this, runBox, changed] (int) {

@@ -30,6 +30,7 @@ public:
     void showTime(long seconds, MapHost&) override;
     string timeText() const override;
     void setAsOf(const QDateTime& utc, MapHost&) override;
+    void setRange(const QDateTime& from, const QDateTime& to, MapHost&) override;
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     string summary() const override;
 
@@ -45,6 +46,7 @@ private:
     int opacity{100};
     bool enhance{true};
     QDateTime asOf;
+    long rangeFrom{0}, rangeTo{0};   // a loop from one time to another (seconds); 0: the hours around asOf
     long shown{0};           // the frame on view (seconds), 0: the newest of the window
     std::map<std::string, QImage> frames;   // product|seconds
     std::set<std::string> asked;

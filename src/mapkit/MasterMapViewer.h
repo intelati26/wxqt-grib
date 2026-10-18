@@ -40,6 +40,7 @@ using std::vector;
 // region (the old Rivers, Tropical and Surface observation screens as presets). What is on is remembered.
 class MasterMapViewer : public Window, private MapHost {
 public:
+    void applyRange(const QDateTime& from, const QDateTime& to);   // loop from one time to another
     bool saveModelChart(const QString& path, std::string& problem);   // the model chart layer's Model Viewer picture of what is in view (false: none is on, or why it could not be made)
     // startView: the start of a saved view's name to open with (empty: what was on last time)
     explicit MasterMapViewer(Window * parent, const string& startView = {});
@@ -82,6 +83,9 @@ private:
     void jumpTo(const QDateTime& utc);   // a time of the person's choosing: the layers look at the hours around it
     void goTo(int index);
     void togglePlay();
+    void loopBounds(int& first, int& last) const;
+    void askRange();                     // "Loop from Time 1 to Time 2": a dialog for the two times
+    void clearRange();
     void advance();
     void closeEventCustom() override { closed = true; }
     void resizeEventCustom() override;
@@ -109,6 +113,8 @@ private:
     QWidget * timeRow{};
     QSlider * timeSlider{};
     QPushButton * playButton{};
+    QPushButton * rangeButton{};
+    long loopFrom{0}, loopTo{0};    // the loop's own start and end (seconds), 0: all the frames the bar has
     QPushButton * liveButton{};
     QPushButton * stepBack{};
     QPushButton * stepForward{};

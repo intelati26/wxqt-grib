@@ -249,6 +249,14 @@ QDateTime GoesHistoryLayer::centre() const {
 
 vector<long> GoesHistoryLayer::times() const {
     vector<long> out;
+    if (rangeFrom != 0) {   // a loop from one time to another: at most 96 frames, every few steps when it is long
+        const long count = (rangeTo - rangeFrom) / step + 1;
+        const long every = std::max(1L, (count + 95) / 96);
+        for (long t = rangeFrom; t <= rangeTo; t += every * step) {
+            out.push_back(t);
+        }
+        return out;
+    }
     const long middle = centre().toSecsSinceEpoch() / step * step;
     const int before = asOf.isValid() ? 12 : 24, after = asOf.isValid() ? 12 : 0;   // three hours either side of a time of the past; the last six hours otherwise
     for (int i = -before; i <= after; i++) {
@@ -368,7 +376,17 @@ void GoesHistoryLayer::showTime(long seconds, MapHost& host) {
     host.redraw();
 }
 
+void GoesHistoryLayer::setRange(const QDateTime& from, const QDateTime& to, MapHost& host) {
+    setAsOf(to, host);
+    rangeFrom = from.toUTC().toSecsSinceEpoch() / step * step;
+    rangeTo = std::max(rangeFrom, static_cast<long>(to.toUTC().toSecsSinceEpoch() / step * step));
+    shown = rangeFrom;
+    host.timesChanged();
+    host.redraw();
+}
+
 void GoesHistoryLayer::setAsOf(const QDateTime& utc, MapHost& host) {
+    rangeFrom = 0;
     asOf = utc.toUTC();
     shown = asOf.toSecsSinceEpoch() / step * step;
     frames.clear();

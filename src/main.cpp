@@ -257,6 +257,14 @@ int main(int argc, char * argv[]) {
                         QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_WAIT") * 1000, dialog, [dialog, file] { dialog->grab().save(file); });
                     }
                 }
+            } else if (route.startsWith("looprange:")) {   // WXQT_OPEN=looprange:<yyyyMMddHHmm from>:<yyyyMMddHHmm to>:<layer id>: the master map looping between the two times
+                const auto parts = route.split(':');
+                auto * map = new MasterMapViewer{&w};
+                auto from = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm"), to = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
+                from.setTimeZone(QTimeZone::utc());
+                to.setTimeZone(QTimeZone::utc());
+                map->openAt(to, 36.0, -97.0, 900, {parts.value(3).toStdString()});
+                map->applyRange(from, to);
             } else if (route.startsWith("mcoptions:")) {   // WXQT_OPEN=mcoptions:<out.png>: the model chart layer's option controls on their own, with the chart picker opened
                 auto * layer = new ModelChartLayer;
                 auto * options = layer->options(nullptr, [] {});

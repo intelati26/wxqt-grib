@@ -12,6 +12,7 @@
 #include <QContextMenuEvent>
 #include <QDateTime>
 #include <QDateTimeEdit>
+#include <QDialog>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QPageSize>
@@ -174,6 +175,8 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     stepBack = new QPushButton{"<", timeRow};
     playButton = new QPushButton{"Loop", timeRow};
     stepForward = new QPushButton{">", timeRow};
+    rangeButton = new QPushButton{"From-to...", timeRow};
+    rangeButton->setToolTip("Loop from one time to another (UTC): the layers that can read any stretch of their archive (radar, satellite) show the frames between the two times, every few when it is long; a model chart loops through its run from the first time. Clear goes back to the usual loop");
     liveButton = new QPushButton{"Latest", timeRow};
     timeSlider = new QSlider{Qt::Horizontal, timeRow};
     timeSlider->setMinimum(0);
@@ -189,6 +192,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     timeLayout->addWidget(stepBack);
     timeLayout->addWidget(playButton);
     timeLayout->addWidget(stepForward);
+    timeLayout->addWidget(rangeButton);
     timeLayout->addWidget(timeSlider, 1);
     timeLayout->addWidget(speedCombo);
     timeLayout->addWidget(liveButton);
@@ -212,6 +216,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     QObject::connect(stepBack, &QPushButton::clicked, [this] { if (ticks.size() > 1) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(std::max(0, timeSlider->value() - 1)); announceTime(); } });
     QObject::connect(stepForward, &QPushButton::clicked, [this] { if (ticks.size() > 1) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(std::min(static_cast<int>(ticks.size()) - 1, timeSlider->value() + 1)); announceTime(); } });
     QObject::connect(playButton, &QPushButton::clicked, [this] { togglePlay(); });
+    QObject::connect(rangeButton, &QPushButton::clicked, [this] { askRange(); });
     QObject::connect(liveButton, &QPushButton::clicked, [this] { goLive(); });
     QObject::connect(timeSlider, &QSlider::valueChanged, [this] (int value) { if (!settingSlider) { playing = false; playTimer.stop(); playButton->setText("Loop"); goTo(value); announceTime(); } });
     QObject::connect(&HistoryCursor::get(), &HistoryCursor::moved, this, [this] (QObject * origin) { followCursor(origin); });
@@ -500,6 +505,8 @@ void MasterMapViewer::rebuildTicks() {
 }
 
 void MasterMapViewer::jumpTo(const QDateTime& utc) {
+    loopFrom = loopTo = 0;
+    rangeButton->setText("From-to...");
     following = true;
     live = false;
     playing = false;
@@ -528,6 +535,8 @@ void MasterMapViewer::jumpTo(const QDateTime& utc) {
 }
 
 void MasterMapViewer::goLive() {
+    loopFrom = loopTo = 0;
+    rangeButton->setText("From-to...");
     live = true;
     playing = false;
     playTimer.stop();
@@ -569,6 +578,107 @@ void MasterMapViewer::goTo(int index) {
     redraw();
 }
 
+// the first and last frame of the loop: all of them, or those between the two times asked for
+void MasterMapViewer::loopBounds(int& first, int& last) const {
+    if (loopFrom == 0 || ticks.empty()) {
+        return;
+    }
+    const auto from = std::lower_bound(ticks.begin(), ticks.end(), loopFrom);
+    const auto to = std::upper_bound(ticks.begin(), ticks.end(), loopTo);
+    if (from != ticks.end() && to > from) {
+        first = static_cast<int>(from - ticks.begin());
+        last = static_cast<int>(to - ticks.begin()) - 1;
+    }
+}
+
+void MasterMapViewer::askRange() {
+    QDialog dialog{this};
+    dialog.setWindowTitle("Loop from time to time");
+    auto * column = new QVBoxLayout{&dialog};
+    column->addWidget(new QLabel{"Loop the frames from one time to another (UTC). Radar and satellite read the whole stretch (every few frames when it is long); a model chart loops from the first time through its run.", &dialog});
+    auto * from = new QDateTimeEdit{&dialog};
+    auto * to = new QDateTimeEdit{&dialog};
+    for (auto * edit : {from, to}) {
+        edit->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+        edit->setTimeZone(QTimeZone::utc());
+#else
+        edit->setTimeSpec(Qt::UTC);
+#endif
+        edit->setCalendarPopup(true);
+    }
+    const auto now = timePick->dateTime().toUTC();
+    from->setDateTime(loopFrom != 0 ? QDateTime::fromSecsSinceEpoch(loopFrom, QTimeZone::utc()) : now.addSecs(-3 * 3600));
+    to->setDateTime(loopTo != 0 ? QDateTime::fromSecsSinceEpoch(loopTo, QTimeZone::utc()) : now);
+    auto * row1 = new QHBoxLayout;
+    row1->addWidget(new QLabel{"From:", &dialog});
+    row1->addWidget(from, 1);
+    auto * row2 = new QHBoxLayout;
+    row2->addWidget(new QLabel{"To:", &dialog});
+    row2->addWidget(to, 1);
+    column->addLayout(row1);
+    column->addLayout(row2);
+    auto * buttons = new QHBoxLayout;
+    auto * go = new QPushButton{"Loop these times", &dialog};
+    auto * clear = new QPushButton{"Clear", &dialog};
+    auto * cancel = new QPushButton{"Cancel", &dialog};
+    buttons->addWidget(go);
+    buttons->addWidget(clear);
+    buttons->addWidget(cancel);
+    column->addLayout(buttons);
+    QObject::connect(go, &QPushButton::clicked, &dialog, &QDialog::accept);
+    QObject::connect(cancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+    QObject::connect(clear, &QPushButton::clicked, &dialog, [&dialog] { dialog.done(2); });
+    const int result = dialog.exec();
+    if (result == 2) {
+        clearRange();
+    } else if (result == QDialog::Accepted) {
+        auto a = from->dateTime().toUTC(), b = to->dateTime().toUTC();
+        if (b < a) {
+            std::swap(a, b);
+        }
+        applyRange(a, b);
+    }
+}
+
+void MasterMapViewer::clearRange() {
+    loopFrom = loopTo = 0;
+    rangeButton->setText("From-to...");
+    jumpTo(timePick->dateTime().toUTC());
+}
+
+void MasterMapViewer::applyRange(const QDateTime& from, const QDateTime& to) {
+    following = true;
+    live = false;
+    playing = false;
+    playWhenReady = false;
+    playTimer.stop();
+    playButton->setText("Loop");
+    for (const auto& layer : layers) {
+        if (layer->enabled()) {
+            layer->setRange(from, to, *this);
+        }
+    }
+    loopFrom = static_cast<long>(from.toSecsSinceEpoch());
+    loopTo = static_cast<long>(to.toSecsSinceEpoch());
+    rangeButton->setText(from.toString("MM-dd HH") + "Z to " + to.toString("MM-dd HH") + "Z");
+    rebuildTicks();
+    int first = 0, last = static_cast<int>(ticks.size()) - 1;
+    loopBounds(first, last);
+    live = false;
+    goTo(first);
+    live = false;
+    extra = "loop " + from.toString("yyyy-MM-dd HH:mm").toStdString() + "Z to " + to.toString("yyyy-MM-dd HH:mm").toStdString() + "Z";
+    updateStatus();
+    setTitle("Master map - " + extra);
+    for (auto& layer : layers) {   // the frames of the stretch are read now, and the loop starts when they are there
+        if (layer->enabled() && layer->timeAware()) {
+            layer->prepareTimes(*this);
+        }
+    }
+    togglePlay();
+}
+
 void MasterMapViewer::togglePlay() {
     if (playing || playWhenReady) {
         playing = false;
@@ -589,8 +699,10 @@ void MasterMapViewer::togglePlay() {
         return;
     }
     // from the start of the loop, or from where the slider is when it is not at the end
-    if (timeSlider->value() >= static_cast<int>(ticks.size()) - 1) {
-        timeSlider->setValue(0);
+    int first = 0, last = static_cast<int>(ticks.size()) - 1;
+    loopBounds(first, last);
+    if (timeSlider->value() >= last || timeSlider->value() < first) {
+        timeSlider->setValue(first);
     }
     playing = true;
     playButton->setText("Stop");
@@ -601,9 +713,11 @@ void MasterMapViewer::advance() {
     if (ticks.size() < 2) {
         return;
     }
+    int first = 0, last = static_cast<int>(ticks.size()) - 1;
+    loopBounds(first, last);
     int next = timeSlider->value() + 1;
-    if (next >= static_cast<int>(ticks.size())) {
-        next = 0;   // round again, with a pause at the newest
+    if (next > last || next < first) {
+        next = first;   // round again, with a pause at the newest
     }
     goTo(next);
 }
@@ -1026,6 +1140,7 @@ void MasterMapViewer::resizeEventCustom() {
         const bool room = width() >= 1000;
         timePick->setVisible(room);
         timeGo->setVisible(room);
+        rangeButton->setVisible(room);
         timeLabel->setMinimumWidth(room ? 180 : 40);
     }
 }
