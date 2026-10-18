@@ -204,20 +204,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     buttonArea.getView()->setToolTip("Move the map to a named area: a region of the world (the United States and its regions, continents, oceans, the poles) or a square round one of your saved locations");
     buttonArea.connect([this] { chooseArea(); });
     buttonGlobe.getView()->setToolTip("Every layer on a globe seen from space instead of the flat map, with nothing stretched toward the poles: turn it with the mouse, zoom with the wheel; hover and click work as on the map. The button turns it back into the map");
-    buttonGlobe.connect([this] {
-        QMenu menu{this};
-        const auto flat = menu.addAction("Flat map (Mercator)");
-        const auto globe = menu.addAction("Globe");
-        const auto robinson = menu.addAction("Robinson (as the United Nations' world maps)");
-        const auto earth = menu.addAction("Equal Earth (equal area)");
-        const auto moll = menu.addAction("Mollweide (equal area)");
-        const auto * chosen = menu.exec(QCursor::pos());
-        if (chosen == flat) {
-            setGlobe(false);
-        } else if (chosen != nullptr) {
-            setGlobe(true, chosen == globe ? GlobeMapView::Projection::Globe : chosen == robinson ? GlobeMapView::Projection::Robinson : chosen == earth ? GlobeMapView::Projection::EqualEarth : GlobeMapView::Projection::Mollweide);
-        }
-    });
+    buttonGlobe.connect([this] { setGlobe(!globeOn); });
     buttonTemps.getView()->setToolTip("How warm the week, month or year up to a date has been against the same stretch of every year since 1940 (ERA5), at the place the pointer was last on the map: bars by year, the rank, the warmest and coldest years");
     buttonTemps.connect([this] {
         double lat = 0.0, lon = 0.0;
@@ -1440,10 +1427,9 @@ GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, doubl
 }
 
 // the map or the globe
-void MasterMapViewer::setGlobe(bool on, GlobeMapView::Projection projection) {
+void MasterMapViewer::setGlobe(bool on) {
     globeOn = on;
-    buttonGlobe.getView()->setText(on ? QString{"View: "} + GlobeMapView::projectionName(projection) : QString{"View: flat map"});
-    globeView->setProjection(projection);
+    buttonGlobe.getView()->setText(on ? "Flat map" : "Globe");
     mapView->map()->setVisible(!on);
     globeView->setVisible(on);
     if (!on) {

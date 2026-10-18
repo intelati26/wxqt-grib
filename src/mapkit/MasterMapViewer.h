@@ -42,7 +42,7 @@ using std::vector;
 class ModelChartLayer;
 class MasterMapViewer : public Window, private MapHost {
 public:
-    void setGlobe(bool on, GlobeMapView::Projection projection = GlobeMapView::Projection::Globe);   // the layers on a globe (or an equal-area map of the world) instead of the flat map
+    void setGlobe(bool on);   // the layers on a globe instead of the flat map
     void applyRange(const QDateTime& from, const QDateTime& to);   // loop from one time to another
     bool saveModelChart(const QString& path, std::string& problem);   // the model chart layer's Model Viewer picture of what is in view (false: none is on, or why it could not be made)
     // startView: the start of a saved view's name to open with (empty: what was on last time)

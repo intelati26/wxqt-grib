@@ -19,11 +19,9 @@
 class GlobeMapView : public QWidget {
 public:
     explicit GlobeMapView(QWidget * parent);
-    // how the world is put on the screen: a globe seen from space, or the world in one piece on an equal-area projection (Equal Earth, Mollweide: an area on the map is the same share of the
-    // Earth's everywhere, nothing is stretched toward the poles as on Mercator)
+    // The world projections of the picture the export makes of the whole world (the screen shows the globe only): Robinson, the compromise of the United Nations' world maps; Equal Earth and
+    // Mollweide, which keep areas true
     enum class Projection { Globe, Robinson, EqualEarth, Mollweide };   // Robinson: the compromise projection of the United Nations' world maps; Equal Earth and Mollweide keep areas
-    void setProjection(Projection p) { projection = p; zoom = 1.0; panY = 0.0; scheduleSkin(30); update(); }
-    Projection currentProjection() const { return projection; }
     static const char * projectionName(Projection p);
     static bool inverse(Projection p, double x, double y, double& lat, double& lon);   // projection units -> degrees (false outside the shape)
     static bool forward(Projection p, double lat, double lon, double& x, double& y);   // degrees -> projection units (lon relative to the center)
@@ -62,9 +60,7 @@ private:
     double radius() const;
     QPointF center() const;
     void makeNow();
-    void paintFlat(QPainter&);
-    double lat0{35.0}, lon0{-95.0}, zoom{1.0}, panY{0.0};
-    Projection projection{Projection::Globe};
+    double lat0{35.0}, lon0{-95.0}, zoom{1.0};
     Skin skin;
     QTimer timer;
     QPointF last;

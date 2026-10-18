@@ -194,29 +194,7 @@ void GlobeMapView::scheduleSkin(int milliseconds) {
     timer.start(milliseconds);
 }
 
-// the pixel scale of an equal-area picture (pixels per projection unit)
-static double equalAreaScale(GlobeMapView::Projection p, int w, int h, double zoom) {
-    double halfW, halfH;
-    GlobeMapView::extent(p, halfW, halfH);
-    return std::min(w / (2.0 * halfW), h / (2.0 * halfH)) * 0.97 * zoom;
-}
-
 bool GlobeMapView::place(const QPointF& p, double& lat, double& lon) const {
-    if (projection != Projection::Globe) {
-        const double scale = equalAreaScale(projection, width(), height(), zoom);
-        double relative;
-        if (!inverse(projection, (p.x() - width() / 2.0) / scale, (height() / 2.0 - p.y()) / scale + panY, lat, relative)) {
-            return false;
-        }
-        lon = lon0 + relative;
-        while (lon > 180.0) {
-            lon -= 360.0;
-        }
-        while (lon < -180.0) {
-            lon += 360.0;
-        }
-        return true;
-    }
     const double R = radius();
     const double x = (p.x() - center().x()) / R, y = (center().y() - p.y()) / R;
     const double rho = std::hypot(x, y);
@@ -246,28 +224,8 @@ void GlobeMapView::makeNow() {
         return;
     }
     double south = -85.0, north = 85.0, west = lon0 - 180.0, east = lon0 + 180.0;
-    int pixels = projection == Projection::Globe ? 3072 : 4096;
-    if (projection != Projection::Globe && zoom >= 1.5) {   // the part of the world in view: the box of what a grid of points over the picture lands on
-        double minLat = 90.0, maxLat = -90.0, minRel = 360.0, maxRel = -360.0;
-        const double scale = equalAreaScale(projection, width(), height(), zoom);
-        for (int i = 0; i <= 12; i++) {
-            for (int j = 0; j <= 12; j++) {
-                double lat, relative;
-                if (inverse(projection, (width() * i / 12.0 - width() / 2.0) / scale, (height() / 2.0 - height() * j / 12.0) / scale + panY, lat, relative)) {
-                    minLat = std::min(minLat, lat);
-                    maxLat = std::max(maxLat, lat);
-                    minRel = std::min(minRel, relative);
-                    maxRel = std::max(maxRel, relative);
-                }
-            }
-        }
-        if (minLat < maxLat && maxRel - minRel < 270.0) {
-            south = std::max(-85.0, minLat - 4.0);
-            north = std::min(85.0, maxLat + 4.0);
-            west = lon0 + minRel - 6.0;
-            east = lon0 + maxRel + 6.0;
-        }
-    } else if (zoom >= 1.5) {
+    int pixels = 3072;
+    if (zoom >= 1.5) {
         const double theta = std::asin(std::min(1.0, 1.0 / zoom)) / rad;   // the angle from the middle to the rim of what shows
         const double half = std::min(90.0, theta * 1.3 + 2.0);
         south = std::max(-85.0, lat0 - half);
@@ -290,10 +248,6 @@ void GlobeMapView::paintEvent(QPaintEvent *) {
         if (!timer.isActive()) {
             scheduleSkin(50);
         }
-        return;
-    }
-    if (projection != Projection::Globe) {
-        paintFlat(p);
         return;
     }
     const double scale = dragging ? 0.5 : 1.0;
@@ -356,67 +310,6 @@ void GlobeMapView::paintEvent(QPaintEvent *) {
     }
 }
 
-// an equal-area picture of the skin: each pixel asks the inverse projection where on the Earth it is
-void GlobeMapView::paintFlat(QPainter& p) {
-    const double fast = dragging ? 0.5 : 1.0;
-    const int w = static_cast<int>(width() * fast), h = static_cast<int>(height() * fast);
-    QImage image(w, h, QImage::Format_ARGB32_Premultiplied);
-    image.fill(Qt::transparent);
-    const double scale = equalAreaScale(projection, w, h, zoom);
-    const auto t = skin.transform;
-    const double skinCentre = (skin.west + skin.east) / 2.0;
-    const double toPixels = skin.width / 1000.0;
-    const QRgb background = skin.image.pixel(0, 0) | 0xff000000u;
-    for (int py = 0; py < h; py++) {
-        auto * row = reinterpret_cast<QRgb *>(image.scanLine(py));
-        const double y = (h / 2.0 - py) / scale + panY;
-        for (int px = 0; px < w; px++) {
-            double lat, relative;
-            if (!inverse(projection, (px - w / 2.0) / scale, y, lat, relative)) {
-                continue;
-            }
-            QRgb color = background;
-            if (lat > -85.0 && lat < 85.0) {
-                double lonSkin = lon0 + relative;
-                while (lonSkin - skinCentre > 180.0) {
-                    lonSkin -= 360.0;
-                }
-                while (lonSkin - skinCentre < -180.0) {
-                    lonSkin += 360.0;
-                }
-                const auto units = t(lat, lonSkin);
-                const int sx = static_cast<int>((units.x() + 500.0) * toPixels), sy = static_cast<int>((units.y() + 250.0) * toPixels);
-                if (sx >= 0 && sy >= 0 && sx < skin.width && sy < skin.height) {
-                    const QRgb s = reinterpret_cast<const QRgb *>(skin.image.constScanLine(sy))[sx];
-                    if (qAlpha(s) > 0) {
-                        color = s;
-                    }
-                }
-            }
-            row[px] = color | 0xff000000u;
-        }
-    }
-    p.drawImage(rect(), image);
-    // the outline of the shape
-    p.setRenderHint(QPainter::Antialiasing, true);
-    p.setPen(QPen{QColor{200, 210, 230, 150}, 1.5});
-    const double full = equalAreaScale(projection, width(), height(), zoom);
-    QPainterPath outline;
-    for (int side = 0; side < 2; side++) {
-        for (int lat = -90; lat <= 90; lat += 2) {
-            double x, y;
-            forward(projection, side == 0 ? lat : -lat, side == 0 ? 180.0 : -180.0, x, y);
-            const QPointF q{width() / 2.0 + x * full, height() / 2.0 - (y - panY) * full};
-            (lat == -90 && side == 0) || (lat == -90 && side == 1) ? outline.moveTo(q) : outline.lineTo(q);
-        }
-    }
-    p.setBrush(Qt::NoBrush);
-    p.drawPath(outline);
-    if (paintLegend && !dragging) {
-        paintLegend(p, width(), height());
-    }
-}
-
 void GlobeMapView::mousePressEvent(QMouseEvent * e) {
     last = e->position();
     dragging = true;
@@ -436,25 +329,6 @@ void GlobeMapView::mouseReleaseEvent(QMouseEvent * e) {
 }
 
 void GlobeMapView::mouseMoveEvent(QMouseEvent * e) {
-    if (dragging && (e->buttons() & Qt::LeftButton) && projection != Projection::Globe) {
-        if ((e->position() - last).manhattanLength() > 2) {
-            moved = true;
-        }
-        double halfW, halfH;
-        extent(projection, halfW, halfH);
-        const double scale = equalAreaScale(projection, width(), height(), zoom);
-        lon0 -= (e->position().x() - last.x()) / scale / (halfW / pi) / rad;
-        panY = std::clamp(panY + (e->position().y() - last.y()) / scale, -halfH, halfH);
-        while (lon0 > 180.0) {
-            lon0 -= 360.0;
-        }
-        while (lon0 < -180.0) {
-            lon0 += 360.0;
-        }
-        last = e->position();
-        update();
-        return;
-    }
     if (dragging && (e->buttons() & Qt::LeftButton)) {
         if ((e->position() - last).manhattanLength() > 2) {
             moved = true;
