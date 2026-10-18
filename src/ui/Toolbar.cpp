@@ -21,6 +21,8 @@
 #include "misc/Hourly.h"
 #include "misc/ObservationSites.h"
 #include "misc/Observations.h"
+#include "climate/TempHistoryViewer.h"
+#include "settings/Location.h"
 #include "mapkit/MasterMapViewer.h"
 #include "misc/Opc.h"
 #include "misc/Rtma.h"
@@ -124,6 +126,10 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("spchrrr.png", "HRRR (the map with the HRRR chart on it)", [this] { launchModelViewerGeneric("SPCHRRR"); });
     routeItems.emplace_back("opc.png", "Ocean Prediction Center", [this] { launchOpc(); });
     routeItems.emplace_back("opc.png", "Climate and ocean", [parent] { new ClimateViewer{parent}; });
+    routeItems.emplace_back("opc.png", "Temperature history at a place: a week, month or year against every year since 1940 (ERA5)", [parent] {
+        const auto places = Location::getListLatLons();
+        new TempHistoryViewer{parent, places.empty() ? 39.1 : places.front().lat(), places.empty() ? -94.6 : places.front().lon()};
+    });
     routeItems.emplace_back("tropstorm.png", "Tropical cyclones (Atlantic, East and Central Pacific)", [parent] { new HurricaneViewer{parent}; });
     routeItems.emplace_back("tropical_storm.png", "Raw ensemble spaghetti", [parent] { new MasterMapViewer{parent, "Raw ensemble spaghetti: every"}; });
     routeItems.emplace_back("hurricane.png", "Tropical Hub", [parent] { Dashboards::openTropicalHub(parent); });

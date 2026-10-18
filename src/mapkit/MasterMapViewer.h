@@ -106,6 +106,7 @@ private:
     Button buttonViews;
     Button buttonCompare;
     Button buttonArea;
+    Button buttonTemps;
     Button buttonSounding;
     Button buttonMembers;
     void saveModelLoop();                            // the hours of the model chart as a GIF / video of titled pictures

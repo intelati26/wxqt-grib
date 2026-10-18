@@ -46,6 +46,7 @@
 #include "hurricane/HafsViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
+#include "climate/TempHistoryViewer.h"
 #include "mapkit/ModelChartLayer.h"
 #include "mapkit/UpperAirLayer.h"
 #include "models/ModelScreen.h"
@@ -291,6 +292,9 @@ int main(int argc, char * argv[]) {
                     }
                 }
                 qWarning("idxprobe charts: %s", ids.c_str());
+            } else if (route.startsWith("temphist:")) {   // WXQT_OPEN=temphist:<lat>:<lon>[:<yyyyMMdd up to>]: the temperature history window
+                const auto parts = route.split(':');
+                new TempHistoryViewer{&w, parts.value(1).toDouble(), parts.value(2).toDouble(), QDate::fromString(parts.value(3), "yyyyMMdd")};
             } else if (route.startsWith("looprange:")) {   // WXQT_OPEN=looprange:<yyyyMMddHHmm from>:<yyyyMMddHHmm to>:<layer id>: the master map looping between the two times
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};

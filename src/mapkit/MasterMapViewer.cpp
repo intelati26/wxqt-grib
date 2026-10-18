@@ -36,6 +36,7 @@
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
 #include "models/ModelScreen.h"
+#include "climate/TempHistoryViewer.h"
 #include "models/ProductPicker.h"
 #include "objects/UtilityAnimationExport.h"
 #include "models/SoundingViewer.h"
@@ -72,6 +73,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     , buttonViews{this, None, "Views..."}
     , buttonCompare{this, None, "Compare..."}
     , buttonArea{this, None, "Area..."}
+    , buttonTemps{this, None, "Temperature history..."}
     , buttonSounding{this, None, "Sounding..."}
     , buttonMembers{this, None, "Members graph..."}
     , textStatus{this, "Switch layers on in the tree"}
@@ -190,6 +192,12 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     buttonCompare.connect([this] { openCompare(); });
     buttonArea.getView()->setToolTip("Move the map to a named area: a region of the world (the United States and its regions, continents, oceans, the poles) or a square round one of your saved locations");
     buttonArea.connect([this] { chooseArea(); });
+    buttonTemps.getView()->setToolTip("How warm the week, month or year up to a date has been against the same stretch of every year since 1940 (ERA5), at the place the pointer was last on the map: bars by year, the rank, the warmest and coldest years");
+    buttonTemps.connect([this] {
+        double lat = 0.0, lon = 0.0;
+        pointFor(lat, lon);
+        new TempHistoryViewer{this, lat, lon > 180.0 ? lon - 360.0 : lon, timePick->dateTime().toUTC().date()};
+    });
     buttonSounding.getView()->setToolTip("The sounding at the place the pointer was last on the map for the valid time on the time bar: the column of the chart's own model (GFS, HRRR, IFS ...) read from its pressure levels, or the RRFS sounding when no model chart is on");
     buttonSounding.connect([this] {
         double lat = 0.0, lon = 0.0;
@@ -243,6 +251,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     rowTop.addWidget(buttonOthers);
     rowTop.addWidget(buttonCompare);
     rowTop.addWidget(buttonArea);
+    rowTop.addWidget(buttonTemps);
     rowTop.addWidget(buttonSounding);
     rowTop.addWidget(buttonMembers);
     rowTop.addStretch();
