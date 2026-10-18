@@ -27,9 +27,11 @@ class TempHistoryViewer : public Window {
 public:
     TempHistoryViewer(Window * parent, double lat, double lon, const QDate& upTo = {}, bool station = false);
 
+    void setMetric(int index) { metricBox->setCurrentIndex(index); }   // 0 average, 1 high, 2 low, 3 total precipitation
     struct Day {
         QDate date;
         double mean{0}, high{0}, low{0};   // degrees C; NaN where the service has none
+        double precip{0};                  // mm of the day; NaN where the service has none
     };
 
 private:
@@ -37,6 +39,8 @@ private:
     void loadEra();                     // the daily record of ERA5 at the place
     void loadStations();                // the stations round the place, then the best one's record
     void loadStation(const QString& id, const QString& name);
+    void saveCsv();
+    void savePicture();
     void takeDays(std::vector<Day> list, const QString& note);
     void recompute();
     void closeEventCustom() override { closed = true; }
@@ -49,6 +53,12 @@ private:
     QComboBox * metricBox{};
     QDateEdit * dateEdit{};
     QPushButton * reloadButton{};
+    QPushButton * csvButton{};
+    QPushButton * pictureButton{};
+    QString csvTitle;
+    std::string csvUnit{"deg C"};
+    double csvClimate{0};
+    std::vector<std::pair<int, double>> shownYears;   // what the chart shows (year, value in the native unit), for the file
     QLabel * status{};
     QLabel * summary{};
     TempHistoryChart * chart{};

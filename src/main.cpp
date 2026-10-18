@@ -294,7 +294,7 @@ int main(int argc, char * argv[]) {
                 qWarning("idxprobe charts: %s", ids.c_str());
             } else if (route.startsWith("temphist:")) {   // WXQT_OPEN=temphist:<lat>:<lon>[:<yyyyMMdd up to>]: the temperature history window
                 const auto parts = route.split(':');
-                new TempHistoryViewer{&w, parts.value(1).toDouble(), parts.value(2).toDouble(), QDate::fromString(parts.value(3), "yyyyMMdd"), parts.value(4) == "station"};
+                (new TempHistoryViewer{&w, parts.value(1).toDouble(), parts.value(2).toDouble(), QDate::fromString(parts.value(3), "yyyyMMdd"), parts.value(4) == "station"})->setMetric(parts.value(5).toInt());
             } else if (route.startsWith("looprange:")) {   // WXQT_OPEN=looprange:<yyyyMMddHHmm from>:<yyyyMMddHHmm to>:<layer id>: the master map looping between the two times
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};

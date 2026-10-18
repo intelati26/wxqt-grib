@@ -14,7 +14,11 @@
 #include <QToolTip>
 #include <QMouseEvent>
 #include <QVBoxLayout>
+#include <QFile>
+#include <QFileDialog>
+#include <QTextStream>
 #include "objects/FutureVoid.h"
+#include "ui/ChartExport.h"
 #include "settings/Location.h"
 #include "util/DisplayUnits.h"
 #include "util/UtilityIO.h"
@@ -38,7 +42,11 @@ public:
     int shown{0};              // the year asked for
     double climate{std::nan("")};   // the 1991-2020 average, degrees C
     QString title;
-    void setData(std::vector<YearValue> y, int year, double clim, const QString& t) {
+    std::string unit{"deg C"};   // the native unit of the values: "deg C" or "mm"
+    bool total{false};       // a total (rain): the bars stand on zero and are wet or dry, not warm or cold
+    void setData(std::vector<YearValue> y, int year, double clim, const QString& t, const std::string& u, bool isTotal) {
+        unit = u;
+        total = isTotal;
         years = std::move(y);
         shown = year;
         climate = clim;
@@ -61,8 +69,8 @@ protected:
             lo = 0;
             hi = 1;
         }
-        const double pad = std::max(1.0, (hi - lo) * 0.08);
-        lo -= pad;
+        const double pad = std::max(total ? 0.0 : 1.0, (hi - lo) * 0.08);
+        lo = total ? 0.0 : lo - pad;
         hi += pad;
     }
     void paintEvent(QPaintEvent *) override {
@@ -83,19 +91,21 @@ protected:
         double lo, hi;
         range(lo, hi);
         const auto yOf = [&] (double c) { return r.bottom() - (c - lo) / (hi - lo) * r.height(); };
-        // the axis in the program's units
-        const double dispLo = DisplayUnits::value(lo, "deg C"), dispHi = DisplayUnits::value(hi, "deg C");
-        const double step = std::max(1.0, std::pow(10.0, std::floor(std::log10((dispHi - dispLo) / 5.0))) * ((dispHi - dispLo) / 5.0 > 5 * std::pow(10.0, std::floor(std::log10((dispHi - dispLo) / 5.0))) ? 5 : (dispHi - dispLo) / 5.0 > 2 * std::pow(10.0, std::floor(std::log10((dispHi - dispLo) / 5.0))) ? 2 : 1));
+        // the axis in the program's units: the shown value is a straight function of the native one (a factor and an offset)
+        const double offset = DisplayUnits::value(0.0, unit), factor = DisplayUnits::value(1.0, unit) - offset;
+        const double dispLo = DisplayUnits::value(lo, unit), dispHi = DisplayUnits::value(hi, unit);
+        const double rough = (dispHi - dispLo) / 5.0, power = std::pow(10.0, std::floor(std::log10(rough)));
+        const double step = power * (rough > 5 * power ? 5 : rough > 2 * power ? 2 : 1);
         p.setPen(QColor{128, 128, 128, 90});
         for (double v = std::ceil(dispLo / step) * step; v <= dispHi; v += step) {
-            const double c = DisplayUnits::us() ? (v - 32.0) / 1.8 : v;
+            const double c = (v - offset) / factor;
             p.drawLine(QPointF{r.left(), yOf(c)}, QPointF{r.right(), yOf(c)});
             p.setPen(palette().text().color());
-            p.drawText(QRectF{0, yOf(c) - 9, r.left() - 6, 18}, Qt::AlignRight | Qt::AlignVCenter, QString::number(v, 'f', 0));
+            p.drawText(QRectF{0, yOf(c) - 9, r.left() - 6, 18}, Qt::AlignRight | Qt::AlignVCenter, QString::number(v, 'f', step < 1 ? 1 : 0));
             p.setPen(QColor{128, 128, 128, 90});
         }
         p.setPen(palette().text().color());
-        p.drawText(QRectF{4, r.top() - 18, 120, 16}, Qt::AlignLeft, QString::fromStdString(DisplayUnits::label("deg C")));
+        p.drawText(QRectF{4, r.top() - 18, 120, 16}, Qt::AlignLeft, QString::fromStdString(DisplayUnits::label(unit)));
         const double barW = r.width() / years.size();
         const int first = years.front().year;
         for (size_t i = 0; i < years.size(); i++) {
@@ -104,9 +114,15 @@ protected:
                 continue;
             }
             const double departure = std::isnan(climate) ? 0.0 : y.value - climate;
-            const double t = std::clamp(departure / 3.0, -1.0, 1.0);
-            const QColor color = t < 0 ? QColor::fromRgbF(0.25 + 0.5 * (1 + t), 0.45 + 0.4 * (1 + t), 0.9, 1.0) : QColor::fromRgbF(0.9, 0.6 - 0.4 * t, 0.45 - 0.3 * t, 1.0);
-            const double top = yOf(y.value), base = std::isnan(climate) ? r.bottom() : yOf(climate);
+            QColor color;
+            if (total) {   // the share of the average: dry browns, wet blues
+                const double t = std::isnan(climate) || climate <= 0 ? 0.0 : std::clamp((y.value / climate - 1.0) / 0.8, -1.0, 1.0);
+                color = t < 0 ? QColor::fromRgbF(0.85, 0.65 + 0.3 * (1 + t) * 0.5, 0.35 + 0.5 * (1 + t), 1.0) : QColor::fromRgbF(0.65 - 0.4 * t, 0.8 - 0.25 * t, 0.9, 1.0);
+            } else {
+                const double t = std::clamp(departure / 3.0, -1.0, 1.0);
+                color = t < 0 ? QColor::fromRgbF(0.25 + 0.5 * (1 + t), 0.45 + 0.4 * (1 + t), 0.9, 1.0) : QColor::fromRgbF(0.9, 0.6 - 0.4 * t, 0.45 - 0.3 * t, 1.0);
+            }
+            const double top = yOf(y.value), base = total ? r.bottom() : std::isnan(climate) ? r.bottom() : yOf(climate);
             QRectF bar{r.left() + i * barW + barW * 0.1, std::min(top, base), barW * 0.8, std::abs(top - base)};
             p.setPen(Qt::NoPen);
             p.setBrush(color);
@@ -140,7 +156,7 @@ protected:
             const double a = years.front().year, b = years.back().year;
             p.drawLine(QPointF{r.left() + barW * 0.5, yOf(icpt + slope * a)}, QPointF{r.right() - barW * 0.5, yOf(icpt + slope * b)});
             p.drawText(QRectF{r.right() - 330, r.top() - 18, 326, 16}, Qt::AlignRight,
-                       QString{"trend %1 %2 a decade"}.arg(DisplayUnits::value(slope * 10, "deg C", DisplayUnits::Kind::Delta) >= 0 ? "+" : "").arg(DisplayUnits::value(slope * 10, "deg C", DisplayUnits::Kind::Delta), 0, 'f', 2));
+                       QString{"trend %1 %2 a decade"}.arg(DisplayUnits::value(slope * 10, unit, DisplayUnits::Kind::Delta) >= 0 ? "+" : "").arg(DisplayUnits::value(slope * 10, unit, DisplayUnits::Kind::Delta), 0, 'f', 2));
         }
         p.setPen(palette().text().color());
         for (int y = (first / 10 + 1) * 10; y <= years.back().year; y += 10) {
@@ -160,9 +176,9 @@ protected:
         if (std::isnan(y.value)) {
             return;
         }
-        QString text = QString{"%1: %2 %3"}.arg(y.year).arg(DisplayUnits::value(y.value, "deg C"), 0, 'f', 1).arg(QString::fromStdString(DisplayUnits::label("deg C")));
+        QString text = QString{"%1: %2 %3"}.arg(y.year).arg(DisplayUnits::value(y.value, unit), 0, 'f', 1).arg(QString::fromStdString(DisplayUnits::label(unit)));
         if (!std::isnan(climate)) {
-            const double d = DisplayUnits::value(y.value - climate, "deg C", DisplayUnits::Kind::Delta);
+            const double d = DisplayUnits::value(y.value - climate, unit, DisplayUnits::Kind::Delta);
             text += QString{"  (%1%2 from the 1991-2020 average)"}.arg(d >= 0 ? "+" : "").arg(d, 0, 'f', 1);
         }
         QToolTip::showText(e->globalPosition().toPoint(), text, this);
@@ -203,14 +219,16 @@ TempHistoryViewer::TempHistoryViewer(Window * parent, double lat, double lon, co
     periodBox = new QComboBox{page};
     periodBox->addItems({"Week (7 days up to the date)", "Month (to the date)", "Year (to the date)"});
     metricBox = new QComboBox{page};
-    metricBox->addItems({"Average temperature", "Average high", "Average low"});
+    metricBox->addItems({"Average temperature", "Average high", "Average low", "Total precipitation"});
     dateEdit = new QDateEdit{page};
     dateEdit->setCalendarPopup(true);
     dateEdit->setDisplayFormat("yyyy-MM-dd");
     dateEdit->setDateRange(QDate{1940, 1, 1}, QDate::currentDate().addDays(-6));
     dateEdit->setDate(upTo.isValid() ? std::min(upTo, QDate::currentDate().addDays(-6)) : QDate::currentDate().addDays(-6));
     reloadButton = new QPushButton{"Load", page};
-    for (QWidget * w : std::vector<QWidget *>{savedBox, latBox, lonBox, sourceBox, stationBox, periodBox, metricBox, dateEdit, reloadButton}) {
+    csvButton = new QPushButton{"Save table...", page};
+    pictureButton = new QPushButton{"Save chart...", page};
+    for (QWidget * w : std::vector<QWidget *>{savedBox, latBox, lonBox, sourceBox, stationBox, periodBox, metricBox, dateEdit, reloadButton, csvButton, pictureButton}) {
         row->addWidget(w);
     }
     row->addStretch();
@@ -227,6 +245,9 @@ TempHistoryViewer::TempHistoryViewer(Window * parent, double lat, double lon, co
     setCentralWidget(page);
     setSize(1100, 760);
     QObject::connect(reloadButton, &QPushButton::clicked, this, [this] { load(); });
+    QObject::connect(csvButton, &QPushButton::clicked, this, [this] { saveCsv(); });
+    QObject::connect(pictureButton, &QPushButton::clicked, this, [this] { savePicture(); });
+    ChartExport::install(chart, "Temperature history");
     QObject::connect(savedBox, &QComboBox::activated, this, [this] (int i) {
         const auto point = savedBox->itemData(i).toPointF();
         if (i > 0) {
@@ -280,7 +301,7 @@ void TempHistoryViewer::loadEra() {
     const QString last = QDate::currentDate().addDays(-6).toString("yyyy-MM-dd");
     new FutureVoid{this, [=] {
         const auto url = "https://archive-api.open-meteo.com/v1/archive?latitude=" + std::to_string(lat) + "&longitude=" + std::to_string(lon) + "&start_date=1940-01-01&end_date=" + last.toStdString() +
-                         "&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min&timezone=UTC&models=era5";
+                         "&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=UTC&models=era5";
         const auto text = UtilityIO::getHtml(url);
         const auto doc = QJsonDocument::fromJson(QByteArray::fromStdString(text));
         const auto daily = doc.object().value("daily").toObject();
@@ -289,10 +310,10 @@ void TempHistoryViewer::loadEra() {
             *note = doc.object().value("reason").toString("no answer from the archive service");
             return;
         }
-        const auto mean = daily.value("temperature_2m_mean").toArray(), high = daily.value("temperature_2m_max").toArray(), low = daily.value("temperature_2m_min").toArray();
+        const auto mean = daily.value("temperature_2m_mean").toArray(), high = daily.value("temperature_2m_max").toArray(), low = daily.value("temperature_2m_min").toArray(), rain = daily.value("precipitation_sum").toArray();
         const auto number = [] (const QJsonValue& v) { return v.isNull() ? std::nan("") : v.toDouble(std::nan("")); };
         for (int i = 0; i < times.size(); i++) {
-            result->push_back({QDate::fromString(times[i].toString(), "yyyy-MM-dd"), number(mean[i]), number(high[i]), number(low[i])});
+            result->push_back({QDate::fromString(times[i].toString(), "yyyy-MM-dd"), number(mean[i]), number(high[i]), number(low[i]), number(rain[i])});
         }
         where->first = doc.object().value("latitude").toDouble(lat);
         where->second = doc.object().value("longitude").toDouble(lon);
@@ -399,7 +420,7 @@ void TempHistoryViewer::loadStation(const QString& id, const QString& name) {
         params["sdate"] = "por";
         params["edate"] = "por";
         QJsonArray elems;
-        for (const char * e : {"avgt", "maxt", "mint"}) {
+        for (const char * e : {"avgt", "maxt", "mint", "pcpn"}) {
             QJsonObject o;
             o["name"] = e;
             elems.append(o);
@@ -413,8 +434,16 @@ void TempHistoryViewer::loadStation(const QString& id, const QString& name) {
         };
         for (const auto& row : doc.object().value("data").toArray()) {
             const auto r = row.toArray();
-            if (r.size() >= 4) {
-                result->push_back({QDate::fromString(r[0].toString(), "yyyy-MM-dd"), number(r[1]), number(r[2]), number(r[3])});
+            if (r.size() >= 5) {
+                const auto text = r[4].toString();   // inches; "T" a trace; "M" missing; "S" a total kept for the days after it
+                double rain = std::nan("");
+                bool ok = false;
+                if (text == "T") {
+                    rain = 0.0;
+                } else if (const double inches = text.toDouble(&ok); ok) {
+                    rain = inches * 25.4;
+                }
+                result->push_back({QDate::fromString(r[0].toString(), "yyyy-MM-dd"), number(r[1]), number(r[2]), number(r[3]), rain});
             }
         }
     }, [=] {
@@ -427,7 +456,7 @@ void TempHistoryViewer::loadStation(const QString& id, const QString& name) {
         }
         usedLat = latBox->value();
         usedLon = lonBox->value();
-        takeDays(std::move(*result), "Weather station " + name + ": the daily maximum and minimum temperatures of the U.S. cooperative network (NOAA's Regional Climate Centers, ACIS), as far back as the station has them. Days are the observers' own (usually ending in the morning or at midnight).");
+        takeDays(std::move(*result), "Weather station " + name + ": the daily temperatures and precipitation of the U.S. cooperative network (NOAA's Regional Climate Centers, ACIS), as far back as the station has them. Days are the observers' own (usually ending in the morning or at midnight).");
     }};
 }
 
@@ -436,6 +465,7 @@ void TempHistoryViewer::recompute() {
         return;
     }
     const int mode = periodBox->currentIndex(), metric = metricBox->currentIndex();
+    const bool rain = metric == 3;
     const QDate end = dateEdit->date();
     std::vector<YearValue> years;
     for (int y = days.front().date.year(); y <= days.back().date.year(); y++) {
@@ -448,7 +478,7 @@ void TempHistoryViewer::recompute() {
         int n = 0;
         const auto from = std::lower_bound(days.begin(), days.end(), start, [] (const Day& d, const QDate& v) { return d.date < v; });
         for (auto it = from; it != days.end() && it->date <= stop; ++it) {
-            const double v = metric == 0 ? it->mean : metric == 1 ? it->high : it->low;
+            const double v = metric == 0 ? it->mean : metric == 1 ? it->high : metric == 2 ? it->low : it->precip;
             if (!std::isnan(v)) {
                 sum += v;
                 n++;
@@ -457,11 +487,13 @@ void TempHistoryViewer::recompute() {
         YearValue value;
         value.year = y;
         value.count = n;
-        if (n >= expected * 0.7 && n > 0) {   // (a station misses days now and then)
-            value.value = sum / n;
+        // a total needs nearly every day (a missing day is rain that is not counted); an average takes what there is
+        if (n > 0 && n >= expected * (rain ? 0.95 : 0.7)) {
+            value.value = rain ? sum : sum / n;
         }
         years.push_back(value);
     }
+    const std::string unitName = rain ? "mm" : "deg C";
     // the 1991-2020 average and the rank of the year asked for
     double climateSum = 0;
     int climateN = 0;
@@ -480,13 +512,22 @@ void TempHistoryViewer::recompute() {
         }
     }
     static const char * const periodNames[] = {"the 7 days up to", "the days of the month up to", "the days of the year up to"};
-    static const char * const metricNames[] = {"average temperature", "average high", "average low"};
+    static const char * const metricNames[] = {"average temperature", "average high", "average low", "total precipitation"};
     const QString dayText = end.toString("MMM d");
     const QString title = QString{"%1, %2 %3 (every year %4-%5)"}.arg(metricNames[metric]).arg(periodNames[mode]).arg(dayText).arg(years.front().year).arg(years.back().year);
-    chart->setData(years, year, climate, title.left(1).toUpper() + title.mid(1));
-    const auto unit = QString::fromStdString(DisplayUnits::label("deg C"));
-    const auto show = [&] (double c) { return QString::number(DisplayUnits::value(c, "deg C"), 'f', 1) + " " + unit; };
-    const auto delta = [&] (double c) { const double d = DisplayUnits::value(c, "deg C", DisplayUnits::Kind::Delta); return QString{"%1%2 %3"}.arg(d >= 0 ? "+" : "").arg(d, 0, 'f', 1).arg(unit); };
+    chart->setData(years, year, climate, title.left(1).toUpper() + title.mid(1), unitName, rain);
+    shownYears.clear();
+    for (const auto& y : years) {
+        if (!std::isnan(y.value)) {
+            shownYears.emplace_back(y.year, y.value);
+        }
+    }
+    csvTitle = title;
+    csvUnit = unitName;
+    csvClimate = climate;
+    const auto unit = QString::fromStdString(DisplayUnits::label(unitName));
+    const auto show = [&] (double c) { return QString::number(DisplayUnits::value(c, unitName), 'f', rain ? 2 : 1) + " " + unit; };
+    const auto delta = [&] (double c) { const double d = DisplayUnits::value(c, unitName, DisplayUnits::Kind::Delta); return QString{"%1%2 %3"}.arg(d >= 0 ? "+" : "").arg(d, 0, 'f', rain ? 2 : 1).arg(unit); };
     std::vector<const YearValue *> ranked;
     for (const auto& y : years) {
         if (!std::isnan(y.value)) {
@@ -494,6 +535,7 @@ void TempHistoryViewer::recompute() {
         }
     }
     std::sort(ranked.begin(), ranked.end(), [] (const YearValue * a, const YearValue * b) { return a->value > b->value; });
+    const char * top = rain ? "wettest" : "warmest", * bottom = rain ? "driest" : "coldest";
     QString text;
     if (now != nullptr && !std::isnan(now->value)) {
         const auto position = std::find(ranked.begin(), ranked.end(), now);
@@ -501,19 +543,66 @@ void TempHistoryViewer::recompute() {
         text = QString{"%1: %2"}.arg(year).arg(show(now->value));
         if (!std::isnan(climate)) {
             text += QString{", %1 from the 1991-2020 average of %2"}.arg(delta(now->value - climate)).arg(show(climate));
+            if (rain && climate > 0) {
+                text += QString{" (%1% of it)"}.arg(now->value / climate * 100.0, 0, 'f', 0);
+            }
         }
-        text += QString{". The %1 warmest of the %2 years (and the %3 coldest)."}.arg(rank).arg(ranked.size()).arg(static_cast<int>(ranked.size()) - rank + 1);
+        text += QString{". The %1 %2 of the %3 years (and the %4 %5)."}.arg(rank).arg(top).arg(ranked.size()).arg(static_cast<int>(ranked.size()) - rank + 1).arg(bottom);
     } else {
         text = QString{"%1: not enough days (the record has gaps, or ends before the date: another station may have it)."}.arg(year);
     }
-    const auto list = [&] (bool warm) {
+    const auto list = [&] (bool first) {
         QStringList parts;
         for (int i = 0; i < 5 && i < static_cast<int>(ranked.size()); i++) {
-            const auto * y = warm ? ranked[static_cast<size_t>(i)] : ranked[ranked.size() - 1 - static_cast<size_t>(i)];
+            const auto * y = first ? ranked[static_cast<size_t>(i)] : ranked[ranked.size() - 1 - static_cast<size_t>(i)];
             parts << QString{"%1 (%2)"}.arg(y->year).arg(show(y->value));
         }
         return parts.join(",  ");
     };
-    text += "\nWarmest: " + list(true) + "\nColdest: " + list(false);
+    text += QString{"\n%1: "}.arg(QString{top}.left(1).toUpper() + QString{top}.mid(1)) + list(true) + QString{"\n%1: "}.arg(QString{bottom}.left(1).toUpper() + QString{bottom}.mid(1)) + list(false);
     summary->setText(text);
+}
+
+// the years of the chart as a table: year, the value, the departure from the 1991-2020 average, the rank (1 the highest), the days it is made of
+void TempHistoryViewer::saveCsv() {
+    if (shownYears.empty()) {
+        return;
+    }
+    const auto path = QFileDialog::getSaveFileName(this, "Save the years as a table", ChartExport::startFolder() + "/" + ChartExport::fileName("temperature history", "csv"), "CSV table (*.csv)");
+    if (path.isEmpty()) {
+        return;
+    }
+    QFile file{path};
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        status->setText("The file could not be written: " + path);
+        return;
+    }
+    std::vector<double> sorted;
+    for (const auto& [year, value] : shownYears) {
+        sorted.push_back(value);
+    }
+    std::sort(sorted.begin(), sorted.end(), std::greater<double>{});
+    QTextStream out{&file};
+    out << "# " << csvTitle << "\n# " << sourceBox->currentText() << (sourceBox->currentIndex() == 1 ? ": " + stationBox->currentText() : QString{}) << ", asked for " << latBox->value() << ", " << lonBox->value() << "\n";
+    out << "# values in " << (csvUnit == "mm" ? "mm" : "degrees C") << "; the average is of 1991-2020: " << csvClimate << "\n";
+    out << "year,value,departure_from_1991_2020,rank_highest_first\n";
+    for (const auto& [year, value] : shownYears) {
+        const int rank = static_cast<int>(std::find(sorted.begin(), sorted.end(), value) - sorted.begin()) + 1;
+        out << year << "," << QString::number(value, 'f', 2) << "," << (std::isnan(csvClimate) ? QString{} : QString::number(value - csvClimate, 'f', 2)) << "," << rank << "\n";
+    }
+    file.close();
+    ChartExport::remember(path);
+    status->setText("Saved " + path);
+}
+
+void TempHistoryViewer::savePicture() {
+    const auto path = QFileDialog::getSaveFileName(this, "Save the chart", ChartExport::startFolder() + "/" + ChartExport::fileName("temperature history", "png"), "PNG image (*.png);;PDF document (*.pdf)");
+    if (path.isEmpty()) {
+        return;
+    }
+    const bool ok = path.endsWith(".pdf", Qt::CaseInsensitive) ? ChartExport::savePdf(chart, csvTitle, path) : ChartExport::savePng(chart, csvTitle, path);
+    status->setText(ok ? "Saved " + path : "The file could not be written: " + path);
+    if (ok) {
+        ChartExport::remember(path);
+    }
 }
