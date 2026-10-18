@@ -45,13 +45,19 @@ public:
     void setRange(const QDateTime& from, const QDateTime&, MapHost& host) override { setAsOf(from, host); }   // (the run of the first time: its hours run on from there)
 
     const string& modelName() const { return model; }
+    // the model, chart and variants as one line (for a saved view) and back
+    string settings() const;
+    void setSettings(const string& line, MapHost&);
     // the valid time of the chart on view (invalid before a run is known), for the tools at a point
     QDateTime validTime() const;
     // the members graph of a REFS chart at a point (a window); false with the reason when the chart has none
     bool openMembers(Window * parent, double lat, double lon, string& why) const;
 
     // The chart in the Model Viewer's own picture for the part of the world in view (header with the model, chart, run and valid times, the legend, the credit): false with the reason.
-    bool titled(MapHost&, QImage& out, string& error) const;
+    // (hour: another forecast hour of the run than the one on view, for a loop; -1 the one on view)
+    bool titled(MapHost&, QImage& out, string& error, int hour = -1) const;
+    const std::vector<int>& hourList() const { return hours; }
+    int hourNow() const { return hourShown(); }
 
 protected:
     void onEnable(MapHost& host) override { refresh(host); }

@@ -47,6 +47,9 @@ public:
     explicit MasterMapViewer(Window * parent, const string& startView = {});
     // the map at a time of the past and a place (the history page): only the layers given (those that can show a past time), each set to that time; the region is the point
     // with its radius
+    // The map as the model browser (what the Model Viewer page was): the model chart layer alone, on a model / chart / area (sector id; "" the ones used last, or the United States) and, when `valid` is
+    // set, at that valid time
+    static MasterMapViewer * openModels(Window * parent, const string& model = {}, const string& param = {}, const string& sector = {}, const QDateTime& valid = {});
     void openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds);
 
 private:
@@ -99,9 +102,26 @@ private:
     Button buttonRefresh;
     Button buttonSave;
     Button buttonPlume;
+    Button buttonOthers;
+    Button buttonViews;
+    Button buttonCompare;
     Button buttonArea;
     Button buttonSounding;
     Button buttonMembers;
+    void saveModelLoop();                            // the hours of the model chart as a GIF / video of titled pictures
+    // views kept by name: the layers on, the region and the model chart's settings
+    struct SavedView {
+        string name;
+        vector<string> layers;
+        double minLat{0}, maxLat{0}, minLon{0}, maxLon{0};
+        string model;
+    };
+    vector<SavedView> savedViews() const;
+    void storeViews(const vector<SavedView>&);
+    void refreshViewList();
+    void viewsMenu();
+    void applySaved(const SavedView&);
+    void openCompare();                              // a second map beside this one: same place and time, to set to another chart, model or run
     void chooseArea();                               // the map to a named area (a region of the world, or round a saved location)
     bool pointFor(double& lat, double& lon) const;   // the pointer's last place on the map, or the middle
     ModelChartLayer * modelLayer() const;            // the model chart layer when it is on

@@ -12,7 +12,14 @@
 #include <QContextMenuEvent>
 #include <QDateTime>
 #include <QDateTimeEdit>
+#include <QBuffer>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QMenu>
+#include <QComboBox>
 #include <QDialog>
+#include <QDialogButtonBox>
+#include <QProgressDialog>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QPageSize>
@@ -25,7 +32,12 @@
 #include "hurricane/Coast.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "mapkit/ModelChartLayer.h"
+#include "gfs/GfsChart.h"
+#include "gfs/GfsModels.h"
+#include "gfs/GfsRender.h"
+#include "models/ModelScreen.h"
 #include "models/ProductPicker.h"
+#include "objects/UtilityAnimationExport.h"
 #include "models/SoundingViewer.h"
 #include "settings/Location.h"
 #include "objects/FutureVoid.h"
@@ -56,6 +68,9 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     , buttonRefresh{this, None, "Refresh layers"}
     , buttonSave{this, None, "Export view..."}
     , buttonPlume{this, None, "Plume..."}
+    , buttonOthers{this, None, "Other models..."}
+    , buttonViews{this, None, "Views..."}
+    , buttonCompare{this, None, "Compare..."}
     , buttonArea{this, None, "Area..."}
     , buttonSounding{this, None, "Sounding..."}
     , buttonMembers{this, None, "Members graph..."}
@@ -139,10 +154,17 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     }
     comboView.setList(views);
     comboView.connect([this] {
-        if (!building && comboView.getIndex() > 0) {
-            applyPreset(static_cast<size_t>(comboView.getIndex() - 1));
+        if (building || comboView.getIndex() <= 0) {
+            return;
+        }
+        const auto index = static_cast<size_t>(comboView.getIndex() - 1);
+        if (index < MapCatalog::presets().size()) {
+            applyPreset(index);
+        } else if (const auto kept = savedViews(); index - MapCatalog::presets().size() < kept.size()) {
+            applySaved(kept[index - MapCatalog::presets().size()]);
         }
     });
+    refreshViewList();
     buttonRefresh.connect([this] {
         for (auto& layer : layers) {
             if (layer->enabled()) {
@@ -152,6 +174,20 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     });
     buttonSave.connect([this] { exportView(); });
     buttonPlume.getView()->setToolTip("The forecast plume (every member or run, at the same valid times) at the place the pointer was last on the map: the model of the chart on the map (CFS: the nine month runs, GEFS: the members, any other: the GFS runs), or the GEFS");
+    buttonOthers.getView()->setToolTip("The model pages that are not charts of the map: SPC Post (calibrated chances), NSSL CAMs and the picture models kept until they are retired (SPC HRRR, NSSL WRF, WPC GEFS, SPC HREF)");
+    buttonOthers.connect([this] {
+        QMenu menu{this};
+        for (const auto& source : ModelScreen::sources()) {
+            menu.addAction(source.label)->setData(source.id);
+        }
+        if (const auto * chosen = menu.exec(QCursor::pos())) {
+            new ModelScreen{this, chosen->data().toString().toStdString()};
+        }
+    });
+    buttonViews.getView()->setToolTip("Keep what is on the map as a view of your own: the layers, the part of the world and the model chart (model, chart, lines, variants). Kept views are in the list on the left");
+    buttonViews.connect([this] { viewsMenu(); });
+    buttonCompare.getView()->setToolTip("A second map beside this one at the same place and time, with the model chart on: set its model, chart or run to another to compare them (the time bars move together)");
+    buttonCompare.connect([this] { openCompare(); });
     buttonArea.getView()->setToolTip("Move the map to a named area: a region of the world (the United States and its regions, continents, oceans, the poles) or a square round one of your saved locations");
     buttonArea.connect([this] { chooseArea(); });
     buttonSounding.getView()->setToolTip("The model sounding (RRFS, skew-T with the parameters) at the place the pointer was last on the map, for the valid time on the time bar");
@@ -196,6 +232,9 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     rowTop.addWidget(buttonRefresh);
     rowTop.addWidget(buttonSave);
     rowTop.addWidget(buttonPlume);
+    rowTop.addWidget(buttonViews);
+    rowTop.addWidget(buttonOthers);
+    rowTop.addWidget(buttonCompare);
     rowTop.addWidget(buttonArea);
     rowTop.addWidget(buttonSounding);
     rowTop.addWidget(buttonMembers);
@@ -817,6 +856,84 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
         (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
 }
 
+// the hours of the model chart as a loop (GIF or video) of the Model Viewer's titled pictures, for the part of the world in view
+void MasterMapViewer::saveModelLoop() {
+    auto * chart = modelLayer();
+    if (chart == nullptr || chart->hourList().empty()) {
+        return;
+    }
+    const auto& hours = chart->hourList();
+    QDialog dialog{this};
+    dialog.setWindowTitle("Save a loop");
+    auto * column = new QVBoxLayout{&dialog};
+    column->addWidget(new QLabel{"The forecast hours to put in the loop (each is drawn as the titled picture, for the part of the world in view):", &dialog});
+    auto * first = new QComboBox{&dialog};
+    auto * last = new QComboBox{&dialog};
+    for (const int h : hours) {
+        first->addItem("F" + QString::number(h), h);
+        last->addItem("F" + QString::number(h), h);
+    }
+    const int now = chart->hourNow();
+    first->setCurrentIndex(std::max(0, first->findData(now)));
+    int end = now;
+    for (const int h : hours) {
+        if (h >= now && h <= now + 24) {
+            end = h;
+        }
+    }
+    last->setCurrentIndex(std::max(0, last->findData(end)));
+    auto * row = new QHBoxLayout;
+    row->addWidget(new QLabel{"From", &dialog});
+    row->addWidget(first);
+    row->addWidget(new QLabel{"to", &dialog});
+    row->addWidget(last);
+    column->addLayout(row);
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    column->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    const int from = first->currentData().toInt(), to = last->currentData().toInt();
+    std::vector<int> chosen;
+    for (const int h : hours) {
+        if (h >= from && h <= to) {
+            chosen.push_back(h);
+        }
+    }
+    if (chosen.empty()) {
+        return;
+    }
+    QProgressDialog progress{"Drawing the pictures of the loop...", "Cancel", 0, static_cast<int>(chosen.size()), this};
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(0);
+    std::vector<QByteArray> frames;
+    string problem;
+    for (size_t i = 0; i < chosen.size(); i++) {
+        progress.setValue(static_cast<int>(i));
+        progress.setLabelText(QString{"Drawing F%1 (%2 of %3)..."}.arg(chosen[i]).arg(i + 1).arg(chosen.size()));
+        QCoreApplication::processEvents();
+        if (progress.wasCanceled()) {
+            return;
+        }
+        QImage image;
+        if (!chart->titled(*this, image, problem, chosen[i])) {
+            QMessageBox::warning(this, "Save a loop", QString::fromStdString("F" + std::to_string(chosen[i]) + ": " + problem));
+            return;
+        }
+        QByteArray bytes;
+        QBuffer buffer{&bytes};
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        frames.push_back(bytes);
+    }
+    progress.setValue(static_cast<int>(chosen.size()));
+    const int interval = speedCombo->currentIndex() == 0 ? 1200 : speedCombo->currentIndex() == 1 ? 650 : 280;
+    const auto name = QString::fromStdString(chart->modelName() + "_loop_F" + std::to_string(from) + "-F" + std::to_string(to));
+    UtilityAnimationExport::saveWithDialog(this, frames.size() >= 2 ? frames : std::vector<QByteArray>{}, interval, frames.front(), name, QByteArray{}, false, name);
+}
+
 bool MasterMapViewer::saveModelChart(const QString& path, string& problem) {
     for (const auto& layer : layers) {
         if (layer->id() == "model/chart" && layer->enabled()) {
@@ -845,6 +962,7 @@ void MasterMapViewer::exportView() {
         ask.setWindowTitle("Export the view");
         ask.setText("A model chart is on the map. Save it as the Model Viewer's picture (with its title, run and valid times and legend), or the map as it is?");
         auto * titledButton = ask.addButton("Model chart, titled", QMessageBox::AcceptRole);
+        auto * loopButton = ask.addButton("Loop of hours, titled", QMessageBox::ActionRole);
         auto * mapButton = ask.addButton("The map as it is", QMessageBox::ActionRole);
         ask.addButton(QMessageBox::Cancel);
         ask.exec();
@@ -860,6 +978,10 @@ void MasterMapViewer::exportView() {
             }
             ChartExport::remember(path);
             status("Saved " + path.toStdString());
+            return;
+        }
+        if (ask.clickedButton() == loopButton) {
+            saveModelLoop();
             return;
         }
         if (ask.clickedButton() != mapButton) {
@@ -981,6 +1103,156 @@ void MasterMapViewer::followCursor(QObject * origin) {
     updateStatus();
 }
 
+// ---- views of your own ----
+// the preference holds one view a line: name, layers (comma), region (four numbers) and the model chart's settings, tab separated
+
+vector<MasterMapViewer::SavedView> MasterMapViewer::savedViews() const {
+    vector<SavedView> out;
+    const auto text = QString::fromStdString(Utility::readPref("MASTERMAP_SAVED_VIEWS", ""));
+    for (const auto& line : text.split('\n', Qt::SkipEmptyParts)) {
+        const auto f = line.split('\t');
+        if (f.size() < 4) {
+            continue;
+        }
+        SavedView v;
+        v.name = f[0].toStdString();
+        for (const auto& id : f[1].split(',', Qt::SkipEmptyParts)) {
+            v.layers.push_back(id.toStdString());
+        }
+        const auto r = f[2].split(',');
+        if (r.size() < 4) {
+            continue;
+        }
+        v.minLat = r[0].toDouble();
+        v.maxLat = r[1].toDouble();
+        v.minLon = r[2].toDouble();
+        v.maxLon = r[3].toDouble();
+        v.model = f[3].toStdString();
+        out.push_back(std::move(v));
+    }
+    return out;
+}
+
+void MasterMapViewer::storeViews(const vector<SavedView>& list) {
+    QStringList lines;
+    for (const auto& v : list) {
+        QStringList ids;
+        for (const auto& id : v.layers) {
+            ids << QString::fromStdString(id);
+        }
+        lines << QString::fromStdString(v.name) + '\t' + ids.join(',') + '\t' + QString{"%1,%2,%3,%4"}.arg(v.minLat).arg(v.maxLat).arg(v.minLon).arg(v.maxLon) + '\t' + QString::fromStdString(v.model);
+    }
+    Utility::writePref("MASTERMAP_SAVED_VIEWS", lines.join('\n').toStdString());
+    refreshViewList();
+}
+
+// the box of views: yours, then the ones that come with the program
+void MasterMapViewer::refreshViewList() {
+    vector<string> names{"Your layers"};
+    for (const auto& preset : MapCatalog::presets()) {
+        names.push_back(preset.name);
+    }
+    for (const auto& v : savedViews()) {
+        names.push_back("* " + v.name);
+    }
+    comboView.block();
+    comboView.setList(names);
+    comboView.setIndex(0);
+    comboView.unblock();
+}
+
+void MasterMapViewer::viewsMenu() {
+    QMenu menu{this};
+    auto * save = menu.addAction("Keep this view...");
+    const auto kept = savedViews();
+    QMenu * remove = menu.addMenu("Forget a view");
+    remove->setEnabled(!kept.empty());
+    for (const auto& v : kept) {
+        remove->addAction(QString::fromStdString(v.name))->setData(QString::fromStdString(v.name));
+    }
+    const auto * chosen = menu.exec(QCursor::pos());
+    if (chosen == nullptr) {
+        return;
+    }
+    if (chosen == save) {
+        bool ok = false;
+        const auto name = QInputDialog::getText(this, "Keep this view", "A name for the view:", QLineEdit::Normal, "", &ok).trimmed().toStdString();
+        if (!ok || name.empty()) {
+            return;
+        }
+        SavedView v;
+        v.name = name;
+        for (const auto& layer : layers) {
+            if (layer->enabled()) {
+                v.layers.push_back(layer->id());
+            }
+        }
+        const auto * widget = mapView->map();
+        const auto topLeft = mapView->toLatLon(QPointF{0.0, 0.0});
+        const auto bottomRight = mapView->toLatLon(QPointF{static_cast<double>(widget->width()), static_cast<double>(widget->height())});
+        v.maxLat = topLeft.first;
+        v.minLat = bottomRight.first;
+        v.minLon = topLeft.second;
+        v.maxLon = bottomRight.second;
+        if (v.maxLon <= v.minLon) {   // across the date line: the longitudes as they go on
+            v.maxLon += 360.0;
+        }
+        if (const auto * chart = modelLayer()) {
+            v.model = chart->settings();
+        }
+        auto list = savedViews();
+        list.erase(std::remove_if(list.begin(), list.end(), [&name] (const SavedView& old) { return old.name == name; }), list.end());
+        list.push_back(v);
+        storeViews(list);
+        status("Kept the view " + name);
+    } else if (chosen->data().isValid()) {
+        const auto name = chosen->data().toString().toStdString();
+        auto list = savedViews();
+        list.erase(std::remove_if(list.begin(), list.end(), [&name] (const SavedView& old) { return old.name == name; }), list.end());
+        storeViews(list);
+    }
+}
+
+void MasterMapViewer::applySaved(const SavedView& v) {
+    building = true;
+    for (const auto& layer : layers) {
+        const bool want = std::find(v.layers.begin(), v.layers.end(), layer->id()) != v.layers.end();
+        if (auto * item = items.count(layer->id()) != 0 ? items[layer->id()] : nullptr) {
+            item->setCheckState(0, want ? Qt::Checked : Qt::Unchecked);
+        }
+        if (want && layer->id() == "model/chart" && !v.model.empty()) {
+            static_cast<ModelChartLayer *>(layer.get())->setSettings(v.model, *this);
+        }
+        setLayerOn(layer->id(), want);
+    }
+    building = false;
+    mapView->showRegion(v.minLat, v.maxLat, v.minLon, v.maxLon);
+    updateStatus();
+}
+
+void MasterMapViewer::openCompare() {
+    const auto * widget = mapView->map();
+    const auto top = mapView->toLatLon(QPointF{widget->width() / 2.0, 0.0});
+    const auto bottom = mapView->toLatLon(QPointF{widget->width() / 2.0, static_cast<double>(widget->height())});
+    const auto middle = mapView->toLatLon(QPointF{widget->width() / 2.0, widget->height() / 2.0});
+    // the view's height in kilometers, as openAt's radius takes it (it shows 2.4 radii tall)
+    const double km = std::max(100.0, std::abs(top.first - bottom.first) * 111.0 / 2.4);
+    const auto * chart = modelLayer();
+    auto when = chart != nullptr ? chart->validTime() : QDateTime{};
+    if (!when.isValid()) {
+        when = timePick->dateTime().toUTC();
+    }
+    auto * other = new MasterMapViewer{this};
+    other->openAt(when, middle.first, middle.second, km, {"model/chart"});
+    // side by side: this window takes the left half of its screen, the other the right half
+    if (const auto * screen = this->screen()) {
+        const auto area = screen->availableGeometry();
+        showNormal();
+        setGeometry(area.left(), area.top() + 30, area.width() / 2, area.height() - 40);
+        other->setGeometry(area.left() + area.width() / 2, area.top() + 30, area.width() / 2, area.height() - 40);
+    }
+}
+
 void MasterMapViewer::chooseArea() {
     std::vector<ProductPicker::Entry> entries;
     const auto places = Location::getListLatLons();
@@ -1035,6 +1307,52 @@ ModelChartLayer * MasterMapViewer::modelLayer() const {
         }
     }
     return nullptr;
+}
+
+MasterMapViewer * MasterMapViewer::openModels(Window * parent, const string& modelWanted, const string& paramWanted, const string& sectorWanted, const QDateTime& valid) {
+    // the choices the model page kept (its thumbnail on the home screen says what they are) are the starting point
+    string model = modelWanted.empty() ? Utility::readPref("NCEP", Utility::readPref("MM_MODELCHART_MODEL", "GFS")) : modelWanted;
+    if (GfsModels::find(model) == nullptr || !GfsRender::drawsModel(model)) {
+        model = "GFS";
+    }
+    string param = paramWanted;
+    if (param.empty()) {
+        const auto last = Utility::readPref("MODELNCEPPARAMLASTUSED", "");
+        param = GfsChart::product(last, model) != nullptr ? last : (model == Utility::readPref("MM_MODELCHART_MODEL", "GFS") ? Utility::readPref("MM_MODELCHART_PARAM", "500_wnd_ht") : string{});
+    }
+    if (GfsChart::product(param, model) == nullptr) {
+        param.clear();
+        for (const auto& product : GfsChart::products()) {
+            if (product.source == model && !product.id.empty() && product.id.compare(0, 4, "gen~") != 0) {
+                param = product.id;
+                break;
+            }
+        }
+    }
+    Utility::writePref("MM_MODELCHART_MODEL", model);
+    if (!param.empty()) {
+        Utility::writePref("MM_MODELCHART_PARAM", param);
+    }
+    Utility::writePref("MM_MODELCHART_OVERLAYS", "");
+    Utility::writePref("MM_MODELCHART_OVERLAYMODELS", "");
+    auto * map = new MasterMapViewer{parent};
+    map->onlyLayer("model/chart");
+    string sector = sectorWanted.empty() ? Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS") : sectorWanted;
+    double lat = 0, lon = 0, km = 0;
+    string name;
+    if (GfsChart::parseLocalId(sector, lat, lon, km, name)) {
+        const double degrees = km / 111.0 / 2.0;
+        const double lonDegrees = degrees / std::max(0.2, std::cos(lat * 3.14159265358979 / 180.0));
+        map->mapView->showRegion(lat - degrees, lat + degrees, lon - lonDegrees, lon + lonDegrees);
+    } else if (const auto * found = GfsChart::sector(sector)) {
+        map->mapView->showRegion(found->south, found->north, found->west, found->east);
+    } else {
+        map->mapView->showRegion(20.0, 55.0, -130.0, -60.0);
+    }
+    if (valid.isValid()) {
+        map->jumpTo(valid.toUTC());
+    }
+    return map;
 }
 
 void MasterMapViewer::openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds) {

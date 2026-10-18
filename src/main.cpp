@@ -217,8 +217,7 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
                 when.setTimeSpec(Qt::UTC);
-                auto * screen = new ModelScreen{&w, "NCEP"};
-                screen->openAt(parts.value(1).toStdString(), when);
+                MasterMapViewer::openModels(&w, parts.value(1).toStdString(), {}, {}, when);
             } else if (route == "events" && !qEnvironmentVariable("WXQT_KEEP").isEmpty()) {   // WXQT_OPEN=events WXQT_KEEP=1: the first saved event is selected and its offline copy is made
                 auto * viewer = new EventsViewer{&w};
                 QTimer::singleShot(1500, viewer, [viewer] {

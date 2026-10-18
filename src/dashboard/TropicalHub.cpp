@@ -27,6 +27,7 @@
 #include "hurricane/HurricaneViewer.h"
 #include "hurricane/PodViewer.h"
 #include "hurricane/SeasonViewer.h"
+#include "mapkit/MasterMapViewer.h"
 #include "models/ModelScreen.h"
 #include "models/ModelViewer.h"
 #include "util/Utility.h"
@@ -168,10 +169,7 @@ TropicalHub::TropicalHub(Window * parent)
         }
     });
     buttonModels.connect([this] {   // the model screen opened on a tropical chart (the deep-layer shear over the western Atlantic); it is the last used choice from then on, as any other
-        Utility::writePref("NCEP", "GFS");
-        Utility::writePref("MODELNCEPPARAMLASTUSED", "shear_850_200");
-        Utility::writePref("MODELNCEPSECTORLASTUSED", "WEST-ATL");
-        new ModelScreen{this, "NCEP"};
+        MasterMapViewer::openModels(this, "GFS", "shear_850_200", "WEST-ATL");
     });
     buttonHafs.connect([this] { new HafsViewer{this}; });
     buttonTropical.connect([this] { new TropicalViewer{this}; });

@@ -654,12 +654,10 @@ void EventsViewer::fillAvailability(const HistoryEvent& e) {
         map->openAt(at, eventLat, eventLon, std::max(eventRadius, 1500.0), {"climate/acis-grid"});
     };
     const auto openModel = [this, at] {
-        auto * screen = new ModelScreen{this, "NCEP"};
-        screen->openAt("GFS", at);
+        MasterMapViewer::openModels(this, "GFS", {}, {}, at);
     };
     const auto openHrrr = [this, at] {
-        auto * screen = new ModelScreen{this, "NCEP"};
-        screen->openAt("HRRR", at);
+        MasterMapViewer::openModels(this, "HRRR", {}, {}, at);
     };
     const auto openSatellite = [this, day] {
         const int back = static_cast<int>(day.daysTo(QDateTime::currentDateTimeUtc().date()));

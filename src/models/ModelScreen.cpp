@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QWidget>
+#include "mapkit/MasterMapViewer.h"
 #include "models/CamsViewer.h"
 #include "models/ModelViewer.h"
 #include "models/SpcPostViewer.h"
@@ -14,7 +15,6 @@
 
 const std::vector<ModelScreen::Source>& ModelScreen::sources() {
     static const std::vector<Source> all{
-        {"NCEP", "Models drawn here (GFS, ECMWF, RRFS, REFS, GEFS, NBM, SPC REFS ...)"},
         {"SPCPOST", "SPC Post: calibrated thunder, severe and lightning chances, GEFS-MLP"},
         {"CAMS", "NSSL CAMs pictures (MPAS, WRF, HRRR, RRFS)"},
         {"SPCHRRR", "SPC HRRR pictures (pending discontinuation)"},
@@ -51,7 +51,7 @@ ModelScreen::ModelScreen(Window * parent, const string& source)
             showSource(combo->itemData(index).toString().toStdString());
         }
     });
-    showSource(source.empty() ? Utility::readPref("MODEL_SCREEN_SOURCE", "NCEP") : source);
+    showSource(source.empty() ? Utility::readPref("MODEL_SCREEN_SOURCE", "SPCPOST") : source);
 }
 
 Window * ModelScreen::make(const string& id) {
@@ -78,13 +78,10 @@ Window * ModelScreen::make(const string& id) {
 
 void ModelScreen::showSource(const string& requested) {
     string id = requested;
-    if (id == "SPCREFS") {   // SPC's REFS store is a model of the Model Viewer (every field of it, members, paintballs): that page, on that model
-        if (pages.count("NCEP") == 0) {
-            Utility::writePref("NCEP", "SPCREFS");   // the page opens on the model last used
-        }
-        showSource("NCEP");
-        if (auto * viewer = dynamic_cast<ModelViewer *>(pages["NCEP"])) {
-            viewer->selectModel("SPCREFS");
+    if (id == "NCEP" || id == "SPCREFS") {   // the models drawn from GRIB (SPC REFS among them) are the master map's model chart now
+        MasterMapViewer::openModels(this, id == "SPCREFS" ? "SPCREFS" : string{});
+        if (shown.empty()) {
+            showSource("SPCPOST");   // (this window opened for them: it shows a page of its own meanwhile)
         }
         return;
     }
@@ -95,7 +92,7 @@ void ModelScreen::showSource(const string& requested) {
         }
     }
     if (index < 0) {
-        id = "NCEP";
+        id = "SPCPOST";
         index = 0;
     }
     if (id == shown) {
@@ -115,12 +112,5 @@ void ModelScreen::showSource(const string& requested) {
 void ModelScreen::closeEventCustom() {
     for (auto& [id, page] : pages) {   // each page closes as its own window would (stops its timers and loops)
         page->close();
-    }
-}
-
-void ModelScreen::openAt(const string& model, const QDateTime& validUtc) {
-    showSource("NCEP");
-    if (auto * viewer = dynamic_cast<ModelViewer *>(pages["NCEP"])) {
-        viewer->openAt(model, validUtc);
     }
 }

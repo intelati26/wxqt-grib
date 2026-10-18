@@ -131,6 +131,39 @@ string ModelChartLayer::timeText() const {
            runTimeOf(run).addSecs(hour * 3600LL).toString("ddd yyyy-MM-dd HH:mm").toStdString() + "Z";
 }
 
+string ModelChartLayer::settings() const {
+    return model + "|" + param + "|" + joinList(overlays) + "|" + joinList(overlayModels) + "|" + member + "|" + (sigma ? "1" : "0") + "|" + std::to_string(changeBack) + "|" + (maxDay ? "1" : "0") + "|" +
+           std::to_string(opacity);
+}
+
+void ModelChartLayer::setSettings(const string& line, MapHost& host) {
+    std::vector<string> p;
+    for (size_t at = 0; at <= line.size();) {
+        auto end = line.find('|', at);
+        end = end == string::npos ? line.size() : end;
+        p.push_back(line.substr(at, end - at));
+        at = end + 1;
+    }
+    if (p.size() < 9 || GfsChart::product(p[1], p[0]) == nullptr) {
+        return;
+    }
+    model = p[0];
+    param = p[1];
+    overlays = splitList(p[2]);
+    overlayModels = splitList(p[3]);
+    member = p[4];
+    sigma = p[5] == "1";
+    changeBack = std::atoi(p[6].c_str());
+    maxDay = p[7] == "1";
+    opacity = std::clamp(std::atoi(p[8].c_str()), 20, 100);
+    Utility::writePref("MM_MODELCHART_MODEL", model);
+    Utility::writePref("MM_MODELCHART_PARAM", param);
+    Utility::writePref("MM_MODELCHART_OVERLAYS", joinList(overlays));
+    Utility::writePref("MM_MODELCHART_OVERLAYMODELS", joinList(overlayModels));
+    pinnedRun.clear();
+    optionChanged(host);
+}
+
 QDateTime ModelChartLayer::validTime() const {
     if (run.size() < 10 || hours.empty()) {
         return {};
@@ -592,7 +625,7 @@ vector<MapLegendRow> ModelChartLayer::legend() const {
 }
 
 // the Model Viewer's own picture of the chart for what is in view
-bool ModelChartLayer::titled(MapHost& host, QImage& out, string& problem) const {
+bool ModelChartLayer::titled(MapHost& host, QImage& out, string& problem, int hourWanted) const {
     double w, s, e, n;
     if (run.size() < 10 || !visibleBox(host, w, s, e, n)) {
         problem = "no chart is loaded yet";
@@ -602,9 +635,10 @@ bool ModelChartLayer::titled(MapHost& host, QImage& out, string& problem) const 
     e = std::min(180.0, e);
     s = std::max(-85.0, s);
     n = std::min(85.0, n);
-    auto variant = variantNow(hourShown());
+    const int hourDrawn = hourWanted >= 0 ? hourWanted : hourShown();
+    auto variant = variantNow(hourDrawn);
     variant.width = 1400;
-    const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(session), model, param, GfsChart::boxId(w, s, e, n), run, hourShown(), overlays, problem, nullptr, variant);
+    const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(session), model, param, GfsChart::boxId(w, s, e, n), run, hourDrawn, overlays, problem, nullptr, variant);
     if (bytes.isEmpty() || !out.loadFromData(bytes, "PNG")) {
         if (problem.empty()) {
             problem = "the chart could not be drawn";
