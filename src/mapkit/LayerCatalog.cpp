@@ -6,6 +6,7 @@
 #include "mapkit/MapLayer.h"
 #include "mapkit/BufkitStationsLayer.h"
 #include "mapkit/ForecastPointLayer.h"
+#include "mapkit/UpperAirLayer.h"
 #include "mapkit/GoesLayer.h"
 #include "mapkit/GibsLayer.h"
 #include "mapkit/ClimateGridLayer.h"
@@ -60,6 +61,7 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     layers.push_back(std::make_unique<WindProbabilityLayer>());
     layers.push_back(std::make_unique<ForecastPointLayer>());
     layers.push_back(std::make_unique<BufkitStationsLayer>());
+    layers.push_back(std::make_unique<UpperAirLayer>());
     return layers;
 }
 

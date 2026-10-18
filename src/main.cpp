@@ -47,6 +47,7 @@
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "mapkit/ModelChartLayer.h"
+#include "mapkit/UpperAirLayer.h"
 #include "models/ModelScreen.h"
 #include "history/EventsViewer.h"
 #include "history/HistoryCursor.h"
@@ -267,6 +268,17 @@ int main(int argc, char * argv[]) {
                 }
                 if (ok) {
                     new SoundingViewer{&w, profile, "test column"};
+                }
+            } else if (route.startsWith("raobsound:")) {   // WXQT_OPEN=raobsound:<station>:<yyyyMMddHH UTC>: the observed balloon sounding from the archive
+                const auto parts = route.split(':');
+                auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHH");
+                when.setTimeZone(QTimeZone::utc());
+                SoundingProfile profile;
+                std::string problem;
+                const bool ok = UpperAirLayer::fetchProfile(parts.value(1).toStdString(), static_cast<long>(when.toSecsSinceEpoch()), profile, problem);
+                qWarning("raobsound: %s %zu levels %s", ok ? "ok" : "failed", profile.size(), problem.c_str());
+                if (ok) {
+                    new SoundingViewer{&w, profile, "observed " + parts.value(1).toStdString()};
                 }
             } else if (route.startsWith("looprange:")) {   // WXQT_OPEN=looprange:<yyyyMMddHHmm from>:<yyyyMMddHHmm to>:<layer id>: the master map looping between the two times
                 const auto parts = route.split(':');
