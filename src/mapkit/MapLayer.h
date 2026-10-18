@@ -74,6 +74,7 @@ public:
     virtual QWidget * options(QWidget * /*parent*/, const std::function<void()>& /*changed*/) { return nullptr; }
     virtual string summary() const { return {}; }
     virtual string notice() const { return {}; }                 // what the layer did to the choice made (a chart that moved the run), in a sentence or two: shown in the side panel
+    virtual bool working() const { return false; }               // still drawing or fetching something for the view (an export waits for it)
     virtual string source() const { return {}; }                 // who made the data, for the line under an exported picture
     // time: a layer with frames in time (radar scans, a forecast's hours) lists them, and shows the one the time bar asks for
     virtual bool timeAware() const { return false; }

@@ -118,7 +118,7 @@ private:
     Button buttonGlobe;
     GlobeMapView * globeView{};
     bool globeOn{false};
-    GlobeMapView::Skin makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width, double referencePixelsPerDegree = 0.0);
+    GlobeMapView::Skin makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width, double referencePixelsPerDegree = 0.0, bool waitForLayers = false);
     double thinning{1.0};                                     // how much wider apart the self-thinning marks are put while a skin is painted
     Button buttonTemps;
     Button buttonSounding;

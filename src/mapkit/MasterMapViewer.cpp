@@ -1143,7 +1143,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
             highNote += (highNote.empty() ? "" : ", ") + s.model + " " + s.run.substr(4) + "Z F" + std::to_string(s.hour);
         }
     } else {
-        const auto skin = makeSkin(-85.0, 85.0, centre - 180.0, centre + 180.0, std::min(6000, static_cast<int>(width * 1.4)), 1300.0 / 360.0);   // (marks spaced as on a world map 1300 pixels wide)
+        const auto skin = makeSkin(-85.0, 85.0, centre - 180.0, centre + 180.0, std::min(6000, static_cast<int>(width * 1.4)), 1300.0 / 360.0, true);   // (marks spaced as on a world map 1300 pixels wide)
         world = GlobeMapView::projectWorld(skin, projection, centre, width);
     }
     // the pieces around it, as the flat export has them
@@ -1170,7 +1170,9 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         }
     }
     const double scale = width / 1000.0;
-    const int header = static_cast<int>(66 * scale), footer = static_cast<int>(38 * scale), legendHeight = rows.empty() ? 0 : static_cast<int>(40 * scale);
+    const bool combo = std::any_of(layers.begin(), layers.end(), [] (const auto& layer) { return layer->enabled() && layer->id() == "model/combo"; });
+    const int more = combo ? static_cast<int>(18 * scale) : 0;   // (a line for the models the picture rests on)
+    const int header = static_cast<int>(66 * scale) + more, footer = static_cast<int>(38 * scale), legendHeight = rows.empty() ? 0 : static_cast<int>(40 * scale);
     QImage image(width, header + world.height() + legendHeight + footer, QImage::Format_ARGB32);
     image.fill(QColor{255, 255, 255});
     {
@@ -1186,8 +1188,20 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         painter.drawText(QRect{pad, pad / 2, width - 2 * pad, static_cast<int>(24 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, QString{"World, "} + GlobeMapView::projectionName(projection));
         painter.setFont(base);
         painter.setPen(QColor{60, 60, 60});
-        painter.drawText(QRect{pad, static_cast<int>(27 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, names.isEmpty() ? QString{"No layers on"} : (highNote.empty() ? "Layers: " + names.join(", ") : QString{"The model data at its own resolution, the finest model on top (the runs are in the line below)"}));
-        painter.drawText(QRect{pad, static_cast<int>(45 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, times.isEmpty() ? QString{"Valid now"} : "Valid: " + times.join("   "));
+        if (combo) {   // the two models the picture rests on first, the rest as detail
+            QFont strong{base};
+            strong.setBold(true);
+            strong.setPixelSize(static_cast<int>(15 * scale));
+            painter.setFont(strong);
+            painter.setPen(QColor{20, 60, 120});
+            painter.drawText(QRect{pad, static_cast<int>(27 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, "World: GFS 25 km     North America: RRFS 3 km");
+            painter.setFont(base);
+            painter.setPen(QColor{60, 60, 60});
+            names.removeAll(QString{"Best resolution combo (every model that has the chart, the finest on top)"});
+            names.prepend("finer models where they exist");
+        }
+        painter.drawText(QRect{pad, static_cast<int>(27 * scale) + more, width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, names.isEmpty() ? QString{"No layers on"} : (highNote.empty() ? "Layers: " + names.join(", ") : QString{"The model data at its own resolution, the finest model on top (the runs are in the line below)"}));
+        painter.drawText(QRect{pad, static_cast<int>(45 * scale) + more, width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, times.isEmpty() ? QString{"Valid now"} : "Valid: " + times.join("   "));
         painter.drawImage(0, header, world);
         if (!rows.empty()) {   // the legend, in window units as on the map
             QImage legend(width, legendHeight, QImage::Format_ARGB32_Premultiplied);
@@ -1511,7 +1525,7 @@ void MasterMapViewer::applySaved(const SavedView& v) {
 }
 
 // the picture of a region of the world as the layers paint it (Mercator, at a width), for the globe's skin
-GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width, double referencePixelsPerDegree) {
+GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width, double referencePixelsPerDegree, bool waitForLayers) {
     GlobeMapView::Skin skin;
     // the labels and marks that thin themselves (claimCell) are spaced as they would be at the reference scale, whatever the picture's size: automatic thinning
     thinning = referencePixelsPerDegree > 0.0 ? std::max(1.0, (width / std::max(1.0, maxLon - minLon)) / referencePixelsPerDegree) : 1.0;
@@ -1524,11 +1538,34 @@ GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, doubl
     mapView->setRenderSize(width, height);
     mapView->showRegion(minLat, maxLat, minLon, maxLon);
     QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
-    image.fill(RadarPreferences::mapBackgroundColor);
-    {
+    const auto paintImage = [&] {
+        image.fill(RadarPreferences::mapBackgroundColor);
         QPainter painter{&image};
         painter.setWindow(QRect{-500, -250, 1000, std::max(1, static_cast<int>(std::lround(1000.0 * height / width)))});
         paintMap(painter);
+    };
+    const auto anyWorking = [this] {
+        for (const auto& layer : layers) {
+            if (layer->enabled() && layer->working()) {
+                return true;
+            }
+        }
+        return false;
+    };
+    paintImage();
+    // the model charts are drawn for the view on screen: a picture of the whole world waits until they have drawn the whole world
+    for (int round = 0; waitForLayers && round < 2 && anyWorking(); round++) {
+        QEventLoop loop;
+        QTimer poll;
+        QTimer limit;
+        limit.setSingleShot(true);
+        QObject::connect(&poll, &QTimer::timeout, [&] { if (!anyWorking()) { loop.quit(); } });
+        QObject::connect(&limit, &QTimer::timeout, &loop, &QEventLoop::quit);
+        poll.start(200);
+        limit.start(180000);
+        status(round == 0 ? "the models are drawing the whole world ..." : "the models are drawing the whole world (the finer ones) ...");
+        loop.exec();
+        paintImage();   // (the layers ask again for what the picture still lacks)
     }
     skin.image = std::move(image);
     skin.transform = mapView->transform();

@@ -36,6 +36,7 @@ public:
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     void optionChanged(MapHost& host) override;
     string summary() const override;
+    bool working() const override { return busy || finding; }
     string notice() const override { return note; }
     bool timeAware() const override { return true; }
     vector<long> times() const override;
