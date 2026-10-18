@@ -59,6 +59,7 @@ public:
         std::function<std::vector<GfsGrid::IdxRecord>(const std::string& text, const Want&)> parseIndex;   // NOAA's idx lines unless the source says (ECMWF's JSON lines)
         std::function<double(const Want&)> valueOffset;                  // added after the scale (Kelvin to degrees C: -273.15), 0 when none
         std::function<std::string(const Want&)> variableOf;              // a NetCDF file's name for a want (HGT at 500 mb is "H500"); the want's own variable when none
+        std::function<int(const Run&, int forecastHour, const Want&)> ncBand;   // a NetCDF file that holds many times (ERA5: a month of hours, a day of hours and 37 levels): the 1-based band of the want's time and level; empty: the whole file's bands are averaged
         std::function<double(const Want&)> valueScale;                   // the factor from the file's unit to the one the charts use (ECMWF's precipitation is in meters), 1 when none
         // A server that cuts a box of one hour's fields out of the file for the asking (NOMADS's grib filter): the url for the variables and levels (NOAA's names, "HGT", "500 mb") in that box.
         // A chart of a region then fetches a few per cent of what the whole globe's messages are (the S3 buckets give nothing smaller than a message).

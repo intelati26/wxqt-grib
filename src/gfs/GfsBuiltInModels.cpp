@@ -458,6 +458,29 @@ clone_skip = anom
 clone_pieces = false
 clone_rename = PRMSL:MSLMA
 )MODEL"},
+        {"ERA5", R"MODEL(
+# ECMWF's ERA5 reanalysis, hourly, 0.25 degree, global, January 1940 to March 2023 (the NCAR copy in the open data bucket nsf-ncar-era5): NetCDF files for each variable, a month of hours for the
+# surface fields and a day of hours and 37 pressure levels for the upper air (1 GB a file, read by range: a field is a few MB). Every hour is an analysis; the run is the hour itself.
+id = ERA5
+label = ECMWF ERA5 reanalysis (NCAR archive), 0.25 degree
+group = Archive
+kind = netcdf
+url = https://nsf-ncar-era5.s3.amazonaws.com/e5.oper.an.{file}.nc
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 1
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, SPFH, VVEL, DPT, PRMSL, PWAT, CAPE, TCDC
+clone_levels = 10 mb, 50 mb, 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
         {"GFS-ANL", R"MODEL(
 # The GFS analysis of the years before the open data bucket (2007 to mid 2014 with an index file; NCEI's historical folder), 0.5 degree, four a day: the analysis is the only hour. The 1 degree
 # GRIB1 files of 2004-2007 are not read here. A 00Z analysis is missing on some days (27 April 2011, say): that run shows an error.

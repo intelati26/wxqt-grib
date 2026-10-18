@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsModels.h"
+#include <QDate>
 #include <algorithm>
 #include <cstdio>
 #include "gfs/GfsModelFile.h"
@@ -141,6 +142,98 @@ namespace {
     }
 }
 
+namespace {
+    // ERA5 at NCAR: a file for each variable, a month of hours (the surface) or a day of hours and 37 levels (the upper air), the field's hour and level a band of it
+    struct EraName {
+        const char * file;       // "128_167_2t.ll025sc"
+        const char * variable;   // the NetCDF name
+    };
+
+    bool eraNameOf(const GfsData::Want& w, EraName& out, bool& upper) {
+        const auto& v = w.variable;
+        const auto& l = w.level;
+        upper = l.size() > 3 && l.compare(l.size() - 3, 3, " mb") == 0;
+        if (upper) {
+            if (v == "HGT") out = {"128_129_z.ll025sc", "Z"};
+            else if (v == "TMP") out = {"128_130_t.ll025sc", "T"};
+            else if (v == "UGRD") out = {"128_131_u.ll025uv", "U"};
+            else if (v == "VGRD") out = {"128_132_v.ll025uv", "V"};
+            else if (v == "SPFH") out = {"128_133_q.ll025sc", "Q"};
+            else if (v == "VVEL") out = {"128_135_w.ll025sc", "W"};
+            else if (v == "RH") out = {"128_157_r.ll025sc", "R"};
+            else return false;
+            return true;
+        }
+        if (v == "TMP" && l == "2 m above ground") out = {"128_167_2t.ll025sc", "VAR_2T"};
+        else if (v == "DPT" && l == "2 m above ground") out = {"128_168_2d.ll025sc", "VAR_2D"};
+        else if (v == "UGRD" && l == "10 m above ground") out = {"128_165_10u.ll025sc", "VAR_10U"};
+        else if (v == "VGRD" && l == "10 m above ground") out = {"128_166_10v.ll025sc", "VAR_10V"};
+        else if (v == "PRMSL") out = {"128_151_msl.ll025sc", "MSL"};
+        else if (v == "PRES" && l == "surface") out = {"128_134_sp.ll025sc", "SP"};
+        else if (v == "PWAT") out = {"128_137_tcwv.ll025sc", "TCWV"};
+        else if (v == "CAPE") out = {"128_059_cape.ll025sc", "CAPE"};
+        else if (v == "TCDC") out = {"128_164_tcc.ll025sc", "TCC"};
+        else return false;
+        return true;
+    }
+
+    GfsModels::Def era5() {
+        auto def = fromFile("ERA5");
+        const auto base = def.source;
+        def.source = [base] (const std::string& storm) {
+            auto s = base(storm);
+            s.fileOf = [] (const GfsData::Want& w) {
+                EraName n{};
+                bool upper = false;
+                return eraNameOf(w, n, upper) ? std::string{upper ? "pl:" : "sfc:"} + n.file : std::string{"none"};
+            };
+            s.variableOf = [] (const GfsData::Want& w) {
+                EraName n{};
+                bool upper = false;
+                return eraNameOf(w, n, upper) ? std::string{n.variable} : w.variable;
+            };
+            s.fileUrl = [] (const GfsData::Run& run, int, const std::string& file) {
+                const bool upper = file.compare(0, 3, "pl:") == 0;
+                const std::string stem = file.substr(file.find(':') + 1);
+                const std::string month = run.date.substr(0, 6);
+                const QDate day = QDate::fromString(QString::fromStdString(run.date), "yyyyMMdd");
+                if (upper) {
+                    return "https://nsf-ncar-era5.s3.amazonaws.com/e5.oper.an.pl/" + month + "/e5.oper.an.pl." + stem + "." + run.date + "00_" + run.date + "23.nc";
+                }
+                const auto last = QDate{day.year(), day.month(), day.daysInMonth()}.toString("yyyyMMdd").toStdString();
+                return "https://nsf-ncar-era5.s3.amazonaws.com/e5.oper.an.sfc/" + month + "/e5.oper.an.sfc." + stem + "." + month + "0100_" + last + "23.nc";
+            };
+            s.ncBand = [] (const GfsData::Run& run, int, const GfsData::Want& w) {
+                const int hour = std::atoi(run.cycle.c_str());
+                EraName n{};
+                bool upper = false;
+                if (!eraNameOf(w, n, upper)) {
+                    return 0;
+                }
+                if (!upper) {
+                    return (std::atoi(run.date.substr(6, 2).c_str()) - 1) * 24 + hour + 1;
+                }
+                static const int levels[] = {1, 2, 3, 5, 7, 10, 20, 30, 50, 70, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000};
+                const int mb = std::atoi(w.level.c_str());
+                for (int i = 0; i < 37; i++) {
+                    if (levels[i] == mb) {
+                        return hour * 37 + i + 1;
+                    }
+                }
+                return 0;
+            };
+            s.valueScale = [] (const GfsData::Want& w) {
+                return w.variable == "HGT" ? 1.0 / 9.80665 : w.variable == "TCDC" ? 100.0 : 1.0;   // geopotential to meters, a fraction to percent
+            };
+            s.valueOffset = [] (const GfsData::Want& w) {
+                return w.variable == "TMP" || w.variable == "DPT" ? -273.15 : 0.0;
+            };
+            return s;
+        };
+        return def;
+    }
+}
+
 std::string GfsModels::pickerGroup(const std::string& id) {
     if (const auto * def = find(id); def != nullptr && !def->group.empty()) {
         return def->group;
@@ -189,6 +282,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(cfsAnalysis());
         m.push_back(rapAnalysis());
         m.push_back(fromFile("GFS-ANL"));
+        m.push_back(era5());
         m.push_back(fromFile("NAM-ANL"));
         m.push_back(gfs1Analysis());
         m.push_back(fromFile("NARR"));

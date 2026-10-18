@@ -321,7 +321,8 @@ std::string GfsData::resolveUrl(const std::string& url) const {
 // messages, or one of them (a member, a variable of a file of several).
 bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
     const std::string variable = source.variableOf ? source.variableOf(want) : want.variable;   // what a NetCDF file calls the field
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom) ? variable : std::string{}) + "_");
+    const int timeBand = source.ncBand ? source.ncBand(run, hour, want) : 0;
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom) ? variable : std::string{}) + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
         name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
@@ -384,7 +385,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         out = std::move(g);
         return true;
     }
-    const int band = source.memberBand && !want.stat.empty() && want.stat != "spr" ? source.memberBand(want.stat) : 0;
+    const int band = timeBand > 0 ? timeBand : source.memberBand && !want.stat.empty() && want.stat != "spr" ? source.memberBand(want.stat) : 0;
     if (!want.stat.empty() && want.stat != "spr" && band <= 0) {
         error = source.id + " has no member " + want.stat;
         return false;
