@@ -887,7 +887,7 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
     painter.setFont(small);
     painter.setPen(QColor{100, 100, 100});
     painter.drawText(QRect{pad, mapBottom, width - 2 * pad, footerHeight}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap,
-        (highNote.empty() ? QString{} : QString::fromStdString("Runs: " + highNote + "  -  ")) + (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
+        (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
 }
 
 // the hours of the model chart as a loop (GIF or video) of the Model Viewer's titled pictures, for the part of the world in view
@@ -1206,7 +1206,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         painter.setFont(small);
         painter.setPen(QColor{100, 100, 100});
         painter.drawText(QRect{pad, footTop, width - 2 * pad, footer}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap,
-            (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
+            (highNote.empty() ? QString{} : QString::fromStdString("Runs: " + highNote + "  -  ")) + (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
     }
     if (!image.save(path, "PNG")) {
         QMessageBox::warning(this, "Export the whole world", "The file could not be written: " + path);
