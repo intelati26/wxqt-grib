@@ -59,6 +59,9 @@ namespace GfsRender {
         std::vector<std::string> overlayModels;
         // the chart as a layer for the scrollable map: only the map part of the picture (no header, legend or frame, no coastlines or places), the ground left clear, `width` pixels wide (0: the default);
         // the probe then covers the picture whole
+        // the fill's grid and its color scale instead of a picture (the globe draws them itself); the picture is then one pixel
+        GfsGrid::Grid * fillOut{nullptr};
+        GfsChart::Ramp * rampOut{nullptr};
         bool bare{false};
         int width{0};
     };

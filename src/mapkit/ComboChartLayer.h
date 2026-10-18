@@ -41,6 +41,12 @@ public:
     void prepareTimes(MapHost&) override;
 
     // the models of the table with their resolution in km (coarse to fine), for the chart asked for; empty when none has it
+    // the grid spacing of a model in km (0 when it is not in the table)
+    static double kmOf(const string& model);
+    // for the globe: the chart, the models in the stack, the valid time on view
+    const string& chart() const { return param; }
+    vector<string> modelNames() const { return names; }
+    QDateTime validTime() const { return parts.empty() ? QDateTime{} : parts.back()->validTime(); }
     static vector<std::pair<string, double>> modelsWith(const string& param, const QDate& day);
 
 protected:

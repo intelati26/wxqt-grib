@@ -5505,6 +5505,13 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     if (fill.empty()) {
         return {};
     }
+    if (options.fillOut != nullptr) {
+        *options.fillOut = fill;
+        if (options.rampOut != nullptr) {
+            *options.rampOut = product.ramp;
+        }
+        return QImage{1, 1, QImage::Format_ARGB32_Premultiplied};
+    }
     for (const auto& set : product.contours) {
         if (grids.find(set.key) == grids.end()) {
             return {};

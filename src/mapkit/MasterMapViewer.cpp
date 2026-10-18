@@ -37,6 +37,8 @@
 #include "gfs/GfsRender.h"
 #include "models/ModelScreen.h"
 #include "climate/TempHistoryViewer.h"
+#include "mapkit/ComboChartLayer.h"
+#include "mapkit/GlobeViewer.h"
 #include "models/ProductPicker.h"
 #include "objects/UtilityAnimationExport.h"
 #include "models/SoundingViewer.h"
@@ -73,6 +75,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     , buttonViews{this, None, "Views..."}
     , buttonCompare{this, None, "Compare..."}
     , buttonArea{this, None, "Area..."}
+    , buttonGlobe{this, None, "Globe..."}
     , buttonTemps{this, None, "Temperature history..."}
     , buttonSounding{this, None, "Sounding..."}
     , buttonMembers{this, None, "Members graph..."}
@@ -199,6 +202,50 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     buttonCompare.connect([this] { openCompare(); });
     buttonArea.getView()->setToolTip("Move the map to a named area: a region of the world (the United States and its regions, continents, oceans, the poles) or a square round one of your saved locations");
     buttonArea.connect([this] { chooseArea(); });
+    buttonGlobe.getView()->setToolTip("The model chart (or the combo of every model that has it) on a globe seen from space, with no map distortion: turn it with the mouse, zoom with the wheel, hover for the value of the finest model, step the time by 3 hours");
+    buttonGlobe.connect([this] {
+        string chart;
+        vector<string> models;
+        QDateTime when;
+        for (const auto& layer : layers) {
+            if (layer->enabled() && layer->id() == "model/combo") {
+                const auto * combo = static_cast<ComboChartLayer *>(layer.get());
+                chart = combo->chart();
+                models = combo->modelNames();
+                when = combo->validTime();
+            }
+        }
+        if (chart.empty()) {
+            if (const auto * one = modelLayer()) {
+                chart = one->chartId();
+                models = {one->modelName()};
+                when = one->validTime();
+            }
+        }
+        if (chart.empty()) {
+            status("put the model chart or the combo on the map first (Add layers > Models)");
+            return;
+        }
+        if (!when.isValid()) {
+            when = timePick->dateTime().toUTC();
+        }
+        // a regional model alone gets a global one under it
+        bool global = false;
+        for (const auto& m : models) {
+            global = global || ComboChartLayer::kmOf(m) >= 20.0;
+        }
+        if (!global) {
+            for (const char * base : {"IFS", "GFS"}) {
+                if (GfsChart::product(chart, base) != nullptr) {
+                    models.push_back(base);
+                    break;
+                }
+            }
+        }
+        const auto * widget = mapView->map();
+        const auto middle = mapView->toLatLon(QPointF{widget->width() / 2.0, widget->height() / 2.0});
+        new GlobeViewer{this, chart, models, when, middle.first, middle.second};
+    });
     buttonTemps.getView()->setToolTip("How warm the week, month or year up to a date has been against the same stretch of every year since 1940 (ERA5), at the place the pointer was last on the map: bars by year, the rank, the warmest and coldest years");
     buttonTemps.connect([this] {
         double lat = 0.0, lon = 0.0;
@@ -258,6 +305,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     rowTop.addWidget(buttonOthers);
     rowTop.addWidget(buttonCompare);
     rowTop.addWidget(buttonArea);
+    rowTop.addWidget(buttonGlobe);
     rowTop.addWidget(buttonTemps);
     rowTop.addWidget(buttonSounding);
     rowTop.addWidget(buttonMembers);

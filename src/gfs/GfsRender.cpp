@@ -700,6 +700,8 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     }
     GfsChart::Probe bareProbe;   // (a bare chart needs the place of its map to cut it out)
     options.probe = probe != nullptr ? probe : (variant.bare ? &bareProbe : nullptr);
+    options.fillOut = variant.fillOut;
+    options.rampOut = variant.rampOut;
     if (variant.bare) {
         options.lines.clear();
         options.places.clear();

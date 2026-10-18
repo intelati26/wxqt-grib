@@ -72,6 +72,15 @@ bool ComboChartLayer::isOn(const string& model) const {
     return false;
 }
 
+double ComboChartLayer::kmOf(const string& model) {
+    for (const auto& e : table()) {
+        if (model == e.id) {
+            return e.km;
+        }
+    }
+    return 0.0;
+}
+
 vector<std::pair<string, double>> ComboChartLayer::modelsWith(const string& param, const QDate& day) {
     vector<std::pair<string, double>> out;
     for (const auto& e : table()) {

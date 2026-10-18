@@ -224,6 +224,8 @@ namespace GfsChart {
         std::string overrideNote;              // "Change since the run 12 h earlier (F)": goes before the title
         Quantity overrideQuantity{Quantity::Other};
         Probe * probe{nullptr};                // when set, filled in by render() for the hover read-out
+        GfsGrid::Grid * fillOut{nullptr};      // when set: render() makes no picture, it hands over the fill's grid (and the scale in rampOut) for something that draws it another way (the globe)
+        Ramp * rampOut{nullptr};
         int width{1100};
         const GfsClimate * climate{nullptr};   // for the anomaly charts
         bool ticks{false};                     // latitude and longitude marks along the frame, numbered

@@ -106,6 +106,7 @@ private:
     Button buttonViews;
     Button buttonCompare;
     Button buttonArea;
+    Button buttonGlobe;
     Button buttonTemps;
     Button buttonSounding;
     Button buttonMembers;
