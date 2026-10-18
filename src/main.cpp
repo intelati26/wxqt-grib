@@ -309,6 +309,27 @@ int main(int argc, char * argv[]) {
                     const double centre = parts.value(9).toDouble();
                     QTimer::singleShot(20000, map, [map, out, projection, centre] { map->exportWorldTo(out, projection == GlobeMapView::Projection::Globe ? GlobeMapView::Projection::EqualEarth : projection, centre, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 3000, qEnvironmentVariableIntValue("WXQT_WORLD_HIGH") > 0); });
                 }
+            } else if (route.startsWith("scalecheck:")) {   // WXQT_OPEN=scalecheck:<chart>:<model,model>:<yyyyMMddHH UTC>:<lat>,<lon>;<lat>,<lon>: each model's fill value at those places (a check of the units and scale factors), then quits
+                const auto parts = route.split(':');
+                auto when = QDateTime::fromString(parts.value(3), "yyyyMMddHH");
+                when.setTimeZone(QTimeZone::utc());
+                std::vector<std::string> models;
+                for (const auto& m : parts.value(2).split(',', Qt::SkipEmptyParts)) {
+                    models.push_back(m.toStdString());
+                }
+                const auto sources = GlobeViewer::loadSources(parts.value(1).toStdString(), models, when);
+                for (const auto& place : parts.value(4).split(';', Qt::SkipEmptyParts)) {
+                    const auto ll = place.split(',');
+                    const double lat = ll.value(0).toDouble(), lon = ll.value(1).toDouble();
+                    for (const auto& s : sources) {
+                        float v = s.grid.sample(lon, lat);
+                        if (std::isnan(v)) {
+                            v = s.grid.sample(lon + 360.0, lat);
+                        }
+                        qWarning("scalecheck %6.2f %7.2f  %-9s %s F%-3d  fill %s  grid %dx%d step %.4f", lat, lon, s.model.c_str(), s.run.c_str(), s.hour, std::isnan(v) ? "--" : QString::number(v, 'f', 2).toUtf8().constData(), s.grid.columns, s.grid.rows, s.grid.step);
+                    }
+                }
+                QTimer::singleShot(100, &a, &QCoreApplication::quit);
             } else if (route.startsWith("globe:")) {   // WXQT_OPEN=globe:<lat>:<lon>:<chart id>:<model,model>:<yyyyMMddHH UTC>: the globe window
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(5), "yyyyMMddHH");

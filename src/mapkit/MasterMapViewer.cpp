@@ -1027,7 +1027,7 @@ void MasterMapViewer::exportWorld() {
             }
         }
         // one pixel for a grid cell along the equator: the width beyond which zooming in shows nothing new
-        nativeWidth = finest < 1e8 ? std::clamp(static_cast<int>(std::lround(360.0 * 111.19 / finest / 500.0)) * 500, 4000, 16000) : 10000;
+        nativeWidth = finest < 1e8 ? std::clamp(static_cast<int>(std::lround(360.0 * 111.32 / finest / 500.0)) * 500, 4000, 16000) : 10000;
         highBox = new QCheckBox{QString{"High resolution: the model data at its own resolution (finest here %1 km), the model chart only, no other layers"}.arg(finest < 1e8 ? QString::number(finest, 'f', 1) : QString{"?"}), &dialog};
         column->addWidget(highBox);
         QObject::connect(highBox, &QCheckBox::toggled, [=] (bool on) {
