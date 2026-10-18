@@ -302,7 +302,13 @@ int main(int argc, char * argv[]) {
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
                 when.setTimeZone(QTimeZone::utc());
                 map->openAt(when, parts.value(2).toDouble(), parts.value(3).toDouble(), parts.value(4).toDouble(), extraLayers(parts.value(5)));
-                map->setGlobe(true);
+                const auto projection = parts.value(6) == "robinson" ? GlobeMapView::Projection::Robinson : parts.value(6) == "equal" ? GlobeMapView::Projection::EqualEarth : parts.value(6) == "mollweide" ? GlobeMapView::Projection::Mollweide : GlobeMapView::Projection::Globe;
+                map->setGlobe(true, projection);
+                if (parts.value(7) == "export") {   // globemap:...:<globe|equal|mollweide>:export:<out.png>:<center lon>: also the whole world as a picture, after a while
+                    const QString out = parts.value(8);
+                    const double centre = parts.value(9).toDouble();
+                    QTimer::singleShot(20000, map, [map, out, projection, centre] { map->exportWorldTo(out, projection == GlobeMapView::Projection::Globe ? GlobeMapView::Projection::EqualEarth : projection, centre, 3000); });
+                }
             } else if (route.startsWith("globe:")) {   // WXQT_OPEN=globe:<lat>:<lon>:<chart id>:<model,model>:<yyyyMMddHH UTC>: the globe window
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(5), "yyyyMMddHH");

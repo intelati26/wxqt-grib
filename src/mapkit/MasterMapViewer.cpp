@@ -204,7 +204,20 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     buttonArea.getView()->setToolTip("Move the map to a named area: a region of the world (the United States and its regions, continents, oceans, the poles) or a square round one of your saved locations");
     buttonArea.connect([this] { chooseArea(); });
     buttonGlobe.getView()->setToolTip("Every layer on a globe seen from space instead of the flat map, with nothing stretched toward the poles: turn it with the mouse, zoom with the wheel; hover and click work as on the map. The button turns it back into the map");
-    buttonGlobe.connect([this] { setGlobe(!globeOn); });
+    buttonGlobe.connect([this] {
+        QMenu menu{this};
+        const auto flat = menu.addAction("Flat map (Mercator)");
+        const auto globe = menu.addAction("Globe");
+        const auto robinson = menu.addAction("Robinson (as the United Nations' world maps)");
+        const auto earth = menu.addAction("Equal Earth (equal area)");
+        const auto moll = menu.addAction("Mollweide (equal area)");
+        const auto * chosen = menu.exec(QCursor::pos());
+        if (chosen == flat) {
+            setGlobe(false);
+        } else if (chosen != nullptr) {
+            setGlobe(true, chosen == globe ? GlobeMapView::Projection::Globe : chosen == robinson ? GlobeMapView::Projection::Robinson : chosen == earth ? GlobeMapView::Projection::EqualEarth : GlobeMapView::Projection::Mollweide);
+        }
+    });
     buttonTemps.getView()->setToolTip("How warm the week, month or year up to a date has been against the same stretch of every year since 1940 (ERA5), at the place the pointer was last on the map: bars by year, the rank, the warmest and coldest years");
     buttonTemps.connect([this] {
         double lat = 0.0, lon = 0.0;
@@ -985,7 +998,138 @@ bool MasterMapViewer::saveModelChart(const QString& path, string& problem) {
     return false;
 }
 
+// the whole world on an equal-area projection as one picture (the layers painted into a skin of the world, then projected), with the header, the legend and the credits
+void MasterMapViewer::exportWorld() {
+    QDialog dialog{this};
+    dialog.setWindowTitle("Export the whole world");
+    auto * column = new QVBoxLayout{&dialog};
+    column->addWidget(new QLabel{"The layers as they are on the map, over the whole world, with nothing stretched toward the poles as on Mercator: Robinson is the compromise the United Nations' world maps use; Equal Earth and Mollweide keep areas true.", &dialog});
+    auto * projectionBox = new QComboBox{&dialog};
+    projectionBox->addItem("Robinson (the United Nations' world maps)", static_cast<int>(GlobeMapView::Projection::Robinson));
+    projectionBox->addItem("Equal Earth (equal area)", static_cast<int>(GlobeMapView::Projection::EqualEarth));
+    projectionBox->addItem("Mollweide (equal area)", static_cast<int>(GlobeMapView::Projection::Mollweide));
+    auto * centerBox = new QComboBox{&dialog};
+    centerBox->addItem("Centered on Greenwich (0)", 0);
+    centerBox->addItem("Centered on the Americas (-100)", -100);
+    centerBox->addItem("Centered on the Pacific (180)", 180);
+    centerBox->addItem("Centered on Asia (90)", 90);
+    auto * widthBox = new QComboBox{&dialog};
+    for (const int w : {2400, 3600, 4800, 6000}) {
+        widthBox->addItem(QString::number(w) + " pixels wide", w);
+    }
+    widthBox->setCurrentIndex(1);
+    column->addWidget(projectionBox);
+    column->addWidget(centerBox);
+    column->addWidget(widthBox);
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    column->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    const auto projection = static_cast<GlobeMapView::Projection>(projectionBox->currentData().toInt());
+    const double centre = centerBox->currentData().toDouble();
+    const int width = widthBox->currentData().toInt();
+    const auto path = QFileDialog::getSaveFileName(this, "Export the whole world", ChartExport::startFolder() + "/" + ChartExport::fileName("world map", "png"), "PNG image (*.png)");
+    if (path.isEmpty()) {
+        return;
+    }
+    exportWorldTo(path, projection, centre, width);
+}
+
+void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centre, int width) {
+    status("drawing the world ...");
+    QCoreApplication::processEvents();
+    const auto skin = makeSkin(-85.0, 85.0, centre - 180.0, centre + 180.0, std::min(6000, static_cast<int>(width * 1.4)));
+    const QImage world = GlobeMapView::projectWorld(skin, projection, centre, width);
+    // the pieces around it, as the flat export has them
+    QStringList names, times, sources;
+    for (const auto& layer : layers) {
+        if (!layer->enabled()) {
+            continue;
+        }
+        names << QString::fromStdString(layer->path()).section('/', -1);
+        if (layer->timeAware() && !layer->timeText().empty()) {
+            times << QString::fromStdString(layer->timeText());
+        }
+        const auto source = QString::fromStdString(layer->source());
+        if (!source.isEmpty() && !sources.contains(source)) {
+            sources << source;
+        }
+    }
+    vector<MapLegendRow> rows;
+    for (const auto& layer : layers) {
+        if (layer->enabled()) {
+            for (auto& row : layer->legend()) {
+                rows.push_back(std::move(row));
+            }
+        }
+    }
+    const double scale = width / 1000.0;
+    const int header = static_cast<int>(66 * scale), footer = static_cast<int>(38 * scale), legendHeight = rows.empty() ? 0 : static_cast<int>(40 * scale);
+    QImage image(width, header + world.height() + legendHeight + footer, QImage::Format_ARGB32);
+    image.fill(QColor{250, 250, 250});
+    {
+        QPainter painter{&image};
+        QFont base{painter.font()};
+        base.setPixelSize(static_cast<int>(13 * scale));
+        QFont bold{base};
+        bold.setBold(true);
+        bold.setPixelSize(static_cast<int>(17 * scale));
+        const int pad = static_cast<int>(8 * scale);
+        painter.setPen(QColor{25, 25, 25});
+        painter.setFont(bold);
+        painter.drawText(QRect{pad, pad / 2, width - 2 * pad, static_cast<int>(24 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, QString{"The world, "} + GlobeMapView::projectionName(projection));
+        painter.setFont(base);
+        painter.setPen(QColor{60, 60, 60});
+        painter.drawText(QRect{pad, static_cast<int>(27 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, names.isEmpty() ? QString{"No layers on"} : "Layers: " + names.join(", "));
+        painter.drawText(QRect{pad, static_cast<int>(45 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, times.isEmpty() ? QString{"Valid now"} : "Valid: " + times.join("   "));
+        painter.drawImage(0, header, world);
+        if (!rows.empty()) {   // the legend, in window units as on the map
+            QImage legend(width, legendHeight, QImage::Format_ARGB32_Premultiplied);
+            legend.fill(QColor{245, 245, 245});
+            {
+                QPainter legendPainter{&legend};
+                legendPainter.setWindow(QRect{-500, -250, 1000, std::max(1, static_cast<int>(std::lround(1000.0 * legendHeight / width)))});
+                MapLegend::draw(legendPainter, rows, 1000.0 / width, -250.0 + 1000.0 * legendHeight / width - 2.0);
+            }
+            painter.drawImage(0, header + world.height(), legend);
+        }
+        const int footTop = header + world.height() + legendHeight;
+        painter.fillRect(QRect{0, footTop, width, footer}, QColor{245, 245, 245});
+        QFont small{base};
+        small.setPixelSize(static_cast<int>(11 * scale));
+        painter.setFont(small);
+        painter.setPen(QColor{100, 100, 100});
+        painter.drawText(QRect{pad, footTop, width - 2 * pad, footer}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap,
+            (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
+    }
+    if (!image.save(path, "PNG")) {
+        QMessageBox::warning(this, "Export the whole world", "The file could not be written: " + path);
+        return;
+    }
+    ChartExport::remember(path);
+    status("Saved " + path.toStdString());
+}
+
 void MasterMapViewer::exportView() {
+    {   // the view as it is, or the whole world on an equal-area projection
+        QMessageBox ask{this};
+        ask.setWindowTitle("Export");
+        ask.setText("Save the view as it is on the screen, or the whole world on a world map projection (Robinson, Equal Earth, Mollweide: nothing stretched toward the poles)?");
+        auto * viewButton = ask.addButton("The view", QMessageBox::AcceptRole);
+        auto * worldButton = ask.addButton("The whole world", QMessageBox::ActionRole);
+        ask.addButton(QMessageBox::Cancel);
+        ask.exec();
+        if (ask.clickedButton() == worldButton) {
+            exportWorld();
+            return;
+        }
+        if (ask.clickedButton() != viewButton) {
+            return;
+        }
+    }
     // A model chart on the map can be saved as the Model Viewer's own picture of it (its title with the model, chart, run and valid times, the legend and the credit), for what is in view
     for (const auto& layer : layers) {
         if (layer->id() != "model/chart" || !layer->enabled()) {
@@ -1296,9 +1440,10 @@ GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, doubl
 }
 
 // the map or the globe
-void MasterMapViewer::setGlobe(bool on) {
+void MasterMapViewer::setGlobe(bool on, GlobeMapView::Projection projection) {
     globeOn = on;
-    buttonGlobe.getView()->setText(on ? "Flat map" : "Globe");
+    buttonGlobe.getView()->setText(on ? QString{"View: "} + GlobeMapView::projectionName(projection) : QString{"View: flat map"});
+    globeView->setProjection(projection);
     mapView->map()->setVisible(!on);
     globeView->setVisible(on);
     if (!on) {

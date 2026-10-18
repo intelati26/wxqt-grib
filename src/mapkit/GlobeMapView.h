@@ -19,6 +19,15 @@
 class GlobeMapView : public QWidget {
 public:
     explicit GlobeMapView(QWidget * parent);
+    // how the world is put on the screen: a globe seen from space, or the world in one piece on an equal-area projection (Equal Earth, Mollweide: an area on the map is the same share of the
+    // Earth's everywhere, nothing is stretched toward the poles as on Mercator)
+    enum class Projection { Globe, Robinson, EqualEarth, Mollweide };   // Robinson: the compromise projection of the United Nations' world maps; Equal Earth and Mollweide keep areas
+    void setProjection(Projection p) { projection = p; zoom = 1.0; panY = 0.0; scheduleSkin(30); update(); }
+    Projection currentProjection() const { return projection; }
+    static const char * projectionName(Projection p);
+    static bool inverse(Projection p, double x, double y, double& lat, double& lon);   // projection units -> degrees (false outside the shape)
+    static bool forward(Projection p, double lat, double lon, double& x, double& y);   // degrees -> projection units (lon relative to the center)
+    static void extent(Projection p, double& halfWidth, double& halfHeight);
 
     struct Skin {
         QImage image;
@@ -28,6 +37,8 @@ public:
         double west{0}, south{0}, east{0}, north{0};
         bool valid() const { return !image.isNull(); }
     };
+    // the world as one picture of `width` pixels in an equal-area projection, from a skin of the whole world centred on `centerLon` (transparent outside the shape)
+    static QImage projectWorld(const Skin& skin, Projection p, double centerLon, int width);
     // the picture of a region (degrees) at a width in pixels, painted by the layers; the legend rows for under the globe
     std::function<Skin(double minLat, double maxLat, double minLon, double maxLon, int width)> makeSkin;
     std::function<MapHit(const Skin&, double lat, double lon)> pick;
@@ -51,7 +62,9 @@ private:
     double radius() const;
     QPointF center() const;
     void makeNow();
-    double lat0{35.0}, lon0{-95.0}, zoom{1.0};
+    void paintFlat(QPainter&);
+    double lat0{35.0}, lon0{-95.0}, zoom{1.0}, panY{0.0};
+    Projection projection{Projection::Globe};
     Skin skin;
     QTimer timer;
     QPointF last;
