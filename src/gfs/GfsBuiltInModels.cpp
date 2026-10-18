@@ -482,6 +482,55 @@ clone_levels = 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 9
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"GFS1-ANL", R"MODEL(
+# The 1 degree GFS analysis of NCEI's archive, 4 March 2004 to 15 May 2020, four a day, with the analysis and its 3 and 6 hour forecasts in each cycle's files. GRIB1 until 7 April 2017 (wgrib
+# inventories, NceiInventory), GRIB2 after. Where the 0.5 degree GFS-ANL has the years (2007 to mid 2014) that one is finer.
+id = GFS1-ANL
+label = NOAA/NCEP GFS analysis (NCEI archive), 1 degree
+group = Archive
+kind = grib
+url = https://www.ncei.noaa.gov/oa/prod-model/global-forecast-system/access/historical/analysis/{year}{month}/{date}/gfsanl_3_{date}_{cycle}00_{hour3}.grb
+index_replaces = .grb2|.grb
+index_suffix = .inv
+cycle_hours = 6
+lag_hours = 6
+probe_hour = 0
+cycles_to_try = 2
+sectors = world
+hours = 0-6/3
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, PRMSL, PWAT, CAPE, CIN, VVEL
+clone_levels = 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"NAM-ANL", R"MODEL(
+# The NAM analysis of the years before the open data bucket (4 March 2004 to April 2020; NCEI's historical folder), 12 km, four cycles a day, each cycle's file for the analysis and its 3 and 6 hour
+# forecasts. GRIB1 files with wgrib inventories (NceiInventory puts them in NOAA's form). The Lambert grid is put on a regular 0.1 degree one.
+id = NAM-ANL
+label = NOAA/NCEP NAM analysis (NCEI archive), 12 km
+group = Archive
+kind = grib
+url = https://www.ncei.noaa.gov/oa/prod-model/north-american-mesoscale-model/access/historical/analysis/{year}{month}/{date}/namanl_218_{date}_{cycle}00_{hour3}.grb
+index_replaces = .grb
+index_suffix = .inv
+cycle_hours = 6
+lag_hours = 6
+probe_hour = 0
+cycles_to_try = 2
+warp = 0.1, -152.0, 12.0, -49.0, 62.0
+sectors = conus
+hours = 0-6/3
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, DPT, PRMSL, PWAT, CAPE, CIN, REFC, HLCY, VVEL, ABSV
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
         {"RAP-ANL", R"MODEL(
 # The hourly analysis of the Rapid Update Cycle (to April 2012) and the Rapid Refresh that followed it, 13 km over North America, from NCEI's model archive (5 January 2005 to 15 May 2020; the
 # open data bucket takes over in 2021). A file of 20 MB for every hour, with its own index. The grid is a Lambert one, put on a regular 0.1 degree one. The only forecast hour is the analysis.

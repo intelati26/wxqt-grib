@@ -114,8 +114,16 @@ public:
     std::string fileUrl(const Run& run, int forecastHour, const std::string& file = "") const { return source.fileUrl(run, forecastHour, file); }
     std::string indexUrl(const Run& run, int forecastHour, const std::string& file = "") const {
         auto url = source.fileUrl(run, forecastHour, file);
-        if (!source.indexReplaces.empty() && url.size() >= source.indexReplaces.size() && url.compare(url.size() - source.indexReplaces.size(), source.indexReplaces.size(), source.indexReplaces) == 0) {
-            url.resize(url.size() - source.indexReplaces.size());
+        // (more than one ending can be given, "|" between: the first the file has is the one taken off)
+        for (size_t from = 0; !source.indexReplaces.empty() && from <= source.indexReplaces.size();) {
+            auto end = source.indexReplaces.find('|', from);
+            end = end == std::string::npos ? source.indexReplaces.size() : end;
+            const auto ending = source.indexReplaces.substr(from, end - from);
+            if (!ending.empty() && url.size() >= ending.size() && url.compare(url.size() - ending.size(), ending.size(), ending) == 0) {
+                url.resize(url.size() - ending.size());
+                break;
+            }
+            from = end + 1;
         }
         return url + source.indexSuffix;
     }

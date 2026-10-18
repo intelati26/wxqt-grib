@@ -97,6 +97,24 @@ namespace {
     }
 }
 
+namespace {
+    // the 1 degree GFS analysis: GRIB1 files until 7 April 2017, GRIB2 after
+    GfsModels::Def gfs1Analysis() {
+        auto def = fromFile("GFS1-ANL");
+        const auto base = def.source;
+        def.source = [base] (const std::string& storm) {
+            auto s = base(storm);
+            const auto first = s.fileUrl;
+            s.fileUrl = [first] (const GfsData::Run& run, int hour, const std::string& file) {
+                auto url = first(run, hour, file);
+                return run.date >= "20170407" ? url + "2" : url;
+            };
+            return s;
+        };
+        return def;
+    }
+}
+
 std::string GfsModels::pickerGroup(const std::string& id) {
     if (const auto * def = find(id); def != nullptr && !def->group.empty()) {
         return def->group;
@@ -145,6 +163,8 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(cfsAnalysis());
         m.push_back(rapAnalysis());
         m.push_back(fromFile("GFS-ANL"));
+        m.push_back(fromFile("NAM-ANL"));
+        m.push_back(gfs1Analysis());
         m.push_back(fromFile("RRFS"));
         m.push_back(fromFile("HRRR"));
         m.push_back(fromFile("HREF"));

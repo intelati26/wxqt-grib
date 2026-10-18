@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsRender.h"
+#include "gfs/NceiInventory.h"
 #include "models/PaletteStore.h"
 #include <stdexcept>
 #include <algorithm>
@@ -58,6 +59,9 @@ namespace {
         config.gdalBin = UtilityGrib::gdalBinDir();
         config.cacheFolder = folder;
         config.bytes = [] (const std::string& url, long long start, long long end) {
+            if (NceiInventory::handles(url)) {   // NCEI's archive: the GRIB1 files' wgrib inventories are put in NOAA's form
+                return NceiInventory::index(url);
+            }
             if (CfsArchiveIndex::handles(url)) {   // NCEI's monthly CFS analyses have no index: one is made from the file and kept
                 return CfsArchiveIndex::index(url);
             }
