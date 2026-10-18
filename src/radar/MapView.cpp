@@ -8,6 +8,7 @@
 #include <cmath>
 #include <numbers>
 #include <QMouseEvent>
+#include <QResizeEvent>
 #include <QWheelEvent>
 #include "radar/Projection.h"
 #include "settings/Location.h"
@@ -46,7 +47,12 @@ MapView::Coefficients MapView::coefficients() const {
 MapView::Transform MapView::transform() const {
     const auto k = coefficients();
     const auto& state = widget->mapState;
-    return {k.ax, k.bx, k.ay, k.by, state.zoom, state.xPos, state.yPos};
+    return {k.ax, k.bx + k.ax * 360.0 * worldCopy, k.ay, k.by, state.zoom, state.xPos, state.yPos};
+}
+
+double MapView::worldWidthUnits() const {
+    const auto k = coefficients();
+    return std::abs(k.ax * 360.0) * widget->mapState.zoom;
 }
 
 QPointF MapView::toUnits(double lat, double lon) const {
@@ -60,6 +66,15 @@ QPointF MapView::toPixels(double lat, double lon) const {
 }
 
 std::pair<double, double> MapView::toLatLon(const QPointF& pixels) const {
+    auto [lat, lon] = toLatLonRaw(pixels);
+    lon = std::fmod(lon + 180.0, 360.0);
+    if (lon < 0.0) {
+        lon += 360.0;
+    }
+    return {lat, lon - 180.0};
+}
+
+std::pair<double, double> MapView::toLatLonRaw(const QPointF& pixels) const {
     const auto t = transform();
     const double u = pixels.x() * 1000.0 / std::max(1, widget->width()) - 500.0;
     const double v = pixels.y() * 1000.0 / std::max(1, widget->width()) - 250.0;
@@ -90,6 +105,21 @@ void MapView::showRegion(double minLat, double maxLat, double minLon, double max
     state.yPos = (-250.0 + unitsTall / 2.0) - (k.ay * centerMerc + k.by) * state.zoom;
     widget->mapTextObject.add();
     widget->update();
+    regionMinLat = minLat;
+    regionMaxLat = maxLat;
+    regionMinLon = minLon;
+    regionMaxLon = maxLon;
+    keepRegion = true;
+}
+
+void MapView::useLayoutSpace() {
+    layoutSized = true;
+    widget->setMinimumSize(300, 200);
+    widget->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    widget->mapState.rectangular = true;
+    widget->mapState.originalWidth = std::max(1, widget->width());
+    widget->mapState.originalHeight = std::max(1, widget->height());
 }
 
 void MapView::fitRectangle(int availableWidth, int availableHeight) {
@@ -115,6 +145,7 @@ void MapView::fit(int availableWidth, int availableHeight) {
 }
 
 void MapView::zoomBy(double factor) {
+    keepRegion = false;
     auto& state = widget->mapState;
     if (factor < 1.0 && state.zoom <= 0.02) {
         return;
@@ -135,6 +166,7 @@ void MapView::zoomBy(double factor) {
 }
 
 void MapView::panBy(double dx, double dy) {
+    keepRegion = false;
     auto& state = widget->mapState;
     const double perPixel = unitsPerPixel();
     state.xPos += dx * perPixel;
@@ -158,6 +190,20 @@ bool MapView::eventFilter(QObject * object, QEvent * event) {
         case QEvent::Wheel:
             pointer = static_cast<QWheelEvent *>(event)->position();
             pointerInside = true;
+            break;
+        case QEvent::Resize:
+            if (layoutSized) {   // the layout gave the map a new size: the map's own numbers follow, and the region it was set to show stays in view
+                const auto size = static_cast<QResizeEvent *>(event)->size();
+                widget->mapState.originalWidth = std::max(1, size.width());
+                widget->mapState.originalHeight = std::max(1, size.height());
+                widget->mapState.rectangular = true;
+                if (keepRegion) {
+                    const bool keep = keepRegion;
+                    showRegion(regionMinLat, regionMaxLat, regionMinLon, regionMaxLon);
+                    keepRegion = keep;
+                }
+                widget->mapTextObject.add();
+            }
             break;
         case QEvent::Leave:
             pointerInside = false;

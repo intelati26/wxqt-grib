@@ -63,6 +63,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     const auto dimens = UtilityUI::getScreenBounds();
     const int side = std::max(320, std::min(dimens[0] - panelWidth - 40, dimens[1] - 190));
     mapView = std::make_unique<MapView>(this, side);
+    mapView->useLayoutSpace();   // (the layout gives the map its size, after the controls)
     auto * map = mapView->map();
     map->dataLayer = [] (QPainter& painter) { painter.fillRect(QRectF{-1.0e6, -1.0e6, 2.0e6, 2.0e6}, QColor{16, 26, 42}); };
     map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintLegend(painter); };
@@ -220,14 +221,13 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     });
     playTimer.setInterval(speedCombo->currentIndex() == 0 ? 1200 : speedCombo->currentIndex() == 1 ? 650 : 280);
     QObject::connect(&playTimer, &QTimer::timeout, [this] { advance(); });
-    rowMain.addWidgetReal(map, 0, Qt::AlignTop | Qt::AlignLeft);
-    rowMain.addWidgetReal(sidePanel, 1, Qt::AlignTop | Qt::AlignLeft);
+    rowMain.addWidgetReal(map, 1, Qt::Alignment{});   // the controls above are laid out first and the map takes what is left
+    rowMain.addWidgetReal(sidePanel, 0, Qt::AlignTop | Qt::AlignLeft);
     ElidedText::install(sidePanel);
     box.addLayout(rowTop);
     box.addWidget(textStatus);
     box.addWidgetReal(timeRow, 0, Qt::Alignment{});
-    box.addLayout(rowMain);
-    box.addStretch();
+    box.addLayout(rowMain, 1);
     box.getAndShow(this);
     resize(1240, 880);
     buildTree();
@@ -649,6 +649,7 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
     painter.drawText(QRect{pad, static_cast<int>(45 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft,
         (times.isEmpty() ? QString{"Valid now"} : "Valid: " + times.join("   ")));
     // the map, with its legend, as drawn on the screen
+    mapView->useLayoutSpace();   // (the layout gives the map its size, after the controls)
     auto * map = mapView->map();
     const double factor = static_cast<double>(width) / std::max(1, map->width());
     painter.save();
@@ -727,6 +728,7 @@ void MasterMapViewer::exportView() {
 }
 
 void MasterMapViewer::exportTo(const QString& path) {
+    mapView->useLayoutSpace();   // (the layout gives the map its size, after the controls)
     auto * map = mapView->map();
     const double ratio = static_cast<double>(map->height()) / std::max(1, map->width());
     if (path.endsWith(".pdf", Qt::CaseInsensitive)) {
@@ -907,11 +909,24 @@ void MasterMapViewer::background(std::function<void()> work, std::function<void(
     }};
 }
 
+// The world repeats east and west, as a web map's does: the layers and the coastlines are drawn once for each copy of the world that shows
 void MasterMapViewer::paintMap(QPainter& painter) {
+    cells.clear();
+    const auto middle = mapView->transform();
+    const double a = middle(0.0, -180.0).x(), b = middle(0.0, 180.0).x();
+    const double low = std::min(a, b), width = std::max(1.0, std::abs(b - a));
+    const int first = std::clamp(static_cast<int>(std::ceil((-540.0 - (low + width)) / width)), -8, 8), last = std::clamp(static_cast<int>(std::floor((540.0 - low) / width)), -8, 8);
+    for (int copy = first; copy <= last; copy++) {
+        mapView->setWorldCopy(copy);
+        paintMapCopy(painter);
+    }
+    mapView->setWorldCopy(0);
+}
+
+void MasterMapViewer::paintMapCopy(QPainter& painter) {
     const auto t = mapView->transform();
     const double px = mapView->unitsPerPixel();
     painter.setRenderHint(QPainter::Antialiasing, true);
-    cells.clear();
     // the base layers first (a satellite picture), then the coastlines and borders over them
     for (auto& layer : layers) {
         if (layer->enabled() && layer->underCoast()) {
@@ -962,7 +977,18 @@ void MasterMapViewer::paintLegend(QPainter& painter) {
     MapLegend::draw(painter, rows, mapView->unitsPerPixel(), -250.0 + 1000.0 * map->height() / std::max(1, map->width()) - 2.0);
 }
 
-MapHit MasterMapViewer::bestHit(const QPointF& pixels) const {
+MapHit MasterMapViewer::bestHit(const QPointF& at) const {
+    // the pointer may be over any copy of the world: the layers are asked about the same place in the middle one
+    QPointF pixels = at;
+    {
+        const double lonRaw = mapView->toLatLonRaw(at).second;
+        const int copy = static_cast<int>(std::floor((lonRaw + 180.0) / 360.0));
+        if (copy != 0) {
+            const auto middle = mapView->transform();
+            const double signedWorld = middle(0.0, 360.0).x() - middle(0.0, 0.0).x();   // units, east to the right or not as the projection has it
+            pixels.setX(at.x() - copy * signedWorld / 1000.0 * std::max(1, mapView->map()->width()));
+        }
+    }
     MapHit best;
     for (const auto& layer : layers) {
         if (!layer->enabled()) {
@@ -995,16 +1021,11 @@ void MasterMapViewer::showHover(const QPointF& pixels) {
 }
 
 void MasterMapViewer::resizeEventCustom() {
-    if (mapView == nullptr) {
-        return;
-    }
-    // The time bar is one row: when the window is narrow the calendar and Go (the rarely used) give way first, and the time label may be cut instead of widening the window
+    // (nothing to compute: the map takes the room the layout leaves it; the time bar gives up its calendar when the window is narrow)
     if (timePick != nullptr) {
         const bool room = width() >= 1000;
         timePick->setVisible(room);
         timeGo->setVisible(room);
         timeLabel->setMinimumWidth(room ? 180 : 40);
     }
-    const int above = ControlRow::heightIn(rowTop.getView(), width()) + textStatus.getView()->sizeHint().height();
-    mapView->fitRectangle(width() - panelWidth - 30, height() - above - 40);
 }

@@ -31,14 +31,22 @@ public:
         }
     };
     Transform transform() const;
+    // The world repeats east and west, as a web map's does: a screen that draws the same world more than once sets the copy it is drawing (0 is the middle one, 1 the next east): transform() and
+    // toPixels() then put everything in that copy. Set back to 0 after.
+    void setWorldCopy(int copy) { worldCopy = copy; }
+    double worldWidthUnits() const;                                   // the width of the world (360 degrees) in window units at this zoom
+    std::pair<double, double> toLatLonRaw(const QPointF& pixels) const;   // the longitude as it falls, beyond -180 .. 180 when the map is scrolled round the world
     QPointF toUnits(double lat, double lon) const;
     QPointF toPixels(double lat, double lon) const;    // widget pixels (what a click or the pointer gives)
-    std::pair<double, double> toLatLon(const QPointF& pixels) const;   // the other way: (latitude, longitude east positive) under a widget pixel
+    std::pair<double, double> toLatLon(const QPointF& pixels) const;   // the other way: (latitude, longitude east positive, within -180 .. 180) under a widget pixel
     double unitsPerPixel() const;
     bool inView(const QPointF& units, double margin = 20.0) const;
     void showRegion(double minLat, double maxLat, double minLon, double maxLon);   // the box fills the square, centred
     void fit(int availableWidth, int availableHeight);                              // a square no larger than the space
     void fitRectangle(int availableWidth, int availableHeight);                     // the whole space, the same scale both ways
+    // The map takes whatever room its layout gives it (the controls are laid out first, the map gets what is left, whatever shape that is): no size is computed by hand. The region last shown
+    // (showRegion) is kept in view as the map is resized, until the person pans or zooms.
+    void useLayoutSpace();
     void zoomBy(double factor);
     void panBy(double dxPixels, double dyPixels);
 
@@ -60,6 +68,10 @@ private:
     bool eventFilter(QObject *, QEvent *) override;
 
     MapWidget * widget{};
+    bool layoutSized{false};
+    int worldCopy{0};
+    bool keepRegion{false};
+    double regionMinLat{0}, regionMaxLat{0}, regionMinLon{0}, regionMaxLon{0};
 };
 
 #endif  // MAPVIEW_H

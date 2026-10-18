@@ -64,6 +64,7 @@ private:
     void saveState();
     void updateStatus();
     void paintMap(QPainter&);
+    void paintMapCopy(QPainter&);
     void paintLegend(QPainter&);
     void showHover(const QPointF& pixels);
     MapHit bestHit(const QPointF& pixels) const;

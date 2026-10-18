@@ -194,13 +194,26 @@ bool ModelChartLayer::visibleBox(MapHost& host, double& west, double& south, dou
     if (widget == nullptr || widget->width() < 50) {
         return false;
     }
-    const auto [latTop, lonLeft] = view.toLatLon(QPointF{0.0, 0.0});
-    const auto [latBottom, lonRight] = view.toLatLon(QPointF{static_cast<double>(widget->width()), static_cast<double>(widget->height())});
+    const auto [latTop, lonLeft] = view.toLatLonRaw(QPointF{0.0, 0.0});
+    const auto [latBottom, lonRight] = view.toLatLonRaw(QPointF{static_cast<double>(widget->width()), static_cast<double>(widget->height())});
     west = lonLeft;
     east = lonRight;
     north = latTop;
     south = latBottom;
-    return east > west && north > south;
+    if (!(east > west && north > south)) {
+        return false;
+    }
+    // The map may be scrolled round the world: the chart is drawn for the copy of the world the middle of the view is in, and when the view reaches over the edge of that copy (180 degrees) the box
+    // is the whole world, which every copy then repeats
+    const double middle = (west + east) / 2.0;
+    const double shift = 360.0 * std::floor((middle + 180.0) / 360.0);
+    west -= shift;
+    east -= shift;
+    if (west < -180.0 || east > 180.0) {
+        west = -180.0;
+        east = 180.0;
+    }
+    return true;
 }
 
 void ModelChartLayer::render(MapHost& host) {
