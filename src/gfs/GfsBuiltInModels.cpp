@@ -458,6 +458,30 @@ clone_skip = anom
 clone_pieces = false
 clone_rename = PRMSL:MSLMA
 )MODEL"},
+        {"GFS-ANL", R"MODEL(
+# The GFS analysis of the years before the open data bucket (2007 to mid 2014 with an index file; NCEI's historical folder), 0.5 degree, four a day: the analysis is the only hour. The 1 degree
+# GRIB1 files of 2004-2007 are not read here. A 00Z analysis is missing on some days (27 April 2011, say): that run shows an error.
+id = GFS-ANL
+label = NOAA/NCEP GFS analysis (NCEI archive), 0.5 degree
+group = Archive
+kind = grib
+url = https://www.ncei.noaa.gov/oa/prod-model/global-forecast-system/access/historical/analysis/{year}{month}/{date}/gfsanl_4_{date}_{cycle}00_000.grb2
+index_replaces = .grb2
+index_suffix = .inv
+cycle_hours = 6
+lag_hours = 6
+probe_hour = 0
+cycles_to_try = 2
+sectors = world
+hours = 0-0/1
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, PRMSL, PWAT, CAPE, CIN, VVEL
+clone_levels = 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
         {"RAP-ANL", R"MODEL(
 # The hourly analysis of the Rapid Update Cycle (to April 2012) and the Rapid Refresh that followed it, 13 km over North America, from NCEI's model archive (5 January 2005 to 15 May 2020; the
 # open data bucket takes over in 2021). A file of 20 MB for every hour, with its own index. The grid is a Lambert one, put on a regular 0.1 degree one. The only forecast hour is the analysis.
