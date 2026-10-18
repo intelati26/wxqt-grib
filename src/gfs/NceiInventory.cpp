@@ -67,7 +67,11 @@ std::string NceiInventory::convert(const std::string& text) {
             out << line << "\n";
             continue;
         }
-        out << parts[0] << ":" << parts[1] << ":d=" << parts[2].substr(2) << ":" << parts[3] << ":" << level(parts[4]) << ":" << forecast(parts[6]) << ":\n";
+        auto where = level(parts[4]);
+        if (where == "entire atmosphere" && parts[3] == "PWAT") {   // (NOAA's own words for the precipitable water)
+            where = "entire atmosphere (considered as a single layer)";
+        }
+        out << parts[0] << ":" << parts[1] << ":d=" << parts[2].substr(2) << ":" << parts[3] << ":" << where << ":" << forecast(parts[6]) << ":\n";
     }
     return out.str();
 }

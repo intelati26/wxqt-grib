@@ -506,6 +506,32 @@ clone_levels = 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 9
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"NARR", R"MODEL(
+# The North American Regional Reanalysis, 32 km, every 3 hours from January 1979 to September 2014 (NCEI's archive; GRIB1 with wgrib inventories). A file of 55 MB for each analysis. The Lambert grid is
+# put on a regular 0.25 degree one. The pressure levels are every 25 mb; the fields the charts need at them are height, temperature, wind and humidity (no relative humidity or vorticity).
+id = NARR
+label = NOAA/NCEP North American Regional Reanalysis (NCEI archive), 32 km
+group = Archive
+kind = grib
+url = https://www.ncei.noaa.gov/oa/prod-model/north-american-regional-reanalysis/access/3-hourly/{year}{month}/{date}/narr-a_221_{date}_{cycle}00_000.grb
+index_replaces = .grb
+index_suffix = .inv
+cycle_hours = 3
+run_every = 3
+lag_hours = 3
+probe_hour = 0
+cycles_to_try = 2
+warp = 0.25, -175.0, 5.0, -45.0, 80.0
+sectors = conus
+hours = 0-0/1
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, UGRD, VGRD, SPFH, DPT, PRMSL, PWAT, CAPE, CIN, HLCY
+clone_fields = HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|300 mb, HGT|250 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|300 mb, TMP|250 mb, TMP|200 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|300 mb, UGRD|250 mb, UGRD|200 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|300 mb, VGRD|250 mb, VGRD|200 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb, TMP|2 m above ground, DPT|2 m above ground, UGRD|10 m above ground, VGRD|10 m above ground, PRMSL|mean sea level, CAPE|surface, CIN|surface, PWAT|entire atmosphere (considered as a single layer), HLCY|3000-0 m above ground
+clone_skip = anom, precip, thick, 850_vort_ht, 500_vort_ht
+clone_pieces = false
+)MODEL"},
         {"NAM-ANL", R"MODEL(
 # The NAM analysis of the years before the open data bucket (4 March 2004 to April 2020; NCEI's historical folder), 12 km, four cycles a day, each cycle's file for the analysis and its 3 and 6 hour
 # forecasts. GRIB1 files with wgrib inventories (NceiInventory puts them in NOAA's form). The Lambert grid is put on a regular 0.1 degree one.

@@ -165,6 +165,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GFS-ANL"));
         m.push_back(fromFile("NAM-ANL"));
         m.push_back(gfs1Analysis());
+        m.push_back(fromFile("NARR"));
         m.push_back(fromFile("RRFS"));
         m.push_back(fromFile("HRRR"));
         m.push_back(fromFile("HREF"));
