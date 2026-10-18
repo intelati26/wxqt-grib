@@ -138,6 +138,7 @@ private:
     QDialog * addDialog{};
     QWidget * optionsBox{};
     QCheckBox * legendCheck{};
+    QLabel * noticeLabel{};
     QWidget * timeRow{};
     QSlider * timeSlider{};
     QPushButton * playButton{};

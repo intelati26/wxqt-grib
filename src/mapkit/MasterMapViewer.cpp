@@ -81,6 +81,8 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Master map - everything drawn on a map");
     textStatus.setWordWrap(false);
+    textStatus.getView()->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);   // (a long line is cut at the window's edge, not made the window wider; its tooltip has it whole)
+    textStatus.getView()->setMinimumWidth(1);
     layers = MapCatalog::makeLayers();
     std::stable_sort(layers.begin(), layers.end(), [] (const auto& a, const auto& b) { return a->order() < b->order(); });
 
@@ -141,6 +143,11 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     legendCheck->setChecked(Utility::readPref("MASTERMAP_LEGEND", "true") == "true");
     QObject::connect(legendCheck, &QCheckBox::toggled, [this] (bool on) { Utility::writePref("MASTERMAP_LEGEND", on ? "true" : "false"); redraw(); });
     column->addWidget(legendCheck);
+    noticeLabel = new QLabel{sidePanel};
+    noticeLabel->setWordWrap(true);
+    noticeLabel->setStyleSheet("background: #fff1c2; color: #3a2e00; padding: 4px; border: 1px solid #d9b84a;");
+    noticeLabel->hide();
+    column->addWidget(noticeLabel);
     optionsTitle = new QLabel{sidePanel};
     optionsTitle->setStyleSheet("font-weight: bold;");
     optionsTitle->hide();
@@ -1420,6 +1427,18 @@ void MasterMapViewer::updateStatus() {
         text += (text.empty() ? "" : "   -   ") + extra;
     }
     textStatus.setText(text.empty() ? string{"Switch layers on in the tree"} : text);
+    textStatus.getView()->setToolTip(QString::fromStdString(text));
+    // what layers did to the choices made (amber, in the side panel)
+    string notices;
+    for (const auto& layer : layers) {
+        if (layer->enabled() && !layer->notice().empty()) {
+            notices += (notices.empty() ? "" : "\n") + layer->notice();
+        }
+    }
+    if (noticeLabel != nullptr) {
+        noticeLabel->setText(QString::fromStdString(notices));
+        noticeLabel->setVisible(!notices.empty());
+    }
 }
 
 void MasterMapViewer::tick() {

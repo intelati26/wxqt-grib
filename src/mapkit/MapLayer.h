@@ -73,6 +73,7 @@ public:
     // its own choices (colour by, filters), shown under the tree when selected; `changed` is called when one of them changes
     virtual QWidget * options(QWidget * /*parent*/, const std::function<void()>& /*changed*/) { return nullptr; }
     virtual string summary() const { return {}; }
+    virtual string notice() const { return {}; }                 // what the layer did to the choice made (a chart that moved the run), in a sentence or two: shown in the side panel
     virtual string source() const { return {}; }                 // who made the data, for the line under an exported picture
     // time: a layer with frames in time (radar scans, a forecast's hours) lists them, and shows the one the time bar asks for
     virtual bool timeAware() const { return false; }

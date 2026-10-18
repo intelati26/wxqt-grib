@@ -252,7 +252,7 @@ string ModelChartLayer::summary() const {
         for (const int h : hours) {
             have += frames.count(keyFor(h)) > 0 ? 1 : 0;
         }
-        ready = "  (" + std::to_string(have) + " of " + std::to_string(hours.size()) + " hours ready)";
+        ready += "  (" + std::to_string(have) + " of " + std::to_string(hours.size()) + " hours ready)";
     }
     return model + " " + run + (busy ? "  (drawing the chart for this view...)" : "") + ready;
 }
@@ -271,7 +271,8 @@ void ModelChartLayer::setAsOf(const QDateTime& utc, MapHost& host) {
     if (!pinnedRun.empty()) {
         run = pinnedRun;
     }
-    hours = hoursOf(model, run);
+    runChosen = run;
+    settle();
     shown = static_cast<long>(asOf.toSecsSinceEpoch());
     forget();
     error.clear();
@@ -315,11 +316,11 @@ void ModelChartLayer::refresh(MapHost& host) {
                     optionsRefresh();
                 }
                 if (!pinnedRun.empty()) {
-                    run = pinnedRun;
-                    hours = hoursOf(model, run);
-                } else if (newest != run) {
-                    run = newest;
-                    hours = hoursOf(model, run);
+                    runChosen = pinnedRun;
+                    settle();
+                } else if (newest != runChosen) {
+                    runChosen = newest;
+                    settle();
                     forget();
                 }
             }
@@ -331,6 +332,8 @@ void ModelChartLayer::refresh(MapHost& host) {
 void ModelChartLayer::optionChanged(MapHost& host) {
     forget();
     run.clear();
+    runChosen.clear();
+    note.clear();
     hours.clear();
     error.clear();
     if (asOf.isValid()) {
@@ -341,12 +344,58 @@ void ModelChartLayer::optionChanged(MapHost& host) {
     host.timesChanged();
 }
 
+// The chart's rules for the run and the hours. Some charts exist only in the main runs (the blend's hourly runs make the 1 hour fields only: the 12 hour extremes and the 6 hour chances are in the
+// 00, 06, 12 and 18Z runs): the run moves to the newest main run at or before the one chosen. A chart of a period that ends at the hour (6 or 12 hours) has only the hours that are multiples of
+// the period (and, for a day's maximum or a night's minimum, that end at a fixed hour of the day): the time bar lists just those. The line above the map says what was done.
+void ModelChartLayer::settle() {
+    run = runChosen;
+    note.clear();
+    const auto * product = GfsChart::product(param, model);
+    if (product != nullptr && product->mainCycleStep > 0 && run.size() >= 10 && std::stoi(run.substr(8, 2)) % product->mainCycleStep != 0) {
+        const int step = product->mainCycleStep;
+        auto t = runTimeOf(run);
+        while (t.time().hour() % step != 0) {
+            t = t.addSecs(-3600);
+        }
+        const string moved = t.toString("yyyyMMddHH").toStdString();
+        note = "This chart is drawn from the " + moved + " run, not the " + runChosen + " one: " + product->label + " exists only in the " + (step == 12 ? "00 and 12Z" : "00, 06, 12 and 18Z") + " runs (the others carry 1 hour fields only).";
+        run = moved;
+    }
+    hours = hoursOf(model, run);
+    if (product != nullptr && product->periodHours > 0 && run.size() >= 10) {
+        const int cycle = std::stoi(run.substr(8, 2)), period = product->periodHours, endHour = product->periodEndHourUtc;
+        std::vector<int> kept;
+        for (const int h : hours) {
+            if (h >= period && h % period == 0 && (endHour < 0 || (cycle + h) % 24 == endHour)) {
+                kept.push_back(h);
+            }
+        }
+        if (!kept.empty() && kept.size() < hours.size()) {
+            hours = kept;
+            note += string{note.empty() ? "" : "  "} + "This chart is of the " + std::to_string(period) + " hours that end at the forecast hour: the time bar lists only the hours the " + run.substr(8, 2) + "Z run has it at" +
+                    (endHour >= 0 ? " (those that end at " + std::to_string(endHour) + "Z)." : ".");
+        }
+    }
+}
+
 void ModelChartLayer::forget() {
     current.reset();
     previous.reset();
     frames.clear();
     ahead.clear();
     aheadTotal = 0;
+}
+
+int ModelChartLayer::aheadCount() const {
+    const auto mode = Utility::readPref("MM_MODELCHART_PRELOAD", "auto");
+    if (mode == "all") {
+        return 100000;
+    }
+    if (mode == "12" || mode == "24") {
+        return std::atoi(mode.c_str());
+    }
+    const auto * def = GfsModels::find(model);
+    return def == nullptr ? 24 : std::max(1, def->preloadHours);
 }
 
 void ModelChartLayer::fillAhead(int count) {
@@ -510,7 +559,7 @@ void ModelChartLayer::render(MapHost& host) {
         if (ready != frames.end() && current && current->key != key && fits(*ready->second)) {
             previous = current;
             current = ready->second;
-            fillAhead(24);
+            fillAhead(aheadCount());
             prefetch(host);
             return;
         }
@@ -575,7 +624,7 @@ void ModelChartLayer::render(MapHost& host) {
                 current = *result;
                 frames[current->key] = current;
                 error.clear();
-                fillAhead(24);
+                fillAhead(aheadCount());
                 prefetch(host);
             } else {
                 error = *problem;
@@ -706,6 +755,18 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     auto * overlayButton = new QPushButton{widget};
     overlayButton->setToolTip("Lines (heights, pressure) of other models drawn over this chart, for the same valid time, each in its own color (at most four); the fill is left out so the lines can be read");
     layout->addWidget(overlayButton);
+    auto * aheadBox = new QComboBox{widget};
+    aheadBox->addItem("Draw ahead: automatic", "auto");
+    aheadBox->addItem("Draw ahead: 12 hours", "12");
+    aheadBox->addItem("Draw ahead: 24 hours", "24");
+    aheadBox->addItem("Draw ahead: the whole run", "all");
+    aheadBox->setCurrentIndex(std::max(0, aheadBox->findData(QString::fromStdString(Utility::readPref("MM_MODELCHART_PRELOAD", "auto")))));
+    aheadBox->setToolTip("The hours after the one shown are drawn in the background so that stepping and loops find them ready. Automatic: the model's own number (24 hours for most; the whole run when it is under a day). Every hour is a download: the whole run is a lot for the long models");
+    layout->addWidget(aheadBox);
+    QObject::connect(aheadBox, &QComboBox::currentIndexChanged, [this, aheadBox] (int) {
+        Utility::writePref("MM_MODELCHART_PRELOAD", aheadBox->currentData().toString().toStdString());
+        fillAhead(aheadCount());
+    });
     auto * runBox = new QComboBox{widget};
     runBox->setToolTip("The run of the chart: the newest (or the one of the time bar's time), or one of the earlier runs of the model. The time bar then steps through that run's hours");
     layout->addWidget(runBox);

@@ -36,6 +36,7 @@ public:
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     void optionChanged(MapHost& host) override;
     string summary() const override;
+    string notice() const override { return note; }
     bool timeAware() const override { return true; }
     vector<long> times() const override;
     void showTime(long seconds, MapHost&) override;
@@ -77,7 +78,9 @@ private:
     bool visibleBox(MapHost&, double& west, double& south, double& east, double& north) const;
     void render(MapHost&);
     string keyFor(int hour) const;
+    void settle();                             // run and hours from the run chosen and the chart's rules (main runs only, hours it has)
     void forget();                             // every picture drawn so far is of another chart, run or variant
+    int aheadCount() const;                    // how many hours after the one shown are drawn in the background (the setting; automatic: the model's own number)
     void fillAhead(int count);                 // the hours after the one shown, to be drawn in the background for stepping and loops
     void prefetch(MapHost&);                   // draws the next of them (one at a time, behind the one on view)
     string variantKey() const;
@@ -93,6 +96,8 @@ private:
     std::function<void()> optionsRefresh;      // redraws the option panel's boxes (while it is open)
     string newestRun;                          // the newest run found
     int changeBack{0};                         // hours: the change since the run that much older (0: the plain chart)
+    string runChosen;                          // the run asked for (the newest, the time bar's, the one picked); `run` is the one the chart is drawn from (a chart that needs a main run moves it)
+    string note;                               // what the chart did with the choice, for the line above the map
     string run;                                // the run found, "yyyyMMddHH"
     QDateTime asOf;
     std::vector<int> hours;                    // the forecast hours the run has
