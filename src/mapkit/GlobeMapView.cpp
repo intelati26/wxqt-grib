@@ -24,7 +24,7 @@ namespace {
 }
 
 const char * GlobeMapView::projectionName(Projection p) {
-    return p == Projection::Globe ? "Globe" : p == Projection::Robinson ? "Robinson (as the United Nations' world maps)" : p == Projection::EqualEarth ? "Equal Earth (equal area)" : "Mollweide (equal area)";
+    return p == Projection::Globe ? "Globe" : p == Projection::Robinson ? "Robinson" : p == Projection::EqualEarth ? "Equal Earth (equal area)" : "Mollweide (equal area)";
 }
 
 namespace {

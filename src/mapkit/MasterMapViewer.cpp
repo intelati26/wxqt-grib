@@ -1172,7 +1172,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
     const double scale = width / 1000.0;
     const int header = static_cast<int>(66 * scale), footer = static_cast<int>(38 * scale), legendHeight = rows.empty() ? 0 : static_cast<int>(40 * scale);
     QImage image(width, header + world.height() + legendHeight + footer, QImage::Format_ARGB32);
-    image.fill(QColor{250, 250, 250});
+    image.fill(QColor{255, 255, 255});
     {
         QPainter painter{&image};
         QFont base{painter.font()};
@@ -1183,7 +1183,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         const int pad = static_cast<int>(8 * scale);
         painter.setPen(QColor{25, 25, 25});
         painter.setFont(bold);
-        painter.drawText(QRect{pad, pad / 2, width - 2 * pad, static_cast<int>(24 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, QString{"The world, "} + GlobeMapView::projectionName(projection));
+        painter.drawText(QRect{pad, pad / 2, width - 2 * pad, static_cast<int>(24 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, QString{"World, "} + GlobeMapView::projectionName(projection));
         painter.setFont(base);
         painter.setPen(QColor{60, 60, 60});
         painter.drawText(QRect{pad, static_cast<int>(27 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, names.isEmpty() ? QString{"No layers on"} : (highNote.empty() ? "Layers: " + names.join(", ") : QString{"The model data at its own resolution, the finest model on top (the runs are in the line below)"}));
@@ -1191,7 +1191,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         painter.drawImage(0, header, world);
         if (!rows.empty()) {   // the legend, in window units as on the map
             QImage legend(width, legendHeight, QImage::Format_ARGB32_Premultiplied);
-            legend.fill(QColor{245, 245, 245});
+            legend.fill(QColor{255, 255, 255});
             {
                 QPainter legendPainter{&legend};
                 legendPainter.setWindow(QRect{-500, -250, 1000, std::max(1, static_cast<int>(std::lround(1000.0 * legendHeight / width)))});
@@ -1200,7 +1200,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
             painter.drawImage(0, header + world.height(), legend);
         }
         const int footTop = header + world.height() + legendHeight;
-        painter.fillRect(QRect{0, footTop, width, footer}, QColor{245, 245, 245});
+        painter.fillRect(QRect{0, footTop, width, footer}, QColor{255, 255, 255});
         QFont small{base};
         small.setPixelSize(static_cast<int>(11 * scale));
         painter.setFont(small);
