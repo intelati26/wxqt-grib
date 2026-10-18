@@ -178,7 +178,7 @@ bool ModelChartLayer::openSounding(Window * parent, double lat, double lon, stri
         why = "no run is on the map yet";
         return false;
     }
-    if (!GfsRender::drawsModel(model) || model == "CFS" || model == "CFS-ANL") {
+    if (!GfsRender::drawsModel(model) || model == "CFS" || model == "CFS-ANL" || model == "ERA5") {   // (ERA5's files are read a field at a time, 6 s each: a column of 100 fields is minutes)
         why = model + " has no pressure level columns to make a sounding from";
         return false;
     }
