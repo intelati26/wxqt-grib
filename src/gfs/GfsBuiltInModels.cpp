@@ -618,6 +618,79 @@ on_missing = previous_run
 clone_skip = precip, thick, 850_vort_ht, 500_vort_ht
 clone_pieces = false
 )MODEL"},
+        {"HRRR-AK", R"MODEL(
+# The 3 km High-Resolution Rapid Refresh for Alaska (the HRRR bucket's alaska folder): a run every 3 hours to 48 hours, the 2D fields (sfc) and the pressure levels (prs) in files of their own. The
+# polar stereographic grid is put on a regular 0.04 degree one east of the date line (the western Aleutians are cut).
+id = HRRR-AK
+label = NOAA/NCEP HRRR Alaska 3 km
+kind = grib
+url = https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.{date}/alaska/hrrr.t{cycle}z.wrf{file}f{hour2}.ak.grib2
+file_default = sfc
+file = when level~"^[0-9]+ mb$" => prs
+file = sfc
+probe_file = sfc
+cycle_hours = 3
+lag_hours = 3
+probe_hour = 0
+cycles_to_try = 6
+warp = 0.04, -180.0, 40.0, -90.0, 75.0
+sectors = world
+hours = 0-48/1
+run_every = 3
+on_missing = previous_run
+preload_hours = 12
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, MSLMA, PWAT, CAPE, CIN, APCP, CRAIN, CSNOW, CFRZR, CICEP, TCDC, GUST, SNOD, WEASD, REFC, VIS, PRATE
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom
+clone_pieces = false
+clone_rename = PRMSL:MSLMA
+)MODEL"},
+        {"ICON-EU", R"MODEL(
+# DWD's ICON-EU: 6.5 km over Europe on a regular latitude / longitude grid, a run every 3 hours, hourly to 78 hours (opendata.dwd.de). A file for each field, hour and level, compressed with bzip2.
+# Heights come as geopotential (m2/s2), the temperatures in Kelvin (read as degrees C).
+id = ICON-EU
+label = DWD ICON-EU 6.5 km (Europe)
+kind = whole
+url = when file~"^[a-z]+/[0-9]+_" => https://opendata.dwd.de/weather/nwp/icon-eu/grib/{cycle}/{dir}/icon-eu_europe_regular-lat-lon_pressure-level_{date}{cycle}_{hour3}_{name}.grib2.bz2
+url = https://opendata.dwd.de/weather/nwp/icon-eu/grib/{cycle}/{dir}/icon-eu_europe_regular-lat-lon_single-level_{date}{cycle}_{hour3}_{name}.grib2.bz2
+file = when variable=HGT level~"^[0-9]+ mb$" => fi/{mb}_FI
+file = when variable=TMP level~"^[0-9]+ mb$" => t/{mb}_T
+file = when variable=UGRD level~"^[0-9]+ mb$" => u/{mb}_U
+file = when variable=VGRD level~"^[0-9]+ mb$" => v/{mb}_V
+file = when variable=RH level~"^[0-9]+ mb$" => relhum/{mb}_RELHUM
+file = when variable=VVEL level~"^[0-9]+ mb$" => omega/{mb}_OMEGA
+file = when variable=TMP level="2 m above ground" => t_2m/T_2M
+file = when variable=DPT level="2 m above ground" => td_2m/TD_2M
+file = when variable=RH level="2 m above ground" => relhum_2m/RELHUM_2M
+file = when variable=UGRD level="10 m above ground" => u_10m/U_10M
+file = when variable=VGRD level="10 m above ground" => v_10m/V_10M
+file = when variable=GUST => vmax_10m/VMAX_10M
+file = when variable=PRMSL => pmsl/PMSL
+file = when variable=CAPE => cape_ml/CAPE_ML
+file = when variable=TCDC => clct/CLCT
+file = none/none
+value_scale = HGT:0.1019716
+extra_missing = 9999
+probe_file = t_2m/T_2M
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 4
+cycles_to_try = 4
+max_parallel = 4
+sectors = world
+hours = 0-78/1
+run_every = 3
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, DPT, PRMSL, CAPE, TCDC, GUST, VVEL
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
         {"HRRR", R"MODEL(
 # the 3 km High-Resolution Rapid Refresh on AWS (NOAA's open data bucket, kept from mid 2014): the 2D fields (sfc) and the pressure levels (prs) are files of their own
 id = HRRR
