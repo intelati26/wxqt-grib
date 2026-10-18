@@ -25,7 +25,7 @@ class TempHistoryChart;
 // to it, so a year in progress is held against the others at the same point of their year.
 class TempHistoryViewer : public Window {
 public:
-    TempHistoryViewer(Window * parent, double lat, double lon, const QDate& upTo = {});
+    TempHistoryViewer(Window * parent, double lat, double lon, const QDate& upTo = {}, bool station = false);
 
     struct Day {
         QDate date;
@@ -34,10 +34,16 @@ public:
 
 private:
     void load();
+    void loadEra();                     // the daily record of ERA5 at the place
+    void loadStations();                // the stations round the place, then the best one's record
+    void loadStation(const QString& id, const QString& name);
+    void takeDays(std::vector<Day> list, const QString& note);
     void recompute();
     void closeEventCustom() override { closed = true; }
     QDoubleSpinBox * latBox{};
     QDoubleSpinBox * lonBox{};
+    QComboBox * sourceBox{};
+    QComboBox * stationBox{};
     QComboBox * savedBox{};
     QComboBox * periodBox{};
     QComboBox * metricBox{};
@@ -48,6 +54,7 @@ private:
     TempHistoryChart * chart{};
     std::vector<Day> days;
     double usedLat{0}, usedLon{0};
+    int generation{0};                  // a request that is not the newest is dropped when it arrives
     bool closed{false};
     bool loading{false};
 };

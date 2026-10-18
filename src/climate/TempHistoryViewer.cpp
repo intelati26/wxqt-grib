@@ -169,7 +169,7 @@ protected:
     }
 };
 
-TempHistoryViewer::TempHistoryViewer(Window * parent, double lat, double lon, const QDate& upTo) : Window{parent} {
+TempHistoryViewer::TempHistoryViewer(Window * parent, double lat, double lon, const QDate& upTo, bool station) : Window{parent} {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Temperature history at a place (ERA5)");
     auto * page = new QWidget{this};
@@ -194,6 +194,12 @@ TempHistoryViewer::TempHistoryViewer(Window * parent, double lat, double lon, co
     lonBox->setValue(lon > 180 ? lon - 360 : lon);
     latBox->setPrefix("lat ");
     lonBox->setPrefix("lon ");
+    sourceBox = new QComboBox{page};
+    sourceBox->addItems({"ERA5 reanalysis (anywhere)", "Weather station (US, NOAA ACIS)"});
+    sourceBox->setToolTip("ERA5: the reanalysis' grid point (0.25 degree), 1940 on, any place. Station: a thermometer of the U.S. cooperative network (NOAA's Regional Climate Centers), as far back as the station goes, sometimes the 1800s");
+    stationBox = new QComboBox{page};
+    stationBox->setVisible(false);
+    stationBox->setMinimumWidth(300);
     periodBox = new QComboBox{page};
     periodBox->addItems({"Week (7 days up to the date)", "Month (to the date)", "Year (to the date)"});
     metricBox = new QComboBox{page};
@@ -204,7 +210,7 @@ TempHistoryViewer::TempHistoryViewer(Window * parent, double lat, double lon, co
     dateEdit->setDateRange(QDate{1940, 1, 1}, QDate::currentDate().addDays(-6));
     dateEdit->setDate(upTo.isValid() ? std::min(upTo, QDate::currentDate().addDays(-6)) : QDate::currentDate().addDays(-6));
     reloadButton = new QPushButton{"Load", page};
-    for (QWidget * w : std::vector<QWidget *>{savedBox, latBox, lonBox, periodBox, metricBox, dateEdit, reloadButton}) {
+    for (QWidget * w : std::vector<QWidget *>{savedBox, latBox, lonBox, sourceBox, stationBox, periodBox, metricBox, dateEdit, reloadButton}) {
         row->addWidget(w);
     }
     row->addStretch();
@@ -229,20 +235,43 @@ TempHistoryViewer::TempHistoryViewer(Window * parent, double lat, double lon, co
             load();
         }
     });
+    QObject::connect(sourceBox, &QComboBox::currentIndexChanged, this, [this] {
+        stationBox->setVisible(sourceBox->currentIndex() == 1);
+        load();
+    });
+    QObject::connect(stationBox, &QComboBox::activated, this, [this] (int i) {
+        if (i >= 0) {
+            loadStation(stationBox->itemData(i).toString(), stationBox->itemText(i));
+        }
+    });
     for (auto * box : {periodBox, metricBox}) {
         QObject::connect(box, &QComboBox::currentIndexChanged, this, [this] { recompute(); });
     }
     QObject::connect(dateEdit, &QDateEdit::dateChanged, this, [this] { recompute(); });
+    if (station) {
+        sourceBox->blockSignals(true);
+        sourceBox->setCurrentIndex(1);
+        sourceBox->blockSignals(false);
+        stationBox->setVisible(true);
+    }
     QWidget::show();
     load();
 }
 
-// the whole record of daily temperatures at the place, in one request
 void TempHistoryViewer::load() {
-    if (loading) {
-        return;
-    }
-    loading = true;
+    sourceBox->currentIndex() == 1 ? loadStations() : loadEra();
+}
+
+// the daily record is in: held, drawn
+void TempHistoryViewer::takeDays(std::vector<Day> list, const QString& note) {
+    days = std::move(list);
+    recompute();
+    status->setText(note);
+}
+
+// the whole record of daily temperatures at the place, in one request
+void TempHistoryViewer::loadEra() {
+    const int mine = ++generation;
     const double lat = latBox->value(), lon = lonBox->value();
     status->setText("Reading the ERA5 daily temperatures since 1940 for " + QString::number(lat, 'f', 2) + ", " + QString::number(lon, 'f', 2) + " ...");
     auto result = std::make_shared<std::vector<Day>>();
@@ -268,18 +297,137 @@ void TempHistoryViewer::load() {
         where->first = doc.object().value("latitude").toDouble(lat);
         where->second = doc.object().value("longitude").toDouble(lon);
     }, [=] {
-        loading = false;
-        if (closed) {
+        if (closed || mine != generation) {
             return;
         }
         if (result->empty()) {
             status->setText("No temperatures: " + *note);
             return;
         }
-        days = std::move(*result);
         usedLat = where->first;
         usedLon = where->second;
-        recompute();
+        takeDays(std::move(*result), QString{"ERA5 reanalysis (ECMWF / Copernicus Climate Change Service, 0.25 degree), through Open-Meteo.com, for the grid point at %1, %2 (the place asked for snaps to it). Days are UTC days."}.arg(usedLat, 0, 'f', 2).arg(usedLon, 0, 'f', 2));
+    }};
+}
+
+namespace {
+    double kilometers(double lat1, double lon1, double lat2, double lon2) {
+        const double r = 3.14159265358979 / 180.0;
+        const double a = std::sin((lat2 - lat1) * r / 2), b = std::sin((lon2 - lon1) * r / 2);
+        return 12742.0 * std::asin(std::sqrt(a * a + std::cos(lat1 * r) * std::cos(lat2 * r) * b * b));
+    }
+    struct Station {
+        QString name, id, range;
+        double km{0};
+        int firstYear{9999}, lastYear{0};
+    };
+    std::string acis(const char * service, const QJsonObject& params) {
+        return UtilityIO::getHtml(std::string{"https://data.rcc-acis.org/"} + service + "?params=" + QUrl::toPercentEncoding(QString::fromUtf8(QJsonDocument{params}.toJson(QJsonDocument::Compact))).toStdString());
+    }
+}
+
+// the stations round the place that have temperatures (the long records and the near ones first), then the record of the best
+void TempHistoryViewer::loadStations() {
+    const int mine = ++generation;
+    const double lat = latBox->value(), lon = lonBox->value();
+    status->setText("Looking for weather stations near " + QString::number(lat, 'f', 2) + ", " + QString::number(lon, 'f', 2) + " ...");
+    auto found = std::make_shared<std::vector<Station>>();
+    new FutureVoid{this, [=] {
+        const double dLat = 0.9, dLon = 0.9 / std::max(0.3, std::cos(lat * 3.14159265358979 / 180.0));
+        QJsonObject params;
+        params["bbox"] = QString{"%1,%2,%3,%4"}.arg(lon - dLon).arg(lat - dLat).arg(lon + dLon).arg(lat + dLat);
+        params["meta"] = "name,ll,sids,valid_daterange,state";
+        params["elems"] = "avgt,maxt,mint";
+        const auto doc = QJsonDocument::fromJson(QByteArray::fromStdString(acis("StnMeta", params)));
+        for (const auto& item : doc.object().value("meta").toArray()) {
+            const auto o = item.toObject();
+            const auto ll = o.value("ll").toArray();
+            const auto ranges = o.value("valid_daterange").toArray();
+            const auto sids = o.value("sids").toArray();
+            if (ll.size() < 2 || ranges.isEmpty() || sids.isEmpty()) {
+                continue;
+            }
+            Station s;
+            s.name = o.value("name").toString() + ", " + o.value("state").toString();
+            s.id = sids[0].toString().section(' ', 0, 0);
+            s.km = kilometers(lat, lon, ll[1].toDouble(), ll[0].toDouble());
+            for (const auto& r : ranges) {   // the temperature elements: the longest of their records
+                const auto pair = r.toArray();
+                if (pair.size() == 2 && !pair[0].toString().isEmpty()) {
+                    s.firstYear = std::min(s.firstYear, pair[0].toString().left(4).toInt());
+                    s.lastYear = std::max(s.lastYear, pair[1].toString().left(4).toInt());
+                }
+            }
+            if (s.firstYear < 9999) {
+                s.range = QString{"%1-%2"}.arg(s.firstYear).arg(s.lastYear);
+                found->push_back(s);
+            }
+        }
+        // those still reporting first; then by the length of the record against the distance: a record of 100 years 40 km off is a better thermometer than a new one at the door
+        const int now = QDate::currentDate().year();
+        std::sort(found->begin(), found->end(), [now] (const Station& a, const Station& b) {
+            const bool aLive = a.lastYear >= now - 1, bLive = b.lastYear >= now - 1;
+            if (aLive != bLive) {
+                return aLive;
+            }
+            const double aScore = (now - a.firstYear) - a.km * 0.7, bScore = (now - b.firstYear) - b.km * 0.7;
+            return aScore > bScore;
+        });
+    }, [=] {
+        if (closed || mine != generation) {
+            return;
+        }
+        stationBox->clear();
+        for (const auto& s : *found) {
+            stationBox->addItem(QString{"%1  (%2 km, %3)"}.arg(s.name).arg(s.km, 0, 'f', 0).arg(s.range), s.id);
+        }
+        if (found->empty()) {
+            status->setText("No weather station with temperatures within about 100 km (the stations are the United States'; try ERA5).");
+            return;
+        }
+        loadStation(found->front().id, stationBox->itemText(0));
+    }};
+}
+
+void TempHistoryViewer::loadStation(const QString& id, const QString& name) {
+    const int mine = ++generation;
+    status->setText("Reading the daily temperatures of " + name + " ...");
+    auto result = std::make_shared<std::vector<Day>>();
+    new FutureVoid{this, [=] {
+        QJsonObject params;
+        params["sid"] = id;
+        params["sdate"] = "por";
+        params["edate"] = "por";
+        QJsonArray elems;
+        for (const char * e : {"avgt", "maxt", "mint"}) {
+            QJsonObject o;
+            o["name"] = e;
+            elems.append(o);
+        }
+        params["elems"] = elems;
+        const auto doc = QJsonDocument::fromJson(QByteArray::fromStdString(acis("StnData", params)));
+        const auto number = [] (const QJsonValue& v) {   // degrees F as text; "M" missing, "T" trace
+            bool ok = false;
+            const double f = v.toString().toDouble(&ok);
+            return ok ? (f - 32.0) / 1.8 : std::nan("");
+        };
+        for (const auto& row : doc.object().value("data").toArray()) {
+            const auto r = row.toArray();
+            if (r.size() >= 4) {
+                result->push_back({QDate::fromString(r[0].toString(), "yyyy-MM-dd"), number(r[1]), number(r[2]), number(r[3])});
+            }
+        }
+    }, [=] {
+        if (closed || mine != generation) {
+            return;
+        }
+        if (result->empty()) {
+            status->setText("No temperatures came for " + name + ".");
+            return;
+        }
+        usedLat = latBox->value();
+        usedLon = lonBox->value();
+        takeDays(std::move(*result), "Weather station " + name + ": the daily maximum and minimum temperatures of the U.S. cooperative network (NOAA's Regional Climate Centers, ACIS), as far back as the station has them. Days are the observers' own (usually ending in the morning or at midnight).");
     }};
 }
 
@@ -309,7 +457,7 @@ void TempHistoryViewer::recompute() {
         YearValue value;
         value.year = y;
         value.count = n;
-        if (n >= expected * 0.9 && n > 0) {
+        if (n >= expected * 0.7 && n > 0) {   // (a station misses days now and then)
             value.value = sum / n;
         }
         years.push_back(value);
@@ -356,7 +504,7 @@ void TempHistoryViewer::recompute() {
         }
         text += QString{". The %1 warmest of the %2 years (and the %3 coldest)."}.arg(rank).arg(ranked.size()).arg(static_cast<int>(ranked.size()) - rank + 1);
     } else {
-        text = QString{"%1: not enough days (the service's record ends about five days ago)."}.arg(year);
+        text = QString{"%1: not enough days (the record has gaps, or ends before the date: another station may have it)."}.arg(year);
     }
     const auto list = [&] (bool warm) {
         QStringList parts;
@@ -368,5 +516,4 @@ void TempHistoryViewer::recompute() {
     };
     text += "\nWarmest: " + list(true) + "\nColdest: " + list(false);
     summary->setText(text);
-    status->setText(QString{"ERA5 reanalysis (ECMWF / Copernicus Climate Change Service, 0.25 degree), through Open-Meteo.com, for the grid point at %1, %2 (the place asked for snaps to it). Days are UTC days."}.arg(usedLat, 0, 'f', 2).arg(usedLon, 0, 'f', 2));
 }
