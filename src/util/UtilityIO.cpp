@@ -22,6 +22,23 @@ MemoryBuffer UtilityIO::uncompress(char * compressedData, unsigned int compresse
     return MemoryBuffer{outputBuffer};
 }
 
+QByteArray UtilityIO::bunzip(const QByteArray& packed) {
+    QByteArray out(packed.size() * 6 + 1024, 0);
+    for (int attempt = 0; attempt < 8; attempt++) {
+        unsigned int size = static_cast<unsigned int>(out.size());
+        const int code = BZ2_bzBuffToBuffDecompress(out.data(), &size, const_cast<char *>(packed.constData()), static_cast<unsigned int>(packed.size()), 0, 0);
+        if (code == BZ_OK) {
+            out.resize(size);
+            return out;
+        }
+        if (code != BZ_OUTBUFF_FULL) {
+            return {};
+        }
+        out.resize(out.size() * 2);
+    }
+    return {};
+}
+
 string UtilityIO::getHtml(const string& url) {
     return URL::getText(url);
 }

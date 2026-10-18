@@ -18,6 +18,8 @@ class UtilityIO {
 public:
     static MemoryBuffer uncompress(char *, unsigned int);
     static string getHtml(const string&);
+    // bzip2 data unpacked, whatever its size (empty when it is not bzip2 data)
+    static QByteArray bunzip(const QByteArray& packed);
     static string getHtmlWithRetry(const string&, size_t);
     static string readTextFile(const string&);
     static vector<string> rawFileToStringArray(const string&);

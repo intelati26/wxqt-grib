@@ -5,7 +5,6 @@
 
 #include "gfs/GfsRender.h"
 #include "gfs/NceiInventory.h"
-#include "external/bzlib.h"
 #include "models/PaletteStore.h"
 #include <stdexcept>
 #include <algorithm>
@@ -65,20 +64,11 @@ namespace {
                 if (packed.size() < 20) {
                     return QByteArray{};
                 }
-                QByteArray unpacked(static_cast<qsizetype>(packed.size()) * 6, 0);
-                for (int attempt = 0; attempt < 6; attempt++) {
-                    unsigned int size = static_cast<unsigned int>(unpacked.size());
-                    const int code = BZ2_bzBuffToBuffDecompress(unpacked.data(), &size, const_cast<char *>(packed.constData()), static_cast<unsigned int>(packed.size()), 0, 0);
-                    if (code == BZ_OK) {
-                        unpacked.resize(size);
-                        return end >= 0 ? unpacked.mid(static_cast<qsizetype>(start), static_cast<qsizetype>(end - start + 1)) : unpacked;
-                    }
-                    if (code != BZ_OUTBUFF_FULL) {
-                        return QByteArray{};
-                    }
-                    unpacked.resize(unpacked.size() * 2);
+                const auto unpacked = UtilityIO::bunzip(packed);
+                if (unpacked.isEmpty()) {
+                    return QByteArray{};
                 }
-                return QByteArray{};
+                return end >= 0 ? unpacked.mid(static_cast<qsizetype>(start), static_cast<qsizetype>(end - start + 1)) : unpacked;
             }
             if (NceiInventory::handles(url)) {   // NCEI's archive: the GRIB1 files' wgrib inventories are put in NOAA's form
                 return NceiInventory::index(url);
