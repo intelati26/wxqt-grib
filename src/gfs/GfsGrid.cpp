@@ -170,6 +170,35 @@ const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string&
     return nullptr;
 }
 
+void closeWrapGap(Grid& g) {
+    if (g.empty() || !g.global()) {
+        return;
+    }
+    const int columns = g.columns;
+    for (int row = 0; row < g.rows; row++) {
+        int lead = 0, trail = 0;
+        while (lead < columns && std::isnan(g.at(lead, row))) {
+            lead++;
+        }
+        if (lead == columns) {
+            continue;
+        }
+        while (std::isnan(g.at(columns - 1 - trail, row))) {
+            trail++;
+        }
+        const int gap = lead + trail;
+        if (gap == 0 || gap * g.step > 2.0) {
+            continue;
+        }
+        const float before = g.at(columns - 1 - trail, row), after = g.at(lead, row);   // the last value before the wrap and the first after it
+        for (int k = 1; k <= gap; k++) {
+            const float value = before + (after - before) * static_cast<float>(k) / static_cast<float>(gap + 1);
+            const int column = k <= trail ? columns - 1 - trail + k : k - trail - 1;   // the trailing columns first, then the leading ones
+            g.values[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)] = value;
+        }
+    }
+}
+
 float Grid::sample(double lon, double lat) const {
     if (empty()) {
         return nan;

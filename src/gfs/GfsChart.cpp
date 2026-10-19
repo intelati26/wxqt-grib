@@ -5285,6 +5285,9 @@ namespace {
 
 GfsGrid::Grid fillOf(const Product& product, const Grids& fetched, const GfsData::Run& run, int forecastHour, const GfsClimate * climate) {
     Grids grids = fetched;
+    for (auto& entry : grids) {
+        GfsGrid::closeWrapGap(entry.second);
+    }
     if (product.derive) {
         product.derive(grids, Context{forecastHour, run, climate});
     }
@@ -5474,6 +5477,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         product.ramp.stops = {{0.0, QColor{0, 0, 0, 0}}, {1.0, QColor{0, 0, 0, 0}}};
     }
     Grids grids = fetched;
+    for (auto& entry : grids) {
+        GfsGrid::closeWrapGap(entry.second);
+    }
     if (product.derive) {
         product.derive(grids, Context{forecastHour, run, options.climate});
     }

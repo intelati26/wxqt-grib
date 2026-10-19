@@ -311,6 +311,30 @@ int main(int argc, char * argv[]) {
                     const double centre = parts.value(9).toDouble();
                     QTimer::singleShot(20000, map, [map, out, projection, centre] { map->exportWorldTo(out, projection == GlobeMapView::Projection::Globe ? GlobeMapView::Projection::EqualEarth : projection, centre, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 3000, qEnvironmentVariableIntValue("WXQT_WORLD_HIGH") > 0); });
                 }
+            } else if (route.startsWith("seamcheck:")) {   // WXQT_OPEN=seamcheck:<chart>:<model,model>:<yyyyMMddHH UTC>: where each model's fill (and wind) grid has no value along a sweep of longitudes (a gap in the wrap), then quits
+                const auto parts = route.split(':');
+                auto when = QDateTime::fromString(parts.value(3), "yyyyMMddHH");
+                when.setTimeZone(QTimeZone::utc());
+                std::vector<std::string> models;
+                for (const auto& m : parts.value(2).split(',', Qt::SkipEmptyParts)) {
+                    models.push_back(m.toStdString());
+                }
+                const auto sources = GlobeViewer::loadSources(parts.value(1).toStdString(), models, when);
+                for (const auto& s : sources) {
+                    qWarning("seamcheck %-9s grid %dx%d step %.4f lon0 %.3f global %d", s.model.c_str(), s.grid.columns, s.grid.rows, s.grid.step, s.grid.lon0, s.grid.global() ? 1 : 0);
+                    for (const double lat : {10.0, 40.0, -40.0}) {
+                        double gapStart = -999.0;
+                        for (double lon = -180.0; lon <= 180.001; lon += 0.05) {
+                            float v = s.grid.sample(lon, lat);
+                            if (std::isnan(v)) { v = s.grid.sample(lon + 360.0, lat); }
+                            if (std::isnan(v)) { v = s.grid.sample(lon - 360.0, lat); }
+                            if (std::isnan(v) && gapStart < -900.0) { gapStart = lon; }
+                            if (!std::isnan(v) && gapStart > -900.0) { qWarning("   lat %5.1f no value from %.2f to %.2f", lat, gapStart, lon); gapStart = -999.0; }
+                        }
+                        if (gapStart > -900.0) { qWarning("   lat %5.1f no value from %.2f to the end", lat, gapStart); }
+                    }
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
             } else if (route.startsWith("scalecheck:")) {   // WXQT_OPEN=scalecheck:<chart>:<model,model>:<yyyyMMddHH UTC>:<lat>,<lon>;<lat>,<lon>: each model's fill value at those places (a check of the units and scale factors), then quits
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(3), "yyyyMMddHH");

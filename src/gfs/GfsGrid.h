@@ -62,6 +62,9 @@ namespace GfsGrid {
     // out = in * scale + offset
     Grid scaled(const Grid& in, double scale, double offset = 0.0);
     // The part of a grid that a view shows (with a cell of margin), as a regional grid of the same spacing: what a hover read-out keeps of a field, a few per cent of a global grid
+    // A global grid whose first and last columns have no value (a model's own grid warped onto -180..180 leaves a strip of a few tenths of a degree at the date line): the gap, up to 2 degrees,
+    // is filled by interpolating across the wrap, row by row
+    void closeWrapGap(Grid& g);
     Grid cropped(const Grid& in, double west, double south, double east, double north);
     // The grid block-averaged by the smallest whole number that leaves it at most `maxCells` (as it is when it already is): for a hover read-out, which needs a value near a point, not every cell
     Grid reducedTo(const Grid& in, size_t maxCells);
