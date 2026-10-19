@@ -93,6 +93,7 @@ private:
     void paintExport(QPainter&, int mapSide, double scale, bool vectorOutput);
     // the time bar: stepping and looping through the frames of the layers that have them
     bool forecastsOnly() const;
+    void openHours();
     void rebuildTicks();
     void goLive();
     void jumpTo(const QDateTime& utc);   // a time of the person's choosing: the layers look at the hours around it
@@ -161,6 +162,7 @@ private:
     QSlider * timeSlider{};
     QPushButton * playButton{};
     QPushButton * rangeButton{};
+    QPushButton * hoursButton{};
     long loopFrom{0}, loopTo{0};    // the loop's own start and end (seconds), 0: all the frames the bar has
     QPushButton * liveButton{};
     QPushButton * stepBack{};

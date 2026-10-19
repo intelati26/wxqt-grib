@@ -39,6 +39,8 @@
 #include "climate/TempHistoryViewer.h"
 #include "mapkit/ComboChartLayer.h"
 #include <QEventLoop>
+#include <QFrame>
+#include <QGridLayout>
 #include <QScrollArea>
 #include "mapkit/GlobeViewer.h"
 #include "settings/RadarPreferences.h"
@@ -307,6 +309,10 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     timeLayout->addWidget(playButton);
     timeLayout->addWidget(stepForward);
     timeLayout->addWidget(rangeButton);
+    hoursButton = new QPushButton{"Hours \xE2\x96\xBE", timeRow};
+    hoursButton->setToolTip("A grid of every hour of the forecast (or every frame) to jump to");
+    timeLayout->addWidget(hoursButton);
+    QObject::connect(hoursButton, &QPushButton::clicked, [this] { openHours(); });
     timeLayout->addWidget(timeSlider, 1);
     timeLayout->addWidget(speedCombo);
     timeLayout->addWidget(liveButton);
@@ -644,6 +650,39 @@ MasterMapViewer::~MasterMapViewer() {
     inlineOptions.clear();
 }
 
+// a grid of every frame on the bar: the forecast hours (F000 ...) when only model charts are on, else the times
+void MasterMapViewer::openHours() {
+    if (ticks.size() < 2) {
+        return;
+    }
+    const bool forecasts = forecastsOnly();
+    auto * popup = new QFrame{this, Qt::Popup};
+    popup->setAttribute(Qt::WA_DeleteOnClose);
+    popup->setFrameShape(QFrame::StyledPanel);
+    auto * grid = new QGridLayout{popup};
+    grid->setSpacing(3);
+    const int columns = ticks.size() > 80 ? 12 : 8;
+    for (size_t i = 0; i < ticks.size(); i++) {
+        const auto label = forecasts ? QString{"F%1"}.arg((ticks[i] - ticks.front()) / 3600, 3, 10, QChar{'0'})
+                                     : QDateTime::fromSecsSinceEpoch(ticks[i], QTimeZone::utc()).toString("dd HH'Z'");
+        auto * b = new QPushButton{label, popup};
+        b->setCheckable(true);
+        b->setChecked(static_cast<int>(i) == timeSlider->value());
+        b->setMinimumWidth(52);
+        QObject::connect(b, &QPushButton::clicked, popup, [this, popup, i] {
+            playing = false;
+            playTimer.stop();
+            playButton->setText("Loop");
+            goTo(static_cast<int>(i));
+            announceTime();
+            popup->close();
+        });
+        grid->addWidget(b, static_cast<int>(i) / columns, static_cast<int>(i) % columns);
+    }
+    popup->move(hoursButton->mapToGlobal(QPoint{0, hoursButton->height()}));
+    popup->show();
+}
+
 // only forecasts on the bar (the model charts): "latest" is the first hour of the run, not the last tick
 bool MasterMapViewer::forecastsOnly() const {
     bool any = false;
@@ -680,6 +719,7 @@ void MasterMapViewer::rebuildTicks() {
     settingSlider = true;
     timeSlider->setMaximum(std::max(0, static_cast<int>(ticks.size()) - 1));
     timeSlider->setEnabled(ticks.size() > 1);
+    hoursButton->setVisible(ticks.size() > 1);
     int index = forecastsOnly() ? 0 : static_cast<int>(ticks.size()) - 1;
     if (!live && keep != 0) {
         const auto found = std::lower_bound(ticks.begin(), ticks.end(), keep);
