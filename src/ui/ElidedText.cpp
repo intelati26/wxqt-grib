@@ -21,6 +21,10 @@ namespace {
                 if (button->text().isEmpty() && button->property("fullText").toString().isEmpty()) {
                     continue;
                 }
+                if (button->property("fullText").isValid() && button->text() != button->property("shownText").toString() && button->text() != button->property("fullText").toString()) {
+                    button->setProperty("fullText", button->text());   // the program has set another text since: that is the whole text now
+                    button->setToolTip(button->text());
+                }
                 if (!button->property("fullText").isValid()) {
                     button->setProperty("fullText", button->text());   // the whole text, kept the first time
                     if (button->toolTip().isEmpty()) {
@@ -37,6 +41,7 @@ namespace {
                 if (shown != button->text()) {
                     // a button with a size hint wider than the panel: take its minimum so the panel does not grow
                     button->setText(shown);
+                    button->setProperty("shownText", shown);
                     button->setMinimumWidth(0);
                     button->setSizePolicy(QSizePolicy::Ignored, button->sizePolicy().verticalPolicy());
                 }

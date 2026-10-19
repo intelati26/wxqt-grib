@@ -107,6 +107,7 @@ void ComboChartLayer::build(MapHost& host) {
             continue;
         }
         auto part = std::make_unique<ModelChartLayer>();
+        part->setBarbsByOwner(true);
         part->configure(model, param, 100);
         names.push_back(model);
         kilometers.push_back(km);
@@ -146,6 +147,11 @@ void ComboChartLayer::paint(QPainter& painter, MapHost& host) {
         part->paint(painter, host);
         painter.restore();
     }
+    std::vector<const ModelChartLayer *> finestFirst;   // one grid of barbs, each point from the finest model that has it
+    for (size_t i = parts.size(); i > 0; i--) {
+        finestFirst.push_back(parts[i - 1].get());
+    }
+    ModelChartLayer::paintBarbs(painter, host, finestFirst);
 }
 
 MapHit ComboChartLayer::pick(const QPointF& pixels, MapHost& host) const {

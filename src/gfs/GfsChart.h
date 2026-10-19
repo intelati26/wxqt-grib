@@ -226,6 +226,8 @@ namespace GfsChart {
         Probe * probe{nullptr};                // when set, filled in by render() for the hover read-out
         GfsGrid::Grid * fillOut{nullptr};      // when set: render() makes no picture, it hands over the fill's grid (and the scale in rampOut) for something that draws it another way (the globe)
         Ramp * rampOut{nullptr};
+        GfsGrid::Grid * windUOut{nullptr}, * windVOut{nullptr};   // with fillOut: the chart's wind (m/s) too, for barbs drawn by whoever draws the fill
+        bool noBarbs{false};                   // the picture has no barbs (the map layer draws them itself, as vectors on a world grid; the probe still holds the wind)
         int width{1100};
         const GfsClimate * climate{nullptr};   // for the anomaly charts
         bool ticks{false};                     // latitude and longitude marks along the frame, numbered

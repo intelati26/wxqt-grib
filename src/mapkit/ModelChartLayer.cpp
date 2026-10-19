@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/ModelChartLayer.h"
+#include "ui/WindBarb.h"
 #include <algorithm>
 #include <cmath>
 #include <QCheckBox>
@@ -436,6 +437,7 @@ void ModelChartLayer::prefetch(MapHost& host) {
         [result, key, modelNow, paramNow, runNow, overlaysNow, variantBase, hour, w, s, e, n, width, session_] {
             GfsRender::Variant variant = variantBase;
             variant.bare = true;
+            variant.noBarbs = true;   // the barbs are the layer's own (vectors on a world grid)
             variant.width = width;
             auto rendered = std::make_shared<Rendered>();
             string message;
@@ -603,6 +605,7 @@ void ModelChartLayer::render(MapHost& host) {
         [result, problem, key, modelNow, paramNow, runNow, overlaysNow, variantBase, hour, w, s, e, n, width, session_] {
             GfsRender::Variant variant = variantBase;
             variant.bare = true;
+            variant.noBarbs = true;   // the barbs are the layer's own (vectors on a world grid)
             variant.width = width;
             auto rendered = std::make_shared<Rendered>();
             string message;
@@ -661,7 +664,80 @@ void ModelChartLayer::paint(QPainter& painter, MapHost& host) {
     const QRectF drawn = QRectF{a, b}.normalized();
     painter.drawImage(QRectF{QPointF{snap(drawn.left()), snap(drawn.top())}, QPointF{snap(drawn.right()), snap(drawn.bottom())}}, shownImage->image);
     painter.restore();
+    if (!barbsByOwner) {
+        paintBarbs(painter, host, {this});
+    }
     render(host);   // (asks only when what is on hand no longer fits the view)
+}
+
+// the wind (m/s) of the chart on view at a place; false where the chart has none (no barbs on this chart, outside its box, the picture not drawn yet)
+bool ModelChartLayer::windAt(double lon, double lat, double& u, double& v) const {
+    const auto here = frames.find(keyFor(hourShown()));
+    const auto shownImage = here != frames.end() ? here->second : (current && current->key == keyFor(hourShown()) ? current : (current ? current : previous));
+    if (!shownImage || shownImage->probe.windU.empty() || shownImage->probe.windV.empty()) {
+        return false;
+    }
+    for (const double shift : {0.0, -360.0, 360.0}) {
+        const double x = lon + shift;
+        if (x < shownImage->west - 0.01 || x > shownImage->east + 0.01 || lat < shownImage->south || lat > shownImage->north) {
+            continue;
+        }
+        const float uu = shownImage->probe.windU.sample(x, lat), vv = shownImage->probe.windV.sample(x, lat);
+        if (!std::isnan(uu) && !std::isnan(vv)) {
+            u = uu;
+            v = vv;
+            return true;
+        }
+    }
+    return false;
+}
+
+// Wind barbs on a world grid: points of whole degrees (a step that keeps them about 44 pixels apart on a map of the whole earth, 52 and 48 as it is zoomed in), the same points whatever the
+// model; each takes the wind of the first chart of the list (the finest model) that has it there. Drawn as vectors at paint time, so they are crisp at any zoom and export size. Toward the poles
+// the meridians meet: the rows there keep every second, third ... point of the grid.
+void ModelChartLayer::paintBarbs(QPainter& painter, MapHost& host, const std::vector<const ModelChartLayer *>& finestFirst) {
+    auto& view = host.view();
+    const auto t = view.transform();
+    const double upp = view.unitsPerPixel();
+    const double marksScale = std::max(0.1, host.markScale());
+    const double scale = marksScale > 1.0 ? std::max(1.0, marksScale * 1300.0 / 2800.0) : marksScale;   // (a picture of the whole world: barbs as on a world map 2800 pixels wide)
+    const double perDegree = std::abs(t(0.0, 1.0).x() - t(0.0, 0.0).x()) / std::max(1e-9, upp);   // pixels (as the screen has them) per degree of longitude
+    if (perDegree <= 0.0 || view.pixelWidth() < 50) {
+        return;
+    }
+    const double span = view.pixelWidth() / perDegree / scale;   // of the screen (or of the 1300 pixel world map the picture is made like)
+    const double wanted = (span > 150.0 ? 44.0 : span > 80.0 ? 52.0 : 48.0) * scale;
+    const double length = (span > 150.0 ? 20.0 : 24.0) * scale * upp;
+    double step = 30.0;
+    for (const double candidate : {0.1, 0.125, 0.2, 0.25, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 30.0}) {
+        if (candidate * perDegree >= wanted * 0.92) {
+            step = candidate;
+            break;
+        }
+    }
+    const QRectF window = QRectF{painter.window()}.adjusted(-length, -length, length, length);
+    painter.save();
+    painter.setPen(QPen{QColor{20, 20, 20, 230}, std::max(upp, 1.0 * scale * upp)});
+    painter.setBrush(QColor{20, 20, 20});
+    for (double lat = std::ceil(-85.0 / step) * step; lat <= 85.0; lat += step) {
+        const int every = std::clamp(static_cast<int>(std::floor(1.0 / std::max(0.05, std::cos(lat * 3.14159265358979 / 180.0)) + 0.5)), 1, 8);
+        const double lonStep = step * every;
+        for (double lon = std::ceil(-180.0 / lonStep) * lonStep; lon < 180.0 - 1e-6; lon += lonStep) {
+            const QPointF at = t(lat, lon);
+            if (!window.contains(at)) {
+                continue;
+            }
+            for (const auto * chart : finestFirst) {
+                double u, v;
+                if (chart->windAt(lon, lat, u, v)) {
+                    const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
+                    WindBarb::draw(painter, at, from, std::hypot(u, v) * 1.943844, length, lat < 0.0);
+                    break;
+                }
+            }
+        }
+    }
+    painter.restore();
 }
 
 MapHit ModelChartLayer::pick(const QPointF& pixels, MapHost& host) const {

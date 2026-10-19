@@ -30,6 +30,7 @@ public:
         std::string model;
         double km{0};
         GfsGrid::Grid grid;
+        GfsGrid::Grid windU, windV;   // m/s, when the chart has barbs
         GfsChart::Ramp ramp;
         std::string run;
         int hour{0};

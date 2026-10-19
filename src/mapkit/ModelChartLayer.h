@@ -65,6 +65,10 @@ public:
     // The chart in the Model Viewer's own picture for the part of the world in view (header with the model, chart, run and valid times, the legend, the credit): false with the reason.
     // (hour: another forecast hour of the run than the one on view, for a loop; -1 the one on view)
     bool titled(MapHost&, QImage& out, string& error, int hour = -1) const;
+    // wind barbs on the world grid, for these charts (the finest first); the chart's own picture has none
+    bool windAt(double lon, double lat, double& u, double& v) const;
+    static void paintBarbs(QPainter&, MapHost&, const std::vector<const ModelChartLayer *>& finestFirst);
+    void setBarbsByOwner(bool on) { barbsByOwner = on; }   // a part of the combo: the combo draws the barbs of all its parts
     const std::vector<int>& hourList() const { return hours; }
     int hourNow() const { return hourShown(); }
 
@@ -111,6 +115,7 @@ private:
     int opacity{90};
     bool busy{false};
     bool finding{false};
+    bool barbsByOwner{false};
     string error;
     string source_{"NOAA/NCEP model data"};
     std::shared_ptr<Rendered> current;

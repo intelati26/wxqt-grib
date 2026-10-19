@@ -62,6 +62,8 @@ namespace GfsRender {
         // the fill's grid and its color scale instead of a picture (the globe draws them itself); the picture is then one pixel
         GfsGrid::Grid * fillOut{nullptr};
         GfsChart::Ramp * rampOut{nullptr};
+        GfsGrid::Grid * windUOut{nullptr}, * windVOut{nullptr};   // with fillOut: the wind of the chart (m/s)
+        bool noBarbs{false};      // no barbs in the picture (the layer draws them)
         bool bare{false};
         int width{0};
     };

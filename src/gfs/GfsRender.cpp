@@ -702,6 +702,9 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     options.probe = probe != nullptr ? probe : (variant.bare ? &bareProbe : nullptr);
     options.fillOut = variant.fillOut;
     options.rampOut = variant.rampOut;
+    options.windUOut = variant.windUOut;
+    options.windVOut = variant.windVOut;
+    options.noBarbs = variant.noBarbs;
     if (variant.bare) {
         options.lines.clear();
         options.places.clear();

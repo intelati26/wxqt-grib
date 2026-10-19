@@ -49,6 +49,7 @@ public:
     // a patch of the map (`spacing` pixels square) can be claimed once per painting; true when it was free. Layers that thin their marks use it so that
     // two layers do not both put a mark on the same spot.
     virtual bool claimCell(const QPointF& pixels, double spacing) = 0;
+    virtual double markScale() const { return 1.0; }             // how much larger the marks (barbs, symbols) are drawn: a picture of the whole world is made at a scale that keeps them the size they have on a world map of 1300 pixels
     // work on another thread, then `done` on this one (dropped when the screen has been closed)
     virtual void background(std::function<void()> work, std::function<void()> done) = 0;
 };

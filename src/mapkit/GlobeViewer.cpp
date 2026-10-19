@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/GlobeViewer.h"
+#include "ui/WindBarb.h"
 #include <algorithm>
 #include <cmath>
 #include <thread>
@@ -360,6 +361,8 @@ std::vector<GlobeViewer::Source> GlobeViewer::loadSources(const std::string& cha
             GfsRender::Variant variant;
             variant.fillOut = &s.grid;
             variant.rampOut = &s.ramp;
+            variant.windUOut = &s.windU;
+            variant.windVOut = &s.windV;
             std::string error;
             GfsRender::png(session, model, chart, "GLOBAL", s.run, hour, {}, error, nullptr, variant);
             if (!s.grid.empty()) {
@@ -473,6 +476,48 @@ QImage GlobeViewer::renderWorld(const std::vector<Source>& sources, int projecti
             previous = relative;
         }
         p.drawPath(path);
+    }
+    // the wind barbs on the world grid, the size they have on a world map 2800 pixels wide (as the chart pictures are) (and the same points as the map's): each from the finest model that has the wind there
+    const double marks = width / 2800.0;
+    double perDegree = 0.0, unusedY = 0.0;
+    GlobeMapView::forward(projection, 0.0, 1.0, perDegree, unusedY);
+    perDegree *= scale;
+    bool anyWind = false;
+    for (const auto& s : sources) {
+        anyWind = anyWind || (!s.windU.empty() && !s.windV.empty());
+    }
+    if (anyWind && perDegree > 0.0) {
+        double step = 30.0;
+        for (const double candidate : {0.1, 0.125, 0.2, 0.25, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 30.0}) {
+            if (candidate * perDegree >= 44.0 * marks * 0.92) {
+                step = candidate;
+                break;
+            }
+        }
+        p.setPen(QPen{QColor{20, 20, 20, 230}, std::max(1.0, marks)});
+        p.setBrush(QColor{20, 20, 20});
+        for (double lat = std::ceil(-85.0 / step) * step; lat <= 85.0; lat += step) {
+            const int every = std::clamp(static_cast<int>(std::floor(1.0 / std::max(0.05, std::cos(lat * 3.14159265358979 / 180.0)) + 0.5)), 1, 8);
+            const double lonStep = step * every;
+            for (double lon = std::ceil(-180.0 / lonStep) * lonStep; lon < 180.0 - 1e-6; lon += lonStep) {
+                double x, y;
+                if (!GlobeMapView::forward(projection, lat, lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), x, y)) {
+                    continue;
+                }
+                for (size_t i = sources.size(); i > 0; i--) {   // the finest first
+                    const auto& s = sources[i - 1];
+                    if (s.windU.empty() || s.windV.empty()) {
+                        continue;
+                    }
+                    const float u = sampleAt(s.windU, lon, lat), v = sampleAt(s.windV, lon, lat);
+                    if (!std::isnan(u) && !std::isnan(v)) {
+                        const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
+                        WindBarb::draw(p, QPointF{width / 2.0 + x * scale, height / 2.0 - y * scale}, from, std::hypot(u, v) * 1.943844, 20.0 * marks, lat < 0.0);
+                        break;
+                    }
+                }
+            }
+        }
     }
     return image;
 }

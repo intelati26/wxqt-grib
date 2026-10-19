@@ -62,6 +62,7 @@ private:
     void redraw() override { mapView->map()->update(); listTimer.start(500); if (globeView != nullptr && globeOn) { globeView->scheduleSkin(); } }   // (a layer that has read something has a new summary for the list)
     void status(const string& text) override { extra = text; updateStatus(); }
     bool claimCell(const QPointF& pixels, double spacing) override;
+    double markScale() const override { return thinning; }
     void timesChanged() override { rebuildTicks(); }
     void onlyLayer(const string& id) override;
     void background(std::function<void()> work, std::function<void()> done) override;

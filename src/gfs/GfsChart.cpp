@@ -5507,6 +5507,10 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
     if (options.fillOut != nullptr) {
         *options.fillOut = fill;
+        if (options.windUOut != nullptr && options.windVOut != nullptr && !product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
+            *options.windUOut = grids.at(product.barbU);
+            *options.windVOut = grids.at(product.barbV);
+        }
         if (options.rampOut != nullptr) {
             *options.rampOut = product.ramp;
         }
@@ -5844,7 +5848,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
 
     lap("contours");
     // wind barbs on a grid of pixels
-    if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
+    if (!options.noBarbs && !product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
         const auto& u = grids.at(product.barbU);
         const auto& v = grids.at(product.barbV);
         const double spacing = span > 150.0 ? 44.0 : span > 80.0 ? 52.0 : 48.0;   // (the whole earth: denser and a size smaller)
