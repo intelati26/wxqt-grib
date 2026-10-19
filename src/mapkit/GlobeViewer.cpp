@@ -452,6 +452,11 @@ QImage GlobeViewer::renderWorld(const std::vector<Source>& sources, int projecti
     // the coastlines and borders
     QPainter p{&image};
     p.setRenderHint(QPainter::Antialiasing, true);
+    if (projection == GlobeMapView::Projection::PolarNorth || projection == GlobeMapView::Projection::PolarSouth) {   // the map is a circle: nothing outside it
+        QPainterPath disc;
+        disc.addEllipse(QRectF{0.0, 0.0, static_cast<double>(width), static_cast<double>(height)});
+        p.setClipPath(disc);
+    }
     p.setPen(QPen{QColor{20, 20, 28, 210}, std::max(1.0, width / 6000.0)});
     for (const auto& line : Coast::borders()) {
         QPainterPath path;
@@ -480,9 +485,13 @@ QImage GlobeViewer::renderWorld(const std::vector<Source>& sources, int projecti
     }
     // the wind barbs on the world grid, the size they have on a world map 2800 pixels wide (as the chart pictures are) (and the same points as the map's): each from the finest model that has the wind there
     const double marks = width / 2800.0;
-    double perDegree = 0.0, unusedY = 0.0;
-    GlobeMapView::forward(projection, 0.0, 1.0, perDegree, unusedY);
-    perDegree *= scale;
+    // pixels along a parallel for one degree of longitude: at the equator, and on a polar map (which stops at 20 degrees) at 55 degrees
+    const bool polar = projection == GlobeMapView::Projection::PolarNorth || projection == GlobeMapView::Projection::PolarSouth;
+    const double referenceLat = polar ? (projection == GlobeMapView::Projection::PolarNorth ? 55.0 : -55.0) : 0.0;
+    double x0 = 0.0, y0 = 0.0, x1 = 0.0, y1 = 0.0;
+    GlobeMapView::forward(projection, referenceLat, 0.0, x0, y0);
+    GlobeMapView::forward(projection, referenceLat, 1.0, x1, y1);
+    const double perDegree = std::hypot(x1 - x0, y1 - y0) * scale;
     bool anyWind = false;
     for (const auto& s : sources) {
         anyWind = anyWind || (!s.windU.empty() && !s.windV.empty());
@@ -507,7 +516,10 @@ QImage GlobeViewer::renderWorld(const std::vector<Source>& sources, int projecti
                     const float u = sampleAt(s.windU, lon, lat), v = sampleAt(s.windV, lon, lat);
                     if (!std::isnan(u) && !std::isnan(v)) {
                         const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
-                        WindBarb::draw(p, QPointF{width / 2.0 + x * scale, height / 2.0 - y * scale}, from, std::hypot(u, v) * 1.943844, look.length, lat < 0.0);
+                        double nx = x, ny = y;   // where north points on this map (up on the world maps, along the meridian on the polar ones)
+                        GlobeMapView::forward(projection, std::min(89.9, lat + 0.5), lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), nx, ny);
+                        const double tilt = std::atan2((nx - x), (ny - y)) * 180.0 / 3.14159265358979;
+                        WindBarb::draw(p, QPointF{width / 2.0 + x * scale, height / 2.0 - y * scale}, std::fmod(from + tilt + 720.0, 360.0), std::hypot(u, v) * 1.943844, look.length, lat < 0.0);
                         break;
                     }
                 }

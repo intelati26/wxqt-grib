@@ -24,7 +24,7 @@ namespace {
 }
 
 const char * GlobeMapView::projectionName(Projection p) {
-    return p == Projection::Globe ? "Globe" : p == Projection::Robinson ? "Robinson" : p == Projection::EqualEarth ? "Equal Earth (equal area)" : "Mollweide (equal area)";
+    return p == Projection::Globe ? "Globe" : p == Projection::Robinson ? "Robinson" : p == Projection::EqualEarth ? "Equal Earth (equal area)" : p == Projection::PolarNorth ? "North polar" : p == Projection::PolarSouth ? "South polar" : "Mollweide (equal area)";
 }
 
 namespace {
@@ -41,8 +41,18 @@ namespace {
     }
 }
 
+namespace {
+    constexpr double polarLimit = 20.0;   // degrees of latitude the polar maps reach to
+    // the stereographic radius (the sphere of radius 1, the pole at the middle) of a latitude on the north (+1) or the south (-1) polar map
+    double polarRadius(double lat, int hemisphere) {
+        return 2.0 * std::tan((90.0 - hemisphere * lat) * 3.14159265358979 / 360.0);
+    }
+}
+
 void GlobeMapView::extent(Projection p, double& halfWidth, double& halfHeight) {
-    if (p == Projection::Robinson) {
+    if (p == Projection::PolarNorth || p == Projection::PolarSouth) {
+        halfWidth = halfHeight = polarRadius(polarLimit, 1);
+    } else if (p == Projection::Robinson) {
         halfWidth = robinsonX * pi;
         halfHeight = robinsonY;
     } else if (p == Projection::Mollweide) {
@@ -57,6 +67,13 @@ void GlobeMapView::extent(Projection p, double& halfWidth, double& halfHeight) {
 
 bool GlobeMapView::forward(Projection p, double lat, double lon, double& x, double& y) {
     const double phi = lat * rad, lambda = lon * rad;
+    if (p == Projection::PolarNorth || p == Projection::PolarSouth) {   // the meridian of the centre points down; east runs counter-clockwise in the north, clockwise in the south
+        const int hemisphere = p == Projection::PolarNorth ? 1 : -1;
+        const double r = polarRadius(lat, hemisphere);
+        x = hemisphere * r * std::sin(lambda);
+        y = -r * std::cos(lambda);
+        return true;
+    }
     if (p == Projection::Robinson) {
         x = robinsonX * robinsonAt(robinsonLength, lat) * lambda;
         y = robinsonY * robinsonAt(robinsonHeight, lat) * (lat < 0 ? -1.0 : 1.0);
@@ -84,6 +101,16 @@ bool GlobeMapView::forward(Projection p, double lat, double lon, double& x, doub
 }
 
 bool GlobeMapView::inverse(Projection p, double x, double y, double& lat, double& lon) {
+    if (p == Projection::PolarNorth || p == Projection::PolarSouth) {
+        const int hemisphere = p == Projection::PolarNorth ? 1 : -1;
+        const double r = std::hypot(x, y);
+        if (r > polarRadius(polarLimit, 1) + 1e-9) {
+            return false;
+        }
+        lat = hemisphere * (90.0 - 2.0 * std::atan(r / 2.0) / rad);
+        lon = r < 1e-12 ? 0.0 : std::atan2(hemisphere * x, -y) / rad;
+        return true;
+    }
     if (p == Projection::Robinson) {
         const double v = std::abs(y) / robinsonY;
         if (v > 1.0) {
@@ -151,6 +178,9 @@ QImage GlobeMapView::projectWorld(const Skin& skin, Projection p, double centerL
                 continue;
             }
             QRgb color = skin.image.pixel(0, 0) | 0xff000000u;
+            if (p == Projection::PolarNorth || p == Projection::PolarSouth) {
+                lat = std::clamp(lat, -84.99, 84.99);   // (the skin is Mercator and ends at 85 degrees: the last few degrees at the pole take its edge row)
+            }
             if (lat > -85.0 && lat < 85.0) {
                 double lon = centerLon + lonRelative;
                 while (lon - skinCentre > 180.0) {

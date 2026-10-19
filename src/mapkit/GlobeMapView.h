@@ -21,7 +21,7 @@ public:
     explicit GlobeMapView(QWidget * parent);
     // The world projections of the picture the export makes of the whole world (the screen shows the globe only): Robinson, the compromise of the United Nations' world maps; Equal Earth and
     // Mollweide, which keep areas true
-    enum class Projection { Globe, Robinson, EqualEarth, Mollweide };   // Robinson: the compromise projection of the United Nations' world maps; Equal Earth and Mollweide keep areas
+    enum class Projection { Globe, Robinson, EqualEarth, Mollweide, PolarNorth, PolarSouth };   // Robinson: the compromise projection of the United Nations' world maps; Equal Earth and Mollweide keep areas; PolarNorth and PolarSouth: the stereographic projection from the pole to 20 degrees (the polar vortex; the longitude of the centre is the meridian that points down)
     static const char * projectionName(Projection p);
     static bool inverse(Projection p, double x, double y, double& lat, double& lon);   // projection units -> degrees (false outside the shape)
     static bool forward(Projection p, double lat, double lon, double& x, double& y);   // degrees -> projection units (lon relative to the center)

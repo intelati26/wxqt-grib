@@ -1,7 +1,7 @@
 {
   "name": "wxqt-gdal",
   "version-string": "0",
-  "description": "Minimal GDAL command-line tools for the Windows portable package and the Linux AppImage (see .github/workflows/build.yml); NetCDF-4 and /vsicurl for the models that read NetCDF by range (SPC mesoanalysis, GEOS-FP, the climatology)",
+  "description": "Minimal GDAL command-line tools for the Windows portable package and the Linux AppImage (see .github/workflows/build.yml); NetCDF-4 and /vsicurl for the models that read NetCDF by range (SPC mesoanalysis, GEOS-FP, the climatology); libaec so that GDAL's GRIB driver reads CCSDS (template 5.42) data: ECMWF's IFS and AIFS",
   "dependencies": [
     {
       "name": "gdal",
@@ -51,6 +51,10 @@
         "json1",
         "rtree"
       ]
+    },
+    {
+      "name": "libaec",
+      "default-features": false
     }
   ]
 }

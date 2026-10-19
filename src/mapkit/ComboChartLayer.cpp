@@ -191,7 +191,7 @@ string ComboChartLayer::notice() const {
             text += (text.empty() ? "" : "\n") + names[i] + ": " + note;
         }
         const auto line = parts[i]->summary();
-        if (!line.empty() && line.find("no ") != string::npos) {   // "no HRRR run found": a model that has nothing for the time is left out of the picture
+        if (!line.empty() && (line.find("no ") != string::npos || line.find("libaec") != string::npos)) {   // "no HRRR run found": a model that has nothing for the time is left out of the picture
             text += (text.empty() ? "" : "\n") + names[i] + ": " + line;
         }
     }

@@ -1136,6 +1136,8 @@ void MasterMapViewer::exportWorld() {
     projectionBox->addItem("Robinson (the United Nations' world maps)", static_cast<int>(GlobeMapView::Projection::Robinson));
     projectionBox->addItem("Equal Earth (equal area)", static_cast<int>(GlobeMapView::Projection::EqualEarth));
     projectionBox->addItem("Mollweide (equal area)", static_cast<int>(GlobeMapView::Projection::Mollweide));
+    projectionBox->addItem("North polar (the pole to 20 N: the polar vortex)", static_cast<int>(GlobeMapView::Projection::PolarNorth));
+    projectionBox->addItem("South polar (the pole to 20 S)", static_cast<int>(GlobeMapView::Projection::PolarSouth));
     auto * centerBox = new QComboBox{&dialog};
     centerBox->addItem("Centered on Greenwich (0)", 0);
     centerBox->addItem("Centered on the Americas (-100)", -100);
@@ -1325,7 +1327,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         const int pad = static_cast<int>(8 * scale);
         painter.setPen(QColor{25, 25, 25});
         painter.setFont(bold);
-        painter.drawText(QRect{pad, pad / 2, width - 2 * pad, static_cast<int>(24 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, QString{"World, "} + GlobeMapView::projectionName(projection));
+        painter.drawText(QRect{pad, pad / 2, width - 2 * pad, static_cast<int>(24 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, (projection == GlobeMapView::Projection::PolarNorth || projection == GlobeMapView::Projection::PolarSouth ? QString{} : QString{"World, "}) + GlobeMapView::projectionName(projection));
         painter.setFont(base);
         painter.setPen(QColor{60, 60, 60});
         if (combo) {   // the two models the picture rests on first, the rest as detail

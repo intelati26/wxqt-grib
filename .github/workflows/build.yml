@@ -67,7 +67,7 @@ jobs:
         shell: pwsh
         run: |
           $commit = 'v1'   # bump to force a clean rebuild
-          $manifest = (Get-FileHash .github/vcpkg/vcpkg.json).Hash
+          $manifest = (Get-FileHash .github/vcpkg/vcpkg.json).Hash + (Get-FileHash .github/vcpkg/triplets/x64-windows-release.cmake).Hash.Substring(0, 8)
           "key=gdal-x64-windows-release-$commit-$manifest" >> $env:GITHUB_OUTPUT
           $webpManifest = (Get-FileHash .github/vcpkg-webp/vcpkg.json).Hash
           "webp=webp-x64-windows-release-$commit-$webpManifest" >> $env:GITHUB_OUTPUT
@@ -88,6 +88,7 @@ jobs:
             --x-manifest-root=.github/vcpkg `
             --x-install-root=D:/gdal-vcpkg `
             --x-buildtrees-root=D:/vb `
+            --overlay-triplets=.github/vcpkg/triplets `
             --triplet x64-windows-release `
             --clean-after-build
           if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed" }

@@ -215,7 +215,11 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     }
     translate.waitForFinished(180000);
     if (translate.exitStatus() != QProcess::NormalExit || translate.exitCode() != 0) {
-        error = "gdal_translate failed on " + want.variable + " " + want.level + ": " + translate.readAllStandardError().trimmed().toStdString();
+        const auto message = translate.readAllStandardError().trimmed().toStdString();
+        error = "gdal_translate failed on " + want.variable + " " + want.level + ": " + message;
+        if (message.find("libaec") != std::string::npos) {   // ECMWF's CCSDS compression: only a GDAL built with libaec reads it
+            error = "this GDAL cannot read CCSDS (AEC) compressed GRIB, which ECMWF's IFS and AIFS use: it was built without libaec (" + want.variable + " " + want.level + ")";
+        }
         cleanup();
         return false;
     }

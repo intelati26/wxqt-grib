@@ -303,7 +303,7 @@ int main(int argc, char * argv[]) {
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
                 when.setTimeZone(QTimeZone::utc());
                 map->openAt(when, parts.value(2).toDouble(), parts.value(3).toDouble(), parts.value(4).toDouble(), extraLayers(parts.value(5)));
-                const auto projection = parts.value(6) == "robinson" ? GlobeMapView::Projection::Robinson : parts.value(6) == "equal" ? GlobeMapView::Projection::EqualEarth : parts.value(6) == "mollweide" ? GlobeMapView::Projection::Mollweide : GlobeMapView::Projection::Globe;
+                const auto projection = parts.value(6) == "robinson" ? GlobeMapView::Projection::Robinson : parts.value(6) == "equal" ? GlobeMapView::Projection::EqualEarth : parts.value(6) == "mollweide" ? GlobeMapView::Projection::Mollweide : parts.value(6) == "north" ? GlobeMapView::Projection::PolarNorth : parts.value(6) == "south" ? GlobeMapView::Projection::PolarSouth : GlobeMapView::Projection::Globe;
                 map->setGlobe(projection == GlobeMapView::Projection::Globe);
                 if (parts.value(7) == "export") {   // globemap:...:<globe|equal|mollweide>:export:<out.png>:<center lon>: also the whole world as a picture, after a while
                     const QString out = parts.value(8);
