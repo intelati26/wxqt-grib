@@ -29,6 +29,29 @@ namespace {
         return colors[std::clamp(wind >= 0 ? UtilityAtcf::categoryOf(wind) : 0, 0, 6)];
     }
 
+    // JMA's classes (10 minute winds), drawn as the NHC draws D / S / H / M: a letter in a dot of the class's colour
+    QColor jmaColor(const string& category, int knots) {
+        if (category == "TD") return QColor{94, 186, 255};
+        if (category == "TS") return QColor{0, 235, 230};
+        if (category == "STS") return QColor{255, 231, 117};
+        if (category == "TY") return knots >= 105 ? QColor{255, 96, 96} : knots >= 85 ? QColor{255, 143, 32} : QColor{255, 193, 64};
+        return QColor{190, 190, 190};   // a low, an extratropical cyclone
+    }
+    QString jmaLetter(const string& category, int knots) {
+        if (category == "TD") return "D";
+        if (category == "TS") return "S";
+        if (category == "STS") return "SS";
+        if (category == "TY") return knots >= 105 ? "VT" : "T";
+        return "L";
+    }
+    QString jmaWords(const string& category) {
+        if (category == "TD") return "tropical depression";
+        if (category == "TS") return "tropical storm";
+        if (category == "STS") return "severe tropical storm";
+        if (category == "TY") return "typhoon";
+        return category.empty() ? QString{"low"} : QString::fromStdString(category);
+    }
+
     QString knots(int wind) {
         return QString::fromStdString(UtilityAtcf::windLabel(wind));
     }
@@ -148,7 +171,45 @@ void WorldStormsLayer::paint(QPainter& painter, MapHost& host) {
                 painter.drawEllipse(t(history[i].lat, history[i].lon), 3.0 * px, 3.0 * px);
             }
         }
-        const auto& forecast = s.page.forecast;
+        if (s.circles.size() >= 2) {   // JMA's forecast, as the NHC shows its own: the line, a lettered dot of the class at each fix with its day and hour (UTC); JTWC's goes thin beside it
+            QPainterPath jtwc;
+            for (size_t i = 0; i < s.page.forecast.size(); i++) {
+                const auto p = t(s.page.forecast[i].lat, s.page.forecast[i].lon);
+                i == 0 ? jtwc.moveTo(p) : jtwc.lineTo(p);
+            }
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen{QColor{190, 190, 190, 200}, 1.2 * px, Qt::DotLine});
+            painter.drawPath(jtwc);
+            QPainterPath line;
+            for (size_t i = 0; i < s.circles.size(); i++) {
+                const auto p = t(s.circles[i].lat, s.circles[i].lon);
+                i == 0 ? line.moveTo(p) : line.lineTo(p);
+            }
+            painter.setPen(QPen{QColor{0, 0, 0, 200}, 5.0 * px});
+            painter.drawPath(line);
+            painter.setPen(QPen{QColor{255, 255, 255}, 2.6 * px});
+            painter.drawPath(line);
+            QFont letterFont{font};
+            letterFont.setBold(true);
+            letterFont.setPixelSize(static_cast<int>(8 * px));
+            for (size_t i = 1; i < s.circles.size(); i++) {
+                const auto& c = s.circles[i];
+                const auto p = t(c.lat, c.lon);
+                painter.setPen(QPen{QColor{0, 0, 0, 230}, 1.0 * px});
+                painter.setBrush(jmaColor(c.category, c.knots));
+                painter.drawEllipse(p, 7.0 * px, 7.0 * px);
+                painter.setFont(letterFont);
+                painter.setPen(QColor{20, 20, 20});
+                painter.drawText(QRectF{p.x() - 7.0 * px, p.y() - 7.0 * px, 14.0 * px, 14.0 * px}, Qt::AlignCenter, jmaLetter(c.category, c.knots));
+                painter.setFont(font);
+                const auto valid = QDateTime::fromString(QString::fromStdString(c.validUtc), Qt::ISODate).toUTC();
+                if (valid.isValid()) {
+                    painter.setPen(QColor{255, 255, 255});
+                    painter.drawText(p + QPointF{9.0 * px, 4.0 * px}, valid.toString("ddd HH'Z'"));
+                }
+            }
+        }
+        const auto& forecast = s.circles.size() >= 2 ? vector<UtilityCira::Fix>{} : s.page.forecast;
         if (forecast.size() >= 2) {
             QPainterPath path;
             for (size_t i = 0; i < forecast.size(); i++) {
@@ -171,8 +232,8 @@ void WorldStormsLayer::paint(QPainter& painter, MapHost& host) {
                 }
             }
         }
-        const auto& first = !forecast.empty() ? forecast.front() : (!history.empty() ? history.front() : UtilityCira::Fix{});
-        if (!forecast.empty() || !history.empty()) {
+        const auto& first = !s.page.forecast.empty() ? s.page.forecast.front() : (!history.empty() ? history.front() : UtilityCira::Fix{});
+        if (!s.page.forecast.empty() || !history.empty()) {
             const QPointF now = t(first.lat, first.lon);
             painter.setPen(QPen{QColor{0, 0, 0, 230}, 1.4 * px});
             painter.setBrush(categoryColor(first.knots));
@@ -208,7 +269,23 @@ MapHit WorldStormsLayer::pick(const QPointF& pixels, MapHost& host) const {
             }
         };
         for (const auto& f : s.page.forecast) {
-            consider(f, f.hour == 0 ? QString{"now"} : "forecast +" + QString::number(f.hour) + " h");
+            consider(f, f.hour == 0 ? QString{"JTWC now"} : "JTWC forecast +" + QString::number(f.hour) + " h");
+        }
+        for (const auto& c : s.circles) {   // JMA: the class, the 10 minute wind, the pressure, the motion and the circle
+            UtilityCira::Fix f;
+            f.lat = c.lat;
+            f.lon = c.lon;
+            const auto at = view.toPixels(c.lat, c.lon);
+            const double distance = std::hypot(at.x() - pixels.x(), at.y() - pixels.y());
+            if (distance < hit.distance) {
+                hit.distance = distance;
+                const auto valid = QDateTime::fromString(QString::fromStdString(c.validUtc), Qt::ISODate).toUTC();
+                hit.text = name + "\nJMA " + (c.hour == 0 ? QString{"analysis"} : "forecast +" + QString::number(c.hour) + " h") + (valid.isValid() ? " (" + valid.toString("ddd d MMM HH'Z'") + ")" : QString{}) +
+                           "\n" + jmaWords(c.category) + ", " + QString::number(c.knots) + " kt (10 min), gusts " + QString::number(c.gustKnots) + " kt" + (c.pressure > 0 ? ", " + QString::number(c.pressure) + " hPa" : QString{}) +
+                           (c.motion.empty() ? QString{} : "\nmoving " + QString::fromStdString(c.motion)) + (c.radiusKm > 0 ? "\n70% probability circle: " + QString::number(std::lround(c.radiusKm / 1.852)) + " nm (" + QString::number(std::lround(c.radiusKm)) + " km)" : QString{});
+                const string id = s.info.id, title = s.info.title;
+                hit.open = [id, title] (Window * parent) { new CiraStorm{parent, id, title}; };
+            }
         }
         for (const auto& f : s.page.history) {
             consider(f, QString::fromStdString(f.time) + "Z");
@@ -231,7 +308,11 @@ vector<MapLegendRow> WorldStormsLayer::legend() const {
     MapLegendRow cone;
     cone.title = "Cone:";
     cone.entries = {{MapLegendEntry::Line, QColor{255, 255, 255}, "JMA 70% probability circles (typhoons)"}};
-    return {row, cone};
+    MapLegendRow jma;
+    jma.title = "JMA forecast points:";
+    jma.entries = {{MapLegendEntry::Circle, jmaColor("TD", 0), "D depression"}, {MapLegendEntry::Circle, jmaColor("TS", 0), "S tropical storm"}, {MapLegendEntry::Circle, jmaColor("STS", 0), "SS severe tropical storm"},
+                   {MapLegendEntry::Circle, jmaColor("TY", 70), "T typhoon"}, {MapLegendEntry::Circle, jmaColor("TY", 105), "VT 105 kt or more"}, {MapLegendEntry::Line, QColor{190, 190, 190}, "JTWC forecast (dotted)"}};
+    return {row, jma, cone};
 }
 
 QWidget * WorldStormsLayer::options(QWidget * parent, const std::function<void()>& changed) {

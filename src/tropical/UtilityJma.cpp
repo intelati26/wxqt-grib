@@ -244,6 +244,11 @@ namespace UtilityJma {
                 if (c.lon > 180.0) c.lon -= 360.0;
                 c.radiusKm = part.value("probabilityCircleRadius").toObject().value("km").toDouble();
                 c.knots = part.value("maximumWind").toObject().value("sustained").toObject().value("kt").toString().toInt();
+                c.gustKnots = part.value("maximumWind").toObject().value("gust").toObject().value("kt").toString().toInt();
+                c.pressure = part.value("pressure").toString().toInt();
+                c.category = part.value("category").toObject().value("en").toString().toStdString();
+                c.motion = motion(part);
+                c.validUtc = part.value("validtime").toObject().value("UTC").toString().toStdString();
                 out.push_back(c);
             }
             return !out.empty();

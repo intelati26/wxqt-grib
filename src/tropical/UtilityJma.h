@@ -26,6 +26,11 @@ namespace UtilityJma {
         double lat{0}, lon{0};     // degrees, east positive
         double radiusKm{0};
         int knots{-1};             // JMA's 10 minute wind at the centre
+        int gustKnots{-1};
+        int pressure{0};           // hPa
+        string category;           // JMA's class at that time: TD, TS, STS, TY, L (a low) ...
+        string motion;             // "WNW at 11 kt (20 km/h)"
+        string validUtc;           // "2026-10-20T06:00:00Z"
     };
     bool forecastCircles(const string& stormName, vector<Circle>& out);
     // "Major Hurricane RACHEL" / "CHOI-WAN" -> the trailing upper-case name ("" for an invest)
