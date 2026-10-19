@@ -5847,7 +5847,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
         const auto& u = grids.at(product.barbU);
         const auto& v = grids.at(product.barbV);
-        const double spacing = span > 150.0 ? 52.0 : span > 80.0 ? 52.0 : 48.0;   // (the whole earth: denser and a size smaller)
+        const double spacing = span > 150.0 ? 44.0 : span > 80.0 ? 52.0 : 48.0;   // (the whole earth: denser and a size smaller)
         const double barbLength = span > 150.0 ? 20.0 : 24.0;
         p.setPen(QPen{QColor{20, 20, 20, 230}, 1.0});
         p.setBrush(QColor{20, 20, 20});
