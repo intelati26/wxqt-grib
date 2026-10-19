@@ -20,6 +20,7 @@
 #include <QSlider>
 #include <QDateTimeEdit>
 #include <QLabel>
+#include <QScrollArea>
 #include <QTimer>
 #include <QTreeWidget>
 #include <QVBoxLayout>
@@ -101,6 +102,7 @@ private:
     void askRange();                     // "Loop from Time 1 to Time 2": a dialog for the two times
     void clearRange();
     void advance();
+    ~MasterMapViewer() override;
     void closeEventCustom() override { closed = true; }
     void resizeEventCustom() override;
     MapLayer * layerOf(const string& id) const;
@@ -149,6 +151,7 @@ private:
     QWidget * sidePanel{};
     QTreeWidget * tree{};
     QWidget * activeBox{};
+    QScrollArea * activeScroll{};
     QVBoxLayout * activeLayout{};
     QDialog * addDialog{};
     QWidget * optionsBox{};
@@ -172,6 +175,11 @@ private:
     void followCursor(QObject * origin);
     void announceTime();
     vector<long> ticks;             // the times the bar steps through: every frame of every layer that has them, ascending
+    long wantedTime{0};             // the time last chosen on the bar: kept when a layer's frames are made again (another chart)
+    std::set<string> expanded;      // the layers whose options are open in the manager
+    std::map<string, QWidget *> inlineOptions;   // their option panels (kept, not made again)
+    std::map<string, QLabel *> summaryLabels;
+    string activeSignature;
     bool live{true};                // the newest of everything (the frames follow new scans)
     bool playing{false};
     bool playWhenReady{false};

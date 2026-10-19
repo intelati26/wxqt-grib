@@ -39,6 +39,7 @@
 #include "climate/TempHistoryViewer.h"
 #include "mapkit/ComboChartLayer.h"
 #include <QEventLoop>
+#include <QScrollArea>
 #include "mapkit/GlobeViewer.h"
 #include "settings/RadarPreferences.h"
 #include "models/ProductPicker.h"
@@ -52,7 +53,7 @@
 #include "util/UtilityUI.h"
 
 namespace {
-    const int panelWidth = 330;
+    const int panelWidth = 360;
 
     vector<string> split(const string& text, char separator) {
         vector<string> parts;
@@ -127,14 +128,25 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     auto * column = new QVBoxLayout{sidePanel};
     column->setContentsMargins(4, 0, 0, 0);
     // the layers that are on, each with its options one click away; the whole tree (every layer there is) is in the "Add layers" window
-    auto * activeTitle = new QLabel{"Layers on", sidePanel};
+    auto * activeTitle = new QLabel{"Layer manager", sidePanel};
     activeTitle->setStyleSheet("font-weight: bold;");
     column->addWidget(activeTitle);
     activeBox = new QWidget{sidePanel};
     activeLayout = new QVBoxLayout{activeBox};
     activeLayout->setContentsMargins(0, 0, 0, 0);
     activeLayout->setSpacing(2);
-    column->addWidget(activeBox);
+    {   // the manager stays in view: when many layers have their options open it scrolls instead of pushing the rest away
+        auto * scroll = activeScroll = new QScrollArea{sidePanel};
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        scroll->setWidget(activeBox);
+        scroll->setMinimumHeight(60);
+        column->addWidget(scroll);
+    }
+    for (const auto& id : QString::fromStdString(Utility::readPref("MASTERMAP_OPEN_OPTIONS", "")).split(',', Qt::SkipEmptyParts)) {
+        expanded.insert(id.toStdString());
+    }
     auto * addButton = new QPushButton{"Add layers...", sidePanel};
     addButton->setToolTip("Every layer the map has, in a tree: switch any on or off, and set its options");
     QObject::connect(addButton, &QPushButton::clicked, [this] { showAddLayers(); });
@@ -332,7 +344,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     globeView = new GlobeMapView{this};
     globeView->hide();
     rowMain.addWidgetReal(globeView, 1, Qt::Alignment{});
-    rowMain.addWidgetReal(sidePanel, 0, Qt::AlignTop | Qt::AlignLeft);
+    rowMain.addWidgetReal(sidePanel, 0, Qt::AlignLeft);   // (the whole height: the manager scrolls)
     ElidedText::install(sidePanel);
     box.addLayout(rowTop);
     box.addWidget(textStatus);
@@ -477,14 +489,39 @@ void MasterMapViewer::setLayerOn(const string& id, bool on) {
     QTimer::singleShot(0, this, [this] { refreshActiveList(); });
 }
 
-// the layers that are on, in painting order: a check to switch one off, its name and what it has read, and a gear for its options
+// The layer manager: the layers that are on, in painting order, each with a check to switch it off, its name and what it has read, and an arrow that opens its options right
+// there (they stay open between runs). The rows are made again only when the layers or the open options change; what the layers have read is written into the rows that are there,
+// so that a slider being dragged is not taken away from under the hand.
 void MasterMapViewer::refreshActiveList() {
     if (activeLayout == nullptr) {
         return;
     }
+    string signature;
+    for (const auto& layer : layers) {
+        if (layer->enabled()) {
+            signature += layer->id() + (expanded.count(layer->id()) ? "+" : "-") + ";";
+        }
+    }
+    if (signature == activeSignature) {
+        for (const auto& layer : layers) {
+            if (const auto found = summaryLabels.find(layer->id()); layer->enabled() && found != summaryLabels.end()) {
+                const auto text = layer->summary();
+                found->second->setText(QString::fromStdString(text));
+                found->second->setVisible(!text.empty());
+            }
+        }
+        return;
+    }
+    activeSignature = signature;
+    summaryLabels.clear();
     while (auto * item = activeLayout->takeAt(0)) {
         if (auto * widget = item->widget()) {
-            widget->deleteLater();
+            if (widget->property("keep").toBool()) {   // an open option panel: kept for the next time
+                widget->hide();
+                widget->setParent(nullptr);
+            } else {
+                widget->deleteLater();
+            }
         }
         delete item;
     }
@@ -498,23 +535,56 @@ void MasterMapViewer::refreshActiveList() {
         auto * rowLayout = new QHBoxLayout{row};
         rowLayout->setContentsMargins(0, 0, 0, 0);
         rowLayout->setSpacing(4);
+        const string id = layer->id();
+        const bool open = expanded.count(id) > 0;
+        auto * arrow = new QToolButton{row};
+        arrow->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
+        arrow->setAutoRaise(true);
+        arrow->setToolTip("Options of this layer, here in the manager");
+        QObject::connect(arrow, &QToolButton::clicked, [this, id] {
+            if (!expanded.erase(id)) {
+                expanded.insert(id);
+            }
+            QStringList list;
+            for (const auto& e : expanded) {
+                list << QString::fromStdString(e);
+            }
+            Utility::writePref("MASTERMAP_OPEN_OPTIONS", list.join(',').toStdString());
+            QTimer::singleShot(0, this, [this] { refreshActiveList(); });
+        });
+        rowLayout->addWidget(arrow);
         auto * check = new QCheckBox{QString::fromStdString(layer->path()).section('/', -1), row};
         check->setChecked(true);
         check->setToolTip(QString::fromStdString(layer->tip()) + "\n(uncheck to switch it off)");
-        const string id = layer->id();
         QObject::connect(check, &QCheckBox::clicked, [this, id] (bool on) { setLayerOn(id, on); comboView.setIndex(0); });
         rowLayout->addWidget(check, 1);
-        auto * gear = new QToolButton{row};
-        gear->setIcon(style()->standardIcon(QStyle::SP_FileDialogDetailedView));   // no text: the panel's button eliding leaves it alone
-        gear->setAutoRaise(true);
-        gear->setToolTip("Options: the period, product and the rest of this layer's options");
-        QObject::connect(gear, &QToolButton::clicked, [this, id] { showLayerOptions(layerOf(id)); });
-        rowLayout->addWidget(gear);
         activeLayout->addWidget(row);
-        if (const auto text = layer->summary(); !text.empty()) {
-            auto * note = new QLabel{QString::fromStdString(text), activeBox};
-            note->setStyleSheet("color: gray; font-size: 9pt; margin-left: 22px;");
-            activeLayout->addWidget(note);
+        auto * note = new QLabel{QString::fromStdString(layer->summary()), activeBox};
+        note->setStyleSheet("color: gray; font-size: 9pt; margin-left: 22px;");
+        note->setWordWrap(true);
+        note->setVisible(!layer->summary().empty());
+        activeLayout->addWidget(note);
+        summaryLabels[id] = note;
+        if (open) {
+            auto found = inlineOptions.find(id);
+            if (found == inlineOptions.end()) {
+                auto * holder = new QWidget{activeBox};
+                holder->setProperty("keep", true);
+                auto * holderLayout = new QVBoxLayout{holder};
+                holderLayout->setContentsMargins(10, 0, 0, 6);
+                MapLayer * target = layer.get();
+                if (auto * widget = target->options(holder, [this, target] { target->optionChanged(*this); redraw(); QTimer::singleShot(0, this, [this] { refreshActiveList(); }); })) {
+                    holderLayout->addWidget(widget);
+                } else {
+                    auto * none = new QLabel{"No options for this layer.", holder};
+                    none->setEnabled(false);
+                    holderLayout->addWidget(none);
+                }
+                ElidedText::install(holder);
+                found = inlineOptions.emplace(id, holder).first;
+            }
+            activeLayout->addWidget(found->second);
+            found->second->show();
         }
     }
     if (shown == 0) {
@@ -523,6 +593,12 @@ void MasterMapViewer::refreshActiveList() {
         none->setEnabled(false);
         activeLayout->addWidget(none);
     }
+    activeLayout->addStretch();
+    QTimer::singleShot(0, this, [this] {   // the area is as tall as its rows, up to what the window has: it scrolls only beyond that
+        activeBox->adjustSize();
+        const int wanted = activeBox->sizeHint().height() + 4, room = std::max(120, height() - 300);
+        activeScroll->setFixedHeight(std::min(wanted, room));
+    });
 }
 
 // the options of one layer in a small window of their own, by its gear
@@ -560,6 +636,14 @@ void MasterMapViewer::showAddLayers() {
     addDialog->raise();
 }
 
+// the layers' option panels go before the layers do (a panel being deleted tells its layer)
+MasterMapViewer::~MasterMapViewer() {
+    for (auto& [id, holder] : inlineOptions) {
+        delete holder;
+    }
+    inlineOptions.clear();
+}
+
 // only forecasts on the bar (the model charts): "latest" is the first hour of the run, not the last tick
 bool MasterMapViewer::forecastsOnly() const {
     bool any = false;
@@ -591,7 +675,7 @@ void MasterMapViewer::rebuildTicks() {
         const auto * chart = modelLayer();
         buttonMembers.getView()->setVisible(chart != nullptr && chart->modelName() == "REFS");
     }
-    const long keep = !live && timeSlider->value() >= 0 && static_cast<size_t>(timeSlider->value()) < ticks.size() ? ticks[static_cast<size_t>(timeSlider->value())] : 0;
+    const long keep = !live && wantedTime != 0 ? wantedTime : (!live && timeSlider->value() >= 0 && static_cast<size_t>(timeSlider->value()) < ticks.size() ? ticks[static_cast<size_t>(timeSlider->value())] : 0);
     ticks.assign(all.begin(), all.end());
     settingSlider = true;
     timeSlider->setMaximum(std::max(0, static_cast<int>(ticks.size()) - 1));
@@ -658,6 +742,7 @@ void MasterMapViewer::jumpTo(const QDateTime& utc) {
 }
 
 void MasterMapViewer::goLive() {
+    wantedTime = 0;
     loopFrom = loopTo = 0;
     rangeButton->setText("From-to...");
     live = true;
@@ -678,6 +763,7 @@ void MasterMapViewer::goTo(int index) {
     }
     live = (forecastsOnly() ? index == 0 : static_cast<size_t>(index) + 1 == ticks.size()) && !playing;
     const long t = ticks[static_cast<size_t>(index)];
+    wantedTime = t;   // (a chart changed under the bar keeps this hour)
     for (auto& layer : layers) {
         if (layer->enabled() && layer->timeAware()) {
             layer->showTime(live ? 0 : t, *this);
