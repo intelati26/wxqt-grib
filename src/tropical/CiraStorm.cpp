@@ -6,6 +6,7 @@
 #include "tropical/CiraStorm.h"
 #include "ui/CaptionedTile.h"
 #include "ui/UiStandards.h"
+#include <QDateTime>
 #include <QImage>
 #include "misc/ImageViewer.h"
 #include "misc/TextViewerStatic.h"
@@ -25,6 +26,8 @@ CiraStorm::CiraStorm(Window * parent, const string& stormId, const string& title
     , sw{this, box}
     , textHeader{this, title}
     , textNote{this, "CIRA / RAMMB experimental tropical cyclone products (Colorado State University, NOAA). Click a picture to enlarge it."}
+    , textSar{this, ""}
+    , imageSar{this}
     , textForecast{this, ""}
     , textHistory{this, ""}
     , textRapid{this, ""}
@@ -40,6 +43,12 @@ CiraStorm::CiraStorm(Window * parent, const string& stormId, const string& title
     box.addWidget(textHeader);
     box.addWidget(textNote);
     box.addLayout(rowButtons);
+    textSar.setFixedWidth();
+    textSar.setVisible(false);
+    imageSar.imageSize = UiStandards::tileImage * 2;
+    imageSar.getView()->setVisible(false);
+    box.addWidget(textSar);
+    box.addWidget(imageSar);
     flowImages.setEqualRowHeights(true);
     box.addLayout(flowImages);
     box.addWidget(textForecast);
@@ -87,6 +96,7 @@ void CiraStorm::fill(const UtilityCira::StormPage& page) {
     }
     addJtwc();
     addJma();
+    addSar();
     rowButtons.addStretch();
     for (const auto& product : UtilityCira::products()) {
         const auto found = page.imageUrl.find(product.key);
@@ -216,4 +226,66 @@ void CiraStorm::addJma() {
             }};
     });
     rowButtons.addWidget(buttons.back());
+}
+
+// The newest SAR wind scene of this storm (any basin), shown on the page: the wind picture, when and by which satellite, and what was measured in it; a click opens all of them.
+void CiraStorm::addSar() {
+    string upper = stormId;
+    std::transform(upper.begin(), upper.end(), upper.begin(), [] (unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    const auto year = upper.size() >= 8 ? std::atoi(upper.substr(upper.size() - 4).c_str()) : 0;
+    const auto dash = title.rfind(' ');
+    const string name = dash == string::npos ? string{} : title.substr(dash + 1);
+    auto scenes = std::make_shared<vector<UtilitySarWinds::Scene>>();
+    auto schedule = std::make_shared<UtilitySarWinds::Schedule>();
+    auto problem = std::make_shared<string>();
+    new FutureVoid{this,
+        [scenes, schedule, problem, upper, name, year] {
+            UtilitySarWinds::fetchSchedule(*schedule);
+            *problem = UtilitySarWinds::storm(upper, name, year, *scenes);
+        },
+        [this, scenes, schedule, upper, name, year] {
+            if (closed) {
+                return;
+            }
+            // the next pass STAR lists for this storm (UTC)
+            string next;
+            const auto now = QDateTime::currentDateTimeUtc();
+            const UtilitySarWinds::Pass * soonest = nullptr;
+            QDateTime soonestTime;
+            for (const auto& pass : schedule->passes) {
+                if (pass.id != upper) {
+                    continue;
+                }
+                auto when = QDateTime::fromString(QString::fromStdString(pass.time), "yyyy-MM-dd HH:mm");
+                when.setTimeSpec(Qt::UTC);
+                if (when.isValid() && when >= now.addSecs(-1800) && (soonest == nullptr || when < soonestTime)) {
+                    soonest = &pass;
+                    soonestTime = when;
+                }
+            }
+            if (soonest != nullptr) {
+                next = "Next SAR pass expected: " + soonest->time + "Z  " + soonest->sensor + "   (STAR's schedule, " + schedule->updated + ")";
+            }
+            if (scenes->empty()) {   // no scene of this storm yet: say when the next pass is, if STAR lists one
+                textSar.setText(next.empty() ? string{"No SAR winds of this storm yet, and STAR lists no pass of it right now."} : "No SAR winds of this storm yet.\n" + next);
+                textSar.setVisible(true);
+                return;
+            }
+            const auto& scene = scenes->front();
+            string text = "Latest SAR winds (NOAA STAR): " + scene.time + "  " + scene.sensor + "\n";
+            for (const auto& line : scene.measurements) {
+                text += "  " + line + "\n";
+            }
+            textSar.setText(text + (next.empty() ? string{} : next + "\n") + "  (click the picture for every scene, the schedule and the other products)");
+            textSar.setVisible(true);
+            imageSar.connect([this, upper, name, year] { new SarWindsViewer{this, upper, name, year}; });
+            if (!scene.wind.empty()) {
+                imageSar.getView()->setVisible(true);
+                new FutureBytes{this, scene.wind, [this] (const auto& bytes) {
+                    if (!closed && !bytes.isEmpty()) {
+                        imageSar.setBytes(bytes);
+                    }
+                }};
+            }
+        }};
 }

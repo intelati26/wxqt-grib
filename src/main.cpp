@@ -51,6 +51,7 @@
 #include "mapkit/ModelChartLayer.h"
 #include "mapkit/UpperAirLayer.h"
 #include "models/ModelScreen.h"
+#include "tropical/CiraStorm.h"
 #include "models/ModelViewer.h"
 #include "history/EventsViewer.h"
 #include "history/HistoryCursor.h"
@@ -689,6 +690,8 @@ int main(int argc, char * argv[]) {
                         QTimer::singleShot(3000, picker, [picker, file] { picker->grab().save(file); });
                     }
                 }
+            } else if (route.startsWith("cirastorm:")) {   // WXQT_OPEN=cirastorm:<id>:<title>: a storm's CIRA page (with the newest SAR winds)
+                new CiraStorm{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2).toStdString()};
             } else if (route == "tornadoyears") {   // WXQT_OPEN=tornadoyears: the tornado years ranked
                 new TornadoYearsViewer{&w, TornadoData::load(), 0, std::string{}};
             } else if (route.startsWith("swostate:")) {   // WXQT_OPEN=swostate:<day>: the SPC convective outlook's state graphics for that day

@@ -35,6 +35,7 @@ private:
     void fill(const UtilityCira::StormPage&);
     void addJtwc();                                  // the Joint Typhoon Warning Center's products, for the basins it covers
     void openText(const string& url, const string& heading);
+    void addSar();   // the newest SAR wind scene of the storm (NOAA STAR), picture and measurements, under the buttons
     void addJma();   // the Japan Meteorological Agency's analysis and forecast in English (western Pacific storms)
     string stormId;
     string title;
@@ -43,6 +44,8 @@ private:
     ControlRow rowButtons;
     Text textHeader;
     Text textNote;
+    Text textSar;
+    Image imageSar;
     FlowBox flowImages;
     Text textForecast;
     Text textHistory;
