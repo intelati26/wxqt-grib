@@ -13,7 +13,9 @@
 #include "objects/FutureText.h"
 #include "objects/FutureVoid.h"
 #include <cstdlib>
+#include <algorithm>
 #include "tropical/CiraLoopViewer.h"
+#include "hurricane/SarWindsViewer.h"
 #include "tropical/UtilityJma.h"
 
 CiraStorm::CiraStorm(Window * parent, const string& stormId, const string& title)
@@ -70,6 +72,17 @@ void CiraStorm::fill(const UtilityCira::StormPage& page) {
         buttons.emplace_back(this, None, "Loop: " + product.label);
         const auto key = product.key;
         buttons.back().connect([this, key] { new CiraLoopViewer{this, stormId, title, key}; });
+        rowButtons.addWidget(buttons.back());
+    }
+    {   // the SAR winds of NOAA STAR (any basin: the storm's ATCF id is theirs too)
+        buttons.emplace_back(this, None, "SAR winds");
+        buttons.back().connect([this] {
+            string upper = stormId;
+            std::transform(upper.begin(), upper.end(), upper.begin(), [] (unsigned char c) { return static_cast<char>(std::toupper(c)); });
+            const auto year = upper.size() >= 8 ? std::atoi(upper.substr(upper.size() - 4).c_str()) : 0;
+            const auto dash = title.rfind(' ');
+            new SarWindsViewer{this, upper, dash == string::npos ? string{} : title.substr(dash + 1), year};
+        });
         rowButtons.addWidget(buttons.back());
     }
     addJtwc();

@@ -15,6 +15,7 @@
 #include <QVBoxLayout>
 #include "hurricane/EnsembleStyle.h"
 #include "hurricane/HurricaneViewer.h"
+#include "tropical/CiraStorm.h"
 #include "hurricane/UtilityWeatherLab.h"
 #include "hurricane/UtilityAtcf.h"
 #include "hurricane/UtilityNhcGis.h"
@@ -44,6 +45,166 @@ namespace {
         }
         return path;
     }
+}
+
+// ---- storms outside the NHC's basins (typhoons ...) ----
+
+string WorldStormsLayer::summary() const {
+    if (loading && !storms) return "reading the storms of the world...";
+    if (!error.empty()) return error;
+    if (!storms) return {};
+    return storms->empty() ? string{"no active storms outside the Atlantic and East Pacific"} : std::to_string(storms->size()) + " storms (" + [&] {
+        string names;
+        for (const auto& s : *storms) {
+            names += (names.empty() ? "" : ", ") + (s.info.name.empty() ? s.info.id : s.info.name);
+        }
+        return names;
+    }() + ")";
+}
+
+void WorldStormsLayer::refresh(MapHost& host) {
+    if (loading) {
+        return;
+    }
+    loading = true;
+    auto fresh = std::make_shared<vector<Storm>>();
+    auto message = std::make_shared<string>();
+    host.background(
+        [fresh, message] {
+            vector<UtilityCira::Storm> all;
+            if (!UtilityCira::activeStorms(all, *message)) {
+                return;
+            }
+            for (const auto& info : all) {
+                const auto prefix = info.id.substr(0, 2);
+                if (prefix == "al" || prefix == "ep" || prefix == "cp") {   // the NHC's: the active storms layer draws them
+                    continue;
+                }
+                Storm s;
+                s.info = info;
+                string problem;
+                if (UtilityCira::stormPage(info.id, s.page, problem)) {
+                    fresh->push_back(std::move(s));
+                }
+            }
+        },
+        [this, &host, fresh, message] {
+            loading = false;
+            storms = fresh;
+            error = fresh->empty() ? *message : string{};
+            host.redraw();
+        });
+}
+
+void WorldStormsLayer::paint(QPainter& painter, MapHost& host) {
+    if (!storms) {
+        return;
+    }
+    const auto t = host.view().transform();
+    const double px = host.view().unitsPerPixel();
+    QFont font{painter.font()};
+    font.setPixelSize(static_cast<int>(11 * px));
+    painter.setFont(font);
+    for (const auto& s : *storms) {
+        const auto& history = s.page.history;
+        if (history.size() >= 2) {   // newest first
+            QPainterPath path;
+            for (size_t i = 0; i < history.size(); i++) {
+                const auto p = t(history[i].lat, history[i].lon);
+                i == 0 ? path.moveTo(p) : path.lineTo(p);
+            }
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen{QColor{0, 0, 0, 200}, 4.0 * px});
+            painter.drawPath(path);
+            painter.setPen(QPen{QColor{235, 235, 235}, 1.8 * px});
+            painter.drawPath(path);
+            for (size_t i = 0; i < history.size(); i += 2) {
+                painter.setPen(QPen{QColor{0, 0, 0, 220}, 0.9 * px});
+                painter.setBrush(categoryColor(history[i].knots));
+                painter.drawEllipse(t(history[i].lat, history[i].lon), 3.0 * px, 3.0 * px);
+            }
+        }
+        const auto& forecast = s.page.forecast;
+        if (forecast.size() >= 2) {
+            QPainterPath path;
+            for (size_t i = 0; i < forecast.size(); i++) {
+                const auto p = t(forecast[i].lat, forecast[i].lon);
+                i == 0 ? path.moveTo(p) : path.lineTo(p);
+            }
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen{QColor{0, 0, 0, 200}, 5.0 * px});
+            painter.drawPath(path);
+            painter.setPen(QPen{QColor{255, 255, 255}, 2.6 * px});
+            painter.drawPath(path);
+            for (const auto& f : forecast) {
+                const auto p = t(f.lat, f.lon);
+                painter.setPen(QPen{QColor{0, 0, 0, 220}, 1.0 * px});
+                painter.setBrush(categoryColor(f.knots));
+                painter.drawEllipse(p, 4.2 * px, 4.2 * px);
+                if (f.hour > 0 && f.hour % 24 == 0) {
+                    painter.setPen(QColor{255, 255, 255});
+                    painter.drawText(p + QPointF{7.0 * px, -5.0 * px}, QString::number(f.hour / 24) + " d");
+                }
+            }
+        }
+        const auto& first = !forecast.empty() ? forecast.front() : (!history.empty() ? history.front() : UtilityCira::Fix{});
+        if (!forecast.empty() || !history.empty()) {
+            const QPointF now = t(first.lat, first.lon);
+            painter.setPen(QPen{QColor{0, 0, 0, 230}, 1.4 * px});
+            painter.setBrush(categoryColor(first.knots));
+            painter.drawEllipse(now, 8.0 * px, 8.0 * px);
+            painter.setPen(QColor{255, 255, 255});
+            QFont bold{font};
+            bold.setBold(true);
+            painter.setFont(bold);
+            painter.drawText(now + QPointF{11.0 * px, 4.0 * px}, QString::fromStdString(s.info.name.empty() ? s.info.id : s.info.id + " " + s.info.name));
+            painter.setFont(font);
+        }
+    }
+}
+
+MapHit WorldStormsLayer::pick(const QPointF& pixels, MapHost& host) const {
+    MapHit hit;
+    hit.reach = 14.0;
+    hit.priority = 30;
+    if (!storms) {
+        return hit;
+    }
+    auto& view = host.view();
+    for (const auto& s : *storms) {
+        const QString name = QString::fromStdString(s.info.title);
+        const auto consider = [&] (const UtilityCira::Fix& f, const QString& what) {
+            const auto at = view.toPixels(f.lat, f.lon);
+            const double distance = std::hypot(at.x() - pixels.x(), at.y() - pixels.y());
+            if (distance < hit.distance) {
+                hit.distance = distance;
+                hit.text = name + "\n" + what + (f.knots >= 0 ? ": " + knots(f.knots) : QString{});
+                const string id = s.info.id, title = s.info.title;
+                hit.open = [id, title] (Window * parent) { new CiraStorm{parent, id, title}; };
+            }
+        };
+        for (const auto& f : s.page.forecast) {
+            consider(f, f.hour == 0 ? QString{"now"} : "forecast +" + QString::number(f.hour) + " h");
+        }
+        for (const auto& f : s.page.history) {
+            consider(f, QString::fromStdString(f.time) + "Z");
+        }
+    }
+    if (hit.valid()) {
+        hit.text += "\n(click for its page, loops and SAR winds)";
+    }
+    return hit;
+}
+
+vector<MapLegendRow> WorldStormsLayer::legend() const {
+    MapLegendRow row;
+    row.title = "Storm intensity (1 min wind):";
+    static const char * names[] = {"TD", "TS", "Cat 1", "Cat 2", "Cat 3", "Cat 4", "Cat 5"};
+    static const int winds[] = {20, 40, 70, 85, 100, 120, 140};
+    for (int c = 0; c < 7; c++) {
+        row.entries.push_back({MapLegendEntry::Circle, categoryColor(winds[c]), names[c]});
+    }
+    return {row};
 }
 
 // ---- active storms ----

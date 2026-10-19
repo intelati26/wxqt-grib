@@ -38,7 +38,16 @@ namespace UtilityCira {
     const vector<string>& basinOrder();
     string basinOf(const string& id);
 
+    struct Fix {
+        double lat{0}, lon{0};   // degrees, east positive (-180 .. 180)
+        int knots{-1};
+        int hour{0};             // forecast hour (0 for the track history)
+        string time;             // "2026-10-19 18:00" (track history)
+    };
+
     struct StormPage {
+        vector<Fix> history;                 // the track so far, newest first
+        vector<Fix> forecast;                // the forecast fixes, from hour 0
         std::map<string, string> imageUrl;   // product key -> the newest file's full address
         string forecastTime;                 // "2026-10-02 06:00"
         string forecastTrack;                // the forecast table as text

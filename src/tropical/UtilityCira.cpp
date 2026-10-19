@@ -143,6 +143,49 @@ namespace UtilityCira {
         }
         if (!tables.empty()) out.forecastTrack = tables[0];
         if (tables.size() > 1) out.trackHistory = tables[1];
+        // the same two tables as fixes: forecast hour or synoptic time, latitude, longitude, intensity (kt)
+        static const QRegularExpression row{R"(<tr[^>]*>(.*?)</tr>)", QRegularExpression::DotMatchesEverythingOption | QRegularExpression::CaseInsensitiveOption};
+        static const QRegularExpression cell{R"(<t[dh][^>]*>(.*?)</t[dh]>)", QRegularExpression::DotMatchesEverythingOption | QRegularExpression::CaseInsensitiveOption};
+        static const QRegularExpression tag{"<[^>]+>"};
+        int which = 0;
+        for (auto m = table.globalMatch(html); m.hasNext();) {
+            const auto body = m.next().captured(1);
+            if (!body.contains("Latitude")) {
+                continue;
+            }
+            auto& target = which == 0 ? out.forecast : out.history;
+            if (which++ > 1) {
+                break;
+            }
+            for (auto r = row.globalMatch(body); r.hasNext();) {
+                QStringList cells;
+                for (auto c = cell.globalMatch(r.next().captured(1)); c.hasNext();) {
+                    cells << c.next().captured(1).remove(tag).trimmed();
+                }
+                bool okLat = false, okLon = false;
+                if (cells.size() < 4) {
+                    continue;
+                }
+                Fix fix;
+                fix.lat = cells[1].toDouble(&okLat);
+                fix.lon = cells[2].toDouble(&okLon);
+                if (!okLat || !okLon) {
+                    continue;
+                }
+                if (fix.lon > 180.0) {
+                    fix.lon -= 360.0;
+                }
+                bool okKt = false;
+                const int kt = cells[3].toInt(&okKt);
+                fix.knots = okKt ? kt : -1;
+                if (which == 1) {
+                    fix.hour = cells[0].toInt();
+                } else {
+                    fix.time = cells[0].toStdString();
+                }
+                target.push_back(fix);
+            }
+        }
         return true;
     }
 

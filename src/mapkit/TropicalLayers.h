@@ -12,6 +12,7 @@
 #include "hurricane/EnsembleStyle.h"
 #include "hurricane/UtilityEnsembleStats.h"
 #include "mapkit/MapLayer.h"
+#include "tropical/UtilityCira.h"
 
 // The tropical screens' drawings as layers: every active storm with its track so far, NHC's forecast, cone and watches / warnings (inland zones too);
 // the Tropical Weather Outlook's areas; and NHC's wind speed probability bands.
@@ -46,6 +47,35 @@ private:
     bool showWarnings{true};
     bool showInland{true};
     bool showForecast{true};
+    std::shared_ptr<vector<Storm>> storms;
+};
+
+// Every active storm outside the Atlantic and East Pacific the NHC covers - the Western Pacific (typhoons), North Indian Ocean and Southern Hemisphere - from CIRA / RAMMB's real-time
+// pages (JTWC's fixes and forecast): the track so far, the forecast with its hours, the intensity at each fix. Click one for its CIRA page (pictures, loops, JTWC / JMA text, SAR winds).
+class WorldStormsLayer : public MapLayer {
+public:
+    string id() const override { return "tropical/world-storms"; }
+    string path() const override { return "Tropical/Storms of the Western Pacific, Indian Ocean and Southern Hemisphere"; }
+    string source() const override { return "CIRA / RAMMB TC Real-Time, JTWC"; }
+    string tip() const override { return "Every active typhoon, cyclone and invest outside the NHC's basins: the track so far and the forecast, coloured by intensity; click one for its page with the SAR winds"; }
+    int order() const override { return 71; }
+    int refreshSeconds() const override { return 1800; }
+    void refresh(MapHost&) override;
+    void paint(QPainter&, MapHost&) override;
+    MapHit pick(const QPointF&, MapHost&) const override;
+    vector<MapLegendRow> legend() const override;
+    string summary() const override;
+
+protected:
+    void onEnable(MapHost& host) override { refresh(host); }
+
+private:
+    struct Storm {
+        UtilityCira::Storm info;
+        UtilityCira::StormPage page;
+    };
+    bool loading{false};
+    string error;
     std::shared_ptr<vector<Storm>> storms;
 };
 
