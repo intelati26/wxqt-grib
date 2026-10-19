@@ -220,4 +220,34 @@ namespace UtilityJma {
         error = "JMA has no active storm named " + stormName;
         return false;
     }
+
+    bool forecastCircles(const string& stormName, vector<Circle>& out) {
+        out.clear();
+        if (stormName.empty()) {
+            return false;
+        }
+        const auto active = fetch(base + "targetTc.json").array();
+        const auto wanted = normalised(QString::fromStdString(stormName));
+        for (const auto& entry : active) {
+            const auto id = entry.toObject().value("tropicalCyclone").toString().toStdString();
+            if (id.empty()) continue;
+            const auto parts = fetch(base + id + "/specifications.json").array();
+            if (parts.isEmpty() || normalised(parts[0].toObject().value("name").toObject().value("en").toString()) != wanted) continue;
+            for (int i = 1; i < parts.size(); i++) {
+                const auto part = parts[i].toObject();
+                const auto position = part.value("position").toObject().value("deg").toArray();
+                if (position.size() < 2) continue;
+                Circle c;
+                c.hour = part.value("advancedHours").toInt();
+                c.lat = position[0].toDouble();
+                c.lon = position[1].toDouble();
+                if (c.lon > 180.0) c.lon -= 360.0;
+                c.radiusKm = part.value("probabilityCircleRadius").toObject().value("km").toDouble();
+                c.knots = part.value("maximumWind").toObject().value("sustained").toObject().value("kt").toString().toInt();
+                out.push_back(c);
+            }
+            return !out.empty();
+        }
+        return false;
+    }
 }

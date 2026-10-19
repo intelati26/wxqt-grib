@@ -7,8 +7,10 @@
 #define UTILITYJMA_H
 
 #include <string>
+#include <vector>
 
 using std::string;
+using std::vector;
 
 // The Japan Meteorological Agency is the official (WMO RSMC Tokyo) tropical cyclone centre for the western North Pacific. Its public
 // data feed (the one behind JMA's own typhoon map, https://www.jma.go.jp/bosai/typhoon/data/) carries English names and categories but
@@ -17,6 +19,15 @@ using std::string;
 namespace UtilityJma {
     // the storm with this name (case and hyphens ignored), "" when JMA has no such active storm; `text` is the English advisory
     bool advisoryFor(const string& stormName, string& text, string& error);
+    // JMA's forecast positions of the storm with this name, each with the radius of its 70% probability circle (the storm's centre stays inside it 70% of the time): the
+    // cone of uncertainty of a western Pacific storm (JTWC publishes none). Hour 0 is the analysis, radius 0.
+    struct Circle {
+        int hour{0};
+        double lat{0}, lon{0};     // degrees, east positive
+        double radiusKm{0};
+        int knots{-1};             // JMA's 10 minute wind at the centre
+    };
+    bool forecastCircles(const string& stormName, vector<Circle>& out);
     // "Major Hurricane RACHEL" / "CHOI-WAN" -> the trailing upper-case name ("" for an invest)
     string nameFromTitle(const string& title);
 }

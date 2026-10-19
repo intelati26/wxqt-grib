@@ -84,6 +84,9 @@ void WorldStormsLayer::refresh(MapHost& host) {
                 s.info = info;
                 string problem;
                 if (UtilityCira::stormPage(info.id, s.page, problem)) {
+                    if (prefix == "wp") {
+                        UtilityJma::forecastCircles(info.name, s.circles);   // (the western Pacific is JMA's)
+                    }
                     fresh->push_back(std::move(s));
                 }
             }
@@ -106,6 +109,27 @@ void WorldStormsLayer::paint(QPainter& painter, MapHost& host) {
     font.setPixelSize(static_cast<int>(11 * px));
     painter.setFont(font);
     for (const auto& s : *storms) {
+        if (showCone && s.circles.size() >= 2) {   // the cone: the circles along the forecast and between them, as one shape
+            QPainterPath cone;
+            cone.setFillRule(Qt::WindingFill);   // (overlapping circles join, they do not cancel)
+            const auto circleAt = [&] (double lat, double lon, double km) {
+                const double cosLat = std::max(0.05, std::cos(lat * 3.14159265358979 / 180.0));
+                const auto centre = t(lat, lon);
+                const double radius = std::abs(t(lat, lon + km / (111.2 * cosLat)).x() - centre.x());
+                cone.addEllipse(centre, radius, radius);
+            };
+            for (size_t i = 0; i + 1 < s.circles.size(); i++) {
+                const auto& a = s.circles[i];
+                const auto& b = s.circles[i + 1];
+                for (int k = 0; k <= 12; k++) {
+                    const double f = k / 12.0;
+                    circleAt(a.lat + (b.lat - a.lat) * f, a.lon + (b.lon - a.lon) * f, a.radiusKm + (b.radiusKm - a.radiusKm) * f);
+                }
+            }
+            painter.setPen(QPen{QColor{255, 255, 255, 190}, 1.4 * px, Qt::DashLine});
+            painter.setBrush(QColor{255, 255, 255, 38});
+            painter.drawPath(cone.simplified());
+        }
         const auto& history = s.page.history;
         if (history.size() >= 2) {   // newest first
             QPainterPath path;
@@ -204,7 +228,21 @@ vector<MapLegendRow> WorldStormsLayer::legend() const {
     for (int c = 0; c < 7; c++) {
         row.entries.push_back({MapLegendEntry::Circle, categoryColor(winds[c]), names[c]});
     }
-    return {row};
+    MapLegendRow cone;
+    cone.title = "Cone:";
+    cone.entries = {{MapLegendEntry::Line, QColor{255, 255, 255}, "JMA 70% probability circles (typhoons)"}};
+    return {row, cone};
+}
+
+QWidget * WorldStormsLayer::options(QWidget * parent, const std::function<void()>& changed) {
+    auto * widget = new QWidget{parent};
+    auto * layout = new QVBoxLayout{widget};
+    layout->setContentsMargins(0, 0, 0, 0);
+    auto * c = new QCheckBox{"Cone (JMA's 70% probability circles, western Pacific)", widget};
+    c->setChecked(showCone);
+    QObject::connect(c, &QCheckBox::toggled, [this, changed] (bool on) { showCone = on; changed(); });
+    layout->addWidget(c);
+    return widget;
 }
 
 // ---- active storms ----

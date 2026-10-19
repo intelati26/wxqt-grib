@@ -13,6 +13,7 @@
 #include "hurricane/UtilityEnsembleStats.h"
 #include "mapkit/MapLayer.h"
 #include "tropical/UtilityCira.h"
+#include "tropical/UtilityJma.h"
 
 // The tropical screens' drawings as layers: every active storm with its track so far, NHC's forecast, cone and watches / warnings (inland zones too);
 // the Tropical Weather Outlook's areas; and NHC's wind speed probability bands.
@@ -65,6 +66,7 @@ public:
     MapHit pick(const QPointF&, MapHost&) const override;
     vector<MapLegendRow> legend() const override;
     string summary() const override;
+    QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
 
 protected:
     void onEnable(MapHost& host) override { refresh(host); }
@@ -73,9 +75,11 @@ private:
     struct Storm {
         UtilityCira::Storm info;
         UtilityCira::StormPage page;
+        vector<UtilityJma::Circle> circles;   // JMA's 70% probability circles (the cone), western Pacific storms
     };
     bool loading{false};
     string error;
+    bool showCone{true};
     std::shared_ptr<vector<Storm>> storms;
 };
 
