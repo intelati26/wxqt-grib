@@ -252,7 +252,7 @@ string ModelChartLayer::summary() const {
         for (const int h : hours) {
             have += frames.count(keyFor(h)) > 0 ? 1 : 0;
         }
-        ready += "  (" + std::to_string(have) + " of " + std::to_string(hours.size()) + " hours ready)";
+        ready += "  (" + std::to_string(have) + " of " + std::to_string(hours.size()) + " frames ready)";
     }
     return model + " " + run + (busy ? "  (drawing the chart for this view...)" : "") + ready;
 }
