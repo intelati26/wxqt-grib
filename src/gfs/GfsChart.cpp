@@ -5847,7 +5847,8 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
         const auto& u = grids.at(product.barbU);
         const auto& v = grids.at(product.barbV);
-        const double spacing = span > 150.0 ? 62.0 : span > 80.0 ? 52.0 : 48.0;
+        const double spacing = span > 150.0 ? 52.0 : span > 80.0 ? 52.0 : 48.0;   // (the whole earth: denser and a size smaller)
+        const double barbLength = span > 150.0 ? 20.0 : 24.0;
         p.setPen(QPen{QColor{20, 20, 20, 230}, 1.0});
         p.setBrush(QColor{20, 20, 20});
         for (double y = area.top() + spacing / 2; y < area.bottom(); y += spacing) {
@@ -5858,7 +5859,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                     continue;
                 }
                 const double from = std::fmod(std::atan2(-uu, -vv) * 180.0 / pi + 360.0, 360.0);
-                WindBarb::draw(p, {x, y}, from, std::hypot(uu, vv) * msToKnots, 24.0, lat < 0.0);
+                WindBarb::draw(p, {x, y}, from, std::hypot(uu, vv) * msToKnots, barbLength, lat < 0.0);
             }
         }
     }
