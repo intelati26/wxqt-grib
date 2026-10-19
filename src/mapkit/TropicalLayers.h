@@ -14,6 +14,7 @@
 #include "mapkit/MapLayer.h"
 #include "tropical/UtilityCira.h"
 #include "tropical/UtilityJma.h"
+#include "tropical/UtilityJtwc.h"
 
 // The tropical screens' drawings as layers: every active storm with its track so far, NHC's forecast, cone and watches / warnings (inland zones too);
 // the Tropical Weather Outlook's areas; and NHC's wind speed probability bands.
@@ -76,10 +77,13 @@ private:
         UtilityCira::Storm info;
         UtilityCira::StormPage page;
         vector<UtilityJma::Circle> circles;   // JMA's 70% probability circles (the cone), western Pacific storms
+        vector<UtilityJtwc::Fix> warning;     // JTWC's warning: the wind radii now and along the forecast
     };
     bool loading{false};
     string error;
     bool showCone{true};
+    bool showRadii{true};
+    bool showDanger{true};
     std::shared_ptr<vector<Storm>> storms;
 };
 

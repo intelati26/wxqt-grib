@@ -16,6 +16,7 @@
 #include "hurricane/EnsembleStyle.h"
 #include "hurricane/HurricaneViewer.h"
 #include "tropical/CiraStorm.h"
+#include "objects/URL.h"
 #include "hurricane/UtilityWeatherLab.h"
 #include "hurricane/UtilityAtcf.h"
 #include "hurricane/UtilityNhcGis.h"
@@ -50,6 +51,20 @@ namespace {
         if (category == "STS") return "severe tropical storm";
         if (category == "TY") return "typhoon";
         return category.empty() ? QString{"low"} : QString::fromStdString(category);
+    }
+
+    // the wind field of one level (34, 50 or 64 kt) as JTWC gives it: a radius in nautical miles in each quadrant (NE, SE, SW, NW), as a shape round the centre
+    QPolygonF windField(const MapView::Transform& t, double lat, double lon, const double radiusNm[4]) {
+        QPolygonF polygon;
+        const double cosLat = std::max(0.05, std::cos(lat * 3.14159265358979 / 180.0));
+        for (int q = 0; q < 4; q++) {
+            const double km = radiusNm[q] * 1.852;
+            for (int step = 0; step <= 12; step++) {
+                const double bearing = (q * 90.0 + step * 7.5) * 3.14159265358979 / 180.0;
+                polygon << t(lat + km * std::cos(bearing) / 111.2, lon + km * std::sin(bearing) / (111.2 * cosLat));
+            }
+        }
+        return polygon;
     }
 
     QString knots(int wind) {
@@ -110,6 +125,9 @@ void WorldStormsLayer::refresh(MapHost& host) {
                     if (prefix == "wp") {
                         UtilityJma::forecastCircles(info.name, s.circles);   // (the western Pacific is JMA's)
                     }
+                    if (const auto code = UtilityJtwc::codeOf(info.id); !code.empty()) {
+                        s.warning = UtilityJtwc::parseWarning(URL::getText(UtilityJtwc::warningUrl(code)));
+                    }
                     fresh->push_back(std::move(s));
                 }
             }
@@ -132,6 +150,26 @@ void WorldStormsLayer::paint(QPainter& painter, MapHost& host) {
     font.setPixelSize(static_cast<int>(11 * px));
     painter.setFont(font);
     for (const auto& s : *storms) {
+        if (showDanger && s.circles.size() < 2 && s.warning.size() >= 2) {   // no JMA cone (the Indian Ocean, the Southern Hemisphere): JTWC's own area, the 34 kt wind radii along the forecast
+            QPainterPath area;
+            area.setFillRule(Qt::WindingFill);
+            for (size_t i = 0; i + 1 < s.warning.size(); i++) {
+                const auto& a = s.warning[i];
+                const auto& b = s.warning[i + 1];
+                for (int k = 0; k <= 8; k++) {
+                    const double f = k / 8.0;
+                    double radii[4];
+                    for (int q = 0; q < 4; q++) {
+                        radii[q] = a.radiusNm[0][q] + (b.radiusNm[0][q] - a.radiusNm[0][q]) * f;
+                    }
+                    area.addPolygon(windField(t, a.lat + (b.lat - a.lat) * f, a.lon + (b.lon - a.lon) * f, radii));
+                    area.closeSubpath();
+                }
+            }
+            painter.setPen(QPen{QColor{255, 255, 255, 190}, 1.4 * px, Qt::DashLine});
+            painter.setBrush(QColor{255, 255, 255, 38});
+            painter.drawPath(area.simplified());
+        }
         if (showCone && s.circles.size() >= 2) {   // the cone: the circles along the forecast and between them, as one shape
             QPainterPath cone;
             cone.setFillRule(Qt::WindingFill);   // (overlapping circles join, they do not cancel)
@@ -232,6 +270,19 @@ void WorldStormsLayer::paint(QPainter& painter, MapHost& host) {
                 }
             }
         }
+        if (showRadii && !s.warning.empty()) {   // the wind field now (34 kt yellow, 50 orange, 64 red), and the 34 kt outline at each forecast position
+            static const QColor fills[3] = {QColor{255, 231, 117, 70}, QColor{255, 143, 32, 90}, QColor{255, 60, 60, 110}};
+            painter.setPen(QPen{QColor{255, 255, 255, 120}, 0.8 * px});
+            for (size_t i = 1; i < s.warning.size(); i++) {
+                painter.setBrush(Qt::NoBrush);
+                painter.drawPolygon(windField(t, s.warning[i].lat, s.warning[i].lon, s.warning[i].radiusNm[0]));
+            }
+            for (int level = 0; level < 3; level++) {
+                painter.setBrush(fills[level]);
+                painter.setPen(QPen{fills[level].darker(150), 1.0 * px});
+                painter.drawPolygon(windField(t, s.warning.front().lat, s.warning.front().lon, s.warning.front().radiusNm[level]));
+            }
+        }
         const auto& first = !s.page.forecast.empty() ? s.page.forecast.front() : (!history.empty() ? history.front() : UtilityCira::Fix{});
         if (!s.page.forecast.empty() || !history.empty()) {
             const QPointF now = t(first.lat, first.lon);
@@ -307,7 +358,8 @@ vector<MapLegendRow> WorldStormsLayer::legend() const {
     }
     MapLegendRow cone;
     cone.title = "Cone:";
-    cone.entries = {{MapLegendEntry::Line, QColor{255, 255, 255}, "JMA 70% probability circles (typhoons)"}};
+    cone.entries = {{MapLegendEntry::Line, QColor{255, 255, 255}, "JMA 70% probability circles (typhoons), else JTWC's 34 kt wind area"},
+                    {MapLegendEntry::Square, QColor{255, 231, 117}, "34 kt"}, {MapLegendEntry::Square, QColor{255, 143, 32}, "50 kt"}, {MapLegendEntry::Square, QColor{255, 60, 60}, "64 kt wind radii"}};
     MapLegendRow jma;
     jma.title = "JMA forecast points:";
     jma.entries = {{MapLegendEntry::Circle, jmaColor("TD", 0), "D depression"}, {MapLegendEntry::Circle, jmaColor("TS", 0), "S tropical storm"}, {MapLegendEntry::Circle, jmaColor("STS", 0), "SS severe tropical storm"},
@@ -323,6 +375,14 @@ QWidget * WorldStormsLayer::options(QWidget * parent, const std::function<void()
     c->setChecked(showCone);
     QObject::connect(c, &QCheckBox::toggled, [this, changed] (bool on) { showCone = on; changed(); });
     layout->addWidget(c);
+    auto * radii = new QCheckBox{"Wind radii (JTWC: 34 / 50 / 64 kt now, 34 kt along the forecast)", widget};
+    radii->setChecked(showRadii);
+    QObject::connect(radii, &QCheckBox::toggled, [this, changed] (bool on) { showRadii = on; changed(); });
+    layout->addWidget(radii);
+    auto * danger = new QCheckBox{"Where JMA has no cone: JTWC's 34 kt wind area along the forecast", widget};
+    danger->setChecked(showDanger);
+    QObject::connect(danger, &QCheckBox::toggled, [this, changed] (bool on) { showDanger = on; changed(); });
+    layout->addWidget(danger);
     return widget;
 }
 
