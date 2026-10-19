@@ -539,6 +539,14 @@ bool ModelChartLayer::visibleBox(MapHost& host, double& west, double& south, dou
     return true;
 }
 
+// the pixels per degree a new picture for this view would have: its box is the view and a quarter more each way and it is at most 2800 pixels wide
+// (so that a view the picture cannot be made finer for is not asked for again and again)
+static double achievable(double west, double east, int widthNow) {
+    const double span = std::min(360.0, std::max(2.0, (east - west) * 1.5));
+    const double width = std::clamp(widthNow * 1.5 * 1.2, 700.0, 2800.0);
+    return width / span * 0.9;
+}
+
 void ModelChartLayer::render(MapHost& host) {
     if (busy || run.size() < 10 || hours.empty()) {
         return;
@@ -553,7 +561,7 @@ void ModelChartLayer::render(MapHost& host) {
     {   // an hour drawn ahead
         const auto ready = frames.find(key);
         const auto fits = [&] (const Rendered& r) {
-            const double pixelsPerDegree = r.widthPixels / std::max(0.1, r.east - r.west), needed = std::min(widthNow / std::max(0.1, east - west) * 0.7, 2600.0 / std::max(0.1, r.east - r.west));   // (a picture is at most 2800 pixels wide: no asking again for what cannot be finer)
+            const double pixelsPerDegree = r.widthPixels / std::max(0.1, r.east - r.west), needed = std::min(widthNow / std::max(0.1, east - west) * 0.7, achievable(west, east, widthNow));
             return west >= r.west - 0.5 && east <= r.east + 0.5 && south >= r.south - 0.5 && north <= r.north + 0.5 && pixelsPerDegree >= needed;
         };
         if (ready != frames.end() && current && current->key != key && fits(*ready->second)) {
@@ -566,7 +574,7 @@ void ModelChartLayer::render(MapHost& host) {
     }
     // is what is on hand this chart, covering the view, fine enough?
     if (current && current->key == key) {
-        const double pixelsPerDegree = current->widthPixels / std::max(0.1, current->east - current->west), needed = std::min(widthNow / std::max(0.1, east - west) * 0.7, 2600.0 / std::max(0.1, current->east - current->west));
+        const double pixelsPerDegree = current->widthPixels / std::max(0.1, current->east - current->west), needed = std::min(widthNow / std::max(0.1, east - west) * 0.7, achievable(west, east, widthNow));
         const bool covers = west >= current->west - 0.5 && east <= current->east + 0.5 && south >= current->south - 0.5 && north <= current->north + 0.5;
         if (covers && pixelsPerDegree >= needed) {
             return;
