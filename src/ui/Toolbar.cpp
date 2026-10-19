@@ -39,6 +39,7 @@
 #include "models/SpcPostViewer.h"
 #include "misc/HelpViewer.h"
 #include "models/ModelScreen.h"
+#include "models/ModelViewer.h"
 #include "nhc/Nhc.h"
 #include "objects/Route.h"
 #include "objects/WString.h"
@@ -89,7 +90,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_info_black_48dp.png", "Help and further reading: the models, why they matter, where the data comes from", [parent] { new HelpViewer{parent}; });
 
 
-    routeItems.emplace_back("refs.png", "SPC REFS (SPC's ensemble products: probabilities, paintballs, updraft helicity)", [parent] { MasterMapViewer::openModels(parent, "SPCREFS"); });
+    routeItems.emplace_back("refs.png", "SPC REFS (SPC's ensemble products: probabilities, paintballs, updraft helicity)", [parent] { new ModelScreen{parent, "SPCREFS"}; });
     routeItems.emplace_back("nsslwrf.png", "NSSL CAMs (experimental convection-allowing models: MPAS, WRF, HRRR, RRFS)", [parent] { new ModelScreen{parent, "CAMS"}; });
     routeItems.emplace_back("tor.png", "SPC Post Slideshow (thunder / severe / lightning probability)", [parent] { new ModelScreen{parent, "SPCPOST"}; });
 
@@ -122,8 +123,8 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("nhc.png", "NHC product viewer, Ctrl-o", [this] { launchNhc(); });
     routeItems.emplace_back("nhc.png", "Tropical: active storms worldwide (CIRA / RAMMB), with the NHC tool", [parent] { new TropicalViewer{parent}; });
 
-    routeItems.emplace_back("ncep.png", "Models (the map with a model chart on it), Ctrl-m", [this] { launchModelViewer(); });
-    routeItems.emplace_back("spchrrr.png", "HRRR (the map with the HRRR chart on it)", [this] { launchModelViewerGeneric("SPCHRRR"); });
+    routeItems.emplace_back("ncep.png", "Model Viewer, Ctrl-m", [this] { launchModelViewer(); });
+    routeItems.emplace_back("spchrrr.png", "SPC HRRR", [this] { launchModelViewerGeneric("SPCHRRR"); });
     routeItems.emplace_back("opc.png", "Ocean Prediction Center", [this] { launchOpc(); });
     routeItems.emplace_back("opc.png", "Climate and ocean", [parent] { new ClimateViewer{parent}; });
     routeItems.emplace_back("opc.png", "Temperature history at a place: a week, month or year against every year since 1940 (ERA5)", [parent] {
@@ -138,8 +139,8 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("widget_afd.png", "Forecast discussions", [parent] { Dashboards::openForecastDiscussions(parent); });
     routeItems.emplace_back("fire_outlook.png", "U.S. Drought Monitor", [parent] { new DroughtViewer{parent}; });
     routeItems.emplace_back("rain_showers.png", "River, flood, dam, and the National Water Model", [parent] { new MasterMapViewer{parent, "Rivers and water"}; });
-    routeItems.emplace_back("nsslwrf.png", "NSSL CAMs pictures", [this] { launchModelViewerGeneric("NSSLWRF"); });
-    routeItems.emplace_back("wpcgefs.png", "GEFS (the map with the GEFS chart on it)", [this] { launchModelViewerGeneric("WPCGEFS"); });
+    routeItems.emplace_back("nsslwrf.png", "NSSL WRF", [this] { launchModelViewerGeneric("NSSLWRF"); });
+    routeItems.emplace_back("wpcgefs.png", "WPC GEFS", [this] { launchModelViewerGeneric("WPCGEFS"); });
     // routeItems.emplace_back("spchref.png", "SPC HREF", [this] { launchModelViewerGeneric("SPCHREF"); });
     routeItems.emplace_back("goesfulldisk.png", "Global GOES", [parent] { new GoesGlobal{parent}; });
 
@@ -428,21 +429,11 @@ void Toolbar::launchSpcMeso(const string& product) {
 }
 
 void Toolbar::launchModelViewer() {
-    MasterMapViewer::openModels(parent);   // the Model Viewer page is the map now (its model chart layer)
+    new ModelScreen{parent, "NCEP"};
 }
 
 void Toolbar::launchModelViewerGeneric(const string& modelType) {
-    if (modelType == "NCEP") {
-        MasterMapViewer::openModels(parent);
-    } else if (modelType == "SPCREFS") {
-        MasterMapViewer::openModels(parent, "SPCREFS");
-    } else if (modelType == "SPCHRRR" || modelType == "WPCGEFS" || modelType == "SPCHREF") {   // the picture models are retired: the models drawn from their own data are the map's
-        MasterMapViewer::openModels(parent, modelType == "SPCHRRR" ? "HRRR" : modelType == "WPCGEFS" ? "GEFS" : "HREF");
-    } else if (modelType == "NSSLWRF") {
-        new ModelScreen{parent, "CAMS"};   // NSSL's models are the CAMs page
-    } else {
-        new ModelScreen{parent, modelType};
-    }
+    new ModelScreen{parent, modelType};
 }
 
 void Toolbar::launchNationalImages() {
