@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/ModelChartLayer.h"
+#include "gfs/BarbGrid.h"
 #include "ui/WindBarb.h"
 #include <algorithm>
 #include <cmath>
@@ -705,23 +706,16 @@ void ModelChartLayer::paintBarbs(QPainter& painter, MapHost& host, const std::ve
     if (perDegree <= 0.0 || view.pixelWidth() < 50) {
         return;
     }
-    const double span = view.pixelWidth() / perDegree / scale;   // of the screen (or of the 1300 pixel world map the picture is made like)
-    const double wanted = (span > 150.0 ? 44.0 : span > 80.0 ? 52.0 : 48.0) * scale;
-    const double length = (span > 150.0 ? 20.0 : 24.0) * scale * upp;
-    double step = 30.0;
-    for (const double candidate : {0.1, 0.125, 0.2, 0.25, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 30.0}) {
-        if (candidate * perDegree >= wanted * 0.92) {
-            step = candidate;
-            break;
-        }
-    }
+    const double span = view.pixelWidth() / perDegree / scale;   // of the screen (or of the world map the picture is made like)
+    const auto look = BarbGrid::look(span, perDegree, scale);
+    const double step = look.step;
+    const double length = look.length * upp;
     const QRectF window = QRectF{painter.window()}.adjusted(-length, -length, length, length);
     painter.save();
     painter.setPen(QPen{QColor{20, 20, 20, 230}, std::max(upp, 1.0 * scale * upp)});
     painter.setBrush(QColor{20, 20, 20});
     for (double lat = std::ceil(-85.0 / step) * step; lat <= 85.0; lat += step) {
-        const int every = std::clamp(static_cast<int>(std::floor(1.0 / std::max(0.05, std::cos(lat * 3.14159265358979 / 180.0)) + 0.5)), 1, 8);
-        const double lonStep = step * every;
+        const double lonStep = BarbGrid::lonStep(step, lat);
         for (double lon = std::ceil(-180.0 / lonStep) * lonStep; lon < 180.0 - 1e-6; lon += lonStep) {
             const QPointF at = t(lat, lon);
             if (!window.contains(at)) {

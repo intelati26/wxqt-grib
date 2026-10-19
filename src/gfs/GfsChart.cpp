@@ -23,6 +23,7 @@
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsModels.h"
 #include "spcrefs/UtilitySpcRefs.h"
+#include "gfs/BarbGrid.h"
 #include "ui/WindBarb.h"
 
 namespace GfsChart {
@@ -5851,19 +5852,27 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     if (!options.noBarbs && !product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
         const auto& u = grids.at(product.barbU);
         const auto& v = grids.at(product.barbV);
-        const double spacing = span > 150.0 ? 44.0 : span > 80.0 ? 52.0 : 48.0;   // (the whole earth: denser and a size smaller)
-        const double barbLength = span > 150.0 ? 20.0 : 24.0;
+        const double pixelsPerDegree = area.width() / std::max(0.1, span);
+        const auto look = BarbGrid::look(span, pixelsPerDegree);
         p.setPen(QPen{QColor{20, 20, 20, 230}, 1.0});
         p.setBrush(QColor{20, 20, 20});
-        for (double y = area.top() + spacing / 2; y < area.bottom(); y += spacing) {
-            for (double x = area.left() + spacing / 2; x < area.right(); x += spacing) {
-                const double lon = view.lonAt(x), lat = view.latAt(y);
-                const float uu = u.sample(lon, lat), vv = v.sample(lon, lat);
+        for (double lat = std::ceil(std::max(-85.0, sector.south) / look.step) * look.step; lat <= std::min(85.0, sector.north); lat += look.step) {
+            const double lonStep = BarbGrid::lonStep(look.step, lat);
+            for (double lon = std::ceil(sector.west / lonStep) * lonStep; lon <= sector.east; lon += lonStep) {
+                const QPointF at = view.toPixel(lon, lat);
+                if (!area.contains(at)) {
+                    continue;
+                }
+                float uu = u.sample(lon, lat), vv = v.sample(lon, lat);
+                if (std::isnan(uu) || std::isnan(vv)) {
+                    uu = u.sample(lon + 360.0, lat);
+                    vv = v.sample(lon + 360.0, lat);
+                }
                 if (std::isnan(uu) || std::isnan(vv)) {
                     continue;
                 }
                 const double from = std::fmod(std::atan2(-uu, -vv) * 180.0 / pi + 360.0, 360.0);
-                WindBarb::draw(p, {x, y}, from, std::hypot(uu, vv) * msToKnots, barbLength, lat < 0.0);
+                WindBarb::draw(p, at, from, std::hypot(uu, vv) * msToKnots, look.length, lat < 0.0);
             }
         }
     }

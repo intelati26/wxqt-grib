@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/GlobeViewer.h"
+#include "gfs/BarbGrid.h"
 #include "ui/WindBarb.h"
 #include <algorithm>
 #include <cmath>
@@ -487,18 +488,12 @@ QImage GlobeViewer::renderWorld(const std::vector<Source>& sources, int projecti
         anyWind = anyWind || (!s.windU.empty() && !s.windV.empty());
     }
     if (anyWind && perDegree > 0.0) {
-        double step = 30.0;
-        for (const double candidate : {0.1, 0.125, 0.2, 0.25, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 30.0}) {
-            if (candidate * perDegree >= 44.0 * marks * 0.92) {
-                step = candidate;
-                break;
-            }
-        }
+        const auto look = BarbGrid::look(360.0, perDegree, marks);
+        const double step = look.step;
         p.setPen(QPen{QColor{20, 20, 20, 230}, std::max(1.0, marks)});
         p.setBrush(QColor{20, 20, 20});
         for (double lat = std::ceil(-85.0 / step) * step; lat <= 85.0; lat += step) {
-            const int every = std::clamp(static_cast<int>(std::floor(1.0 / std::max(0.05, std::cos(lat * 3.14159265358979 / 180.0)) + 0.5)), 1, 8);
-            const double lonStep = step * every;
+            const double lonStep = BarbGrid::lonStep(step, lat);
             for (double lon = std::ceil(-180.0 / lonStep) * lonStep; lon < 180.0 - 1e-6; lon += lonStep) {
                 double x, y;
                 if (!GlobeMapView::forward(projection, lat, lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), x, y)) {
@@ -512,7 +507,7 @@ QImage GlobeViewer::renderWorld(const std::vector<Source>& sources, int projecti
                     const float u = sampleAt(s.windU, lon, lat), v = sampleAt(s.windV, lon, lat);
                     if (!std::isnan(u) && !std::isnan(v)) {
                         const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
-                        WindBarb::draw(p, QPointF{width / 2.0 + x * scale, height / 2.0 - y * scale}, from, std::hypot(u, v) * 1.943844, 20.0 * marks, lat < 0.0);
+                        WindBarb::draw(p, QPointF{width / 2.0 + x * scale, height / 2.0 - y * scale}, from, std::hypot(u, v) * 1.943844, look.length, lat < 0.0);
                         break;
                     }
                 }
