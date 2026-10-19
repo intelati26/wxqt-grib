@@ -39,6 +39,7 @@ public:
     bool working() const override { return busy || finding; }
     string notice() const override { return note; }
     bool timeAware() const override { return true; }
+    bool forecast() const override { return true; }
     vector<long> times() const override;
     void showTime(long seconds, MapHost&) override;
     void prepareTimes(MapHost& host) override { fillAhead(1000); prefetch(host); }   // a loop: every hour of the run

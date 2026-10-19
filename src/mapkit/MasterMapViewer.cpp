@@ -560,6 +560,20 @@ void MasterMapViewer::showAddLayers() {
     addDialog->raise();
 }
 
+// only forecasts on the bar (the model charts): "latest" is the first hour of the run, not the last tick
+bool MasterMapViewer::forecastsOnly() const {
+    bool any = false;
+    for (const auto& layer : layers) {
+        if (layer->enabled() && layer->timeAware()) {
+            if (!layer->forecast()) {
+                return false;
+            }
+            any = true;
+        }
+    }
+    return any;
+}
+
 // the frames of every layer that has them, in one list for the bar; the bar is shown only while there is such a layer
 void MasterMapViewer::rebuildTicks() {
     std::set<long> all;
@@ -582,7 +596,7 @@ void MasterMapViewer::rebuildTicks() {
     settingSlider = true;
     timeSlider->setMaximum(std::max(0, static_cast<int>(ticks.size()) - 1));
     timeSlider->setEnabled(ticks.size() > 1);
-    int index = static_cast<int>(ticks.size()) - 1;
+    int index = forecastsOnly() ? 0 : static_cast<int>(ticks.size()) - 1;
     if (!live && keep != 0) {
         const auto found = std::lower_bound(ticks.begin(), ticks.end(), keep);
         index = found == ticks.end() ? static_cast<int>(ticks.size()) - 1 : static_cast<int>(found - ticks.begin());
@@ -662,7 +676,7 @@ void MasterMapViewer::goTo(int index) {
     if (ticks.empty() || index < 0 || static_cast<size_t>(index) >= ticks.size()) {
         return;
     }
-    live = static_cast<size_t>(index) + 1 == ticks.size() && !playing;
+    live = (forecastsOnly() ? index == 0 : static_cast<size_t>(index) + 1 == ticks.size()) && !playing;
     const long t = ticks[static_cast<size_t>(index)];
     for (auto& layer : layers) {
         if (layer->enabled() && layer->timeAware()) {

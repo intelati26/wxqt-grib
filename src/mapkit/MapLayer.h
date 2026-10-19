@@ -77,6 +77,7 @@ public:
     virtual bool working() const { return false; }               // still drawing or fetching something for the view (an export waits for it)
     virtual string source() const { return {}; }                 // who made the data, for the line under an exported picture
     // time: a layer with frames in time (radar scans, a forecast's hours) lists them, and shows the one the time bar asks for
+    virtual bool forecast() const { return false; }              // its frames are the hours of a forecast: the first is "latest", the later ones are ahead
     virtual bool timeAware() const { return false; }
     virtual vector<long> times() const { return {}; }            // seconds since 1970, ascending: the frames that can be shown now
     virtual void prepareTimes(MapHost&) {}                       // load the frames for a loop (the bar calls it when a loop is wanted); timesChanged() when done

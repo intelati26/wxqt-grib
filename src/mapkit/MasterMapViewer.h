@@ -91,6 +91,7 @@ private:
     void exportTo(const QString& path);          // PNG, or PDF by the ending of the name
     void paintExport(QPainter&, int mapSide, double scale, bool vectorOutput);
     // the time bar: stepping and looping through the frames of the layers that have them
+    bool forecastsOnly() const;
     void rebuildTicks();
     void goLive();
     void jumpTo(const QDateTime& utc);   // a time of the person's choosing: the layers look at the hours around it
