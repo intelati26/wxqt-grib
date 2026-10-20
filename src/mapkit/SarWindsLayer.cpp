@@ -22,6 +22,7 @@
 #include "hurricane/SarWindsViewer.h"
 #include "models/UtilityGrib.h"
 #include "objects/URL.h"
+#include "util/PermanentCache.h"
 #include "radar/MapView.h"
 
 namespace {
@@ -75,6 +76,69 @@ namespace {
             painted.erase(paintedOrder.front());
             paintedOrder.pop_front();
         }
+    }
+
+    constexpr uint16_t noWind = 65535;
+
+    // the picture of a grid of winds (tenths of a knot): the colors, the cells the rotated grid missed filled from their neighbors
+    QImage colorize(const std::vector<uint16_t>& grid, int width, int height) {
+        QImage image(width, height, QImage::Format_ARGB32);
+        image.fill(Qt::transparent);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                const uint16_t v = grid[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)];
+                if (v != noWind) {
+                    image.setPixel(x, y, windColor(v / 10.0));
+                }
+            }
+        }
+        return image;
+    }
+
+    // what is kept on disk of a scene, whole: the grid and where it is (about a megabyte compressed; the 16 MB file is not)
+    string encodeScene(const std::vector<uint16_t>& grid, int width, int height, const double bounds[5], const QPolygonF& outline) {
+        string out{"SAR1"};
+        const auto put = [&out] (const void * data, size_t n) { out.append(static_cast<const char *>(data), n); };
+        put(&width, 4);
+        put(&height, 4);
+        put(bounds, 5 * sizeof(double));
+        const int corners = static_cast<int>(outline.size());
+        put(&corners, 4);
+        for (const auto& p : outline) {
+            const double xy[2] = {p.x(), p.y()};
+            put(xy, sizeof(xy));
+        }
+        put(grid.data(), grid.size() * 2);
+        return out;
+    }
+
+    bool decodeScene(const string& in, std::vector<uint16_t>& grid, int& width, int& height, double bounds[5], QPolygonF& outline) {
+        if (in.size() < 4 + 8 + 5 * sizeof(double) + 4 || in.compare(0, 4, "SAR1") != 0) {
+            return false;
+        }
+        size_t at = 4;
+        const auto get = [&in, &at] (void * data, size_t n) {
+            if (at + n > in.size()) {
+                return false;
+            }
+            std::memcpy(data, in.data() + at, n);
+            at += n;
+            return true;
+        };
+        int corners = 0;
+        if (!get(&width, 4) || !get(&height, 4) || !get(bounds, 5 * sizeof(double)) || !get(&corners, 4) || width <= 0 || height <= 0 || width > 4000 || height > 4000 || corners < 0 || corners > 16) {
+            return false;
+        }
+        outline.clear();
+        for (int i = 0; i < corners; i++) {
+            double xy[2];
+            if (!get(xy, sizeof(xy))) {
+                return false;
+            }
+            outline << QPointF{xy[0], xy[1]};
+        }
+        grid.resize(static_cast<size_t>(width) * static_cast<size_t>(height));
+        return get(grid.data(), grid.size() * 2);
     }
 
     double mercatorY(double lat) {
@@ -212,6 +276,25 @@ void SarWindsLayer::render(MapHost& host, size_t index) {
     auto keep = entries;
     host.background(
         [result, url] {
+            // a scene read before, in an earlier session: its grid is on disk (a scene never changes once STAR has published it)
+            const PermanentCache store{"sar"};
+            const string name = url.substr(url.rfind('/') + 1) + ".bin";
+            {
+                std::vector<uint16_t> grid;
+                int w = 0, h = 0;
+                double bounds[5];
+                QPolygonF outline;
+                if (const auto text = store.read(name); !text.empty() && decodeScene(text, grid, w, h, bounds, outline)) {
+                    result->image = colorize(grid, w, h);
+                    result->west = bounds[0];
+                    result->south = bounds[1];
+                    result->east = bounds[2];
+                    result->north = bounds[3];
+                    result->maxKnots = bounds[4];
+                    result->outline = outline;
+                    return;
+                }
+            }
             if (UtilityGrib::gdalBinDir().empty()) {
                 result->failed = true;
                 return;
@@ -262,8 +345,7 @@ void SarWindsLayer::render(MapHost& host, size_t index) {
             const int width = std::clamp(static_cast<int>(std::ceil((maxLon - minLon) * std::numbers::pi / 180.0 / step)) + 2, 8, 1600);
             const double yTop = mercatorY(maxLat);
             const int height = std::clamp(static_cast<int>(std::ceil((yTop - mercatorY(minLat)) / step)) + 2, 8, 1600);
-            QImage image(width, height, QImage::Format_ARGB32);
-            image.fill(Qt::transparent);
+            std::vector<uint16_t> grid(static_cast<size_t>(width) * static_cast<size_t>(height), noWind);
             double top = 0.0;
             for (int row = 0; row < r1; row++) {
                 for (int column = 0; column < c1; column++) {
@@ -277,36 +359,34 @@ void SarWindsLayer::render(MapHost& host, size_t index) {
                     const int x = static_cast<int>((lo - minLon) * std::numbers::pi / 180.0 / step);
                     const int y = static_cast<int>((yTop - mercatorY(lat[i])) / step);
                     if (x >= 0 && y >= 0 && x < width && y < height) {
-                        image.setPixel(x, y, windColor(w * toKnots));
+                        grid[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)] = static_cast<uint16_t>(std::clamp(w * toKnots * 10.0, 0.0, 60000.0));
                         top = std::max(top, static_cast<double>(w * toKnots));
                     }
                 }
             }
-            // the holes inside the scene (cells the rotated grid missed): the average of the colored neighbors
-            QImage filled = image;
+            // the holes inside the scene (cells the rotated grid missed): the average of the neighbors that have a wind
+            std::vector<uint16_t> filled = grid;
             for (int y = 1; y < height - 1; y++) {
                 for (int x = 1; x < width - 1; x++) {
-                    if (qAlpha(image.pixel(x, y)) != 0) {
+                    if (grid[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)] != noWind) {
                         continue;
                     }
-                    int n = 0, r = 0, g = 0, b = 0;
+                    int n = 0, sum = 0;
                     for (int dy = -1; dy <= 1; dy++) {
                         for (int dx = -1; dx <= 1; dx++) {
-                            const QRgb p = image.pixel(x + dx, y + dy);
-                            if (qAlpha(p) != 0) {
+                            const uint16_t v = grid[static_cast<size_t>(y + dy) * static_cast<size_t>(width) + static_cast<size_t>(x + dx)];
+                            if (v != noWind) {
                                 n++;
-                                r += qRed(p);
-                                g += qGreen(p);
-                                b += qBlue(p);
+                                sum += v;
                             }
                         }
                     }
                     if (n >= 5) {
-                        filled.setPixel(x, y, qRgba(r / n, g / n, b / n, 215));
+                        filled[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)] = static_cast<uint16_t>(sum / n);
                     }
                 }
             }
-            result->image = filled;
+            result->image = colorize(filled, width, height);
             result->west = minLon;
             result->east = minLon + width * step * 180.0 / std::numbers::pi;
             result->north = maxLat;
@@ -320,6 +400,8 @@ void SarWindsLayer::render(MapHost& host, size_t index) {
                 return QPointF{lo, static_cast<double>(lat[i])};
             };
             result->outline << corner(0, 0) << corner(0, c1 - 1) << corner(r1 - 1, c1 - 1) << corner(r1 - 1, 0);
+            const double bounds[5] = {result->west, result->south, result->east, result->north, result->maxKnots};
+            store.write(name, encodeScene(filled, width, height, bounds, result->outline));
         },
         [this, &host, result, keep, url] {
             if (!entries || keep != entries) {
