@@ -19,6 +19,7 @@
 #include "radar/MapWidget.h"
 #include "drought/DroughtViewer.h"
 #include "hurricane/SarWindsViewer.h"
+#include "hurricane/AtcfFeedViewer.h"
 #include "util/HomeThumbnails.h"
 #include "objects/NetManager.h"
 #include "objects/URL.h"
@@ -721,6 +722,8 @@ int main(int argc, char * argv[]) {
                         QTimer::singleShot(3000, picker, [picker, file] { picker->grab().save(file); });
                     }
                 }
+            } else if (route.startsWith("atcffeed:")) {   // WXQT_OPEN=atcffeed:<id>: the raw ATCF feed of a storm (wp292026, al932026)
+                new AtcfFeedViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 1, 1).toStdString()};
             } else if (route == "tropicalhub") {   // WXQT_OPEN=tropicalhub: the Tropical Hub
                 Dashboards::openTropicalHub(&w);
             } else if (route.startsWith("cirastorm:")) {   // WXQT_OPEN=cirastorm:<id>:<title>: a storm's CIRA page (with the newest SAR winds)

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include "tropical/CiraLoopViewer.h"
 #include "hurricane/SarWindsViewer.h"
+#include "hurricane/AtcfFeedViewer.h"
 #include "tropical/UtilityJma.h"
 
 CiraStorm::CiraStorm(Window * parent, const string& stormId, const string& title)
@@ -92,6 +93,11 @@ void CiraStorm::fill(const UtilityCira::StormPage& page) {
             const auto dash = title.rfind(' ');
             new SarWindsViewer{this, upper, dash == string::npos ? string{} : title.substr(dash + 1), year};
         });
+        rowButtons.addWidget(buttons.back());
+    }
+    {   // the raw ATCF feed of the storm
+        buttons.emplace_back(this, None, "ATCF feed");
+        buttons.back().connect([this] { new AtcfFeedViewer{this, stormId, title}; });
         rowButtons.addWidget(buttons.back());
     }
     addJtwc();

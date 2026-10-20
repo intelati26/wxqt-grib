@@ -20,6 +20,7 @@
 #include "climate/ClimateViewer.h"
 #include "hurricane/AceViewer.h"
 #include "hurricane/AdvisoryViewer.h"
+#include "hurricane/AtcfFeedViewer.h"
 #include "hurricane/FloaterViewer.h"
 #include "hurricane/ReconViewer.h"
 #include "hurricane/HafsViewer.h"
@@ -404,6 +405,11 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
         const auto copy = entry;
         addButton("Advisory products", [this, copy] { new AdvisoryViewer{this, copy}; });
     }
+    {
+        const auto atcfId = entry.id;
+        const auto atcfTitle = HurricaneData::idLabel(entry.id) + (entry.name.empty() ? "" : " " + entry.name);
+        addButton("ATCF feed", [this, atcfId, atcfTitle] { new AtcfFeedViewer{this, atcfId, atcfTitle}; });
+    }
     row->addStretch();
     layout->addLayout(row);
     return frame;
@@ -510,6 +516,7 @@ QWidget * TropicalHub::otherCard(const OtherStorm& storm) {
         const int year = upper.size() >= 8 ? std::atoi(upper.substr(upper.size() - 4).c_str()) : 0;
         addButton("SAR winds", [this, upper, name, year] { new SarWindsViewer{this, upper, name, year}; });
     }
+    addButton("ATCF feed", [this, id, title] { new AtcfFeedViewer{this, id, title}; });
     {
         const double lat = now.lat, lon = now.lon;
         addButton("On the map", [this, lat, lon] {
