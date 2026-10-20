@@ -6,6 +6,9 @@
 #include "mapkit/SarWindsLayer.h"
 #include <algorithm>
 #include <cmath>
+#include <deque>
+#include <map>
+#include <mutex>
 #include <numbers>
 #include <QDateTime>
 #include <QtEndian>
@@ -39,6 +42,39 @@ namespace {
             }
         }
         return qRgba(255, 255, 255, 215);
+    }
+
+    // The scenes already painted, kept until the program is closed (not on disk: a scene is a 16 MB download): every map window shares them; the 12 newest used stay
+    struct Painted {
+        QImage image;
+        double west{0}, south{0}, east{0}, north{0}, maxKnots{0};
+        QPolygonF outline;
+    };
+    std::mutex paintedMutex;
+    std::map<string, Painted> painted;
+    std::deque<string> paintedOrder;   // oldest first
+
+    bool paintedFor(const string& url, Painted& out) {
+        std::lock_guard<std::mutex> lock{paintedMutex};
+        const auto found = painted.find(url);
+        if (found == painted.end()) {
+            return false;
+        }
+        out = found->second;
+        paintedOrder.erase(std::remove(paintedOrder.begin(), paintedOrder.end(), url), paintedOrder.end());
+        paintedOrder.push_back(url);
+        return true;
+    }
+
+    void keepPainted(const string& url, Painted scene) {
+        std::lock_guard<std::mutex> lock{paintedMutex};
+        painted[url] = std::move(scene);
+        paintedOrder.erase(std::remove(paintedOrder.begin(), paintedOrder.end(), url), paintedOrder.end());
+        paintedOrder.push_back(url);
+        while (paintedOrder.size() > 12) {
+            painted.erase(paintedOrder.front());
+            paintedOrder.pop_front();
+        }
     }
 
     double mercatorY(double lat) {
@@ -159,8 +195,19 @@ void SarWindsLayer::render(MapHost& host, size_t index) {
     if (entry.rendering || !entry.image.isNull() || entry.failed) {
         return;
     }
-    entry.rendering = true;
     const auto url = entry.netcdf;
+    if (Painted again; paintedFor(url, again)) {   // painted before in this session (here or in another window): no download
+        entry.image = again.image;
+        entry.west = again.west;
+        entry.east = again.east;
+        entry.north = again.north;
+        entry.south = again.south;
+        entry.outline = again.outline;
+        entry.maxKnots = again.maxKnots;
+        host.redraw();
+        return;
+    }
+    entry.rendering = true;
     auto result = std::make_shared<Entry>();
     auto keep = entries;
     host.background(
@@ -283,6 +330,7 @@ void SarWindsLayer::render(MapHost& host, size_t index) {
                     e.rendering = false;
                     e.failed = result->failed;
                     if (!result->failed) {
+                        keepPainted(url, Painted{result->image, result->west, result->south, result->east, result->north, result->maxKnots, result->outline});
                         e.image = result->image;
                         e.west = result->west;
                         e.east = result->east;
