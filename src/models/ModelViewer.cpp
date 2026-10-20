@@ -664,7 +664,7 @@ string ModelViewer::frameKey(int hour) const {
             run = t.toString("yyyyMMddHH").toStdString();
         }
     }
-    string key = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector + "|" + run + "|" + std::to_string(hour);
+    string key = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector + "|" + run + "|" + std::to_string(hour) + "|bs" + std::to_string(Utility::readPrefInt("BARB_SPACING", 100));   // (the barbs are in the picture: another spacing, another picture)
     for (const auto& id : overlays) {
         key += "|" + id;
     }

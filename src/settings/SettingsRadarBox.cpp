@@ -43,6 +43,7 @@ SettingsRadarBox::SettingsRadarBox(Window * parent)
     alertConfigs.push_back(std::make_unique<Switch>(parent, "WPC Fronts", "RADAR_SHOW_WPC_FRONTS", false));
     alertConfigs.push_back(std::make_unique<Switch>(parent, "WPC MPD", "RADAR_SHOW_MPD", false));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Radar Text Size", "RADAR_TEXT_SIZE", 8, 2, 24, 1));
+    numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Model wind barbs: distance between them, percent of normal (lower: more barbs)", "BARB_SPACING", 100, 30, 300, 10));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Wind barbs line size", "RADAR_WB_LINESIZE", 10, 1, 100, 1));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Convective outlook line size", "RADAR_SWO_LINESIZE", 20, 1, 100, 1));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Warning line size", "RADAR_WARN_LINESIZE", 20, 1, 100, 1));

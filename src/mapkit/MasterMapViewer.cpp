@@ -211,6 +211,36 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     legendCheck->setChecked(Utility::readPref("MASTERMAP_LEGEND", "true") == "true");
     QObject::connect(legendCheck, &QCheckBox::toggled, [this] (bool on) { Utility::writePref("MASTERMAP_LEGEND", on ? "true" : "false"); redraw(); });
     column->addWidget(legendCheck);
+    {   // the density of the wind barbs on the model charts, the SAR winds and the exports (the setting BARB_SPACING: the distance between them, percent of normal)
+        auto * row = new QWidget{sidePanel};
+        auto * rowLayout = new QHBoxLayout{row};
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        rowLayout->addWidget(new QLabel{"Wind barbs:", row});
+        auto * density = new QComboBox{row};
+        const std::vector<std::pair<QString, int>> choices{{"Sparser", 150}, {"Normal", 100}, {"Denser", 75}, {"Densest", 55}};
+        for (const auto& [text, percent] : choices) {
+            density->addItem(text, percent);
+        }
+        const int now = Utility::readPrefInt("BARB_SPACING", 100);
+        int found = -1;
+        for (int i = 0; i < density->count(); i++) {
+            if (density->itemData(i).toInt() == now) {
+                found = i;
+            }
+        }
+        if (found < 0) {   // a value from the settings page
+            density->addItem(QString{"%1% apart"}.arg(now), now);
+            found = density->count() - 1;
+        }
+        density->setCurrentIndex(found);
+        density->setToolTip("How close together the wind barbs are drawn: on the model charts, the SAR winds and the exports. Finer values are in the Settings (radar box)");
+        QObject::connect(density, &QComboBox::currentIndexChanged, [this, density] (int) {
+            Utility::writePrefInt("BARB_SPACING", density->currentData().toInt());
+            redraw();
+        });
+        rowLayout->addWidget(density, 1);
+        column->addWidget(row);
+    }
     noticeLabel = new QLabel{sidePanel};
     noticeLabel->setWordWrap(true);
     noticeLabel->setStyleSheet("background: #fff1c2; color: #3a2e00; padding: 4px; border: 1px solid #d9b84a;");
