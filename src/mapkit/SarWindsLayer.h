@@ -10,7 +10,9 @@
 #include <memory>
 #include <set>
 #include <vector>
+#include <QDateTime>
 #include <QImage>
+#include <QPolygonF>
 #include "hurricane/UtilitySarWinds.h"
 #include "mapkit/MapLayer.h"
 
@@ -28,26 +30,35 @@ public:
     void paint(QPainter&, MapHost&) override;
     MapHit pick(const QPointF&, MapHost&) const override;
     vector<MapLegendRow> legend() const override;
+    QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     string summary() const override;
 
 protected:
     void onEnable(MapHost& host) override { refresh(host); }
 
 private:
+    // a scene as it is kept: the winds and the directions on a regular (Mercator) grid, where it is, and its picture
+    struct SceneData {
+        int width{0}, height{0};
+        double west{0}, south{0}, east{0}, north{0}, maxKnots{0};
+        double stepRad{0}, yTop{0};            // one cell: radians of longitude (and of Mercator y), the Mercator y of the top edge
+        std::vector<uint16_t> wind;            // tenths of a knot, 65535: none (no value, land, a retrieval that gave up)
+        std::vector<uint16_t> direction;       // tenths of a degree the wind blows from (the model's, the one the retrieval used), 65535: none
+        QPolygonF outline;                     // the corners of the scene (lon, lat)
+        QImage image;
+    };
     struct Entry {
         string stormId, stormName;
         int year{0};
         UtilitySarWinds::Scene scene;
         string netcdf;                       // the scene's wind file
         QDateTime when;
-        // the wind field once painted
-        QImage image;
-        double west{0}, south{0}, east{0}, north{0};
-        QPolygonF outline;                   // the corners of the scene (lon, lat)
-        double maxKnots{0};
+        std::shared_ptr<SceneData> data;     // once painted
         bool rendering{false}, failed{false};
     };
     void render(MapHost&, size_t index);
+    void paintBarbs(QPainter&, MapHost&, const SceneData&) const;
+    bool showBarbs{true};
     bool loading{false};
     string error;
     std::shared_ptr<std::vector<Entry>> entries;

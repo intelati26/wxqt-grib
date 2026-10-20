@@ -10,7 +10,9 @@
 #include <map>
 #include <mutex>
 #include <numbers>
+#include <QCheckBox>
 #include <QDateTime>
+#include <QVBoxLayout>
 #include <QtEndian>
 #include <cstring>
 #include <QDir>
@@ -19,7 +21,10 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QTemporaryDir>
+#include "gfs/BarbGrid.h"
 #include "hurricane/SarWindsViewer.h"
+#include "ui/WindBarb.h"
+#include "util/PermanentCache.h"
 #include "models/UtilityGrib.h"
 #include "objects/URL.h"
 #include "util/PermanentCache.h"
@@ -45,100 +50,21 @@ namespace {
         return qRgba(255, 255, 255, 215);
     }
 
-    // The scenes already painted, kept until the program is closed (not on disk: a scene is a 16 MB download): every map window shares them; the 12 newest used stay
-    struct Painted {
-        QImage image;
-        double west{0}, south{0}, east{0}, north{0}, maxKnots{0};
-        QPolygonF outline;
-    };
-    std::mutex paintedMutex;
-    std::map<string, Painted> painted;
-    std::deque<string> paintedOrder;   // oldest first
+    constexpr uint16_t noValue = 65535;
 
-    bool paintedFor(const string& url, Painted& out) {
-        std::lock_guard<std::mutex> lock{paintedMutex};
-        const auto found = painted.find(url);
-        if (found == painted.end()) {
-            return false;
-        }
-        out = found->second;
-        paintedOrder.erase(std::remove(paintedOrder.begin(), paintedOrder.end(), url), paintedOrder.end());
-        paintedOrder.push_back(url);
-        return true;
-    }
-
-    void keepPainted(const string& url, Painted scene) {
-        std::lock_guard<std::mutex> lock{paintedMutex};
-        painted[url] = std::move(scene);
-        paintedOrder.erase(std::remove(paintedOrder.begin(), paintedOrder.end(), url), paintedOrder.end());
-        paintedOrder.push_back(url);
-        while (paintedOrder.size() > 12) {
-            painted.erase(paintedOrder.front());
-            paintedOrder.pop_front();
-        }
-    }
-
-    constexpr uint16_t noWind = 65535;
-
-    // the picture of a grid of winds (tenths of a knot): the colors, the cells the rotated grid missed filled from their neighbors
+    // the picture of a grid of winds (tenths of a knot): the colors; the cells the rotated grid missed are filled from their neighbors
     QImage colorize(const std::vector<uint16_t>& grid, int width, int height) {
         QImage image(width, height, QImage::Format_ARGB32);
         image.fill(Qt::transparent);
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 const uint16_t v = grid[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)];
-                if (v != noWind) {
+                if (v != noValue) {
                     image.setPixel(x, y, windColor(v / 10.0));
                 }
             }
         }
         return image;
-    }
-
-    // what is kept on disk of a scene, whole: the grid and where it is (about a megabyte compressed; the 16 MB file is not)
-    string encodeScene(const std::vector<uint16_t>& grid, int width, int height, const double bounds[5], const QPolygonF& outline) {
-        string out{"SAR1"};
-        const auto put = [&out] (const void * data, size_t n) { out.append(static_cast<const char *>(data), n); };
-        put(&width, 4);
-        put(&height, 4);
-        put(bounds, 5 * sizeof(double));
-        const int corners = static_cast<int>(outline.size());
-        put(&corners, 4);
-        for (const auto& p : outline) {
-            const double xy[2] = {p.x(), p.y()};
-            put(xy, sizeof(xy));
-        }
-        put(grid.data(), grid.size() * 2);
-        return out;
-    }
-
-    bool decodeScene(const string& in, std::vector<uint16_t>& grid, int& width, int& height, double bounds[5], QPolygonF& outline) {
-        if (in.size() < 4 + 8 + 5 * sizeof(double) + 4 || in.compare(0, 4, "SAR1") != 0) {
-            return false;
-        }
-        size_t at = 4;
-        const auto get = [&in, &at] (void * data, size_t n) {
-            if (at + n > in.size()) {
-                return false;
-            }
-            std::memcpy(data, in.data() + at, n);
-            at += n;
-            return true;
-        };
-        int corners = 0;
-        if (!get(&width, 4) || !get(&height, 4) || !get(bounds, 5 * sizeof(double)) || !get(&corners, 4) || width <= 0 || height <= 0 || width > 4000 || height > 4000 || corners < 0 || corners > 16) {
-            return false;
-        }
-        outline.clear();
-        for (int i = 0; i < corners; i++) {
-            double xy[2];
-            if (!get(xy, sizeof(xy))) {
-                return false;
-            }
-            outline << QPointF{xy[0], xy[1]};
-        }
-        grid.resize(static_cast<size_t>(width) * static_cast<size_t>(height));
-        return get(grid.data(), grid.size() * 2);
     }
 
     double mercatorY(double lat) {
@@ -184,6 +110,75 @@ namespace {
             }
             std::memcpy(&values[i], &word, 4);
         }
+        return true;
+    }
+
+    // The scenes already painted, kept until the program is closed: every map window shares them; the 12 newest used stay in memory
+    std::mutex memoryMutex;
+    std::map<string, std::shared_ptr<void>> memory;   // (a SceneData: the type is the layer's own)
+    std::deque<string> memoryOrder;                    // oldest first
+
+    // what is kept on disk of a scene (about a megabyte compressed; the 16 MB NetCDF is not): both grids and where they are
+    template <class Scene>
+    string encodeScene(const Scene& d) {
+        string out{"SAR2"};
+        const auto put = [&out] (const void * data, size_t n) { out.append(static_cast<const char *>(data), n); };
+        put(&d.width, 4);
+        put(&d.height, 4);
+        const double numbers[7] = {d.west, d.south, d.east, d.north, d.maxKnots, d.stepRad, d.yTop};
+        put(numbers, sizeof(numbers));
+        const int corners = static_cast<int>(d.outline.size());
+        put(&corners, 4);
+        for (const auto& p : d.outline) {
+            const double xy[2] = {p.x(), p.y()};
+            put(xy, sizeof(xy));
+        }
+        put(d.wind.data(), d.wind.size() * 2);
+        put(d.direction.data(), d.direction.size() * 2);
+        return out;
+    }
+
+    template <class Scene>
+    bool decodeScene(const string& in, Scene& d) {
+        if (in.size() < 4 + 8 + 7 * sizeof(double) + 4 || in.compare(0, 4, "SAR2") != 0) {
+            return false;
+        }
+        size_t at = 4;
+        const auto get = [&in, &at] (void * data, size_t n) {
+            if (at + n > in.size()) {
+                return false;
+            }
+            std::memcpy(data, in.data() + at, n);
+            at += n;
+            return true;
+        };
+        double numbers[7];
+        int corners = 0;
+        if (!get(&d.width, 4) || !get(&d.height, 4) || !get(numbers, sizeof(numbers)) || !get(&corners, 4) || d.width <= 0 || d.height <= 0 || d.width > 4000 || d.height > 4000 || corners < 0 || corners > 16) {
+            return false;
+        }
+        d.west = numbers[0];
+        d.south = numbers[1];
+        d.east = numbers[2];
+        d.north = numbers[3];
+        d.maxKnots = numbers[4];
+        d.stepRad = numbers[5];
+        d.yTop = numbers[6];
+        d.outline.clear();
+        for (int i = 0; i < corners; i++) {
+            double xy[2];
+            if (!get(xy, sizeof(xy))) {
+                return false;
+            }
+            d.outline << QPointF{xy[0], xy[1]};
+        }
+        const size_t cells = static_cast<size_t>(d.width) * static_cast<size_t>(d.height);
+        d.wind.resize(cells);
+        d.direction.resize(cells);
+        if (!get(d.wind.data(), cells * 2) || !get(d.direction.data(), cells * 2)) {
+            return false;
+        }
+        d.image = colorize(d.wind, d.width, d.height);
         return true;
     }
 }
@@ -237,12 +232,11 @@ void SarWindsLayer::refresh(MapHost& host) {
         },
         [this, &host, fresh, message] {
             loading = false;
-            // the scenes already painted are kept when the list is read again
-            if (entries) {
+            if (entries) {   // the scenes already painted are kept when the list is read again
                 for (auto& e : *fresh) {
                     for (auto& old : *entries) {
-                        if (old.netcdf == e.netcdf && !old.image.isNull()) {
-                            e = old;
+                        if (old.netcdf == e.netcdf && old.data) {
+                            e.data = old.data;
                         }
                     }
                 }
@@ -253,77 +247,62 @@ void SarWindsLayer::refresh(MapHost& host) {
         });
 }
 
-// the scene's wind field: STAR's NetCDF, its wind (m/s), latitude and longitude read with GDAL, painted into a picture on a regular grid in Mercator
+// the scene's wind field: STAR's NetCDF (the wind, its latitude and longitude, the land mask and the direction of the model wind) read with GDAL and put on a regular grid, square in Mercator
 void SarWindsLayer::render(MapHost& host, size_t index) {
     auto& entry = (*entries)[index];
-    if (entry.rendering || !entry.image.isNull() || entry.failed) {
+    if (entry.rendering || entry.data || entry.failed) {
         return;
     }
     const auto url = entry.netcdf;
-    if (Painted again; paintedFor(url, again)) {   // painted before in this session (here or in another window): no download
-        entry.image = again.image;
-        entry.west = again.west;
-        entry.east = again.east;
-        entry.north = again.north;
-        entry.south = again.south;
-        entry.outline = again.outline;
-        entry.maxKnots = again.maxKnots;
-        host.redraw();
-        return;
+    {   // painted before in this session (here or in another window): no work at all
+        std::lock_guard<std::mutex> lock{memoryMutex};
+        if (const auto found = memory.find(url); found != memory.end()) {
+            entry.data = std::static_pointer_cast<SceneData>(found->second);
+            memoryOrder.erase(std::remove(memoryOrder.begin(), memoryOrder.end(), url), memoryOrder.end());
+            memoryOrder.push_back(url);
+            host.redraw();
+            return;
+        }
     }
     entry.rendering = true;
-    auto result = std::make_shared<Entry>();
+    auto result = std::make_shared<SceneData>();
+    auto ok = std::make_shared<bool>(false);
     auto keep = entries;
     host.background(
-        [result, url] {
-            // a scene read before, in an earlier session: its grid is on disk (a scene never changes once STAR has published it)
+        [result, ok, url] {
             const PermanentCache store{"sar"};
-            const string name = url.substr(url.rfind('/') + 1) + ".bin";
-            {
-                std::vector<uint16_t> grid;
-                int w = 0, h = 0;
-                double bounds[5];
-                QPolygonF outline;
-                if (const auto text = store.read(name); !text.empty() && decodeScene(text, grid, w, h, bounds, outline)) {
-                    result->image = colorize(grid, w, h);
-                    result->west = bounds[0];
-                    result->south = bounds[1];
-                    result->east = bounds[2];
-                    result->north = bounds[3];
-                    result->maxKnots = bounds[4];
-                    result->outline = outline;
-                    return;
-                }
+            const string name = url.substr(url.rfind('/') + 1) + ".2.bin";
+            if (const auto text = store.read(name); !text.empty() && decodeScene(text, *result)) {   // read before, in an earlier session (a scene never changes once STAR has published it)
+                *ok = true;
+                return;
             }
             if (UtilityGrib::gdalBinDir().empty()) {
-                result->failed = true;
                 return;
             }
             const auto bytes = URL::getBytes(url);
             if (bytes.size() < 10000) {
-                result->failed = true;
                 return;
             }
             QTemporaryDir dir;
             if (!dir.isValid()) {
-                result->failed = true;
                 return;
             }
             const QString file = dir.filePath("scene.nc");
             {
                 QFile f{file};
                 if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size()) {
-                    result->failed = true;
                     return;
                 }
             }
-            int c1 = 0, r1 = 0, c2 = 0, r2 = 0, c3 = 0, r3 = 0;
-            std::vector<float> wind, lat, lon;
-            if (!readLayer(file, "sar_wind", dir.filePath("w.raw"), c1, r1, wind) || !readLayer(file, "latitude", dir.filePath("a.raw"), c2, r2, lat) || !readLayer(file, "longitude", dir.filePath("o.raw"), c3, r3, lon) ||
-                c1 != c2 || c1 != c3 || r1 != r2 || r1 != r3) {
-                result->failed = true;
+            int columns = 0, rows = 0, c = 0, r = 0;
+            std::vector<float> wind, lat, lon, mask, direction;
+            const auto same = [&] { const bool match = c == columns && r == rows; return match; };
+            if (!readLayer(file, "sar_wind", dir.filePath("w.raw"), columns, rows, wind) || !readLayer(file, "latitude", dir.filePath("a.raw"), c, r, lat) || !same() ||
+                !readLayer(file, "longitude", dir.filePath("o.raw"), c, r, lon) || !same()) {
                 return;
             }
+            const bool haveMask = readLayer(file, "mask", dir.filePath("m.raw"), c, r, mask) && same();
+            const bool haveDirection = readLayer(file, "input_dir", dir.filePath("d.raw"), c, r, direction) && same();
             double minLon = 1e9, maxLon = -1e9, minLat = 1e9, maxLat = -1e9;
             for (size_t i = 0; i < wind.size(); i++) {
                 if (std::isnan(lat[i]) || std::isnan(lon[i]) || std::abs(lat[i]) > 90.0) {
@@ -337,94 +316,164 @@ void SarWindsLayer::render(MapHost& host, size_t index) {
                 maxLat = std::max<double>(maxLat, lat[i]);
             }
             if (maxLon <= minLon || maxLat <= minLat) {
-                result->failed = true;
                 return;
             }
-            // a picture with one pixel for about the size of a cell of the scene (a square in Mercator)
-            const double step = std::max(0.004, (maxLon - minLon) / 1400.0) * std::numbers::pi / 180.0;   // radians of longitude per pixel
-            const int width = std::clamp(static_cast<int>(std::ceil((maxLon - minLon) * std::numbers::pi / 180.0 / step)) + 2, 8, 1600);
-            const double yTop = mercatorY(maxLat);
-            const int height = std::clamp(static_cast<int>(std::ceil((yTop - mercatorY(minLat)) / step)) + 2, 8, 1600);
-            std::vector<uint16_t> grid(static_cast<size_t>(width) * static_cast<size_t>(height), noWind);
+            // a grid with one cell for about the size of a cell of the scene (a square in Mercator)
+            auto& d = *result;
+            d.stepRad = std::max(0.004, (maxLon - minLon) / 1400.0) * std::numbers::pi / 180.0;   // radians of longitude per cell
+            d.width = std::clamp(static_cast<int>(std::ceil((maxLon - minLon) * std::numbers::pi / 180.0 / d.stepRad)) + 2, 8, 1600);
+            d.yTop = mercatorY(maxLat);
+            d.height = std::clamp(static_cast<int>(std::ceil((d.yTop - mercatorY(minLat)) / d.stepRad)) + 2, 8, 1600);
+            const size_t cells = static_cast<size_t>(d.width) * static_cast<size_t>(d.height);
+            std::vector<uint16_t> grid(cells, noValue);
+            d.direction.assign(cells, noValue);
             double top = 0.0;
-            for (int row = 0; row < r1; row++) {
-                for (int column = 0; column < c1; column++) {
-                    const size_t i = static_cast<size_t>(row) * static_cast<size_t>(c1) + static_cast<size_t>(column);
+            for (int row = 0; row < rows; row++) {
+                for (int column = 0; column < columns; column++) {
+                    const size_t i = static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column);
                     const float w = wind[i];
-                    if (std::isnan(w) || w < 0.0f || std::isnan(lat[i]) || std::abs(lat[i]) > 90.0) {
+                    // no wind: not measured, land (the retrieval gives a fixed 100 m/s there), or a retrieval that gave up (that same 100)
+                    if (std::isnan(w) || w < 0.0f || w >= 99.9f || (haveMask && mask[i] > 0.0f) || std::isnan(lat[i]) || std::abs(lat[i]) > 90.0) {
                         continue;
                     }
                     double lo = lon[i];
                     if (lo > 180.0) lo -= 360.0;
-                    const int x = static_cast<int>((lo - minLon) * std::numbers::pi / 180.0 / step);
-                    const int y = static_cast<int>((yTop - mercatorY(lat[i])) / step);
-                    if (x >= 0 && y >= 0 && x < width && y < height) {
-                        grid[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)] = static_cast<uint16_t>(std::clamp(w * toKnots * 10.0, 0.0, 60000.0));
+                    const int x = static_cast<int>((lo - minLon) * std::numbers::pi / 180.0 / d.stepRad);
+                    const int y = static_cast<int>((d.yTop - mercatorY(lat[i])) / d.stepRad);
+                    if (x >= 0 && y >= 0 && x < d.width && y < d.height) {
+                        const size_t at = static_cast<size_t>(y) * static_cast<size_t>(d.width) + static_cast<size_t>(x);
+                        grid[at] = static_cast<uint16_t>(std::clamp(w * toKnots * 10.0, 0.0, 60000.0));
+                        if (haveDirection && direction[i] >= 0.0f && direction[i] <= 360.0f) {
+                            d.direction[at] = static_cast<uint16_t>(std::clamp(direction[i] * 10.0f, 0.0f, 3600.0f));
+                        }
                         top = std::max(top, static_cast<double>(w * toKnots));
                     }
                 }
             }
-            // the holes inside the scene (cells the rotated grid missed): the average of the neighbors that have a wind
-            std::vector<uint16_t> filled = grid;
-            for (int y = 1; y < height - 1; y++) {
-                for (int x = 1; x < width - 1; x++) {
-                    if (grid[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)] != noWind) {
-                        continue;
-                    }
-                    int n = 0, sum = 0;
-                    for (int dy = -1; dy <= 1; dy++) {
-                        for (int dx = -1; dx <= 1; dx++) {
-                            const uint16_t v = grid[static_cast<size_t>(y + dy) * static_cast<size_t>(width) + static_cast<size_t>(x + dx)];
-                            if (v != noWind) {
-                                n++;
-                                sum += v;
+            // the holes inside the scene (cells the rotated grid missed, a few percent of them): the average of the neighbors that have a wind, in two passes so that a hole beside a hole is filled too
+            d.wind = grid;
+            for (int pass = 0; pass < 2; pass++) {
+                const std::vector<uint16_t> before = d.wind;
+                const std::vector<uint16_t> directionBefore = d.direction;
+                for (int y = 1; y < d.height - 1; y++) {
+                    for (int x = 1; x < d.width - 1; x++) {
+                        const size_t at = static_cast<size_t>(y) * static_cast<size_t>(d.width) + static_cast<size_t>(x);
+                        if (before[at] != noValue) {
+                            continue;
+                        }
+                        int n = 0, sum = 0;
+                        uint16_t anyDirection = noValue;
+                        for (int dy = -1; dy <= 1; dy++) {
+                            for (int dx = -1; dx <= 1; dx++) {
+                                const size_t other = static_cast<size_t>(y + dy) * static_cast<size_t>(d.width) + static_cast<size_t>(x + dx);
+                                if (before[other] != noValue) {
+                                    n++;
+                                    sum += before[other];
+                                    if (directionBefore[other] != noValue) {
+                                        anyDirection = directionBefore[other];
+                                    }
+                                }
                             }
                         }
-                    }
-                    if (n >= 5) {
-                        filled[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)] = static_cast<uint16_t>(sum / n);
+                        if (n >= (pass == 0 ? 4 : 3)) {
+                            d.wind[at] = static_cast<uint16_t>(sum / n);
+                            d.direction[at] = anyDirection;
+                        }
                     }
                 }
             }
-            result->image = colorize(filled, width, height);
-            result->west = minLon;
-            result->east = minLon + width * step * 180.0 / std::numbers::pi;
-            result->north = maxLat;
-            result->south = 2.0 * std::atan(std::exp(yTop - height * step)) * 180.0 / std::numbers::pi - 90.0;
-            result->maxKnots = top;
-            // the corners of the scene
+            d.west = minLon;
+            d.east = minLon + d.width * d.stepRad * 180.0 / std::numbers::pi;
+            d.north = maxLat;
+            d.south = 2.0 * std::atan(std::exp(d.yTop - d.height * d.stepRad)) * 180.0 / std::numbers::pi - 90.0;
+            d.maxKnots = top;
             const auto corner = [&] (int row, int column) {
-                const size_t i = static_cast<size_t>(row) * static_cast<size_t>(c1) + static_cast<size_t>(column);
+                const size_t i = static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column);
                 double lo = lon[i];
                 if (lo > 180.0) lo -= 360.0;
                 return QPointF{lo, static_cast<double>(lat[i])};
             };
-            result->outline << corner(0, 0) << corner(0, c1 - 1) << corner(r1 - 1, c1 - 1) << corner(r1 - 1, 0);
-            const double bounds[5] = {result->west, result->south, result->east, result->north, result->maxKnots};
-            store.write(name, encodeScene(filled, width, height, bounds, result->outline));
+            d.outline << corner(0, 0) << corner(0, columns - 1) << corner(rows - 1, columns - 1) << corner(rows - 1, 0);
+            d.image = colorize(d.wind, d.width, d.height);
+            store.write(name, encodeScene(d));
+            *ok = true;
         },
-        [this, &host, result, keep, url] {
+        [this, &host, result, ok, keep, url] {
             if (!entries || keep != entries) {
                 return;
             }
             for (auto& e : *entries) {
                 if (e.netcdf == url) {
                     e.rendering = false;
-                    e.failed = result->failed;
-                    if (!result->failed) {
-                        keepPainted(url, Painted{result->image, result->west, result->south, result->east, result->north, result->maxKnots, result->outline});
-                        e.image = result->image;
-                        e.west = result->west;
-                        e.east = result->east;
-                        e.north = result->north;
-                        e.south = result->south;
-                        e.outline = result->outline;
-                        e.maxKnots = result->maxKnots;
+                    e.failed = !*ok;
+                    if (*ok) {
+                        e.data = result;
                     }
+                }
+            }
+            if (*ok) {
+                std::lock_guard<std::mutex> lock{memoryMutex};
+                memory[url] = result;
+                memoryOrder.erase(std::remove(memoryOrder.begin(), memoryOrder.end(), url), memoryOrder.end());
+                memoryOrder.push_back(url);
+                while (memoryOrder.size() > 12) {
+                    memory.erase(memoryOrder.front());
+                    memoryOrder.pop_front();
                 }
             }
             host.redraw();
         });
+}
+
+// wind barbs on the world grid of every other map (BarbGrid): the speed is the SAR's, averaged over the neighborhood of the barb (the radar's 500 m cells are far noisier than a barb is
+// meant to show), the direction the one the retrieval used (the model's, in the scene's file)
+void SarWindsLayer::paintBarbs(QPainter& painter, MapHost& host, const SceneData& d) const {
+    auto& view = host.view();
+    const auto t = view.transform();
+    const double px = view.unitsPerPixel();
+    const double scale = std::max(0.1, host.markScale());
+    const double perDegree = std::abs(t(0.0, 1.0).x() - t(0.0, 0.0).x()) / std::max(1e-9, px);
+    if (perDegree <= 0.0) {
+        return;
+    }
+    const auto look = BarbGrid::look(view.pixelWidth() / perDegree / scale, perDegree, scale);
+    const double cellDegrees = d.stepRad * 180.0 / std::numbers::pi;
+    const int half = std::clamp(static_cast<int>(std::lround(look.step * 0.25 / cellDegrees)), 1, 14);   // a barb averages the cells within a quarter of the barb spacing
+    const double length = look.length * px;
+    painter.save();
+    painter.setPen(QPen{QColor{15, 15, 25, 235}, std::max(px, 1.0 * scale * px)});
+    painter.setBrush(QColor{15, 15, 25});
+    for (double lat = std::ceil(d.south / look.step) * look.step; lat <= d.north; lat += look.step) {
+        for (double lon = std::ceil(d.west / look.step) * look.step; lon <= d.east; lon += look.step) {
+            const int cx = static_cast<int>((lon - d.west) / cellDegrees), cy = static_cast<int>((d.yTop - mercatorY(lat)) / d.stepRad);
+            if (cx < half || cy < half || cx >= d.width - half || cy >= d.height - half) {
+                continue;
+            }
+            double sum = 0.0, sx = 0.0, sy = 0.0;
+            int n = 0, nd = 0;
+            for (int y = cy - half; y <= cy + half; y++) {
+                for (int x = cx - half; x <= cx + half; x++) {
+                    const size_t at = static_cast<size_t>(y) * static_cast<size_t>(d.width) + static_cast<size_t>(x);
+                    if (d.wind[at] != noValue) {
+                        sum += d.wind[at] / 10.0;
+                        n++;
+                    }
+                    if (d.direction[at] != noValue) {
+                        const double a = d.direction[at] / 10.0 * std::numbers::pi / 180.0;
+                        sx += std::sin(a);
+                        sy += std::cos(a);
+                        nd++;
+                    }
+                }
+            }
+            if (n < (2 * half + 1) * (2 * half + 1) / 3 || nd == 0) {   // most of the neighborhood must have a wind
+                continue;
+            }
+            const double from = std::fmod(std::atan2(sx, sy) * 180.0 / std::numbers::pi + 360.0, 360.0);
+            WindBarb::draw(painter, t(lat, lon), from, sum / n, length, lat < 0.0);
+        }
+    }
+    painter.restore();
 }
 
 void SarWindsLayer::paint(QPainter& painter, MapHost& host) {
@@ -445,34 +494,38 @@ void SarWindsLayer::paint(QPainter& painter, MapHost& host) {
         const QPointF at = t(e.scene.lat, e.scene.lon);
         const QRectF window{-500.0, -250.0, 1000.0, 1000.0 * view.pixelHeight() / std::max(1, view.pixelWidth())};
         const bool visible = window.adjusted(-200, -200, 200, 200).contains(at);
-        if (close && visible && e.image.isNull() && !e.rendering && !e.failed && started < 2) {
+        if (close && visible && !e.data && !e.rendering && !e.failed && started < 2) {
             started++;
             render(host, i);
         }
-        if (!e.image.isNull()) {
-            const QPointF a = t(e.north, e.west), b = t(e.south, e.east);
+        if (e.data) {
+            const auto& d = *e.data;
+            const QPointF a = t(d.north, d.west), b = t(d.south, d.east);
             painter.save();
             painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
-            painter.drawImage(QRectF{a, b}.normalized(), e.image);
+            painter.drawImage(QRectF{a, b}.normalized(), d.image);
             painter.restore();
             QPolygonF outline;
-            for (const auto& p : e.outline) {
+            for (const auto& p : d.outline) {
                 outline << t(p.y(), p.x());
             }
             painter.setBrush(Qt::NoBrush);
             painter.setPen(QPen{QColor{255, 255, 255, 190}, 1.2 * px, Qt::DashLine});
             painter.drawPolygon(outline);
+            if (showBarbs) {
+                paintBarbs(painter, host, d);
+            }
         }
         // the mark: a diamond at the middle of the scene with when and by which satellite
         painter.setPen(QPen{QColor{20, 20, 30, 230}, 1.0 * px});
-        painter.setBrush(e.image.isNull() ? QColor{190, 90, 220} : QColor{255, 255, 255, 220});
+        painter.setBrush(e.data ? QColor{255, 255, 255, 220} : QColor{190, 90, 220});
         const double r = 6.0 * px;
         painter.drawPolygon(QPolygonF{{at + QPointF{0, -r}, at + QPointF{r, 0}, at + QPointF{0, r}, at + QPointF{-r, 0}}});
         if (perDegree > 4.0) {
             auto sensor = QString::fromStdString(e.scene.sensor);
             sensor = sensor.left(sensor.indexOf(" - ") < 0 ? sensor.size() : sensor.indexOf(" - "));
             painter.setPen(QColor{235, 235, 245});
-            painter.drawText(at + QPointF{9.0 * px, -6.0 * px}, sensor + " " + e.when.toString("MMM d HH:mm") + "Z" + (e.image.isNull() && e.rendering ? " ..." : QString{}));
+            painter.drawText(at + QPointF{9.0 * px, -6.0 * px}, sensor + " " + e.when.toString("MMM d HH:mm") + "Z" + (!e.data && e.rendering ? " ..." : QString{}));
         }
     }
 }
@@ -490,14 +543,25 @@ MapHit SarWindsLayer::pick(const QPointF& pixels, MapHost& host) const {
         const double distance = std::hypot(at.x() - pixels.x(), at.y() - pixels.y());
         if (distance < hit.distance) {
             hit.distance = distance;
-            hit.text = QString::fromStdString(e.stormId + " " + e.stormName + "\nSAR " + e.scene.sensor + "  " + e.scene.time) + (e.maxKnots > 0 ? QString{"\nstrongest wind in the scene: %1 kt"}.arg(static_cast<int>(std::lround(e.maxKnots))) : QString{"\n(zoom in for the wind field)"}) +
-                       "\n(click for the storm's SAR winds)";
+            hit.text = QString::fromStdString(e.stormId + " " + e.stormName + "\nSAR " + e.scene.sensor + "  " + e.scene.time) +
+                       (e.data && e.data->maxKnots > 0 ? QString{"\nstrongest wind in the scene: %1 kt"}.arg(static_cast<int>(std::lround(e.data->maxKnots))) : QString{"\n(zoom in for the wind field)"}) + "\n(click for the storm's SAR winds)";
             const string id = e.stormId, name = e.stormName;
             const int year = e.year;
             hit.open = [id, name, year] (Window * parent) { new SarWindsViewer{parent, id, name, year}; };
         }
     }
     return hit;
+}
+
+QWidget * SarWindsLayer::options(QWidget * parent, const std::function<void()>& changed) {
+    auto * widget = new QWidget{parent};
+    auto * layout = new QVBoxLayout{widget};
+    layout->setContentsMargins(0, 0, 0, 0);
+    auto * check = new QCheckBox{"Wind barbs (the SAR's speed, the direction of the model wind the retrieval used)", widget};
+    check->setChecked(showBarbs);
+    QObject::connect(check, &QCheckBox::toggled, [this, changed] (bool on) { showBarbs = on; changed(); });
+    layout->addWidget(check);
+    return widget;
 }
 
 vector<MapLegendRow> SarWindsLayer::legend() const {
