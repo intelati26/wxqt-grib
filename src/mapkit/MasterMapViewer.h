@@ -84,9 +84,11 @@ private:
     void tick();
     void exportView();
     bool modelSpec(string& chart, vector<string>& models, QDateTime& when) const;   // the model chart or combo on the map
-    void exportWorld();                          // the whole world, equal area, as one picture (asks)
+    void exportWorld();
+    void showAreaPicker();   // MAG's area picker on the globe: point at an area, see it; click, go there                          // the whole world, equal area, as one picture (asks)
 
 public:
+    void previewArea(const string& id, bool goThere);   // the area as a rectangle on the globe, which turns to it (goThere: and zooms to fit, and the flat map follows)
     void exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centerLongitude, int width, bool highResolution = false, bool graticule = false);
 
 private:
@@ -95,6 +97,7 @@ private:
     // the time bar: stepping and looping through the frames of the layers that have them
     bool forecastsOnly() const;
     void openHours();
+    void updateTimeline();   // the hour labels over the slider and the bar of the frames that are ready
     void rebuildTicks();
     void goLive();
     void jumpTo(const QDateTime& utc);   // a time of the person's choosing: the layers look at the hours around it
@@ -121,6 +124,7 @@ private:
     Button buttonCompare;
     Button buttonArea;
     Button buttonGlobe;
+    Button buttonAreas;
     GlobeMapView * globeView{};
     bool globeOn{false};
     GlobeMapView::Skin makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width, double referencePixelsPerDegree = 0.0, bool waitForLayers = false);
@@ -164,6 +168,7 @@ private:
     QPushButton * playButton{};
     QPushButton * rangeButton{};
     QPushButton * hoursButton{};
+    QWidget * timeTicks{};
     long loopFrom{0}, loopTo{0};    // the loop's own start and end (seconds), 0: all the frames the bar has
     QPushButton * liveButton{};
     QPushButton * stepBack{};

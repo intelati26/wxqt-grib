@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/MasterMapViewer.h"
+#include "mapkit/GlobeAreaPicker.h"
 #include "history/HistoryCursor.h"
 #include <QTimeZone>
 #include <algorithm>
@@ -55,6 +56,53 @@
 #include "util/UtilityUI.h"
 
 namespace {
+    // The labels over the time slider (F000 F006 ... as many as fit) with a bar under them: blue where the frame is drawn and ready, grey where it is not yet
+    class TimeTicks : public QWidget {
+    public:
+        explicit TimeTicks(QWidget * parent) : QWidget{parent} { setFixedHeight(24); }
+        std::vector<QString> names;
+        std::vector<bool> ready;
+        int current{0};
+
+    protected:
+        void paintEvent(QPaintEvent *) override {
+            if (names.size() < 2) {
+                return;
+            }
+            QPainter p{this};
+            const double margin = 8.0, span = width() - 2 * margin, slot = span / static_cast<double>(names.size() - 1);
+            if (ready.size() == names.size()) {
+                for (size_t i = 0; i < names.size(); i++) {
+                    const double x = margin + slot * static_cast<double>(i);
+                    p.fillRect(QRectF{x - std::max(0.5, slot / 2.0 - 0.3), 19.0, std::max(1.0, slot - 0.6), 4.0}, ready[i] ? QColor{"#3b8fd9"} : QColor{128, 128, 128, 60});
+                }
+            }
+            QFont f = font();
+            f.setBold(true);
+            f.setPointSizeF(f.pointSizeF() * 0.85);
+            p.setFont(f);
+            int widest = p.fontMetrics().horizontalAdvance("F000");
+            for (const auto& n : names) {
+                widest = std::max(widest, p.fontMetrics().horizontalAdvance(n));
+            }
+            const int labelWidth = widest + 14;
+            const int every = std::max(1, static_cast<int>(std::ceil(labelWidth / slot)));
+            double lastRight = -1e9;
+            for (size_t i = 0; i < names.size(); i += static_cast<size_t>(every)) {
+                const double x = margin + slot * static_cast<double>(i);
+                const double left = std::clamp(x - labelWidth / 2.0, 0.0, std::max(0.0, width() - static_cast<double>(labelWidth)));
+                if (left < lastRight + 4.0) {
+                    continue;
+                }
+                p.setPen(static_cast<int>(i) == current ? QColor{"#c0392b"} : palette().color(QPalette::WindowText));
+                p.drawText(QRectF{left, 0, static_cast<double>(labelWidth), 17.0}, Qt::AlignCenter, names[i]);
+                lastRight = left + labelWidth;
+            }
+            const double x = margin + slot * current;   // the frame on show
+            p.setPen(QPen{QColor{"#c0392b"}, 2.0});
+            p.drawLine(QPointF{x, 17.0}, QPointF{x, 24.0});
+        }
+    };
     const int panelWidth = 360;
 
     vector<string> split(const string& text, char separator) {
@@ -81,6 +129,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     , buttonCompare{this, None, "Compare..."}
     , buttonArea{this, None, "Area..."}
     , buttonGlobe{this, None, "Globe..."}
+    , buttonAreas{this, None, "Areas..."}
     , buttonTemps{this, None, "Temperature history..."}
     , buttonSounding{this, None, "Sounding..."}
     , buttonMembers{this, None, "Members graph..."}
@@ -220,6 +269,8 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     buttonArea.connect([this] { chooseArea(); });
     buttonGlobe.getView()->setToolTip("Every layer on a globe seen from space instead of the flat map, with nothing stretched toward the poles: turn it with the mouse, zoom with the wheel; hover and click work as on the map. The button turns it back into the map");
     buttonGlobe.connect([this] { setGlobe(!globeOn); });
+    buttonAreas.getView()->setToolTip("The model areas as on MAG: point at a name (or at the globe) to see the area as a rectangle, with the globe turning to it; click to go there");
+    buttonAreas.connect([this] { showAreaPicker(); });
     buttonTemps.getView()->setToolTip("How warm the week, month or year up to a date has been against the same stretch of every year since 1940 (ERA5), at the place the pointer was last on the map: bars by year, the rank, the warmest and coldest years");
     buttonTemps.connect([this] {
         double lat = 0.0, lon = 0.0;
@@ -280,14 +331,19 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     rowTop.addWidget(buttonCompare);
     rowTop.addWidget(buttonArea);
     rowTop.addWidget(buttonGlobe);
+    rowTop.addWidget(buttonAreas);
     rowTop.addWidget(buttonTemps);
     rowTop.addWidget(buttonSounding);
     rowTop.addWidget(buttonMembers);
     rowTop.addStretch();
     // the time bar: shown while a layer with frames is on
     timeRow = new QWidget{this};
-    auto * timeLayout = new QHBoxLayout{timeRow};
+    auto * timeOuter = new QVBoxLayout{timeRow};   // the buttons and the time on one row, the slider under its hour labels on the next, the whole width
+    timeOuter->setContentsMargins(0, 0, 0, 0);
+    timeOuter->setSpacing(0);
+    auto * timeLayout = new QHBoxLayout;
     timeLayout->setContentsMargins(0, 0, 0, 0);
+    timeOuter->addLayout(timeLayout);
     stepBack = new QPushButton{"<", timeRow};
     playButton = new QPushButton{"Loop", timeRow};
     stepForward = new QPushButton{">", timeRow};
@@ -313,7 +369,19 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     hoursButton->setToolTip("A grid of every hour of the forecast (or every frame) to jump to");
     timeLayout->addWidget(hoursButton);
     QObject::connect(hoursButton, &QPushButton::clicked, [this] { openHours(); });
-    timeLayout->addWidget(timeSlider, 1);
+    {   // the slider under its hour labels
+        auto * sliderColumn = new QWidget{timeRow};
+        auto * columnLayout = new QVBoxLayout{sliderColumn};
+        columnLayout->setContentsMargins(0, 0, 0, 0);
+        columnLayout->setSpacing(0);
+        sliderColumn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        timeTicks = new TimeTicks{sliderColumn};
+        timeTicks->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        timeTicks->setMinimumWidth(200);
+        columnLayout->addWidget(timeTicks);
+        columnLayout->addWidget(timeSlider);
+        timeOuter->addWidget(sliderColumn);
+    }
     timeLayout->addWidget(speedCombo);
     timeLayout->addWidget(liveButton);
     // a calendar and clock to go to any time (UTC) of the past
@@ -502,6 +570,7 @@ void MasterMapViewer::refreshActiveList() {
     if (activeLayout == nullptr) {
         return;
     }
+    updateTimeline();   // (frames become ready while the layers work: the list is looked at every half second after a redraw)
     string signature;
     for (const auto& layer : layers) {
         if (layer->enabled()) {
@@ -650,6 +719,34 @@ MasterMapViewer::~MasterMapViewer() {
     inlineOptions.clear();
 }
 
+void MasterMapViewer::updateTimeline() {
+    auto * strip = static_cast<TimeTicks *>(timeTicks);
+    if (strip == nullptr) {
+        return;
+    }
+    strip->setVisible(ticks.size() > 1);
+    if (ticks.size() < 2) {
+        return;
+    }
+    const bool forecasts = forecastsOnly();
+    std::set<long> ready;
+    for (const auto& layer : layers) {
+        if (layer->enabled() && layer->timeAware()) {
+            for (const long t : layer->readyTimes()) {
+                ready.insert(t);
+            }
+        }
+    }
+    strip->names.clear();
+    strip->ready.clear();
+    for (const long t : ticks) {
+        strip->names.push_back(forecasts ? QString{"F%1"}.arg((t - ticks.front()) / 3600, 3, 10, QChar{'0'}) : QDateTime::fromSecsSinceEpoch(t, QTimeZone::utc()).toString("dd HH'Z'"));
+        strip->ready.push_back(ready.count(t) > 0);
+    }
+    strip->current = std::clamp(timeSlider->value(), 0, static_cast<int>(ticks.size()) - 1);
+    strip->update();
+}
+
 // a grid of every frame on the bar: the forecast hours (F000 ...) when only model charts are on, else the times
 void MasterMapViewer::openHours() {
     if (ticks.size() < 2) {
@@ -747,6 +844,7 @@ void MasterMapViewer::rebuildTicks() {
             playButton->setText("Loop");
         }
     }
+    updateTimeline();
     updateStatus();
     redraw();
 }
@@ -823,6 +921,7 @@ void MasterMapViewer::goTo(int index) {
     if (timePick != nullptr && !live) {
         timePick->setDateTime(QDateTime::fromSecsSinceEpoch(ticks[static_cast<size_t>(index)], QTimeZone::utc()));
     }
+    updateTimeline();
     updateStatus();
     redraw();
 }
@@ -2150,4 +2249,45 @@ void MasterMapViewer::resizeEventCustom() {
         rangeButton->setVisible(room);
         timeLabel->setMinimumWidth(room ? 180 : 40);
     }
+}
+
+// MAG's area picker, on the globe: the names of the model areas in a window; the pointer over a name (or over the globe) shows the area as a rectangle with its name and turns the globe to it,
+// a click goes there: the globe turns and zooms to fit it and the flat map follows.
+void MasterMapViewer::previewArea(const string& id, bool goThere) {
+    const auto * sector = GfsChart::sector(id);
+    if (sector == nullptr) {
+        globeView->clearPreview();
+        return;
+    }
+    if (!globeOn) {
+        setGlobe(true);
+    }
+    globeView->setPreview(id, sector->west, sector->south, sector->east, sector->north);
+    globeView->rotateTo((sector->south + sector->north) / 2.0, (sector->west + sector->east) / 2.0, goThere ? GlobeMapView::zoomFor(sector->west, sector->south, sector->east, sector->north) : -1.0);
+    if (goThere) {
+        mapView->showRegion(sector->south, sector->north, sector->west, sector->east);   // (the flat map is there when the globe is turned off)
+        QTimer::singleShot(2500, this, [this] { globeView->clearPreview(); });
+    }
+}
+
+void MasterMapViewer::showAreaPicker() {
+    if (!globeOn) {
+        setGlobe(true);
+    }
+    auto * picker = new GlobeAreaPicker{this};
+    picker->onHover = [this] (const string& id) {
+        id.empty() ? globeView->clearPreview() : previewArea(id, false);
+    };
+    const auto choose = [this] (const string& id) { previewArea(id, true); };
+    picker->onPick = choose;
+    // the globe itself: the area under the pointer
+    std::vector<GlobeMapView::Area> areas;
+    for (const auto& sector : GfsChart::sectors()) {
+        if (sector.id.compare(0, 6, "LOCAL:") != 0 && sector.id != "GLOBAL") {
+            areas.push_back({sector.id, sector.west, sector.south, sector.east, sector.north});
+        }
+    }
+    globeView->setAreas(areas, choose);
+    QObject::connect(picker, &QObject::destroyed, this, [this] { globeView->setAreas({}, {}); });
+    picker->show();
 }

@@ -306,6 +306,9 @@ int main(int argc, char * argv[]) {
                 map->openAt(when, parts.value(2).toDouble(), parts.value(3).toDouble(), parts.value(4).toDouble(), extraLayers(parts.value(5)));
                 const auto projection = parts.value(6) == "robinson" ? GlobeMapView::Projection::Robinson : parts.value(6) == "equal" ? GlobeMapView::Projection::EqualEarth : parts.value(6) == "mollweide" ? GlobeMapView::Projection::Mollweide : parts.value(6) == "north" ? GlobeMapView::Projection::PolarNorth : parts.value(6) == "south" ? GlobeMapView::Projection::PolarSouth : GlobeMapView::Projection::Globe;
                 map->setGlobe(projection == GlobeMapView::Projection::Globe);
+                if (const auto area = qEnvironmentVariable("WXQT_AREA"); !area.isEmpty()) {   // WXQT_AREA=<id>[,go]: the area previewed on the globe (as the area picker does on hover) after a while
+                    QTimer::singleShot(8000, map, [map, area] { map->previewArea(area.section(',', 0, 0).toStdString(), area.endsWith(",go")); });
+                }
                 if (parts.value(7) == "export") {   // globemap:...:<globe|equal|mollweide>:export:<out.png>:<center lon>: also the whole world as a picture, after a while
                     const QString out = parts.value(8);
                     const double centre = parts.value(9).toDouble();

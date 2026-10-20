@@ -80,7 +80,8 @@ public:
     // time: a layer with frames in time (radar scans, a forecast's hours) lists them, and shows the one the time bar asks for
     virtual bool forecast() const { return false; }              // its frames are the hours of a forecast: the first is "latest", the later ones are ahead
     virtual bool timeAware() const { return false; }
-    virtual vector<long> times() const { return {}; }            // seconds since 1970, ascending: the frames that can be shown now
+    virtual vector<long> times() const { return {}; }
+    virtual vector<long> readyTimes() const { return {}; }       // the frames already drawn / read (the time bar marks them), seconds since 1970            // seconds since 1970, ascending: the frames that can be shown now
     virtual void prepareTimes(MapHost&) {}                       // load the frames for a loop (the bar calls it when a loop is wanted); timesChanged() when done
     virtual void showTime(long /*seconds*/, MapHost&) {}         // show the frame at or just before this time; 0 is "live": the newest
     virtual string timeText() const { return {}; }               // when the frame on show is valid                // a short line for the status: "5,300 stations"

@@ -36,6 +36,7 @@ public:
     bool timeAware() const override { return true; }
     bool forecast() const override { return true; }
     vector<long> times() const override;
+    vector<long> readyTimes() const override;
     void showTime(long seconds, MapHost&) override;
     string timeText() const override;
     void setAsOf(const QDateTime& utc, MapHost&) override;

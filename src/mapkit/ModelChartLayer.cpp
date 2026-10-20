@@ -108,6 +108,21 @@ vector<long> ModelChartLayer::times() const {
     return out;
 }
 
+vector<long> ModelChartLayer::readyTimes() const {
+    vector<long> out;
+    if (run.size() < 10) {
+        return out;
+    }
+    const long start = static_cast<long>(runTimeOf(run).toSecsSinceEpoch());
+    for (const int h : hours) {
+        const auto key = keyFor(h);
+        if (frames.count(key) > 0 || (current && current->key == key)) {
+            out.push_back(start + static_cast<long>(h) * 3600);
+        }
+    }
+    return out;
+}
+
 int ModelChartLayer::hourShown() const {
     if (hours.empty() || run.size() < 10) {
         return 0;

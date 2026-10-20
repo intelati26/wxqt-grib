@@ -208,6 +208,16 @@ vector<long> ComboChartLayer::times() const {
     return {all.begin(), all.end()};
 }
 
+vector<long> ComboChartLayer::readyTimes() const {
+    std::set<long> all;
+    for (const auto& part : parts) {
+        for (const long t : part->readyTimes()) {
+            all.insert(t);
+        }
+    }
+    return {all.begin(), all.end()};
+}
+
 void ComboChartLayer::showTime(long seconds, MapHost& host) {
     shown = seconds;
     for (auto& part : parts) {

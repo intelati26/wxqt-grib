@@ -7,6 +7,8 @@
 #define GLOBEMAPVIEW_H
 
 #include <functional>
+#include <string>
+#include <vector>
 #include <QImage>
 #include <QTimer>
 #include <QWidget>
@@ -51,6 +53,18 @@ public:
     std::function<void(QPainter&, int width, int height)> paintLegend;
 
     void setCenter(double lat, double lon) { lat0 = lat; lon0 = lon; scheduleSkin(); update(); }
+    // An area shown on the globe as a rectangle with its name (MAG's area picker: hover an area, see where it is); the globe can turn to it, smoothly
+    void setPreview(const std::string& name, double west, double south, double east, double north);
+    void clearPreview();
+    void rotateTo(double lat, double lon, double newZoom = -1.0);   // zoom: -1 keeps it
+    // the zoom that shows an area (degrees) whole
+    static double zoomFor(double west, double south, double east, double north);
+    // With areas set, the area under the pointer is previewed as it moves over the globe and a click chooses it (empty list: off)
+    struct Area {
+        std::string id;
+        double west, south, east, north;
+    };
+    void setAreas(const std::vector<Area>& list, const std::function<void(const std::string&)>& chosen);
     void scheduleSkin(int milliseconds = 350);
     double centerLat() const { return lat0; }
     double centerLon() const { return lon0; }
@@ -75,6 +89,15 @@ private:
     bool dragging{false};
     bool moved{false};
     MapHit hover;
+    bool previewOn{false};
+    std::string previewName;
+    double pWest{0}, pSouth{0}, pEast{0}, pNorth{0};
+    std::vector<Area> areas;
+    std::function<void(const std::string&)> areaChosen;
+    std::string areaUnder;
+    QTimer turnTimer;
+    double fromLat{0}, fromLon{0}, fromZoom{1}, toLat{0}, toLon{0}, toZoom{1};
+    int turnStep{0};
 };
 
 #endif  // GLOBEMAPVIEW_H

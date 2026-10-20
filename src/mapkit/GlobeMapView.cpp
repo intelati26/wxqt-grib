@@ -215,7 +215,72 @@ QImage GlobeMapView::projectWorld(const Skin& skin, Projection p, double centerL
     return image;
 }
 
+void GlobeMapView::setPreview(const std::string& name, double west, double south, double east, double north) {
+    previewOn = true;
+    previewName = name;
+    pWest = west;
+    pSouth = south;
+    pEast = east;
+    pNorth = north;
+    update();
+}
+
+void GlobeMapView::clearPreview() {
+    previewOn = false;
+    update();
+}
+
+double GlobeMapView::zoomFor(double west, double south, double east, double north) {
+    // the angle from the middle of the area to its corner, on the sphere: the area fits when that corner is at 0.9 of the radius
+    const double lat = (south + north) / 2.0, lon = (west + east) / 2.0;
+    const double phi = lat * rad, phi2 = north * rad;
+    const double dl = (east - lon) * rad;
+    const double cosc = std::sin(phi) * std::sin(phi2) + std::cos(phi) * std::cos(phi2) * std::cos(dl);
+    const double angle = std::acos(std::clamp(cosc, -1.0, 1.0));
+    return std::clamp(0.92 / std::max(0.1, std::sin(std::min(angle, 1.45))), 0.8, 12.0);
+}
+
+void GlobeMapView::rotateTo(double lat, double lon, double newZoom) {
+    fromLat = lat0;
+    fromLon = lon0;
+    fromZoom = zoom;
+    toLat = std::clamp(lat, -89.0, 89.0);
+    toLon = lon0 + std::fmod(lon - lon0 + 540.0, 360.0) - 180.0;   // the short way round
+    toZoom = newZoom > 0.0 ? newZoom : zoom;
+    turnStep = 0;
+    turnTimer.start(16);
+}
+
+void GlobeMapView::setAreas(const std::vector<Area>& list, const std::function<void(const std::string&)>& chosen) {
+    areas = list;
+    areaChosen = chosen;
+    areaUnder.clear();
+    if (list.empty()) {
+        clearPreview();
+    }
+}
+
 GlobeMapView::GlobeMapView(QWidget * parent) : QWidget{parent} {
+    turnTimer.setSingleShot(false);
+    QObject::connect(&turnTimer, &QTimer::timeout, this, [this] {
+        constexpr int steps = 16;
+        turnStep++;
+        const double f = turnStep >= steps ? 1.0 : 0.5 - 0.5 * std::cos(3.14159265358979 * turnStep / steps);   // slow at both ends
+        lat0 = fromLat + (toLat - fromLat) * f;
+        lon0 = fromLon + (toLon - fromLon) * f;
+        zoom = fromZoom + (toZoom - fromZoom) * f;
+        while (lon0 > 180.0) {
+            lon0 -= 360.0;
+        }
+        while (lon0 < -180.0) {
+            lon0 += 360.0;
+        }
+        if (turnStep >= steps) {
+            turnTimer.stop();
+            scheduleSkin(80);
+        }
+        update();
+    });
     setMouseTracking(true);
     setMinimumSize(420, 420);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -346,6 +411,52 @@ void GlobeMapView::paintEvent(QPaintEvent *) {
     p.setPen(QPen{QColor{200, 210, 230, 150}, 1.5});
     p.setBrush(Qt::NoBrush);
     p.drawEllipse(center(), radius(), radius());
+    if (previewOn) {   // the area: its outline on the sphere (the front side only), filled when all of it is in sight, with its name
+        const double R = radius(), phi0 = lat0 * rad;
+        const auto project = [&] (double lat, double lon, QPointF& out) {
+            const double dl = (lon - lon0) * rad, phi = lat * rad;
+            if (std::sin(phi0) * std::sin(phi) + std::cos(phi0) * std::cos(phi) * std::cos(dl) <= 0.0) {
+                return false;
+            }
+            out = center() + QPointF{R * std::cos(phi) * std::sin(dl), -R * (std::cos(phi0) * std::sin(phi) - std::sin(phi0) * std::cos(phi) * std::cos(dl))};
+            return true;
+        };
+        QPolygonF outline;
+        bool whole = true;
+        const auto edge = [&] (double fromLatE, double fromLonE, double toLatE, double toLonE) {
+            const int n = std::max(8, static_cast<int>(std::max(std::abs(toLatE - fromLatE), std::abs(toLonE - fromLonE))));
+            for (int i = 0; i < n; i++) {
+                QPointF at;
+                if (project(fromLatE + (toLatE - fromLatE) * i / n, fromLonE + (toLonE - fromLonE) * i / n, at)) {
+                    outline << at;
+                } else {
+                    whole = false;
+                }
+            }
+        };
+        edge(pSouth, pWest, pSouth, pEast);
+        edge(pSouth, pEast, pNorth, pEast);
+        edge(pNorth, pEast, pNorth, pWest);
+        edge(pNorth, pWest, pSouth, pWest);
+        if (outline.size() >= 2) {
+            p.setPen(QPen{QColor{230, 40, 40}, 2.2});
+            p.setBrush(whole ? QColor{230, 40, 40, 45} : QColor{});
+            whole ? p.drawPolygon(outline) : p.drawPolyline(outline);
+        }
+        QPointF middle;
+        if (project((pSouth + pNorth) / 2.0, (pWest + pEast) / 2.0, middle) && !previewName.empty()) {
+            QFont font = p.font();
+            font.setPointSizeF(font.pointSizeF() * 1.15);
+            p.setFont(font);
+            const QString text = QString::fromStdString(previewName);
+            const QRectF box = QRectF{0, 0, p.fontMetrics().horizontalAdvance(text) + 16.0, p.fontMetrics().height() + 8.0}.translated(middle - QPointF{(p.fontMetrics().horizontalAdvance(text) + 16.0) / 2.0, p.fontMetrics().height() + 14.0});
+            p.setPen(QPen{QColor{235, 235, 235}, 1.0});
+            p.setBrush(QColor{15, 15, 15, 225});
+            p.drawRoundedRect(box, 4, 4);
+            p.setPen(QColor{245, 245, 245});
+            p.drawText(box, Qt::AlignCenter, text);
+        }
+    }
     if (paintLegend && !dragging) {
         paintLegend(p, width(), height());
     }
@@ -362,6 +473,8 @@ void GlobeMapView::mouseReleaseEvent(QMouseEvent * e) {
     dragging = false;
     if (wasDrag) {
         scheduleSkin(80);
+    } else if (!areas.empty() && !areaUnder.empty() && areaChosen) {   // a click on an area: chosen
+        areaChosen(areaUnder);
     } else if (hover.valid() && hover.open) {   // a click on a mark: what the layer opens
         hover.open(dynamic_cast<Window *>(window()));
     }
@@ -388,6 +501,36 @@ void GlobeMapView::mouseMoveEvent(QMouseEvent * e) {
         return;
     }
     double lat, lon;
+    if (!areas.empty()) {   // the smallest area the pointer is over, previewed
+        std::string found;
+        double best = 1e18;
+        if (place(e->position(), lat, lon)) {
+            for (const auto& a : areas) {
+                double relative = lon - (a.west + a.east) / 2.0;
+                while (relative > 180.0) relative -= 360.0;
+                while (relative < -180.0) relative += 360.0;
+                const double size = (a.east - a.west) * (a.north - a.south);
+                if (std::abs(relative) <= (a.east - a.west) / 2.0 && lat >= a.south && lat <= a.north && size < best) {
+                    best = size;
+                    found = a.id;
+                }
+            }
+        }
+        if (found != areaUnder) {
+            areaUnder = found;
+            if (found.empty()) {
+                clearPreview();
+            } else {
+                for (const auto& a : areas) {
+                    if (a.id == found) {
+                        setPreview(a.id, a.west, a.south, a.east, a.north);
+                    }
+                }
+            }
+        }
+        setCursor(found.empty() ? Qt::ArrowCursor : Qt::PointingHandCursor);
+        return;
+    }
     hover = {};
     if (skin.valid() && pick && place(e->position(), lat, lon)) {
         hover = pick(skin, lat, lon);
