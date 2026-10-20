@@ -61,6 +61,7 @@ private:
     Button buttonModels;
     Button buttonHafs;
     Button buttonTropical;
+    Button buttonAtcf;
     Button buttonClimate;
     Text textStatus;
     QWidget * content{};

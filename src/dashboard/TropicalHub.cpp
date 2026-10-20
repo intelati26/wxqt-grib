@@ -10,6 +10,9 @@
 #include <QDateTime>
 #include <QFrame>
 #include <QIcon>
+#include <QInputDialog>
+#include <QMessageBox>
+#include <QRegularExpression>
 #include <QPixmap>
 #include <QPointer>
 #include <QLocale>
@@ -145,12 +148,13 @@ TropicalHub::TropicalHub(Window * parent)
     , buttonModels{this, None, "Model charts..."}
     , buttonHafs{this, None, "Hurricane model (HAFS)..."}
     , buttonTropical{this, None, "Tropical (CIRA, JTWC, JMA)..."}
+    , buttonAtcf{this, None, "ATCF feed..."}
     , buttonClimate{this, None, "Climate and ocean..."}
     , textStatus{this, ""}
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Tropical Hub - active storms, outlook, recon and the season");
-    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonHistory, &buttonPod, &buttonModels, &buttonHafs, &buttonTropical, &buttonClimate}) {
+    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonHistory, &buttonPod, &buttonModels, &buttonHafs, &buttonTropical, &buttonAtcf, &buttonClimate}) {
         rowTop.addWidget(*button);
     }
     rowTop.addStretch();
@@ -180,6 +184,31 @@ TropicalHub::TropicalHub(Window * parent)
     });
     buttonHafs.connect([this] { new HafsViewer{this}; });
     buttonTropical.connect([this] { new TropicalViewer{this}; });
+    buttonAtcf.getView()->setToolTip("The raw ATCF files of a storm: the last lines of its best track, guidance and fixes, decoded, with the status changes");
+    buttonAtcf.connect([this] {   // any storm: one of the active ones, or an ATCF id typed in (wp292026, al092026 ...)
+        QStringList items;
+        for (const auto& basin : storms) {
+            for (const auto& entry : basin.entries) {
+                if (entry.active) {
+                    items << QString::fromStdString(entry.id + "  -  " + HurricaneData::idLabel(entry.id) + (entry.name.empty() ? "" : " " + entry.name));
+                }
+            }
+        }
+        for (const auto& other : others) {
+            items << QString::fromStdString(other.info.id + "  -  " + other.info.title);
+        }
+        bool ok = false;
+        const auto chosen = QInputDialog::getItem(this, "ATCF feed", "A storm (or type an ATCF id: wp292026, al092026 ...):", items, 0, true, &ok);
+        if (!ok) {
+            return;
+        }
+        const auto id = chosen.section("  -  ", 0, 0).trimmed().toLower();
+        if (!QRegularExpression{"^[a-z]{2}\\d{6}$"}.match(id).hasMatch()) {
+            QMessageBox::information(this, "ATCF feed", "An ATCF id is two letters for the basin (al, ep, cp, wp, io, sh), the number and the year: wp292026.");
+            return;
+        }
+        new AtcfFeedViewer{this, id.toStdString(), chosen.contains("  -  ") ? chosen.section("  -  ", 1).toStdString() : id.toStdString()};
+    });
     buttonClimate.connect([this] { new ClimateViewer{this}; });
 
     content = new QWidget{this};
