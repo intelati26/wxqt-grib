@@ -36,6 +36,10 @@
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "tropical/TropicalViewer.h"
+#include "tropical/CiraStorm.h"
+#include "hurricane/SarWindsViewer.h"
+#include "hurricane/UtilitySarWinds.h"
+#include "mapkit/MasterMapViewer.h"
 #include "util/UtilityList.h"
 
 namespace {
@@ -217,6 +221,8 @@ void TropicalHub::load() {
     for (const auto * basin : {"al", "ep", "cp"}) {
         storms.push_back(BasinStorms{basin, {}, {}, false});
     }
+    others.clear();
+    othersLoaded = false;
     outlook.reset();
     pod.reset();
     seasonAtlantic.reset();
@@ -240,6 +246,41 @@ void TropicalHub::load() {
                 storms[i].entries = *list;
                 storms[i].error = *error;
                 storms[i].loaded = true;
+                fillStorms();
+            }};
+    }
+    {   // the storms of the other basins, from CIRA / RAMMB (JTWC's fixes), JMA's analysis for the western Pacific and STAR's SAR passes
+        auto list = std::make_shared<vector<OtherStorm>>();
+        new FutureVoid{this,
+            [list] {
+                vector<UtilityCira::Storm> all;
+                string error;
+                if (!UtilityCira::activeStorms(all, error)) {
+                    return;
+                }
+                const auto sar = UtilitySarWinds::index();
+                for (const auto& info : all) {
+                    const auto prefix = info.id.substr(0, 2);
+                    if (prefix == "al" || prefix == "ep" || prefix == "cp") {
+                        continue;
+                    }
+                    OtherStorm s;
+                    s.info = info;
+                    string problem;
+                    UtilityCira::stormPage(info.id, s.page, problem);
+                    if (prefix == "wp") {
+                        UtilityJma::forecastCircles(info.name, s.jma);
+                    }
+                    s.sar = UtilitySarWinds::summary(sar, info.id);
+                    list->push_back(std::move(s));
+                }
+            },
+            [this, mine, list] {
+                if (closed || mine != generation) {
+                    return;
+                }
+                others = *list;
+                othersLoaded = true;
                 fillStorms();
             }};
     }
@@ -384,9 +425,101 @@ void TropicalHub::fillStorms() {
             }
         }
     }
-    if (!any) {
-        stormsLayout->addWidget(note(pending ? "Loading..." : "No active storms or invests in the Atlantic, East Pacific or Central Pacific basins.", content));
+    pending = pending || !othersLoaded;
+    if (!others.empty()) {
+        auto * heading = new QLabel{"<b>Other basins</b>  (western Pacific, Indian Ocean, Southern Hemisphere: CIRA / RAMMB with JTWC and JMA)", content};
+        heading->setStyleSheet("margin-top: 8px;");
+        stormsLayout->addWidget(heading);
+        for (const auto& storm : others) {
+            stormsLayout->addWidget(otherCard(storm));
+            any = true;
+        }
     }
+    if (!any) {
+        stormsLayout->addWidget(note(pending ? "Loading..." : "No active storms or invests anywhere in the world.", content));
+    }
+}
+
+QWidget * TropicalHub::otherCard(const OtherStorm& storm) {
+    auto * frame = new QFrame{content};
+    frame->setFrameShape(QFrame::StyledPanel);
+    const auto& now = !storm.page.forecast.empty() ? storm.page.forecast.front() : (!storm.page.history.empty() ? storm.page.history.front() : UtilityCira::Fix{});
+    frame->setObjectName("stormCard");
+    frame->setStyleSheet("QFrame#stormCard { border: 1px solid #999; border-left: 6px solid " + classColor(now.knots).name() + "; }");
+    auto * outer = new QHBoxLayout{frame};
+    outer->setContentsMargins(10, 6, 8, 6);
+    auto * layout = new QVBoxLayout;
+    layout->setSpacing(2);
+    outer->addLayout(layout, 1);
+    // the same GeoColor floater as the NHC storms' cards (STAR has the floaters of every basin)
+    auto * thumbnail = new QPushButton{frame};
+    thumbnail->setFlat(true);
+    thumbnail->setFixedSize(130, 130);
+    thumbnail->setCursor(Qt::PointingHandCursor);
+    thumbnail->setStyleSheet("QPushButton { border: none; }");
+    thumbnail->hide();
+    outer->addWidget(thumbnail, 0, Qt::AlignTop);
+    string upper = storm.info.id;
+    std::transform(upper.begin(), upper.end(), upper.begin(), [] (unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    {
+        QPointer<QPushButton> guard{thumbnail};
+        const int mine = generation;
+        const string title = storm.info.title;
+        new FutureBytes{this, "https://cdn.star.nesdis.noaa.gov/FLOATER/data/" + upper + "/GEOCOLOR/250x250.jpg", [this, guard, mine, upper, title] (const QByteArray& bytes) {
+            QPixmap picture;
+            if (closed || mine != generation || guard.isNull() || bytes.size() < 500 || !picture.loadFromData(bytes)) {
+                return;
+            }
+            guard->setIcon(QIcon{picture.scaled(130, 130, Qt::KeepAspectRatio, Qt::SmoothTransformation)});
+            guard->setIconSize(QSize{130, 130});
+            guard->show();
+            QObject::connect(guard.data(), &QPushButton::clicked, [this, upper, title] { new FloaterViewer{this, upper, title}; });
+        }};
+    }
+    auto * titleLabel = new QLabel{"<b style='font-size:14px'>" + QString::fromStdString(storm.info.title).toHtmlEscaped() + "</b>  -  " + QString::fromStdString(storm.info.basin).toHtmlEscaped(), frame};
+    titleLabel->setStyleSheet("border: none;");
+    layout->addWidget(titleLabel);
+    QString line;
+    if (now.lat != 0.0 || now.lon != 0.0) {   // (an invest CIRA has no fix for is at 0, 0: nothing to say of it)
+        line = "JTWC: " + (now.knots > 0 ? knots(now.knots) + " (1 minute)  -  " : QString{}) + position(now.lat, now.lon);
+    }
+    if (!storm.jma.empty()) {
+        const auto& a = storm.jma.front();
+        line += QString{"\nJMA: "} + QString::fromStdString(a.category) + ", " + QString::number(a.knots) + " kt (10 min), gusts " + QString::number(a.gustKnots) + " kt" + (a.pressure > 0 ? ", " + QString::number(a.pressure) + " hPa" : QString{}) +
+                (a.motion.empty() ? QString{} : ", moving " + QString::fromStdString(a.motion));
+    }
+    if (!storm.sar.empty()) {
+        line += "\nSAR: " + QString::fromStdString(storm.sar);
+    }
+    auto * info = new QLabel{line.isEmpty() ? QString{"No fixes yet"} : line, frame};
+    info->setStyleSheet("border: none;");
+    info->setWordWrap(true);
+    layout->addWidget(info);
+    auto * row = new QHBoxLayout;
+    const auto addButton = [&] (const QString& text, std::function<void()> action) {
+        auto * button = new QPushButton{text, frame};
+        button->setStyleSheet("");
+        QObject::connect(button, &QPushButton::clicked, action);
+        row->addWidget(button);
+    };
+    const auto id = storm.info.id, title = storm.info.title;
+    addButton("Storm page (loops, JTWC, JMA, SAR)", [this, id, title] { new CiraStorm{this, id, title}; });
+    {
+        const auto dash = title.rfind(' ');
+        const string name = dash == string::npos ? string{} : title.substr(dash + 1);
+        const int year = upper.size() >= 8 ? std::atoi(upper.substr(upper.size() - 4).c_str()) : 0;
+        addButton("SAR winds", [this, upper, name, year] { new SarWindsViewer{this, upper, name, year}; });
+    }
+    {
+        const double lat = now.lat, lon = now.lon;
+        addButton("On the map", [this, lat, lon] {
+            auto * map = new MasterMapViewer{this};
+            map->openAt(QDateTime::currentDateTimeUtc(), (lat != 0.0 || lon != 0.0) ? lat : 15.0, (lat != 0.0 || lon != 0.0) ? lon : 135.0, 1800.0, {"tropical/world-storms"});
+        });
+    }
+    row->addStretch();
+    layout->addLayout(row);
+    return frame;
 }
 
 void TropicalHub::fillOutlook() {

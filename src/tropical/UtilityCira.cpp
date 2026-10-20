@@ -17,6 +17,8 @@ namespace UtilityCira {
 
         string clean(QString text) {
             text.replace("&nbsp;", " ");
+            text.replace("&gt;", ">");
+            text.replace("&lt;", "<");
             text.replace("&amp;", "&");
             return text.simplified().toStdString();
         }

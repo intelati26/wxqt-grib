@@ -13,6 +13,8 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include "hurricane/HurricaneData.h"
+#include "tropical/UtilityCira.h"
+#include "tropical/UtilityJma.h"
 #include "ui/Button.h"
 #include "ui/HBox.h"
 #include "ui/ControlRow.h"
@@ -39,6 +41,13 @@ private:
     void fillSeasons();
     void fillLocations();
     QWidget * card(const HurricaneData::StormEntry& entry, const string& basin);
+    struct OtherStorm {   // a storm of the basins the NHC does not cover (western Pacific, Indian Ocean, Southern Hemisphere): CIRA / RAMMB's list with JTWC's fixes and JMA's analysis
+        UtilityCira::Storm info;
+        UtilityCira::StormPage page;
+        vector<UtilityJma::Circle> jma;
+        string sar;   // "latest Oct 13 01:05Z S1D, next ..."
+    };
+    QWidget * otherCard(const OtherStorm& storm);
     void closeEventCustom() override { closed = true; }
 
     VBox box;
@@ -67,6 +76,8 @@ private:
         bool loaded{false};
     };
     vector<BasinStorms> storms;
+    vector<OtherStorm> others;
+    bool othersLoaded{false};
     std::shared_ptr<HurricaneData::OutlookData> outlook;
     std::shared_ptr<HurricaneData::PodData> pod;
     std::shared_ptr<HurricaneData::WspData> wsp;
