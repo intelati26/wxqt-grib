@@ -5518,6 +5518,13 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             *options.windUOut = grids.at(product.barbU);
             *options.windVOut = grids.at(product.barbV);
         }
+        if (options.contoursOut != nullptr) {
+            for (const auto& set : product.contours) {
+                if (const auto found = grids.find(set.key); found != grids.end()) {
+                    options.contoursOut->push_back({set, found->second});
+                }
+            }
+        }
         if (options.rampOut != nullptr) {
             *options.rampOut = product.ramp;
         }

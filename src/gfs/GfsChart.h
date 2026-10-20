@@ -91,6 +91,10 @@ namespace GfsChart {
         bool uniform{false};            // every line the same weight (no heavy line at every fifth level)
         double width{1.0};
     };
+    struct ContourOut {   // a set of lines with the grid it is drawn from, for whoever draws the fill itself (the high resolution world export)
+        ContourSet set;
+        GfsGrid::Grid grid;
+    };
     struct Product {
         std::string pickerGroup;   // the group of the chart picker when it is the source's own (SPC REFS: SPC's groups); empty: worked out from the chart's id
         std::string source{"GFS"};              // the model: "GFS" or "NBM" (an id is only unique within one)
@@ -227,6 +231,7 @@ namespace GfsChart {
         GfsGrid::Grid * fillOut{nullptr};      // when set: render() makes no picture, it hands over the fill's grid (and the scale in rampOut) for something that draws it another way (the globe)
         Ramp * rampOut{nullptr};
         GfsGrid::Grid * windUOut{nullptr}, * windVOut{nullptr};   // with fillOut: the chart's wind (m/s) too, for barbs drawn by whoever draws the fill
+        std::vector<ContourOut> * contoursOut{nullptr};           // with fillOut: the chart's line sets and their grids
         bool noBarbs{false};                   // the picture has no barbs (the map layer draws them itself, as vectors on a world grid; the probe still holds the wind)
         int width{1100};
         const GfsClimate * climate{nullptr};   // for the anomaly charts

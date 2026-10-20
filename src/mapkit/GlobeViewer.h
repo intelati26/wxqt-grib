@@ -31,6 +31,7 @@ public:
         double km{0};
         GfsGrid::Grid grid;
         GfsGrid::Grid windU, windV;   // m/s, when the chart has barbs
+        std::vector<GfsChart::ContourOut> contours;   // the chart's lines (heights ...)
         GfsChart::Ramp ramp;
         std::string run;
         int hour{0};

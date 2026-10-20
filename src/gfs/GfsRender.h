@@ -63,6 +63,7 @@ namespace GfsRender {
         GfsGrid::Grid * fillOut{nullptr};
         GfsChart::Ramp * rampOut{nullptr};
         GfsGrid::Grid * windUOut{nullptr}, * windVOut{nullptr};   // with fillOut: the wind of the chart (m/s)
+        std::vector<GfsChart::ContourOut> * contoursOut{nullptr};   // with fillOut: the chart's line sets
         bool noBarbs{false};      // no barbs in the picture (the layer draws them)
         bool bare{false};
         int width{0};

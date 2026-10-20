@@ -364,6 +364,7 @@ std::vector<GlobeViewer::Source> GlobeViewer::loadSources(const std::string& cha
             variant.rampOut = &s.ramp;
             variant.windUOut = &s.windU;
             variant.windVOut = &s.windV;
+            variant.contoursOut = &s.contours;
             std::string error;
             GfsRender::png(session, model, chart, "GLOBAL", s.run, hour, {}, error, nullptr, variant);
             if (!s.grid.empty()) {
@@ -482,6 +483,93 @@ QImage GlobeViewer::renderWorld(const std::vector<Source>& sources, int projecti
             previous = relative;
         }
         p.drawPath(path);
+    }
+    // the lines of the chart (the heights): from the finest model that covers the whole world, so that no regional model adds a second set of lines over its area; every second level, as the
+    // chart does on a map of the whole earth; a number on the long ones
+    {
+        const Source * lines = nullptr;
+        for (const auto& s : sources) {   // coarse to fine: the last global one with lines
+            if (s.grid.global() && !s.contours.empty()) {
+                lines = &s;
+            }
+        }
+        if (lines != nullptr) {
+            const double marksLines = width / 2800.0;
+            QFont labelFont{p.font()};
+            labelFont.setPixelSize(std::max(10, static_cast<int>(12 * marksLines)));
+            labelFont.setBold(true);
+            std::vector<QRectF> placed;
+            for (const auto& out : lines->contours) {
+                const auto& set = out.set;
+                if (set.interval <= 0.0) {
+                    continue;
+                }
+                const double interval = set.interval * 2.0;
+                const GfsGrid::Grid reduced = GfsGrid::reducedForLines(out.grid);
+                const GfsGrid::Grid& grid = reduced.empty() ? out.grid : reduced;
+                double lo = 1e18, hi = -1e18;
+                for (int y = 0; y < grid.rows; y += 4) {
+                    for (int x = 0; x < grid.columns; x += 4) {
+                        const float v = grid.at(x, y);
+                        if (!std::isnan(v)) {
+                            lo = std::min<double>(lo, v * set.scale);
+                            hi = std::max<double>(hi, v * set.scale);
+                        }
+                    }
+                }
+                if (set.onlyBelowZero) {
+                    hi = std::min(hi, -interval / 2.0);
+                }
+                for (double level = std::max(std::ceil((lo - set.base) / interval) * interval + set.base, std::ceil((set.minimum - set.base) / interval) * interval + set.base); level <= hi; level += interval) {
+                    const bool heavy = !set.uniform && std::fmod(std::abs(level - set.base), interval * 5) < 1e-6;
+                    const QColor color = set.colorBelow.isValid() && level <= set.split ? set.colorBelow : set.color;
+                    QPen pen{QColor{color.red(), color.green(), color.blue(), 230}, (heavy ? 1.6 : 1.0) * set.width * std::max(1.0, marksLines)};
+                    if (set.dashed) {
+                        pen.setStyle(Qt::DashLine);
+                    }
+                    p.setPen(pen);
+                    p.setBrush(Qt::NoBrush);
+                    for (const auto& line : GfsGrid::contour(grid, level / set.scale, -180.0, -90.0, 180.0, 90.0)) {
+                        QPainterPath path;
+                        bool started = false;
+                        double previous = 0.0;
+                        QPointF middle;
+                        size_t index = 0;
+                        for (const auto& pt : line) {
+                            double relative = pt.lon - centerLon;
+                            while (relative > 180.0) relative -= 360.0;
+                            while (relative < -180.0) relative += 360.0;
+                            double x, y;
+                            GlobeMapView::forward(projection, pt.lat, relative, x, y);
+                            const QPointF q{width / 2.0 + x * scale, height / 2.0 - y * scale};
+                            if (started && std::abs(relative - previous) < 180.0) {
+                                path.lineTo(q);
+                            } else {
+                                path.moveTo(q);
+                            }
+                            started = true;
+                            previous = relative;
+                            if (++index == line.size() / 2) {
+                                middle = q;
+                            }
+                        }
+                        p.drawPath(path);
+                        if (set.labelled && path.length() > 220.0 * marksLines && QRectF{0, 0, double(width), double(height)}.adjusted(30, 30, -30, -30).contains(middle)) {
+                            const QString text = QString::number(static_cast<int>(std::lround(level)));
+                            const QRectF box{middle.x() - text.size() * 4.5 * marksLines - 3, middle.y() - 9 * marksLines, text.size() * 9.0 * marksLines + 6, 18 * marksLines};
+                            if (!std::any_of(placed.begin(), placed.end(), [&box] (const QRectF& other) { return other.intersects(box); })) {
+                                placed.push_back(box);
+                                p.setFont(labelFont);
+                                p.fillRect(box, QColor{255, 255, 255, 190});
+                                p.setPen(QColor{30, 30, 30});
+                                p.drawText(box, Qt::AlignCenter, text);
+                                p.setPen(pen);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     // the wind barbs on the world grid, the size they have on a world map 2800 pixels wide (as the chart pictures are) (and the same points as the map's): each from the finest model that has the wind there
     const double marks = width / 2800.0;
