@@ -42,16 +42,27 @@ namespace {
 }
 
 namespace {
-    constexpr double polarLimit = 20.0;   // degrees of latitude the polar maps reach to
+    double polarLimit = 20.0;   // degrees of latitude the sides of the polar maps reach to
+    bool polarWideFrame = false;
     // the stereographic radius (the sphere of radius 1, the pole at the middle) of a latitude on the north (+1) or the south (-1) polar map
     double polarRadius(double lat, int hemisphere) {
         return 2.0 * std::tan((90.0 - hemisphere * lat) * 3.14159265358979 / 360.0);
     }
 }
 
+void GlobeMapView::setPolarFrame(double reachLatitude, bool wide) {
+    polarLimit = std::clamp(reachLatitude, 0.0, 70.0);
+    polarWideFrame = wide;
+}
+
+bool GlobeMapView::polarWide() {
+    return polarWideFrame;
+}
+
 void GlobeMapView::extent(Projection p, double& halfWidth, double& halfHeight) {
     if (p == Projection::PolarNorth || p == Projection::PolarSouth) {
-        halfWidth = halfHeight = polarRadius(polarLimit, 1);
+        halfWidth = polarRadius(polarLimit, 1);
+        halfHeight = polarWideFrame ? halfWidth * 9.0 / 16.0 : halfWidth;
     } else if (p == Projection::Robinson) {
         halfWidth = robinsonX * pi;
         halfHeight = robinsonY;
@@ -104,7 +115,7 @@ bool GlobeMapView::inverse(Projection p, double x, double y, double& lat, double
     if (p == Projection::PolarNorth || p == Projection::PolarSouth) {
         const int hemisphere = p == Projection::PolarNorth ? 1 : -1;
         const double r = std::hypot(x, y);
-        if (r > polarRadius(polarLimit, 1) + 1e-9) {
+        if (!polarWideFrame && r > polarRadius(polarLimit, 1) + 1e-9) {
             return false;
         }
         lat = hemisphere * (90.0 - 2.0 * std::atan(r / 2.0) / rad);
@@ -179,7 +190,7 @@ QImage GlobeMapView::projectWorld(const Skin& skin, Projection p, double centerL
             }
             QRgb color = skin.image.pixel(0, 0) | 0xff000000u;
             if (p == Projection::PolarNorth || p == Projection::PolarSouth) {
-                lat = std::clamp(lat, -84.99, 84.99);   // (the skin is Mercator and ends at 85 degrees: the last few degrees at the pole take its edge row)
+                lat = std::clamp(lat, -83.5, 83.5);   // (the skin is Mercator and holds nothing in its last degrees: the cap at the pole takes the row at 83.5)
             }
             if (lat > -85.0 && lat < 85.0) {
                 double lon = centerLon + lonRelative;
@@ -394,4 +405,114 @@ void GlobeMapView::wheelEvent(QWheelEvent * e) {
     zoom = std::clamp(zoom * std::pow(1.0015, e->angleDelta().y()), 0.6, 20.0);
     update();
     scheduleSkin(300);
+}
+
+// Lines of latitude every 10 degrees and of longitude every 30, over a picture of the world, with their numbers where they leave the map (a polar map: the latitudes along the meridian a quarter
+// turn from the one that points down, the longitudes at the edge of the circle or the frame).
+void GlobeMapView::drawGraticule(QPainter& painter, Projection p, double centerLon, int width, int height, double marks) {
+    double halfW, halfH;
+    extent(p, halfW, halfH);
+    const double scale = width / (2.0 * halfW);
+    const auto pixel = [&] (double lat, double relativeLon, QPointF& out) {
+        double x, y;
+        forward(p, lat, relativeLon, x, y);
+        out = QPointF{width / 2.0 + x * scale, height / 2.0 - y * scale};
+    };
+    const auto inside = [&] (const QPointF& at) {
+        if (p == Projection::PolarNorth || p == Projection::PolarSouth) {
+            if (!polarWideFrame) {
+                return std::hypot(at.x() - width / 2.0, at.y() - height / 2.0) <= width / 2.0 - 1.0;
+            }
+        }
+        return at.x() >= 1.0 && at.y() >= 1.0 && at.x() <= width - 1.0 && at.y() <= height - 1.0;
+    };
+    const auto relative = [&] (double lon) {
+        double r = lon - centerLon;
+        while (r > 180.0) r -= 360.0;
+        while (r < -180.0) r += 360.0;
+        return r;
+    };
+    const bool polar = isPolar(p);
+    const int hemisphere = p == Projection::PolarNorth ? 1 : -1;
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    QFont font{painter.font()};
+    font.setPixelSize(std::max(11, static_cast<int>(15 * marks)));
+    painter.setFont(font);
+    const QPen line{QColor{40, 40, 60, 110}, std::max(1.0, 0.8 * marks)};
+    painter.setPen(line);
+    painter.setBrush(Qt::NoBrush);
+    // the parallels
+    for (int lat = -80; lat <= 80; lat += 10) {
+        if (polar && lat * hemisphere <= 0) {
+            continue;
+        }
+        QPainterPath path;
+        bool open = false;
+        for (double lon = -180.0; lon <= 180.0; lon += 2.0) {
+            QPointF at;
+            pixel(lat, lon, at);
+            if (!inside(at)) {
+                open = false;
+                continue;
+            }
+            open ? path.lineTo(at) : path.moveTo(at);
+            open = true;
+        }
+        painter.setPen(lat == 0 ? QPen{QColor{40, 40, 60, 160}, std::max(1.0, 1.2 * marks)} : line);
+        painter.drawPath(path);
+    }
+    // the meridians
+    for (int lon = -180; lon < 180; lon += 30) {
+        QPainterPath path;
+        bool open = false;
+        QPointF lastInside;
+        bool any = false;
+        for (int k = 0; k <= 90; k++) {   // from the pole outward
+            const double lat = polar ? hemisphere * (89.9 - k) : std::min(85.0, -85.0 + k * 2.0);
+            QPointF at;
+            pixel(lat, relative(lon), at);
+            if (!inside(at)) {
+                open = false;
+                continue;
+            }
+            open ? path.lineTo(at) : path.moveTo(at);
+            open = true;
+            lastInside = at;
+            any = true;
+        }
+        painter.setPen(line);
+        painter.drawPath(path);
+        if (polar && any) {   // the longitude where the meridian leaves the map (the last point inside, drawn a little inside it)
+            const QPointF centre{width / 2.0, height / 2.0};
+            QPointF toward = lastInside - centre;
+            const double length = std::max(1.0, std::hypot(toward.x(), toward.y()));
+            const QPointF at = lastInside - toward / length * (14.0 * marks);
+            const QString text = QString::number(std::abs(lon)) + QString::fromUtf8("°") + (lon == 0 ? "" : lon > 0 ? "E" : "W");
+            painter.setPen(QColor{255, 255, 255, 230});
+            for (const auto d : {QPointF{1, 1}, QPointF{-1, 1}, QPointF{1, -1}, QPointF{-1, -1}}) {
+                painter.drawText(QRectF{at.x() - 36 * marks + d.x(), at.y() - 10 * marks + d.y(), 72 * marks, 20 * marks}, Qt::AlignCenter, text);
+            }
+            painter.setPen(QColor{30, 30, 50});
+            painter.drawText(QRectF{at.x() - 36 * marks, at.y() - 10 * marks, 72 * marks, 20 * marks}, Qt::AlignCenter, text);
+        }
+    }
+    // the latitudes, along a meridian between two of the drawn ones
+    if (polar) {
+        for (int lat = 10; lat <= 80; lat += 10) {
+            QPointF at;
+            pixel(hemisphere * lat, relative(centerLon + 15.0), at);
+            if (!inside(at)) {
+                continue;
+            }
+            const QString text = QString::number(lat) + QString::fromUtf8("°") + (hemisphere > 0 ? "N" : "S");
+            painter.setPen(QColor{255, 255, 255, 230});
+            for (const auto d : {QPointF{1, 1}, QPointF{-1, 1}, QPointF{1, -1}, QPointF{-1, -1}}) {
+                painter.drawText(QRectF{at.x() - 36 * marks + d.x(), at.y() - 10 * marks + d.y(), 72 * marks, 20 * marks}, Qt::AlignCenter, text);
+            }
+            painter.setPen(QColor{30, 30, 50});
+            painter.drawText(QRectF{at.x() - 36 * marks, at.y() - 10 * marks, 72 * marks, 20 * marks}, Qt::AlignCenter, text);
+        }
+    }
+    painter.restore();
 }

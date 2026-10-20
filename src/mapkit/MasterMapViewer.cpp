@@ -1152,9 +1152,30 @@ void MasterMapViewer::exportWorld() {
         widthBox->setCurrentIndex(1);
     };
     standardWidths();
+    // the polar maps: how far from the pole the sides reach, and a circle (the hemisphere) or a wide frame (as a polar vortex chart)
+    auto * reachBox = new QComboBox{&dialog};
+    for (const int lat : {10, 20, 30, 40, 50}) {
+        reachBox->addItem(QString{"Reaches to %1 degrees latitude"}.arg(lat), lat);
+    }
+    reachBox->setCurrentIndex(2);
+    auto * frameBox = new QComboBox{&dialog};
+    frameBox->addItem("Wide frame, filled to the corners (a polar vortex chart)", 1);
+    frameBox->addItem("Circle (the whole hemisphere to that latitude)", 0);
+    auto * graticuleBox = new QCheckBox{"Lines of latitude and longitude, with their numbers", &dialog};
+    graticuleBox->setChecked(true);
+    const auto polarControls = [=] {
+        const bool polar = GlobeMapView::isPolar(static_cast<GlobeMapView::Projection>(projectionBox->currentData().toInt()));
+        reachBox->setVisible(polar);
+        frameBox->setVisible(polar);
+    };
+    QObject::connect(projectionBox, &QComboBox::currentIndexChanged, [=] (int) { polarControls(); });
     column->addWidget(projectionBox);
+    column->addWidget(reachBox);
+    column->addWidget(frameBox);
     column->addWidget(centerBox);
     column->addWidget(widthBox);
+    column->addWidget(graticuleBox);
+    polarControls();
     // high resolution: the model chart (or the combo) painted from the model grids themselves, as big as the finest model has detail
     string specChart;
     vector<string> specModels;
@@ -1201,7 +1222,10 @@ void MasterMapViewer::exportWorld() {
     if (path.isEmpty()) {
         return;
     }
-    exportWorldTo(path, projection, centre, width, highBox != nullptr && highBox->isChecked());
+    if (GlobeMapView::isPolar(projection)) {
+        GlobeMapView::setPolarFrame(reachBox->currentData().toDouble(), frameBox->currentData().toInt() == 1);
+    }
+    exportWorldTo(path, projection, centre, width, highBox != nullptr && highBox->isChecked(), graticuleBox->isChecked());
 }
 
 // what the model chart (or the combo) on the map is: the chart, the models of the stack, the valid time
@@ -1244,7 +1268,7 @@ bool MasterMapViewer::modelSpec(string& chart, vector<string>& models, QDateTime
     return true;
 }
 
-void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centre, int width, bool highResolution) {
+void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centre, int width, bool highResolution, bool graticule) {
     status("drawing the world ...");
     QCoreApplication::processEvents();
     QImage world;
@@ -1287,6 +1311,15 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
     } else {
         const auto skin = makeSkin(-85.0, 85.0, centre - 180.0, centre + 180.0, std::min(6000, static_cast<int>(width * 1.4)), 1300.0 / 360.0, true);   // (marks spaced as on a world map 1300 pixels wide)
         world = GlobeMapView::projectWorld(skin, projection, centre, width);
+    }
+    if (graticule) {
+        QPainter linePainter{&world};
+        if (GlobeMapView::isPolar(projection) && !GlobeMapView::polarWide()) {   // a circle: nothing outside it
+            QPainterPath disc;
+            disc.addEllipse(QRectF{0.0, 0.0, static_cast<double>(world.width()), static_cast<double>(world.height())});
+            linePainter.setClipPath(disc);
+        }
+        GlobeMapView::drawGraticule(linePainter, projection, centre, world.width(), world.height(), std::max(1.0, world.width() / 2800.0));
     }
     // the pieces around it, as the flat export has them
     QStringList names, times, sources;

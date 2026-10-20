@@ -452,7 +452,7 @@ QImage GlobeViewer::renderWorld(const std::vector<Source>& sources, int projecti
     // the coastlines and borders
     QPainter p{&image};
     p.setRenderHint(QPainter::Antialiasing, true);
-    if (projection == GlobeMapView::Projection::PolarNorth || projection == GlobeMapView::Projection::PolarSouth) {   // the map is a circle: nothing outside it
+    if (GlobeMapView::isPolar(projection) && !GlobeMapView::polarWide()) {   // the map is a circle: nothing outside it
         QPainterPath disc;
         disc.addEllipse(QRectF{0.0, 0.0, static_cast<double>(width), static_cast<double>(height)});
         p.setClipPath(disc);

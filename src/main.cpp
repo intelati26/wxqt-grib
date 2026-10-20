@@ -309,7 +309,10 @@ int main(int argc, char * argv[]) {
                 if (parts.value(7) == "export") {   // globemap:...:<globe|equal|mollweide>:export:<out.png>:<center lon>: also the whole world as a picture, after a while
                     const QString out = parts.value(8);
                     const double centre = parts.value(9).toDouble();
-                    QTimer::singleShot(20000, map, [map, out, projection, centre] { map->exportWorldTo(out, projection == GlobeMapView::Projection::Globe ? GlobeMapView::Projection::EqualEarth : projection, centre, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 3000, qEnvironmentVariableIntValue("WXQT_WORLD_HIGH") > 0); });
+                    if (GlobeMapView::isPolar(projection)) {   // WXQT_POLAR_REACH=<latitude> WXQT_POLAR_WIDE=1
+                        GlobeMapView::setPolarFrame(qEnvironmentVariableIntValue("WXQT_POLAR_REACH") > 0 ? qEnvironmentVariableIntValue("WXQT_POLAR_REACH") : 20, qEnvironmentVariableIntValue("WXQT_POLAR_WIDE") > 0);
+                    }
+                    QTimer::singleShot(20000, map, [map, out, projection, centre] { map->exportWorldTo(out, projection == GlobeMapView::Projection::Globe ? GlobeMapView::Projection::EqualEarth : projection, centre, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 3000, qEnvironmentVariableIntValue("WXQT_WORLD_HIGH") > 0, qEnvironmentVariableIntValue("WXQT_GRATICULE") > 0); });
                 }
             } else if (route.startsWith("seamcheck:")) {   // WXQT_OPEN=seamcheck:<chart>:<model,model>:<yyyyMMddHH UTC>: where each model's fill (and wind) grid has no value along a sweep of longitudes (a gap in the wrap), then quits
                 const auto parts = route.split(':');

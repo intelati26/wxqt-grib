@@ -87,7 +87,7 @@ private:
     void exportWorld();                          // the whole world, equal area, as one picture (asks)
 
 public:
-    void exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centerLongitude, int width, bool highResolution = false);
+    void exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centerLongitude, int width, bool highResolution = false, bool graticule = false);
 
 private:
     void exportTo(const QString& path);          // PNG, or PDF by the ending of the name

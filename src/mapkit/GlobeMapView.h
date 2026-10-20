@@ -26,6 +26,13 @@ public:
     static bool inverse(Projection p, double x, double y, double& lat, double& lon);   // projection units -> degrees (false outside the shape)
     static bool forward(Projection p, double lat, double lon, double& x, double& y);   // degrees -> projection units (lon relative to the center)
     static void extent(Projection p, double& halfWidth, double& halfHeight);
+    // the polar maps: how far from the pole the sides of the picture reach (degrees of latitude) and whether the picture is a circle (the whole hemisphere to that latitude) or a wide
+    // 16:9 frame filled to its corners, as a weather chart of the polar vortex is
+    static void setPolarFrame(double reachLatitude, bool wide);
+    static bool isPolar(Projection p) { return p == Projection::PolarNorth || p == Projection::PolarSouth; }
+    static bool polarWide();
+    // lines of latitude and longitude on a picture made by projectWorld / renderWorld (width x height, `scale` pixels per projection unit), labelled where they meet the edge of the map
+    static void drawGraticule(QPainter& painter, Projection p, double centerLon, int width, int height, double marks);
 
     struct Skin {
         QImage image;
