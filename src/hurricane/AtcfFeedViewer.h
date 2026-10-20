@@ -34,10 +34,14 @@ public:
 private:
     void load();
     void showLines(const string& text);
+    void makeTimeline(const string& text);
+    void findInvest(const string& text);
     void closeEventCustom() override { closed = true; }
     string stormId;
     QLabel * status{};
     QComboBox * deck{};
+    QComboBox * view{};      // all lines / only where the status changes / only where the category changes (best track)
+    QLabel * timeline{};     // AL93 -> AL09 NINE (TD) -> ISAIAS (TS) ...
     QComboBox * count{};
     QLineEdit * filter{};
     QCheckBox * refresh{};
@@ -49,6 +53,8 @@ private:
     std::set<string> fresh;    // the ones that came with the last reading (marked)
     bool firstLook{true};
     string lastText;
+    string investNote;       // the invest number the storm came from, when the decks say
+    string timelineBase;     // the events of the storm without the invest
     int generation{0};
     bool closed{false};
     VBox box;
