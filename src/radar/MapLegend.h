@@ -28,7 +28,8 @@ struct MapLegendRow {
 namespace MapLegend {
     // `perPixel`: window units per screen pixel; the font is the painter's. Returns the top of the legend (window units), so a caller can keep clear of it.
     // bottomUnits: the window's bottom edge in map units (748 for the square map), where the legend sits
-    double draw(QPainter& painter, const std::vector<MapLegendRow>& rows, double perPixel, double bottomUnits = 748.0);
+    // light: for a white picture (an export): no dark strip behind it, dark letters
+    double draw(QPainter& painter, const std::vector<MapLegendRow>& rows, double perPixel, double bottomUnits = 748.0, bool light = false);
 }
 
 #endif  // MAPLEGEND_H

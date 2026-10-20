@@ -33,6 +33,7 @@ public:
     void setAsOf(const QDateTime& utc, MapHost&) override;
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     string summary() const override;
+    vector<MapLegendRow> legend() const override;
 
 protected:
     void onEnable(MapHost& host) override { host.redraw(); }
@@ -44,6 +45,7 @@ private:
         const char * extension;   // jpg or png
         const char * matrixSet;   // GoogleMapsCompatible_Level9 ...
         int maxZoom;
+        const char * colormap{nullptr};   // GIBS's color map of the product (its legend), for the science products
     };
     static const std::vector<Product>& products();
     string dateText() const;   // yyyy-MM-dd of the day shown
@@ -54,6 +56,8 @@ private:
     void request(MapHost&, const Product&, const string& date, const Tile&);   // from the disk copy, or the network, once
     static string tileKey(const Product&, const string& date, const Tile&);
     string urlOf(const Product&, const string& date, const Tile&) const;
+    std::map<string, vector<MapLegendRow>> legends;   // by color map, read once from GIBS
+    std::set<string> legendAsked;
     std::map<string, QImage> tiles;
     std::set<string> asked;
     int productIndex{0};

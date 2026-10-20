@@ -18,6 +18,9 @@
 #include <QPainter>
 #include <QSlider>
 #include <QVBoxLayout>
+#include <QXmlStreamReader>
+#include "objects/URL.h"
+#include "settings/UIPreferences.h"
 #include "radar/MapView.h"
 #include "util/Utility.h"
 #include "util/UtilityIO.h"
@@ -33,6 +36,43 @@ const std::vector<GibsLayer::Product>& GibsLayer::products() {
         {"VIIRS_NOAA20_Brightness_Temp_BandI5_Day", "NOAA-20 infrared window (day side)", "png", "GoogleMapsCompatible_Level9", 9},
         {"VIIRS_NOAA20_Brightness_Temp_BandI5_Night", "NOAA-20 infrared window (night side)", "png", "GoogleMapsCompatible_Level9", 9},
         {"VIIRS_NOAA20_DayNightBand_At_Sensor_Radiance", "NOAA-20 day / night band (night lights, moonlit cloud)", "png", "GoogleMapsCompatible_Level8", 8},
+        // the MODIS products made from the passes (cloud, water vapor, temperatures, snow and ice, aerosol), as colored tiles with their color maps for the legend
+        {"MODIS_Terra_Cloud_Top_Temp_Day", "Terra MODIS: cloud top temperature, day", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_Cloud_Top_Temp"},
+        {"MODIS_Aqua_Cloud_Top_Temp_Day", "Aqua MODIS: cloud top temperature, day", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_Cloud_Top_Temp"},
+        {"MODIS_Terra_Cloud_Top_Temp_Night", "Terra MODIS: cloud top temperature, night", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_Cloud_Top_Temp"},
+        {"MODIS_Aqua_Cloud_Top_Temp_Night", "Aqua MODIS: cloud top temperature, night", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_Cloud_Top_Temp"},
+        {"MODIS_Terra_Cloud_Optical_Thickness", "Terra MODIS: cloud optical thickness", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_VIIRS_Cloud_Optical_Thickness"},
+        {"MODIS_Aqua_Cloud_Optical_Thickness", "Aqua MODIS: cloud optical thickness", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_VIIRS_Cloud_Optical_Thickness"},
+        {"MODIS_Terra_Cloud_Water_Path", "Terra MODIS: cloud water path", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Cloud_Water_Path"},
+        {"MODIS_Aqua_Cloud_Water_Path", "Aqua MODIS: cloud water path", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Cloud_Water_Path"},
+        {"MODIS_Terra_Water_Vapor_5km_Day", "Terra MODIS: water vapor (infrared), day", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_Water_Vapor"},
+        {"MODIS_Aqua_Water_Vapor_5km_Day", "Aqua MODIS: water vapor (infrared), day", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_Water_Vapor"},
+        {"MODIS_Terra_Water_Vapor_5km_Night", "Terra MODIS: water vapor (infrared), night", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_Water_Vapor"},
+        {"MODIS_Aqua_Water_Vapor_5km_Night", "Aqua MODIS: water vapor (infrared), night", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_Water_Vapor"},
+        {"MODIS_Terra_Brightness_Temp_Band31_Day", "Terra MODIS: infrared window (band 31), day", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Brightness_Temp_Band31"},
+        {"MODIS_Aqua_Brightness_Temp_Band31_Day", "Aqua MODIS: infrared window (band 31), day", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Brightness_Temp_Band31"},
+        {"MODIS_Terra_Brightness_Temp_Band31_Night", "Terra MODIS: infrared window (band 31), night", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Brightness_Temp_Band31"},
+        {"MODIS_Aqua_Brightness_Temp_Band31_Night", "Aqua MODIS: infrared window (band 31), night", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Brightness_Temp_Band31"},
+        {"MODIS_Terra_L2_Sea_Surface_Temp_Day", "Terra MODIS: sea surface temperature, day", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Sea_Surface_Temperature"},
+        {"MODIS_Aqua_L2_Sea_Surface_Temp_Day", "Aqua MODIS: sea surface temperature, day", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Sea_Surface_Temperature"},
+        {"MODIS_Terra_L2_Sea_Surface_Temp_Night", "Terra MODIS: sea surface temperature, night", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Sea_Surface_Temperature"},
+        {"MODIS_Aqua_L2_Sea_Surface_Temp_Night", "Aqua MODIS: sea surface temperature, night", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Sea_Surface_Temperature"},
+        {"MODIS_Terra_Land_Surface_Temp_Day", "Terra MODIS: land surface temperature, day", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Land_Surface_Temp"},
+        {"MODIS_Aqua_Land_Surface_Temp_Day", "Aqua MODIS: land surface temperature, day", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Land_Surface_Temp"},
+        {"MODIS_Terra_Land_Surface_Temp_Night", "Terra MODIS: land surface temperature, night", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Land_Surface_Temp"},
+        {"MODIS_Aqua_Land_Surface_Temp_Night", "Aqua MODIS: land surface temperature, night", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Land_Surface_Temp"},
+        {"MODIS_Terra_NDSI_Snow_Cover", "Terra MODIS: snow cover", "png", "GoogleMapsCompatible_Level8", 8, "MODIS_NDSI_Snow_Cover"},
+        {"MODIS_Aqua_NDSI_Snow_Cover", "Aqua MODIS: snow cover", "png", "GoogleMapsCompatible_Level8", 8, "MODIS_NDSI_Snow_Cover"},
+        {"MODIS_Terra_Sea_Ice", "Terra MODIS: sea ice", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_L2_Sea_Ice"},
+        {"MODIS_Aqua_Sea_Ice", "Aqua MODIS: sea ice", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_L2_Sea_Ice"},
+        {"MODIS_Terra_Aerosol", "Terra MODIS: aerosol optical depth (land and ocean)", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_VIIRS_AOD"},
+        {"MODIS_Aqua_Aerosol", "Aqua MODIS: aerosol optical depth (land and ocean)", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_VIIRS_AOD"},
+        {"MODIS_Terra_Aerosol_Optical_Depth_3km", "Terra MODIS: aerosol optical depth (3 km)", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_VIIRS_AOD"},
+        {"MODIS_Aqua_Aerosol_Optical_Depth_3km", "Aqua MODIS: aerosol optical depth (3 km)", "png", "GoogleMapsCompatible_Level6", 6, "MODIS_VIIRS_AOD"},
+        {"MODIS_Terra_Ice_Surface_Temp_Day", "Terra MODIS: ice surface temperature, day", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Ice_Surface_Temp"},
+        {"MODIS_Aqua_Ice_Surface_Temp_Day", "Aqua MODIS: ice surface temperature, day", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Ice_Surface_Temp"},
+        {"MODIS_Terra_L2_Chlorophyll_A", "Terra MODIS: chlorophyll", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Chlorophyll"},
+        {"MODIS_Aqua_L2_Chlorophyll_A", "Aqua MODIS: chlorophyll", "png", "GoogleMapsCompatible_Level7", 7, "MODIS_Chlorophyll"},
     };
     return all;
 }
@@ -173,10 +213,96 @@ void GibsLayer::request(MapHost& host, const Product& product, const string& dat
                     });
 }
 
+namespace {
+    // GIBS's color map of a product as a legend row: the colors with the value each starts at (about eight of them, evenly spread), the units from the map; temperatures in the user's units
+    vector<MapLegendRow> parseColorMap(const string& xml) {
+        struct Entry {
+            QColor color;
+            double value;
+            QString label;
+        };
+        vector<Entry> entries;
+        QString title, units;
+        QXmlStreamReader reader{QString::fromStdString(xml)};
+        QString currentTitle, currentUnits;
+        while (!reader.atEnd()) {
+            reader.readNext();
+            if (!reader.isStartElement()) {
+                continue;
+            }
+            if (reader.name() == u"ColorMap") {
+                currentTitle = reader.attributes().value("title").toString();
+                currentUnits = reader.attributes().value("units").toString();
+            } else if (reader.name() == u"ColorMapEntry" && reader.attributes().value("transparent") != u"true" && currentTitle != "No Data") {
+                const auto rgb = reader.attributes().value("rgb").toString().split(',');
+                const auto value = reader.attributes().value("value").toString();   // "[150,157)"
+                if (rgb.size() < 3) {
+                    continue;
+                }
+                title = currentTitle;
+                units = currentUnits;
+                Entry e;
+                e.color = QColor{rgb[0].toInt(), rgb[1].toInt(), rgb[2].toInt()};
+                const auto parts = QString{value}.remove('[').remove(']').remove('(').remove(')').split(',');
+                bool ok = false;
+                e.value = parts.value(0).toDouble(&ok);
+                e.label = ok ? QString{} : reader.attributes().value("label").toString();
+                if (ok || !e.label.isEmpty()) {
+                    entries.push_back(e);
+                }
+            }
+        }
+        const bool kelvin = units == "K";
+        if (kelvin) {   // a temperature map starts at 0 K: the legend keeps the range that is weather (180 to 340 K)
+            vector<Entry> kept;
+            for (const auto& e : entries) {
+                if (e.value >= 180.0 && e.value <= 340.0) {
+                    kept.push_back(e);
+                }
+            }
+            if (kept.size() >= 2) {
+                entries = kept;
+            }
+        }
+        if (entries.size() < 2) {
+            return {};
+        }
+        MapLegendRow row;
+        row.title = title + (units.isEmpty() ? QString{} : QString{" ("} + (kelvin ? (UIPreferences::unitsF ? QString::fromUtf8("°F") : QString::fromUtf8("°C")) : units) + ")") + ":";
+        const size_t count = std::min<size_t>(8, entries.size());
+        for (size_t i = 0; i < count; i++) {
+            const auto& e = entries[i * (entries.size() - 1) / std::max<size_t>(1, count - 1)];
+            double v = e.value;
+            if (kelvin) {
+                v = UIPreferences::unitsF ? (v - 273.15) * 9.0 / 5.0 + 32.0 : v - 273.15;
+            }
+            row.entries.push_back({MapLegendEntry::Square, e.color, e.label.isEmpty() ? QString::number(v, 'f', std::abs(v) < 10 && v != std::round(v) ? 1 : 0) : e.label});
+        }
+        return {row};
+    }
+}
+
+vector<MapLegendRow> GibsLayer::legend() const {
+    const auto& product = products()[static_cast<size_t>(productIndex)];
+    if (product.colormap == nullptr) {
+        return {};
+    }
+    const auto found = legends.find(product.colormap);
+    return found == legends.end() ? vector<MapLegendRow>{} : found->second;
+}
+
 void GibsLayer::paint(QPainter& painter, MapHost& host) {
     pruneCache();
     auto& view = host.view();
     const auto& product = products()[static_cast<size_t>(productIndex)];
+    if (product.colormap != nullptr && legendAsked.insert(product.colormap).second) {   // the legend: its color map, read once
+        const string name = product.colormap;
+        auto text = std::make_shared<string>();
+        host.background([text, name] { *text = URL::getText("https://gibs.earthdata.nasa.gov/colormaps/v1.3/" + name + ".xml"); }, [this, text, name, &host] {
+            legends[name] = parseColorMap(*text);
+            host.redraw();
+        });
+    }
     const auto t = view.transform();
     int z = 1;
     const auto wanted = tilesInView(host, z);

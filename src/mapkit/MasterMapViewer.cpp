@@ -1450,16 +1450,35 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
     int footer = static_cast<int>(38 * scale), legendHeight = rows.empty() ? 0 : static_cast<int>(40 * scale);
     const int padBottom = static_cast<int>(8 * scale);
     const QString footerText = (highNote.empty() ? QString{} : QString::fromStdString("Runs: " + highNote + "  -  ")) + (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib";
-    // with a legend and room to the right of it, the credits go on its band, on the same line(s): the strip is as tall as the legend or the credits wrapped to the room, whichever is more
-    const int legendWidthPx = static_cast<int>(1000 * scale);
-    const bool oneStrip = !rows.empty() && width - legendWidthPx >= static_cast<int>(700 * scale);
+    // the legend as big as on the map (a unit is `scale` pixels), light on the white of the picture, and how far across it reaches
+    QImage legend;
+    int legendReach = 0;
+    if (!rows.empty()) {
+        legend = QImage(width, legendHeight, QImage::Format_ARGB32_Premultiplied);
+        legend.fill(QColor{255, 255, 255});
+        {
+            QPainter legendPainter{&legend};
+            const int unitsWide = static_cast<int>(std::lround(width / scale)), unitsHigh = std::max(1, static_cast<int>(std::lround(legendHeight / scale)));
+            legendPainter.setWindow(QRect{-500, 0, unitsWide, unitsHigh});
+            MapLegend::draw(legendPainter, rows, 1.0, unitsHigh - 2.0, true);
+        }
+        for (int x = legend.width() - 1; x >= 0 && legendReach == 0; x--) {
+            for (int y = 0; y < legend.height(); y++) {
+                if (legend.pixel(x, y) != qRgb(255, 255, 255)) {
+                    legendReach = x + 1;
+                    break;
+                }
+            }
+        }
+    }
+    // with room to the right of the legend the credits go on its line (wrapped to the room); the strip is as tall as the legend or the credits, whichever is more
+    const bool oneStrip = !rows.empty() && width - legendReach >= static_cast<int>(600 * scale);
     int stripHeight = legendHeight;
     if (oneStrip) {
         QFont measure;
         measure.setPixelSize(static_cast<int>(11 * scale));
-        const int room = width - legendWidthPx - 2 * padBottom;
-        const int textHeight = QFontMetrics{measure}.boundingRect(QRect{0, 0, room, 100000}, Qt::AlignLeft | Qt::TextWordWrap, footerText).height() + padBottom;
-        stripHeight = std::max(legendHeight, textHeight);
+        const int room = width - legendReach - 3 * padBottom;
+        stripHeight = std::max(legendHeight, QFontMetrics{measure}.boundingRect(QRect{0, 0, room, 100000}, Qt::AlignLeft | Qt::TextWordWrap, footerText).height() + padBottom);
         footer = 0;
     }
     QImage image(width, header + world.height() + (oneStrip ? stripHeight : legendHeight) + footer, QImage::Format_ARGB32);
@@ -1492,44 +1511,15 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         painter.drawText(QRect{pad, static_cast<int>(27 * scale) + more, width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, names.isEmpty() ? QString{"No layers on"} : (highNote.empty() ? "Layers: " + names.join(", ") : QString{"The model data at its own resolution, the finest model on top (the runs are in the line below)"}));
         painter.drawText(QRect{pad, static_cast<int>(45 * scale) + more, width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, times.isEmpty() ? QString{"Valid now"} : "Valid: " + times.join("   "));
         painter.drawImage(0, header, world);
-        if (!rows.empty()) {   // the legend as big as on the map (a unit is `scale` pixels), on its band, which runs the whole width
+        if (!rows.empty()) {
             const int bandHeight = oneStrip ? stripHeight : legendHeight;
-            QImage legend(width, legendHeight, QImage::Format_ARGB32_Premultiplied);
-            legend.fill(QColor{255, 255, 255});
-            {
-                QPainter legendPainter{&legend};
-                const int unitsWide = static_cast<int>(std::lround(width / scale)), unitsHigh = std::max(1, static_cast<int>(std::lround(legendHeight / scale)));   // one unit is `scale` pixels
-                legendPainter.setWindow(QRect{-500, 0, unitsWide, unitsHigh});
-                MapLegend::draw(legendPainter, rows, 1.0, unitsHigh - 2.0);
-            }
-            // the legend's own bar is as wide as a screen: the white round it (what touches the edge of the picture, not the white swatch inside) takes the bar's colour, so the band runs the whole width
-            const QRgb band = legend.pixel(3, legend.height() / 2);
-            if (band != qRgb(255, 255, 255)) {
-                std::vector<QPoint> stack;
-                const auto seed = [&] (int x, int y) { if (legend.pixel(x, y) == qRgb(255, 255, 255)) { stack.emplace_back(x, y); } };
-                for (int x = 0; x < legend.width(); x++) { seed(x, 0); seed(x, legend.height() - 1); }
-                for (int y = 0; y < legend.height(); y++) { seed(0, y); seed(legend.width() - 1, y); }
-                while (!stack.empty()) {
-                    const QPoint at = stack.back();
-                    stack.pop_back();
-                    if (at.x() < 0 || at.y() < 0 || at.x() >= legend.width() || at.y() >= legend.height() || legend.pixel(at) != qRgb(255, 255, 255)) {
-                        continue;
-                    }
-                    legend.setPixel(at, band);
-                    stack.emplace_back(at.x() + 1, at.y());
-                    stack.emplace_back(at.x() - 1, at.y());
-                    stack.emplace_back(at.x(), at.y() + 1);
-                    stack.emplace_back(at.x(), at.y() - 1);
-                }
-            }
-            painter.fillRect(QRect{0, header + world.height(), width, bandHeight}, QColor::fromRgb(band));
             painter.drawImage(0, header + world.height() + (bandHeight - legendHeight) / 2, legend);
-            if (oneStrip) {   // the credits, beside the legend on the same band, light on the dark
+            if (oneStrip) {   // the credits beside the legend, on its line
                 QFont small{base};
                 small.setPixelSize(static_cast<int>(11 * scale));
                 painter.setFont(small);
-                painter.setPen(QColor{225, 228, 235});
-                painter.drawText(QRect{legendWidthPx + padBottom, header + world.height(), width - legendWidthPx - 2 * padBottom, bandHeight}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap, footerText);
+                painter.setPen(QColor{100, 100, 100});
+                painter.drawText(QRect{legendReach + 2 * padBottom, header + world.height(), width - legendReach - 3 * padBottom, bandHeight}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap, footerText);
             }
         }
         if (!oneStrip) {

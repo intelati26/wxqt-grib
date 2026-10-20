@@ -41,7 +41,7 @@ namespace {
     };
 }
 
-double MapLegend::draw(QPainter& painter, const std::vector<MapLegendRow>& rows, double perPixel, double bottomUnits) {
+double MapLegend::draw(QPainter& painter, const std::vector<MapLegendRow>& rows, double perPixel, double bottomUnits, bool light) {
     if (rows.empty()) {
         return 750.0;
     }
@@ -83,18 +83,21 @@ double MapLegend::draw(QPainter& painter, const std::vector<MapLegendRow>& rows,
     const double top = bottom - lines * lineHeight - 2.0 * p;
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor{12, 18, 30, 195});
-    painter.drawRect(QRectF{-500.0, top, 1000.0, bottom - top + 2.0 * p});
+    if (!light) {
+        painter.setBrush(QColor{12, 18, 30, 195});
+        painter.drawRect(QRectF{-500.0, top, 1000.0, bottom - top + 2.0 * p});
+    }
+    const QColor ink = light ? QColor{35, 35, 40} : QColor{235, 235, 235};
     for (const auto& item : items) {
         const double y = top + 2.0 * p + (item.line + 0.5) * lineHeight;   // the middle of the line
         if (item.row != nullptr) {
-            painter.setPen(QColor{235, 235, 235});
+            painter.setPen(ink);
             painter.drawText(QPointF{item.x, y + 4.0 * p}, item.row->title);
             continue;
         }
         const auto& e = *item.entry;
         const double mx = item.x;
-        painter.setPen(QPen{QColor{255, 255, 255, 200}, 0.9 * perPixel});
+        painter.setPen(QPen{light ? QColor{70, 70, 80, 220} : QColor{255, 255, 255, 200}, 0.9 * perPixel});
         painter.setBrush(e.color);
         switch (e.shape) {
             case MapLegendEntry::Square: painter.drawRect(QRectF{mx, y - 5.0 * p, 10.0 * p, 10.0 * p}); break;
@@ -102,7 +105,7 @@ double MapLegend::draw(QPainter& painter, const std::vector<MapLegendRow>& rows,
             case MapLegendEntry::Line: painter.setPen(QPen{e.color, 3.0 * perPixel}); painter.drawLine(QPointF{mx, y}, QPointF{mx + 12.0 * p, y}); break;
             default: painter.drawEllipse(QPointF{mx + 5.0 * p, y}, 5.0 * p, 5.0 * p); break;
         }
-        painter.setPen(QColor{235, 235, 235});
+        painter.setPen(ink);
         painter.drawText(QPointF{mx + 15.0 * p, y + 4.0 * p}, e.label);
     }
     return top;
