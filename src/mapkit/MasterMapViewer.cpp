@@ -172,6 +172,14 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
     hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 220); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
     hoverLabel->hide();
+    workingLabel = new QLabel{map};
+    workingLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+    workingLabel->setStyleSheet("QLabel { background-color: rgba(20, 60, 120, 225); color: #ffffff; padding: 5px 10px; border-radius: 4px; }");
+    workingLabel->move(10, 10);
+    workingLabel->hide();
+    workingTimer.setInterval(500);
+    QObject::connect(&workingTimer, &QTimer::timeout, this, [this] { updateWorking(); });
+    workingTimer.start();
 
     // the side panel: the tree, the options of the layer chosen in it
     sidePanel = new QWidget{this};
@@ -747,6 +755,34 @@ MasterMapViewer::~MasterMapViewer() {
         delete holder;
     }
     inlineOptions.clear();
+}
+
+// A layer that is downloading or drawing something slow says so on the map itself, in the corner, with its own progress text: the first reading of a station analysis or a SAR scene takes a minute
+void MasterMapViewer::updateWorking() {
+    if (workingLabel == nullptr) {
+        return;
+    }
+    QStringList lines;
+    for (const auto& layer : layers) {
+        if (layer->enabled() && layer->working()) {
+            auto text = QString::fromStdString(layer->summary());
+            if (text.isEmpty()) {
+                text = "loading";
+            }
+            auto name = QString::fromStdString(layer->path()).section('/', -1);
+            name = name.left(name.indexOf(" (") < 0 ? name.size() : name.indexOf(" ("));
+            lines << name + ":  " + text.left(120);
+        }
+    }
+    if (lines.isEmpty()) {
+        workingLabel->hide();
+        return;
+    }
+    workingTick++;
+    workingLabel->setText(QString::fromUtf8("\u23F3 Working ") + QString(1 + workingTick % 3, QChar{'.'}) + "\n" + lines.join('\n'));
+    workingLabel->adjustSize();
+    workingLabel->show();
+    workingLabel->raise();
 }
 
 void MasterMapViewer::updateTimeline() {

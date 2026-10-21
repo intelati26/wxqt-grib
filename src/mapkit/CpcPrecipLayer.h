@@ -29,6 +29,7 @@ public:
     vector<MapLegendRow> legend() const override;
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     string summary() const override;
+    bool working() const override { return loading; }
 
 protected:
     void onEnable(MapHost& host) override { refresh(host); }

@@ -183,7 +183,28 @@ namespace {
     }
 }
 
+bool SarWindsLayer::working() const {
+    if (loading) {
+        return true;
+    }
+    if (entries) {
+        for (const auto& e : *entries) {
+            if (e.rendering) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 string SarWindsLayer::summary() const {
+    if (entries) {   // a scene being read or painted: the long wait (16 MB the first time) is said
+        for (const auto& e : *entries) {
+            if (e.rendering) {
+                return "downloading and painting the SAR scene of " + e.stormName + " (" + e.when.toString("MMM d HH:mm").toStdString() + "Z, 16 MB the first time; kept after)";
+            }
+        }
+    }
     if (loading && !entries) return "reading STAR's SAR scenes...";
     if (!error.empty()) return error;
     if (!entries) return {};

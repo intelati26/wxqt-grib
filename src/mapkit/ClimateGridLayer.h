@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include "climate/GridAnalysis.h"
+#include "gfs/GfsGrid.h"
 #include "climate/UtilityAcisClimate.h"
 #include "mapkit/MapLayer.h"
 
@@ -33,6 +34,7 @@ public:
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     void optionChanged(MapHost& host) override { if (changeRequested) { changeRequested = false; refresh(host); } }
     string summary() const override;
+    bool working() const override { return loading; }
     void setAsOf(const QDateTime& utc, MapHost&) override;
 
 protected:
@@ -44,12 +46,18 @@ private:
         GridAnalysis::Field field;
         std::vector<AcisClimate::Station> stations;
         QImage image;
+        struct Contour {                // a line where the field crosses the edge of a band, with the number it carries
+            QString label;
+            std::vector<GfsGrid::Line> lines;
+        };
+        std::vector<Contour> contours;
     };
     void period(QDate& from, QDate& to) const;
     QString periodText() const;
     int periodChoice{1};                // the index into the period list
     string productId{"avgt-dep"};
     int opacity{85};
+    bool numbers{true};                 // the band edges drawn as lines with their values on them (the legend is not needed to read the map)
     int detail{1};                      // 0 smooth (one wide reach), 1 detailed, 2 fine: how far a station carries where the stations are close
     bool changeRequested{false};
     QDateTime asOf;

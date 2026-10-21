@@ -97,7 +97,8 @@ private:
     // the time bar: stepping and looping through the frames of the layers that have them
     bool forecastsOnly() const;
     void openHours();
-    void updateTimeline();   // the hour labels over the slider and the bar of the frames that are ready
+    void updateTimeline();
+    void updateWorking();   // the hour labels over the slider and the bar of the frames that are ready
     void rebuildTicks();
     void goLive();
     void jumpTo(const QDateTime& utc);   // a time of the person's choosing: the layers look at the hours around it
@@ -154,6 +155,9 @@ private:
     Text textStatus;
     std::unique_ptr<MapView> mapView;
     QLabel * hoverLabel{};
+    QLabel * workingLabel{};   // on the map: what is being downloaded (a layer that is working says so, with its own progress text)
+    QTimer workingTimer;
+    int workingTick{0};
     QWidget * sidePanel{};
     QTreeWidget * tree{};
     QWidget * activeBox{};
