@@ -20,6 +20,7 @@
 #include "drought/DroughtViewer.h"
 #include "hurricane/SarWindsViewer.h"
 #include "hurricane/AtcfFeedViewer.h"
+#include "hurricane/AscatUhrViewer.h"
 #include "vis/GoesViewer.h"
 #include "util/HomeThumbnails.h"
 #include "objects/NetManager.h"
@@ -726,6 +727,8 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("goesbig:")) {   // WXQT_OPEN=goesbig:<sector>: the GOES viewer as the home screen thumbnail opens it (the size nearest 1200 pixels wide)
                 auto * goes = new GoesViewer{&w, "", "GEOCOLOR", route.section(':', 1, 1).toStdString(), false};
                 goes->preferWidth(1200);
+            } else if (route.startsWith("ascat:")) {   // WXQT_OPEN=ascat:<ATCF id>: the ASCAT ultra high resolution winds of that storm (wp292026)
+                new AscatUhrViewer{&w, route.section(':', 1, 1).toStdString()};
             } else if (route.startsWith("atcffeed:")) {   // WXQT_OPEN=atcffeed:<id>: the raw ATCF feed of a storm (wp292026, al932026)
                 new AtcfFeedViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 1, 1).toStdString()};
             } else if (route == "tropicalhub") {   // WXQT_OPEN=tropicalhub: the Tropical Hub
