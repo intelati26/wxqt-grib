@@ -135,14 +135,11 @@ void ClimateGridLayer::refresh(MapHost& host) {
                     grid.lat0 = region.north;
                     grid.step = region.step;
                     grid.values = part.field.values;
+                    std::vector<std::pair<double, QString>> levels;
                     for (size_t b = 1; b < product->bands.size(); b++) {
-                        Part::Contour c;
-                        c.label = product->bands[b].label.isEmpty() ? QString::number(product->bands[b].from, 'f', product->decimals) : product->bands[b].label;
-                        c.lines = GfsGrid::contour(grid, product->bands[b].from, region.west, region.south, region.east, region.north);
-                        if (!c.lines.empty()) {
-                            part.contours.push_back(std::move(c));
-                        }
+                        levels.emplace_back(product->bands[b].from, product->bands[b].label.isEmpty() ? QString::number(product->bands[b].from, 'f', product->decimals) : product->bands[b].label);
                     }
+                    part.contours = BandLines::make(grid, levels);
                 }
                 part.stations = std::move(read.stations);
                 result->parts.push_back(std::move(part));
@@ -173,53 +170,9 @@ void ClimateGridLayer::paint(QPainter& painter, MapHost& host) {
     if (!numbers) {
         return;
     }
-    // the lines between the bands, thin, and a number on the long ones where there is room (the same value on a line is not repeated close by)
-    auto& view = host.view();
-    const auto t = view.transform();
-    const double px = view.unitsPerPixel();
-    QFont font{painter.font()};
-    font.setBold(true);
-    font.setPixelSize(static_cast<int>(10.5 * px));
-    painter.save();
-    painter.setFont(font);
-    painter.setBrush(Qt::NoBrush);
     for (const auto& part : parts) {
-        for (const auto& contour : part.contours) {
-            for (const auto& line : contour.lines) {
-                if (line.size() < 4) {
-                    continue;
-                }
-                QPainterPath path;
-                for (size_t i = 0; i < line.size(); i++) {
-                    const auto at = t(line[i].lat, line[i].lon);
-                    i == 0 ? path.moveTo(at) : path.lineTo(at);
-                }
-                painter.setPen(QPen{QColor{30, 30, 40, 150}, 0.9 * px});
-                painter.drawPath(path);
-                const double length = path.length() / std::max(1e-9, px);   // screen pixels
-                if (length < 90.0) {
-                    continue;
-                }
-                const std::vector<double> places = length < 350.0 ? std::vector<double>{0.5} : std::vector<double>{0.25, 0.75};   // a number in the middle of a short line, two on a long one
-                for (const double where : places) {
-                    const QPointF mid = path.pointAtPercent(where);
-                    const QPointF pixels{(mid.x() + 500.0) / px, (mid.y() + 250.0) / px};
-                    if (!host.claimCell(pixels, 60.0)) {
-                        continue;
-                    }
-                    const double width = (contour.label.size() * 6.6 + 6.0) * px;
-                    const QRectF box{mid.x() - width / 2.0, mid.y() - 7.5 * px, width, 15.0 * px};
-                    painter.setPen(Qt::NoPen);
-                    painter.setBrush(QColor{255, 255, 255, 215});
-                    painter.drawRoundedRect(box, 3.0 * px, 3.0 * px);
-                    painter.setPen(QColor{25, 25, 35});
-                    painter.drawText(box, Qt::AlignCenter, contour.label);
-                    painter.setBrush(Qt::NoBrush);
-                }
-            }
-        }
+        BandLines::paint(painter, host, part.contours);
     }
-    painter.restore();
 }
 
 MapHit ClimateGridLayer::pick(const QPointF& pixels, MapHost& host) const {

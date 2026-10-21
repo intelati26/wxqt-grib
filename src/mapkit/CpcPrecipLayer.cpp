@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
 #include <QFile>
@@ -103,6 +104,32 @@ vector<CpcPrecipLayer::Band> CpcPrecipLayer::bands() const {
 }
 
 void CpcPrecipLayer::colorize() {
+    {   // the edges of the bands as lines with their values (in the units shown); the quarter degree blocks are smoothed once so that the lines do not step
+        GfsGrid::Grid grid;
+        grid.columns = columns;
+        grid.rows = rows;
+        grid.lon0 = west + 0.125;
+        grid.lat0 = north - 0.125;
+        grid.step = 0.25;
+        grid.values.assign(static_cast<size_t>(columns) * static_cast<size_t>(rows), std::nanf(""));
+        for (int row = 0; row < rows; row++) {
+            for (int column = 0; column < columns; column++) {
+                const float mm = total[static_cast<size_t>(row) * columns + column];
+                if (mm >= 0.0f) {
+                    grid.values[static_cast<size_t>(rows - 1 - row) * columns + column] = inches() ? mm / 25.4f : mm;
+                }
+            }
+        }
+        std::vector<std::pair<double, QString>> levels;
+        for (const auto& band : bands()) {
+            if (band.from <= 0.0) {
+                continue;
+            }
+            const double value = inches() ? band.from : band.from * 25.4;
+            levels.emplace_back(value, QString::number(value, 'f', value < 1.0 && inches() ? 2 : value < 10.0 && inches() ? 1 : 0));
+        }
+        lines = BandLines::make(GfsGrid::smoothed(grid, 1), levels);
+    }
     picture = QImage{columns, rows, QImage::Format_ARGB32_Premultiplied};
     picture.fill(Qt::transparent);
     const auto scale = bands();
@@ -187,6 +214,9 @@ void CpcPrecipLayer::refresh(MapHost& host) {
 
 void CpcPrecipLayer::paint(QPainter& painter, MapHost& host) {
     PlateCarreeImage::paint(painter, host, picture, west, south, east, north, opacity / 100.0);   // blocks: it is a quarter degree analysis, not a smoothed field
+    if (numbers) {
+        BandLines::paint(painter, host, lines);
+    }
 }
 
 MapHit CpcPrecipLayer::pick(const QPointF& pixels, MapHost& host) const {
@@ -240,6 +270,10 @@ QWidget * CpcPrecipLayer::options(QWidget * parent, const std::function<void()>&
     auto * widget = new QWidget{parent};
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
+    auto * numbersBox = new QCheckBox{"Lines between the colours, with their numbers", widget};
+    numbersBox->setChecked(numbers);
+    QObject::connect(numbersBox, &QCheckBox::toggled, [this, changed] (bool on) { numbers = on; changed(); });
+    layout->addWidget(numbersBox);
     layout->addWidget(new QLabel{"Total over the last:", widget});
     auto * period = new QComboBox{widget};
     int current = 0;

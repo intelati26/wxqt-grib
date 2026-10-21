@@ -805,8 +805,10 @@ void MasterMapViewer::updateTimeline() {
     }
     strip->names.clear();
     strip->ready.clear();
+    const long gap = ticks[1] - ticks[0];
+    const char * format = gap >= 20L * 86400 ? "MMM yyyy" : gap >= 20L * 3600 ? "MMM d" : "dd HH'Z'";   // monthly frames by month, daily by day, the rest by day and hour
     for (const long t : ticks) {
-        strip->names.push_back(forecasts ? QString{"F%1"}.arg((t - ticks.front()) / 3600, 3, 10, QChar{'0'}) : QDateTime::fromSecsSinceEpoch(t, QTimeZone::utc()).toString("dd HH'Z'"));
+        strip->names.push_back(forecasts ? QString{"F%1"}.arg((t - ticks.front()) / 3600, 3, 10, QChar{'0'}) : QDateTime::fromSecsSinceEpoch(t, QTimeZone::utc()).toString(format));
         strip->ready.push_back(ready.count(t) > 0);
     }
     strip->current = std::clamp(timeSlider->value(), 0, static_cast<int>(ticks.size()) - 1);

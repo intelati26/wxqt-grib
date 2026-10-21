@@ -10,6 +10,7 @@
 #include <vector>
 #include "climate/GridAnalysis.h"
 #include "gfs/GfsGrid.h"
+#include "mapkit/BandLines.h"
 #include "climate/UtilityAcisClimate.h"
 #include "mapkit/MapLayer.h"
 
@@ -46,11 +47,7 @@ private:
         GridAnalysis::Field field;
         std::vector<AcisClimate::Station> stations;
         QImage image;
-        struct Contour {                // a line where the field crosses the edge of a band, with the number it carries
-            QString label;
-            std::vector<GfsGrid::Line> lines;
-        };
-        std::vector<Contour> contours;
+        std::vector<BandLines::Contour> contours;
     };
     void period(QDate& from, QDate& to) const;
     QString periodText() const;

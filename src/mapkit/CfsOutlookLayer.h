@@ -11,6 +11,7 @@
 #include <QDateTime>
 #include <QImage>
 #include "cfs/UtilityCfs.h"
+#include "mapkit/BandLines.h"
 #include "mapkit/MapLayer.h"
 
 // The seasonal outlook of NOAA's CFSv2: the newest run's monthly means (the month in progress and the nine after it) of one field, the mean of the four newest runs (member 1 of each cycle: whole nine month forecasts six hours apart) or the newest alone. The time bar
@@ -49,6 +50,7 @@ private:
     struct Frame {
         GfsGrid::Grid grid;
         QImage image;
+        std::vector<BandLines::Contour> lines;   // the edges of the colours, numbered
     };
     void load(MapHost&);
     QImage colored(const GfsGrid::Grid&) const;
@@ -62,6 +64,7 @@ private:
     int mode{0};                  // 0 the values, 1 the departure from the CFS normal, 2 the departure in standard deviations
     int baseline{1999};           // the years of the normal: 1999-2010 or 1982-2010
     int opacity{85};
+    bool numbers{true};
     long shown{0};
     bool loading{false};
     bool changeRequested{false};

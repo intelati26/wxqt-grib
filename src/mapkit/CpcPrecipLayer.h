@@ -6,6 +6,7 @@
 #ifndef CPCPRECIPLAYER_H
 #define CPCPRECIPLAYER_H
 
+#include "mapkit/BandLines.h"
 #include <QImage>
 #include <vector>
 #include "mapkit/MapLayer.h"
@@ -52,6 +53,8 @@ private:
     QDate lastDay;
     std::vector<float> total;  // millimeters, 300 x 120 from the south-west corner; below zero: no data
     QImage picture;            // the colours, the top row the northern one
+    std::vector<BandLines::Contour> lines;   // the edges of the bands, numbered
+    bool numbers{true};
     string error;
 };
 

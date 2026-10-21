@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <future>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
 #include <QPainter>
@@ -270,6 +271,14 @@ void CfsOutlookLayer::load(MapHost& host) {
                 }
                 Frame f;
                 f.image = colored(grid);
+                {   // the colours' edges as numbered lines (the values of the legend)
+                    std::vector<std::pair<double, QString>> levels;
+                    for (const auto& [value, color] : stops()) {
+                        (void)color;
+                        levels.emplace_back(value, (mode != 0 && value > 0 ? "+" : "") + QString::number(value, 'f', (std::abs(value) < 1.0 && value != 0.0 && unitsShown().startsWith("in")) ? 2 : (mode == 2 || (std::abs(value) < 10 && std::abs(value - std::round(value)) > 0.01)) ? 1 : 0));
+                    }
+                    f.lines = BandLines::make(GfsGrid::smoothed(grid, 1), levels);
+                }
                 f.grid = std::move(grid);
                 frames[month] = std::move(f);
             }
@@ -360,6 +369,9 @@ void CfsOutlookLayer::paint(QPainter& painter, MapHost& host) {
     }
     const double north = g.lat0 - first * g.step + g.step / 2.0, south = north - found->second.image.height() * g.step / 3.0;
     PlateCarreeImage::paint(painter, host, found->second.image, g.lon0 - g.step / 2.0, south, g.lon0 + g.columns * g.step - g.step / 2.0, north, opacity / 100.0, true);
+    if (numbers) {
+        BandLines::paint(painter, host, found->second.lines);
+    }
 }
 
 MapHit CfsOutlookLayer::pick(const QPointF& pixels, MapHost& host) const {
@@ -398,6 +410,10 @@ QWidget * CfsOutlookLayer::options(QWidget * parent, const std::function<void()>
     auto * widget = new QWidget{parent};
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
+    auto * numbersBox = new QCheckBox{"Lines between the colours, with their numbers", widget};
+    numbersBox->setChecked(numbers);
+    QObject::connect(numbersBox, &QCheckBox::toggled, [this, changed] (bool on) { numbers = on; changed(); });
+    layout->addWidget(numbersBox);
     layout->addWidget(new QLabel{"Field:", widget});
     auto * field = new QComboBox{widget};
     int index = 0, at = 0;
