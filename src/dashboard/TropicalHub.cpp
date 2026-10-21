@@ -24,6 +24,7 @@
 #include "hurricane/AceViewer.h"
 #include "hurricane/AdvisoryViewer.h"
 #include "hurricane/AtcfFeedViewer.h"
+#include "space/SatellitePassViewer.h"
 #include "hurricane/AscatUhrViewer.h"
 #include "hurricane/FloaterViewer.h"
 #include "hurricane/ReconViewer.h"
@@ -150,12 +151,13 @@ TropicalHub::TropicalHub(Window * parent)
     , buttonHafs{this, None, "Hurricane model (HAFS)..."}
     , buttonTropical{this, None, "Tropical (CIRA, JTWC, JMA)..."}
     , buttonAtcf{this, None, "ATCF feed..."}
+    , buttonPasses{this, None, "Satellite passes..."}
     , buttonClimate{this, None, "Climate and ocean..."}
     , textStatus{this, ""}
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Tropical Hub - active storms, outlook, recon and the season");
-    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonHistory, &buttonPod, &buttonModels, &buttonHafs, &buttonTropical, &buttonAtcf, &buttonClimate}) {
+    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonHistory, &buttonPod, &buttonModels, &buttonHafs, &buttonTropical, &buttonAtcf, &buttonPasses, &buttonClimate}) {
         rowTop.addWidget(*button);
     }
     rowTop.addStretch();
@@ -210,6 +212,8 @@ TropicalHub::TropicalHub(Window * parent)
         }
         new AtcfFeedViewer{this, id.toStdString(), chosen.contains("  -  ") ? chosen.section("  -  ", 1).toStdString() : id.toStdString()};
     });
+    buttonPasses.getView()->setToolTip("When the polar orbiters (VIIRS, MODIS, microwave, ASCAT, SAR) pass over each storm and over places of interest");
+    buttonPasses.connect([this] { new SatellitePassViewer{this}; });
     buttonClimate.connect([this] { new ClimateViewer{this}; });
 
     content = new QWidget{this};

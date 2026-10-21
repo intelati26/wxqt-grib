@@ -62,6 +62,7 @@ private:
     Button buttonHafs;
     Button buttonTropical;
     Button buttonAtcf;
+    Button buttonPasses;
     Button buttonClimate;
     Text textStatus;
     QWidget * content{};

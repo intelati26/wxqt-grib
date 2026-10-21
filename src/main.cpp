@@ -21,6 +21,9 @@
 #include "hurricane/SarWindsViewer.h"
 #include "hurricane/AtcfFeedViewer.h"
 #include "hurricane/AscatUhrViewer.h"
+#include "space/SatelliteOrbit.h"
+#include "space/SatellitePassViewer.h"
+#include "space/SatellitePasses.h"
 #include "vis/GoesViewer.h"
 #include "util/HomeThumbnails.h"
 #include "objects/NetManager.h"
@@ -727,6 +730,32 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("goesbig:")) {   // WXQT_OPEN=goesbig:<sector>: the GOES viewer as the home screen thumbnail opens it (the size nearest 1200 pixels wide)
                 auto * goes = new GoesViewer{&w, "", "GEOCOLOR", route.section(':', 1, 1).toStdString(), false};
                 goes->preferWidth(1200);
+            } else if (route.startsWith("satcheck:")) {   // WXQT_OPEN=satcheck:<tle file>[:<hours since epoch, comma list>]: x y z (km) of each satellite, to compare with a reference SGP4
+                QFile file{route.section(':', 1, 1)};
+                file.open(QIODevice::ReadOnly);
+                const auto sats = SatelliteOrbit::parseAll(file.readAll().toStdString());
+                for (const auto& tle : sats) {
+                    SatelliteOrbit::Propagator p{tle};
+                    for (const double hours : {0.0, 6.0, 24.0, 48.0}) {
+                        const auto s = p.at(tle.epochJd + hours / 24.0);
+                        qWarning("satcheck %s %.0f %.4f %.4f %.4f %.6f %.6f %.6f", tle.name.c_str(), hours, s.x, s.y, s.z, s.vx, s.vy, s.vz);
+                    }
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("satat:")) {   // WXQT_OPEN=satat:<catalog>:<lat>:<lon>:<yyyyMMddHHmm UTC>:<hours>: the passes of one satellite over a place, to check against a known time
+                const auto parts = route.split(':');
+                string problem;
+                const auto tle = SatellitePasses::elements(parts.value(1).toInt(), problem);
+                auto when = QDateTime::fromString(parts.value(4), "yyyyMMddHHmm");
+                when.setTimeZone(QTimeZone::utc());
+                SatelliteOrbit::Propagator propagator{tle};
+                qWarning("satat %s epoch age %.1f days %s", tle.name.c_str(), when.toSecsSinceEpoch() / 86400.0 + 2440587.5 - tle.epochJd, problem.c_str());
+                for (const auto& p : SatelliteOrbit::passes(propagator, parts.value(2).toDouble(), parts.value(3).toDouble(), when.toSecsSinceEpoch(), parts.value(5).toDouble(), {"SAR", 700, 0})) {
+                    qWarning("satat pass %s  %.0f km %s", QDateTime::fromSecsSinceEpoch(p.time, QTimeZone::utc()).toString("yyyy-MM-dd HH:mm:ss").toUtf8().constData(), p.distanceKm, p.ascending ? "north" : "south");
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("satpass")) {   // WXQT_OPEN=satpass[:<storm id or place>]: the satellite pass schedule
+                new SatellitePassViewer{&w, route.section(':', 1, 1).toStdString()};
             } else if (route.startsWith("ascat:")) {   // WXQT_OPEN=ascat:<ATCF id>: the ASCAT ultra high resolution winds of that storm (wp292026)
                 new AscatUhrViewer{&w, route.section(':', 1, 1).toStdString()};
             } else if (route.startsWith("atcffeed:")) {   // WXQT_OPEN=atcffeed:<id>: the raw ATCF feed of a storm (wp292026, al932026)

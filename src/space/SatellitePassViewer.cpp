@@ -1,0 +1,282 @@
+// *****************************************************************************
+// * This file is part of wxqt.  Licensed under the GNU General Public License v3.
+// * See the COPYING file for the full license text.
+// *****************************************************************************
+
+#include "space/SatellitePassViewer.h"
+#include <algorithm>
+#include <memory>
+#include <QDateTime>
+#include <QTimeZone>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QLineEdit>
+#include <QMessageBox>
+#include <QPushButton>
+#include "mapkit/MasterMapViewer.h"
+#include "objects/FutureVoid.h"
+
+namespace {
+    QString inText(long long seconds) {
+        if (seconds < 0) {
+            return "passed";
+        }
+        const long long minutes = seconds / 60;
+        return minutes < 60 ? QString{"%1 min"}.arg(minutes) : QString{"%1 h %2 min"}.arg(minutes / 60).arg(minutes % 60, 2, 10, QChar{'0'});
+    }
+
+    QString sunText(double elevation) {
+        return elevation > 0.0 ? QString{"day (sun %1°)"}.arg(std::lround(elevation)) : elevation > -12.0 ? QString{"twilight"} : QString{"night"};
+    }
+
+    QColor kindColor(SatellitePasses::Kind kind) {
+        return kind == SatellitePasses::Kind::Imagery ? QColor{225, 238, 252} : kind == SatellitePasses::Kind::Microwave ? QColor{235, 225, 250} : kind == SatellitePasses::Kind::Wind ? QColor{222, 245, 228} : QColor{253, 236, 214};
+    }
+}
+
+SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& place)
+    : Window{parent}
+    , wanted{place}
+{
+    setAttribute(Qt::WA_DeleteOnClose);
+    setTitle("Satellite passes - storms and places of interest");
+    auto * top = new QWidget{this};
+    auto * layout = new QHBoxLayout{top};
+    layout->setContentsMargins(0, 0, 0, 0);
+    placeBox = new QComboBox{top};
+    placeBox->setMinimumWidth(240);
+    hoursBox = new QComboBox{top};
+    for (const int h : {12, 24, 48, 72}) {
+        hoursBox->addItem(QString::number(h) + " hours", h);
+    }
+    hoursBox->setCurrentIndex(1);
+    kindBox = new QComboBox{top};
+    kindBox->addItem("Every instrument", -1);
+    for (const auto kind : {SatellitePasses::Kind::Imagery, SatellitePasses::Kind::Microwave, SatellitePasses::Kind::Wind, SatellitePasses::Kind::Radar}) {
+        kindBox->addItem(QString::fromStdString(SatellitePasses::kindName(kind)), static_cast<int>(kind));
+    }
+    satelliteBox = new QComboBox{top};
+    satelliteBox->addItem("Every satellite");
+    for (const auto& s : SatellitePasses::satellites()) {
+        satelliteBox->addItem(QString::fromStdString(s.name));
+    }
+    auto * add = new QPushButton{"Add a place...", top};
+    auto * remove = new QPushButton{"Remove", top};
+    auto * map = new QPushButton{"On the map", top};
+    auto * refresh = new QPushButton{"Refresh", top};
+    for (auto * w : std::vector<QWidget *>{placeBox, hoursBox, kindBox, satelliteBox, add, remove, map, refresh}) {
+        layout->addWidget(w);
+    }
+    layout->addStretch();
+    box.addWidgetReal(top, 0, Qt::Alignment{});
+    note = new QLabel{"Reading the active storms and the element sets of the satellites...", this};
+    note->setWordWrap(true);
+    box.addWidgetReal(note, 0, Qt::Alignment{});
+    table = new QTableWidget{this};
+    table->setColumnCount(9);
+    table->setHorizontalHeaderLabels({"Time (UTC)", "In", "Place", "Satellite", "Instrument", "Track", "From the middle", "Sun there", "Good for"});
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->verticalHeader()->setVisible(false);
+    table->horizontalHeader()->setStretchLastSection(true);
+    box.addWidgetReal(table, 1, Qt::Alignment{});
+    auto * credit = new QLabel{"Passes worked out here (SGP4) from the public element sets of CelesTrak, taken twice a day: the time is when the swath is nearest the place, good to a minute or so for the next day or two. "
+                               "A radar (SAR) pass is where the radar could look; which ones are scheduled is on NOAA STAR's SAR winds page.", this};
+    credit->setWordWrap(true);
+    credit->setStyleSheet("color: gray;");
+    box.addWidgetReal(credit, 0, Qt::Alignment{});
+    box.getAndShow(this);
+    resize(1150, 700);
+    for (auto * c : {placeBox, hoursBox, kindBox, satelliteBox}) {
+        QObject::connect(c, &QComboBox::currentIndexChanged, this, [this] (int) { recompute(); });
+    }
+    QObject::connect(add, &QPushButton::clicked, this, [this] { addPlace(); });
+    QObject::connect(remove, &QPushButton::clicked, this, [this] { removePlace(); });
+    QObject::connect(map, &QPushButton::clicked, this, [this] { openMap(); });
+    QObject::connect(refresh, &QPushButton::clicked, this, [this] { loadPlaces(); });
+    loadPlaces();
+}
+
+void SatellitePassViewer::loadPlaces() {
+    auto found = std::make_shared<std::vector<SatellitePasses::Place>>();
+    note->setText("Reading the active storms...");
+    new FutureVoid{this,
+        [found] { *found = SatellitePasses::stormPlaces(); },
+        [this, found] {
+            if (closed) {
+                return;
+            }
+            storms = *found;
+            mine = SatellitePasses::places();
+            fillPlaceBox();
+        }};
+}
+
+void SatellitePassViewer::fillPlaceBox() {
+    placeBox->blockSignals(true);
+    const auto before = placeBox->currentIndex() > 0 ? placeBox->currentText() : QString::fromStdString(wanted);
+    placeBox->clear();
+    placeBox->addItem("Every storm and place", "all");
+    placeBox->addItem("Every storm", "storms");
+    placeBox->addItem("Every place of mine", "places");
+    for (const auto& s : storms) {
+        placeBox->addItem(QString::fromStdString("Storm: " + s.name), QString::fromStdString("s:" + s.name));
+    }
+    for (const auto& p : mine) {
+        placeBox->addItem(QString::fromStdString("Place: " + p.name), QString::fromStdString("p:" + p.name));
+    }
+    int select = 0;
+    for (int i = 0; i < placeBox->count(); i++) {
+        if (!before.isEmpty() && (placeBox->itemText(i) == before || placeBox->itemText(i).contains(before, Qt::CaseInsensitive)) && i > 2) {
+            select = i;
+            break;
+        }
+    }
+    if (select == 0 && wanted.empty() && !storms.empty()) {
+        select = 1;   // the storms, to begin with
+    }
+    placeBox->setCurrentIndex(select);
+    placeBox->blockSignals(false);
+    wanted.clear();
+    recompute();
+}
+
+void SatellitePassViewer::recompute() {
+    const int mineGeneration = ++generation;
+    const auto choice = placeBox->currentData().toString().toStdString();
+    std::vector<SatellitePasses::Place> at;
+    if (choice == "all" || choice == "storms") {
+        at.insert(at.end(), storms.begin(), storms.end());
+    }
+    if (choice == "all" || choice == "places") {
+        at.insert(at.end(), mine.begin(), mine.end());
+    }
+    if (choice.compare(0, 2, "s:") == 0) {
+        for (const auto& s : storms) {
+            if (s.name == choice.substr(2)) at.push_back(s);
+        }
+    } else if (choice.compare(0, 2, "p:") == 0) {
+        for (const auto& p : mine) {
+            if (p.name == choice.substr(2)) at.push_back(p);
+        }
+    }
+    std::vector<std::string> sats;
+    if (satelliteBox->currentIndex() > 0) {
+        sats.push_back(satelliteBox->currentText().toStdString());
+    }
+    std::vector<SatellitePasses::Kind> kinds;
+    if (kindBox->currentData().toInt() >= 0) {
+        kinds.push_back(static_cast<SatellitePasses::Kind>(kindBox->currentData().toInt()));
+    }
+    const double hours = hoursBox->currentData().toDouble();
+    if (at.empty()) {
+        table->setRowCount(0);
+        note->setText("No place to make the passes for: there is no active storm, or no saved location. Add a place.");
+        return;
+    }
+    note->setText("Working out the passes...");
+    auto rows = std::make_shared<std::vector<SatellitePasses::Row>>();
+    auto problem = std::make_shared<std::string>();
+    const long long from = QDateTime::currentSecsSinceEpoch();
+    new FutureVoid{this,
+        [=] { *rows = SatellitePasses::passList(at, sats, kinds, hours, from, *problem); },
+        [this, rows, problem, mineGeneration, from] {
+            if (closed || mineGeneration != generation) {
+                return;
+            }
+            table->setRowCount(static_cast<int>(rows->size()));
+            for (int r = 0; r < static_cast<int>(rows->size()); r++) {
+                const auto& row = (*rows)[static_cast<size_t>(r)];
+                const auto when = QDateTime::fromSecsSinceEpoch(row.pass.time, QTimeZone::utc());
+                QString instrumentNote;
+                for (const auto& s : SatellitePasses::satellites()) {
+                    if (s.name == row.satellite) {
+                        for (const auto& i : s.instruments) {
+                            if (i.label == row.instrument) instrumentNote = QString::fromStdString(i.note);
+                        }
+                    }
+                }
+                const double off = row.pass.distanceKm;
+                const QStringList cells{when.toString("ddd MMM d  HH:mm") + "Z", inText(row.pass.time - from), QString::fromStdString(row.place), QString::fromStdString(row.satellite), QString::fromStdString(row.instrument),
+                                        row.pass.ascending ? "north-bound" : "south-bound", QString{"%1 km %2"}.arg(std::lround(std::fabs(off))).arg(off < 0 ? "left" : "right"), sunText(row.pass.sunElevation), instrumentNote};
+                for (int c = 0; c < cells.size(); c++) {
+                    auto * item = new QTableWidgetItem{cells[c]};
+                    item->setBackground(kindColor(row.kind));
+                    if (row.storm) {
+                        auto font = item->font();
+                        font.setBold(c == 2);
+                        item->setFont(font);
+                    }
+                    table->setItem(r, c, item);
+                }
+            }
+            table->resizeColumnsToContents();
+            note->setText(QString{"%1 passes."}.arg(rows->size()) + (problem->empty() ? QString{} : "  Not read: " + QString::fromStdString(*problem)));
+        }};
+}
+
+void SatellitePassViewer::addPlace() {
+    QDialog dialog{this};
+    dialog.setWindowTitle("Add a place");
+    auto * form = new QFormLayout{&dialog};
+    auto * name = new QLineEdit{&dialog};
+    auto * lat = new QDoubleSpinBox{&dialog};
+    lat->setRange(-90.0, 90.0);
+    lat->setDecimals(3);
+    auto * lon = new QDoubleSpinBox{&dialog};
+    lon->setRange(-180.0, 180.0);
+    lon->setDecimals(3);
+    form->addRow("Name", name);
+    form->addRow("Latitude (north +)", lat);
+    form->addRow("Longitude (east +)", lon);
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    form->addRow(buttons);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    if (dialog.exec() != QDialog::Accepted || name->text().trimmed().isEmpty()) {
+        return;
+    }
+    auto own = SatellitePasses::own();
+    own.push_back({name->text().trimmed().toStdString(), lat->value(), lon->value(), false, {}});
+    SatellitePasses::savePlaces(own);
+    wanted = name->text().trimmed().toStdString();
+    mine = SatellitePasses::places();
+    fillPlaceBox();
+}
+
+void SatellitePassViewer::removePlace() {
+    const auto choice = placeBox->currentData().toString().toStdString();
+    if (choice.compare(0, 2, "p:") != 0) {
+        QMessageBox::information(this, "Remove", "Choose one of your own places in the list first (the saved locations of the program are changed in its settings).");
+        return;
+    }
+    auto own = SatellitePasses::own();
+    const auto before = own.size();
+    own.erase(std::remove_if(own.begin(), own.end(), [&choice] (const SatellitePasses::Place& p) { return p.name == choice.substr(2); }), own.end());
+    if (own.size() == before) {
+        QMessageBox::information(this, "Remove", "That place is a saved location of the program: it is changed in the program's settings.");
+        return;
+    }
+    SatellitePasses::savePlaces(own);
+    mine = SatellitePasses::places();
+    fillPlaceBox();
+}
+
+void SatellitePassViewer::openMap() {
+    const auto choice = placeBox->currentData().toString().toStdString();
+    double lat = 20.0, lon = 140.0;
+    if (choice.compare(0, 2, "s:") == 0) {
+        for (const auto& s : storms) if (s.name == choice.substr(2)) { lat = s.lat; lon = s.lon; }
+    } else if (choice.compare(0, 2, "p:") == 0) {
+        for (const auto& p : mine) if (p.name == choice.substr(2)) { lat = p.lat; lon = p.lon; }
+    } else if (!storms.empty()) {
+        lat = storms.front().lat;
+        lon = storms.front().lon;
+    }
+    auto * viewer = new MasterMapViewer{this};
+    viewer->openAt(QDateTime::currentDateTimeUtc(), lat, lon, 1500.0, {"satellite/passes", "tropical/world-storms"});
+}

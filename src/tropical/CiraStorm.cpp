@@ -18,6 +18,7 @@
 #include "tropical/CiraLoopViewer.h"
 #include "hurricane/SarWindsViewer.h"
 #include "hurricane/AtcfFeedViewer.h"
+#include "space/SatellitePassViewer.h"
 #include "hurricane/AscatUhrViewer.h"
 #include "tropical/UtilityJma.h"
 
@@ -93,6 +94,9 @@ void CiraStorm::fill(const UtilityCira::StormPage& page) {
         rowButtons.addWidget(buttons.back());
     }
     {   // the raw ATCF feed of the storm
+        buttons.emplace_back(this, None, "Satellite passes");
+        buttons.back().connect([this] { new SatellitePassViewer{this, stormId}; });
+        rowButtons.addWidget(buttons.back());
         buttons.emplace_back(this, None, "ASCAT winds");
         buttons.back().connect([this] { new AscatUhrViewer{this, stormId}; });
         rowButtons.addWidget(buttons.back());
