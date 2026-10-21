@@ -30,6 +30,8 @@
 #include "hurricane/ReconRenderer.h"
 #include "hurricane/ReconViewer.h"
 #include "hurricane/SarWindsViewer.h"
+#include "tropical/CiraStorm.h"
+#include "ui/CollapsibleSection.h"
 #include "hurricane/UtilitySarWinds.h"
 #include "hurricane/SeasonViewer.h"
 #include "hurricane/UtilityChanges.h"
@@ -174,28 +176,35 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 220); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
     hoverLabel->hide();
 
-    // the side panel: the storm's numbers, the guidance families, the recon switch
+    // the side panel, in sections that fold away (each remembers whether it is open): the storm, the guidance, what is drawn, the reconnaissance, the satellite pictures, the windows
     panel = new QWidget{this};
     panel->setFixedWidth(panelWidth);
     auto * column = new QVBoxLayout{panel};
     column->setContentsMargins(4, 0, 0, 0);
-    auto * heading = new QLabel{"<b>Track guidance</b> (the newest run of each model)", panel};
-    heading->setWordWrap(true);
-    column->addWidget(heading);
-    guidanceTree = new GuidanceTree{panel};
-    guidanceTree->changed = [this] { view->map()->update(); };
-    column->addWidget(guidanceTree);
+    const auto section = [this, column] (const QString& title, const char * key, bool open) {
+        auto * s = new CollapsibleSection{title, string{"HURRICANE_SECTION_"} + key, open, panel};
+        column->addWidget(s);
+        return s->body();
+    };
+    // the storm
+    auto * stormBody = section("The storm", "STORM", true);
     infoLabel = new QLabel{panel};
     infoLabel->setWordWrap(true);
     infoLabel->setTextFormat(Qt::RichText);
     infoLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     infoLabel->setOpenExternalLinks(true);
-    column->addWidget(infoLabel, 1);
+    stormBody->addWidget(infoLabel);
+    // the guidance
+    auto * guidanceBody = section("Track guidance", "GUIDANCE", true);
+    guidanceTree = new GuidanceTree{panel};
+    guidanceTree->changed = [this] { view->map()->update(); };
+    guidanceBody->addWidget(new QLabel{"the newest run of each model", panel});
+    guidanceBody->addWidget(guidanceTree);
+    // what is drawn
+    auto * drawnBody = section("On the map", "DRAWN", true);
     wwCheck = new QCheckBox{"Watches and warnings", panel};
     wwCheck->setChecked(true);
     QObject::connect(wwCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
-    column->addSpacing(4);
-    column->addWidget(wwCheck);
     coneCheck = new QCheckBox{"NHC forecast cone", panel};
     coneCheck->setChecked(true);
     swathCheck = new QCheckBox{"Forecast wind swath (34 / 50 / 64 kt)", panel};
@@ -214,53 +223,22 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     radiiCheck->setChecked(true);
     QObject::connect(coneCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
     QObject::connect(radiiCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
-    column->addSpacing(4);
-    column->addWidget(coneCheck);
-    column->addWidget(swathCheck);
-    column->addWidget(strikeCheck);
-    column->addWidget(radiiCheck);
-    podCheck = new QCheckBox{"Planned recon flights (Plan of the Day)", panel};
-    podCheck->setChecked(true);
-    QObject::connect(podCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
-    column->addWidget(podCheck);
-    dropCheck = new QCheckBox{"Dropsondes (click one for its sounding)", panel};
-    dropCheck->setChecked(true);
-    QObject::connect(dropCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
-    column->addWidget(dropCheck);
-    dropLabelCheck = new QCheckBox{"  with the lowest pressure and strongest wind", panel};
-    dropLabelCheck->setChecked(Utility::readPref("HURRICANE_DROP_LABELS", "true") == "true");
-    QObject::connect(dropLabelCheck, &QCheckBox::toggled, [this] (bool on) { Utility::writePref("HURRICANE_DROP_LABELS", on ? "true" : "false"); view->map()->update(); });
-    column->addWidget(dropLabelCheck);
     outlookCheck = new QCheckBox{"Development areas (Tropical Weather Outlook)", panel};
     outlookCheck->setChecked(true);
     QObject::connect(outlookCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
-    column->addWidget(outlookCheck);
     autoCheck = new QCheckBox{"Refresh every 10 minutes, alert on a new advisory", panel};
     autoCheck->setChecked(Utility::readPref("HURRICANE_AUTO", "false") == "true");
     QObject::connect(autoCheck, &QCheckBox::toggled, [this] (bool on) {
         Utility::writePref("HURRICANE_AUTO", on ? "true" : "false");
         on ? refreshTimer.start() : refreshTimer.stop();
     });
-    column->addWidget(autoCheck);
-    fixCheck = new QCheckBox{"Recon centre fixes (vortex messages)", panel};
-    fixCheck->setChecked(true);
-    QObject::connect(fixCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
-    column->addWidget(fixCheck);
-    column->addSpacing(4);
-    column->addWidget(buttonIntensity.getView());
-    column->addWidget(buttonSeason.getView());
-    column->addWidget(buttonText.getView());
-    column->addWidget(buttonOutlook.getView());
-    column->addWidget(buttonStats.getView());
-    column->addWidget(buttonShips.getView());
-    column->addWidget(buttonPod.getView());
-    column->addWidget(buttonVdm.getView());
-    column->addWidget(buttonSar.getView());
-    column->addWidget(buttonFlight.getView());
+    for (auto * check : {wwCheck, coneCheck, swathCheck, strikeCheck, radiiCheck, outlookCheck, autoCheck}) {
+        drawnBody->addWidget(check);
+    }
+    // the reconnaissance
+    auto * reconBody = section("Reconnaissance", "RECON", false);
     reconCheck = new QCheckBox{"Recon flights (HDOB)", panel};
     reconCheck->setChecked(Utility::readPref("HURRICANE_RECON", "false") == "true");
-    column->addSpacing(6);
-    column->addWidget(reconCheck);
     reconHours = ReconRenderer::savedHours("HURRICANE_RECON_HOURS");
     comboReconHours = ReconRenderer::hoursCombo(panel, "HURRICANE_RECON_HOURS", [this] (int hours) {   // the hours of flights, fixes and sondes that are drawn
         reconHours = hours;
@@ -270,12 +248,9 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
         updateInfo();
         view->map()->update();
     });
-    column->addWidget(comboReconHours);
-    column->addWidget(comboRecon.getView());
     comboRecon.connect([this] { view->map()->update(); });
     barbCheck = new QCheckBox{"Flight-level wind barbs (knots)", panel};
     barbCheck->setChecked(Utility::readPref("HURRICANE_BARBS", "true") == "true");
-    column->addWidget(barbCheck);
     QObject::connect(barbCheck, &QCheckBox::toggled, [this] (bool on) {
         Utility::writePref("HURRICANE_BARBS", on ? "true" : "false");
         view->map()->update();
@@ -288,6 +263,49 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
         view->map()->update();
         updateInfo();
     });
+    podCheck = new QCheckBox{"Planned recon flights (Plan of the Day)", panel};
+    podCheck->setChecked(true);
+    QObject::connect(podCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    dropCheck = new QCheckBox{"Dropsondes (click one for its sounding)", panel};
+    dropCheck->setChecked(true);
+    QObject::connect(dropCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    dropLabelCheck = new QCheckBox{"  with the lowest pressure and strongest wind", panel};
+    dropLabelCheck->setChecked(Utility::readPref("HURRICANE_DROP_LABELS", "true") == "true");
+    QObject::connect(dropLabelCheck, &QCheckBox::toggled, [this] (bool on) { Utility::writePref("HURRICANE_DROP_LABELS", on ? "true" : "false"); view->map()->update(); });
+    fixCheck = new QCheckBox{"Recon centre fixes (vortex messages)", panel};
+    fixCheck->setChecked(true);
+    QObject::connect(fixCheck, &QCheckBox::toggled, [this] { view->map()->update(); });
+    reconBody->addWidget(reconCheck);
+    reconBody->addWidget(comboReconHours);
+    reconBody->addWidget(comboRecon.getView());
+    reconBody->addWidget(barbCheck);
+    reconBody->addWidget(podCheck);
+    reconBody->addWidget(dropCheck);
+    reconBody->addWidget(dropLabelCheck);
+    reconBody->addWidget(fixCheck);
+    // the satellite pictures: RAMMB's (CIRA, Colorado State) page of the storm, in the program and on the web
+    auto * satelliteBody = section("Satellite (RAMMB)", "SATELLITE", true);
+    buttonRammb = new QPushButton{"Satellite, microwave and guidance pictures (RAMMB)...", panel};
+    buttonRammb->setToolTip("CIRA / RAMMB's page of this storm: infrared and microwave loops, the SSMIS and GOES pictures, the forecast and the track history");
+    QObject::connect(buttonRammb, &QPushButton::clicked, [this] {
+        if (storm) {
+            new CiraStorm{this, storm->id, HurricaneData::idLabel(storm->id) + (storm->name.empty() ? string{} : " " + storm->name)};
+        } else {
+            textStatus.setText(string{"Choose a storm first."});
+        }
+    });
+    rammbLabel = new QLabel{panel};
+    rammbLabel->setWordWrap(true);
+    rammbLabel->setOpenExternalLinks(true);
+    rammbLabel->setTextFormat(Qt::RichText);
+    satelliteBody->addWidget(buttonRammb);
+    satelliteBody->addWidget(rammbLabel);
+    // the windows
+    auto * windowsBody = section("More about the storm", "WINDOWS", true);
+    for (auto * b : {&buttonIntensity, &buttonSeason, &buttonText, &buttonOutlook, &buttonStats, &buttonShips, &buttonPod, &buttonVdm, &buttonSar, &buttonFlight}) {
+        windowsBody->addWidget(b->getView());
+    }
+    column->addStretch();
 
     comboBasin.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("HURRICANE_BASIN", 0), 0, 2)));
     if (basin == "al" || basin == "ep" || basin == "cp") {
@@ -1223,6 +1241,11 @@ void HurricaneViewer::updateInfo() {
         }
     }
     infoLabel->setText(html);
+    if (rammbLabel != nullptr) {   // RAMMB's pages of the storm on the web
+        rammbLabel->setText(storm ? "<a href=\"https://rammb-data.cira.colostate.edu/tc_realtime/storm.asp?storm_identifier=" + QString::fromStdString(storm->id) + "\">RAMMB TC Real-Time: this storm's page</a><br>"
+                                    "<a href=\"https://rammb-data.cira.colostate.edu/tc_realtime/\">RAMMB TC Real-Time: every active storm</a><br>"
+                                    "<a href=\"https://rammb-slider.cira.colostate.edu/\">RAMMB SLIDER: GOES, Himawari and JPSS imagery</a>" : QString{});
+    }
 }
 
 void HurricaneViewer::paintMap(QPainter& painter) {

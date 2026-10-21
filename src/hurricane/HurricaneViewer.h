@@ -16,6 +16,7 @@
 #include <QTimer>
 #include <QLabel>
 #include <QPointF>
+#include <QPushButton>
 #include <QWidget>
 #include "hurricane/GuidanceTree.h"
 #include "hurricane/UtilityEnsembleStats.h"
@@ -100,6 +101,8 @@ private:
     std::unique_ptr<MapView> view;
     QWidget * panel{};
     QLabel * infoLabel{};
+    QPushButton * buttonRammb{};   // CIRA / RAMMB's page of the storm
+    QLabel * rammbLabel{};         // and its links on the web
     QLabel * hoverLabel{};
     GuidanceTree * guidanceTree{};                            // which models are drawn
     QCheckBox * reconCheck{};
