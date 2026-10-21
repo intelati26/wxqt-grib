@@ -45,7 +45,6 @@ private:
     Text textHeader;
     Text textNote;
     Text textSar;
-    Image imageSar;
     FlowBox flowImages;
     Text textForecast;
     Text textHistory;

@@ -28,7 +28,6 @@ CiraStorm::CiraStorm(Window * parent, const string& stormId, const string& title
     , textHeader{this, title}
     , textNote{this, "CIRA / RAMMB experimental tropical cyclone products (Colorado State University, NOAA). Click a picture to enlarge it."}
     , textSar{this, ""}
-    , imageSar{this}
     , textForecast{this, ""}
     , textHistory{this, ""}
     , textRapid{this, ""}
@@ -46,10 +45,7 @@ CiraStorm::CiraStorm(Window * parent, const string& stormId, const string& title
     box.addLayout(rowButtons);
     textSar.setFixedWidth();
     textSar.setVisible(false);
-    imageSar.imageSize = UiStandards::tileImage * 2;
-    imageSar.getView()->setVisible(false);
     box.addWidget(textSar);
-    box.addWidget(imageSar);
     flowImages.setEqualRowHeights(true);
     box.addLayout(flowImages);
     box.addWidget(textForecast);
@@ -282,14 +278,20 @@ void CiraStorm::addSar() {
             for (const auto& line : scene.measurements) {
                 text += "  " + line + "\n";
             }
-            textSar.setText(text + (next.empty() ? string{} : next + "\n") + "  (click the picture for every scene, the schedule and the other products)");
+            textSar.setText(text + (next.empty() ? string{} : next + "\n") + "  (the SAR winds tile, or the SAR winds button, opens every scene and the schedule)");
             textSar.setVisible(true);
-            imageSar.connect([this, upper, name, year] { new SarWindsViewer{this, upper, name, year}; });
-            if (!scene.wind.empty()) {
-                imageSar.getView()->setVisible(true);
-                new FutureBytes{this, scene.wind, [this] (const auto& bytes) {
-                    if (!closed && !bytes.isEmpty()) {
-                        imageSar.setBytes(bytes);
+            if (!scene.wind.empty()) {   // the scene's wind picture as a tile like the others (a click opens the SAR winds window)
+                const auto caption = QString::fromStdString("SAR winds " + scene.sensor.substr(0, scene.sensor.find(" - ")));
+                images.emplace_back(this);
+                auto& image = images.back();
+                image.imageSize = UiStandards::tileImage;
+                image.getView()->setToolTip("The newest SAR wind scene (NOAA STAR): click for every scene");
+                image.connect([this, upper, name, year] { new SarWindsViewer{this, upper, name, year}; });
+                flowImages.addWidgetReal(CaptionedTile::make(this, image.getView(), caption, caption, UiStandards::tileImage, true, UiStandards::tileWidth));
+                const auto at = images.size() - 1;
+                new FutureBytes{this, scene.wind, [this, at] (const auto& bytes) {
+                    if (!closed && at < images.size() && !bytes.isEmpty()) {
+                        images[at].setBytes(bytes);
                     }
                 }};
             }
