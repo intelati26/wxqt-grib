@@ -150,6 +150,26 @@ void GoesViewer::loadSizes() {
             sizeChoice.clear();
         }
         comboboxSize.unblock();
+        if (preferredWidth > 0 && sizeChoice.empty()) {   // the size with the width nearest the one asked for (once)
+            const int wanted = preferredWidth;
+            preferredWidth = 0;
+            long best = -1;
+            string pick;
+            for (size_t i = 1; i < sizes.size(); i++) {
+                const long width = std::atol(sizes[i].c_str());
+                if (best < 0 || std::labs(width - wanted) < best) {
+                    best = std::labs(width - wanted);
+                    pick = sizes[i];
+                }
+            }
+            if (!pick.empty()) {
+                sizeChoice = pick;
+                comboboxSize.block();
+                comboboxSize.setIndex(static_cast<size_t>(std::find(sizes.begin(), sizes.end(), pick) - sizes.begin()));
+                comboboxSize.unblock();
+                loadImage();
+            }
+        }
     }};
 }
 

@@ -20,6 +20,7 @@
 #include "drought/DroughtViewer.h"
 #include "hurricane/SarWindsViewer.h"
 #include "hurricane/AtcfFeedViewer.h"
+#include "vis/GoesViewer.h"
 #include "util/HomeThumbnails.h"
 #include "objects/NetManager.h"
 #include "objects/URL.h"
@@ -722,6 +723,9 @@ int main(int argc, char * argv[]) {
                         QTimer::singleShot(3000, picker, [picker, file] { picker->grab().save(file); });
                     }
                 }
+            } else if (route.startsWith("goesbig:")) {   // WXQT_OPEN=goesbig:<sector>: the GOES viewer as the home screen thumbnail opens it (the size nearest 1200 pixels wide)
+                auto * goes = new GoesViewer{&w, "", "GEOCOLOR", route.section(':', 1, 1).toStdString(), false};
+                goes->preferWidth(1200);
             } else if (route.startsWith("atcffeed:")) {   // WXQT_OPEN=atcffeed:<id>: the raw ATCF feed of a storm (wp292026, al932026)
                 new AtcfFeedViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 1, 1).toStdString()};
             } else if (route == "tropicalhub") {   // WXQT_OPEN=tropicalhub: the Tropical Hub

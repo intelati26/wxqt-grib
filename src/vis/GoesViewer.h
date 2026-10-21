@@ -25,8 +25,11 @@ using std::vector;
 class GoesViewer : public Window {
 public:
     GoesViewer(Window *, const string& url, const string& product = "", const string& sector = "", bool = true);
+    // open on the size (of those the sector offers) whose width is nearest this, not the sector's default: from a thumbnail of the home screen the picture should come bigger than the thumbnail
+    void preferWidth(int pixels) { preferredWidth = pixels; }
 
 private:
+    int preferredWidth{0};
     void reload();
     void showLatest(const QByteArray&);
     void moveBack();

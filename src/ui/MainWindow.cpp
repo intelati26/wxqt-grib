@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "MainWindow.h"
+#include "vis/GoesViewer.h"
 #include "objects/WString.h"
 #include "ui/UiStandards.h"
 #include <QApplication>
@@ -402,7 +403,8 @@ string MainWindow::computeTokenString() {
 
 void MainWindow::launchImageScreen(const string& token) {
     if (token == "VISIBLE_SATELLITE") {
-        Route::vis(this);
+        auto * viewer = new GoesViewer{this, ""};   // from the thumbnail: the picture at 1200 pixels (or the size of the sector nearest it), not the thumbnail's size
+        viewer->preferWidth(1200);
     } else if (token == "RADAR_MOSAIC") {
         toolbar.launchRadarMosaicViewer();
     } else if (token == "ANALYSIS_RADAR_AND_WARNINGS") {
