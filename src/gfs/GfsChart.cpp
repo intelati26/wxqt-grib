@@ -20,6 +20,7 @@
 #include <QStringList>
 #include <set>
 #include <tuple>
+#include "cfs/UtilityCfs.h"
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsModels.h"
 #include "spcrefs/UtilitySpcRefs.h"
@@ -870,6 +871,30 @@ const std::vector<Product>& products() {
             x.legendStep = 10;
             p.push_back(x);
         }
+        // the CFS's own normal (NOAA's calibration climatologies of its reforecasts, the 1999-2010 or 1982-2010 months blended by the day) in place of the reanalysis' for the CFS models: the anomaly of
+        // a model is best taken from its own climate. `toUnit` takes the shown unit to the grid's (hPa to Pa). false: another model, or the files are not there (the reanalysis' normal is then used)
+        const auto cfsNormal = [] (const Context& context, const char * key, double toUnit, GfsGrid::Grid& out) {
+            if (context.source != "CFS" && context.source != "CFS-ANL") {
+                return false;
+            }
+            const auto * variable = UtilityCfs::find(key);
+            if (variable == nullptr) {
+                return false;
+            }
+            auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
+            t.setTimeSpec(Qt::UTC);
+            t = t.addSecs(static_cast<qint64>(context.hour) * 3600);
+            std::string error;
+            const auto run = context.run;
+            if (!UtilityCfs::normalAt(*variable, t, context.source == "CFS" ? &run : nullptr, Utility::readPrefInt("MM_CFS_BASE", 1999) == 1982 ? 1982 : 1999, out, error)) {
+                return false;
+            }
+            GfsGrid::closeWrapGap(out);   // (the file's grid warped onto -180..180 has no value in its first and last columns)
+            for (auto& v : out.values) {
+                v = static_cast<float>(v * toUnit);
+            }
+            return true;
+        };
         // anomalies: the forecast less the 1991-2020 daily mean for the valid day (GfsClimate), where the heights of the level are real
         const auto validDay = [] (const Context& context) {
             auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
@@ -878,8 +903,8 @@ const std::vector<Product>& products() {
             return GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
         };
         // the anomaly over the day's standard deviation, on the forecast's grid: "anom" in deviations, "sd_size" and "anom_unit" in the chart's own unit (scale: meters to dam, pascals to mb)
-        const auto sigmaOf = [validDay] (const GfsClimate::Field& field, double scale, bool maskUnderground) {
-            return [validDay, field, scale, maskUnderground] (Grids& g, const Context& context) {
+        const auto sigmaOf = [validDay, cfsNormal] (const GfsClimate::Field& field, double scale, bool maskUnderground, const char * cfsKey, double cfsToUnit) {
+            return [validDay, cfsNormal, field, scale, maskUnderground, cfsKey, cfsToUnit] (Grids& g, const Context& context) {
                 if (!context.climate) {
                     throw std::runtime_error{"no climatology"};
                 }
@@ -888,6 +913,12 @@ const std::vector<Product>& products() {
                 const int day = validDay(context);
                 if (!context.climate->at(field, day, normal, error) || !context.climate->deviation(field, day, deviation, error)) {
                     throw std::runtime_error{error};
+                }
+                if (cfsKey != nullptr) {   // the anomaly from the CFS's own normal; the spread stays the reanalysis' daily one (the CFS file's is the spread of monthly means)
+                    GfsGrid::Grid own;
+                    if (cfsNormal(context, cfsKey, cfsToUnit, own)) {
+                        normal = std::move(own);
+                    }
                 }
                 auto anom = GfsGrid::anomaly(g["z"], normal);
                 auto zero = g["z"];
@@ -917,10 +948,10 @@ const std::vector<Product>& products() {
             if (level == 700) {
                 x.wants.push_back(want("ps", "PRES", "surface"));   // where the surface is higher than 700 mb the level is underground
             }
-            x.derive = [validDay, level] (Grids& g, const Context& context) {
+            x.derive = [validDay, cfsNormal, level] (Grids& g, const Context& context) {
                 GfsGrid::Grid normal;
                 std::string error;
-                if (!context.climate || !context.climate->at(GfsClimate::height(level), validDay(context), normal, error)) {
+                if (!(level == 500 && cfsNormal(context, "z500", 1.0, normal)) && (!context.climate || !context.climate->at(GfsClimate::height(level), validDay(context), normal, error))) {
                     return;
                 }
                 auto anom = GfsGrid::scaled(GfsGrid::anomaly(g["z"], normal), 0.1);   // meters -> decameters
@@ -937,7 +968,7 @@ const std::vector<Product>& products() {
             x.ramp = heightAnomaly();
             x.fillTitle = "Height anomaly from the 1991-2020 mean (dam)";
             x.legendStep = 5;
-            x.sigma = sigmaOf(GfsClimate::height(level), 0.1, level == 700);
+            x.sigma = sigmaOf(GfsClimate::height(level), 0.1, level == 700, level == 500 ? "z500" : nullptr, 1.0);
             x.sigmaUnit = "dam";
             x.sigmaSizeKey = "sd_size";
             x.sigmaReadKey = "anom_unit";
@@ -952,10 +983,10 @@ const std::vector<Product>& products() {
             x.id = "mslp_anom";
             x.label = "MSLP and Anomaly";
             x.wants = {want("p", "PRMSL", "mean sea level"), want("u", "UGRD", "10 m above ground"), want("v", "VGRD", "10 m above ground")};
-            x.derive = [validDay] (Grids& g, const Context& context) {
+            x.derive = [validDay, cfsNormal] (Grids& g, const Context& context) {
                 GfsGrid::Grid normal;
                 std::string error;
-                if (!context.climate || !context.climate->at(GfsClimate::seaLevelPressure(), validDay(context), normal, error)) {
+                if (!cfsNormal(context, "mslp", 100.0, normal) && (!context.climate || !context.climate->at(GfsClimate::seaLevelPressure(), validDay(context), normal, error))) {
                     return;
                 }
                 g["anom"] = GfsGrid::scaled(GfsGrid::anomaly(g["p"], normal), 0.01);   // Pa -> mb
@@ -964,7 +995,7 @@ const std::vector<Product>& products() {
             x.ramp = pressureAnomaly();
             x.fillTitle = "Pressure anomaly from the 1991-2020 mean (mb)";
             x.legendStep = 5;
-            x.sigma = [sigma = sigmaOf(GfsClimate::seaLevelPressure(), 0.01, false)] (Grids& g, const Context& context) {
+            x.sigma = [sigma = sigmaOf(GfsClimate::seaLevelPressure(), 0.01, false, "mslp", 100.0)] (Grids& g, const Context& context) {
                 g["z"] = g.at("p");   // the sigma helper reads the field as "z"
                 sigma(g, context);
                 g.erase("z");
@@ -1751,6 +1782,12 @@ const std::vector<Product>& products() {
         const auto adapt = [relativeHumidity] (const Product& gfs, const char * model, bool specific, bool pieces = true) {
             Product x = gfs;
             x.source = model;
+            if (x.source == "CFS" || x.source == "CFS-ANL") {   // the CFS charts' anomalies are from its own normal (cfsNormal)
+                const std::string was = "from the 1991-2020 mean";
+                if (const auto at = x.fillTitle.find(was); at != std::string::npos) {
+                    x.fillTitle.replace(at, was.size(), "from the CFS normal (1999-2010)");
+                }
+            }
             x.needs = [gfs, specific, pieces] (int hour) {
                 std::vector<GfsData::Need> out;
                 int end = -1, start = 0;
@@ -5538,7 +5575,7 @@ Product withStandardDeviations(const Product& product) {
     out.derive = product.sigma;
     out.ramp = standardAnomaly();
     out.palette.clear();
-    out.fillTitle = "Anomaly from the 1991-2020 mean in standard deviations";
+    out.fillTitle = product.source == "CFS" || product.source == "CFS-ANL" ? "Anomaly from the CFS normal (1999-2010) in standard deviations of the 1991-2020 reanalysis" : "Anomaly from the 1991-2020 mean in standard deviations";
     out.legendStep = 1;
     out.label = product.label + " (std dev)";
     if (!product.sigmaReadKey.empty() && product.sigmaInterval > 0.0) {   // the plain anomaly beside the deviations: dashed, in its own color, so the three read together
@@ -5673,7 +5710,7 @@ GfsGrid::Grid fillOf(const Product& product, const Grids& fetched, const GfsData
         GfsGrid::closeWrapGap(entry.second);
     }
     if (product.derive) {
-        product.derive(grids, Context{forecastHour, run, climate});
+        product.derive(grids, Context{forecastHour, run, climate, product.source});
     }
     return product.fill ? product.fill(grids) : GfsGrid::Grid{};
 }
@@ -5877,7 +5914,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         GfsGrid::closeWrapGap(entry.second);
     }
     if (product.derive) {
-        product.derive(grids, Context{forecastHour, run, options.climate});
+        product.derive(grids, Context{forecastHour, run, options.climate, product.source});
     }
     auto fill = product.fill ? product.fill(grids) : GfsGrid::Grid{};
     if (!options.fillOverride.empty()) {   // a maximum or a change: the fill is made, and only it is drawn

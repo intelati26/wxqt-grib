@@ -502,7 +502,7 @@ namespace {
                 return false;
             }
             if (product->derive) {
-                product->derive(loaded, GfsChart::Context{usedHour, used, &climate});
+                product->derive(loaded, GfsChart::Context{usedHour, used, &climate, product->source});
             }
             if (product->contours.empty() || loaded.find(product->contours.front().key) == loaded.end()) {
                 error = other + "'s chart has no lines to compare";

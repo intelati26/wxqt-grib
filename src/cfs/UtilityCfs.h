@@ -50,6 +50,10 @@ namespace UtilityCfs {
     // month: lead 1 is the month after the run's own). Each is a field of NCEI's reforecast bucket read by byte range and kept for good (PermanentCache "climate") packed in 16 bits, a few tens
     // of KB. `leadMonth` 1-9; the start date is the run's (the nearest day with a file if its own has none). The values are in the shown unit.
     bool climatology(const Variable& variable, const Run& run, int leadMonth, bool deviation, int baseline, GfsGrid::Grid& out, std::string& error);
+    // The CFS's normal for a valid time, for the anomaly charts of the Model Viewer: the monthly normals either side of the day (each is a month's mean, so it belongs to the middle of the month),
+    // blended by the day. With a run (a forecast), a month's normal is the one of its lead (the model's drift at that lead is in it); without (an analysis, or a month the run has no lead for) the
+    // lead 1 normal of the start date the 16th of the month before. false with the reason when a file is missing. The values are in the shown unit.
+    bool normalAt(const Variable& variable, const QDateTime& valid, const Run * run, int baseline, GfsGrid::Grid& out, std::string& error);
     // The normal of one start date as the file has it (cycle 00, kept for good): what climatology() blends. Only the 1st and the 16th of each month are asked for by it, about 15 days apart.
     bool climatologyOn(const Variable& variable, const std::string& yyyymmdd, int leadMonth, bool deviation, int baseline, GfsGrid::Grid& out, std::string& error);
     // a member's monthly mean minus the normal of the run's start date (or divided by the standard deviation when `inDeviations`); the run's own month, which has no normal, fails

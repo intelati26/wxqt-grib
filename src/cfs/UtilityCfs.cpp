@@ -329,7 +329,7 @@ bool UtilityCfs::climatologyOn(const Variable& variable, const std::string& yyyy
     const PermanentCache store{"climate"};
     const Run bucket{yyyymmdd, "00"};
     const auto keyFor = [&] (const Run& r) {
-        return "cfs/" + base + "/" + variable.key + "_" + r.date.substr(4, 4) + "_l" + std::to_string(leadMonth) + (deviation ? "_std" : "_mean") + ".bin";
+        return "cfsnormal/" + base + "/" + variable.key + "_" + r.date.substr(4, 4) + "_l" + std::to_string(leadMonth) + (deviation ? "_std" : "_mean") + ".bin";
     };
     if (store.has(keyFor(bucket)) && GfsClimate::unpack(store.read(keyFor(bucket)), out)) {
         return true;
@@ -346,6 +346,12 @@ bool UtilityCfs::climatologyOn(const Variable& variable, const std::string& yyyy
         std::string message;
         if (GfsData{config(), climateSource(baseline == 1982 ? 1982 : 1999)}.load(near, 0, {want}, got, message) && !got.empty()) {
             out = got.begin()->second;
+            for (auto& v : out.values) {
+                if (!std::isfinite(v) || std::abs(v) > 1e30f) {
+                    v = std::nanf("");
+                }
+            }
+            GfsGrid::closeWrapGap(out);   // (the grid warped onto -180..180 has no value in its last column: kept as it is the packing would fill it with the mean of the field, a strip at the date line)
             for (auto& v : out.values) {
                 // (GDAL takes 273.15 off every temperature field, a spread of temperatures too: put it back)
                 v = static_cast<float>((deviation && variable.units == "deg C" ? v + 273.15 : v) * variable.scale + (deviation ? 0.0 : variable.offset));
@@ -386,6 +392,37 @@ bool UtilityCfs::climatology(const Variable& variable, const Run& run, int leadM
         return true;
     }
     const double w = static_cast<double>(a.daysTo(t)) / static_cast<double>(a.daysTo(b));
+    out = ga;
+    for (size_t i = 0; i < out.values.size(); i++) {
+        out.values[i] = static_cast<float>(ga.values[i] * (1.0 - w) + gb.values[i] * w);
+    }
+    return true;
+}
+
+bool UtilityCfs::normalAt(const Variable& variable, const QDateTime& valid, const Run * run, int baseline, GfsGrid::Grid& out, std::string& error) {
+    const QDate d = valid.toUTC().date();
+    const QDate centre{d.year(), d.month(), 16};
+    const QDate a = d < centre ? centre.addMonths(-1) : centre, b = d < centre ? centre : centre.addMonths(1);
+    const auto ofMonth = [&] (const QDate& middle, GfsGrid::Grid& grid) {
+        if (run != nullptr) {
+            const auto start = runTime(*run).date();
+            const int lead = (middle.year() - start.year()) * 12 + middle.month() - start.month();
+            if (lead >= 1 && lead <= 9) {
+                return climatology(variable, *run, lead, false, baseline, grid, error);
+            }
+        }
+        const QDate before = middle.addMonths(-1);
+        return climatologyOn(variable, QDate{before.year(), before.month(), 16}.toString("yyyyMMdd").toStdString(), 1, false, baseline, grid, error);
+    };
+    GfsGrid::Grid ga, gb;
+    if (!ofMonth(a, ga)) {
+        return false;
+    }
+    if (!ofMonth(b, gb) || gb.values.size() != ga.values.size()) {
+        out = ga;
+        return true;
+    }
+    const double w = static_cast<double>(a.daysTo(d)) / static_cast<double>(a.daysTo(b));
     out = ga;
     for (size_t i = 0; i < out.values.size(); i++) {
         out.values[i] = static_cast<float>(ga.values[i] * (1.0 - w) + gb.values[i] * w);

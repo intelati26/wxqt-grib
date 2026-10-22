@@ -71,6 +71,7 @@ namespace GfsChart {
         int hour;
         GfsData::Run run;
         const GfsClimate * climate;
+        std::string source;   // the model the chart is of ("CFS": its anomalies are from the CFS's own normal)
     };
     // One family of contour lines
     struct ContourSet {
