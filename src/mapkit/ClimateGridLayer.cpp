@@ -27,7 +27,27 @@ namespace {
     const int periodCount = static_cast<int>(sizeof(periods) / sizeof(periods[0]));
 }
 
+void ClimateGridLayer::configure(const string& product, int periodIndex, int opacityPercent, bool linesOn, bool farOn) {
+    if (AcisClimate::product(product) != nullptr) {
+        productId = product;
+    }
+    periodChoice = std::clamp(periodIndex, 0, periodCount - 1);
+    opacity = std::clamp(opacityPercent, 5, 100);
+    numbers = linesOn;
+    showFar = farOn;
+    parts.clear();
+}
+
+int ClimateGridLayer::periodCountOf() {
+    return periodCount;
+}
+
+string ClimateGridLayer::periodLabel(int index) {
+    return periods[std::clamp(index, 0, periodCount - 1)].label;
+}
+
 ClimateGridLayer::ClimateGridLayer() {
+    showFar = Utility::readPref("MM_ACIS_FAR", "true").compare(0, 1, "t") == 0;
     productId = Utility::readPref("MM_ACIS_PRODUCT", "avgt-dep");
     if (AcisClimate::product(productId) == nullptr) {
         productId = "avgt-dep";
@@ -115,17 +135,82 @@ void ClimateGridLayer::refresh(MapHost& host) {
                 spec.baseKm = level == 0 ? 0.0 : region.reachKm * (level == 1 ? 0.35 : 0.2);   // detailed and fine: a short reach, longer where the stations are far apart
                 spec.nearestKm = region.nearestKm;
                 part.field = GridAnalysis::analyze(points, spec);
-                part.image = QImage{part.field.columns, part.field.rows, QImage::Format_ARGB32_Premultiplied};
-                part.image.fill(Qt::transparent);
-                for (int row = 0; row < part.field.rows; row++) {
-                    auto * line = reinterpret_cast<QRgb *>(part.image.scanLine(row));
-                    for (int column = 0; column < part.field.columns; column++) {
-                        const float v = part.field.values[static_cast<size_t>(row) * part.field.columns + column];
-                        if (!std::isnan(v)) {
-                            const QColor c = product->bands[static_cast<size_t>(AcisClimate::bandOf(*product, v))].color;
-                            line[column] = qPremultiply(qRgba(c.red(), c.green(), c.blue(), 255));
+                const auto picture = [product] (const GridAnalysis::Field& field) {
+                    QImage image{field.columns, field.rows, QImage::Format_ARGB32_Premultiplied};
+                    image.fill(Qt::transparent);
+                    for (int row = 0; row < field.rows; row++) {
+                        auto * line = reinterpret_cast<QRgb *>(image.scanLine(row));
+                        for (int column = 0; column < field.columns; column++) {
+                            const float v = field.values[static_cast<size_t>(row) * field.columns + column];
+                            if (!std::isnan(v)) {
+                                const QColor c = product->bands[static_cast<size_t>(AcisClimate::bandOf(*product, v))].color;
+                                line[column] = qPremultiply(qRgba(c.red(), c.green(), c.blue(), 255));
+                            }
                         }
                     }
+                    return image;
+                };
+                part.image = picture(part.field);
+                {   // the same stations carried much farther (a wide reach, a place is left empty only far from every station): the lighter draw round the real map
+                    auto wide = spec;
+                    wide.reachKm = region.reachKm * 2.4;
+                    wide.baseKm = 0.0;
+                    wide.nearestKm = region.nearestKm * 7.0;
+                    wide.fillGapsKm = wide.nearestKm * 1.7;
+                    wide.west -= 9.0;   // past the coasts and the borders: a box wider than the region's, on a coarser step
+                    wide.east += 9.0;
+                    wide.south -= 6.0;
+                    wide.north += 6.0;
+                    wide.step = region.step * 2.0;
+                    const auto farField = GridAnalysis::analyze(points, wide);
+                    part.farSpec = wide;
+                    auto far = picture(farField).convertToFormat(QImage::Format_ARGB32);
+                    {   // the edge of the carried field fades out (a box blur of the alpha, a few cells wide), so it does not end in a hard line
+                        const int w = far.width(), h = far.height(), radius = 5;
+                        std::vector<float> alpha(static_cast<size_t>(w) * h), tmp(alpha.size());
+                        for (int y = 0; y < h; y++) {
+                            const auto * line = reinterpret_cast<const QRgb *>(far.constScanLine(y));
+                            for (int x = 0; x < w; x++) {
+                                alpha[static_cast<size_t>(y) * w + x] = qAlpha(line[x]) / 255.0f;
+                            }
+                        }
+                        for (int pass = 0; pass < 2; pass++) {
+                            for (int y = 0; y < h; y++) {   // along the row
+                                for (int x = 0; x < w; x++) {
+                                    float sum = 0;
+                                    int n = 0;
+                                    for (int k = -radius; k <= radius; k++) {
+                                        const int xx = x + k;
+                                        sum += (xx < 0 || xx >= w) ? 0.0f : alpha[static_cast<size_t>(y) * w + xx];
+                                        n++;
+                                    }
+                                    tmp[static_cast<size_t>(y) * w + x] = sum / n;
+                                }
+                            }
+                            for (int y = 0; y < h; y++) {   // down the column
+                                for (int x = 0; x < w; x++) {
+                                    float sum = 0;
+                                    int n = 0;
+                                    for (int k = -radius; k <= radius; k++) {
+                                        const int yy = y + k;
+                                        sum += (yy < 0 || yy >= h) ? 0.0f : tmp[static_cast<size_t>(yy) * w + x];
+                                        n++;
+                                    }
+                                    alpha[static_cast<size_t>(y) * w + x] = sum / n;
+                                }
+                            }
+                        }
+                        for (int y = 0; y < h; y++) {
+                            auto * line = reinterpret_cast<QRgb *>(far.scanLine(y));
+                            for (int x = 0; x < w; x++) {
+                                if (qAlpha(line[x]) == 0) {   // beyond the field: a colour of the nearest side would be better, but the edge cells carry it: leave empty cells empty
+                                    continue;
+                                }
+                                line[x] = qRgba(qRed(line[x]), qGreen(line[x]), qBlue(line[x]), static_cast<int>(std::clamp(alpha[static_cast<size_t>(y) * w + x], 0.0f, 1.0f) * 255.0f));
+                            }
+                        }
+                    }
+                    part.farImage = far.convertToFormat(QImage::Format_ARGB32_Premultiplied);
                 }
                 {   // the edges of the bands as lines, each with its value: the map reads without the legend
                     GfsGrid::Grid grid;
@@ -164,6 +249,13 @@ void ClimateGridLayer::refresh(MapHost& host) {
 }
 
 void ClimateGridLayer::paint(QPainter& painter, MapHost& host) {
+    if (showFar) {   // the lighter draw first: the real map covers it where there are stations
+        for (const auto& part : parts) {
+            if (!part.farImage.isNull()) {
+                PlateCarreeImage::paint(painter, host, part.farImage, part.farSpec.west, part.farSpec.south, part.farSpec.east, part.farSpec.north, opacity * 0.4 / 100.0);
+            }
+        }
+    }
     for (const auto& part : parts) {
         PlateCarreeImage::paint(painter, host, part.image, part.field.spec.west, part.field.spec.south, part.field.spec.east, part.field.spec.north, opacity / 100.0);
     }
@@ -242,6 +334,11 @@ QWidget * ClimateGridLayer::options(QWidget * parent, const std::function<void()
     numbersBox->setChecked(numbers);
     QObject::connect(numbersBox, &QCheckBox::toggled, [this, changed] (bool on) { numbers = on; changed(); });
     layout->addWidget(numbersBox);
+    auto * farBox = new QCheckBox{"A lighter draw beyond the stations (sea, Canada, Mexico)", widget};
+    farBox->setChecked(showFar);
+    farBox->setToolTip("The same measure carried much farther from the stations, drawn light under the real map, so there is no white space round the area and the pattern can be read past the coast");
+    QObject::connect(farBox, &QCheckBox::toggled, [this, changed] (bool on) { showFar = on; Utility::writePref("MM_ACIS_FAR", on ? "true" : "false"); changed(); });
+    layout->addWidget(farBox);
     layout->addWidget(new QLabel{"Measure:", widget});
     auto * measure = new QComboBox{widget};
     int current = 0;

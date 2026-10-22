@@ -37,6 +37,10 @@ public:
     string summary() const override;
     bool working() const override { return loading; }
     void setAsOf(const QDateTime& utc, MapHost&) override;
+    // for a layer that is not in the tree (the export's background): the measure, the period and the strength of the draw, no saved settings touched
+    void configure(const string& product, int periodIndex, int opacityPercent, bool linesOn, bool farOn);
+    static int periodCountOf();
+    static string periodLabel(int index);
 
 protected:
     void onEnable(MapHost& host) override { refresh(host); }
@@ -47,6 +51,8 @@ private:
         GridAnalysis::Field field;
         std::vector<AcisClimate::Station> stations;
         QImage image;
+        GridAnalysis::Spec farSpec;     // its box: wider than the region's
+        QImage farImage;                // the same measure carried far from the stations (over the sea, Canada, Mexico), for a lighter draw under the real one
         std::vector<BandLines::Contour> contours;
     };
     void period(QDate& from, QDate& to) const;
@@ -54,6 +60,7 @@ private:
     int periodChoice{1};                // the index into the period list
     string productId{"avgt-dep"};
     int opacity{85};
+    bool showFar{true};                 // beyond the stations: the same measure carried farther, drawn lighter, so there is no white round the real map
     bool numbers{true};                 // the band edges drawn as lines with their values on them (the legend is not needed to read the map)
     int detail{1};                      // 0 smooth (one wide reach), 1 detailed, 2 fine: how far a station carries where the stations are close
     bool changeRequested{false};

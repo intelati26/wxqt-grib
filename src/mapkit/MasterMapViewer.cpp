@@ -33,6 +33,7 @@
 #include "hurricane/Coast.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "mapkit/ModelChartLayer.h"
+#include "climate/UtilityAcisClimate.h"
 #include "gfs/GfsChart.h"
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
@@ -40,6 +41,7 @@
 #include "climate/TempHistoryViewer.h"
 #include "mapkit/ComboChartLayer.h"
 #include <QEventLoop>
+#include <QTimer>
 #include <QFrame>
 #include <QGridLayout>
 #include <QScrollArea>
@@ -1189,6 +1191,10 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
             sources << source;
         }
     }
+    if (exportContext) {   // the lighter ACIS map under the picture: named, with its period, and credited
+        names << "ACIS context (lighter)";
+        sources << QString::fromStdString(exportContext->source());
+    }
     QFont base{painter.font()};
     base.setPixelSize(static_cast<int>(13 * scale));
     QFont bold{base};
@@ -1698,10 +1704,50 @@ void MasterMapViewer::exportView() {
         return;
     }
     ChartExport::remember(path);
+    {   // whatever is on the map: the white round it can be filled with a lighter ACIS map (the temperature or the rain against normal), so the area is shown with the weather round it
+        QStringList items{"No fill"};
+        for (const auto& product : AcisClimate::products()) {
+            items << product.label;
+        }
+        bool ok = false;
+        const auto chosen = QInputDialog::getItem(this, "Export", "Fill the parts of the picture the layers leave white with a lighter ACIS map?", items, 0, false, &ok);
+        if (!ok) {
+            return;
+        }
+        exportContextProduct.clear();
+        const int at = items.indexOf(chosen);
+        if (at > 0) {
+            exportContextProduct = AcisClimate::products()[static_cast<size_t>(at - 1)].id;
+        }
+    }
     exportTo(path);
 }
 
 void MasterMapViewer::exportTo(const QString& path) {
+    if (!exportContextProduct.empty()) {   // the lighter ACIS map: read now (the first time takes a minute), then drawn under the layers
+        exportContext = std::make_unique<ClimateGridLayer>();
+        exportContext->configure(exportContextProduct, Utility::readPrefInt("MM_ACIS_PERIOD", 1), 55, false, true);
+        exportContext->enable(*this);
+        QProgressDialog wait{"Reading the ACIS stations for the lighter map...", "Skip it", 0, 0, this};
+        wait.setWindowModality(Qt::WindowModal);
+        wait.show();
+        QEventLoop loop;
+        QTimer poll;
+        QObject::connect(&poll, &QTimer::timeout, &loop, [&] { if (!exportContext->working() || wait.wasCanceled()) { loop.quit(); } });
+        poll.start(300);
+        QTimer::singleShot(240000, &loop, &QEventLoop::quit);
+        QTimer::singleShot(600, &loop, [&] { poll.start(300); });
+        loop.exec();
+        const bool skipped = wait.wasCanceled();   // (before it is closed: closing counts as cancelling)
+        wait.close();
+        if (skipped || exportContext->summary().empty()) {
+            exportContext.reset();
+        }
+    }
+    struct ClearContext {
+        MasterMapViewer * self;
+        ~ClearContext() { self->exportContext.reset(); self->exportContextProduct.clear(); }
+    } clearContext{this};
     mapView->useLayoutSpace();   // (the layout gives the map its size, after the controls)
     auto * map = mapView->map();
     const double ratio = static_cast<double>(map->height()) / std::max(1, map->width());
@@ -2281,6 +2327,12 @@ void MasterMapViewer::paintMapCopy(QPainter& painter) {
     const auto t = mapView->transform();
     const double px = mapView->unitsPerPixel();
     painter.setRenderHint(QPainter::Antialiasing, true);
+    if (exportContext) {   // the lighter ACIS map under everything (an export only), on a pale ground so that it reads as pastel next to the layers drawn over it
+        painter.save();
+        painter.fillRect(QRectF{-2000.0, -2000.0, 4000.0, 6000.0}, QColor{244, 246, 250});
+        exportContext->paint(painter, *this);
+        painter.restore();
+    }
     // the base layers first (a satellite picture), then the coastlines and borders over them
     for (auto& layer : layers) {
         if (layer->enabled() && layer->underCoast()) {
@@ -2325,6 +2377,12 @@ void MasterMapViewer::paintLegend(QPainter& painter) {
             for (auto& row : layer->legend()) {
                 rows.push_back(std::move(row));
             }
+        }
+    }
+    if (exportContext) {   // the lighter ACIS map under the picture says what its colors are
+        for (auto& row : exportContext->legend()) {
+            row.title = "Behind (lighter): " + row.title;
+            rows.push_back(std::move(row));
         }
     }
     const auto * map = mapView->map();
