@@ -6,6 +6,7 @@
 #include "space/SatellitePasses.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <QDateTime>
 #include <QStringList>
 #include "objects/URL.h"
@@ -117,6 +118,78 @@ namespace SatellitePasses {
         return out;
     }
 
+    Quality quality(const Instrument& instrument, const SatelliteOrbit::Tle& tle, const SatelliteOrbit::Pass& pass) {
+        constexpr double earth = 6371.0, mu = 398600.4418;
+        Quality q;
+        using Grade = Quality::Grade;
+        const auto one = [] (double v) { char text[32]; std::snprintf(text, sizeof text, "%.1f", v); return string{text}; };
+        const auto whole = [] (double v) { return std::to_string(static_cast<long long>(std::llround(v))); };
+        const auto worse = [&q] (Grade g, const string& why) {   // the worst of what is found
+            if (q.summary.empty() || static_cast<int>(g) > static_cast<int>(q.grade)) {
+                q.grade = g;
+                q.summary = why;
+            }
+        };
+        // the element set: SGP4 is about a kilometer at the epoch and grows about two kilometers a day along the track (more after the satellite has been moved)
+        q.ageDays = std::fabs(static_cast<double>(pass.time - SatelliteOrbit::unixSeconds(tle.epochJd))) / 86400.0;
+        q.positionKm = 1.0 + 2.0 * q.ageDays;
+        q.timeSeconds = q.positionKm / 7.0;
+        string detail = "Element set: " + one(q.ageDays) + " days from the pass; the satellite may be about " + whole(q.positionKm) + " km (" + whole(q.timeSeconds) + " s) from where this says.\n";
+        if (q.ageDays > 7.0) {
+            worse(Grade::Poor, "element set " + whole(q.ageDays) + " days from the pass");
+        } else if (q.ageDays > 3.0) {
+            worse(Grade::Fair, "element set " + whole(q.ageDays) + " days from the pass");
+        }
+        // the look geometry at this distance from the track
+        const double n = tle.meanMotion / 60.0;   // radians a second
+        const double height = n > 0.0 ? std::cbrt(mu / (n * n)) - earth : 800.0;
+        const double d = std::fabs(pass.distanceKm), half = instrument.halfWidthKm;
+        const double lambda = d / earth, top = earth + height;
+        const double eta = std::atan2(earth * std::sin(lambda), top - earth * std::cos(lambda));   // the angle off nadir at the satellite
+        const double slant = std::sqrt(top * top + earth * earth - 2.0 * earth * top * std::cos(lambda));
+        const double incidence = std::asin(std::min(1.0, top / earth * std::sin(eta)));          // at the ground
+        const double growth = slant / height / std::max(0.2, std::cos(incidence));               // a pixel across the scan, against one at the middle
+        detail += "Place " + whole(d) + " km from the middle of the swath, " + whole(eta * 180.0 / M_PI) + " degrees off nadir, the ground seen at " + whole(incidence * 180.0 / M_PI) + " degrees from the vertical.\n";
+        if (instrument.kind == Kind::Radar) {
+            const double deg = incidence * 180.0 / M_PI;
+            detail += "Incidence angle about " + whole(deg) + " degrees (the radars' modes are about 20 to 50).\n";
+            if (deg < 18.0 || deg > 52.0) {
+                worse(Grade::Poor, "outside the usual incidence angles (" + whole(deg) + " degrees)");
+            } else if (q.grade == Grade::Good) {
+                q.grade = Grade::Possible;
+                q.summary = "where it could look; scheduled scenes are on NOAA STAR's list";
+            }
+        } else if (instrument.kind == Kind::Imagery) {
+            q.pixelGrowth = growth;
+            detail += "A pixel here is about " + one(growth) + " times as wide across the scan as at the middle (geometry only: the instrument may average pixels at the edges).\n";
+            if (growth > 3.5 || d > 0.93 * half) {
+                worse(Grade::Poor, "edge of the swath: pixels about " + whole(growth) + " times wider");
+            } else if (growth > 1.8 || d > 0.8 * half) {
+                worse(Grade::Fair, "pixels about " + one(growth) + " times wider");
+            }
+        } else if (instrument.kind == Kind::Wind) {
+            detail += "A scatterometer's wind is least good near the middle (the beams look nearly straight down) and at the far edge.\n";
+            if (d < instrument.innerKm + 100.0) {
+                worse(Grade::Fair, "near the gap under the satellite");
+            } else if (d > half - 75.0) {
+                worse(Grade::Fair, "near the edge of the swath");
+            }
+        } else {   // a conically scanning microwave imager: the same look angle everywhere, so no stretch; only the ends of the swath are uncertain
+            detail += "A conical scanner looks at the same angle everywhere: pixels do not stretch.\n";
+            if (d > 0.93 * half) {
+                worse(Grade::Fair, "edge of the swath");
+            }
+        }
+        if (!pass.inSwath) {
+            worse(Grade::Poor, "the place is outside the swath");
+        }
+        if (q.summary.empty()) {
+            q.summary = "Good";
+        }
+        q.detail = detail;
+        return q;
+    }
+
     vector<Row> passList(const vector<Place>& at, const vector<string>& wanted, const vector<Kind>& kinds, double hours, long long from, string& problem) {
         vector<Row> rows;
         for (const auto& sat : satellites()) {
@@ -146,7 +219,7 @@ namespace SatellitePasses {
                         if (i.side == 1 && pass.distanceKm < 0.0) {
                             continue;   // looks to the right only
                         }
-                        rows.push_back({place.name, place.storm, sat.name, i.label, i.kind, pass});
+                        rows.push_back({place.name, place.storm, sat.name, i.label, i.kind, pass, quality(i, tle, pass)});
                     }
                 }
             }

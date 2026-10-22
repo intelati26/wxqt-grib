@@ -48,6 +48,18 @@ namespace SatellitePasses {
     vector<Place> own();
     vector<Place> stormPlaces();                               // the active storms of every basin, where they are now (CIRA / RAMMB)
 
+    // A quick estimate of how far a pass can be trusted, worked out from the geometry and the age of the element set (no measurement: a guide)
+    struct Quality {
+        enum class Grade { Good, Fair, Poor, Possible } grade{Grade::Good};   // Possible: a tasked radar, where it could look
+        string summary;           // "Good", "Fair: pixels about 3 times wider", "Poor: element set 9 days old"
+        string detail;            // the numbers behind it, one per line
+        double ageDays{0.0};      // of the element set at the time of the pass
+        double positionKm{0.0};   // how far off the satellite may be then
+        double timeSeconds{0.0};  // the same as a time along the track
+        double pixelGrowth{1.0};  // how much wider a pixel is across the scan than at the middle (1: no growth)
+    };
+    Quality quality(const Instrument& instrument, const SatelliteOrbit::Tle& elements, const SatelliteOrbit::Pass& pass);
+
     struct Row {
         string place;
         bool storm{false};
@@ -55,6 +67,7 @@ namespace SatellitePasses {
         string instrument;
         Kind kind;
         SatelliteOrbit::Pass pass;
+        Quality quality;
     };
     // every pass of the satellites chosen (all when empty: by name) over the places in the next hours, soonest first
     vector<Row> passList(const vector<Place>& at, const vector<string>& satellitesWanted, const vector<Kind>& kindsWanted, double hours, long long from, string& problem);

@@ -29,6 +29,13 @@ namespace {
         return minutes < 60 ? QString{"%1 min"}.arg(minutes) : QString{"%1 h %2 min"}.arg(minutes / 60).arg(minutes % 60, 2, 10, QChar{'0'});
     }
 
+    // "Good", "Fair: pixels about 2.1 times wider", "Poor: ...", "Possible: where it could look ..."
+    QString qualityText(const SatellitePasses::Quality& q) {
+        using Grade = SatellitePasses::Quality::Grade;
+        const QString name = q.grade == Grade::Good ? "Good" : q.grade == Grade::Fair ? "Fair" : q.grade == Grade::Poor ? "Poor" : "Possible";
+        return q.summary == "Good" ? name : name + ": " + QString::fromStdString(q.summary);
+    }
+
     QString sunText(double elevation) {
         return elevation > 0.0 ? QString{"day (sun %1°)"}.arg(std::lround(elevation)) : elevation > -12.0 ? QString{"twilight"} : QString{"night"};
     }
@@ -77,15 +84,16 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
     note->setWordWrap(true);
     box.addWidgetReal(note, 0, Qt::Alignment{});
     table = new QTableWidget{this};
-    table->setColumnCount(9);
-    table->setHorizontalHeaderLabels({"Time (UTC)", "In", "Place", "Satellite", "Instrument", "Track", "From the middle", "Sun there", "Good for"});
+    table->setColumnCount(10);
+    table->setHorizontalHeaderLabels({"Time (UTC)", "In", "Place", "Satellite", "Instrument", "Track", "From the middle", "Quality", "Sun there", "Good for"});
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->verticalHeader()->setVisible(false);
     table->horizontalHeader()->setStretchLastSection(true);
     box.addWidgetReal(table, 1, Qt::Alignment{});
     auto * credit = new QLabel{"Passes worked out here (SGP4) from the public element sets of CelesTrak, taken twice a day: the time is when the swath is nearest the place, good to a minute or so for the next day or two. "
-                               "A radar (SAR) pass is where the radar could look; which ones are scheduled is on NOAA STAR's SAR winds page.", this};
+                               "A radar (SAR) pass is where the radar could look; which ones are scheduled is on NOAA STAR's SAR winds page. Quality is a guide from the geometry and the age of the element set (hover a row for the numbers): "
+                               "far from the middle of a scanning swath the pixels stretch, and an old element set puts the satellite further from where this says.", this};
     credit->setWordWrap(true);
     credit->setStyleSheet("color: gray;");
     box.addWidgetReal(credit, 0, Qt::Alignment{});
@@ -202,10 +210,15 @@ void SatellitePassViewer::recompute() {
                 }
                 const double off = row.pass.distanceKm;
                 const QStringList cells{when.toString("ddd MMM d  HH:mm") + "Z", inText(row.pass.time - from), QString::fromStdString(row.place), QString::fromStdString(row.satellite), QString::fromStdString(row.instrument),
-                                        row.pass.ascending ? "north-bound" : "south-bound", QString{"%1 km %2"}.arg(std::lround(std::fabs(off))).arg(off < 0 ? "left" : "right"), sunText(row.pass.sunElevation), instrumentNote};
+                                        row.pass.ascending ? "north-bound" : "south-bound", QString{"%1 km %2"}.arg(std::lround(std::fabs(off))).arg(off < 0 ? "left" : "right"), qualityText(row.quality), sunText(row.pass.sunElevation), instrumentNote};
                 for (int c = 0; c < cells.size(); c++) {
                     auto * item = new QTableWidgetItem{cells[c]};
                     item->setBackground(kindColor(row.kind));
+                    item->setToolTip(QString::fromStdString(row.quality.detail).trimmed());
+                    if (c == 7) {   // the quality, in its own color
+                        using Grade = SatellitePasses::Quality::Grade;
+                        item->setForeground(row.quality.grade == Grade::Good ? QColor{20, 120, 40} : row.quality.grade == Grade::Fair ? QColor{170, 100, 0} : row.quality.grade == Grade::Poor ? QColor{180, 30, 30} : QColor{70, 70, 150});
+                    }
                     if (row.storm) {
                         auto font = item->font();
                         font.setBold(c == 2);
