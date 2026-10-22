@@ -56,7 +56,7 @@ namespace {
 ImageViewer::ImageViewer(Window * parent, const QByteArray& data, string title)
     : Window{parent}
     , image{this}
-    , saveButton{this, None, "Save Image"}
+    , saveButton{this, None, "Save image", "Save the image"}
     , saveShortcut{QKeySequence{"S"}, this}
     , titleText{title}
 {
@@ -74,7 +74,7 @@ ImageViewer::ImageViewer(Window * parent, const QByteArray& data, string title)
 ImageViewer::ImageViewer(Window * parent, const string& url, string title)
     : Window{parent}
     , image{this}
-    , saveButton{this, None, "Save Image"}
+    , saveButton{this, None, "Save image", "Save the image"}
     , saveShortcut{QKeySequence{"S"}, this}
     , titleText{title}
     , sourceUrl{url}

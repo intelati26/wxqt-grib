@@ -18,8 +18,8 @@
 TropicalViewer::TropicalViewer(Window * parent)
     : Window{parent}
     , sw{this, box}
-    , buttonNhc{this, None, "NHC: Atlantic, East and Central Pacific (outlooks, advisories, sea surface temperatures)"}
-    , buttonClimate{this, None, "Climate and ocean: SST, anomaly, El Niño / La Niña"}
+    , buttonNhc{this, None, "NHC basins...", "NHC: Atlantic, East and Central Pacific (outlooks, advisories, sea surface temperatures)"}
+    , buttonClimate{this, None, "Climate and ocean...", "Climate and ocean: SST, anomaly, El Niño / La Niña"}
     , buttonRefresh{this, None, "Refresh"}
     , textNote{this, "Active tropical cyclones worldwide - CIRA / RAMMB (Colorado State University, NOAA) experimental products. Click a storm."}
 {

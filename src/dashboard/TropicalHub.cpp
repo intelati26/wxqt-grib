@@ -145,15 +145,15 @@ namespace {
 TropicalHub::TropicalHub(Window * parent)
     : Window{parent}
     , buttonRefresh{this, None, "Refresh"}
-    , buttonTracks{this, None, "Tracks, guidance and recon..."}
+    , buttonTracks{this, None, "Tracks...", "Tracks, model guidance and recon of the storms of the NHC basins"}
     , buttonSeason{this, None, "Season charts..."}
     , buttonAce{this, None, "ACE by day..."}
     , buttonAceForecast{this, None, "ACE forecast (ensemble)..."}
     , buttonHistory{this, None, "Historical tracks..."}
-    , buttonPod{this, None, "Recon plan of the day..."}
+    , buttonPod{this, None, "Recon plan...", "The recon plan of the day"}
     , buttonModels{this, None, "Model charts..."}
     , buttonHafs{this, None, "Hurricane model (HAFS)..."}
-    , buttonTropical{this, None, "Tropical (CIRA, JTWC, JMA)..."}
+    , buttonTropical{this, None, "Other basins...", "The storms of the other basins: CIRA, JTWC and JMA"}
     , buttonAtcf{this, None, "ATCF feed..."}
     , buttonPasses{this, None, "Satellite passes..."}
     , buttonClimate{this, None, "Climate and ocean..."}
@@ -430,7 +430,7 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
         row->addWidget(button);
     };
     const auto id = entry.id;
-    addButton("Track map and recon...", "The track, model guidance and recon of this storm", [this, basin, id] { new HurricaneViewer{this, basin, id}; });
+    addButton("Track and recon...", "The track, model guidance and recon of this storm", [this, basin, id] { new HurricaneViewer{this, basin, id}; });
     {   // the hurricane model for this storm (it runs for active storms and invests)
         addButton("HAFS model...", "The hurricane model's forecast of this storm", [this, id] { openHafs(Hafs::modelId(id)); });
     }

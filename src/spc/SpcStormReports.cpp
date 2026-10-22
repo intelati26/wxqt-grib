@@ -41,8 +41,8 @@ SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsD
     , calendar{this}
     , photo{this, Scaled}
     , comboBox{this}
-    , lsrWfoButton{this, None, "LSR by WFO"}
-    , exportButton{this, None, "Export the reports (CSV)"}
+    , lsrWfoButton{this, None, "LSR by WFO...", "Local storm reports by forecast office"}
+    , exportButton{this, None, "Export CSV...", "Export the reports as a CSV file"}
     , spcStormReportsDay{spcStormReportsDay}
     , url{GlobalVariables::nwsSPCwebsitePrefix + "/climo/reports/" + spcStormReportsDay + (isDate(spcStormReportsDay) ? "_rpts" : "") + ".gif"}
     , stormReportsUrl{GlobalVariables::nwsSPCwebsitePrefix + "/climo/reports/" + spcStormReportsDay + (isDate(spcStormReportsDay) ? "_rpts" : "") + ".csv"}

@@ -116,19 +116,19 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     , comboBasin{this, {"Atlantic", "East Pacific", "Central Pacific", "Western Pacific (master map)", "North Indian Ocean (master map)", "Southern Hemisphere (master map)"}}
     , comboStorm{this, {"Loading the storm list..."}}
     , buttonRefresh{this, None, "Refresh"}
-    , buttonZoom{this, None, "Zoom to the storm"}
-    , buttonCone{this, None, "Zoom to the cone"}
+    , buttonZoom{this, None, "Zoom storm", "Zoom the map to the storm"}
+    , buttonCone{this, None, "Zoom cone", "Zoom the map to the cone"}
     , comboLimit{this, {"Forecasts out to 24 h", "48 h", "72 h", "96 h", "120 h (the cone)", "168 h", "All of each forecast"}}
     , buttonStats{this, None, "Ensemble statistics..."}
     , buttonShips{this, None, "SHIPS and RI..."}
-    , buttonPod{this, None, "Recon plan of the day..."}
+    , buttonPod{this, None, "Recon plan...", "The recon plan of the day"}
     , buttonVdm{this, None, "Recon vortex messages..."}
-    , buttonSar{this, None, "SAR winds (NOAA STAR)..."}
-    , buttonFlight{this, None, "One recon flight on the satellite picture..."}
+    , buttonSar{this, None, "SAR winds...", "SAR winds (NOAA STAR)"}
+    , buttonFlight{this, None, "Recon flight...", "One recon flight on the satellite picture"}
     , buttonIntensity{this, None, "Intensity chart..."}
-    , buttonSeason{this, None, "Season table and ACE..."}
+    , buttonSeason{this, None, "Season and ACE...", "The season table and ACE"}
     , buttonText{this, None, "NHC advisory text..."}
-    , buttonOutlook{this, None, "Tropical weather outlook text..."}
+    , buttonOutlook{this, None, "Outlook text...", "The text of the tropical weather outlook"}
     , textStatus{this, "Loading..."}
     , comboRecon{this, {"Flight-level wind", "SFMR surface wind"}}
 {
@@ -287,7 +287,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     reconBody->addWidget(fixCheck);
     // the satellite pictures: RAMMB's (CIRA, Colorado State) page of the storm, in the program and on the web
     auto * satelliteBody = section("Satellite (RAMMB)", "SATELLITE", true);
-    buttonRammb = UiStandards::button(panel, "Satellite, microwave and guidance pictures (RAMMB)...");
+    buttonRammb = UiStandards::button(panel, "RAMMB pictures...");
     buttonRammb->setToolTip("CIRA / RAMMB's page of this storm: infrared and microwave loops, the SSMIS and GOES pictures, the forecast and the track history");
     QObject::connect(buttonRammb, &QPushButton::clicked, [this] {
         if (storm) {

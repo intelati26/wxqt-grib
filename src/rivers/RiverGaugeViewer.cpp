@@ -79,7 +79,7 @@ RiverGaugeViewer::RiverGaugeViewer(Window * parent, const string& lid)
     , comboMode{this, {"Stage", "Flow"}}
     , comboRange{this, {"Last 3 days", "Last 7 days", "Last 14 days", "Last 30 days"}}
     , buttonRefresh{this, None, "Refresh"}
-    , buttonImpacts{this, None, "What each stage floods"}
+    , buttonImpacts{this, None, "Flood impacts...", "What each stage floods"}
     , textTitle{this, "Loading " + lid + "..."}
     , textSubtitle{this, ""}
     , textNow{this, ""}

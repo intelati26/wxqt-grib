@@ -9,11 +9,11 @@
 #include "ui/ButtonIcon.h"
 #include "ui/IconMapping.h"
 
-Button::Button(Window * parent, Icon icon, const string& label)
+Button::Button(Window * parent, Icon icon, const string& label, const string& tip)
     : parent{parent}
     , button{new QPushButton{parent}}
 {
-    button->setToolTip(QString::fromStdString(label));
+    button->setToolTip(QString::fromStdString(tip.empty() ? label : tip));
     if (icon != None) {
         ButtonIcon(button, GlobalVariables::imageDir + IconMapping::toString(icon));
     }

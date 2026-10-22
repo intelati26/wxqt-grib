@@ -19,7 +19,7 @@ using std::string;
 
 class Button : public Widget2 {
 public:
-    Button(Window *, Icon, const string&);
+    Button(Window *, Icon, const string& label, const string& tip = {});
     void connect(const function<void()>&);
     void setText(const string&);
     string getText() const;

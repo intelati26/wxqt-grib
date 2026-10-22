@@ -55,7 +55,7 @@ RadarMosaic::RadarMosaic(Window * parent, const string& sector)
 }
 
 void RadarMosaic::reload() {
-    setTitle("Radar Mosaics " + autoUpdate.titleAdd);
+    setTitle("Radar mosaics" + autoUpdate.titleAdd);
     objectAnimate.stopAnimateNoDownload();
     Utility::writePref("REMEMBER_MOSAIC_SECTOR", objectAnimate.sector);
     const auto url = UtilityRadarMosaic::get(objectAnimate.sector);

@@ -24,7 +24,7 @@ AnimationBar::AnimationBar(
     , onSave{onSave}
     , buttonPlay{parent, Play, "Animate (A)"}
     , sliderPosition{new QSlider{Qt::Horizontal, parent}}
-    , saveButton{parent, None, "Save Image (S)"}
+    , saveButton{parent, None, "Save image (S)", "Save the image (S)"}
     , labelFrom{parent, "Range:"}
     , comboFrom{parent}
     , labelTo{parent, "to"}

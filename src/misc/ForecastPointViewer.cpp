@@ -731,7 +731,7 @@ namespace {
             auto * buttons = new QHBoxLayout;
             auto * image = UiStandards::button(this, "Save image...");
             auto * save = UiStandards::button(this, "Save CSV...");
-            auto * copy = UiStandards::button(this, "Copy (for a spreadsheet)");
+            auto * copy = UiStandards::button(this, "Copy", "Copy the table for a spreadsheet");
             auto * close = UiStandards::button(this, "Close");
             buttons->addStretch();
             buttons->addWidget(image);

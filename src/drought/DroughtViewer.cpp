@@ -528,7 +528,7 @@ DroughtViewer::DroughtViewer(Window * parent)
     chart = new DroughtChart{side};
     {
         auto * saves = new QHBoxLayout;
-        auto * saveChart = UiStandards::button(side, "Save the weekly chart...");
+        auto * saveChart = UiStandards::button(side, "Save chart...", "Save the weekly chart");
         auto * saveMap = UiStandards::button(side, "Save the map...");
         QObject::connect(saveChart, &QPushButton::clicked, this, [this] { savePicture(chart, "drought_share_by_week"); });
         QObject::connect(saveMap, &QPushButton::clicked, this, [this] { savePicture(map, "drought_map"); });
@@ -599,10 +599,10 @@ DroughtViewer::DroughtViewer(Window * parent)
         column->setContentsMargins(4, 4, 4, 4);
         auto * row = new QHBoxLayout;
         row->addWidget(comboHistory.getView());
-        auto * exportButton = UiStandards::button(widget, "Export the table (CSV)...");
+        auto * exportButton = UiStandards::button(widget, "Export CSV...", "Export the table as a CSV file");
         QObject::connect(exportButton, &QPushButton::clicked, this, [this] { exportHistory(); });
         row->addWidget(exportButton);
-        auto * pictureButton = UiStandards::button(widget, "Save the chart as a picture...");
+        auto * pictureButton = UiStandards::button(widget, "Save picture...", "Save the chart as a picture");
         QObject::connect(pictureButton, &QPushButton::clicked, this, [this] { savePicture(historyChart, "drought_history"); });
         row->addWidget(pictureButton);
         row->addStretch();

@@ -19,7 +19,7 @@ LocationEditBox::LocationEditBox(Window * parent)
     : Widget{parent}
     , table{nullptr}
     , saveButton{parent, None, "Save"}
-    , mapButton{parent, None, "Show on Map"}
+    , mapButton{parent, None, "Show on map", "Show the place on the map"}
     , cityEdit{parent}
     , editName{parent}
     , editLat{parent}

@@ -1408,7 +1408,7 @@ SoundingViewer::SoundingViewer(Window * parent, const string& model, const strin
     , bufkitModel{model}
     , bufkitStation{station}
 {
-    setTitle(model + " BUFKIT Sounding");
+    setTitle("BUFKIT sounding - " + model);
     comboTime.connect([this] { showBufkitHour(); });
     build();
     startBufkit();

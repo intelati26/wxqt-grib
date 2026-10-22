@@ -89,7 +89,7 @@ HistoryViewer::HistoryViewer(Window * parent)
         buttonSar->setEnabled(selected >= 0 && data && data->tracks[static_cast<size_t>(selected)].year >= 2015 && data->tracks[static_cast<size_t>(selected)].name != "UNNAMED");
     });
     comboBasin.connect([this] { load(); });
-    buttonSar = UiStandards::button(this, "SAR winds of the storm...");
+    buttonSar = UiStandards::button(this, "SAR winds...", "The SAR winds of the storm");
     buttonSar->setToolTip("NOAA STAR's synthetic aperture radar winds: the scenes made of the selected storm (named storms of 2015 and later) with their pictures and measurements");
     buttonSar->setEnabled(false);
     QObject::connect(buttonSar, &QPushButton::clicked, [this] {

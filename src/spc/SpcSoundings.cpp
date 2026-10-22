@@ -22,8 +22,8 @@ SpcSoundings::SpcSoundings(Window * parent, const string& sector)
     , index{findex(office, SoundingSites::sites->codeList)}
     , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
-    , buttonForText{this, None, "Text Display"}
-    , buttonNative{this, None, "Skew-T / Hodograph"}
+    , buttonForText{this, None, "Text display", "The sounding as text"}
+    , buttonNative{this, None, "Skew-T / hodograph", "The sounding as a skew-T and hodograph"}
     , comboboxProduct{this, SoundingSites::sites->nameList}
 {
     if (sector != "") {

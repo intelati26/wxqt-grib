@@ -48,7 +48,7 @@ CatalogDialog::CatalogDialog(Window * owner, std::vector<Source> sourceList, dou
     whatText = new QLabel{"Show", this};
     what = UiStandards::combo(this);
     order = UiStandards::combo(this);
-    load = UiStandards::button(this, "Read again for this place");
+    load = UiStandards::button(this, "Reload", "Read the catalog again for this place");
     filters->addWidget(whatText);
     filters->addWidget(what);
     filters->addWidget(new QLabel{"From", this});
@@ -70,7 +70,7 @@ CatalogDialog::CatalogDialog(Window * owner, std::vector<Source> sourceList, dou
     table->horizontalHeader()->setStretchLastSection(true);
     column->addWidget(table, 1);
     auto * buttons = new QHBoxLayout;
-    addButton = UiStandards::button(this, "Add as an event");
+    addButton = UiStandards::button(this, "Add event", "Add the selection as an event");
     addButton->setEnabled(false);
     auto * closeButton = UiStandards::button(this, "Close");
     buttons->addStretch();

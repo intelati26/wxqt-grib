@@ -104,7 +104,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     radius->setRange(5.0, 2500.0);
     radius->setValue(100.0);
     radius->setSuffix(" km");
-    auto * pick = UiStandards::button(this, "Pick on the map...");
+    auto * pick = UiStandards::button(this, "Pick on map...", "Pick the place on the map");
     note = new QPlainTextEdit{this};
     note->setMaximumHeight(70);
     moments = new QPlainTextEdit{this};
@@ -239,9 +239,9 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     surfaceKind->addItem("Fronts and pressure, United States", "usfntsfc");
     surfaceKind->addItem("With the satellite picture", "ussatsfc");
     surfaceKind->addItem("With the radar", "radsfcus_exp");
-    auto * scanned = UiStandards::button(this, "Scanned Daily Weather Map (1871-2002)...");
+    auto * scanned = UiStandards::button(this, "Daily map scans...", "The scanned Daily Weather Map (1871-2002)");
     scanned->setToolTip("NOAA Central Library: the printed Daily Weather Map of the day, by date (daily to April 1968, weekly from May 1968)");
-    auto * reanalysis = UiStandards::button(this, "20th Century Reanalysis (1836-2015)...");
+    auto * reanalysis = UiStandards::button(this, "20CR reanalysis...", "The 20th Century Reanalysis (1836-2015)");
     reanalysis->setToolTip("NOAA PSL: weather maps for any date back to 1836, made from surface pressure observations");
     surfaceRow->addWidget(new QLabel{"Time", this});
     surfaceRow->addWidget(surfaceHour);

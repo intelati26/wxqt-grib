@@ -36,7 +36,7 @@ GoesGlobal::GoesGlobal(Window * parent)
 }
 
 void GoesGlobal::reload() {
-    setTitle("GOES Global " + UtilityGoesFullDisk::labels[index]);
+    setTitle("GOES global - " + UtilityGoesFullDisk::labels[index]);
     objectAnimate.product = UtilityGoesFullDisk::urls[index];
     if (UtilityGoesFullDisk::canAnimate(objectAnimate.product)) {
         objectAnimate.refresh();

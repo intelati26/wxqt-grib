@@ -24,7 +24,7 @@ ClimateViewer::ClimateViewer(Window * parent)
     : Window{parent}
     , sw{this, box}
     , buttonRefresh{this, None, "Refresh"}
-    , buttonDiscussion{this, None, "ENSO discussion (full text)"}
+    , buttonDiscussion{this, None, "ENSO discussion...", "The full text of the ENSO diagnostic discussion"}
     , textYears{this, "Charts show:"}
     , comboYears{this, {"5 years", "10 years", "20 years", "40 years", "All"}}
     , textStatus{this, "Loading the climate and ocean products..."}

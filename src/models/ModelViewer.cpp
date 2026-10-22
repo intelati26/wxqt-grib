@@ -140,7 +140,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         boxH.addWidgetReal(stepper);
     }
     {   // the models that are fetched as pictures, in a second menu beside the GRIB ones: each opens its own screen
-        auto * more = UiStandards::button(this, "Image models (some pending)  \xE2\x96\xBE");
+        auto * more = UiStandards::button(this, "Image models  \xE2\x96\xBE", "Image models (some pending)");
         auto * menu = new QMenu{more};
         const auto add = [this, menu] (const QString& text, std::function<void()> open) {
             QObject::connect(menu->addAction(text), &QAction::triggered, this, [open] { open(); });
@@ -1592,7 +1592,7 @@ void ModelViewer::reload() {
     }
     objectModel.writePrefs();
     const auto shownIndex = comboboxTime.getIndex();
-    setTitle(objectModel.model + " " + sectorLabel(objectModel.sector) + (shownIndex >= 0 && static_cast<size_t>(shownIndex) < objectModel.times.size() ? " " + objectModel.times[static_cast<size_t>(shownIndex)] : string{}) +
+    setTitle(objectModel.model + " - " + sectorLabel(objectModel.sector) + (shownIndex >= 0 && static_cast<size_t>(shownIndex) < objectModel.times.size() ? " " + objectModel.times[static_cast<size_t>(shownIndex)] : string{}) +
              (runSwappedFrom.empty() ? string{} : "  (shown from the " + objectModel.run + " run: the " + runSwappedFrom + " run does not have this chart)"));
     if (GfsRender::handles(objectModel.model, objectModel.param)) {
         // the GFS charts are drawn here from the GRIB data

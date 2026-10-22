@@ -31,7 +31,7 @@ SettingsAccountsBox::SettingsAccountsBox(QWidget * parent) : QWidget{parent} {
     auto * saveButton = UiStandards::button(this, "Save");
     auto * testButton = UiStandards::button(this, "Save and test");
     auto * clearButton = UiStandards::button(this, "Remove");
-    auto * openButton = UiStandards::button(this, "Open the Earthdata Login page");
+    auto * openButton = UiStandards::button(this, "Earthdata login...", "Open the Earthdata Login page in the browser");
     status = new QLabel{this};
     status->setWordWrap(true);
     auto * row = new FlowLayout{6};

@@ -1144,7 +1144,7 @@ QWidget * EnsembleSpaghettiLayer::options(QWidget * parent, const std::function<
     combo->setCurrentIndex(hoursChoice);
     QObject::connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { hoursChoice = index; changed(); });
     layout->addWidget(combo);
-    auto * only = UiStandards::button(widget, "Show only this layer");
+    auto * only = UiStandards::button(widget, "Show only", "Show only this layer");
     QObject::connect(only, &QPushButton::clicked, [this] {
         if (hostPointer != nullptr) {
             hostPointer->onlyLayer(id());
@@ -1328,7 +1328,7 @@ QWidget * DeepMindGenesisLayer::options(QWidget * parent, const std::function<vo
     window->setCurrentIndex(windowChoice);
     QObject::connect(window, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { windowChoice = index; changed(); });
     layout->addWidget(window);
-    auto * only = UiStandards::button(widget, "Show only this layer");
+    auto * only = UiStandards::button(widget, "Show only", "Show only this layer");
     QObject::connect(only, &QPushButton::clicked, [this] {
         if (hostPointer != nullptr) {
             hostPointer->onlyLayer(id());

@@ -25,7 +25,7 @@ NhcStorm::NhcStorm(Window * parent, const NhcStormDetails& stormData)
     , sw{this, boxImages, boxText}
     , comboboxProduct{this, stormTextProducts}
     , goesButton{this, None, "GOES"}
-    , ciraButton{this, None, "CIRA satellite and guidance"}
+    , ciraButton{this, None, "CIRA pictures...", "CIRA satellite and guidance pictures of the storm"}
     , text{this}
     , goesUrl{stormData.goesUrl}
     , product{"MIATCP" + stormData.binNumber}

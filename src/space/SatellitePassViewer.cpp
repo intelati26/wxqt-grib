@@ -79,8 +79,8 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
     }
     auto * add = UiStandards::button(top, "Add a place...", "Add a place of your own to the list");
     auto * remove = UiStandards::button(top, "Remove", "Remove the place chosen (storms and saved locations stay)");
-    auto * map = UiStandards::button(top, "Swaths on the map...", "The master map with the swaths of these passes");
-    auto * open = UiStandards::button(top, "Pass on the map...", "The master map at the time of the selected pass, on its place, with the layers that show what the instrument saw (double-click a row does the same)");
+    auto * map = UiStandards::button(top, "Swaths on map...", "The master map with the swaths of these passes");
+    auto * open = UiStandards::button(top, "Pass on map...", "The master map at the time of the selected pass, on its place, with the layers that show what the instrument saw (double-click a row does the same)");
     auto * refresh = UiStandards::button(top, "Refresh", "Work the passes out again");
     for (auto * w : std::vector<QWidget *>{placeBox, hoursBox, kindBox, satelliteBox, add, remove, open, map, refresh}) {
         layout->addWidget(w);

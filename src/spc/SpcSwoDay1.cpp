@@ -18,7 +18,7 @@ SpcSwoDay1::SpcSwoDay1(Window * parent, int day)
     : Window{parent}
     , sw{this, imageVBox, boxText}
     , text{this}
-    , button{this, Icon::None, "State Graphics"}
+    , button{this, Icon::None, "State graphics", "The state graphics"}
     , launchStateShortcut{QKeySequence{"S"}, this}
 {
     setTitle("SPC Convective Outlook Day " + To::string(day));
