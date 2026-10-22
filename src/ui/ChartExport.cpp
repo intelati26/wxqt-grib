@@ -56,6 +56,14 @@ QString ChartExport::startFolder() { return startFolderImpl(); }
 void ChartExport::remember(const QString& path) { rememberImpl(path); }
 QString ChartExport::fileName(const QString& title, const QString& extension) { return fileNameImpl(title, extension); }
 
+QString ChartExport::askSave(QWidget * parent, const QString& caption, const QString& title, const QString& extension, const QString& filter, QString * selectedFilter) {
+    const auto path = QFileDialog::getSaveFileName(parent, caption, startFolderImpl() + "/" + fileNameImpl(title, extension), filter, selectedFilter);
+    if (!path.isEmpty()) {
+        rememberImpl(path);
+    }
+    return path;
+}
+
 bool ChartExport::exporting() {
     // only while a picture is being made, and only when "plots only" is chosen in the menu: the default is the whole chart as it is on the screen
     return exportDepth > 0 && Utility::readPref("CHART_EXPORT_PLOTS_ONLY", "false") == "true";

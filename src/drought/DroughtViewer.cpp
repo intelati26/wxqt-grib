@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartExport.h"
 #include "ui/ChartPainter.h"
 #include "drought/DroughtViewer.h"
 #include <algorithm>
@@ -164,7 +165,7 @@ namespace {
 namespace {
     // A chart, map or table as a picture: drawn at twice its size on white with dark text whatever the dark mode of the window, written as PNG where the user chooses
     void savePicture(QWidget * widget, const QString& name) {
-        const auto target = QFileDialog::getSaveFileName(widget->window(), "Save the picture", QString{"%1_%2.png"}.arg(name, QDate::currentDate().toString("yyyyMMdd")), "PNG pictures (*.png)");
+        const auto target = ChartExport::askSave(widget->window(), "Save the picture", name, "png", "PNG pictures (*.png)");
         if (target.isEmpty()) {
             return;
         }
@@ -1361,7 +1362,7 @@ void DroughtViewer::exportHistory() {
         QMessageBox::information(this, "Export", "The history of this area is still being built: try again in a moment.");
         return;
     }
-    const auto target = QFileDialog::getSaveFileName(this, "Export the history", QString{"drought_history_%1.csv"}.arg(QString::fromStdString(areaId)), "CSV files (*.csv)");
+    const auto target = ChartExport::askSave(this, "Export the history", "drought history " + QString::fromStdString(areaId), "csv", "CSV files (*.csv)");
     if (target.isEmpty()) {
         return;
     }

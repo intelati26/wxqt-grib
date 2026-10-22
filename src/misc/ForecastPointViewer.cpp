@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartExport.h"
 #include "ui/ChartPainter.h"
 #include "misc/ForecastPointViewer.h"
 #include <algorithm>
@@ -1136,7 +1137,7 @@ namespace {
             if (image.isNull()) {
                 return;
             }
-            const auto target = QFileDialog::getSaveFileName(this, "Save the forecast points as a picture", "forecast_points.png", "PNG images (*.png)");
+            const auto target = ChartExport::askSave(this, "Save the forecast points as a picture", "forecast points", "png", "PNG images (*.png)");
             if (target.isEmpty()) {
                 return;
             }
@@ -1147,7 +1148,7 @@ namespace {
             if (text.isEmpty()) {
                 return;
             }
-            const auto target = QFileDialog::getSaveFileName(this, "Save the forecast points", "forecast_points.csv", "CSV files (*.csv)");
+            const auto target = ChartExport::askSave(this, "Save the forecast points", "forecast points", "csv", "CSV files (*.csv)");
             if (target.isEmpty()) {
                 return;
             }

@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ChartExport.h"
 #include "objects/UtilityAnimationExport.h"
 #include "objects/AnimationRenderer.h"
 #include "misc/ImageViewer.h"
@@ -820,7 +821,7 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
         return text;
     };
     const auto datedBase = windowsSafe(datePrefix ? datedName(name, metaSource) : name);
-    const auto picturesDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    const auto picturesDir = ChartExport::startFolder();   // (the folder of the last save, as every other screen)
     const auto stem = picturesDir.isEmpty() ? datedBase : picturesDir + "/" + datedBase;
     QString selectedFilter = filters.first();
     const auto fileName = QFileDialog::getSaveFileName(parent, caption, stem + "." + ordered.front().ext,
@@ -828,6 +829,7 @@ bool UtilityAnimationExport::saveWithDialog(QWidget * parent, const vector<QByte
     if (fileName.isEmpty()) {
         return false;   // the user cancelled
     }
+    ChartExport::remember(fileName);
     if (selectedFilter == helpFilter) {
         showInstallHelp(parent, missingTools);
         return false;

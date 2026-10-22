@@ -20,6 +20,9 @@ namespace ChartExport {
     QImage render(QWidget * chart, const QString& title, int scale = 2);
     QString startFolder();                     // where the last picture was saved (the pictures folder at first)
     void remember(const QString& path);
+    // the one way to ask where to save anything a screen makes (a picture, a table, a loop): the folder of the last save, a name from the title and the time, and the folder remembered after.
+    // Empty when cancelled. `selectedFilter` is filled with the filter chosen when given.
+    QString askSave(QWidget * parent, const QString& caption, const QString& title, const QString& extension, const QString& filter, QString * selectedFilter = nullptr);
     QString fileName(const QString& title, const QString& extension);   // "master_map_20261008_1530.png"
     bool savePng(QWidget * chart, const QString& title, const QString& path);
     bool savePdf(QWidget * chart, const QString& title, const QString& path);

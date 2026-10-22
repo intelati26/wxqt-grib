@@ -4,6 +4,7 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include "ui/ChartExport.h"
 #include "SpcStormReports.h"
 #include <algorithm>
 #include <set>
@@ -199,7 +200,7 @@ void SpcStormReports::exportCsv() {
         out += QString::fromStdString(type) + "," + quote(r.time) + "," + quote(r.magnitude) + "," + quote(r.address) + "," + quote(r.city) + "," + quote(r.state) + "," + QString::fromStdString(r.lat) + "," + QString::fromStdString(r.lon) + "," + quote(r.damageReport) + "\n";
         rows++;
     }
-    const auto target = QFileDialog::getSaveFileName(this, "Export the storm reports", QString{"storm_reports_%1.csv"}.arg(QString::fromStdString(spcStormReportsDay)), "CSV files (*.csv)");
+    const auto target = ChartExport::askSave(this, "Export the storm reports", "storm reports " + QString::fromStdString(spcStormReportsDay), "csv", "CSV files (*.csv)");
     if (target.isEmpty()) {
         return;
     }
