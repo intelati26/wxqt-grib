@@ -33,6 +33,7 @@
 #include "hurricane/Coast.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "mapkit/ModelChartLayer.h"
+#include "ui/ExportDialog.h"
 #include "mapkit/OfficeAreas.h"
 #include "climate/UtilityAcisClimate.h"
 #include "gfs/GfsChart.h"
@@ -1328,10 +1329,12 @@ bool MasterMapViewer::saveModelChart(const QString& path, string& problem) {
             if (!static_cast<ModelChartLayer *>(layer.get())->titled(*this, image, problem, -1, &probe)) {
                 return false;
             }
-            if (!officeOutline.empty() && probe.valid()) {   // an area is outlined on the map: the picture keeps it at full color and veils the rest (asked once)
-                if (qEnvironmentVariable("WXQT_VEIL") == "yes" || QMessageBox::question(this, "Export the view", QString::fromStdString("Keep " + officeLabel + " at full color and make the rest of the chart lighter?")) == QMessageBox::Yes) {   // (the variable is for testing)
+            const bool veilIt = !exportMask.empty() || (qEnvironmentVariable("WXQT_VEIL") == "yes" && !officeOutline.empty());   // (the variable is for testing the outline chosen on the map)
+            if (veilIt && probe.valid()) {   // the area chosen at full color, the rest of the chart lighter, its outline drawn
+                const auto & rings = !exportMask.empty() ? exportMask : officeOutline;
+                {
                     QPainterPath inside;
-                    for (const auto& ring : officeOutline) {
+                    for (const auto& ring : rings) {
                         QPolygonF shape;
                         for (const auto& point : ring) {
                             double fx = 0, fy = 0;
@@ -1683,104 +1686,77 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
     status("Saved " + path.toStdString());
 }
 
+// Export: one window asks what to save (the view, the whole world, a model chart titled, a loop of its hours) and the choices that go with it (an area at full color, a lighter ACIS map behind);
+// the drawing is the screen's, the question and the file name are the reusable ones (ExportDialog, ChartExport::askSave)
 void MasterMapViewer::exportView() {
-    {   // the view as it is, or the whole world on an equal-area projection
-        QMessageBox ask{this};
-        ask.setWindowTitle("Export");
-        ask.setText("Save the view as it is on the screen, or the whole world on a world map projection (Robinson, Equal Earth, Mollweide: nothing stretched toward the poles)?");
-        auto * viewButton = ask.addButton("The view", QMessageBox::AcceptRole);
-        auto * worldButton = ask.addButton("The whole world", QMessageBox::ActionRole);
-        ask.addButton(QMessageBox::Cancel);
-        ask.exec();
-        if (ask.clickedButton() == worldButton) {
-            exportWorld();
-            return;
-        }
-        if (ask.clickedButton() != viewButton) {
-            return;
-        }
-    }
-    // A model chart on the map can be saved as the Model Viewer's own picture of it (its title with the model, chart, run and valid times, the legend and the credit), for what is in view
+    const ModelChartLayer * chart = nullptr;
     for (const auto& layer : layers) {
-        if (layer->id() != "model/chart" || !layer->enabled()) {
-            continue;
+        if (layer->id() == "model/chart" && layer->enabled()) {
+            chart = static_cast<const ModelChartLayer *>(layer.get());
         }
-        QMessageBox ask{this};
-        ask.setWindowTitle("Export the view");
-        ask.setText("A model chart is on the map. Save it as the Model Viewer's picture (with its title, run and valid times and legend), or the map as it is?");
-        auto * titledButton = ask.addButton("Model chart, titled", QMessageBox::AcceptRole);
-        auto * loopButton = ask.addButton("Loop of hours, titled", QMessageBox::ActionRole);
-        auto * mapButton = ask.addButton("The map as it is", QMessageBox::ActionRole);
-        ask.addButton(QMessageBox::Cancel);
-        ask.exec();
-        if (ask.clickedButton() == titledButton) {
-            const auto path = QFileDialog::getSaveFileName(this, "Save the model chart", ChartExport::startFolder() + "/" + ChartExport::fileName("model chart", "png"), "PNG image (*.png)");
-            if (path.isEmpty()) {
-                return;
-            }
-            string problem;
-            if (!saveModelChart(path, problem)) {
-                QMessageBox::warning(this, "Export the view", QString::fromStdString(problem));
-                return;
-            }
-            ChartExport::remember(path);
-            status("Saved " + path.toStdString());
-            return;
-        }
-        if (ask.clickedButton() == loopButton) {
-            saveModelLoop();
-            return;
-        }
-        if (ask.clickedButton() != mapButton) {
-            return;
-        }
-        break;
     }
-    QString filter;
-    const auto path = QFileDialog::getSaveFileName(this, "Export the view", ChartExport::startFolder() + "/" + ChartExport::fileName("master map", "png"),
-                                                   "PNG image (*.png);;PDF document (*.pdf)", &filter);
-    if (path.isEmpty()) {
+    ExportDialog ask{this, "Export", "Save what is on the map. An area at full color applies to the picture of the view and to a model chart; the lighter ACIS map to the picture of the view."};
+    ask.addKind("view", "The view as it is (PNG or PDF)", "What is on the screen, with its header, legend and credits");
+    ask.addKind("world", "The whole world on a world map projection", "Robinson, Equal Earth, Mollweide or the poles: nothing stretched toward the poles");
+    if (chart != nullptr) {
+        ask.addKind("titled", "The model chart, titled (the Model Viewer's picture)", "With its title, run and valid times, the legend and the credit");
+        ask.addKind("loop", "The model chart as a loop of hours, titled", "Every hour of the run drawn so far, as a loop");
+        ask.selectKind("titled");
+    }
+    {   // the areas of the NWS: the one outlined on the map is the first choice
+        std::vector<std::pair<QString, QString>> areas{{"", "None (the whole picture at full color)"}};
+        string problem;
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        for (const auto& [kind, prefix, word] : {std::tuple<string, string, string>{"cwa", "CWA:", "Office"}, {"rfc", "RFC:", "River forecast center"}, {"state", "ST:", "State"}}) {
+            for (const auto& o : OfficeAreas::all(problem, kind)) {
+                areas.push_back({QString::fromStdString(prefix + o.id), QString::fromStdString(word + " " + o.id + "  " + o.name)});
+            }
+        }
+        QApplication::restoreOverrideCursor();
+        ask.addOption("area", "Area at full color (the rest lighter)", areas, QString::fromStdString(officeId), {"view", "titled"});
+    }
+    {
+        std::vector<std::pair<QString, QString>> fills{{"", "No fill"}};
+        for (const auto& product : AcisClimate::products()) {
+            fills.push_back({QString::fromStdString(product.id), product.label});
+        }
+        ask.addOption("fill", "Lighter ACIS map behind the whole picture", fills, "", {"view"});
+    }
+    if (ask.exec() != QDialog::Accepted) {
         return;
     }
-    ChartExport::remember(path);
-    {   // two choices for any map: a forecast office's area at full color with the rest veiled, and the lighter ACIS map under it all (the temperature or the rain against normal)
-        QDialog ask{this};
-        ask.setWindowTitle("Export");
-        auto * form = new QFormLayout{&ask};
-        auto * office = new QComboBox{&ask};
-        office->addItem("No area (the whole picture at full color)", "");
-        string problem;
-        {
-            QApplication::setOverrideCursor(Qt::WaitCursor);
-            for (const auto& [kind, prefix, word] : {std::tuple<string, string, string>{"cwa", "CWA:", "Office"}, {"rfc", "RFC:", "River forecast center"}, {"state", "ST:", "State"}}) {
-                for (const auto& o : OfficeAreas::all(problem, kind)) {
-                    office->addItem(QString::fromStdString(word + " " + o.id + "  " + o.name), QString::fromStdString(prefix + o.id));
-                }
-            }
-            QApplication::restoreOverrideCursor();
-        }
-        auto * fill = new QComboBox{&ask};
-        fill->addItem("No fill", "");
-        for (const auto& product : AcisClimate::products()) {
-            fill->addItem(product.label, QString::fromStdString(product.id));
-        }
-        if (const auto at = office->findData(QString::fromStdString(officeId)); at > 0) {
-            office->setCurrentIndex(at);   // the area outlined on the map
-        }
-        form->addRow("Area at full color (the rest lighter)", office);
-        form->addRow("Lighter ACIS map behind the whole picture", fill);
-        if (!problem.empty() && office->count() == 1) {
-            form->addRow(new QLabel{QString::fromStdString(problem)});
-        }
-        auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &ask};
-        QObject::connect(buttons, &QDialogButtonBox::accepted, &ask, &QDialog::accept);
-        QObject::connect(buttons, &QDialogButtonBox::rejected, &ask, &QDialog::reject);
-        form->addRow(buttons);
-        if (ask.exec() != QDialog::Accepted) {
+    const auto kind = ask.kind();
+    if (kind == "world") {
+        exportWorld();
+        return;
+    }
+    if (kind == "loop") {
+        saveModelLoop();
+        return;
+    }
+    setExportOffice(ask.value("area").toStdString());
+    exportContextProduct = ask.value("fill").toStdString();
+    struct Reset {   // (whatever was asked belongs to this one export)
+        MasterMapViewer * self;
+        ~Reset() { self->exportMask.clear(); self->exportMaskName.clear(); self->exportContextProduct.clear(); }
+    } reset{this};
+    if (kind == "titled") {
+        const auto path = ChartExport::askSave(this, "Save the model chart", "model chart", "png", "PNG image (*.png)");
+        if (path.isEmpty()) {
             return;
         }
-        exportContextProduct = fill->currentData().toString().toStdString();
-        setExportOffice(office->currentData().toString().toStdString());
+        string problem;
+        if (!saveModelChart(path, problem)) {
+            QMessageBox::warning(this, "Export the view", QString::fromStdString(problem));
+            return;
+        }
+        status("Saved " + path.toStdString());
+        return;
+    }
+    QString filter;
+    const auto path = ChartExport::askSave(this, "Export the view", "master map", "png", "PNG image (*.png);;PDF document (*.pdf)", &filter);
+    if (path.isEmpty()) {
+        return;
     }
     exportTo(path);
 }

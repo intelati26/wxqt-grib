@@ -52,6 +52,7 @@
 #include "hurricane/HafsIntensity.h"
 #include <QBuffer>
 #include "ui/ChartExport.h"
+#include "ui/ExportDialog.h"
 #include "models/UtilityModelNcepInterface.h"
 #include "gfs/GfsChart.h"
 #include "hurricane/HurricaneViewer.h"
@@ -370,6 +371,19 @@ int main(int argc, char * argv[]) {
                         }
                         fprintf(stderr, "MAGCHECK %s vs %s: %d of %d drawn; missing:%s\n", list.picture, grib, have, static_cast<int>(list.ids->size()), missing.c_str());
                     }
+                }
+                if (qEnvironmentVariableIsSet("WXQT_EXPORTDLG")) {   // WXQT_EXPORTDLG=<file>: the reusable export window with sample kinds and options, as a picture, then quits
+                    const auto file = qEnvironmentVariable("WXQT_EXPORTDLG");
+                    ExportDialog dialog{nullptr, "Export", "Save what is on the map. An area at full color applies to the picture of the view and to a model chart; the lighter ACIS map to the picture of the view."};
+                    dialog.addKind("view", "The view as it is (PNG or PDF)", "");
+                    dialog.addKind("world", "The whole world on a world map projection", "");
+                    dialog.addKind("titled", "The model chart, titled (the Model Viewer's picture)", "");
+                    dialog.addKind("loop", "The model chart as a loop of hours, titled", "");
+                    dialog.selectKind("titled");
+                    dialog.addOption("area", "Area at full color (the rest lighter)", {{"", "None (the whole picture at full color)"}, {"CWA:SGF", "Office SGF  Springfield, MO"}}, "CWA:SGF", {"view", "titled"});
+                    dialog.addOption("fill", "Lighter ACIS map behind the whole picture", {{"", "No fill"}, {"avgt-dep", "Average temperature, departure from normal"}}, "", {"view"});
+                    QTimer::singleShot(600, &dialog, [&dialog, file] { dialog.grab().save(file); dialog.reject(); });
+                    dialog.exec();
                 }
                 if (qEnvironmentVariableIsSet("WXQT_MENU")) {   // WXQT_MENU=<file>: the one right-click save menu on a picture (and on a widget) as a picture, then quits
                     const auto file = qEnvironmentVariable("WXQT_MENU");
