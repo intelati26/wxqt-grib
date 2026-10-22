@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include "gfs/GfsRender.h"
+#include "gfs/ChartHours.h"
 #include "models/ObjectModel.h"
 #include <QPointer>
 #include "models/ProductPicker.h"
@@ -232,18 +233,9 @@ private:
     void getRun();
     std::vector<string> allTimes;         // every hour the model offers; objectModel.times is the part the run on show reaches (the RRFS's hourly runs stop at 18 h)
     void fitHoursToRun();
-    std::map<string, std::vector<int>> fieldHours;   // "run|chart" -> the hours an SPC REFS field has (its own time coordinate)
-    std::set<string> fieldHoursAsked;
-    struct Availability {
-        std::vector<int> hours;   // the hours whose index has every record of the chart (empty: nothing could be told)
-        qint64 when{0};
-        bool complete{false};     // every hour asked about is there: no need to ask again
-    };
-    std::map<string, Availability> availability;   // "model|run|chart" (and the storm)
-    std::set<string> availabilityAsked;
-    string availabilityKey() const;
-    void askAvailability(const std::vector<string>& hourList);
-    void askFieldHours();
+    ChartHours::Book hourBook;   // the hours each chart has for each run, as asked of ChartHours (the map's chart layer asks the same)
+    string hoursKey() const;
+    void askHours(const std::vector<string>& hourList);
     void applyPinnedRun();
     void recheckRuns();                   // every 15 minutes: has a newer run been published?
     QTimer recheckTimer;

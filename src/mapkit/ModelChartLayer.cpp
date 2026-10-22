@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/ModelChartLayer.h"
+#include "gfs/ChartHours.h"
 #include "gfs/BarbGrid.h"
 #include "ui/WindBarb.h"
 #include <algorithm>
@@ -75,25 +76,6 @@ ModelChartLayer::ModelChartLayer() {
 
 string ModelChartLayer::runOf() const {
     return run;
-}
-
-// the forecast hours the run has: the model's own list, cut at the length of the run of that cycle
-static std::vector<int> hoursOf(const string& model, const string& run) {
-    std::vector<int> out;
-    const auto * def = GfsModels::find(model);
-    if (def == nullptr || run.size() < 10) {
-        return out;
-    }
-    const int cycle = std::stoi(run.substr(8, 2));
-    const int last = def->runLength ? def->runLength(cycle) : 100000;
-    for (const auto& range : def->hours) {
-        for (int h = range.from; h <= range.to; h += std::max(1, range.step)) {
-            if (h <= last) {
-                out.push_back(h);
-            }
-        }
-    }
-    return out;
 }
 
 vector<long> ModelChartLayer::times() const {
@@ -378,21 +360,55 @@ void ModelChartLayer::settle() {
         note = "This chart is drawn from the " + moved + " run, not the " + runChosen + " one: " + product->label + " exists only in the " + (step == 12 ? "00 and 12Z" : "00, 06, 12 and 18Z") + " runs (the others carry 1 hour fields only).";
         run = moved;
     }
-    hours = hoursOf(model, run);
-    if (product != nullptr && product->periodHours > 0 && run.size() >= 10) {
-        const int cycle = std::stoi(run.substr(8, 2)), period = product->periodHours, endHour = product->periodEndHourUtc;
-        std::vector<int> kept;
-        for (const int h : hours) {
-            if (h >= period && h % period == 0 && (endHour < 0 || (cycle + h) % 24 == endHour)) {
-                kept.push_back(h);
+    // the hours of this run for this chart: the rules (the run's length, a period that ends at the hour) and what the run's data has: the answer of ChartHours, the same as the Model Viewer's
+    hours.clear();
+    if (run.size() >= 10) {
+        const int cycle = std::stoi(run.substr(8, 2));
+        const auto rules = ChartHours::rules(model, param, cycle, ChartHours::modelHours(model, 100));   // (the model's whole list: the rules cut it at this run's length)
+        hours = rules.hours;
+        if (const auto * known = book.find(ChartHours::Book::key(model, run, param)); known != nullptr && !known->hours.empty()) {
+            std::vector<int> kept;
+            for (const int h : hours) {
+                if (std::find(known->hours.begin(), known->hours.end(), h) != known->hours.end()) {
+                    kept.push_back(h);
+                }
+            }
+            if (!kept.empty()) {
+                hours = kept;
             }
         }
-        if (!kept.empty() && kept.size() < hours.size()) {
-            hours = kept;
-            note += string{note.empty() ? "" : "  "} + "This chart is of the " + std::to_string(period) + " hours that end at the forecast hour: the time bar lists only the hours the " + run.substr(8, 2) + "Z run has it at" +
-                    (endHour >= 0 ? " (those that end at " + std::to_string(endHour) + "Z)." : ".");
+        if (rules.periodCut) {
+            note += string{note.empty() ? "" : "  "} + "This chart is of the " + std::to_string(rules.period) + " hours that end at the forecast hour: the time bar lists only the hours the " + run.substr(8, 2) + "Z run has it at" +
+                    (rules.endHourUtc >= 0 ? " (those that end at " + std::to_string(rules.endHourUtc) + "Z)." : ".");
         }
     }
+}
+
+// which of the hours the run really has the chart for, asked of the run's data in the background (the same question, and the same code, as the Model Viewer's hour list)
+void ModelChartLayer::askHours(MapHost& host) {
+    if (run.size() < 10 || hours.empty() || !GfsRender::handles(model, param)) {
+        return;
+    }
+    const auto key = ChartHours::Book::key(model, run, param);
+    if (!book.wantsAsking(key) || !book.begin(key)) {
+        return;
+    }
+    const auto modelNow = model, paramNow = param, runNow = run;
+    const auto listed = ChartHours::rules(model, param, std::stoi(run.substr(8, 2)), ChartHours::modelHours(model, 100)).hours;
+    auto found = std::make_shared<std::vector<int>>();
+    host.background([found, modelNow, paramNow, runNow, listed] {
+        GfsRender::Session session;
+        *found = ChartHours::present(session, modelNow, paramNow, runNow, listed);
+    }, [this, found, key, listed, &host] {
+        book.put(key, *found, listed.size());
+        const auto before = hours;
+        settle();
+        if (hours != before) {
+            fillAhead(aheadCount());
+            host.timesChanged();
+            host.redraw();
+        }
+    });
 }
 
 void ModelChartLayer::forget() {
@@ -566,6 +582,7 @@ static double achievable(double west, double east, int widthNow) {
 }
 
 void ModelChartLayer::render(MapHost& host) {
+    askHours(host);   // (once for each run and chart; again while hours are still missing)
     if (busy || run.size() < 10 || hours.empty()) {
         return;
     }

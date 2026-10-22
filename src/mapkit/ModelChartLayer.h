@@ -13,6 +13,7 @@
 #include "gfs/GfsChart.h"
 #include "gfs/GfsRender.h"
 class Window;
+#include "gfs/ChartHours.h"
 #include "mapkit/MapLayer.h"
 
 // Any chart of the Model Viewer (any model, any of its charts: the fill, the lines, the barbs) as a layer of the scrollable master map: the chart is drawn for the part of the world in view (a
@@ -90,6 +91,8 @@ private:
     bool visibleBox(MapHost&, double& west, double& south, double& east, double& north) const;
     void render(MapHost&);
     string keyFor(int hour) const;
+    void askHours(MapHost&);                   // the hours the run has the chart for (ChartHours::present, in the background)
+    ChartHours::Book book;
     void settle();                             // run and hours from the run chosen and the chart's rules (main runs only, hours it has)
     void forget();                             // every picture drawn so far is of another chart, run or variant
     int aheadCount() const;                    // how many hours after the one shown are drawn in the background (the setting; automatic: the model's own number)

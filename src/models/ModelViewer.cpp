@@ -27,6 +27,7 @@
 #include <map>
 #include <memory>
 #include "gfs/GfsModels.h"
+#include "gfs/ChartHours.h"
 #include "hurricane/HafsIntensity.h"
 #include "gfs/GfsRender.h"
 #include "settings/Location.h"
@@ -1446,54 +1447,42 @@ void ModelViewer::applyMainRunRule() {
 // The hours of the list as far as the run on show goes: a model whose runs differ in length (the RRFS: 84 hours from 00, 06, 12 and 18Z, 18 from the others) lists only the hours
 // the run has; an hour past its end moves to its last hour
 void ModelViewer::fitHoursToRun() {
-    const auto * def = GfsRender::drawsModel(objectModel.model) ? GfsModels::find(objectModel.model) : nullptr;
+    const bool grib = GfsRender::drawsModel(objectModel.model);
     if (allTimes.empty()) {
         return;
     }
     std::vector<string> wanted = allTimes;
-    if (def != nullptr && def->runLength && objectModel.run.size() >= 2 && std::isdigit(static_cast<unsigned char>(objectModel.run[0]))) {
-        const int last = def->runLength(std::atoi(objectModel.run.substr(0, 2).c_str()));
+    if (grib && objectModel.run.size() >= 2 && std::isdigit(static_cast<unsigned char>(objectModel.run[0]))) {
+        // the rules of the model and the chart (the length of this run, a period that ends at the hour), then what the run's data has: the same answer as the map's chart layer (ChartHours)
+        std::vector<int> listed;
+        for (const auto& t : allTimes) {
+            listed.push_back(std::atoi(t.c_str()));
+        }
+        const auto rules = ChartHours::rules(objectModel.model, objectModel.param, std::atoi(objectModel.run.substr(0, 2).c_str()), listed);
         wanted.clear();
         for (const auto& t : allTimes) {
-            if (std::atoi(t.c_str()) <= last) {
+            if (std::find(rules.hours.begin(), rules.hours.end(), std::atoi(t.c_str())) != rules.hours.end()) {
                 wanted.push_back(t);
             }
         }
         if (wanted.empty()) {
             wanted = allTimes;
         }
-    }
-    if (objectModel.model == "SPCREFS") {   // a field of SPC's store has its own hours: 3 or 6 hourly, the 12 and 24 hour periods that end at 00 and 12Z
-        const auto when = runTime(objectModel.run);
-        const auto known = fieldHours.find((when.isValid() ? when.toString("yyyyMMddHH").toStdString() : objectModel.run) + "|" + objectModel.param);
-        if (known == fieldHours.end()) {
-            askFieldHours();
-        } else if (!known->second.empty()) {
-            std::vector<string> kept;
-            for (const auto& t : wanted) {
-                if (std::find(known->second.begin(), known->second.end(), std::atoi(t.c_str())) != known->second.end()) {
-                    kept.push_back(t);
+        if (runTime(objectModel.run).isValid() && GfsRender::handles(objectModel.model, objectModel.param)) {
+            const auto key = hoursKey();
+            if (hourBook.wantsAsking(key)) {
+                askHours(wanted);
+            }
+            if (const auto * known = hourBook.find(key); known != nullptr && !known->hours.empty()) {
+                std::vector<string> kept;
+                for (const auto& t : wanted) {
+                    if (std::find(known->hours.begin(), known->hours.end(), std::atoi(t.c_str())) != known->hours.end()) {
+                        kept.push_back(t);
+                    }
                 }
-            }
-            if (!kept.empty()) {
-                wanted = kept;
-            }
-        }
-    }
-    if (def != nullptr && objectModel.model != "SPCREFS" && objectModel.run.size() >= 2 && runTime(objectModel.run).isValid()) {   // the hours the run's index has every record of the chart for (an hour not uploaded yet, a period the chart has none of, the hour 0 of an accumulation)
-        const auto known = availability.find(availabilityKey());
-        if (known == availability.end() || (!known->second.complete && QDateTime::currentSecsSinceEpoch() - known->second.when > 300)) {
-            askAvailability(wanted);
-        }
-        if (known != availability.end() && !known->second.hours.empty()) {
-            std::vector<string> kept;
-            for (const auto& t : wanted) {
-                if (std::find(known->second.hours.begin(), known->second.hours.end(), std::atoi(t.c_str())) != known->second.hours.end()) {
-                    kept.push_back(t);
+                if (!kept.empty()) {
+                    wanted = kept;
                 }
-            }
-            if (!kept.empty()) {
-                wanted = kept;
             }
         }
     }
@@ -1525,57 +1514,22 @@ void ModelViewer::fitHoursToRun() {
     }
 }
 
-// the hours of the SPC REFS field on show, read from its store in the background; the list is fitted to them when they come
-void ModelViewer::askFieldHours() {
+string ModelViewer::hoursKey() const {
+    const auto when = runTime(objectModel.run);
+    return ChartHours::Book::key(objectModel.model, when.isValid() ? when.toString("yyyyMMddHH").toStdString() : objectModel.run, objectModel.param, GfsModels::isStormModel(objectModel.model) ? objectModel.sector : string{});
+}
+
+// which of the hours the run has the chart on show for (SPC's store: its time axes; the other models: the run's indexes), asked in the background and kept in the book; the list is fitted to the
+// answer when it comes, and asked again every five minutes while hours are still missing (a run being uploaded). The map's chart layer asks the same question of the same code.
+void ModelViewer::askHours(const std::vector<string>& hourList) {
     const auto when = runTime(objectModel.run);
     if (!when.isValid()) {
         return;
     }
-    const auto runId = when.toString("yyyyMMddHH").toStdString();
-    const auto key = runId + "|" + objectModel.param;
-    if (fieldHoursAsked.count(key) != 0) {
+    const auto key = hoursKey();
+    if (!hourBook.begin(key)) {
         return;
     }
-    fieldHoursAsked.insert(key);
-    const auto param = objectModel.param;
-    auto hours = std::make_shared<std::vector<int>>();
-    std::vector<string> variables{param};   // a chart of several fields (lines of another one over it) has the hours all of them have
-    if (const auto * product = GfsChart::product(param, "SPCREFS")) {
-        variables.clear();
-        for (const auto& want : product->wants) {
-            variables.push_back(want.variable);
-        }
-    }
-    new FutureVoid{this, [runId, variables, hours] { *hours = SpcRefsLoader::fieldHours(GfsData::Run{runId.substr(0, 8), runId.substr(8, 2)}, variables); }, [this, key, hours] {
-        fieldHours[key] = *hours;
-        const auto before = objectModel.getTime();
-        fitHoursToRun();
-        if (objectModel.getTime() != before) {
-            reload();
-        }
-    }};
-}
-
-string ModelViewer::availabilityKey() const {
-    const auto when = runTime(objectModel.run);
-    return objectModel.model + "|" + (when.isValid() ? when.toString("yyyyMMddHH").toStdString() : objectModel.run) + "|" + objectModel.param + (GfsModels::isStormModel(objectModel.model) ? "|" + objectModel.sector : string{});
-}
-
-// which of the hours the run has the chart on show for, read from the run's indexes in the background (a few small files, read once for every chart of the run); the list is fitted to the answer
-// when it comes, and asked again every five minutes while hours are still missing (a run being uploaded)
-void ModelViewer::askAvailability(const std::vector<string>& hourList) {
-    if (!GfsRender::handles(objectModel.model, objectModel.param)) {
-        return;
-    }
-    const auto when = runTime(objectModel.run);
-    if (!when.isValid()) {
-        return;
-    }
-    const auto key = availabilityKey();
-    if (availabilityAsked.count(key) != 0) {
-        return;
-    }
-    availabilityAsked.insert(key);
     if (!gfsSession) {
         gfsSession = std::make_shared<GfsRender::Session>();
     }
@@ -1587,9 +1541,8 @@ void ModelViewer::askAvailability(const std::vector<string>& hourList) {
     for (const auto& t : hourList) {
         asked.push_back(std::atoi(t.c_str()));
     }
-    new FutureVoid{this, [session, model, param, runId, storm, asked, hours] { *hours = GfsRender::availableHours(*session, model, param, runId, asked, storm); }, [this, key, hours, asked] {
-        availabilityAsked.erase(key);
-        availability[key] = {*hours, QDateTime::currentSecsSinceEpoch(), hours->size() == asked.size()};
+    new FutureVoid{this, [session, model, param, runId, storm, asked, hours] { *hours = ChartHours::present(*session, model, param, runId, asked, storm); }, [this, key, hours, asked] {
+        hourBook.put(key, *hours, asked.size());
         const auto before = objectModel.getTime();
         fitHoursToRun();
         if (objectModel.getTime() != before) {
