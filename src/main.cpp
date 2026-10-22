@@ -53,6 +53,7 @@
 #include <QBuffer>
 #include "ui/ChartExport.h"
 #include "ui/ExportDialog.h"
+#include "sounding/SoundingHazard.h"
 #include "models/UtilityModelNcepInterface.h"
 #include "gfs/GfsChart.h"
 #include "hurricane/HurricaneViewer.h"
@@ -371,6 +372,41 @@ int main(int argc, char * argv[]) {
                         }
                         fprintf(stderr, "MAGCHECK %s vs %s: %d of %d drawn; missing:%s\n", list.picture, grib, have, static_cast<int>(list.ids->size()), missing.c_str());
                     }
+                }
+                if (qEnvironmentVariableIsSet("WXQT_HAZARD_TEST")) {   // WXQT_HAZARD_TEST=1: the hazard flow chart on made-up parameters (every outcome), printed
+                    SoundingProfile profile;
+                    profile.pres = {1000, 500};
+                    profile.hght = {100, 5500};
+                    profile.tmpc = {-3, -30};
+                    profile.dwpc = {-5, -35};
+                    profile.wdir = {270, 270};
+                    profile.wspd = {40, 60};
+                    profile.finalize();
+                    const auto run = [&] (const char * name, const std::function<void(SoundingAnalysis&)>& set, double pwMean = -9999.0) {
+                        SoundingAnalysis a;
+                        a.effective.valid = true;
+                        a.effective.botAgl = 0.0;
+                        a.ml.valid = a.mu.valid = a.sb.valid = true;
+                        a.ml.cin = a.mu.cin = -10.0;
+                        a.sb.lclHght = 500.0;
+                        a.ml.lclHght = 700.0;
+                        set(a);
+                        SoundingHazard::Input in;
+                        in.pwMeanIn = pwMean;
+                        in.pwSigmaIn = pwMean > 0 ? 0.2 : -9999.0;
+                        fprintf(stderr, "HAZTEST %s -> %s\n", name, SoundingHazard::classify(profile, a, in).type.c_str());
+                    };
+                    run("pds", [] (SoundingAnalysis& a) { a.stpEffective = 4; a.stpFixed = 4; a.srh01 = 300; a.effectiveSrh = 300; a.kin46.stormRelative = {20, 0}; a.kin8.shear = {30, 20}; a.lowRh = a.midRh = 70; });
+                    run("tor (stpE>=3)", [] (SoundingAnalysis& a) { a.stpEffective = 3.2; a.stpFixed = 1; a.srh01 = 100; });
+                    run("tor (shear)", [] (SoundingAnalysis& a) { a.stpEffective = 1.2; a.kin46.stormRelative = {20, 0}; });
+                    run("mrgl tor", [] (SoundingAnalysis& a) { a.stpEffective = 1.2; a.stpFixed = 0.3; });
+                    run("mrgl tor 2", [] (SoundingAnalysis& a) { a.stpEffective = 1.2; a.effectiveSrh = 160; a.ml.cin = -140; });
+                    run("svr", [] (SoundingAnalysis& a) { a.supercell = 5; });
+                    run("mrgl svr", [] (SoundingAnalysis& a) { a.hail = 0.6; });
+                    run("flash flood", [] (SoundingAnalysis& a) { a.precipitableWaterIn = 2.0; a.corfidi.upshear = {5, 5}; a.corfidi.downshear = {10, 10}; }, 1.0);
+                    run("blizzard", [] (SoundingAnalysis& a) { a.precipitableWaterIn = 0.2; });
+                    run("heat", [] (SoundingAnalysis& a) { a.surfaceRh = 60; });
+                    run("none", [] (SoundingAnalysis&) {});
                 }
                 if (qEnvironmentVariableIsSet("WXQT_EXPORTDLG")) {   // WXQT_EXPORTDLG=<file>: the reusable export window with sample kinds and options, as a picture, then quits
                     const auto file = qEnvironmentVariable("WXQT_EXPORTDLG");

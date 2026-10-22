@@ -50,6 +50,7 @@ private:
     void startBufkit();
     void showBufkitHour();
     void onSave();
+    void showHazards();
     void closeEventCustom() override;
 
     double lon;
@@ -68,6 +69,7 @@ private:
     ComboBox comboParcel;
     ComboBox comboLayout;   // SPC's fixed layout, or the layout that fills the window
     QPushButton * buttonSave;
+    QPushButton * buttonHazard{};   // the flow chart of the possible hazard types for this sounding
     QPushButton * buttonRefine{};   // model mode: fetch every 25 mb level with wind on each (the quick column has 20 levels, wind on 12)
     QCheckBox * checkRefine{};      // always refine (remembered)
     bool refined{false};

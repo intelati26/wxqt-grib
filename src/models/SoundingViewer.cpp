@@ -5,6 +5,9 @@
 
 #include "ui/ChartPainter.h"
 #include "models/SoundingViewer.h"
+#include <QTimer>
+#include "models/SoundingHazardViewer.h"
+#include "sounding/SoundingHazard.h"
 #include "ui/WindBarb.h"
 #include "util/Utility.h"
 #include <algorithm>
@@ -1162,6 +1165,10 @@ private:
             }
             sections.push_back({{"Best guess precip type"}, {{text}}, false});
         }
+        {   // SPC's flow chart of the possible hazard types, run on this sounding (the chart is under the Hazards button)
+            const auto hazard = SoundingHazard::classify(*profile, a);
+            sections.push_back({{"Possible hazard type"}, {{QString::fromStdString(hazard.type)}}, false});
+        }
 
         sections.push_back({{"Corfidi", "Up", "Down", "Crit angle"},
                             {{"dir / kt", a.corfidi.valid() ? num(a.corfidi.upshear.direction(), 0) + "/" + num(a.corfidi.upshear.speed(), 0) : QString{"--"},
@@ -1511,10 +1518,17 @@ void SoundingViewer::build() {
     rowTop.addWidget(comboParcel);
     rowTop.addWidget(comboLayout);
     rowTop.addWidgetReal(buttonSave);
+    buttonHazard = new QPushButton{"Hazards...", this};
+    buttonHazard->setToolTip("SPC's flow chart of the possible hazard types (tornado, severe storms, flash flood, blizzard, excessive heat) drawn with the values of this sounding at each test");
+    QObject::connect(buttonHazard, &QPushButton::clicked, this, [this] { showHazards(); });
+    rowTop.addWidgetReal(buttonHazard);
     box.addLayout(rowTop);
     box.addWidgetReal(canvas, 1, Qt::Alignment{});
     box.getAndShow(this);
     setSize(1000, 640);
+    if (qEnvironmentVariableIsSet("WXQT_HAZARD_PNG")) {   // (for testing: open the hazard chart once the sounding is in)
+        QTimer::singleShot(8000, this, [this] { showHazards(); });
+    }
 }
 
 void SoundingViewer::start() {
@@ -1639,6 +1653,22 @@ void SoundingViewer::startObserved() {
             textInfo.setText(QString::fromStdString(status));
             canvas->setData(&profile, &analysis, QString::fromStdString(status));
         }};
+}
+
+void SoundingViewer::showHazards() {
+    if (!loaded) {
+        return;
+    }
+    double latitude = lat, longitude = lon;
+    if (latitude == 0.0 && longitude == 0.0) {   // an observed sounding: the site's own place
+        latitude = profile.latitude;
+        const auto site = SoundingSites::sites->byCode.find(profile.station.substr(0, 3));
+        if (site != SoundingSites::sites->byCode.end()) {
+            latitude = site->second->latLon.lat();
+            longitude = site->second->latLon.lon();
+        }
+    }
+    new SoundingHazardViewer{this, profile, analysis, latitude, longitude, status.empty() ? std::string{"Possible hazard type"} : status};
 }
 
 void SoundingViewer::onSave() {
