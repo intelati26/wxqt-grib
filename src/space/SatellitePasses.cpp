@@ -28,7 +28,6 @@ namespace SatellitePasses {
             {"Metop-SG A1", 65159, {{"METimage", Kind::Imagery, 1335, 0, 0, "visible and infrared imager, 500 m: the next AVHRR (2670 km swath)"}, {"MWS", Kind::Microwave, 1125, 0, 0, "microwave sounder, temperature and moisture (about 2250 km)"}, {"SCA", Kind::Wind, 700, 350, 0, "ocean surface wind, the next ASCAT (two swaths of about 650 km: nominal figures)"}}},
             {"Sentinel-3A", 41335, {{"OLCI", Kind::Imagery, 635, 0, 0, "ocean and land color, 300 m (1270 km swath)"}, {"SLSTR", Kind::Imagery, 700, 0, 0, "sea and land surface temperature, thermal infrared (1400 km)"}}},
             {"Sentinel-3B", 43437, {{"OLCI", Kind::Imagery, 635, 0, 0, "ocean and land color, 300 m (1270 km swath)"}, {"SLSTR", Kind::Imagery, 700, 0, 0, "sea and land surface temperature, thermal infrared (1400 km)"}}},
-            {"Sentinel-3C", 100690, {{"OLCI", Kind::Imagery, 635, 0, 0, "ocean and land color, 300 m (1270 km swath)"}, {"SLSTR", Kind::Imagery, 700, 0, 0, "sea and land surface temperature, thermal infrared (1400 km)"}}},
             {"GCOM-W1", 38337, {{"AMSR2", Kind::Microwave, 725, 0, 0, "microwave imager: rain, wind, sea surface temperature (1450 km)"}}},
             {"GPM", 39574, {{"GMI", Kind::Microwave, 440, 0, 0, "microwave imager, the reference for rain in a storm (885 km)"}}},
             {"DMSP F16", 28054, {{"SSMIS", Kind::Microwave, 850, 0, 0, "microwave imager: the 85-91 GHz eye pictures (1700 km)"}}},

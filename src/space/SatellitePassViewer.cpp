@@ -183,7 +183,7 @@ void SatellitePassViewer::recompute() {
     }
     std::vector<std::string> sats;
     if (satelliteBox->currentIndex() == 1) {
-        sats = {"Metop-B", "Metop-C", "Metop-SG A1", "Sentinel-3A", "Sentinel-3B", "Sentinel-3C"};
+        sats = {"Metop-B", "Metop-C", "Metop-SG A1", "Sentinel-3A", "Sentinel-3B"};
     } else if (satelliteBox->currentIndex() > 1) {
         sats.push_back(satelliteBox->currentText().toStdString());
     }
