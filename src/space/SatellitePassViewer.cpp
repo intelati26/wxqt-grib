@@ -72,7 +72,7 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
     }
     satelliteBox = new QComboBox{top};
     satelliteBox->addItem("Every satellite");
-    satelliteBox->addItem("EUMETSAT (Metop-B, Metop-C)");
+    satelliteBox->addItem("EUMETSAT (Metop, Metop-SG, Sentinel-3)");
     for (const auto& s : SatellitePasses::satellites()) {
         satelliteBox->addItem(QString::fromStdString(s.name));
     }
@@ -183,7 +183,7 @@ void SatellitePassViewer::recompute() {
     }
     std::vector<std::string> sats;
     if (satelliteBox->currentIndex() == 1) {
-        sats = {"Metop-B", "Metop-C"};
+        sats = {"Metop-B", "Metop-C", "Metop-SG A1", "Sentinel-3A", "Sentinel-3B", "Sentinel-3C"};
     } else if (satelliteBox->currentIndex() > 1) {
         sats.push_back(satelliteBox->currentText().toStdString());
     }
