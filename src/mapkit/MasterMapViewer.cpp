@@ -2455,14 +2455,18 @@ void MasterMapViewer::paintMapCopy(QPainter& painter) {
     for (const auto& line : Coast::borders()) {
         QPainterPath path;
         bool started = false;
+        double lastLon = 0.0;
         for (const auto& [lon, lat] : line) {
             const auto p = t(lat, lon);
             if (p.x() < -1500.0 || p.x() > 1500.0 || p.y() < -1250.0 || p.y() > 1750.0) {
                 started = false;
                 continue;
             }
-            started ? path.lineTo(p) : path.moveTo(p);
+            // a ring that is closed along the date line (Antarctica, Russia's Arctic coast) is not a coast: that edge shows as a spoke to the pole on a polar map
+            const bool dateLine = std::abs(lon) >= 179.99 && std::abs(lastLon) >= 179.99 && (lon * lastLon > 0.0);
+            started && !dateLine ? path.lineTo(p) : path.moveTo(p);
             started = true;
+            lastLon = lon;
         }
         painter.drawPath(path);
     }
