@@ -12,6 +12,7 @@
 #include <QRegularExpression>
 #include <QVBoxLayout>
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace ContactPrompt {
     bool valid(const QString& email) {
@@ -39,7 +40,7 @@ namespace ContactPrompt {
         entry->setPlaceholderText("you@example.com");
         layout->addWidget(entry);
         auto * problem = new QLabel{&dialog};
-        problem->setStyleSheet("QLabel { color: #b00020; }");
+        UiStandards::error(problem);
         layout->addWidget(problem);
         auto * buttons = new QDialogButtonBox{&dialog};
         auto * save = buttons->addButton("Save", QDialogButtonBox::AcceptRole);

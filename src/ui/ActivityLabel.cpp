@@ -5,11 +5,12 @@
 
 #include "ui/ActivityLabel.h"
 #include <QMouseEvent>
+#include <QPalette>
 #include "ui/NetStatus.h"
 #include "util/Activity.h"
 
 ActivityLabel::ActivityLabel(QWidget * parent) : QLabel{parent}, baseline{Activity::downloadsDone.load()} {
-    setStyleSheet("color: gray;");
+    setForegroundRole(QPalette::PlaceholderText);   // the theme's dimmed color
     setToolTip("What the app is doing: network requests in flight and background jobs running. Click for the list of requests.");
     setCursor(Qt::PointingHandCursor);
     timer.setInterval(250);
@@ -23,12 +24,14 @@ void ActivityLabel::update() {
     const long done = Activity::downloadsDone.load() - baseline;
     if (const auto note = Activity::note(); !note.empty()) {   // a long job says what it is doing
         setText("Working - " + QString::fromStdString(note));
-        setStyleSheet("color: #1b6ec2; font-weight: bold;");
+        setStyleSheet("font-weight: bold;");
+        setForegroundRole(QPalette::Link);
         return;
     }
     if (downloads == 0 && tasks == 0) {
         setText("Idle  (" + QString::number(done) + " downloads since this screen opened)");
-        setStyleSheet("color: gray;");
+        setStyleSheet("");
+        setForegroundRole(QPalette::PlaceholderText);
         return;
     }
     QString text = "Working - ";
@@ -40,7 +43,8 @@ void ActivityLabel::update() {
         parts << QString::number(tasks) + (tasks == 1 ? " background task" : " background tasks");
     }
     setText(text + parts.join(", ") + "  (" + QString::number(done) + " done)");
-    setStyleSheet("color: #1b6ec2; font-weight: bold;");
+    setStyleSheet("font-weight: bold;");
+    setForegroundRole(QPalette::Link);
 }
 
 void ActivityLabel::mousePressEvent(QMouseEvent *) {

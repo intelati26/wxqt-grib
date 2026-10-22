@@ -9,6 +9,7 @@
 #include <QWidget>
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
+#include "ui/UiStandards.h"
 
 SarWindsViewer::SarWindsViewer(Window * parent, const string& id, const string& name, int year)
     : Window{parent}
@@ -26,7 +27,7 @@ SarWindsViewer::SarWindsViewer(Window * parent, const string& id, const string& 
     box.addWidgetReal(schedule, 0, Qt::Alignment{});
     list = new QListWidget{this};
     list->setFixedWidth(320);
-    picture = new QComboBox{this};
+    picture = UiStandards::combo(this);
     picture->addItems({"Wind speed", "Normalized radar cross section", "Where the scene is", "Wind speed contours", "Radial winds by quadrant", "Radial winds, all"});
     measurements = new QLabel{this};
     measurements->setAlignment(Qt::AlignTop | Qt::AlignLeft);
@@ -48,7 +49,7 @@ SarWindsViewer::SarWindsViewer(Window * parent, const string& id, const string& 
     auto * credit = new QLabel{"Synthetic Aperture Radar (SAR) based tropical wind products were generated and provided through the STAR Water Surface Conditions Science Team's tropical cyclone "
                                "SAR winds (www.star.nesdis.noaa.gov/socd/mecb/sar/sarwinds_tropical.php). Preliminary results.", this};
     credit->setWordWrap(true);
-    credit->setStyleSheet("color: gray;");
+    UiStandards::muted(credit);
     box.addWidgetReal(credit, 0, Qt::Alignment{});
     box.getAndShow(this);
     resize(1100, 760);

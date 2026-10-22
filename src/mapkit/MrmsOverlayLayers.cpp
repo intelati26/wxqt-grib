@@ -14,6 +14,7 @@
 #include <QPainterPath>
 #include <QVBoxLayout>
 #include "radar/MapView.h"
+#include "ui/UiStandards.h"
 
 namespace {
     const QColor strikeColors[4] = {QColor{255, 255, 255}, QColor{255, 235, 40}, QColor{255, 150, 20}, QColor{235, 40, 40}};
@@ -285,7 +286,7 @@ QWidget * MrmsOverlayLayer::options(QWidget * parent, const std::function<void()
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{kind == Kind::Chance ? "Looking ahead:" : "Period:", widget});
-    auto * combo = new QComboBox{widget};
+    auto * combo = UiStandards::combo(widget);
     switch (kind) {
         case Kind::Lightning: combo->addItems({"Last minute", "Last 5 minutes (by age)", "Last 15 minutes (by age)", "Last 30 minutes (by age)"}); break;
         case Kind::Chance: combo->addItems({"Next 30 minutes", "Next 60 minutes"}); break;

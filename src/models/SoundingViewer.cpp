@@ -33,6 +33,7 @@
 #include "sounding/SoundingTornadoProb.h"
 #include "sounding/SoundingThermo.h"
 #include "util/To.h"
+#include "ui/UiStandards.h"
 
 namespace {
     constexpr double pi = 3.14159265358979323846;   // M_PI is not defined by MSVC without _USE_MATH_DEFINES
@@ -1322,7 +1323,7 @@ SoundingViewer::SoundingViewer(Window * parent, double lon, double lat, const st
     , comboArea{this, {"Point", "15 km mean", "30 km mean", "60 km mean"}}
     , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
     , comboLayout{this, {"SPC layout", "Dynamic layout"}}
-    , buttonSave{new QPushButton{"Save", this}}
+    , buttonSave{UiStandards::button(this, "Save")}
     , canvas{new SoundingCanvas{this}}
 {
     setTitle("RRFS Sounding");
@@ -1348,7 +1349,7 @@ SoundingViewer::SoundingViewer(Window * parent, const string& site)
     , comboArea{this, {"Point"}}
     , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
     , comboLayout{this, {"SPC layout", "Dynamic layout"}}
-    , buttonSave{new QPushButton{"Save", this}}
+    , buttonSave{UiStandards::button(this, "Save")}
     , canvas{new SoundingCanvas{this}}
     , observed{true}
 {
@@ -1377,7 +1378,7 @@ SoundingViewer::SoundingViewer(Window * parent, const SoundingProfile& given, co
     , comboArea{this, {"Point"}}
     , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
     , comboLayout{this, {"SPC layout", "Dynamic layout"}}
-    , buttonSave{new QPushButton{"Save", this}}
+    , buttonSave{UiStandards::button(this, "Save")}
     , canvas{new SoundingCanvas{this}}
     , fixed{true}
 {
@@ -1401,7 +1402,7 @@ SoundingViewer::SoundingViewer(Window * parent, const string& model, const strin
     , comboArea{this, {"Point"}}
     , comboParcel{this, {"Surface-based parcel", "Mixed-layer parcel", "Most-unstable parcel"}}
     , comboLayout{this, {"SPC layout", "Dynamic layout"}}
-    , buttonSave{new QPushButton{"Save", this}}
+    , buttonSave{UiStandards::button(this, "Save")}
     , canvas{new SoundingCanvas{this}}
     , bufkitMode{true}
     , bufkitModel{model}
@@ -1518,7 +1519,7 @@ void SoundingViewer::build() {
     rowTop.addWidget(comboParcel);
     rowTop.addWidget(comboLayout);
     rowTop.addWidgetReal(buttonSave);
-    buttonHazard = new QPushButton{"Hazards...", this};
+    buttonHazard = UiStandards::button(this, "Hazards...");
     buttonHazard->setToolTip("SPC's flow chart of the possible hazard types (tornado, severe storms, flash flood, blizzard, excessive heat) drawn with the values of this sounding at each test");
     QObject::connect(buttonHazard, &QPushButton::clicked, this, [this] { showHazards(); });
     rowTop.addWidgetReal(buttonHazard);

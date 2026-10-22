@@ -39,6 +39,7 @@
 #include "util/UtilityString.h"
 #include "util/WfoSites.h"
 #include "util/DownloadText.h"
+#include "ui/UiStandards.h"
 
 namespace {
     const QColor categoryColors[5] = {QColor{"#e8d84c"}, QColor{"#fcd37f"}, QColor{"#ffaa00"}, QColor{"#e60000"}, QColor{"#730000"}};
@@ -492,7 +493,7 @@ DroughtViewer::DroughtViewer(Window * parent)
 {
     setTitle("Drought");
     // above the tabs: the area and the weeks, for all of them
-    buttonArea = new QPushButton{"Area: Contiguous United States  \xE2\x96\xBE", this};
+    buttonArea = UiStandards::button(this, "Area: Contiguous United States  \xE2\x96\xBE");
     QObject::connect(buttonArea, &QPushButton::clicked, this, [this] { chooseArea(); });
     rowTop.addWidgetReal(buttonArea);
     std::vector<std::string> weeks{"Latest week"};
@@ -527,8 +528,8 @@ DroughtViewer::DroughtViewer(Window * parent)
     chart = new DroughtChart{side};
     {
         auto * saves = new QHBoxLayout;
-        auto * saveChart = new QPushButton{"Save the weekly chart...", side};
-        auto * saveMap = new QPushButton{"Save the map...", side};
+        auto * saveChart = UiStandards::button(side, "Save the weekly chart...");
+        auto * saveMap = UiStandards::button(side, "Save the map...");
         QObject::connect(saveChart, &QPushButton::clicked, this, [this] { savePicture(chart, "drought_share_by_week"); });
         QObject::connect(saveMap, &QPushButton::clicked, this, [this] { savePicture(map, "drought_map"); });
         saves->addWidget(saveChart);
@@ -598,10 +599,10 @@ DroughtViewer::DroughtViewer(Window * parent)
         column->setContentsMargins(4, 4, 4, 4);
         auto * row = new QHBoxLayout;
         row->addWidget(comboHistory.getView());
-        auto * exportButton = new QPushButton{"Export the table (CSV)...", widget};
+        auto * exportButton = UiStandards::button(widget, "Export the table (CSV)...");
         QObject::connect(exportButton, &QPushButton::clicked, this, [this] { exportHistory(); });
         row->addWidget(exportButton);
-        auto * pictureButton = new QPushButton{"Save the chart as a picture...", widget};
+        auto * pictureButton = UiStandards::button(widget, "Save the chart as a picture...");
         QObject::connect(pictureButton, &QPushButton::clicked, this, [this] { savePicture(historyChart, "drought_history"); });
         row->addWidget(pictureButton);
         row->addStretch();

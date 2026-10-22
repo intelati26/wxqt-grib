@@ -14,6 +14,7 @@
 #include "util/Utility.h"
 #include "util/UtilityList.h"
 #include "vis/UtilityGoes.h"
+#include "ui/UiStandards.h"
 
 GoesViewer::GoesViewer(Window * parent, const string& url, const string& product, const string& sector, bool savePref)
     : Window{parent}
@@ -104,7 +105,7 @@ GoesViewer::GoesViewer(Window * parent, const string& url, const string& product
     boxH.addLayout(backForward);
     box.addLayout(boxH);
     notice.setWordWrap(true);
-    notice.setStyleSheet("QLabel { background: #fff3cd; color: #664d03; padding: 4px 8px; border-radius: 3px; }");
+    UiStandards::notice(&notice);
     notice.hide();
     box.addWidgetReal(&notice);
     objectAnimate.addTo(box);

@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/TornadoLayer.h"
+#include "ui/UiStandards.h"
 #include <algorithm>
 #include <cmath>
 #include <QComboBox>
@@ -152,12 +153,12 @@ QWidget * TornadoLayer::options(QWidget * parent, const std::function<void()>& c
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Years:", widget});
-    auto * span = new QComboBox{widget};
+    auto * span = UiStandards::combo(widget);
     span->addItems({"The last year of the data", "The last 5 years", "The last 10 years", "All years since 1950"});
     span->setCurrentIndex(years);
     layout->addWidget(span);
     layout->addWidget(new QLabel{"Rating:", widget});
-    auto * level = new QComboBox{widget};
+    auto * level = UiStandards::combo(widget);
     level->addItems({"All tornadoes", "EF1 or stronger", "EF2 or stronger", "EF3 or stronger"});
     level->setCurrentIndex(rating);
     layout->addWidget(level);

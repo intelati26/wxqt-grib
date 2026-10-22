@@ -63,7 +63,7 @@ void UsAlerts::update() {
     }
     eventList.emplace_back("Tor/Ffw/Tst");
     addAll(eventList, uniqEventsWithCount);
-    setTitle("US Alerts: " + To::string(static_cast<int>(capAlerts.size())));
+    setTitle("US Alerts - " + To::string(static_cast<int>(capAlerts.size())));
     comboBox.setList(eventList);
     comboBox.setIndex(0);
 }

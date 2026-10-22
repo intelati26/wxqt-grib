@@ -20,6 +20,7 @@
 #include "mapkit/PlateCarreeImage.h"
 #include "util/Utility.h"
 #include "util/UtilityIO.h"
+#include "ui/UiStandards.h"
 
 namespace {
     const int columns = 300, rows = 120;   // 230.0 to 305.0 east (130 W to 55 W), 20 N to 50 N
@@ -275,7 +276,7 @@ QWidget * CpcPrecipLayer::options(QWidget * parent, const std::function<void()>&
     QObject::connect(numbersBox, &QCheckBox::toggled, [this, changed] (bool on) { numbers = on; changed(); });
     layout->addWidget(numbersBox);
     layout->addWidget(new QLabel{"Total over the last:", widget});
-    auto * period = new QComboBox{widget};
+    auto * period = UiStandards::combo(widget);
     int current = 0;
     for (size_t i = 0; i < sizeof(periods) / sizeof(periods[0]); i++) {
         period->addItem(periods[i] == 1 ? QString{"1 day"} : QString::number(periods[i]) + " days");
@@ -286,7 +287,7 @@ QWidget * CpcPrecipLayer::options(QWidget * parent, const std::function<void()>&
     period->setCurrentIndex(current);
     layout->addWidget(period);
     layout->addWidget(new QLabel{"Units:", widget});
-    auto * units = new QComboBox{widget};
+    auto * units = UiStandards::combo(widget);
     units->addItems({"Inches", "Millimeters"});
     units->setCurrentIndex(millimeters ? 1 : 0);
     layout->addWidget(units);

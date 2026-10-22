@@ -24,7 +24,7 @@ AdhocLocation::AdhocLocation(Window * parent, const LatLon& latLon)
     button.connect([this, latLon] {
         Location::save(latLon, locationName);
         Location::setMainScreenComboBox();
-        setTitle("Saved location: " + locationName);
+        setTitle("Saved location - " + locationName);
     });
 
     box.addLayout(boxH);

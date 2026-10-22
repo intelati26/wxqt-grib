@@ -95,7 +95,7 @@ RiverGaugeViewer::RiverGaugeViewer(Window * parent, const string& lid)
     , textHistory{this, ""}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("River gauge " + lid);
+    setTitle("River gauge - " + lid);
     textTitle.setBold();
     textSubtitle.setGray();
     textSubtitle.setWordWrap(true);
@@ -173,7 +173,7 @@ void RiverGaugeViewer::load() {
 
 void RiverGaugeViewer::build() {
     const auto& d = *detail;
-    setTitle("River gauge " + d.lid + " - " + d.name);
+    setTitle("River gauge - " + d.lid + " - " + d.name);
     textTitle.setText(d.name + "  (" + d.lid + ")");
     string subtitle = d.county.empty() ? d.state : d.county + " County, " + d.state;
     subtitle += "   NWS " + d.wfo + " / " + d.rfc;

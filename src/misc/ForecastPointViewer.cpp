@@ -39,6 +39,7 @@
 #include "settings/Location.h"
 #include "ui/HoverTip.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 using UtilityForecastPoint::has;
 
@@ -400,7 +401,7 @@ CardForecastPoint::CardForecastPoint(Window * parent) : QWidget{parent} {
     auto * head = new QHBoxLayout;
     title = new QLabel{"Forecast point", this};
     title->setStyleSheet("font-weight: bold;");
-    open = new QPushButton{"Full page...", this};
+    open = UiStandards::button(this, "Full page...");
     head->addWidget(title, 1);
     head->addWidget(open);
     column->addLayout(head);
@@ -705,12 +706,12 @@ namespace {
             setWindowTitle("Export forecast points");
             auto * column = new QVBoxLayout{this};
             auto * top = new QHBoxLayout;
-            kind = new QComboBox{this};
+            kind = UiStandards::combo(this);
             kind->addItems({"Weekly summary (a value for each day)", "Hourly values"});
-            layoutCombo = new QComboBox{this};
+            layoutCombo = UiStandards::combo(this);
             layoutCombo->addItems({"Days across (as on the screen)", "One line for each day or hour"});
             layoutCombo->setToolTip("The picture is always drawn with the days across");
-            step = new QComboBox{this};
+            step = UiStandards::combo(this);
             step->addItems({"every hour", "every 3 hours", "every 6 hours", "every 12 hours"});
             header = new QCheckBox{"Say where and when", this};
             header->setToolTip("A first line with the place, the NWS office and the time the forecast was made");
@@ -728,10 +729,10 @@ namespace {
             status = new QLabel{this};
             column->addWidget(status);
             auto * buttons = new QHBoxLayout;
-            auto * image = new QPushButton{"Save image...", this};
-            auto * save = new QPushButton{"Save CSV...", this};
-            auto * copy = new QPushButton{"Copy (for a spreadsheet)", this};
-            auto * close = new QPushButton{"Close", this};
+            auto * image = UiStandards::button(this, "Save image...");
+            auto * save = UiStandards::button(this, "Save CSV...");
+            auto * copy = UiStandards::button(this, "Copy (for a spreadsheet)");
+            auto * close = UiStandards::button(this, "Close");
             buttons->addStretch();
             buttons->addWidget(image);
             buttons->addWidget(save);
@@ -821,8 +822,8 @@ namespace {
             auto * list = new QListWidget{box};
             list->setSelectionMode(QAbstractItemView::NoSelection);
             auto * row = new QHBoxLayout;
-            auto * all = new QPushButton{"All", box};
-            auto * none = new QPushButton{"None", box};
+            auto * all = UiStandards::button(box, "All");
+            auto * none = UiStandards::button(box, "None");
             const auto setAll = [list] (Qt::CheckState state) {
                 for (int i = 0; i < list->count(); i++) list->item(i)->setCheckState(state);
             };

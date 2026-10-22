@@ -20,6 +20,7 @@
 #include <QVBoxLayout>
 #include "radar/MapView.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     QColor colorOf(SatellitePasses::Kind kind) {
@@ -294,7 +295,7 @@ QWidget * SatellitePassLayer::options(QWidget * parent, const std::function<void
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"The next:", widget});
-    auto * hoursBox = new QComboBox{widget};
+    auto * hoursBox = UiStandards::combo(widget);
     int current = 1;
     int index = 0;
     for (const int h : {3, 6, 12, 24}) {

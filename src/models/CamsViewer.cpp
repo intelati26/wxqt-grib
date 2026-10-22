@@ -10,6 +10,7 @@
 #include "util/To.h"
 #include "objects/UtilityAnimationExport.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 using UtilityCams::Run;
 
@@ -44,7 +45,7 @@ CamsViewer::CamsViewer(Window * parent)
 {
     setTitle("NSSL CAMs");
     notice.setWordWrap(true);
-    notice.setStyleSheet("QLabel { background: #fff3cd; color: #664d03; padding: 4px 8px; border-radius: 3px; }");
+    UiStandards::notice(&notice);
     notice.hide();
 
     comboModel.connect([this] {

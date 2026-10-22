@@ -14,6 +14,7 @@
 #include "dams/DamViewer.h"
 #include "rivers/RiverGaugeViewer.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     struct Look {
@@ -177,7 +178,7 @@ QWidget * GaugeLayer::options(QWidget * parent, const std::function<void()>& cha
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Show:", widget});
-    auto * combo = new QComboBox{widget};
+    auto * combo = UiStandards::combo(widget);
     combo->addItems({"All gauges", "Action stage or higher", "Flooding (minor or higher)", "Not reporting (no current reading / out of service)"});
     combo->setCurrentIndex(filter);
     QObject::connect(combo, &QComboBox::currentIndexChanged, [this, changed] (int index) { filter = index; changed(); });
@@ -353,7 +354,7 @@ QWidget * BuoyLayer::options(QWidget * parent, const std::function<void()>& chan
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Colour by:", widget});
-    auto * combo = new QComboBox{widget};
+    auto * combo = UiStandards::combo(widget);
     combo->addItems({"Wind", "Water temperature"});
     combo->setCurrentIndex(colorBy);
     QObject::connect(combo, &QComboBox::currentIndexChanged, [this, changed] (int index) { colorBy = index; changed(); });

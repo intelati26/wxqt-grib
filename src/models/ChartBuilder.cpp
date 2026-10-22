@@ -9,6 +9,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 ChartBuilder::ChartBuilder(QWidget * parent, const std::string& model, const std::vector<GfsChart::Template>& templates)
     : QDialog{parent, Qt::Tool}
@@ -18,7 +19,7 @@ ChartBuilder::ChartBuilder(QWidget * parent, const std::string& model, const std
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle("Build a chart - " + QString::fromStdString(model));
     auto * column = new QVBoxLayout{this};
-    which = new QComboBox{this};
+    which = UiStandards::combo(this);
     for (const auto& t : templates) {
         which->addItem(QString::fromStdString(t.title));
     }
@@ -32,14 +33,14 @@ ChartBuilder::ChartBuilder(QWidget * parent, const std::string& model, const std
     auto * hint = new QLabel{"The chart is for the hour chosen on the timeline: a period ends at that hour. It counts the members of the ensemble (the share that pass the limit), so the first draw of a long period "
                              "fetches many fields; the ones read stay for the next hour.", this};
     hint->setWordWrap(true);
-    hint->setStyleSheet("color: gray;");
+    UiStandards::muted(hint);
     column->addWidget(hint);
     auto * row = new QHBoxLayout;
     row->addStretch();
-    auto * show = new QPushButton{"Show", this};
+    auto * show = UiStandards::button(this, "Show");
     show->setDefault(true);
     row->addWidget(show);
-    auto * close = new QPushButton{"Close", this};
+    auto * close = UiStandards::button(this, "Close");
     row->addWidget(close);
     column->addLayout(row);
     QObject::connect(which, &QComboBox::currentIndexChanged, this, [this] { rebuildSettings(); });
@@ -62,7 +63,7 @@ void ChartBuilder::rebuildSettings() {
     }
     boxes.clear();
     for (const auto& s : t.settings) {
-        auto * box = new QComboBox{settingsArea};
+        auto * box = UiStandards::combo(settingsArea);
         const auto stored = Utility::readPref("MODEL_BUILD_" + t.id + "_" + s.key, "");
         const double wanted = stored.empty() ? s.standard : std::atof(stored.c_str());
         int at = 0;

@@ -19,6 +19,7 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 #include "models/PaletteStore.h"
+#include "ui/UiStandards.h"
 
 // the scale drawn as a bar, from the first stop to the last, over a checkerboard so transparency shows
 class PaletteBar : public QWidget {
@@ -107,10 +108,10 @@ PaletteEditor::PaletteEditor(QWidget * parent, const std::string& title, const G
     layout->addWidget(note);
     auto * row2 = new QHBoxLayout;
     row2->addStretch();
-    auto * applyButton = new QPushButton{"Apply", this};
+    auto * applyButton = UiStandards::button(this, "Apply");
     applyButton->setDefault(true);
     QObject::connect(applyButton, &QPushButton::clicked, this, [this] { apply(); });
-    auto * closeButton = new QPushButton{"Close", this};
+    auto * closeButton = UiStandards::button(this, "Close");
     QObject::connect(closeButton, &QPushButton::clicked, this, [this] { close(); });
     row2->addWidget(applyButton);
     row2->addWidget(closeButton);

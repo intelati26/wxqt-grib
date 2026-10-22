@@ -39,6 +39,7 @@
 #include "tornado/TornadoData.h"
 #include "tornado/UtilityOutbreaks.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     QString momentsText(const HistoryEvent& e) {
@@ -65,13 +66,13 @@ namespace {
 
 EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("History: events");
+    setTitle("History - events");
     events = HistoryEvents::load();
 
     list = new QListWidget{this};
     list->setMinimumWidth(240);
-    auto * newButton = new QPushButton{"New event", this};
-    auto * catalogButton = new QPushButton{"From the catalog...", this};
+    auto * newButton = UiStandards::button(this, "New event");
+    auto * catalogButton = UiStandards::button(this, "From the catalog...");
     catalogButton->setToolTip("Take an event from a list: tornado outbreaks since 1950 (more kinds later)");
     auto * left = new QVBoxLayout;
     left->addWidget(new QLabel{"Events", this});
@@ -103,7 +104,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     radius->setRange(5.0, 2500.0);
     radius->setValue(100.0);
     radius->setSuffix(" km");
-    auto * pick = new QPushButton{"Pick on the map...", this};
+    auto * pick = UiStandards::button(this, "Pick on the map...");
     note = new QPlainTextEdit{this};
     note->setMaximumHeight(70);
     moments = new QPlainTextEdit{this};
@@ -122,8 +123,8 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     form->addRow("Note", note);
     form->addRow("Moments", moments);
     auto * buttons = new FlowLayout{6};
-    auto * save = new QPushButton{"Save", this};
-    auto * remove = new QPushButton{"Delete", this};
+    auto * save = UiStandards::button(this, "Save");
+    auto * remove = UiStandards::button(this, "Delete");
     buttons->addWidget(save);
     buttons->addWidget(remove);
 
@@ -142,7 +143,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionMode(QAbstractItemView::NoSelection);
 
-    atBox = new QComboBox{this};
+    atBox = UiStandards::combo(this);
     atBox->setToolTip("The time the screens open at");
     atBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     atBox->setMinimumContentsLength(34);
@@ -155,11 +156,11 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     dataColumn->setContentsMargins(0, 0, 0, 0);
     dataColumn->addLayout(atRow);
     // the master map with a set of layers that suits the kind of event: the event's catalog picks one, the person may pick another
-    mapSet = new QComboBox{this};
+    mapSet = UiStandards::combo(this);
     for (const auto& set : HistoryLayerSets::all()) {
         mapSet->addItem(set.label, QString::fromStdString(set.id));
     }
-    auto * mapButton = new QPushButton{"Open the map", this};
+    auto * mapButton = UiStandards::button(this, "Map...");
     mapButton->setToolTip("The master map at the time chosen above, over the event's place, with these layers on");
     mapSet->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     mapSet->setMinimumContentsLength(40);
@@ -171,10 +172,10 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     QObject::connect(mapButton, &QPushButton::clicked, [this] { openMap(); });
     // the offline copy of the event (history/EventCase): its outlooks, surface maps and storm reports, kept in a folder the page reads before the network
     caseLabel = new QLabel{this};
-    keepButton = new QPushButton{"Keep offline", this};
+    keepButton = UiStandards::button(this, "Keep offline");
     keepButton->setToolTip("Download the SPC outlooks, the WPC surface maps (every 3 hours) and the SPC storm reports of the event into a folder of its own, so that they open with no connection");
-    folderButton = new QPushButton{"Open folder", this};
-    forgetButton = new QPushButton{"Forget the copy", this};
+    folderButton = UiStandards::button(this, "Open folder");
+    forgetButton = UiStandards::button(this, "Forget the copy");
     caseLabel->setMinimumWidth(180);
     auto * caseRow = new FlowLayout{6};
     caseRow->addWidget(new QLabel{"Offline copy", this});
@@ -207,7 +208,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     // the SPC outlook, added to every event on its own: the categorical and the tornado, wind and hail chances of the event's convective day
     auto * outlookPage = new QWidget{this};
     auto * outlookColumn = new QVBoxLayout{outlookPage};
-    issuance = new QComboBox{this};
+    issuance = UiStandards::combo(this);
     issuance->addItems({"16:30Z (the afternoon update)", "13:00Z", "06:00Z (the morning)", "20:00Z", "01:00Z (the evening, next day)"});
     outlookNote = new QLabel{this};
     outlookColumn->addWidget(issuance);
@@ -229,18 +230,18 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     auto * surfacePage = new QWidget{this};
     auto * surfaceColumn = new QVBoxLayout{surfacePage};
     auto * surfaceRow = new FlowLayout{6};
-    surfaceHour = new QComboBox{this};
+    surfaceHour = UiStandards::combo(this);
     for (int h = 0; h < 24; h += 3) {
         surfaceHour->addItem(QString{"%1Z"}.arg(h, 2, 10, QChar{'0'}), h);
     }
-    surfaceKind = new QComboBox{this};
+    surfaceKind = UiStandards::combo(this);
     surfaceKind->addItem("Surface analysis, North America", "namussfc");
     surfaceKind->addItem("Fronts and pressure, United States", "usfntsfc");
     surfaceKind->addItem("With the satellite picture", "ussatsfc");
     surfaceKind->addItem("With the radar", "radsfcus_exp");
-    auto * scanned = new QPushButton{"Scanned Daily Weather Map (1871-2002)...", this};
+    auto * scanned = UiStandards::button(this, "Scanned Daily Weather Map (1871-2002)...");
     scanned->setToolTip("NOAA Central Library: the printed Daily Weather Map of the day, by date (daily to April 1968, weekly from May 1968)");
-    auto * reanalysis = new QPushButton{"20th Century Reanalysis (1836-2015)...", this};
+    auto * reanalysis = UiStandards::button(this, "20th Century Reanalysis (1836-2015)...");
     reanalysis->setToolTip("NOAA PSL: weather maps for any date back to 1836, made from surface pressure observations");
     surfaceRow->addWidget(new QLabel{"Time", this});
     surfaceRow->addWidget(surfaceHour);
@@ -702,7 +703,7 @@ void EventsViewer::fillAvailability(const HistoryEvent& e) {
         }
         table->setItem(static_cast<int>(i), 2, new QTableWidgetItem{status});
         if (r.open) {
-            auto * button = new QPushButton{"Open", table};
+            auto * button = UiStandards::button(table, "Open");
             const auto open = r.open;
             QObject::connect(button, &QPushButton::clicked, [open] { open(); });
             table->setCellWidget(static_cast<int>(i), 3, button);

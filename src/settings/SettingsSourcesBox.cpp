@@ -19,6 +19,7 @@
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsModels.h"
 #include "models/UtilityGrib.h"
+#include "ui/UiStandards.h"
 
 namespace {
     // the fields the standard-deviation charts (anomalies in deviations, the chance of an anomaly of so many) use, and what for
@@ -66,7 +67,7 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
     layout->addWidget(table, 1);
     auto * row = new QHBoxLayout;
     summary = new QLabel{"Not looked at yet.", this};
-    again = new QPushButton{"Check again", this};
+    again = UiStandards::button(this, "Check again");
     QObject::connect(again, &QPushButton::clicked, this, [this] { start(); });
     row->addWidget(summary, 1);
     row->addWidget(again);
@@ -96,7 +97,7 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
         layout->addWidget(climateTable);
         auto * climateRow = new QHBoxLayout;
         climateSummary = new QLabel{this};
-        climateButton = new QPushButton{"Download all", this};
+        climateButton = UiStandards::button(this, "Download all");
         climateButton->setToolTip("Works out the standard deviations of every field above that is not stored yet, a few at a time, in the background. Safe to leave; it carries on while the app is open.");
         QObject::connect(climateButton, &QPushButton::clicked, this, [this] {
             for (const auto& f : climateFields()) {

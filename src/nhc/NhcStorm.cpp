@@ -31,7 +31,7 @@ NhcStorm::NhcStorm(Window * parent, const NhcStormDetails& stormData)
     , product{"MIATCP" + stormData.binNumber}
     , shortcut{QKeySequence{"C"}, this}
 {
-    setTitle("NHC Storm " + stormData.forTopHeader());
+    setTitle("NHC storm - " + stormData.forTopHeader());
     goesButton.connect([this] { launchGoes(); });
     ciraButton.connect([this] {
         new CiraStorm{this->parent, WString::toLower(this->stormData.stormId), WString::toUpper(this->stormData.stormId) + " - " + this->stormData.name};
@@ -88,7 +88,7 @@ NhcStorm::NhcStorm(Window * parent, const NhcStormDetails& stormData)
         }};
     }
     if (stormData.coneUrl.empty() && !stormData.graphicUrls.empty()) {
-        setTitle("NHC Storm " + stormData.forTopHeader() + " - NHC publishes no cone forecast for this storm");
+        setTitle("NHC storm - " + stormData.forTopHeader() + " - NHC publishes no cone forecast for this storm");
     }
     boxImages.addStretch();
     reload();

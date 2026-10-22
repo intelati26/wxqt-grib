@@ -13,6 +13,7 @@
 #include "objects/FutureVoid.h"
 #include "ui/FlowBox.h"
 #include "util/Earthdata.h"
+#include "ui/UiStandards.h"
 
 SettingsAccountsBox::SettingsAccountsBox(QWidget * parent) : QWidget{parent} {
     auto * column = new QVBoxLayout{this};
@@ -27,10 +28,10 @@ SettingsAccountsBox::SettingsAccountsBox(QWidget * parent) : QWidget{parent} {
     token->setText(QString::fromStdString(Earthdata::token()));
     token->setMinimumWidth(320);
     auto * show = new QCheckBox{"Show", this};
-    auto * saveButton = new QPushButton{"Save", this};
-    auto * testButton = new QPushButton{"Save and test", this};
-    auto * clearButton = new QPushButton{"Remove", this};
-    auto * openButton = new QPushButton{"Open the Earthdata Login page", this};
+    auto * saveButton = UiStandards::button(this, "Save");
+    auto * testButton = UiStandards::button(this, "Save and test");
+    auto * clearButton = UiStandards::button(this, "Remove");
+    auto * openButton = UiStandards::button(this, "Open the Earthdata Login page");
     status = new QLabel{this};
     status->setWordWrap(true);
     auto * row = new FlowLayout{6};

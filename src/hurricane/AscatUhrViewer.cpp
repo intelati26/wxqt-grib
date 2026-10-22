@@ -15,6 +15,7 @@
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "objects/URL.h"
+#include "ui/UiStandards.h"
 
 namespace {
     const string site{"https://www.ospo.noaa.gov/Visualization01/cData/Atmosphere/ASCAT/"};
@@ -49,8 +50,8 @@ AscatUhrViewer::AscatUhrViewer(Window * parent, const string& atcfId)
     auto * top = new QWidget{this};
     auto * topLayout = new QHBoxLayout{top};
     topLayout->setContentsMargins(0, 0, 0, 0);
-    stormBox = new QComboBox{top};
-    typeBox = new QComboBox{top};
+    stormBox = UiStandards::combo(top);
+    typeBox = UiStandards::combo(top);
     for (const string type : {"ave3m", "ave2m", "ave", "ave3", "ave2"}) {
         typeBox->addItem(QString::fromStdString(typeLabel(type)), QString::fromStdString(type));
     }
@@ -71,7 +72,7 @@ AscatUhrViewer::AscatUhrViewer(Window * parent, const string& atcfId)
     auto * credit = new QLabel{"ASCAT ultra high resolution winds: BYU's AVE (the first iteration of the SIR) retrieval from MetOp-B and MetOp-C ASCAT SZF data, KNMI wind retrieval at each 4.45 km cell. "
                                "Winds in m/s. NOAA / NESDIS OSPO (www.ospo.noaa.gov/products/atmosphere/ascat/uhr/winds/).", this};
     credit->setWordWrap(true);
-    credit->setStyleSheet("color: gray;");
+    UiStandards::muted(credit);
     box.addWidgetReal(credit, 0, Qt::Alignment{});
     box.getAndShow(this);
     resize(1050, 780);

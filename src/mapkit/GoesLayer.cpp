@@ -13,6 +13,7 @@
 #include <QSlider>
 #include <QVBoxLayout>
 #include "util/UtilityIO.h"
+#include "ui/UiStandards.h"
 
 const GoesLayer::Satellite& GoesLayer::satellite(int index) {
     static const Satellite all[] = {
@@ -151,12 +152,12 @@ QWidget * GoesLayer::options(QWidget * parent, const std::function<void()>& chan
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Satellite:", widget});
-    auto * sat = new QComboBox{widget};
+    auto * sat = UiStandards::combo(widget);
     sat->addItems({satellite(0).name, satellite(1).name});
     sat->setCurrentIndex(satelliteIndex);
     layout->addWidget(sat);
     layout->addWidget(new QLabel{"Picture:", widget});
-    auto * kind = new QComboBox{widget};
+    auto * kind = UiStandards::combo(widget);
     kind->addItems({"Sandwich (visible with enhanced infrared)", "GeoColor (true colour, infrared at night)"});
     kind->setCurrentIndex(product);
     layout->addWidget(kind);

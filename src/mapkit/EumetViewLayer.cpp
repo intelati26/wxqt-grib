@@ -21,6 +21,7 @@
 #include "objects/URL.h"
 #include "radar/MapView.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     const char * const wms = "https://view.eumetsat.int/geoserver/wms";
@@ -288,14 +289,14 @@ QWidget * EumetViewLayer::options(QWidget * parent, const std::function<void()>&
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Picture:", widget});
-    auto * combo = new QComboBox{widget};
+    auto * combo = UiStandards::combo(widget);
     for (const auto& p : products()) {
         combo->addItem(p.label);
     }
     combo->setCurrentIndex(productIndex);
     layout->addWidget(combo);
     layout->addWidget(new QLabel{"Passes laid together (hours before the time shown):", widget});
-    auto * window = new QComboBox{widget};
+    auto * window = UiStandards::combo(widget);
     for (const int h : {3, 6, 12, 24, 48}) {
         window->addItem(QString::number(h) + " hours", h);
         if (h == windowHours) {

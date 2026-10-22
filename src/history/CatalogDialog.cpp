@@ -16,6 +16,7 @@
 #include <QVBoxLayout>
 #include "objects/FutureVoid.h"
 #include "ui/Window.h"
+#include "ui/UiStandards.h"
 
 CatalogDialog::CatalogDialog(Window * owner, std::vector<Source> sourceList, double lat, double lon, std::function<void(const HistoryEvent&)> add)
     : QDialog{static_cast<QWidget *>(owner)}, owner{owner}, sources{std::move(sourceList)}, add{std::move(add)}, lat{lat}, lon{lon}
@@ -25,7 +26,7 @@ CatalogDialog::CatalogDialog(Window * owner, std::vector<Source> sourceList, dou
     resize(980, 620);
     auto * column = new QVBoxLayout{this};
     auto * kindRow = new QHBoxLayout;
-    kind = new QComboBox{this};
+    kind = UiStandards::combo(this);
     for (const auto& s : sources) {
         kind->addItem(s.name);
     }
@@ -45,9 +46,9 @@ CatalogDialog::CatalogDialog(Window * owner, std::vector<Source> sourceList, dou
     size->setRange(0, 1000);
     sizeText = new QLabel{this};
     whatText = new QLabel{"Show", this};
-    what = new QComboBox{this};
-    order = new QComboBox{this};
-    load = new QPushButton{"Read again for this place", this};
+    what = UiStandards::combo(this);
+    order = UiStandards::combo(this);
+    load = UiStandards::button(this, "Read again for this place");
     filters->addWidget(whatText);
     filters->addWidget(what);
     filters->addWidget(new QLabel{"From", this});
@@ -69,9 +70,9 @@ CatalogDialog::CatalogDialog(Window * owner, std::vector<Source> sourceList, dou
     table->horizontalHeader()->setStretchLastSection(true);
     column->addWidget(table, 1);
     auto * buttons = new QHBoxLayout;
-    addButton = new QPushButton{"Add as an event", this};
+    addButton = UiStandards::button(this, "Add as an event");
     addButton->setEnabled(false);
-    auto * closeButton = new QPushButton{"Close", this};
+    auto * closeButton = UiStandards::button(this, "Close");
     buttons->addStretch();
     buttons->addWidget(addButton);
     buttons->addWidget(closeButton);

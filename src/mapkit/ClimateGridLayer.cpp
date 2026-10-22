@@ -17,6 +17,7 @@
 #include "mapkit/PlateCarreeImage.h"
 #include "radar/MapView.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     struct PeriodChoice {
@@ -341,7 +342,7 @@ QWidget * ClimateGridLayer::options(QWidget * parent, const std::function<void()
     QObject::connect(farBox, &QCheckBox::toggled, [this, changed] (bool on) { showFar = on; Utility::writePref("MM_ACIS_FAR", on ? "true" : "false"); changed(); });
     layout->addWidget(farBox);
     layout->addWidget(new QLabel{"Measure:", widget});
-    auto * measure = new QComboBox{widget};
+    auto * measure = UiStandards::combo(widget);
     int current = 0;
     for (const auto& p : AcisClimate::products()) {
         measure->addItem(p.label, QString::fromStdString(p.id));
@@ -352,14 +353,14 @@ QWidget * ClimateGridLayer::options(QWidget * parent, const std::function<void()
     measure->setCurrentIndex(current);
     layout->addWidget(measure);
     layout->addWidget(new QLabel{"Period (ending yesterday):", widget});
-    auto * days = new QComboBox{widget};
+    auto * days = UiStandards::combo(widget);
     for (const auto& p : periods) {
         days->addItem(p.label);
     }
     days->setCurrentIndex(periodChoice);
     layout->addWidget(days);
     layout->addWidget(new QLabel{"Detail:", widget});
-    auto * level = new QComboBox{widget};
+    auto * level = UiStandards::combo(widget);
     level->addItems({"Smooth (each station carries far)", "Detailed", "Fine (follows the stations closely)"});
     level->setCurrentIndex(detail);
     layout->addWidget(level);

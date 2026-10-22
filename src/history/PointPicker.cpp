@@ -8,6 +8,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include "util/UtilityUI.h"
+#include "ui/UiStandards.h"
 
 PointPicker::PointPicker(Window * parent, double lat, double lon, bool have, const std::function<void(double, double)>& chosen)
     : Window{parent}, lat{lat}, lon{lon}, have{have} {
@@ -34,7 +35,7 @@ PointPicker::PointPicker(Window * parent, double lat, double lon, bool have, con
         view->showRegion(22.0, 52.0, -126.0, -64.0);
     }
     label = new QLabel{have ? QString{"%1, %2"}.arg(lat, 0, 'f', 3).arg(lon, 0, 'f', 3) : QString{"Click the map (wheel to zoom, drag to move)"}, this};
-    auto * use = new QPushButton{"Use this point", this};
+    auto * use = UiStandards::button(this, "Use this point");
     QObject::connect(use, &QPushButton::clicked, [this, chosen] {
         if (this->have) {
             chosen(this->lat, this->lon);

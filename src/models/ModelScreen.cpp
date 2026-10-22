@@ -11,6 +11,7 @@
 #include "models/ModelViewer.h"
 #include "models/SpcPostViewer.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 const std::vector<ModelScreen::Source>& ModelScreen::sources() {
     static const std::vector<Source> all{
@@ -34,7 +35,7 @@ ModelScreen::ModelScreen(Window * parent, const string& source)
     auto * rowLayout = new QHBoxLayout{row};
     rowLayout->setContentsMargins(0, 0, 0, 0);
     rowLayout->addWidget(new QLabel{"Source:", row});
-    combo = new QComboBox{row};
+    combo = UiStandards::combo(row);
     for (const auto& s : sources()) {
         combo->addItem(s.label, QString{s.id});
     }

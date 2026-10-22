@@ -359,12 +359,10 @@ void TropicalHub::load() {
 
 QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string& basin) {
     auto * frame = new QFrame{content};
-    frame->setFrameShape(QFrame::StyledPanel);
     const bool invest = entry.id.size() >= 2 && entry.classification != "TD" && entry.classification != "TS" && entry.classification != "HU" &&
         entry.classification != "STD" && entry.classification != "STS" && entry.classification != "PTC" && entry.classification != "PC" && entry.classification != "EX";
     const auto color = classColor(entry.wind);
-    frame->setObjectName("stormCard");
-    frame->setStyleSheet("QFrame#stormCard { border: 1px solid #999; border-left: 6px solid " + color.name() + "; }");
+    UiStandards::card(frame, color);
     auto * outer = new QHBoxLayout{frame};
     outer->setContentsMargins(10, 6, 8, 6);
     auto * layout = new QVBoxLayout;
@@ -420,7 +418,8 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
     layout->addWidget(info);
     if (!entry.lastUpdate.empty()) {
         auto * updated = new QLabel{"Updated " + updatedText(entry.lastUpdate) + (entry.advNum.empty() ? QString{} : "  (advisory " + QString::fromStdString(entry.advNum) + ")"), frame};
-        updated->setStyleSheet("border: none; color: gray;");
+        updated->setStyleSheet("border: none;");
+        UiStandards::muted(updated);
         layout->addWidget(updated);
     }
     auto * row = new QHBoxLayout;
@@ -486,10 +485,8 @@ void TropicalHub::fillStorms() {
 
 QWidget * TropicalHub::otherCard(const OtherStorm& storm) {
     auto * frame = new QFrame{content};
-    frame->setFrameShape(QFrame::StyledPanel);
     const auto& now = !storm.page.forecast.empty() ? storm.page.forecast.front() : (!storm.page.history.empty() ? storm.page.history.front() : UtilityCira::Fix{});
-    frame->setObjectName("stormCard");
-    frame->setStyleSheet("QFrame#stormCard { border: 1px solid #999; border-left: 6px solid " + classColor(now.knots).name() + "; }");
+    UiStandards::card(frame, classColor(now.knots));
     auto * outer = new QHBoxLayout{frame};
     outer->setContentsMargins(10, 6, 8, 6);
     auto * layout = new QVBoxLayout;

@@ -19,6 +19,7 @@
 #include "radar/MapView.h"
 #include "util/DisplayUnits.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     struct Stop {
@@ -415,7 +416,7 @@ QWidget * CfsOutlookLayer::options(QWidget * parent, const std::function<void()>
     QObject::connect(numbersBox, &QCheckBox::toggled, [this, changed] (bool on) { numbers = on; changed(); });
     layout->addWidget(numbersBox);
     layout->addWidget(new QLabel{"Field:", widget});
-    auto * field = new QComboBox{widget};
+    auto * field = UiStandards::combo(widget);
     int index = 0, at = 0;
     for (const auto& v : UtilityCfs::variables()) {
         field->addItem(QString::fromStdString(v.label), QString::fromStdString(v.key));
@@ -427,17 +428,17 @@ QWidget * CfsOutlookLayer::options(QWidget * parent, const std::function<void()>
     field->setCurrentIndex(index);
     layout->addWidget(field);
     layout->addWidget(new QLabel{"Forecasts:", widget});
-    auto * members = new QComboBox{widget};
+    auto * members = UiStandards::combo(widget);
     members->addItems({"Mean of the 4 newest runs (every 6 hours, 9 months)", "The newest run only"});
     members->setCurrentIndex(memberChoice);
     layout->addWidget(members);
     layout->addWidget(new QLabel{"Show:", widget});
-    auto * how = new QComboBox{widget};
+    auto * how = UiStandards::combo(widget);
     how->addItems({"The forecast values", "Departure from the CFS normal", "Departure in standard deviations"});
     how->setCurrentIndex(mode);
     layout->addWidget(how);
     layout->addWidget(new QLabel{"Normal of the years:", widget});
-    auto * years = new QComboBox{widget};
+    auto * years = UiStandards::combo(widget);
     years->addItem("1999-2010 (the more recent)", 1999);
     years->addItem("1982-2010", 1982);
     years->setCurrentIndex(baseline == 1982 ? 1 : 0);

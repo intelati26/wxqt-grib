@@ -9,6 +9,7 @@
 #include <QPixmap>
 #include <QVBoxLayout>
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     QIcon swatch(const QColor& color) {
@@ -76,7 +77,7 @@ const vector<GuidanceTree::Category>& GuidanceTree::catalog() {
 GuidanceTree::GuidanceTree(QWidget * parent) : QWidget{parent} {
     auto * layout = new QVBoxLayout{this};
     layout->setContentsMargins(0, 0, 0, 0);
-    quick = new QComboBox{this};
+    quick = UiStandards::combo(this);
     quick->addItems({"Quick select...", "Default: NHC, GFS / Euro, hurricane models, ensemble means", "Default and the consensus aids", "All global and hurricane models", "NHC only", "Everything"});
     layout->addWidget(quick);
     tree = new QTreeWidget{this};

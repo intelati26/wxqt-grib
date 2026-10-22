@@ -18,6 +18,7 @@
 #include <QVBoxLayout>
 #include "settings/Location.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 MrmsLayer::MrmsLayer() : productList{UtilityMrms::groupedProducts({})} {
     productId = Utility::readPref("MM_MRMS_PRODUCT", productList.front().id);
@@ -360,7 +361,7 @@ QWidget * MrmsLayer::options(QWidget * parent, const std::function<void()>& chan
     choose->setToolTip("The products in groups (reflectivity, hail, rotation, precipitation, storm structure ...)");
     layout->addWidget(choose);
     layout->addWidget(new QLabel{"Frames in a loop (about two minutes apart):", widget});
-    auto * loop = new QComboBox{widget};
+    auto * loop = UiStandards::combo(widget);
     loop->addItems({"12", "24", "36", "48"});
     loop->setCurrentIndex(loopLength / 12 - 1);
     QObject::connect(loop, &QComboBox::currentIndexChanged, [this] (int index) { loopLength = 12 * (index + 1); });

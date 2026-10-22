@@ -17,6 +17,7 @@
 #include "objects/FutureVoid.h"
 #include "objects/URL.h"
 #include "util/UtilityGzip.h"
+#include "ui/UiStandards.h"
 
 namespace {
     // a best track line, the fields this window works with
@@ -133,16 +134,16 @@ AtcfFeedViewer::AtcfFeedViewer(Window * parent, const string& id, const string& 
     auto * top = new QWidget{this};
     auto * topLayout = new QHBoxLayout{top};
     topLayout->setContentsMargins(0, 0, 0, 0);
-    deck = new QComboBox{top};
+    deck = UiStandards::combo(top);
     deck->addItem("Best track (b-deck)");
     deck->addItem("Guidance, every model (a-deck)");
     deck->addItem("Fixes, satellite and aircraft (f-deck)");
-    view = new QComboBox{top};
+    view = UiStandards::combo(top);
     view->addItem("every line");
     view->addItem("status changes (invest, TD, TS, hurricane, post-tropical ...)");
     view->addItem("category changes (TD, TS, Cat 1 ... 5)");
     view->setToolTip("The best track only: keep the lines where the storm changes status or category, with what changed");
-    count = new QComboBox{top};
+    count = UiStandards::combo(top);
     for (const int n : {30, 100, 300, 1000}) {
         count->addItem("last " + QString::number(n) + " lines", n);
     }
@@ -151,8 +152,8 @@ AtcfFeedViewer::AtcfFeedViewer(Window * parent, const string& id, const string& 
     filter->setClearButtonEnabled(true);
     refresh = new QCheckBox{"Look again every 5 minutes", top};
     refresh->setChecked(true);
-    auto * reload = new QPushButton{"Refresh", top};
-    auto * copy = new QPushButton{"Copy", top};
+    auto * reload = UiStandards::button(top, "Refresh");
+    auto * copy = UiStandards::button(top, "Copy");
     topLayout->addWidget(deck);
     topLayout->addWidget(view);
     topLayout->addWidget(count);
@@ -189,7 +190,7 @@ AtcfFeedViewer::AtcfFeedViewer(Window * parent, const string& id, const string& 
     auto * credit = new QLabel{nhcBasin(id) ? "NHC / NCEP ATCF directory (ftp.nhc.noaa.gov/atcf). The a-deck holds every guidance model's forecast of each cycle as it arrives." :
                                               "Best track from UCAR's research data repository (hurricanes.ral.ucar.edu): the JTWC analyses, every 6 hours. JTWC's own decks are not public.", this};
     credit->setWordWrap(true);
-    credit->setStyleSheet("color: gray;");
+    UiStandards::muted(credit);
     box.addWidgetReal(credit, 0, Qt::Alignment{});
     box.getAndShow(this);
     resize(1000, 640);

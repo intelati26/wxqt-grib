@@ -10,6 +10,7 @@
 #include "hurricane/UtilityAtcf.h"
 #include "ui/WindBarb.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace ReconRenderer {
     long newest(const Data& data) {
@@ -306,7 +307,7 @@ namespace ReconRenderer {
     }
 
     QComboBox * hoursCombo(QWidget * parent, const std::string& pref, const std::function<void(int)>& changed, int standard) {
-        auto * combo = new QComboBox{parent};
+        auto * combo = UiStandards::combo(parent);
         const int saved = savedHours(pref, standard);
         int at = 1;
         for (size_t i = 0; i < hourChoices().size(); i++) {

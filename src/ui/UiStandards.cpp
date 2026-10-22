@@ -4,7 +4,9 @@
 // *****************************************************************************
 
 #include "ui/UiStandards.h"
+#include <QColor>
 #include <QComboBox>
+#include <QFrame>
 #include <QLabel>
 #include <QPalette>
 #include <QPushButton>
@@ -27,4 +29,26 @@ QComboBox * UiStandards::combo(QWidget * parent) {
 
 void UiStandards::muted(QLabel * label) {
     label->setForegroundRole(QPalette::PlaceholderText);
+}
+
+void UiStandards::hoverPill(QLabel * label, int alpha) {
+    label->setStyleSheet(QString{"QLabel { background-color: rgba(15, 15, 15, %1); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }"}.arg(alpha));
+}
+
+void UiStandards::notice(QLabel * label) {
+    label->setStyleSheet("QLabel { background: #fff3cd; color: #664d03; padding: 4px 8px; border-radius: 3px; }");
+}
+
+void UiStandards::working(QLabel * label) {
+    label->setStyleSheet("QLabel { background-color: rgba(20, 60, 120, 225); color: #ffffff; padding: 5px 10px; border-radius: 4px; }");
+}
+
+void UiStandards::error(QLabel * label) {
+    label->setStyleSheet("QLabel { color: #b00020; }");
+}
+
+void UiStandards::card(QFrame * frame, const QColor& edge) {
+    frame->setFrameShape(QFrame::StyledPanel);
+    frame->setObjectName("stormCard");
+    frame->setStyleSheet("QFrame#stormCard { border: 1px solid #999; border-left: 6px solid " + edge.name() + "; }");
 }

@@ -19,6 +19,7 @@
 #include <QVBoxLayout>
 #include "objects/FutureVoid.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 qint64 CacheSummaryViewer::Source::files() const {
     qint64 n = 0;
@@ -109,12 +110,12 @@ namespace {
 
 CacheSummaryViewer::CacheSummaryViewer(Window * parent) : Window{parent} {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("Data kept: caches and what is in them");
+    setTitle("Data kept - caches and what is in them");
     auto * column = new QVBoxLayout;
     auto * top = new QHBoxLayout;
-    auto * refresh = new QPushButton{"Refresh", this};
-    auto * open = new QPushButton{"Open folder", this};
-    auto * remove = new QPushButton{"Delete selected...", this};
+    auto * refresh = UiStandards::button(this, "Refresh");
+    auto * open = UiStandards::button(this, "Open folder");
+    auto * remove = UiStandards::button(this, "Delete selected...");
     total = new QLabel{"Reading the folders...", this};
     top->addWidget(refresh);
     top->addWidget(open);

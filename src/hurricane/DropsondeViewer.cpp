@@ -439,7 +439,7 @@ DropsondeViewer::DropsondeViewer(Window * parent, const UtilityDropsonde::Drop& 
     , drop{d}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("Dropsonde " + drop.mission + "  " + UtilityHdob::timeText(drop.seconds));
+    setTitle("Dropsonde - " + drop.mission + " " + UtilityHdob::timeText(drop.seconds));
     chart = new DropsondeChart{drop, this};
     buttonFull.connect([this] {
         SoundingProfile profile;

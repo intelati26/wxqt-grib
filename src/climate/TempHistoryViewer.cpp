@@ -22,6 +22,7 @@
 #include "settings/Location.h"
 #include "util/DisplayUnits.h"
 #include "util/UtilityIO.h"
+#include "ui/UiStandards.h"
 
 namespace {
     struct YearValue {
@@ -191,7 +192,7 @@ TempHistoryViewer::TempHistoryViewer(Window * parent, double lat, double lon, co
     auto * page = new QWidget{this};
     auto * column = new QVBoxLayout{page};
     auto * row = new QHBoxLayout;
-    savedBox = new QComboBox{page};
+    savedBox = UiStandards::combo(page);
     savedBox->addItem("Saved locations...", QVariant{});
     {
         const auto places = Location::getListLatLons();
@@ -210,24 +211,24 @@ TempHistoryViewer::TempHistoryViewer(Window * parent, double lat, double lon, co
     lonBox->setValue(lon > 180 ? lon - 360 : lon);
     latBox->setPrefix("lat ");
     lonBox->setPrefix("lon ");
-    sourceBox = new QComboBox{page};
+    sourceBox = UiStandards::combo(page);
     sourceBox->addItems({"ERA5 reanalysis (anywhere)", "Weather station (US, NOAA ACIS)"});
     sourceBox->setToolTip("ERA5: the reanalysis' grid point (0.25 degree), 1940 on, any place. Station: a thermometer of the U.S. cooperative network (NOAA's Regional Climate Centers), as far back as the station goes, sometimes the 1800s");
-    stationBox = new QComboBox{page};
+    stationBox = UiStandards::combo(page);
     stationBox->setVisible(false);
     stationBox->setMinimumWidth(300);
-    periodBox = new QComboBox{page};
+    periodBox = UiStandards::combo(page);
     periodBox->addItems({"Week (7 days up to the date)", "Month (to the date)", "Year (to the date)"});
-    metricBox = new QComboBox{page};
+    metricBox = UiStandards::combo(page);
     metricBox->addItems({"Average temperature", "Average high", "Average low", "Total precipitation"});
     dateEdit = new QDateEdit{page};
     dateEdit->setCalendarPopup(true);
     dateEdit->setDisplayFormat("yyyy-MM-dd");
     dateEdit->setDateRange(QDate{1940, 1, 1}, QDate::currentDate().addDays(-6));
     dateEdit->setDate(upTo.isValid() ? std::min(upTo, QDate::currentDate().addDays(-6)) : QDate::currentDate().addDays(-6));
-    reloadButton = new QPushButton{"Load", page};
-    csvButton = new QPushButton{"Save table...", page};
-    pictureButton = new QPushButton{"Save chart...", page};
+    reloadButton = UiStandards::button(page, "Load");
+    csvButton = UiStandards::button(page, "Save table...");
+    pictureButton = UiStandards::button(page, "Save chart...");
     for (QWidget * w : std::vector<QWidget *>{savedBox, latBox, lonBox, sourceBox, stationBox, periodBox, metricBox, dateEdit, reloadButton, csvButton, pictureButton}) {
         row->addWidget(w);
     }

@@ -6,7 +6,9 @@
 #ifndef UISTANDARDS_H
 #define UISTANDARDS_H
 
+class QColor;
 class QComboBox;
+class QFrame;
 class QLabel;
 class QPushButton;
 #include <QString>
@@ -35,6 +37,13 @@ namespace UiStandards {
     QComboBox * combo(QWidget * parent);
     // secondary text (credits, notes): the theme's own dimmed color, in light and dark themes
     void muted(QLabel * label);
+    // the few fixed looks, in one place (a hex color written into a screen is a bug): the dark read-out that follows the pointer over a map, the amber notice over a picture, the blue
+    // "working" line on a map, an error line, and the outlined card with a colored left edge
+    void hoverPill(QLabel * label, int alpha = 220);
+    void notice(QLabel * label);
+    void working(QLabel * label);
+    void error(QLabel * label);
+    void card(QFrame * frame, const QColor& edge);
 }
 
 #endif  // UISTANDARDS_H

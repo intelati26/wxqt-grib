@@ -7,6 +7,7 @@
 #include <QRegularExpression>
 #include "models/PrecipitationPicker.h"
 #include "hurricane/HafsIntensity.h"
+#include "ui/UiStandards.h"
 #include <algorithm>
 #include <map>
 #include <QGridLayout>
@@ -50,7 +51,7 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
     star = new QPushButton{this};
     row->addWidget(star);
     row->addStretch();
-    choose = new QPushButton{"Show this chart", this};
+    choose = UiStandards::button(this, "Show this chart");
     row->addWidget(choose);
     column->addLayout(row);
     if (!extras.empty()) {   // the lines and barbs that go on top of any chart: a section that opens, so the list keeps its room
@@ -113,7 +114,7 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
             labels.push_back(e.label);
         }
         if (PrecipitationPicker::offeredFor(ids)) {
-            auto * parts = new QPushButton{"Precipitation by parts...", this};
+            auto * parts = UiStandards::button(this, "Precipitation by parts...");
             parts->setToolTip("Choose the precipitation chart by what it shows (amount over a period, since the start, type, rate, snowfall), the period and the lines, instead of from the list");
             column->addWidget(parts);
             QObject::connect(parts, &QPushButton::clicked, [this, parts, ids, labels] {

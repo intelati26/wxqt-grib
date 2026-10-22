@@ -22,7 +22,7 @@ SpcSwoStateGraphics::SpcSwoStateGraphics(Window * parent, int day)
     , day{day}
     , state{Location::state()}
 {
-    setTitle("SPC Convective Outlooks for " + state + " Day  " + To::string(day));
+    setTitle("SPC Convective Outlooks - " + state + " day " + To::string(day));
     const auto fullStateIndex = findex(state + ":", GlobalArrays::states);
     comboBox.setIndex(fullStateIndex);
     comboBox.connect([this] { changeState(); });

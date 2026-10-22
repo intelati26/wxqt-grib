@@ -35,6 +35,7 @@
 #include "radar/MapView.h"
 #include "settings/UIPreferences.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     std::vector<string> splitList(const string& text) {
@@ -905,14 +906,14 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     chartButton->setToolTip("The chart: opens the list of the model's charts in groups, with a search box, favorites (the star) and lines and wind barbs to tick onto it");
     layout->addWidget(modelButton);
     layout->addWidget(chartButton);
-    auto * changeBox = new QComboBox{widget};
+    auto * changeBox = UiStandards::combo(widget);
     changeBox->addItems({"Plain chart", "Change since the run 6 h earlier", "Change since the run 12 h earlier", "Change since the run 24 h earlier", "Maximum of the 24 hours ending at this hour"});
     changeBox->setToolTip("How the chart changed since an earlier run: the same valid time from the older run is subtracted (blue = lower now, red = higher now). Charts of lines only have none");
     layout->addWidget(changeBox);
     auto * toolsRow = new QHBoxLayout;
-    auto * colorsButton = new QPushButton{"Colors...", widget};
+    auto * colorsButton = UiStandards::button(widget, "Colors...");
     colorsButton->setToolTip("Edit the color scale this kind of chart is drawn with (stops, banded or smooth, transparency, import and export a file)");
-    auto * buildButton = new QPushButton{"Build a chart...", widget};
+    auto * buildButton = UiStandards::button(widget, "Build a chart...");
     buildButton->setToolTip("A chart made to order from a template of the model (the chance of rain over a limit in a period, of a temperature under a limit, of gusts over one)");
     toolsRow->addWidget(colorsButton);
     toolsRow->addWidget(buildButton);
@@ -920,7 +921,7 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     auto * overlayButton = new QPushButton{widget};
     overlayButton->setToolTip("Lines (heights, pressure) of other models drawn over this chart, for the same valid time, each in its own color (at most four); the fill is left out so the lines can be read");
     layout->addWidget(overlayButton);
-    auto * aheadBox = new QComboBox{widget};
+    auto * aheadBox = UiStandards::combo(widget);
     aheadBox->addItem("Draw ahead: automatic", "auto");
     aheadBox->addItem("Draw ahead: 12 hours", "12");
     aheadBox->addItem("Draw ahead: 24 hours", "24");
@@ -932,10 +933,10 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
         Utility::writePref("MM_MODELCHART_PRELOAD", aheadBox->currentData().toString().toStdString());
         fillAhead(aheadCount());
     });
-    auto * runBox = new QComboBox{widget};
+    auto * runBox = UiStandards::combo(widget);
     runBox->setToolTip("The run of the chart: the newest (or the one of the time bar's time), or one of the earlier runs of the model. The time bar then steps through that run's hours");
     layout->addWidget(runBox);
-    auto * memberBox = new QComboBox{widget};
+    auto * memberBox = UiStandards::combo(widget);
     memberBox->setToolTip("An ensemble's chart for one member instead of the mean");
     layout->addWidget(memberBox);
     auto * sigmaBox = new QCheckBox{"In standard deviations from the normal", widget};

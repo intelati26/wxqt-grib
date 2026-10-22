@@ -16,6 +16,7 @@
 #include <QVBoxLayout>
 #include "radar/MapView.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     QColor categoryColor(int wind) {
@@ -406,7 +407,7 @@ QWidget * ConeHistoryLayer::options(QWidget * parent, const std::function<void()
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Year:", widget});
-    auto * year = new QComboBox{widget};
+    auto * year = UiStandards::combo(widget);
     year->addItem("The year of the time on the bar", 0);
     for (int y = QDate::currentDate().year(); y >= 2008; y--) {
         year->addItem(QString::number(y), y);
@@ -414,7 +415,7 @@ QWidget * ConeHistoryLayer::options(QWidget * parent, const std::function<void()
     year->setCurrentIndex(std::max(0, year->findData(yearChoice)));
     layout->addWidget(year);
     layout->addWidget(new QLabel{"Storm:", widget});
-    stormBox = new QComboBox{widget};
+    stormBox = UiStandards::combo(widget);
     stormBox->addItem("Every storm active at the time on the bar", QString{});
     for (const auto& s : yearList) {
         stormBox->addItem(QString::fromStdString(s.name + " (" + s.id + ")"), QString::fromStdString(s.id));

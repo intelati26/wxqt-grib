@@ -23,6 +23,7 @@
 #include "radar/MapView.h"
 #include "util/Utility.h"
 #include "util/UtilityIO.h"
+#include "ui/UiStandards.h"
 
 namespace {
     const char * kinds[] = {"ir", "vis", "wv"};
@@ -435,7 +436,7 @@ QWidget * GoesHistoryLayer::options(QWidget * parent, const std::function<void()
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Channel:", widget});
-    auto * combo = new QComboBox{widget};
+    auto * combo = UiStandards::combo(widget);
     combo->addItems({"Infrared (cloud-top temperature)", "Visible (daylight)", "Water vapor"});
     combo->setCurrentIndex(product);
     layout->addWidget(combo);

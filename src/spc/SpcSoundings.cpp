@@ -65,7 +65,7 @@ void SpcSoundings::moveForward() {
 
 void SpcSoundings::reload() {
     office = SoundingSites::sites->codeList[index];
-    setTitle("Spc Soundings: " + SoundingSites::sites->byCode[office]->fullName + " " + SoundingSites::sites->byCode[office]->latLon.printPretty());
+    setTitle("SPC soundings - " + SoundingSites::sites->byCode[office]->fullName + " " + SoundingSites::sites->byCode[office]->latLon.printPretty());
     new FutureBytes{this, UtilitySpcSoundings::getImage(office), [this] (const auto& ba) { photo.setBytes(ba); }};
 }
 

@@ -34,6 +34,7 @@
 #include "util/To.h"
 #include "util/Utility.h"
 #include "util/UtilityUI.h"
+#include "ui/UiStandards.h"
 
 namespace {
     const int loopCounts[] = {6, 12, 24};
@@ -96,7 +97,7 @@ MrmsViewer::MrmsViewer(Window * parent)
     radar->installEventFilter(this);
     hoverLabel = new QLabel{radar};
     hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-    hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 205); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
+    UiStandards::hoverPill(hoverLabel, 205);
     hoverLabel->hide();
     radar->dataLayer = [this] (QPainter& painter) { paintData(painter); };
     radar->topLayer = [this] (QPainter& painter) { paintLegend(painter); };
@@ -529,7 +530,7 @@ void MrmsViewer::showOverlays() {
         layout->addWidget(box, slot / 2, slot % 2);
         slot++;
     }
-    auto * close = new QPushButton{"Close", dialog};
+    auto * close = UiStandards::button(dialog, "Close");
     QObject::connect(close, &QPushButton::clicked, dialog, &QDialog::close);
     layout->addWidget(close, 2, 0, 1, 2, Qt::AlignRight);
     overlayDialog = dialog;

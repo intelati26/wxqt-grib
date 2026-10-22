@@ -17,6 +17,7 @@
 #include "settings/Location.h"
 #include "tornado/TornadoStatsViewer.h"
 #include "util/UtilityUI.h"
+#include "ui/UiStandards.h"
 
 namespace {
     using T = UtilityTornado::Tornado;
@@ -93,7 +94,7 @@ TornadoViewer::TornadoViewer(Window * parent)
     view->showRegion(24.0, 50.0, -125.0, -66.0);
     hoverLabel = new QLabel{map};
     hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-    hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 220); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
+    UiStandards::hoverPill(hoverLabel);
     hoverLabel->hide();
     list = new QListWidget{this};
     list->setFixedWidth(310);

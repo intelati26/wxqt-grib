@@ -17,6 +17,7 @@
 #include "hurricane/UtilityWindProbability.h"
 #include "radar/MapView.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     QColor riskColor(const UtilityNhcGis::OutlookArea& area) {
@@ -222,7 +223,7 @@ QWidget * OutlookHistoryLayer::options(QWidget * parent, const std::function<voi
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Issuances to step through (days either side of the time):", widget});
-    auto * days = new QComboBox{widget};
+    auto * days = UiStandards::combo(widget);
     int current = 0;
     for (const int d : {3, 6, 10, 14, 21}) {
         days->addItem(QString::number(d) + " days", d);

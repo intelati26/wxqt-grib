@@ -61,6 +61,7 @@
 #include "ui/ElidedText.h"
 #include "util/Utility.h"
 #include "util/UtilityUI.h"
+#include "ui/UiStandards.h"
 
 namespace {
     // The labels over the time slider (F000 F006 ... as many as fit) with a bar under them: blue where the frame is drawn and ready, grey where it is not yet
@@ -177,11 +178,11 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     mapView->showRegion(20.0, 55.0, -127.0, -65.0);
     hoverLabel = new QLabel{map};
     hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-    hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 220); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
+    UiStandards::hoverPill(hoverLabel);
     hoverLabel->hide();
     workingLabel = new QLabel{map};
     workingLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-    workingLabel->setStyleSheet("QLabel { background-color: rgba(20, 60, 120, 225); color: #ffffff; padding: 5px 10px; border-radius: 4px; }");
+    UiStandards::working(workingLabel);
     workingLabel->move(10, 10);
     workingLabel->hide();
     workingTimer.setInterval(500);
@@ -213,7 +214,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     for (const auto& id : QString::fromStdString(Utility::readPref("MASTERMAP_OPEN_OPTIONS", "")).split(',', Qt::SkipEmptyParts)) {
         expanded.insert(id.toStdString());
     }
-    auto * addButton = new QPushButton{"Add layers...", sidePanel};
+    auto * addButton = UiStandards::button(sidePanel, "Add layers...");
     addButton->setToolTip("Every layer the map has, in a tree: switch any on or off, and set its options");
     QObject::connect(addButton, &QPushButton::clicked, [this] { showAddLayers(); });
     column->addWidget(addButton);
@@ -231,7 +232,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
         auto * rowLayout = new QHBoxLayout{row};
         rowLayout->setContentsMargins(0, 0, 0, 0);
         rowLayout->addWidget(new QLabel{"Wind barbs:", row});
-        auto * density = new QComboBox{row};
+        auto * density = UiStandards::combo(row);
         const std::vector<std::pair<QString, int>> choices{{"Sparser", 150}, {"Normal", 100}, {"Denser", 75}, {"Densest", 55}};
         for (const auto& [text, percent] : choices) {
             density->addItem(text, percent);
@@ -258,7 +259,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     }
     noticeLabel = new QLabel{sidePanel};
     noticeLabel->setWordWrap(true);
-    noticeLabel->setStyleSheet("background: #fff1c2; color: #3a2e00; padding: 4px; border: 1px solid #d9b84a;");
+    UiStandards::notice(noticeLabel);
     noticeLabel->hide();
     column->addWidget(noticeLabel);
     optionsTitle = new QLabel{sidePanel};
@@ -419,16 +420,16 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     auto * timeLayout = new QHBoxLayout;
     timeLayout->setContentsMargins(0, 0, 0, 0);
     timeOuter->addLayout(timeLayout);
-    stepBack = new QPushButton{"<", timeRow};
-    playButton = new QPushButton{"Loop", timeRow};
-    stepForward = new QPushButton{">", timeRow};
-    rangeButton = new QPushButton{"From-to...", timeRow};
+    stepBack = UiStandards::button(timeRow, "<");
+    playButton = UiStandards::button(timeRow, "Loop");
+    stepForward = UiStandards::button(timeRow, ">");
+    rangeButton = UiStandards::button(timeRow, "From-to...");
     rangeButton->setToolTip("Loop from one time to another (UTC): the layers that can read any stretch of their archive (radar, satellite) show the frames between the two times, every few when it is long; a model chart loops through its run from the first time. Clear goes back to the usual loop");
-    liveButton = new QPushButton{"Latest", timeRow};
+    liveButton = UiStandards::button(timeRow, "Latest");
     timeSlider = new QSlider{Qt::Horizontal, timeRow};
     timeSlider->setMinimum(0);
     timeSlider->setMaximum(0);
-    speedCombo = new QComboBox{timeRow};
+    speedCombo = UiStandards::combo(timeRow);
     speedCombo->addItems({"slow", "medium", "fast"});
     speedCombo->setCurrentIndex(std::clamp(Utility::readPrefInt("MASTERMAP_SPEED", 1), 0, 2));
     timeLabel = new QLabel{"live", timeRow};
@@ -440,7 +441,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     timeLayout->addWidget(playButton);
     timeLayout->addWidget(stepForward);
     timeLayout->addWidget(rangeButton);
-    hoursButton = new QPushButton{"Hours \xE2\x96\xBE", timeRow};
+    hoursButton = UiStandards::button(timeRow, "Hours \xE2\x96\xBE");
     hoursButton->setToolTip("A grid of every hour of the forecast (or every frame) to jump to");
     timeLayout->addWidget(hoursButton);
     QObject::connect(hoursButton, &QPushButton::clicked, [this] { openHours(); });
@@ -469,7 +470,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
 #endif
     timePick->setCalendarPopup(true);
     timePick->setToolTip("Pick a day and time (UTC) and press Go: the layers with a past (radar, satellite, reports, cones) show it");
-    timeGo = new QPushButton{"Go", timeRow};
+    timeGo = UiStandards::button(timeRow, "Go");
     timeGo->setFixedWidth(40);
     timeLayout->addWidget(timePick);
     timeLayout->addWidget(timeGo);
@@ -713,7 +714,8 @@ void MasterMapViewer::refreshActiveList() {
         rowLayout->addWidget(check, 1);
         activeLayout->addWidget(row);
         auto * note = new QLabel{QString::fromStdString(layer->summary()), activeBox};
-        note->setStyleSheet("color: gray; font-size: 9pt; margin-left: 22px;");
+        UiStandards::muted(note);
+        note->setStyleSheet("font-size: 9pt; margin-left: 22px;");
         note->setWordWrap(true);
         note->setVisible(!layer->summary().empty());
         activeLayout->addWidget(note);
@@ -1075,9 +1077,9 @@ void MasterMapViewer::askRange() {
     column->addLayout(row1);
     column->addLayout(row2);
     auto * buttons = new QHBoxLayout;
-    auto * go = new QPushButton{"Loop these times", &dialog};
-    auto * clear = new QPushButton{"Clear", &dialog};
-    auto * cancel = new QPushButton{"Cancel", &dialog};
+    auto * go = UiStandards::button(&dialog, "Loop these times");
+    auto * clear = UiStandards::button(&dialog, "Clear");
+    auto * cancel = UiStandards::button(&dialog, "Cancel");
     buttons->addWidget(go);
     buttons->addWidget(clear);
     buttons->addWidget(cancel);
@@ -1255,8 +1257,8 @@ void MasterMapViewer::saveModelLoop() {
     dialog.setWindowTitle("Save a loop");
     auto * column = new QVBoxLayout{&dialog};
     column->addWidget(new QLabel{"The forecast hours to put in the loop (each is drawn as the titled picture, for the part of the world in view):", &dialog});
-    auto * first = new QComboBox{&dialog};
-    auto * last = new QComboBox{&dialog};
+    auto * first = UiStandards::combo(&dialog);
+    auto * last = UiStandards::combo(&dialog);
     for (const int h : hours) {
         first->addItem("F" + QString::number(h), h);
         last->addItem("F" + QString::number(h), h);
@@ -1378,18 +1380,18 @@ void MasterMapViewer::exportWorld() {
     dialog.setWindowTitle("Export the whole world");
     auto * column = new QVBoxLayout{&dialog};
     column->addWidget(new QLabel{"The layers as they are on the map, over the whole world, with nothing stretched toward the poles as on Mercator: Robinson is the compromise the United Nations' world maps use; Equal Earth and Mollweide keep areas true.", &dialog});
-    auto * projectionBox = new QComboBox{&dialog};
+    auto * projectionBox = UiStandards::combo(&dialog);
     projectionBox->addItem("Robinson (the United Nations' world maps)", static_cast<int>(GlobeMapView::Projection::Robinson));
     projectionBox->addItem("Equal Earth (equal area)", static_cast<int>(GlobeMapView::Projection::EqualEarth));
     projectionBox->addItem("Mollweide (equal area)", static_cast<int>(GlobeMapView::Projection::Mollweide));
     projectionBox->addItem("North polar (the pole to 20 N: the polar vortex)", static_cast<int>(GlobeMapView::Projection::PolarNorth));
     projectionBox->addItem("South polar (the pole to 20 S)", static_cast<int>(GlobeMapView::Projection::PolarSouth));
-    auto * centerBox = new QComboBox{&dialog};
+    auto * centerBox = UiStandards::combo(&dialog);
     centerBox->addItem("Centered on Greenwich (0)", 0);
     centerBox->addItem("Centered on the Americas (-100)", -100);
     centerBox->addItem("Centered on the Pacific (180)", 180);
     centerBox->addItem("Centered on Asia (90)", 90);
-    auto * widthBox = new QComboBox{&dialog};
+    auto * widthBox = UiStandards::combo(&dialog);
     const auto standardWidths = [widthBox] {
         widthBox->clear();
         for (const int w : {2400, 3600, 4800, 6000}) {
@@ -1399,12 +1401,12 @@ void MasterMapViewer::exportWorld() {
     };
     standardWidths();
     // the polar maps: how far from the pole the sides reach, and a circle (the hemisphere) or a wide frame (as a polar vortex chart)
-    auto * reachBox = new QComboBox{&dialog};
+    auto * reachBox = UiStandards::combo(&dialog);
     for (const int lat : {10, 20, 30, 40, 50}) {
         reachBox->addItem(QString{"Reaches to %1 degrees latitude"}.arg(lat), lat);
     }
     reachBox->setCurrentIndex(2);
-    auto * frameBox = new QComboBox{&dialog};
+    auto * frameBox = UiStandards::combo(&dialog);
     frameBox->addItem("Wide frame, filled to the corners (a polar vortex chart)", 1);
     frameBox->addItem("Circle (the whole hemisphere to that latitude)", 0);
     auto * graticuleBox = new QCheckBox{"Lines of latitude and longitude, with their numbers", &dialog};

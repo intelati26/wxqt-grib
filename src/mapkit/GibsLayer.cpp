@@ -29,6 +29,7 @@
 #include "radar/MapView.h"
 #include "util/Utility.h"
 #include "util/UtilityIO.h"
+#include "ui/UiStandards.h"
 
 const std::vector<GibsLayer::Product>& GibsLayer::products() {
     static const std::vector<Product> all{
@@ -479,14 +480,14 @@ QWidget * GibsLayer::options(QWidget * parent, const std::function<void()>& chan
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Imagery:", widget});
-    auto * combo = new QComboBox{widget};
+    auto * combo = UiStandards::combo(widget);
     for (const auto& p : products()) {
         combo->addItem(p.label);
     }
     combo->setCurrentIndex(productIndex);
     layout->addWidget(combo);
     layout->addWidget(new QLabel{"Day (UTC):", widget});
-    auto * day = new QComboBox{widget};
+    auto * day = UiStandards::combo(widget);
     day->addItem("Today so far");
     day->addItem("Yesterday");
     for (int d = 2; d <= 14; d++) {

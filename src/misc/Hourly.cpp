@@ -13,7 +13,7 @@ Hourly::Hourly(Window * parent)
     , sw{this, box}
     , text{this}
 {
-    setTitle("Hourly forecast for " + Location::name());
+    setTitle("Hourly forecast - " + Location::name());
     text.setFixedWidth();
     box.addWidget(text);
     box.addMargins();

@@ -42,6 +42,7 @@
 #include "objects/UtilityJxl.h"
 #include "objects/UtilityTools.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     // an image flattened onto white as opaque RGB32
@@ -181,7 +182,7 @@ bool UtilityAnimationExport::webpOptionsDialog(QWidget * parent, bool animated, 
     dialog.setWindowTitle("WebP options");
     auto * form = new QFormLayout{&dialog};
 
-    auto * mode = new QComboBox{&dialog};
+    auto * mode = UiStandards::combo(&dialog);
     mode->addItems({"Lossy (smallest)", "Lossless (exact pixels)", "Mixed (best of both per frame)"});
     mode->setCurrentIndex(options.mode);
     form->addRow("Compression", mode);

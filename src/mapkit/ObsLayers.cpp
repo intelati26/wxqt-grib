@@ -20,6 +20,7 @@
 #include "settings/UIPreferences.h"
 #include "ui/WindBarb.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 namespace {
     // the display choices both station layers share (kept in the settings)
@@ -312,7 +313,7 @@ QWidget * StationLayer::options(QWidget * parent, const std::function<void()>& c
     check("Temperature (red) and dew point (green)", style().values, "MM_OBS_VALUES", &Style::values);
     const auto combo = [&] (const char * title, std::vector<const char *> entries, int current, const char * pref, int Style::* member) {
         layout->addWidget(new QLabel{title, widget});
-        auto * c = new QComboBox{widget};
+        auto * c = UiStandards::combo(widget);
         for (const auto * e : entries) {
             c->addItem(e);
         }

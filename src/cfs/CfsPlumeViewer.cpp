@@ -21,6 +21,7 @@
 #include "ui/ChartExport.h"
 #include "ui/FlowBox.h"
 #include "util/Utility.h"
+#include "ui/UiStandards.h"
 
 // the chart: the daily lines on top, the monthly means below
 class CfsPlume : public QWidget {
@@ -267,7 +268,7 @@ private:
 CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, double lon, const QString& modelId, bool loadNow) : QWidget{parent}, owner{owner} {
     auto * column = new QVBoxLayout;
     auto * top = new FlowLayout{6};   // one flow: the choices wrap onto more rows when the pane is narrow
-    place = new QComboBox{this};
+    place = UiStandards::combo(this);
     place->addItem("Latitude / longitude");
     const auto names = Location::listOfNames();
     const auto points = Location::getListLatLons();
@@ -282,30 +283,30 @@ CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, doubl
     lonBox->setRange(-180.0, 180.0);
     lonBox->setDecimals(2);
     lonBox->setValue(lon);
-    model = new QComboBox{this};
+    model = UiStandards::combo(this);
     model->addItem("GEFS (31 members, 16 days)", "gefs");
     model->addItem("GFS (16 days)", "gfs");
     model->addItem("CFSv2 (9 months)", "cfs");
     model->setCurrentIndex(std::max(0, model->findData(modelId)));
-    field = new QComboBox{this};
-    span = new QComboBox{this};
-    count = new QComboBox{this};
-    stride = new QComboBox{this};
+    field = UiStandards::combo(this);
+    span = UiStandards::combo(this);
+    count = UiStandards::combo(this);
+    stride = UiStandards::combo(this);
     stride->addItem("every 6 hours", 6);
     stride->addItem("every 12 hours", 12);
     stride->addItem("every 24 hours", 24);
-    monthlyShow = new QComboBox{this};
+    monthlyShow = UiStandards::combo(this);
     monthlyShow->addItem("months: values", 0);
     monthlyShow->addItem("months: departure from the CFS normal", 1);
     monthlyShow->addItem("months: departure in std deviations", 2);
     fillChoices();
-    runChoice = new QComboBox{this};
+    runChoice = UiStandards::combo(this);
     runChoice->addItem("run of the page", 0);
     runChoice->addItem("newest run", 1);
     runChoice->setToolTip("Which run the plume is of: the one the chart beside it is on, or always the newest");
     runChoice->setCurrentIndex(1);   // (a window of its own has no chart to follow: the pane turns the choice on)
     runChoice->setEnabled(false);
-    go = new QPushButton{"Load", this};
+    go = UiStandards::button(this, "Load");
     status = new QLabel{"", this};
     top->addWidget(place);
     top->addWidget(new QLabel{"lat", this});

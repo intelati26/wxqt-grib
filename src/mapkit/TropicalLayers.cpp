@@ -23,6 +23,7 @@
 #include "hurricane/UtilityNhcGis.h"
 #include "hurricane/UtilityTropicalAlerts.h"
 #include "hurricane/UtilityWindProbability.h"
+#include "ui/UiStandards.h"
 
 namespace {
     QColor categoryColor(int wind) {
@@ -755,7 +756,7 @@ QWidget * WindProbabilityLayer::options(QWidget * parent, const std::function<vo
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Wind of at least:", widget});
-    auto * combo = new QComboBox{widget};
+    auto * combo = UiStandards::combo(widget);
     combo->addItems({"34 kt (tropical storm)", "50 kt", "64 kt (hurricane)"});
     combo->setCurrentIndex(threshold);
     QObject::connect(combo, &QComboBox::currentIndexChanged, [this, changed] (int index) { threshold = index; changed(); });
@@ -1132,18 +1133,18 @@ QWidget * EnsembleSpaghettiLayer::options(QWidget * parent, const std::function<
     check("A dot for each day of a member", showDays);
     check("Ensemble mean", showMean);
     layout->addWidget(new QLabel{"Colored by:", widget});
-    auto * colors = new QComboBox{widget};
+    auto * colors = UiStandards::combo(widget);
     colors->addItems({"Model", "Forecast hour", "Wind of the member"});
     colors->setCurrentIndex(colorMode);
     QObject::connect(colors, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { colorMode = index; changed(); });
     layout->addWidget(colors);
     layout->addWidget(new QLabel{"Forecast shown:", widget});
-    auto * combo = new QComboBox{widget};
+    auto * combo = UiStandards::combo(widget);
     combo->addItems({"All of it", "10 days", "7 days", "5 days", "3 days", "2 days", "1 day"});
     combo->setCurrentIndex(hoursChoice);
     QObject::connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { hoursChoice = index; changed(); });
     layout->addWidget(combo);
-    auto * only = new QPushButton{"Show only this layer", widget};
+    auto * only = UiStandards::button(widget, "Show only this layer");
     QObject::connect(only, &QPushButton::clicked, [this] {
         if (hostPointer != nullptr) {
             hostPointer->onlyLayer(id());
@@ -1316,18 +1317,18 @@ QWidget * DeepMindGenesisLayer::options(QWidget * parent, const std::function<vo
     auto * layout = new QVBoxLayout{widget};
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Show storms that at least this share of the members form:", widget});
-    auto * chance = new QComboBox{widget};
+    auto * chance = UiStandards::combo(widget);
     chance->addItems({"1%", "2%", "5%", "10%", "25%"});
     chance->setCurrentIndex(chanceChoice);
     QObject::connect(chance, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { chanceChoice = index; changed(); });
     layout->addWidget(chance);
     layout->addWidget(new QLabel{"Forming within:", widget});
-    auto * window = new QComboBox{widget};
+    auto * window = UiStandards::combo(widget);
     window->addItems({"All of the forecast (about 13 days)", "7 days", "5 days", "3 days"});
     window->setCurrentIndex(windowChoice);
     QObject::connect(window, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, changed] (int index) { windowChoice = index; changed(); });
     layout->addWidget(window);
-    auto * only = new QPushButton{"Show only this layer", widget};
+    auto * only = UiStandards::button(widget, "Show only this layer");
     QObject::connect(only, &QPushButton::clicked, [this] {
         if (hostPointer != nullptr) {
             hostPointer->onlyLayer(id());

@@ -46,6 +46,7 @@
 #include "objects/FutureVoid.h"
 #include "util/Utility.h"
 #include "util/UtilityUI.h"
+#include "ui/UiStandards.h"
 
 namespace {
 
@@ -174,7 +175,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
 
     hoverLabel = new QLabel{map};
     hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-    hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 220); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
+    UiStandards::hoverPill(hoverLabel);
     hoverLabel->hide();
 
     // the side panel, in sections that fold away (each remembers whether it is open): the storm, the guidance, what is drawn, the reconnaissance, the satellite pictures, the windows
@@ -286,7 +287,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     reconBody->addWidget(fixCheck);
     // the satellite pictures: RAMMB's (CIRA, Colorado State) page of the storm, in the program and on the web
     auto * satelliteBody = section("Satellite (RAMMB)", "SATELLITE", true);
-    buttonRammb = new QPushButton{"Satellite, microwave and guidance pictures (RAMMB)...", panel};
+    buttonRammb = UiStandards::button(panel, "Satellite, microwave and guidance pictures (RAMMB)...");
     buttonRammb->setToolTip("CIRA / RAMMB's page of this storm: infrared and microwave loops, the SSMIS and GOES pictures, the forecast and the track history");
     QObject::connect(buttonRammb, &QPushButton::clicked, [this] {
         if (storm) {

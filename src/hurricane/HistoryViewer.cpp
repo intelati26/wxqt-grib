@@ -19,6 +19,7 @@
 #include "objects/FutureVoid.h"
 #include "settings/Location.h"
 #include "util/UtilityUI.h"
+#include "ui/UiStandards.h"
 
 namespace {
     int maxCategory(const UtilityHurdat::Track& t) {
@@ -77,7 +78,7 @@ HistoryViewer::HistoryViewer(Window * parent)
     view->showRegion(5.0, 50.0, -100.0, -10.0);
     hoverLabel = new QLabel{map};
     hoverLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-    hoverLabel->setStyleSheet("QLabel { background-color: rgba(15, 15, 15, 220); color: #f2f2f2; padding: 4px 8px; border-radius: 3px; }");
+    UiStandards::hoverPill(hoverLabel);
     hoverLabel->hide();
     list = new QListWidget{this};
     list->setFixedWidth(300);
@@ -88,7 +89,7 @@ HistoryViewer::HistoryViewer(Window * parent)
         buttonSar->setEnabled(selected >= 0 && data && data->tracks[static_cast<size_t>(selected)].year >= 2015 && data->tracks[static_cast<size_t>(selected)].name != "UNNAMED");
     });
     comboBasin.connect([this] { load(); });
-    buttonSar = new QPushButton{"SAR winds of the storm...", this};
+    buttonSar = UiStandards::button(this, "SAR winds of the storm...");
     buttonSar->setToolTip("NOAA STAR's synthetic aperture radar winds: the scenes made of the selected storm (named storms of 2015 and later) with their pictures and measurements");
     buttonSar->setEnabled(false);
     QObject::connect(buttonSar, &QPushButton::clicked, [this] {
