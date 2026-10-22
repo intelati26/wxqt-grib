@@ -8,6 +8,7 @@
 #include "hurricane/HafsIntensity.h"
 #include <algorithm>
 #include "gfs/GfsModels.h"
+#include "gfs/GfsChart.h"
 #include "objects/WString.h"
 #include "util/To.h"
 #include "util/Utility.h"
@@ -299,7 +300,9 @@ void ObjectModel::setModelVars(const string& modelName) {
             sector = sectors[0];
         }
     }
-    if (!contains(params, param)) {
+    // (a chart made to order, "gen~...", is not in the model's list: the screen puts it there; it is kept when the model can make it)
+    const bool madeToOrder = prefModel == "NCEP" && param.compare(0, 4, "gen~") == 0 && GfsChart::product(param, modelName) != nullptr;
+    if (!contains(params, param) && !madeToOrder) {
         if (!params.empty()) {
             param = params[0];
         }

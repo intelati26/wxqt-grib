@@ -52,6 +52,93 @@ std::string generatedId(const std::string& templateId, const std::vector<double>
     return id;
 }
 
+// ---- ingredients: the conditions of a pattern (CAPE over so much, shear over so much ...) as parts, for the "ingredients" charts: on a single run, where each point meets how many of them; on the
+// ensemble, the share of the members that meet all of them together
+struct IngredientReq {
+    const char * key;
+    const char * variable;
+    const char * level;
+    int kind;   // 0: the field at the hour, 1: the 6 hour amount ending at it
+};
+struct Ingredient {
+    const char * name;
+    const char * unit;
+    std::vector<double> limits;
+    std::vector<IngredientReq> reqs;
+    bool single, ensemble;
+    std::vector<std::string> only;   // the single run models that have it (empty: every one)
+    std::function<GfsGrid::Grid(const std::function<const GfsGrid::Grid&(const char *)>&)> value;   // the field in the unit of the limits, from the records by their keys
+};
+GfsGrid::Grid combine2(const GfsGrid::Grid& a, const GfsGrid::Grid& b, const std::function<float(float, float)>& f) {
+    auto out = a;
+    for (size_t i = 0; i < out.values.size(); i++) {
+        out.values[i] = i < b.values.size() ? f(a.values[i], b.values[i]) : std::nanf("");
+    }
+    return out;
+}
+GfsGrid::Grid mapped(const GfsGrid::Grid& a, const std::function<float(float)>& f) {
+    auto out = a;
+    for (auto& v : out.values) {
+        v = std::isnan(v) ? v : f(v);
+    }
+    return out;
+}
+const std::vector<Ingredient>& ingredients() {
+    static const std::vector<Ingredient> all{
+        {"MUCAPE", "J/kg", {250, 500, 1000, 1500, 2000, 3000}, {{"c", "CAPE", "255-0 mb above ground", 0}}, true, true, {}, [] (const auto& get) { return get("c"); }},
+        {"SBCAPE", "J/kg", {250, 500, 1000, 1500, 2000, 3000}, {{"c", "CAPE", "surface", 0}}, true, true, {}, [] (const auto& get) { return get("c"); }},
+        {"Sfc-500 mb shear", "kt", {20, 30, 40, 50, 60}, {{"u0", "UGRD", "10 m above ground", 0}, {"v0", "VGRD", "10 m above ground", 0}, {"u5", "UGRD", "500 mb", 0}, {"v5", "VGRD", "500 mb", 0}},
+         true, true, {}, [] (const auto& get) {
+             const auto du = combine2(get("u5"), get("u0"), [] (float a, float b) { return a - b; });
+             const auto dv = combine2(get("v5"), get("v0"), [] (float a, float b) { return a - b; });
+             return combine2(du, dv, [] (float a, float b) { return static_cast<float>(std::hypot(a, b) * 1.943844); });
+         }},
+        {"0-6 km shear", "kt", {20, 30, 40, 50}, {{"u", "VUCSH", "0-6000 m above ground", 0}, {"v", "VVCSH", "0-6000 m above ground", 0}}, true, false, {"RRFS", "HRRR"},
+         [] (const auto& get) { return combine2(get("u"), get("v"), [] (float a, float b) { return static_cast<float>(std::hypot(a, b) * 1.943844); }); }},
+        {"0-1 km SRH", "m2/s2", {100, 150, 250, 400}, {{"h", "HLCY", "1000-0 m above ground", 0}}, true, false, {"RRFS", "HRRR"}, [] (const auto& get) { return get("h"); }},
+        {"Precip. water", "in", {1.0, 1.25, 1.5, 1.75, 2.0}, {{"w", "PWAT", "entire atmosphere (considered as a single layer)", 0}}, true, true, {}, [] (const auto& get) { return mapped(get("w"), [] (float v) { return v / 25.4f; }); }},
+        {"2 m dew point", "F", {50, 55, 60, 65, 70}, {{"d", "DPT", "2 m above ground", 0}}, true, true, {}, [] (const auto& get) { return mapped(get("d"), [] (float v) { return v * 1.8f + 32.0f; }); }},
+        {"Rain rate", "in/h", {0.01, 0.05, 0.1, 0.25, 0.5}, {{"r", "PRATE", "surface", 0}}, true, false, {}, [] (const auto& get) { return mapped(get("r"), [] (float v) { return v * 3600.0f / 25.4f; }); }},
+        {"6-h rain", "in", {0.01, 0.05, 0.1, 0.25, 0.5, 1.0}, {{"a", "APCP", "surface", 1}}, false, true, {}, [] (const auto& get) { return mapped(get("a"), [] (float v) { return v / 25.4f; }); }},
+    };
+    return all;
+}
+struct IngredientCondition {
+    size_t ingredient;
+    double limit;
+};
+// the conditions a chart of this kind can be made of, in the order they are listed
+std::vector<IngredientCondition> ingredientConditions(bool ensemble, const std::string& source) {
+    std::vector<IngredientCondition> out;
+    for (size_t i = 0; i < ingredients().size(); i++) {
+        const auto& ing = ingredients()[i];
+        if (ensemble ? !ing.ensemble : !(ing.single && (ing.only.empty() || std::find(ing.only.begin(), ing.only.end(), source) != ing.only.end()))) {
+            continue;
+        }
+        for (const double limit : ing.limits) {
+            out.push_back({i, limit});
+        }
+    }
+    return out;
+}
+// the ingredients' names alone, for a title (the limits are in the line under it): "MUCAPE + 0-6 km shear + rain rate"
+std::string ingredientNames(const std::vector<IngredientCondition>& chosen) {
+    std::string out;
+    for (const auto& c : chosen) {
+        out += (out.empty() ? "" : " + ") + std::string{ingredients()[c.ingredient].name};
+    }
+    return out;
+}
+std::string conditionText(const IngredientCondition& c) {
+    const auto& ing = ingredients()[c.ingredient];
+    return std::string{ing.name} + " > " + trimmed(c.limit) + " " + ing.unit;
+}
+// the sources that get the single run version
+const std::vector<std::string>& ingredientSources() {
+    static const std::vector<std::string> all{"GFS", "HRRR", "RRFS"};
+    return all;
+}
+
     constexpr double pi = 3.14159265358979323846;
     constexpr double msToKnots = 1.943844;
 
@@ -2160,6 +2247,163 @@ const std::vector<Product>& products() {
                     x.legendStep = 10;
                     return x;
                 };
+                // ---- ingredients together: the share of the 31 members that meet every condition chosen at a point (up to three: CAPE over a limit, shear over a limit, rain over a limit ...)
+                made["ingredients"] = [memberNeeds, sixHourAmount] (const std::vector<double>& v) {
+                    const auto conditions = ingredientConditions(true, "GEFS");
+                    std::vector<IngredientCondition> chosen;
+                    for (const double index : v) {
+                        if (index >= 0 && static_cast<size_t>(index) < conditions.size()) {
+                            chosen.push_back(conditions[static_cast<size_t>(index)]);
+                        }
+                    }
+                    if (chosen.empty()) {
+                        throw std::runtime_error{"no condition chosen"};
+                    }
+                    Product x;
+                    x.source = "GEFS";
+                    x.id = generatedId("ingredients", v);
+                    std::string words;
+                    for (const auto& c : chosen) {
+                        words += (words.empty() ? "" : " and ") + conditionText(c);
+                    }
+                    x.label = "Chance of " + ingredientNames(chosen);   // (the limits are in the line under the title)
+                    const bool sixHour = std::any_of(chosen.begin(), chosen.end(), [] (const IngredientCondition& c) { return ingredients()[c.ingredient].reqs.front().kind == 1; });
+                    x.needs = [memberNeeds, sixHourAmount, chosen, sixHour] (int hour) {
+                        std::vector<GfsData::Need> out;
+                        if (hour < 3 || (sixHour && (hour < 6 || hour % 6 != 0))) {
+                            return out;
+                        }
+                        for (size_t slot = 0; slot < chosen.size(); slot++) {
+                            for (const auto& req : ingredients()[chosen[slot].ingredient].reqs) {
+                                const auto prefix = "s" + std::to_string(slot) + "_" + req.key;
+                                for (auto& need : memberNeeds(prefix.c_str(), req.variable, req.level, hour, req.kind == 1 ? sixHourAmount(hour) : std::to_string(hour) + " hour fcst")) {
+                                    out.push_back(std::move(need));
+                                }
+                            }
+                        }
+                        return out;
+                    };
+                    x.derive = [chosen] (Grids& g, const Context&) {
+                        auto result = g.at("s0_" + std::string{ingredients()[chosen[0].ingredient].reqs.front().key} + memberNames.front());
+                        std::vector<float> passed(result.values.size(), 0.0f), counted(result.values.size(), 0.0f);
+                        for (const auto& name : memberNames) {
+                            std::vector<char> all(result.values.size(), 1), known(result.values.size(), 1);
+                            for (size_t slot = 0; slot < chosen.size(); slot++) {
+                                const auto prefix = "s" + std::to_string(slot) + "_";
+                                const auto value = ingredients()[chosen[slot].ingredient].value([&g, &prefix, &name] (const char * key) -> const GfsGrid::Grid& { return g.at(prefix + key + name); });
+                                for (size_t i = 0; i < all.size(); i++) {
+                                    if (std::isnan(value.values[i])) {
+                                        known[i] = 0;
+                                    } else if (!(value.values[i] > chosen[slot].limit)) {
+                                        all[i] = 0;
+                                    }
+                                }
+                            }
+                            for (size_t i = 0; i < all.size(); i++) {
+                                if (known[i]) {
+                                    counted[i] += 1.0f;
+                                    passed[i] += all[i] ? 1.0f : 0.0f;
+                                }
+                            }
+                        }
+                        for (size_t i = 0; i < result.values.size(); i++) {
+                            result.values[i] = counted[i] > 0.0f ? 100.0f * passed[i] / counted[i] : std::nanf("");
+                        }
+                        for (auto it = g.begin(); it != g.end();) {   // the members' grids are dropped: 31 of them are a lot to carry
+                            it = it->first.compare(0, 1, "s") == 0 && it->first.find('_') != std::string::npos ? g.erase(it) : std::next(it);
+                        }
+                        g["share"] = std::move(result);
+                    };
+                    x.fill = [] (const Grids& g) { return pick(g, "share"); };
+                    x.ramp = probability();
+                    x.palette = "prob";
+                    x.fillTitle = "Chance of " + words + ", together (% of the 31 members)";
+                    x.legendStep = 10;
+                    return x;
+                };
+                // ---- ingredients met on one run: where each condition holds, and how many of them hold at a point; each condition's own line (its limit) is drawn over the picture, so the one that
+                // limits the pattern can be seen
+                for (const auto& sourceName : ingredientSources()) {
+                    made["ingr_" + sourceName] = [sourceName] (const std::vector<double>& v) {
+                        const auto conditions = ingredientConditions(false, sourceName);
+                        std::vector<IngredientCondition> chosen;
+                        for (const double index : v) {
+                            if (index >= 0 && static_cast<size_t>(index) < conditions.size()) {
+                                chosen.push_back(conditions[static_cast<size_t>(index)]);
+                            }
+                        }
+                        if (chosen.empty()) {
+                            throw std::runtime_error{"no condition chosen"};
+                        }
+                        Product x;
+                        x.source = sourceName;
+                        x.id = generatedId("ingr_" + sourceName, v);
+                        std::string words;
+                        for (const auto& c : chosen) {
+                            words += (words.empty() ? "" : ", ") + conditionText(c);
+                        }
+                        x.label = "Ingredients met: " + ingredientNames(chosen);   // (the limits are in the line under the title)
+                        for (size_t slot = 0; slot < chosen.size(); slot++) {
+                            for (const auto& req : ingredients()[chosen[slot].ingredient].reqs) {
+                                x.wants.push_back(GfsData::Want{"s" + std::to_string(slot) + "_" + req.key, req.variable, req.level, "", ""});
+                            }
+                        }
+                        x.derive = [chosen] (Grids& g, const Context&) {
+                            std::vector<GfsGrid::Grid> values;
+                            for (size_t slot = 0; slot < chosen.size(); slot++) {
+                                const auto prefix = "s" + std::to_string(slot) + "_";
+                                values.push_back(ingredients()[chosen[slot].ingredient].value([&g, &prefix] (const char * key) -> const GfsGrid::Grid& { return g.at(prefix + key); }));
+                            }
+                            auto count = values.front();
+                            for (size_t i = 0; i < count.values.size(); i++) {
+                                int met = 0;
+                                bool known = false;
+                                for (size_t slot = 0; slot < chosen.size(); slot++) {
+                                    const float value = values[slot].values[i];
+                                    if (!std::isnan(value)) {
+                                        known = true;
+                                        met += value > chosen[slot].limit ? 1 : 0;
+                                    }
+                                }
+                                count.values[i] = known ? static_cast<float>(met) : std::nanf("");
+                            }
+                            for (size_t slot = 0; slot < values.size(); slot++) {
+                                g["v" + std::to_string(slot)] = std::move(values[slot]);
+                            }
+                            g["count"] = std::move(count);
+                        };
+                        x.fill = [] (const Grids& g) { return pick(g, "count"); };
+                        // one condition met: grey; all of them: red (and amber between, when there are three)
+                        Ramp ramp;
+                        ramp.banded = true;
+                        if (chosen.size() == 1) {
+                            ramp.stops = {{1.0, QColor{"#d02a1e"}}};
+                        } else if (chosen.size() == 2) {
+                            ramp.stops = {{1.0, QColor{"#c9ced6"}}, {2.0, QColor{"#d02a1e"}}};
+                        } else {
+                            ramp.stops = {{1.0, QColor{"#c9ced6"}}, {2.0, QColor{"#f2b134"}}, {3.0, QColor{"#d02a1e"}}};
+                        }
+                        x.ramp = ramp;
+                        x.fillTitle = "Conditions met at the point (all of them: red): " + words;
+                        x.legendStep = 0;
+                        static const QColor lineColors[] = {QColor{20, 70, 190}, QColor{20, 130, 60}, QColor{130, 40, 160}};
+                        for (size_t slot = 0; slot < chosen.size(); slot++) {
+                            ContourSet c;
+                            c.key = "v" + std::to_string(slot);
+                            c.base = chosen[slot].limit;
+                            c.interval = 1.0e9;   // one line, at the limit
+                            c.minimum = chosen[slot].limit - 1.0e-6;
+                            c.title = conditionText(chosen[slot]);
+                            c.color = lineColors[slot % 3];
+                            c.uniform = true;
+                            c.width = 1.6;
+                            c.dashed = slot > 0;
+                            c.labelled = false;
+                            x.contours.push_back(c);
+                        }
+                        return x;
+                    };
+                }
                 // ---- the maps NAEFS has, from GEFS's 31 members alone (NAEFS adds the Canadian members and corrects the bias; neither is open): the 10th, 50th and 90th percentile of the members'
                 // 10 m wind and 2 m temperature, and the extreme forecast index
                 {
@@ -4906,6 +5150,29 @@ const Product * product(const std::string& id, const std::string& source) {
 }
 
 std::vector<Template> templates(const std::string& source) {
+    const auto ingredientTemplate = [] (const std::string& id, const std::string& title, bool ensemble, const std::string& name) {
+        const auto conditions = ingredientConditions(ensemble, name);
+        std::vector<double> indices;
+        std::vector<std::string> names;
+        size_t first = 0, second = 0, third = 0;
+        for (size_t i = 0; i < conditions.size(); i++) {
+            indices.push_back(static_cast<double>(i));
+            names.push_back(conditionText(conditions[i]));
+            const std::string ing = ingredients()[conditions[i].ingredient].name;
+            if (ing == "MUCAPE" && conditions[i].limit == 500) first = i;
+            if (ing == "Sfc-500 mb shear" && conditions[i].limit == 40) second = i;
+            if ((ing == "6-h rain" || ing == "Rain rate") && conditions[i].limit == 0.05) third = i;
+        }
+        auto optional = indices;
+        auto optionalNames = names;
+        optional.insert(optional.begin(), -1.0);
+        optionalNames.insert(optionalNames.begin(), "(nothing more)");
+        return Template{id, title, {{"a", "Ingredient 1", "", indices, static_cast<double>(first), names}, {"b", "and ingredient 2", "", optional, static_cast<double>(second), optionalNames},
+                                    {"c", "and ingredient 3", "", optional, static_cast<double>(third), optionalNames}}};
+    };
+    if (std::find(ingredientSources().begin(), ingredientSources().end(), source) != ingredientSources().end()) {
+        return {ingredientTemplate("ingr_" + source, "Ingredients met together (CAPE, shear, moisture, rain: where each holds and how many do)", false, source)};
+    }
     if (source != "GEFS") {
         return {};
     }
@@ -4913,6 +5180,7 @@ std::vector<Template> templates(const std::string& source) {
         return Template{id, title, {{"limit", label, unit, std::move(choices), standard}}};
     };
     return {
+        ingredientTemplate("ingredients", "Chance of ingredients together (CAPE, shear, moisture, rain: the share of the members that have all)", true, "GEFS"),
         {"rain_over", "Chance of rain over a limit in a period", {{"limit", "Rain over", "in", {0.01, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10}, 1}, {"hours", "in", "hours", {6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 84, 96, 120, 168, 240}, 24}}},
         {"rain_under", "Chance of rain under a limit in a period (dry)", {{"limit", "Rain under", "in", {0.01, 0.1, 0.25, 0.5, 1}, 0.01}, {"hours", "in", "hours", {6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 84, 96, 120, 168, 240}, 120}}},
         {"ptype", "Chance of a precipitation type in 6 hours", {{"type", "Type", "", {1, 2, 3, 4}, 2, {"rain", "snow", "ice pellets", "freezing rain"}}, {"limit", "with at least", "in", {0.01, 0.1, 0.25, 0.5, 1}, 0.01}}},
