@@ -556,11 +556,29 @@ QWidget * TropicalHub::otherCard(const OtherStorm& storm) {
     }
     addButton("ASCAT winds", [this, id] { new AscatUhrViewer{this, id}; });
     addButton("ATCF feed", [this, id, title] { new AtcfFeedViewer{this, id, title}; });
-    {
-        const double lat = now.lat, lon = now.lon;
-        addButton("On the map", [this, lat, lon] {
+    {   // the track map: the master map fitted to the whole track (history and forecast) with the JTWC / JMA layer (no aircraft recon flies these basins)
+        double south = 90, north = -90, west = 360, east = -360;
+        bool have = false;
+        for (const auto * list : {&storm.page.history, &storm.page.forecast}) {
+            for (const auto& f : *list) {
+                if (f.lat == 0.0 && f.lon == 0.0) {
+                    continue;
+                }
+                const double lon = f.lon < 0 ? f.lon + 360.0 : f.lon;
+                south = std::min(south, f.lat); north = std::max(north, f.lat);
+                west = std::min(west, lon); east = std::max(east, lon);
+                have = true;
+            }
+        }
+        const double lat = have ? (south + north) / 2 : 15.0;
+        double lon = have ? (west + east) / 2 : 135.0;
+        if (lon > 180.0) {
+            lon -= 360.0;
+        }
+        const double km = have ? std::clamp(std::max(north - south, (east - west) * std::cos(lat * M_PI / 180.0)) * 111.0 * 0.75 + 300.0, 600.0, 4000.0) : 1800.0;
+        addButton("Track map", [this, lat, lon, km] {
             auto * map = new MasterMapViewer{this};
-            map->openAt(QDateTime::currentDateTimeUtc(), (lat != 0.0 || lon != 0.0) ? lat : 15.0, (lat != 0.0 || lon != 0.0) ? lon : 135.0, 1800.0, {"tropical/world-storms"});
+            map->openAt(QDateTime::currentDateTimeUtc(), lat, lon, km, {"tropical/world-storms", "satellite/sar-winds"});
         });
     }
     row->addStretch();

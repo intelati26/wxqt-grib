@@ -39,6 +39,7 @@
 #include "hurricane/DropsondeViewer.h"
 #include "hurricane/ShipsViewer.h"
 #include "radar/MapLegend.h"
+#include "mapkit/MasterMapViewer.h"
 #include "ui/ElidedText.h"
 #include "hurricane/StrikeReport.h"
 #include "hurricane/VdmViewer.h"
@@ -111,7 +112,7 @@ QColor HurricaneViewer::categoryColor(int category) {
 
 HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const string& stormId)
     : Window{parent}
-    , comboBasin{this, {"Atlantic", "East Pacific", "Central Pacific"}}
+    , comboBasin{this, {"Atlantic", "East Pacific", "Central Pacific", "Western Pacific (master map)", "North Indian Ocean (master map)", "Southern Hemisphere (master map)"}}
     , comboStorm{this, {"Loading the storm list..."}}
     , buttonRefresh{this, None, "Refresh"}
     , buttonZoom{this, None, "Zoom to the storm"}
@@ -313,6 +314,14 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
         startStorm = stormId;
     }
     comboBasin.connect([this] {
+        if (comboBasin.getIndex() > 2) {   // outside the NHC's basins (no NHC track files or recon): the master map with the JTWC / JMA storms of that ocean
+            static const double area[3][3] = {{20.0, 135.0, 3500.0}, {15.0, 75.0, 3000.0}, {-18.0, 90.0, 5000.0}};
+            const auto& a = area[comboBasin.getIndex() - 3];
+            comboBasin.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("HURRICANE_BASIN", 0), 0, 2)));
+            auto * map = new MasterMapViewer{this};
+            map->openAt(QDateTime::currentDateTimeUtc(), a[0], a[1], a[2], {"tropical/world-storms", "satellite/sar-winds"});
+            return;
+        }
         Utility::writePrefInt("HURRICANE_BASIN", comboBasin.getIndex());
         recon.reset();
         storm.reset();
