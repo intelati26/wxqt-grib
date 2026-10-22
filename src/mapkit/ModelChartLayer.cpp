@@ -818,7 +818,7 @@ vector<MapLegendRow> ModelChartLayer::legend() const {
 }
 
 // the Model Viewer's own picture of the chart for what is in view
-bool ModelChartLayer::titled(MapHost& host, QImage& out, string& problem, int hourWanted) const {
+bool ModelChartLayer::titled(MapHost& host, QImage& out, string& problem, int hourWanted, GfsChart::Probe * probe) const {
     double w, s, e, n;
     if (run.size() < 10 || !visibleBox(host, w, s, e, n)) {
         problem = "no chart is loaded yet";
@@ -831,7 +831,7 @@ bool ModelChartLayer::titled(MapHost& host, QImage& out, string& problem, int ho
     const int hourDrawn = hourWanted >= 0 ? hourWanted : hourShown();
     auto variant = variantNow(hourDrawn);
     variant.width = 1400;
-    const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(session), model, param, GfsChart::boxId(w, s, e, n), run, hourDrawn, overlays, problem, nullptr, variant);
+    const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(session), model, param, GfsChart::boxId(w, s, e, n), run, hourDrawn, overlays, problem, probe, variant);
     if (bytes.isEmpty() || !out.loadFromData(bytes, "PNG")) {
         if (problem.empty()) {
             problem = "the chart could not be drawn";

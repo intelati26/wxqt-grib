@@ -5728,6 +5728,18 @@ bool Probe::place(double lon, double lat, double& fx, double& fy) const {
     return true;
 }
 
+bool Probe::placeAnywhere(double lon, double lat, double& fx, double& fy) const {
+    if (areaWidth <= 0.0 || imageWidth <= 0.0 || imageHeight <= 0.0) {
+        return false;
+    }
+    const Sector sector{"", west, south, east, north};
+    const View view{sector, QRectF{areaLeft, areaTop, areaWidth, areaHeight}};
+    const auto point = view.toPixel(lon, lat);
+    fx = point.x() / imageWidth;
+    fy = point.y() / imageHeight;
+    return true;
+}
+
 QString Probe::read(double fx, double fy) const {
     double lon = 0.0, lat = 0.0;
     if (!locate(fx, fy, lon, lat)) {

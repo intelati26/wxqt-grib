@@ -67,7 +67,7 @@ public:
 
     // The chart in the Model Viewer's own picture for the part of the world in view (header with the model, chart, run and valid times, the legend, the credit): false with the reason.
     // (hour: another forecast hour of the run than the one on view, for a loop; -1 the one on view)
-    bool titled(MapHost&, QImage& out, string& error, int hour = -1) const;
+    bool titled(MapHost&, QImage& out, string& error, int hour = -1, GfsChart::Probe * probe = nullptr) const;
     // wind barbs on the world grid, for these charts (the finest first); the chart's own picture has none
     bool windAt(double lon, double lat, double& u, double& v) const;
     static void paintBarbs(QPainter&, MapHost&, const std::vector<const ModelChartLayer *>& finestFirst);

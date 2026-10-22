@@ -1324,8 +1324,38 @@ bool MasterMapViewer::saveModelChart(const QString& path, string& problem) {
     for (const auto& layer : layers) {
         if (layer->id() == "model/chart" && layer->enabled()) {
             QImage image;
-            if (!static_cast<ModelChartLayer *>(layer.get())->titled(*this, image, problem)) {
+            GfsChart::Probe probe;
+            if (!static_cast<ModelChartLayer *>(layer.get())->titled(*this, image, problem, -1, &probe)) {
                 return false;
+            }
+            if (!officeOutline.empty() && probe.valid()) {   // an area is outlined on the map: the picture keeps it at full color and veils the rest (asked once)
+                if (qEnvironmentVariable("WXQT_VEIL") == "yes" || QMessageBox::question(this, "Export the view", QString::fromStdString("Keep " + officeLabel + " at full color and make the rest of the chart lighter?")) == QMessageBox::Yes) {   // (the variable is for testing)
+                    QPainterPath inside;
+                    for (const auto& ring : officeOutline) {
+                        QPolygonF shape;
+                        for (const auto& point : ring) {
+                            double fx = 0, fy = 0;
+                            if (probe.placeAnywhere(point.x(), point.y(), fx, fy)) {
+                                shape << QPointF{fx * image.width(), fy * image.height()};
+                            }
+                        }
+                        inside.addPolygon(shape);
+                        inside.closeSubpath();
+                    }
+                    const QRectF mapRect{probe.areaLeft / probe.imageWidth * image.width(), probe.areaTop / probe.imageHeight * image.height(), probe.areaWidth / probe.imageWidth * image.width(),
+                                         probe.areaHeight / probe.imageHeight * image.height()};
+                    QPainterPath veil;
+                    veil.addRect(mapRect);
+                    QPainter painter{&image};
+                    painter.setRenderHint(QPainter::Antialiasing, true);
+                    painter.setClipRect(mapRect);
+                    painter.setPen(Qt::NoPen);
+                    painter.setBrush(QColor{250, 250, 252, 150});
+                    painter.drawPath(veil.subtracted(inside));
+                    painter.setBrush(Qt::NoBrush);
+                    painter.setPen(QPen{QColor{20, 20, 30}, std::max(2.0, image.width() / 600.0)});
+                    painter.drawPath(inside);
+                }
             }
             if (!image.save(path, "PNG")) {
                 problem = "the file could not be written: " + path.toStdString();
@@ -1722,8 +1752,10 @@ void MasterMapViewer::exportView() {
         string problem;
         {
             QApplication::setOverrideCursor(Qt::WaitCursor);
-            for (const auto& o : OfficeAreas::all(problem)) {
-                office->addItem(QString::fromStdString(o.id + "  " + o.name), QString::fromStdString(o.id));
+            for (const auto& [kind, prefix, word] : {std::tuple<string, string, string>{"cwa", "CWA:", "Office"}, {"rfc", "RFC:", "River forecast center"}, {"state", "ST:", "State"}}) {
+                for (const auto& o : OfficeAreas::all(problem, kind)) {
+                    office->addItem(QString::fromStdString(word + " " + o.id + "  " + o.name), QString::fromStdString(prefix + o.id));
+                }
             }
             QApplication::restoreOverrideCursor();
         }
@@ -1733,9 +1765,9 @@ void MasterMapViewer::exportView() {
             fill->addItem(product.label, QString::fromStdString(product.id));
         }
         if (const auto at = office->findData(QString::fromStdString(officeId)); at > 0) {
-            office->setCurrentIndex(at);   // the office outlined on the map
+            office->setCurrentIndex(at);   // the area outlined on the map
         }
-        form->addRow("Forecast office area (full color; the rest lighter)", office);
+        form->addRow("Area at full color (the rest lighter)", office);
         form->addRow("Lighter ACIS map behind the whole picture", fill);
         if (!problem.empty() && office->count() == 1) {
             form->addRow(new QLabel{QString::fromStdString(problem)});
@@ -1756,14 +1788,13 @@ void MasterMapViewer::exportView() {
 void MasterMapViewer::selectOffice(const string& id, bool zoom) {
     officeId.clear();
     officeOutline.clear();
+    officeLabel.clear();
     if (!id.empty()) {
-        string problem;
-        for (const auto& o : OfficeAreas::all(problem)) {
-            if (o.id != id) {
-                continue;
-            }
-            officeId = o.id;
-            officeOutline = std::vector<QPolygonF>(o.rings.begin(), o.rings.end());
+        string label;
+        if (const auto * area = OfficeAreas::find(id, label)) {
+            officeId = id.find(':') == string::npos ? "CWA:" + id : id;
+            officeLabel = label;
+            officeOutline = std::vector<QPolygonF>(area->rings.begin(), area->rings.end());
             if (zoom) {
                 QRectF box;
                 for (const auto& ring : officeOutline) {
@@ -1784,12 +1815,10 @@ void MasterMapViewer::setExportOffice(const string& id) {
     if (id.empty()) {
         return;
     }
-    string problem;
-    for (const auto& o : OfficeAreas::all(problem)) {
-        if (o.id == id) {
-            exportMask = std::vector<QPolygonF>(o.rings.begin(), o.rings.end());
-            exportMaskName = o.id + " " + o.name;
-        }
+    string label;
+    if (const auto * area = OfficeAreas::find(id, label)) {
+        exportMask = std::vector<QPolygonF>(area->rings.begin(), area->rings.end());
+        exportMaskName = label;
     }
 }
 
@@ -2204,19 +2233,22 @@ void MasterMapViewer::chooseArea() {
     for (const auto& sector : GfsChart::sectors()) {
         entries.push_back({sector.id, sector.id, ProductPicker::sectorGroup(sector.id)});
     }
-    {   // the forecast offices' areas: choosing one goes to it and outlines it (the map stays browsable; an export can veil what is outside it)
-        string problem;
+    {   // the areas of the National Weather Service: forecast offices, river forecast centers, states. Choosing one goes to it and outlines it (the map stays browsable; an export can veil what is outside it)
         QApplication::setOverrideCursor(Qt::WaitCursor);
-        const auto& offices = OfficeAreas::all(problem);
-        QApplication::restoreOverrideCursor();
-        if (!offices.empty()) {
-            entries.push_back({"CWA:", "No office outline", "NWS forecast offices"});
+        bool any = false;
+        for (const auto& [kind, prefix, group] : {std::tuple<string, string, string>{"cwa", "CWA:", "NWS forecast offices"}, {"rfc", "RFC:", "River forecast centers"}, {"state", "ST:", "States (outline)"}}) {
+            string problem;
+            for (const auto& o : OfficeAreas::all(problem, kind)) {
+                entries.push_back({prefix + o.id, o.id + "  " + o.name, group});
+                any = true;
+            }
         }
-        for (const auto& o : offices) {
-            entries.push_back({"CWA:" + o.id, o.id + "  " + o.name, "NWS forecast offices"});
+        QApplication::restoreOverrideCursor();
+        if (any) {
+            entries.push_back({"CWA:", "No area outline", "NWS forecast offices"});
         }
     }
-    static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "NWS forecast offices", "Other"};
+    static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "NWS forecast offices", "River forecast centers", "States (outline)", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
     });
@@ -2227,8 +2259,8 @@ void MasterMapViewer::chooseArea() {
     picker->onPick = [this] (const string& id) {
         double lat = 0, lon = 0, size = 0;
         string name;
-        if (id.compare(0, 4, "CWA:") == 0) {
-            selectOffice(id.substr(4), true);
+        if (id.compare(0, 4, "CWA:") == 0 || id.compare(0, 4, "RFC:") == 0 || id.compare(0, 3, "ST:") == 0) {
+            selectOffice(id == "CWA:" ? string{} : id, true);
             return;
         }
         if (GfsChart::parseLocalId(id, lat, lon, size, name)) {

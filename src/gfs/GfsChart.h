@@ -217,7 +217,8 @@ namespace GfsChart {
         size_t memory() const { size_t n = (windU.values.size() + windV.values.size()) * sizeof(float); for (const auto& f : fields) n += f.grid.values.size() * sizeof(float); return n; }   // bytes held
         bool valid() const { return areaWidth > 0.0 && !fields.empty(); }
         bool locate(double fx, double fy, double& lon, double& lat) const;   // the point of the picture as longitude and latitude; false outside the map
-        bool place(double lon, double lat, double& fx, double& fy) const;   // where a longitude and latitude are on the picture as fractions of it (the inverse of locate); false outside the map
+        bool place(double lon, double lat, double& fx, double& fy) const;
+        bool placeAnywhere(double lon, double lat, double& fx, double& fy) const;   // the same, beyond the map too (a shape that runs off the edge)   // where a longitude and latitude are on the picture as fractions of it (the inverse of locate); false outside the map
         QString read(double fx, double fy) const;   // empty outside the map
     };
 
