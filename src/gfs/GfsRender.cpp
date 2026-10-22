@@ -947,3 +947,135 @@ std::vector<GfsChart::TrackPoint> GfsRender::hafsTrack(const std::string& model,
     cycle = run.cycle + "Z";
     return GfsChart::parseTrack(URL::getBytes(gfs.fileUrl(run, 0, "trak")).toStdString());
 }
+
+bool GfsRender::phaseTrack(Session& session, const std::string& model, const std::string& runId, const std::string& validTime, double lat, double lon, int hoursAhead,
+                           std::vector<PhaseSpace::Point>& out, std::string& error, const std::function<void(const PhaseSpace::Point&)>& progress, const std::string& storm) {
+    const auto * def = GfsModels::find(model);
+    if (def == nullptr || runId.size() < 10 || validTime.size() < 10) {
+        error = "no run";
+        return false;
+    }
+    const auto gfs0 = data(session.folder(), model, storm);
+    const GfsData::Run run{runId.substr(0, 8), runId.substr(8, 2)};
+    auto runTime = QDateTime::fromString(QString::fromStdString(runId.substr(0, 10)), "yyyyMMddHH");
+    auto fixTime = QDateTime::fromString(QString::fromStdString(validTime.substr(0, 10)), "yyyyMMddHH");
+    runTime.setTimeSpec(Qt::UTC);
+    fixTime.setTimeSpec(Qt::UTC);
+    const int first = std::max(0, static_cast<int>(runTime.secsTo(fixTime) / 3600));
+    std::vector<int> hours;
+    for (const auto& h : def->hours) {
+        for (int hour = h.from; hour <= h.to; hour += std::max(1, h.step)) {
+            if (hour >= first && hour % 6 == 0 && hour <= first + hoursAhead + 5 && (hours.empty() || hour > hours.back())) {
+                hours.push_back(hour);
+            }
+        }
+    }
+    if (hours.empty()) {
+        error = "the run has no forecast hours from that time";
+        return false;
+    }
+    static const int levels[] = {900, 850, 800, 700, 600, 500, 400, 300};
+    double clat = lat, clon = lon;
+    int missed = 0;
+    std::vector<PhaseSpace::Point> raw;
+    std::vector<PhaseSpace::Levels> grids;   // (kept until the heading of each is known: the next point's)
+    for (const int hour : hours) {
+        auto gfs = gfs0;
+        GfsData::Box box;
+        box.west = std::max(-180.0, std::floor(clon) - 7.0);
+        box.east = std::min(180.0, std::floor(clon) + 8.0);
+        box.south = std::max(-90.0, std::floor(clat) - 7.0);
+        box.north = std::min(90.0, std::floor(clat) + 8.0);
+        gfs.setBox(box);
+        std::vector<GfsData::Need> needs;
+        const auto want = [&] (const std::string& key, const std::string& variable, const std::string& level) {
+            GfsData::Want w;
+            w.key = key;
+            w.variable = variable;
+            w.level = level;
+            needs.push_back({hour, w});
+        };
+        want("P", "PRMSL", "mean sea level");
+        for (const int level : levels) {
+            want("H" + std::to_string(level), "HGT", std::to_string(level) + " mb");
+        }
+        std::map<std::string, GfsGrid::Grid> got;
+        std::string message;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            std::vector<GfsData::Need> still;
+            for (const auto& need : needs) {
+                if (got.count(need.want.key) == 0) {
+                    still.push_back(need);
+                }
+            }
+            if (still.empty()) {
+                break;
+            }
+            std::map<std::string, GfsGrid::Grid> more;
+            gfs.load(run, still, more, message);
+            got.insert(more.begin(), more.end());
+            if (more.empty() && attempt > 0) {
+                break;
+            }
+        }
+        const auto pressure = got.find("P");
+        PhaseSpace::Point point;
+        point.hour = hour;
+        point.lat = clat;
+        point.lon = clon;
+        if (pressure == got.end()) {
+            error = message.empty() ? "the model has no sea level pressure for hour " + std::to_string(hour) : message;
+            if (++missed >= 2 || raw.empty()) {
+                break;
+            }
+            continue;
+        }
+        const auto smooth = GfsGrid::smoothed(pressure->second, 2);
+        double foundLat = clat, foundLon = clon, value = 0.0;
+        const double search = raw.empty() ? 2.0 : 4.0;   // degrees: the first look is round the fix, then as far as a storm moves in six hours
+        if (PhaseSpace::lowestNear(smooth, clat, clon, search, foundLat, foundLon, value)) {
+            clat = foundLat;
+            clon = foundLon;
+            point.lat = clat;
+            point.lon = clon;
+            point.pressure = value > 2000.0 ? value / 100.0 : value;
+        }
+        PhaseSpace::Levels heights;
+        for (const int level : levels) {
+            const auto found = got.find("H" + std::to_string(level));
+            if (found != got.end()) {
+                heights[level] = found->second;
+            }
+        }
+        raw.push_back(point);
+        grids.push_back(std::move(heights));
+    }
+    if (raw.empty()) {
+        if (error.empty()) {
+            error = "nothing could be read";
+        }
+        return false;
+    }
+    // the heading of each point from its neighbours, then the phase space
+    out.clear();
+    for (size_t i = 0; i < raw.size(); i++) {
+        const size_t a = i > 0 ? i - 1 : i, b = i + 1 < raw.size() ? i + 1 : i;
+        double heading = -1.0;
+        if (a != b && PhaseSpace::kilometres(raw[a].lat, raw[a].lon, raw[b].lat, raw[b].lon) > 30.0) {
+            heading = PhaseSpace::bearing(raw[a].lat, raw[a].lon, raw[b].lat, raw[b].lon);
+        }
+        auto point = PhaseSpace::measure(grids[i], raw[i].lat, raw[i].lon, heading);
+        point.hour = raw[i].hour;
+        point.valid = static_cast<long>(runTime.toSecsSinceEpoch()) + raw[i].hour * 3600L;
+        point.pressure = raw[i].pressure;
+        out.push_back(point);
+        if (progress) {
+            progress(point);
+        }
+    }
+    const bool any = std::any_of(out.begin(), out.end(), [] (const PhaseSpace::Point& p) { return p.ok; });
+    if (!any) {
+        error = "too few pressure levels of " + model + " could be read to measure the heights' range";
+    }
+    return any;
+}

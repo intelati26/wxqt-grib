@@ -48,6 +48,7 @@
 #include <QDir>
 #include <QStandardPaths>
 #include "gfs/GfsRender.h"
+#include "tropical/PhaseViewer.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsIntensity.h"
 #include "hurricane/AceForecastViewer.h"
@@ -234,6 +235,9 @@ int main(int argc, char * argv[]) {
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
                 when.setTimeSpec(Qt::UTC);
                 map->openAt(when, 37.0, -97.0, 900.0, {"satellite/goes-history"});
+            } else if (route.startsWith("phase:")) {   // WXQT_OPEN=phase:<model>:<lat>:<lon>: the phase space window of a storm at that place in that model
+                const auto parts = route.split(':');
+                new PhaseViewer{&w, "test", parts.value(2, "15").toDouble(), parts.value(3, "-60").toDouble(), parts.value(1, "GFS").toStdString()};
             } else if (route.startsWith("modelat:")) {   // WXQT_OPEN=modelat:<model>:<yyyyMMddHHmm UTC>: the Model Viewer on that model at the run and hour of that time
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");

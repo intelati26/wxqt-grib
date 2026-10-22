@@ -13,6 +13,8 @@
 #include <QtGlobal>
 #include "gfs/GfsChart.h"
 #include "sounding/SoundingProfile.h"
+#include "tropical/PhaseSpace.h"
+#include <functional>
 
 // The app's side of the GFS charts: the network, the GDAL folder, the borders and the user's units, handed to GfsData / GfsChart.
 namespace GfsRender {
@@ -42,6 +44,11 @@ namespace GfsRender {
     // The column of a model over a point for one run and forecast hour ("yyyyMMddHH"), as a sounding: the pressure levels 1000 to 100 mb (those the model has, above the ground) and the surface
     // (pressure, 2 m temperature and dewpoint, 10 m wind). Fields are read like a chart's (byte ranges, a box round the point where the server can cut one). False with the reason when too little came.
     bool columnProfile(Session& session, const std::string& model, const std::string& run, int hour, double lat, double lon, SoundingProfile& out, std::string& error);
+    // The cyclone phase space (Hart 2003: B, -VTL, -VTU) of a storm in a deterministic model's run, hour by hour: the heights of 900 to 300 mb and the sea level pressure are read in a box round the
+    // storm, whose centre is followed as the lowest pressure near where it was (`lat`, `lon` is where it is at `validTime`, "yyyyMMddHH" UTC; the run's hours before that are skipped, and the track
+    // goes `hoursAhead` on in steps of six). `progress` is called with each point as it is done. False with the reason when no hour could be measured.
+    bool phaseTrack(Session& session, const std::string& model, const std::string& run, const std::string& validTime, double lat, double lon, int hoursAhead,
+                    std::vector<PhaseSpace::Point>& out, std::string& error, const std::function<void(const PhaseSpace::Point&)>& progress = {}, const std::string& storm = "");
     // true when the chart for this model screen product code ("500_wnd_ht") is drawn here rather than fetched as a picture
     bool handles(const std::string& model, const std::string& param);
     // A chart made from the chart's fill instead of the plain chart: the largest value of it over a list of forecast hours (a 24 hour maximum), or its change since the run
