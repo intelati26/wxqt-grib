@@ -999,6 +999,10 @@ bool GfsRender::phaseTrack(Session& session, const std::string& model, const std
         for (const int level : levels) {
             want("H" + std::to_string(level), "HGT", std::to_string(level) + " mb");
         }
+        for (const int level : {850, 700}) {   // the winds, for the vorticity that finds the centre of a storm with no closed low at the surface
+            want("U" + std::to_string(level), "UGRD", std::to_string(level) + " mb");
+            want("V" + std::to_string(level), "VGRD", std::to_string(level) + " mb");
+        }
         std::map<std::string, GfsGrid::Grid> got;
         std::string message;
         for (int attempt = 0; attempt < 3; attempt++) {
@@ -1031,9 +1035,58 @@ bool GfsRender::phaseTrack(Session& session, const std::string& model, const std
             continue;
         }
         const auto smooth = GfsGrid::smoothed(pressure->second, 2);
+        // the centre: the lowest pressure near where the storm was, unless a stronger spin (850 / 700 mb vorticity) lies elsewhere in reach and the pressure has no real low there: a wave or an invest
+        // has a trough, not a closed low, and its lowest pressure sits on the nearest ridge's edge or the daily tide
         double foundLat = clat, foundLon = clon, value = 0.0;
-        const double search = raw.empty() ? 2.0 : 4.0;   // degrees: the first look is round the fix, then as far as a storm moves in six hours
-        if (PhaseSpace::lowestNear(smooth, clat, clon, search, foundLat, foundLon, value)) {
+        const double search = raw.empty() ? 2.5 : 4.0;   // degrees: the first look is round the fix, then as far as a storm moves in six hours
+        const bool lowFound = PhaseSpace::lowestNear(smooth, clat, clon, search, foundLat, foundLon, value);
+        double spinLat = clat, spinLon = clon, spin = 0.0;
+        bool haveSpin = false;
+        if (got.count("U850") && got.count("V850") && got.count("U700") && got.count("V700")) {
+            auto vorticity = GfsGrid::scaled(GfsGrid::vorticity(got["U850"], got["V850"]), 0.5);
+            const auto upper = GfsGrid::vorticity(got["U700"], got["V700"]);
+            if (vorticity.values.size() == upper.values.size()) {
+                for (size_t i = 0; i < vorticity.values.size(); i++) {
+                    vorticity.values[i] += 0.5f * upper.values[i];
+                }
+                auto smoothVorticity = GfsGrid::smoothed(vorticity, 4);
+                if (clat < 0.0) {   // the southern hemisphere spins the other way
+                    smoothVorticity = GfsGrid::scaled(smoothVorticity, -1.0);
+                }
+                const double step = std::max(0.1, smoothVorticity.step);
+                double best = 0.0;
+                for (double la = clat - search; la <= clat + search; la += step) {
+                    for (double lo = clon - search; lo <= clon + search; lo += step) {
+                        const double v = smoothVorticity.sample(lo > 180.0 ? lo - 360.0 : lo < -180.0 ? lo + 360.0 : lo, la);
+                        const double score = std::isnan(v) ? 0.0 : v - 5e-6 * std::hypot(la - clat, lo - clon);   // (a mild pull toward where it was)
+                        if (score > best) {
+                            best = score;
+                            spin = v;
+                            spinLat = la;
+                            spinLon = lo;
+                            haveSpin = true;
+                        }
+                    }
+                }
+            }
+        }
+        if (haveSpin && spin > 3e-5) {   // a real spin
+            // the pressure's low, if there is one within 1.5 degrees of the spin: the centre of a storm that has a surface low is that low
+            double nearLat = spinLat, nearLon = spinLon, nearValue = 0.0;
+            if (PhaseSpace::lowestNear(smooth, spinLat, spinLon, 1.5, nearLat, nearLon, nearValue)) {
+                foundLat = nearLat;
+                foundLon = nearLon;
+                value = nearValue;
+            } else {
+                foundLat = spinLat;
+                foundLon = spinLon;
+            }
+            clat = foundLat;
+            clon = foundLon;
+            point.lat = clat;
+            point.lon = clon;
+            point.pressure = value > 2000.0 ? value / 100.0 : value;
+        } else if (lowFound) {
             clat = foundLat;
             clon = foundLon;
             point.lat = clat;

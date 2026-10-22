@@ -350,15 +350,14 @@ void PhaseViewer::measure() {
             }
         }
         if (first != nullptr) {
-            headline->setText("<b>" + QString::fromStdString(PhaseSpace::wordFor(*first)) + "</b> now (" + QString::fromStdString(first->state).toLower() + ", B " + QString::number(first->b, 'f', 0) +
-                              " m, -VTL " + QString::number(first->vtl, 'f', 0) + ", -VTU " + QString::number(first->vtu, 'f', 0) + ")");
+            headline->setText("<b>" + QString::fromStdString(PhaseSpace::wordFor(*first)) + "</b> now (" + QString::fromStdString(first->state).toLower() + (first->bKnown ? ", B " + QString::number(first->b, 'f', 0) + " m" : QString{}) + ", -VTL " + QString::number(first->vtl, 'f', 0) + ", -VTU " + QString::number(first->vtu, 'f', 0) + ")");
         }
         table->setRowCount(static_cast<int>(points->size()));
         int row = 0;
         for (const auto& p : *points) {
             const auto valid = QDateTime::fromSecsSinceEpoch(p.valid, QTimeZone::utc());
             const QStringList cells{p.hour == 0 ? QString{"analysis"} : QString::number(p.hour), valid.toString("ddd HH") + "Z", QString::number(std::fabs(p.lat), 'f', 1) + (p.lat >= 0 ? "N " : "S ") + QString::number(std::fabs(p.lon), 'f', 1) + (p.lon >= 0 ? "E" : "W"),
-                                    p.pressure > 0 ? QString::number(p.pressure, 'f', 0) : "-", p.ok ? QString::number(p.b, 'f', 0) : "-", p.ok ? QString::number(p.vtl, 'f', 0) : "-",
+                                    p.pressure > 0 ? QString::number(p.pressure, 'f', 0) : "-", p.ok && p.bKnown ? QString::number(p.b, 'f', 0) : "-", p.ok ? QString::number(p.vtl, 'f', 0) : "-",
                                     p.ok ? QString::number(p.vtu, 'f', 0) : "-", p.ok ? QString::fromStdString(PhaseSpace::wordFor(p)) : "not measurable"};
             for (int c = 0; c < cells.size(); c++) {
                 table->setItem(row, c, new QTableWidgetItem{cells[c]});
