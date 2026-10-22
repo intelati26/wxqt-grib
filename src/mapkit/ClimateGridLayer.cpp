@@ -206,7 +206,8 @@ void ClimateGridLayer::refresh(MapHost& host) {
                                 if (qAlpha(line[x]) == 0) {   // beyond the field: a colour of the nearest side would be better, but the edge cells carry it: leave empty cells empty
                                     continue;
                                 }
-                                line[x] = qRgba(qRed(line[x]), qGreen(line[x]), qBlue(line[x]), static_cast<int>(std::clamp(alpha[static_cast<size_t>(y) * w + x], 0.0f, 1.0f) * 255.0f));
+                                const auto pale = [] (int c) { return static_cast<int>(c * 0.45 + 255 * 0.55); };   // toward white: the lighter draw reads as pastel on a dark map as well as a light one
+                                line[x] = qRgba(pale(qRed(line[x])), pale(qGreen(line[x])), pale(qBlue(line[x])), static_cast<int>(std::clamp(alpha[static_cast<size_t>(y) * w + x], 0.0f, 1.0f) * 255.0f));
                             }
                         }
                     }
@@ -252,7 +253,7 @@ void ClimateGridLayer::paint(QPainter& painter, MapHost& host) {
     if (showFar) {   // the lighter draw first: the real map covers it where there are stations
         for (const auto& part : parts) {
             if (!part.farImage.isNull()) {
-                PlateCarreeImage::paint(painter, host, part.farImage, part.farSpec.west, part.farSpec.south, part.farSpec.east, part.farSpec.north, opacity * 0.4 / 100.0);
+                PlateCarreeImage::paint(painter, host, part.farImage, part.farSpec.west, part.farSpec.south, part.farSpec.east, part.farSpec.north, opacity * 0.9 / 100.0);
             }
         }
     }

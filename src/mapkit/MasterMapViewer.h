@@ -53,7 +53,7 @@ public:
     // with its radius
     // The map as the model browser (what the Model Viewer page was): the model chart layer alone, on a model / chart / area (sector id; "" the ones used last, or the United States) and, when `valid` is
     // set, at that valid time
-    void exportWithContext(const QString& path, const string& acisProduct) { exportContextProduct = acisProduct; exportTo(path); }   // (the lighter ACIS map under it; for the dev route)
+    void exportWithContext(const QString& path, const string& acisProduct, const string& office = {});   // (the lighter ACIS map under it; for the dev route)
     static MasterMapViewer * openModels(Window * parent, const string& model = {}, const string& param = {}, const string& sector = {}, const QDateTime& valid = {});
     void openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds);
 
@@ -78,7 +78,10 @@ private:
     void paintMapCopy(QPainter&);
     void paintLegend(QPainter&);
     void paintStamp(QPainter&);
+    void setExportOffice(const string& id);
     std::unique_ptr<ClimateGridLayer> exportContext;   // the ACIS map under a picture for export, lighter, for the parts the layers leave white
+    std::vector<QPolygonF> exportMask;                   // a forecast office's area (x longitude, y latitude): inside it everything is at full colour, outside it is veiled (an export only)
+    string exportMaskName;
     string exportContextProduct;                         // the measure chosen for it ("" none)   // what each time aware layer shows and when, in the corner of the map
     void showHover(const QPointF& pixels);
     MapHit bestHit(const QPointF& pixels) const;

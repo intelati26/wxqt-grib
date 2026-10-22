@@ -204,7 +204,7 @@ int main(int argc, char * argv[]) {
                 when.setTimeSpec(Qt::UTC);
                 map->openAt(when, parts.value(2, "35.3").toDouble(), parts.value(3, "-97.5").toDouble(), parts.value(4, "300").toDouble(), extraLayers(parts.value(5)));
                 if (const auto out = qEnvironmentVariable("WXQT_EXPORT_PNG"); !out.isEmpty()) {   // WXQT_EXPORT_PNG=<file> [WXQT_EXPORT_ACIS=<measure id>]: the map saved after WXQT_EXPORT_MS (a picture; the ACIS context under it when asked)
-                    QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_EXPORT_MS") > 0 ? qEnvironmentVariableIntValue("WXQT_EXPORT_MS") : 20000, map, [map, out] { map->exportWithContext(out, qEnvironmentVariable("WXQT_EXPORT_ACIS").toStdString()); });
+                    QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_EXPORT_MS") > 0 ? qEnvironmentVariableIntValue("WXQT_EXPORT_MS") : 20000, map, [map, out] { map->exportWithContext(out, qEnvironmentVariable("WXQT_EXPORT_ACIS").toStdString(), qEnvironmentVariable("WXQT_EXPORT_OFFICE").toStdString()); });
                 }
             } else if (route.startsWith("mcexport:")) {   // WXQT_OPEN=mcexport:<yyyyMMddHH UTC>:<lat>:<lon>:<km>:<out.png>[:PREF=value...]: the master map with the model chart, and, after a while, its titled export
                 const auto parts = route.split(':');

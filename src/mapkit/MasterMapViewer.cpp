@@ -33,6 +33,7 @@
 #include "hurricane/Coast.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "mapkit/ModelChartLayer.h"
+#include "mapkit/OfficeAreas.h"
 #include "climate/UtilityAcisClimate.h"
 #include "gfs/GfsChart.h"
 #include "gfs/GfsModels.h"
@@ -41,6 +42,8 @@
 #include "climate/TempHistoryViewer.h"
 #include "mapkit/ComboChartLayer.h"
 #include <QEventLoop>
+#include <QApplication>
+#include <QFormLayout>
 #include <QTimer>
 #include <QFrame>
 #include <QGridLayout>
@@ -1191,6 +1194,9 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
             sources << source;
         }
     }
+    if (!exportMask.empty()) {
+        names << QString::fromStdString("Area: " + exportMaskName + " (the rest lighter)");
+    }
     if (exportContext) {   // the lighter ACIS map under the picture: named, with its period, and credited
         names << "ACIS context (lighter)";
         sources << QString::fromStdString(exportContext->source());
@@ -1704,22 +1710,61 @@ void MasterMapViewer::exportView() {
         return;
     }
     ChartExport::remember(path);
-    {   // whatever is on the map: the white round it can be filled with a lighter ACIS map (the temperature or the rain against normal), so the area is shown with the weather round it
-        QStringList items{"No fill"};
-        for (const auto& product : AcisClimate::products()) {
-            items << product.label;
+    {   // two choices for any map: a forecast office's area at full color with the rest veiled, and the lighter ACIS map under it all (the temperature or the rain against normal)
+        QDialog ask{this};
+        ask.setWindowTitle("Export");
+        auto * form = new QFormLayout{&ask};
+        auto * office = new QComboBox{&ask};
+        office->addItem("No area (the whole picture at full color)", "");
+        string problem;
+        {
+            QApplication::setOverrideCursor(Qt::WaitCursor);
+            for (const auto& o : OfficeAreas::all(problem)) {
+                office->addItem(QString::fromStdString(o.id + "  " + o.name), QString::fromStdString(o.id));
+            }
+            QApplication::restoreOverrideCursor();
         }
-        bool ok = false;
-        const auto chosen = QInputDialog::getItem(this, "Export", "Fill the parts of the picture the layers leave white with a lighter ACIS map?", items, 0, false, &ok);
-        if (!ok) {
+        auto * fill = new QComboBox{&ask};
+        fill->addItem("No fill", "");
+        for (const auto& product : AcisClimate::products()) {
+            fill->addItem(product.label, QString::fromStdString(product.id));
+        }
+        form->addRow("Forecast office area (full color; the rest lighter)", office);
+        form->addRow("Lighter ACIS map behind the whole picture", fill);
+        if (!problem.empty() && office->count() == 1) {
+            form->addRow(new QLabel{QString::fromStdString(problem)});
+        }
+        auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &ask};
+        QObject::connect(buttons, &QDialogButtonBox::accepted, &ask, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, &ask, &QDialog::reject);
+        form->addRow(buttons);
+        if (ask.exec() != QDialog::Accepted) {
             return;
         }
-        exportContextProduct.clear();
-        const int at = items.indexOf(chosen);
-        if (at > 0) {
-            exportContextProduct = AcisClimate::products()[static_cast<size_t>(at - 1)].id;
+        exportContextProduct = fill->currentData().toString().toStdString();
+        setExportOffice(office->currentData().toString().toStdString());
+    }
+    exportTo(path);
+}
+
+void MasterMapViewer::setExportOffice(const string& id) {
+    exportMask.clear();
+    exportMaskName.clear();
+    if (id.empty()) {
+        return;
+    }
+    string problem;
+    for (const auto& o : OfficeAreas::all(problem)) {
+        if (o.id == id) {
+            exportMask = std::vector<QPolygonF>(o.rings.begin(), o.rings.end());
+            exportMaskName = o.id + " " + o.name;
         }
     }
+}
+
+void MasterMapViewer::exportWithContext(const QString& path, const string& acisProduct, const string& office) {
+    exportContextProduct = acisProduct;
+    setExportOffice(office);
     exportTo(path);
 }
 
@@ -1746,7 +1791,7 @@ void MasterMapViewer::exportTo(const QString& path) {
     }
     struct ClearContext {
         MasterMapViewer * self;
-        ~ClearContext() { self->exportContext.reset(); self->exportContextProduct.clear(); }
+        ~ClearContext() { self->exportContext.reset(); self->exportContextProduct.clear(); self->exportMask.clear(); self->exportMaskName.clear(); }
     } clearContext{this};
     mapView->useLayoutSpace();   // (the layout gives the map its size, after the controls)
     auto * map = mapView->map();
@@ -2364,6 +2409,27 @@ void MasterMapViewer::paintMapCopy(QPainter& painter) {
             layer->paint(painter, *this);
             painter.restore();
         }
+    }
+    if (!exportMask.empty()) {   // the forecast office's area at full color: a pale veil over everything outside it, and its outline
+        QPainterPath inside;
+        for (const auto& ring : exportMask) {
+            QPolygonF shape;
+            for (const auto& point : ring) {
+                shape << t(point.y(), point.x());
+            }
+            inside.addPolygon(shape);
+            inside.closeSubpath();
+        }
+        QPainterPath everything;
+        everything.addRect(QRectF{-3000.0, -3000.0, 6000.0, 8000.0});
+        painter.save();
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor{250, 250, 252, 150});
+        painter.drawPath(everything.subtracted(inside));
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen{QColor{30, 30, 40}, 2.0 * px});
+        painter.drawPath(inside);
+        painter.restore();
     }
 }
 
