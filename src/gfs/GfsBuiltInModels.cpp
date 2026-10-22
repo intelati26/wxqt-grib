@@ -183,6 +183,7 @@ cycles_to_try = 4
 sectors = storm
 hours = 0-126/3
 on_missing = previous_cycle
+list = true
 )MODEL"},
         {"HAFSB", R"MODEL(
 # NCEP's hurricane model, version B, for one storm at a time ({storm} is the NHC number and basin letter, "09l"): a storm-following grid of 0.02 degrees (the atmosphere and the simulated
@@ -212,6 +213,7 @@ cycles_to_try = 4
 sectors = storm
 hours = 0-126/3
 on_missing = previous_cycle
+list = true
 )MODEL"},
         {"SPCREFS", R"MODEL(
 # SPC's REFS ensemble products, an open Zarr store a cycle: read by the program's own reader (the loader registered for this id), not by a download; the file is the store's own path

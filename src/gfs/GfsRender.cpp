@@ -82,11 +82,11 @@ namespace {
     }
 
     // the newest published run of a model, looked up at most every ten minutes
-    bool newestRun(const GfsData& gfs, GfsData::Run& run) {
+    bool newestRun(const GfsData& gfs, GfsData::Run& run, const std::string& storm = "") {
         static std::mutex mutex;
         static std::map<std::string, std::pair<GfsData::Run, qint64>> known;
         std::lock_guard lock{mutex};
-        auto& entry = known[gfs.model().id];
+        auto& entry = known[gfs.model().id + "/" + storm];   // (a hurricane model has a run for each storm)
         const auto now = QDateTime::currentSecsSinceEpoch();
         if (entry.first.date.empty() || now - entry.second > 600) {
             GfsData::Run found;
@@ -362,7 +362,7 @@ bool GfsRender::columnProfile(Session& session, const std::string& model, const 
 bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const std::string& storm, std::string * date) {
     const auto gfs = data({}, model, storm);
     GfsData::Run run;
-    if (!newestRun(gfs, run)) {
+    if (!newestRun(gfs, run, storm)) {
         return false;
     }
     cycle = run.cycle + "Z";
@@ -531,7 +531,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     // the newest published run; an earlier cycle of the screen's choice is that run stepped back to it
     GfsData::Run run;
     const bool exact = cycle.size() == 10 && std::all_of(cycle.begin(), cycle.end(), [] (char c) { return std::isdigit(static_cast<unsigned char>(c)); });   // yyyyMMddHH: that very run
-    if (!exact && !newestRun(gfs, run)) {   // (an archive that stops years ago has no newest run: the run asked for is read as it is)
+    if (!exact && !newestRun(gfs, run, stormId)) {   // (an archive that stops years ago has no newest run: the run asked for is read as it is)
         error = "could not find a " + model + " run on NOAA's open data";
         return {};
     }
@@ -880,7 +880,7 @@ std::vector<std::string> GfsRender::hafsStorms(const std::string& model, std::st
 std::vector<GfsChart::TrackPoint> GfsRender::hafsTrack(const std::string& model, const std::string& storm, std::string& cycle) {
     const auto gfs = data({}, model, storm);
     GfsData::Run run;
-    if (!isHafs(model) || !newestRun(gfs, run)) {
+    if (!isHafs(model) || !newestRun(gfs, run, storm)) {
         return {};
     }
     cycle = run.cycle + "Z";

@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "models/ProductPicker.h"
+#include "hurricane/HafsIntensity.h"
 #include <algorithm>
 #include <map>
 #include <QGridLayout>
@@ -284,6 +285,9 @@ std::string ProductPicker::sectorGroup(const std::string& id) {
         {"POLAR", "World and poles"}, {"ARTIC", "World and poles"}};
     if (id.compare(0, 6, "LOCAL:") == 0) {
         return "Around a saved location";
+    }
+    if (Hafs::isStormId(id)) {
+        return "Storms in the model";
     }
     const auto found = groups.find(id);
     return found == groups.end() ? "Other" : found->second;

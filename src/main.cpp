@@ -49,7 +49,7 @@
 #include <QStandardPaths>
 #include "gfs/GfsRender.h"
 #include "spcrefs/SpcRefsLoader.h"
-#include "hurricane/HafsViewer.h"
+#include "hurricane/HafsIntensity.h"
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "climate/TempHistoryViewer.h"
@@ -710,7 +710,10 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm
                 new HurricaneViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString()};
             } else if (route.startsWith("hafs:")) {   // WXQT_OPEN=hafs:<NHC id>: the hurricane model screen on that storm
-                new HafsViewer{&w, route.section(':', 1, 1).toStdString(), ""};
+                Utility::writePref("NCEP", "HAFSA");
+                Utility::writePref("MODELNCEPPARAMLASTUSED", qEnvironmentVariable("WXQT_PARAM", "wind_mslp").toStdString());
+                Utility::writePref("MODELNCEPSECTORLASTUSED", Hafs::modelId(route.section(':', 1, 1).toStdString()));
+                new ModelViewer{&w, "NCEP"};
             } else if (route.startsWith("hafsintensity:")) {   // WXQT_OPEN=hafsintensity:<model id, e.g. 15e>: the intensity of that storm from HAFS-A and HAFS-B
                 const auto storm = route.section(':', 1, 1).toStdString();
                 std::string cycle, other;

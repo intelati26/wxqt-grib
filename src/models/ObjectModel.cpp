@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ObjectModel.h"
+#include "hurricane/HafsIntensity.h"
 #include <algorithm>
 #include "gfs/GfsModels.h"
 #include "objects/WString.h"
@@ -126,9 +127,15 @@ void ObjectModel::loadRunList(int from, int to, int by) {
 void ObjectModel::setModelVars(const string& modelName) {
     modelToken = prefModel + ":" + modelName;
     const auto * gribModel = prefModel == "NCEP" ? GfsModels::find(modelName) : nullptr;   // a model drawn from GRIB: the registry says how its screen is set up
-    if (gribModel != nullptr && !gribModel->storm) {
+    if (gribModel != nullptr) {
         UtilityModelNcepInterface::chartList(*gribModel, params, paramLabels);
         sectors = gribModel->sectors == GfsModels::Sectors::Conus ? UtilityModelNcepInterface::sectorsNbm : UtilityModelNcepInterface::sectorsGfs;
+        if (gribModel->storm) {   // the areas of a hurricane model are the storms it is running: the screen fills the list (a storm kept from before stays until it does)
+            sectors.clear();
+            if (Hafs::isStormId(sector)) {
+                sectors.push_back(sector);
+            }
+        }
         times.clear();
         for (const auto& h : gribModel->hours) {
             loadTimeList3(h.from, h.to + 1, h.step);   // the registry's ranges end at an hour that is in them (the list helper stops short of its end)

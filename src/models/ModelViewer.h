@@ -181,6 +181,9 @@ private:
     string stationPinKey;                    // the map the pins were placed on
     void refreshStationPins();
     QPushButton * buttonPlace{nullptr};
+    QPushButton * buttonIntensity{nullptr};   // the hurricane models: the intensity forecast of the storm
+    QCheckBox * checkRadii{nullptr};          // the hurricane models: the wind field on the chart
+    int stormLoading{0};
     QComboBox * comboLocalKm{nullptr};   // the size of an area round a saved location (one entry per place in the area list, this sets how big)
     void refreshSectorList();   // the ring and the name of the place on an area round a saved location (a pref, MODEL_PLACE_MARK)
     QPushButton * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
@@ -224,6 +227,7 @@ private:
     int drawing{0};
     std::shared_ptr<GfsRender::Session> gfsSession;
     std::vector<std::string> overlays;   // the lines and barbs ticked onto the chart
+    void startRun();   // getRun, after the storms of a hurricane model are listed
     void getRun();
     std::vector<string> allTimes;         // every hour the model offers; objectModel.times is the part the run on show reaches (the RRFS's hourly runs stop at 18 h)
     void fitHoursToRun();

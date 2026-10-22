@@ -35,7 +35,7 @@ namespace {
     vector<string> buildModels() {
         auto out = legacyModels;
         for (const auto& def : GfsModels::all()) {
-            if (!def.storm && std::find(out.begin(), out.end(), def.id) == out.end()) {
+            if (std::find(out.begin(), out.end(), def.id) == out.end()) {
                 out.push_back(def.id);
             }
         }

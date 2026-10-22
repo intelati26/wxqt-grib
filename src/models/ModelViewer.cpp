@@ -26,6 +26,7 @@
 #include <map>
 #include <memory>
 #include "gfs/GfsModels.h"
+#include "hurricane/HafsIntensity.h"
 #include "gfs/GfsRender.h"
 #include "settings/Location.h"
 #include "models/ObjectModelGet.h"
@@ -193,6 +194,30 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             reload();
         });
         boxH2.addWidgetReal(buttonPlace);
+        // the hurricane models (HAFS-A, HAFS-B): the wind field of the chart, and the intensity forecast of the storm
+        checkRadii = new QCheckBox{"Wind field (34 / 50 / 64 kt)", this};
+        checkRadii->setChecked(Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0);
+        checkRadii->setVisible(false);
+        checkRadii->setToolTip("The model's own wind radii (34, 50 and 64 kt, by quadrant) round the storm on the chart.");
+        QObject::connect(checkRadii, &QCheckBox::toggled, this, [this] (bool on) {
+            Utility::writePref("HAFS_RADII", on ? "true" : "false");
+            frames.clear();   // every picture drawn so far has the field (or has not)
+            frameOrder.clear();
+            frameBytes = 0;
+            failedAhead.clear();
+            refreshLoaded();
+            reload();
+        });
+        boxH2.addWidgetReal(checkRadii);
+        buttonIntensity = new QPushButton{"Intensity...", this};
+        buttonIntensity->setVisible(false);
+        buttonIntensity->setToolTip("The forecast maximum wind and minimum pressure of this storm against forecast hour, from HAFS-A and HAFS-B together.");
+        QObject::connect(buttonIntensity, &QPushButton::clicked, this, [this] {
+            if (Hafs::isStormId(objectModel.sector)) {
+                HafsIntensityViewer::open(this, objectModel.sector, [this] (const string& text) { setTitle(text.empty() ? objectModel.model + " " + sectorLabel(objectModel.sector) : text); });
+            }
+        });
+        boxH2.addWidgetReal(buttonIntensity);
         buttonStations = new QPushButton{"Stations", this};
         buttonStations->setCheckable(true);
         buttonStations->setChecked(Utility::readPref("MODEL_BUFKIT_STATIONS", "false").compare(0, 1, "t") == 0);
@@ -456,7 +481,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     box.getAndShow(this);
     refreshProductButton();
 
-    getRun();
+    startRun();
     // a screen left open sees a run that is published later: the newest run is looked for again every 15 minutes
     recheckTimer.setInterval(qEnvironmentVariableIntValue("WXQT_RECHECK_SECONDS") > 0 ? qEnvironmentVariableIntValue("WXQT_RECHECK_SECONDS") * 1000 : 15 * 60 * 1000);   // (the variable is for testing)
     QObject::connect(&recheckTimer, &QTimer::timeout, this, [this] { recheckRuns(); });
@@ -464,15 +489,15 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
 }
 
 void ModelViewer::recheckRuns() {
-    if (rechecking || pinnedValid.isValid() || !GfsRender::drawsModel(objectModel.model)) {
+    if (rechecking || pinnedValid.isValid() || !GfsRender::drawsModel(objectModel.model) || (GfsModels::isStormModel(objectModel.model) && !Hafs::isStormId(objectModel.sector))) {
         return;
     }
     rechecking = true;
-    const auto model = objectModel.model;
+    const auto model = objectModel.model, storm = objectModel.sector;
     auto cycle = std::make_shared<string>();
     auto date = std::make_shared<string>();
     auto found = std::make_shared<bool>(false);
-    new FutureVoid{this, [model, cycle, date, found] { *found = GfsRender::latestCycle(model, *cycle, "", date.get()); }, [this, model, cycle, date, found] {
+    new FutureVoid{this, [model, storm, cycle, date, found] { *found = GfsRender::latestCycle(model, *cycle, GfsModels::isStormModel(model) ? storm : string{}, date.get()); }, [this, model, cycle, date, found] {
         rechecking = false;
         if (!*found || model != objectModel.model || cycle->empty()) {
             return;
@@ -596,7 +621,7 @@ void ModelViewer::changeModel(int index) {
     runSwappedFrom.clear();
     objectModel.model = objectModel.models[index];
     objectModel.setModelVars(objectModel.model);
-    getRun();
+    startRun();
 }
 
 void ModelViewer::changeParam(int index) {
@@ -664,7 +689,7 @@ string ModelViewer::frameKey(int hour) const {
             run = t.toString("yyyyMMddHH").toStdString();
         }
     }
-    string key = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector + "|" + run + "|" + std::to_string(hour) + "|bs" + std::to_string(Utility::readPrefInt("BARB_SPACING", 100));   // (the barbs are in the picture: another spacing, another picture)
+    string key = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector + "|" + run + "|" + std::to_string(hour) + "|bs" + std::to_string(Utility::readPrefInt("BARB_SPACING", 100)) + (GfsModels::isStormModel(objectModel.model) ? "|rad" + Utility::readPref("HAFS_RADII", "true").substr(0, 1) : string{});   // (the barbs are in the picture: another spacing, another picture)
     for (const auto& id : overlays) {
         key += "|" + id;
     }
@@ -1545,6 +1570,11 @@ void ModelViewer::reload() {
     if (buttonPlace != nullptr) {
         buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
     }
+    if (checkRadii != nullptr) {
+        const bool storm = GfsModels::isStormModel(objectModel.model);
+        checkRadii->setVisible(storm);
+        buttonIntensity->setVisible(storm && Hafs::isStormId(objectModel.sector));
+    }
     if (comboLocalKm != nullptr) {   // the size of an area round a saved location, beside it
         double lat = 0, lon = 0, km = 0;
         string name;
@@ -1617,6 +1647,38 @@ void ModelViewer::reload() {
     }};
 }
 
+// A hurricane model has a run for each storm it is running: the storms are looked for first (they are the areas of the screen), then the run of the one on show
+void ModelViewer::startRun() {
+    if (!GfsModels::isStormModel(objectModel.model)) {
+        getRun();
+        return;
+    }
+    const int mine = ++stormLoading;
+    const auto model = objectModel.model;
+    setTitle(model + ": looking for the storms the model is running...");
+    auto found = std::make_shared<std::pair<std::vector<string>, string>>();
+    new FutureVoid{this, [model, found] { found->first = GfsRender::hafsStorms(model, found->second); }, [this, model, found, mine] {
+        if (mine != stormLoading || model != objectModel.model) {
+            return;
+        }
+        objectModel.sectors = found->first;
+        if (objectModel.sectors.empty()) {
+            objectModel.sector.clear();
+            refreshSectorList();
+            buttonSector.setText("No storm  \xE2\x96\xBE");
+            if (buttonIntensity != nullptr) {
+                buttonIntensity->setVisible(false);
+            }
+            setTitle(model + " has no storm in its newest cycle (it runs only for active storms and invests).");
+            return;
+        }
+        if (std::find(objectModel.sectors.begin(), objectModel.sectors.end(), objectModel.sector) == objectModel.sectors.end()) {
+            objectModel.sector = objectModel.sectors.front();
+        }
+        getRun();
+    }};
+}
+
 void ModelViewer::getRun() {
     new FutureVoid{this, [this] { getRunStatus(); }, [this] { updateRunStatus(); }};
 }
@@ -1657,7 +1719,7 @@ vector<string> ModelViewer::runLabels() const {
 void ModelViewer::addLocalSectors() {
     auto& sectors = objectModel.sectors;
     sectors.erase(std::remove_if(sectors.begin(), sectors.end(), [] (const string& id) { return id.compare(0, 6, "LOCAL:") == 0; }), sectors.end());
-    if (!GfsRender::drawsModel(objectModel.model)) {
+    if (!GfsRender::drawsModel(objectModel.model) || GfsModels::isStormModel(objectModel.model)) {
         return;
     }
     // one entry per place, at the size chosen beside the area box (the size of the area on show, when it is one of these)
@@ -1874,7 +1936,7 @@ namespace {
         if (GfsChart::parseLocalId(id, lat, lon, km, name)) {
             return (name.empty() ? string{"Saved location"} : name) + ", " + std::to_string(static_cast<int>(km)) + " km square";
         }
-        return id;
+        return Hafs::label(id);
     }
 }
 
@@ -1890,7 +1952,7 @@ void ModelViewer::showModelPicker() {
         const auto * def = group == "SPC guidance and mesoanalysis" ? GfsModels::find(id) : nullptr;   // the SPC ones say what they are: their names are not known by heart
         entries.push_back({id, def ? id + "  -  " + def->label : id, group});
     }
-    static const std::vector<string> order{"Global", "Regional", "Convection allowing", "Ensembles", "Waves and ocean", "Other"};
+    static const std::vector<string> order{"Global", "Regional", "Convection allowing", "Ensembles", "Waves and ocean", "Tropical cyclones", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
     });
@@ -1923,7 +1985,7 @@ void ModelViewer::showSectorPicker() {
     }
     // the groups in a fixed order: the entries are listed as the model gives them
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
-        static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "Other"};
+        static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "Storms in the model", "Other"};
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
     });
     std::vector<string> favorites;

@@ -75,6 +75,8 @@ namespace GfsModels {
     const Def * find(const std::string& id);
     // true for a model drawn from GRIB (including the storm model)
     bool draws(const std::string& id);
+    // a hurricane model, run for one storm at a time: its areas are the storms
+    bool isStormModel(const std::string& id);
     // the models whose charts can have lines and barbs ticked onto them
     std::vector<std::string> overlayModels();
 }

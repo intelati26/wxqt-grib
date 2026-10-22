@@ -28,7 +28,7 @@
 #include "hurricane/AscatUhrViewer.h"
 #include "hurricane/FloaterViewer.h"
 #include "hurricane/ReconViewer.h"
-#include "hurricane/HafsViewer.h"
+#include "hurricane/HafsIntensity.h"
 #include "hurricane/HistoryViewer.h"
 #include "hurricane/HurricaneViewer.h"
 #include "hurricane/PodViewer.h"
@@ -185,7 +185,7 @@ TropicalHub::TropicalHub(Window * parent)
         Utility::writePref("MODELNCEPSECTORLASTUSED", "WEST-ATL");
         new ModelScreen{this, "NCEP"};
     });
-    buttonHafs.connect([this] { new HafsViewer{this}; });
+    buttonHafs.connect([this] { openHafs(""); });
     buttonTropical.connect([this] { new TropicalViewer{this}; });
     buttonAtcf.getView()->setToolTip("The raw ATCF files of a storm: the last lines of its best track, guidance and fixes, decoded, with the status changes");
     buttonAtcf.connect([this] {   // any storm: one of the active ones, or an ATCF id typed in (wp292026, al092026 ...)
@@ -428,8 +428,7 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
     const auto id = entry.id;
     addButton("Track map and recon", [this, basin, id] { new HurricaneViewer{this, basin, id}; });
     {   // the hurricane model for this storm (it runs for active storms and invests)
-        const auto stormName = entry.name;
-        addButton("HAFS model", [this, id, stormName] { new HafsViewer{this, id, stormName}; });
+        addButton("HAFS model", [this, id] { openHafs(Hafs::modelId(id)); });
     }
     if (!invest) {
         const auto stormName = entry.name;
@@ -639,4 +638,14 @@ void TropicalHub::fillSeasons() {
     };
     one(seasonAtlantic, "Atlantic");
     one(seasonPacific, "East and Central Pacific");
+}
+
+// The hurricane model is a model of the model screen, the storm its area (the last storm looked at, or the one asked for)
+void TropicalHub::openHafs(const string& storm) {
+    Utility::writePref("NCEP", Utility::readPref("NCEP", "") == "HAFSB" ? "HAFSB" : "HAFSA");
+    Utility::writePref("MODELNCEPPARAMLASTUSED", "wind_mslp");
+    if (!storm.empty()) {
+        Utility::writePref("MODELNCEPSECTORLASTUSED", storm);
+    }
+    new ModelScreen{this, "NCEP"};
 }

@@ -35,6 +35,7 @@ public:
 
 private:
     void load();
+    void openHafs(const string& storm);   // the model screen on the hurricane model, on that storm (a model storm id, "" for the last)
     void fillStorms();
     void fillOutlook();
     void fillPod();

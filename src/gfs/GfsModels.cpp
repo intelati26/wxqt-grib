@@ -341,6 +341,11 @@ bool GfsModels::draws(const std::string& id) {
     return find(id) != nullptr;
 }
 
+bool GfsModels::isStormModel(const std::string& id) {
+    const auto * def = find(id);
+    return def != nullptr && def->storm;
+}
+
 std::vector<std::string> GfsModels::overlayModels() {
     std::vector<std::string> out;
     for (const auto& d : all()) {
