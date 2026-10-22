@@ -165,15 +165,6 @@ void ObjectModel::setModelVars(const string& modelName) {
         sectors = UtilityModelNsslWrfInterface::sectorsLong;
         times.clear();
         loadTimeList(1, 36, 1);
-    } else if (modelToken == "NCEP:HRRR") {
-        params = UtilityModelNcepInterface::paramsHrrr;
-        paramLabels = UtilityModelNcepInterface::labelsHrrr;
-        sectors = UtilityModelNcepInterface::sectorsHrrr;
-        times.clear();
-        loadTimeList3(0, 18, 1);
-        runs.clear();
-        loadRunList(0, 22, 1);
-        runTimeData.listRun = runs;
     } else if (modelToken == "NCEP:RAP") {
         params = UtilityModelNcepInterface::paramsRap;
         paramLabels = UtilityModelNcepInterface::labelsRap;

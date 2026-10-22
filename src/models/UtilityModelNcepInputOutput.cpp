@@ -54,9 +54,6 @@ RunTimeData UtilityModelNcepInputOutput::getRunTime(ObjectModel * om) {
 string UtilityModelNcepInputOutput::getImageUrl(ObjectModel * om) {
     string imgUrl;
     auto timeLocal = om->getTime();
-    if (om->model == "HRRR") {
-        timeLocal = om->getTime() + "00";
-    }
     if (om->model == "GFS") {
         imgUrl = "https://mag.ncep.noaa.gov/data/" +
                 WString::toLower(om->model) +

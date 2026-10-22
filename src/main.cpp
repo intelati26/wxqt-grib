@@ -50,6 +50,8 @@
 #include "gfs/GfsRender.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsIntensity.h"
+#include "models/UtilityModelNcepInterface.h"
+#include "gfs/GfsChart.h"
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "climate/TempHistoryViewer.h"
@@ -345,6 +347,33 @@ int main(int argc, char * argv[]) {
                             if (!std::isnan(v) && gapStart > -900.0) { qWarning("   lat %5.1f no value from %.2f to %.2f", lat, gapStart, lon); gapStart = -999.0; }
                         }
                         if (gapStart > -900.0) { qWarning("   lat %5.1f no value from %.2f to the end", lat, gapStart); }
+                    }
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("magcheck:")) {   // WXQT_OPEN=magcheck: the model guidance site's chart lists of the picture models against the charts the GRIB models draw (what is missing), then quits
+                const struct { const char * picture; const std::vector<std::string> * ids; std::vector<const char *> grib; } lists[] = {
+                    {"RAP", &UtilityModelNcepInterface::paramsRap, {"RRFS", "HRRR"}},
+                    {"NAM", &UtilityModelNcepInterface::paramsNam, {"RRFS", "HRRR"}}, {"NAM-HIRES", &UtilityModelNcepInterface::paramsNamHires, {"RRFS", "HRRR"}},
+                    {"HRW-ARW", &UtilityModelNcepInterface::paramsHrwNmm, {"RRFS", "HRRR"}}, {"HRW-ARW2", &UtilityModelNcepInterface::paramsHrwArw2, {"RRFS", "HRRR"}},
+                    {"HRW-FV3", &UtilityModelNcepInterface::modelHrwFv3Params, {"RRFS", "HRRR"}}};
+                for (const auto& list : lists) {
+                    for (const auto * grib : list.grib) {
+                        std::string missing;
+                        int have = 0;
+                        for (const auto& id : *list.ids) {
+                            if (GfsChart::product(id, grib) != nullptr) { have++; } else { missing += " " + id; }
+                        }
+                        fprintf(stderr, "MAGCHECK %s vs %s: %d of %d drawn; missing:%s\n", list.picture, grib, have, static_cast<int>(list.ids->size()), missing.c_str());
+                    }
+                }
+                if (const auto model = qEnvironmentVariable("WXQT_RENDER").toStdString(); !model.empty()) {   // WXQT_RENDER=<model>: draw every chart of that model once (hour 3, newest run) and say which could not be
+                    GfsRender::Session session;
+                    for (const auto& product : GfsChart::products()) {
+                        if (product.source == model) {
+                            std::string error;
+                            const auto bytes = GfsRender::png(session, model, product.id, "CONUS", "", 3, {}, error, nullptr);
+                            fprintf(stderr, "MAGRENDER %s %s %s\n", product.id.c_str(), bytes.isEmpty() ? "FAILED" : "ok", error.c_str());
+                        }
                     }
                 }
                 QTimer::singleShot(100, [] { QApplication::quit(); });

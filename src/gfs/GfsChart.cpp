@@ -2849,16 +2849,17 @@ const std::vector<Product>& products() {
         // ---- RRFS: the 3 km Rapid Refresh Forecast System (NAM, HRRR, RAP and the high resolution windows all end up here). Every GFS chart whose fields it holds is made again from it (sea level
         // pressure is its MSLET; precipitation has running totals like the GFS), then the charts only a convection-allowing model has: radar, helicity, updraft helicity, echo tops, ceiling,
         // visibility, lightning, gusts and CAPE with CIN.
-        const auto rrfsRecipes = [&] {
-            const auto make = [] (const char * id, const char * label) {
+        const auto rrfsRecipes = [&] (const std::string& model) {   // (the HRRR has the same fields, a few of them under other names)
+            const bool hrrr = model.compare(0, 4, "HRRR") == 0;
+            const auto make = [&model] (const char * id, const char * label) {
                 Product x;
-                x.source = "RRFS";
+                x.source = model;
                 x.id = id;
                 x.label = label;
                 return x;
             };
             const auto scaledOf = [] (const char * key, double factor) { return [key, factor] (const Grids& g) { return GfsGrid::scaled(pick(g, key), factor); }; };
-            const auto sea = [] { return want("p", "MSLET", "mean sea level"); };
+            const auto sea = [hrrr] { return want("p", hrrr ? "MSLMA" : "MSLET", "mean sea level"); };
             const auto wind10 = [&] (Product& x) {
                 x.wants.push_back(want("u", "UGRD", "10 m above ground"));
                 x.wants.push_back(want("v", "VGRD", "10 m above ground"));
@@ -2944,13 +2945,13 @@ const std::vector<Product>& products() {
                 p.push_back(x);
             }
             for (auto& chart : p) {   // the composite reflectivity (the GFS chart cloned above) with the rotating storms outlined: the last hour's strongest 2-5 km updraft helicity, 40 and over
-                if (chart.source != "RRFS" || chart.id != "sim_radar_comp") {
+                if (chart.source != model || chart.id != "sim_radar_comp") {
                     continue;
                 }
                 chart.wants.clear();
-                chart.needs = [hourly] (int hour) {   // the RRFS files call the whole-column level by its long name
+                chart.needs = [hourly, hrrr] (int hour) {   // the RRFS files call the whole-column level by its long name
                     std::vector<GfsData::Need> out;
-                    out.push_back({hour, {"r", "REFC", "entire atmosphere (considered as a single layer)", "", ""}});
+                    out.push_back({hour, {"r", "REFC", hrrr ? "entire atmosphere" : "entire atmosphere (considered as a single layer)", "", ""}});
                     out.push_back({hour, {"uh", "MXUPHL", "5000-2000 m above ground", hourly(hour), ""}});
                     return out;
                 };
@@ -3024,7 +3025,7 @@ const std::vector<Product>& products() {
             }
             {
                 auto x = make("echo_top", "Echo Top");
-                x.wants = {want("t", "RETOP", "entire atmosphere (considered as a single layer)")};
+                x.wants = {hrrr ? want("t", "RETOP", "cloud top") : want("t", "RETOP", "entire atmosphere (considered as a single layer)")};
                 x.fill = scaledOf("t", 3.28084 / 1000.0);
                 x.ramp = echoTopRamp();
                 x.palette = "echo_top";
@@ -3034,7 +3035,7 @@ const std::vector<Product>& products() {
             }
             {
                 auto x = make("ceiling", "Cloud Ceiling");
-                x.wants = {want("c", "CEIL", "cloud ceiling")};
+                x.wants = {hrrr ? want("c", "HGT", "cloud ceiling") : want("c", "CEIL", "cloud ceiling")};
                 x.fill = scaledOf("c", 3.28084);
                 x.ramp = ceilingRamp();
                 x.palette = "ceiling";
@@ -3054,7 +3055,7 @@ const std::vector<Product>& products() {
             }
             {
                 auto x = make("lightning", "Lightning (flashes in the last hour)");
-                x.needs = [hourly] (int hour) { return std::vector<GfsData::Need>{{hour, {"l", "LTNG", "entire atmosphere", hourly(hour), ""}}}; };
+                x.needs = [hourly, hrrr] (int hour) { return std::vector<GfsData::Need>{{hour, {"l", "LTNG", "entire atmosphere", hrrr ? std::string{} : hourly(hour), ""}}}; };
                 x.fill = [] (const Grids& g) { return pick(g, "l"); };
                 x.ramp = lightningRamp();
                 x.fillTitle = "Lightning";
@@ -3122,10 +3123,10 @@ const std::vector<Product>& products() {
             }
             {   // 700 mb humidity with the rising air as lines: the model's vertical velocity in m/s changed to omega in Pa/s with the density of air at 700 mb (about 0.9 kg per cubic meter)
                 auto x = make("700_rh_ht", "700mb Relative Humidity, Height and Omega");
-                x.wants = {want("z", "HGT", "700 mb"), want("rh", "RH", "700 mb"), want("w", "DZDT", "700 mb"), want("u", "UGRD", "700 mb"), want("v", "VGRD", "700 mb")};
+                x.wants = {want("z", "HGT", "700 mb"), want("rh", "RH", "700 mb"), want("w", hrrr ? "VVEL" : "DZDT", "700 mb"), want("u", "UGRD", "700 mb"), want("v", "VGRD", "700 mb")};
                 x.barbU = "u";
                 x.barbV = "v";
-                x.derive = [] (Grids& g, const Context&) { g["o"] = GfsGrid::scaled(g["w"], -0.9 * 9.80665); };
+                x.derive = [hrrr] (Grids& g, const Context&) { g["o"] = GfsGrid::scaled(g["w"], hrrr ? 1.0 : -0.9 * 9.80665); };   // (the HRRR gives omega itself, in Pa/s)
                 x.fill = [] (const Grids& g) { return pick(g, "rh"); };
                 x.ramp = humidity();
                 x.fillTitle = "700 mb relative humidity (%)";
@@ -4724,7 +4725,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", rrfsRecipes}, {"GEOS-FP", geosRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);
@@ -5189,13 +5190,14 @@ Product compose(const Product& base, const std::vector<std::string>& ids) {
         return base;
     }
     Product p = base;
-    const bool seaLevelAsMslet = base.source == "RRFS";   // the Rapid Refresh calls its sea level pressure MSLET
-    const auto add = [used, seaLevelAsMslet] (std::vector<GfsData::Need> needs, int hour) {
+    const bool seaLevelAsMslet = base.source.compare(0, 4, "RRFS") == 0 || base.source.compare(0, 4, "HRRR") == 0;   // the Rapid Refresh calls its sea level pressure MSLET, the HRRR MSLMA
+    const char * seaLevelName = base.source.compare(0, 4, "HRRR") == 0 ? "MSLMA" : "MSLET";
+    const auto add = [used, seaLevelAsMslet, seaLevelName] (std::vector<GfsData::Need> needs, int hour) {
         for (const auto * o : used) {
             for (auto need : o->needs(hour)) {
                 need.want.key = overlayPrefix(*o) + need.want.key;
                 if (seaLevelAsMslet && need.want.variable == "PRMSL") {
-                    need.want.variable = "MSLET";
+                    need.want.variable = seaLevelName;
                 }
                 needs.push_back(std::move(need));
             }

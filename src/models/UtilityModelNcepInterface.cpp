@@ -17,7 +17,6 @@ namespace {
         "GEFS-SPAG",
         "GFS",
         "HREF",
-        "HRRR",
         "HRW-ARW",
         "HRW-ARW2",
         "HRW-FV3",
@@ -112,16 +111,6 @@ const vector<string> UtilityModelNcepInterface::sectorsNamHires{
 
 const vector<string> UtilityModelNcepInterface::sectorsRap{
     "CONUS"
-};
-
-const vector<string> UtilityModelNcepInterface::sectorsHrrr{
-    "CONUS",
-    "US-NW",
-    "US-SW",
-    "US-NC",
-    "US-SC",
-    "US-NE",
-    "US-SE"
 };
 
 const vector<string> UtilityModelNcepInterface::sectorsNaefs{
@@ -466,76 +455,6 @@ const vector<string> UtilityModelNcepInterface::labelsRap{
     "700mb Relative Humidity, Wind, Height and Omega",
     "850mb Temperature, Wind, and Height",
     "925mb Temperature, Wind and Height"
-};
-
-const vector<string> UtilityModelNcepInterface::paramsHrrr{
-    "precip_p01",
-    "precip_ptot",
-    "precip_rate",
-    "snow_total",
-    "sim_radar_1km",
-    "sim_radar_comp",
-    "sim_radar_max",
-    "1000_500_thick",
-    "1000_850_thick",
-    "850_700_thick",
-    "850_temp_mslp_precip",
-    "helicity_1km",
-    "helicity_3km",
-    "max_updraft_hlcy",
-    "10m_wnd",
-    "10m_maxwnd",
-    "2m_temp_10m_wnd",
-    "2m_dewp_10m_wnd",
-    "10m_wnd_sfc_gust",
-    "sfc_cape_cin",
-    "best_cape_cin",
-    "lightning",
-    "echo_top",
-    "ceiling",
-    "vis",
-    "250_wnd",
-    "300_wnd",
-    "500_vort_ht",
-    "500_temp_ht",
-    "700_rh_ht",
-    "850_temp_ht",
-    "925_temp_wnd"
-};
-
-const vector<string> UtilityModelNcepInterface::labelsHrrr{
-    "Hourly Total Precipitation",
-    "Total Accumulated Precipitation",
-    "Precipitation Rate",
-    "Total Accumulated Snowfall",
-    "Simulated Radar Reflectivity 1km",
-    "Simulated Composite Radar Reflectivity",
-    "Max Simulated Radar Reflectivity",
-    "PMSL, 1000-500mb thickness, 1-hourly precipitation",
-    "PMSL, 1000-850mb thickness, 1-hourly precipitation",
-    "PMSL, 850-700mb thickness, 1-hourly precipitation",
-    "MSLP, 850mb temperature, 1hourly precipitation",
-    "0-1km Helicity and Storm Motion",
-    "0-3km Helicity and Storm Motion",
-    "Max 2-5km Updraft Helicity ",
-    "10 meter Wind",
-    "Max 10m Wind Speed",
-    "2 meter Temperature and 10 meter Wind",
-    "2 meter Dew Point and 10 meter wind",
-    "10 meter wind gust",
-    "Surface-Based Convective Available Potential Energy and Convective Inhibition",
-    "Most Unstable Convective Available Potential Energy and Convective Inhibition",
-    "Lightning Flash Rate ",
-    "Echo Tops",
-    "Cloud Ceiling ",
-    "Visibility",
-    "250mb Wind",
-    "300mb Wind",
-    "500mb Vorticity, Wind, and Height",
-    "500mb Temperature, Wind and Height",
-    "700mb Relative Humidity, Wind, Height and Omega",
-    "850mb Temperature, Wind, and Height",
-    "925mb Temperature and Wind"
 };
 
 const vector<string> UtilityModelNcepInterface::paramsNamHires{
