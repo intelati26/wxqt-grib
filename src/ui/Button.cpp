@@ -8,6 +8,7 @@
 #include "common/GlobalVariables.h"
 #include "ui/ButtonIcon.h"
 #include "ui/IconMapping.h"
+#include "ui/UiStandards.h"
 
 Button::Button(Window * parent, Icon icon, const string& label, const string& tip)
     : parent{parent}
@@ -19,7 +20,7 @@ Button::Button(Window * parent, Icon icon, const string& label, const string& ti
     }
     if (!label.empty() && icon == None) {
         button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-        button->setText(QString::fromStdString(label));
+        button->setText(UiStandards::fitLabel(QString::fromStdString(label)));
     }
 }
 
@@ -32,7 +33,7 @@ void Button::connect(const function<void()>& fn) {
 }
 
 void Button::setText(const string& s) {
-    button->setText(QString::fromStdString(s));
+    button->setText(UiStandards::fitLabel(QString::fromStdString(s)));
 }
 
 string Button::getText() const {

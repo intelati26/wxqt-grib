@@ -138,7 +138,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     , buttonArea{this, None, "Area..."}
     , buttonGlobe{this, None, "Globe..."}
     , buttonAreas{this, None, "Areas..."}
-    , buttonTemps{this, None, "Temperature history..."}
+    , buttonTemps{this, None, "Temp history...", "Temperature history of the place"}
     , buttonSounding{this, None, "Sounding..."}
     , buttonMembers{this, None, "Members graph..."}
     , textStatus{this, "Switch layers on in the tree"}

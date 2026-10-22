@@ -435,7 +435,7 @@ void DropsondeChart::paintEvent(QPaintEvent *) {
 
 DropsondeViewer::DropsondeViewer(Window * parent, const UtilityDropsonde::Drop& d)
     : Window{parent}
-    , buttonFull{this, None, "Full sounding analysis..."}
+    , buttonFull{this, None, "Sounding analysis...", "The full sounding analysis"}
     , drop{d}
 {
     setAttribute(Qt::WA_DeleteOnClose);

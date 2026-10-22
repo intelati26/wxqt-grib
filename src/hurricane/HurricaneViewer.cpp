@@ -119,10 +119,10 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
     , buttonZoom{this, None, "Zoom storm", "Zoom the map to the storm"}
     , buttonCone{this, None, "Zoom cone", "Zoom the map to the cone"}
     , comboLimit{this, {"Forecasts out to 24 h", "48 h", "72 h", "96 h", "120 h (the cone)", "168 h", "All of each forecast"}}
-    , buttonStats{this, None, "Ensemble statistics..."}
+    , buttonStats{this, None, "Ensemble stats...", "Ensemble statistics"}
     , buttonShips{this, None, "SHIPS and RI..."}
     , buttonPod{this, None, "Recon plan...", "The recon plan of the day"}
-    , buttonVdm{this, None, "Recon vortex messages..."}
+    , buttonVdm{this, None, "Vortex messages...", "Recon vortex messages"}
     , buttonSar{this, None, "SAR winds...", "SAR winds (NOAA STAR)"}
     , buttonFlight{this, None, "Recon flight...", "One recon flight on the satellite picture"}
     , buttonIntensity{this, None, "Intensity chart..."}

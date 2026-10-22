@@ -891,10 +891,10 @@ int main(int argc, char * argv[]) {
                 Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
                 auto * viewer = new ModelViewer{&w, "NCEP"};
                 qEnvironmentVariable("WXQT_PICK") == "net" ? NetStatus::show(viewer) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : viewer->showPicker();   // WXQT_PICK=sector: the area picker
-                if (qEnvironmentVariable("WXQT_PICK") == "precip") {   // WXQT_PICK=precip: the chart picker's "Precipitation by parts..." opened
+                if (qEnvironmentVariable("WXQT_PICK") == "precip") {   // WXQT_PICK=precip: the chart picker's "Precip by parts..." opened
                     QTimer::singleShot(800, viewer, [viewer] {
                         for (auto * button : viewer->findChildren<QPushButton *>()) {
-                            if (button->text().startsWith("Precipitation by parts")) {
+                            if (button->text().startsWith("Precip by parts")) {
                                 button->click();
                             }
                         }

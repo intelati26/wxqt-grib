@@ -148,11 +148,11 @@ TropicalHub::TropicalHub(Window * parent)
     , buttonTracks{this, None, "Tracks...", "Tracks, model guidance and recon of the storms of the NHC basins"}
     , buttonSeason{this, None, "Season charts..."}
     , buttonAce{this, None, "ACE by day..."}
-    , buttonAceForecast{this, None, "ACE forecast (ensemble)..."}
+    , buttonAceForecast{this, None, "ACE forecast...", "The ACE forecast of the ensemble"}
     , buttonHistory{this, None, "Historical tracks..."}
     , buttonPod{this, None, "Recon plan...", "The recon plan of the day"}
     , buttonModels{this, None, "Model charts..."}
-    , buttonHafs{this, None, "Hurricane model (HAFS)..."}
+    , buttonHafs{this, None, "HAFS model...", "The hurricane model (HAFS)"}
     , buttonTropical{this, None, "Other basins...", "The storms of the other basins: CIRA, JTWC and JMA"}
     , buttonAtcf{this, None, "ATCF feed..."}
     , buttonPasses{this, None, "Satellite passes..."}

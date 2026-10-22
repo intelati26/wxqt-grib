@@ -114,7 +114,7 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
             labels.push_back(e.label);
         }
         if (PrecipitationPicker::offeredFor(ids)) {
-            auto * parts = UiStandards::button(this, "Precipitation by parts...");
+            auto * parts = UiStandards::button(this, "Precip by parts...", "Precipitation by parts");
             parts->setToolTip("Choose the precipitation chart by what it shows (amount over a period, since the start, type, rate, snowfall), the period and the lines, instead of from the list");
             column->addWidget(parts);
             QObject::connect(parts, &QPushButton::clicked, [this, parts, ids, labels] {
