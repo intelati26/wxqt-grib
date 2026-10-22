@@ -22,11 +22,10 @@
 
 namespace {
     QString inText(long long seconds) {
-        if (seconds < 0) {
-            return "passed";
-        }
-        const long long minutes = seconds / 60;
-        return minutes < 60 ? QString{"%1 min"}.arg(minutes) : QString{"%1 h %2 min"}.arg(minutes / 60).arg(minutes % 60, 2, 10, QChar{'0'});
+        const bool past = seconds < 0;
+        const long long minutes = std::llabs(seconds) / 60;
+        const QString text = minutes < 60 ? QString{"%1 min"}.arg(minutes) : minutes < 48 * 60 ? QString{"%1 h %2 min"}.arg(minutes / 60).arg(minutes % 60, 2, 10, QChar{'0'}) : QString{"%1 days %2 h"}.arg(minutes / 1440).arg(minutes % 1440 / 60);
+        return past ? text + " ago" : text;
     }
 
     // "Good", "Fair: pixels about 2.1 times wider", "Poor: ...", "Possible: where it could look ..."
@@ -57,10 +56,13 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
     placeBox = new QComboBox{top};
     placeBox->setMinimumWidth(240);
     hoursBox = new QComboBox{top};
-    for (const int h : {12, 24, 48, 72}) {
-        hoursBox->addItem(QString::number(h) + " hours", h);
+    for (const int h : {-168, -72, -24, -12}) {   // a look back: when each last passed (the element sets are today's, run back: the quality column says how far to trust the older ones)
+        hoursBox->addItem(h <= -72 ? "Last " + QString::number(-h / 24) + " days" : "Last " + QString::number(-h) + " hours", h);
     }
-    hoursBox->setCurrentIndex(1);
+    for (const int h : {12, 24, 48, 72}) {
+        hoursBox->addItem(QString::number(h) + " hours ahead", h);
+    }
+    hoursBox->setCurrentIndex(qEnvironmentVariableIsSet("WXQT_SATSPAN") ? qEnvironmentVariableIntValue("WXQT_SATSPAN") : 5);   // (the variable is for testing)
     kindBox = new QComboBox{top};
     kindBox->addItem("Every instrument", -1);
     for (const auto kind : {SatellitePasses::Kind::Imagery, SatellitePasses::Kind::Microwave, SatellitePasses::Kind::Wind, SatellitePasses::Kind::Radar}) {
@@ -68,6 +70,7 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
     }
     satelliteBox = new QComboBox{top};
     satelliteBox->addItem("Every satellite");
+    satelliteBox->addItem("EUMETSAT (Metop-B, Metop-C)");
     for (const auto& s : SatellitePasses::satellites()) {
         satelliteBox->addItem(QString::fromStdString(s.name));
     }
@@ -85,7 +88,7 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
     box.addWidgetReal(note, 0, Qt::Alignment{});
     table = new QTableWidget{this};
     table->setColumnCount(10);
-    table->setHorizontalHeaderLabels({"Time (UTC)", "In", "Place", "Satellite", "Instrument", "Track", "From the middle", "Quality", "Sun there", "Good for"});
+    table->setHorizontalHeaderLabels({"Time (UTC)", "When", "Place", "Satellite", "Instrument", "Track", "From the middle", "Quality", "Sun there", "Good for"});
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->verticalHeader()->setVisible(false);
@@ -173,14 +176,17 @@ void SatellitePassViewer::recompute() {
         }
     }
     std::vector<std::string> sats;
-    if (satelliteBox->currentIndex() > 0) {
+    if (satelliteBox->currentIndex() == 1) {
+        sats = {"Metop-B", "Metop-C"};
+    } else if (satelliteBox->currentIndex() > 1) {
         sats.push_back(satelliteBox->currentText().toStdString());
     }
     std::vector<SatellitePasses::Kind> kinds;
     if (kindBox->currentData().toInt() >= 0) {
         kinds.push_back(static_cast<SatellitePasses::Kind>(kindBox->currentData().toInt()));
     }
-    const double hours = hoursBox->currentData().toDouble();
+    const double span = hoursBox->currentData().toDouble();   // negative: back from now
+    const double hours = std::fabs(span);
     if (at.empty()) {
         table->setRowCount(0);
         note->setText("No place to make the passes for: there is no active storm, or no saved location. Add a place.");
@@ -189,10 +195,11 @@ void SatellitePassViewer::recompute() {
     note->setText("Working out the passes...");
     auto rows = std::make_shared<std::vector<SatellitePasses::Row>>();
     auto problem = std::make_shared<std::string>();
-    const long long from = QDateTime::currentSecsSinceEpoch();
+    const long long now = QDateTime::currentSecsSinceEpoch();
+    const long long from = span < 0 ? now - static_cast<long long>(hours * 3600.0) : now;
     new FutureVoid{this,
-        [=] { *rows = SatellitePasses::passList(at, sats, kinds, hours, from, *problem); },
-        [this, rows, problem, mineGeneration, from] {
+        [=] { *rows = SatellitePasses::passList(at, sats, kinds, hours, from, *problem); if (span < 0) { std::reverse(rows->begin(), rows->end()); } },
+        [this, rows, problem, mineGeneration, now] {
             if (closed || mineGeneration != generation) {
                 return;
             }
@@ -209,7 +216,7 @@ void SatellitePassViewer::recompute() {
                     }
                 }
                 const double off = row.pass.distanceKm;
-                const QStringList cells{when.toString("ddd MMM d  HH:mm") + "Z", inText(row.pass.time - from), QString::fromStdString(row.place), QString::fromStdString(row.satellite), QString::fromStdString(row.instrument),
+                const QStringList cells{when.toString("ddd MMM d  HH:mm") + "Z", inText(row.pass.time - now), QString::fromStdString(row.place), QString::fromStdString(row.satellite), QString::fromStdString(row.instrument),
                                         row.pass.ascending ? "north-bound" : "south-bound", QString{"%1 km %2"}.arg(std::lround(std::fabs(off))).arg(off < 0 ? "left" : "right"), qualityText(row.quality), sunText(row.pass.sunElevation), instrumentNote};
                 for (int c = 0; c < cells.size(); c++) {
                     auto * item = new QTableWidgetItem{cells[c]};
