@@ -10,6 +10,7 @@
 #include <QFont>
 #include <QFontMetricsF>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPointF>
 #include <QRectF>
 #include <QString>
@@ -39,6 +40,30 @@ namespace MarkText {
             return;
         }
         painter.drawText(host.view().transform()(lat, lon) + offset * px, text);
+    }
+
+    // a label centred on the place with a light edge so that it reads over the colors (the number of a contour line, a high or a low); the painter's font says the size
+    inline void halo(MapHost& host, QPainter& painter, double px, double lat, double lon, const QString& text, const QColor& color) {
+        const QFont font = painter.font();
+        const double size = nominalSize(painter, px);
+        const auto draw = [font, size, text, color] (QPainter& p, double unit, const QPointF& place) {
+            QFont f{font};
+            f.setPixelSize(std::max(6, static_cast<int>(std::lround(size * unit))));
+            const QFontMetricsF metrics{f};
+            QPainterPath path;
+            path.addText(QPointF{place.x() - metrics.horizontalAdvance(text) / 2.0, place.y() + metrics.ascent() / 2.0 - 1.0}, f, text);
+            p.setPen(QPen{QColor{255, 255, 255, 220}, 3.0 * unit, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+            p.setBrush(Qt::NoBrush);
+            p.drawPath(path);
+            p.setPen(Qt::NoPen);
+            p.setBrush(color);
+            p.drawPath(path);
+        };
+        if (host.deferMarks()) {
+            host.deferMark(lat, lon, [draw] (QPainter& p, double unit, double) { draw(p, unit, QPointF{0.0, 0.0}); });
+            return;
+        }
+        draw(painter, px, host.view().transform()(lat, lon));
     }
 
     // text centred in a square of `half` * 2 pixels round the place

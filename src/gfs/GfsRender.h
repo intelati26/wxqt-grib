@@ -65,6 +65,7 @@ namespace GfsRender {
         GfsGrid::Grid * windUOut{nullptr}, * windVOut{nullptr};   // with fillOut: the wind of the chart (m/s)
         std::vector<GfsChart::ContourOut> * contoursOut{nullptr};   // with fillOut: the chart's line sets
         bool noBarbs{false};      // no barbs in the picture (the layer draws them)
+        GfsChart::VectorLines * vectorOut{nullptr};   // no contour lines, numbers or highs / lows in the picture: they are handed over here (the layer draws them)
         bool bare{false};
         int width{0};
     };

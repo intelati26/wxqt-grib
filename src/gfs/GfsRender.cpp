@@ -764,6 +764,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     options.windVOut = variant.windVOut;
     options.contoursOut = variant.contoursOut;
     options.noBarbs = variant.noBarbs;
+    options.vectorOut = variant.vectorOut;
     if (variant.bare) {
         options.lines.clear();
         options.places.clear();

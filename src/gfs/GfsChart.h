@@ -91,6 +91,23 @@ namespace GfsChart {
         bool uniform{false};            // every line the same weight (no heavy line at every fifth level)
         double width{1.0};
     };
+    // The chart's contour lines, their numbers and the highs and lows as vectors, for a map that draws them at the zoom and size of the view or the export (not baked into the picture): lines of
+    // (longitude, latitude), labels at a place with halo
+    struct VectorLines {
+        struct Line {
+            QColor color;
+            double width{1.0};     // pixels
+            bool dashed{false};
+            std::vector<std::pair<double, double>> lonLat;
+        };
+        struct Label {
+            double lon{0}, lat{0};
+            QString text;
+            QColor color;
+        };
+        std::vector<Line> lines;
+        std::vector<Label> labels;
+    };
     struct ContourOut {   // a set of lines with the grid it is drawn from, for whoever draws the fill itself (the high resolution world export)
         ContourSet set;
         GfsGrid::Grid grid;
@@ -233,6 +250,7 @@ namespace GfsChart {
         Ramp * rampOut{nullptr};
         GfsGrid::Grid * windUOut{nullptr}, * windVOut{nullptr};   // with fillOut: the chart's wind (m/s) too, for barbs drawn by whoever draws the fill
         std::vector<ContourOut> * contoursOut{nullptr};           // with fillOut: the chart's line sets and their grids
+        VectorLines * vectorOut{nullptr};                          // the contour lines, their numbers and the highs / lows are handed over here instead of being painted into the picture
         bool noBarbs{false};                   // the picture has no barbs (the map layer draws them itself, as vectors on a world grid; the probe still holds the wind)
         int width{1100};
         const GfsClimate * climate{nullptr};   // for the anomaly charts

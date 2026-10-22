@@ -83,9 +83,11 @@ private:
         QImage image;
         double west{0}, south{0}, east{0}, north{0};
         GfsChart::Probe probe;
+        GfsChart::VectorLines vectors;   // the chart's lines and their numbers, drawn with the picture at the view's zoom
         string key;             // model|chart|run|hour
         int widthPixels{0};
     };
+    void paintContours(QPainter&, MapHost&, const Rendered&) const;
     string runOf() const;                      // "yyyyMMddHH": the run on view
     int hourShown() const;
     bool visibleBox(MapHost&, double& west, double& south, double& east, double& north) const;

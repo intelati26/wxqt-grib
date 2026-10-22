@@ -6230,8 +6230,19 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 if (set.dashed) {
                     pen.setStyle(Qt::DashLine);
                 }
-                p.setPen(pen);
-                p.drawPath(path);
+                if (options.vectorOut != nullptr) {   // handed over: the map draws the line (and its number) at its own zoom
+                    VectorLines::Line out;
+                    out.color = pen.color();
+                    out.width = pen.widthF();
+                    out.dashed = set.dashed;
+                    for (const auto& pt : line) {
+                        out.lonLat.emplace_back(pt.lon, pt.lat);
+                    }
+                    options.vectorOut->lines.push_back(std::move(out));
+                } else {
+                    p.setPen(pen);
+                    p.drawPath(path);
+                }
                 // one label near the middle of a line long enough to carry it
                 if (set.labelled && path.length() > 150.0) {
                     const auto mid = path.pointAtPercent(0.5);
@@ -6240,7 +6251,11 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                     const bool crowded = std::any_of(placed.begin(), placed.end(), [&box] (const QRectF& other) { return other.intersects(box); });   // a number over another is unreadable: skip it
                     if (!crowded && area.adjusted(24, 14, -24, -14).contains(mid)) {
                         placed.push_back(box);
-                        halo(mid, interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level))), color.darker(130));   // a fractional interval keeps its decimals
+                        if (options.vectorOut != nullptr) {
+                            options.vectorOut->labels.push_back({view.lonAt(mid.x()), view.latAt(mid.y()), text, color.darker(130)});
+                        } else {
+                            halo(mid, interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level))), color.darker(130));   // a fractional interval keeps its decimals
+                        }
                     }
                 }
             }
@@ -6249,8 +6264,13 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             for (const auto& e : GfsGrid::extremes(grid, extremeRadius, sector.west, sector.south, sector.east, sector.north)) {
                 const auto at = view.toPixel(e.lon, e.lat);
                 if (area.adjusted(20, 20, -20, -20).contains(at)) {
-                    halo(at, e.high ? "H" : "L", e.high ? QColor{20, 60, 170} : QColor{190, 30, 30});
-                    halo(at + QPointF{0, 13}, QString::number(static_cast<int>(std::lround(e.value * set.scale))), QColor{40, 40, 40});
+                    if (options.vectorOut != nullptr) {
+                        options.vectorOut->labels.push_back({e.lon, e.lat, e.high ? "H" : "L", e.high ? QColor{20, 60, 170} : QColor{190, 30, 30}});
+                        options.vectorOut->labels.push_back({e.lon, view.latAt(at.y() + 13), QString::number(static_cast<int>(std::lround(e.value * set.scale))), QColor{40, 40, 40}});
+                    } else {
+                        halo(at, e.high ? "H" : "L", e.high ? QColor{20, 60, 170} : QColor{190, 30, 30});
+                        halo(at + QPointF{0, 13}, QString::number(static_cast<int>(std::lround(e.value * set.scale))), QColor{40, 40, 40});
+                    }
                 }
             }
         }

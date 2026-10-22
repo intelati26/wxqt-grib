@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "mapkit/MarkText.h"
 #include "mapkit/ModelChartLayer.h"
 #include "gfs/ChartHours.h"
 #include "gfs/BarbGrid.h"
@@ -475,6 +476,7 @@ void ModelChartLayer::prefetch(MapHost& host) {
             variant.noBarbs = true;   // the barbs are the layer's own (vectors on a world grid)
             variant.width = width;
             auto rendered = std::make_shared<Rendered>();
+            variant.vectorOut = &rendered->vectors;   // so are the lines and their numbers
             string message;
             const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(*session_), modelNow, paramNow, GfsChart::boxId(w, s, e, n), runNow, hour, overlaysNow, message, &rendered->probe, variant);
             if (bytes.isEmpty() || !rendered->image.loadFromData(bytes, "PNG")) {
@@ -644,6 +646,7 @@ void ModelChartLayer::render(MapHost& host) {
             variant.noBarbs = true;   // the barbs are the layer's own (vectors on a world grid)
             variant.width = width;
             auto rendered = std::make_shared<Rendered>();
+            variant.vectorOut = &rendered->vectors;   // so are the lines and their numbers
             string message;
             const auto bytes = GfsRender::png(const_cast<GfsRender::Session&>(*session_), modelNow, paramNow, GfsChart::boxId(w, s, e, n), runNow, hour, overlaysNow, message, &rendered->probe, variant);
             if (bytes.isEmpty() || !rendered->image.loadFromData(bytes, "PNG")) {
@@ -700,10 +703,47 @@ void ModelChartLayer::paint(QPainter& painter, MapHost& host) {
     const QRectF drawn = QRectF{a, b}.normalized();
     painter.drawImage(QRectF{QPointF{snap(drawn.left()), snap(drawn.top())}, QPointF{snap(drawn.right()), snap(drawn.bottom())}}, shownImage->image);
     painter.restore();
+    paintContours(painter, host, *shownImage);
     if (!barbsByOwner) {
         paintBarbs(painter, host, {this});
     }
     render(host);   // (asks only when what is on hand no longer fits the view)
+}
+
+// the chart's contour lines, their numbers and the highs and lows: vectors painted with the view (or the export), so the numbers keep their size and stay upright whatever the zoom or the projection
+void ModelChartLayer::paintContours(QPainter& painter, MapHost& host, const Rendered& shown) const {
+    if (shown.vectors.lines.empty() && shown.vectors.labels.empty()) {
+        return;
+    }
+    const auto t = host.view().transform();
+    const double px = host.view().unitsPerPixel();
+    const double widen = std::max(1.0, host.markScale());   // (a picture made large keeps its lines visible)
+    painter.save();
+    painter.setOpacity(opacity / 100.0);
+    painter.setBrush(Qt::NoBrush);
+    for (const auto& line : shown.vectors.lines) {
+        QPainterPath path;
+        bool first = true;
+        for (const auto& [lon, lat] : line.lonLat) {
+            const QPointF at = t(lat, lon);
+            first ? path.moveTo(at) : path.lineTo(at);
+            first = false;
+        }
+        QPen pen{line.color, line.width * px * widen};
+        if (line.dashed) {
+            pen.setStyle(Qt::DashLine);
+        }
+        painter.setPen(pen);
+        painter.drawPath(path);
+    }
+    painter.restore();
+    QFont font{painter.font()};
+    font.setPixelSize(std::max(6, static_cast<int>(std::lround(12.0 * px))));
+    font.setBold(true);
+    painter.setFont(font);
+    for (const auto& label : shown.vectors.labels) {
+        MarkText::halo(host, painter, px, label.lat, label.lon, label.text, label.color);
+    }
 }
 
 // the wind (m/s) of the chart on view at a place; false where the chart has none (no barbs on this chart, outside its box, the picture not drawn yet)
