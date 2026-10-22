@@ -498,6 +498,9 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     box.addWidgetReal(timeRow, 0, Qt::Alignment{});
     box.addLayout(rowMain, 1);
     box.getAndShow(this);
+    if (const auto saved = Utility::readPref("MM_OFFICE", ""); !saved.empty()) {   // the office outlined last time: read in the background (from the disk copy), then drawn
+        background([] { string problem; OfficeAreas::all(problem); }, [this, saved] { selectOffice(saved, false); });
+    }
     resize(1240, 880);
     buildTree();
     // what was on last time
@@ -1729,6 +1732,9 @@ void MasterMapViewer::exportView() {
         for (const auto& product : AcisClimate::products()) {
             fill->addItem(product.label, QString::fromStdString(product.id));
         }
+        if (const auto at = office->findData(QString::fromStdString(officeId)); at > 0) {
+            office->setCurrentIndex(at);   // the office outlined on the map
+        }
         form->addRow("Forecast office area (full color; the rest lighter)", office);
         form->addRow("Lighter ACIS map behind the whole picture", fill);
         if (!problem.empty() && office->count() == 1) {
@@ -1745,6 +1751,31 @@ void MasterMapViewer::exportView() {
         setExportOffice(office->currentData().toString().toStdString());
     }
     exportTo(path);
+}
+
+void MasterMapViewer::selectOffice(const string& id, bool zoom) {
+    officeId.clear();
+    officeOutline.clear();
+    if (!id.empty()) {
+        string problem;
+        for (const auto& o : OfficeAreas::all(problem)) {
+            if (o.id != id) {
+                continue;
+            }
+            officeId = o.id;
+            officeOutline = std::vector<QPolygonF>(o.rings.begin(), o.rings.end());
+            if (zoom) {
+                QRectF box;
+                for (const auto& ring : officeOutline) {
+                    box = box.isNull() ? ring.boundingRect() : box.united(ring.boundingRect());
+                }
+                const double padLon = box.width() * 0.18, padLat = box.height() * 0.18;
+                mapView->showRegion(box.top() - padLat, box.bottom() + padLat, box.left() - padLon, box.right() + padLon);
+            }
+        }
+    }
+    Utility::writePref("MM_OFFICE", officeId);
+    redraw();
 }
 
 void MasterMapViewer::setExportOffice(const string& id) {
@@ -2173,7 +2204,19 @@ void MasterMapViewer::chooseArea() {
     for (const auto& sector : GfsChart::sectors()) {
         entries.push_back({sector.id, sector.id, ProductPicker::sectorGroup(sector.id)});
     }
-    static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "Other"};
+    {   // the forecast offices' areas: choosing one goes to it and outlines it (the map stays browsable; an export can veil what is outside it)
+        string problem;
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        const auto& offices = OfficeAreas::all(problem);
+        QApplication::restoreOverrideCursor();
+        if (!offices.empty()) {
+            entries.push_back({"CWA:", "No office outline", "NWS forecast offices"});
+        }
+        for (const auto& o : offices) {
+            entries.push_back({"CWA:" + o.id, o.id + "  " + o.name, "NWS forecast offices"});
+        }
+    }
+    static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "NWS forecast offices", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
     });
@@ -2184,6 +2227,10 @@ void MasterMapViewer::chooseArea() {
     picker->onPick = [this] (const string& id) {
         double lat = 0, lon = 0, size = 0;
         string name;
+        if (id.compare(0, 4, "CWA:") == 0) {
+            selectOffice(id.substr(4), true);
+            return;
+        }
         if (GfsChart::parseLocalId(id, lat, lon, size, name)) {
             const double degrees = size / 111.0 / 2.0;
             const double lonDegrees = degrees / std::max(0.2, std::cos(lat * 3.14159265358979 / 180.0));
@@ -2409,6 +2456,24 @@ void MasterMapViewer::paintMapCopy(QPainter& painter) {
             layer->paint(painter, *this);
             painter.restore();
         }
+    }
+    if (!officeOutline.empty() && exportMask.empty()) {   // the forecast office chosen in the area list: its outline only, so the map can still be browsed
+        QPainterPath outline;
+        for (const auto& ring : officeOutline) {
+            QPolygonF shape;
+            for (const auto& point : ring) {
+                shape << t(point.y(), point.x());
+            }
+            outline.addPolygon(shape);
+            outline.closeSubpath();
+        }
+        painter.save();
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen{QColor{255, 255, 255, 200}, 4.0 * px});
+        painter.drawPath(outline);
+        painter.setPen(QPen{QColor{20, 20, 30}, 2.0 * px});
+        painter.drawPath(outline);
+        painter.restore();
     }
     if (!exportMask.empty()) {   // the forecast office's area at full color: a pale veil over everything outside it, and its outline
         QPainterPath inside;

@@ -79,6 +79,9 @@ private:
     void paintLegend(QPainter&);
     void paintStamp(QPainter&);
     void setExportOffice(const string& id);
+    void selectOffice(const string& id, bool zoom);   // the forecast office outlined on the map ("" none)
+    string officeId;
+    std::vector<QPolygonF> officeOutline;             // its area (x longitude, y latitude)
     std::unique_ptr<ClimateGridLayer> exportContext;   // the ACIS map under a picture for export, lighter, for the parts the layers leave white
     std::vector<QPolygonF> exportMask;                   // a forecast office's area (x longitude, y latitude): inside it everything is at full colour, outside it is veiled (an export only)
     string exportMaskName;
