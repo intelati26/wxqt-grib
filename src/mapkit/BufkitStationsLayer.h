@@ -52,6 +52,7 @@ private:
         QPointF units;
         QPointF pixels;
         string id;
+        double lat{0.0}, lon{0.0};
     };
     std::vector<Shown> choose(MapHost&) const;
 };

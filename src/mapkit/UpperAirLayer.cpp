@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "mapkit/MarkText.h"
 #include "mapkit/UpperAirLayer.h"
 #include <algorithm>
 #include <cmath>
@@ -126,13 +127,7 @@ void UpperAirLayer::paint(QPainter& painter, MapHost& host) {
         painter.setPen(QPen{QColor{255, 255, 255}, 1.4 * perPixel});
         painter.setBrush(QColor{60, 140, 70});
         painter.drawEllipse(at, r, r);
-        const QString text = QString::fromStdString(code);
-        const QRectF box{at.x() + r + 1.5 * perPixel, at.y() - metrics.height() / 2.0, metrics.horizontalAdvance(text) + 4.0 * perPixel, metrics.height()};
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor{20, 20, 28, 170});
-        painter.drawRoundedRect(box, 2.0 * perPixel, 2.0 * perPixel);
-        painter.setPen(QColor{240, 240, 240});
-        painter.drawText(box.adjusted(2.0 * perPixel, 0, 0, 0), Qt::AlignVCenter | Qt::AlignLeft, text);
+        MarkText::tag(host, painter, perPixel, site.latLon.lat(), site.latLon.lon(), QPointF{r / perPixel + 1.5, 0.0}, QString::fromStdString(code), QColor{20, 20, 28, 170}, QColor{240, 240, 240}, 2.0, 2.0, 2.0);
     }
 }
 

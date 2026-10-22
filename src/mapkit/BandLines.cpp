@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "mapkit/MarkText.h"
 #include "mapkit/BandLines.h"
 #include <algorithm>
 #include <cmath>
@@ -63,12 +64,8 @@ void BandLines::paint(QPainter& painter, MapHost& host, const std::vector<Contou
                     continue;
                 }
                 const double width = (contour.label.size() * 6.6 + 6.0) * px;
-                const QRectF box{mid.x() - width / 2.0, mid.y() - 7.5 * px, width, 15.0 * px};
-                painter.setPen(Qt::NoPen);
-                painter.setBrush(QColor{255, 255, 255, 215});
-                painter.drawRoundedRect(box, 3.0 * px, 3.0 * px);
-                painter.setPen(QColor{25, 25, 35});
-                painter.drawText(box, Qt::AlignCenter, contour.label);
+                const auto [labelLat, labelLon] = host.view().toLatLon(pixels);
+                MarkText::tag(host, painter, px, labelLat, labelLon, QPointF{-width / px / 2.0, 0.0}, contour.label, QColor{255, 255, 255, 215}, QColor{25, 25, 35}, 3.0, 3.0, 3.0);
                 painter.setBrush(Qt::NoBrush);
             }
         }

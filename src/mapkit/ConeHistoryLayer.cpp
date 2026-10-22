@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "mapkit/MarkText.h"
 #include "mapkit/ConeHistoryLayer.h"
 #include <algorithm>
 #include <cmath>
@@ -288,7 +289,7 @@ void ConeHistoryLayer::paint(QPainter& painter, MapHost& host) {
                 painter.drawEllipse(at, 4.0 * px, 4.0 * px);
                 if (p.tau > 0 && p.tau % 24 == 0) {
                     painter.setPen(QColor{255, 255, 255});
-                    painter.drawText(at + QPointF{7.0 * px, -5.0 * px}, QString::number(p.tau / 24) + " d");
+                    MarkText::at(host, painter, px, p.lat, p.lon, QPointF{7.0, -5.0}, QString::number(p.tau / 24) + " d");
                 }
             }
         }
@@ -314,7 +315,7 @@ void ConeHistoryLayer::paint(QPainter& painter, MapHost& host) {
         painter.setPen(QColor{255, 255, 255});
         if (!current.cone.points.empty()) {
             const auto& first = current.cone.points.front();
-            painter.drawText(t(first.lat, first.lon) + QPointF{8.0 * px, 12.0 * px}, QString::fromStdString(current.cone.stormName.empty() ? storm->name : current.cone.stormName) + "  adv " + QString::fromStdString(current.number));
+            MarkText::at(host, painter, px, first.lat, first.lon, QPointF{8.0, 12.0}, QString::fromStdString(current.cone.stormName.empty() ? storm->name : current.cone.stormName) + "  adv " + QString::fromStdString(current.number));
         }
     }
     painter.restore();

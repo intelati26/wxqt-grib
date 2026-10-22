@@ -491,6 +491,18 @@ void SarWindsLayer::paintBarbs(QPainter& painter, MapHost& host, const SceneData
                 continue;
             }
             const double from = std::fmod(std::atan2(sx, sy) * 180.0 / std::numbers::pi + 360.0, 360.0);
+            if (host.deferMarks()) {   // a projected world picture: painted upright there, the staff turned to the local north
+                const double speed = sum / n, nominal = look.length / scale, south = lat < 0.0;
+                host.deferMark(lat, lon, [from, speed, nominal, south] (QPainter& p, double unit, double north) {
+                    p.save();
+                    p.rotate(north);
+                    p.setPen(QPen{QColor{15, 15, 25, 235}, std::max(1.0, unit)});
+                    p.setBrush(QColor{15, 15, 25});
+                    WindBarb::draw(p, QPointF{0.0, 0.0}, from, speed, nominal * unit, south);
+                    p.restore();
+                });
+                continue;
+            }
             WindBarb::draw(painter, t(lat, lon), from, sum / n, length, lat < 0.0);
         }
     }
@@ -538,15 +550,33 @@ void SarWindsLayer::paint(QPainter& painter, MapHost& host) {
             }
         }
         // the mark: a diamond at the middle of the scene with when and by which satellite
-        painter.setPen(QPen{QColor{20, 20, 30, 230}, 1.0 * px});
-        painter.setBrush(e.data ? QColor{255, 255, 255, 220} : QColor{190, 90, 220});
-        const double r = 6.0 * px;
-        painter.drawPolygon(QPolygonF{{at + QPointF{0, -r}, at + QPointF{r, 0}, at + QPointF{0, r}, at + QPointF{-r, 0}}});
+        QString label;
         if (perDegree > 4.0) {
             auto sensor = QString::fromStdString(e.scene.sensor);
             sensor = sensor.left(sensor.indexOf(" - ") < 0 ? sensor.size() : sensor.indexOf(" - "));
-            painter.setPen(QColor{235, 235, 245});
-            painter.drawText(at + QPointF{9.0 * px, -6.0 * px}, sensor + " " + e.when.toString("MMM d HH:mm") + "Z" + (!e.data && e.rendering ? " ..." : QString{}));
+            label = sensor + " " + e.when.toString("MMM d HH:mm") + "Z" + (!e.data && e.rendering ? " ..." : QString{});
+        }
+        const QColor fill = e.data ? QColor{255, 255, 255, 220} : QColor{190, 90, 220};
+        const auto mark = [fill, label, font] (QPainter& p, double unit, double) {
+            QFont f{font};
+            f.setPixelSize(std::max(6, static_cast<int>(std::lround(11 * unit))));
+            p.setFont(f);
+            p.setPen(QPen{QColor{20, 20, 30, 230}, 1.0 * unit});
+            p.setBrush(fill);
+            const double r = 6.0 * unit;
+            p.drawPolygon(QPolygonF{{QPointF{0, -r}, QPointF{r, 0}, QPointF{0, r}, QPointF{-r, 0}}});
+            if (!label.isEmpty()) {
+                p.setPen(QColor{235, 235, 245});
+                p.drawText(QPointF{9.0 * unit, -6.0 * unit}, label);
+            }
+        };
+        if (host.deferMarks()) {
+            host.deferMark(e.scene.lat, e.scene.lon, mark);
+        } else {
+            painter.save();
+            painter.translate(at);
+            mark(painter, px, 0.0);
+            painter.restore();
         }
     }
 }

@@ -1584,7 +1584,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
                 }
                 markPainter.save();
                 markPainter.translate(at);
-                mark.paint(markPainter, std::max(1.0, world.width() / 1300.0), std::atan2(x2 - x, y2 - y) * 180.0 / M_PI);
+                mark.paint(markPainter, std::max(1.0, world.width() / 1500.0), std::atan2(x2 - x, y2 - y) * 180.0 / M_PI);
                 markPainter.restore();
             }
         }

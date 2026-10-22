@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "mapkit/MarkText.h"
 #include "mapkit/TropicalLayers.h"
 #include <algorithm>
 #include <cmath>
@@ -238,12 +239,12 @@ void WorldStormsLayer::paint(QPainter& painter, MapHost& host) {
                 painter.drawEllipse(p, 7.0 * px, 7.0 * px);
                 painter.setFont(letterFont);
                 painter.setPen(QColor{20, 20, 20});
-                painter.drawText(QRectF{p.x() - 7.0 * px, p.y() - 7.0 * px, 14.0 * px, 14.0 * px}, Qt::AlignCenter, jmaLetter(c.category, c.knots));
+                MarkText::centred(host, painter, px, c.lat, c.lon, 7.0, jmaLetter(c.category, c.knots));
                 painter.setFont(font);
                 const auto valid = QDateTime::fromString(QString::fromStdString(c.validUtc), Qt::ISODate).toUTC();
                 if (valid.isValid()) {
                     painter.setPen(QColor{255, 255, 255});
-                    painter.drawText(p + QPointF{9.0 * px, 4.0 * px}, valid.toString("ddd HH'Z'"));
+                    MarkText::at(host, painter, px, c.lat, c.lon, QPointF{9.0, 4.0}, valid.toString("ddd HH'Z'"));
                 }
             }
         }
@@ -266,7 +267,7 @@ void WorldStormsLayer::paint(QPainter& painter, MapHost& host) {
                 painter.drawEllipse(p, 4.2 * px, 4.2 * px);
                 if (f.hour > 0 && f.hour % 24 == 0) {
                     painter.setPen(QColor{255, 255, 255});
-                    painter.drawText(p + QPointF{7.0 * px, -5.0 * px}, QString::number(f.hour / 24) + " d");
+                    MarkText::at(host, painter, px, f.lat, f.lon, QPointF{7.0, -5.0}, QString::number(f.hour / 24) + " d");
                 }
             }
         }
@@ -293,7 +294,7 @@ void WorldStormsLayer::paint(QPainter& painter, MapHost& host) {
             QFont bold{font};
             bold.setBold(true);
             painter.setFont(bold);
-            painter.drawText(now + QPointF{11.0 * px, 4.0 * px}, QString::fromStdString(s.info.name.empty() ? s.info.id : s.info.id + " " + s.info.name));
+            MarkText::at(host, painter, px, first.lat, first.lon, QPointF{11.0, 4.0}, QString::fromStdString(s.info.name.empty() ? s.info.id : s.info.id + " " + s.info.name));
             painter.setFont(font);
         }
     }
@@ -505,7 +506,7 @@ void ActiveStormsLayer::paint(QPainter& painter, MapHost& host) {
                 painter.drawEllipse(p, 4.2 * px, 4.2 * px);
                 if (f.tau > 0 && f.tau % 24 == 0) {
                     painter.setPen(QColor{255, 255, 255});
-                    painter.drawText(p + QPointF{7.0 * px, -5.0 * px}, QString::number(f.tau / 24) + " d");
+                    MarkText::at(host, painter, px, f.lat, f.lon, QPointF{7.0, -5.0}, QString::number(f.tau / 24) + " d");
                 }
             }
         }
@@ -536,7 +537,7 @@ void ActiveStormsLayer::paint(QPainter& painter, MapHost& host) {
         QFont bold{font};
         bold.setBold(true);
         painter.setFont(bold);
-        painter.drawText(now + QPointF{11.0 * px, 4.0 * px}, QString::fromStdString(HurricaneData::idLabel(s.entry.id) + (s.entry.name.empty() ? "" : " " + s.entry.name)));
+        MarkText::at(host, painter, px, s.entry.lat, s.entry.lon, QPointF{11.0, 4.0}, QString::fromStdString(HurricaneData::idLabel(s.entry.id) + (s.entry.name.empty() ? "" : " " + s.entry.name)));
         painter.setFont(font);
     }
 }
@@ -644,7 +645,7 @@ void OutlookLayer::paint(QPainter& painter, MapHost& host) {
         painter.setBrush(fill);
         painter.drawPath(ringsPath(t, area.rings));
         painter.setPen(color.lighter(130));
-        painter.drawText(t(area.centerLat, area.centerLon) + QPointF{-30 * px, 4 * px}, QString::number(area.prob2) + "% / " + QString::number(area.prob7) + "%");
+        MarkText::at(host, painter, px, area.centerLat, area.centerLon, QPointF{-30.0, 4.0}, QString::number(area.prob2) + "% / " + QString::number(area.prob7) + "%");
     }
 }
 
@@ -1003,7 +1004,7 @@ void EnsembleSpaghettiLayer::paint(QPainter& painter, MapHost& host) {
             labelled.push_back(name);
             const auto p = t(hours.front().centerLat, hours.front().centerLon);
             painter.setPen(QColor{255, 255, 255});
-            painter.drawText(p + QPointF{7 * px, -6 * px}, QString::fromStdString(name));
+            MarkText::at(host, painter, px, hours.front().centerLat, hours.front().centerLon, QPointF{7.0, -6.0}, QString::fromStdString(name));
         }
     }
 }
@@ -1274,7 +1275,7 @@ void DeepMindGenesisLayer::paint(QPainter& painter, MapHost& host) {
         painter.setBrush(ring);
         painter.drawEllipse(p, radius, radius);
         painter.setPen(QColor{255, 255, 255});
-        painter.drawText(p + QPointF{radius + 3 * px, 4 * px}, QString::number(static_cast<int>(std::lround(c.chance * 100.0))) + "%");
+        MarkText::at(host, painter, px, c.lat, c.lon, QPointF{radius / px + 3.0, 4.0}, QString::number(static_cast<int>(std::lround(c.chance * 100.0))) + "%");
     }
 }
 

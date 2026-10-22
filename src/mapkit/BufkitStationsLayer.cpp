@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "mapkit/MarkText.h"
 #include "mapkit/BufkitStationsLayer.h"
 #include <algorithm>
 #include <cmath>
@@ -57,7 +58,7 @@ std::vector<BufkitStationsLayer::Shown> BufkitStationsLayer::choose(MapHost& hos
             continue;
         }
         taken.insert({cx, cy});
-        out.push_back({station, view.transform()(station->latitude, station->longitude), p, station->id});
+        out.push_back({station, view.transform()(station->latitude, station->longitude), p, station->id, station->latitude, station->longitude});
         if (out.size() >= most) {
             break;
         }
@@ -78,6 +79,13 @@ void BufkitStationsLayer::paint(QPainter& painter, MapHost& host) {
             QPointF storm;
             double srh = -9999.0;
             if (glyph(s.id, tips, storm, srh)) {
+                if (host.deferMarks()) {   // a projected world picture: the glyph is painted there, upright
+                    host.deferMark(s.lat, s.lon, [tips, storm] (QPainter& p, double unit, double) {
+                        const double size = 80.0 * unit;
+                        HodographGlyph::paint(p, QRectF{-size / 2.0, -size / 2.0, size, size}, tips, storm);
+                    });
+                    continue;
+                }
                 const double size = 80.0 * perPixel;
                 HodographGlyph::paint(painter, QRectF{s.units.x() - size / 2.0, s.units.y() - size / 2.0, size, size}, tips, storm);
                 continue;
@@ -88,13 +96,7 @@ void BufkitStationsLayer::paint(QPainter& painter, MapHost& host) {
         painter.setPen(QPen{QColor{255, 255, 255}, 1.4 * perPixel});
         painter.setBrush(QColor{200, 70, 30});
         painter.drawEllipse(s.units, r, r);
-        const QString text = QString::fromStdString(s.id);
-        const QRectF box{s.units.x() + r + 1.5 * perPixel, s.units.y() - metrics.height() / 2.0, metrics.horizontalAdvance(text) + 4.0 * perPixel, metrics.height()};
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor{20, 20, 28, 170});
-        painter.drawRoundedRect(box, 2.0 * perPixel, 2.0 * perPixel);
-        painter.setPen(QColor{240, 240, 240});
-        painter.drawText(box.adjusted(2.0 * perPixel, 0, 0, 0), Qt::AlignVCenter | Qt::AlignLeft, text);
+        MarkText::tag(host, painter, perPixel, s.lat, s.lon, QPointF{r / perPixel + 1.5, 0.0}, QString::fromStdString(s.id), QColor{20, 20, 28, 170}, QColor{240, 240, 240}, 2.0, 2.0, 2.0);
     }
 }
 

@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "mapkit/MarkText.h"
 #include "mapkit/ForecastPointLayer.h"
 #include <algorithm>
 #include <cmath>
@@ -61,12 +62,7 @@ void ForecastPointLayer::paint(QPainter& painter, MapHost& host) {
             text += "  " + (has(day.maxTemp) ? QString::number(static_cast<int>(std::lround(day.maxTemp))) : QString{"-"}) + "/" + (has(day.minTemp) ? QString::number(static_cast<int>(std::lround(day.minTemp))) : QString{"-"}) +
                 (has(day.maxPop) && day.maxPop >= 5.0 ? "  " + QString::number(static_cast<int>(std::lround(day.maxPop))) + "%" : QString{});
         }
-        const QRectF box{at.x() + r + 2.0 * perPixel, at.y() - metrics.height() / 2.0, metrics.horizontalAdvance(text) + 6.0 * perPixel, metrics.height()};
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor{20, 20, 28, 190});
-        painter.drawRoundedRect(box, 3.0 * perPixel, 3.0 * perPixel);
-        painter.setPen(QColor{240, 240, 240});
-        painter.drawText(box.adjusted(3.0 * perPixel, 0, 0, 0), Qt::AlignVCenter | Qt::AlignLeft, text);
+        MarkText::tag(host, painter, perPixel, entry.lat, entry.lon, QPointF{r / perPixel + 2.0, 0.0}, text, QColor{20, 20, 28, 190}, QColor{240, 240, 240}, 3.0, 3.0, 3.0);
     }
 }
 

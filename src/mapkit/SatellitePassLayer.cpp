@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "mapkit/MarkText.h"
 #include "mapkit/SatellitePassLayer.h"
 #include <array>
 #include <algorithm>
@@ -196,15 +197,10 @@ void SatellitePassLayer::paint(QPainter& painter, MapHost& host) {
             painter.setPen(QPen{QColor{20, 20, 40}, 1.0 * px});
             painter.setBrush(QColor{255, 255, 255, 200});
             painter.drawEllipse(at, 2.5 * px, 2.5 * px);
-            const QRectF box{at.x() + 5.0 * px, at.y() - 7.0 * px, (text.size() * 6.2 + 6.0) * px, 14.0 * px};
-            painter.setPen(Qt::NoPen);
-            painter.setBrush(QColor{255, 255, 255, 190});
-            painter.drawRoundedRect(box, 3.0 * px, 3.0 * px);
-            painter.setPen(QColor{20, 20, 40});
-            painter.drawText(box, Qt::AlignCenter, text);
+            MarkText::tag(host, painter, px, where.y(), where.x(), QPointF{5.0, 0.0}, text, QColor{255, 255, 255, 190}, QColor{20, 20, 40}, 3.0, 3.0, 3.0);
         }
     }
-    if (onlyOver) {   // the list of the passes in the corner, soonest first
+    if (onlyOver && !host.deferMarks()) {   // the list of the passes in the corner, soonest first (not on a projected world picture: it has its own legend)
         std::vector<std::pair<long long, std::pair<SatellitePasses::Kind, QString>>> list;
         for (const auto& band : data->bands) {
             if (band.when > 0) {
@@ -247,7 +243,7 @@ void SatellitePassLayer::paint(QPainter& painter, MapHost& host) {
         const double r = 6.0 * px;
         painter.drawPolygon(QPolygonF{{at + QPointF{0, -r}, at + QPointF{r, 0}, at + QPointF{0, r}, at + QPointF{-r, 0}}});
         painter.setPen(QColor{255, 255, 255});
-        painter.drawText(at + QPointF{9.0 * px, 4.0 * px}, QString::fromStdString(place.name));
+        MarkText::at(host, painter, px, place.lat, place.lon, QPointF{9.0, 4.0}, QString::fromStdString(place.name));
     }
     painter.restore();
 }

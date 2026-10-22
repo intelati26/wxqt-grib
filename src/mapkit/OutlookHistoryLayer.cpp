@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "mapkit/MarkText.h"
 #include "mapkit/OutlookHistoryLayer.h"
 #include <algorithm>
 #include <cmath>
@@ -172,7 +173,7 @@ void OutlookHistoryLayer::paint(QPainter& painter, MapHost& host) {
         painter.setBrush(fill);
         painter.drawPath(ringsPath(t, area));
         painter.setPen(color.lighter(130));
-        painter.drawText(t(area.centerLat, area.centerLon) + QPointF{-30 * px, 4 * px}, QString::number(area.prob2) + "% / " + QString::number(area.prob7) + "%");
+        MarkText::at(host, painter, px, area.centerLat, area.centerLon, QPointF{-30.0, 4.0}, QString::number(area.prob2) + "% / " + QString::number(area.prob7) + "%");
     }
     painter.restore();
 }
