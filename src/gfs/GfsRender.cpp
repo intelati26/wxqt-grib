@@ -202,7 +202,9 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
         }
     }
     GfsData::Run run;
-    if (!gfs.latestRun(run)) {
+    if (gfs.model().checkRun.size() == 10) {   // an archive: it has no recent run, so a day it covers is looked at
+        run = GfsData::Run{gfs.model().checkRun.substr(0, 8), gfs.model().checkRun.substr(8, 2)};
+    } else if (!gfs.latestRun(run)) {
         result.detail = "no run found on the server (offline, or the files moved)";
         return finish();
     }

@@ -727,6 +727,7 @@ clone_rename = PRMSL:MSLMA
 # ECMWF's ERA5 reanalysis, hourly, 0.25 degree, global, January 1940 to March 2023 (the NCAR copy in the open data bucket nsf-ncar-era5): NetCDF files for each variable, a month of hours for the
 # surface fields and a day of hours and 37 pressure levels for the upper air (1 GB a file, read by range: a field is a few MB). Every hour is an analysis; the run is the hour itself.
 id = ERA5
+check_run = 2020061512
 label = ECMWF ERA5 reanalysis (NCAR archive), 0.25 degree
 group = Archive
 kind = netcdf
@@ -750,6 +751,7 @@ clone_pieces = false
 # The GFS analysis of the years before the open data bucket (2007 to mid 2014 with an index file; NCEI's historical folder), 0.5 degree, four a day: the analysis is the only hour. The 1 degree
 # GRIB1 files of 2004-2007 are not read here. A 00Z analysis is missing on some days (27 April 2011, say): that run shows an error.
 id = GFS-ANL
+check_run = 2012061512
 label = NOAA/NCEP GFS analysis (NCEI archive), 0.5 degree
 group = Archive
 kind = grib
@@ -774,6 +776,7 @@ clone_pieces = false
 # The 1 degree GFS analysis of NCEI's archive, 4 March 2004 to 15 May 2020, four a day, with the analysis and its 3 and 6 hour forecasts in each cycle's files. GRIB1 until 7 April 2017 (wgrib
 # inventories, NceiInventory), GRIB2 after. Where the 0.5 degree GFS-ANL has the years (2007 to mid 2014) that one is finer.
 id = GFS1-ANL
+check_run = 2010061512
 label = NOAA/NCEP GFS analysis (NCEI archive), 1 degree
 group = Archive
 kind = grib
@@ -824,9 +827,9 @@ kind = grib
 url = https://noaa-urma-pds.s3.amazonaws.com/urma2p5.{date}/urma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
 index_suffix = .idx
 cycle_hours = 1
-lag_hours = 1
+lag_hours = 6
 probe_hour = 0
-cycles_to_try = 3
+cycles_to_try = 8
 warp = 0.03, -135.0, 20.0, -60.0, 55.0
 sectors = conus
 hours = 0-0/1
@@ -838,6 +841,7 @@ list = true
 # The North American Regional Reanalysis, 32 km, every 3 hours from January 1979 to September 2014 (NCEI's archive; GRIB1 with wgrib inventories). A file of 55 MB for each analysis. The Lambert grid is
 # put on a regular 0.25 degree one. The pressure levels are every 25 mb; the fields the charts need at them are height, temperature, wind and humidity (no relative humidity or vorticity).
 id = NARR
+check_run = 2010061512
 label = NOAA/NCEP North American Regional Reanalysis (NCEI archive), 32 km
 group = Archive
 kind = grib
@@ -864,6 +868,7 @@ clone_pieces = false
 # The NAM analysis of the years before the open data bucket (4 March 2004 to April 2020; NCEI's historical folder), 12 km, four cycles a day, each cycle's file for the analysis and its 3 and 6 hour
 # forecasts. GRIB1 files with wgrib inventories (NceiInventory puts them in NOAA's form). The Lambert grid is put on a regular 0.1 degree one.
 id = NAM-ANL
+check_run = 2015061512
 label = NOAA/NCEP NAM analysis (NCEI archive), 12 km
 group = Archive
 kind = grib
@@ -889,6 +894,7 @@ clone_pieces = false
 # The hourly analysis of the Rapid Update Cycle (to April 2012) and the Rapid Refresh that followed it, 13 km over North America, from NCEI's model archive (5 January 2005 on; the
 # open data bucket takes over in 2021; NCEI's own folder goes on to the present, with its files from 16 May 2020 on). A file of 20 MB for every hour, with its own index. The grid is a Lambert one, put on a regular 0.1 degree one. The only forecast hour is the analysis.
 id = RAP-ANL
+check_run = 2015061512
 label = NOAA/NCEP RUC / RAP hourly analysis (NCEI archive), 13 km
 group = Archive
 kind = grib

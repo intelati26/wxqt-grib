@@ -79,6 +79,7 @@ public:
         int cycleHours{6};                                               // runs are made this often
         int lagHours{3};                                                 // and a run is looked for from this long after its time
         int probeHour{0};                                                // the forecast hour whose index says the run is there
+        std::string checkRun;                                            // "yyyyMMddHH": an archive that has no recent run is checked on this one (the source check in Settings)
         int cyclesToTry{5};
         int maxParallel{8};                                              // fetches and decodes going at once (NOMADS is asked for fewer)
         struct Warp {

@@ -460,6 +460,13 @@ int main(int argc, char * argv[]) {
                         }
                     }
                 }
+                if (const auto list = qEnvironmentVariable("WXQT_SOURCECHECK"); !list.isEmpty()) {   // WXQT_SOURCECHECK=<model,model>: Settings' source check of those models
+                    GfsRender::Session session;
+                    for (const auto& model : list.split(',')) {
+                        const auto check = GfsRender::checkSource(session, model.toStdString());
+                        fprintf(stderr, "%s: %s %s (%.1f s) %s\n", model.toStdString().c_str(), check.ok ? "OK" : (check.skipped ? "skipped" : "PROBLEM"), check.run.c_str(), check.seconds, check.detail.c_str());
+                    }
+                }
                 if (const auto spec = qEnvironmentVariable("WXQT_AVAIL"); !spec.isEmpty()) {   // WXQT_AVAIL=<model>:<chart>: the hours of the newest run the chart can be drawn for (from the run's indexes)
                     const auto model = spec.section(':', 0, 0).toStdString(), chart = spec.section(':', 1, 1).toStdString();
                     std::string cycle, date;

@@ -480,6 +480,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
             source.defaultDetail = value;
         } else if (key == "forecast_text") {   // "{hour} hour fcst": every hour is a record of the one file
             source.forecastText = value;
+        } else if (key == "check_run") {
+            source.checkRun = value;
         } else if (key == "probe_file") {
             source.probeFile = value;
         } else if (key == "probe_hour" || key == "cycle_hours" || key == "lag_hours" || key == "cycles_to_try" || key == "max_parallel") {
