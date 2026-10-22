@@ -47,8 +47,15 @@ private:
     static const std::vector<Product>& products();
     const Product& product() const { return products()[static_cast<size_t>(productIndex)]; }
     QDateTime endTime() const;     // the time shown: the one asked for, else the newest the service has (else now)
-    string timeArgument() const;   // the WMS "time" of the picture
-    string imageUrl(double west, double south, double east, double north, int width, int height) const;
+    string timeArgument() const;   // the WMS "time" of the picture (a window for the wind strips)
+    bool perPass() const { return string{product().layer}.find("olci") != string::npos; }   // the strips of the true color are asked for one pass at a time
+    string imageUrl(double west, double south, double east, double north, int width, int height, const string& time) const;
+    std::vector<string> granuleTimes;   // the true color is a picture for each pass (it cannot be asked for a window): the middle of each product over the view, from the catalogue
+    // the real times of the passes in the view and the window, from the services' own catalogues (ASCAT: the time of each measurement in EUMETView's feature service, the earliest and the latest; Sentinel-3:
+    // the sensing times of the products in the Copernicus Data Space catalogue)
+    void askActual(MapHost&, double west, double south, double east, double north);
+    string actual, actualKey;
+    bool actualBusy{false};
     std::map<string, QImage> images;
     std::set<string> asked;
     std::map<string, QDateTime> latest;   // the newest time of each layer, from the service's capabilities
