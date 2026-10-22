@@ -450,7 +450,11 @@ int main(int argc, char * argv[]) {
                     std::string error;
                     QElapsedTimer timer;
                     timer.start();
-                    const auto bytes = GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), "CONUS", "", spec.section(':', 2, 2).toInt(), {}, error, nullptr);
+                    const auto bytes = GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), "", spec.section(':', 2, 2).toInt(), {}, error, nullptr);
+                    if (const auto out = qEnvironmentVariable("WXQT_DRAW_PNG"); !out.isEmpty()) {   // WXQT_DRAW_PNG=<file> (WXQT_SECTOR=<area id>): the picture too
+                        QFile file{out};
+                        if (file.open(QIODevice::WriteOnly)) file.write(bytes);
+                    }
                     fprintf(stderr, "MAGDRAW %s %s in %.1f s %s\n", spec.toStdString().c_str(), bytes.isEmpty() ? "FAILED" : "ok", timer.elapsed() / 1000.0, error.c_str());
                 }
                 if (const auto listed = qEnvironmentVariable("WXQT_LIST").toStdString(); !listed.empty()) {   // WXQT_LIST=<model>: the model's charts, id | label | picker group

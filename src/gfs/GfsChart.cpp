@@ -6042,6 +6042,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     for (const auto& line : options.lines) {
         QPainterPath path;
         bool started = false;
+        double previous = 0.0;
         for (const auto& pt : line) {
             if (pt.second < sector.south - 3 || pt.second > sector.north + 3) {
                 started = false;
@@ -6059,6 +6060,10 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 started = false;
                 continue;
             }
+            if (started && std::abs(lon - previous) > 180.0) {   // a coast that crosses the date line (Chukotka, Fiji, the Antarctic ring): not a line across the whole chart
+                started = false;
+            }
+            previous = lon;
             const auto at = view.toPixel(lon, pt.second);
             started ? path.lineTo(at) : path.moveTo(at);
             started = true;

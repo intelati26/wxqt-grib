@@ -2498,7 +2498,7 @@ void MasterMapViewer::paintMapCopy(QPainter& painter) {
                 continue;
             }
             // a ring that is closed along the date line (Antarctica, Russia's Arctic coast) is not a coast: that edge shows as a spoke to the pole on a polar map
-            const bool dateLine = std::abs(lon) >= 179.99 && std::abs(lastLon) >= 179.99 && (lon * lastLon > 0.0);
+            const bool dateLine = (std::abs(lon) >= 179.99 && std::abs(lastLon) >= 179.99 && (lon * lastLon > 0.0)) || std::abs(lon - lastLon) > 180.0;   // (or a coast that crosses it)
             started && !dateLine ? path.lineTo(p) : path.moveTo(p);
             started = true;
             lastLon = lon;
