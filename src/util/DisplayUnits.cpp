@@ -11,6 +11,9 @@ bool DisplayUnits::us() {
 }
 
 double DisplayUnits::value(double v, const std::string& nativeUnits, Kind kind) {
+    if (nativeUnits == "gpm") {   // a height is in decameters, as on every chart of the Model Viewer (the same in both systems)
+        return v / 10.0;
+    }
     if (!us()) {
         return v;
     }
@@ -24,6 +27,9 @@ double DisplayUnits::value(double v, const std::string& nativeUnits, Kind kind) 
 }
 
 std::string DisplayUnits::label(const std::string& nativeUnits) {
+    if (nativeUnits == "gpm") {
+        return "dam";
+    }
     if (!us()) {
         return nativeUnits;
     }
