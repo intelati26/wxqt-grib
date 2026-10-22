@@ -366,6 +366,26 @@ int main(int argc, char * argv[]) {
                         fprintf(stderr, "MAGCHECK %s vs %s: %d of %d drawn; missing:%s\n", list.picture, grib, have, static_cast<int>(list.ids->size()), missing.c_str());
                     }
                 }
+                if (const auto spec = qEnvironmentVariable("WXQT_AVAIL"); !spec.isEmpty()) {   // WXQT_AVAIL=<model>:<chart>: the hours of the newest run the chart can be drawn for (from the run's indexes)
+                    const auto model = spec.section(':', 0, 0).toStdString(), chart = spec.section(':', 1, 1).toStdString();
+                    std::string cycle, date;
+                    const auto * def = GfsModels::find(model);
+                    if (def != nullptr && GfsRender::latestCycle(model, cycle, "", &date)) {
+                        std::vector<int> asked;
+                        for (const auto& h : def->hours) {
+                            for (int t = h.from; t <= h.to; t += std::max(h.step, 1)) {
+                                asked.push_back(t);
+                            }
+                        }
+                        GfsRender::Session session;
+                        QElapsedTimer timer;
+                        timer.start();
+                        const auto found = GfsRender::availableHours(session, model, chart, date + cycle.substr(0, 2), asked);
+                        std::string list;
+                        for (const int h : found) { list += " " + std::to_string(h); }
+                        fprintf(stderr, "MAGAVAIL %s %s %s%s: %d of %d hours in %.1f s:%s\n", model.c_str(), chart.c_str(), date.c_str(), cycle.c_str(), static_cast<int>(found.size()), static_cast<int>(asked.size()), timer.elapsed() / 1000.0, list.c_str());
+                    }
+                }
                 if (const auto model = qEnvironmentVariable("WXQT_RENDER").toStdString(); !model.empty()) {   // WXQT_RENDER=<model>: draw every chart of that model once (hour 3, newest run) and say which could not be
                     GfsRender::Session session;
                     for (const auto& product : GfsChart::products()) {

@@ -85,6 +85,8 @@ namespace GfsRender {
     // True when the chart cannot be made at the model's first forecast hour (hour 0): the run has no file for that hour (the REFS ensemble products start at hour 1), or the chart
     // is only an accumulation, which hour 0 has none of. The run's index is read, no field is downloaded; a lost connection or a run that is not there is not an answer (false), and
     // the file is only called missing when the next hour's is there. runId is "yyyyMMddHH".
+    // the hours (of `hours`) for which the run's index lists every record the chart needs: probed in parallel, an index read once for all the charts; empty when nothing could be told (no connection, no run)
+    std::vector<int> availableHours(Session& session, const std::string& model, const std::string& param, const std::string& runId, const std::vector<int>& hours, const std::string& storm = "");
     bool firstHourMissing(Session& session, const std::string& model, const std::string& param, const std::string& runId);
     // the newest published run of the model as the screen writes a run ("12Z"); false when none is found (no connection)
     // storm is the HAFS storm ("09l"); it is the "sector" of the HAFS charts, whose grid follows the storm

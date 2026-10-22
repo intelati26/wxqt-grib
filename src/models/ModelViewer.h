@@ -233,9 +233,15 @@ private:
     void fitHoursToRun();
     std::map<string, std::vector<int>> fieldHours;   // "run|chart" -> the hours an SPC REFS field has (its own time coordinate)
     std::set<string> fieldHoursAsked;
-    std::map<string, bool> firstHourMissing;   // "model|run|chart" -> the run has nothing for the chart at hour 0 (no file, or only an accumulation): the hour is not listed
-    std::set<string> firstHourAsked;
-    void askFirstHour();
+    struct Availability {
+        std::vector<int> hours;   // the hours whose index has every record of the chart (empty: nothing could be told)
+        qint64 when{0};
+        bool complete{false};     // every hour asked about is there: no need to ask again
+    };
+    std::map<string, Availability> availability;   // "model|run|chart" (and the storm)
+    std::set<string> availabilityAsked;
+    string availabilityKey() const;
+    void askAvailability(const std::vector<string>& hourList);
     void askFieldHours();
     void applyPinnedRun();
     void recheckRuns();                   // every 15 minutes: has a newer run been published?

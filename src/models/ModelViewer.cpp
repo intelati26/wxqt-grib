@@ -1471,14 +1471,21 @@ void ModelViewer::fitHoursToRun() {
             }
         }
     }
-    if (def != nullptr && objectModel.model != "SPCREFS" && !def->hours.empty() && def->hours.front().from == 0 && objectModel.run.size() >= 2) {   // an hour 0 the run has no file for is not offered
-        const auto when = runTime(objectModel.run);
-        const auto key = objectModel.model + "|" + (when.isValid() ? when.toString("yyyyMMddHH").toStdString() : objectModel.run) + "|" + objectModel.param;
-        const auto known = firstHourMissing.find(key);
-        if (known == firstHourMissing.end()) {
-            askFirstHour();
-        } else if (known->second && wanted.size() > 1) {
-            wanted.erase(std::remove_if(wanted.begin(), wanted.end(), [] (const string& t) { return std::atoi(t.c_str()) == 0; }), wanted.end());
+    if (def != nullptr && objectModel.model != "SPCREFS" && objectModel.run.size() >= 2 && runTime(objectModel.run).isValid()) {   // the hours the run's index has every record of the chart for (an hour not uploaded yet, a period the chart has none of, the hour 0 of an accumulation)
+        const auto known = availability.find(availabilityKey());
+        if (known == availability.end() || (!known->second.complete && QDateTime::currentSecsSinceEpoch() - known->second.when > 300)) {
+            askAvailability(wanted);
+        }
+        if (known != availability.end() && !known->second.hours.empty()) {
+            std::vector<string> kept;
+            for (const auto& t : wanted) {
+                if (std::find(known->second.hours.begin(), known->second.hours.end(), std::atoi(t.c_str())) != known->second.hours.end()) {
+                    kept.push_back(t);
+                }
+            }
+            if (!kept.empty()) {
+                wanted = kept;
+            }
         }
     }
     if (wanted == objectModel.times) {
@@ -1540,29 +1547,40 @@ void ModelViewer::askFieldHours() {
     }};
 }
 
-// whether the run has hour 0 for the chart on show, read from its index in the background; the list is fitted to the answer when it comes
-void ModelViewer::askFirstHour() {
+string ModelViewer::availabilityKey() const {
     const auto when = runTime(objectModel.run);
-    if (!when.isValid() || !GfsRender::handles(objectModel.model, objectModel.param)) {
+    return objectModel.model + "|" + (when.isValid() ? when.toString("yyyyMMddHH").toStdString() : objectModel.run) + "|" + objectModel.param + (GfsModels::isStormModel(objectModel.model) ? "|" + objectModel.sector : string{});
+}
+
+// which of the hours the run has the chart on show for, read from the run's indexes in the background (a few small files, read once for every chart of the run); the list is fitted to the answer
+// when it comes, and asked again every five minutes while hours are still missing (a run being uploaded)
+void ModelViewer::askAvailability(const std::vector<string>& hourList) {
+    if (!GfsRender::handles(objectModel.model, objectModel.param)) {
         return;
     }
-    const auto runId = when.toString("yyyyMMddHH").toStdString();
-    const auto key = objectModel.model + "|" + runId + "|" + objectModel.param;
-    if (firstHourAsked.count(key) != 0) {
+    const auto when = runTime(objectModel.run);
+    if (!when.isValid()) {
         return;
     }
-    firstHourAsked.insert(key);
+    const auto key = availabilityKey();
+    if (availabilityAsked.count(key) != 0) {
+        return;
+    }
+    availabilityAsked.insert(key);
     if (!gfsSession) {
         gfsSession = std::make_shared<GfsRender::Session>();
     }
     const auto session = gfsSession;
-    const auto model = objectModel.model, param = objectModel.param;
-    auto missing = std::make_shared<bool>(false);
-    new FutureVoid{this, [session, model, param, runId, missing] { *missing = GfsRender::firstHourMissing(*session, model, param, runId); }, [this, key, missing] {
-        firstHourMissing[key] = *missing;
-        if (!*missing) {
-            return;
-        }
+    const auto model = objectModel.model, param = objectModel.param, storm = GfsModels::isStormModel(model) ? objectModel.sector : string{};
+    const auto runId = when.toString("yyyyMMddHH").toStdString();
+    auto hours = std::make_shared<std::vector<int>>();
+    std::vector<int> asked;
+    for (const auto& t : hourList) {
+        asked.push_back(std::atoi(t.c_str()));
+    }
+    new FutureVoid{this, [session, model, param, runId, storm, asked, hours] { *hours = GfsRender::availableHours(*session, model, param, runId, asked, storm); }, [this, key, hours, asked] {
+        availabilityAsked.erase(key);
+        availability[key] = {*hours, QDateTime::currentSecsSinceEpoch(), hours->size() == asked.size()};
         const auto before = objectModel.getTime();
         fitHoursToRun();
         if (objectModel.getTime() != before) {

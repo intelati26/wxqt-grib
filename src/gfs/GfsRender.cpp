@@ -76,6 +76,27 @@ namespace {
             if (CfsArchiveIndex::handles(url)) {   // NCEI's monthly CFS analyses have no index: one is made from the file and kept
                 return CfsArchiveIndex::index(url);
             }
+            if (end < 0 && start == 0 && (url.size() > 4 && url.compare(url.size() - 4, 4, ".idx") == 0)) {   // an index: kept a few minutes in memory (the hours of a chart, and every chart of the run, read the same ones)
+                static std::mutex mutex;
+                static std::map<std::string, std::pair<QByteArray, qint64>> kept;
+                const auto now = QDateTime::currentSecsSinceEpoch();
+                {
+                    const std::lock_guard lock{mutex};
+                    const auto found = kept.find(url);
+                    if (found != kept.end() && now - found->second.second < 300) {
+                        return found->second.first;
+                    }
+                }
+                auto bytes = URL::getBytesManaged(url);
+                if (bytes.size() > 20) {
+                    const std::lock_guard lock{mutex};
+                    if (kept.size() > 600) {
+                        kept.clear();
+                    }
+                    kept[url] = {bytes, now};
+                }
+                return bytes;
+            }
             return end < 0 && start == 0 ? URL::getBytesManaged(url) : URL::getBytesRangeManaged(url, start, end < 0 ? start + 4 * 1024 * 1024 * 1024LL : end);
         };
         return GfsData{config, sourceOf(model, storm)};
@@ -231,6 +252,43 @@ bool GfsRender::firstHourMissing(Session& session, const std::string& model, con
         return false;   // the next hour is not there either: the run is not there, or the connection is lost; that says nothing about hour 0
     }
     return true;
+}
+
+std::vector<int> GfsRender::availableHours(Session& session, const std::string& model, const std::string& param, const std::string& runId, const std::vector<int>& hours, const std::string& storm) {
+    const auto * def = GfsModels::find(model);
+    const auto * product = GfsChart::product(param, model);
+    if (def == nullptr || product == nullptr || def->source(storm).custom || runId.size() != 10 || hours.empty()) {
+        return {};
+    }
+    const auto gfs = data(session.folder(), model, storm);
+    const GfsData::Run run{runId.substr(0, 8), runId.substr(8, 2)};
+    std::vector<char> there(hours.size(), 0);
+    std::atomic<size_t> next{0};
+    const auto work = [&] {
+        for (size_t i = next++; i < hours.size(); i = next++) {
+            const auto needs = GfsChart::needs(*product, hours[i]);
+            // a chart made only of accumulations has nothing at hour 0
+            if (needs.empty() || (hours[i] == 0 && std::all_of(needs.begin(), needs.end(), [] (const GfsData::Need& n) { return !n.want.forecast.empty(); }))) {
+                continue;
+            }
+            std::string detail;
+            there[i] = gfs.check(run, needs, detail) ? 1 : 0;
+        }
+    };
+    std::vector<std::thread> threads;
+    for (int t = 0; t < 6; t++) {
+        threads.emplace_back(work);
+    }
+    for (auto& t : threads) {
+        t.join();
+    }
+    std::vector<int> out;
+    for (size_t i = 0; i < hours.size(); i++) {
+        if (there[i]) {
+            out.push_back(hours[i]);
+        }
+    }
+    return out;   // (empty: nothing could be told, a lost connection or a run not there: the screen keeps the model's hours)
 }
 
 bool GfsRender::drawsModel(const std::string& model) {
