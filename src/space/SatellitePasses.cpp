@@ -28,6 +28,23 @@ namespace SatellitePasses {
             {"Metop-SG A1", 65159, {{"METimage", Kind::Imagery, 1335, 0, 0, "visible and infrared imager, 500 m: the next AVHRR (2670 km swath)"}, {"MWS", Kind::Microwave, 1125, 0, 0, "microwave sounder, temperature and moisture (about 2250 km)"}, {"SCA", Kind::Wind, 700, 350, 0, "ocean surface wind, the next ASCAT (two swaths of about 650 km: nominal figures)"}}},
             {"Sentinel-3A", 41335, {{"OLCI", Kind::Imagery, 635, 0, 0, "ocean and land color, 300 m (1270 km swath)"}, {"SLSTR", Kind::Imagery, 700, 0, 0, "sea and land surface temperature, thermal infrared (1400 km)"}}},
             {"Sentinel-3B", 43437, {{"OLCI", Kind::Imagery, 635, 0, 0, "ocean and land color, 300 m (1270 km swath)"}, {"SLSTR", Kind::Imagery, 700, 0, 0, "sea and land surface temperature, thermal infrared (1400 km)"}}},
+            {"SMAP", 40376, {{"Radiometer", Kind::Microwave, 500, 0, 0, "L-band radiometer: ocean wind speed up to hurricane force, which rain barely affects (1000 km swath)"}}},
+            {"WSF-M1", 59481, {{"MWI", Kind::Microwave, 850, 0, 0, "microwave imager (the DMSP follow-on): the 89 GHz eye pictures and ocean wind (nominal swath)"}}},
+            {"CYGNSS FM01", 41887, {{"DDMI", Kind::Wind, 50, 0, 0, "GPS signals bounced off the ocean give wind speed through a hurricane, rain or not; a narrow track (about 100 km), only between 38 north and south"}}},
+            {"CYGNSS FM02", 41886, {{"DDMI", Kind::Wind, 50, 0, 0, "GPS signals bounced off the ocean give wind speed through a hurricane, rain or not; a narrow track (about 100 km), only between 38 north and south"}}},
+            {"CYGNSS FM03", 41891, {{"DDMI", Kind::Wind, 50, 0, 0, "GPS signals bounced off the ocean give wind speed through a hurricane, rain or not; a narrow track (about 100 km), only between 38 north and south"}}},
+            {"CYGNSS FM04", 41885, {{"DDMI", Kind::Wind, 50, 0, 0, "GPS signals bounced off the ocean give wind speed through a hurricane, rain or not; a narrow track (about 100 km), only between 38 north and south"}}},
+            {"CYGNSS FM05", 41884, {{"DDMI", Kind::Wind, 50, 0, 0, "GPS signals bounced off the ocean give wind speed through a hurricane, rain or not; a narrow track (about 100 km), only between 38 north and south"}}},
+            {"CYGNSS FM07", 41890, {{"DDMI", Kind::Wind, 50, 0, 0, "GPS signals bounced off the ocean give wind speed through a hurricane, rain or not; a narrow track (about 100 km), only between 38 north and south"}}},
+            {"CYGNSS FM08", 41888, {{"DDMI", Kind::Wind, 50, 0, 0, "GPS signals bounced off the ocean give wind speed through a hurricane, rain or not; a narrow track (about 100 km), only between 38 north and south"}}},
+            {"FY-3D", 43010, {{"MERSI-II", Kind::Imagery, 1450, 0, 0, "Chinese visible and infrared imager (2900 km swath)"}, {"MWRI", Kind::Microwave, 700, 0, 0, "microwave imager: rain and wind (nominal swath)"}}},
+            {"FY-3E", 49008, {{"MERSI-LL", Kind::Imagery, 1450, 0, 0, "Chinese imager with a night band, early-morning orbit (2900 km)"}, {"WindRAD", Kind::Wind, 600, 0, 0, "Chinese ocean wind scatterometer (nominal swath)"}}},
+            {"FY-3F", 57490, {{"MERSI-III", Kind::Imagery, 1450, 0, 0, "Chinese visible and infrared imager (2900 km swath)"}, {"MWRI-RM", Kind::Microwave, 700, 0, 0, "microwave imager: rain and wind (nominal swath)"}}},
+            {"FY-3G", 56232, {{"PMR", Kind::Microwave, 60, 0, 0, "precipitation radar, a narrow track (about 120 km) at low inclination: rain structure in a storm it crosses"}}},
+            {"Meteor-M N2-3", 57166, {{"MSU-MR", Kind::Imagery, 1450, 0, 0, "Russian visible and infrared imager (2900 km swath)"}}},
+            {"Meteor-M N2-4", 59051, {{"MSU-MR", Kind::Imagery, 1450, 0, 0, "Russian visible and infrared imager (2900 km swath)"}}},
+            {"Sentinel-1A", 39634, {{"SAR", Kind::Radar, 700, 250, 1, "C band radar looking to the right of the track; only some are scheduled, see NOAA STAR's list"}}},
+            {"RADARSAT-2", 32382, {{"SAR", Kind::Radar, 700, 250, 0, "C band radar (Canada), steered to either side; tasked, not routine"}}},
             {"GCOM-W1", 38337, {{"AMSR2", Kind::Microwave, 725, 0, 0, "microwave imager: rain, wind, sea surface temperature (1450 km)"}}},
             {"GPM", 39574, {{"GMI", Kind::Microwave, 440, 0, 0, "microwave imager, the reference for rain in a storm (885 km)"}}},
             {"DMSP F16", 28054, {{"SSMIS", Kind::Microwave, 850, 0, 0, "microwave imager: the 85-91 GHz eye pictures (1700 km)"}}},
@@ -181,6 +198,12 @@ namespace SatellitePasses {
             detail += "A conical scanner looks at the same angle everywhere: pixels do not stretch.\n";
             if (d > 0.93 * half) {
                 worse(Grade::Fair, "edge of the swath");
+            }
+        }
+        if (instrument.kind == Kind::Imagery && pass.sunElevation < 0.0) {   // the dark side: the visible bands see nothing
+            detail += "It is night there: the visible bands are dark (the infrared ones, and a night band where there is one, still work).\n";
+            if (instrument.label == "OLCI") {
+                worse(Grade::Poor, "night: this imager sees visible light only");
             }
         }
         if (!pass.inSwath) {
