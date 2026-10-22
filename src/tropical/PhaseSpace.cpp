@@ -6,6 +6,9 @@
 #include "tropical/PhaseSpace.h"
 #include <algorithm>
 #include <cmath>
+#include <QDateTime>
+#include <QString>
+#include <QStringList>
 
 namespace {
     constexpr double pi = 3.14159265358979323846;
@@ -220,4 +223,62 @@ std::vector<PhaseSpace::Point> PhaseSpace::smoothed(const std::vector<Point>& po
         out[i].state = stateOf(out[i]);
     }
     return out;
+}
+
+std::vector<PhaseSpace::Observed> PhaseSpace::parseBest(const std::string& text) {
+    std::vector<Observed> out;
+    for (const auto& line : QString::fromStdString(text).split('\n', Qt::SkipEmptyParts)) {
+        const auto f = line.split(',');
+        if (f.size() < 10 || f[4].trimmed() != "BEST" || f[5].trimmed().toInt() != 0) {
+            continue;
+        }
+        auto when = QDateTime::fromString(f[2].trimmed(), "yyyyMMddHH");
+        when.setTimeSpec(Qt::UTC);
+        const auto la = f[6].trimmed(), lo = f[7].trimmed();
+        if (!when.isValid() || la.size() < 2 || lo.size() < 2) {
+            continue;
+        }
+        Observed o;
+        o.valid = static_cast<long>(when.toSecsSinceEpoch());
+        o.lat = la.left(la.size() - 1).toDouble() / 10.0 * (la.endsWith('S') ? -1.0 : 1.0);
+        o.lon = lo.left(lo.size() - 1).toDouble() / 10.0 * (lo.endsWith('W') ? -1.0 : 1.0);
+        o.wind = f[8].trimmed().toInt() > 0 ? f[8].trimmed().toInt() : -1;
+        o.pressure = f[9].trimmed().toInt() > 0 ? f[9].trimmed().toInt() : -1;
+        if (!out.empty() && out.back().valid == o.valid) {
+            continue;
+        }
+        out.push_back(o);
+    }
+    std::sort(out.begin(), out.end(), [] (const Observed& a, const Observed& b) { return a.valid < b.valid; });
+    return out;
+}
+
+bool PhaseSpace::observedAt(const std::vector<Observed>& track, long valid, long slack, double& lat, double& lon) {
+    if (track.empty() || valid < track.front().valid - slack || valid > track.back().valid + slack) {
+        return false;
+    }
+    if (valid <= track.front().valid) {
+        lat = track.front().lat;
+        lon = track.front().lon;
+        return true;
+    }
+    if (valid >= track.back().valid) {
+        lat = track.back().lat;
+        lon = track.back().lon;
+        return true;
+    }
+    for (size_t i = 1; i < track.size(); i++) {
+        if (track[i].valid >= valid) {
+            const auto& a = track[i - 1];
+            const auto& b = track[i];
+            const double t = static_cast<double>(valid - a.valid) / static_cast<double>(std::max(1L, b.valid - a.valid));
+            double dlon = b.lon - a.lon;
+            dlon = dlon > 180.0 ? dlon - 360.0 : dlon < -180.0 ? dlon + 360.0 : dlon;
+            lat = a.lat + (b.lat - a.lat) * t;
+            lon = a.lon + dlon * t;
+            lon = lon > 180.0 ? lon - 360.0 : lon < -180.0 ? lon + 360.0 : lon;
+            return true;
+        }
+    }
+    return false;
 }

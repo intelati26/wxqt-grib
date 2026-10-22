@@ -26,6 +26,17 @@ namespace PhaseSpace {
         bool ok{false};               // false: too few levels, or the circle runs off the grid
         std::string state;            // see stateOf
     };
+    // a fix of the observed (best) track
+    struct Observed {
+        long valid{0};            // seconds since the epoch, UTC
+        double lat{0.0}, lon{0.0};
+        int wind{-1};             // knots, -1 when not given
+        int pressure{-1};         // hPa
+    };
+    // the fixes of an ATCF best track file (b-deck) in time order, one for each time
+    std::vector<Observed> parseBest(const std::string& text);
+    // where the observed track was at `valid` (seconds): false when that is outside it by more than `slack` seconds (the nearest end is given within it)
+    bool observedAt(const std::vector<Observed>& track, long valid, long slack, double& lat, double& lon);
     // the heights by pressure level (hPa) as grids that cover the circle
     using Levels = std::map<int, GfsGrid::Grid>;
     // B, -VTL and -VTU of the storm at lat, lon moving toward `heading` (negative: not known, B then 0)

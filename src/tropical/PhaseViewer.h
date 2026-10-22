@@ -28,7 +28,8 @@ class PhaseMap;
 class PhaseViewer : public Window {
 public:
     // lat, lon: where the storm is now
-    PhaseViewer(Window * parent, const string& title, double lat, double lon, const string& model = "GFS");
+    // atcfId ("al912026", "wp292026"): the observed track of the storm is fetched (NHC, else the RAL archive of the b-decks) and drawn on the map; the past is then looked at where it was, not where the model had it
+    PhaseViewer(Window * parent, const string& title, double lat, double lon, const string& model = "GFS", const string& atcfId = {});
     // the models that can be measured: the deterministic ones with heights on pressure levels
     static vector<string> models();
 
@@ -44,6 +45,8 @@ private:
     QTableWidget * table{};
     std::shared_ptr<GfsRender::Session> session;
     double lat, lon;
+    string atcfId;
+    std::shared_ptr<vector<PhaseSpace::Observed>> observed{std::make_shared<vector<PhaseSpace::Observed>>()};
     int generation{0};
     bool closed{false};
 };

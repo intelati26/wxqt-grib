@@ -18,6 +18,7 @@
 #include "gfs/GfsModels.h"
 #include "hurricane/Coast.h"
 #include "objects/FutureVoid.h"
+#include "objects/URL.h"
 #include "ui/UiStandards.h"
 
 // the diagrams: -VTL against -VTU as the main one (the shaded quadrants: cold core, shallow and deep warm core), and B against -VTL beside it. A dot is an analysis, a crossed dot a forecast; the colour is the
@@ -219,6 +220,10 @@ public:
         points = p;
         update();
     }
+    void setObserved(const vector<PhaseSpace::Observed>& o) {
+        observed = o;
+        update();
+    }
 
 protected:
     void paintEvent(QPaintEvent *) override {
@@ -232,6 +237,12 @@ protected:
         for (const auto& p : points) {
             west = std::min(west, p.lon); east = std::max(east, p.lon);
             south = std::min(south, p.lat); north = std::max(north, p.lat);
+        }
+        for (const auto& o : observed) {
+            if (std::fabs(o.lon - (west + east) / 2.0) < 120.0) {
+                west = std::min(west, o.lon); east = std::max(east, o.lon);
+                south = std::min(south, o.lat); north = std::max(north, o.lat);
+            }
         }
         const double midLat = (south + north) / 2.0, scaleX = std::cos(midLat * 3.14159265 / 180.0);
         double spanX = std::max(12.0, (east - west) * 1.5), spanY = std::max(12.0 / std::max(0.3, scaleX), (north - south) * 1.5);
@@ -259,6 +270,29 @@ protected:
                 }
                 last = pos;
                 have = true;
+            }
+        }
+        {   // the observed (best) track: red, a ring at each fix, a filled one where it was a named system (a wind of 34 kt or more)
+            QPointF last;
+            bool haveObserved = false;
+            for (const auto& o : observed) {
+                const auto pos = at(o.lon, o.lat);
+                if (haveObserved) {
+                    painter.setPen(QPen{QColor{200, 30, 30}, 2.2});
+                    painter.drawLine(last, pos);
+                }
+                last = pos;
+                haveObserved = true;
+            }
+            for (const auto& o : observed) {
+                painter.setPen(QPen{QColor{200, 30, 30}, 1.4});
+                painter.setBrush(o.wind >= 34 ? QBrush{QColor{200, 30, 30}} : QBrush{Qt::white});
+                painter.drawEllipse(at(o.lon, o.lat), 3.0, 3.0);
+            }
+            if (!observed.empty()) {
+                painter.fillRect(QRectF{4, 3, 176, 18}, QColor{255, 255, 255, 190});
+                painter.setPen(QColor{200, 30, 30});
+                painter.drawText(QPointF{8, 16}, "red: observed (best track)");
             }
         }
         QPointF previous;
@@ -297,6 +331,7 @@ protected:
 
 private:
     vector<PhaseSpace::Point> points;
+    vector<PhaseSpace::Observed> observed;
 };
 
 vector<string> PhaseViewer::models() {
@@ -320,11 +355,12 @@ vector<string> PhaseViewer::models() {
     return out;
 }
 
-PhaseViewer::PhaseViewer(Window * parent, const string& title, double lat, double lon, const string& model)
+PhaseViewer::PhaseViewer(Window * parent, const string& title, double lat, double lon, const string& model, const string& atcfId)
     : Window{parent}
     , session{std::make_shared<GfsRender::Session>()}
     , lat{lat}
     , lon{lon}
+    , atcfId{atcfId}
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Phase space - " + title);
@@ -375,7 +411,35 @@ PhaseViewer::PhaseViewer(Window * parent, const string& title, double lat, doubl
     resize(1000, 820);
     QObject::connect(again, &QPushButton::clicked, this, [this] { measure(); });
     QObject::connect(modelBox, &QComboBox::currentIndexChanged, this, [this] (int) { measure(); });
-    measure();
+    if (atcfId.size() < 6) {
+        measure();
+        return;
+    }
+    status->setText("Reading the observed track...");
+    auto track = observed;
+    const string id = atcfId;
+    new FutureVoid{this, [track, id] {
+        const string year = id.substr(id.size() - 4);
+        const string nhc = "https://ftp.nhc.noaa.gov/atcf/btk/b" + id + ".dat";
+        auto text = URL::getBytes(nhc).toStdString();
+        if (text.size() < 100 || text.find(',') == string::npos) {
+            text = URL::getBytes("https://hurricanes.ral.ucar.edu/repository/data/bdecks_open/" + year + "/b" + id + ".dat").toStdString();
+        }
+        *track = PhaseSpace::parseBest(text);
+    }, [this] {
+        if (closed) {
+            return;
+        }
+        map->setObserved(*observed);
+        if (!observed->empty()) {   // where it is now: the newest fix, when it is recent
+            const auto& last = observed->back();
+            if (QDateTime::currentSecsSinceEpoch() - last.valid < 12 * 3600) {
+                this->lat = last.lat;
+                this->lon = last.lon;
+            }
+        }
+        measure();
+    }};
 }
 
 void PhaseViewer::measure() {
@@ -392,6 +456,7 @@ void PhaseViewer::measure() {
     auto ok = std::make_shared<bool>(false);
     const double startLat = lat, startLon = lon;
     auto keep = session;
+    auto obs = observed;
     new FutureVoid{this, [=] {
         string cycle, date;
         if (!GfsRender::latestCycle(model, cycle, "", &date)) {
@@ -416,7 +481,9 @@ void PhaseViewer::measure() {
                 const string id = at.toString("yyyyMMddHH").toStdString();
                 vector<PhaseSpace::Point> one;
                 string unused;
-                if (!GfsRender::phaseTrack(*keep, model, id, id, seedLat, seedLon, 0, one, unused) || one.empty() || !one.front().ok) {
+                double useLat = seedLat, useLon = seedLon;
+                PhaseSpace::observedAt(*obs, static_cast<long>(at.toSecsSinceEpoch()), 0, useLat, useLon);   // (where it was observed to be, when there is a track)
+                if (!GfsRender::phaseTrack(*keep, model, id, id, useLat, useLon, 0, one, unused) || one.empty() || !one.front().ok) {
                     break;
                 }
                 seedLat = one.front().lat;
