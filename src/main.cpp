@@ -50,6 +50,8 @@
 #include "gfs/GfsRender.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsIntensity.h"
+#include <QBuffer>
+#include "ui/ChartExport.h"
 #include "models/UtilityModelNcepInterface.h"
 #include "gfs/GfsChart.h"
 #include "hurricane/HurricaneViewer.h"
@@ -368,6 +370,29 @@ int main(int argc, char * argv[]) {
                         }
                         fprintf(stderr, "MAGCHECK %s vs %s: %d of %d drawn; missing:%s\n", list.picture, grib, have, static_cast<int>(list.ids->size()), missing.c_str());
                     }
+                }
+                if (qEnvironmentVariableIsSet("WXQT_MENU")) {   // WXQT_MENU=<file>: the one right-click save menu on a picture (and on a widget) as a picture, then quits
+                    const auto file = qEnvironmentVariable("WXQT_MENU");
+                    QImage sample{300, 200, QImage::Format_ARGB32};
+                    sample.fill(QColor{80, 140, 200});
+                    QByteArray bytes;
+                    QBuffer buffer{&bytes};
+                    buffer.open(QIODevice::WriteOnly);
+                    sample.save(&buffer, "PNG");
+                    QTimer::singleShot(600, [file] {
+                        if (auto * popup = QApplication::activePopupWidget()) {
+                            popup->grab().save(file);
+                            popup->close();
+                        }
+                    });
+                    QWidget anchor;
+                    ChartExport::Capabilities caps;
+                    caps.still = bytes;
+                    caps.title = "sample picture";
+                    caps.zoom = [] {};
+                    caps.saveLoop = [] {};
+                    anchor.show();
+                    ChartExport::popupMenu(&anchor, QPoint{100, 100}, caps);
                 }
                 if (const auto spec = qEnvironmentVariable("WXQT_DRAW"); !spec.isEmpty()) {   // WXQT_DRAW=<model>:<chart>:<hour>: draws that chart once and says how long it took
                     GfsRender::Session session;

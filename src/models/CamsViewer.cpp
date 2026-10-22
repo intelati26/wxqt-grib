@@ -85,6 +85,7 @@ CamsViewer::CamsViewer(Window * parent)
         }
     });
     QObject::connect(&buttonSave, &QPushButton::clicked, [this] { saveFrames(); });
+    image.setSaveLoopHandler([this] { saveFrames(); });
     box.getAndShow(this);
     setSize(1100, 900);
     discoverModels();

@@ -50,6 +50,7 @@ SpcPostViewer::SpcPostViewer(Window * parent)
         [this] { onSave(); }}
 {
     setTitle("SPC Post Slideshow");
+    image.setSaveLoopHandler([this] { onSave(); });
     image.setCrosshairMode(true);
     QObject::connect(&image, &ZoomImage::doubleClicked, this, [this] { openFullImage(); });
     QObject::connect(&image, &ZoomImage::hovered, this, [this] (double fx, double fy) { onHover(fx, fy); });

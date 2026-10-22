@@ -368,6 +368,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         box.addLayout(boxH2);
     }
     image.setCrosshairMode(true);   // click a point, then Sounding
+    image.setSaveLoopHandler([this] { saveLoop(); });   // right-click > more formats, or the loop: the same save as the Save... button
     QObject::connect(&image, &ZoomImage::doubleClicked, this, [this] {
         if (!shownBytes.isEmpty()) {
             new ImageViewer{this, withGlyphs(shownBytes, shownProbe), objectModel.model + " " + objectModel.param};

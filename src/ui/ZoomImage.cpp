@@ -6,6 +6,7 @@
 #include <set>
 #include <QPushButton>
 #include "ui/ZoomImage.h"
+#include "ui/ChartExport.h"
 #include <QMenu>
 #include <QRegularExpression>
 #include "objects/UtilityAnimationExport.h"
@@ -68,13 +69,13 @@ ZoomImage::ZoomImage(Window * parent)
         if (!saveMenu || sourceBytes.isEmpty()) {
             return;
         }
-        QMenu menu{this};
-        auto * save = menu.addAction("Save image...");
-        if (menu.exec(label->mapToGlobal(point)) == save) {
-            QString name = window()->windowTitle();
-            name.replace(QRegularExpression{"[^A-Za-z0-9]+"}, "_");
-            UtilityAnimationExport::saveWithDialog(window(), {}, 0, sourceBytes, name.left(60).isEmpty() ? QString{"image"} : name.left(60));
-        }
+        ChartExport::Capabilities caps;   // the one menu (PNG, PDF, the clipboard, more formats); a screen with a loop gives its own save for the last item
+        caps.still = sourceBytes;
+        QString name = window()->windowTitle();
+        name.replace(QRegularExpression{"[^A-Za-z0-9]+"}, "_");
+        caps.title = name.left(60).isEmpty() ? QString{"image"} : name.left(60);
+        caps.saveLoop = saveLoopHandler;
+        ChartExport::popupMenu(this, label->mapToGlobal(point), caps);
     });
     updateRestingCursor();
     const auto changed = [this] { if (!applying && !source.isNull()) { emit viewChanged(); } };

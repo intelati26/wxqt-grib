@@ -6,6 +6,7 @@
 #ifndef ZOOMIMAGE_H
 #define ZOOMIMAGE_H
 
+#include <functional>
 #include <QLabel>
 #include <QPixmap>
 #include <QPoint>
@@ -26,6 +27,7 @@ public:
     void setBytes(const QByteArray&);
     // a right-click "Save image..." for the picture shown, as every other screen's pictures have (on by default; a screen with its own save of the picture turns it off)
     void setSaveMenu(bool on) { saveMenu = on; }
+    void setSaveLoopHandler(std::function<void()> handler) { saveLoopHandler = std::move(handler); }   // the screen's own save (its loop, its names and headers): the last item of the right-click menu
     // swap the image without disturbing the current zoom / pan (for animation)
     void setBytesKeepView(const QByteArray&);
     void fitToViewport();
@@ -99,6 +101,7 @@ private:
     QPixmap source;
     QByteArray sourceBytes;   // the picture as it came (what a save writes)
     bool saveMenu{true};
+    std::function<void()> saveLoopHandler;
     double scale{1.0};
     bool userZoomed{false};
     bool dragging{false};

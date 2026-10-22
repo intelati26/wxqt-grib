@@ -515,17 +515,6 @@ void UtilityAnimationExport::installContextSave(QLabel * label) {
         if (bytes.isEmpty()) {
             return;
         }
-        QMenu menu{label};
-        auto * zoom = menu.addAction("Open zoomable view");
-        auto * save = menu.addAction("Save image...");
-        const auto chosen = menu.exec(label->mapToGlobal(point));
-        if (chosen == zoom) {
-            openZoomView(label);
-            return;
-        }
-        if (chosen != save) {
-            return;
-        }
         auto clean = [] (const QString& text, int length) { return slug(text, length); };
         auto product = clean(label->window()->windowTitle(), 40);
         // a screen showing several pictures (outlook grids, dashboards) would give
@@ -542,7 +531,11 @@ void UtilityAnimationExport::installContextSave(QLabel * label) {
                 product += (product.isEmpty() ? "" : "_") + file;
             }
         }
-        saveWithDialog(label->window(), {}, 0, bytes, product.isEmpty() ? QString{"image"} : product);
+        ChartExport::Capabilities caps;   // the one menu: the picture as itself (PNG, PDF, the clipboard), the other formats, the zoomable view
+        caps.still = bytes;
+        caps.title = product.isEmpty() ? QString{"image"} : product;
+        caps.zoom = [label] { openZoomView(label); };
+        ChartExport::popupMenu(label, label->mapToGlobal(point), caps);
     });
 }
 

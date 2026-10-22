@@ -14,6 +14,7 @@
 #include <QPainter>
 #include <QPdfWriter>
 #include <QStandardPaths>
+#include "objects/UtilityAnimationExport.h"
 #include "util/Utility.h"
 
 namespace {
@@ -109,43 +110,89 @@ bool ChartExport::savePdf(QWidget * chart, const QString& titleGiven, const QStr
     return true;
 }
 
-void ChartExport::install(QWidget * chart, const QString& title) {
-    chart->setContextMenuPolicy(Qt::CustomContextMenu);
-    QObject::connect(chart, &QWidget::customContextMenuRequested, chart, [chart, fixedTitle = title] (const QPoint& at) {
-        // an empty title is the name of the window the chart is in (a map: "Rivers - NWS gauges")
-        const QString title = fixedTitle.isEmpty() ? chart->window()->windowTitle() : fixedTitle;
-        QMenu menu;
-        auto * png = menu.addAction("Save as PNG...");
-        auto * pdf = menu.addAction("Save as PDF...");
+namespace {
+    bool saveImagePdf(const QImage& image, const QString& title, const QString& path) {
+        QPdfWriter writer{path};
+        writer.setResolution(150);
+        writer.setPageSize(QPageSize{QSizeF{image.width() * 25.4 / 150.0, (image.height() + footer * 1.5) * 25.4 / 150.0}, QPageSize::Millimeter});
+        writer.setPageMargins(QMarginsF{0, 0, 0, 0});
+        QPainter painter{&writer};
+        if (!painter.isActive()) {
+            return false;
+        }
+        painter.drawImage(0, 0, image);
+        drawFooter(painter, image.width(), image.height(), title);
+        return true;
+    }
+}
+
+void ChartExport::popupMenu(QWidget * anchor, const QPoint& globalPos, const Capabilities& caps) {
+    // an empty title is the name of the window the chart is in (a map: "Rivers - NWS gauges")
+    const QString title = caps.title.isEmpty() ? anchor->window()->windowTitle() : caps.title;
+    const bool painted = caps.paint != nullptr;
+    QMenu menu;
+    QAction * zoom = caps.zoom ? menu.addAction("Open zoomable view") : nullptr;
+    if (zoom != nullptr) {
         menu.addSeparator();
-        auto * copy = menu.addAction("Copy to the clipboard");
+    }
+    auto * png = menu.addAction("Save as PNG...");
+    auto * pdf = menu.addAction("Save as PDF...");
+    menu.addSeparator();
+    auto * copy = menu.addAction("Copy to the clipboard");
+    QAction * more = nullptr;
+    if (caps.saveLoop || !caps.still.isEmpty()) {
+        more = menu.addAction(caps.saveLoop ? "More formats, or the loop..." : "More formats (WebP, AVIF, JPEG XL...)...");
+    }
+    QAction * plots = nullptr;
+    if (painted) {
         menu.addSeparator();
-        auto * plots = menu.addAction("Plots only (leave out tables and notes)");
+        plots = menu.addAction("Plots only (leave out tables and notes)");
         plots->setCheckable(true);
         plots->setChecked(Utility::readPref("CHART_EXPORT_PLOTS_ONLY", "false") == "true");
-        const auto * chosen = menu.exec(chart->mapToGlobal(at));
-        if (chosen == nullptr) {
-            return;
+    }
+    const auto * chosen = menu.exec(globalPos);
+    if (chosen == nullptr) {
+        return;
+    }
+    if (chosen == zoom) {
+        caps.zoom();
+    } else if (chosen == plots) {
+        Utility::writePref("CHART_EXPORT_PLOTS_ONLY", plots->isChecked() ? "true" : "false");
+    } else if (chosen == more) {
+        if (caps.saveLoop) {
+            caps.saveLoop();
+        } else {
+            UtilityAnimationExport::saveWithDialog(anchor->window(), {}, 0, caps.still, fileNameImpl(title, "").chopped(1));
         }
-        if (chosen == plots) {
-            Utility::writePref("CHART_EXPORT_PLOTS_ONLY", plots->isChecked() ? "true" : "false");
-            return;
-        }
-        if (chosen == copy) {
-            QApplication::clipboard()->setImage(render(chart, title));
-        } else if (chosen == png) {
-            const auto path = QFileDialog::getSaveFileName(chart, "Save the chart", startFolder() + "/" + fileName(title, "png"), "PNG image (*.png)");
-            if (!path.isEmpty()) {
-                savePng(chart, title, path);
-                remember(path);
+    } else if (chosen == copy) {
+        QApplication::clipboard()->setImage(painted ? render(caps.paint, title) : QImage::fromData(caps.still));
+    } else if (chosen == png) {
+        const auto path = askSave(anchor->window(), "Save the picture", title, "png", "PNG image (*.png)");
+        if (!path.isEmpty()) {
+            if (painted) {
+                savePng(caps.paint, title, path);
+            } else {
+                QImage::fromData(caps.still).save(path, "PNG");
             }
-        } else if (chosen == pdf) {
-            const auto path = QFileDialog::getSaveFileName(chart, "Save the chart", startFolder() + "/" + fileName(title, "pdf"), "PDF document (*.pdf)");
-            if (path.isEmpty()) {
-                return;
-            }
-            savePdf(chart, title, path);
-            remember(path);
         }
+    } else if (chosen == pdf) {
+        const auto path = askSave(anchor->window(), "Save the picture", title, "pdf", "PDF document (*.pdf)");
+        if (!path.isEmpty()) {
+            if (painted) {
+                savePdf(caps.paint, title, path);
+            } else {
+                saveImagePdf(QImage::fromData(caps.still), title, path);
+            }
+        }
+    }
+}
+
+void ChartExport::install(QWidget * chart, const QString& title) {
+    chart->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(chart, &QWidget::customContextMenuRequested, chart, [chart, title] (const QPoint& at) {
+        Capabilities caps;
+        caps.paint = chart;
+        caps.title = title;
+        popupMenu(chart, chart->mapToGlobal(at), caps);
     });
 }

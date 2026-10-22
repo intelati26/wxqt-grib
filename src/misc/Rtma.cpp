@@ -41,6 +41,7 @@ Rtma::Rtma(Window * parent)
     , index{Utility::readPrefInt(prefToken, 0)}
 {
     setTitle("RTMA");
+    image.setSaveLoopHandler([this] { onSave(); });
     index = std::clamp(index, 0, static_cast<int>(UtilityRtma::codes.size()) - 1);
 
     times = UtilityRtma::getTimes();
