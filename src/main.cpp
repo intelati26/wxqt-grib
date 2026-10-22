@@ -371,7 +371,17 @@ int main(int argc, char * argv[]) {
                     for (const auto& product : GfsChart::products()) {
                         if (product.source == model) {
                             std::string error;
-                            const auto bytes = GfsRender::png(session, model, product.id, "CONUS", "", qEnvironmentVariableIntValue("WXQT_HOUR") > 0 ? qEnvironmentVariableIntValue("WXQT_HOUR") : 3, {}, error, nullptr);
+                            int hour = qEnvironmentVariableIntValue("WXQT_HOUR") > 0 ? qEnvironmentVariableIntValue("WXQT_HOUR") : 3;   // (WXQT_HOUR=<n>: another hour)
+                            if (model == "SPCREFS") {   // a field of SPC's store has its own hours (the 24 hour periods end at 00 and 12Z): the first one it has, as the screen's hour list offers
+                                std::string cycle, date;
+                                if (GfsRender::latestCycle(model, cycle, "", &date)) {
+                                    const auto hours = SpcRefsLoader::fieldHours(GfsData::Run{date, cycle.substr(0, 2)}, product.id);
+                                    if (!hours.empty() && std::find(hours.begin(), hours.end(), hour) == hours.end()) {
+                                        hour = hours.front();
+                                    }
+                                }
+                            }
+                            const auto bytes = GfsRender::png(session, model, product.id, "CONUS", "", hour, {}, error, nullptr);
                             fprintf(stderr, "MAGRENDER %s %s %s\n", product.id.c_str(), bytes.isEmpty() ? "FAILED" : "ok", error.c_str());
                         }
                     }
