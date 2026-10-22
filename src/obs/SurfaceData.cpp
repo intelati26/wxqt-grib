@@ -59,6 +59,16 @@ bool SurfaceData::loadMetars(vector<SurfaceStation>& stations, string& error) {
     return true;
 }
 
+namespace {
+    std::mutex madisMutex;
+    vector<SurfaceData::MadisFile> madisUsed;
+}
+
+vector<SurfaceData::MadisFile> SurfaceData::mesonetFiles() {
+    std::lock_guard lock{madisMutex};
+    return madisUsed;
+}
+
 bool SurfaceData::loadMesonet(vector<SurfaceStation>& stations, string& error, const vector<SurfaceStation>& airports) {
     static std::mutex mutex;
     static vector<SurfaceStation> cache;
@@ -70,7 +80,11 @@ bool SurfaceData::loadMesonet(vector<SurfaceStation>& stations, string& error, c
             return true;
         }
     }
-    const auto files = UtilityMadis::listFiles(UtilityIO::downloadAsByteArray(mesonetUrl()).toStdString());
+    const auto dated = UtilityMadis::listDatedFiles(UtilityIO::downloadAsByteArray(mesonetUrl()).toStdString());
+    vector<string> files;
+    for (const auto& d : dated) {
+        files.push_back(d.name);
+    }
     if (files.empty()) {
         error = "MADIS did not list any mesonet files.";
         return false;
@@ -89,6 +103,13 @@ bool SurfaceData::loadMesonet(vector<SurfaceStation>& stations, string& error, c
             continue;
         }
         read++;
+        {
+            std::lock_guard lock{madisMutex};
+            if (read == 1) {
+                madisUsed.clear();
+            }
+            madisUsed.push_back({dated[i].name, dated[i].modified});
+        }
         for (auto& s : reader.stations()) {
             const auto key = s.network + "/" + s.id + "/" + std::to_string(std::lround(s.lat * 1000.0)) + "/" + std::to_string(std::lround(s.lon * 1000.0));
             auto found = merged.find(key);

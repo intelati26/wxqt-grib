@@ -20,6 +20,12 @@ public:
     static bool loadMetars(vector<SurfaceStation>& stations, string& error);
     // the newest report of each station of the MADIS mesonet files (the last two hourly files, about 30 MB packed each); kept for 15 minutes.
     // Stations at the same place as an airport report are left out.
+    // the MADIS files the last mesonet read used (newest last): the hour each holds and when MADIS last wrote it (seconds since 1970, 0 unknown); empty before the first read
+    struct MadisFile {
+        string name;
+        long long modified{0};
+    };
+    static vector<MadisFile> mesonetFiles();
     static bool loadMesonet(vector<SurfaceStation>& stations, string& error, const vector<SurfaceStation>& airports);
     static string mesonetUrl() { return "https://madis-data.ncep.noaa.gov/madisPublic1/data/LDAD/mesonet/netCDF/"; }
 };

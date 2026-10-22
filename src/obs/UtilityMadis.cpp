@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "obs/UtilityMadis.h"
+#include <QDateTime>
+#include <QString>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -350,6 +352,29 @@ vector<SurfaceStation> UtilityMadis::MesonetReader::stations() const {
         }
     }
     return all;
+}
+
+vector<UtilityMadis::DatedFile> UtilityMadis::listDatedFiles(const string& html) {
+    vector<DatedFile> out;
+    for (const auto& name : listFiles(html)) {
+        DatedFile file;
+        file.name = name;
+        // the listing row: <a href="20261022_1800.gz">...</a> ... <td align="right">2026-10-22 18:43  </td>
+        const auto at = html.find("href=\"" + name + "\"");
+        if (at != string::npos) {
+            const string marker = "align=\"right\">";
+            const auto cell = html.find(marker, at);
+            if (cell != string::npos && cell + marker.size() + 16 <= html.size()) {
+                const auto text = html.substr(cell + marker.size(), 16);   // "2026-10-22 18:43"
+                const auto when = QDateTime::fromString(QString::fromStdString(text), "yyyy-MM-dd HH:mm");
+                if (when.isValid()) {
+                    file.modified = QDateTime{when.date(), when.time(), Qt::UTC}.toSecsSinceEpoch();
+                }
+            }
+        }
+        out.push_back(file);
+    }
+    return out;
 }
 
 vector<string> UtilityMadis::listFiles(const string& html) {

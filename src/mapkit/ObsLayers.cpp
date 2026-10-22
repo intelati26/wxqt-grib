@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "mapkit/ObsLayers.h"
+#include <QDateTime>
+#include <QTimeZone>
 #include <algorithm>
 #include <cmath>
 #include <ctime>
@@ -69,6 +71,32 @@ string StationLayer::summary() const {
         return {};
     }
     return std::to_string(stations->size()) + (airports ? " airport reports" : " mesonet stations");
+}
+
+// "MADIS mesonet file 18Z (2026-10-22), last written 18:43Z (3 min ago); the hour before: 17Z, written 18:39Z"
+string StationLayer::timeText() const {
+    if (airports || !stations) {
+        return {};
+    }
+    const auto files = SurfaceData::mesonetFiles();
+    if (files.empty()) {
+        return {};
+    }
+    const auto describe = [] (const SurfaceData::MadisFile& f) {
+        const auto hour = QDateTime::fromString(QString::fromStdString(f.name.substr(0, 13)), "yyyyMMdd_HHmm");
+        QString text = hour.isValid() ? hour.toString("HH") + "Z (" + hour.toString("yyyy-MM-dd") + ")" : QString::fromStdString(f.name);
+        if (f.modified > 0) {
+            const auto written = QDateTime::fromSecsSinceEpoch(f.modified, QTimeZone::utc());
+            const long long minutes = std::max(0LL, (QDateTime::currentSecsSinceEpoch() - f.modified) / 60);
+            text += ", last written " + written.toString("HH:mm") + "Z (" + (minutes < 90 ? QString::number(minutes) + " min ago" : QString::number(minutes / 60) + " h ago") + ")";
+        }
+        return text.toStdString();
+    };
+    string text = "MADIS mesonet file " + describe(files.back());
+    if (files.size() > 1) {
+        text += "; the hour before: " + describe(files[files.size() - 2]);
+    }
+    return text;
 }
 
 void StationLayer::refresh(MapHost& host) {

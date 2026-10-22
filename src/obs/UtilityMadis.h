@@ -66,6 +66,12 @@ public:
     };
     // the file names in an Apache directory listing, oldest first ("20261008_1100.gz")
     static vector<string> listFiles(const string& html);
+    // the same with the time each file was last written (the listing's own column, UTC): "when did MADIS last update this hour's file"
+    struct DatedFile {
+        string name;               // "20261022_1800.gz": the hour (UTC) it holds
+        long long modified{0};     // seconds since 1970 of its last write, 0 when the listing has none
+    };
+    static vector<DatedFile> listDatedFiles(const string& html);
     // big-endian reads
     static float bigFloat(const char * p);
     static double bigDouble(const char * p);

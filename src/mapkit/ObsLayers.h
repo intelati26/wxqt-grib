@@ -28,6 +28,7 @@ public:
     vector<MapLegendRow> legend() const override;
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     string summary() const override;
+    string timeText() const override;   // the mesonet layer: the MADIS file it shows and when MADIS last wrote it
 
 protected:
     void onEnable(MapHost& host) override { refresh(host); }
