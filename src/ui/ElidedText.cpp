@@ -4,7 +4,10 @@
 // *****************************************************************************
 
 #include "ui/ElidedText.h"
+#include <algorithm>
 #include <QAbstractButton>
+#include <QAbstractItemView>
+#include <QComboBox>
 #include <QEvent>
 #include <QFontMetrics>
 #include <QLabel>
@@ -17,6 +20,26 @@ namespace {
         explicit Filter(QWidget * panel) : QObject{panel}, panel{panel} {}
 
         void apply() {
+            // a drop-down is as wide as its longest item and would push the panel wider than the room it has (everything past the edge is cut off): it takes the room it is given, shows the choice
+            // elided and has it whole as its tooltip; the list that opens is as wide as its longest item
+            for (auto * combo : panel->findChildren<QComboBox *>()) {
+                if (!combo->property("fitted").toBool()) {
+                    combo->setProperty("fitted", true);
+                    combo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+                    combo->setMinimumContentsLength(6);
+                    combo->setMinimumWidth(0);
+                    combo->setSizePolicy(QSizePolicy::Ignored, combo->sizePolicy().verticalPolicy());
+                    QObject::connect(combo, &QComboBox::currentIndexChanged, combo, [combo] { combo->setToolTip(combo->currentText()); });
+                }
+                combo->setToolTip(combo->currentText());
+                int widest = 0;
+                for (int i = 0; i < combo->count(); i++) {
+                    widest = std::max(widest, combo->fontMetrics().horizontalAdvance(combo->itemText(i)));
+                }
+                if (auto * view = combo->view()) {
+                    view->setMinimumWidth(widest + 40);
+                }
+            }
             for (auto * button : panel->findChildren<QAbstractButton *>()) {
                 if (button->text().isEmpty() && button->property("fullText").toString().isEmpty()) {
                     continue;
