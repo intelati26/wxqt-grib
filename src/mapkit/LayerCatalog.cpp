@@ -10,6 +10,7 @@
 #include "mapkit/UpperAirLayer.h"
 #include "mapkit/GoesLayer.h"
 #include "mapkit/GibsLayer.h"
+#include "mapkit/EumetViewLayer.h"
 #include "mapkit/SarWindsLayer.h"
 #include "mapkit/SatellitePassLayer.h"
 #include "mapkit/ClimateGridLayer.h"
@@ -35,6 +36,7 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     vector<std::unique_ptr<MapLayer>> layers;
     layers.push_back(std::make_unique<GoesLayer>());
     layers.push_back(std::make_unique<GibsLayer>());
+    layers.push_back(std::make_unique<EumetViewLayer>());
     layers.push_back(std::make_unique<SarWindsLayer>());
     layers.push_back(std::make_unique<SatellitePassLayer>());
     layers.push_back(std::make_unique<GoesHistoryLayer>());

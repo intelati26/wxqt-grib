@@ -325,6 +325,11 @@ void SatellitePassViewer::openPassOnMap(int index) {
     vector<string> layers;
     if (row.kind == SatellitePasses::Kind::Radar) {
         layers.push_back("satellite/sar-winds");
+    } else if ((row.kind == SatellitePasses::Kind::Wind && (row.satellite == "Metop-B" || row.satellite == "Metop-C")) || row.satellite == "Sentinel-3A" || row.satellite == "Sentinel-3B") {
+        // EUMETSAT's own picture service has these: the ASCAT winds of the pass, the OLCI true color (the passes of the 12 hours before the time, laid together)
+        const std::map<string, int> picture{{"Metop-B", 3}, {"Metop-C", 4}, {"Sentinel-3A", 5}, {"Sentinel-3B", 6}};
+        Utility::writePrefInt("MM_EUMET_PRODUCT", picture.at(row.satellite));
+        layers.push_back("satellite/eumetview");
     } else {
         const std::map<string, int> picture{{"NOAA-20", 0}, {"NOAA-21", 1}, {"Suomi NPP", 2}, {"Terra", 3}, {"Aqua", 4}};
         const auto found = picture.find(row.satellite);

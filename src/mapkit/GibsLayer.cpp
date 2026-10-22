@@ -8,6 +8,10 @@
 #include <cmath>
 #include <numbers>
 #include <QComboBox>
+#include <set>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QJsonArray>
 #include <QTimeZone>
 #include <QStandardPaths>
 #include <QFile>
@@ -358,7 +362,7 @@ vector<long> GibsLayer::times() const {
 }
 
 string GibsLayer::timeText() const {
-    return string{products()[static_cast<size_t>(productIndex)].label} + "  " + dateText() + (overpass.empty() ? string{} : "  (this area imaged about " + overpass + (daysBack > 3 ? ", rough: an older date" : "") + ")");
+    return string{products()[static_cast<size_t>(productIndex)].label} + "  " + dateText() + (overpass.empty() ? string{} : "  (" + overpass + ")");
 }
 
 // the satellite behind a product, from its id; its swath is the one of its imager
@@ -381,7 +385,33 @@ void GibsLayer::askOverpass(MapHost& host) {
     const double lat = middle.first, lon = middle.second;
     auto text = std::make_shared<string>();
     const bool night = id.find("Night") != string::npos || id.find("DayNightBand") != string::npos;   // the night products are made on the dark side, the others on the sunlit one
-    host.background([text, name = string{name}, date, lat, lon, night] {
+    // the granule of each scan, from NASA's Common Metadata Repository (open, no login): the real start and end of the scans over the point, for the day (the level 1 product of the instrument)
+    const string shortName = id.find("NOAA20") != string::npos ? "VJ102IMG" : id.find("NOAA21") != string::npos ? "VJ202IMG" : id.find("SNPP") != string::npos ? "VNP02IMG" : id.find("Terra") != string::npos ? "MOD021KM" : "MYD021KM";
+    host.background([text, name = string{name}, date, lat, lon, night, shortName, back = daysBack] {
+        {
+            const auto reply = URL::getText("https://cmr.earthdata.nasa.gov/search/granules.json?short_name=" + shortName + "&point=" + std::to_string(lon) + "," + std::to_string(lat) + "&temporal=" + date + "T00:00:00Z," + date +
+                                            "T23:59:59Z&page_size=40&sort_key=start_date");
+            const auto json = QJsonDocument::fromJson(QByteArray::fromStdString(reply)).object().value("feed").toObject().value("entry").toArray();
+            std::set<string> seen;
+            string list;
+            for (const auto& value : json) {
+                const auto entry = value.toObject();
+                const auto flag = entry.value("day_night_flag").toString();
+                if ((night && flag == "DAY") || (!night && flag == "NIGHT")) {
+                    continue;   // the other side of the orbit
+                }
+                const auto start = QDateTime::fromString(entry.value("time_start").toString(), Qt::ISODate), end = QDateTime::fromString(entry.value("time_end").toString(), Qt::ISODate);
+                const string span = start.toString("HH:mm").toStdString() + "-" + end.toString("HH:mm").toStdString() + "Z";
+                if (start.isValid() && seen.insert(span).second) {
+                    list += (list.empty() ? "" : ", ") + span;
+                }
+            }
+            if (!list.empty()) {
+                *text = "scanned " + list + ", the granules over the middle of the view (NASA CMR)";
+                return;
+            }
+        }
+        string estimate;
         for (const auto& sat : SatellitePasses::satellites()) {
             if (sat.name != name || sat.instruments.empty()) {
                 continue;
@@ -400,8 +430,11 @@ void GibsLayer::askOverpass(MapHost& host) {
                     continue;
                 }
                 const auto when = QDateTime::fromSecsSinceEpoch(pass.time, QTimeZone::utc());
-                *text += (text->empty() ? "" : " and ") + when.toString("HH:mm").toStdString() + "Z";
+                estimate += (estimate.empty() ? "" : " and ") + when.toString("HH:mm").toStdString() + "Z";
             }
+        }
+        if (!estimate.empty()) {   // the catalogue has no granule yet (it is a few hours behind), or none: the orbit says about when
+            *text = "no granule in NASA's catalogue yet; this area imaged about " + estimate + " by the orbit" + (back > 3 ? ", rough: an older date" : "");
         }
     }, [this, text, key, &host] {
         overpassBusy = false;

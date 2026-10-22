@@ -2305,7 +2305,7 @@ void MasterMapViewer::paintLegend(QPainter& painter) {
 void MasterMapViewer::paintStamp(QPainter& painter) {
     QStringList lines;
     for (const auto& layer : layers) {
-        if (layer->enabled() && layer->timeAware() && !layer->timeText().empty()) {
+        if (layer->enabled() && !layer->timeText().empty()) {   // (a layer that is not on the time bar may still say its time: the EUMETSAT pictures)
             lines << QString::fromStdString(layer->timeText());
         }
     }
