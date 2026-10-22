@@ -5,6 +5,7 @@
 
 #include "models/ProductPicker.h"
 #include <QRegularExpression>
+#include "models/PrecipitationPicker.h"
 #include "hurricane/HafsIntensity.h"
 #include <algorithm>
 #include <map>
@@ -104,6 +105,31 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
         };
         show(anyTicked);
         QObject::connect(toggle, &QPushButton::clicked, [group, show] { show(!group->isVisible()); });
+    }
+    {   // the precipitation charts as parts (what, period, lines) instead of the list of them
+        std::vector<std::string> ids, labels;
+        for (const auto& e : this->entries) {
+            ids.push_back(e.id);
+            labels.push_back(e.label);
+        }
+        if (PrecipitationPicker::offeredFor(ids)) {
+            auto * parts = new QPushButton{"Precipitation by parts...", this};
+            parts->setToolTip("Choose the precipitation chart by what it shows (amount over a period, since the start, type, rate, snowfall), the period and the lines, instead of from the list");
+            column->addWidget(parts);
+            QObject::connect(parts, &QPushButton::clicked, [this, parts, ids, labels] {
+                auto * picker = new PrecipitationPicker{this, ids, labels, this->current};
+                picker->setAttribute(Qt::WA_DeleteOnClose);
+                picker->onPick = [this, picker] (const std::string& id) {
+                    this->current = id;
+                    if (this->onPick) {
+                        this->onPick(id);
+                    }
+                    picker->close();
+                };
+                picker->show();
+                (void) parts;
+            });
+        }
     }
     fill();
     QObject::connect(search, &QLineEdit::textChanged, [this] (const QString& text) { filter(text); });

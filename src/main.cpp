@@ -366,6 +366,13 @@ int main(int argc, char * argv[]) {
                         fprintf(stderr, "MAGCHECK %s vs %s: %d of %d drawn; missing:%s\n", list.picture, grib, have, static_cast<int>(list.ids->size()), missing.c_str());
                     }
                 }
+                if (const auto listed = qEnvironmentVariable("WXQT_LIST").toStdString(); !listed.empty()) {   // WXQT_LIST=<model>: the model's charts, id | label | picker group
+                    for (const auto& product : GfsChart::products()) {
+                        if (product.source == listed) {
+                            fprintf(stderr, "MAGLIST %s | %s | %s\n", product.id.c_str(), product.label.c_str(), GfsChart::category(product).c_str());
+                        }
+                    }
+                }
                 if (const auto spec = qEnvironmentVariable("WXQT_AVAIL"); !spec.isEmpty()) {   // WXQT_AVAIL=<model>:<chart>: the hours of the newest run the chart can be drawn for (from the run's indexes)
                     const auto model = spec.section(':', 0, 0).toStdString(), chart = spec.section(':', 1, 1).toStdString();
                     std::string cycle, date;
@@ -775,10 +782,23 @@ int main(int argc, char * argv[]) {
                 Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
                 auto * viewer = new ModelViewer{&w, "NCEP"};
                 qEnvironmentVariable("WXQT_PICK") == "net" ? NetStatus::show(viewer) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : viewer->showPicker();   // WXQT_PICK=sector: the area picker
-                if (const auto file = qEnvironmentVariable("WXQT_PICKER_PNG"); !file.isEmpty()) {   // a picture of the picker itself
-                    for (auto * picker : viewer->findChildren<QDialog *>()) {
-                        QTimer::singleShot(3000, picker, [picker, file] { picker->grab().save(file); });
-                    }
+                if (qEnvironmentVariable("WXQT_PICK") == "precip") {   // WXQT_PICK=precip: the chart picker's "Precipitation by parts..." opened
+                    QTimer::singleShot(800, viewer, [viewer] {
+                        for (auto * button : viewer->findChildren<QPushButton *>()) {
+                            if (button->text().startsWith("Precipitation by parts")) {
+                                button->click();
+                            }
+                        }
+                    });
+                }
+                if (const auto file = qEnvironmentVariable("WXQT_PICKER_PNG"); !file.isEmpty()) {   // a picture of the picker itself (WXQT_PICKER_TITLE: the one whose title has this)
+                    QTimer::singleShot(3000, viewer, [viewer, file] {
+                        for (auto * picker : viewer->findChildren<QDialog *>()) {
+                            if (qEnvironmentVariable("WXQT_PICKER_TITLE").isEmpty() || picker->windowTitle().contains(qEnvironmentVariable("WXQT_PICKER_TITLE"))) {
+                                picker->grab().save(file);
+                            }
+                        }
+                    });
                 }
             } else if (route.startsWith("goesbig:")) {   // WXQT_OPEN=goesbig:<sector>: the GOES viewer as the home screen thumbnail opens it (the size nearest 1200 pixels wide)
                 auto * goes = new GoesViewer{&w, "", "GEOCOLOR", route.section(':', 1, 1).toStdString(), false};
