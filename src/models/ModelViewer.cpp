@@ -21,6 +21,7 @@
 #include <QSplitter>
 #include <QPushButton>
 #include "models/CamsViewer.h"
+#include "mapkit/MasterMapViewer.h"
 #include "models/ChartBuilder.h"
 #include <algorithm>
 #include <map>
@@ -194,6 +195,14 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             reload();
         });
         boxH2.addWidgetReal(buttonPlace);
+        buttonOnMap = new QPushButton{"On the map", this};
+        buttonOnMap->setToolTip("This chart on the master map (scroll and zoom it, put radar, satellite, storms or rivers with it): the same model, chart, area and valid time");
+        QObject::connect(buttonOnMap, &QPushButton::clicked, this, [this] {
+            if (GfsRender::drawsModel(objectModel.model)) {
+                MasterMapViewer::openModels(this, objectModel.model, objectModel.param, objectModel.sector, shownProbe ? shownProbe->validUtc : QDateTime{});
+            }
+        });
+        boxH2.addWidgetReal(buttonOnMap);
         // the hurricane models (HAFS-A, HAFS-B): the wind field of the chart, and the intensity forecast of the storm
         checkRadii = new QCheckBox{"Wind field (34 / 50 / 64 kt)", this};
         checkRadii->setChecked(Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0);
@@ -1594,6 +1603,9 @@ void ModelViewer::reload() {
     fitHoursToRun();
     if (buttonPlace != nullptr) {
         buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
+    }
+    if (buttonOnMap != nullptr) {
+        buttonOnMap->setVisible(GfsRender::drawsModel(objectModel.model) && GfsRender::handles(objectModel.model, objectModel.param));
     }
     if (checkRadii != nullptr) {
         const bool storm = GfsModels::isStormModel(objectModel.model);

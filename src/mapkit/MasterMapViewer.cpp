@@ -292,11 +292,41 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     buttonOthers.getView()->setToolTip("The model pages that are not charts of the map: SPC Post (calibrated chances), NSSL CAMs and the picture models kept until they are retired (SPC HRRR, NSSL WRF, WPC GEFS, SPC HREF)");
     buttonOthers.connect([this] {
         QMenu menu{this};
+        // the way across: the chart on the map as it is (model, chart, valid time, the part of the world in view) in the Model Viewer
+        const ModelChartLayer * chart = nullptr;
+        for (const auto& layer : layers) {
+            if (layer->enabled() && layer->id() == "model/chart") {
+                chart = dynamic_cast<const ModelChartLayer *>(layer.get());
+            }
+        }
+        if (chart != nullptr) {
+            auto * across = menu.addAction("This chart in the Model Viewer (" + QString::fromStdString(chart->modelName()) + ")");
+            across->setData("@viewer");
+            menu.addSeparator();
+        }
         for (const auto& source : ModelScreen::sources()) {
             menu.addAction(source.label)->setData(source.id);
         }
         if (const auto * chosen = menu.exec(QCursor::pos())) {
-            new ModelScreen{this, chosen->data().toString().toStdString()};
+            if (chosen->data().toString() == "@viewer" && chart != nullptr) {
+                // the part in view as a square round its middle, in kilometers (the Model Viewer's own kind of area); the run and hour follow the valid time
+                const auto * widget = mapView->map();
+                const auto middle = mapView->toLatLon(QPointF{widget->width() / 2.0, widget->height() / 2.0});
+                const auto west = mapView->toLatLon(QPointF{0.0, widget->height() / 2.0}), east = mapView->toLatLon(QPointF{static_cast<double>(widget->width()), widget->height() / 2.0});
+                double degrees = std::fabs(east.second - west.second);
+                degrees = degrees > 180.0 ? 360.0 - degrees : degrees;
+                const double km = std::clamp(degrees * 111.0 * std::cos(middle.first * 3.14159265358979 / 180.0), 300.0, 5000.0);
+                const auto model = chart->modelName();
+                Utility::writePref("NCEP", model);
+                Utility::writePref("MODELNCEPPARAMLASTUSED", chart->chartName());
+                Utility::writePref("MODELNCEPSECTORLASTUSED", GfsChart::localId(middle.first, middle.second, std::round(km / 100.0) * 100.0, "the map's view"));
+                auto * screen = new ModelScreen{this, "NCEP"};
+                if (chart->validTime().isValid()) {
+                    screen->openAt(model, chart->validTime());
+                }
+            } else {
+                new ModelScreen{this, chosen->data().toString().toStdString()};
+            }
         }
     });
     buttonViews.getView()->setToolTip("Keep what is on the map as a view of your own: the layers, the part of the world and the model chart (model, chart, lines, variants). Kept views are in the list on the left");

@@ -181,6 +181,7 @@ private:
     string stationPinKey;                    // the map the pins were placed on
     void refreshStationPins();
     QPushButton * buttonPlace{nullptr};
+    QPushButton * buttonOnMap{nullptr};   // the chart on the master map
     QPushButton * buttonIntensity{nullptr};   // the hurricane models: the intensity forecast of the storm
     QCheckBox * checkRadii{nullptr};          // the hurricane models: the wind field on the chart
     int stormLoading{0};
