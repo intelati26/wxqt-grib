@@ -30,6 +30,7 @@ private:
     void addPlace();
     void removePlace();
     void openMap();
+    void openPassOnMap(int row);   // the master map at the pass: the place, the time and the layers that show what the instrument saw
     void closeEventCustom() override { closed = true; }
     VBox box;
     QComboBox * placeBox{};
@@ -40,6 +41,7 @@ private:
     QTableWidget * table{};
     std::vector<SatellitePasses::Place> storms;
     std::vector<SatellitePasses::Place> mine;      // the person's own and the saved locations
+    std::vector<SatellitePasses::Row> shown;   // the rows of the table
     std::string wanted;
     int generation{0};
     bool closed{false};

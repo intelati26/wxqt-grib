@@ -68,6 +68,7 @@ namespace SatellitePasses {
         Kind kind;
         SatelliteOrbit::Pass pass;
         Quality quality;
+        double lat{0}, lon{0};   // of the place
     };
     // every pass of the satellites chosen (all when empty: by name) over the places in the next hours, soonest first
     vector<Row> passList(const vector<Place>& at, const vector<string>& satellitesWanted, const vector<Kind>& kindsWanted, double hours, long long from, string& problem);

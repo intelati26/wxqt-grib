@@ -149,7 +149,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     mapView->useLayoutSpace();   // (the layout gives the map its size, after the controls)
     auto * map = mapView->map();
     map->dataLayer = [] (QPainter& painter) { painter.fillRect(QRectF{-1.0e6, -1.0e6, 2.0e6, 2.0e6}, QColor{16, 26, 42}); };
-    map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintLegend(painter); };
+    map->topLayer = [this] (QPainter& painter) { paintMap(painter); paintLegend(painter); paintStamp(painter); };
     mapView->onPointer = [this] (const QPointF& at) {
         showHover(at);
         const auto [lat, lon] = mapView->toLatLon(at);
@@ -2299,6 +2299,40 @@ void MasterMapViewer::paintLegend(QPainter& painter) {
     }
     const auto * map = mapView->map();
     MapLegend::draw(painter, rows, mapView->unitsPerPixel(), -250.0 + 1000.0 * map->height() / std::max(1, map->width()) - 2.0);
+}
+
+// one line for each layer that has a time on show (the satellite picture and the day it is of, the radar scan, the forecast hour): "when is this" without looking in the side panel
+void MasterMapViewer::paintStamp(QPainter& painter) {
+    QStringList lines;
+    for (const auto& layer : layers) {
+        if (layer->enabled() && layer->timeAware() && !layer->timeText().empty()) {
+            lines << QString::fromStdString(layer->timeText());
+        }
+    }
+    if (lines.isEmpty()) {
+        return;
+    }
+    const double px = mapView->unitsPerPixel();
+    painter.save();
+    QFont font = painter.font();
+    font.setPixelSize(11);
+    painter.scale(px, px);   // text in screen pixels from here: the window units are `px` to a pixel
+    painter.setFont(font);
+    const QFontMetrics metrics{font};
+    int width = 0;
+    for (const auto& line : lines) {
+        width = std::max(width, metrics.horizontalAdvance(line));
+    }
+    const int rowHeight = metrics.height() + 1;
+    const QRectF box{(-500.0) / px + 6.0, -250.0 / px + 6.0, width + 10.0, rowHeight * lines.size() + 4.0};
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor{255, 255, 255, 190});
+    painter.drawRoundedRect(box, 3, 3);
+    painter.setPen(QColor{20, 20, 20});
+    for (int i = 0; i < lines.size(); i++) {
+        painter.drawText(QPointF{box.left() + 5.0, box.top() + 2.0 + rowHeight * (i + 1) - metrics.descent()}, lines[i]);
+    }
+    painter.restore();
 }
 
 MapHit MasterMapViewer::bestHit(const QPointF& at) const {

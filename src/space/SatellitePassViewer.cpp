@@ -18,6 +18,8 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include "mapkit/MasterMapViewer.h"
+#include "util/Utility.h"
+#include <map>
 #include "objects/FutureVoid.h"
 
 namespace {
@@ -77,8 +79,10 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
     auto * add = new QPushButton{"Add a place...", top};
     auto * remove = new QPushButton{"Remove", top};
     auto * map = new QPushButton{"On the map", top};
+    auto * open = new QPushButton{"Open the pass on the map", top};
+    open->setToolTip("The master map at the time of the selected pass, on its place, with the layers that show what the instrument saw (double-click a row does the same)");
     auto * refresh = new QPushButton{"Refresh", top};
-    for (auto * w : std::vector<QWidget *>{placeBox, hoursBox, kindBox, satelliteBox, add, remove, map, refresh}) {
+    for (auto * w : std::vector<QWidget *>{placeBox, hoursBox, kindBox, satelliteBox, add, remove, open, map, refresh}) {
         layout->addWidget(w);
     }
     layout->addStretch();
@@ -108,6 +112,8 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
     QObject::connect(add, &QPushButton::clicked, this, [this] { addPlace(); });
     QObject::connect(remove, &QPushButton::clicked, this, [this] { removePlace(); });
     QObject::connect(map, &QPushButton::clicked, this, [this] { openMap(); });
+    QObject::connect(open, &QPushButton::clicked, this, [this] { openPassOnMap(table->currentRow()); });
+    QObject::connect(table, &QTableWidget::cellDoubleClicked, this, [this] (int row, int) { openPassOnMap(row); });
     QObject::connect(refresh, &QPushButton::clicked, this, [this] { loadPlaces(); });
     loadPlaces();
 }
@@ -203,6 +209,7 @@ void SatellitePassViewer::recompute() {
             if (closed || mineGeneration != generation) {
                 return;
             }
+            shown = *rows;
             table->setRowCount(static_cast<int>(rows->size()));
             for (int r = 0; r < static_cast<int>(rows->size()); r++) {
                 const auto& row = (*rows)[static_cast<size_t>(r)];
@@ -235,6 +242,11 @@ void SatellitePassViewer::recompute() {
                 }
             }
             table->resizeColumnsToContents();
+            if (qEnvironmentVariableIsSet("WXQT_SATOPEN")) {   // (for testing: open that row on the map once)
+                const int row = qEnvironmentVariableIntValue("WXQT_SATOPEN");
+                qunsetenv("WXQT_SATOPEN");
+                openPassOnMap(row);
+            }
             note->setText(QString{"%1 passes."}.arg(rows->size()) + (problem->empty() ? QString{} : "  Not read: " + QString::fromStdString(*problem)));
         }};
 }
@@ -299,4 +311,29 @@ void SatellitePassViewer::openMap() {
     }
     auto * viewer = new MasterMapViewer{this};
     viewer->openAt(QDateTime::currentDateTimeUtc(), lat, lon, 1500.0, {"satellite/passes", "tropical/world-storms"});
+}
+
+// The map at the pass: the daily picture of the satellite itself where NASA has one (the day of the pass, and the time of day the pass was is in the stamp on the map), the radar winds for a SAR; the rest (the
+// scatterometer, the microwave imagers, AVHRR) have no picture of their own here, so Terra's true color of the day, and the swaths of the satellites with the pass layer for one still to come
+void SatellitePassViewer::openPassOnMap(int index) {
+    if (index < 0 || index >= static_cast<int>(shown.size())) {
+        return;
+    }
+    const auto& row = shown[static_cast<size_t>(index)];
+    const auto when = QDateTime::fromSecsSinceEpoch(row.pass.time, QTimeZone::utc());
+    const bool future = row.pass.time > QDateTime::currentSecsSinceEpoch();
+    vector<string> layers;
+    if (row.kind == SatellitePasses::Kind::Radar) {
+        layers.push_back("satellite/sar-winds");
+    } else {
+        const std::map<string, int> picture{{"NOAA-20", 0}, {"NOAA-21", 1}, {"Suomi NPP", 2}, {"Terra", 3}, {"Aqua", 4}};
+        const auto found = picture.find(row.satellite);
+        Utility::writePrefInt("MM_GIBS_PRODUCT", found != picture.end() ? found->second : 3);
+        layers.push_back("satellite/polar");
+    }
+    if (future) {
+        layers.push_back("satellite/passes");
+    }
+    auto * viewer = new MasterMapViewer{this};
+    viewer->openAt(when, row.lat, row.lon, row.kind == SatellitePasses::Kind::Radar ? 600.0 : 900.0, layers);
 }

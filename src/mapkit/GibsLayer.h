@@ -49,6 +49,11 @@ private:
     };
     static const std::vector<Product>& products();
     string dateText() const;   // yyyy-MM-dd of the day shown
+    // when the satellite that made the product passed over the middle of the view on the day shown (worked out from its orbit: the tiles are a day's mosaic and say no time of their own)
+    void askOverpass(MapHost&);
+    string overpass;           // "13:02Z" / "13:02Z and 14:41Z", empty: not known (yet)
+    string overpassKey;
+    bool overpassBusy{false};
     struct Tile {
         int z, x, y;
     };

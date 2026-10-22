@@ -20,6 +20,7 @@
 #include <QVBoxLayout>
 #include <QXmlStreamReader>
 #include "objects/URL.h"
+#include "space/SatellitePasses.h"
 #include "settings/UIPreferences.h"
 #include "radar/MapView.h"
 #include "util/Utility.h"
@@ -308,6 +309,7 @@ void GibsLayer::paint(QPainter& painter, MapHost& host) {
     const auto wanted = tilesInView(host, z);
     shownZoom = z;
     const string date = dateText();
+    askOverpass(host);
     const double bleed = 0.5 * view.unitsPerPixel();   // a half pixel over each edge: no hairline between tiles
     painter.save();
     painter.setOpacity(opacity / 100.0);
@@ -356,7 +358,58 @@ vector<long> GibsLayer::times() const {
 }
 
 string GibsLayer::timeText() const {
-    return string{products()[static_cast<size_t>(productIndex)].label} + "  " + dateText();
+    return string{products()[static_cast<size_t>(productIndex)].label} + "  " + dateText() + (overpass.empty() ? string{} : "  (this area imaged about " + overpass + (daysBack > 3 ? ", rough: an older date" : "") + ")");
+}
+
+// the satellite behind a product, from its id; its swath is the one of its imager
+void GibsLayer::askOverpass(MapHost& host) {
+    const auto& product = products()[static_cast<size_t>(productIndex)];
+    const string id = product.id;
+    const char * name = id.find("NOAA20") != string::npos ? "NOAA-20" : id.find("NOAA21") != string::npos ? "NOAA-21" : id.find("SNPP") != string::npos ? "Suomi NPP" : id.find("Terra") != string::npos ? "Terra" : id.find("Aqua") != string::npos ? "Aqua" : nullptr;
+    const auto * map = host.view().map();
+    if (name == nullptr || map == nullptr) {
+        overpass.clear();
+        return;
+    }
+    const auto middle = host.view().toLatLon(QPointF{map->width() / 2.0, map->height() / 2.0});
+    const string date = dateText();
+    const string key = id + "|" + date + "|" + std::to_string(std::lround(middle.first / 3.0)) + "|" + std::to_string(std::lround(middle.second / 3.0));
+    if (key == overpassKey || overpassBusy) {
+        return;
+    }
+    overpassBusy = true;
+    const double lat = middle.first, lon = middle.second;
+    auto text = std::make_shared<string>();
+    const bool night = id.find("Night") != string::npos || id.find("DayNightBand") != string::npos;   // the night products are made on the dark side, the others on the sunlit one
+    host.background([text, name = string{name}, date, lat, lon, night] {
+        for (const auto& sat : SatellitePasses::satellites()) {
+            if (sat.name != name || sat.instruments.empty()) {
+                continue;
+            }
+            string problem;
+            const auto tle = SatellitePasses::elements(sat.catalog, problem);
+            if (!tle.valid) {
+                return;
+            }
+            auto day = QDateTime::fromString(QString::fromStdString(date), "yyyy-MM-dd");
+            day.setTimeZone(QTimeZone::utc());
+            const SatelliteOrbit::Propagator propagator{tle};
+            const auto& imager = sat.instruments.front();
+            for (const auto& pass : SatelliteOrbit::passes(propagator, lat, lon, day.toSecsSinceEpoch(), 24.0, {imager.label, imager.halfWidthKm, imager.innerKm})) {
+                if (!pass.inSwath || std::fabs(pass.distanceKm) > 0.75 * imager.halfWidthKm || (night ? pass.sunElevation > 0.0 : pass.sunElevation < 0.0)) {   // the middle of the swath: the edges of the day's mosaic are other orbits
+                    continue;
+                }
+                const auto when = QDateTime::fromSecsSinceEpoch(pass.time, QTimeZone::utc());
+                *text += (text->empty() ? "" : " and ") + when.toString("HH:mm").toStdString() + "Z";
+            }
+        }
+    }, [this, text, key, &host] {
+        overpassBusy = false;
+        overpassKey = key;
+        overpass = *text;
+        host.timesChanged();
+        host.redraw();
+    });
 }
 
 void GibsLayer::showTime(long seconds, MapHost& host) {

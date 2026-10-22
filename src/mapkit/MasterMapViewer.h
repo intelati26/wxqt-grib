@@ -75,6 +75,7 @@ private:
     void paintMap(QPainter&);
     void paintMapCopy(QPainter&);
     void paintLegend(QPainter&);
+    void paintStamp(QPainter&);   // what each time aware layer shows and when, in the corner of the map
     void showHover(const QPointF& pixels);
     MapHit bestHit(const QPointF& pixels) const;
     void showOptions(MapLayer *);

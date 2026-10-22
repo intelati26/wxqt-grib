@@ -219,7 +219,7 @@ namespace SatellitePasses {
                         if (i.side == 1 && pass.distanceKm < 0.0) {
                             continue;   // looks to the right only
                         }
-                        rows.push_back({place.name, place.storm, sat.name, i.label, i.kind, pass, quality(i, tle, pass)});
+                        rows.push_back({place.name, place.storm, sat.name, i.label, i.kind, pass, quality(i, tle, pass), place.lat, place.lon});
                     }
                 }
             }
