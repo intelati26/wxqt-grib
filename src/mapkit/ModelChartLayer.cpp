@@ -702,7 +702,7 @@ void ModelChartLayer::paint(QPainter& painter, MapHost& host) {
     const double px = host.view().unitsPerPixel();
     const auto snap = [px] (double v) { return std::round(v / px) * px; };
     const QRectF drawn = QRectF{a, b}.normalized();
-    painter.drawImage(QRectF{QPointF{snap(drawn.left()), snap(drawn.top())}, QPointF{snap(drawn.right()), snap(drawn.bottom())}}, shownImage->image);
+    painter.drawImage(QRectF{QPointF{snap(drawn.left()) - px, snap(drawn.top())}, QPointF{snap(drawn.right()) + px, snap(drawn.bottom())}}, shownImage->image);   // (a pixel wider each side: the smoothed edge of the picture is not a dark line where the world goes round)
     painter.restore();
     paintContours(painter, host, *shownImage);
     if (!barbsByOwner) {
@@ -713,7 +713,7 @@ void ModelChartLayer::paint(QPainter& painter, MapHost& host) {
 
 // the chart's contour lines, their numbers and the highs and lows: vectors painted with the view (or the export), so the numbers keep their size and stay upright whatever the zoom or the projection
 void ModelChartLayer::paintContours(QPainter& painter, MapHost& host, const Rendered& shown) const {
-    if (shown.vectors.lines.empty() && shown.vectors.labels.empty()) {
+    if ((shown.vectors.lines.empty() && shown.vectors.labels.empty()) || qEnvironmentVariableIsSet("WXQT_NO_VECTORS")) {
         return;
     }
     const auto t = host.view().transform();
