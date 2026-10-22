@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "models/ProductPicker.h"
+#include <QRegularExpression>
 #include "hurricane/HafsIntensity.h"
 #include <algorithm>
 #include <map>
@@ -172,6 +173,18 @@ void ProductPicker::fill() {
             if (e.group == name) {
                 list.push_back(&e);
             }
+        }
+        if (name == "Upper air") {   // the levels from the top down (200, 250 ... 925), and in each the fields in one order: wind, temperature, humidity, vorticity, the rest (the list was in the order the charts were made)
+            const auto level = [] (const Entry * e) {
+                const auto label = QString::fromStdString(e->label);
+                const auto digits = label.left(label.indexOf(QRegularExpression{"[^0-9]"}));
+                return digits.isEmpty() ? 100000 : digits.toInt();
+            };
+            const auto field = [] (const Entry * e) {
+                const auto label = QString::fromStdString(e->label).toLower();
+                return label.contains("wind") ? 0 : label.contains("temperature") ? 1 : label.contains("humidity") ? 2 : label.contains("vorticity") ? 3 : 4;
+            };
+            std::stable_sort(list.begin(), list.end(), [&] (const Entry * a, const Entry * b) { return std::make_pair(level(a), field(a)) < std::make_pair(level(b), field(b)); });
         }
         bool holdsCurrent = false;
         for (const auto * e : list) {
