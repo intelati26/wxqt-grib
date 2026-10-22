@@ -281,6 +281,40 @@ namespace UtilitySpcRefs {
                 {"fosberg_prob_t>050", "Fosberg Index > 50 (ensemble probability)", fireGroup},
                 {"fosberg_prob_t>075", "Fosberg Index > 75 (ensemble probability)", fireGroup},
                 {"rh2m_s10m_prob_t<020_t>015", "Wind > 15 mph and RH < 20% (ensemble probability)", fireGroup},
+                {"maxref1km_mucape_24h_max_overlap12h_nmep_r013_t>040", "24-h Max Reflectivity > 40 dBZ, neighborhood probability", severeGroup},
+                {"uh25_24h_max_overlap12h", "24-h Max 2-5 km Updraft Helicity (one member)", severeGroup},
+                {"uh25_24h_max_overlap12h_nmep_r013_t>99.85p", "24-h 2-5 km UH > 99.85 percentile, 40-km neighborhood probability", severeGroup},
+                {"uh25_24h_max_overlap12h_nmep_r013_t>99.95p", "24-h 2-5 km UH > 99.95 percentile, 40-km neighborhood probability", severeGroup},
+                {"uh25min_04h_min_overlap_nmep_r013_t<-35", "4-h 2-5 km UH < -35 m2/s2, 40-km neighborhood probability", severeGroup},
+                {"uh25min_04h_min_overlap_nmep_r013_t<-70", "4-h 2-5 km UH < -70 m2/s2, 40-km neighborhood probability", severeGroup},
+                {"uh25min_24h_min_overlap12h", "24-h Min 2-5 km Updraft Helicity (one member, shown as magnitude)", severeGroup},
+                {"uh25min_24h_min_overlap12h_nmep_r013_t<-35", "24-h 2-5 km UH < -35 m2/s2, 40-km neighborhood probability", severeGroup},
+                {"uh25min_24h_min_overlap12h_nmep_r013_t<-70", "24-h 2-5 km UH < -70 m2/s2, 40-km neighborhood probability", severeGroup},
+                {"wmax_24h_max_overlap12h_nmep_r013_t020", "24-h Updraft Speed > 20 m/s, neighborhood probability", severeGroup},
+                {"wmax_24h_max_overlap12h_nmep_r013_t030", "24-h Updraft Speed > 30 m/s, neighborhood probability", severeGroup},
+                {"s10m_24h_max_overlap12h_nmep_r013_t030", "24-h 10-m Wind Speed > 30 kt, neighborhood probability", severeGroup},
+                {"s10m_24h_max_overlap12h_nmep_r013_t050", "24-h 10-m Wind Speed > 50 kt, neighborhood probability", severeGroup},
+                {"sbcape_smooth_mean", "Surface-Based CAPE (ensemble mean, smoothed)", instabilityGroup},
+                {"ushr06_mean", "0-6 km Shear, west-east component (ensemble mean)", instabilityGroup},
+                {"vshr06_mean", "0-6 km Shear, south-north component (ensemble mean)", instabilityGroup},
+                {"stp_fixed_24h_max_overlap12h_mean", "24-h Max Fixed-Layer Significant Tornado Parameter (ensemble mean)", instabilityGroup},
+                {"qpf_24h_acc_overlap12h", "24-h QPF (one member)", precipitationGroup},
+                {"snow_24h_acc_overlap12h_prob_t>004", "24-h Snowfall > 4 in (ensemble probability)", precipitationGroup},
+                {"snow_24h_acc_overlap12h_prob_t>008", "24-h Snowfall > 8 in (ensemble probability)", precipitationGroup},
+                {"snow_24h_acc_overlap12h_prob_t>012", "24-h Snowfall > 12 in (ensemble probability)", precipitationGroup},
+                {"frzr_qpf_24h_acc_overlap12h_prob_t>0p060", "24-h Freezing Rain QPF > 0.06 in (ensemble probability)", precipitationGroup},
+                {"bliz_prob_t<0p250_t>035_t>0p010", "Blizzard Probability: visibility < 0.25 mi, 10-m wind > 35 mph, snow", precipitationGroup},
+                {"bliz_prob_t<0p500_t>030_t>0p010", "Blizzard Probability: visibility < 0.5 mi, 10-m wind > 30 mph, snow", precipitationGroup},
+                {"u10m_mean", "10-m Wind, west-east component (ensemble mean)", surfaceGroup},
+                {"v10m_mean", "10-m Wind, south-north component (ensemble mean)", surfaceGroup},
+                {"u500_mean", "500 mb Wind, west-east component (ensemble mean)", surfaceGroup},
+                {"v500_mean", "500 mb Wind, south-north component (ensemble mean)", surfaceGroup},
+                {"u700_mean", "700 mb Wind, west-east component (ensemble mean)", surfaceGroup},
+                {"v700_mean", "700 mb Wind, south-north component (ensemble mean)", surfaceGroup},
+                {"u850_mean", "850 mb Wind, west-east component (ensemble mean)", surfaceGroup},
+                {"v850_mean", "850 mb Wind, south-north component (ensemble mean)", surfaceGroup},
+                {"lr75_mean", "700-500 mb Lapse Rate (ensemble mean)", surfaceGroup},
+                {"rh2m_s10m_prob_t<010_t>030", "Wind > 30 mph and RH < 10% (ensemble probability)", fireGroup},
             };
             return list;
         }
@@ -400,6 +434,10 @@ namespace UtilitySpcRefs {
                 p.factor = 0.01;
                 p.stops = rainbow(985, 1035);
                 p.units = "hPa";
+            } else if (units == "kelvin / kilometer") {
+                p.kind = Kind::Blended;
+                p.stops = rainbow(4, 10);
+                p.units = "C/km";
             } else if (units == "dimensionless") {
                 if (contains(id, "stp")) {
                     p.stops = stpStops();
@@ -515,6 +553,11 @@ namespace UtilitySpcRefs {
                 break;
             }
         }
+        if (p.group == otherGroup && startsWith(id, "rh2m_s10m_prob_t<")) {   // the joint wind / RH chances: "rh2m_s10m_prob_t<020_t>025" is RH under 20 % with wind over 25 mph
+            const auto rh = std::atoi(id.substr(17, 3).c_str()), wind = std::atoi(id.substr(23, 3).c_str());
+            p.label = "Wind > " + std::to_string(wind) + " mph and RH < " + std::to_string(rh) + "% (ensemble probability)";
+            p.group = fireGroup;
+        }
         p.members = array.dims.size() == 4;
         if (array.dims.size() >= 3) {
             p.timeDimension = array.dims[array.dims.size() - 3];
@@ -549,7 +592,7 @@ namespace UtilitySpcRefs {
         if (starts("cref") || starts("maxref")) return "dBz";
         if (starts("uh") || starts("srh")) return "meter ** 2 / second ** 2";
         if (starts("wmax")) return "meter / second";
-        if (starts("s10m") || starts("shr") || starts("ushr") || starts("vshr") || starts("u10m") || starts("v10m")) return "knot";
+        if (starts("s10m") || starts("shr") || starts("ushr") || starts("vshr") || starts("u10m") || starts("v10m") || starts("u500") || starts("v500") || starts("u700") || starts("v700") || starts("u850") || starts("v850")) return "knot";
         if (starts("gust")) return "mile / hour";
         if (starts("qpf") || starts("snow") || starts("frzr") || starts("pwat")) return "inch";
         if (starts("sbcape") || starts("mucape") || starts("sbcinh")) return "joule / kilogram";
@@ -558,6 +601,7 @@ namespace UtilitySpcRefs {
         if (starts("t500") || starts("t700") || starts("t850")) return "degree_Celsius";
         if (starts("z500") || starts("z700") || starts("z850")) return "meter";
         if (starts("pmsl")) return "pascal";
+        if (starts("lr75")) return "kelvin / kilometer";
         if (starts("cld") || starts("rh2m")) return "percent";
         return "";
     }

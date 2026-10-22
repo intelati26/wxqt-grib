@@ -371,7 +371,7 @@ int main(int argc, char * argv[]) {
                     for (const auto& product : GfsChart::products()) {
                         if (product.source == model) {
                             std::string error;
-                            const auto bytes = GfsRender::png(session, model, product.id, "CONUS", "", 3, {}, error, nullptr);
+                            const auto bytes = GfsRender::png(session, model, product.id, "CONUS", "", qEnvironmentVariableIntValue("WXQT_HOUR") > 0 ? qEnvironmentVariableIntValue("WXQT_HOUR") : 3, {}, error, nullptr);
                             fprintf(stderr, "MAGRENDER %s %s %s\n", product.id.c_str(), bytes.isEmpty() ? "FAILED" : "ok", error.c_str());
                         }
                     }
