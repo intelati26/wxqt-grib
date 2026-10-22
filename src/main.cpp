@@ -50,6 +50,7 @@
 #include "gfs/GfsRender.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsIntensity.h"
+#include "hurricane/AceForecastViewer.h"
 #include <QBuffer>
 #include "ui/ChartExport.h"
 #include "ui/ExportDialog.h"
@@ -852,6 +853,8 @@ int main(int argc, char * argv[]) {
                 }
             } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm
                 new HurricaneViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString()};
+            } else if (route.startsWith("aceforecast")) {   // WXQT_OPEN=aceforecast: the ACE forecast of the Weather Lab large ensemble
+                new AceForecastViewer{&w};
             } else if (route.startsWith("hafs:")) {   // WXQT_OPEN=hafs:<NHC id>: the hurricane model screen on that storm
                 Utility::writePref("NCEP", "HAFSA");
                 Utility::writePref("MODELNCEPPARAMLASTUSED", qEnvironmentVariable("WXQT_PARAM", "wind_mslp").toStdString());

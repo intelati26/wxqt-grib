@@ -22,6 +22,7 @@
 #include <QScrollArea>
 #include "climate/ClimateViewer.h"
 #include "hurricane/AceViewer.h"
+#include "hurricane/AceForecastViewer.h"
 #include "hurricane/AdvisoryViewer.h"
 #include "hurricane/AtcfFeedViewer.h"
 #include "space/SatellitePassViewer.h"
@@ -145,6 +146,7 @@ TropicalHub::TropicalHub(Window * parent)
     , buttonTracks{this, None, "Tracks, guidance and recon..."}
     , buttonSeason{this, None, "Season charts..."}
     , buttonAce{this, None, "ACE by day..."}
+    , buttonAceForecast{this, None, "ACE forecast (ensemble)..."}
     , buttonHistory{this, None, "Historical tracks..."}
     , buttonPod{this, None, "Recon plan of the day..."}
     , buttonModels{this, None, "Model charts..."}
@@ -157,7 +159,7 @@ TropicalHub::TropicalHub(Window * parent)
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Tropical Hub - active storms, outlook, recon and the season");
-    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonHistory, &buttonPod, &buttonModels, &buttonHafs, &buttonTropical, &buttonAtcf, &buttonPasses, &buttonClimate}) {
+    for (auto * button : {&buttonRefresh, &buttonTracks, &buttonSeason, &buttonAce, &buttonAceForecast, &buttonHistory, &buttonPod, &buttonModels, &buttonHafs, &buttonTropical, &buttonAtcf, &buttonPasses, &buttonClimate}) {
         rowTop.addWidget(*button);
     }
     rowTop.addStretch();
@@ -169,6 +171,8 @@ TropicalHub::TropicalHub(Window * parent)
         }
     });
     buttonHistory.connect([this] { new HistoryViewer{this}; });
+    buttonAceForecast.getView()->setToolTip("How much accumulated cyclone energy a storm is forecast to make, from the 1000 members of the Weather Lab ensemble: the running total, the ACE made in each hour, the spread of the members");
+    buttonAceForecast.connect([this] { new AceForecastViewer{this}; });
     buttonAce.connect([this] {
         if (seasonAtlantic && seasonPacific) {
             new AceViewer{this, seasonAtlantic, seasonPacific};

@@ -57,6 +57,7 @@ private:
     Button buttonTracks;
     Button buttonSeason;
     Button buttonAce;
+    Button buttonAceForecast;
     Button buttonHistory;
     Button buttonPod;
     Button buttonModels;
