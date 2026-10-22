@@ -21,6 +21,7 @@ using std::string;
 using std::vector;
 
 class PhasePlot;
+class PhaseMap;
 
 // The cyclone phase space (Hart 2003) of a storm or invest in a deterministic model: the model's own heights followed with the storm, the state it is in now and the path it takes on the two
 // diagrams (B against -VTL: symmetric or not; -VTL against -VTU: warm core or cold, and how deep). The model is picked from those that have pressure level heights.
@@ -39,6 +40,7 @@ private:
     QLabel * status{};
     QLabel * headline{};
     PhasePlot * plot{};
+    PhaseMap * map{};
     QTableWidget * table{};
     std::shared_ptr<GfsRender::Session> session;
     double lat, lon;

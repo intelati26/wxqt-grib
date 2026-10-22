@@ -16,6 +16,7 @@
 #include <QTimeZone>
 #include <QPushButton>
 #include "gfs/GfsModels.h"
+#include "hurricane/Coast.h"
 #include "objects/FutureVoid.h"
 #include "ui/UiStandards.h"
 
@@ -31,7 +32,7 @@ public:
         update();
     }
 
-protected:
+public:
     static QColor pressureColor(double hPa) {
         static const std::pair<double, const char *> stops[] = {{1015, "#111111"}, {1010, "#8a2be2"}, {1000, "#2a5cff"}, {990, "#00c8d2"}, {980, "#20d020"}, {970, "#e8e020"}, {960, "#ff8c1a"}, {950, "#ff1493"}};
         if (hPa <= 0) {
@@ -46,6 +47,7 @@ protected:
         return QColor{best->second};
     }
 
+protected:
     void paintEvent(QPaintEvent *) override {
         QPainter painter{this};
         painter.setRenderHint(QPainter::Antialiasing);
@@ -207,6 +209,96 @@ private:
     vector<PhaseSpace::Point> points;
 };
 
+// where the storm has been and goes: the track on the coasts, a line through the analyses (past) and the forecast, the dots coloured by pressure as on the diagrams
+class PhaseMap : public QWidget {
+public:
+    explicit PhaseMap(QWidget * parent) : QWidget{parent} {
+        setMinimumSize(260, 200);
+    }
+    void set(const vector<PhaseSpace::Point>& p) {
+        points = p;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override {
+        QPainter painter{this};
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.fillRect(rect(), QColor{200, 218, 235});
+        if (points.empty()) {
+            return;
+        }
+        double west = 1e9, east = -1e9, south = 1e9, north = -1e9;
+        for (const auto& p : points) {
+            west = std::min(west, p.lon); east = std::max(east, p.lon);
+            south = std::min(south, p.lat); north = std::max(north, p.lat);
+        }
+        const double midLat = (south + north) / 2.0, scaleX = std::cos(midLat * 3.14159265 / 180.0);
+        double spanX = std::max(12.0, (east - west) * 1.5), spanY = std::max(12.0 / std::max(0.3, scaleX), (north - south) * 1.5);
+        // keep the degrees' aspect: the wider of the two sets the scale
+        const double pixelsPerDegree = std::min(width() / (spanX * scaleX), height() / spanY);
+        spanX = width() / pixelsPerDegree / scaleX;
+        spanY = height() / pixelsPerDegree;
+        const double cx = (west + east) / 2.0, cy = midLat;
+        const auto at = [&] (double lon, double lat) {
+            return QPointF{width() / 2.0 + (lon - cx) * scaleX * pixelsPerDegree, height() / 2.0 - (lat - cy) * pixelsPerDegree};
+        };
+        painter.setClipRect(rect());
+        painter.setPen(QPen{QColor{90, 90, 90}, 1});
+        for (const auto& line : Coast::worldLines()) {
+            QPointF last;
+            bool have = false;
+            for (const auto& [lon, lat] : line) {
+                if (lat < cy - spanY || lat > cy + spanY || lon < cx - spanX || lon > cx + spanX) {
+                    have = false;
+                    continue;
+                }
+                const auto pos = at(lon, lat);
+                if (have) {
+                    painter.drawLine(last, pos);
+                }
+                last = pos;
+                have = true;
+            }
+        }
+        QPointF previous;
+        bool have = false;
+        for (const auto& p : points) {
+            const auto pos = at(p.lon, p.lat);
+            if (have) {
+                painter.setPen(QPen{Qt::black, 1.6, p.hour > 0 ? Qt::DashLine : Qt::SolidLine});
+                painter.drawLine(previous, pos);
+            }
+            previous = pos;
+            have = true;
+        }
+        for (const auto& p : points) {
+            const auto pos = at(p.lon, p.lat);
+            painter.setPen(QPen{Qt::black, 1});
+            painter.setBrush(PhasePlot::pressureColor(p.pressure));
+            painter.drawEllipse(pos, 4.5, 4.5);
+        }
+        QFont big = painter.font();
+        big.setBold(true);
+        painter.setFont(big);
+        painter.setPen(Qt::black);
+        painter.drawText(at(points.front().lon, points.front().lat) + QPointF{-14, -7}, "A");
+        painter.drawText(at(points.back().lon, points.back().lat) + QPointF{7, -7}, "Z");
+        // now: the point nearest the present
+        const long now = QDateTime::currentSecsSinceEpoch();
+        const PhaseSpace::Point * current = &points.front();
+        for (const auto& p : points) {
+            if (std::labs(p.valid - now) < std::labs(current->valid - now)) {
+                current = &p;
+            }
+        }
+        painter.drawText(at(current->lon, current->lat) + QPointF{7, 14}, "C");
+    }
+
+private:
+    vector<PhaseSpace::Point> points;
+};
+
 vector<string> PhaseViewer::models() {
     vector<string> out;
     for (const auto& def : GfsModels::all()) {
@@ -266,7 +358,13 @@ PhaseViewer::PhaseViewer(Window * parent, const string& title, double lat, doubl
     table->verticalHeader()->hide();
     table->horizontalHeader()->setStretchLastSection(true);
     table->setMinimumHeight(180);
-    box.addWidgetReal(table, 1, Qt::Alignment{});
+    auto * lower = new QWidget{this};
+    auto * lowerLayout = new QHBoxLayout{lower};
+    lowerLayout->setContentsMargins(0, 0, 0, 0);
+    map = new PhaseMap{lower};
+    lowerLayout->addWidget(table, 2);
+    lowerLayout->addWidget(map, 1);
+    box.addWidgetReal(lower, 1, Qt::Alignment{});
     auto * credit = new QLabel{"After Hart (2003), Monthly Weather Review 131: B is the thickness asymmetry of 900-600 mb across the storm's track (above 10 m: asymmetric, a frontal or hybrid system); -VTL and -VTU are the lapse "
                                "with ln p of the range of the model's heights within 500 km, 900-600 and 600-300 mb (above 0: a warm core). The storm is followed as the lowest sea level pressure of the model near where it was, "
                                "so a weak invest can be lost; read the early hours as the model's idea of it, not a measurement.", this};
@@ -287,6 +385,7 @@ void PhaseViewer::measure() {
     status->setText("Reading " + QString::fromStdString(model) + "'s newest run...");
     table->setRowCount(0);
     plot->set({});
+    map->set({});
     auto points = std::make_shared<vector<PhaseSpace::Point>>();
     auto problem = std::make_shared<string>();
     auto runUsed = std::make_shared<string>();
@@ -341,6 +440,7 @@ void PhaseViewer::measure() {
         UiStandards::muted(status);
         status->setText("Run " + QString::fromStdString(*runUsed) + "Z, followed " + QString::number(points->size()) + " times at six hours.");
         plot->set(PhaseSpace::smoothed(*points, 12 * 3600));
+        map->set(*points);
         const auto run = QDateTime::fromString(QString::fromStdString(runUsed->substr(0, 10)), "yyyyMMddHH");
         const PhaseSpace::Point * first = nullptr;
         const long now = QDateTime::currentSecsSinceEpoch();
