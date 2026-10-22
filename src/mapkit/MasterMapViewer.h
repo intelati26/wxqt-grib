@@ -66,6 +66,8 @@ private:
     void status(const string& text) override { extra = text; updateStatus(); }
     bool claimCell(const QPointF& pixels, double spacing) override;
     double markScale() const override { return thinning; }
+    bool deferMarks() const override { return deferNow; }
+    void deferMark(double lat, double lon, std::function<void(QPainter&, double, double)> paint) override { marks.push_back({lat, lon, std::move(paint)}); }
     void timesChanged() override { rebuildTicks(); }
     void onlyLayer(const string& id) override;
     void background(std::function<void()> work, std::function<void()> done) override;
@@ -142,6 +144,12 @@ private:
     GlobeMapView * globeView{};
     bool globeOn{false};
     GlobeMapView::Skin makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width, double referencePixelsPerDegree = 0.0, bool waitForLayers = false);
+    struct DeferredMark {
+        double lat, lon;
+        std::function<void(QPainter&, double, double)> paint;
+    };
+    bool deferNow{false};                                     // while a world picture for a projection is made: the marks are kept to be painted on it, upright
+    vector<DeferredMark> marks;
     double thinning{1.0};                                     // how much wider apart the self-thinning marks are put while a skin is painted
     Button buttonTemps;
     Button buttonSounding;

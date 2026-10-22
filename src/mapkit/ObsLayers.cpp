@@ -204,33 +204,53 @@ void StationLayer::paint(QPainter& painter, MapHost& host) {
         drawn.push_back({i, pixels});
         const bool old = now - s.seconds > (s.airport ? 7200 : 10800);
         const QColor color = old ? QColor{110, 110, 118} : dotColor(s);
-        if (style().barbs && SurfaceStation::has(s.windSpeed) && !old) {
-            const QColor barb{225, 228, 235};
-            painter.setPen(QPen{barb, 1.2 * perPixel});
-            painter.setBrush(barb);
-            WindBarb::draw(painter, at, SurfaceStation::has(s.windDirection) ? s.windDirection : 0.0, s.windSpeed, 24.0 * perPixel, s.lat < 0.0);
-        }
-        painter.setPen(QPen{QColor{255, 255, 255, 215}, 1.0 * perPixel});
-        painter.setBrush(color);
-        const double r = 3.6 * perPixel;
-        if (s.airport) {
-            painter.drawEllipse(at, r, r);
+        const auto st = style();   // (the mark may be painted later, when the options have changed)
+        const SurfaceStation station = s;
+        // the mark, painted at the origin with `unit` the size of a pixel of it: here at once, or later on a world picture where a polar projection would turn it
+        const auto mark = [st, station, old, color, font] (QPainter& p, double unit, double north) {
+            QFont f{font};
+            f.setPixelSize(std::max(6, static_cast<int>(std::lround(11.0 * unit))));
+            p.setFont(f);
+            const auto& s = station;
+            if (st.barbs && SurfaceStation::has(s.windSpeed) && !old) {
+                const QColor barb{225, 228, 235};
+                p.save();
+                p.rotate(north);
+                p.setPen(QPen{barb, 1.2 * unit});
+                p.setBrush(barb);
+                WindBarb::draw(p, QPointF{0.0, 0.0}, SurfaceStation::has(s.windDirection) ? s.windDirection : 0.0, s.windSpeed, 24.0 * unit, s.lat < 0.0);
+                p.restore();
+            }
+            p.setPen(QPen{QColor{255, 255, 255, 215}, 1.0 * unit});
+            p.setBrush(color);
+            const double r = 3.6 * unit;
+            if (s.airport) {
+                p.drawEllipse(QPointF{0.0, 0.0}, r, r);
+            } else {
+                p.drawRect(QRectF{-r * 0.85, -r * 0.85, r * 1.7, r * 1.7});
+            }
+            if (st.values && !old) {
+                const QFontMetricsF metrics{f};
+                const auto degrees = [&st] (double c) { return st.units == 0 ? c * 1.8 + 32.0 : c; };
+                if (SurfaceStation::has(s.temperature)) {
+                    const QString text = number(degrees(s.temperature));
+                    p.setPen(QColor{255, 110, 100});
+                    p.drawText(QPointF{-r - 2.0 * unit - metrics.horizontalAdvance(text), -2.0 * unit}, text);
+                }
+                if (SurfaceStation::has(s.dewPoint)) {
+                    const QString text = number(degrees(s.dewPoint));
+                    p.setPen(QColor{90, 220, 110});
+                    p.drawText(QPointF{-r - 2.0 * unit - metrics.horizontalAdvance(text), metrics.ascent() * 0.9}, text);
+                }
+            }
+        };
+        if (host.deferMarks()) {
+            host.deferMark(s.lat, s.lon, mark);
         } else {
-            painter.drawRect(QRectF{at.x() - r * 0.85, at.y() - r * 0.85, r * 1.7, r * 1.7});
-        }
-        if (style().values && !old) {
-            const QFontMetricsF metrics{font};
-            const auto degrees = [] (double c) { return style().units == 0 ? c * 1.8 + 32.0 : c; };
-            if (SurfaceStation::has(s.temperature)) {
-                const QString text = number(degrees(s.temperature));
-                painter.setPen(QColor{255, 110, 100});
-                painter.drawText(QPointF{at.x() - r - 2.0 * perPixel - metrics.horizontalAdvance(text), at.y() - 2.0 * perPixel}, text);
-            }
-            if (SurfaceStation::has(s.dewPoint)) {
-                const QString text = number(degrees(s.dewPoint));
-                painter.setPen(QColor{90, 220, 110});
-                painter.drawText(QPointF{at.x() - r - 2.0 * perPixel - metrics.horizontalAdvance(text), at.y() + metrics.ascent() * 0.9}, text);
-            }
+            painter.save();
+            painter.translate(at);
+            mark(painter, perPixel, 0.0);
+            painter.restore();
         }
     }
 }

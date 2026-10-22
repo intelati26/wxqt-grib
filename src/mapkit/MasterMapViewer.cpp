@@ -1555,8 +1555,40 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
             highNote += (highNote.empty() ? "" : ", ") + s.model + " " + s.run.substr(4) + "Z F" + std::to_string(s.hour);
         }
     } else {
+        deferNow = true;
         const auto skin = makeSkin(-85.0, 85.0, centre - 180.0, centre + 180.0, std::min(6000, static_cast<int>(width * 1.4)), 1300.0 / 360.0, true);   // (marks spaced as on a world map 1300 pixels wide)
+        deferNow = false;
         world = GlobeMapView::projectWorld(skin, projection, centre, width);
+        {   // the marks (stations) upright on the projected picture, each turned to the local north
+            double halfW, halfH;
+            GlobeMapView::extent(projection, halfW, halfH);
+            const double scale = world.width() / (2.0 * halfW);
+            QPainter markPainter{&world};
+            markPainter.setRenderHint(QPainter::Antialiasing);
+            if (GlobeMapView::isPolar(projection) && !GlobeMapView::polarWide()) {
+                QPainterPath disc;
+                disc.addEllipse(QRectF{0.0, 0.0, static_cast<double>(world.width()), static_cast<double>(world.height())});
+                markPainter.setClipPath(disc);
+            }
+            for (const auto& mark : marks) {
+                double lon = mark.lon - centre;
+                while (lon > 180.0) lon -= 360.0;
+                while (lon < -180.0) lon += 360.0;
+                double x, y, x2, y2;
+                if (!GlobeMapView::forward(projection, mark.lat, lon, x, y) || !GlobeMapView::forward(projection, std::min(89.9, mark.lat + 0.5), lon, x2, y2)) {
+                    continue;
+                }
+                const QPointF at{world.width() / 2.0 + x * scale, world.height() / 2.0 - y * scale};
+                if (at.x() < 0.0 || at.y() < 0.0 || at.x() > world.width() || at.y() > world.height()) {
+                    continue;
+                }
+                markPainter.save();
+                markPainter.translate(at);
+                mark.paint(markPainter, std::max(1.0, world.width() / 1300.0), std::atan2(x2 - x, y2 - y) * 180.0 / M_PI);
+                markPainter.restore();
+            }
+        }
+        marks.clear();
     }
     if (graticule) {
         QPainter linePainter{&world};
@@ -2075,6 +2107,7 @@ GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, doubl
     mapView->showRegion(minLat, maxLat, minLon, maxLon);
     QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
     const auto paintImage = [&] {
+        marks.clear();   // (a painting again hands them over again)
         image.fill(RadarPreferences::mapBackgroundColor);
         QPainter painter{&image};
         painter.setWindow(QRect{-500, -250, 1000, std::max(1, static_cast<int>(std::lround(1000.0 * height / width)))});

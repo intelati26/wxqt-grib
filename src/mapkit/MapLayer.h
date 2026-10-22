@@ -50,6 +50,11 @@ public:
     // two layers do not both put a mark on the same spot.
     virtual bool claimCell(const QPointF& pixels, double spacing) = 0;
     virtual double markScale() const { return 1.0; }             // how much larger the marks (barbs, symbols) are drawn: a picture of the whole world is made at a scale that keeps them the size they have on a world map of 1300 pixels
+    // marks that must stay upright on a projected world picture (a polar map turns the map under them): while deferMarks() a layer hands each mark over instead of painting it. The mark is painted
+    // with the painter at the place, `unit` = the size of one screen pixel of the mark, `north` = degrees clockwise the picture's up is from north there (for a barb). On the map itself the layer paints
+    // it at once (paintMark).
+    virtual bool deferMarks() const { return false; }
+    virtual void deferMark(double /*lat*/, double /*lon*/, std::function<void(QPainter&, double unit, double north)> /*paint*/) {}
     // work on another thread, then `done` on this one (dropped when the screen has been closed)
     virtual void background(std::function<void()> work, std::function<void()> done) = 0;
 };
