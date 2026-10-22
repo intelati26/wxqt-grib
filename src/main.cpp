@@ -375,7 +375,7 @@ int main(int argc, char * argv[]) {
                             if (model == "SPCREFS") {   // a field of SPC's store has its own hours (the 24 hour periods end at 00 and 12Z): the first one it has, as the screen's hour list offers
                                 std::string cycle, date;
                                 if (GfsRender::latestCycle(model, cycle, "", &date)) {
-                                    const auto hours = SpcRefsLoader::fieldHours(GfsData::Run{date, cycle.substr(0, 2)}, product.id);
+                                    const auto hours = SpcRefsLoader::fieldHours(GfsData::Run{date, cycle.substr(0, 2)}, [&product] { std::vector<std::string> v; for (const auto& w : product.wants) { v.push_back(w.variable); } return v; }());
                                     if (!hours.empty() && std::find(hours.begin(), hours.end(), hour) == hours.end()) {
                                         hour = hours.front();
                                     }

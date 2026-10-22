@@ -18,6 +18,7 @@ namespace SpcRefsLoader {
     void readMemberNames(const GfsData::Run& run);
     // the forecast hours a field of the run's store has (its own time coordinate: hourly, 3 or 6 hourly, the 12 and 24 hour periods ending at 00 and 12Z ...); empty when unknown
     std::vector<int> fieldHours(const GfsData::Run& run, const std::string& variable);
+    std::vector<int> fieldHours(const GfsData::Run& run, const std::vector<std::string>& variables);   // the hours every one of them has
 }
 
 #endif  // SPCREFSLOADER_H

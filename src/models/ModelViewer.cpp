@@ -1523,7 +1523,14 @@ void ModelViewer::askFieldHours() {
     fieldHoursAsked.insert(key);
     const auto param = objectModel.param;
     auto hours = std::make_shared<std::vector<int>>();
-    new FutureVoid{this, [runId, param, hours] { *hours = SpcRefsLoader::fieldHours(GfsData::Run{runId.substr(0, 8), runId.substr(8, 2)}, param); }, [this, key, hours] {
+    std::vector<string> variables{param};   // a chart of several fields (lines of another one over it) has the hours all of them have
+    if (const auto * product = GfsChart::product(param, "SPCREFS")) {
+        variables.clear();
+        for (const auto& want : product->wants) {
+            variables.push_back(want.variable);
+        }
+    }
+    new FutureVoid{this, [runId, variables, hours] { *hours = SpcRefsLoader::fieldHours(GfsData::Run{runId.substr(0, 8), runId.substr(8, 2)}, variables); }, [this, key, hours] {
         fieldHours[key] = *hours;
         const auto before = objectModel.getTime();
         fitHoursToRun();

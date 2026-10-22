@@ -5,6 +5,7 @@
 
 #include "spcrefs/SpcRefsLoader.h"
 #include "spcrefs/UtilitySpcRefs.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <map>
@@ -244,6 +245,25 @@ std::vector<int> SpcRefsLoader::fieldHours(const GfsData::Run& run, const std::s
         hours.push_back(static_cast<int>(std::lround((t - opened.initSeconds) / 3600.0)));
     }
     return hours;
+}
+
+// the hours a chart made of several fields has: the ones every field has (a chart with lines of another field, drawn only where both are)
+std::vector<int> SpcRefsLoader::fieldHours(const GfsData::Run& run, const std::vector<std::string>& variables) {
+    std::vector<int> common;
+    bool first = true;
+    for (const auto& variable : variables) {
+        const auto hours = fieldHours(run, variable);
+        if (hours.empty()) {
+            continue;   // not a field of the store (a chart's own name, a derived grid): says nothing
+        }
+        if (first) {
+            common = hours;
+            first = false;
+        } else {
+            common.erase(std::remove_if(common.begin(), common.end(), [&hours] (int h) { return std::find(hours.begin(), hours.end(), h) == hours.end(); }), common.end());
+        }
+    }
+    return common;
 }
 
 void SpcRefsLoader::registerLoader() {
