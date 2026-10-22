@@ -43,7 +43,7 @@
 #include <QFrame>
 #include <QGridLayout>
 #include <QScrollArea>
-#include "mapkit/GlobeViewer.h"
+#include "mapkit/WorldRender.h"
 #include "settings/RadarPreferences.h"
 #include "models/ProductPicker.h"
 #include "objects/UtilityAnimationExport.h"
@@ -1449,11 +1449,11 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
             return;
         }
         // the models' grids (a download the first time), then the pixels
-        std::vector<GlobeViewer::Source> sources;
+        std::vector<WorldRender::Source> sources;
         {
             QEventLoop loop;
             status("reading the models' fields ...");
-            new FutureVoid{this, [&] { sources = GlobeViewer::loadSources(chart, models, when); }, [&loop] { loop.quit(); }};
+            new FutureVoid{this, [&] { sources = WorldRender::loadSources(chart, models, when); }, [&loop] { loop.quit(); }};
             loop.exec();
         }
         if (sources.empty()) {
@@ -1469,7 +1469,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
             QTimer ticker;
             QObject::connect(&ticker, &QTimer::timeout, [&] { status("painting the world: " + std::to_string(rows.load() * 100 / std::max(1, totalRows)) + " %"); });
             ticker.start(500);
-            new FutureVoid{this, [&] { world = GlobeViewer::renderWorld(sources, static_cast<int>(projection), centre, width, &rows); }, [&loop] { loop.quit(); }};
+            new FutureVoid{this, [&] { world = WorldRender::renderWorld(sources, static_cast<int>(projection), centre, width, &rows); }, [&loop] { loop.quit(); }};
             loop.exec();
         }
         for (const auto& s : sources) {

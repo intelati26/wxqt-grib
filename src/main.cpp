@@ -55,7 +55,7 @@
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "climate/TempHistoryViewer.h"
-#include "mapkit/GlobeViewer.h"
+#include "mapkit/WorldRender.h"
 #include "mapkit/ModelChartLayer.h"
 #include "mapkit/UpperAirLayer.h"
 #include "dashboard/Dashboards.h"
@@ -334,7 +334,7 @@ int main(int argc, char * argv[]) {
                 for (const auto& m : parts.value(2).split(',', Qt::SkipEmptyParts)) {
                     models.push_back(m.toStdString());
                 }
-                const auto sources = GlobeViewer::loadSources(parts.value(1).toStdString(), models, when);
+                const auto sources = WorldRender::loadSources(parts.value(1).toStdString(), models, when);
                 for (const auto& s : sources) {
                     qWarning("seamcheck %-9s grid %dx%d step %.4f lon0 %.3f global %d", s.model.c_str(), s.grid.columns, s.grid.rows, s.grid.step, s.grid.lon0, s.grid.global() ? 1 : 0);
                     for (const double lat : {10.0, 40.0, -40.0}) {
@@ -415,7 +415,7 @@ int main(int argc, char * argv[]) {
                 for (const auto& m : parts.value(2).split(',', Qt::SkipEmptyParts)) {
                     models.push_back(m.toStdString());
                 }
-                const auto sources = GlobeViewer::loadSources(parts.value(1).toStdString(), models, when);
+                const auto sources = WorldRender::loadSources(parts.value(1).toStdString(), models, when);
                 for (const auto& place : parts.value(4).split(';', Qt::SkipEmptyParts)) {
                     const auto ll = place.split(',');
                     const double lat = ll.value(0).toDouble(), lon = ll.value(1).toDouble();
@@ -428,15 +428,6 @@ int main(int argc, char * argv[]) {
                     }
                 }
                 QTimer::singleShot(100, &a, &QCoreApplication::quit);
-            } else if (route.startsWith("globe:")) {   // WXQT_OPEN=globe:<lat>:<lon>:<chart id>:<model,model>:<yyyyMMddHH UTC>: the globe window
-                const auto parts = route.split(':');
-                auto when = QDateTime::fromString(parts.value(5), "yyyyMMddHH");
-                when.setTimeZone(QTimeZone::utc());
-                std::vector<std::string> models;
-                for (const auto& m : parts.value(4).split(',', Qt::SkipEmptyParts)) {
-                    models.push_back(m.toStdString());
-                }
-                new GlobeViewer{&w, parts.value(3).toStdString(), models, when, parts.value(1).toDouble(), parts.value(2).toDouble()};
             } else if (route.startsWith("looprange:")) {   // WXQT_OPEN=looprange:<yyyyMMddHHmm from>:<yyyyMMddHHmm to>:<layer id>: the master map looping between the two times
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};
