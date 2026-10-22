@@ -319,7 +319,7 @@ HurricaneViewer::HurricaneViewer(Window * parent, const string& basin, const str
             const auto& a = area[comboBasin.getIndex() - 3];
             comboBasin.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("HURRICANE_BASIN", 0), 0, 2)));
             auto * map = new MasterMapViewer{this};
-            map->openAt(QDateTime::currentDateTimeUtc(), a[0], a[1], a[2], {"tropical/world-storms", "satellite/sar-winds"});
+            map->openAt(QDateTime::currentDateTimeUtc(), a[0], a[1], a[2], {"tropical/world-storms", "tropical/spaghetti", "satellite/sar-winds"});
             return;
         }
         Utility::writePrefInt("HURRICANE_BASIN", comboBasin.getIndex());

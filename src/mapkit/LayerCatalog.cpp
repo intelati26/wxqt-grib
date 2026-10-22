@@ -84,7 +84,7 @@ const vector<MapCatalog::Preset>& MapCatalog::presets() {
         {"Raw ensemble spaghetti: every member of every system (world)", {"tropical/spaghetti"}, -50.0, 55.0, -180.0, 180.0},
         {"Raw ensemble spaghetti (Atlantic)", {"tropical/spaghetti", "tropical/storms"}, 5.0, 50.0, -100.0, -10.0},
         {"Tropical Atlantic", {"tropical/storms", "tropical/outlook", "tropical/windprob", "rivers/buoys"}, 5.0, 50.0, -100.0, -10.0},
-        {"Tropical Western Pacific (typhoons)", {"tropical/world-storms", "satellite/sar-winds", "rivers/buoys"}, 0.0, 45.0, 100.0, 180.0},
+        {"Tropical Western Pacific (typhoons)", {"tropical/world-storms", "tropical/spaghetti", "satellite/sar-winds", "rivers/buoys"}, 0.0, 45.0, 100.0, 180.0},
         {"Tropical East Pacific", {"tropical/storms", "tropical/outlook", "tropical/windprob", "rivers/buoys"}, 0.0, 40.0, -150.0, -80.0},
         {"Severe storms: radar, hail, rotation and lightning (United States)", {"radar/mrms", "radar/mrms-hail", "radar/mrms-rotation", "radar/mrms-lightning", "obs/airports"}, 24.0, 50.0, -105.0, -75.0},
         {"Tornado tracks and radar (United States)", {"severe/tornadoes", "radar/mrms", "obs/airports"}, 24.0, 50.0, -105.0, -75.0},
