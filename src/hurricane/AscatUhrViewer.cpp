@@ -45,7 +45,7 @@ AscatUhrViewer::AscatUhrViewer(Window * parent, const string& atcfId)
     , image{this}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("ASCAT ultra high resolution winds (NOAA OSPO)");
+    setTitle("ASCAT UHR winds - NOAA OSPO");
     auto * top = new QWidget{this};
     auto * topLayout = new QHBoxLayout{top};
     topLayout->setContentsMargins(0, 0, 0, 0);

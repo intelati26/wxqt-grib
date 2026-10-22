@@ -21,6 +21,7 @@
 #include "util/Utility.h"
 #include <map>
 #include "objects/FutureVoid.h"
+#include "ui/UiStandards.h"
 
 namespace {
     QString inText(long long seconds) {
@@ -51,13 +52,13 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
     , wanted{place}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("Satellite passes - storms and places of interest");
+    setTitle("Satellite passes - storms and places");
     auto * top = new QWidget{this};
     auto * layout = new QHBoxLayout{top};
     layout->setContentsMargins(0, 0, 0, 0);
-    placeBox = new QComboBox{top};
+    placeBox = UiStandards::combo(top);
     placeBox->setMinimumWidth(240);
-    hoursBox = new QComboBox{top};
+    hoursBox = UiStandards::combo(top);
     for (const int h : {-168, -72, -24, -12}) {   // a look back: when each last passed (the element sets are today's, run back: the quality column says how far to trust the older ones)
         hoursBox->addItem(h <= -72 ? "Last " + QString::number(-h / 24) + " days" : "Last " + QString::number(-h) + " hours", h);
     }
@@ -65,23 +66,22 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
         hoursBox->addItem(QString::number(h) + " hours ahead", h);
     }
     hoursBox->setCurrentIndex(qEnvironmentVariableIsSet("WXQT_SATSPAN") ? qEnvironmentVariableIntValue("WXQT_SATSPAN") : 5);   // (the variable is for testing)
-    kindBox = new QComboBox{top};
+    kindBox = UiStandards::combo(top);
     kindBox->addItem("Every instrument", -1);
     for (const auto kind : {SatellitePasses::Kind::Imagery, SatellitePasses::Kind::Microwave, SatellitePasses::Kind::Wind, SatellitePasses::Kind::Radar}) {
         kindBox->addItem(QString::fromStdString(SatellitePasses::kindName(kind)), static_cast<int>(kind));
     }
-    satelliteBox = new QComboBox{top};
+    satelliteBox = UiStandards::combo(top);
     satelliteBox->addItem("Every satellite");
     satelliteBox->addItem("EUMETSAT (Metop, Metop-SG, Sentinel-3)");
     for (const auto& s : SatellitePasses::satellites()) {
         satelliteBox->addItem(QString::fromStdString(s.name));
     }
-    auto * add = new QPushButton{"Add a place...", top};
-    auto * remove = new QPushButton{"Remove", top};
-    auto * map = new QPushButton{"On the map", top};
-    auto * open = new QPushButton{"Open the pass on the map", top};
-    open->setToolTip("The master map at the time of the selected pass, on its place, with the layers that show what the instrument saw (double-click a row does the same)");
-    auto * refresh = new QPushButton{"Refresh", top};
+    auto * add = UiStandards::button(top, "Add a place...", "Add a place of your own to the list");
+    auto * remove = UiStandards::button(top, "Remove", "Remove the place chosen (storms and saved locations stay)");
+    auto * map = UiStandards::button(top, "Swaths on the map...", "The master map with the swaths of these passes");
+    auto * open = UiStandards::button(top, "Pass on the map...", "The master map at the time of the selected pass, on its place, with the layers that show what the instrument saw (double-click a row does the same)");
+    auto * refresh = UiStandards::button(top, "Refresh", "Work the passes out again");
     for (auto * w : std::vector<QWidget *>{placeBox, hoursBox, kindBox, satelliteBox, add, remove, open, map, refresh}) {
         layout->addWidget(w);
     }
@@ -102,7 +102,7 @@ SatellitePassViewer::SatellitePassViewer(Window * parent, const std::string& pla
                                "A radar (SAR) pass is where the radar could look; which ones are scheduled is on NOAA STAR's SAR winds page. Quality is a guide from the geometry and the age of the element set (hover a row for the numbers): "
                                "far from the middle of a scanning swath the pixels stretch, and an old element set puts the satellite further from where this says.", this};
     credit->setWordWrap(true);
-    credit->setStyleSheet("color: gray;");
+    UiStandards::muted(credit);
     box.addWidgetReal(credit, 0, Qt::Alignment{});
     box.getAndShow(this);
     resize(1150, 700);

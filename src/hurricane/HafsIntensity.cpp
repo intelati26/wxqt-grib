@@ -133,7 +133,7 @@ HafsIntensityViewer::HafsIntensityViewer(Window * parent, const string& storm, c
     : Window{parent}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("HAFS intensity " + storm);
+    setTitle("HAFS intensity - " + storm);
     auto * chart = new HafsIntensityChart;
     chart->setData(a, b, "HAFS forecast intensity, storm " + storm + (cycle.empty() ? string{} : ", run " + cycle));
     box.addWidgetReal(chart);

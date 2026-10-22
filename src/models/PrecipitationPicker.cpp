@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "models/PrecipitationPicker.h"
+#include "ui/UiStandards.h"
 #include <algorithm>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -57,9 +58,9 @@ PrecipitationPicker::PrecipitationPicker(QWidget * parent, const std::vector<std
     add(7, 0, 0, "mslp_pwat");
     auto * column = new QVBoxLayout{this};
     auto * form = new QFormLayout;
-    whatBox = new QComboBox{this};
-    periodBox = new QComboBox{this};
-    linesBox = new QComboBox{this};
+    whatBox = UiStandards::combo(this);
+    periodBox = UiStandards::combo(this);
+    linesBox = UiStandards::combo(this);
     form->addRow("What", whatBox);
     form->addRow("Period", periodBox);
     form->addRow("Lines", linesBox);
@@ -68,9 +69,8 @@ PrecipitationPicker::PrecipitationPicker(QWidget * parent, const std::vector<std
     result->setWordWrap(true);
     column->addWidget(result);
     auto * buttons = new QHBoxLayout;
-    standard = new QPushButton{"Standard", this};
-    standard->setToolTip("The usual chart: the precipitation over 6 hours (or the nearest period the model has)");
-    use = new QPushButton{"Show this chart", this};
+    standard = UiStandards::button(this, "Standard", "The usual chart: the precipitation over 6 hours (or the nearest period the model has)");
+    use = UiStandards::button(this, "Show this chart");
     buttons->addWidget(standard);
     buttons->addStretch();
     buttons->addWidget(use);

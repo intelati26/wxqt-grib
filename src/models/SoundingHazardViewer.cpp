@@ -242,7 +242,7 @@ SoundingHazardViewer::SoundingHazardViewer(Window * parent, const SoundingProfil
     , lon{longitude}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("Possible hazard type");
+    setTitle("Hazard type - sounding");
     auto * page = new QWidget{this};
     auto * column = new QVBoxLayout{page};
     chart = new HazardChart{page};

@@ -17,6 +17,7 @@
 #include "objects/FutureVoid.h"
 #include "ui/ChartExport.h"
 #include "util/UtilityIO.h"
+#include "ui/UiStandards.h"
 
 namespace {
     constexpr double W = 1300.0, H = 770.0;
@@ -308,14 +309,14 @@ private:
 
 AceForecastViewer::AceForecastViewer(Window * parent) : Window{parent} {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("ACE forecast (Weather Lab ensemble)");
+    setTitle("ACE forecast - Weather Lab ensemble");
     auto * page = new QWidget{this};
     auto * column = new QVBoxLayout{page};
     auto * row = new QHBoxLayout;
-    stormBox = new QComboBox{page};
+    stormBox = UiStandards::combo(page);
     stormBox->setMinimumWidth(420);
     status = new QLabel{"Reading the Weather Lab large ensemble (about 37 MB)...", page};
-    auto * reload = new QPushButton{"Reload", page};
+    auto * reload = UiStandards::button(page, "Reload", "Read the Weather Lab file again");
     row->addWidget(stormBox);
     row->addWidget(reload);
     row->addWidget(status, 1);
@@ -324,7 +325,7 @@ AceForecastViewer::AceForecastViewer(Window * parent) : Window{parent} {
     column->addWidget(board, 1);
     credit = new QLabel{QString::fromStdString(EnsembleStyle::deepMindCredit()), page};
     credit->setWordWrap(true);
-    credit->setStyleSheet("color: gray;");
+    UiStandards::muted(credit);
     column->addWidget(credit);
     setCentralWidget(page);
     setSize(1180, 800);

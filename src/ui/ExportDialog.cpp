@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "ui/ExportDialog.h"
+#include "ui/UiStandards.h"
 #include <algorithm>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -44,7 +45,7 @@ void ExportDialog::addKind(const QString& id, const QString& label, const QStrin
 }
 
 void ExportDialog::addOption(const QString& key, const QString& label, const std::vector<std::pair<QString, QString>>& items, const QString& current, const std::vector<QString>& onlyFor) {
-    auto * box = new QComboBox{this};
+    auto * box = UiStandards::combo(this);
     for (const auto& [id, text] : items) {
         box->addItem(text, id);
         if (id == current) {

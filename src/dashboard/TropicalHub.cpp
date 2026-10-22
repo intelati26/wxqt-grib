@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "dashboard/TropicalHub.h"
+#include "ui/UiStandards.h"
 #include "ui/ActivityLabel.h"
 #include <algorithm>
 #include <cmath>
@@ -423,30 +424,29 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
         layout->addWidget(updated);
     }
     auto * row = new QHBoxLayout;
-    const auto addButton = [&] (const QString& text, std::function<void()> action) {
-        auto * button = new QPushButton{text, frame};
-        button->setStyleSheet("");
+    const auto addButton = [&] (const QString& text, const QString& tip, std::function<void()> action) {
+        auto * button = UiStandards::button(frame, text, tip);
         QObject::connect(button, &QPushButton::clicked, action);
         row->addWidget(button);
     };
     const auto id = entry.id;
-    addButton("Track map and recon", [this, basin, id] { new HurricaneViewer{this, basin, id}; });
+    addButton("Track map and recon...", "The track, model guidance and recon of this storm", [this, basin, id] { new HurricaneViewer{this, basin, id}; });
     {   // the hurricane model for this storm (it runs for active storms and invests)
-        addButton("HAFS model", [this, id] { openHafs(Hafs::modelId(id)); });
+        addButton("HAFS model...", "The hurricane model's forecast of this storm", [this, id] { openHafs(Hafs::modelId(id)); });
     }
     if (!invest) {
         const auto stormName = entry.name;
-        addButton("Recon flight", [this, id, stormName] { new ReconViewer{this, id, stormName}; });
+        addButton("Recon flight...", "The aircraft flight: text updates and its track on the satellite picture", [this, id, stormName] { new ReconViewer{this, id, stormName}; });
     }
     if (!entry.advisoryUrl.empty() || !entry.discussionUrl.empty()) {
         const auto copy = entry;
-        addButton("Advisory products", [this, copy] { new AdvisoryViewer{this, copy}; });
+        addButton("Advisory...", "The advisory products and the discussion", [this, copy] { new AdvisoryViewer{this, copy}; });
     }
     {
         const auto atcfId = entry.id;
         const auto atcfTitle = HurricaneData::idLabel(entry.id) + (entry.name.empty() ? "" : " " + entry.name);
-        addButton("ASCAT winds", [this, atcfId] { new AscatUhrViewer{this, atcfId}; });
-        addButton("ATCF feed", [this, atcfId, atcfTitle] { new AtcfFeedViewer{this, atcfId, atcfTitle}; });
+        addButton("ASCAT winds...", "ASCAT ultra high resolution wind passes over the storm", [this, atcfId] { new AscatUhrViewer{this, atcfId}; });
+        addButton("ATCF feed...", "The raw ATCF fixes and guidance files", [this, atcfId, atcfTitle] { new AtcfFeedViewer{this, atcfId, atcfTitle}; });
     }
     row->addStretch();
     layout->addLayout(row);
@@ -540,22 +540,21 @@ QWidget * TropicalHub::otherCard(const OtherStorm& storm) {
     info->setWordWrap(true);
     layout->addWidget(info);
     auto * row = new QHBoxLayout;
-    const auto addButton = [&] (const QString& text, std::function<void()> action) {
-        auto * button = new QPushButton{text, frame};
-        button->setStyleSheet("");
+    const auto addButton = [&] (const QString& text, const QString& tip, std::function<void()> action) {
+        auto * button = UiStandards::button(frame, text, tip);
         QObject::connect(button, &QPushButton::clicked, action);
         row->addWidget(button);
     };
     const auto id = storm.info.id, title = storm.info.title;
-    addButton("Storm page (loops, JTWC, JMA, SAR)", [this, id, title] { new CiraStorm{this, id, title}; });
+    addButton("Storm page...", "Loops, the JTWC and JMA text and the SAR winds", [this, id, title] { new CiraStorm{this, id, title}; });
     {
         const auto dash = title.rfind(' ');
         const string name = dash == string::npos ? string{} : title.substr(dash + 1);
         const int year = upper.size() >= 8 ? std::atoi(upper.substr(upper.size() - 4).c_str()) : 0;
-        addButton("SAR winds", [this, upper, name, year] { new SarWindsViewer{this, upper, name, year}; });
+        addButton("SAR winds...", "NOAA STAR's SAR wind scenes of the storm", [this, upper, name, year] { new SarWindsViewer{this, upper, name, year}; });
     }
-    addButton("ASCAT winds", [this, id] { new AscatUhrViewer{this, id}; });
-    addButton("ATCF feed", [this, id, title] { new AtcfFeedViewer{this, id, title}; });
+    addButton("ASCAT winds...", "ASCAT ultra high resolution wind passes over the storm", [this, id] { new AscatUhrViewer{this, id}; });
+    addButton("ATCF feed...", "The raw ATCF fixes and guidance files", [this, id, title] { new AtcfFeedViewer{this, id, title}; });
     {   // the track map: the master map fitted to the whole track (history and forecast) with the JTWC / JMA layer (no aircraft recon flies these basins)
         double south = 90, north = -90, west = 360, east = -360;
         bool have = false;
@@ -576,7 +575,7 @@ QWidget * TropicalHub::otherCard(const OtherStorm& storm) {
             lon -= 360.0;
         }
         const double km = have ? std::clamp(std::max(north - south, (east - west) * std::cos(lat * M_PI / 180.0)) * 111.0 * 0.75 + 300.0, 600.0, 4000.0) : 1800.0;
-        addButton("Track map", [this, lat, lon, km, id] {
+        addButton("Track map...", "The master map fitted to the track, with the forecast, the SAR winds and the ensemble tracks of this storm", [this, lat, lon, km, id] {
             auto * map = new MasterMapViewer{this};
             map->openAt(QDateTime::currentDateTimeUtc(), lat, lon, km, {"tropical/world-storms", "tropical/spaghetti", "satellite/sar-winds"});
             map->showSystem(id);   // the ensemble members of this storm, as the track map of an NHC storm
