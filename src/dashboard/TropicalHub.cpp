@@ -576,9 +576,10 @@ QWidget * TropicalHub::otherCard(const OtherStorm& storm) {
             lon -= 360.0;
         }
         const double km = have ? std::clamp(std::max(north - south, (east - west) * std::cos(lat * M_PI / 180.0)) * 111.0 * 0.75 + 300.0, 600.0, 4000.0) : 1800.0;
-        addButton("Track map", [this, lat, lon, km] {
+        addButton("Track map", [this, lat, lon, km, id] {
             auto * map = new MasterMapViewer{this};
             map->openAt(QDateTime::currentDateTimeUtc(), lat, lon, km, {"tropical/world-storms", "tropical/spaghetti", "satellite/sar-winds"});
+            map->showSystem(id);   // the ensemble members of this storm, as the track map of an NHC storm
         });
     }
     row->addStretch();

@@ -56,6 +56,7 @@ public:
     void exportWithContext(const QString& path, const string& acisProduct, const string& office = {});   // (the lighter ACIS map under it; for the dev route)
     static MasterMapViewer * openModels(Window * parent, const string& model = {}, const string& param = {}, const string& sector = {}, const QDateTime& valid = {});
     void openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds);
+    void showSystem(const string& atcfId);   // the ensemble tracks of that one system only (as the track map of a storm)
 
 private:
     // MapHost

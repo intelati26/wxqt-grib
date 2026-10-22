@@ -151,6 +151,7 @@ public:
     vector<MapLegendRow> legend() const override;
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     string summary() const override;
+    void showSystem(const string& atcfId);   // only the one system (a storm's ATCF id: wp122026), "" all of them
 
 protected:
     void onEnable(MapHost& host) override {
@@ -168,6 +169,8 @@ private:
     static constexpr int modelCount = 5;
     static int modelIndex(const string& label);
     int limitHours() const;
+    bool wanted(const UtilityEcmwfTracks::Storm&) const;
+    string system;   // number and the basin's letters ("12W"): the one system shown, "" every one
     QColor colorOf(const Run& run, int hour, double wind) const;
     bool loading{false};
     string error;

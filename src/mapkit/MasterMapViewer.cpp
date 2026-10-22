@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/MasterMapViewer.h"
+#include "mapkit/TropicalLayers.h"
 #include "mapkit/GlobeAreaPicker.h"
 #include "history/HistoryCursor.h"
 #include <QTimeZone>
@@ -2341,6 +2342,13 @@ void MasterMapViewer::openAt(const QDateTime& utc, double lat, double lon, doubl
     extra = "as of " + utc.toUTC().toString("yyyy-MM-dd HH:mm").toStdString() + "Z";
     updateStatus();
     setTitle("Master map - " + extra);
+}
+
+void MasterMapViewer::showSystem(const string& atcfId) {
+    if (auto * spaghetti = dynamic_cast<EnsembleSpaghettiLayer *>(layerOf("tropical/spaghetti"))) {
+        spaghetti->showSystem(atcfId);
+        mapView->map()->update();
+    }
 }
 
 void MasterMapViewer::onlyLayer(const string& id) {

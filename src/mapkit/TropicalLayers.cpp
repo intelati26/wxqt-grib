@@ -774,6 +774,24 @@ int EnsembleSpaghettiLayer::modelIndex(const string& label) {
     return -1;
 }
 
+void EnsembleSpaghettiLayer::showSystem(const string& atcfId) {
+    system.clear();
+    if (atcfId.size() >= 8) {   // wp122026: the number and the basin's letters ("12" and W)
+        static const std::map<string, string> letters{{"al", "L"}, {"ep", "E"}, {"cp", "C"}, {"wp", "W"}, {"io", "AB"}, {"sh", "SPAU"}};
+        string basin = atcfId.substr(0, 2);
+        std::transform(basin.begin(), basin.end(), basin.begin(), [] (unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        const auto found = letters.find(basin);
+        system = atcfId.substr(2, 2) + (found != letters.end() ? found->second : string{});
+    }
+}
+
+bool EnsembleSpaghettiLayer::wanted(const UtilityEcmwfTracks::Storm& storm) const {
+    if (system.size() < 3) {
+        return true;   // every system
+    }
+    return storm.id.size() == 3 && storm.id.compare(0, 2, system, 0, 2) == 0 && system.find(storm.id[2], 2) != string::npos;
+}
+
 int EnsembleSpaghettiLayer::limitHours() const {
     static const int hours[] = {10000, 240, 168, 120, 72, 48, 24};
     return hours[std::clamp(hoursChoice, 0, 6)];
@@ -872,6 +890,9 @@ void EnsembleSpaghettiLayer::paint(QPainter& painter, MapHost& host) {
                 continue;
             }
             for (const auto& storm : run.storms) {
+                if (!wanted(storm)) {
+                    continue;
+                }
                 for (const auto& m : storm.members) {
                     if (colorMode == 0) {   // one path per member
                         QColor color = colorOf(run, 0, 0.0);
@@ -933,6 +954,9 @@ void EnsembleSpaghettiLayer::paint(QPainter& painter, MapHost& host) {
             color = QColor{255, 255, 255};
         }
         for (size_t i = 0; i < run.storms.size(); i++) {
+            if (!wanted(run.storms[i])) {
+                continue;
+            }
             const auto& hours = run.means[i];
             if (hours.size() < 2) {
                 continue;
@@ -968,6 +992,9 @@ void EnsembleSpaghettiLayer::paint(QPainter& painter, MapHost& host) {
             continue;
         }
         for (size_t i = 0; i < run.storms.size(); i++) {
+            if (!wanted(run.storms[i])) {
+                continue;
+            }
             const auto& hours = run.means[i];
             const string name = run.storms[i].id;
             if (hours.empty() || std::find(labelled.begin(), labelled.end(), name) != labelled.end()) {
@@ -1023,6 +1050,9 @@ MapHit EnsembleSpaghettiLayer::pick(const QPointF& pixels, MapHost& host) const 
             continue;
         }
         for (size_t i = 0; i < run.storms.size(); i++) {
+            if (!wanted(run.storms[i])) {
+                continue;
+            }
             const auto& storm = run.storms[i];
             if (showMembers) {
                 for (const auto& m : storm.members) {
