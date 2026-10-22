@@ -427,6 +427,9 @@ int ModelChartLayer::aheadCount() const {
     if (mode == "12" || mode == "24") {
         return std::atoi(mode.c_str());
     }
+    if (const auto * product = GfsChart::product(param, model); product != nullptr && GfsChart::needs(*product, 24).size() > 40) {
+        return 4;   // a chart that reads every member: a few hours ahead, not the run
+    }
     const auto * def = GfsModels::find(model);
     return def == nullptr ? 24 : std::max(1, def->preloadHours);
 }

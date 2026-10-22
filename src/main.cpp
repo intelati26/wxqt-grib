@@ -366,6 +366,14 @@ int main(int argc, char * argv[]) {
                         fprintf(stderr, "MAGCHECK %s vs %s: %d of %d drawn; missing:%s\n", list.picture, grib, have, static_cast<int>(list.ids->size()), missing.c_str());
                     }
                 }
+                if (const auto spec = qEnvironmentVariable("WXQT_DRAW"); !spec.isEmpty()) {   // WXQT_DRAW=<model>:<chart>:<hour>: draws that chart once and says how long it took
+                    GfsRender::Session session;
+                    std::string error;
+                    QElapsedTimer timer;
+                    timer.start();
+                    const auto bytes = GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), "CONUS", "", spec.section(':', 2, 2).toInt(), {}, error, nullptr);
+                    fprintf(stderr, "MAGDRAW %s %s in %.1f s %s\n", spec.toStdString().c_str(), bytes.isEmpty() ? "FAILED" : "ok", timer.elapsed() / 1000.0, error.c_str());
+                }
                 if (const auto listed = qEnvironmentVariable("WXQT_LIST").toStdString(); !listed.empty()) {   // WXQT_LIST=<model>: the model's charts, id | label | picker group
                     for (const auto& product : GfsChart::products()) {
                         if (product.source == listed) {

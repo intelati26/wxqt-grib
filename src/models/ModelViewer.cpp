@@ -1184,6 +1184,9 @@ int ModelViewer::preloadAhead() const {
     if (mode == "all") return 100000;
     const auto * def = GfsModels::find(objectModel.model);
     const int cycle = std::atoi(objectModel.run.c_str());
+    if (const auto * product = GfsChart::product(objectModel.param, objectModel.model); product != nullptr && GfsChart::needs(*product, 24).size() > 40) {
+        return 4;   // a chart that reads every member (31 of them, several fields each): a few hours ahead, not the run (an hour is some seconds of work, hundreds of requests)
+    }
     if (def && def->runLength && def->runLength(cycle) <= 24) {
         return 100000;
     }
