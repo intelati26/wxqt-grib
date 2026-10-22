@@ -270,6 +270,7 @@ void CfsOutlookLayer::load(MapHost& host) {
                 for (auto& v : grid.values) {
                     v = static_cast<float>(inUnits(v));   // the program's units, for the colours, the hover and the legend alike
                 }
+                GfsGrid::closeWrapGap(grid);   // the model's grid warped onto -180..180 has no value in its first and last columns: a dark strip at the date line otherwise
                 Frame f;
                 f.image = colored(grid);
                 {   // the colours' edges as numbered lines (the values of the legend)
