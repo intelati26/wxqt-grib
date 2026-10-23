@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/MasterMapViewer.h"
+#include "tropical/PhaseViewer.h"
 #include "mapkit/TropicalLayers.h"
 #include "mapkit/GlobeAreaPicker.h"
 #include "history/HistoryCursor.h"
@@ -140,6 +141,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     , buttonAreas{this, None, "Areas..."}
     , buttonTemps{this, None, "Temp history...", "Temperature history of the place"}
     , buttonSounding{this, None, "Sounding..."}
+    , buttonPhase{this, None, "Phase...", "The cyclone phase space (warm or cold core, symmetric or not) of the swirl nearest the place the pointer was last on the map, in the chart's model (else the GFS): any low, a European windstorm, a medicane, a storm with no name. The centre is found from the model's own pressure and vorticity near the place"}
     , buttonMembers{this, None, "Members graph..."}
     , textStatus{this, "Switch layers on in the tree"}
 {
@@ -371,6 +373,20 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
         }
         new SoundingViewer{this, lon > 180.0 ? lon - 360.0 : lon, lat, valid};
     });
+    buttonPhase.connect([this] {
+        double lat = 0.0, lon = 0.0;
+        pointFor(lat, lon);
+        lon = lon > 180.0 ? lon - 360.0 : lon;
+        const auto * chart = modelLayer();
+        string model = chart != nullptr ? chart->modelName() : string{"GFS"};
+        const auto available = PhaseViewer::models();
+        if (std::find(available.begin(), available.end(), model) == available.end()) {
+            model = "GFS";
+        }
+        char place[40];
+        std::snprintf(place, sizeof place, "%.1f%s %.1f%s", std::fabs(lat), lat >= 0 ? "N" : "S", std::fabs(lon), lon >= 0 ? "E" : "W");
+        PhaseViewer::pick(this, string{"system near "} + place, lat, lon, model);
+    });
     buttonMembers.getView()->setToolTip("REFS charts: each of the 5 members' value at the place the pointer was last on the map over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
     buttonMembers.connect([this] {
         double lat = 0.0, lon = 0.0;
@@ -410,6 +426,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     rowTop.addWidget(buttonAreas);
     rowTop.addWidget(buttonTemps);
     rowTop.addWidget(buttonSounding);
+    rowTop.addWidget(buttonPhase);
     rowTop.addWidget(buttonMembers);
     rowTop.addStretch();
     // the time bar: shown while a layer with frames is on

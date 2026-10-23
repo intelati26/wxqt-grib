@@ -451,7 +451,7 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
     {   // (an invest has no fix in the list of active storms: the window reads its best track file for where it is)
         const double lat = entry.lat, lon = entry.lon;
         const auto phaseTitle = title.toStdString();
-        addButton("Phase space...", "Hart's cyclone phase space (warm or cold core, symmetric or not) of this storm in any deterministic model", [this, phaseTitle, lat, lon, id] { new PhaseViewer{this, phaseTitle, lat, lon, "GFS", id}; });
+        addButton("Phase space...", "Hart's cyclone phase space (warm or cold core, symmetric or not) of this storm in any deterministic model", [this, phaseTitle, lat, lon, id] { PhaseViewer::pick(this, phaseTitle, lat, lon, "GFS", id); });
     }
     row->addStretch();
     layout->addLayout(row);
@@ -560,7 +560,7 @@ QWidget * TropicalHub::otherCard(const OtherStorm& storm) {
     addButton("ATCF feed...", "The raw ATCF fixes and guidance files", [this, id, title] { new AtcfFeedViewer{this, id, title}; });
     {
         const double fixLat = now.lat, fixLon = now.lon;
-        addButton("Phase space...", "Hart's cyclone phase space (warm or cold core, symmetric or not) of this storm in any deterministic model", [this, title, fixLat, fixLon, id] { new PhaseViewer{this, title, fixLat, fixLon, "GFS", id}; });
+        addButton("Phase space...", "Hart's cyclone phase space (warm or cold core, symmetric or not) of this storm in any deterministic model", [this, title, fixLat, fixLon, id] { PhaseViewer::pick(this, title, fixLat, fixLon, "GFS", id); });
     }
     {   // the track map: the master map fitted to the whole track (history and forecast) with the JTWC / JMA layer (no aircraft recon flies these basins)
         double south = 90, north = -90, west = 360, east = -360;

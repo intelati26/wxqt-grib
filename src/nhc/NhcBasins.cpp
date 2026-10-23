@@ -134,7 +134,7 @@ void NhcBasins::fill() {
             rowLayout->addWidget(button("Track map...", "The track, model guidance and recon of this system", [this, basinCopy, id] { new HurricaneViewer{owner, basinCopy, id}; }));
             const double lat = system.lat, lon = system.lon;
             const string title = HurricaneData::idLabel(id) + (e.name.empty() ? "" : " " + e.name);
-            rowLayout->addWidget(button("Phase space...", "Hart's cyclone phase space of this system in a model", [this, title, lat, lon, id] { new PhaseViewer{owner, title, lat, lon, "GFS", id}; }));
+            rowLayout->addWidget(button("Phase space...", "Hart's cyclone phase space of this system in a model", [this, title, lat, lon, id] { PhaseViewer::pick(owner, title, lat, lon, "GFS", id); }));
             layout->addWidget(row);
         };
         bool any = false;

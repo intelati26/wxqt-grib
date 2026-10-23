@@ -10,6 +10,9 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QImage>
+#include <QSignalBlocker>
+#include <QRegularExpression>
+#include <QInputDialog>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPointer>
@@ -17,8 +20,10 @@
 #include <QPushButton>
 #include "gfs/GfsModels.h"
 #include "hurricane/Coast.h"
+#include "hurricane/HurricaneData.h"
 #include "objects/FutureVoid.h"
 #include "objects/URL.h"
+#include "util/Utility.h"
 #include "ui/UiStandards.h"
 
 // the diagrams: -VTL against -VTU as the main one (the shaded quadrants: cold core, shallow and deep warm core), and B against -VTL beside it. A dot is an analysis, a crossed dot a forecast; the colour is the
@@ -30,6 +35,16 @@ public:
     }
     void set(const vector<PhaseSpace::Point>& p) {
         points = p;
+        update();
+    }
+    // the other systems of a comparison, drawn thinner in their own colours under the one shown
+    struct Line {
+        QString label;
+        QColor colour;
+        vector<PhaseSpace::Point> points;
+    };
+    void setOthers(const vector<Line>& lines) {
+        others = lines;
         update();
     }
 
@@ -54,14 +69,20 @@ protected:
         painter.setRenderHint(QPainter::Antialiasing);
         const auto text = palette().color(QPalette::WindowText);
         double xs = 150.0, ys = 150.0, bs = 40.0;
-        for (const auto& p : points) {
-            if (p.ok) {
-                xs = std::max(xs, std::fabs(p.vtl));
-                ys = std::max(ys, std::fabs(p.vtu));
-                if (p.bKnown) {
-                    bs = std::max(bs, p.b);
+        const auto scan = [&] (const vector<PhaseSpace::Point>& list) {
+            for (const auto& p : list) {
+                if (p.ok) {
+                    xs = std::max(xs, std::fabs(p.vtl));
+                    ys = std::max(ys, std::fabs(p.vtu));
+                    if (p.bKnown) {
+                        bs = std::max(bs, p.b);
+                    }
                 }
             }
+        };
+        scan(points);
+        for (const auto& line : others) {
+            scan(line.points);
         }
         xs = std::ceil(xs * 1.15 / 50.0) * 50.0;
         ys = std::ceil(ys * 1.15 / 50.0) * 50.0;
@@ -174,6 +195,33 @@ protected:
             big.setBold(false);
             painter.setFont(big);
         };
+        for (const auto& line : others) {   // the other systems: a line and small dots in the system's colour, its name at the last point
+            for (const bool useB : {false, true}) {
+                const QRectF& r = useB ? side : main;
+                const double y0 = useB ? 0.0 : -ys, y1 = useB ? bs : ys;
+                QPointF last, lastDrawn;
+                bool have = false;
+                for (const auto& p : line.points) {
+                    if (!p.ok || (useB && !p.bKnown)) {
+                        continue;
+                    }
+                    const auto pos = at(r, -xs, xs, y0, y1, p.vtl, useB ? p.b : p.vtu);
+                    if (have) {
+                        painter.setPen(QPen{line.colour, 1.8});
+                        painter.drawLine(last, pos);
+                    }
+                    painter.setPen(QPen{line.colour, 1});
+                    painter.setBrush(p.hour > 0 ? QBrush{Qt::white} : QBrush{line.colour});
+                    painter.drawEllipse(pos, 3.5, 3.5);
+                    last = pos;
+                    have = true;
+                }
+                if (have) {
+                    painter.setPen(line.colour);
+                    painter.drawText(last + QPointF{6, -6}, line.label);
+                }
+            }
+        }
         track(main, -xs, xs, -ys, ys, false);
         track(side, -xs, xs, 0, bs, true);
         // the key
@@ -208,6 +256,7 @@ protected:
 
 private:
     vector<PhaseSpace::Point> points;
+    vector<Line> others;
 };
 
 // where the storm has been and goes: the track on the coasts, a line through the analyses (past) and the forecast, the dots coloured by pressure as on the diagrams
@@ -224,6 +273,10 @@ public:
         observed = o;
         update();
     }
+    void setOthers(const vector<PhasePlot::Line>& lines) {
+        others = lines;
+        update();
+    }
 
 protected:
     void paintEvent(QPaintEvent *) override {
@@ -237,6 +290,14 @@ protected:
         for (const auto& p : points) {
             west = std::min(west, p.lon); east = std::max(east, p.lon);
             south = std::min(south, p.lat); north = std::max(north, p.lat);
+        }
+        for (const auto& line : others) {
+            for (const auto& p : line.points) {
+                if (std::fabs(p.lon - (west + east) / 2.0) < 120.0) {
+                    west = std::min(west, p.lon); east = std::max(east, p.lon);
+                    south = std::min(south, p.lat); north = std::max(north, p.lat);
+                }
+            }
         }
         for (const auto& o : observed) {
             if (std::fabs(o.lon - (west + east) / 2.0) < 120.0) {
@@ -295,6 +356,23 @@ protected:
                 painter.drawText(QPointF{8, 16}, "red: observed (best track)");
             }
         }
+        for (const auto& line : others) {   // the other systems of a comparison
+            QPointF last;
+            bool haveLine = false;
+            for (const auto& p : line.points) {
+                const auto pos = at(p.lon, p.lat);
+                if (haveLine) {
+                    painter.setPen(QPen{line.colour, 2.0, p.hour > 0 ? Qt::DashLine : Qt::SolidLine});
+                    painter.drawLine(last, pos);
+                }
+                last = pos;
+                haveLine = true;
+            }
+            if (haveLine) {
+                painter.setPen(line.colour);
+                painter.drawText(last + QPointF{6, -6}, line.label);
+            }
+        }
         QPointF previous;
         bool have = false;
         for (const auto& p : points) {
@@ -332,6 +410,7 @@ protected:
 private:
     vector<PhaseSpace::Point> points;
     vector<PhaseSpace::Observed> observed;
+    vector<PhasePlot::Line> others;
 };
 
 vector<string> PhaseViewer::models() {
@@ -355,12 +434,67 @@ vector<string> PhaseViewer::models() {
     return out;
 }
 
+namespace {
+    QPointer<PhaseViewer> openWindow;   // the window a pick joins
+
+    const QColor seriesColours[] = {QColor{20, 20, 20}, QColor{200, 30, 30}, QColor{20, 110, 220}, QColor{20, 150, 70}, QColor{170, 60, 200}, QColor{230, 130, 0}};
+
+    // the systems chosen before: "label|lat|lon|id", newest first
+    QStringList recents() {
+        return QString::fromStdString(Utility::readPref("PHASE_RECENT", "")).split('\n', Qt::SkipEmptyParts);
+    }
+
+    void remember(const string& label, double lat, double lon, const string& id) {
+        auto list = recents();
+        const QString entry = QString::fromStdString(label).replace('|', ' ').replace('\n', ' ') + "|" + QString::number(lat, 'f', 2) + "|" + QString::number(lon, 'f', 2) + "|" + QString::fromStdString(id);
+        list.removeAll(entry);
+        list.prepend(entry);
+        while (list.size() > 10) {
+            list.removeLast();
+        }
+        Utility::writePref("PHASE_RECENT", list.join('\n').toStdString());
+    }
+
+    // "52.0 -12.0 Norwegian Sea low", "52N 12W low", or an id ("al932026"); false when it is none of these
+    bool parseSystem(const QString& text, string& label, double& lat, double& lon, string& id) {
+        const auto trimmed = text.trimmed();
+        if (QRegularExpression{"^[a-zA-Z]{2}[0-9]{6}$"}.match(trimmed).hasMatch()) {
+            id = trimmed.toLower().toStdString();
+            label = HurricaneData::idLabel(id);
+            lat = lon = 0.0;
+            return true;
+        }
+        const auto m = QRegularExpression{"^\\s*(-?[0-9.]+)\\s*([NSns]?)[ ,]+(-?[0-9.]+)\\s*([EWew]?)\\s*(.*)$"}.match(trimmed);
+        if (!m.hasMatch()) {
+            return false;
+        }
+        lat = m.captured(1).toDouble() * (m.captured(2).toUpper() == "S" ? -1.0 : 1.0);
+        lon = m.captured(3).toDouble() * (m.captured(4).toUpper() == "W" ? -1.0 : 1.0);
+        if (std::fabs(lat) > 90.0 || std::fabs(lon) > 360.0 || (lat == 0.0 && lon == 0.0)) {
+            return false;
+        }
+        lon = lon > 180.0 ? lon - 360.0 : lon;
+        id.clear();
+        label = m.captured(5).trimmed().isEmpty() ? QString{"%1%2 %3%4"}.arg(std::fabs(lat), 0, 'f', 1).arg(lat >= 0 ? "N" : "S").arg(std::fabs(lon), 0, 'f', 1).arg(lon >= 0 ? "E" : "W").toStdString() : m.captured(5).trimmed().toStdString();
+        return true;
+    }
+}
+
+PhaseViewer * PhaseViewer::pick(Window * parent, const string& title, double lat, double lon, const string& model, const string& atcfId) {
+    if (!openWindow.isNull() && !openWindow->closed) {
+        openWindow->addSystem(title, lat, lon, atcfId);
+        openWindow->raise();
+        openWindow->activateWindow();
+        return openWindow;
+    }
+    auto * window = new PhaseViewer{parent, title, lat, lon, model, atcfId};
+    openWindow = window;
+    return window;
+}
+
 PhaseViewer::PhaseViewer(Window * parent, const string& title, double lat, double lon, const string& model, const string& atcfId)
     : Window{parent}
     , session{std::make_shared<GfsRender::Session>()}
-    , lat{lat}
-    , lon{lon}
-    , atcfId{atcfId}
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle("Phase space - " + title);
@@ -374,8 +508,15 @@ PhaseViewer::PhaseViewer(Window * parent, const string& title, double lat, doubl
     }
     const int at = modelBox->findData(QString::fromStdString(model));
     modelBox->setCurrentIndex(at >= 0 ? at : 0);
-    auto * again = UiStandards::button(top, "Measure", "Read the model's newest run again and follow the storm through it");
+    systemBox = UiStandards::combo(top);
+    systemBox->setToolTip("The system shown in full below; the others are the thinner lines");
+    auto * add = UiStandards::button(top, "Add...", "Add another system to compare: a place (52.0 -12.0 Norwegian Sea low) or a storm's id (al932026), or one of the last ones");
+    auto * remove = UiStandards::button(top, "Remove", "Take the system shown out of the comparison");
+    auto * again = UiStandards::button(top, "Measure", "Read the model's newest run again and follow the systems through it");
     topLayout->addWidget(modelBox, 1);
+    topLayout->addWidget(systemBox, 1);
+    topLayout->addWidget(add);
+    topLayout->addWidget(remove);
     topLayout->addWidget(again);
     box.addWidgetReal(top, 0, Qt::Alignment{});
     headline = new QLabel{this};
@@ -402,22 +543,86 @@ PhaseViewer::PhaseViewer(Window * parent, const string& title, double lat, doubl
     lowerLayout->addWidget(map, 1);
     box.addWidgetReal(lower, 1, Qt::Alignment{});
     auto * credit = new QLabel{"After Hart (2003), Monthly Weather Review 131: B is the thickness asymmetry of 900-600 mb across the storm's track (above 10 m: asymmetric, a frontal or hybrid system); -VTL and -VTU are the lapse "
-                               "with ln p of the range of the model's heights within 500 km, 900-600 and 600-300 mb (above 0: a warm core). The storm is followed as the lowest sea level pressure of the model near where it was, "
-                               "so a weak invest can be lost; read the early hours as the model's idea of it, not a measurement.", this};
+                               "with ln p of the range of the model's heights within 500 km, 900-600 and 600-300 mb (above 0: a warm core). The system is followed as the lowest sea level pressure of the model near where it was "
+                               "(or its strongest spin), so a weak one can be lost; read the early hours as the model's idea of it, not a measurement.", this};
     credit->setWordWrap(true);
     UiStandards::muted(credit);
     box.addWidgetReal(credit, 0, Qt::Alignment{});
     box.getAndShow(this);
     resize(1000, 820);
-    QObject::connect(again, &QPushButton::clicked, this, [this] { measure(); });
-    QObject::connect(modelBox, &QComboBox::currentIndexChanged, this, [this] (int) { measure(); });
-    if (atcfId.size() < 6) {
-        measure();
+    QObject::connect(again, &QPushButton::clicked, this, [this] { measureAll(); });
+    QObject::connect(modelBox, &QComboBox::currentIndexChanged, this, [this] (int) { measureAll(); });
+    QObject::connect(systemBox, &QComboBox::currentIndexChanged, this, [this] (int) { refresh(); });
+    QObject::connect(add, &QPushButton::clicked, this, [this] { askForSystem(); });
+    QObject::connect(remove, &QPushButton::clicked, this, [this] {
+        const int index = systemBox->currentIndex();
+        if (systems.size() > 1 && index >= 0 && static_cast<size_t>(index) < systems.size()) {
+            systems.erase(systems.begin() + index);
+            QSignalBlocker block{systemBox};
+            systemBox->removeItem(index);
+            systemBox->setCurrentIndex(std::min(index, systemBox->count() - 1));
+            refresh();
+        }
+    });
+    addSystem(title, lat, lon, atcfId);
+}
+
+std::shared_ptr<PhaseViewer::System> PhaseViewer::shown() const {
+    const int index = systemBox->currentIndex();
+    return index >= 0 && static_cast<size_t>(index) < systems.size() ? systems[static_cast<size_t>(index)] : nullptr;
+}
+
+void PhaseViewer::addSystem(const string& title, double lat, double lon, const string& atcfId) {
+    auto system = std::make_shared<System>();
+    system->label = title;
+    system->lat = lat;
+    system->lon = lon;
+    system->atcfId = atcfId;
+    system->colour = seriesColours[systems.size() % (sizeof seriesColours / sizeof seriesColours[0])];
+    systems.push_back(system);
+    remember(title, lat, lon, atcfId);
+    {
+        QSignalBlocker block{systemBox};
+        systemBox->addItem(QString::fromStdString(title));
+        systemBox->setCurrentIndex(systemBox->count() - 1);
+    }
+    if (systems.size() > 1) {
+        setTitle("Phase space - comparison of " + std::to_string(systems.size()) + " systems");
+    }
+    start(system);
+}
+
+void PhaseViewer::askForSystem() {
+    QStringList items;
+    for (const auto& entry : recents()) {
+        const auto parts = entry.split('|');
+        if (parts.size() >= 4) {
+            items << (parts[3].isEmpty() ? parts[1] + " " + parts[2] + " " + parts[0] : parts[3]);
+        }
+    }
+    bool accepted = false;
+    const auto text = QInputDialog::getItem(this, "Add a system", "A place and a name (latitude longitude name: 52.0 -12.0 Norwegian Sea low, or 52N 12W), or a storm's id (al932026):", items, 0, true, &accepted);
+    if (!accepted || text.trimmed().isEmpty()) {
         return;
     }
-    status->setText("Reading the observed track...");
-    auto track = observed;
-    const string id = atcfId;
+    string label, id;
+    double lat = 0.0, lon = 0.0;
+    if (!parseSystem(text, label, lat, lon, id)) {
+        status->setText("Could not read that: give a latitude, a longitude and a name, or a storm's id.");
+        UiStandards::error(status);
+        return;
+    }
+    addSystem(label, lat, lon, id);
+}
+
+void PhaseViewer::start(const std::shared_ptr<System>& system) {
+    if (system->atcfId.size() < 6) {
+        measure(system);
+        return;
+    }
+    status->setText("Reading the observed track of " + QString::fromStdString(system->label) + "...");
+    auto track = system->observed;
+    const string id = system->atcfId;
     new FutureVoid{this, [track, id] {
         const string year = id.substr(id.size() - 4);
         const string nhc = "https://ftp.nhc.noaa.gov/atcf/btk/b" + id + ".dat";
@@ -426,46 +631,51 @@ PhaseViewer::PhaseViewer(Window * parent, const string& title, double lat, doubl
             text = URL::getBytes("https://hurricanes.ral.ucar.edu/repository/data/bdecks_open/" + year + "/b" + id + ".dat").toStdString();
         }
         *track = PhaseSpace::parseBest(text);
-    }, [this] {
+    }, [this, system] {
         if (closed) {
             return;
         }
-        map->setObserved(*observed);
-        if (!observed->empty()) {   // where it is now: the newest fix, when it is recent (an invest, which the lists of storms give no position for, takes the newest fix of its file up to three days old)
-            const auto& last = observed->back();
-            const bool unknown = this->lat == 0.0 && this->lon == 0.0;
+        if (!system->observed->empty()) {   // where it is now: the newest fix, when it is recent (an invest, which the lists of storms give no position for, takes the newest fix of its file up to three days old)
+            const auto& last = system->observed->back();
+            const bool unknown = system->lat == 0.0 && system->lon == 0.0;
             if (QDateTime::currentSecsSinceEpoch() - last.valid < (unknown ? 72 : 12) * 3600) {
-                this->lat = last.lat;
-                this->lon = last.lon;
+                system->lat = last.lat;
+                system->lon = last.lon;
             }
         }
-        if (this->lat == 0.0 && this->lon == 0.0) {
-            status->setText("No position of this system yet: its best track file has no fix.");
-            UiStandards::error(status);
+        if (system->lat == 0.0 && system->lon == 0.0) {
+            system->problem = "no position yet: its best track file has no fix";
+            system->measured = true;
+            refresh();
             return;
         }
-        measure();
+        measure(system);
     }};
 }
 
-void PhaseViewer::measure() {
-    if (lat == 0.0 && lon == 0.0) {
-        return;   // (no position yet: the observed track's newest fix gives it)
+void PhaseViewer::measureAll() {
+    ++generation;
+    for (const auto& system : systems) {
+        if (system->lat != 0.0 || system->lon != 0.0) {
+            measure(system);
+        }
     }
-    const int mine = ++generation;
+}
+
+void PhaseViewer::measure(const std::shared_ptr<System>& system) {
+    const int mine = generation;
     const string model = modelBox->currentData().toString().toStdString();
-    headline->setText({});
-    status->setText("Reading " + QString::fromStdString(model) + "'s newest run...");
-    table->setRowCount(0);
-    plot->set({});
-    map->set({});
+    status->setText("Reading " + QString::fromStdString(model) + "'s newest run for " + QString::fromStdString(system->label) + "...");
+    UiStandards::muted(status);
+    system->measured = false;
+    system->problem.clear();
     auto points = std::make_shared<vector<PhaseSpace::Point>>();
     auto problem = std::make_shared<string>();
-    auto runUsed = std::make_shared<string>();
+    auto used = std::make_shared<string>();
     auto ok = std::make_shared<bool>(false);
-    const double startLat = lat, startLon = lon;
+    const double startLat = system->lat, startLon = system->lon;
     auto keep = session;
-    auto obs = observed;
+    auto obs = system->observed;
     new FutureVoid{this, [=] {
         string cycle, date;
         if (!GfsRender::latestCycle(model, cycle, "", &date)) {
@@ -473,7 +683,7 @@ void PhaseViewer::measure() {
             return;
         }
         const string run = date + cycle.substr(0, 2);
-        *runUsed = run;
+        *used = run;
         const auto now = QDateTime::currentDateTimeUtc();
         const string valid = now.toString("yyyyMMddHH").toStdString();
         *ok = GfsRender::phaseTrack(*keep, model, run, valid, startLat, startLon, 120, *points, *problem);
@@ -504,41 +714,91 @@ void PhaseViewer::measure() {
             std::reverse(past.begin(), past.end());
             points->insert(points->begin(), past.begin(), past.end());
         }
-    }, [this, mine, points, problem, runUsed, ok, model] {
+    }, [this, mine, system, points, problem, used, ok, model] {
         if (closed || mine != generation) {
             return;
         }
+        system->measured = true;
         if (!*ok) {
-            status->setText("Could not measure " + QString::fromStdString(model) + ": " + QString::fromStdString(*problem));
-            UiStandards::error(status);
-            return;
+            system->problem = "could not measure " + model + ": " + *problem;
+        } else {
+            system->points = *points;
+            runUsed = *used;
         }
-        UiStandards::muted(status);
-        status->setText("Run " + QString::fromStdString(*runUsed) + "Z, followed " + QString::number(points->size()) + " times at six hours.");
-        plot->set(PhaseSpace::smoothed(*points, 12 * 3600));
-        map->set(*points);
-        const auto run = QDateTime::fromString(QString::fromStdString(runUsed->substr(0, 10)), "yyyyMMddHH");
-        const PhaseSpace::Point * first = nullptr;
-        const long now = QDateTime::currentSecsSinceEpoch();
-        for (const auto& p : *points) {   // the state now: the point nearest the present
-            if (p.ok && (first == nullptr || std::labs(p.valid - now) < std::labs(first->valid - now))) {
-                first = &p;
-            }
-        }
-        if (first != nullptr) {
-            headline->setText("<b>" + QString::fromStdString(PhaseSpace::wordFor(*first)) + "</b> now (" + QString::fromStdString(first->state).toLower() + (first->bKnown ? ", B " + QString::number(first->b, 'f', 0) + " m" : QString{}) + ", -VTL " + QString::number(first->vtl, 'f', 0) + ", -VTU " + QString::number(first->vtu, 'f', 0) + ")");
-        }
-        table->setRowCount(static_cast<int>(points->size()));
-        int row = 0;
-        for (const auto& p : *points) {
-            const auto valid = QDateTime::fromSecsSinceEpoch(p.valid, QTimeZone::utc());
-            const QStringList cells{p.hour == 0 ? QString{"analysis"} : QString::number(p.hour), valid.toString("ddd HH") + "Z", QString::number(std::fabs(p.lat), 'f', 1) + (p.lat >= 0 ? "N " : "S ") + QString::number(std::fabs(p.lon), 'f', 1) + (p.lon >= 0 ? "E" : "W"),
-                                    p.pressure > 0 ? QString::number(p.pressure, 'f', 0) : "-", p.ok && p.bKnown ? QString::number(p.b, 'f', 0) : "-", p.ok ? QString::number(p.vtl, 'f', 0) : "-",
-                                    p.ok ? QString::number(p.vtu, 'f', 0) : "-", p.ok ? QString::fromStdString(PhaseSpace::wordFor(p)) : "not measurable"};
-            for (int c = 0; c < cells.size(); c++) {
-                table->setItem(row, c, new QTableWidgetItem{cells[c]});
-            }
-            row++;
-        }
+        refresh();
     }};
+}
+
+// the diagrams, the map, the headline and the table: the system picked in full, the others thinner
+void PhaseViewer::refresh() {
+    const auto main = shown();
+    table->setRowCount(0);
+    plot->set({});
+    plot->setOthers({});
+    map->set({});
+    map->setOthers({});
+    map->setObserved({});
+    headline->setText({});
+    if (main == nullptr) {
+        return;
+    }
+    vector<PhasePlot::Line> others;
+    QStringList lines;
+    int pending = 0;
+    for (const auto& system : systems) {
+        if (!system->measured) {
+            pending++;
+        }
+        if (system->points.empty()) {
+            if (system->measured && !system->problem.empty()) {
+                lines << "<b>" + QString::fromStdString(system->label) + "</b>: " + QString::fromStdString(system->problem);
+            }
+            continue;
+        }
+        const auto smoothed = PhaseSpace::smoothed(system->points, 12 * 3600);
+        const PhaseSpace::Point * nowPoint = nullptr;
+        const long now = QDateTime::currentSecsSinceEpoch();
+        for (const auto& p : smoothed) {   // the state now: the point nearest the present
+            if (p.ok && (nowPoint == nullptr || std::labs(p.valid - now) < std::labs(nowPoint->valid - now))) {
+                nowPoint = &p;
+            }
+        }
+        if (nowPoint != nullptr) {
+            lines << QString{"<span style='color:%1'>&#9632;</span> <b>%2</b>: %3 now (%4%5, -VTL %6, -VTU %7)"}.arg(system->colour.name(), QString::fromStdString(system->label).toHtmlEscaped(),
+                QString::fromStdString(PhaseSpace::wordFor(*nowPoint)), QString::fromStdString(nowPoint->state).toLower(), nowPoint->bKnown ? ", B " + QString::number(nowPoint->b, 'f', 0) + " m" : QString{},
+                QString::number(nowPoint->vtl, 'f', 0), QString::number(nowPoint->vtu, 'f', 0));
+        }
+        if (system != main) {
+            others.push_back({QString::fromStdString(system->label), system->colour, smoothed});
+        }
+    }
+    headline->setText(lines.join("<br>"));
+    status->setText((runUsed.empty() ? QString{} : "Run " + QString::fromStdString(runUsed) + "Z, " + QString::number(systems.size()) + (systems.size() == 1 ? " system" : " systems") + ", followed at six hours.") + (pending > 0 ? "  Reading..." : QString{}));
+    UiStandards::muted(status);
+    if (main->points.empty()) {
+        return;
+    }
+    plot->set(PhaseSpace::smoothed(main->points, 12 * 3600));
+    plot->setOthers(others);
+    vector<PhasePlot::Line> mapOthers;
+    for (const auto& system : systems) {
+        if (system != main && !system->points.empty()) {
+            mapOthers.push_back({QString::fromStdString(system->label), system->colour, system->points});
+        }
+    }
+    map->set(main->points);
+    map->setOthers(mapOthers);
+    map->setObserved(*main->observed);
+    table->setRowCount(static_cast<int>(main->points.size()));
+    int row = 0;
+    for (const auto& p : main->points) {
+        const auto valid = QDateTime::fromSecsSinceEpoch(p.valid, QTimeZone::utc());
+        const QStringList cells{p.hour == 0 ? QString{"analysis"} : QString::number(p.hour), valid.toString("ddd HH") + "Z", QString::number(std::fabs(p.lat), 'f', 1) + (p.lat >= 0 ? "N " : "S ") + QString::number(std::fabs(p.lon), 'f', 1) + (p.lon >= 0 ? "E" : "W"),
+                                p.pressure > 0 ? QString::number(p.pressure, 'f', 0) : "-", p.ok && p.bKnown ? QString::number(p.b, 'f', 0) : "-", p.ok ? QString::number(p.vtl, 'f', 0) : "-",
+                                p.ok ? QString::number(p.vtu, 'f', 0) : "-", p.ok ? QString::fromStdString(PhaseSpace::wordFor(p)) : "not measurable"};
+        for (int c = 0; c < cells.size(); c++) {
+            table->setItem(row, c, new QTableWidgetItem{cells[c]});
+        }
+        row++;
+    }
 }

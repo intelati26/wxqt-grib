@@ -155,6 +155,7 @@ private:
     double thinning{1.0};                                     // how much wider apart the self-thinning marks are put while a skin is painted
     Button buttonTemps;
     Button buttonSounding;
+    Button buttonPhase;
     Button buttonMembers;
     void saveModelLoop();                            // the hours of the model chart as a GIF / video of titled pictures
     // views kept by name: the layers on, the region and the model chart's settings

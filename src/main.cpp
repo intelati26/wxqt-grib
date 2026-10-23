@@ -249,7 +249,14 @@ int main(int argc, char * argv[]) {
                 MasterMapViewer::openRadar(&w);
             } else if (route.startsWith("phase:")) {   // WXQT_OPEN=phase:<model>:<lat>:<lon>[:<atcf id>]: the phase space window of a storm at that place in that model
                 const auto parts = route.split(':');
-                new PhaseViewer{&w, "test", parts.value(2, "15").toDouble(), parts.value(3, "-60").toDouble(), parts.value(1, "GFS").toStdString(), parts.value(4).toStdString()};
+                auto * viewer = PhaseViewer::pick(&w, parts.value(4).isEmpty() ? "test" : parts.value(4).toStdString(), parts.value(2, "15").toDouble(), parts.value(3, "-60").toDouble(), parts.value(1, "GFS").toStdString(), parts.value(4).toStdString());
+                for (const auto& extra : qEnvironmentVariable("WXQT_PHASE_EXTRA").split('|', Qt::SkipEmptyParts)) {   // WXQT_PHASE_EXTRA="lat lon name|lat lon name": more systems to compare
+                    const auto f = extra.split(' ', Qt::SkipEmptyParts);
+                    if (f.size() >= 3) {
+                        PhaseViewer::pick(&w, f.mid(2).join(' ').toStdString(), f[0].toDouble(), f[1].toDouble());
+                    }
+                }
+                (void) viewer;
             } else if (route.startsWith("modelat:")) {   // WXQT_OPEN=modelat:<model>:<yyyyMMddHHmm UTC>: the Model Viewer on that model at the run and hour of that time
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
