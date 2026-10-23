@@ -26,6 +26,57 @@
 #include "util/Utility.h"
 #include "ui/UiStandards.h"
 
+namespace {
+    // bold text with a white halo, so it reads over the shading, the lines and the dots
+    void haloText(QPainter& painter, const QPointF& at, const QString& text, int points = 11, const QColor& color = Qt::black) {
+        QFont font = painter.font();
+        font.setBold(true);
+        font.setPointSize(points);
+        QPainterPath path;
+        path.addText(at, font, text);
+        painter.save();
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen{Qt::white, 4.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+        painter.drawPath(path);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(color);
+        painter.drawPath(path);
+        painter.restore();
+    }
+
+    // the three marks of a track: the start (a square), the end (an arrowhead along the way it was going) and now (a ring); the text beside each, away from the line
+    void trackMarks(QPainter& painter, const QPointF& start, const QPointF& beforeEnd, const QPointF& end, const QPointF * now, bool single, const QColor& edge = Qt::black) {
+        painter.save();
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setBrush(Qt::white);
+        painter.setPen(QPen{edge, 2.6});
+        painter.drawRect(QRectF{start.x() - 7, start.y() - 7, 14, 14});
+        const bool crowded = now != nullptr && std::hypot(now->x() - start.x(), now->y() - start.y()) < 40.0;   // the labels of two marks close together go to different sides
+        haloText(painter, start + (crowded ? QPointF{-48, -12} : QPointF{10, -9}), "START", 10, edge);
+        if (!single) {
+            QPointF d = end - beforeEnd;
+            const double len = std::hypot(d.x(), d.y());
+            d = len > 1e-6 ? d / len : QPointF{1, 0};
+            const QPointF n{-d.y(), d.x()};
+            QPolygonF head;
+            head << end + d * 13 << end - d * 5 + n * 9 << end - d * 5 - n * 9;
+            painter.setBrush(edge);
+            painter.setPen(QPen{Qt::white, 1.4});
+            painter.drawPolygon(head);
+            haloText(painter, end + QPointF{12, 16}, "END", 10, edge);
+        }
+        if (now != nullptr) {
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen{Qt::white, 5.5});
+            painter.drawEllipse(*now, 10, 10);
+            painter.setPen(QPen{edge, 2.6});
+            painter.drawEllipse(*now, 10, 10);
+            haloText(painter, *now + QPointF{12, 18}, "NOW", 10, edge);
+        }
+        painter.restore();
+    }
+}
+
 // the diagrams: -VTL against -VTU as the main one (the shaded quadrants: cold core, shallow and deep warm core), and B against -VTL beside it. A dot is an analysis, a crossed dot a forecast; the colour is the
 // storm's central pressure
 class PhasePlot : public QWidget {
@@ -180,20 +231,27 @@ protected:
                     painter.drawLine(pos + QPointF{-3.5, 3.5}, pos + QPointF{3.5, -3.5});
                 }
             }
-            QFont big = painter.font();
-            big.setBold(true);
-            big.setPointSizeF(big.pointSizeF() * 1.5);
-            painter.setFont(big);
-            painter.setPen(Qt::black);
+            const PhaseSpace::Point * nowPoint = nullptr;
+            const PhaseSpace::Point * beforeEnd = nullptr;
+            const long nowSeconds = QDateTime::currentSecsSinceEpoch();
+            const PhaseSpace::Point * previousOk = nullptr;
+            for (const auto& p : points) {
+                if (!p.ok || (useB && !p.bKnown)) {
+                    continue;
+                }
+                if (nowPoint == nullptr || std::labs(p.valid - nowSeconds) < std::labs(nowPoint->valid - nowSeconds)) {
+                    nowPoint = &p;
+                }
+                if (&p == end) {
+                    beforeEnd = previousOk;
+                }
+                previousOk = &p;
+            }
             if (first != nullptr) {
-                painter.drawText(at(r, x0, x1, y0, y1, first->vtl, useB ? first->b : first->vtu) + QPointF{-18, -9}, "A");
+                const auto place = [&] (const PhaseSpace::Point * p) { return at(r, x0, x1, y0, y1, p->vtl, useB ? p->b : p->vtu); };
+                const QPointF nowAt = nowPoint != nullptr ? place(nowPoint) : QPointF{};
+                trackMarks(painter, place(first), beforeEnd != nullptr ? place(beforeEnd) : place(first), place(end), nowPoint != nullptr && nowPoint != first && nowPoint != end ? &nowAt : nullptr, end == first);
             }
-            if (end != nullptr && end != first) {
-                painter.drawText(at(r, x0, x1, y0, y1, end->vtl, useB ? end->b : end->vtu) + QPointF{9, -9}, "Z");
-            }
-            big.setPointSizeF(big.pointSizeF() / 1.5);
-            big.setBold(false);
-            painter.setFont(big);
         };
         for (const auto& line : others) {   // the other systems: a line and small dots in the system's colour, its name at the last point
             for (const bool useB : {false, true}) {
@@ -252,6 +310,24 @@ protected:
         painter.drawLine(QPointF{x + 5, y + 11}, QPointF{x + 11, y + 5});
         painter.setPen(text);
         painter.drawText(QPointF{x + 22, y + 13}, "forecast");
+        y += 30;
+        painter.setPen(QPen{Qt::black, 2});
+        painter.setBrush(Qt::white);
+        painter.drawRect(QRectF{x + 2, y + 2, 12, 12});
+        painter.setPen(text);
+        painter.drawText(QPointF{x + 22, y + 13}, "start");
+        y += 22;
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen{Qt::black, 2});
+        painter.drawEllipse(QPointF{x + 8, y + 8}, 8, 8);
+        painter.setPen(text);
+        painter.drawText(QPointF{x + 22, y + 13}, "now");
+        y += 22;
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(Qt::black);
+        painter.drawPolygon(QPolygonF{{QPointF{x + 15, y + 8}, QPointF{x + 1, y + 1}, QPointF{x + 1, y + 15}}});
+        painter.setPen(text);
+        painter.drawText(QPointF{x + 22, y + 13}, "end");
     }
 
 private:
@@ -390,13 +466,6 @@ protected:
             painter.setBrush(PhasePlot::pressureColor(p.pressure));
             painter.drawEllipse(pos, 4.5, 4.5);
         }
-        QFont big = painter.font();
-        big.setBold(true);
-        painter.setFont(big);
-        painter.setPen(Qt::black);
-        painter.drawText(at(points.front().lon, points.front().lat) + QPointF{-14, -7}, "A");
-        painter.drawText(at(points.back().lon, points.back().lat) + QPointF{7, -7}, "Z");
-        // now: the point nearest the present
         const long now = QDateTime::currentSecsSinceEpoch();
         const PhaseSpace::Point * current = &points.front();
         for (const auto& p : points) {
@@ -404,7 +473,11 @@ protected:
                 current = &p;
             }
         }
-        painter.drawText(at(current->lon, current->lat) + QPointF{7, 14}, "C");
+        const auto& startP = points.front();
+        const auto& endP = points.back();
+        const auto& beforeP = points.size() >= 2 ? points[points.size() - 2] : startP;
+        const QPointF nowAt = at(current->lon, current->lat);
+        trackMarks(painter, at(startP.lon, startP.lat), at(beforeP.lon, beforeP.lat), at(endP.lon, endP.lat), current != &startP && current != &endP ? &nowAt : nullptr, points.size() < 2);
     }
 
 private:
