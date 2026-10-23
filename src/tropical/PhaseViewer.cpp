@@ -28,12 +28,21 @@
 
 namespace {
     // bold text with a white halo, so it reads over the shading, the lines and the dots
-    void haloText(QPainter& painter, const QPointF& at, const QString& text, int points = 11, const QColor& color = Qt::black) {
+    void haloText(QPainter& painter, const QPointF& where, const QString& text, int points = 11, const QColor& color = Qt::black, const QRectF& bounds = {}) {
         QFont font = painter.font();
         font.setBold(true);
         font.setPointSize(points);
         QPainterPath path;
-        path.addText(at, font, text);
+        path.addText(where, font, text);
+        if (!bounds.isEmpty()) {   // the text kept inside the box
+            const auto box = path.boundingRect();
+            double dx = 0.0, dy = 0.0;
+            if (box.left() < bounds.left()) dx = bounds.left() - box.left();
+            if (box.right() + dx > bounds.right()) dx = bounds.right() - box.right();
+            if (box.top() < bounds.top()) dy = bounds.top() - box.top();
+            if (box.bottom() + dy > bounds.bottom()) dy = bounds.bottom() - box.bottom();
+            path.translate(dx, dy);
+        }
         painter.save();
         painter.setBrush(Qt::NoBrush);
         painter.setPen(QPen{Qt::white, 4.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
@@ -45,14 +54,14 @@ namespace {
     }
 
     // the three marks of a track: the start (a square), the end (an arrowhead along the way it was going) and now (a ring); the text beside each, away from the line
-    void trackMarks(QPainter& painter, const QPointF& start, const QPointF& beforeEnd, const QPointF& end, const QPointF * now, bool single, const QColor& edge = Qt::black) {
+    void trackMarks(QPainter& painter, const QRectF& bounds, const QPointF& start, const QPointF& beforeEnd, const QPointF& end, const QPointF * now, bool single, const QColor& edge = Qt::black) {
         painter.save();
         painter.setRenderHint(QPainter::Antialiasing);
         painter.setBrush(Qt::white);
         painter.setPen(QPen{edge, 2.6});
         painter.drawRect(QRectF{start.x() - 7, start.y() - 7, 14, 14});
         const bool crowded = now != nullptr && std::hypot(now->x() - start.x(), now->y() - start.y()) < 40.0;   // the labels of two marks close together go to different sides
-        haloText(painter, start + (crowded ? QPointF{-48, -12} : QPointF{10, -9}), "START", 10, edge);
+        haloText(painter, start + (crowded ? QPointF{-48, -12} : QPointF{10, -9}), "START", 10, edge, bounds);
         if (!single) {
             QPointF d = end - beforeEnd;
             const double len = std::hypot(d.x(), d.y());
@@ -63,7 +72,7 @@ namespace {
             painter.setBrush(edge);
             painter.setPen(QPen{Qt::white, 1.4});
             painter.drawPolygon(head);
-            haloText(painter, end + QPointF{12, 16}, "END", 10, edge);
+            haloText(painter, end + QPointF{12, 16}, "END", 10, edge, bounds);
         }
         if (now != nullptr) {
             painter.setBrush(Qt::NoBrush);
@@ -71,7 +80,7 @@ namespace {
             painter.drawEllipse(*now, 10, 10);
             painter.setPen(QPen{edge, 2.6});
             painter.drawEllipse(*now, 10, 10);
-            haloText(painter, *now + QPointF{12, 18}, "NOW", 10, edge);
+            haloText(painter, *now + QPointF{12, 18}, "NOW", 10, edge, bounds);
         }
         painter.restore();
     }
@@ -119,7 +128,7 @@ protected:
         QPainter painter{this};
         painter.setRenderHint(QPainter::Antialiasing);
         const auto text = palette().color(QPalette::WindowText);
-        double xs = 150.0, ys = 150.0, bs = 40.0;
+        double xs = 150.0, ys = 150.0, bs = 40.0, b0 = 0.0;
         const auto scan = [&] (const vector<PhaseSpace::Point>& list) {
             for (const auto& p : list) {
                 if (p.ok) {
@@ -127,6 +136,7 @@ protected:
                     ys = std::max(ys, std::fabs(p.vtu));
                     if (p.bKnown) {
                         bs = std::max(bs, p.b);
+                        b0 = std::min(b0, p.b);   // (B is negative where the thicker side is on the left)
                     }
                 }
             }
@@ -138,6 +148,7 @@ protected:
         xs = std::ceil(xs * 1.15 / 50.0) * 50.0;
         ys = std::ceil(ys * 1.15 / 50.0) * 50.0;
         bs = std::ceil(bs * 1.1 / 10.0) * 10.0;
+        b0 = std::floor(b0 * 1.1 / 10.0) * 10.0;
         const int gap = 56, legend = 130;
         const double wide = (width() - legend) * 0.62;
         const QRectF main{gap, 12.0, wide - gap - 8, height() - 12.0 - 46};
@@ -175,9 +186,12 @@ protected:
         painter.setPen(QPen{QColor{0, 0, 0, 120}, 1});
         painter.drawLine(at(main, -xs, xs, -ys, ys, 0, -ys), at(main, -xs, xs, -ys, ys, 0, ys));
         painter.drawLine(at(main, -xs, xs, -ys, ys, -xs, 0), at(main, -xs, xs, -ys, ys, xs, 0));
-        painter.drawLine(at(side, -xs, xs, 0, bs, 0, 0), at(side, -xs, xs, 0, bs, 0, bs));
+        painter.drawLine(at(side, -xs, xs, b0, bs, 0, b0), at(side, -xs, xs, b0, bs, 0, bs));
+        if (b0 < 0.0) {
+            painter.drawLine(at(side, -xs, xs, b0, bs, -xs, 0), at(side, -xs, xs, b0, bs, xs, 0));
+        }
         painter.setPen(QPen{QColor{0, 0, 0, 120}, 1, Qt::DashLine});
-        painter.drawLine(at(side, -xs, xs, 0, bs, -xs, 10), at(side, -xs, xs, 0, bs, xs, 10));
+        painter.drawLine(at(side, -xs, xs, b0, bs, -xs, 10), at(side, -xs, xs, b0, bs, xs, 10));
         painter.setPen(text);
         const auto note = [&] (const QRectF& r, double x0, double x1, double y0, double y1, double x, double y, const QString& label) {
             painter.drawText(QRectF{at(r, x0, x1, y0, y1, x, y) - QPointF{80, 9}, QSizeF{160, 18}}, Qt::AlignCenter, label);
@@ -198,8 +212,10 @@ protected:
             painter.drawText(QPointF{r.left() - 34, r.top() + 10}, QString::number(y1, 'f', 0));
         };
         axes(main, -xs, xs, -ys, ys, "-VTL  900-600 mb thermal wind   (cold core <   > warm core)", "-VTU  600-300 mb");
-        axes(side, -xs, xs, 0, bs, "-VTL  900-600 mb", "B (m): symmetric <  > asymmetric");
+        axes(side, -xs, xs, b0, bs, "-VTL  900-600 mb", "B (m): symmetric <  > asymmetric");
         const auto track = [&] (const QRectF& r, double x0, double x1, double y0, double y1, bool useB) {
+            painter.save();
+            painter.setClipRect(r.adjusted(-1, -1, 1, 1));   // nothing outside the box
             QPointF last;
             bool have = false;
             const PhaseSpace::Point * first = nullptr, * end = nullptr;
@@ -250,13 +266,16 @@ protected:
             if (first != nullptr) {
                 const auto place = [&] (const PhaseSpace::Point * p) { return at(r, x0, x1, y0, y1, p->vtl, useB ? p->b : p->vtu); };
                 const QPointF nowAt = nowPoint != nullptr ? place(nowPoint) : QPointF{};
-                trackMarks(painter, place(first), beforeEnd != nullptr ? place(beforeEnd) : place(first), place(end), nowPoint != nullptr && nowPoint != first && nowPoint != end ? &nowAt : nullptr, end == first);
+                trackMarks(painter, r, place(first), beforeEnd != nullptr ? place(beforeEnd) : place(first), place(end), nowPoint != nullptr && nowPoint != first && nowPoint != end ? &nowAt : nullptr, end == first);
             }
+            painter.restore();
         };
+        painter.save();
         for (const auto& line : others) {   // the other systems: a line and small dots in the system's colour, its name at the last point
             for (const bool useB : {false, true}) {
                 const QRectF& r = useB ? side : main;
-                const double y0 = useB ? 0.0 : -ys, y1 = useB ? bs : ys;
+                painter.setClipRect(r.adjusted(-1, -1, 1, 1));
+                const double y0 = useB ? b0 : -ys, y1 = useB ? bs : ys;
                 QPointF last, lastDrawn;
                 bool have = false;
                 for (const auto& p : line.points) {
@@ -280,8 +299,9 @@ protected:
                 }
             }
         }
+        painter.restore();
         track(main, -xs, xs, -ys, ys, false);
-        track(side, -xs, xs, 0, bs, true);
+        track(side, -xs, xs, b0, bs, true);
         // the key
         double y = 14;
         const double x = width() - legend + 14;
@@ -477,7 +497,7 @@ protected:
         const auto& endP = points.back();
         const auto& beforeP = points.size() >= 2 ? points[points.size() - 2] : startP;
         const QPointF nowAt = at(current->lon, current->lat);
-        trackMarks(painter, at(startP.lon, startP.lat), at(beforeP.lon, beforeP.lat), at(endP.lon, endP.lat), current != &startP && current != &endP ? &nowAt : nullptr, points.size() < 2);
+        trackMarks(painter, QRectF{rect()}, at(startP.lon, startP.lat), at(beforeP.lon, beforeP.lat), at(endP.lon, endP.lat), current != &startP && current != &endP ? &nowAt : nullptr, points.size() < 2);
     }
 
 private:
