@@ -6,6 +6,7 @@
 
 #include "Nhc.h"
 #include "misc/ImageViewer.h"
+#include "nhc/NhcBasins.h"
 #include "nhc/NhcOceanEnum.h"
 #include "nhc/NhcRegionSummary.h"
 #include "nhc/NhcStorm.h"
@@ -35,6 +36,7 @@ Nhc::Nhc(Window * parent)
     comboBoxImages.connect([this] { new ImageViewer{this, imageUrls[comboBoxImages.getIndex()], comboBoxImages.getValue()}; });
     box.addWidget(comboBoxText);
     box.addWidget(comboBoxImages);
+    box.addWidgetReal(new NhcBasins{this, this}, 0, Qt::Alignment{});
     box.addLayout(boxText);
     box.addImageRows(this, urls, images, 3, getWindowWidth());
     for (auto index : range(urls.size())) {
