@@ -54,6 +54,7 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     layers.push_back(std::make_unique<StormReportsLayer>());
     layers.push_back(std::make_unique<WarningPolygonsLayer>());
     layers.push_back(std::make_unique<MesoscaleDiscussionLayer>());
+    layers.push_back(std::make_unique<MesoscalePrecipitationLayer>());
     layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Hail));
     layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Rotation));
     layers.push_back(std::make_unique<MrmsOverlayLayer>(MrmsOverlayLayer::Kind::Chance));

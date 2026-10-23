@@ -28,8 +28,8 @@ namespace {
     using SevereAreas::Area;
 
     // the kinds of warning polygon (bits of the mask)
-    enum Kind { Tornado = 0, Thunderstorm = 1, FlashFlood = 2, Flood = 3, Marine = 4, Other = 5, TornadoWatch = 6, StormWatch = 7, Discussion = 8 };
-    const char * const kindNames[] = {"Tornado warning", "Severe thunderstorm warning", "Flash flood warning", "Flood warning / advisory", "Special marine warning", "Other warnings", "Tornado watch", "Severe thunderstorm watch", "Mesoscale discussion"};
+    enum Kind { Tornado = 0, Thunderstorm = 1, FlashFlood = 2, Flood = 3, Marine = 4, Other = 5, TornadoWatch = 6, StormWatch = 7, Discussion = 8, Precipitation = 9 };
+    const char * const kindNames[] = {"Tornado warning", "Severe thunderstorm warning", "Flash flood warning", "Flood warning / advisory", "Special marine warning", "Other warnings", "Tornado watch", "Severe thunderstorm watch", "Mesoscale discussion", "Mesoscale precipitation discussion"};
 
     QColor colorOf(int kind) {
         switch (kind) {
@@ -41,6 +41,7 @@ namespace {
             case TornadoWatch: return QColor{255, 235, 0};
             case StormWatch: return QColor{230, 110, 160};
             case Discussion: return QColor{40, 150, 255};
+            case Precipitation: return QColor{190, 235, 40};
             default: return QColor{130, 130, 200};
         }
     }
@@ -91,8 +92,8 @@ namespace {
                     continue;
                 }
                 const auto color = colorOf(kind);
-                const bool watch = kind == TornadoWatch || kind == StormWatch || kind == Discussion;
-                painter.setPen(QPen{a.strong ? QColor{255, 0, 255} : color, (watch ? 2.4 : (a.strong ? 3.0 : 2.0)) * px, kind == Discussion ? Qt::DashLine : Qt::SolidLine});
+                const bool watch = kind == TornadoWatch || kind == StormWatch || kind == Discussion || kind == Precipitation;
+                painter.setPen(QPen{a.strong ? QColor{255, 0, 255} : color, (watch ? 2.4 : (a.strong ? 3.0 : 2.0)) * px, (kind == Discussion || kind == Precipitation) ? Qt::DashLine : Qt::SolidLine});
                 painter.setBrush(watch ? QBrush{Qt::NoBrush} : QBrush{QColor{color.red(), color.green(), color.blue(), 45}});
                 for (const auto& r : a.rings) {
                     QPolygonF polygon;
@@ -123,7 +124,7 @@ namespace {
                 }
                 if (polygon.containsPoint(pixels, Qt::OddEvenFill)) {
                     texts << a.text;
-                    if (first == nullptr && !a.textUrl.isEmpty()) {
+                    if (first == nullptr && (!a.textUrl.isEmpty() || !a.fullText.isEmpty())) {
                         first = &a;
                     }
                     break;
@@ -139,7 +140,12 @@ namespace {
         hit.distance = 0.0;
         hit.reach = 1.0;
         hit.text = texts.join("\n\n");
-        if (first != nullptr) {
+        if (first != nullptr && !first->fullText.isEmpty()) {
+            const auto full = first->fullText.toStdString();
+            const auto title = first->windowTitle.toStdString();
+            hit.text += "\n(click for the text)";
+            hit.open = [full, title] (Window * parent) { new TextViewerStatic{parent, full, title, 800, 700}; };
+        } else if (first != nullptr) {
             const auto url = first->textUrl.toStdString();
             const auto title = first->windowTitle.toStdString();
             hit.text += "\n(click for the text)";
@@ -462,4 +468,106 @@ MapHit MesoscaleDiscussionLayer::pick(const QPointF& pixels, MapHost& host) cons
 
 vector<MapLegendRow> MesoscaleDiscussionLayer::legend() const {
     return legendOf({Discussion}, "SPC:");
+}
+
+// ---- the WPC's mesoscale precipitation discussions ----------------------------------------------------------------------------------------------------------------------------------------------
+
+string MesoscalePrecipitationLayer::summary() const {
+    if (!error.empty()) {
+        return error;
+    }
+    if (loading && areas.empty()) {
+        return "reading the discussions...";
+    }
+    return std::to_string(areas.size()) + (areas.size() == 1 ? " discussion in force" : " discussions in force");
+}
+
+void MesoscalePrecipitationLayer::refresh(MapHost& host) {
+    if (loading) {
+        return;
+    }
+    loading = true;
+    auto out = std::make_shared<std::vector<Area>>();
+    auto problem = std::make_shared<string>();
+    host.background(
+        [out, problem] {
+            const string base = "https://www.wpc.ncep.noaa.gov/metwatch/";
+            const auto list = QString::fromUtf8(UtilityIO::downloadAsByteArray(base + "metwatch_mpd.php"));
+            if (list.isEmpty()) {
+                *problem = "the discussions could not be read";
+                return;
+            }
+            std::map<int, QString> wanted;   // number -> year
+            for (auto m = QRegularExpression{"metwatch_mpd_multi\\.php\\?md=([0-9]+)&amp;yr=([0-9]{4})"}.globalMatch(list); m.hasNext();) {
+                const auto hit = m.next();
+                wanted[hit.captured(1).toInt()] = hit.captured(2);
+            }
+            for (const auto& [number, year] : wanted) {
+                const auto page = QString::fromUtf8(UtilityIO::downloadAsByteArray(base + "metwatch_mpd_multi.php?md=" + std::to_string(number) + "&yr=" + year.toStdString()));
+                const auto pre = QRegularExpression{"<pre[^>]*>(.*?)</pre>", QRegularExpression::DotMatchesEverythingOption}.match(page);
+                if (!pre.hasMatch()) {
+                    continue;
+                }
+                auto full = pre.captured(1);
+                full.remove(QRegularExpression{"<[^>]*>"});
+                full.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"");
+                full = full.trimmed();
+                // the outline: LAT...LON then pairs of four digits (hundredths of degrees; the longitude west, 100 added when it has only two digits before the point)
+                const auto poly = QRegularExpression{"LAT\\.\\.\\.LON\\s+([0-9\\s]+)"}.match(full);
+                if (!poly.hasMatch()) {
+                    continue;
+                }
+                Area a;
+                a.kind = Precipitation;
+                std::vector<QPointF> ring;
+                for (const auto& token : poly.captured(1).split(QRegularExpression{"\\s+"}, Qt::SkipEmptyParts)) {
+                    if (token.size() != 8) {
+                        continue;
+                    }
+                    const double lat = token.left(4).toInt() / 100.0;
+                    double lon = token.mid(4).toInt() / 100.0;
+                    lon = -(lon < 50.0 ? lon + 100.0 : lon);
+                    ring.emplace_back(lon, lat);
+                }
+                if (ring.size() < 3) {
+                    continue;
+                }
+                a.rings.push_back(std::move(ring));
+                const auto grab = [&full] (const QString& label) {
+                    const auto m = QRegularExpression{label + "\\.\\.\\.(.*?)\\n\\n", QRegularExpression::DotMatchesEverythingOption}.match(full);
+                    return m.hasMatch() ? m.captured(1).simplified() : QString{};
+                };
+                const auto valid = QRegularExpression{"Valid ([0-9]{6}Z - [0-9]{6}Z)"}.match(full);
+                const auto summary = grab("Summary");
+                a.title = "MPD " + QString::number(number);
+                a.text = "Mesoscale Precipitation Discussion " + QString::number(number) + (valid.hasMatch() ? "  -  valid " + valid.captured(1) : QString{}) + "\n" + grab("Areas affected") + "\nConcerning: " + grab("Concerning") +
+                         (summary.isEmpty() ? QString{} : "\n" + summary.left(420) + (summary.size() > 420 ? "..." : ""));
+                a.fullText = full;
+                a.windowTitle = "Mesoscale precipitation discussion " + QString::number(number);
+                out->push_back(std::move(a));
+            }
+        },
+        [this, out, problem, &host, alive = alive] {
+            if (!*alive) {
+                return;
+            }
+            loading = false;
+            error = *problem;
+            if (problem->empty()) {
+                areas = std::move(*out);
+            }
+            host.redraw();
+        });
+}
+
+void MesoscalePrecipitationLayer::paint(QPainter& painter, MapHost& host) {
+    paintAreas(painter, host, areas, [] (const Area&) { return true; }, {Precipitation});
+}
+
+MapHit MesoscalePrecipitationLayer::pick(const QPointF& pixels, MapHost& host) const {
+    return pickAreas(pixels, host, areas, [] (const Area&) { return true; }, 27);
+}
+
+vector<MapLegendRow> MesoscalePrecipitationLayer::legend() const {
+    return legendOf({Precipitation}, "WPC:");
 }

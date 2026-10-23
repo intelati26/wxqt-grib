@@ -28,6 +28,7 @@ namespace SevereAreas {
         QString title;
         QString text;                              // the hover text
         QString textUrl;                           // what a click opens ("" none)
+        QString fullText;                          // or the text itself, when it was read with the polygon
         QString windowTitle;
         long begin{0}, end{0};
     };
@@ -63,6 +64,33 @@ private:
     string error;
     std::vector<SevereAreas::Area> areas;
     int enabledMask{0x1ff};   // the kinds shown
+    std::shared_ptr<bool> alive{std::make_shared<bool>(true)};
+};
+
+// The WPC's mesoscale precipitation discussions in force (flash flooding and heavy rain): the outline is the LAT...LON of the text, which WPC publishes with each one.
+class MesoscalePrecipitationLayer : public MapLayer {
+public:
+    ~MesoscalePrecipitationLayer() override { *alive = false; }
+    string id() const override { return "severe/mpd"; }
+    string path() const override { return "Severe weather/WPC mesoscale precipitation discussions"; }
+    string source() const override { return "NOAA Weather Prediction Center (mesoscale precipitation discussions)"; }
+    string tip() const override { return "The WPC's mesoscale precipitation discussions in force (heavy rain and flash flooding), outlined on the map. Hover for the areas affected, what it concerns, when it is valid and its summary; click for the whole discussion. Live only"; }
+    int order() const override { return 42; }
+    int refreshSeconds() const override { return 300; }
+    void refresh(MapHost&) override;
+    void paint(QPainter&, MapHost&) override;
+    MapHit pick(const QPointF&, MapHost&) const override;
+    vector<MapLegendRow> legend() const override;
+    string summary() const override;
+    bool working() const override { return loading; }
+
+protected:
+    void onEnable(MapHost& host) override { refresh(host); }
+
+private:
+    bool loading{false};
+    string error;
+    std::vector<SevereAreas::Area> areas;
     std::shared_ptr<bool> alive{std::make_shared<bool>(true)};
 };
 

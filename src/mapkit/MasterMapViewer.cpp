@@ -2357,7 +2357,7 @@ MasterMapViewer * MasterMapViewer::openModels(Window * parent, const string& mod
 MasterMapViewer * MasterMapViewer::openRadar(Window * parent) {
     auto * map = new MasterMapViewer{parent};
     const auto here = Location::getLatLonCurrent();
-    map->openAt(QDateTime::currentDateTimeUtc(), here.lat(), here.lon(), 250.0, {"radar/mrms", "severe/warnings", "severe/mcd"});
+    map->openAt(QDateTime::currentDateTimeUtc(), here.lat(), here.lon(), 250.0, {"radar/mrms", "severe/warnings", "severe/mcd", "severe/mpd"});
     return map;
 }
 
