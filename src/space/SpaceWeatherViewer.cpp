@@ -5,6 +5,8 @@
 
 #include "ui/ChartPainter.h"
 #include "space/SpaceWeatherViewer.h"
+#include "space/SunViewer.h"
+#include "space/UtilitySun.h"
 #include <algorithm>
 #include <cmath>
 #include <ctime>
@@ -385,6 +387,12 @@ SpaceWeatherViewer::SpaceWeatherViewer(Window * parent)
         row.addWidget(*button);
         textButtons.push_back(button);
     }
+    {
+        auto * sun = new Button{this, None, "Sun regions...", "The Sun with its numbered active regions and a grid; point at a region for its class, size and flare chances"};
+        sun->connect([this] { new SunViewer{this}; });
+        row.addWidget(*sun);
+        textButtons.push_back(sun);
+    }
     row.addStretch();
     content = new QWidget{this};
     layout = new QVBoxLayout{content};
@@ -421,10 +429,37 @@ SpaceWeatherViewer::SpaceWeatherViewer(Window * parent)
     resize(900, 900);
     addPicture("Aurora forecast, north", "images/animations/ovation/north/latest.jpg");
     addPicture("Aurora forecast, south", "images/animations/ovation/south/latest.jpg");
+    addSunTile();
     addPicture("Sun, 304 A (SUVI)", "images/animations/suvi/primary/304/latest.png");
     addPicture("Sun, 195 A (SUVI)", "images/animations/suvi/primary/195/latest.png");
     addPicture("Corona (LASCO C2)", "images/animations/lasco-c2/latest.jpg");
     load();
+}
+
+void SpaceWeatherViewer::addSunTile() {
+    auto * holder = new QVBoxLayout;
+    auto * thumbnail = new QPushButton{content};
+    thumbnail->setFlat(true);
+    thumbnail->setFixedSize(150, 150);
+    thumbnail->setCursor(Qt::PointingHandCursor);
+    thumbnail->setToolTip("The Sun with its numbered active regions: click to point at them");
+    auto * caption = new QLabel{"Sun, active regions", content};
+    caption->setAlignment(Qt::AlignHCenter);
+    caption->setWordWrap(true);
+    caption->setFixedWidth(150);
+    holder->addWidget(thumbnail);
+    holder->addWidget(caption);
+    pictures->addLayout(holder);
+    QObject::connect(thumbnail, &QPushButton::clicked, [this] { new SunViewer{this}; });
+    QPointer<QPushButton> guard{thumbnail};
+    auto picture = std::make_shared<QImage>();
+    new FutureVoid{this, [picture] { *picture = UtilitySun::labelled(450); }, [this, guard, picture] {
+        if (closed || guard.isNull() || picture->isNull()) {
+            return;
+        }
+        guard->setIcon(QIcon{QPixmap::fromImage(*picture).scaled(150, 150, Qt::KeepAspectRatio, Qt::SmoothTransformation)});
+        guard->setIconSize(QSize{150, 150});
+    }};
 }
 
 // a thumbnail that opens the large picture; filled in when it arrives

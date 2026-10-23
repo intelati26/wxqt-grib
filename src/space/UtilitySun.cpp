@@ -80,6 +80,12 @@ std::vector<UtilitySun::Region> UtilitySun::parseRegions(const QByteArray& json)
         r.spotClass = o.value("spot_class").toString().toStdString();
         r.magClass = o.value("mag_class").toString().toStdString();
         r.spots = o.value("number_spots").toInt();
+        r.cProbability = o.value("c_flare_probability").toInt();
+        r.protonProbability = o.value("proton_probability").toInt();
+        r.location = loc.toStdString();
+        r.cEvents = o.value("c_xray_events").toInt();
+        r.mEvents = o.value("m_xray_events").toInt();
+        r.xEvents = o.value("x_xray_events").toInt();
         r.mProbability = o.value("m_flare_probability").toInt();
         r.xProbability = o.value("x_flare_probability").toInt();
         r.observed = d;
@@ -88,7 +94,7 @@ std::vector<UtilitySun::Region> UtilitySun::parseRegions(const QByteArray& json)
     return out;
 }
 
-QImage UtilitySun::labelled(const QImage& source, const std::vector<Region>& regions, const QDateTime& when, int width) {
+QImage UtilitySun::labelled(const QImage& source, const std::vector<Region>& regions, const QDateTime& when, int width, std::vector<Placed> * placed) {
     if (source.isNull()) {
         return {};
     }
@@ -185,7 +191,10 @@ QImage UtilitySun::labelled(const QImage& source, const std::vector<Region>& reg
             const double len = std::hypot(x, y);
             if (len > 1e-6) { x /= len; y /= len; }
         }
-        const QPointF pos = at(x * (behind ? 1.0 : 1.0), y);
+        const QPointF pos = at(x, y);
+        if (placed != nullptr) {
+            placed->push_back({region, pos, lon, behind});
+        }
         QColor color{255, 255, 120};
         if (region.xProbability >= 10 || region.mProbability >= 50) color = QColor{255, 70, 70};
         else if (region.mProbability >= 15) color = QColor{255, 160, 40};
@@ -204,6 +213,36 @@ QImage UtilitySun::labelled(const QImage& source, const std::vector<Region>& reg
     label(QPointF{6, 4 + font.pixelSize() * 1.3}, "East left, west right.  Red: M flare chance 50%+ or X 10%+;  orange: M 15%+", Qt::AlignLeft, QColor{255, 255, 255, 220});
     label(QPointF{6, 4 + font.pixelSize() * 2.6}, "SDO/HMI picture and region list: NOAA SWPC", Qt::AlignLeft, QColor{255, 255, 255, 170});
     return out;
+}
+
+QString UtilitySun::describe(const Placed& p) {
+    const auto& r = p.region;
+    QString text = QString{"AR %1  %2"}.arg(r.number).arg(QString::fromStdString(r.location));
+    text += QString{"  (now %1%2 %3%4)"}.arg(std::fabs(r.latitude), 0, 'f', 0).arg(r.latitude >= 0 ? "N" : "S").arg(std::fabs(p.longitude), 0, 'f', 0).arg(p.longitude >= 0 ? "W" : "E");
+    if (p.behind) {
+        text += "  - at the limb";
+    }
+    if (r.area > 0 || r.spots > 0) {
+        text += QString{"\nSunspot class %1, magnetic class %2\n%3 spots, area %4 millionths of the disc"}.arg(QString::fromStdString(r.spotClass), QString::fromStdString(r.magClass)).arg(r.spots).arg(r.area);
+    } else {
+        text += "\nNo sunspots (plage only, or just numbered)";
+    }
+    text += QString{"\nFlare chances, next day: C %1%  M %2%  X %3%  proton %4%"}.arg(r.cProbability).arg(r.mProbability).arg(r.xProbability).arg(r.protonProbability);
+    if (r.cEvents + r.mEvents + r.xEvents > 0) {
+        text += QString{"\nFlares in the last day: %1 C, %2 M, %3 X"}.arg(r.cEvents).arg(r.mEvents).arg(r.xEvents);
+    }
+    return text;
+}
+
+QImage UtilitySun::labelled(int width, std::vector<Placed>& placed, QDateTime * time) {
+    QImage disc;
+    disc.loadFromData(UtilityIO::downloadAsByteArray("https://services.swpc.noaa.gov/images/animations/sdo-hmii/latest.jpg"));
+    const auto regions = parseRegions(UtilityIO::downloadAsByteArray("https://services.swpc.noaa.gov/json/solar_regions.json"));
+    const auto now = QDateTime::currentDateTimeUtc();
+    if (time != nullptr) {
+        *time = now;
+    }
+    return labelled(disc, regions, now, width, &placed);
 }
 
 QImage UtilitySun::labelled(int width, QDateTime * time) {

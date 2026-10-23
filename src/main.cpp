@@ -51,6 +51,7 @@
 #include "tropical/PhaseViewer.h"
 #include "misc/AhdViewer.h"
 #include "space/UtilitySun.h"
+#include "space/SunViewer.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsIntensity.h"
 #include "hurricane/AceForecastViewer.h"
@@ -240,6 +241,8 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("sun:")) {   // WXQT_OPEN=sun:<out.png>[:width]: the labelled Sun picture saved, then the program goes on
                 const auto parts = route.split(':');
                 UtilitySun::labelled(parts.value(2, "900").toInt()).save(parts.value(1));
+            } else if (route == "sunviewer") {   // WXQT_OPEN=sunviewer: the Sun window with the hover on its regions
+                new SunViewer{&w};
             } else if (route == "ahd") {   // WXQT_OPEN=ahd: the Area Hydrologic Discussion window
                 new AhdViewer{&w};
             } else if (route == "radar") {   // WXQT_OPEN=radar: the radar doorway (the master map at the current location with MRMS, warnings and discussions)

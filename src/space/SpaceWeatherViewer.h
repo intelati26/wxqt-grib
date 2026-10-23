@@ -42,6 +42,7 @@ private:
     void load();
     void fill();
     void addPicture(const QString& title, const std::string& url);
+    void addSunTile();   // the Sun with its numbered regions (opens the window with the hover)
     void closeEventCustom() override { closed = true; }
     VBox box;
     ControlRow row;

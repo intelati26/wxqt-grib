@@ -9,6 +9,8 @@
 #include <QByteArray>
 #include <QDateTime>
 #include <QImage>
+#include <QPointF>
+#include <QString>
 #include <string>
 #include <vector>
 
@@ -23,8 +25,12 @@ namespace UtilitySun {
         std::string spotClass;
         std::string magClass;
         int spots{0};
+        int cProbability{0};
         int mProbability{0};
         int xProbability{0};
+        int protonProbability{0};
+        std::string location;       // as SWPC lists it ("N13W42")
+        int cEvents{0}, mEvents{0}, xEvents{0};   // flares of the last day
         QDate observed;
     };
     // the regions of the newest day of the list (JSON text from SWPC's solar_regions.json)
@@ -37,7 +43,19 @@ namespace UtilitySun {
     bool onDisc(double latitude, double longitudeWest, double b0, double& x, double& y);
     // the picture, drawn `width` pixels wide; null when the Sun's picture or the list could not be read
     QImage labelled(int width, QDateTime * time = nullptr);
-    QImage labelled(const QImage& disc, const std::vector<Region>& regions, const QDateTime& when, int width);
+    // where a region was drawn on the picture (for a hover)
+    struct Placed {
+        Region region;
+        QPointF position;           // pixels of the picture
+        double longitude{0.0};      // west of the central meridian now
+        bool behind{false};         // just over the limb
+    };
+    // the picture, and where each region is on it
+    QImage labelled(const QImage& disc, const std::vector<Region>& regions, const QDateTime& when, int width, std::vector<Placed> * placed = nullptr);
+    // the same, read from SWPC: the regions and the picture are returned too
+    QImage labelled(int width, std::vector<Placed>& placed, QDateTime * time = nullptr);
+    // what to say of a region on hover
+    QString describe(const Placed&);
 }
 
 #endif  // UTILITYSUN_H
