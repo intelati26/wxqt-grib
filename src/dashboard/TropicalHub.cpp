@@ -448,7 +448,7 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
         addButton("ASCAT winds...", "ASCAT ultra high resolution wind passes over the storm", [this, atcfId] { new AscatUhrViewer{this, atcfId}; });
         addButton("ATCF feed...", "The raw ATCF fixes and guidance files", [this, atcfId, atcfTitle] { new AtcfFeedViewer{this, atcfId, atcfTitle}; });
     }
-    if (entry.lat != 0.0 || entry.lon != 0.0) {
+    {   // (an invest has no fix in the list of active storms: the window reads its best track file for where it is)
         const double lat = entry.lat, lon = entry.lon;
         const auto phaseTitle = title.toStdString();
         addButton("Phase space...", "Hart's cyclone phase space (warm or cold core, symmetric or not) of this storm in any deterministic model", [this, phaseTitle, lat, lon, id] { new PhaseViewer{this, phaseTitle, lat, lon, "GFS", id}; });
@@ -558,7 +558,7 @@ QWidget * TropicalHub::otherCard(const OtherStorm& storm) {
     }
     addButton("ASCAT winds...", "ASCAT ultra high resolution wind passes over the storm", [this, id] { new AscatUhrViewer{this, id}; });
     addButton("ATCF feed...", "The raw ATCF fixes and guidance files", [this, id, title] { new AtcfFeedViewer{this, id, title}; });
-    if (now.lat != 0.0 || now.lon != 0.0) {
+    {
         const double fixLat = now.lat, fixLon = now.lon;
         addButton("Phase space...", "Hart's cyclone phase space (warm or cold core, symmetric or not) of this storm in any deterministic model", [this, title, fixLat, fixLon, id] { new PhaseViewer{this, title, fixLat, fixLon, "GFS", id}; });
     }

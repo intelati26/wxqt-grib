@@ -431,18 +431,27 @@ PhaseViewer::PhaseViewer(Window * parent, const string& title, double lat, doubl
             return;
         }
         map->setObserved(*observed);
-        if (!observed->empty()) {   // where it is now: the newest fix, when it is recent
+        if (!observed->empty()) {   // where it is now: the newest fix, when it is recent (an invest, which the lists of storms give no position for, takes the newest fix of its file up to three days old)
             const auto& last = observed->back();
-            if (QDateTime::currentSecsSinceEpoch() - last.valid < 12 * 3600) {
+            const bool unknown = this->lat == 0.0 && this->lon == 0.0;
+            if (QDateTime::currentSecsSinceEpoch() - last.valid < (unknown ? 72 : 12) * 3600) {
                 this->lat = last.lat;
                 this->lon = last.lon;
             }
+        }
+        if (this->lat == 0.0 && this->lon == 0.0) {
+            status->setText("No position of this system yet: its best track file has no fix.");
+            UiStandards::error(status);
+            return;
         }
         measure();
     }};
 }
 
 void PhaseViewer::measure() {
+    if (lat == 0.0 && lon == 0.0) {
+        return;   // (no position yet: the observed track's newest fix gives it)
+    }
     const int mine = ++generation;
     const string model = modelBox->currentData().toString().toStdString();
     headline->setText({});
