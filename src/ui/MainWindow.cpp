@@ -15,7 +15,7 @@
 #include <QPalette>
 #include <QVBoxLayout>
 #include "common/GlobalVariables.h"
-#include "mrms/MrmsViewer.h"
+#include "mapkit/MasterMapViewer.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
 #include "objects/FutureVoid.h"
@@ -123,7 +123,7 @@ MainWindow::MainWindow(QWidget * parent)
     shortcutVis.connect([this] { Route::vis(this); });
     shortcutWfoText.connect([this] { toolbar.launchWfoText(); });
     shortcutHourly.connect([this] { showHourlyGraph(); });   // Show/hide hourly graph
-    shortcutRadar.connect([this] { new MrmsViewer{this}; });
+    shortcutRadar.connect([this] { MasterMapViewer::openRadar(this); });
     shortcutSevereDash.connect([this] { toolbar.launchSevereDashboard(); });
     shortcutNcep.connect([this] { toolbar.launchModelViewerGeneric("NCEP"); });
     shortRadarMosaic.connect([this] { toolbar.launchRadarMosaicViewer(); });

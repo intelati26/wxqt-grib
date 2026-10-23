@@ -55,6 +55,8 @@ public:
     // set, at that valid time
     void exportWithContext(const QString& path, const string& acisProduct, const string& office = {});   // (the lighter ACIS map under it; for the dev route)
     static MasterMapViewer * openModels(Window * parent, const string& model = {}, const string& param = {}, const string& sector = {}, const QDateTime& valid = {});
+    // the radar: the master map at the current location with the MRMS mosaic, the warning polygons and the mesoscale discussions (the MRMS screen's place: it has no window of its own)
+    static MasterMapViewer * openRadar(Window * parent);
     void openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds);
     void showSystem(const string& atcfId);   // the ensemble tracks of that one system only (as the track map of a storm)
 

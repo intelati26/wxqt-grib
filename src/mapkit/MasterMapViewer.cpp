@@ -2354,6 +2354,13 @@ MasterMapViewer * MasterMapViewer::openModels(Window * parent, const string& mod
     return map;
 }
 
+MasterMapViewer * MasterMapViewer::openRadar(Window * parent) {
+    auto * map = new MasterMapViewer{parent};
+    const auto here = Location::getLatLonCurrent();
+    map->openAt(QDateTime::currentDateTimeUtc(), here.lat(), here.lon(), 250.0, {"radar/mrms", "severe/warnings", "severe/mcd"});
+    return map;
+}
+
 void MasterMapViewer::openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds) {
     following = true;
     building = true;

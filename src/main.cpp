@@ -235,6 +235,8 @@ int main(int argc, char * argv[]) {
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
                 when.setTimeSpec(Qt::UTC);
                 map->openAt(when, 37.0, -97.0, 900.0, {"satellite/goes-history"});
+            } else if (route == "radar") {   // WXQT_OPEN=radar: the radar doorway (the master map at the current location with MRMS, warnings and discussions)
+                MasterMapViewer::openRadar(&w);
             } else if (route.startsWith("phase:")) {   // WXQT_OPEN=phase:<model>:<lat>:<lon>[:<atcf id>]: the phase space window of a storm at that place in that model
                 const auto parts = route.split(':');
                 new PhaseViewer{&w, "test", parts.value(2, "15").toDouble(), parts.value(3, "-60").toDouble(), parts.value(1, "GFS").toStdString(), parts.value(4).toStdString()};

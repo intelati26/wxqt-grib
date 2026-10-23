@@ -5,7 +5,7 @@
 // *****************************************************************************
 
 #include "spc/SpcMcdWatchMpdViewer.h"
-#include "mrms/MrmsViewer.h"
+#include "mapkit/MasterMapViewer.h"
 #include "misc/ImageViewer.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
@@ -50,8 +50,8 @@ void SpcMcdWatchMpdViewer::updateText(const string& html) {
     const auto radarSite = RadarSites::getNearestCode(center, false);
     radar = radarSite;
     button.setText("Show Radar (MRMS)");
-    button.connect([this] { new MrmsViewer{this}; });
-    shortcut.connect([this] { new MrmsViewer{this}; });
+    button.connect([this] { MasterMapViewer::openRadar(this); });
+    shortcut.connect([this] { MasterMapViewer::openRadar(this); });
 }
 
 string SpcMcdWatchMpdViewer::getToken(const string& url) {

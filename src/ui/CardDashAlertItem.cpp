@@ -5,7 +5,7 @@
 // *****************************************************************************
 
 #include "CardDashAlertItem.h"
-#include "mrms/MrmsViewer.h"
+#include "mapkit/MasterMapViewer.h"
 #include "misc/AlertsDetail.h"
 #include "objects/Route.h"
 #include "objects/WString.h"
@@ -33,7 +33,7 @@ CardDashAlertItem::CardDashAlertItem(Window * parent, const ObjectWarning& warni
     buttonDetails.connect([parent, url] { new AlertsDetail{parent, url}; });
 
     buttonRadar.setText("Radar (MRMS)");
-    buttonRadar.connect([parent] { new MrmsViewer{parent}; });
+    buttonRadar.connect([parent] { MasterMapViewer::openRadar(parent); });
 
     // addLayout(boxButtons, Qt::AlignTop);
     addLayout(boxButtons);

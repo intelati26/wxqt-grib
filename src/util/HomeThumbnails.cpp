@@ -132,7 +132,7 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         // the product last looked at in the MRMS viewer (else composite reflectivity), the newest scan, drawn around the
         // current location - or over all of CONUS when the preference MRMS_THUMB_EXTENT is "conus"
         // the radar tile always shows composite reflectivity (the first product); the other one follows the viewer
-        const auto wanted = token == "MRMS_RADAR" ? UtilityMrms::products().front().id : Utility::readPref("MRMS_LAST_PRODUCT", UtilityMrms::products().front().id);
+        const auto wanted = token == "MRMS_RADAR" ? UtilityMrms::products().front().id : Utility::readPref("MM_MRMS_PRODUCT", UtilityMrms::products().front().id);
         auto product = UtilityMrms::products().front();
         auto known = std::find_if(UtilityMrms::products().begin(), UtilityMrms::products().end(), [&wanted] (const auto& p) { return p.id == wanted; });
         if (known != UtilityMrms::products().end()) {

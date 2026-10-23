@@ -5,7 +5,7 @@
 // *****************************************************************************
 
 #include "CardAlertDetail.h"
-#include "mrms/MrmsViewer.h"
+#include "mapkit/MasterMapViewer.h"
 #include "misc/AlertsDetail.h"
 #include "objects/Route.h"
 
@@ -27,7 +27,7 @@ CardAlertDetail::CardAlertDetail(Window * parent, const CapAlertXml& cap)
     boxText.addStretch();
 
     buttonRadar.setText("Radar (MRMS)");
-    buttonRadar.connect([parent] { new MrmsViewer{parent}; });
+    buttonRadar.connect([parent] { MasterMapViewer::openRadar(parent); });
     buttonDetails.connect([parent, cap] { new AlertsDetail{parent, cap.url}; });
 
     addLayout(layoutVertical, Qt::AlignLeft);

@@ -63,9 +63,8 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
 - SPC's 1180 x 968 layout by default (or a layout that fills the window); Save exports on a white background at twice size.
 
 ### Radar  [Radar and satellite]
-- **MRMS viewer** - the full MRMS product list (reflectivity, hail MESH / POSH, rotation, azimuthal shear, rain rate and QPE,
-  echo tops) at native resolution on the map, with scan picker, loop, zoom about the pointer, value read-out, Save. The map's
-  overlays (warnings, watches and discussions, outlooks, fronts, observations) are the ones switched on under Settings > Map.
+- **MRMS radar** - opens the master map at the current location with the MRMS mosaic (the full product list: reflectivity, hail MESH / POSH, rotation, azimuthal shear, rain rate and QPE,
+  echo tops), the NWS warning and watch polygons and the SPC mesoscale discussions. The map's own time bar loops it and steps back through the archive; there is no separate MRMS window.
 - A MRMS still can be a picture on the home screen (Settings > Home Screen Order).
 - **MRMS is the only radar.** The single-site NEXRAD (Level III) radar windows were removed from this fork. For raw radar files
   (Level II / III, single-site base products and velocity) use [Supercell Wx](https://github.com/dpaulat/supercell-wx).
