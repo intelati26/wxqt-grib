@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "util/HomeThumbnails.h"
+#include <QBuffer>
+#include "space/UtilitySun.h"
 #include <algorithm>
 #include <map>
 #include <QFile>
@@ -54,6 +56,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"TROPICAL_EPAC_SAT", "Tropical overview - East Pacific (GOES satellite)", "nhc.png#2", false, false},
         {"TROPICAL_WPAC_SAT", "Tropical overview - West Pacific (Himawari satellite, Guam sector)", "nhc.png#2", false, false},
         {"WORLD_SST", "World sea surface temperature (NOAA/NESDIS daily 5 km blend)", "opc.png#2", false, false},
+        {"SUN_REGIONS", "The Sun with its numbered active regions and a heliographic grid (SDO/HMI, NOAA SWPC)", "goes16.png", false, false},
         {"MRMS_RADAR", "MRMS radar - composite reflectivity around your location", "mcd_tile.png", false, false},
         {"MRMS_LATEST", "MRMS - latest scan of your last product, around your location", "mcd_tile.png", false, false},
         {"GRIB_LATEST", "Model viewer - your last model, chart and area, newest run", "grib.png", true, false},
@@ -91,6 +94,7 @@ namespace {
         {"TROPICAL_ATL_SAT", {"Tropical Atlantic", "GOES-19 tropical Atlantic view: true colour by day, infrared at night."}},
         {"TROPICAL_EPAC_SAT", {"Eastern Pacific", "GOES-19 eastern Pacific view: true colour by day, infrared at night."}},
         {"TROPICAL_WPAC_SAT", {"Western Pacific", "Himawari infrared (colour-enhanced) view of the western Pacific from the Guam sector."}},
+        {"SUN_REGIONS", {"The Sun", "The visible disc of the Sun (SDO/HMI) with the numbered active regions (NOAA SWPC), coloured by their chance of an M or X flare, and a grid every 30 degrees: east is left, west is right, and regions rotate in at the left and out at the right in about two weeks. Click for the Space weather screen."}},
         {"WORLD_SST", {"World sea surface temperature", "Daily global sea surface temperature, a 5 km blend of satellite and in-situ measurements (NOAA/NESDIS). Click for the Climate and ocean screen, with the anomaly and the regional maps."}},
         {"MRMS_RADAR", {"MRMS radar", "Multi-Radar Multi-Sensor composite reflectivity around your location."}},
         {"MRMS_LATEST", {"MRMS product", "Latest scan of the MRMS product you looked at last, around your location."}},
@@ -211,6 +215,16 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         url = UtilityGoes::getImage("GEOCOLOR", "eep");
     } else if (token == "TROPICAL_WPAC_SAT") {
         url = "https://www.ospo.noaa.gov/Products/imagery/guam/GUAMCOL.JPG";
+    } else if (token == "SUN_REGIONS") {
+        const auto picture = UtilitySun::labelled(800);
+        if (picture.isNull()) {
+            return {};
+        }
+        QByteArray png;
+        QBuffer buffer{&png};
+        buffer.open(QIODevice::WriteOnly);
+        picture.save(&buffer, "PNG");
+        return png;
     } else if (token == "WORLD_SST") {
         url = "https://www.ospo.noaa.gov/data/cb/sst/sst.daily.current.png";
     } else if (token == "NHC_ATLANTIC") {

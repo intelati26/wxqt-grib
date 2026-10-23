@@ -50,6 +50,7 @@
 #include "gfs/GfsRender.h"
 #include "tropical/PhaseViewer.h"
 #include "misc/AhdViewer.h"
+#include "space/UtilitySun.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsIntensity.h"
 #include "hurricane/AceForecastViewer.h"
@@ -236,6 +237,9 @@ int main(int argc, char * argv[]) {
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
                 when.setTimeSpec(Qt::UTC);
                 map->openAt(when, 37.0, -97.0, 900.0, {"satellite/goes-history"});
+            } else if (route.startsWith("sun:")) {   // WXQT_OPEN=sun:<out.png>[:width]: the labelled Sun picture saved, then the program goes on
+                const auto parts = route.split(':');
+                UtilitySun::labelled(parts.value(2, "900").toInt()).save(parts.value(1));
             } else if (route == "ahd") {   // WXQT_OPEN=ahd: the Area Hydrologic Discussion window
                 new AhdViewer{&w};
             } else if (route == "radar") {   // WXQT_OPEN=radar: the radar doorway (the master map at the current location with MRMS, warnings and discussions)
