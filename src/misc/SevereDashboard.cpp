@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "SevereDashboard.h"
+#include "misc/AhdViewer.h"
 #include "misc/UsAlerts.h"
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
@@ -59,10 +60,16 @@ void SevereDashboard::downloadWatch() {
     urls.clear();
     urls.push_back(DownloadImage::byProduct("USWARN"));
     urls.push_back(DownloadImage::byProduct("STRPT"));
+    ahdIndex = static_cast<size_t>(-1);
     for (auto t : {Mcd, Mpd, Watch}) {
         PolygonWatch::byType.at(t)->download();
         severeNotices.at(t).getBitmaps();
         addAll(urls, severeNotices.at(t).urls);
+    }
+    string ahd;   // the Area Hydrologic Discussion's graphic, when one has been issued in the last two days (it is episodic)
+    if (AhdViewer::recent(48, ahd)) {
+        ahdIndex = urls.size();
+        urls.push_back(ahd);
     }
 }
 
@@ -116,7 +123,9 @@ void SevereDashboard::updateWarnings(PolygonType type) {
 }
 
 void SevereDashboard::launch(size_t indexFinal) {
-    if (indexFinal == 0) {
+    if (indexFinal == ahdIndex) {
+        new AhdViewer{this};
+    } else if (indexFinal == 0) {
         new UsAlerts{this};
     } else if (indexFinal == 1) {
         new SpcStormReports{this, "today"};

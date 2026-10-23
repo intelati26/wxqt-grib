@@ -49,6 +49,7 @@ private:
     ScrolledWindow sw;
     vector<HBox> boxRows;
     vector<string> urls;
+    size_t ahdIndex{static_cast<size_t>(-1)};   // the Area Hydrologic Discussion's graphic in urls
     vector<Image> images;
     vector<CardBlackHeaderText> headerTextList;
     vector<CardDashAlertItem> dashAlertItems;
