@@ -15,6 +15,7 @@
 #include <future>
 #include <mutex>
 #include <set>
+#include <tuple>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -145,6 +146,9 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     const QString decoded = source.warp.enabled ? QString{"w%1_%2_%3_%4_%5"}.arg(source.warp.step).arg(source.warp.west).arg(source.warp.south).arg(source.warp.east).arg(source.warp.north) : QString{"p"};
     const QString missing = std::isnan(source.extraMissing) ? QString{} : QString{"_m%1"}.arg(static_cast<double>(source.extraMissing));
     QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_") + QString::fromStdString(want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail) + "_" + decoded + missing;
+    if (!want.stat.empty()) {   // an ensemble member of the same file and record is a field of its own
+        name += "_" + QString::fromStdString(want.stat);
+    }
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 170) {   // a file name has a limit: the head tells which run and hour (the partial file is found by it), a hash the rest
         name = name.left(110) + "_" + QString::number(qHash(name), 16);
@@ -878,9 +882,12 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
         }
     }
     // one index per forecast hour and file involved: fetched together (they do not depend on each other), a few at a time
-    std::vector<std::pair<int, std::string>> keys;
+    // (an index that depends on the member, ECMWF's, is one for each member asked for)
+    using IndexKey = std::tuple<int, std::string, std::string>;
+    const auto keyOf = [this] (const Need& need) { return IndexKey{need.hour, fileFor(need.want), source.parseIndex ? need.want.stat : std::string{}}; };
+    std::vector<IndexKey> keys;
     for (const auto& need : needs) {
-        const auto key = std::make_pair(need.hour, fileFor(need.want));
+        const auto key = keyOf(need);
         if (std::find(keys.begin(), keys.end(), key) == keys.end()) {
             keys.push_back(key);
         }
@@ -888,7 +895,7 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
     std::vector<Want> wantsOf(keys.size());   // a want of each index: the member to read
     for (size_t i = 0; i < keys.size(); i++) {
         for (const auto& need : needs) {
-            if (std::make_pair(need.hour, fileFor(need.want)) == keys[i]) {
+            if (keyOf(need) == keys[i]) {
                 wantsOf[i] = need.want;
                 break;
             }
@@ -913,8 +920,8 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
     std::vector<std::vector<GfsGrid::IdxRecord>> parsed(keys.size());
     runLimited(keys.size(), source.maxParallel, [&] (size_t i) {
         // an index does not change once the run has its file: kept for a few minutes (it is a request of its own, 1.6 s from ECMWF), so drawing the next hour or chart starts at once
-        const auto url = indexUrl(run, keys[i].first, keys[i].second);
-        const auto cacheKey = url + "|" + (source.parseIndex ? wantsOf[i].stat : std::string{});
+        const auto url = indexUrl(run, std::get<0>(keys[i]), std::get<1>(keys[i]));
+        const auto cacheKey = url + "|" + std::get<2>(keys[i]);
         const auto now = std::chrono::steady_clock::now();
         {
             const std::lock_guard lock{indexMutex};
@@ -934,10 +941,10 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
             indexCache[cacheKey] = {now, parsed[i]};
         }
     });
-    std::map<std::pair<int, std::string>, std::vector<GfsGrid::IdxRecord>> indexes;
+    std::map<IndexKey, std::vector<GfsGrid::IdxRecord>> indexes;
     for (size_t i = 0; i < keys.size(); i++) {
         if (parsed[i].empty()) {
-            error = "could not read the " + source.id + " index for " + run.id() + " f" + pad(keys[i].first, 3) + (keys[i].second.empty() ? "" : " (" + keys[i].second + ")");
+            error = "could not read the " + source.id + " index for " + run.id() + " f" + pad(std::get<0>(keys[i]), 3) + (std::get<1>(keys[i]).empty() ? "" : " (" + std::get<1>(keys[i]) + ")");
             return false;
         }
         indexes[keys[i]] = std::move(parsed[i]);
@@ -947,7 +954,7 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
         const auto& need = needs[i];
         Result& r = results[i];
         const auto file = fileFor(need.want);
-        const auto& index = indexes.at(std::make_pair(need.hour, file));
+        const auto& index = indexes.at(keyOf(need));
         if (need.hour == 0 && !GfsGrid::find(index, need.want.variable, need.want.level, need.want.forecast, need.want.detail.empty() ? source.defaultDetail : need.want.detail, source.matchRunTime ? run.id() : std::string{})) {
             r.ok = true;   // nothing accumulated yet at hour 0
             r.absent = true;

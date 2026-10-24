@@ -276,6 +276,25 @@ clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 
 clone_pieces = false
 clone_skip = precip_p01
 )MODEL"},
+        {"IFS-ENS", R"MODEL(
+# ECMWF's ensemble (ENS): 50 members of the physical model, each a message of the step's file (4 GB a step, read by its JSON index); a member is chosen by its number (`stat` e01 ... e50)
+id = IFS-ENS
+label = ECMWF IFS ensemble (ENS), 50 members, 0.25 degree (open data, CC BY 4.0)
+kind = grib
+url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/enfo/{date}{cycle}0000-{hour}h-enfo-ef.grib2
+index_format = ecmwf
+index_suffix = .index
+index_replaces = .grib2
+value_scale = APCP:1000
+cycle_hours = 6
+lag_hours = 9
+probe_hour = 0
+max_parallel = 6
+hours = 0-144/3, 150-360/6
+run_length = 0:360, 12:360, else:144
+run_every = 6
+list = true
+)MODEL"},
         {"AIFS", R"MODEL(
 # ECMWF's open data (CC BY 4.0), replicated on Google's storage: a JSON index beside each file
 id = AIFS

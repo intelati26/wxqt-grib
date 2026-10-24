@@ -701,7 +701,14 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
             made.candidates = [d] (const Run& run, int hour, const std::string& file) { return urlsOf(*d, run, hour, file); };
         }
         if (ecmwf) {
-            made.parseIndex = [] (const std::string& text, const Want&) { return GfsGrid::parseEcmwfIndex(text); };
+            made.parseIndex = [] (const std::string& text, const Want& want) {
+                // an ensemble member by its number ("e07" is member 7); no stat is the plain forecast
+                std::string member;
+                if (want.stat.size() > 1 && want.stat[0] == 'e') {
+                    member = std::to_string(std::atoi(want.stat.c_str() + 1));
+                }
+                return GfsGrid::parseEcmwfIndex(text, member);
+            };
         }
         if (!d->variables.empty()) {
             made.variableOf = [d] (const Want& w) {
