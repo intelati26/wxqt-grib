@@ -1944,8 +1944,8 @@ void ModelViewer::showModelPicker() {
     std::vector<ProductPicker::Entry> entries;
     for (const auto& id : objectModel.models) {
         const auto group = GfsModels::pickerGroup(id);
-        const auto * def = group == "SPC guidance and mesoanalysis" ? GfsModels::find(id) : nullptr;   // the SPC ones say what they are: their names are not known by heart
-        entries.push_back({id, def ? id + "  -  " + def->label : id, group});
+        const auto * def = GfsModels::find(id);   // every model says what it is, so a model is found by who makes it ("ECMWF", "NASA") as well as by its short name
+        entries.push_back({id, def && def->label != id ? id + "  -  " + def->label : id, group});
     }
     static const std::vector<string> order{"Global", "Regional", "Convection allowing", "Ensembles", "Waves and ocean", "Tropical cyclones", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
@@ -1953,7 +1953,7 @@ void ModelViewer::showModelPicker() {
     });
     modelPicker = new ProductPicker{this, "NCEP", entries, objectModel.model, {}, {}, {}};
     modelPicker->setWording("models", "Show this model");
-    modelPicker->resize(320, 520);
+    modelPicker->resize(480, 560);
     modelPicker->onPick = [this] (const string& id) {
         const auto items = comboboxModel.getItems();
         const auto found = std::find(items.begin(), items.end(), id);
