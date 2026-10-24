@@ -45,6 +45,13 @@ link = wikipedia | Ensemble forecasting | https://en.wikipedia.org/wiki/Ensemble
 link = background | European Centre for Medium-Range Weather Forecasts | https://en.wikipedia.org/wiki/European_Centre_for_Medium-Range_Weather_Forecasts
 link = source | ECMWF open data | https://www.ecmwf.int/en/forecasts/datasets/open-data
 )ABOUT"},
+        {"ENS-ALL", R"ABOUT(
+why = Three ensembles run by three centres (ECMWF's 50 members, NOAA's GEFS with 31 and Canada's GEPS with 21), pooled as one set of 102 outcomes for the same valid time. Their models and their starting points differ, so the pool spreads wider where the centres disagree than any one of them does, and agreement among all three is the strongest sign that a pattern is trusted. It is the idea behind NAEFS, the North American Ensemble Forecast System. The spaghetti charts color each centre's members in a family of their own, so a split between the centres is visible at a glance.
+link = wikipedia | Ensemble forecasting | https://en.wikipedia.org/wiki/Ensemble_forecasting
+link = background | North American Ensemble Forecast System | https://en.wikipedia.org/wiki/North_American_Ensemble_Forecast_System
+link = source | ECMWF open data | https://www.ecmwf.int/en/forecasts/datasets/open-data
+link = source | NOAA GEFS on AWS | https://registry.opendata.aws/noaa-gefs/
+)ABOUT"},
         {"AIFS", R"ABOUT(
 why = ECMWF's machine-learning forecast model. It matches the physical model closely at a fraction of the computing, and its mistakes differ from the physical model's, which makes the pair useful together. Treat a fine detail with caution: it is smoother than a physical model.
 link = background | European Centre for Medium-Range Weather Forecasts | https://en.wikipedia.org/wiki/European_Centre_for_Medium-Range_Weather_Forecasts

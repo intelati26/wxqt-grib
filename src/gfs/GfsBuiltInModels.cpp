@@ -295,6 +295,25 @@ run_length = 0:360, 12:360, else:144
 run_every = 6
 list = true
 )MODEL"},
+        {"ENS-ALL", R"MODEL(
+# the ECMWF ensemble, the GEFS and the GEPS read together as one ensemble: its run is the ECMWF's (the 00Z and 12Z are the runs all three make), the members of the others are read by the
+# charts for the same valid time (GfsRender, pool); this file is only the ECMWF's index and the hours the three share
+id = ENS-ALL
+label = All ensembles pooled: ECMWF ENS, GEFS and GEPS (102 members), 0.5 degree
+kind = grib
+url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/enfo/{date}{cycle}0000-{hour}h-enfo-ef.grib2
+index_format = ecmwf
+index_suffix = .index
+index_replaces = .grib2
+cycle_hours = 12
+lag_hours = 10
+probe_hour = 0
+max_parallel = 6
+hours = 6-240/6
+run_length = 0:240, 12:240, else:240
+run_every = 12
+list = true
+)MODEL"},
         {"AIFS", R"MODEL(
 # ECMWF's open data (CC BY 4.0), replicated on Google's storage: a JSON index beside each file
 id = AIFS

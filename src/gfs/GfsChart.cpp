@@ -5214,6 +5214,157 @@ const std::vector<Product>& products() {
             }
         };
 
+        // ---- ENS-ALL: every member of the ECMWF ensemble (50), the GEFS (31) and the GEPS (21) pooled as 102 members of one ensemble on a 0.5 degree grid, for the same valid time
+        const auto ensAllRecipes = [&] {
+            const auto make = [] (const std::string& id, const std::string& label) {
+                Product x;
+                x.source = "ENS-ALL";
+                x.id = id;
+                x.label = label;
+                return x;
+            };
+            // the mean and the spread of all the members present under a prefix, in `scale` of the file's unit
+            const auto statistics = [] (Grids& g, const std::string& prefix, double scale) {
+                std::vector<const GfsGrid::Grid *> members;
+                for (const auto& member : poolMembers()) {
+                    const auto found = g.find(prefix + member.tag);
+                    if (found != g.end() && !found->second.values.empty()) {
+                        members.push_back(&found->second);
+                    }
+                }
+                if (members.empty()) {
+                    throw std::runtime_error{"no member could be read"};
+                }
+                auto mean = *members.front();
+                auto spread = mean;
+                for (size_t i = 0; i < mean.values.size(); i++) {
+                    double sum = 0.0, square = 0.0;
+                    int n = 0;
+                    for (const auto * m : members) {
+                        const float v = m->values[i];
+                        if (std::isfinite(v)) {
+                            sum += v;
+                            square += static_cast<double>(v) * v;
+                            n++;
+                        }
+                    }
+                    mean.values[i] = n > 0 ? static_cast<float>(sum / n * scale) : std::nanf("");
+                    spread.values[i] = n > 1 ? static_cast<float>(std::sqrt(std::max(0.0, square / n - (sum / n) * (sum / n))) * scale) : std::nanf("");
+                }
+                g[prefix + "m"] = std::move(mean);
+                g[prefix + "s"] = std::move(spread);
+                for (const auto& member : poolMembers()) {   // the members are done with
+                    g.erase(prefix + member.tag);
+                }
+            };
+            const auto spreadChart = [&] (const char * id, const char * label, const char * variable, const char * level, double scale, double top, const char * title, ContourSet lines) {
+                auto x = make(id, label);
+                x.pool = {variable, level, "f"};
+                x.derive = [statistics, scale] (Grids& g, const Context&) { statistics(g, "f", scale); };
+                x.fill = [] (const Grids& g) { return pick(g, "fs"); };
+                x.ramp = spreadRamp(top);
+                x.fillTitle = title;
+                x.legendStep = 0;
+                lines.key = "fm";
+                lines.scale = 1.0;
+                x.contours = {lines};
+                p.push_back(x);
+            };
+            {
+                auto h = heights(6.0);
+                h.title = "Mean of all the members, height (dam)";
+                spreadChart("all_spread_500_ht", "500mb Height: all ensembles, mean and spread", "HGT", "500 mb", 0.1, 8.0, "Spread (standard deviation) of the 500 mb height among the ECMWF, GEFS and GEPS members together (dam)", h);
+                auto m = pressure();
+                m.title = "Mean of all the members, pressure (mb)";
+                spreadChart("all_spread_mslp", "MSLP: all ensembles, mean and spread", "PRMSL", "mean sea level", 0.01, 8.0, "Spread of the sea level pressure among all the members (mb)", m);
+                ContourSet t;
+                t.interval = 5;
+                t.title = "Mean of all the members, 850 mb temperature (C)";
+                t.color = QColor{30, 30, 30};
+                spreadChart("all_spread_850_temp", "850mb Temperature: all ensembles, mean and spread", "TMP", "850 mb", 1.0, 5.0, "Spread of the 850 mb temperature among all the members (C)", t);
+                ContourSet t2;
+                t2.interval = 5;
+                t2.title = "Mean of all the members, 2 m temperature (C)";
+                t2.color = QColor{30, 30, 30};
+                spreadChart("all_spread_2m_temp", "2 m Temperature: all ensembles, mean and spread", "TMP", "2 m above ground", 1.0, 5.0, "Spread of the 2 m temperature among all the members (C)", t2);
+            }
+            // spaghetti: a line from every member, each ensemble in a color family of its own (ECMWF reds, GEFS blues, GEPS greens), and the mean of all of them heavy and black
+            const auto spaghetti = [&] (const std::string& id, const std::string& label, const char * variable, const char * level, double scale, std::vector<double> levels, const std::string& what) {
+                auto x = make(id, label);
+                x.linesOnly = true;
+                x.pool = {variable, level, "z"};
+                x.derive = [scale] (Grids& g, const Context&) {
+                    std::vector<const GfsGrid::Grid *> members;
+                    for (const auto& member : poolMembers()) {
+                        const auto found = g.find("z" + member.tag);
+                        if (found != g.end() && !found->second.values.empty()) {
+                            members.push_back(&found->second);
+                        }
+                    }
+                    if (members.empty()) {
+                        throw std::runtime_error{"no member could be read"};
+                    }
+                    auto mean = *members.front();
+                    for (size_t i = 0; i < mean.values.size(); i++) {
+                        double sum = 0.0;
+                        int n = 0;
+                        for (const auto * m : members) {
+                            if (std::isfinite(m->values[i])) {
+                                sum += m->values[i];
+                                n++;
+                            }
+                        }
+                        mean.values[i] = n > 0 ? static_cast<float>(sum / n) : std::nanf("");
+                    }
+                    g["zm"] = std::move(mean);
+                    (void) scale;
+                };
+                x.fillTitle = what + ": a line from each of the 50 ECMWF (red), 31 GEFS (blue) and 21 GEPS (green) members, the heavy black line the mean of all";
+                for (const double value : levels) {
+                    std::map<std::string, int> counts;
+                    for (const auto& member : poolMembers()) {
+                        ContourSet c;
+                        c.key = "z" + member.tag;
+                        c.scale = scale;
+                        c.base = value;
+                        c.interval = 100000.0;
+                        const int n = counts[member.source]++;
+                        const int span = member.source == "IFS-ENS" ? 50 : member.source == "GEFS" ? 31 : 21;
+                        const int hue = member.source == "IFS-ENS" ? 355 : member.source == "GEFS" ? 215 : 125;   // a color family for each ensemble, the members a shade apart
+                        c.color = QColor::fromHsv((hue + n * 28 / span) % 360, 200 + (n % 3) * 20, 170 + (n % 4) * 20);
+                        c.width = 0.9;
+                        c.labelled = false;
+                        c.uniform = true;
+                        if (value == levels.front() && n == 0) {
+                            c.title = member.source == "IFS-ENS" ? "ECMWF ENS" : member.source == "GEFS" ? "GEFS" : "GEPS";
+                        }
+                        x.contours.push_back(c);
+                    }
+                    ContourSet mean;
+                    mean.key = "zm";
+                    mean.scale = scale;
+                    mean.base = value;
+                    mean.interval = 100000.0;
+                    mean.color = QColor{10, 10, 10};
+                    mean.width = 2.6;
+                    mean.uniform = true;
+                    if (value == levels.front()) {
+                        mean.title = "Mean of all";
+                    }
+                    x.contours.push_back(mean);
+                }
+                p.push_back(x);
+            };
+            for (const auto& [low, high] : {std::pair{522, 564}, {528, 570}, {534, 576}, {540, 582}}) {
+                spaghetti("all_spag_500_" + std::to_string(low) + "_" + std::to_string(high), "500mb " + std::to_string(low) + "/" + std::to_string(high) + " Height Contours (spaghetti)", "HGT", "500 mb", 0.1,
+                          {static_cast<double>(low), static_cast<double>(high)}, "500 mb heights of " + std::to_string(low) + " and " + std::to_string(high) + " dam");
+            }
+            for (const auto& [low, high] : {std::pair{996, 1036}, {1000, 1040}, {1004, 1044}, {1008, 1048}}) {
+                spaghetti("all_spag_mslp_" + std::to_string(low) + "_" + std::to_string(high), "MSLP " + std::to_string(low) + "/" + std::to_string(high) + " Isobar Contours (spaghetti)", "PRMSL", "mean sea level", 0.01,
+                          {static_cast<double>(low), static_cast<double>(high)}, "sea level pressure of " + std::to_string(low) + " and " + std::to_string(high) + " mb");
+            }
+        };
+
         // ---- GEOS-FP (NASA GMAO): the aerosol fields the model is used for, from its 3 hourly aerosol collection (kg/m3, drawn in micrograms; dust has a chart of its own in several forms)
         const auto geosRecipes = [&] {
             const auto stretched = [] (const Ramp& base, double factor) {
@@ -5289,7 +5440,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);
@@ -5312,6 +5463,26 @@ const std::vector<Product>& products() {
             }
         }
         return p;
+    }();
+    return list;
+}
+
+const std::vector<PoolMember>& poolMembers() {
+    static const std::vector<PoolMember> list = [] {
+        std::vector<PoolMember> out;
+        const auto two = [] (int m) { return (m < 10 ? "0" : "") + std::to_string(m); };
+        for (int m = 1; m <= 50; m++) {
+            out.push_back({"IFS-ENS", "e" + two(m), "I" + two(m)});
+        }
+        out.push_back({"GEFS", "c00", "G00"});
+        for (int m = 1; m <= 30; m++) {
+            out.push_back({"GEFS", "p" + two(m), "G" + two(m)});
+        }
+        out.push_back({"GEPS", "c00", "C00"});
+        for (int m = 1; m <= 20; m++) {
+            out.push_back({"GEPS", "p" + two(m), "C" + two(m)});
+        }
+        return out;
     }();
     return list;
 }
@@ -6855,6 +7026,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     } else if (product.contours.size() > 1) {   // lines of several sets (models compared): a key, a sample of each line's color and what it is
         double x = barLeft;
         for (const auto& set : product.contours) {
+            if (set.title.empty()) {   // a line of many alike (a member of fifty) is not in the key
+                continue;
+            }
             const QString name = QString::fromStdString(set.title);
             const double width = QFontMetricsF{p.font()}.horizontalAdvance(name);
             p.setPen(QPen{set.color, 3.0});

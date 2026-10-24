@@ -243,7 +243,7 @@ std::string GfsModels::pickerGroup(const std::string& id) {
         {"NAM", "Regional"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Regional"},
         {"HRRR", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"RRFS-AK", "Convection allowing"}, {"HRRR-AK", "Convection allowing"}, {"ICON-EU", "Regional"}, {"ICON-D2", "Convection allowing"}, {"HRDPS", "Convection allowing"}, {"RRFS-HI", "Convection allowing"}, {"RRFS-PR", "Convection allowing"}, {"RRFS-NA", "Regional"}, {"NAM-HIRES", "Convection allowing"}, {"HRW-ARW", "Convection allowing"},
         {"HRW-ARW2", "Convection allowing"}, {"HRW-FV3", "Convection allowing"},
-        {"GEFS", "Ensembles"}, {"GEPS", "Ensembles"}, {"IFS-ENS", "Ensembles"}, {"REFS", "Ensembles"}, {"HREF", "Ensembles"}, {"NAEFS", "Ensembles"},
+        {"GEFS", "Ensembles"}, {"GEPS", "Ensembles"}, {"IFS-ENS", "Ensembles"}, {"ENS-ALL", "Ensembles"}, {"REFS", "Ensembles"}, {"HREF", "Ensembles"}, {"NAEFS", "Ensembles"},
         {"GEFS-MEAN-SPRD", "Ensembles"}, {"GEFS-SPAG", "Ensembles"},
         {"SPCPOST", "SPC guidance and mesoanalysis"}, {"SPCGEFS", "SPC guidance and mesoanalysis"}, {"SPCREFS", "SPC guidance and mesoanalysis"},
         {"SFCOA", "SPC guidance and mesoanalysis"}, {"RRFSD", "SPC guidance and mesoanalysis"},
@@ -276,6 +276,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("IFS"));
         m.push_back(fromFile("AIFS"));
         m.push_back(fromFile("IFS-ENS"));
+        m.push_back(fromFile("ENS-ALL"));
         m.push_back(fromFile("GEFS"));
         m.push_back(fromFile("GEPS"));
         m.push_back(fromFile("GEOS-FP"));

@@ -536,6 +536,81 @@ namespace {
     }
 }
 
+namespace {
+    // A field of every member of the pooled ensembles for the valid time of `run` + `hour`: each ensemble's own newest run at or before it (the others' hour moved to keep the valid time), the
+    // members read, and every grid put on one 0.5 degree grid. A member that could not be read is left out (the others stand); an ensemble none of whose members were read is an error.
+    bool pooledGrids(GfsRender::Session& session, const GfsChart::Product& chart, const GfsData::Run& run, int hour, GfsChart::Grids& grids, std::string& error) {
+        auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+        start.setTimeSpec(Qt::UTC);
+        const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
+        GfsGrid::Grid common;
+        common.columns = 720;
+        common.rows = 361;
+        common.lon0 = 0.0;
+        common.lat0 = 90.0;
+        common.step = 0.5;
+        std::string problems;
+        std::vector<std::string> sources;
+        for (const auto& member : GfsChart::poolMembers()) {
+            if (std::find(sources.begin(), sources.end(), member.source) == sources.end()) {
+                sources.push_back(member.source);
+            }
+        }
+        for (const auto& source : sources) {
+            auto gfs = data(session.folder(), source);
+            const auto * def = GfsModels::find(source);
+            const int step = gfs.model().cycleHours;
+            bool done = false;
+            std::string why;
+            for (int back = 0; back < 3 && !done; back++) {
+                const auto t = start.addSecs(-static_cast<qint64>(back) * step * 3600 - static_cast<qint64>((start.time().hour() % step)) * 3600);
+                const GfsData::Run used{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+                const int h = static_cast<int>((valid.toSecsSinceEpoch() - t.toSecsSinceEpoch()) / 3600);
+                bool offered = def == nullptr;
+                for (const auto& range : def ? def->hours : std::vector<GfsModels::Hours>{}) {
+                    offered = offered || (h >= range.from && h <= range.to && (h - range.from) % range.step == 0);
+                }
+                if (!offered) {
+                    why = source + " has no forecast for this valid time from its " + used.cycle + "Z run";
+                    continue;
+                }
+                std::vector<GfsData::Need> needs;
+                for (const auto& member : GfsChart::poolMembers()) {
+                    if (member.source == source) {
+                        needs.push_back({h, GfsData::Want{chart.pool.prefix + member.tag, chart.pool.variable, chart.pool.level, source == "GEPS" ? std::string{} : std::to_string(h) + " hour fcst", "", member.stat}});
+                    }
+                }
+                GfsChart::Grids loaded;
+                if (!gfs.load(used, needs, loaded, why)) {
+                    continue;
+                }
+                for (auto& [key, grid] : loaded) {
+                    if (grid.values.empty()) {
+                        continue;
+                    }
+                    auto onto = common;
+                    onto.values.resize(static_cast<size_t>(common.columns) * static_cast<size_t>(common.rows));
+                    for (int r = 0; r < common.rows; r++) {
+                        for (int c = 0; c < common.columns; c++) {
+                            onto.values[static_cast<size_t>(r) * static_cast<size_t>(common.columns) + static_cast<size_t>(c)] = grid.sample(common.lon0 + c * common.step, common.lat0 - r * common.step);
+                        }
+                    }
+                    grids[key] = std::move(onto);
+                }
+                done = true;
+            }
+            if (!done) {
+                problems += (problems.empty() ? "" : "; ") + (why.empty() ? source + " could not be read" : why);
+            }
+        }
+        if (grids.empty()) {
+            error = problems.empty() ? "no ensemble could be read" : problems;
+            return false;
+        }
+        return true;
+    }
+}
+
 QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe, const Variant& variant) {
     try {   // a chart that cannot be made yet (the standard deviations still being worked out) says why
     const auto * base = GfsChart::product(param, model);
@@ -640,7 +715,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     if (base && variant.standardDeviations) {
         composed = GfsChart::withStandardDeviations(composed);
     }
-    bool loaded = gfs.load(run, GfsChart::needs(*product, hour), grids, error);
+    bool loaded = product->pool.active() ? pooledGrids(session, *product, run, hour, grids, error) : gfs.load(run, GfsChart::needs(*product, hour), grids, error);
     if (!loaded) {   // the same run's 1 hour pieces, if the product has them (the first 36 hours)
         const auto pieces = GfsChart::fallbackNeeds(*product, hour);
         std::string again;

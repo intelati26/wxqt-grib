@@ -154,12 +154,25 @@ namespace GfsChart {
         // fields only). 0: every run has them.
         int mainCycleStep{0};
         int periodEndHourUtc{-1};   // with periodHours: the period must end at this hour of the day (the NBM's night minimum ends at 12Z, the day maximum at 00Z); -1: any
+        // A chart of members pooled from several ensembles (the ECWMF's, the GEFS and the GEPS): the field each member provides, read by GfsRender (pool) onto one grid, as "<prefix><tag>" for every
+        // member of poolMembers(); the chart's own derive and contours work on those keys.
+        struct Pool {
+            std::string variable, level;
+            std::string prefix;   // "f": the keys are "fI01" ...
+            bool active() const { return !variable.empty(); }
+        } pool;
         int periodHours{0};   // the chart is of a period that ends at the hour (12 hour extremes, 6 hour chances): only the forecast hours that are multiples of this have it. 0: any hour
         std::string sigmaUnit;      // the chart's own unit for the legend's second row and the read-out: "dam", "mb"
         std::string sigmaSizeKey;   // the grid of one standard deviation in that unit: the legend's second row uses its middle value
         std::string sigmaReadKey;   // the grid of the anomaly in that unit: drawn as dashed lines over the deviations, and in the hover read-out
         double sigmaInterval{0.0};  // the spacing of those lines, in that unit
     };
+    // The members of the ensembles that are pooled: the model they come from, the name that model's files know the member by, and a tag that is its key ("I01" the ECMWF's member 1, "G00" the GEFS
+    // control, "C05" the GEPS member 5)
+    struct PoolMember {
+        std::string source, stat, tag;
+    };
+    const std::vector<PoolMember>& poolMembers();
     const std::vector<Product>& products();
     // the group a product is listed under in the picker ("Upper air", "Surface", "Precipitation and moisture", "Storms and severe", ...)
     std::string category(const Product& product);
