@@ -613,7 +613,7 @@ source cycleHours=6 lagHours=5 probeHour=60 probeFile=m001/2dfld cyclesToTry=4 m
 2026101118 f120 cref||.zgroup file=.zgroup/2dfld url=https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfsens.20261011/18/.zgroup/rrfs.t18z..zgroup.2dfldnomads.3km.f120.conus.grib2
 == HAFSA
 label=NOAA/NCEP HAFS-A, 2 km storm-following grid source.id=HAFSA- source.label=NOAA/NCEP HAFS-A storm-following grid, 2 km
-sectors=2 hourlyRuns=0 cycleStep=6 overlays=0 recipeList=0 onMissing=2 preloadHours=24 storm=1
+sectors=2 hourlyRuns=0 cycleStep=6 overlays=0 recipeList=1 onMissing=2 preloadHours=24 storm=1
 hours=0-126/3,
 clone enabled=0 specificHumidity=0 pieces=1 prefix=
 ids=
@@ -773,7 +773,7 @@ storm file=storm.sat url=https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/pro
 2026101118 f120 cref||.zgroup file=storm.atm url=https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.20261011/18/.2026101118.hfsa.storm.atm.f120.grb2
 == HAFSB
 label=NOAA/NCEP HAFS-B, 2 km storm-following grid source.id=HAFSB- source.label=NOAA/NCEP HAFS-B storm-following grid, 2 km
-sectors=2 hourlyRuns=0 cycleStep=6 overlays=0 recipeList=0 onMissing=2 preloadHours=24 storm=1
+sectors=2 hourlyRuns=0 cycleStep=6 overlays=0 recipeList=1 onMissing=2 preloadHours=24 storm=1
 hours=0-126/3,
 clone enabled=0 specificHumidity=0 pieces=1 prefix=
 ids=
@@ -1849,6 +1849,160 @@ source cycleHours=6 lagHours=8 probeHour=0 probeFile= cyclesToTry=5 maxParallel=
 2026101118 f120 TMP|2 m above ground|trak file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/aifs-single/0p25/oper/20261011180000-120h-oper-fc.grib2 scale=1
 2026101118 f120 cref||m001 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/aifs-single/0p25/oper/20261011180000-120h-oper-fc.grib2 scale=1
 2026101118 f120 cref||.zgroup file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/aifs-single/0p25/oper/20261011180000-120h-oper-fc.grib2 scale=1
+== IFS-ENS
+label=ECMWF IFS ensemble (ENS), 50 members, 0.25 degree (open data, CC BY 4.0) source.id=IFS-ENS source.label=ECMWF IFS ensemble (ENS), 50 members, 0.25 degree (open data, CC BY 4.0)
+sectors=0 hourlyRuns=0 cycleStep=6 overlays=0 recipeList=1 onMissing=0 preloadHours=24 storm=0
+hours=0-144/3,150-360/6,
+runLength=360,144,144,144,144,144,144,144,144,144,144,144,360,144,144,144,144,144,144,144,144,144,144,144,
+clone enabled=0 specificHumidity=0 pieces=1 prefix=
+ids=
+variables=
+levels=
+fields=
+skip=
+plain=
+rename=
+source cycleHours=6 lagHours=9 probeHour=0 probeFile= cyclesToTry=5 maxParallel=6 wholeFile=0 netcdf=0 custom=0 indexSuffix=.index indexReplaces=.grib2 defaultDetail= extraMissing=nan warp=0:0.025,-127,22,-65,52 hasParse=1 hasSubset=0
+2026101000 f1 HGT|500 mb| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 TMP|2 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 UGRD|10 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 PRMSL|mean sea level| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 PWAT|entire atmosphere (considered as a single layer)| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 CAPE|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 APCP|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1000
+2026101000 f1 RH|1000 mb| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 SPFH|2 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 WIND|10 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 TMP|2 m above ground|spr file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 TMP|2 m above ground|p07 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 TMP|2 m above ground|c00 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 PROB|refsct/refsct_1hr| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 PROB|grefs/grefs_{ee}.4hr;grefs/grefs_{pe}.4hr|b2 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 PROB|gefs_mlp/gefsmlp_tor_std| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 sb_cape|| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 HGT|500 mb|mean file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 HGT|500 mb|sprd file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 CAPE|255-0 mb above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 CIN|surface|p30 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 GUST|surface|spr file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 MSLET|mean sea level|c00 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 HLCY|3000-0 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 VIS|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 TMP|850 mb|m002 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 TMP|2 m above ground|rrfs file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 TMP|500 mb|rrfs file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 REFC|entire atmosphere|ens:avrg file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 APCP|surface|ens:eas file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1000
+2026101000 f1 HGT|500 mb|swath file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 varBT|| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 TMP|2 m above ground|trak file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 cref||m001 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f1 cref||.zgroup file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-1h-enfo-ef.grib2 scale=1
+2026101000 f120 HGT|500 mb| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 TMP|2 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 UGRD|10 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 PRMSL|mean sea level| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 PWAT|entire atmosphere (considered as a single layer)| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 CAPE|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 APCP|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1000
+2026101000 f120 RH|1000 mb| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 SPFH|2 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 WIND|10 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 TMP|2 m above ground|spr file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 TMP|2 m above ground|p07 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 TMP|2 m above ground|c00 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 PROB|refsct/refsct_1hr| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 PROB|grefs/grefs_{ee}.4hr;grefs/grefs_{pe}.4hr|b2 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 PROB|gefs_mlp/gefsmlp_tor_std| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 sb_cape|| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 HGT|500 mb|mean file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 HGT|500 mb|sprd file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 CAPE|255-0 mb above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 CIN|surface|p30 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 GUST|surface|spr file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 MSLET|mean sea level|c00 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 HLCY|3000-0 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 VIS|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 TMP|850 mb|m002 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 TMP|2 m above ground|rrfs file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 TMP|500 mb|rrfs file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 REFC|entire atmosphere|ens:avrg file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 APCP|surface|ens:eas file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1000
+2026101000 f120 HGT|500 mb|swath file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 varBT|| file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 TMP|2 m above ground|trak file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 cref||m001 file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101000 f120 cref||.zgroup file= url=https://storage.googleapis.com/ecmwf-open-data/20261010/00z/ifs/0p25/enfo/20261010000000-120h-enfo-ef.grib2 scale=1
+2026101118 f1 HGT|500 mb| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 TMP|2 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 UGRD|10 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 PRMSL|mean sea level| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 PWAT|entire atmosphere (considered as a single layer)| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 CAPE|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 APCP|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1000
+2026101118 f1 RH|1000 mb| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 SPFH|2 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 WIND|10 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 TMP|2 m above ground|spr file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 TMP|2 m above ground|p07 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 TMP|2 m above ground|c00 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 PROB|refsct/refsct_1hr| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 PROB|grefs/grefs_{ee}.4hr;grefs/grefs_{pe}.4hr|b2 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 PROB|gefs_mlp/gefsmlp_tor_std| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 sb_cape|| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 HGT|500 mb|mean file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 HGT|500 mb|sprd file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 CAPE|255-0 mb above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 CIN|surface|p30 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 GUST|surface|spr file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 MSLET|mean sea level|c00 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 HLCY|3000-0 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 VIS|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 TMP|850 mb|m002 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 TMP|2 m above ground|rrfs file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 TMP|500 mb|rrfs file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 REFC|entire atmosphere|ens:avrg file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 APCP|surface|ens:eas file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1000
+2026101118 f1 HGT|500 mb|swath file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 varBT|| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 TMP|2 m above ground|trak file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 cref||m001 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f1 cref||.zgroup file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-1h-enfo-ef.grib2 scale=1
+2026101118 f120 HGT|500 mb| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 TMP|2 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 UGRD|10 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 PRMSL|mean sea level| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 PWAT|entire atmosphere (considered as a single layer)| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 CAPE|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 APCP|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1000
+2026101118 f120 RH|1000 mb| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 SPFH|2 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 WIND|10 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 TMP|2 m above ground|spr file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 TMP|2 m above ground|p07 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 TMP|2 m above ground|c00 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 PROB|refsct/refsct_1hr| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 PROB|grefs/grefs_{ee}.4hr;grefs/grefs_{pe}.4hr|b2 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 PROB|gefs_mlp/gefsmlp_tor_std| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 sb_cape|| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 HGT|500 mb|mean file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 HGT|500 mb|sprd file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 CAPE|255-0 mb above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 CIN|surface|p30 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 GUST|surface|spr file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 MSLET|mean sea level|c00 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 HLCY|3000-0 m above ground| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 VIS|surface| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 TMP|850 mb|m002 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 TMP|2 m above ground|rrfs file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 TMP|500 mb|rrfs file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 REFC|entire atmosphere|ens:avrg file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 APCP|surface|ens:eas file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1000
+2026101118 f120 HGT|500 mb|swath file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 varBT|| file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 TMP|2 m above ground|trak file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 cref||m001 file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
+2026101118 f120 cref||.zgroup file= url=https://storage.googleapis.com/ecmwf-open-data/20261011/18z/ifs/0p25/enfo/20261011180000-120h-enfo-ef.grib2 scale=1
 == RRFS
 label=NOAA/NCEP RRFS 3 km source.id=RRFS source.label=NOAA/NCEP RRFS 3 km
 sectors=1 hourlyRuns=1 cycleStep=6 overlays=1 recipeList=1 onMissing=3 preloadHours=12 storm=0

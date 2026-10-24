@@ -1,4 +1,6 @@
 // Tests of the model registry: every model is described completely, and the chart code, the sector and label lookups and the overlay set all agree with it.
+#include <QSettings>
+#include "util/MyApplication.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -10,6 +12,7 @@ static int failures = 0;
 #define CHECK(c) do { if (!(c)) { std::printf("FAIL line %d: %s\n", __LINE__, #c); failures++; } } while (0)
 
 int main() {
+    MyApplication::preferences = new QSettings{"/tmp/wxqt_test_prefs.ini", QSettings::IniFormat};   // the settings the chart code reads: their defaults
     std::set<std::string> ids;
     for (const auto& d : GfsModels::all()) {
         CHECK(!d.id.empty() && ids.insert(d.id).second);               // named, and named once

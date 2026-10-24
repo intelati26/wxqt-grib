@@ -1,6 +1,8 @@
 // The models described by definition files (src/gfs/GfsModelFile.*) must be the models the program had before they were: this prints what each ported model's source and registry entry
 // do (urls, file names, hours, clone rules) and compares it with a golden text made from the code they were written in.
 //   modelfile_test --write golden.txt    makes the golden;   modelfile_test golden.txt    compares
+#include <QSettings>
+#include "util/MyApplication.h"
 #include <cstdio>
 #include <fstream>
 #include <sstream>
@@ -159,8 +161,9 @@ static int mistakes() {
 }
 
 int main(int argc, char ** argv) {
+    MyApplication::preferences = new QSettings{"/tmp/wxqt_test_prefs.ini", QSettings::IniFormat};   // the settings the chart code reads: their defaults
     // the models that are written as definition files
-    const std::vector<std::string> ids{"GFS", "NBM", "GEFS", "REFS", "HAFSA", "HAFSB", "SPCREFS", "GFS-WAVE", "GEFS-WAVE", "AIGFS", "IFS", "AIFS", "RRFS", "GEPS", "SPCPOST", "SPCGEFS", "SFCOA", "RRFSD", "HREF", "GEOS-FP"};
+    const std::vector<std::string> ids{"GFS", "NBM", "GEFS", "REFS", "HAFSA", "HAFSB", "SPCREFS", "GFS-WAVE", "GEFS-WAVE", "AIGFS", "IFS", "AIFS", "IFS-ENS", "RRFS", "GEPS", "SPCPOST", "SPCGEFS", "SFCOA", "RRFSD", "HREF", "GEOS-FP"};
     std::string all;
     for (const auto& id : ids) {
         all += describe(id);
