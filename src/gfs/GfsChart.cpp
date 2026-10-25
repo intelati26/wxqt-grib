@@ -5127,6 +5127,42 @@ const std::vector<Product>& products() {
                 t2.color = QColor{30, 30, 30};
                 spreadChart("spread_2m_temp", "2 m Temperature: ensemble mean and spread", "TMP", "2 m above ground", 1.0, 5.0, "Spread of the 2 m temperature among the 50 members (C)", t2);
             }
+            // the chance of a total of precipitation since the start of the run: the share of the 50 members at or over an amount, in the bands of the commercial ensemble maps (white under 10 %, up to a deep red over 90 %)
+            {
+                static const Ramp chance{{{0.0, QColor{255, 255, 255}}, {10.0, QColor{93, 74, 168}}, {20.0, QColor{45, 120, 184}}, {30.0, QColor{70, 176, 160}}, {40.0, QColor{154, 212, 160}}, {50.0, QColor{244, 244, 176}},
+                                         {60.0, QColor{246, 216, 138}}, {70.0, QColor{248, 168, 90}}, {80.0, QColor{240, 105, 60}}, {90.0, QColor{140, 10, 58}}}, true};
+                for (const auto& [id, inches, text] : {std::tuple{"ens_prob_total_0.01in", 0.01, "0.01"}, {"ens_prob_total_0.1in", 0.1, "0.10"}, {"ens_prob_total_0.25in", 0.25, "0.25"}, {"ens_prob_total_0.5in", 0.5, "0.50"},
+                                                       {"ens_prob_total_1in", 1.0, "1.00"}, {"ens_prob_total_2in", 2.0, "2.00"}}) {
+                    const double mm = inches * 25.4 - 1e-6;
+                    auto x = make(id, std::string{"Probability of total precipitation of "} + text + " in or more (since the start of the run)");
+                    x.needs = [memberNeeds] (int hour) {
+                        return hour < 3 ? std::vector<GfsData::Need>{} : memberNeeds("q", "APCP", "surface", hour, "0-" + std::to_string(hour) + " hour acc fcst");
+                    };
+                    x.derive = [mm] (Grids& g, const Context&) {
+                        auto out = g.at("q" + names.front());
+                        for (size_t i = 0; i < out.values.size(); i++) {
+                            int n = 0, hits = 0;
+                            for (const auto& name : names) {
+                                const float v = g.at("q" + name).values[i];
+                                if (std::isfinite(v)) {
+                                    n++;
+                                    hits += v >= mm ? 1 : 0;
+                                }
+                            }
+                            out.values[i] = n > 0 ? static_cast<float>(100.0 * hits / n) : std::nanf("");
+                        }
+                        g["qp"] = std::move(out);
+                        for (const auto& name : names) {
+                            g.erase("q" + name);
+                        }
+                    };
+                    x.fill = [] (const Grids& g) { return pick(g, "qp"); };
+                    x.ramp = chance;
+                    x.fillTitle = std::string{"Chance of "} + text + " in or more of precipitation in total since the start of the run (% of the 50 members)";
+                    x.legendStep = 10;
+                    p.push_back(x);
+                }
+            }
             // spaghetti: one contour (or two) of a field from every member, each its own color, and the ensemble mean as the heavy black line
             const auto spaghetti = [&] (const std::string& id, const std::string& label, const char * variable, const char * level, double scale, std::vector<double> levels, const std::string& what) {
                 auto x = make(id, label);
