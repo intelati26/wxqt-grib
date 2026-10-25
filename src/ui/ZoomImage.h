@@ -37,6 +37,10 @@ public:
     void setCrosshairMode(bool);
     void setMarker(double fx, double fy);
     void clearMarker();
+    // A cursor that another picture's pointer puts here (the comparison panes show the same place): thin lines across the whole picture and a small ring, at a 0..1 fraction of the source image.
+    // It is not the picked point's marker, and it never takes the mouse.
+    void setLinkedCursor(double fx, double fy);
+    void clearLinkedCursor();
     // the zoom and place, to put several pictures of the same area on the same view (the comparison tiles): the zoom as a multiple of the fitted size, the centre as fractions of the picture
     struct View {
         bool fitted{true};
@@ -98,6 +102,10 @@ private:
     void updateRestingCursor();
     QLabel * label;
     QLabel * marker;
+    QWidget * linked{nullptr};   // the linked cursor, laid over the picture
+    bool linkedActive{false};
+    double linkedFx{0.0};
+    double linkedFy{0.0};
     QPixmap source;
     QByteArray sourceBytes;   // the picture as it came (what a save writes)
     bool saveMenu{true};

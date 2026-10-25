@@ -50,6 +50,38 @@ namespace {
     }
 }
 
+namespace {
+    // the lines of the linked cursor: the whole height and width of the picture through one point, dark under light so that they show on any chart, and a ring at the point
+    class LinkedCursor : public QWidget {
+    public:
+        explicit LinkedCursor(QWidget * parent) : QWidget{parent} {
+            setAttribute(Qt::WA_TransparentForMouseEvents);
+            setAttribute(Qt::WA_NoSystemBackground);
+        }
+        QPointF at;
+    protected:
+        void paintEvent(QPaintEvent *) override {
+            QPainter painter{this};
+            painter.setRenderHint(QPainter::Antialiasing, false);
+            const auto lines = [&] (const QColor& color, double width) {
+                painter.setPen(QPen{color, width});
+                painter.drawLine(QPointF{0.0, at.y()}, QPointF{static_cast<double>(width_()), at.y()});
+                painter.drawLine(QPointF{at.x(), 0.0}, QPointF{at.x(), static_cast<double>(height())});
+            };
+            lines(QColor{0, 0, 0, 150}, 3.0);
+            lines(QColor{255, 255, 255, 235}, 1.0);
+            painter.setRenderHint(QPainter::Antialiasing, true);
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen{QColor{0, 0, 0, 190}, 3.0});
+            painter.drawEllipse(at, 7.0, 7.0);
+            painter.setPen(QPen{QColor{255, 220, 40}, 1.6});
+            painter.drawEllipse(at, 7.0, 7.0);
+        }
+    private:
+        int width_() const { return width(); }
+    };
+}
+
 ZoomImage::ZoomImage(Window * parent)
     : QScrollArea{parent}
     , label{new QLabel{this}}
@@ -86,6 +118,8 @@ ZoomImage::ZoomImage(Window * parent)
     marker->setFixedSize(marker->pixmap().size());
     marker->setAttribute(Qt::WA_TransparentForMouseEvents);
     marker->hide();
+    linked = new LinkedCursor{label};
+    linked->hide();
 }
 
 void ZoomImage::updateRestingCursor() {
@@ -107,6 +141,18 @@ void ZoomImage::setMarker(double fx, double fy) {
     markerFx = std::clamp(fx, 0.0, 1.0);
     markerFy = std::clamp(fy, 0.0, 1.0);
     repositionMarker();
+}
+
+void ZoomImage::setLinkedCursor(double fx, double fy) {
+    linkedActive = true;
+    linkedFx = std::clamp(fx, 0.0, 1.0);
+    linkedFy = std::clamp(fy, 0.0, 1.0);
+    repositionMarker();
+}
+
+void ZoomImage::clearLinkedCursor() {
+    linkedActive = false;
+    linked->hide();
 }
 
 void ZoomImage::clearMarker() {
@@ -228,6 +274,16 @@ void ZoomImage::repositionPins() {
 
 void ZoomImage::repositionMarker() {
     repositionPins();
+    if (linkedActive && !label->pixmap().isNull()) {
+        auto * cursor = static_cast<LinkedCursor *>(linked);
+        cursor->setGeometry(label->rect());
+        cursor->at = QPointF{linkedFx * label->width(), linkedFy * label->height()};
+        cursor->show();
+        cursor->raise();
+        cursor->update();
+    } else {
+        linked->hide();
+    }
     if (!markerActive || !crosshairMode || label->pixmap().isNull()) {
         marker->hide();
         return;

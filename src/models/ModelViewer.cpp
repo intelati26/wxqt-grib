@@ -435,17 +435,23 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
                 }
                 syncingViews = false;
             });
-            QObject::connect(pictures[from], &ZoomImage::hovered, this, [this, from, hoverOf] (double fx, double fy) {
+            QObject::connect(pictures[from], &ZoomImage::hovered, this, [this, pictures, from, hoverOf] (double fx, double fy) {
                 for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
                     if (to != from && hoverOf(to)) {
                         hoverOf(to)->show(fx, fy, 12, 12);
                     }
+                    if (to != from) {
+                        pictures[to]->setLinkedCursor(fx, fy);   // the same place marked on every pane, to read the panes against each other
+                    }
                 }
             });
-            QObject::connect(pictures[from], &ZoomImage::hoverEnded, this, [this, from, hoverOf] {
+            QObject::connect(pictures[from], &ZoomImage::hoverEnded, this, [this, pictures, from, hoverOf] {
                 for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
                     if (to != from && hoverOf(to)) {
                         hoverOf(to)->hide();
+                    }
+                    if (to != from) {
+                        pictures[to]->clearLinkedCursor();
                     }
                 }
             });
