@@ -20,7 +20,8 @@ namespace {
 }
 
 std::vector<std::string> ProductPicker::groupOrder() {
-    return {"Upper air", "Surface", "Precipitation and moisture", "Storms and severe", "Aviation and visibility", "Tropical and dynamics", "Ensemble spread", "Changes and trends", "Anomalies", "Satellite",
+    return {"Upper air", "Surface", "Precipitation and moisture", "Severe: instability", "Severe: rotation", "Severe: storm structure", "Severe: composite indices", "Storms and severe",
+            "Boundary layer and fire weather", "Aviation and visibility", "Tropical and dynamics", "Ensemble spread", "Changes and trends", "Anomalies", "Satellite",
             "Ocean and waves", "Swaths"};
 }
 

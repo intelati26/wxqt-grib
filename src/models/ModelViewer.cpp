@@ -2140,6 +2140,15 @@ int ModelViewer::tileCount() const {
     return std::clamp(comboTiles.getIndex(), 0, 3);
 }
 
+string ModelViewer::chartListing() const {
+    string out;
+    for (size_t i = 0; i < objectModel.params.size() && i < objectModel.paramLabels.size(); i++) {
+        const auto * product = GfsChart::product(objectModel.params[i], objectModel.model);
+        out += objectModel.params[i] + " | " + (product ? GfsChart::category(*product) : string{"Other"}) + " | " + objectModel.paramLabels[i] + "\n";
+    }
+    return out;
+}
+
 // the ensembles the pooled model is made of, in the order the tiles show them
 const std::vector<string>& ModelViewer::partsOfPool() {
     static const std::vector<string> parts{"IFS-ENS", "GEFS", "GEPS"};

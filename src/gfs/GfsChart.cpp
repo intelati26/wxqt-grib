@@ -282,6 +282,10 @@ const std::vector<std::string>& ingredientSources() {
         return {{{0, QColor{240, 244, 250, 0}}, {10, QColor{240, 244, 250, 0}}, {25, QColor{"#c4e3a4"}}, {50, QColor{"#7bc47f"}}, {75, QColor{"#f3e04a"}}, {100, QColor{"#f0a63a"}}, {150, QColor{"#e0602e"}},
                  {200, QColor{"#c4262c"}}, {300, QColor{"#a8206b"}}, {500, QColor{"#6a2a9a"}}}};
     }
+    Ramp lowLevelVorticity() {   // 1e-3 per second: the strongest vertical vorticity of the last hour in the lowest 1-2 km; the weak values clear, a mesocyclone from about 10, a tornadic circulation from 20
+        return {{{0, QColor{240, 244, 250, 0}}, {3, QColor{240, 244, 250, 0}}, {5, QColor{"#c4e3a4"}}, {8, QColor{"#7bc47f"}}, {10, QColor{"#f3e04a"}}, {15, QColor{"#f0a63a"}}, {20, QColor{"#e0702e"}},
+                 {30, QColor{"#c4262c"}}, {40, QColor{"#a8206b"}}, {60, QColor{"#6a2a9a"}}}};
+    }
     Ramp echoTopRamp() {   // thousands of feet
         return {{{0, QColor{240, 244, 250, 0}}, {5, QColor{240, 244, 250, 0}}, {10, QColor{"#cfe8f3"}}, {20, QColor{"#8ccbe0"}}, {30, QColor{"#55a868"}}, {35, QColor{"#e3d44a"}}, {40, QColor{"#f0a63a"}},
                  {45, QColor{"#e0702e"}}, {50, QColor{"#cc3d2c"}}, {55, QColor{"#a8206b"}}, {60, QColor{"#7a2a9a"}}}};
@@ -3351,6 +3355,22 @@ const std::vector<Product>& products() {
                 x.legendStep = 0;
                 p.push_back(x);
             }
+            // the strongest relative vorticity of the last hour in the lowest 1 km and 2 km: the low-level rotation (the helicity above is the 2-5 km mid-level one), in 1e-3 per second
+            for (const auto& [id, label, layer] : {std::tuple{"max_relv_0_1km", "Maximum 0-1 km Relative Vorticity in the last hour", "1000-0 m above ground"},
+                                                    {"max_relv_0_2km", "Maximum 0-2 km Relative Vorticity in the last hour", "2000-0 m above ground"}}) {
+                auto x = make(id, label);
+                x.needs = [hourly, layer = std::string{layer}] (int hour) { return std::vector<GfsData::Need>{{hour, {"v", "RELV", layer, hourly(hour), ""}}}; };
+                x.derive = [] (Grids& g, const Context&) {
+                    for (auto& value : g.at("v").values) {
+                        value *= 1000.0f;
+                    }
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "v"); };
+                x.ramp = lowLevelVorticity();
+                x.fillTitle = "Relative vorticity (1e-3 /s)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
             for (auto& chart : p) {   // the composite reflectivity (the GFS chart cloned above) with the rotating storms outlined: the last hour's strongest 2-5 km updraft helicity, 40 and over
                 if (chart.source != model || chart.id != "sim_radar_comp") {
                     continue;
@@ -6017,14 +6037,31 @@ std::string category(const Product& product) {
     if (id == "sst" || id == "waves" || has("wave")) {
         return "Ocean and waves";
     }
+    // the severe weather charts in kinds: the fuel, the rotation, the storms themselves and the composite indices
+    if (has("cape") || has("cin_") || has("lifted")) {
+        return "Severe: instability";
+    }
+    if (has("helicity") || has("hlcy") || has("srh") || has("relv") || has("uphl")) {
+        return "Severe: rotation";
+    }
+    if (has("stp") || has("scp") || has("ship")) {
+        return "Severe: composite indices";
+    }
+    if (has("radar") || has("reflectivity") || has("echo") || has("lightning") || has("updraft") || has("downdraft") || has("hail")) {
+        return "Severe: storm structure";
+    }
+    // the lowest kilometer and the fire weather indices: the mixing, the ventilation, the dry air
+    if (has("pbl") || has("vent") || has("transport") || has("haines") || has("mix") || has("fire") || id == "2m_rh_10m_wnd") {
+        return "Boundary layer and fire weather";
+    }
     if (has("shear") || has("steering") || has("div") || has("stream") || has("thetae") || has("vor") || has("trop") || has("850vor")) {
         return "Tropical and dynamics";
     }
-    if (has("cape") || has("helicity") || has("hlcy") || has("radar") || has("reflectivity") || has("echo") || has("lightning") || has("updraft") || has("srh") || has("stp") || has("scp") || has("ship")) {
-        return "Storms and severe";
-    }
-    if (has("vis") || has("ceil") || has("fog") || has("flight") || has("haines") || has("mix")) {
+    if (has("vis") || has("ceil") || has("fog") || has("flight")) {
         return "Aviation and visibility";
+    }
+    if (id == "rh_700_300") {
+        return "Upper air";
     }
     if (has("precip") || has("snow") || has("rain") || has("qpf") || has("ptype") || has("thick") || has("pwat") || has("ice")) {
         return "Precipitation and moisture";

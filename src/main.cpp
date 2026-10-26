@@ -928,6 +928,11 @@ int main(int argc, char * argv[]) {
                 Utility::writePref("MODELNCEPPARAMLASTUSED", qEnvironmentVariable("WXQT_PARAM", "500_wnd_ht").toStdString());   // WXQT_PARAM=<chart id>: open on that chart
                 Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
                 auto * viewer = new ModelViewer{&w, "NCEP"};
+                if (qEnvironmentVariable("WXQT_PICK") == "list") {   // WXQT_PICK=list: every chart of the model with its picker group, to stdout
+                    std::fputs(viewer->chartListing().c_str(), stdout);
+                    std::fflush(stdout);
+                    QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+                }
                 qEnvironmentVariable("WXQT_PICK") == "net" ? NetStatus::show(viewer) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : viewer->showPicker();   // WXQT_PICK=sector: the area picker
                 if (qEnvironmentVariable("WXQT_PICK") == "levels") {   // WXQT_PICK=levels: the picker's "850/700/500 wind" clicked
                     QTimer::singleShot(800, viewer, [viewer] {
