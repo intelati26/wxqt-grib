@@ -99,10 +99,12 @@ private:
         bool ok{true};
         string why;
     };
-    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime, Parts };
+    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime, Parts, Deterministic };
     int tileCount() const;                       // the tiles besides the first: 0, 1, 2 or 3
     TilesShow tilesShow() const;
     static const std::vector<string>& partsOfPool();
+    static string partnerChart(const string& pooled, const string& model);   // the chart of a deterministic model that goes with a pooled ENS-ALL chart ("" when there is none)
+    static const std::vector<string>& deterministicDefaults();
     void applyTileLayout();
     void resetTileSpecs();
     Job makeJob(int index, int mainHour, bool ahead) const;

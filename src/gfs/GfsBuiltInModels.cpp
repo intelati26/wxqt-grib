@@ -325,7 +325,8 @@ url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/aifs-single
 index_format = ecmwf
 index_suffix = .index
 index_replaces = .grib2
-value_scale = APCP:1000, TCDC:100
+# the AIFS gives the precipitation in millimeters already (the IFS gives meters)
+value_scale = TCDC:100
 cycle_hours = 6
 lag_hours = 8
 probe_hour = 0
