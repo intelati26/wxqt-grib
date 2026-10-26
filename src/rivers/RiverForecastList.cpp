@@ -6,6 +6,7 @@
 #include "rivers/RiverForecastList.h"
 #include <algorithm>
 #include <map>
+#include <set>
 #include <QDateTime>
 #include <QFile>
 #include <QHBoxLayout>
@@ -14,6 +15,7 @@
 #include <QTextStream>
 #include <QTimeZone>
 #include "objects/FutureVoid.h"
+#include "util/Utility.h"
 #include "rivers/RiverGaugeViewer.h"
 #include "ui/TableExportDialog.h"
 #include "ui/UiStandards.h"
@@ -64,12 +66,16 @@ RiverForecastList::RiverForecastList(Window * parent)
     minimum->addItem("Major flooding", 4);
     onlyRising = new QCheckBox{"Only those not there now", top};
     onlyRising->setToolTip("The gauges now below the action stage that the forecast takes up to it (or above)");
+    pin = new QCheckBox{"Pin the crest to now", top};
+    pin->setToolTip("A gauge that is higher now than its forecast ever is (a river falling) is shown at its level now, in its category now, and the gauges at action stage or higher now are all listed; off: the forecast as the service gives it");
+    pin->setChecked(Utility::readPref("RIVERFCST_PIN", "true") == "true");
     auto * refresh = UiStandards::button(top, "Refresh", "Read the river forecasts again");
     auto * exportButton = UiStandards::button(top, "Export...", "Choose the gauges and columns, and save the table as CSV or a picture, or copy it for a spreadsheet");
     status = new QLabel{"Reading the river forecasts...", top};
     UiStandards::muted(status);
     topLayout->addWidget(minimum);
     topLayout->addWidget(onlyRising);
+    topLayout->addWidget(pin);
     topLayout->addWidget(refresh);
     topLayout->addWidget(exportButton);
     topLayout->addWidget(status, 1);
@@ -93,6 +99,7 @@ RiverForecastList::RiverForecastList(Window * parent)
     QObject::connect(exportButton, &QPushButton::clicked, this, [this] { exportTable(); });
     QObject::connect(minimum, &QComboBox::currentIndexChanged, this, [this] (int) { fill(); });
     QObject::connect(onlyRising, &QCheckBox::toggled, this, [this] (bool) { fill(); });
+    QObject::connect(pin, &QCheckBox::toggled, this, [this] (bool on) { Utility::writePref("RIVERFCST_PIN", on ? "true" : "false"); fill(); });
     QObject::connect(table, &QTableWidget::cellDoubleClicked, this, [this] (int row, int) {
         const auto * item = table->item(row, 0);
         if (item != nullptr) {
@@ -119,9 +126,11 @@ void RiverForecastList::load() {
         for (const auto& g : gauges) {
             byId[g.lid] = &g;
         }
+        std::set<string> listed;
         for (const auto& k : peaks) {
             Row row;
             row.peak = k;
+            listed.insert(k.lid);
             const auto found = byId.find(k.lid);
             if (found != byId.end()) {
                 row.nowStatus = found->second->status;
@@ -129,6 +138,31 @@ void RiverForecastList::load() {
                 row.obsTime = found->second->obsTime;
             }
             fresh->push_back(std::move(row));
+        }
+        for (const auto& g : gauges) {   // at action stage or higher now, and not in the forecast layer: its forecast falls below the stage (or it has none)
+            if (rank(g.status) >= 1 && !listed.count(g.lid)) {
+                Row row;
+                row.onlyNow = true;
+                row.nowStatus = g.status;
+                row.observed = g.observed;
+                row.obsTime = g.obsTime;
+                row.peak.lid = g.lid;
+                row.peak.name = g.name;
+                row.peak.waterbody = g.waterbody;
+                row.peak.state = g.state;
+                row.peak.wfo = g.wfo;
+                row.peak.units = g.units;
+                row.peak.status = g.status;
+                row.peak.peak = g.observed;
+                row.peak.peakTime = g.obsTime;
+                row.peak.action = g.action;
+                row.peak.minor = g.minor;
+                row.peak.moderate = g.moderate;
+                row.peak.major = g.major;
+                row.peak.lat = g.lat;
+                row.peak.lon = g.lon;
+                fresh->push_back(std::move(row));
+            }
         }
     }, [this, mine, fresh, problem] {
         if (closed || mine != generation) {
@@ -146,7 +180,25 @@ void RiverForecastList::load() {
 void RiverForecastList::fill() {
     const int least = minimum->currentData().toInt();
     shown.clear();
-    for (const auto& row : *rows) {
+    for (auto row : *rows) {
+        row.trend = row.onlyNow ? "at its level now (forecast stays below)" : "rising to the crest";
+        if (pin->isChecked()) {
+            // the crest is never below the level now: a river that is falling is at its level now, in its category now
+            if (UtilityRivers::has(row.observed) && (!UtilityRivers::has(row.peak.peak) || row.observed > row.peak.peak)) {
+                if (!row.onlyNow) {
+                    row.trend = "falling (pinned to now)";
+                }
+                row.peak.peak = row.observed;
+                row.peak.peakTime = row.obsTime;
+                if (rank(row.nowStatus) > rank(row.peak.status)) {
+                    row.peak.status = row.nowStatus;
+                }
+            }
+        } else if (row.onlyNow) {
+            continue;
+        } else if (UtilityRivers::has(row.observed) && UtilityRivers::has(row.peak.peak) && row.observed > row.peak.peak) {
+            row.trend = "falling";
+        }
         if (rank(row.peak.status) < least) {
             continue;
         }
@@ -157,7 +209,7 @@ void RiverForecastList::fill() {
     }
     table->setSortingEnabled(false);
     table->clear();
-    const QStringList headers{"Gauge", "Location", "River", "State", "Now", "Stage now", "Forecast crest", "Crest category", "Crest time (UTC)", "Hours ahead", "Action", "Minor", "Moderate", "Major"};
+    const QStringList headers{"Gauge", "Location", "River", "State", "Now", "Stage now", "Forecast crest", "Crest category", "Crest time (UTC)", "Hours ahead", "Action", "Minor", "Moderate", "Major", "Note"};
     table->setColumnCount(headers.size());
     table->setHorizontalHeaderLabels(headers);
     table->setRowCount(static_cast<int>(shown.size()));
@@ -192,6 +244,7 @@ void RiverForecastList::fill() {
         add(11, new Cell{stage(r.peak.minor, r.peak.units), UtilityRivers::has(r.peak.minor) ? r.peak.minor : -999.0});
         add(12, new Cell{stage(r.peak.moderate, r.peak.units), UtilityRivers::has(r.peak.moderate) ? r.peak.moderate : -999.0});
         add(13, new Cell{stage(r.peak.major, r.peak.units), UtilityRivers::has(r.peak.major) ? r.peak.major : -999.0});
+        add(14, new Cell{QString::fromStdString(r.trend), 0.0});
         row++;
     }
     table->setSortingEnabled(true);
@@ -215,7 +268,7 @@ void RiverForecastList::exportTable() {
     for (const auto& r : *copy) {
         data.items.push_back({QString::fromStdString(r.peak.lid), QString::fromStdString(r.peak.lid), {QString::fromStdString(r.peak.name), QString::fromStdString(r.peak.waterbody), QString::fromStdString(r.peak.state)}});
     }
-    const QStringList names{"Now", "Stage now", "Forecast crest", "Crest category", "Crest time (UTC)", "Action stage", "Minor flood stage", "Moderate flood stage", "Major flood stage", "Units"};
+    const QStringList names{"Now", "Stage now", "Forecast crest", "Crest category", "Crest time (UTC)", "Action stage", "Minor flood stage", "Moderate flood stage", "Major flood stage", "Units", "Note"};
     for (const auto& name : names) {
         data.fields.push_back({name, name});
     }
@@ -233,7 +286,8 @@ void RiverForecastList::exportTable() {
             case 6: return number(r.peak.minor);
             case 7: return number(r.peak.moderate);
             case 8: return number(r.peak.major);
-            default: return QString::fromStdString(r.peak.units);
+            case 9: return QString::fromStdString(r.peak.units);
+            default: return QString::fromStdString(r.trend);
         }
     };
     data.tint = [copy] (size_t item, size_t field) {

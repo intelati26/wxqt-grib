@@ -34,6 +34,8 @@ private:
         string nowStatus;       // the gauge's category now
         double observed{UtilityRivers::none};
         string obsTime;
+        string trend;           // for the Note column
+        bool onlyNow{false};    // not in the forecast layer: a gauge at action stage or higher now whose forecast does not stay there
     };
     void load();
     void fill();
@@ -42,6 +44,7 @@ private:
     VBox box;
     QComboBox * minimum{};
     QCheckBox * onlyRising{};
+    QCheckBox * pin{};
     QLabel * status{};
     QTableWidget * table{};
     std::shared_ptr<vector<Row>> rows;
