@@ -41,6 +41,8 @@ namespace UtilitySun {
     double drift(double latitude, double days);
     // where the point is on the disc: x to the west (right) and y to the north (up), in solar radii; false when it is on the far side
     bool onDisc(double latitude, double longitudeWest, double b0, double& x, double& y);
+    // the Sun's picture (SDO / HMI, flattened intensitygram) at the size that holds `width` pixels: 1024, 2048 or 4096; the 512 pixel one of the SWPC when SDO's cannot be read
+    QImage disc(int width);
     // the picture, drawn `width` pixels wide; null when the Sun's picture or the list could not be read
     QImage labelled(int width, QDateTime * time = nullptr);
     // where a region was drawn on the picture (for a hover)

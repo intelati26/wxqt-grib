@@ -100,7 +100,7 @@ QImage UtilitySun::labelled(const QImage& source, const std::vector<Region>& reg
     }
     const QImage disc = source.convertToFormat(QImage::Format_RGB32);
     // the disc's size from the middle row and column: the first and last bright pixels
-    const auto bright = [&disc] (int x, int y) { return qGray(disc.pixel(x, y)) > 70; };
+    const auto bright = [&disc] (int x, int y) { return qGray(disc.pixel(x, y)) > 40; };
     int left = disc.width() / 2, right = left, top = disc.height() / 2, bottom = top;
     for (int x = 0; x < disc.width(); x++) {
         if (bright(x, disc.height() / 2)) { left = std::min(left, x); right = std::max(right, x); }
@@ -234,9 +234,20 @@ QString UtilitySun::describe(const Placed& p) {
     return text;
 }
 
+QImage UtilitySun::disc(int width) {
+    // SDO's own pictures of the HMI intensitygram, 1024, 2048 or 4096 pixels (the SWPC's is 512): the size that holds `width`; the SWPC's when SDO's cannot be read
+    const int size = width <= 1024 ? 1024 : width <= 2048 ? 2048 : 4096;
+    QImage picture;
+    picture.loadFromData(UtilityIO::downloadAsByteArray("https://sdo.gsfc.nasa.gov/assets/img/latest/latest_" + std::to_string(size) + "_HMII.jpg"));
+    if (picture.isNull() || picture.width() < 500) {
+        picture = QImage{};
+        picture.loadFromData(UtilityIO::downloadAsByteArray("https://services.swpc.noaa.gov/images/animations/sdo-hmii/latest.jpg"));
+    }
+    return picture;
+}
+
 QImage UtilitySun::labelled(int width, std::vector<Placed>& placed, QDateTime * time) {
-    QImage disc;
-    disc.loadFromData(UtilityIO::downloadAsByteArray("https://services.swpc.noaa.gov/images/animations/sdo-hmii/latest.jpg"));
+    const QImage disc = UtilitySun::disc(width);
     const auto regions = parseRegions(UtilityIO::downloadAsByteArray("https://services.swpc.noaa.gov/json/solar_regions.json"));
     const auto now = QDateTime::currentDateTimeUtc();
     if (time != nullptr) {
@@ -246,8 +257,7 @@ QImage UtilitySun::labelled(int width, std::vector<Placed>& placed, QDateTime * 
 }
 
 QImage UtilitySun::labelled(int width, QDateTime * time) {
-    QImage disc;
-    disc.loadFromData(UtilityIO::downloadAsByteArray("https://services.swpc.noaa.gov/images/animations/sdo-hmii/latest.jpg"));
+    const QImage disc = UtilitySun::disc(width);
     const auto regions = parseRegions(UtilityIO::downloadAsByteArray("https://services.swpc.noaa.gov/json/solar_regions.json"));
     const auto now = QDateTime::currentDateTimeUtc();
     if (time != nullptr) {

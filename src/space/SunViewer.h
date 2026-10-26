@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <vector>
+#include <QComboBox>
 #include <QImage>
 #include <QLabel>
 #include "space/UtilitySun.h"
@@ -28,6 +29,7 @@ private:
     VBox box;
     SunDisc * disc{};
     QLabel * status{};
+    QComboBox * resolution{};
     int generation{0};
     bool closed{false};
 };
