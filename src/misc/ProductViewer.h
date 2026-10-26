@@ -19,7 +19,8 @@ using std::string;
 // window like the other text screens. `text` is the product's own text, or, when it is empty, `textUrl` is read (a page of HTML has its preformatted text taken out of it).
 class ProductViewer : public Window {
 public:
-    ProductViewer(Window * parent, const string& title, const string& imageUrl, const string& text, const string& textUrl = {});
+    // watchNumber: a watch's number (the SPC's hazard probabilities of it are then a button away)
+    ProductViewer(Window * parent, const string& title, const string& imageUrl, const string& text, const string& textUrl = {}, int watchNumber = 0);
 
 private:
     void closeEventCustom() override { closed = true; }

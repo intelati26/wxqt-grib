@@ -51,6 +51,7 @@
 #include "tropical/PhaseViewer.h"
 #include "misc/AhdViewer.h"
 #include "misc/ProductViewer.h"
+#include "spc/WatchProbabilityViewer.h"
 #include "space/UtilitySun.h"
 #include "space/SunViewer.h"
 #include "spcrefs/SpcRefsLoader.h"
@@ -246,6 +247,12 @@ int main(int argc, char * argv[]) {
                 new SunViewer{&w};
             } else if (route == "product") {   // WXQT_OPEN=product WXQT_PRODUCT_IMAGE=<url> WXQT_PRODUCT_TEXT=<url>: the text-and-picture window
                 new ProductViewer{&w, "Product", qEnvironmentVariable("WXQT_PRODUCT_IMAGE").toStdString(), "", qEnvironmentVariable("WXQT_PRODUCT_TEXT").toStdString()};
+            } else if (route.startsWith("watchprob:")) {   // WXQT_OPEN=watchprob:<number>[:<number>...]: the watch probabilities table
+                std::vector<WatchProbabilityViewer::Watch> list;
+                for (const auto& n : route.split(':').mid(1)) {
+                    list.push_back({n.toInt(), "Watch " + n, 0});
+                }
+                new WatchProbabilityViewer{&w, list};
             } else if (route == "ahd") {   // WXQT_OPEN=ahd: the Area Hydrologic Discussion window
                 new AhdViewer{&w};
             } else if (route == "radar") {   // WXQT_OPEN=radar: the radar doorway (the master map at the current location with MRMS, warnings and discussions)

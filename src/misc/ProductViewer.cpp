@@ -11,6 +11,8 @@
 #include <QWidget>
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
+#include <QPushButton>
+#include "spc/WatchProbabilityViewer.h"
 #include "ui/UiStandards.h"
 #include "util/UtilityIO.h"
 #include "util/UtilityTextReflow.h"
@@ -29,12 +31,22 @@ namespace {
     }
 }
 
-ProductViewer::ProductViewer(Window * parent, const string& title, const string& imageUrl, const string& text, const string& textUrl)
+ProductViewer::ProductViewer(Window * parent, const string& title, const string& imageUrl, const string& text, const string& textUrl, int watchNumber)
     : Window{parent}
     , image{this}
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setTitle(title);
+    if (watchNumber > 0) {
+        auto * top = new QWidget{this};
+        auto * topLayout = new QHBoxLayout{top};
+        topLayout->setContentsMargins(0, 0, 0, 0);
+        auto * probabilities = UiStandards::button(top, "Probabilities...", "The SPC's hazard probabilities of this watch as a table to copy or save as CSV");
+        topLayout->addWidget(probabilities);
+        topLayout->addStretch();
+        box.addWidgetReal(top, 0, Qt::Alignment{});
+        QObject::connect(probabilities, &QPushButton::clicked, this, [this, watchNumber, title] { new WatchProbabilityViewer{this, {{watchNumber, QString::fromStdString(title), 0}}}; });
+    }
     auto * row = new QWidget{this};
     auto * layout = new QHBoxLayout{row};
     layout->setContentsMargins(0, 0, 0, 0);

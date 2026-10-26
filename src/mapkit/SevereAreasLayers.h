@@ -28,6 +28,7 @@ namespace SevereAreas {
         QString title;
         QString text;                              // the hover text
         QString textUrl;                           // what a click opens ("" none)
+        int watchNumber{0};                        // a watch's number (its hazard probabilities are on a page of their own)
         QString imageUrl;                          // the picture published with the product (a mesoscale discussion's map): shown beside the text
         QString fullText;                          // or the text itself, when it was read with the polygon
         QString windowTitle;

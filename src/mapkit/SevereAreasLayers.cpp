@@ -18,6 +18,8 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include "misc/ProductViewer.h"
+#include "spc/WatchProbabilityViewer.h"
+#include <QPushButton>
 #include "misc/TextViewerStatic.h"
 #include "objects/FutureBytes.h"
 #include "radar/MapLegend.h"
@@ -144,8 +146,9 @@ namespace {
         if (first != nullptr && !first->imageUrl.isEmpty()) {   // a product with its picture: both in a window
             const auto image = first->imageUrl.toStdString(), full = first->fullText.toStdString(), url = first->textUrl.toStdString();
             const auto title = first->windowTitle.toStdString();
+            const int watch = first->watchNumber;
             hit.text += "\n(click for the text and the picture)";
-            hit.open = [image, full, url, title] (Window * parent) { new ProductViewer{parent, title, image, full, url}; };
+            hit.open = [image, full, url, title, watch] (Window * parent) { new ProductViewer{parent, title, image, full, url, watch}; };
         } else if (first != nullptr && !first->fullText.isEmpty()) {
             const auto full = first->fullText.toStdString();
             const auto title = first->windowTitle.toStdString();
@@ -348,6 +351,7 @@ void WarningPolygonsLayer::refresh(MapHost& host) {
                     a.title = p.value("prod_type").toString() + " " + number;
                     a.text = a.title + "  -  part of " + p.value("wfo").toString().mid(1) + "\nIssued " + zulu(a.begin) + ", ends " + zulu(a.end);
                     a.textUrl = "https://www.spc.noaa.gov/products/watch/ww" + QString{"%1"}.arg(number.toInt(), 4, 10, QChar{'0'}) + ".html";
+                    a.watchNumber = number.toInt();
                     a.imageUrl = "https://www.spc.noaa.gov/products/watch/ww" + QString{"%1"}.arg(number.toInt(), 4, 10, QChar{'0'}) + "_radar.gif";   // the radar with the watch outlined
                     a.windowTitle = a.title;
                     out->push_back(std::move(a));
@@ -435,6 +439,21 @@ QWidget * WarningPolygonsLayer::options(QWidget * parent, const std::function<vo
         });
         layout->addWidget(box);
     }
+    auto * table = new QPushButton{"Watch probabilities...", widget};
+    table->setToolTip("The SPC's hazard probabilities of the watches in force (tornadoes, strong tornadoes, severe wind, wind over 65 kt, severe hail, hail over 2 in, combined) as a table to copy or save as CSV");
+    QObject::connect(table, &QPushButton::clicked, [this, widget] {
+        std::vector<WatchProbabilityViewer::Watch> list;
+        for (const auto& a : areas) {
+            if (a.watchNumber > 0) {
+                list.push_back({a.watchNumber, a.title, a.end});
+            }
+        }
+        std::sort(list.begin(), list.end(), [] (const auto& x, const auto& y) { return x.number < y.number; });
+        if (auto * window = dynamic_cast<Window *>(widget->window())) {
+            new WatchProbabilityViewer{window, list};
+        }
+    });
+    layout->addWidget(table);
     return widget;
 }
 
