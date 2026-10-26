@@ -5883,8 +5883,13 @@ namespace {
                 o.contour.key = "z";
                 o.contour.scale = 0.1;
                 o.contour.interval = interval;
-                o.contour.title = std::string{level} + "mb height (dam)";
-                o.contour.color = QColor{70, 70, 70};
+                // the same color for a level as its wind barbs have when they are stacked (850 red, 700 green, 500 blue ...)
+                static const std::map<std::string, std::pair<QColor, std::string>> levelColors{
+                    {"850", {QColor{200, 40, 40}, "red"}}, {"700", {QColor{30, 140, 60}, "green"}}, {"500", {QColor{30, 80, 200}, "blue"}}, {"300", {QColor{130, 50, 170}, "purple"}},
+                    {"250", {QColor{200, 60, 150}, "pink"}}, {"200", {QColor{140, 90, 40}, "brown"}}};
+                const auto& tint = levelColors.at(level);
+                o.contour.title = std::string{level} + "mb height (dam, " + tint.second + ")";
+                o.contour.color = tint.first;
                 list.push_back(o);
             }
             {   // the 850 mb temperature, blue under freezing and red over it
