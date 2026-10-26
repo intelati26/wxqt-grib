@@ -574,6 +574,80 @@ namespace {
                     why = source + " has no forecast for this valid time from its " + used.cycle + "Z run";
                     continue;
                 }
+                const auto toCommon = [&common] (const GfsGrid::Grid& grid) {
+                    auto onto = common;
+                    onto.values.resize(static_cast<size_t>(common.columns) * static_cast<size_t>(common.rows));
+                    for (int r = 0; r < common.rows; r++) {
+                        for (int c = 0; c < common.columns; c++) {
+                            onto.values[static_cast<size_t>(r) * static_cast<size_t>(common.columns) + static_cast<size_t>(c)] = grid.sample(common.lon0 + c * common.step, common.lat0 - r * common.step);
+                        }
+                    }
+                    return onto;
+                };
+                if (chart.pool.variable == "APCP") {   // precipitation: each member's amount in the period ending at the valid time, or its total since the start of its run
+                    const int period = chart.pool.periodHours;
+                    const auto read = [&] (int at, const std::string& forecast, std::map<std::string, GfsGrid::Grid>& out) {   // tag -> the member's field at the hour, on the common grid
+                        std::vector<GfsData::Need> needs;
+                        for (const auto& member : GfsChart::poolMembers()) {
+                            if (member.source == source) {
+                                needs.push_back({at, GfsData::Want{"p" + member.tag, "APCP", "surface", forecast, "", member.stat}});
+                            }
+                        }
+                        GfsChart::Grids loaded;
+                        if (!gfs.load(used, needs, loaded, why)) {
+                            return false;
+                        }
+                        for (const auto& member : GfsChart::poolMembers()) {
+                            const auto found = loaded.find("p" + member.tag);
+                            if (member.source == source && found != loaded.end() && !found->second.values.empty()) {
+                                out[member.tag] = toCommon(found->second);
+                            }
+                        }
+                        return true;
+                    };
+                    std::map<std::string, GfsGrid::Grid> amount;
+                    bool ok = true;
+                    if (source == "GEFS") {   // the members' precipitation is in pieces of 6 hours: the amount is the sum of those in the period (all of them for a total)
+                        const int from = period > 0 ? std::max(0, h - period) : 0;
+                        for (int end = h; end > from && ok; end -= 6) {
+                            std::map<std::string, GfsGrid::Grid> piece;
+                            ok = read(end, std::to_string(end - 6) + "-" + std::to_string(end) + " hour acc fcst", piece);
+                            for (auto& [tag, grid] : piece) {
+                                auto& total = amount[tag];
+                                if (total.values.empty()) {
+                                    total = std::move(grid);
+                                } else {
+                                    for (size_t i = 0; i < total.values.size(); i++) {
+                                        total.values[i] += grid.values[i];
+                                    }
+                                }
+                            }
+                        }
+                    } else {   // a running total since the start of the run: the amount is its difference from the total at the start of the period
+                        const auto forecastAt = [&source] (int at) { return source == "GEPS" ? std::string{"0-*"} : "0-" + std::to_string(at) + " hour acc fcst"; };
+                        ok = read(h, forecastAt(h), amount);
+                        if (ok && period > 0 && h - period > 0) {
+                            std::map<std::string, GfsGrid::Grid> before;
+                            ok = read(h - period, forecastAt(h - period), before);
+                            for (auto& [tag, grid] : amount) {
+                                const auto found = before.find(tag);
+                                if (found != before.end()) {
+                                    for (size_t i = 0; i < grid.values.size(); i++) {
+                                        grid.values[i] -= found->second.values[i];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (!ok || amount.empty()) {
+                        continue;
+                    }
+                    for (auto& [tag, grid] : amount) {
+                        grids[chart.pool.prefix + tag] = std::move(grid);
+                    }
+                    done = true;
+                    continue;
+                }
                 std::vector<GfsData::Need> needs;
                 for (const auto& member : GfsChart::poolMembers()) {
                     if (member.source == source) {

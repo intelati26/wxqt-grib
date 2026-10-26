@@ -159,6 +159,7 @@ namespace GfsChart {
         struct Pool {
             std::string variable, level;
             std::string prefix;   // "f": the keys are "fI01" ...
+            int periodHours{-1};  // precipitation ("APCP"): the amount in the period of that many hours ending at the valid time (0: the total since the start of the member's run); -1: not an amount
             bool active() const { return !variable.empty(); }
         } pool;
         int periodHours{0};   // the chart is of a period that ends at the hour (12 hour extremes, 6 hour chances): only the forecast hours that are multiples of this have it. 0: any hour
