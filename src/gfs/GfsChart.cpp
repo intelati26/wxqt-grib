@@ -5824,6 +5824,8 @@ namespace {
         bool barbs{false};
         ContourSet contour;
         std::string barbU, barbV;
+        QColor barbColor{20, 20, 20};   // the barbs stacked with others: a color for each level
+        std::string barbColorName{"black"};
     };
 
     std::string overlayPrefix(const Overlay& o) {
@@ -5915,6 +5917,13 @@ namespace {
                 o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"u", "UGRD", levelText, "", ""}}, {hour, {"v", "VGRD", levelText, "", ""}}}; };
                 o.barbU = "u";
                 o.barbV = "v";
+                static const std::map<std::string, std::pair<QColor, std::string>> levelColors{
+                    {"barbs_10m", {QColor{90, 90, 90}, "gray"}}, {"barbs_850", {QColor{200, 40, 40}, "red"}}, {"barbs_700", {QColor{30, 140, 60}, "green"}}, {"barbs_500", {QColor{30, 80, 200}, "blue"}},
+                    {"barbs_300", {QColor{130, 50, 170}, "purple"}}, {"barbs_250", {QColor{200, 60, 150}, "pink"}}, {"barbs_200", {QColor{140, 90, 40}, "brown"}}};
+                if (const auto found = levelColors.find(id); found != levelColors.end()) {
+                    o.barbColor = found->second.first;
+                    o.barbColorName = found->second.second;
+                }
                 list.push_back(o);
             }
             {   // the blend gives the 10 m wind as a speed and a direction
@@ -6233,9 +6242,8 @@ Product compose(const Product& base, const std::vector<std::string>& ids) {
         const auto prefix = overlayPrefix(*o);
         idText += "+" + o->id;
         labelText += (o == used.front() ? ", with " : ", ") + o->label;
-        if (o->barbs) {
-            p.barbU = prefix + o->barbU;
-            p.barbV = prefix + o->barbV;
+        if (o->barbs) {   // each ticked wind is a set of its own: they stack on the chart's own barbs
+            p.barbSets.push_back({prefix + o->barbU, prefix + o->barbV, o->barbColor, o->label, o->barbColorName});
         } else {
             auto set = o->contour;
             set.key = prefix + set.key;
@@ -6502,6 +6510,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         product.contours.clear();
         product.barbU.clear();
         product.barbV.clear();
+        product.barbSets.clear();
         product.streamU.clear();
         product.streamV.clear();
         product.overlays.clear();
@@ -6522,11 +6531,14 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     if (fill.empty()) {
         return {};
     }
+    // the wind the hover and a map layer take: the chart's own, else the first ticked
+    const std::string windU = !product.barbU.empty() ? product.barbU : (product.barbSets.empty() ? std::string{} : product.barbSets.front().u);
+    const std::string windV = !product.barbU.empty() ? product.barbV : (product.barbSets.empty() ? std::string{} : product.barbSets.front().v);
     if (options.fillOut != nullptr) {
         *options.fillOut = fill;
-        if (options.windUOut != nullptr && options.windVOut != nullptr && !product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
-            *options.windUOut = grids.at(product.barbU);
-            *options.windVOut = grids.at(product.barbV);
+        if (options.windUOut != nullptr && options.windVOut != nullptr && !windU.empty() && grids.count(windU) && grids.count(windV)) {
+            *options.windUOut = grids.at(windU);
+            *options.windVOut = grids.at(windV);
         }
         if (options.contoursOut != nullptr) {
             for (const auto& set : product.contours) {
@@ -6597,9 +6609,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 probe.fields.push_back({value.title.empty() ? value.key : value.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(value.key), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
             }
         }
-        if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
-            probe.windU = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(product.barbU), sector.west, sector.south, sector.east, sector.north), 120000);
-            probe.windV = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(product.barbV), sector.west, sector.south, sector.east, sector.north), 120000);
+        if (!windU.empty() && grids.count(windU) && grids.count(windV)) {
+            probe.windU = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(windU), sector.west, sector.south, sector.east, sector.north), 120000);
+            probe.windV = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(windV), sector.west, sector.south, sector.east, sector.north), 120000);
         }
     }
     // the fill, a pixel at a time (the ramp is in the grid's units; fully clear parts show the pale ground)
@@ -6899,30 +6911,46 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
 
     lap("contours");
     // wind barbs on a grid of pixels
-    if (!options.noBarbs && !product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
-        const auto& u = grids.at(product.barbU);
-        const auto& v = grids.at(product.barbV);
+    if (!options.noBarbs) {
+        struct DrawnSet {
+            const GfsGrid::Grid * u;
+            const GfsGrid::Grid * v;
+            QColor color;
+        };
+        std::vector<DrawnSet> sets;
+        if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
+            sets.push_back({&grids.at(product.barbU), &grids.at(product.barbV), QColor{20, 20, 20}});
+        }
+        for (const auto& set : product.barbSets) {
+            if (grids.count(set.u) && grids.count(set.v)) {
+                sets.push_back({&grids.at(set.u), &grids.at(set.v), set.color});
+            }
+        }
         const double pixelsPerDegree = area.width() / std::max(0.1, span);
         const auto look = BarbGrid::look(span, pixelsPerDegree);
-        p.setPen(QPen{QColor{20, 20, 20, 230}, 1.0});
-        p.setBrush(QColor{20, 20, 20});
-        for (double lat = std::ceil(std::max(-85.0, sector.south) / look.step) * look.step; lat <= std::min(85.0, sector.north); lat += look.step) {
+        for (double lat = std::ceil(std::max(-85.0, sector.south) / look.step) * look.step; !sets.empty() && lat <= std::min(85.0, sector.north); lat += look.step) {
             const double lonStep = BarbGrid::lonStep(look.step, lat);
             for (double lon = std::ceil(sector.west / lonStep) * lonStep; lon <= sector.east; lon += lonStep) {
                 const QPointF at = view.toPixel(lon, lat);
                 if (!area.contains(at)) {
                     continue;
                 }
-                float uu = u.sample(lon, lat), vv = v.sample(lon, lat);
-                if (std::isnan(uu) || std::isnan(vv)) {
-                    uu = u.sample(lon + 360.0, lat);
-                    vv = v.sample(lon + 360.0, lat);
+                // every set from the same origin: the first the longest, each next a little shorter and drawn over it
+                for (size_t i = 0; i < sets.size(); i++) {
+                    float uu = sets[i].u->sample(lon, lat), vv = sets[i].v->sample(lon, lat);
+                    if (std::isnan(uu) || std::isnan(vv)) {
+                        uu = sets[i].u->sample(lon + 360.0, lat);
+                        vv = sets[i].v->sample(lon + 360.0, lat);
+                    }
+                    if (std::isnan(uu) || std::isnan(vv)) {
+                        continue;
+                    }
+                    QColor ink = sets[i].color;
+                    p.setPen(QPen{QColor{ink.red(), ink.green(), ink.blue(), 230}, sets.size() > 1 ? 1.3 : 1.0});
+                    p.setBrush(ink);
+                    const double from = std::fmod(std::atan2(-uu, -vv) * 180.0 / pi + 360.0, 360.0);
+                    WindBarb::draw(p, at, from, std::hypot(uu, vv) * msToKnots, look.length * (1.0 - 0.12 * static_cast<double>(i)), lat < 0.0);
                 }
-                if (std::isnan(uu) || std::isnan(vv)) {
-                    continue;
-                }
-                const double from = std::fmod(std::atan2(-uu, -vv) * 180.0 / pi + 360.0, 360.0);
-                WindBarb::draw(p, at, from, std::hypot(uu, vv) * msToKnots, look.length, lat < 0.0);
             }
         }
     }
@@ -7222,7 +7250,18 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             lines << QString::fromStdString(set.title);
         }
     }
-    p.drawText(QPointF{static_cast<double>(margin), 43.0}, fillTitle + (lines.isEmpty() ? "" : (fillTitle.isEmpty() ? "lines: " : ";  lines: ") + lines.join(", ")) + (product.barbU.empty() ? "" : ";  barbs: kt"));
+    QString barbText = ";  barbs: kt";
+    if (!product.barbSets.empty()) {   // stacked winds: which color is which level
+        QStringList names;
+        if (!product.barbU.empty()) {
+            names << "chart's own (black)";
+        }
+        for (const auto& set : product.barbSets) {
+            names << QString::fromStdString(set.name + " (" + set.colorName + ")");
+        }
+        barbText = ";  barbs, kt: " + names.join(", ");
+    }
+    p.drawText(QPointF{static_cast<double>(margin), 43.0}, fillTitle + (lines.isEmpty() ? "" : (fillTitle.isEmpty() ? "lines: " : ";  lines: ") + lines.join(", ")) + (!product.barbU.empty() || !product.barbSets.empty() ? barbText : QString{}));
     const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
     p.drawText(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 

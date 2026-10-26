@@ -137,6 +137,14 @@ namespace GfsChart {
         std::vector<ContourSet> contours;
         // wind barbs (m/s grids), drawn in knots
         std::string barbU, barbV;
+        // the wind of more levels, ticked onto the chart: barbs at the same points as the chart's own, each set in a color of its own, stacked on one origin (shorter staffs on top, so a wind that is the same at
+        // two levels shows both); `name` is what the header calls it
+        struct BarbSet {
+            std::string u, v;
+            QColor color;
+            std::string name, colorName;
+        };
+        std::vector<BarbSet> barbSets;
         // streamlines of a wind (m/s grids)
         std::string streamU, streamV;
         // Numbers printed over the fill, side by side at each point ("41 63"): the grids named here (made by `derive`), in the chart's `quantity` and the user's units. Placed at
