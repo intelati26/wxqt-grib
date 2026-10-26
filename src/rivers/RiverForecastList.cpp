@@ -264,7 +264,7 @@ void RiverForecastList::fill() {
         add(1, new Cell{QString::fromStdString(r.peak.name), 0.0});
         add(2, new Cell{QString::fromStdString(r.peak.waterbody), 0.0});
         add(3, new Cell{QString::fromStdString(r.peak.state), 0.0});
-        auto * nowItem = new Cell{nameOf(r.nowStatus), rank(r.nowStatus)};
+        auto * nowItem = new Cell{nameOf(r.nowStatus), double(rank(r.nowStatus))};
         if (colorOf(r.nowStatus).isValid()) {
             nowItem->setBackground(colorOf(r.nowStatus));
             nowItem->setForeground(QColor{20, 20, 20});
@@ -272,7 +272,7 @@ void RiverForecastList::fill() {
         add(4, nowItem);
         add(5, new Cell{stage(r.observed, r.peak.units), number(r.observed)});
         add(6, new Cell{stage(r.peak.peak, r.peak.units), number(r.peak.peak)});
-        auto * category = new Cell{nameOf(r.peak.status), lowWater ? 0 : rank(r.peak.status)};
+        auto * category = new Cell{nameOf(r.peak.status), lowWater ? 0.0 : double(rank(r.peak.status))};
         category->setBackground(lowWater ? QColor{200, 170, 130} : colorOf(r.peak.status));
         category->setForeground(QColor{20, 20, 20});
         add(7, category);
