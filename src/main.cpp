@@ -52,6 +52,7 @@
 #include "misc/AhdViewer.h"
 #include "rivers/RiverForecastList.h"
 #include "misc/ProductViewer.h"
+#include "spc/AbpgExtended.h"
 #include "spc/WatchProbabilityViewer.h"
 #include "space/UtilitySun.h"
 #include "space/SunViewer.h"
@@ -246,6 +247,8 @@ int main(int argc, char * argv[]) {
                 UtilitySun::labelled(parts.value(2, "900").toInt()).save(parts.value(1));
             } else if (route == "sunviewer") {   // WXQT_OPEN=sunviewer: the Sun window with the hover on its regions
                 new SunViewer{&w};
+            } else if (route == "abpgext") {   // WXQT_OPEN=abpgext: the extended (days 6-14) analog guidance window
+                new AbpgExtended{&w};
             } else if (route == "product") {   // WXQT_OPEN=product WXQT_PRODUCT_IMAGE=<url> WXQT_PRODUCT_TEXT=<url>: the text-and-picture window
                 new ProductViewer{&w, "Product", qEnvironmentVariable("WXQT_PRODUCT_IMAGE").toStdString(), "", qEnvironmentVariable("WXQT_PRODUCT_TEXT").toStdString()};
             } else if (route.startsWith("watchprob:")) {   // WXQT_OPEN=watchprob:<number>[:<number>...]: the watch probabilities table

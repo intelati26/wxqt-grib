@@ -13,6 +13,7 @@
 #include <QDateTime>
 #include <QRegularExpression>
 #include <QTimeZone>
+#include "spc/AbpgExtended.h"
 #include "spc/UtilitySpcSwo.h"
 #include "util/To.h"
 #include "util/Utility.h"
@@ -79,6 +80,7 @@ SvrComparison::SvrComparison(Window * parent)
     , comboDay{this, dayLabels()}
     , comboHazard{this, {"ABPG: 1+ severe reports", "ABPG: 5+ severe reports"}}
     , comboRegion{this, regionNames}
+    , buttonExtended{this, None, "Extended 6-14 d...", "The University of Missouri's extended analog guidance (GEFS based): severe, precipitation, temperature and snow, days 6-14"}
     , textNote{this, ""}
 {
     setTitle("Severe weather outlook comparison");
@@ -90,6 +92,8 @@ SvrComparison::SvrComparison(Window * parent)
     rowTop.addWidget(comboDay);
     rowTop.addWidget(comboHazard);
     rowTop.addWidget(comboRegion);
+    buttonExtended.connect([this] { new AbpgExtended{this}; });
+    rowTop.addWidget(buttonExtended);
     rowTop.addWidget(textNote);
     rowTop.addStretch();
     box.addLayout(rowTop);

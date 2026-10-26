@@ -9,6 +9,7 @@
 #include <deque>
 #include <string>
 #include <vector>
+#include "ui/Button.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/ControlRow.h"
@@ -47,6 +48,7 @@ private:
     ComboBox comboDay;
     ComboBox comboHazard;   // ABPG: 1+ or 5+ severe reports
     ComboBox comboRegion;   // ABPG region
+    Button buttonExtended;   // the extended (days 6-14) analog guidance
     Text textNote;
     // deques: elements must not move once their views are in the layout
     std::deque<Text> titles;
