@@ -39,6 +39,8 @@ nc_variable = when variable=PRES level=surface => PS
 nc_variable = when variable=PWAT => TQV
 # Kelvin to degrees C, as the GRIB models arrive
 value_offset = TMP:-273.15
+# NASA's GrADS Data Server gives one variable at one time of the hourly single-level collection: tried before the 48 MB file
+partial = geos-opendap
 # the grid is 0.3125 degrees of longitude by 0.25 of latitude: warped to a square 0.25 degree grid
 warp = 0.25, -180.0, -90.0, 180.0, 90.0
 probe_file = tavg1_2d_slv_Nx

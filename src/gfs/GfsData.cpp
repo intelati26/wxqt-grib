@@ -361,6 +361,31 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
             }
         }
     }
+    if (source.partial) {   // the part of the file that is wanted, from a server that gives it: kept like the others; when it cannot, the file is read as usual
+        GfsGrid::Grid g;
+        std::string why;
+        if (source.partial(run, hour, file, variable, g, why) && !g.values.empty()) {
+            const double factor = source.valueScale ? source.valueScale(want) : 1.0;
+            const double offset = source.valueOffset ? source.valueOffset(want) : 0.0;
+            for (auto& v : g.values) {
+                v = static_cast<float>(v * factor + offset);
+            }
+            QByteArray store(header, '\0');
+            std::memcpy(store.data(), &g.columns, 4);
+            std::memcpy(store.data() + 4, &g.rows, 4);
+            std::memcpy(store.data() + 8, &g.lon0, 8);
+            std::memcpy(store.data() + 16, &g.lat0, 8);
+            std::memcpy(store.data() + 24, &g.step, 8);
+            store += qCompress(QByteArray::fromRawData(reinterpret_cast<const char *>(g.values.data()), static_cast<qsizetype>(g.values.size() * 4)), 6);
+            QSaveFile keep{cachePath};
+            if (keep.open(QIODevice::WriteOnly)) {
+                keep.write(store);
+                keep.commit();
+            }
+            out = std::move(g);
+            return true;
+        }
+    }
     if (source.custom) {   // the registered loader makes the grid; it is kept like the others
         Loader loader;
         {

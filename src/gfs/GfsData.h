@@ -74,6 +74,9 @@ public:
         // A source read by code the registry does not know (SPC's Zarr store): the loader registered for its id (setLoader) makes the field's grid on a latitude / longitude grid. The cache,
         // the several fields of a chart at once and the run search are as for any other. Without a loader (a build without it) every field fails with a message.
         bool custom{false};
+        // A reader of part of a file (NASA's GrADS Data Server gives one variable at one time of a file the data portal gives whole): tried first for a `wholeFile` field; `file` and the variable are as the model
+        // file names them. It returns the field on the model's grid, before the scale and the offset; false (with a reason) and the field is read from the file as usual.
+        std::function<bool(const Run&, int forecastHour, const std::string& file, const std::string& variable, GfsGrid::Grid& out, std::string& error)> partial;
         bool netcdf{false};                                               // a `wholeFile` source whose files are NetCDF: want.variable is the variable's name in them, read by range (they are 0.5 to 1 GB)
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often

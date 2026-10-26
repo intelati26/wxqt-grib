@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsModelFile.h"
+#include "gfs/GeosOpendap.h"
 #include <algorithm>
 #include <cstdlib>
 #include <map>
@@ -77,6 +78,7 @@ namespace {
         std::vector<std::pair<std::string, double>> offsets;          // variable -> amount added after the factor (Kelvin to degrees C)
         std::vector<Rule> variables;                                  // `nc_variable` rules: a NetCDF file's name for a want
         std::map<std::string, int> validOffsetByFile;                 // `valid_offset_file` FILE:minutes: a collection stamped differently (a 3 hour average is stamped in the middle of its period)
+        std::string partial;                                          // `partial` NAME: a reader of part of a file tried before the whole file (geos-opendap)
         int validOffsetMinutes{0};                                    // {valid} is the run's time plus the hour plus this (a time average is stamped half an hour after)
         std::vector<std::pair<std::string, std::pair<int, int>>> members;   // "p01".."p20" -> bands, kept as expanded names
         std::map<std::string, int> memberBand;
@@ -437,6 +439,12 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
                 }
                 definition->offsets.emplace_back(item.substr(0, colon), amount);
             }
+        } else if (key == "partial") {
+            if (value != "geos-opendap") {
+                reader.fail("partial is geos-opendap");
+                break;
+            }
+            definition->partial = value;
         } else if (key == "valid_offset") {
             if (!toInt(value, n)) {
                 reader.fail("valid_offset is minutes");
@@ -699,6 +707,11 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
         };
         if (candidatesWanted) {
             made.candidates = [d] (const Run& run, int hour, const std::string& file) { return urlsOf(*d, run, hour, file); };
+        }
+        if (d->partial == "geos-opendap") {
+            made.partial = [] (const Run& run, int hour, const std::string& file, const std::string& variable, GfsGrid::Grid& out, std::string& error) {
+                return GeosOpendap::read(run, hour, file, variable, out, error);
+            };
         }
         if (ecmwf) {
             made.parseIndex = [] (const std::string& text, const Want& want) {
