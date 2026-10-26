@@ -932,7 +932,7 @@ int main(int argc, char * argv[]) {
                 if (qEnvironmentVariable("WXQT_PICK") == "levels") {   // WXQT_PICK=levels: the picker's "850/700/500 wind" clicked
                     QTimer::singleShot(800, viewer, [viewer] {
                         for (auto * button : viewer->findChildren<QPushButton *>()) {
-                            if (button->text().startsWith("850/700/500")) {
+                            if (button->text().startsWith(qEnvironmentVariable("WXQT_PICK_BUTTON", "850/700/500"))) {
                                 button->click();
                             }
                         }

@@ -253,7 +253,7 @@ hours = 0-384/6
 overlays = true
 list = true
 clone = true
-clone_ids = precip_p06, precip_p12, precip_p24, precip_p36, precip_p48, precip_p60, precip_ptot, 1000_500_thick, 1000_850_thick, 850_700_thick, 850_temp_mslp_precip, 10m_wnd_precip, 10m_wnd_2m_temp, 200_wnd_ht, 250_wnd_ht, 300_wnd_ht, 500_rh_ht, 500_wnd_ht, 500_vort_ht, 700_rh_ht, 850_rh_ht, 850_temp_ht, 850_vort_ht, 850vor_500ht_200wd, 925_temp_ht
+clone_ids = precip_p06, precip_p12, precip_p24, precip_p36, precip_p48, precip_p60, precip_ptot, 1000_500_thick, 1000_850_thick, 850_700_thick, 850_temp_mslp_precip, 10m_wnd_precip, 10m_wnd_2m_temp, 200_wnd_ht, 250_wnd_ht, 300_wnd_ht, 500_rh_ht, 500_wnd_ht, 500_vort_ht, 700_rh_ht, 850_rh_ht, 850_700_rh, 850_temp_ht, 850_vort_ht, 850vor_500ht_200wd, 925_temp_ht
 clone_specific_humidity = true
 )MODEL"},
         {"IFS", R"MODEL(

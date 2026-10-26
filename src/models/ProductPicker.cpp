@@ -94,24 +94,32 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
         };
         show(anyTicked);
         QObject::connect(toggle, &QPushButton::clicked, [group, show] { show(!group->isVisible()); });
-        // the three levels of the trough together: the 500 mb wind and height chart with the 850 and 700 mb heights and winds stacked on it (red, green, over the chart's own)
+        // the levels of the lower troposphere together: a chart with the 850 and 700 mb winds and heights stacked on it (850 red, 700 green)
         const auto has = [this] (const std::string& id) { return std::any_of(this->extras.begin(), this->extras.end(), [&id] (const auto& e) { return e.id == id; }); };
-        const bool haveChart = std::any_of(this->entries.begin(), this->entries.end(), [] (const Entry& e) { return e.id == "500_wnd_ht"; });
-        if (haveChart && has("z850") && has("z700") && has("barbs_850") && has("barbs_700")) {
-            auto * levels = UiStandards::button(this, "850/700/500 wind", "The 500 mb wind and height chart with the 850 and 700 mb winds and heights stacked on it: 850 red, 700 green, 500 black");
-            column->addWidget(levels);
-            QObject::connect(levels, &QPushButton::clicked, [this, show] {
-                const std::vector<std::string> want{"z850", "z700", "barbs_850", "barbs_700"};
-                for (size_t i = 0; i < boxes.size(); i++) {
-                    boxes[i]->setChecked(std::find(want.begin(), want.end(), this->extras[i].id) != want.end());
-                }
-                show(true);
-                this->ticked();
-                if (this->onPick) {
-                    this->current = "500_wnd_ht";
-                    this->onPick(this->current);
-                }
-            });
+        const auto hasChart = [this] (const std::string& id) { return std::any_of(this->entries.begin(), this->entries.end(), [&id] (const Entry& e) { return e.id == id; }); };
+        if (has("z850") && has("z700") && has("barbs_850") && has("barbs_700")) {
+            const auto preset = [this, column, show] (const std::string& chart, const char * label, const char * tip) {
+                auto * levels = UiStandards::button(this, label, tip);
+                column->addWidget(levels);
+                QObject::connect(levels, &QPushButton::clicked, [this, show, chart] {
+                    const std::vector<std::string> want{"z850", "z700", "barbs_850", "barbs_700"};
+                    for (size_t i = 0; i < boxes.size(); i++) {
+                        boxes[i]->setChecked(std::find(want.begin(), want.end(), this->extras[i].id) != want.end());
+                    }
+                    show(true);
+                    this->ticked();
+                    if (this->onPick) {
+                        this->current = chart;
+                        this->onPick(this->current);
+                    }
+                });
+            };
+            if (hasChart("500_wnd_ht")) {
+                preset("500_wnd_ht", "850/700/500 wind", "The 500 mb wind and height chart with the 850 and 700 mb winds and heights stacked on it: 850 red, 700 green, 500 black");
+            }
+            if (hasChart("850_700_rh")) {
+                preset("850_700_rh", "850/700 humidity, wind", "The mean relative humidity of 850 and 700 mb with the winds and heights of both levels stacked on it: 850 red, 700 green");
+            }
         }
     }
     {   // the precipitation charts as parts (what, period, lines) instead of the list of them

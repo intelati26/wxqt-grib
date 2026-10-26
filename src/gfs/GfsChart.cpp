@@ -805,6 +805,25 @@ const std::vector<Product>& products() {
             x.fillTitle = "Relative humidity (%)";
             x.legendStep = 10;
             p.push_back(x);
+            {   // the lower level humidity: the mean of the 850 and 700 mb relative humidity, for the severe weather forecaster's "moist enough in the lower levels"; the winds and heights come from the stacked overlays
+                Product m;
+                m.id = "850_700_rh";
+                m.label = "850-700mb Mean Relative Humidity";
+                m.wants = {want("r8", "RH", "850 mb"), want("r7", "RH", "700 mb")};
+                m.derive = [] (Grids& g, const Context&) {
+                    auto mean = g.at("r8");
+                    const auto& upper = g.at("r7");
+                    for (size_t i = 0; i < mean.values.size() && i < upper.values.size(); i++) {
+                        mean.values[i] = 0.5f * (mean.values[i] + upper.values[i]);
+                    }
+                    g["rh"] = std::move(mean);
+                };
+                m.fill = [] (const Grids& g) { return pick(g, "rh"); };
+                m.ramp = humidity();   // (our own scale, dry brown to moist teal: the site's two green bands would be lost under the green 700 mb lines)
+                m.fillTitle = "Mean relative humidity of 850 and 700 mb (%)";
+                m.legendStep = 10;
+                p.push_back(m);
+            }
             auto y = x;
             y.id = "850_rh_ht";
             y.label = "850mb Relative Humidity and Height";
@@ -7238,9 +7257,16 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     const auto valid = initUtc.addSecs(forecastHour * 3600);
     QFont big = font;
     big.setPixelSize(17);
+    const QString headline = QString::fromStdString(product.source + "  " + product.label);
+    {   // a long title (a chart with several things ticked onto it) gets a smaller type, down to 11, so that it stays clear of the run and valid times at the right
+        const double room = image.width() / S - 2.0 * margin - 330.0;
+        while (big.pixelSize() > 11 && QFontMetricsF{big}.horizontalAdvance(headline) > room) {
+            big.setPixelSize(big.pixelSize() - 1);
+        }
+    }
     p.setFont(big);
     p.setPen(QColor{25, 25, 25});
-    p.drawText(QPointF{static_cast<double>(margin), 22.0}, QString::fromStdString(product.source + "  " + product.label));
+    p.drawText(QPointF{static_cast<double>(margin), 22.0}, headline);
     font.setBold(false);
     p.setFont(font);
     p.setPen(QColor{70, 70, 70});
