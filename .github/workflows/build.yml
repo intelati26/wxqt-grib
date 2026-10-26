@@ -270,6 +270,7 @@ jobs:
           # zip in a second zip. (The artifact is named after the file.)
           path: dist/wxqt-windows-x64.zip
           archive: false
+          retention-days: 3   # GitHub's artifact storage is limited (500 MB on the Free plan): keep a build three days
           if-no-files-found: error
 
       # the matching debug symbols: resolve the addresses of a crash in wxqt.log (wxqt.exe+0x...) with
@@ -278,7 +279,7 @@ jobs:
         with:
           name: wxqt-windows-symbols
           path: build/release/wxqt.pdb
-          retention-days: 30
+          retention-days: 3
           if-no-files-found: warn
 
   linux-x64-appimage:
@@ -388,4 +389,5 @@ jobs:
           # as-is, so the AppImage downloads directly instead of zipped
           path: dist/wxqt-x86_64.AppImage
           archive: false
+          retention-days: 3
           if-no-files-found: error
