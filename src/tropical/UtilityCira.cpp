@@ -174,6 +174,9 @@ namespace UtilityCira {
                 if (!okLat || !okLon) {
                     continue;
                 }
+                if (fix.lat == 0.0 && fix.lon == 0.0) {   // CIRA fills a missing forecast (a storm that is no longer forecast: dissipating, extratropical) with rows of 0.0, 0.0, 0: not a position, and on a map it is the Gulf of Guinea
+                    continue;
+                }
                 if (fix.lon > 180.0) {
                     fix.lon -= 360.0;
                 }
