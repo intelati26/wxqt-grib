@@ -8,6 +8,7 @@
 #include <QFontDatabase>
 #include "hurricane/UtilityNhcText.h"
 #include "objects/FutureVoid.h"
+#include "util/UtilityTextReflow.h"
 
 AdvisoryViewer::AdvisoryViewer(Window * parent, const HurricaneData::StormEntry& entry)
     : Window{parent}
@@ -33,7 +34,7 @@ void AdvisoryViewer::build(const std::string& title, const std::vector<std::pair
     for (const auto& [name, url] : products) {
         auto * page = new QPlainTextEdit{this};
         page->setReadOnly(true);
-        page->setLineWrapMode(QPlainTextEdit::NoWrap);
+        UtilityTextReflow::style(page);   // (the product's own lines are about 66 characters: the breaks inside paragraphs go, the text wraps to the window)
         page->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
         page->setPlainText(url.empty() ? "NHC lists no such product for this storm." : "Loading...");
         tabs->addTab(page, QString::fromStdString(name));
@@ -58,7 +59,7 @@ void AdvisoryViewer::build(const std::string& title, const std::vector<std::pair
             }
             for (size_t i = 0; i < pages.size(); i++) {
                 if (!products[i].second.empty()) {
-                    pages[i]->setPlainText((*texts)[i].empty() ? "Could not read this product from NHC." : QString::fromStdString((*texts)[i]));
+                    UtilityTextReflow::setProduct(pages[i], (*texts)[i].empty() ? QString{"Could not read this product from NHC."} : QString::fromStdString((*texts)[i]));
                 }
             }
             const auto headline = UtilityNhcText::headline((*texts)[0]);

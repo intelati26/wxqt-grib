@@ -18,6 +18,7 @@
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "ui/UiStandards.h"
+#include "util/UtilityTextReflow.h"
 #include "util/UtilityIO.h"
 
 namespace {
@@ -74,6 +75,7 @@ AhdViewer::AhdViewer(Window * parent)
         text->setFont(mono);
     }
     text->setMinimumWidth(420);
+    UtilityTextReflow::style(text);
     rowLayout->addWidget(text, 2);
     rowLayout->addWidget(&image, 3);
     box.addWidgetReal(row, 1, Qt::Alignment{});
@@ -123,7 +125,7 @@ AhdViewer::AhdViewer(Window * parent)
             files.push_back(file);
             times->addItem(label);
         }
-        text->setPlainText(body->empty() ? QString{"No text found."} : QString::fromStdString(*body));
+        UtilityTextReflow::setProduct(text, body->empty() ? QString{"No text found."} : QString::fromStdString(*body));
         note->setText(QString::number(files.size()) + " graphics; the text is the newest discussion.");
         showImage(0);
     }};

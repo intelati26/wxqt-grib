@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "util/UtilityTextReflow.h"
+#include <algorithm>
+#include <QPlainTextEdit>
 #include <QStringList>
 #include "util/Utility.h"
 
@@ -68,4 +70,15 @@ QString UtilityTextReflow::reflow(const QString& text) {
         }
     }
     return out;
+}
+
+void UtilityTextReflow::style(QPlainTextEdit * box) {
+    box->setLineWrapMode(QPlainTextEdit::WidgetWidth);
+    box->setWordWrapMode(QTextOption::WordWrap);
+    box->setMaximumWidth(static_cast<int>(12.0 * std::max(72, box->logicalDpiX())));
+}
+
+void UtilityTextReflow::setProduct(QPlainTextEdit * box, const QString& text) {
+    style(box);
+    box->setPlainText(enabled() ? reflow(text) : text);
 }
