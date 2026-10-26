@@ -331,7 +331,9 @@ hours = 0-360/6
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, UGRD, VGRD, VVEL, SPFH, PRMSL, DPT, GUST, TCDC, APCP, PRATE
+clone_variables = HGT, TMP, RH, UGRD, VGRD, VVEL, SPFH, PRMSL, DPT, GUST, TCDC, APCP, PRATE
+# the open data has specific humidity on the pressure levels, not relative: the charts of relative humidity are worked out from it, with the temperature
+clone_specific_humidity = true
 clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
 clone_pieces = false
 clone_skip = precip_p01, precip_p03, 1000_500_thick, 1000_850_thick, 850_700_thick, 850_temp_mslp_precip, 10m_wnd_precip
