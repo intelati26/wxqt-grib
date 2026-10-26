@@ -257,7 +257,7 @@ int main(int argc, char * argv[]) {
             } else if (route == "riverforecast") {   // WXQT_OPEN=riverforecast: the table of gauges forecast to reach action stage (with WXQT_TABLE_OUT=<stem> the export files are written)
                 auto * list = new RiverForecastList{&w};
                 if (!qEnvironmentVariable("WXQT_TABLE_OUT").isEmpty()) {
-                    QTimer::singleShot(20000, list, [list] { QMetaObject::invokeMethod(list, [list] { list->exportNow(); }); });
+                    QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_TABLE_DELAY") > 0 ? qEnvironmentVariableIntValue("WXQT_TABLE_DELAY") : 20000, list, [list] { QMetaObject::invokeMethod(list, [list] { list->exportNow(); }); });
                 }
             } else if (route == "ahd") {   // WXQT_OPEN=ahd: the Area Hydrologic Discussion window
                 new AhdViewer{&w};

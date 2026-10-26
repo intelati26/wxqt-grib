@@ -7,6 +7,7 @@
 #define UTILITYRIVERS_H
 
 #include <limits>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -62,6 +63,20 @@ namespace UtilityRivers {
     };
     // every gauge forecast to reach the action stage or above, newest from the service; cached for ten minutes
     bool loadPeaks(vector<Peak>&, string& error);
+    // every gauge forecast to fall below its low-water level (status low_threshold of the same layer: peak is then the lowest stage forecast and peakTime when); cached for ten minutes
+    bool loadLows(vector<Peak>&, string& error);
+
+    // When a gauge is first forecast at a category: the forecast of each 24 hour step (the service's layers of 24, 48 ... 336 hours) says which category it is in then, and the first step at the category or
+    // above is the time given (the service's valid time of that step) and how many hours ahead it is. Index 1 action, 2 minor, 3 moderate, 4 major; hours 0 and an empty time when it never is.
+    struct FirstReach {
+        string time[5];
+        int hours[5]{0, 0, 0, 0, 0};
+    };
+    bool loadFirstReach(std::map<string, FirstReach>&, string& error);
+
+    // the record crests of a gauge (highest first), from its NWPS record only (a light request: the flood record, not the forecasts)
+    struct Crest;
+    bool loadRecordCrests(const string& lid, vector<std::pair<double, string>>& stageAndTime, string& error);
 
     struct Point {
         long long time;   // seconds since 1970, UTC

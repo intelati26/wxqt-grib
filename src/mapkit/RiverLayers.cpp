@@ -79,22 +79,28 @@ void GaugeLayer::refresh(MapHost& host) {
     loading = true;
     auto fresh = std::make_shared<vector<UtilityRivers::Gauge>>();
     auto forecast = std::make_shared<vector<UtilityRivers::Peak>>();
+    auto low = std::make_shared<vector<UtilityRivers::Peak>>();
     auto message = std::make_shared<string>();
     auto ok = std::make_shared<bool>(false);
     host.background(
-        [fresh, forecast, message, ok] {
+        [fresh, forecast, low, message, ok] {
             *ok = UtilityRivers::loadGauges(*fresh, *message);
             string ignored;
             UtilityRivers::loadPeaks(*forecast, ignored);   // (the forecast is an extra: the gauges are shown without it)
+            UtilityRivers::loadLows(*low, ignored);
             std::stable_sort(fresh->begin(), fresh->end(), [] (const auto& a, const auto& b) { return lookOf(a.status).rank < lookOf(b.status).rank; });   // the worst on top
         },
-        [this, &host, fresh, forecast, message, ok] {
+        [this, &host, fresh, forecast, low, message, ok] {
             loading = false;
             if (*ok) {
                 gauges = fresh;
                 peaks = std::make_shared<std::map<string, UtilityRivers::Peak>>();
                 for (const auto& k : *forecast) {
                     (*peaks)[k.lid] = k;
+                }
+                lows = std::make_shared<std::map<string, UtilityRivers::Peak>>();
+                for (const auto& k : *low) {
+                    (*lows)[k.lid] = k;
                 }
                 error.clear();
             } else {
@@ -114,6 +120,9 @@ const UtilityRivers::Peak * GaugeLayer::peakOf(const string& lid) const {
 
 bool GaugeLayer::shown(const UtilityRivers::Gauge& g) const {
     const auto& s = g.status;
+    if (filter == 6) {   // forecast to fall below the low-water level
+        return lows && lows->count(g.lid) > 0;
+    }
     if (filter == 4 || filter == 5) {   // forecast to reach the action stage or above; 5: and not there now
         const bool now = s == "action" || s == "minor" || s == "moderate" || s == "major";
         return peakOf(g.lid) != nullptr && (filter == 4 || !now);
@@ -139,6 +148,13 @@ void GaugeLayer::paint(QPainter& painter, MapHost& host) {
         }
         const QPointF u = t(g.lat, g.lon);
         if (!onScreen(u)) {
+            continue;
+        }
+        if (filter == 6) {   // forecast low water: the brown of the low-water category, a ring in the colour of now
+            const auto& low = lookOf("low_threshold");
+            painter.setPen(QPen{lookOf(g.status).color, 2.2 * perPixel});
+            painter.setBrush(low.color);
+            painter.drawEllipse(u, 5.0 * perPixel, 5.0 * perPixel);
             continue;
         }
         const auto * peak = filter >= 4 ? peakOf(g.lid) : nullptr;
@@ -183,6 +199,10 @@ MapHit GaugeLayer::pick(const QPointF& pixels, MapHost& host) const {
             if (!g.obsTime.empty()) {
                 text += "\n" + QString::fromStdString(g.obsTime) + " UTC";
             }
+            if (lows && lows->count(g.lid) > 0) {
+                const auto& low = lows->at(g.lid);
+                text += "\nForecast to fall below the low-water level: " + QString::number(low.peak, 'f', 2) + " " + QString::fromStdString(low.units) + " at " + QString::fromStdString(low.peakTime) + " UTC";
+            }
             if (const auto * peak = peakOf(g.lid)) {
                 text += "\nForecast to reach " + QString{lookOf(peak->status).label}.toLower() + ": " + QString::number(peak->peak, 'f', 2) + " " + QString::fromStdString(peak->units) + " at " + QString::fromStdString(peak->peakTime) + " UTC";
             }
@@ -196,7 +216,7 @@ MapHit GaugeLayer::pick(const QPointF& pixels, MapHost& host) const {
 
 vector<MapLegendRow> GaugeLayer::legend() const {
     MapLegendRow row;
-    row.title = filter >= 4 ? "Forecast highest category (the ring: now):" : "River gauges:";
+    row.title = filter == 6 ? "Forecast low water (the ring: now):" : filter >= 4 ? "Forecast highest category (the ring: now):" : "River gauges:";
     for (const auto& [status, name] : {std::pair<const char *, const char *>{"major", "Major"}, {"moderate", "Moderate"}, {"minor", "Minor"}, {"action", "Action"}, {"no_flooding", "No flooding"},
                                        {"low_threshold", "Low water"}, {"obs_not_current", "Not current"}}) {
         row.entries.push_back({MapLegendEntry::Circle, lookOf(status).color, name});
@@ -210,7 +230,7 @@ QWidget * GaugeLayer::options(QWidget * parent, const std::function<void()>& cha
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Show:", widget});
     auto * combo = UiStandards::combo(widget);
-    combo->addItems({"All gauges", "Action stage or higher", "Flooding (minor or higher)", "Not reporting (no current reading / out of service)", "Forecast to reach action stage or higher", "Forecast to rise into action stage or higher (now below it)"});
+    combo->addItems({"All gauges", "Action stage or higher", "Flooding (minor or higher)", "Not reporting (no current reading / out of service)", "Forecast to reach action stage or higher", "Forecast to rise into action stage or higher (now below it)", "Forecast to fall below the low-water level"});
     combo->setCurrentIndex(filter);
     QObject::connect(combo, &QComboBox::currentIndexChanged, [this, changed] (int index) { filter = index; changed(); });
     layout->addWidget(combo);

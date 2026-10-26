@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <map>
 #include <mutex>
+#include <thread>
 #include <numbers>
 #include <QByteArray>
 #include <QDateTime>
@@ -168,9 +170,69 @@ bool UtilityRivers::loadGauges(vector<Gauge>& out, string& error) {
     return true;
 }
 
+namespace {
+    // the gauges of the forecast layer in these categories ("'action','minor'"): cached for ten minutes by the list
+    bool readForecastLayer(const string& statuses, vector<UtilityRivers::Peak>& out, string& error) {
+        static std::mutex lock;
+        static std::map<string, std::pair<std::time_t, vector<UtilityRivers::Peak>>> cache;
+        {
+            std::lock_guard<std::mutex> guard{lock};
+            const auto found = cache.find(statuses);
+            if (found != cache.end() && !found->second.second.empty() && std::time(nullptr) - found->second.first < 600) {
+                out = found->second.second;
+                return true;
+            }
+        }
+        vector<UtilityRivers::Peak> all;
+        const string fields{"gaugelid,status,location,waterbody,state,wfo,fcsttime,units,action,flood,moderate,major,forecast,latitude,longitude"};
+        const string where = QString::fromStdString("status IN (" + statuses + ")").toUtf8().toPercentEncoding().toStdString();
+        const auto root = fetchObject(forecastLayer + "?where=" + where + "&outFields=" + fields + "&returnGeometry=false&resultRecordCount=5000&f=json");
+        if (root.isEmpty()) {
+            error = "The river forecast service did not answer.";
+            return false;
+        }
+        for (const auto& item : root.value("features").toArray()) {
+            const auto a = item.toObject().value("attributes").toObject();
+            UtilityRivers::Peak k;
+            k.lid = a.value("gaugelid").toString().toStdString();
+            k.name = a.value("location").toString().toStdString();
+            k.waterbody = a.value("waterbody").toString().toStdString();
+            k.state = a.value("state").toString().toStdString();
+            k.wfo = a.value("wfo").toString().toStdString();
+            k.units = a.value("units").toString().toStdString();
+            k.status = a.value("status").toString().toStdString();
+            k.peakTime = a.value("fcsttime").toString().toStdString();
+            k.peak = number(a.value("forecast"));
+            k.action = number(a.value("action"));
+            k.minor = number(a.value("flood"));
+            k.moderate = number(a.value("moderate"));
+            k.major = number(a.value("major"));
+            k.lat = a.value("latitude").toDouble();
+            k.lon = a.value("longitude").toDouble();
+            if (!k.lid.empty()) {
+                all.push_back(std::move(k));
+            }
+        }
+        {
+            std::lock_guard<std::mutex> guard{lock};
+            cache[statuses] = {std::time(nullptr), all};
+        }
+        out = std::move(all);
+        return true;
+    }
+}
+
 bool UtilityRivers::loadPeaks(vector<Peak>& out, string& error) {
+    return readForecastLayer("'action','minor','moderate','major'", out, error);
+}
+
+bool UtilityRivers::loadLows(vector<Peak>& out, string& error) {
+    return readForecastLayer("'low_threshold'", out, error);
+}
+
+bool UtilityRivers::loadFirstReach(std::map<string, FirstReach>& out, string& error) {
     static std::mutex lock;
-    static vector<Peak> cache;
+    static std::map<string, FirstReach> cache;
     static std::time_t cachedAt = 0;
     {
         std::lock_guard<std::mutex> guard{lock};
@@ -179,35 +241,44 @@ bool UtilityRivers::loadPeaks(vector<Peak>& out, string& error) {
             return true;
         }
     }
-    vector<Peak> all;
-    const string fields{"gaugelid,status,location,waterbody,state,wfo,fcsttime,units,action,flood,moderate,major,forecast,latitude,longitude"};
-    const string where{"status%20IN%20(%27action%27,%27minor%27,%27moderate%27,%27major%27)"};
-    const auto root = fetchObject(forecastLayer + "?where=" + where + "&outFields=" + fields + "&returnGeometry=false&resultRecordCount=5000&f=json");
-    const auto features = root.value("features").toArray();
-    if (root.isEmpty()) {
+    struct Step {
+        vector<std::pair<string, std::pair<int, string>>> gauges;   // lid -> category rank, time
+        bool ok{false};
+    };
+    const string base{"https://mapservices.weather.noaa.gov/eventdriven/rest/services/water/riv_gauges/MapServer/"};
+    std::vector<Step> steps(14);
+    std::vector<std::thread> threads;
+    for (int n = 1; n <= 14; n++) {
+        threads.emplace_back([&steps, &base, n] {
+            const string where = "status%20IN%20(%27action%27,%27minor%27,%27moderate%27,%27major%27)";
+            const auto root = fetchObject(base + std::to_string(n) + "/query?where=" + where + "&outFields=gaugelid,status,fcsttime&returnGeometry=false&resultRecordCount=5000&f=json");
+            auto& step = steps[static_cast<size_t>(n - 1)];
+            step.ok = !root.isEmpty();
+            for (const auto& item : root.value("features").toArray()) {
+                const auto a = item.toObject().value("attributes").toObject();
+                const auto status = a.value("status").toString();
+                const int rank = status == "action" ? 1 : status == "minor" ? 2 : status == "moderate" ? 3 : status == "major" ? 4 : 0;
+                step.gauges.push_back({a.value("gaugelid").toString().toStdString(), {rank, a.value("fcsttime").toString().toStdString()}});
+            }
+        });
+    }
+    for (auto& t : threads) {
+        t.join();
+    }
+    if (!steps[0].ok) {
         error = "The river forecast service did not answer.";
         return false;
     }
-    for (const auto& item : features) {
-        const auto a = item.toObject().value("attributes").toObject();
-        Peak k;
-        k.lid = a.value("gaugelid").toString().toStdString();
-        k.name = a.value("location").toString().toStdString();
-        k.waterbody = a.value("waterbody").toString().toStdString();
-        k.state = a.value("state").toString().toStdString();
-        k.wfo = a.value("wfo").toString().toStdString();
-        k.units = a.value("units").toString().toStdString();
-        k.status = a.value("status").toString().toStdString();
-        k.peakTime = a.value("fcsttime").toString().toStdString();
-        k.peak = number(a.value("forecast"));
-        k.action = number(a.value("action"));
-        k.minor = number(a.value("flood"));
-        k.moderate = number(a.value("moderate"));
-        k.major = number(a.value("major"));
-        k.lat = a.value("latitude").toDouble();
-        k.lon = a.value("longitude").toDouble();
-        if (!k.lid.empty()) {
-            all.push_back(std::move(k));
+    std::map<string, FirstReach> all;
+    for (int n = 1; n <= 14; n++) {   // in order: the first step a gauge is at a category or above
+        for (const auto& [lid, info] : steps[static_cast<size_t>(n - 1)].gauges) {
+            auto& reach = all[lid];
+            for (int r = 1; r <= info.first && r <= 4; r++) {
+                if (reach.time[r].empty()) {
+                    reach.time[r] = info.second;
+                    reach.hours[r] = 24 * n;
+                }
+            }
         }
     }
     {
@@ -216,6 +287,24 @@ bool UtilityRivers::loadPeaks(vector<Peak>& out, string& error) {
         cachedAt = std::time(nullptr);
     }
     out = std::move(all);
+    return true;
+}
+
+bool UtilityRivers::loadRecordCrests(const string& lid, vector<std::pair<double, string>>& out, string& error) {
+    const auto gauge = fetchObject(nwps + "gauges/" + lid);
+    if (gauge.isEmpty()) {
+        error = "NWPS did not answer for " + lid + ".";
+        return false;
+    }
+    out.clear();
+    for (const auto& item : gauge.value("flood").toObject().value("crests").toObject().value("historic").toArray()) {
+        const auto o = item.toObject();
+        const double stage = number(o.value("stage"));
+        if (has(stage)) {
+            out.push_back({stage, o.value("occurredTime").toString().toStdString()});
+        }
+    }
+    std::sort(out.begin(), out.end(), [] (const auto& a, const auto& b) { return a.first > b.first; });
     return true;
 }
 

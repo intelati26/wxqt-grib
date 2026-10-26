@@ -42,6 +42,7 @@ private:
     int filter{0};
     std::shared_ptr<vector<UtilityRivers::Gauge>> gauges;
     std::shared_ptr<std::map<string, UtilityRivers::Peak>> peaks;   // by gauge id
+    std::shared_ptr<std::map<string, UtilityRivers::Peak>> lows;    // the gauges forecast to fall below their low-water level
 };
 
 class DamLayer : public MapLayer {
