@@ -14,6 +14,7 @@
 #include <QInputDialog>
 #include <QPainter>
 #include <QMenu>
+#include <QMessageBox>
 #include "misc/ImageViewer.h"
 #include "objects/UtilityAnimationExport.h"
 #include "objects/NetManager.h"
@@ -35,6 +36,8 @@
 #include <QCheckBox>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFormLayout>
+#include <QComboBox>
 #include <QLabel>
 #include <QVBoxLayout>
 #include "models/PaletteEditor.h"
@@ -365,6 +368,10 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         save->setToolTip("Save the picture, or the hours drawn so far as a loop");
         QObject::connect(save, &QPushButton::clicked, this, [this] { saveLoop(); });
         boxH2.addWidgetReal(save);
+        auto * saveBig = UiStandards::button(this, "Hi-res...");
+        saveBig->setToolTip("Draw the chart on view again at a larger size (2200 to 6600 pixels wide), the whole chart or just the part you have zoomed to, and save it");
+        QObject::connect(saveBig, &QPushButton::clicked, this, [this] { saveHighRes(); });
+        boxH2.addWidgetReal(saveBig);
         boxH2.addStretch();
         box.addLayout(boxH2);
     }
@@ -884,6 +891,67 @@ void ModelViewer::saveLoop() {
     }
     const auto name = QString::fromStdString(objectModel.model + (versus.empty() ? "" : "_vs" + versus) + "_" + objectModel.param + "_" + objectModel.sector + "_" + objectModel.run);
     UtilityAnimationExport::saveWithDialog(this, loop.size() >= 2 ? loop : std::vector<QByteArray>{}, strip->intervalMs(), withGlyphs(shownBytes, shownProbe), name, QByteArray{}, false, name);
+}
+
+// The chart on view drawn again at a larger size: the whole chart, or the box of the part in view (the sector is then that exact box, so the map is drawn for it and not enlarged)
+void ModelViewer::saveHighRes() {
+    if (shownBytes.isEmpty() || !shownProbe || !shownProbe->valid()) {
+        return;
+    }
+    QDialog dialog{this};
+    dialog.setWindowTitle("Hi-res picture");
+    auto * form = new QFormLayout{&dialog};
+    auto * area = new QComboBox{&dialog};
+    area->addItems({"The part in view", "The whole chart"});
+    area->setCurrentIndex(std::clamp(Utility::readPrefInt("HIRES_AREA", 0), 0, 1));
+    auto * size = new QComboBox{&dialog};
+    const std::vector<int> widths{2200, 3300, 4400, 6600};
+    for (const int w : widths) {
+        size->addItem(QString{"%1 pixels wide"}.arg(w), w);
+    }
+    size->setCurrentIndex(std::clamp(Utility::readPrefInt("HIRES_SIZE", 1), 0, static_cast<int>(widths.size()) - 1));
+    form->addRow("Area", area);
+    form->addRow("Size", size);
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    form->addRow(buttons);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    Utility::writePref("HIRES_AREA", std::to_string(area->currentIndex()));
+    Utility::writePref("HIRES_SIZE", std::to_string(size->currentIndex()));
+    auto job = makeJob(0, std::atoi(objectModel.getTime().c_str()), false);
+    job.variant.scale = widths[static_cast<size_t>(size->currentIndex())] / 1100.0;
+    if (area->currentIndex() == 0) {
+        const auto& p = *shownProbe;
+        const auto view = image.visibleFraction();
+        // the part of the view that is map: the margins (title, legend) are not
+        const double left = std::max(view.left(), p.areaLeft / p.imageWidth), right = std::min(view.right(), (p.areaLeft + p.areaWidth) / p.imageWidth);
+        const double top = std::max(view.top(), p.areaTop / p.imageHeight), bottom = std::min(view.bottom(), (p.areaTop + p.areaHeight) / p.imageHeight);
+        double west = 0, north = 0, east = 0, south = 0;
+        if (right > left && bottom > top && p.locate(left, top, west, north) && p.locate(right, bottom, east, south) && east > west && north > south) {
+            job.sector = GfsChart::boxId(west, std::max(-85.0, south), east, std::min(85.0, north));
+        }
+    }
+    if (!gfsSession) {
+        gfsSession = std::make_shared<GfsRender::Session>();
+    }
+    auto session = gfsSession;
+    auto result = std::make_shared<std::pair<QByteArray, string>>();
+    auto probe = std::make_shared<GfsChart::Probe>();
+    const auto titleBefore = windowTitle();
+    setWindowTitle("Drawing the hi-res picture...");
+    new FutureVoid{this, [=] { result->first = GfsRender::png(*session, job.model, job.param, job.sector, job.cycle, job.hour, job.overlays, result->second, probe.get(), job.variant); },
+                   [this, result, probe, job, titleBefore] {
+                       setWindowTitle(titleBefore);
+                       if (result->first.isEmpty()) {
+                           QMessageBox::warning(this, "Hi-res picture", QString::fromStdString(result->second.empty() ? string{"The chart could not be drawn at that size."} : result->second));
+                           return;
+                       }
+                       const auto name = QString::fromStdString(objectModel.model + "_" + objectModel.param + "_" + objectModel.run + "_hires" + std::to_string(static_cast<int>(std::lround(job.variant.scale * 1100.0))));
+                       UtilityAnimationExport::saveWithDialog(this, std::vector<QByteArray>{}, strip->intervalMs(), withGlyphs(result->first, probe), name, QByteArray{}, false, name);
+                   }};
 }
 
 void ModelViewer::showFrame(const Frame& frame) {

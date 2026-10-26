@@ -6557,12 +6557,13 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             deviationHigh = values[values.size() * 9 / 10];
         }
     }
+    const double S = std::max(1.0, options.scale);   // a larger picture of the same design: everything is placed in the 1x picture's pixels, the painter scales it, the fill is computed at the final pixels
     const int headerHeight = 54, legendHeight = 62 + (deviationHigh > 0.0 ? 14 : 0), margin = 8;
     const QRectF mapArea{static_cast<double>(margin), static_cast<double>(headerHeight), static_cast<double>(options.width - 2 * margin), 0.0};
     const double mapHeight = std::clamp(View::heightFor(sector, mapArea.width()), 200.0, 1400.0);
     const QRectF area{mapArea.left(), mapArea.top(), mapArea.width(), mapHeight};
     View view{sector, area};
-    QImage image(options.width, static_cast<int>(headerHeight + mapHeight + legendHeight), QImage::Format_ARGB32_Premultiplied);
+    QImage image(static_cast<int>(std::lround(options.width * S)), static_cast<int>(std::lround((headerHeight + mapHeight + legendHeight) * S)), QImage::Format_ARGB32_Premultiplied);
     image.fill(QColor{250, 250, 250});
 
     if (options.probe) {   // the fields of this chart, kept for the hover read-out
@@ -6572,10 +6573,10 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         probe.east = sector.east;
         probe.south = sector.south;
         probe.north = sector.north;
-        probe.areaLeft = area.left();
-        probe.areaTop = area.top();
-        probe.areaWidth = area.width();
-        probe.areaHeight = area.height();
+        probe.areaLeft = area.left() * S;
+        probe.areaTop = area.top() * S;
+        probe.areaWidth = area.width() * S;
+        probe.areaHeight = area.height() * S;
         probe.imageWidth = image.width();
         probe.imageHeight = image.height();
         probe.us = us;
@@ -6603,13 +6604,13 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
     // the fill, a pixel at a time (the ramp is in the grid's units; fully clear parts show the pale ground)
     const Ramp * ramp = &product.ramp;
-    QImage map(static_cast<int>(area.width()), static_cast<int>(area.height()), QImage::Format_ARGB32_Premultiplied);
+    QImage map(static_cast<int>(std::lround(area.width() * S)), static_cast<int>(std::lround(area.height() * S)), QImage::Format_ARGB32_Premultiplied);
     map.fill(QColor{244, 244, 244});
     for (int y = 0; y < map.height(); y++) {
         auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
-        const double lat = view.latAt(area.top() + y + 0.5);
+        const double lat = view.latAt(area.top() + (y + 0.5) / S);
         for (int x = 0; x < map.width(); x++) {
-            const float value = fill.sample(view.lonAt(area.left() + x + 0.5), lat);
+            const float value = fill.sample(view.lonAt(area.left() + (x + 0.5) / S), lat);
             if (!std::isnan(value)) {
                 const QRgb c = ramp->at(value);
                 const int a = qAlpha(c);
@@ -6630,9 +6631,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         }
         for (int y = 0; y < map.height(); y++) {
             auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
-            const double lat = view.latAt(area.top() + y + 0.5);
+            const double lat = view.latAt(area.top() + (y + 0.5) / S);
             for (int x = 0; x < map.width(); x++) {
-                const float value = found->second.sample(view.lonAt(area.left() + x + 0.5), lat);
+                const float value = found->second.sample(view.lonAt(area.left() + (x + 0.5) / S), lat);
                 if (std::isnan(value)) {
                     continue;
                 }
@@ -6647,7 +6648,8 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
     QPainter p{&image};
     p.setRenderHint(QPainter::Antialiasing);
-    p.drawImage(area.topLeft(), map);
+    p.scale(S, S);
+    p.drawImage(area, map);
     p.setClipRect(area);
 
     lap("overlays");
@@ -6823,7 +6825,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         double lo = 1e18, hi = -1e18;
         for (int y = 0; y < map.height(); y += 6) {
             for (int x = 0; x < map.width(); x += 6) {
-                const float value = grid.sample(view.lonAt(area.left() + x), view.latAt(area.top() + y));
+                const float value = grid.sample(view.lonAt(area.left() + x / S), view.latAt(area.top() + y / S));
                 if (!std::isnan(value)) {
                     lo = std::min<double>(lo, value * set.scale);
                     hi = std::max<double>(hi, value * set.scale);
@@ -7222,7 +7224,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
     p.drawText(QPointF{static_cast<double>(margin), 43.0}, fillTitle + (lines.isEmpty() ? "" : (fillTitle.isEmpty() ? "lines: " : ";  lines: ") + lines.join(", ")) + (product.barbU.empty() ? "" : ";  barbs: kt"));
     const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
-    p.drawText(QRectF{0, 8, image.width() - static_cast<double>(margin), 20}, Qt::AlignRight, times);
+    p.drawText(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 
     // legend: even steps in value, or (legendStep 0) one equal-width block per ramp stop
     const double barLeft = margin + 6.0, barTop = area.bottom() + 12.0, barWidth = area.width() - 12.0, barHeight = 16.0;
@@ -7311,7 +7313,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         for (const auto& overlay : product.overlays) {
             colors.push_back(overlay.second.stops.back().second);
         }
-        const double top = image.height() - 15.0;
+        const double top = image.height() / S - 15.0;
         const QFontMetricsF metrics{p.font()};
         p.setPen(QColor{70, 70, 70});
         for (size_t i = 0; i < colors.size(); i++) {
@@ -7330,7 +7332,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             break;
         }
         const QString name = key == "snow" ? "Snow" : key == "mix" ? "Mixed" : QString::fromStdString(key);
-        const double top = image.height() - 15.0, width = 80.0;
+        const double top = image.height() / S - 15.0, width = 80.0;
         p.setPen(QColor{70, 70, 70});
         p.drawText(QRectF{keyLeft, top - 1, 44, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
         const auto& s = overlayRamp.stops;
@@ -7344,7 +7346,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         keyLeft += 44 + width + 22;
     }
     p.setPen(QColor{110, 110, 110});
-    p.drawText(QRectF{0, image.height() - 16.0, image.width() - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + sourceLabel(product.source)));
+    p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + sourceLabel(product.source)));
     return image;
 }
 }

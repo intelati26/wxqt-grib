@@ -931,6 +931,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     if (variant.width > 0) {
         options.width = variant.width;
     }
+    options.scale = variant.scale;
     options.windRadii = Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0;   // the quadrant wind field toggle of the hurricane model screen
     if (isHafs(model)) {   // the model's own track and wind radii for the storm, drawn on the chart
         const auto text = URL::getBytes(gfs.fileUrl(run, 0, "trak"));

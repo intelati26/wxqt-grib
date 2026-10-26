@@ -271,6 +271,7 @@ namespace GfsChart {
         VectorLines * vectorOut{nullptr};                          // the contour lines, their numbers and the highs / lows are handed over here instead of being painted into the picture
         bool noBarbs{false};                   // the picture has no barbs (the map layer draws them itself, as vectors on a world grid; the probe still holds the wind)
         int width{1100};
+        double scale{1.0};                     // a picture this many times larger in each direction, drawn at the same design (text, lines and barbs scaled, the fill computed at the larger size): for exports
         const GfsClimate * climate{nullptr};   // for the anomaly charts
         bool ticks{false};                     // latitude and longitude marks along the frame, numbered
         bool hasMarker{false};                 // a mark at a place (the saved location a local area is round) with its name

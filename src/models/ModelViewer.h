@@ -136,6 +136,7 @@ private:
     void setVariant(GfsRender::Variant);
     void showMax(bool day1);
     void saveLoop();
+    void saveHighRes();   // the chart on view (or the part in view) drawn again at a larger size, then the usual save dialog
     void loadViews();
     void saveView();
     void applyView(const std::array<string, 5>&);
