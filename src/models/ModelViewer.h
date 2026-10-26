@@ -88,7 +88,7 @@ private:
     struct Spec {
         string model, param, sector;
         int shift{0};   // runs: hours older than the run chosen
-        string member;  // members: the member this tile shows (when picked with its button)
+        string member;  // members: the member this tile shows (when picked with its button); parts: the ensemble ("IFS-ENS", "GEFS", "GEPS") whose members this tile draws
         bool memberPicked{false};
     };
     struct Job {
@@ -99,9 +99,10 @@ private:
         bool ok{true};
         string why;
     };
-    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime };
+    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime, Parts };
     int tileCount() const;                       // the tiles besides the first: 0, 1, 2 or 3
     TilesShow tilesShow() const;
+    static const std::vector<string>& partsOfPool();
     void applyTileLayout();
     void resetTileSpecs();
     Job makeJob(int index, int mainHour, bool ahead) const;

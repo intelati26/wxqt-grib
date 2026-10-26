@@ -557,6 +557,9 @@ namespace {
             }
         }
         for (const auto& source : sources) {
+            if (!chart.pool.only.empty() && source != chart.pool.only) {
+                continue;
+            }
             auto gfs = data(session.folder(), source);
             const auto * def = GfsModels::find(source);
             const int step = gfs.model().cycleHours;
@@ -788,6 +791,9 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     }
     if (base && variant.standardDeviations) {
         composed = GfsChart::withStandardDeviations(composed);
+    }
+    if (base && !variant.poolOnly.empty()) {
+        composed = GfsChart::withPoolOnly(composed, variant.poolOnly);
     }
     bool loaded = product->pool.active() ? pooledGrids(session, *product, run, hour, grids, error) : gfs.load(run, GfsChart::needs(*product, hour), grids, error);
     if (!loaded) {   // the same run's 1 hour pieces, if the product has them (the first 36 hours)

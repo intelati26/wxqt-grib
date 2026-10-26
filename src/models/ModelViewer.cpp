@@ -76,7 +76,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
-    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)"}}
+    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts"}}
     , comboMember{this, {"Ensemble mean"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
@@ -293,9 +293,9 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         });
         boxH2.addWidgetReal(buttonSigma);
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
-        comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs.");
+        comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone.");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
-        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 4)));
+        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 5)));
         comboTiles.connect([this] {
             Utility::writePref("MODEL_TILES", std::to_string(comboTiles.getIndex()));
             applyTileLayout();
@@ -2072,9 +2072,15 @@ int ModelViewer::tileCount() const {
     return std::clamp(comboTiles.getIndex(), 0, 3);
 }
 
+// the ensembles the pooled model is made of, in the order the tiles show them
+const std::vector<string>& ModelViewer::partsOfPool() {
+    static const std::vector<string> parts{"IFS-ENS", "GEFS", "GEPS"};
+    return parts;
+}
+
 ModelViewer::TilesShow ModelViewer::tilesShow() const {
     const auto i = comboTilesShow.getIndex();
-    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : i == 4 ? TilesShow::ModelsByTime : TilesShow::Charts;
+    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : i == 4 ? TilesShow::ModelsByTime : i == 5 ? TilesShow::Parts : TilesShow::Charts;
 }
 
 void ModelViewer::applyTileLayout() {
@@ -2140,6 +2146,8 @@ void ModelViewer::resetTileSpecs() {
             spec.model = k < others.size() ? others[k] : string{};
         } else if (show == TilesShow::Members) {
             spec.member.clear();   // the next members after the first tile's (tileMember)
+        } else if (show == TilesShow::Parts) {
+            spec.member = k < partsOfPool().size() ? partsOfPool()[k] : string{};
         } else {
             spec.shift = 6 * static_cast<int>(k + 1);
         }
@@ -2213,6 +2221,9 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         if (show == TilesShow::Members && memberValues.size() < 2) {
             job.ok = false;
             job.why = "This chart has no single members to compare: pick an ensemble chart made of one member (a GEFS chart, a REFS or SPC REFS 'Member' chart).";
+        } else if (show == TilesShow::Parts && (objectModel.model != "ENS-ALL" || spec.member.empty())) {
+            job.ok = false;
+            job.why = "Pick the ENS-ALL model (the pool of the ECMWF, GEFS and GEPS members) to compare it with its parts.";
         } else if (job.model.empty()) {
             job.ok = false;
             job.why = "No other model draws this chart.";
@@ -2258,6 +2269,9 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         if (ahead && v.kind != GfsRender::Variant::Kind::Change) {
             v = {};
         }
+        if (show == TilesShow::Parts) {   // the same pooled chart from the members of one ensemble
+            v.poolOnly = spec.member;
+        }
         if (show == TilesShow::Members) {   // each tile its own member of the same chart
             v.member = tileMember(index);
             v.standardDeviations = standardDeviations;
@@ -2292,6 +2306,9 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         if (v.standardDeviations) {
             job.key += "|sd";
         }
+        if (!v.poolOnly.empty()) {
+            job.key += "|only=" + v.poolOnly;
+        }
         if (!v.validTime.empty()) {
             job.key += "|vt=" + v.validTime;
         }
@@ -2312,7 +2329,7 @@ string ModelViewer::caption(const Job& job) const {
     } else {
         run = job.cycle.empty() ? string{"newest run"} : job.cycle;
     }
-    return job.model + "   " + (product ? product->label : job.param) + "   " + run + (job.variant.member.empty() ? string{} : "   " + memberLabel(job.variant.member)) +
+    return (job.variant.poolOnly.empty() ? job.model : (job.variant.poolOnly == "IFS-ENS" ? string{"ECMWF"} : job.variant.poolOnly) + " only") + "   " + (product ? product->label : job.param) + "   " + run + (job.variant.member.empty() ? string{} : "   " + memberLabel(job.variant.member)) +
         (job.variant.kind == GfsRender::Variant::Kind::Change ? "   (change)" : "");
 }
 
@@ -2408,6 +2425,17 @@ void ModelViewer::changeTile(int index) {
             action->setChecked(spec.model == id);
             QObject::connect(action, &QAction::triggered, this, [this, index, id] {
                 tileSpecs[static_cast<size_t>(index) - 1].model = id;
+                renderTile(index);
+                prefetch(prefetchGeneration);
+            });
+        }
+    } else if (show == TilesShow::Parts) {
+        for (const auto& part : partsOfPool()) {
+            auto * action = menu.addAction(QString::fromStdString(part + " members only"));
+            action->setCheckable(true);
+            action->setChecked(spec.member == part);
+            QObject::connect(action, &QAction::triggered, this, [this, index, part] {
+                tileSpecs[static_cast<size_t>(index) - 1].member = part;
                 renderTile(index);
                 prefetch(prefetchGeneration);
             });

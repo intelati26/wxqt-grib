@@ -6111,6 +6111,39 @@ bool hasStandardDeviations(const Product& product) {
     return static_cast<bool>(product.sigma);
 }
 
+Product withPoolOnly(const Product& product, const std::string& source) {
+    if (!product.pool.active() || source.empty()) {
+        return product;
+    }
+    int count = 0;
+    for (const auto& member : poolMembers()) {
+        count += member.source == source ? 1 : 0;
+    }
+    const std::string name = source == "IFS-ENS" ? "ECMWF" : source;
+    const std::string note = "only the " + std::to_string(count) + " members of the " + name;
+    const auto retitle = [name, note] (std::string text) {
+        for (const std::string phrase : {"% of the 102 members of the ECMWF, GEFS and GEPS together", "% of all the members, ECMWF, GEFS and GEPS"}) {
+            const auto at = text.find(phrase);
+            if (at != std::string::npos) {
+                text.replace(at, phrase.size(), "% of " + note);
+                return text;
+            }
+        }
+        return text + " (" + note + ")";
+    };
+    Product out = product;
+    out.pool.only = source;
+    out.label = product.label + " - " + name + " only";
+    if (!product.fillTitle.empty()) {
+        out.fillTitle = retitle(product.fillTitle);
+    }
+    if (product.fillTitleFor) {
+        const auto inner = product.fillTitleFor;
+        out.fillTitleFor = [inner, retitle] (int hour) { return retitle(inner(hour)); };
+    }
+    return out;
+}
+
 Product withStandardDeviations(const Product& product) {
     if (!product.sigma) {
         return product;

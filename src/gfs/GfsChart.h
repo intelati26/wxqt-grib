@@ -159,6 +159,7 @@ namespace GfsChart {
         struct Pool {
             std::string variable, level;
             std::string prefix;   // "f": the keys are "fI01" ...
+            std::string only;     // only the members of this ensemble ("IFS-ENS", "GEFS", "GEPS"); "": all of them (withPoolOnly)
             int periodHours{-1};  // precipitation ("APCP"): the amount in the period of that many hours ending at the valid time (0: the total since the start of the member's run); -1: not an amount
             bool active() const { return !variable.empty(); }
         } pool;
@@ -213,6 +214,8 @@ namespace GfsChart {
     // The anomaly chart in standard deviations from the 1991-2020 mean (the legend gives the unit's equivalents too); the chart itself when it has none (see Product::sigma)
     bool hasStandardDeviations(const Product& product);
     Product withStandardDeviations(const Product& product);
+    // A pooled chart (ENS-ALL) drawn from the members of one of its ensembles only, to compare that ensemble with the pool: same grid, same valid time, same chart. Titles say so.
+    Product withPoolOnly(const Product& product, const std::string& source);
 
     // the names for under a chart, and the sectors a model can show (the blend covers only the contiguous United States)
     std::string sourceLabel(const std::string& source);
