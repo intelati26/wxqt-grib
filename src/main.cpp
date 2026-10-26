@@ -929,6 +929,15 @@ int main(int argc, char * argv[]) {
                 Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
                 auto * viewer = new ModelViewer{&w, "NCEP"};
                 qEnvironmentVariable("WXQT_PICK") == "net" ? NetStatus::show(viewer) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : viewer->showPicker();   // WXQT_PICK=sector: the area picker
+                if (qEnvironmentVariable("WXQT_PICK") == "levels") {   // WXQT_PICK=levels: the picker's "850/700/500 wind" clicked
+                    QTimer::singleShot(800, viewer, [viewer] {
+                        for (auto * button : viewer->findChildren<QPushButton *>()) {
+                            if (button->text().startsWith("850/700/500")) {
+                                button->click();
+                            }
+                        }
+                    });
+                }
                 if (qEnvironmentVariable("WXQT_PICK") == "precip") {   // WXQT_PICK=precip: the chart picker's "Precip by parts..." opened
                     QTimer::singleShot(800, viewer, [viewer] {
                         for (auto * button : viewer->findChildren<QPushButton *>()) {
