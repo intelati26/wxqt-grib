@@ -6014,44 +6014,91 @@ std::string category(const Product& product) {
     if (!product.pickerGroup.empty()) {
         return product.pickerGroup;
     }
-    const auto& id = product.id;
+    std::string id = product.id;
     if (id.compare(0, 4, "gen~") == 0) {
         return "Built charts";
     }
-    const auto has = [&id] (const char * text) { return id.find(text) != std::string::npos; };
-    if (id.compare(0, 7, "spread_") == 0) {
+    std::transform(id.begin(), id.end(), id.begin(), [] (unsigned char c) { return static_cast<char>(std::tolower(c)); });   // ("prob_low_IFR")
+    const auto contains = [] (const std::string& text, const char * part) { return text.find(part) != std::string::npos; };
+    const auto startsWith = [] (const std::string& text, const char * prefix) { return text.compare(0, std::char_traits<char>::length(prefix), prefix) == 0; };
+    // the kind of statistic comes first (what the ensemble makes of the members), the field second: the charts of the ensembles would otherwise all sit in "Surface"
+    std::string core = id;   // the id without the words that say how it was made: "ens_850_wnd" is an 850 mb wind chart
+    for (bool again = true; again;) {
+        again = false;
+        for (const char * prefix : {"ens_", "all_", "mean_", "member_", "combo_", "blend_", "lpmm_", "pmm_", "eas_"}) {
+            if (startsWith(core, prefix)) {
+                core = core.substr(std::char_traits<char>::length(prefix));
+                again = true;
+            }
+        }
+    }
+    if (startsWith(id, "spread_") || startsWith(id, "all_spread_") || contains(id, "_spread")) {
         return "Ensemble spread";
     }
-    if (id.compare(0, 5, "swath") == 0) {
+    if (startsWith(id, "swath")) {
         return "Swaths";
     }
+    if ((contains(id, "prob_") || (id.size() > 5 && id.compare(id.size() - 5, 5, "_prob") == 0)) && !contains(id, "problem")) {   // the chance of something, by what it is the chance of
+        const auto has = [&] (const char * part) { return contains(core, part); };
+        if (has("precip") || has("rain") || has("snow") || has("ice") || has("sleet") || has("freezing_rain") || has("pwat") || has("total") || has("qpf")) {
+            return "Probability: precipitation";
+        }
+        if (has("vis") || has("ceil") || has("ifr") || has("vfr")) {
+            return "Probability: aviation and visibility";
+        }
+        if (has("cape") || has("tstm") || has("hlcy") || has("uphl") || has("refd") || has("cref") || has("refc") || has("etop") || has("vwshr") || has("shear") || has("cin") || has("tornado") || has("hail") || has("lightning")) {
+            return "Probability: severe and storms";
+        }
+        return "Probability: temperature and wind";
+    }
+    if (startsWith(core, "pct") || contains(core, "efi_") || startsWith(core, "efi")) {
+        return "Ensemble: percentiles and extremes";
+    }
+    if (startsWith(core, "thunder") || startsWith(id, "severe_") || startsWith(id, "gefsmlp_")) {   // the SPC's post-processed chances of thunder and severe weather
+        return "Probability: severe and storms";
+    }
+    if (contains(id, "spag") || contains(id, "_iso") || contains(id, "paintball") || (contains(id, "_ht") && id.size() > 8 && std::isdigit(static_cast<unsigned char>(id[0])) && std::count(id.begin(), id.end(), '_') >= 2 && std::isdigit(static_cast<unsigned char>(id[id.find('_') + 1])))) {
+        return "Ensemble: spaghetti and paintballs";   // (the last: "500_510_552_ht", a level then the contour values)
+    }
+    if (startsWith(id, "member_")) {
+        return "Ensemble: single members";
+    }
+    const auto has = [&core] (const char * text) { return core.find(text) != std::string::npos; };
     if (has("trend") || has("chng")) {
         return "Changes and trends";
     }
     if (has("anom")) {
         return "Anomalies";
     }
-    if (id.compare(0, 4, "sat_") == 0) {
+    if (startsWith(core, "sat_")) {
         return "Satellite";
     }
-    if (id == "sst" || id == "waves" || has("wave")) {
+    if (core == "sst" || core == "waves" || has("wave") || has("wv_ht") || has("swell") || has("dir_per")) {
         return "Ocean and waves";
     }
     // the severe weather charts in kinds: the fuel, the rotation, the storms themselves and the composite indices
-    if (has("cape") || has("cin_") || has("lifted")) {
+    const bool endsWithCin = core.size() >= 3 && core.compare(core.size() - 3, 3, "cin") == 0;   // "sbcin", "mlcin", "ens_cin"
+    if (has("cape") || has("cin_") || endsWithCin || has("lifted") || has("lapse") || has("lcl") || has("lfc")) {
         return "Severe: instability";
     }
-    if (has("helicity") || has("hlcy") || has("srh") || has("relv") || has("uphl")) {
-        return "Severe: rotation";
+    if (has("helicity") || has("hlcy") || has("srh") || has("relv") || has("uphl") || has("vwshr") || has("critical_angle") || has("wind_0_6km") ||
+        has("shear_0_") || has("effective_shear")) {   // the low-level and storm shear of the severe weather indices (the deep layer shear of the cyclones is "dynamics")
+        return "Severe: rotation and shear";
     }
-    if (has("stp") || has("scp") || has("ship")) {
+    if (has("stp") || has("scp") || has("ship") || has("ehi") || has("dcp")) {
         return "Severe: composite indices";
     }
-    if (has("radar") || has("reflectivity") || has("echo") || has("lightning") || has("updraft") || has("downdraft") || has("hail")) {
+    if (has("radar") || has("reflectivity") || has("refd") || has("refc") || has("echo") || has("lightning") || has("updraft") || has("downdraft") || has("hail")) {
         return "Severe: storm structure";
     }
+    if (has("dust") || has("aod") || has("pm25") || has("smoke") || has("sulfate") || has("seasalt") || has("aerosol")) {
+        return "Air quality and smoke";
+    }
+    if (core == "thetae_2m" || has("mixr")) {   // moisture at the surface, not the mixing of the layer
+        return "Surface";
+    }
     // the lowest kilometer and the fire weather indices: the mixing, the ventilation, the dry air
-    if (has("pbl") || has("vent") || has("transport") || has("haines") || has("mix") || has("fire") || id == "2m_rh_10m_wnd") {
+    if (has("pbl") || has("vent") || has("transport") || has("haines") || has("mix_") || has("mixing") || has("fire") || core == "2m_rh_10m_wnd") {
         return "Boundary layer and fire weather";
     }
     if (has("shear") || has("steering") || has("div") || has("stream") || has("thetae") || has("vor") || has("trop") || has("850vor")) {
@@ -6060,13 +6107,13 @@ std::string category(const Product& product) {
     if (has("vis") || has("ceil") || has("fog") || has("flight")) {
         return "Aviation and visibility";
     }
-    if (id == "rh_700_300") {
+    if (core == "rh_700_300") {
         return "Upper air";
     }
     if (has("precip") || has("snow") || has("rain") || has("qpf") || has("ptype") || has("thick") || has("pwat") || has("ice")) {
         return "Precipitation and moisture";
     }
-    if (id.size() > 3 && std::isdigit(static_cast<unsigned char>(id[0])) && (has("_wnd_ht") || has("_temp") || has("_rh") || has("rh_700") || has("_ht") || id.compare(1, 2, "00") == 0 || id.compare(0, 3, "250") == 0 || id.compare(0, 3, "925") == 0) && id.compare(0, 3, "10m") != 0 && id.compare(0, 2, "2m") != 0) {
+    if (core.size() > 3 && std::isdigit(static_cast<unsigned char>(core[0])) && (has("_wnd") || has("_temp") || has("_rh") || has("rh_700") || has("_ht") || core.compare(1, 2, "00") == 0 || core.compare(0, 3, "250") == 0 || core.compare(0, 3, "925") == 0) && core.compare(0, 3, "10m") != 0 && core.compare(0, 2, "2m") != 0) {
         return "Upper air";
     }
     return "Surface";

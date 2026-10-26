@@ -20,8 +20,10 @@ namespace {
 }
 
 std::vector<std::string> ProductPicker::groupOrder() {
-    return {"Upper air", "Surface", "Precipitation and moisture", "Severe: instability", "Severe: rotation", "Severe: storm structure", "Severe: composite indices", "Storms and severe",
-            "Boundary layer and fire weather", "Aviation and visibility", "Tropical and dynamics", "Ensemble spread", "Changes and trends", "Anomalies", "Satellite",
+    return {"Upper air", "Surface", "Precipitation and moisture", "Severe: instability", "Severe: rotation and shear", "Severe: storm structure", "Severe: composite indices", "Storms and severe",
+            "Boundary layer and fire weather", "Air quality and smoke", "Aviation and visibility", "Tropical and dynamics", "Probability: precipitation", "Probability: severe and storms",
+            "Probability: aviation and visibility", "Probability: temperature and wind", "Ensemble spread", "Ensemble: percentiles and extremes", "Ensemble: spaghetti and paintballs", "Ensemble: single members",
+            "Changes and trends", "Anomalies", "Satellite",
             "Ocean and waves", "Swaths"};
 }
 
@@ -228,6 +230,17 @@ void ProductPicker::fill() {
                 return label.contains("wind") ? 0 : label.contains("temperature") ? 1 : label.contains("humidity") ? 2 : label.contains("vorticity") ? 3 : 4;
             };
             std::stable_sort(list.begin(), list.end(), [&] (const Entry * a, const Entry * b) { return std::make_pair(level(a), field(a)) < std::make_pair(level(b), field(b)); });
+        }
+        if (name == "Precipitation and moisture") {   // the amounts by their period (1, 3, 6 ... hours, then the total), then the charts with lines and the rest as they were made
+            const auto rank = [] (const Entry * e) {
+                static const QRegularExpression period{"precip_p(\\d+)$"};
+                const auto m = period.match(QString::fromStdString(e->id));
+                if (m.hasMatch()) {
+                    return m.captured(1).toInt();
+                }
+                return e->id.find("precip_ptot") != std::string::npos ? 1000 : 100000;
+            };
+            std::stable_sort(list.begin(), list.end(), [&] (const Entry * a, const Entry * b) { return rank(a) < rank(b); });
         }
         bool holdsCurrent = false;
         for (const auto * e : list) {
