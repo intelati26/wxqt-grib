@@ -17,6 +17,7 @@
 #include <QTimeZone>
 #include <QUrl>
 #include <QVBoxLayout>
+#include "misc/ProductViewer.h"
 #include "misc/TextViewerStatic.h"
 #include "objects/FutureBytes.h"
 #include "radar/MapLegend.h"
@@ -140,7 +141,12 @@ namespace {
         hit.distance = 0.0;
         hit.reach = 1.0;
         hit.text = texts.join("\n\n");
-        if (first != nullptr && !first->fullText.isEmpty()) {
+        if (first != nullptr && !first->imageUrl.isEmpty()) {   // a product with its picture: both in a window
+            const auto image = first->imageUrl.toStdString(), full = first->fullText.toStdString(), url = first->textUrl.toStdString();
+            const auto title = first->windowTitle.toStdString();
+            hit.text += "\n(click for the text and the picture)";
+            hit.open = [image, full, url, title] (Window * parent) { new ProductViewer{parent, title, image, full, url}; };
+        } else if (first != nullptr && !first->fullText.isEmpty()) {
             const auto full = first->fullText.toStdString();
             const auto title = first->windowTitle.toStdString();
             hit.text += "\n(click for the text)";
@@ -342,12 +348,8 @@ void WarningPolygonsLayer::refresh(MapHost& host) {
                     a.title = p.value("prod_type").toString() + " " + number;
                     a.text = a.title + "  -  part of " + p.value("wfo").toString().mid(1) + "\nIssued " + zulu(a.begin) + ", ends " + zulu(a.end);
                     a.textUrl = "https://www.spc.noaa.gov/products/watch/ww" + QString{"%1"}.arg(number.toInt(), 4, 10, QChar{'0'}) + ".html";
-                    a.textUrl.clear();   // (the page is HTML; the watch text is in the NWS's alert, which the url below answers as JSON)
-                    const auto alert = p.value("url").toString();
-                    if (!alert.isEmpty()) {
-                        a.textUrl = alert;
-                        a.windowTitle = a.title;
-                    }
+                    a.imageUrl = "https://www.spc.noaa.gov/products/watch/ww" + QString{"%1"}.arg(number.toInt(), 4, 10, QChar{'0'}) + "_radar.gif";   // the radar with the watch outlined
+                    a.windowTitle = a.title;
                     out->push_back(std::move(a));
                 }
                 // a watch is cut in parts at the offices' borders: one outline for each watch
@@ -495,6 +497,7 @@ void MesoscaleDiscussionLayer::refresh(MapHost& host) {
                         a.text = "Mesoscale Discussion " + QString::number(number) + (valid.hasMatch() ? "  -  valid " + valid.captured(1) : QString{}) + "\n" + grab("Areas affected") + "\nConcerning: " +
                                  grab("Concerning").remove(QRegularExpression{"\\.\\.\\.$"}) + (summary.isEmpty() ? QString{} : "\n" + summary.left(420) + (summary.size() > 420 ? "..." : ""));
                         a.textUrl = "https://www.spc.noaa.gov/products/md/md" + file + ".txt";
+                        a.imageUrl = "https://www.spc.noaa.gov/products/md/mcd" + file + ".png";
                         a.windowTitle = "Mesoscale discussion " + QString::number(number);
                     }
                 }
@@ -599,6 +602,7 @@ void MesoscalePrecipitationLayer::refresh(MapHost& host) {
                 a.text = "Mesoscale Precipitation Discussion " + QString::number(number) + (valid.hasMatch() ? "  -  valid " + valid.captured(1) : QString{}) + "\n" + grab("Areas affected") + "\nConcerning: " + grab("Concerning") +
                          (summary.isEmpty() ? QString{} : "\n" + summary.left(420) + (summary.size() > 420 ? "..." : ""));
                 a.fullText = full;
+                a.imageUrl = "https://www.wpc.ncep.noaa.gov/metwatch/images/mcd" + QString{"%1"}.arg(number, 4, 10, QChar{'0'}) + ".gif";
                 a.windowTitle = "Mesoscale precipitation discussion " + QString::number(number);
                 out->push_back(std::move(a));
             }
