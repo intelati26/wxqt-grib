@@ -53,8 +53,8 @@ run_every = 6
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, UGRD, VGRD, SPFH, VVEL, PRMSL, PWAT, PRES
-clone_fields = HGT|1000 mb, HGT|850 mb, HGT|500 mb, HGT|250 mb, TMP|850 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|500 mb, SPFH|250 mb, VVEL|500 mb
+clone_variables = HGT, TMP, UGRD, VGRD, SPFH, VVEL, PRMSL, PWAT, PRES, RH
+clone_fields = HGT|1000 mb, HGT|850 mb, HGT|500 mb, HGT|250 mb, TMP|850 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|500 mb, SPFH|250 mb, VVEL|500 mb, RH|850 mb, RH|500 mb, RH|250 mb
 clone_pieces = false
 clone_specific_humidity = true
 clone_skip = anom, precip, thick, 850_vort_ht, 500_vort_ht
@@ -613,11 +613,13 @@ hours = 0-0/1
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, UGRD, VGRD, SPFH, PRMSL, PWAT
+clone_variables = HGT, TMP, UGRD, VGRD, SPFH, PRMSL, PWAT, RH
 # (the fields the NCEI monthly files have, so that the same charts draw for 1979 on)
-clone_fields = HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb
+clone_fields = HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb, RH|850 mb, RH|700 mb, RH|500 mb
 clone_skip = precip, thick, 850_vort_ht, 500_vort_ht
 clone_pieces = false
+# relative humidity is worked out from the specific humidity of the level and its temperature
+clone_specific_humidity = true
 )MODEL"},
         {"CFS", R"MODEL(
 # NOAA's Climate Forecast System version 2 on AWS (open data bucket noaa-cfs-pds, 31 October 2018 on): a nine month forecast four times a day, 1 degree, 6 hourly. Each variable is a file of its own
@@ -653,12 +655,14 @@ preload_hours = 24
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, UGRD, VGRD, PRMSL, PWAT, SPFH
+clone_variables = HGT, TMP, UGRD, VGRD, PRMSL, PWAT, SPFH, RH
 # only the fields the bucket has (checked for 404: no 250 mb height, 925 mb temperature or 250 / 1000 mb humidity)
-clone_fields = HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb
+clone_fields = HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb, RH|850 mb, RH|700 mb, RH|500 mb
 on_missing = previous_run
 clone_skip = precip, thick, 850_vort_ht, 500_vort_ht
 clone_pieces = false
+# relative humidity is worked out from the specific humidity of the level and its temperature
+clone_specific_humidity = true
 )MODEL"},
         {"HRRR-AK", R"MODEL(
 # The 3 km High-Resolution Rapid Refresh for Alaska (the HRRR bucket's alaska folder): a run every 3 hours to 48 hours, the 2D fields (sfc) and the pressure levels (prs) in files of their own. The
@@ -899,10 +903,12 @@ hours = 0-0/1
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, UGRD, VGRD, SPFH, DPT, PRMSL, PWAT, CAPE, CIN, HLCY
-clone_fields = HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|300 mb, HGT|250 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|300 mb, TMP|250 mb, TMP|200 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|300 mb, UGRD|250 mb, UGRD|200 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|300 mb, VGRD|250 mb, VGRD|200 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb, TMP|2 m above ground, DPT|2 m above ground, UGRD|10 m above ground, VGRD|10 m above ground, PRMSL|mean sea level, CAPE|surface, CIN|surface, PWAT|entire atmosphere (considered as a single layer), HLCY|3000-0 m above ground
+clone_variables = HGT, TMP, UGRD, VGRD, SPFH, DPT, PRMSL, PWAT, CAPE, CIN, HLCY, RH
+clone_fields = HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|300 mb, HGT|250 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|300 mb, TMP|250 mb, TMP|200 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|300 mb, UGRD|250 mb, UGRD|200 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|300 mb, VGRD|250 mb, VGRD|200 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb, TMP|2 m above ground, DPT|2 m above ground, UGRD|10 m above ground, VGRD|10 m above ground, PRMSL|mean sea level, CAPE|surface, CIN|surface, PWAT|entire atmosphere (considered as a single layer), HLCY|3000-0 m above ground, RH|850 mb, RH|700 mb, RH|500 mb
 clone_skip = anom, precip, thick, 850_vort_ht, 500_vort_ht
 clone_pieces = false
+# relative humidity is worked out from the specific humidity of the level and its temperature
+clone_specific_humidity = true
 )MODEL"},
         {"NAM-ANL", R"MODEL(
 # The NAM analysis of the years before the open data bucket (4 March 2004 to April 2020; NCEI's historical folder), 12 km, four cycles a day, each cycle's file for the analysis and its 3 and 6 hour
