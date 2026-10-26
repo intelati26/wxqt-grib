@@ -10,6 +10,7 @@
 #include <vector>
 #include <QComboBox>
 #include <QLabel>
+#include <utility>
 #include <QPlainTextEdit>
 #include "ui/VBox.h"
 #include "ui/Window.h"
@@ -36,6 +37,8 @@ private:
     QPlainTextEdit * text{};
     ZoomImage image;
     vector<string> files;     // the graphics, newest first
+    vector<long> stampList;   // the time of each
+    vector<std::pair<long, string>> history;   // the text products the NWS still has: issued, text
     string newestIssued;
     bool closed{false};
 };

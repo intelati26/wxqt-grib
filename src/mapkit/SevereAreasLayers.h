@@ -40,8 +40,8 @@ public:
     ~WarningPolygonsLayer() override { *alive = false; }
     string id() const override { return "severe/warnings"; }
     string path() const override { return "Severe weather/NWS warnings and watches (polygons)"; }
-    string source() const override { return "NWS warnings (Iowa Environmental Mesonet), SPC watches (NOAA)"; }
-    string tip() const override { return "The NWS storm-based warning polygons (tornado, severe thunderstorm, flash flood, flood, marine) and the SPC's tornado and severe thunderstorm watches. Hover for what it is, when it ends and its tags; click for the text of the warning. Of a time of the past (the history page) the warnings in force then; the watches are only live"; }
+    string source() const override { return "NWS alerts (api.weather.gov), SPC watches (NOAA); Iowa Environmental Mesonet archive for past times"; }
+    string tip() const override { return "The NWS storm-based warning polygons (tornado, severe thunderstorm, flash flood, flood, marine) and the SPC's tornado and severe thunderstorm watches. Hover for what it is, when it ends and its tags; click for the text of the warning. Of a time of the past (the history page) the warnings in force then, from the Iowa Environmental Mesonet's archive (the NWS keeps only what is in force); the watches are only live"; }
     int order() const override { return 44; }
     int refreshSeconds() const override { return 120; }
     void refresh(MapHost&) override;

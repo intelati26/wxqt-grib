@@ -212,13 +212,68 @@ void WarningPolygonsLayer::refresh(MapHost& host) {
     loading = true;
     const int mine = generation;
     const bool past = asOf.isValid() && asOf.secsTo(QDateTime::currentDateTimeUtc()) > 15 * 60;   // (a time within a quarter hour of now is the live feed)
-    const string warningsUrl = past ? "https://mesonet.agron.iastate.edu/geojson/sbw.py?ts=" + asOf.toString("yyyy-MM-ddTHH:mm:00'Z'").remove('\'').toStdString() : "https://mesonet.agron.iastate.edu/geojson/sbw.geojson";
+    const string warningsUrl = past ? "https://mesonet.agron.iastate.edu/geojson/sbw.py?ts=" + asOf.toString("yyyy-MM-ddTHH:mm:00'Z'").remove('\'').toStdString() : string{};
+    const string nwsUrl = "https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&event=" + QUrl::toPercentEncoding("Tornado Warning,Severe Thunderstorm Warning,Flash Flood Warning,Flood Warning,Flood Advisory,Special Marine Warning,Snow Squall Warning,Dust Storm Warning,Extreme Wind Warning,Ice Storm Warning,Blizzard Warning").toStdString();
     const string watchesUrl = "https://mapservices.weather.noaa.gov/eventdriven/rest/services/WWA/watch_warn_adv/MapServer/1/query?where=" +
                               QUrl::toPercentEncoding("sig='A' AND phenom IN ('TO','SV')").toStdString() + "&outFields=*&f=geojson&geometryPrecision=2";
     auto out = std::make_shared<std::vector<Area>>();
     auto problem = std::make_shared<string>();
     host.background(
-        [out, problem, warningsUrl, watchesUrl, past] {
+        [out, problem, warningsUrl, nwsUrl, watchesUrl, past] {
+            if (!past) {   // now: the NWS's own alerts (api.weather.gov), the polygon and the text of each as the offices issued them
+                const auto doc = QJsonDocument::fromJson(UtilityIO::downloadAsByteArray(nwsUrl));
+                if (!doc.isObject() || !doc.object().contains("features")) {
+                    *problem = "the NWS alerts could not be read";
+                }
+                for (const auto& value : doc.object().value("features").toArray()) {
+                    const auto feature = value.toObject();
+                    const auto p = feature.value("properties").toObject();
+                    Area a;
+                    rings(feature.value("geometry").toObject(), a.rings);   // (an alert for zones has none: only the storm-based polygons are drawn)
+                    if (a.rings.empty()) {
+                        continue;
+                    }
+                    const auto event = p.value("event").toString();
+                    a.kind = event == "Tornado Warning" ? Tornado : event == "Severe Thunderstorm Warning" ? Thunderstorm : event == "Flash Flood Warning" ? FlashFlood : (event == "Flood Warning" || event == "Flood Advisory") ? Flood :
+                             event == "Special Marine Warning" ? Marine : Other;
+                    a.begin = secondsOf(p.value("effective").toString());
+                    a.end = secondsOf(p.value("expires").toString());
+                    const auto parameters = p.value("parameters").toObject();
+                    const auto first = [&parameters] (const char * key) {
+                        const auto list = parameters.value(key).toArray();
+                        return list.isEmpty() ? QString{} : list.at(0).toString();
+                    };
+                    QStringList tags;
+                    const auto add = [&tags, &first] (const char * key, const QString& label) {
+                        const auto v = first(key);
+                        if (!v.isEmpty()) {
+                            tags << label + " " + v.toLower();
+                        }
+                    };
+                    add("tornadoDetection", "tornado:");
+                    add("tornadoDamageThreat", "tornado damage threat:");
+                    add("maxHailSize", "hail:");
+                    add("maxWindGust", "wind:");
+                    add("thunderstormDamageThreat", "damage threat:");
+                    add("flashFloodDetection", "flash flood:");
+                    add("flashFloodDamageThreat", "flash flood damage threat:");
+                    add("waterspoutDetection", "waterspout:");
+                    add("snowSquallDetection", "squall:");
+                    const auto threat = (first("tornadoDamageThreat") + first("flashFloodDamageThreat")).toUpper();
+                    a.strong = threat.contains("CATASTROPHIC");
+                    QString title = event;
+                    if (a.strong) {
+                        title += " (EMERGENCY)";
+                    } else if (first("tornadoDamageThreat").toUpper() == "CONSIDERABLE" || first("thunderstormDamageThreat").toUpper() == "DESTRUCTIVE") {
+                        title += " (particularly dangerous situation)";
+                    }
+                    a.title = title;
+                    a.text = title + "  -  " + p.value("senderName").toString() + "\nIssued " + zulu(a.begin) + ", expires " + zulu(a.end) + (tags.isEmpty() ? QString{} : "\n" + tags.join(", "));
+                    a.fullText = (p.value("headline").toString() + "\n\n" + p.value("description").toString() + (p.value("instruction").isNull() ? QString{} : "\n\n" + p.value("instruction").toString())).trimmed();
+                    a.windowTitle = title + " - " + p.value("senderName").toString();
+                    out->push_back(std::move(a));
+                }
+            } else {   // a time of the past: the NWS keeps only what is in force, so the Iowa Environmental Mesonet's archive of the warning polygons
             const auto text = UtilityIO::downloadAsByteArray(warningsUrl);
             const auto doc = QJsonDocument::fromJson(text);
             if (!doc.isObject()) {
@@ -267,6 +322,7 @@ void WarningPolygonsLayer::refresh(MapHost& host) {
                     a.windowTitle = title + " - " + p.value("wfo").toString();
                 }
                 out->push_back(std::move(a));
+            }
             }
             if (!past) {   // the SPC watches (the NWS offices' parts of each)
                 const auto watches = QJsonDocument::fromJson(UtilityIO::downloadAsByteArray(watchesUrl));
