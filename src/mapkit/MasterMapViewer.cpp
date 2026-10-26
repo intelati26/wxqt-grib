@@ -1197,6 +1197,37 @@ void MasterMapViewer::advance() {
     goTo(next);
 }
 
+namespace {
+    // a layer's name for the header of a picture: the last part of its path without the explanation in parentheses ("MRMS (radar-derived products)" -> "MRMS")
+    QString headerName(const string& path) {
+        auto name = QString::fromStdString(path).section('/', -1);
+        for (int open = name.indexOf('('); open >= 0; open = name.indexOf('(')) {
+            const int close = name.indexOf(')', open);
+            name.remove(open, close < 0 ? name.size() - open : close - open + 1);
+        }
+        return name.simplified();
+    }
+
+    // a credit for the footer without its explanation in parentheses, each once ("NOAA Storm Prediction Center (mesoscale discussions)" -> "NOAA Storm Prediction Center")
+    QStringList shortCredits(const QStringList& sources) {
+        QStringList out;
+        for (const auto& source : sources) {
+            auto name = source;
+            for (int open = name.indexOf('('); open >= 0; open = name.indexOf('(')) {
+                const int close = name.indexOf(')', open);
+                name.remove(open, close < 0 ? name.size() - open : close - open + 1);
+            }
+            for (const auto& part : name.split(QRegularExpression{"[;,]\\s*"}, Qt::SkipEmptyParts)) {
+                const auto one = part.simplified();
+                if (!one.isEmpty() && !out.contains(one)) {
+                    out << one;
+                }
+            }
+        }
+        return out;
+    }
+}
+
 // The whole view as one picture: a header with the view's name, the layers that are on, the time of each frame and the region; the map as it is on the screen
 // (legend included) at twice the resolution; a footer with who made the data and when the picture was saved. PNG or PDF.
 void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, bool vector) {
@@ -1209,7 +1240,7 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
         if (!layer->enabled()) {
             continue;
         }
-        names << QString::fromStdString(layer->path()).section('/', -1);
+        names << headerName(layer->path());
         if (layer->timeAware() && !layer->timeText().empty()) {
             times << QString::fromStdString(layer->timeText());
         }
@@ -1240,10 +1271,11 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
     painter.drawText(QRect{pad, pad / 2, width - 2 * pad, static_cast<int>(24 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, viewName);
     painter.setFont(base);
     painter.setPen(QColor{60, 60, 60});
-    painter.drawText(QRect{pad, static_cast<int>(27 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap,
-        names.isEmpty() ? QString{"No layers on"} : "Layers: " + names.join(", "));
+    const QFontMetrics metrics{base};
+    painter.drawText(QRect{pad, static_cast<int>(27 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft,
+        metrics.elidedText(names.isEmpty() ? QString{"No layers on"} : names.join(", "), Qt::ElideRight, width - 2 * pad));   // one line, never over the next
     painter.drawText(QRect{pad, static_cast<int>(45 * scale), width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft,
-        (times.isEmpty() ? QString{"Valid now"} : "Valid: " + times.join("   ")));
+        metrics.elidedText(times.isEmpty() ? QString{"Valid now"} : times.join("   "), Qt::ElideRight, width - 2 * pad));
     // the map, with its legend, as drawn on the screen
     mapView->useLayoutSpace();   // (the layout gives the map its size, after the controls)
     auto * map = mapView->map();
@@ -1251,7 +1283,9 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
     painter.save();
     painter.translate(0, headerHeight);
     painter.scale(factor, factor);
+    exporting = true;   // (the header says the time: the grey box of the screen would say it twice)
     map->render(&painter, QPoint{}, QRegion{}, QWidget::DrawWindowBackground);   // without the hover popup
+    exporting = false;
     painter.restore();
     const int mapBottom = headerHeight + static_cast<int>(map->height() * factor);
     painter.fillRect(QRect{0, mapBottom, width, footerHeight}, QColor{245, 245, 245});
@@ -1260,7 +1294,7 @@ void MasterMapViewer::paintExport(QPainter& painter, int side, double scale, boo
     painter.setFont(small);
     painter.setPen(QColor{100, 100, 100});
     painter.drawText(QRect{pad, mapBottom, width - 2 * pad, footerHeight}, Qt::AlignVCenter | Qt::AlignLeft | Qt::TextWordWrap,
-        (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
+        (sources.isEmpty() ? QString{} : "Data: " + shortCredits(sources).join(", ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
 }
 
 // the hours of the model chart as a loop (GIF or video) of the Model Viewer's titled pictures, for the part of the world in view
@@ -1624,7 +1658,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         if (!layer->enabled()) {
             continue;
         }
-        names << QString::fromStdString(layer->path()).section('/', -1);
+        names << headerName(layer->path());
         if (layer->timeAware() && !layer->timeText().empty()) {
             times << QString::fromStdString(layer->timeText());
         }
@@ -1647,7 +1681,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
     const int header = static_cast<int>(66 * scale) + more;
     int footer = static_cast<int>(38 * scale), legendHeight = rows.empty() ? 0 : static_cast<int>(40 * scale);
     const int padBottom = static_cast<int>(8 * scale);
-    const QString footerText = (highNote.empty() ? QString{} : QString::fromStdString("Runs: " + highNote + "  -  ")) + (sources.isEmpty() ? QString{} : "Data: " + sources.join("; ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib";
+    const QString footerText = (highNote.empty() ? QString{} : QString::fromStdString("Runs: " + highNote + "  -  ")) + (sources.isEmpty() ? QString{} : "Data: " + shortCredits(sources).join(", ") + "  -  ") + "saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib";
     // the legend as big as on the map (a unit is `scale` pixels), light on the white of the picture, and how far across it reaches
     QImage legend;
     int legendReach = 0;
@@ -1706,8 +1740,8 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
             names.removeAll(QString{"Best resolution combo (every model that has the chart, the finest on top)"});
             names.prepend("finer models where they exist");
         }
-        painter.drawText(QRect{pad, static_cast<int>(27 * scale) + more, width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, names.isEmpty() ? QString{"No layers on"} : (highNote.empty() ? "Layers: " + names.join(", ") : QString{"The model data at its own resolution, the finest model on top (the runs are in the line below)"}));
-        painter.drawText(QRect{pad, static_cast<int>(45 * scale) + more, width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, times.isEmpty() ? QString{"Valid now"} : "Valid: " + times.join("   "));
+        painter.drawText(QRect{pad, static_cast<int>(27 * scale) + more, width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, QFontMetrics{painter.font()}.elidedText(names.isEmpty() ? QString{"No layers on"} : (highNote.empty() ? names.join(", ") : QString{"The model data at its own resolution, the finest model on top (the runs are in the line below)"}), Qt::ElideRight, width - 2 * pad));
+        painter.drawText(QRect{pad, static_cast<int>(45 * scale) + more, width - 2 * pad, static_cast<int>(18 * scale)}, Qt::AlignVCenter | Qt::AlignLeft, QFontMetrics{painter.font()}.elidedText(times.isEmpty() ? QString{"Valid now"} : times.join("   "), Qt::ElideRight, width - 2 * pad));
         painter.drawImage(0, header, world);
         if (!rows.empty()) {
             const int bandHeight = oneStrip ? stripHeight : legendHeight;
@@ -2601,6 +2635,9 @@ void MasterMapViewer::paintLegend(QPainter& painter) {
 
 // one line for each layer that has a time on show (the satellite picture and the day it is of, the radar scan, the forecast hour): "when is this" without looking in the side panel
 void MasterMapViewer::paintStamp(QPainter& painter) {
+    if (exporting) {
+        return;
+    }
     QStringList lines;
     for (const auto& layer : layers) {
         if (layer->enabled() && !layer->timeText().empty()) {   // (a layer that is not on the time bar may still say its time: the EUMETSAT pictures)

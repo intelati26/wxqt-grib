@@ -179,6 +179,7 @@ private:
     Text textStatus;
     std::unique_ptr<MapView> mapView;
     QLabel * hoverLabel{};
+    bool exporting{false};   // a picture is being made: the screen's own time box is left out (the header says the times)
     QLabel * workingLabel{};   // on the map: what is being downloaded (a layer that is working says so, with its own progress text)
     QTimer workingTimer;
     int workingTick{0};
