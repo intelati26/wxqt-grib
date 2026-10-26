@@ -206,8 +206,10 @@ void SvrComparison::reload() {
             const auto product = abpgProducts[static_cast<size_t>(std::clamp(hazard, 0, 1))];
             new FutureVoid{this,
                 [day, code, product, found] {
+                    // the page publishes forecast hours 036, 060, 084 ... (24 h per day plus 12), not 024, 048 ...
+                    const auto hourNow = 24 * day + 12;
                     const auto html = QString::fromStdString(UtilityIO::getHtml(abpgSite + "ANALOG/threats.php?reg=" + code));
-                    const auto hours = QString{"%1"}.arg(24 * day, 3, 10, QChar{'0'});
+                    const auto hours = QString{"%1"}.arg(hourNow, 3, 10, QChar{'0'});
                     const auto match = QRegularExpression{QString{"WEB/SHORT/(\\d{10})/F%1/%2_%1/%3_(\\w+)F%1\\.png"}.arg(hours, QString::fromStdString(code), QString::fromStdString(product))}.match(html);
                     if (!match.hasMatch()) {
                         return;
@@ -216,8 +218,8 @@ void SvrComparison::reload() {
                     const auto run = QDateTime::fromString(match.captured(1), "yyyyMMddHH");
                     const QDateTime runUtc{run.date(), run.time(), QTimeZone::utc()};
                     // "Valid at <run + forecast hour>": the pictures say so themselves
-                    found->valid = "run " + stamp(runUtc) + ", valid at " + stamp(runUtc.addSecs(24LL * day * 3600));
-                    if (runUtc.addSecs(24LL * day * 3600) < QDateTime::currentDateTimeUtc()) {
+                    found->valid = "run " + stamp(runUtc) + ", valid at " + stamp(runUtc.addSecs(3600LL * hourNow));
+                    if (runUtc.addSecs(3600LL * hourNow) < QDateTime::currentDateTimeUtc()) {
                         found->valid += "  - EXPIRED";
                     }
                 },
