@@ -16,7 +16,7 @@
 #include <QTextStream>
 #include <QTimeZone>
 #include "objects/FutureVoid.h"
-#include "ui/ChartExport.h"
+#include "ui/TableExportDialog.h"
 #include "ui/UiStandards.h"
 
 namespace {
@@ -36,13 +36,11 @@ WatchProbabilityViewer::WatchProbabilityViewer(Window * parent, const std::vecto
     auto * topLayout = new QHBoxLayout{top};
     topLayout->setContentsMargins(0, 0, 0, 0);
     auto * refresh = UiStandards::button(top, "Refresh", "Read the SPC's pages of the watches again");
-    auto * save = UiStandards::button(top, "Save CSV...", "Save the table as a CSV file for a spreadsheet");
-    auto * copy = UiStandards::button(top, "Copy", "Copy the table for a spreadsheet");
+    auto * exportButton = UiStandards::button(top, "Export...", "Choose the watches and hazards, and save the table as CSV or a picture, or copy it for a spreadsheet");
     status = new QLabel{"Reading the watches...", top};
     UiStandards::muted(status);
     topLayout->addWidget(refresh);
-    topLayout->addWidget(save);
-    topLayout->addWidget(copy);
+    topLayout->addWidget(exportButton);
     topLayout->addWidget(status, 1);
     box.addWidgetReal(top, 0, Qt::Alignment{});
     table = new QTableWidget{0, 0, this};
@@ -59,8 +57,7 @@ WatchProbabilityViewer::WatchProbabilityViewer(Window * parent, const std::vecto
     box.getAndShow(this);
     resize(1150, 420);
     QObject::connect(refresh, &QPushButton::clicked, this, [this] { load(); });
-    QObject::connect(save, &QPushButton::clicked, this, [this] { saveCsv(); });
-    QObject::connect(copy, &QPushButton::clicked, this, [this] { copyText(); });
+    QObject::connect(exportButton, &QPushButton::clicked, this, [this] { exportTable(); });
     load();
 }
 
@@ -82,6 +79,9 @@ void WatchProbabilityViewer::load() {
         }
         rows = fresh;
         fill();
+        if (!qEnvironmentVariable("WXQT_TABLE_OUT").isEmpty()) {
+            exportTable();
+        }
     }};
 }
 
@@ -127,8 +127,18 @@ void WatchProbabilityViewer::fill() {
     status->setText(rows->empty() ? QString{"No watch in force."} : QString::number(rows->size()) + (rows->size() == 1 ? " watch" : " watches") + (none > 0 ? ", " + QString::number(none) + " without a table" : QString{}) + ".");
 }
 
-// the table as text: tab separated for a spreadsheet, or CSV with the quotes it needs
-QString WatchProbabilityViewer::build(bool csv) const {
+// the table to the shared export: a row for each watch, a column for each hazard, each value its per cent and its level
+void WatchProbabilityViewer::exportTable() {
+    if (rows->empty()) {
+        return;
+    }
+    TableExportDialog::Dataset data;
+    data.prefix = "WATCHPROB";
+    data.windowTitle = "Export watch probabilities";
+    data.title = "SPC watch hazard probabilities, " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + "Z";
+    data.credit = "NOAA / NWS Storm Prediction Center, the forecaster's probabilities at the issuance of each watch";
+    data.itemHeader = "Watch";
+    data.detailNames = {"Until (UTC)"};
     QStringList names;
     for (const auto& row : *rows) {
         for (const auto& h : row.hazards) {
@@ -137,45 +147,32 @@ QString WatchProbabilityViewer::build(bool csv) const {
             }
         }
     }
-    const auto cell = [csv] (const QString& text) { return csv ? "\"" + QString{text}.replace("\"", "\"\"") + "\"" : text; };
-    const QString sep = csv ? "," : "\t";
-    QStringList header{cell("Watch"), cell("Until (UTC)")};
-    for (const auto& name : names) {
-        header << cell("Probability of " + name + " (%)") << cell(name + " (level)");
-    }
-    QStringList lines{header.join(sep)};
     for (const auto& row : *rows) {
-        QStringList fields{cell(row.watch.title), cell(row.watch.end == 0 ? QString{} : QDateTime::fromSecsSinceEpoch(row.watch.end, QTimeZone::utc()).toString("yyyy-MM-dd HH:mm"))};
-        for (const auto& name : names) {
-            const auto found = std::find_if(row.hazards.begin(), row.hazards.end(), [&name] (const auto& h) { return h.event == name; });
-            fields << (found == row.hazards.end() ? QString{} : cell(found->percent)) << (found == row.hazards.end() ? QString{} : cell(found->level));
+        data.items.push_back({QString::number(row.watch.number), row.watch.title, {row.watch.end == 0 ? QString{} : QDateTime::fromSecsSinceEpoch(row.watch.end, QTimeZone::utc()).toString("yyyy-MM-dd HH:mm")}});
+    }
+    for (const auto& name : names) {
+        data.fields.push_back({name, name});
+    }
+    data.parts = {{"percent", "Per cent"}, {"level", "Level"}};
+    const auto rowsCopy = rows;
+    data.cell = [rowsCopy, names] (size_t item, size_t field, size_t part) {
+        const auto& hazards = (*rowsCopy)[item].hazards;
+        const auto found = std::find_if(hazards.begin(), hazards.end(), [&names, field] (const auto& h) { return h.event == names[static_cast<int>(field)]; });
+        return found == hazards.end() ? QString{} : part == 0 ? found->percent : found->level;
+    };
+    data.tint = [rowsCopy, names] (size_t item, size_t field) {
+        const auto& hazards = (*rowsCopy)[item].hazards;
+        const auto found = std::find_if(hazards.begin(), hazards.end(), [&names, field] (const auto& h) { return h.event == names[static_cast<int>(field)]; });
+        return found == hazards.end() ? QColor{} : found->level == "High" ? QColor{255, 120, 100} : found->level == "Mod" ? QColor{255, 215, 110} : QColor{};
+    };
+    TableExportDialog dialog{this, std::move(data)};
+    if (const auto out = qEnvironmentVariable("WXQT_TABLE_OUT"); !out.isEmpty()) {   // development: WXQT_TABLE_OUT=<file stem>: the picture and the CSV the dialog would write, without asking
+        dialog.picture().save(out + ".png");
+        QFile file{out + ".csv"};
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream{&file} << dialog.text(true);
         }
-        lines << fields.join(sep);
-    }
-    return lines.join("\n") + "\n";
-}
-
-void WatchProbabilityViewer::saveCsv() {
-    if (rows->empty()) {
         return;
     }
-    const auto target = ChartExport::askSave(this, "Save the watch probabilities", "watch probabilities", "csv", "CSV files (*.csv)");
-    if (target.isEmpty()) {
-        return;
-    }
-    QFile file{target};
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Export", "The file could not be written.");
-        return;
-    }
-    QTextStream out{&file};
-    out << build(true);
-    status->setText("Saved " + target);
-}
-
-void WatchProbabilityViewer::copyText() {
-    if (!rows->empty()) {
-        QApplication::clipboard()->setText(build(false));
-        status->setText("Copied: paste it into a spreadsheet.");
-    }
+    dialog.exec();
 }

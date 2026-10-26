@@ -17,7 +17,7 @@
 #include "ui/Window.h"
 
 // The table of the SPC's watch hazard probabilities, a row for each watch and a column for each hazard (tornadoes, strong tornadoes, severe wind, wind over 65 kt, severe hail, hail over 2 in, combined),
-// to read, to copy for a spreadsheet and to save as CSV (as the forecast points are).
+// to read, and to export (the shared table export: which watches, which hazards, per cent and / or level, the layout, a first line; copy for a spreadsheet, CSV, a picture) as the forecast points are.
 class WatchProbabilityViewer : public Window {
 public:
     struct Watch {
@@ -35,9 +35,7 @@ private:
     };
     void load();
     void fill();
-    QString build(bool csv) const;
-    void saveCsv();
-    void copyText();
+    void exportTable();
     void closeEventCustom() override { closed = true; }
     VBox box;
     QTableWidget * table{};
