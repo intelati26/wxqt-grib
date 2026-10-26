@@ -5127,23 +5127,41 @@ const std::vector<Product>& products() {
                 t2.color = QColor{30, 30, 30};
                 spreadChart("spread_2m_temp", "2 m Temperature: ensemble mean and spread", "TMP", "2 m above ground", 1.0, 5.0, "Spread of the 2 m temperature among the 50 members (C)", t2);
             }
-            // the chance of a total of precipitation since the start of the run: the share of the 50 members at or over an amount, in the bands of the commercial ensemble maps (white under 10 %, up to a deep red over 90 %)
+            // the chance of a total of precipitation since the start of the run (and over a period): the share of the 50 members at or over an amount, in the bands of the commercial ensemble maps (white
+            // under 10 %, up to a deep red over 90 %). The ready-made charts have the usual amounts; "Build a chart" has the amount (and the period) of the user's choosing.
             {
                 static const Ramp chance{{{0.0, QColor{255, 255, 255}}, {10.0, QColor{93, 74, 168}}, {20.0, QColor{45, 120, 184}}, {30.0, QColor{70, 176, 160}}, {40.0, QColor{154, 212, 160}}, {50.0, QColor{244, 244, 176}},
                                          {60.0, QColor{246, 216, 138}}, {70.0, QColor{248, 168, 90}}, {80.0, QColor{240, 105, 60}}, {90.0, QColor{140, 10, 58}}}, true};
-                for (const auto& [id, inches, text] : {std::tuple{"ens_prob_total_0.01in", 0.01, "0.01"}, {"ens_prob_total_0.1in", 0.1, "0.10"}, {"ens_prob_total_0.25in", 0.25, "0.25"}, {"ens_prob_total_0.5in", 0.5, "0.50"},
-                                                       {"ens_prob_total_1in", 1.0, "1.00"}, {"ens_prob_total_2in", 2.0, "2.00"}}) {
+                // the chart for an amount (inches) and a period (hours; 0: since the start of the run): the members' totals in the period, and the share at or over the amount
+                const auto chart = [make, memberNeeds] (const std::string& id, const std::string& label, double inches, int period) {
                     const double mm = inches * 25.4 - 1e-6;
-                    auto x = make(id, std::string{"Probability of total precipitation of "} + text + " in or more (since the start of the run)");
-                    x.needs = [memberNeeds] (int hour) {
-                        return hour < 3 ? std::vector<GfsData::Need>{} : memberNeeds("q", "APCP", "surface", hour, "0-" + std::to_string(hour) + " hour acc fcst");
+                    auto x = make(id, label);
+                    x.needs = [memberNeeds, period] (int hour) {
+                        std::vector<GfsData::Need> out;
+                        if (hour < 3 || (period > 0 && hour < period)) {
+                            return out;
+                        }
+                        out = memberNeeds("q", "APCP", "surface", hour, "0-" + std::to_string(hour) + " hour acc fcst");
+                        if (period > 0) {   // the totals are from the start: the period's amount is the difference of two of them
+                            const int before = hour - period;
+                            if (before > 0) {
+                                for (auto& need : memberNeeds("r", "APCP", "surface", before, "0-" + std::to_string(before) + " hour acc fcst")) {
+                                    out.push_back(std::move(need));
+                                }
+                            }
+                        }
+                        return out;
                     };
-                    x.derive = [mm] (Grids& g, const Context&) {
+                    x.derive = [mm, period] (Grids& g, const Context& context) {
                         auto out = g.at("q" + names.front());
+                        const bool difference = period > 0 && context.hour - period > 0;
                         for (size_t i = 0; i < out.values.size(); i++) {
                             int n = 0, hits = 0;
                             for (const auto& name : names) {
-                                const float v = g.at("q" + name).values[i];
+                                float v = g.at("q" + name).values[i];
+                                if (difference) {
+                                    v -= g.at("r" + name).values[i];
+                                }
                                 if (std::isfinite(v)) {
                                     n++;
                                     hits += v >= mm ? 1 : 0;
@@ -5154,14 +5172,37 @@ const std::vector<Product>& products() {
                         g["qp"] = std::move(out);
                         for (const auto& name : names) {
                             g.erase("q" + name);
+                            g.erase("r" + name);
                         }
                     };
                     x.fill = [] (const Grids& g) { return pick(g, "qp"); };
                     x.ramp = chance;
-                    x.fillTitle = std::string{"Chance of "} + text + " in or more of precipitation in total since the start of the run (% of the 50 members)";
                     x.legendStep = 10;
+                    return x;
+                };
+                for (const auto& [id, inches, text] : {std::tuple{"ens_prob_total_0.01in", 0.01, "0.01"}, {"ens_prob_total_0.1in", 0.1, "0.10"}, {"ens_prob_total_0.25in", 0.25, "0.25"}, {"ens_prob_total_0.5in", 0.5, "0.50"},
+                                                       {"ens_prob_total_1in", 1.0, "1.00"}, {"ens_prob_total_2in", 2.0, "2.00"}}) {
+                    auto x = chart(id, std::string{"Probability of total precipitation of "} + text + " in or more (since the start of the run)", inches, 0);
+                    x.fillTitle = std::string{"Chance of "} + text + " in or more of precipitation in total since the start of the run (% of the 50 members)";
                     p.push_back(x);
                 }
+                // made on request ("Build a chart"): the amount, and optionally the period; the id carries the choice
+                auto& made = generators();
+                made["ens_total"] = [chart] (const std::vector<double>& v) {   // inches
+                    const double inches = v.at(0);
+                    auto x = chart(generatedId("ens_total", {inches}), "Chance of " + trimmed(inches) + " in or more of precipitation in total (since the start of the run)", inches, 0);
+                    x.fillTitle = "Chance of " + trimmed(inches) + " in or more of precipitation in total since the start of the run (% of the 50 members)";
+                    return x;
+                };
+                made["ens_period"] = [chart] (const std::vector<double>& v) {   // inches, hours
+                    const double inches = v.at(0);
+                    const int hours = std::max(3, static_cast<int>(std::lround(v.at(1) / 3.0)) * 3);
+                    auto x = chart(generatedId("ens_period", {inches, static_cast<double>(hours)}), "Chance of " + trimmed(inches) + " in or more of precipitation in " + std::to_string(hours) + " hours", inches, hours);
+                    x.fillTitleFor = [inches, hours] (int hour) {
+                        return "Chance of " + trimmed(inches) + " in or more of precipitation in the " + std::to_string(std::min(hours, hour)) + " hours ending at hour " + std::to_string(hour) + " (% of the 50 members)";
+                    };
+                    return x;
+                };
             }
             // spaghetti: one contour (or two) of a field from every member, each its own color, and the ensemble mean as the heavy black line
             const auto spaghetti = [&] (const std::string& id, const std::string& label, const char * variable, const char * level, double scale, std::vector<double> levels, const std::string& what) {
@@ -5585,6 +5626,11 @@ std::vector<Template> templates(const std::string& source) {
     };
     if (std::find(ingredientSources().begin(), ingredientSources().end(), source) != ingredientSources().end()) {
         return {ingredientTemplate("ingr_" + source, "Ingredients met together (CAPE, shear, moisture, rain: where each holds and how many do)", false, source)};
+    }
+    if (source == "IFS-ENS") {   // the ECMWF ensemble: the chance of an amount of precipitation, in total or in a period
+        const std::vector<double> amounts{0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6};
+        return {{"ens_total", "Chance of precipitation of an amount or more in total (since the start of the run)", {{"limit", "Total of", "in", amounts, 0.01}}},
+                {"ens_period", "Chance of precipitation of an amount or more in a period", {{"limit", "Amount of", "in", amounts, 0.5}, {"hours", "in", "hours", {3, 6, 12, 24, 36, 48, 72, 96, 120, 168}, 24}}}};
     }
     if (source != "GEFS") {
         return {};
