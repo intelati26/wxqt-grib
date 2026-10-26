@@ -42,6 +42,27 @@ namespace UtilityRivers {
     // every gauge (about 13,000), newest from the service; cached for ten minutes
     bool loadGauges(vector<Gauge>&, string& error);
 
+    // A gauge whose forecast reaches the action stage or above at some time of the forecast (the service's "full forecast period" layer: the highest category of the whole forecast and its stage)
+    struct Peak {
+        string lid;
+        string name;
+        string waterbody;
+        string state;
+        string wfo;
+        string units;
+        string status;        // the highest category forecast: action, minor, moderate, major
+        string peakTime;      // when (UTC, as the service gives it)
+        double peak{none};    // the stage then
+        double action{none};
+        double minor{none};
+        double moderate{none};
+        double major{none};
+        double lat{0.0};
+        double lon{0.0};
+    };
+    // every gauge forecast to reach the action stage or above, newest from the service; cached for ten minutes
+    bool loadPeaks(vector<Peak>&, string& error);
+
     struct Point {
         long long time;   // seconds since 1970, UTC
         double value;

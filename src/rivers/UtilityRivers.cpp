@@ -20,6 +20,7 @@
 
 namespace {
     const string mapLayer{"https://mapservices.weather.noaa.gov/eventdriven/rest/services/water/riv_gauges/MapServer/0/query"};
+    const string forecastLayer{"https://mapservices.weather.noaa.gov/eventdriven/rest/services/water/riv_gauges/MapServer/15/query"};   // the highest category of the whole forecast of each gauge
     const string nwps{"https://api.water.noaa.gov/nwps/v1/"};
 
     // the services mark a missing number with -999 / -9999, or give an empty string
@@ -156,6 +157,57 @@ bool UtilityRivers::loadGauges(vector<Gauge>& out, string& error) {
         }
         if (!root.value("exceededTransferLimit").toBool()) {
             break;
+        }
+    }
+    {
+        std::lock_guard<std::mutex> guard{lock};
+        cache = all;
+        cachedAt = std::time(nullptr);
+    }
+    out = std::move(all);
+    return true;
+}
+
+bool UtilityRivers::loadPeaks(vector<Peak>& out, string& error) {
+    static std::mutex lock;
+    static vector<Peak> cache;
+    static std::time_t cachedAt = 0;
+    {
+        std::lock_guard<std::mutex> guard{lock};
+        if (!cache.empty() && std::time(nullptr) - cachedAt < 600) {
+            out = cache;
+            return true;
+        }
+    }
+    vector<Peak> all;
+    const string fields{"gaugelid,status,location,waterbody,state,wfo,fcsttime,units,action,flood,moderate,major,forecast,latitude,longitude"};
+    const string where{"status%20IN%20(%27action%27,%27minor%27,%27moderate%27,%27major%27)"};
+    const auto root = fetchObject(forecastLayer + "?where=" + where + "&outFields=" + fields + "&returnGeometry=false&resultRecordCount=5000&f=json");
+    const auto features = root.value("features").toArray();
+    if (root.isEmpty()) {
+        error = "The river forecast service did not answer.";
+        return false;
+    }
+    for (const auto& item : features) {
+        const auto a = item.toObject().value("attributes").toObject();
+        Peak k;
+        k.lid = a.value("gaugelid").toString().toStdString();
+        k.name = a.value("location").toString().toStdString();
+        k.waterbody = a.value("waterbody").toString().toStdString();
+        k.state = a.value("state").toString().toStdString();
+        k.wfo = a.value("wfo").toString().toStdString();
+        k.units = a.value("units").toString().toStdString();
+        k.status = a.value("status").toString().toStdString();
+        k.peakTime = a.value("fcsttime").toString().toStdString();
+        k.peak = number(a.value("forecast"));
+        k.action = number(a.value("action"));
+        k.minor = number(a.value("flood"));
+        k.moderate = number(a.value("moderate"));
+        k.major = number(a.value("major"));
+        k.lat = a.value("latitude").toDouble();
+        k.lon = a.value("longitude").toDouble();
+        if (!k.lid.empty()) {
+            all.push_back(std::move(k));
         }
     }
     {

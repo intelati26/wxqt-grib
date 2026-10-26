@@ -6,6 +6,7 @@
 #ifndef RIVERLAYERS_H
 #define RIVERLAYERS_H
 
+#include <map>
 #include <memory>
 #include <vector>
 #include "buoys/BuoyData.h"
@@ -35,10 +36,12 @@ protected:
 
 private:
     bool shown(const UtilityRivers::Gauge&) const;
+    const UtilityRivers::Peak * peakOf(const string& lid) const;   // the forecast of a gauge, when it reaches action stage or above
     bool loading{false};
     string error;
     int filter{0};
     std::shared_ptr<vector<UtilityRivers::Gauge>> gauges;
+    std::shared_ptr<std::map<string, UtilityRivers::Peak>> peaks;   // by gauge id
 };
 
 class DamLayer : public MapLayer {

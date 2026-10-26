@@ -50,6 +50,7 @@
 #include "gfs/GfsRender.h"
 #include "tropical/PhaseViewer.h"
 #include "misc/AhdViewer.h"
+#include "rivers/RiverForecastList.h"
 #include "misc/ProductViewer.h"
 #include "spc/WatchProbabilityViewer.h"
 #include "space/UtilitySun.h"
@@ -253,6 +254,11 @@ int main(int argc, char * argv[]) {
                     list.push_back({n.toInt(), "Watch " + n, 0});
                 }
                 new WatchProbabilityViewer{&w, list};
+            } else if (route == "riverforecast") {   // WXQT_OPEN=riverforecast: the table of gauges forecast to reach action stage (with WXQT_TABLE_OUT=<stem> the export files are written)
+                auto * list = new RiverForecastList{&w};
+                if (!qEnvironmentVariable("WXQT_TABLE_OUT").isEmpty()) {
+                    QTimer::singleShot(20000, list, [list] { QMetaObject::invokeMethod(list, [list] { list->exportNow(); }); });
+                }
             } else if (route == "ahd") {   // WXQT_OPEN=ahd: the Area Hydrologic Discussion window
                 new AhdViewer{&w};
             } else if (route == "radar") {   // WXQT_OPEN=radar: the radar doorway (the master map at the current location with MRMS, warnings and discussions)

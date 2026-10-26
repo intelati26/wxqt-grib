@@ -9,9 +9,11 @@
 #include <map>
 #include <QComboBox>
 #include <QLabel>
+#include <QPushButton>
 #include <QVBoxLayout>
 #include "buoys/BuoyViewer.h"
 #include "dams/DamViewer.h"
+#include "rivers/RiverForecastList.h"
 #include "rivers/RiverGaugeViewer.h"
 #include "util/Utility.h"
 #include "ui/UiStandards.h"
@@ -76,17 +78,24 @@ void GaugeLayer::refresh(MapHost& host) {
     }
     loading = true;
     auto fresh = std::make_shared<vector<UtilityRivers::Gauge>>();
+    auto forecast = std::make_shared<vector<UtilityRivers::Peak>>();
     auto message = std::make_shared<string>();
     auto ok = std::make_shared<bool>(false);
     host.background(
-        [fresh, message, ok] {
+        [fresh, forecast, message, ok] {
             *ok = UtilityRivers::loadGauges(*fresh, *message);
+            string ignored;
+            UtilityRivers::loadPeaks(*forecast, ignored);   // (the forecast is an extra: the gauges are shown without it)
             std::stable_sort(fresh->begin(), fresh->end(), [] (const auto& a, const auto& b) { return lookOf(a.status).rank < lookOf(b.status).rank; });   // the worst on top
         },
-        [this, &host, fresh, message, ok] {
+        [this, &host, fresh, forecast, message, ok] {
             loading = false;
             if (*ok) {
                 gauges = fresh;
+                peaks = std::make_shared<std::map<string, UtilityRivers::Peak>>();
+                for (const auto& k : *forecast) {
+                    (*peaks)[k.lid] = k;
+                }
                 error.clear();
             } else {
                 error = *message;
@@ -95,8 +104,20 @@ void GaugeLayer::refresh(MapHost& host) {
         });
 }
 
+const UtilityRivers::Peak * GaugeLayer::peakOf(const string& lid) const {
+    if (!peaks) {
+        return nullptr;
+    }
+    const auto found = peaks->find(lid);
+    return found == peaks->end() ? nullptr : &found->second;
+}
+
 bool GaugeLayer::shown(const UtilityRivers::Gauge& g) const {
     const auto& s = g.status;
+    if (filter == 4 || filter == 5) {   // forecast to reach the action stage or above; 5: and not there now
+        const bool now = s == "action" || s == "minor" || s == "moderate" || s == "major";
+        return peakOf(g.lid) != nullptr && (filter == 4 || !now);
+    }
     switch (filter) {
         case 1: return s == "action" || s == "minor" || s == "moderate" || s == "major";
         case 2: return s == "minor" || s == "moderate" || s == "major";
@@ -120,8 +141,15 @@ void GaugeLayer::paint(QPainter& painter, MapHost& host) {
         if (!onScreen(u)) {
             continue;
         }
-        const auto& look = lookOf(g.status);
+        const auto * peak = filter >= 4 ? peakOf(g.lid) : nullptr;
+        const auto& look = lookOf(peak != nullptr ? peak->status : g.status);   // a forecast view: the colour of the highest category forecast
         const double r = (look.radius + std::min(3.0, std::log2(std::max(1.0, t.zoom * 7.0)) * 0.5)) * perPixel;
+        if (peak != nullptr) {   // a ring in the colour of what it is now: forecast to rise from (green) into the colour inside
+            painter.setPen(QPen{lookOf(g.status).color, 2.2 * perPixel});
+            painter.setBrush(look.color);
+            painter.drawEllipse(u, r + 1.2 * perPixel, r + 1.2 * perPixel);
+            continue;
+        }
         painter.setPen(QPen{QColor{0, 0, 0, 170}, 0.9 * perPixel});
         painter.setBrush(look.color);
         painter.drawEllipse(u, r, r);
@@ -155,6 +183,9 @@ MapHit GaugeLayer::pick(const QPointF& pixels, MapHost& host) const {
             if (!g.obsTime.empty()) {
                 text += "\n" + QString::fromStdString(g.obsTime) + " UTC";
             }
+            if (const auto * peak = peakOf(g.lid)) {
+                text += "\nForecast to reach " + QString{lookOf(peak->status).label}.toLower() + ": " + QString::number(peak->peak, 'f', 2) + " " + QString::fromStdString(peak->units) + " at " + QString::fromStdString(peak->peakTime) + " UTC";
+            }
             hit.text = text;
             const string lid = g.lid;
             hit.open = [lid] (Window * parent) { new RiverGaugeViewer{parent, lid}; };
@@ -165,7 +196,7 @@ MapHit GaugeLayer::pick(const QPointF& pixels, MapHost& host) const {
 
 vector<MapLegendRow> GaugeLayer::legend() const {
     MapLegendRow row;
-    row.title = "River gauges:";
+    row.title = filter >= 4 ? "Forecast highest category (the ring: now):" : "River gauges:";
     for (const auto& [status, name] : {std::pair<const char *, const char *>{"major", "Major"}, {"moderate", "Moderate"}, {"minor", "Minor"}, {"action", "Action"}, {"no_flooding", "No flooding"},
                                        {"low_threshold", "Low water"}, {"obs_not_current", "Not current"}}) {
         row.entries.push_back({MapLegendEntry::Circle, lookOf(status).color, name});
@@ -179,10 +210,17 @@ QWidget * GaugeLayer::options(QWidget * parent, const std::function<void()>& cha
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(new QLabel{"Show:", widget});
     auto * combo = UiStandards::combo(widget);
-    combo->addItems({"All gauges", "Action stage or higher", "Flooding (minor or higher)", "Not reporting (no current reading / out of service)"});
+    combo->addItems({"All gauges", "Action stage or higher", "Flooding (minor or higher)", "Not reporting (no current reading / out of service)", "Forecast to reach action stage or higher", "Forecast to rise into action stage or higher (now below it)"});
     combo->setCurrentIndex(filter);
     QObject::connect(combo, &QComboBox::currentIndexChanged, [this, changed] (int index) { filter = index; changed(); });
     layout->addWidget(combo);
+    auto * list = UiStandards::button(widget, "Forecast list...", "A table of the gauges forecast to reach the action stage or higher: now, the crest and when, the thresholds; sort it, copy it, save it as CSV or a picture, click one for its hydrograph");
+    QObject::connect(list, &QPushButton::clicked, [widget] {
+        if (auto * window = dynamic_cast<Window *>(widget->window())) {
+            new RiverForecastList{window};
+        }
+    });
+    layout->addWidget(list);
     return widget;
 }
 
