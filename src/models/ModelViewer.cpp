@@ -2087,11 +2087,14 @@ void ModelViewer::showModelPicker() {
     }
     std::vector<ProductPicker::Entry> entries;
     for (const auto& id : objectModel.models) {
-        const auto group = GfsModels::pickerGroup(id);
+        auto group = GfsModels::pickerGroup(id);
+        if (group == "Global" || group == "Regional" || group == "Convection allowing") {
+            group = "Deterministic: " + group;   // (the ensembles are the other list)
+        }
         const auto * def = GfsModels::find(id);   // every model says what it is, so a model is found by who makes it ("ECMWF", "NASA") as well as by its short name
         entries.push_back({id, def && def->label != id ? id + "  -  " + def->label : id, group});
     }
-    static const std::vector<string> order{"Global", "Regional", "Convection allowing", "Ensembles", "Waves and ocean", "Tropical cyclones", "Other"};
+    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Waves and ocean", "Tropical cyclones", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
     });
@@ -2769,21 +2772,33 @@ void ModelViewer::changeTile(int index) {
     }
     QMenu menu;
     if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
-        for (const auto& def : GfsModels::all()) {
-            if (def.storm || !GfsRender::handles(def.id, objectModel.param)) {
-                continue;
+        // two lists: the deterministic models and the ensembles (an ensemble's chart is its mean or its spread: not read the same way)
+        for (const bool ensembles : {false, true}) {
+            bool headed = false;
+            for (const auto& def : GfsModels::all()) {
+                if (def.storm || !GfsRender::handles(def.id, objectModel.param) || (GfsModels::pickerGroup(def.id) == "Ensembles") != ensembles) {
+                    continue;
+                }
+                if (!headed) {
+                    headed = true;
+                    if (ensembles) {
+                        menu.addSeparator();
+                    }
+                    auto * heading = menu.addAction(ensembles ? "Ensembles" : "Deterministic models");
+                    heading->setEnabled(false);
+                }
+                const auto id = def.id;
+                auto * action = menu.addAction(QString::fromStdString(id));
+                action->setCheckable(true);
+                action->setChecked(spec.model == id);
+                QObject::connect(action, &QAction::triggered, this, [this, index, id] {
+                    tileSpecs[static_cast<size_t>(index) - 1].model = id;
+                    tileSpecs[static_cast<size_t>(index) - 1].run.clear();   // (another model: its newest run until one is chosen)
+                    tileSpecs[static_cast<size_t>(index) - 1].picked = true;
+                    renderTile(index);
+                    prefetch(prefetchGeneration);
+                });
             }
-            const auto id = def.id;
-            auto * action = menu.addAction(QString::fromStdString(id));
-            action->setCheckable(true);
-            action->setChecked(spec.model == id);
-            QObject::connect(action, &QAction::triggered, this, [this, index, id] {
-                tileSpecs[static_cast<size_t>(index) - 1].model = id;
-                tileSpecs[static_cast<size_t>(index) - 1].run.clear();   // (another model: its newest run until one is chosen)
-                tileSpecs[static_cast<size_t>(index) - 1].picked = true;
-                renderTile(index);
-                prefetch(prefetchGeneration);
-            });
         }
         if (!spec.model.empty() && spec.model != objectModel.model) {   // the run of the model the tile shows
             menu.addSeparator();
@@ -3157,15 +3172,22 @@ void ModelViewer::chooseOverlays() {
     about->setWordWrap(true);
     layout->addWidget(about);
     std::vector<QCheckBox *> boxes;
-    for (const auto& def : GfsModels::all()) {
-        if (def.id == objectModel.model || def.storm || GfsChart::product(objectModel.param, def.id) == nullptr) {
-            continue;
+    for (const bool ensembles : {false, true}) {   // two lists: the deterministic models, then the ensembles
+        bool headed = false;
+        for (const auto& def : GfsModels::all()) {
+            if (def.id == objectModel.model || def.storm || GfsChart::product(objectModel.param, def.id) == nullptr || (GfsModels::pickerGroup(def.id) == "Ensembles") != ensembles) {
+                continue;
+            }
+            if (!headed) {
+                headed = true;
+                layout->addWidget(new QLabel{ensembles ? "<b>Ensembles</b>" : "<b>Deterministic models</b>", &dialog});
+            }
+            auto * box = new QCheckBox{QString::fromStdString(def.id + "   " + def.label), &dialog};
+            box->setProperty("model", QString::fromStdString(def.id));
+            box->setChecked(std::find(overlayModels.begin(), overlayModels.end(), def.id) != overlayModels.end());
+            layout->addWidget(box);
+            boxes.push_back(box);
         }
-        auto * box = new QCheckBox{QString::fromStdString(def.id + "   " + def.label), &dialog};
-        box->setProperty("model", QString::fromStdString(def.id));
-        box->setChecked(std::find(overlayModels.begin(), overlayModels.end(), def.id) != overlayModels.end());
-        layout->addWidget(box);
-        boxes.push_back(box);
     }
     if (boxes.empty()) {
         layout->addWidget(new QLabel{"No other model draws this chart.", &dialog});

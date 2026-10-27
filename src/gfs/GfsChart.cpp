@@ -6072,9 +6072,10 @@ namespace {
         std::function<std::vector<GfsData::Need>(int hour)> needs;      // keys are the overlay's own; compose() prefixes them
         std::function<void(Grids&, const Context&)> derive;             // on the overlay's own keys
         bool barbs{false};
-        bool windFill{false};   // the chart's color fill is the speed of this wind instead of its own (the lines and barbs stay)
-        std::string fillText;   // what the header says of that fill
-        std::string fillPalette;   // the model guidance site's color bands for it (the jet levels only: its scale begins at 70 kt), else the program's own scale
+        bool fill{false};           // a translucent color fill laid over the chart's own (which stays): the grid "fill|<name>" painted with fillRamp
+        Ramp fillRamp;
+        std::string fillName;       // the name under the picture's legend and in the header
+        std::function<std::vector<GfsData::Need>(int hour)> needsSpecific;   // a humidity for a model that has the specific humidity, not the relative (the program works it out)
         ContourSet contour;
         std::string barbU, barbV;
         QColor barbColor{20, 20, 20};   // the barbs stacked with others: a color for each level
@@ -6145,37 +6146,220 @@ namespace {
                 o.contour.color = tint.first;
                 list.push_back(o);
             }
-            {   // the 850 mb temperature, blue under freezing and red over it
-                Overlay o;
-                o.id = "t850";
-                o.label = "850mb temperature";
-                o.group = "Lines";
-                o.sources = GfsModels::overlayModels();
-                o.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", "850 mb", "", ""}}}; };
-                o.contour.key = "t";
-                o.contour.interval = 5;
-                o.contour.title = "850mb temperature (C)";
-                o.contour.color = QColor{190, 50, 40};
-                o.contour.colorBelow = QColor{40, 90, 190};
-                o.contour.split = 0.0;
-                o.contour.dashed = true;
-                o.contour.width = 1.3;
-                list.push_back(o);
-            }
-            // the wind speed as the color fill, whatever the chart: one of these replaces the chart's own fill (the lines and the barbs stay), so that a temperature chart can show the jet too
-            for (const auto& [id, label, level] : {std::tuple{"wfill_10m", "10 m wind speed", "10 m above ground"}, {"wfill_850", "850mb wind speed", "850 mb"}, {"wfill_700", "700mb wind speed", "700 mb"},
-                                                    {"wfill_500", "500mb wind speed", "500 mb"}, {"wfill_300", "300mb wind speed", "300 mb"}, {"wfill_250", "250mb wind speed", "250 mb"}, {"wfill_200", "200mb wind speed", "200 mb"}}) {
-                Overlay o;
-                o.id = id;
-                o.label = label;
-                o.group = "Fill";
-                o.sources = GfsModels::overlayModels();
-                o.windFill = true;
-                const std::string levelText = level;
-                o.fillText = std::string{"Wind speed at "} + (levelText == "10 m above ground" ? "10 m" : levelText) + " (kt)";
-                o.fillPalette = levelText == "300 mb" || levelText == "250 mb" || levelText == "200 mb" ? "isotach" : "";
-                o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"u", "UGRD", levelText, "", ""}}, {hour, {"v", "VGRD", levelText, "", ""}}}; };
-                list.push_back(o);
+            // the four fields of the upper air, wind, temperature, humidity and height, at the main levels (and the wind and temperature near the ground), each as a color fill laid over the chart's own
+            // fill (translucent: the chart's fill stays), as lines, or (the wind) as barbs; the height lines and the barbs are further up
+            {
+                struct Level {
+                    const char * text;     // the level in the file
+                    const char * tag;      // in the ids: "850", "10m"
+                    int hPa;               // 0 for the ground
+                };
+                const std::vector<Level> levels{{"850 mb", "850", 850}, {"700 mb", "700", 700}, {"500 mb", "500", 500}, {"300 mb", "300", 300}, {"250 mb", "250", 250}, {"200 mb", "200", 200}};
+                const auto translucent = [] (Ramp ramp, int alpha, double clearBelow) {   // the program's scale with some see-through in it, and none under `clearBelow`
+                    for (auto& stop : ramp.stops) {
+                        stop.second.setAlpha(stop.first < clearBelow ? 0 : alpha);
+                    }
+                    return ramp;
+                };
+                const auto heightRamp = [] (double low, double high) {   // meters: blue where low, red where high
+                    const double span = high - low;
+                    return Ramp{{{low, QColor{"#2b4a9a"}}, {low + span * 0.25, QColor{"#86b4dc"}}, {low + span * 0.5, QColor{"#f1f1e0"}}, {low + span * 0.75, QColor{"#f0b070"}}, {high, QColor{"#a02a2a"}}}};
+                };
+                const auto humidityFor = [] (const char * level, int hPa) {   // the relative humidity of a level: its own, or from the temperature and the specific humidity
+                    return std::pair{
+                        std::function<std::vector<GfsData::Need>(int)>{[level] (int hour) { return std::vector<GfsData::Need>{{hour, {"r", "RH", level, "", ""}}}; }},
+                        std::function<std::vector<GfsData::Need>(int)>{[level] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", level, "", ""}}, {hour, {"q", "SPFH", level, "", ""}}}; }}};
+                };
+                const auto humidityDerive = [] (int hPa) {
+                    return [hPa] (Grids& g, const Context&) {
+                        if (g.find("r") != g.end() || g.find("q") == g.end() || g.find("t") == g.end()) {
+                            return;
+                        }
+                        auto r = g.at("t");
+                        const auto& q = g.at("q");
+                        for (size_t i = 0; i < r.values.size() && i < q.values.size(); i++) {   // (degrees C and kg/kg: the vapor pressure over the saturation pressure)
+                            const double t = r.values[i], specific = q.values[i];
+                            const double e = specific * hPa / (0.622 + 0.378 * specific), es = 6.112 * std::exp(17.67 * t / (t + 243.5));
+                            r.values[i] = std::isfinite(e / es) ? static_cast<float>(std::clamp(100.0 * e / es, 0.0, 100.0)) : std::nanf("");
+                        }
+                        g["r"] = std::move(r);
+                    };
+                };
+                const auto speedDerive = [] (const char * key) {   // the speed of the u and v in knots, as `key`
+                    const std::string name = key;
+                    return [name] (Grids& g, const Context&) { g[name] = GfsGrid::scaled(GfsGrid::speed(g.at("u"), g.at("v")), msToKnots); };
+                };
+                const auto windNeeds = [] (const char * level) {
+                    const std::string text = level;
+                    return [text] (int hour) { return std::vector<GfsData::Need>{{hour, {"u", "UGRD", text, "", ""}}, {hour, {"v", "VGRD", text, "", ""}}}; };
+                };
+                // the level of a line: more or fewer of them, as the field changes with the height
+                const auto isotachInterval = [] (int hPa) { return hPa >= 500 || hPa == 0 ? (hPa == 0 ? 10.0 : (hPa == 500 ? 20.0 : 20.0)) : 10.0; };
+                for (const auto& level : levels) {
+                    const std::string tag = level.tag, text = level.text, name = tag + "mb";
+                    // wind
+                    {
+                        Overlay f;
+                        f.id = "fill_wind_" + tag;
+                        f.label = name + " wind speed";
+                        f.group = "Fill";
+                        f.sources = GfsModels::overlayModels();
+                        f.fill = true;
+                        f.fillName = "Wind " + name + " (kt)";
+                        f.fillRamp = translucent(windSpeed(), 150, level.hPa >= 850 ? 15.0 : level.hPa >= 700 ? 20.0 : level.hPa >= 500 ? 30.0 : 50.0);   // (only the strong wind of the level is tinted: the jet's, not all the air)
+                        f.needs = windNeeds(level.text);
+                        f.derive = speedDerive(("fill|" + f.fillName).c_str());
+                        list.push_back(f);
+                        Overlay l;
+                        l.id = "line_wind_" + tag;
+                        l.label = name + " wind speed";
+                        l.group = "Lines";
+                        l.sources = GfsModels::overlayModels();
+                        l.needs = windNeeds(level.text);
+                        l.derive = speedDerive("s");
+                        l.contour.key = "s";
+                        l.contour.interval = isotachInterval(level.hPa);
+                        l.contour.title = name + " wind speed (kt)";
+                        l.contour.color = QColor{110, 60, 160};
+                        l.contour.width = 1.2;
+                        list.push_back(l);
+                    }
+                    // temperature
+                    {
+                        Overlay f;
+                        f.id = "fill_temp_" + tag;
+                        f.label = name + " temperature";
+                        f.group = "Fill";
+                        f.sources = GfsModels::overlayModels();
+                        f.fill = true;
+                        f.fillName = "Temperature " + name + " (C)";
+                        f.fillRamp = translucent(temperature(), 120, -1e9);
+                        f.needs = [text, key = "fill|" + f.fillName] (int hour) { return std::vector<GfsData::Need>{{hour, {key, "TMP", text, "", ""}}}; };
+                        list.push_back(f);
+                        Overlay l;
+                        l.id = "line_temp_" + tag;
+                        l.label = name + " temperature";
+                        l.group = "Lines";
+                        l.sources = GfsModels::overlayModels();
+                        l.needs = [text] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", text, "", ""}}}; };
+                        l.contour.key = "t";
+                        l.contour.interval = 5;
+                        l.contour.title = name + " temperature (C)";
+                        l.contour.color = QColor{190, 50, 40};
+                        l.contour.colorBelow = QColor{40, 90, 190};
+                        l.contour.split = 0.0;
+                        l.contour.dashed = true;
+                        l.contour.width = 1.3;
+                        list.push_back(l);
+                    }
+                    // humidity
+                    {
+                        const auto [own, specific] = humidityFor(level.text, level.hPa);
+                        Overlay f;
+                        f.id = "fill_rh_" + tag;
+                        f.label = name + " relative humidity";
+                        f.group = "Fill";
+                        f.sources = GfsModels::overlayModels();
+                        f.fill = true;
+                        f.fillName = "Humidity " + name + " (%)";
+                        f.fillRamp = translucent(humidity(), 140, 50.0);   // (only the moist air is tinted)
+                        f.needs = own;
+                        f.needsSpecific = specific;
+                        const std::string fillKey = "fill|" + f.fillName;
+                        const auto derive = humidityDerive(level.hPa);
+                        f.derive = [derive, fillKey] (Grids& g, const Context& c) {
+                            derive(g, c);
+                            if (g.find("r") != g.end()) {
+                                g[fillKey] = g.at("r");
+                            }
+                        };
+                        list.push_back(f);
+                        Overlay l;
+                        l.id = "line_rh_" + tag;
+                        l.label = name + " relative humidity";
+                        l.group = "Lines";
+                        l.sources = GfsModels::overlayModels();
+                        l.needs = own;
+                        l.needsSpecific = specific;
+                        l.derive = derive;
+                        l.contour.key = "r";
+                        l.contour.interval = 20;
+                        l.contour.minimum = 19;
+                        l.contour.title = name + " relative humidity (%)";
+                        l.contour.color = QColor{30, 140, 70};
+                        l.contour.width = 1.2;
+                        list.push_back(l);
+                    }
+                    // height (the lines are the ones further down: z500 ...)
+                    {
+                        Overlay f;
+                        f.id = "fill_hgt_" + tag;
+                        f.label = name + " height";
+                        f.group = "Fill";
+                        f.sources = GfsModels::overlayModels();
+                        f.fill = true;
+                        f.fillName = "Height " + name + " (dam)";
+                        const double mid = level.hPa == 850 ? 1450 : level.hPa == 700 ? 3000 : level.hPa == 500 ? 5600 : level.hPa == 300 ? 9200 : level.hPa == 250 ? 10400 : 11900;
+                        const double half = level.hPa == 850 ? 180 : level.hPa == 700 ? 200 : level.hPa == 500 ? 340 : level.hPa == 300 ? 450 : level.hPa == 250 ? 520 : 600;
+                        f.fillRamp = translucent(heightRamp((mid - half) / 10.0, (mid + half) / 10.0), 120, -1e9);
+                        const std::string fillKey = "fill|" + f.fillName;
+                        f.needs = [text] (int hour) { return std::vector<GfsData::Need>{{hour, {"z", "HGT", text, "", ""}}}; };
+                        f.derive = [fillKey] (Grids& g, const Context&) { g[fillKey] = GfsGrid::scaled(g.at("z"), 0.1); };
+                        list.push_back(f);
+                    }
+                }
+                // the wind and the temperature near the ground
+                {
+                    Overlay f;
+                    f.id = "fill_wind_10m";
+                    f.label = "10 m wind speed";
+                    f.group = "Fill";
+                    f.sources = GfsModels::overlayModels();
+                    f.fill = true;
+                    f.fillName = "Wind 10 m (kt)";
+                    f.fillRamp = translucent(windSpeed(), 150, 8.0);
+                    f.needs = windNeeds("10 m above ground");
+                    f.derive = speedDerive(("fill|" + f.fillName).c_str());
+                    list.push_back(f);
+                    Overlay l;
+                    l.id = "line_wind_10m";
+                    l.label = "10 m wind speed";
+                    l.group = "Lines";
+                    l.sources = GfsModels::overlayModels();
+                    l.needs = windNeeds("10 m above ground");
+                    l.derive = speedDerive("s");
+                    l.contour.key = "s";
+                    l.contour.interval = 10;
+                    l.contour.title = "10 m wind speed (kt)";
+                    l.contour.color = QColor{110, 60, 160};
+                    l.contour.width = 1.2;
+                    list.push_back(l);
+                    Overlay t;
+                    t.id = "fill_temp_2m";
+                    t.label = "2 m temperature";
+                    t.group = "Fill";
+                    t.sources = GfsModels::overlayModels();
+                    t.fill = true;
+                    t.fillName = "Temperature 2 m (C)";
+                    t.fillRamp = translucent(temperature(), 120, -1e9);
+                    t.needs = [key = "fill|" + t.fillName] (int hour) { return std::vector<GfsData::Need>{{hour, {key, "TMP", "2 m above ground", "", ""}}}; };
+                    list.push_back(t);
+                    Overlay tl;
+                    tl.id = "line_temp_2m";
+                    tl.label = "2 m temperature";
+                    tl.group = "Lines";
+                    tl.sources = GfsModels::overlayModels();
+                    tl.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", "2 m above ground", "", ""}}}; };
+                    tl.contour.key = "t";
+                    tl.contour.interval = 5;
+                    tl.contour.title = "2 m temperature (C)";
+                    tl.contour.color = QColor{190, 50, 40};
+                    tl.contour.colorBelow = QColor{40, 90, 190};
+                    tl.contour.split = 0.0;
+                    tl.contour.dashed = true;
+                    tl.contour.width = 1.3;
+                    list.push_back(tl);
+                }
             }
             // wind barbs: the 10 m wind, and the wind of the main levels
             for (const auto& [id, label, level] : {std::tuple{"barbs_10m", "10 m wind", "10 m above ground"}, {"barbs_850", "850mb wind", "850 mb"}, {"barbs_700", "700mb wind", "700 mb"},
@@ -6523,7 +6707,7 @@ Product compose(const Product& base, const std::vector<std::string>& ids) {
             continue;
         }
         // a line the base chart already draws is not drawn twice
-        const bool already = !o->barbs && !o->windFill && std::any_of(base.contours.begin(), base.contours.end(), [o] (const ContourSet& c) { return c.title == o->contour.title; });
+        const bool already = !o->barbs && !o->fill && std::any_of(base.contours.begin(), base.contours.end(), [o] (const ContourSet& c) { return c.title == o->contour.title; });
         if (!already) {
             used.push_back(o);
         }
@@ -6534,9 +6718,11 @@ Product compose(const Product& base, const std::vector<std::string>& ids) {
     Product p = base;
     const bool seaLevelAsMslet = base.source.compare(0, 4, "RRFS") == 0 || base.source.compare(0, 4, "HRRR") == 0;   // the Rapid Refresh calls its sea level pressure MSLET, the HRRR MSLMA
     const char * seaLevelName = base.source.compare(0, 4, "HRRR") == 0 ? "MSLMA" : "MSLET";
-    const auto add = [used, seaLevelAsMslet, seaLevelName] (std::vector<GfsData::Need> needs, int hour) {
+    const auto * baseModel = GfsModels::find(base.source);
+    const bool specificHumidity = baseModel != nullptr && baseModel->clone.specificHumidity;   // a model with the specific humidity only: the humidity is worked out
+    const auto add = [used, seaLevelAsMslet, seaLevelName, specificHumidity] (std::vector<GfsData::Need> needs, int hour) {
         for (const auto * o : used) {
-            for (auto need : o->needs(hour)) {
+            for (auto need : (specificHumidity && o->needsSpecific ? o->needsSpecific(hour) : o->needs(hour))) {
                 need.want.key = overlayPrefix(*o) + need.want.key;
                 if (seaLevelAsMslet && need.want.variable == "PRMSL") {
                     need.want.variable = seaLevelName;
@@ -6578,18 +6764,10 @@ Product compose(const Product& base, const std::vector<std::string>& ids) {
     for (const auto * o : used) {
         const auto prefix = overlayPrefix(*o);
         idText += "+" + o->id;
-        labelText += (o == used.front() ? ", with " : ", ") + o->label;
-        if (o->windFill) {   // the wind speed is the fill (only the last of these ticked counts)
-            const std::string uKey = prefix + "u", vKey = prefix + "v";
-            p.fill = [uKey, vKey] (const Grids& g) { return GfsGrid::scaled(GfsGrid::speed(pick(g, uKey.c_str()), pick(g, vKey.c_str())), msToKnots); };
-            p.ramp = windSpeed();
-            p.palette = o->fillPalette;
-            p.fillTitle = o->fillText;
-            p.fillTitleFor = nullptr;
-            p.quantity = Quantity::Other;
-            p.legendStep = 20;
-            p.sigma = nullptr;
-            p.overlays.clear();
+        labelText += (o == used.front() ? ", with " : ", ") + o->label + (o->fill ? " (fill)" : "");
+        if (o->fill) {   // a fill over the chart's own: translucent, and the chart's colors stay (one at a time)
+            p.overlays.erase(std::remove_if(p.overlays.begin(), p.overlays.end(), [] (const std::pair<std::string, Ramp>& entry) { return entry.first.compare(0, 2, "o_") == 0; }), p.overlays.end());
+            p.overlays.push_back({prefix + "fill|" + o->fillName, o->fillRamp});
         } else if (o->barbs) {   // each ticked wind is a set of its own: they stack on the chart's own barbs
             p.barbSets.push_back({prefix + o->barbU, prefix + o->barbV, o->barbColor, o->label, o->barbColorName});
         } else {
@@ -7730,19 +7908,20 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         if (paintball) {
             break;
         }
-        const QString name = key == "snow" ? "Snow" : key == "mix" ? "Mixed" : QString::fromStdString(key);
+        const QString name = key == "snow" ? "Snow" : key == "mix" ? "Mixed" : QString::fromStdString(key.substr(key.rfind('|') == std::string::npos ? 0 : key.rfind('|') + 1));   // (an overlay's fill is named after its "|")
         const double top = image.height() / S - 15.0, width = 80.0;
         p.setPen(QColor{70, 70, 70});
-        p.drawText(QRectF{keyLeft, top - 1, 44, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+        const double nameWidth = std::max(44.0, QFontMetricsF{p.font()}.horizontalAdvance(name) + 6.0);   // (an overlay's name is longer than "Snow")
+        p.drawText(QRectF{keyLeft, top - 1, nameWidth, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
         const auto& s = overlayRamp.stops;
         for (int x = 0; x < static_cast<int>(width); x++) {
             const QRgb c = overlayRamp.at(s[1].first + (s.back().first - s[1].first) * x / width);
-            p.fillRect(QRectF{keyLeft + 44 + x, top, 1.5, 9}, QColor{qRed(c), qGreen(c), qBlue(c)});
+            p.fillRect(QRectF{keyLeft + nameWidth + x, top, 1.5, 9}, QColor{qRed(c), qGreen(c), qBlue(c)});
         }
         p.setPen(QColor{60, 60, 60});
         p.setBrush(Qt::NoBrush);
-        p.drawRect(QRectF{keyLeft + 44, top, width, 9});
-        keyLeft += 44 + width + 22;
+        p.drawRect(QRectF{keyLeft + nameWidth, top, width, 9});
+        keyLeft += nameWidth + width + 22;
     }
     p.setPen(QColor{110, 110, 110});
     p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + sourceLabel(product.source)));

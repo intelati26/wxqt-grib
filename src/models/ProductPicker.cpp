@@ -66,27 +66,96 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
         auto * group = new QWidget{this};
         auto * inner = new QGridLayout{group};
         inner->setContentsMargins(8, 0, 0, 0);
-        int row2 = 0;
-        std::string last;
-        int column2 = 0;
-        for (const auto& extra : extras) {
-            if (extra.group != last) {
-                if (column2 != 0) {
-                    row2++;
-                    column2 = 0;
+        inner->setHorizontalSpacing(8);
+        // The wind, temperature, humidity and height as a table: a row for each level and, for each field, a box for the color fill (laid over the chart's own), for lines and (the wind) for barbs.
+        // The rest (the sea level pressure, the thicknesses) are listed under it.
+        struct Cell {
+            int row{-1}, column{-1};
+        };
+        const std::vector<std::string> tags{"10m", "850", "700", "500", "300", "250", "200"};
+        const std::vector<std::string> rowNames{"10 m / 2 m", "850 mb", "700 mb", "500 mb", "300 mb", "250 mb", "200 mb"};
+        // the columns: wind fill, lines, barbs; temperature fill, lines; humidity fill, lines; height fill, lines
+        const std::vector<std::pair<std::string, std::vector<std::string>>> fields{{"Wind", {"fill", "lines", "barbs"}}, {"Temperature", {"fill", "lines"}}, {"Humidity", {"fill", "lines"}}, {"Height", {"fill", "lines"}}};
+        const auto cellOf = [&] (const std::string& id) {
+            Cell cell;
+            std::string field, style, tag;
+            if (id.compare(0, 5, "fill_") == 0 || id.compare(0, 5, "line_") == 0) {
+                const auto first = id.find('_', 5);
+                if (first == std::string::npos) {
+                    return cell;
                 }
-                inner->addWidget(new QLabel{"<b>" + QString::fromStdString(extra.group) + "</b>", group}, row2++, 0, 1, 2);
-                last = extra.group;
+                style = id.compare(0, 4, "fill") == 0 ? "fill" : "lines";
+                field = id.substr(5, first - 5);
+                tag = id.substr(first + 1);
+            } else if (id.compare(0, 6, "barbs_") == 0) {
+                field = "wind";
+                style = "barbs";
+                tag = id.substr(6);
+            } else if (id.size() == 4 && id[0] == 'z') {   // z500: the height lines
+                field = "hgt";
+                style = "lines";
+                tag = id.substr(1);
+            } else {
+                return cell;
             }
-            auto * box = new QCheckBox{QString::fromStdString(extra.label), group};
+            const std::string fieldName = field == "wind" ? "Wind" : field == "temp" ? "Temperature" : field == "rh" ? "Humidity" : field == "hgt" ? "Height" : "";
+            int column = 1;
+            for (const auto& [name, styles] : fields) {
+                for (const auto& each : styles) {
+                    if (name == fieldName && each == style) {
+                        cell.column = column;
+                    }
+                    column++;
+                }
+            }
+            if (tag == "2m") {
+                tag = "10m";   // the ground row is one
+            }
+            const auto at = std::find(tags.begin(), tags.end(), tag);
+            if (at != tags.end() && cell.column > 0) {
+                cell.row = static_cast<int>(at - tags.begin()) + 2;
+            }
+            return cell;
+        };
+        {   // the headings
+            int column = 1;
+            for (const auto& [name, styles] : fields) {
+                auto * title = new QLabel{"<b>" + QString::fromStdString(name) + "</b>", group};
+                title->setAlignment(Qt::AlignCenter);
+                inner->addWidget(title, 0, column, 1, static_cast<int>(styles.size()));
+                for (const auto& style : styles) {
+                    auto * small = new QLabel{QString::fromStdString(style), group};
+                    small->setAlignment(Qt::AlignCenter);
+                    UiStandards::muted(small);
+                    inner->addWidget(small, 1, column++);
+                }
+            }
+            for (size_t i = 0; i < rowNames.size(); i++) {
+                inner->addWidget(new QLabel{QString::fromStdString(rowNames[i]), group}, static_cast<int>(i) + 2, 0);
+            }
+        }
+        int more = 0;   // the lines that are not of the table, two to a row under it
+        int moreRow = static_cast<int>(rowNames.size()) + 3;
+        bool moreHeading = false;
+        for (const auto& extra : extras) {
+            const auto cell = cellOf(extra.id);
+            auto * box = new QCheckBox{cell.row >= 0 ? QString{} : QString::fromStdString(extra.label), group};
+            box->setToolTip(QString::fromStdString(extra.label + (extra.group == "Fill" ? " (a translucent color fill over the chart's own)" : extra.group == "Lines" ? " (lines)" : extra.group.find("barb") != std::string::npos ? " (wind barbs)" : "")));
             const bool on = std::find(ticked.begin(), ticked.end(), extra.id) != ticked.end();
             box->setChecked(on);
             anyTicked = anyTicked || on;
             boxes.push_back(box);
-            inner->addWidget(box, row2, column2);
-            if (++column2 == 2) {
-                column2 = 0;
-                row2++;
+            if (cell.row >= 0) {
+                inner->addWidget(box, cell.row, cell.column, Qt::AlignCenter);
+            } else {
+                if (!moreHeading) {
+                    inner->addWidget(new QLabel{"<b>Other lines</b>", group}, moreRow++, 0, 1, 10);
+                    moreHeading = true;
+                }
+                inner->addWidget(box, moreRow, (more % 2) * 5, 1, 5);
+                if (++more % 2 == 0) {
+                    moreRow++;
+                }
             }
             QObject::connect(box, &QCheckBox::clicked, [this, box] {   // winds of several levels stack on the chart (each its own color); a fill is one at a time
                 for (size_t i = 0; i < boxes.size(); i++) {
@@ -104,7 +173,7 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
         column->addWidget(group);
         const auto show = [toggle, group] (bool open) {
             group->setVisible(open);
-            toggle->setText(open ? QString::fromUtf8("\u25BE Add lines and wind barbs to the chart") : QString::fromUtf8("\u25B8 Add lines and wind barbs to the chart"));
+            toggle->setText(open ? QString::fromUtf8("\u25BE Add fields to the chart: fill, lines, barbs") : QString::fromUtf8("\u25B8 Add fields to the chart: fill, lines, barbs"));
         };
         show(anyTicked);
         QObject::connect(toggle, &QPushButton::clicked, [group, show] { show(!group->isVisible()); });
