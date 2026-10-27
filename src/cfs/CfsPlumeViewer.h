@@ -66,6 +66,7 @@ public:
 
 private:
     void load();
+    void loadOpenMeteo(const QString& modelId);   // the ECMWF's EC46 and SEAS5: one request gives every member
     void fillChoices();
     Window * owner{nullptr};
     bool compact{false};         // a pane beside a chart: the GEFS begins with its mean and spread (40 reads), not all members (620)

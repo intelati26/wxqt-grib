@@ -80,7 +80,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     // routeItems.emplace_back("reload.png", "Reload data, Ctrl-u", [reloadFn] { reloadFn(); });
     routeItems.emplace_back("baseline_settings_black_48dp.png", "Settings", [this] { launchSettings(); });
     routeItems.emplace_back("baseline_storage_black_48dp.png", "Data kept: caches and what is in them", [parent] { new CacheSummaryViewer{parent}; });
-    routeItems.emplace_back("baseline_show_chart_black_48dp.png", "CFSv2 seasonal forecast at a place (members, runs, months)", [parent] { new CfsPlumeViewer{parent}; });
+    routeItems.emplace_back("baseline_show_chart_black_48dp.png", "Forecast plumes at a place (GEFS, GFS, CFSv2, and the ECMWF's EC46 and SEAS5)", [parent] { new CfsPlumeViewer{parent}; });
     routeItems.emplace_back("baseline_history_black_48dp.png", "History: events (outbreaks, storms, your own dates and places)", [parent] { new EventsViewer{parent}; });
 
     routeItems.emplace_back("baseline_warning_black_48dp.png", "Severe Dashboard, Ctrl-d", [this] { launchSevereDashboard(); });

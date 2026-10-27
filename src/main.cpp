@@ -900,8 +900,8 @@ int main(int argc, char * argv[]) {
                 QTimer::singleShot(100, [] { QApplication::quit(); });
             } else if (route.startsWith("cfsplume")) {   // WXQT_OPEN=cfsplume[:<cfs|gfs>:<runs>:<hours between>]: the plume window
                 const auto parts = route.split(':');
-                auto * plume = new CfsPlumeViewer{&w};
-                if (parts.size() > 1) {
+                auto * plume = new CfsPlumeViewer{&w, 39.1, -94.6, parts.value(1, "gefs")};
+                if (parts.size() > 2) {
                     plume->choose(parts.value(1), parts.value(2, "4").toInt(), parts.value(3, "6").toInt(), parts.value(4, "0").toInt());
                 }
             } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm

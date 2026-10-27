@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "cfs/CfsPlumeViewer.h"
+#include "cfs/UtilityOpenMeteoSeasonal.h"
 #include <algorithm>
 #include <cmath>
 #include <future>
@@ -287,6 +288,8 @@ CfsPlumePanel::CfsPlumePanel(Window * owner, QWidget * parent, double lat, doubl
     model->addItem("GEFS (31 members, 16 days)", "gefs");
     model->addItem("GFS (16 days)", "gfs");
     model->addItem("CFSv2 (9 months)", "cfs");
+    model->addItem("ECMWF EC46 (51 members, 46 days)", "ec46");
+    model->addItem("ECMWF SEAS5 (51 members, 7 months)", "seas5");
     model->setCurrentIndex(std::max(0, model->findData(modelId)));
     field = UiStandards::combo(this);
     span = UiStandards::combo(this);
@@ -398,7 +401,41 @@ void CfsPlumePanel::choose(const QString& modelId, int runs, int everyHours, int
 void CfsPlumePanel::fillChoices() {
     const QString id = model->currentData().toString();
     const bool gfs = id == "gfs", gefs = id == "gefs";
+    const bool om = id == "ec46" || id == "seas5";
+    const int periodChoice = monthlyShow->currentIndex();
+    monthlyShow->blockSignals(true);
+    monthlyShow->clear();
+    if (om) {
+        monthlyShow->addItem(id == "ec46" ? "weeks: values" : "months: values", 0);
+        monthlyShow->addItem(id == "ec46" ? "weeks: departure from normal" : "months: departure from normal", 1);
+    } else {
+        monthlyShow->addItem("months: values", 0);
+        monthlyShow->addItem("months: departure from the CFS normal", 1);
+        monthlyShow->addItem("months: departure in std deviations", 2);
+    }
+    monthlyShow->setCurrentIndex(std::clamp(periodChoice, 0, monthlyShow->count() - 1));
+    monthlyShow->blockSignals(false);
     field->clear();
+    if (om) {
+        for (const auto& v : UtilityOpenMeteoSeasonal::variables()) {
+            field->addItem(QString::fromStdString(v.label), QString::fromStdString(v.key));
+        }
+        span->clear();
+        if (id == "ec46") {
+            span->addItems({"15 days", "30 days", "46 days"});
+            span->setCurrentIndex(2);
+        } else {
+            span->addItems({"3 months", "6 months"});
+            span->setCurrentIndex(1);
+        }
+        count->clear();
+        count->addItem("all 51 members", 51);
+        count->addItem("mean and spread (fast)", 0);
+        count->setCurrentIndex(compact ? 1 : 0);
+        stride->setEnabled(false);
+        monthlyShow->setEnabled(true);
+        return;
+    }
     for (const auto& v : gefs ? UtilityCfs::gefsVariables() : gfs ? UtilityCfs::gfsVariables() : UtilityCfs::variables()) {
         field->addItem(QString::fromStdString(v.label), QString::fromStdString(v.key));
     }
@@ -432,6 +469,10 @@ void CfsPlumePanel::fillChoices() {
 void CfsPlumePanel::load() {
     if (loading) {
         again = true;   // (asked while one is being read: read again with the new choices when it ends)
+        return;
+    }
+    if (const auto chosen = model->currentData().toString(); chosen == "ec46" || chosen == "seas5") {
+        loadOpenMeteo(chosen);
         return;
     }
     loading = true;
@@ -660,6 +701,129 @@ void CfsPlumePanel::load() {
             }
             result->monthly.push_back(std::move(monthlyMean));
             finish();
+        },
+        [self = QPointer<CfsPlumePanel>{this}, result, error] {
+            if (!self) {
+                return;
+            }
+            self->loading = false;
+            self->progress.stop();
+            self->go->setEnabled(true);
+            if (!error->empty()) {
+                self->status->setText(QString::fromStdString(*error));
+                return;
+            }
+            self->status->setText("");
+            if (self->again) {
+                self->again = false;
+                self->load();
+                return;
+            }
+            self->chart->set(*result);
+        }};
+}
+
+// The ECMWF's EC46 (46 days) and SEAS5 (7 months): the daily values of every member, and below them the weekly (EC46) or monthly (SEAS5) mean of the ensemble or its departure from the ECMWF's climate
+void CfsPlumePanel::loadOpenMeteo(const QString& modelId) {
+    loading = true;
+    go->setEnabled(false);
+    const double lat = latBox->value(), lon = lonBox->value();
+    const bool ec46 = modelId == "ec46";
+    const std::string key = field->currentData().toString().toStdString();
+    const auto * variable = UtilityOpenMeteoSeasonal::find(key);
+    if (variable == nullptr) {
+        loading = false;
+        go->setEnabled(true);
+        return;
+    }
+    const int spanDays = ec46 ? (span->currentIndex() == 0 ? 15 : span->currentIndex() == 1 ? 30 : 46) : (span->currentIndex() == 0 ? 92 : 183);
+    const bool allMembers = count->currentData().toInt() > 0;
+    const bool departure = monthlyShow->currentIndex() == 1;
+    auto result = std::make_shared<Result>();
+    auto error = std::make_shared<std::string>();
+    done->store(0);
+    total->store(2);
+    progress.start();
+    loadingWhat = "forecast";
+    status->setText(QString{"reading the %1 forecast from Open-Meteo..."}.arg(ec46 ? "EC46" : "SEAS5"));
+    const auto doneCount = done;
+    const UtilityOpenMeteoSeasonal::Variable copy = *variable;
+    new FutureVoid{owner,
+        [=] {
+            UtilityOpenMeteoSeasonal::Daily daily;
+            if (!UtilityOpenMeteoSeasonal::daily(ec46 ? "ecmwf_ec46" : "ecmwf_seas5", copy.key, lat, lon, daily, *error)) {
+                return;
+            }
+            doneCount->fetch_add(1);
+            const size_t n = std::min<size_t>(static_cast<size_t>(spanDays), daily.days.size());
+            const auto number = [] (double v, int digits) { return QString::number(v, 'f', digits).toStdString(); };
+            result->title = QString::fromStdString(copy.label + " at " + number(lat, 2) + ", " + number(lon, 2) + "   ECMWF " + (ec46 ? "EC46" : "SEAS5") + " from " + daily.days.front().toString("d MMM").toStdString() +
+                                                   "   (data: Open-Meteo.com)");
+            result->runDay = daily.days.front();   // a day's value is drawn at noon of its date
+            result->runFraction = 0.0;
+            result->ensemble = true;
+            for (size_t i = 0; i < n; i++) {
+                result->days.push_back(static_cast<double>(i) + 0.5);
+            }
+            const auto convert = [&] (std::vector<float>& values, bool delta) {
+                for (auto& v : values) {
+                    if (!std::isnan(v)) {
+                        v = static_cast<float>(DisplayUnits::value(v, copy.units, delta ? DisplayUnits::Kind::Delta : DisplayUnits::Kind::Absolute));
+                    }
+                }
+            };
+            const auto cut = [n] (const std::vector<float>& all) { return std::vector<float>(all.begin(), all.begin() + static_cast<std::ptrdiff_t>(std::min(n, all.size()))); };
+            if (allMembers) {
+                for (size_t m = 0; m < daily.members.size(); m++) {
+                    Line line;
+                    line.member = static_cast<int>(m) + 1;
+                    line.values = cut(daily.members[m]);
+                    convert(line.values, false);
+                    result->daily.push_back(std::move(line));
+                }
+            } else {   // the mean, with a band of one standard deviation of the members
+                for (size_t i = 0; i < n; i++) {
+                    double sum = 0.0, count = 0.0;
+                    for (const auto& member : daily.members) {
+                        if (!std::isnan(member[i]) && !std::isnan(daily.mean[i])) {
+                            sum += (member[i] - daily.mean[i]) * (member[i] - daily.mean[i]);
+                            count += 1.0;
+                        }
+                    }
+                    const float spread = count > 1.0 ? static_cast<float>(std::sqrt(sum / (count - 1.0))) : std::nanf("");
+                    result->low.push_back(daily.mean[i] - spread);
+                    result->high.push_back(daily.mean[i] + spread);
+                }
+                convert(result->low, false);
+                convert(result->high, false);
+            }
+            Line mean;
+            mean.member = 0;
+            mean.name = "mean";
+            mean.values = cut(daily.mean);
+            convert(mean.values, false);
+            result->daily.push_back(std::move(mean));
+            const QString unitText = QString::fromStdString(DisplayUnits::label(copy.units));
+            result->units = unitText;
+            // the weeks (EC46) or months (SEAS5): the ensemble's mean, or its departure from the ECMWF's own climate
+            const std::string periodKey = departure && !copy.anomalyKey.empty() ? copy.anomalyKey : copy.periodKey;
+            if (!periodKey.empty()) {
+                UtilityOpenMeteoSeasonal::Periods periods;
+                std::string message;
+                if (UtilityOpenMeteoSeasonal::periods(ec46, periodKey, lat, lon, periods, message)) {
+                    Line line;
+                    line.member = 0;
+                    line.values = periods.values;
+                    const bool isDeparture = periodKey == copy.anomalyKey;
+                    convert(line.values, isDeparture && copy.delta);
+                    for (const auto& start : periods.starts) {
+                        result->months.push_back(ec46 ? start.toString("d MMM") : start.toString("MMM"));
+                    }
+                    result->monthly.push_back(std::move(line));
+                    result->monthlyUnits = unitText + (isDeparture ? " departure" : (ec46 ? ", week" : ", month"));
+                }
+            }
+            doneCount->fetch_add(1);
         },
         [self = QPointer<CfsPlumePanel>{this}, result, error] {
             if (!self) {
