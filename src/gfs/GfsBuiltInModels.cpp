@@ -217,6 +217,27 @@ hours = 0-126/3
 on_missing = previous_cycle
 list = true
 )MODEL"},
+        {"CFS30", R"MODEL(
+# the CFSv2's next 30 days against the CFS's own normal: the four newest runs' fields of 40 times each (every third day, four times a day) from NOAA's open bucket, read by byte range by the program's own loader
+# (registered for this id). The url is the run's first file, there to see that the run is: the run is the CFS's own.
+id = CFS30
+label = NOAA/NCEP CFSv2 next 30 days against its normal (the mean of the four newest runs)
+source_label = NOAA/NCEP CFSv2, the next 30 days against the CFS normal
+kind = custom
+url = https://noaa-cfs-pds.s3.amazonaws.com/cfs.{date}/{cycle}/time_grib_01/{file}.01.{date}{cycle}.daily.grb2
+file_default = tmp2m
+probe_file = tmp2m
+probe_hour = 6
+cycle_hours = 6
+lag_hours = 8
+cycles_to_try = 6
+max_parallel = 4
+warp = 1.0, -180.0, -90.0, 180.0, 90.0
+sectors = conus
+hours = 0-0/1
+run_every = 6
+list = true
+)MODEL"},
         {"EC46", R"MODEL(
 # the ECMWF's extended range forecast (46 days): the mean of its 51 members for each week, from Open-Meteo's seasonal API (no key), read by the program's own loader (registered for this id). A forecast
 # "hour" is a week (168 hours each). The url is only there to see that the service answers: a run is the day.

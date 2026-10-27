@@ -39,6 +39,11 @@ link = wikipedia | Integrated Forecasting System | https://en.wikipedia.org/wiki
 link = background | European Centre for Medium-Range Weather Forecasts | https://en.wikipedia.org/wiki/European_Centre_for_Medium-Range_Weather_Forecasts
 link = source | ECMWF open data | https://www.ecmwf.int/en/forecasts/datasets/open-data
 )ABOUT"},
+        {"CFS30", R"ABOUT(
+why = What NOAA's seasonal model expects of the next 30 days over the United States, against its own normal for these days: the temperature as colors (warm or cool) and the precipitation as lines (green wetter, brown drier, in millimeters a day). A month ahead the weather of a day is out of reach; what is left is the lean of the pattern, which a stretch of cold or dry weather is often part of. It is the mean of the member 1 of the four newest runs (each a forecast of nine months, six hours apart), so the lean is a guess, not a promise; the Plume window shows how those runs differ from each other.
+link = background | NOAA Climate Prediction Center outlooks | https://www.cpc.ncep.noaa.gov/products/predictions/30day/
+link = source | NOAA CFSv2 | https://www.ncei.noaa.gov/products/weather-climate-models/climate-forecast-system
+)ABOUT"},
         {"EC46", R"ABOUT(
 why = The European Centre's extended range forecast: its ensemble run 46 days ahead, which is beyond what a weather forecast can say about a given day but not about a week. Each chart is the mean of the 51 members for a week (Monday to Sunday), as a departure from the ECMWF's own climate or as the values, which shows the pattern the ensemble leans to: a warm week over the east, a wet one over the plains. The data comes from Open-Meteo's seasonal service (CC BY 4.0, based on ECMWF data) at a 4 degree grid over North America.
 link = background | ECMWF extended range forecasts | https://www.ecmwf.int/en/forecasts/documentation-and-support/extended-range-forecasts

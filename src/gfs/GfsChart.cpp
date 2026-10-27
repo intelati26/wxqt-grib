@@ -5104,6 +5104,66 @@ const std::vector<Product>& products() {
             }
         };
 
+        // ---- the CFSv2's next 30 days against its normal (the loader of this source reads the CFS): temperature in colors with the precipitation as lines, and the precipitation itself
+        const auto cfs30Recipes = [&] {
+            const auto stretched = [] (Ramp ramp, double factor) {
+                for (auto& stop : ramp.stops) {
+                    stop.first *= factor;
+                }
+                return ramp;
+            };
+            {
+                Product x;
+                x.source = "CFS30";
+                x.id = "cfs30_t2m_precip";
+                x.label = "Next 30 days: temperature and precipitation";
+                x.wants = {want("v", "t2m", "30 days"), want("p", "precip", "30 days")};
+                x.fill = [] (const Grids& g) { return pick(g, "v"); };
+                x.ramp = stretched(temperatureDeparture(), 0.5);   // (a 30 day mean departs less than a week's)
+                x.quantity = Quantity::TemperatureDifference;
+                x.fillTitle = "CFSv2 vs its normal: temperature";
+                x.legendStep = 1.0;
+                ContourSet lines;
+                lines.key = "p";
+                lines.interval = 0.5;
+                lines.title = "precipitation, mm/day (green wetter, brown drier)";
+                lines.color = QColor{20, 120, 60};
+                lines.colorBelow = QColor{140, 80, 20};
+                lines.split = 0.0;
+                lines.smoothKm = 250.0;
+                lines.width = 1.2;
+                lines.uniform = true;
+                x.contours = {lines};
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = "CFS30";
+                x.id = "cfs30_precip";
+                x.label = "Next 30 days: precipitation against the normal";
+                x.wants = {want("v", "precip", "30 days")};
+                x.fill = [] (const Grids& g) { return pick(g, "v"); };
+                x.ramp = stretched(precipitationDeparture(), 0.04);   // (millimeters a day: 2.4 is a week's 60 mm over 25 days)
+                x.quantity = Quantity::Millimeters;
+                x.fillTitle = "CFSv2, next 30 days: precipitation a day against the CFS normal";
+                x.legendStep = 0.0;
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = "CFS30";
+                x.id = "cfs30_t2m";
+                x.label = "Next 30 days: temperature against the normal";
+                x.wants = {want("v", "t2m", "30 days")};
+                x.fill = [] (const Grids& g) { return pick(g, "v"); };
+                x.ramp = stretched(temperatureDeparture(), 0.5);
+                x.quantity = Quantity::TemperatureDifference;
+                x.fillTitle = "CFSv2, next 30 days: 2 m temperature against the CFS normal";
+                x.legendStep = 1.0;
+                p.push_back(x);
+            }
+        };
+
         const auto spcRefsRecipes = [&] {
             // SPC's own colors for the paintball of each member, in the store's order: HRRR, RRFS control, REFS M01, M02, M03, M05, then HRRR and RRFS control 6 and 12 hours older
             static const unsigned memberColors[] = {0x4c4c4c, 0x007399, 0x009985, 0x009947, 0x009909, 0x469900, 0x7f7f7f, 0x4cd3ff, 0xb3b3b3, 0xb3ecff};
@@ -5728,7 +5788,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);

@@ -239,7 +239,7 @@ std::string GfsModels::pickerGroup(const std::string& id) {
         return def->group;
     }
     static const std::map<std::string, std::string> groups{
-        {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"}, {"GEOS-FP", "Global"}, {"CFS", "Seasonal"}, {"CFS-ANL", "Seasonal"}, {"EC46", "Seasonal"}, {"SEAS5", "Seasonal"},
+        {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"}, {"GEOS-FP", "Global"}, {"CFS", "Seasonal"}, {"CFS-ANL", "Seasonal"}, {"CFS30", "Seasonal"}, {"EC46", "Seasonal"}, {"SEAS5", "Seasonal"},
         {"NAM", "Regional"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Regional"},
         {"HRRR", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"RRFS-AK", "Convection allowing"}, {"HRRR-AK", "Convection allowing"}, {"ICON-EU", "Regional"}, {"ICON-D2", "Convection allowing"}, {"HRDPS", "Convection allowing"}, {"RRFS-HI", "Convection allowing"}, {"RRFS-PR", "Convection allowing"}, {"RRFS-NA", "Regional"}, {"NAM-HIRES", "Convection allowing"}, {"HRW-ARW", "Convection allowing"},
         {"HRW-ARW2", "Convection allowing"}, {"HRW-FV3", "Convection allowing"},
@@ -281,6 +281,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GEPS"));
         m.push_back(fromFile("GEOS-FP"));
         m.push_back(fromFile("CFS"));
+        m.push_back(fromFile("CFS30"));
         m.push_back(fromFile("EC46"));
         m.push_back(fromFile("SEAS5"));
         m.push_back(fromFile("HRDPS"));
