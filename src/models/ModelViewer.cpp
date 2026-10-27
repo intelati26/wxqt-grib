@@ -2216,6 +2216,14 @@ void ModelViewer::hoverAt(double fx, double fy) {
     }
 }
 
+void ModelViewer::setTileRun(int index, const string& run) {
+    if (index >= 1 && index <= tileCount()) {
+        tileSpecs[static_cast<size_t>(index) - 1].run = run;
+        tileSpecs[static_cast<size_t>(index) - 1].picked = true;
+        renderTile(index);
+    }
+}
+
 void ModelViewer::chooseChart(const string& id) {
     objectModel.param = id;
     comboboxProduct.block();
@@ -2284,6 +2292,22 @@ string ModelViewer::partnerChart(const string& pooled, const string& model) {
         }
     }
     return {};
+}
+
+std::vector<string> ModelViewer::recentRuns(const string& model) {
+    std::vector<string> out;
+    const auto * def = GfsModels::find(model);
+    if (def == nullptr) {
+        return out;
+    }
+    const auto source = def->source("");
+    const int step = std::max(1, source.cycleHours);
+    auto t = QDateTime::currentDateTimeUtc().addSecs(-3600LL * source.lagHours);   // (a run is looked for from its lag after its time)
+    t.setTime(QTime{t.time().hour() / step * step, 0});
+    for (int i = 0; i < 16; i++) {
+        out.push_back(t.addSecs(-3600LL * step * i).toString("yyyyMMddHH").toStdString());
+    }
+    return out;
 }
 
 const std::vector<string>& ModelViewer::seasonalModels() {
@@ -2556,7 +2580,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
                 job.cycle = t.toString("yyyyMMddHH").toStdString();
             }
         } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
-            job.cycle = spec.model == objectModel.model ? objectModel.run : string{};   // another model: its newest run
+            job.cycle = spec.model == objectModel.model ? objectModel.run : spec.run;   // another model: the run chosen with the tile's button, else its newest
         }
         if (job.ok && !GfsRender::handles(job.model, job.param)) {
             job.ok = false;
@@ -2755,10 +2779,36 @@ void ModelViewer::changeTile(int index) {
             action->setChecked(spec.model == id);
             QObject::connect(action, &QAction::triggered, this, [this, index, id] {
                 tileSpecs[static_cast<size_t>(index) - 1].model = id;
+                tileSpecs[static_cast<size_t>(index) - 1].run.clear();   // (another model: its newest run until one is chosen)
                 tileSpecs[static_cast<size_t>(index) - 1].picked = true;
                 renderTile(index);
                 prefetch(prefetchGeneration);
             });
+        }
+        if (!spec.model.empty() && spec.model != objectModel.model) {   // the run of the model the tile shows
+            menu.addSeparator();
+            auto * runs = menu.addMenu(QString::fromStdString("Run of " + spec.model));
+            auto * newest = runs->addAction("Newest run");
+            newest->setCheckable(true);
+            newest->setChecked(spec.run.empty());
+            QObject::connect(newest, &QAction::triggered, this, [this, index] {
+                tileSpecs[static_cast<size_t>(index) - 1].run.clear();
+                tileSpecs[static_cast<size_t>(index) - 1].picked = true;
+                renderTile(index);
+                prefetch(prefetchGeneration);
+            });
+            for (const auto& id : recentRuns(spec.model)) {
+                const auto at = QDateTime::fromString(QString::fromStdString(id), "yyyyMMddHH");
+                auto * action = runs->addAction(at.toString("HH") + "Z  " + at.toString("ddd d MMM"));
+                action->setCheckable(true);
+                action->setChecked(spec.run == id);
+                QObject::connect(action, &QAction::triggered, this, [this, index, id] {
+                    tileSpecs[static_cast<size_t>(index) - 1].run = id;
+                    tileSpecs[static_cast<size_t>(index) - 1].picked = true;
+                    renderTile(index);
+                    prefetch(prefetchGeneration);
+                });
+            }
         }
     } else if (show == TilesShow::Seasonal) {
         for (const auto& id : seasonalModels()) {

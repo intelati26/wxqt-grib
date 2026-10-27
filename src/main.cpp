@@ -939,6 +939,11 @@ int main(int argc, char * argv[]) {
                     }
                     QTimer::singleShot(12000, viewer, [viewer, ids] { viewer->setOverlays(ids); });
                 }
+                if (qEnvironmentVariableIsSet("WXQT_TILE_RUN")) {   // WXQT_TILE_RUN=<tile 1-3>:<yyyyMMddHH>: 12 s in that tile's model is drawn from that run (captions printed after)
+                    const auto parts = qEnvironmentVariable("WXQT_TILE_RUN").split(':');
+                    QTimer::singleShot(12000, viewer, [viewer, parts] { viewer->setTileRun(parts.value(0).toInt(), parts.value(1).toStdString()); });
+                    QTimer::singleShot(24000, viewer, [viewer] { std::fprintf(stderr, "TILES: %s\n", viewer->tileCaptions().c_str()); });
+                }
                 if (qEnvironmentVariableIsSet("WXQT_NOTICE")) {   // WXQT_NOTICE=<text>: 12 s in the card over the picture with that text (\n for a new line)
                     QTimer::singleShot(12000, viewer, [viewer] { viewer->noticeTest(qEnvironmentVariable("WXQT_NOTICE").replace("\\n", "\n").toStdString()); });
                 }

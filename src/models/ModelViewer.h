@@ -59,6 +59,7 @@ public:
     void openAt(const string& model, const QDateTime& validUtc, bool runStart = false);
     void showPicker();
     void setOverlays(const std::vector<string>& ids);   // as ticking them in the chart picker does
+    void setTileRun(int index, const string& run);   // as the tile's Change... menu does (a development aid)
     void noticeTest(const string& text) { showNotice(text); }   // a development aid: the card over the picture with this text
     void hoverAt(double fx, double fy);   // the read-out as if the pointer were there, as fractions of the picture (a development aid)
     void chooseChart(const string& id);   // as the chart picker does: this chart on the main tile
@@ -97,6 +98,7 @@ private:
         int shift{0};   // runs: hours older than the run chosen
         string member;  // members: the member this tile shows (when picked with its button); parts: the ensemble ("IFS-ENS", "GEFS", "GEPS") whose members this tile draws
         bool memberPicked{false};
+        string run;     // models: the run this tile's model is drawn from (yyyyMMddHH); "" its newest
         bool picked{false};   // set with the tile's own button: a tile that is not picked follows the main chart when it changes
     };
     struct Job {
@@ -113,6 +115,7 @@ private:
     static const std::vector<string>& partsOfPool();
     static string partnerChart(const string& pooled, const string& model);   // the chart of a deterministic model that goes with a pooled ENS-ALL chart ("" when there is none)
     static const std::vector<string>& deterministicDefaults();
+    static std::vector<string> recentRuns(const string& model);   // the last runs a model makes, newest first (yyyyMMddHH): for the choice of a tile's run
     static string seasonalPartner(const string& param, const string& model);   // the chart of a long-range model (EC46, SEAS5, CFS30) that goes with a chart of another of them
     static const std::vector<string>& seasonalModels();
     void applyTileLayout();
