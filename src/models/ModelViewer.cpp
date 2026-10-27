@@ -2583,11 +2583,38 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
                 job.cycle = t.toString("yyyyMMddHH").toStdString();
             }
         } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
-            job.cycle = spec.model == objectModel.model ? objectModel.run : spec.run;   // another model: the run chosen with the tile's button, else its newest
+            job.cycle = !spec.run.empty() ? spec.run : spec.model == objectModel.model ? objectModel.run : string{};   // the run chosen with the tile's button; else the main chart's run (the same model) or the newest
         }
         if (job.ok && !GfsRender::handles(job.model, job.param)) {
             job.ok = false;
             job.why = job.model + " does not draw " + job.param + ".";
+        }
+        if (job.ok && index > 0 && show != TilesShow::Seasonal && show != TilesShow::ModelsByTime) {   // a model with no forecast for that hour: say which hours it has (the run that is too short, the model that stops earlier, the hour between its steps)
+            const auto * def = GfsModels::find(job.model);
+            if (def != nullptr && !def->hours.empty()) {
+                int last = 0;
+                bool offered = false;
+                for (const auto& range : def->hours) {
+                    last = std::max(last, range.to);
+                    offered = offered || (job.hour >= range.from && job.hour <= range.to && (job.hour - range.from) % std::max(1, range.step) == 0);
+                }
+                int runLast = last;
+                if (job.cycle.size() == 10 && def->runLength) {
+                    const int length = def->runLength(std::atoi(job.cycle.substr(8, 2).c_str()));
+                    if (length >= 0) {
+                        runLast = std::min(last, length);
+                    }
+                }
+                const string hourText = "F" + string(job.hour < 100 ? (job.hour < 10 ? "00" : "0") : "") + std::to_string(job.hour);
+                if (job.hour > runLast) {
+                    job.ok = false;
+                    job.why = job.model + " has no " + hourText + (job.cycle.size() == 10 ? " in the " + job.cycle.substr(8, 2) + "Z run" : string{}) + ": " + (runLast < last ? "this run only goes to F" : "the model only goes to F") + std::to_string(runLast) +
+                              ". Choose an earlier hour" + (runLast < last ? ", or a run that goes further." : ".");
+                } else if (!offered) {
+                    job.ok = false;
+                    job.why = job.model + " has no " + hourText + " (its hours do not include that valid time). Choose an hour it has.";
+                }
+            }
         }
         {   // the lines and barbs ticked on the main chart go on the tiles too, on every tile whose model has them (another model's tile drew without them)
             const auto offered = GfsChart::overlayChoices(job.model);
@@ -2800,10 +2827,10 @@ void ModelViewer::changeTile(int index) {
                 });
             }
         }
-        if (!spec.model.empty() && spec.model != objectModel.model) {   // the run of the model the tile shows
+        if (!spec.model.empty()) {   // the run of the model the tile shows (any model, the main chart's too)
             menu.addSeparator();
             auto * runs = menu.addMenu(QString::fromStdString("Run of " + spec.model));
-            auto * newest = runs->addAction("Newest run");
+            auto * newest = runs->addAction(spec.model == objectModel.model ? "Same run as the main chart" : "Newest run");
             newest->setCheckable(true);
             newest->setChecked(spec.run.empty());
             QObject::connect(newest, &QAction::triggered, this, [this, index] {
