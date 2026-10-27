@@ -240,6 +240,29 @@ hours = 0-840/168
 run_every = 24
 list = true
 )MODEL"},
+        {"SEAS5", R"MODEL(
+# the ECMWF's seasonal forecast (7 months): the mean of its 51 members for each month, from Open-Meteo's seasonal API (no key), read by the program's own loader (registered for this id). A forecast
+# "hour" is a month (720 hours each). The url is only there to see that the service answers: a run is the day.
+id = SEAS5
+label = ECMWF SEAS5 seasonal forecast (monthly ensemble mean; data by Open-Meteo.com)
+source_label = ECMWF SEAS5 monthly ensemble mean, data by Open-Meteo.com
+kind = custom
+url = https://seasonal-api.open-meteo.com/v1/seasonal?latitude=40&longitude=-100&weekly=temperature_2m_mean&timezone=UTC
+# the run is found by reading this url (a reply that begins with "{"): its "index" is the url itself
+index_format = ecmwf
+index_suffix = &timezone=UTC
+index_replaces = &timezone=UTC
+probe_hour = 0
+cycle_hours = 24
+lag_hours = 0
+cycles_to_try = 2
+max_parallel = 2
+warp = 0.5, -135.0, 14.0, -55.0, 58.0
+sectors = conus
+hours = 0-3600/720
+run_every = 24
+list = true
+)MODEL"},
         {"SPCREFS", R"MODEL(
 # SPC's REFS ensemble products, an open Zarr store a cycle: read by the program's own reader (the loader registered for this id), not by a download; the file is the store's own path
 id = SPCREFS

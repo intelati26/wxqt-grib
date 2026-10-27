@@ -12,14 +12,15 @@
 namespace {
     constexpr double west = -135.0, south = 14.0, east = -55.0, north = 58.0, step = 4.0, fine = 0.5;   // (252 points: the service allows about 600 a minute, so two fields a minute)
 
-    bool load(const GfsData::Run&, int forecastHour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) {
-        const auto week = static_cast<size_t>(std::max(0, forecastHour) / 168);
+    // a forecast "hour" is a period of the model: 168 hours a week for the EC46, 720 a month for the SEAS5
+    bool loadPeriod(bool weekly, int forecastHour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) {
+        const auto week = static_cast<size_t>(std::max(0, forecastHour) / (weekly ? 168 : 720));
         UtilityOpenMeteoSeasonal::PeriodGrid g;
-        if (!UtilityOpenMeteoSeasonal::periodGrid(true, want.variable, west, south, east, north, step, g, error)) {
+        if (!UtilityOpenMeteoSeasonal::periodGrid(weekly, want.variable, west, south, east, north, step, g, error)) {
             return false;
         }
         if (week >= g.starts.size()) {
-            error = "the EC46 forecast has no week " + std::to_string(week + 1) + " yet";
+            error = std::string{"the "} + (weekly ? "EC46 forecast has no week " : "SEAS5 forecast has no month ") + std::to_string(week + 1) + " yet";
             return false;
         }
         GfsGrid::Grid coarse;
@@ -45,8 +46,12 @@ namespace {
         }
         return true;
     }
+
+    bool loadWeek(const GfsData::Run&, int hour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) { return loadPeriod(true, hour, want, out, error); }
+    bool loadMonth(const GfsData::Run&, int hour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) { return loadPeriod(false, hour, want, out, error); }
 }
 
 void Ec46Loader::registerLoader() {
-    GfsData::setLoader("EC46", load);
+    GfsData::setLoader("EC46", loadWeek);
+    GfsData::setLoader("SEAS5", loadMonth);
 }
