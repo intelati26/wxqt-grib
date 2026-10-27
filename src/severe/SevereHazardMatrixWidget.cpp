@@ -116,12 +116,12 @@ QColor SevereHazardMatrixWidget::getProbabilisticColor(int percentage) {
     return QColor(240, 240, 240);
 }
 
-void SevereHazardMatrixWidget::reload(double lat, double lon) {
+void SevereHazardMatrixWidget::reload() {
     const auto alive = m_alive;
     QPointer<SevereHazardMatrixWidget> self{this};
-    std::thread{[alive, self, lat, lon] {
+    std::thread{[alive, self] {
         QString problem;
-        auto cells = std::make_shared<std::vector<SevereHazardMatrixData::Cell>>(SevereHazardMatrixData::fetch(lat, lon, problem));
+        auto cells = std::make_shared<std::vector<SevereHazardMatrixData::Cell>>(SevereHazardMatrixData::fetch(problem));
         QMetaObject::invokeMethod(qApp, [alive, self, cells, problem] {
             if (!*alive || self.isNull()) {
                 return;

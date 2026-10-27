@@ -33,20 +33,20 @@ namespace {
         QString valid;
     };
 
-    string pointUrl(const Query& q, double lat, double lon) {
+    // every area of the product, no shapes: the highest level anywhere in the country is the cell
+    string layerUrl(const Query& q) {
         return "https://mapservices.weather.noaa.gov/vector/rest/services/" + q.service + "/MapServer/" + std::to_string(q.layer) +
-               "/query?geometry=" + QString::number(lon, 'f', 4).toStdString() + "," + QString::number(lat, 'f', 4).toStdString() +
-               "&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=false&f=json";
+               "/query?where=1%3D1&outFields=*&returnGeometry=false&f=json";
     }
 
-    Hit read(const Query& q, double lat, double lon) {
+    Hit read(const Query& q) {
         Hit hit;
-        const auto doc = QJsonDocument::fromJson(UtilityIO::downloadAsByteArray(pointUrl(q, lat, lon)));
+        const auto doc = QJsonDocument::fromJson(UtilityIO::downloadAsByteArray(layerUrl(q)));
         if (!doc.isObject() || !doc.object().contains("features")) {
             return hit;
         }
         hit.read = true;
-        for (const auto& value : doc.object().value("features").toArray()) {   // (polygons can nest: the highest level at the point)
+        for (const auto& value : doc.object().value("features").toArray()) {   // (the highest level of all the areas)
             const auto p = value.toObject().value("attributes").toObject();
             const int dn = p.value("dn").toInt();
             if (dn >= hit.dn) {
@@ -59,7 +59,7 @@ namespace {
     }
 
     QColor readable(const QColor& background) {
-        return background.lightness() < 140 ? QColor{Qt::white} : QColor{Qt::black};
+        return 0.299 * background.red() + 0.587 * background.green() + 0.114 * background.blue() < 130 ? QColor{Qt::white} : QColor{Qt::black};
     }
 
     // the part of "Slight (10-39%)" in the brackets
@@ -73,7 +73,7 @@ namespace {
     }
 }
 
-std::vector<SevereHazardMatrixData::Cell> SevereHazardMatrixData::fetch(double lat, double lon, QString& problem) {
+std::vector<SevereHazardMatrixData::Cell> SevereHazardMatrixData::fetch(QString& problem) {
     const string spc = "outlooks/SPC_wx_outlks";
     const string ero = "hazards/wpc_precip_hazards";
     const string winter = "precip/wpc_prob_winter_precip";
@@ -98,7 +98,7 @@ std::vector<SevereHazardMatrixData::Cell> SevereHazardMatrixData::fetch(double l
     }
     std::vector<std::future<Hit>> pending;
     for (const auto& q : queries) {
-        pending.push_back(std::async(std::launch::async, [q, lat, lon] { return read(q, lat, lon); }));
+        pending.push_back(std::async(std::launch::async, [q] { return read(q); }));
     }
     std::vector<Cell> cells;
     int answered = 0;
@@ -109,7 +109,7 @@ std::vector<SevereHazardMatrixData::Cell> SevereHazardMatrixData::fetch(double l
             continue;
         }
         answered++;
-        Cell c{q.row, q.day, QString{}, QColor{255, 255, 255}, QColor{Qt::black}, "Not inside an outlook area for this product."};
+        Cell c{q.row, q.day, QString{}, QColor{255, 255, 255}, QColor{Qt::black}, "No area of this product anywhere in the country."};
         if (hit.dn > 0 || (q.kind == Query::Winter && hit.label2.size() > 0)) {
             switch (q.kind) {
             case Query::SpcCategory: {
@@ -136,7 +136,7 @@ std::vector<SevereHazardMatrixData::Cell> SevereHazardMatrixData::fetch(double l
             }
             }
             c.text = readable(c.background);
-            c.tooltip = hit.label2 + (hit.valid.isEmpty() ? QString{} : "\nValid " + hit.valid);
+            c.tooltip = "Highest anywhere in the country: " + hit.label2 + (hit.valid.isEmpty() ? QString{} : "\nValid " + hit.valid);
         }
         if (q.kind == Query::Winter && c.label.isEmpty()) {
             continue;

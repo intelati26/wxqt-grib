@@ -11,8 +11,8 @@
 #include <QColor>
 #include <QString>
 
-// What the Day 1-8 hazard matrix shows for one place: the SPC convective outlooks (tornado, wind, hail and any severe: days 1-3 categories and probabilities, days 4-8 the 15% and 30% areas) and the
-// WPC's excessive rainfall (days 1-5) and probabilistic snow and ice (days 1-3), read from the National Weather Service's map services at the point.
+// What the Day 1-8 hazard matrix shows for the country: the highest level of each product anywhere: the SPC convective outlooks (tornado, wind, hail and any severe: days 1-3 categories and probabilities, days 4-8 the 15% and 30% areas) and the
+// WPC's excessive rainfall (days 1-5) and probabilistic snow and ice (days 1-3), read from the National Weather Service's map services.
 namespace SevereHazardMatrixData {
     struct Cell {
         int row;                // SevereHazardMatrixWidget::RowIndex
@@ -22,8 +22,8 @@ namespace SevereHazardMatrixData {
         QColor text;
         QString tooltip;
     };
-    // blocking (a dozen or two requests, made in parallel): off the UI thread. `problem` is set when nothing could be read.
-    std::vector<Cell> fetch(double lat, double lon, QString& problem);
+    // blocking (two dozen requests, made in parallel): off the UI thread. `problem` is set when nothing could be read.
+    std::vector<Cell> fetch(QString& problem);
     // the matrix as a picture (for the home screen)
     QByteArray png(const std::vector<Cell>& cells, const QString& title, int width);
 }

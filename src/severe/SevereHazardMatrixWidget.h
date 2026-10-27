@@ -37,8 +37,8 @@ public:
     // Update a single cell in the Day 1-8 grid
     void updateHazardCell(RowIndex row, int dayColumn, const HazardCellData &data);
 
-    // Read the SPC and WPC outlooks at a place from the National Weather Service's map services (in the background) and fill the grid
-    void reload(double lat, double lon);
+    // Read the SPC and WPC outlooks (the highest level of each, anywhere in the country) from the National Weather Service's map services (in the background) and fill the grid
+    void reload();
 
     // Reset matrix values to default empty state
     void clearMatrix();
