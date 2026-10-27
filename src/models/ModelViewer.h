@@ -58,6 +58,7 @@ public:
     // `runStart`: the time is a RUN's (the cycle at or before it, at its first hour) instead of a valid time (the run at or before it, at the hour that lands on the time)
     void openAt(const string& model, const QDateTime& validUtc, bool runStart = false);
     void showPicker();
+    void hoverAt(double fx, double fy);   // the read-out as if the pointer were there, as fractions of the picture (a development aid)
     void chooseChart(const string& id);   // as the chart picker does: this chart on the main tile
     string tileCaptions() const;           // what the other tiles say they show (a development aid)
     void saveHighRes();   // the chart on view (or the part in view) drawn again at a larger size, then the usual save dialog

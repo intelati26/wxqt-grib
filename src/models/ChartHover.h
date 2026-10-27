@@ -6,6 +6,7 @@
 #ifndef CHARTHOVER_H
 #define CHARTHOVER_H
 
+#include <algorithm>
 #include <memory>
 #include <QEvent>
 #include <QLabel>
@@ -66,8 +67,23 @@ public:
             box->hide();
             return;
         }
+        // the box is as wide as its longest line, which may be a long chart title: held to the width of the pane it is in (the long lines wrap), and kept inside it, down as well as across
+        QWidget * pane = box->parentWidget();
+        const int room = pane != nullptr ? std::max(120, pane->width() - 2 * 8) : QWIDGETSIZE_MAX;
+        box->setMinimumSize(0, 0);
+        box->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+        box->setWordWrap(false);
         box->setText(text);
         box->adjustSize();
+        if (box->width() > room) {
+            box->setWordWrap(true);
+            box->setFixedWidth(room);
+            box->setFixedHeight(box->heightForWidth(room) + 6);
+        }
+        if (pane != nullptr) {
+            x = std::clamp(x, 8, std::max(8, pane->width() - box->width() - 8));
+            y = std::clamp(y, 4, std::max(4, pane->height() - box->height() - 4));
+        }
         box->move(x, y);
         box->show();
         box->raise();

@@ -413,6 +413,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         mainColumn->setSpacing(2);
         mainCaption = new QLabel{mainTile};
         mainCaption->setStyleSheet("font-weight: bold;");
+        mainCaption->setWordWrap(true);
         mainColumn->addWidget(mainCaption);
         mainColumn->addWidget(&image, 1);
         for (size_t i = 0; i < tiles.size(); i++) {
@@ -2172,6 +2173,17 @@ void ModelViewer::showPicker() {
 
 int ModelViewer::tileCount() const {
     return std::clamp(comboTiles.getIndex(), 0, 3);
+}
+
+void ModelViewer::hoverAt(double fx, double fy) {
+    if (hover) {
+        hover->show(fx, fy, 12, 12);
+    }
+    for (int i = 0; i < tileCount(); i++) {
+        if (tiles[static_cast<size_t>(i)]->hover) {
+            tiles[static_cast<size_t>(i)]->hover->show(fx, fy, 12, 12);
+        }
+    }
 }
 
 void ModelViewer::chooseChart(const string& id) {

@@ -25,6 +25,7 @@ public:
         column->setSpacing(2);
         auto * head = new QHBoxLayout;
         caption->setStyleSheet("font-weight: bold;");
+        caption->setWordWrap(true);   // a long caption wraps in a narrow tile instead of running out of it
         head->addWidget(caption, 1);
         head->addWidget(change);
         column->addLayout(head);
