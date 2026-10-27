@@ -9,6 +9,7 @@
 #include "spcrefs/SpcRefsLoader.h"
 #include "ui/ActivityLabel.h"
 #include <QBuffer>
+#include <QCoreApplication>
 #include <QTimeZone>
 #include <QFile>
 #include <QImage>
