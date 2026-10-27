@@ -2,11 +2,19 @@
 #include <QVBoxLayout>
 #include <QTableWidgetItem>
 #include <QHeaderView>
+#include <QApplication>
+#include <QPointer>
+#include <thread>
+#include "severe/SevereHazardMatrixData.h"
 
 SevereHazardMatrixWidget::SevereHazardMatrixWidget(QWidget *parent)
     : QWidget(parent)
 {
     setupUi();
+}
+
+SevereHazardMatrixWidget::~SevereHazardMatrixWidget() {
+    *m_alive = false;
 }
 
 void SevereHazardMatrixWidget::setupUi() {
@@ -108,8 +116,25 @@ QColor SevereHazardMatrixWidget::getProbabilisticColor(int percentage) {
     return QColor(240, 240, 240);
 }
 
-void SevereHazardMatrixWidget::populateFromGeoJson(const QJsonObject &spcData, const QJsonObject &wpcData) {
-    Q_UNUSED(spcData);
-    Q_UNUSED(wpcData);
-    // Parsing hook for linking to NOAA GeoJSON endpoints
+void SevereHazardMatrixWidget::reload(double lat, double lon) {
+    const auto alive = m_alive;
+    QPointer<SevereHazardMatrixWidget> self{this};
+    std::thread{[alive, self, lat, lon] {
+        QString problem;
+        auto cells = std::make_shared<std::vector<SevereHazardMatrixData::Cell>>(SevereHazardMatrixData::fetch(lat, lon, problem));
+        QMetaObject::invokeMethod(qApp, [alive, self, cells, problem] {
+            if (!*alive || self.isNull()) {
+                return;
+            }
+            self->clearMatrix();
+            for (const auto& c : *cells) {
+                if (!c.label.isEmpty()) {
+                    self->updateHazardCell(static_cast<RowIndex>(c.row), c.day, {c.label, c.background, c.text, c.tooltip});
+                } else if (auto *item = self->m_tableWidget->item(c.row, c.day)) {
+                    item->setToolTip(c.tooltip);
+                }
+            }
+            emit self->loaded(problem);
+        }, Qt::QueuedConnection);
+    }}.detach();
 }

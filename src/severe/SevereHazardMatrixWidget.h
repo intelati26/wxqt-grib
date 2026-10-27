@@ -1,12 +1,11 @@
 #pragma once
 
+#include <memory>
 #include <QWidget>
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QColor>
 #include <QString>
-#include <QJsonObject>
-#include <QJsonArray>
 
 // Data payload representing a single hazard cell (e.g., Tornado Day 1 or ERO Day 2)
 struct HazardCellData {
@@ -21,7 +20,7 @@ class SevereHazardMatrixWidget : public QWidget {
 
 public:
     explicit SevereHazardMatrixWidget(QWidget *parent = nullptr);
-    ~SevereHazardMatrixWidget() override = default;
+    ~SevereHazardMatrixWidget() override;
 
     // Row definitions matching SPC & WPC categories
     enum RowIndex {
@@ -38,8 +37,8 @@ public:
     // Update a single cell in the Day 1-8 grid
     void updateHazardCell(RowIndex row, int dayColumn, const HazardCellData &data);
 
-    // Batch update matrix from SPC & WPC GeoJSON payload
-    void populateFromGeoJson(const QJsonObject &spcData, const QJsonObject &wpcData);
+    // Read the SPC and WPC outlooks at a place from the National Weather Service's map services (in the background) and fill the grid
+    void reload(double lat, double lon);
 
     // Reset matrix values to default empty state
     void clearMatrix();
@@ -50,6 +49,7 @@ public:
     static QColor getProbabilisticColor(int percentage);
 
 signals:
+    void loaded(const QString &problem);   // (a text when nothing could be read)
     void cellClicked(int row, int dayColumn);
 
 private:
@@ -57,4 +57,5 @@ private:
     void configureTableFormatting();
 
     QTableWidget *m_tableWidget{nullptr};
+    std::shared_ptr<bool> m_alive{std::make_shared<bool>(true)};   // (cleared with the widget: a background read that ends later does not touch it)
 };

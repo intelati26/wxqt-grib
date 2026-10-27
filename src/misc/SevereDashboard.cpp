@@ -10,6 +10,7 @@
 #include "objects/FutureBytes.h"
 #include "objects/FutureVoid.h"
 #include "objects/PolygonWatch.h"
+#include "settings/Location.h"
 #include "spc/SpcMcdWatchMpdViewer.h"
 #include "spc/SpcStormReports.h"
 #include "ui/DividerLine.h"
@@ -51,6 +52,8 @@ SevereDashboard::SevereDashboard(Window * parent)
 }
 
 void SevereDashboard::reload() {
+    const auto here = Location::getLatLonCurrent();   // (the matrix is for the place the app is set to)
+    hazardMatrix->reload(here.lat(), here.lon());
     boxWarningsMain.removeChildren();
     for (const auto type : warningTypes) {
         boxWarnings[type] = VBox();
