@@ -6359,6 +6359,29 @@ namespace {
                     tl.contour.dashed = true;
                     tl.contour.width = 1.3;
                     list.push_back(tl);
+                    Overlay df;
+                    df.id = "fill_dewpoint_2m";
+                    df.label = "2 m dewpoint";
+                    df.group = "Fill";
+                    df.sources = GfsModels::overlayModels();
+                    df.fill = true;
+                    df.fillName = "Dewpoint 2 m (C)";
+                    df.fillRamp = translucent(dewpoint(), 120, -1e9);
+                    df.needs = [key = "fill|" + df.fillName] (int hour) { return std::vector<GfsData::Need>{{hour, {key, "DPT", "2 m above ground", "", ""}}}; };
+                    list.push_back(df);
+                    Overlay dl;
+                    dl.id = "line_dewpoint_2m";
+                    dl.label = "2 m dewpoint";
+                    dl.group = "Lines";
+                    dl.sources = GfsModels::overlayModels();
+                    dl.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"d", "DPT", "2 m above ground", "", ""}}}; };
+                    dl.contour.key = "d";
+                    dl.contour.interval = 5;
+                    dl.contour.title = "2 m dewpoint (C)";
+                    dl.contour.color = QColor{30, 140, 70};
+                    dl.contour.dashed = true;
+                    dl.contour.width = 1.3;
+                    list.push_back(dl);
                     // the humidity near the ground, from the 2 m temperature and dewpoint (every model has those; not every model has the humidity itself)
                     const auto needs2m = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", "2 m above ground", "", ""}}, {hour, {"d", "DPT", "2 m above ground", "", ""}}}; };
                     const auto humidity2m = [] (Grids& g, const Context&) {
