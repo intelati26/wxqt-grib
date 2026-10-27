@@ -282,7 +282,7 @@ std::vector<std::string> GfsData::urlsFor(const Run& run, int hour, const std::s
 // a listing of a directory is kept for two minutes: the fields of one chart are all in the same one
 std::string GfsData::resolveUrl(const std::string& url) const {
     const auto slash = url.rfind('/');
-    if (slash == std::string::npos || url.find_first_of("?*", slash) == std::string::npos) {
+    if (slash == std::string::npos || url.find_first_of("?*", slash) == std::string::npos || url.find('=', slash) != std::string::npos) {   // (a "?" before a "=" is a query string, not a wildcard)
         return url;
     }
     static std::mutex mutex;

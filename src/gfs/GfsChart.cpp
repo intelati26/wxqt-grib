@@ -225,6 +225,17 @@ const std::vector<std::string>& ingredientSources() {
         return {{{-3, QColor{"#2b4a9a"}}, {-2, QColor{"#3f74b8"}}, {-1, QColor{"#86b4dc"}}, {-0.5, QColor{"#d3e5f2"}}, {-0.25, QColor{211, 229, 242, 0}}, {0.25, QColor{246, 224, 184, 0}},
                  {0.5, QColor{"#f6e0b8"}}, {1, QColor{"#f0b070"}}, {2, QColor{"#d9633a"}}, {3, QColor{"#a02a2a"}}}};
     }
+    Ramp temperatureDeparture() {   // degrees C: below the climate in blues, above in warm colors, within half a degree clear
+        return {{{-10, QColor{"#2b4a9a"}}, {-6, QColor{"#3f74b8"}}, {-3, QColor{"#86b4dc"}}, {-1, QColor{"#d3e5f2"}}, {-0.5, QColor{211, 229, 242, 0}}, {0.5, QColor{246, 224, 184, 0}},
+                 {1, QColor{"#f6e0b8"}}, {3, QColor{"#f0b070"}}, {6, QColor{"#d9633a"}}, {10, QColor{"#a02a2a"}}}};
+    }
+    Ramp seaLevelPressure() {   // millibars: lows in purples and blues, highs in yellows to reds
+        return {{{980, QColor{"#6e3aa0"}}, {995, QColor{"#3a5ac8"}}, {1005, QColor{"#78bee6"}}, {1013, QColor{"#ebebe1"}}, {1020, QColor{"#fad25a"}}, {1030, QColor{"#f08232"}}, {1040, QColor{"#c82828"}}}};
+    }
+    Ramp precipitationDeparture() {   // millimeters in the period: drier than the climate in browns, wetter in greens, within a few clear
+        return {{{-60, QColor{"#7a4a1c"}}, {-30, QColor{"#b07a3a"}}, {-12, QColor{"#dcc08a"}}, {-4, QColor{"#efe3c4"}}, {-2, QColor{239, 227, 196, 0}}, {2, QColor{200, 230, 200, 0}},
+                 {4, QColor{"#c8e6c8"}}, {12, QColor{"#8cc99a"}}, {30, QColor{"#3fa06a"}}, {60, QColor{"#1b6e48"}}}};
+    }
     Ramp pressureAnomaly() {   // millibars
         return {{{-30, QColor{"#2b4a9a"}}, {-16, QColor{"#3f74b8"}}, {-8, QColor{"#86b4dc"}}, {-3, QColor{"#d3e5f2"}}, {-1, QColor{211, 229, 242, 0}}, {1, QColor{246, 224, 184, 0}},
                  {3, QColor{"#f6e0b8"}}, {8, QColor{"#f0b070"}}, {16, QColor{"#d9633a"}}, {30, QColor{"#a02a2a"}}}};
@@ -5035,6 +5046,41 @@ const std::vector<Product>& products() {
         };
 
         // ---- SPC's REFS products (the open Zarr store): the curated list of SPC's own viewer, each as the colors and units it has there
+        // ---- the ECMWF's extended range forecast (EC46): the weekly mean of the ensemble, from the loader of Open-Meteo's seasonal data; the "hour" of a chart is a week (168 hours each)
+        const auto ec46Recipes = [&] {
+            struct Spec {
+                const char * id;
+                const char * label;
+                const char * variable;
+                Ramp ramp;
+                Quantity quantity;
+                const char * title;
+                double legendStep;
+            };
+            const std::vector<Spec> specs{
+                {"ec46_t2m_departure", "2 m Temperature: departure of the week", "temperature_2m_anomaly", temperatureDeparture(), Quantity::TemperatureDifference, "2 m temperature, the week's mean against the ECMWF climate", 2.0},
+                {"ec46_precip_departure", "Precipitation: departure of the week", "precipitation_anomaly", precipitationDeparture(), Quantity::Millimeters, "Precipitation of the week against the ECMWF climate", 0.0},
+                {"ec46_mslp_departure", "Sea Level Pressure: departure of the week", "pressure_msl_anomaly", pressureAnomaly(), Quantity::Other, "Sea level pressure, the week's mean against the ECMWF climate (mb)", 5.0},
+                {"ec46_t2m", "2 m Temperature: mean of the week", "temperature_2m_mean", temperature(), Quantity::Temperature, "2 m temperature, the week's mean", 5.0},
+                {"ec46_precip", "Precipitation: total of the week", "precipitation_mean", precipitation(), Quantity::Millimeters, "Precipitation of the week", 0.0},
+                {"ec46_mslp", "Sea Level Pressure: mean of the week", "pressure_msl_mean", seaLevelPressure(), Quantity::Other, "Sea level pressure, the week's mean (mb)", 5.0},
+            };
+            for (const auto& spec : specs) {
+                Product x;
+                x.source = "EC46";
+                x.id = spec.id;
+                x.label = spec.label;
+                x.wants = {want("v", spec.variable, "weekly")};
+                x.fill = [] (const Grids& g) { return pick(g, "v"); };
+                x.ramp = spec.ramp;
+                x.quantity = spec.quantity;
+                const std::string title = spec.title;
+                x.fillTitleFor = [title] (int hour) { return title + ": week " + std::to_string(hour / 168 + 1) + " of the forecast (Monday to Sunday, the first is the week of the run)"; };
+                x.legendStep = spec.legendStep;
+                p.push_back(x);
+            }
+        };
+
         const auto spcRefsRecipes = [&] {
             // SPC's own colors for the paintball of each member, in the store's order: HRRR, RRFS control, REFS M01, M02, M03, M05, then HRRR and RRFS control 6 and 12 hours older
             static const unsigned memberColors[] = {0x4c4c4c, 0x007399, 0x009985, 0x009947, 0x009909, 0x469900, 0x7f7f7f, 0x4cd3ff, 0xb3b3b3, 0xb3ecff};
@@ -5659,7 +5705,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"EC46", ec46Recipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);
@@ -6375,6 +6421,7 @@ namespace {
         }
         switch (quantity) {
             case Quantity::Temperature: return value * 1.8 + 32.0;
+            case Quantity::TemperatureDifference: return value * 1.8;
             case Quantity::Millimeters: return value / 25.4;
             case Quantity::Centimeters: return value / 2.54;
             case Quantity::Meters: return value * 3.28084;   // wave heights in feet
@@ -6384,6 +6431,7 @@ namespace {
     QString unitText(Quantity quantity, bool us) {
         switch (quantity) {
             case Quantity::Temperature: return us ? "°F" : "°C";
+            case Quantity::TemperatureDifference: return us ? "°F" : "°C";
             case Quantity::Millimeters: return us ? "in" : "mm";
             case Quantity::Centimeters: return us ? "in" : "cm";
             case Quantity::Meters: return us ? "ft" : "m";
@@ -6413,7 +6461,7 @@ GfsGrid::Grid deltaInUserUnits(const GfsGrid::Grid& delta, Quantity quantity, bo
     QString text = unitText(quantity, false);
     if (us) {
         switch (quantity) {
-            case Quantity::Temperature: factor = 1.8; break;
+            case Quantity::Temperature: case Quantity::TemperatureDifference: factor = 1.8; break;
             case Quantity::Millimeters: factor = 1.0 / 25.4; break;
             case Quantity::Centimeters: factor = 1.0 / 2.54; break;
             case Quantity::Meters: factor = 3.28084; break;
@@ -6507,6 +6555,7 @@ double storedValue(Quantity quantity, double value, bool us) {
     }
     switch (quantity) {
         case Quantity::Temperature: return (value - 32.0) / 1.8;
+        case Quantity::TemperatureDifference: return value / 1.8;
         case Quantity::Millimeters: return value * 25.4;
         case Quantity::Centimeters: return value * 2.54;
         case Quantity::Meters: return value / 3.28084;

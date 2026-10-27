@@ -9,15 +9,23 @@
 #include <cmath>
 #include <map>
 #include <mutex>
+#include <thread>
 #include <QByteArray>
+#include <QCryptographicHash>
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QString>
+#include "gfs/GfsCache.h"
 #include "util/UtilityIO.h"
 
 namespace {
-    // a request is asked again after half an hour at the earliest (the forecasts change daily at most)
+    // a request is asked again after `minutes` at the earliest (the forecasts change daily at most): kept in memory and in a file, so that a program started again does not spend the service's quota
+    // (about 600 points a minute) on what it has just read
     QByteArray fetch(const std::string& url, int minutes = 30) {
         static std::mutex lock;
         static std::map<std::string, std::pair<std::chrono::steady_clock::time_point, QByteArray>> kept;
@@ -28,10 +36,34 @@ namespace {
                 return found->second.second;
             }
         }
-        const auto bytes = UtilityIO::downloadAsByteArray(url);
-        if (!bytes.isEmpty()) {
+        const QString path = GfsCache::folder() + "/open-meteo/" + QString::fromLatin1(QCryptographicHash::hash(QByteArray::fromStdString(url), QCryptographicHash::Sha1).toHex());
+        {
+            QFileInfo info{path};
+            if (info.exists() && info.lastModified().secsTo(QDateTime::currentDateTime()) < minutes * 60) {
+                QFile file{path};
+                if (file.open(QIODevice::ReadOnly)) {
+                    const auto bytes = file.readAll();
+                    if (!bytes.isEmpty() && !bytes.contains("\"error\":true")) {
+                        std::lock_guard<std::mutex> guard{lock};
+                        kept[url] = {std::chrono::steady_clock::now(), bytes};
+                        return bytes;
+                    }
+                }
+            }
+        }
+        auto bytes = UtilityIO::downloadAsByteArray(url);
+        if (minutes >= 360 && bytes.contains("Minutely API request limit exceeded")) {   // a map's points count against the service's minute: wait it out once
+            std::this_thread::sleep_for(std::chrono::seconds{62});
+            bytes = UtilityIO::downloadAsByteArray(url);
+        }
+        if (!bytes.isEmpty() && !bytes.contains("\"error\":true")) {   // (an answer that says the limit is reached is not kept)
             std::lock_guard<std::mutex> guard{lock};
             kept[url] = {std::chrono::steady_clock::now(), bytes};
+            QDir{}.mkpath(QFileInfo{path}.absolutePath());
+            QFile file{path};
+            if (file.open(QIODevice::WriteOnly)) {
+                file.write(bytes);
+            }
         }
         return bytes;
     }
@@ -160,7 +192,7 @@ bool UtilityOpenMeteoSeasonal::periodGrid(bool weekly, const std::string& variab
     out.columns = std::max(1, static_cast<int>(std::floor((east - west) / step)) + 1);
     out.rows = std::max(1, static_cast<int>(std::floor((north - south) / step)) + 1);
     const size_t points = static_cast<size_t>(out.columns) * static_cast<size_t>(out.rows);
-    if (points > 600) {
+    if (points > 1200) {
         error = "too many points for one map (" + std::to_string(points) + ")";
         return false;
     }

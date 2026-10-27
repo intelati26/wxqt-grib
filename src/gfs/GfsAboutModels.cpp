@@ -39,6 +39,11 @@ link = wikipedia | Integrated Forecasting System | https://en.wikipedia.org/wiki
 link = background | European Centre for Medium-Range Weather Forecasts | https://en.wikipedia.org/wiki/European_Centre_for_Medium-Range_Weather_Forecasts
 link = source | ECMWF open data | https://www.ecmwf.int/en/forecasts/datasets/open-data
 )ABOUT"},
+        {"EC46", R"ABOUT(
+why = The European Centre's extended range forecast: its ensemble run 46 days ahead, which is beyond what a weather forecast can say about a given day but not about a week. Each chart is the mean of the 51 members for a week (Monday to Sunday), as a departure from the ECMWF's own climate or as the values, which shows the pattern the ensemble leans to: a warm week over the east, a wet one over the plains. The data comes from Open-Meteo's seasonal service (CC BY 4.0, based on ECMWF data) at a 4 degree grid over North America.
+link = background | ECMWF extended range forecasts | https://www.ecmwf.int/en/forecasts/documentation-and-support/extended-range-forecasts
+link = source | Open-Meteo seasonal forecast API | https://open-meteo.com/en/docs/seasonal-forecast-api
+)ABOUT"},
         {"IFS-ENS", R"ABOUT(
 why = The European Centre's physical model run 51 times from slightly different starting points (here its 50 perturbed members). How far the members spread is the uncertainty of the forecast, and a chart with every member's line on it shows the outcomes that are still possible. Where the Euro and the GFS ensemble (GEFS) both spread widely the pattern is truly uncertain; where they agree and are tight it is trusted.
 link = wikipedia | Ensemble forecasting | https://en.wikipedia.org/wiki/Ensemble_forecasting

@@ -60,7 +60,7 @@ namespace GfsChart {
 
     using Grids = std::map<std::string, GfsGrid::Grid>;
     // What the fill's numbers are, for showing them in the user's units (the grids are in degrees C, millimeters, centimeters and so on)
-    enum class Quantity { Other, Temperature, Millimeters, Centimeters, Meters };
+    enum class Quantity { Other, Temperature, Millimeters, Centimeters, Meters, TemperatureDifference };   // (a difference of temperatures is not converted like a temperature: 1 C is 1.8 F)
     // a number of the grids in the user's units (degrees F, inches, feet when `us`), the other way, and the unit's name ("" for none)
     double shownValue(Quantity quantity, double value, bool us);
     double storedValue(Quantity quantity, double shown, bool us);

@@ -56,6 +56,7 @@
 #include "spc/WatchProbabilityViewer.h"
 #include "space/UtilitySun.h"
 #include "space/SunViewer.h"
+#include "gfs/Ec46Loader.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsIntensity.h"
 #include "hurricane/AceForecastViewer.h"
@@ -179,6 +180,7 @@ int main(int argc, char * argv[]) {
         QDir{}.mkpath(folder);
         GfsModels::setUserFolder(folder.toStdString());
     }
+    Ec46Loader::registerLoader();   // the ECMWF's extended range (Open-Meteo) as a Model Viewer model
     SpcRefsLoader::registerLoader();   // SPC's REFS Zarr store as a Model Viewer model
     GfsRender::startCacheCleanup();   // the model field cache is tidied in the background, a few seconds in
     CrashLog::install(debug);
