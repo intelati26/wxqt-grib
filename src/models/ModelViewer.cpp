@@ -1423,12 +1423,14 @@ std::string ModelViewer::hourText(const std::string& timeItem, bool forList) con
     if (!run.isValid()) {
         return WString::split(timeItem, " ")[0];
     }
-    const auto local = run.addSecs(3600LL * hour).toLocalTime();
-    const auto date = local.toString("MM-dd").toStdString();
+    // the valid time as the program writes times elsewhere: UTC, "10-28-00z"; the list also gives the day of the week, the local time and the days from the run
+    const auto utc = run.addSecs(3600LL * hour).toUTC();
+    const auto date = utc.toString("MM-dd-HH").toStdString() + "z";
     if (!forList) {
         return date;
     }
-    return date + "  " + local.toString("ddd").toStdString() + "  " + std::to_string(local.time().hour() % 12 == 0 ? 12 : local.time().hour() % 12) + (local.time().hour() >= 12 ? "pm" : "am") + "   (day " + QString::number(hour / 24.0, 'f', hour % 24 == 0 ? 0 : 2).toStdString() + ")";
+    const auto local = utc.toLocalTime();
+    return date + "  " + utc.toString("ddd").toStdString() + "  (" + std::to_string(local.time().hour() % 12 == 0 ? 12 : local.time().hour() % 12) + (local.time().hour() >= 12 ? "pm" : "am") + " local)   day " + QString::number(hour / 24.0, 'f', hour % 24 == 0 ? 0 : 2).toStdString();
 }
 
 // The plume under the chart of the CFS and GEFS pages: at the point clicked, or the first saved location; the model of the page picks the plume's (CFS: the nine month runs, GEFS: the members).
