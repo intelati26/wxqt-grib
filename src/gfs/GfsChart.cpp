@@ -6359,6 +6359,52 @@ namespace {
                     tl.contour.dashed = true;
                     tl.contour.width = 1.3;
                     list.push_back(tl);
+                    // the humidity near the ground, from the 2 m temperature and dewpoint (every model has those; not every model has the humidity itself)
+                    const auto needs2m = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"t", "TMP", "2 m above ground", "", ""}}, {hour, {"d", "DPT", "2 m above ground", "", ""}}}; };
+                    const auto humidity2m = [] (Grids& g, const Context&) {
+                        if (g.find("t") == g.end() || g.find("d") == g.end()) {
+                            return;
+                        }
+                        auto r = g.at("t");
+                        const auto& d = g.at("d");
+                        for (size_t i = 0; i < r.values.size() && i < d.values.size(); i++) {   // (degrees C: the vapor pressure over the saturation pressure, Magnus)
+                            const double t = r.values[i], td = d.values[i];
+                            const double value = 100.0 * std::exp(17.625 * td / (243.04 + td)) / std::exp(17.625 * t / (243.04 + t));
+                            r.values[i] = std::isfinite(value) ? static_cast<float>(std::clamp(value, 0.0, 100.0)) : std::nanf("");
+                        }
+                        g["r"] = std::move(r);
+                    };
+                    Overlay hf;
+                    hf.id = "fill_rh_2m";
+                    hf.label = "2 m relative humidity";
+                    hf.group = "Fill";
+                    hf.sources = GfsModels::overlayModels();
+                    hf.fill = true;
+                    hf.fillName = "Humidity 2 m (%)";
+                    hf.fillRamp = translucent(humidity(), 140, 50.0);
+                    hf.needs = needs2m;
+                    const std::string humidityKey = "fill|" + hf.fillName;
+                    hf.derive = [humidity2m, humidityKey] (Grids& g, const Context& c) {
+                        humidity2m(g, c);
+                        if (g.find("r") != g.end()) {
+                            g[humidityKey] = g.at("r");
+                        }
+                    };
+                    list.push_back(hf);
+                    Overlay hl;
+                    hl.id = "line_rh_2m";
+                    hl.label = "2 m relative humidity";
+                    hl.group = "Lines";
+                    hl.sources = GfsModels::overlayModels();
+                    hl.needs = needs2m;
+                    hl.derive = humidity2m;
+                    hl.contour.key = "r";
+                    hl.contour.interval = 20;
+                    hl.contour.minimum = 19;
+                    hl.contour.title = "2 m relative humidity (%)";
+                    hl.contour.color = QColor{30, 140, 70};
+                    hl.contour.width = 1.2;
+                    list.push_back(hl);
                 }
             }
             // wind barbs: the 10 m wind, and the wind of the main levels
