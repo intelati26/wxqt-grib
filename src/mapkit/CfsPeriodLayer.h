@@ -45,6 +45,7 @@ private:
         std::vector<BandLines::Contour> wet, dry;
     };
     void load(MapHost&);
+    void install(GfsGrid::Grid temperature, GfsGrid::Grid precipitation, int length);
     QImage colored(const GfsGrid::Grid&) const;
     std::vector<std::pair<double, QColor>> stops() const;
     int days{30};
@@ -53,6 +54,7 @@ private:
     bool lines{true};
     bool loading{false};
     bool changeRequested{false};
+    qint64 loadedAt{0};   // when the frame on hand was worked out (seconds since 1970)
     std::map<int, Frame> frames;   // by the length of the stretch
     string error;
     std::shared_ptr<bool> alive{std::make_shared<bool>(true)};

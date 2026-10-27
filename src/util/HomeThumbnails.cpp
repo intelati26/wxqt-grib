@@ -23,8 +23,13 @@
 #include "vis/UtilityGoes.h"
 #include "vis/UtilityGoesFullDisk.h"
 #include "wpc/UtilityWpcRainfallOutlook.h"
+#include <atomic>
+#include <thread>
+#include <QDir>
+#include <QFileInfo>
 #include "settings/Location.h"
 #include "util/Utility.h"
+#include "gfs/GfsCache.h"
 
 namespace {
 }
@@ -163,12 +168,46 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         return ok ? png : QByteArray{};
     }
     if (token == "CFS_30DAY") {
-        // the CFSv2's next 30 days against its normal over the United States, drawn by the model screen's own renderer (the model "CFS30")
-        GfsRender::Session session;
-        string error;
-        GfsRender::Variant variant;
-        variant.width = 640;   // a tile is small: the chart's text stays readable on a narrower picture
-        return GfsRender::png(session, "CFS30", "cfs30_t2m_precip", "CONUS", "", 720, {}, error, nullptr, variant);
+        // the CFSv2's next 30 days against its normal over the United States, drawn by the model screen's own renderer (the model "CFS30"). The picture of the last time is kept: it is what the tile
+        // shows at once, and if it is of an earlier day it is drawn again behind it (the first of the day reads some 160 fields, 25 seconds) for the next start.
+        const QString file = GfsCache::folder() + "/cfs30/tile.png";
+        const auto render = [] {
+            GfsRender::Session session;
+            string error;
+            GfsRender::Variant variant;
+            variant.width = 640;   // a tile is small: the chart's text stays readable on a narrower picture
+            return GfsRender::png(session, "CFS30", "cfs30_t2m_precip", "CONUS", "", 720, {}, error, nullptr, variant);
+        };
+        const auto keep = [file] (const QByteArray& png) {
+            QDir{}.mkpath(QFileInfo{file}.absolutePath());
+            QFile out{file};
+            if (!png.isEmpty() && out.open(QIODevice::WriteOnly)) {
+                out.write(png);
+            }
+        };
+        QFileInfo info{file};
+        QByteArray kept;
+        if (info.exists()) {
+            QFile in{file};
+            if (in.open(QIODevice::ReadOnly)) {
+                kept = in.readAll();
+            }
+        }
+        if (decodes(kept)) {
+            if (info.lastModified().toUTC().date() != QDateTime::currentDateTimeUtc().date()) {
+                static std::atomic<bool> busy{false};
+                if (!busy.exchange(true)) {
+                    std::thread{[render, keep] {
+                        keep(render());
+                        busy = false;
+                    }}.detach();
+                }
+            }
+            return kept;
+        }
+        const auto png = render();
+        keep(png);
+        return png;
     }
     if (token == "GRIB_LATEST") {
         // the model screen's last model, chart and area, drawn from the newest run (the model's first forecast hour after the start)

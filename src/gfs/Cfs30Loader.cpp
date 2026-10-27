@@ -7,15 +7,89 @@
 #include <algorithm>
 #include <cmath>
 #include <future>
-#include <semaphore>
+#include <atomic>
+#include <functional>
+#include <mutex>
+#include <thread>
 #include <vector>
+#include <QDataStream>
 #include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QTimeZone>
 #include "cfs/UtilityCfs.h"
+#include "gfs/GfsCache.h"
 #include "gfs/GfsData.h"
 #include "util/Utility.h"
 
 namespace {
+    // the day's result of a stretch in a small file: kept for the day, the next program start reads it
+    QString cacheDir() {
+        return GfsCache::folder() + "/cfs30/";
+    }
+    QString cacheFile(const QDate& day, int days, const std::string& key, int baseline) {
+        return cacheDir() + day.toString("yyyyMMdd") + "_" + QString::number(days) + "_" + QString::fromStdString(key) + "_" + QString::number(baseline) + ".bin";
+    }
+    bool readCache(const QString& path, GfsGrid::Grid& out) {
+        QFile file{path};
+        if (!file.open(QIODevice::ReadOnly)) {
+            return false;
+        }
+        QByteArray raw = qUncompress(file.readAll());
+        QDataStream in{&raw, QIODevice::ReadOnly};
+        qint32 columns = 0, rows = 0;
+        double lon0 = 0, lat0 = 0, step = 0;
+        in >> columns >> rows >> lon0 >> lat0 >> step;
+        if (in.status() != QDataStream::Ok || columns <= 0 || rows <= 0 || raw.size() < 28 + static_cast<qsizetype>(columns) * rows * 4) {
+            return false;
+        }
+        out = {};
+        out.columns = columns;
+        out.rows = rows;
+        out.lon0 = lon0;
+        out.lat0 = lat0;
+        out.step = step;
+        out.values.resize(static_cast<size_t>(columns) * static_cast<size_t>(rows));
+        in.readRawData(reinterpret_cast<char *>(out.values.data()), static_cast<int>(out.values.size() * sizeof(float)));
+        return true;
+    }
+    void writeCache(const QString& path, const GfsGrid::Grid& grid) {
+        QByteArray raw;
+        QDataStream out{&raw, QIODevice::WriteOnly};
+        out << static_cast<qint32>(grid.columns) << static_cast<qint32>(grid.rows) << grid.lon0 << grid.lat0 << grid.step;
+        out.writeRawData(reinterpret_cast<const char *>(grid.values.data()), static_cast<int>(grid.values.size() * sizeof(float)));
+        QDir{}.mkpath(cacheDir());
+        QFile file{path};
+        if (file.open(QIODevice::WriteOnly)) {
+            file.write(qCompress(raw, 6));
+        }
+        for (const auto& old : QDir{cacheDir()}.entryInfoList(QDir::Files)) {   // a week's files are enough
+            if (old.lastModified().daysTo(QDateTime::currentDateTime()) > 7) {
+                QFile::remove(old.absoluteFilePath());
+            }
+        }
+    }
+    int baselineYears() {
+        return Utility::readPrefInt("MM_CFS_BASE", 1999) == 1982 ? 1982 : 1999;
+    }
+
+    // a few threads for all the reads there are (the program's other work and the machine's disk and processors get the rest: each field is a download and a GDAL run)
+    void runAll(std::vector<std::function<void()>>& tasks) {
+        std::atomic<size_t> next{0};
+        std::vector<std::thread> workers;
+        for (int w = 0; w < 4; w++) {
+            workers.emplace_back([&] {
+                for (size_t i = next++; i < tasks.size(); i = next++) {
+                    tasks[i]();
+                }
+            });
+        }
+        for (auto& worker : workers) {
+            worker.join();
+        }
+    }
+
     bool loadDays(int length, const std::string& key, GfsGrid::Grid& out, std::string& error) {
         const auto * variable = UtilityCfs::find(key);
         if (variable == nullptr) {
@@ -23,12 +97,16 @@ namespace {
             return false;
         }
         length = std::clamp(length, 3, 180);
+        const int baseline = baselineYears();
+        const auto today = QDateTime::currentDateTimeUtc().date();
+        if (readCache(cacheFile(today, length, key, baseline), out)) {
+            return true;   // already worked out today
+        }
         UtilityCfs::Run run;
         if (!UtilityCfs::latestRun(run)) {
             error = "no CFSv2 run found";
             return false;
         }
-        const int baseline = Utility::readPrefInt("MM_CFS_BASE", 1999) == 1982 ? 1982 : 1999;
         const auto tomorrow = QDateTime{QDateTime::currentDateTimeUtc().date().addDays(1), QTime{0, 0}, QTimeZone::utc()};
         // about ten days spread over the stretch (every day of a week, every third of 30 days, every ninth of 90), four times a day: the 30 days in 40 fields
         const int every = std::max(1, length / 10);
@@ -58,24 +136,20 @@ namespace {
             error = "the CFSv2 run does not reach " + std::to_string(length) + " days";
             return false;
         }
-        std::counting_semaphore<8> gate{6};
-        std::vector<std::future<GfsGrid::Grid>> jobs;
-        for (const auto& job : wanted) {
-            jobs.push_back(std::async(std::launch::async, [&gate, variable, job] {
-                gate.acquire();
-                GfsGrid::Grid g;
+        std::vector<GfsGrid::Grid> fields(wanted.size());
+        std::vector<std::function<void()>> tasks;
+        for (size_t i = 0; i < wanted.size(); i++) {
+            tasks.push_back([&fields, &wanted, variable, i] {
                 std::string message;
-                if (!UtilityCfs::daily(job.run, 1, *variable, job.hour, g, message)) {
-                    g = {};
+                if (!UtilityCfs::daily(wanted[i].run, 1, *variable, wanted[i].hour, fields[i], message)) {
+                    fields[i] = {};
                 }
-                gate.release();
-                return g;
-            }));
+            });
         }
+        runAll(tasks);
         GfsGrid::Grid sum;
         int count = 0;
-        for (auto& job : jobs) {
-            const auto g = job.get();
+        for (const auto& g : fields) {
             if (g.empty()) {
                 continue;
             }
@@ -123,6 +197,7 @@ namespace {
         for (size_t i = 0; i < out.values.size(); i++) {
             out.values[i] = sum.values[i] - normal.values[i] / static_cast<float>(normals);
         }
+        writeCache(cacheFile(today, length, key, baseline), out);
         return true;
     }
 
@@ -134,6 +209,17 @@ namespace {
 
 bool Cfs30Loader::period(int days, const std::string& key, GfsGrid::Grid& out, std::string& error) {
     return loadDays(days, key, out, error);
+}
+
+bool Cfs30Loader::cached(int days, const std::string& key, GfsGrid::Grid& out, int& ageDays) {
+    const auto today = QDateTime::currentDateTimeUtc().date();
+    for (int age = 0; age <= 5; age++) {
+        if (readCache(cacheFile(today.addDays(-age), std::clamp(days, 3, 180), key, baselineYears()), out)) {
+            ageDays = age;
+            return true;
+        }
+    }
+    return false;
 }
 
 void Cfs30Loader::registerLoader() {

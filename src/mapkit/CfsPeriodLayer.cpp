@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <cmath>
 #include <QCheckBox>
+#include <QDateTime>
+#include <QElapsedTimer>
+#include <QGuiApplication>
+#include <QTimer>
 #include <QComboBox>
 #include <QLabel>
 #include <QPainter>
@@ -96,64 +100,96 @@ void CfsPeriodLayer::optionChanged(MapHost& host) {
 }
 
 void CfsPeriodLayer::refresh(MapHost& host) {
-    if (loading || frames.find(days) != frames.end()) {
+    // read again when the frame on hand is hours old (the day's first result replaces yesterday's)
+    if (loading || (frames.find(days) != frames.end() && QDateTime::currentSecsSinceEpoch() - loadedAt < 6 * 3600)) {
         return;
     }
     load(host);
 }
 
+// The fields as they were last worked out (today's, or a day or two old) show at once; the fresh ones replace them when they are in (the first of the day takes some 25 seconds)
 void CfsPeriodLayer::load(MapHost& host) {
     loading = true;
     struct Loaded {
         GfsGrid::Grid temperature, precipitation;
         string error;
         bool ok{false};
+        int age{-1};   // days: -1 none kept
     };
-    auto loaded = std::make_shared<Loaded>();
     const int length = days;
+    auto kept = std::make_shared<Loaded>();
     host.background(
-        [loaded, length] {
-            string messageT, messageP;
-            const bool t = Cfs30Loader::period(length, "t2m", loaded->temperature, messageT);
-            const bool p = Cfs30Loader::period(length, "precip", loaded->precipitation, messageP);
-            loaded->ok = t || p;
-            loaded->error = !t ? messageT : messageP;
+        [kept, length] {
+            int ageT = 0, ageP = 0;
+            const bool t = Cfs30Loader::cached(length, "t2m", kept->temperature, ageT);
+            const bool p = Cfs30Loader::cached(length, "precip", kept->precipitation, ageP);
+            kept->ok = t || p;
+            kept->age = t || p ? std::max(t ? ageT : 0, p ? ageP : 0) : -1;
         },
-        [this, &host, loaded, length, alive = alive] {
+        [this, &host, kept, length, alive = alive] {
             if (!*alive) {
                 return;
             }
-            loading = false;
-            if (!loaded->ok) {
-                error = loaded->error.empty() ? "no CFSv2 data could be read" : loaded->error;
+            if (kept->ok) {
+                install(std::move(kept->temperature), std::move(kept->precipitation), length);
                 host.redraw();
+            }
+            if (kept->ok && kept->age == 0) {   // today's: nothing fresher to be had
+                loading = false;
+                loadedAt = QDateTime::currentSecsSinceEpoch();
                 return;
             }
-            error.clear();
-            Frame f;
-            f.temperature = std::move(loaded->temperature);
-            f.precipitation = std::move(loaded->precipitation);
-            for (auto& v : f.temperature.values) {
-                v = static_cast<float>(DisplayUnits::value(v, "deg C", DisplayUnits::Kind::Delta));
-            }
-            GfsGrid::closeWrapGap(f.temperature);
-            GfsGrid::closeWrapGap(f.precipitation);
-            frames[length] = std::move(f);
-            // the pictures are made for what is shown (the options change them)
-            auto& frame = frames[length];
-            if (!frame.precipitation.empty()) {
-                std::vector<std::pair<double, QString>> wet, dry;
-                for (const double level : {0.5, 1.0, 1.5, 2.0, 3.0, 4.0}) {
-                    wet.emplace_back(level, number(level));
-                    dry.emplace_back(-level, number(-level));
-                }
-                const auto smooth = GfsGrid::smoothed(frame.precipitation, 2);
-                frame.wet = BandLines::make(smooth, wet);
-                frame.dry = BandLines::make(smooth, dry);
-            }
-            frame.image = colored(show == 2 ? frame.precipitation : frame.temperature);
-            host.redraw();
+            auto loaded = std::make_shared<Loaded>();
+            host.background(
+                [loaded, length] {
+                    string messageT, messageP;
+                    const bool t = Cfs30Loader::period(length, "t2m", loaded->temperature, messageT);
+                    const bool p = Cfs30Loader::period(length, "precip", loaded->precipitation, messageP);
+                    loaded->ok = t || p;
+                    loaded->error = !t ? messageT : messageP;
+                },
+                [this, &host, loaded, length, alive = alive] {
+                    if (!*alive) {
+                        return;
+                    }
+                    loading = false;
+                    if (!loaded->ok) {
+                        if (frames.find(length) == frames.end()) {
+                            error = loaded->error.empty() ? "no CFSv2 data could be read" : loaded->error;
+                        }
+                        host.redraw();
+                        return;
+                    }
+                    error.clear();
+                    install(std::move(loaded->temperature), std::move(loaded->precipitation), length);
+                    loadedAt = QDateTime::currentSecsSinceEpoch();
+                    host.redraw();
+                });
         });
+}
+
+// the frame of a stretch from its two fields (in the CFS's units): the colors and the lines
+void CfsPeriodLayer::install(GfsGrid::Grid temperature, GfsGrid::Grid precipitation, int length) {
+    Frame f;
+    f.temperature = std::move(temperature);
+    f.precipitation = std::move(precipitation);
+    for (auto& v : f.temperature.values) {
+        v = static_cast<float>(DisplayUnits::value(v, "deg C", DisplayUnits::Kind::Delta));
+    }
+    GfsGrid::closeWrapGap(f.temperature);
+    GfsGrid::closeWrapGap(f.precipitation);
+    if (!f.precipitation.empty()) {
+        std::vector<std::pair<double, QString>> wet, dry;
+        for (const double level : {0.5, 1.0, 1.5, 2.0, 3.0, 4.0}) {
+            wet.emplace_back(level, number(level));
+            dry.emplace_back(-level, number(-level));
+        }
+        const auto smooth = GfsGrid::smoothed(f.precipitation, 2);
+        f.wet = BandLines::make(smooth, wet);
+        f.dry = BandLines::make(smooth, dry);
+    }
+    f.image = colored(show == 2 ? f.precipitation : f.temperature);
+    frames[length] = std::move(f);
 }
 
 QImage CfsPeriodLayer::colored(const GfsGrid::Grid& grid) const {
@@ -195,8 +231,13 @@ void CfsPeriodLayer::paint(QPainter& painter, MapHost& host) {
     const double north = g.lat0 - first * g.step + g.step / 2.0, south = north - found->second.image.height() * g.step / 3.0;
     PlateCarreeImage::paint(painter, host, found->second.image, g.lon0 - g.step / 2.0, south, g.lon0 + g.columns * g.step - g.step / 2.0, north, opacity / 100.0, true);
     if (lines && show == 0) {
+        QElapsedTimer timer;
+        timer.start();
         BandLines::paint(painter, host, found->second.wet, QColor{20, 120, 60, 200}, 1.3);
         BandLines::paint(painter, host, found->second.dry, QColor{140, 80, 20, 200}, 1.3);
+        if (qEnvironmentVariableIsSet("WXQT_CFSP_DEBUG")) {
+            qWarning("CFSP lines painted in %lld ms", timer.elapsed());
+        }
     }
 }
 
