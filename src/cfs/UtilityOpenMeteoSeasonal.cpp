@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "cfs/UtilityOpenMeteoSeasonal.h"
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <map>
@@ -17,13 +18,13 @@
 
 namespace {
     // a request is asked again after half an hour at the earliest (the forecasts change daily at most)
-    QByteArray fetch(const std::string& url) {
+    QByteArray fetch(const std::string& url, int minutes = 30) {
         static std::mutex lock;
         static std::map<std::string, std::pair<std::chrono::steady_clock::time_point, QByteArray>> kept;
         {
             std::lock_guard<std::mutex> guard{lock};
             const auto found = kept.find(url);
-            if (found != kept.end() && std::chrono::steady_clock::now() - found->second.first < std::chrono::minutes{30}) {
+            if (found != kept.end() && std::chrono::steady_clock::now() - found->second.first < std::chrono::minutes{minutes}) {
                 return found->second.second;
             }
         }
@@ -149,4 +150,74 @@ bool UtilityOpenMeteoSeasonal::periods(bool weekly, const std::string& variable,
         }
     }
     return !out.values.empty();
+}
+
+bool UtilityOpenMeteoSeasonal::weeklyGrid(const std::string& variable, double west, double south, double east, double north, double step, WeeklyGrid& out, std::string& error) {
+    out = {};
+    out.step = step;
+    out.west = west;
+    out.north = north;
+    out.columns = std::max(1, static_cast<int>(std::floor((east - west) / step)) + 1);
+    out.rows = std::max(1, static_cast<int>(std::floor((north - south) / step)) + 1);
+    const size_t points = static_cast<size_t>(out.columns) * static_cast<size_t>(out.rows);
+    if (points > 600) {
+        error = "too many points for one map (" + std::to_string(points) + ")";
+        return false;
+    }
+    std::vector<double> lats(points), lons(points);
+    for (int r = 0; r < out.rows; r++) {
+        for (int c = 0; c < out.columns; c++) {
+            const size_t i = static_cast<size_t>(r) * static_cast<size_t>(out.columns) + static_cast<size_t>(c);
+            lats[i] = std::clamp(north - r * step, -89.0, 89.0);
+            lons[i] = std::clamp(west + c * step, -180.0, 180.0);
+        }
+    }
+    constexpr size_t chunk = 250;
+    for (size_t from = 0; from < points; from += chunk) {
+        const size_t to = std::min(points, from + chunk);
+        QString la, lo;
+        for (size_t i = from; i < to; i++) {
+            la += (i > from ? "," : "") + QString::number(lats[i], 'f', 2);
+            lo += (i > from ? "," : "") + QString::number(lons[i], 'f', 2);
+        }
+        const auto bytes = fetch("https://seasonal-api.open-meteo.com/v1/seasonal?latitude=" + la.toStdString() + "&longitude=" + lo.toStdString() + "&weekly=" + variable + "&timezone=UTC", 360);
+        const auto document = QJsonDocument::fromJson(bytes);
+        QJsonArray answers;
+        if (document.isArray()) {
+            answers = document.array();
+        } else if (document.isObject() && !document.object().value("error").toBool()) {
+            answers.append(document.object());   // (one point: an object, not a list)
+        } else {
+            error = bytes.isEmpty() ? std::string{"Open-Meteo did not answer"} : "Open-Meteo: " + document.object().value("reason").toString().toStdString();
+            return false;
+        }
+        for (int k = 0; k < answers.size() && from + static_cast<size_t>(k) < to; k++) {
+            const auto weekly = answers.at(k).toObject().value("weekly").toObject();
+            const auto times = weekly.value("time").toArray();
+            const auto values = numbers(weekly.value(QString::fromStdString(variable)), static_cast<size_t>(times.size()));
+            if (out.weeks.empty()) {
+                for (int i = 0; i < times.size(); i++) {
+                    out.weeks.push_back(QDate::fromString(times.at(i).toString(), Qt::ISODate));
+                }
+                out.values.assign(out.weeks.size(), std::vector<float>(points, std::nanf("")));
+            }
+            for (size_t w = 0; w < out.weeks.size() && w < values.size(); w++) {
+                out.values[w][from + static_cast<size_t>(k)] = values[w];
+            }
+        }
+    }
+    if (out.weeks.empty()) {
+        error = "no weekly values";
+        return false;
+    }
+    // only the weeks the model reaches
+    size_t keep = 0;
+    for (size_t w = 0; w < out.values.size(); w++) {
+        if (std::any_of(out.values[w].begin(), out.values[w].end(), [] (float v) { return !std::isnan(v); })) {
+            keep = w + 1;
+        }
+    }
+    out.weeks.resize(keep);
+    out.values.resize(keep);
+    return keep > 0;
 }
