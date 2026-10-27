@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsData.h"
+#include "gfs/GfsModels.h"
 #include "util/NetPriority.h"
 #include <cctype>
 #include <algorithm>
@@ -43,6 +44,30 @@ std::vector<int> GfsData::forecastHours() {
         hours.push_back(h);
     }
     return hours;
+}
+
+namespace {
+    // What to tell a person when a run has no index for an hour: which model, which run and hour (and the time it is valid), and the likely reason and the way on, not file names
+    std::string notAvailable(const GfsData::Source& source, const GfsData::Run& run, int hour) {
+        auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+        start.setTimeSpec(Qt::UTC);
+        const auto valid = start.addSecs(3600LL * hour);
+        const double sinceRun = start.secsTo(QDateTime::currentDateTimeUtc()) / 3600.0;
+        std::string text = source.id + " F" + pad(hour, 3) + " (valid " + valid.toString("ddd d MMM HH").toStdString() + "Z) is not available from the " + start.toString("HH").toStdString() + "Z " +
+                           start.toString("d MMM").toStdString() + " run.\n";
+        const auto * def = GfsModels::find(source.id);
+        const int last = def != nullptr && def->runLength ? def->runLength(std::atoi(run.cycle.c_str())) : -1;
+        if (last >= 0 && hour > last) {   // a run that never goes that far (the shorter 06 and 18Z runs)
+            text += "This run only goes to F" + pad(last, 3) + ": the " + run.cycle + "Z runs are shorter. Choose an earlier hour, or a run that goes further (00Z or 12Z).";
+        } else if (valid > QDateTime::currentDateTimeUtc().addSecs(3600LL * 24 * 21)) {
+            text += "That is beyond what the model has published.";
+        } else if (sinceRun < source.lagHours + 12) {
+            text += "The run may still be posting its later hours: try again in a few minutes, or choose an earlier hour or the previous run.";
+        } else {
+            text += "The server does not have that hour (or could not be reached). Choose an earlier hour or another run, or try again.";
+        }
+        return text;
+    }
 }
 
 bool GfsData::latestRun(Run& run) const {
@@ -969,7 +994,7 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
     std::map<IndexKey, std::vector<GfsGrid::IdxRecord>> indexes;
     for (size_t i = 0; i < keys.size(); i++) {
         if (parsed[i].empty()) {
-            error = "could not read the " + source.id + " index for " + run.id() + " f" + pad(std::get<0>(keys[i]), 3) + (std::get<1>(keys[i]).empty() ? "" : " (" + std::get<1>(keys[i]) + ")");
+            error = notAvailable(source, run, std::get<0>(keys[i]));
             return false;
         }
         indexes[keys[i]] = std::move(parsed[i]);

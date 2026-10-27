@@ -994,7 +994,32 @@ void ModelViewer::saveHighRes() {
                    }};
 }
 
+// a card over the picture for why the chart is not there (a run that has not posted an hour, a lost connection): plain sentences, not file names
+void ModelViewer::showNotice(const string& text) {
+    if (mainNotice == nullptr) {
+        mainNotice = new QLabel{&image};
+        mainNotice->setWordWrap(true);
+        mainNotice->setAlignment(Qt::AlignCenter);
+        mainNotice->setAttribute(Qt::WA_TransparentForMouseEvents);
+        mainNotice->setStyleSheet("QLabel { background-color: rgba(30, 30, 30, 225); color: #f4f4f4; padding: 14px 18px; border-radius: 6px; font-size: 15px; }");
+    }
+    mainNotice->setText(QString::fromStdString(text));
+    const int width = std::clamp(image.width() - 40, 160, 520);
+    mainNotice->setFixedWidth(width);
+    mainNotice->setFixedHeight(mainNotice->heightForWidth(width) + 4);
+    mainNotice->move(std::max(0, (image.width() - mainNotice->width()) / 2), std::max(0, (image.height() - mainNotice->height()) / 3));
+    mainNotice->show();
+    mainNotice->raise();
+}
+
+void ModelViewer::hideNotice() {
+    if (mainNotice != nullptr) {
+        mainNotice->hide();
+    }
+}
+
 void ModelViewer::showFrame(const Frame& frame) {
+    hideNotice();
     if (objectModel.model == "SPCREFS") {
         refreshMembers();   // the members' names are known once a run has been read
     }
@@ -1713,6 +1738,7 @@ void ModelViewer::reload() {
     if (GfsRender::handles(objectModel.model, objectModel.param)) {
         // the GFS charts are drawn here from the GRIB data
         const int mine = ++drawing;
+        hideNotice();
         NetManager::cancelQueued(NetManager::Priority::Ahead);   // the hours being read ahead for the view that was: dropped, so what is wanted now is not behind them
         failedAhead.clear();
         if (!gfsSession) {
@@ -1745,7 +1771,9 @@ void ModelViewer::reload() {
                                showFrame(frames[key]);
                                prefetch(prefetchGeneration);
                            } else if (mine == drawing) {
-                               setTitle("GFS - " + result->second);
+                               const auto text = result->second.empty() ? string{"The chart could not be drawn."} : result->second;
+                               setTitle(objectModel.model + " - " + text.substr(0, text.find('\n')));   // (the title has the first line: the card over the picture has the rest)
+                               showNotice(text);
                            }
                        }};
         return;

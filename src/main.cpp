@@ -939,6 +939,9 @@ int main(int argc, char * argv[]) {
                     }
                     QTimer::singleShot(12000, viewer, [viewer, ids] { viewer->setOverlays(ids); });
                 }
+                if (qEnvironmentVariableIsSet("WXQT_NOTICE")) {   // WXQT_NOTICE=<text>: 12 s in the card over the picture with that text (\n for a new line)
+                    QTimer::singleShot(12000, viewer, [viewer] { viewer->noticeTest(qEnvironmentVariable("WXQT_NOTICE").replace("\\n", "\n").toStdString()); });
+                }
                 if (qEnvironmentVariableIsSet("WXQT_HOVER")) {   // WXQT_HOVER=<fx>:<fy>: 14 s in the read-out is shown at that point of the picture (and of the tiles), for a picture
                     const auto at = qEnvironmentVariable("WXQT_HOVER").split(':');
                     QTimer::singleShot(14000, viewer, [viewer, at] { viewer->hoverAt(at.value(0).toDouble(), at.value(1).toDouble()); });

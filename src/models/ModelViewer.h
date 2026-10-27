@@ -59,6 +59,7 @@ public:
     void openAt(const string& model, const QDateTime& validUtc, bool runStart = false);
     void showPicker();
     void setOverlays(const std::vector<string>& ids);   // as ticking them in the chart picker does
+    void noticeTest(const string& text) { showNotice(text); }   // a development aid: the card over the picture with this text
     void hoverAt(double fx, double fy);   // the read-out as if the pointer were there, as fractions of the picture (a development aid)
     void chooseChart(const string& id);   // as the chart picker does: this chart on the main tile
     string tileCaptions() const;           // what the other tiles say they show (a development aid)
@@ -135,6 +136,9 @@ private:
     QGridLayout * grid{};
     QFrame * mainTile{};
     QLabel * mainCaption{};
+    QLabel * mainNotice{};   // over the picture: why the chart could not be drawn
+    void showNotice(const string& text);
+    void hideNotice();
     std::array<CompareTile *, 3> tiles{};
     std::array<Spec, 3> tileSpecs;
     std::array<int, 3> tileGeneration{};
