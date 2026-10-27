@@ -28,8 +28,8 @@ namespace {
     QString cacheDir() {
         return GfsCache::folder() + "/cfs30/";
     }
-    QString cacheFile(const QDate& day, int days, const std::string& key, int baseline) {
-        return cacheDir() + day.toString("yyyyMMdd") + "_" + QString::number(days) + "_" + QString::fromStdString(key) + "_" + QString::number(baseline) + ".bin";
+    QString cacheFile(const QDate& day, int days, const std::string& key, int baseline, bool values) {
+        return cacheDir() + day.toString("yyyyMMdd") + "_" + QString::number(days) + "_" + QString::fromStdString(key) + (values ? "_values_" : "_") + QString::number(baseline) + ".bin";
     }
     bool readCache(const QString& path, GfsGrid::Grid& out) {
         QFile file{path};
@@ -90,7 +90,7 @@ namespace {
         }
     }
 
-    bool loadDays(int length, const std::string& key, GfsGrid::Grid& out, std::string& error) {
+    bool loadDays(int length, const std::string& key, bool values, GfsGrid::Grid& out, std::string& error) {
         const auto * variable = UtilityCfs::find(key);
         if (variable == nullptr) {
             error = "the CFS has no field " + key;
@@ -99,7 +99,7 @@ namespace {
         length = std::clamp(length, 3, 180);
         const int baseline = baselineYears();
         const auto today = QDateTime::currentDateTimeUtc().date();
-        if (readCache(cacheFile(today, length, key, baseline), out)) {
+        if (readCache(cacheFile(today, length, key, baseline, values), out)) {
             return true;   // already worked out today
         }
         UtilityCfs::Run run;
@@ -171,6 +171,11 @@ namespace {
         for (auto& v : sum.values) {
             v /= static_cast<float>(count);
         }
+        if (values) {   // the stretch's own mean, no normal
+            out = sum;
+            writeCache(cacheFile(today, length, key, baseline, true), out);
+            return true;
+        }
         // the normal of the same days (the monthly normals blended by the day)
         GfsGrid::Grid normal;
         int normals = 0;
@@ -197,24 +202,26 @@ namespace {
         for (size_t i = 0; i < out.values.size(); i++) {
             out.values[i] = sum.values[i] - normal.values[i] / static_cast<float>(normals);
         }
-        writeCache(cacheFile(today, length, key, baseline), out);
+        writeCache(cacheFile(today, length, key, baseline, values), out);
         return true;
     }
 
     // the model's forecast hour is the stretch: 24 hours a day
     bool load(const GfsData::Run&, int hour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) {
-        return loadDays(std::max(hour, 72) / 24, want.variable, out, error);
+        // the want's variable says which: "t2m" its departure, "t2m.values" the mean itself (the name is what the registry keeps a result under)
+        const auto dot = want.variable.find(".values");
+        return loadDays(std::max(hour, 72) / 24, dot == std::string::npos ? want.variable : want.variable.substr(0, dot), dot != std::string::npos, out, error);
     }
 }
 
-bool Cfs30Loader::period(int days, const std::string& key, GfsGrid::Grid& out, std::string& error) {
-    return loadDays(days, key, out, error);
+bool Cfs30Loader::period(int days, const std::string& key, GfsGrid::Grid& out, std::string& error, bool values) {
+    return loadDays(days, key, values, out, error);
 }
 
-bool Cfs30Loader::cached(int days, const std::string& key, GfsGrid::Grid& out, int& ageDays) {
+bool Cfs30Loader::cached(int days, const std::string& key, GfsGrid::Grid& out, int& ageDays, bool values) {
     const auto today = QDateTime::currentDateTimeUtc().date();
     for (int age = 0; age <= 5; age++) {
-        if (readCache(cacheFile(today.addDays(-age), std::clamp(days, 3, 180), key, baselineYears()), out)) {
+        if (readCache(cacheFile(today.addDays(-age), std::clamp(days, 3, 180), key, baselineYears(), values), out)) {
             ageDays = age;
             return true;
         }

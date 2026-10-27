@@ -2277,7 +2277,7 @@ string ModelViewer::seasonalPartner(const string& param, const string& model) {
     } else if (param.compare(0, 6, "seas5_") == 0) {
         key = param.substr(6);
     } else if (param.compare(0, 6, "cfs30_") == 0) {
-        key = param == "cfs30_precip" ? "precip_departure" : "t2m_departure";
+        key = param == "cfs30_precip" ? "precip_departure" : param == "cfs30_precip_value" ? "precip" : param == "cfs30_t2m_value" ? "t2m" : param == "cfs30_mslp_departure" ? "mslp_departure" : param == "cfs30_mslp" ? "mslp" : "t2m_departure";
     } else {
         return {};
     }
@@ -2287,7 +2287,7 @@ string ModelViewer::seasonalPartner(const string& param, const string& model) {
     if (model == "SEAS5") {
         return "seas5_" + key;
     }
-    return key == "t2m_departure" ? "cfs30_t2m_precip" : key == "precip_departure" ? "cfs30_precip" : string{};   // (the CFS30 has the departures only)
+    return key == "t2m_departure" ? "cfs30_t2m_precip" : key == "precip_departure" ? "cfs30_precip" : key == "t2m" ? "cfs30_t2m_value" : key == "precip" ? "cfs30_precip_value" : key == "mslp_departure" ? "cfs30_mslp_departure" : key == "mslp" ? "cfs30_mslp" : string{};
 }
 
 ModelViewer::TilesShow ModelViewer::tilesShow() const {
@@ -2466,7 +2466,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             job.why = "Pick the EC46, the SEAS5 or the CFS30 (the CFSv2's next days against its normal) to compare the long-range models.";
         } else if (show == TilesShow::Seasonal && job.param.empty()) {
             job.ok = false;
-            job.why = spec.model.empty() ? string{"No other long-range model."} : spec.model + " has no chart to put beside this one (the temperature and precipitation departures are shared).";
+            job.why = spec.model.empty() ? string{"No other long-range model."} : spec.model + " has no chart to put beside this one.";
         } else if (show == TilesShow::Seasonal) {   // each model's period that overlaps the days of the main chart most
             QDate first, last;
             const auto * def = GfsModels::find(spec.model);

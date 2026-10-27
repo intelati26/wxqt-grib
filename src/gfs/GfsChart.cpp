@@ -5149,6 +5149,64 @@ const std::vector<Product>& products() {
                 x.legendStep = 0.0;
                 p.push_back(x);
             }
+            // the pressure against its normal, and the values themselves (the mean of the stretch; the rain as the total of it, so as to sit beside the EC46's week and the SEAS5's month)
+            {
+                Product x;
+                x.source = "CFS30";
+                x.id = "cfs30_mslp_departure";
+                x.label = "Next days: sea level pressure against the normal";
+                x.wants = {want("v", "mslp", "30 days")};
+                x.fill = [] (const Grids& g) { return pick(g, "v"); };
+                x.ramp = stretched(pressureAnomaly(), 0.4);
+                x.quantity = Quantity::Other;
+                x.fillTitleFor = [] (int hour) { return "CFSv2, next " + std::to_string(hour / 24) + " days vs its normal: sea level pressure (mb)"; };
+                x.legendStep = 2.0;
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = "CFS30";
+                x.id = "cfs30_t2m_value";
+                x.label = "Next days: mean temperature";
+                x.wants = {want("v", "t2m.values", "30 days")};
+                x.fill = [] (const Grids& g) { return pick(g, "v"); };
+                x.ramp = temperature();
+                x.quantity = Quantity::Temperature;
+                x.fillTitleFor = [] (int hour) { return "CFSv2, the mean of the next " + std::to_string(hour / 24) + " days: 2 m temperature"; };
+                x.legendStep = 5.0;
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = "CFS30";
+                x.id = "cfs30_precip_value";
+                x.label = "Next days: total precipitation";
+                x.wants = {want("v", "precip.values", "30 days")};
+                x.derive = [] (Grids& g, const Context& context) {   // mm a day in the grid: the total of the stretch
+                    for (auto& value : g.at("v").values) {
+                        value *= static_cast<float>(context.hour / 24.0);
+                    }
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "v"); };
+                x.ramp = precipitation();
+                x.quantity = Quantity::Millimeters;
+                x.fillTitleFor = [] (int hour) { return "CFSv2, the total of the next " + std::to_string(hour / 24) + " days: precipitation"; };
+                x.legendStep = 0.0;
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = "CFS30";
+                x.id = "cfs30_mslp";
+                x.label = "Next days: mean sea level pressure";
+                x.wants = {want("v", "mslp.values", "30 days")};
+                x.fill = [] (const Grids& g) { return pick(g, "v"); };
+                x.ramp = seaLevelPressure();
+                x.quantity = Quantity::Other;
+                x.fillTitleFor = [] (int hour) { return "CFSv2, the mean of the next " + std::to_string(hour / 24) + " days: sea level pressure (mb)"; };
+                x.legendStep = 5.0;
+                p.push_back(x);
+            }
             {
                 Product x;
                 x.source = "CFS30";
