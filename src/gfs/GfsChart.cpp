@@ -5116,12 +5116,12 @@ const std::vector<Product>& products() {
                 Product x;
                 x.source = "CFS30";
                 x.id = "cfs30_t2m_precip";
-                x.label = "Next 30 days: temperature and precipitation";
+                x.label = "Next days: temperature and precipitation against the normal";
                 x.wants = {want("v", "t2m", "30 days"), want("p", "precip", "30 days")};
                 x.fill = [] (const Grids& g) { return pick(g, "v"); };
                 x.ramp = stretched(temperatureDeparture(), 0.5);   // (a 30 day mean departs less than a week's)
                 x.quantity = Quantity::TemperatureDifference;
-                x.fillTitle = "CFSv2 vs its normal: temperature";
+                x.fillTitleFor = [] (int hour) { return "CFSv2, next " + std::to_string(hour / 24) + " days vs its normal: temperature"; };
                 x.legendStep = 1.0;
                 ContourSet lines;
                 lines.key = "p";
@@ -5140,12 +5140,12 @@ const std::vector<Product>& products() {
                 Product x;
                 x.source = "CFS30";
                 x.id = "cfs30_precip";
-                x.label = "Next 30 days: precipitation against the normal";
+                x.label = "Next days: precipitation against the normal";
                 x.wants = {want("v", "precip", "30 days")};
                 x.fill = [] (const Grids& g) { return pick(g, "v"); };
                 x.ramp = stretched(precipitationDeparture(), 0.04);   // (millimeters a day: 2.4 is a week's 60 mm over 25 days)
                 x.quantity = Quantity::Millimeters;
-                x.fillTitle = "CFSv2, next 30 days: precipitation a day against the CFS normal";
+                x.fillTitleFor = [] (int hour) { return "CFSv2, next " + std::to_string(hour / 24) + " days vs its normal: precipitation a day"; };
                 x.legendStep = 0.0;
                 p.push_back(x);
             }
@@ -5153,12 +5153,12 @@ const std::vector<Product>& products() {
                 Product x;
                 x.source = "CFS30";
                 x.id = "cfs30_t2m";
-                x.label = "Next 30 days: temperature against the normal";
+                x.label = "Next days: temperature against the normal";
                 x.wants = {want("v", "t2m", "30 days")};
                 x.fill = [] (const Grids& g) { return pick(g, "v"); };
                 x.ramp = stretched(temperatureDeparture(), 0.5);
                 x.quantity = Quantity::TemperatureDifference;
-                x.fillTitle = "CFSv2, next 30 days: 2 m temperature against the CFS normal";
+                x.fillTitleFor = [] (int hour) { return "CFSv2, next " + std::to_string(hour / 24) + " days vs its normal: 2 m temperature"; };
                 x.legendStep = 1.0;
                 p.push_back(x);
             }

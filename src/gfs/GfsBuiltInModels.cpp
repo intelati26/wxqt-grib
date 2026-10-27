@@ -218,10 +218,10 @@ on_missing = previous_cycle
 list = true
 )MODEL"},
         {"CFS30", R"MODEL(
-# the CFSv2's next 30 days against the CFS's own normal: the four newest runs' fields of 40 times each (every third day, four times a day) from NOAA's open bucket, read by byte range by the program's own loader
+# the CFSv2's next 7, 14, 30, 60 or 90 days (the forecast hour is the stretch: 168 ... 2160) against the CFS's own normal: the four newest runs' fields of 40 times each (every third day, four times a day) from NOAA's open bucket, read by byte range by the program's own loader
 # (registered for this id). The url is the run's first file, there to see that the run is: the run is the CFS's own.
 id = CFS30
-label = NOAA/NCEP CFSv2 next 30 days against its normal (the mean of the four newest runs)
+label = NOAA/NCEP CFSv2 the next days against its normal (a week to 90 days; the mean of the four newest runs)
 source_label = NOAA/NCEP CFSv2, the next 30 days against the CFS normal
 kind = custom
 url = https://noaa-cfs-pds.s3.amazonaws.com/cfs.{date}/{cycle}/time_grib_01/{file}.01.{date}{cycle}.daily.grb2
@@ -233,8 +233,8 @@ lag_hours = 8
 cycles_to_try = 6
 max_parallel = 4
 warp = 1.0, -180.0, -90.0, 180.0, 90.0
-sectors = conus
-hours = 0-0/1
+sectors = world
+hours = 168-168/1, 336-336/1, 720-720/1, 1440-1440/1, 2160-2160/1
 run_every = 6
 list = true
 )MODEL"},

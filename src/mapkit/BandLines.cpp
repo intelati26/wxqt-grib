@@ -27,7 +27,7 @@ std::vector<BandLines::Contour> BandLines::make(const GfsGrid::Grid& grid, const
     return out;
 }
 
-void BandLines::paint(QPainter& painter, MapHost& host, const std::vector<Contour>& contours) {
+void BandLines::paint(QPainter& painter, MapHost& host, const std::vector<Contour>& contours, const QColor& lineColor, double heavy) {
     if (contours.empty()) {
         return;
     }
@@ -50,7 +50,7 @@ void BandLines::paint(QPainter& painter, MapHost& host, const std::vector<Contou
                 const auto at = t(line[i].lat, line[i].lon);
                 i == 0 ? path.moveTo(at) : path.lineTo(at);
             }
-            painter.setPen(QPen{QColor{30, 30, 40, 150}, 0.9 * px});
+            painter.setPen(QPen{lineColor, 0.9 * px * heavy});
             painter.drawPath(path);
             const double length = path.length() / std::max(1e-9, px);   // screen pixels
             if (length < 90.0) {

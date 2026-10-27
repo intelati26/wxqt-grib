@@ -40,7 +40,7 @@ link = background | European Centre for Medium-Range Weather Forecasts | https:/
 link = source | ECMWF open data | https://www.ecmwf.int/en/forecasts/datasets/open-data
 )ABOUT"},
         {"CFS30", R"ABOUT(
-why = What NOAA's seasonal model expects of the next 30 days over the United States, against its own normal for these days: the temperature as colors (warm or cool) and the precipitation as lines (green wetter, brown drier, in millimeters a day). A month ahead the weather of a day is out of reach; what is left is the lean of the pattern, which a stretch of cold or dry weather is often part of. It is the mean of the member 1 of the four newest runs (each a forecast of nine months, six hours apart), so the lean is a guess, not a promise; the Plume window shows how those runs differ from each other.
+why = What NOAA's seasonal model expects of the next week, two weeks, month, two months or three months (the forecast hour is the stretch), against its own normal for these days: the temperature as colors (warm or cool) and the precipitation as lines (green wetter, brown drier, in millimeters a day). A month ahead the weather of a day is out of reach; what is left is the lean of the pattern, which a stretch of cold or dry weather is often part of. It is the mean of the member 1 of the four newest runs (each a forecast of nine months, six hours apart), so the lean is a guess, not a promise; the Plume window shows how those runs differ from each other.
 link = background | NOAA Climate Prediction Center outlooks | https://www.cpc.ncep.noaa.gov/products/predictions/30day/
 link = source | NOAA CFSv2 | https://www.ncei.noaa.gov/products/weather-climate-models/climate-forecast-system
 )ABOUT"},

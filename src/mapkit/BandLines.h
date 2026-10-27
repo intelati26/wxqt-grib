@@ -22,7 +22,8 @@ namespace BandLines {
     };
     // levels: the value of each edge (in the grid's units) with the text to put on it
     std::vector<Contour> make(const GfsGrid::Grid& grid, const std::vector<std::pair<double, QString>>& levels);
-    void paint(QPainter& painter, MapHost& host, const std::vector<Contour>& contours);
+    // `line`: the color of the lines (the numbers are always on white); `heavy` thicker lines
+    void paint(QPainter& painter, MapHost& host, const std::vector<Contour>& contours, const QColor& line = QColor{30, 30, 40, 150}, double heavy = 1.0);
 }
 
 #endif  // BANDLINES_H

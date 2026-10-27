@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/Cfs30Loader.h"
+#include <algorithm>
 #include <cmath>
 #include <future>
 #include <semaphore>
@@ -15,12 +16,13 @@
 #include "util/Utility.h"
 
 namespace {
-    bool load(const GfsData::Run&, int, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) {
-        const auto * variable = UtilityCfs::find(want.variable);
+    bool loadDays(int length, const std::string& key, GfsGrid::Grid& out, std::string& error) {
+        const auto * variable = UtilityCfs::find(key);
         if (variable == nullptr) {
-            error = "the CFS has no field " + want.variable;
+            error = "the CFS has no field " + key;
             return false;
         }
+        length = std::clamp(length, 3, 180);
         UtilityCfs::Run run;
         if (!UtilityCfs::latestRun(run)) {
             error = "no CFSv2 run found";
@@ -28,10 +30,11 @@ namespace {
         }
         const int baseline = Utility::readPrefInt("MM_CFS_BASE", 1999) == 1982 ? 1982 : 1999;
         const auto tomorrow = QDateTime{QDateTime::currentDateTimeUtc().date().addDays(1), QTime{0, 0}, QTimeZone::utc()};
-        // ten days, three days apart, four times a day: the 30 days in 40 fields
+        // about ten days spread over the stretch (every day of a week, every third of 30 days, every ninth of 90), four times a day: the 30 days in 40 fields
+        const int every = std::max(1, length / 10);
         std::vector<QDateTime> days;
-        for (int d = 0; d < 10; d++) {
-            days.push_back(tomorrow.addDays(3 * d));
+        for (int d = 0; d * every < length; d++) {
+            days.push_back(tomorrow.addDays(static_cast<qint64>(d) * every));
         }
         // the four newest runs' member 1 (whole nine month forecasts six hours apart): their mean is steadier than one run's
         const auto runs = UtilityCfs::recentRuns(run, 4);
@@ -51,8 +54,8 @@ namespace {
                 }
             }
         }
-        if (wanted.size() < 40) {
-            error = "the CFSv2 run does not reach 30 days";
+        if (wanted.size() < days.size() * 4) {
+            error = "the CFSv2 run does not reach " + std::to_string(length) + " days";
             return false;
         }
         std::counting_semaphore<8> gate{6};
@@ -122,6 +125,15 @@ namespace {
         }
         return true;
     }
+
+    // the model's forecast hour is the stretch: 24 hours a day
+    bool load(const GfsData::Run&, int hour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) {
+        return loadDays(std::max(hour, 72) / 24, want.variable, out, error);
+    }
+}
+
+bool Cfs30Loader::period(int days, const std::string& key, GfsGrid::Grid& out, std::string& error) {
+    return loadDays(days, key, out, error);
 }
 
 void Cfs30Loader::registerLoader() {

@@ -168,7 +168,7 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         string error;
         GfsRender::Variant variant;
         variant.width = 640;   // a tile is small: the chart's text stays readable on a narrower picture
-        return GfsRender::png(session, "CFS30", "cfs30_t2m_precip", "CONUS", "", 0, {}, error, nullptr, variant);
+        return GfsRender::png(session, "CFS30", "cfs30_t2m_precip", "CONUS", "", 720, {}, error, nullptr, variant);
     }
     if (token == "GRIB_LATEST") {
         // the model screen's last model, chart and area, drawn from the newest run (the model's first forecast hour after the start)

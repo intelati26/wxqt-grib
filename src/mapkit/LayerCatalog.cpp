@@ -15,6 +15,7 @@
 #include "mapkit/SatellitePassLayer.h"
 #include "mapkit/ClimateGridLayer.h"
 #include "mapkit/CfsOutlookLayer.h"
+#include "mapkit/CfsPeriodLayer.h"
 #include "mapkit/Ec46Layer.h"
 #include "mapkit/ModelChartLayer.h"
 #include "mapkit/ConeHistoryLayer.h"
@@ -46,6 +47,7 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     layers.push_back(std::make_unique<CpcPrecipLayer>());
     layers.push_back(std::make_unique<ClimateGridLayer>());
     layers.push_back(std::make_unique<CfsOutlookLayer>());
+    layers.push_back(std::make_unique<CfsPeriodLayer>());
     layers.push_back(std::make_unique<Ec46Layer>());
     layers.push_back(std::make_unique<ModelChartLayer>());
     layers.push_back(std::make_unique<ComboChartLayer>());
