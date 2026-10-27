@@ -83,7 +83,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
-    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL vs deterministic"}}
+    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL vs deterministic", "Compare: seasonal models (same dates)"}}
     , comboMember{this, {"Ensemble mean"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
@@ -300,9 +300,9 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         });
         boxH2.addWidgetReal(buttonSigma);
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
-        comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone. 'ENS-ALL vs deterministic': the pooled chart beside the matching chart of GFS, the IFS and the AIFS (precipitation of the same period, the model's own sea level pressure, heights or temperature).");
+        comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone. 'Seasonal models': the EC46, SEAS5 and CFS30 side by side, each in the period that overlaps the main one most. 'ENS-ALL vs deterministic': the pooled chart beside the matching chart of GFS, the IFS and the AIFS (precipitation of the same period, the model's own sea level pressure, heights or temperature).");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
-        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 6)));
+        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 7)));
         comboTiles.connect([this] {
             Utility::writePref("MODEL_TILES", std::to_string(comboTiles.getIndex()));
             applyTileLayout();
@@ -2244,9 +2244,55 @@ string ModelViewer::partnerChart(const string& pooled, const string& model) {
     return {};
 }
 
+const std::vector<string>& ModelViewer::seasonalModels() {
+    static const std::vector<string> models{"EC46", "SEAS5", "CFS30"};
+    return models;
+}
+
+namespace {
+    // the days a chart of a long-range model covers at a forecast hour: the EC46's week (Monday to Sunday, the first that of the run), the SEAS5's calendar month, the CFS30's stretch from tomorrow
+    bool seasonalDays(const string& model, int hour, QDate& first, QDate& last) {
+        const auto today = QDateTime::currentDateTimeUtc().date();
+        if (model == "EC46") {
+            first = today.addDays(-(today.dayOfWeek() - 1) + 7 * (hour / 168));
+            last = first.addDays(6);
+        } else if (model == "SEAS5") {
+            first = QDate{today.year(), today.month(), 1}.addMonths(hour / 720);
+            last = first.addMonths(1).addDays(-1);
+        } else if (model == "CFS30") {
+            first = today.addDays(1);
+            last = first.addDays(std::max(1, hour / 24) - 1);
+        } else {
+            return false;
+        }
+        return true;
+    }
+}
+
+// What goes with a chart of one long-range model in another: the departure of the temperature or of the precipitation (the CFS30's chart of the temperature carries the precipitation lines)
+string ModelViewer::seasonalPartner(const string& param, const string& model) {
+    string key;
+    if (param.compare(0, 5, "ec46_") == 0) {
+        key = param.substr(5);
+    } else if (param.compare(0, 6, "seas5_") == 0) {
+        key = param.substr(6);
+    } else if (param.compare(0, 6, "cfs30_") == 0) {
+        key = param == "cfs30_precip" ? "precip_departure" : "t2m_departure";
+    } else {
+        return {};
+    }
+    if (model == "EC46") {
+        return "ec46_" + key;
+    }
+    if (model == "SEAS5") {
+        return "seas5_" + key;
+    }
+    return key == "t2m_departure" ? "cfs30_t2m_precip" : key == "precip_departure" ? "cfs30_precip" : string{};   // (the CFS30 has the departures only)
+}
+
 ModelViewer::TilesShow ModelViewer::tilesShow() const {
     const auto i = comboTilesShow.getIndex();
-    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : i == 4 ? TilesShow::ModelsByTime : i == 5 ? TilesShow::Parts : i == 6 ? TilesShow::Deterministic : TilesShow::Charts;
+    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : i == 4 ? TilesShow::ModelsByTime : i == 5 ? TilesShow::Parts : i == 6 ? TilesShow::Deterministic : i == 7 ? TilesShow::Seasonal : TilesShow::Charts;
 }
 
 void ModelViewer::applyTileLayout() {
@@ -2319,6 +2365,14 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
             spec.member = k < partsOfPool().size() ? partsOfPool()[k] : string{};
         } else if (show == TilesShow::Deterministic) {
             spec.model = k < deterministicDefaults().size() ? deterministicDefaults()[k] : string{};
+        } else if (show == TilesShow::Seasonal) {
+            std::vector<string> others;
+            for (const auto& id : seasonalModels()) {
+                if (id != objectModel.model) {
+                    others.push_back(id);
+                }
+            }
+            spec.model = k < others.size() ? others[k] : string{};
         } else {
             spec.shift = 6 * static_cast<int>(k + 1);
         }
@@ -2390,6 +2444,9 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         if (show == TilesShow::Deterministic) {
             job.param = objectModel.model == "ENS-ALL" && !spec.model.empty() ? partnerChart(objectModel.param, spec.model) : string{};
         }
+        if (show == TilesShow::Seasonal) {
+            job.param = spec.model.empty() ? string{} : seasonalPartner(objectModel.param, spec.model);
+        }
         job.sector = objectModel.sector;
         job.cycle = objectModel.run;
         if (show == TilesShow::Members && memberValues.size() < 2) {
@@ -2404,6 +2461,38 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         } else if (show == TilesShow::Deterministic && job.param.empty()) {
             job.ok = false;
             job.why = (spec.model.empty() ? string{"This model"} : spec.model) + " has no chart to put beside this one (the chance of precipitation, the spread and the contours of the pool have partners in the precipitation, pressure, height and temperature charts).";
+        } else if (show == TilesShow::Seasonal && std::find(seasonalModels().begin(), seasonalModels().end(), objectModel.model) == seasonalModels().end()) {
+            job.ok = false;
+            job.why = "Pick the EC46, the SEAS5 or the CFS30 (the CFSv2's next days against its normal) to compare the long-range models.";
+        } else if (show == TilesShow::Seasonal && job.param.empty()) {
+            job.ok = false;
+            job.why = spec.model.empty() ? string{"No other long-range model."} : spec.model + " has no chart to put beside this one (the temperature and precipitation departures are shared).";
+        } else if (show == TilesShow::Seasonal) {   // each model's period that overlaps the days of the main chart most
+            QDate first, last;
+            const auto * def = GfsModels::find(spec.model);
+            bool found = false;
+            if (seasonalDays(objectModel.model, mainHour, first, last) && def != nullptr) {
+                qint64 best = 0;
+                for (const auto& range : def->hours) {
+                    for (int h = range.from; h <= range.to; h += std::max(1, range.step)) {
+                        QDate a, b;
+                        if (!seasonalDays(spec.model, h, a, b)) {
+                            continue;
+                        }
+                        const qint64 overlap = std::max<qint64>(0, std::max(first, a).daysTo(std::min(last, b)) + 1);
+                        if (overlap > best) {
+                            best = overlap;
+                            job.hour = h;
+                            found = true;
+                        }
+                    }
+                }
+            }
+            job.cycle = string{};   // the newest run
+            if (!found) {
+                job.ok = false;
+                job.why = spec.model + " has no period that covers these dates.";
+            }
         } else if (job.model.empty()) {
             job.ok = false;
             job.why = "No other model draws this chart.";
@@ -2614,6 +2703,21 @@ void ModelViewer::changeTile(int index) {
                 continue;
             }
             const auto id = def.id;
+            auto * action = menu.addAction(QString::fromStdString(id));
+            action->setCheckable(true);
+            action->setChecked(spec.model == id);
+            QObject::connect(action, &QAction::triggered, this, [this, index, id] {
+                tileSpecs[static_cast<size_t>(index) - 1].model = id;
+                tileSpecs[static_cast<size_t>(index) - 1].picked = true;
+                renderTile(index);
+                prefetch(prefetchGeneration);
+            });
+        }
+    } else if (show == TilesShow::Seasonal) {
+        for (const auto& id : seasonalModels()) {
+            if (id == objectModel.model) {
+                continue;
+            }
             auto * action = menu.addAction(QString::fromStdString(id));
             action->setCheckable(true);
             action->setChecked(spec.model == id);

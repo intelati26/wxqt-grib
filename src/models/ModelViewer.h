@@ -104,12 +104,14 @@ private:
         bool ok{true};
         string why;
     };
-    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime, Parts, Deterministic };
+    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime, Parts, Deterministic, Seasonal };
     int tileCount() const;                       // the tiles besides the first: 0, 1, 2 or 3
     TilesShow tilesShow() const;
     static const std::vector<string>& partsOfPool();
     static string partnerChart(const string& pooled, const string& model);   // the chart of a deterministic model that goes with a pooled ENS-ALL chart ("" when there is none)
     static const std::vector<string>& deterministicDefaults();
+    static string seasonalPartner(const string& param, const string& model);   // the chart of a long-range model (EC46, SEAS5, CFS30) that goes with a chart of another of them
+    static const std::vector<string>& seasonalModels();
     void applyTileLayout();
     void resetTileSpecs(bool keepPicked = false);
     string tileBase;   // the model and chart the tiles were last set for
