@@ -932,6 +932,9 @@ int main(int argc, char * argv[]) {
                 Utility::writePref("MODELNCEPPARAMLASTUSED", qEnvironmentVariable("WXQT_PARAM", "500_wnd_ht").toStdString());   // WXQT_PARAM=<chart id>: open on that chart
                 Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
                 auto * viewer = new ModelViewer{&w, "NCEP"};
+                if (qEnvironmentVariableIsSet("WXQT_HIRES")) {   // WXQT_HIRES=<area>:<size>:<out.png>: the Hi-res... steps without the dialogs, after the chart is drawn
+                    QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_HIRES_WAIT") > 0 ? qEnvironmentVariableIntValue("WXQT_HIRES_WAIT") * 1000 : 12000, viewer, [viewer] { viewer->saveHighRes(); });
+                }
                 if (qEnvironmentVariable("WXQT_PICK") == "list") {   // WXQT_PICK=list: every chart of the model with its picker group, to stdout
                     std::fputs(viewer->chartListing().c_str(), stdout);
                     std::fflush(stdout);

@@ -58,6 +58,7 @@ public:
     // `runStart`: the time is a RUN's (the cycle at or before it, at its first hour) instead of a valid time (the run at or before it, at the hour that lands on the time)
     void openAt(const string& model, const QDateTime& validUtc, bool runStart = false);
     void showPicker();
+    void saveHighRes();   // the chart on view (or the part in view) drawn again at a larger size, then the usual save dialog
     string chartListing() const;   // every chart of the model, one line each: id, group, label (for checking how the picker is organized)
     void showModelPicker();    // the models in groups (global, regional, convection allowing, ensembles, waves ...)
     void showSectorPicker();   // the same, for the areas   // the grouped chart picker (the models drawn from GRIB)
@@ -139,7 +140,6 @@ private:
     void setVariant(GfsRender::Variant);
     void showMax(bool day1);
     void saveLoop();
-    void saveHighRes();   // the chart on view (or the part in view) drawn again at a larger size, then the usual save dialog
     void loadViews();
     void saveView();
     void applyView(const std::array<string, 5>&);

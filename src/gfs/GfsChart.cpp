@@ -6809,10 +6809,12 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             deviationHigh = values[values.size() * 9 / 10];
         }
     }
-    const double S = std::max(1.0, options.scale);   // a larger picture of the same design: everything is placed in the 1x picture's pixels, the painter scales it, the fill is computed at the final pixels
     const int headerHeight = 54, legendHeight = 62 + (deviationHigh > 0.0 ? 14 : 0), margin = 8;
     const QRectF mapArea{static_cast<double>(margin), static_cast<double>(headerHeight), static_cast<double>(options.width - 2 * margin), 0.0};
     const double mapHeight = std::clamp(View::heightFor(sector, mapArea.width()), 200.0, 1400.0);
+    // a larger picture of the same design: everything is placed in the 1x picture's pixels, the painter scales it, the fill is computed at the final pixels. A tall area at a large scale is a
+    // great many pixels (a picture of South America 6600 wide is 60 million, 650 MB while it is made): the scale is held to about 40 million pixels
+    const double S = std::clamp(options.scale, 1.0, std::max(1.0, std::sqrt(40e6 / (static_cast<double>(options.width) * (headerHeight + mapHeight + legendHeight)))));
     const QRectF area{mapArea.left(), mapArea.top(), mapArea.width(), mapHeight};
     View view{sector, area};
     QImage image(static_cast<int>(std::lround(options.width * S)), static_cast<int>(std::lround((headerHeight + mapHeight + legendHeight) * S)), QImage::Format_ARGB32_Premultiplied);

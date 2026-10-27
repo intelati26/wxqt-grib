@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ModelViewer.h"
+#include "objects/AnimationRenderer.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "ui/ActivityLabel.h"
 #include <QBuffer>
@@ -13,6 +14,8 @@
 #include <QImage>
 #include <QInputDialog>
 #include <QPainter>
+#include <QDateTime>
+#include <QTimer>
 #include <QMenu>
 #include <QMessageBox>
 #include "misc/ImageViewer.h"
@@ -898,6 +901,22 @@ void ModelViewer::saveHighRes() {
     if (shownBytes.isEmpty() || !shownProbe || !shownProbe->valid()) {
         return;
     }
+    // dev aid: WXQT_HIRES=<area 0|1>:<size index 0-3>:<out.png> goes through the same steps without the dialogs, and says how long the screen stayed deaf meanwhile
+    const auto devSpec = qEnvironmentVariable("WXQT_HIRES").split(':');
+    const bool dev = devSpec.size() >= 3;
+    std::shared_ptr<qint64> longestGap;
+    if (dev) {
+        longestGap = std::make_shared<qint64>(0);
+        auto last = std::make_shared<qint64>(QDateTime::currentMSecsSinceEpoch());
+        auto * ticker = new QTimer{this};
+        ticker->setInterval(50);
+        QObject::connect(ticker, &QTimer::timeout, this, [last, longestGap] {
+            const auto now = QDateTime::currentMSecsSinceEpoch();
+            *longestGap = std::max(*longestGap, now - *last);
+            *last = now;
+        });
+        ticker->start();
+    }
     QDialog dialog{this};
     dialog.setWindowTitle("Hi-res picture");
     auto * form = new QFormLayout{&dialog};
@@ -912,15 +931,24 @@ void ModelViewer::saveHighRes() {
     size->setCurrentIndex(std::clamp(Utility::readPrefInt("HIRES_SIZE", 1), 0, static_cast<int>(widths.size()) - 1));
     form->addRow("Area", area);
     form->addRow("Size", size);
+    auto * note = new QLabel{"A tall area is made smaller than asked: a picture is at most about 40 million pixels.", &dialog};
+    note->setWordWrap(true);
+    UiStandards::muted(note);
+    form->addRow(note);
     auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
     form->addRow(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-    if (dialog.exec() != QDialog::Accepted) {
+    if (dev) {
+        area->setCurrentIndex(std::clamp(devSpec[0].toInt(), 0, 1));
+        size->setCurrentIndex(std::clamp(devSpec[1].toInt(), 0, static_cast<int>(widths.size()) - 1));
+    } else if (dialog.exec() != QDialog::Accepted) {
         return;
     }
-    Utility::writePref("HIRES_AREA", std::to_string(area->currentIndex()));
-    Utility::writePref("HIRES_SIZE", std::to_string(size->currentIndex()));
+    if (!dev) {
+        Utility::writePref("HIRES_AREA", std::to_string(area->currentIndex()));
+        Utility::writePref("HIRES_SIZE", std::to_string(size->currentIndex()));
+    }
     auto job = makeJob(0, std::atoi(objectModel.getTime().c_str()), false);
     job.variant.scale = widths[static_cast<size_t>(size->currentIndex())] / 1100.0;
     if (area->currentIndex() == 0) {
@@ -943,10 +971,20 @@ void ModelViewer::saveHighRes() {
     const auto titleBefore = windowTitle();
     setWindowTitle("Drawing the hi-res picture...");
     new FutureVoid{this, [=] { result->first = GfsRender::png(*session, job.model, job.param, job.sector, job.cycle, job.hour, job.overlays, result->second, probe.get(), job.variant); },
-                   [this, result, probe, job, titleBefore] {
+                   [this, result, probe, job, titleBefore, dev, devSpec, longestGap] {
                        setWindowTitle(titleBefore);
-                       if (result->first.isEmpty()) {
-                           QMessageBox::warning(this, "Hi-res picture", QString::fromStdString(result->second.empty() ? string{"The chart could not be drawn at that size."} : result->second));
+                       if (dev) {   // the save as the dialog would start it, in the format named last (PNG, WEBP, AVIF, JXL ...)
+                           const auto wanted = devSpec.value(3, "png");
+                           for (const auto& format : UtilityAnimationExport::formats(false)) {
+                               if (format.id == wanted) {
+                                   AnimationRenderer::submit(this, format, {}, 100, result->first, devSpec[2] + "." + format.ext, UtilityAnimationExport::webpOptionsInUse());
+                                   break;
+                               }
+                           }
+                           QTimer::singleShot(25000, qApp, [longestGap] {
+                               qWarning("HIRES: the main thread's longest gap %lld ms", static_cast<long long>(*longestGap));
+                               QCoreApplication::quit();
+                           });
                            return;
                        }
                        const auto name = QString::fromStdString(objectModel.model + "_" + objectModel.param + "_" + objectModel.run + "_hires" + std::to_string(static_cast<int>(std::lround(job.variant.scale * 1100.0))));
