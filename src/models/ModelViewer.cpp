@@ -2154,11 +2154,7 @@ void ModelViewer::showPicker() {
     }
     picker = new ProductPicker{this, model, entries, objectModel.param, favorites, GfsChart::overlayChoices(model), overlays};
     picker->onPick = [this] (const string& id) { chooseChart(id); };
-    picker->onOverlays = [this] (const std::vector<string>& ids) {
-        overlays = ids;
-        refreshProductButton();
-        reload();
-    };
+    picker->onOverlays = [this] (const std::vector<string>& ids) { setOverlays(ids); };
     picker->onFavorites = [model] (const std::vector<string>& ids) {
         string joined;
         for (const auto& id : ids) {
@@ -2173,6 +2169,12 @@ void ModelViewer::showPicker() {
 
 int ModelViewer::tileCount() const {
     return std::clamp(comboTiles.getIndex(), 0, 3);
+}
+
+void ModelViewer::setOverlays(const std::vector<string>& ids) {
+    overlays = ids;
+    refreshProductButton();
+    reload();
 }
 
 void ModelViewer::hoverAt(double fx, double fy) {
@@ -2532,8 +2534,13 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             job.ok = false;
             job.why = job.model + " does not draw " + job.param + ".";
         }
-        if (spec.model == objectModel.model) {
-            job.overlays = overlays;
+        {   // the lines and barbs ticked on the main chart go on the tiles too, on every tile whose model has them (another model's tile drew without them)
+            const auto offered = GfsChart::overlayChoices(job.model);
+            for (const auto& id : overlays) {
+                if (std::any_of(offered.begin(), offered.end(), [&id] (const GfsChart::OverlayChoice& choice) { return choice.id == id; })) {
+                    job.overlays.push_back(id);
+                }
+            }
         }
         auto v = variant;
         if (v.kind == GfsRender::Variant::Kind::Max && !ahead) {   // the maximum of the same period on every tile: the hours that model has (another model), or the same valid times of the older run

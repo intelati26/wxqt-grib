@@ -932,6 +932,13 @@ int main(int argc, char * argv[]) {
                 Utility::writePref("MODELNCEPPARAMLASTUSED", qEnvironmentVariable("WXQT_PARAM", "500_wnd_ht").toStdString());   // WXQT_PARAM=<chart id>: open on that chart
                 Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
                 auto * viewer = new ModelViewer{&w, "NCEP"};
+                if (qEnvironmentVariableIsSet("WXQT_OVERLAYS")) {   // WXQT_OVERLAYS=<id,id ...>: 12 s in those lines and barbs are ticked in the chart picker's way
+                    std::vector<std::string> ids;
+                    for (const auto& id : qEnvironmentVariable("WXQT_OVERLAYS").split(',', Qt::SkipEmptyParts)) {
+                        ids.push_back(id.toStdString());
+                    }
+                    QTimer::singleShot(12000, viewer, [viewer, ids] { viewer->setOverlays(ids); });
+                }
                 if (qEnvironmentVariableIsSet("WXQT_HOVER")) {   // WXQT_HOVER=<fx>:<fy>: 14 s in the read-out is shown at that point of the picture (and of the tiles), for a picture
                     const auto at = qEnvironmentVariable("WXQT_HOVER").split(':');
                     QTimer::singleShot(14000, viewer, [viewer, at] { viewer->hoverAt(at.value(0).toDouble(), at.value(1).toDouble()); });

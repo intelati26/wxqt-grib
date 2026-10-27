@@ -320,7 +320,11 @@ hours = 0-384/6
 overlays = true
 list = true
 clone = true
-clone_ids = precip_p06, precip_p12, precip_p24, precip_p36, precip_p48, precip_p60, precip_ptot, 1000_500_thick, 1000_850_thick, 850_700_thick, 850_temp_mslp_precip, 10m_wnd_precip, 10m_wnd_2m_temp, 200_wnd_ht, 250_wnd_ht, 300_wnd_ht, 500_rh_ht, 500_wnd_ht, 500_vort_ht, 700_rh_ht, 850_rh_ht, 850_700_rh, 850_temp_ht, 850_vort_ht, 850vor_500ht_200wd, 925_temp_ht
+# the fields the two files have (checked in the index of a run: pressure levels HGT TMP UGRD VGRD VVEL SPFH at 13 levels; surface TMP and DPT at 2 m, UGRD and VGRD at 10 and 100 m, PRMSL, PRES, APCP):
+# every chart that can be drawn from them is offered, and the ones that need a humidity are worked out (relative humidity from the specific humidity, 2 m humidity from the temperature and dewpoint)
+clone_variables = HGT, TMP, RH, UGRD, VGRD, VVEL, SPFH, PRMSL, DPT, APCP
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
+clone_skip = precip_p01, precip_p03
 clone_specific_humidity = true
 )MODEL"},
         {"IFS", R"MODEL(

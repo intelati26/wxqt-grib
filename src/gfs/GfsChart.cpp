@@ -1362,6 +1362,30 @@ const std::vector<Product>& products() {
             x.barbV = "v";
             p.push_back(x);
         }
+        {   // the relative humidity near the ground from the temperature and the dewpoint, so that every model that gives those has it (the AIGFS has no humidity at 2 m, only the two)
+            Product x;
+            x.id = "2m_rh_10m_wnd_derived";
+            x.label = "2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind";
+            x.wants = {want("t", "TMP", "2 m above ground"), want("d", "DPT", "2 m above ground"), want("u", "UGRD", "10 m above ground"), want("v", "VGRD", "10 m above ground"), want("p", "PRMSL", "mean sea level")};
+            x.derive = [] (Grids& g, const Context&) {
+                auto rh = g.at("t");
+                const auto& d = g.at("d");
+                for (size_t i = 0; i < rh.values.size() && i < d.values.size(); i++) {   // (degrees C: the vapor pressure over the saturation pressure, Magnus)
+                    const double t = rh.values[i], td = d.values[i];
+                    const double value = 100.0 * std::exp(17.625 * td / (243.04 + td)) / std::exp(17.625 * t / (243.04 + t));
+                    rh.values[i] = std::isfinite(value) ? static_cast<float>(std::clamp(value, 0.0, 100.0)) : std::nanf("");
+                }
+                g["rh"] = std::move(rh);
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "rh"); };
+            x.ramp = humidity();   // (our scale: the site's two bands show only the air above 70 and 90 per cent)
+            x.fillTitle = "2 m relative humidity (%)";
+            x.legendStep = 10;
+            x.contours = {pressure()};
+            x.barbU = "u";
+            x.barbV = "v";
+            p.push_back(x);
+        }
         {
             Product x;
             x.id = "rh_700_300";
