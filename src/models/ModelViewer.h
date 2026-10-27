@@ -58,6 +58,8 @@ public:
     // `runStart`: the time is a RUN's (the cycle at or before it, at its first hour) instead of a valid time (the run at or before it, at the hour that lands on the time)
     void openAt(const string& model, const QDateTime& validUtc, bool runStart = false);
     void showPicker();
+    void chooseChart(const string& id);   // as the chart picker does: this chart on the main tile
+    string tileCaptions() const;           // what the other tiles say they show (a development aid)
     void saveHighRes();   // the chart on view (or the part in view) drawn again at a larger size, then the usual save dialog
     string chartListing() const;   // every chart of the model, one line each: id, group, label (for checking how the picker is organized)
     void showModelPicker();    // the models in groups (global, regional, convection allowing, ensembles, waves ...)
@@ -92,6 +94,7 @@ private:
         int shift{0};   // runs: hours older than the run chosen
         string member;  // members: the member this tile shows (when picked with its button); parts: the ensemble ("IFS-ENS", "GEFS", "GEPS") whose members this tile draws
         bool memberPicked{false};
+        bool picked{false};   // set with the tile's own button: a tile that is not picked follows the main chart when it changes
     };
     struct Job {
         string model, param, sector, cycle, key, chart;   // chart: the key without the hour (a new hour of it keeps the zoom)
@@ -108,7 +111,8 @@ private:
     static string partnerChart(const string& pooled, const string& model);   // the chart of a deterministic model that goes with a pooled ENS-ALL chart ("" when there is none)
     static const std::vector<string>& deterministicDefaults();
     void applyTileLayout();
-    void resetTileSpecs();
+    void resetTileSpecs(bool keepPicked = false);
+    string tileBase;   // the model and chart the tiles were last set for
     Job makeJob(int index, int mainHour, bool ahead) const;
     string tileMember(int index) const;          // the member a tile of the members comparison shows: the one it was given, else the ones after the first tile's, in the list's order
     string memberLabel(const string& value) const;

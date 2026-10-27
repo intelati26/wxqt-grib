@@ -88,7 +88,18 @@ ProductPicker::ProductPicker(QWidget * parent, const std::string& model, const s
                 column2 = 0;
                 row2++;
             }
-            QObject::connect(box, &QCheckBox::clicked, [this] { this->ticked(); });   // winds of several levels stack on the chart (each its own color)
+            QObject::connect(box, &QCheckBox::clicked, [this, box] {   // winds of several levels stack on the chart (each its own color); a fill is one at a time
+                for (size_t i = 0; i < boxes.size(); i++) {
+                    if (boxes[i] == box && box->isChecked() && this->extras[i].group == "Fill") {
+                        for (size_t k = 0; k < boxes.size(); k++) {
+                            if (boxes[k] != box && this->extras[k].group == "Fill") {
+                                boxes[k]->setChecked(false);
+                            }
+                        }
+                    }
+                }
+                this->ticked();
+            });
         }
         column->addWidget(group);
         const auto show = [toggle, group] (bool open) {

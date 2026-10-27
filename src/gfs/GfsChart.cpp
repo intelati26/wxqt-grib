@@ -5990,6 +5990,9 @@ namespace {
         std::function<std::vector<GfsData::Need>(int hour)> needs;      // keys are the overlay's own; compose() prefixes them
         std::function<void(Grids&, const Context&)> derive;             // on the overlay's own keys
         bool barbs{false};
+        bool windFill{false};   // the chart's color fill is the speed of this wind instead of its own (the lines and barbs stay)
+        std::string fillText;   // what the header says of that fill
+        std::string fillPalette;   // the model guidance site's color bands for it (the jet levels only: its scale begins at 70 kt), else the program's own scale
         ContourSet contour;
         std::string barbU, barbV;
         QColor barbColor{20, 20, 20};   // the barbs stacked with others: a color for each level
@@ -6075,6 +6078,21 @@ namespace {
                 o.contour.split = 0.0;
                 o.contour.dashed = true;
                 o.contour.width = 1.3;
+                list.push_back(o);
+            }
+            // the wind speed as the color fill, whatever the chart: one of these replaces the chart's own fill (the lines and the barbs stay), so that a temperature chart can show the jet too
+            for (const auto& [id, label, level] : {std::tuple{"wfill_10m", "10 m wind speed", "10 m above ground"}, {"wfill_850", "850mb wind speed", "850 mb"}, {"wfill_700", "700mb wind speed", "700 mb"},
+                                                    {"wfill_500", "500mb wind speed", "500 mb"}, {"wfill_300", "300mb wind speed", "300 mb"}, {"wfill_250", "250mb wind speed", "250 mb"}, {"wfill_200", "200mb wind speed", "200 mb"}}) {
+                Overlay o;
+                o.id = id;
+                o.label = label;
+                o.group = "Fill";
+                o.sources = GfsModels::overlayModels();
+                o.windFill = true;
+                const std::string levelText = level;
+                o.fillText = std::string{"Wind speed at "} + (levelText == "10 m above ground" ? "10 m" : levelText) + " (kt)";
+                o.fillPalette = levelText == "300 mb" || levelText == "250 mb" || levelText == "200 mb" ? "isotach" : "";
+                o.needs = [levelText] (int hour) { return std::vector<GfsData::Need>{{hour, {"u", "UGRD", levelText, "", ""}}, {hour, {"v", "VGRD", levelText, "", ""}}}; };
                 list.push_back(o);
             }
             // wind barbs: the 10 m wind, and the wind of the main levels
@@ -6423,7 +6441,7 @@ Product compose(const Product& base, const std::vector<std::string>& ids) {
             continue;
         }
         // a line the base chart already draws is not drawn twice
-        const bool already = !o->barbs && std::any_of(base.contours.begin(), base.contours.end(), [o] (const ContourSet& c) { return c.title == o->contour.title; });
+        const bool already = !o->barbs && !o->windFill && std::any_of(base.contours.begin(), base.contours.end(), [o] (const ContourSet& c) { return c.title == o->contour.title; });
         if (!already) {
             used.push_back(o);
         }
@@ -6479,7 +6497,18 @@ Product compose(const Product& base, const std::vector<std::string>& ids) {
         const auto prefix = overlayPrefix(*o);
         idText += "+" + o->id;
         labelText += (o == used.front() ? ", with " : ", ") + o->label;
-        if (o->barbs) {   // each ticked wind is a set of its own: they stack on the chart's own barbs
+        if (o->windFill) {   // the wind speed is the fill (only the last of these ticked counts)
+            const std::string uKey = prefix + "u", vKey = prefix + "v";
+            p.fill = [uKey, vKey] (const Grids& g) { return GfsGrid::scaled(GfsGrid::speed(pick(g, uKey.c_str()), pick(g, vKey.c_str())), msToKnots); };
+            p.ramp = windSpeed();
+            p.palette = o->fillPalette;
+            p.fillTitle = o->fillText;
+            p.fillTitleFor = nullptr;
+            p.quantity = Quantity::Other;
+            p.legendStep = 20;
+            p.sigma = nullptr;
+            p.overlays.clear();
+        } else if (o->barbs) {   // each ticked wind is a set of its own: they stack on the chart's own barbs
             p.barbSets.push_back({prefix + o->barbU, prefix + o->barbV, o->barbColor, o->label, o->barbColorName});
         } else {
             auto set = o->contour;

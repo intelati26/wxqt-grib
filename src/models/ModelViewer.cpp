@@ -2150,14 +2150,7 @@ void ModelViewer::showPicker() {
         at = end + 1;
     }
     picker = new ProductPicker{this, model, entries, objectModel.param, favorites, GfsChart::overlayChoices(model), overlays};
-    picker->onPick = [this] (const string& id) {
-        objectModel.param = id;
-        comboboxProduct.block();
-        comboboxProduct.setIndexByValue(id);
-        comboboxProduct.unblock();
-        refreshProductButton();
-        reload();
-    };
+    picker->onPick = [this] (const string& id) { chooseChart(id); };
     picker->onOverlays = [this] (const std::vector<string>& ids) {
         overlays = ids;
         refreshProductButton();
@@ -2177,6 +2170,23 @@ void ModelViewer::showPicker() {
 
 int ModelViewer::tileCount() const {
     return std::clamp(comboTiles.getIndex(), 0, 3);
+}
+
+void ModelViewer::chooseChart(const string& id) {
+    objectModel.param = id;
+    comboboxProduct.block();
+    comboboxProduct.setIndexByValue(id);
+    comboboxProduct.unblock();
+    refreshProductButton();
+    reload();
+}
+
+string ModelViewer::tileCaptions() const {
+    string out;
+    for (int i = 0; i < tileCount(); i++) {
+        out += (out.empty() ? "" : " | ") + tiles[static_cast<size_t>(i)]->caption->text().toStdString();
+    }
+    return out;
 }
 
 string ModelViewer::chartListing() const {
@@ -2266,7 +2276,7 @@ void ModelViewer::applyTileLayout() {
 }
 
 // what the other tiles show to begin with: the next charts of the list (favorites first), the other models that draw this chart, or the older runs 6, 12 and 18 hours back
-void ModelViewer::resetTileSpecs() {
+void ModelViewer::resetTileSpecs(bool keepPicked) {
     const auto show = tilesShow();
     std::vector<string> others;
     if (show == TilesShow::Charts) {
@@ -2293,6 +2303,9 @@ void ModelViewer::resetTileSpecs() {
         }
     }
     for (size_t k = 0; k < tileSpecs.size(); k++) {
+        if (keepPicked && tileSpecs[k].picked) {
+            continue;   // (what the person chose with the tile's button stays)
+        }
         Spec spec{objectModel.model, objectModel.param, objectModel.sector, 0};
         if (show == TilesShow::Charts) {
             spec.param = k < others.size() ? others[k] : objectModel.param;
@@ -2507,6 +2520,11 @@ string ModelViewer::caption(const Job& job) const {
 }
 
 void ModelViewer::renderTiles() {
+    const auto base = objectModel.model + "|" + objectModel.param;
+    if (base != tileBase) {   // another chart on the main tile: the tiles that were not picked by hand go with it (the next charts of the list, the models that draw this one ...)
+        tileBase = base;
+        resetTileSpecs(true);
+    }
     for (int i = 1; i <= tileCount(); i++) {
         renderTile(i);
     }
@@ -2580,6 +2598,7 @@ void ModelViewer::changeTile(int index) {
         choose->setAttribute(Qt::WA_DeleteOnClose);
         choose->onPick = [this, index] (const string& id) {
             tileSpecs[static_cast<size_t>(index) - 1].param = id;
+                tileSpecs[static_cast<size_t>(index) - 1].picked = true;
             renderTile(index);
             prefetch(prefetchGeneration);
         };
@@ -2598,6 +2617,7 @@ void ModelViewer::changeTile(int index) {
             action->setChecked(spec.model == id);
             QObject::connect(action, &QAction::triggered, this, [this, index, id] {
                 tileSpecs[static_cast<size_t>(index) - 1].model = id;
+                tileSpecs[static_cast<size_t>(index) - 1].picked = true;
                 renderTile(index);
                 prefetch(prefetchGeneration);
             });
@@ -2613,6 +2633,7 @@ void ModelViewer::changeTile(int index) {
             action->setChecked(spec.model == id);
             QObject::connect(action, &QAction::triggered, this, [this, index, id] {
                 tileSpecs[static_cast<size_t>(index) - 1].model = id;
+                tileSpecs[static_cast<size_t>(index) - 1].picked = true;
                 renderTile(index);
                 prefetch(prefetchGeneration);
             });
@@ -2624,6 +2645,7 @@ void ModelViewer::changeTile(int index) {
             action->setChecked(spec.member == part);
             QObject::connect(action, &QAction::triggered, this, [this, index, part] {
                 tileSpecs[static_cast<size_t>(index) - 1].member = part;
+                tileSpecs[static_cast<size_t>(index) - 1].picked = true;
                 renderTile(index);
                 prefetch(prefetchGeneration);
             });
@@ -2649,6 +2671,7 @@ void ModelViewer::changeTile(int index) {
             action->setChecked(spec.shift == hours);
             QObject::connect(action, &QAction::triggered, this, [this, index, hours] {
                 tileSpecs[static_cast<size_t>(index) - 1].shift = hours;
+                tileSpecs[static_cast<size_t>(index) - 1].picked = true;
                 renderTile(index);
                 prefetch(prefetchGeneration);
             });
