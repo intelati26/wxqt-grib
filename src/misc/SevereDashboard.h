@@ -15,6 +15,7 @@
 #include "misc/SevereWarning.h"
 #include "objects/AutoUpdate.h"
 #include "radar/PolygonType.h"
+#include "severe/SevereHazardMatrixWidget.h"
 #include "ui/CardBlackHeaderText.h"
 #include "ui/CardDashAlertItem.h"
 #include "ui/HBox.h"
@@ -42,6 +43,7 @@ private:
     void closeEventCustom() override;
     const int imagesAcross{4};
     AutoUpdate autoUpdate;
+    SevereHazardMatrixWidget * hazardMatrix{nullptr};   // the Day 1-8 hazard matrix, first in the box (the start of the dashboard)
     VBox box;
     VBox boxWarningsMain;
     VBox boxImages;

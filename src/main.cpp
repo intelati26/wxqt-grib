@@ -52,6 +52,7 @@
 #include "misc/AhdViewer.h"
 #include "rivers/RiverForecastList.h"
 #include "misc/ProductViewer.h"
+#include "misc/SevereDashboard.h"
 #include "spc/AbpgExtended.h"
 #include "spc/WatchProbabilityViewer.h"
 #include "space/UtilitySun.h"
@@ -1007,6 +1008,8 @@ int main(int argc, char * argv[]) {
                     }
                 }
                 QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route == "severedashboard") {   // WXQT_OPEN=severedashboard: the Severe Dashboard on its own
+                new SevereDashboard{nullptr};
             } else if (route.startsWith("satat:")) {   // WXQT_OPEN=satat:<catalog>:<lat>:<lon>:<yyyyMMddHHmm UTC>:<hours>: the passes of one satellite over a place, to check against a known time
                 const auto parts = route.split(':');
                 string problem;

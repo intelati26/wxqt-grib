@@ -32,6 +32,11 @@ SevereDashboard::SevereDashboard(Window * parent)
         warningsByType.insert({type, SevereWarning{type}});
     }
 
+    hazardMatrix = new SevereHazardMatrixWidget{nullptr};
+    hazardMatrix->setMinimumSize(720, 250);
+    hazardMatrix->setMaximumHeight(270);
+    hazardMatrix->setMaximumWidth(900);   // (a block at the left, not stretched across a wide window)
+    box.addWidgetReal(hazardMatrix, 0, Qt::AlignTop | Qt::AlignLeft);
     box.addLayout(boxH);
     box.addLayout(boxImages);
     box.addLayout(boxWarningsMain);
