@@ -67,6 +67,7 @@ namespace {
 
     // what a definition says, kept by the functions it makes
     struct Definition {
+        std::string legacyBefore, legacyUrl;     // `legacy_url = yyyyMMddHH => pattern`: the runs before that time (yyyyMMddHH) are in the file of this pattern (a model that changed its files)
         std::vector<Rule> urls;                  // `url` lines: with `when file...` the first that matches is the place; the plain ones are the places when none does
         std::string storm;                       // {storm} in a url (a model that follows a storm)
         std::string subsetUrl;                   // the server's box request, with {variables} and {levels}
@@ -172,6 +173,10 @@ namespace {
             alternatives.push_back({});
         }
         std::vector<std::string> out;
+        if (!d.legacyBefore.empty() && run.date + run.cycle < d.legacyBefore) {   // a run from before the files changed: its one file, whatever the record
+            out.push_back(expandUrl(d.legacyUrl, d, run, hour, {}, previous));
+            return out;
+        }
         for (auto alt : alternatives) {
             replaceAll(alt, "{ee}", run.cycle);
             replaceAll(alt, "{pe}", previous);
@@ -412,6 +417,16 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
                 break;
             }
             kind = value;
+        } else if (key == "legacy_url") {
+            const auto arrow = value.find("=>");
+            if (arrow == std::string::npos || arrow < 10) {
+                reader.fail("legacy_url is yyyyMMddHH => url");
+                break;
+            }
+            definition->legacyBefore = value.substr(0, arrow);
+            definition->legacyBefore.erase(definition->legacyBefore.find_last_not_of(' ') + 1);
+            definition->legacyUrl = value.substr(arrow + 2);
+            definition->legacyUrl.erase(0, definition->legacyUrl.find_first_not_of(' '));
         } else if (key == "url") {
             Rule rule;
             if (!parseRule(value, rule, reader)) {

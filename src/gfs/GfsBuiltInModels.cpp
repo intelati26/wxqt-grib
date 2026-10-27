@@ -257,19 +257,28 @@ clone_ids = precip_p06, precip_p12, precip_p24, precip_p36, precip_p48, precip_p
 clone_specific_humidity = true
 )MODEL"},
         {"IFS", R"MODEL(
-# ECMWF's open data (CC BY 4.0), replicated on Google's storage: a JSON index beside each file
+# ECMWF's open data (CC BY 4.0), replicated on Google's storage: a JSON index beside each file. Since the 06Z run of 2026-10-20 the 0.1 degree set is the default: two files a step, the
+# pressure levels (350 MB) and the surface fields (80-100 MB), each with its index (so only the records of a chart are read), posted about 2 hours after the 0.25 degree files. The 00Z and 12Z
+# runs go to 360 hours, the 06Z and 18Z to 144. The runs before it are read from the 0.25 degree file.
 id = IFS
-label = ECMWF IFS 0.25 degree (open data, CC BY 4.0)
+label = ECMWF IFS 0.1 degree (0.25 degree for runs before 20 Oct 2026; open data, CC BY 4.0)
 kind = grib
-url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/oper/{date}{cycle}0000-{hour}h-oper-fc.grib2
+url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p1/oper/{date}{cycle}0000-{hour}h-oper-fc-{file}.grib2
+legacy_url = 2026102006 => https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/oper/{date}{cycle}0000-{hour}h-oper-fc.grib2
+file_default = sfc
+file = when level~"^[0-9]+ mb$" => pl
+file = sfc
+probe_file = sfc
 index_format = ecmwf
 index_suffix = .index
 index_replaces = .grib2
 value_scale = APCP:1000, TCDC:100
 cycle_hours = 6
-lag_hours = 8
+lag_hours = 10
 probe_hour = 0
-hours = 0-144/3, 150-240/6
+hours = 0-144/3, 150-360/6
+run_length = 0:360, 12:360, else:144
+run_every = 6
 overlays = true
 list = true
 clone = true

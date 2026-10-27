@@ -34,7 +34,7 @@ link = source | NOAA open data on AWS (GraphCast GFS) | https://registry.opendat
 link = background | Numerical weather prediction | https://en.wikipedia.org/wiki/Numerical_weather_prediction
 )ABOUT"},
         {"IFS", R"ABOUT(
-why = The European Centre's global model, the benchmark the others are measured against for forecasts of three to ten days. When it and the GFS disagree on a pattern it is worth knowing why. The open data here is the 0.25 degree run, released under a Creative Commons licence.
+why = The European Centre's global model, the benchmark the others are measured against for forecasts of three to ten days. When it and the GFS disagree on a pattern it is worth knowing why. The open data here is the 0.1 degree run (the 0.25 degree one before 20 October 2026), released under a Creative Commons licence.
 link = wikipedia | Integrated Forecasting System | https://en.wikipedia.org/wiki/Integrated_Forecasting_System
 link = background | European Centre for Medium-Range Weather Forecasts | https://en.wikipedia.org/wiki/European_Centre_for_Medium-Range_Weather_Forecasts
 link = source | ECMWF open data | https://www.ecmwf.int/en/forecasts/datasets/open-data
