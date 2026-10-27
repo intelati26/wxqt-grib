@@ -1399,8 +1399,8 @@ void ModelViewer::updatePlumePanel() {
     }
     const auto& id = objectModel.model;
     const bool analysis = id == "CFS-ANL";   // (an analysis has no forecast to plume)
-    const string setting = Utility::readPref("MODEL_PLUME_PANE", "auto");   // "on", "off", or "auto": on for the CFS and GEFS pages
-    const bool wanted = !analysis && (setting == "on" || (setting == "auto" && (id == "CFS" || id == "GEFS")));
+    const string setting = Utility::readPref("MODEL_PLUME_PANE", "auto");   // "on", "off", or "auto": on for the CFS, GEFS and EC46 pages
+    const bool wanted = !analysis && (setting == "on" || (setting == "auto" && (id == "CFS" || id == "GEFS" || id == "EC46")));
     buttonPlume->setEnabled(!analysis);
     buttonPlume->setChecked(wanted);
     const bool first = wanted && !plumePanel->isVisible();
@@ -1416,7 +1416,7 @@ void ModelViewer::updatePlumePanel() {
         const double lat = haveClicked ? clickedLat : (places.empty() ? 39.1 : places.front().lat()), lon = haveClicked ? clickedLon : (places.empty() ? -94.6 : places.front().lon());
         plumePanel->setPoint(lat, lon);
     }
-    plumePanel->setModel(id == "CFS" ? "cfs" : id.compare(0, 4, "GEFS") == 0 ? "gefs" : "gfs");
+    plumePanel->setModel(id == "CFS" ? "cfs" : id == "EC46" ? "ec46" : id.compare(0, 4, "GEFS") == 0 ? "gefs" : "gfs");
     const auto run = runTime(objectModel.run);   // the chart's run: the plume follows it unless the person has it take the newest
     if (run.isValid()) {
         plumePanel->setPageRun(run.toString("yyyyMMdd").toStdString(), run.toString("HH").toStdString(), id == "CFS" || id == "GEFS");
