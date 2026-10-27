@@ -41,15 +41,15 @@ namespace UtilityOpenMeteoSeasonal {
     // weekly (EC46) or monthly (SEAS5) values of the ensemble mean; the periods the model reaches only
     bool periods(bool weekly, const std::string& variable, double lat, double lon, Periods& out, std::string& error);
 
-    // The weekly mean of the ensemble (EC46) at the points of a regular grid (one request for up to 250 of them), for a map: row 0 is the north row, columns from the west, the cell centres
-    // on whole multiples of `step` from the box's west and north edge. The weeks are those the model reaches (about 6). The grid is at most 600 points.
-    struct WeeklyGrid {
+    // The weekly (EC46) or monthly (SEAS5) mean of the ensemble at the points of a regular grid (one request for up to 250 of them), for a map: row 0 is the north row, columns from the west, the cell centres
+    // on whole multiples of `step` from the box's west and north edge. The periods are those the model reaches (about 6 weeks, or 6 months). The grid is at most 600 points.
+    struct PeriodGrid {
         double west{0.0}, north{0.0}, step{1.0};
         int columns{0}, rows{0};
-        std::vector<QDate> weeks;
-        std::vector<std::vector<float>> values;   // per week: rows x columns, NaN where not given
+        std::vector<QDate> starts;                // the first day of each week (a Monday) or month
+        std::vector<std::vector<float>> values;   // per period: rows x columns, NaN where not given
     };
-    bool weeklyGrid(const std::string& variable, double west, double south, double east, double north, double step, WeeklyGrid& out, std::string& error);
+    bool periodGrid(bool weekly, const std::string& variable, double west, double south, double east, double north, double step, PeriodGrid& out, std::string& error);
 }
 
 #endif  // UTILITYOPENMETEOSEASONAL_H

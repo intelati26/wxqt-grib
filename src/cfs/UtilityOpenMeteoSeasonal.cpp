@@ -152,7 +152,7 @@ bool UtilityOpenMeteoSeasonal::periods(bool weekly, const std::string& variable,
     return !out.values.empty();
 }
 
-bool UtilityOpenMeteoSeasonal::weeklyGrid(const std::string& variable, double west, double south, double east, double north, double step, WeeklyGrid& out, std::string& error) {
+bool UtilityOpenMeteoSeasonal::periodGrid(bool weekly, const std::string& variable, double west, double south, double east, double north, double step, PeriodGrid& out, std::string& error) {
     out = {};
     out.step = step;
     out.west = west;
@@ -180,7 +180,7 @@ bool UtilityOpenMeteoSeasonal::weeklyGrid(const std::string& variable, double we
             la += (i > from ? "," : "") + QString::number(lats[i], 'f', 2);
             lo += (i > from ? "," : "") + QString::number(lons[i], 'f', 2);
         }
-        const auto bytes = fetch("https://seasonal-api.open-meteo.com/v1/seasonal?latitude=" + la.toStdString() + "&longitude=" + lo.toStdString() + "&weekly=" + variable + "&timezone=UTC", 360);
+        const auto bytes = fetch("https://seasonal-api.open-meteo.com/v1/seasonal?latitude=" + la.toStdString() + "&longitude=" + lo.toStdString() + (weekly ? "&weekly=" : "&monthly=") + variable + "&timezone=UTC", 360);
         const auto document = QJsonDocument::fromJson(bytes);
         QJsonArray answers;
         if (document.isArray()) {
@@ -192,22 +192,22 @@ bool UtilityOpenMeteoSeasonal::weeklyGrid(const std::string& variable, double we
             return false;
         }
         for (int k = 0; k < answers.size() && from + static_cast<size_t>(k) < to; k++) {
-            const auto weekly = answers.at(k).toObject().value("weekly").toObject();
-            const auto times = weekly.value("time").toArray();
-            const auto values = numbers(weekly.value(QString::fromStdString(variable)), static_cast<size_t>(times.size()));
-            if (out.weeks.empty()) {
+            const auto block = answers.at(k).toObject().value(weekly ? "weekly" : "monthly").toObject();
+            const auto times = block.value("time").toArray();
+            const auto values = numbers(block.value(QString::fromStdString(variable)), static_cast<size_t>(times.size()));
+            if (out.starts.empty()) {
                 for (int i = 0; i < times.size(); i++) {
-                    out.weeks.push_back(QDate::fromString(times.at(i).toString(), Qt::ISODate));
+                    out.starts.push_back(QDate::fromString(times.at(i).toString(), Qt::ISODate));
                 }
-                out.values.assign(out.weeks.size(), std::vector<float>(points, std::nanf("")));
+                out.values.assign(out.starts.size(), std::vector<float>(points, std::nanf("")));
             }
-            for (size_t w = 0; w < out.weeks.size() && w < values.size(); w++) {
+            for (size_t w = 0; w < out.starts.size() && w < values.size(); w++) {
                 out.values[w][from + static_cast<size_t>(k)] = values[w];
             }
         }
     }
-    if (out.weeks.empty()) {
-        error = "no weekly values";
+    if (out.starts.empty()) {
+        error = "no values for these periods";
         return false;
     }
     // only the weeks the model reaches
@@ -217,7 +217,7 @@ bool UtilityOpenMeteoSeasonal::weeklyGrid(const std::string& variable, double we
             keep = w + 1;
         }
     }
-    out.weeks.resize(keep);
+    out.starts.resize(keep);
     out.values.resize(keep);
     return keep > 0;
 }

@@ -93,10 +93,12 @@ Ec46Layer::Ec46Layer() {
         variableKey = "temperature_2m_mean";
     }
     mode = std::clamp(Utility::readPrefInt("MM_EC46_MODE", 0), 0, 1);
+    span = std::clamp(Utility::readPrefInt("MM_EC46_SPAN", 0), 0, 1);
+    monthlyFrames = span == 1;
 }
 
-long Ec46Layer::middleOf(const QDate& weekStart) const {
-    return QDateTime{weekStart.addDays(3), QTime{12, 0}, QTimeZone::utc()}.toSecsSinceEpoch();
+long Ec46Layer::middleOf(const QDate& periodStart) const {
+    return QDateTime{periodStart.addDays(monthlyFrames ? 14 : 3), QTime{12, 0}, QTimeZone::utc()}.toSecsSinceEpoch();
 }
 
 vector<long> Ec46Layer::times() const {
@@ -112,7 +114,7 @@ QDate Ec46Layer::weekShown() const {
     if (frames.empty()) {
         return {};
     }
-    // the first week is in progress: the map opens on the one after it (the first whole week)
+    // the first week (or month) is in progress: the map opens on the one after it
     auto at = frames.begin();
     if (shown == 0) {
         return frames.size() > 1 ? std::next(at)->first : at->first;
@@ -130,7 +132,7 @@ string Ec46Layer::timeText() const {
     if (!week.isValid()) {
         return {};
     }
-    return "week of " + week.toString("d MMM yyyy").toStdString() + "  ECMWF EC46";
+    return monthlyFrames ? week.toString("MMMM yyyy").toStdString() + " mean  ECMWF SEAS5" : "week of " + week.toString("d MMM yyyy").toStdString() + "  ECMWF EC46";
 }
 
 string Ec46Layer::summary() const {
@@ -138,13 +140,13 @@ string Ec46Layer::summary() const {
         return error;
     }
     if (loading && frames.empty()) {
-        return "reading the EC46 forecast...";
+        return span == 1 ? "reading the SEAS5 forecast..." : "reading the EC46 forecast...";
     }
     const auto * variable = UtilityOpenMeteoSeasonal::find(variableKey);
     if (frames.empty() || variable == nullptr) {
         return {};
     }
-    return "EC46 " + weekly(variable->label) + (mode == 0 ? string{" departure"} : string{}) + ", weekly ensemble mean, " + std::to_string(points) + " points at " + QString::number(step).toStdString() + " degrees" + (loading ? "  (loading)" : "");
+    return string{monthlyFrames ? "SEAS5 " : "EC46 "} + weekly(variable->label) + (mode == 0 ? string{" departure"} : string{}) + (monthlyFrames ? ", monthly" : ", weekly") + " ensemble mean, " + std::to_string(points) + " points at " + QString::number(step).toStdString() + " degrees" + (loading ? "  (loading)" : "");
 }
 
 void Ec46Layer::showTime(long seconds, MapHost& host) {
@@ -194,16 +196,17 @@ void Ec46Layer::load(MapHost& host) {
     s = std::floor(s / spacing) * spacing;
     loading = true;
     struct Loaded {
-        UtilityOpenMeteoSeasonal::WeeklyGrid grid;
+        UtilityOpenMeteoSeasonal::PeriodGrid grid;
         string error;
         bool ok{false};
     };
     auto loaded = std::make_shared<Loaded>();
     const auto * variable = UtilityOpenMeteoSeasonal::find(variableKey);
     const string key = mode == 0 ? variable->anomalyKey : variable->periodKey;
+    const bool monthlyWanted = span == 1;
     host.background(
-        [loaded, key, w, s, e, n, spacing] { loaded->ok = UtilityOpenMeteoSeasonal::weeklyGrid(key, w, s, e, n, spacing, loaded->grid, loaded->error); },
-        [this, &host, loaded, alive = alive] {
+        [loaded, key, w, s, e, n, spacing, monthlyWanted] { loaded->ok = UtilityOpenMeteoSeasonal::periodGrid(!monthlyWanted, key, w, s, e, n, spacing, loaded->grid, loaded->error); },
+        [this, &host, loaded, monthlyWanted, alive = alive] {
             if (!*alive) {
                 return;
             }
@@ -223,7 +226,8 @@ void Ec46Layer::load(MapHost& host) {
             east = g.west + (g.columns - 1) * g.step;
             points = g.columns * g.rows;
             frames.clear();
-            for (size_t k = 0; k < g.weeks.size(); k++) {
+            monthlyFrames = monthlyWanted;
+            for (size_t k = 0; k < g.starts.size(); k++) {
                 GfsGrid::Grid grid;
                 grid.columns = g.columns;
                 grid.rows = g.rows;
@@ -247,7 +251,7 @@ void Ec46Layer::load(MapHost& host) {
                     f.lines = BandLines::make(GfsGrid::smoothed(grid, 1), levels);
                 }
                 f.grid = std::move(grid);
-                frames[g.weeks[k]] = std::move(f);
+                frames[g.starts[k]] = std::move(f);
             }
             host.timesChanged();
             host.redraw();
@@ -271,12 +275,13 @@ std::vector<std::pair<double, QColor>> Ec46Layer::stops() const {
     std::vector<std::pair<double, QColor>> out;
     if (mode == 1) {
         for (const auto& stop : valueRamp(variableKey)) {
-            out.emplace_back(inUnits(stop.value), stop.color);
+            out.emplace_back(inUnits(variableKey == "precipitation_sum" && monthlyFrames ? stop.value * 2.5 : stop.value), stop.color);
         }
         return out;
     }
     const bool wet = variableKey == "precipitation_sum";
-    const double half = wet ? 25.0 : variableKey == "pressure_msl_mean" ? 8.0 : 6.0;   // as wide as a weekly departure usually is
+    // as wide as a departure of the period usually is (a month's is smaller than a week's in temperature and pressure, and larger in the rain)
+    const double half = wet ? (monthlyFrames ? 60.0 : 25.0) : variableKey == "pressure_msl_mean" ? (monthlyFrames ? 4.0 : 8.0) : (monthlyFrames ? 4.0 : 6.0);
     const QColor low = wet ? QColor{150, 90, 30} : QColor{40, 80, 190}, lowMid = wet ? QColor{225, 195, 140} : QColor{150, 200, 235};
     const QColor highMid = wet ? QColor{150, 215, 160} : QColor{245, 180, 140}, high = wet ? QColor{30, 140, 70} : QColor{190, 40, 40};
     out = {{inUnits(-half), low}, {inUnits(-half / 2.0), lowMid}, {0.0, QColor{250, 250, 250}}, {inUnits(half / 2.0), highMid}, {inUnits(half), high}};
@@ -334,7 +339,7 @@ MapHit Ec46Layer::pick(const QPointF& pixels, MapHost& host) const {
         return hit;
     }
     hit.distance = 0.0;
-    hit.text = QString::fromStdString("EC46 " + weekly(variable->label) + ", " + timeText()) + "\n" + QString{mode == 0 && v > 0 ? "+" : ""} + QString::number(v, 'f', std::abs(v) < 10.0 ? 1 : 0) + " " + unitsShown() + (mode == 0 ? " (departure)" : "");
+    hit.text = QString::fromStdString(string{monthlyFrames ? "SEAS5 " : "EC46 "} + weekly(variable->label) + ", " + timeText()) + "\n" + QString{mode == 0 && v > 0 ? "+" : ""} + QString::number(v, 'f', std::abs(v) < 10.0 ? 1 : 0) + " " + unitsShown() + (mode == 0 ? " (departure)" : "");
     return hit;
 }
 
@@ -344,7 +349,8 @@ vector<MapLegendRow> Ec46Layer::legend() const {
         return {};
     }
     MapLegendRow row;
-    row.title = QString::fromStdString(weekly(variable->label)) + (mode == 0 ? ", weekly departure from the ECMWF climate (" : " (weekly, ") + unitsShown() + "):";
+    const QString period = monthlyFrames ? "monthly" : "weekly";
+    row.title = QString::fromStdString(weekly(variable->label)) + (mode == 0 ? ", " + period + " departure from the ECMWF climate (" : " (" + period + ", ") + unitsShown() + "):";
     for (const auto& [value, color] : stops()) {
         row.entries.push_back({MapLegendEntry::Square, color, (mode == 0 && value > 0 ? "+" : "") + QString::number(value, 'f', (std::abs(value) < 10 && std::abs(value - std::round(value)) > 0.01) ? 1 : 0)});
     }
@@ -371,6 +377,11 @@ QWidget * Ec46Layer::options(QWidget * parent, const std::function<void()>& chan
     }
     field->setCurrentIndex(index);
     layout->addWidget(field);
+    layout->addWidget(new QLabel{"Forecast:", widget});
+    auto * spanBox = UiStandards::combo(widget);
+    spanBox->addItems({"EC46: the weeks of the next 46 days", "SEAS5: the months of the next 6 months"});
+    spanBox->setCurrentIndex(span);
+    layout->addWidget(spanBox);
     layout->addWidget(new QLabel{"Show:", widget});
     auto * how = UiStandards::combo(widget);
     how->addItems({"Departure from the ECMWF climate", "The forecast values"});
@@ -387,6 +398,12 @@ QWidget * Ec46Layer::options(QWidget * parent, const std::function<void()>& chan
     QObject::connect(field, &QComboBox::currentIndexChanged, [this, field, changed] (int) {
         variableKey = field->currentData().toString().toStdString();
         Utility::writePref("MM_EC46_VARIABLE", variableKey);
+        changeRequested = true;
+        changed();
+    });
+    QObject::connect(spanBox, &QComboBox::currentIndexChanged, [this, changed] (int value) {
+        span = value;
+        Utility::writePrefInt("MM_EC46_SPAN", value);
         changeRequested = true;
         changed();
     });
