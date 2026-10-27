@@ -87,32 +87,24 @@ void SevereHazardMatrixWidget::updateHazardCell(RowIndex row, int dayColumn, con
     item->setToolTip(data.tooltip);
 }
 
+// the fills of the National Weather Service's outlook map layers
 QColor SevereHazardMatrixWidget::getSpcCategoricalColor(const QString &category) {
     QString cat = category.trimmed().toUpper();
-    if (cat == "MRGL" || cat == "MARGINAL") return QColor(102, 194, 165);
-    if (cat == "SLGT" || cat == "SLIGHT")   return QColor(255, 230, 0);
-    if (cat == "ENH"  || cat == "ENHANCED") return QColor(255, 165, 0);
-    if (cat == "MDT"  || cat == "MODERATE") return QColor(225, 0, 0);
-    if (cat == "HIGH")                     return QColor(255, 0, 255);
-    if (cat == "TSTM")                     return QColor(192, 230, 192);
+    if (cat == "MRGL" || cat == "MARGINAL") return QColor(102, 163, 102);
+    if (cat == "SLGT" || cat == "SLIGHT")   return QColor(255, 224, 102);
+    if (cat == "ENH"  || cat == "ENHANCED") return QColor(255, 163, 102);
+    if (cat == "MDT"  || cat == "MODERATE") return QColor(224, 102, 102);
+    if (cat == "HIGH")                     return QColor(238, 153, 238);
+    if (cat == "TSTM")                     return QColor(193, 233, 193);
     return QColor(240, 240, 240);
 }
 
 QColor SevereHazardMatrixWidget::getWpcEroColor(const QString &category) {
     QString cat = category.trimmed().toUpper();
-    if (cat == "MRGL" || cat == "MARGINAL") return QColor(0, 128, 0);
-    if (cat == "SLGT" || cat == "SLIGHT")   return QColor(255, 255, 0);
-    if (cat == "MOD"  || cat == "MODERATE") return QColor(255, 0, 0);
-    if (cat == "HIGH")                     return QColor(255, 0, 255);
-    return QColor(240, 240, 240);
-}
-
-QColor SevereHazardMatrixWidget::getProbabilisticColor(int percentage) {
-    if (percentage >= 60) return QColor(255, 0, 255);
-    if (percentage >= 45) return QColor(225, 0, 0);
-    if (percentage >= 30) return QColor(255, 165, 0);
-    if (percentage >= 15) return QColor(255, 230, 0);
-    if (percentage >= 5)  return QColor(102, 194, 165);
+    if (cat == "MRGL" || cat == "MARGINAL") return QColor(56, 168, 0);
+    if (cat == "SLGT" || cat == "SLIGHT")   return QColor(255, 254, 0);
+    if (cat == "MOD"  || cat == "MODERATE") return QColor(245, 0, 0);
+    if (cat == "HIGH")                     return QColor(255, 105, 197);
     return QColor(240, 240, 240);
 }
 

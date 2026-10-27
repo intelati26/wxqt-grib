@@ -43,10 +43,9 @@ public:
     // Reset matrix values to default empty state
     void clearMatrix();
 
-    // Helper to return official SPC/WPC threat QColor
+    // Helper to return the NWS outlook map layers' fill colors
     static QColor getSpcCategoricalColor(const QString &category);
     static QColor getWpcEroColor(const QString &category);
-    static QColor getProbabilisticColor(int percentage);
 
 signals:
     void loaded(const QString &problem);   // (a text when nothing could be read)

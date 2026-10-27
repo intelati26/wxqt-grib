@@ -62,6 +62,22 @@ namespace {
         return 0.299 * background.red() + 0.587 * background.green() + 0.114 * background.blue() < 130 ? QColor{Qt::white} : QColor{Qt::black};
     }
 
+    // the fills of the National Weather Service's own outlook map layers: the tornado, the hail and wind, and the days 4-8 outlooks each have their own scale
+    QColor probabilityColor(int row, int percent) {
+        struct Step { int percent; QColor color; };
+        static const std::vector<Step> tornado{{2, {121, 186, 122}}, {5, {189, 153, 138}}, {10, {255, 228, 129}}, {15, {255, 128, 128}}, {30, {255, 128, 255}}, {45, {200, 150, 247}}, {60, {16, 78, 139}}};
+        static const std::vector<Step> hailWind{{5, {197, 163, 146}}, {15, {255, 235, 127}}, {30, {255, 127, 127}}, {45, {255, 127, 255}}, {60, {200, 149, 246}}, {75, {92, 133, 214}}, {90, {26, 255, 255}}};
+        static const std::vector<Step> later{{15, {255, 255, 0}}, {30, {230, 152, 0}}};
+        const auto& steps = row == Row::RowTornado ? tornado : row == Row::RowAnySevere ? later : hailWind;
+        QColor out{240, 240, 240};
+        for (const auto& step : steps) {
+            if (percent >= step.percent) {
+                out = step.color;
+            }
+        }
+        return out;
+    }
+
     // the part of "Slight (10-39%)" in the brackets
     QString shortWinter(const QString& outlook, int dn) {
         const int open = outlook.indexOf('(');
@@ -113,14 +129,14 @@ std::vector<SevereHazardMatrixData::Cell> SevereHazardMatrixData::fetch(QString&
         if (hit.dn > 0 || (q.kind == Query::Winter && hit.label2.size() > 0)) {
             switch (q.kind) {
             case Query::SpcCategory: {
-                static const char * names[] = {"", "", "TSTM", "MRGL", "SLGT", "ENH", "MDT", "HIGH"};
-                c.label = hit.dn >= 2 && hit.dn <= 7 ? names[hit.dn] : hit.label2;
+                static const char * names[] = {"", "", "TSTM", "MRGL", "SLGT", "ENH", "MDT", "", "HIGH"};   // (the service's values: 2 to 6, and 8 for high)
+                c.label = hit.dn >= 2 && hit.dn <= 8 && names[hit.dn][0] != '\0' ? names[hit.dn] : hit.label2;
                 c.background = SevereHazardMatrixWidget::getSpcCategoricalColor(c.label);
                 break;
             }
             case Query::SpcProbability:
                 c.label = QString::number(hit.dn) + "%";
-                c.background = SevereHazardMatrixWidget::getProbabilisticColor(hit.dn);
+                c.background = probabilityColor(q.row, hit.dn);
                 break;
             case Query::Ero: {
                 static const char * names[] = {"", "MRGL", "SLGT", "MOD", "HIGH"};
