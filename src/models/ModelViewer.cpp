@@ -275,10 +275,14 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         QObject::connect(comboLocalKm, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this] (int index) {
             double lat = 0, lon = 0, km = 0;
             string name;
-            if (index < 0 || !GfsChart::parseLocalId(objectModel.sector, lat, lon, km, name)) {
+            if (index < 0) {
                 return;
             }
             const int wanted = comboLocalKm->itemData(index).toInt();
+            if (!GfsChart::parseLocalId(objectModel.sector, lat, lon, km, name)) {   // not an area round a place yet: the size is for the button beside it (the area round the clicked point)
+                Utility::writePrefInt("MODEL_LOCAL_KM", wanted);
+                return;
+            }
             if (static_cast<int>(km) == wanted) {
                 return;
             }
@@ -288,6 +292,21 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             reload();
         });
         boxH2.addWidgetReal(comboLocalKm);
+        buttonAroundPoint = UiStandards::button(this, "Area around point");
+        buttonAroundPoint->setVisible(false);
+        buttonAroundPoint->setToolTip("Draws an area of the size beside it (a square of that many kilometers a side) centered on the point clicked on the chart, as a saved location's area is, without saving the point.");
+        QObject::connect(buttonAroundPoint, &QPushButton::clicked, this, [this] {
+            if (!haveClicked) {
+                return;
+            }
+            const int km = comboLocalKm != nullptr && comboLocalKm->currentData().isValid() ? comboLocalKm->currentData().toInt() : Utility::readPrefInt("MODEL_LOCAL_KM", 600);
+            Utility::writePrefInt("MODEL_LOCAL_KM", km);
+            objectModel.sector = GfsChart::localId(clickedLat, clickedLon, km, "Point " + QString::number(clickedLat, 'f', 2).toStdString() + " " + QString::number(clickedLon, 'f', 2).toStdString());
+            refreshSectorList();
+            refreshProductButton();
+            reload();
+        });
+        boxH2.addWidgetReal(buttonAroundPoint);
         buttonSigma = UiStandards::button(this, "Std deviations");
         buttonSigma->setCheckable(true);
         buttonSigma->setVisible(false);
@@ -397,6 +416,10 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             clickedLat = lat;
             clickedLon = lon;
             haveClicked = true;
+            if (buttonAroundPoint != nullptr && !buttonAroundPoint->isVisible() && GfsRender::drawsModel(objectModel.model) && !GfsModels::isStormModel(objectModel.model)) {
+                comboLocalKm->setVisible(true);
+                buttonAroundPoint->setVisible(true);
+            }
             if (plumePanel != nullptr && plumePanel->isVisible()) {
                 plumePanel->setPoint(lat, lon);   // the plume follows the point clicked
             }
@@ -1715,7 +1738,17 @@ void ModelViewer::reload() {
         double lat = 0, lon = 0, km = 0;
         string name;
         const bool local = GfsChart::parseLocalId(objectModel.sector, lat, lon, km, name);
-        comboLocalKm->setVisible(local);
+        const bool pointArea = haveClicked && GfsRender::drawsModel(objectModel.model) && !GfsModels::isStormModel(objectModel.model);   // (a clicked point can be the center of an area too)
+        comboLocalKm->setVisible(local || pointArea);
+        if (buttonAroundPoint != nullptr) {
+            buttonAroundPoint->setVisible(pointArea);
+        }
+        if (!local) {
+            const int at = comboLocalKm->findData(std::clamp(Utility::readPrefInt("MODEL_LOCAL_KM", 600), 100, 5000));
+            comboLocalKm->blockSignals(true);
+            comboLocalKm->setCurrentIndex(at >= 0 ? at : comboLocalKm->findData(600));
+            comboLocalKm->blockSignals(false);
+        }
         if (local) {
             const int at = comboLocalKm->findData(static_cast<int>(km));
             comboLocalKm->blockSignals(true);
@@ -2206,6 +2239,13 @@ void ModelViewer::setOverlays(const std::vector<string>& ids) {
     overlays = ids;
     refreshProductButton();
     reload();
+}
+
+void ModelViewer::clickAt(double fx, double fy, bool areaButton) {
+    emit image.clicked(fx, fy);
+    if (areaButton && buttonAroundPoint != nullptr) {
+        buttonAroundPoint->click();
+    }
 }
 
 void ModelViewer::hoverAt(double fx, double fy) {

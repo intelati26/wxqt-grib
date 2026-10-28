@@ -952,6 +952,10 @@ int main(int argc, char * argv[]) {
                     const auto at = qEnvironmentVariable("WXQT_HOVER").split(':');
                     QTimer::singleShot(14000, viewer, [viewer, at] { viewer->hoverAt(at.value(0).toDouble(), at.value(1).toDouble()); });
                 }
+                if (qEnvironmentVariableIsSet("WXQT_CLICK")) {   // WXQT_CLICK=<fx>:<fy>[:area]: 10 s in a click at that point of the picture (and the "Area around point" button with :area)
+                    const auto at = qEnvironmentVariable("WXQT_CLICK").split(':');
+                    QTimer::singleShot(10000, viewer, [viewer, at] { viewer->clickAt(at.value(0).toDouble(), at.value(1).toDouble(), at.value(2) == "area"); });
+                }
                 if (qEnvironmentVariableIsSet("WXQT_NEXT_PARAM")) {   // WXQT_NEXT_PARAM=<chart id>: 12 s in the main chart is changed to it as the picker would, and the tile captions are printed before and after
                     QTimer::singleShot(10000, viewer, [viewer] { std::fprintf(stderr, "TILES before: %s\n", viewer->tileCaptions().c_str()); });
                     QTimer::singleShot(12000, viewer, [viewer] { viewer->chooseChart(qEnvironmentVariable("WXQT_NEXT_PARAM").toStdString()); });

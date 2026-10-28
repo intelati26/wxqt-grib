@@ -61,6 +61,7 @@ public:
     void setOverlays(const std::vector<string>& ids);   // as ticking them in the chart picker does
     void setTileRun(int index, const string& run);   // as the tile's Change... menu does (a development aid)
     void noticeTest(const string& text) { showNotice(text); }   // a development aid: the card over the picture with this text
+    void clickAt(double fx, double fy, bool areaButton);   // a click on the picture, then the "Area around point" button (a development aid)
     void hoverAt(double fx, double fy);   // the read-out as if the pointer were there, as fractions of the picture (a development aid)
     void chooseChart(const string& id);   // as the chart picker does: this chart on the main tile
     string tileCaptions() const;           // what the other tiles say they show (a development aid)
@@ -206,6 +207,7 @@ private:
     QPushButton * buttonIntensity{nullptr};   // the hurricane models: the intensity forecast of the storm
     QCheckBox * checkRadii{nullptr};          // the hurricane models: the wind field on the chart
     int stormLoading{0};
+    QPushButton * buttonAroundPoint{nullptr};   // draws an area (of the size beside it) round the point clicked, without saving it
     QComboBox * comboLocalKm{nullptr};   // the size of an area round a saved location (one entry per place in the area list, this sets how big)
     void refreshSectorList();   // the ring and the name of the place on an area round a saved location (a pref, MODEL_PLACE_MARK)
     QPushButton * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
