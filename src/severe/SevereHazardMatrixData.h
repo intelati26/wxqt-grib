@@ -7,7 +7,6 @@
 #define SEVEREHAZARDMATRIXDATA_H
 
 #include <vector>
-#include <QByteArray>
 #include <QColor>
 #include <QString>
 
@@ -24,8 +23,6 @@ namespace SevereHazardMatrixData {
     };
     // blocking (two dozen requests, made in parallel): off the UI thread. `problem` is set when nothing could be read.
     std::vector<Cell> fetch(QString& problem);
-    // the matrix as a picture (for the home screen)
-    QByteArray png(const std::vector<Cell>& cells, const QString& title, int width);
 }
 
 #endif  // SEVEREHAZARDMATRIXDATA_H

@@ -5,13 +5,9 @@
 
 #include "severe/SevereHazardMatrixData.h"
 #include <future>
-#include <QBuffer>
-#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QPainter>
-#include <QUrl>
 #include "severe/SevereHazardMatrixWidget.h"
 #include "util/UtilityIO.h"
 
@@ -163,44 +159,4 @@ std::vector<SevereHazardMatrixData::Cell> SevereHazardMatrixData::fetch(QString&
         problem = "The National Weather Service's map services did not answer.";
     }
     return cells;
-}
-
-QByteArray SevereHazardMatrixData::png(const std::vector<Cell>& cells, const QString& title, int width) {
-    static const char * rows[] = {"Tornado", "Wind", "Hail", "Any severe", "Heavy rain", "Heavy snow", "Ice"};
-    const int rowCount = Row::RowCount, nameWidth = width / 5, cellWidth = (width - nameWidth) / 8, rowHeight = std::max(18, width / 28), top = rowHeight * 2;
-    QImage image{width, top + rowHeight * rowCount + 4, QImage::Format_ARGB32};
-    image.fill(Qt::white);
-    QPainter p{&image};
-    QFont font = p.font();
-    font.setPixelSize(std::max(10, rowHeight * 3 / 5));
-    p.setFont(font);
-    p.setPen(Qt::black);
-    p.drawText(QRect{4, 0, width - 8, top}, Qt::AlignVCenter | Qt::AlignLeft, title);
-    for (int r = 0; r < rowCount; r++) {
-        p.setPen(Qt::black);
-        p.drawText(QRect{4, top + r * rowHeight, nameWidth - 6, rowHeight}, Qt::AlignVCenter | Qt::AlignLeft, rows[r]);
-        for (int d = 0; d < 8; d++) {
-            const QRect box{nameWidth + d * cellWidth, top + r * rowHeight, cellWidth, rowHeight};
-            p.fillRect(box, QColor{245, 245, 245});
-            p.setPen(QColor{200, 200, 200});
-            p.drawRect(box);
-            for (const auto& c : cells) {
-                if (c.row == r && c.day == d && !c.label.isEmpty()) {
-                    p.fillRect(box.adjusted(1, 1, 0, 0), c.background);
-                    p.setPen(c.text);
-                    p.drawText(box, Qt::AlignCenter, c.label);
-                }
-            }
-        }
-    }
-    p.setPen(Qt::darkGray);
-    for (int d = 0; d < 8; d++) {
-        p.drawText(QRect{nameWidth + d * cellWidth, rowHeight, cellWidth, rowHeight}, Qt::AlignCenter, QString{"D%1"}.arg(d + 1));
-    }
-    p.end();
-    QByteArray out;
-    QBuffer buffer{&out};
-    buffer.open(QIODevice::WriteOnly);
-    image.save(&buffer, "PNG");
-    return out;
 }

@@ -3,6 +3,7 @@
 #include <QTableWidgetItem>
 #include <QHeaderView>
 #include <QApplication>
+#include <QFontMetrics>
 #include <QPointer>
 #include <thread>
 #include "severe/SevereHazardMatrixData.h"
@@ -106,6 +107,41 @@ QColor SevereHazardMatrixWidget::getWpcEroColor(const QString &category) {
     if (cat == "MOD"  || cat == "MODERATE") return QColor(245, 0, 0);
     if (cat == "HIGH")                     return QColor(255, 105, 197);
     return QColor(240, 240, 240);
+}
+
+void SevereHazardMatrixWidget::fitToHeight(int height) {
+    layout()->setContentsMargins(0, 0, 0, 0);
+    const int frame = m_tableWidget->frameWidth();
+    const int rowHeight = std::max(10, (height - 2 * frame) / (RowCount + 1));
+    QFont font = m_tableWidget->font();
+    font.setPixelSize(std::max(7, rowHeight * 62 / 100));
+    m_tableWidget->setFont(font);
+    m_tableWidget->horizontalHeader()->setFont(font);
+    m_tableWidget->verticalHeader()->setFont(font);
+    m_tableWidget->setHorizontalHeaderLabels({"D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"});
+    m_tableWidget->setVerticalHeaderLabels({"Tornado", "Wind", "Hail", "Severe", "Rain", "Snow", "Ice"});
+    m_tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    m_tableWidget->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    m_tableWidget->horizontalHeader()->setFixedHeight(rowHeight);
+    m_tableWidget->verticalHeader()->setMinimumSectionSize(1);   // (the style's own minimum is taller than a row of this height)
+    m_tableWidget->verticalHeader()->setDefaultSectionSize(rowHeight);
+    for (int r = 0; r < RowCount; r++) {
+        m_tableWidget->setRowHeight(r, rowHeight);
+    }
+    const QFontMetrics metrics{font};
+    const int columnWidth = metrics.horizontalAdvance("70-100%") + 14;
+    const int nameWidth = metrics.horizontalAdvance("Tornado") + 8;
+    m_tableWidget->horizontalHeader()->setMinimumSectionSize(1);
+    m_tableWidget->horizontalHeader()->setDefaultSectionSize(columnWidth);
+    m_tableWidget->verticalHeader()->setFixedWidth(nameWidth);
+    m_tableWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_tableWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    for (int c = 0; c < 8; c++) {
+        m_tableWidget->setColumnWidth(c, columnWidth);
+    }
+    const QSize size{m_tableWidget->verticalHeader()->width() + m_tableWidget->horizontalHeader()->length() + 2 * frame + 1, m_tableWidget->horizontalHeader()->height() + m_tableWidget->verticalHeader()->length() + 2 * frame + 1};
+    m_tableWidget->setFixedSize(size);
+    setFixedSize(size);
 }
 
 void SevereHazardMatrixWidget::reload() {

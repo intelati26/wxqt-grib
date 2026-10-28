@@ -30,7 +30,6 @@
 #include "settings/Location.h"
 #include "util/Utility.h"
 #include "gfs/GfsCache.h"
-#include "severe/SevereHazardMatrixData.h"
 
 namespace {
 }
@@ -66,7 +65,6 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"MRMS_RADAR", "MRMS radar - composite reflectivity around your location", "mcd_tile.png", false, false},
         {"MRMS_LATEST", "MRMS - latest scan of your last product, around your location", "mcd_tile.png", false, false},
         {"CFS_30DAY", "CFSv2 next 30 days against the normal: temperature (colors) and precipitation (lines), CONUS", "baseline_show_chart_black_48dp.png#2", false, false},
-        {"SEVERE_MATRIX", "Severe and hazard outlooks, days 1-8: the highest level anywhere in the US (SPC and WPC)", "baseline_warning_black_48dp.png", true, true},
         {"GRIB_LATEST", "Model viewer - your last model, chart and area, newest run", "grib.png", true, false},
     };
     return entries;
@@ -106,7 +104,6 @@ namespace {
         {"WORLD_SST", {"World sea surface temperature", "Daily global sea surface temperature, a 5 km blend of satellite and in-situ measurements (NOAA/NESDIS). Click for the Climate and ocean screen, with the anomaly and the regional maps."}},
         {"MRMS_RADAR", {"MRMS radar", "Multi-Radar Multi-Sensor composite reflectivity around your location."}},
         {"MRMS_LATEST", {"MRMS product", "Latest scan of the MRMS product you looked at last, around your location."}},
-        {"SEVERE_MATRIX", {"Hazard outlooks", "SPC tornado, wind, hail and any-severe outlooks (days 1-8) and WPC excessive rainfall, snow and ice outlooks (days 1-8): the highest level of each anywhere in the country. Blank means none is outlooked. Click for the Severe Dashboard."}},
         {"CFS_30DAY", {"Next 30 days", "NOAA's CFSv2 for the next 30 days against its own normal: temperature as colors (warm or cool) and precipitation as lines (green wetter, brown drier), the mean of its four newest runs. A lean of the pattern, not a forecast of days. Click for the Model Viewer."}},
         {"GRIB_LATEST", {"Model chart", "The model, chart and area you last looked at in the Model Viewer, from the newest run."}},
         };
@@ -169,14 +166,6 @@ QByteArray HomeThumbnails::fetch(const string& token) {
             ? UtilityMrms::thumbnail(product, 23.0, 50.0, -127.0, -65.0, 900, png, error)
             : UtilityMrms::thumbnail(product, here.lat() - 3.8, here.lat() + 3.8, here.lon() - 5.5, here.lon() + 5.5, 900, png, error);
         return ok ? png : QByteArray{};
-    }
-    if (token == "SEVERE_MATRIX") {
-        QString problem;
-        const auto cells = SevereHazardMatrixData::fetch(problem);
-        if (cells.empty()) {
-            return {};
-        }
-        return SevereHazardMatrixData::png(cells, "Highest hazard outlook anywhere in the US, days 1-8", 760);
     }
     if (token == "CFS_30DAY") {
         // the CFSv2's next 30 days against its normal over the United States, drawn by the model screen's own renderer (the model "CFS30"). The picture of the last time is kept: it is what the tile

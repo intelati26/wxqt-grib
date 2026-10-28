@@ -8,6 +8,7 @@
 #include "vis/GoesViewer.h"
 #include "objects/WString.h"
 #include "ui/UiStandards.h"
+#include "severe/SevereHazardMatrixWidget.h"
 #include <QApplication>
 #include <QGridLayout>
 #include <algorithm>
@@ -229,6 +230,12 @@ void MainWindow::downloadWatch() {
 void MainWindow::updateWatch() {
     boxSevereDashboard.removeChildren();
     images.clear();
+    {   // the Day 1-8 hazard outlooks (the highest of each in the country) first in the row, as tall as the pictures beside it
+        auto * matrix = new SevereHazardMatrixWidget{this};
+        matrix->fitToHeight(UiStandards::thumbnailImage);
+        matrix->reload();
+        boxSevereDashboard.addWidgetReal(CaptionedTile::make(this, matrix, UIPreferences::homeCaptions ? "Hazard outlooks (US highest)" : QString{}, "SPC tornado, wind, hail and any-severe outlooks (days 1-8) and WPC excessive rainfall, snow and ice outlooks: the highest level of each anywhere in the country. Hover a cell for the details.", matrix->width(), false, matrix->width()));
+    }
     for (auto index : range(urls.size())) {
         images.emplace_back(this);
         images.back().imageSize = UiStandards::thumbnailImage;

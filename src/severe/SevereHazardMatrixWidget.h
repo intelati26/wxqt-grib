@@ -40,6 +40,9 @@ public:
     // Read the SPC and WPC outlooks (the highest level of each, anywhere in the country) from the National Weather Service's map services (in the background) and fill the grid
     void reload();
 
+    // Sized by height alone: the rows share the height, the text and the columns follow it (the home screen's severe row). Short row names, no scrollbars, a fixed size.
+    void fitToHeight(int height);
+
     // Reset matrix values to default empty state
     void clearMatrix();
 
