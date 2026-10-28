@@ -59,5 +59,6 @@ private:
     void configureTableFormatting();
 
     QTableWidget *m_tableWidget{nullptr};
+    bool m_compact{false};   // fitToHeight: narrow columns, the fill alone (the label is in the hover text)
     std::shared_ptr<bool> m_alive{std::make_shared<bool>(true)};   // (cleared with the widget: a background read that ends later does not touch it)
 };

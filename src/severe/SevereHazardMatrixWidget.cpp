@@ -63,7 +63,7 @@ void SevereHazardMatrixWidget::configureTableFormatting() {
 void SevereHazardMatrixWidget::clearMatrix() {
     for (int r = 0; r < RowCount; ++r) {
         for (int c = 0; c < 8; ++c) {
-            auto *item = new QTableWidgetItem("—");
+            auto *item = new QTableWidgetItem(m_compact ? "" : "—");
             item->setTextAlignment(Qt::AlignCenter);
             item->setBackground(QColor(245, 245, 245));
             item->setForeground(QColor(120, 120, 120));
@@ -81,11 +81,11 @@ void SevereHazardMatrixWidget::updateHazardCell(RowIndex row, int dayColumn, con
         m_tableWidget->setItem(row, dayColumn, item);
     }
 
-    item->setText(data.label.isEmpty() ? "—" : data.label);
+    item->setText(m_compact ? QString{} : data.label.isEmpty() ? "—" : data.label);
     item->setTextAlignment(Qt::AlignCenter);
     item->setBackground(data.backgroundColor);
     item->setForeground(data.textColor);
-    item->setToolTip(data.tooltip);
+    item->setToolTip(m_compact && !data.label.isEmpty() ? data.label + "\n" + data.tooltip : data.tooltip);
 }
 
 // the fills of the National Weather Service's outlook map layers
@@ -110,6 +110,8 @@ QColor SevereHazardMatrixWidget::getWpcEroColor(const QString &category) {
 }
 
 void SevereHazardMatrixWidget::fitToHeight(int height) {
+    m_compact = true;
+    clearMatrix();
     layout()->setContentsMargins(0, 0, 0, 0);
     const int frame = m_tableWidget->frameWidth();
     const int rowHeight = std::max(10, (height - 2 * frame) / (RowCount + 1));
@@ -129,7 +131,7 @@ void SevereHazardMatrixWidget::fitToHeight(int height) {
         m_tableWidget->setRowHeight(r, rowHeight);
     }
     const QFontMetrics metrics{font};
-    const int columnWidth = metrics.horizontalAdvance("70-100%") + 14;
+    const int columnWidth = std::max(metrics.horizontalAdvance("D8"), rowHeight) + 8;   // (the fill alone: no room for the labels)
     const int nameWidth = metrics.horizontalAdvance("Tornado") + 8;
     m_tableWidget->horizontalHeader()->setMinimumSectionSize(1);
     m_tableWidget->horizontalHeader()->setDefaultSectionSize(columnWidth);
