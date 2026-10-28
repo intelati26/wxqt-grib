@@ -2,6 +2,8 @@
 
 #include <memory>
 #include <QWidget>
+#include <vector>
+#include "severe/SevereHazardMatrixData.h"
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QColor>
@@ -41,7 +43,9 @@ public:
     void reload();
 
     // Sized by height alone: the rows share the height, the text and the columns follow it (the home screen's severe row). Short row names, no scrollbars, a fixed size.
-    void fitToHeight(int height);
+    // With showText the cells carry their labels (70%, SLGT) and are wider; without, the fill alone in narrow columns (the label is in the hover text).
+    void fitToHeight(int height, bool showText);
+    bool showsText() const { return m_showText; }
 
     // Whether the product of a row is issued for a day (day 0 is day 1)
     static bool issuedFor(RowIndex row, int day);
@@ -62,6 +66,9 @@ private:
     void configureTableFormatting();
 
     QTableWidget *m_tableWidget{nullptr};
+    bool m_showText{false};
+    std::vector<SevereHazardMatrixData::Cell> m_cells;   // the last read, so a refit keeps the data
+    void applyCells();
     bool m_compact{false};   // fitToHeight: narrow columns, the fill alone (the label is in the hover text)
     std::shared_ptr<bool> m_alive{std::make_shared<bool>(true)};   // (cleared with the widget: a background read that ends later does not touch it)
 };

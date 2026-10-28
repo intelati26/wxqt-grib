@@ -33,6 +33,7 @@
 #include "misc/ForecastPointViewer.h"
 #include "misc/UtilityForecastPoint.h"
 #include <memory>
+#include <QPointer>
 
 using std::string;
 using std::unordered_map;
@@ -74,6 +75,9 @@ private:
     FlowBox imageLayout;   // fixed-size thumbnails, wrapped to the width of their zone
     // the four large sections; HomeLayout says which zone each one is in
     QWidget * severeHolder{};
+    QPointer<class SevereHazardMatrixWidget> hazardMatrix;   // the matrix tile of the severe row (its text is shown when the zone is wide enough)
+    void fitHazardMatrix();
+    void resizeEventCustom() override;
     QWidget * imagesHolder{};
     QWidget * forecastHolder{};
     QWidget * textHolder{};

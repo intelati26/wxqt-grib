@@ -80,7 +80,7 @@ void SevereHazardMatrixWidget::clearMatrix() {
     for (int r = 0; r < RowCount; ++r) {
         for (int c = 0; c < 8; ++c) {
             const bool issued = issuedFor(static_cast<RowIndex>(r), c);
-            auto *item = new QTableWidgetItem(m_compact ? "" : "—");
+            auto *item = new QTableWidgetItem(m_compact && !m_showText ? "" : "—");
             item->setTextAlignment(Qt::AlignCenter);
             item->setBackground(issued ? QColor(245, 245, 245) : QColor(190, 190, 190));   // (a darker gray: there is no such outlook for that day)
             item->setForeground(QColor(120, 120, 120));
@@ -101,11 +101,11 @@ void SevereHazardMatrixWidget::updateHazardCell(RowIndex row, int dayColumn, con
         m_tableWidget->setItem(row, dayColumn, item);
     }
 
-    item->setText(m_compact ? QString{} : data.label.isEmpty() ? "—" : data.label);
+    item->setText(m_compact && !m_showText ? QString{} : data.label.isEmpty() ? "—" : data.label);
     item->setTextAlignment(Qt::AlignCenter);
     item->setBackground(data.backgroundColor);
     item->setForeground(data.textColor);
-    item->setToolTip(m_compact && !data.label.isEmpty() ? data.label + "\n" + data.tooltip : data.tooltip);
+    item->setToolTip(m_compact && !m_showText && !data.label.isEmpty() ? data.label + "\n" + data.tooltip : data.tooltip);
 }
 
 // the fills of the National Weather Service's outlook map layers
@@ -129,9 +129,9 @@ QColor SevereHazardMatrixWidget::getWpcEroColor(const QString &category) {
     return QColor(240, 240, 240);
 }
 
-void SevereHazardMatrixWidget::fitToHeight(int height) {
+void SevereHazardMatrixWidget::fitToHeight(int height, bool showText) {
     m_compact = true;
-    clearMatrix();
+    m_showText = showText;
     layout()->setContentsMargins(0, 0, 0, 0);
     const int frame = m_tableWidget->frameWidth();
     const int rowHeight = std::max(10, (height - 2 * frame) / (RowCount + 1));
@@ -151,7 +151,7 @@ void SevereHazardMatrixWidget::fitToHeight(int height) {
         m_tableWidget->setRowHeight(r, rowHeight);
     }
     const QFontMetrics metrics{font};
-    const int columnWidth = std::max(metrics.horizontalAdvance("D8"), rowHeight) + 8;   // (the fill alone: no room for the labels)
+    const int columnWidth = showText ? metrics.horizontalAdvance("70-100%") + 14 : std::max(metrics.horizontalAdvance("D8"), rowHeight) + 8;   // (the fill alone: no room for the labels)
     const int nameWidth = metrics.horizontalAdvance("Tornado") + 8;
     m_tableWidget->horizontalHeader()->setMinimumSectionSize(1);
     m_tableWidget->horizontalHeader()->setDefaultSectionSize(columnWidth);
@@ -164,6 +164,18 @@ void SevereHazardMatrixWidget::fitToHeight(int height) {
     const QSize size{m_tableWidget->verticalHeader()->width() + m_tableWidget->horizontalHeader()->length() + 2 * frame + 1, m_tableWidget->horizontalHeader()->height() + m_tableWidget->verticalHeader()->length() + 2 * frame + 1};
     m_tableWidget->setFixedSize(size);
     setFixedSize(size);
+    applyCells();
+}
+
+void SevereHazardMatrixWidget::applyCells() {
+    clearMatrix();
+    for (const auto& c : m_cells) {
+        if (!c.label.isEmpty()) {
+            updateHazardCell(static_cast<RowIndex>(c.row), c.day, {c.label, c.background, c.text, c.tooltip});
+        } else if (auto *item = m_tableWidget->item(c.row, c.day)) {
+            item->setToolTip(c.tooltip);
+        }
+    }
 }
 
 void SevereHazardMatrixWidget::reload() {
@@ -176,14 +188,8 @@ void SevereHazardMatrixWidget::reload() {
             if (!*alive || self.isNull()) {
                 return;
             }
-            self->clearMatrix();
-            for (const auto& c : *cells) {
-                if (!c.label.isEmpty()) {
-                    self->updateHazardCell(static_cast<RowIndex>(c.row), c.day, {c.label, c.background, c.text, c.tooltip});
-                } else if (auto *item = self->m_tableWidget->item(c.row, c.day)) {
-                    item->setToolTip(c.tooltip);
-                }
-            }
+            self->m_cells = *cells;
+            self->applyCells();
             emit self->loaded(problem);
         }, Qt::QueuedConnection);
     }}.detach();

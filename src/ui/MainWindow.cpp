@@ -7,6 +7,7 @@
 #include "MainWindow.h"
 #include "vis/GoesViewer.h"
 #include "objects/WString.h"
+#include <QTimer>
 #include "ui/UiStandards.h"
 #include "severe/SevereHazardMatrixWidget.h"
 #include <QApplication>
@@ -232,9 +233,12 @@ void MainWindow::updateWatch() {
     images.clear();
     {   // the Day 1-8 hazard outlooks (the highest of each in the country) first in the row, as tall as the pictures beside it
         auto * matrix = new SevereHazardMatrixWidget{this};
-        matrix->fitToHeight(UiStandards::thumbnailImage);
+        hazardMatrix = matrix;
+        matrix->fitToHeight(UiStandards::thumbnailImage, false);
         matrix->reload();
-        boxSevereDashboard.addWidgetReal(CaptionedTile::make(this, matrix, UIPreferences::homeCaptions ? "Hazard outlooks (US highest)" : QString{}, "SPC tornado, wind, hail and any-severe outlooks (days 1-8) and WPC excessive rainfall, snow and ice outlooks: the highest level of each anywhere in the country. Hover a cell for the details.", matrix->width(), false, matrix->width()));
+        auto * tile = CaptionedTile::make(this, matrix, UIPreferences::homeCaptions ? "Hazard outlooks (US highest)" : QString{}, "SPC tornado, wind, hail and any-severe outlooks (days 1-8) and WPC excessive rainfall, snow and ice outlooks: the highest level of each anywhere in the country. Hover a cell for the details. Darker gray: not issued for that day.", matrix->width(), false, matrix->width());
+        boxSevereDashboard.addWidgetReal(tile);
+        QTimer::singleShot(0, this, [this] { fitHazardMatrix(); });
     }
     for (auto index : range(urls.size())) {
         images.emplace_back(this);
@@ -244,6 +248,26 @@ void MainWindow::updateWatch() {
         const auto caption = UIPreferences::homeCaptions && index < captionsList.size() ? QString::fromStdString(captionsList[index]) : QString{};
         boxSevereDashboard.addWidgetReal(CaptionedTile::make(this, images.back().getView(), caption, caption, UiStandards::thumbnailImage));
     }
+}
+
+// the labels in the cells when the zone is wide enough for the wider matrix and still some tiles beside it (the whole row on one line); the fill alone otherwise
+void MainWindow::fitHazardMatrix() {
+    if (hazardMatrix.isNull() || severeHolder == nullptr) {
+        return;
+    }
+    const bool wide = severeHolder->width() >= 530 + 3 * UiStandards::thumbnailImage + 40;
+    if (wide == hazardMatrix->showsText()) {
+        return;
+    }
+    hazardMatrix->fitToHeight(UiStandards::thumbnailImage, wide);
+    if (auto * tile = hazardMatrix->parentWidget()) {
+        tile->setFixedWidth(hazardMatrix->width());
+        tile->updateGeometry();
+    }
+}
+
+void MainWindow::resizeEventCustom() {
+    QTimer::singleShot(0, this, [this] { fitHazardMatrix(); });
 }
 
 bool MainWindow::launch(int indexFinal) {
