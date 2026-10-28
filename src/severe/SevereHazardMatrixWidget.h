@@ -43,6 +43,9 @@ public:
     // Sized by height alone: the rows share the height, the text and the columns follow it (the home screen's severe row). Short row names, no scrollbars, a fixed size.
     void fitToHeight(int height);
 
+    // Whether the product of a row is issued for a day (day 0 is day 1)
+    static bool issuedFor(RowIndex row, int day);
+
     // Reset matrix values to default empty state
     void clearMatrix();
 

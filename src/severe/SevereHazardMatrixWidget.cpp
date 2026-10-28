@@ -60,13 +60,33 @@ void SevereHazardMatrixWidget::configureTableFormatting() {
     clearMatrix();
 }
 
+// the days each product is issued for: SPC's tornado, wind and hail for days 1-2, any severe for days 1-8; WPC's excessive rainfall for days 1-5, snow and ice for days 1-3
+bool SevereHazardMatrixWidget::issuedFor(RowIndex row, int day) {
+    switch (row) {
+    case RowTornado:
+    case RowWind:
+    case RowHail:
+        return day < 2;
+    case RowAnySevere:
+        return day < 8;
+    case RowRainfallERO:
+        return day < 5;
+    default:
+        return day < 3;
+    }
+}
+
 void SevereHazardMatrixWidget::clearMatrix() {
     for (int r = 0; r < RowCount; ++r) {
         for (int c = 0; c < 8; ++c) {
+            const bool issued = issuedFor(static_cast<RowIndex>(r), c);
             auto *item = new QTableWidgetItem(m_compact ? "" : "—");
             item->setTextAlignment(Qt::AlignCenter);
-            item->setBackground(QColor(245, 245, 245));
+            item->setBackground(issued ? QColor(245, 245, 245) : QColor(190, 190, 190));   // (a darker gray: there is no such outlook for that day)
             item->setForeground(QColor(120, 120, 120));
+            if (!issued) {
+                item->setToolTip("This outlook is not issued for day " + QString::number(c + 1) + ".");
+            }
             m_tableWidget->setItem(r, c, item);
         }
     }
