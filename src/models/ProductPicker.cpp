@@ -246,6 +246,15 @@ void ProductPicker::setWording(const QString& plural, const QString& chooseText)
     choose->setText(chooseText);
 }
 
+void ProductPicker::setNote(const QString& text) {
+    auto * note = new QLabel{text, this};
+    note->setWordWrap(true);
+    note->setForegroundRole(QPalette::PlaceholderText);
+    if (auto * column = qobject_cast<QVBoxLayout *>(layout())) {
+        column->insertWidget(2, note);   // (below the search box and the list)
+    }
+}
+
 void ProductPicker::fill() {
     tree->clear();
     const auto isFavorite = [this] (const std::string& id) { return std::find(favorites.begin(), favorites.end(), id) != favorites.end(); };

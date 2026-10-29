@@ -33,6 +33,8 @@ public:
     std::function<void(const std::vector<std::string>&)> onFavorites;
     // for choosing something else from the same kind of list (the areas): the window title, the search box and the button say so
     void setWording(const QString& plural, const QString& chooseText);
+    // a line of small print under the list (the charts left out, and why)
+    void setNote(const QString& text);
     // the group names in the order they are listed
     static std::vector<std::string> groupOrder();
     // where a sector (area) of the models goes in the tree, and the order of those groups

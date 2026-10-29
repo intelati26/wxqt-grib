@@ -971,7 +971,7 @@ int main(int argc, char * argv[]) {
                         QTimer::singleShot(0, qApp, &QCoreApplication::quit);
                     });
                 }
-                qEnvironmentVariable("WXQT_PICK") == "net" ? NetStatus::show(viewer) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : viewer->showPicker();   // WXQT_PICK=sector: the area picker
+                qEnvironmentVariable("WXQT_PICK") == "net" ? NetStatus::show(viewer) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : qEnvironmentVariable("WXQT_PICK") == "late" ? QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_PICK_WAIT") * 1000, viewer, [viewer] { viewer->showPicker(); }) : viewer->showPicker();   // WXQT_PICK=late: the chart picker after WXQT_PICK_WAIT seconds (once the run has said which charts it lacks)   // WXQT_PICK=sector: the area picker
                 if (qEnvironmentVariable("WXQT_PICK") == "levels") {   // WXQT_PICK=levels: the picker's "850/700/500 wind" clicked
                     QTimer::singleShot(800, viewer, [viewer] {
                         for (auto * button : viewer->findChildren<QPushButton *>()) {
@@ -991,7 +991,7 @@ int main(int argc, char * argv[]) {
                     });
                 }
                 if (const auto file = qEnvironmentVariable("WXQT_PICKER_PNG"); !file.isEmpty()) {   // a picture of the picker itself (WXQT_PICKER_TITLE: the one whose title has this)
-                    QTimer::singleShot(3000, viewer, [viewer, file] {
+                    QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_PICKER_MS") > 0 ? qEnvironmentVariableIntValue("WXQT_PICKER_MS") : 3000, viewer, [viewer, file] {   // (WXQT_PICKER_MS: another moment)
                         for (auto * picker : viewer->findChildren<QDialog *>()) {
                             if (qEnvironmentVariable("WXQT_PICKER_TITLE").isEmpty() || picker->windowTitle().contains(qEnvironmentVariable("WXQT_PICKER_TITLE"))) {
                                 picker->grab().save(file);
