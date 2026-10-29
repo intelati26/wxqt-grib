@@ -7,6 +7,7 @@
 #define CHARTHOURS_H
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 #include <QtGlobal>
@@ -29,6 +30,11 @@ namespace ChartHours {
     // Of `hours`, the ones the run's data has the chart for (blocking: call it from a thread). SPC's store: its fields' time axes; the other GRIB models: every record the chart needs is in the
     // index of the hour. Empty: nothing could be told (no connection, the run not there), so the caller keeps the hours it has.
     std::vector<int> present(GfsRender::Session& session, const std::string& model, const std::string& param, const std::string& runId, const std::vector<int>& hours, const std::string& storm = "");
+
+    // Of `charts`, the ones the newest run's data does not have (blocking: call it from a thread), told from one hour's index for each: a chart of a period is asked at an hour that fits it. A chart is
+    // named only when the index of its hour could be read and other charts were found in it, so a lost connection or a run still being uploaded names none. Models read in another way (SPC's store, the
+    // loaders of EC46, SEAS5 and CFS30, the storm models) are not asked.
+    std::set<std::string> absent(GfsRender::Session& session, const std::string& model, const std::string& runId, const std::vector<std::string>& charts);
 
     // the answers kept: by model, run, chart (and storm); an answer that left hours out is asked again after five minutes (a run still being uploaded)
     class Book {

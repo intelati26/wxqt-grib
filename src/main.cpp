@@ -965,9 +965,11 @@ int main(int argc, char * argv[]) {
                     QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_HIRES_WAIT") > 0 ? qEnvironmentVariableIntValue("WXQT_HIRES_WAIT") * 1000 : 12000, viewer, [viewer] { viewer->saveHighRes(); });
                 }
                 if (qEnvironmentVariable("WXQT_PICK") == "list") {   // WXQT_PICK=list: every chart of the model with its picker group, to stdout
-                    std::fputs(viewer->chartListing().c_str(), stdout);
-                    std::fflush(stdout);
-                    QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+                    QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_PICK_WAIT") * 1000, viewer, [viewer] {   // (WXQT_PICK_WAIT=<s>: after the run's index has said which charts it lacks)
+                        std::fputs(viewer->chartListing().c_str(), stdout);
+                        std::fflush(stdout);
+                        QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+                    });
                 }
                 qEnvironmentVariable("WXQT_PICK") == "net" ? NetStatus::show(viewer) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : viewer->showPicker();   // WXQT_PICK=sector: the area picker
                 if (qEnvironmentVariable("WXQT_PICK") == "levels") {   // WXQT_PICK=levels: the picker's "850/700/500 wind" clicked

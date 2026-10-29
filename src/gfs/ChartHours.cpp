@@ -5,6 +5,7 @@
 
 #include "gfs/ChartHours.h"
 #include <algorithm>
+#include <map>
 #include <QDateTime>
 #include "gfs/GfsChart.h"
 #include "gfs/GfsModels.h"
@@ -80,6 +81,49 @@ std::vector<int> ChartHours::present(GfsRender::Session& session, const std::str
         return have.empty() ? std::vector<int>{} : out;
     }
     return GfsRender::availableHours(session, model, param, runId, hours, storm);
+}
+
+std::set<std::string> ChartHours::absent(GfsRender::Session& session, const std::string& model, const std::string& runId, const std::vector<std::string>& charts) {
+    std::set<std::string> out;
+    const auto * def = GfsModels::find(model);
+    if (def == nullptr || runId.size() != 10 || model == "SPCREFS" || GfsModels::isStormModel(model) || def->source("").custom) {
+        return out;
+    }
+    if (std::any_of(def->hours.begin(), def->hours.end(), [] (const GfsModels::Hours& range) { return range.step <= 1 && range.to > range.from; })) {   // a model with a field every hour (the NBM, the HRRR, the RRFS) has fields of
+        return out;                                                                                                                               // single hours too (a day's maximum at its 31st): two hours say nothing of them
+    }
+    const int cycle = std::atoi(runId.substr(8, 2).c_str());
+    // two hours of the run, the first of the model's from the 24th (an hour with the accumulations in it): a chart is asked for its variables and levels, whatever their forecast kind, so a field that
+    // the run has only at some hours (a maximum of the day, a 12 hour total) is not taken for one it lacks
+    std::vector<int> probe;
+    for (const int h : modelHours(model, cycle)) {
+        if (h >= 24 && probe.size() < 2) {
+            probe.push_back(h);
+        }
+    }
+    if (probe.empty()) {
+        return out;
+    }
+    std::map<std::string, bool> have;
+    bool readable = false;
+    for (const auto& id : charts) {
+        bool any = false;
+        for (const int h : probe) {
+            any = any || GfsRender::hasFields(session, model, id, runId, h);
+        }
+        have[id] = any;
+        readable = readable || any;
+    }
+    if (!readable) {   // nothing of the run was found: the index could not be read, or the run is not there yet: no word on any chart
+        return out;
+    }
+    for (const auto& [id, there] : have) {
+        const auto * product = GfsChart::product(id, model);
+        if (!there && product != nullptr && !GfsChart::needs(*product, probe.front()).empty()) {
+            out.insert(id);
+        }
+    }
+    return out;
 }
 
 std::string ChartHours::Book::key(const std::string& model, const std::string& runId, const std::string& param, const std::string& storm) {

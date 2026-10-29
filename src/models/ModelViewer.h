@@ -258,6 +258,9 @@ private:
     ChartHours::Book hourBook;   // the hours each chart has for each run, as asked of ChartHours (the map's chart layer asks the same)
     string hoursKey() const;
     void askHours(const std::vector<string>& hourList);
+    void askAbsent();                                    // the charts the newest run does not have, asked of its index in the background (ChartHours::absent)
+    bool chartAbsent(const string& id) const;            // such a chart is left out of the pickers (never the one on show)
+    std::map<string, std::set<string>> absentCharts;     // by model and run
     void applyPinnedRun();
     void recheckRuns();                   // every 15 minutes: has a newer run been published?
     QTimer recheckTimer;

@@ -293,6 +293,25 @@ std::vector<int> GfsRender::availableHours(Session& session, const std::string& 
     return out;   // (empty: nothing could be told, a lost connection or a run not there: the screen keeps the model's hours)
 }
 
+bool GfsRender::hasFields(Session& session, const std::string& model, const std::string& param, const std::string& runId, int hour) {
+    const auto * def = GfsModels::find(model);
+    const auto * product = GfsChart::product(param, model);
+    if (def == nullptr || product == nullptr || def->source("").custom || runId.size() != 10) {
+        return false;
+    }
+    auto needs = GfsChart::needs(*product, hour);
+    if (needs.empty()) {
+        return false;
+    }
+    for (auto& need : needs) {
+        need.want.forecast.clear();   // (any kind of record of the variable and level)
+        need.want.detail.clear();
+    }
+    const auto gfs = data(session.folder(), model, "");
+    std::string detail;
+    return gfs.check(GfsData::Run{runId.substr(0, 8), runId.substr(8, 2)}, needs, detail);
+}
+
 bool GfsRender::drawsModel(const std::string& model) {
     return GfsModels::draws(model);
 }

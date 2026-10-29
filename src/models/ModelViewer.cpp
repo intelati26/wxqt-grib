@@ -1720,8 +1720,50 @@ void ModelViewer::askHours(const std::vector<string>& hourList) {
     }};
 }
 
+// The charts the newest run of the model does not have (the list of a model is what it can be drawn for, which is not always what the run carries: a field a model leaves out, a model whose run
+// lacks a variable): asked of the run's index once per run, and left out of the pickers when the answer comes
+void ModelViewer::askAbsent() {
+    const auto when = runTime(objectModel.run);
+    if (!when.isValid() || !GfsRender::drawsModel(objectModel.model)) {
+        return;
+    }
+    const auto model = objectModel.model;
+    const auto runId = when.toString("yyyyMMddHH").toStdString();
+    const auto key = model + "|" + runId;
+    if (absentCharts.find(key) != absentCharts.end()) {
+        return;
+    }
+    absentCharts[key];   // (asked: not asked again while this runs)
+    if (!gfsSession) {
+        gfsSession = std::make_shared<GfsRender::Session>();
+    }
+    const auto session = gfsSession;
+    const auto charts = objectModel.params;
+    auto found = std::make_shared<std::set<string>>();
+    new FutureVoid{this, [session, model, runId, charts, found] { *found = ChartHours::absent(*session, model, runId, charts); }, [this, key, found] {
+        absentCharts[key] = *found;
+        if (qEnvironmentVariableIsSet("WXQT_DEBUG_ABSENT")) {   // (a development aid)
+            std::string list;
+            for (const auto& id : *found) {
+                list += " " + id;
+            }
+            std::fprintf(stderr, "ABSENT %s: %d charts left out:%s\n", key.c_str(), static_cast<int>(found->size()), list.c_str());
+        }
+    }};
+}
+
+bool ModelViewer::chartAbsent(const string& id) const {
+    const auto when = runTime(objectModel.run);
+    if (!when.isValid() || id == objectModel.param) {
+        return false;
+    }
+    const auto found = absentCharts.find(objectModel.model + "|" + when.toString("yyyyMMddHH").toStdString());
+    return found != absentCharts.end() && found->second.count(id) > 0;
+}
+
 void ModelViewer::reload() {
     applyMainRunRule();
+    askAbsent();
     fitHoursToRun();
     if (buttonPlace != nullptr) {
         buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
@@ -2203,6 +2245,9 @@ void ModelViewer::showPicker() {
     const auto model = objectModel.model;
     std::vector<ProductPicker::Entry> entries;
     for (size_t i = 0; i < objectModel.params.size() && i < objectModel.paramLabels.size(); i++) {
+        if (chartAbsent(objectModel.params[i])) {
+            continue;
+        }
         const auto * product = GfsChart::product(objectModel.params[i], model);
         entries.push_back({objectModel.params[i], objectModel.paramLabels[i], product ? GfsChart::category(*product) : string{"Other"}});
     }
@@ -2287,6 +2332,9 @@ string ModelViewer::tileCaptions() const {
 string ModelViewer::chartListing() const {
     string out;
     for (size_t i = 0; i < objectModel.params.size() && i < objectModel.paramLabels.size(); i++) {
+        if (chartAbsent(objectModel.params[i])) {
+            continue;
+        }
         const auto * product = GfsChart::product(objectModel.params[i], objectModel.model);
         out += objectModel.params[i] + " | " + (product ? GfsChart::category(*product) : string{"Other"}) + " | " + objectModel.paramLabels[i] + "\n";
     }
@@ -2440,7 +2488,7 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
         const auto stored = Utility::readPref("MODELFAV_" + objectModel.model, "");
         for (const auto& id : QString::fromStdString(stored).split(',', Qt::SkipEmptyParts)) {
             const auto name = id.toStdString();
-            if (name != objectModel.param && std::find(objectModel.params.begin(), objectModel.params.end(), name) != objectModel.params.end()) {
+            if (name != objectModel.param && !chartAbsent(name) && std::find(objectModel.params.begin(), objectModel.params.end(), name) != objectModel.params.end()) {
                 others.push_back(name);
             }
         }
@@ -2448,7 +2496,7 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
         const size_t start = at == objectModel.params.end() ? 0 : static_cast<size_t>(at - objectModel.params.begin()) + 1;
         for (size_t i = 0; i < objectModel.params.size(); i++) {
             const auto& name = objectModel.params[(start + i) % objectModel.params.size()];
-            if (name != objectModel.param && std::find(others.begin(), others.end(), name) == others.end()) {
+            if (name != objectModel.param && !chartAbsent(name) && std::find(others.begin(), others.end(), name) == others.end()) {
                 others.push_back(name);
             }
         }
@@ -2819,6 +2867,9 @@ void ModelViewer::changeTile(int index) {
     if (show == TilesShow::Charts) {
         std::vector<ProductPicker::Entry> entries;
         for (size_t i = 0; i < objectModel.params.size() && i < objectModel.paramLabels.size(); i++) {
+            if (chartAbsent(objectModel.params[i])) {
+                continue;
+            }
             const auto * product = GfsChart::product(objectModel.params[i], objectModel.model);
             entries.push_back({objectModel.params[i], objectModel.paramLabels[i], product ? GfsChart::category(*product) : string{"Other"}});
         }

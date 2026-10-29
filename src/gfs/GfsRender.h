@@ -96,6 +96,9 @@ namespace GfsRender {
     // is only an accumulation, which hour 0 has none of. The run's index is read, no field is downloaded; a lost connection or a run that is not there is not an answer (false), and
     // the file is only called missing when the next hour's is there. runId is "yyyyMMddHH".
     // the hours (of `hours`) for which the run's index lists every record the chart needs: probed in parallel, an index read once for all the charts; empty when nothing could be told (no connection, no run)
+    // Whether the index of the run's hour has the variables and levels the chart is made of, whatever their forecast kind (an accumulation, a maximum): a chart this says no to cannot be drawn at any hour.
+    // Blocking. `readable` is set when the hour's index could be asked at all (the answer is only a no when it is).
+    bool hasFields(Session& session, const std::string& model, const std::string& param, const std::string& runId, int hour);
     std::vector<int> availableHours(Session& session, const std::string& model, const std::string& param, const std::string& runId, const std::vector<int>& hours, const std::string& storm = "");
     bool firstHourMissing(Session& session, const std::string& model, const std::string& param, const std::string& runId);
     // the newest published run of the model as the screen writes a run ("12Z"); false when none is found (no connection)
