@@ -223,6 +223,7 @@ private:
     void chooseOverlays();                 // the other models whose lines are drawn over this chart's (a dialog of the models that have the chart)
     void refreshOverlays();                // keeps the ones that still have the chart on screen, and the button's text
     std::vector<std::string> overlayModels;
+    bool overlayKeepFill{false};   // the lines of the other models over the first one's fill and barbs (Overlay models...)
     QPushButton * buttonOverlay{};
     void editColors();   // the color scale of the chart on screen (PaletteEditor)
     QPushButton * buttonColors{};

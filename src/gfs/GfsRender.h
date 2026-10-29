@@ -63,8 +63,9 @@ namespace GfsRender {
         std::string validTime;
         std::string poolOnly;   // a pooled chart (ENS-ALL) from one of its ensembles' members only: "IFS-ENS", "GEFS" or "GEPS" (GfsChart::withPoolOnly)
         std::string member;   // one ensemble member instead of the mean (GfsChart::withMember); "" the chart as it is
-        // other models whose lines are drawn over this one's, each in a color of its own, for the same valid time: the chart's first set of lines (heights, pressure) of each, and no fill
+        // other models whose lines are drawn over this one's, each in a color of its own, for the same valid time: every set of lines of the chart (heights, pressure ...) of each, and no fill unless overlayKeepFill
         std::vector<std::string> overlayModels;
+        bool overlayKeepFill{false};   // with them: the first model's fill, barbs and streamlines stay under the lines
         // the chart as a layer for the scrollable map: only the map part of the picture (no header, legend or frame, no coastlines or places), the ground left clear, `width` pixels wide (0: the default);
         // the probe then covers the picture whole
         // the fill's grid and its color scale instead of a picture (the globe draws them itself); the picture is then one pixel

@@ -454,7 +454,7 @@ bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const 
 namespace {
     // The first set of lines of the chart from each of `others`, for the same valid time as `run` + `hour`, drawn on `chart` over the screen's own lines: one color for each model and no fill. The
     // others' runs are their newest one at or before this run's time that they make (a model that runs every 12 hours uses its 12Z run for an 18Z one), the hour moved to keep the valid time.
-    bool addOverlays(GfsRender::Session& session, GfsChart::Product& chart, GfsChart::Grids& grids, const std::string& model, const GfsData::Run& run, int hour, const std::vector<std::string>& others, std::string& error) {
+    bool addOverlays(GfsRender::Session& session, GfsChart::Product& chart, GfsChart::Grids& grids, const std::string& model, const GfsData::Run& run, int hour, const std::vector<std::string>& others, bool keepFill, std::string& error) {
         if (chart.contours.empty()) {
             error = "this chart has no lines (heights, pressure) to put the other models' over; pick a chart with lines";
             return false;
@@ -464,12 +464,17 @@ namespace {
         start.setTimeSpec(Qt::UTC);
         const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
         static const GfsClimate climate{UtilityGrib::gdalBinDir()};
-        auto first = chart.contours.front();
+        const auto own = chart.contours;   // every set of lines of the chart is drawn for each model: a model's sets share its color, the later ones dashed
         chart.contours.clear();
-        first.color = QColor{colors[0]};
-        first.title = model + ": " + first.title;
-        first.width = std::max(first.width, 1.6);
-        chart.contours.push_back(first);
+        for (size_t j = 0; j < own.size(); j++) {
+            auto lines = own[j];
+            lines.color = QColor{colors[0]};
+            lines.colorBelow = QColor{};
+            lines.title = model + ": " + lines.title;
+            lines.width = std::max(lines.width, 1.6);
+            lines.dashed = j > 0;
+            chart.contours.push_back(lines);
+        }
         std::string names = model;
         int index = 0;
         for (const auto& other : others) {
@@ -523,33 +528,44 @@ namespace {
             if (product->derive) {
                 product->derive(loaded, GfsChart::Context{usedHour, used, &climate, product->source});
             }
-            if (product->contours.empty() || loaded.find(product->contours.front().key) == loaded.end()) {
+            int drawn = 0;
+            for (size_t j = 0; j < product->contours.size(); j++) {
+                auto lines = product->contours[j];
+                if (loaded.find(lines.key) == loaded.end()) {
+                    continue;
+                }
+                const std::string key = "overlay" + std::to_string(index) + "_" + std::to_string(j) + "_" + lines.key;
+                grids[key] = loaded.at(lines.key);
+                lines.key = key;
+                lines.color = QColor{colors[std::min(index, 4)]};
+                lines.colorBelow = QColor{};
+                lines.title = other + " (" + used.cycle + "Z): " + product->contours[j].title;
+                lines.labelled = false;
+                lines.width = std::max(lines.width, 1.6);
+                lines.highsAndLows = false;
+                lines.dashed = j > 0;
+                chart.contours.push_back(lines);
+                drawn++;
+            }
+            if (drawn == 0) {
                 error = other + "'s chart has no lines to compare";
                 return false;
             }
-            auto lines = product->contours.front();
-            const std::string key = "overlay" + std::to_string(index) + "_" + lines.key;
-            grids[key] = loaded.at(lines.key);
-            lines.key = key;
-            lines.color = QColor{colors[std::min(index, 4)]};
-            lines.title = other + " (" + used.cycle + "Z): " + product->contours.front().title;
-            lines.labelled = false;
-            lines.width = std::max(lines.width, 1.6);
-            lines.highsAndLows = false;
-            chart.contours.push_back(lines);
             names += ", " + other;
         }
-        chart.fill = nullptr;
-        chart.fillTitle.clear();
-        chart.fillTitleFor = nullptr;
-        chart.ramp.stops.clear();
-        chart.overlays.clear();
-        chart.barbU.clear();
-        chart.barbV.clear();
-        chart.streamU.clear();
-        chart.streamV.clear();
-        chart.pointValues.clear();
-        chart.linesOnly = true;
+        if (!keepFill) {   // the lines alone, to be read (or with the first model's fill, barbs and streamlines under them)
+            chart.fill = nullptr;
+            chart.fillTitle.clear();
+            chart.fillTitleFor = nullptr;
+            chart.ramp.stops.clear();
+            chart.overlays.clear();
+            chart.barbU.clear();
+            chart.barbV.clear();
+            chart.streamU.clear();
+            chart.streamV.clear();
+            chart.pointValues.clear();
+            chart.linesOnly = true;
+        }
         chart.label = "Models compared: " + names + ", " + chart.label;
         return true;
     }
@@ -897,7 +913,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         }
     }
     if (!variant.overlayModels.empty() && variant.kind == Variant::Kind::None && !isHafs(model)) {   // the other models' lines over this one's
-        if (!addOverlays(session, composed, grids, model, run, hour, variant.overlayModels, error)) {
+        if (!addOverlays(session, composed, grids, model, run, hour, variant.overlayModels, variant.overlayKeepFill, error)) {
             return {};
         }
     }

@@ -750,7 +750,7 @@ string ModelViewer::frameKey(int hour) const {
     for (const auto& other : overlayModels) {
         overlay += (overlay.empty() ? "|overlay=" : ",") + other;
     }
-    return key + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay;
+    return key + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
 }
 
 void ModelViewer::setVariant(GfsRender::Variant v) {
@@ -2592,6 +2592,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.variant.member = member;
         job.variant.standardDeviations = standardDeviations;
         job.variant.overlayModels = overlayModels;
+        job.variant.overlayKeepFill = overlayKeepFill;
         job.key = frameKey(mainHour);
     } else {
         const auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
@@ -3286,7 +3287,7 @@ void ModelViewer::chooseOverlays() {
     dialog.setWindowTitle("Overlay models");
     auto * layout = new QVBoxLayout{&dialog};
     auto * about = new QLabel{"Lines of " + QString::fromStdString(here->label) + " from these models are drawn over " + QString::fromStdString(objectModel.model) +
-                              "'s, for the same valid time, each in its own color (at most four). The fill is left out so the lines can be read. Models are listed when they draw this chart.", &dialog};
+                              "'s, for the same valid time, each model in its own color (at most four), every set of lines of the chart, the later sets dashed. Models are listed when they draw this chart.", &dialog};
     about->setWordWrap(true);
     layout->addWidget(about);
     std::vector<QCheckBox *> boxes;
@@ -3310,6 +3311,10 @@ void ModelViewer::chooseOverlays() {
     if (boxes.empty()) {
         layout->addWidget(new QLabel{"No other model draws this chart.", &dialog});
     }
+    auto * keepFill = new QCheckBox{"Keep " + QString::fromStdString(objectModel.model) + "'s fill and barbs under the lines", &dialog};
+    keepFill->setToolTip("Off: the lines alone, so they can be read. On: the first model's colors (and wind barbs) stay beneath them.");
+    keepFill->setChecked(overlayKeepFill);
+    layout->addWidget(keepFill);
     auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -3323,9 +3328,10 @@ void ModelViewer::chooseOverlays() {
             chosen.push_back(box->property("model").toString().toStdString());
         }
     }
-    if (chosen == overlayModels) {
+    if (chosen == overlayModels && keepFill->isChecked() == overlayKeepFill) {
         return;
     }
+    overlayKeepFill = keepFill->isChecked();
     overlayModels = chosen;
     refreshOverlays();
     startPlaying(false);
