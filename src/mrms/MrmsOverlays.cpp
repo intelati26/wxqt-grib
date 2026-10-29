@@ -5,6 +5,7 @@
 
 #include "mrms/MrmsOverlays.h"
 #include <algorithm>
+#include <QtGlobal>
 #include <cmath>
 #include <future>
 #include <set>
@@ -84,8 +85,10 @@ const std::vector<Band>& hailBands() {
 }
 
 const std::vector<Band>& rotationBands() {
-    static const std::vector<Band> bands{{8.0, QColor{255, 255, 255, 235}, "8"}, {12.0, QColor{120, 230, 255, 245}, "12"}, {16.0, QColor{40, 120, 255, 250}, "16"},
-                                         {20.0, QColor{150, 40, 255, 255}, "20+"}};
+    // grays to black: the reflectivity under them uses every hue (cyan, blue, greens, yellow, reds, magenta, purple, white), so a track in any of them is lost in it; the layer edges the shapes
+    // in black with a white halo outside
+    static const std::vector<Band> bands{{8.0, QColor{150, 150, 150, 255}, "8"}, {12.0, QColor{100, 100, 100, 255}, "12"}, {16.0, QColor{58, 58, 58, 255}, "16"},
+                                         {20.0, QColor{12, 12, 12, 255}, "20+"}};
     return bands;
 }
 
@@ -263,6 +266,12 @@ Swath hail(int which) {
     return out;
 }
 
+// the weakest shear drawn (a development aid: WXQT_ROT_MIN lowers it, to see tracks on a quiet day)
+static double rotationMinimum() {
+    const double wanted = qEnvironmentVariable("WXQT_ROT_MIN").toDouble();
+    return wanted > 0.0 ? wanted : rotationBands().front().from;
+}
+
 Swath rotation(int which) {
     static const char * ids[] = {"", "RotationTrack30min", "RotationTrack60min", "RotationTrack120min", "RotationTrack360min", "RotationTrack1440min",
                                  "RotationTrackML60min", "RotationTrackML120min", "RotationTrackML360min"};
@@ -303,7 +312,7 @@ Swath rotation(int which) {
     auto * out = reinterpret_cast<uchar *>(cleaned.data());
     int firstStrong = 256;
     for (int index = 1; index < 256; index++) {
-        if (frame.valueAt(index) >= rotationBands().front().from) {
+        if (frame.valueAt(index) >= rotationMinimum()) {
             firstStrong = index;
             break;
         }
@@ -351,6 +360,13 @@ Swath rotation(int which) {
 
     addPooledLevels(result, frame.grid, cleaned);
     colorize(result, frame, rotationBands());
+    if (rotationMinimum() < rotationBands().front().from) {   // (a lowered minimum: the weaker cells take the first band's color)
+        for (int index = 1; index < 256; index++) {
+            if (frame.valueAt(index) >= rotationMinimum() && qAlpha(result.colors[index]) == 0) {
+                result.colors[index] = qPremultiply(rotationBands().front().color.rgba());
+            }
+        }
+    }
     result.utc = frame.utc;
     result.ok = true;
     return result;

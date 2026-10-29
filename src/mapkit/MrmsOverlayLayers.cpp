@@ -149,14 +149,27 @@ void MrmsOverlayLayer::paintSwath(QPainter& painter, MapHost& host) {
             out[i] = column < 0 ? qRgba(0, 0, 0, 0) : swath.colors[source[column]];
         }
     }
-    {   // the shapes edged in black, so they read whatever is under them
+    {   // the shapes edged in black, so they read whatever is under them; the rotation tracks also in a white halo outside the black (their grays are on a map of every other color)
         const QImage filled = image.copy();
         const int edge = std::max(1, static_cast<int>(std::lround(ratio)));
+        const bool halo = kind == Kind::Rotation;
+        const auto filledAt = [&] (int i, int j) { return i >= 0 && i < pixelWidth && j >= 0 && j < pixelHeight && qAlpha(reinterpret_cast<const QRgb *>(filled.constScanLine(j))[i]) != 0; };
         for (int j = 0; j < pixelHeight; j++) {
             auto * out = reinterpret_cast<QRgb *>(image.scanLine(j));
             const auto * in = reinterpret_cast<const QRgb *>(filled.constScanLine(j));
             for (int i = 0; i < pixelWidth; i++) {
                 if (qAlpha(in[i]) == 0) {
+                    if (halo) {   // a clear pixel next to a shape (within an edge): the halo
+                        bool near = false;
+                        for (int dy = -edge; dy <= edge && !near; dy++) {
+                            for (int dx = -edge; dx <= edge && !near; dx++) {
+                                near = (dx != 0 || dy != 0) && filledAt(i + dx, j + dy);
+                            }
+                        }
+                        if (near) {
+                            out[i] = qPremultiply(qRgba(255, 255, 255, 235));
+                        }
+                    }
                     continue;
                 }
                 bool border = false;
