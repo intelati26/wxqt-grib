@@ -16,6 +16,7 @@
 #include <QInputDialog>
 #include <QPainter>
 #include <QDateTime>
+#include <QRegularExpression>
 #include <QTimer>
 #include <QMenu>
 #include <QMessageBox>
@@ -2161,18 +2162,45 @@ void ModelViewer::showModelPicker() {
         return;
     }
     std::vector<ProductPicker::Entry> entries;
+    // The models the program has no description for (the charts of NCEP's model guidance site are pictures)
+    static const std::map<string, string> pictureModels{
+        {"ESTOFS", "NOAA/NOS ESTOFS storm surge and tide"}, {"FIREWX", "NOAA/NCEP NAM fire weather nest"}, {"GEFS-MEAN-SPRD", "NOAA/NCEP GEFS ensemble mean and spread"},
+        {"GEFS-SPAG", "NOAA/NCEP GEFS spaghetti charts"}, {"HRW-ARW", "NOAA/NCEP HiResW ARW, 3 km"}, {"HRW-ARW2", "NOAA/NCEP HiResW ARW, second run, 3 km"}, {"HRW-FV3", "NOAA/NCEP HiResW FV3, 3 km"},
+        {"NAEFS", "North American Ensemble Forecast System (GEFS with Canada's GEPS)"}, {"NAM", "NOAA/NCEP NAM, 12 km"}, {"NAM-HIRES", "NOAA/NCEP NAM CONUS nest, 3 km"},
+        {"POLAR", "Polar charts of NCEP's model guidance site"}, {"RAP", "NOAA/NCEP Rapid Refresh, 13 km"}, {"WW3", "NOAA/NCEP WAVEWATCH III, global"},
+        {"WW3-ENP", "NOAA/NCEP WAVEWATCH III, eastern North Pacific"}, {"WW3-WNA", "NOAA/NCEP WAVEWATCH III, western North Atlantic"}};
+    // the label of the list: what the model is, without the notes of licence and dates (those are in the hover text and the search)
+    static const QRegularExpression notes{"\\s*\\([^)]*\\)"};
     for (const auto& id : objectModel.models) {
         auto group = GfsModels::pickerGroup(id);
         if (group == "Global" || group == "Regional" || group == "Convection allowing") {
             group = "Deterministic: " + group;   // (the ensembles are the other list)
         }
         const auto * def = GfsModels::find(id);   // every model says what it is, so a model is found by who makes it ("ECMWF", "NASA") as well as by its short name
-        entries.push_back({id, def && def->label != id ? id + "  -  " + def->label : id, group});
+        string full = def && def->label != id ? def->label : string{};
+        if (full.empty()) {
+            const auto found = pictureModels.find(id);
+            full = found == pictureModels.end() ? string{} : found->second;
+        }
+        const string brief = QString::fromStdString(full).remove(notes).replace(" ,", ",").simplified().toStdString();
+        entries.push_back({id, brief.empty() ? id : id + "  -  " + brief, group, full == brief ? string{} : id + "  -  " + full});
     }
-    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Waves and ocean", "Tropical cyclones", "Other"};
+    // the main models first in a group (what a person looks for), the rest in the order the program has them
+    static const std::vector<string> first{"GFS", "IFS", "AIFS", "AIGFS", "GEOS-FP", "NAM", "RAP", "NBM", "RRFS-NA", "ICON-EU", "HRRR", "RRFS", "NAM-HIRES", "HRW-FV3", "HRW-ARW", "HRW-ARW2", "HRDPS",
+                                           "ICON-D2", "ENS-ALL", "GEFS", "IFS-ENS", "GEPS", "NAEFS", "HREF", "REFS", "CFS30", "CFS", "EC46", "SEAS5", "GFS-WAVE", "WW3", "GEFS-WAVE"};
+    const auto rank = [] (const string& id) { return static_cast<int>(std::find(first.begin(), first.end(), id) - first.begin()); };
+    std::stable_sort(entries.begin(), entries.end(), [&rank] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) { return rank(a.id) < rank(b.id); });
+    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Seasonal", "Waves and ocean", "Tropical cyclones", "Archive",
+                                           "SPC guidance and mesoanalysis", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
     });
+    if (qEnvironmentVariableIsSet("WXQT_MODEL_LIST")) {   // (a development aid: the list as the picker has it)
+        for (const auto& e : entries) {
+            std::fprintf(stdout, "%s | %s\n", e.group.c_str(), e.label.c_str());
+        }
+        std::fflush(stdout);
+    }
     modelPicker = new ProductPicker{this, "NCEP", entries, objectModel.model, {}, {}, {}};
     modelPicker->setWording("models", "Show this model");
     modelPicker->resize(480, 560);

@@ -25,6 +25,7 @@ public:
         std::string id;
         std::string label;
         std::string group;
+        std::string tip;   // the longer text for the hover (and the search); "" shows the id
     };
     ProductPicker(QWidget * parent, const std::string& model, const std::vector<Entry>& entries, const std::string& current, const std::vector<std::string>& favorites,
                   const std::vector<GfsChart::OverlayChoice>& extras, const std::vector<std::string>& ticked);

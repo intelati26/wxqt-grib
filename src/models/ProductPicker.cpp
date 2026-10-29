@@ -17,6 +17,7 @@
 
 namespace {
     constexpr int idRole = Qt::UserRole;
+    constexpr int tipRole = Qt::UserRole + 1;
 }
 
 std::vector<std::string> ProductPicker::groupOrder() {
@@ -261,7 +262,8 @@ void ProductPicker::fill() {
     const auto add = [this, &isFavorite] (QTreeWidgetItem * parent, const Entry& e) {
         auto * item = new QTreeWidgetItem{parent, QStringList{(isFavorite(e.id) ? QString::fromUtf8("★ ") : QString{}) + QString::fromStdString(e.label)}};
         item->setData(0, idRole, QString::fromStdString(e.id));
-        item->setToolTip(0, QString::fromStdString(e.id));
+        item->setToolTip(0, QString::fromStdString(e.tip.empty() ? e.id : e.tip));
+        item->setData(0, tipRole, QString::fromStdString(e.tip));
         if (e.id == current) {
             QFont bold = item->font(0);
             bold.setBold(true);
@@ -351,7 +353,7 @@ void ProductPicker::filter(const QString& text) {
         int shown = 0;
         for (int i = 0; i < top->childCount(); i++) {
             auto * item = top->child(i);
-            const bool match = needle.isEmpty() || item->text(0).toLower().contains(needle) || item->data(0, idRole).toString().toLower().contains(needle);
+            const bool match = needle.isEmpty() || item->text(0).toLower().contains(needle) || item->data(0, idRole).toString().toLower().contains(needle) || item->data(0, tipRole).toString().toLower().contains(needle);
             item->setHidden(!match);
             shown += match ? 1 : 0;
         }
