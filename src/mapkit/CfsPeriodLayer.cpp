@@ -25,20 +25,62 @@
 #include "ui/UiStandards.h"
 
 namespace {
+    using Stops = std::vector<std::pair<double, QColor>>;
+
     // a departure of temperature (degrees C): blues under the normal, warm colors over it, a half degree clear
-    const std::vector<std::pair<double, QColor>>& temperatureStops() {
-        static const std::vector<std::pair<double, QColor>> stops{{-5, QColor{"#2b4a9a"}}, {-3, QColor{"#3f74b8"}}, {-1.5, QColor{"#86b4dc"}}, {-0.5, QColor{"#d3e5f2"}}, {0.0, QColor{250, 250, 250}},
-                                                                   {0.5, QColor{"#f6e0b8"}}, {1.5, QColor{"#f0b070"}}, {3, QColor{"#d9633a"}}, {5, QColor{"#a02a2a"}}};
+    const Stops& temperatureStops() {
+        static const Stops stops{{-5, QColor{"#2b4a9a"}}, {-3, QColor{"#3f74b8"}}, {-1.5, QColor{"#86b4dc"}}, {-0.5, QColor{"#d3e5f2"}}, {0.0, QColor{250, 250, 250}},
+                                 {0.5, QColor{"#f6e0b8"}}, {1.5, QColor{"#f0b070"}}, {3, QColor{"#d9633a"}}, {5, QColor{"#a02a2a"}}};
         return stops;
     }
     // the same for the precipitation (mm/day): browns drier, greens wetter
-    const std::vector<std::pair<double, QColor>>& precipitationStops() {
-        static const std::vector<std::pair<double, QColor>> stops{{-2.4, QColor{"#7a4a1c"}}, {-1.2, QColor{"#b07a3a"}}, {-0.5, QColor{"#dcc08a"}}, {-0.15, QColor{"#efe3c4"}}, {0.0, QColor{250, 250, 250}},
-                                                                   {0.15, QColor{"#c8e6c8"}}, {0.5, QColor{"#8cc99a"}}, {1.2, QColor{"#3fa06a"}}, {2.4, QColor{"#1b6e48"}}};
+    const Stops& precipitationStops() {
+        static const Stops stops{{-2.4, QColor{"#7a4a1c"}}, {-1.2, QColor{"#b07a3a"}}, {-0.5, QColor{"#dcc08a"}}, {-0.15, QColor{"#efe3c4"}}, {0.0, QColor{250, 250, 250}},
+                                 {0.15, QColor{"#c8e6c8"}}, {0.5, QColor{"#8cc99a"}}, {1.2, QColor{"#3fa06a"}}, {2.4, QColor{"#1b6e48"}}};
+        return stops;
+    }
+    // the sea level pressure against the normal (hPa): purples lower (stormier), oranges higher
+    const Stops& pressureDepartureStops() {
+        static const Stops stops{{-6, QColor{"#4b2a8a"}}, {-3, QColor{"#7e63b8"}}, {-1, QColor{"#cdbfe6"}}, {0.0, QColor{250, 250, 250}}, {1, QColor{"#f3d9b0"}}, {3, QColor{"#e0a05a"}}, {6, QColor{"#b8622a"}}};
+        return stops;
+    }
+    // the values themselves: a mean temperature (degrees C), a mean precipitation rate (mm/day), a mean sea level pressure (hPa)
+    const Stops& temperatureValueStops() {
+        static const Stops stops{{-30, QColor{"#5b2c83"}}, {-20, QColor{"#3a4fa5"}}, {-10, QColor{"#4f86c6"}}, {0, QColor{"#a9d3ec"}}, {5, QColor{"#d8ecc8"}}, {10, QColor{"#f6f1b0"}}, {20, QColor{"#f3b868"}},
+                                 {30, QColor{"#d9633a"}}, {40, QColor{"#8f1d1d"}}};
+        return stops;
+    }
+    const Stops& precipitationValueStops() {
+        static const Stops stops{{0, QColor{"#f7f4ea"}}, {0.5, QColor{"#dcebc8"}}, {1, QColor{"#a9d7a3"}}, {2, QColor{"#5fb98a"}}, {4, QColor{"#2f93b5"}}, {7, QColor{"#2d5aa8"}}, {12, QColor{"#4b2a8a"}}};
+        return stops;
+    }
+    const Stops& pressureValueStops() {
+        static const Stops stops{{995, QColor{"#4b2a8a"}}, {1005, QColor{"#8e7cc3"}}, {1013, QColor{250, 250, 250}}, {1020, QColor{"#e9d3a8"}}, {1030, QColor{"#b8622a"}}};
         return stops;
     }
 
-    QRgb colorOf(const std::vector<std::pair<double, QColor>>& stops, double v) {
+    // what each view shows: the key of the field that is colored, its stops (in the CFS's units: deg C, mm/day, hPa), whether it is a difference (for the unit's conversion), and the title of its legend
+    struct Look {
+        const char * key;
+        const Stops& (*stops)();
+        const char * unit;
+        bool delta;
+        const char * title;   // %1 the days, %2 the unit
+    };
+    const Look& lookOf(int show) {
+        static const Look looks[] = {
+            {"t2m", temperatureStops, "deg C", true, "Temperature against the CFS normal, next %1 days (%2):"},
+            {"t2m", temperatureStops, "deg C", true, "Temperature against the CFS normal, next %1 days (%2):"},
+            {"precip", precipitationStops, "mm/day", true, "Precipitation against the CFS normal, next %1 days (%2):"},
+            {"t2m.v", temperatureValueStops, "deg C", false, "Mean temperature, next %1 days (%2):"},
+            {"precip.v", precipitationValueStops, "mm/day", false, "Mean precipitation rate, next %1 days (%2):"},
+            {"mslp", pressureDepartureStops, "hPa", true, "Sea level pressure against the CFS normal, next %1 days (%2):"},
+            {"mslp.v", pressureValueStops, "hPa", false, "Mean sea level pressure, next %1 days (%2):"},
+        };
+        return looks[std::clamp(show, 0, 6)];
+    }
+
+    QRgb colorOf(const Stops& stops, double v) {
         if (v <= stops.front().first) {
             return stops.front().second.rgb();
         }
@@ -55,6 +97,21 @@ namespace {
     QString number(double v) {
         return QString::number(v, 'f', std::abs(v) < 10 && std::abs(v - std::round(v)) > 0.01 ? 1 : 0);
     }
+
+    // a key of the frame ("t2m.v") as the loader asks for it: the CFS's key and whether it is the mean itself
+    std::pair<string, bool> loaderKey(const string& key) {
+        const auto dot = key.find(".v");
+        return dot == string::npos ? std::pair<string, bool>{key, false} : std::pair<string, bool>{key.substr(0, dot), true};
+    }
+
+    const char * nameOf(const string& key) {
+        if (key == "t2m") return "Temperature against the normal";
+        if (key == "precip") return "Precipitation against the normal";
+        if (key == "mslp") return "Sea level pressure against the normal";
+        if (key == "t2m.v") return "Mean temperature";
+        if (key == "precip.v") return "Mean precipitation rate";
+        return "Mean sea level pressure";
+    }
 }
 
 CfsPeriodLayer::CfsPeriodLayer() {
@@ -62,34 +119,34 @@ CfsPeriodLayer::CfsPeriodLayer() {
     if (days != 7 && days != 14 && days != 30 && days != 60 && days != 90) {
         days = 30;
     }
-    show = std::clamp(Utility::readPrefInt("MM_CFSP_SHOW", 0), 0, 2);
+    show = std::clamp(Utility::readPrefInt("MM_CFSP_SHOW", 0), 0, 6);
 }
 
-std::vector<std::pair<double, QColor>> CfsPeriodLayer::stops() const {
-    std::vector<std::pair<double, QColor>> out;
-    if (show == 2) {
-        for (const auto& [value, color] : precipitationStops()) {
-            out.emplace_back(DisplayUnits::value(value, "mm/day", DisplayUnits::Kind::Delta), color);
-        }
-    } else {
-        for (const auto& [value, color] : temperatureStops()) {
-            out.emplace_back(DisplayUnits::value(value, "deg C", DisplayUnits::Kind::Delta), color);
-        }
+// the fields the view on show is made of (only those are read)
+std::vector<string> CfsPeriodLayer::needed() const {
+    if (show == 0) {
+        return {"t2m", "precip"};
     }
-    return out;
+    return {lookOf(show).key};
+}
+
+bool CfsPeriodLayer::hasNeeded(const Frame& frame) const {
+    const auto keys = needed();
+    return std::all_of(keys.begin(), keys.end(), [&frame] (const string& key) { return frame.grids.find(key) != frame.grids.end(); });
 }
 
 string CfsPeriodLayer::summary() const {
     if (!error.empty()) {
         return error;
     }
-    if (loading && frames.find(days) == frames.end()) {
-        return "reading the CFSv2 (160 fields, some 25 seconds the first time)...";
+    const auto found = frames.find(days);
+    if (loading && (found == frames.end() || !hasNeeded(found->second))) {
+        return "reading the CFSv2 (some 25 seconds the first time)...";
     }
-    if (frames.find(days) == frames.end()) {
+    if (found == frames.end() || !hasNeeded(found->second)) {
         return {};
     }
-    return "CFSv2, the next " + std::to_string(days) + " days against its normal, the mean of its four newest runs";
+    return "CFSv2, the next " + std::to_string(days) + " days" + (show == 3 || show == 4 || show == 6 ? "" : " against its normal") + ", the mean of its four newest runs";
 }
 
 void CfsPeriodLayer::optionChanged(MapHost& host) {
@@ -100,8 +157,9 @@ void CfsPeriodLayer::optionChanged(MapHost& host) {
 }
 
 void CfsPeriodLayer::refresh(MapHost& host) {
-    // read again when the frame on hand is hours old (the day's first result replaces yesterday's)
-    if (loading || (frames.find(days) != frames.end() && QDateTime::currentSecsSinceEpoch() - loadedAt < 6 * 3600)) {
+    // read again when the frame on hand is hours old (the day's first result replaces yesterday's), or lacks a field of the view
+    const auto found = frames.find(days);
+    if (loading || (found != frames.end() && hasNeeded(found->second) && QDateTime::currentSecsSinceEpoch() - loadedAt < 6 * 3600)) {
         return;
     }
     load(host);
@@ -111,42 +169,56 @@ void CfsPeriodLayer::refresh(MapHost& host) {
 void CfsPeriodLayer::load(MapHost& host) {
     loading = true;
     struct Loaded {
-        GfsGrid::Grid temperature, precipitation;
+        std::map<string, GfsGrid::Grid> grids;
         string error;
         bool ok{false};
         int age{-1};   // days: -1 none kept
     };
     const int length = days;
+    const auto keys = needed();
     auto kept = std::make_shared<Loaded>();
     host.background(
-        [kept, length] {
-            int ageT = 0, ageP = 0;
-            const bool t = Cfs30Loader::cached(length, "t2m", kept->temperature, ageT);
-            const bool p = Cfs30Loader::cached(length, "precip", kept->precipitation, ageP);
-            kept->ok = t || p;
-            kept->age = t || p ? std::max(t ? ageT : 0, p ? ageP : 0) : -1;
+        [kept, length, keys] {
+            int age = 0;
+            for (const auto& key : keys) {
+                const auto [name, values] = loaderKey(key);
+                GfsGrid::Grid grid;
+                int ageOne = 0;
+                if (Cfs30Loader::cached(length, name, grid, ageOne, values)) {
+                    kept->grids[key] = std::move(grid);
+                    age = std::max(age, ageOne);
+                }
+            }
+            kept->ok = !kept->grids.empty();
+            kept->age = kept->ok ? age : -1;
         },
-        [this, &host, kept, length, alive = alive] {
+        [this, &host, kept, length, keys, alive = alive] {
             if (!*alive) {
                 return;
             }
             if (kept->ok) {
-                install(std::move(kept->temperature), std::move(kept->precipitation), length);
+                install(std::move(kept->grids), length);
                 host.redraw();
             }
-            if (kept->ok && kept->age == 0) {   // today's: nothing fresher to be had
+            if (kept->ok && kept->age == 0 && frames.find(length) != frames.end() && hasNeeded(frames.at(length))) {   // today's: nothing fresher to be had
                 loading = false;
                 loadedAt = QDateTime::currentSecsSinceEpoch();
                 return;
             }
             auto loaded = std::make_shared<Loaded>();
             host.background(
-                [loaded, length] {
-                    string messageT, messageP;
-                    const bool t = Cfs30Loader::period(length, "t2m", loaded->temperature, messageT);
-                    const bool p = Cfs30Loader::period(length, "precip", loaded->precipitation, messageP);
-                    loaded->ok = t || p;
-                    loaded->error = !t ? messageT : messageP;
+                [loaded, length, keys] {
+                    for (const auto& key : keys) {
+                        const auto [name, values] = loaderKey(key);
+                        GfsGrid::Grid grid;
+                        string message;
+                        if (Cfs30Loader::period(length, name, grid, message, values)) {
+                            loaded->grids[key] = std::move(grid);
+                        } else if (loaded->error.empty()) {
+                            loaded->error = message;
+                        }
+                    }
+                    loaded->ok = !loaded->grids.empty();
                 },
                 [this, &host, loaded, length, alive = alive] {
                     if (!*alive) {
@@ -154,42 +226,50 @@ void CfsPeriodLayer::load(MapHost& host) {
                     }
                     loading = false;
                     if (!loaded->ok) {
-                        if (frames.find(length) == frames.end()) {
+                        if (frames.find(length) == frames.end() || !hasNeeded(frames.at(length))) {
                             error = loaded->error.empty() ? "no CFSv2 data could be read" : loaded->error;
                         }
                         host.redraw();
                         return;
                     }
                     error.clear();
-                    install(std::move(loaded->temperature), std::move(loaded->precipitation), length);
+                    install(std::move(loaded->grids), length);
                     loadedAt = QDateTime::currentSecsSinceEpoch();
                     host.redraw();
                 });
         });
 }
 
-// the frame of a stretch from its two fields (in the CFS's units): the colors and the lines
-void CfsPeriodLayer::install(GfsGrid::Grid temperature, GfsGrid::Grid precipitation, int length) {
-    Frame f;
-    f.temperature = std::move(temperature);
-    f.precipitation = std::move(precipitation);
-    for (auto& v : f.temperature.values) {
-        v = static_cast<float>(DisplayUnits::value(v, "deg C", DisplayUnits::Kind::Delta));
+// the fields of a stretch (in the CFS's units) joined to the frame: the lines of those that have them, and the picture of the view on show
+void CfsPeriodLayer::install(std::map<string, GfsGrid::Grid> grids, int length) {
+    auto& f = frames[length];
+    for (auto& [key, grid] : grids) {
+        GfsGrid::closeWrapGap(grid);
+        f.grids[key] = std::move(grid);
     }
-    GfsGrid::closeWrapGap(f.temperature);
-    GfsGrid::closeWrapGap(f.precipitation);
-    if (!f.precipitation.empty()) {
+    if (const auto p = f.grids.find("precip"); p != f.grids.end() && !p->second.empty()) {
         std::vector<std::pair<double, QString>> wet, dry;
         for (const double level : {0.5, 1.0, 1.5, 2.0, 3.0, 4.0}) {
-            wet.emplace_back(level, number(level));
+            wet.emplace_back(level, number(level));   // (the lines are numbered in mm/day, as their legend says: in inches the levels round to nothing)
             dry.emplace_back(-level, number(-level));
         }
-        const auto smooth = GfsGrid::smoothed(f.precipitation, 2);
+        const auto smooth = GfsGrid::smoothed(p->second, 2);
         f.wet = BandLines::make(smooth, wet);
         f.dry = BandLines::make(smooth, dry);
     }
-    f.image = colored(show == 2 ? f.precipitation : f.temperature);
-    frames[length] = std::move(f);
+    if (const auto p = f.grids.find("mslp.v"); p != f.grids.end() && !p->second.empty()) {   // isobars every 4 hPa
+        std::vector<std::pair<double, QString>> levels;
+        for (int hPa = 960; hPa <= 1060; hPa += 4) {
+            levels.emplace_back(hPa, QString::number(hPa));
+        }
+        f.isobars = BandLines::make(GfsGrid::smoothed(p->second, 2), levels);
+    }
+    drawFrame(f);
+}
+
+void CfsPeriodLayer::drawFrame(Frame& f) const {
+    const auto found = f.grids.find(lookOf(show).key);
+    f.image = found == f.grids.end() ? QImage{} : colored(found->second);
 }
 
 QImage CfsPeriodLayer::colored(const GfsGrid::Grid& grid) const {
@@ -205,7 +285,7 @@ QImage CfsPeriodLayer::colored(const GfsGrid::Grid& grid) const {
     }
     const int up = 3;   // the 1 degree cells smoothed (bicubic) onto a grid three times as fine
     QImage image{grid.columns * up, (last - first + 1) * up, QImage::Format_ARGB32_Premultiplied};
-    const auto table = stops();
+    const auto& table = lookOf(show).stops();
     for (int y = 0; y < image.height(); y++) {
         auto * out = reinterpret_cast<QRgb *>(image.scanLine(y));
         const double lat = grid.lat0 - first * grid.step + grid.step / 2.0 - (y + 0.5) * grid.step / up;
@@ -223,7 +303,11 @@ void CfsPeriodLayer::paint(QPainter& painter, MapHost& host) {
     if (found == frames.end() || found->second.image.isNull()) {
         return;
     }
-    const auto& g = show == 2 ? found->second.precipitation : found->second.temperature;
+    const auto grid = found->second.grids.find(lookOf(show).key);
+    if (grid == found->second.grids.end()) {
+        return;
+    }
+    const auto& g = grid->second;
     int first = 0;
     while (first < g.rows - 1 && g.lat0 - first * g.step > 85.0) {
         first++;
@@ -239,6 +323,9 @@ void CfsPeriodLayer::paint(QPainter& painter, MapHost& host) {
             qWarning("CFSP lines painted in %lld ms", timer.elapsed());
         }
     }
+    if (lines && show == 6) {
+        BandLines::paint(painter, host, found->second.isobars, QColor{40, 30, 60, 210}, 1.2);
+    }
 }
 
 MapHit CfsPeriodLayer::pick(const QPointF& pixels, MapHost& host) const {
@@ -251,30 +338,41 @@ MapHit CfsPeriodLayer::pick(const QPointF& pixels, MapHost& host) const {
     }
     const auto [lat, lon] = host.view().toLatLon(pixels);
     const double lonShown = lon > 180.0 ? lon - 360.0 : lon;
-    const float t = found->second.temperature.empty() ? std::nanf("") : found->second.temperature.sample(lonShown, lat);
-    const float p = found->second.precipitation.empty() ? std::nanf("") : found->second.precipitation.sample(lonShown, lat);
-    if (std::isnan(t) && std::isnan(p)) {
+    QString text;
+    for (const auto& key : needed()) {   // every field of the view on show, at the point
+        const auto grid = found->second.grids.find(key);
+        if (grid == found->second.grids.end() || grid->second.empty()) {
+            continue;
+        }
+        const float v = grid->second.sample(lonShown, lat);
+        if (std::isnan(v)) {
+            continue;
+        }
+        const bool departure = key.find(".v") == string::npos;
+        const string unit = key.compare(0, 4, "t2m") == 0 ? "deg C" : key.compare(0, 6, "precip") == 0 ? "mm/day" : "hPa";
+        const double shown = DisplayUnits::value(v, unit, departure ? DisplayUnits::Kind::Delta : DisplayUnits::Kind::Absolute);
+        const int decimals = unit == "hPa" ? 1 : unit == "mm/day" ? 2 : 1;
+        text += QString{"\n"} + nameOf(key) + ": " + (departure && shown > 0 ? "+" : "") + QString::number(shown, 'f', decimals) + " " + QString::fromStdString(DisplayUnits::label(unit));
+    }
+    if (text.isEmpty()) {
         return hit;
     }
     hit.distance = 0.0;
-    hit.text = QString{"CFSv2, the next %1 days against its normal"}.arg(days);
-    if (!std::isnan(t)) {
-        hit.text += QString{"\nTemperature: "} + (t > 0 ? "+" : "") + QString::number(t, 'f', 1) + " " + QString::fromStdString(DisplayUnits::label("deg C"));
-    }
-    if (!std::isnan(p)) {
-        hit.text += QString{"\nPrecipitation: "} + (p > 0 ? "+" : "") + QString::number(DisplayUnits::value(p, "mm/day", DisplayUnits::Kind::Delta), 'f', 2) + " " + QString::fromStdString(DisplayUnits::label("mm/day"));
-    }
+    hit.text = QString{"CFSv2, the next %1 days"}.arg(days) + text;
     return hit;
 }
 
 vector<MapLegendRow> CfsPeriodLayer::legend() const {
-    if (frames.find(days) == frames.end()) {
+    const auto found = frames.find(days);
+    if (found == frames.end() || !hasNeeded(found->second)) {
         return {};
     }
+    const auto& look = lookOf(show);
     MapLegendRow row;
-    row.title = QString{show == 2 ? "Precipitation against the CFS normal, next %1 days (%2):" : "Temperature against the CFS normal, next %1 days (%2):"}.arg(days).arg(QString::fromStdString(DisplayUnits::label(show == 2 ? "mm/day" : "deg C")));
-    for (const auto& [value, color] : stops()) {
-        row.entries.push_back({MapLegendEntry::Square, color, (value > 0 ? "+" : "") + number(value)});
+    row.title = QString{look.title}.arg(days).arg(QString::fromStdString(DisplayUnits::label(look.unit)));
+    for (const auto& [value, color] : look.stops()) {
+        const double shown = DisplayUnits::value(value, look.unit, look.delta ? DisplayUnits::Kind::Delta : DisplayUnits::Kind::Absolute);
+        row.entries.push_back({MapLegendEntry::Square, color, (look.delta && shown > 0 ? "+" : "") + number(shown)});
     }
     vector<MapLegendRow> rows{row};
     if (show == 0 && lines) {
@@ -282,6 +380,11 @@ vector<MapLegendRow> CfsPeriodLayer::legend() const {
         second.title = "Lines: precipitation against the normal, mm/day:";
         second.entries.push_back({MapLegendEntry::Square, QColor{20, 120, 60}, "wetter"});
         second.entries.push_back({MapLegendEntry::Square, QColor{140, 80, 20}, "drier"});
+        rows.push_back(second);
+    }
+    if (show == 6 && lines) {
+        MapLegendRow second;
+        second.title = "Lines: mean sea level pressure, every 4 hPa";
         rows.push_back(second);
     }
     return rows;
@@ -305,10 +408,11 @@ QWidget * CfsPeriodLayer::options(QWidget * parent, const std::function<void()>&
     layout->addWidget(period);
     layout->addWidget(new QLabel{"Show:", widget});
     auto * what = UiStandards::combo(widget);
-    what->addItems({"Temperature (colors) with the precipitation (lines)", "Temperature", "Precipitation"});
+    what->addItems({"Temperature (colors) with the precipitation (lines)", "Temperature against the normal", "Precipitation against the normal", "Mean temperature", "Mean precipitation rate",
+                    "Sea level pressure against the normal", "Mean sea level pressure, with isobars"});
     what->setCurrentIndex(show);
     layout->addWidget(what);
-    auto * linesBox = new QCheckBox{"Precipitation lines, with their numbers", widget};
+    auto * linesBox = new QCheckBox{"Lines (the precipitation, or the isobars), with their numbers", widget};
     linesBox->setChecked(lines);
     layout->addWidget(linesBox);
     layout->addWidget(new QLabel{"Opacity:", widget});
@@ -326,8 +430,15 @@ QWidget * CfsPeriodLayer::options(QWidget * parent, const std::function<void()>&
         show = value;
         Utility::writePrefInt("MM_CFSP_SHOW", value);
         const auto found = frames.find(days);
-        if (found != frames.end()) {   // the colors of what is shown
-            found->second.image = colored(show == 2 ? found->second.precipitation : found->second.temperature);
+        if (found != frames.end()) {
+            if (hasNeeded(found->second)) {   // the colors of what is shown
+                drawFrame(found->second);
+            } else {                           // a field not read yet: asked of the loader (the picture of the last view stays until it is in)
+                found->second.image = QImage{};
+                changeRequested = true;
+            }
+        } else {
+            changeRequested = true;
         }
         changed();
     });
