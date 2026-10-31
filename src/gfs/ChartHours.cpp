@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/ChartHours.h"
+#include "gfs/WpcPppLoader.h"
 #include <algorithm>
 #include <map>
 #include <QDateTime>
@@ -79,6 +80,20 @@ std::vector<int> ChartHours::present(GfsRender::Session& session, const std::str
             }
         }
         return have.empty() ? std::vector<int>{} : out;
+    }
+    if (model == "WPC-PPP") {   // the portal's folder of the run lists the periods' ends it has for the product
+        const auto * product = GfsChart::product(param, model);
+        if (product == nullptr || product->wants.empty()) {
+            return {};
+        }
+        const auto have = WpcPppLoader::hours(GfsData::Run{runId.substr(0, 8), runId.substr(8, 2)}, product->wants.front().variable);
+        std::vector<int> out;
+        for (const int h : hours) {
+            if (std::find(have.begin(), have.end(), h) != have.end()) {
+                out.push_back(h);
+            }
+        }
+        return out;
     }
     return GfsRender::availableHours(session, model, param, runId, hours, storm);
 }

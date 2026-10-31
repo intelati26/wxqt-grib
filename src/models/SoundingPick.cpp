@@ -43,6 +43,9 @@ void SoundingPick::open() {
         owner->setTitle(titleBase + " - click the map to pick a sounding point first");
         return;
     }
+    if (ownOpener && ownOpener(lon, lat)) {
+        return;
+    }
     if (validTime) {
         const auto valid = validTime();
         if (!valid.isValid()) {

@@ -238,6 +238,27 @@ hours = 168-168/1, 336-336/1, 720-720/1, 1440-1440/1, 2160-2160/1
 run_every = 6
 list = true
 )MODEL"},
+        {"WPC-PPP", R"MODEL(
+# the Weather Prediction Center's probabilistic precipitation portal (CONUS, public domain): the blend's amounts of rain, snow and freezing rain in 24, 36, 48 and 72 hour periods, expected, at a percentile or
+# as the chance of an amount, a new run every hour. Each product is a zip of contour bands (a shapefile) filled onto a grid by the program's own loader (registered for this id). The forecast "hour" is
+# the end of the period in hours from the run (the portal's own numbers: they depend on the run's hour, so each chart lists the hours its run has). The url is only there to see that the run is.
+id = WPC-PPP
+label = NOAA/WPC probabilistic precipitation portal (24 to 72 hour rain, snow and ice amounts and chances)
+source_label = NOAA/NCEP WPC probabilistic precipitation portal
+group = Probabilistic precipitation
+kind = custom
+url = https://ftp-wpc.ncep.noaa.gov/prob_precip_portal/co/gis/ppp_gis_co_24hr_{date}{cycle}/ppp_co_24hr_expected_qpf_in_{date}{cycle}f{hour3}.zip
+probe_hour = 24
+cycle_hours = 1
+lag_hours = 1
+cycles_to_try = 8
+max_parallel = 3
+warp = 0.05, -130.0, 20.0, -60.0, 55.0
+sectors = conus
+hours = 19-73/1
+run_every = 1
+list = true
+)MODEL"},
         {"EC46", R"MODEL(
 # the ECMWF's extended range forecast (46 days): the mean of its 51 members for each week, from Open-Meteo's seasonal API (no key), read by the program's own loader (registered for this id). A forecast
 # "hour" is a week (168 hours each). The url is only there to see that the service answers: a run is the day.

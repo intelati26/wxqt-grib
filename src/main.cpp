@@ -58,6 +58,7 @@
 #include "space/UtilitySun.h"
 #include "space/SunViewer.h"
 #include "gfs/Cfs30Loader.h"
+#include "gfs/WpcPppLoader.h"
 #include "gfs/Ec46Loader.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsIntensity.h"
@@ -183,6 +184,7 @@ int main(int argc, char * argv[]) {
         GfsModels::setUserFolder(folder.toStdString());
     }
     Cfs30Loader::registerLoader();   // the CFS's next 30 days against its normal as a Model Viewer model
+    WpcPppLoader::registerLoader();   // the Weather Prediction Center's probabilistic precipitation portal as a Model Viewer model
     Ec46Loader::registerLoader();   // the ECMWF's extended range (Open-Meteo) as a Model Viewer model
     SpcRefsLoader::registerLoader();   // SPC's REFS Zarr store as a Model Viewer model
     GfsRender::startCacheCleanup();   // the model field cache is tidied in the background, a few seconds in

@@ -80,13 +80,17 @@ bool GfsData::latestRun(Run& run) const {
         Run candidate{t.toString("yyyyMMdd").toStdString(), pad(t.time().hour(), 2)};
         if (source.wholeFile) {   // no index: the first bytes of a file say the run is there
             bool there = false;
-            for (const auto& url : urlsFor(candidate, source.probeHour, source.probeFile)) {
+            int probeHour = source.probeHour;
+            if (source.id == "WPC-PPP") {   // the portal's periods end on the 6 hourly marks of the day, so the hours a run has depend on its own hour: the first of the 24 hour product at 24 or more
+                probeHour = 24 + (6 - std::atoi(candidate.cycle.c_str()) % 6) % 6;
+            }
+            for (const auto& url : urlsFor(candidate, probeHour, source.probeFile)) {
                 const auto resolved = resolveUrl(url);
                 if (resolved.empty()) {
                     continue;
                 }
                 const auto head = config.bytes(resolved, 0, 3);
-                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("{")) {
+                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("{") || head.startsWith("PK")) {
                     there = true;
                     break;
                 }

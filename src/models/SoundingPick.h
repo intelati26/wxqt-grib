@@ -26,12 +26,15 @@ public:
     Button& button() { return buttonSounding; }
     void pick(double lon, double lat);
     bool point(double& pickedLon, double& pickedLat) const;   // the last picked point, if any
+    // a viewer on a global model (GFS, IFS ...) reads the column of the model on show instead: called with the point, returns true when it took the press
+    void setOwnOpener(std::function<bool(double lon, double lat)> opener) { ownOpener = std::move(opener); }
 
 private:
     void open();
     Window * owner;
     std::function<std::pair<std::string, std::string>()> runAndHour;
     std::function<QDateTime()> validTime;
+    std::function<bool(double, double)> ownOpener;
     std::string titleBase;
     Button buttonSounding;
     bool havePoint{false};

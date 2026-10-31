@@ -15,6 +15,7 @@
 #include "mrms/UtilityMrms.h"
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
+#include "gfs/WpcPppLoader.h"
 #include "spc/UtilitySpcCompmap.h"
 #include "spc/UtilitySpcFireOutlook.h"
 #include "spc/UtilitySpcSwo.h"
@@ -65,6 +66,10 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"MRMS_RADAR", "MRMS radar - composite reflectivity around your location", "mcd_tile.png", false, false},
         {"MRMS_LATEST", "MRMS - latest scan of your last product, around your location", "mcd_tile.png", false, false},
         {"CFS_30DAY", "CFSv2 next 30 days against the normal: temperature (colors) and precipitation (lines), CONUS", "baseline_show_chart_black_48dp.png#2", false, false},
+        {"WPC_PPP_24", "WPC median rain, snow and ice - next 24 hours", "baseline_show_chart_black_48dp.png#2", false, false},
+        {"WPC_PPP_36", "WPC median rain, snow and ice - next 36 hours", "baseline_show_chart_black_48dp.png#2", false, false},
+        {"WPC_PPP_48", "WPC median rain, snow and ice - next 48 hours", "baseline_show_chart_black_48dp.png#2", false, false},
+        {"WPC_PPP_72", "WPC median rain, snow and ice - next 72 hours", "baseline_show_chart_black_48dp.png#2", false, false},
         {"GRIB_LATEST", "Model viewer - your last model, chart and area, newest run", "grib.png", true, false},
     };
     return entries;
@@ -105,6 +110,10 @@ namespace {
         {"MRMS_RADAR", {"MRMS radar", "Multi-Radar Multi-Sensor composite reflectivity around your location."}},
         {"MRMS_LATEST", {"MRMS product", "Latest scan of the MRMS product you looked at last, around your location."}},
         {"CFS_30DAY", {"Next 30 days", "NOAA's CFSv2 for the next 30 days against its own normal: temperature as colors (warm or cool) and precipitation as lines (green wetter, brown drier), the mean of its four newest runs. A lean of the pattern, not a forecast of days. Click for the Model Viewer."}},
+        {"WPC_PPP_24", {"WPC 24 hr", "The Weather Prediction Center's probabilistic precipitation portal: the median (50th percentile) amount of rain, snow and ice in the first 24 hour period of the newest run, rain in greens, snow in blues, freezing rain in pinks. Click for the Model Viewer on this chart, with the percentiles and the chances of an amount."}},
+        {"WPC_PPP_36", {"WPC 36 hr", "The Weather Prediction Center's probabilistic precipitation portal: the median (50th percentile) amount of rain, snow and ice in the first 36 hour period of the newest run. Click for the Model Viewer on this chart."}},
+        {"WPC_PPP_48", {"WPC 48 hr", "The Weather Prediction Center's probabilistic precipitation portal: the median (50th percentile) amount of rain, snow and ice in the first 48 hour period of the newest run. Click for the Model Viewer on this chart."}},
+        {"WPC_PPP_72", {"WPC 72 hr", "The Weather Prediction Center's probabilistic precipitation portal: the median (50th percentile) amount of rain, snow and ice in the 72 hour period of the newest run. Click for the Model Viewer on this chart."}},
         {"GRIB_LATEST", {"Model chart", "The model, chart and area you last looked at in the Model Viewer, from the newest run."}},
         };
         return table;
@@ -208,6 +217,31 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         const auto png = render();
         keep(png);
         return png;
+    }
+    if (token.compare(0, 8, "WPC_PPP_") == 0) {
+        // the portal's median chart of the period, from the newest run: the first period that lies wholly after the run's time (else the first the run has)
+        const string hoursText = token.substr(8);
+        string cycle, date;
+        if (!GfsRender::latestCycle("WPC-PPP", cycle, "", &date)) {
+            return {};
+        }
+        const GfsData::Run run{date, cycle};
+        const auto have = WpcPppLoader::hours(run, hoursText + "|qpf|p50");
+        if (have.empty()) {
+            return {};
+        }
+        int hour = have.front();
+        for (const int h : have) {
+            if (h >= std::atoi(hoursText.c_str())) {
+                hour = h;
+                break;
+            }
+        }
+        GfsRender::Session session;
+        string error;
+        GfsRender::Variant variant;
+        variant.width = 640;
+        return GfsRender::png(session, "WPC-PPP", "ppp_" + hoursText + "h_median", "CONUS", run.id(), hour, {}, error, nullptr, variant);
     }
     if (token == "GRIB_LATEST") {
         // the model screen's last model, chart and area, drawn from the newest run (the model's first forecast hour after the start)

@@ -368,6 +368,8 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         boxH2.addWidgetReal(buttonViews);
         loadViews();
         boxH2.addWidget(soundingPick.button());
+        soundingPick.setOwnOpener([this] (double lon, double lat) { return openModelSounding(lon, lat); });
+        soundingPick.button().getView()->setToolTip(soundingPick.button().getView()->toolTip() + "\n\nOn a global model (the GFS, IFS, AIFS ...) the sounding is read from that model's own pressure levels at the point, for the run and hour on show, to the end of its run (the long range, at its resolution).");
         buttonMembers = UiStandards::button(this, "Members graph...");
         buttonMembers->setToolTip("REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
         QObject::connect(buttonMembers, &QPushButton::clicked, this, [this] { openMemberGraph(); });
@@ -1656,6 +1658,26 @@ void ModelViewer::fitHoursToRun() {
             }
         }
     }
+    if (tilesShow() == TilesShow::Models) {   // the same hour on every tile: only the hours that every model on show has (an hourly RRFS beside a 3 hourly GFS steps F000, F003, F006 ...)
+        std::vector<string> common;
+        for (const auto& t : wanted) {
+            const int hour = std::atoi(t.c_str());
+            bool all = true;
+            for (int i = 0; i < tileCount() && all; i++) {
+                const auto * def = tileSpecs[static_cast<size_t>(i)].model.empty() ? nullptr : GfsModels::find(tileSpecs[static_cast<size_t>(i)].model);
+                if (def == nullptr || def->hours.empty()) {
+                    continue;
+                }
+                all = std::any_of(def->hours.begin(), def->hours.end(), [hour] (const auto& range) { return hour >= range.from && hour <= range.to && (hour - range.from) % std::max(1, range.step) == 0; });
+            }
+            if (all) {
+                common.push_back(t);
+            }
+        }
+        if (!common.empty()) {
+            wanted = common;
+        }
+    }
     if (wanted == objectModel.times) {
         return;
     }
@@ -2190,7 +2212,7 @@ void ModelViewer::showModelPicker() {
                                            "ICON-D2", "ENS-ALL", "GEFS", "IFS-ENS", "GEPS", "NAEFS", "HREF", "REFS", "CFS30", "CFS", "EC46", "SEAS5", "GFS-WAVE", "WW3", "GEFS-WAVE"};
     const auto rank = [] (const string& id) { return static_cast<int>(std::find(first.begin(), first.end(), id) - first.begin()); };
     std::stable_sort(entries.begin(), entries.end(), [&rank] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) { return rank(a.id) < rank(b.id); });
-    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Seasonal", "Waves and ocean", "Tropical cyclones", "Archive",
+    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Probabilistic precipitation", "Seasonal", "Waves and ocean", "Tropical cyclones", "Archive",
                                            "SPC guidance and mesoanalysis", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
@@ -2534,8 +2556,13 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
             }
         }
     } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
+        for (const auto& id : {"GFS", "IFS", "AIFS"}) {   // the global models first, so that a regional model (the RRFS) is set beside the GFS and the IFS, not the first regional models of the registry
+            if (id != objectModel.model && GfsRender::handles(id, objectModel.param)) {
+                others.push_back(id);
+            }
+        }
         for (const auto& def : GfsModels::all()) {
-            if (!def.storm && def.id != objectModel.model && GfsRender::handles(def.id, objectModel.param)) {
+            if (!def.storm && def.id != objectModel.model && GfsRender::handles(def.id, objectModel.param) && std::find(others.begin(), others.end(), def.id) == others.end()) {
                 others.push_back(def.id);
             }
         }
@@ -2567,6 +2594,16 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
             spec.shift = 6 * static_cast<int>(k + 1);
         }
         tileSpecs[k] = spec;
+    }
+    fitTimesToTiles();
+}
+
+// the hour list follows the models on the tiles (the common hours); the picture is drawn again when the hour shown had to move
+void ModelViewer::fitTimesToTiles() {
+    const auto before = objectModel.getTime();
+    fitHoursToRun();
+    if (objectModel.getTime() != before) {
+        reload();
     }
 }
 
@@ -2947,6 +2984,7 @@ void ModelViewer::changeTile(int index) {
                     tileSpecs[static_cast<size_t>(index) - 1].model = id;
                     tileSpecs[static_cast<size_t>(index) - 1].run.clear();   // (another model: its newest run until one is chosen)
                     tileSpecs[static_cast<size_t>(index) - 1].picked = true;
+                    fitTimesToTiles();
                     renderTile(index);
                     prefetch(prefetchGeneration);
                 });
@@ -2972,6 +3010,7 @@ void ModelViewer::changeTile(int index) {
                 QObject::connect(action, &QAction::triggered, this, [this, index, id] {
                     tileSpecs[static_cast<size_t>(index) - 1].run = id;
                     tileSpecs[static_cast<size_t>(index) - 1].picked = true;
+                    fitTimesToTiles();
                     renderTile(index);
                     prefetch(prefetchGeneration);
                 });
@@ -3220,6 +3259,39 @@ void ModelViewer::openMemberGraph() {
     }
     const auto run = runTime(objectModel.run);
     new RefsPointGraph{this, basis, lon, lat, run.isValid() ? run.toString("yyyyMMddHH").toStdString() : string{}};
+}
+
+// A sounding from the column of the model on show (GFS, IFS and the other global models: the long range the RRFS does not reach); false for the models the RRFS sounding serves
+bool ModelViewer::openModelSounding(double lon, double lat) {
+    const auto& model = objectModel.model;
+    if (!GfsRender::drawsModel(model) || GfsModels::isStormModel(model) || model.compare(0, 4, "RRFS") == 0 || model.compare(0, 4, "HRRR") == 0 || model == "CFS" || model == "CFS30" || model == "CFS-ANL" || model == "ERA5" ||
+        GfsModels::pickerGroup(model) == "Ensembles" || GfsModels::pickerGroup(model) == "Seasonal") {
+        return false;
+    }
+    const auto when = runTime(objectModel.run);
+    if (!when.isValid()) {
+        setTitle("Model screen - the date of the run is not known yet");
+        return true;
+    }
+    if (!gfsSession) {
+        gfsSession = std::make_shared<GfsRender::Session>();
+    }
+    auto session = gfsSession;
+    const string runId = when.toString("yyyyMMddHH").toStdString(), name = model;
+    const int hour = std::atoi(objectModel.getTime().c_str());
+    auto profile = std::make_shared<SoundingProfile>();
+    auto problem = std::make_shared<string>();
+    auto ok = std::make_shared<bool>(false);
+    setTitle("Model screen - reading the " + name + " column at " + std::to_string(lat).substr(0, 5) + ", " + std::to_string(lon).substr(0, 7) + " ...");
+    new FutureVoid{this, [=] { *ok = GfsRender::columnProfile(*session, name, runId, hour, lat, lon, *profile, *problem); }, [=] {
+        if (!*ok) {
+            setTitle("Model screen - no sounding: " + *problem);
+            return;
+        }
+        setTitle("Model screen");
+        new SoundingViewer{this, *profile, name + " " + runId + "Z F" + std::to_string(hour) + "  at " + std::to_string(lat).substr(0, 5) + ", " + std::to_string(lon).substr(0, 7)};
+    }};
+    return true;
 }
 
 // the member choices of the chart on screen: the combo shows for the ensembles whose chart can be drawn from one member, and goes back to the mean when the chart or the model changes

@@ -256,6 +256,8 @@ private:
     void getRun();
     std::vector<string> allTimes;         // every hour the model offers; objectModel.times is the part the run on show reaches (the RRFS's hourly runs stop at 18 h)
     void fitHoursToRun();
+    void fitTimesToTiles();
+    bool openModelSounding(double lon, double lat);
     ChartHours::Book hourBook;   // the hours each chart has for each run, as asked of ChartHours (the map's chart layer asks the same)
     string hoursKey() const;
     void askHours(const std::vector<string>& hourList);

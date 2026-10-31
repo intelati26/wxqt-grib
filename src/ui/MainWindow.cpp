@@ -455,6 +455,11 @@ void MainWindow::launchImageScreen(const string& token) {
         Utility::writePref("MODELNCEPPARAMLASTUSED", "cfs30_t2m_precip");
         Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
         toolbar.launchModelViewer();   // the Model Viewer on the CFS 30 day chart
+    } else if (token.compare(0, 8, "WPC_PPP_") == 0) {
+        Utility::writePref("NCEP", "WPC-PPP");
+        Utility::writePref("MODELNCEPPARAMLASTUSED", "ppp_" + token.substr(8) + "h_median");
+        Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
+        toolbar.launchModelViewer();   // the Model Viewer on the portal's median chart of that period
     } else if (token == "GRIB_LATEST") {
         toolbar.launchModelViewer();   // the Model Viewer opens on the model, chart and area the thumbnail shows (the same saved choices)
     } else if (const auto * entry = HomeThumbnails::find(token); entry != nullptr && !entry->routeId.empty()) {
