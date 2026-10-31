@@ -225,7 +225,7 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         if (!GfsRender::latestCycle("WPC-PPP", cycle, "", &date)) {
             return {};
         }
-        const GfsData::Run run{date, cycle};
+        const GfsData::Run run{date, cycle.substr(0, 2)};   // ("06Z")
         const auto have = WpcPppLoader::hours(run, hoursText + "|qpf|p50");
         if (have.empty()) {
             return {};

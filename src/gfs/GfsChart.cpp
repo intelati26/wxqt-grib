@@ -340,7 +340,7 @@ const std::vector<std::string>& ingredientSources() {
         return found == g.end() ? GfsGrid::Grid{} : found->second;
     }
 
-    GfsData::Want want(const char * key, const char * variable, const char * level) {
+    GfsData::Want want(const std::string& key, const std::string& variable, const std::string& level) {
         return {key, variable, level, ""};
     }
 

@@ -282,6 +282,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GEOS-FP"));
         m.push_back(fromFile("CFS"));
         m.push_back(fromFile("CFS30"));
+        m.push_back(fromFile("WPC-PPP"));
         m.push_back(fromFile("EC46"));
         m.push_back(fromFile("SEAS5"));
         m.push_back(fromFile("HRDPS"));
