@@ -2187,8 +2187,8 @@ void ModelViewer::showModelPicker() {
     // The models the program has no description for (the charts of NCEP's model guidance site are pictures)
     static const std::map<string, string> pictureModels{
         {"ESTOFS", "NOAA/NOS ESTOFS storm surge and tide"}, {"FIREWX", "NOAA/NCEP NAM fire weather nest"}, {"GEFS-MEAN-SPRD", "NOAA/NCEP GEFS ensemble mean and spread"},
-        {"GEFS-SPAG", "NOAA/NCEP GEFS spaghetti charts"}, {"HRW-ARW", "NOAA/NCEP HiResW ARW, 3 km"}, {"HRW-ARW2", "NOAA/NCEP HiResW ARW, second run, 3 km"}, {"HRW-FV3", "NOAA/NCEP HiResW FV3, 3 km"},
-        {"NAEFS", "North American Ensemble Forecast System (GEFS with Canada's GEPS)"}, {"NAM", "NOAA/NCEP NAM, 12 km"}, {"NAM-HIRES", "NOAA/NCEP NAM CONUS nest, 3 km"},
+        {"GEFS-SPAG", "NOAA/NCEP GEFS spaghetti charts"}, {"HRW-ARW", "NOAA/NCEP HiResW ARW, 3 km, retired Nov 2026"}, {"HRW-ARW2", "NOAA/NCEP HiResW ARW, second run, 3 km, retired Nov 2026"}, {"HRW-FV3", "NOAA/NCEP HiResW FV3, 3 km, retired Nov 2026"},
+        {"NAEFS", "North American Ensemble Forecast System (GEFS with Canada's GEPS)"}, {"NAM", "NOAA/NCEP NAM, 12 km, retired Nov 2026"}, {"NAM-HIRES", "NOAA/NCEP NAM CONUS nest, 3 km, retired Nov 2026"},
         {"POLAR", "Polar charts of NCEP's model guidance site"}, {"RAP", "NOAA/NCEP Rapid Refresh, 13 km"}, {"WW3", "NOAA/NCEP WAVEWATCH III, global"},
         {"WW3-ENP", "NOAA/NCEP WAVEWATCH III, eastern North Pacific"}, {"WW3-WNA", "NOAA/NCEP WAVEWATCH III, western North Atlantic"}};
     // the label of the list: what the model is, without the notes of licence and dates (those are in the hover text and the search)

@@ -1071,7 +1071,8 @@ clone_rename = PRMSL:MSLMA
         {"HREF", R"MODEL(
 # the High-Resolution Ensemble Forecast on NOMADS: its own ready-made products (mean, pmmn, lpmm, avrg, sprd, prob, eas, ffri)
 id = HREF
-label = NOAA/NCEP HREF, 10 member 3 km ensemble
+label = NOAA/NCEP HREF, 10 member 3 km ensemble, retired Nov 2026
+group = Archive
 kind = grib
 url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/href/prod/href.{date}/ensprod/href.t{cycle}z.conus.{file}.f{hour2}.grib2
 file_default = mean

@@ -86,7 +86,7 @@ link = background | Ensemble forecasting | https://en.wikipedia.org/wiki/Ensembl
 link = source | Environment and Climate Change Canada open data (GEPS) | https://eccc-msc.github.io/open-data/msc-data/nwp_geps/readme_geps-datamart_en/
 )ABOUT"},
         {"RRFS", R"ABOUT(
-why = NOAA's new 3 kilometre forecast system for the continental US, built to replace the Rapid Refresh, the HRRR and several others. At 3 km it can draw individual lines of storms and their rotation, which the global models cannot, and it updates every hour.
+why = NOAA's new 3 kilometre forecast system for the continental US, built to replace the Rapid Refresh, the HRRR and several others. At 3 km it can draw individual lines of storms and their rotation, which the global models cannot, and it updates every hour. From 3 November 2026 it is the operational model and replaces the NAM, HiResW, HREF and SREF, which stay in the list under Archive. Its rain, snow, sleet and freezing rain types are now worked out from the temperature profile, so sleet shows more and freezing rain less than in the test runs, and the accumulated freezing rain and sleet fields are no longer in the files.
 link = background | Rapid Refresh (the system the RRFS replaces) | https://en.wikipedia.org/wiki/Rapid_Refresh_(weather_prediction)
 link = docs | NOAA GSL: the Rapid Refresh Forecast System | https://gsl.noaa.gov/focus-areas/unified_forecast_system/rrfs
 link = source | NOAA open data on AWS (noaa-rrfs) | https://registry.opendata.aws/noaa-rrfs/
@@ -98,7 +98,7 @@ link = docs | NOAA GSL: the Rapid Refresh Forecast System | https://gsl.noaa.gov
 link = source | NOAA open data on AWS (noaa-rrfs) | https://registry.opendata.aws/noaa-rrfs/
 )ABOUT"},
         {"HREF", R"ABOUT(
-why = The High-Resolution Ensemble Forecast pools ten 3 km runs from several models. It has been the standard tool for severe weather and heavy rain outlooks because its probabilities are well tested. It is being replaced by the REFS, and SPC's HREF-based guidance ends in November 2026.
+why = The High-Resolution Ensemble Forecast pools ten 3 km runs from several models. It has been the standard tool for severe weather and heavy rain outlooks because its probabilities are well tested. It was retired on 3 November 2026 and replaced by the REFS; it stays here as an archive, and the runs stop at that date.
 link = background | Ensemble forecasting | https://en.wikipedia.org/wiki/Ensemble_forecasting
 link = docs | SPC: HREF | https://www.spc.noaa.gov/exper/href/
 link = source | NOMADS (NOAA Operational Model Archive and Distribution System) | https://nomads.ncep.noaa.gov/
