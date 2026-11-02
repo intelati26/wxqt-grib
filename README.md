@@ -53,6 +53,64 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
 - **SPC Post slideshow**, **NSSL CAMs** (MPAS, WRF, HRRR, RRFS and others, with loops), **NSSL WRF**, **SPC HRRR**,
   **WPC GEFS**, and the **ESRL** and **WPC GEFS** picture viewers (the "Image models" menu of the Model Viewer).
 
+### Where the model data comes from  [Models]
+The Model Viewer's models by group, with the server each one is read from. The data is GRIB2 unless a note says otherwise. Retirement dates are from the NWS notice SCN 26-48;
+the SREF retires then too, but the program has no SREF.
+
+**Global**
+
+| Model | Scope | Source | Notes |
+|---|---|---|---|
+| GFS | global, 0.25 degree | NOAA open data on AWS (`noaa-gfs-bdp-pds`) | |
+| AIGFS | global | AWS (`noaa-nws-graphcastgfs-pds`) | AI model, experimental |
+| IFS, AIFS | global | ECMWF open data (Google Cloud `ecmwf-open-data`) | CC BY 4.0; AIFS is an AI model |
+| GEFS | global ensemble, 30 members | AWS (`noaa-gefs-pds`) | |
+| IFS-ENS | global ensemble, 50 members | ECMWF open data | |
+| GEPS | global ensemble, 21 members | ECCC datamart (`dd.weather.gc.ca`) | |
+| ENS-ALL | the three ensembles pooled | the three above | |
+| GEOS-FP | global | NASA Center for Climate Simulation | NetCDF-4, read by range |
+| NBM | CONUS blend, 2.5 km | AWS (`noaa-nbm-grib2-pds`) | |
+| ICON-EU | Europe, 6.5 km | DWD open data (`opendata.dwd.de`) | |
+| GFS-WAVE, GEFS-WAVE | global waves | AWS (the GFS and GEFS buckets) | |
+
+**Convection allowing** (about 3 km)
+
+| Model | Scope | Source | Notes |
+|---|---|---|---|
+| RRFS (RRFS-EMC on the NSSL CAMs) | CONUS, 3 km | AWS (`noaa-rrfs-ops-pds`) | operational 3 Nov 2026 |
+| RRFS-AK, -HI, -PR, -NA | Alaska, Hawaii, Puerto Rico, North America | AWS (`noaa-rrfs-ops-pds`) | |
+| REFS | CONUS, 5 member ensemble | AWS (`noaa-rrfs-ops-pds`) | replaces the HREF |
+| SPC REFS and post-processing | CONUS | SPC open Zarr data; NOMADS `spc_post` | experimental |
+| HRRR, HRRR-AK | CONUS, Alaska | AWS (`noaa-hrrr-bdp-pds`) | |
+| MPAS-HT (MPAS-HTPO-NSSL) | CONUS, 3 km | NSSL data server (`FRDD/NSSL-MPAS`, `*_mpasht2.tar`) | started from the HRRR; research output, not for forecasting |
+| MPAS-RN (MPAS-RN-NSSL) | CONUS, 3 km | NSSL data server (`*_mpasrn.tar`, 00 and 12Z) | started from the RRFS; research output, not for forecasting |
+| HRDPS | Canada, 2.5 km | ECCC datamart | |
+| ICON-D2 | Germany, 2.2 km | DWD open data | |
+| HAFS-A, HAFS-B | storm-following, 2 km | NOMADS | tropical cyclones |
+
+The GSL's MPAS-RRFSA runs and the NSSL CAMs pictures of them are only pictures: no GRIB2 source has been found (see the model's About text).
+
+**Archived** (retired models stay as history; analyses and reanalyses)
+
+| Model | Scope | Source | Notes |
+|---|---|---|---|
+| NAM, NAM-HIRES, HiResW (ARW, ARW2, FV3) | CONUS | NCEP model guidance pages (pictures, not GRIB2) | retire 3 Nov 2026 |
+| HREF | CONUS ensemble, 10 members | NOMADS | retires 3 Nov 2026; the REFS replaces it |
+| RAP | CONUS, 13 km | NCEP model guidance pages (pictures, not GRIB2); RAP-ANL is GRIB2 from NCEI, below | retirement pending |
+| NAM-ANL, RAP-ANL, GFS-ANL, GFS1-ANL, NARR | analyses and reanalysis | NCEI model archive | |
+| RTMA, URMA | 2.5 km surface analyses | AWS (`noaa-rtma-pds`, `noaa-urma-pds`) | |
+| ERA5 | global reanalysis, 0.25 degree | NCAR archive on AWS (`nsf-ncar-era5`) | NetCDF |
+
+**Climate**
+
+| Model | Scope | Source | Notes |
+|---|---|---|---|
+| CFS, CFS-ANL, CFS30 | global, seasonal | AWS (`noaa-cfs-pds`) | CFS30 is the next days against the model's normal |
+| EC46, SEAS5 | global, weekly and monthly | ECMWF data by Open-Meteo.com | ensemble means; JSON API, no key |
+
+The WPC probabilistic precipitation portal (`ftp-wpc.ncep.noaa.gov`) is read as shapefiles and drawn as its own model. Each model's About text in the Model Viewer
+links to its server for fixing or finding another source.
+
 ### Soundings  [Forecast and observations / Models]
 - A native sounding engine and viewer (SHARPpy algorithms ported to C++, BSD licence, see `licenses/sharppy-notice.md`) for SPC's
   observed soundings and for **model soundings** built from an RRFS column at a point (or an area mean).
