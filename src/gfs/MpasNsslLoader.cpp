@@ -20,6 +20,7 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QTextStream>
+#include "gfs/GdalRaster.h"
 #include "gfs/GfsCache.h"
 #include "gfs/GfsGrid.h"
 #include "models/UtilityGrib.h"
@@ -210,62 +211,24 @@ namespace {
         if (grib.isEmpty()) {
             return false;
         }
-        const auto * bands = bandsOf(grib, want.variable + " " + gdalLevel(want.level).toStdString(), error);
-        if (bands == nullptr) {
+        const auto * found = bandsOf(grib, want.variable + " " + gdalLevel(want.level).toStdString(), error);
+        if (found == nullptr) {
             return false;
         }
-        const int band = bands->front();   // (a field there more than once, an hour's maximum and a running total: the first, until a chart needs the other)
+        const int band = found->front();   // (a field there more than once, an hour's maximum and a running total: the first, until a chart needs the other)
         const auto base = cacheDir() + "tmp_" + QString::number(reinterpret_cast<quintptr>(&want), 16) + "_" + QString::number(band) + "_" + QString::number(QDateTime::currentMSecsSinceEpoch(), 16);
-        const auto raw = base + ".raw", hdr = base + ".hdr", tif = base + ".tif";
-        const auto cleanup = [&] {
-            QFile::remove(raw);
-            QFile::remove(hdr);
-            QFile::remove(tif);
-            QFile::remove(raw + ".aux.xml");
-        };
-        const auto bin = QString::fromStdString(UtilityGrib::gdalBinDir());
-        QProcess cut;   // the one band first (a 3 km Lambert grid, all of it): the warp then reads that and not the whole file
-        cut.start(bin + "/gdal_translate", {"-q", "-b", QString::number(band), "-ot", "Float32", "-of", "GTiff", grib, tif});
-        cut.waitForFinished(180000);
-        QProcess warp;
-        warp.start(bin + "/gdalwarp", {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-r", "bilinear", "-dstnodata", "-9999", "-of", "ENVI", "-ot", "Float32",
-                                       "-te", QString::number(west), QString::number(south), QString::number(east), QString::number(north),
-                                       "-tr", QString::number(step, 'f', 4), QString::number(step, 'f', 4), tif, raw});
-        warp.waitForFinished(180000);
-        if (warp.exitStatus() != QProcess::NormalExit || warp.exitCode() != 0) {
-            error = "gdalwarp failed on " + want.variable + " " + want.level + ": " + warp.readAllStandardError().trimmed().toStdString();
-            cleanup();
+        GdalRaster::Options options;
+        options.gdalBin = QString::fromStdString(UtilityGrib::gdalBinDir());
+        options.warp = {true, west, south, east, north, step};
+        options.band = band;
+        options.timeoutMs = 360000;
+        std::vector<float> values;
+        int bands = 0;
+        if (!GdalRaster::read(grib, base, options, out, bands, values, error) || bands != 1) {
+            error = "gdal failed on " + want.variable + " " + want.level + (error.empty() ? "" : ": " + error);
             return false;
         }
-        QFile hdrFile{hdr}, rawFile{raw};
-        const auto text = hdrFile.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdrFile.readAll()) : QString{};
-        const auto data = rawFile.open(QIODevice::ReadOnly) ? rawFile.readAll() : QByteArray{};
-        cleanup();
-        const auto number = [&text] (const QString& key) {
-            const auto m = QRegularExpression{"\\b" + key + "\\s*=\\s*([-0-9.]+)"}.match(text);
-            return m.hasMatch() ? m.captured(1).toDouble() : -1e9;
-        };
-        const auto info = QRegularExpression{"map info = \\{[^,]*,\\s*1,\\s*1,\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+)"}.match(text);
-        out.columns = static_cast<int>(number("samples"));
-        out.rows = static_cast<int>(number("lines"));
-        if (out.columns <= 0 || out.rows <= 0 || !info.hasMatch() || data.size() != static_cast<qsizetype>(out.columns) * out.rows * 4) {
-            error = "the decoded MPAS field is not the size it says";
-            return false;
-        }
-        out.step = info.captured(3).toDouble();
-        out.lon0 = info.captured(1).toDouble() + out.step / 2.0;
-        out.lat0 = info.captured(2).toDouble() - out.step / 2.0;
-        out.values.resize(static_cast<size_t>(out.columns) * static_cast<size_t>(out.rows));
-        std::memcpy(out.values.data(), data.constData(), static_cast<size_t>(data.size()));
-        if (QRegularExpression{"byte order\\s*=\\s*1"}.match(text).hasMatch()) {
-            for (auto& v : out.values) {
-                unsigned char b[4];
-                std::memcpy(b, &v, 4);
-                std::swap(b[0], b[3]);
-                std::swap(b[1], b[2]);
-                std::memcpy(&v, b, 4);
-            }
-        }
+        out.values = std::move(values);
         for (auto& v : out.values) {
             if (v < -9000.0f || v > 1e19f) {
                 v = std::nanf("");

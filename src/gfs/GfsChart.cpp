@@ -7474,6 +7474,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             deviationHigh = values[values.size() * 9 / 10];
         }
     }
+    const bool layerKey = !product.layers.empty() && !product.overlays.empty();   // (a paintball of sets: the key of their colors is where the color bar would be)
     const int headerHeight = 54, legendHeight = 62 + (deviationHigh > 0.0 ? 14 : 0), margin = 8;
     const QRectF mapArea{static_cast<double>(margin), static_cast<double>(headerHeight), static_cast<double>(options.width - 2 * margin), 0.0};
     const double mapHeight = std::clamp(View::heightFor(sector, mapArea.width()), 200.0, 1400.0);
@@ -8195,7 +8196,8 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         const size_t i = std::min(static_cast<size_t>(position), stops.size() - 2);
         return stops[i].first + (stops[i + 1].first - stops[i].first) * (position - static_cast<double>(i));
     };
-    for (int x = 0; !product.linesOnly && x < static_cast<int>(barWidth); x++) {
+    const bool noBar = product.linesOnly || layerKey;   // (no scale to show: the lines, or the sets of a paintball, are the chart)
+    for (int x = 0; !noBar && x < static_cast<int>(barWidth); x++) {
         const QRgb c = ramp->at(valueAt(x / barWidth));
         // a ramp that begins clear is drawn as the pale ground on the bar
         const int a = qAlpha(c);
@@ -8204,7 +8206,8 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
     p.setPen(QColor{60, 60, 60});
     p.setBrush(Qt::NoBrush);
-    if (!product.linesOnly) {
+    if (layerKey) {   // (the key of the sets is drawn below, with the chance lines)
+    } else if (!product.linesOnly) {
         p.drawRect(QRectF{barLeft, barTop, barWidth, barHeight});
     } else if (product.contours.size() > 1) {   // lines of several sets (models compared): a key, a sample of each line's color and what it is
         double x = barLeft;
@@ -8228,7 +8231,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         p.drawLine(QPointF{x, barTop + barHeight}, QPointF{x, barTop + barHeight + 4});
         p.drawText(QRectF{x - 24, barTop + barHeight + 4, 48, 14}, Qt::AlignHCenter, numberText(shown(product.quantity, value, us)));
     };
-    if (product.linesOnly) {
+    if (noBar) {
         // no scale to number
     } else if (ramp->banded) {   // the number at the lower edge of each band, as the model guidance site's legends have it
         for (size_t i = 0; i < stops.size(); i++) {
@@ -8280,8 +8283,43 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         }
         p.setBrush(Qt::NoBrush);
     }
+    if (layerKey) {   // each set still drawn, its color and its name
+        const double top = barTop + 3.0;
+        const QFontMetricsF metrics{p.font()};
+        for (const auto& [key, overlayRamp] : product.overlays) {
+            if (grids.find(key) == grids.end() || overlayRamp.stops.empty()) {
+                continue;
+            }
+            QString name = QString::fromStdString(key);
+            for (const auto& [layerKeyName, layerName] : product.layers) {
+                if (layerKeyName == key) {
+                    name = QString::fromStdString(layerName);
+                }
+            }
+            name.replace("REFS member ", "REFS ").replace(" (control)", " ctl").replace(" (NSSL)", "").replace("REFS control ", "REFS ctl ");
+            const auto& color = overlayRamp.stops.back().second;
+            p.setBrush(QColor{color.red(), color.green(), color.blue()});
+            p.setPen(QColor{60, 60, 60});
+            p.drawRect(QRectF{keyLeft, top, 9, 9});
+            p.setPen(QColor{70, 70, 70});
+            p.drawText(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            keyLeft += 13 + metrics.horizontalAdvance(name) + 12;
+        }
+        p.setBrush(Qt::NoBrush);
+        for (const auto& set : product.contours) {   // and a sample of each line there is a name for
+            if (set.title.empty()) {
+                continue;
+            }
+            const QString name = QString::fromStdString(set.title);
+            p.setPen(QPen{set.color, 2.5});
+            p.drawLine(QPointF{keyLeft + 6.0, top + 4.5}, QPointF{keyLeft + 24.0, top + 4.5});
+            p.setPen(QColor{70, 70, 70});
+            p.drawText(QRectF{keyLeft + 30.0, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            keyLeft += 30.0 + metrics.horizontalAdvance(name) + 12;
+        }
+    }
     for (const auto& [key, overlayRamp] : product.overlays) {
-        if (paintball) {
+        if (paintball || layerKey) {
             break;
         }
         const QString name = key == "snow" ? "Snow" : key == "mix" ? "Mixed" : QString::fromStdString(key.substr(key.rfind('|') == std::string::npos ? 0 : key.rfind('|') + 1));   // (an overlay's fill is named after its "|")
