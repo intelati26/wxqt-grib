@@ -522,6 +522,27 @@ int main(int argc, char * argv[]) {
                     }
                     fprintf(stderr, "MAGDRAW %s %s in %.1f s %s\n", spec.toStdString().c_str(), bytes.isEmpty() ? "FAILED" : "ok", timer.elapsed() / 1000.0, error.c_str());
                 }
+                if (const auto spec = qEnvironmentVariable("WXQT_DRAW"); !spec.isEmpty() && qEnvironmentVariableIsSet("WXQT_DRAW_AT")) {   // with WXQT_DRAW_AT=<lat>,<lon>: the chart's fill and each set of lines at that point
+                    GfsRender::Session session;
+                    std::string error;
+                    GfsGrid::Grid fill;
+                    GfsChart::Ramp ramp;
+                    GfsGrid::Grid windU, windV;
+                    std::vector<GfsChart::ContourOut> contours;
+                    GfsRender::Variant variant;
+                    variant.fillOut = &fill;
+                    variant.rampOut = &ramp;
+                    variant.windUOut = &windU;
+                    variant.windVOut = &windV;
+                    variant.contoursOut = &contours;
+                    GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), qEnvironmentVariable("WXQT_DRAW_RUN").toStdString(), spec.section(':', 2, 2).toInt(), {}, error, nullptr, variant);
+                    const auto at = qEnvironmentVariable("WXQT_DRAW_AT").split(',');
+                    const double lat = at.value(0).toDouble(), lon = at.value(1).toDouble();
+                    fprintf(stderr, "MAGAT fill %.2f\n", static_cast<double>(fill.sample(lon, lat)));
+                    for (const auto& c : contours) {
+                        fprintf(stderr, "MAGAT lines %s %.2f\n", c.set.title.c_str(), static_cast<double>(c.grid.sample(lon, lat)) * (c.set.scale == 0.0 ? 1.0 : c.set.scale));
+                    }
+                }
                 if (const auto listed = qEnvironmentVariable("WXQT_LIST").toStdString(); !listed.empty()) {   // WXQT_LIST=<model>: the model's charts, id | label | picker group
                     for (const auto& product : GfsChart::products()) {
                         if (product.source == listed) {
