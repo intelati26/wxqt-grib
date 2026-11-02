@@ -177,6 +177,7 @@ namespace GfsChart {
             std::string source;
             GfsData::Want want;
             std::string credit;   // what the chart's "Data:" line adds for it (short: the line is by the legend's)
+            int lag{0};           // 0: the newest run that has the valid time; n: the run n cycles older than the one the source's newest is on (the lagged pool: older runs of the same source for the same valid time)
         };
         std::vector<Extra> extras;
         int periodHours{0};   // the chart is of a period that ends at the hour (12 hour extremes, 6 hour chances): only the forecast hours that are multiples of this have it. 0: any hour

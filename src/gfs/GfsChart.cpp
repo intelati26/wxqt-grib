@@ -4018,6 +4018,50 @@ const std::vector<Product>& products() {
                 x.legendStep = 0;
                 p.push_back(x);
             }
+            {   // the REFS members with NSSL's two MPAS runs as one pool: the share of them that reach the level. "Most recent" is the newest run of each (up to 7 members); the lagged pools add the
+                // runs one and two cycles older of each (up to 14 and 21 members), which is the point: the earlier runs are what the slow MPAS runs have to give. A member that cannot be read is left out
+                struct Lagged {
+                    int lag;
+                    const char * id;
+                    const char * label;
+                };
+                for (const auto& level : {std::pair{40.0, "40"}, std::pair{50.0, "50"}}) {
+                    for (const auto& lagged : {Lagged{0, "", "most recent runs"}, Lagged{1, "_lag2", "last 2 runs of each"}, Lagged{2, "_lag3", "last 3 runs of each"}}) {
+                        auto x = make((std::string{"pool_refc_"} + level.second + lagged.id).c_str(), (std::string{"Pooled REFS + MPAS: chance of "} + level.second + " dBZ or more, " + lagged.label).c_str());
+                        x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
+                        for (int lag = 0; lag <= lagged.lag; lag++) {
+                            const std::string suffix = lag == 0 ? std::string{} : "_" + std::to_string(lag);
+                            x.extras.push_back({"MPAS-HT", GfsData::Want{"rh" + suffix, "REFC", "entire atmosphere", "", "", ""}, lag == 0 ? "MPAS-HT" : "", lag});
+                            x.extras.push_back({"MPAS-RN", GfsData::Want{"rn" + suffix, "REFC", "entire atmosphere", "", "", ""}, lag == 0 ? "MPAS-RN" : "", lag});
+                            if (lag > 0) {
+                                for (int m = 1; m <= 5; m++) {
+                                    x.extras.push_back({"REFS", GfsData::Want{"r" + std::to_string(m) + suffix, "REFC", "entire atmosphere (considered as a single layer)", "", "", "m00" + std::to_string(m)}, "", lag});
+                                }
+                            }
+                        }
+                        const double threshold = level.first;
+                        x.fill = [threshold] (const Grids& g) {   // every REFC grid there is, the members that were read: the share of them at or above the level
+                            auto out = pick(g, "r1");
+                            for (size_t i = 0; i < out.values.size(); i++) {
+                                int n = 0, over = 0;
+                                for (const auto& [key, grid] : g) {
+                                    if (key[0] == 'r' && !grid.empty() && i < grid.values.size() && !std::isnan(grid.values[i])) {
+                                        n++;
+                                        over += grid.values[i] >= threshold ? 1 : 0;
+                                    }
+                                }
+                                out.values[i] = n > 0 ? static_cast<float>(100.0 * over / n) : std::nanf("");
+                            }
+                            return GfsGrid::smoothed(out, 6);
+                        };
+                        x.ramp = probability();
+                        x.palette = "prob";
+                        x.fillTitle = std::string{"Share of the pooled members (REFS, NSSL MPAS-HT and MPAS-RN; "} + lagged.label + ") at the level, nearby (experimental MPAS, not for forecasting)";
+                        x.legendStep = 10;
+                        p.push_back(x);
+                    }
+                }
+            }
             // one member of the field on its own (the old REFS screen's "RRFS Ensemble Member" rows): member 1 here, the screen's member picker swaps it for 2 to 5 (withMember)
             {
                 const auto one = [&] (const char * key, const char * label, const char * variable, const char * level, bool hourlyMax, const Ramp& ramp, const char * title, int legendStep,
@@ -8088,6 +8132,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product] {
         auto text = sourceLabel(product.source);
         for (const auto& extra : product.extras) {   // the other models a chart draws from
+            if (extra.lag > 0) {   // (an older run of a source that is credited already)
+                continue;
+            }
             const auto label = extra.credit.empty() ? sourceLabel(extra.source) : extra.credit;
             if (text.find(label) == std::string::npos) {
                 text += "; " + label;

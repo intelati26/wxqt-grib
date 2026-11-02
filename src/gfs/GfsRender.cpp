@@ -590,11 +590,13 @@ namespace {
         auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
         start.setTimeSpec(Qt::UTC);
         const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
+        std::map<std::string, int> baseBack;   // a source's newest run that has the valid time: how many cycles back of the chart's run (the lagged extras count from it)
         for (const auto& extra : chart.extras) {
             auto gfs = data(session.folder(), extra.source);
             const auto * def = GfsModels::find(extra.source);
             const int step = gfs.model().cycleHours;
-            for (int back = 0; back < 3; back++) {
+            const int first = extra.lag > 0 ? baseBack[extra.source] + extra.lag : 0, last = extra.lag > 0 ? first + 1 : 3;
+            for (int back = first; back < last; back++) {
                 const auto t = start.addSecs(-static_cast<qint64>(back) * step * 3600 - static_cast<qint64>(start.time().hour() % step) * 3600);
                 const GfsData::Run used{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
                 const int h = static_cast<int>((valid.toSecsSinceEpoch() - t.toSecsSinceEpoch()) / 3600);
@@ -618,6 +620,9 @@ namespace {
                     }
                 }
                 grids[extra.want.key] = std::move(onto);
+                if (extra.lag == 0) {
+                    baseBack[extra.source] = back;
+                }
                 break;
             }
         }
