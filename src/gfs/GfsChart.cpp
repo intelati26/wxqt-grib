@@ -6651,7 +6651,7 @@ std::string category(const Product& product) {
         }
     }
     if (startsWith(id, "spread_") || startsWith(id, "all_spread_") || contains(id, "_spread")) {
-        return "Ensemble spread";
+        return "Ensemble: spread, spaghetti and paintballs";
     }
     if (startsWith(id, "swath")) {
         return "Swaths";
@@ -6676,7 +6676,7 @@ std::string category(const Product& product) {
         return "Probability: severe and storms";
     }
     if (contains(id, "spag") || contains(id, "_iso") || contains(id, "paintball") || (contains(id, "_ht") && id.size() > 8 && std::isdigit(static_cast<unsigned char>(id[0])) && std::count(id.begin(), id.end(), '_') >= 2 && std::isdigit(static_cast<unsigned char>(id[id.find('_') + 1])))) {
-        return "Ensemble: spaghetti and paintballs";   // (the last: "500_510_552_ht", a level then the contour values)
+        return "Ensemble: spread, spaghetti and paintballs";   // (the last: "500_510_552_ht", a level then the contour values)
     }
     if (startsWith(id, "member_")) {
         return "Ensemble: single members";
