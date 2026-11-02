@@ -2403,12 +2403,12 @@ const std::vector<string>& ModelViewer::partsOfPool() {
 }
 
 const std::vector<string>& ModelViewer::deterministicDefaults(const string& model) {
-    static const std::vector<string> global{"GFS", "IFS", "AIFS"}, convection{"RRFS", "HRRR", "MPAS-HT"}, mpas{"RRFS", "HRRR", "REFS"};
-    return model == "REFS" ? convection : model == "MPAS-HT" ? mpas : global;
+    static const std::vector<string> global{"GFS", "IFS", "AIFS"}, convection{"RRFS", "HRRR", "MPAS-HT"}, mpas{"RRFS", "HRRR", "REFS"};   // (the REFS has three tiles: the MPAS-RN is one pick of the tile menu)
+    return model == "REFS" ? convection : model == "MPAS-HT" || model == "MPAS-RN" ? mpas : global;
 }
 
 bool ModelViewer::hasPartners(const string& model) {
-    return model == "ENS-ALL" || model == "REFS" || model == "MPAS-HT" || model == "WPC-PPP";
+    return model == "ENS-ALL" || model == "REFS" || model == "MPAS-HT" || model == "MPAS-RN" || model == "WPC-PPP";
 }
 
 // What a deterministic model draws that goes with a pooled chart: the amount of precipitation of the same period beside the chance of an amount, and the model's own field beside the mean and spread of the
@@ -2421,7 +2421,7 @@ string ModelViewer::partnerChart(const string& pooled, const string& model) {
         if (const auto it = member.find(pooled); it != member.end()) {
             candidates = {it->second};
         }
-    } else if (model == "MPAS-HT" || model == "RRFS" || model == "HRRR") {   // (the REFS charts beside the RRFS, the HRRR and the NSSL MPAS; the MPAS's own charts beside the RRFS and the HRRR)
+    } else if (model == "MPAS-HT" || model == "MPAS-RN" || model == "RRFS" || model == "HRRR") {   // (the REFS charts beside the RRFS, the HRRR and the NSSL MPAS; the MPAS's own charts beside the RRFS and the HRRR)
         if (pooled == "sim_radar_comp" || pooled == "2m_temp_10m_wnd" || pooled == "sfc_cape_cin" || pooled == "10m_wnd_sfc_gust" || pooled == "max_updraft_hlcy") {
             candidates = {pooled};
         }
@@ -2840,7 +2840,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         if (show == TilesShow::Members) {   // each tile its own member of the same chart
             v.member = tileMember(index);
             v.standardDeviations = standardDeviations;
-        } else if (show == TilesShow::Deterministic && spec.model == "REFS" && objectModel.model == "MPAS-HT") {   // the RRFS control is the RRFS tile; the REFS tile is its second member
+        } else if (show == TilesShow::Deterministic && spec.model == "REFS" && (objectModel.model == "MPAS-HT" || objectModel.model == "MPAS-RN")) {   // the RRFS control is the RRFS tile; the REFS tile is its second member
             v.member = spec.member.empty() ? "m002" : spec.member;
         } else if (spec.model == objectModel.model) {   // the same model's tiles show the member too (another model's charts have none)
             v.member = member;
@@ -3063,7 +3063,7 @@ void ModelViewer::changeTile(int index) {
         }
     } else if (show == TilesShow::Deterministic) {
         for (const auto& def : GfsModels::all()) {
-            if (def.storm || (GfsModels::pickerGroup(def.id) == "Ensembles" && !(def.id == "REFS" && objectModel.model == "MPAS-HT")) || partnerChart(objectModel.param, def.id).empty()) {
+            if (def.storm || (GfsModels::pickerGroup(def.id) == "Ensembles" && !(def.id == "REFS" && (objectModel.model == "MPAS-HT" || objectModel.model == "MPAS-RN"))) || partnerChart(objectModel.param, def.id).empty()) {
                 continue;
             }
             const auto id = def.id;

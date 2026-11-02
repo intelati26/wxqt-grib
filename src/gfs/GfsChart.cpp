@@ -3999,11 +3999,11 @@ const std::vector<Product>& products() {
                 x.legendStep = 0;
                 p.push_back(x);
             }
-            {   // the same, with NSSL's experimental MPAS as a sixth set of echoes (pink) among the five members: where it sits among them, inside or outside what the ensemble spreads over
-                auto x = make("refc_paintball_mpas", "Paintball: Composite Reflectivity of 40 dBZ or more, each member and the NSSL MPAS");
+            {   // the same, with NSSL's experimental MPAS as a sixth (pink) and seventh (teal) set of echoes among the five members: where it sits among them, inside or outside what the ensemble spreads over
+                auto x = make("refc_paintball_mpas", "Paintball: Composite Reflectivity of 40 dBZ or more, each member and the NSSL MPAS runs");
                 x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
-                x.extras = {{"MPAS-HT", GfsData::Want{"r6", "REFC", "entire atmosphere", "", "", ""}, "NSSL MPAS"}};
-                const char * names[6] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#e377c2"};
+                x.extras = {{"MPAS-HT", GfsData::Want{"r6", "REFC", "entire atmosphere", "", "", ""}, "MPAS-HT"}, {"MPAS-RN", GfsData::Want{"r7", "REFC", "entire atmosphere", "", "", ""}, "MPAS-RN"}};
+                const char * names[7] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#e377c2", "#17becf"};
                 const auto above = [] (const char * color) {
                     QColor solid{color};
                     solid.setAlpha(176);
@@ -4011,10 +4011,10 @@ const std::vector<Product>& products() {
                 };
                 x.fill = [] (const Grids& g) { return pick(g, "r1"); };
                 x.ramp = above(names[0]);
-                for (int m = 2; m <= 6; m++) {
+                for (int m = 2; m <= 7; m++) {
                     x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
                 }
-                x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange; NSSL MPAS pink (40 dBZ or more; experimental, not for forecasting)";
+                x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange; NSSL MPAS-HT pink, MPAS-RN teal (40 dBZ or more; experimental, not for forecasting)";
                 x.legendStep = 0;
                 p.push_back(x);
             }
@@ -5962,7 +5962,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);

@@ -264,6 +264,31 @@ clone_levels = 250 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
 clone_skip = anom
 clone_pieces = false
 )MODEL"},
+        {"MPAS-RN", R"MODEL(
+# NSSL's second experimental MPAS run on its data server ("mpasrn" tars, 00Z and 12Z, about 15 hours after the run time), what it was started from is not stated there: 3 km over the contiguous United States,
+# the same GRIB2 files and the same loader as the MPAS-HT. Experimental research output of the NOAA National Severe Storms Laboratory: not for forecasting.
+id = MPAS-RN
+label = NSSL experimental MPAS "rn" run, 3 km (research output, not for forecasting)
+source_label = NOAA/NSSL experimental MPAS (rn run), research output: not for forecasting
+group = Convection allowing
+kind = custom
+url = https://data.nssl.noaa.gov/thredds/fileServer/FRDD/NSSL-MPAS/{year}/{yy}{month}{day}{cycle}_mpasrn.tar
+probe_hour = 0
+cycle_hours = 12
+lag_hours = 15
+cycles_to_try = 6
+max_parallel = 2
+warp = 0.03, -127.0, 22.0, -65.0, 52.0
+sectors = conus
+hours = 0-72/1
+run_length = every 12 : 72 , else : 72
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, DPT, PRMSL, PWAT, CAPE, CIN, TCDC, GUST, WEASD, REFC, HLCY, VIS, PRATE
+clone_levels = 250 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom
+clone_pieces = false
+)MODEL"},
         {"WPC-PPP", R"MODEL(
 # the Weather Prediction Center's probabilistic precipitation portal (CONUS, public domain): the blend's amounts of rain, snow and freezing rain in 24, 36, 48 and 72 hour periods, expected, at a percentile or
 # as the chance of an amount, a new run every hour. Each product is a zip of contour bands (a shapefile) filled onto a grid by the program's own loader (registered for this id). The forecast "hour" is

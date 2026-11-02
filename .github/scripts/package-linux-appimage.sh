@@ -33,6 +33,8 @@ Icon=wxqt
 Categories=Utility;
 Terminal=false
 EOF
+mkdir -p "$appDir/usr/share/metainfo"
+cp .github/appstream/wxqt.appdata.xml "$appDir/usr/share/metainfo/wxqt.appdata.xml"
 
 # No Python needed: rendering uses only the GDAL binaries copied below
 # (gdal_calc/gdal_merge were removed from every pipeline).

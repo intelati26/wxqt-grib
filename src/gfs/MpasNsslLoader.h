@@ -15,7 +15,7 @@ namespace MpasNsslLoader {
     // field cut out of it and warped to a latitude / longitude grid by GDAL. Fields are asked for by the NOAA names (TMP, "2 m above ground") as for the HRRR.
     void registerLoader();
     // the first bytes of a run's tar say the run is there (a tar's first entry is "./<run>/")
-    std::string tarUrl(const GfsData::Run& run);
+    std::string tarUrl(const GfsData::Run& run, const std::string& tag = "mpasht2");   // "mpasht2" (started from the HRRR) or "mpasrn" (the other run, 00 and 12Z)
 }
 
 #endif  // MPASNSSLLOADER_H

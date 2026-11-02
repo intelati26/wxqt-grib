@@ -1083,6 +1083,7 @@ private:
         vector<QString> header;
         vector<vector<QString>> rows;
         bool labelColumn;   // first column holds row names (left-aligned) rather than values
+        bool banner{false};   // one large box: the single row three lines high, in big bold type on the color of what it says
     };
 
     // `group` picks the part of the table band (-1: everything): 0 parcels / thermodynamics / lapse rates, 1 winds and storm motion, 2 indices and precip type
@@ -1168,7 +1169,7 @@ private:
         }
         {   // SPC's flow chart of the possible hazard types, run on this sounding (the chart is under the Hazards button)
             const auto hazard = SoundingHazard::classify(*profile, a);
-            sections.push_back({{"Possible hazard type"}, {{QString::fromStdString(hazard.type)}}, false});
+            sections.push_back({{"Psbl Haz. Type"}, {{QString::fromStdString(hazard.type)}}, false, true});
         }
 
         sections.push_back({{"Corfidi", "Up", "Down", "Crit angle"},
@@ -1201,7 +1202,7 @@ private:
         // the largest size (14 px down to 7) at which every table fits the area, in height and (for the widest cell) width
         int rowsTotal = 0;
         for (const auto& section : sections) {
-            rowsTotal += static_cast<int>(section.rows.size()) + 1;
+            rowsTotal += static_cast<int>(section.rows.size()) + 1 + (section.banner ? 2 : 0);
         }
         const int gap = 3;
         const int gaps = static_cast<int>(sections.size()) - 1;
@@ -1254,11 +1255,27 @@ private:
                 edges.push_back(edges.back() + (c == 0 ? labelShare : 1.0) * unit);
             }
             const int rowCount = static_cast<int>(section.rows.size()) + 1;
+            const int sectionTop = y;
             for (int r = 0; r < rowCount; r += 1) {
                 const bool header = r == 0;
+                if (section.banner && !header) {   // SHARPpy's large black box: the type in big bold type, in the color of its place on SPC's chart (yellow for none)
+                    const auto& type = section.rows[0][0];
+                    const QColor ink = type == "PDS TOR" ? QColor{255, 80, 220} : type == "TOR" ? QColor{240, 60, 60} : type == "MRGL TOR" ? QColor{240, 140, 140} : type == "SVR" ? QColor{235, 200, 70}
+                                     : type == "MRGL SVR" ? QColor{120, 180, 240} : type == "FLASH FLOOD" ? QColor{70, 200, 100} : type == "BLIZZARD" ? QColor{90, 140, 255}
+                                     : type == "EXCESSIVE HEAT" ? QColor{255, 160, 60} : QColor{255, 220, 40};
+                    const QRectF box{static_cast<double>(area.left()), static_cast<double>(y), static_cast<double>(area.width()), static_cast<double>(rowHeight * 3)};
+                    painter.fillRect(box, QColor{0, 0, 0});
+                    QFont big = bold;
+                    big.setPixelSize(pixelSize * 2);
+                    painter.setFont(big);
+                    painter.setPen(ink);
+                    painter.drawText(box, Qt::AlignCenter, type);
+                    y += rowHeight * 3;
+                    continue;
+                }
                 const auto& cells = header ? section.header : section.rows[static_cast<size_t>(r - 1)];
                 const QRectF rowRect{static_cast<double>(area.left()), static_cast<double>(y), static_cast<double>(area.width()), static_cast<double>(rowHeight)};
-                painter.fillRect(rowRect, header ? headerFill : (r % 2 == 1 ? stripeA : stripeB));
+                painter.fillRect(rowRect, section.banner ? QColor{0, 0, 0} : header ? headerFill : (r % 2 == 1 ? stripeA : stripeB));
                 for (int c = 0; c < columns; c += 1) {
                     const QRectF cell{edges[static_cast<size_t>(c)], static_cast<double>(y), edges[static_cast<size_t>(c) + 1] - edges[static_cast<size_t>(c)], static_cast<double>(rowHeight)};
                     painter.setFont(header || (c == 0 && section.labelColumn) ? bold : font);
@@ -1276,7 +1293,7 @@ private:
                 y += rowHeight;
             }
             painter.setPen(lines);
-            painter.drawRect(QRectF{static_cast<double>(area.left()), static_cast<double>(y - rowHeight * rowCount), static_cast<double>(area.width()), static_cast<double>(rowHeight * rowCount)});
+            painter.drawRect(QRectF{static_cast<double>(area.left()), static_cast<double>(sectionTop), static_cast<double>(area.width()), static_cast<double>(y - sectionTop)});
             y += gap;
         }
         painter.restore();
@@ -1527,6 +1544,9 @@ void SoundingViewer::build() {
     box.addWidgetReal(canvas, 1, Qt::Alignment{});
     box.getAndShow(this);
     setSize(1000, 640);
+    if (const auto file = qEnvironmentVariable("WXQT_SOUNDING_PNG"); !file.isEmpty()) {   // (for testing: the sounding as a picture once it is in)
+        QTimer::singleShot(8000, this, [this, file] { canvas->renderExport(1).save(file); });
+    }
     if (qEnvironmentVariableIsSet("WXQT_HAZARD_PNG")) {   // (for testing: open the hazard chart once the sounding is in)
         QTimer::singleShot(8000, this, [this] { showHazards(); });
     }

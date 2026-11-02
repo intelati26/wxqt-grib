@@ -91,6 +91,11 @@ link = background | Model for Prediction Across Scales | https://en.wikipedia.or
 link = docs | NSSL CAMs: MPAS runs and how they are set up | https://cams.nssl.noaa.gov/
 link = source | NSSL data server (FRDD/NSSL-MPAS) | https://data.nssl.noaa.gov/thredds/catalog/FRDD/NSSL-MPAS/2026/catalog.html
 )ABOUT"},
+        {"MPAS-RN", R"ABOUT(
+why = A second research run of the MPAS model from NOAA's National Severe Storms Laboratory, at 3 km, posted as the "mpasrn" files on the NSSL data server (00Z and 12Z, about 15 hours after the run time). NSSL does not say there what it was started from. Experimental research output: not for forecasting.
+link = docs | NSSL CAMs: MPAS runs and how they are set up | https://cams.nssl.noaa.gov/
+link = source | NSSL data server (FRDD/NSSL-MPAS) | https://data.nssl.noaa.gov/thredds/catalog/FRDD/NSSL-MPAS/2026/catalog.html
+)ABOUT"},
         {"RRFS", R"ABOUT(
 why = NOAA's new 3 kilometre forecast system for the continental US, built to replace the Rapid Refresh, the HRRR and several others. At 3 km it can draw individual lines of storms and their rotation, which the global models cannot, and it updates every hour.
 link = background | Rapid Refresh (the system the RRFS replaces) | https://en.wikipedia.org/wiki/Rapid_Refresh_(weather_prediction)

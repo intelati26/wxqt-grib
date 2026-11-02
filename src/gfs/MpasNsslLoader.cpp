@@ -59,15 +59,15 @@ namespace {
         return *slot;
     }
 
-    QString indexPath(const GfsData::Run& run) {
-        return cacheDir() + QString::fromStdString(run.id()) + "_tar.txt";
+    QString indexPath(const std::string& tag, const GfsData::Run& run) {
+        return cacheDir() + (tag == "mpasht2" ? QString{} : QString::fromStdString(tag) + "_") + QString::fromStdString(run.id()) + "_tar.txt";
     }
 
     // The tar's entries ("name offset size" a line) up to and including the one wanted: the headers are walked by range, a file at a time, and what was seen is kept for the next hour.
-    bool findMember(const GfsData::Run& run, const std::string& name, Member& out, std::string& error) {
+    bool findMember(const std::string& tag, const GfsData::Run& run, const std::string& name, Member& out, std::string& error) {
         std::map<std::string, Member> seen;
         long long next = 0;
-        QFile file{indexPath(run)};
+        QFile file{indexPath(tag, run)};
         if (file.open(QIODevice::ReadOnly)) {
             QTextStream in{&file};
             while (!in.atEnd()) {
@@ -90,7 +90,7 @@ namespace {
         if (found()) {
             return true;
         }
-        const auto url = MpasNsslLoader::tarUrl(run);
+        const auto url = MpasNsslLoader::tarUrl(run, tag);
         QByteArray add;
         bool done = false;
         for (int guard = 0; guard < 400 && !done; guard++) {
@@ -113,7 +113,7 @@ namespace {
             }
         }
         if (!add.isEmpty()) {
-            QFile keep{indexPath(run)};
+            QFile keep{indexPath(tag, run)};
             if (keep.open(QIODevice::Append)) {
                 keep.write(add);
             }
@@ -126,18 +126,18 @@ namespace {
     }
 
     // the unpacked GRIB2 file of an hour: fetched from the tar and gunzipped when it is not in the cache
-    QString hourFile(const GfsData::Run& run, int hour, std::string& error) {
-        const auto path = cacheDir() + QString::fromStdString(run.id()) + "_f" + QString::fromStdString(pad2(hour)) + ".grib2";
+    QString hourFile(const std::string& tag, const GfsData::Run& run, int hour, std::string& error) {
+        const auto path = cacheDir() + (tag == "mpasht2" ? QString{} : QString::fromStdString(tag) + "_") + QString::fromStdString(run.id()) + "_f" + QString::fromStdString(pad2(hour)) + ".grib2";
         std::lock_guard lock{lockFor(path)};
         if (QFile::exists(path)) {
             return path;
         }
-        const auto name = "mpasht2_nssl_" + run.id() + "f" + pad2(hour) + ".grib2.gz";
+        const auto name = tag + "_nssl_" + run.id() + "f" + pad2(hour) + ".grib2.gz";
         Member member;
-        if (!findMember(run, name, member, error)) {
+        if (!findMember(tag, run, name, member, error)) {
             return {};
         }
-        const auto packed = URL::getBytesRange(MpasNsslLoader::tarUrl(run), member.offset, member.offset + member.size - 1);
+        const auto packed = URL::getBytesRange(MpasNsslLoader::tarUrl(run, tag), member.offset, member.offset + member.size - 1);
         if (packed.size() != member.size) {
             error = "could not download " + name + " from NSSL";
             return {};
@@ -205,8 +205,8 @@ namespace {
         return &it->second;
     }
 
-    bool load(const GfsData::Run& run, int hour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) {
-        const auto grib = hourFile(run, hour, error);
+    bool load(const std::string& tag, const GfsData::Run& run, int hour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) {
+        const auto grib = hourFile(tag, run, hour, error);
         if (grib.isEmpty()) {
             return false;
         }
@@ -275,10 +275,11 @@ namespace {
     }
 }
 
-std::string MpasNsslLoader::tarUrl(const GfsData::Run& run) {
-    return "https://data.nssl.noaa.gov/thredds/fileServer/FRDD/NSSL-MPAS/" + run.date.substr(0, 4) + "/" + run.date.substr(2) + run.cycle + "_mpasht2.tar";
+std::string MpasNsslLoader::tarUrl(const GfsData::Run& run, const std::string& tag) {
+    return "https://data.nssl.noaa.gov/thredds/fileServer/FRDD/NSSL-MPAS/" + run.date.substr(0, 4) + "/" + run.date.substr(2) + run.cycle + "_" + tag + ".tar";
 }
 
 void MpasNsslLoader::registerLoader() {
-    GfsData::setLoader("MPAS-HT", load);
+    GfsData::setLoader("MPAS-HT", [] (const GfsData::Run& run, int hour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) { return load("mpasht2", run, hour, want, out, error); });
+    GfsData::setLoader("MPAS-RN", [] (const GfsData::Run& run, int hour, const GfsData::Want& want, GfsGrid::Grid& out, std::string& error) { return load("mpasrn", run, hour, want, out, error); });
 }
