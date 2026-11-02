@@ -4079,7 +4079,16 @@ const std::vector<Product>& products() {
                 };
                 x.derive = [] (Grids& g, const Context&) {   // the SPC's neighborhood chance: each member counts where it reaches 40 dBZ anywhere within 13 points (about 40 km), the members that were read give the share (%)
                     constexpr int radius = 13;
-                    auto out = g.at("r1");
+                    GfsGrid::Grid out;
+                    for (const auto& [key, grid] : g) {   // (any layer left: the first one is the pattern of the grid)
+                        if (key[0] == 'r' && !grid.empty()) {
+                            out = grid;
+                            break;
+                        }
+                    }
+                    if (out.empty()) {
+                        return;
+                    }
                     const int columns = out.columns, rows = out.rows;
                     std::vector<int> count(out.values.size(), 0), have(out.values.size(), 0);
                     for (const auto& [key, grid] : g) {
@@ -4120,10 +4129,17 @@ const std::vector<Product>& products() {
                         out.values[i] = have[i] > 0 ? static_cast<float>(100.0 * count[i] / have[i]) : std::nanf("");
                     }
                     g["chance"] = GfsGrid::smoothed(out, 20);
+                    auto none = out;   // the fill is clear (a layer taken out cannot leave the chart without one): every layer is an overlay in its own color
+                    std::fill(none.values.begin(), none.values.end(), std::nanf(""));
+                    g["base"] = std::move(none);
                 };
-                x.fill = [] (const Grids& g) { return pick(g, "r1"); };
+                x.fill = [] (const Grids& g) { return pick(g, "base"); };
                 x.ramp = above(names[0]);
-                for (int m = 2; m <= 12; m++) {
+                const char * layerNames[12] = {"REFS member 1 (control)", "REFS member 2", "REFS member 3", "REFS member 4", "REFS member 5", "HRRR", "HRRR -6h", "HRRR -12h", "MPAS-HT (NSSL)", "MPAS-RN (NSSL)", "REFS control -6h", "REFS control -12h"};
+                for (int m = 1; m <= 12; m++) {
+                    x.layers.push_back({"r" + std::to_string(m), layerNames[m - 1]});
+                }
+                for (int m = 1; m <= 12; m++) {
                     x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
                 }
                 ContourSet c;

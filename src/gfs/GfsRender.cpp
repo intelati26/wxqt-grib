@@ -971,6 +971,11 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     if (!product->extras.empty()) {
         addExtras(session, *product, run, hour, grids);
     }
+    for (const auto& key : variant.hideKeys) {   // the layers the person took out
+        if (std::any_of(product->layers.begin(), product->layers.end(), [&key] (const auto& layer) { return layer.first == key; })) {
+            grids.erase(key);
+        }
+    }
     if (!variant.overlayModels.empty() && variant.kind == Variant::Kind::None && !isHafs(model)) {   // the other models' lines over this one's
         if (!addOverlays(session, composed, grids, model, run, hour, variant.overlayModels, variant.overlayKeepFill, error)) {
             return {};

@@ -180,6 +180,7 @@ namespace GfsChart {
             int lag{0};           // 0: the newest run that has the valid time; n: the run n cycles older than the one the source's newest is on (the lagged pool: older runs of the same source for the same valid time)
         };
         std::vector<Extra> extras;
+        std::vector<std::pair<std::string, std::string>> layers;   // the sets of a paintball that can be taken out (grid key, name): the screen lists them with a check box each, the chance lines are worked out again from those left
         int periodHours{0};   // the chart is of a period that ends at the hour (12 hour extremes, 6 hour chances): only the forecast hours that are multiples of this have it. 0: any hour
         std::string sigmaUnit;      // the chart's own unit for the legend's second row and the read-out: "dam", "mb"
         std::string sigmaSizeKey;   // the grid of one standard deviation in that unit: the legend's second row uses its middle value

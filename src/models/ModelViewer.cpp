@@ -374,6 +374,11 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonMembers->setToolTip("REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
         QObject::connect(buttonMembers, &QPushButton::clicked, this, [this] { openMemberGraph(); });
         boxH2.addWidgetReal(buttonMembers);
+        buttonLayers = UiStandards::button(this, "Layers...");
+        buttonLayers->setToolTip("Which members, runs and models the paintball draws. The lines of the chance are worked out again from the ones left in.");
+        QObject::connect(buttonLayers, &QPushButton::clicked, this, [this] { chooseLayers(); });
+        boxH2.addWidgetReal(buttonLayers);
+        buttonLayers->setVisible(false);
         buttonPlume = UiStandards::button(this, "Plume...");
         buttonPlume->setCheckable(true);
         buttonPlume->setToolTip("A second pane beside the chart with the forecast plume at the point clicked (or the first saved location): the CFSv2 runs for the CFS, the 31 members for the GEFS, the GFS runs for the others. It has all the plume window's choices");
@@ -752,6 +757,9 @@ string ModelViewer::frameKey(int hour) const {
     string overlay;
     for (const auto& other : overlayModels) {
         overlay += (overlay.empty() ? "|overlay=" : ",") + other;
+    }
+    for (const auto& layer : hiddenLayers) {
+        key += "|hide=" + layer;
     }
     return key + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
 }
@@ -2148,6 +2156,7 @@ void ModelViewer::refreshProductButton() {
     buttonProducts.setVisible(grib);
     refreshBuildMenu();
     refreshMembers();
+    refreshLayersButton();
     refreshOverlays();
     if (!grib) {
         return;
@@ -2688,6 +2697,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.variant.standardDeviations = standardDeviations;
         job.variant.overlayModels = overlayModels;
         job.variant.overlayKeepFill = overlayKeepFill;
+        job.variant.hideKeys = hiddenLayers;
         job.key = frameKey(mainHour);
     } else {
         const auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
@@ -2844,6 +2854,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             v.member = spec.member.empty() ? "m002" : spec.member;
         } else if (spec.model == objectModel.model) {   // the same model's tiles show the member too (another model's charts have none)
             v.member = member;
+            v.hideKeys = hiddenLayers;
             v.standardDeviations = standardDeviations;
         }
         if (byClock && job.ok) {   // by the clock: each model's own hour for the first tile's valid time
@@ -3394,6 +3405,61 @@ void ModelViewer::editColors() {
         refreshLoaded();
         reload();
     }};
+}
+
+void ModelViewer::refreshLayersButton() {
+    const auto * product = GfsChart::product(objectModel.param, objectModel.model);
+    buttonLayers->setVisible(product != nullptr && !product->layers.empty());
+}
+
+// the check boxes of a paintball's sets, as the SPC's pages list their underlays: a set taken out is not drawn, and the chance lines are worked out from the rest
+void ModelViewer::chooseLayers() {
+    const auto * product = GfsChart::product(objectModel.param, objectModel.model);
+    if (product == nullptr || product->layers.empty()) {
+        return;
+    }
+    QDialog dialog{this};
+    dialog.setWindowTitle("Layers of the paintball");
+    auto * layout = new QVBoxLayout{&dialog};
+    auto * about = new QLabel{"The sets that are drawn, and counted in the chance lines. A run that is not there yet is left out whatever is ticked here.", &dialog};
+    about->setWordWrap(true);
+    layout->addWidget(about);
+    std::vector<QCheckBox *> boxes;
+    for (const auto& [key, name] : product->layers) {
+        auto * box = new QCheckBox{QString::fromStdString(name), &dialog};
+        box->setProperty("key", QString::fromStdString(key));
+        box->setChecked(std::find(hiddenLayers.begin(), hiddenLayers.end(), key) == hiddenLayers.end());
+        layout->addWidget(box);
+        boxes.push_back(box);
+    }
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    std::vector<string> hidden;
+    for (auto * box : boxes) {
+        if (!box->isChecked()) {
+            hidden.push_back(box->property("key").toString().toStdString());
+        }
+    }
+    if (hidden.size() >= boxes.size()) {   // (at least one set stays: a paintball of nothing has no chance to work out)
+        hidden.pop_back();
+    }
+    if (hidden == hiddenLayers) {
+        return;
+    }
+    hiddenLayers = hidden;
+    startPlaying(false);
+    strip->stop();
+    frames.clear();
+    frameOrder.clear();
+    frameBytes = 0;
+    failedAhead.clear();
+    refreshLoaded();
+    reload();
 }
 
 void ModelViewer::refreshOverlays() {

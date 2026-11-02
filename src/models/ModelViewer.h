@@ -221,6 +221,10 @@ private:
     void showBuilt(const string& id);
     QPushButton * buttonMembers{};   // REFS charts: each member's value at the picked point over the hours (the old REFS screen's plume graph)
     void openMemberGraph();
+    QPushButton * buttonLayers{};   // a paintball of many sets (REFS, HRRR, MPAS ...): which sets are drawn and counted in the chance lines
+    std::vector<std::string> hiddenLayers;   // the grid keys of the sets left out (GfsChart::Product::layers)
+    void chooseLayers();
+    void refreshLayersButton();
     void chooseOverlays();                 // the other models whose lines are drawn over this chart's (a dialog of the models that have the chart)
     void refreshOverlays();                // keeps the ones that still have the chart on screen, and the button's text
     std::vector<std::string> overlayModels;

@@ -62,6 +62,7 @@ namespace GfsRender {
         // the valid time to draw ("yyyyMMddHH", UTC): the forecast hour is then worked out from the run actually used, so models of other runs are compared at the same real time
         std::string validTime;
         std::string poolOnly;   // a pooled chart (ENS-ALL) from one of its ensembles' members only: "IFS-ENS", "GEFS" or "GEPS" (GfsChart::withPoolOnly)
+        std::vector<std::string> hideKeys;   // the keys of the chart's layers (GfsChart::Product::layers) left out: a paintball without them, its chance lines worked out from the others
         std::string member;   // one ensemble member instead of the mean (GfsChart::withMember); "" the chart as it is
         // other models whose lines are drawn over this one's, each in a color of its own, for the same valid time: every set of lines of the chart (heights, pressure ...) of each, and no fill unless overlayKeepFill
         std::vector<std::string> overlayModels;
