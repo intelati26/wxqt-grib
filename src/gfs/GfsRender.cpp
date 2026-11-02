@@ -60,7 +60,6 @@ namespace {
         GfsData::Config config;
         config.gdalBin = UtilityGrib::gdalBinDir();
         config.cacheFolder = folder;
-        config.indexMinutes = Utility::readPrefInt("MODEL_INDEX_MINUTES", 60);
         config.bytes = [] (const std::string& url, long long start, long long end) {
             if (url.size() > 4 && url.compare(url.size() - 4, 4, ".bz2") == 0) {   // DWD's files are bzip2: the field is the file unpacked (a first-bytes look gets as much of it)
                 const auto packed = URL::getBytesManaged(url);

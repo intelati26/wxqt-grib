@@ -25,7 +25,6 @@ public:
     struct Config {
         std::function<QByteArray(const std::string& url, long long start, long long end)> bytes;   // end < 0: the whole file / listing
         std::string gdalBin;       // the folder holding gdal_translate
-        int indexMinutes{5};       // an index (the .idx of a file) is kept this long, in memory and on disk (a run's files do not change once published); a pref of the app, MODEL_INDEX_MINUTES
         QString cacheFolder;       // decoded grids and the GRIB messages they came from (GfsCache keeps the folder: shared by the screens, kept between runs)
     };
     struct Box {
