@@ -38,6 +38,9 @@ namespace GdalRaster {
     // translate, readEnvi and remove the scratch files, for the callers that have nothing to do with the message of a failure
     bool read(const QString& input, const QString& base, const Options& options, GfsGrid::Grid& g, int& bands, std::vector<float>& values, std::string& error);
     void removeScratch(const QString& base);
+    // The band of a GRIB2 file that holds a field, from the file's own band list (gdalinfo, kept for each file): by the NOAA names (TMP, "2 m above ground"; "5000-2000 m above ground"; "entire
+    // atmosphere"). A field there more than once (an hour's maximum and a running total) is the first. 0 with the reason when the file has none.
+    int bandOf(const QString& gdalBin, const QString& grib, const std::string& variable, const std::string& level, std::string& error);
 }
 
 #endif  // GDALRASTER_H

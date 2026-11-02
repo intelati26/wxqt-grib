@@ -5,6 +5,7 @@
 
 #include "gfs/GfsData.h"
 #include "gfs/GdalRaster.h"
+#include "gfs/TarReader.h"
 #include "gfs/GfsModels.h"
 #include "util/NetPriority.h"
 #include <cctype>
@@ -314,12 +315,13 @@ std::string GfsData::resolveUrl(const std::string& url) const {
 bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
     const std::string variable = source.variableOf ? source.variableOf(want) : want.variable;   // what a NetCDF file calls the field
     const int timeBand = source.ncBand ? source.ncBand(run, hour, want) : 0;
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom) ? variable + (source.custom && !want.level.empty() ? "_" + want.level + "_" + want.forecast : std::string{}) : std::string{}) + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
+    const bool tar = static_cast<bool>(source.tarMember);
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom || tar) ? variable + ((source.custom || tar) && !want.level.empty() ? "_" + want.level + "_" + want.forecast : std::string{}) : std::string{}) + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
         name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
     }
-    const QString wholePath = config.cacheFolder + "/" + name + "all.grb2";
+    const QString wholePath = tar ? config.cacheFolder + "/" + QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3)) + "_hour.grb2" : config.cacheFolder + "/" + name + "all.grb2";   // (a tar's hour is shared by all its fields)
     const QString statName = QString::fromStdString(want.stat.empty() ? "mean" : want.stat);
     const QString cachePath = config.cacheFolder + "/" + name + statName + ".gz4";
     QDir{}.mkpath(config.cacheFolder);
@@ -402,7 +404,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         out = std::move(g);
         return true;
     }
-    const int band = timeBand > 0 ? timeBand : source.memberBand && !want.stat.empty() && want.stat != "spr" ? source.memberBand(want.stat) : 0;
+    int band = timeBand > 0 ? timeBand : source.memberBand && !want.stat.empty() && want.stat != "spr" ? source.memberBand(want.stat) : 0;
     if (!want.stat.empty() && want.stat != "spr" && band <= 0) {
         error = source.id + " has no member " + want.stat;
         return false;
@@ -419,6 +421,15 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
             if (url.empty()) {
                 failed = "not in the listing";
                 continue;
+            }
+            if (tar) {   // the hour's file out of the tar: by range, unpacked once for all the fields of the hour
+                std::string why;
+                if (!TarReader::extract(url, source.tarMember(run, hour), config.cacheFolder + "/" + QString::fromStdString(source.id + "_" + run.id()) + "_tar.txt", wholePath, "GRIB", why)) {
+                    failed = why;
+                    continue;
+                }
+                have = true;
+                break;
             }
             if (source.netcdf) {
                 const auto head = config.bytes(url, 0, 3);
@@ -454,6 +465,13 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         QFile::remove(hdrPath);
         QFile::remove(rawPath + ".aux.xml");
     };
+    if (tar) {   // the band that has the field
+        band = GdalRaster::bandOf(QString::fromStdString(config.gdalBin), wholePath, want.variable, want.level, error);
+        if (band <= 0) {
+            error = source.id + ": " + error;
+            return false;
+        }
+    }
     auto options = gdalOptions(source, config.gdalBin, band);
     options.timeoutMs = 300000;
     if (source.netcdf) {   // by range: a few requests of a megabyte or so, not the file
@@ -551,7 +569,7 @@ bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string&
                     continue;
                 }
                 const auto head = config.bytes(url, 0, 3);
-                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF")) {
+                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || (source.tarMember && head.startsWith("./"))) {   // (a tar: its first entry is "./<run>/")
                     there = true;
                     break;
                 }

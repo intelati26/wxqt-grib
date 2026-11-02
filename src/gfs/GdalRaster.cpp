@@ -7,7 +7,12 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <map>
+#include <mutex>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QProcess>
 #include <QRegularExpression>
 
@@ -103,4 +108,56 @@ bool GdalRaster::read(const QString& input, const QString& base, const Options& 
     const bool ok = readEnvi(base + ".raw", base + ".hdr", g, bands, values, error, options.requirePlain);
     removeScratch(base);
     return ok;
+}
+
+namespace {
+    // GDAL's name for a level ("2-HTGL", "50000-ISBL", "5000-2000-HTGL") from the NOAA way of writing it ("2 m above ground", "500 mb", "2000-5000 m above ground"); a name GDAL already uses is kept
+    QString gdalLevel(const std::string& level) {
+        const auto text = QString::fromStdString(level);
+        static const QRegularExpression pressure{"^(\\d+) mb$"}, height{"^(\\d+) m above ground$"}, layer{"^(\\d+)-(\\d+) m above ground$"}, spd{"^(\\d+)-(\\d+) mb above ground$"};
+        if (const auto m = pressure.match(text); m.hasMatch()) {
+            return QString::number(m.captured(1).toInt() * 100) + "-ISBL";
+        }
+        if (const auto m = height.match(text); m.hasMatch()) {
+            return m.captured(1) + "-HTGL";
+        }
+        if (const auto m = layer.match(text); m.hasMatch()) {
+            return QString::number(std::max(m.captured(1).toInt(), m.captured(2).toInt())) + "-" + QString::number(std::min(m.captured(1).toInt(), m.captured(2).toInt())) + "-HTGL";
+        }
+        if (const auto m = spd.match(text); m.hasMatch()) {
+            return QString::number(std::max(m.captured(1).toInt(), m.captured(2).toInt()) * 100) + "-" + QString::number(std::min(m.captured(1).toInt(), m.captured(2).toInt()) * 100) + "-SPDL";
+        }
+        if (text == "surface") return "0-SFC";
+        if (text == "mean sea level") return "0-MSL";
+        if (text.startsWith("entire atmosphere")) return "0-EATM";   // (also "... (considered as a single layer)")
+        if (text == "cloud base") return "0-CBL";
+        if (text == "cloud top") return "0-CTL";
+        return text;
+    }
+}
+
+int GdalRaster::bandOf(const QString& gdalBin, const QString& grib, const std::string& variable, const std::string& level, std::string& error) {
+    static std::mutex guard;
+    static std::map<QString, std::map<std::string, std::vector<int>>> maps;   // "ELEMENT LEVEL" -> the bands that have it, in the file's order, for each file
+    const std::lock_guard lock{guard};
+    auto found = maps.find(grib);
+    if (found == maps.end()) {
+        QProcess info;
+        info.start(gdalBin + "/gdalinfo", {"-json", grib});
+        info.waitForFinished(120000);
+        std::map<std::string, std::vector<int>> map;
+        const auto document = QJsonDocument::fromJson(info.readAllStandardOutput());
+        for (const auto& b : document.object().value("bands").toArray()) {
+            const auto metadata = b.toObject().value("metadata").toObject().value("").toObject();
+            map[(metadata.value("GRIB_ELEMENT").toString() + " " + metadata.value("GRIB_SHORT_NAME").toString()).toStdString()].push_back(b.toObject().value("band").toInt());
+        }
+        found = maps.emplace(grib, std::move(map)).first;
+    }
+    const auto key = variable + " " + gdalLevel(level).toStdString();
+    const auto it = found->second.find(key);
+    if (it == found->second.end()) {
+        error = "the file has no " + key;
+        return 0;
+    }
+    return it->second.front();
 }

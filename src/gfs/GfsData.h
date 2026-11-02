@@ -77,6 +77,9 @@ public:
         // A reader of part of a file (NASA's GrADS Data Server gives one variable at one time of a file the data portal gives whole): tried first for a `wholeFile` field; `file` and the variable are as the model
         // file names them. It returns the field on the model's grid, before the scale and the offset; false (with a reason) and the field is read from the file as usual.
         std::function<bool(const Run&, int forecastHour, const std::string& file, const std::string& variable, GfsGrid::Grid& out, std::string& error)> partial;
+        // A `wholeFile` source whose url is a tar of one file an hour (NSSL's MPAS runs): the member of the tar for a run and hour (its file name; ".gz" is gunzipped). The hour's GRIB2 is kept in
+        // the cache and a field is the band of it that has the NOAA name (a GRIB2 file with no index of its own). The tar is read by range (TarReader).
+        std::function<std::string(const Run&, int forecastHour)> tarMember;
         bool netcdf{false};                                               // a `wholeFile` source whose files are NetCDF: want.variable is the variable's name in them, read by range (they are 0.5 to 1 GB)
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often

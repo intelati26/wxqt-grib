@@ -240,14 +240,15 @@ list = true
 )MODEL"},
         {"MPAS-HT", R"MODEL(
 # NSSL's experimental MPAS run started from the HRRR (MPAS-HTPO-NSSL on cams.nssl.noaa.gov): 3 km over the contiguous United States, every 6 hours to 48 hours, with TEMPO microphysics. NSSL posts each run as
-# one tar of gzipped GRIB2 files, an hour each; the program's own loader (registered for this id) reads the tar by range and takes the hour it needs. The tar appears when the run is done, about 8 hours after
+# one tar of gzipped GRIB2 files, an hour each; the tar is read by range and only the hour it needs is taken out (kind = tar). The tar appears when the run is done, about 8 hours after
 # its time. Experimental research output of the NOAA National Severe Storms Laboratory: not for forecasting.
 id = MPAS-HT
 label = NSSL experimental MPAS-HTPO, 3 km (research output, not for forecasting)
 source_label = NOAA/NSSL experimental MPAS-HTPO (started from the HRRR), research output: not for forecasting
 group = Convection allowing
-kind = custom
+kind = tar
 url = https://data.nssl.noaa.gov/thredds/fileServer/FRDD/NSSL-MPAS/{year}/{yy}{month}{day}{cycle}_mpasht2.tar
+tar_member = mpasht2_nssl_{date}{cycle}f{hour2}.grib2.gz
 probe_hour = 0
 cycle_hours = 6
 lag_hours = 9
@@ -271,8 +272,9 @@ id = MPAS-RN
 label = NSSL experimental MPAS-RN, 3 km, started from the RRFS (research output, not for forecasting)
 source_label = NOAA/NSSL experimental MPAS-RN (started from the EMC RRFS), research output: not for forecasting
 group = Convection allowing
-kind = custom
+kind = tar
 url = https://data.nssl.noaa.gov/thredds/fileServer/FRDD/NSSL-MPAS/{year}/{yy}{month}{day}{cycle}_mpasrn.tar
+tar_member = mpasrn_nssl_{date}{cycle}f{hour2}.grib2.gz
 probe_hour = 0
 cycle_hours = 12
 lag_hours = 15
@@ -1184,45 +1186,44 @@ hours = 36-204/24
 run_every = 12
 list = true
 )MODEL"},
+        {"_spc_post", R"MODEL(
+# what SPC's post-processed NetCDF models (the mesoanalysis, the RRFS fields) have alike: a NetCDF file read by range, warped to 0.03 degrees over the contiguous United States, a run every hour
+kind = netcdf
+max_parallel = 4
+warp = 0.03, -127.0, 22.0, -65.0, 52.0
+sectors = conus
+hourly_runs = true
+list = true
+)MODEL"},
         {"SFCOA", R"MODEL(
 # SPC's mesoanalysis (surface objective analysis, HRRR background), one NetCDF file an hour: a field is read by range
 id = SFCOA
 label = SPC mesoanalysis (SFCOA-HRRR)
-kind = netcdf
+include = spc_post
 url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/prod/spc_post.{date}/sfcoa-hrrr/spc_post.t{cycle}z.sfcoa_hrrr.final.nc
 url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/para/spc_post.{date}/sfcoa-hrrr/spc_post.t{cycle}z.sfcoa_hrrr.final.nc
 probe_hour = 0
 cycle_hours = 1
 lag_hours = 1
 cycles_to_try = 6
-max_parallel = 4
-warp = 0.03, -127.0, 22.0, -65.0, 52.0
-sectors = conus
 hours = 0-0/1
-hourly_runs = true
-list = true
 )MODEL"},
         {"RRFSD", R"MODEL(
 # the same fields computed from the RRFS forecasts, a NetCDF file for each hour of each run
 id = RRFSD
 label = SPC severe weather fields from the RRFS (RRFSD)
 source_label = SPC severe weather fields from the RRFS
-kind = netcdf
+include = spc_post
 url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/prod/spc_post.{date}/rrfsd/spc_post.t{cycle}z.rrfs_d.f{hour3}.nc
 url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/para/spc_post.{date}/rrfsd/spc_post.t{cycle}z.rrfs_d.f{hour3}.nc
 probe_hour = 1
 cycle_hours = 1
 lag_hours = 3
 cycles_to_try = 8
-max_parallel = 4
-warp = 0.03, -127.0, 22.0, -65.0, 52.0
-sectors = conus
 hours = 0-84/1
-hourly_runs = true
 on_missing = previous_run
 preload_hours = 6
 run_length = every 6 : 84 , else : 18
-list = true
 )MODEL"},
         {"GFS-WAVE", R"MODEL(
 # GFS-Wave: the global 0.16 degree sea state, one file for each hour

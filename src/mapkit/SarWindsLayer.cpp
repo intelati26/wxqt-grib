@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/SarWindsLayer.h"
+#include "gfs/GdalRaster.h"
 #include <algorithm>
 #include <cmath>
 #include <deque>
@@ -72,44 +73,19 @@ namespace {
     }
 
     bool readLayer(const QString& file, const QString& variable, const QString& out, int& columns, int& rows, std::vector<float>& values) {
-        QProcess translate;
-        translate.start(QString::fromStdString(UtilityGrib::gdalBinDir()) + "/gdal_translate", {"-q", "-of", "ENVI", "-ot", "Float32", "NETCDF:\"" + file + "\":" + variable, out});
-        translate.waitForFinished(120000);
-        if (translate.exitCode() != 0) {
+        GdalRaster::Options options;
+        options.gdalBin = QString::fromStdString(UtilityGrib::gdalBinDir());
+        options.timeoutMs = 120000;
+        options.requirePlain = false;   // (a swath: its cells are not a latitude / longitude grid)
+        GfsGrid::Grid shape;
+        int bands = 0;
+        std::string why;
+        if (!GdalRaster::read("NETCDF:\"" + file + "\":" + variable, QString{out}.remove(QRegularExpression{"\\.raw$"}), options, shape, bands, values, why) || bands < 1) {
             return false;
         }
-        // the size from the ENVI header
-        QFile header{QString{out}.replace(QRegularExpression{"\\.raw$"}, ".hdr")};   // (GDAL names the ENVI header after the file without its extension)
-        if (!header.open(QIODevice::ReadOnly)) {
-            return false;
-        }
-        const auto text = QString::fromUtf8(header.readAll());
-        columns = rows = 0;
-        for (const auto& line : text.split('\n')) {
-            if (line.startsWith("samples")) {
-                columns = line.section('=', 1).trimmed().toInt();
-            } else if (line.startsWith("lines")) {
-                rows = line.section('=', 1).trimmed().toInt();
-            }
-        }
-        const bool big = text.contains("byte order = 1");
-        QFile raw{out};
-        if (columns <= 0 || rows <= 0 || !raw.open(QIODevice::ReadOnly)) {
-            return false;
-        }
-        const auto bytes = raw.readAll();
-        if (bytes.size() < static_cast<qsizetype>(columns) * rows * 4) {
-            return false;
-        }
+        columns = shape.columns;
+        rows = shape.rows;
         values.resize(static_cast<size_t>(columns) * static_cast<size_t>(rows));
-        for (size_t i = 0; i < values.size(); i++) {
-            uint32_t word;
-            std::memcpy(&word, bytes.constData() + i * 4, 4);
-            if (big) {
-                word = qbswap<quint32>(word);
-            }
-            std::memcpy(&values[i], &word, 4);
-        }
         return true;
     }
 

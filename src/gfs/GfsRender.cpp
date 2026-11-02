@@ -261,7 +261,7 @@ bool GfsRender::firstHourMissing(Session& session, const std::string& model, con
 std::vector<int> GfsRender::availableHours(Session& session, const std::string& model, const std::string& param, const std::string& runId, const std::vector<int>& hours, const std::string& storm) {
     const auto * def = GfsModels::find(model);
     const auto * product = GfsChart::product(param, model);
-    if (def == nullptr || product == nullptr || def->source(storm).custom || runId.size() != 10 || hours.empty()) {
+    if (def == nullptr || product == nullptr || def->source(storm).custom || def->source(storm).tarMember || runId.size() != 10 || hours.empty()) {
         return {};
     }
     const auto gfs = data(session.folder(), model, storm);
@@ -298,7 +298,7 @@ std::vector<int> GfsRender::availableHours(Session& session, const std::string& 
 bool GfsRender::hasFields(Session& session, const std::string& model, const std::string& param, const std::string& runId, int hour) {
     const auto * def = GfsModels::find(model);
     const auto * product = GfsChart::product(param, model);
-    if (def == nullptr || product == nullptr || def->source("").custom || runId.size() != 10) {
+    if (def == nullptr || product == nullptr || def->source("").custom || def->source("").tarMember || runId.size() != 10) {
         return false;
     }
     auto needs = GfsChart::needs(*product, hour);
