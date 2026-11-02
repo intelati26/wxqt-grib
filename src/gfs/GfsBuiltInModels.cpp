@@ -265,11 +265,11 @@ clone_skip = anom
 clone_pieces = false
 )MODEL"},
         {"MPAS-RN", R"MODEL(
-# NSSL's second experimental MPAS run on its data server ("mpasrn" tars, 00Z and 12Z, about 15 hours after the run time), what it was started from is not stated there: 3 km over the contiguous United States,
+# NSSL's second experimental MPAS run on its data server ("mpasrn" tars, 00Z and 12Z, about 15 hours after the run time), started from the experimental EMC RRFS with the NSSL 2-moment microphysics (the CAMs page says so): 3 km over the contiguous United States,
 # the same GRIB2 files and the same loader as the MPAS-HT. Experimental research output of the NOAA National Severe Storms Laboratory: not for forecasting.
 id = MPAS-RN
-label = NSSL experimental MPAS "rn" run, 3 km (research output, not for forecasting)
-source_label = NOAA/NSSL experimental MPAS (rn run), research output: not for forecasting
+label = NSSL experimental MPAS-RN, 3 km, started from the RRFS (research output, not for forecasting)
+source_label = NOAA/NSSL experimental MPAS-RN (started from the EMC RRFS), research output: not for forecasting
 group = Convection allowing
 kind = custom
 url = https://data.nssl.noaa.gov/thredds/fileServer/FRDD/NSSL-MPAS/{year}/{yy}{month}{day}{cycle}_mpasrn.tar

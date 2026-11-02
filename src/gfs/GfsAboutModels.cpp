@@ -92,7 +92,7 @@ link = docs | NSSL CAMs: MPAS runs and how they are set up | https://cams.nssl.n
 link = source | NSSL data server (FRDD/NSSL-MPAS) | https://data.nssl.noaa.gov/thredds/catalog/FRDD/NSSL-MPAS/2026/catalog.html
 )ABOUT"},
         {"MPAS-RN", R"ABOUT(
-why = A second research run of the MPAS model from NOAA's National Severe Storms Laboratory, at 3 km, posted as the "mpasrn" files on the NSSL data server (00Z and 12Z, about 15 hours after the run time). NSSL does not say there what it was started from. Experimental research output: not for forecasting.
+why = A second research run of the MPAS model from NOAA's National Severe Storms Laboratory, at 3 km, posted as the "mpasrn" files on the NSSL data server (00Z and 12Z, about 15 hours after the run time). Per NSSL's CAMs page it is started from the experimental 00Z and 12Z deterministic RRFS run of NOAA's EMC and uses the NSSL 2-moment microphysics (the "mpasrn3" files are the same run with the 3-moment scheme). Experimental research output: not for forecasting.
 link = docs | NSSL CAMs: MPAS runs and how they are set up | https://cams.nssl.noaa.gov/
 link = source | NSSL data server (FRDD/NSSL-MPAS) | https://data.nssl.noaa.gov/thredds/catalog/FRDD/NSSL-MPAS/2026/catalog.html
 )ABOUT"},
