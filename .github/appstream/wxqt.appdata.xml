@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>wxqt</id>
+  <id>io.github.intelati26.wxqt</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>
   <name>wxqt</name>
+  <developer id="io.github.intelati26">
+    <name>intelati26</name>
+  </developer>
   <summary>US weather viewer: radar, satellite, forecasts and model charts</summary>
   <description>
     <p>wxqt is a Qt/C++ port of the wX US Advanced Weather application. It shows radar, satellite, alerts, observations, soundings and forecast model charts (GFS, RRFS, HRRR, ensembles and more) from public NOAA data.</p>
   </description>
-  <launchable type="desktop-id">wxqt.desktop</launchable>
+  <launchable type="desktop-id">io.github.intelati26.wxqt.desktop</launchable>
   <url type="homepage">https://github.com/intelati26/wxqt-grib</url>
   <url type="bugtracker">https://github.com/intelati26/wxqt-grib/issues</url>
   <content_rating type="oars-1.1"/>
