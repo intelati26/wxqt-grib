@@ -4062,6 +4062,26 @@ const std::vector<Product>& products() {
                     }
                 }
             }
+            {   // the paintball with the HRRR and the HRRR of 6 hours before among the members, as the SPC's REFS viewer draws it (its set is the HRRR, the RRFS control, the REFS members and the HRRR and RRFS control 6 and
+                // 12 hours older): the same grays for the HRRRs. A run that cannot be read is left out
+                auto x = make("refc_paintball_hrrr", "Paintball: Composite Reflectivity of 40 dBZ or more, each member and the HRRR (now and 6 hours older)");
+                x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
+                x.extras = {{"HRRR", GfsData::Want{"r6", "REFC", "entire atmosphere", "", "", ""}, "HRRR", 0}, {"HRRR", GfsData::Want{"r7", "REFC", "entire atmosphere", "", "", ""}, "", 6}};
+                const char * names[7] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#4c4c4c", "#9a9a9a"};
+                const auto above = [] (const char * color) {
+                    QColor solid{color};
+                    solid.setAlpha(176);
+                    return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "r1"); };
+                x.ramp = above(names[0]);
+                for (int m = 2; m <= 7; m++) {
+                    x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
+                }
+                x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange; HRRR dark gray, HRRR 6 hours older light gray (40 dBZ or more)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
             // one member of the field on its own (the old REFS screen's "RRFS Ensemble Member" rows): member 1 here, the screen's member picker swaps it for 2 to 5 (withMember)
             {
                 const auto one = [&] (const char * key, const char * label, const char * variable, const char * level, bool hourlyMax, const Ramp& ramp, const char * title, int legendStep,
