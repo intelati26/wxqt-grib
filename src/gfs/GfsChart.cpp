@@ -3079,6 +3079,34 @@ const std::vector<Product>& products() {
                     return out;
                 };
                 x.fillTitle = what + ": one thin line for each of the 31 members, the heavy black line the ensemble mean";
+                x.derive = [] (Grids& g, const Context&) {   // members taken out (the Layers box): the mean of the rest, not the model's own mean of all 31
+                    std::vector<const GfsGrid::Grid *> kept;
+                    for (const auto& name : memberNames) {
+                        const auto found = g.find("z" + name);
+                        if (found != g.end() && !found->second.values.empty()) {
+                            kept.push_back(&found->second);
+                        }
+                    }
+                    if (kept.empty() || kept.size() == memberNames.size() || !g.count("zm")) {
+                        return;
+                    }
+                    auto mean = *kept.front();
+                    for (size_t i = 0; i < mean.values.size(); i++) {
+                        double sum = 0.0;
+                        int n = 0;
+                        for (const auto * m : kept) {
+                            if (std::isfinite(m->values[i])) {
+                                sum += m->values[i];
+                                n++;
+                            }
+                        }
+                        mean.values[i] = n > 0 ? static_cast<float>(sum / n) : std::nanf("");
+                    }
+                    g["zm"] = std::move(mean);
+                };
+                for (size_t m = 0; m < memberNames.size(); m++) {
+                    x.layers.push_back({"z" + memberNames[m], "GEFS " + memberNames[m]});
+                }
                 for (const double value : levels) {
                     for (size_t m = 0; m < memberNames.size(); m++) {
                         ContourSet c;
@@ -3981,6 +4009,63 @@ const std::vector<Product>& products() {
                 x.legendStep = 0;
                 p.push_back(x);
             }
+            // the SPC's neighborhood chance for the paintballs: the grids "chance" (%) and an all-clear "base" for the fill
+            const auto paintballChance = [] (Grids& g, const Context&) {
+                    constexpr int radius = 13;
+                    GfsGrid::Grid out;
+                    for (const auto& [key, grid] : g) {   // (any layer left: the first one is the pattern of the grid)
+                        if (key[0] == 'r' && !grid.empty()) {
+                            out = grid;
+                            break;
+                        }
+                    }
+                    if (out.empty()) {
+                        return;
+                    }
+                    const int columns = out.columns, rows = out.rows;
+                    std::vector<int> count(out.values.size(), 0), have(out.values.size(), 0);
+                    for (const auto& [key, grid] : g) {
+                        if (key[0] != 'r' || grid.empty() || grid.values.size() != out.values.size()) {
+                            continue;
+                        }
+                        // a round neighborhood: each row counts the hits of the rows within the radius, over the width of the circle there (a running total along each row makes that one subtraction)
+                        std::vector<int> along(static_cast<size_t>(rows) * static_cast<size_t>(columns + 1), 0);
+                        for (int r = 0; r < rows; r++) {
+                            for (int c = 0; c < columns; c++) {
+                                const float v = grid.values[static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c)];
+                                along[static_cast<size_t>(r) * static_cast<size_t>(columns + 1) + static_cast<size_t>(c) + 1] = along[static_cast<size_t>(r) * static_cast<size_t>(columns + 1) + static_cast<size_t>(c)] + (!std::isnan(v) && v >= 40.0f ? 1 : 0);
+                            }
+                        }
+                        int half[2 * radius + 1];
+                        for (int d = -radius; d <= radius; d++) {
+                            half[d + radius] = static_cast<int>(std::sqrt(static_cast<double>(radius * radius - d * d)) + 0.5);
+                        }
+                        for (int r = 0; r < rows; r++) {
+                            for (int c = 0; c < columns; c++) {
+                                const size_t at = static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c);
+                                have[at] += std::isnan(grid.values[at]) ? 0 : 1;
+                                bool near = false;
+                                for (int d = -radius; d <= radius && !near; d++) {
+                                    const int rr = r + d;
+                                    if (rr < 0 || rr >= rows) {
+                                        continue;
+                                    }
+                                    const int lo = std::max(0, c - half[d + radius]), hi = std::min(columns - 1, c + half[d + radius]);
+                                    const size_t row = static_cast<size_t>(rr) * static_cast<size_t>(columns + 1);
+                                    near = along[row + static_cast<size_t>(hi) + 1] - along[row + static_cast<size_t>(lo)] > 0;
+                                }
+                                count[at] += near ? 1 : 0;
+                            }
+                        }
+                    }
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        out.values[i] = have[i] > 0 ? static_cast<float>(100.0 * count[i] / have[i]) : std::nanf("");
+                    }
+                    g["chance"] = GfsGrid::smoothed(out, 20);
+                    auto none = out;   // the fill is clear (a layer taken out cannot leave the chart without one): every layer is an overlay in its own color
+                    std::fill(none.values.begin(), none.values.end(), std::nanf(""));
+                    g["base"] = std::move(none);
+                };
             {   // each member's 40 dBZ echoes in a color of its own, so where they agree and where they differ shows
                 auto x = make("refc_paintball", "Paintball: Composite Reflectivity of 40 dBZ or more, each member");
                 x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
@@ -3990,11 +4075,24 @@ const std::vector<Product>& products() {
                     solid.setAlpha(176);
                     return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
                 };
-                x.fill = [] (const Grids& g) { return pick(g, "r1"); };
+                x.fill = [] (const Grids& g) { return pick(g, "base"); };
                 x.ramp = above(names[0]);
-                for (int m = 2; m <= 5; m++) {
+                const char * layerNames[5] = {"REFS member 1 (control)", "REFS member 2", "REFS member 3", "REFS member 4", "REFS member 5"};
+                for (int m = 1; m <= 5; m++) {
+                    x.layers.push_back({"r" + std::to_string(m), layerNames[m - 1]});
                     x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
                 }
+                x.derive = paintballChance;
+                ContourSet c;
+                c.key = "chance";
+                c.interval = 20.0;
+                c.base = 10.0;
+                c.minimum = 9.0;
+                c.title = "40 dBZ chance (%)";
+                c.color = QColor{20, 20, 20};
+                c.uniform = true;
+                c.width = 1.4;
+                x.contours.push_back(c);
                 x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange (40 dBZ or more)";
                 x.legendStep = 0;
                 p.push_back(x);
@@ -4009,11 +4107,24 @@ const std::vector<Product>& products() {
                     solid.setAlpha(176);
                     return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
                 };
-                x.fill = [] (const Grids& g) { return pick(g, "r1"); };
+                x.fill = [] (const Grids& g) { return pick(g, "base"); };
                 x.ramp = above(names[0]);
-                for (int m = 2; m <= 7; m++) {
+                const char * layerNames[7] = {"REFS member 1 (control)", "REFS member 2", "REFS member 3", "REFS member 4", "REFS member 5", "MPAS-HT (NSSL)", "MPAS-RN (NSSL)"};
+                for (int m = 1; m <= 7; m++) {
+                    x.layers.push_back({"r" + std::to_string(m), layerNames[m - 1]});
                     x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
                 }
+                x.derive = paintballChance;
+                ContourSet c;
+                c.key = "chance";
+                c.interval = 20.0;
+                c.base = 10.0;
+                c.minimum = 9.0;
+                c.title = "40 dBZ chance (%)";
+                c.color = QColor{20, 20, 20};
+                c.uniform = true;
+                c.width = 1.4;
+                x.contours.push_back(c);
                 x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange; NSSL MPAS-HT pink, MPAS-RN teal (40 dBZ or more; experimental, not for forecasting)";
                 x.legendStep = 0;
                 p.push_back(x);
@@ -4077,62 +4188,7 @@ const std::vector<Product>& products() {
                     solid.setAlpha(176);
                     return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
                 };
-                x.derive = [] (Grids& g, const Context&) {   // the SPC's neighborhood chance: each member counts where it reaches 40 dBZ anywhere within 13 points (about 40 km), the members that were read give the share (%)
-                    constexpr int radius = 13;
-                    GfsGrid::Grid out;
-                    for (const auto& [key, grid] : g) {   // (any layer left: the first one is the pattern of the grid)
-                        if (key[0] == 'r' && !grid.empty()) {
-                            out = grid;
-                            break;
-                        }
-                    }
-                    if (out.empty()) {
-                        return;
-                    }
-                    const int columns = out.columns, rows = out.rows;
-                    std::vector<int> count(out.values.size(), 0), have(out.values.size(), 0);
-                    for (const auto& [key, grid] : g) {
-                        if (key[0] != 'r' || grid.empty() || grid.values.size() != out.values.size()) {
-                            continue;
-                        }
-                        // a round neighborhood: each row counts the hits of the rows within the radius, over the width of the circle there (a running total along each row makes that one subtraction)
-                        std::vector<int> along(static_cast<size_t>(rows) * static_cast<size_t>(columns + 1), 0);
-                        for (int r = 0; r < rows; r++) {
-                            for (int c = 0; c < columns; c++) {
-                                const float v = grid.values[static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c)];
-                                along[static_cast<size_t>(r) * static_cast<size_t>(columns + 1) + static_cast<size_t>(c) + 1] = along[static_cast<size_t>(r) * static_cast<size_t>(columns + 1) + static_cast<size_t>(c)] + (!std::isnan(v) && v >= 40.0f ? 1 : 0);
-                            }
-                        }
-                        int half[2 * radius + 1];
-                        for (int d = -radius; d <= radius; d++) {
-                            half[d + radius] = static_cast<int>(std::sqrt(static_cast<double>(radius * radius - d * d)) + 0.5);
-                        }
-                        for (int r = 0; r < rows; r++) {
-                            for (int c = 0; c < columns; c++) {
-                                const size_t at = static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c);
-                                have[at] += std::isnan(grid.values[at]) ? 0 : 1;
-                                bool near = false;
-                                for (int d = -radius; d <= radius && !near; d++) {
-                                    const int rr = r + d;
-                                    if (rr < 0 || rr >= rows) {
-                                        continue;
-                                    }
-                                    const int lo = std::max(0, c - half[d + radius]), hi = std::min(columns - 1, c + half[d + radius]);
-                                    const size_t row = static_cast<size_t>(rr) * static_cast<size_t>(columns + 1);
-                                    near = along[row + static_cast<size_t>(hi) + 1] - along[row + static_cast<size_t>(lo)] > 0;
-                                }
-                                count[at] += near ? 1 : 0;
-                            }
-                        }
-                    }
-                    for (size_t i = 0; i < out.values.size(); i++) {
-                        out.values[i] = have[i] > 0 ? static_cast<float>(100.0 * count[i] / have[i]) : std::nanf("");
-                    }
-                    g["chance"] = GfsGrid::smoothed(out, 20);
-                    auto none = out;   // the fill is clear (a layer taken out cannot leave the chart without one): every layer is an overlay in its own color
-                    std::fill(none.values.begin(), none.values.end(), std::nanf(""));
-                    g["base"] = std::move(none);
-                };
+                x.derive = paintballChance;
                 x.fill = [] (const Grids& g) { return pick(g, "base"); };
                 x.ramp = above(names[0]);
                 const char * layerNames[12] = {"REFS member 1 (control)", "REFS member 2", "REFS member 3", "REFS member 4", "REFS member 5", "HRRR", "HRRR -6h", "HRRR -12h", "MPAS-HT (NSSL)", "MPAS-RN (NSSL)", "REFS control -6h", "REFS control -12h"};
@@ -5775,12 +5831,21 @@ const std::vector<Product>& products() {
                 x.linesOnly = true;
                 x.needs = [memberNeeds, variable, level] (int hour) { return memberNeeds("z", variable, level, hour, hour == 0 ? std::string{"0 hour fcst"} : std::to_string(hour) + " hour fcst"); };
                 x.derive = [scale] (Grids& g, const Context&) {
-                    auto mean = g.at("z" + names.front());
+                    std::vector<const GfsGrid::Grid *> kept;   // (members taken out in the Layers box are not there)
+                    for (const auto& name : names) {
+                        if (const auto found = g.find("z" + name); found != g.end() && !found->second.values.empty()) {
+                            kept.push_back(&found->second);
+                        }
+                    }
+                    if (kept.empty()) {
+                        throw std::runtime_error{"no member could be read"};
+                    }
+                    auto mean = *kept.front();
                     for (size_t i = 0; i < mean.values.size(); i++) {
                         double sum = 0.0;
                         int n = 0;
-                        for (const auto& name : names) {
-                            const float v = g.at("z" + name).values[i];
+                        for (const auto * member : kept) {
+                            const float v = member->values[i];
                             if (std::isfinite(v)) {
                                 sum += v;
                                 n++;
@@ -5792,6 +5857,9 @@ const std::vector<Product>& products() {
                     (void) scale;
                 };
                 x.fillTitle = what + ": one thin line for each of the 50 members, the heavy black line the ensemble mean";
+                for (const auto& name : names) {
+                    x.layers.push_back({"z" + name, "ECMWF member " + name});
+                }
                 for (const double value : levels) {
                     for (size_t m = 0; m < names.size(); m++) {
                         ContourSet c;
@@ -5962,6 +6030,9 @@ const std::vector<Product>& products() {
                     (void) scale;
                 };
                 x.fillTitle = what + ": a line from each of the 50 ECMWF (red), 31 GEFS (blue) and 21 GEPS (green) members, the heavy black line the mean of all";
+                for (const auto& member : poolMembers()) {
+                    x.layers.push_back({"z" + member.tag, (member.source == "IFS-ENS" ? "ECMWF " : member.source + " ") + member.tag});
+                }
                 for (const double value : levels) {
                     std::map<std::string, int> counts;
                     for (const auto& member : poolMembers()) {
@@ -7329,6 +7400,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     if (product.derive) {
         product.derive(grids, Context{forecastHour, run, options.climate, product.source});
     }
+    if (!product.layers.empty()) {   // a layer taken out leaves its lines off the chart, not the chart empty
+        std::erase_if(product.contours, [&grids] (const ContourSet& set) { return grids.find(set.key) == grids.end(); });
+    }
     auto fill = product.fill ? product.fill(grids) : GfsGrid::Grid{};
     if (!options.fillOverride.empty()) {   // a maximum or a change: the fill is made, and only it is drawn
         fill = options.fillOverride;
@@ -7350,10 +7424,13 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         product.quantity = options.overrideQuantity;
     }
     if (product.linesOnly && !product.contours.empty()) {   // nothing to fill: a blank grid of the first line's field
-        const auto found = grids.find(product.contours.front().key);
-        if (found != grids.end()) {
-            fill = found->second;
-            std::fill(fill.values.begin(), fill.values.end(), std::nanf(""));
+        for (const auto& set : product.contours) {   // (the first line still there: a member taken out leaves the others)
+            const auto found = grids.find(set.key);
+            if (found != grids.end()) {
+                fill = found->second;
+                std::fill(fill.values.begin(), fill.values.end(), std::nanf(""));
+                break;
+            }
         }
     }
     if (fill.empty()) {

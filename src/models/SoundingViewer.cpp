@@ -15,6 +15,8 @@
 #include <QBuffer>
 #include <QCheckBox>
 #include <QDateTime>
+#include <QDesktopServices>
+#include <QUrl>
 #include <vector>
 #include <QPainter>
 #include <QPainterPath>
@@ -1540,6 +1542,10 @@ void SoundingViewer::build() {
     buttonHazard->setToolTip("SPC's flow chart of the possible hazard types (tornado, severe storms, flash flood, blizzard, excessive heat) drawn with the values of this sounding at each test");
     QObject::connect(buttonHazard, &QPushButton::clicked, this, [this] { showHazards(); });
     rowTop.addWidgetReal(buttonHazard);
+    auto * buttonClimo = UiStandards::button(this, "Climatology...");
+    buttonClimo->setToolTip("SPC's sounding climatology page in the web browser (it has no link to a station: pick the site there)");
+    QObject::connect(buttonClimo, &QPushButton::clicked, this, [] { QDesktopServices::openUrl(QUrl{"https://www.spc.noaa.gov/exper/soundingclimov2/"}); });
+    rowTop.addWidgetReal(buttonClimo);
     box.addLayout(rowTop);
     box.addWidgetReal(canvas, 1, Qt::Alignment{});
     box.getAndShow(this);
