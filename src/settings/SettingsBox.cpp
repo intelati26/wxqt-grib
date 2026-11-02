@@ -52,6 +52,7 @@ SettingsBox::SettingsBox(Window * parent)
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Font size", "GENERAL_FONT_SIZE", 13, 6, 30, 1));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Model data kept on disk for this many hours (applied when the program starts)", "MODEL_CACHE_HOURS", 48, 1, 720, 6));
     numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Model data cache size limit (MB; the oldest go first)", "MODEL_CACHE_MB", 2048, 200, 20000, 200));
+    numberPickers.push_back(std::make_unique<NumberPicker>(parent, "Model file indexes (the .idx of a run's file) are kept this many minutes before they are fetched again (1 = always)", "MODEL_INDEX_MINUTES", 60, 1, 1440, 15));
 
     button.connect([parent] { new TextViewerStatic{parent, GlobalVariables::mainScreenShortcuts}; });
 

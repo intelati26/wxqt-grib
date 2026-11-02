@@ -19,7 +19,9 @@
 #include <mutex>
 #include <set>
 #include <tuple>
+#include <QCryptographicHash>
 #include <QDateTime>
+#include <QFileInfo>
 #include <QDir>
 #include <QFile>
 #include <QThread>
@@ -913,13 +915,40 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
         {
             const std::lock_guard lock{indexMutex};
             const auto found = indexCache.find(cacheKey);
-            if (found != indexCache.end() && now - found->second.first < std::chrono::minutes(5)) {
+            if (found != indexCache.end() && now - found->second.first < std::chrono::minutes(std::max(5, config.indexMinutes))) {
                 parsed[i] = found->second.second;
                 return;
             }
         }
-        const auto idxBytes = config.bytes(url, 0, -1);
+        // the index on disk, from this run of the program or an earlier one: a decoded field that is kept needs the index only to know its file was not posted again, so it is not fetched
+        // each time the program is started or the 5 minutes of the memory are over (the cache's own age limit removes the files)
+        const QString indexFile = config.cacheFolder + "/idx_" + QString::fromLatin1(QCryptographicHash::hash(QByteArray::fromStdString(cacheKey), QCryptographicHash::Md5).toHex()) + ".txt";
+        QByteArray idxBytes;
+        bool fromDisk = false;
+        if (const QFileInfo info{indexFile}; config.indexMinutes > 0 && info.exists() && info.lastModified().secsTo(QDateTime::currentDateTime()) < static_cast<qint64>(config.indexMinutes) * 60) {
+            QFile kept{indexFile};
+            if (kept.open(QIODevice::ReadOnly)) {
+                idxBytes = kept.readAll();
+                fromDisk = !idxBytes.isEmpty();
+            }
+        }
+        if (!fromDisk) {
+            idxBytes = config.bytes(url, 0, -1);
+        }
         parsed[i] = source.parseIndex ? source.parseIndex(idxBytes.toStdString(), wantsOf[i]) : GfsGrid::parseIdx(idxBytes.toStdString());
+        if (!parsed[i].empty() && !fromDisk && config.indexMinutes > 0) {
+            QDir{}.mkpath(config.cacheFolder);
+            QSaveFile keep{indexFile};
+            if (keep.open(QIODevice::WriteOnly)) {
+                keep.write(idxBytes);
+                keep.commit();
+            }
+        }
+        if (parsed[i].empty() && fromDisk) {   // (a kept index that says nothing is not trusted: the file is asked for again)
+            QFile::remove(indexFile);
+            idxBytes = config.bytes(url, 0, -1);
+            parsed[i] = source.parseIndex ? source.parseIndex(idxBytes.toStdString(), wantsOf[i]) : GfsGrid::parseIdx(idxBytes.toStdString());
+        }
         if (!parsed[i].empty()) {
             const std::lock_guard lock{indexMutex};
             if (indexCache.size() > 400) {
