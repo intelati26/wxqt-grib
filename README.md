@@ -73,19 +73,26 @@ the SREF retires then too, but the program has no SREF.
 | ICON-EU | Europe, 6.5 km | DWD open data (`opendata.dwd.de`) | |
 | GFS-WAVE, GEFS-WAVE | global waves | AWS (the GFS and GEFS buckets) | |
 
-**Convection allowing** (about 3 km)
+**CONUS** (convection allowing, about 3 km)
 
 | Model | Scope | Source | Notes |
 |---|---|---|---|
 | RRFS (RRFS-EMC on the NSSL CAMs) | CONUS, 3 km | AWS (`noaa-rrfs-ops-pds`) | operational 3 Nov 2026 |
-| RRFS-AK, -HI, -PR, -NA | Alaska, Hawaii, Puerto Rico, North America | AWS (`noaa-rrfs-ops-pds`) | |
 | REFS | CONUS, 5 member ensemble | AWS (`noaa-rrfs-ops-pds`) | replaces the HREF |
 | SPC REFS and post-processing | CONUS | SPC open Zarr data; NOMADS `spc_post` | experimental |
-| HRRR, HRRR-AK | CONUS, Alaska | AWS (`noaa-hrrr-bdp-pds`) | |
+| HRRR | CONUS | AWS (`noaa-hrrr-bdp-pds`) | |
 | MPAS-HT (MPAS-HTPO-NSSL) | CONUS, 3 km | NSSL data server (`FRDD/NSSL-MPAS`, `*_mpasht2.tar`) | started from the HRRR; research output, not for forecasting |
 | MPAS-RN (MPAS-RN-NSSL) | CONUS, 3 km | NSSL data server (`*_mpasrn.tar`, 00 and 12Z) | started from the RRFS; research output, not for forecasting |
+
+**Outside CONUS** (regional models, most of them convection allowing)
+
+| Model | Scope | Source | Notes |
+|---|---|---|---|
+| RRFS-AK, RRFS-HI, RRFS-PR | Alaska (3 km), Hawaii and Puerto Rico (2.5 km) | AWS (`noaa-rrfs-ops-pds`) | |
+| RRFS-NA | North America, 13 km | AWS (`noaa-rrfs-ops-pds`) | not convection allowing |
+| HRRR-AK | Alaska, 3 km | AWS (`noaa-hrrr-bdp-pds`) | |
 | HRDPS | Canada, 2.5 km | ECCC datamart | |
-| ICON-D2 | Germany, 2.2 km | DWD open data | |
+| ICON-D2 | Germany and central Europe, 2.2 km | DWD open data | |
 | HAFS-A, HAFS-B | storm-following, 2 km | NOMADS | tropical cyclones |
 
 The GSL's MPAS-RRFSA runs and the NSSL CAMs pictures of them are only pictures: no GRIB2 source has been found (see the model's About text).
@@ -94,9 +101,11 @@ The GSL's MPAS-RRFSA runs and the NSSL CAMs pictures of them are only pictures: 
 
 | Model | Scope | Source | Notes |
 |---|---|---|---|
-| NAM, NAM-HIRES, HiResW (ARW, ARW2, FV3) | CONUS | NCEP model guidance pages (pictures, not GRIB2) | retire 3 Nov 2026 |
+| NAM | CONUS and North America, 12 km | NCEP model guidance pages (pictures, not GRIB2) | retires 3 Nov 2026 |
+| NAM CONUS nest (NAM-HIRES) | CONUS, 3 km | NCEP model guidance pages (pictures, not GRIB2) | retires 3 Nov 2026 |
+| HiResW (ARW, ARW2, FV3) | CONUS, 3 km | NCEP model guidance pages (pictures, not GRIB2) | retire 3 Nov 2026 |
 | HREF | CONUS ensemble, 10 members | NOMADS | retires 3 Nov 2026; the REFS replaces it |
-| RAP | CONUS, 13 km | NCEP model guidance pages (pictures, not GRIB2); RAP-ANL is GRIB2 from NCEI, below | retirement pending |
+| RAP | CONUS and North America, 13 km | NCEP model guidance pages (pictures, not GRIB2); RAP-ANL is GRIB2 from NCEI, below | retirement pending |
 | NAM-ANL, RAP-ANL, GFS-ANL, GFS1-ANL, NARR | analyses and reanalysis | NCEI model archive | |
 | RTMA, URMA | 2.5 km surface analyses | AWS (`noaa-rtma-pds`, `noaa-urma-pds`) | |
 | ERA5 | global reanalysis, 0.25 degree | NCAR archive on AWS (`nsf-ncar-era5`) | NetCDF |
