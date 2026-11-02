@@ -19,6 +19,7 @@
 #include <QRegularExpression>
 #include <QTimer>
 #include <QMenu>
+#include <QWidgetAction>
 #include <QMessageBox>
 #include "misc/ImageViewer.h"
 #include "objects/UtilityAnimationExport.h"
@@ -190,12 +191,29 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         });
         boxH2.addWidget(comboMember);
         comboMember.setVisible(false);
-        buttonPlace = UiStandards::button(this, "Mark the place");
-        buttonPlace->setCheckable(true);
+        // the less used controls are entries of two menus; a menu button is there while one of its entries is (syncMenus)
+        const auto menuButton = [this] (const char * label, QMenu *& menu, QPushButton *& button) {
+            button = UiStandards::button(this, label);
+            menu = new QMenu{button};
+            menu->setToolTipsVisible(true);
+            button->setMenu(menu);
+            button->setVisible(false);
+            boxH2.addWidgetReal(button);
+        };
+        menuButton("Map  \xE2\x96\xBE", menuMap, buttonMapMenu);
+        menuButton("Analysis  \xE2\x96\xBE", menuAnalysis, buttonAnalysisMenu);
+        const auto entry = [this] (QMenu * menu, const char * label, const char * tip, bool checkable) {
+            auto * action = new QAction{label, this};
+            action->setToolTip(tip);
+            action->setCheckable(checkable);
+            menu->addAction(action);
+            QObject::connect(action, &QAction::changed, this, [this] { syncMenus(); });
+            return action;
+        };
+        buttonPlace = entry(menuMap, "Mark the place", "The ring and the name of the saved location an area is centered on. Off leaves the map clean, in the window and in what is saved or exported.", true);
         buttonPlace->setChecked(Utility::readPref("MODEL_PLACE_MARK", "true").compare(0, 1, "t") == 0);
         buttonPlace->setVisible(false);
-        buttonPlace->setToolTip("The ring and the name of the saved location an area is centered on. Off leaves the map clean, in the window and in what is saved or exported.");
-        QObject::connect(buttonPlace, &QPushButton::toggled, this, [this] (bool on) {
+        QObject::connect(buttonPlace, &QAction::toggled, this, [this] (bool on) {
             Utility::writePref("MODEL_PLACE_MARK", on ? "true" : "false");
             frames.clear();   // every picture drawn so far has the mark (or has not)
             frameOrder.clear();
@@ -204,21 +222,17 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             refreshLoaded();
             reload();
         });
-        boxH2.addWidgetReal(buttonPlace);
-        buttonOnMap = UiStandards::button(this, "On the map...");
-        buttonOnMap->setToolTip("This chart on the master map (scroll and zoom it, put radar, satellite, storms or rivers with it): the same model, chart, area and valid time");
-        QObject::connect(buttonOnMap, &QPushButton::clicked, this, [this] {
+        buttonOnMap = entry(menuMap, "On the map...", "This chart on the master map (scroll and zoom it, put radar, satellite, storms or rivers with it): the same model, chart, area and valid time", false);
+        QObject::connect(buttonOnMap, &QAction::triggered, this, [this] {
             if (GfsRender::drawsModel(objectModel.model)) {
                 MasterMapViewer::openModels(this, objectModel.model, objectModel.param, objectModel.sector, shownProbe ? shownProbe->validUtc : QDateTime{});
             }
         });
-        boxH2.addWidgetReal(buttonOnMap);
         // the hurricane models (HAFS-A, HAFS-B): the wind field of the chart, and the intensity forecast of the storm
-        checkRadii = new QCheckBox{"Wind field (34 / 50 / 64 kt)", this};
+        checkRadii = entry(menuMap, "Wind field (34 / 50 / 64 kt)", "The model's own wind radii (34, 50 and 64 kt, by quadrant) round the storm on the chart.", true);
         checkRadii->setChecked(Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0);
         checkRadii->setVisible(false);
-        checkRadii->setToolTip("The model's own wind radii (34, 50 and 64 kt, by quadrant) round the storm on the chart.");
-        QObject::connect(checkRadii, &QCheckBox::toggled, this, [this] (bool on) {
+        QObject::connect(checkRadii, &QAction::toggled, this, [this] (bool on) {
             Utility::writePref("HAFS_RADII", on ? "true" : "false");
             frames.clear();   // every picture drawn so far has the field (or has not)
             frameOrder.clear();
@@ -227,22 +241,17 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             refreshLoaded();
             reload();
         });
-        boxH2.addWidgetReal(checkRadii);
-        buttonIntensity = UiStandards::button(this, "Intensity...");
+        buttonIntensity = entry(menuMap, "Intensity...", "The forecast maximum wind and minimum pressure of this storm against forecast hour, from HAFS-A and HAFS-B together.", false);
         buttonIntensity->setVisible(false);
-        buttonIntensity->setToolTip("The forecast maximum wind and minimum pressure of this storm against forecast hour, from HAFS-A and HAFS-B together.");
-        QObject::connect(buttonIntensity, &QPushButton::clicked, this, [this] {
+        QObject::connect(buttonIntensity, &QAction::triggered, this, [this] {
             if (Hafs::isStormId(objectModel.sector)) {
                 HafsIntensityViewer::open(this, objectModel.sector, [this] (const string& text) { setTitle(text.empty() ? objectModel.model + " " + sectorLabel(objectModel.sector) : text); });
             }
         });
-        boxH2.addWidgetReal(buttonIntensity);
-        buttonStations = UiStandards::button(this, "Stations");
-        buttonStations->setCheckable(true);
+        buttonStations = entry(menuMap, "Stations", "A button on the map at each station of the BUFKIT model soundings (airports and sounding sites): click one for that station's RRFS sounding, every forecast hour "
+                                   "from one small file (about 0.4 MB). The buttons are not part of the map, so saved and exported pictures do not have them.", true);
         buttonStations->setChecked(Utility::readPref("MODEL_BUFKIT_STATIONS", "false").compare(0, 1, "t") == 0);
-        buttonStations->setToolTip("A button on the map at each station of the BUFKIT model soundings (airports and sounding sites): click one for that station's RRFS sounding, every forecast hour "
-                                   "from one small file (about 0.4 MB). The buttons are not part of the map, so saved and exported pictures do not have them.");
-        QObject::connect(buttonStations, &QPushButton::toggled, this, [this] (bool on) {
+        QObject::connect(buttonStations, &QAction::toggled, this, [this] (bool on) {
             Utility::writePref("MODEL_BUFKIT_STATIONS", on ? "true" : "false");
             stationPinKey.clear();
             refreshStationPins();
@@ -251,28 +260,28 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         QObject::connect(&image, &ZoomImage::pinClicked, this, [this] (const QString& id) {
             new SoundingViewer{this, "RRFS", id.toStdString(), true};
         });
-        boxH2.addWidgetReal(buttonStations);
-        buttonHodos = UiStandards::button(this, "Hodographs");
-        buttonHodos->setCheckable(true);
-        buttonHodos->setChecked(Utility::readPref("MODEL_BUFKIT_HODOS", "false").compare(0, 1, "t") == 0);
-        buttonHodos->setToolTip("A small hodograph of the RRFS sounding at each station in view, for the hour on the map: wind from the surface to 9 km (pink 0-1 km, red to 3, green to 6, yellow above), "
+        buttonHodos = entry(menuMap, "Hodographs", "A small hodograph of the RRFS sounding at each station in view, for the hour on the map: wind from the surface to 9 km (pink 0-1 km, red to 3, green to 6, yellow above), "
                                 "rings at 20 and 40 kt and the right-mover storm motion (orange dot); the 0-3 km helicity is in the tooltip. Pictures you save or open full size have them too. Each station is one small file (about 0.4 MB, every hour), read as it comes "
-                                "into view; zoom in for more stations. Click one for its sounding. Not part of saved pictures.");
+                                "into view; zoom in for more stations. Click one for its sounding. Not part of saved pictures.", true);
+        buttonHodos->setChecked(Utility::readPref("MODEL_BUFKIT_HODOS", "false").compare(0, 1, "t") == 0);
         QObject::connect(this, &QObject::destroyed, [owner = static_cast<const void *>(&bufkitOwner)] { NetManager::cancelOwner(owner); });   // the screen closes: its station files stop too
         hodoTimer.setSingleShot(true);
         QObject::connect(&hodoTimer, &QTimer::timeout, this, [this] { refreshHodographs(); });
-        QObject::connect(buttonHodos, &QPushButton::toggled, this, [this] (bool on) {
+        QObject::connect(buttonHodos, &QAction::toggled, this, [this] (bool on) {
             Utility::writePref("MODEL_BUFKIT_HODOS", on ? "true" : "false");
             refreshHodographs();
         });
         QObject::connect(&image, &ZoomImage::viewChanged, this, [this] { hodoTimer.start(250); });
-        boxH2.addWidgetReal(buttonHodos);
         comboLocalKm = UiStandards::combo(this);
         for (const int km : {150, 300, 600, 1200, 2400}) {
             comboLocalKm->addItem(QString::number(km) + " km square", km);
         }
         comboLocalKm->setToolTip("How big the area round the saved location is (the area list has one entry for each place)");
-        comboLocalKm->setVisible(false);
+        actionLocalKm = new QWidgetAction{this};   // (the combo is an entry of the Map menu)
+        actionLocalKm->setDefaultWidget(comboLocalKm);
+        actionLocalKm->setVisible(false);
+        menuMap->addAction(actionLocalKm);
+        QObject::connect(actionLocalKm, &QAction::changed, this, [this] { syncMenus(); });
         QObject::connect(comboLocalKm, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this] (int index) {
             double lat = 0, lon = 0, km = 0;
             string name;
@@ -292,11 +301,9 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             refreshSectorList();
             reload();
         });
-        boxH2.addWidgetReal(comboLocalKm);
-        buttonAroundPoint = UiStandards::button(this, "Area around point");
+        buttonAroundPoint = entry(menuMap, "Area around point", "Draws an area of the size above it (a square of that many kilometers a side) centered on the point clicked on the chart, as a saved location's area is, without saving the point.", false);
         buttonAroundPoint->setVisible(false);
-        buttonAroundPoint->setToolTip("Draws an area of the size beside it (a square of that many kilometers a side) centered on the point clicked on the chart, as a saved location's area is, without saving the point.");
-        QObject::connect(buttonAroundPoint, &QPushButton::clicked, this, [this] {
+        QObject::connect(buttonAroundPoint, &QAction::triggered, this, [this] {
             if (!haveClicked) {
                 return;
             }
@@ -307,18 +314,14 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             refreshProductButton();
             reload();
         });
-        boxH2.addWidgetReal(buttonAroundPoint);
-        buttonSigma = UiStandards::button(this, "Std deviations");
-        buttonSigma->setCheckable(true);
+        buttonSigma = entry(menuAnalysis, "Std deviations", "The anomaly in standard deviations from the 1991-2020 mean (the day's own spread of the reanalysis) instead of in decameters or millibars. The legend says how big one deviation is over the map (it differs by place), and the read-out shows both values at the point. The deviations are downloaded once, from Settings, Model Sources, Climatology.", true);
         buttonSigma->setVisible(false);
-        buttonSigma->setToolTip("The anomaly in standard deviations from the 1991-2020 mean (the day's own spread of the reanalysis) instead of in decameters or millibars. The legend says how big one deviation is over the map (it differs by place), and the read-out shows both values at the point. The deviations are downloaded once, from Settings, Model Sources, Climatology.");
-        QObject::connect(buttonSigma, &QPushButton::toggled, this, [this] (bool on) {
+        QObject::connect(buttonSigma, &QAction::toggled, this, [this] (bool on) {
             standardDeviations = on;
             startPlaying(false);
             strip->stop();
             reload();
         });
-        boxH2.addWidgetReal(buttonSigma);
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
         comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone. 'Seasonal models': the EC46, SEAS5 and CFS30 side by side, each in the period that overlaps the main one most. 'ENS-ALL, REFS, PPP vs deterministic': the pooled chart beside the matching chart of GFS, the IFS and the AIFS (precipitation of the same period, the model's own sea level pressure, heights or temperature); the REFS beside the RRFS, the HRRR and the NSSL MPAS (echoes, updraft helicity, temperature); the WPC portal's rain amount beside the global models' precipitation of the same period.");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
@@ -353,15 +356,13 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
                 prefetch(prefetchGeneration);
                 refreshLoaded();
             });
-            boxH2.addWidget(comboPreload);
         }
-        buttonMax = UiStandards::button(this, "Maximum \xE2\x96\xBE");
-        auto * maxMenu = new QMenu{buttonMax};
-        QObject::connect(maxMenu->addAction("Of the 24 hours ending at this hour"), &QAction::triggered, this, [this] { showMax(false); });
-        QObject::connect(maxMenu->addAction("Day 1 (12z to 12z)"), &QAction::triggered, this, [this] { showMax(true); });
-        buttonMax->setMenu(maxMenu);
-        buttonMax->setToolTip("The largest value of the chart's fill over a day (hail, gusts, rain rate ...). Choosing another hour goes back to the plain chart.");
-        boxH2.addWidgetReal(buttonMax);
+        {   // the largest value of the chart's fill over a day (hail, gusts, rain rate ...): choosing another hour goes back to the plain chart
+            auto * maxOfDay = entry(menuAnalysis, "Maximum of the 24 hours ending at this hour", "The largest value of the chart's fill over the 24 hours (hail, gusts, rain rate ...). Choosing another hour goes back to the plain chart.", false);
+            QObject::connect(maxOfDay, &QAction::triggered, this, [this] { showMax(false); });
+            auto * maxDayOne = entry(menuAnalysis, "Maximum of Day 1 (12z to 12z)", "The largest value of the chart's fill from 12z to 12z (hail, gusts, rain rate ...). Choosing another hour goes back to the plain chart.", false);
+            QObject::connect(maxDayOne, &QAction::triggered, this, [this] { showMax(true); });
+        }
         buttonViews = UiStandards::button(this, "Saved views \xE2\x96\xBE");
         menuViews = new QMenu{buttonViews};
         buttonViews->setMenu(menuViews);
@@ -370,23 +371,18 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         boxH2.addWidget(soundingPick.button());
         soundingPick.setOwnOpener([this] (double lon, double lat) { return openModelSounding(lon, lat); });
         soundingPick.button().getView()->setToolTip(soundingPick.button().getView()->toolTip() + "\n\nOn a global model (the GFS, IFS, AIFS ...) the sounding is read from that model's own pressure levels at the point, for the run and hour on show, to the end of its run (the long range, at its resolution).");
-        buttonMembers = UiStandards::button(this, "Members graph...");
-        buttonMembers->setToolTip("REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
-        QObject::connect(buttonMembers, &QPushButton::clicked, this, [this] { openMemberGraph(); });
-        boxH2.addWidgetReal(buttonMembers);
+        buttonMembers = entry(menuAnalysis, "Members graph...", "REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)", false);
+        QObject::connect(buttonMembers, &QAction::triggered, this, [this] { openMemberGraph(); });
         buttonLayers = UiStandards::button(this, "Layers...");
         buttonLayers->setToolTip("Which members, runs and models the paintball draws. The lines of the chance are worked out again from the ones left in.");
         QObject::connect(buttonLayers, &QPushButton::clicked, this, [this] { chooseLayers(); });
         boxH2.addWidgetReal(buttonLayers);
         buttonLayers->setVisible(false);
-        buttonPlume = UiStandards::button(this, "Plume...");
-        buttonPlume->setCheckable(true);
-        buttonPlume->setToolTip("A second pane beside the chart with the forecast plume at the point clicked (or the first saved location): the CFSv2 runs for the CFS, the 31 members for the GEFS, the GFS runs for the others. It has all the plume window's choices");
-        QObject::connect(buttonPlume, &QPushButton::clicked, this, [this] (bool on) {
+        buttonPlume = entry(menuAnalysis, "Plume...", "A second pane beside the chart with the forecast plume at the point clicked (or the first saved location): the CFSv2 runs for the CFS, the 31 members for the GEFS, the GFS runs for the others. It has all the plume window's choices", true);
+        QObject::connect(buttonPlume, &QAction::triggered, this, [this] (bool on) {
             Utility::writePref("MODEL_PLUME_PANE", on ? "on" : "off");
             updatePlumePanel();
         });
-        boxH2.addWidgetReal(buttonPlume);
         buttonOverlay = UiStandards::button(this, "Overlay models...");
         buttonOverlay->setToolTip("Draw the lines (heights, pressure) of other models over this chart's for the same valid time, each model in its own color. Save... writes it as a loop.");
         QObject::connect(buttonOverlay, &QPushButton::clicked, this, [this] { chooseOverlays(); });
@@ -395,14 +391,19 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonColors->setToolTip("Edit the color scale of this kind of chart: the stops, their colors and transparency, flat bands or smooth. Kept for every chart that uses the same scale.");
         QObject::connect(buttonColors, &QPushButton::clicked, this, [this] { editColors(); });
         boxH2.addWidgetReal(buttonColors);
-        auto * save = UiStandards::button(this, "Save...");
-        save->setToolTip("Save the picture, or the hours drawn so far as a loop");
-        QObject::connect(save, &QPushButton::clicked, this, [this] { saveLoop(); });
-        boxH2.addWidgetReal(save);
-        auto * saveBig = UiStandards::button(this, "Hi-res...");
-        saveBig->setToolTip("Draw the chart on view again at a larger size (2200 to 6600 pixels wide), the whole chart or just the part you have zoomed to, and save it");
-        QObject::connect(saveBig, &QPushButton::clicked, this, [this] { saveHighRes(); });
-        boxH2.addWidgetReal(saveBig);
+        {
+            auto * save = UiStandards::button(this, "Save  \xE2\x96\xBE");
+            auto * saveMenu = new QMenu{save};
+            saveMenu->setToolTipsVisible(true);
+            auto * picture = saveMenu->addAction("Save...");
+            picture->setToolTip("Save the picture, or the hours drawn so far as a loop");
+            QObject::connect(picture, &QAction::triggered, this, [this] { saveLoop(); });
+            auto * big = saveMenu->addAction("Hi-res...");
+            big->setToolTip("Draw the chart on view again at a larger size (2200 to 6600 pixels wide), the whole chart or just the part you have zoomed to, and save it");
+            QObject::connect(big, &QAction::triggered, this, [this] { saveHighRes(); });
+            save->setMenu(saveMenu);
+            boxH2.addWidgetReal(save);
+        }
         boxH2.addStretch();
         box.addLayout(boxH2);
     }
@@ -425,7 +426,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             clickedLon = lon;
             haveClicked = true;
             if (buttonAroundPoint != nullptr && !buttonAroundPoint->isVisible() && GfsRender::drawsModel(objectModel.model) && !GfsModels::isStormModel(objectModel.model)) {
-                comboLocalKm->setVisible(true);
+                actionLocalKm->setVisible(true);
                 buttonAroundPoint->setVisible(true);
             }
             if (plumePanel != nullptr && plumePanel->isVisible()) {
@@ -510,6 +511,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     strip = new TimeStrip{this};
     strip->onSelect = [this] (int index) { selectHour(index); };
     strip->onPlay = [this] (bool on) { startPlaying(on); };
+    strip->addControl(comboPreload.getView());
     box.addWidgetReal(strip);
     plumePanel = new CfsPlumePanel{this, panes, 0.0, 0.0, "gefs", false};   // (shown, and reading, only while the pane is on)
     plumePanel->setCompact(true);   // (the GEFS pane begins with the mean and spread: all the members are a choice, 600 reads the first time)
@@ -540,6 +542,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     });
     box.addWidgetReal(new ActivityLabel{this});
     box.getAndShow(this);
+    syncMenus();
     refreshProductButton();
 
     startRun();
@@ -1812,7 +1815,7 @@ void ModelViewer::reload() {
         string name;
         const bool local = GfsChart::parseLocalId(objectModel.sector, lat, lon, km, name);
         const bool pointArea = haveClicked && GfsRender::drawsModel(objectModel.model) && !GfsModels::isStormModel(objectModel.model);   // (a clicked point can be the center of an area too)
-        comboLocalKm->setVisible(local || pointArea);
+        actionLocalKm->setVisible(local || pointArea);
         if (buttonAroundPoint != nullptr) {
             buttonAroundPoint->setVisible(pointArea);
         }
@@ -2353,7 +2356,7 @@ void ModelViewer::setOverlays(const std::vector<string>& ids) {
 void ModelViewer::clickAt(double fx, double fy, bool areaButton) {
     emit image.clicked(fx, fy);
     if (areaButton && buttonAroundPoint != nullptr) {
-        buttonAroundPoint->click();
+        buttonAroundPoint->trigger();
     }
 }
 
@@ -3379,6 +3382,19 @@ void ModelViewer::refreshMembers() {
         buttonSigma->blockSignals(false);
     }
     buttonSigma->setVisible(offered);
+}
+
+void ModelViewer::syncMenus() {
+    for (const auto& [button, menu] : {std::pair{buttonMapMenu, menuMap}, std::pair{buttonAnalysisMenu, menuAnalysis}}) {
+        if (button == nullptr || menu == nullptr) {
+            return;
+        }
+        bool any = false;
+        for (const auto * action : menu->actions()) {
+            any = any || action->isVisible();
+        }
+        button->setVisible(any);
+    }
 }
 
 void ModelViewer::editColors() {
