@@ -258,6 +258,11 @@ sectors = conus
 hours = 0-48/1
 run_length = every 6 : 48 , else : 48
 list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, DPT, PRMSL, PWAT, CAPE, CIN, TCDC, GUST, WEASD, REFC, HLCY, VIS, PRATE
+clone_levels = 250 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom
+clone_pieces = false
 )MODEL"},
         {"WPC-PPP", R"MODEL(
 # the Weather Prediction Center's probabilistic precipitation portal (CONUS, public domain): the blend's amounts of rain, snow and freezing rain in 24, 36, 48 and 72 hour periods, expected, at a percentile or

@@ -3999,6 +3999,25 @@ const std::vector<Product>& products() {
                 x.legendStep = 0;
                 p.push_back(x);
             }
+            {   // the same, with NSSL's experimental MPAS as a sixth set of echoes (pink) among the five members: where it sits among them, inside or outside what the ensemble spreads over
+                auto x = make("refc_paintball_mpas", "Paintball: Composite Reflectivity of 40 dBZ or more, each member and the NSSL MPAS");
+                x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
+                x.extras = {{"MPAS-HT", GfsData::Want{"r6", "REFC", "entire atmosphere", "", "", ""}, "NSSL MPAS"}};
+                const char * names[6] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#e377c2"};
+                const auto above = [] (const char * color) {
+                    QColor solid{color};
+                    solid.setAlpha(176);
+                    return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "r1"); };
+                x.ramp = above(names[0]);
+                for (int m = 2; m <= 6; m++) {
+                    x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
+                }
+                x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange; NSSL MPAS pink (40 dBZ or more; experimental, not for forecasting)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
             // one member of the field on its own (the old REFS screen's "RRFS Ensemble Member" rows): member 1 here, the screen's member picker swaps it for 2 to 5 (withMember)
             {
                 const auto one = [&] (const char * key, const char * label, const char * variable, const char * level, bool hourlyMax, const Ramp& ramp, const char * title, int legendStep,
@@ -8066,7 +8085,16 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         keyLeft += nameWidth + width + 22;
     }
     p.setPen(QColor{110, 110, 110});
-    p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + sourceLabel(product.source)));
+    p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product] {
+        auto text = sourceLabel(product.source);
+        for (const auto& extra : product.extras) {   // the other models a chart draws from
+            const auto label = extra.credit.empty() ? sourceLabel(extra.source) : extra.credit;
+            if (text.find(label) == std::string::npos) {
+                text += "; " + label;
+            }
+        }
+        return text;
+    }()));
     return image;
 }
 }

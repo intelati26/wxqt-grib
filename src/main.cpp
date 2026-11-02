@@ -496,6 +496,20 @@ int main(int argc, char * argv[]) {
                     anchor.show();
                     ChartExport::popupMenu(&anchor, QPoint{100, 100}, caps);
                 }
+                if (const auto spec = qEnvironmentVariable("WXQT_PANELS"); !spec.isEmpty()) {   // WXQT_PANELS=<model>:<chart>[:<member>],...  WXQT_DRAW_VALID=<yyyyMMddHH>  WXQT_DRAW_PNG=<file>  [WXQT_DRAW_COLUMNS=4] [WXQT_DRAW_WIDTH]: the charts of several models for one valid time, tiled
+                    GfsRender::Session session;
+                    std::vector<GfsRender::Panel> panels;
+                    for (const auto& item : spec.split(',', Qt::SkipEmptyParts)) {
+                        panels.push_back({item.section(':', 0, 0).toStdString(), item.section(':', 1, 1).toStdString(), item.section(':', 2, 2).toStdString()});
+                    }
+                    std::string error;
+                    const auto bytes = GfsRender::sideBySide(session, panels, qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), qEnvironmentVariable("WXQT_DRAW_VALID").toStdString(), qEnvironmentVariable("WXQT_DRAW_COLUMNS", "4").toInt(), qEnvironmentVariable("WXQT_DRAW_SCALE", "0.55").toDouble(), error);
+                    if (const auto out = qEnvironmentVariable("WXQT_DRAW_PNG"); !out.isEmpty()) {
+                        QFile file{out};
+                        if (file.open(QIODevice::WriteOnly)) file.write(bytes);
+                    }
+                    fprintf(stderr, "MAGPANELS %s %s\n", bytes.isEmpty() ? "FAILED" : "ok", error.c_str());
+                }
                 if (const auto spec = qEnvironmentVariable("WXQT_DRAW"); !spec.isEmpty()) {   // WXQT_DRAW=<model>:<chart>:<hour>: draws that chart once and says how long it took
                     GfsRender::Session session;
                     std::string error;

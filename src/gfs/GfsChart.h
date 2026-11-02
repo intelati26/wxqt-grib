@@ -171,6 +171,14 @@ namespace GfsChart {
             int periodHours{-1};  // precipitation ("APCP"): the amount in the period of that many hours ending at the valid time (0: the total since the start of the member's run); -1: not an amount
             bool active() const { return !variable.empty(); }
         } pool;
+        // A field of another model for the same valid time (NSSL's MPAS among the REFS members of a paintball): the newest run of `source` at or before the chart's whose forecast has that time
+        // (up to three runs back), read by GfsRender and put on the chart's own grid as `want.key`. A model that has no such run is left out: the chart is drawn without it.
+        struct Extra {
+            std::string source;
+            GfsData::Want want;
+            std::string credit;   // what the chart's "Data:" line adds for it (short: the line is by the legend's)
+        };
+        std::vector<Extra> extras;
         int periodHours{0};   // the chart is of a period that ends at the hour (12 hour extremes, 6 hour chances): only the forecast hours that are multiples of this have it. 0: any hour
         std::string sigmaUnit;      // the chart's own unit for the legend's second row and the read-out: "dam", "mb"
         std::string sigmaSizeKey;   // the grid of one standard deviation in that unit: the legend's second row uses its middle value

@@ -173,7 +173,7 @@ namespace {
         }
         if (text == "surface") return "0-SFC";
         if (text == "mean sea level") return "0-MSL";
-        if (text == "entire atmosphere") return "0-EATM";
+        if (text.startsWith("entire atmosphere")) return "0-EATM";   // (also "... (considered as a single layer)")
         if (text == "cloud base") return "0-CBL";
         if (text == "cloud top") return "0-CTL";
         return text;

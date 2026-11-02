@@ -82,6 +82,12 @@ namespace GfsRender {
     // The chart as PNG bytes; empty with the reason in error. cycle is the model screen's run ("12Z", or ""/"latest"); hour is the forecast hour.
     // model is "GFS" or "NBM"
     QByteArray png(Session& session, const std::string& model, const std::string& param, const std::string& sector, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe = nullptr, const Variant& variant = {});
+    // Charts of different models (or members of one ensemble) for the same valid time ("yyyyMMddHH", UTC), each on its newest run that has it, tiled `columns` wide in one picture, every panel
+    // keeping its own title, legend and source line. A panel that cannot be drawn is left blank and named in `error` (the others stand); empty bytes only when no panel could be drawn.
+    struct Panel {
+        std::string model, param, member;   // member: "m001" ... of an ensemble's member chart, "" the chart as it is
+    };
+    QByteArray sideBySide(Session& session, const std::vector<Panel>& panels, const std::string& sector, const std::string& validTime, int columns, double scale, std::string& error);
     // A look at a model's source for the settings page: the newest run the server has, and whether that run lists the fields of the model's first chart (no field is downloaded).
     struct SourceCheck {
         std::string model;

@@ -20,6 +20,8 @@
 #include <QProcess>
 #include <QTimer>
 #include <QBuffer>
+#include <QImage>
+#include <QPainter>
 #include <QDateTime>
 #include <QRegularExpression>
 #include <QDir>
@@ -572,6 +574,55 @@ namespace {
 }
 
 namespace {
+    // The fields of other models a chart asks for (GfsChart::Product::extras) for the valid time of `run` + `hour`, each resampled onto the grid of the chart's first field. A model or an hour that cannot
+    // be read is left out.
+    void addExtras(GfsRender::Session& session, const GfsChart::Product& chart, const GfsData::Run& run, int hour, GfsChart::Grids& grids) {
+        const GfsGrid::Grid * reference = nullptr;
+        for (const auto& [key, grid] : grids) {
+            if (!grid.empty()) {
+                reference = &grid;
+                break;
+            }
+        }
+        if (reference == nullptr) {
+            return;
+        }
+        auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+        start.setTimeSpec(Qt::UTC);
+        const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
+        for (const auto& extra : chart.extras) {
+            auto gfs = data(session.folder(), extra.source);
+            const auto * def = GfsModels::find(extra.source);
+            const int step = gfs.model().cycleHours;
+            for (int back = 0; back < 3; back++) {
+                const auto t = start.addSecs(-static_cast<qint64>(back) * step * 3600 - static_cast<qint64>(start.time().hour() % step) * 3600);
+                const GfsData::Run used{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+                const int h = static_cast<int>((valid.toSecsSinceEpoch() - t.toSecsSinceEpoch()) / 3600);
+                bool offered = def == nullptr;
+                for (const auto& range : def ? def->hours : std::vector<GfsModels::Hours>{}) {
+                    offered = offered || (h >= range.from && h <= range.to && (h - range.from) % range.step == 0);
+                }
+                GfsChart::Grids loaded;
+                std::string why;
+                if (!offered || !gfs.load(used, {{h, extra.want}}, loaded, why)) {
+                    continue;
+                }
+                const auto found = loaded.find(extra.want.key);
+                if (found == loaded.end() || found->second.empty()) {
+                    continue;
+                }
+                auto onto = *reference;
+                for (int r = 0; r < onto.rows; r++) {
+                    for (int c = 0; c < onto.columns; c++) {
+                        onto.values[static_cast<size_t>(r) * static_cast<size_t>(onto.columns) + static_cast<size_t>(c)] = found->second.sample(onto.lon0 + c * onto.step, onto.lat0 - r * onto.step);
+                    }
+                }
+                grids[extra.want.key] = std::move(onto);
+                break;
+            }
+        }
+    }
+
     // A field of every member of the pooled ensembles for the valid time of `run` + `hour`: each ensemble's own newest run at or before it (the others' hour moved to keep the valid time), the
     // members read, and every grid put on one 0.5 degree grid. A member that could not be read is left out (the others stand); an ensemble none of whose members were read is an error.
     bool pooledGrids(GfsRender::Session& session, const GfsChart::Product& chart, const GfsData::Run& run, int hour, GfsChart::Grids& grids, std::string& error) {
@@ -911,6 +962,9 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
             const auto& g = grids.begin()->second;
             storm = GfsChart::gridSector(sectorId, g);
         }
+    }
+    if (!product->extras.empty()) {
+        addExtras(session, *product, run, hour, grids);
     }
     if (!variant.overlayModels.empty() && variant.kind == Variant::Kind::None && !isHafs(model)) {   // the other models' lines over this one's
         if (!addOverlays(session, composed, grids, model, run, hour, variant.overlayModels, variant.overlayKeepFill, error)) {
@@ -1322,4 +1376,50 @@ bool GfsRender::phaseTrack(Session& session, const std::string& model, const std
         error = "too few pressure levels of " + model + " could be read to measure the heights' range";
     }
     return any;
+}
+
+QByteArray GfsRender::sideBySide(Session& session, const std::vector<Panel>& panels, const std::string& sector, const std::string& validTime, int columns, double scale, std::string& error) {
+    std::vector<QImage> images;
+    std::string problems;
+    for (const auto& panel : panels) {
+        Variant variant;
+        variant.validTime = validTime;
+        variant.member = panel.member;
+        variant.scale = scale;
+        std::string why;
+        const auto bytes = png(session, panel.model, panel.param, sector, "", 0, {}, why, nullptr, variant);
+        QImage image;
+        if (bytes.isEmpty() || !image.loadFromData(bytes)) {
+            problems += (problems.empty() ? "" : "; ") + panel.model + " " + panel.param + (panel.member.empty() ? "" : " " + panel.member) + ": " + (why.empty() ? "no picture" : why);
+        }
+        images.push_back(image);
+    }
+    int cellWidth = 0, cellHeight = 0, drawn = 0;
+    for (const auto& image : images) {
+        if (!image.isNull()) {
+            cellWidth = std::max(cellWidth, image.width());
+            cellHeight = std::max(cellHeight, image.height());
+            drawn++;
+        }
+    }
+    error = problems;
+    if (drawn == 0) {
+        return {};
+    }
+    columns = std::max(1, std::min(columns, static_cast<int>(images.size())));
+    const int rows = (static_cast<int>(images.size()) + columns - 1) / columns;
+    QImage sheet(cellWidth * columns, cellHeight * rows, QImage::Format_ARGB32);
+    sheet.fill(Qt::white);
+    QPainter painter{&sheet};
+    for (size_t i = 0; i < images.size(); i++) {
+        if (!images[i].isNull()) {
+            painter.drawImage(static_cast<int>(i % static_cast<size_t>(columns)) * cellWidth, static_cast<int>(i / static_cast<size_t>(columns)) * cellHeight, images[i]);
+        }
+    }
+    painter.end();
+    QByteArray out;
+    QBuffer buffer{&out};
+    buffer.open(QIODevice::WriteOnly);
+    sheet.save(&buffer, "PNG");
+    return out;
 }
