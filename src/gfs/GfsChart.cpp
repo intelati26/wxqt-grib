@@ -4086,49 +4086,40 @@ const std::vector<Product>& products() {
                         if (key[0] != 'r' || grid.empty() || grid.values.size() != out.values.size()) {
                             continue;
                         }
-                        std::vector<int> hit(grid.values.size()), sum(grid.values.size());
-                        for (size_t i = 0; i < hit.size(); i++) {
-                            hit[i] = !std::isnan(grid.values[i]) && grid.values[i] >= 40.0f ? 1 : 0;
-                        }
-                        std::vector<int> wide(hit.size());   // along the rows: any hit within the radius (a running sum)
+                        // a round neighborhood: each row counts the hits of the rows within the radius, over the width of the circle there (a running total along each row makes that one subtraction)
+                        std::vector<int> along(static_cast<size_t>(rows) * static_cast<size_t>(columns + 1), 0);
                         for (int r = 0; r < rows; r++) {
-                            const size_t base = static_cast<size_t>(r) * static_cast<size_t>(columns);
-                            int run = 0;
-                            for (int c = 0; c < std::min(columns, radius); c++) {
-                                run += hit[base + static_cast<size_t>(c)];
-                            }
                             for (int c = 0; c < columns; c++) {
-                                if (c + radius < columns) {
-                                    run += hit[base + static_cast<size_t>(c + radius)];
-                                }
-                                if (c - radius - 1 >= 0) {
-                                    run -= hit[base + static_cast<size_t>(c - radius - 1)];
-                                }
-                                wide[base + static_cast<size_t>(c)] = run > 0 ? 1 : 0;
+                                const float v = grid.values[static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c)];
+                                along[static_cast<size_t>(r) * static_cast<size_t>(columns + 1) + static_cast<size_t>(c) + 1] = along[static_cast<size_t>(r) * static_cast<size_t>(columns + 1) + static_cast<size_t>(c)] + (!std::isnan(v) && v >= 40.0f ? 1 : 0);
                             }
                         }
-                        for (int c = 0; c < columns; c++) {   // and along the columns
-                            int run = 0;
-                            for (int r = 0; r < std::min(rows, radius); r++) {
-                                run += wide[static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c)];
-                            }
-                            for (int r = 0; r < rows; r++) {
-                                if (r + radius < rows) {
-                                    run += wide[static_cast<size_t>(r + radius) * static_cast<size_t>(columns) + static_cast<size_t>(c)];
-                                }
-                                if (r - radius - 1 >= 0) {
-                                    run -= wide[static_cast<size_t>(r - radius - 1) * static_cast<size_t>(columns) + static_cast<size_t>(c)];
-                                }
+                        int half[2 * radius + 1];
+                        for (int d = -radius; d <= radius; d++) {
+                            half[d + radius] = static_cast<int>(std::sqrt(static_cast<double>(radius * radius - d * d)) + 0.5);
+                        }
+                        for (int r = 0; r < rows; r++) {
+                            for (int c = 0; c < columns; c++) {
                                 const size_t at = static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c);
-                                count[at] += run > 0 ? 1 : 0;
                                 have[at] += std::isnan(grid.values[at]) ? 0 : 1;
+                                bool near = false;
+                                for (int d = -radius; d <= radius && !near; d++) {
+                                    const int rr = r + d;
+                                    if (rr < 0 || rr >= rows) {
+                                        continue;
+                                    }
+                                    const int lo = std::max(0, c - half[d + radius]), hi = std::min(columns - 1, c + half[d + radius]);
+                                    const size_t row = static_cast<size_t>(rr) * static_cast<size_t>(columns + 1);
+                                    near = along[row + static_cast<size_t>(hi) + 1] - along[row + static_cast<size_t>(lo)] > 0;
+                                }
+                                count[at] += near ? 1 : 0;
                             }
                         }
                     }
                     for (size_t i = 0; i < out.values.size(); i++) {
                         out.values[i] = have[i] > 0 ? static_cast<float>(100.0 * count[i] / have[i]) : std::nanf("");
                     }
-                    g["chance"] = GfsGrid::smoothed(out, 6);
+                    g["chance"] = GfsGrid::smoothed(out, 20);
                 };
                 x.fill = [] (const Grids& g) { return pick(g, "r1"); };
                 x.ramp = above(names[0]);
