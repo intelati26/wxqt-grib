@@ -84,7 +84,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
-    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL vs deterministic", "Compare: seasonal models (same dates)"}}
+    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL, REFS, PPP vs deterministic", "Compare: seasonal models (same dates)"}}
     , comboMember{this, {"Ensemble mean"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
@@ -320,7 +320,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         });
         boxH2.addWidgetReal(buttonSigma);
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
-        comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone. 'Seasonal models': the EC46, SEAS5 and CFS30 side by side, each in the period that overlaps the main one most. 'ENS-ALL vs deterministic': the pooled chart beside the matching chart of GFS, the IFS and the AIFS (precipitation of the same period, the model's own sea level pressure, heights or temperature).");
+        comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone. 'Seasonal models': the EC46, SEAS5 and CFS30 side by side, each in the period that overlaps the main one most. 'ENS-ALL, REFS, PPP vs deterministic': the pooled chart beside the matching chart of GFS, the IFS and the AIFS (precipitation of the same period, the model's own sea level pressure, heights or temperature); the REFS beside the RRFS, the HRRR and the NSSL MPAS (echoes, updraft helicity, temperature); the WPC portal's rain amount beside the global models' precipitation of the same period.");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
         comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 7)));
         comboTiles.connect([this] {
@@ -2402,9 +2402,13 @@ const std::vector<string>& ModelViewer::partsOfPool() {
     return parts;
 }
 
-const std::vector<string>& ModelViewer::deterministicDefaults() {
-    static const std::vector<string> models{"GFS", "IFS", "AIFS"};
-    return models;
+const std::vector<string>& ModelViewer::deterministicDefaults(const string& model) {
+    static const std::vector<string> global{"GFS", "IFS", "AIFS"}, convection{"RRFS", "HRRR", "MPAS-HT"}, mpas{"RRFS", "HRRR", "REFS"};
+    return model == "REFS" ? convection : model == "MPAS-HT" ? mpas : global;
+}
+
+bool ModelViewer::hasPartners(const string& model) {
+    return model == "ENS-ALL" || model == "REFS" || model == "MPAS-HT" || model == "WPC-PPP";
 }
 
 // What a deterministic model draws that goes with a pooled chart: the amount of precipitation of the same period beside the chance of an amount, and the model's own field beside the mean and spread of the
@@ -2412,7 +2416,28 @@ const std::vector<string>& ModelViewer::deterministicDefaults() {
 string ModelViewer::partnerChart(const string& pooled, const string& model) {
     std::vector<string> candidates;
     const auto starts = [&pooled] (const char * prefix) { return pooled.compare(0, std::char_traits<char>::length(prefix), prefix) == 0; };
-    if (starts("all_prob_24h_")) {
+    if (model == "REFS") {   // (the MPAS's charts beside a REFS member: the RRFS control is the RRFS)
+        static const std::map<string, string> member{{"sim_radar_comp", "member_refc"}, {"2m_temp_10m_wnd", "member_tmp2m"}, {"sfc_cape_cin", "member_cape"}, {"10m_wnd_sfc_gust", "member_gust"}, {"max_updraft_hlcy", "member_uphl"}};
+        if (const auto it = member.find(pooled); it != member.end()) {
+            candidates = {it->second};
+        }
+    } else if (model == "MPAS-HT" || model == "RRFS" || model == "HRRR") {   // (the REFS charts beside the RRFS, the HRRR and the NSSL MPAS; the MPAS's own charts beside the RRFS and the HRRR)
+        if (pooled == "sim_radar_comp" || pooled == "2m_temp_10m_wnd" || pooled == "sfc_cape_cin" || pooled == "10m_wnd_sfc_gust" || pooled == "max_updraft_hlcy") {
+            candidates = {pooled};
+        }
+        if (candidates.empty() && (starts("prob_refc_") || starts("refc_paintball"))) {
+            candidates = {"sim_radar_comp"};
+        } else if (starts("prob_uphl_") || starts("max_uphl")) {
+            candidates = {"max_updraft_hlcy"};
+        } else if (starts("mean_2m_temp") || starts("spread_2m_temp")) {
+            candidates = {"2m_temp_10m_wnd"};
+        }
+    } else if (starts("ppp_")) {   // ppp_<hours>h_qpf_<expected|pNN>: the model's precipitation of the same period, ending at the same time
+        const auto parts = QString::fromStdString(pooled).split('_');
+        if (parts.size() == 4 && parts[2] == "qpf" && parts[1].endsWith('h')) {
+            candidates = {"precip_p" + parts[1].chopped(1).toStdString()};
+        }
+    } else if (starts("all_prob_24h_")) {
         candidates = {"precip_p24"};
     } else if (starts("gen~all_period~")) {   // gen~all_period~<inches>~<hours>
         const int hours = QString::fromStdString(pooled).section('~', 3, 3).toInt();
@@ -2581,7 +2606,7 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
         } else if (show == TilesShow::Parts) {
             spec.member = k < partsOfPool().size() ? partsOfPool()[k] : string{};
         } else if (show == TilesShow::Deterministic) {
-            spec.model = k < deterministicDefaults().size() ? deterministicDefaults()[k] : string{};
+            spec.model = k < deterministicDefaults(objectModel.model).size() ? deterministicDefaults(objectModel.model)[k] : string{};
         } else if (show == TilesShow::Seasonal) {
             std::vector<string> others;
             for (const auto& id : seasonalModels()) {
@@ -2670,7 +2695,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.model = show == TilesShow::Members ? objectModel.model : spec.model;
         job.param = show == TilesShow::Members ? objectModel.param : spec.param;
         if (show == TilesShow::Deterministic) {
-            job.param = objectModel.model == "ENS-ALL" && !spec.model.empty() ? partnerChart(objectModel.param, spec.model) : string{};
+            job.param = hasPartners(objectModel.model) && !spec.model.empty() ? partnerChart(objectModel.param, spec.model) : string{};
         }
         if (show == TilesShow::Seasonal) {
             job.param = spec.model.empty() ? string{} : seasonalPartner(objectModel.param, spec.model);
@@ -2683,12 +2708,12 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         } else if (show == TilesShow::Parts && (objectModel.model != "ENS-ALL" || spec.member.empty())) {
             job.ok = false;
             job.why = "Pick the ENS-ALL model (the pool of the ECMWF, GEFS and GEPS members) to compare it with its parts.";
-        } else if (show == TilesShow::Deterministic && objectModel.model != "ENS-ALL") {
+        } else if (show == TilesShow::Deterministic && !hasPartners(objectModel.model)) {
             job.ok = false;
-            job.why = "Pick the ENS-ALL model to compare its chart with a deterministic model.";
+            job.why = "Pick the ENS-ALL model, the REFS or the WPC probabilistic precipitation portal to compare its chart with a deterministic model.";
         } else if (show == TilesShow::Deterministic && job.param.empty()) {
             job.ok = false;
-            job.why = (spec.model.empty() ? string{"This model"} : spec.model) + " has no chart to put beside this one (the chance of precipitation, the spread and the contours of the pool have partners in the precipitation, pressure, height and temperature charts).";
+            job.why = (spec.model.empty() ? string{"This model"} : spec.model) + " has no chart to put beside this one (for the pool: the chance of precipitation, the spread and the contours have partners in the precipitation, pressure, height and temperature charts; for the REFS: the echoes, the updraft helicity and the temperature; for the portal: the rain amount of a period).";
         } else if (show == TilesShow::Seasonal && std::find(seasonalModels().begin(), seasonalModels().end(), objectModel.model) == seasonalModels().end()) {
             job.ok = false;
             job.why = "Pick the EC46, the SEAS5 or the CFS30 (the CFSv2's next days against its normal) to compare the long-range models.";
@@ -2733,6 +2758,8 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
                 job.cycle = t.addSecs(-3600LL * spec.shift).toString("yyyyMMddHH").toStdString();
                 job.hour = mainHour + spec.shift;   // the same valid time
             }
+        } else if (show == TilesShow::Deterministic && objectModel.model == "WPC-PPP") {   // the portal's run is any hour: each model's own newest run, at the valid time (below)
+            job.cycle.clear();
         } else if (show == TilesShow::Deterministic) {   // the same initialization as the pool's run (the ECMWF's 00Z or 12Z): the same hour is then the same valid time
             const auto t = runTime(objectModel.run);
             if (!t.isValid()) {
@@ -2748,7 +2775,8 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             job.ok = false;
             job.why = job.model + " does not draw " + job.param + ".";
         }
-        if (job.ok && index > 0 && show != TilesShow::Seasonal && show != TilesShow::ModelsByTime) {   // a model with no forecast for that hour: say which hours it has (the run that is too short, the model that stops earlier, the hour between its steps)
+        const bool byClock = show == TilesShow::ModelsByTime || (show == TilesShow::Deterministic && objectModel.model == "WPC-PPP");
+        if (job.ok && index > 0 && show != TilesShow::Seasonal && !byClock) {   // a model with no forecast for that hour: say which hours it has (the run that is too short, the model that stops earlier, the hour between its steps)
             const auto * def = GfsModels::find(job.model);
             if (def != nullptr && !def->hours.empty()) {
                 int last = 0;
@@ -2812,11 +2840,13 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         if (show == TilesShow::Members) {   // each tile its own member of the same chart
             v.member = tileMember(index);
             v.standardDeviations = standardDeviations;
+        } else if (show == TilesShow::Deterministic && spec.model == "REFS" && objectModel.model == "MPAS-HT") {   // the RRFS control is the RRFS tile; the REFS tile is its second member
+            v.member = spec.member.empty() ? "m002" : spec.member;
         } else if (spec.model == objectModel.model) {   // the same model's tiles show the member too (another model's charts have none)
             v.member = member;
             v.standardDeviations = standardDeviations;
         }
-        if (show == TilesShow::ModelsByTime && job.ok) {   // by the clock: each model's own hour for the first tile's valid time
+        if (byClock && job.ok) {   // by the clock: each model's own hour for the first tile's valid time
             const auto start = runTime(objectModel.run);
             if (!start.isValid()) {
                 job.ok = false;
@@ -3033,7 +3063,7 @@ void ModelViewer::changeTile(int index) {
         }
     } else if (show == TilesShow::Deterministic) {
         for (const auto& def : GfsModels::all()) {
-            if (def.storm || GfsModels::pickerGroup(def.id) == "Ensembles" || partnerChart(objectModel.param, def.id).empty()) {
+            if (def.storm || (GfsModels::pickerGroup(def.id) == "Ensembles" && !(def.id == "REFS" && objectModel.model == "MPAS-HT")) || partnerChart(objectModel.param, def.id).empty()) {
                 continue;
             }
             const auto id = def.id;

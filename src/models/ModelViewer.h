@@ -115,7 +115,8 @@ private:
     TilesShow tilesShow() const;
     static const std::vector<string>& partsOfPool();
     static string partnerChart(const string& pooled, const string& model);   // the chart of a deterministic model that goes with a pooled ENS-ALL chart ("" when there is none)
-    static const std::vector<string>& deterministicDefaults();
+    static const std::vector<string>& deterministicDefaults(const string& model);   // the models a pooled or probabilistic model is put beside: the global ones; for the REFS the convection allowing ones (RRFS, HRRR, NSSL MPAS)
+    static bool hasPartners(const string& model);   // the models whose charts go beside deterministic ones: the ENS-ALL pool, the REFS and the WPC probabilistic precipitation portal
     static std::vector<string> recentRuns(const string& model);   // the last runs a model makes, newest first (yyyyMMddHH): for the choice of a tile's run
     static string seasonalPartner(const string& param, const string& model);   // the chart of a long-range model (EC46, SEAS5, CFS30) that goes with a chart of another of them
     static const std::vector<string>& seasonalModels();
