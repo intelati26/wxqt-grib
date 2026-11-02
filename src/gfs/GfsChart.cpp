@@ -4068,8 +4068,10 @@ const std::vector<Product>& products() {
                 x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
                 x.extras = {{"HRRR", GfsData::Want{"r6", "REFC", "entire atmosphere", "", "", ""}, "HRRR", 0}, {"HRRR", GfsData::Want{"r7", "REFC", "entire atmosphere", "", "", ""}, "", 6},
                             {"HRRR", GfsData::Want{"r8", "REFC", "entire atmosphere", "", "", ""}, "", 12}, {"MPAS-HT", GfsData::Want{"r9", "REFC", "entire atmosphere", "", "", ""}, "MPAS-HT", 0},
-                            {"MPAS-RN", GfsData::Want{"r10", "REFC", "entire atmosphere", "", "", ""}, "MPAS-RN", 0}};
-                const char * names[10] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#4c4c4c", "#7f7f7f", "#b3b3b3", "#e377c2", "#17becf"};
+                            {"MPAS-RN", GfsData::Want{"r10", "REFC", "entire atmosphere", "", "", ""}, "MPAS-RN", 0},
+                            {"REFS", GfsData::Want{"r11", "REFC", "entire atmosphere (considered as a single layer)", "", "", "m001"}, "", 1},   // the control (member 1) of the REFS runs 6 and 12 hours older
+                            {"REFS", GfsData::Want{"r12", "REFC", "entire atmosphere (considered as a single layer)", "", "", "m001"}, "", 2}};
+                const char * names[12] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#4c4c4c", "#7f7f7f", "#b3b3b3", "#e377c2", "#17becf", "#4cd3ff", "#b3ecff"};
                 const auto above = [] (const char * color) {
                     QColor solid{color};
                     solid.setAlpha(176);
@@ -4130,7 +4132,7 @@ const std::vector<Product>& products() {
                 };
                 x.fill = [] (const Grids& g) { return pick(g, "r1"); };
                 x.ramp = above(names[0]);
-                for (int m = 2; m <= 10; m++) {
+                for (int m = 2; m <= 12; m++) {
                     x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
                 }
                 ContourSet c;
@@ -4143,7 +4145,7 @@ const std::vector<Product>& products() {
                 c.uniform = true;
                 c.width = 1.4;
                 x.contours.push_back(c);
-                x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange; HRRR dark gray, 6 and 12 hours older lighter; MPAS-HT pink, MPAS-RN teal (40 dBZ or more)";
+                x.fillTitle = "REFS 1-5; HRRR grays (now, -6, -12); MPAS-HT pink, MPAS-RN teal; REFS member 1 -6 and -12 light blue (40 dBZ or more)";
                 x.legendStep = 0;
                 p.push_back(x);
             }
