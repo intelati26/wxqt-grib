@@ -295,7 +295,7 @@ NetManager::Result NetManager::get(const std::string& url, const QByteArray& ran
     if (qEnvironmentVariableIsSet("WXQT_NETLOG")) {   // WXQT_NETLOG=1: each request and its priority, to stderr
         std::fprintf(stderr, "net %s %s %s\n", priority == Priority::Visible ? "visible" : priority == Priority::Ahead ? "ahead" : "background", url.c_str(), range.constData());
     }
-    const Activity::Download counted;   // shows on the screens' activity indicator while the request is waiting or in flight
+    const Activity::Download counted{url};   // shows on the screens' activity indicator while the request is waiting or in flight
     ensureThread();
     auto waiter = std::make_shared<Waiter>();
     const std::string key = url + "|" + range.toStdString() + "|" + accept.toStdString();

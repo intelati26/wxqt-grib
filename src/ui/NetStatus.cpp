@@ -12,6 +12,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include "objects/NetManager.h"
+#include "util/Activity.h"
 
 QPointer<NetStatus> NetStatus::open;
 
@@ -75,9 +76,9 @@ void NetStatus::refresh() {
     }
     const auto rows = NetManager::snapshot();
     const auto sum = NetManager::totals();
-    totals->setText(QString{"%1 waiting or downloading   -   %2 finished, %3 shared with a request already going, %4 MB received   -   %5"}
+    totals->setText(QString{"%1 waiting or downloading   -   %2 finished (%6 of them index files), %3 shared with a request already going, %4 MB received   -   %5"}
                         .arg(rows.size()).arg(sum.requests).arg(sum.reused).arg(sum.bytes / 1048576.0, 0, 'f', 1)
-                        .arg(QString{"%1 retried, %2 cancelled   -   %3"}.arg(sum.retried).arg(sum.cancelled).arg(NetManager::enabled() ? "persistent client on" : "persistent client OFF")));
+                        .arg(QString{"%1 retried, %2 cancelled   -   %3"}.arg(sum.retried).arg(sum.cancelled).arg(NetManager::enabled() ? "persistent client on" : "persistent client OFF")).arg(Activity::indexesDone.load()));
     table->setRowCount(static_cast<int>(rows.size()));
     const auto size = [] (long long bytes) { return bytes < 0 ? QString{"?"} : bytes < 10240 ? QString::number(bytes) + " B" : QString::number(bytes / 1024) + " KB"; };
     for (int i = 0; i < static_cast<int>(rows.size()); i++) {
