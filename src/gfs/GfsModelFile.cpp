@@ -127,7 +127,7 @@ namespace {
         }
     }
 
-    // {date} {cycle} {prev_cycle} {hour} {hour2} {hour3} {file} {/file} {file3} {dir} {name} {tag} {tail} {storm} {year} {month} {day}
+    // {date} {yy} {cycle} {prev_cycle} {hour} {hour2} {hour3} {file} {/file} {file3} {dir} {name} {tag} {tail} {storm} {year} {month} {day}
     std::string expandUrl(std::string url, const Definition& d, const Run& run, int hour, const std::string& alt, const std::string& previous) {
         const auto slash = alt.find('/');
         const auto directory = slash == std::string::npos ? std::string{} : alt.substr(0, slash);
@@ -135,6 +135,7 @@ namespace {
         const auto colon = alt.find(':');
         replaceAll(url, "{date}", run.date);
         replaceAll(url, "{year}", run.date.substr(0, 4));
+        replaceAll(url, "{yy}", run.date.substr(2, 2));
         replaceAll(url, "{month}", run.date.substr(4, 2));
         replaceAll(url, "{day}", run.date.substr(6, 2));
         replaceAll(url, "{cycle}", run.cycle);

@@ -238,6 +238,27 @@ hours = 168-168/1, 336-336/1, 720-720/1, 1440-1440/1, 2160-2160/1
 run_every = 6
 list = true
 )MODEL"},
+        {"MPAS-HT", R"MODEL(
+# NSSL's experimental MPAS run started from the HRRR (MPAS-HTPO-NSSL on cams.nssl.noaa.gov): 3 km over the contiguous United States, every 6 hours to 48 hours, with TEMPO microphysics. NSSL posts each run as
+# one tar of gzipped GRIB2 files, an hour each; the program's own loader (registered for this id) reads the tar by range and takes the hour it needs. The tar appears when the run is done, about 8 hours after
+# its time. Experimental research output of the NOAA National Severe Storms Laboratory: not for forecasting.
+id = MPAS-HT
+label = NSSL experimental MPAS-HTPO, 3 km (research output, not for forecasting)
+source_label = NOAA/NSSL experimental MPAS-HTPO (started from the HRRR), research output: not for forecasting
+group = Convection allowing
+kind = custom
+url = https://data.nssl.noaa.gov/thredds/fileServer/FRDD/NSSL-MPAS/{year}/{yy}{month}{day}{cycle}_mpasht2.tar
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 9
+cycles_to_try = 6
+max_parallel = 2
+warp = 0.03, -127.0, 22.0, -65.0, 52.0
+sectors = conus
+hours = 0-48/1
+run_length = every 6 : 48 , else : 48
+list = true
+)MODEL"},
         {"WPC-PPP", R"MODEL(
 # the Weather Prediction Center's probabilistic precipitation portal (CONUS, public domain): the blend's amounts of rain, snow and freezing rain in 24, 36, 48 and 72 hour periods, expected, at a percentile or
 # as the chance of an amount, a new run every hour. Each product is a zip of contour bands (a shapefile) filled onto a grid by the program's own loader (registered for this id). The forecast "hour" is

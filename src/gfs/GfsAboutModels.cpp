@@ -85,6 +85,12 @@ link = background | Canadian Meteorological Centre | https://en.wikipedia.org/wi
 link = background | Ensemble forecasting | https://en.wikipedia.org/wiki/Ensemble_forecasting
 link = source | Environment and Climate Change Canada open data (GEPS) | https://eccc-msc.github.io/open-data/msc-data/nwp_geps/readme_geps-datamart_en/
 )ABOUT"},
+        {"MPAS-HT", R"ABOUT(
+why = A research version of the MPAS model from NOAA's National Severe Storms Laboratory, started from the HRRR and run at 3 km. It is a different design from the HRRR and RRFS (a mesh that can change its resolution over the globe, with newer microphysics), so it is one more view of where storms may form and how they could look. This is experimental research output: it is not for forecasting and can change or stop without notice.
+link = background | Model for Prediction Across Scales | https://en.wikipedia.org/wiki/Model_for_Prediction_Across_Scales
+link = docs | NSSL CAMs: MPAS runs and how they are set up | https://cams.nssl.noaa.gov/
+link = source | NSSL data server (FRDD/NSSL-MPAS) | https://data.nssl.noaa.gov/thredds/catalog/FRDD/NSSL-MPAS/2026/catalog.html
+)ABOUT"},
         {"RRFS", R"ABOUT(
 why = NOAA's new 3 kilometre forecast system for the continental US, built to replace the Rapid Refresh, the HRRR and several others. At 3 km it can draw individual lines of storms and their rotation, which the global models cannot, and it updates every hour.
 link = background | Rapid Refresh (the system the RRFS replaces) | https://en.wikipedia.org/wiki/Rapid_Refresh_(weather_prediction)

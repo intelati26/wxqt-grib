@@ -90,7 +90,7 @@ bool GfsData::latestRun(Run& run) const {
                     continue;
                 }
                 const auto head = config.bytes(resolved, 0, 3);
-                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("{") || head.startsWith("PK")) {
+                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("{") || head.startsWith("PK") || head.startsWith("./")) {
                     there = true;
                     break;
                 }
@@ -359,7 +359,7 @@ std::string GfsData::resolveUrl(const std::string& url) const {
 bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
     const std::string variable = source.variableOf ? source.variableOf(want) : want.variable;   // what a NetCDF file calls the field
     const int timeBand = source.ncBand ? source.ncBand(run, hour, want) : 0;
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom) ? variable : std::string{}) + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom) ? variable + (source.custom && !want.level.empty() ? "_" + want.level + "_" + want.forecast : std::string{}) : std::string{}) + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
         name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
