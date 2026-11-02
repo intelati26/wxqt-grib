@@ -4062,23 +4062,88 @@ const std::vector<Product>& products() {
                     }
                 }
             }
-            {   // the paintball with the HRRR and the HRRR of 6 hours before among the members, as the SPC's REFS viewer draws it (its set is the HRRR, the RRFS control, the REFS members and the HRRR and RRFS control 6 and
-                // 12 hours older): the same grays for the HRRRs. A run that cannot be read is left out
-                auto x = make("refc_paintball_hrrr", "Paintball: Composite Reflectivity of 40 dBZ or more, each member and the HRRR (now and 6 hours older)");
+            {   // the paintball as the SPC's REFS viewer draws it, with NSSL's two MPAS runs added: the five REFS members, the HRRR and the HRRR of 6 and 12 hours before (the same grays) and the MPAS-HT and
+                // MPAS-RN, with the lines of the chance of 40 dBZ (the share of the members over it, nearby: 10, 30, 50, 70 and 90 per cent). A run that cannot be read is left out of the paint and the count
+                auto x = make("refc_paintball_spc", "Paintball: 40 dBZ or more, REFS, HRRR and NSSL MPAS, with the chance");
                 x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
-                x.extras = {{"HRRR", GfsData::Want{"r6", "REFC", "entire atmosphere", "", "", ""}, "HRRR", 0}, {"HRRR", GfsData::Want{"r7", "REFC", "entire atmosphere", "", "", ""}, "", 6}};
-                const char * names[7] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#4c4c4c", "#9a9a9a"};
+                x.extras = {{"HRRR", GfsData::Want{"r6", "REFC", "entire atmosphere", "", "", ""}, "HRRR", 0}, {"HRRR", GfsData::Want{"r7", "REFC", "entire atmosphere", "", "", ""}, "", 6},
+                            {"HRRR", GfsData::Want{"r8", "REFC", "entire atmosphere", "", "", ""}, "", 12}, {"MPAS-HT", GfsData::Want{"r9", "REFC", "entire atmosphere", "", "", ""}, "MPAS-HT", 0},
+                            {"MPAS-RN", GfsData::Want{"r10", "REFC", "entire atmosphere", "", "", ""}, "MPAS-RN", 0}};
+                const char * names[10] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#4c4c4c", "#7f7f7f", "#b3b3b3", "#e377c2", "#17becf"};
                 const auto above = [] (const char * color) {
                     QColor solid{color};
                     solid.setAlpha(176);
                     return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
                 };
+                x.derive = [] (Grids& g, const Context&) {   // the SPC's neighborhood chance: each member counts where it reaches 40 dBZ anywhere within 13 points (about 40 km), the members that were read give the share (%)
+                    constexpr int radius = 13;
+                    auto out = g.at("r1");
+                    const int columns = out.columns, rows = out.rows;
+                    std::vector<int> count(out.values.size(), 0), have(out.values.size(), 0);
+                    for (const auto& [key, grid] : g) {
+                        if (key[0] != 'r' || grid.empty() || grid.values.size() != out.values.size()) {
+                            continue;
+                        }
+                        std::vector<int> hit(grid.values.size()), sum(grid.values.size());
+                        for (size_t i = 0; i < hit.size(); i++) {
+                            hit[i] = !std::isnan(grid.values[i]) && grid.values[i] >= 40.0f ? 1 : 0;
+                        }
+                        std::vector<int> wide(hit.size());   // along the rows: any hit within the radius (a running sum)
+                        for (int r = 0; r < rows; r++) {
+                            const size_t base = static_cast<size_t>(r) * static_cast<size_t>(columns);
+                            int run = 0;
+                            for (int c = 0; c < std::min(columns, radius); c++) {
+                                run += hit[base + static_cast<size_t>(c)];
+                            }
+                            for (int c = 0; c < columns; c++) {
+                                if (c + radius < columns) {
+                                    run += hit[base + static_cast<size_t>(c + radius)];
+                                }
+                                if (c - radius - 1 >= 0) {
+                                    run -= hit[base + static_cast<size_t>(c - radius - 1)];
+                                }
+                                wide[base + static_cast<size_t>(c)] = run > 0 ? 1 : 0;
+                            }
+                        }
+                        for (int c = 0; c < columns; c++) {   // and along the columns
+                            int run = 0;
+                            for (int r = 0; r < std::min(rows, radius); r++) {
+                                run += wide[static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c)];
+                            }
+                            for (int r = 0; r < rows; r++) {
+                                if (r + radius < rows) {
+                                    run += wide[static_cast<size_t>(r + radius) * static_cast<size_t>(columns) + static_cast<size_t>(c)];
+                                }
+                                if (r - radius - 1 >= 0) {
+                                    run -= wide[static_cast<size_t>(r - radius - 1) * static_cast<size_t>(columns) + static_cast<size_t>(c)];
+                                }
+                                const size_t at = static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c);
+                                count[at] += run > 0 ? 1 : 0;
+                                have[at] += std::isnan(grid.values[at]) ? 0 : 1;
+                            }
+                        }
+                    }
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        out.values[i] = have[i] > 0 ? static_cast<float>(100.0 * count[i] / have[i]) : std::nanf("");
+                    }
+                    g["chance"] = GfsGrid::smoothed(out, 6);
+                };
                 x.fill = [] (const Grids& g) { return pick(g, "r1"); };
                 x.ramp = above(names[0]);
-                for (int m = 2; m <= 7; m++) {
+                for (int m = 2; m <= 10; m++) {
                     x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
                 }
-                x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange; HRRR dark gray, HRRR 6 hours older light gray (40 dBZ or more)";
+                ContourSet c;
+                c.key = "chance";
+                c.interval = 20.0;
+                c.base = 10.0;
+                c.minimum = 9.0;
+                c.title = "40 dBZ chance (%)";
+                c.color = QColor{20, 20, 20};
+                c.uniform = true;
+                c.width = 1.4;
+                x.contours.push_back(c);
+                x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange; HRRR dark gray, 6 and 12 hours older lighter; MPAS-HT pink, MPAS-RN teal (40 dBZ or more)";
                 x.legendStep = 0;
                 p.push_back(x);
             }
