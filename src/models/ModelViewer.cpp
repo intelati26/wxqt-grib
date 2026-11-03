@@ -163,7 +163,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         menu->addSection("Pending discontinuation (pictures from MAG / SPC)");
         add("NSSL WRF (WRF, FV3, HRRRv3)", screen("NSSLWRF"));
         add("SPC HRRR", screen("SPCHRRR"));
-        add("SPC HREF", screen("SPCHREF"));
+        add("SPC HREF (retired 3 Nov 2026)", screen("SPCHREF"));
         add("WPC GEFS", screen("WPCGEFS"));
         more->setMenu(menu);
         more->setVisible(!isEmbedded());   // in the model screen its Source box offers them
@@ -2212,7 +2212,7 @@ void ModelViewer::showModelPicker() {
     std::vector<ProductPicker::Entry> entries;
     // The models the program has no description for (the charts of NCEP's model guidance site are pictures)
     static const std::map<string, string> pictureModels{
-        {"ESTOFS", "NOAA/NOS ESTOFS storm surge and tide"}, {"FIREWX", "NOAA/NCEP NAM fire weather nest"}, {"GEFS-MEAN-SPRD", "NOAA/NCEP GEFS ensemble mean and spread"},
+        {"ESTOFS", "NOAA/NOS ESTOFS storm surge and tide"}, {"FIREWX", "NOAA/NCEP NAM fire weather nest, retired Nov 2026"}, {"GEFS-MEAN-SPRD", "NOAA/NCEP GEFS ensemble mean and spread"},
         {"GEFS-SPAG", "NOAA/NCEP GEFS spaghetti charts"}, {"HRW-ARW", "NOAA/NCEP HiResW ARW, 3 km, retired Nov 2026"}, {"HRW-ARW2", "NOAA/NCEP HiResW ARW, second run, 3 km, retired Nov 2026"}, {"HRW-FV3", "NOAA/NCEP HiResW FV3, 3 km, retired Nov 2026"},
         {"NAEFS", "North American Ensemble Forecast System (GEFS with Canada's GEPS)"}, {"NAM", "NOAA/NCEP NAM, 12 km, retired Nov 2026"}, {"NAM-HIRES", "NOAA/NCEP NAM CONUS nest, 3 km, retired Nov 2026"},
         {"POLAR", "Polar charts of NCEP's model guidance site"}, {"RAP", "NOAA/NCEP Rapid Refresh, 13 km"}, {"WW3", "NOAA/NCEP WAVEWATCH III, global"},

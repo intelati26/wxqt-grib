@@ -22,14 +22,17 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   loop, **change since an earlier run**, **maximum over 24 hours or Day 1**, saved views, a click for a **sounding**, the newest and
   yesterday's runs marked, and Save (the picture, the loop or a whole comparison). Only the box of a region is downloaded where NOAA's server can
   cut one. Fields are kept for 48 hours (2 GB) in the cache; Settings shows its size.
+- **Verify against MRMS** (Analysis menu, on a reflectivity chart) - every run of the model that has a forecast for a time on the hour, scored
+  against the MRMS composite reflectivity of that time (or the maximum of the hour): POD, FAR, CSI and bias at 20 / 35 / 50 dBZ, the Fractions Skill Score over
+  10 / 25 / 50 km, and the model, MRMS and hit / miss / false alarm pictures. A run the server does not have for that hour says so.
 - **Compare tiles** - 1 x 2, 1 x 3 or 2 x 2 charts of one hour: other charts of the model, the same chart from other models, or the same valid time
   from older runs, with one zoom, pan and read-out across them and Play stepping through the hours drawn in every tile.
 - **Ensemble members** - a member picker for GEFS (the control and 30 members), GEPS (the control and 20) and REFS (5): the chart for one member
   instead of the mean, on the charts made of the mean's fields. REFS charts also have a Members graph (each member's value at a clicked point over
   the hours). GEPS is Environment and Climate Change Canada's ensemble from its open data server: the mean charts, the spread of the members, and
   the chance of freezing or 90 F.
-- **SPC models** - SPC's post-processing of the NWS models as Model Viewer models, from NOMADS (the test area until the Nov 3 2026 change
-  notice takes effect): SPCPOST (REFS calibrated thunder, tornado, hail and wind probabilities), SPCGEFS (GEFSCT daily thunder, GEFS-MLP severe), and the
+- **SPC models** - SPC's post-processing of the NWS models as Model Viewer models, from NOMADS (the `prod` directories since 3 Nov 2026; the test `para`
+  ones are gone): SPCPOST (REFS calibrated thunder, tornado, hail and wind probabilities), SPCGEFS (GEFSCT daily thunder, GEFS-MLP severe), and the
   mesoanalysis fields SFCOA-HRRR (the SPC mesoanalysis: CAPE, CIN, SRH, STP, SCP, SHIP, shear, lapse rates, ...) and RRFSD (the same from the RRFS to 84 h).
   SPCREFS is SPC's own REFS viewer data (its open Zarr store: means, maxima, probabilities and paintballs of 10 members, about 100 products, with a member picker for the
   one-member products). The two NetCDF ones are read by range, a field at a time (0.5 to 1 GB files, about a minute or two a field).
@@ -54,8 +57,8 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   **WPC GEFS**, and the **ESRL** and **WPC GEFS** picture viewers (the "Image models" menu of the Model Viewer).
 
 ### Where the model data comes from  [Models]
-The Model Viewer's models by group, with the server each one is read from. The data is GRIB2 unless a note says otherwise. Retirement dates are from the NWS notice SCN 26-48;
-the SREF retires then too, but the program has no SREF.
+The Model Viewer's models by group, with the server each one is read from. The data is GRIB2 unless a note says otherwise. The NAM (with its nests), HiResW (the Guam domain stays on), HREF and SREF were retired on 3 Nov 2026 at 12 UTC (NWS notices SCN 26-47 and 26-48); they are under Archive
+and their old runs stay. The program has no SREF.
 
 **Global**
 
@@ -101,10 +104,11 @@ The GSL's MPAS-RRFSA runs and the NSSL CAMs pictures of them are only pictures: 
 
 | Model | Scope | Source | Notes |
 |---|---|---|---|
-| NAM | CONUS and North America, 12 km | NCEP model guidance pages (pictures, not GRIB2) | retires 3 Nov 2026 |
-| NAM CONUS nest (NAM-HIRES) | CONUS, 3 km | NCEP model guidance pages (pictures, not GRIB2) | retires 3 Nov 2026 |
-| HiResW (ARW, ARW2, FV3) | CONUS, 3 km | NCEP model guidance pages (pictures, not GRIB2) | retire 3 Nov 2026 |
-| HREF | CONUS ensemble, 10 members | NOMADS | retires 3 Nov 2026; the REFS replaces it |
+| NAM | CONUS and North America, 12 km | NCEP model guidance pages (pictures, not GRIB2) | retired 3 Nov 2026 |
+| NAM fire weather nest (FIREWX) | fire weather areas | NCEP model guidance pages (pictures, not GRIB2) | retired 3 Nov 2026 |
+| NAM CONUS nest (NAM-HIRES) | CONUS, 3 km | NCEP model guidance pages (pictures, not GRIB2) | retired 3 Nov 2026 |
+| HiResW (ARW, ARW2, FV3) | CONUS, 3 km | NCEP model guidance pages (pictures, not GRIB2) | retired 3 Nov 2026 (Guam stays on, not in the program) |
+| HREF | CONUS ensemble, 10 members | NOMADS | retired 3 Nov 2026; the REFS replaces it |
 | RAP | CONUS and North America, 13 km | NCEP model guidance pages (pictures, not GRIB2); RAP-ANL is GRIB2 from NCEI, below | retirement pending |
 | NAM-ANL, RAP-ANL, GFS-ANL, GFS1-ANL, NARR | analyses and reanalysis | NCEI model archive | |
 | RTMA, URMA | 2.5 km surface analyses | AWS (`noaa-rtma-pds`, `noaa-urma-pds`) | |
@@ -188,7 +192,11 @@ links to its server for fixing or finding another source.
 ### Home screen, toolbar and settings
 - A visual **home-screen layout editor** (zone templates; drag Severe / Thumbnails / Forecast / Text), reorderable and groupable
   toolbar with three styles (icons, icons + names grouped, menu bar), fixed-size wrapping thumbnails (GRIB latest-run render,
-  SPC sounding, MRMS radar, NHC outlooks), middle-button drag to pan.
+  SPC sounding, MRMS radar, NHC outlooks), middle-button drag to pan. The model picture keeps to the last model that looks ahead (not an analysis or the
+  WPC PPP), and "RTMA temperature and wind - your last model area" draws the newest RTMA over the area you last used.
+- **NWS notices** (toolbar) - the Service Change Notices and Public Information Statements of weather.gov/notification in one list, newest first, read again
+  every 30 minutes, with a filter; a click opens the notice.
+- The **radar** screen and the other screens opened "at now" follow the newest data and refresh by themselves (a layer pinned to a time never looks for newer scans).
 - System / Light / Dark theme; each window remembers its size and position.
 - **Contact email**: NWS asks API users to identify themselves, so the program asks for an email at each start until one is saved
   (Settings > General). It is sent only in the HTTP User-Agent, nowhere else.
