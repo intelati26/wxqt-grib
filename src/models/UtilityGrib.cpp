@@ -51,17 +51,8 @@
 #include "util/UtilityList.h"
 
 namespace {
-    // ---------------------------------------------------------------------
-    // RRFS/REFS cut over from "para" (parallel/pre-operational) to "prod"
-    // (operational) on NOMADS. NET (no earlier than) 2026-10-14 (this date
-    // has already slipped once - if rrfsStream = "para" below stops
-    // returning data before then, that's the signal it happened early).
-    // THE ONLY CHANGE NEEDED AT CUTOVER: flip the line below from "para" to
-    // "prod". Nothing else in this file depends on which stream it is - idx
-    // probing, subh fallback, run discovery etc. are all written generically
-    // against whatever baseDir points at.
-    const string rrfsStream{"para"};   // <-- flip to "prod" on/after 2026-10-14
-    // ---------------------------------------------------------------------
+    // RRFS/REFS went operational on NOMADS on 2026-11-03: the "para" (parallel) stream is gone, "prod" is the stream
+    const string rrfsStream{"prod"};
     const string baseDir{"https://nomads.ncep.noaa.gov/pub/data/nccf/com/rrfs/" + rrfsStream};
 
     const string dewColorMap{
