@@ -8,6 +8,7 @@
 #include "util/Activity.h"
 #include "objects/KnownIntermediates.h"
 #include "objects/NetManager.h"
+#include "util/OpenMeteoUsage.h"
 #include <deque>
 #include <map>
 #include <mutex>
@@ -138,6 +139,7 @@ namespace {
         if (!accept.isEmpty()) {
             request.setRawHeader(QByteArray{"Accept"}, accept);
         }
+        OpenMeteoUsage::record(url);
         QNetworkReply * response = manager.get(request);
         QEventLoop event;
         QObject::connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);

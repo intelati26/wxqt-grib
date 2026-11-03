@@ -23,6 +23,7 @@ private:
     void refresh();
     void stop(int what);   // 0 the selected rows, 1 read ahead and background, 2 everything
     QLabel * totals{};
+    QLabel * openMeteo{};
     QTableWidget * table{};
     QTimer timer;
     static QPointer<NetStatus> open;
