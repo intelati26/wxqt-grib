@@ -212,9 +212,28 @@ links to its server for fixing or finding another source.
 - Development aids (run with `QT_QPA_PLATFORM=offscreen`): `WXQT_OPEN=<toolbar id>` opens a tool, `WXQT_GRAB=<file.png>[,<ms>]`
   saves a picture of it and quits, `WXQT_SIZE=<w>x<h>` sizes it.
 
+### Open-Meteo (what the program sends it)  [Models / Climate]
+[Open-Meteo](https://open-meteo.com) is the one service the program uses that is free for non-commercial use under a **limit** rather than a key: **10,000 calls a day and 600 a minute, counted per IP address** (the address of your
+connection, shared with every other program on it), from midnight UTC. There is no account and no API key. A request carries the coordinates of the place asked about, and Open-Meteo sees your IP address as any website does; nothing else
+is sent, and the requests carry the program's name, and the contact address only if you entered one in Settings > General > "Contact email". The data is CC BY 4.0 (the forecasts are ECMWF's, the history is ERA5 from Copernicus / ECMWF).
+
+| Feature | Where | What is asked | Cost against the allowance |
+|---|---|---|---|
+| Sea level pressure on the hourly graph | the forecast point's hourly graph (Settings > "Sea level pressure ..." turns it off) | the forecast MSL pressure, 8 days hourly, at the selected point; every third hour is drawn | 1 per look |
+| Temperature history, "ERA5 reanalysis (anywhere)" | Temperature history window | the daily mean, high, low and rain since 1940 | about 2,300 the first time at a place; afterwards about 1 (below) |
+| ECMWF EC46 and SEAS5 models | Model Viewer (EC46, SEAS5) and the master map's EC46 layer | the weekly or monthly ensemble mean of one field at the points of a 10 degree world grid (about 550) and a 4 degree grid over North America (about 250), 250 points to a request | **the heavy one**: each point counts as at least one call, so a field's map is some 800 calls and, if the service weighs the 92 day request by its size, up to about 5,000; answers kept 6 hours |
+| EC46 and SEAS5 plumes | CFS / seasonal plume window | every member's daily values at the point | a few calls; kept 30 minutes |
+
+- **The temperature history is kept for good** in the data folder (`data/temperature-history/`, one file of about 150 KB for each 0.25 degree grid point: tenths of a degree in 16 bits, zlib). A later visit asks only for the
+  last 30 days, whose newest days ERA5 revises, so it costs one call. Delete the folder to start again.
+- **Open-Meteo weighs a call by its size**, roughly (variables / 10) x (days / 14), at least 1, so a request for 87 years is not one call.
+- **The Network window shows the day's count** ("Open-Meteo today (UTC): ..."): the requests the program has sent and their estimated weight against the 10,000, in red from 8,000. It is an estimate: it cannot see other programs on your
+  address, and Open-Meteo does not report your usage. It is kept in the settings and starts again at midnight UTC.
+- If you pass the limit Open-Meteo answers with an error for the rest of the day (or minute) and these features show nothing until it resets; nothing else in the program uses Open-Meteo.
+
 ### Data sources and credits
 NOAA / NWS (NHC, SPC, WPC, OPC, CPC, NESDIS OSPO and Coral Reef Watch, NCEP, NSSL, MRMS), CIRA / RAMMB (Colorado State),
-JTWC, JMA, ECMWF open data (CC BY 4.0), NOAA PSL (the reanalysis for the climatology), the U.S. Drought Monitor, AWS and Google Cloud open data (mirrors). SPC's REFS, CIRA's products and several NSSL models are **experimental**; this is not a
+JTWC, JMA, ECMWF open data (CC BY 4.0), Open-Meteo (CC BY 4.0: the EC46 and SEAS5 forecasts, ERA5 history and the pressure line, see above), NOAA PSL (the reanalysis for the climatology), the U.S. Drought Monitor, AWS and Google Cloud open data (mirrors). SPC's REFS, CIRA's products and several NSSL models are **experimental**; this is not a
 warning service - see the disclaimer below. Sounding algorithms: SHARPpy (BSD), see `licenses/sharppy-notice.md`.
 zstd (BSD / GPLv2) is vendored for the Zarr reader, see `licenses/zstd-LICENSE.txt`. GDAL (MIT), PROJ (MIT), ECMWF ecCodes (Apache 2.0), Qt and the
 data providers are credited in `licenses/CREDITS.md`.
