@@ -89,6 +89,9 @@ qint64 GfsCache::prune(int hours, qint64 bytes, const QString& folderPath) {
             if (total <= bytes) {
                 break;
             }
+            if (e.path.contains("/open-meteo/")) {   // small, and what it saves is the service's calls, not disk: it goes by age (the day) only
+                continue;
+            }
             QFile::remove(e.path);
             total -= e.size;
         }
