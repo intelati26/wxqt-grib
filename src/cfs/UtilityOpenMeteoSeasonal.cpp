@@ -12,6 +12,7 @@
 #include <thread>
 #include <QByteArray>
 #include <QCryptographicHash>
+#include <QDate>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -24,41 +25,42 @@
 #include "util/UtilityIO.h"
 
 namespace {
-    // a request is asked again after `minutes` at the earliest (the forecasts change daily at most): kept in memory and in a file, so that a program started again does not spend the service's quota
-    // (about 600 points a minute) on what it has just read
-    QByteArray fetch(const std::string& url, int minutes = 30) {
+    // a request is asked again on the next UTC day (the forecasts are made once a day at most, so an answer is good until the next run): kept in memory and in a file, so that a program started again
+    // does not spend the service's allowance (600 points a minute, 10,000 calls a day) on what it has read already
+    QByteArray fetch(const std::string& url, bool map = false) {
         static std::mutex lock;
-        static std::map<std::string, std::pair<std::chrono::steady_clock::time_point, QByteArray>> kept;
+        static std::map<std::string, std::pair<QDate, QByteArray>> kept;
+        const auto today = QDateTime::currentDateTimeUtc().date();
         {
             std::lock_guard<std::mutex> guard{lock};
             const auto found = kept.find(url);
-            if (found != kept.end() && std::chrono::steady_clock::now() - found->second.first < std::chrono::minutes{minutes}) {
+            if (found != kept.end() && found->second.first == today) {
                 return found->second.second;
             }
         }
         const QString path = GfsCache::folder() + "/open-meteo/" + QString::fromLatin1(QCryptographicHash::hash(QByteArray::fromStdString(url), QCryptographicHash::Sha1).toHex());
         {
             QFileInfo info{path};
-            if (info.exists() && info.lastModified().secsTo(QDateTime::currentDateTime()) < minutes * 60) {
+            if (info.exists() && info.lastModified().toUTC().date() == today) {
                 QFile file{path};
                 if (file.open(QIODevice::ReadOnly)) {
                     const auto bytes = file.readAll();
                     if (!bytes.isEmpty() && !bytes.contains("\"error\":true")) {
                         std::lock_guard<std::mutex> guard{lock};
-                        kept[url] = {std::chrono::steady_clock::now(), bytes};
+                        kept[url] = {today, bytes};
                         return bytes;
                     }
                 }
             }
         }
         auto bytes = UtilityIO::downloadAsByteArray(url);
-        if (minutes >= 360 && bytes.contains("Minutely API request limit exceeded")) {   // a map's points count against the service's minute: wait it out once
+        if (map && bytes.contains("Minutely API request limit exceeded")) {   // a map's points count against the service's minute: wait it out once
             std::this_thread::sleep_for(std::chrono::seconds{62});
             bytes = UtilityIO::downloadAsByteArray(url);
         }
         if (!bytes.isEmpty() && !bytes.contains("\"error\":true")) {   // (an answer that says the limit is reached is not kept)
             std::lock_guard<std::mutex> guard{lock};
-            kept[url] = {std::chrono::steady_clock::now(), bytes};
+            kept[url] = {today, bytes};
             QDir{}.mkpath(QFileInfo{path}.absolutePath());
             QFile file{path};
             if (file.open(QIODevice::WriteOnly)) {
@@ -212,7 +214,7 @@ bool UtilityOpenMeteoSeasonal::periodGrid(bool weekly, const std::string& variab
             la += (i > from ? "," : "") + QString::number(lats[i], 'f', 2);
             lo += (i > from ? "," : "") + QString::number(lons[i], 'f', 2);
         }
-        const auto bytes = fetch("https://seasonal-api.open-meteo.com/v1/seasonal?latitude=" + la.toStdString() + "&longitude=" + lo.toStdString() + (weekly ? "&weekly=" : "&monthly=") + variable + "&timezone=UTC", 360);
+        const auto bytes = fetch("https://seasonal-api.open-meteo.com/v1/seasonal?latitude=" + la.toStdString() + "&longitude=" + lo.toStdString() + (weekly ? "&weekly=" : "&monthly=") + variable + "&timezone=UTC", true);
         const auto document = QJsonDocument::fromJson(bytes);
         QJsonArray answers;
         if (document.isArray()) {
