@@ -6,6 +6,7 @@
 
 #include "MainWindow.h"
 #include "gfs/GfsModels.h"
+#include "misc/UtilityOpenMeteoPressure.h"
 #include "vis/GoesViewer.h"
 #include "objects/WString.h"
 #include <QTimer>
@@ -502,10 +503,16 @@ void MainWindow::placeForecastColumn() {
 
 void MainWindow::getHourlyGraphData() {
     hourlyGraphJson = UtilityHourly::getGraphJson(Location::getCurrentLocation());
+    hourlyPressureJson.clear();
+    if (Utility::readPref("HOURLY_GRAPH_PRESSURE", "true").compare(0, 1, "t") == 0) {   // the sea level pressure at the point, from Open-Meteo (the NWS forecast has none)
+        const auto point = Location::getLatLon(Location::getCurrentLocation());
+        hourlyPressureJson = UtilityOpenMeteoPressure::get(point.lat(), point.lon());
+    }
 }
 
 void MainWindow::updateHourlyGraph() {
     UtilityHourly::fillGraph(hourlyGraphJson, Location::getCurrentLocation(), &hourlyGraph);
+    hourlyGraph.setPressure(UtilityOpenMeteoPressure::parse(hourlyPressureJson));
 }
 
 void MainWindow::showHourlyGraph() {

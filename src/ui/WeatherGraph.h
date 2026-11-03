@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <QWidget>
+#include "misc/UtilityOpenMeteoPressure.h"
 #include "ui/Window.h"
 #include "ui/Widget2.h"
 
@@ -29,9 +30,11 @@ private:
         double windDirection;  // wind direction
         string condition;      // weather condition
         string label;          // the time as text, for the axis
+        long long utc{0};      // the time, seconds since 1970 (0: not known)
     };
 
     vector<DataPoint> dataPoints;
+    vector<UtilityOpenMeteoPressure::Sample> pressure;
     string locationName;
     QFont axisFont;
     QFont labelFont;
@@ -42,6 +45,9 @@ public:
                  const vector<double>& windSpeeds, const vector<double>& windDirections,
                  const vector<string>& conditions, const string& location);
     
+    // the time of each point (seconds since 1970), and the sea level pressure samples (every third hour) drawn as a green line against its own axis; empty: none
+    void setTimes(const vector<long long>& utc);
+    void setPressure(const vector<UtilityOpenMeteoPressure::Sample>& samples);
     const vector<DataPoint>& getDataPoints() const { return dataPoints; }
 
 private:

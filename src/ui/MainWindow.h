@@ -100,6 +100,7 @@ private:
     SevenDayCollection sevenDayCollection;
     Hazards hazards;
     CardHazards cardHazards;
+    string hourlyPressureJson;   // Open-Meteo's sea level pressure at the point, off the GUI thread too
     string hourlyGraphJson;   // downloaded off the GUI thread, drawn on it
     WeatherGraph hourlyGraph;   // Added: Hourly weather graph widget
     unordered_map<string, Image> imageWidgets;

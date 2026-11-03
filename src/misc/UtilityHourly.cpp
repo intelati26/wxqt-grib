@@ -114,10 +114,12 @@ bool UtilityHourly::fillGraph(const string& html, int locationNumber, WeatherGra
     vector<double> windSpeedsList;
     vector<double> windDirs;
     vector<string> conditions;
+    vector<long long> utcTimes;
 
     for (auto index : range(startTimes.size())) {
         const auto time = ObjectDateTime::translateTimeForHourly(Utility::safeGet(startTimes, index));
         times.push_back(time);
+        utcTimes.push_back(QDateTime::fromString(QString::fromStdString(Utility::safeGet(startTimes, index)), Qt::ISODate).toSecsSinceEpoch());
 
         const auto tempStr = Utility::safeGet(temperatures, index);
         double temp = 0.0;
@@ -149,5 +151,6 @@ bool UtilityHourly::fillGraph(const string& html, int locationNumber, WeatherGra
     }
 
     graphWidget->setData(times, temps, windSpeedsList, windDirs, conditions, Location::getName(locationNumber));
+    graphWidget->setTimes(utcTimes);
     return true;
 }
