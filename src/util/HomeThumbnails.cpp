@@ -258,15 +258,26 @@ QByteArray HomeThumbnails::fetch(const string& token) {
     if (token == "GRIB_LATEST") {
         // the model screen's last model, chart and area, drawn from the newest run (the model's first forecast hour after the start)
         auto model = Utility::readPref("NCEP", "RRFS");
-        if (!GfsModels::draws(model) || GfsModels::find(model)->storm) {
+        auto param = Utility::readPref("MODELNCEPPARAMLASTUSED", "500_wnd_ht");
+        auto sector = Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS");
+        if (!GfsModels::isForecast(model)) {   // an analysis (RTMA, URMA) or the PPP is on the model screen: the last model that looks ahead, with its chart and area
+            const auto last = Utility::readPref("MODEL_LAST_FORECAST", "");
+            if (GfsModels::isForecast(last)) {
+                model = last;
+                param = Utility::readPref("MODEL_LAST_FORECAST_PARAM", param);
+                sector = Utility::readPref("MODEL_LAST_FORECAST_SECTOR", sector);
+            }
+        }
+        if (!GfsModels::isForecast(model) || GfsModels::find(model)->storm) {   // (none looked at yet: the RRFS and its first chart)
             model = "RRFS";
+            param = "500_wnd_ht";
         }
         const auto * def = GfsModels::find(model);
         const auto hours = def->hours.empty() ? GfsModels::Hours{} : def->hours.front();
         const int hour = hours.from + (hours.from + hours.step <= hours.to ? hours.step : 0);
         GfsRender::Session session;
         string error;
-        const auto png = GfsRender::png(session, model, Utility::readPref("MODELNCEPPARAMLASTUSED", "500_wnd_ht"), Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS"), "", hour, {}, error);
+        const auto png = GfsRender::png(session, model, param, sector, "", hour, {}, error);
         return png;
     }
     string url;

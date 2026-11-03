@@ -349,6 +349,14 @@ bool GfsModels::draws(const std::string& id) {
     return find(id) != nullptr;
 }
 
+bool GfsModels::isForecast(const std::string& id) {
+    const auto * def = find(id);
+    if (def == nullptr || id == "WPC-PPP" || def->hours.empty()) {
+        return false;
+    }
+    return std::any_of(def->hours.begin(), def->hours.end(), [] (const Hours& h) { return h.to > h.from; });
+}
+
 bool GfsModels::isStormModel(const std::string& id) {
     const auto * def = find(id);
     return def != nullptr && def->storm;

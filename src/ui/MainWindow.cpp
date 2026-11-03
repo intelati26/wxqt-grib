@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "MainWindow.h"
+#include "gfs/GfsModels.h"
 #include "vis/GoesViewer.h"
 #include "objects/WString.h"
 #include <QTimer>
@@ -468,6 +469,11 @@ void MainWindow::launchImageScreen(const string& token) {
         }
         toolbar.launchModelViewer();   // the Model Viewer on the RTMA temperature chart, in the area last used
     } else if (token == "GRIB_LATEST") {
+        if (const auto last = Utility::readPref("MODEL_LAST_FORECAST", ""); !GfsModels::isForecast(Utility::readPref("NCEP", "RRFS")) && GfsModels::isForecast(last)) {   // the picture shows the last forecast model, not the analysis on the screen
+            Utility::writePref("NCEP", last);
+            Utility::writePref("MODELNCEPPARAMLASTUSED", Utility::readPref("MODEL_LAST_FORECAST_PARAM", "500_wnd_ht"));
+            Utility::writePref("MODELNCEPSECTORLASTUSED", Utility::readPref("MODEL_LAST_FORECAST_SECTOR", "CONUS"));
+        }
         toolbar.launchModelViewer();   // the Model Viewer opens on the model, chart and area the thumbnail shows (the same saved choices)
     } else if (const auto * entry = HomeThumbnails::find(token); entry != nullptr && !entry->routeId.empty()) {
         toolbar.launchRoute(entry->routeId);   // any other thumbnail opens its own tool

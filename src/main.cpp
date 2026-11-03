@@ -43,6 +43,7 @@
 #include <QDialog>
 #include <QTimer>
 #include "models/MrmsVerifyViewer.h"
+#include "misc/NwsNoticesViewer.h"
 #include <QThread>
 #include "common/GlobalVariables.h"
 #include "gfs/GfsModels.h"
@@ -274,6 +275,11 @@ int main(int argc, char * argv[]) {
                 new AhdViewer{&w};
             } else if (route == "radar") {   // WXQT_OPEN=radar: the radar doorway (the master map at the current location with MRMS, warnings and discussions)
                 MasterMapViewer::openRadar(&w);
+            } else if (route == "notices") {   // WXQT_OPEN=notices [WXQT_NOTICES_PNG=<file>]: the NWS notices window (its picture after 8 seconds)
+                auto * notices = new NwsNoticesViewer{&w};
+                if (const auto file = qEnvironmentVariable("WXQT_NOTICES_PNG"); !file.isEmpty()) {
+                    QTimer::singleShot(8000, notices, [notices, file] { notices->grab().save(file); });
+                }
             } else if (route.startsWith("verify:")) {   // WXQT_OPEN=verify:<model>:<chart>:<yyyyMMddHH UTC>[:sector]: the MRMS verification window at that time, compared at once (WXQT_VERIFY_PNG=<file>: its picture after WXQT_VERIFY_MS ms)
                 qputenv("WXQT_VERIFY_GO", "1");
                 auto valid = QDateTime::fromString(route.section(':', 3, 3), "yyyyMMddHH");
