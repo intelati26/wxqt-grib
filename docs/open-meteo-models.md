@@ -9,6 +9,15 @@ What a folder holds is **the variables Open-Meteo keeps**, not the provider's wh
 
 The viewer's groups today: Global, Seasonal, Regional, Convection allowing, Ensembles, Waves and ocean, Tropical cyclones, SPC guidance and mesoanalysis, Archive. Proposed new groups: **Air quality** (CAMS) and **Other regions** (Europe, Asia, kept at the bottom so they do not crowd the picker of a US user).
 
+## Terms and limits of the bucket (from the [open-data README](https://github.com/open-meteo/open-data))
+
+- **Licence:** CC-BY-4.0, so the credit line (Open-Meteo, and the weather services the data comes from) goes in `licenses/CREDITS.md` and the README, as it does for the API data.
+- **Cost:** the bucket (`s3://openmeteo`, us-west-2) is on the AWS Open Data Sponsorship program, so reading it is free to us, with no key and no per-call allowance. It is a sponsorship, not a contract: there is no warranty or uptime promise, and Open-Meteo says it is not affiliated with the weather services.
+- **Retention:** the spatial files (`data_spatial/`) are kept **7 days**; `in-progress.json` in each model folder lists the variables and time steps already written, so a run can be read while it is still being made; `latest.json` names the newest **completed** run.
+- **Other layouts of the same data:** `data/<model>/<variable>/<chunk>.om` (a rolling time series for one place, kept for years; what the API reads) and `data_run/<model>/<run>/` (a whole run as time series, a run every 3 hours kept). Either would serve a plume at a point without the API, which is a later question.
+- **Politeness:** cache what is read (a run is read once), read only the chunks a picture needs, and do not poll `latest.json` faster than the model runs.
+- **Resolutions** of the models (0.09 degree UKMO global, 0.25 ARPEGE and IFS, 0.125 GRAPES, 0.5 JMA-GSM, 15 km GDPS, 10 km RDPS, 2.5 km HRDPS, 3 km HRRR, 2.5 km NBM and so on) are in the README's tables.
+
 ## Seasonal (the one that started this)
 
 | Open-Meteo folder | In the viewer as | Leads and step | Variables | Grid | Note |
