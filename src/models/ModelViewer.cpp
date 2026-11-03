@@ -19,6 +19,7 @@
 #include <QRegularExpression>
 #include <QTimer>
 #include <QMenu>
+#include <QWidgetAction>
 #include <QMessageBox>
 #include "misc/ImageViewer.h"
 #include "objects/UtilityAnimationExport.h"
@@ -27,6 +28,7 @@
 #include <QSplitter>
 #include <QPushButton>
 #include "models/CamsViewer.h"
+#include "models/MrmsVerifyViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "models/ChartBuilder.h"
 #include <algorithm>
@@ -84,7 +86,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
-    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL vs deterministic", "Compare: seasonal models (same dates)"}}
+    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL, REFS, PPP vs deterministic", "Compare: seasonal models (same dates)"}}
     , comboMember{this, {"Ensemble mean"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
@@ -190,12 +192,29 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         });
         boxH2.addWidget(comboMember);
         comboMember.setVisible(false);
-        buttonPlace = UiStandards::button(this, "Mark the place");
-        buttonPlace->setCheckable(true);
+        // the less used controls are entries of two menus; a menu button is there while one of its entries is (syncMenus)
+        const auto menuButton = [this] (const char * label, QMenu *& menu, QPushButton *& button) {
+            button = UiStandards::button(this, label);
+            menu = new QMenu{button};
+            menu->setToolTipsVisible(true);
+            button->setMenu(menu);
+            button->setVisible(false);
+            boxH2.addWidgetReal(button);
+        };
+        menuButton("Map  \xE2\x96\xBE", menuMap, buttonMapMenu);
+        menuButton("Analysis  \xE2\x96\xBE", menuAnalysis, buttonAnalysisMenu);
+        const auto entry = [this] (QMenu * menu, const char * label, const char * tip, bool checkable) {
+            auto * action = new QAction{label, this};
+            action->setToolTip(tip);
+            action->setCheckable(checkable);
+            menu->addAction(action);
+            QObject::connect(action, &QAction::changed, this, [this] { syncMenus(); });
+            return action;
+        };
+        buttonPlace = entry(menuMap, "Mark the place", "The ring and the name of the saved location an area is centered on. Off leaves the map clean, in the window and in what is saved or exported.", true);
         buttonPlace->setChecked(Utility::readPref("MODEL_PLACE_MARK", "true").compare(0, 1, "t") == 0);
         buttonPlace->setVisible(false);
-        buttonPlace->setToolTip("The ring and the name of the saved location an area is centered on. Off leaves the map clean, in the window and in what is saved or exported.");
-        QObject::connect(buttonPlace, &QPushButton::toggled, this, [this] (bool on) {
+        QObject::connect(buttonPlace, &QAction::toggled, this, [this] (bool on) {
             Utility::writePref("MODEL_PLACE_MARK", on ? "true" : "false");
             frames.clear();   // every picture drawn so far has the mark (or has not)
             frameOrder.clear();
@@ -204,21 +223,17 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             refreshLoaded();
             reload();
         });
-        boxH2.addWidgetReal(buttonPlace);
-        buttonOnMap = UiStandards::button(this, "On the map...");
-        buttonOnMap->setToolTip("This chart on the master map (scroll and zoom it, put radar, satellite, storms or rivers with it): the same model, chart, area and valid time");
-        QObject::connect(buttonOnMap, &QPushButton::clicked, this, [this] {
+        buttonOnMap = entry(menuMap, "On the map...", "This chart on the master map (scroll and zoom it, put radar, satellite, storms or rivers with it): the same model, chart, area and valid time", false);
+        QObject::connect(buttonOnMap, &QAction::triggered, this, [this] {
             if (GfsRender::drawsModel(objectModel.model)) {
                 MasterMapViewer::openModels(this, objectModel.model, objectModel.param, objectModel.sector, shownProbe ? shownProbe->validUtc : QDateTime{});
             }
         });
-        boxH2.addWidgetReal(buttonOnMap);
         // the hurricane models (HAFS-A, HAFS-B): the wind field of the chart, and the intensity forecast of the storm
-        checkRadii = new QCheckBox{"Wind field (34 / 50 / 64 kt)", this};
+        checkRadii = entry(menuMap, "Wind field (34 / 50 / 64 kt)", "The model's own wind radii (34, 50 and 64 kt, by quadrant) round the storm on the chart.", true);
         checkRadii->setChecked(Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0);
         checkRadii->setVisible(false);
-        checkRadii->setToolTip("The model's own wind radii (34, 50 and 64 kt, by quadrant) round the storm on the chart.");
-        QObject::connect(checkRadii, &QCheckBox::toggled, this, [this] (bool on) {
+        QObject::connect(checkRadii, &QAction::toggled, this, [this] (bool on) {
             Utility::writePref("HAFS_RADII", on ? "true" : "false");
             frames.clear();   // every picture drawn so far has the field (or has not)
             frameOrder.clear();
@@ -227,22 +242,17 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             refreshLoaded();
             reload();
         });
-        boxH2.addWidgetReal(checkRadii);
-        buttonIntensity = UiStandards::button(this, "Intensity...");
+        buttonIntensity = entry(menuMap, "Intensity...", "The forecast maximum wind and minimum pressure of this storm against forecast hour, from HAFS-A and HAFS-B together.", false);
         buttonIntensity->setVisible(false);
-        buttonIntensity->setToolTip("The forecast maximum wind and minimum pressure of this storm against forecast hour, from HAFS-A and HAFS-B together.");
-        QObject::connect(buttonIntensity, &QPushButton::clicked, this, [this] {
+        QObject::connect(buttonIntensity, &QAction::triggered, this, [this] {
             if (Hafs::isStormId(objectModel.sector)) {
                 HafsIntensityViewer::open(this, objectModel.sector, [this] (const string& text) { setTitle(text.empty() ? objectModel.model + " " + sectorLabel(objectModel.sector) : text); });
             }
         });
-        boxH2.addWidgetReal(buttonIntensity);
-        buttonStations = UiStandards::button(this, "Stations");
-        buttonStations->setCheckable(true);
+        buttonStations = entry(menuMap, "Stations", "A button on the map at each station of the BUFKIT model soundings (airports and sounding sites): click one for that station's RRFS sounding, every forecast hour "
+                                   "from one small file (about 0.4 MB). The buttons are not part of the map, so saved and exported pictures do not have them.", true);
         buttonStations->setChecked(Utility::readPref("MODEL_BUFKIT_STATIONS", "false").compare(0, 1, "t") == 0);
-        buttonStations->setToolTip("A button on the map at each station of the BUFKIT model soundings (airports and sounding sites): click one for that station's RRFS sounding, every forecast hour "
-                                   "from one small file (about 0.4 MB). The buttons are not part of the map, so saved and exported pictures do not have them.");
-        QObject::connect(buttonStations, &QPushButton::toggled, this, [this] (bool on) {
+        QObject::connect(buttonStations, &QAction::toggled, this, [this] (bool on) {
             Utility::writePref("MODEL_BUFKIT_STATIONS", on ? "true" : "false");
             stationPinKey.clear();
             refreshStationPins();
@@ -251,28 +261,28 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         QObject::connect(&image, &ZoomImage::pinClicked, this, [this] (const QString& id) {
             new SoundingViewer{this, "RRFS", id.toStdString(), true};
         });
-        boxH2.addWidgetReal(buttonStations);
-        buttonHodos = UiStandards::button(this, "Hodographs");
-        buttonHodos->setCheckable(true);
-        buttonHodos->setChecked(Utility::readPref("MODEL_BUFKIT_HODOS", "false").compare(0, 1, "t") == 0);
-        buttonHodos->setToolTip("A small hodograph of the RRFS sounding at each station in view, for the hour on the map: wind from the surface to 9 km (pink 0-1 km, red to 3, green to 6, yellow above), "
+        buttonHodos = entry(menuMap, "Hodographs", "A small hodograph of the RRFS sounding at each station in view, for the hour on the map: wind from the surface to 9 km (pink 0-1 km, red to 3, green to 6, yellow above), "
                                 "rings at 20 and 40 kt and the right-mover storm motion (orange dot); the 0-3 km helicity is in the tooltip. Pictures you save or open full size have them too. Each station is one small file (about 0.4 MB, every hour), read as it comes "
-                                "into view; zoom in for more stations. Click one for its sounding. Not part of saved pictures.");
+                                "into view; zoom in for more stations. Click one for its sounding. Not part of saved pictures.", true);
+        buttonHodos->setChecked(Utility::readPref("MODEL_BUFKIT_HODOS", "false").compare(0, 1, "t") == 0);
         QObject::connect(this, &QObject::destroyed, [owner = static_cast<const void *>(&bufkitOwner)] { NetManager::cancelOwner(owner); });   // the screen closes: its station files stop too
         hodoTimer.setSingleShot(true);
         QObject::connect(&hodoTimer, &QTimer::timeout, this, [this] { refreshHodographs(); });
-        QObject::connect(buttonHodos, &QPushButton::toggled, this, [this] (bool on) {
+        QObject::connect(buttonHodos, &QAction::toggled, this, [this] (bool on) {
             Utility::writePref("MODEL_BUFKIT_HODOS", on ? "true" : "false");
             refreshHodographs();
         });
         QObject::connect(&image, &ZoomImage::viewChanged, this, [this] { hodoTimer.start(250); });
-        boxH2.addWidgetReal(buttonHodos);
         comboLocalKm = UiStandards::combo(this);
         for (const int km : {150, 300, 600, 1200, 2400}) {
             comboLocalKm->addItem(QString::number(km) + " km square", km);
         }
         comboLocalKm->setToolTip("How big the area round the saved location is (the area list has one entry for each place)");
-        comboLocalKm->setVisible(false);
+        actionLocalKm = new QWidgetAction{this};   // (the combo is an entry of the Map menu)
+        actionLocalKm->setDefaultWidget(comboLocalKm);
+        actionLocalKm->setVisible(false);
+        menuMap->addAction(actionLocalKm);
+        QObject::connect(actionLocalKm, &QAction::changed, this, [this] { syncMenus(); });
         QObject::connect(comboLocalKm, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this] (int index) {
             double lat = 0, lon = 0, km = 0;
             string name;
@@ -292,11 +302,9 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             refreshSectorList();
             reload();
         });
-        boxH2.addWidgetReal(comboLocalKm);
-        buttonAroundPoint = UiStandards::button(this, "Area around point");
+        buttonAroundPoint = entry(menuMap, "Area around point", "Draws an area of the size above it (a square of that many kilometers a side) centered on the point clicked on the chart, as a saved location's area is, without saving the point.", false);
         buttonAroundPoint->setVisible(false);
-        buttonAroundPoint->setToolTip("Draws an area of the size beside it (a square of that many kilometers a side) centered on the point clicked on the chart, as a saved location's area is, without saving the point.");
-        QObject::connect(buttonAroundPoint, &QPushButton::clicked, this, [this] {
+        QObject::connect(buttonAroundPoint, &QAction::triggered, this, [this] {
             if (!haveClicked) {
                 return;
             }
@@ -307,20 +315,16 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             refreshProductButton();
             reload();
         });
-        boxH2.addWidgetReal(buttonAroundPoint);
-        buttonSigma = UiStandards::button(this, "Std deviations");
-        buttonSigma->setCheckable(true);
+        buttonSigma = entry(menuAnalysis, "Std deviations", "The anomaly in standard deviations from the 1991-2020 mean (the day's own spread of the reanalysis) instead of in decameters or millibars. The legend says how big one deviation is over the map (it differs by place), and the read-out shows both values at the point. The deviations are downloaded once, from Settings, Model Sources, Climatology.", true);
         buttonSigma->setVisible(false);
-        buttonSigma->setToolTip("The anomaly in standard deviations from the 1991-2020 mean (the day's own spread of the reanalysis) instead of in decameters or millibars. The legend says how big one deviation is over the map (it differs by place), and the read-out shows both values at the point. The deviations are downloaded once, from Settings, Model Sources, Climatology.");
-        QObject::connect(buttonSigma, &QPushButton::toggled, this, [this] (bool on) {
+        QObject::connect(buttonSigma, &QAction::toggled, this, [this] (bool on) {
             standardDeviations = on;
             startPlaying(false);
             strip->stop();
             reload();
         });
-        boxH2.addWidgetReal(buttonSigma);
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
-        comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone. 'Seasonal models': the EC46, SEAS5 and CFS30 side by side, each in the period that overlaps the main one most. 'ENS-ALL vs deterministic': the pooled chart beside the matching chart of GFS, the IFS and the AIFS (precipitation of the same period, the model's own sea level pressure, heights or temperature).");
+        comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone. 'Seasonal models': the EC46, SEAS5 and CFS30 side by side, each in the period that overlaps the main one most. 'ENS-ALL, REFS, PPP vs deterministic': the pooled chart beside the matching chart of GFS, the IFS and the AIFS (precipitation of the same period, the model's own sea level pressure, heights or temperature); the REFS beside the RRFS, the HRRR and the NSSL MPAS (echoes, updraft helicity, temperature); the WPC portal's rain amount beside the global models' precipitation of the same period.");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
         comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 7)));
         comboTiles.connect([this] {
@@ -353,15 +357,13 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
                 prefetch(prefetchGeneration);
                 refreshLoaded();
             });
-            boxH2.addWidget(comboPreload);
         }
-        buttonMax = UiStandards::button(this, "Maximum \xE2\x96\xBE");
-        auto * maxMenu = new QMenu{buttonMax};
-        QObject::connect(maxMenu->addAction("Of the 24 hours ending at this hour"), &QAction::triggered, this, [this] { showMax(false); });
-        QObject::connect(maxMenu->addAction("Day 1 (12z to 12z)"), &QAction::triggered, this, [this] { showMax(true); });
-        buttonMax->setMenu(maxMenu);
-        buttonMax->setToolTip("The largest value of the chart's fill over a day (hail, gusts, rain rate ...). Choosing another hour goes back to the plain chart.");
-        boxH2.addWidgetReal(buttonMax);
+        {   // the largest value of the chart's fill over a day (hail, gusts, rain rate ...): choosing another hour goes back to the plain chart
+            auto * maxOfDay = entry(menuAnalysis, "Maximum of the 24 hours ending at this hour", "The largest value of the chart's fill over the 24 hours (hail, gusts, rain rate ...). Choosing another hour goes back to the plain chart.", false);
+            QObject::connect(maxOfDay, &QAction::triggered, this, [this] { showMax(false); });
+            auto * maxDayOne = entry(menuAnalysis, "Maximum of Day 1 (12z to 12z)", "The largest value of the chart's fill from 12z to 12z (hail, gusts, rain rate ...). Choosing another hour goes back to the plain chart.", false);
+            QObject::connect(maxDayOne, &QAction::triggered, this, [this] { showMax(true); });
+        }
         buttonViews = UiStandards::button(this, "Saved views \xE2\x96\xBE");
         menuViews = new QMenu{buttonViews};
         buttonViews->setMenu(menuViews);
@@ -370,18 +372,25 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         boxH2.addWidget(soundingPick.button());
         soundingPick.setOwnOpener([this] (double lon, double lat) { return openModelSounding(lon, lat); });
         soundingPick.button().getView()->setToolTip(soundingPick.button().getView()->toolTip() + "\n\nOn a global model (the GFS, IFS, AIFS ...) the sounding is read from that model's own pressure levels at the point, for the run and hour on show, to the end of its run (the long range, at its resolution).");
-        buttonMembers = UiStandards::button(this, "Members graph...");
-        buttonMembers->setToolTip("REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)");
-        QObject::connect(buttonMembers, &QPushButton::clicked, this, [this] { openMemberGraph(); });
-        boxH2.addWidgetReal(buttonMembers);
-        buttonPlume = UiStandards::button(this, "Plume...");
-        buttonPlume->setCheckable(true);
-        buttonPlume->setToolTip("A second pane beside the chart with the forecast plume at the point clicked (or the first saved location): the CFSv2 runs for the CFS, the 31 members for the GEFS, the GFS runs for the others. It has all the plume window's choices");
-        QObject::connect(buttonPlume, &QPushButton::clicked, this, [this] (bool on) {
+        buttonMembers = entry(menuAnalysis, "Members graph...", "REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)", false);
+        QObject::connect(buttonMembers, &QAction::triggered, this, [this] { openMemberGraph(); });
+        buttonVerify = entry(menuAnalysis, "Verify against MRMS...", "Reflectivity charts: score the model's runs that have a forecast for a time on the hour against the MRMS composite reflectivity of that time (hits, misses, false alarms and the Fractions Skill Score), with the three pictures side by side", false);
+        QObject::connect(buttonVerify, &QAction::triggered, this, [this] {
+            const auto run = runTime(objectModel.run);
+            const auto valid = run.isValid() ? run.addSecs(3600LL * std::atoi(objectModel.getTime().c_str())) : QDateTime{};
+            new MrmsVerifyViewer{this, objectModel.model, objectModel.param, objectModel.sector, valid};
+        });
+        buttonVerify->setVisible(false);
+        buttonLayers = UiStandards::button(this, "Layers...");
+        buttonLayers->setToolTip("Which members, runs and models the paintball draws. The lines of the chance are worked out again from the ones left in.");
+        QObject::connect(buttonLayers, &QPushButton::clicked, this, [this] { chooseLayers(); });
+        boxH2.addWidgetReal(buttonLayers);
+        buttonLayers->setVisible(false);
+        buttonPlume = entry(menuAnalysis, "Plume...", "A second pane beside the chart with the forecast plume at the point clicked (or the first saved location): the CFSv2 runs for the CFS, the 31 members for the GEFS, the GFS runs for the others. It has all the plume window's choices", true);
+        QObject::connect(buttonPlume, &QAction::triggered, this, [this] (bool on) {
             Utility::writePref("MODEL_PLUME_PANE", on ? "on" : "off");
             updatePlumePanel();
         });
-        boxH2.addWidgetReal(buttonPlume);
         buttonOverlay = UiStandards::button(this, "Overlay models...");
         buttonOverlay->setToolTip("Draw the lines (heights, pressure) of other models over this chart's for the same valid time, each model in its own color. Save... writes it as a loop.");
         QObject::connect(buttonOverlay, &QPushButton::clicked, this, [this] { chooseOverlays(); });
@@ -390,14 +399,19 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonColors->setToolTip("Edit the color scale of this kind of chart: the stops, their colors and transparency, flat bands or smooth. Kept for every chart that uses the same scale.");
         QObject::connect(buttonColors, &QPushButton::clicked, this, [this] { editColors(); });
         boxH2.addWidgetReal(buttonColors);
-        auto * save = UiStandards::button(this, "Save...");
-        save->setToolTip("Save the picture, or the hours drawn so far as a loop");
-        QObject::connect(save, &QPushButton::clicked, this, [this] { saveLoop(); });
-        boxH2.addWidgetReal(save);
-        auto * saveBig = UiStandards::button(this, "Hi-res...");
-        saveBig->setToolTip("Draw the chart on view again at a larger size (2200 to 6600 pixels wide), the whole chart or just the part you have zoomed to, and save it");
-        QObject::connect(saveBig, &QPushButton::clicked, this, [this] { saveHighRes(); });
-        boxH2.addWidgetReal(saveBig);
+        {
+            auto * save = UiStandards::button(this, "Save  \xE2\x96\xBE");
+            auto * saveMenu = new QMenu{save};
+            saveMenu->setToolTipsVisible(true);
+            auto * picture = saveMenu->addAction("Save...");
+            picture->setToolTip("Save the picture, or the hours drawn so far as a loop");
+            QObject::connect(picture, &QAction::triggered, this, [this] { saveLoop(); });
+            auto * big = saveMenu->addAction("Hi-res...");
+            big->setToolTip("Draw the chart on view again at a larger size (2200 to 6600 pixels wide), the whole chart or just the part you have zoomed to, and save it");
+            QObject::connect(big, &QAction::triggered, this, [this] { saveHighRes(); });
+            save->setMenu(saveMenu);
+            boxH2.addWidgetReal(save);
+        }
         boxH2.addStretch();
         box.addLayout(boxH2);
     }
@@ -420,7 +434,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             clickedLon = lon;
             haveClicked = true;
             if (buttonAroundPoint != nullptr && !buttonAroundPoint->isVisible() && GfsRender::drawsModel(objectModel.model) && !GfsModels::isStormModel(objectModel.model)) {
-                comboLocalKm->setVisible(true);
+                actionLocalKm->setVisible(true);
                 buttonAroundPoint->setVisible(true);
             }
             if (plumePanel != nullptr && plumePanel->isVisible()) {
@@ -505,6 +519,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     strip = new TimeStrip{this};
     strip->onSelect = [this] (int index) { selectHour(index); };
     strip->onPlay = [this] (bool on) { startPlaying(on); };
+    strip->addControl(comboPreload.getView());
     box.addWidgetReal(strip);
     plumePanel = new CfsPlumePanel{this, panes, 0.0, 0.0, "gefs", false};   // (shown, and reading, only while the pane is on)
     plumePanel->setCompact(true);   // (the GEFS pane begins with the mean and spread: all the members are a choice, 600 reads the first time)
@@ -535,6 +550,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     });
     box.addWidgetReal(new ActivityLabel{this});
     box.getAndShow(this);
+    syncMenus();
     refreshProductButton();
 
     startRun();
@@ -752,6 +768,9 @@ string ModelViewer::frameKey(int hour) const {
     string overlay;
     for (const auto& other : overlayModels) {
         overlay += (overlay.empty() ? "|overlay=" : ",") + other;
+    }
+    for (const auto& layer : hiddenLayers) {
+        key += "|hide=" + layer;
     }
     return key + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
 }
@@ -1804,7 +1823,7 @@ void ModelViewer::reload() {
         string name;
         const bool local = GfsChart::parseLocalId(objectModel.sector, lat, lon, km, name);
         const bool pointArea = haveClicked && GfsRender::drawsModel(objectModel.model) && !GfsModels::isStormModel(objectModel.model);   // (a clicked point can be the center of an area too)
-        comboLocalKm->setVisible(local || pointArea);
+        actionLocalKm->setVisible(local || pointArea);
         if (buttonAroundPoint != nullptr) {
             buttonAroundPoint->setVisible(pointArea);
         }
@@ -2136,6 +2155,12 @@ void ModelViewer::updateRunStatus() {
 // The charts of a model drawn from GRIB are many: they are chosen in the grouped picker, and the plain list is for the models still fetched as pictures.
 void ModelViewer::refreshProductButton() {
     buttonMembers->setVisible(objectModel.model == "REFS");
+    {   // a chart whose fill is reflectivity in dBZ (not a chance or a paintball): it can be scored against MRMS
+        const auto& id = objectModel.param;
+        const auto has = [&id] (const char * part) { return id.find(part) != string::npos; };
+        buttonVerify->setVisible(GfsRender::drawsModel(objectModel.model) && (has("refc") || has("refd") || has("reflectivity") || has("cref") || has("maxref") || has("sim_radar")) &&
+                                 !has("prob") && !has("paintball") && !has("nmep") && !has("member"));
+    }
     const bool ncep = objectModel.prefModel == "NCEP";   // the model guidance site's list is long: the grouped picker
     comboboxModel.setVisible(!ncep);
     buttonModel.setVisible(ncep);
@@ -2148,6 +2173,7 @@ void ModelViewer::refreshProductButton() {
     buttonProducts.setVisible(grib);
     refreshBuildMenu();
     refreshMembers();
+    refreshLayersButton();
     refreshOverlays();
     if (!grib) {
         return;
@@ -2344,7 +2370,7 @@ void ModelViewer::setOverlays(const std::vector<string>& ids) {
 void ModelViewer::clickAt(double fx, double fy, bool areaButton) {
     emit image.clicked(fx, fy);
     if (areaButton && buttonAroundPoint != nullptr) {
-        buttonAroundPoint->click();
+        buttonAroundPoint->trigger();
     }
 }
 
@@ -2402,9 +2428,13 @@ const std::vector<string>& ModelViewer::partsOfPool() {
     return parts;
 }
 
-const std::vector<string>& ModelViewer::deterministicDefaults() {
-    static const std::vector<string> models{"GFS", "IFS", "AIFS"};
-    return models;
+const std::vector<string>& ModelViewer::deterministicDefaults(const string& model) {
+    static const std::vector<string> global{"GFS", "IFS", "AIFS"}, convection{"RRFS", "HRRR", "MPAS-HT"}, mpas{"RRFS", "HRRR", "REFS"};   // (the REFS has three tiles: the MPAS-RN is one pick of the tile menu)
+    return model == "REFS" ? convection : model == "MPAS-HT" || model == "MPAS-RN" ? mpas : global;
+}
+
+bool ModelViewer::hasPartners(const string& model) {
+    return model == "ENS-ALL" || model == "REFS" || model == "MPAS-HT" || model == "MPAS-RN" || model == "WPC-PPP";
 }
 
 // What a deterministic model draws that goes with a pooled chart: the amount of precipitation of the same period beside the chance of an amount, and the model's own field beside the mean and spread of the
@@ -2412,7 +2442,28 @@ const std::vector<string>& ModelViewer::deterministicDefaults() {
 string ModelViewer::partnerChart(const string& pooled, const string& model) {
     std::vector<string> candidates;
     const auto starts = [&pooled] (const char * prefix) { return pooled.compare(0, std::char_traits<char>::length(prefix), prefix) == 0; };
-    if (starts("all_prob_24h_")) {
+    if (model == "REFS") {   // (the MPAS's charts beside a REFS member: the RRFS control is the RRFS)
+        static const std::map<string, string> member{{"sim_radar_comp", "member_refc"}, {"2m_temp_10m_wnd", "member_tmp2m"}, {"sfc_cape_cin", "member_cape"}, {"10m_wnd_sfc_gust", "member_gust"}, {"max_updraft_hlcy", "member_uphl"}};
+        if (const auto it = member.find(pooled); it != member.end()) {
+            candidates = {it->second};
+        }
+    } else if (model == "MPAS-HT" || model == "MPAS-RN" || model == "RRFS" || model == "HRRR") {   // (the REFS charts beside the RRFS, the HRRR and the NSSL MPAS; the MPAS's own charts beside the RRFS and the HRRR)
+        if (pooled == "sim_radar_comp" || pooled == "2m_temp_10m_wnd" || pooled == "sfc_cape_cin" || pooled == "10m_wnd_sfc_gust" || pooled == "max_updraft_hlcy") {
+            candidates = {pooled};
+        }
+        if (candidates.empty() && (starts("prob_refc_") || starts("refc_paintball"))) {
+            candidates = {"sim_radar_comp"};
+        } else if (starts("prob_uphl_") || starts("max_uphl")) {
+            candidates = {"max_updraft_hlcy"};
+        } else if (starts("mean_2m_temp") || starts("spread_2m_temp")) {
+            candidates = {"2m_temp_10m_wnd"};
+        }
+    } else if (starts("ppp_")) {   // ppp_<hours>h_qpf_<expected|pNN>: the model's precipitation of the same period, ending at the same time
+        const auto parts = QString::fromStdString(pooled).split('_');
+        if (parts.size() == 4 && parts[2] == "qpf" && parts[1].endsWith('h')) {
+            candidates = {"precip_p" + parts[1].chopped(1).toStdString()};
+        }
+    } else if (starts("all_prob_24h_")) {
         candidates = {"precip_p24"};
     } else if (starts("gen~all_period~")) {   // gen~all_period~<inches>~<hours>
         const int hours = QString::fromStdString(pooled).section('~', 3, 3).toInt();
@@ -2581,7 +2632,7 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
         } else if (show == TilesShow::Parts) {
             spec.member = k < partsOfPool().size() ? partsOfPool()[k] : string{};
         } else if (show == TilesShow::Deterministic) {
-            spec.model = k < deterministicDefaults().size() ? deterministicDefaults()[k] : string{};
+            spec.model = k < deterministicDefaults(objectModel.model).size() ? deterministicDefaults(objectModel.model)[k] : string{};
         } else if (show == TilesShow::Seasonal) {
             std::vector<string> others;
             for (const auto& id : seasonalModels()) {
@@ -2663,6 +2714,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.variant.standardDeviations = standardDeviations;
         job.variant.overlayModels = overlayModels;
         job.variant.overlayKeepFill = overlayKeepFill;
+        job.variant.hideKeys = hiddenLayers;
         job.key = frameKey(mainHour);
     } else {
         const auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
@@ -2670,7 +2722,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.model = show == TilesShow::Members ? objectModel.model : spec.model;
         job.param = show == TilesShow::Members ? objectModel.param : spec.param;
         if (show == TilesShow::Deterministic) {
-            job.param = objectModel.model == "ENS-ALL" && !spec.model.empty() ? partnerChart(objectModel.param, spec.model) : string{};
+            job.param = hasPartners(objectModel.model) && !spec.model.empty() ? partnerChart(objectModel.param, spec.model) : string{};
         }
         if (show == TilesShow::Seasonal) {
             job.param = spec.model.empty() ? string{} : seasonalPartner(objectModel.param, spec.model);
@@ -2683,12 +2735,12 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         } else if (show == TilesShow::Parts && (objectModel.model != "ENS-ALL" || spec.member.empty())) {
             job.ok = false;
             job.why = "Pick the ENS-ALL model (the pool of the ECMWF, GEFS and GEPS members) to compare it with its parts.";
-        } else if (show == TilesShow::Deterministic && objectModel.model != "ENS-ALL") {
+        } else if (show == TilesShow::Deterministic && !hasPartners(objectModel.model)) {
             job.ok = false;
-            job.why = "Pick the ENS-ALL model to compare its chart with a deterministic model.";
+            job.why = "Pick the ENS-ALL model, the REFS or the WPC probabilistic precipitation portal to compare its chart with a deterministic model.";
         } else if (show == TilesShow::Deterministic && job.param.empty()) {
             job.ok = false;
-            job.why = (spec.model.empty() ? string{"This model"} : spec.model) + " has no chart to put beside this one (the chance of precipitation, the spread and the contours of the pool have partners in the precipitation, pressure, height and temperature charts).";
+            job.why = (spec.model.empty() ? string{"This model"} : spec.model) + " has no chart to put beside this one (for the pool: the chance of precipitation, the spread and the contours have partners in the precipitation, pressure, height and temperature charts; for the REFS: the echoes, the updraft helicity and the temperature; for the portal: the rain amount of a period).";
         } else if (show == TilesShow::Seasonal && std::find(seasonalModels().begin(), seasonalModels().end(), objectModel.model) == seasonalModels().end()) {
             job.ok = false;
             job.why = "Pick the EC46, the SEAS5 or the CFS30 (the CFSv2's next days against its normal) to compare the long-range models.";
@@ -2733,6 +2785,8 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
                 job.cycle = t.addSecs(-3600LL * spec.shift).toString("yyyyMMddHH").toStdString();
                 job.hour = mainHour + spec.shift;   // the same valid time
             }
+        } else if (show == TilesShow::Deterministic && objectModel.model == "WPC-PPP") {   // the portal's run is any hour: each model's own newest run, at the valid time (below)
+            job.cycle.clear();
         } else if (show == TilesShow::Deterministic) {   // the same initialization as the pool's run (the ECMWF's 00Z or 12Z): the same hour is then the same valid time
             const auto t = runTime(objectModel.run);
             if (!t.isValid()) {
@@ -2748,7 +2802,8 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             job.ok = false;
             job.why = job.model + " does not draw " + job.param + ".";
         }
-        if (job.ok && index > 0 && show != TilesShow::Seasonal && show != TilesShow::ModelsByTime) {   // a model with no forecast for that hour: say which hours it has (the run that is too short, the model that stops earlier, the hour between its steps)
+        const bool byClock = show == TilesShow::ModelsByTime || (show == TilesShow::Deterministic && objectModel.model == "WPC-PPP");
+        if (job.ok && index > 0 && show != TilesShow::Seasonal && !byClock) {   // a model with no forecast for that hour: say which hours it has (the run that is too short, the model that stops earlier, the hour between its steps)
             const auto * def = GfsModels::find(job.model);
             if (def != nullptr && !def->hours.empty()) {
                 int last = 0;
@@ -2812,11 +2867,14 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         if (show == TilesShow::Members) {   // each tile its own member of the same chart
             v.member = tileMember(index);
             v.standardDeviations = standardDeviations;
+        } else if (show == TilesShow::Deterministic && spec.model == "REFS" && (objectModel.model == "MPAS-HT" || objectModel.model == "MPAS-RN")) {   // the RRFS control is the RRFS tile; the REFS tile is its second member
+            v.member = spec.member.empty() ? "m002" : spec.member;
         } else if (spec.model == objectModel.model) {   // the same model's tiles show the member too (another model's charts have none)
             v.member = member;
+            v.hideKeys = hiddenLayers;
             v.standardDeviations = standardDeviations;
         }
-        if (show == TilesShow::ModelsByTime && job.ok) {   // by the clock: each model's own hour for the first tile's valid time
+        if (byClock && job.ok) {   // by the clock: each model's own hour for the first tile's valid time
             const auto start = runTime(objectModel.run);
             if (!start.isValid()) {
                 job.ok = false;
@@ -3033,7 +3091,7 @@ void ModelViewer::changeTile(int index) {
         }
     } else if (show == TilesShow::Deterministic) {
         for (const auto& def : GfsModels::all()) {
-            if (def.storm || GfsModels::pickerGroup(def.id) == "Ensembles" || partnerChart(objectModel.param, def.id).empty()) {
+            if (def.storm || (GfsModels::pickerGroup(def.id) == "Ensembles" && !(def.id == "REFS" && (objectModel.model == "MPAS-HT" || objectModel.model == "MPAS-RN"))) || partnerChart(objectModel.param, def.id).empty()) {
                 continue;
             }
             const auto id = def.id;
@@ -3340,6 +3398,19 @@ void ModelViewer::refreshMembers() {
     buttonSigma->setVisible(offered);
 }
 
+void ModelViewer::syncMenus() {
+    for (const auto& [button, menu] : {std::pair{buttonMapMenu, menuMap}, std::pair{buttonAnalysisMenu, menuAnalysis}}) {
+        if (button == nullptr || menu == nullptr) {
+            return;
+        }
+        bool any = false;
+        for (const auto * action : menu->actions()) {
+            any = any || action->isVisible();
+        }
+        button->setVisible(any);
+    }
+}
+
 void ModelViewer::editColors() {
     const auto * product = GfsRender::drawsModel(objectModel.model) ? GfsChart::product(objectModel.param, objectModel.model) : nullptr;
     if (product == nullptr) {
@@ -3364,6 +3435,61 @@ void ModelViewer::editColors() {
         refreshLoaded();
         reload();
     }};
+}
+
+void ModelViewer::refreshLayersButton() {
+    const auto * product = GfsChart::product(objectModel.param, objectModel.model);
+    buttonLayers->setVisible(product != nullptr && !product->layers.empty());
+}
+
+// the check boxes of a paintball's sets, as the SPC's pages list their underlays: a set taken out is not drawn, and the chance lines are worked out from the rest
+void ModelViewer::chooseLayers() {
+    const auto * product = GfsChart::product(objectModel.param, objectModel.model);
+    if (product == nullptr || product->layers.empty()) {
+        return;
+    }
+    QDialog dialog{this};
+    dialog.setWindowTitle("Layers of the paintball");
+    auto * layout = new QVBoxLayout{&dialog};
+    auto * about = new QLabel{"The sets that are drawn, and counted in the chance lines. A run that is not there yet is left out whatever is ticked here.", &dialog};
+    about->setWordWrap(true);
+    layout->addWidget(about);
+    std::vector<QCheckBox *> boxes;
+    for (const auto& [key, name] : product->layers) {
+        auto * box = new QCheckBox{QString::fromStdString(name), &dialog};
+        box->setProperty("key", QString::fromStdString(key));
+        box->setChecked(std::find(hiddenLayers.begin(), hiddenLayers.end(), key) == hiddenLayers.end());
+        layout->addWidget(box);
+        boxes.push_back(box);
+    }
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    std::vector<string> hidden;
+    for (auto * box : boxes) {
+        if (!box->isChecked()) {
+            hidden.push_back(box->property("key").toString().toStdString());
+        }
+    }
+    if (hidden.size() >= boxes.size()) {   // (at least one set stays: a paintball of nothing has no chance to work out)
+        hidden.pop_back();
+    }
+    if (hidden == hiddenLayers) {
+        return;
+    }
+    hiddenLayers = hidden;
+    startPlaying(false);
+    strip->stop();
+    frames.clear();
+    frameOrder.clear();
+    frameBytes = 0;
+    failedAhead.clear();
+    refreshLoaded();
+    reload();
 }
 
 void ModelViewer::refreshOverlays() {

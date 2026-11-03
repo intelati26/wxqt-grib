@@ -24,7 +24,9 @@
 #include <deque>
 #include <map>
 #include <set>
+#include <QAction>
 #include <QComboBox>
+#include <QWidgetAction>
 #include <QTimer>
 #include "models/ChartHover.h"
 #include "models/CompareTile.h"
@@ -115,7 +117,8 @@ private:
     TilesShow tilesShow() const;
     static const std::vector<string>& partsOfPool();
     static string partnerChart(const string& pooled, const string& model);   // the chart of a deterministic model that goes with a pooled ENS-ALL chart ("" when there is none)
-    static const std::vector<string>& deterministicDefaults();
+    static const std::vector<string>& deterministicDefaults(const string& model);   // the models a pooled or probabilistic model is put beside: the global ones; for the REFS the convection allowing ones (RRFS, HRRR, NSSL MPAS)
+    static bool hasPartners(const string& model);   // the models whose charts go beside deterministic ones: the ENS-ALL pool, the REFS and the WPC probabilistic precipitation portal
     static std::vector<string> recentRuns(const string& model);   // the last runs a model makes, newest first (yyyyMMddHH): for the choice of a tile's run
     static string seasonalPartner(const string& param, const string& model);   // the chart of a long-range model (EC46, SEAS5, CFS30) that goes with a chart of another of them
     static const std::vector<string>& seasonalModels();
@@ -173,11 +176,11 @@ private:
     double clickedLat{0.0}, clickedLon{0.0};   // the point last clicked on the chart (the crosshair)
     bool haveClicked{false};
     QSplitter * panes{nullptr};             // the chart and the plume pane
-    QPushButton * buttonPlume{nullptr};
+    QAction * buttonPlume{nullptr};
     CfsPlumePanel * plumePanel{nullptr};    // under the chart of the CFS and GEFS: the forecast at the clicked point from the newest runs
     void updatePlumePanel();
     QDateTimeEdit * timePick{nullptr};      // a calendar and clock (UTC) to open the run of any past time
-    QPushButton * buttonHodos{nullptr};
+    QAction * buttonHodos{nullptr};
     QTimer hodoTimer;
     std::map<string, std::shared_ptr<UtilityBufkit::Run>> bufkitRuns;   // by station: the newest RRFS run of its BUFKIT file (every forecast hour)
     std::set<string> bufkitAsked;
@@ -199,27 +202,35 @@ private:
     void followCursor(QObject * origin);
     void cancelBufkit();       // the Hodographs button went off: what is queued is dropped, what is downloading is stopped
     char bufkitOwner{0};       // its address says whose network requests the station files are (so they can be cancelled without touching the chart)
-    QPushButton * buttonStations{nullptr};   // a button on the map at each BUFKIT station: opens that station's model sounding (laid over the view, never in a saved picture)
+    QAction * buttonStations{nullptr};   // a button on the map at each BUFKIT station: opens that station's model sounding (laid over the view, never in a saved picture)
     string stationPinKey;                    // the map the pins were placed on
     void refreshStationPins();
-    QPushButton * buttonPlace{nullptr};
-    QPushButton * buttonOnMap{nullptr};   // the chart on the master map
-    QPushButton * buttonIntensity{nullptr};   // the hurricane models: the intensity forecast of the storm
-    QCheckBox * checkRadii{nullptr};          // the hurricane models: the wind field on the chart
+    QAction * buttonPlace{nullptr};
+    QAction * buttonOnMap{nullptr};   // the chart on the master map
+    QAction * buttonIntensity{nullptr};   // the hurricane models: the intensity forecast of the storm
+    QAction * checkRadii{nullptr};            // the hurricane models: the wind field on the chart
     int stormLoading{0};
-    QPushButton * buttonAroundPoint{nullptr};   // draws an area (of the size beside it) round the point clicked, without saving it
+    QAction * buttonAroundPoint{nullptr};   // draws an area (of the size beside it) round the point clicked, without saving it
+    QWidgetAction * actionLocalKm{nullptr};   // the combo below, as an entry of the Map menu
+    QPushButton * buttonMapMenu{nullptr}, * buttonAnalysisMenu{nullptr};   // the menus that hold the less used controls of the second row
+    QMenu * menuMap{nullptr}, * menuAnalysis{nullptr};
+    void syncMenus();   // a menu button is there while any of its entries is
     QComboBox * comboLocalKm{nullptr};   // the size of an area round a saved location (one entry per place in the area list, this sets how big)
     void refreshSectorList();   // the ring and the name of the place on an area round a saved location (a pref, MODEL_PLACE_MARK)
-    QPushButton * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
+    QAction * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
     bool standardDeviations{false};
-    QPushButton * buttonMax{};
     QPushButton * buttonBuild{};
     QMenu * menuBuild{};
     void refreshBuildMenu();
     void buildChart();
     void showBuilt(const string& id);
-    QPushButton * buttonMembers{};   // REFS charts: each member's value at the picked point over the hours (the old REFS screen's plume graph)
+    QAction * buttonVerify{};    // reflectivity charts: the runs scored against MRMS (MrmsVerifyViewer)
+    QAction * buttonMembers{};   // REFS charts: each member's value at the picked point over the hours (the old REFS screen's plume graph)
     void openMemberGraph();
+    QPushButton * buttonLayers{};   // a paintball of many sets (REFS, HRRR, MPAS ...): which sets are drawn and counted in the chance lines
+    std::vector<std::string> hiddenLayers;   // the grid keys of the sets left out (GfsChart::Product::layers)
+    void chooseLayers();
+    void refreshLayersButton();
     void chooseOverlays();                 // the other models whose lines are drawn over this chart's (a dialog of the models that have the chart)
     void refreshOverlays();                // keeps the ones that still have the chart on screen, and the button's text
     std::vector<std::string> overlayModels;

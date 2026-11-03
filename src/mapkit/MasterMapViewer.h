@@ -57,7 +57,7 @@ public:
     static MasterMapViewer * openModels(Window * parent, const string& model = {}, const string& param = {}, const string& sector = {}, const QDateTime& valid = {});
     // the radar: the master map at the current location with the MRMS mosaic, the warning polygons and the mesoscale discussions (the MRMS screen's place: it has no window of its own)
     static MasterMapViewer * openRadar(Window * parent);
-    void openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds);
+    void openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds, bool liveView = false);
     void showSystem(const string& atcfId);   // the ensemble tracks of that one system only (as the track map of a storm)
 
 private:

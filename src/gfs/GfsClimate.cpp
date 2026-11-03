@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsClimate.h"
+#include "gfs/GdalRaster.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -153,58 +154,23 @@ bool GfsClimate::anchor(const Field& field, int day, GfsGrid::Grid& out, std::st
     }
     // one band, straight from the file on the web
     const auto scratch = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/wxqt_climate_" + QUuid::createUuid().toString(QUuid::Id128);
-    const auto rawPath = scratch + ".raw";
-    const auto hdrPath = scratch + ".hdr";
-    const auto cleanup = [&] {
-        QFile::remove(rawPath);
-        QFile::remove(hdrPath);
-        QFile::remove(rawPath + ".aux.xml");
-    };
-    QProcess translate;
-    translate.start(QString::fromStdString(gdalBin) + "/gdal_translate",
-                    {"-q", "-b", QString::number(band(field, day)), "-of", "ENVI", "-ot", "Float32",
-                     QString::fromStdString("NETCDF:/vsicurl/" + baseUrl + field.file + ":" + field.variable), rawPath});
-    translate.waitForFinished(600000);   // the climatology server is sometimes very slow: wait
-    // GDAL prints errors about drivers this machine lacks; only the exit code and the size of the result count
-    if (translate.exitStatus() != QProcess::NormalExit || translate.exitCode() != 0) {
-        error = "could not get the climatology (" + field.variable + ") from NOAA PSL: " + translate.readAllStandardError().trimmed().toStdString();
-        cleanup();
-        return false;
-    }
-    QFile hdr{hdrPath};
-    const auto hdrText = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
-    const auto number = [&hdrText] (const QString& key) {
-        const auto m = QRegularExpression{"\\b" + key + "\\s*=\\s*([-0-9.]+)"}.match(hdrText);
-        return m.hasMatch() ? m.captured(1).toDouble() : -1e9;
-    };
-    const auto info = QRegularExpression{"map info = \\{[^,]*,\\s*1,\\s*1,\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+)"}.match(hdrText);
+    GdalRaster::Options options;
+    options.gdalBin = QString::fromStdString(gdalBin);
+    options.band = band(field, day);
+    options.timeoutMs = 600000;   // the climatology server is sometimes very slow: wait
+    options.requirePlain = false;
     GfsGrid::Grid g;
-    g.columns = static_cast<int>(number("samples"));
-    g.rows = static_cast<int>(number("lines"));
-    QFile raw{rawPath};
-    const QByteArray bytes = raw.open(QIODevice::ReadOnly) ? raw.readAll() : QByteArray{};
-    cleanup();
-    if (g.columns <= 0 || g.rows <= 0 || !info.hasMatch() || bytes.size() != static_cast<qsizetype>(g.columns) * g.rows * 4) {
-        error = "the climatology slice was not in the expected form";
+    int bands = 0;
+    std::vector<float> values;
+    std::string why;
+    if (!GdalRaster::read(QString::fromStdString("NETCDF:/vsicurl/" + baseUrl + field.file + ":" + field.variable), scratch, options, g, bands, values, why) || bands != 1) {
+        error = "could not get the climatology (" + field.variable + ") from NOAA PSL: " + why;
         return false;
     }
-    g.step = info.captured(3).toDouble();
-    g.lon0 = info.captured(1).toDouble() + g.step / 2.0;
-    g.lat0 = info.captured(2).toDouble() - g.step / 2.0;
+    g.values = std::move(values);
     if (g.lon0 < 0.0) {
         // a grid that starts west of zero (-1.25 .. ) is the same one: the first column is at 0 here
         g.lon0 = std::fmod(g.lon0 + 360.0, 360.0);
-    }
-    g.values.resize(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows));
-    std::memcpy(g.values.data(), bytes.constData(), static_cast<size_t>(bytes.size()));
-    if (QRegularExpression{"byte order\\s*=\\s*1"}.match(hdrText).hasMatch()) {
-        for (auto& value : g.values) {
-            unsigned char b[4];
-            std::memcpy(b, &value, 4);
-            std::swap(b[0], b[3]);
-            std::swap(b[1], b[2]);
-            std::memcpy(&value, b, 4);
-        }
     }
     store.write(name, pack(g));
     // use what was stored, so a chart looks the same the first time and every time after
@@ -369,42 +335,24 @@ void GfsClimate::buildDeviation(Field field) const {
     int done = 0, good = 0;
     const auto year = [&] (int y) {
         const bool leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
-        QStringList arguments{"-q"};
+        GdalRaster::Options options;
+        options.gdalBin = QString::fromStdString(gdalBin);
+        options.timeoutMs = 900000;
+        options.requirePlain = false;
         for (int k = 0; k < days; k++) {
             const int day = k * 4 + (leap && k * 4 >= 59 ? 1 : 0);
-            arguments << "-b" << QString::number(band(field, day));
+            options.bandList.push_back(band(field, day));
         }
         const auto scratch = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/wxqt_dev_" + QUuid::createUuid().toString(QUuid::Id128);
-        const auto rawPath = scratch + ".raw", hdrPath = scratch + ".hdr";
-        arguments << "-of" << "ENVI" << "-ot" << "Float32" << QString::fromStdString("NETCDF:/vsicurl/" + dailyBase + stem + "." + std::to_string(y) + ".nc:" + field.variable) << rawPath;
-        QProcess translate;
-        translate.start(QString::fromStdString(gdalBin) + "/gdal_translate", arguments);
-        translate.waitForFinished(900000);
-        QFile raw{rawPath};
-        QByteArray bytes = translate.exitCode() == 0 && raw.open(QIODevice::ReadOnly) ? raw.readAll() : QByteArray{};
-        raw.close();
-        QFile hdr{hdrPath};
-        const auto hdrText = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
-        hdr.close();
-        QFile::remove(rawPath);
-        QFile::remove(hdrPath);
-        QFile::remove(rawPath + ".aux.xml");
-        bool ok = bytes.size() == static_cast<qsizetype>(cells) * days * 4;
+        GfsGrid::Grid shape;
+        int bandsRead = 0;
+        std::vector<float> values;
+        std::string why;
+        bool ok = GdalRaster::read(QString::fromStdString("NETCDF:/vsicurl/" + dailyBase + stem + "." + std::to_string(y) + ".nc:" + field.variable), scratch, options, shape, bandsRead, values, why)
+                  && values.size() == cells * static_cast<size_t>(days);
         std::lock_guard lock{sumMutex};
         done++;
         if (ok) {
-            const bool swap = QRegularExpression{"byte order\\s*=\\s*1"}.match(hdrText).hasMatch();
-            std::vector<float> values(cells * static_cast<size_t>(days));
-            std::memcpy(values.data(), bytes.constData(), static_cast<size_t>(bytes.size()));
-            if (swap) {
-                for (auto& value : values) {
-                    unsigned char b[4];
-                    std::memcpy(b, &value, 4);
-                    std::swap(b[0], b[3]);
-                    std::swap(b[1], b[2]);
-                    std::memcpy(&value, b, 4);
-                }
-            }
             for (int k = 0; k < days; k++) {
                 bool any = false;
                 for (size_t i = 0; i < cells; i++) {
@@ -559,39 +507,23 @@ void GfsClimate::buildStatistics(Stat stat) const {
         std::vector<std::vector<float>> parts;
         bool ok = true;
         for (size_t f = 0; f < stat.files.size() && ok; f++) {
-            QStringList arguments{"-q"};
+            GdalRaster::Options options;
+            options.gdalBin = QString::fromStdString(gdalBin);
+            options.timeoutMs = 900000;
+            options.requirePlain = false;
+        options.requirePlain = false;
             for (int k = 0; k < days; k++) {
-                arguments << "-b" << QString::number(k * 4 + (leap && k * 4 >= 59 ? 1 : 0) + 1);
+                options.bandList.push_back(k * 4 + (leap && k * 4 >= 59 ? 1 : 0) + 1);
             }
             const auto scratch = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/wxqt_stat_" + QUuid::createUuid().toString(QUuid::Id128);
-            const auto rawPath = scratch + ".raw", hdrPath = scratch + ".hdr";
-            arguments << "-of" << "ENVI" << "-ot" << "Float32" << QString::fromStdString("NETCDF:/vsicurl/" + dailyBase + stat.files[f] + "." + std::to_string(y) + ".nc:" + stat.variables[f]) << rawPath;
-            QProcess translate;
-            translate.start(QString::fromStdString(gdalBin) + "/gdal_translate", arguments);
-            translate.waitForFinished(900000);
-            QFile raw{rawPath};
-            QByteArray bytes = translate.exitCode() == 0 && raw.open(QIODevice::ReadOnly) ? raw.readAll() : QByteArray{};
-            raw.close();
-            QFile hdr{hdrPath};
-            const auto hdrText = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
-            hdr.close();
-            QFile::remove(rawPath);
-            QFile::remove(hdrPath);
-            QFile::remove(rawPath + ".aux.xml");
-            if (bytes.size() != static_cast<qsizetype>(cells) * days * 4) {
+            GfsGrid::Grid shape;
+            int bandsRead = 0;
+            std::vector<float> values;
+            std::string why;
+            if (!GdalRaster::read(QString::fromStdString("NETCDF:/vsicurl/" + dailyBase + stat.files[f] + "." + std::to_string(y) + ".nc:" + stat.variables[f]), scratch, options, shape, bandsRead, values, why)
+                || values.size() != cells * static_cast<size_t>(days)) {
                 ok = false;
                 break;
-            }
-            std::vector<float> values(cells * static_cast<size_t>(days));
-            std::memcpy(values.data(), bytes.constData(), static_cast<size_t>(bytes.size()));
-            if (QRegularExpression{"byte order\\s*=\\s*1"}.match(hdrText).hasMatch()) {
-                for (auto& value : values) {
-                    unsigned char b[4];
-                    std::memcpy(b, &value, 4);
-                    std::swap(b[0], b[3]);
-                    std::swap(b[1], b[2]);
-                    std::memcpy(&value, b, 4);
-                }
             }
             parts.push_back(std::move(values));
         }

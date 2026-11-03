@@ -43,6 +43,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"USWARN", "Alerts", "uswarn.png", false, false},
         {"ANALYSIS_RADAR_AND_WARNINGS", "Analysis", "fmap.png", false, false},
         {"RTMA_TEMP", "RTMA Temp", "rtma.png", false, false},
+        {"RTMA_AREA", "RTMA temperature and wind - your last model area", "grib.png", true, false},
         {"SPC_MESO_MSLP", "SPC Meso - MSLP", "", true, false},
         {"SPC_MESO_500MB", "SPC Meso - 500mb", "", true, false},
         {"SPC_SOUNDING", "SPC Sounding (nearest site)", "spcsoundings.png", true, false},
@@ -87,6 +88,7 @@ namespace {
         {"USWARN", {"Warnings", "Map of active NWS warnings across the United States."}},
         {"ANALYSIS_RADAR_AND_WARNINGS", {"Analysis", "WPC national analysis chart: radar, fronts and warnings together."}},
         {"RTMA_TEMP", {"Temperature now", "Real-Time Mesoscale Analysis: the current temperature analysis on a 2.5 km grid."}},
+        {"RTMA_AREA", {"Temperature now: your area", "Real-Time Mesoscale Analysis: the newest 2 m temperature and 10 m wind over the area you last used in the Model Viewer (a saved place), or the United States. Click for the Model Viewer on this chart."}},
         {"SPC_MESO_MSLP", {"Mesoanalysis: sea level pressure", "SPC mesoscale analysis of mean sea level pressure, updated hourly."}},
         {"SPC_MESO_500MB", {"Mesoanalysis: 500 mb", "SPC mesoscale analysis of the 500 mb (mid-level) height and wind pattern, updated hourly."}},
         {"SPC_SOUNDING", {"Sounding", "Skew-T sounding from the SPC site nearest your location."}},
@@ -243,18 +245,39 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         variant.width = 640;
         return GfsRender::png(session, "WPC-PPP", "ppp_" + hoursText + "h_median", "CONUS", run.id(), hour, {}, error, nullptr, variant);
     }
+    if (token == "RTMA_AREA") {
+        // the model screen's last area (RTMA covers the United States only: another area than a saved place is drawn as CONUS), from the newest analysis
+        auto sector = Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS");
+        if (sector.compare(0, 6, "LOCAL:") != 0) {
+            sector = "CONUS";
+        }
+        GfsRender::Session session;
+        string error;
+        return GfsRender::png(session, "RTMA", "2m_temp_10m_wnd", sector, "", 0, {}, error);
+    }
     if (token == "GRIB_LATEST") {
         // the model screen's last model, chart and area, drawn from the newest run (the model's first forecast hour after the start)
         auto model = Utility::readPref("NCEP", "RRFS");
-        if (!GfsModels::draws(model) || GfsModels::find(model)->storm) {
+        auto param = Utility::readPref("MODELNCEPPARAMLASTUSED", "500_wnd_ht");
+        auto sector = Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS");
+        if (!GfsModels::isForecast(model)) {   // an analysis (RTMA, URMA) or the PPP is on the model screen: the last model that looks ahead, with its chart and area
+            const auto last = Utility::readPref("MODEL_LAST_FORECAST", "");
+            if (GfsModels::isForecast(last)) {
+                model = last;
+                param = Utility::readPref("MODEL_LAST_FORECAST_PARAM", param);
+                sector = Utility::readPref("MODEL_LAST_FORECAST_SECTOR", sector);
+            }
+        }
+        if (!GfsModels::isForecast(model) || GfsModels::find(model)->storm) {   // (none looked at yet: the RRFS and its first chart)
             model = "RRFS";
+            param = "500_wnd_ht";
         }
         const auto * def = GfsModels::find(model);
         const auto hours = def->hours.empty() ? GfsModels::Hours{} : def->hours.front();
         const int hour = hours.from + (hours.from + hours.step <= hours.to ? hours.step : 0);
         GfsRender::Session session;
         string error;
-        const auto png = GfsRender::png(session, model, Utility::readPref("MODELNCEPPARAMLASTUSED", "500_wnd_ht"), Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS"), "", hour, {}, error);
+        const auto png = GfsRender::png(session, model, param, sector, "", hour, {}, error);
         return png;
     }
     string url;

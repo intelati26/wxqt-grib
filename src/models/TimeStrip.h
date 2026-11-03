@@ -39,6 +39,7 @@ public:
         slider->setTracking(true);
         column->addWidget(slider);
         auto * row = new QHBoxLayout;
+        controls = row;
         row->addStretch();
         const auto button = [this, row] (const QString& text, const QString& tip, std::function<void()> action) {
             auto * b = new QPushButton{text, this};
@@ -115,7 +116,13 @@ public:
     std::function<void(int)> onSelect;
     std::function<void(bool)> onPlay;
 
+    void addControl(QWidget * widget) {   // a control of the screen beside the loop speed (the preload choice)
+        controls->insertSpacing(controls->count() - 1, 16);
+        controls->insertWidget(controls->count() - 1, widget);
+    }
+
 private:
+    QHBoxLayout * controls{};
     // the hour numbers above the slider, as many as fit
     struct Ticks : public QWidget {
         std::vector<std::string> names;

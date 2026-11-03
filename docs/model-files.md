@@ -15,12 +15,14 @@ Lines are `key = value`; `#` at the start of a line is a comment. Values with sp
 | `id`, `label` | the name in the picker, and the credit under a chart |
 | `source_label` | the credit when it differs from `label` |
 | `group` | the picker's group for it |
-| `kind` | `grib` (an index beside each file), `whole` (one field per file; the members are its messages), `netcdf` (variables read by range), `custom` (read by code registered for the id: SPCREFS) |
+| `kind` | `grib` (an index beside each file), `whole` (one field per file; the members are its messages), `netcdf` (variables read by range), `custom` (read by code registered for the id: SPCREFS), `tar` (the `url` is a tar of one gzipped GRIB2 file an hour, read by range: see `tar_member`) |
 | `url` | the place of a file, repeatable (more are other places, tried in order). Tokens: `{date}` `{year}` `{month}` `{day}` `{cycle}` `{prev_cycle}` `{hour}` `{hour2}` `{hour3}` `{file}` `{/file}` (a slash and the file, or nothing) `{file3}` (its first three letters) `{dir}` `{name}` (the file split at `/`) `{tag}` `{tail}` (split at `:`) `{storm}`. `url = when file~"-s$" => ...` is chosen by the file's name: the first conditional url that matches is the place; with none, the plain ones. Several plain urls are places to try in order |
 | `subset_url` | a server's box request: tokens as above plus `{variables}` `{levels}` (made from `subset_variable = &var_{v}=on` and `subset_level = &lev_{l}=on`) and `{west}` `{east}` `{north}` `{south}` |
 | `file` | which file holds a field: `when <conditions> => template`, the first that matches; a line without `when` is the default. Conditions: `variable=A,B`, `level="2 m above ground"`, `level~"regex"`, `stat=` (none), `stat~regex`. Template tokens: `{variable}` `{level}` `{stat}` `{stat|default}` `{mb}` `{mb4}` |
 | `file_default` | what `{file}` is when a want has none (the run check, the first file) |
 | `index_format`, `index_suffix`, `index_replaces`, `default_detail` | `noaa` (`.idx`) or `ecmwf` (JSON); the index's name; what record detail to ask for |
+| `tar_member` | `kind = tar`: the file of an hour in the tar, with the url's tokens (`mpasht2_nssl_{date}{cycle}f{hour2}.grib2.gz`). The hour is taken out of the tar once (by range, gunzipped) and kept in the cache; a field is the band of it that has the NOAA name |
+| `include` | built-in files only: the lines of a shared piece of the built-in list (`include = spc_post`) |
 | `member` | members of a `whole` file as bands: `c00:1, p01-p20:2-21` |
 | `value_scale`, `value_offset` | `VARIABLE:factor, ...` and `VARIABLE:amount, ...`: units (meters to millimeters; Kelvin to degrees C is `TMP:-273.15`) |
 | `nc_variable` | a NetCDF file's name for a want, rules as `file`: `nc_variable = when variable=HGT level~"^[0-9]+ mb$" => H{mb}` |

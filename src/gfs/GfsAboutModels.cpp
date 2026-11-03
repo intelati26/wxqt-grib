@@ -85,8 +85,23 @@ link = background | Canadian Meteorological Centre | https://en.wikipedia.org/wi
 link = background | Ensemble forecasting | https://en.wikipedia.org/wiki/Ensemble_forecasting
 link = source | Environment and Climate Change Canada open data (GEPS) | https://eccc-msc.github.io/open-data/msc-data/nwp_geps/readme_geps-datamart_en/
 )ABOUT"},
+        {"MPAS-HT", R"ABOUT(
+why = A research version of the MPAS model from NOAA's National Severe Storms Laboratory, started from the HRRR and run at 3 km. It is a different design from the HRRR and RRFS (a mesh that can change its resolution over the globe, with newer microphysics), so it is one more view of where storms may form and how they could look. This is experimental research output: it is not for forecasting and can change or stop without notice.
+link = background | Model for Prediction Across Scales | https://en.wikipedia.org/wiki/Model_for_Prediction_Across_Scales
+link = docs | NSSL CAMs: MPAS runs and how they are set up | https://cams.nssl.noaa.gov/
+link = source | NSSL data server (FRDD/NSSL-MPAS) | https://data.nssl.noaa.gov/thredds/catalog/FRDD/NSSL-MPAS/2026/catalog.html
+link = source | NSSL data server, all FRDD model folders (MPAS tars are <yymmddcc>_mpasht2.tar and _mpasrn.tar; browse with an honest User-Agent, the server refuses curl's) | https://data.nssl.noaa.gov/thredds/customConfig/FRDD.xml
+link = source | NSSL CAMs name for this run: see the CAMs model list (pictures only for the GSL runs, no GRIB2 on the NSSL server) | https://cams.nssl.noaa.gov/
+)ABOUT"},
+        {"MPAS-RN", R"ABOUT(
+why = A second research run of the MPAS model from NOAA's National Severe Storms Laboratory, at 3 km, posted as the "mpasrn" files on the NSSL data server (00Z and 12Z, about 15 hours after the run time). Per NSSL's CAMs page it is started from the experimental 00Z and 12Z deterministic RRFS run of NOAA's EMC and uses the NSSL 2-moment microphysics (the "mpasrn3" files are the same run with the 3-moment scheme). Experimental research output: not for forecasting.
+link = docs | NSSL CAMs: MPAS runs and how they are set up | https://cams.nssl.noaa.gov/
+link = source | NSSL data server (FRDD/NSSL-MPAS) | https://data.nssl.noaa.gov/thredds/catalog/FRDD/NSSL-MPAS/2026/catalog.html
+link = source | NSSL data server, all FRDD model folders (MPAS tars are <yymmddcc>_mpasht2.tar and _mpasrn.tar; browse with an honest User-Agent, the server refuses curl's) | https://data.nssl.noaa.gov/thredds/customConfig/FRDD.xml
+link = source | NSSL CAMs name for this run: see the CAMs model list (pictures only for the GSL runs, no GRIB2 on the NSSL server) | https://cams.nssl.noaa.gov/
+)ABOUT"},
         {"RRFS", R"ABOUT(
-why = NOAA's new 3 kilometre forecast system for the continental US, built to replace the Rapid Refresh, the HRRR and several others. At 3 km it can draw individual lines of storms and their rotation, which the global models cannot, and it updates every hour. From 3 November 2026 it is the operational model and replaces the NAM, HiResW, HREF and SREF, which stay in the list under Archive. Its rain, snow, sleet and freezing rain types are now worked out from the temperature profile, so sleet shows more and freezing rain less than in the test runs, and the accumulated freezing rain and sleet fields are no longer in the files.
+why = NOAA's new 3 kilometre forecast system for the continental US, built to replace the Rapid Refresh, the HRRR and several others. At 3 km it can draw individual lines of storms and their rotation, which the global models cannot, and it updates every hour. From 3 November 2026 it is the operational model and replaces the NAM, HiResW, HREF and SREF, which stay in the list under Archive. Its rain, snow, sleet and freezing rain types are now worked out from the temperature profile, so sleet shows more and freezing rain less than in the test runs, and the accumulated freezing rain and sleet fields are no longer in the files. On the NSSL CAMs site this run is called RRFS-EMC.
 link = background | Rapid Refresh (the system the RRFS replaces) | https://en.wikipedia.org/wiki/Rapid_Refresh_(weather_prediction)
 link = docs | NOAA GSL: the Rapid Refresh Forecast System | https://gsl.noaa.gov/focus-areas/unified_forecast_system/rrfs
 link = source | NOAA open data on AWS (noaa-rrfs) | https://registry.opendata.aws/noaa-rrfs/
@@ -158,6 +173,88 @@ link = background | Storm Prediction Center | https://en.wikipedia.org/wiki/Stor
 link = background | Ensemble forecasting | https://en.wikipedia.org/wiki/Ensemble_forecasting
 link = docs | SPC REFS viewer | https://www.spc.noaa.gov/exper/refs/viewer
 link = source | SPC REFS open data (Zarr) | https://www.spc.noaa.gov/exper/refs/data/
+)ABOUT"},
+        {"WPC-PPP", R"ABOUT(
+why = The Weather Prediction Center's probabilistic precipitation portal: how much rain, snow or ice may fall in 24 to 72 hours, as the expected amount, a percentile or the chance of an amount. NOAA says it comes from the National Blend of Models, adjusted to the official forecast.
+link = docs | WPC probabilistic precipitation portal | https://www.wpc.ncep.noaa.gov/Prob_Precip/
+link = source | WPC FTP: prob_precip_portal (shapefile zips by run and hour) | https://ftp-wpc.ncep.noaa.gov/prob_precip_portal/co/gis/
+)ABOUT"},
+        {"HRRR", R"ABOUT(
+why = NOAA's hourly 3 km forecast for the continental US, the model the RRFS is replacing.
+link = background | High-Resolution Rapid Refresh | https://en.wikipedia.org/wiki/High-Resolution_Rapid_Refresh
+link = source | NOAA open data on AWS (noaa-hrrr-bdp-pds) | https://registry.opendata.aws/noaa-hrrr-pds/
+)ABOUT"},
+        {"HRRR-AK", R"ABOUT(
+why = The HRRR for Alaska, 3 km.
+link = source | NOAA open data on AWS (noaa-hrrr-bdp-pds, alaska folder) | https://registry.opendata.aws/noaa-hrrr-pds/
+)ABOUT"},
+        {"RRFS-AK", R"ABOUT(
+why = The RRFS for Alaska, 3 km.
+link = source | NOAA open data on AWS (noaa-rrfs-ops-pds, files ending .ak.grib2) | https://registry.opendata.aws/noaa-rrfs/
+)ABOUT"},
+        {"RRFS-HI", R"ABOUT(
+why = The RRFS for Hawaii, 2.5 km.
+link = source | NOAA open data on AWS (noaa-rrfs-ops-pds, files ending .hi.grib2) | https://registry.opendata.aws/noaa-rrfs/
+)ABOUT"},
+        {"RRFS-PR", R"ABOUT(
+why = The RRFS for Puerto Rico and the Virgin Islands, 2.5 km.
+link = source | NOAA open data on AWS (noaa-rrfs-ops-pds, files ending .pr.grib2) | https://registry.opendata.aws/noaa-rrfs/
+)ABOUT"},
+        {"RRFS-NA", R"ABOUT(
+why = The RRFS for North America, 13 km.
+link = source | NOAA open data on AWS (noaa-rrfs-ops-pds, files ending .na.grib2) | https://registry.opendata.aws/noaa-rrfs/
+)ABOUT"},
+        {"HRDPS", R"ABOUT(
+why = Environment Canada's 2.5 km high resolution model for Canada.
+link = source | ECCC MSC Datamart (model_hrdps) | https://dd.weather.gc.ca/model_hrdps/
+)ABOUT"},
+        {"ICON-D2", R"ABOUT(
+why = The German weather service's 2.2 km model for Germany and central Europe.
+link = source | DWD open data (icon-d2) | https://opendata.dwd.de/weather/nwp/icon-d2/
+)ABOUT"},
+        {"ICON-EU", R"ABOUT(
+why = The German weather service's 6.5 km model for Europe.
+link = source | DWD open data (icon-eu) | https://opendata.dwd.de/weather/nwp/icon-eu/
+)ABOUT"},
+        {"CFS", R"ABOUT(
+why = The Climate Forecast System, version 2, member 1: NOAA's seasonal forecast.
+link = source | NOAA open data on AWS (noaa-cfs-pds) | https://registry.opendata.aws/noaa-cfs/
+)ABOUT"},
+        {"CFS-ANL", R"ABOUT(
+why = The CFS analysis (CDAS) at 1 degree: what the CFS took as its starting state.
+link = source | NOAA open data on AWS (noaa-cfs-pds) | https://registry.opendata.aws/noaa-cfs/
+)ABOUT"},
+        {"ERA5", R"ABOUT(
+why = ECMWF's ERA5 reanalysis, a record of past weather rebuilt with a modern model, at 0.25 degree.
+link = source | NCAR ERA5 archive on AWS (nsf-ncar-era5) | https://registry.opendata.aws/nsf-ncar-era5/
+)ABOUT"},
+        {"GFS-ANL", R"ABOUT(
+why = The GFS analysis at 0.5 degree from the NCEI archive: the starting state of past GFS runs.
+link = source | NCEI model archive: GFS analysis | https://www.ncei.noaa.gov/oa/prod-model/global-forecast-system/access/historical/analysis/
+)ABOUT"},
+        {"GFS1-ANL", R"ABOUT(
+why = The GFS analysis at 1 degree from the NCEI archive.
+link = source | NCEI model archive: GFS analysis | https://www.ncei.noaa.gov/oa/prod-model/global-forecast-system/access/historical/analysis/
+)ABOUT"},
+        {"RTMA", R"ABOUT(
+why = The Real-Time Mesoscale Analysis: a 2.5 km map of surface conditions made from observations, hourly.
+link = source | NOAA open data on AWS (noaa-rtma-pds) | https://registry.opendata.aws/noaa-rtma/
+)ABOUT"},
+        {"URMA", R"ABOUT(
+why = The UnRestricted Mesoscale Analysis: the RTMA's later, more complete version, 2.5 km.
+link = source | NOAA open data on AWS (noaa-urma-pds) | https://registry.opendata.aws/noaa-urma/
+)ABOUT"},
+        {"NARR", R"ABOUT(
+why = The North American Regional Reanalysis: past weather for North America at 32 km, every 3 hours.
+link = source | NCEI model archive: NARR | https://www.ncei.noaa.gov/oa/prod-model/north-american-regional-reanalysis/access/3-hourly/
+)ABOUT"},
+        {"NAM-ANL", R"ABOUT(
+why = The NAM analysis at 12 km from the NCEI archive (the NAM retires 3 November 2026; its archive stays).
+link = source | NCEI model archive: NAM analysis | https://www.ncei.noaa.gov/oa/prod-model/north-american-mesoscale-model/access/historical/analysis/
+)ABOUT"},
+        {"RAP-ANL", R"ABOUT(
+why = The RUC / Rapid Refresh hourly analysis at 13 km from the NCEI archive.
+link = source | NCEI model archive: Rapid Refresh analysis | https://www.ncei.noaa.gov/oa/prod-model/rapid-refresh/access/historical/analysis/
 )ABOUT"},
     };
     return list;

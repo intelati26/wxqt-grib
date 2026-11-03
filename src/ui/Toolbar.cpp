@@ -4,6 +4,7 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include "misc/NwsNoticesViewer.h"
 #include "ui/Toolbar.h"
 #include <QPolygonF>
 #include <QPixmap>
@@ -87,6 +88,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_cloud_black_48dp.png", "GOES imagery, Ctrl-c", [this] { launchGoesViewer(); });
     routeItems.emplace_back("baseline_date_range_black_48dp.png", "Hourly Forecast, Ctrl-h", [this] { launchHourly(); });
     routeItems.emplace_back("baseline_info_black_48dp.png", "WFO Text products, Ctrl-a", [this] { launchWfoText(); });
+    routeItems.emplace_back("baseline_info_black_48dp.png", "NWS notices: service changes and proposals (SCN, PNS)", [parent] { new NwsNoticesViewer{parent}; });
     routeItems.emplace_back("baseline_info_black_48dp.png", "Help and further reading: the models, why they matter, where the data comes from", [parent] { new HelpViewer{parent}; });
 
 

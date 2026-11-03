@@ -22,6 +22,7 @@ private:
     void update();
     QTimer timer;
     long baseline{0};
+    long baselineIndexes{0};
 };
 
 #endif  // ACTIVITYLABEL_H
