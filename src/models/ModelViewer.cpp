@@ -28,6 +28,7 @@
 #include <QSplitter>
 #include <QPushButton>
 #include "models/CamsViewer.h"
+#include "models/MrmsVerifyViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "models/ChartBuilder.h"
 #include <algorithm>
@@ -373,6 +374,13 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         soundingPick.button().getView()->setToolTip(soundingPick.button().getView()->toolTip() + "\n\nOn a global model (the GFS, IFS, AIFS ...) the sounding is read from that model's own pressure levels at the point, for the run and hour on show, to the end of its run (the long range, at its resolution).");
         buttonMembers = entry(menuAnalysis, "Members graph...", "REFS charts: each of the 5 members' value at the clicked point over the forecast hours, with the ensemble mean (and the threshold of a probability chart)", false);
         QObject::connect(buttonMembers, &QAction::triggered, this, [this] { openMemberGraph(); });
+        buttonVerify = entry(menuAnalysis, "Verify against MRMS...", "Reflectivity charts: score the model's runs that have a forecast for a time on the hour against the MRMS composite reflectivity of that time (hits, misses, false alarms and the Fractions Skill Score), with the three pictures side by side", false);
+        QObject::connect(buttonVerify, &QAction::triggered, this, [this] {
+            const auto run = runTime(objectModel.run);
+            const auto valid = run.isValid() ? run.addSecs(3600LL * std::atoi(objectModel.getTime().c_str())) : QDateTime{};
+            new MrmsVerifyViewer{this, objectModel.model, objectModel.param, objectModel.sector, valid};
+        });
+        buttonVerify->setVisible(false);
         buttonLayers = UiStandards::button(this, "Layers...");
         buttonLayers->setToolTip("Which members, runs and models the paintball draws. The lines of the chance are worked out again from the ones left in.");
         QObject::connect(buttonLayers, &QPushButton::clicked, this, [this] { chooseLayers(); });
@@ -2147,6 +2155,12 @@ void ModelViewer::updateRunStatus() {
 // The charts of a model drawn from GRIB are many: they are chosen in the grouped picker, and the plain list is for the models still fetched as pictures.
 void ModelViewer::refreshProductButton() {
     buttonMembers->setVisible(objectModel.model == "REFS");
+    {   // a chart whose fill is reflectivity in dBZ (not a chance or a paintball): it can be scored against MRMS
+        const auto& id = objectModel.param;
+        const auto has = [&id] (const char * part) { return id.find(part) != string::npos; };
+        buttonVerify->setVisible(GfsRender::drawsModel(objectModel.model) && (has("refc") || has("refd") || has("reflectivity") || has("cref") || has("maxref") || has("sim_radar")) &&
+                                 !has("prob") && !has("paintball") && !has("nmep") && !has("member"));
+    }
     const bool ncep = objectModel.prefModel == "NCEP";   // the model guidance site's list is long: the grouped picker
     comboboxModel.setVisible(!ncep);
     buttonModel.setVisible(ncep);

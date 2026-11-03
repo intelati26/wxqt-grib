@@ -42,6 +42,7 @@
 #include <QPushButton>
 #include <QDialog>
 #include <QTimer>
+#include "models/MrmsVerifyViewer.h"
 #include <QThread>
 #include "common/GlobalVariables.h"
 #include "gfs/GfsModels.h"
@@ -273,6 +274,12 @@ int main(int argc, char * argv[]) {
                 new AhdViewer{&w};
             } else if (route == "radar") {   // WXQT_OPEN=radar: the radar doorway (the master map at the current location with MRMS, warnings and discussions)
                 MasterMapViewer::openRadar(&w);
+            } else if (route.startsWith("verify:")) {   // WXQT_OPEN=verify:<model>:<chart>:<yyyyMMddHH UTC>[:sector]: the MRMS verification window at that time, compared at once (WXQT_VERIFY_PNG=<file>: its picture after WXQT_VERIFY_MS ms)
+                qputenv("WXQT_VERIFY_GO", "1");
+                auto valid = QDateTime::fromString(route.section(':', 3, 3), "yyyyMMddHH");
+                valid.setTimeSpec(Qt::UTC);
+                new MrmsVerifyViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString(), route.section(':', 4, 4).isEmpty() ? "CONUS" : route.section(':', 4, 4).toStdString(),
+                                     valid};
             } else if (route.startsWith("phase:")) {   // WXQT_OPEN=phase:<model>:<lat>:<lon>[:<atcf id>]: the phase space window of a storm at that place in that model
                 const auto parts = route.split(':');
                 auto * viewer = PhaseViewer::pick(&w, parts.value(4).isEmpty() ? "test" : parts.value(4).toStdString(), parts.value(2, "15").toDouble(), parts.value(3, "-60").toDouble(), parts.value(1, "GFS").toStdString(), parts.value(4).toStdString());

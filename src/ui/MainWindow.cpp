@@ -460,6 +460,13 @@ void MainWindow::launchImageScreen(const string& token) {
         Utility::writePref("MODELNCEPPARAMLASTUSED", "ppp_" + token.substr(8) + "h_median");
         Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
         toolbar.launchModelViewer();   // the Model Viewer on the portal's median chart of that period
+    } else if (token == "RTMA_AREA") {
+        Utility::writePref("NCEP", "RTMA");
+        Utility::writePref("MODELNCEPPARAMLASTUSED", "2m_temp_10m_wnd");
+        if (Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS").compare(0, 6, "LOCAL:") != 0) {
+            Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
+        }
+        toolbar.launchModelViewer();   // the Model Viewer on the RTMA temperature chart, in the area last used
     } else if (token == "GRIB_LATEST") {
         toolbar.launchModelViewer();   // the Model Viewer opens on the model, chart and area the thumbnail shows (the same saved choices)
     } else if (const auto * entry = HomeThumbnails::find(token); entry != nullptr && !entry->routeId.empty()) {

@@ -224,6 +224,7 @@ private:
     void refreshBuildMenu();
     void buildChart();
     void showBuilt(const string& id);
+    QAction * buttonVerify{};    // reflectivity charts: the runs scored against MRMS (MrmsVerifyViewer)
     QAction * buttonMembers{};   // REFS charts: each member's value at the picked point over the hours (the old REFS screen's plume graph)
     void openMemberGraph();
     QPushButton * buttonLayers{};   // a paintball of many sets (REFS, HRRR, MPAS ...): which sets are drawn and counted in the chance lines

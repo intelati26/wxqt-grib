@@ -2408,11 +2408,11 @@ MasterMapViewer * MasterMapViewer::openModels(Window * parent, const string& mod
 MasterMapViewer * MasterMapViewer::openRadar(Window * parent) {
     auto * map = new MasterMapViewer{parent};
     const auto here = Location::getLatLonCurrent();
-    map->openAt(QDateTime::currentDateTimeUtc(), here.lat(), here.lon(), 250.0, {"radar/mrms", "severe/warnings", "severe/mcd", "severe/mpd"});
+    map->openAt(QDateTime::currentDateTimeUtc(), here.lat(), here.lon(), 250.0, {"radar/mrms", "severe/warnings", "severe/mcd", "severe/mpd"}, true);   // live: the layers follow the newest data and refresh by themselves
     return map;
 }
 
-void MasterMapViewer::openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds) {
+void MasterMapViewer::openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds, bool liveView) {
     following = true;
     building = true;
     for (const auto& layer : layers) {
@@ -2424,13 +2424,18 @@ void MasterMapViewer::openAt(const QDateTime& utc, double lat, double lon, doubl
     }
     building = false;
     for (const auto& layer : layers) {
-        if (layer->enabled()) {
+        if (layer->enabled() && !liveView) {   // a live screen keeps no "as of": a layer pinned to a time never looks for newer data
             layer->setAsOf(utc, *this);
         }
     }
     const double degrees = std::max(0.5, radiusKm / 111.0);
     const double lonDegrees = degrees / std::max(0.2, std::cos(lat * 3.14159265358979 / 180.0));
     mapView->showRegion(lat - degrees * 1.2, lat + degrees * 1.2, lon - lonDegrees * 1.6, lon + lonDegrees * 1.6);
+    if (liveView) {
+        rebuildTicks();
+        updateStatus();
+        return;
+    }
     timePick->setDateTime(utc.toUTC());
     extra = "as of " + utc.toUTC().toString("yyyy-MM-dd HH:mm").toStdString() + "Z";
     updateStatus();
