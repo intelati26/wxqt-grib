@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+#include "spc/SpcOutlookNav.h"
 #include "ui/Image.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Shortcut.h"
@@ -23,6 +24,7 @@ public:
     explicit SpcSwoSummary(Window *);
 
 private:
+    SpcOutlookNav nav;
     VBox box;
     ScrolledWindow sw;
     vector<string> urls;

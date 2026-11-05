@@ -13,6 +13,7 @@
 
 SpcSwoSummary::SpcSwoSummary(Window * parent)
     : Window{parent}
+    , nav{this, SpcOutlookNav::SevereSummary}
     , sw{this, box}
 {
     setTitle("SPC Convective Outlooks");
@@ -23,6 +24,7 @@ SpcSwoSummary::SpcSwoSummary(Window * parent)
     for (const auto& day : day4To8List) {
         urls.push_back(UtilitySpcSwo::getImageUrlsDays48(day));
     }
+    box.addWidget(nav.combo());
     box.addImageRows(this, urls, images, numberAcross);
     box.addStretch();
     for (auto index : range(urls.size())) {

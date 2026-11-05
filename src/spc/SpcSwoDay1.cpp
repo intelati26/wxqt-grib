@@ -16,6 +16,7 @@
 
 SpcSwoDay1::SpcSwoDay1(Window * parent, int day)
     : Window{parent}
+    , nav{this, SpcOutlookNav::SevereDay, day}
     , sw{this, imageVBox, boxText}
     , text{this}
     , button{this, Icon::None, "State graphics", "The state graphics"}
@@ -23,6 +24,7 @@ SpcSwoDay1::SpcSwoDay1(Window * parent, int day)
 {
     setTitle("SPC Convective Outlook Day " + To::string(day));
     button.connect([this, day] { new SpcSwoStateGraphics{this, day}; });
+    boxText.addWidget(nav.combo());
     boxText.addWidget(button);
     boxText.addWidget(text);
     boxText.addStretch();

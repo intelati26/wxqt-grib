@@ -12,11 +12,14 @@
 
 SpcTstormOutlooks::SpcTstormOutlooks(Window * parent)
     : Window{parent}
+    , nav{this, SpcOutlookNav::Thunderstorm}
 {
     setTitle("SPC Thunderstorm Outlooks");
     const auto urls = UtilitySpc::getTstormOutlookUrls();
     box.addImageRow(this, urls, images, getWindowWidth());
-    box.getAndShow(this);
+    outer.addWidget(nav.combo());
+    outer.addLayout(box);
+    outer.getAndShow(this);
     for (auto index : range(urls.size())) {
         images[index].connect([this, index] { new ImageViewer{this, images[index].bytes}; });
         new FutureBytes{this, urls[index], [this, index] (const auto& ba) { images[index].setBytes(ba); }};

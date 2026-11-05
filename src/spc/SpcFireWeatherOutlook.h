@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+#include "spc/SpcOutlookNav.h"
 #include "ui/ComboBox.h"
 #include "ui/Photo.h"
 #include "ui/Shortcut.h"
@@ -26,6 +27,7 @@ public:
 private:
     void showDay(int index);
     VBox leftBox;
+    SpcOutlookNav nav;
     ComboBox comboDay;
     ComboBox comboGraphic;
     Text header;

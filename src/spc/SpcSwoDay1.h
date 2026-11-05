@@ -15,6 +15,7 @@
 #include "ui/Text.h"
 #include "ui/TwoWidgetScroll.h"
 #include "ui/VBox.h"
+#include "spc/SpcOutlookNav.h"
 #include "ui/Window.h"
 
 using std::string;
@@ -25,6 +26,7 @@ public:
     SpcSwoDay1(Window *, int);
 
 private:
+    SpcOutlookNav nav;
     VBox imageVBox;
     VBox boxText;
     TwoWidgetScroll sw;

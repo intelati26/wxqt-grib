@@ -18,6 +18,7 @@
 SpcSwoStateGraphics::SpcSwoStateGraphics(Window * parent, int day)
     : Window{parent}
     , sw{this, box}
+    , nav{this, SpcOutlookNav::State, std::min(day, 3)}
     , comboBox{this, GlobalArrays::states}
     , day{day}
     , state{Location::state()}
@@ -26,6 +27,7 @@ SpcSwoStateGraphics::SpcSwoStateGraphics(Window * parent, int day)
     const auto fullStateIndex = findex(state + ":", GlobalArrays::states);
     comboBox.setIndex(fullStateIndex);
     comboBox.connect([this] { changeState(); });
+    box.addWidget(nav.combo());
     box.addWidget(comboBox);
     urls = UtilitySpcSwo::getSwoStateUrl(state, day);
     box.addImageRows(this, urls, images, numberAcross, getWindowWidth());

@@ -14,6 +14,7 @@
 
 SpcFireSummary::SpcFireSummary(Window * parent)
     : Window{parent}
+    , nav{this, SpcOutlookNav::FireSummary}
     , urls{UtilitySpcFireOutlook::urls}
 {
     setTitle("SPC Fire Weather Outlooks");
@@ -30,7 +31,9 @@ SpcFireSummary::SpcFireSummary(Window * parent)
         columns.back()->addStretch();
         box.addLayout(*columns.back());
     }
-    box.getAndShow(this);
+    outer.addWidget(nav.combo());
+    outer.addLayout(box);
+    outer.getAndShow(this);
     // what the SPC's fire weather page says above each picture: who issued it, when, and the risk (day 1 and day 2 also go in the title)
     new FutureBytes{this, "https://www.spc.noaa.gov/products/fire_wx/", [this] (const auto& ba) {
         const auto found = UtilitySpcFireOutlook::issuances(QString::fromUtf8(ba).toStdString());
