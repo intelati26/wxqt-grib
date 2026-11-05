@@ -7,6 +7,7 @@
 #include "SpcFireSummary.h"
 #include <QString>
 #include "objects/FutureBytes.h"
+#include "misc/OutlookNav.h"
 #include "spc/SpcFireWeatherOutlook.h"
 #include "spc/UtilitySpcFireOutlook.h"
 #include "util/To.h"
@@ -14,7 +15,6 @@
 
 SpcFireSummary::SpcFireSummary(Window * parent)
     : Window{parent}
-    , nav{this, OutlookNav::FireSummary}
     , urls{UtilitySpcFireOutlook::urls}
 {
     setTitle("SPC Fire Weather Outlooks");
@@ -31,9 +31,7 @@ SpcFireSummary::SpcFireSummary(Window * parent)
         columns.back()->addStretch();
         box.addLayout(*columns.back());
     }
-    outer.addWidget(nav.combo());
-    outer.addLayout(box);
-    outer.getAndShow(this);
+    box.getAndShow(this);
     // what the SPC's fire weather page says above each picture: who issued it, when, and the risk (day 1 and day 2 also go in the title)
     new FutureBytes{this, "https://www.spc.noaa.gov/products/fire_wx/", [this] (const auto& ba) {
         const auto found = UtilitySpcFireOutlook::issuances(QString::fromUtf8(ba).toStdString());
@@ -49,11 +47,11 @@ SpcFireSummary::SpcFireSummary(Window * parent)
         }
     }};
     for (auto index : range(urls.size())) {
-        images[index].connect([this, index] { new SpcFireWeatherOutlook{this, static_cast<int>(index)}; });
+        images[index].connect([this, index] { OutlookNav::open(this, OutlookNav::FireDay, static_cast<int>(index)); });
         new FutureBytes{this, urls[index], [this, index] (const auto& ba) { images[index].setBytes(ba); }};
     }
     for (auto index : range(urls.size())) {
         shortcuts.emplace_back(QKeySequence{QString::fromStdString(To::string(index + 1))}, this);
-        shortcuts.back().connect([this, index] { new SpcFireWeatherOutlook{this, static_cast<int>(index)}; });
+        shortcuts.back().connect([this, index] { OutlookNav::open(this, OutlookNav::FireDay, static_cast<int>(index)); });
     }
 }

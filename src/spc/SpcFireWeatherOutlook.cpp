@@ -37,7 +37,6 @@ namespace {
 
 SpcFireWeatherOutlook::SpcFireWeatherOutlook(Window * parent, int day)
     : Window{parent}
-    , nav{this, OutlookNav::FireDay}
     , comboDay{this, dayLabels}
     , comboGraphic{this, {"Categorical outlook", "Probability"}}
     , header{this}
@@ -47,7 +46,6 @@ SpcFireWeatherOutlook::SpcFireWeatherOutlook(Window * parent, int day)
     , shortcutImage{QKeySequence{"1"}, this}
 {
     setTitle("SPC Fire Weather Outlooks");
-    leftBox.addWidget(nav.combo());
     leftBox.addWidget(comboDay);
     leftBox.addWidget(comboGraphic);
     leftBox.addWidget(header);

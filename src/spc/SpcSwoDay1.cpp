@@ -9,6 +9,7 @@
 #include "ui/UiStandards.h"
 #include "misc/ImageViewer.h"
 #include "objects/FutureBytes.h"
+#include "misc/OutlookNav.h"
 #include "objects/FutureText.h"
 #include "spc/SpcSwoStateGraphics.h"
 #include "spc/UtilitySpcSwo.h"
@@ -17,7 +18,6 @@
 
 SpcSwoDay1::SpcSwoDay1(Window * parent, int day)
     : Window{parent}
-    , nav{this, OutlookNav::SevereDay, day}
     , sw{this, imageVBox, boxText}
     , text{this}
     , riskTables{this}
@@ -25,8 +25,7 @@ SpcSwoDay1::SpcSwoDay1(Window * parent, int day)
     , launchStateShortcut{QKeySequence{"S"}, this}
 {
     setTitle("SPC Convective Outlook Day " + To::string(day));
-    button.connect([this, day] { new SpcSwoStateGraphics{this, day}; });
-    boxText.addWidget(nav.combo());
+    button.connect([this, day] { OutlookNav::open(this, OutlookNav::State, std::min(day, 3)); });
     boxText.addWidget(button);
     boxText.addWidget(riskTables);
     boxText.addWidget(text);
@@ -83,5 +82,5 @@ SpcSwoDay1::SpcSwoDay1(Window * parent, int day)
         shortcuts.back().connect([this, parent, index] { new ImageViewer{parent, images[index].bytes}; });
     }
 
-    launchStateShortcut.connect([this, day] { new SpcSwoStateGraphics(this, day); });
+    launchStateShortcut.connect([this, day] { OutlookNav::open(this, OutlookNav::State, std::min(day, 3)); });
 }

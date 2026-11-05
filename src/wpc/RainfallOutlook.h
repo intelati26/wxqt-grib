@@ -12,7 +12,6 @@
 #include "ui/Text.h"
 #include "ui/TwoWidgetScroll.h"
 #include "ui/VBox.h"
-#include "misc/OutlookNav.h"
 #include "ui/Window.h"
 
 class RainfallOutlook : public Window {
@@ -20,7 +19,6 @@ public:
     RainfallOutlook(Window *, int);
 
 private:
-    OutlookNav nav;
     VBox vbox0;
     VBox vbox1;
     TwoWidgetScroll sw;

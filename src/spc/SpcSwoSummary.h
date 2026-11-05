@@ -9,7 +9,6 @@
 
 #include <string>
 #include <vector>
-#include "misc/OutlookNav.h"
 #include "ui/Image.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Shortcut.h"
@@ -27,7 +26,6 @@ public:
 private:
     void resizeEventCustom() override;
     vector<QLabel *> labels;   // above each day's picture: its highest risk
-    OutlookNav nav;
     VBox box;
     ScrolledWindow sw;
     vector<string> urls;

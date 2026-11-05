@@ -8,7 +8,6 @@
 #define SPCTSTORMOUTLOOKS_H
 
 #include <vector>
-#include "misc/OutlookNav.h"
 #include "ui/HBox.h"
 #include "ui/VBox.h"
 #include "ui/Image.h"
@@ -22,8 +21,6 @@ public:
 
 private:
     void resizeEventCustom() override;
-    OutlookNav nav;
-    VBox outer;
     HBox box;
     vector<Image> images;
 };

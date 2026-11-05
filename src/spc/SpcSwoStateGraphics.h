@@ -9,7 +9,6 @@
 
 #include <string>
 #include <vector>
-#include "misc/OutlookNav.h"
 #include "ui/ComboBox.h"
 #include "ui/Image.h"
 #include "ui/ScrolledWindow.h"
@@ -34,7 +33,6 @@ private:
     bool ready{false};
     VBox box;
     ScrolledWindow sw;
-    OutlookNav nav;
     ComboBox comboBox;
     int day;
     string state;

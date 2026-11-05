@@ -9,6 +9,7 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include "objects/FutureBytes.h"
+#include "misc/OutlookNav.h"
 #include "spc/SpcSwoDay1.h"
 #include "spc/UtilitySpcSwo.h"
 #include "util/To.h"
@@ -16,7 +17,6 @@
 
 SpcSwoSummary::SpcSwoSummary(Window * parent)
     : Window{parent}
-    , nav{this, OutlookNav::SevereSummary}
     , sw{this, box}
 {
     setTitle("SPC Convective Outlooks");
@@ -27,7 +27,6 @@ SpcSwoSummary::SpcSwoSummary(Window * parent)
     for (const auto& day : day4To8List) {
         urls.push_back(UtilitySpcSwo::getImageUrlsDays48(day));
     }
-    box.addWidget(nav.combo());
     // one cell for each day: its highest risk on the SPC's colour for it (and the population in it) above the day's picture
     for ([[maybe_unused]] auto index : range(urls.size())) {
         images.emplace_back(this);
@@ -80,13 +79,13 @@ SpcSwoSummary::SpcSwoSummary(Window * parent)
         }
     }
     for (auto index : range(urls.size())) {
-        images[index].connect([this, index] { new SpcSwoDay1{this, static_cast<int>(index) + 1}; });
+        images[index].connect([this, index] { OutlookNav::open(this, OutlookNav::SevereDay, std::min(static_cast<int>(index) + 1, 4)); });
         images[index].setNumberAcross(numberAcross, getWindowWidth());
         new FutureBytes{this, urls[index], [this, index] (const auto& ba) { images[index].setBytes(ba); images[index].resizeToWidth(static_cast<float>(width()) / 4 - 8); }};
     }
     for (auto index : range(urls.size() + 1)) {
         shortcuts.emplace_back(QKeySequence{QString::fromStdString(To::string(index))}, this);
-        shortcuts.back().connect([this, index] { new SpcSwoDay1{this, static_cast<int>(index)}; });
+        shortcuts.back().connect([this, index] { OutlookNav::open(this, OutlookNav::SevereDay, std::clamp(static_cast<int>(index), 1, 4)); });
     }
 }
 

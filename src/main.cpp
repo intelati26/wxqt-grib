@@ -53,6 +53,7 @@
 #include "rivers/RiverForecastList.h"
 #include "misc/ProductViewer.h"
 #include "misc/SevereDashboard.h"
+#include "misc/OutlookNav.h"
 #include "spc/AbpgExtended.h"
 #include "spc/SpcCompMap.h"
 #include "spc/SpcFireSummary.h"
@@ -1054,15 +1055,15 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("spcscreen:")) {   // WXQT_OPEN=spcscreen:<summary|day:N|fire|firesummary|tstorm|reports|meso|compare|compmap>: that SPC screen (with its go-to list)
                 const auto which = route.section(':', 1, 1);
                 if (which == "summary") {
-                    new SpcSwoSummary{&w};
+                    OutlookNav::open(&w, OutlookNav::SevereSummary);
                 } else if (which == "day") {
-                    new SpcSwoDay1{&w, route.section(':', 2, 2).toInt()};
+                    OutlookNav::open(&w, OutlookNav::SevereDay, route.section(':', 2, 2).toInt());
                 } else if (which == "fire") {
-                    new SpcFireWeatherOutlook{&w, 0};
+                    OutlookNav::open(&w, OutlookNav::FireDay, 0);
                 } else if (which == "firesummary") {
-                    new SpcFireSummary{&w};
+                    OutlookNav::open(&w, OutlookNav::FireSummary);
                 } else if (which == "tstorm") {
-                    new SpcTstormOutlooks{&w};
+                    OutlookNav::open(&w, OutlookNav::Thunderstorm);
                 } else if (which == "reports") {
                     new SpcStormReports{&w, "today"};
                 } else if (which == "meso") {
@@ -1073,7 +1074,7 @@ int main(int argc, char * argv[]) {
                     new SpcCompMap{&w};
                 }
             } else if (route.startsWith("swostate:")) {   // WXQT_OPEN=swostate:<day>: the SPC convective outlook's state graphics for that day
-                new SpcSwoStateGraphics{&w, route.section(':', 1, 1).toInt()};
+                OutlookNav::open(&w, OutlookNav::State, route.section(':', 1, 1).toInt());
             } else {
                 w.openRoute(route.toStdString());
             }

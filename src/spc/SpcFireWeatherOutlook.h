@@ -7,9 +7,9 @@
 #ifndef SPCFIREWEATHEROUTLOOK_H
 #define SPCFIREWEATHEROUTLOOK_H
 
+#include <algorithm>
 #include <string>
 #include <vector>
-#include "misc/OutlookNav.h"
 #include "ui/ComboBox.h"
 #include "ui/Photo.h"
 #include "ui/Shortcut.h"
@@ -22,12 +22,12 @@
 // categorical graphic and (days 3-8) the probability graphic, with who issued it and when, what the lines mean, and the text product.
 class SpcFireWeatherOutlook : public Window {
 public:
-    SpcFireWeatherOutlook(Window *, int);   // the day to start on: 0 day 1, 1 day 2, 2 days 3-8
+    SpcFireWeatherOutlook(Window *, int);
+    void selectDay(int day) { comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 2))); showDay(comboDay.getIndex()); }   // the day to start on: 0 day 1, 1 day 2, 2 days 3-8
 
 private:
     void showDay(int index);
     VBox leftBox;
-    OutlookNav nav;
     ComboBox comboDay;
     ComboBox comboGraphic;
     Text header;

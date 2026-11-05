@@ -13,7 +13,6 @@
 
 RainfallOutlook::RainfallOutlook(Window * parent, int day)
     : Window{parent}
-    , nav{this, OutlookNav::RainfallDay, day}
     , sw{this, vbox0, vbox1}
     , photo{this, Scaled}
     , text{this}
@@ -22,7 +21,6 @@ RainfallOutlook::RainfallOutlook(Window * parent, int day)
     setTitle("Excessive Rainfall Outlook Day " + To::string(day + 1));
     const auto& url = UtilityWpcRainfallOutlook::urls[day];
     const auto& product = UtilityWpcRainfallOutlook::codes[day];
-    vbox0.addWidget(nav.combo());
     vbox0.addWidget(photo);
     vbox1.addWidget(text);
     photo.connect([this] { new ImageViewer{this, photo.bytes}; });

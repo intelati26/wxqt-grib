@@ -6,6 +6,7 @@
 
 #include "RainfallOutlookSummary.h"
 #include "objects/FutureBytes.h"
+#include "misc/OutlookNav.h"
 #include "util/To.h"
 #include "util/UtilityList.h"
 #include "wpc/RainfallOutlook.h"
@@ -13,19 +14,17 @@
 
 RainfallOutlookSummary::RainfallOutlookSummary(Window * parent)
     : Window{parent}
-    , nav{this, OutlookNav::RainfallSummary}
     , urls{UtilityWpcRainfallOutlook::urls}
 {
     setTitle("Excessive Rainfall Outlook");
-    box.addWidget(nav.combo());
     box.addImageRows(this, urls, images, numberAcross, getWindowWidth());
     box.addStretch();
     box.getAndShow(this);
     for (auto index : range(urls.size())) {
-        images[index].connect([this, index] { new RainfallOutlook{this, static_cast<int>(index)}; });
+        images[index].connect([this, index] { OutlookNav::open(this, OutlookNav::RainfallDay, static_cast<int>(index)); });
         new FutureBytes{this, urls[index], [this, index] (const auto& ba) { images[index].setBytes(ba); }};
         shortcuts.emplace_back(QKeySequence{QString::fromStdString(To::string(index + 1))}, this);
-        shortcuts.back().connect([this, index] { new RainfallOutlook{this, static_cast<int>(index)}; });
+        shortcuts.back().connect([this, index] { OutlookNav::open(this, OutlookNav::RainfallDay, static_cast<int>(index)); });
     }
 }
 

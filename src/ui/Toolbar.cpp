@@ -50,6 +50,8 @@
 #include "settings/SettingsMain.h"
 #include "settings/UIPreferences.h"
 #include "util/Utility.h"
+#include "misc/OutlookScreen.h"
+#include "misc/OutlookNav.h"
 #include "spc/SpcCompMap.h"
 #include "spc/SpcFireSummary.h"
 #include "spc/SpcMeso.h"
@@ -377,11 +379,11 @@ void Toolbar::launchWfoText() {
 }
 
 void Toolbar::launchSpcSwoSummary() {
-    new SpcSwoSummary{parent};
+    OutlookNav::open(parent, OutlookNav::SevereSummary);
 }
 
 void Toolbar::launchSpcSwoDay1(int day) {
-    new SpcSwoDay1{parent, day};
+    OutlookNav::open(parent, OutlookNav::SevereDay, std::clamp(day, 1, 4));
 }
 
 void Toolbar::launchGoesViewer() {
@@ -393,7 +395,7 @@ void Toolbar::launchNationalText() {
 }
 
 void Toolbar::launchSpcTstormOutlooks() {
-    new SpcTstormOutlooks{parent};
+    OutlookNav::open(parent, OutlookNav::Thunderstorm);
 }
 
 void Toolbar::launchSpcCompmap() {
@@ -445,11 +447,11 @@ void Toolbar::launchUsAlerts() {
 }
 
 void Toolbar::launchRainfallOutlookSummary() {
-    new RainfallOutlookSummary{parent};
+    OutlookNav::open(parent, OutlookNav::RainfallSummary);
 }
 
 void Toolbar::launchSpcFireWeatherOutlookSummary() {
-    new SpcFireSummary{parent};
+    OutlookNav::open(parent, OutlookNav::FireSummary);
 }
 
 void Toolbar::launchSpcStormReports(const string& day) {
