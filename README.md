@@ -141,7 +141,7 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
 NOAA / NWS (NHC, SPC, WPC, OPC, CPC, NESDIS OSPO and Coral Reef Watch, NCEP, NSSL, MRMS), CIRA / RAMMB (Colorado State),
 JTWC, JMA, ECMWF open data (CC BY 4.0), NOAA PSL (the reanalysis for the climatology), the U.S. Drought Monitor, AWS and Google Cloud open data (mirrors). SPC's REFS, CIRA's products and several NSSL models are **experimental**; this is not a
 warning service - see the disclaimer below. Sounding algorithms: SHARPpy (BSD), see `licenses/sharppy-notice.md`.
-zstd (BSD / GPLv2) is vendored for the Zarr reader, see `licenses/zstd-LICENSE.txt`. GDAL (MIT), PROJ (MIT), ECMWF ecCodes (Apache 2.0), Qt and the
+zstd (BSD / GPLv2) is vendored for the Zarr reader, see `licenses/zstd-LICENSE.txt`. The om-file-format decoder (Open-Meteo) is vendored for their `.om` model files, see `src/external/omfile/LICENSE`. GDAL (MIT), PROJ (MIT), ECMWF ecCodes (Apache 2.0), Qt and the
 data providers are credited in `licenses/CREDITS.md`.
 
 Prerequisites:
