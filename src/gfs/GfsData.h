@@ -121,6 +121,8 @@ public:
         std::string folder;
     };
     static std::vector<WrfRunInfo> wrfRunsIn(const std::vector<std::string>& folders);
+    // The box (degrees; a little outside the points) a `wrf` run covers, from the latitudes and longitudes of its first file; false when there is no such run or file.
+    static bool wrfDomain(const std::string& gdalBin, const std::vector<std::string>& folders, const std::string& runId, double& west, double& south, double& east, double& north);
 
     // a field at a forecast hour (a precipitation period needs the running total at two hours)
     struct Need {

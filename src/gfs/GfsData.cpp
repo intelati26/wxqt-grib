@@ -228,6 +228,50 @@ std::vector<GfsData::WrfRunInfo> GfsData::wrfRunsIn(const std::vector<std::strin
     return out;
 }
 
+bool GfsData::wrfDomain(const std::string& gdalBin, const std::vector<std::string>& folders, const std::string& runId, double& west, double& south, double& east, double& north) {
+    static std::mutex mutex;
+    static std::map<QString, std::array<double, 4>> kept;
+    const auto runs = wrfRuns(folders);
+    const WrfRunFiles * found = nullptr;
+    for (const auto& r : runs) {
+        if (r.init.toString("yyyyMMddHH").toStdString() == runId && (found == nullptr || r.files.size() > found->files.size())) {
+            found = &r;
+        }
+    }
+    if (found == nullptr || found->files.empty()) {
+        return false;
+    }
+    const QString path = found->files.begin()->second;
+    const QString key = QFileInfo{path}.absolutePath();
+    {
+        const std::lock_guard lock{mutex};
+        if (const auto it = kept.find(key); it != kept.end()) {
+            west = it->second[0];
+            south = it->second[1];
+            east = it->second[2];
+            north = it->second[3];
+            return true;
+        }
+    }
+    std::vector<float> lat, lon;
+    int nx = 0, ny = 0, nb = 0;
+    std::string error;
+    if (!wrfRead(gdalBin, QDir::tempPath(), path, "XLAT", nx, ny, nb, lat, error) || !wrfRead(gdalBin, QDir::tempPath(), path, "XLONG", nx, ny, nb, lon, error) || lat.empty() || lat.size() != lon.size()) {
+        return false;
+    }
+    lat.resize(static_cast<size_t>(nx) * static_cast<size_t>(ny));
+    lon.resize(lat.size());
+    const auto [minLat, maxLat] = std::minmax_element(lat.begin(), lat.end());
+    const auto [minLon, maxLon] = std::minmax_element(lon.begin(), lon.end());
+    west = std::floor(*minLon * 2.0) / 2.0;
+    east = std::ceil(*maxLon * 2.0) / 2.0;
+    south = std::floor(*minLat * 2.0) / 2.0;
+    north = std::ceil(*maxLat * 2.0) / 2.0;
+    const std::lock_guard lock{mutex};
+    kept[key] = {west, south, east, north};
+    return true;
+}
+
 bool GfsData::latestRun(Run& run) const {
     if (source.wrf.enabled) {   // the newest run the folders have
         const WrfRunFiles * newest = nullptr;

@@ -116,6 +116,7 @@ private:
     enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime, Parts, Deterministic, Seasonal, Difference };
     int tileCount() const;                       // the tiles besides the first: 0, 1, 2 or 3
     TilesShow tilesShow() const;
+    string domainOfferedFor;   // the local model whose own area was chosen for the person (once)
     static const std::vector<string>& partsOfPool();
     static string partnerChart(const string& pooled, const string& model);   // the chart of a deterministic model that goes with a pooled ENS-ALL chart ("" when there is none)
     static const std::vector<string>& deterministicDefaults(const string& model);   // the models a pooled or probabilistic model is put beside: the global ones; for the REFS the convection allowing ones (RRFS, HRRR, NSSL MPAS)

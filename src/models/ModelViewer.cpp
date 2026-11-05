@@ -2003,6 +2003,21 @@ void ModelViewer::addLocalSectors() {
             km = shownKm;
         }
     }
+    // a model made on this computer covers a region of its own: its first area is that box, and the other models' charts in the compare tiles are drawn for it too
+    sectors.erase(std::remove_if(sectors.begin(), sectors.end(), [] (const string& id) { return id.compare(0, 4, "BOX:") == 0; }), sectors.end());
+    if (const auto * def = GfsModels::find(objectModel.model); def != nullptr && def->source("").wrf.enabled) {
+        const auto source = def->source("");
+        const auto runs = GfsData::wrfRunsIn(source.wrf.folders);
+        double west = 0, south = 0, east = 0, north = 0;
+        if (!runs.empty() && GfsData::wrfDomain(UtilityGrib::gdalBinDir(), source.wrf.folders, runs.back().id, west, south, east, north)) {
+            const auto domain = GfsChart::boxId(west, south, east, north);
+            sectors.insert(sectors.begin(), domain);
+            if (domainOfferedFor != objectModel.model) {   // the first time this model is shown: its own area, not the whole country
+                domainOfferedFor = objectModel.model;
+                objectModel.sector = domain;
+            }
+        }
+    }
     const auto places = Location::getListLatLons();
     const auto names = Location::listOfNames();
     for (size_t i = 0; i < places.size(); i++) {
@@ -2212,6 +2227,10 @@ namespace {
     string sectorLabel(const string& id) {
         double lat = 0, lon = 0, km = 0;
         string name;
+        if (GfsChart::Sector box; GfsChart::parseBoxId(id, box)) {
+            return "Domain of the run (" + std::to_string(static_cast<int>(std::lround(box.south))) + " to " + std::to_string(static_cast<int>(std::lround(box.north))) + " N, " +
+                std::to_string(static_cast<int>(std::lround(-box.east))) + " to " + std::to_string(static_cast<int>(std::lround(-box.west))) + " W)";
+        }
         if (GfsChart::parseLocalId(id, lat, lon, km, name)) {
             return (name.empty() ? string{"Saved location"} : name) + ", " + std::to_string(static_cast<int>(km)) + " km square";
         }
