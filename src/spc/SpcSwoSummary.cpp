@@ -51,6 +51,17 @@ SpcSwoSummary::SpcSwoSummary(Window * parent)
     for (int day = 1; day <= 8; day++) {
         const auto take = [this, day] (const QByteArray& ba) {
             const auto row = UtilitySpcSwo::highestRow(UtilitySpcSwo::parseRiskTable(ba.toStdString()));
+            if (row.empty() && day <= 3) {
+                // the tables list the severe risks only: ask the outlook's map service whether the general thunderstorm area is there
+                const string layer = To::string(day == 1 ? 1 : (day == 2 ? 9 : 17));
+                new FutureBytes{this, "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/" + layer + "/query?where=1%3D1&outFields=label&returnGeometry=false&f=json", [this, day] (const auto& json) {
+                    if (json.contains("\"TSTM\"")) {
+                        auto * label = labels[static_cast<size_t>(day - 1)];
+                        label->setText(QString::fromStdString("Day " + To::string(day) + ": <b>TSTM</b><br>general thunderstorms"));
+                        label->setStyleSheet(QString::fromStdString("padding: 3px; color: #000000; background: " + UtilitySpcSwo::riskColor("TSTM") + ";"));
+                    }
+                }};
+            }
             const auto risk = row.empty() ? string{"No risk"} : row[0];
             const auto color = UtilitySpcSwo::riskColor(risk);
             auto * label = labels[static_cast<size_t>(day - 1)];
