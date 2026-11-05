@@ -57,7 +57,7 @@ ObjectModel::ObjectModel(const string& prefModel)
         param = "500_vort_ht";
         model = "GFS";
         sector = "NAMER";
-        models = UtilityModelNcepInterface::models;
+        models = UtilityModelNcepInterface::models();
     } else if (prefModel == "WPCGEFS") {
         run = "00Z";
         timeStr = "01";

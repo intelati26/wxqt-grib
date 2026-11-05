@@ -17,7 +17,8 @@ using std::vector;
 
 class UtilityModelNcepInterface {
 public:
-    static const vector<string> models;
+    // the models of the registry (and the older ones the program lists): made when first asked, not at start-up, so the user's own model files (read once main has said where they are) are in it
+    static const vector<string>& models();
     static const vector<string> sectorsGfs;
     static const vector<string> sectorsNam;
     static const vector<string> sectorsNamHires;

@@ -635,6 +635,16 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
                 const float s = rotated ? sinA[k] : 0.0f, c = rotated ? cosA[k] : 1.0f;
                 field[k] = wantU ? u[k] * c - v[k] * s : v[k] * c + u[k] * s;
             }
+        } else if (variable == "slp()") {   // sea level pressure (Pa) from the surface pressure, the 2 m temperature and the terrain height: the hypsometric reduction with a mean lapse rate
+            std::vector<float> psfc, t2, hgt;
+            if (!read("PSFC", psfc) || !read("T2", t2) || !read("HGT", hgt)) {
+                return false;
+            }
+            field.resize(psfc.size());
+            for (size_t k = 0; k < psfc.size(); k++) {
+                const double meanT = t2[k] + 0.0065 * hgt[k] / 2.0;
+                field[k] = static_cast<float>(psfc[k] * std::exp(9.80665 * hgt[k] / (287.05 * meanT)));
+            }
         } else if (variable.compare(0, 4, "max(") == 0 && variable.back() == ')') {   // the highest of the levels (the composite reflectivity of REFL_10CM)
             std::vector<float> all;
             if (!read(trim(variable.substr(4, variable.size() - 5)), all)) {
