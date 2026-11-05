@@ -5,10 +5,13 @@
 
 #include "gfs/GfsData.h"
 #include "gfs/GfsModels.h"
+#include "gfs/OmFile.h"
+#include "gfs/OmGrid.h"
 #include "util/NetPriority.h"
 #include <cctype>
 #include <algorithm>
 #include <chrono>
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <cstdlib>
@@ -90,7 +93,7 @@ bool GfsData::latestRun(Run& run) const {
                     continue;
                 }
                 const auto head = config.bytes(resolved, 0, 3);
-                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("{") || head.startsWith("PK")) {
+                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("{") || head.startsWith("PK") || head.startsWith("OM")) {
                     there = true;
                     break;
                 }
@@ -354,12 +357,38 @@ std::string GfsData::resolveUrl(const std::string& url) const {
     return best.empty() ? std::string{} : directory + best;
 }
 
+namespace {
+    // The box of an Open-Meteo regular grid: the BBOX of the coordinate system in the meta.json beside the file (south, west, north, east); the grid's points are on its edges.
+    bool omBounds(const GfsData::Config& config, const std::string& fileUrl, double& south, double& west, double& north, double& east) {
+        static std::mutex mutex;
+        static std::map<std::string, std::array<double, 4>> known;
+        const auto metaUrl = fileUrl.substr(0, fileUrl.rfind('/') + 1) + "meta.json";
+        {
+            const std::lock_guard lock{mutex};
+            const auto found = known.find(metaUrl);
+            if (found != known.end()) {
+                south = found->second[0], west = found->second[1], north = found->second[2], east = found->second[3];
+                return true;
+            }
+        }
+        const auto wkt = QJsonDocument::fromJson(config.bytes(metaUrl, 0, -1)).object().value("crs_wkt").toString();
+        const auto m = QRegularExpression{"BBOX\\[\\s*([-0-9.]+)\\s*,\\s*([-0-9.]+)\\s*,\\s*([-0-9.]+)\\s*,\\s*([-0-9.]+)\\s*\\]"}.match(wkt);
+        if (!m.hasMatch()) {
+            return false;
+        }
+        south = m.captured(1).toDouble(), west = m.captured(2).toDouble(), north = m.captured(3).toDouble(), east = m.captured(4).toDouble();
+        const std::lock_guard lock{mutex};
+        known[metaUrl] = {south, west, north, east};
+        return true;
+    }
+}
+
 // A field of a source with no index (GEPS, SPC's post-processing): the file is kept whole for the run and hour (a NetCDF one is read by range), and the field is the mean or spread of its
 // messages, or one of them (a member, a variable of a file of several).
 bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
     const std::string variable = source.variableOf ? source.variableOf(want) : want.variable;   // what a NetCDF file calls the field
     const int timeBand = source.ncBand ? source.ncBand(run, hour, want) : 0;
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom) ? variable : std::string{}) + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom || source.om.enabled) ? variable : std::string{}) + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
         name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
@@ -389,6 +418,140 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
                 }
             }
         }
+    }
+    if (source.om.enabled) {   // Open-Meteo's file: the variable is read by range, the grid made regular; kept like the others
+        std::string url;
+        for (const auto& candidate : urlsFor(run, hour, file)) {
+            url = resolveUrl(candidate);
+            if (!url.empty()) {
+                break;
+            }
+        }
+        if (url.empty() || !config.tail) {
+            error = source.id + " has no file for " + run.id() + " f" + pad(hour, 3);
+            return false;
+        }
+        OmFile::Io io;
+        io.merge = 262144;
+        io.max = 8u << 20;
+        io.range = [this, &url] (uint64_t offset, uint64_t size, std::string& bytes) {
+            if (size == 0) {
+                bytes.clear();
+                return true;
+            }
+            const auto got = config.bytes(url, static_cast<long long>(offset), static_cast<long long>(offset + size - 1));
+            bytes.assign(got.constData(), static_cast<size_t>(got.size()));
+            return static_cast<uint64_t>(got.size()) >= size;
+        };
+        io.tail = [this, &url] (uint64_t size, std::string& bytes) {
+            const auto got = config.tail(url, static_cast<long long>(size));
+            bytes.assign(got.constData(), static_cast<size_t>(got.size()));
+            return static_cast<uint64_t>(got.size()) >= size;
+        };
+        OmFile om;
+        if (!om.open(io, error)) {
+            error = source.id + " " + run.id() + " f" + pad(hour, 3) + ": " + error;
+            return false;
+        }
+        std::vector<float> values;
+        std::string dimensionsOf = variable;   // (the variable whose dimensions say the grid)
+        if (const auto slash = variable.find('/'); slash != std::string::npos) {
+            // a wind given as speed and direction (the UK Met Office's files): `speed/direction`; the want's component is made from them (the direction is where the wind comes from, in degrees)
+            const auto speedName = variable.substr(0, slash), directionName = variable.substr(slash + 1);
+            std::vector<float> speed, direction;
+            if (!om.has(speedName) || !om.has(directionName)) {
+                error = source.id + " has no " + variable + " in " + run.id() + " f" + pad(hour, 3);
+                return false;
+            }
+            if (!om.readAll(speedName, speed, error) || !om.readAll(directionName, direction, error) || speed.size() != direction.size()) {
+                return false;
+            }
+            const bool east = want.variable == "UGRD";
+            values.resize(speed.size());
+            for (size_t i = 0; i < speed.size(); i++) {
+                const double radians = static_cast<double>(direction[i]) * 3.14159265358979323846 / 180.0;
+                values[i] = static_cast<float>(-speed[i] * (east ? std::sin(radians) : std::cos(radians)));
+            }
+            dimensionsOf = speedName;
+        } else {
+            if (!om.has(variable)) {
+                error = source.id + " has no " + variable + " in " + run.id() + " f" + pad(hour, 3);
+                return false;
+            }
+            if (!om.readAll(variable, values, error)) {
+                return false;
+            }
+        }
+        GfsGrid::Grid g;
+        if (source.om.gaussian > 0) {
+            if (!OmGrid::gaussianToRegular(values, source.om.gaussian, source.om.step, -180.0, -90.0, 180.0, 90.0, g, error)) {
+                return false;
+            }
+        } else {   // a regular grid of the box the meta.json says, the first row at the south
+            const auto& dims = om.variable(dimensionsOf)->dimensions;
+            double south = 0, west = 0, north = 0, east = 0;
+            if (dims.size() != 2 || !omBounds(config, url, south, west, north, east)) {
+                error = source.id + ": the grid of " + variable + " is not a regular one this program knows";
+                return false;
+            }
+            const int rows = static_cast<int>(dims[0]), columns = static_cast<int>(dims[1]);
+            const double dy = rows > 1 ? (north - south) / (rows - 1) : 0.0, dx = columns > 1 ? (east - west) / (columns - 1) : 0.0;
+            if (rows < 2 || columns < 2) {
+                error = source.id + ": the grid of " + variable + " is too small";
+                return false;
+            }
+            const auto at = [&] (int r, int c) { return values[static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c)]; };
+            if (std::abs(dx - dy) <= 1e-6) {
+                g.columns = columns;
+                g.rows = rows;
+                g.lon0 = west;
+                g.lat0 = north;
+                g.step = dx;
+                g.values.resize(values.size());
+                for (int r = 0; r < rows; r++) {   // the file's first row is the southern one; the charts' is the northern
+                    std::copy_n(values.begin() + static_cast<std::ptrdiff_t>(rows - 1 - r) * columns, columns, g.values.begin() + static_cast<std::ptrdiff_t>(r) * columns);
+                }
+            } else {   // cells that are not square (the UK Met Office's 0.140625 by 0.09375 degrees): the charts' are, so bilinear onto the finer step
+                const double step = std::min(dx, dy);
+                g.columns = static_cast<int>(std::floor((east - west) / step + 1e-9)) + 1;
+                g.rows = static_cast<int>(std::floor((north - south) / step + 1e-9)) + 1;
+                g.lon0 = west;
+                g.lat0 = north;
+                g.step = step;
+                g.values.assign(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows), std::nanf(""));
+                for (int r = 0; r < g.rows; r++) {
+                    const double y = (north - r * step - south) / dy;
+                    const int r0 = std::clamp(static_cast<int>(std::floor(y)), 0, rows - 2);
+                    const double wy = std::clamp(y - r0, 0.0, 1.0);
+                    for (int c = 0; c < g.columns; c++) {
+                        const double x = c * step / dx;
+                        const int c0 = std::clamp(static_cast<int>(std::floor(x)), 0, columns - 2);
+                        const double wx = std::clamp(x - c0, 0.0, 1.0);
+                        const double a = at(r0, c0) * (1 - wx) + at(r0, c0 + 1) * wx, b = at(r0 + 1, c0) * (1 - wx) + at(r0 + 1, c0 + 1) * wx;
+                        g.values[static_cast<size_t>(r) * static_cast<size_t>(g.columns) + static_cast<size_t>(c)] = static_cast<float>(a * (1 - wy) + b * wy);
+                    }
+                }
+            }
+        }
+        const double factor = source.valueScale ? source.valueScale(want) : 1.0;
+        const double offset = source.valueOffset ? source.valueOffset(want) : 0.0;
+        for (auto& v : g.values) {
+            v = static_cast<float>(v * factor + offset);
+        }
+        QByteArray store(header, '\0');
+        std::memcpy(store.data(), &g.columns, 4);
+        std::memcpy(store.data() + 4, &g.rows, 4);
+        std::memcpy(store.data() + 8, &g.lon0, 8);
+        std::memcpy(store.data() + 16, &g.lat0, 8);
+        std::memcpy(store.data() + 24, &g.step, 8);
+        store += qCompress(QByteArray::fromRawData(reinterpret_cast<const char *>(g.values.data()), static_cast<qsizetype>(g.values.size() * 4)), 6);
+        QSaveFile keep{cachePath};
+        if (keep.open(QIODevice::WriteOnly)) {
+            keep.write(store);
+            keep.commit();
+        }
+        out = std::move(g);
+        return true;
     }
     if (source.partial) {   // the part of the file that is wanted, from a server that gives it: kept like the others; when it cannot, the file is read as usual
         GfsGrid::Grid g;
@@ -613,7 +776,7 @@ bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string&
                     continue;
                 }
                 const auto head = config.bytes(url, 0, 3);
-                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF")) {
+                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("OM")) {
                     there = true;
                     break;
                 }

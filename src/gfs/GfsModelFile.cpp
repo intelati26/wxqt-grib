@@ -148,6 +148,7 @@ namespace {
             replaceAll(url, "{valid_date}", t.toString("yyyyMMdd").toStdString());
             replaceAll(url, "{valid_hour2}", t.toString("HH").toStdString());
             replaceAll(url, "{valid_minute2}", t.toString("mm").toStdString());
+            replaceAll(url, "{valid_iso}", t.toString("yyyy-MM-ddTHHmm").toStdString());   // Open-Meteo's file names
             replaceAll(url, "{valid}", t.toString("yyyyMMdd_HHmm").toStdString());
         }
         replaceAll(url, "{hour3}", padded(hour, 3));
@@ -412,8 +413,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
             }
             def.links.push_back({parts[0], parts[1], parts[2]});
         } else if (key == "kind") {
-            if (value != "grib" && value != "whole" && value != "netcdf" && value != "custom") {
-                reader.fail("kind is grib, whole, netcdf or custom");
+            if (value != "grib" && value != "whole" && value != "netcdf" && value != "om" && value != "custom") {
+                reader.fail("kind is grib, whole, netcdf, om or custom");
                 break;
             }
             kind = value;
@@ -528,6 +529,17 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
                     break;
                 }
                 definition->scales.emplace_back(item.substr(0, colon), factor);
+            }
+        } else if (key == "om_grid") {   // `regular` (the file's own latitude / longitude grid) or `gaussian 320 0.25` (the order of ECMWF's reduced Gaussian grid and the degrees it is interpolated to)
+            const auto parts = split(value, ' ');
+            if (parts.size() == 1 && parts[0] == "regular") {
+                source.om.gaussian = 0;
+            } else if (parts.size() == 3 && parts[0] == "gaussian" && toInt(parts[1], n) && n > 0 && toDouble(parts[2], x) && x > 0.0) {
+                source.om.gaussian = n;
+                source.om.step = x;
+            } else {
+                reader.fail("om_grid is `regular` or `gaussian 320 0.25`");
+                break;
             }
         } else if (key == "warp") {   // step,west,south,east,north
             const auto parts = split(value, ',');
@@ -696,6 +708,7 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
     source.label = sourceLabel.empty() ? def.label : sourceLabel;
     source.wholeFile = kind != "grib";
     source.netcdf = kind == "netcdf";
+    source.om.enabled = kind == "om";
     source.custom = kind == "custom";
     const bool candidatesWanted = std::count_if(definition->urls.begin(), definition->urls.end(), [] (const Rule& r) { return r.conditions.empty(); }) > 1;
     const bool ecmwf = indexFormat == "ecmwf";

@@ -45,6 +45,12 @@ int main(int argc, char ** argv) {
         curl.waitForFinished(130000);
         return curl.readAllStandardOutput();
     };
+    config.tail = [] (const std::string& url, long long count) {   // the end of a file (Open-Meteo's .om files)
+        QProcess curl;
+        curl.start("curl", QStringList{"-s", "-m", "120", "-r", "-" + QString::number(count), QString::fromStdString(url)});
+        curl.waitForFinished(130000);
+        return curl.readAllStandardOutput();
+    };
     const std::string sourceArg = argc > 5 ? argv[5] : "GFS";
     const bool hurricane = sourceArg.compare(0, 4, "HAFS") == 0;   // "HAFSA:09l": the model and the storm
     const std::string modelName = hurricane ? sourceArg.substr(0, sourceArg.find(':')) : sourceArg;

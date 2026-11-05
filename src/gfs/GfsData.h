@@ -24,6 +24,7 @@ class GfsData {
 public:
     struct Config {
         std::function<QByteArray(const std::string& url, long long start, long long end)> bytes;   // end < 0: the whole file / listing
+        std::function<QByteArray(const std::string& url, long long count)> tail;                    // the last `count` bytes of a file (an Open-Meteo .om file says where its contents are at its end); may be empty
         std::string gdalBin;       // the folder holding gdal_translate
         QString cacheFolder;       // decoded grids and the GRIB messages they came from (GfsCache keeps the folder: shared by the screens, kept between runs)
     };
@@ -77,6 +78,14 @@ public:
         // A reader of part of a file (NASA's GrADS Data Server gives one variable at one time of a file the data portal gives whole): tried first for a `wholeFile` field; `file` and the variable are as the model
         // file names them. It returns the field on the model's grid, before the scale and the offset; false (with a reason) and the field is read from the file as usual.
         std::function<bool(const Run&, int forecastHour, const std::string& file, const std::string& variable, GfsGrid::Grid& out, std::string& error)> partial;
+        // Open-Meteo's .om files (open-meteo/om-file-format): `wholeFile`, one file for each hour holding every variable, read by range (OmFile). The variable is the want's `variableOf` (the model file's
+        // `nc_variable` rules) and the grid is what the file's folder says (meta.json): `gaussian` > 0 is an octahedral reduced Gaussian grid O<gaussian> (ECMWF's IFS, EC46), interpolated to `step`
+        // degrees; 0 is a regular latitude / longitude grid, copied as it is.
+        struct Om {
+            bool enabled{false};
+            int gaussian{0};
+            double step{0.25};
+        } om;
         bool netcdf{false};                                               // a `wholeFile` source whose files are NetCDF: want.variable is the variable's name in them, read by range (they are 0.5 to 1 GB)
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often
