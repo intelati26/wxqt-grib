@@ -16,8 +16,8 @@
 // summary and days, the thunderstorm outlooks and the state graphics. Choosing one opens it in a window of its own and leaves this one where it is. Put combo() in the screen's layout.
 class SpcOutlookNav {
 public:
-    enum Kind { SevereSummary, SevereDay, FireSummary, FireDay, Thunderstorm, State };
-    // owner: the screen the list is in; kind and value: what that screen is (the day for SevereDay / State, 0 .. 2 for FireDay); it is left out of the list
+    enum Kind { SevereSummary, SevereDay, FireSummary, FireDay, Thunderstorm, State, StormReports, Mesoanalysis, Comparison, CompositeMap, Dashboard };
+    // owner: the screen the list is in; kind and value: what that screen is (the day for SevereDay / State, 0 .. 2 for FireDay, 0 today / 1 yesterday for StormReports); it is left out of the list
     SpcOutlookNav(Window * owner, Kind kind, int value = 0);
     ComboBox& combo() { return comboBox; }
 

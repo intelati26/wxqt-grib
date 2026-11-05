@@ -77,6 +77,7 @@ namespace {
 
 SvrComparison::SvrComparison(Window * parent)
     : Window{parent}
+    , nav{this, SpcOutlookNav::Comparison}
     , comboDay{this, dayLabels()}
     , comboHazard{this, {"ABPG: 1+ severe reports", "ABPG: 5+ severe reports"}}
     , comboRegion{this, regionNames}
@@ -89,6 +90,7 @@ SvrComparison::SvrComparison(Window * parent)
     comboHazard.getView()->setToolTip("University of Missouri ABPG: the percentage of its top 15 analog days that had this many severe reports within 110 km of a point. SPC and CSU-MLP pictures are not affected.");
     comboRegion.setIndexByValue(Utility::readPref(regionPref, regionNames.front()));
     comboRegion.connect([this] { Utility::writePref(regionPref, comboRegion.getValue()); reload(); });
+    rowTop.addWidget(nav.combo());
     rowTop.addWidget(comboDay);
     rowTop.addWidget(comboHazard);
     rowTop.addWidget(comboRegion);

@@ -13,6 +13,7 @@
 
 SpcCompMap::SpcCompMap(Window * parent)
     : Window{parent}
+    , nav{this, SpcOutlookNav::CompositeMap}
     , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
     , comboBox{this, UtilitySpcCompmap::labels}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
@@ -21,6 +22,7 @@ SpcCompMap::SpcCompMap(Window * parent)
 {
     comboBox.setIndex(index);
     comboBox.connect([this] { changeProduct(); });
+    boxH.addWidget(nav.combo());
     boxH.addWidget(comboBox);
     boxH.addLayout(backForward);
     box.addLayout(boxH);

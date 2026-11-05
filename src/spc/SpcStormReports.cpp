@@ -37,6 +37,7 @@ namespace {
 
 SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsDay)
     : Window{parent}
+    , nav{this, SpcOutlookNav::StormReports, spcStormReportsDay == "yesterday" ? 1 : 0}
     , sw{this, box}
     , calendar{this}
     , photo{this, Scaled}
@@ -56,6 +57,7 @@ SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsD
     photo.setToWidth(plotWidth + 100);
     boxImage.addWidget(photo);
     boxImage.addWidget(calendar);
+    box.addWidget(nav.combo());
     box.addWidget(lsrWfoButton);
     box.addWidget(exportButton);
     // the picture's size is the person's: the slider sets its width (kept for the next time)

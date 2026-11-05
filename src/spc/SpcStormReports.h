@@ -14,6 +14,7 @@
 #include "ui/Calendar.h"
 #include "ui/CardBlackHeaderText.h"
 #include "ui/CardStormReportItem.h"
+#include "spc/SpcOutlookNav.h"
 #include "ui/ComboBox.h"
 #include "ui/DividerLine.h"
 #include "ui/HBox.h"
@@ -31,6 +32,7 @@ public:
     SpcStormReports(Window *, const string&);
 
 private:
+    SpcOutlookNav nav;
     void onDateChanged();
     void updateReports(const string&);
     void filterReports();

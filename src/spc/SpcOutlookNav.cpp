@@ -7,6 +7,11 @@
 #include <algorithm>
 #include "spc/SpcFireSummary.h"
 #include "spc/SpcFireWeatherOutlook.h"
+#include "misc/SevereDashboard.h"
+#include "spc/SpcCompMap.h"
+#include "spc/SpcMeso.h"
+#include "spc/SpcStormReports.h"
+#include "spc/SvrComparison.h"
 #include "spc/SpcSwoDay1.h"
 #include "spc/SpcSwoStateGraphics.h"
 #include "spc/SpcSwoSummary.h"
@@ -37,6 +42,12 @@ SpcOutlookNav::SpcOutlookNav(Window * owner, Kind kind, int value)
     add(FireDay, 1, "Fire weather outlook, day 2");
     add(FireDay, 2, "Fire weather outlook, days 3-8");
     add(Thunderstorm, 0, "Thunderstorm outlooks");
+    add(StormReports, 0, "Storm reports, today");
+    add(StormReports, 1, "Storm reports, yesterday");
+    add(Mesoanalysis, 0, "Mesoanalysis");
+    add(Comparison, 0, "Severe outlook comparison (SPC, CSU-MLP, CIPS)");
+    add(CompositeMap, 0, "Composite map");
+    add(Dashboard, 0, "Severe dashboard");
     if (kind == SevereDay || kind == State) {
         const int day = std::min(value, 3);
         add(State, day, "State graphics, day " + std::to_string(day));
@@ -64,6 +75,11 @@ void SpcOutlookNav::choose() {
         case FireDay: new SpcFireWeatherOutlook{parent, item.value}; break;
         case Thunderstorm: new SpcTstormOutlooks{parent}; break;
         case State: new SpcSwoStateGraphics{parent, item.value}; break;
+        case StormReports: new SpcStormReports{parent, item.value == 0 ? "today" : "yesterday"}; break;
+        case Mesoanalysis: new SpcMeso{parent}; break;
+        case Comparison: new SvrComparison{parent}; break;
+        case CompositeMap: new SpcCompMap{parent}; break;
+        case Dashboard: new SevereDashboard{parent}; break;
     }
     comboBox.block();   // the list shows its prompt again: this screen stays, the choice opened beside it
     comboBox.setIndex(0);
