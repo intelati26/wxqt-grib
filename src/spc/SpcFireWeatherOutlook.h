@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 #include "ui/ComboBox.h"
-#include "ui/Photo.h"
+#include "ui/Image.h"
 #include "ui/Shortcut.h"
 #include "ui/Text.h"
 #include "ui/TwoWidgetScroll.h"
@@ -31,7 +31,7 @@ private:
     ComboBox comboDay;
     ComboBox comboGraphic;
     Text header;
-    Photo photo;
+    Image photo;
     Text text;
     TwoWidgetScroll sw;
     Shortcut shortcutImage;

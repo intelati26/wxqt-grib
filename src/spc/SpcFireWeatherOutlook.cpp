@@ -10,6 +10,7 @@
 #include "objects/FutureBytes.h"
 #include "objects/FutureText.h"
 #include "spc/UtilitySpcFireOutlook.h"
+#include "ui/UiStandards.h"
 #include "util/To.h"
 
 namespace {
@@ -40,12 +41,13 @@ SpcFireWeatherOutlook::SpcFireWeatherOutlook(Window * parent, int day)
     , comboDay{this, dayLabels}
     , comboGraphic{this, {"Categorical outlook", "Probability"}}
     , header{this}
-    , photo{this, Scaled}
+    , photo{this}
     , text{this}
     , sw{this, leftBox, text}
     , shortcutImage{QKeySequence{"1"}, this}
 {
     setTitle("SPC Fire Weather Outlooks");
+    photo.imageSize = UiStandards::tileImage;   // the standard picture of the outlook screens
     leftBox.addWidget(comboDay);
     leftBox.addWidget(comboGraphic);
     leftBox.addWidget(header);
