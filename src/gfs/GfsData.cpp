@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "gfs/GfsData.h"
+#include "gfs/GdalRaster.h"
+#include "gfs/TarReader.h"
 #include "gfs/GfsModels.h"
 #include "gfs/OmFile.h"
 #include "gfs/OmGrid.h"
@@ -253,7 +255,7 @@ bool GfsData::latestRun(Run& run) const {
                     continue;
                 }
                 const auto head = config.bytes(resolved, 0, 3);
-                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("{") || head.startsWith("PK") || head.startsWith("OM")) {
+                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("{") || head.startsWith("PK") || head.startsWith("OM") || head.startsWith("./")) {
                     there = true;
                     break;
                 }
@@ -282,48 +284,12 @@ namespace {
 }
 
 namespace {
-    // The ENVI file gdal wrote (the header and the raw floats) as the geometry of a plain latitude / longitude grid and the values of every band, one band after the other. false with the reason
-    // when the grid is not that or the file is not the size it says.
-    bool readEnvi(const QString& rawPath, const QString& hdrPath, GfsGrid::Grid& g, int& bands, std::vector<float>& values, std::string& error) {
-        QFile hdr{hdrPath};
-        const auto hdrText = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
-        const auto number = [&hdrText] (const QString& key) {
-            const auto m = QRegularExpression{"\\b" + key + "\\s*=\\s*([-0-9.]+)"}.match(hdrText);
-            return m.hasMatch() ? m.captured(1).toDouble() : -1e9;
-        };
-        const auto info = QRegularExpression{"map info = \\{[^,]*,\\s*1,\\s*1,\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+)"}.match(hdrText);
-        g.columns = static_cast<int>(number("samples"));
-        g.rows = static_cast<int>(number("lines"));
-        bands = std::max(1, static_cast<int>(number("bands")));
-        const bool plain = g.columns > 0 && g.rows > 0 && info.hasMatch() && info.captured(3).toDouble() > 0.0 && std::abs(info.captured(3).toDouble() - info.captured(4).toDouble()) < 1e-6;
-        if (!plain) {
-            error = "the GFS grid is not a plain latitude / longitude grid";
-            return false;
-        }
-        g.step = info.captured(3).toDouble();
-        g.lon0 = info.captured(1).toDouble() + g.step / 2.0;   // the header gives the corner of the first cell
-        g.lat0 = info.captured(2).toDouble() - g.step / 2.0;
-        QFile raw{rawPath};
-        const QByteArray bytes = raw.open(QIODevice::ReadOnly) ? raw.readAll() : QByteArray{};
-        const auto cells = static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows);
-        if (static_cast<size_t>(bytes.size()) != cells * static_cast<size_t>(bands) * 4) {
-            error = "the decoded GFS field has the wrong size";
-            return false;
-        }
-        // ENVI float data is stored in the machine's byte order unless the header says "byte order = 1"
-        const bool bigEndian = QRegularExpression{"byte order\\s*=\\s*1"}.match(hdrText).hasMatch();
-        values.resize(cells * static_cast<size_t>(bands));
-        std::memcpy(values.data(), bytes.constData(), static_cast<size_t>(bytes.size()));
-        if (bigEndian) {
-            for (auto& value : values) {
-                unsigned char b[4];
-                std::memcpy(b, &value, 4);
-                std::swap(b[0], b[3]);
-                std::swap(b[1], b[2]);
-                std::memcpy(&value, b, 4);
-            }
-        }
-        return true;
+    GdalRaster::Options gdalOptions(const GfsData::Source& source, const std::string& gdalBin, int band) {
+        GdalRaster::Options options;
+        options.gdalBin = QString::fromStdString(gdalBin);
+        options.warp = {source.warp.enabled, source.warp.west, source.warp.south, source.warp.east, source.warp.north, source.warp.step};
+        options.band = band;
+        return options;
     }
 }
 
@@ -400,18 +366,8 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
             return false;
         }
     }
-    QProcess translate;
-    if (source.warp.enabled) {   // a grid that is not latitude / longitude: warped to one (bilinear: smooth, with no overshoot at the edge of a rain area)
-        translate.start(QString::fromStdString(config.gdalBin) + "/gdalwarp",
-                        {"-q", "-overwrite", "-t_srs", "EPSG:4326", "-r", "bilinear", "-dstnodata", "-9999", "-of", "ENVI", "-ot", "Float32",
-                         "-te", QString::number(source.warp.west, 'f', 3), QString::number(source.warp.south, 'f', 3), QString::number(source.warp.east, 'f', 3), QString::number(source.warp.north, 'f', 3),
-                         "-tr", QString::number(source.warp.step, 'f', 4), QString::number(source.warp.step, 'f', 4), gribPath, rawPath});
-    } else {
-        translate.start(QString::fromStdString(config.gdalBin) + "/gdal_translate", {"-q", "-of", "ENVI", "-ot", "Float32", gribPath, rawPath});
-    }
-    translate.waitForFinished(180000);
-    if (translate.exitStatus() != QProcess::NormalExit || translate.exitCode() != 0) {
-        const auto message = translate.readAllStandardError().trimmed().toStdString();
+    std::string message;
+    if (!GdalRaster::translate(gribPath, config.cacheFolder + "/" + scratch, gdalOptions(source, config.gdalBin, 0), message)) {
         error = "gdal_translate failed on " + want.variable + " " + want.level + ": " + message;
         if (message.find("libaec") != std::string::npos) {   // ECMWF's CCSDS compression: only a GDAL built with libaec reads it
             error = "this GDAL cannot read CCSDS (AEC) compressed GRIB, which ECMWF's IFS and AIFS use: it was built without libaec (" + want.variable + " " + want.level + ")";
@@ -422,7 +378,7 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     GfsGrid::Grid g;
     int bands = 0;
     std::vector<float> all;
-    const bool read = readEnvi(rawPath, hdrPath, g, bands, all, error);
+    const bool read = GdalRaster::readEnvi(rawPath, hdrPath, g, bands, all, error);
     cleanup();
     if (!read) {
         return false;
@@ -548,12 +504,13 @@ namespace {
 bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
     const std::string variable = source.variableOf ? source.variableOf(want) : want.variable;   // what a NetCDF file calls the field
     const int timeBand = source.ncBand ? source.ncBand(run, hour, want) : 0;
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom || source.om.enabled || source.wrf.enabled) ? variable : std::string{}) + ((source.om.enabled || source.wrf.enabled) ? "_" + want.variable : std::string{}) + (source.id == "MRMS" ? "_v2" : "") + (source.wrf.enabled ? "_w2" : "") + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
+    const bool tar = static_cast<bool>(source.tarMember);
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom || tar || source.om.enabled || source.wrf.enabled) ? variable + ((source.custom || tar) && !want.level.empty() ? "_" + want.level + "_" + want.forecast : std::string{}) : std::string{}) + ((source.om.enabled || source.wrf.enabled) ? "_" + want.variable : std::string{}) + (source.id == "MRMS" ? "_v2" : "") + (source.wrf.enabled ? "_w2" : "") + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
         name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
     }
-    const QString wholePath = config.cacheFolder + "/" + name + "all.grb2";
+    const QString wholePath = tar ? config.cacheFolder + "/" + QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3)) + "_hour.grb2" : config.cacheFolder + "/" + name + "all.grb2";   // (a tar's hour is shared by all its fields)
     const QString statName = QString::fromStdString(want.stat.empty() ? "mean" : want.stat);
     const QString cachePath = config.cacheFolder + "/" + name + statName + ".gz4";
     QDir{}.mkpath(config.cacheFolder);
@@ -918,7 +875,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         out = std::move(g);
         return true;
     }
-    const int band = timeBand > 0 ? timeBand : source.memberBand && !want.stat.empty() && want.stat != "spr" ? source.memberBand(want.stat) : 0;
+    int band = timeBand > 0 ? timeBand : source.memberBand && !want.stat.empty() && want.stat != "spr" ? source.memberBand(want.stat) : 0;
     if (!want.stat.empty() && want.stat != "spr" && band <= 0) {
         error = source.id + " has no member " + want.stat;
         return false;
@@ -935,6 +892,15 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
             if (url.empty()) {
                 failed = "not in the listing";
                 continue;
+            }
+            if (tar) {   // the hour's file out of the tar: by range, unpacked once for all the fields of the hour
+                std::string why;
+                if (!TarReader::extract(url, source.tarMember(run, hour), config.cacheFolder + "/" + QString::fromStdString(source.id + "_" + run.id()) + "_tar.txt", wholePath, "GRIB", why)) {
+                    failed = why;
+                    continue;
+                }
+                have = true;
+                break;
             }
             if (source.netcdf) {
                 const auto head = config.bytes(url, 0, 3);
@@ -970,38 +936,28 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         QFile::remove(hdrPath);
         QFile::remove(rawPath + ".aux.xml");
     };
-    QStringList args;
-    QString program = "/gdal_translate";
-    if (source.warp.enabled) {   // a grid that is not latitude / longitude: warped to one
-        program = "/gdalwarp";
-        args << "-q" << "-overwrite" << "-t_srs" << "EPSG:4326" << "-r" << "bilinear" << "-dstnodata" << "-9999" << "-of" << "ENVI" << "-ot" << "Float32"
-             << "-te" << QString::number(source.warp.west, 'f', 3) << QString::number(source.warp.south, 'f', 3) << QString::number(source.warp.east, 'f', 3) << QString::number(source.warp.north, 'f', 3)
-             << "-tr" << QString::number(source.warp.step, 'f', 4) << QString::number(source.warp.step, 'f', 4);
-        if (band > 0) {
-            args << "-srcband" << QString::number(band);
-        }
-    } else {
-        args << "-q" << "-of" << "ENVI" << "-ot" << "Float32";
-        if (band > 0) {
-            args << "-b" << QString::number(band);
+    if (tar) {   // the band that has the field
+        band = GdalRaster::bandOf(QString::fromStdString(config.gdalBin), wholePath, want.variable, want.level, error);
+        if (band <= 0) {
+            error = source.id + ": " + error;
+            return false;
         }
     }
+    auto options = gdalOptions(source, config.gdalBin, band);
+    options.timeoutMs = 300000;
     if (source.netcdf) {   // by range: a few requests of a megabyte or so, not the file
-        args << "--config" << "CPL_VSIL_CURL_CHUNK_SIZE" << "2097152" << "--config" << "GDAL_HTTP_USERAGENT" << "wxqt";
+        options.extra << "--config" << "CPL_VSIL_CURL_CHUNK_SIZE" << "2097152" << "--config" << "GDAL_HTTP_USERAGENT" << "wxqt";
     }
-    args << input << rawPath;
-    QProcess translate;
-    translate.start(QString::fromStdString(config.gdalBin) + program, args);
-    translate.waitForFinished(300000);
-    if (translate.exitStatus() != QProcess::NormalExit || translate.exitCode() != 0) {
-        error = "gdal failed on " + want.variable + " " + want.level + ": " + translate.readAllStandardError().trimmed().toStdString();
+    std::string message;
+    if (!GdalRaster::translate(input, config.cacheFolder + "/" + scratch, options, message)) {
+        error = "gdal failed on " + want.variable + " " + want.level + ": " + message;
         cleanup();
         return false;
     }
     GfsGrid::Grid g;
     int bands = 0;
     std::vector<float> all;
-    const bool read = readEnvi(rawPath, hdrPath, g, bands, all, error);
+    const bool read = GdalRaster::readEnvi(rawPath, hdrPath, g, bands, all, error);
     cleanup();
     if (!read) {
         return false;
@@ -1100,7 +1056,7 @@ bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string&
                     continue;
                 }
                 const auto head = config.bytes(url, 0, 3);
-                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("OM")) {
+                if (head.startsWith("GRIB") || head.startsWith("CDF") || head.startsWith("\x89HDF") || head.startsWith("OM") || (source.tarMember && head.startsWith("./"))) {   // (a tar: its first entry is "./<run>/")
                     there = true;
                     break;
                 }
@@ -1334,42 +1290,19 @@ bool GfsData::loadBox(const Run& run, const std::vector<Need>& needs, std::map<s
                 ok[i] = false;
                 break;
             }
-            const QString rawPath = base + "_" + QString::number(found->second) + ".raw", hdrPath = base + "_" + QString::number(found->second) + ".hdr";
-            QProcess translate;
-            translate.start(QString::fromStdString(config.gdalBin) + "/gdal_translate", {"-q", "-b", QString::number(found->second), "-of", "ENVI", "-ot", "Float32", gribPath, rawPath});
-            translate.waitForFinished(120000);
-            QFile hdr{hdrPath}, raw{rawPath};
-            const auto hdrText = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
-            const auto data = raw.open(QIODevice::ReadOnly) ? raw.readAll() : QByteArray{};
-            QFile::remove(rawPath);
-            QFile::remove(hdrPath);
-            QFile::remove(rawPath + ".aux.xml");
-            const auto number = [&hdrText] (const QString& key) {
-                const auto m = QRegularExpression{"\\b" + key + "\\s*=\\s*([-0-9.]+)"}.match(hdrText);
-                return m.hasMatch() ? m.captured(1).toDouble() : -1e9;
-            };
-            const auto info2 = QRegularExpression{"map info = \\{[^,]*,\\s*1,\\s*1,\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+)"}.match(hdrText);
             GfsGrid::Grid g;
-            g.columns = static_cast<int>(number("samples"));
-            g.rows = static_cast<int>(number("lines"));
-            if (g.columns <= 0 || g.rows <= 0 || !info2.hasMatch() || info2.captured(3).toDouble() <= 0.0 || data.size() != static_cast<qsizetype>(g.columns) * g.rows * 4) {
+            int bands = 0;
+            std::vector<float> values;
+            std::string why;
+            GdalRaster::Options options;
+            options.gdalBin = QString::fromStdString(config.gdalBin);
+            options.band = found->second;
+            options.timeoutMs = 120000;
+            if (!GdalRaster::read(gribPath, base + "_" + QString::number(found->second), options, g, bands, values, why) || bands != 1) {
                 ok[i] = false;
                 break;
             }
-            g.step = info2.captured(3).toDouble();
-            g.lon0 = info2.captured(1).toDouble() + g.step / 2.0;
-            g.lat0 = info2.captured(2).toDouble() - g.step / 2.0;
-            g.values.resize(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows));
-            std::memcpy(g.values.data(), data.constData(), static_cast<size_t>(data.size()));
-            if (QRegularExpression{"byte order\\s*=\\s*1"}.match(hdrText).hasMatch()) {
-                for (auto& v : g.values) {
-                    unsigned char b[4];
-                    std::memcpy(b, &v, 4);
-                    std::swap(b[0], b[3]);
-                    std::swap(b[1], b[2]);
-                    std::memcpy(&v, b, 4);
-                }
-            }
+            g.values = std::move(values);
             for (auto& v : g.values) {
                 if (std::abs(v) > 1e19f) {
                     v = std::nanf("");

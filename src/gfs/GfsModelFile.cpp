@@ -79,6 +79,7 @@ namespace {
         std::vector<std::pair<std::string, double>> offsets;          // variable -> amount added after the factor (Kelvin to degrees C)
         std::vector<Rule> variables;                                  // `nc_variable` rules: a NetCDF file's name for a want
         std::map<std::string, int> validOffsetByFile;                 // `valid_offset_file` FILE:minutes: a collection stamped differently (a 3 hour average is stamped in the middle of its period)
+        std::string tarMember;                                        // `tar_member` pattern: the file of an hour in the tar that is the url (kind = tar)
         std::string partial;                                          // `partial` NAME: a reader of part of a file tried before the whole file (geos-opendap)
         int validOffsetMinutes{0};                                    // {valid} is the run's time plus the hour plus this (a time average is stamped half an hour after)
         std::vector<std::pair<std::string, std::pair<int, int>>> members;   // "p01".."p20" -> bands, kept as expanded names
@@ -127,7 +128,7 @@ namespace {
         }
     }
 
-    // {date} {cycle} {prev_cycle} {hour} {hour2} {hour3} {file} {/file} {file3} {dir} {name} {tag} {tail} {storm} {year} {month} {day}
+    // {date} {yy} {cycle} {prev_cycle} {hour} {hour2} {hour3} {file} {/file} {file3} {dir} {name} {tag} {tail} {storm} {year} {month} {day}
     std::string expandUrl(std::string url, const Definition& d, const Run& run, int hour, const std::string& alt, const std::string& previous) {
         const auto slash = alt.find('/');
         const auto directory = slash == std::string::npos ? std::string{} : alt.substr(0, slash);
@@ -135,6 +136,7 @@ namespace {
         const auto colon = alt.find(':');
         replaceAll(url, "{date}", run.date);
         replaceAll(url, "{year}", run.date.substr(0, 4));
+        replaceAll(url, "{yy}", run.date.substr(2, 2));
         replaceAll(url, "{month}", run.date.substr(4, 2));
         replaceAll(url, "{day}", run.date.substr(6, 2));
         replaceAll(url, "{cycle}", run.cycle);
@@ -361,7 +363,31 @@ namespace {
     }
 }
 
-GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::string& origin) {
+namespace {
+    // `include = NAME` in a built-in definition: the lines of the shared piece "_NAME" of the built-in list (what several models have alike: SPC's post-processed NetCDF on the 0.03 degree grid)
+    std::string withIncludes(const std::string& text) {
+        std::string out;
+        std::istringstream in{text};
+        std::string raw;
+        while (std::getline(in, raw)) {
+            const auto eq = raw.find('=');
+            if (eq != std::string::npos && raw.compare(0, 7, "include") == 0 && trim(raw.substr(0, eq)) == "include") {
+                const auto wanted = "_" + trim(raw.substr(eq + 1));
+                for (const auto& [name, piece] : GfsModelFile::builtIn()) {
+                    if (name == wanted) {
+                        out += piece + "\n";
+                    }
+                }
+                continue;
+            }
+            out += raw + "\n";
+        }
+        return out;
+    }
+}
+
+GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std::string& origin) {
+    const auto text = origin == "built in" ? withIncludes(original) : original;
     Parsed result;
     result.origin = origin;
     Reader reader;
@@ -413,8 +439,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
             }
             def.links.push_back({parts[0], parts[1], parts[2]});
         } else if (key == "kind") {
-            if (value != "grib" && value != "whole" && value != "netcdf" && value != "om" && value != "wrf" && value != "custom") {
-                reader.fail("kind is grib, whole, netcdf, om, wrf or custom");
+            if (value != "grib" && value != "whole" && value != "netcdf" && value != "om" && value != "wrf" && value != "custom" && value != "tar") {
+                reader.fail("kind is grib, whole, netcdf, om, wrf, custom or tar");
                 break;
             }
             kind = value;
@@ -455,6 +481,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
                 }
                 definition->offsets.emplace_back(item.substr(0, colon), amount);
             }
+        } else if (key == "tar_member") {
+            definition->tarMember = value;
         } else if (key == "partial") {
             if (value != "geos-opendap") {
                 reader.fail("partial is geos-opendap");
@@ -746,6 +774,12 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
         };
         if (candidatesWanted) {
             made.candidates = [d] (const Run& run, int hour, const std::string& file) { return urlsOf(*d, run, hour, file); };
+        }
+        if (!d->tarMember.empty()) {
+            made.tarMember = [d] (const Run& run, int hour) {
+                const int cycle = std::atoi(run.cycle.c_str());
+                return expandUrl(d->tarMember, *d, run, hour, {}, padded((cycle + 18) % 24, 2));
+            };
         }
         if (d->partial == "geos-opendap") {
             made.partial = [] (const Run& run, int hour, const std::string& file, const std::string& variable, GfsGrid::Grid& out, std::string& error) {

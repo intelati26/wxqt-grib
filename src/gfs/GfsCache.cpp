@@ -8,6 +8,7 @@
 #include <vector>
 #include <QDateTime>
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QStandardPaths>
 
@@ -30,8 +31,10 @@ namespace {
 
     std::vector<Entry> entries(const QString& folder) {
         std::vector<Entry> out;
-        const QDir dir{folder};
-        for (const auto& info : dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot)) {
+        QDirIterator it{folder, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories};   // the sub-folders too (open-meteo, cfs30): their files go by the same age and size rules
+        while (it.hasNext()) {
+            it.next();
+            const auto info = it.fileInfo();
             out.push_back({info.absoluteFilePath(), info.size(), info.lastModified()});   // each file is written once when downloaded: its time is the download's
         }
         return out;
@@ -57,6 +60,7 @@ qint64 GfsCache::prune(int hours, qint64 bytes, const QString& folderPath) {
     if (folderPath.isEmpty()) {   // what the earlier versions left: the first cache folder, and the temporary folders of the screens that were open when the program ended badly
         const QDir root{QStandardPaths::writableLocation(QStandardPaths::CacheLocation)};
         QDir{root.filePath("gfs")}.removeRecursively();
+        QDir{folder() + "/mpas-nssl"}.removeRecursively();   // the old loader's folder (whole hours of the NSSL tars, about 100 MB each), no longer read
         for (const auto& old : root.entryList({"gfs-v*"}, QDir::Dirs | QDir::NoDotAndDotDot)) {   // the folders of the earlier formats
             if (old != QString{"gfs-v%1"}.arg(formatVersion)) {
                 QDir{root.filePath(old)}.removeRecursively();
@@ -84,6 +88,9 @@ qint64 GfsCache::prune(int hours, qint64 bytes, const QString& folderPath) {
         for (const auto& e : kept) {
             if (total <= bytes) {
                 break;
+            }
+            if (e.path.contains("/open-meteo/")) {   // small, and what it saves is the service's calls, not disk: it goes by age (the day) only
+                continue;
             }
             QFile::remove(e.path);
             total -= e.size;

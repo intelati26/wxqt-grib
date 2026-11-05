@@ -35,6 +35,7 @@ SettingsBox::SettingsBox(Window * parent)
 
     configs.push_back(std::make_unique<Switch>(parent, "Show mini SevereDashboard on main screen", "MAINSCREEN_SEVERE_DASH", false));
     configs.push_back(std::make_unique<Switch>(parent, "Show the hourly graph on the home screen", "HOURLY_GRAPH", true));
+    configs.push_back(std::make_unique<Switch>(parent, "Sea level pressure (every 3 hours, from Open-Meteo) on the hourly graph", "HOURLY_GRAPH_PRESSURE", true));
     configs.push_back(std::make_unique<Switch>(parent, "Show the forecast point (the week at a glance and the outlooks, as the NWS forecast points page) on the home screen", "HOME_FORECAST_POINT", true));
     configs.push_back(std::make_unique<Switch>(parent, "Refresh the home screen automatically (every interval below; the toolbar's update button and Ctrl-U toggle it)", "MAIN_SCREEN_AUTO_REFRESH", true));
     configs.push_back(std::make_unique<Switch>(parent, "Captions under the home screen pictures", "HOME_CAPTIONS", true));

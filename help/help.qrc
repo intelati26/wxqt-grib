@@ -57,5 +57,8 @@
     <file alias="models/SPCREFS.md">models/SPCREFS.md</file>
     <file alias="models/UKMO.md">models/UKMO.md</file>
     <file alias="models/URMA.md">models/URMA.md</file>
-</qresource>
+        <file>models/MPAS-HT.md</file>
+            <file>models/MPAS-RN.md</file>
+            <file>models/WPC-PPP.md</file>
+    </qresource>
 </RCC>

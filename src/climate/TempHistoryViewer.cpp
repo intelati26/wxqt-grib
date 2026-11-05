@@ -5,7 +5,9 @@
 
 #include "climate/TempHistoryViewer.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <thread>
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -14,11 +16,15 @@
 #include <QToolTip>
 #include <QMouseEvent>
 #include <QVBoxLayout>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QDataStream>
 #include <QFileDialog>
 #include <QTextStream>
 #include "objects/FutureVoid.h"
 #include "ui/ChartExport.h"
+#include "util/PermanentCache.h"
 #include "settings/Location.h"
 #include "util/DisplayUnits.h"
 #include "util/UtilityIO.h"
@@ -291,6 +297,84 @@ void TempHistoryViewer::takeDays(std::vector<Day> list, const QString& note) {
     status->setText(note);
 }
 
+namespace {
+    using Day = TempHistoryViewer::Day;
+    constexpr qint16 noValue = -32768;
+    constexpr quint32 historyMagic = 0x57584831;   // "WXH1"
+
+    qint16 tenths(double v) { return std::isnan(v) ? noValue : static_cast<qint16>(std::lround(v * 10.0)); }
+    double fromTenths(qint16 v) { return v == noValue ? std::nan("") : v / 10.0; }
+
+    // the days, kept as whole tenths of a degree (or of a mm) in 16 bits, deflated by the permanent cache: the record since 1940 is about 150 KB
+    void saveHistory(const PermanentCache& store, const std::string& name, const std::vector<Day>& days, double lat, double lon) {
+        if (days.empty()) {
+            return;
+        }
+        QByteArray raw;
+        {
+            QDataStream out{&raw, QIODevice::WriteOnly};
+            out.setByteOrder(QDataStream::LittleEndian);
+            out << historyMagic << lat << lon << static_cast<qint32>(days.front().date.toJulianDay()) << static_cast<qint32>(days.size());
+            for (const auto& pick : {0, 1, 2, 3}) {
+                for (const auto& d : days) {
+                    out << tenths(pick == 0 ? d.mean : pick == 1 ? d.high : pick == 2 ? d.low : d.precip);
+                }
+            }
+        }
+        store.write(name, raw.toStdString());
+    }
+
+    bool loadHistory(const PermanentCache& store, const std::string& name, std::vector<Day>& days, double& lat, double& lon) {
+        const auto raw = QByteArray::fromStdString(store.read(name));
+        QDataStream in{raw};
+        in.setByteOrder(QDataStream::LittleEndian);
+        quint32 magic = 0;
+        qint32 first = 0, count = 0;
+        in >> magic >> lat >> lon >> first >> count;
+        if (in.status() != QDataStream::Ok || magic != historyMagic || count <= 0 || count > 200000 || raw.size() < 28 + count * 8) {
+            return false;
+        }
+        std::vector<qint16> values(static_cast<size_t>(count) * 4);
+        for (auto& v : values) {
+            in >> v;
+        }
+        for (int i = 0; i < count; i++) {
+            const auto n = static_cast<size_t>(count);
+            days.push_back({QDate::fromJulianDay(first + i), fromTenths(values[i]), fromTenths(values[n + i]), fromTenths(values[2 * n + i]), fromTenths(values[3 * n + i])});
+        }
+        return true;
+    }
+
+    // the service's answer for the days from..to at the place; one try again a minute later when it says its minute is used
+    bool readEra(double lat, double lon, const QDate& from, const QDate& to, std::vector<Day>& out, double& snappedLat, double& snappedLon, QString& note) {
+        const auto url = "https://archive-api.open-meteo.com/v1/archive?latitude=" + std::to_string(lat) + "&longitude=" + std::to_string(lon) + "&start_date=" + from.toString("yyyy-MM-dd").toStdString() +
+                         "&end_date=" + to.toString("yyyy-MM-dd").toStdString() + "&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=UTC&models=era5";
+        QJsonDocument doc;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            doc = QJsonDocument::fromJson(QByteArray::fromStdString(UtilityIO::getHtml(url)));
+            if (attempt == 0 && doc.object().value("reason").toString().contains("Minutely")) {
+                std::this_thread::sleep_for(std::chrono::seconds{62});
+                continue;
+            }
+            break;
+        }
+        const auto daily = doc.object().value("daily").toObject();
+        const auto times = daily.value("time").toArray();
+        if (times.isEmpty()) {
+            note = doc.object().value("reason").toString("no answer from the archive service");
+            return false;
+        }
+        const auto mean = daily.value("temperature_2m_mean").toArray(), high = daily.value("temperature_2m_max").toArray(), low = daily.value("temperature_2m_min").toArray(), rain = daily.value("precipitation_sum").toArray();
+        const auto number = [] (const QJsonValue& v) { return v.isNull() ? std::nan("") : v.toDouble(std::nan("")); };
+        for (int i = 0; i < times.size(); i++) {
+            out.push_back({QDate::fromString(times[i].toString(), "yyyy-MM-dd"), number(mean[i]), number(high[i]), number(low[i]), number(rain[i])});
+        }
+        snappedLat = doc.object().value("latitude").toDouble(lat);
+        snappedLon = doc.object().value("longitude").toDouble(lon);
+        return true;
+    }
+}
+
 // the whole record of daily temperatures at the place, in one request
 void TempHistoryViewer::loadEra() {
     const int mine = ++generation;
@@ -299,25 +383,40 @@ void TempHistoryViewer::loadEra() {
     auto result = std::make_shared<std::vector<Day>>();
     auto note = std::make_shared<QString>();
     auto where = std::make_shared<std::pair<double, double>>(lat, lon);
-    const QString last = QDate::currentDate().addDays(-6).toString("yyyy-MM-dd");
     new FutureVoid{this, [=] {
-        const auto url = "https://archive-api.open-meteo.com/v1/archive?latitude=" + std::to_string(lat) + "&longitude=" + std::to_string(lon) + "&start_date=1940-01-01&end_date=" + last.toStdString() +
-                         "&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=UTC&models=era5";
-        const auto text = UtilityIO::getHtml(url);
-        const auto doc = QJsonDocument::fromJson(QByteArray::fromStdString(text));
-        const auto daily = doc.object().value("daily").toObject();
-        const auto times = daily.value("time").toArray();
-        if (times.isEmpty()) {
-            *note = doc.object().value("reason").toString("no answer from the archive service");
-            return;
+        // kept for good in the data folder, a file for each grid point (0.25 degrees: the places Open-Meteo snaps to the same point share it), so that a visit asks the service only for the newest weeks
+        // (a request for the whole record weighs about 2,300 calls of the 10,000 a day, one for a month 1)
+        const PermanentCache store{"temperature-history"};
+        const auto name = "era5_" + QString::number(std::round(lat * 4) / 4, 'f', 2).toStdString() + "_" + QString::number(std::round(lon * 4) / 4, 'f', 2).toStdString();
+        std::vector<Day> kept;
+        double keptLat = lat, keptLon = lon;
+        if (!loadHistory(store, name, kept, keptLat, keptLon)) {
+            kept.clear();
         }
-        const auto mean = daily.value("temperature_2m_mean").toArray(), high = daily.value("temperature_2m_max").toArray(), low = daily.value("temperature_2m_min").toArray(), rain = daily.value("precipitation_sum").toArray();
-        const auto number = [] (const QJsonValue& v) { return v.isNull() ? std::nan("") : v.toDouble(std::nan("")); };
-        for (int i = 0; i < times.size(); i++) {
-            result->push_back({QDate::fromString(times[i].toString(), "yyyy-MM-dd"), number(mean[i]), number(high[i]), number(low[i]), number(rain[i])});
+        const QDate last = QDate::currentDate().addDays(-6);
+        QDate from{1940, 1, 1};
+        if (!kept.empty()) {
+            from = std::max(from, kept.back().date.addDays(-30));   // the newest days of ERA5 are revised: the last month is asked again
         }
-        where->first = doc.object().value("latitude").toDouble(lat);
-        where->second = doc.object().value("longitude").toDouble(lon);
+        std::vector<Day> got;
+        if (from <= last) {
+            std::vector<Day> fresh;
+            if (readEra(lat, lon, from, last, fresh, keptLat, keptLon, *note)) {
+                got = std::move(fresh);
+            } else if (kept.empty()) {
+                return;   // note says why
+            }
+        }
+        if (!got.empty()) {
+            while (!kept.empty() && kept.back().date >= got.front().date) {
+                kept.pop_back();
+            }
+            kept.insert(kept.end(), got.begin(), got.end());
+            saveHistory(store, name, kept, keptLat, keptLon);
+        }
+        *result = std::move(kept);
+        where->first = keptLat;
+        where->second = keptLon;
     }, [=] {
         if (closed || mine != generation) {
             return;

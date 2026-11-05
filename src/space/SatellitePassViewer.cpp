@@ -310,7 +310,7 @@ void SatellitePassViewer::openMap() {
         lon = storms.front().lon;
     }
     auto * viewer = new MasterMapViewer{this};
-    viewer->openAt(QDateTime::currentDateTimeUtc(), lat, lon, 1500.0, {"satellite/passes", "tropical/world-storms"});
+    viewer->openAt(QDateTime::currentDateTimeUtc(), lat, lon, 1500.0, {"satellite/passes", "tropical/world-storms"}, true);
 }
 
 // The map at the pass: the daily picture of the satellite itself where NASA has one (the day of the pass, and the time of day the pass was is in the stamp on the map), the radar winds for a SAR; the rest (the

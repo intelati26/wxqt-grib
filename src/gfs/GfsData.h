@@ -92,6 +92,9 @@ public:
             bool enabled{false};
             std::vector<std::string> folders;
         } wrf;
+        // A `wholeFile` source whose url is a tar of one file an hour (NSSL's MPAS runs): the member of the tar for a run and hour (its file name; ".gz" is gunzipped). The hour's GRIB2 is kept in
+        // the cache and a field is the band of it that has the NOAA name (a GRIB2 file with no index of its own). The tar is read by range (TarReader).
+        std::function<std::string(const Run&, int forecastHour)> tarMember;
         bool netcdf{false};                                               // a `wholeFile` source whose files are NetCDF: want.variable is the variable's name in them, read by range (they are 0.5 to 1 GB)
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often

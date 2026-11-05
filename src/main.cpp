@@ -42,6 +42,8 @@
 #include <QPushButton>
 #include <QDialog>
 #include <QTimer>
+#include "models/MrmsVerifyViewer.h"
+#include "misc/NwsNoticesViewer.h"
 #include <QThread>
 #include "common/GlobalVariables.h"
 #include "gfs/GfsModels.h"
@@ -286,6 +288,17 @@ int main(int argc, char * argv[]) {
                 new AhdViewer{&w};
             } else if (route == "radar") {   // WXQT_OPEN=radar: the radar doorway (the master map at the current location with MRMS, warnings and discussions)
                 MasterMapViewer::openRadar(&w);
+            } else if (route == "notices") {   // WXQT_OPEN=notices [WXQT_NOTICES_PNG=<file>]: the NWS notices window (its picture after 8 seconds)
+                auto * notices = new NwsNoticesViewer{&w};
+                if (const auto file = qEnvironmentVariable("WXQT_NOTICES_PNG"); !file.isEmpty()) {
+                    QTimer::singleShot(8000, notices, [notices, file] { notices->grab().save(file); });
+                }
+            } else if (route.startsWith("verify:")) {   // WXQT_OPEN=verify:<model>:<chart>:<yyyyMMddHH UTC>[:sector]: the MRMS verification window at that time, compared at once (WXQT_VERIFY_PNG=<file>: its picture after WXQT_VERIFY_MS ms)
+                qputenv("WXQT_VERIFY_GO", "1");
+                auto valid = QDateTime::fromString(route.section(':', 3, 3), "yyyyMMddHH");
+                valid.setTimeSpec(Qt::UTC);
+                new MrmsVerifyViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString(), route.section(':', 4, 4).isEmpty() ? "CONUS" : route.section(':', 4, 4).toStdString(),
+                                     valid};
             } else if (route.startsWith("phase:")) {   // WXQT_OPEN=phase:<model>:<lat>:<lon>[:<atcf id>]: the phase space window of a storm at that place in that model
                 const auto parts = route.split(':');
                 auto * viewer = PhaseViewer::pick(&w, parts.value(4).isEmpty() ? "test" : parts.value(4).toStdString(), parts.value(2, "15").toDouble(), parts.value(3, "-60").toDouble(), parts.value(1, "GFS").toStdString(), parts.value(4).toStdString());
@@ -507,17 +520,55 @@ int main(int argc, char * argv[]) {
                     anchor.show();
                     ChartExport::popupMenu(&anchor, QPoint{100, 100}, caps);
                 }
+                if (const auto spec = qEnvironmentVariable("WXQT_PANELS"); !spec.isEmpty()) {   // WXQT_PANELS=<model>:<chart>[:<member>],...  WXQT_DRAW_VALID=<yyyyMMddHH>  WXQT_DRAW_PNG=<file>  [WXQT_DRAW_COLUMNS=4] [WXQT_DRAW_WIDTH]: the charts of several models for one valid time, tiled
+                    GfsRender::Session session;
+                    std::vector<GfsRender::Panel> panels;
+                    for (const auto& item : spec.split(',', Qt::SkipEmptyParts)) {
+                        panels.push_back({item.section(':', 0, 0).toStdString(), item.section(':', 1, 1).toStdString(), item.section(':', 2, 2).toStdString()});
+                    }
+                    std::string error;
+                    const auto bytes = GfsRender::sideBySide(session, panels, qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), qEnvironmentVariable("WXQT_DRAW_VALID").toStdString(), qEnvironmentVariable("WXQT_DRAW_COLUMNS", "4").toInt(), qEnvironmentVariable("WXQT_DRAW_SCALE", "0.55").toDouble(), error);
+                    if (const auto out = qEnvironmentVariable("WXQT_DRAW_PNG"); !out.isEmpty()) {
+                        QFile file{out};
+                        if (file.open(QIODevice::WriteOnly)) file.write(bytes);
+                    }
+                    fprintf(stderr, "MAGPANELS %s %s\n", bytes.isEmpty() ? "FAILED" : "ok", error.c_str());
+                }
                 if (const auto spec = qEnvironmentVariable("WXQT_DRAW"); !spec.isEmpty()) {   // WXQT_DRAW=<model>:<chart>:<hour>: draws that chart once and says how long it took
                     GfsRender::Session session;
                     std::string error;
                     QElapsedTimer timer;
                     timer.start();
-                    const auto bytes = GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), qEnvironmentVariable("WXQT_DRAW_RUN").toStdString(), spec.section(':', 2, 2).toInt(), [] { std::vector<std::string> ids; for (const auto& id : qEnvironmentVariable("WXQT_DRAW_OVERLAYS").split(',', Qt::SkipEmptyParts)) { ids.push_back(id.toStdString()); } return ids; }(), error, nullptr, [] { GfsRender::Variant v; v.standardDeviations = qEnvironmentVariableIsSet("WXQT_DRAW_SIGMA"); v.scale = qEnvironmentVariableIntValue("WXQT_DRAW_WIDTH") / 1100.0; for (const auto& id : qEnvironmentVariable("WXQT_DRAW_VERSUS").split(',', Qt::SkipEmptyParts)) { v.overlayModels.push_back(id.toStdString()); } v.overlayKeepFill = qEnvironmentVariableIsSet("WXQT_DRAW_KEEPFILL"); return v; }());
+                    const auto bytes = GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), qEnvironmentVariable("WXQT_DRAW_RUN").toStdString(), spec.section(':', 2, 2).toInt(), [] { std::vector<std::string> ids; for (const auto& id : qEnvironmentVariable("WXQT_DRAW_OVERLAYS").split(',', Qt::SkipEmptyParts)) { ids.push_back(id.toStdString()); } return ids; }(), error, nullptr, [] { GfsRender::Variant v; v.standardDeviations = qEnvironmentVariableIsSet("WXQT_DRAW_SIGMA"); for (const auto& key : qEnvironmentVariable("WXQT_DRAW_HIDE").split(',', Qt::SkipEmptyParts)) { v.hideKeys.push_back(key.toStdString()); } v.scale = qEnvironmentVariableIntValue("WXQT_DRAW_WIDTH") / 1100.0; for (const auto& id : qEnvironmentVariable("WXQT_DRAW_VERSUS").split(',', Qt::SkipEmptyParts)) { v.overlayModels.push_back(id.toStdString()); } v.overlayKeepFill = qEnvironmentVariableIsSet("WXQT_DRAW_KEEPFILL"); return v; }());
                     if (const auto out = qEnvironmentVariable("WXQT_DRAW_PNG"); !out.isEmpty()) {   // WXQT_DRAW_PNG=<file> (WXQT_SECTOR=<area id>): the picture too
                         QFile file{out};
                         if (file.open(QIODevice::WriteOnly)) file.write(bytes);
                     }
                     fprintf(stderr, "MAGDRAW %s %s in %.1f s %s\n", spec.toStdString().c_str(), bytes.isEmpty() ? "FAILED" : "ok", timer.elapsed() / 1000.0, error.c_str());
+                }
+                if (const auto spec = qEnvironmentVariable("WXQT_DRAW"); !spec.isEmpty() && qEnvironmentVariableIsSet("WXQT_DRAW_AT")) {   // with WXQT_DRAW_AT=<lat>,<lon>: the chart's fill and each set of lines at that point
+                    GfsRender::Session session;
+                    std::string error;
+                    GfsGrid::Grid fill;
+                    GfsChart::Ramp ramp;
+                    GfsGrid::Grid windU, windV;
+                    std::vector<GfsChart::ContourOut> contours;
+                    GfsRender::Variant variant;
+                    variant.fillOut = &fill;
+                    variant.rampOut = &ramp;
+                    variant.windUOut = &windU;
+                    variant.windVOut = &windV;
+                    variant.contoursOut = &contours;
+                    for (const auto& key : qEnvironmentVariable("WXQT_DRAW_HIDE").split(',', Qt::SkipEmptyParts)) {   // WXQT_DRAW_HIDE=r9,r10: the layers left out
+                        variant.hideKeys.push_back(key.toStdString());
+                    }
+                    GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), qEnvironmentVariable("WXQT_DRAW_RUN").toStdString(), spec.section(':', 2, 2).toInt(), {}, error, nullptr, variant);
+                    const auto at = qEnvironmentVariable("WXQT_DRAW_AT").split(',');
+                    const double lat = at.value(0).toDouble(), lon = at.value(1).toDouble();
+                    fprintf(stderr, "MAGAT fill %.2f\n", static_cast<double>(fill.sample(lon, lat)));
+                    for (const auto& c : contours) {
+                        fprintf(stderr, "MAGAT lines %s %.2f\n", c.set.title.c_str(), static_cast<double>(c.grid.sample(lon, lat)) * (c.set.scale == 0.0 ? 1.0 : c.set.scale));
+                    }
                 }
                 if (const auto listed = qEnvironmentVariable("WXQT_LIST").toStdString(); !listed.empty()) {   // WXQT_LIST=<model>: the model's charts, id | label | picker group
                     for (const auto& product : GfsChart::products()) {

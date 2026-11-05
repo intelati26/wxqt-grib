@@ -240,10 +240,10 @@ std::string GfsModels::pickerGroup(const std::string& id) {
     }
     static const std::map<std::string, std::string> groups{
         {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"}, {"GEOS-FP", "Global"}, {"CFS", "Seasonal"}, {"CFS-ANL", "Seasonal"}, {"CFS30", "Seasonal"}, {"EC46", "Seasonal"}, {"SEAS5", "Seasonal"}, {"MRMS", "Archive"},
-        {"NAM", "Regional"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Regional"},
-        {"HRRR", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"RRFS-AK", "Convection allowing"}, {"HRRR-AK", "Convection allowing"}, {"ICON-EU", "Regional"}, {"ICON-D2", "Convection allowing"}, {"HRDPS", "Convection allowing"}, {"RRFS-HI", "Convection allowing"}, {"RRFS-PR", "Convection allowing"}, {"RRFS-NA", "Regional"}, {"NAM-HIRES", "Convection allowing"}, {"HRW-ARW", "Convection allowing"},
-        {"HRW-ARW2", "Convection allowing"}, {"HRW-FV3", "Convection allowing"},
-        {"GEFS", "Ensembles"}, {"GEPS", "Ensembles"}, {"IFS-ENS", "Ensembles"}, {"ENS-ALL", "Ensembles"}, {"REFS", "Ensembles"}, {"HREF", "Ensembles"}, {"NAEFS", "Ensembles"},
+        {"NAM", "Archive"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Archive"},
+        {"HRRR", "Convection allowing"}, {"MPAS-HT", "Convection allowing"}, {"MPAS-RN", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"RRFS-AK", "Convection allowing"}, {"HRRR-AK", "Convection allowing"}, {"ICON-EU", "Regional"}, {"ICON-D2", "Convection allowing"}, {"HRDPS", "Convection allowing"}, {"RRFS-HI", "Convection allowing"}, {"RRFS-PR", "Convection allowing"}, {"RRFS-NA", "Regional"}, {"NAM-HIRES", "Archive"}, {"HRW-ARW", "Archive"},
+        {"HRW-ARW2", "Archive"}, {"HRW-FV3", "Archive"},
+        {"GEFS", "Ensembles"}, {"GEPS", "Ensembles"}, {"IFS-ENS", "Ensembles"}, {"ENS-ALL", "Ensembles"}, {"REFS", "Ensembles"}, {"NAEFS", "Ensembles"},
         {"GEFS-MEAN-SPRD", "Ensembles"}, {"GEFS-SPAG", "Ensembles"},
         {"SPCPOST", "SPC guidance and mesoanalysis"}, {"SPCGEFS", "SPC guidance and mesoanalysis"}, {"SPCREFS", "SPC guidance and mesoanalysis"},
         {"SFCOA", "SPC guidance and mesoanalysis"}, {"RRFSD", "SPC guidance and mesoanalysis"},
@@ -282,6 +282,9 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GEOS-FP"));
         m.push_back(fromFile("CFS"));
         m.push_back(fromFile("CFS30"));
+        m.push_back(fromFile("WPC-PPP"));
+        m.push_back(fromFile("MPAS-HT"));
+        m.push_back(fromFile("MPAS-RN"));
         m.push_back(fromFile("EC46"));
         m.push_back(fromFile("MRMS"));
         m.push_back(fromFile("SEAS5"));
@@ -351,6 +354,14 @@ const GfsModels::Def * GfsModels::find(const std::string& id) {
 
 bool GfsModels::draws(const std::string& id) {
     return find(id) != nullptr;
+}
+
+bool GfsModels::isForecast(const std::string& id) {
+    const auto * def = find(id);
+    if (def == nullptr || id == "WPC-PPP" || def->hours.empty()) {
+        return false;
+    }
+    return std::any_of(def->hours.begin(), def->hours.end(), [] (const Hours& h) { return h.to > h.from; });
 }
 
 bool GfsModels::isStormModel(const std::string& id) {

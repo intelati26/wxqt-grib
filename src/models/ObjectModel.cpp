@@ -103,6 +103,11 @@ void ObjectModel::writePrefs() const {
     Utility::writePref(prefModel, model);
     Utility::writePref(prefParam, param);
     Utility::writePref(prefSector, sector);
+    if (prefModel == "NCEP" && GfsModels::isForecast(model)) {   // the last forecast model looked at: the home screen's model picture keeps to it when an analysis or the PPP is on the screen
+        Utility::writePref("MODEL_LAST_FORECAST", model);
+        Utility::writePref("MODEL_LAST_FORECAST_PARAM", param);
+        Utility::writePref("MODEL_LAST_FORECAST_SECTOR", sector);
+    }
     Utility::writePref(prefRunPosn, timeStr);
     Utility::writePrefInt(prefRunPosnIdx, static_cast<int>(timeIdx));
 }

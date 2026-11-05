@@ -52,6 +52,17 @@ void WeatherGraph::setData(const vector<string>& times, const vector<double>& te
     update();
 }
 
+void WeatherGraph::setTimes(const vector<long long>& utc) {
+    for (size_t i = 0; i < dataPoints.size() && i < utc.size(); i++) {
+        dataPoints[i].utc = utc[i];
+    }
+}
+
+void WeatherGraph::setPressure(const vector<UtilityOpenMeteoPressure::Sample>& samples) {
+    pressure = samples;
+    update();
+}
+
 void WeatherGraph::paintEvent(QPaintEvent *) {
     ChartPainter painter{this};
     painter.setRenderHint(QPainter::Antialiasing);
@@ -163,6 +174,53 @@ void WeatherGraph::paintEvent(QPaintEvent *) {
         }
         prev = QPointF(x, y);
         havePrev = true;
+    }
+
+    // sea level pressure (green): the samples inside the graph's hours, on an axis of their own outside the plot on the right
+    {
+        const long long first = dataPoints.front().utc, last = dataPoints.back().utc;
+        vector<std::pair<double, double>> shown;   // (hours from the first point, hPa)
+        double pLo = 0.0, pHi = 0.0;
+        if (first != 0) {
+            for (const auto& s : pressure) {
+                if (s.utc < first || s.utc > last) {
+                    continue;
+                }
+                shown.emplace_back((s.utc - first) / 3600.0 + timeLo, s.hPa);
+                pLo = shown.size() == 1 ? s.hPa : std::min(pLo, s.hPa);
+                pHi = shown.size() == 1 ? s.hPa : std::max(pHi, s.hPa);
+            }
+        }
+        if (shown.size() >= 2) {
+            pLo = std::floor(pLo / 2.0) * 2.0 - 1.0;
+            pHi = std::ceil(pHi / 2.0) * 2.0 + 1.0;
+            if (pHi - pLo < 8.0) {
+                const double mid = (pHi + pLo) / 2.0;
+                pLo = mid - 4.0;
+                pHi = mid + 4.0;
+            }
+            const QColor green{20, 150, 70};
+            painter.setPen(green);
+            painter.setFont(axisFont);
+            for (int i = 0; i <= 4; ++i) {
+                const double value = pLo + (pHi - pLo) * i / 4.0;
+                painter.drawText(plot.right() + 24, plot.bottom() - plot.height() * i / 4 + 4, QString::number(value, 'f', 0));
+            }
+            painter.setPen(QPen{green, 2.0});
+            QPolygonF line;
+            for (const auto& [t, hPa] : shown) {
+                line << QPointF(plot.left() + plot.width() * (t - timeLo) / (timeHi - timeLo), plot.bottom() - plot.height() * (hPa - pLo) / (pHi - pLo));
+            }
+            painter.drawPolyline(line);
+            painter.setBrush(green);
+            for (const auto& point : line) {
+                painter.drawEllipse(point, 3.0, 3.0);
+            }
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QColor{40, 40, 40});
+            painter.setFont(labelFont);
+            painter.drawText(plot.left() + plot.width() / 2, plot.bottom() + 45, "Sea level pressure: hPa every 3 hours (green line, right edge; Open-Meteo)");
+        }
     }
 
     // Draw legend

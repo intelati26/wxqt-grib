@@ -21,7 +21,7 @@ const std::vector<ModelScreen::Source>& ModelScreen::sources() {
         {"SPCHRRR", "SPC HRRR pictures (pending discontinuation)"},
         {"NSSLWRF", "NSSL WRF pictures (pending discontinuation)"},
         {"WPCGEFS", "WPC GEFS pictures (pending discontinuation)"},
-        {"SPCHREF", "SPC HREF pictures (pending discontinuation)"},
+        {"SPCHREF", "SPC HREF pictures (retired 3 Nov 2026)"},
     };
     return all;
 }

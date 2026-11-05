@@ -70,11 +70,12 @@ QSslConfiguration configuration() {
         QList<QSslCertificate> anchors = intermediate;
         for (const auto& certificate : config.caCertificates()) {
             const auto name = certificate.subjectInfo(QSslCertificate::CommonName).join(' ');
-            if (name.contains("Sectigo Public Server Authentication Root R46")) {
+            // (NSSL's hosts moved to Let's Encrypt in 2026 and send their whole chain, up to a cross-signed ISRG Root X2: the system store's ISRG Root X1 is what anchors it)
+            if (name.contains("Sectigo Public Server Authentication Root R46") || name.contains("ISRG Root X1")) {
                 anchors.append(certificate);
             }
         }
-        if (anchors.size() == intermediate.size()) {
+        if (anchors.size() <= intermediate.size() + 1) {   // a root that is not in the system store: the full list is kept
             anchors += config.caCertificates();
         }
         config.setCaCertificates(anchors);

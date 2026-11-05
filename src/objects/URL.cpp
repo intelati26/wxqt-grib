@@ -8,6 +8,7 @@
 #include "util/Activity.h"
 #include "objects/KnownIntermediates.h"
 #include "objects/NetManager.h"
+#include "util/OpenMeteoUsage.h"
 #include <deque>
 #include <map>
 #include <mutex>
@@ -120,7 +121,7 @@ namespace {
         if (AppState::quitting) {   // the app is closing and waits for every worker: do not start a download now
             return {};
         }
-        const Activity::Download counted;   // shows on the screens' activity indicator while this request is in flight (the wait for a slot included)
+        const Activity::Download counted{url};   // shows on the screens' activity indicator while this request is in flight (the wait for a slot included)
         throttleByHost(url);
         QNetworkAccessManager manager;
         QNetworkRequest request{QUrl{QString::fromStdString(url)}};
@@ -138,6 +139,7 @@ namespace {
         if (!accept.isEmpty()) {
             request.setRawHeader(QByteArray{"Accept"}, accept);
         }
+        OpenMeteoUsage::record(url);
         QNetworkReply * response = manager.get(request);
         QEventLoop event;
         QObject::connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);

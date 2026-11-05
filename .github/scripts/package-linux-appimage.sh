@@ -24,7 +24,7 @@ mkdir -p "$appDir/usr/bin" "$appDir/usr/lib" "$appDir/usr/plugins" \
 
 cp build/release/wxqt "$appDir/usr/bin/wxqt"
 cp resourceCreation/images/wx_launcher.png "$appDir/wxqt.png"
-cat > "$appDir/wxqt.desktop" << 'EOF'
+cat > "$appDir/io.github.intelati26.wxqt.desktop" << 'EOF'
 [Desktop Entry]
 Type=Application
 Name=wxqt
@@ -33,6 +33,9 @@ Icon=wxqt
 Categories=Utility;
 Terminal=false
 EOF
+mkdir -p "$appDir/usr/share/metainfo" "$appDir/usr/share/applications"
+cp "$appDir/io.github.intelati26.wxqt.desktop" "$appDir/usr/share/applications/"
+cp .github/appstream/wxqt.appdata.xml "$appDir/usr/share/metainfo/io.github.intelati26.wxqt.appdata.xml"
 
 # No Python needed: rendering uses only the GDAL binaries copied below
 # (gdal_calc/gdal_merge were removed from every pipeline).

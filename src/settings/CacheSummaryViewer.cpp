@@ -79,13 +79,16 @@ namespace {
             {"NSSL CAMs answers", cache + "/cams", "model list 6 hours, sectors a week, the rest asked live", false, By::Nothing},
             {"Hurricane files", cache + "/hurricane", "by age", false, By::Nothing},
             {"Tornado files", cache + "/tornado", "by age", false, By::Nothing},
-            {"Kept data (climate, drought, hurricane, recon, tornado)", data + "/data", "the newest version is kept, older removed: this is data, not a cache", true, By::Subfolder},
+            {"Kept data (climate, drought, hurricane, recon, tornado)", data + "/data", "the newest version is kept, older removed: this is data, not a cache (temperature-history: the ERA5 record of each place you opened, never removed)", true, By::Subfolder},
             {"Archive (history plan)", data + "/archive", "never removed by the program", true, By::Subfolder},
         };
     }
 
     QString groupOf(const QString& relative, By by) {
         const QString file = relative.section('/', -1);
+        if (relative.startsWith("open-meteo/")) {   // (the answers are in files named by a hash of the request)
+            return "Open-Meteo answers (EC46, SEAS5), kept until the next UTC day";
+        }
         switch (by) {
             case By::Nothing: return "files";
             case By::Subfolder: return relative.contains('/') ? relative.section('/', 0, 0) : QString{"files"};

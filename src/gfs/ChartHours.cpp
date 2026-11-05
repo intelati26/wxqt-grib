@@ -101,7 +101,7 @@ std::vector<int> ChartHours::present(GfsRender::Session& session, const std::str
 std::set<std::string> ChartHours::absent(GfsRender::Session& session, const std::string& model, const std::string& runId, const std::vector<std::string>& charts) {
     std::set<std::string> out;
     const auto * def = GfsModels::find(model);
-    if (def == nullptr || runId.size() != 10 || model == "SPCREFS" || GfsModels::isStormModel(model) || def->source("").custom) {
+    if (def == nullptr || runId.size() != 10 || model == "SPCREFS" || GfsModels::isStormModel(model) || def->source("").custom || def->source("").tarMember) {
         return out;
     }
     if (std::any_of(def->hours.begin(), def->hours.end(), [] (const GfsModels::Hours& range) { return range.step <= 1 && range.to > range.from; })) {   // a model with a field every hour (the NBM, the HRRR, the RRFS) has fields of

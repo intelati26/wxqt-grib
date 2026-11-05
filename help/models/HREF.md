@@ -4,7 +4,7 @@
 
 ## Why it matters
 
-The High-Resolution Ensemble Forecast pools ten 3 km runs from several models. It has been the standard tool for severe weather and heavy rain outlooks because its probabilities are well tested. It is being replaced by the REFS, and SPC's HREF-based guidance ends in November 2026.
+The High-Resolution Ensemble Forecast pools ten 3 km runs from several models. It has been the standard tool for severe weather and heavy rain outlooks because its probabilities are well tested. It was retired on 3 November 2026 and replaced by the REFS; it stays here as an archive, and the runs stop at that date.
 
 ## Further reading
 

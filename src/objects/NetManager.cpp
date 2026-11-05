@@ -29,6 +29,7 @@
 #include "objects/KnownIntermediates.h"
 #include "util/Activity.h"
 #include "util/NetPriority.h"
+#include "util/OpenMeteoUsage.h"
 #include "util/AppState.h"
 #include "util/Utility.h"
 #include "util/UtilityLog.h"
@@ -199,6 +200,7 @@ namespace {
             if (!entry->accept.isEmpty()) {
                 request.setRawHeader(QByteArray{"Accept"}, entry->accept);
             }
+            OpenMeteoUsage::record(entry->url);   // (a try that is made again counts again: the service counts what it is sent)
             auto * reply = manager->get(request);
             entry->reply = reply;
             QObject::connect(reply, &QNetworkReply::downloadProgress, this, [entry] (qint64 got, qint64 total) {
@@ -295,7 +297,7 @@ NetManager::Result NetManager::get(const std::string& url, const QByteArray& ran
     if (qEnvironmentVariableIsSet("WXQT_NETLOG")) {   // WXQT_NETLOG=1: each request and its priority, to stderr
         std::fprintf(stderr, "net %s %s %s\n", priority == Priority::Visible ? "visible" : priority == Priority::Ahead ? "ahead" : "background", url.c_str(), range.constData());
     }
-    const Activity::Download counted;   // shows on the screens' activity indicator while the request is waiting or in flight
+    const Activity::Download counted{url};   // shows on the screens' activity indicator while the request is waiting or in flight
     ensureThread();
     auto waiter = std::make_shared<Waiter>();
     const std::string key = url + "|" + range.toStdString() + "|" + accept.toStdString();

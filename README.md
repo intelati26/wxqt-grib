@@ -22,14 +22,17 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   loop, **change since an earlier run**, **maximum over 24 hours or Day 1**, saved views, a click for a **sounding**, the newest and
   yesterday's runs marked, and Save (the picture, the loop or a whole comparison). Only the box of a region is downloaded where NOAA's server can
   cut one. Fields are kept for 48 hours (2 GB) in the cache; Settings shows its size.
+- **Verify against MRMS** (Analysis menu, on a reflectivity chart) - every run of the model that has a forecast for a time on the hour, scored
+  against the MRMS composite reflectivity of that time (or the maximum of the hour): POD, FAR, CSI and bias at 20 / 35 / 50 dBZ, the Fractions Skill Score over
+  10 / 25 / 50 km, and the model, MRMS and hit / miss / false alarm pictures. A run the server does not have for that hour says so.
 - **Compare tiles** - 1 x 2, 1 x 3 or 2 x 2 charts of one hour: other charts of the model, the same chart from other models, or the same valid time
   from older runs, with one zoom, pan and read-out across them and Play stepping through the hours drawn in every tile.
 - **Ensemble members** - a member picker for GEFS (the control and 30 members), GEPS (the control and 20) and REFS (5): the chart for one member
   instead of the mean, on the charts made of the mean's fields. REFS charts also have a Members graph (each member's value at a clicked point over
   the hours). GEPS is Environment and Climate Change Canada's ensemble from its open data server: the mean charts, the spread of the members, and
   the chance of freezing or 90 F.
-- **SPC models** - SPC's post-processing of the NWS models as Model Viewer models, from NOMADS (the test area until the Nov 3 2026 change
-  notice takes effect): SPCPOST (REFS calibrated thunder, tornado, hail and wind probabilities), SPCGEFS (GEFSCT daily thunder, GEFS-MLP severe), and the
+- **SPC models** - SPC's post-processing of the NWS models as Model Viewer models, from NOMADS (the `prod` directories since 3 Nov 2026; the test `para`
+  ones are gone): SPCPOST (REFS calibrated thunder, tornado, hail and wind probabilities), SPCGEFS (GEFSCT daily thunder, GEFS-MLP severe), and the
   mesoanalysis fields SFCOA-HRRR (the SPC mesoanalysis: CAPE, CIN, SRH, STP, SCP, SHIP, shear, lapse rates, ...) and RRFSD (the same from the RRFS to 84 h).
   SPCREFS is SPC's own REFS viewer data (its open Zarr store: means, maxima, probabilities and paintballs of 10 members, about 100 products, with a member picker for the
   one-member products). The two NetCDF ones are read by range, a field at a time (0.5 to 1 GB files, about a minute or two a field).
@@ -52,6 +55,74 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   indices are now charts in the Model Viewer).
 - **SPC Post slideshow**, **NSSL CAMs** (MPAS, WRF, HRRR, RRFS and others, with loops), **NSSL WRF**, **SPC HRRR**,
   **WPC GEFS**, and the **ESRL** and **WPC GEFS** picture viewers (the "Image models" menu of the Model Viewer).
+
+### Where the model data comes from  [Models]
+The Model Viewer's models by group, with the server each one is read from. The data is GRIB2 unless a note says otherwise. The NAM (with its nests), HiResW (the Guam domain stays on), HREF and SREF were retired on 3 Nov 2026 at 12 UTC (NWS notices SCN 26-47 and 26-48); they are under Archive
+and their old runs stay. The program has no SREF.
+
+**Global**
+
+| Model | Scope | Source | Notes |
+|---|---|---|---|
+| GFS | global, 0.25 degree | NOAA open data on AWS (`noaa-gfs-bdp-pds`) | |
+| AIGFS | global | AWS (`noaa-nws-graphcastgfs-pds`) | AI model, experimental |
+| IFS, AIFS | global | ECMWF open data (Google Cloud `ecmwf-open-data`) | CC BY 4.0; AIFS is an AI model |
+| GEFS | global ensemble, 30 members | AWS (`noaa-gefs-pds`) | |
+| IFS-ENS | global ensemble, 50 members | ECMWF open data | |
+| GEPS | global ensemble, 21 members | ECCC datamart (`dd.weather.gc.ca`) | |
+| ENS-ALL | the three ensembles pooled | the three above | |
+| GEOS-FP | global | NASA Center for Climate Simulation | NetCDF-4, read by range |
+| NBM | CONUS blend, 2.5 km | AWS (`noaa-nbm-grib2-pds`) | |
+| ICON-EU | Europe, 6.5 km | DWD open data (`opendata.dwd.de`) | |
+| GFS-WAVE, GEFS-WAVE | global waves | AWS (the GFS and GEFS buckets) | |
+
+**CONUS** (convection allowing, about 3 km)
+
+| Model | Scope | Source | Notes |
+|---|---|---|---|
+| RRFS (RRFS-EMC on the NSSL CAMs) | CONUS, 3 km | AWS (`noaa-rrfs-ops-pds`) | operational 3 Nov 2026 |
+| REFS | CONUS, 5 member ensemble | AWS (`noaa-rrfs-ops-pds`) | replaces the HREF |
+| SPC REFS and post-processing | CONUS | SPC open Zarr data; NOMADS `spc_post` | experimental |
+| HRRR | CONUS | AWS (`noaa-hrrr-bdp-pds`) | |
+| MPAS-HT (MPAS-HTPO-NSSL) | CONUS, 3 km | NSSL data server (`FRDD/NSSL-MPAS`, `*_mpasht2.tar`) | started from the HRRR; research output, not for forecasting |
+| MPAS-RN (MPAS-RN-NSSL) | CONUS, 3 km | NSSL data server (`*_mpasrn.tar`, 00 and 12Z) | started from the RRFS; research output, not for forecasting |
+
+**Outside CONUS** (regional models, most of them convection allowing)
+
+| Model | Scope | Source | Notes |
+|---|---|---|---|
+| RRFS-AK, RRFS-HI, RRFS-PR | Alaska (3 km), Hawaii and Puerto Rico (2.5 km) | AWS (`noaa-rrfs-ops-pds`) | |
+| RRFS-NA | North America, 13 km | AWS (`noaa-rrfs-ops-pds`) | not convection allowing |
+| HRRR-AK | Alaska, 3 km | AWS (`noaa-hrrr-bdp-pds`) | |
+| HRDPS | Canada, 2.5 km | ECCC datamart | |
+| ICON-D2 | Germany and central Europe, 2.2 km | DWD open data | |
+| HAFS-A, HAFS-B | storm-following, 2 km | NOMADS | tropical cyclones |
+
+The GSL's MPAS-RRFSA runs and the NSSL CAMs pictures of them are only pictures: no GRIB2 source has been found (see the model's About text).
+
+**Archived** (retired models stay as history; analyses and reanalyses)
+
+| Model | Scope | Source | Notes |
+|---|---|---|---|
+| NAM | CONUS and North America, 12 km | NCEP model guidance pages (pictures, not GRIB2) | retired 3 Nov 2026 |
+| NAM fire weather nest (FIREWX) | fire weather areas | NCEP model guidance pages (pictures, not GRIB2) | retired 3 Nov 2026 |
+| NAM CONUS nest (NAM-HIRES) | CONUS, 3 km | NCEP model guidance pages (pictures, not GRIB2) | retired 3 Nov 2026 |
+| HiResW (ARW, ARW2, FV3) | CONUS, 3 km | NCEP model guidance pages (pictures, not GRIB2) | retired 3 Nov 2026 (Guam stays on, not in the program) |
+| HREF | CONUS ensemble, 10 members | NOMADS | retired 3 Nov 2026; the REFS replaces it |
+| RAP | CONUS and North America, 13 km | NCEP model guidance pages (pictures, not GRIB2); RAP-ANL is GRIB2 from NCEI, below | retirement pending |
+| NAM-ANL, RAP-ANL, GFS-ANL, GFS1-ANL, NARR | analyses and reanalysis | NCEI model archive | |
+| RTMA, URMA | 2.5 km surface analyses | AWS (`noaa-rtma-pds`, `noaa-urma-pds`) | |
+| ERA5 | global reanalysis, 0.25 degree | NCAR archive on AWS (`nsf-ncar-era5`) | NetCDF |
+
+**Climate**
+
+| Model | Scope | Source | Notes |
+|---|---|---|---|
+| CFS, CFS-ANL, CFS30 | global, seasonal | AWS (`noaa-cfs-pds`) | CFS30 is the next days against the model's normal |
+| EC46, SEAS5 | global, weekly and monthly | ECMWF data by Open-Meteo.com | ensemble means; JSON API, no key |
+
+The WPC probabilistic precipitation portal (`ftp-wpc.ncep.noaa.gov`) is read as shapefiles and drawn as its own model. Each model's About text in the Model Viewer
+links to its server for fixing or finding another source.
 
 ### Soundings  [Forecast and observations / Models]
 - A native sounding engine and viewer (SHARPpy algorithms ported to C++, BSD licence, see `licenses/sharppy-notice.md`) for SPC's
@@ -121,7 +192,11 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
 ### Home screen, toolbar and settings
 - A visual **home-screen layout editor** (zone templates; drag Severe / Thumbnails / Forecast / Text), reorderable and groupable
   toolbar with three styles (icons, icons + names grouped, menu bar), fixed-size wrapping thumbnails (GRIB latest-run render,
-  SPC sounding, MRMS radar, NHC outlooks), middle-button drag to pan.
+  SPC sounding, MRMS radar, NHC outlooks), middle-button drag to pan. The model picture keeps to the last model that looks ahead (not an analysis or the
+  WPC PPP), and "RTMA temperature and wind - your last model area" draws the newest RTMA over the area you last used.
+- **NWS notices** (toolbar) - the Service Change Notices and Public Information Statements of weather.gov/notification in one list, newest first, read again
+  every 30 minutes, with a filter; a click opens the notice.
+- The **radar** screen and the other screens opened "at now" follow the newest data and refresh by themselves (a layer pinned to a time never looks for newer scans).
 - System / Light / Dark theme; each window remembers its size and position.
 - **Contact email**: NWS asks API users to identify themselves, so the program asks for an email at each start until one is saved
   (Settings > General). It is sent only in the HTTP User-Agent, nowhere else.
@@ -137,9 +212,28 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
 - Development aids (run with `QT_QPA_PLATFORM=offscreen`): `WXQT_OPEN=<toolbar id>` opens a tool, `WXQT_GRAB=<file.png>[,<ms>]`
   saves a picture of it and quits, `WXQT_SIZE=<w>x<h>` sizes it.
 
+### Open-Meteo (what the program sends it)  [Models / Climate]
+[Open-Meteo](https://open-meteo.com) is the one service the program uses that is free for non-commercial use under a **limit** rather than a key: **10,000 calls a day and 600 a minute, counted per IP address** (the address of your
+connection, shared with every other program on it), from midnight UTC. There is no account and no API key. A request carries the coordinates of the place asked about, and Open-Meteo sees your IP address as any website does; nothing else
+is sent, and the requests carry the program's name, and the contact address only if you entered one in Settings > General > "Contact email". The data is CC BY 4.0 (the forecasts are ECMWF's, the history is ERA5 from Copernicus / ECMWF).
+
+| Feature | Where | What is asked | Cost against the allowance |
+|---|---|---|---|
+| Sea level pressure on the hourly graph | the forecast point's hourly graph (Settings > "Sea level pressure ..." turns it off) | the forecast MSL pressure, 8 days hourly, at the selected point; every third hour is drawn | 1 per look |
+| Temperature history, "ERA5 reanalysis (anywhere)" | Temperature history window | the daily mean, high, low and rain since 1940 | about 2,300 the first time at a place; afterwards about 1 (below) |
+| ECMWF EC46 and SEAS5 models | Model Viewer (EC46, SEAS5) and the master map's EC46 layer | the weekly or monthly ensemble mean of one field at the points of a 10 degree world grid (about 550) and a 4 degree grid over North America (about 250), 250 points to a request | **the heavy one**: each point counts as at least one call, so a field's map is some 800 calls and, if the service weighs the 92 day request by its size, up to about 5,000; every answer is kept on disk until the next UTC day (the forecasts are made daily), so reopening the map or restarting costs nothing |
+| EC46 and SEAS5 plumes | CFS / seasonal plume window | every member's daily values at the point | a few calls; kept on disk until the next UTC day, so the same point again costs nothing |
+
+- **The temperature history is kept for good** in the data folder (`data/temperature-history/`, one file of about 150 KB for each 0.25 degree grid point: tenths of a degree in 16 bits, zlib). A later visit asks only for the
+  last 30 days, whose newest days ERA5 revises, so it costs one call. Delete the folder to start again.
+- **Open-Meteo weighs a call by its size**, roughly (variables / 10) x (days / 14), at least 1, so a request for 87 years is not one call.
+- **The Network window shows the day's count** ("Open-Meteo today (UTC): ..."): the requests the program has sent and their estimated weight against the 10,000, in red from 8,000. It is an estimate: it cannot see other programs on your
+  address, and Open-Meteo does not report your usage. It is kept in the settings and starts again at midnight UTC.
+- If you pass the limit Open-Meteo answers with an error for the rest of the day (or minute) and these features show nothing until it resets; nothing else in the program uses Open-Meteo.
+
 ### Data sources and credits
 NOAA / NWS (NHC, SPC, WPC, OPC, CPC, NESDIS OSPO and Coral Reef Watch, NCEP, NSSL, MRMS), CIRA / RAMMB (Colorado State),
-JTWC, JMA, ECMWF open data (CC BY 4.0), NOAA PSL (the reanalysis for the climatology), the U.S. Drought Monitor, AWS and Google Cloud open data (mirrors). SPC's REFS, CIRA's products and several NSSL models are **experimental**; this is not a
+JTWC, JMA, ECMWF open data (CC BY 4.0), Open-Meteo (CC BY 4.0: the EC46 and SEAS5 forecasts, ERA5 history and the pressure line, see above), NOAA PSL (the reanalysis for the climatology), the U.S. Drought Monitor, AWS and Google Cloud open data (mirrors). SPC's REFS, CIRA's products and several NSSL models are **experimental**; this is not a
 warning service - see the disclaimer below. Sounding algorithms: SHARPpy (BSD), see `licenses/sharppy-notice.md`.
 zstd (BSD / GPLv2) is vendored for the Zarr reader, see `licenses/zstd-LICENSE.txt`. The om-file-format decoder (Open-Meteo) is vendored for their `.om` model files, see `src/external/omfile/LICENSE`. GDAL (MIT), PROJ (MIT), ECMWF ecCodes (Apache 2.0), Qt and the
 data providers are credited in `licenses/CREDITS.md`.

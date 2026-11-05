@@ -3079,6 +3079,34 @@ const std::vector<Product>& products() {
                     return out;
                 };
                 x.fillTitle = what + ": one thin line for each of the 31 members, the heavy black line the ensemble mean";
+                x.derive = [] (Grids& g, const Context&) {   // members taken out (the Layers box): the mean of the rest, not the model's own mean of all 31
+                    std::vector<const GfsGrid::Grid *> kept;
+                    for (const auto& name : memberNames) {
+                        const auto found = g.find("z" + name);
+                        if (found != g.end() && !found->second.values.empty()) {
+                            kept.push_back(&found->second);
+                        }
+                    }
+                    if (kept.empty() || kept.size() == memberNames.size() || !g.count("zm")) {
+                        return;
+                    }
+                    auto mean = *kept.front();
+                    for (size_t i = 0; i < mean.values.size(); i++) {
+                        double sum = 0.0;
+                        int n = 0;
+                        for (const auto * m : kept) {
+                            if (std::isfinite(m->values[i])) {
+                                sum += m->values[i];
+                                n++;
+                            }
+                        }
+                        mean.values[i] = n > 0 ? static_cast<float>(sum / n) : std::nanf("");
+                    }
+                    g["zm"] = std::move(mean);
+                };
+                for (size_t m = 0; m < memberNames.size(); m++) {
+                    x.layers.push_back({"z" + memberNames[m], "GEFS " + memberNames[m]});
+                }
                 for (const double value : levels) {
                     for (size_t m = 0; m < memberNames.size(); m++) {
                         ContourSet c;
@@ -3981,6 +4009,63 @@ const std::vector<Product>& products() {
                 x.legendStep = 0;
                 p.push_back(x);
             }
+            // the SPC's neighborhood chance for the paintballs: the grids "chance" (%) and an all-clear "base" for the fill
+            const auto paintballChance = [] (Grids& g, const Context&) {
+                    constexpr int radius = 13;
+                    GfsGrid::Grid out;
+                    for (const auto& [key, grid] : g) {   // (any layer left: the first one is the pattern of the grid)
+                        if (key[0] == 'r' && !grid.empty()) {
+                            out = grid;
+                            break;
+                        }
+                    }
+                    if (out.empty()) {
+                        return;
+                    }
+                    const int columns = out.columns, rows = out.rows;
+                    std::vector<int> count(out.values.size(), 0), have(out.values.size(), 0);
+                    for (const auto& [key, grid] : g) {
+                        if (key[0] != 'r' || grid.empty() || grid.values.size() != out.values.size()) {
+                            continue;
+                        }
+                        // a round neighborhood: each row counts the hits of the rows within the radius, over the width of the circle there (a running total along each row makes that one subtraction)
+                        std::vector<int> along(static_cast<size_t>(rows) * static_cast<size_t>(columns + 1), 0);
+                        for (int r = 0; r < rows; r++) {
+                            for (int c = 0; c < columns; c++) {
+                                const float v = grid.values[static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c)];
+                                along[static_cast<size_t>(r) * static_cast<size_t>(columns + 1) + static_cast<size_t>(c) + 1] = along[static_cast<size_t>(r) * static_cast<size_t>(columns + 1) + static_cast<size_t>(c)] + (!std::isnan(v) && v >= 40.0f ? 1 : 0);
+                            }
+                        }
+                        int half[2 * radius + 1];
+                        for (int d = -radius; d <= radius; d++) {
+                            half[d + radius] = static_cast<int>(std::sqrt(static_cast<double>(radius * radius - d * d)) + 0.5);
+                        }
+                        for (int r = 0; r < rows; r++) {
+                            for (int c = 0; c < columns; c++) {
+                                const size_t at = static_cast<size_t>(r) * static_cast<size_t>(columns) + static_cast<size_t>(c);
+                                have[at] += std::isnan(grid.values[at]) ? 0 : 1;
+                                bool near = false;
+                                for (int d = -radius; d <= radius && !near; d++) {
+                                    const int rr = r + d;
+                                    if (rr < 0 || rr >= rows) {
+                                        continue;
+                                    }
+                                    const int lo = std::max(0, c - half[d + radius]), hi = std::min(columns - 1, c + half[d + radius]);
+                                    const size_t row = static_cast<size_t>(rr) * static_cast<size_t>(columns + 1);
+                                    near = along[row + static_cast<size_t>(hi) + 1] - along[row + static_cast<size_t>(lo)] > 0;
+                                }
+                                count[at] += near ? 1 : 0;
+                            }
+                        }
+                    }
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        out.values[i] = have[i] > 0 ? static_cast<float>(100.0 * count[i] / have[i]) : std::nanf("");
+                    }
+                    g["chance"] = GfsGrid::smoothed(out, 20);
+                    auto none = out;   // the fill is clear (a layer taken out cannot leave the chart without one): every layer is an overlay in its own color
+                    std::fill(none.values.begin(), none.values.end(), std::nanf(""));
+                    g["base"] = std::move(none);
+                };
             {   // each member's 40 dBZ echoes in a color of its own, so where they agree and where they differ shows
                 auto x = make("refc_paintball", "Paintball: Composite Reflectivity of 40 dBZ or more, each member");
                 x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
@@ -3990,12 +4075,140 @@ const std::vector<Product>& products() {
                     solid.setAlpha(176);
                     return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
                 };
-                x.fill = [] (const Grids& g) { return pick(g, "r1"); };
+                x.fill = [] (const Grids& g) { return pick(g, "base"); };
                 x.ramp = above(names[0]);
-                for (int m = 2; m <= 5; m++) {
+                const char * layerNames[5] = {"REFS member 1 (control)", "REFS member 2", "REFS member 3", "REFS member 4", "REFS member 5"};
+                for (int m = 1; m <= 5; m++) {
+                    x.layers.push_back({"r" + std::to_string(m), layerNames[m - 1]});
                     x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
                 }
+                x.derive = paintballChance;
+                ContourSet c;
+                c.key = "chance";
+                c.interval = 20.0;
+                c.base = 10.0;
+                c.minimum = 9.0;
+                c.title = "40 dBZ chance (%)";
+                c.color = QColor{20, 20, 20};
+                c.uniform = true;
+                c.width = 1.4;
+                x.contours.push_back(c);
                 x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange (40 dBZ or more)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {   // the same, with NSSL's experimental MPAS as a sixth (pink) and seventh (teal) set of echoes among the five members: where it sits among them, inside or outside what the ensemble spreads over
+                auto x = make("refc_paintball_mpas", "Paintball: Composite Reflectivity of 40 dBZ or more, each member and the NSSL MPAS runs");
+                x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
+                x.extras = {{"MPAS-HT", GfsData::Want{"r6", "REFC", "entire atmosphere", "", "", ""}, "MPAS-HT"}, {"MPAS-RN", GfsData::Want{"r7", "REFC", "entire atmosphere", "", "", ""}, "MPAS-RN"}};
+                const char * names[7] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#e377c2", "#17becf"};
+                const auto above = [] (const char * color) {
+                    QColor solid{color};
+                    solid.setAlpha(176);
+                    return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "base"); };
+                x.ramp = above(names[0]);
+                const char * layerNames[7] = {"REFS member 1 (control)", "REFS member 2", "REFS member 3", "REFS member 4", "REFS member 5", "MPAS-HT (NSSL)", "MPAS-RN (NSSL)"};
+                for (int m = 1; m <= 7; m++) {
+                    x.layers.push_back({"r" + std::to_string(m), layerNames[m - 1]});
+                    x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
+                }
+                x.derive = paintballChance;
+                ContourSet c;
+                c.key = "chance";
+                c.interval = 20.0;
+                c.base = 10.0;
+                c.minimum = 9.0;
+                c.title = "40 dBZ chance (%)";
+                c.color = QColor{20, 20, 20};
+                c.uniform = true;
+                c.width = 1.4;
+                x.contours.push_back(c);
+                x.fillTitle = "Members: 1 blue, 2 red, 3 green, 4 purple, 5 orange; NSSL MPAS-HT pink, MPAS-RN teal (40 dBZ or more; experimental, not for forecasting)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {   // the REFS members with NSSL's two MPAS runs as one pool: the share of them that reach the level. "Most recent" is the newest run of each (up to 7 members); the lagged pools add the
+                // runs one and two cycles older of each (up to 14 and 21 members), which is the point: the earlier runs are what the slow MPAS runs have to give. A member that cannot be read is left out
+                struct Lagged {
+                    int lag;
+                    const char * id;
+                    const char * label;
+                };
+                for (const auto& level : {std::pair{40.0, "40"}, std::pair{50.0, "50"}}) {
+                    for (const auto& lagged : {Lagged{0, "", "most recent runs"}, Lagged{1, "_lag2", "last 2 runs of each"}, Lagged{2, "_lag3", "last 3 runs of each"}}) {
+                        auto x = make((std::string{"pool_refc_"} + level.second + lagged.id).c_str(), (std::string{"Pooled REFS + MPAS: chance of "} + level.second + " dBZ or more, " + lagged.label).c_str());
+                        x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
+                        for (int lag = 0; lag <= lagged.lag; lag++) {
+                            const std::string suffix = lag == 0 ? std::string{} : "_" + std::to_string(lag);
+                            x.extras.push_back({"MPAS-HT", GfsData::Want{"rh" + suffix, "REFC", "entire atmosphere", "", "", ""}, lag == 0 ? "MPAS-HT" : "", lag});
+                            x.extras.push_back({"MPAS-RN", GfsData::Want{"rn" + suffix, "REFC", "entire atmosphere", "", "", ""}, lag == 0 ? "MPAS-RN" : "", lag});
+                            if (lag > 0) {
+                                for (int m = 1; m <= 5; m++) {
+                                    x.extras.push_back({"REFS", GfsData::Want{"r" + std::to_string(m) + suffix, "REFC", "entire atmosphere (considered as a single layer)", "", "", "m00" + std::to_string(m)}, "", lag});
+                                }
+                            }
+                        }
+                        const double threshold = level.first;
+                        x.fill = [threshold] (const Grids& g) {   // every REFC grid there is, the members that were read: the share of them at or above the level
+                            auto out = pick(g, "r1");
+                            for (size_t i = 0; i < out.values.size(); i++) {
+                                int n = 0, over = 0;
+                                for (const auto& [key, grid] : g) {
+                                    if (key[0] == 'r' && !grid.empty() && i < grid.values.size() && !std::isnan(grid.values[i])) {
+                                        n++;
+                                        over += grid.values[i] >= threshold ? 1 : 0;
+                                    }
+                                }
+                                out.values[i] = n > 0 ? static_cast<float>(100.0 * over / n) : std::nanf("");
+                            }
+                            return GfsGrid::smoothed(out, 6);
+                        };
+                        x.ramp = probability();
+                        x.palette = "prob";
+                        x.fillTitle = std::string{"Share of the pooled members (REFS, NSSL MPAS-HT and MPAS-RN; "} + lagged.label + ") at the level, nearby (experimental MPAS, not for forecasting)";
+                        x.legendStep = 10;
+                        p.push_back(x);
+                    }
+                }
+            }
+            {   // the paintball as the SPC's REFS viewer draws it, with NSSL's two MPAS runs added: the five REFS members, the HRRR and the HRRR of 6 and 12 hours before (the same grays) and the MPAS-HT and
+                // MPAS-RN, with the lines of the chance of 40 dBZ (the share of the members over it, nearby: 10, 30, 50, 70 and 90 per cent). A run that cannot be read is left out of the paint and the count
+                auto x = make("refc_paintball_spc", "Paintball: 40 dBZ or more, REFS, HRRR and NSSL MPAS, with the chance");
+                x.wants = members("r", "REFC", "entire atmosphere (considered as a single layer)", "");
+                x.extras = {{"HRRR", GfsData::Want{"r6", "REFC", "entire atmosphere", "", "", ""}, "HRRR", 0}, {"HRRR", GfsData::Want{"r7", "REFC", "entire atmosphere", "", "", ""}, "", 6},
+                            {"HRRR", GfsData::Want{"r8", "REFC", "entire atmosphere", "", "", ""}, "", 12}, {"MPAS-HT", GfsData::Want{"r9", "REFC", "entire atmosphere", "", "", ""}, "MPAS-HT", 0},
+                            {"MPAS-RN", GfsData::Want{"r10", "REFC", "entire atmosphere", "", "", ""}, "MPAS-RN", 0},
+                            {"REFS", GfsData::Want{"r11", "REFC", "entire atmosphere (considered as a single layer)", "", "", "m001"}, "", 1},   // the control (member 1) of the REFS runs 6 and 12 hours older
+                            {"REFS", GfsData::Want{"r12", "REFC", "entire atmosphere (considered as a single layer)", "", "", "m001"}, "", 2}};
+                const char * names[12] = {"#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#4c4c4c", "#7f7f7f", "#b3b3b3", "#e377c2", "#17becf", "#4cd3ff", "#b3ecff"};
+                const auto above = [] (const char * color) {
+                    QColor solid{color};
+                    solid.setAlpha(176);
+                    return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
+                };
+                x.derive = paintballChance;
+                x.fill = [] (const Grids& g) { return pick(g, "base"); };
+                x.ramp = above(names[0]);
+                const char * layerNames[12] = {"REFS member 1 (control)", "REFS member 2", "REFS member 3", "REFS member 4", "REFS member 5", "HRRR", "HRRR -6h", "HRRR -12h", "MPAS-HT (NSSL)", "MPAS-RN (NSSL)", "REFS control -6h", "REFS control -12h"};
+                for (int m = 1; m <= 12; m++) {
+                    x.layers.push_back({"r" + std::to_string(m), layerNames[m - 1]});
+                }
+                for (int m = 1; m <= 12; m++) {
+                    x.overlays.push_back({"r" + std::to_string(m), above(names[m - 1])});
+                }
+                ContourSet c;
+                c.key = "chance";
+                c.interval = 20.0;
+                c.base = 10.0;
+                c.minimum = 9.0;
+                c.title = "40 dBZ chance (%)";
+                c.color = QColor{20, 20, 20};
+                c.uniform = true;
+                c.width = 1.4;
+                x.contours.push_back(c);
+                x.fillTitle = "REFS 1-5; HRRR grays (now, -6, -12); MPAS-HT pink, MPAS-RN teal; REFS member 1 -6 and -12 light blue (40 dBZ or more)";
                 x.legendStep = 0;
                 p.push_back(x);
             }
@@ -5618,12 +5831,21 @@ const std::vector<Product>& products() {
                 x.linesOnly = true;
                 x.needs = [memberNeeds, variable, level] (int hour) { return memberNeeds("z", variable, level, hour, hour == 0 ? std::string{"0 hour fcst"} : std::to_string(hour) + " hour fcst"); };
                 x.derive = [scale] (Grids& g, const Context&) {
-                    auto mean = g.at("z" + names.front());
+                    std::vector<const GfsGrid::Grid *> kept;   // (members taken out in the Layers box are not there)
+                    for (const auto& name : names) {
+                        if (const auto found = g.find("z" + name); found != g.end() && !found->second.values.empty()) {
+                            kept.push_back(&found->second);
+                        }
+                    }
+                    if (kept.empty()) {
+                        throw std::runtime_error{"no member could be read"};
+                    }
+                    auto mean = *kept.front();
                     for (size_t i = 0; i < mean.values.size(); i++) {
                         double sum = 0.0;
                         int n = 0;
-                        for (const auto& name : names) {
-                            const float v = g.at("z" + name).values[i];
+                        for (const auto * member : kept) {
+                            const float v = member->values[i];
                             if (std::isfinite(v)) {
                                 sum += v;
                                 n++;
@@ -5635,6 +5857,9 @@ const std::vector<Product>& products() {
                     (void) scale;
                 };
                 x.fillTitle = what + ": one thin line for each of the 50 members, the heavy black line the ensemble mean";
+                for (const auto& name : names) {
+                    x.layers.push_back({"z" + name, "ECMWF member " + name});
+                }
                 for (const double value : levels) {
                     for (size_t m = 0; m < names.size(); m++) {
                         ContourSet c;
@@ -5805,6 +6030,9 @@ const std::vector<Product>& products() {
                     (void) scale;
                 };
                 x.fillTitle = what + ": a line from each of the 50 ECMWF (red), 31 GEFS (blue) and 21 GEPS (green) members, the heavy black line the mean of all";
+                for (const auto& member : poolMembers()) {
+                    x.layers.push_back({"z" + member.tag, (member.source == "IFS-ENS" ? "ECMWF " : member.source + " ") + member.tag});
+                }
                 for (const double value : levels) {
                     std::map<std::string, int> counts;
                     for (const auto& member : poolMembers()) {
@@ -5943,7 +6171,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);
@@ -6588,7 +6816,7 @@ std::string category(const Product& product) {
         }
     }
     if (startsWith(id, "spread_") || startsWith(id, "all_spread_") || contains(id, "_spread")) {
-        return "Ensemble spread";
+        return "Ensemble: spread, spaghetti and paintballs";
     }
     if (startsWith(id, "swath")) {
         return "Swaths";
@@ -6613,7 +6841,7 @@ std::string category(const Product& product) {
         return "Probability: severe and storms";
     }
     if (contains(id, "spag") || contains(id, "_iso") || contains(id, "paintball") || (contains(id, "_ht") && id.size() > 8 && std::isdigit(static_cast<unsigned char>(id[0])) && std::count(id.begin(), id.end(), '_') >= 2 && std::isdigit(static_cast<unsigned char>(id[id.find('_') + 1])))) {
-        return "Ensemble: spaghetti and paintballs";   // (the last: "500_510_552_ht", a level then the contour values)
+        return "Ensemble: spread, spaghetti and paintballs";   // (the last: "500_510_552_ht", a level then the contour values)
     }
     if (startsWith(id, "member_")) {
         return "Ensemble: single members";
@@ -7172,6 +7400,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     if (product.derive) {
         product.derive(grids, Context{forecastHour, run, options.climate, product.source});
     }
+    if (!product.layers.empty()) {   // a layer taken out leaves its lines off the chart, not the chart empty
+        std::erase_if(product.contours, [&grids] (const ContourSet& set) { return grids.find(set.key) == grids.end(); });
+    }
     auto fill = product.fill ? product.fill(grids) : GfsGrid::Grid{};
     if (!options.fillOverride.empty()) {   // a maximum or a change: the fill is made, and only it is drawn
         fill = options.fillOverride;
@@ -7193,10 +7424,13 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         product.quantity = options.overrideQuantity;
     }
     if (product.linesOnly && !product.contours.empty()) {   // nothing to fill: a blank grid of the first line's field
-        const auto found = grids.find(product.contours.front().key);
-        if (found != grids.end()) {
-            fill = found->second;
-            std::fill(fill.values.begin(), fill.values.end(), std::nanf(""));
+        for (const auto& set : product.contours) {   // (the first line still there: a member taken out leaves the others)
+            const auto found = grids.find(set.key);
+            if (found != grids.end()) {
+                fill = found->second;
+                std::fill(fill.values.begin(), fill.values.end(), std::nanf(""));
+                break;
+            }
         }
     }
     if (fill.empty()) {
@@ -7240,6 +7474,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             deviationHigh = values[values.size() * 9 / 10];
         }
     }
+    const bool layerKey = !product.layers.empty() && !product.overlays.empty();   // (a paintball of sets: the key of their colors is where the color bar would be)
     const int headerHeight = 54, legendHeight = 62 + (deviationHigh > 0.0 ? 14 : 0), margin = 8;
     const QRectF mapArea{static_cast<double>(margin), static_cast<double>(headerHeight), static_cast<double>(options.width - 2 * margin), 0.0};
     const double mapHeight = std::clamp(View::heightFor(sector, mapArea.width()), 200.0, 1400.0);
@@ -7961,7 +8196,8 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         const size_t i = std::min(static_cast<size_t>(position), stops.size() - 2);
         return stops[i].first + (stops[i + 1].first - stops[i].first) * (position - static_cast<double>(i));
     };
-    for (int x = 0; !product.linesOnly && x < static_cast<int>(barWidth); x++) {
+    const bool noBar = product.linesOnly || layerKey;   // (no scale to show: the lines, or the sets of a paintball, are the chart)
+    for (int x = 0; !noBar && x < static_cast<int>(barWidth); x++) {
         const QRgb c = ramp->at(valueAt(x / barWidth));
         // a ramp that begins clear is drawn as the pale ground on the bar
         const int a = qAlpha(c);
@@ -7970,7 +8206,8 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
     p.setPen(QColor{60, 60, 60});
     p.setBrush(Qt::NoBrush);
-    if (!product.linesOnly) {
+    if (layerKey) {   // (the key of the sets is drawn below, with the chance lines)
+    } else if (!product.linesOnly) {
         p.drawRect(QRectF{barLeft, barTop, barWidth, barHeight});
     } else if (product.contours.size() > 1) {   // lines of several sets (models compared): a key, a sample of each line's color and what it is
         double x = barLeft;
@@ -7994,7 +8231,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         p.drawLine(QPointF{x, barTop + barHeight}, QPointF{x, barTop + barHeight + 4});
         p.drawText(QRectF{x - 24, barTop + barHeight + 4, 48, 14}, Qt::AlignHCenter, numberText(shown(product.quantity, value, us)));
     };
-    if (product.linesOnly) {
+    if (noBar) {
         // no scale to number
     } else if (ramp->banded) {   // the number at the lower edge of each band, as the model guidance site's legends have it
         for (size_t i = 0; i < stops.size(); i++) {
@@ -8046,8 +8283,43 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         }
         p.setBrush(Qt::NoBrush);
     }
+    if (layerKey) {   // each set still drawn, its color and its name
+        const double top = barTop + 3.0;
+        const QFontMetricsF metrics{p.font()};
+        for (const auto& [key, overlayRamp] : product.overlays) {
+            if (grids.find(key) == grids.end() || overlayRamp.stops.empty()) {
+                continue;
+            }
+            QString name = QString::fromStdString(key);
+            for (const auto& [layerKeyName, layerName] : product.layers) {
+                if (layerKeyName == key) {
+                    name = QString::fromStdString(layerName);
+                }
+            }
+            name.replace("REFS member ", "REFS ").replace(" (control)", " ctl").replace(" (NSSL)", "").replace("REFS control ", "REFS ctl ");
+            const auto& color = overlayRamp.stops.back().second;
+            p.setBrush(QColor{color.red(), color.green(), color.blue()});
+            p.setPen(QColor{60, 60, 60});
+            p.drawRect(QRectF{keyLeft, top, 9, 9});
+            p.setPen(QColor{70, 70, 70});
+            p.drawText(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            keyLeft += 13 + metrics.horizontalAdvance(name) + 12;
+        }
+        p.setBrush(Qt::NoBrush);
+        for (const auto& set : product.contours) {   // and a sample of each line there is a name for
+            if (set.title.empty()) {
+                continue;
+            }
+            const QString name = QString::fromStdString(set.title);
+            p.setPen(QPen{set.color, 2.5});
+            p.drawLine(QPointF{keyLeft + 6.0, top + 4.5}, QPointF{keyLeft + 24.0, top + 4.5});
+            p.setPen(QColor{70, 70, 70});
+            p.drawText(QRectF{keyLeft + 30.0, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            keyLeft += 30.0 + metrics.horizontalAdvance(name) + 12;
+        }
+    }
     for (const auto& [key, overlayRamp] : product.overlays) {
-        if (paintball) {
+        if (paintball || layerKey) {
             break;
         }
         const QString name = key == "snow" ? "Snow" : key == "mix" ? "Mixed" : QString::fromStdString(key.substr(key.rfind('|') == std::string::npos ? 0 : key.rfind('|') + 1));   // (an overlay's fill is named after its "|")
@@ -8066,7 +8338,19 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         keyLeft += nameWidth + width + 22;
     }
     p.setPen(QColor{110, 110, 110});
-    p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + sourceLabel(product.source)));
+    p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product] {
+        auto text = sourceLabel(product.source);
+        for (const auto& extra : product.extras) {   // the other models a chart draws from
+            if (extra.lag > 0) {   // (an older run of a source that is credited already)
+                continue;
+            }
+            const auto label = extra.credit.empty() ? sourceLabel(extra.source) : extra.credit;
+            if (text.find(label) == std::string::npos) {
+                text += "; " + label;
+            }
+        }
+        return text;
+    }()));
     return image;
 }
 }

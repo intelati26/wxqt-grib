@@ -10,6 +10,11 @@ name: Build portable packages
 #     paths-ignore: ['docs/**', '**/*.md']
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version in the installer file name (0.1.0)'
+        default: '0.1.0'
+        required: false
 
 # A newer push to the same branch makes the build of the older one pointless (it is the newest that is wanted): cancel it instead of letting a 20 minute Windows build per push queue up
 concurrency:
@@ -266,6 +271,32 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path dist/wxqt-portable/* -DestinationPath dist/wxqt-windows-x64.zip
 
+      # the installer: the portable folder installed for the current user (.github/installer/wxqt.iss, Inno Setup)
+      - name: Build installer
+        shell: pwsh
+        env:
+          WXQT_VERSION: ${{ inputs.version || '0.1.0' }}
+        run: |
+          choco install innosetup --no-progress -y
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:WXQT_VERSION" .github/installer/wxqt.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed ($LASTEXITCODE)" }
+          Get-ChildItem dist/*-setup.exe | ForEach-Object { "{0:N1} MB  {1}" -f ($_.Length / 1MB), $_.Name | Write-Host }
+
+      # installs it silently into a temporary folder, checks the files and the uninstaller, and removes it again
+      - name: Smoke-test installer
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem dist/*-setup.exe | Select-Object -First 1).FullName
+          $target = Join-Path $env:RUNNER_TEMP 'wxqt-installed'
+          Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$target" -Wait
+          foreach ($f in 'wxqt.exe', 'wxqt.bat', 'gdal') {
+            if (-not (Test-Path (Join-Path $target $f))) { throw "installed folder has no $f" }
+          }
+          $uninstaller = Get-ChildItem $target -Filter 'unins*.exe' | Select-Object -First 1
+          if (-not $uninstaller) { throw "no uninstaller was installed" }
+          Start-Process $uninstaller.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          Write-Host "installer installs and uninstalls"
+
       - uses: actions/upload-artifact@v7
         with:
           # archive: false uploads the file as-is - otherwise GitHub wraps our
@@ -273,6 +304,13 @@ jobs:
           path: dist/wxqt-windows-x64.zip
           archive: false
           retention-days: 3   # GitHub's artifact storage is limited (500 MB on the Free plan): keep a build three days
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/wxqt-*-windows-x64-setup.exe
+          archive: false
+          retention-days: 3
           if-no-files-found: error
 
       # the matching debug symbols: resolve the addresses of a crash in wxqt.log (wxqt.exe+0x...) with
