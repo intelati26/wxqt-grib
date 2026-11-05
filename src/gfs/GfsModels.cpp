@@ -327,13 +327,6 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GEFS-WAVE"));
         m.push_back(fromFile("HAFSA"));
         m.push_back(fromFile("HAFSB"));
-        for (auto& d : m) {   // what each is and why it matters
-            for (const auto& [name, text] : GfsModelFile::aboutBuiltIn()) {
-                if (name == d.id && d.why.empty()) {
-                    GfsModelFile::applyAbout(d, text);
-                }
-            }
-        }
         // the models of the user's folder, after the built-in ones (a file that does not parse, or repeats an id, is left out: userProblems says why)
         for (auto& parsed : GfsModelFile::loadFolder(userFolder)) {
             if (parsed.ok && std::none_of(m.begin(), m.end(), [&parsed] (const Def& d) { return d.id == parsed.def.id; })) {

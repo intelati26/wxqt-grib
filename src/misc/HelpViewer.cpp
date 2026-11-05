@@ -6,6 +6,7 @@
 #include "misc/HelpViewer.h"
 #include <map>
 #include <QDesktopServices>
+#include <QFile>
 #include <QHeaderView>
 #include <QSplitter>
 #include <QStandardPaths>
@@ -58,6 +59,29 @@ namespace {
             }
             out += "</ul>";
         }
+        return out;
+    }
+
+    // A model with a Markdown page in the resources (help/models/<id>.md): that text, then what the program knows of the model (the charts, the hours, the runs), kept out of the text so it
+    // is never out of date. Empty when the model has no page, and its page is made as before.
+    QString markdownPage(const GfsModels::Def& d) {
+        QFile file{":/help/models/" + QString::fromStdString(d.id) + ".md"};
+        if (!file.open(QIODevice::ReadOnly)) {
+            return {};
+        }
+        QString out = QString::fromUtf8(file.readAll());
+        int charts = 0;
+        for (const auto& p : GfsChart::products()) {
+            charts += p.source == d.id ? 1 : 0;
+        }
+        QString hours;
+        for (const auto& h : d.hours) {
+            hours += (hours.isEmpty() ? "" : ", ") + QString::number(h.from) + "-" + QString::number(h.to) + " h every " + QString::number(h.step);
+        }
+        out += "\n\n## In this app\n\n";
+        out += "- " + QString::number(charts) + (charts == 1 ? " chart" : " charts") + " in the Model Viewer (picker group: " + QString::fromStdString(GfsModels::pickerGroup(d.id)) + ")\n";
+        out += "- Forecast hours: " + hours + "\n";
+        out += "- Runs: " + (d.hourlyRuns ? QString{"every hour"} : QString{"every "} + QString::number(d.cycleStep) + " hours") + "\n";
         return out;
     }
 
@@ -137,6 +161,10 @@ HelpViewer::HelpViewer(Window * parent)
 void HelpViewer::showTopic(const std::string& topic) {
     if (topic.compare(0, 6, "model:") == 0) {
         if (const auto * d = GfsModels::find(topic.substr(6))) {
+            if (const auto markdown = markdownPage(*d); !markdown.isEmpty()) {
+                page->setMarkdown(markdown);
+                return;
+            }
             page->setHtml(modelPage(*d));
             return;
         }
