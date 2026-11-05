@@ -7,6 +7,7 @@
 #include "space/SpaceWeatherViewer.h"
 #include "space/SunViewer.h"
 #include "space/UtilitySun.h"
+#include "vis/GoesViewer.h"
 #include <algorithm>
 #include <cmath>
 #include <ctime>
@@ -430,8 +431,8 @@ SpaceWeatherViewer::SpaceWeatherViewer(Window * parent)
     addPicture("Aurora forecast, north", "images/animations/ovation/north/latest.jpg");
     addPicture("Aurora forecast, south", "images/animations/ovation/south/latest.jpg");
     addSunTile();
-    addPicture("Sun, 304 A (SUVI)", "images/animations/suvi/primary/304/latest.png");
-    addPicture("Sun, 195 A (SUVI)", "images/animations/suvi/primary/195/latest.png");
+    addPicture("Sun, 304 A (SUVI)", "images/animations/suvi/primary/304/latest.png", "He304");
+    addPicture("Sun, 195 A (SUVI)", "images/animations/suvi/primary/195/latest.png", "Fe195");
     addPicture("Corona (LASCO C2)", "images/animations/lasco-c2/latest.jpg");
     load();
 }
@@ -463,7 +464,7 @@ void SpaceWeatherViewer::addSunTile() {
 }
 
 // a thumbnail that opens the large picture; filled in when it arrives
-void SpaceWeatherViewer::addPicture(const QString& title, const std::string& path) {
+void SpaceWeatherViewer::addPicture(const QString& title, const std::string& path, const std::string& solarBand) {
     auto * holder = new QVBoxLayout;
     auto * thumbnail = new QPushButton{content};
     thumbnail->setFlat(true);
@@ -479,14 +480,20 @@ void SpaceWeatherViewer::addPicture(const QString& title, const std::string& pat
     pictures->addLayout(holder);
     const std::string url = SpaceData::url(path.c_str());
     QPointer<QPushButton> guard{thumbnail};
-    new FutureBytes{this, url, [this, guard, url, title] (const QByteArray& bytes) {
+    new FutureBytes{this, url, [this, guard, url, title, solarBand] (const QByteArray& bytes) {
         QPixmap picture;
         if (closed || guard.isNull() || bytes.size() < 500 || !picture.loadFromData(bytes)) {
             return;
         }
         guard->setIcon(QIcon{picture.scaled(150, 150, Qt::KeepAspectRatio, Qt::SmoothTransformation)});
         guard->setIconSize(QSize{150, 150});
-        QObject::connect(guard.data(), &QPushButton::clicked, [this, url, title] { new ImageViewer{this, url, title.toStdString()}; });
+        QObject::connect(guard.data(), &QPushButton::clicked, [this, url, title, solarBand] {
+            if (solarBand.empty()) {
+                new ImageViewer{this, url, title.toStdString()};
+            } else {
+                new GoesViewer{this, "", solarBand, "SUVI", false};
+            }
+        });
     }};
 }
 

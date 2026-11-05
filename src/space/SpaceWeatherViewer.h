@@ -41,7 +41,8 @@ public:
 private:
     void load();
     void fill();
-    void addPicture(const QString& title, const std::string& url);
+    // a solarBand (He304, Fe195 ...) makes the click open the GOES Viewer's Sun sector on that band instead of the plain picture
+    void addPicture(const QString& title, const std::string& url, const std::string& solarBand = "");
     void addSunTile();   // the Sun with its numbered regions (opens the window with the hover)
     void closeEventCustom() override { closed = true; }
     VBox box;
