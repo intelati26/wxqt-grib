@@ -413,8 +413,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
             }
             def.links.push_back({parts[0], parts[1], parts[2]});
         } else if (key == "kind") {
-            if (value != "grib" && value != "whole" && value != "netcdf" && value != "om" && value != "custom") {
-                reader.fail("kind is grib, whole, netcdf, om or custom");
+            if (value != "grib" && value != "whole" && value != "netcdf" && value != "om" && value != "wrf" && value != "custom") {
+                reader.fail("kind is grib, whole, netcdf, om, wrf or custom");
                 break;
             }
             kind = value;
@@ -530,6 +530,16 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
                 }
                 definition->scales.emplace_back(item.substr(0, colon), factor);
             }
+        } else if (key == "run_folders") {   // for kind = wrf: the folders of the runs, globs, separated by `;` (`~` is the home folder)
+            for (const auto& folder : split(value, ';')) {
+                if (!folder.empty()) {
+                    source.wrf.folders.push_back(folder);
+                }
+            }
+            if (source.wrf.folders.empty()) {
+                reader.fail("run_folders is a folder (or several, separated by ;)");
+                break;
+            }
         } else if (key == "om_grid") {   // `regular` (the file's own latitude / longitude grid) or `gaussian 320 0.25` (the order of ECMWF's reduced Gaussian grid and the degrees it is interpolated to)
             const auto parts = split(value, ' ');
             if (parts.size() == 1 && parts[0] == "regular") {
@@ -640,7 +650,7 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
         } else if (def.label.empty()) {
             reader.line = 0;
             reader.fail("no label");
-        } else if (definition->urls.empty()) {
+        } else if (definition->urls.empty() && kind != "wrf") {
             reader.line = 0;
             reader.fail("no url");
         }
@@ -709,6 +719,7 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& text, const std::str
     source.wholeFile = kind != "grib";
     source.netcdf = kind == "netcdf";
     source.om.enabled = kind == "om";
+    source.wrf.enabled = kind == "wrf";
     source.custom = kind == "custom";
     const bool candidatesWanted = std::count_if(definition->urls.begin(), definition->urls.end(), [] (const Rule& r) { return r.conditions.empty(); }) > 1;
     const bool ecmwf = indexFormat == "ecmwf";

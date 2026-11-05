@@ -86,6 +86,12 @@ public:
             int gaussian{0};
             double step{0.25};
         } om;
+        // A WRF-format run on this computer (ArWen, WOOF-NAM, WRF): the folders (globs; `~` is the home folder) that hold the runs' hourly `wrfout_d01_<date>_<time>` files, one run to a folder, its time the
+        // first file's. The files are NetCDF; the variable is the want's `variableOf` (WRF's names: T2, PSFC, U10 ...), read with gdal and put on a latitude / longitude grid from XLAT / XLONG (WrfGrid).
+        struct Wrf {
+            bool enabled{false};
+            std::vector<std::string> folders;
+        } wrf;
         bool netcdf{false};                                               // a `wholeFile` source whose files are NetCDF: want.variable is the variable's name in them, read by range (they are 0.5 to 1 GB)
         std::string probeFile;                                           // the file whose index says the run is there
         int cycleHours{6};                                               // runs are made this often

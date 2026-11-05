@@ -7,6 +7,7 @@
 #include "gfs/GfsModels.h"
 #include "gfs/OmFile.h"
 #include "gfs/OmGrid.h"
+#include "gfs/WrfGrid.h"
 #include "util/NetPriority.h"
 #include <cctype>
 #include <algorithm>
@@ -17,12 +18,15 @@
 #include <cstdlib>
 #include <cstring>
 #include <future>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <set>
 #include <tuple>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QThread>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -73,7 +77,159 @@ namespace {
     }
 }
 
+namespace {
+    // ---- WRF-format runs on this computer (Source::Wrf)
+    struct WrfRunFiles {
+        QDateTime init;                    // the first file's time
+        std::map<int, QString> files;      // forecast hour -> file
+        qint64 modified{0};
+    };
+
+    void wrfExpand(const QString& base, const QStringList& parts, int at, QStringList& out) {
+        if (at == parts.size()) {
+            out << base;
+            return;
+        }
+        const auto& part = parts[at];
+        if (part.contains('*') || part.contains('?') || part.contains('[')) {
+            for (const auto& name : QDir{base.isEmpty() ? "/" : base}.entryList(QStringList{part}, QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+                wrfExpand(base + "/" + name, parts, at + 1, out);
+            }
+        } else if (!part.isEmpty()) {
+            const auto next = base + "/" + part;
+            if (QFileInfo::exists(next)) {
+                wrfExpand(next, parts, at + 1, out);
+            }
+        } else {
+            wrfExpand(base, parts, at + 1, out);
+        }
+    }
+
+    // every run the folders have, found again after a few seconds (the listing of a folder of a run being made changes)
+    std::vector<WrfRunFiles> wrfRuns(const std::vector<std::string>& patterns) {
+        static std::mutex mutex;
+        static std::map<std::string, std::pair<qint64, std::vector<WrfRunFiles>>> kept;
+        std::string key;
+        for (const auto& p : patterns) {
+            key += p + "\n";
+        }
+        const std::lock_guard lock{mutex};
+        const auto now = QDateTime::currentSecsSinceEpoch();
+        if (auto it = kept.find(key); it != kept.end() && now - it->second.first < 10) {
+            return it->second.second;
+        }
+        std::vector<WrfRunFiles> runs;
+        static const QRegularExpression stamp{"_(\\d{4})-(\\d{2})-(\\d{2})_(\\d{2})[:_](\\d{2})[:_](\\d{2})$"};
+        for (auto pattern : patterns) {
+            auto text = QString::fromStdString(pattern).trimmed();
+            if (text.startsWith("~/")) {
+                text = QDir::homePath() + text.mid(1);
+            }
+            QStringList folders;
+            wrfExpand(QString{}, text.split('/'), 0, folders);
+            for (const auto& folder : folders) {
+                WrfRunFiles run;
+                for (const auto& info : QDir{folder}.entryInfoList(QStringList{"wrfout_d01_*"}, QDir::Files, QDir::Name)) {
+                    const auto m = stamp.match(info.fileName());
+                    if (!m.hasMatch() || info.size() < 1000) {
+                        continue;
+                    }
+                    const QDateTime t{QDate{m.captured(1).toInt(), m.captured(2).toInt(), m.captured(3).toInt()}, QTime{m.captured(4).toInt(), m.captured(5).toInt(), m.captured(6).toInt()}, Qt::UTC};
+                    if (!run.init.isValid() || t < run.init) {
+                        run.init = t;
+                    }
+                    run.files[static_cast<int>(t.toSecsSinceEpoch())] = info.absoluteFilePath();   // by valid time for now
+                    run.modified = std::max(run.modified, info.lastModified().toSecsSinceEpoch());
+                }
+                if (!run.init.isValid()) {
+                    continue;
+                }
+                std::map<int, QString> byHour;
+                for (const auto& [seconds, path] : run.files) {
+                    byHour[static_cast<int>(std::llround((static_cast<double>(seconds) - static_cast<double>(run.init.toSecsSinceEpoch())) / 3600.0))] = path;
+                }
+                run.files = byHour;
+                runs.push_back(run);
+            }
+        }
+        kept[key] = {now, runs};
+        return runs;
+    }
+
+    // the run of that day and hour (the one with the most files when several folders have it)
+    const WrfRunFiles * wrfFind(const std::vector<WrfRunFiles>& runs, const GfsData::Run& run) {
+        const WrfRunFiles * best = nullptr;
+        for (const auto& r : runs) {
+            if (r.init.toString("yyyyMMdd").toStdString() == run.date && r.init.toString("HH").toStdString() == run.cycle && (best == nullptr || r.files.size() > best->files.size())) {
+                best = &r;
+            }
+        }
+        return best;
+    }
+
+    // One variable of a WRF file as the floats gdal makes of it (its bands, the levels of a 3-D one, one after the other)
+    bool wrfRead(const std::string& gdalBin, const QString& cacheFolder, const QString& file, const QString& variable, int& columns, int& rows, int& bands, std::vector<float>& values, std::string& error) {
+        const auto scratch = cacheFolder + "/wrf_" + QString::number(reinterpret_cast<quintptr>(QThread::currentThreadId()), 16) + "_" + QString::number(QDateTime::currentMSecsSinceEpoch(), 16) + "_" + variable;
+        const auto rawPath = scratch + ".raw", hdrPath = scratch + ".hdr";
+        const auto cleanup = [&] {
+            QFile::remove(rawPath);
+            QFile::remove(hdrPath);
+            QFile::remove(rawPath + ".aux.xml");
+        };
+        QProcess translate;
+        translate.start(QString::fromStdString(gdalBin) + "/gdal_translate", QStringList{"-q", "-of", "ENVI", "-ot", "Float32", "NETCDF:\"" + file + "\":" + variable, rawPath});
+        translate.waitForFinished(300000);
+        if (translate.exitStatus() != QProcess::NormalExit || translate.exitCode() != 0) {
+            error = "gdal failed on " + variable.toStdString() + " of " + QFileInfo{file}.fileName().toStdString() + ": " + translate.readAllStandardError().trimmed().toStdString();
+            cleanup();
+            return false;
+        }
+        QFile hdr{hdrPath};
+        const auto text = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
+        const auto number = [&text] (const QString& key) {
+            const auto m = QRegularExpression{"\\b" + key + "\\s*=\\s*([-0-9.]+)"}.match(text);
+            return m.hasMatch() ? m.captured(1).toInt() : -1;
+        };
+        columns = number("samples");
+        rows = number("lines");
+        bands = std::max(1, number("bands"));
+        QFile raw{rawPath};
+        const QByteArray bytes = raw.open(QIODevice::ReadOnly) ? raw.readAll() : QByteArray{};
+        cleanup();
+        if (columns < 1 || rows < 1 || static_cast<size_t>(bytes.size()) != static_cast<size_t>(columns) * static_cast<size_t>(rows) * static_cast<size_t>(bands) * 4) {
+            error = "gdal gave a field of the wrong size for " + variable.toStdString();
+            return false;
+        }
+        values.resize(static_cast<size_t>(bytes.size()) / 4);
+        std::memcpy(values.data(), bytes.constData(), static_cast<size_t>(bytes.size()));
+        if (QRegularExpression{"byte order\\s*=\\s*1"}.match(text).hasMatch()) {
+            for (auto& value : values) {
+                unsigned char b[4];
+                std::memcpy(b, &value, 4);
+                std::swap(b[0], b[3]);
+                std::swap(b[1], b[2]);
+                std::memcpy(&value, b, 4);
+            }
+        }
+        return true;
+    }
+}
+
 bool GfsData::latestRun(Run& run) const {
+    if (source.wrf.enabled) {   // the newest run the folders have
+        const WrfRunFiles * newest = nullptr;
+        const auto runs = wrfRuns(source.wrf.folders);
+        for (const auto& r : runs) {
+            if (newest == nullptr || r.init > newest->init) {
+                newest = &r;
+            }
+        }
+        if (newest == nullptr) {
+            return false;
+        }
+        run = Run{newest->init.toString("yyyyMMdd").toStdString(), newest->init.toString("HH").toStdString()};
+        return true;
+    }
     const auto now = QDateTime::currentDateTimeUtc();
     // a run appears some time after its own time: start from the last cycle mark that long ago and go back
     auto start = now.addSecs(-static_cast<qint64>(source.lagHours) * 3600);
@@ -388,7 +544,7 @@ namespace {
 bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
     const std::string variable = source.variableOf ? source.variableOf(want) : want.variable;   // what a NetCDF file calls the field
     const int timeBand = source.ncBand ? source.ncBand(run, hour, want) : 0;
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom || source.om.enabled) ? variable : std::string{}) + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom || source.om.enabled || source.wrf.enabled) ? variable : std::string{}) + ((source.om.enabled || source.wrf.enabled) ? "_" + want.variable : std::string{}) + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
         name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
@@ -418,6 +574,139 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
                 }
             }
         }
+    }
+    if (source.wrf.enabled) {   // a WRF-format run on this computer: the variable (or what the definition makes it of) read with gdal, put on a latitude / longitude grid from XLAT / XLONG
+        const auto runs = wrfRuns(source.wrf.folders);
+        const auto * found = wrfFind(runs, run);
+        if (found == nullptr || found->files.count(hour) == 0) {
+            error = source.id + " has no file for " + run.id() + " f" + pad(hour, 3);
+            return false;
+        }
+        const QString path = found->files.at(hour);
+        int nx = 0, ny = 0, nb = 0;
+        const auto read = [&] (const std::string& v, std::vector<float>& values) {
+            int x = 0, y = 0, b = 0;
+            if (!wrfRead(config.gdalBin, config.cacheFolder, path, QString::fromStdString(v), x, y, b, values, error)) {
+                return false;
+            }
+            if (nx > 0 && (x != nx || y != ny)) {
+                error = v + " is not on the grid of the others in " + path.toStdString();
+                return false;
+            }
+            nx = x;
+            ny = y;
+            nb = b;
+            return true;
+        };
+        // the grid's geometry is the run's, kept for the other fields of it
+        static std::mutex gridMutex;
+        static std::map<QString, std::shared_ptr<WrfGrid>> grids;
+        std::shared_ptr<WrfGrid> remap;
+        const auto gridKey = QFileInfo{path}.absolutePath() + "|" + QString::fromStdString(source.id);
+        {
+            const std::lock_guard lock{gridMutex};
+            if (auto it = grids.find(gridKey); it != grids.end()) {
+                remap = it->second;
+            }
+        }
+        std::vector<float> field;
+        const auto trim = [] (std::string s) {
+            s.erase(0, s.find_first_not_of(' '));
+            s.erase(s.find_last_not_of(' ') + 1);
+            return s;
+        };
+        if (variable.compare(0, 6, "earth(") == 0 && variable.back() == ')') {   // grid-relative components turned to east and north with the grid's SINALPHA and COSALPHA (WRF's own)
+            const auto inner = variable.substr(6, variable.size() - 7);
+            const auto comma = inner.find(',');
+            std::vector<float> u, v, sinA, cosA;
+            std::string ignore;
+            if (comma == std::string::npos || !read(trim(inner.substr(0, comma)), u) || !read(trim(inner.substr(comma + 1)), v)) {
+                if (error.empty()) {
+                    error = "earth(U,V) needs two variables";
+                }
+                return false;
+            }
+            const auto savedError = error;
+            const bool rotated = read("SINALPHA", sinA) && read("COSALPHA", cosA);
+            error = savedError;
+            const bool wantU = want.variable == "UGRD";
+            field.resize(u.size());
+            for (size_t k = 0; k < u.size(); k++) {
+                const float s = rotated ? sinA[k] : 0.0f, c = rotated ? cosA[k] : 1.0f;
+                field[k] = wantU ? u[k] * c - v[k] * s : v[k] * c + u[k] * s;
+            }
+        } else if (variable.compare(0, 4, "max(") == 0 && variable.back() == ')') {   // the highest of the levels (the composite reflectivity of REFL_10CM)
+            std::vector<float> all;
+            if (!read(trim(variable.substr(4, variable.size() - 5)), all)) {
+                return false;
+            }
+            const size_t cells = static_cast<size_t>(nx) * static_cast<size_t>(ny);
+            field.assign(cells, -999.0f);
+            for (int b = 0; b < nb; b++) {
+                for (size_t k = 0; k < cells; k++) {
+                    field[k] = std::max(field[k], all[static_cast<size_t>(b) * cells + k]);
+                }
+            }
+        } else {   // one variable, or the sum of some (the rain: RAINNC+RAINC)
+            std::vector<std::string> names;
+            size_t from = 0;
+            for (size_t plus = variable.find('+'); ; plus = variable.find('+', from)) {
+                names.push_back(trim(variable.substr(from, plus == std::string::npos ? std::string::npos : plus - from)));
+                if (plus == std::string::npos) {
+                    break;
+                }
+                from = plus + 1;
+            }
+            for (const auto& name : names) {
+                std::vector<float> one;
+                if (!read(name, one)) {
+                    return false;
+                }
+                one.resize(static_cast<size_t>(nx) * static_cast<size_t>(ny));   // the first level of a 3-D variable
+                if (field.empty()) {
+                    field = std::move(one);
+                } else {
+                    for (size_t k = 0; k < field.size(); k++) {
+                        field[k] += one[k];
+                    }
+                }
+            }
+        }
+        if (remap == nullptr) {
+            std::vector<float> lat, lon;
+            if (!read("XLAT", lat) || !read("XLONG", lon)) {
+                return false;
+            }
+            lat.resize(static_cast<size_t>(nx) * static_cast<size_t>(ny));
+            lon.resize(static_cast<size_t>(nx) * static_cast<size_t>(ny));
+            auto made = std::make_shared<WrfGrid>();
+            if (!made->build(lat, lon, nx, ny, error)) {
+                return false;
+            }
+            const std::lock_guard lock{gridMutex};
+            grids[gridKey] = made;
+            remap = made;
+        }
+        auto g = remap->apply(field);
+        const double factor = source.valueScale ? source.valueScale(want) : 1.0;
+        const double offset = source.valueOffset ? source.valueOffset(want) : 0.0;
+        for (auto& v : g.values) {
+            v = static_cast<float>(v * factor + offset);
+        }
+        QByteArray store(header, '\0');
+        std::memcpy(store.data(), &g.columns, 4);
+        std::memcpy(store.data() + 4, &g.rows, 4);
+        std::memcpy(store.data() + 8, &g.lon0, 8);
+        std::memcpy(store.data() + 16, &g.lat0, 8);
+        std::memcpy(store.data() + 24, &g.step, 8);
+        store += qCompress(QByteArray::fromRawData(reinterpret_cast<const char *>(g.values.data()), static_cast<qsizetype>(g.values.size() * 4)), 6);
+        QSaveFile keep{cachePath};
+        if (keep.open(QIODevice::WriteOnly)) {
+            keep.write(store);
+            keep.commit();
+        }
+        out = std::move(g);
+        return true;
     }
     if (source.om.enabled) {   // Open-Meteo's file: the variable is read by range, the grid made regular; kept like the others
         std::string url;
@@ -742,6 +1031,22 @@ void GfsData::setLoader(const std::string& sourceId, Loader loader) {
 }
 
 bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string& detail) const {
+    if (source.wrf.enabled) {
+        const auto runs = wrfRuns(source.wrf.folders);
+        const auto * found = wrfFind(runs, run);
+        if (found == nullptr) {
+            detail = "no run of " + run.id() + " in the folders";
+            return false;
+        }
+        for (const auto& need : needs) {
+            if (found->files.count(need.hour) == 0) {
+                detail = "no file for hour " + std::to_string(need.hour);
+                return false;
+            }
+        }
+        detail = std::to_string(found->files.size()) + " files found";
+        return true;
+    }
     if (needs.empty()) {
         detail = "no chart to check";
         return false;
