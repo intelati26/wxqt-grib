@@ -57,7 +57,7 @@ SpcSwoSummary::SpcSwoSummary(Window * parent)
                 new FutureBytes{this, "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/" + layer + "/query?where=1%3D1&outFields=label&returnGeometry=false&f=json", [this, day] (const auto& json) {
                     if (json.contains("\"TSTM\"")) {
                         auto * label = labels[static_cast<size_t>(day - 1)];
-                        label->setText(QString::fromStdString("Day " + To::string(day) + ": <b>TSTM</b><br>general thunderstorms"));
+                        label->setText(QString::fromStdString("Day " + To::string(day) + ": <b>TSTM</b>"));
                         label->setStyleSheet(QString::fromStdString("padding: 3px; color: #000000; background: " + UtilitySpcSwo::riskColor("TSTM") + ";"));
                     }
                 }};
