@@ -843,7 +843,15 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         run = {cycle.substr(0, 8), cycle.substr(8, 2)};
     }
     const auto wanted = cycle.size() >= 2 ? cycle.substr(0, 2) : run.cycle;
-    if (!exact && wanted != run.cycle && wanted.size() == 2 && std::isdigit(static_cast<unsigned char>(wanted[0]))) {
+    if (!exact && gfs.model().wrf.enabled && wanted.size() == 2 && std::isdigit(static_cast<unsigned char>(wanted[0]))) {   // a model made on this computer: its newest run at that hour (the hours of its runs are not regular)
+        const auto found = GfsData::wrfRunsIn(gfs.model().wrf.folders);
+        for (auto it = found.rbegin(); it != found.rend(); ++it) {
+            if (it->id.compare(8, 2, wanted) == 0) {
+                run = {it->id.substr(0, 8), it->id.substr(8, 2)};
+                break;
+            }
+        }
+    } else if (!exact && wanted != run.cycle && wanted.size() == 2 && std::isdigit(static_cast<unsigned char>(wanted[0]))) {
         auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
         t.setTimeSpec(Qt::UTC);
         const int step = gfs.model().cycleHours;

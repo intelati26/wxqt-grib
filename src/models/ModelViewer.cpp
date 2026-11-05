@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include "gfs/GfsData.h"
 #include "gfs/GfsModels.h"
 #include "gfs/ChartHours.h"
 #include "hurricane/HafsIntensity.h"
@@ -1954,6 +1955,21 @@ vector<string> ModelViewer::runLabels() const {
     }
     auto utc = newest;
     utc.setTimeSpec(Qt::UTC);
+    if (const auto * def = GfsModels::find(objectModel.model); def != nullptr && def->source("").wrf.enabled) {   // a model made on this computer: each entry is the newest run it has at that hour, with its date
+        const auto found = GfsData::wrfRunsIn(def->source("").wrf.folders);
+        for (const auto& run : objectModel.runs) {
+            string newestOfHour, newestOverall = found.empty() ? string{} : found.back().id;
+            for (auto it = found.rbegin(); it != found.rend(); ++it) {
+                if (it->id.compare(8, 2, run, 0, 2) == 0) {
+                    newestOfHour = it->id;
+                    break;
+                }
+            }
+            const auto t = QDateTime::fromString(QString::fromStdString(newestOfHour), "yyyyMMddHH");
+            labels.push_back(newestOfHour.empty() ? run : run + "  " + (newestOfHour == newestOverall ? string{"newest"} : t.toString("MMM d").toStdString()));
+        }
+        return labels;
+    }
     for (const auto& run : objectModel.runs) {
         bool ok = false;
         const int hour = run.size() >= 2 ? QString::fromStdString(run.substr(0, 2)).toInt(&ok) : 0;
@@ -2507,6 +2523,13 @@ std::vector<string> ModelViewer::recentRuns(const string& model) {
         return out;
     }
     const auto source = def->source("");
+    if (source.wrf.enabled) {   // a model made on this computer: the runs it has, newest first (its runs are at no regular hours)
+        auto runs = GfsData::wrfRunsIn(source.wrf.folders);
+        for (auto it = runs.rbegin(); it != runs.rend() && out.size() < 16; ++it) {
+            out.push_back(it->id);
+        }
+        return out;
+    }
     const int step = std::max(1, source.cycleHours);
     auto t = QDateTime::currentDateTimeUtc().addSecs(-3600LL * source.lagHours);   // (a run is looked for from its lag after its time)
     t.setTime(QTime{t.time().hour() / step * step, 0});
