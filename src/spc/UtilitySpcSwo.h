@@ -13,8 +13,21 @@
 using std::string;
 using std::vector;
 
+// One of the SPC outlook page's risk tables: for each risk level the area, the population in it (2010 Census) and some larger cities in it
+struct SpcRiskTable {
+    string title;                    // "Day 2 Risk", "Day 1 Tornado Risk"
+    vector<string> columns;          // the header cells
+    vector<vector<string>> rows;     // risk, area, population, cities (one cell when it says "No Risk Areas Forecast")
+};
+
 class UtilitySpcSwo {
 public:
+    // the risk table files the outlook page of that day (1 to 3) loads, in the order it lists them (categorical first), e.g. "ac2_1730_SItable.html"
+    static vector<string> riskTableFiles(const string& dayPageHtml);
+    static SpcRiskTable parseRiskTable(const string& tableHtml);
+    // the highest risk of a categorical table ("ENHANCED"), empty when it forecasts none
+    static string highestRisk(const SpcRiskTable&);
+    static string riskTableHtml(const SpcRiskTable&);
     static vector<string> getSwoStateUrl(string, int);
     static string getImageUrlsDays48(int);
     static vector<string> getImageUrls(int);

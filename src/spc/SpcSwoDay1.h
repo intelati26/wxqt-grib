@@ -31,6 +31,8 @@ private:
     VBox boxText;
     TwoWidgetScroll sw;
     Text text;
+    Text riskTables;   // the area and population of each risk level, as the SPC page has them
+    string riskHtml;
     Button button;
     Shortcut launchStateShortcut;
     vector<Shortcut> shortcuts;
