@@ -5,6 +5,9 @@
 // *****************************************************************************
 
 #include "SpcSwoSummary.h"
+#include <QGridLayout>
+#include <QLabel>
+#include <QVBoxLayout>
 #include "objects/FutureBytes.h"
 #include "spc/SpcSwoDay1.h"
 #include "spc/UtilitySpcSwo.h"
@@ -14,7 +17,6 @@
 SpcSwoSummary::SpcSwoSummary(Window * parent)
     : Window{parent}
     , nav{this, SpcOutlookNav::SevereSummary}
-    , outlookTable{this}
     , sw{this, box}
 {
     setTitle("SPC Convective Outlooks");
@@ -26,20 +28,34 @@ SpcSwoSummary::SpcSwoSummary(Window * parent)
         urls.push_back(UtilitySpcSwo::getImageUrlsDays48(day));
     }
     box.addWidget(nav.combo());
-    outlookTable.getView()->setTextFormat(Qt::RichText);
-    outlookTable.getView()->setOpenExternalLinks(false);
-    QObject::connect(outlookTable.getView(), &QLabel::linkActivated, [this] (const QString& link) { new SpcSwoDay1{this, link.toInt()}; });
-    box.addWidget(outlookTable);
-    showTable();
+    // one cell for each day: its highest risk on the SPC's colour for it (and the population in it) above the day's picture
+    for ([[maybe_unused]] auto index : range(urls.size())) {
+        images.emplace_back(this);
+    }
+    auto * grid = new QGridLayout;
+    grid->setSpacing(4);
+    for (auto index : range(urls.size())) {
+        auto * label = new QLabel{QString::fromStdString("Day " + To::string(index + 1) + ": ..."), this};
+        label->setAlignment(Qt::AlignCenter);
+        label->setStyleSheet("padding: 3px; background: #F0F0F0; color: #000000;");
+        labels.push_back(label);
+        auto * cell = new QVBoxLayout;
+        cell->setSpacing(0);
+        cell->addWidget(label);
+        cell->addWidget(images[index].getView());
+        grid->addLayout(cell, static_cast<int>(index) / numberAcross, static_cast<int>(index) % numberAcross);
+    }
+    box.addLayoutReal(grid);
+    box.addStretch();
     // the highest risk of each day, from the tables of the SPC's outlook pages: days 1-3 by their day page (the files carry the issue time), days 4-8 by their own table
     for (int day = 1; day <= 8; day++) {
         const auto take = [this, day] (const QByteArray& ba) {
             const auto row = UtilitySpcSwo::highestRow(UtilitySpcSwo::parseRiskTable(ba.toStdString()));
-            const auto label = row.empty() ? string{"No risk"} : row[0];
-            const auto color = UtilitySpcSwo::riskColor(label);
-            cells[static_cast<size_t>(day - 1)] = "<td align='center' bgcolor='" + (color.empty() ? string{"#F0F0F0"} : color) + "' style='color:#000000'><a href='" + To::string(day) +
-                "' style='color:#000000; text-decoration:none'><b>" + label + "</b>" + (row.size() > 2 ? "<br>" + row[2] + " people" : string{}) + "</a></td>";
-            showTable();
+            const auto risk = row.empty() ? string{"No risk"} : row[0];
+            const auto color = UtilitySpcSwo::riskColor(risk);
+            auto * label = labels[static_cast<size_t>(day - 1)];
+            label->setText(QString::fromStdString("Day " + To::string(day) + ": <b>" + risk + "</b>" + (row.size() > 2 ? "<br>" + row[2] + " people" : string{})));
+            label->setStyleSheet(QString::fromStdString("padding: 3px; color: #000000; background: " + (color.empty() ? string{"#F0F0F0"} : color) + ";"));
         };
         if (day <= 3) {
             new FutureBytes{this, "https://www.spc.noaa.gov/products/outlook/day" + To::string(day) + "otlk.html", [this, take] (const auto& page) {
@@ -52,12 +68,10 @@ SpcSwoSummary::SpcSwoSummary(Window * parent)
             new FutureBytes{this, "https://www.spc.noaa.gov/products/exper/day4-8/ac" + To::string(day) + "_SItable.html", [take] (const auto& ba) { take(ba); }};
         }
     }
-    box.addImageRows(this, urls, images, numberAcross);
-    box.addStretch();
     for (auto index : range(urls.size())) {
         images[index].connect([this, index] { new SpcSwoDay1{this, static_cast<int>(index) + 1}; });
         images[index].setNumberAcross(numberAcross, getWindowWidth());
-        new FutureBytes{this, urls[index], [this, index] (const auto& ba) { images[index].setBytes(ba); }};
+        new FutureBytes{this, urls[index], [this, index] (const auto& ba) { images[index].setBytes(ba); images[index].resizeToWidth(static_cast<float>(width()) / 4 - 8); }};
     }
     for (auto index : range(urls.size() + 1)) {
         shortcuts.emplace_back(QKeySequence{QString::fromStdString(To::string(index))}, this);
@@ -65,15 +79,12 @@ SpcSwoSummary::SpcSwoSummary(Window * parent)
     }
 }
 
-void SpcSwoSummary::showTable() {
-    string html = "<table cellspacing='2' cellpadding='6'><tr>";
-    for (int day = 1; day <= 8; day++) {
-        html += "<th>Day " + To::string(day) + "</th>";
+// each picture as wide as its cell: four across
+void SpcSwoSummary::resizeEventCustom() {
+    if (images.size() != urls.size() || urls.empty()) {
+        return;   // the window is shown while the cells are still being added
     }
-    html += "</tr><tr>";
-    for (const auto& cell : cells) {
-        html += cell.empty() ? string{"<td align='center'>...</td>"} : cell;
+    for (auto& image : images) {
+        image.resizeToWidth(static_cast<float>(width()) / 4 - 8);
     }
-    html += "</tr></table>";
-    outlookTable.setText(QString::fromStdString(html));
 }
