@@ -27,6 +27,10 @@ public:
     static SpcRiskTable parseRiskTable(const string& tableHtml);
     // the highest risk of a categorical table ("ENHANCED"), empty when it forecasts none
     static string highestRisk(const SpcRiskTable&);
+    // the row of the highest risk (a category, or the largest percentage of a probability table): risk, area, population, cities; empty when there is none
+    static vector<string> highestRow(const SpcRiskTable&);
+    // the SPC's colour of a risk label ("MARGINAL", "TSTM", "15 %", ...), as #rrggbb; empty for one it has none for
+    static string riskColor(const string& label);
     static string riskTableHtml(const SpcRiskTable&);
     static vector<string> getSwoStateUrl(string, int);
     static string getImageUrlsDays48(int);

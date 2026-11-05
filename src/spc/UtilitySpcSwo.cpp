@@ -5,6 +5,8 @@
 // *****************************************************************************
 
 #include "UtilitySpcSwo.h"
+#include <cctype>
+#include <cstdlib>
 #include <regex>
 #include "common/GlobalVariables.h"
 #include "util/To.h"
@@ -123,22 +125,46 @@ SpcRiskTable UtilitySpcSwo::parseRiskTable(const string& html) {
     return table;
 }
 
-string UtilitySpcSwo::highestRisk(const SpcRiskTable& table) {
+vector<string> UtilitySpcSwo::highestRow(const SpcRiskTable& table) {
     static const vector<string> order{"TSTM", "MARGINAL", "SLIGHT", "ENHANCED", "MODERATE", "HIGH"};
-    string best;
-    int bestRank = -1;
+    vector<string> best;
+    double bestRank = -1.0;
     for (const auto& row : table.rows) {
         if (row.size() < 2) {
             continue;   // "No Risk Areas Forecast"
         }
+        double rank = -1.0;
         for (size_t i = 0; i < order.size(); i++) {
-            if (row[0] == order[i] && static_cast<int>(i) > bestRank) {
-                bestRank = static_cast<int>(i);
-                best = row[0];
+            if (row[0] == order[i]) {
+                rank = static_cast<double>(i);
             }
+        }
+        if (rank < 0 && row[0].find('%') != string::npos) {
+            rank = std::atof(row[0].c_str());   // "15 %"
+        }
+        if (rank > bestRank) {
+            bestRank = rank;
+            best = row;
         }
     }
     return best;
+}
+
+string UtilitySpcSwo::highestRisk(const SpcRiskTable& table) {
+    const auto row = highestRow(table);
+    return row.empty() ? string{} : row[0];
+}
+
+string UtilitySpcSwo::riskColor(const string& label) {
+    static const vector<std::pair<string, string>> colors{
+        {"TSTM", "#C1E9C1"}, {"MARGINAL", "#66A366"}, {"SLIGHT", "#FFE066"}, {"ENHANCED", "#FFA366"}, {"MODERATE", "#E06666"}, {"HIGH", "#EE99EE"},
+        {"15", "#FFE066"}, {"30", "#FFA366"}};
+    for (const auto& [name, color] : colors) {
+        if (label == name || (label.size() > 2 && label.compare(0, name.size(), name) == 0 && std::isdigit(static_cast<unsigned char>(name[0])) && label[name.size()] == ' ')) {
+            return color;
+        }
+    }
+    return {};
 }
 
 string UtilitySpcSwo::riskTableHtml(const SpcRiskTable& table) {
