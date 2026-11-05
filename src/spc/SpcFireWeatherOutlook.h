@@ -23,7 +23,7 @@
 class SpcFireWeatherOutlook : public Window {
 public:
     SpcFireWeatherOutlook(Window *, int);
-    void selectDay(int day) { comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 2))); showDay(comboDay.getIndex()); }   // the day to start on: 0 day 1, 1 day 2, 2 days 3-8
+    void selectDay(int day) { comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 8))); showDay(comboDay.getIndex()); }   // the day to start on: 0 day 1, 1 day 2, 2 days 3-8 together, 3 to 8 day 3 .. day 8
 
 private:
     void showDay(int index);

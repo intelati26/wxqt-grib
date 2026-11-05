@@ -53,7 +53,7 @@ SpcFireWeatherOutlook::SpcFireWeatherOutlook(Window * parent, int day)
     leftBox.addWidget(header);
     leftBox.addWidget(photo);
     leftBox.addStretch();
-    comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 2)));
+    comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 8)));
     comboDay.connect([this] { showDay(comboDay.getIndex()); });
     comboGraphic.connect([this] { showDay(comboDay.getIndex()); });
     photo.connect([this, parent] { new ImageViewer{parent, photo.bytes}; });
