@@ -1180,8 +1180,10 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
                 return {};
             }
             auto delta = now;
+            // reflectivity: below 0 dBZ is clear air, which some models write as -30 or less (and the radar as nothing): both count as 0
+            const bool reflectivity = variant.kind == Variant::Kind::Difference && product->fillTitle.find("eflectivity") != std::string::npos;
             for (size_t i = 0; i < delta.values.size(); i++) {
-                delta.values[i] = now.values[i] - then.values[i];   // NaN where either is missing
+                delta.values[i] = reflectivity ? std::max(now.values[i], 0.0f) - std::max(then.values[i], 0.0f) : now.values[i] - then.values[i];   // NaN where either is missing
             }
             std::string unit;
             delta = GfsChart::deltaInUserUnits(delta, product->quantity, options.fahrenheit, unit);

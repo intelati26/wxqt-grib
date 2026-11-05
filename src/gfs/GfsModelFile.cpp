@@ -5,6 +5,7 @@
 
 #include "gfs/GfsModelFile.h"
 #include "gfs/GeosOpendap.h"
+#include "util/Utility.h"
 #include <algorithm>
 #include <cstdlib>
 #include <map>
@@ -398,6 +399,7 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
     std::string indexFormat = "noaa";
     std::string sourceLabel;
     bool stormModel = false;
+    std::string wrfFoldersPref;
     std::istringstream in{text};
     std::string raw;
     std::vector<std::string> hourSegments;
@@ -558,6 +560,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
                 }
                 definition->scales.emplace_back(item.substr(0, colon), factor);
             }
+        } else if (key == "run_folders_pref") {   // for kind = wrf: the name of the setting that, when it has a value (folders separated by `;`), is used instead of run_folders
+            wrfFoldersPref = value;
         } else if (key == "run_folders") {   // for kind = wrf: the folders of the runs, globs, separated by `;` (`~` is the home folder)
             for (const auto& folder : split(value, ';')) {
                 if (!folder.empty()) {
@@ -752,11 +756,24 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
     const bool candidatesWanted = std::count_if(definition->urls.begin(), definition->urls.end(), [] (const Rule& r) { return r.conditions.empty(); }) > 1;
     const bool ecmwf = indexFormat == "ecmwf";
     const std::string id = def.id;
-    def.source = [definition, source, candidatesWanted, ecmwf, stormModel, id] (const std::string& storm) {
+    def.source = [definition, source, candidatesWanted, ecmwf, stormModel, id, wrfFoldersPref] (const std::string& storm) {
         auto d = std::make_shared<Definition>(*definition);
         d->storm = storm;
         GfsData::Source made = source;
         made.id = stormModel ? id + "-" + storm : id;
+        if (!wrfFoldersPref.empty()) {   // the folders of the runs, as the user's settings say
+            const auto chosen = Utility::readPref(wrfFoldersPref, "");
+            if (!chosen.empty()) {
+                made.wrf.folders.clear();
+                std::stringstream parts{chosen};
+                std::string folder;
+                while (std::getline(parts, folder, ';')) {
+                    if (!trim(folder).empty()) {
+                        made.wrf.folders.push_back(trim(folder));
+                    }
+                }
+            }
+        }
         if (!d->rules.empty()) {
             made.fileOf = [d] (const Want& w) {
                 for (const auto& rule : d->rules) {

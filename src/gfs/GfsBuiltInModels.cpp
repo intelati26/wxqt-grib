@@ -1490,6 +1490,68 @@ clone_levels = 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 9
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"ARWEN", R"MODEL(
+# ArWen (FahrenheitResearch/arwen), the GPU regional model, as it ran on this computer: a run is a folder of hourly WRF-format history files (wrfout_d01_...), its time the first file's. The folders are
+# searched in the places ArWen puts them (`out/<study>/<run>/run/wrfout` under ~/arwen or ~/Claude/arwen); the setting WRF_FOLDERS_ARWEN (folders, `;` between them, globs allowed) says where else. The grid is
+# the run's own (Lambert conformal), put on latitude / longitude from the file's XLAT / XLONG; the winds are turned east / north with its SINALPHA / COSALPHA; there is no sea level pressure in the files, so it is
+# worked out from the surface pressure, the 2 m temperature and the terrain.
+id = ARWEN
+group = Convection allowing
+label = ArWen regional run (WRF history on this computer)
+source_label = ArWen regional run (local)
+kind = wrf
+run_folders = ~/arwen/out/*/*/run-*/run/wrfout; ~/arwen/out/*/run-*/run/wrfout; ~/Claude/arwen/out/*/*/run-*/run/wrfout; ~/Claude/arwen/out/*/run-*/run/wrfout
+run_folders_pref = WRF_FOLDERS_ARWEN
+nc_variable = when variable=TMP level="2 m above ground" => T2
+nc_variable = when variable=UGRD level="10 m above ground" => earth(U10,V10)
+nc_variable = when variable=VGRD level="10 m above ground" => earth(U10,V10)
+nc_variable = when variable=PRMSL => slp()
+nc_variable = when variable=REFC => max(REFL_10CM)
+value_offset = TMP:-273.15
+cycle_hours = 6
+lag_hours = 0
+cycles_to_try = 16
+max_parallel = 2
+hours = 0-72/1
+run_every = 6
+sectors = conus
+list = true
+clone = true
+clone_variables = TMP, UGRD, VGRD, PRMSL, REFC
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"WOOF-NAM", R"MODEL(
+# WOOF-NAM (recastsystems/woof-nam), the GPU port of the NAM's NMMB that NCEP retired on 2026-11-03, as it ran on this computer: the hourly wrfout_d01 history files of each run (`runs/<name>/run` under
+# ~/woof-nam or ~/Claude/woof-nam; the setting WRF_FOLDERS_WOOFNAM says where else). Its nests are on the NAM's rotated latitude / longitude grid, put on a regular one from the file's XLAT / XLONG.
+id = WOOF-NAM
+group = Convection allowing
+label = WOOF-NAM, the NAM's NMMB on a GPU (runs on this computer)
+source_label = WOOF-NAM (local run)
+kind = wrf
+run_folders = ~/woof-nam/runs/*/run; ~/Claude/woof-nam/runs/*/run
+run_folders_pref = WRF_FOLDERS_WOOFNAM
+nc_variable = when variable=TMP level="2 m above ground" => T2
+nc_variable = when variable=UGRD level="10 m above ground" => U10
+nc_variable = when variable=VGRD level="10 m above ground" => V10
+nc_variable = when variable=PRMSL => MSLP
+nc_variable = when variable=REFC => REFDMAX
+value_offset = TMP:-273.15
+cycle_hours = 6
+lag_hours = 0
+cycles_to_try = 16
+max_parallel = 2
+hours = 0-72/1
+run_every = 6
+sectors = conus
+list = true
+clone = true
+clone_variables = TMP, UGRD, VGRD, PRMSL, REFC
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
         {"MRMS", R"MODEL(
 # MRMS's composite reflectivity as it was observed, to put beside the models' (Compare: difference from the main model, or models at the same valid time). A run is an hour and its one hour 0 the first scan
 # of it, from NOAA's open bucket noaa-mrms-pds (2020 on): the 0.01 degree grid taken to 0.04 degrees by its largest value, read by the program's own loader (registered for this id).
