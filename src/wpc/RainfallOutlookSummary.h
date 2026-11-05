@@ -12,6 +12,7 @@
 #include "ui/Image.h"
 #include "ui/Shortcut.h"
 #include "ui/VBox.h"
+#include "misc/OutlookNav.h"
 #include "ui/Window.h"
 
 using std::string;
@@ -22,6 +23,7 @@ public:
     explicit RainfallOutlookSummary(Window *);
 
 private:
+    OutlookNav nav;
     void resizeEventCustom() override;
     VBox box;
     vector<Image> images;

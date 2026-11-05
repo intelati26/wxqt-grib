@@ -37,7 +37,7 @@ namespace {
 
 SpcFireWeatherOutlook::SpcFireWeatherOutlook(Window * parent, int day)
     : Window{parent}
-    , nav{this, SpcOutlookNav::FireDay}
+    , nav{this, OutlookNav::FireDay}
     , comboDay{this, dayLabels}
     , comboGraphic{this, {"Categorical outlook", "Probability"}}
     , header{this}

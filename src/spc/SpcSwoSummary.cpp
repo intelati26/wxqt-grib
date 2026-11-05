@@ -16,7 +16,7 @@
 
 SpcSwoSummary::SpcSwoSummary(Window * parent)
     : Window{parent}
-    , nav{this, SpcOutlookNav::SevereSummary}
+    , nav{this, OutlookNav::SevereSummary}
     , sw{this, box}
 {
     setTitle("SPC Convective Outlooks");

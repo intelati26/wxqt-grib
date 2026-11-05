@@ -13,9 +13,11 @@
 
 RainfallOutlookSummary::RainfallOutlookSummary(Window * parent)
     : Window{parent}
+    , nav{this, OutlookNav::RainfallSummary}
     , urls{UtilityWpcRainfallOutlook::urls}
 {
     setTitle("Excessive Rainfall Outlook");
+    box.addWidget(nav.combo());
     box.addImageRows(this, urls, images, numberAcross, getWindowWidth());
     box.addStretch();
     box.getAndShow(this);

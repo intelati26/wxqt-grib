@@ -19,6 +19,7 @@
 
 Nhc::Nhc(Window * parent)
     : Window{parent}
+    , nav{this, OutlookNav::NhcProducts}
     , parent{parent}
     , sw{this, box}
     , comboBoxText{this, textProducts}
@@ -34,6 +35,7 @@ Nhc::Nhc(Window * parent)
     comboBoxImages.setIndex(0);
     comboBoxText.connect([this] { new NationalText{this, WString::split(comboBoxText.getValue(), ":")[0]}; });
     comboBoxImages.connect([this] { new ImageViewer{this, imageUrls[comboBoxImages.getIndex()], comboBoxImages.getValue()}; });
+    box.addWidget(nav.combo());
     box.addWidget(comboBoxText);
     box.addWidget(comboBoxImages);
     box.addWidgetReal(new NhcBasins{this, this}, 0, Qt::Alignment{});

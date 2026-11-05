@@ -10,7 +10,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "spc/SpcOutlookNav.h"
+#include "misc/OutlookNav.h"
 #include "ui/HBox.h"
 #include "ui/Image.h"
 #include "ui/Shortcut.h"
@@ -26,7 +26,7 @@ public:
     explicit SpcFireSummary(Window *);
 
 private:
-    SpcOutlookNav nav;
+    OutlookNav nav;
     VBox outer;
     HBox box;
     vector<string> urls;

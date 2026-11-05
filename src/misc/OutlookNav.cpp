@@ -3,8 +3,11 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
-#include "SpcOutlookNav.h"
+#include "OutlookNav.h"
 #include <algorithm>
+#include "dashboard/Dashboards.h"
+#include "hurricane/HurricaneViewer.h"
+#include "nhc/Nhc.h"
 #include "spc/SpcFireSummary.h"
 #include "spc/SpcFireWeatherOutlook.h"
 #include "misc/SevereDashboard.h"
@@ -16,12 +19,16 @@
 #include "spc/SpcSwoStateGraphics.h"
 #include "spc/SpcSwoSummary.h"
 #include "spc/SpcTstormOutlooks.h"
+#include "wpc/NationalImages.h"
+#include "wpc/NationalText.h"
+#include "wpc/RainfallOutlook.h"
+#include "wpc/RainfallOutlookSummary.h"
 
-SpcOutlookNav::SpcOutlookNav(Window * owner, Kind kind, int value)
+OutlookNav::OutlookNav(Window * owner, Kind kind, int value)
     : owner{owner}
     , comboBox{owner}
 {
-    vector<string> labels{"Go to another SPC outlook..."};
+    vector<string> labels{"Go to another outlook..."};
     auto add = [&] (Kind k, int v, const string& label) {
         // the screen itself is left out; a fire weather screen has all of its own days in a list already
         if ((k == kind && v == value) || (k == FireDay && kind == FireDay)) {
@@ -32,32 +39,41 @@ SpcOutlookNav::SpcOutlookNav(Window * owner, Kind kind, int value)
     };
     items.clear();
     items.push_back({SevereSummary, 0});   // the prompt: nothing opens
-    add(SevereSummary, 0, "Convective outlooks, days 1-8 summary");
-    add(SevereDay, 1, "Convective outlook, day 1");
-    add(SevereDay, 2, "Convective outlook, day 2");
-    add(SevereDay, 3, "Convective outlook, day 3");
-    add(SevereDay, 4, "Convective outlook, days 4-8");
-    add(FireSummary, 0, "Fire weather outlooks, summary");
-    add(FireDay, 0, "Fire weather outlook, day 1");
-    add(FireDay, 1, "Fire weather outlook, day 2");
-    add(FireDay, 2, "Fire weather outlook, days 3-8");
-    add(Thunderstorm, 0, "Thunderstorm outlooks");
-    add(StormReports, 0, "Storm reports, today");
-    add(StormReports, 1, "Storm reports, yesterday");
-    add(Mesoanalysis, 0, "Mesoanalysis");
-    add(Comparison, 0, "Severe outlook comparison (SPC, CSU-MLP, CIPS)");
-    add(CompositeMap, 0, "Composite map");
-    add(Dashboard, 0, "Severe dashboard");
+    add(SevereSummary, 0, "SPC: Convective outlooks, days 1-8 summary");
+    add(SevereDay, 1, "SPC: Convective outlook, day 1");
+    add(SevereDay, 2, "SPC: Convective outlook, day 2");
+    add(SevereDay, 3, "SPC: Convective outlook, day 3");
+    add(SevereDay, 4, "SPC: Convective outlook, days 4-8");
+    add(FireSummary, 0, "SPC: Fire weather outlooks, summary");
+    add(FireDay, 0, "SPC: Fire weather outlook, day 1");
+    add(FireDay, 1, "SPC: Fire weather outlook, day 2");
+    add(FireDay, 2, "SPC: Fire weather outlook, days 3-8");
+    add(Thunderstorm, 0, "SPC: Thunderstorm outlooks");
+    add(StormReports, 0, "SPC: Storm reports, today");
+    add(StormReports, 1, "SPC: Storm reports, yesterday");
+    add(Mesoanalysis, 0, "SPC: Mesoanalysis");
+    add(Comparison, 0, "SPC: Severe outlook comparison (SPC, CSU-MLP, CIPS)");
+    add(CompositeMap, 0, "SPC: Composite map");
+    add(Dashboard, 0, "SPC: Severe dashboard");
+    add(RainfallSummary, 0, "WPC: Excessive rainfall outlooks, summary");
+    for (int day = 0; day < 5; day++) {
+        add(RainfallDay, day, "WPC: Excessive rainfall outlook, day " + std::to_string(day + 1));
+    }
+    add(NationalText, 0, "WPC: National forecast text");
+    add(NationalImages, 0, "WPC: National forecast images");
+    add(NhcProducts, 0, "NHC: Product viewer");
+    add(Hurricanes, 0, "NHC: Tropical cyclones (Atlantic, East and Central Pacific)");
+    add(TropicalHub, 0, "NHC: Tropical Hub");
     if (kind == SevereDay || kind == State) {
         const int day = std::min(value, 3);
-        add(State, day, "State graphics, day " + std::to_string(day));
+        add(State, day, "SPC: State graphics, day " + std::to_string(day));
     }
     comboBox.setList(labels);
     comboBox.setIndex(0);
     comboBox.connect([this] { choose(); });
 }
 
-void SpcOutlookNav::choose() {
+void OutlookNav::choose() {
     const auto index = static_cast<size_t>(comboBox.getIndex());
     if (index == 0 || index >= items.size()) {
         return;
@@ -80,6 +96,13 @@ void SpcOutlookNav::choose() {
         case Comparison: new SvrComparison{parent}; break;
         case CompositeMap: new SpcCompMap{parent}; break;
         case Dashboard: new SevereDashboard{parent}; break;
+        case RainfallSummary: new RainfallOutlookSummary{parent}; break;
+        case RainfallDay: new RainfallOutlook{parent, item.value}; break;
+        case NationalText: new ::NationalText{parent}; break;
+        case NationalImages: new ::NationalImages{parent}; break;
+        case NhcProducts: new Nhc{parent}; break;
+        case Hurricanes: new HurricaneViewer{parent}; break;
+        case TropicalHub: Dashboards::openTropicalHub(parent); break;
     }
     comboBox.block();   // the list shows its prompt again: this screen stays, the choice opened beside it
     comboBox.setIndex(0);

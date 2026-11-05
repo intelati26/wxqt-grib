@@ -77,7 +77,7 @@ namespace {
 
 SvrComparison::SvrComparison(Window * parent)
     : Window{parent}
-    , nav{this, SpcOutlookNav::Comparison}
+    , nav{this, OutlookNav::Comparison}
     , comboDay{this, dayLabels()}
     , comboHazard{this, {"ABPG: 1+ severe reports", "ABPG: 5+ severe reports"}}
     , comboRegion{this, regionNames}

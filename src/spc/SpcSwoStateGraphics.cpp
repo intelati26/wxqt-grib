@@ -18,7 +18,7 @@
 SpcSwoStateGraphics::SpcSwoStateGraphics(Window * parent, int day)
     : Window{parent}
     , sw{this, box}
-    , nav{this, SpcOutlookNav::State, std::min(day, 3)}
+    , nav{this, OutlookNav::State, std::min(day, 3)}
     , comboBox{this, GlobalArrays::states}
     , day{day}
     , state{Location::state()}

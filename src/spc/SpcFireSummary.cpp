@@ -14,7 +14,7 @@
 
 SpcFireSummary::SpcFireSummary(Window * parent)
     : Window{parent}
-    , nav{this, SpcOutlookNav::FireSummary}
+    , nav{this, OutlookNav::FireSummary}
     , urls{UtilitySpcFireOutlook::urls}
 {
     setTitle("SPC Fire Weather Outlooks");

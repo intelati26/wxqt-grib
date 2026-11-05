@@ -9,7 +9,7 @@
 
 #include <string>
 #include "ui/BackForward.h"
-#include "spc/SpcOutlookNav.h"
+#include "misc/OutlookNav.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/ControlRow.h"
@@ -24,7 +24,7 @@ public:
     explicit SpcCompMap(Window *);
 
 private:
-    SpcOutlookNav nav;
+    OutlookNav nav;
     void reload();
     void moveBack();
     void moveForward();

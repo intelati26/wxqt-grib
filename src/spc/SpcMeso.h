@@ -13,7 +13,7 @@
 #include "objects/UrlAnimation.h"
 #include "ui/BackForward.h"
 #include "ui/Button.h"
-#include "spc/SpcOutlookNav.h"
+#include "misc/OutlookNav.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/ControlRow.h"
@@ -31,7 +31,7 @@ public:
     SpcMeso(Window *, const string& = "", const string& = "", bool = true);
 
 private:
-    SpcOutlookNav nav;
+    OutlookNav nav;
     void reload();
     void showLatest(const QByteArray&);
     void moveBack();

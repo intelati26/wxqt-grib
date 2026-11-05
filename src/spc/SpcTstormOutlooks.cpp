@@ -12,7 +12,7 @@
 
 SpcTstormOutlooks::SpcTstormOutlooks(Window * parent)
     : Window{parent}
-    , nav{this, SpcOutlookNav::Thunderstorm}
+    , nav{this, OutlookNav::Thunderstorm}
 {
     setTitle("SPC Thunderstorm Outlooks");
     const auto urls = UtilitySpc::getTstormOutlookUrls();

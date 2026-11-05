@@ -15,6 +15,7 @@
 #include "objects/UrlAnimation.h"
 #include "ui/PopoverMenu.h"
 #include "ui/VBox.h"
+#include "misc/OutlookNav.h"
 #include "ui/Window.h"
 #include "ui/ZoomImage.h"
 
@@ -26,6 +27,7 @@ public:
     explicit NationalImages(Window *);
 
 private:
+    OutlookNav nav;
     void reload();
     void moveBack();
     void moveForward();

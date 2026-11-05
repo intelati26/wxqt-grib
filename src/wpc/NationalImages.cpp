@@ -15,6 +15,7 @@
 
 NationalImages::NationalImages(Window * parent)
     : Window{parent}
+    , nav{this, OutlookNav::NationalImages}
     , image{this}
     , objectAnimate{this, &image, [] (string, string sector, int) {
           // the loop is the menu group the chart is in: the sector carries the chart's number
@@ -31,6 +32,7 @@ NationalImages::NationalImages(Window * parent)
         const auto group = UtilityWpcImages::seriesOf(index);
         return i < group.size() ? UtilityWpcImages::labels[static_cast<size_t>(group[i])] : string{};
     };
+    hbox.addWidget(nav.combo());
     hbox.addLayout(backForward);
     box.addLayout(hbox);
     objectAnimate.addTo(box);

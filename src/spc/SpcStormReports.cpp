@@ -37,7 +37,7 @@ namespace {
 
 SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsDay)
     : Window{parent}
-    , nav{this, SpcOutlookNav::StormReports, spcStormReportsDay == "yesterday" ? 1 : 0}
+    , nav{this, OutlookNav::StormReports, spcStormReportsDay == "yesterday" ? 1 : 0}
     , sw{this, box}
     , calendar{this}
     , photo{this, Scaled}

@@ -17,7 +17,7 @@
 
 SpcSwoDay1::SpcSwoDay1(Window * parent, int day)
     : Window{parent}
-    , nav{this, SpcOutlookNav::SevereDay, day}
+    , nav{this, OutlookNav::SevereDay, day}
     , sw{this, imageVBox, boxText}
     , text{this}
     , riskTables{this}

@@ -13,7 +13,7 @@
 
 SpcCompMap::SpcCompMap(Window * parent)
     : Window{parent}
-    , nav{this, SpcOutlookNav::CompositeMap}
+    , nav{this, OutlookNav::CompositeMap}
     , photo{this, FullWithHeight, [this] { return getPhotoHeight(); }}
     , comboBox{this, UtilitySpcCompmap::labels}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}

@@ -15,7 +15,7 @@
 
 SpcMeso::SpcMeso(Window * parent, const string& productCode, const string& sectorCode, bool savePrefs)
     : Window{parent}
-    , nav{this, SpcOutlookNav::Mesoanalysis}
+    , nav{this, OutlookNav::Mesoanalysis}
     , autoUpdate{this, "SPCMESO_AUTO_UPDATE_INTERVAL", 15, [this] { reload(); }}
     , image{this}
     , comboboxSector{this, UtilitySpcMeso::sectors}

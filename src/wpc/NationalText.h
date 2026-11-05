@@ -16,6 +16,7 @@
 #include "ui/ScrolledWindow.h"
 #include "ui/Text.h"
 #include "ui/VBox.h"
+#include "misc/OutlookNav.h"
 #include "ui/Window.h"
 
 using std::string;
@@ -26,6 +27,7 @@ public:
     NationalText(Window *, const string& = "");
 
 private:
+    OutlookNav nav;
     void reload();
     void moveBack();
     void moveForward();
