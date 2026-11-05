@@ -85,6 +85,23 @@ private:
     double reference{NAN}, low{0}, high{0};
 };
 
+// Each day's temperature compared with normal over the area, as one line with the part above zero in red and the part below in blue.
+class DailyChart : public QWidget {
+public:
+    struct Day {
+        QDate date;
+        double value{0};
+    };
+    explicit DailyChart(QWidget * parent = nullptr);
+    void setDays(const std::vector<Day>& days, const QString& title, const QString& unit);
+    void setMessage(const QString& text);
+
+private:
+    void paintEvent(QPaintEvent *) override;
+    std::vector<Day> days;
+    QString title, unit, message{"Loading..."};
+};
+
 // The drought dashboard. The area (the country, a state or a county) and the weeks to compare are chosen above the tabs and apply to all of them. The Monitor tab draws the U.S.
 // Drought Monitor's own shapes (its KMZ) over the states: the categories of the week, or the cells that moved between two weeks, with the share of the area in each category at both
 // dates and the weekly share over the last months. The precipitation and outlook tabs show the Climate Prediction Center's pictures.
@@ -107,6 +124,7 @@ private:
     void loadPrecip();
     void loadPrecipArea();
     void updateHistory();    // adds what the area's history file lacks (in the background), then shows it
+    void loadDaily();        // the Daily tab: the days of the period against the 1991-2020 normals, in the background
     void showHistory();      // the chosen column as a chart
     void exportHistory();   // the area's rain by month (the CPC's one degree analyses)
     void loadOutlook();
@@ -123,6 +141,10 @@ private:
     QTableWidget * table{};
     DroughtChart * chart{};
     PrecipBars * precipBars{};
+    DailyChart * dailyChart{};
+    ComboBox comboDailyElement, comboDailySmooth, comboDailyPeriod;
+    Text textDaily;
+    int dailyGeneration{0};
     HistoryChart * historyChart{};
     ComboBox comboHistory;
     Text textHistory;
