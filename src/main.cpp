@@ -70,6 +70,7 @@
 #include "gfs/Cfs30Loader.h"
 #include "gfs/WpcPppLoader.h"
 #include "gfs/Ec46Loader.h"
+#include "gfs/MrmsLoader.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsIntensity.h"
 #include "hurricane/AceForecastViewer.h"
@@ -195,6 +196,7 @@ int main(int argc, char * argv[]) {
     }
     Cfs30Loader::registerLoader();   // the CFS's next 30 days against its normal as a Model Viewer model
     WpcPppLoader::registerLoader();   // the Weather Prediction Center's probabilistic precipitation portal as a Model Viewer model
+    MrmsLoader::registerLoader();   // MRMS composite reflectivity as a Model Viewer model, to compare the models with what was observed
     Ec46Loader::registerLoader();   // the ECMWF's extended range (Open-Meteo) as a Model Viewer model
     SpcRefsLoader::registerLoader();   // SPC's REFS Zarr store as a Model Viewer model
     GfsRender::startCacheCleanup();   // the model field cache is tidied in the background, a few seconds in

@@ -798,6 +798,9 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     }
     GfsChart::Grids grids;
     if (!variant.validTime.empty()) {   // by the clock: the hour of the run used that is this valid time
+        if (const auto * analysis = GfsModels::find(model); analysis != nullptr && analysis->hourlyRuns && analysis->hours.size() == 1 && analysis->hours.front().to == 0 && variant.validTime.size() == 10) {
+            run = {variant.validTime.substr(0, 8), variant.validTime.substr(8, 2)};   // an analysis is its own hour: the run of that time
+        }
         auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
         auto valid = QDateTime::fromString(QString::fromStdString(variant.validTime), "yyyyMMddHH");
         start.setTimeSpec(Qt::UTC);   // both are UTC: no daylight saving between them

@@ -237,6 +237,10 @@ bool GfsData::latestRun(Run& run) const {
     for (int back = 0; back < source.cyclesToTry; back++) {
         const auto t = start.addSecs(-static_cast<qint64>(back) * source.cycleHours * 3600);
         Run candidate{t.toString("yyyyMMdd").toStdString(), pad(t.time().hour(), 2)};
+        if (source.custom && source.probeFile == "none") {   // a source with nothing to look at first (the observations): the run is the hour
+            run = candidate;
+            return true;
+        }
         if (source.wholeFile) {   // no index: the first bytes of a file say the run is there
             bool there = false;
             int probeHour = source.probeHour;

@@ -1437,6 +1437,30 @@ clone_levels = 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 9
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"MRMS", R"MODEL(
+# MRMS's composite reflectivity as it was observed, to put beside the models' (Compare: difference from the main model, or models at the same valid time). A run is an hour and its one hour 0 the first scan
+# of it, from NOAA's open bucket noaa-mrms-pds (2020 on): the 0.01 degree grid taken to 0.04 degrees by its largest value, read by the program's own loader (registered for this id).
+id = MRMS
+group = Archive
+label = NOAA/NSSL MRMS observed composite reflectivity
+source_label = NOAA/NSSL MRMS observed composite reflectivity
+kind = custom
+url = https://noaa-mrms-pds.s3.amazonaws.com/CONUS/MergedReflectivityQCComposite_00.50/
+probe_file = none
+cycle_hours = 1
+lag_hours = 1
+cycles_to_try = 1
+max_parallel = 2
+hours = 0-0/1
+hourly_runs = true
+sectors = conus
+list = true
+clone = true
+clone_variables = REFC
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
         {"RTMA", R"MODEL(
 # The Real-Time Mesoscale Analysis, hourly, from the open data bucket noaa-rtma-pds (19 March 2013 on). The 2.5 km CONUS Lambert grid is put on a regular 0.03 degree one. Surface fields only: the 2 m temperature and dew point, the 10 m wind and gust, the visibility and the cloud cover (the charts are
 # this model's own, in GfsChart.cpp). Before May 2017 there is no index file: one is made from the head of each message and kept.
