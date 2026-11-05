@@ -54,6 +54,15 @@
 #include "misc/ProductViewer.h"
 #include "misc/SevereDashboard.h"
 #include "spc/AbpgExtended.h"
+#include "spc/SpcCompMap.h"
+#include "spc/SpcFireSummary.h"
+#include "spc/SpcFireWeatherOutlook.h"
+#include "spc/SpcMeso.h"
+#include "spc/SpcStormReports.h"
+#include "spc/SpcSwoDay1.h"
+#include "spc/SpcSwoSummary.h"
+#include "spc/SpcTstormOutlooks.h"
+#include "spc/SvrComparison.h"
 #include "spc/WatchProbabilityViewer.h"
 #include "space/UtilitySun.h"
 #include "space/SunViewer.h"
@@ -1042,6 +1051,27 @@ int main(int argc, char * argv[]) {
                 new CiraStorm{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2).toStdString()};
             } else if (route == "tornadoyears") {   // WXQT_OPEN=tornadoyears: the tornado years ranked
                 new TornadoYearsViewer{&w, TornadoData::load(), 0, std::string{}};
+            } else if (route.startsWith("spcscreen:")) {   // WXQT_OPEN=spcscreen:<summary|day:N|fire|firesummary|tstorm|reports|meso|compare|compmap>: that SPC screen (with its go-to list)
+                const auto which = route.section(':', 1, 1);
+                if (which == "summary") {
+                    new SpcSwoSummary{&w};
+                } else if (which == "day") {
+                    new SpcSwoDay1{&w, route.section(':', 2, 2).toInt()};
+                } else if (which == "fire") {
+                    new SpcFireWeatherOutlook{&w, 0};
+                } else if (which == "firesummary") {
+                    new SpcFireSummary{&w};
+                } else if (which == "tstorm") {
+                    new SpcTstormOutlooks{&w};
+                } else if (which == "reports") {
+                    new SpcStormReports{&w, "today"};
+                } else if (which == "meso") {
+                    new SpcMeso{&w};
+                } else if (which == "compare") {
+                    new SvrComparison{&w};
+                } else if (which == "compmap") {
+                    new SpcCompMap{&w};
+                }
             } else if (route.startsWith("swostate:")) {   // WXQT_OPEN=swostate:<day>: the SPC convective outlook's state graphics for that day
                 new SpcSwoStateGraphics{&w, route.section(':', 1, 1).toInt()};
             } else {
