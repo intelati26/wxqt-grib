@@ -58,7 +58,7 @@ const std::vector<OutlookNav::Destination>& OutlookNav::destinations() {
 }
 
 bool OutlookNav::isPage(Kind kind) {
-    return kind == SevereSummary || kind == SevereDay || kind == State || kind == FireSummary || kind == FireDay || kind == Thunderstorm || kind == RainfallSummary || kind == RainfallDay;
+    return kind == SevereSummary || kind == SevereDay || kind == State || kind == FireSummary || kind == FireDay || kind == Thunderstorm || kind == RainfallSummary || kind == RainfallDay || kind == NationalImages;
 }
 
 OutlookNav::OutlookNav(Window * owner, Kind kind, int value)
@@ -108,7 +108,6 @@ void OutlookNav::open(Window * from, Kind kind, int value) {
         case CompositeMap: new SpcCompMap{parent}; break;
         case Dashboard: new SevereDashboard{parent}; break;
         case NationalText: new ::NationalText{parent}; break;
-        case NationalImages: new ::NationalImages{parent}; break;
         case NhcProducts: new Nhc{parent}; break;
         case Hurricanes: new HurricaneViewer{parent}; break;
         case TropicalHub: Dashboards::openTropicalHub(parent); break;

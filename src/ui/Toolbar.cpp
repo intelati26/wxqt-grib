@@ -439,7 +439,7 @@ void Toolbar::launchModelViewerGeneric(const string& modelType) {
 }
 
 void Toolbar::launchNationalImages() {
-    new NationalImages{parent};
+    OutlookNav::open(parent, OutlookNav::NationalImages);
 }
 
 void Toolbar::launchUsAlerts() {

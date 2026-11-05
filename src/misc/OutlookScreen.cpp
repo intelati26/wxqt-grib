@@ -13,6 +13,7 @@
 #include "spc/SpcSwoSummary.h"
 #include "spc/SpcTstormOutlooks.h"
 #include "ui/UiStandards.h"
+#include "wpc/NationalImages.h"
 #include "wpc/RainfallOutlook.h"
 #include "wpc/RainfallOutlookSummary.h"
 
@@ -74,6 +75,7 @@ Window * OutlookScreen::make(OutlookNav::Kind kind, int value) {
         case OutlookNav::FireDay: page = new SpcFireWeatherOutlook{this, value}; break;
         case OutlookNav::Thunderstorm: page = new SpcTstormOutlooks{this}; break;
         case OutlookNav::RainfallSummary: page = new RainfallOutlookSummary{this}; break;
+        case OutlookNav::NationalImages: page = new NationalImages{this}; break;
         default: page = new RainfallOutlook{this, value}; break;
     }
     page->setAttribute(Qt::WA_DeleteOnClose, false);   // the page goes with the window

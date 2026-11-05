@@ -1070,6 +1070,8 @@ int main(int argc, char * argv[]) {
                     new SpcMeso{&w};
                 } else if (which == "compare") {
                     new SvrComparison{&w};
+                } else if (which == "images") {
+                    OutlookNav::open(&w, OutlookNav::NationalImages);
                 } else if (which == "compmap") {
                     new SpcCompMap{&w};
                 }
