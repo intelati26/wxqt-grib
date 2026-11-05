@@ -8,7 +8,7 @@ The German Weather Service's finest model: 2.2 km over Germany and the countries
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [DWD: the ICON model](https://www.dwd.de/EN/research/weatherforecasting/num_modelling/01_num_weather_prediction_modells/icon_description.html) (From the people who run it)
 
 ## Where the data is read from

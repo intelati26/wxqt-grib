@@ -8,7 +8,7 @@ Raw model output says how much rain or what wind; forecasters need the chance of
 
 ## Further reading
 
-- [Storm Prediction Center](https://en.wikipedia.org/wiki/Storm_Prediction_Center) (Background (Wikipedia))
+- [Storm Prediction Center](https://en.wikipedia.org/wiki/Storm_Prediction_Center) (background, Wikipedia)
 - [NWS notice 26-77: SPC_POST v3.0](https://www.weather.gov/media/notification/pdf_2026/scn26_77_Updated_SPC_POST_v3.0_aaa.pdf) (From the people who run it)
 
 ## Where the data is read from

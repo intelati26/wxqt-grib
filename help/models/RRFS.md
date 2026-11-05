@@ -8,7 +8,7 @@ NOAA's new 3 kilometre forecast system for the continental US, built to replace 
 
 ## Further reading
 
-- [Rapid Refresh (the system the RRFS replaces)](https://en.wikipedia.org/wiki/Rapid_Refresh_(weather_prediction)) (Background (Wikipedia))
+- [Rapid Refresh (the system the RRFS replaces)](https://en.wikipedia.org/wiki/Rapid_Refresh_(weather_prediction)) (background, Wikipedia)
 - [NOAA GSL: the Rapid Refresh Forecast System](https://gsl.noaa.gov/focus-areas/unified_forecast_system/rrfs) (From the people who run it)
 
 ## Where the data is read from

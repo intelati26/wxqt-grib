@@ -8,7 +8,7 @@ The High-Resolution Ensemble Forecast pools ten 3 km runs from several models. I
 
 ## Further reading
 
-- [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (Background (Wikipedia))
+- [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (background, Wikipedia)
 - [SPC: HREF](https://www.spc.noaa.gov/exper/href/) (From the people who run it)
 
 ## Where the data is read from

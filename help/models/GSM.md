@@ -8,7 +8,7 @@ The Japan Meteorological Agency's global model, here on a coarse 0.5 degree grid
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 
 ## Where the data is read from
 

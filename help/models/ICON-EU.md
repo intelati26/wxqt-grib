@@ -8,7 +8,7 @@ The German Weather Service's regional model for Europe: 6.5 km, a new run every 
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [DWD: the ICON model](https://www.dwd.de/EN/research/weatherforecasting/num_modelling/01_num_weather_prediction_modells/icon_description.html) (From the people who run it)
 
 ## Where the data is read from

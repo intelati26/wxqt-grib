@@ -8,7 +8,7 @@ The GFS analysis of the years before NOAA's open data bucket: 2007 to mid 2014, 
 
 ## Further reading
 
-- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (Background (Wikipedia))
+- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (background, Wikipedia)
 - [Global Forecast System](https://en.wikipedia.org/wiki/Global_Forecast_System) (Wikipedia)
 
 ## Where the data is read from

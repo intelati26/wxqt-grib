@@ -8,7 +8,7 @@ GeoSphere Austria's AROME: 2.5 km over Austria and the Alps, a new run every 3 h
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [GeoSphere Austria](https://www.geosphere.at/en) (From the people who run it)
 
 ## Where the data is read from

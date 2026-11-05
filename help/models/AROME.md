@@ -8,7 +8,7 @@ Meteo-France's high resolution model over France and the countries round it: 2.5
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 
 ## Where the data is read from
 

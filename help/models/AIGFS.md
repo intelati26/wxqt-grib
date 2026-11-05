@@ -8,7 +8,7 @@ An experimental NOAA model made by machine learning (it learned from decades of 
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 
 ## Where the data is read from
 

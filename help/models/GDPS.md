@@ -8,7 +8,7 @@ Environment and Climate Change Canada's global model: 15 km, run twice a day (00
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [Environment and Climate Change Canada: GDPS](https://eccc-msc.github.io/open-data/msc-data/nwp_gdps/readme_gdps-datamart_en/) (From the people who run it)
 
 ## Where the data is read from

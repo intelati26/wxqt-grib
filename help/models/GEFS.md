@@ -8,7 +8,7 @@ The GFS run many times from slightly different starting points. How far the runs
 
 ## Further reading
 
-- [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (Background (Wikipedia))
+- [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (background, Wikipedia)
 - [NCEP Environmental Modeling Center: GEFS](https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gefs.php) (From the people who run it)
 
 ## Where the data is read from

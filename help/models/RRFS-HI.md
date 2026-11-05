@@ -8,7 +8,7 @@ NOAA's Rapid Refresh Forecast System for Hawaii: a 2.5 km model that runs every 
 
 ## Further reading
 
-- [Rapid Refresh (the system the RRFS is to replace)](https://en.wikipedia.org/wiki/Rapid_Refresh) (Background (Wikipedia))
+- [Rapid Refresh (the system the RRFS is to replace)](https://en.wikipedia.org/wiki/Rapid_Refresh) (background, Wikipedia)
 
 ## Where the data is read from
 

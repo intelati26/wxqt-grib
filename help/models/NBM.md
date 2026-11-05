@@ -8,7 +8,7 @@ The National Blend of Models is a statistically corrected blend of many models, 
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [NBM at the NWS Meteorological Development Laboratory](https://vlab.noaa.gov/web/mdl/nbm) (From the people who run it)
 
 ## Where the data is read from

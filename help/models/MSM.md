@@ -8,7 +8,7 @@ The Japan Meteorological Agency's meso-scale model: 5 km over Japan and the seas
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [Japan Meteorological Agency: numerical weather prediction](https://www.jma.go.jp/jma/jma-eng/jma-center/nwp/nwp-top.htm) (From the people who run it)
 
 ## Where the data is read from

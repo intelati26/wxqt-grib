@@ -8,8 +8,8 @@ Canada's global ensemble, 21 members, made by a different centre with a differen
 
 ## Further reading
 
-- [Canadian Meteorological Centre](https://en.wikipedia.org/wiki/Canadian_Meteorological_Centre) (Background (Wikipedia))
-- [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (Background (Wikipedia))
+- [Canadian Meteorological Centre](https://en.wikipedia.org/wiki/Canadian_Meteorological_Centre) (background, Wikipedia)
+- [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (background, Wikipedia)
 
 ## Where the data is read from
 

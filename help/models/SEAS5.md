@@ -8,7 +8,7 @@ The European Centre's seasonal forecast: a 51 member ensemble run seven months a
 
 ## Further reading
 
-- [ECMWF seasonal forecasts](https://www.ecmwf.int/en/forecasts/documentation-and-support/long-range) (Background (Wikipedia))
+- [ECMWF seasonal forecasts](https://www.ecmwf.int/en/forecasts/documentation-and-support/long-range) (background, Wikipedia)
 
 ## Where the data is read from
 

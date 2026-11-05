@@ -8,7 +8,7 @@ The ICON model run by Italy's weather services (ARPAE and Italia Meteo) at 2.2 k
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [ARPAE](https://www.arpae.it/en) (From the people who run it)
 
 ## Where the data is read from

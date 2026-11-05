@@ -9,7 +9,7 @@ The European Centre's global model, the benchmark the others are measured agains
 ## Further reading
 
 - [Integrated Forecasting System](https://en.wikipedia.org/wiki/Integrated_Forecasting_System) (Wikipedia)
-- [European Centre for Medium-Range Weather Forecasts](https://en.wikipedia.org/wiki/European_Centre_for_Medium-Range_Weather_Forecasts) (Background (Wikipedia))
+- [European Centre for Medium-Range Weather Forecasts](https://en.wikipedia.org/wiki/European_Centre_for_Medium-Range_Weather_Forecasts) (background, Wikipedia)
 
 ## Where the data is read from
 

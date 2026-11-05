@@ -8,7 +8,7 @@ The GFS analysis at 1 degree, from 4 March 2004 to 15 May 2020, four a day, with
 
 ## Further reading
 
-- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (Background (Wikipedia))
+- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (background, Wikipedia)
 - [Global Forecast System](https://en.wikipedia.org/wiki/Global_Forecast_System) (Wikipedia)
 
 ## Where the data is read from

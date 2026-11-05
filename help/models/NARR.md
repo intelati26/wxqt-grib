@@ -8,7 +8,7 @@ The North American Regional Reanalysis: a record of the continent's weather ever
 
 ## Further reading
 
-- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (Background (Wikipedia))
+- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (background, Wikipedia)
 
 ## Where the data is read from
 

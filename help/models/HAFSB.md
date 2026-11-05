@@ -8,7 +8,7 @@ The second version of NOAA's hurricane model, run beside HAFS-A with different s
 
 ## Further reading
 
-- [Hurricane Weather Research and Forecasting Model (the model HAFS replaces)](https://en.wikipedia.org/wiki/Hurricane_Weather_Research_and_Forecasting_Model) (Background (Wikipedia))
+- [Hurricane Weather Research and Forecasting Model (the model HAFS replaces)](https://en.wikipedia.org/wiki/Hurricane_Weather_Research_and_Forecasting_Model) (background, Wikipedia)
 - [National Hurricane Center: model summary](https://www.nhc.noaa.gov/modelsummary.shtml) (From the people who run it)
 
 ## Where the data is read from

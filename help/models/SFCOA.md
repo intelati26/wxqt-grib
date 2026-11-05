@@ -8,9 +8,9 @@ The SPC mesoanalysis: an hourly picture of the storm environment (instability, s
 
 ## Further reading
 
-- [Storm Prediction Center](https://en.wikipedia.org/wiki/Storm_Prediction_Center) (Background (Wikipedia))
-- [Convective available potential energy](https://en.wikipedia.org/wiki/Convective_available_potential_energy) (Background (Wikipedia))
-- [Significant tornado parameter](https://en.wikipedia.org/wiki/Significant_tornado_parameter) (Background (Wikipedia))
+- [Storm Prediction Center](https://en.wikipedia.org/wiki/Storm_Prediction_Center) (background, Wikipedia)
+- [Convective available potential energy](https://en.wikipedia.org/wiki/Convective_available_potential_energy) (background, Wikipedia)
+- [Significant tornado parameter](https://en.wikipedia.org/wiki/Significant_tornado_parameter) (background, Wikipedia)
 - [SPC Mesoanalysis](https://www.spc.noaa.gov/exper/mesoanalysis/) (From the people who run it)
 
 ## Where the data is read from

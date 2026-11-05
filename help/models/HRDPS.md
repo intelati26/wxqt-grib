@@ -8,7 +8,7 @@ Canada's high resolution model: 2.5 km over Canada and the northern United State
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [Environment and Climate Change Canada: HRDPS](https://eccc-msc.github.io/open-data/msc-data/nwp_hrdps/readme_hrdps-datamart_en/) (From the people who run it)
 
 ## Where the data is read from

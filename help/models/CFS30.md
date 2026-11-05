@@ -8,7 +8,7 @@ What NOAA's seasonal model expects of the next week, two weeks, month, two month
 
 ## Further reading
 
-- [NOAA Climate Prediction Center outlooks](https://www.cpc.ncep.noaa.gov/products/predictions/30day/) (Background (Wikipedia))
+- [NOAA Climate Prediction Center outlooks](https://www.cpc.ncep.noaa.gov/products/predictions/30day/) (background, Wikipedia)
 
 ## Where the data is read from
 

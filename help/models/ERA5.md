@@ -8,7 +8,7 @@ The European Centre's reanalysis: the weather of every hour from 1940 on, remade
 
 ## Further reading
 
-- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (Background (Wikipedia))
+- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (background, Wikipedia)
 - [ERA5](https://en.wikipedia.org/wiki/ERA5) (Wikipedia)
 - [ECMWF: ERA5 documentation](https://confluence.ecmwf.int/display/CKB/ERA5%3A+data+documentation) (From the people who run it)
 

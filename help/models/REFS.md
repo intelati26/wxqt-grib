@@ -8,7 +8,7 @@ Five runs of the RRFS from varied starting points: a storm-scale ensemble. A sin
 
 ## Further reading
 
-- [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (Background (Wikipedia))
+- [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (background, Wikipedia)
 - [NOAA GSL: the Rapid Refresh Forecast System](https://gsl.noaa.gov/focus-areas/unified_forecast_system/rrfs) (From the people who run it)
 
 ## Where the data is read from

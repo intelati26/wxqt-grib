@@ -9,7 +9,7 @@ The European Centre's physical model run 51 times from slightly different starti
 ## Further reading
 
 - [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (Wikipedia)
-- [European Centre for Medium-Range Weather Forecasts](https://en.wikipedia.org/wiki/European_Centre_for_Medium-Range_Weather_Forecasts) (Background (Wikipedia))
+- [European Centre for Medium-Range Weather Forecasts](https://en.wikipedia.org/wiki/European_Centre_for_Medium-Range_Weather_Forecasts) (background, Wikipedia)
 
 ## Where the data is read from
 

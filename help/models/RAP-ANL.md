@@ -8,7 +8,7 @@ The hourly analysis of the Rapid Update Cycle (to April 2012) and the Rapid Refr
 
 ## Further reading
 
-- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (Background (Wikipedia))
+- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (background, Wikipedia)
 - [Rapid Update Cycle](https://en.wikipedia.org/wiki/Rapid_Update_Cycle) (Wikipedia)
 - [Rapid Refresh](https://en.wikipedia.org/wiki/Rapid_Refresh) (Wikipedia)
 

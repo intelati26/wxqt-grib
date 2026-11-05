@@ -9,7 +9,7 @@ Three ensembles run by three centres (ECMWF's 50 members, NOAA's GEFS with 31 an
 ## Further reading
 
 - [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (Wikipedia)
-- [North American Ensemble Forecast System](https://en.wikipedia.org/wiki/North_American_Ensemble_Forecast_System) (Background (Wikipedia))
+- [North American Ensemble Forecast System](https://en.wikipedia.org/wiki/North_American_Ensemble_Forecast_System) (background, Wikipedia)
 
 ## Where the data is read from
 

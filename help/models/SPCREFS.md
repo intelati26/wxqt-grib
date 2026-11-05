@@ -8,8 +8,8 @@ The Storm Prediction Center's own view of the REFS: means, maxima, chances, and 
 
 ## Further reading
 
-- [Storm Prediction Center](https://en.wikipedia.org/wiki/Storm_Prediction_Center) (Background (Wikipedia))
-- [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (Background (Wikipedia))
+- [Storm Prediction Center](https://en.wikipedia.org/wiki/Storm_Prediction_Center) (background, Wikipedia)
+- [Ensemble forecasting](https://en.wikipedia.org/wiki/Ensemble_forecasting) (background, Wikipedia)
 - [SPC REFS viewer](https://www.spc.noaa.gov/exper/refs/viewer) (From the people who run it)
 
 ## Where the data is read from

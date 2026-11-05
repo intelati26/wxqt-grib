@@ -8,7 +8,7 @@ The analysis of NOAA's Climate Forecast System: the model's best estimate of the
 
 ## Further reading
 
-- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (Background (Wikipedia))
+- [Reanalysis](https://en.wikipedia.org/wiki/Reanalysis) (background, Wikipedia)
 
 ## Where the data is read from
 

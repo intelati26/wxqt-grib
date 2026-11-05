@@ -8,7 +8,7 @@ Meteo-France's global model on the part of its stretched grid that is finest, ov
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 
 ## Where the data is read from
 

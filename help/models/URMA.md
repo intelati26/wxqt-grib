@@ -8,5 +8,5 @@ The UnRestricted Mesoscale Analysis: the RTMA made again a little later, with ob
 
 ## Further reading
 
-- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (Background (Wikipedia))
+- [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [NOAA: the Real-Time Mesoscale Analysis](https://www.nco.ncep.noaa.gov/pmb/products/rtma/) (From the people who run it)
