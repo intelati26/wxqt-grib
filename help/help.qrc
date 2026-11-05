@@ -60,5 +60,7 @@
         <file>models/MPAS-HT.md</file>
             <file>models/MPAS-RN.md</file>
             <file>models/WPC-PPP.md</file>
+            <file>models/ARWEN.md</file>
+            <file>models/WOOF-NAM.md</file>
     </qresource>
 </RCC>
