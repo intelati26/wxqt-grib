@@ -509,6 +509,498 @@ clone_levels = 1 mb
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"ICON", R"MODEL(
+# DWD's global ICON (13 km), as Open-Meteo keeps it on its open bucket (open-meteo/om-file-format, the files of data_spatial/dwd_icon): a regular 0.125 degree grid and one file of about 170 MB for each
+# hour that holds every variable, of which a chart reads the one it needs by byte ranges (a few megabytes). Hourly to 78 hours, then 3 hourly; the 00Z and 12Z runs go to 180 hours, the others to 120.
+# The names are Open-Meteo's; the units are already degrees C, hPa (the sea level pressure is scaled to Pa as the charts have it), percent and m/s.
+id = ICON
+group = Global
+label = DWD ICON global 13 km (via Open-Meteo)
+source_label = DWD ICON global 13 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/dwd_icon/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=TCDC => cloud_cover
+value_scale = PRMSL:100
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 4
+cycles_to_try = 4
+max_parallel = 3
+hours = 0-78/1, 81-180/3
+run_length = 0:180, 12:180, else:120
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"UKMO", R"MODEL(
+# The Met Office's global deterministic model (about 10 km: 2560 x 1920 points, 0.140625 by 0.09375 degrees, put on a square 0.09375 degree grid), as Open-Meteo keeps it (open-meteo/om-file-format).
+# Hourly to 54 hours, then 3 hourly; the 00Z and 12Z runs go to 7 days, the others to 60 hours. The winds are given as speed and direction (`speed/direction`) and made into components.
+id = UKMO
+group = Global
+label = UK Met Office global 10 km (via Open-Meteo)
+source_label = UK Met Office global 10 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/ukmo_global_deterministic_10km/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=UGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=TCDC => cloud_cover
+value_scale = PRMSL:100
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 7
+cycles_to_try = 4
+max_parallel = 3
+hours = 0-54/1, 57-144/3, 150-168/6
+run_length = 0:168, 12:168, else:60
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"GSM", R"MODEL(
+# The Japan Meteorological Agency's Global Spectral Model on a regular 0.5 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format). Every 6 hours, 6 hourly to 132 hours; the 00Z and 12Z runs
+# go to 11 days. No gusts, CAPE or 2 m dew point in these files.
+id = GSM
+group = Global
+label = JMA GSM global 0.5 degree (via Open-Meteo)
+source_label = JMA GSM global 0.5 degree, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/jma_gsm/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=TCDC => cloud_cover
+# the file's heights are the geometric height divided by 9.80665 (581.7 for the 5704 m of the 500 mb surface; Open-Meteo's API converts them back)
+value_scale = PRMSL:100, HGT:9.80665
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 10
+cycles_to_try = 4
+max_parallel = 3
+hours = 0-264/6
+run_length = 0:264, 12:264, else:132
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, TCDC
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"ARPEGE", R"MODEL(
+# Meteo-France's global ARPEGE on a regular 0.25 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format). Hourly to 48 hours, then 3 hourly to 102; a run every 6 hours.
+id = ARPEGE
+group = Global
+label = Meteo-France ARPEGE global 0.25 degree (via Open-Meteo)
+source_label = Meteo-France ARPEGE global 0.25 degree, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arpege_world025/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=TCDC => cloud_cover
+value_scale = PRMSL:100
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 5
+cycles_to_try = 4
+max_parallel = 3
+hours = 0-48/1, 51-102/3
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"GRAPES", R"MODEL(
+# The China Meteorological Administration's GRAPES global model on a regular 0.125 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format). 3 hourly to 5 days, a run every 6 hours.
+id = GRAPES
+group = Global
+label = CMA GRAPES global 0.125 degree (via Open-Meteo)
+source_label = CMA GRAPES global 0.125 degree, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/cma_grapes_global/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=TCDC => cloud_cover
+value_scale = PRMSL:100
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 6
+cycles_to_try = 4
+max_parallel = 3
+hours = 0-120/3
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"HGEFS", R"MODEL(
+# NOAA's Hybrid GEFS: the ensemble mean of the GEFS combined with the AI ensemble (AIGEFS), on a regular 0.25 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format; the files also hold each
+# field's spread, `_spread`, which no chart here uses yet). Every 6 hours to 10 days, 6 hourly from hour 6 (there is no hour 0).
+id = HGEFS
+group = Ensembles
+label = NOAA/NCEP Hybrid GEFS ensemble mean, 0.25 degree (via Open-Meteo)
+source_label = NOAA/NCEP Hybrid GEFS ensemble mean, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/ncep_hgefs025_ensemble_mean/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=TCDC => cloud_cover
+value_scale = PRMSL:100
+probe_hour = 6
+cycle_hours = 6
+lag_hours = 10
+cycles_to_try = 4
+max_parallel = 3
+hours = 6-240/6
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, TCDC
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
+clone_prefix = "Mean "
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"AROME", R"MODEL(
+# Meteo-France's AROME: 2.5 km over France and the countries round it (a regular 0.025 degree grid), a run every 3 hours, hourly to 51 hours, as Open-Meteo keeps it (open-meteo/om-file-format).
+id = AROME
+group = Convection allowing
+label = Meteo-France AROME France 2.5 km (via Open-Meteo)
+source_label = Meteo-France AROME France 2.5 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arome_france0025/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 5
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-51/1
+run_every = 3
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 950 mb, 925 mb, 900 mb, 850 mb, 800 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"AROME-HD", R"MODEL(
+# Meteo-France's AROME at its finest: 1.3 km over France (a regular 0.01 degree grid), a run every 3 hours, hourly to 51 hours, as Open-Meteo keeps it (open-meteo/om-file-format). Surface fields only:
+# the 2 m temperature and humidity, the 10 m wind and gusts and the CAPE.
+id = AROME-HD
+group = Convection allowing
+label = Meteo-France AROME France HD 1.3 km (via Open-Meteo)
+source_label = Meteo-France AROME France HD 1.3 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arome_france_hd/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 5
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-51/1
+run_every = 3
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = TMP, RH, UGRD, VGRD, CAPE, GUST
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"ARPEGE-EU", R"MODEL(
+# Meteo-France's ARPEGE over Europe and the North Atlantic (the stretched grid's finest part, put on a regular grid), a run every 6 hours, hourly to 102 hours, as Open-Meteo keeps it (open-meteo/om-file-format). Surface fields only.
+id = ARPEGE-EU
+group = Regional
+label = Meteo-France ARPEGE Europe 0.1 degree (via Open-Meteo)
+source_label = Meteo-France ARPEGE Europe, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arpege_europe/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 5
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-102/1
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = TMP, RH, UGRD, VGRD, PRMSL, TCDC, GUST
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"GDPS", R"MODEL(
+# Environment Canada's Global Deterministic Prediction System: 15 km, a run at 00 and 12Z, to 10 days, as Open-Meteo keeps it (open-meteo/om-file-format). The surface fields and the pressure levels are
+# in two folders (the pressure levels every 3 hours, which is the step used here) and the winds are given as speed and direction.
+id = GDPS
+group = Global
+label = CMC GDPS global 15 km (via Open-Meteo)
+source_label = CMC GDPS global 15 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = when file~"^upper$" => https://openmeteo.s3.amazonaws.com/data_spatial/cmc_gem_gdps_15km_upper_level/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = https://openmeteo.s3.amazonaws.com/data_spatial/cmc_gem_gdps_15km/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+file = when level~"^[0-9]+ mb$" => upper
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 12
+lag_hours = 6
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-240/3
+run_every = 12
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"MSM", R"MODEL(
+# The Japan Meteorological Agency's Meso-Scale Model: 5 km over Japan and the seas round it, a run every 3 hours, hourly to 39 hours (to 78 at 00 and 12Z), as Open-Meteo keeps it (open-meteo/om-file-format). Surface fields only.
+id = MSM
+group = Regional
+label = JMA MSM 5 km Japan (via Open-Meteo)
+source_label = JMA MSM 5 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/jma_msm/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 4
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-78/1
+run_length = 0:78, 12:78, else:39
+run_every = 3
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = TMP, RH, UGRD, VGRD, PRMSL, TCDC
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"ICON-2I", R"MODEL(
+# Italy's ICON-2I (ARPAE and Italia Meteo): 2.2 km over Italy and the seas round it, a run at 00 and 12Z, hourly to 72 hours, as Open-Meteo keeps it (open-meteo/om-file-format). The winds are given as speed
+# and direction. Six pressure levels.
+id = ICON-2I
+group = Convection allowing
+label = ARPAE ICON-2I 2.2 km Italy (via Open-Meteo)
+source_label = ARPAE ICON-2I 2.2 km (Italy), data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/italia_meteo_arpae_icon_2i/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 12
+lag_hours = 3
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-72/1
+run_every = 12
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 500 mb, 250 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"AROME-AT", R"MODEL(
+# GeoSphere Austria's AROME: 2.5 km over Austria and the Alps, a run every 3 hours, hourly to 60 hours, as Open-Meteo keeps it (open-meteo/om-file-format). The winds are given as speed and direction.
+# Surface fields only.
+id = AROME-AT
+group = Convection allowing
+label = GeoSphere AROME Austria 2.5 km (via Open-Meteo)
+source_label = GeoSphere AROME Austria 2.5 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/geosphere_arome_austria/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 4
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-60/1
+run_every = 3
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
         {"GEPS", R"MODEL(
 # Canada's ensemble: one file per field and hour, the 21 members as its messages
 id = GEPS
