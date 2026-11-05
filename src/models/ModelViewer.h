@@ -59,6 +59,7 @@ public:
     void openAt(const string& model, const QDateTime& validUtc, bool runStart = false);
     void showPicker();
     void setOverlays(const std::vector<string>& ids);   // as ticking them in the chart picker does
+    void setTileModel(int index, const string& model, const string& run);   // the tile's model (and run), as its Change... menu does (a development aid)
     void setTileRun(int index, const string& run);   // as the tile's Change... menu does (a development aid)
     void noticeTest(const string& text) { showNotice(text); }   // a development aid: the card over the picture with this text
     void clickAt(double fx, double fy, bool areaButton);   // a click on the picture, then the "Area around point" button (a development aid)
@@ -110,7 +111,7 @@ private:
         bool ok{true};
         string why;
     };
-    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime, Parts, Deterministic, Seasonal };
+    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime, Parts, Deterministic, Seasonal, Difference };
     int tileCount() const;                       // the tiles besides the first: 0, 1, 2 or 3
     TilesShow tilesShow() const;
     static const std::vector<string>& partsOfPool();

@@ -1019,17 +1019,95 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
             options.fillOverride = best;
             options.overrideQuantity = product->quantity;
         } else {
-            auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-            t.setTimeSpec(Qt::UTC);
-            t = t.addSecs(-static_cast<qint64>(variant.hoursBack) * 3600);
-            const GfsData::Run earlier{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
-            GfsChart::Grids before;
-            std::string again;
-            if (!gfs.load(earlier, GfsChart::needs(*product, hour + variant.hoursBack), before, again)) {
-                error = "the run " + std::to_string(variant.hoursBack) + " hours earlier is not available for this hour";
-                return {};
+            GfsGrid::Grid then;
+            std::string againLabel;
+            if (variant.kind == Variant::Kind::Difference) {   // this model's chart minus another model's at the same valid time (the other's run of the same time or the nearest before it)
+                const auto& other = variant.otherModel;
+                const auto * otherProduct = GfsChart::product(product->id, other);
+                if (otherProduct == nullptr) {
+                    error = other + " has no chart " + product->id;
+                    return {};
+                }
+                auto otherData = data(session.folder(), other);
+                auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+                start.setTimeSpec(Qt::UTC);
+                const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
+                GfsData::Run newest;
+                if (variant.otherRun.size() != 10 && !newestRun(otherData, newest)) {
+                    error = "could not find a " + other + " run";
+                    return {};
+                }
+                if (variant.otherRun.size() == 10) {
+                    newest = {variant.otherRun.substr(0, 8), variant.otherRun.substr(8, 2)};
+                }
+                auto newestTime = QDateTime::fromString(QString::fromStdString(newest.id()), "yyyyMMddHH");
+                newestTime.setTimeSpec(Qt::UTC);
+                auto t = std::min(start, newestTime);
+                const int step = std::max(1, otherData.model().cycleHours);
+                while (t.time().hour() % step != 0) {
+                    t = t.addSecs(-3600);
+                }
+                const auto * otherDef = GfsModels::find(other);
+                GfsChart::Grids loaded;
+                GfsData::Run used;
+                int usedHour = 0;
+                std::string why;
+                bool ok = false;
+                if (variant.otherRun.size() == 10) {   // that very run
+                    t = QDateTime::fromString(QString::fromStdString(variant.otherRun), "yyyyMMddHH");
+                    t.setTimeSpec(Qt::UTC);
+                }
+                for (int back = 0; back < (variant.otherRun.size() == 10 ? 1 : 3) && !ok; back++, t = t.addSecs(-static_cast<qint64>(step) * 3600)) {
+                    const int h = static_cast<int>((valid.toSecsSinceEpoch() - t.toSecsSinceEpoch()) / 3600);
+                    bool offered = otherDef == nullptr;
+                    for (const auto& range : otherDef ? otherDef->hours : std::vector<GfsModels::Hours>{}) {
+                        offered = offered || (h >= range.from && h <= range.to && (h - range.from) % range.step == 0);
+                    }
+                    if (!offered || h < 0) {
+                        why = other + " has no forecast for " + valid.toString("ddd HH").toStdString() + "Z from its " + t.toString("HH").toStdString() + "Z run";
+                        continue;
+                    }
+                    used = {t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+                    usedHour = h;
+                    loaded.clear();
+                    ok = otherData.load(used, GfsChart::needs(*otherProduct, h), loaded, why);
+                }
+                if (!ok) {
+                    error = why.empty() ? other + " could not be read" : why;
+                    return {};
+                }
+                if (otherProduct->derive) {
+                    otherProduct->derive(loaded, GfsChart::Context{usedHour, used, &climate, otherProduct->source});
+                }
+                const auto other2 = GfsChart::fillOf(*otherProduct, loaded, used, usedHour, &climate);
+                if (other2.values.empty() || now.values.empty()) {
+                    error = "no field to compare";
+                    return {};
+                }
+                if (other2.columns == now.columns && other2.rows == now.rows && other2.lon0 == now.lon0 && other2.lat0 == now.lat0 && other2.step == now.step) {
+                    then = other2;
+                } else {   // another grid: the other model's values taken at this one's points
+                    then = now;
+                    for (int r = 0; r < now.rows; r++) {
+                        for (int c = 0; c < now.columns; c++) {
+                            then.values[static_cast<size_t>(r) * static_cast<size_t>(now.columns) + static_cast<size_t>(c)] = other2.sample(now.lon0 + c * now.step, now.lat0 - r * now.step);
+                        }
+                    }
+                }
+                againLabel = other + " (" + used.date.substr(4, 4) + " " + used.cycle + "Z)";
+            } else {
+                auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+                t.setTimeSpec(Qt::UTC);
+                t = t.addSecs(-static_cast<qint64>(variant.hoursBack) * 3600);
+                const GfsData::Run earlier{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+                GfsChart::Grids before;
+                std::string again;
+                if (!gfs.load(earlier, GfsChart::needs(*product, hour + variant.hoursBack), before, again)) {
+                    error = "the run " + std::to_string(variant.hoursBack) + " hours earlier is not available for this hour";
+                    return {};
+                }
+                then = GfsChart::fillOf(*product, before, earlier, hour + variant.hoursBack, &climate);
             }
-            const auto then = GfsChart::fillOf(*product, before, earlier, hour + variant.hoursBack, &climate);
             if (then.values.size() != now.values.size() || now.values.empty()) {
                 error = "the earlier run is on another grid";
                 return {};
@@ -1052,7 +1130,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
             options.overrideRamp = {{{-m, QColor{"#2b5fbf"}}, {-m / 2, QColor{"#8fb6e8"}}, {-m / 8, QColor{"#f1f4f8"}}, {m / 8, QColor{"#f1f4f8"}}, {m / 2, QColor{"#f0a08a"}}, {m, QColor{"#c0392b"}}}};
             options.fillOverride = delta;
             options.overrideQuantity = GfsChart::Quantity::Other;
-            note = "Change since the run " + std::to_string(variant.hoursBack) + " h earlier" + (unit.empty() ? "" : " (" + unit + ")");
+            note = (variant.kind == Variant::Kind::Difference ? model + " minus " + againLabel : "Change since the run " + std::to_string(variant.hoursBack) + " h earlier") + (unit.empty() ? "" : " (" + unit + ")");
         }
         options.overrideNote = note;
     }

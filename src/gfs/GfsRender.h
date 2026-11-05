@@ -54,10 +54,12 @@ namespace GfsRender {
     // A chart made from the chart's fill instead of the plain chart: the largest value of it over a list of forecast hours (a 24 hour maximum), or its change since the run
     // hoursBack hours earlier at the same valid time
     struct Variant {
-        enum class Kind { None, Max, Change };
+        enum class Kind { None, Max, Change, Difference };
         Kind kind{Kind::None};
         std::vector<int> hours;
         int hoursBack{0};
+        std::string otherRun;     // Difference: that model's run ("yyyyMMddHH") when it is a particular one; "" the run of the nearest time at or before this chart's
+        std::string otherModel;   // Difference: this chart (the model drawn) minus the same chart of this model at the same valid time
         bool standardDeviations{false};   // an anomaly chart in standard deviations (GfsChart::withStandardDeviations)
         // the valid time to draw ("yyyyMMddHH", UTC): the forecast hour is then worked out from the run actually used, so models of other runs are compared at the same real time
         std::string validTime;

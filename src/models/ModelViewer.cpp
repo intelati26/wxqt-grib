@@ -84,7 +84,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
-    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL vs deterministic", "Compare: seasonal models (same dates)"}}
+    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL vs deterministic", "Compare: seasonal models (same dates)", "Compare: difference from the main model (same valid time)"}}
     , comboMember{this, {"Ensemble mean"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
@@ -322,7 +322,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
         comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone. 'Seasonal models': the EC46, SEAS5 and CFS30 side by side, each in the period that overlaps the main one most. 'ENS-ALL vs deterministic': the pooled chart beside the matching chart of GFS, the IFS and the AIFS (precipitation of the same period, the model's own sea level pressure, heights or temperature).");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
-        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 7)));
+        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 8)));
         comboTiles.connect([this] {
             Utility::writePref("MODEL_TILES", std::to_string(comboTiles.getIndex()));
             applyTileLayout();
@@ -2359,6 +2359,15 @@ void ModelViewer::hoverAt(double fx, double fy) {
     }
 }
 
+void ModelViewer::setTileModel(int index, const string& model, const string& run) {
+    if (index >= 1 && index <= tileCount()) {
+        tileSpecs[static_cast<size_t>(index) - 1].model = model;
+        tileSpecs[static_cast<size_t>(index) - 1].run = run;
+        tileSpecs[static_cast<size_t>(index) - 1].picked = true;
+        renderTile(index);
+    }
+}
+
 void ModelViewer::setTileRun(int index, const string& run) {
     if (index >= 1 && index <= tileCount()) {
         tileSpecs[static_cast<size_t>(index) - 1].run = run;
@@ -2504,7 +2513,7 @@ string ModelViewer::seasonalPartner(const string& param, const string& model) {
 
 ModelViewer::TilesShow ModelViewer::tilesShow() const {
     const auto i = comboTilesShow.getIndex();
-    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : i == 4 ? TilesShow::ModelsByTime : i == 5 ? TilesShow::Parts : i == 6 ? TilesShow::Deterministic : i == 7 ? TilesShow::Seasonal : TilesShow::Charts;
+    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : i == 4 ? TilesShow::ModelsByTime : i == 5 ? TilesShow::Parts : i == 6 ? TilesShow::Deterministic : i == 7 ? TilesShow::Seasonal : i == 8 ? TilesShow::Difference : TilesShow::Charts;
 }
 
 void ModelViewer::applyTileLayout() {
@@ -2555,7 +2564,7 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
                 others.push_back(name);
             }
         }
-    } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
+    } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime || show == TilesShow::Difference) {
         for (const auto& id : {"GFS", "IFS", "AIFS"}) {   // the global models first, so that a regional model (the RRFS) is set beside the GFS and the IFS, not the first regional models of the registry
             if (id != objectModel.model && GfsRender::handles(id, objectModel.param)) {
                 others.push_back(id);
@@ -2574,7 +2583,7 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
         Spec spec{objectModel.model, objectModel.param, objectModel.sector, 0};
         if (show == TilesShow::Charts) {
             spec.param = k < others.size() ? others[k] : objectModel.param;
-        } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
+        } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime || show == TilesShow::Difference) {
             spec.model = k < others.size() ? others[k] : string{};
         } else if (show == TilesShow::Members) {
             spec.member.clear();   // the next members after the first tile's (tileMember)
@@ -2741,14 +2750,14 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             } else {
                 job.cycle = t.toString("yyyyMMddHH").toStdString();
             }
-        } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
+        } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime || show == TilesShow::Difference) {
             job.cycle = !spec.run.empty() ? spec.run : spec.model == objectModel.model ? objectModel.run : string{};   // the run chosen with the tile's button; else the main chart's run (the same model) or the newest
         }
         if (job.ok && !GfsRender::handles(job.model, job.param)) {
             job.ok = false;
             job.why = job.model + " does not draw " + job.param + ".";
         }
-        if (job.ok && index > 0 && show != TilesShow::Seasonal && show != TilesShow::ModelsByTime) {   // a model with no forecast for that hour: say which hours it has (the run that is too short, the model that stops earlier, the hour between its steps)
+        if (job.ok && index > 0 && show != TilesShow::Seasonal && show != TilesShow::ModelsByTime && show != TilesShow::Difference) {   // a model with no forecast for that hour: say which hours it has (the run that is too short, the model that stops earlier, the hour between its steps)
             const auto * def = GfsModels::find(job.model);
             if (def != nullptr && !def->hours.empty()) {
                 int last = 0;
@@ -2816,19 +2825,26 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             v.member = member;
             v.standardDeviations = standardDeviations;
         }
-        if (show == TilesShow::ModelsByTime && job.ok) {   // by the clock: each model's own hour for the first tile's valid time
+        if ((show == TilesShow::ModelsByTime || show == TilesShow::Difference) && job.ok) {   // by the clock: each model's own hour for the first tile's valid time
             const auto start = runTime(objectModel.run);
             if (!start.isValid()) {
                 job.ok = false;
                 job.why = "The date of the run is not known yet.";
             } else {
                 v.validTime = start.addSecs(3600LL * mainHour).toString("yyyyMMddHH").toStdString();
+                if (show == TilesShow::Difference) {   // this tile's chart minus the main one's
+                    v.kind = GfsRender::Variant::Kind::Difference;
+                    v.otherModel = objectModel.model;
+                    v.otherRun = start.toString("yyyyMMddHH").toStdString();   // the main chart's own run (it may be an old one), not the newest of its model
+                }
             }
         }
         job.variant = v;
         string vk;
         if (v.kind == GfsRender::Variant::Kind::Change) {
             vk = "|change" + std::to_string(v.hoursBack);
+        } else if (v.kind == GfsRender::Variant::Kind::Difference) {
+            vk = "|diff" + v.otherModel + v.otherRun;
         } else if (v.kind == GfsRender::Variant::Kind::Max && !v.hours.empty()) {
             vk = "|max" + std::to_string(v.hours.front()) + "-" + std::to_string(v.hours.back());
         }
@@ -2867,7 +2883,7 @@ string ModelViewer::caption(const Job& job) const {
         run = job.cycle.empty() ? string{"newest run"} : job.cycle;
     }
     return (job.variant.poolOnly.empty() ? job.model : (job.variant.poolOnly == "IFS-ENS" ? string{"ECMWF"} : job.variant.poolOnly) + " only") + "   " + (product ? product->label : job.param) + "   " + run + (job.variant.member.empty() ? string{} : "   " + memberLabel(job.variant.member)) +
-        (job.variant.kind == GfsRender::Variant::Kind::Change ? "   (change)" : "");
+        (job.variant.kind == GfsRender::Variant::Kind::Change ? "   (change)" : job.variant.kind == GfsRender::Variant::Kind::Difference ? "   (minus " + job.variant.otherModel + ")" : "");
 }
 
 void ModelViewer::renderTiles() {
@@ -2960,7 +2976,7 @@ void ModelViewer::changeTile(int index) {
         return;
     }
     QMenu menu;
-    if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
+    if (show == TilesShow::Models || show == TilesShow::ModelsByTime || show == TilesShow::Difference) {
         // two lists: the deterministic models and the ensembles (an ensemble's chart is its mean or its spread: not read the same way)
         for (const bool ensembles : {false, true}) {
             bool headed = false;
