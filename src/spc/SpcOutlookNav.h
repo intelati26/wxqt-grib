@@ -13,7 +13,7 @@
 #include "ui/Window.h"
 
 // A "go to" list for the SPC's outlook screens, so each is a stop on the way to the others instead of a dead end: the convective summary and days 1-3 and 4-8, the fire weather
-// summary and days, the thunderstorm outlooks and the state graphics. Choosing one opens it in place of the screen it was chosen in. Put combo() in the screen's layout.
+// summary and days, the thunderstorm outlooks and the state graphics. Choosing one opens it in a window of its own and leaves this one where it is. Put combo() in the screen's layout.
 class SpcOutlookNav {
 public:
     enum Kind { SevereSummary, SevereDay, FireSummary, FireDay, Thunderstorm, State };

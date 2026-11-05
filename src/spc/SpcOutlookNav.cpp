@@ -5,7 +5,6 @@
 
 #include "SpcOutlookNav.h"
 #include <algorithm>
-#include <QTimer>
 #include "spc/SpcFireSummary.h"
 #include "spc/SpcFireWeatherOutlook.h"
 #include "spc/SpcSwoDay1.h"
@@ -66,5 +65,7 @@ void SpcOutlookNav::choose() {
         case Thunderstorm: new SpcTstormOutlooks{parent}; break;
         case State: new SpcSwoStateGraphics{parent, item.value}; break;
     }
-    QTimer::singleShot(0, window, [window] { window->close(); });   // the new screen replaces this one
+    comboBox.block();   // the list shows its prompt again: this screen stays, the choice opened beside it
+    comboBox.setIndex(0);
+    comboBox.unblock();
 }
