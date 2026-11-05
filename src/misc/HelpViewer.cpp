@@ -92,7 +92,7 @@ namespace {
             "<p>and restart the program: it appears in the Model Viewer's model picker and in Settings &gt; Model Sources, where its server is checked.</p>"
             "<p>A file says where the model's files are (<code>url</code>, with <code>{date}</code>, <code>{cycle}</code>, <code>{hour3}</code> and so on), what kind of file it is "
             "(<code>kind = grib</code> with an index, <code>whole</code> for one field per file, <code>netcdf</code>), when runs appear, the forecast hours, and which of the GFS charts it can draw "
-            "(<code>clone = true</code> with the variables and levels it has). Add <code>why</code> and <code>link</code> lines and it gets a page here like the others.</p>"
+            "(<code>clone = true</code> with the variables and levels it has). Add <code>why</code> and <code>link</code> lines and it gets a page here like the others. (The pages of the models that come with the program are Markdown files, <code>help/models/&lt;id&gt;.md</code> in the source.)</p>"
             "<pre>id = MYMODEL\nlabel = My regional model, 3 km\nkind = grib\nurl = https://example.org/{date}/{cycle}/m.t{cycle}z.f{hour3}.grib2\n"
             "cycle_hours = 6\nlag_hours = 4\nhours = 0-48/1\nclone = true\nclone_variables = HGT, TMP, UGRD, VGRD, PRMSL\n"
             "why = What it adds and when to trust it.\nlink = source | The data's page | https://example.org/data</pre>"
