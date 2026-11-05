@@ -90,9 +90,11 @@ namespace {
         out.lat0 = info.captured(2).toDouble() - out.step / 2.0;
         out.values.resize(static_cast<size_t>(out.columns) * static_cast<size_t>(out.rows));
         std::memcpy(out.values.data(), data.constData(), static_cast<size_t>(data.size()));
-        for (auto& v : out.values) {   // no data, and "no echo" (-99, -999): nothing to compare
-            if (v <= -50.0f) {
+        for (auto& v : out.values) {   // no data (-999, made -9999 by the warp): nothing to compare; "no echo" (-99): 0 dBZ, which is what a model's empty sky is
+            if (v < -9000.0f) {
                 v = std::nanf("");
+            } else if (v <= -50.0f) {
+                v = 0.0f;
             }
         }
         return true;

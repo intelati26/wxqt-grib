@@ -548,7 +548,7 @@ namespace {
 bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const Want& want, GfsGrid::Grid& out, std::string& error) const {
     const std::string variable = source.variableOf ? source.variableOf(want) : want.variable;   // what a NetCDF file calls the field
     const int timeBand = source.ncBand ? source.ncBand(run, hour, want) : 0;
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom || source.om.enabled || source.wrf.enabled) ? variable : std::string{}) + ((source.om.enabled || source.wrf.enabled) ? "_" + want.variable : std::string{}) + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom || source.om.enabled || source.wrf.enabled) ? variable : std::string{}) + ((source.om.enabled || source.wrf.enabled) ? "_" + want.variable : std::string{}) + (source.id == "MRMS" ? "_v2" : "") + (source.wrf.enabled ? "_w2" : "") + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
         name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
@@ -659,6 +659,11 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
             for (int b = 0; b < nb; b++) {
                 for (size_t k = 0; k < cells; k++) {
                     field[k] = std::max(field[k], all[static_cast<size_t>(b) * cells + k]);
+                }
+            }
+            if (variable.find("REFL") != std::string::npos) {   // a reflectivity below 0 dBZ is clear air: the models' (WRF has -30 and less) and the radar's "no echo" are then the same 0
+                for (auto& v : field) {
+                    v = std::max(v, 0.0f);
                 }
             }
         } else {   // one variable, or the sum of some (the rain: RAINNC+RAINC)
