@@ -90,7 +90,8 @@ public:
         // first file's. The files are NetCDF; the variable is the want's `variableOf` (WRF's names: T2, PSFC, U10 ...), read with gdal and put on a latitude / longitude grid from XLAT / XLONG (WrfGrid).
         struct Wrf {
             bool enabled{false};
-            std::vector<std::string> folders;
+            std::vector<std::string> folders;          // the folders in use (the user's setting, or the definition's)
+            std::vector<std::string> defaultFolders;   // the definition's own
         } wrf;
         // A `wholeFile` source whose url is a tar of one file an hour (NSSL's MPAS runs): the member of the tar for a run and hour (its file name; ".gz" is gunzipped). The hour's GRIB2 is kept in
         // the cache and a field is the band of it that has the NOAA name (a GRIB2 file with no index of its own). The tar is read by range (TarReader).
@@ -113,6 +114,13 @@ public:
     // a Source with `custom` is read by the function registered for its id (the SPC REFS Zarr store, spcrefs/SpcRefsLoader.cpp).
     using Loader = std::function<bool(const Run&, int forecastHour, const Want&, GfsGrid::Grid&, std::string& error)>;
     static void setLoader(const std::string& sourceId, Loader loader);
+    // The runs of a `wrf` source's folders (Settings shows what was found): each run's id ("yyyyMMddHH"), its number of hourly files and the folder it is in, oldest first.
+    struct WrfRunInfo {
+        std::string id;
+        int files{0};
+        std::string folder;
+    };
+    static std::vector<WrfRunInfo> wrfRunsIn(const std::vector<std::string>& folders);
 
     // a field at a forecast hour (a precipitation period needs the running total at two hours)
     struct Need {

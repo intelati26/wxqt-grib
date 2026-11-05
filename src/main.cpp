@@ -90,6 +90,7 @@
 #include "mapkit/UpperAirLayer.h"
 #include "dashboard/Dashboards.h"
 #include "models/CamsViewer.h"
+#include "settings/SettingsMain.h"
 #include "models/ModelScreen.h"
 #include "tropical/CiraStorm.h"
 #include "models/ModelViewer.h"
@@ -1110,6 +1111,8 @@ int main(int argc, char * argv[]) {
                 new CiraStorm{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2).toStdString()};
             } else if (route == "tornadoyears") {   // WXQT_OPEN=tornadoyears: the tornado years ranked
                 new TornadoYearsViewer{&w, TornadoData::load(), 0, std::string{}};
+            } else if (route == "settings") {   // WXQT_OPEN=settings [WXQT_TAB=<n>]: the settings window (without the locations and the order tabs)
+                new SettingsMain{&w, [] {}, false, false, nullptr};
             } else if (route == "cams") {   // WXQT_OPEN=cams: the NSSL CAMs pictures screen (MPAS, WRF, HRRR, RRFS)
                 new CamsViewer{&w};
             } else if (route.startsWith("spcscreen:")) {   // WXQT_OPEN=spcscreen:<summary|day:N|fire|firesummary|tstorm|reports|meso|compare|compmap>: that SPC screen (with its go-to list)

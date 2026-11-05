@@ -85,6 +85,7 @@ namespace {
         QDateTime init;                    // the first file's time
         std::map<int, QString> files;      // forecast hour -> file
         qint64 modified{0};
+        QString folder;
     };
 
     void wrfExpand(const QString& base, const QStringList& parts, int at, QStringList& out) {
@@ -131,6 +132,7 @@ namespace {
             wrfExpand(QString{}, text.split('/'), 0, folders);
             for (const auto& folder : folders) {
                 WrfRunFiles run;
+                run.folder = folder;
                 for (const auto& info : QDir{folder}.entryInfoList(QStringList{"wrfout_d01_*"}, QDir::Files, QDir::Name)) {
                     const auto m = stamp.match(info.fileName());
                     if (!m.hasMatch() || info.size() < 1000) {
@@ -215,6 +217,15 @@ namespace {
         }
         return true;
     }
+}
+
+std::vector<GfsData::WrfRunInfo> GfsData::wrfRunsIn(const std::vector<std::string>& folders) {
+    std::vector<WrfRunInfo> out;
+    for (const auto& r : wrfRuns(folders)) {
+        out.push_back({r.init.toString("yyyyMMddHH").toStdString(), static_cast<int>(r.files.size()), r.folder.toStdString()});
+    }
+    std::sort(out.begin(), out.end(), [] (const WrfRunInfo& a, const WrfRunInfo& b) { return a.id < b.id; });
+    return out;
 }
 
 bool GfsData::latestRun(Run& run) const {

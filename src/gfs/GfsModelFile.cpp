@@ -566,6 +566,7 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             for (const auto& folder : split(value, ';')) {
                 if (!folder.empty()) {
                     source.wrf.folders.push_back(folder);
+                    source.wrf.defaultFolders.push_back(folder);
                 }
             }
             if (source.wrf.folders.empty()) {
