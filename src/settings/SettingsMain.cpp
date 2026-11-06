@@ -49,6 +49,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
         tabWidget.addTab(settingsToolbarOrderBox.get(), "Toolbar Order");
         tabWidget.addTab(settingsHomeScreenOrderBox.get(), "Home Screen Order");
     }
+    sourcesIndex = 3 + (showLocationItems ? 2 : 0) + (toolbar ? 2 : 0);   // (after General, Map and Colors, and the tabs of the locations and of the orders)
     tabWidget.addTab(settingsSourcesBox.get(), "Model Sources");
     tabWidget.addTab(settingsLocalRunsBox.get(), "Local Runs");
     tabWidget.addTab(settingsAccountsBox.get(), "Accounts");
@@ -85,6 +86,10 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
 
 // The tab widget is deleted after this object (Qt deletes a window's children last); removing its tabs then emits
 // currentChanged, whose handler uses members that are already gone. Silence it first.
+void SettingsMain::showModelSources() {
+    tabWidget.setIndex(sourcesIndex);
+}
+
 SettingsMain::~SettingsMain() {
     tabWidget.getView()->blockSignals(true);
 }

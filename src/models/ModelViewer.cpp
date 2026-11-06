@@ -49,6 +49,7 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include "models/PaletteEditor.h"
+#include "settings/SettingsMain.h"
 #include "settings/UIPreferences.h"
 #include "models/PaletteStore.h"
 #include "models/RefsPointGraph.h"
@@ -1056,11 +1057,30 @@ void ModelViewer::showNotice(const string& text) {
     mainNotice->move(std::max(0, (image.width() - mainNotice->width()) / 2), std::max(0, (image.height() - mainNotice->height()) / 3));
     mainNotice->show();
     mainNotice->raise();
+    // a model with no run: the one button is the status page, where each model's server and what it answers are
+    if (text.find(" run on its server.") != string::npos) {
+        if (mainNoticeButton == nullptr) {
+            mainNoticeButton = new QPushButton{"Open the model sources status", &image};
+            connect(mainNoticeButton, &QPushButton::clicked, this, [this] {
+                auto * settings = new SettingsMain{this, [] {}, false, false, nullptr};
+                settings->showModelSources();
+            });
+        }
+        mainNoticeButton->adjustSize();
+        mainNoticeButton->move(std::max(0, (image.width() - mainNoticeButton->width()) / 2), mainNotice->y() + mainNotice->height() + 8);
+        mainNoticeButton->show();
+        mainNoticeButton->raise();
+    } else if (mainNoticeButton != nullptr) {
+        mainNoticeButton->hide();
+    }
 }
 
 void ModelViewer::hideNotice() {
     if (mainNotice != nullptr) {
         mainNotice->hide();
+    }
+    if (mainNoticeButton != nullptr) {
+        mainNoticeButton->hide();
     }
 }
 

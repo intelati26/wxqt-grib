@@ -49,6 +49,7 @@ class HodographGlyph;
 class QDateTimeEdit;
 class CfsPlumePanel;
 class QSplitter;
+class QPushButton;
 class ModelViewer : public Window {
 public:
     ModelViewer(Window *, const string&);
@@ -145,6 +146,7 @@ private:
     QGridLayout * grid{};
     QFrame * mainTile{};
     QLabel * mainCaption{};
+    QPushButton * mainNoticeButton{};   // under the card when a model has no run: opens the Model Sources status
     QLabel * mainNotice{};   // over the picture: why the chart could not be drawn
     void showNotice(const string& text);
     void hideNotice();

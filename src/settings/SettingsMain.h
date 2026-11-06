@@ -37,11 +37,13 @@ class SettingsMain : public Window {
 public:
     SettingsMain(Window *, const function<void()>&, bool, bool, Toolbar * = nullptr);
     ~SettingsMain() override;
+    void showModelSources();   // opens on the Model Sources tab (what each model's server answers)
 
 private:
     static string getSettings();
     void closeEventCustom() override;
     function<void()> reloadFn;
+    int sourcesIndex{0};
     VBox box;
     ScrolledWindow sw;
     TabWidget tabWidget;
