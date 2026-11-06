@@ -847,7 +847,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     GfsData::Run run;
     const bool exact = cycle.size() == 10 && std::all_of(cycle.begin(), cycle.end(), [] (char c) { return std::isdigit(static_cast<unsigned char>(c)); });   // yyyyMMddHH: that very run
     if (!exact && !newestRun(gfs, run, stormId)) {   // (an archive that stops years ago has no newest run: the run asked for is read as it is)
-        error = "could not find a " + model + " run on NOAA's open data." + alternateHint(model);
+        error = "could not find a " + model + " run on its server." + alternateHint(model);
         return {};
     }
     if (exact) {

@@ -95,6 +95,7 @@ on_missing = main_run
 # the GEFS: the mean ("avg"), spread ("spr") and members (c00, p01 ... p30) are files of their own, in three sets: the 0.5 degree "a" set, the 0.25 degree surface set "s" (gusts, dew point, visibility,
 # helicity, surface-based CAPE and CIN) and the second 0.5 degree set "b" (the most unstable parcel's CAPE). A file here is "<avg|spr|member>-<a|s|b>"; the name is "ge" and its first three letters.
 id = GEFS
+alternate = IFS-ENS | ECMWF's ensemble, from ECMWF's server (a different model, not the same forecast)
 label = NOAA/NCEP GEFS 30 member ensemble, 0.5 degree
 source_label = NOAA/NCEP GEFS mean and spread, 0.5 degree
 kind = grib
@@ -363,6 +364,7 @@ list = true
         {"SPCREFS", R"MODEL(
 # SPC's REFS ensemble products, an open Zarr store a cycle: read by the program's own reader (the loader registered for this id), not by a download; the file is the store's own path
 id = SPCREFS
+alternate = REFS | the same ensemble from NOAA's AWS bucket (members and products)
 label = SPC REFS ensemble products (open Zarr data)
 kind = custom
 url = https://www.spc.noaa.gov/exper/refs/data/{year}/{month}/{day}/refs-spc_{date}_{cycle}00.zarr{/file}
@@ -381,6 +383,7 @@ list = true
         {"AIGFS", R"MODEL(
 # NOAA's AI global model (GraphCast based): the pressure levels and the surface are files of their own
 id = AIGFS
+alternate = AIFS | ECMWF's AI global model, from ECMWF's server (a different model)
 label = NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)
 source_label = NOAA/NCEP AIGFS 0.25 degree (an AI model)
 kind = grib
@@ -408,6 +411,7 @@ clone_specific_humidity = true
 # pressure levels (350 MB) and the surface fields (80-100 MB), each with its index (so only the records of a chart are read), posted about 2 hours after the 0.25 degree files. The 00Z and 12Z
 # runs go to 360 hours, the 06Z and 18Z to 144. The runs before it are read from the 0.25 degree file.
 id = IFS
+alternate = GFS | NOAA's global model, from NOAA's AWS bucket (a different model)
 label = ECMWF IFS 0.1 degree (0.25 degree for runs before 20 Oct 2026; open data, CC BY 4.0)
 kind = grib
 url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p1/oper/{date}{cycle}0000-{hour}h-oper-fc-{file}.grib2
@@ -437,6 +441,7 @@ clone_skip = precip_p01
         {"IFS-ENS", R"MODEL(
 # ECMWF's ensemble (ENS): 50 members of the physical model, each a message of the step's file (4 GB a step, read by its JSON index); a member is chosen by its number (`stat` e01 ... e50)
 id = IFS-ENS
+alternate = GEFS | NOAA's ensemble, from NOAA's AWS bucket (a different model)
 label = ECMWF IFS ensemble (ENS), 50 members, 0.25 degree (open data, CC BY 4.0)
 kind = grib
 url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/enfo/{date}{cycle}0000-{hour}h-enfo-ef.grib2
@@ -475,6 +480,7 @@ list = true
         {"AIFS", R"MODEL(
 # ECMWF's open data (CC BY 4.0), replicated on Google's storage: a JSON index beside each file
 id = AIFS
+alternate = AIGFS | NOAA's AI global model, from NOAA's AWS bucket (a different model)
 label = ECMWF AIFS 0.25 degree (an AI model; open data, CC BY 4.0)
 kind = grib
 url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/aifs-single/0p25/oper/{date}{cycle}0000-{hour}h-oper-fc.grib2
@@ -501,6 +507,7 @@ clone_skip = precip_p01, precip_p03, 1000_500_thick, 1000_850_thick, 850_700_thi
 # Canada's High Resolution Deterministic Prediction System: 2.5 km over Canada and the northern United States (a rotated latitude / longitude grid, put on a regular 0.05 degree one), every
 # 6 hours to 48 hours, from Environment and Climate Change Canada's Datamart. A file for each field and hour (3 to 4 MB); only the last day or two are kept there.
 id = HRDPS
+alternate = RRFS-NA | NOAA's 3 km North America model, from NOAA's AWS bucket (a different model)
 label = ECCC HRDPS 2.5 km (Canada)
 kind = whole
 url = https://dd.weather.gc.ca/{date}/WXO-DD/model_hrdps/continental/2.5km/{cycle}/{hour3}/{date}T{cycle}Z_MSC_HRDPS_{file}_RLatLon0.0225_PT{hour3}H.grib2
@@ -911,6 +918,7 @@ clone_pieces = false
 # Environment Canada's Global Deterministic Prediction System: 15 km, a run at 00 and 12Z, to 10 days, as Open-Meteo keeps it (open-meteo/om-file-format). The surface fields and the pressure levels are
 # in two folders (the pressure levels every 3 hours, which is the step used here) and the winds are given as speed and direction.
 id = GDPS
+alternate = GFS | NOAA's global model, from NOAA's AWS bucket (a different model)
 group = Global
 label = CMC GDPS global 15 km (via Open-Meteo)
 source_label = CMC GDPS global 15 km, data by Open-Meteo.com
@@ -952,6 +960,7 @@ clone_pieces = false
 # Meteo-France's global wave model (MFWAM) on a regular 1/12 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format): the significant height, period and direction of all the waves, of the wind sea, of the main
 # swell and of the second swell. 3 hourly to 10 days, a run at 00 and 12Z. A file is about 26 MB of the whole globe, of which a chart reads the fields it needs by byte ranges.
 id = MF-WAVE
+alternate = GFS-WAVE | NOAA's global wave model, from NOAA's AWS bucket (a different model)
 group = Waves and ocean
 label = Meteo-France MFWAM global waves 1/12 degree (via Open-Meteo)
 source_label = Meteo-France MFWAM waves, data by Open-Meteo.com
@@ -1216,6 +1225,7 @@ clone_pieces = false
         {"GEPS", R"MODEL(
 # Canada's ensemble: one file per field and hour, the 21 members as its messages
 id = GEPS
+alternate = GEFS | NOAA's ensemble, from NOAA's AWS bucket (a different model)
 label = ECCC GEPS 21 member ensemble, 0.5 degree
 kind = whole
 url = https://dd.weather.gc.ca/{date}/WXO-DD/ensemble/geps/grib2/raw/{cycle}/{hour3}/CMC_geps-raw_{file}_latlon0p5x0p5_{date}{cycle}_P{hour3}_allmbrs.grib2
@@ -1341,6 +1351,7 @@ clone_rename = PRMSL:MSLET
 # The RRFS for North America (the same open data bucket and runs as the contiguous United States one): 13 km, every hour, to 84 hours, from the 00, 06, 12 and 18Z runs only (the other hours' runs have no North America files). The 2D fields and the pressure levels
 # are files of their own; the grid is put on a regular 0.1 degree one.
 id = RRFS-NA
+alternate = HRDPS | Canada's 2.5 km model, which covers the northern United States, from Environment Canada's server (a different model)
 label = NOAA/NCEP RRFS North America, 13 km
 kind = grib
 url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.na.grib2
@@ -1549,6 +1560,7 @@ clone_pieces = false
         {"HRRR", R"MODEL(
 # the 3 km High-Resolution Rapid Refresh on AWS (NOAA's open data bucket, kept from mid 2014): the 2D fields (sfc) and the pressure levels (prs) are files of their own
 id = HRRR
+alternate = SPCREFS | an ensemble that holds time-lagged HRRR members, from the Storm Prediction Center's server (ensemble products)
 label = NOAA/NCEP HRRR 3 km
 kind = grib
 url = https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.{date}/conus/hrrr.t{cycle}z.wrf{file}f{hour2}.grib2
@@ -1862,6 +1874,7 @@ clone_rename = PRMSL:MSLMA
         {"HREF", R"MODEL(
 # the High-Resolution Ensemble Forecast on NOMADS: its own ready-made products (mean, pmmn, lpmm, avrg, sprd, prob, eas, ffri)
 id = HREF
+alternate = REFS | its successor, the RRFS ensemble, from NOAA's AWS bucket
 label = NOAA/NCEP HREF, 10 member 3 km ensemble, retired Nov 2026
 group = Archive
 kind = grib
@@ -1947,6 +1960,7 @@ hours = 0-0/1
         {"RRFSD", R"MODEL(
 # the same fields computed from the RRFS forecasts, a NetCDF file for each hour of each run
 id = RRFSD
+alternate = RRFS | the same RRFS, from NOAA's AWS bucket
 label = SPC severe weather fields from the RRFS (RRFSD)
 source_label = SPC severe weather fields from the RRFS
 include = spc_post
@@ -1963,6 +1977,7 @@ run_length = every 6 : 84 , else : 18
         {"GFS-WAVE", R"MODEL(
 # GFS-Wave: the global 0.16 degree sea state, one file for each hour
 id = GFS-WAVE
+alternate = MF-WAVE | Meteo-France's global wave model, via Open-Meteo (a different model)
 label = NOAA/NCEP GFS-Wave 0.16 degree
 kind = grib
 url = https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{date}/{cycle}/wave/gridded/gfswave.t{cycle}z.global.0p16.f{hour3}.grib2
@@ -1976,6 +1991,7 @@ list = true
         {"GEFS-WAVE", R"MODEL(
 # GEFS-Wave: the control member's sea state, 0.25 degree
 id = GEFS-WAVE
+alternate = MF-WAVE | Meteo-France's global wave model, via Open-Meteo (a different model)
 label = NOAA/NCEP GEFS-Wave, control member, 0.25 degree
 kind = grib
 url = https://noaa-gefs-pds.s3.amazonaws.com/gefs.{date}/{cycle}/wave/gridded/gefs.wave.t{cycle}z.c00.global.0p25.f{hour3}.grib2
