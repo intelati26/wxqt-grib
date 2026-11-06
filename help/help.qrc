@@ -38,6 +38,8 @@
     <file alias="models/IFS.md">models/IFS.md</file>
     <file alias="models/IFS-ENS.md">models/IFS-ENS.md</file>
     <file alias="models/MSM.md">models/MSM.md</file>
+    <file alias="models/MSM-UL.md">models/MSM-UL.md</file>
+    <file alias="models/MF-SST.md">models/MF-SST.md</file>
     <file alias="models/NAM-ANL.md">models/NAM-ANL.md</file>
     <file alias="models/NARR.md">models/NARR.md</file>
     <file alias="models/NBM.md">models/NBM.md</file>

@@ -946,6 +946,30 @@ clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"MF-SST", R"MODEL(
+# Meteo-France's global sea surface temperature analysis and forecast (the ocean model of Meteo-France's wave and current system, on a regular 1/12 degree grid), as Open-Meteo keeps it (open-meteo/om-file-format).
+# One run a day, 6 hourly: the last day's analysis then the forecast to 10 days.
+id = MF-SST
+group = Ocean
+label = Meteo-France sea surface temperature 1/12 degree (via Open-Meteo)
+source_label = Meteo-France sea surface temperature, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_sea_surface_temperature/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=WTMP level="surface" => sea_surface_temperature
+probe_hour = 0
+cycle_hours = 24
+lag_hours = 13
+cycles_to_try = 3
+max_parallel = 3
+hours = 0-240/6
+run_length = 0:240, else:240
+run_every = 24
+sectors = world
+overlays = true
+list = true
+clone = false
+)MODEL"},
         {"MSM", R"MODEL(
 # The Japan Meteorological Agency's Meso-Scale Model: 5 km over Japan and the seas round it, a run every 3 hours, hourly to 39 hours (to 78 at 00 and 12Z), as Open-Meteo keeps it (open-meteo/om-file-format). Surface fields only.
 id = MSM
@@ -976,6 +1000,38 @@ list = true
 clone = true
 clone_variables = TMP, RH, UGRD, VGRD, PRMSL, TCDC
 clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"MSM-UL", R"MODEL(
+# The upper-air fields of the JMA Meso-Scale Model (the surface fields are the model "MSM"): 5 km over Japan and the seas round it on 16 pressure levels, a run every 3 hours, 3 hourly to 39 hours, as Open-Meteo
+# keeps it (open-meteo/om-file-format).
+id = MSM-UL
+group = Regional
+label = JMA MSM 5 km Japan, pressure levels (via Open-Meteo)
+source_label = JMA MSM 5 km upper air, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/jma_msm_upper_level/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 4
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-39/3
+run_length = 0:39, else:39
+run_every = 3
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD
+clone_levels = 1000 mb, 975 mb, 950 mb, 925 mb, 900 mb, 850 mb, 800 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
