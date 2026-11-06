@@ -1591,7 +1591,7 @@ void DroughtViewer::loadDaily() {
                 days.push_back({p.date, p.departure * unit});
             }
             const QString what = smooth == 1 ? "daily" : QString::number(smooth) + "-day mean of";
-            dailyChart->setDays(days, QString::fromStdString(name) + ": " + what + " average " + (maximum ? "maximum" : "minimum") + " temperature, departure from the 1991-2020 normal", fahrenheit ? "\xC2\xB0F" : "\xC2\xB0C");
+            dailyChart->setDays(days, QString::fromStdString(name) + ": " + what + " average " + (maximum ? "maximum" : "minimum") + " temperature, departure from the 1991-2020 normal", fahrenheit ? "\xC2\xB0" "F" : "\xC2\xB0" "C");
             textDaily.setText(string{"NOAA nClimGrid-Daily area averages (NCEI); the normal of each day is the mean of that day over 1991-2020. The last day is the one before today, "
                                      "as far as the files have it."});
         }, Qt::QueuedConnection);
