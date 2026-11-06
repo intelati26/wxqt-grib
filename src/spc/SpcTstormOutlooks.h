@@ -8,6 +8,8 @@
 #define SPCTSTORMOUTLOOKS_H
 
 #include <vector>
+#include <QLabel>
+#include "ui/VBox.h"
 #include "ui/HBox.h"
 #include "ui/VBox.h"
 #include "ui/Image.h"
@@ -21,8 +23,9 @@ public:
 
 private:
     void resizeEventCustom() override;
-    HBox box;
+    VBox box;
     vector<Image> images;
+    vector<QLabel *> headers;   // above each picture: its period and the highest probability in it, on the colour the outlook gives that probability
 };
 
 #endif  // SPCTSTORMOUTLOOKS_H

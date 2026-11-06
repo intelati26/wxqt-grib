@@ -16,6 +16,13 @@ using std::vector;
 class UtilitySpc {
 public:
     static vector<string> getTstormOutlookUrls();
+    // the highest probability of a thunderstorm outlook's period, from its KML (the picture's address with .kml): percent 0 when no area is outlined
+    struct TstormPeriod {
+        int percent{0};
+        string color;   // "#c5a392": the colour the outlook fills that probability with
+        string valid;   // "06/20Z-07/00Z"
+    };
+    static TstormPeriod parseTstormKml(const string&);
 };
 
 #endif  // UTILITYSPC_H
