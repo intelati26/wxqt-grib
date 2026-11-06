@@ -12,6 +12,16 @@ for driver in GRIB GTiff PNG XYZ ENVI VRT MEM GeoJSON netCDF; do
     echo "$formats" | grep -Eq "^ *$driver\b" || { echo "GDAL driver $driver missing"; exit 1; }
 done
 
+# which GDAL was bundled, in the log and the run summary; and a stop at a new major version: wxqt is built and tried on one major version at a time,
+# so a jump (vcpkg moving to GDAL 4) fails here until it has been looked at by eye and expected_major is changed
+expected_major=3
+version="$(gdalinfo --version)"
+echo "Bundled GDAL: $version"
+echo "Bundled GDAL (Linux): $version" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+major="$(echo "$version" | sed -n 's/^GDAL \([0-9][0-9]*\)\..*/\1/p')"
+[ -n "$major" ] || { echo "cannot read the GDAL version from: $version"; exit 1; }
+[ "$major" = "$expected_major" ] || { echo "GDAL major version is $major, wxqt is built and tried on $expected_major.x: look at the release notes, then change expected_major in this script"; exit 1; }
+
 python3 - "$t/f.asc" <<'PY'
 import math, sys
 rows = [" ".join(str(50 + 30 * math.sin(i / 13) * math.cos(j / 9)) for i in range(90)) for j in range(60)]
