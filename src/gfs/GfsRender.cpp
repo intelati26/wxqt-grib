@@ -271,6 +271,24 @@ bool GfsRender::firstHourMissing(Session& session, const std::string& model, con
     return true;
 }
 
+namespace {
+    // the fields of a chart at a subhourly time: every record asked for is the one of that minute of the lead ("195 min fcst"; the accumulations from the start "0-195 min acc fcst"); the windows
+    // of an hour or more (the hour's maximum, a 3 hour amount) are not in those files and are left as they are
+    std::vector<GfsData::Need> subhourlyNeeds(std::vector<GfsData::Need> needs, int minutes) {
+        const std::string at = std::to_string(minutes);
+        for (auto& need : needs) {
+            auto& f = need.want.forecast;
+            const bool hourly = f.size() > 10 && f.compare(f.size() - 10, 10, " hour fcst") == 0 && f.find('-') == std::string::npos;
+            if (f.empty() || hourly) {
+                f = at + " min fcst";
+            } else if (f.compare(0, 2, "0-") == 0 && f.size() > 14 && f.compare(f.size() - 14, 14, " hour acc fcst") == 0) {
+                f = "0-" + at + " min acc fcst";
+            }
+        }
+        return needs;
+    }
+}
+
 std::vector<int> GfsRender::availableHours(Session& session, const std::string& model, const std::string& param, const std::string& runId, const std::vector<int>& hours, const std::string& storm) {
     const auto * def = GfsModels::find(model);
     const auto * product = GfsChart::product(param, model);
@@ -312,6 +330,45 @@ std::vector<int> GfsRender::availableHours(Session& session, const std::string& 
         }
     }
     return out;   // (empty: nothing could be told, a lost connection or a run not there: the screen keeps the model's hours)
+}
+
+std::vector<int> GfsRender::availableMinutes(Session& session, const std::string& model, const std::string& param, const std::string& runId, const std::vector<int>& minutes) {
+    const auto * def = GfsModels::find(model);
+    const auto * product = GfsChart::product(param, model);
+    if (def == nullptr || product == nullptr || runId.size() != 10 || minutes.empty()) {
+        return {};
+    }
+    const auto gfs = data(session.folder(), model, "");
+    const GfsData::Run run{runId.substr(0, 8), runId.substr(8, 2)};
+    std::vector<char> there(minutes.size(), 0);
+    std::atomic<size_t> next{0};
+    const auto work = [&] {
+        for (size_t i = next++; i < minutes.size(); i = next++) {
+            const int hour = (minutes[i] + 59) / 60;
+            std::string detail;
+            bool ok = gfs.check(run, subhourlyNeeds(GfsChart::needs(*product, hour), minutes[i]), detail);
+            if (!ok) {
+                if (const auto pieces = GfsChart::fallbackNeeds(*product, hour); !pieces.empty()) {
+                    ok = gfs.check(run, subhourlyNeeds(pieces, minutes[i]), detail);
+                }
+            }
+            there[i] = ok ? 1 : 0;
+        }
+    };
+    std::vector<std::thread> threads;
+    for (int t = 0; t < 6; t++) {
+        threads.emplace_back(work);
+    }
+    for (auto& t : threads) {
+        t.join();
+    }
+    std::vector<int> out;
+    for (size_t i = 0; i < minutes.size(); i++) {
+        if (there[i]) {
+            out.push_back(minutes[i]);
+        }
+    }
+    return out;
 }
 
 bool GfsRender::hasFields(Session& session, const std::string& model, const std::string& param, const std::string& runId, int hour) {
@@ -916,9 +973,10 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     if (base && !variant.poolOnly.empty()) {
         composed = GfsChart::withPoolOnly(composed, variant.poolOnly);
     }
-    bool loaded = product->pool.active() ? pooledGrids(session, *product, run, hour, grids, error) : gfs.load(run, GfsChart::needs(*product, hour), grids, error);
+    const auto needsAt = [&] (std::vector<GfsData::Need> needs) { return variant.minutes > 0 ? subhourlyNeeds(std::move(needs), variant.minutes) : needs; };
+    bool loaded = product->pool.active() ? pooledGrids(session, *product, run, hour, grids, error) : gfs.load(run, needsAt(GfsChart::needs(*product, hour)), grids, error);
     if (!loaded) {   // the same run's 1 hour pieces, if the product has them (the first 36 hours)
-        const auto pieces = GfsChart::fallbackNeeds(*product, hour);
+        const auto pieces = needsAt(GfsChart::fallbackNeeds(*product, hour));
         std::string again;
         grids.clear();
         loaded = !pieces.empty() && gfs.load(run, pieces, grids, again);

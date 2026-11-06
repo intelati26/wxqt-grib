@@ -72,6 +72,7 @@
 #include "space/UtilitySun.h"
 #include "space/SunViewer.h"
 #include "models/AnalysisLoop.h"
+#include "models/SubhourlyViewer.h"
 #include "gfs/Cfs30Loader.h"
 #include "gfs/WpcPppLoader.h"
 #include "gfs/Ec46Loader.h"
@@ -301,6 +302,12 @@ int main(int argc, char * argv[]) {
                         }
                     }
                 });
+            } else if (route.startsWith("subhourly:")) {   // WXQT_OPEN=subhourly:<RRFS|HRRR>[:<run yyyyMMddHH>][:<to minutes>]: the 15 minute surface fields window, drawing 15 minutes to that lead in four panes
+                const auto parts = route.split(':');
+                auto * sub = new SubhourlyViewer{&w, parts.value(1).toStdString(), "CONUS", parts.value(2).toStdString(), {"sim_radar_comp", "2m_temp_10m_wnd", "10m_wnd_gust", "visibility"}};
+                sub->setLeads(15, parts.value(3, "120").toInt());
+                QTimer::singleShot(25000, sub, [sub] { sub->draw(); });
+                QTimer::singleShot(55000, sub, [sub] { sub->hoverAt(0.5, 0.45); });
             } else if (route.startsWith("rangeloop:")) {   // WXQT_OPEN=rangeloop:<hours back>:<charts 1-4>[:<region -AK|-HI|-PR|-GU>]: the RTMA / URMA loop window, drawing that many hours up to the newest RTMA hour
                 const auto parts = route.split(':');
                 const auto last = QDateTime::currentDateTimeUtc().addSecs(-3600);
@@ -585,7 +592,7 @@ int main(int argc, char * argv[]) {
                     std::string error;
                     QElapsedTimer timer;
                     timer.start();
-                    const auto bytes = GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), qEnvironmentVariable("WXQT_DRAW_RUN").toStdString(), spec.section(':', 2, 2).toInt(), [] { std::vector<std::string> ids; for (const auto& id : qEnvironmentVariable("WXQT_DRAW_OVERLAYS").split(',', Qt::SkipEmptyParts)) { ids.push_back(id.toStdString()); } return ids; }(), error, nullptr, [] { GfsRender::Variant v; v.standardDeviations = qEnvironmentVariableIsSet("WXQT_DRAW_SIGMA"); for (const auto& key : qEnvironmentVariable("WXQT_DRAW_HIDE").split(',', Qt::SkipEmptyParts)) { v.hideKeys.push_back(key.toStdString()); } v.scale = qEnvironmentVariableIntValue("WXQT_DRAW_WIDTH") / 1100.0; for (const auto& id : qEnvironmentVariable("WXQT_DRAW_VERSUS").split(',', Qt::SkipEmptyParts)) { v.overlayModels.push_back(id.toStdString()); } v.overlayKeepFill = qEnvironmentVariableIsSet("WXQT_DRAW_KEEPFILL"); return v; }());
+                    const auto bytes = GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), qEnvironmentVariable("WXQT_DRAW_RUN").toStdString(), spec.section(':', 2, 2).toInt(), [] { std::vector<std::string> ids; for (const auto& id : qEnvironmentVariable("WXQT_DRAW_OVERLAYS").split(',', Qt::SkipEmptyParts)) { ids.push_back(id.toStdString()); } return ids; }(), error, nullptr, [] { GfsRender::Variant v; v.standardDeviations = qEnvironmentVariableIsSet("WXQT_DRAW_SIGMA"); for (const auto& key : qEnvironmentVariable("WXQT_DRAW_HIDE").split(',', Qt::SkipEmptyParts)) { v.hideKeys.push_back(key.toStdString()); } v.scale = qEnvironmentVariableIntValue("WXQT_DRAW_WIDTH") / 1100.0; v.minutes = qEnvironmentVariableIntValue("WXQT_DRAW_MINUTES"); for (const auto& id : qEnvironmentVariable("WXQT_DRAW_VERSUS").split(',', Qt::SkipEmptyParts)) { v.overlayModels.push_back(id.toStdString()); } v.overlayKeepFill = qEnvironmentVariableIsSet("WXQT_DRAW_KEEPFILL"); return v; }());
                     if (const auto out = qEnvironmentVariable("WXQT_DRAW_PNG"); !out.isEmpty()) {   // WXQT_DRAW_PNG=<file> (WXQT_SECTOR=<area id>): the picture too
                         QFile file{out};
                         if (file.open(QIODevice::WriteOnly)) file.write(bytes);

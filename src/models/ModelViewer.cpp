@@ -6,6 +6,7 @@
 
 #include "ModelViewer.h"
 #include "models/AnalysisLoop.h"
+#include "models/SubhourlyViewer.h"
 #include "objects/AnimationRenderer.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "ui/ActivityLabel.h"
@@ -413,6 +414,14 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         });
         buttonRange->setVisible(false);
         boxH2.addWidgetReal(buttonRange);
+        buttonSubhourly = UiStandards::button(this, "15 minute fields...");
+        buttonSubhourly->setToolTip("The surface fields of this model every 15 minutes (the radar, 2 m temperature and dew point, wind and gust, visibility, precipitation rate ...), a loop of one run, one to four charts at once");
+        QObject::connect(buttonSubhourly, &QPushButton::clicked, this, [this] {
+            std::vector<string> charts{objectModel.param};
+            new SubhourlyViewer{this, objectModel.model, objectModel.sector, string{}, charts};
+        });
+        buttonSubhourly->setVisible(false);
+        boxH2.addWidgetReal(buttonSubhourly);
         buttonColors = UiStandards::button(this, "Colors...");
         buttonColors->setToolTip("Edit the color scale of this kind of chart: the stops, their colors and transparency, flat bands or smooth. Kept for every chart that uses the same scale.");
         QObject::connect(buttonColors, &QPushButton::clicked, this, [this] { editColors(); });
@@ -1846,6 +1855,9 @@ void ModelViewer::reload() {
     fitHoursToRun();
     if (buttonPlace != nullptr) {
         buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
+    }
+    if (buttonSubhourly != nullptr) {
+        buttonSubhourly->setVisible(objectModel.model == "RRFS" || objectModel.model == "HRRR");   // (the models whose 15 minute files are read)
     }
     if (buttonRange != nullptr) {
         buttonRange->setVisible(objectModel.model.compare(0, 4, "RTMA") == 0 || objectModel.model.compare(0, 4, "URMA") == 0);
