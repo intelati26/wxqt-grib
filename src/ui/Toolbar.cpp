@@ -62,6 +62,7 @@
 #include "spc/SpcSwoSummary.h"
 #include "spc/SpcTstormOutlooks.h"
 #include "spc/SvrComparison.h"
+#include "ui/NetStatus.h"
 #include "util/To.h"
 #include "vis/GoesGlobal.h"
 #include "vis/GoesViewer.h"
@@ -84,6 +85,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_settings_black_48dp.png", "Settings", [this] { launchSettings(); });
     routeItems.emplace_back("baseline_storage_black_48dp.png", "Data kept: caches and what is in them", [parent] { new CacheSummaryViewer{parent}; });
     routeItems.emplace_back("baseline_show_chart_black_48dp.png", "Forecast plumes at a place (GEFS, GFS, CFSv2, and the ECMWF's EC46 and SEAS5)", [parent] { new CfsPlumeViewer{parent}; });
+    routeItems.emplace_back("baseline_show_chart_black_48dp.png", "Network: what is downloading and what the program is working on in the background, Ctrl-Shift-N", [parent] { NetStatus::show(parent); });   // (after the plumes, which keep the first use of this icon: an id is the icon name, a second use is #2)
     routeItems.emplace_back("baseline_history_black_48dp.png", "History: events (outbreaks, storms, your own dates and places)", [parent] { new EventsViewer{parent}; });
 
     routeItems.emplace_back("baseline_warning_black_48dp.png", "Severe Dashboard, Ctrl-d", [this] { launchSevereDashboard(); });
