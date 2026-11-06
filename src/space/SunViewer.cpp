@@ -127,20 +127,27 @@ SunViewer::SunViewer(Window * parent)
     : Window{parent}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("Sun - active regions (SDO/HMI, NOAA SWPC)");
+    setTitle("Sun (SDO, SOHO, GOES; regions from NOAA SWPC)");
     auto * top = new QWidget{this};
     auto * topLayout = new QHBoxLayout{top};
     topLayout->setContentsMargins(0, 0, 0, 0);
     auto * refresh = UiStandards::button(top, "Refresh", "Read the picture and the region list again");
+    product = UiStandards::combo(top);
+    for (const auto& p : UtilitySun::products()) {
+        product->addItem(QString::fromStdString(p.label));
+    }
+    product->setToolTip("SDO's visible light and magnetograms carry the numbered active regions; the ultraviolet bands (AIA) and the corona (SOHO LASCO, GOES-19 CCOR-1) are plain pictures. Each instrument has its own colours and exposure, so they do not match the GOES SUVI pictures");
     resolution = UiStandards::combo(top);
+    resolution->addItem("512 px (about 60 KB)", 512);
     resolution->addItem("1024 px", 1024);
     resolution->addItem("2048 px (about 1.4 MB)", 2048);
     resolution->addItem("4096 px (full resolution, about 5 MB)", 4096);
-    resolution->setCurrentIndex(1);
-    resolution->setToolTip("The size of SDO's picture of the Sun. Scroll to zoom into it, drag to move it");
+    resolution->setCurrentIndex(2);
+    resolution->setToolTip("The size of the picture. SOHO LASCO has 512 and 1024 pixels, GOES CCOR-1 one size (1204). Scroll to zoom into it, drag to move it");
     status = new QLabel{"Reading the Sun...", top};
     UiStandards::muted(status);
     topLayout->addWidget(refresh);
+    topLayout->addWidget(product);
     topLayout->addWidget(resolution);
     topLayout->addWidget(status, 1);
     box.addWidgetReal(top, 0, Qt::Alignment{});
@@ -150,6 +157,7 @@ SunViewer::SunViewer(Window * parent)
     resize(860, 900);
     QObject::connect(refresh, &QPushButton::clicked, this, [this] { load(); });
     QObject::connect(resolution, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
+    QObject::connect(product, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
     load();
 }
 
@@ -159,15 +167,20 @@ void SunViewer::load() {
     auto picture = std::make_shared<QImage>();
     auto placed = std::make_shared<std::vector<UtilitySun::Placed>>();
     const int width = resolution->currentData().toInt();
-    new FutureVoid{this, [picture, placed, width] { *picture = UtilitySun::labelled(width, *placed); }, [this, mine, picture, placed] {
+    const auto chosen = UtilitySun::products()[static_cast<size_t>(std::max(0, product->currentIndex()))];
+    new FutureVoid{this, [picture, placed, width, chosen] { *picture = UtilitySun::productPicture(chosen, width, *placed); }, [this, mine, picture, placed, chosen] {
         if (closed || mine != generation) {
             return;
         }
         if (picture->isNull()) {
-            status->setText("The Sun's picture or the region list could not be read.");
+            status->setText(chosen.regions ? "The Sun's picture or the region list could not be read." : "The picture could not be read.");
             return;
         }
         disc->set(*picture, *placed);
-        status->setText(QString::number(placed->size()) + " numbered regions. Point at one for its class, size and flare chances; scroll to zoom, drag to move.");
+        if (chosen.regions) {
+            status->setText(QString::number(placed->size()) + " numbered regions. Point at one for its class, size and flare chances; scroll to zoom, drag to move.");
+        } else {
+            status->setText("No region numbers on this one. Its colours and exposure are its instrument's own (they differ from the GOES SUVI pictures); scroll to zoom, drag to move.");
+        }
     }};
 }

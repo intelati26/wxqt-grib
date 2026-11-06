@@ -269,8 +269,11 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("sun:")) {   // WXQT_OPEN=sun:<out.png>[:width]: the labelled Sun picture saved, then the program goes on
                 const auto parts = route.split(':');
                 UtilitySun::labelled(parts.value(2, "900").toInt()).save(parts.value(1));
-            } else if (route == "sunviewer") {   // WXQT_OPEN=sunviewer: the Sun window with the hover on its regions
-                new SunViewer{&w};
+            } else if (route == "sunviewer" || route.startsWith("sunviewer:")) {   // WXQT_OPEN=sunviewer[:<picture number>]: the Sun window with the hover on its regions, on that picture of its list
+                auto * sun = new SunViewer{&w};
+                if (route.startsWith("sunviewer:")) {
+                    sun->choose(route.section(':', 1, 1).toInt());
+                }
             } else if (route == "abpgext") {   // WXQT_OPEN=abpgext: the extended (days 6-14) analog guidance window
                 new AbpgExtended{&w};
             } else if (route == "product") {   // WXQT_OPEN=product WXQT_PRODUCT_IMAGE=<url> WXQT_PRODUCT_TEXT=<url>: the text-and-picture window
