@@ -13,6 +13,7 @@
 #include "models/UtilityModelNcepInterface.h"
 #include "objects/FutureVoid.h"
 #include "ui/UiStandards.h"
+#include "util/Utility.h"
 
 namespace {
     // label, the end of the models' names, the area drawn
@@ -78,6 +79,18 @@ AnalysisLoop::AnalysisLoop(Window * parent, const std::string& area0, const std:
             invalidate("The area changed: Draw the loop again.");
         }
     });
+}
+
+AnalysisLoop * AnalysisLoop::openLatest(Window * parent, const std::string& chart) {
+    auto sector = Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS");
+    if (sector.compare(0, 6, "LOCAL:") != 0) {
+        sector = "CONUS";
+    }
+    const auto last = QDateTime::currentDateTimeUtc().addSecs(-3600);
+    const auto to = QDateTime{last.date(), QTime{last.time().hour(), 0}, QTimeZone::utc()};
+    auto * loop = new AnalysisLoop{parent, sector, {chart}, to.addDays(-1), to, ""};
+    loop->draw();
+    return loop;
 }
 
 std::vector<std::string> AnalysisLoop::areaIds() const {

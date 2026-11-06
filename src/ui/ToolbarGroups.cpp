@@ -16,9 +16,9 @@ namespace {
     const string otherGroup{"Other"};
     const string dropdownsPref{"TOOLBAR_DROPDOWNS"};
     const string dashboardsGroup{"Dashboards"};
-    // the screens that draw pictures fetched from the model guidance site (MAG) and from SPC, which the Model Viewer's own charts replace: kept together until they are removed
+    // the group the screens that were to be removed were kept in; it is gone (SPC HRRR is with the models again, NSSL WRF and WPC GEFS have no entry), and a saved toolbar loses it once
     const string pendingGroup{"Pending discontinuation (MAG / SPC)"};
-    const string pendingMigratedPref{"TOOLBAR_PENDING_GROUP"};
+    const string pendingRetiredPref{"TOOLBAR_PENDING_RETIRED"};
 
     int currentMode = 0;
     vector<ToolbarGroups::Group> current;
@@ -38,9 +38,7 @@ namespace {
                                 "report_yesterday.png", "spc_sum.png", "day1.png", "day2.png", "day3.png", "day48.png",
                                 "tstorm.png", "ntor.png", "fire_outlook.png", "meso.png", "spccompmap.png", "tor.png"}},
             {"National, tropical and marine", {"fmap.png", "fmap.png#2", "srfd.png", "wpc_rainfall.png", "nhc.png", "nhc.png#2", "tropstorm.png", "tropical_storm.png", "opc.png", "opc.png#2"}},
-            {"Models", {"grib.png", "refs.png", "refs.png#2", "nsslwrf.png", "ncep.png"}},
-            // SPC HRRR, the Parametric Index Viewer (SHIP / STP are RRFS charts now), ESRL HRRR / RAP, NSSL WRF, WPC GEFS
-            {pendingGroup, {"spchrrr.png", "spcsref.png", "nsslwrf.png#2", "wpcgefs.png"}},
+            {"Models", {"grib.png", "refs.png", "refs.png#2", "nsslwrf.png", "ncep.png", "spchrrr.png", "rtma.png#2", "ncep.png#2", "mcd_tile.png#2"}},
             {"Tools", {"baseline_settings_black_48dp.png", "baseline_storage_black_48dp.png", "baseline_history_black_48dp.png", "baseline_show_chart_black_48dp.png", "baseline_show_chart_black_48dp.png#2", "baseline_info_black_48dp.png#2"}},
         };
         return all;
@@ -119,7 +117,7 @@ namespace {
     vector<string> dropdownNames() {
         const auto saved = Utility::readPref(dropdownsPref, "(built-in)");
         if (saved == "(built-in)") {
-            return {dashboardsGroup, pendingGroup};
+            return {dashboardsGroup};
         }
         vector<string> names;
         for (const auto& name : WString::split(saved, ";")) {
@@ -163,41 +161,21 @@ namespace {
         }
     }
 
-    // a saved layout from before the pending group: once, make the group (before "Tools") and move the screens into it; a user who deletes it later is not given it again
-    void addPendingToSaved() {
-        if (Utility::readPref(pendingMigratedPref, "") == "1") {
+    // a saved layout that has the pending group: once, take the group away (a screen of it that still exists, SPC HRRR, goes back to where the built-in layout has it, with the models) and out of the dropdown folders
+    void retirePendingGroup() {
+        if (Utility::readPref(pendingRetiredPref, "") == "1") {
             return;
         }
-        Utility::writePref(pendingMigratedPref, "1");
-        if (find(pendingGroup) != nullptr) {
-            return;
-        }
-        ToolbarGroups::Group group{pendingGroup, {}};
-        for (const auto& built : builtIn()) {
-            if (built.first != pendingGroup) {
-                continue;
-            }
-            for (const auto& id : built.second) {
-                for (auto& other : current) {
-                    const auto at = std::find(other.ids.begin(), other.ids.end(), id);
-                    if (at != other.ids.end()) {
-                        other.ids.erase(at);
-                        group.ids.push_back(id);
-                        break;
-                    }
-                }
-            }
-        }
-        if (group.ids.empty()) {
-            return;
-        }
-        auto at = std::find_if(current.begin(), current.end(), [] (const auto& g) { return g.name == "Tools"; });
-        current.insert(at, group);
-        const auto saved = Utility::readPref(dropdownsPref, "(built-in)");
-        if (saved != "(built-in)") {   // the user's own list of folders: this one is a folder too
+        Utility::writePref(pendingRetiredPref, "1");
+        const auto before = current.size();
+        current.erase(std::remove_if(current.begin(), current.end(), [] (const auto& g) { return g.name == pendingGroup; }), current.end());
+        if (const auto saved = Utility::readPref(dropdownsPref, "(built-in)"); saved != "(built-in)") {
             auto names = dropdownNames();
-            names.push_back(pendingGroup);
+            names.erase(std::remove(names.begin(), names.end(), pendingGroup), names.end());
             saveDropdowns(names);
+        }
+        if (current.size() != before) {
+            save();
         }
     }
 
@@ -229,7 +207,7 @@ void ToolbarGroups::load(const vector<string>& allIds) {
     current.clear();
     const auto saved = Utility::readPref(groupsPref, "");
     if (saved.empty()) {
-        Utility::writePref(pendingMigratedPref, "1");   // the built-in layout has it
+        Utility::writePref(pendingRetiredPref, "1");   // the built-in layout does not have it
         buildBuiltIn();
         return;
     }
@@ -246,7 +224,7 @@ void ToolbarGroups::load(const vector<string>& allIds) {
         current.push_back(group);
     }
     addDashboardsToSaved();
-    addPendingToSaved();
+    retirePendingGroup();
     normalise();
 }
 

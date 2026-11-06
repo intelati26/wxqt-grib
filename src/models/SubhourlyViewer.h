@@ -20,6 +20,8 @@ public:
     // run: "yyyyMMddHH" ("" the newest run that has the files); charts: the chart ids to begin with
     SubhourlyViewer(Window * parent, const std::string& model, const std::string& sector, const std::string& run, const std::vector<std::string>& charts);
     void draw() { build(); }   // as the button does (for a development aid)
+    // the window on the newest run of that model, the radar and the surface fields in four panes
+    static SubhourlyViewer * openNewest(Window * parent, const std::string& model);
     std::string summary() const;   // (a development aid: what the window was opened on)
     void setLeads(int fromMinutes, int toMinutes) {   // (a development aid)
         fromLead->setValue(fromMinutes);
@@ -37,11 +39,13 @@ protected:
     int delayMs() const override { return 300; }
 
 private:
+    void switchModel(const std::string& id);
     void findNewestRun();
     void listCharts();
     std::string model;
     std::string runId;                     // the run drawn ("yyyyMMddHH")
     std::vector<int> minutes;              // the lead of each step of the loop
+    QComboBox * modelBox{};
     QDateTimeEdit * runEdit{};
     QSpinBox * fromLead{}, * toLead{};
     QComboBox * step{};

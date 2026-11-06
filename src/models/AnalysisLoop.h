@@ -23,6 +23,8 @@ public:
     // charts: the chart ids (of the RTMA's list) of the panes to begin with, one to four; sector: the area of the Model Viewer; the range is in UTC
     AnalysisLoop(Window * parent, const std::string& sector, const std::vector<std::string>& charts, const QDateTime& from, const QDateTime& to, const std::string& region = "");
     void draw() { build(); }   // as the button does (for a development aid)
+    // The window on one chart, in the area last used in the Model Viewer (the whole US when that was not a saved place), the last 24 hours up to the newest analysis, drawn at once
+    static AnalysisLoop * openLatest(Window * parent, const std::string& chart);
 
 protected:
     std::string pickerModel() const override { return "RTMA" + suffix; }

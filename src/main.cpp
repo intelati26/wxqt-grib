@@ -110,6 +110,7 @@
 #include "spc/SpcSwoStateGraphics.h"
 #include "tornado/TornadoYearsViewer.h"
 #include "ui/MainWindow.h"
+#include "ui/ToolbarGroups.h"
 #include "util/AppState.h"
 #include "util/ContactPrompt.h"
 #include "util/CrashLog.h"
@@ -244,6 +245,15 @@ int main(int argc, char * argv[]) {
             return ids.empty() ? std::vector<std::string>{"radar/mrms"} : ids;
         };
         QWidget * opened = nullptr;
+        if (qEnvironmentVariableIsSet("WXQT_TOOLBAR_DUMP")) {   // (a development aid: the toolbar's groups and their entries, to stderr)
+            for (const auto& group : ToolbarGroups::groups()) {
+                std::fprintf(stderr, "GROUP %s:", group.name.c_str());
+                for (const auto& id : group.ids) {
+                    std::fprintf(stderr, " %s", id.c_str());
+                }
+                std::fprintf(stderr, "\n");
+            }
+        }
         if (const auto route = qEnvironmentVariable("WXQT_OPEN"); !route.isEmpty()) {
             const auto before = QApplication::topLevelWidgets();
             if (route.startsWith("mrmsat:")) {   // WXQT_OPEN=mrmsat:<yyyyMMddHHmm UTC>[:lat:lon:km[:layer,layer]]: the master map at that time, MRMS (or the layers named) only

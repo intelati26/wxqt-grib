@@ -538,16 +538,8 @@ void MainWindow::launchImageScreen(const string& token) {
         Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
         toolbar.launchModelViewer();   // the Model Viewer on the portal's median chart of that period
     } else if (token == "RTMA_SECOND" || token == "RTMA_AREA") {
-        // the NWS analysis window (the RTMA / URMA loop) on the chart of the picture, in the area last used, the last 24 hours up to the newest analysis; the Model Viewer's "Loop a range..." is the way the other way
-        const string chart = token == "RTMA_AREA" ? string{"2m_temp_10m_wnd"} : HomeThumbnails::rtmaSecondChart();
-        auto sector = Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS");
-        if (sector.compare(0, 6, "LOCAL:") != 0) {
-            sector = "CONUS";
-        }
-        const auto last = QDateTime::currentDateTimeUtc().addSecs(-3600);
-        const auto to = QDateTime{last.date(), QTime{last.time().hour(), 0}, QTimeZone::utc()};
-        auto * loop = new AnalysisLoop{this, sector, {chart}, to.addDays(-1), to, ""};
-        loop->draw();
+        // the NWS analysis window (the RTMA / URMA loop) on the chart of the picture, in the area last used, the last 24 hours up to the newest analysis
+        AnalysisLoop::openLatest(this, token == "RTMA_AREA" ? string{"2m_temp_10m_wnd"} : HomeThumbnails::rtmaSecondChart());
     } else if (token == "GRIB_LATEST") {
         if (const auto last = Utility::readPref("MODEL_LAST_FORECAST", ""); !GfsModels::isForecast(Utility::readPref("NCEP", "RRFS")) && GfsModels::isForecast(last)) {   // the picture shows the last forecast model, not the analysis on the screen
             Utility::writePref("NCEP", last);

@@ -27,6 +27,9 @@
 #include "mapkit/MasterMapViewer.h"
 #include "misc/Opc.h"
 #include "misc/Rtma.h"
+#include "models/AnalysisLoop.h"
+#include "models/MrmsVerifyViewer.h"
+#include "models/SubhourlyViewer.h"
 #include "misc/SevereDashboard.h"
 #include "misc/UsAlerts.h"
 #include "misc/WfoText.h"
@@ -145,10 +148,12 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("widget_afd.png", "Forecast discussions", [parent] { Dashboards::openForecastDiscussions(parent); });
     routeItems.emplace_back("fire_outlook.png", "U.S. Drought Monitor", [parent] { new DroughtViewer{parent}; });
     routeItems.emplace_back("rain_showers.png", "River, flood, dam, and the National Water Model", [parent] { new MasterMapViewer{parent, "Rivers and water"}; });
-    routeItems.emplace_back("nsslwrf.png", "NSSL WRF", [this] { launchModelViewerGeneric("NSSLWRF"); });
-    routeItems.emplace_back("wpcgefs.png", "WPC GEFS", [this] { launchModelViewerGeneric("WPCGEFS"); });
     // routeItems.emplace_back("spchref.png", "SPC HREF", [this] { launchModelViewerGeneric("SPCHREF"); });
     routeItems.emplace_back("goesfulldisk.png", "Global GOES", [parent] { new GoesGlobal{parent}; });
+    // (after the entries that share their icons, so that those keep their ids)
+    routeItems.emplace_back("rtma.png", "NWS analysis (RTMA / URMA loop)", [parent] { AnalysisLoop::openLatest(parent, "2m_temp_10m_wnd"); });
+    routeItems.emplace_back("ncep.png", "RRFS / HRRR subhourly (15 minute surface fields)", [parent] { SubhourlyViewer::openNewest(parent, "RRFS"); });
+    routeItems.emplace_back("mcd_tile.png", "MRMS verification (a model's radar against MRMS)", [parent] { new MrmsVerifyViewer{parent, "RRFS", "sim_radar_comp", "CONUS", QDateTime{}}; });
 
     // a repeated icon (CAMs / NSSL WRF, the two thunderstorm items) still needs its own id
     vector<string> seen;

@@ -57,7 +57,16 @@ SubhourlyViewer::SubhourlyViewer(Window * parent, const std::string& modelId, co
         step->addItem(QString{"every %1 min"}.arg(m), m);
     }
     buildButton->setEnabled(false);
-    topLayout->addWidget(new QLabel{QString::fromStdString(model) + " run", top});
+    modelBox = UiStandards::combo(top);
+    for (const auto& def : GfsModels::all()) {   // every model whose 15 minute files are read
+        if (def.subhourly) {
+            modelBox->addItem(QString::fromStdString(def.id), QString::fromStdString(def.id));
+        }
+    }
+    modelBox->setCurrentIndex(std::max(0, modelBox->findData(QString::fromStdString(model))));
+    modelBox->setToolTip("The model: the RRFS and the HRRR have 15 minute surface files");
+    topLayout->addWidget(modelBox);
+    topLayout->addWidget(new QLabel{"run", top});
     topLayout->addWidget(runEdit);
     topLayout->addWidget(newestButton);
     topLayout->addWidget(areaButton);
@@ -72,6 +81,12 @@ SubhourlyViewer::SubhourlyViewer(Window * parent, const std::string& modelId, co
     grid->setMessage("Looking for the newest run...");
     refreshAreaButton();
     QObject::connect(newestButton, &QPushButton::clicked, this, [this] { findNewestRun(); });
+    QObject::connect(modelBox, &QComboBox::currentIndexChanged, this, [this] (int) {
+        const auto chosen = modelBox->currentData().toString().toStdString();
+        if (!chosen.empty() && chosen != model) {
+            switchModel(chosen);
+        }
+    });
     if (!run.empty()) {
         auto t = QDateTime::fromString(QString::fromStdString(run), "yyyyMMddHH");
         t.setTimeZone(QTimeZone::utc());
@@ -81,6 +96,25 @@ SubhourlyViewer::SubhourlyViewer(Window * parent, const std::string& modelId, co
     } else {
         findNewestRun();
     }
+}
+
+// another model: its own charts and runs
+void SubhourlyViewer::switchModel(const std::string& id) {
+    model = id;
+    invalidate("");
+    setTitle(model + " 15 minute surface fields");
+    std::vector<std::string> ids, names;
+    if (const auto * def = GfsModels::find(model); def != nullptr) {
+        UtilityModelNcepInterface::chartList(*def, ids, names);
+        sector = def->sectors == GfsModels::Sectors::Conus || sector.empty() ? "CONUS" : sector;
+    }
+    setCharts(ids, names);
+    refreshAreaButton();
+    findNewestRun();
+}
+
+SubhourlyViewer * SubhourlyViewer::openNewest(Window * parent, const std::string& model) {
+    return new SubhourlyViewer{parent, model, "CONUS", std::string{}, {"sim_radar_comp", "2m_temp_10m_wnd", "10m_wnd_gust", "visibility"}};
 }
 
 std::string SubhourlyViewer::summary() const {
