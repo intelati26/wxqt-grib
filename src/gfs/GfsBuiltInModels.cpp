@@ -1902,6 +1902,25 @@ hourly_runs = true
 overlays = true
 list = true
 )MODEL"},
+        {"RTMA-GU", R"MODEL(
+# The Real-Time Mesoscale analysis for Guam, hourly, from the open data bucket noaa-rtma-pds (there is no URMA for Guam): the same fields and charts as the contiguous United States one (2.5 km). The grid is put on a regular one.
+id = RTMA-GU
+label = NOAA/NCEP RTMA Guam surface analysis, 2.5 km
+group = NWS analysis
+kind = grib
+url = https://noaa-rtma-pds.s3.amazonaws.com/gurtma.{date}/gurtma.t{cycle}z.2dvaranl_ndfd.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 3
+warp = 0.025, 143.5, 12.2, 148.5, 17.0
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
         {"NARR", R"MODEL(
 # The North American Regional Reanalysis, 32 km, every 3 hours from January 1979 to September 2014 (NCEI's archive; GRIB1 with wgrib inventories). A file of 55 MB for each analysis. The Lambert grid is
 # put on a regular 0.25 degree one. The pressure levels are every 25 mb; the fields the charts need at them are height, temperature, wind and humidity (no relative humidity or vorticity).

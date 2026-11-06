@@ -323,6 +323,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             m.push_back(fromFile(std::string{"RTMA-"} + region));
             m.push_back(fromFile(std::string{"URMA-"} + region));
         }
+        m.push_back(fromFile("RTMA-GU"));   // Guam has an RTMA only
         m.push_back(fromFile("RRFS"));
         m.push_back(fromFile("RRFS-AK"));
         m.push_back(fromFile("RRFS-HI"));

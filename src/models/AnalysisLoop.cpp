@@ -21,7 +21,7 @@ namespace {
     // label, the end of the models' names, the area drawn
     const std::vector<std::tuple<std::string, std::string, std::string>>& regions() {
         static const std::vector<std::tuple<std::string, std::string, std::string>> list{
-            {"Contiguous US", "", "CONUS"}, {"Alaska", "-AK", "ALASKA"}, {"Hawaii", "-HI", "HAWAII-ISLANDS"}, {"Puerto Rico", "-PR", "PUERTO-RICO"}};
+            {"Contiguous US", "", "CONUS"}, {"Alaska", "-AK", "ALASKA"}, {"Hawaii", "-HI", "HAWAII-ISLANDS"}, {"Puerto Rico", "-PR", "PUERTO-RICO"}, {"Guam (RTMA only)", "-GU", "GUAM"}};
         return list;
     }
 }
@@ -56,7 +56,7 @@ AnalysisLoop::AnalysisLoop(Window * parent, const std::string& sector, const std
             regionBox->setCurrentIndex(regionBox->count() - 1);
         }
     }
-    regionBox->setToolTip("The area of the analyses: each has its own pair of RTMA and URMA (the URMA used where it has the hour, the RTMA for the newest hours). Guam has an RTMA only and is not offered");
+    regionBox->setToolTip("The area of the analyses: each has its own pair of RTMA and URMA (the URMA used where it has the hour, the RTMA for the newest hours). Guam has an RTMA only");
     topLayout->addWidget(regionBox);
     topLayout->addWidget(new QLabel{"From", top});
     from = dateBox(fromTime, "The first hour of the loop (UTC). The URMA goes back to 29 January 2014, the RTMA to 19 March 2013");
@@ -208,7 +208,8 @@ void AnalysisLoop::build() {
         const auto ends = urmaEnds;
         const auto area = sector;
         const auto urmaModel = "URMA" + suffix, rtmaModel = "RTMA" + suffix;
-        new FutureVoid{this, [result, error, valid, chosen, flag, ends, area, urmaModel, rtmaModel] {
+        const bool hasUrma = GfsModels::find(urmaModel) != nullptr;   // Guam has none
+        new FutureVoid{this, [result, error, valid, chosen, flag, ends, area, urmaModel, rtmaModel, hasUrma] {
                            if (flag->load()) {
                                return;
                            }
@@ -216,7 +217,7 @@ void AnalysisLoop::build() {
                            when.setTimeZone(QTimeZone::utc());
                            const long long seconds = when.toSecsSinceEpoch();
                            for (const auto& model : {urmaModel, rtmaModel}) {
-                               if (model == urmaModel && seconds >= ends->load()) {
+                               if (model == urmaModel && (!hasUrma || seconds >= ends->load())) {
                                    continue;   // an earlier hour had no URMA: nor will this one
                                }
                                GfsRender::Session session;
