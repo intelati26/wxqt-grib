@@ -6,6 +6,8 @@
 
 #include <future>
 #include <QApplication>
+#include <QHelpEvent>
+#include <QToolTip>
 #include <QCursor>
 #include <QElapsedTimer>
 #include <QFile>
@@ -120,7 +122,15 @@ namespace {
         using QApplication::QApplication;
         bool notify(QObject * receiver, QEvent * event) override {
             try {
-                return QApplication::notify(receiver, event);
+                const bool handled = QApplication::notify(receiver, event);
+                // a long plain tooltip would run across the whole screen (Qt does not wrap plain text): show it again as a box 440 pixels wide
+                if (event->type() == QEvent::ToolTip && QToolTip::isVisible()) {
+                    const auto text = QToolTip::text();
+                    if (text.size() > 100 && !Qt::mightBeRichText(text)) {
+                        QToolTip::showText(static_cast<QHelpEvent *>(event)->globalPos(), "<table width=\"440\"><tr><td>" + text.toHtmlEscaped().replace("\n", "<br>") + "</td></tr></table>", qobject_cast<QWidget *>(receiver));
+                    }
+                }
+                return handled;
             } catch (const std::exception& e) {
                 CrashLog::write(std::string{"exception in an event handler (ignored): "} + e.what() + " [" +
                                 (receiver != nullptr ? receiver->metaObject()->className() : "?") + "]");
@@ -275,6 +285,22 @@ int main(int argc, char * argv[]) {
                 if (route.startsWith("sunviewer:")) {
                     sun->choose(route.section(':', 1, 1).toInt());
                 }
+            } else if (route == "tooltip") {   // WXQT_OPEN=tooltip WXQT_GRAB=<file.png>: a long tooltip as it is shown (a hover is sent to a label), the tip saved
+                auto * label = new QLabel{"Pointer here", &w};
+                label->setToolTip("POD: the observed echoes the model had. FAR: the model's echoes that were not observed. CSI: hits over hits, misses and false alarms. Bias: the model's echo area over the observed one. FSS: Fractions Skill Score over a window of that size (1 is perfect; a storm a little off still counts).");
+                label->setGeometry(10, 10, 200, 30);
+                label->show();
+                QTimer::singleShot(800, label, [label] {
+                    QHelpEvent hover{QEvent::ToolTip, QPoint{5, 5}, label->mapToGlobal(QPoint{5, 5})};
+                    QApplication::sendEvent(label, &hover);
+                });
+                QTimer::singleShot(1800, label, [] {
+                    for (auto * widget : QApplication::allWidgets()) {
+                        if (widget->isVisible() && QString{widget->metaObject()->className()} == "QTipLabel") {
+                            widget->grab().save(qEnvironmentVariable("WXQT_GRAB").section(',', 0, 0) + ".tip.png");
+                        }
+                    }
+                });
             } else if (route.startsWith("rangeloop:")) {   // WXQT_OPEN=rangeloop:<hours back>:<charts 1-4>[:<hour step>]: the RTMA / URMA loop window, drawing that many hours up to the newest RTMA hour
                 const auto parts = route.split(':');
                 const auto last = QDateTime::currentDateTimeUtc().addSecs(-3600);

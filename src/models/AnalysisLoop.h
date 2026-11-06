@@ -20,7 +20,7 @@
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
-// A loop of the RTMA / URMA surface analyses from one date-time to another (UTC), one to four charts side by side. Each hour is drawn from the URMA when its file is there (the analysis made again
+// The NWS analysis: a loop of the RTMA / URMA surface analyses from one date-time to another (UTC), one to four charts side by side. Each hour is drawn from the URMA when its file is there (the analysis made again
 // with later observations) and from the RTMA for the newest hours the URMA has not come to yet; the charts' titles name the one used. The hours are drawn in the background and play as they arrive.
 class AnalysisLoop : public Window {
 public:

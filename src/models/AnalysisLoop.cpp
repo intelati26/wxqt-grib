@@ -23,7 +23,7 @@ AnalysisLoop::AnalysisLoop(Window * parent, const std::string& sector, const std
     , urmaEnds{std::make_shared<std::atomic<long long>>(std::numeric_limits<long long>::max())}
 {
     setAttribute(Qt::WA_DeleteOnClose);
-    setTitle("RTMA / URMA loop");
+    setTitle("NWS analysis");
     std::vector<std::string> labels;
     if (const auto * def = GfsModels::find("RTMA"); def != nullptr) {
         UtilityModelNcepInterface::chartList(*def, chartIds, labels);
@@ -257,7 +257,7 @@ void AnalysisLoop::showFrame(int index) {
         slider->setValue(index);
         slider->blockSignals(false);
     }
-    setTitle("RTMA / URMA loop - " + frameNames[static_cast<size_t>(index)].toStdString());
+    setTitle("NWS analysis - " + frameNames[static_cast<size_t>(index)].toStdString());
     redraw();
 }
 
