@@ -9,7 +9,75 @@
 #include <QImage>
 #include <QPainter>
 #include "misc/ImageViewer.h"
+#include "models/ChartHover.h"
+#include "ui/ZoomImage.h"
 #include "ui/Window.h"
+
+void PaneLayout::apply(QGridLayout * grid, const std::vector<QWidget *>& widgets, int shown) {
+    shown = std::clamp(shown, 1, static_cast<int>(widgets.size()));
+    for (auto * widget : widgets) {
+        grid->removeWidget(widget);
+    }
+    const int columns = shown == 4 ? 2 : shown;
+    for (int i = 0; i < static_cast<int>(widgets.size()); i++) {
+        const bool used = i < shown;
+        widgets[static_cast<size_t>(i)]->setVisible(used);
+        if (used) {
+            grid->addWidget(widgets[static_cast<size_t>(i)], i / columns, i % columns);
+        }
+    }
+    for (int c = 0; c < 3; c++) {
+        grid->setColumnStretch(c, c < columns ? 1 : 0);
+    }
+    for (int r = 0; r < 2; r++) {
+        grid->setRowStretch(r, r * columns < shown ? 1 : 0);
+    }
+}
+
+PaneLink::PaneLink(QObject * parent, std::vector<Member> list, std::function<size_t()> inUse)
+    : QObject{parent}
+    , members{std::move(list)}
+    , active{std::move(inUse)}
+{
+    for (size_t from = 0; from < members.size(); from++) {
+        auto * picture = members[from].image;
+        QObject::connect(picture, &ZoomImage::viewChanged, this, [this, from] {
+            if (syncing) {
+                return;
+            }
+            syncing = true;
+            const auto v = members[from].image->view();
+            for (size_t to = 0; to < std::min(members.size(), active()); to++) {
+                if (to != from) {
+                    members[to].image->setView(v);
+                }
+            }
+            syncing = false;
+        });
+        QObject::connect(picture, &ZoomImage::hovered, this, [this, from] (double fx, double fy) {
+            for (size_t to = 0; to < std::min(members.size(), active()); to++) {
+                if (to == from) {
+                    continue;
+                }
+                if (auto * hover = members[to].hover ? members[to].hover() : nullptr) {
+                    hover->show(fx, fy, 12, 12);
+                }
+                members[to].image->setLinkedCursor(fx, fy);   // the same place marked on every pane
+            }
+        });
+        QObject::connect(picture, &ZoomImage::hoverEnded, this, [this, from] {
+            for (size_t to = 0; to < std::min(members.size(), active()); to++) {
+                if (to == from) {
+                    continue;
+                }
+                if (auto * hover = members[to].hover ? members[to].hover() : nullptr) {
+                    hover->hide();
+                }
+                members[to].image->clearLinkedCursor();
+            }
+        });
+    }
+}
 
 PaneGrid::PaneGrid(QWidget * parent)
     : QWidget{parent}
@@ -31,6 +99,11 @@ PaneGrid::PaneGrid(QWidget * parent)
             }
         });
     }
+    std::vector<PaneLink::Member> members;
+    for (auto * tile : tiles) {
+        members.push_back({tile->image, [tile] { return tile->hover.get(); }});
+    }
+    new PaneLink{this, members, [this] { return static_cast<size_t>(shownCount); }};   // one view: the zoom, the read-outs and the cursor follow across the panes
     setCount(1);
 }
 
@@ -42,23 +115,7 @@ void PaneGrid::onChange(const std::function<void(int)>& handler) {
 
 void PaneGrid::setCount(int panes) {
     shownCount = std::clamp(panes, 1, maxPanes);
-    for (auto * tile : tiles) {
-        grid->removeWidget(tile);
-    }
-    const int columns = shownCount == 4 ? 2 : shownCount;
-    for (int i = 0; i < maxPanes; i++) {
-        const bool used = i < shownCount;
-        tiles[static_cast<size_t>(i)]->setVisible(used);
-        if (used) {
-            grid->addWidget(tiles[static_cast<size_t>(i)], i / columns, i % columns);
-        }
-    }
-    for (int c = 0; c < 2; c++) {
-        grid->setColumnStretch(c, c < columns ? 1 : 0);
-    }
-    for (int r = 0; r < 2; r++) {
-        grid->setRowStretch(r, r * columns < shownCount ? 1 : 0);
-    }
+    PaneLayout::apply(grid, std::vector<QWidget *>(tiles.begin(), tiles.end()), shownCount);
 }
 
 void PaneGrid::setMessage(const QString& text) {

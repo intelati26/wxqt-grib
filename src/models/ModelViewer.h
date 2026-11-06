@@ -154,7 +154,7 @@ private:
     std::array<CompareTile *, 3> tiles{};
     std::array<Spec, 3> tileSpecs;
     std::array<int, 3> tileGeneration{};
-    bool syncingViews{false};
+    class PaneLink * paneLink{};   // the panes as one view (zoom, read-outs, cursor)
     void showFrame(const Frame&);
     void selectHour(int index);
     void startPlaying(bool on);

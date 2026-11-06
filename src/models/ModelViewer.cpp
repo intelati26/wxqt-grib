@@ -7,6 +7,7 @@
 #include "ModelViewer.h"
 #include "models/AnalysisLoop.h"
 #include "models/ChartPickers.h"
+#include "models/PaneGrid.h"
 #include "models/SubhourlyViewer.h"
 #include "objects/AnimationRenderer.h"
 #include "spcrefs/SpcRefsLoader.h"
@@ -492,47 +493,12 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
                 }
             });
         }
-        // one view for all: the zoom and place of the tile touched go to the others, and the read-out of the point under the pointer shows in each
-        std::vector<ZoomImage *> pictures{&image};
+        // one view for all: the zoom and place of the tile touched go to the others, and the read-out of the point under the pointer shows in each (the same rule as every screen of panes)
+        std::vector<PaneLink::Member> members{{&image, [this] { return hover.get(); }}};
         for (auto * tile : tiles) {
-            pictures.push_back(tile->image);
+            members.push_back({tile->image, [tile] { return tile->hover.get(); }});
         }
-        const auto hoverOf = [this] (size_t i) -> ChartHover * { return i == 0 ? hover.get() : tiles[i - 1]->hover.get(); };
-        for (size_t from = 0; from < pictures.size(); from++) {
-            QObject::connect(pictures[from], &ZoomImage::viewChanged, this, [this, pictures, from] {
-                if (syncingViews) {
-                    return;
-                }
-                syncingViews = true;
-                const auto v = pictures[from]->view();
-                for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
-                    if (to != from) {
-                        pictures[to]->setView(v);
-                    }
-                }
-                syncingViews = false;
-            });
-            QObject::connect(pictures[from], &ZoomImage::hovered, this, [this, pictures, from, hoverOf] (double fx, double fy) {
-                for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
-                    if (to != from && hoverOf(to)) {
-                        hoverOf(to)->show(fx, fy, 12, 12);
-                    }
-                    if (to != from) {
-                        pictures[to]->setLinkedCursor(fx, fy);   // the same place marked on every pane, to read the panes against each other
-                    }
-                }
-            });
-            QObject::connect(pictures[from], &ZoomImage::hoverEnded, this, [this, pictures, from, hoverOf] {
-                for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
-                    if (to != from && hoverOf(to)) {
-                        hoverOf(to)->hide();
-                    }
-                    if (to != from) {
-                        pictures[to]->clearLinkedCursor();
-                    }
-                }
-            });
-        }
+        paneLink = new PaneLink{this, members, [this] { return static_cast<size_t>(tileCount()) + 1; }};
         applyTileLayout();
     }
     {   // the chart and, beside it when it is asked for, the plume: one splitter, so that the person gives each the room it wants
@@ -2624,29 +2590,9 @@ ModelViewer::TilesShow ModelViewer::tilesShow() const {
 
 void ModelViewer::applyTileLayout() {
     const int n = tileCount();
-    for (auto * widget : std::vector<QWidget *>{mainTile, tiles[0], tiles[1], tiles[2]}) {
-        grid->removeWidget(widget);
-    }
     mainCaption->setVisible(n > 0);
     mainTile->setFrameShape(n > 0 ? QFrame::StyledPanel : QFrame::NoFrame);
-    grid->addWidget(mainTile, 0, 0);
-    // 1 x 2: side by side; 1 x 3: a row of three; 2 x 2: two rows of two
-    for (int i = 0; i < 3; i++) {
-        const bool used = i < n;
-        tiles[static_cast<size_t>(i)]->setVisible(used);
-        if (used) {
-            const int row = n == 3 ? (i + 1) / 2 : 0;
-            const int col = n == 3 ? (i + 1) % 2 : i + 1;
-            grid->addWidget(tiles[static_cast<size_t>(i)], row, col);
-        }
-    }
-    const int columns = n == 3 ? 2 : n + 1;
-    for (int c = 0; c < 3; c++) {
-        grid->setColumnStretch(c, c < columns ? 1 : 0);
-    }
-    for (int r = 0; r < 2; r++) {
-        grid->setRowStretch(r, r == 0 || n == 3 ? 1 : 0);
-    }
+    PaneLayout::apply(grid, {mainTile, tiles[0], tiles[1], tiles[2]}, n + 1);   // 1, 1 x 2, 1 x 3 or 2 x 2: the rule of every screen of panes
     mainTile->setVisible(true);
 }
 
@@ -3053,9 +2999,9 @@ void ModelViewer::showTile(int index, const Job& job, const Frame& frame) {
     tile->setChart(frame.bytes, frame.probe, job.chart);
     const auto v = image.view();
     if (!v.fitted) {
-        syncingViews = true;
+        paneLink->block(true);
         tile->image->setView(v);
-        syncingViews = false;
+        paneLink->block(false);
     }
 }
 
