@@ -302,6 +302,8 @@ int main(int argc, char * argv[]) {
                         }
                     }
                 });
+            } else if (route.startsWith("homeclick:")) {   // WXQT_OPEN=homeclick:<home thumbnail token, e.g. RTMA_SECOND>: what a click on that home picture opens
+                w.clickPicture(route.section(':', 1, 1).toStdString());
             } else if (route.startsWith("subhourly:")) {   // WXQT_OPEN=subhourly:<RRFS|HRRR>[:<run yyyyMMddHH>][:<to minutes>]: the 15 minute surface fields window, drawing 15 minutes to that lead in four panes
                 const auto parts = route.split(':');
                 auto * sub = new SubhourlyViewer{&w, parts.value(1).toStdString(), "CONUS", parts.value(2).toStdString(), {"sim_radar_comp", "2m_temp_10m_wnd", "10m_wnd_gust", "visibility"}};

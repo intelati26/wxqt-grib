@@ -68,6 +68,9 @@ private:
     void loadThumbnail(const string& token);   // fetch and show one home picture
     void arrangeColumns();
     void launchImageScreen(const string&);
+public:
+    void clickPicture(const string& token) { launchImageScreen(token); }   // (for a development aid: a click on that home picture)
+private:
     void downloadWatch();
     void updateWatch();
     bool launch(int);
