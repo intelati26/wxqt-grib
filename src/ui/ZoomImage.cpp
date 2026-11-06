@@ -327,16 +327,33 @@ double ZoomImage::fitScale() const {
     return std::min({scaleW, scaleH, 1.0});
 }
 
+namespace {
+    // A picture with transparent areas (the SPC mesoanalysis, some NWS maps) is made for a white page: on a dark theme the black lines and the text would sit on the dark window. Flattened onto
+    // white, a picture without transparency is as it was.
+    QPixmap pixmapOf(const QByteArray& bytes) {
+        auto image = QImage::fromData(bytes);
+        if (image.hasAlphaChannel()) {
+            QImage flat{image.size(), QImage::Format_RGB32};
+            flat.fill(Qt::white);
+            QPainter painter{&flat};
+            painter.drawImage(0, 0, image);
+            painter.end();
+            image = flat;
+        }
+        return QPixmap::fromImage(image);
+    }
+}
+
 void ZoomImage::setBytes(const QByteArray& bytes) {
     sourceBytes = bytes;
-    source = QPixmap::fromImage(QImage::fromData(bytes));
+    source = pixmapOf(bytes);
     userZoomed = false;
     fitToViewport();
 }
 
 void ZoomImage::setBytesKeepView(const QByteArray& bytes) {
     const auto previous = source;
-    source = QPixmap::fromImage(QImage::fromData(bytes));
+    source = pixmapOf(bytes);
     if (source.isNull()) {
         source = previous;
         return;
