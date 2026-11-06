@@ -4,6 +4,9 @@
 // *****************************************************************************
 
 #include "ui/NetStatus.h"
+#include <algorithm>
+#include <chrono>
+#include <map>
 #include <set>
 #include <tuple>
 #include <QHBoxLayout>
@@ -37,6 +40,11 @@ NetStatus::NetStatus(QWidget * parent) : QDialog{parent, Qt::Tool} {
     openMeteo->setToolTip("Open-Meteo (the pressure line, the seasonal European model, the temperature history) allows 10,000 calls a day and 600 a minute per IP address, counted from midnight UTC. "
                           "This counts what this program sends; another program on the same address counts against the same allowance, and a big request (many variables or years) counts as many calls, worked out here from its parameters.");
     column->addWidget(openMeteo);
+    background = new QLabel{this};
+    background->setWordWrap(true);
+    background->setTextFormat(Qt::PlainText);
+    background->setToolTip("The status line's background tasks: charts being decoded and drawn (GDAL programs, the drawing), files read from the disk, and downloads of single files. A task that is not a request is not in the list below.");
+    column->addWidget(background);
     table = new QTableWidget{0, 7, this};
     table->setHorizontalHeaderLabels({"Priority", "State", "In", "Of", "Waited", "Callers", "Request"});
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -59,6 +67,10 @@ NetStatus::NetStatus(QWidget * parent) : QDialog{parent, Qt::Tool} {
     QObject::connect(&timer, &QTimer::timeout, this, [this] { refresh(); });
     timer.start(500);
     refresh();
+    if (qEnvironmentVariableIsSet("WXQT_NET_PNG")) {   // (a development aid: WXQT_NET_PNG=<file>[,<milliseconds>] saves a picture of this window)
+        const auto spec = qEnvironmentVariable("WXQT_NET_PNG").split(',');
+        QTimer::singleShot(spec.size() > 1 ? spec[1].toInt() : 1500, this, [this, file = spec[0]] { grab().save(file); });
+    }
 }
 
 void NetStatus::stop(int what) {
@@ -83,6 +95,28 @@ void NetStatus::refresh() {
     openMeteo->setText(QString{"Open-Meteo today (UTC): %1 requests, about %2 of %3 allowed calls by their weight, %4 in the last minute (of %5)"}
                            .arg(om.calls).arg(om.weight, 0, 'f', 0).arg(OpenMeteoUsage::dailyLimit, 0, 'f', 0).arg(om.lastMinute).arg(OpenMeteoUsage::minuteLimit));
     openMeteo->setStyleSheet(om.weight >= 0.8 * OpenMeteoUsage::dailyLimit ? "color: #c00000;" : "");
+    {   // the jobs that are not requests: who they work for and for how long (the status line counts them)
+        const auto work = Activity::runningTasks();
+        const auto now = std::chrono::steady_clock::now();
+        std::map<std::string, std::pair<int, long>> groups;   // what -> how many, the longest in seconds
+        for (const auto& w : work) {
+            auto& g = groups[w.what];
+            g.first++;
+            g.second = std::max<long>(g.second, std::chrono::duration_cast<std::chrono::seconds>(now - w.since).count());
+        }
+        std::vector<std::pair<std::string, std::pair<int, long>>> ordered(groups.begin(), groups.end());
+        std::sort(ordered.begin(), ordered.end(), [] (const auto& a, const auto& b) { return a.second.second > b.second.second; });   // the longest running first
+        QString text = work.empty() ? QString{"Background work: none running."} : QString{"Background work (decoding, drawing, reading files; not requests): %1 running - "}.arg(work.size());
+        int shown = 0;
+        for (const auto& [what, g] : ordered) {
+            if (shown++ == 6) {
+                text += ", ...";
+                break;
+            }
+            text += (shown == 1 ? "" : ", ") + QString::fromStdString(what) + (g.first > 1 ? " x" + QString::number(g.first) : QString{}) + " (" + QString::number(g.second) + " s)";
+        }
+        background->setText(text);
+    }
     const auto rows = NetManager::snapshot();
     const auto sum = NetManager::totals();
     totals->setText(QString{"%1 waiting or downloading   -   %2 finished (%6 of them index files), %3 shared with a request already going, %4 MB received   -   %5"}

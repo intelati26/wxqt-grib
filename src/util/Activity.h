@@ -7,8 +7,11 @@
 #define ACTIVITY_H
 
 #include <atomic>
+#include <chrono>
+#include <map>
 #include <mutex>
 #include <string>
+#include <vector>
 
 // What the app is busy with, for the status indicators on the screens (ui/ActivityLabel): the background tasks (FutureVoid, FutureBytes) that are running and the network requests
 // in flight. Counted where the work happens, so every screen is covered without each one reporting.
@@ -37,9 +40,35 @@ namespace Activity {
         return noteText;
     }
 
+    // what the running background jobs are, for the network window: a job says who it works for (the screen's title, or the file it reads) and since when
+    struct Running {
+        std::string what;
+        std::chrono::steady_clock::time_point since;
+    };
+    inline std::mutex runningMutex;
+    inline std::map<long, Running> running;
+    inline std::atomic<long> nextTask{0};
+    inline std::vector<Running> runningTasks() {
+        std::lock_guard<std::mutex> guard{runningMutex};
+        std::vector<Running> out;
+        for (const auto& entry : running) {
+            out.push_back(entry.second);
+        }
+        return out;
+    }
+
     struct Task {
-        Task() { tasks++; }
-        ~Task() { tasks--; }
+        const long id;
+        explicit Task(const std::string& what = std::string{}) : id{++nextTask} {
+            tasks++;
+            std::lock_guard<std::mutex> guard{runningMutex};
+            running[id] = {what, std::chrono::steady_clock::now()};
+        }
+        ~Task() {
+            tasks--;
+            std::lock_guard<std::mutex> guard{runningMutex};
+            running.erase(id);
+        }
         Task(const Task&) = delete;
         Task& operator=(const Task&) = delete;
     };

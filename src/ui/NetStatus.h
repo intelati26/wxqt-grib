@@ -17,6 +17,7 @@
 class NetStatus : public QDialog {
 public:
     static void show(QWidget * parent);
+    static QWidget * current() { return open; }   // (a development aid: the window for a screenshot)
 
 private:
     explicit NetStatus(QWidget * parent);
@@ -24,6 +25,7 @@ private:
     void stop(int what);   // 0 the selected rows, 1 read ahead and background, 2 everything
     QLabel * totals{};
     QLabel * openMeteo{};
+    QLabel * background{};   // the background jobs running: the status line's count, with who each works for
     QTableWidget * table{};
     QTimer timer;
     static QPointer<NetStatus> open;

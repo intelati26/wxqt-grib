@@ -18,7 +18,7 @@ FutureBytes::FutureBytes(Window * parent, const string& url, const function<void
     , watcher{new QFutureWatcher<void>}
     , future{(NetManager::trackOwner(parent), QtConcurrent::run([this, url, parent] {
           if (!AppState::quitting) {
-              const Activity::Task counted;
+              const Activity::Task counted{"reading " + (url.size() > 70 ? url.substr(0, 67) + "..." : url)};
               const NetPriority::Carry owned{0, parent};
               this->ba = UtilityIO::downloadAsByteArray(url);
           }
