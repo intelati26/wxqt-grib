@@ -69,6 +69,7 @@
 #include "spc/WatchProbabilityViewer.h"
 #include "space/UtilitySun.h"
 #include "space/SunViewer.h"
+#include "models/AnalysisLoop.h"
 #include "gfs/Cfs30Loader.h"
 #include "gfs/WpcPppLoader.h"
 #include "gfs/Ec46Loader.h"
@@ -274,6 +275,18 @@ int main(int argc, char * argv[]) {
                 if (route.startsWith("sunviewer:")) {
                     sun->choose(route.section(':', 1, 1).toInt());
                 }
+            } else if (route.startsWith("rangeloop:")) {   // WXQT_OPEN=rangeloop:<hours back>:<charts 1-4>[:<hour step>]: the RTMA / URMA loop window, drawing that many hours up to the newest RTMA hour
+                const auto parts = route.split(':');
+                const auto last = QDateTime::currentDateTimeUtc().addSecs(-3600);
+                const auto to = QDateTime{last.date(), QTime{last.time().hour(), 0}, QTimeZone::utc()};
+                std::vector<std::string> charts;
+                for (const auto * id : {"2m_temp_10m_wnd", "2m_dewp_10m_wnd", "10m_wnd_gust", "total_cloud_cover"}) {
+                    if (static_cast<int>(charts.size()) < parts.value(2, "1").toInt()) {
+                        charts.push_back(id);
+                    }
+                }
+                auto * loop = new AnalysisLoop{&w, "CONUS", charts, to.addSecs(-parts.value(1, "6").toInt() * 3600), to};
+                QTimer::singleShot(500, loop, [loop] { loop->draw(); });
             } else if (route == "abpgext") {   // WXQT_OPEN=abpgext: the extended (days 6-14) analog guidance window
                 new AbpgExtended{&w};
             } else if (route == "product") {   // WXQT_OPEN=product WXQT_PRODUCT_IMAGE=<url> WXQT_PRODUCT_TEXT=<url>: the text-and-picture window

@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "ModelViewer.h"
+#include "models/AnalysisLoop.h"
 #include "objects/AnimationRenderer.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "ui/ActivityLabel.h"
@@ -397,6 +398,21 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonOverlay->setToolTip("Draw the lines (heights, pressure) of other models over this chart's for the same valid time, each model in its own color. Save... writes it as a loop.");
         QObject::connect(buttonOverlay, &QPushButton::clicked, this, [this] { chooseOverlays(); });
         boxH2.addWidgetReal(buttonOverlay);
+        buttonRange = UiStandards::button(this, "Loop a range...");
+        buttonRange->setToolTip("A loop of the surface analyses from one date-time to another (UTC), one to four charts at once: each hour from the URMA when it is there, from the RTMA for the newest hours");
+        QObject::connect(buttonRange, &QPushButton::clicked, this, [this] {
+            const auto last = QDateTime::currentDateTimeUtc().addSecs(-3600);
+            const auto to = QDateTime{last.date(), QTime{last.time().hour(), 0}, QTimeZone::utc()};
+            std::vector<string> charts{objectModel.param};
+            for (const auto * more : {"2m_dewp_10m_wnd", "10m_wnd_gust", "total_cloud_cover", "visibility", "2m_temp_10m_wnd"}) {
+                if (static_cast<int>(charts.size()) < std::clamp(tileCount() + 1, 1, 4) && std::find(charts.begin(), charts.end(), more) == charts.end()) {
+                    charts.push_back(more);
+                }
+            }
+            new AnalysisLoop{this, objectModel.sector, charts, to.addDays(-1), to};
+        });
+        buttonRange->setVisible(false);
+        boxH2.addWidgetReal(buttonRange);
         buttonColors = UiStandards::button(this, "Colors...");
         buttonColors->setToolTip("Edit the color scale of this kind of chart: the stops, their colors and transparency, flat bands or smooth. Kept for every chart that uses the same scale.");
         QObject::connect(buttonColors, &QPushButton::clicked, this, [this] { editColors(); });
@@ -1830,6 +1846,9 @@ void ModelViewer::reload() {
     fitHoursToRun();
     if (buttonPlace != nullptr) {
         buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
+    }
+    if (buttonRange != nullptr) {
+        buttonRange->setVisible(objectModel.model == "RTMA" || objectModel.model == "URMA");
     }
     if (buttonOnMap != nullptr) {
         buttonOnMap->setVisible(GfsRender::drawsModel(objectModel.model) && GfsRender::handles(objectModel.model, objectModel.param));

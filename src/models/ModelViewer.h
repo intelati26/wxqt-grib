@@ -224,6 +224,7 @@ private:
     QAction * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
     bool standardDeviations{false};
     QPushButton * buttonBuild{};
+    QPushButton * buttonRange{};   // the RTMA and URMA only: a loop from one date-time to another
     QMenu * menuBuild{};
     void refreshBuildMenu();
     void buildChart();
