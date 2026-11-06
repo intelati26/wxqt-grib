@@ -26,6 +26,7 @@ SpcCompMap::SpcCompMap(Window * parent)
     boxH.addWidget(comboBox);
     boxH.addLayout(backForward);
     box.addLayout(boxH);
+    photo.setFlatOnWhite(true);   // (the SPC pictures are made for a white page)
     box.addWidgetAndCenter(photo);
     box.getAndShow(this);
     reload();

@@ -48,6 +48,7 @@ SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsD
     , url{GlobalVariables::nwsSPCwebsitePrefix + "/climo/reports/" + spcStormReportsDay + (isDate(spcStormReportsDay) ? "_rpts" : "") + ".gif"}
     , stormReportsUrl{GlobalVariables::nwsSPCwebsitePrefix + "/climo/reports/" + spcStormReportsDay + (isDate(spcStormReportsDay) ? "_rpts" : "") + ".csv"}
 {
+    photo.setFlatOnWhite(true);   // (the SPC pictures are made for a white page)
     setTitle("SPC Storm Reports");
     calendar.connect([this] { onDateChanged(); });
     lsrWfoButton.connect([this] { new LsrByWfo{this}; });

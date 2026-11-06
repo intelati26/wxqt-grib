@@ -28,6 +28,7 @@ SpcMcdWatchMpdViewer::SpcMcdWatchMpdViewer(Window * parent, const string& url)
     , shortcut{QKeySequence{"R"}, this}
     , shortcutImage{QKeySequence{"1"}, this}
 {
+    photo.setFlatOnWhite(true);   // (the SPC pictures are made for a white page)
     setTitle(token);
     boxText.addWidget(button);
     boxText.addWidget(text);
