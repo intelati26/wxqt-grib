@@ -50,13 +50,13 @@ public:
             return b;
         };
         button("|<", "First hour", [this] { choose(0); });
-        button("<", "Back an hour", [this] { choose(slider->value() - 1); });
+        button("<", "Back one step (an hour, or as many as this model's steps are apart)", [this] { choose(slider->value() - 1); });
         play = button(QString::fromUtf8("▶"), "Play (loops)", [this] {
             playing = !playing;
             play->setText(QString::fromUtf8(playing ? "❚❚" : "▶"));
             if (onPlay) onPlay(playing);
         });
-        button(">", "Forward an hour", [this] { choose(slider->value() + 1); });
+        button(">", "Forward one step (an hour, or as many as this model's steps are apart)", [this] { choose(slider->value() + 1); });
         button(">|", "Last hour", [this] { choose(slider->maximum()); });
         row->addSpacing(16);
         status = new QLabel{this};
