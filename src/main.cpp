@@ -301,7 +301,7 @@ int main(int argc, char * argv[]) {
                         }
                     }
                 });
-            } else if (route.startsWith("rangeloop:")) {   // WXQT_OPEN=rangeloop:<hours back>:<charts 1-4>[:<hour step>]: the RTMA / URMA loop window, drawing that many hours up to the newest RTMA hour
+            } else if (route.startsWith("rangeloop:")) {   // WXQT_OPEN=rangeloop:<hours back>:<charts 1-4>[:<region -AK|-HI|-PR>]: the RTMA / URMA loop window, drawing that many hours up to the newest RTMA hour
                 const auto parts = route.split(':');
                 const auto last = QDateTime::currentDateTimeUtc().addSecs(-3600);
                 const auto to = QDateTime{last.date(), QTime{last.time().hour(), 0}, QTimeZone::utc()};
@@ -311,7 +311,8 @@ int main(int argc, char * argv[]) {
                         charts.push_back(id);
                     }
                 }
-                auto * loop = new AnalysisLoop{&w, "CONUS", charts, to.addSecs(-parts.value(1, "6").toInt() * 3600), to};
+                const auto region = parts.value(3).toStdString();
+                auto * loop = new AnalysisLoop{&w, region == "-AK" ? "ALASKA" : region == "-HI" ? "HAWAII-ISLANDS" : region == "-PR" ? "PUERTO-RICO" : "CONUS", charts, to.addSecs(-parts.value(1, "6").toInt() * 3600), to, region};
                 QTimer::singleShot(500, loop, [loop] { loop->draw(); });
             } else if (route == "abpgext") {   // WXQT_OPEN=abpgext: the extended (days 6-14) analog guidance window
                 new AbpgExtended{&w};

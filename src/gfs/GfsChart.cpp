@@ -548,6 +548,8 @@ const std::vector<Sector>& sectors() {
         {"GULF-MEXICO", -100, 17, -78, 32},
         {"CENT-AMER", -95, 5, -70, 22},
         {"HAWAII", -165, 15, -150, 26},
+        {"HAWAII-ISLANDS", -161.8, 18.0, -153.8, 23.2},   // the islands, as the Hawaii analyses cover them
+        {"PUERTO-RICO", -68.4, 16.7, -64.0, 19.9},       // Puerto Rico and the Virgin Islands, as the analyses cover them
         // the United States by region
         {"NORTHEAST", -83, 36, -66, 48},
         {"MID-ATLANTIC", -86, 34, -72, 42},
@@ -1682,7 +1684,7 @@ const std::vector<Product>& products() {
             p.push_back(x);
         }
         // ---- the RTMA and URMA surface analyses (2.5 km, the hour of the analysis only): the blend's surface charts made from the analysis's own fields
-        for (const char * source : {"RTMA", "URMA"}) {
+        for (const char * source : {"RTMA", "URMA", "RTMA-AK", "URMA-AK", "RTMA-HI", "URMA-HI", "RTMA-PR", "URMA-PR"}) {
             const auto analysisChart = [&, source] (const char * id, const char * label, const char * variable, const char * level, const Ramp& ramp, const char * title, Quantity quantity, double step, bool barbs) {
                 Product x;
                 x.source = source;

@@ -409,7 +409,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
                     charts.push_back(more);
                 }
             }
-            new AnalysisLoop{this, objectModel.sector, charts, to.addDays(-1), to};
+            new AnalysisLoop{this, objectModel.sector, charts, to.addDays(-1), to, objectModel.model.size() > 4 ? objectModel.model.substr(4) : string{}};
         });
         buttonRange->setVisible(false);
         boxH2.addWidgetReal(buttonRange);
@@ -1848,7 +1848,7 @@ void ModelViewer::reload() {
         buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
     }
     if (buttonRange != nullptr) {
-        buttonRange->setVisible(objectModel.model == "RTMA" || objectModel.model == "URMA");
+        buttonRange->setVisible(objectModel.model.compare(0, 4, "RTMA") == 0 || objectModel.model.compare(0, 4, "URMA") == 0);
     }
     if (buttonOnMap != nullptr) {
         buttonOnMap->setVisible(GfsRender::drawsModel(objectModel.model) && GfsRender::handles(objectModel.model, objectModel.param));
@@ -2312,7 +2312,7 @@ void ModelViewer::showModelPicker() {
                                            "ICON-D2", "ENS-ALL", "GEFS", "IFS-ENS", "GEPS", "NAEFS", "HREF", "REFS", "CFS30", "CFS", "EC46", "SEAS5", "GFS-WAVE", "WW3", "GEFS-WAVE"};
     const auto rank = [] (const string& id) { return static_cast<int>(std::find(first.begin(), first.end(), id) - first.begin()); };
     std::stable_sort(entries.begin(), entries.end(), [&rank] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) { return rank(a.id) < rank(b.id); });
-    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Probabilistic precipitation", "Seasonal", "Waves and ocean", "Air quality", "Tropical cyclones", "Archive",
+    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Probabilistic precipitation", "Seasonal", "Waves and ocean", "Air quality", "Tropical cyclones", "NWS analysis", "Archive",
                                            "SPC guidance and mesoanalysis", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);

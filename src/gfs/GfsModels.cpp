@@ -319,6 +319,10 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("NARR"));
         m.push_back(surfaceAnalysis("RTMA"));
         m.push_back(surfaceAnalysis("URMA"));
+        for (const char * region : {"AK", "HI", "PR"}) {   // the same analyses for Alaska, Hawaii and Puerto Rico (their own folders of the buckets)
+            m.push_back(fromFile(std::string{"RTMA-"} + region));
+            m.push_back(fromFile(std::string{"URMA-"} + region));
+        }
         m.push_back(fromFile("RRFS"));
         m.push_back(fromFile("RRFS-AK"));
         m.push_back(fromFile("RRFS-HI"));

@@ -79,6 +79,8 @@ const vector<string> UtilityModelNcepInterface::sectorsGfs{
     "GULF-MEXICO",
     "CENT-AMER",
     "HAWAII",
+    "HAWAII-ISLANDS",
+    "PUERTO-RICO",
     "NORTHEAST",
     "MID-ATLANTIC",
     "SOUTHEAST",

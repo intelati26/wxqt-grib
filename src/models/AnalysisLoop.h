@@ -24,8 +24,9 @@
 // with later observations) and from the RTMA for the newest hours the URMA has not come to yet; the charts' titles name the one used. The hours are drawn in the background and play as they arrive.
 class AnalysisLoop : public Window {
 public:
+    // region: "" the contiguous United States, or "-AK", "-HI", "-PR" (the models RTMA-AK ... of that area)
     // charts: the chart ids (of the RTMA's list) of the panes to begin with, one to four; sector: the area of the Model Viewer; the range is in UTC
-    AnalysisLoop(Window * parent, const std::string& sector, const std::vector<std::string>& charts, const QDateTime& from, const QDateTime& to);
+    AnalysisLoop(Window * parent, const std::string& sector, const std::vector<std::string>& charts, const QDateTime& from, const QDateTime& to, const std::string& region = "");
     void draw() { build(); }   // as the button does (for a development aid)
 
 private:
@@ -41,7 +42,7 @@ private:
     std::string sector;
     VBox box;
     QDateTimeEdit * from{}, * to{};
-    QComboBox * step{}, * panes{};
+    QComboBox * step{}, * panes{}, * regionBox{};
     std::vector<QComboBox *> chartBoxes;
     QPushButton * buildButton{}, * playButton{}, * saveButton{};
     QLabel * status{}, * view{};

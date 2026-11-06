@@ -1753,7 +1753,7 @@ clone_pieces = false
 # this model's own, in GfsChart.cpp). Before May 2017 there is no index file: one is made from the head of each message and kept.
 id = RTMA
 label = NOAA/NCEP RTMA surface analysis, 2.5 km
-group = Archive
+group = NWS analysis
 kind = grib
 url = https://noaa-rtma-pds.s3.amazonaws.com/rtma2p5.{date}/rtma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
 index_suffix = .idx
@@ -1773,7 +1773,7 @@ list = true
 # this model's own, in GfsChart.cpp). Before May 2017 there is no index file: one is made from the head of each message and kept.
 id = URMA
 label = NOAA/NCEP URMA surface analysis, 2.5 km
-group = Archive
+group = NWS analysis
 kind = grib
 url = https://noaa-urma-pds.s3.amazonaws.com/urma2p5.{date}/urma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
 index_suffix = .idx
@@ -1783,6 +1783,120 @@ probe_hour = 0
 cycles_to_try = 8
 warp = 0.03, -135.0, 20.0, -60.0, 55.0
 sectors = conus
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"RTMA-AK", R"MODEL(
+# The Real-Time Mesoscale analysis for Alaska, hourly, from the open data bucket noaa-rtma-pds: the same fields and charts as the contiguous United States one (3 km). The grid is put on a regular one.
+id = RTMA-AK
+label = NOAA/NCEP RTMA Alaska surface analysis, 3 km
+group = NWS analysis
+kind = grib
+url = https://noaa-rtma-pds.s3.amazonaws.com/akrtma.{date}/akrtma.t{cycle}z.2dvaranl_ndfd_3p0.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 3
+warp = 0.04, -180.0, 40.0, -90.0, 75.0
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"URMA-AK", R"MODEL(
+# The UnRestricted Mesoscale analysis for Alaska, hourly, from the open data bucket noaa-urma-pds: the same fields and charts as the contiguous United States one (3 km). The grid is put on a regular one.
+id = URMA-AK
+label = NOAA/NCEP URMA Alaska surface analysis, 3 km
+group = NWS analysis
+kind = grib
+url = https://noaa-urma-pds.s3.amazonaws.com/akurma.{date}/akurma.t{cycle}z.2dvaranl_ndfd_3p0.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 6
+probe_hour = 0
+cycles_to_try = 8
+warp = 0.04, -180.0, 40.0, -90.0, 75.0
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"RTMA-HI", R"MODEL(
+# The Real-Time Mesoscale analysis for Hawaii, hourly, from the open data bucket noaa-rtma-pds: the same fields and charts as the contiguous United States one (2.5 km). The grid is put on a regular one.
+id = RTMA-HI
+label = NOAA/NCEP RTMA Hawaii surface analysis, 2.5 km
+group = NWS analysis
+kind = grib
+url = https://noaa-rtma-pds.s3.amazonaws.com/hirtma.{date}/hirtma.t{cycle}z.2dvaranl_ndfd.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 3
+warp = 0.025, -162.5, 17.5, -153.0, 23.5
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"URMA-HI", R"MODEL(
+# The UnRestricted Mesoscale analysis for Hawaii, hourly, from the open data bucket noaa-urma-pds: the same fields and charts as the contiguous United States one (2.5 km). The grid is put on a regular one.
+id = URMA-HI
+label = NOAA/NCEP URMA Hawaii surface analysis, 2.5 km
+group = NWS analysis
+kind = grib
+url = https://noaa-urma-pds.s3.amazonaws.com/hiurma.{date}/hiurma.t{cycle}z.2dvaranl_ndfd.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 6
+probe_hour = 0
+cycles_to_try = 8
+warp = 0.025, -162.5, 17.5, -153.0, 23.5
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"RTMA-PR", R"MODEL(
+# The Real-Time Mesoscale analysis for Puerto Rico and the Virgin Islands, hourly, from the open data bucket noaa-rtma-pds: the same fields and charts as the contiguous United States one (2.5 km). The grid is put on a regular one.
+id = RTMA-PR
+label = NOAA/NCEP RTMA Puerto Rico and the Virgin Islands surface analysis, 2.5 km
+group = NWS analysis
+kind = grib
+url = https://noaa-rtma-pds.s3.amazonaws.com/prrtma.{date}/prrtma.t{cycle}z.2dvaranl_ndfd.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 3
+warp = 0.025, -68.5, 16.5, -63.5, 20.0
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"URMA-PR", R"MODEL(
+# The UnRestricted Mesoscale analysis for Puerto Rico and the Virgin Islands, hourly, from the open data bucket noaa-urma-pds: the same fields and charts as the contiguous United States one (2.5 km). The grid is put on a regular one.
+id = URMA-PR
+label = NOAA/NCEP URMA Puerto Rico and the Virgin Islands surface analysis, 2.5 km
+group = NWS analysis
+kind = grib
+url = https://noaa-urma-pds.s3.amazonaws.com/prurma.{date}/prurma.t{cycle}z.2dvaranl_ndfd.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 6
+probe_hour = 0
+cycles_to_try = 8
+warp = 0.025, -68.5, 16.5, -63.5, 20.0
+sectors = world
 hours = 0-0/1
 hourly_runs = true
 overlays = true

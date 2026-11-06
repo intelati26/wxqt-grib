@@ -6,6 +6,7 @@
 #include "models/AnalysisLoop.h"
 #include <algorithm>
 #include <limits>
+#include <tuple>
 #include <QHBoxLayout>
 #include <QPixmap>
 #include <QTimeZone>
@@ -16,7 +17,16 @@
 #include "objects/UtilityAnimationExport.h"
 #include "ui/UiStandards.h"
 
-AnalysisLoop::AnalysisLoop(Window * parent, const std::string& sector, const std::vector<std::string>& charts, const QDateTime& fromTime, const QDateTime& toTime)
+namespace {
+    // label, the end of the models' names, the area drawn
+    const std::vector<std::tuple<std::string, std::string, std::string>>& regions() {
+        static const std::vector<std::tuple<std::string, std::string, std::string>> list{
+            {"Contiguous US", "", "CONUS"}, {"Alaska", "-AK", "ALASKA"}, {"Hawaii", "-HI", "HAWAII-ISLANDS"}, {"Puerto Rico", "-PR", "PUERTO-RICO"}};
+        return list;
+    }
+}
+
+AnalysisLoop::AnalysisLoop(Window * parent, const std::string& sector, const std::vector<std::string>& charts, const QDateTime& fromTime, const QDateTime& toTime, const std::string& region)
     : Window{parent}
     , sector{sector}
     , cancel{std::make_shared<std::atomic<bool>>(false)}
@@ -39,6 +49,15 @@ AnalysisLoop::AnalysisLoop(Window * parent, const std::string& sector, const std
         edit->setToolTip(tip);
         return edit;
     };
+    regionBox = UiStandards::combo(top);
+    for (const auto& [label, suffix, area] : regions()) {
+        regionBox->addItem(QString::fromStdString(label), QString::fromStdString(suffix));
+        if (suffix == region) {
+            regionBox->setCurrentIndex(regionBox->count() - 1);
+        }
+    }
+    regionBox->setToolTip("The area of the analyses: each has its own pair of RTMA and URMA (the URMA used where it has the hour, the RTMA for the newest hours). Guam has an RTMA only and is not offered");
+    topLayout->addWidget(regionBox);
     topLayout->addWidget(new QLabel{"From", top});
     from = dateBox(fromTime, "The first hour of the loop (UTC). The URMA goes back to 29 January 2014, the RTMA to 19 March 2013");
     topLayout->addWidget(from);
@@ -102,6 +121,11 @@ AnalysisLoop::AnalysisLoop(Window * parent, const std::string& sector, const std
     box.getAndShow(this);
     resize(1000, 800);
     panes->setCurrentIndex(std::clamp(static_cast<int>(charts.size()), 1, 4) - 1);
+    QObject::connect(regionBox, &QComboBox::currentIndexChanged, this, [this] (int index) {   // another area: its own pair of models, drawn over the area that fits them
+        if (index >= 0 && index < static_cast<int>(regions().size())) {
+            this->sector = std::get<2>(regions()[static_cast<size_t>(index)]);
+        }
+    });
     QObject::connect(panes, &QComboBox::currentIndexChanged, this, [this] (int) { panesChanged(); });
     panesChanged();
     QObject::connect(buildButton, &QPushButton::clicked, this, [this] { build(); });
@@ -169,6 +193,7 @@ void AnalysisLoop::build() {
     slider->setEnabled(true);
     playButton->setEnabled(true);
     saveButton->setEnabled(true);
+    const std::string suffix = regionBox->currentData().toString().toStdString();
     const int count = panes->currentData().toInt();
     std::vector<std::string> chosen;
     for (int i = 0; i < count; i++) {
@@ -182,15 +207,16 @@ void AnalysisLoop::build() {
         const auto flag = cancel;
         const auto ends = urmaEnds;
         const auto area = sector;
-        new FutureVoid{this, [result, error, valid, chosen, flag, ends, area] {
+        const auto urmaModel = "URMA" + suffix, rtmaModel = "RTMA" + suffix;
+        new FutureVoid{this, [result, error, valid, chosen, flag, ends, area, urmaModel, rtmaModel] {
                            if (flag->load()) {
                                return;
                            }
                            auto when = QDateTime::fromString(QString::fromStdString(valid), "yyyyMMddHH");
                            when.setTimeZone(QTimeZone::utc());
                            const long long seconds = when.toSecsSinceEpoch();
-                           for (const char * model : {"URMA", "RTMA"}) {
-                               if (std::string{model} == "URMA" && seconds >= ends->load()) {
+                           for (const auto& model : {urmaModel, rtmaModel}) {
+                               if (model == urmaModel && seconds >= ends->load()) {
                                    continue;   // an earlier hour had no URMA: nor will this one
                                }
                                GfsRender::Session session;
@@ -214,7 +240,7 @@ void AnalysisLoop::build() {
                                    return;
                                }
                                *error = problem;
-                               if (std::string{model} == "URMA") {
+                               if (model == urmaModel) {
                                    auto current = ends->load();
                                    while (seconds < current && !ends->compare_exchange_weak(current, seconds)) {
                                    }
@@ -234,7 +260,7 @@ void AnalysisLoop::build() {
                            } else {
                                frames[index] = result->first;
                                sources[index] = result->second;
-                               (result->second == "URMA" ? urma : rtma)++;
+                               (result->second.compare(0, 4, "URMA") == 0 ? urma : rtma)++;
                                auto when = QDateTime::fromString(QString::fromStdString(valid), "yyyyMMddHH");
                                frameNames[index] = when.toString("yyyy-MM-dd HH") + "Z " + QString::fromStdString(result->second);
                                if (shown < 0) {
