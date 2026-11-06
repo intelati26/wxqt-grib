@@ -88,7 +88,7 @@ AnalysisLoop::AnalysisLoop(Window * parent, const std::string& area0, const std:
     const auto dateBox = [top] (const QDateTime& value, const QString& tip) {
         auto * edit = new QDateTimeEdit{value.toUTC(), top};
         edit->setDisplayFormat("yyyy-MM-dd HH 'Z'");
-        edit->setTimeZone(QTimeZone::utc());
+        edit->setTimeSpec(Qt::UTC);   // (Qt 6.4 has no setTimeZone on the date box)
         edit->setCalendarPopup(true);
         edit->setToolTip(tip);
         return edit;

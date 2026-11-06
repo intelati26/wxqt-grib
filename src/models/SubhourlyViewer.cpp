@@ -80,7 +80,7 @@ SubhourlyViewer::SubhourlyViewer(Window * parent, const std::string& modelId, co
     topLayout->addWidget(new QLabel{QString::fromStdString(model) + " run", top});
     runEdit = new QDateTimeEdit{QDateTime::currentDateTimeUtc().addSecs(-3 * 3600), top};
     runEdit->setDisplayFormat("yyyy-MM-dd HH 'Z'");
-    runEdit->setTimeZone(QTimeZone::utc());
+    runEdit->setTimeSpec(Qt::UTC);   // (Qt 6.4 has no setTimeZone on the date box)
     runEdit->setCalendarPopup(true);
     runEdit->setToolTip("The run (UTC). The subhourly files stay on the server for a day or two");
     topLayout->addWidget(runEdit);
