@@ -10,6 +10,7 @@ A research version of the MPAS model from NOAA's National Severe Storms Laborato
 
 - [Model for Prediction Across Scales](https://en.wikipedia.org/wiki/Model_for_Prediction_Across_Scales) (background, Wikipedia)
 - [NSSL CAMs: MPAS runs and how they are set up](https://cams.nssl.noaa.gov/) (From the people who run it)
+- [Copernicus CAMS: the air quality service, a different CAMS](https://atmosphere.copernicus.eu/) (From the people who run it)
 
 ## Where the data is read from
 

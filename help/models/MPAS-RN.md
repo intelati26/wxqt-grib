@@ -9,6 +9,7 @@ A second research run of the MPAS model from NOAA's National Severe Storms Labor
 ## Further reading
 
 - [NSSL CAMs: MPAS runs and how they are set up](https://cams.nssl.noaa.gov/) (From the people who run it)
+- [Copernicus CAMS: the air quality service, a different CAMS](https://atmosphere.copernicus.eu/) (From the people who run it)
 
 ## Where the data is read from
 
