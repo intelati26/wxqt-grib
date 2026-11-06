@@ -20,8 +20,11 @@ public:
 private:
     void showEvent(QShowEvent *) override;
     void look();
+    void checkNewest();
     QLineEdit * folder{};
     QLabel * found{};
+    QLabel * newest{};
+    QString installed;   // "3.13.3" of the GDAL in use, "" when unknown
     bool shown{false};
 };
 
