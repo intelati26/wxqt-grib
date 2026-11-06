@@ -74,6 +74,8 @@ MainWindow::MainWindow(QWidget * parent)
     , shortcutRtma{{"B"}, this}
     , shortcutUsAlerts{{"K"}, this}
 {
+    fitTimer.setSingleShot(true);
+    QObject::connect(&fitTimer, &QTimer::timeout, this, [this] { fitThumbnails(); });
     QFont font{};
     font.setPointSize(UIPreferences::fontSize);
     QApplication::setFont(font);
@@ -209,7 +211,8 @@ void MainWindow::loadThumbnail(const string& token) {
             const auto found = imageWidgets.find(token);   // the layout may have been rebuilt meanwhile
             const auto * entry = HomeThumbnails::find(token);
             if (found != imageWidgets.end() && !bytes->isEmpty()) {
-                found->second.setToWidth(*bytes, UIPreferences::mainScreenImageSize, entry != nullptr && entry->white);
+                imageBytes[token] = *bytes;
+                found->second.setToWidth(*bytes, thumbnailSize(), entry != nullptr && entry->white);
             }
         }};
 }
@@ -275,6 +278,44 @@ void MainWindow::fitHazardMatrix() {
 
 void MainWindow::resizeEventCustom() {
     QTimer::singleShot(0, this, [this] { fitHazardMatrix(); });
+    fitTimer.start(250);   // the thumbnails follow once the window has stopped changing
+}
+
+// The thumbnails as wide as lets whole ones fill each row of their zone: as many across as fit at the set size, each stretched to share the row (at most half as wide again; beyond that
+// another one fits), so a window that grows or shrinks changes the count and the size in step and no row ends in a gap.
+void MainWindow::fitThumbnails() {
+    if (Utility::readPref("FIT_THUMBNAILS", "true").compare(0, 1, "t") != 0 || imageTiles.empty()) {
+        if (fitSize != 0) {
+            fitSize = 0;
+        }
+        return;
+    }
+    const auto * flow = imageLayout.getView();
+    const int width = flow->geometry().width() - flow->contentsMargins().left() - flow->contentsMargins().right();
+    const int gap = UIPreferences::boxPadding;
+    const int least = UIPreferences::mainScreenImageSize;
+    if (width < least) {
+        return;
+    }
+    const int across = std::max(1, (width + gap) / (least + gap));
+    const int size = std::clamp((width - (across - 1) * gap) / across, least, least * 3 / 2);
+    if (size == fitSize) {
+        return;
+    }
+    fitSize = size;
+    for (auto& [token, tile] : imageTiles) {
+        tile->setFixedWidth(size);
+        if (auto * label = tile->findChild<QLabel *>("caption")) {
+            label->setMaximumWidth(size);
+            label->setMinimumHeight(label->heightForWidth(size));
+        }
+        const auto bytes = imageBytes.find(token);
+        const auto image = imageWidgets.find(token);
+        if (bytes != imageBytes.end() && image != imageWidgets.end() && !bytes->second.isEmpty()) {
+            const auto * entry = HomeThumbnails::find(token);
+            image->second.setToWidth(bytes->second, size, entry != nullptr && entry->white);
+        }
+    }
 }
 
 bool MainWindow::launch(int indexFinal) {
@@ -334,6 +375,9 @@ void MainWindow::addWidgets() {
     imageLayout.setEqualRowHeights(true);   // the captions of a row line up along its bottom
     rightMostLayout.removeChildren();
     imageWidgets.clear();
+    imageTiles.clear();
+    imageBytes.clear();
+    fitSize = 0;
     textWidgets.clear();
     boxSevereDashboard.removeChildren();
     //
@@ -370,12 +414,14 @@ void MainWindow::addWidgets() {
                         }
                     });
                 }
+                imageTiles[token] = tile;
                 imageLayout.addWidgetReal(tile);
             }
         }
     }
     imageSize = UIPreferences::mainScreenImageSize;
     imageLayout.addStretch();
+    fitTimer.start(250);   // fitted to the rows once the layout has its width
     //
     // Textual right sidebar (hourly)
     //
@@ -444,7 +490,7 @@ void MainWindow::arrangeColumns() {
 string MainWindow::computeTokenString() {
     string tokenString;
     tokenString += string{UIPreferences::hourlyGraph ? "graph," : ""} + (UIPreferences::forecastPoint ? "point," : "") + WString::join(UIPreferences::homeScreenForecastOrder.getTokens(), ",") + ",";
-    tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",") + Utility::readPref("RTMA_SECOND_CHART", "") + Utility::readPref("RTMA_SECOND_BUTTON", "true") + ",";   // the RTMA picture's product and its button are part of the layout
+    tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",") + Utility::readPref("RTMA_SECOND_CHART", "") + Utility::readPref("RTMA_SECOND_BUTTON", "true") + Utility::readPref("FIT_THUMBNAILS", "true") + ",";   // the RTMA picture's product and its button are part of the layout
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
             if (item.getPrefToken() == token && item.isEnabled()) {

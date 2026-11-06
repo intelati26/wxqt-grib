@@ -52,6 +52,7 @@ SettingsBox::SettingsBox(Window * parent)
     configs.push_back(std::make_unique<Switch>(parent, "Show the forecast point (the week at a glance and the outlooks, as the NWS forecast points page) on the home screen", "HOME_FORECAST_POINT", true));
     configs.push_back(std::make_unique<Switch>(parent, "Refresh the home screen automatically (every interval below; the toolbar's update button and Ctrl-U toggle it)", "MAIN_SCREEN_AUTO_REFRESH", true));
     configs.push_back(std::make_unique<Switch>(parent, "Captions under the home screen pictures", "HOME_CAPTIONS", true));
+    configs.push_back(std::make_unique<Switch>(parent, "Home screen pictures fit the rows (stretched evenly to the width of their area; the size above is the least)", "FIT_THUMBNAILS", true));
     configs.push_back(std::make_unique<Switch>(parent, "A 'Set product...' button under the home screen RTMA picture (off: chosen here only)", "RTMA_SECOND_BUTTON", true));
     configs.push_back(std::make_unique<Switch>(parent, "A click on the main window brings it over the other windows (off: they stay above it)", "MAIN_WINDOW_RAISES", true));
     configs.push_back(std::make_unique<Switch>(parent, "Toggle scroll wheel motion", "NEXRAD_SCROLLWHEEL", false));
