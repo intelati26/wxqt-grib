@@ -6,6 +6,7 @@
 
 #include "ModelViewer.h"
 #include "models/AnalysisLoop.h"
+#include "models/ChartPickers.h"
 #include "models/SubhourlyViewer.h"
 #include "objects/AnimationRenderer.h"
 #include "spcrefs/SpcRefsLoader.h"
@@ -2274,18 +2275,9 @@ namespace {
         return ProductPicker::sectorGroup(id);
     }
 
-    // what a sector is called in a list: the areas round a saved location say the place and the kilometers a side
+    // what a sector is called in a list (shared with the other screens that pick an area)
     string sectorLabel(const string& id) {
-        double lat = 0, lon = 0, km = 0;
-        string name;
-        if (GfsChart::Sector box; GfsChart::parseBoxId(id, box)) {
-            return "Domain of the run (" + std::to_string(static_cast<int>(std::lround(box.south))) + " to " + std::to_string(static_cast<int>(std::lround(box.north))) + " N, " +
-                std::to_string(static_cast<int>(std::lround(-box.east))) + " to " + std::to_string(static_cast<int>(std::lround(-box.west))) + " W)";
-        }
-        if (GfsChart::parseLocalId(id, lat, lon, km, name)) {
-            return (name.empty() ? string{"Saved location"} : name) + ", " + std::to_string(static_cast<int>(km)) + " km square";
-        }
-        return Hafs::label(id);
+        return ChartPickers::areaLabel(id);
     }
 }
 
@@ -2358,43 +2350,14 @@ void ModelViewer::showSectorPicker() {
         return;
     }
     const auto model = objectModel.model;
-    std::vector<ProductPicker::Entry> entries;
-    for (const auto& id : objectModel.sectors) {
-        entries.push_back({id, sectorLabel(id), sectorGroup(id)});
-    }
-    // the groups in a fixed order: the entries are listed as the model gives them
-    std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
-        static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "Storms in the model", "Other"};
-        return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
-    });
-    std::vector<string> favorites;
-    const auto stored = Utility::readPref("SECTORFAV_" + model, "");
-    for (size_t at = 0; at < stored.size();) {
-        auto end = stored.find(',', at);
-        end = end == string::npos ? stored.size() : end;
-        if (end > at) {
-            favorites.push_back(stored.substr(at, end - at));
-        }
-        at = end + 1;
-    }
-    sectorPicker = new ProductPicker{this, model, entries, objectModel.sector, favorites, {}, {}};
-    sectorPicker->setWording("areas", "Show this area");
-    sectorPicker->resize(360, 560);
-    sectorPicker->onPick = [this] (const string& id) {
+    sectorPicker = ChartPickers::areaPicker(this, model, ChartPickers::areaEntries(objectModel.sectors), objectModel.sector, [this] (const string& id) {
         objectModel.sector = id;
         comboboxSector.block();
         comboboxSector.setIndexByValue(id);
         comboboxSector.unblock();
         refreshProductButton();
         reload();
-    };
-    sectorPicker->onFavorites = [model] (const std::vector<string>& ids) {
-        string joined;
-        for (const auto& id : ids) {
-            joined += (joined.empty() ? "" : ",") + id;
-        }
-        Utility::writePref("SECTORFAV_" + model, joined);
-    };
+    });
     sectorPicker->show();
 }
 
@@ -2405,39 +2368,21 @@ void ModelViewer::showPicker() {
         return;
     }
     const auto model = objectModel.model;
-    std::vector<ProductPicker::Entry> entries;
+    std::vector<string> ids, labels;
     int hidden = 0;
     for (size_t i = 0; i < objectModel.params.size() && i < objectModel.paramLabels.size(); i++) {
         if (chartAbsent(objectModel.params[i])) {
             hidden++;
             continue;
         }
-        const auto * product = GfsChart::product(objectModel.params[i], model);
-        entries.push_back({objectModel.params[i], objectModel.paramLabels[i], product ? GfsChart::category(*product) : string{"Other"}});
+        ids.push_back(objectModel.params[i]);
+        labels.push_back(objectModel.paramLabels[i]);
     }
-    std::vector<string> favorites;
-    const auto stored = Utility::readPref("MODELFAV_" + model, "");
-    for (size_t at = 0; at < stored.size();) {
-        auto end = stored.find(',', at);
-        end = end == string::npos ? stored.size() : end;
-        if (end > at) {
-            favorites.push_back(stored.substr(at, end - at));
-        }
-        at = end + 1;
-    }
-    picker = new ProductPicker{this, model, entries, objectModel.param, favorites, GfsChart::overlayChoices(model), overlays};
+    picker = ChartPickers::chartPicker(this, model, ChartPickers::chartEntries(model, ids, labels), objectModel.param, [this] (const string& id) { chooseChart(id); }, GfsChart::overlayChoices(model), overlays);
     if (hidden > 0) {
         picker->setNote(QString::number(hidden) + (hidden == 1 ? " chart is" : " charts are") + " not listed: the newest run of " + QString::fromStdString(model) + " has no data for " + (hidden == 1 ? "it." : "them."));
     }
-    picker->onPick = [this] (const string& id) { chooseChart(id); };
     picker->onOverlays = [this] (const std::vector<string>& ids) { setOverlays(ids); };
-    picker->onFavorites = [model] (const std::vector<string>& ids) {
-        string joined;
-        for (const auto& id : ids) {
-            joined += (joined.empty() ? "" : ",") + id;
-        }
-        Utility::writePref("MODELFAV_" + model, joined);
-    };
     picker->show();
 }
 
