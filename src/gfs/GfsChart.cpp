@@ -282,6 +282,21 @@ const std::vector<std::string>& ingredientSources() {
         return {{{10, QColor{40, 60, 160}}, {20, QColor{30, 150, 220}}, {24, QColor{0, 200, 200}}, {26, QColor{0, 200, 120}}, {28, QColor{250, 230, 0}}, {29.5, QColor{255, 140, 0}}, {31, QColor{220, 30, 30}},
                  {33, QColor{130, 0, 60}}}};
     }
+    Ramp airQuality(const std::vector<double>& steps) {   // the six steps of the US air quality index (good, moderate, unhealthy for sensitive groups, unhealthy, very unhealthy, hazardous): the first step's value is where "good" ends
+        static const char * const colors[] = {"#00e400", "#ffff00", "#ff7e00", "#ff0000", "#8f3f97", "#7e0023"};   // 6 colors, 5 steps between them
+        Ramp r;
+        r.banded = true;
+        r.stops.push_back({0, QColor{colors[0]}});
+        for (size_t i = 0; i < steps.size() && i < 5; i++) {
+            r.stops.push_back({steps[i], QColor{colors[i + 1]}});
+        }
+        r.stops.push_back({steps.back() * 2, QColor{colors[5]}});
+        return r;
+    }
+    Ramp uvIndex() {   // the WHO steps: low (green), moderate (yellow), high (orange), very high (red), extreme (violet)
+        return {{{0, QColor{"#299501"}}, {2, QColor{"#299501"}}, {3, QColor{"#f7e400"}}, {5, QColor{"#f7e400"}}, {6, QColor{"#f85900"}}, {7, QColor{"#f85900"}}, {8, QColor{"#d8001d"}}, {10, QColor{"#d8001d"}},
+                 {11, QColor{"#6b49c8"}}, {13, QColor{"#6b49c8"}}}};
+    }
     Ramp waveHeight() {   // meters
         return {{{0, QColor{235, 245, 255}}, {1, QColor{150, 200, 240}}, {2, QColor{0, 170, 220}}, {3, QColor{0, 200, 120}}, {4, QColor{250, 230, 0}}, {6, QColor{255, 140, 0}}, {8, QColor{220, 30, 30}},
                  {10, QColor{180, 0, 90}}, {12, QColor{130, 0, 170}}, {15, QColor{255, 255, 255}}}};
@@ -4720,6 +4735,42 @@ const std::vector<Product>& products() {
             x.legendStep = 2;
             p.push_back(x);
         };
+        const auto camsRecipes = [&] (const char * model) {   // the air quality and UV charts of the Copernicus atmosphere service: one fill each, the surface amounts in micrograms per cubic metre
+            struct Chart {
+                const char * id;
+                const char * label;
+                const char * variable;
+                const char * unit;
+                Ramp ramp;
+                double step;
+            };
+            for (const auto& c : {Chart{"pm25", "PM2.5 fine particles", "PM25", "ug/m3", airQuality({9, 35.4, 55.4, 125.4, 225.4}), 0},
+                                  Chart{"pm10_aq", "PM10 particles", "PM10", "ug/m3", airQuality({54, 154, 254, 354, 424}), 0},
+                                  Chart{"dust", "Dust", "DUST", "ug/m3", airQuality({10, 50, 100, 250, 500}), 0},
+                                  Chart{"seasalt_aq", "Sea salt", "SALT", "ug/m3", airQuality({10, 25, 50, 100, 200}), 0},
+                                  Chart{"ozone_aq", "Ozone (surface)", "O3", "ug/m3", airQuality({100, 120, 150, 190, 240}), 0},
+                                  Chart{"no2_aq", "Nitrogen dioxide", "NO2", "ug/m3", airQuality({40, 100, 200, 400, 800}), 0},
+                                  Chart{"no_aq", "Nitrogen monoxide", "NO", "ug/m3", airQuality({10, 30, 60, 120, 250}), 0},
+                                  Chart{"so2_aq", "Sulphur dioxide", "SO2", "ug/m3", airQuality({20, 80, 250, 350, 500}), 0},
+                                  Chart{"co_aq", "Carbon monoxide", "CO", "ug/m3", airQuality({300, 1000, 2000, 5000, 10000}), 0},
+                                  Chart{"hcho_aq", "Formaldehyde", "HCHO", "ug/m3", airQuality({2, 5, 10, 20, 40}), 0},
+                                  Chart{"glyoxal_aq", "Glyoxal", "GLYX", "ug/m3", airQuality({0.05, 0.1, 0.2, 0.4, 0.8}), 0},
+                                  Chart{"pan_aq", "Peroxyacyl nitrates", "PAN", "ug/m3", airQuality({0.5, 1, 2, 4, 8}), 0},
+                                  Chart{"aod", "Aerosol optical depth (550 nm)", "AOD", "", airQuality({0.1, 0.2, 0.4, 0.8, 1.5}), 0},
+                                  Chart{"uv_index", "UV index", "UVI", "", uvIndex(), 1},
+                                  Chart{"uv_index_clear", "UV index, clear sky", "UVIC", "", uvIndex(), 1}}) {
+                Product x;
+                x.source = model;
+                x.id = c.id;
+                x.label = c.label;
+                x.wants = {want("a", c.variable, "surface")};
+                x.fill = [] (const Grids& g) { return pick(g, "a"); };
+                x.ramp = c.ramp;
+                x.fillTitle = std::string{c.label} + (*c.unit ? std::string{" ("} + c.unit + ")" : std::string{});
+                x.legendStep = c.step;
+                p.push_back(x);
+            }
+        };
         const auto waveRecipes = [&] (const char * model) {
             struct Component {
                 const char * name;
@@ -6184,7 +6235,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"MF-SST", [&] { sstRecipes("MF-SST"); }}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"MF-SST", [&] { sstRecipes("MF-SST"); }}, {"CAMS", [&] { camsRecipes("CAMS"); }}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);
@@ -6887,7 +6938,7 @@ std::string category(const Product& product) {
     if (has("radar") || has("reflectivity") || has("refd") || has("refc") || has("echo") || has("lightning") || has("updraft") || has("downdraft") || has("hail")) {
         return "Severe: storm structure";
     }
-    if (has("dust") || has("aod") || has("pm25") || has("smoke") || has("sulfate") || has("seasalt") || has("aerosol")) {
+    if (has("dust") || has("aod") || has("pm25") || has("_aq") || has("uv_index") || has("smoke") || has("sulfate") || has("seasalt") || has("aerosol")) {
         return "Air quality and smoke";
     }
     if (core == "thetae_2m" || has("mixr")) {   // moisture at the surface, not the mixing of the layer

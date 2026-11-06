@@ -2273,7 +2273,7 @@ void ModelViewer::showModelPicker() {
                                            "ICON-D2", "ENS-ALL", "GEFS", "IFS-ENS", "GEPS", "NAEFS", "HREF", "REFS", "CFS30", "CFS", "EC46", "SEAS5", "GFS-WAVE", "WW3", "GEFS-WAVE"};
     const auto rank = [] (const string& id) { return static_cast<int>(std::find(first.begin(), first.end(), id) - first.begin()); };
     std::stable_sort(entries.begin(), entries.end(), [&rank] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) { return rank(a.id) < rank(b.id); });
-    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Probabilistic precipitation", "Seasonal", "Waves and ocean", "Tropical cyclones", "Archive",
+    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Probabilistic precipitation", "Seasonal", "Waves and ocean", "Air quality", "Tropical cyclones", "Archive",
                                            "SPC guidance and mesoanalysis", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);

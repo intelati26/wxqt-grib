@@ -950,7 +950,7 @@ clone_pieces = false
 # Meteo-France's global sea surface temperature analysis and forecast (the ocean model of Meteo-France's wave and current system, on a regular 1/12 degree grid), as Open-Meteo keeps it (open-meteo/om-file-format).
 # One run a day, 6 hourly: the last day's analysis then the forecast to 10 days.
 id = MF-SST
-group = Ocean
+group = Waves and ocean
 label = Meteo-France sea surface temperature 1/12 degree (via Open-Meteo)
 source_label = Meteo-France sea surface temperature, data by Open-Meteo.com
 kind = om
@@ -965,6 +965,45 @@ max_parallel = 3
 hours = 0-240/6
 run_length = 0:240, else:240
 run_every = 24
+sectors = world
+overlays = true
+list = true
+clone = false
+)MODEL"},
+        {"CAMS", R"MODEL(
+# The Copernicus Atmosphere Monitoring Service's global forecast of the air: fine and coarse particles (PM2.5, PM10), dust, sea salt, ozone, nitrogen dioxide and monoxide, sulphur dioxide, carbon monoxide, formaldehyde, glyoxal,
+# PAN, the aerosol optical depth and the UV index, on a 0.4 degree grid, hourly to 5 days, a run at 00 and 12Z, as Open-Meteo keeps it (open-meteo/om-file-format). The amounts are the concentrations at the surface in
+# micrograms per cubic metre (the aerosol optical depth and the UV index have no unit).
+id = CAMS
+group = Air quality
+label = CAMS global air quality and UV 0.4 degree (via Open-Meteo)
+source_label = Copernicus CAMS global atmospheric composition, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/cams_global/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=PM25 => pm2_5
+nc_variable = when variable=PM10 => pm10
+nc_variable = when variable=DUST => dust
+nc_variable = when variable=SALT => sea_salt_aerosol
+nc_variable = when variable=O3 => ozone
+nc_variable = when variable=NO2 => nitrogen_dioxide
+nc_variable = when variable=NO => nitrogen_monoxide
+nc_variable = when variable=SO2 => sulphur_dioxide
+nc_variable = when variable=CO => carbon_monoxide
+nc_variable = when variable=HCHO => formaldehyde
+nc_variable = when variable=GLYX => glyoxal
+nc_variable = when variable=PAN => peroxyacyl_nitrates
+nc_variable = when variable=AOD => aerosol_optical_depth
+nc_variable = when variable=UVI => uv_index
+nc_variable = when variable=UVIC => uv_index_clear_sky
+probe_hour = 0
+cycle_hours = 12
+lag_hours = 10
+cycles_to_try = 3
+max_parallel = 3
+hours = 0-120/1
+run_length = 0:120, else:120
+run_every = 12
 sectors = world
 overlays = true
 list = true

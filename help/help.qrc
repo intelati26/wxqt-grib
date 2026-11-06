@@ -9,6 +9,7 @@
     <file alias="models/ARPEGE-EU.md">models/ARPEGE-EU.md</file>
     <file alias="models/CFS.md">models/CFS.md</file>
     <file alias="models/CFS-ANL.md">models/CFS-ANL.md</file>
+    <file alias="models/CAMS.md">models/CAMS.md</file>
     <file alias="models/CFS30.md">models/CFS30.md</file>
     <file alias="models/EC46.md">models/EC46.md</file>
     <file alias="models/ENS-ALL.md">models/ENS-ALL.md</file>
