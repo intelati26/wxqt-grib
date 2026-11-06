@@ -305,7 +305,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("MSM"));
         m.push_back(fromFile("MSM-UL"));
         m.push_back(fromFile("MF-SST"));
-        m.push_back(fromFile("CAMS"));
+        m.push_back(fromFile("COPERNICUS"));
         m.push_back(fromFile("ICON-2I"));
         m.push_back(fromFile("AROME-AT"));
         m.push_back(cfsAnalysis());

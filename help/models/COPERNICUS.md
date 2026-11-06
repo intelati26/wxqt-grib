@@ -1,8 +1,10 @@
-# CAMS
+# COPERNICUS
 
-*CAMS global air quality and UV 0.4 degree (via Open-Meteo)*
+*Copernicus atmosphere service (CAMS) global air quality and UV 0.4 degree (via Open-Meteo)*
 
 ## Why it matters
+
+(CAMS here is the Copernicus Atmosphere Monitoring Service. The NSSL convection allowing models, also called CAMs, are the model screen "NSSL CAMs".)
 
 The Copernicus Atmosphere Monitoring Service's global forecast of what is in the air: fine particles (PM2.5) and coarse ones (PM10), Saharan and Asian dust, sea salt, ozone, nitrogen dioxide and monoxide, sulphur dioxide, carbon monoxide, formaldehyde, glyoxal and PAN, with the aerosol optical depth (how much light the particles stop) and the UV index, with and without cloud. The grid is 0.4 degree (about 40 km), hourly to 5 days, a run at 00 and 12Z. It sees smoke plumes, dust storms and the haze of a city, but not a street: a 40 km box averages a city with the country round it.
 

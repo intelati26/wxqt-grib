@@ -970,13 +970,13 @@ overlays = true
 list = true
 clone = false
 )MODEL"},
-        {"CAMS", R"MODEL(
-# The Copernicus Atmosphere Monitoring Service's global forecast of the air: fine and coarse particles (PM2.5, PM10), dust, sea salt, ozone, nitrogen dioxide and monoxide, sulphur dioxide, carbon monoxide, formaldehyde, glyoxal,
+        {"COPERNICUS", R"MODEL(
+# The Copernicus Atmosphere Monitoring Service's (CAMS; not the NSSL convection allowing models, also called CAMs, of the screen "CAMS") global forecast of the air: fine and coarse particles (PM2.5, PM10), dust, sea salt, ozone, nitrogen dioxide and monoxide, sulphur dioxide, carbon monoxide, formaldehyde, glyoxal,
 # PAN, the aerosol optical depth and the UV index, on a 0.4 degree grid, hourly to 5 days, a run at 00 and 12Z, as Open-Meteo keeps it (open-meteo/om-file-format). The amounts are the concentrations at the surface in
 # micrograms per cubic metre (the aerosol optical depth and the UV index have no unit).
-id = CAMS
+id = COPERNICUS
 group = Air quality
-label = CAMS global air quality and UV 0.4 degree (via Open-Meteo)
+label = Copernicus atmosphere service (CAMS) global air quality and UV 0.4 degree (via Open-Meteo)
 source_label = Copernicus CAMS global atmospheric composition, data by Open-Meteo.com
 kind = om
 om_grid = regular
