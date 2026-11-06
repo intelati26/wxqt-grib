@@ -181,6 +181,17 @@ const std::vector<std::string>& ingredientSources() {
         return {{{-45, QColor{"#4b2d7f"}}, {-30, QColor{"#5b55a8"}}, {-20, QColor{"#3f74b8"}}, {-10, QColor{"#4aa0d4"}}, {0, QColor{"#9ad6e6"}}, {5, QColor{"#bfe4cf"}},
                  {10, QColor{"#dcefb4"}}, {15, QColor{"#f3f0a4"}}, {20, QColor{"#f8d97e"}}, {25, QColor{"#f5ac5c"}}, {30, QColor{"#e57741"}}, {35, QColor{"#c5432e"}}, {40, QColor{"#8e1f2c"}}, {47, QColor{"#5c1024"}}}};
     }
+    // flat bands of 4 degrees F (the model guidance site's RTMA and URMA charts are drawn so), in the colors `base` has at the middle of each: lowF to highF, and the first and last bands go on past them
+    Ramp bands4F(const Ramp& base, double lowF, double highF) {
+        const auto celsius = [] (double f) { return (f - 32.0) / 1.8; };
+        Ramp r;
+        r.banded = true;
+        r.stops.push_back({-100.0, QColor::fromRgba(base.at(celsius(lowF)))});   // below the first band: the same color (its number is not on the legend)
+        for (double f = lowF; f < highF - 1e-9; f += 4.0) {
+            r.stops.push_back({celsius(f), QColor::fromRgba(base.at(celsius(f + 2.0)))});
+        }
+        return r;
+    }
     Ramp windSpeed() {
         return {{{0, QColor{"#f7fbff"}}, {15, QColor{"#e0ecf6"}}, {30, QColor{"#c4dcee"}}, {45, QColor{"#98c5e0"}}, {60, QColor{"#6aa9d2"}}, {80, QColor{"#4687bf"}},
                  {100, QColor{"#7a72b8"}}, {120, QColor{"#b36aa6"}}, {140, QColor{"#d6618a"}}, {170, QColor{"#e8665d"}}, {200, QColor{"#f29a4d"}}}};
@@ -1697,8 +1708,8 @@ const std::vector<Product>& products() {
                 x.legendStep = step;
                 return x;
             };
-            p.push_back(analysisChart("2m_temp_10m_wnd", "2 m Temperature and 10 m Wind", "TMP", "2 m above ground", temperature(), "2 m temperature", Quantity::Temperature, 5, true));
-            p.push_back(analysisChart("2m_dewp_10m_wnd", "2 m Dewpoint and 10 m Wind", "DPT", "2 m above ground", dewpoint(), "2 m dewpoint", Quantity::Temperature, 5, true));
+            p.push_back(analysisChart("2m_temp_10m_wnd", "2 m Temperature and 10 m Wind", "TMP", "2 m above ground", bands4F(temperature(), -32, 112), "2 m temperature", Quantity::Temperature, 5, true));
+            p.push_back(analysisChart("2m_dewp_10m_wnd", "2 m Dewpoint and 10 m Wind", "DPT", "2 m above ground", bands4F(dewpoint(), -40, 84), "2 m dewpoint", Quantity::Temperature, 5, true));
             p.push_back(analysisChart("total_cloud_cover", "Total Cloud Cover and 10 m Wind", "TCDC", "entire atmosphere (considered as a single layer)", cloudCover(), "Total cloud cover (%)", Quantity::Other, 10, true));
             {   // the gust is the fill; the barbs are the sustained wind
                 auto x = analysisChart("10m_wnd_gust", "10 m Wind and Gust", "GUST", "10 m above ground", lowWind(), "10 m wind gust (kt)", Quantity::Other, 10, true);
@@ -8409,8 +8420,12 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     if (noBar) {
         // no scale to number
     } else if (ramp->banded) {   // the number at the lower edge of each band, as the model guidance site's legends have it
+        // many narrow bands (4 degree ones): a number every few bands so they do not run together; the first stop (-100, "and below") has none
+        const size_t every = std::max<size_t>(1, static_cast<size_t>(std::ceil(static_cast<double>(stops.size()) * 40.0 / barWidth)));
         for (size_t i = 0; i < stops.size(); i++) {
-            tick(static_cast<double>(i) / static_cast<double>(stops.size()), stops[i].first);
+            if (stops[i].first > -90.0 && (i % every == 0 || stops.size() <= 16)) {
+                tick(static_cast<double>(i) / static_cast<double>(stops.size()), stops[i].first);
+            }
         }
     } else if (stepped) {
         for (size_t i = 0; i < stops.size(); i++) {
