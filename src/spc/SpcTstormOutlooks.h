@@ -25,6 +25,7 @@ private:
     void resizeEventCustom() override;
     VBox box;
     vector<Image> images;
+    QLabel * notes{nullptr};   // under the pictures: when the outlook was issued
     vector<QLabel *> headers;   // above each picture: its period and the highest probability in it, on the colour the outlook gives that probability
 };
 

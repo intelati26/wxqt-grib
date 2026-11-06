@@ -23,6 +23,15 @@ public:
         string valid;   // "06/20Z-07/00Z"
     };
     static TstormPeriod parseTstormKml(const string&);
+    // when a day 1 to 3 convective outlook was issued and what it covers, from the outlook map service ("061556Z", as the SPC writes them)
+    struct Issuance {
+        string issued;
+        string valid;
+        string expire;
+    };
+    static string categoricalLayerUrl(int day);
+    static Issuance parseIssuance(const string& json);
+    static string issuedOfTstormKml(const string& kml);   // "061606Z": the KML says "Issue Time 20261106 202611061606Z"
 };
 
 #endif  // UTILITYSPC_H

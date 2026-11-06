@@ -11,6 +11,7 @@
 #include "objects/FutureBytes.h"
 #include "misc/OutlookNav.h"
 #include "spc/SpcSwoDay1.h"
+#include "spc/UtilitySpc.h"
 #include "spc/UtilitySpcSwo.h"
 #include "util/To.h"
 #include "util/UtilityList.h"
@@ -45,7 +46,28 @@ SpcSwoSummary::SpcSwoSummary(Window * parent)
         grid->addLayout(cell, static_cast<int>(index) / numberAcross, static_cast<int>(index) % numberAcross);
     }
     box.addLayoutReal(grid);
+    notes = new QLabel{this};
+    notes->setWordWrap(true);
+    box.addWidgetReal(notes);
     box.addStretch();
+    // when each of the days 1 to 3 was issued and what it covers (the days 4 to 8 come with their own times in the pictures)
+    noteLines.assign(3, "");
+    for (int day = 1; day <= 3; day++) {
+        new FutureBytes{this, UtilitySpc::categoricalLayerUrl(day), [this, day] (const auto& json) {
+            const auto found = UtilitySpc::parseIssuance(json.toStdString());
+            if (found.issued.empty()) {
+                return;
+            }
+            noteLines[static_cast<size_t>(day - 1)] = "Day " + To::string(day) + ": Issued " + found.issued + "   Valid " + found.valid + " - " + found.expire;
+            string text;
+            for (const auto& line : noteLines) {
+                if (!line.empty()) {
+                    text += (text.empty() ? "" : "\n") + line;
+                }
+            }
+            notes->setText(QString::fromStdString(text));
+        }};
+    }
     // the highest risk of each day, from the tables of the SPC's outlook pages: days 1-3 by their day page (the files carry the issue time), days 4-8 by their own table
     for (int day = 1; day <= 8; day++) {
         const auto take = [this, day] (const QByteArray& ba) {

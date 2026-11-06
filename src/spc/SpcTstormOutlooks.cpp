@@ -10,6 +10,7 @@
 #include "spc/UtilitySpc.h"
 #include <algorithm>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QVBoxLayout>
 #include "util/UtilityList.h"
 
@@ -35,6 +36,9 @@ SpcTstormOutlooks::SpcTstormOutlooks(Window * parent)
         row->addLayout(cell);
     }
     box.addLayoutReal(row);
+    notes = new QLabel{this};
+    notes->setWordWrap(true);
+    box.addWidgetReal(notes);
     box.addStretch();
     box.getAndShow(this);
     for (auto index : range(urls.size())) {
@@ -44,6 +48,9 @@ SpcTstormOutlooks::SpcTstormOutlooks(Window * parent)
         const auto kml = urls[index].substr(0, urls[index].size() - 4) + ".kml";
         new FutureBytes{this, kml, [this, index] (const auto& data) {
             const auto period = UtilitySpc::parseTstormKml(data.toStdString());
+            if (const auto issued = UtilitySpc::issuedOfTstormKml(data.toStdString()); !issued.empty() && notes->text().isEmpty()) {
+                notes->setText(QString::fromStdString("Experimental enhanced thunderstorm outlook: issued " + issued));   // one issue time for all the periods
+            }
             headers[index]->setText(QString::fromStdString((period.valid.empty() ? string{} : period.valid + ": ") + "<b>" + (period.percent == 0 ? string{"No areas"} : std::to_string(period.percent) + "%") + "</b>"));
             headers[index]->setStyleSheet(QString::fromStdString("padding: 3px; color: #000000; background: " + (period.color.empty() ? string{"#F0F0F0"} : period.color) + ";"));
         }};
