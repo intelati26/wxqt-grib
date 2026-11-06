@@ -10,6 +10,11 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <QStringList>
+#include <QWindow>
+#ifdef Q_OS_WIN
+#define NOMINMAX
+#include <windows.h>
+#endif
 #include "settings/UIPreferences.h"
 #include "util/Utility.h"
 #include "util/UtilityUI.h"
@@ -91,10 +96,25 @@ string Window::geometryKey() const {
     return string{"WINDOW_GEOMETRY_"} + typeid(*this).name();
 }
 
+// A window with a parent is, to the system, owned by it and stays above it: the tool windows would always cover the main window. Without that bond a click on the main window brings it over them,
+// as any window comes forward (the parent stays the parent for the program: closing it closes them). The Settings switch MAIN_WINDOW_RAISES (on) turns it off.
+void Window::releaseFromOwner() {
+    if (embedded || parentWidget() == nullptr || !isWindow() || Utility::readPref("MAIN_WINDOW_RAISES", "true").compare(0, 1, "t") != 0) {
+        return;
+    }
+    if (auto * handle = windowHandle()) {
+        handle->setTransientParent(nullptr);
+#ifdef Q_OS_WIN
+        SetWindowLongPtr(reinterpret_cast<HWND>(handle->winId()), GWLP_HWNDPARENT, 0);   // (the owner of a window on Windows: Qt sets it once, from the parent)
+#endif
+    }
+}
+
 // the first time a screen is shown, put it where and as big as it was when last closed (if that is still on a
 // connected screen)
 void Window::showEvent(QShowEvent * event) {
     QMainWindow::showEvent(event);
+    releaseFromOwner();
     if (geometryRestored || embedded) {
         return;
     }

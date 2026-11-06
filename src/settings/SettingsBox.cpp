@@ -53,6 +53,7 @@ SettingsBox::SettingsBox(Window * parent)
     configs.push_back(std::make_unique<Switch>(parent, "Refresh the home screen automatically (every interval below; the toolbar's update button and Ctrl-U toggle it)", "MAIN_SCREEN_AUTO_REFRESH", true));
     configs.push_back(std::make_unique<Switch>(parent, "Captions under the home screen pictures", "HOME_CAPTIONS", true));
     configs.push_back(std::make_unique<Switch>(parent, "A 'Set product...' button under the home screen RTMA picture (off: chosen here only)", "RTMA_SECOND_BUTTON", true));
+    configs.push_back(std::make_unique<Switch>(parent, "A click on the main window brings it over the other windows (off: they stay above it)", "MAIN_WINDOW_RAISES", true));
     configs.push_back(std::make_unique<Switch>(parent, "Toggle scroll wheel motion", "NEXRAD_SCROLLWHEEL", false));
     configs.push_back(std::make_unique<Switch>(parent, "Remember last GOES image", "REMEMBER_GOES", false));
     configs.push_back(std::make_unique<Switch>(parent, "Remember last Radar Mosaic image", "REMEMBER_MOSAIC", false));
