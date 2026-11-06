@@ -17,6 +17,7 @@ Credit: *Generated using Copernicus Atmosphere Monitoring Service information*, 
 - [Air quality index](https://en.wikipedia.org/wiki/Air_quality_index) (background, Wikipedia)
 - [Ultraviolet index](https://en.wikipedia.org/wiki/Ultraviolet_index) (background, Wikipedia)
 - [Copernicus Atmosphere Monitoring Service](https://atmosphere.copernicus.eu/) (From the people who run it)
+- [NSSL CAMs: the convection allowing models, a different CAMs](https://cams.nssl.noaa.gov/) (From the people who run it)
 
 ## Where the data is read from
 
