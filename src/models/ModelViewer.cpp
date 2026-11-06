@@ -416,10 +416,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         boxH2.addWidgetReal(buttonRange);
         buttonSubhourly = UiStandards::button(this, "15 minute fields...");
         buttonSubhourly->setToolTip("The surface fields of this model every 15 minutes (the radar, 2 m temperature and dew point, wind and gust, visibility, precipitation rate ...), a loop of one run, one to four charts at once");
-        QObject::connect(buttonSubhourly, &QPushButton::clicked, this, [this] {
-            std::vector<string> charts{objectModel.param};
-            new SubhourlyViewer{this, objectModel.model, objectModel.sector, string{}, charts};
-        });
+        QObject::connect(buttonSubhourly, &QPushButton::clicked, this, [this] { openSubhourly(); });
         buttonSubhourly->setVisible(false);
         boxH2.addWidgetReal(buttonSubhourly);
         buttonColors = UiStandards::button(this, "Colors...");
@@ -1857,7 +1854,10 @@ void ModelViewer::reload() {
         buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
     }
     if (buttonSubhourly != nullptr) {
-        buttonSubhourly->setVisible(objectModel.model == "RRFS" || objectModel.model == "HRRR");   // (the models whose 15 minute files are read)
+        {   // the models whose 15 minute files are read
+            const auto * def = GfsModels::find(objectModel.model);
+            buttonSubhourly->setVisible(def != nullptr && def->subhourly);
+        }
     }
     if (buttonRange != nullptr) {
         buttonRange->setVisible(objectModel.model.compare(0, 4, "RTMA") == 0 || objectModel.model.compare(0, 4, "URMA") == 0);
@@ -2445,6 +2445,23 @@ void ModelViewer::showPicker() {
 
 int ModelViewer::tileCount() const {
     return std::clamp(comboTiles.getIndex(), 0, 3);
+}
+
+// the 15 minute viewer on what is on view: the run, the area, the panes' charts, the hours round the one shown
+void ModelViewer::openSubhourly() {
+    std::vector<string> charts{objectModel.param};
+    if (tilesShow() == TilesShow::Charts) {
+        for (int i = 0; i < tileCount(); i++) {
+            if (const auto& chart = tiles[static_cast<size_t>(i)]->shownChart; !chart.empty() && std::find(charts.begin(), charts.end(), chart) == charts.end()) {
+                charts.push_back(chart);
+            }
+        }
+    }
+    const auto run = runTime(objectModel.run);
+    const auto index = comboboxTime.getIndex();
+    const int hour = index >= 0 && static_cast<size_t>(index) < objectModel.times.size() ? std::atoi(objectModel.times[static_cast<size_t>(index)].c_str()) : 1;
+    auto * viewer = new SubhourlyViewer{this, objectModel.model, objectModel.sector, run.isValid() ? run.toString("yyyyMMddHH").toStdString() : string{}, charts};
+    viewer->setLeads(std::max(15, hour * 60 - 60), std::min(1080, std::max(60, hour * 60 + 120)));
 }
 
 void ModelViewer::setOverlays(const std::vector<string>& ids) {

@@ -127,6 +127,7 @@ namespace {
     // hour N are in "2dfld.3km.subh.fNNN", whose last records are the hour itself (GfsGrid::parseIdx names those as the hourly files name theirs). No pressure levels for those runs.
     GfsModels::Def rrfsWithSubhourly(const std::string& id, const std::string& subhFile = "2dfld.3km.subh") {
         auto def = fromFile(id);
+        def.subhourly = true;
         const auto base = def.source;
         def.source = [base, subhFile] (const std::string& storm) {
             auto s = base(storm);

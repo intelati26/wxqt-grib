@@ -42,7 +42,14 @@ public:
             }
         }
     }
-    void setLeads(int fromMinutes, int toMinutes) {   // (a development aid)
+    std::string summary() const {   // (a development aid: what the window was opened on)
+        std::string out = model + " run " + runEdit->dateTime().toUTC().toString("yyyyMMddHH").toStdString() + " area " + sector + " leads " + std::to_string(fromLead->value()) + "-" + std::to_string(toLead->value()) + " charts";
+        for (const auto& chart : paneCharts) {
+            out += " " + chart;
+        }
+        return out;
+    }
+    void setLeads(int fromMinutes, int toMinutes) {   // (a development aid)   // (a development aid)
         fromLead->setValue(fromMinutes);
         toLead->setValue(toMinutes);
     }

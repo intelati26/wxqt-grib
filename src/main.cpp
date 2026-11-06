@@ -1068,6 +1068,16 @@ int main(int argc, char * argv[]) {
                     QTimer::singleShot(12000, viewer, [viewer, parts] { viewer->setTileRun(parts.value(0).toInt(), parts.value(1).toStdString()); });
                     QTimer::singleShot(24000, viewer, [viewer] { std::fprintf(stderr, "TILES: %s\n", viewer->tileCaptions().c_str()); });
                 }
+                if (qEnvironmentVariableIsSet("WXQT_SUBHOURLY")) {   // WXQT_SUBHOURLY=1: 14 s in the "15 minute fields..." button is pressed (the window opens on what is on view)
+                    QTimer::singleShot(14000, viewer, [viewer] { viewer->openSubhourly(); });
+                    QTimer::singleShot(40000, viewer, [] {
+                        for (auto * widget : QApplication::allWidgets()) {
+                            if (const auto * sub = dynamic_cast<SubhourlyViewer *>(widget)) {
+                                std::fprintf(stderr, "SUBHOURLY: %s\n", sub->summary().c_str());
+                            }
+                        }
+                    });
+                }
                 if (qEnvironmentVariableIsSet("WXQT_NOTICE")) {   // WXQT_NOTICE=<text>: 12 s in the card over the picture with that text (\n for a new line)
                     QTimer::singleShot(12000, viewer, [viewer] { viewer->noticeTest(qEnvironmentVariable("WXQT_NOTICE").replace("\\n", "\n").toStdString()); });
                 }
