@@ -10,7 +10,9 @@
 #include <string>
 #include <vector>
 #include "ui/Image.h"
+#include <QLabel>
 #include "ui/Shortcut.h"
+#include "ui/Text.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -25,6 +27,9 @@ private:
     void resizeEventCustom() override;
     VBox box;
     vector<Image> images;
+    vector<QLabel *> headers;   // above each picture: the day and its highest category on WPC's colour for it
+    Text notes;   // under the pictures: when each day's outlook was issued and what period it is for
+    vector<string> dayText;   // each day's line of the notes, once its outlook has come
     vector<string> urls;
     const int numberAcross{3};
     vector<Shortcut> shortcuts;

@@ -1116,7 +1116,7 @@ int main(int argc, char * argv[]) {
                 new SettingsMain{&w, [] {}, false, false, nullptr};
             } else if (route == "cams") {   // WXQT_OPEN=cams: the NSSL CAMs pictures screen (MPAS, WRF, HRRR, RRFS)
                 new CamsViewer{&w};
-            } else if (route.startsWith("spcscreen:")) {   // WXQT_OPEN=spcscreen:<summary|day:N|fire|firesummary|tstorm|reports|meso|compare|compmap>: that SPC screen (with its go-to list)
+            } else if (route.startsWith("spcscreen:")) {   // WXQT_OPEN=spcscreen:<summary|day:N|fire|firesummary|tstorm|rainfall|reports|meso|compare|compmap>: that SPC screen (with its go-to list)
                 const auto which = route.section(':', 1, 1);
                 if (which == "summary") {
                     OutlookNav::open(&w, OutlookNav::SevereSummary);
@@ -1128,6 +1128,8 @@ int main(int argc, char * argv[]) {
                     OutlookNav::open(&w, OutlookNav::FireSummary);
                 } else if (which == "tstorm") {
                     OutlookNav::open(&w, OutlookNav::Thunderstorm);
+                } else if (which == "rainfall") {
+                    OutlookNav::open(&w, OutlookNav::RainfallSummary);
                 } else if (which == "reports") {
                     new SpcStormReports{&w, "today"};
                 } else if (which == "meso") {
