@@ -16,6 +16,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QUrl>
+#include <QTimeZone>
 #include "rivers/UtilityRivers.h"
 #include "util/UtilityIO.h"
 
@@ -308,7 +309,7 @@ void DamData::loadLatest(vector<Latest>& all) {
             if (!when.isValid()) {
                 when = QDateTime::fromString(QString::fromStdString(found->second.obsTime), "yyyy-MM-dd HH:mm:ss");
             }
-            when.setTimeSpec(Qt::UTC);
+            when.setTimeZone(QTimeZone::utc());
             latest.seconds = when.isValid() ? static_cast<long>(when.toSecsSinceEpoch()) : static_cast<long>(std::time(nullptr));
             latest.ok = found->second.status != "obs_not_current" && found->second.status != "out_of_service";
         }

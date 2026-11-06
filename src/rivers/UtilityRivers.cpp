@@ -18,6 +18,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
+#include <QTimeZone>
 #include "util/UtilityIO.h"
 
 namespace {
@@ -40,7 +41,7 @@ namespace {
 
     long long epoch(const QString& iso) {
         auto time = QDateTime::fromString(iso, Qt::ISODate);
-        time.setTimeSpec(Qt::UTC);
+        time.setTimeZone(QTimeZone::utc());
         return time.isValid() ? time.toSecsSinceEpoch() : 0;
     }
 

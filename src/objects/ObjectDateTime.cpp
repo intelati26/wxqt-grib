@@ -50,7 +50,7 @@ string ObjectDateTime::format(const string& s) const {
 }
 
 void ObjectDateTime::utcToLocal() {
-    dateTime.setTimeSpec(Qt::UTC);
+    dateTime.setTimeZone(QTimeZone::utc());
     dateTime = dateTime.toLocalTime();
 }
 
@@ -69,7 +69,7 @@ ObjectDateTime ObjectDateTime::fromObs(const string& time) {
     // text has a timezone "Z" so 2nd arg is null
     // qDebug() << "decode:" << returnTime;
     auto dateTime = QDateTime::fromString(QString::fromStdString(returnTime), "yyyyMMddThhmmss.zzzZ");
-    dateTime.setTimeSpec(Qt::UTC);
+    dateTime.setTimeZone(QTimeZone::utc());
     if (!dateTime.isValid()) {
         return ObjectDateTime{};
     }
@@ -113,7 +113,7 @@ ObjectDateTime ObjectDateTime::getCurrentTimeInUTC() {
 // const auto offset = QTimeZone::systemTimeZone().offsetFromUtc(QDateTime::currentDateTime()) / 3600;
 int ObjectDateTime::offsetFromUtcInSeconds() {
     const auto dateTime1 = QDateTime::currentDateTime();
-    const auto dateTime2 = QDateTime{dateTime1.date(), dateTime1.time(), Qt::UTC};
+    const auto dateTime2 = QDateTime{dateTime1.date(), dateTime1.time(), QTimeZone::utc()};
     return static_cast<int>(dateTime1.secsTo(dateTime2));
 }
 

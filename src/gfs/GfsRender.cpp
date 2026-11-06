@@ -28,6 +28,7 @@
 #include <QFileInfo>
 #include <QTemporaryDir>
 #include <QStandardPaths>
+#include <QTimeZone>
 #include "common/GlobalVariables.h"
 #include "gfs/GfsCache.h"
 #include "gfs/GfsChart.h"
@@ -475,7 +476,7 @@ namespace {
         }
         static const char * const colors[] = {"#111111", "#d62728", "#1f77b4", "#2ca02c", "#9467bd"};
         auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-        start.setTimeSpec(Qt::UTC);
+        start.setTimeZone(QTimeZone::utc());
         const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
         static const GfsClimate climate{UtilityGrib::gdalBinDir()};
         const auto own = chart.contours;   // every set of lines of the chart is drawn for each model: a model's sets share its color, the later ones dashed
@@ -508,7 +509,7 @@ namespace {
                 return false;
             }
             auto newestTime = QDateTime::fromString(QString::fromStdString(newest.id()), "yyyyMMddHH");
-            newestTime.setTimeSpec(Qt::UTC);
+            newestTime.setTimeZone(QTimeZone::utc());
             auto t = std::min(start, newestTime);
             const int step = gfs.model().cycleHours;
             while (t.time().hour() % step != 0) {
@@ -600,7 +601,7 @@ namespace {
             return;
         }
         auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-        start.setTimeSpec(Qt::UTC);
+        start.setTimeZone(QTimeZone::utc());
         const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
         std::map<std::string, int> baseBack;   // a source's newest run that has the valid time: how many cycles back of the chart's run (the lagged extras count from it)
         for (const auto& extra : chart.extras) {
@@ -644,7 +645,7 @@ namespace {
     // members read, and every grid put on one 0.5 degree grid. A member that could not be read is left out (the others stand); an ensemble none of whose members were read is an error.
     bool pooledGrids(GfsRender::Session& session, const GfsChart::Product& chart, const GfsData::Run& run, int hour, GfsChart::Grids& grids, std::string& error) {
         auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-        start.setTimeSpec(Qt::UTC);
+        start.setTimeZone(QTimeZone::utc());
         const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
         GfsGrid::Grid common;
         common.columns = 720;
@@ -864,7 +865,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         }
     } else if (!exact && wanted != run.cycle && wanted.size() == 2 && std::isdigit(static_cast<unsigned char>(wanted[0]))) {
         auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-        t.setTimeSpec(Qt::UTC);
+        t.setTimeZone(QTimeZone::utc());
         const int step = gfs.model().cycleHours;
         for (int back = 0; back < 24 / step && t.toString("HH").toStdString() != wanted; back++) {
             t = t.addSecs(-static_cast<qint64>(step) * 3600);
@@ -878,8 +879,8 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         }
         auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
         auto valid = QDateTime::fromString(QString::fromStdString(variant.validTime), "yyyyMMddHH");
-        start.setTimeSpec(Qt::UTC);   // both are UTC: no daylight saving between them
-        valid.setTimeSpec(Qt::UTC);
+        start.setTimeZone(QTimeZone::utc());   // both are UTC: no daylight saving between them
+        valid.setTimeZone(QTimeZone::utc());
         const auto seconds = start.secsTo(valid);
         const auto label = valid.toString("ddd HH").toStdString() + "Z";
         if (!start.isValid() || !valid.isValid() || seconds < 0 || seconds % 3600 != 0) {
@@ -926,7 +927,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         const auto missing = def ? def->onMissing : GfsModels::Missing::Nothing;
         if (missing == GfsModels::Missing::PreviousCycle) {   // the cycle before, six hours further on, has the same valid time (the hurricane model's waves come out after the rest)
             auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-            t.setTimeSpec(Qt::UTC);
+            t.setTimeZone(QTimeZone::utc());
             t = t.addSecs(-6 * 3600);
             const GfsData::Run earlier{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
             grids.clear();
@@ -942,7 +943,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
             bool found = false;
             for (int back = 1; back <= 3 && !found; back++) {
                 auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-                t.setTimeSpec(Qt::UTC);
+                t.setTimeZone(QTimeZone::utc());
                 t = t.addSecs(-static_cast<qint64>(back) * step * 3600);
                 const GfsData::Run earlier{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
                 grids.clear();
@@ -1116,7 +1117,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
                 }
                 auto otherData = data(session.folder(), other);
                 auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-                start.setTimeSpec(Qt::UTC);
+                start.setTimeZone(QTimeZone::utc());
                 const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
                 GfsData::Run newest;
                 if (variant.otherRun.size() != 10 && !newestRun(otherData, newest)) {
@@ -1127,7 +1128,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
                     newest = {variant.otherRun.substr(0, 8), variant.otherRun.substr(8, 2)};
                 }
                 auto newestTime = QDateTime::fromString(QString::fromStdString(newest.id()), "yyyyMMddHH");
-                newestTime.setTimeSpec(Qt::UTC);
+                newestTime.setTimeZone(QTimeZone::utc());
                 auto t = std::min(start, newestTime);
                 const int step = std::max(1, otherData.model().cycleHours);
                 while (t.time().hour() % step != 0) {
@@ -1141,7 +1142,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
                 bool ok = false;
                 if (variant.otherRun.size() == 10) {   // that very run
                     t = QDateTime::fromString(QString::fromStdString(variant.otherRun), "yyyyMMddHH");
-                    t.setTimeSpec(Qt::UTC);
+                    t.setTimeZone(QTimeZone::utc());
                 }
                 for (int back = 0; back < (variant.otherRun.size() == 10 ? 1 : 3) && !ok; back++, t = t.addSecs(-static_cast<qint64>(step) * 3600)) {
                     const int h = static_cast<int>((valid.toSecsSinceEpoch() - t.toSecsSinceEpoch()) / 3600);
@@ -1183,7 +1184,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
                 againLabel = other + " (" + used.date.substr(4, 4) + " " + used.cycle + "Z)";
             } else {
                 auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-                t.setTimeSpec(Qt::UTC);
+                t.setTimeZone(QTimeZone::utc());
                 t = t.addSecs(-static_cast<qint64>(variant.hoursBack) * 3600);
                 const GfsData::Run earlier{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
                 GfsChart::Grids before;
@@ -1281,7 +1282,7 @@ std::vector<std::string> GfsRender::hafsStorms(const std::string& model, std::st
     }
     const std::string letter = model == "HAFSB" ? "b" : "a";
     auto t = QDateTime::currentDateTimeUtc();
-    t = QDateTime{t.date(), QTime{t.time().hour() / 6 * 6, 0}, Qt::UTC};
+    t = QDateTime{t.date(), QTime{t.time().hour() / 6 * 6, 0}, QTimeZone::utc()};
     for (int back = 0; back < 6 && storms.empty(); back++, t = t.addSecs(-6 * 3600)) {   // the newest cycle that has any
         const auto folder = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfs" + letter + "." + t.toString("yyyyMMdd").toStdString() + "/" + t.toString("HH").toStdString() + "/";
         const auto text = QString::fromUtf8(URL::getBytes(folder));
@@ -1317,8 +1318,8 @@ bool GfsRender::phaseTrack(Session& session, const std::string& model, const std
     const GfsData::Run run{runId.substr(0, 8), runId.substr(8, 2)};
     auto runTime = QDateTime::fromString(QString::fromStdString(runId.substr(0, 10)), "yyyyMMddHH");
     auto fixTime = QDateTime::fromString(QString::fromStdString(validTime.substr(0, 10)), "yyyyMMddHH");
-    runTime.setTimeSpec(Qt::UTC);
-    fixTime.setTimeSpec(Qt::UTC);
+    runTime.setTimeZone(QTimeZone::utc());
+    fixTime.setTimeZone(QTimeZone::utc());
     const int first = std::max(0, static_cast<int>(runTime.secsTo(fixTime) / 3600));
     std::vector<int> hours;
     for (const auto& h : def->hours) {

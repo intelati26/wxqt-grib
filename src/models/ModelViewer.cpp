@@ -1974,7 +1974,7 @@ vector<string> ModelViewer::runLabels() const {
         return labels;
     }
     auto utc = newest;
-    utc.setTimeSpec(Qt::UTC);
+    utc.setTimeZone(QTimeZone::utc());
     if (const auto * def = GfsModels::find(objectModel.model); def != nullptr && def->source("").wrf.enabled) {   // a model made on this computer: each entry is the newest run it has at that hour, with its date
         const auto found = GfsData::wrfRunsIn(def->source("").wrf.folders);
         for (const auto& run : objectModel.runs) {
@@ -1997,7 +1997,7 @@ vector<string> ModelViewer::runLabels() const {
             labels.push_back(run);
             continue;
         }
-        auto t = QDateTime{utc.date(), QTime{hour, 0}, Qt::UTC};
+        auto t = QDateTime{utc.date(), QTime{hour, 0}, QTimeZone::utc()};
         if (t > utc) {
             t = t.addDays(-1);
         }
@@ -2741,8 +2741,8 @@ QDateTime ModelViewer::runTime(const string& run) const {
     if (!newest.isValid() || !ok) {
         return {};
     }
-    newest.setTimeSpec(Qt::UTC);
-    auto t = QDateTime{newest.date(), QTime{hour, 0}, Qt::UTC};
+    newest.setTimeZone(QTimeZone::utc());
+    auto t = QDateTime{newest.date(), QTime{hour, 0}, QTimeZone::utc()};
     return t > newest ? t.addDays(-1) : t;
 }
 

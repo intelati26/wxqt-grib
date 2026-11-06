@@ -11,6 +11,7 @@
 #include <QPixmap>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QTimeZone>
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
 #include "gfs/MrmsVerify.h"
@@ -96,7 +97,7 @@ MrmsVerifyViewer::MrmsVerifyViewer(Window * parent, const string& modelName, con
 void MrmsVerifyViewer::compare() {
     const int mine = ++generation;
     const auto valid = timePick->dateTime().toUTC();
-    const QDateTime hour{valid.date(), QTime{valid.time().hour(), 0}, Qt::UTC};
+    const QDateTime hour{valid.date(), QTime{valid.time().hour(), 0}, QTimeZone::utc()};
     const bool wholeHour = hourMax->isChecked();
     const auto modelName = model, paramName = param, sectorName = sector;
     const auto * def = GfsModels::find(modelName);
@@ -111,7 +112,7 @@ void MrmsVerifyViewer::compare() {
         longest = std::max(longest, h.to);
     }
     vector<std::pair<string, int>> wanted;
-    auto run = QDateTime{hour.date(), QTime{hour.time().hour() / cycle * cycle, 0}, Qt::UTC};
+    auto run = QDateTime{hour.date(), QTime{hour.time().hour() / cycle * cycle, 0}, QTimeZone::utc()};
     const auto published = QDateTime::currentDateTimeUtc().addSecs(-3600LL * def->source("").lagHours);   // a run is there from its lag after its time: the newer ones would be another run's
     for (; wanted.size() < 8 && run.secsTo(hour) / 3600 <= longest; run = run.addSecs(-3600LL * cycle)) {
         if (run > published) {

@@ -9,6 +9,7 @@
 #include <QDateTime>
 #include <QString>
 #include <QStringList>
+#include <QTimeZone>
 
 namespace {
     constexpr double pi = 3.14159265358979323846;
@@ -233,7 +234,7 @@ std::vector<PhaseSpace::Observed> PhaseSpace::parseBest(const std::string& text)
             continue;
         }
         auto when = QDateTime::fromString(f[2].trimmed(), "yyyyMMddHH");
-        when.setTimeSpec(Qt::UTC);
+        when.setTimeZone(QTimeZone::utc());
         const auto la = f[6].trimmed(), lo = f[7].trimmed();
         if (!when.isValid() || la.size() < 2 || lo.size() < 2) {
             continue;

@@ -19,6 +19,7 @@
 #include <QPainterPath>
 #include <QPolygonF>
 #include <QStringList>
+#include <QTimeZone>
 #include <set>
 #include <tuple>
 #include "cfs/UtilityCfs.h"
@@ -1047,7 +1048,7 @@ const std::vector<Product>& products() {
                 return false;
             }
             auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
-            t.setTimeSpec(Qt::UTC);
+            t.setTimeZone(QTimeZone::utc());
             t = t.addSecs(static_cast<qint64>(context.hour) * 3600);
             std::string error;
             const auto run = context.run;
@@ -1063,7 +1064,7 @@ const std::vector<Product>& products() {
         // anomalies: the forecast less the 1991-2020 daily mean for the valid day (GfsClimate), where the heights of the level are real
         const auto validDay = [] (const Context& context) {
             auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
-            t.setTimeSpec(Qt::UTC);
+            t.setTimeZone(QTimeZone::utc());
             t = t.addSecs(context.hour * 3600);
             return GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
         };
@@ -2372,7 +2373,7 @@ const std::vector<Product>& products() {
                             throw std::runtime_error{"no climatology"};
                         }
                         auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
-                        t.setTimeSpec(Qt::UTC);
+                        t.setTimeZone(QTimeZone::utc());
                         t = t.addSecs(context.hour * 3600LL);
                         const int day = GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
                         const auto field = what == 1 ? GfsClimate::height(500) : what == 2 ? GfsClimate::height(700) : what == 3 ? GfsClimate::temperature(700) : what == 4 ? GfsClimate::temperature(850) : GfsClimate::precipitableWater();
@@ -2442,7 +2443,7 @@ const std::vector<Product>& products() {
                             throw std::runtime_error{"no climatology"};
                         }
                         auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
-                        t.setTimeSpec(Qt::UTC);
+                        t.setTimeZone(QTimeZone::utc());
                         t = t.addSecs(context.hour * 3600LL);
                         const int day = GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
                         GfsGrid::Grid normal, deviation;
@@ -2775,7 +2776,7 @@ const std::vector<Product>& products() {
                                 speedOfMembers(g);
                             }
                             auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
-                            t.setTimeSpec(Qt::UTC);
+                            t.setTimeZone(QTimeZone::utc());
                             t = t.addSecs(context.hour * 3600LL);
                             const int day = GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
                             GfsGrid::Grid mean, deviation;
@@ -7675,7 +7676,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         probe.imageHeight = image.height();
         probe.us = us;
         probe.validUtc = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH").addSecs(static_cast<qint64>(forecastHour) * 3600);
-        probe.validUtc.setTimeSpec(Qt::UTC);
+        probe.validUtc.setTimeZone(QTimeZone::utc());
         if (!product.linesOnly) {
             QString title = QString::fromStdString(product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle);
             if (const auto unit = unitText(product.quantity, us); !unit.isEmpty()) {
@@ -8311,7 +8312,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
 
     // header
     const auto init = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-    auto initUtc = QDateTime{init.date(), init.time(), Qt::UTC};
+    auto initUtc = QDateTime{init.date(), init.time(), QTimeZone::utc()};
     const auto valid = initUtc.addSecs(forecastHour * 3600);
     QFont big = font;
     big.setPixelSize(17);

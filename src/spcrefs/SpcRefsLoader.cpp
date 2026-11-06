@@ -12,6 +12,7 @@
 #include <memory>
 #include <mutex>
 #include <QDateTime>
+#include <QTimeZone>
 #include "gfs/GfsData.h"
 #include "gfs/GfsModels.h"
 #include "spcrefs/LambertGrid.h"
@@ -54,7 +55,7 @@ namespace {
             UtilitySpcRefs::rememberArrays(*opened.store);   // the fields of this store, for the chart list of the next start
         }
         auto init = QDateTime::fromString(QString::fromStdString(runId), "yyyyMMddHH");   // the cycle's own time
-        init.setTimeSpec(Qt::UTC);
+        init.setTimeZone(QTimeZone::utc());
         opened.initSeconds = static_cast<double>(init.toSecsSinceEpoch());
         const std::lock_guard lock{mutex};
         stores[url] = opened;

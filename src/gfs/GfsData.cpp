@@ -36,6 +36,7 @@
 #include <QProcess>
 #include <QSaveFile>
 #include <QRegularExpression>
+#include <QTimeZone>
 
 namespace {
     std::string pad(int value, int width) {
@@ -59,7 +60,7 @@ namespace {
     // What to tell a person when a run has no index for an hour: which model, which run and hour (and the time it is valid), and the likely reason and the way on, not file names
     std::string notAvailable(const GfsData::Source& source, const GfsData::Run& run, int hour) {
         auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-        start.setTimeSpec(Qt::UTC);
+        start.setTimeZone(QTimeZone::utc());
         const auto valid = start.addSecs(3600LL * hour);
         const double sinceRun = start.secsTo(QDateTime::currentDateTimeUtc()) / 3600.0;
         std::string text = source.id + " F" + pad(hour, 3) + " (valid " + valid.toString("ddd d MMM HH").toStdString() + "Z) is not available from the " + start.toString("HH").toStdString() + "Z " +
@@ -138,7 +139,7 @@ namespace {
                     if (!m.hasMatch() || info.size() < 1000) {
                         continue;
                     }
-                    const QDateTime t{QDate{m.captured(1).toInt(), m.captured(2).toInt(), m.captured(3).toInt()}, QTime{m.captured(4).toInt(), m.captured(5).toInt(), m.captured(6).toInt()}, Qt::UTC};
+                    const QDateTime t{QDate{m.captured(1).toInt(), m.captured(2).toInt(), m.captured(3).toInt()}, QTime{m.captured(4).toInt(), m.captured(5).toInt(), m.captured(6).toInt()}, QTimeZone::utc()};
                     if (!run.init.isValid() || t < run.init) {
                         run.init = t;
                     }

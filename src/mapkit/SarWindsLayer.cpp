@@ -22,6 +22,7 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QTemporaryDir>
+#include <QTimeZone>
 #include "gfs/BarbGrid.h"
 #include "hurricane/SarWindsViewer.h"
 #include "ui/WindBarb.h"
@@ -208,7 +209,7 @@ void SarWindsLayer::refresh(MapHost& host) {
                 UtilitySarWinds::storm(latest.id, latest.name, year, scenes);
                 for (const auto& scene : scenes) {
                     auto time = QDateTime::fromString(QString::fromStdString(scene.time).replace("UTC", "").simplified(), "yyyy-MM-dd H:mm:ss");
-                    time.setTimeSpec(Qt::UTC);
+                    time.setTimeZone(QTimeZone::utc());
                     if (!time.isValid() || time < now.addDays(-3) || scene.wind.empty() || scene.lat < -90.0) {
                         continue;
                     }

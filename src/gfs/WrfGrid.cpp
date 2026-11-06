@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <cmath>
 
+namespace {
+constexpr double kPi = 3.14159265358979323846;   // M_PI is not defined by MSVC without _USE_MATH_DEFINES
+}
+
 bool WrfGrid::build(const std::vector<float>& lat, const std::vector<float>& lon, int columns, int rows, std::string& error) {
     if (columns < 3 || rows < 3 || lat.size() != static_cast<size_t>(columns) * static_cast<size_t>(rows) || lon.size() != lat.size()) {
         error = "the grid of the run is too small, or its latitudes and longitudes do not match it";
@@ -24,8 +28,8 @@ bool WrfGrid::build(const std::vector<float>& lat, const std::vector<float>& lon
     }
     // the cell of the output: about the spacing of the points in the middle, in degrees of latitude, to a multiple of a hundredth
     const int mi = columns / 2, mj = rows / 2;
-    const double dLat = at(lat, mi + 1, mj) - at(lat, mi, mj), dLon = (at(lon, mi + 1, mj) - at(lon, mi, mj)) * std::cos(at(lat, mi, mj) * M_PI / 180.0);
-    const double eLat = at(lat, mi, mj + 1) - at(lat, mi, mj), eLon = (at(lon, mi, mj + 1) - at(lon, mi, mj)) * std::cos(at(lat, mi, mj) * M_PI / 180.0);
+    const double dLat = at(lat, mi + 1, mj) - at(lat, mi, mj), dLon = (at(lon, mi + 1, mj) - at(lon, mi, mj)) * std::cos(at(lat, mi, mj) * kPi / 180.0);
+    const double eLat = at(lat, mi, mj + 1) - at(lat, mi, mj), eLon = (at(lon, mi, mj + 1) - at(lon, mi, mj)) * std::cos(at(lat, mi, mj) * kPi / 180.0);
     const double spacing = std::min(std::hypot(dLat, dLon), std::hypot(eLat, eLon));
     step = std::max(0.01, std::round(spacing * 100.0) / 100.0);
     west = std::floor(minLon / step) * step;
@@ -58,7 +62,7 @@ bool WrfGrid::build(const std::vector<float>& lat, const std::vector<float>& lon
     cells.assign(static_cast<size_t>(outColumns) * static_cast<size_t>(outRows), Cell{});
     for (int r = 0; r < outRows; r++) {
         const double la = north - r * step;
-        const double cosLat = std::cos(la * M_PI / 180.0);
+        const double cosLat = std::cos(la * kPi / 180.0);
         for (int c = 0; c < outColumns; c++) {
             const double lo = west + c * step;
             const int bcol = std::clamp(static_cast<int>(std::floor((lo - west) / bucket)), 0, bc - 1);

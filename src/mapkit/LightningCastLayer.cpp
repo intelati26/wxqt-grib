@@ -29,7 +29,7 @@ namespace {
             if (line.startsWith("TimeRange:")) {
                 const auto parts = line.mid(10).trimmed().split(' ', Qt::SkipEmptyParts);
                 auto start = QDateTime::fromString(parts.value(0), Qt::ISODate);
-                start.setTimeSpec(Qt::UTC);
+                start.setTimeZone(QTimeZone::utc());
                 if (start.isValid()) {
                     frames.push_back({static_cast<long>(start.toSecsSinceEpoch()), {}});
                 }

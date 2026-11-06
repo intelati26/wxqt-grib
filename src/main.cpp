@@ -77,6 +77,7 @@
 #include "hurricane/HafsIntensity.h"
 #include "hurricane/AceForecastViewer.h"
 #include <QBuffer>
+#include <QTimeZone>
 #include "ui/ChartExport.h"
 #include "ui/ExportDialog.h"
 #include "sounding/SoundingHazard.h"
@@ -237,7 +238,7 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
-                when.setTimeSpec(Qt::UTC);
+                when.setTimeZone(QTimeZone::utc());
                 map->openAt(when, parts.value(2, "35.3").toDouble(), parts.value(3, "-97.5").toDouble(), parts.value(4, "300").toDouble(), extraLayers(parts.value(5)));
                 if (const auto out = qEnvironmentVariable("WXQT_EXPORT_PNG"); !out.isEmpty()) {   // WXQT_EXPORT_PNG=<file> [WXQT_EXPORT_ACIS=<measure id>]: the map saved after WXQT_EXPORT_MS (a picture; the ACIS context under it when asked)
                     QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_EXPORT_MS") > 0 ? qEnvironmentVariableIntValue("WXQT_EXPORT_MS") : 20000, map, [map, out] { map->exportWithContext(out, qEnvironmentVariable("WXQT_EXPORT_ACIS").toStdString(), qEnvironmentVariable("WXQT_EXPORT_OFFICE").toStdString()); });
@@ -252,7 +253,7 @@ int main(int argc, char * argv[]) {
                 }
                 auto * map = new MasterMapViewer{&w};
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHH");
-                when.setTimeSpec(Qt::UTC);
+                when.setTimeZone(QTimeZone::utc());
                 map->openAt(when, parts.value(2, "39").toDouble(), parts.value(3, "-98").toDouble(), parts.value(4, "2200").toDouble(), {"model/chart"});
                 const QString out = parts.value(5, "/tmp/mcexport.png");
                 QTimer::singleShot(40000, map, [map, out] {
@@ -263,7 +264,7 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
-                when.setTimeSpec(Qt::UTC);
+                when.setTimeZone(QTimeZone::utc());
                 map->openAt(when, 37.0, -97.0, 900.0, {"satellite/goes-history"});
             } else if (route.startsWith("sun:")) {   // WXQT_OPEN=sun:<out.png>[:width]: the labelled Sun picture saved, then the program goes on
                 const auto parts = route.split(':');
@@ -297,7 +298,7 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("verify:")) {   // WXQT_OPEN=verify:<model>:<chart>:<yyyyMMddHH UTC>[:sector]: the MRMS verification window at that time, compared at once (WXQT_VERIFY_PNG=<file>: its picture after WXQT_VERIFY_MS ms)
                 qputenv("WXQT_VERIFY_GO", "1");
                 auto valid = QDateTime::fromString(route.section(':', 3, 3), "yyyyMMddHH");
-                valid.setTimeSpec(Qt::UTC);
+                valid.setTimeZone(QTimeZone::utc());
                 new MrmsVerifyViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString(), route.section(':', 4, 4).isEmpty() ? "CONUS" : route.section(':', 4, 4).toStdString(),
                                      valid};
             } else if (route.startsWith("phase:")) {   // WXQT_OPEN=phase:<model>:<lat>:<lon>[:<atcf id>]: the phase space window of a storm at that place in that model
@@ -313,7 +314,7 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("modelat:")) {   // WXQT_OPEN=modelat:<model>:<yyyyMMddHHmm UTC>: the Model Viewer on that model at the run and hour of that time
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
-                when.setTimeSpec(Qt::UTC);
+                when.setTimeZone(QTimeZone::utc());
                 MasterMapViewer::openModels(&w, parts.value(1).toStdString(), {}, {}, when);
             } else if (route == "events" && !qEnvironmentVariable("WXQT_KEEP").isEmpty()) {   // WXQT_OPEN=events WXQT_KEEP=1: the first saved event is selected and its offline copy is made
                 auto * viewer = new EventsViewer{&w};
@@ -327,9 +328,9 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};
                 auto first = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
-                first.setTimeSpec(Qt::UTC);
+                first.setTimeZone(QTimeZone::utc());
                 auto second = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
-                second.setTimeSpec(Qt::UTC);
+                second.setTimeZone(QTimeZone::utc());
                 map->openAt(first, 37.0, -97.0, 900.0, {"satellite/goes-history"});
                 QTimer::singleShot(4000, map, [second] { HistoryCursor::get().set(second, "test", nullptr); });
             } else if (route == "catalog") {   // WXQT_OPEN=catalog: the history page's catalog of tornado outbreaks

@@ -17,6 +17,7 @@
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
+#include <QTimeZone>
 
 namespace {
     using Run = GfsData::Run;
@@ -144,7 +145,7 @@ namespace {
         replaceAll(url, "{prev_cycle}", previous);
         if (url.find("{valid") != std::string::npos) {   // the time the file is for: the run's time, the hour and the offset
             auto t = QDateTime::fromString(QString::fromStdString(run.date + run.cycle), "yyyyMMddHH");
-            t.setTimeSpec(Qt::UTC);
+            t.setTimeZone(QTimeZone::utc());
             const auto own = d.validOffsetByFile.find(alt);
             const int offset = own != d.validOffsetByFile.end() ? own->second : d.validOffsetMinutes;
             t = t.addSecs(static_cast<qint64>(hour) * 3600 + static_cast<qint64>(offset) * 60);

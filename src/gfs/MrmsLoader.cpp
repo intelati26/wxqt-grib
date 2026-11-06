@@ -12,6 +12,7 @@
 #include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTemporaryFile>
+#include <QTimeZone>
 #include "gfs/GfsData.h"
 #include "gfs/GfsGrid.h"
 #include "objects/URL.h"
@@ -33,7 +34,7 @@ namespace {
             return false;
         }
         auto valid = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-        valid.setTimeSpec(Qt::UTC);
+        valid.setTimeZone(QTimeZone::utc());
         valid = valid.addSecs(3600LL * hour);
         const auto day = valid.toString("yyyyMMdd").toStdString();
         // the scans of that hour, listed by the bucket: the first is the one of the hour
