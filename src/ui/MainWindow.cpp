@@ -484,7 +484,7 @@ void MainWindow::arrangeColumns() {
         stack->addStretch();
         grid->addWidget(zoneWidget, place.row, place.col, place.rowSpan, place.colSpan, Qt::AlignTop);
     }
-    boxZones.addWidgetReal(zonesWidget, 0, Qt::AlignTop | Qt::AlignLeft);
+    boxZones.addWidgetReal(zonesWidget, 0, Qt::AlignTop);   // the whole width of the window, shared by the template's columns (a zone of thumbnails then wraps to its share, not to one picture)
 }
 
 string MainWindow::computeTokenString() {
