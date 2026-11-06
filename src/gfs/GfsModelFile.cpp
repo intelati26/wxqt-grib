@@ -429,6 +429,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             def.label = value;
         } else if (key == "group") {
             def.group = value;
+        } else if (key == "alternate") {
+            def.alternate = value;
         } else if (key == "source_label") {
             sourceLabel = value;
         } else if (key == "why") {

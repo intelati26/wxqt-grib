@@ -133,6 +133,7 @@ clone_skip = precip_p06, precip_p24, 500_vort_ht, 850_vort_ht
 # the RRFS ensemble: each member's files (rrfsens), the ready-made products (refs ensprod: "ens:avrg", "ens:eas", "ens:ffri") and the deterministic RRFS run of the same cycle (rrfs/...) for the charts
 # that put it with the members. A member's file is "<m001>/<2dfld|prslev>".
 id = REFS
+alternate = SPCREFS
 label = NOAA/NCEP REFS, 5 member 3 km ensemble
 source_label = NOAA/NCEP REFS
 kind = grib
@@ -1368,6 +1369,7 @@ clone_rename = PRMSL:MSLET
         {"RRFS", R"MODEL(
 # the 3 km Rapid Refresh Forecast System: the 2D fields and the pressure levels are files of their own
 id = RRFS
+alternate = SPCREFS
 label = NOAA/NCEP RRFS 3 km
 kind = grib
 url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.conus.grib2

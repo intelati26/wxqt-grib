@@ -105,6 +105,16 @@ namespace {
         return GfsData{config, sourceOf(model, storm)};
     }
 
+    // when a model has no run: where else the same model system is (the model's `alternate`), as a sentence for the end of the message; "" when it has none
+    std::string alternateHint(const std::string& model) {
+        const auto * def = GfsModels::find(model);
+        const auto * other = def && !def->alternate.empty() ? GfsModels::find(def->alternate) : nullptr;
+        if (other == nullptr) {
+            return {};
+        }
+        return " The same model system is on another server: choose " + other->id + " (" + other->label + ") in the model list.";
+    }
+
     // the newest published run of a model, looked up at most every ten minutes
     bool newestRun(const GfsData& gfs, GfsData::Run& run, const std::string& storm = "") {
         static std::mutex mutex;
@@ -208,7 +218,7 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
     if (gfs.model().checkRun.size() == 10) {   // an archive: it has no recent run, so a day it covers is looked at
         run = GfsData::Run{gfs.model().checkRun.substr(0, 8), gfs.model().checkRun.substr(8, 2)};
     } else if (!gfs.latestRun(run)) {
-        result.detail = "no run found on the server (offline, or the files moved)";
+        result.detail = "no run found on the server (offline, or the files moved)." + alternateHint(model);
         return finish();
     }
     result.run = run.id();
@@ -836,7 +846,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     GfsData::Run run;
     const bool exact = cycle.size() == 10 && std::all_of(cycle.begin(), cycle.end(), [] (char c) { return std::isdigit(static_cast<unsigned char>(c)); });   // yyyyMMddHH: that very run
     if (!exact && !newestRun(gfs, run, stormId)) {   // (an archive that stops years ago has no newest run: the run asked for is read as it is)
-        error = "could not find a " + model + " run on NOAA's open data";
+        error = "could not find a " + model + " run on NOAA's open data." + alternateHint(model);
         return {};
     }
     if (exact) {
