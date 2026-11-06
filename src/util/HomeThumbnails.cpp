@@ -44,6 +44,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"ANALYSIS_RADAR_AND_WARNINGS", "Analysis", "fmap.png", false, false},
         {"RTMA_TEMP", "RTMA Temp", "rtma.png", false, false},
         {"RTMA_AREA", "RTMA temperature and wind - your last model area", "grib.png", true, false},
+        {"RTMA_SECOND", "RTMA second value - your last model area (a button under it picks the value)", "grib.png", true, false},
         {"SPC_MESO_MSLP", "SPC Meso - MSLP", "", true, false},
         {"SPC_MESO_500MB", "SPC Meso - 500mb", "", true, false},
         {"SPC_SOUNDING", "SPC Sounding (nearest site)", "spcsoundings.png", true, false},
@@ -122,12 +123,43 @@ namespace {
     }
 }
 
+const vector<HomeThumbnails::RtmaValue>& HomeThumbnails::rtmaValues() {
+    static const vector<RtmaValue> values{
+        {"2m_dewp_10m_wnd", "Dew point"},
+        {"10m_wnd_gust", "Wind gust"},
+        {"visibility", "Visibility"},
+        {"total_cloud_cover", "Cloud cover"},
+        {"2m_temp_10m_wnd", "Temperature"},
+    };
+    return values;
+}
+
+string HomeThumbnails::rtmaSecondChart() {
+    const auto chosen = Utility::readPref("RTMA_SECOND_CHART", rtmaValues().front().chart);
+    for (const auto& v : rtmaValues()) {
+        if (v.chart == chosen) {
+            return chosen;
+        }
+    }
+    return rtmaValues().front().chart;
+}
+
 string HomeThumbnails::caption(const string& token) {
+    if (token == "RTMA_SECOND") {
+        for (const auto& v : rtmaValues()) {
+            if (v.chart == rtmaSecondChart()) {
+                return v.label + " now: your area";
+            }
+        }
+    }
     const auto found = words().find(token);
     return found == words().end() ? string{} : found->second.caption;
 }
 
 string HomeThumbnails::tip(const string& token) {
+    if (token == "RTMA_SECOND") {
+        return "Real-Time Mesoscale Analysis: the newest analysis of the value chosen with the button under this picture, over the area you last used in the Model Viewer (a saved place), or the United States. Click for the Model Viewer on this chart.";
+    }
     const auto found = words().find(token);
     return found == words().end() ? string{} : found->second.tip;
 }
@@ -254,6 +286,15 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         GfsRender::Session session;
         string error;
         return GfsRender::png(session, "RTMA", "2m_temp_10m_wnd", sector, "", 0, {}, error);
+    }
+    if (token == "RTMA_SECOND") {
+        auto sector = Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS");
+        if (sector.compare(0, 6, "LOCAL:") != 0) {
+            sector = "CONUS";
+        }
+        GfsRender::Session session;
+        string error;
+        return GfsRender::png(session, "RTMA", rtmaSecondChart(), sector, "", 0, {}, error);
     }
     if (token == "GRIB_LATEST") {
         // the model screen's last model, chart and area, drawn from the newest run (the model's first forecast hour after the start)

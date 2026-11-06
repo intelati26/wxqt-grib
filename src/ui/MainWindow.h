@@ -61,6 +61,7 @@ private:
     static string computeTokenString();
     void locationChange();
     void addWidgets();
+    void loadThumbnail(const string& token);   // fetch and show one home picture
     void arrangeColumns();
     void launchImageScreen(const string&);
     void downloadWatch();

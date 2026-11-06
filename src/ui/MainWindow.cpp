@@ -16,6 +16,8 @@
 #include <QGridLayout>
 #include <algorithm>
 #include <QLabel>
+#include <QMenu>
+#include <QPushButton>
 #include <QPalette>
 #include <QVBoxLayout>
 #include "common/GlobalVariables.h"
@@ -188,17 +190,7 @@ void MainWindow::reload() {
         }
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
             if (item.isEnabled()) {
-                const auto token = item.getPrefToken();
-                const auto bytes = std::make_shared<QByteArray>();
-                new FutureVoid{this,
-                    [token, bytes] { *bytes = HomeThumbnails::fetch(token); },
-                    [this, token, bytes] {
-                        const auto found = imageWidgets.find(token);   // the layout may have been rebuilt meanwhile
-                        const auto * entry = HomeThumbnails::find(token);
-                        if (found != imageWidgets.end() && !bytes->isEmpty()) {
-                            found->second.setToWidth(*bytes, UIPreferences::mainScreenImageSize, entry != nullptr && entry->white);
-                        }
-                    }};
+                loadThumbnail(item.getPrefToken());
             }
         }
         if (UIPreferences::mainScreenSevereDashboard) {
@@ -207,6 +199,19 @@ void MainWindow::reload() {
             boxSevereDashboard.removeChildren();
         }
     // }
+}
+
+void MainWindow::loadThumbnail(const string& token) {
+    const auto bytes = std::make_shared<QByteArray>();
+    new FutureVoid{this,
+        [token, bytes] { *bytes = HomeThumbnails::fetch(token); },
+        [this, token, bytes] {
+            const auto found = imageWidgets.find(token);   // the layout may have been rebuilt meanwhile
+            const auto * entry = HomeThumbnails::find(token);
+            if (found != imageWidgets.end() && !bytes->isEmpty()) {
+                found->second.setToWidth(*bytes, UIPreferences::mainScreenImageSize, entry != nullptr && entry->white);
+            }
+        }};
 }
 
 void MainWindow::downloadWatch() {
@@ -341,8 +346,31 @@ void MainWindow::addWidgets() {
                 imageWidgets.at(token).connect([this, token] { launchImageScreen(token); });
                 // the picture over its short caption (when captions are on); the longer description is the tooltip either way
                 const auto caption = UIPreferences::homeCaptions ? QString::fromStdString(HomeThumbnails::caption(token)) : QString{};
-                imageLayout.addWidgetReal(CaptionedTile::make(this, imageWidgets.at(token).getView(), caption,
-                                                              QString::fromStdString(HomeThumbnails::tip(token)), UIPreferences::mainScreenImageSize, true, UIPreferences::mainScreenImageSize));   // a long caption ("Temperature now: your area") wraps inside the tile instead of running past it
+                auto * tile = CaptionedTile::make(this, imageWidgets.at(token).getView(), caption,
+                                                  QString::fromStdString(HomeThumbnails::tip(token)), UIPreferences::mainScreenImageSize, true, UIPreferences::mainScreenImageSize);   // a long caption ("Temperature now: your area") wraps inside the tile instead of running past it
+                if (token == "RTMA_SECOND") {   // one button picks which RTMA value this tile shows
+                    auto * pick = new QPushButton{"Set value...", tile};
+                    pick->setToolTip("Choose which RTMA value this picture shows: dew point, wind gust, visibility, cloud cover or temperature");
+                    tile->layout()->addWidget(pick);
+                    QObject::connect(pick, &QPushButton::clicked, this, [this, pick, tile] {
+                        QMenu menu{pick};
+                        const auto current = HomeThumbnails::rtmaSecondChart();
+                        for (const auto& value : HomeThumbnails::rtmaValues()) {
+                            auto * action = menu.addAction(QString::fromStdString(value.label));
+                            action->setCheckable(true);
+                            action->setChecked(value.chart == current);
+                            action->setData(QString::fromStdString(value.chart));
+                        }
+                        if (const auto * chosen = menu.exec(pick->mapToGlobal(QPoint{0, pick->height()})); chosen != nullptr) {
+                            Utility::writePref("RTMA_SECOND_CHART", chosen->data().toString().toStdString());
+                            if (auto * label = tile->findChild<QLabel *>("caption")) {
+                                label->setText(QString::fromStdString(HomeThumbnails::caption("RTMA_SECOND")));
+                            }
+                            loadThumbnail("RTMA_SECOND");
+                        }
+                    });
+                }
+                imageLayout.addWidgetReal(tile);
             }
         }
     }
@@ -462,6 +490,13 @@ void MainWindow::launchImageScreen(const string& token) {
         Utility::writePref("MODELNCEPPARAMLASTUSED", "ppp_" + token.substr(8) + "h_median");
         Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
         toolbar.launchModelViewer();   // the Model Viewer on the portal's median chart of that period
+    } else if (token == "RTMA_SECOND") {
+        Utility::writePref("NCEP", "RTMA");
+        Utility::writePref("MODELNCEPPARAMLASTUSED", HomeThumbnails::rtmaSecondChart());
+        if (Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS").compare(0, 6, "LOCAL:") != 0) {
+            Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
+        }
+        toolbar.launchModelViewer();   // the Model Viewer on the chart the button chose, in the area last used
     } else if (token == "RTMA_AREA") {
         Utility::writePref("NCEP", "RTMA");
         Utility::writePref("MODELNCEPPARAMLASTUSED", "2m_temp_10m_wnd");
