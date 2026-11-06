@@ -64,6 +64,7 @@ clone_skip = anom, precip, thick, 850_vort_ht, 500_vort_ht
         {"GFS", R"MODEL(
 # the GFS: the charts everything else is made from; NOMADS can cut a box of the fields out of a file, which is what a regional chart fetches
 id = GFS
+alternate = IFS | ECMWF's global model, from ECMWF's server (a different model, not the same forecast)
 label = NOAA/NCEP GFS 0.25 degree
 kind = grib
 url = https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{date}/{cycle}/atmos/gfs.t{cycle}z.pgrb2.0p25.f{hour3}
@@ -133,7 +134,7 @@ clone_skip = precip_p06, precip_p24, 500_vort_ht, 850_vort_ht
 # the RRFS ensemble: each member's files (rrfsens), the ready-made products (refs ensprod: "ens:avrg", "ens:eas", "ens:ffri") and the deterministic RRFS run of the same cycle (rrfs/...) for the charts
 # that put it with the members. A member's file is "<m001>/<2dfld|prslev>".
 id = REFS
-alternate = SPCREFS
+alternate = SPCREFS | the same RRFS system from SPC's server, as ensemble products (the control member is one of them)
 label = NOAA/NCEP REFS, 5 member 3 km ensemble
 source_label = NOAA/NCEP REFS
 kind = grib
@@ -1369,7 +1370,7 @@ clone_rename = PRMSL:MSLET
         {"RRFS", R"MODEL(
 # the 3 km Rapid Refresh Forecast System: the 2D fields and the pressure levels are files of their own
 id = RRFS
-alternate = SPCREFS
+alternate = SPCREFS | the same RRFS system from SPC's server, as ensemble products (the control member is one of them)
 label = NOAA/NCEP RRFS 3 km
 kind = grib
 url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.conus.grib2

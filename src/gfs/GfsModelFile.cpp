@@ -430,7 +430,13 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
         } else if (key == "group") {
             def.group = value;
         } else if (key == "alternate") {
-            def.alternate = value;
+            const auto bar = value.find('|');
+            def.alternate = value.substr(0, bar);
+            def.alternate.erase(def.alternate.find_last_not_of(' ') + 1);
+            if (bar != std::string::npos) {
+                def.alternateNote = value.substr(bar + 1);
+                def.alternateNote.erase(0, def.alternateNote.find_first_not_of(' '));
+            }
         } else if (key == "source_label") {
             sourceLabel = value;
         } else if (key == "why") {

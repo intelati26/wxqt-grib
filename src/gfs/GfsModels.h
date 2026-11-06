@@ -45,7 +45,8 @@ namespace GfsModels {
         std::string id;                                // the model screen's name: "GFS", "RRFS"
         std::string label;                             // the credit under a chart
         std::string group;                             // where the model screen's picker puts it ("": by its id, or Other)
-        std::string alternate;                         // `alternate = ID`: another model that is the same model system from another server; a chart says so when this one has no run (nothing is mapped or swapped)
+        std::string alternate;                         // `alternate = ID | what it is`: another model to use meanwhile (the same system from another server, or a comparable model); a chart says so when this one has no run (nothing is mapped or swapped)
+        std::string alternateNote;                     // the words after the "|": what the alternate is
         std::string why;                               // why the model matters, in a few sentences (the Help screen)
         struct Link {
             std::string kind;                          // wikipedia (an article about the model), background (about the idea), docs (the people who run it), source (where the data is read from)

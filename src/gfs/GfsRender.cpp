@@ -105,14 +105,15 @@ namespace {
         return GfsData{config, sourceOf(model, storm)};
     }
 
-    // when a model has no run: where else the same model system is (the model's `alternate`), as a sentence for the end of the message; "" when it has none
+    // when a model has no run: the model it names as its `alternate`, as a sentence for the end of the message; "" when it has none
     std::string alternateHint(const std::string& model) {
         const auto * def = GfsModels::find(model);
         const auto * other = def && !def->alternate.empty() ? GfsModels::find(def->alternate) : nullptr;
         if (other == nullptr) {
             return {};
         }
-        return " The same model system is on another server: choose " + other->id + " (" + other->label + ") in the model list.";
+        const auto name = other->label.substr(0, other->label.find(" ("));   // (without the notes of licence and dates)
+        return " Meanwhile choose " + other->id + " (" + name + ") in the model list" + (def->alternateNote.empty() ? std::string{} : ": " + def->alternateNote) + ".";
     }
 
     // the newest published run of a model, looked up at most every ten minutes
