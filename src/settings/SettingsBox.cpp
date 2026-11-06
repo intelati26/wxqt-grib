@@ -12,6 +12,17 @@
 #include "util/Utility.h"
 #include "util/UtilityList.h"
 #include "util/UtilityTheme.h"
+#include "util/HomeThumbnails.h"
+
+namespace {
+vector<string> rtmaProductLabels() {
+    vector<string> labels;
+    for (const auto& value : HomeThumbnails::rtmaValues()) {
+        labels.push_back(value.label);
+    }
+    return labels;
+}
+}
 
 SettingsBox::SettingsBox(Window * parent)
     : Widget{parent}
@@ -22,6 +33,8 @@ SettingsBox::SettingsBox(Window * parent)
     , generalLabel{parent, "General preferences:"}
     , themeLabel{parent, "Theme (light / dark)"}
     , themeComboBox{parent, UtilityTheme::labels}
+    , rtmaLabel{parent, "Home screen RTMA picture: product"}
+    , rtmaComboBox{parent, rtmaProductLabels()}
     , contactEmailLabel{parent, "Contact email for weather API requests (optional)"}
     , contactEmailEntry{parent}
 {
@@ -39,6 +52,7 @@ SettingsBox::SettingsBox(Window * parent)
     configs.push_back(std::make_unique<Switch>(parent, "Show the forecast point (the week at a glance and the outlooks, as the NWS forecast points page) on the home screen", "HOME_FORECAST_POINT", true));
     configs.push_back(std::make_unique<Switch>(parent, "Refresh the home screen automatically (every interval below; the toolbar's update button and Ctrl-U toggle it)", "MAIN_SCREEN_AUTO_REFRESH", true));
     configs.push_back(std::make_unique<Switch>(parent, "Captions under the home screen pictures", "HOME_CAPTIONS", true));
+    configs.push_back(std::make_unique<Switch>(parent, "A 'Set product...' button under the home screen RTMA picture (off: chosen here only)", "RTMA_SECOND_BUTTON", true));
     configs.push_back(std::make_unique<Switch>(parent, "Toggle scroll wheel motion", "NEXRAD_SCROLLWHEEL", false));
     configs.push_back(std::make_unique<Switch>(parent, "Remember last GOES image", "REMEMBER_GOES", false));
     configs.push_back(std::make_unique<Switch>(parent, "Remember last Radar Mosaic image", "REMEMBER_MOSAIC", false));
@@ -69,6 +83,17 @@ SettingsBox::SettingsBox(Window * parent)
     themeRow.addWidget(themeComboBox);
     themeRow.addWidget(themeLabel);
     boxCenter.addLayout(themeRow);
+
+    rtmaLabel.setWordWrap(false);
+    for (size_t i = 0; i < HomeThumbnails::rtmaValues().size(); i++) {
+        if (HomeThumbnails::rtmaValues()[i].chart == HomeThumbnails::rtmaSecondChart()) {
+            rtmaComboBox.setIndex(static_cast<int>(i));
+        }
+    }
+    rtmaComboBox.connect([this] { changeRtmaProduct(); });
+    rtmaRow.addWidget(rtmaComboBox);
+    rtmaRow.addWidget(rtmaLabel);
+    boxCenter.addLayout(rtmaRow);
 
     contactEmailLabel.setWordWrap(true);
     contactEmailEntry.setText(Utility::readPref("CONTACT_EMAIL", ""));
@@ -113,6 +138,13 @@ void SettingsBox::changeTheme() {
     const auto value = UtilityTheme::values[index];
     Utility::writePref(UtilityTheme::pref, value);
     UtilityTheme::applyTheme(value);
+}
+
+void SettingsBox::changeRtmaProduct() {
+    const auto index = static_cast<size_t>(std::max(0, rtmaComboBox.getIndex()));
+    if (index < HomeThumbnails::rtmaValues().size()) {
+        Utility::writePref("RTMA_SECOND_CHART", HomeThumbnails::rtmaValues()[index].chart);
+    }
 }
 
 void SettingsBox::changeContactEmail() {

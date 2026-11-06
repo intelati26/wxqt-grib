@@ -348,9 +348,9 @@ void MainWindow::addWidgets() {
                 const auto caption = UIPreferences::homeCaptions ? QString::fromStdString(HomeThumbnails::caption(token)) : QString{};
                 auto * tile = CaptionedTile::make(this, imageWidgets.at(token).getView(), caption,
                                                   QString::fromStdString(HomeThumbnails::tip(token)), UIPreferences::mainScreenImageSize, true, UIPreferences::mainScreenImageSize);   // a long caption ("Temperature now: your area") wraps inside the tile instead of running past it
-                if (token == "RTMA_SECOND") {   // one button picks which RTMA value this tile shows
-                    auto * pick = new QPushButton{"Set value...", tile};
-                    pick->setToolTip("Choose which RTMA value this picture shows: dew point, wind gust, visibility, cloud cover or temperature");
+                if (token == "RTMA_SECOND" && Utility::readPref("RTMA_SECOND_BUTTON", "true").compare(0, 1, "t") == 0) {   // one button picks which RTMA product this tile shows (it can be turned off in Settings, which then holds the choice)
+                    auto * pick = new QPushButton{"Set product...", tile};
+                    pick->setToolTip("Choose which RTMA product this picture shows: dew point, wind gust, visibility, cloud cover or temperature (also in Settings)");
                     tile->layout()->addWidget(pick);
                     QObject::connect(pick, &QPushButton::clicked, this, [this, pick, tile] {
                         QMenu menu{pick};
@@ -444,7 +444,7 @@ void MainWindow::arrangeColumns() {
 string MainWindow::computeTokenString() {
     string tokenString;
     tokenString += string{UIPreferences::hourlyGraph ? "graph," : ""} + (UIPreferences::forecastPoint ? "point," : "") + WString::join(UIPreferences::homeScreenForecastOrder.getTokens(), ",") + ",";
-    tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",");
+    tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",") + Utility::readPref("RTMA_SECOND_CHART", "") + Utility::readPref("RTMA_SECOND_BUTTON", "true") + ",";   // the RTMA picture's product and its button are part of the layout
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
             if (item.getPrefToken() == token && item.isEnabled()) {

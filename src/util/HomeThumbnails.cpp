@@ -44,7 +44,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"ANALYSIS_RADAR_AND_WARNINGS", "Analysis", "fmap.png", false, false},
         {"RTMA_TEMP", "RTMA Temp", "rtma.png", false, false},
         {"RTMA_AREA", "RTMA temperature and wind - your last model area", "grib.png", true, false},
-        {"RTMA_SECOND", "RTMA second value - your last model area (a button under it picks the value)", "grib.png", true, false},
+        {"RTMA_SECOND", "RTMA second picture - your last model area (the product is set here or by its button)", "grib.png", true, false},
         {"SPC_MESO_MSLP", "SPC Meso - MSLP", "", true, false},
         {"SPC_MESO_500MB", "SPC Meso - 500mb", "", true, false},
         {"SPC_SOUNDING", "SPC Sounding (nearest site)", "spcsoundings.png", true, false},
@@ -148,7 +148,7 @@ string HomeThumbnails::caption(const string& token) {
     if (token == "RTMA_SECOND") {
         for (const auto& v : rtmaValues()) {
             if (v.chart == rtmaSecondChart()) {
-                return v.label + " now: your area";
+                return v.label + " now";
             }
         }
     }
@@ -158,7 +158,7 @@ string HomeThumbnails::caption(const string& token) {
 
 string HomeThumbnails::tip(const string& token) {
     if (token == "RTMA_SECOND") {
-        return "Real-Time Mesoscale Analysis: the newest analysis of the value chosen with the button under this picture, over the area you last used in the Model Viewer (a saved place), or the United States. Click for the Model Viewer on this chart.";
+        return "Real-Time Mesoscale Analysis: the newest analysis of the product chosen with the button under this picture or in Settings, over the area you last used in the Model Viewer (a saved place), or the United States. Click for the Model Viewer on this chart.";
     }
     const auto found = words().find(token);
     return found == words().end() ? string{} : found->second.tip;

@@ -31,7 +31,7 @@ namespace HomeThumbnails {
     // the short title shown under the thumbnail, and the longer sentence in its tooltip ("" when the token has none)
     string caption(const string& token);
     string tip(const string& token);
-    // the values the "RTMA, second value" tile can show (the RTMA charts that are not the temperature one), and the chart it shows now (the button under the tile sets it)
+    // the products the second RTMA tile can show (the RTMA charts that are not the temperature one), and the chart it shows now (the button under the tile, or Settings, sets it)
     struct RtmaValue {
         string chart;
         string label;
