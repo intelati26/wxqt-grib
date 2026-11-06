@@ -60,6 +60,11 @@ proFooter: str = """
 !win32-msvc*:contains(QT_ARCH, x86_64) {
     QMAKE_CFLAGS += -msse4.1
 }
+# Window::releaseFromOwner calls SetWindowLongPtr (user32): the import library is not on the link line by itself
+win32 {
+    LIBS += -luser32
+}
+
 # MSVC x64 has the SSE4.1 intrinsics without a flag but does not define __SSE2__, __SSSE3__ or __SSE4_1__, which the decoder tests for (without it, it compiles a fallback that does not build)
 win32-msvc*:contains(QT_ARCH, x86_64) {
     QMAKE_CFLAGS += /D__SSE2__=1 /D__SSSE3__=1 /D__SSE4_1__=1
