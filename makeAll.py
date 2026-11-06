@@ -60,9 +60,9 @@ proFooter: str = """
 !win32-msvc*:contains(QT_ARCH, x86_64) {
     QMAKE_CFLAGS += -msse4.1
 }
-# MSVC x64 has the SSE4.1 intrinsics without a flag but does not define __SSE4_1__, which the decoder tests for (without it, it compiles a fallback that does not build)
+# MSVC x64 has the SSE4.1 intrinsics without a flag but does not define __SSE2__, __SSSE3__ or __SSE4_1__, which the decoder tests for (without it, it compiles a fallback that does not build)
 win32-msvc*:contains(QT_ARCH, x86_64) {
-    QMAKE_CFLAGS += /D__SSE4_1__=1
+    QMAKE_CFLAGS += /D__SSE2__=1 /D__SSSE3__=1 /D__SSE4_1__=1
 }
 
 # MSVC (Windows packages): debug info in a separate wxqt.pdb, kept as a CI artifact so the address in a crash log can be
