@@ -342,7 +342,7 @@ void MainWindow::addWidgets() {
                 // the picture over its short caption (when captions are on); the longer description is the tooltip either way
                 const auto caption = UIPreferences::homeCaptions ? QString::fromStdString(HomeThumbnails::caption(token)) : QString{};
                 imageLayout.addWidgetReal(CaptionedTile::make(this, imageWidgets.at(token).getView(), caption,
-                                                              QString::fromStdString(HomeThumbnails::tip(token)), UIPreferences::mainScreenImageSize));
+                                                              QString::fromStdString(HomeThumbnails::tip(token)), UIPreferences::mainScreenImageSize, true, UIPreferences::mainScreenImageSize));   // a long caption ("Temperature now: your area") wraps inside the tile instead of running past it
             }
         }
     }
