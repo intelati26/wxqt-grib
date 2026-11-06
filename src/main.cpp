@@ -314,6 +314,7 @@ int main(int argc, char * argv[]) {
                 const auto region = parts.value(3).toStdString();
                 auto * loop = new AnalysisLoop{&w, region == "-AK" ? "ALASKA" : region == "-HI" ? "HAWAII-ISLANDS" : region == "-PR" ? "PUERTO-RICO" : region == "-GU" ? "GUAM" : "CONUS", charts, to.addSecs(-parts.value(1, "6").toInt() * 3600), to, region};
                 QTimer::singleShot(500, loop, [loop] { loop->draw(); });
+                QTimer::singleShot(35000, loop, [loop] { loop->hoverAt(0.5, 0.45); });
             } else if (route == "abpgext") {   // WXQT_OPEN=abpgext: the extended (days 6-14) analog guidance window
                 new AbpgExtended{&w};
             } else if (route == "product") {   // WXQT_OPEN=product WXQT_PRODUCT_IMAGE=<url> WXQT_PRODUCT_TEXT=<url>: the text-and-picture window
