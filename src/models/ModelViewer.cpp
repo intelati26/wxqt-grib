@@ -80,7 +80,8 @@ namespace {
 
 ModelViewer::ModelViewer(Window * parent, const string& modelType)
     : Window{parent}
-    , image{this}
+    , mainPane{new CompareTile{this}}
+    , image{*mainPane->image}
     , objectModel{modelType}
     , comboboxRun{this}
     , comboboxModel{this, objectModel.models}
@@ -88,6 +89,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboboxProduct{this, objectModel.paramLabels}
     , comboboxTime{this, objectModel.times}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
+    , hover{mainPane->hover}
     , buttonProducts{this, None, "Charts..."}
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
@@ -473,15 +475,10 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         grid = new QGridLayout{compareArea};
         grid->setContentsMargins(0, 0, 0, 0);
         grid->setSpacing(4);
-        mainTile = new QFrame{compareArea};
-        auto * mainColumn = new QVBoxLayout{mainTile};
-        mainColumn->setContentsMargins(2, 2, 2, 2);
-        mainColumn->setSpacing(2);
-        mainCaption = new QLabel{mainTile};
-        mainCaption->setStyleSheet("font-weight: bold;");
-        mainCaption->setWordWrap(true);
-        mainColumn->addWidget(mainCaption);
-        mainColumn->addWidget(&image, 1);
+        mainTile = mainPane;   // the chart's own pane is a tile like the others (it has no Change... button: the screen's own pickers choose its chart)
+        mainPane->setParent(compareArea);
+        mainPane->change->hide();
+        mainCaption = mainPane->caption;
         for (size_t i = 0; i < tiles.size(); i++) {
             tiles[i] = new CompareTile{compareArea};
             const int index = static_cast<int>(i) + 1;
@@ -1090,9 +1087,6 @@ void ModelViewer::showFrame(const Frame& frame) {
         image.setBytes(frame.bytes);
     }
     lastChart = chart;
-    if (!hover) {
-        hover = std::make_unique<ChartHover>(&image);
-    }
     hover->set(frame.probe);
     refreshStationPins();
     hodoTimer.start(120);

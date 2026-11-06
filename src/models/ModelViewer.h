@@ -296,7 +296,8 @@ private:
     vector<string> runLabels() const;
     FlowBox boxH;
     VBox box;
-    ZoomImage image;                     // the chart: wheel / Ctrl +- zoom, drag to pan
+    CompareTile * mainPane{};            // the chart's pane: the same tile as the other panes (a picture that zooms and pans, a caption, the read-out of the values)
+    ZoomImage & image;                   // the chart: wheel / Ctrl +- zoom, drag to pan (the pane's picture)
     ObjectModel objectModel;
     ComboBox comboboxRun;
     ComboBox comboboxModel;
@@ -304,7 +305,7 @@ private:
     ComboBox comboboxProduct;
     ComboBox comboboxTime;
     BackForward backForward;
-    std::unique_ptr<ChartHover> hover;   // the value under the pointer, for the charts drawn from GRIB
+    std::unique_ptr<ChartHover>& hover;  // the value under the pointer, for the charts drawn from GRIB (the pane's)
     Button buttonProducts;
     Button buttonSector;
     Button buttonModel;
