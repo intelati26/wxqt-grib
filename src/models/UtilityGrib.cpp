@@ -5,6 +5,7 @@
 
 #include "objects/RenderLock.h"
 #include "models/UtilityGrib.h"
+#include "util/Utility.h"
 #include "ui/WindBarb.h"
 #include <algorithm>
 #include <cmath>
@@ -645,38 +646,92 @@ void UtilityGrib::drawMapHeader(QImage& image, const MapHeader& header) {
     painter.end();
 }
 
-string UtilityGrib::gdalBinDir() {
-    // Portable Windows builds ship the GDAL tools + data in a "gdal" folder
-    // next to wxqt.exe (see .github/scripts/package-windows.ps1) and have no
-    // launcher script to put it on PATH, so look there first. GDAL/PROJ need
-    // their data directories pointed at the bundled copies too, and the
-    // child processes inherit this process's environment. (The Linux
-    // AppImage's AppRun does the equivalent with PATH/GDAL_DATA itself.)
-    static const auto bundled = [] {
+namespace {
+    std::mutex gdalMutex;
+    bool gdalKnown{false};
+    std::string gdalFound;
+    // the variables this program set for a GDAL of the user's choosing (to be taken back when the choice is)
+    bool gdalEnvSetByUs{false};
+
+    bool hasGdalTools(const QString& dir) {
+        return !dir.isEmpty() && !QStandardPaths::findExecutable("gdalwarp", {dir}).isEmpty();
+    }
+
+    // GDAL's and PROJ's tables of an install whose programs are in `bin` (OSGeo4W, QGIS, conda's Library: bin next to share/gdal and share/proj; a portable one: gdal-data, proj-data inside)
+    void pointDataBeside(const QString& bin) {
+        const QDir up{bin + "/.."};
+        for (const auto& candidate : {bin + "/gdal-data", up.absoluteFilePath("share/gdal"), up.absoluteFilePath("apps/gdal/share/gdal")}) {
+            if (QDir{candidate}.exists()) {
+                qputenv("GDAL_DATA", QDir::toNativeSeparators(QDir::cleanPath(candidate)).toUtf8());
+                gdalEnvSetByUs = true;
+                break;
+            }
+        }
+        for (const auto& candidate : {bin + "/proj-data", up.absoluteFilePath("share/proj"), up.absoluteFilePath("apps/proj/share/proj")}) {
+            if (QDir{candidate}.exists()) {
+                const auto native = QDir::toNativeSeparators(QDir::cleanPath(candidate)).toUtf8();
+                qputenv("PROJ_DATA", native);
+                qputenv("PROJ_LIB", native);
+                gdalEnvSetByUs = true;
+                break;
+            }
+        }
+    }
+
+    std::string resolveGdal() {
+        // 1. the folder the user gave (Settings > GDAL)
+        const auto chosen = QString::fromStdString(Utility::readPref("GDAL_BIN_FOLDER", "")).trimmed();
+        if (hasGdalTools(chosen)) {
+            pointDataBeside(QDir::cleanPath(chosen));
+            return QDir::cleanPath(chosen).toStdString();
+        }
+        // 2. Portable Windows builds ship the GDAL tools + data in a "gdal" folder
+        // next to wxqt.exe (see .github/scripts/package-windows.ps1) and have no
+        // launcher script to put it on PATH, so look there. GDAL/PROJ need
+        // their data directories pointed at the bundled copies too, and the
+        // child processes inherit this process's environment. (The Linux
+        // AppImage's AppRun does the equivalent with PATH/GDAL_DATA itself.)
         const auto dir = QCoreApplication::applicationDirPath() + "/gdal";
-        if (QStandardPaths::findExecutable("gdalwarp", {dir}).isEmpty()) {
-            return QString{};
+        if (hasGdalTools(dir)) {
+            if (QFile::exists(dir + "/gdal-data.zip")) {
+                // the Windows package ships GDAL's tables as one archive that GDAL reads in place
+                qputenv("GDAL_DATA", QString{"/vsizip/" + dir + "/gdal-data.zip"}.toUtf8());
+                gdalEnvSetByUs = true;
+            } else if (QDir{dir + "/gdal-data"}.exists()) {
+                qputenv("GDAL_DATA", QDir::toNativeSeparators(dir + "/gdal-data").toUtf8());
+                gdalEnvSetByUs = true;
+            }
+            if (QDir{dir + "/proj-data"}.exists()) {
+                qputenv("PROJ_DATA", QDir::toNativeSeparators(dir + "/proj-data").toUtf8());
+                qputenv("PROJ_LIB", QDir::toNativeSeparators(dir + "/proj-data").toUtf8());
+                gdalEnvSetByUs = true;
+            }
+            return dir.toStdString();
         }
-        if (QFile::exists(dir + "/gdal-data.zip")) {
-            // the Windows package ships GDAL's tables as one archive that GDAL reads in place
-            qputenv("GDAL_DATA", QString{"/vsizip/" + dir + "/gdal-data.zip"}.toUtf8());
-        } else if (QDir{dir + "/gdal-data"}.exists()) {
-            qputenv("GDAL_DATA", QDir::toNativeSeparators(dir + "/gdal-data").toUtf8());
-        }
-        if (QDir{dir + "/proj-data"}.exists()) {
-            qputenv("PROJ_DATA", QDir::toNativeSeparators(dir + "/proj-data").toUtf8());
-            qputenv("PROJ_LIB", QDir::toNativeSeparators(dir + "/proj-data").toUtf8());
-        }
-        return dir;
-    }();
-    if (!bundled.isEmpty()) {
-        return bundled.toStdString();
+        // 3. the PATH
+        const auto found = QStandardPaths::findExecutable("gdalwarp");
+        return found.isEmpty() ? std::string{} : QFileInfo{found}.absolutePath().toStdString();
     }
-    const auto found = QStandardPaths::findExecutable("gdalwarp");
-    if (found.isEmpty()) {
-        return "";
+}
+
+string UtilityGrib::gdalBinDir() {
+    const std::lock_guard lock{gdalMutex};
+    if (!gdalKnown) {
+        gdalFound = resolveGdal();
+        gdalKnown = true;
     }
-    return QFileInfo{found}.absolutePath().toStdString();
+    return gdalFound;
+}
+
+void UtilityGrib::forgetGdal() {
+    const std::lock_guard lock{gdalMutex};
+    if (gdalEnvSetByUs) {   // (what an earlier choice set is not left for the next)
+        qunsetenv("GDAL_DATA");
+        qunsetenv("PROJ_DATA");
+        qunsetenv("PROJ_LIB");
+        gdalEnvSetByUs = false;
+    }
+    gdalKnown = false;
 }
 
 bool UtilityGrib::gdalAvailable() {

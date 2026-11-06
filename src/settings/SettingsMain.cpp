@@ -19,6 +19,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     , settingsRadarBox{make_unique<SettingsRadarBox>(parent)}
     , settingsSourcesBox{make_unique<SettingsSourcesBox>()}
     , settingsLocalRunsBox{make_unique<SettingsLocalRunsBox>()}
+    , settingsGdalBox{make_unique<SettingsGdalBox>()}
     , settingsAccountsBox{make_unique<SettingsAccountsBox>()}
     , settingsColorsBox{make_unique<SettingsColorsBox>(parent)}
     , settingsAboutBox{make_unique<TextViewerStaticBox>(parent, GlobalVariables::aboutString)}
@@ -52,6 +53,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     sourcesIndex = 3 + (showLocationItems ? 2 : 0) + (toolbar ? 2 : 0);   // (after General, Map and Colors, and the tabs of the locations and of the orders)
     tabWidget.addTab(settingsSourcesBox.get(), "Model Sources");
     tabWidget.addTab(settingsLocalRunsBox.get(), "Local Runs");
+    tabWidget.addTab(settingsGdalBox.get(), "GDAL");
     tabWidget.addTab(settingsAccountsBox.get(), "Accounts");
     tabWidget.addTab(settingsAboutBox.get(), "About");
     if (showRadarFirst) {

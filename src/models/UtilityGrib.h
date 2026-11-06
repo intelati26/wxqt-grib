@@ -263,6 +263,8 @@ public:
     // keeping an identical copy - `gdalAvailable()` above is just the bool
     // form of this for a plain feature-gate check.
     static string gdalBinDir();
+    // forget the folder found: the setting GDAL_BIN_FOLDER changed, the next gdalBinDir() looks again (and points GDAL_DATA / PROJ_DATA beside it)
+    static void forgetGdal();
 
     // Parses a NOMADS `.idx` text file for the byte range of the record
     // matching `match` (a substring like ":TMP:2 m above ground:"),

@@ -29,6 +29,7 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   time)** draws a tile as its model minus the main chart's, with the hover read-out of the difference; **MRMS** (the observed composite reflectivity, NOAA's open bucket)
   is a model too, so a simulated reflectivity can be put beside what was observed. There is no plugin system: another WRF-format model is one more definition file
   (`kind = wrf`, `run_folders`; see `docs/model-files.md`).
+- **Your own GDAL** - the Model Viewer decodes its files with GDAL's programs. The program uses the `gdal` folder next to it (the Windows package has one) and then the PATH; Settings > GDAL takes a folder instead (on Windows the `bin` folder of an OSGeo4W, QGIS or conda install: GDAL's and PROJ's tables are taken from the `share` folder beside it) and says which GDAL is in use and whether it has GRIB, netCDF and HDF5. The IFS and AIFS need a GDAL built with libaec.
 - **Verify against MRMS** (Analysis menu, on a reflectivity chart) - every run of the model that has a forecast for a time on the hour, scored
   against the MRMS composite reflectivity of that time (or the maximum of the hour): POD, FAR, CSI and bias at 20 / 35 / 50 dBZ, the Fractions Skill Score over
   10 / 25 / 50 km, and the model, MRMS and hit / miss / false alarm pictures. A run the server does not have for that hour says so.
