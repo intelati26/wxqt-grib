@@ -10,6 +10,7 @@
 #include <QTimeZone>
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
+#include "models/ChartResolution.h"
 #include "models/UtilityModelNcepInterface.h"
 #include "objects/FutureVoid.h"
 #include "ui/UiStandards.h"
@@ -67,6 +68,7 @@ AnalysisLoop::AnalysisLoop(Window * parent, const std::string& area0, const std:
     topLayout->addWidget(to);
     topLayout->addWidget(step);
     topLayout->addWidget(panes);
+    topLayout->addWidget(resolution);
     topLayout->addWidget(buildButton);
     topLayout->addStretch(1);
     grid->setMessage("Pick the range, then Draw the loop.");
@@ -145,9 +147,10 @@ void AnalysisLoop::renderFrame(size_t index, int mine, bool again) {
     const auto flag = cancel;
     const auto ends = urmaEnds;
     const auto area0 = sector;
+    const double scale = ChartResolution::scale();   // (read here, on the screen's thread)
     auto result = std::make_shared<std::pair<std::vector<Cell>, std::string>>();
     auto error = std::make_shared<std::string>();
-    new FutureVoid{this, [result, error, valid, charts, flag, ends, area0, urmaModel, rtmaModel, hasUrma, only] {
+    new FutureVoid{this, [result, error, valid, charts, flag, ends, area0, urmaModel, rtmaModel, hasUrma, only, scale] {
                        if (flag->load()) {
                            return;
                        }
@@ -167,7 +170,7 @@ void AnalysisLoop::renderFrame(size_t index, int mine, bool again) {
                            for (const auto& chart : charts) {
                                GfsRender::Variant variant;
                                variant.validTime = valid;
-                               variant.width = 900;
+                               variant.scale = scale;
                                Cell cell;
                                cell.probe = std::make_shared<GfsChart::Probe>();
                                cell.bytes = GfsRender::png(session, model, chart, area0, "", 0, {}, problem, cell.probe.get(), variant);

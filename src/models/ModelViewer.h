@@ -62,6 +62,7 @@ public:
     void openAt(const string& model, const QDateTime& validUtc, bool runStart = false);
     void showPicker();
     void openSubhourly();
+    QSize shownPictureSize() const { return QImage::fromData(shownBytes).size(); }   // (a development aid: the size of the chart on view)
     void setOverlays(const std::vector<string>& ids);   // as ticking them in the chart picker does
     void setTileModel(int index, const string& model, const string& run);   // the tile's model (and run), as its Change... menu does (a development aid)
     void setTileRun(int index, const string& run);   // as the tile's Change... menu does (a development aid)

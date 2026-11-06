@@ -35,6 +35,14 @@ public:
         std::shared_ptr<GfsChart::Probe> probe;   // the values under the pointer
     };
     void hoverAt(double fx, double fy) { grid->hoverAt(fx, fy); }   // (a development aid)
+    QSize firstPictureSize() const {   // (a development aid: the size of the first chart drawn)
+        for (const auto& cells : frames) {
+            if (!cells.empty()) {
+                return QImage::fromData(cells.front().bytes).size();
+            }
+        }
+        return {};
+    }
 
 protected:
     LoopWindow(Window * parent, const std::string& sector, const std::vector<std::string>& charts);
@@ -69,6 +77,7 @@ protected:
     QPushButton * areaButton{};
     QPushButton * buildButton{};
     QComboBox * panes{};
+    QComboBox * resolution{};   // the size the charts are drawn at (the Model Viewer's choice)
     QLabel * status{};
     PaneGrid * grid{};
     std::string sector;

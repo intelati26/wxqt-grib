@@ -8,6 +8,7 @@
 #include <QTimeZone>
 #include "gfs/GfsModels.h"
 #include "gfs/GfsRender.h"
+#include "models/ChartResolution.h"
 #include "models/UtilityModelNcepInterface.h"
 #include "objects/FutureVoid.h"
 #include "ui/UiStandards.h"
@@ -76,6 +77,7 @@ SubhourlyViewer::SubhourlyViewer(Window * parent, const std::string& modelId, co
     topLayout->addWidget(toLead);
     topLayout->addWidget(step);
     topLayout->addWidget(panes);
+    topLayout->addWidget(resolution);
     topLayout->addWidget(buildButton);
     topLayout->addStretch(1);
     grid->setMessage("Looking for the newest run...");
@@ -249,9 +251,10 @@ void SubhourlyViewer::renderFrame(size_t index, int mine, bool again) {
     const int lead = minutes[index];
     const auto flag = cancel;
     const auto id = model, area0 = sector, run = runId;
+    const double scale = ChartResolution::scale();   // (read here, on the screen's thread)
     auto result = std::make_shared<std::vector<Cell>>();
     auto error = std::make_shared<std::string>();
-    new FutureVoid{this, [result, error, charts, lead, flag, id, area0, run] {
+    new FutureVoid{this, [result, error, charts, lead, flag, id, area0, run, scale] {
                        if (flag->load()) {
                            return;
                        }
@@ -261,7 +264,7 @@ void SubhourlyViewer::renderFrame(size_t index, int mine, bool again) {
                        for (const auto& chart : charts) {
                            GfsRender::Variant variant;
                            variant.minutes = lead;
-                           variant.width = 900;
+                           variant.scale = scale;
                            Cell cell;
                            cell.probe = std::make_shared<GfsChart::Probe>();
                            cell.bytes = GfsRender::png(session, id, chart, area0, run, (lead + 59) / 60, {}, problem, cell.probe.get(), variant);

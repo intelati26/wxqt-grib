@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include "gfs/GfsModels.h"
 #include "models/ChartPickers.h"
+#include "models/ChartResolution.h"
 #include "objects/UtilityAnimationExport.h"
 #include "ui/UiStandards.h"
 
@@ -28,6 +29,7 @@ LoopWindow::LoopWindow(Window * parent, const std::string& area0, const std::vec
         panes->addItem(n == 1 ? QString{"1 chart"} : QString{"%1 charts"}.arg(n), n);
     }
     panes->setToolTip("One chart, or two to four side by side (the same times, one loop)");
+    resolution = ChartResolution::makeBox(top, [this] { invalidate("The chart size changed: Draw the loop again."); });
     buildButton = UiStandards::button(top, "Draw the loop", "Draw each time of the range in the background; the loop plays as they arrive");
     box.addWidgetReal(top, 0, Qt::Alignment{});
     grid = new PaneGrid{this};

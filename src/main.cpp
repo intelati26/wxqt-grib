@@ -333,7 +333,7 @@ int main(int argc, char * argv[]) {
                 const auto region = parts.value(3).toStdString();
                 auto * loop = new AnalysisLoop{&w, region == "-AK" ? "ALASKA" : region == "-HI" ? "HAWAII-ISLANDS" : region == "-PR" ? "PUERTO-RICO" : region == "-GU" ? "GUAM" : "CONUS", charts, to.addSecs(-parts.value(1, "6").toInt() * 3600), to, region};
                 QTimer::singleShot(500, loop, [loop] { loop->draw(); });
-                QTimer::singleShot(35000, loop, [loop] { loop->hoverAt(0.5, 0.45); });
+                QTimer::singleShot(35000, loop, [loop] { loop->hoverAt(0.5, 0.45); std::fprintf(stderr, "LOOPSIZE %d x %d\n", loop->firstPictureSize().width(), loop->firstPictureSize().height()); });
             } else if (route == "abpgext") {   // WXQT_OPEN=abpgext: the extended (days 6-14) analog guidance window
                 new AbpgExtended{&w};
             } else if (route == "product") {   // WXQT_OPEN=product WXQT_PRODUCT_IMAGE=<url> WXQT_PRODUCT_TEXT=<url>: the text-and-picture window
@@ -1079,6 +1079,9 @@ int main(int argc, char * argv[]) {
                     const auto parts = qEnvironmentVariable("WXQT_TILE_RUN").split(':');
                     QTimer::singleShot(12000, viewer, [viewer, parts] { viewer->setTileRun(parts.value(0).toInt(), parts.value(1).toStdString()); });
                     QTimer::singleShot(24000, viewer, [viewer] { std::fprintf(stderr, "TILES: %s\n", viewer->tileCaptions().c_str()); });
+                }
+                if (qEnvironmentVariableIsSet("WXQT_SIZE_REPORT")) {   // WXQT_SIZE_REPORT=1: 20 s in the size of the chart on view, to stderr
+                    QTimer::singleShot(20000, viewer, [viewer] { std::fprintf(stderr, "VIEWSIZE %d x %d\n", viewer->shownPictureSize().width(), viewer->shownPictureSize().height()); });
                 }
                 if (qEnvironmentVariableIsSet("WXQT_SUBHOURLY")) {   // WXQT_SUBHOURLY=1: 14 s in the "15 minute fields..." button is pressed (the window opens on what is on view)
                     QTimer::singleShot(14000, viewer, [viewer] { viewer->openSubhourly(); });

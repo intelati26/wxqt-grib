@@ -7,6 +7,7 @@
 #include "ModelViewer.h"
 #include "models/AnalysisLoop.h"
 #include "models/ChartPickers.h"
+#include "models/ChartResolution.h"
 #include "models/PaneGrid.h"
 #include "models/SubhourlyViewer.h"
 #include "objects/AnimationRenderer.h"
@@ -508,6 +509,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     strip->onSelect = [this] (int index) { selectHour(index); };
     strip->onPlay = [this] (bool on) { startPlaying(on); };
     strip->addControl(comboPreload.getView());
+    strip->addControl(ChartResolution::makeBox(this, [this] { reload(); }));   // the size the charts are drawn at: the pictures drawn at another size are other keys
     box.addWidgetReal(strip);
     plumePanel = new CfsPlumePanel{this, panes, 0.0, 0.0, "gefs", false};   // (shown, and reading, only while the pane is on)
     plumePanel->setCompact(true);   // (the GEFS pane begins with the mean and spread: all the members are a choice, 600 reads the first time)
@@ -760,7 +762,7 @@ string ModelViewer::frameKey(int hour) const {
     for (const auto& layer : hiddenLayers) {
         key += "|hide=" + layer;
     }
-    return key + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
+    return key + ChartResolution::keyPart() + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
 }
 
 void ModelViewer::setVariant(GfsRender::Variant v) {
@@ -1884,7 +1886,8 @@ void ModelViewer::reload() {
         }
         const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = runToDraw;
         const auto overlayIds = overlays;
-        const auto shownVariant = variant;
+        auto shownVariant = variant;
+        shownVariant.scale = ChartResolution::scale();   // the size the charts are drawn at (the key of this frame has it)
         const int hour = std::atoi(objectModel.getTime().c_str());
         if (const auto cached = frames.find(frameKey(hour)); cached != frames.end()) {   // drawn already (play, or a visit before)
             showFrame(cached->second);
@@ -2719,6 +2722,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.variant.overlayModels = overlayModels;
         job.variant.overlayKeepFill = overlayKeepFill;
         job.variant.hideKeys = hiddenLayers;
+        job.variant.scale = ChartResolution::scale();
         job.key = frameKey(mainHour);
     } else {
         const auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
@@ -2901,7 +2905,8 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         } else if (v.kind == GfsRender::Variant::Kind::Max && !v.hours.empty()) {
             vk = "|max" + std::to_string(v.hours.front()) + "-" + std::to_string(v.hours.back());
         }
-        job.key = job.model + "|" + job.param + "|" + job.sector + "|" + job.cycle + "|" + std::to_string(job.hour);
+        job.variant.scale = ChartResolution::scale();
+        job.key = job.model + "|" + job.param + "|" + job.sector + "|" + job.cycle + "|" + std::to_string(job.hour) + ChartResolution::keyPart();
         for (const auto& id : job.overlays) {
             job.key += "|" + id;
         }
