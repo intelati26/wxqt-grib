@@ -297,6 +297,14 @@ const std::vector<std::string>& ingredientSources() {
         return {{{0, QColor{"#299501"}}, {2, QColor{"#299501"}}, {3, QColor{"#f7e400"}}, {5, QColor{"#f7e400"}}, {6, QColor{"#f85900"}}, {7, QColor{"#f85900"}}, {8, QColor{"#d8001d"}}, {10, QColor{"#d8001d"}},
                  {11, QColor{"#6b49c8"}}, {13, QColor{"#6b49c8"}}}};
     }
+    Ramp currentSpeed() {   // meters per second: slack water pale, the Gulf Stream and the Agulhas (1.5 and more) in strong colors
+        return {{{0, QColor{235, 245, 255}}, {0.1, QColor{190, 225, 245}}, {0.25, QColor{120, 190, 235}}, {0.5, QColor{0, 170, 220}}, {0.75, QColor{0, 200, 120}}, {1.0, QColor{250, 230, 0}}, {1.5, QColor{255, 140, 0}},
+                 {2.0, QColor{220, 30, 30}}, {3.0, QColor{130, 0, 60}}}};
+    }
+    Ramp seaLevelHeight() {   // meters above the mean: below in blues, above in warm colors
+        return {{{-1.0, QColor{30, 60, 160}}, {-0.5, QColor{70, 140, 220}}, {-0.2, QColor{170, 210, 240}}, {-0.05, QColor{245, 245, 245}}, {0.05, QColor{245, 245, 245}}, {0.2, QColor{250, 215, 160}},
+                 {0.5, QColor{240, 140, 60}}, {1.0, QColor{190, 40, 30}}}};
+    }
     Ramp waveHeight() {   // meters
         return {{{0, QColor{235, 245, 255}}, {1, QColor{150, 200, 240}}, {2, QColor{0, 170, 220}}, {3, QColor{0, 200, 120}}, {4, QColor{250, 230, 0}}, {6, QColor{255, 140, 0}}, {8, QColor{220, 30, 30}},
                  {10, QColor{180, 0, 90}}, {12, QColor{130, 0, 170}}, {15, QColor{255, 255, 255}}}};
@@ -4771,6 +4779,108 @@ const std::vector<Product>& products() {
                 p.push_back(x);
             }
         };
+        const auto mfWaveRecipes = [&] (const char * model) {   // the waves of Meteo-France's model: for each of the sea, the wind sea, the main swell and the second swell, the height and the period with the direction
+            struct Component {
+                const char * name;
+                const char * heightId;
+                const char * directionId;
+                const char * height;
+                const char * period;
+                const char * direction;
+                const char * level;
+            };
+            for (const auto& c : {Component{"Significant Wave Height", "sig_wv_ht", "peak_dir_per", "HTSGW", "PERPW", "DIRPW", "surface"},
+                                  Component{"Wind Sea", "wsea_wv_ht", "wsea_dir_per", "WVHGT", "WVPER", "WVDIR", "surface"},
+                                  Component{"Primary Swell", "swell1_wv_ht", "swell1_dir_per", "SWELL", "SWPER", "SWDIR", "1 in sequence"},
+                                  Component{"Secondary Swell", "swell2_wv_ht", "swell2_dir_per", "SWELL", "SWPER", "SWDIR", "2 in sequence"}}) {
+                {
+                    Product x;
+                    x.source = model;
+                    x.id = c.heightId;
+                    x.label = std::string{c.name};
+                    x.wants = {want("h", c.height, c.level)};
+                    x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                    x.ramp = waveHeight();
+                    x.quantity = Quantity::Meters;
+                    x.fillTitle = std::string{c.name} + (std::string{c.heightId} == "sig_wv_ht" ? "" : " height");
+                    x.legendStep = 0;
+                    p.push_back(x);
+                }
+                {
+                    Product x;
+                    x.source = model;
+                    x.id = c.directionId;
+                    x.label = std::string{c.name} + " Direction and Period (sec)";
+                    x.wants = {want("t", c.period, c.level), want("d", c.direction, c.level)};
+                    x.derive = [] (Grids& g, const Context&) {   // the direction the waves come from, as a flow toward where they go
+                        auto u = g["d"], v = g["d"];
+                        for (size_t i = 0; i < u.values.size(); i++) {
+                            const double from = g["d"].values[i] * pi / 180.0;
+                            u.values[i] = std::isnan(g["d"].values[i]) ? std::nanf("") : static_cast<float>(-std::sin(from));
+                            v.values[i] = std::isnan(g["d"].values[i]) ? std::nanf("") : static_cast<float>(-std::cos(from));
+                        }
+                        g["su"] = u;
+                        g["sv"] = v;
+                    };
+                    x.fill = [] (const Grids& g) { return pick(g, "t"); };
+                    x.ramp = wavePeriod();
+                    x.fillTitle = std::string{c.name} + " period (s); lines: direction the waves travel";
+                    x.legendStep = 2;
+                    x.streamU = "su";
+                    x.streamV = "sv";
+                    p.push_back(x);
+                }
+            }
+        };
+        const auto currentRecipes = [&] (const char * model) {   // Meteo-France's ocean: the surface current (speed and streamlines), the sea surface height and the part of it the air pressure makes
+            {
+                Product x;
+                x.source = model;
+                x.id = "ocean_current";
+                x.label = "Surface Current";
+                x.wants = {want("u", "UOGRD", "surface"), want("v", "VOGRD", "surface")};
+                x.derive = [] (Grids& g, const Context&) {
+                    auto s = g["u"];
+                    for (size_t i = 0; i < s.values.size(); i++) {
+                        s.values[i] = static_cast<float>(std::hypot(g["u"].values[i], g["v"].values[i]));
+                    }
+                    g["s"] = s;
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "s"); };
+                x.ramp = currentSpeed();
+                x.fillTitle = "Surface current speed (m/s); lines: where it flows";
+                x.legendStep = 0;
+                x.streamU = "u";
+                x.streamV = "v";
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = model;
+                x.id = "sea_level_height";
+                x.label = "Sea Surface Height";
+                x.wants = {want("h", "SSHG", "surface")};
+                x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                x.ramp = seaLevelHeight();
+                x.quantity = Quantity::Meters;
+                x.fillTitle = "Sea surface height above the mean";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = model;
+                x.id = "inverse_barometer";
+                x.label = "Sea Level Lift from Air Pressure";
+                x.wants = {want("h", "IBHG", "surface")};
+                x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                x.ramp = seaLevelHeight();
+                x.quantity = Quantity::Meters;
+                x.fillTitle = "Sea surface height the air pressure makes (a low pressure of 10 mb lifts the sea by 10 cm)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+        };
         const auto waveRecipes = [&] (const char * model) {
             struct Component {
                 const char * name;
@@ -6235,7 +6345,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"MF-SST", [&] { sstRecipes("MF-SST"); }}, {"COPERNICUS", [&] { camsRecipes("COPERNICUS"); }}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"MF-SST", [&] { sstRecipes("MF-SST"); }}, {"MF-WAVE", [&] { mfWaveRecipes("MF-WAVE"); }}, {"MF-CURRENT", [&] { currentRecipes("MF-CURRENT"); }}, {"COPERNICUS", [&] { camsRecipes("COPERNICUS"); }}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);

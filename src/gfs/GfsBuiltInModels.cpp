@@ -946,6 +946,68 @@ clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"MF-WAVE", R"MODEL(
+# Meteo-France's global wave model (MFWAM) on a regular 1/12 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format): the significant height, period and direction of all the waves, of the wind sea, of the main
+# swell and of the second swell. 3 hourly to 10 days, a run at 00 and 12Z. A file is about 26 MB of the whole globe, of which a chart reads the fields it needs by byte ranges.
+id = MF-WAVE
+group = Waves and ocean
+label = Meteo-France MFWAM global waves 1/12 degree (via Open-Meteo)
+source_label = Meteo-France MFWAM waves, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_wave/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HTSGW => wave_height
+nc_variable = when variable=PERPW => wave_period
+nc_variable = when variable=DIRPW => wave_direction
+nc_variable = when variable=WVHGT => wind_wave_height
+nc_variable = when variable=WVPER => wind_wave_period
+nc_variable = when variable=WVDIR => wind_wave_direction
+nc_variable = when variable=SWELL level="1 in sequence" => swell_wave_height
+nc_variable = when variable=SWPER level="1 in sequence" => swell_wave_period
+nc_variable = when variable=SWDIR level="1 in sequence" => swell_wave_direction
+nc_variable = when variable=SWELL level="2 in sequence" => secondary_swell_wave_height
+nc_variable = when variable=SWPER level="2 in sequence" => secondary_swell_wave_period
+nc_variable = when variable=SWDIR level="2 in sequence" => secondary_swell_wave_direction
+probe_hour = 0
+cycle_hours = 12
+lag_hours = 13
+cycles_to_try = 3
+max_parallel = 3
+hours = 0-240/3
+run_length = 0:240, else:240
+run_every = 12
+sectors = world
+overlays = true
+list = true
+clone = false
+)MODEL"},
+        {"MF-CURRENT", R"MODEL(
+# Meteo-France's global ocean currents and sea level (the ocean model behind its wave system) on a regular 1/12 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format): the surface current, the height of the sea
+# surface (tide, eddies and the lift or sag the air pressure makes). Hourly to 10 days, a run a day at 00Z.
+id = MF-CURRENT
+group = Waves and ocean
+label = Meteo-France ocean currents and sea level 1/12 degree (via Open-Meteo)
+source_label = Meteo-France ocean currents, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_currents/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=UOGRD => ocean_u_current
+nc_variable = when variable=VOGRD => ocean_v_current
+nc_variable = when variable=SSHG => sea_level_height_msl
+nc_variable = when variable=IBHG => invert_barometer_height
+probe_hour = 0
+cycle_hours = 24
+lag_hours = 13
+cycles_to_try = 3
+max_parallel = 3
+hours = 0-239/1
+run_length = 0:239, else:239
+run_every = 24
+sectors = world
+overlays = true
+list = true
+clone = false
+)MODEL"},
         {"MF-SST", R"MODEL(
 # Meteo-France's global sea surface temperature analysis and forecast (the ocean model of Meteo-France's wave and current system, on a regular 1/12 degree grid), as Open-Meteo keeps it (open-meteo/om-file-format).
 # One run a day, 6 hourly: the last day's analysis then the forecast to 10 days.

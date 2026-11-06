@@ -41,6 +41,8 @@
     <file alias="models/MSM.md">models/MSM.md</file>
     <file alias="models/MSM-UL.md">models/MSM-UL.md</file>
     <file alias="models/MF-SST.md">models/MF-SST.md</file>
+    <file alias="models/MF-WAVE.md">models/MF-WAVE.md</file>
+    <file alias="models/MF-CURRENT.md">models/MF-CURRENT.md</file>
     <file alias="models/NAM-ANL.md">models/NAM-ANL.md</file>
     <file alias="models/NARR.md">models/NARR.md</file>
     <file alias="models/NBM.md">models/NBM.md</file>
