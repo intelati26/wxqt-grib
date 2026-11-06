@@ -4,6 +4,9 @@
 // *****************************************************************************
 
 #include "models/MrmsVerifyViewer.h"
+#include <QSplitter>
+#include <algorithm>
+#include "models/UtilityModelNcepInterface.h"
 #include <algorithm>
 #include <cmath>
 #include <QHBoxLayout>
@@ -42,7 +45,31 @@ MrmsVerifyViewer::MrmsVerifyViewer(Window * parent, const string& modelName, con
     auto * page = new QWidget{this};
     auto * column = new QVBoxLayout{page};
     auto * top = new QHBoxLayout;
-    top->addWidget(new QLabel{QString::fromStdString(model + "  " + param + "  - valid (UTC):"), page});
+    // every model that draws a simulated composite reflectivity over the contiguous United States (not the areas of Alaska, Hawaii and Puerto Rico, which MRMS scores another way)
+    modelPick = new QComboBox{page};
+    {
+        const auto drawsEchoes = [] (const GfsModels::Def& def) {
+            if (def.id.size() > 3 && (def.id.compare(def.id.size() - 3, 3, "-AK") == 0 || def.id.compare(def.id.size() - 3, 3, "-HI") == 0 || def.id.compare(def.id.size() - 3, 3, "-PR") == 0 || def.id.compare(def.id.size() - 3, 3, "-NA") == 0)) {
+                return false;
+            }
+            if (!GfsModels::isForecast(def.id)) {
+                return false;
+            }
+            std::vector<std::string> ids, labels;
+            UtilityModelNcepInterface::chartList(def, ids, labels);
+            return std::find(ids.begin(), ids.end(), "sim_radar_comp") != ids.end();
+        };
+        for (const auto& def : GfsModels::all()) {
+            if (def.id == model || drawsEchoes(def)) {
+                modelPick->addItem(QString::fromStdString(def.id), QString::fromStdString(def.id));
+            }
+        }
+        const auto at = modelPick->findData(QString::fromStdString(model));
+        modelPick->setCurrentIndex(std::max(0, at));
+    }
+    modelPick->setToolTip("The model to score. Every model that draws a simulated composite reflectivity is here; each is scored on its simulated radar chart.");
+    top->addWidget(modelPick);
+    top->addWidget(new QLabel{"valid (UTC):", page});
     timePick = new QDateTimeEdit{validUtc.isValid() ? validUtc.toUTC() : QDateTime::currentDateTimeUtc().addSecs(-3 * 3600), page};
     timePick->setTimeSpec(Qt::UTC);
     timePick->setDisplayFormat("yyyy-MM-dd HH':00'");
@@ -60,6 +87,13 @@ MrmsVerifyViewer::MrmsVerifyViewer(Window * parent, const string& modelName, con
     thresholdPick->setCurrentIndex(1);
     thresholdPick->setToolTip("The reflectivity that counts as an echo for the scores and the agreement picture.");
     top->addWidget(thresholdPick);
+    top->addWidget(new QLabel{"Runs:", page});
+    runsPick = new QComboBox{page};
+    for (const int n : {8, 12, 24, 48}) {
+        runsPick->addItem(QString::number(n), n);
+    }
+    runsPick->setToolTip("How many runs back from the latest one with a forecast for the time are scored");
+    top->addWidget(runsPick);
     go = UiStandards::button(page, "Compare");
     top->addWidget(go);
     top->addStretch(1);
@@ -74,15 +108,42 @@ MrmsVerifyViewer::MrmsVerifyViewer(Window * parent, const string& modelName, con
     table->setSelectionMode(QAbstractItemView::SingleSelection);
     table->verticalHeader()->hide();
     table->horizontalHeader()->setStretchLastSection(true);
-    table->setMaximumHeight(230);
+    table->setMinimumHeight(90);
     table->setToolTip("POD: the observed echoes the model had. FAR: the model's echoes that were not observed. CSI: hits over hits, misses and false alarms. Bias: the model's echo area over the observed one. FSS: Fractions Skill Score over a window of that size (1 is perfect; a storm a little off still counts).");
-    column->addWidget(table);
     picture = new QLabel{page};
     picture->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
-    column->addWidget(picture, 1);
+    picture->setMinimumHeight(120);
+    auto * splitter = new QSplitter{Qt::Vertical, page};   // the table and the pictures share the window: drag the bar between them to give the table more rows
+    splitter->setChildrenCollapsible(false);
+    splitter->setHandleWidth(8);
+    splitter->addWidget(table);
+    splitter->addWidget(picture);
+    splitter->setStretchFactor(0, 1);
+    splitter->setStretchFactor(1, 1);
+    splitter->setSizes({330, 470});
+    column->addWidget(splitter, 1);
     setCentralWidget(page);
     setSize(1300, 800);
     QObject::connect(go, &QPushButton::clicked, this, [this] { compare(); });
+    QObject::connect(modelPick, &QComboBox::currentIndexChanged, this, [this] (int) {
+        const auto chosen = modelPick->currentData().toString().toStdString();
+        if (chosen.empty() || chosen == model) {
+            return;
+        }
+        model = chosen;   // its own simulated radar chart (the screen's chart when the model has it)
+        if (const auto * def = GfsModels::find(model); def != nullptr) {
+            std::vector<std::string> ids, labels;
+            UtilityModelNcepInterface::chartList(*def, ids, labels);
+            if (std::find(ids.begin(), ids.end(), param) == ids.end()) {
+                param = "sim_radar_comp";
+            }
+        }
+        setTitle("Verify against MRMS - " + model);
+        table->setRowCount(0);
+        rows.clear();
+        picture->clear();
+        status->setText("Press Compare to score " + QString::fromStdString(model) + ".");
+    });
     QObject::connect(table, &QTableWidget::itemSelectionChanged, this, [this] { showRow(); });
     QObject::connect(thresholdPick, &QComboBox::currentIndexChanged, this, [this] { fillTable(); showRow(); });
     QWidget::show();
@@ -114,7 +175,8 @@ void MrmsVerifyViewer::compare() {
     vector<std::pair<string, int>> wanted;
     auto run = QDateTime{hour.date(), QTime{hour.time().hour() / cycle * cycle, 0}, QTimeZone::utc()};
     const auto published = QDateTime::currentDateTimeUtc().addSecs(-3600LL * def->source("").lagHours);   // a run is there from its lag after its time: the newer ones would be another run's
-    for (; wanted.size() < 8 && run.secsTo(hour) / 3600 <= longest; run = run.addSecs(-3600LL * cycle)) {
+    const size_t runCount = static_cast<size_t>(runsPick->currentData().toInt());
+    for (; wanted.size() < runCount && run.secsTo(hour) / 3600 <= longest; run = run.addSecs(-3600LL * cycle)) {
         if (run > published) {
             continue;
         }

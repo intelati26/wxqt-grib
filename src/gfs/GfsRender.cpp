@@ -289,7 +289,13 @@ std::vector<int> GfsRender::availableHours(Session& session, const std::string& 
                 continue;
             }
             std::string detail;
-            there[i] = gfs.check(run, needs, detail) ? 1 : 0;
+            bool ok = gfs.check(run, needs, detail);
+            if (!ok) {   // what the drawing does when the chart's own fields are not all there: the chart's pieces (the echoes without the helicity outlines, the 1 hour amounts)
+                if (const auto pieces = GfsChart::fallbackNeeds(*product, hours[i]); !pieces.empty()) {
+                    ok = gfs.check(run, pieces, detail);
+                }
+            }
+            there[i] = ok ? 1 : 0;
         }
     };
     std::vector<std::thread> threads;

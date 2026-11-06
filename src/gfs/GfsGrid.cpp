@@ -105,6 +105,30 @@ std::vector<IdxRecord> parseEcmwfIndex(const std::string& text, const std::strin
         r.forecast = param == "tp" ? "0-" + step + " hour acc fcst" : step + " hour fcst";
         records.push_back(std::move(r));
     }
+    // a subhourly file (the RRFS hourly runs: "195 min fcst" ... "240 min fcst", the minutes of the last hour of the lead): the records at the end of the file, the hour itself, are named as the
+    // hourly files name theirs ("4 hour fcst", "0-4 hour acc fcst") so the charts find them; the quarter hours before it keep their minutes and are not matched
+    int last = 0;
+    const auto minutes = [] (const std::string& forecast, bool& accumulated) {
+        accumulated = forecast.size() > 12 && forecast.compare(forecast.size() - 12, 12, " min acc fcst") == 0;
+        const bool plain = forecast.size() > 9 && forecast.compare(forecast.size() - 9, 9, " min fcst") == 0;
+        if (!accumulated && !plain) {
+            return -1;
+        }
+        const auto dash = forecast.find('-');
+        return std::atoi(forecast.c_str() + (accumulated && dash != std::string::npos ? dash + 1 : 0));
+    };
+    for (const auto& r : records) {
+        bool accumulated = false;
+        last = std::max(last, minutes(r.forecast, accumulated));
+    }
+    if (last > 0 && last % 60 == 0) {
+        for (auto& r : records) {
+            bool accumulated = false;
+            if (minutes(r.forecast, accumulated) == last) {
+                r.forecast = accumulated ? "0-" + std::to_string(last / 60) + " hour acc fcst" : std::to_string(last / 60) + " hour fcst";
+            }
+        }
+    }
     return records;
 }
 

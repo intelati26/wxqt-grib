@@ -123,6 +123,25 @@ namespace {
 }
 
 namespace {
+    // The RRFS makes a run every hour, but only every third (00, 03, 06 ...) has the hourly files; the others have the same hours (to 18) as 15 minute "subhourly" files: the 2D fields of
+    // hour N are in "2dfld.3km.subh.fNNN", whose last records are the hour itself (GfsGrid::parseIdx names those as the hourly files name theirs). No pressure levels for those runs.
+    GfsModels::Def rrfsWithSubhourly(const std::string& id) {
+        auto def = fromFile(id);
+        const auto base = def.source;
+        def.source = [base] (const std::string& storm) {
+            auto s = base(storm);
+            const auto fileUrl = s.fileUrl;
+            s.fileUrl = [fileUrl] (const GfsData::Run& run, int hour, const std::string& file) {
+                const bool subhourly = std::atoi(run.cycle.c_str()) % 3 != 0 && hour > 0 && file.compare(0, 6, "2dfld.") == 0 && file.find(".subh") == std::string::npos;
+                return fileUrl(run, hour, subhourly ? file + ".subh" : file);
+            };
+            return s;
+        };
+        return def;
+    }
+}
+
+namespace {
     // the RTMA and URMA files: a different ending in each era of the buckets
     GfsModels::Def surfaceAnalysis(const std::string& id) {
         auto def = fromFile(id);
@@ -324,7 +343,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
             m.push_back(fromFile(std::string{"URMA-"} + region));
         }
         m.push_back(fromFile("RTMA-GU"));   // Guam has an RTMA only
-        m.push_back(fromFile("RRFS"));
+        m.push_back(rrfsWithSubhourly("RRFS"));
         m.push_back(fromFile("RRFS-AK"));
         m.push_back(fromFile("RRFS-HI"));
         m.push_back(fromFile("RRFS-PR"));

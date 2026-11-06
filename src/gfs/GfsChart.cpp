@@ -3484,6 +3484,9 @@ const std::vector<Product>& products() {
                     out.push_back({hour, {"uh", "MXUPHL", "5000-2000 m above ground", hourly(hour), ""}});
                     return out;
                 };
+                chart.fallbackNeeds = [hrrr] (int hour) {   // a run with no hourly maximum of the helicity (the RRFS runs that only have subhourly files): the echoes alone, no outlines
+                    return std::vector<GfsData::Need>{{hour, {"r", "REFC", hrrr ? "entire atmosphere" : "entire atmosphere (considered as a single layer)", "", ""}}};
+                };
                 chart.derive = [] (Grids& g, const Context&) {
                     if (g.find("uh") == g.end()) {   // the start of the run has no hour's maximum yet
                         g["uh"] = g.at("r");
