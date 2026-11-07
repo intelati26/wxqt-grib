@@ -70,7 +70,9 @@ First version done (2026-11-02): `src/gfs/MrmsVerify.*` and `src/models/MrmsVeri
 - **Scores** (20, 35, 50 dBZ, over the visible area or a drawn box): POD, FAR, CSI, bias, and the Fractions Skill Score at 10, 25 and 50 km. A table with one row per run shows skill against lead time.
 - **Open questions:** live (last runs against the latest MRMS) or archive (any past event) or both; which models first (HRRR, REFS, the NSSL ones); the common grid to compare on (the model's, or MRMS's 0.01 degrees).
 
-## 5. Open-Meteo's `.om` files on S3: grids with no API calls (for Thursday)
+## 5. Open-Meteo's `.om` files on S3: grids with no API calls (done 2026-11-05, `d864da8`)
+
+**Status:** built as a model source (`kind = om`) with the decoder vendored in `src/external/omfile/` and linked in, not as the helper program described below: the decoder's source files carry "either version 2 of the License, or (at your option) any later version", so they can sit inside a GPLv3 program, and `licenses/CREDITS.md` says so. The EC46 map reads the files instead of the API. The helper-program design below is kept as the fallback if that reading of the licence is ever in doubt. What is left: the models of `docs/open-meteo-models.md` not yet listed in CREDITS (check which of the groups are in), and asking the author to confirm "or later" for the repository's own files.
 
 **Why:** one EC46 map through the API is some 800 requests (up to about 5,000 by the service's weighting) of the 10,000 a day. Open-Meteo also publishes the forecast grids as files in a public bucket, read by plain HTTPS range requests, which do not count against the API allowance.
 
