@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "settings/SettingsToolbarOrderBox.h"
+#include "ui/OwnsLeftDrag.h"
 #include <QCheckBox>
 #include <QSignalBlocker>
 #include <algorithm>
@@ -72,6 +73,7 @@ namespace {
         list->setSelectionMode(QAbstractItemView::SingleSelection);
         list->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         list->setAlternatingRowColors(true);
+        OwnsLeftDrag::install(list);   // the page's left-drag scroller would take the drag of a row
         (void) rows;
         return list;
     }

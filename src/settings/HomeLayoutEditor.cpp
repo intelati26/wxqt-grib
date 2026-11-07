@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "settings/HomeLayoutEditor.h"
+#include "ui/OwnsLeftDrag.h"
 #include <algorithm>
 #include <numeric>
 #include <QApplication>
@@ -60,6 +61,7 @@ HomeLayoutEditor::HomeLayoutEditor(QWidget * parent, std::function<void()> onCha
     , onChange{std::move(onChange)}
 {
     setAcceptDrops(true);
+    OwnsLeftDrag::install(this);   // the page's left-drag scroller would take the drag of a section
     QSizePolicy policy{QSizePolicy::Preferred, QSizePolicy::Preferred};
     policy.setHeightForWidth(true);
     setSizePolicy(policy);
