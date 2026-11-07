@@ -7718,12 +7718,16 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     const Ramp * ramp = &product.ramp;
     QImage map(static_cast<int>(std::lround(area.width() * S)), static_cast<int>(std::lround(area.height() * S)), QImage::Format_ARGB32_Premultiplied);
     map.fill(QColor{244, 244, 244});
+    float fillMax = std::nanf("");   // the largest value on view: marked on the legend
     for (int y = 0; y < map.height(); y++) {
         auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
         const double lat = view.latAt(area.top() + (y + 0.5) / S);
         for (int x = 0; x < map.width(); x++) {
             const float value = fill.sample(view.lonAt(area.left() + (x + 0.5) / S), lat);
             if (!std::isnan(value)) {
+                if (std::isnan(fillMax) || value > fillMax) {
+                    fillMax = value;
+                }
                 const QRgb c = ramp->at(value);
                 const int a = qAlpha(c);
                 if (a == 255) {
@@ -8446,6 +8450,26 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             const double base = (value - lowShown) / (highShown - lowShown);
             tick(base, first + (last - first) * base);
         }
+    }
+    if (!noBar && !std::isnan(fillMax)) {   // the largest value of the chart on view: a line through the bar and its number above it
+        double at = 0.0;
+        for (int x = 0; x < static_cast<int>(barWidth); x++) {   // (the bar's values only rise: the last place that is not above it)
+            if (valueAt(x / barWidth) <= fillMax) {
+                at = x;
+            }
+        }
+        const double mx = barLeft + at;
+        p.setPen(QPen{QColor{150, 0, 0}, 2.0});
+        p.drawLine(QPointF{mx, barTop - 3.0}, QPointF{mx, barTop + barHeight});
+        QFont small = p.font();
+        small.setPixelSize(std::max(9, small.pixelSize() - 1));
+        small.setBold(true);
+        p.setFont(small);
+        const QString label = "max " + numberText(shown(product.quantity, fillMax, us));
+        const double width = QFontMetricsF{small}.horizontalAdvance(label) + 4.0;
+        const bool flip = mx + width > barLeft + barWidth;
+        p.drawText(QRectF{flip ? mx - width - 2.0 : mx + 3.0, barTop - 12.0, width, 11.0}, (flip ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter, label);
+        p.setFont(font);
     }
     if (deviationHigh > 0.0) {   // a line under the ticks: how big one deviation is here (it is not the same everywhere)
         const auto number = [] (double v) { return QString::number(v, 'f', v < 10.0 ? 1 : 0); };
