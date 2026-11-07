@@ -81,6 +81,9 @@ namespace GfsRender {
         GfsChart::VectorLines * vectorOut{nullptr};   // no contour lines, numbers or highs / lows in the picture: they are handed over here (the layer draws them)
         bool bare{false};
         int width{0};
+        bool legendFit{false};    // the color bar holds only this picture's values (GfsChart::Options::legendFit)
+        bool legendRange{false};  // ... or the range legendLow..legendHigh (a loop's)
+        double legendLow{0}, legendHigh{0};
         double scale{1.0};        // a picture this many times larger, of the same design (GfsChart::Options::scale)
     };
     // The chart as PNG bytes; empty with the reason in error. cycle is the model screen's run ("12Z", or ""/"latest"); hour is the forecast hour.

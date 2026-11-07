@@ -7718,7 +7718,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     const Ramp * ramp = &product.ramp;
     QImage map(static_cast<int>(std::lround(area.width() * S)), static_cast<int>(std::lround(area.height() * S)), QImage::Format_ARGB32_Premultiplied);
     map.fill(QColor{244, 244, 244});
-    float fillMax = std::nanf("");   // the largest value on view: marked on the legend
+    float fillMax = std::nanf(""), fillMin = std::nanf("");   // the largest and smallest value on view: marked on the legend
     for (int y = 0; y < map.height(); y++) {
         auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
         const double lat = view.latAt(area.top() + (y + 0.5) / S);
@@ -7727,6 +7727,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             if (!std::isnan(value)) {
                 if (std::isnan(fillMax) || value > fillMax) {
                     fillMax = value;
+                }
+                if (std::isnan(fillMin) || value < fillMin) {
+                    fillMin = value;
                 }
                 const QRgb c = ramp->at(value);
                 const int a = qAlpha(c);
@@ -8376,12 +8379,33 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
     p.drawText(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 
+    if (options.probe && !std::isnan(fillMax)) {   // (the export's legend and a loop's range read these)
+        options.probe->hasRange = true;
+        options.probe->fillMin = fillMin;
+        options.probe->fillMax = fillMax;
+    }
     // legend: even steps in value, or (legendStep 0) one equal-width block per ramp stop
     const double barLeft = margin + 6.0, barTop = area.bottom() + 12.0, barWidth = area.width() - 12.0, barHeight = 16.0;
     const auto& stops = ramp->stops;
     const double first = stops.front().first, last = stops.back().first;
     const bool stepped = product.legendStep <= 0.0;
+    // an export's bar holds only the values the picture or the loop has, the smallest at the left: not for the scales of categories (a step for each stop), which have no range to speak of
+    double rangeLow = 0.0, rangeHigh = 0.0;
+    bool useRange = false;
+    if (options.legendFit && !std::isnan(fillMax)) {
+        rangeLow = fillMin;
+        rangeHigh = fillMax;
+        useRange = true;
+    } else if (options.legendRange) {
+        rangeLow = options.legendLow;
+        rangeHigh = options.legendHigh;
+        useRange = true;
+    }
+    useRange = useRange && rangeHigh > rangeLow && (ramp->banded || !stepped);
     const auto valueAt = [&] (double t) {   // t 0..1 along the bar
+        if (useRange) {
+            return rangeLow + (rangeHigh - rangeLow) * t;
+        }
         if (ramp->banded) {   // one flat block for each band
             return stops[std::min(static_cast<size_t>(t * static_cast<double>(stops.size())), stops.size() - 1)].first;
         }
@@ -8432,8 +8456,15 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     } else if (ramp->banded) {   // the number at the lower edge of each band, as the model guidance site's legends have it
         // many narrow bands (4 degree ones): a number every few bands so they do not run together; the first stop (-100, "and below") has none
         const size_t every = std::max<size_t>(1, static_cast<size_t>(std::ceil(static_cast<double>(stops.size()) * 40.0 / barWidth)));
+        double lastTick = -1000.0;
         for (size_t i = 0; i < stops.size(); i++) {
-            if (stops[i].first > -90.0 && (i % every == 0 || stops.size() <= 16)) {
+            if (useRange) {   // the bands inside the range, at their place on a bar of values
+                const double t = (stops[i].first - rangeLow) / (rangeHigh - rangeLow);
+                if (stops[i].first > -90.0 && t >= 0.0 && t <= 1.0 && t * barWidth - lastTick >= 36.0) {
+                    tick(t, stops[i].first);
+                    lastTick = t * barWidth;
+                }
+            } else if (stops[i].first > -90.0 && (i % every == 0 || stops.size() <= 16)) {
                 tick(static_cast<double>(i) / static_cast<double>(stops.size()), stops[i].first);
             }
         }
@@ -8445,13 +8476,32 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         }
     } else {
         // steps are in displayed units: walk them in displayed value and map back
-        const double lowShown = shown(product.quantity, first, us), highShown = shown(product.quantity, last, us);
-        for (double value = std::ceil(lowShown / product.legendStep) * product.legendStep; value <= highShown + 1e-9; value += product.legendStep) {
+        const double from = useRange ? rangeLow : first, to = useRange ? rangeHigh : last;
+        const double lowShown = shown(product.quantity, from, us), highShown = shown(product.quantity, to, us);
+        double step = product.legendStep;
+        if (useRange) {   // a few numbers across the range: the chart's step made finer when the range is short, coarser when it is long
+            for (int i = 0; i < 6 && (highShown - lowShown) / step < 3.0; i++) {
+                step /= 2.0;
+            }
+            for (int i = 0; i < 6 && (highShown - lowShown) / step > 9.0; i++) {
+                step *= 2.0;
+            }
+        }
+        for (double value = std::ceil(lowShown / step) * step; value <= highShown + 1e-9; value += step) {
             const double base = (value - lowShown) / (highShown - lowShown);
-            tick(base, first + (last - first) * base);
+            tick(base, from + (to - from) * base);
         }
     }
-    if (!noBar && !std::isnan(fillMax)) {   // the largest value of the chart on view: a line through the bar and its number above it
+    if (useRange && !noBar) {   // the ends of the bar: the smallest value at the left, the largest at the right
+        QFont small = p.font();
+        small.setPixelSize(std::max(9, small.pixelSize() - 1));
+        small.setBold(true);
+        p.setFont(small);
+        p.setPen(QColor{60, 60, 60});
+        p.drawText(QRectF{barLeft, barTop - 12.0, barWidth / 2.0, 11.0}, Qt::AlignLeft | Qt::AlignVCenter, "min " + numberText(shown(product.quantity, rangeLow, us)));
+        p.drawText(QRectF{barLeft + barWidth / 2.0, barTop - 12.0, barWidth / 2.0, 11.0}, Qt::AlignRight | Qt::AlignVCenter, "max " + numberText(shown(product.quantity, rangeHigh, us)));
+        p.setFont(font);
+    } else if (!noBar && !std::isnan(fillMax)) {   // the largest value of the chart on view: a line through the bar and its number above it
         double at = 0.0;
         for (int x = 0; x < static_cast<int>(barWidth); x++) {   // (the bar's values only rise: the last place that is not above it)
             if (valueAt(x / barWidth) <= fillMax) {

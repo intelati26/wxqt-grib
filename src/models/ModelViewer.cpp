@@ -930,6 +930,94 @@ void ModelViewer::saveLoop() {
         versus += "_" + other;
     }
     const auto name = QString::fromStdString(objectModel.model + (versus.empty() ? "" : "_vs" + versus) + "_" + objectModel.param + "_" + objectModel.sector + "_" + objectModel.run);
+    // The color bar of an export holds only the values of what is saved: the picture's, or the whole loop's (the smallest at the left, the largest at the right). The pictures are drawn again
+    // with that bar; a chart with no fill to range over, or that cannot be drawn again, is saved as it is on view.
+    {
+        const bool single = drawn.size() < 2;
+        const int shownHour = std::atoi(objectModel.getTime().c_str());
+        std::vector<int> hours;
+        if (single) {
+            hours.push_back(shownHour);
+        } else {
+            for (const auto& [hour, bytes] : drawn) {
+                hours.push_back(hour);
+            }
+        }
+        bool ranged = shownProbe && shownProbe->hasRange;
+        double low = std::numeric_limits<double>::max(), high = std::numeric_limits<double>::lowest();
+        for (const auto& [hour, bytes] : drawn) {
+            const auto& probe = frames.at(frameKey(hour)).probe;
+            if (single && hour != shownHour) {
+                continue;
+            }
+            if (!probe || !probe->hasRange) {
+                ranged = false;
+                break;
+            }
+            low = std::min(low, probe->fillMin);
+            high = std::max(high, probe->fillMax);
+        }
+        std::vector<GfsRender::Variant> variants;
+        std::vector<std::tuple<string, string, string, string, int, std::vector<string>>> jobs;
+        for (const int hour : hours) {
+            const auto job = makeJob(0, hour, false);
+            if (!job.ok || !ranged) {
+                ranged = false;
+                break;
+            }
+            auto variant = job.variant;
+            variant.legendFit = single;
+            variant.legendRange = !single;
+            variant.legendLow = low;
+            variant.legendHigh = high;
+            variants.push_back(variant);
+            jobs.emplace_back(job.model, job.param, job.sector, job.cycle, job.hour, job.overlays);
+        }
+        if (ranged && !jobs.empty()) {
+            if (!gfsSession) {
+                gfsSession = std::make_shared<GfsRender::Session>();
+            }
+            auto session = gfsSession;
+            struct Out {
+                std::vector<QByteArray> bytes;
+                std::vector<std::shared_ptr<GfsChart::Probe>> probes;
+            };
+            auto out = std::make_shared<Out>();
+            const auto titleBefore = windowTitle();
+            const int interval = strip->intervalMs();
+            setWindowTitle("Drawing the pictures to save...");
+            new FutureVoid{this, [=] {
+                               for (size_t i = 0; i < jobs.size(); i++) {
+                                   const auto& [model, param, sector, cycle, hour, overlays] = jobs[i];
+                                   string error;
+                                   auto probe = std::make_shared<GfsChart::Probe>();
+                                   auto bytes = GfsRender::png(*session, model, param, sector, cycle, hour, overlays, error, probe.get(), variants[i]);
+                                   out->bytes.push_back(bytes);
+                                   out->probes.push_back(probe);
+                               }
+                           },
+                           [this, out, name, interval, titleBefore, single, hours, shownHour] {
+                               setWindowTitle(titleBefore);
+                               std::vector<QByteArray> pictures;
+                               QByteArray still;
+                               for (size_t i = 0; i < out->bytes.size(); i++) {
+                                   if (out->bytes[i].isEmpty()) {   // one that would not draw: the loop goes without it
+                                       continue;
+                                   }
+                                   const auto glyphed = withGlyphs(out->bytes[i], out->probes[i]);
+                                   pictures.push_back(glyphed);
+                                   if (hours[i] == shownHour || still.isEmpty()) {
+                                       still = glyphed;
+                                   }
+                               }
+                               if (still.isEmpty()) {
+                                   return;
+                               }
+                               UtilityAnimationExport::saveWithDialog(this, single || pictures.size() < 2 ? std::vector<QByteArray>{} : pictures, interval, still, name, QByteArray{}, false, name);
+                           }};
+            return;
+        }
+    }
     UtilityAnimationExport::saveWithDialog(this, loop.size() >= 2 ? loop : std::vector<QByteArray>{}, strip->intervalMs(), withGlyphs(shownBytes, shownProbe), name, QByteArray{}, false, name);
 }
 
@@ -988,6 +1076,7 @@ void ModelViewer::saveHighRes() {
     }
     auto job = makeJob(0, std::atoi(objectModel.getTime().c_str()), false);
     job.variant.scale = widths[static_cast<size_t>(size->currentIndex())] / 1100.0;
+    job.variant.legendFit = true;   // the color bar holds the values of this picture only
     if (area->currentIndex() == 0) {
         const auto& p = *shownProbe;
         const auto view = image.visibleFraction();

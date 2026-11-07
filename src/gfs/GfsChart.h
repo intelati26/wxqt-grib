@@ -267,6 +267,8 @@ namespace GfsChart {
         std::vector<Field> fields;
         GfsGrid::Grid windU, windV;     // m/s
         QDateTime validUtc;             // the valid time of the picture (for a sounding at a clicked point)
+        bool hasRange{false};           // fillMin and fillMax are the smallest and largest value of the fill on view (grid units, before the user's units)
+        double fillMin{0}, fillMax{0};
         size_t memory() const { size_t n = (windU.values.size() + windV.values.size()) * sizeof(float); for (const auto& f : fields) n += f.grid.values.size() * sizeof(float); return n; }   // bytes held
         bool valid() const { return areaWidth > 0.0 && !fields.empty(); }
         bool locate(double fx, double fy, double& lon, double& lat) const;   // the point of the picture as longitude and latitude; false outside the map
@@ -289,6 +291,10 @@ namespace GfsChart {
         VectorLines * vectorOut{nullptr};                          // the contour lines, their numbers and the highs / lows are handed over here instead of being painted into the picture
         bool noBarbs{false};                   // the picture has no barbs (the map layer draws them itself, as vectors on a world grid; the probe still holds the wind)
         int width{1100};
+        // an export's color bar: only the values the picture (legendFit) or the loop (legendRange: legendLow to legendHigh, grid units) holds, the smallest at the left and the largest at the right
+        bool legendFit{false};
+        bool legendRange{false};
+        double legendLow{0}, legendHigh{0};
         double scale{1.0};                     // a picture this many times larger in each direction, drawn at the same design (text, lines and barbs scaled, the fill computed at the larger size): for exports
         const GfsClimate * climate{nullptr};   // for the anomaly charts
         bool ticks{false};                     // latitude and longitude marks along the frame, numbered
