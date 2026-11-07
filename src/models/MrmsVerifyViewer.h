@@ -33,6 +33,8 @@ private:
     void closeEventCustom() override { closed = true; }
 
     std::string model, param, sector;
+    QComboBox * modelPick{};
+    QComboBox * runsPick{};
     QDateTimeEdit * timePick{};
     QCheckBox * hourMax{};
     QComboBox * thresholdPick{};

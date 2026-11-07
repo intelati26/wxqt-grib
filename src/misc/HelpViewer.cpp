@@ -6,6 +6,7 @@
 #include "misc/HelpViewer.h"
 #include <map>
 #include <QDesktopServices>
+#include <QFile>
 #include <QHeaderView>
 #include <QSplitter>
 #include <QStandardPaths>
@@ -61,6 +62,29 @@ namespace {
         return out;
     }
 
+    // A model with a Markdown page in the resources (help/models/<id>.md): that text, then what the program knows of the model (the charts, the hours, the runs), kept out of the text so it
+    // is never out of date. Empty when the model has no page, and its page is made as before.
+    QString markdownPage(const GfsModels::Def& d) {
+        QFile file{":/help/models/" + QString::fromStdString(d.id) + ".md"};
+        if (!file.open(QIODevice::ReadOnly)) {
+            return {};
+        }
+        QString out = QString::fromUtf8(file.readAll());
+        int charts = 0;
+        for (const auto& p : GfsChart::products()) {
+            charts += p.source == d.id ? 1 : 0;
+        }
+        QString hours;
+        for (const auto& h : d.hours) {
+            hours += (hours.isEmpty() ? "" : ", ") + QString::number(h.from) + "-" + QString::number(h.to) + " h every " + QString::number(h.step);
+        }
+        out += "\n\n## In this app\n\n";
+        out += "- " + QString::number(charts) + (charts == 1 ? " chart" : " charts") + " in the Model Viewer (picker group: " + QString::fromStdString(GfsModels::pickerGroup(d.id)) + ")\n";
+        out += "- Forecast hours: " + hours + "\n";
+        out += "- Runs: " + (d.hourlyRuns ? QString{"every hour"} : QString{"every "} + QString::number(d.cycleStep) + " hours") + "\n";
+        return out;
+    }
+
     QString addModelPage() {
         const auto folder = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/models";
         QString out = "<h2>Adding a model</h2>"
@@ -68,7 +92,7 @@ namespace {
             "<p>and restart the program: it appears in the Model Viewer's model picker and in Settings &gt; Model Sources, where its server is checked.</p>"
             "<p>A file says where the model's files are (<code>url</code>, with <code>{date}</code>, <code>{cycle}</code>, <code>{hour3}</code> and so on), what kind of file it is "
             "(<code>kind = grib</code> with an index, <code>whole</code> for one field per file, <code>netcdf</code>), when runs appear, the forecast hours, and which of the GFS charts it can draw "
-            "(<code>clone = true</code> with the variables and levels it has). Add <code>why</code> and <code>link</code> lines and it gets a page here like the others.</p>"
+            "(<code>clone = true</code> with the variables and levels it has). Add <code>why</code> and <code>link</code> lines and it gets a page here like the others. (The pages of the models that come with the program are Markdown files, <code>help/models/&lt;id&gt;.md</code> in the source.)</p>"
             "<pre>id = MYMODEL\nlabel = My regional model, 3 km\nkind = grib\nurl = https://example.org/{date}/{cycle}/m.t{cycle}z.f{hour3}.grib2\n"
             "cycle_hours = 6\nlag_hours = 4\nhours = 0-48/1\nclone = true\nclone_variables = HGT, TMP, UGRD, VGRD, PRMSL\n"
             "why = What it adds and when to trust it.\nlink = source | The data's page | https://example.org/data</pre>"
@@ -137,6 +161,10 @@ HelpViewer::HelpViewer(Window * parent)
 void HelpViewer::showTopic(const std::string& topic) {
     if (topic.compare(0, 6, "model:") == 0) {
         if (const auto * d = GfsModels::find(topic.substr(6))) {
+            if (const auto markdown = markdownPage(*d); !markdown.isEmpty()) {
+                page->setMarkdown(markdown);
+                return;
+            }
             page->setHtml(modelPage(*d));
             return;
         }

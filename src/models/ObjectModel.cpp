@@ -7,6 +7,7 @@
 #include "ObjectModel.h"
 #include "hurricane/HafsIntensity.h"
 #include <algorithm>
+#include "gfs/GfsData.h"
 #include "gfs/GfsModels.h"
 #include "gfs/GfsChart.h"
 #include "objects/WString.h"
@@ -57,7 +58,7 @@ ObjectModel::ObjectModel(const string& prefModel)
         param = "500_vort_ht";
         model = "GFS";
         sector = "NAMER";
-        models = UtilityModelNcepInterface::models;
+        models = UtilityModelNcepInterface::models();
     } else if (prefModel == "WPCGEFS") {
         run = "00Z";
         timeStr = "01";
@@ -146,7 +147,20 @@ void ObjectModel::setModelVars(const string& modelName) {
         for (const auto& h : gribModel->hours) {
             loadTimeList3(h.from, h.to + 1, h.step);   // the registry's ranges end at an hour that is in them (the list helper stops short of its end)
         }
-        if (gribModel->hourlyRuns || gribModel->cycleStep != 6) {
+        if (gribModel->source("").wrf.enabled) {   // a model made on this computer: the hours of day its runs are at (newest first), not every cycle of the day
+            runs.clear();
+            auto found = GfsData::wrfRunsIn(gribModel->source("").wrf.folders);
+            for (auto it = found.rbegin(); it != found.rend(); ++it) {
+                const auto label = it->id.substr(8, 2) + "Z";
+                if (std::find(runs.begin(), runs.end(), label) == runs.end()) {
+                    runs.push_back(label);
+                }
+            }
+            if (runs.empty()) {
+                loadRunList(0, 24, gribModel->cycleStep);
+            }
+            runTimeData.listRun = runs;
+        } else if (gribModel->hourlyRuns || gribModel->cycleStep != 6) {
             runs.clear();
             loadRunList(0, 24, gribModel->hourlyRuns ? 1 : gribModel->cycleStep);   // 00Z .. 23Z
             runTimeData.listRun = runs;

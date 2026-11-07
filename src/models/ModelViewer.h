@@ -49,6 +49,7 @@ class HodographGlyph;
 class QDateTimeEdit;
 class CfsPlumePanel;
 class QSplitter;
+class QPushButton;
 class ModelViewer : public Window {
 public:
     ModelViewer(Window *, const string&);
@@ -60,7 +61,10 @@ public:
     // `runStart`: the time is a RUN's (the cycle at or before it, at its first hour) instead of a valid time (the run at or before it, at the hour that lands on the time)
     void openAt(const string& model, const QDateTime& validUtc, bool runStart = false);
     void showPicker();
+    void openSubhourly();
+    QSize shownPictureSize() const { return QImage::fromData(shownBytes).size(); }   // (a development aid: the size of the chart on view)
     void setOverlays(const std::vector<string>& ids);   // as ticking them in the chart picker does
+    void setTileModel(int index, const string& model, const string& run);   // the tile's model (and run), as its Change... menu does (a development aid)
     void setTileRun(int index, const string& run);   // as the tile's Change... menu does (a development aid)
     void noticeTest(const string& text) { showNotice(text); }   // a development aid: the card over the picture with this text
     void clickAt(double fx, double fy, bool areaButton);   // a click on the picture, then the "Area around point" button (a development aid)
@@ -112,9 +116,10 @@ private:
         bool ok{true};
         string why;
     };
-    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime, Parts, Deterministic, Seasonal };
+    enum class TilesShow { Charts, Models, Runs, Members, ModelsByTime, Parts, Deterministic, Seasonal, Difference };
     int tileCount() const;                       // the tiles besides the first: 0, 1, 2 or 3
     TilesShow tilesShow() const;
+    string domainOfferedFor;   // the local model whose own area was chosen for the person (once)
     static const std::vector<string>& partsOfPool();
     static string partnerChart(const string& pooled, const string& model);   // the chart of a deterministic model that goes with a pooled ENS-ALL chart ("" when there is none)
     static const std::vector<string>& deterministicDefaults(const string& model);   // the models a pooled or probabilistic model is put beside: the global ones; for the REFS the convection allowing ones (RRFS, HRRR, NSSL MPAS)
@@ -143,13 +148,14 @@ private:
     QGridLayout * grid{};
     QFrame * mainTile{};
     QLabel * mainCaption{};
+    QPushButton * mainNoticeButton{};   // under the card when a model has no run: opens the Model Sources status
     QLabel * mainNotice{};   // over the picture: why the chart could not be drawn
     void showNotice(const string& text);
     void hideNotice();
     std::array<CompareTile *, 3> tiles{};
     std::array<Spec, 3> tileSpecs;
     std::array<int, 3> tileGeneration{};
-    bool syncingViews{false};
+    class PaneLink * paneLink{};   // the panes as one view (zoom, read-outs, cursor)
     void showFrame(const Frame&);
     void selectHour(int index);
     void startPlaying(bool on);
@@ -220,6 +226,8 @@ private:
     QAction * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
     bool standardDeviations{false};
     QPushButton * buttonBuild{};
+    QPushButton * buttonSubhourly{};   // the RRFS and HRRR: their 15 minute surface fields
+    QPushButton * buttonRange{};   // the RTMA and URMA only: a loop from one date-time to another
     QMenu * menuBuild{};
     void refreshBuildMenu();
     void buildChart();
@@ -289,7 +297,8 @@ private:
     vector<string> runLabels() const;
     FlowBox boxH;
     VBox box;
-    ZoomImage image;                     // the chart: wheel / Ctrl +- zoom, drag to pan
+    CompareTile * mainPane{};            // the chart's pane: the same tile as the other panes (a picture that zooms and pans, a caption, the read-out of the values)
+    ZoomImage & image;                   // the chart: wheel / Ctrl +- zoom, drag to pan (the pane's picture)
     ObjectModel objectModel;
     ComboBox comboboxRun;
     ComboBox comboboxModel;
@@ -297,7 +306,7 @@ private:
     ComboBox comboboxProduct;
     ComboBox comboboxTime;
     BackForward backForward;
-    std::unique_ptr<ChartHover> hover;   // the value under the pointer, for the charts drawn from GRIB
+    std::unique_ptr<ChartHover>& hover;  // the value under the pointer, for the charts drawn from GRIB (the pane's)
     Button buttonProducts;
     Button buttonSector;
     Button buttonModel;

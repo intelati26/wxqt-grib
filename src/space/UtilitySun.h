@@ -42,7 +42,7 @@ namespace UtilitySun {
     // where the point is on the disc: x to the west (right) and y to the north (up), in solar radii; false when it is on the far side
     bool onDisc(double latitude, double longitudeWest, double b0, double& x, double& y);
     // the Sun's picture (SDO / HMI, flattened intensitygram) at the size that holds `width` pixels: 1024, 2048 or 4096; the 512 pixel one of the SWPC when SDO's cannot be read
-    QImage disc(int width);
+    QImage disc(int width, const std::string& product = "HMII");
     // the picture, drawn `width` pixels wide; null when the Sun's picture or the list could not be read
     QImage labelled(int width, QDateTime * time = nullptr);
     // where a region was drawn on the picture (for a hover)
@@ -56,6 +56,17 @@ namespace UtilitySun {
     QImage labelled(const QImage& disc, const std::vector<Region>& regions, const QDateTime& when, int width, std::vector<Placed> * placed = nullptr);
     // the same, read from SWPC: the regions and the picture are returned too
     QImage labelled(int width, std::vector<Placed>& placed, QDateTime * time = nullptr);
+
+    // the pictures of the Sun the viewer offers: SDO's (HMI visible light and magnetograms, which carry the region numbers; AIA's ultraviolet bands) and the corona (SOHO LASCO, GOES-19 CCOR-1)
+    struct Product {
+        std::string label;
+        std::string code;     // SDO: the end of the picture's name ("0171"); LASCO: "c2" or "c3"; CCOR-1: "ccor1"
+        int kind{0};          // 0 SDO, 1 LASCO, 2 CCOR-1
+        bool regions{false};  // the numbered regions are drawn on it (it shows the disc as HMI does)
+    };
+    const std::vector<Product>& products();
+    // the picture at the size that holds `width` pixels (a source with fewer sizes gives the nearest); null when it cannot be read
+    QImage productPicture(const Product& product, int width, std::vector<Placed>& placed);
     // what to say of a region on hover
     QString describe(const Placed&);
 }

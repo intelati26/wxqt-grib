@@ -11,13 +11,20 @@
 #include "util/NetPriority.h"
 #include "objects/NetManager.h"
 #include <QObject>
+#include "ui/Window.h"
+
+namespace {
+    std::string ownerOf(Window * window) {   // (the screen the job works for, read here on the screen's own thread)
+        return window ? window->windowTitle().toStdString() : std::string{};
+    }
+}
 
 FutureVoid::FutureVoid(Window * parent, const function<void()>& downloadFunc, const function<void()>& updateFunc)
     : updateFunc{updateFunc}
     , watcher{new QFutureWatcher<void>}
-    , future{(NetManager::trackOwner(parent), QtConcurrent::run([downloadFunc, parent] {
+    , future{(NetManager::trackOwner(parent), QtConcurrent::run([downloadFunc, parent, owner = ownerOf(parent)] {
           if (!AppState::quitting) {   // queued behind other work when the app starts closing: skip it
-              const Activity::Task counted;
+              const Activity::Task counted{owner.empty() ? std::string{"a background job"} : owner};
               const NetPriority::Carry owned{0, parent};   // its requests are the screen's: dropped if the screen closes first
               downloadFunc();
           }

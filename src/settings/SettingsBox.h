@@ -28,6 +28,7 @@ public:
 
 private:
     void changeTheme();
+    void changeRtmaProduct();
     void changeContactEmail();
     vector<std::unique_ptr<Switch>> configsLeft;
     vector<std::unique_ptr<Switch>> configs;
@@ -44,6 +45,9 @@ private:
     Text generalLabel;
     Text themeLabel;
     ComboBox themeComboBox;
+    HBox rtmaRow;
+    Text rtmaLabel;   // the product of the home screen's second RTMA picture
+    ComboBox rtmaComboBox;
     vector<std::unique_ptr<NumberPicker>> numberPickers;
     // Optional - sent as part of the User-Agent header on requests to NWS/
     // NOAA data sources per their API usage guidelines (a contactable

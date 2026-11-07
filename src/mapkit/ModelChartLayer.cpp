@@ -25,6 +25,7 @@
 #include "gfs/GfsModels.h"
 #include "models/ChartBuilder.h"
 #include "models/PaletteEditor.h"
+#include "models/ChartPickers.h"
 #include "models/ProductPicker.h"
 #include "models/SoundingViewer.h"
 #include "objects/FutureVoid.h"
@@ -38,25 +39,8 @@
 #include "ui/UiStandards.h"
 
 namespace {
-    std::vector<string> splitList(const string& text) {
-        std::vector<string> out;
-        for (size_t at = 0; at < text.size();) {
-            auto end = text.find(',', at);
-            end = end == string::npos ? text.size() : end;
-            if (end > at) {
-                out.push_back(text.substr(at, end - at));
-            }
-            at = end + 1;
-        }
-        return out;
-    }
-    string joinList(const std::vector<string>& list) {
-        string out;
-        for (const auto& item : list) {
-            out += (out.empty() ? "" : ",") + item;
-        }
-        return out;
-    }
+    using ChartPickers::splitList;   // (the lists of ids kept in the preferences, as the other screens that pick a chart keep them)
+    using ChartPickers::joinList;
     QDateTime runTimeOf(const string& run) {
         return QDateTime{QDate::fromString(QString::fromStdString(run.substr(0, 8)), "yyyyMMdd"), QTime{std::stoi(run.substr(8, 2)), 0}, QTimeZone::utc()};
     }
@@ -1068,11 +1052,8 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
                 entries.push_back({product.id, product.label, GfsChart::category(product)});
             }
         }
-        const auto favorites = splitList(Utility::readPref("MODELFAV_" + model, ""));
-        auto * picker = new ProductPicker{widget->window(), model, entries, param, favorites, GfsChart::overlayChoices(model), overlays};
-        picker->setAttribute(Qt::WA_DeleteOnClose);
         const string forModel = model;
-        picker->onPick = [this, forModel, refresh, save, changed] (const string& id) {
+        auto * picker = ChartPickers::chartPicker(widget->window(), model, entries, param, [this, forModel, refresh, save, changed] (const string& id) {
             if (forModel != model) {
                 return;
             }
@@ -1081,7 +1062,8 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
             save();
             refresh();
             changed();
-        };
+        }, GfsChart::overlayChoices(model), overlays);
+        picker->setAttribute(Qt::WA_DeleteOnClose);
         picker->onOverlays = [this, forModel, refresh, save, changed] (const std::vector<string>& ids) {
             if (forModel != model) {
                 return;
@@ -1090,9 +1072,6 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
             save();
             refresh();
             changed();
-        };
-        picker->onFavorites = [forModel] (const std::vector<string>& ids) {
-            Utility::writePref("MODELFAV_" + forModel, joinList(ids));
         };
         picker->show();
     });

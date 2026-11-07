@@ -13,6 +13,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPalette>
+#include <QTimeZone>
 
 namespace {
     // a rounded step (1, 2, 5 x 10^n) for about `count` divisions of `span`
@@ -28,7 +29,7 @@ namespace {
     }
 
     QString timeText(long long time, bool withHour) {
-        return QDateTime::fromSecsSinceEpoch(time, Qt::UTC).toString(withHour ? "yyyy-MM-dd HH:mm'Z'" : "MM-dd");
+        return QDateTime::fromSecsSinceEpoch(time, QTimeZone::utc()).toString(withHour ? "yyyy-MM-dd HH:mm'Z'" : "MM-dd");
     }
 }
 

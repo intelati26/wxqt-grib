@@ -32,6 +32,9 @@ public:
     static const vector<string> sectors;
     static const vector<string> labels;
     static const vector<string> productCodes;
+    // the Sun: GOES-19 SUVI is published by STAR in the same folder layout as the ABI imagery, so it is one more sector with its own bands
+    static const vector<string> suviLabels;
+    static const vector<string> suviCodes;
 };
 
 #endif  // UTILITYGOES_H

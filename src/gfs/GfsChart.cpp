@@ -19,6 +19,7 @@
 #include <QPainterPath>
 #include <QPolygonF>
 #include <QStringList>
+#include <QTimeZone>
 #include <set>
 #include <tuple>
 #include "cfs/UtilityCfs.h"
@@ -180,6 +181,17 @@ const std::vector<std::string>& ingredientSources() {
         return {{{-45, QColor{"#4b2d7f"}}, {-30, QColor{"#5b55a8"}}, {-20, QColor{"#3f74b8"}}, {-10, QColor{"#4aa0d4"}}, {0, QColor{"#9ad6e6"}}, {5, QColor{"#bfe4cf"}},
                  {10, QColor{"#dcefb4"}}, {15, QColor{"#f3f0a4"}}, {20, QColor{"#f8d97e"}}, {25, QColor{"#f5ac5c"}}, {30, QColor{"#e57741"}}, {35, QColor{"#c5432e"}}, {40, QColor{"#8e1f2c"}}, {47, QColor{"#5c1024"}}}};
     }
+    // flat bands of 4 degrees F (the model guidance site's RTMA and URMA charts are drawn so), in the colors `base` has at the middle of each: lowF to highF, and the first and last bands go on past them
+    Ramp bands4F(const Ramp& base, double lowF, double highF) {
+        const auto celsius = [] (double f) { return (f - 32.0) / 1.8; };
+        Ramp r;
+        r.banded = true;
+        r.stops.push_back({-100.0, QColor::fromRgba(base.at(celsius(lowF)))});   // below the first band: the same color (its number is not on the legend)
+        for (double f = lowF; f < highF - 1e-9; f += 4.0) {
+            r.stops.push_back({celsius(f), QColor::fromRgba(base.at(celsius(f + 2.0)))});
+        }
+        return r;
+    }
     Ramp windSpeed() {
         return {{{0, QColor{"#f7fbff"}}, {15, QColor{"#e0ecf6"}}, {30, QColor{"#c4dcee"}}, {45, QColor{"#98c5e0"}}, {60, QColor{"#6aa9d2"}}, {80, QColor{"#4687bf"}},
                  {100, QColor{"#7a72b8"}}, {120, QColor{"#b36aa6"}}, {140, QColor{"#d6618a"}}, {170, QColor{"#e8665d"}}, {200, QColor{"#f29a4d"}}}};
@@ -281,6 +293,29 @@ const std::vector<std::string>& ingredientSources() {
     Ramp seaSurfaceTemperature() {   // degrees C: fine steps through the range that matters to a storm (26 C is where the warm water starts)
         return {{{10, QColor{40, 60, 160}}, {20, QColor{30, 150, 220}}, {24, QColor{0, 200, 200}}, {26, QColor{0, 200, 120}}, {28, QColor{250, 230, 0}}, {29.5, QColor{255, 140, 0}}, {31, QColor{220, 30, 30}},
                  {33, QColor{130, 0, 60}}}};
+    }
+    Ramp airQuality(const std::vector<double>& steps) {   // the six steps of the US air quality index (good, moderate, unhealthy for sensitive groups, unhealthy, very unhealthy, hazardous): the first step's value is where "good" ends
+        static const char * const colors[] = {"#00e400", "#ffff00", "#ff7e00", "#ff0000", "#8f3f97", "#7e0023"};   // 6 colors, 5 steps between them
+        Ramp r;
+        r.banded = true;
+        r.stops.push_back({0, QColor{colors[0]}});
+        for (size_t i = 0; i < steps.size() && i < 5; i++) {
+            r.stops.push_back({steps[i], QColor{colors[i + 1]}});
+        }
+        r.stops.push_back({steps.back() * 2, QColor{colors[5]}});
+        return r;
+    }
+    Ramp uvIndex() {   // the WHO steps: low (green), moderate (yellow), high (orange), very high (red), extreme (violet)
+        return {{{0, QColor{"#299501"}}, {2, QColor{"#299501"}}, {3, QColor{"#f7e400"}}, {5, QColor{"#f7e400"}}, {6, QColor{"#f85900"}}, {7, QColor{"#f85900"}}, {8, QColor{"#d8001d"}}, {10, QColor{"#d8001d"}},
+                 {11, QColor{"#6b49c8"}}, {13, QColor{"#6b49c8"}}}};
+    }
+    Ramp currentSpeed() {   // meters per second: slack water pale, the Gulf Stream and the Agulhas (1.5 and more) in strong colors
+        return {{{0, QColor{235, 245, 255}}, {0.1, QColor{190, 225, 245}}, {0.25, QColor{120, 190, 235}}, {0.5, QColor{0, 170, 220}}, {0.75, QColor{0, 200, 120}}, {1.0, QColor{250, 230, 0}}, {1.5, QColor{255, 140, 0}},
+                 {2.0, QColor{220, 30, 30}}, {3.0, QColor{130, 0, 60}}}};
+    }
+    Ramp seaLevelHeight() {   // meters above the mean: below in blues, above in warm colors
+        return {{{-1.0, QColor{30, 60, 160}}, {-0.5, QColor{70, 140, 220}}, {-0.2, QColor{170, 210, 240}}, {-0.05, QColor{245, 245, 245}}, {0.05, QColor{245, 245, 245}}, {0.2, QColor{250, 215, 160}},
+                 {0.5, QColor{240, 140, 60}}, {1.0, QColor{190, 40, 30}}}};
     }
     Ramp waveHeight() {   // meters
         return {{{0, QColor{235, 245, 255}}, {1, QColor{150, 200, 240}}, {2, QColor{0, 170, 220}}, {3, QColor{0, 200, 120}}, {4, QColor{250, 230, 0}}, {6, QColor{255, 140, 0}}, {8, QColor{220, 30, 30}},
@@ -513,6 +548,9 @@ const std::vector<Sector>& sectors() {
         {"GULF-MEXICO", -100, 17, -78, 32},
         {"CENT-AMER", -95, 5, -70, 22},
         {"HAWAII", -165, 15, -150, 26},
+        {"HAWAII-ISLANDS", -161.8, 18.0, -153.8, 23.2},   // the islands, as the Hawaii analyses cover them
+        {"PUERTO-RICO", -68.4, 16.7, -64.0, 19.9},
+        {"GUAM", 143.6, 12.3, 148.4, 16.9},   // Guam and the southern Marianas, as the analysis covers them       // Puerto Rico and the Virgin Islands, as the analyses cover them
         // the United States by region
         {"NORTHEAST", -83, 36, -66, 48},
         {"MID-ATLANTIC", -86, 34, -72, 42},
@@ -1024,7 +1062,7 @@ const std::vector<Product>& products() {
                 return false;
             }
             auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
-            t.setTimeSpec(Qt::UTC);
+            t.setTimeZone(QTimeZone::utc());
             t = t.addSecs(static_cast<qint64>(context.hour) * 3600);
             std::string error;
             const auto run = context.run;
@@ -1040,7 +1078,7 @@ const std::vector<Product>& products() {
         // anomalies: the forecast less the 1991-2020 daily mean for the valid day (GfsClimate), where the heights of the level are real
         const auto validDay = [] (const Context& context) {
             auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
-            t.setTimeSpec(Qt::UTC);
+            t.setTimeZone(QTimeZone::utc());
             t = t.addSecs(context.hour * 3600);
             return GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
         };
@@ -1647,7 +1685,7 @@ const std::vector<Product>& products() {
             p.push_back(x);
         }
         // ---- the RTMA and URMA surface analyses (2.5 km, the hour of the analysis only): the blend's surface charts made from the analysis's own fields
-        for (const char * source : {"RTMA", "URMA"}) {
+        for (const char * source : {"RTMA", "URMA", "RTMA-AK", "URMA-AK", "RTMA-HI", "URMA-HI", "RTMA-PR", "URMA-PR", "RTMA-GU"}) {
             const auto analysisChart = [&, source] (const char * id, const char * label, const char * variable, const char * level, const Ramp& ramp, const char * title, Quantity quantity, double step, bool barbs) {
                 Product x;
                 x.source = source;
@@ -1673,8 +1711,8 @@ const std::vector<Product>& products() {
                 x.legendStep = step;
                 return x;
             };
-            p.push_back(analysisChart("2m_temp_10m_wnd", "2 m Temperature and 10 m Wind", "TMP", "2 m above ground", temperature(), "2 m temperature", Quantity::Temperature, 5, true));
-            p.push_back(analysisChart("2m_dewp_10m_wnd", "2 m Dewpoint and 10 m Wind", "DPT", "2 m above ground", dewpoint(), "2 m dewpoint", Quantity::Temperature, 5, true));
+            p.push_back(analysisChart("2m_temp_10m_wnd", "2 m Temperature and 10 m Wind", "TMP", "2 m above ground", bands4F(temperature(), -32, 112), "2 m temperature", Quantity::Temperature, 5, true));
+            p.push_back(analysisChart("2m_dewp_10m_wnd", "2 m Dewpoint and 10 m Wind", "DPT", "2 m above ground", bands4F(dewpoint(), -40, 84), "2 m dewpoint", Quantity::Temperature, 5, true));
             p.push_back(analysisChart("total_cloud_cover", "Total Cloud Cover and 10 m Wind", "TCDC", "entire atmosphere (considered as a single layer)", cloudCover(), "Total cloud cover (%)", Quantity::Other, 10, true));
             {   // the gust is the fill; the barbs are the sustained wind
                 auto x = analysisChart("10m_wnd_gust", "10 m Wind and Gust", "GUST", "10 m above ground", lowWind(), "10 m wind gust (kt)", Quantity::Other, 10, true);
@@ -2349,7 +2387,7 @@ const std::vector<Product>& products() {
                             throw std::runtime_error{"no climatology"};
                         }
                         auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
-                        t.setTimeSpec(Qt::UTC);
+                        t.setTimeZone(QTimeZone::utc());
                         t = t.addSecs(context.hour * 3600LL);
                         const int day = GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
                         const auto field = what == 1 ? GfsClimate::height(500) : what == 2 ? GfsClimate::height(700) : what == 3 ? GfsClimate::temperature(700) : what == 4 ? GfsClimate::temperature(850) : GfsClimate::precipitableWater();
@@ -2419,7 +2457,7 @@ const std::vector<Product>& products() {
                             throw std::runtime_error{"no climatology"};
                         }
                         auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
-                        t.setTimeSpec(Qt::UTC);
+                        t.setTimeZone(QTimeZone::utc());
                         t = t.addSecs(context.hour * 3600LL);
                         const int day = GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
                         GfsGrid::Grid normal, deviation;
@@ -2752,7 +2790,7 @@ const std::vector<Product>& products() {
                                 speedOfMembers(g);
                             }
                             auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
-                            t.setTimeSpec(Qt::UTC);
+                            t.setTimeZone(QTimeZone::utc());
                             t = t.addSecs(context.hour * 3600LL);
                             const int day = GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day());
                             GfsGrid::Grid mean, deviation;
@@ -3445,6 +3483,9 @@ const std::vector<Product>& products() {
                     out.push_back({hour, {"r", "REFC", hrrr ? "entire atmosphere" : "entire atmosphere (considered as a single layer)", "", ""}});
                     out.push_back({hour, {"uh", "MXUPHL", "5000-2000 m above ground", hourly(hour), ""}});
                     return out;
+                };
+                chart.fallbackNeeds = [hrrr] (int hour) {   // a run with no hourly maximum of the helicity (the RRFS runs that only have subhourly files): the echoes alone, no outlines
+                    return std::vector<GfsData::Need>{{hour, {"r", "REFC", hrrr ? "entire atmosphere" : "entire atmosphere (considered as a single layer)", "", ""}}};
                 };
                 chart.derive = [] (Grids& g, const Context&) {
                     if (g.find("uh") == g.end()) {   // the start of the run has no hour's maximum yet
@@ -4707,6 +4748,157 @@ const std::vector<Product>& products() {
 
         // ---- the wave models (GFS-Wave and the GEFS-Wave ensemble mean): each wave component (all of the sea, the wind sea, the three swells) as a height map with the wind, and as the period
         // with the direction the waves come from drawn as streamlines
+        const auto sstRecipes = [&] (const char * model) {   // the sea surface temperature of the Meteo-France ocean system: one chart
+            Product x;
+            x.source = model;
+            x.id = "sst";
+            x.label = "Sea Surface Temperature";
+            x.wants = {want("t", "WTMP", "surface")};
+            x.fill = [] (const Grids& g) { return pick(g, "t"); };
+            x.ramp = seaSurfaceTemperature();
+            x.quantity = Quantity::Temperature;
+            x.fillTitle = "Sea surface temperature";
+            x.legendStep = 2;
+            p.push_back(x);
+        };
+        const auto camsRecipes = [&] (const char * model) {   // the air quality and UV charts of the Copernicus atmosphere service: one fill each, the surface amounts in micrograms per cubic metre
+            struct Chart {
+                const char * id;
+                const char * label;
+                const char * variable;
+                const char * unit;
+                Ramp ramp;
+                double step;
+            };
+            for (const auto& c : {Chart{"pm25", "PM2.5 fine particles", "PM25", "ug/m3", airQuality({9, 35.4, 55.4, 125.4, 225.4}), 0},
+                                  Chart{"pm10_aq", "PM10 particles", "PM10", "ug/m3", airQuality({54, 154, 254, 354, 424}), 0},
+                                  Chart{"dust", "Dust", "DUST", "ug/m3", airQuality({10, 50, 100, 250, 500}), 0},
+                                  Chart{"seasalt_aq", "Sea salt", "SALT", "ug/m3", airQuality({10, 25, 50, 100, 200}), 0},
+                                  Chart{"ozone_aq", "Ozone (surface)", "O3", "ug/m3", airQuality({100, 120, 150, 190, 240}), 0},
+                                  Chart{"no2_aq", "Nitrogen dioxide", "NO2", "ug/m3", airQuality({40, 100, 200, 400, 800}), 0},
+                                  Chart{"no_aq", "Nitrogen monoxide", "NO", "ug/m3", airQuality({10, 30, 60, 120, 250}), 0},
+                                  Chart{"so2_aq", "Sulphur dioxide", "SO2", "ug/m3", airQuality({20, 80, 250, 350, 500}), 0},
+                                  Chart{"co_aq", "Carbon monoxide", "CO", "ug/m3", airQuality({300, 1000, 2000, 5000, 10000}), 0},
+                                  Chart{"hcho_aq", "Formaldehyde", "HCHO", "ug/m3", airQuality({2, 5, 10, 20, 40}), 0},
+                                  Chart{"glyoxal_aq", "Glyoxal", "GLYX", "ug/m3", airQuality({0.05, 0.1, 0.2, 0.4, 0.8}), 0},
+                                  Chart{"pan_aq", "Peroxyacyl nitrates", "PAN", "ug/m3", airQuality({0.5, 1, 2, 4, 8}), 0},
+                                  Chart{"aod", "Aerosol optical depth (550 nm)", "AOD", "", airQuality({0.1, 0.2, 0.4, 0.8, 1.5}), 0},
+                                  Chart{"uv_index", "UV index", "UVI", "", uvIndex(), 1},
+                                  Chart{"uv_index_clear", "UV index, clear sky", "UVIC", "", uvIndex(), 1}}) {
+                Product x;
+                x.source = model;
+                x.id = c.id;
+                x.label = c.label;
+                x.wants = {want("a", c.variable, "surface")};
+                x.fill = [] (const Grids& g) { return pick(g, "a"); };
+                x.ramp = c.ramp;
+                x.fillTitle = std::string{c.label} + (*c.unit ? std::string{" ("} + c.unit + ")" : std::string{});
+                x.legendStep = c.step;
+                p.push_back(x);
+            }
+        };
+        const auto mfWaveRecipes = [&] (const char * model) {   // the waves of Meteo-France's model: for each of the sea, the wind sea, the main swell and the second swell, the height and the period with the direction
+            struct Component {
+                const char * name;
+                const char * heightId;
+                const char * directionId;
+                const char * height;
+                const char * period;
+                const char * direction;
+                const char * level;
+            };
+            for (const auto& c : {Component{"Significant Wave Height", "sig_wv_ht", "peak_dir_per", "HTSGW", "PERPW", "DIRPW", "surface"},
+                                  Component{"Wind Sea", "wsea_wv_ht", "wsea_dir_per", "WVHGT", "WVPER", "WVDIR", "surface"},
+                                  Component{"Primary Swell", "swell1_wv_ht", "swell1_dir_per", "SWELL", "SWPER", "SWDIR", "1 in sequence"},
+                                  Component{"Secondary Swell", "swell2_wv_ht", "swell2_dir_per", "SWELL", "SWPER", "SWDIR", "2 in sequence"}}) {
+                {
+                    Product x;
+                    x.source = model;
+                    x.id = c.heightId;
+                    x.label = std::string{c.name};
+                    x.wants = {want("h", c.height, c.level)};
+                    x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                    x.ramp = waveHeight();
+                    x.quantity = Quantity::Meters;
+                    x.fillTitle = std::string{c.name} + (std::string{c.heightId} == "sig_wv_ht" ? "" : " height");
+                    x.legendStep = 0;
+                    p.push_back(x);
+                }
+                {
+                    Product x;
+                    x.source = model;
+                    x.id = c.directionId;
+                    x.label = std::string{c.name} + " Direction and Period (sec)";
+                    x.wants = {want("t", c.period, c.level), want("d", c.direction, c.level)};
+                    x.derive = [] (Grids& g, const Context&) {   // the direction the waves come from, as a flow toward where they go
+                        auto u = g["d"], v = g["d"];
+                        for (size_t i = 0; i < u.values.size(); i++) {
+                            const double from = g["d"].values[i] * pi / 180.0;
+                            u.values[i] = std::isnan(g["d"].values[i]) ? std::nanf("") : static_cast<float>(-std::sin(from));
+                            v.values[i] = std::isnan(g["d"].values[i]) ? std::nanf("") : static_cast<float>(-std::cos(from));
+                        }
+                        g["su"] = u;
+                        g["sv"] = v;
+                    };
+                    x.fill = [] (const Grids& g) { return pick(g, "t"); };
+                    x.ramp = wavePeriod();
+                    x.fillTitle = std::string{c.name} + " period (s); lines: direction the waves travel";
+                    x.legendStep = 2;
+                    x.streamU = "su";
+                    x.streamV = "sv";
+                    p.push_back(x);
+                }
+            }
+        };
+        const auto currentRecipes = [&] (const char * model) {   // Meteo-France's ocean: the surface current (speed and streamlines), the sea surface height and the part of it the air pressure makes
+            {
+                Product x;
+                x.source = model;
+                x.id = "ocean_current";
+                x.label = "Surface Current";
+                x.wants = {want("u", "UOGRD", "surface"), want("v", "VOGRD", "surface")};
+                x.derive = [] (Grids& g, const Context&) {
+                    auto s = g["u"];
+                    for (size_t i = 0; i < s.values.size(); i++) {
+                        s.values[i] = static_cast<float>(std::hypot(g["u"].values[i], g["v"].values[i]));
+                    }
+                    g["s"] = s;
+                };
+                x.fill = [] (const Grids& g) { return pick(g, "s"); };
+                x.ramp = currentSpeed();
+                x.fillTitle = "Surface current speed (m/s); lines: where it flows";
+                x.legendStep = 0;
+                x.streamU = "u";
+                x.streamV = "v";
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = model;
+                x.id = "sea_level_height";
+                x.label = "Sea Surface Height";
+                x.wants = {want("h", "SSHG", "surface")};
+                x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                x.ramp = seaLevelHeight();
+                x.quantity = Quantity::Meters;
+                x.fillTitle = "Sea surface height above the mean";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+            {
+                Product x;
+                x.source = model;
+                x.id = "inverse_barometer";
+                x.label = "Sea Level Lift from Air Pressure";
+                x.wants = {want("h", "IBHG", "surface")};
+                x.fill = [] (const Grids& g) { return pick(g, "h"); };
+                x.ramp = seaLevelHeight();
+                x.quantity = Quantity::Meters;
+                x.fillTitle = "Sea surface height the air pressure makes (a low pressure of 10 mb lifts the sea by 10 cm)";
+                x.legendStep = 0;
+                p.push_back(x);
+            }
+        };
         const auto waveRecipes = [&] (const char * model) {
             struct Component {
                 const char * name;
@@ -6171,7 +6363,7 @@ const std::vector<Product>& products() {
         };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"MF-SST", [&] { sstRecipes("MF-SST"); }}, {"MF-WAVE", [&] { mfWaveRecipes("MF-WAVE"); }}, {"MF-CURRENT", [&] { currentRecipes("MF-CURRENT"); }}, {"COPERNICUS", [&] { camsRecipes("COPERNICUS"); }}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFrom(def);
@@ -6874,7 +7066,7 @@ std::string category(const Product& product) {
     if (has("radar") || has("reflectivity") || has("refd") || has("refc") || has("echo") || has("lightning") || has("updraft") || has("downdraft") || has("hail")) {
         return "Severe: storm structure";
     }
-    if (has("dust") || has("aod") || has("pm25") || has("smoke") || has("sulfate") || has("seasalt") || has("aerosol")) {
+    if (has("dust") || has("aod") || has("pm25") || has("_aq") || has("uv_index") || has("smoke") || has("sulfate") || has("seasalt") || has("aerosol")) {
         return "Air quality and smoke";
     }
     if (core == "thetae_2m" || has("mixr")) {   // moisture at the surface, not the mixing of the layer
@@ -7501,7 +7693,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         probe.imageHeight = image.height();
         probe.us = us;
         probe.validUtc = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH").addSecs(static_cast<qint64>(forecastHour) * 3600);
-        probe.validUtc.setTimeSpec(Qt::UTC);
+        probe.validUtc.setTimeZone(QTimeZone::utc());
         if (!product.linesOnly) {
             QString title = QString::fromStdString(product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle);
             if (const auto unit = unitText(product.quantity, us); !unit.isEmpty()) {
@@ -8137,7 +8329,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
 
     // header
     const auto init = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-    auto initUtc = QDateTime{init.date(), init.time(), Qt::UTC};
+    auto initUtc = QDateTime{init.date(), init.time(), QTimeZone::utc()};
     const auto valid = initUtc.addSecs(forecastHour * 3600);
     QFont big = font;
     big.setPixelSize(17);
@@ -8234,8 +8426,12 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     if (noBar) {
         // no scale to number
     } else if (ramp->banded) {   // the number at the lower edge of each band, as the model guidance site's legends have it
+        // many narrow bands (4 degree ones): a number every few bands so they do not run together; the first stop (-100, "and below") has none
+        const size_t every = std::max<size_t>(1, static_cast<size_t>(std::ceil(static_cast<double>(stops.size()) * 40.0 / barWidth)));
         for (size_t i = 0; i < stops.size(); i++) {
-            tick(static_cast<double>(i) / static_cast<double>(stops.size()), stops[i].first);
+            if (stops[i].first > -90.0 && (i % every == 0 || stops.size() <= 16)) {
+                tick(static_cast<double>(i) / static_cast<double>(stops.size()), stops[i].first);
+            }
         }
     } else if (stepped) {
         for (size_t i = 0; i < stops.size(); i++) {

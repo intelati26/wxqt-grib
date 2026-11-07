@@ -14,6 +14,7 @@
 
 NationalText::NationalText(Window * parent, const string& prod)
     : Window{parent}
+    , nav{this, OutlookNav::NationalText}
     , sw{this, box}
     , text{parent}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
@@ -26,6 +27,7 @@ NationalText::NationalText(Window * parent, const string& prod)
         product = WString::toLower(prod);
         savePref = false;
     }
+    hbox.addWidget(nav.combo());
     hbox.addLayout(backForward);
 
     auto itemsSoFar = 0;

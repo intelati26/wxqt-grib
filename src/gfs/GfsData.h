@@ -24,6 +24,7 @@ class GfsData {
 public:
     struct Config {
         std::function<QByteArray(const std::string& url, long long start, long long end)> bytes;   // end < 0: the whole file / listing
+        std::function<QByteArray(const std::string& url, long long count)> tail;                    // the last `count` bytes of a file (an Open-Meteo .om file says where its contents are at its end); may be empty
         std::string gdalBin;       // the folder holding gdal_translate
         QString cacheFolder;       // decoded grids and the GRIB messages they came from (GfsCache keeps the folder: shared by the screens, kept between runs)
     };
@@ -77,6 +78,21 @@ public:
         // A reader of part of a file (NASA's GrADS Data Server gives one variable at one time of a file the data portal gives whole): tried first for a `wholeFile` field; `file` and the variable are as the model
         // file names them. It returns the field on the model's grid, before the scale and the offset; false (with a reason) and the field is read from the file as usual.
         std::function<bool(const Run&, int forecastHour, const std::string& file, const std::string& variable, GfsGrid::Grid& out, std::string& error)> partial;
+        // Open-Meteo's .om files (open-meteo/om-file-format): `wholeFile`, one file for each hour holding every variable, read by range (OmFile). The variable is the want's `variableOf` (the model file's
+        // `nc_variable` rules) and the grid is what the file's folder says (meta.json): `gaussian` > 0 is an octahedral reduced Gaussian grid O<gaussian> (ECMWF's IFS, EC46), interpolated to `step`
+        // degrees; 0 is a regular latitude / longitude grid, copied as it is.
+        struct Om {
+            bool enabled{false};
+            int gaussian{0};
+            double step{0.25};
+        } om;
+        // A WRF-format run on this computer (ArWen, WOOF-NAM, WRF): the folders (globs; `~` is the home folder) that hold the runs' hourly `wrfout_d01_<date>_<time>` files, one run to a folder, its time the
+        // first file's. The files are NetCDF; the variable is the want's `variableOf` (WRF's names: T2, PSFC, U10 ...), read with gdal and put on a latitude / longitude grid from XLAT / XLONG (WrfGrid).
+        struct Wrf {
+            bool enabled{false};
+            std::vector<std::string> folders;          // the folders in use (the user's setting, or the definition's)
+            std::vector<std::string> defaultFolders;   // the definition's own
+        } wrf;
         // A `wholeFile` source whose url is a tar of one file an hour (NSSL's MPAS runs): the member of the tar for a run and hour (its file name; ".gz" is gunzipped). The hour's GRIB2 is kept in
         // the cache and a field is the band of it that has the NOAA name (a GRIB2 file with no index of its own). The tar is read by range (TarReader).
         std::function<std::string(const Run&, int forecastHour)> tarMember;
@@ -98,6 +114,15 @@ public:
     // a Source with `custom` is read by the function registered for its id (the SPC REFS Zarr store, spcrefs/SpcRefsLoader.cpp).
     using Loader = std::function<bool(const Run&, int forecastHour, const Want&, GfsGrid::Grid&, std::string& error)>;
     static void setLoader(const std::string& sourceId, Loader loader);
+    // The runs of a `wrf` source's folders (Settings shows what was found): each run's id ("yyyyMMddHH"), its number of hourly files and the folder it is in, oldest first.
+    struct WrfRunInfo {
+        std::string id;
+        int files{0};
+        std::string folder;
+    };
+    static std::vector<WrfRunInfo> wrfRunsIn(const std::vector<std::string>& folders);
+    // The box (degrees; a little outside the points) a `wrf` run covers, from the latitudes and longitudes of its first file; false when there is no such run or file.
+    static bool wrfDomain(const std::string& gdalBin, const std::vector<std::string>& folders, const std::string& runId, double& west, double& south, double& east, double& north);
 
     // a field at a forecast hour (a precipitation period needs the running total at two hours)
     struct Need {

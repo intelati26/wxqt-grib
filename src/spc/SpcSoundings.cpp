@@ -41,6 +41,7 @@ SpcSoundings::SpcSoundings(Window * parent, const string& sector)
 
     boxH.addWidget(comboboxProduct);
     box.addLayout(boxH);
+    photo.setFlatOnWhite(true);   // (the SPC pictures are made for a white page)
     box.addWidgetAndCenter(photo);
     box.getAndShow(this);
 

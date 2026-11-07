@@ -12,6 +12,7 @@
 #include "ui/Image.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Shortcut.h"
+#include <QLabel>
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -23,6 +24,10 @@ public:
     explicit SpcSwoSummary(Window *);
 
 private:
+    void resizeEventCustom() override;
+    vector<QLabel *> labels;   // above each day's picture: its highest risk
+    QLabel * notes{nullptr};   // under the pictures: when each of the days 1 to 3 was issued and what it covers
+    vector<string> noteLines;
     VBox box;
     ScrolledWindow sw;
     vector<string> urls;

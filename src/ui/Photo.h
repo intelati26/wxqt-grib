@@ -34,6 +34,7 @@ public:
     void setToHeight(float);
     void adjustSize();
     void setBytes(const QByteArray&);
+    void setFlatOnWhite(bool on) { flatOnWhite = on; }   // a picture with transparent areas (the SPC compmap) is put on white first: it is made for a white page, not for a dark theme
     void setNwsIcon(const string&);
     void connect(const std::function<void()>&);
     QLabel * getView();
@@ -45,6 +46,7 @@ private:
     ClickableLabel * image{};
     PhotoSizeEnum size{};
     int width{};
+    bool flatOnWhite{false};
     int height{};
     std::function<int()> getPhotoHeight;
 };

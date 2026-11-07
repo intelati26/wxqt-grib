@@ -54,6 +54,17 @@ GoesViewer::GoesViewer(Window * parent, const string& url, const string& product
     }
     productLabels = UtilityGoes::labels;
     productCodeList = UtilityGoes::productCodes;
+    if (objectAnimate.sector != "SUVI" && std::find(UtilityGoes::suviCodes.begin(), UtilityGoes::suviCodes.end(), objectAnimate.product) != UtilityGoes::suviCodes.end()) {
+        objectAnimate.product = "GEOCOLOR";   // a remembered solar band on an Earth sector
+    }
+    if (objectAnimate.sector == "SUVI") {   // the Sun has its own bands
+        productLabels = UtilityGoes::suviLabels;
+        productCodeList = UtilityGoes::suviCodes;
+        if (std::find(productCodeList.begin(), productCodeList.end(), objectAnimate.product) == productCodeList.end()) {
+            objectAnimate.product = productCodeList.front();
+        }
+        comboboxProduct.setList(productLabels);
+    }
     if (goesFloater) {
         // NOAA's storm floaters only have these (GeoColor, the 16 bands, a few composites): the others gave "could not load"
         productLabels.clear();
@@ -214,6 +225,19 @@ void GoesViewer::moveForward() {
 
 void GoesViewer::changeSector() {
     objectAnimate.sector = WString::split(comboboxSector.getValue(), ":")[0];
+    // the Sun has bands of its own, the Earth sectors share the ABI products: swap the list when crossing over
+    const bool sun = objectAnimate.sector == "SUVI";
+    const bool listIsSun = productCodeList == UtilityGoes::suviCodes;
+    if (sun != listIsSun) {
+        productLabels = sun ? UtilityGoes::suviLabels : UtilityGoes::labels;
+        productCodeList = sun ? UtilityGoes::suviCodes : UtilityGoes::productCodes;
+        objectAnimate.product = productCodeList.front();
+        sizeChoice.clear();
+        comboboxProduct.block();
+        comboboxProduct.setList(productLabels);
+        comboboxProduct.setIndex(0);
+        comboboxProduct.unblock();
+    }
     reload();
 }
 

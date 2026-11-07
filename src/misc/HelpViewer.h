@@ -13,8 +13,8 @@ class QTextBrowser;
 class QTreeWidget;
 
 // Help and further reading: for each model the Model Viewer draws, why it matters, what the app shows of it and where its data and its documentation are (a Wikipedia article
-// only where there is one about the model itself), and how to add a model of one's own. The words come with the models (GfsAboutModels.cpp, or the `why` and `link` lines of a
-// model file), so a model added by file is in here too.
+// only where there is one about the model itself), and how to add a model of one's own. The words of the built-in models are Markdown pages (help/models/<id>.md, bundled as resources); a
+// model added by file carries them in its `why` and `link` lines, so it is in here too.
 class HelpViewer : public Window {
 public:
     explicit HelpViewer(Window *);

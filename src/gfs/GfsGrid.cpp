@@ -151,6 +151,22 @@ std::vector<IdxRecord> parseIdx(const std::string& text) {
 }
 
 // "" matches anything; "0-*" matches every forecast string starting with "0-"; otherwise the whole string
+// a subhourly file names a time in minutes ("195 min fcst", "0-195 min acc fcst") and the hour itself sometimes in hours ("4 hour fcst", the RRFS) and sometimes in minutes ("120 min fcst", the
+// HRRR): a whole hour in minutes is the same time as in hours
+static std::string wholeHours(const std::string& text) {
+    const bool accumulated = text.size() > 13 && text.compare(text.size() - 13, 13, " min acc fcst") == 0;
+    const bool plain = text.size() > 9 && text.compare(text.size() - 9, 9, " min fcst") == 0;
+    if (!accumulated && !plain) {
+        return text;
+    }
+    const auto dash = text.find('-');
+    const int minutes = std::atoi(text.c_str() + (accumulated && dash != std::string::npos ? dash + 1 : 0));
+    if (minutes <= 0 || minutes % 60 != 0 || (!accumulated && dash != std::string::npos)) {
+        return text;
+    }
+    return accumulated ? "0-" + std::to_string(minutes / 60) + " hour acc fcst" : std::to_string(minutes / 60) + " hour fcst";
+}
+
 static bool matches(const std::string& have, const std::string& want) {
     if (want.empty()) {
         return true;
@@ -158,16 +174,26 @@ static bool matches(const std::string& have, const std::string& want) {
     if (want.back() == '*') {
         return have.compare(0, want.size() - 1, want, 0, want.size() - 1) == 0;
     }
-    return have == want;
+    return have == want || wholeHours(have) == wholeHours(want);
 }
 
 const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast, const std::string& detail, const std::string& date) {
+    const IdxRecord * first = nullptr;
+    const IdxRecord * last = nullptr;
     for (const auto& r : records) {
         if (r.variable == variable && r.level == level && matches(r.forecast, forecast) && (detail == "*" || r.detail == detail) && (date.empty() || r.date == date)) {
-            return &r;
+            if (!forecast.empty()) {
+                return &r;
+            }
+            first = first != nullptr ? first : &r;
+            last = &r;
         }
     }
-    return nullptr;
+    // any time asked for, and the file holds several (a subhourly file: the quarter hours "195 min fcst" ... and the hour, "4 hour fcst" or "240 min fcst", last): the hour the file is for
+    if (first != nullptr && first != last && first->forecast.size() > 9 && first->forecast.compare(first->forecast.size() - 9, 9, " min fcst") == 0) {
+        return last;
+    }
+    return first;
 }
 
 void closeWrapGap(Grid& g) {

@@ -51,6 +51,9 @@ vector<string> UtilityGoes::parseSizes(const string& html) {
 // https://cdn.star.nesdis.noaa.gov/GOES16/GLM/CONUS/EXTENT/20201641856GOES16-GLM-CONUS-EXTENT-2500x1500.jpg
 // https://cdn.star.nesdis.noaa.gov/GOES16/GLM/CONUS/EXTENT/1250x750.jpg
 string UtilityGoes::getImage(const string& product, const string& sector, const string& size) {
+    if (sector == "SUVI") {   // the Sun, full disk; product is the band folder (Fe094 ... He304)
+        return GlobalVariables::goes16Url + "GOES19/SUVI/FD/" + product + "/" + (size.empty() ? getImageFileName(sector) : size + ".jpg");
+    }
     auto sectorLocal = "SECTOR/" + sector;
     if (sector == "FD" || sector == "CONUS" || sector == "CONUS-G17" || sector == "FD-G17")
         sectorLocal = sector;
@@ -107,6 +110,10 @@ vector<string> UtilityGoes::getAnimation(const string& product, const string& se
     const auto frameCount = To::string(frameCnt);
     string url;
     string satellite = "G19";
+    if (sector == "SUVI") {
+        const auto html = WString::replace(WString::replace(UtilityIO::getHtml("https://www.star.nesdis.noaa.gov/GOES/SUVI_band.php?sat=G19&band=" + product + "&length=" + frameCount), "\n", ""), "\r", "");
+        return UtilityString::parseColumn(UtilityString::parse(html, "animationImages = \\[(.*?)\\];"), "'(https.*?jpg)'");
+    }
     if (contains(sectorsInGoes17, sector)) {
         satellite = "G18";
     }
@@ -142,6 +149,7 @@ vector<string> UtilityGoes::getAnimationGoesFloater(const string& product, const
 }
 
 const vector<string> UtilityGoes::sectors{
+    "SUVI: The Sun (GOES SUVI)",
     "FD: GOES-EAST Full Disk",
     "FD-G17: GOES-WEST Full Disk",
     "CONUS: GOES-EAST US",
@@ -217,6 +225,17 @@ const vector<string> UtilityGoes::labels{
     "DMW"
 };
 
+const vector<string> UtilityGoes::suviLabels{
+    "304 A - He II, chromosphere and transition region",
+    "171 A - Fe IX, quiet corona and coronal loops",
+    "195 A - Fe XII, corona",
+    "284 A - Fe XV, active regions",
+    "131 A - Fe VIII/XXI, flares",
+    "094 A - Fe XVIII, flaring regions"
+};
+
+const vector<string> UtilityGoes::suviCodes{"He304", "Fe171", "Fe195", "Fe284", "Fe131", "Fe094"};
+
 const vector<string> UtilityGoes::productCodes{
     "GEOCOLOR",
     "01",
@@ -265,6 +284,7 @@ const unordered_map<string, string> UtilityGoes::sizeMap{
     {"CONUS-G17", "1250x750"},
     {"FD", "1808x1808"},
     {"FD-G17", "1808x1808"},
+    {"SUVI", "1200x1200"},   // STAR offers 300, 600 and 1200; 1200 is the instrument's own 1280 px, resampled
     {"gm", "1000x1000"},
     {"car", "1000x1000"},
     {"eus", "1000x1000"},

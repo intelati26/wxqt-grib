@@ -784,7 +784,7 @@ void PhaseViewer::measure(const std::shared_ptr<System>& system) {
             const auto * def = GfsModels::find(model);
             const int step = def != nullptr && !def->hourlyRuns ? std::max(6, def->cycleStep) : 6;
             auto when = QDateTime::fromString(QString::fromStdString(run), "yyyyMMddHH");
-            when.setTimeSpec(Qt::UTC);
+            when.setTimeZone(QTimeZone::utc());
             double seedLat = points->front().lat, seedLon = points->front().lon;
             const long firstValid = points->front().valid;
             vector<PhaseSpace::Point> past;

@@ -6,6 +6,7 @@
 #include "obs/UtilityMadis.h"
 #include <QDateTime>
 #include <QString>
+#include <QTimeZone>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -368,7 +369,7 @@ vector<UtilityMadis::DatedFile> UtilityMadis::listDatedFiles(const string& html)
                 const auto text = html.substr(cell + marker.size(), 16);   // "2026-10-22 18:43"
                 const auto when = QDateTime::fromString(QString::fromStdString(text), "yyyy-MM-dd HH:mm");
                 if (when.isValid()) {
-                    file.modified = QDateTime{when.date(), when.time(), Qt::UTC}.toSecsSinceEpoch();
+                    file.modified = QDateTime{when.date(), when.time(), QTimeZone::utc()}.toSecsSinceEpoch();
                 }
             }
         }

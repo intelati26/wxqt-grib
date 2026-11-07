@@ -27,6 +27,9 @@
 #include "mapkit/MasterMapViewer.h"
 #include "misc/Opc.h"
 #include "misc/Rtma.h"
+#include "models/AnalysisLoop.h"
+#include "models/MrmsVerifyViewer.h"
+#include "models/SubhourlyViewer.h"
 #include "misc/SevereDashboard.h"
 #include "misc/UsAlerts.h"
 #include "misc/WfoText.h"
@@ -51,6 +54,8 @@
 #include "settings/SettingsMain.h"
 #include "settings/UIPreferences.h"
 #include "util/Utility.h"
+#include "misc/OutlookScreen.h"
+#include "misc/OutlookNav.h"
 #include "spc/SpcCompMap.h"
 #include "spc/SpcFireSummary.h"
 #include "spc/SpcMeso.h"
@@ -60,6 +65,7 @@
 #include "spc/SpcSwoSummary.h"
 #include "spc/SpcTstormOutlooks.h"
 #include "spc/SvrComparison.h"
+#include "ui/NetStatus.h"
 #include "util/To.h"
 #include "vis/GoesGlobal.h"
 #include "vis/GoesViewer.h"
@@ -82,6 +88,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_settings_black_48dp.png", "Settings", [this] { launchSettings(); });
     routeItems.emplace_back("baseline_storage_black_48dp.png", "Data kept: caches and what is in them", [parent] { new CacheSummaryViewer{parent}; });
     routeItems.emplace_back("baseline_show_chart_black_48dp.png", "Forecast plumes at a place (GEFS, GFS, CFSv2, and the ECMWF's EC46 and SEAS5)", [parent] { new CfsPlumeViewer{parent}; });
+    routeItems.emplace_back("baseline_show_chart_black_48dp.png", "Network: what is downloading and what the program is working on in the background, Ctrl-Shift-N", [parent] { NetStatus::show(parent); });   // (after the plumes, which keep the first use of this icon: an id is the icon name, a second use is #2)
     routeItems.emplace_back("baseline_history_black_48dp.png", "History: events (outbreaks, storms, your own dates and places)", [parent] { new EventsViewer{parent}; });
 
     routeItems.emplace_back("baseline_warning_black_48dp.png", "Severe Dashboard, Ctrl-d", [this] { launchSevereDashboard(); });
@@ -141,10 +148,12 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("widget_afd.png", "Forecast discussions", [parent] { Dashboards::openForecastDiscussions(parent); });
     routeItems.emplace_back("fire_outlook.png", "U.S. Drought Monitor", [parent] { new DroughtViewer{parent}; });
     routeItems.emplace_back("rain_showers.png", "River, flood, dam, and the National Water Model", [parent] { new MasterMapViewer{parent, "Rivers and water"}; });
-    routeItems.emplace_back("nsslwrf.png", "NSSL WRF", [this] { launchModelViewerGeneric("NSSLWRF"); });
-    routeItems.emplace_back("wpcgefs.png", "WPC GEFS", [this] { launchModelViewerGeneric("WPCGEFS"); });
     // routeItems.emplace_back("spchref.png", "SPC HREF", [this] { launchModelViewerGeneric("SPCHREF"); });
     routeItems.emplace_back("goesfulldisk.png", "Global GOES", [parent] { new GoesGlobal{parent}; });
+    // (after the entries that share their icons, so that those keep their ids)
+    routeItems.emplace_back("rtma.png", "NWS analysis (RTMA / URMA loop)", [parent] { AnalysisLoop::openLatest(parent, "2m_temp_10m_wnd"); });
+    routeItems.emplace_back("ncep.png", "RRFS / HRRR subhourly (15 minute surface fields)", [parent] { SubhourlyViewer::openNewest(parent, "RRFS"); });
+    routeItems.emplace_back("mcd_tile.png", "MRMS verification (a model's radar against MRMS)", [parent] { new MrmsVerifyViewer{parent, "RRFS", "sim_radar_comp", "CONUS", QDateTime{}}; });
 
     // a repeated icon (CAMs / NSSL WRF, the two thunderstorm items) still needs its own id
     vector<string> seen;
@@ -379,11 +388,11 @@ void Toolbar::launchWfoText() {
 }
 
 void Toolbar::launchSpcSwoSummary() {
-    new SpcSwoSummary{parent};
+    OutlookNav::open(parent, OutlookNav::SevereSummary);
 }
 
 void Toolbar::launchSpcSwoDay1(int day) {
-    new SpcSwoDay1{parent, day};
+    OutlookNav::open(parent, OutlookNav::SevereDay, std::clamp(day, 1, 4));
 }
 
 void Toolbar::launchGoesViewer() {
@@ -395,7 +404,7 @@ void Toolbar::launchNationalText() {
 }
 
 void Toolbar::launchSpcTstormOutlooks() {
-    new SpcTstormOutlooks{parent};
+    OutlookNav::open(parent, OutlookNav::Thunderstorm);
 }
 
 void Toolbar::launchSpcCompmap() {
@@ -439,7 +448,7 @@ void Toolbar::launchModelViewerGeneric(const string& modelType) {
 }
 
 void Toolbar::launchNationalImages() {
-    new NationalImages{parent};
+    OutlookNav::open(parent, OutlookNav::NationalImages);
 }
 
 void Toolbar::launchUsAlerts() {
@@ -447,11 +456,11 @@ void Toolbar::launchUsAlerts() {
 }
 
 void Toolbar::launchRainfallOutlookSummary() {
-    new RainfallOutlookSummary{parent};
+    OutlookNav::open(parent, OutlookNav::RainfallSummary);
 }
 
 void Toolbar::launchSpcFireWeatherOutlookSummary() {
-    new SpcFireSummary{parent};
+    OutlookNav::open(parent, OutlookNav::FireSummary);
 }
 
 void Toolbar::launchSpcStormReports(const string& day) {

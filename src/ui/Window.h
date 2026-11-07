@@ -35,6 +35,7 @@ protected:
     void resizeEvent(QResizeEvent *) override;
     void closeEvent(QCloseEvent *) override;
     void showEvent(QShowEvent *) override;
+    void releaseFromOwner();
 
 private:
     string geometryKey() const;   // one saved size / position per kind of screen

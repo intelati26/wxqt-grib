@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "MainWindow.h"
+#include "models/AnalysisLoop.h"
 #include "gfs/GfsModels.h"
 #include "misc/UtilityOpenMeteoPressure.h"
 #include "vis/GoesViewer.h"
@@ -16,6 +17,8 @@
 #include <QGridLayout>
 #include <algorithm>
 #include <QLabel>
+#include <QMenu>
+#include <QPushButton>
 #include <QPalette>
 #include <QVBoxLayout>
 #include "common/GlobalVariables.h"
@@ -72,6 +75,8 @@ MainWindow::MainWindow(QWidget * parent)
     , shortcutRtma{{"B"}, this}
     , shortcutUsAlerts{{"K"}, this}
 {
+    fitTimer.setSingleShot(true);
+    QObject::connect(&fitTimer, &QTimer::timeout, this, [this] { fitThumbnails(); });
     QFont font{};
     font.setPointSize(UIPreferences::fontSize);
     QApplication::setFont(font);
@@ -188,17 +193,7 @@ void MainWindow::reload() {
         }
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
             if (item.isEnabled()) {
-                const auto token = item.getPrefToken();
-                const auto bytes = std::make_shared<QByteArray>();
-                new FutureVoid{this,
-                    [token, bytes] { *bytes = HomeThumbnails::fetch(token); },
-                    [this, token, bytes] {
-                        const auto found = imageWidgets.find(token);   // the layout may have been rebuilt meanwhile
-                        const auto * entry = HomeThumbnails::find(token);
-                        if (found != imageWidgets.end() && !bytes->isEmpty()) {
-                            found->second.setToWidth(*bytes, UIPreferences::mainScreenImageSize, entry != nullptr && entry->white);
-                        }
-                    }};
+                loadThumbnail(item.getPrefToken());
             }
         }
         if (UIPreferences::mainScreenSevereDashboard) {
@@ -207,6 +202,20 @@ void MainWindow::reload() {
             boxSevereDashboard.removeChildren();
         }
     // }
+}
+
+void MainWindow::loadThumbnail(const string& token) {
+    const auto bytes = std::make_shared<QByteArray>();
+    new FutureVoid{this,
+        [token, bytes] { *bytes = HomeThumbnails::fetch(token); },
+        [this, token, bytes] {
+            const auto found = imageWidgets.find(token);   // the layout may have been rebuilt meanwhile
+            const auto * entry = HomeThumbnails::find(token);
+            if (found != imageWidgets.end() && !bytes->isEmpty()) {
+                imageBytes[token] = *bytes;
+                found->second.setToWidth(*bytes, thumbnailSize(), entry != nullptr && entry->white);
+            }
+        }};
 }
 
 void MainWindow::downloadWatch() {
@@ -270,6 +279,44 @@ void MainWindow::fitHazardMatrix() {
 
 void MainWindow::resizeEventCustom() {
     QTimer::singleShot(0, this, [this] { fitHazardMatrix(); });
+    fitTimer.start(250);   // the thumbnails follow once the window has stopped changing
+}
+
+// The thumbnails as wide as lets whole ones fill each row of their zone: as many across as fit at the set size, each stretched to share the row (at most half as wide again; beyond that
+// another one fits), so a window that grows or shrinks changes the count and the size in step and no row ends in a gap.
+void MainWindow::fitThumbnails() {
+    if (Utility::readPref("FIT_THUMBNAILS", "true").compare(0, 1, "t") != 0 || imageTiles.empty()) {
+        if (fitSize != 0) {
+            fitSize = 0;
+        }
+        return;
+    }
+    const auto * flow = imageLayout.getView();
+    const int width = flow->geometry().width() - flow->contentsMargins().left() - flow->contentsMargins().right();
+    const int gap = UIPreferences::boxPadding;
+    const int least = UIPreferences::mainScreenImageSize;
+    if (width < least) {
+        return;
+    }
+    const int across = std::max(1, (width + gap) / (least + gap));
+    const int size = std::clamp((width - (across - 1) * gap) / across, least, least * 3 / 2);
+    if (size == fitSize) {
+        return;
+    }
+    fitSize = size;
+    for (auto& [token, tile] : imageTiles) {
+        tile->setFixedWidth(size);
+        if (auto * label = tile->findChild<QLabel *>("caption")) {
+            label->setMaximumWidth(size);
+            label->setMinimumHeight(label->heightForWidth(size));
+        }
+        const auto bytes = imageBytes.find(token);
+        const auto image = imageWidgets.find(token);
+        if (bytes != imageBytes.end() && image != imageWidgets.end() && !bytes->second.isEmpty()) {
+            const auto * entry = HomeThumbnails::find(token);
+            image->second.setToWidth(bytes->second, size, entry != nullptr && entry->white);
+        }
+    }
 }
 
 bool MainWindow::launch(int indexFinal) {
@@ -329,6 +376,9 @@ void MainWindow::addWidgets() {
     imageLayout.setEqualRowHeights(true);   // the captions of a row line up along its bottom
     rightMostLayout.removeChildren();
     imageWidgets.clear();
+    imageTiles.clear();
+    imageBytes.clear();
+    fitSize = 0;
     textWidgets.clear();
     boxSevereDashboard.removeChildren();
     //
@@ -341,13 +391,38 @@ void MainWindow::addWidgets() {
                 imageWidgets.at(token).connect([this, token] { launchImageScreen(token); });
                 // the picture over its short caption (when captions are on); the longer description is the tooltip either way
                 const auto caption = UIPreferences::homeCaptions ? QString::fromStdString(HomeThumbnails::caption(token)) : QString{};
-                imageLayout.addWidgetReal(CaptionedTile::make(this, imageWidgets.at(token).getView(), caption,
-                                                              QString::fromStdString(HomeThumbnails::tip(token)), UIPreferences::mainScreenImageSize));
+                auto * tile = CaptionedTile::make(this, imageWidgets.at(token).getView(), caption,
+                                                  QString::fromStdString(HomeThumbnails::tip(token)), UIPreferences::mainScreenImageSize, true, UIPreferences::mainScreenImageSize);   // a long caption ("Temperature now: your area") wraps inside the tile instead of running past it
+                if (token == "RTMA_SECOND" && Utility::readPref("RTMA_SECOND_BUTTON", "true").compare(0, 1, "t") == 0) {   // one button picks which RTMA product this tile shows (it can be turned off in Settings, which then holds the choice)
+                    auto * pick = new QPushButton{"Set product...", tile};
+                    pick->setToolTip("Choose which RTMA product this picture shows: dew point, wind gust, visibility, cloud cover or temperature (also in Settings)");
+                    tile->layout()->addWidget(pick);
+                    QObject::connect(pick, &QPushButton::clicked, this, [this, pick, tile] {
+                        QMenu menu{pick};
+                        const auto current = HomeThumbnails::rtmaSecondChart();
+                        for (const auto& value : HomeThumbnails::rtmaValues()) {
+                            auto * action = menu.addAction(QString::fromStdString(value.label));
+                            action->setCheckable(true);
+                            action->setChecked(value.chart == current);
+                            action->setData(QString::fromStdString(value.chart));
+                        }
+                        if (const auto * chosen = menu.exec(pick->mapToGlobal(QPoint{0, pick->height()})); chosen != nullptr) {
+                            Utility::writePref("RTMA_SECOND_CHART", chosen->data().toString().toStdString());
+                            if (auto * label = tile->findChild<QLabel *>("caption")) {
+                                label->setText(QString::fromStdString(HomeThumbnails::caption("RTMA_SECOND")));
+                            }
+                            loadThumbnail("RTMA_SECOND");
+                        }
+                    });
+                }
+                imageTiles[token] = tile;
+                imageLayout.addWidgetReal(tile);
             }
         }
     }
     imageSize = UIPreferences::mainScreenImageSize;
     imageLayout.addStretch();
+    fitTimer.start(250);   // fitted to the rows once the layout has its width
     //
     // Textual right sidebar (hourly)
     //
@@ -410,13 +485,13 @@ void MainWindow::arrangeColumns() {
         stack->addStretch();
         grid->addWidget(zoneWidget, place.row, place.col, place.rowSpan, place.colSpan, Qt::AlignTop);
     }
-    boxZones.addWidgetReal(zonesWidget, 0, Qt::AlignTop | Qt::AlignLeft);
+    boxZones.addWidgetReal(zonesWidget, 0, Qt::AlignTop);   // the whole width of the window, shared by the template's columns (a zone of thumbnails then wraps to its share, not to one picture)
 }
 
 string MainWindow::computeTokenString() {
     string tokenString;
     tokenString += string{UIPreferences::hourlyGraph ? "graph," : ""} + (UIPreferences::forecastPoint ? "point," : "") + WString::join(UIPreferences::homeScreenForecastOrder.getTokens(), ",") + ",";
-    tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",");
+    tokenString += HomeLayout::signature() + (UIPreferences::homeCaptions ? ",captions," : ",") + Utility::readPref("RTMA_SECOND_CHART", "") + Utility::readPref("RTMA_SECOND_BUTTON", "true") + Utility::readPref("FIT_THUMBNAILS", "true") + ",";   // the RTMA picture's product and its button are part of the layout
     for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {
         for (const auto& item : UIPreferences::homeScreenItemsImage) {
             if (item.getPrefToken() == token && item.isEnabled()) {
@@ -462,13 +537,9 @@ void MainWindow::launchImageScreen(const string& token) {
         Utility::writePref("MODELNCEPPARAMLASTUSED", "ppp_" + token.substr(8) + "h_median");
         Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
         toolbar.launchModelViewer();   // the Model Viewer on the portal's median chart of that period
-    } else if (token == "RTMA_AREA") {
-        Utility::writePref("NCEP", "RTMA");
-        Utility::writePref("MODELNCEPPARAMLASTUSED", "2m_temp_10m_wnd");
-        if (Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS").compare(0, 6, "LOCAL:") != 0) {
-            Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
-        }
-        toolbar.launchModelViewer();   // the Model Viewer on the RTMA temperature chart, in the area last used
+    } else if (token == "RTMA_SECOND" || token == "RTMA_AREA") {
+        // the NWS analysis window (the RTMA / URMA loop) on the chart of the picture, in the area last used, the last 24 hours up to the newest analysis
+        AnalysisLoop::openLatest(this, token == "RTMA_AREA" ? string{"2m_temp_10m_wnd"} : HomeThumbnails::rtmaSecondChart());
     } else if (token == "GRIB_LATEST") {
         if (const auto last = Utility::readPref("MODEL_LAST_FORECAST", ""); !GfsModels::isForecast(Utility::readPref("NCEP", "RRFS")) && GfsModels::isForecast(last)) {   // the picture shows the last forecast model, not the analysis on the screen
             Utility::writePref("NCEP", last);

@@ -22,6 +22,7 @@ class SunDisc;
 class SunViewer : public Window {
 public:
     explicit SunViewer(Window * parent);
+    void choose(int index) { product->setCurrentIndex(index); }   // that picture of the list (the picture is read when the choice changes)
 
 private:
     void load();
@@ -29,6 +30,7 @@ private:
     VBox box;
     SunDisc * disc{};
     QLabel * status{};
+    QComboBox * product{};
     QComboBox * resolution{};
     int generation{0};
     bool closed{false};

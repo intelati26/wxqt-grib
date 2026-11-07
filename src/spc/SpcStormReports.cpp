@@ -37,6 +37,7 @@ namespace {
 
 SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsDay)
     : Window{parent}
+    , nav{this, OutlookNav::StormReports, spcStormReportsDay == "yesterday" ? 1 : 0}
     , sw{this, box}
     , calendar{this}
     , photo{this, Scaled}
@@ -47,6 +48,7 @@ SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsD
     , url{GlobalVariables::nwsSPCwebsitePrefix + "/climo/reports/" + spcStormReportsDay + (isDate(spcStormReportsDay) ? "_rpts" : "") + ".gif"}
     , stormReportsUrl{GlobalVariables::nwsSPCwebsitePrefix + "/climo/reports/" + spcStormReportsDay + (isDate(spcStormReportsDay) ? "_rpts" : "") + ".csv"}
 {
+    photo.setFlatOnWhite(true);   // (the SPC pictures are made for a white page)
     setTitle("SPC Storm Reports");
     calendar.connect([this] { onDateChanged(); });
     lsrWfoButton.connect([this] { new LsrByWfo{this}; });
@@ -56,6 +58,7 @@ SpcStormReports::SpcStormReports(Window * parent, const string& spcStormReportsD
     photo.setToWidth(plotWidth + 100);
     boxImage.addWidget(photo);
     boxImage.addWidget(calendar);
+    box.addWidget(nav.combo());
     box.addWidget(lsrWfoButton);
     box.addWidget(exportButton);
     // the picture's size is the person's: the slider sets its width (kept for the next time)

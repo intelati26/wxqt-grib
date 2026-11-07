@@ -5,6 +5,7 @@
 
 #include "gfs/GfsModelFile.h"
 #include "gfs/GeosOpendap.h"
+#include "util/Utility.h"
 #include <algorithm>
 #include <cstdlib>
 #include <map>
@@ -16,6 +17,7 @@
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
+#include <QTimeZone>
 
 namespace {
     using Run = GfsData::Run;
@@ -143,13 +145,14 @@ namespace {
         replaceAll(url, "{prev_cycle}", previous);
         if (url.find("{valid") != std::string::npos) {   // the time the file is for: the run's time, the hour and the offset
             auto t = QDateTime::fromString(QString::fromStdString(run.date + run.cycle), "yyyyMMddHH");
-            t.setTimeSpec(Qt::UTC);
+            t.setTimeZone(QTimeZone::utc());
             const auto own = d.validOffsetByFile.find(alt);
             const int offset = own != d.validOffsetByFile.end() ? own->second : d.validOffsetMinutes;
             t = t.addSecs(static_cast<qint64>(hour) * 3600 + static_cast<qint64>(offset) * 60);
             replaceAll(url, "{valid_date}", t.toString("yyyyMMdd").toStdString());
             replaceAll(url, "{valid_hour2}", t.toString("HH").toStdString());
             replaceAll(url, "{valid_minute2}", t.toString("mm").toStdString());
+            replaceAll(url, "{valid_iso}", t.toString("yyyy-MM-ddTHHmm").toStdString());   // Open-Meteo's file names
             replaceAll(url, "{valid}", t.toString("yyyyMMdd_HHmm").toStdString());
         }
         replaceAll(url, "{hour3}", padded(hour, 3));
@@ -397,6 +400,7 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
     std::string indexFormat = "noaa";
     std::string sourceLabel;
     bool stormModel = false;
+    std::string wrfFoldersPref;
     std::istringstream in{text};
     std::string raw;
     std::vector<std::string> hourSegments;
@@ -426,6 +430,14 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             def.label = value;
         } else if (key == "group") {
             def.group = value;
+        } else if (key == "alternate") {
+            const auto bar = value.find('|');
+            def.alternate = value.substr(0, bar);
+            def.alternate.erase(def.alternate.find_last_not_of(' ') + 1);
+            if (bar != std::string::npos) {
+                def.alternateNote = value.substr(bar + 1);
+                def.alternateNote.erase(0, def.alternateNote.find_first_not_of(' '));
+            }
         } else if (key == "source_label") {
             sourceLabel = value;
         } else if (key == "why") {
@@ -438,8 +450,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             }
             def.links.push_back({parts[0], parts[1], parts[2]});
         } else if (key == "kind") {
-            if (value != "grib" && value != "whole" && value != "netcdf" && value != "custom" && value != "tar") {
-                reader.fail("kind is grib, whole, netcdf, custom or tar");
+            if (value != "grib" && value != "whole" && value != "netcdf" && value != "om" && value != "wrf" && value != "custom" && value != "tar") {
+                reader.fail("kind is grib, whole, netcdf, om, wrf, custom or tar");
                 break;
             }
             kind = value;
@@ -557,6 +569,30 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
                 }
                 definition->scales.emplace_back(item.substr(0, colon), factor);
             }
+        } else if (key == "run_folders_pref") {   // for kind = wrf: the name of the setting that, when it has a value (folders separated by `;`), is used instead of run_folders
+            wrfFoldersPref = value;
+        } else if (key == "run_folders") {   // for kind = wrf: the folders of the runs, globs, separated by `;` (`~` is the home folder)
+            for (const auto& folder : split(value, ';')) {
+                if (!folder.empty()) {
+                    source.wrf.folders.push_back(folder);
+                    source.wrf.defaultFolders.push_back(folder);
+                }
+            }
+            if (source.wrf.folders.empty()) {
+                reader.fail("run_folders is a folder (or several, separated by ;)");
+                break;
+            }
+        } else if (key == "om_grid") {   // `regular` (the file's own latitude / longitude grid) or `gaussian 320 0.25` (the order of ECMWF's reduced Gaussian grid and the degrees it is interpolated to)
+            const auto parts = split(value, ' ');
+            if (parts.size() == 1 && parts[0] == "regular") {
+                source.om.gaussian = 0;
+            } else if (parts.size() == 3 && parts[0] == "gaussian" && toInt(parts[1], n) && n > 0 && toDouble(parts[2], x) && x > 0.0) {
+                source.om.gaussian = n;
+                source.om.step = x;
+            } else {
+                reader.fail("om_grid is `regular` or `gaussian 320 0.25`");
+                break;
+            }
         } else if (key == "warp") {   // step,west,south,east,north
             const auto parts = split(value, ',');
             double v[5] = {0, 0, 0, 0, 0};
@@ -656,7 +692,7 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
         } else if (def.label.empty()) {
             reader.line = 0;
             reader.fail("no label");
-        } else if (definition->urls.empty()) {
+        } else if (definition->urls.empty() && kind != "wrf") {
             reader.line = 0;
             reader.fail("no url");
         }
@@ -724,15 +760,30 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
     source.label = sourceLabel.empty() ? def.label : sourceLabel;
     source.wholeFile = kind != "grib";
     source.netcdf = kind == "netcdf";
+    source.om.enabled = kind == "om";
+    source.wrf.enabled = kind == "wrf";
     source.custom = kind == "custom";
     const bool candidatesWanted = std::count_if(definition->urls.begin(), definition->urls.end(), [] (const Rule& r) { return r.conditions.empty(); }) > 1;
     const bool ecmwf = indexFormat == "ecmwf";
     const std::string id = def.id;
-    def.source = [definition, source, candidatesWanted, ecmwf, stormModel, id] (const std::string& storm) {
+    def.source = [definition, source, candidatesWanted, ecmwf, stormModel, id, wrfFoldersPref] (const std::string& storm) {
         auto d = std::make_shared<Definition>(*definition);
         d->storm = storm;
         GfsData::Source made = source;
         made.id = stormModel ? id + "-" + storm : id;
+        if (!wrfFoldersPref.empty()) {   // the folders of the runs, as the user's settings say
+            const auto chosen = Utility::readPref(wrfFoldersPref, "");
+            if (!chosen.empty()) {
+                made.wrf.folders.clear();
+                std::stringstream parts{chosen};
+                std::string folder;
+                while (std::getline(parts, folder, ';')) {
+                    if (!trim(folder).empty()) {
+                        made.wrf.folders.push_back(trim(folder));
+                    }
+                }
+            }
+        }
         if (!d->rules.empty()) {
             made.fileOf = [d] (const Want& w) {
                 for (const auto& rule : d->rules) {

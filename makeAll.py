@@ -56,6 +56,20 @@ DEFINES += WXQT_WEBENGINE
 """
 
 proFooter: str = """
+# the .om decoder (src/external/omfile, TurboPFor) uses SSE4.1 intrinsics; ARM maps them through its own header
+!win32-msvc*:contains(QT_ARCH, x86_64) {
+    QMAKE_CFLAGS += -msse4.1
+}
+# Window::releaseFromOwner calls SetWindowLongPtr (user32): the import library is not on the link line by itself
+win32 {
+    LIBS += -luser32
+}
+
+# MSVC x64 has the SSE4.1 intrinsics without a flag but does not define __SSE2__, __SSSE3__ or __SSE4_1__, which the decoder tests for (without it, it compiles a fallback that does not build)
+win32-msvc*:contains(QT_ARCH, x86_64) {
+    QMAKE_CFLAGS += /D__SSE2__=1 /D__SSSE3__=1 /D__SSE4_1__=1
+}
+
 # MSVC (Windows packages): debug info in a separate wxqt.pdb, kept as a CI artifact so the address in a crash log can be
 # resolved to a function. It does not change the generated code (the optimiser options are re-stated).
 win32-msvc* {
@@ -101,7 +115,7 @@ def makePro(extraFooter: str = "\n", webEngine: bool = False) -> None:
     # real sources only: not backup copies (MainWindow.cpp.backup) and not the stand-alone demos, which have a main() of their own
     standalone = {"src/weather_graph_demo.cpp", "src/weather_graph_example.cpp"}
     # glob returns backslashes on Windows, so compare with forward slashes
-    cppFiles: List[str] = [f for f in glob.glob("src/*.cpp") + glob.glob("src/*/*.c*")
+    cppFiles: List[str] = [f for f in glob.glob("src/*.cpp") + glob.glob("src/*/*.c*") + glob.glob("src/external/omfile/*.c")
                            if f.endswith((".c", ".cpp")) and f.replace("\\", "/") not in standalone]
     headerFiles: List[str] = glob.glob("src/*/*.h")
     proTargetFile: str = "wxqt.pro"
@@ -117,7 +131,7 @@ def makePro(extraFooter: str = "\n", webEngine: bool = False) -> None:
             fh.write(" " * 4 + f + " \\" + '\n')
 
         # RESOURCES = resourceCreation/res.qrc resourceCreation/images.qrc
-        qrcFiles: List[str] = glob.glob("resourceCreation/*.qrc")
+        qrcFiles: List[str] = glob.glob("resourceCreation/*.qrc") + glob.glob("help/*.qrc")
         fh.write("\nRESOURCES += \\" + "\n")
         for qrc in sorted(qrcFiles):
             fh.write(" " * 4 + qrc + " \\" + '\n')

@@ -6,6 +6,7 @@
 #include "ui/ChartExport.h"
 #include "ui/ChartPainter.h"
 #include "drought/DroughtViewer.h"
+#include "drought/DroughtDaily.h"
 #include <algorithm>
 #include <cmath>
 #include <QHeaderView>
@@ -308,6 +309,104 @@ void HistoryChart::setSeries(const std::vector<Point>& p, const QString& t, cons
     update();
 }
 
+DailyChart::DailyChart(QWidget * parent)
+    : QWidget{parent}
+{
+    setMinimumHeight(260);
+}
+
+void DailyChart::setDays(const std::vector<Day>& newDays, const QString& newTitle, const QString& newUnit) {
+    days = newDays;
+    title = newTitle;
+    unit = newUnit;
+    update();
+}
+
+void DailyChart::setMessage(const QString& text) {
+    message = text;
+    days.clear();
+    update();
+}
+
+void DailyChart::paintEvent(QPaintEvent *) {
+    ChartPainter p{this};
+    p.setRenderHint(QPainter::Antialiasing);
+    p.fillRect(rect(), palette().window());
+    p.setPen(palette().color(QPalette::WindowText));
+    p.drawText(QRectF{6, 2, width() - 12.0, 20}, Qt::AlignLeft | Qt::AlignVCenter, p.fontMetrics().elidedText(title, Qt::ElideRight, width() - 12));
+    const QRectF plot{56.0, 28.0, width() - 70.0, height() - 62.0};
+    if (days.size() < 2) {
+        p.drawText(plot, Qt::AlignCenter | Qt::TextWordWrap, message);
+        return;
+    }
+    double lo = 0.0, hi = 0.0;
+    for (const auto& d : days) {
+        lo = std::min(lo, d.value);
+        hi = std::max(hi, d.value);
+    }
+    if (hi - lo < 1e-9) {
+        hi = lo + 1.0;
+    }
+    const double pad = (hi - lo) * 0.06;
+    lo -= pad;
+    hi += pad;
+    const auto y = [&] (double v) { return plot.bottom() - (v - lo) / (hi - lo) * plot.height(); };
+    const double span = static_cast<double>(days.front().date.daysTo(days.back().date));
+    const auto x = [&] (const QDate& date) { return plot.left() + plot.width() * (span > 0 ? static_cast<double>(days.front().date.daysTo(date)) / span : 0.0); };
+    const double raw = (hi - lo) / 5.0, mag = std::pow(10.0, std::floor(std::log10(raw))), norm = raw / mag;
+    const double step = mag * (norm > 5 ? 10 : norm > 2 ? 5 : norm > 1 ? 2 : 1);
+    for (double v = std::ceil(lo / step) * step; v <= hi + 1e-9; v += step) {
+        p.setPen(QColor{128, 128, 128, 90});
+        p.drawLine(QPointF{plot.left(), y(v)}, QPointF{plot.right(), y(v)});
+        p.setPen(palette().color(QPalette::WindowText));
+        p.drawText(QRectF{0, y(v) - 8, plot.left() - 4, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(v, 'f', step < 1 ? 1 : 0));
+    }
+    p.drawText(QRectF{0, plot.bottom() + 20, 80, 14}, Qt::AlignLeft, unit);
+    // the months along the bottom
+    for (const auto& d : days) {
+        if (d.date.day() == 1) {
+            p.setPen(QColor{128, 128, 128, 70});
+            p.drawLine(QPointF{x(d.date), plot.top()}, QPointF{x(d.date), plot.bottom()});
+            p.setPen(palette().color(QPalette::WindowText));
+            p.drawText(QRectF{x(d.date) - 30, plot.bottom() + 4, 60, 14}, Qt::AlignHCenter, QLocale{QLocale::English}.monthName(d.date.month(), QLocale::ShortFormat) + (d.date.month() == 1 ? " " + QString::number(d.date.year()) : QString{}));
+        }
+    }
+    // the filled area: the part above zero red, the part below blue (each piece cut at zero)
+    const double zero = y(0.0);
+    const auto fill = [&] (bool above) {
+        QPolygonF poly;
+        for (size_t i = 0; i < days.size(); i++) {
+            const double v = days[i].value;
+            const double px = x(days[i].date), py = y(v);
+            if (i > 0) {
+                const double pv = days[i - 1].value;
+                if ((pv >= 0) != (v >= 0)) {   // crosses zero between the two days
+                    const double t = pv / (pv - v);
+                    const double cx = x(days[i - 1].date) + (px - x(days[i - 1].date)) * t;
+                    poly << QPointF{cx, zero};
+                }
+            }
+            poly << QPointF{px, above ? std::min(py, zero) : std::max(py, zero)};
+        }
+        QPolygonF closed = poly;
+        closed << QPointF{poly.last().x(), zero} << QPointF{poly.first().x(), zero};
+        p.setPen(Qt::NoPen);
+        p.setBrush(above ? QColor{229, 57, 53, 170} : QColor{49, 110, 190, 170});
+        p.drawPolygon(closed);
+    };
+    fill(true);
+    fill(false);
+    QPolygonF line;
+    for (const auto& d : days) {
+        line << QPointF{x(d.date), y(d.value)};
+    }
+    p.setBrush(Qt::NoBrush);
+    p.setPen(QPen{QColor{150, 30, 20}, 1.6});
+    p.drawPolyline(line);
+    p.setPen(QPen{palette().color(QPalette::WindowText), 1.2});
+    p.drawLine(QPointF{plot.left(), zero}, QPointF{plot.right(), zero});
+}
+
 void HistoryChart::paintEvent(QPaintEvent *) {
     ChartPainter p{this};
     p.setRenderHint(QPainter::Antialiasing);
@@ -480,6 +579,10 @@ DroughtViewer::DroughtViewer(Window * parent)
     , comboKind{this, {"Total precipitation", "Departure from normal", "Percent of normal"}}
     , comboPeriod{this, {"1 and 2 weeks, 1 and 2 months", "3, 4, 5 and 6 months", "9, 12, 18 and 24 months", "2, 3, 4 and 5 years (percent of normal)"}}
     , comboOutlook{this}
+    , comboDailyElement{this, {"Maximum temperature", "Minimum temperature"}}
+    , comboDailySmooth{this, {"Daily values", "7-day mean", "14-day mean", "30-day mean"}}
+    , comboDailyPeriod{this, {"This year", "Last 12 months", "Last year"}}
+    , textDaily{this}
     , comboHistory{this, {"Rain: departure from normal", "Rain: percent of normal", "Rain: rank among the years", "Temperature: departure from normal", "Temperature: rank among the years", "Drought: share of the area in D1 or worse", "Drought: severity and coverage index"}}
     , textHistory{this, ""}
     , comboMetric{this, {"Area numbers: rain", "Area numbers: temperature"}}
@@ -614,6 +717,30 @@ DroughtViewer::DroughtViewer(Window * parent)
         column->addWidget(historyChart, 1);
         tabs->addTab(widget, "History");
     }
+    {   // the daily tab: each day's temperature against the normal, smoothed over a number of days
+        auto * widget = new QWidget{tabs};
+        auto * column = new QVBoxLayout{widget};
+        column->setContentsMargins(4, 4, 4, 4);
+        auto * row = new QHBoxLayout;
+        comboDailySmooth.setIndex(3);
+        row->addWidget(comboDailyElement.getView());
+        row->addWidget(comboDailySmooth.getView());
+        row->addWidget(comboDailyPeriod.getView());
+        auto * pictureButton = UiStandards::button(widget, "Save picture...", "Save the chart as a picture");
+        QObject::connect(pictureButton, &QPushButton::clicked, this, [this] { savePicture(dailyChart, "drought_daily"); });
+        row->addWidget(pictureButton);
+        row->addStretch();
+        column->addLayout(row);
+        textDaily.getView()->setWordWrap(true);
+        textDaily.getView()->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        column->addWidget(textDaily.getView());
+        dailyChart = new DailyChart{widget};
+        column->addWidget(dailyChart, 1);
+        tabs->addTab(widget, "Daily");
+        comboDailyElement.connect([this] { loadDaily(); });
+        comboDailySmooth.connect([this] { loadDaily(); });
+        comboDailyPeriod.connect([this] { loadDaily(); });
+    }
     box.addWidgetReal(tabs, 1, Qt::Alignment{});
     box.addWidgetReal(new ActivityLabel{this});
     box.getAndShow(this);
@@ -734,6 +861,7 @@ void DroughtViewer::loadAreas() {
                        refreshMonitor();
                        loadPrecipArea();
                        updateHistory();
+                       loadDaily();
                        if (qEnvironmentVariableIsSet("WXQT_PICKAREA")) {   // dev: open the area picker
                            chooseArea();
                        }
@@ -798,6 +926,7 @@ void DroughtViewer::selectArea(const std::string& id) {
     refreshMonitor();
     loadPrecipArea();
     updateHistory();
+    loadDaily();
 }
 
 // What the background work brings back for the Monitor tab
@@ -1408,4 +1537,63 @@ void DroughtViewer::loadPrecip() {
 void DroughtViewer::loadOutlook() {
     const int i = std::clamp(comboOutlook.getIndex(), 0, static_cast<int>(outlooks.size()) - 1);
     showPicture(&outlookImage, &textOutlook, outlooks[static_cast<size_t>(i)].url, outlooks[static_cast<size_t>(i)].label + ".  NOAA Climate Prediction Center.", &outlookGeneration);
+}
+
+void DroughtViewer::loadDaily() {
+    if (states->empty() || dailyChart == nullptr) {
+        return;
+    }
+    const int mine = ++dailyGeneration;
+    const auto areas = selectedAreas();
+    const std::string id = areaId;
+    const std::string name = id == "US" ? "Contiguous United States" : (areas.empty() ? id : areas.front().name);
+    std::string stateName;
+    if (id.size() == 5) {   // a county: the state it is in
+        for (const auto& s : *states) {
+            if (s.id == id.substr(0, 2)) {
+                stateName = s.name;
+            }
+        }
+    }
+    DroughtDaily::Key key;
+    if (!DroughtDaily::keyFor(id, name, stateName, key)) {
+        dailyChart->setMessage("NOAA's daily area averages are kept for the country, the states and the forecast offices; choose one of those.");
+        textDaily.setText(string{});
+        return;
+    }
+    const bool maximum = comboDailyElement.getIndex() == 0;
+    static const int smoothDays[] = {1, 7, 14, 30};
+    const int smooth = smoothDays[std::clamp(comboDailySmooth.getIndex(), 0, 3)];
+    const auto today = QDate::currentDate().addDays(-1);   // (the files run to the day before)
+    QDate from, to = today;
+    switch (comboDailyPeriod.getIndex()) {
+        case 1: from = today.addDays(-365); break;
+        case 2: from = QDate{today.year() - 1, 1, 1}; to = QDate{today.year() - 1, 12, 31}; break;
+        default: from = QDate{today.year(), 1, 1}; break;
+    }
+    dailyChart->setMessage("Loading the daily values (the first time takes a few minutes: the normals are made from 360 monthly files of 1991-2020 and kept)...");
+    const bool fahrenheit = UIPreferences::unitsF;
+    new FutureVoid{this, [this, key, maximum, from, to, smooth, mine, name, fahrenheit] {
+        auto result = std::make_shared<std::vector<DroughtDaily::Point>>();
+        auto error = std::make_shared<std::string>();
+        const bool ok = DroughtDaily::departures(key, maximum, from, to, smooth, *result, *error);
+        QMetaObject::invokeMethod(this, [this, ok, result, error, mine, name, maximum, smooth, fahrenheit] {
+            if (mine != dailyGeneration) {
+                return;
+            }
+            if (!ok) {
+                dailyChart->setMessage(QString::fromStdString(*error));
+                return;
+            }
+            const double unit = fahrenheit ? 1.8 : 1.0;
+            std::vector<DailyChart::Day> days;
+            for (const auto& p : *result) {
+                days.push_back({p.date, p.departure * unit});
+            }
+            const QString what = smooth == 1 ? "daily" : QString::number(smooth) + "-day mean of";
+            dailyChart->setDays(days, QString::fromStdString(name) + ": " + what + " average " + (maximum ? "maximum" : "minimum") + " temperature, departure from the 1991-2020 normal", fahrenheit ? "\xC2\xB0" "F" : "\xC2\xB0" "C");
+            textDaily.setText(string{"NOAA nClimGrid-Daily area averages (NCEI); the normal of each day is the mean of that day over 1991-2020. The last day is the one before today, "
+                                     "as far as the files have it."});
+        }, Qt::QueuedConnection);
+    }, [] {}};
 }

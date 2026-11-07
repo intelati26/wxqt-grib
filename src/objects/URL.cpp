@@ -258,6 +258,10 @@ QByteArray URL::getBytesRangeManaged(const string& url, long long start, long lo
     return fetchWithMirror(url, range, true).bytes;
 }
 
+QByteArray URL::getBytesSuffixManaged(const string& url, long long count) {
+    return fetchWithMirror(url, QByteArray{"bytes=-"} + QByteArray::number(count), true).bytes;
+}
+
 QByteArray URL::getBytesRange(const string& url, long long start, long long end) {
     UtilityLog::d("getByteRange " + url + " " + std::to_string(start) + "-" + std::to_string(end));
     auto range = QByteArray{"bytes="} + QByteArray::number(start) + "-";

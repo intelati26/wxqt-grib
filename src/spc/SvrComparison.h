@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include "ui/Button.h"
+#include "misc/OutlookNav.h"
 #include "ui/ComboBox.h"
 #include "ui/HBox.h"
 #include "ui/ControlRow.h"
@@ -31,6 +32,7 @@ public:
     explicit SvrComparison(Window * parent);
 
 private:
+    OutlookNav nav;
     struct Panel {
         string title;
         string url;       // "" = nothing for this day

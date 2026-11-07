@@ -5,6 +5,11 @@
 // *****************************************************************************
 
 #include "ModelViewer.h"
+#include "models/AnalysisLoop.h"
+#include "models/ChartPickers.h"
+#include "models/ChartResolution.h"
+#include "models/PaneGrid.h"
+#include "models/SubhourlyViewer.h"
 #include "objects/AnimationRenderer.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "ui/ActivityLabel.h"
@@ -34,6 +39,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include "gfs/GfsData.h"
 #include "gfs/GfsModels.h"
 #include "gfs/ChartHours.h"
 #include "hurricane/HafsIntensity.h"
@@ -48,6 +54,7 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include "models/PaletteEditor.h"
+#include "settings/SettingsMain.h"
 #include "settings/UIPreferences.h"
 #include "models/PaletteStore.h"
 #include "models/RefsPointGraph.h"
@@ -74,7 +81,8 @@ namespace {
 
 ModelViewer::ModelViewer(Window * parent, const string& modelType)
     : Window{parent}
-    , image{this}
+    , mainPane{new CompareTile{this}}
+    , image{*mainPane->image}
     , objectModel{modelType}
     , comboboxRun{this}
     , comboboxModel{this, objectModel.models}
@@ -82,11 +90,12 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , comboboxProduct{this, objectModel.paramLabels}
     , comboboxTime{this, objectModel.times}
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
+    , hover{mainPane->hover}
     , buttonProducts{this, None, "Charts..."}
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
-    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL, REFS, PPP vs deterministic", "Compare: seasonal models (same dates)"}}
+    , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL, REFS, PPP vs deterministic", "Compare: seasonal models (same dates)", "Compare: difference from the main model (same valid time)"}}
     , comboMember{this, {"Ensemble mean"}}
     , soundingPick{this, [this] { return shownProbe ? shownProbe->validUtc : QDateTime{}; }, "Model screen"}
     , buttonSector{this, None, "Area..."}
@@ -326,7 +335,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
         comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone. 'Seasonal models': the EC46, SEAS5 and CFS30 side by side, each in the period that overlaps the main one most. 'ENS-ALL, REFS, PPP vs deterministic': the pooled chart beside the matching chart of GFS, the IFS and the AIFS (precipitation of the same period, the model's own sea level pressure, heights or temperature); the REFS beside the RRFS, the HRRR and the NSSL MPAS (echoes, updraft helicity, temperature); the WPC portal's rain amount beside the global models' precipitation of the same period.");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
-        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 7)));
+        comboTilesShow.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES_SHOW", 0), 0, 8)));
         comboTiles.connect([this] {
             Utility::writePref("MODEL_TILES", std::to_string(comboTiles.getIndex()));
             applyTileLayout();
@@ -395,6 +404,26 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonOverlay->setToolTip("Draw the lines (heights, pressure) of other models over this chart's for the same valid time, each model in its own color. Save... writes it as a loop.");
         QObject::connect(buttonOverlay, &QPushButton::clicked, this, [this] { chooseOverlays(); });
         boxH2.addWidgetReal(buttonOverlay);
+        buttonRange = UiStandards::button(this, "Loop a range...");
+        buttonRange->setToolTip("A loop of the surface analyses from one date-time to another (UTC), one to four charts at once: each hour from the URMA when it is there, from the RTMA for the newest hours");
+        QObject::connect(buttonRange, &QPushButton::clicked, this, [this] {
+            const auto last = QDateTime::currentDateTimeUtc().addSecs(-3600);
+            const auto to = QDateTime{last.date(), QTime{last.time().hour(), 0}, QTimeZone::utc()};
+            std::vector<string> charts{objectModel.param};
+            for (const auto * more : {"2m_dewp_10m_wnd", "10m_wnd_gust", "total_cloud_cover", "visibility", "2m_temp_10m_wnd"}) {
+                if (static_cast<int>(charts.size()) < std::clamp(tileCount() + 1, 1, 4) && std::find(charts.begin(), charts.end(), more) == charts.end()) {
+                    charts.push_back(more);
+                }
+            }
+            new AnalysisLoop{this, objectModel.sector, charts, to.addDays(-1), to, objectModel.model.size() > 4 ? objectModel.model.substr(4) : string{}};
+        });
+        buttonRange->setVisible(false);
+        boxH2.addWidgetReal(buttonRange);
+        buttonSubhourly = UiStandards::button(this, "15 minute fields...");
+        buttonSubhourly->setToolTip("The surface fields of this model every 15 minutes (the radar, 2 m temperature and dew point, wind and gust, visibility, precipitation rate ...), a loop of one run, one to four charts at once");
+        QObject::connect(buttonSubhourly, &QPushButton::clicked, this, [this] { openSubhourly(); });
+        buttonSubhourly->setVisible(false);
+        boxH2.addWidgetReal(buttonSubhourly);
         buttonColors = UiStandards::button(this, "Colors...");
         buttonColors->setToolTip("Edit the color scale of this kind of chart: the stops, their colors and transparency, flat bands or smooth. Kept for every chart that uses the same scale.");
         QObject::connect(buttonColors, &QPushButton::clicked, this, [this] { editColors(); });
@@ -447,15 +476,10 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         grid = new QGridLayout{compareArea};
         grid->setContentsMargins(0, 0, 0, 0);
         grid->setSpacing(4);
-        mainTile = new QFrame{compareArea};
-        auto * mainColumn = new QVBoxLayout{mainTile};
-        mainColumn->setContentsMargins(2, 2, 2, 2);
-        mainColumn->setSpacing(2);
-        mainCaption = new QLabel{mainTile};
-        mainCaption->setStyleSheet("font-weight: bold;");
-        mainCaption->setWordWrap(true);
-        mainColumn->addWidget(mainCaption);
-        mainColumn->addWidget(&image, 1);
+        mainTile = mainPane;   // the chart's own pane is a tile like the others (it has no Change... button: the screen's own pickers choose its chart)
+        mainPane->setParent(compareArea);
+        mainPane->change->hide();
+        mainCaption = mainPane->caption;
         for (size_t i = 0; i < tiles.size(); i++) {
             tiles[i] = new CompareTile{compareArea};
             const int index = static_cast<int>(i) + 1;
@@ -467,47 +491,12 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
                 }
             });
         }
-        // one view for all: the zoom and place of the tile touched go to the others, and the read-out of the point under the pointer shows in each
-        std::vector<ZoomImage *> pictures{&image};
+        // one view for all: the zoom and place of the tile touched go to the others, and the read-out of the point under the pointer shows in each (the same rule as every screen of panes)
+        std::vector<PaneLink::Member> members{{&image, [this] { return hover.get(); }}};
         for (auto * tile : tiles) {
-            pictures.push_back(tile->image);
+            members.push_back({tile->image, [tile] { return tile->hover.get(); }});
         }
-        const auto hoverOf = [this] (size_t i) -> ChartHover * { return i == 0 ? hover.get() : tiles[i - 1]->hover.get(); };
-        for (size_t from = 0; from < pictures.size(); from++) {
-            QObject::connect(pictures[from], &ZoomImage::viewChanged, this, [this, pictures, from] {
-                if (syncingViews) {
-                    return;
-                }
-                syncingViews = true;
-                const auto v = pictures[from]->view();
-                for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
-                    if (to != from) {
-                        pictures[to]->setView(v);
-                    }
-                }
-                syncingViews = false;
-            });
-            QObject::connect(pictures[from], &ZoomImage::hovered, this, [this, pictures, from, hoverOf] (double fx, double fy) {
-                for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
-                    if (to != from && hoverOf(to)) {
-                        hoverOf(to)->show(fx, fy, 12, 12);
-                    }
-                    if (to != from) {
-                        pictures[to]->setLinkedCursor(fx, fy);   // the same place marked on every pane, to read the panes against each other
-                    }
-                }
-            });
-            QObject::connect(pictures[from], &ZoomImage::hoverEnded, this, [this, pictures, from, hoverOf] {
-                for (size_t to = 0; to <= static_cast<size_t>(tileCount()); to++) {
-                    if (to != from && hoverOf(to)) {
-                        hoverOf(to)->hide();
-                    }
-                    if (to != from) {
-                        pictures[to]->clearLinkedCursor();
-                    }
-                }
-            });
-        }
+        paneLink = new PaneLink{this, members, [this] { return static_cast<size_t>(tileCount()) + 1; }};
         applyTileLayout();
     }
     {   // the chart and, beside it when it is asked for, the plume: one splitter, so that the person gives each the room it wants
@@ -520,6 +509,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     strip->onSelect = [this] (int index) { selectHour(index); };
     strip->onPlay = [this] (bool on) { startPlaying(on); };
     strip->addControl(comboPreload.getView());
+    strip->addControl(ChartResolution::makeBox(this, [this] { reload(); }));   // the size the charts are drawn at: the pictures drawn at another size are other keys
     box.addWidgetReal(strip);
     plumePanel = new CfsPlumePanel{this, panes, 0.0, 0.0, "gefs", false};   // (shown, and reading, only while the pane is on)
     plumePanel->setCompact(true);   // (the GEFS pane begins with the mean and spread: all the members are a choice, 600 reads the first time)
@@ -772,7 +762,7 @@ string ModelViewer::frameKey(int hour) const {
     for (const auto& layer : hiddenLayers) {
         key += "|hide=" + layer;
     }
-    return key + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
+    return key + ChartResolution::keyPart() + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
 }
 
 void ModelViewer::setVariant(GfsRender::Variant v) {
@@ -1055,11 +1045,30 @@ void ModelViewer::showNotice(const string& text) {
     mainNotice->move(std::max(0, (image.width() - mainNotice->width()) / 2), std::max(0, (image.height() - mainNotice->height()) / 3));
     mainNotice->show();
     mainNotice->raise();
+    // a model with no run: the one button is the status page, where each model's server and what it answers are
+    if (text.find(" run on its server.") != string::npos) {
+        if (mainNoticeButton == nullptr) {
+            mainNoticeButton = new QPushButton{"Open the model sources status", &image};
+            connect(mainNoticeButton, &QPushButton::clicked, this, [this] {
+                auto * settings = new SettingsMain{this, [] {}, false, false, nullptr};
+                settings->showModelSources();
+            });
+        }
+        mainNoticeButton->adjustSize();
+        mainNoticeButton->move(std::max(0, (image.width() - mainNoticeButton->width()) / 2), mainNotice->y() + mainNotice->height() + 8);
+        mainNoticeButton->show();
+        mainNoticeButton->raise();
+    } else if (mainNoticeButton != nullptr) {
+        mainNoticeButton->hide();
+    }
 }
 
 void ModelViewer::hideNotice() {
     if (mainNotice != nullptr) {
         mainNotice->hide();
+    }
+    if (mainNoticeButton != nullptr) {
+        mainNoticeButton->hide();
     }
 }
 
@@ -1080,9 +1089,6 @@ void ModelViewer::showFrame(const Frame& frame) {
         image.setBytes(frame.bytes);
     }
     lastChart = chart;
-    if (!hover) {
-        hover = std::make_unique<ChartHover>(&image);
-    }
     hover->set(frame.probe);
     refreshStationPins();
     hodoTimer.start(120);
@@ -1810,6 +1816,15 @@ void ModelViewer::reload() {
     if (buttonPlace != nullptr) {
         buttonPlace->setVisible(objectModel.sector.compare(0, 6, "LOCAL:") == 0);
     }
+    if (buttonSubhourly != nullptr) {
+        {   // the models whose 15 minute files are read
+            const auto * def = GfsModels::find(objectModel.model);
+            buttonSubhourly->setVisible(def != nullptr && def->subhourly);
+        }
+    }
+    if (buttonRange != nullptr) {
+        buttonRange->setVisible(objectModel.model.compare(0, 4, "RTMA") == 0 || objectModel.model.compare(0, 4, "URMA") == 0);
+    }
     if (buttonOnMap != nullptr) {
         buttonOnMap->setVisible(GfsRender::drawsModel(objectModel.model) && GfsRender::handles(objectModel.model, objectModel.param));
     }
@@ -1871,7 +1886,8 @@ void ModelViewer::reload() {
         }
         const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = runToDraw;
         const auto overlayIds = overlays;
-        const auto shownVariant = variant;
+        auto shownVariant = variant;
+        shownVariant.scale = ChartResolution::scale();   // the size the charts are drawn at (the key of this frame has it)
         const int hour = std::atoi(objectModel.getTime().c_str());
         if (const auto cached = frames.find(frameKey(hour)); cached != frames.end()) {   // drawn already (play, or a visit before)
             showFrame(cached->second);
@@ -1953,7 +1969,22 @@ vector<string> ModelViewer::runLabels() const {
         return labels;
     }
     auto utc = newest;
-    utc.setTimeSpec(Qt::UTC);
+    utc.setTimeZone(QTimeZone::utc());
+    if (const auto * def = GfsModels::find(objectModel.model); def != nullptr && def->source("").wrf.enabled) {   // a model made on this computer: each entry is the newest run it has at that hour, with its date
+        const auto found = GfsData::wrfRunsIn(def->source("").wrf.folders);
+        for (const auto& run : objectModel.runs) {
+            string newestOfHour, newestOverall = found.empty() ? string{} : found.back().id;
+            for (auto it = found.rbegin(); it != found.rend(); ++it) {
+                if (it->id.compare(8, 2, run, 0, 2) == 0) {
+                    newestOfHour = it->id;
+                    break;
+                }
+            }
+            const auto t = QDateTime::fromString(QString::fromStdString(newestOfHour), "yyyyMMddHH");
+            labels.push_back(newestOfHour.empty() ? run : run + "  " + (newestOfHour == newestOverall ? string{"newest"} : t.toString("MMM d").toStdString()));
+        }
+        return labels;
+    }
     for (const auto& run : objectModel.runs) {
         bool ok = false;
         const int hour = run.size() >= 2 ? QString::fromStdString(run.substr(0, 2)).toInt(&ok) : 0;
@@ -1961,7 +1992,7 @@ vector<string> ModelViewer::runLabels() const {
             labels.push_back(run);
             continue;
         }
-        auto t = QDateTime{utc.date(), QTime{hour, 0}, Qt::UTC};
+        auto t = QDateTime{utc.date(), QTime{hour, 0}, QTimeZone::utc()};
         if (t > utc) {
             t = t.addDays(-1);
         }
@@ -1985,6 +2016,21 @@ void ModelViewer::addLocalSectors() {
         string name;
         if (GfsChart::parseLocalId(objectModel.sector, lat, lon, shownKm, name) && shownKm > 0) {
             km = shownKm;
+        }
+    }
+    // a model made on this computer covers a region of its own: its first area is that box, and the other models' charts in the compare tiles are drawn for it too
+    sectors.erase(std::remove_if(sectors.begin(), sectors.end(), [] (const string& id) { return id.compare(0, 4, "BOX:") == 0; }), sectors.end());
+    if (const auto * def = GfsModels::find(objectModel.model); def != nullptr && def->source("").wrf.enabled) {
+        const auto source = def->source("");
+        const auto runs = GfsData::wrfRunsIn(source.wrf.folders);
+        double west = 0, south = 0, east = 0, north = 0;
+        if (!runs.empty() && GfsData::wrfDomain(UtilityGrib::gdalBinDir(), source.wrf.folders, runs.back().id, west, south, east, north)) {
+            const auto domain = GfsChart::boxId(west, south, east, north);
+            sectors.insert(sectors.begin(), domain);
+            if (domainOfferedFor != objectModel.model) {   // the first time this model is shown: its own area, not the whole country
+                domainOfferedFor = objectModel.model;
+                objectModel.sector = domain;
+            }
         }
     }
     const auto places = Location::getListLatLons();
@@ -2192,14 +2238,9 @@ namespace {
         return ProductPicker::sectorGroup(id);
     }
 
-    // what a sector is called in a list: the areas round a saved location say the place and the kilometers a side
+    // what a sector is called in a list (shared with the other screens that pick an area)
     string sectorLabel(const string& id) {
-        double lat = 0, lon = 0, km = 0;
-        string name;
-        if (GfsChart::parseLocalId(id, lat, lon, km, name)) {
-            return (name.empty() ? string{"Saved location"} : name) + ", " + std::to_string(static_cast<int>(km)) + " km square";
-        }
-        return Hafs::label(id);
+        return ChartPickers::areaLabel(id);
     }
 }
 
@@ -2238,7 +2279,7 @@ void ModelViewer::showModelPicker() {
                                            "ICON-D2", "ENS-ALL", "GEFS", "IFS-ENS", "GEPS", "NAEFS", "HREF", "REFS", "CFS30", "CFS", "EC46", "SEAS5", "GFS-WAVE", "WW3", "GEFS-WAVE"};
     const auto rank = [] (const string& id) { return static_cast<int>(std::find(first.begin(), first.end(), id) - first.begin()); };
     std::stable_sort(entries.begin(), entries.end(), [&rank] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) { return rank(a.id) < rank(b.id); });
-    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Probabilistic precipitation", "Seasonal", "Waves and ocean", "Tropical cyclones", "Archive",
+    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Probabilistic precipitation", "Seasonal", "Waves and ocean", "Air quality", "Tropical cyclones", "NWS analysis", "Archive",
                                            "SPC guidance and mesoanalysis", "Other"};
     std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
         return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
@@ -2272,43 +2313,14 @@ void ModelViewer::showSectorPicker() {
         return;
     }
     const auto model = objectModel.model;
-    std::vector<ProductPicker::Entry> entries;
-    for (const auto& id : objectModel.sectors) {
-        entries.push_back({id, sectorLabel(id), sectorGroup(id)});
-    }
-    // the groups in a fixed order: the entries are listed as the model gives them
-    std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
-        static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "Storms in the model", "Other"};
-        return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
-    });
-    std::vector<string> favorites;
-    const auto stored = Utility::readPref("SECTORFAV_" + model, "");
-    for (size_t at = 0; at < stored.size();) {
-        auto end = stored.find(',', at);
-        end = end == string::npos ? stored.size() : end;
-        if (end > at) {
-            favorites.push_back(stored.substr(at, end - at));
-        }
-        at = end + 1;
-    }
-    sectorPicker = new ProductPicker{this, model, entries, objectModel.sector, favorites, {}, {}};
-    sectorPicker->setWording("areas", "Show this area");
-    sectorPicker->resize(360, 560);
-    sectorPicker->onPick = [this] (const string& id) {
+    sectorPicker = ChartPickers::areaPicker(this, model, ChartPickers::areaEntries(objectModel.sectors), objectModel.sector, [this] (const string& id) {
         objectModel.sector = id;
         comboboxSector.block();
         comboboxSector.setIndexByValue(id);
         comboboxSector.unblock();
         refreshProductButton();
         reload();
-    };
-    sectorPicker->onFavorites = [model] (const std::vector<string>& ids) {
-        string joined;
-        for (const auto& id : ids) {
-            joined += (joined.empty() ? "" : ",") + id;
-        }
-        Utility::writePref("SECTORFAV_" + model, joined);
-    };
+    });
     sectorPicker->show();
 }
 
@@ -2319,39 +2331,21 @@ void ModelViewer::showPicker() {
         return;
     }
     const auto model = objectModel.model;
-    std::vector<ProductPicker::Entry> entries;
+    std::vector<string> ids, labels;
     int hidden = 0;
     for (size_t i = 0; i < objectModel.params.size() && i < objectModel.paramLabels.size(); i++) {
         if (chartAbsent(objectModel.params[i])) {
             hidden++;
             continue;
         }
-        const auto * product = GfsChart::product(objectModel.params[i], model);
-        entries.push_back({objectModel.params[i], objectModel.paramLabels[i], product ? GfsChart::category(*product) : string{"Other"}});
+        ids.push_back(objectModel.params[i]);
+        labels.push_back(objectModel.paramLabels[i]);
     }
-    std::vector<string> favorites;
-    const auto stored = Utility::readPref("MODELFAV_" + model, "");
-    for (size_t at = 0; at < stored.size();) {
-        auto end = stored.find(',', at);
-        end = end == string::npos ? stored.size() : end;
-        if (end > at) {
-            favorites.push_back(stored.substr(at, end - at));
-        }
-        at = end + 1;
-    }
-    picker = new ProductPicker{this, model, entries, objectModel.param, favorites, GfsChart::overlayChoices(model), overlays};
+    picker = ChartPickers::chartPicker(this, model, ChartPickers::chartEntries(model, ids, labels), objectModel.param, [this] (const string& id) { chooseChart(id); }, GfsChart::overlayChoices(model), overlays);
     if (hidden > 0) {
         picker->setNote(QString::number(hidden) + (hidden == 1 ? " chart is" : " charts are") + " not listed: the newest run of " + QString::fromStdString(model) + " has no data for " + (hidden == 1 ? "it." : "them."));
     }
-    picker->onPick = [this] (const string& id) { chooseChart(id); };
     picker->onOverlays = [this] (const std::vector<string>& ids) { setOverlays(ids); };
-    picker->onFavorites = [model] (const std::vector<string>& ids) {
-        string joined;
-        for (const auto& id : ids) {
-            joined += (joined.empty() ? "" : ",") + id;
-        }
-        Utility::writePref("MODELFAV_" + model, joined);
-    };
     picker->show();
 }
 
@@ -2359,6 +2353,23 @@ void ModelViewer::showPicker() {
 
 int ModelViewer::tileCount() const {
     return std::clamp(comboTiles.getIndex(), 0, 3);
+}
+
+// the 15 minute viewer on what is on view: the run, the area, the panes' charts, the hours round the one shown
+void ModelViewer::openSubhourly() {
+    std::vector<string> charts{objectModel.param};
+    if (tilesShow() == TilesShow::Charts) {
+        for (int i = 0; i < tileCount(); i++) {
+            if (const auto& chart = tiles[static_cast<size_t>(i)]->shownChart; !chart.empty() && std::find(charts.begin(), charts.end(), chart) == charts.end()) {
+                charts.push_back(chart);
+            }
+        }
+    }
+    const auto run = runTime(objectModel.run);
+    const auto index = comboboxTime.getIndex();
+    const int hour = index >= 0 && static_cast<size_t>(index) < objectModel.times.size() ? std::atoi(objectModel.times[static_cast<size_t>(index)].c_str()) : 1;
+    auto * viewer = new SubhourlyViewer{this, objectModel.model, objectModel.sector, run.isValid() ? run.toString("yyyyMMddHH").toStdString() : string{}, charts};
+    viewer->setLeads(std::max(15, hour * 60 - 60), std::min(1080, std::max(60, hour * 60 + 120)));
 }
 
 void ModelViewer::setOverlays(const std::vector<string>& ids) {
@@ -2382,6 +2393,15 @@ void ModelViewer::hoverAt(double fx, double fy) {
         if (tiles[static_cast<size_t>(i)]->hover) {
             tiles[static_cast<size_t>(i)]->hover->show(fx, fy, 12, 12);
         }
+    }
+}
+
+void ModelViewer::setTileModel(int index, const string& model, const string& run) {
+    if (index >= 1 && index <= tileCount()) {
+        tileSpecs[static_cast<size_t>(index) - 1].model = model;
+        tileSpecs[static_cast<size_t>(index) - 1].run = run;
+        tileSpecs[static_cast<size_t>(index) - 1].picked = true;
+        renderTile(index);
     }
 }
 
@@ -2498,6 +2518,13 @@ std::vector<string> ModelViewer::recentRuns(const string& model) {
         return out;
     }
     const auto source = def->source("");
+    if (source.wrf.enabled) {   // a model made on this computer: the runs it has, newest first (its runs are at no regular hours)
+        auto runs = GfsData::wrfRunsIn(source.wrf.folders);
+        for (auto it = runs.rbegin(); it != runs.rend() && out.size() < 16; ++it) {
+            out.push_back(it->id);
+        }
+        return out;
+    }
     const int step = std::max(1, source.cycleHours);
     auto t = QDateTime::currentDateTimeUtc().addSecs(-3600LL * source.lagHours);   // (a run is looked for from its lag after its time)
     t.setTime(QTime{t.time().hour() / step * step, 0});
@@ -2555,34 +2582,14 @@ string ModelViewer::seasonalPartner(const string& param, const string& model) {
 
 ModelViewer::TilesShow ModelViewer::tilesShow() const {
     const auto i = comboTilesShow.getIndex();
-    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : i == 4 ? TilesShow::ModelsByTime : i == 5 ? TilesShow::Parts : i == 6 ? TilesShow::Deterministic : i == 7 ? TilesShow::Seasonal : TilesShow::Charts;
+    return i == 1 ? TilesShow::Models : i == 2 ? TilesShow::Runs : i == 3 ? TilesShow::Members : i == 4 ? TilesShow::ModelsByTime : i == 5 ? TilesShow::Parts : i == 6 ? TilesShow::Deterministic : i == 7 ? TilesShow::Seasonal : i == 8 ? TilesShow::Difference : TilesShow::Charts;
 }
 
 void ModelViewer::applyTileLayout() {
     const int n = tileCount();
-    for (auto * widget : std::vector<QWidget *>{mainTile, tiles[0], tiles[1], tiles[2]}) {
-        grid->removeWidget(widget);
-    }
     mainCaption->setVisible(n > 0);
     mainTile->setFrameShape(n > 0 ? QFrame::StyledPanel : QFrame::NoFrame);
-    grid->addWidget(mainTile, 0, 0);
-    // 1 x 2: side by side; 1 x 3: a row of three; 2 x 2: two rows of two
-    for (int i = 0; i < 3; i++) {
-        const bool used = i < n;
-        tiles[static_cast<size_t>(i)]->setVisible(used);
-        if (used) {
-            const int row = n == 3 ? (i + 1) / 2 : 0;
-            const int col = n == 3 ? (i + 1) % 2 : i + 1;
-            grid->addWidget(tiles[static_cast<size_t>(i)], row, col);
-        }
-    }
-    const int columns = n == 3 ? 2 : n + 1;
-    for (int c = 0; c < 3; c++) {
-        grid->setColumnStretch(c, c < columns ? 1 : 0);
-    }
-    for (int r = 0; r < 2; r++) {
-        grid->setRowStretch(r, r == 0 || n == 3 ? 1 : 0);
-    }
+    PaneLayout::apply(grid, {mainTile, tiles[0], tiles[1], tiles[2]}, n + 1);   // 1, 1 x 2, 1 x 3 or 2 x 2: the rule of every screen of panes
     mainTile->setVisible(true);
 }
 
@@ -2606,7 +2613,7 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
                 others.push_back(name);
             }
         }
-    } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
+    } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime || show == TilesShow::Difference) {
         for (const auto& id : {"GFS", "IFS", "AIFS"}) {   // the global models first, so that a regional model (the RRFS) is set beside the GFS and the IFS, not the first regional models of the registry
             if (id != objectModel.model && GfsRender::handles(id, objectModel.param)) {
                 others.push_back(id);
@@ -2625,7 +2632,7 @@ void ModelViewer::resetTileSpecs(bool keepPicked) {
         Spec spec{objectModel.model, objectModel.param, objectModel.sector, 0};
         if (show == TilesShow::Charts) {
             spec.param = k < others.size() ? others[k] : objectModel.param;
-        } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
+        } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime || show == TilesShow::Difference) {
             spec.model = k < others.size() ? others[k] : string{};
         } else if (show == TilesShow::Members) {
             spec.member.clear();   // the next members after the first tile's (tileMember)
@@ -2670,8 +2677,8 @@ QDateTime ModelViewer::runTime(const string& run) const {
     if (!newest.isValid() || !ok) {
         return {};
     }
-    newest.setTimeSpec(Qt::UTC);
-    auto t = QDateTime{newest.date(), QTime{hour, 0}, Qt::UTC};
+    newest.setTimeZone(QTimeZone::utc());
+    auto t = QDateTime{newest.date(), QTime{hour, 0}, QTimeZone::utc()};
     return t > newest ? t.addDays(-1) : t;
 }
 
@@ -2715,6 +2722,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.variant.overlayModels = overlayModels;
         job.variant.overlayKeepFill = overlayKeepFill;
         job.variant.hideKeys = hiddenLayers;
+        job.variant.scale = ChartResolution::scale();
         job.key = frameKey(mainHour);
     } else {
         const auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
@@ -2795,14 +2803,14 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             } else {
                 job.cycle = t.toString("yyyyMMddHH").toStdString();
             }
-        } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
+        } else if (show == TilesShow::Models || show == TilesShow::ModelsByTime || show == TilesShow::Difference) {
             job.cycle = !spec.run.empty() ? spec.run : spec.model == objectModel.model ? objectModel.run : string{};   // the run chosen with the tile's button; else the main chart's run (the same model) or the newest
         }
         if (job.ok && !GfsRender::handles(job.model, job.param)) {
             job.ok = false;
             job.why = job.model + " does not draw " + job.param + ".";
         }
-        const bool byClock = show == TilesShow::ModelsByTime || (show == TilesShow::Deterministic && objectModel.model == "WPC-PPP");
+        const bool byClock = show == TilesShow::ModelsByTime || show == TilesShow::Difference || (show == TilesShow::Deterministic && objectModel.model == "WPC-PPP");
         if (job.ok && index > 0 && show != TilesShow::Seasonal && !byClock) {   // a model with no forecast for that hour: say which hours it has (the run that is too short, the model that stops earlier, the hour between its steps)
             const auto * def = GfsModels::find(job.model);
             if (def != nullptr && !def->hours.empty()) {
@@ -2881,16 +2889,24 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
                 job.why = "The date of the run is not known yet.";
             } else {
                 v.validTime = start.addSecs(3600LL * mainHour).toString("yyyyMMddHH").toStdString();
+                if (show == TilesShow::Difference) {   // this tile's chart minus the main one's
+                    v.kind = GfsRender::Variant::Kind::Difference;
+                    v.otherModel = objectModel.model;
+                    v.otherRun = start.toString("yyyyMMddHH").toStdString();   // the main chart's own run (it may be an old one), not the newest of its model
+                }
             }
         }
         job.variant = v;
         string vk;
         if (v.kind == GfsRender::Variant::Kind::Change) {
             vk = "|change" + std::to_string(v.hoursBack);
+        } else if (v.kind == GfsRender::Variant::Kind::Difference) {
+            vk = "|diff" + v.otherModel + v.otherRun;
         } else if (v.kind == GfsRender::Variant::Kind::Max && !v.hours.empty()) {
             vk = "|max" + std::to_string(v.hours.front()) + "-" + std::to_string(v.hours.back());
         }
-        job.key = job.model + "|" + job.param + "|" + job.sector + "|" + job.cycle + "|" + std::to_string(job.hour);
+        job.variant.scale = ChartResolution::scale();
+        job.key = job.model + "|" + job.param + "|" + job.sector + "|" + job.cycle + "|" + std::to_string(job.hour) + ChartResolution::keyPart();
         for (const auto& id : job.overlays) {
             job.key += "|" + id;
         }
@@ -2925,7 +2941,7 @@ string ModelViewer::caption(const Job& job) const {
         run = job.cycle.empty() ? string{"newest run"} : job.cycle;
     }
     return (job.variant.poolOnly.empty() ? job.model : (job.variant.poolOnly == "IFS-ENS" ? string{"ECMWF"} : job.variant.poolOnly) + " only") + "   " + (product ? product->label : job.param) + "   " + run + (job.variant.member.empty() ? string{} : "   " + memberLabel(job.variant.member)) +
-        (job.variant.kind == GfsRender::Variant::Kind::Change ? "   (change)" : "");
+        (job.variant.kind == GfsRender::Variant::Kind::Change ? "   (change)" : job.variant.kind == GfsRender::Variant::Kind::Difference ? "   (minus " + job.variant.otherModel + ")" : "");
 }
 
 void ModelViewer::renderTiles() {
@@ -2982,9 +2998,9 @@ void ModelViewer::showTile(int index, const Job& job, const Frame& frame) {
     tile->setChart(frame.bytes, frame.probe, job.chart);
     const auto v = image.view();
     if (!v.fitted) {
-        syncingViews = true;
+        paneLink->block(true);
         tile->image->setView(v);
-        syncingViews = false;
+        paneLink->block(false);
     }
 }
 
@@ -3018,7 +3034,7 @@ void ModelViewer::changeTile(int index) {
         return;
     }
     QMenu menu;
-    if (show == TilesShow::Models || show == TilesShow::ModelsByTime) {
+    if (show == TilesShow::Models || show == TilesShow::ModelsByTime || show == TilesShow::Difference) {
         // two lists: the deterministic models and the ensembles (an ensemble's chart is its mean or its spread: not read the same way)
         for (const bool ensembles : {false, true}) {
             bool headed = false;

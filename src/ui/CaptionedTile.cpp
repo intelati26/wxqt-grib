@@ -19,6 +19,7 @@ QWidget * CaptionedTile::make(QWidget * parent, QWidget * picture, const QString
     stack->addStretch(1);
     if (!caption.isEmpty()) {
         auto * label = new QLabel{caption, tile};
+        label->setObjectName("caption");
         label->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
         if (wrap) {
             label->setWordWrap(true);

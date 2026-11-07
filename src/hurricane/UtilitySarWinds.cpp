@@ -11,6 +11,7 @@
 #include <chrono>
 #include <mutex>
 #include <QDateTime>
+#include <QTimeZone>
 #include "util/UtilityIO.h"
 
 const string UtilitySarWinds::base{"https://www.star.nesdis.noaa.gov/socd/mecb/sar/"};
@@ -197,7 +198,7 @@ string UtilitySarWinds::summary(const Index& index, const string& idText) {
             continue;
         }
         auto when = QDateTime::fromString(QString::fromStdString(pass.time), "yyyy-MM-dd HH:mm");
-        when.setTimeSpec(Qt::UTC);
+        when.setTimeZone(QTimeZone::utc());
         if (when >= now.addSecs(-1800) && (next == nullptr || pass.time < next->time)) {
             next = &pass;
         }

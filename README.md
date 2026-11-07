@@ -22,6 +22,14 @@ below is in the toolbar (group names in the grouped toolbar style are in bracket
   loop, **change since an earlier run**, **maximum over 24 hours or Day 1**, saved views, a click for a **sounding**, the newest and
   yesterday's runs marked, and Save (the picture, the loop or a whole comparison). Only the box of a region is downloaded where NOAA's server can
   cut one. Fields are kept for 48 hours (2 GB) in the cache; Settings shows its size.
+- **Models made on this computer** - ArWen and WOOF-NAM (the GPU port of the NAM that NCEP retired on 3 November 2026) are Model Viewer models like the others: a run is a
+  folder of hourly WRF-format history files (`wrfout_d01_*`), read with GDAL and put on latitude / longitude from the file's own `XLAT` / `XLONG`, so a Lambert or a rotated
+  grid both work. Settings > Local Runs gives the folders to look in and lists the runs found; the run box lists the runs the model has (with their dates) instead of every
+  cycle of the day, and the area box offers the run's own domain, so the compare tiles draw the other models for that box. **Compare: difference from the main model (same valid
+  time)** draws a tile as its model minus the main chart's, with the hover read-out of the difference; **MRMS** (the observed composite reflectivity, NOAA's open bucket)
+  is a model too, so a simulated reflectivity can be put beside what was observed. There is no plugin system: another WRF-format model is one more definition file
+  (`kind = wrf`, `run_folders`; see `docs/model-files.md`).
+- **Your own GDAL** - the Model Viewer decodes its files with GDAL's programs. The program uses the `gdal` folder next to it (the Windows package has one) and then the PATH; Settings > GDAL takes a folder instead (on Windows the `bin` folder of an OSGeo4W, QGIS or conda install: GDAL's and PROJ's tables are taken from the `share` folder beside it) and says which GDAL is in use and whether it has GRIB, netCDF and HDF5. The IFS and AIFS need a GDAL built with libaec.
 - **Verify against MRMS** (Analysis menu, on a reflectivity chart) - every run of the model that has a forecast for a time on the hour, scored
   against the MRMS composite reflectivity of that time (or the maximum of the hour): POD, FAR, CSI and bias at 20 / 35 / 50 dBZ, the Fractions Skill Score over
   10 / 25 / 50 km, and the model, MRMS and hit / miss / false alarm pictures. A run the server does not have for that hour says so.
@@ -84,6 +92,8 @@ and their old runs stay. The program has no SREF.
 | REFS | CONUS, 5 member ensemble | AWS (`noaa-rrfs-ops-pds`) | replaces the HREF |
 | SPC REFS and post-processing | CONUS | SPC open Zarr data; NOMADS `spc_post` | experimental |
 | HRRR | CONUS | AWS (`noaa-hrrr-bdp-pds`) | |
+| ArWen, WOOF-NAM | the run's own domain | files on this computer (Settings > Local Runs) | WRF-format history; ArWen is Lambert, WOOF-NAM's nests are on the NAM's rotated grid |
+| MRMS (observed) | CONUS | AWS (`noaa-mrms-pds`) | composite reflectivity only, the first scan of each hour, for comparing the models with |
 | MPAS-HT (MPAS-HTPO-NSSL) | CONUS, 3 km | NSSL data server (`FRDD/NSSL-MPAS`, `*_mpasht2.tar`) | started from the HRRR; research output, not for forecasting |
 | MPAS-RN (MPAS-RN-NSSL) | CONUS, 3 km | NSSL data server (`*_mpasrn.tar`, 00 and 12Z) | started from the RRFS; research output, not for forecasting |
 
@@ -235,7 +245,7 @@ is sent, and the requests carry the program's name, and the contact address only
 NOAA / NWS (NHC, SPC, WPC, OPC, CPC, NESDIS OSPO and Coral Reef Watch, NCEP, NSSL, MRMS), CIRA / RAMMB (Colorado State),
 JTWC, JMA, ECMWF open data (CC BY 4.0), Open-Meteo (CC BY 4.0: the EC46 and SEAS5 forecasts, ERA5 history and the pressure line, see above), NOAA PSL (the reanalysis for the climatology), the U.S. Drought Monitor, AWS and Google Cloud open data (mirrors). SPC's REFS, CIRA's products and several NSSL models are **experimental**; this is not a
 warning service - see the disclaimer below. Sounding algorithms: SHARPpy (BSD), see `licenses/sharppy-notice.md`.
-zstd (BSD / GPLv2) is vendored for the Zarr reader, see `licenses/zstd-LICENSE.txt`. GDAL (MIT), PROJ (MIT), ECMWF ecCodes (Apache 2.0), Qt and the
+zstd (BSD / GPLv2) is vendored for the Zarr reader, see `licenses/zstd-LICENSE.txt`. The om-file-format decoder (Open-Meteo) is vendored for their `.om` model files, see `src/external/omfile/LICENSE`. GDAL (MIT), PROJ (MIT), ECMWF ecCodes (Apache 2.0), Qt and the
 data providers are credited in `licenses/CREDITS.md`.
 
 Prerequisites:

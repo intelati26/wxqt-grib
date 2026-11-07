@@ -123,6 +123,30 @@ namespace {
 }
 
 namespace {
+    // The RRFS makes a run every hour, but only every third (00, 03, 06 ...) has the hourly files; the others have the same hours (to 18) as 15 minute "subhourly" files: the 2D fields of
+    // hour N are in "2dfld.3km.subh.fNNN", whose last records are the hour itself (GfsGrid::parseIdx names those as the hourly files name theirs). No pressure levels for those runs.
+    GfsModels::Def rrfsWithSubhourly(const std::string& id, const std::string& subhFile = "2dfld.3km.subh") {
+        auto def = fromFile(id);
+        def.subhourly = true;
+        const auto base = def.source;
+        def.source = [base, subhFile] (const std::string& storm) {
+            auto s = base(storm);
+            const auto fileOf = s.fileOf;
+            s.fileOf = [fileOf, subhFile] (const GfsData::Want& want) {   // a record asked for by its minutes is in the subhourly file of the hour
+                return want.forecast.find(" min ") != std::string::npos ? subhFile : (fileOf ? fileOf(want) : std::string{});
+            };
+            const auto fileUrl = s.fileUrl;
+            s.fileUrl = [fileUrl] (const GfsData::Run& run, int hour, const std::string& file) {
+                const bool subhourly = std::atoi(run.cycle.c_str()) % 3 != 0 && hour > 0 && file.compare(0, 6, "2dfld.") == 0 && file.find(".subh") == std::string::npos;
+                return fileUrl(run, hour, subhourly ? file + ".subh" : file);
+            };
+            return s;
+        };
+        return def;
+    }
+}
+
+namespace {
     // the RTMA and URMA files: a different ending in each era of the buckets
     GfsModels::Def surfaceAnalysis(const std::string& id) {
         auto def = fromFile(id);
@@ -239,7 +263,7 @@ std::string GfsModels::pickerGroup(const std::string& id) {
         return def->group;
     }
     static const std::map<std::string, std::string> groups{
-        {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"}, {"GEOS-FP", "Global"}, {"CFS", "Seasonal"}, {"CFS-ANL", "Seasonal"}, {"CFS30", "Seasonal"}, {"EC46", "Seasonal"}, {"SEAS5", "Seasonal"},
+        {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"}, {"GEOS-FP", "Global"}, {"CFS", "Seasonal"}, {"CFS-ANL", "Seasonal"}, {"CFS30", "Seasonal"}, {"EC46", "Seasonal"}, {"SEAS5", "Seasonal"}, {"MRMS", "Archive"},
         {"NAM", "Archive"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Archive"},
         {"HRRR", "Convection allowing"}, {"MPAS-HT", "Convection allowing"}, {"MPAS-RN", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"RRFS-AK", "Convection allowing"}, {"HRRR-AK", "Convection allowing"}, {"ICON-EU", "Regional"}, {"ICON-D2", "Convection allowing"}, {"HRDPS", "Convection allowing"}, {"RRFS-HI", "Convection allowing"}, {"RRFS-PR", "Convection allowing"}, {"RRFS-NA", "Regional"}, {"NAM-HIRES", "Archive"}, {"HRW-ARW", "Archive"},
         {"HRW-ARW2", "Archive"}, {"HRW-FV3", "Archive"},
@@ -286,9 +310,30 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("MPAS-HT"));
         m.push_back(fromFile("MPAS-RN"));
         m.push_back(fromFile("EC46"));
+        m.push_back(fromFile("MRMS"));
+        m.push_back(fromFile("ARWEN"));
+        m.push_back(fromFile("WOOF-NAM"));
         m.push_back(fromFile("SEAS5"));
         m.push_back(fromFile("HRDPS"));
         m.push_back(fromFile("ICON-D2"));
+        m.push_back(fromFile("ICON"));
+        m.push_back(fromFile("UKMO"));
+        m.push_back(fromFile("GSM"));
+        m.push_back(fromFile("ARPEGE"));
+        m.push_back(fromFile("GRAPES"));
+        m.push_back(fromFile("HGEFS"));
+        m.push_back(fromFile("AROME"));
+        m.push_back(fromFile("AROME-HD"));
+        m.push_back(fromFile("ARPEGE-EU"));
+        m.push_back(fromFile("GDPS"));
+        m.push_back(fromFile("MSM"));
+        m.push_back(fromFile("MSM-UL"));
+        m.push_back(fromFile("MF-SST"));
+        m.push_back(fromFile("MF-WAVE"));
+        m.push_back(fromFile("MF-CURRENT"));
+        m.push_back(fromFile("COPERNICUS"));
+        m.push_back(fromFile("ICON-2I"));
+        m.push_back(fromFile("AROME-AT"));
         m.push_back(cfsAnalysis());
         m.push_back(rapAnalysis());
         m.push_back(fromFile("GFS-ANL"));
@@ -298,12 +343,17 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("NARR"));
         m.push_back(surfaceAnalysis("RTMA"));
         m.push_back(surfaceAnalysis("URMA"));
-        m.push_back(fromFile("RRFS"));
+        for (const char * region : {"AK", "HI", "PR"}) {   // the same analyses for Alaska, Hawaii and Puerto Rico (their own folders of the buckets)
+            m.push_back(fromFile(std::string{"RTMA-"} + region));
+            m.push_back(fromFile(std::string{"URMA-"} + region));
+        }
+        m.push_back(fromFile("RTMA-GU"));   // Guam has an RTMA only
+        m.push_back(rrfsWithSubhourly("RRFS"));
         m.push_back(fromFile("RRFS-AK"));
         m.push_back(fromFile("RRFS-HI"));
         m.push_back(fromFile("RRFS-PR"));
         m.push_back(fromFile("RRFS-NA"));
-        m.push_back(fromFile("HRRR"));
+        m.push_back(rrfsWithSubhourly("HRRR", "subh"));
         m.push_back(fromFile("HRRR-AK"));
         m.push_back(fromFile("ICON-EU"));
         m.push_back(fromFile("HREF"));
@@ -317,13 +367,6 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("GEFS-WAVE"));
         m.push_back(fromFile("HAFSA"));
         m.push_back(fromFile("HAFSB"));
-        for (auto& d : m) {   // what each is and why it matters
-            for (const auto& [name, text] : GfsModelFile::aboutBuiltIn()) {
-                if (name == d.id && d.why.empty()) {
-                    GfsModelFile::applyAbout(d, text);
-                }
-            }
-        }
         // the models of the user's folder, after the built-in ones (a file that does not parse, or repeats an id, is left out: userProblems says why)
         for (auto& parsed : GfsModelFile::loadFolder(userFolder)) {
             if (parsed.ok && std::none_of(m.begin(), m.end(), [&parsed] (const Def& d) { return d.id == parsed.def.id; })) {

@@ -54,13 +54,16 @@ namespace GfsRender {
     // A chart made from the chart's fill instead of the plain chart: the largest value of it over a list of forecast hours (a 24 hour maximum), or its change since the run
     // hoursBack hours earlier at the same valid time
     struct Variant {
-        enum class Kind { None, Max, Change };
+        enum class Kind { None, Max, Change, Difference };
         Kind kind{Kind::None};
         std::vector<int> hours;
         int hoursBack{0};
+        std::string otherRun;     // Difference: that model's run ("yyyyMMddHH") when it is a particular one; "" the run of the nearest time at or before this chart's
+        std::string otherModel;   // Difference: this chart (the model drawn) minus the same chart of this model at the same valid time
         bool standardDeviations{false};   // an anomaly chart in standard deviations (GfsChart::withStandardDeviations)
         // the valid time to draw ("yyyyMMddHH", UTC): the forecast hour is then worked out from the run actually used, so models of other runs are compared at the same real time
         std::string validTime;
+        int minutes{0};   // a subhourly time of the run, in minutes of lead (the RRFS and HRRR 15 minute files: 195 is 3 h 15 min; `hour` is then the file's hour, the one the minutes fall in); 0: the hour
         std::string poolOnly;   // a pooled chart (ENS-ALL) from one of its ensembles' members only: "IFS-ENS", "GEFS" or "GEPS" (GfsChart::withPoolOnly)
         std::vector<std::string> hideKeys;   // the keys of the chart's layers (GfsChart::Product::layers) left out: a paintball without them, its chance lines worked out from the others
         std::string member;   // one ensemble member instead of the mean (GfsChart::withMember); "" the chart as it is
@@ -111,6 +114,8 @@ namespace GfsRender {
     bool firstHourMissing(Session& session, const std::string& model, const std::string& param, const std::string& runId);
     // the newest published run of the model as the screen writes a run ("12Z"); false when none is found (no connection)
     // storm is the HAFS storm ("09l"); it is the "sector" of the HAFS charts, whose grid follows the storm
+    // which of the subhourly times (minutes of lead) of a run have the fields of a chart; the quarter hours are in the files of the hour they end (15, 30, 45 and 60 are in the file of hour 1)
+    std::vector<int> availableMinutes(Session& session, const std::string& model, const std::string& param, const std::string& runId, const std::vector<int>& minutes);
     bool latestCycle(const std::string& model, std::string& cycle, const std::string& storm = "", std::string * date = nullptr);
     // The forecast track of a storm from the hurricane model ("HAFSA" / "HAFSB") in its newest complete run, with the run's name ("12Z"); empty when the model has none for it
     std::vector<GfsChart::TrackPoint> hafsTrack(const std::string& model, const std::string& storm, std::string& cycle);

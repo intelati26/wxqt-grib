@@ -45,6 +45,8 @@ namespace GfsModels {
         std::string id;                                // the model screen's name: "GFS", "RRFS"
         std::string label;                             // the credit under a chart
         std::string group;                             // where the model screen's picker puts it ("": by its id, or Other)
+        std::string alternate;                         // `alternate = ID | what it is`: another model to use meanwhile (the same system from another server, or a comparable model); a chart says so when this one has no run (nothing is mapped or swapped)
+        std::string alternateNote;                     // the words after the "|": what the alternate is
         std::string why;                               // why the model matters, in a few sentences (the Help screen)
         struct Link {
             std::string kind;                          // wikipedia (an article about the model), background (about the idea), docs (the people who run it), source (where the data is read from)
@@ -56,6 +58,7 @@ namespace GfsModels {
         Sectors sectors{Sectors::World};
         std::vector<Hours> hours;                      // the forecast hours the model screen offers
         bool hourlyRuns{false};                        // a run every hour in the run list, not four a day
+        bool subhourly{false};                         // its 15 minute surface files are read (the RRFS and HRRR): the model screen has a button for the 15 minute viewer
         int cycleStep{6};                              // hours between runs when not hourly (GEPS: 12, so the run list is 00Z and 12Z)
         bool storm{false};                             // the model is run for a storm: its screen picks the storm, and its grid is the storm's
         bool overlays{false};                          // the GFS set of lines and wind barbs can be ticked onto its charts (a model may have overlays of its own besides)

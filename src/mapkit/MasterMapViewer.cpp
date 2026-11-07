@@ -53,6 +53,7 @@
 #include <QScrollArea>
 #include "mapkit/WorldRender.h"
 #include "settings/RadarPreferences.h"
+#include "models/ChartPickers.h"
 #include "models/ProductPicker.h"
 #include "objects/UtilityAnimationExport.h"
 #include "models/SoundingViewer.h"
@@ -2312,9 +2313,7 @@ void MasterMapViewer::chooseArea() {
         }
     }
     static const std::vector<string> order{"Around a saved location", "United States", "North America and the Caribbean", "Continents", "Oceans", "World and poles", "NWS forecast offices", "River forecast centers", "States (outline)", "Other"};
-    std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
-        return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
-    });
+    ChartPickers::sortByGroup(entries, order);
     auto * picker = new ProductPicker{this, "areas", entries, "", {}, {}, {}};
     picker->setAttribute(Qt::WA_DeleteOnClose);
     picker->setWording("areas", "Show this area");

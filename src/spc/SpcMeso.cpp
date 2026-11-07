@@ -15,6 +15,7 @@
 
 SpcMeso::SpcMeso(Window * parent, const string& productCode, const string& sectorCode, bool savePrefs)
     : Window{parent}
+    , nav{this, OutlookNav::Mesoanalysis}
     , autoUpdate{this, "SPCMESO_AUTO_UPDATE_INTERVAL", 15, [this] { reload(); }}
     , image{this}
     , comboboxSector{this, UtilitySpcMeso::sectors}
@@ -39,6 +40,7 @@ SpcMeso::SpcMeso(Window * parent, const string& productCode, const string& secto
     comboboxSector.setIndex(findex(objectAnimate.sector, UtilitySpcMeso::sectorCodes));
     comboboxSector.connect([this] { changeSector(); });
 
+    boxFav.addWidget(nav.combo());
     boxFav.addWidget(comboboxSector);
     boxFav.addLayout(backForward);
     boxFav.addWidget(autoUpdate);

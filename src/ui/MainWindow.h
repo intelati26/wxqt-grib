@@ -34,6 +34,7 @@
 #include "misc/UtilityForecastPoint.h"
 #include <memory>
 #include <QPointer>
+#include <QTimer>
 
 using std::string;
 using std::unordered_map;
@@ -48,6 +49,9 @@ public:
 //     bool event(QEvent *) override;
 
 private:
+    // (first among the members: the window can be resized while the others are still being made, and a resize starts this timer)
+    QTimer fitTimer;                                 // a quarter second after the last resize the thumbnails are fitted to the rows
+    int fitSize{0};                                  // the width the thumbnails are at now when they fit the rows (0: the set size)
     void reload();
     void getCc();
     void get7day();
@@ -61,8 +65,12 @@ private:
     static string computeTokenString();
     void locationChange();
     void addWidgets();
+    void loadThumbnail(const string& token);   // fetch and show one home picture
     void arrangeColumns();
     void launchImageScreen(const string&);
+public:
+    void clickPicture(const string& token) { launchImageScreen(token); }   // (for a development aid: a click on that home picture)
+private:
     void downloadWatch();
     void updateWatch();
     bool launch(int);
@@ -104,6 +112,10 @@ private:
     string hourlyGraphJson;   // downloaded off the GUI thread, drawn on it
     WeatherGraph hourlyGraph;   // Added: Hourly weather graph widget
     unordered_map<string, Image> imageWidgets;
+    unordered_map<string, QWidget *> imageTiles;     // the picture and its caption, for each home thumbnail
+    unordered_map<string, QByteArray> imageBytes;    // the picture as it came, to scale it again when the row is refitted
+    void fitThumbnails();
+    int thumbnailSize() const { return fitSize > 0 ? fitSize : UIPreferences::mainScreenImageSize; }
     unordered_map<string, Text> textWidgets;
     string tokenString;
     int imageSize{UIPreferences::mainScreenImageSize};

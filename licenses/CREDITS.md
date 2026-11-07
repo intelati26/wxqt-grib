@@ -12,8 +12,12 @@ called as a separate program, or only used to check our own code, that is said.
   (`tests/hurricane/`), and the open-data GRIB reader for ECMWF's models uses its field names and index (ecCodes is not linked). https://confluence.ecmwf.int/display/ECC
 - **SHARPpy** (BSD): the sounding algorithms ported to C++, see `sharppy-notice.md`.
 - **zstd** (BSD / GPLv2, Meta): vendored for the Zarr reader, see `zstd-LICENSE.txt`.
+- **om-file-format** (Open-Meteo, Patrick Zippenfenig; the repository's LICENSE is GPL-2.0, and its TurboPFor compression code, Copyright (C) powturbo, is GPLv2 or later): vendored as the decoder for
+  Open-Meteo's `.om` files in `src/external/omfile/`, with `LICENSE` beside it. https://github.com/open-meteo/om-file-format
 
 ## Data
+- **Open-Meteo.com**: the `.om` files on its open bucket (ICON, UK Met Office, JMA GSM and MSM, ARPEGE and AROME, GRAPES, CMC GDPS, ARPAE ICON-2I, GeoSphere AROME, the Hybrid GEFS mean, the EC46 weekly maps). The data are the output of the weather
+  services named in each model's Help page, redistributed by Open-Meteo under its own terms (https://open-meteo.com/en/terms): credit it where the data are shown, and read the terms before any commercial use. Not checked in detail.
 - **NOAA / NWS / NCEP / NHC / SPC / WPC / OPC / NESDIS / NSSL / MRMS**: US government works. GFS, GEFS, NBM, HREF, RRFS, REFS, HAFS, GFS-Wave, AIGFS and the rest of the
   model guidance come from NOAA's open data (NOMADS and the AWS Open Data buckets).
 - **U.S. Drought Monitor** (produced jointly by the National Drought Mitigation Center at the University of Nebraska-Lincoln, the USDA and NOAA; droughtmonitor.unl.edu): the weekly maps, the change maps and the area statistics on the drought screen.

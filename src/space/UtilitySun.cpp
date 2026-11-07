@@ -234,16 +234,58 @@ QString UtilitySun::describe(const Placed& p) {
     return text;
 }
 
-QImage UtilitySun::disc(int width) {
-    // SDO's own pictures of the HMI intensitygram, 1024, 2048 or 4096 pixels (the SWPC's is 512): the size that holds `width`; the SWPC's when SDO's cannot be read
-    const int size = width <= 1024 ? 1024 : width <= 2048 ? 2048 : 4096;
+QImage UtilitySun::disc(int width, const std::string& product) {
+    // SDO's own pictures, 512, 1024, 2048 or 4096 pixels (the SWPC's of the HMI intensitygram is 512): the size that holds `width`; for the HMI visible picture the SWPC's when SDO's cannot be read
+    const int size = width <= 512 ? 512 : width <= 1024 ? 1024 : width <= 2048 ? 2048 : 4096;
     QImage picture;
-    picture.loadFromData(UtilityIO::downloadAsByteArray("https://sdo.gsfc.nasa.gov/assets/img/latest/latest_" + std::to_string(size) + "_HMII.jpg"));
-    if (picture.isNull() || picture.width() < 500) {
+    picture.loadFromData(UtilityIO::downloadAsByteArray("https://sdo.gsfc.nasa.gov/assets/img/latest/latest_" + std::to_string(size) + "_" + product + ".jpg"));
+    if ((picture.isNull() || picture.width() < 500) && product == "HMII") {
         picture = QImage{};
         picture.loadFromData(UtilityIO::downloadAsByteArray("https://services.swpc.noaa.gov/images/animations/sdo-hmii/latest.jpg"));
     }
     return picture;
+}
+
+const std::vector<UtilitySun::Product>& UtilitySun::products() {
+    static const std::vector<Product> list{
+        {"Visible light, with active regions (SDO HMI)", "HMII", 0, true},
+        {"Magnetogram, with active regions (SDO HMI)", "HMIB", 0, true},
+        {"Magnetogram in colour, with active regions (SDO HMI)", "HMIBC", 0, true},
+        {"171 A: corona, 600,000 K (SDO AIA)", "0171", 0, false},
+        {"193 A: corona and flares (SDO AIA)", "0193", 0, false},
+        {"211 A: active regions, 2 million K (SDO AIA)", "0211", 0, false},
+        {"304 A: chromosphere and prominences (SDO AIA)", "0304", 0, false},
+        {"335 A: active regions (SDO AIA)", "0335", 0, false},
+        {"94 A: flares, 6 million K (SDO AIA)", "0094", 0, false},
+        {"131 A: flares, 10 million K (SDO AIA)", "0131", 0, false},
+        {"1600 A: ultraviolet, upper photosphere (SDO AIA)", "1600", 0, false},
+        {"1700 A: ultraviolet, photosphere (SDO AIA)", "1700", 0, false},
+        {"211-193-171 A colour composite (SDO AIA)", "211193171", 0, false},
+        {"Corona, inner (SOHO LASCO C2)", "c2", 1, false},
+        {"Corona, outer (SOHO LASCO C3)", "c3", 1, false},
+        {"Corona (GOES-19 CCOR-1)", "ccor1", 2, false},
+    };
+    return list;
+}
+
+QImage UtilitySun::productPicture(const Product& product, int width, std::vector<Placed>& placed) {
+    if (product.kind == 1) {   // SOHO: 512 or 1024 pixels
+        const std::string size = width <= 512 ? "512" : "1024";
+        QImage picture;
+        picture.loadFromData(UtilityIO::downloadAsByteArray("https://soho.nascom.nasa.gov/data/realtime/" + product.code + "/" + size + "/latest.jpg"));
+        return picture;
+    }
+    if (product.kind == 2) {   // GOES-19 CCOR-1: one size, 1204 pixels
+        QImage picture;
+        picture.loadFromData(UtilityIO::downloadAsByteArray("https://services.swpc.noaa.gov/images/animations/ccor1/latest.jpg"));
+        return picture;
+    }
+    if (!product.regions) {
+        return disc(width, product.code);
+    }
+    const QImage picture = disc(width, product.code);
+    const auto regions = parseRegions(UtilityIO::downloadAsByteArray("https://services.swpc.noaa.gov/json/solar_regions.json"));
+    return labelled(picture, regions, QDateTime::currentDateTimeUtc(), picture.width(), &placed);
 }
 
 QImage UtilitySun::labelled(int width, std::vector<Placed>& placed, QDateTime * time) {

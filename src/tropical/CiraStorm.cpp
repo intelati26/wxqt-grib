@@ -8,6 +8,7 @@
 #include "ui/UiStandards.h"
 #include <QDateTime>
 #include <QImage>
+#include <QTimeZone>
 #include "misc/ImageViewer.h"
 #include "misc/TextViewerStatic.h"
 #include "objects/FutureBytes.h"
@@ -267,7 +268,7 @@ void CiraStorm::addSar() {
                     continue;
                 }
                 auto when = QDateTime::fromString(QString::fromStdString(pass.time), "yyyy-MM-dd HH:mm");
-                when.setTimeSpec(Qt::UTC);
+                when.setTimeZone(QTimeZone::utc());
                 if (when.isValid() && when >= now.addSecs(-1800) && (soonest == nullptr || when < soonestTime)) {
                     soonest = &pass;
                     soonestTime = when;

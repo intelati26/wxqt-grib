@@ -43,7 +43,10 @@ namespace {
     }
 }
 
-const vector<string> UtilityModelNcepInterface::models = buildModels();
+const vector<string>& UtilityModelNcepInterface::models() {
+    static const vector<string> list = buildModels();
+    return list;
+}
 
 const vector<string> UtilityModelNcepInterface::sectorsGfs{
     "CONUS",
@@ -76,6 +79,9 @@ const vector<string> UtilityModelNcepInterface::sectorsGfs{
     "GULF-MEXICO",
     "CENT-AMER",
     "HAWAII",
+    "HAWAII-ISLANDS",
+    "PUERTO-RICO",
+    "GUAM",
     "NORTHEAST",
     "MID-ATLANTIC",
     "SOUTHEAST",

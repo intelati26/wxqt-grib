@@ -16,6 +16,7 @@
 #include "ui/ComboBox.h"
 #include "ui/ScrolledWindow.h"
 #include "ui/Shortcut.h"
+#include "misc/OutlookNav.h"
 #include "ui/Window.h"
 
 using std::string;
@@ -26,6 +27,7 @@ public:
     explicit Nhc(Window *);
 
 private:
+    OutlookNav nav;
     void updateText();
     void launchImage(size_t);
     Window * parent;

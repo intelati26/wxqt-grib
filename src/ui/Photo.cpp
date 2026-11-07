@@ -4,6 +4,9 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include <QBuffer>
+#include <QImage>
+#include <QPainter>
 #include "Photo.h"
 #include "objects/UtilityAnimationExport.h"
 #include "settings/UIPreferences.h"
@@ -134,7 +137,28 @@ void Photo::adjustSize() {
 //     image->setAlignment(alignment);
 // }
 
-void Photo::setBytes(const QByteArray& ba) {
+namespace {
+    // the picture on white when it has transparent areas (as PNG bytes), else as it is
+    QByteArray onWhite(const QByteArray& ba) {
+        const auto source = QImage::fromData(ba);
+        if (!source.hasAlphaChannel()) {
+            return ba;
+        }
+        QImage flat{source.size(), QImage::Format_RGB32};
+        flat.fill(Qt::white);
+        QPainter painter{&flat};
+        painter.drawImage(0, 0, source);
+        painter.end();
+        QByteArray out;
+        QBuffer buffer{&out};
+        buffer.open(QIODevice::WriteOnly);
+        flat.save(&buffer, "PNG");
+        return out;
+    }
+}
+
+void Photo::setBytes(const QByteArray& original) {
+    const QByteArray ba = flatOnWhite ? onWhite(original) : original;
     bytes = ba;
     UtilityAnimationExport::setSourceBytes(image, ba);
     if (size == FullWithHeight) {

@@ -6,6 +6,8 @@
 
 #include <future>
 #include <QApplication>
+#include <QHelpEvent>
+#include <QToolTip>
 #include <QCursor>
 #include <QElapsedTimer>
 #include <QFile>
@@ -55,17 +57,31 @@
 #include "rivers/RiverForecastList.h"
 #include "misc/ProductViewer.h"
 #include "misc/SevereDashboard.h"
+#include "misc/OutlookNav.h"
 #include "spc/AbpgExtended.h"
+#include "spc/SpcCompMap.h"
+#include "spc/SpcFireSummary.h"
+#include "spc/SpcFireWeatherOutlook.h"
+#include "spc/SpcMeso.h"
+#include "spc/SpcStormReports.h"
+#include "spc/SpcSwoDay1.h"
+#include "spc/SpcSwoSummary.h"
+#include "spc/SpcTstormOutlooks.h"
+#include "spc/SvrComparison.h"
 #include "spc/WatchProbabilityViewer.h"
 #include "space/UtilitySun.h"
 #include "space/SunViewer.h"
+#include "models/AnalysisLoop.h"
+#include "models/SubhourlyViewer.h"
 #include "gfs/Cfs30Loader.h"
 #include "gfs/WpcPppLoader.h"
 #include "gfs/Ec46Loader.h"
+#include "gfs/MrmsLoader.h"
 #include "spcrefs/SpcRefsLoader.h"
 #include "hurricane/HafsIntensity.h"
 #include "hurricane/AceForecastViewer.h"
 #include <QBuffer>
+#include <QTimeZone>
 #include "ui/ChartExport.h"
 #include "ui/ExportDialog.h"
 #include "sounding/SoundingHazard.h"
@@ -78,6 +94,8 @@
 #include "mapkit/ModelChartLayer.h"
 #include "mapkit/UpperAirLayer.h"
 #include "dashboard/Dashboards.h"
+#include "models/CamsViewer.h"
+#include "settings/SettingsMain.h"
 #include "models/ModelScreen.h"
 #include "tropical/CiraStorm.h"
 #include "models/ModelViewer.h"
@@ -92,6 +110,7 @@
 #include "spc/SpcSwoStateGraphics.h"
 #include "tornado/TornadoYearsViewer.h"
 #include "ui/MainWindow.h"
+#include "ui/ToolbarGroups.h"
 #include "util/AppState.h"
 #include "util/ContactPrompt.h"
 #include "util/CrashLog.h"
@@ -105,7 +124,15 @@ namespace {
         using QApplication::QApplication;
         bool notify(QObject * receiver, QEvent * event) override {
             try {
-                return QApplication::notify(receiver, event);
+                const bool handled = QApplication::notify(receiver, event);
+                // a long plain tooltip would run across the whole screen (Qt does not wrap plain text): show it again as a box 440 pixels wide
+                if (event->type() == QEvent::ToolTip && QToolTip::isVisible()) {
+                    const auto text = QToolTip::text();
+                    if (text.size() > 100 && !Qt::mightBeRichText(text)) {
+                        QToolTip::showText(static_cast<QHelpEvent *>(event)->globalPos(), "<table width=\"440\"><tr><td>" + text.toHtmlEscaped().replace("\n", "<br>") + "</td></tr></table>", qobject_cast<QWidget *>(receiver));
+                    }
+                }
+                return handled;
             } catch (const std::exception& e) {
                 CrashLog::write(std::string{"exception in an event handler (ignored): "} + e.what() + " [" +
                                 (receiver != nullptr ? receiver->metaObject()->className() : "?") + "]");
@@ -187,6 +214,7 @@ int main(int argc, char * argv[]) {
     }
     Cfs30Loader::registerLoader();   // the CFS's next 30 days against its normal as a Model Viewer model
     WpcPppLoader::registerLoader();   // the Weather Prediction Center's probabilistic precipitation portal as a Model Viewer model
+    MrmsLoader::registerLoader();   // MRMS composite reflectivity as a Model Viewer model, to compare the models with what was observed
     Ec46Loader::registerLoader();   // the ECMWF's extended range (Open-Meteo) as a Model Viewer model
     SpcRefsLoader::registerLoader();   // SPC's REFS Zarr store as a Model Viewer model
     GfsRender::startCacheCleanup();   // the model field cache is tidied in the background, a few seconds in
@@ -217,13 +245,22 @@ int main(int argc, char * argv[]) {
             return ids.empty() ? std::vector<std::string>{"radar/mrms"} : ids;
         };
         QWidget * opened = nullptr;
+        if (qEnvironmentVariableIsSet("WXQT_TOOLBAR_DUMP")) {   // (a development aid: the toolbar's groups and their entries, to stderr)
+            for (const auto& group : ToolbarGroups::groups()) {
+                std::fprintf(stderr, "GROUP %s:", group.name.c_str());
+                for (const auto& id : group.ids) {
+                    std::fprintf(stderr, " %s", id.c_str());
+                }
+                std::fprintf(stderr, "\n");
+            }
+        }
         if (const auto route = qEnvironmentVariable("WXQT_OPEN"); !route.isEmpty()) {
             const auto before = QApplication::topLevelWidgets();
             if (route.startsWith("mrmsat:")) {   // WXQT_OPEN=mrmsat:<yyyyMMddHHmm UTC>[:lat:lon:km[:layer,layer]]: the master map at that time, MRMS (or the layers named) only
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
-                when.setTimeSpec(Qt::UTC);
+                when.setTimeZone(QTimeZone::utc());
                 map->openAt(when, parts.value(2, "35.3").toDouble(), parts.value(3, "-97.5").toDouble(), parts.value(4, "300").toDouble(), extraLayers(parts.value(5)));
                 if (const auto out = qEnvironmentVariable("WXQT_EXPORT_PNG"); !out.isEmpty()) {   // WXQT_EXPORT_PNG=<file> [WXQT_EXPORT_ACIS=<measure id>]: the map saved after WXQT_EXPORT_MS (a picture; the ACIS context under it when asked)
                     QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_EXPORT_MS") > 0 ? qEnvironmentVariableIntValue("WXQT_EXPORT_MS") : 20000, map, [map, out] { map->exportWithContext(out, qEnvironmentVariable("WXQT_EXPORT_ACIS").toStdString(), qEnvironmentVariable("WXQT_EXPORT_OFFICE").toStdString()); });
@@ -238,7 +275,7 @@ int main(int argc, char * argv[]) {
                 }
                 auto * map = new MasterMapViewer{&w};
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHH");
-                when.setTimeSpec(Qt::UTC);
+                when.setTimeZone(QTimeZone::utc());
                 map->openAt(when, parts.value(2, "39").toDouble(), parts.value(3, "-98").toDouble(), parts.value(4, "2200").toDouble(), {"model/chart"});
                 const QString out = parts.value(5, "/tmp/mcexport.png");
                 QTimer::singleShot(40000, map, [map, out] {
@@ -249,13 +286,54 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};
                 auto when = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
-                when.setTimeSpec(Qt::UTC);
+                when.setTimeZone(QTimeZone::utc());
                 map->openAt(when, 37.0, -97.0, 900.0, {"satellite/goes-history"});
             } else if (route.startsWith("sun:")) {   // WXQT_OPEN=sun:<out.png>[:width]: the labelled Sun picture saved, then the program goes on
                 const auto parts = route.split(':');
                 UtilitySun::labelled(parts.value(2, "900").toInt()).save(parts.value(1));
-            } else if (route == "sunviewer") {   // WXQT_OPEN=sunviewer: the Sun window with the hover on its regions
-                new SunViewer{&w};
+            } else if (route == "sunviewer" || route.startsWith("sunviewer:")) {   // WXQT_OPEN=sunviewer[:<picture number>]: the Sun window with the hover on its regions, on that picture of its list
+                auto * sun = new SunViewer{&w};
+                if (route.startsWith("sunviewer:")) {
+                    sun->choose(route.section(':', 1, 1).toInt());
+                }
+            } else if (route == "tooltip") {   // WXQT_OPEN=tooltip WXQT_GRAB=<file.png>: a long tooltip as it is shown (a hover is sent to a label), the tip saved
+                auto * label = new QLabel{"Pointer here", &w};
+                label->setToolTip("POD: the observed echoes the model had. FAR: the model's echoes that were not observed. CSI: hits over hits, misses and false alarms. Bias: the model's echo area over the observed one. FSS: Fractions Skill Score over a window of that size (1 is perfect; a storm a little off still counts).");
+                label->setGeometry(10, 10, 200, 30);
+                label->show();
+                QTimer::singleShot(800, label, [label] {
+                    QHelpEvent hover{QEvent::ToolTip, QPoint{5, 5}, label->mapToGlobal(QPoint{5, 5})};
+                    QApplication::sendEvent(label, &hover);
+                });
+                QTimer::singleShot(1800, label, [] {
+                    for (auto * widget : QApplication::allWidgets()) {
+                        if (widget->isVisible() && QString{widget->metaObject()->className()} == "QTipLabel") {
+                            widget->grab().save(qEnvironmentVariable("WXQT_GRAB").section(',', 0, 0) + ".tip.png");
+                        }
+                    }
+                });
+            } else if (route.startsWith("homeclick:")) {   // WXQT_OPEN=homeclick:<home thumbnail token, e.g. RTMA_SECOND>: what a click on that home picture opens
+                w.clickPicture(route.section(':', 1, 1).toStdString());
+            } else if (route.startsWith("subhourly:")) {   // WXQT_OPEN=subhourly:<RRFS|HRRR>[:<run yyyyMMddHH>][:<to minutes>]: the 15 minute surface fields window, drawing 15 minutes to that lead in four panes
+                const auto parts = route.split(':');
+                auto * sub = new SubhourlyViewer{&w, parts.value(1).toStdString(), "CONUS", parts.value(2).toStdString(), {"sim_radar_comp", "2m_temp_10m_wnd", "10m_wnd_gust", "visibility"}};
+                sub->setLeads(15, parts.value(3, "120").toInt());
+                QTimer::singleShot(25000, sub, [sub] { sub->draw(); });
+                QTimer::singleShot(55000, sub, [sub] { sub->hoverAt(0.5, 0.45); });
+            } else if (route.startsWith("rangeloop:")) {   // WXQT_OPEN=rangeloop:<hours back>:<charts 1-4>[:<region -AK|-HI|-PR|-GU>]: the RTMA / URMA loop window, drawing that many hours up to the newest RTMA hour
+                const auto parts = route.split(':');
+                const auto last = QDateTime::currentDateTimeUtc().addSecs(-3600);
+                const auto to = QDateTime{last.date(), QTime{last.time().hour(), 0}, QTimeZone::utc()};
+                std::vector<std::string> charts;
+                for (const auto * id : {"2m_temp_10m_wnd", "2m_dewp_10m_wnd", "10m_wnd_gust", "total_cloud_cover"}) {
+                    if (static_cast<int>(charts.size()) < parts.value(2, "1").toInt()) {
+                        charts.push_back(id);
+                    }
+                }
+                const auto region = parts.value(3).toStdString();
+                auto * loop = new AnalysisLoop{&w, region == "-AK" ? "ALASKA" : region == "-HI" ? "HAWAII-ISLANDS" : region == "-PR" ? "PUERTO-RICO" : region == "-GU" ? "GUAM" : "CONUS", charts, to.addSecs(-parts.value(1, "6").toInt() * 3600), to, region};
+                QTimer::singleShot(500, loop, [loop] { loop->draw(); });
+                QTimer::singleShot(35000, loop, [loop] { loop->hoverAt(0.5, 0.45); std::fprintf(stderr, "LOOPSIZE %d x %d\n", loop->firstPictureSize().width(), loop->firstPictureSize().height()); });
             } else if (route == "abpgext") {   // WXQT_OPEN=abpgext: the extended (days 6-14) analog guidance window
                 new AbpgExtended{&w};
             } else if (route == "product") {   // WXQT_OPEN=product WXQT_PRODUCT_IMAGE=<url> WXQT_PRODUCT_TEXT=<url>: the text-and-picture window
@@ -283,7 +361,7 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("verify:")) {   // WXQT_OPEN=verify:<model>:<chart>:<yyyyMMddHH UTC>[:sector]: the MRMS verification window at that time, compared at once (WXQT_VERIFY_PNG=<file>: its picture after WXQT_VERIFY_MS ms)
                 qputenv("WXQT_VERIFY_GO", "1");
                 auto valid = QDateTime::fromString(route.section(':', 3, 3), "yyyyMMddHH");
-                valid.setTimeSpec(Qt::UTC);
+                valid.setTimeZone(QTimeZone::utc());
                 new MrmsVerifyViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString(), route.section(':', 4, 4).isEmpty() ? "CONUS" : route.section(':', 4, 4).toStdString(),
                                      valid};
             } else if (route.startsWith("phase:")) {   // WXQT_OPEN=phase:<model>:<lat>:<lon>[:<atcf id>]: the phase space window of a storm at that place in that model
@@ -299,7 +377,7 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("modelat:")) {   // WXQT_OPEN=modelat:<model>:<yyyyMMddHHmm UTC>: the Model Viewer on that model at the run and hour of that time
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
-                when.setTimeSpec(Qt::UTC);
+                when.setTimeZone(QTimeZone::utc());
                 MasterMapViewer::openModels(&w, parts.value(1).toStdString(), {}, {}, when);
             } else if (route == "events" && !qEnvironmentVariable("WXQT_KEEP").isEmpty()) {   // WXQT_OPEN=events WXQT_KEEP=1: the first saved event is selected and its offline copy is made
                 auto * viewer = new EventsViewer{&w};
@@ -313,9 +391,9 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};
                 auto first = QDateTime::fromString(parts.value(1), "yyyyMMddHHmm");
-                first.setTimeSpec(Qt::UTC);
+                first.setTimeZone(QTimeZone::utc());
                 auto second = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
-                second.setTimeSpec(Qt::UTC);
+                second.setTimeZone(QTimeZone::utc());
                 map->openAt(first, 37.0, -97.0, 900.0, {"satellite/goes-history"});
                 QTimer::singleShot(4000, map, [second] { HistoryCursor::get().set(second, "test", nullptr); });
             } else if (route == "catalog") {   // WXQT_OPEN=catalog: the history page's catalog of tornado outbreaks
@@ -526,7 +604,7 @@ int main(int argc, char * argv[]) {
                     std::string error;
                     QElapsedTimer timer;
                     timer.start();
-                    const auto bytes = GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), qEnvironmentVariable("WXQT_DRAW_RUN").toStdString(), spec.section(':', 2, 2).toInt(), [] { std::vector<std::string> ids; for (const auto& id : qEnvironmentVariable("WXQT_DRAW_OVERLAYS").split(',', Qt::SkipEmptyParts)) { ids.push_back(id.toStdString()); } return ids; }(), error, nullptr, [] { GfsRender::Variant v; v.standardDeviations = qEnvironmentVariableIsSet("WXQT_DRAW_SIGMA"); for (const auto& key : qEnvironmentVariable("WXQT_DRAW_HIDE").split(',', Qt::SkipEmptyParts)) { v.hideKeys.push_back(key.toStdString()); } v.scale = qEnvironmentVariableIntValue("WXQT_DRAW_WIDTH") / 1100.0; for (const auto& id : qEnvironmentVariable("WXQT_DRAW_VERSUS").split(',', Qt::SkipEmptyParts)) { v.overlayModels.push_back(id.toStdString()); } v.overlayKeepFill = qEnvironmentVariableIsSet("WXQT_DRAW_KEEPFILL"); return v; }());
+                    const auto bytes = GfsRender::png(session, spec.section(':', 0, 0).toStdString(), spec.section(':', 1, 1).toStdString(), qEnvironmentVariable("WXQT_SECTOR", "CONUS").toStdString(), qEnvironmentVariable("WXQT_DRAW_RUN").toStdString(), spec.section(':', 2, 2).toInt(), [] { std::vector<std::string> ids; for (const auto& id : qEnvironmentVariable("WXQT_DRAW_OVERLAYS").split(',', Qt::SkipEmptyParts)) { ids.push_back(id.toStdString()); } return ids; }(), error, nullptr, [] { GfsRender::Variant v; v.standardDeviations = qEnvironmentVariableIsSet("WXQT_DRAW_SIGMA"); for (const auto& key : qEnvironmentVariable("WXQT_DRAW_HIDE").split(',', Qt::SkipEmptyParts)) { v.hideKeys.push_back(key.toStdString()); } v.scale = qEnvironmentVariableIntValue("WXQT_DRAW_WIDTH") / 1100.0; v.minutes = qEnvironmentVariableIntValue("WXQT_DRAW_MINUTES"); for (const auto& id : qEnvironmentVariable("WXQT_DRAW_VERSUS").split(',', Qt::SkipEmptyParts)) { v.overlayModels.push_back(id.toStdString()); } v.overlayKeepFill = qEnvironmentVariableIsSet("WXQT_DRAW_KEEPFILL"); return v; }());
                     if (const auto out = qEnvironmentVariable("WXQT_DRAW_PNG"); !out.isEmpty()) {   // WXQT_DRAW_PNG=<file> (WXQT_SECTOR=<area id>): the picture too
                         QFile file{out};
                         if (file.open(QIODevice::WriteOnly)) file.write(bytes);
@@ -993,10 +1071,27 @@ int main(int argc, char * argv[]) {
                     }
                     QTimer::singleShot(12000, viewer, [viewer, ids] { viewer->setOverlays(ids); });
                 }
+                if (qEnvironmentVariableIsSet("WXQT_TILE_MODEL")) {   // WXQT_TILE_MODEL=<tile 1-3>:<model>[:<yyyyMMddHH>]: 12 s in that tile shows that model (and run)
+                    const auto parts = qEnvironmentVariable("WXQT_TILE_MODEL").split(':');
+                    QTimer::singleShot(12000, viewer, [viewer, parts] { viewer->setTileModel(parts.value(0).toInt(), parts.value(1).toStdString(), parts.value(2).toStdString()); });
+                }
                 if (qEnvironmentVariableIsSet("WXQT_TILE_RUN")) {   // WXQT_TILE_RUN=<tile 1-3>:<yyyyMMddHH>: 12 s in that tile's model is drawn from that run (captions printed after)
                     const auto parts = qEnvironmentVariable("WXQT_TILE_RUN").split(':');
                     QTimer::singleShot(12000, viewer, [viewer, parts] { viewer->setTileRun(parts.value(0).toInt(), parts.value(1).toStdString()); });
                     QTimer::singleShot(24000, viewer, [viewer] { std::fprintf(stderr, "TILES: %s\n", viewer->tileCaptions().c_str()); });
+                }
+                if (qEnvironmentVariableIsSet("WXQT_SIZE_REPORT")) {   // WXQT_SIZE_REPORT=1: 20 s in the size of the chart on view, to stderr
+                    QTimer::singleShot(20000, viewer, [viewer] { std::fprintf(stderr, "VIEWSIZE %d x %d\n", viewer->shownPictureSize().width(), viewer->shownPictureSize().height()); });
+                }
+                if (qEnvironmentVariableIsSet("WXQT_SUBHOURLY")) {   // WXQT_SUBHOURLY=1: 14 s in the "15 minute fields..." button is pressed (the window opens on what is on view)
+                    QTimer::singleShot(14000, viewer, [viewer] { viewer->openSubhourly(); });
+                    QTimer::singleShot(40000, viewer, [] {
+                        for (auto * widget : QApplication::allWidgets()) {
+                            if (const auto * sub = dynamic_cast<SubhourlyViewer *>(widget)) {
+                                std::fprintf(stderr, "SUBHOURLY: %s\n", sub->summary().c_str());
+                            }
+                        }
+                    });
                 }
                 if (qEnvironmentVariableIsSet("WXQT_NOTICE")) {   // WXQT_NOTICE=<text>: 12 s in the card over the picture with that text (\n for a new line)
                     QTimer::singleShot(12000, viewer, [viewer] { viewer->noticeTest(qEnvironmentVariable("WXQT_NOTICE").replace("\\n", "\n").toStdString()); });
@@ -1024,7 +1119,7 @@ int main(int argc, char * argv[]) {
                         QTimer::singleShot(0, qApp, &QCoreApplication::quit);
                     });
                 }
-                qEnvironmentVariable("WXQT_PICK") == "net" ? NetStatus::show(viewer) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : qEnvironmentVariable("WXQT_PICK") == "late" ? QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_PICK_WAIT") * 1000, viewer, [viewer] { viewer->showPicker(); }) : viewer->showPicker();   // WXQT_PICK=late: the chart picker after WXQT_PICK_WAIT seconds (once the run has said which charts it lacks)   // WXQT_PICK=sector: the area picker
+                qEnvironmentVariable("WXQT_PICK") == "net" ? (NetStatus::show(viewer), opened = NetStatus::current(), void()) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : qEnvironmentVariable("WXQT_PICK") == "late" ? QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_PICK_WAIT") * 1000, viewer, [viewer] { viewer->showPicker(); }) : viewer->showPicker();   // WXQT_PICK=late: the chart picker after WXQT_PICK_WAIT seconds (once the run has said which charts it lacks)   // WXQT_PICK=sector: the area picker
                 if (qEnvironmentVariable("WXQT_PICK") == "levels") {   // WXQT_PICK=levels: the picker's "850/700/500 wind" clicked
                     QTimer::singleShot(800, viewer, [viewer] {
                         for (auto * button : viewer->findChildren<QPushButton *>()) {
@@ -1093,8 +1188,37 @@ int main(int argc, char * argv[]) {
                 new CiraStorm{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2).toStdString()};
             } else if (route == "tornadoyears") {   // WXQT_OPEN=tornadoyears: the tornado years ranked
                 new TornadoYearsViewer{&w, TornadoData::load(), 0, std::string{}};
+            } else if (route == "settings") {   // WXQT_OPEN=settings [WXQT_TAB=<n>]: the settings window (without the locations and the order tabs)
+                new SettingsMain{&w, [] {}, false, false, nullptr};
+            } else if (route == "cams") {   // WXQT_OPEN=cams: the NSSL CAMs pictures screen (MPAS, WRF, HRRR, RRFS)
+                new CamsViewer{&w};
+            } else if (route.startsWith("spcscreen:")) {   // WXQT_OPEN=spcscreen:<summary|day:N|fire|firesummary|tstorm|rainfall|reports|meso|compare|compmap>: that SPC screen (with its go-to list)
+                const auto which = route.section(':', 1, 1);
+                if (which == "summary") {
+                    OutlookNav::open(&w, OutlookNav::SevereSummary);
+                } else if (which == "day") {
+                    OutlookNav::open(&w, OutlookNav::SevereDay, route.section(':', 2, 2).toInt());
+                } else if (which == "fire") {
+                    OutlookNav::open(&w, OutlookNav::FireDay, 0);
+                } else if (which == "firesummary") {
+                    OutlookNav::open(&w, OutlookNav::FireSummary);
+                } else if (which == "tstorm") {
+                    OutlookNav::open(&w, OutlookNav::Thunderstorm);
+                } else if (which == "rainfall") {
+                    OutlookNav::open(&w, OutlookNav::RainfallSummary);
+                } else if (which == "reports") {
+                    new SpcStormReports{&w, "today"};
+                } else if (which == "meso") {
+                    new SpcMeso{&w};
+                } else if (which == "compare") {
+                    new SvrComparison{&w};
+                } else if (which == "images") {
+                    OutlookNav::open(&w, OutlookNav::NationalImages);
+                } else if (which == "compmap") {
+                    new SpcCompMap{&w};
+                }
             } else if (route.startsWith("swostate:")) {   // WXQT_OPEN=swostate:<day>: the SPC convective outlook's state graphics for that day
-                new SpcSwoStateGraphics{&w, route.section(':', 1, 1).toInt()};
+                OutlookNav::open(&w, OutlookNav::State, route.section(':', 1, 1).toInt());
             } else {
                 w.openRoute(route.toStdString());
             }

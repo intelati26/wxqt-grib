@@ -1,3 +1,4 @@
+#include <cctype>
 // *****************************************************************************
 // * Copyright (c) 2020, 2021, 2022, 2023, 2024 joshua.tee@gmail.com. All rights reserved.
 // *
@@ -38,3 +39,26 @@ const vector<string> UtilitySpcFireOutlook::urls{
     "https://www.spc.noaa.gov/products/fire_wx/day2otlk_fire.gif",
     "https://www.spc.noaa.gov/products/exper/fire_wx/imgs/day38otlk_fire.gif"
 };
+
+string UtilitySpcFireOutlook::riskColor(const string& risk) {
+    string lower;
+    for (const char ch : risk) {
+        lower += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+    if (lower.find("extremely") != string::npos) {
+        return "#FF6699";
+    }
+    if (lower.find("critical") != string::npos && lower.find("no ") == string::npos) {
+        return "#FF7A47";
+    }
+    if (lower.find("elevated") != string::npos) {
+        return "#FFCC99";
+    }
+    if (lower.find("scattered") != string::npos) {
+        return "#B38CD9";
+    }
+    if (lower.find("isolated") != string::npos) {
+        return "#C9A68F";
+    }
+    return {};
+}

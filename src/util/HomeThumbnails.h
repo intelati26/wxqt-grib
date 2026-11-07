@@ -31,6 +31,13 @@ namespace HomeThumbnails {
     // the short title shown under the thumbnail, and the longer sentence in its tooltip ("" when the token has none)
     string caption(const string& token);
     string tip(const string& token);
+    // the products the second RTMA tile can show (the RTMA charts that are not the temperature one), and the chart it shows now (the button under the tile, or Settings, sets it)
+    struct RtmaValue {
+        string chart;
+        string label;
+    };
+    const vector<RtmaValue>& rtmaValues();
+    string rtmaSecondChart();
     // blocking: the latest picture as image bytes (a download, or a render for the GRIB entries); empty on failure.
     // Use off the UI thread.
     QByteArray fetch(const string& token);

@@ -17,6 +17,8 @@
 #include "settings/SettingsLocationsBox.h"
 #include "settings/SettingsRadarBox.h"
 #include "settings/SettingsAccountsBox.h"
+#include "settings/SettingsGdalBox.h"
+#include "settings/SettingsLocalRunsBox.h"
 #include "settings/SettingsSourcesBox.h"
 #include "settings/SettingsHomeScreenOrderBox.h"
 #include "settings/SettingsToolbarOrderBox.h"
@@ -36,17 +38,21 @@ class SettingsMain : public Window {
 public:
     SettingsMain(Window *, const function<void()>&, bool, bool, Toolbar * = nullptr);
     ~SettingsMain() override;
+    void showModelSources();   // opens on the Model Sources tab (what each model's server answers)
 
 private:
     static string getSettings();
     void closeEventCustom() override;
     function<void()> reloadFn;
+    int sourcesIndex{0};
     VBox box;
     ScrolledWindow sw;
     TabWidget tabWidget;
     unique_ptr<SettingsBox> settingsBox;
     unique_ptr<SettingsRadarBox> settingsRadarBox;
     unique_ptr<SettingsSourcesBox> settingsSourcesBox;
+    unique_ptr<SettingsLocalRunsBox> settingsLocalRunsBox;
+    unique_ptr<SettingsGdalBox> settingsGdalBox;
     unique_ptr<SettingsAccountsBox> settingsAccountsBox;
     unique_ptr<SettingsColorsBox> settingsColorsBox;
     unique_ptr<SettingsLocationsBox> settingsLocationsBox;

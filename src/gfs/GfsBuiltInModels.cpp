@@ -64,6 +64,7 @@ clone_skip = anom, precip, thick, 850_vort_ht, 500_vort_ht
         {"GFS", R"MODEL(
 # the GFS: the charts everything else is made from; NOMADS can cut a box of the fields out of a file, which is what a regional chart fetches
 id = GFS
+alternate = IFS | ECMWF's global model, from ECMWF's server (a different model, not the same forecast)
 label = NOAA/NCEP GFS 0.25 degree
 kind = grib
 url = https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{date}/{cycle}/atmos/gfs.t{cycle}z.pgrb2.0p25.f{hour3}
@@ -94,6 +95,7 @@ on_missing = main_run
 # the GEFS: the mean ("avg"), spread ("spr") and members (c00, p01 ... p30) are files of their own, in three sets: the 0.5 degree "a" set, the 0.25 degree surface set "s" (gusts, dew point, visibility,
 # helicity, surface-based CAPE and CIN) and the second 0.5 degree set "b" (the most unstable parcel's CAPE). A file here is "<avg|spr|member>-<a|s|b>"; the name is "ge" and its first three letters.
 id = GEFS
+alternate = IFS-ENS | ECMWF's ensemble, from ECMWF's server (a different model, not the same forecast)
 label = NOAA/NCEP GEFS 30 member ensemble, 0.5 degree
 source_label = NOAA/NCEP GEFS mean and spread, 0.5 degree
 kind = grib
@@ -133,6 +135,7 @@ clone_skip = precip_p06, precip_p24, 500_vort_ht, 850_vort_ht
 # the RRFS ensemble: each member's files (rrfsens), the ready-made products (refs ensprod: "ens:avrg", "ens:eas", "ens:ffri") and the deterministic RRFS run of the same cycle (rrfs/...) for the charts
 # that put it with the members. A member's file is "<m001>/<2dfld|prslev>".
 id = REFS
+alternate = SPCREFS | the same RRFS system from SPC's server, as ensemble products (the control member is one of them)
 label = NOAA/NCEP REFS, 5 member 3 km ensemble
 source_label = NOAA/NCEP REFS
 kind = grib
@@ -361,6 +364,7 @@ list = true
         {"SPCREFS", R"MODEL(
 # SPC's REFS ensemble products, an open Zarr store a cycle: read by the program's own reader (the loader registered for this id), not by a download; the file is the store's own path
 id = SPCREFS
+alternate = REFS | the same ensemble from NOAA's AWS bucket (members and products)
 label = SPC REFS ensemble products (open Zarr data)
 kind = custom
 url = https://www.spc.noaa.gov/exper/refs/data/{year}/{month}/{day}/refs-spc_{date}_{cycle}00.zarr{/file}
@@ -379,6 +383,7 @@ list = true
         {"AIGFS", R"MODEL(
 # NOAA's AI global model (GraphCast based): the pressure levels and the surface are files of their own
 id = AIGFS
+alternate = AIFS | ECMWF's AI global model, from ECMWF's server (a different model)
 label = NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)
 source_label = NOAA/NCEP AIGFS 0.25 degree (an AI model)
 kind = grib
@@ -406,6 +411,7 @@ clone_specific_humidity = true
 # pressure levels (350 MB) and the surface fields (80-100 MB), each with its index (so only the records of a chart are read), posted about 2 hours after the 0.25 degree files. The 00Z and 12Z
 # runs go to 360 hours, the 06Z and 18Z to 144. The runs before it are read from the 0.25 degree file.
 id = IFS
+alternate = GFS | NOAA's global model, from NOAA's AWS bucket (a different model)
 label = ECMWF IFS 0.1 degree (0.25 degree for runs before 20 Oct 2026; open data, CC BY 4.0)
 kind = grib
 url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p1/oper/{date}{cycle}0000-{hour}h-oper-fc-{file}.grib2
@@ -435,6 +441,7 @@ clone_skip = precip_p01
         {"IFS-ENS", R"MODEL(
 # ECMWF's ensemble (ENS): 50 members of the physical model, each a message of the step's file (4 GB a step, read by its JSON index); a member is chosen by its number (`stat` e01 ... e50)
 id = IFS-ENS
+alternate = GEFS | NOAA's ensemble, from NOAA's AWS bucket (a different model)
 label = ECMWF IFS ensemble (ENS), 50 members, 0.25 degree (open data, CC BY 4.0)
 kind = grib
 url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/enfo/{date}{cycle}0000-{hour}h-enfo-ef.grib2
@@ -473,6 +480,7 @@ list = true
         {"AIFS", R"MODEL(
 # ECMWF's open data (CC BY 4.0), replicated on Google's storage: a JSON index beside each file
 id = AIFS
+alternate = AIGFS | NOAA's AI global model, from NOAA's AWS bucket (a different model)
 label = ECMWF AIFS 0.25 degree (an AI model; open data, CC BY 4.0)
 kind = grib
 url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/aifs-single/0p25/oper/{date}{cycle}0000-{hour}h-oper-fc.grib2
@@ -499,6 +507,7 @@ clone_skip = precip_p01, precip_p03, 1000_500_thick, 1000_850_thick, 850_700_thi
 # Canada's High Resolution Deterministic Prediction System: 2.5 km over Canada and the northern United States (a rotated latitude / longitude grid, put on a regular 0.05 degree one), every
 # 6 hours to 48 hours, from Environment and Climate Change Canada's Datamart. A file for each field and hour (3 to 4 MB); only the last day or two are kept there.
 id = HRDPS
+alternate = RRFS-NA | NOAA's 3 km North America model, from NOAA's AWS bucket (a different model)
 label = ECCC HRDPS 2.5 km (Canada)
 kind = whole
 url = https://dd.weather.gc.ca/{date}/WXO-DD/model_hrdps/continental/2.5km/{cycle}/{hour3}/{date}T{cycle}Z_MSC_HRDPS_{file}_RLatLon0.0225_PT{hour3}H.grib2
@@ -562,9 +571,661 @@ clone_levels = 1 mb
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"ICON", R"MODEL(
+# DWD's global ICON (13 km), as Open-Meteo keeps it on its open bucket (open-meteo/om-file-format, the files of data_spatial/dwd_icon): a regular 0.125 degree grid and one file of about 170 MB for each
+# hour that holds every variable, of which a chart reads the one it needs by byte ranges (a few megabytes). Hourly to 78 hours, then 3 hourly; the 00Z and 12Z runs go to 180 hours, the others to 120.
+# The names are Open-Meteo's; the units are already degrees C, hPa (the sea level pressure is scaled to Pa as the charts have it), percent and m/s.
+id = ICON
+group = Global
+label = DWD ICON global 13 km (via Open-Meteo)
+source_label = DWD ICON global 13 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/dwd_icon/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=TCDC => cloud_cover
+value_scale = PRMSL:100
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 4
+cycles_to_try = 4
+max_parallel = 3
+hours = 0-78/1, 81-180/3
+run_length = 0:180, 12:180, else:120
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"UKMO", R"MODEL(
+# The Met Office's global deterministic model (about 10 km: 2560 x 1920 points, 0.140625 by 0.09375 degrees, put on a square 0.09375 degree grid), as Open-Meteo keeps it (open-meteo/om-file-format).
+# Hourly to 54 hours, then 3 hourly; the 00Z and 12Z runs go to 7 days, the others to 60 hours. The winds are given as speed and direction (`speed/direction`) and made into components.
+id = UKMO
+group = Global
+label = UK Met Office global 10 km (via Open-Meteo)
+source_label = UK Met Office global 10 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/ukmo_global_deterministic_10km/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=UGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=TCDC => cloud_cover
+value_scale = PRMSL:100
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 7
+cycles_to_try = 4
+max_parallel = 3
+hours = 0-54/1, 57-144/3, 150-168/6
+run_length = 0:168, 12:168, else:60
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"GSM", R"MODEL(
+# The Japan Meteorological Agency's Global Spectral Model on a regular 0.5 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format). Every 6 hours, 6 hourly to 132 hours; the 00Z and 12Z runs
+# go to 11 days. No gusts, CAPE or 2 m dew point in these files.
+id = GSM
+group = Global
+label = JMA GSM global 0.5 degree (via Open-Meteo)
+source_label = JMA GSM global 0.5 degree, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/jma_gsm/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=TCDC => cloud_cover
+# the file's heights are the geometric height divided by 9.80665 (581.7 for the 5704 m of the 500 mb surface; Open-Meteo's API converts them back)
+value_scale = PRMSL:100, HGT:9.80665
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 10
+cycles_to_try = 4
+max_parallel = 3
+hours = 0-264/6
+run_length = 0:264, 12:264, else:132
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, TCDC
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"ARPEGE", R"MODEL(
+# Meteo-France's global ARPEGE on a regular 0.25 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format). Hourly to 48 hours, then 3 hourly to 102; a run every 6 hours.
+id = ARPEGE
+group = Global
+label = Meteo-France ARPEGE global 0.25 degree (via Open-Meteo)
+source_label = Meteo-France ARPEGE global 0.25 degree, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arpege_world025/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=TCDC => cloud_cover
+value_scale = PRMSL:100
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 5
+cycles_to_try = 4
+max_parallel = 3
+hours = 0-48/1, 51-102/3
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"GRAPES", R"MODEL(
+# The China Meteorological Administration's GRAPES global model on a regular 0.125 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format). 3 hourly to 5 days, a run every 6 hours.
+id = GRAPES
+group = Global
+label = CMA GRAPES global 0.125 degree (via Open-Meteo)
+source_label = CMA GRAPES global 0.125 degree, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/cma_grapes_global/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=TCDC => cloud_cover
+value_scale = PRMSL:100
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 6
+cycles_to_try = 4
+max_parallel = 3
+hours = 0-120/3
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"HGEFS", R"MODEL(
+# NOAA's Hybrid GEFS: the ensemble mean of the GEFS combined with the AI ensemble (AIGEFS), on a regular 0.25 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format; the files also hold each
+# field's spread, `_spread`, which no chart here uses yet). Every 6 hours to 10 days, 6 hourly from hour 6 (there is no hour 0).
+id = HGEFS
+group = Ensembles
+label = NOAA/NCEP Hybrid GEFS ensemble mean, 0.25 degree (via Open-Meteo)
+source_label = NOAA/NCEP Hybrid GEFS ensemble mean, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/ncep_hgefs025_ensemble_mean/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=PRMSL => pressure_msl
+nc_variable = when variable=TCDC => cloud_cover
+value_scale = PRMSL:100
+probe_hour = 6
+cycle_hours = 6
+lag_hours = 10
+cycles_to_try = 4
+max_parallel = 3
+hours = 6-240/6
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, TCDC
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
+clone_prefix = "Mean "
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"AROME", R"MODEL(
+# Meteo-France's AROME: 2.5 km over France and the countries round it (a regular 0.025 degree grid), a run every 3 hours, hourly to 51 hours, as Open-Meteo keeps it (open-meteo/om-file-format).
+id = AROME
+group = Convection allowing
+label = Meteo-France AROME France 2.5 km (via Open-Meteo)
+source_label = Meteo-France AROME France 2.5 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arome_france0025/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 5
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-51/1
+run_every = 3
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 950 mb, 925 mb, 900 mb, 850 mb, 800 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"AROME-HD", R"MODEL(
+# Meteo-France's AROME at its finest: 1.3 km over France (a regular 0.01 degree grid), a run every 3 hours, hourly to 51 hours, as Open-Meteo keeps it (open-meteo/om-file-format). Surface fields only:
+# the 2 m temperature and humidity, the 10 m wind and gusts and the CAPE.
+id = AROME-HD
+group = Convection allowing
+label = Meteo-France AROME France HD 1.3 km (via Open-Meteo)
+source_label = Meteo-France AROME France HD 1.3 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arome_france_hd/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 5
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-51/1
+run_every = 3
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = TMP, RH, UGRD, VGRD, CAPE, GUST
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"ARPEGE-EU", R"MODEL(
+# Meteo-France's ARPEGE over Europe and the North Atlantic (the stretched grid's finest part, put on a regular grid), a run every 6 hours, hourly to 102 hours, as Open-Meteo keeps it (open-meteo/om-file-format). Surface fields only.
+id = ARPEGE-EU
+group = Regional
+label = Meteo-France ARPEGE Europe 0.1 degree (via Open-Meteo)
+source_label = Meteo-France ARPEGE Europe, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arpege_europe/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 6
+lag_hours = 5
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-102/1
+run_every = 6
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = TMP, RH, UGRD, VGRD, PRMSL, TCDC, GUST
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"GDPS", R"MODEL(
+# Environment Canada's Global Deterministic Prediction System: 15 km, a run at 00 and 12Z, to 10 days, as Open-Meteo keeps it (open-meteo/om-file-format). The surface fields and the pressure levels are
+# in two folders (the pressure levels every 3 hours, which is the step used here) and the winds are given as speed and direction.
+id = GDPS
+alternate = GFS | NOAA's global model, from NOAA's AWS bucket (a different model)
+group = Global
+label = CMC GDPS global 15 km (via Open-Meteo)
+source_label = CMC GDPS global 15 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = when file~"^upper$" => https://openmeteo.s3.amazonaws.com/data_spatial/cmc_gem_gdps_15km_upper_level/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = https://openmeteo.s3.amazonaws.com/data_spatial/cmc_gem_gdps_15km/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+file = when level~"^[0-9]+ mb$" => upper
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 12
+lag_hours = 6
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-240/3
+run_every = 12
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"MF-WAVE", R"MODEL(
+# Meteo-France's global wave model (MFWAM) on a regular 1/12 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format): the significant height, period and direction of all the waves, of the wind sea, of the main
+# swell and of the second swell. 3 hourly to 10 days, a run at 00 and 12Z. A file is about 26 MB of the whole globe, of which a chart reads the fields it needs by byte ranges.
+id = MF-WAVE
+alternate = GFS-WAVE | NOAA's global wave model, from NOAA's AWS bucket (a different model)
+group = Waves and ocean
+label = Meteo-France MFWAM global waves 1/12 degree (via Open-Meteo)
+source_label = Meteo-France MFWAM waves, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_wave/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HTSGW => wave_height
+nc_variable = when variable=PERPW => wave_period
+nc_variable = when variable=DIRPW => wave_direction
+nc_variable = when variable=WVHGT => wind_wave_height
+nc_variable = when variable=WVPER => wind_wave_period
+nc_variable = when variable=WVDIR => wind_wave_direction
+nc_variable = when variable=SWELL level="1 in sequence" => swell_wave_height
+nc_variable = when variable=SWPER level="1 in sequence" => swell_wave_period
+nc_variable = when variable=SWDIR level="1 in sequence" => swell_wave_direction
+nc_variable = when variable=SWELL level="2 in sequence" => secondary_swell_wave_height
+nc_variable = when variable=SWPER level="2 in sequence" => secondary_swell_wave_period
+nc_variable = when variable=SWDIR level="2 in sequence" => secondary_swell_wave_direction
+probe_hour = 0
+cycle_hours = 12
+lag_hours = 13
+cycles_to_try = 3
+max_parallel = 3
+hours = 0-240/3
+run_length = 0:240, else:240
+run_every = 12
+sectors = world
+overlays = true
+list = true
+clone = false
+)MODEL"},
+        {"MF-CURRENT", R"MODEL(
+# Meteo-France's global ocean currents and sea level (the ocean model behind its wave system) on a regular 1/12 degree grid, as Open-Meteo keeps it (open-meteo/om-file-format): the surface current, the height of the sea
+# surface (tide, eddies and the lift or sag the air pressure makes). Hourly to 10 days, a run a day at 00Z.
+id = MF-CURRENT
+group = Waves and ocean
+label = Meteo-France ocean currents and sea level 1/12 degree (via Open-Meteo)
+source_label = Meteo-France ocean currents, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_currents/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=UOGRD => ocean_u_current
+nc_variable = when variable=VOGRD => ocean_v_current
+nc_variable = when variable=SSHG => sea_level_height_msl
+nc_variable = when variable=IBHG => invert_barometer_height
+probe_hour = 0
+cycle_hours = 24
+lag_hours = 13
+cycles_to_try = 3
+max_parallel = 3
+hours = 0-239/1
+run_length = 0:239, else:239
+run_every = 24
+sectors = world
+overlays = true
+list = true
+clone = false
+)MODEL"},
+        {"MF-SST", R"MODEL(
+# Meteo-France's global sea surface temperature analysis and forecast (the ocean model of Meteo-France's wave and current system, on a regular 1/12 degree grid), as Open-Meteo keeps it (open-meteo/om-file-format).
+# One run a day, 6 hourly: the last day's analysis then the forecast to 10 days.
+id = MF-SST
+group = Waves and ocean
+label = Meteo-France sea surface temperature 1/12 degree (via Open-Meteo)
+source_label = Meteo-France sea surface temperature, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_sea_surface_temperature/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=WTMP level="surface" => sea_surface_temperature
+probe_hour = 0
+cycle_hours = 24
+lag_hours = 13
+cycles_to_try = 3
+max_parallel = 3
+hours = 0-240/6
+run_length = 0:240, else:240
+run_every = 24
+sectors = world
+overlays = true
+list = true
+clone = false
+)MODEL"},
+        {"COPERNICUS", R"MODEL(
+# The Copernicus Atmosphere Monitoring Service's (CAMS; not the NSSL convection allowing models, also called CAMs, of the screen "CAMS") global forecast of the air: fine and coarse particles (PM2.5, PM10), dust, sea salt, ozone, nitrogen dioxide and monoxide, sulphur dioxide, carbon monoxide, formaldehyde, glyoxal,
+# PAN, the aerosol optical depth and the UV index, on a 0.4 degree grid, hourly to 5 days, a run at 00 and 12Z, as Open-Meteo keeps it (open-meteo/om-file-format). The amounts are the concentrations at the surface in
+# micrograms per cubic metre (the aerosol optical depth and the UV index have no unit).
+id = COPERNICUS
+group = Air quality
+label = Copernicus atmosphere service (CAMS) global air quality and UV 0.4 degree (via Open-Meteo)
+source_label = Copernicus CAMS global atmospheric composition, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/cams_global/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=PM25 => pm2_5
+nc_variable = when variable=PM10 => pm10
+nc_variable = when variable=DUST => dust
+nc_variable = when variable=SALT => sea_salt_aerosol
+nc_variable = when variable=O3 => ozone
+nc_variable = when variable=NO2 => nitrogen_dioxide
+nc_variable = when variable=NO => nitrogen_monoxide
+nc_variable = when variable=SO2 => sulphur_dioxide
+nc_variable = when variable=CO => carbon_monoxide
+nc_variable = when variable=HCHO => formaldehyde
+nc_variable = when variable=GLYX => glyoxal
+nc_variable = when variable=PAN => peroxyacyl_nitrates
+nc_variable = when variable=AOD => aerosol_optical_depth
+nc_variable = when variable=UVI => uv_index
+nc_variable = when variable=UVIC => uv_index_clear_sky
+probe_hour = 0
+cycle_hours = 12
+lag_hours = 10
+cycles_to_try = 3
+max_parallel = 3
+hours = 0-120/1
+run_length = 0:120, else:120
+run_every = 12
+sectors = world
+overlays = true
+list = true
+clone = false
+)MODEL"},
+        {"MSM", R"MODEL(
+# The Japan Meteorological Agency's Meso-Scale Model: 5 km over Japan and the seas round it, a run every 3 hours, hourly to 39 hours (to 78 at 00 and 12Z), as Open-Meteo keeps it (open-meteo/om-file-format). Surface fields only.
+id = MSM
+group = Regional
+label = JMA MSM 5 km Japan (via Open-Meteo)
+source_label = JMA MSM 5 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/jma_msm/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 4
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-78/1
+run_length = 0:78, 12:78, else:39
+run_every = 3
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = TMP, RH, UGRD, VGRD, PRMSL, TCDC
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"MSM-UL", R"MODEL(
+# The upper-air fields of the JMA Meso-Scale Model (the surface fields are the model "MSM"): 5 km over Japan and the seas round it on 16 pressure levels, a run every 3 hours, 3 hourly to 39 hours, as Open-Meteo
+# keeps it (open-meteo/om-file-format).
+id = MSM-UL
+group = Regional
+label = JMA MSM 5 km Japan, pressure levels (via Open-Meteo)
+source_label = JMA MSM 5 km upper air, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/jma_msm_upper_level/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_u_component_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_v_component_{mb}hPa
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 4
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-39/3
+run_length = 0:39, else:39
+run_every = 3
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD
+clone_levels = 1000 mb, 975 mb, 950 mb, 925 mb, 900 mb, 850 mb, 800 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"ICON-2I", R"MODEL(
+# Italy's ICON-2I (ARPAE and Italia Meteo): 2.2 km over Italy and the seas round it, a run at 00 and 12Z, hourly to 72 hours, as Open-Meteo keeps it (open-meteo/om-file-format). The winds are given as speed
+# and direction. Six pressure levels.
+id = ICON-2I
+group = Convection allowing
+label = ARPAE ICON-2I 2.2 km Italy (via Open-Meteo)
+source_label = ARPAE ICON-2I 2.2 km (Italy), data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/italia_meteo_arpae_icon_2i/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
+nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
+nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
+nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => wind_speed_{mb}hPa/wind_direction_{mb}hPa
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 12
+lag_hours = 3
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-72/1
+run_every = 12
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 500 mb, 250 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"AROME-AT", R"MODEL(
+# GeoSphere Austria's AROME: 2.5 km over Austria and the Alps, a run every 3 hours, hourly to 60 hours, as Open-Meteo keeps it (open-meteo/om-file-format). The winds are given as speed and direction.
+# Surface fields only.
+id = AROME-AT
+group = Convection allowing
+label = GeoSphere AROME Austria 2.5 km (via Open-Meteo)
+source_label = GeoSphere AROME Austria 2.5 km, data by Open-Meteo.com
+kind = om
+om_grid = regular
+url = https://openmeteo.s3.amazonaws.com/data_spatial/geosphere_arome_austria/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
+nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
+nc_variable = when variable=UGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=VGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
+nc_variable = when variable=GUST => wind_gusts_10m
+nc_variable = when variable=CAPE => cape
+nc_variable = when variable=PRMSL => pressure_msl
+value_scale = PRMSL:100
+nc_variable = when variable=TCDC => cloud_cover
+probe_hour = 0
+cycle_hours = 3
+lag_hours = 4
+cycles_to_try = 6
+max_parallel = 3
+hours = 0-60/1
+run_every = 3
+sectors = world
+overlays = true
+list = true
+clone = true
+clone_variables = TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
         {"GEPS", R"MODEL(
 # Canada's ensemble: one file per field and hour, the 21 members as its messages
 id = GEPS
+alternate = GEFS | NOAA's ensemble, from NOAA's AWS bucket (a different model)
 label = ECCC GEPS 21 member ensemble, 0.5 degree
 kind = whole
 url = https://dd.weather.gc.ca/{date}/WXO-DD/ensemble/geps/grib2/raw/{cycle}/{hour3}/CMC_geps-raw_{file}_latlon0p5x0p5_{date}{cycle}_P{hour3}_allmbrs.grib2
@@ -690,6 +1351,7 @@ clone_rename = PRMSL:MSLET
 # The RRFS for North America (the same open data bucket and runs as the contiguous United States one): 13 km, every hour, to 84 hours, from the 00, 06, 12 and 18Z runs only (the other hours' runs have no North America files). The 2D fields and the pressure levels
 # are files of their own; the grid is put on a regular 0.1 degree one.
 id = RRFS-NA
+alternate = HRDPS | Canada's 2.5 km model, which covers the northern United States, from Environment Canada's server (a different model)
 label = NOAA/NCEP RRFS North America, 13 km
 kind = grib
 url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.na.grib2
@@ -719,6 +1381,7 @@ clone_rename = PRMSL:MSLET
         {"RRFS", R"MODEL(
 # the 3 km Rapid Refresh Forecast System: the 2D fields and the pressure levels are files of their own
 id = RRFS
+alternate = SPCREFS | the same RRFS system from SPC's server, as ensemble products (the control member is one of them)
 label = NOAA/NCEP RRFS 3 km
 kind = grib
 url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.conus.grib2
@@ -897,6 +1560,7 @@ clone_pieces = false
         {"HRRR", R"MODEL(
 # the 3 km High-Resolution Rapid Refresh on AWS (NOAA's open data bucket, kept from mid 2014): the 2D fields (sfc) and the pressure levels (prs) are files of their own
 id = HRRR
+alternate = SPCREFS | an ensemble that holds time-lagged HRRR members, from the Storm Prediction Center's server (ensemble products)
 label = NOAA/NCEP HRRR 3 km
 kind = grib
 url = https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.{date}/conus/hrrr.t{cycle}z.wrf{file}f{hour2}.grib2
@@ -998,12 +1662,98 @@ clone_levels = 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 9
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"ARWEN", R"MODEL(
+# ArWen (FahrenheitResearch/arwen), the GPU regional model, as it ran on this computer: a run is a folder of hourly WRF-format history files (wrfout_d01_...), its time the first file's. The folders are
+# searched in the places ArWen puts them (`out/<study>/<run>/run/wrfout` under ~/arwen or ~/Claude/arwen); the setting WRF_FOLDERS_ARWEN (folders, `;` between them, globs allowed) says where else. The grid is
+# the run's own (Lambert conformal), put on latitude / longitude from the file's XLAT / XLONG; the winds are turned east / north with its SINALPHA / COSALPHA; there is no sea level pressure in the files, so it is
+# worked out from the surface pressure, the 2 m temperature and the terrain.
+id = ARWEN
+group = Convection allowing
+label = ArWen regional run (WRF history on this computer)
+source_label = ArWen regional run (local)
+kind = wrf
+run_folders = ~/arwen/out/*/*/run-*/run/wrfout; ~/arwen/out/*/run-*/run/wrfout; ~/Claude/arwen/out/*/*/run-*/run/wrfout; ~/Claude/arwen/out/*/run-*/run/wrfout
+run_folders_pref = WRF_FOLDERS_ARWEN
+nc_variable = when variable=TMP level="2 m above ground" => T2
+nc_variable = when variable=UGRD level="10 m above ground" => earth(U10,V10)
+nc_variable = when variable=VGRD level="10 m above ground" => earth(U10,V10)
+nc_variable = when variable=PRMSL => slp()
+nc_variable = when variable=REFC => max(REFL_10CM)
+value_offset = TMP:-273.15
+cycle_hours = 6
+lag_hours = 0
+cycles_to_try = 16
+max_parallel = 2
+hours = 0-72/1
+run_every = 6
+sectors = conus
+list = true
+clone = true
+clone_variables = TMP, UGRD, VGRD, PRMSL, REFC
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"WOOF-NAM", R"MODEL(
+# WOOF-NAM (recastsystems/woof-nam), the GPU port of the NAM's NMMB that NCEP retired on 2026-11-03, as it ran on this computer: the hourly wrfout_d01 history files of each run (`runs/<name>/run` under
+# ~/woof-nam or ~/Claude/woof-nam; the setting WRF_FOLDERS_WOOFNAM says where else). Its nests are on the NAM's rotated latitude / longitude grid, put on a regular one from the file's XLAT / XLONG.
+id = WOOF-NAM
+group = Convection allowing
+label = WOOF-NAM, the NAM's NMMB on a GPU (runs on this computer)
+source_label = WOOF-NAM (local run)
+kind = wrf
+run_folders = ~/woof-nam/runs/*/run; ~/Claude/woof-nam/runs/*/run
+run_folders_pref = WRF_FOLDERS_WOOFNAM
+nc_variable = when variable=TMP level="2 m above ground" => T2
+nc_variable = when variable=UGRD level="10 m above ground" => U10
+nc_variable = when variable=VGRD level="10 m above ground" => V10
+nc_variable = when variable=PRMSL => MSLP
+nc_variable = when variable=REFC => REFDMAX
+value_offset = TMP:-273.15
+cycle_hours = 6
+lag_hours = 0
+cycles_to_try = 16
+max_parallel = 2
+hours = 0-72/1
+run_every = 6
+sectors = conus
+list = true
+clone = true
+clone_variables = TMP, UGRD, VGRD, PRMSL, REFC
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
+        {"MRMS", R"MODEL(
+# MRMS's composite reflectivity as it was observed, to put beside the models' (Compare: difference from the main model, or models at the same valid time). A run is an hour and its one hour 0 the first scan
+# of it, from NOAA's open bucket noaa-mrms-pds (2020 on): the 0.01 degree grid taken to 0.04 degrees by its largest value, read by the program's own loader (registered for this id).
+id = MRMS
+group = Archive
+label = NOAA/NSSL MRMS observed composite reflectivity
+source_label = NOAA/NSSL MRMS observed composite reflectivity
+kind = custom
+url = https://noaa-mrms-pds.s3.amazonaws.com/CONUS/MergedReflectivityQCComposite_00.50/
+probe_file = none
+cycle_hours = 1
+lag_hours = 1
+cycles_to_try = 1
+max_parallel = 2
+hours = 0-0/1
+hourly_runs = true
+sectors = conus
+list = true
+clone = true
+clone_variables = REFC
+clone_levels = 1 mb
+clone_skip = anom, precip
+clone_pieces = false
+)MODEL"},
         {"RTMA", R"MODEL(
 # The Real-Time Mesoscale Analysis, hourly, from the open data bucket noaa-rtma-pds (19 March 2013 on). The 2.5 km CONUS Lambert grid is put on a regular 0.03 degree one. Surface fields only: the 2 m temperature and dew point, the 10 m wind and gust, the visibility and the cloud cover (the charts are
 # this model's own, in GfsChart.cpp). Before May 2017 there is no index file: one is made from the head of each message and kept.
 id = RTMA
 label = NOAA/NCEP RTMA surface analysis, 2.5 km
-group = Archive
+group = NWS analysis
 kind = grib
 url = https://noaa-rtma-pds.s3.amazonaws.com/rtma2p5.{date}/rtma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
 index_suffix = .idx
@@ -1023,7 +1773,7 @@ list = true
 # this model's own, in GfsChart.cpp). Before May 2017 there is no index file: one is made from the head of each message and kept.
 id = URMA
 label = NOAA/NCEP URMA surface analysis, 2.5 km
-group = Archive
+group = NWS analysis
 kind = grib
 url = https://noaa-urma-pds.s3.amazonaws.com/urma2p5.{date}/urma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
 index_suffix = .idx
@@ -1033,6 +1783,139 @@ probe_hour = 0
 cycles_to_try = 8
 warp = 0.03, -135.0, 20.0, -60.0, 55.0
 sectors = conus
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"RTMA-AK", R"MODEL(
+# The Real-Time Mesoscale analysis for Alaska, hourly, from the open data bucket noaa-rtma-pds: the same fields and charts as the contiguous United States one (3 km). The grid is put on a regular one.
+id = RTMA-AK
+label = NOAA/NCEP RTMA Alaska surface analysis, 3 km
+group = NWS analysis
+kind = grib
+url = https://noaa-rtma-pds.s3.amazonaws.com/akrtma.{date}/akrtma.t{cycle}z.2dvaranl_ndfd_3p0.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 3
+warp = 0.04, -180.0, 40.0, -90.0, 75.0
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"URMA-AK", R"MODEL(
+# The UnRestricted Mesoscale analysis for Alaska, hourly, from the open data bucket noaa-urma-pds: the same fields and charts as the contiguous United States one (3 km). The grid is put on a regular one.
+id = URMA-AK
+label = NOAA/NCEP URMA Alaska surface analysis, 3 km
+group = NWS analysis
+kind = grib
+url = https://noaa-urma-pds.s3.amazonaws.com/akurma.{date}/akurma.t{cycle}z.2dvaranl_ndfd_3p0.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 6
+probe_hour = 0
+cycles_to_try = 8
+warp = 0.04, -180.0, 40.0, -90.0, 75.0
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"RTMA-HI", R"MODEL(
+# The Real-Time Mesoscale analysis for Hawaii, hourly, from the open data bucket noaa-rtma-pds: the same fields and charts as the contiguous United States one (2.5 km). The grid is put on a regular one.
+id = RTMA-HI
+label = NOAA/NCEP RTMA Hawaii surface analysis, 2.5 km
+group = NWS analysis
+kind = grib
+url = https://noaa-rtma-pds.s3.amazonaws.com/hirtma.{date}/hirtma.t{cycle}z.2dvaranl_ndfd.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 3
+warp = 0.025, -162.5, 17.5, -153.0, 23.5
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"URMA-HI", R"MODEL(
+# The UnRestricted Mesoscale analysis for Hawaii, hourly, from the open data bucket noaa-urma-pds: the same fields and charts as the contiguous United States one (2.5 km). The grid is put on a regular one.
+id = URMA-HI
+label = NOAA/NCEP URMA Hawaii surface analysis, 2.5 km
+group = NWS analysis
+kind = grib
+url = https://noaa-urma-pds.s3.amazonaws.com/hiurma.{date}/hiurma.t{cycle}z.2dvaranl_ndfd.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 6
+probe_hour = 0
+cycles_to_try = 8
+warp = 0.025, -162.5, 17.5, -153.0, 23.5
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"RTMA-PR", R"MODEL(
+# The Real-Time Mesoscale analysis for Puerto Rico and the Virgin Islands, hourly, from the open data bucket noaa-rtma-pds: the same fields and charts as the contiguous United States one (2.5 km). The grid is put on a regular one.
+id = RTMA-PR
+label = NOAA/NCEP RTMA Puerto Rico and the Virgin Islands surface analysis, 2.5 km
+group = NWS analysis
+kind = grib
+url = https://noaa-rtma-pds.s3.amazonaws.com/prrtma.{date}/prrtma.t{cycle}z.2dvaranl_ndfd.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 3
+warp = 0.025, -68.5, 16.5, -63.5, 20.0
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"URMA-PR", R"MODEL(
+# The UnRestricted Mesoscale analysis for Puerto Rico and the Virgin Islands, hourly, from the open data bucket noaa-urma-pds: the same fields and charts as the contiguous United States one (2.5 km). The grid is put on a regular one.
+id = URMA-PR
+label = NOAA/NCEP URMA Puerto Rico and the Virgin Islands surface analysis, 2.5 km
+group = NWS analysis
+kind = grib
+url = https://noaa-urma-pds.s3.amazonaws.com/prurma.{date}/prurma.t{cycle}z.2dvaranl_ndfd.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 6
+probe_hour = 0
+cycles_to_try = 8
+warp = 0.025, -68.5, 16.5, -63.5, 20.0
+sectors = world
+hours = 0-0/1
+hourly_runs = true
+overlays = true
+list = true
+)MODEL"},
+        {"RTMA-GU", R"MODEL(
+# The Real-Time Mesoscale analysis for Guam, hourly, from the open data bucket noaa-rtma-pds (there is no URMA for Guam): the same fields and charts as the contiguous United States one (2.5 km). The grid is put on a regular one.
+id = RTMA-GU
+label = NOAA/NCEP RTMA Guam surface analysis, 2.5 km
+group = NWS analysis
+kind = grib
+url = https://noaa-rtma-pds.s3.amazonaws.com/gurtma.{date}/gurtma.t{cycle}z.2dvaranl_ndfd.grb2
+index_suffix = .idx
+cycle_hours = 1
+lag_hours = 1
+probe_hour = 0
+cycles_to_try = 3
+warp = 0.025, 143.5, 12.2, 148.5, 17.0
+sectors = world
 hours = 0-0/1
 hourly_runs = true
 overlays = true
@@ -1124,6 +2007,7 @@ clone_rename = PRMSL:MSLMA
         {"HREF", R"MODEL(
 # the High-Resolution Ensemble Forecast on NOMADS: its own ready-made products (mean, pmmn, lpmm, avrg, sprd, prob, eas, ffri)
 id = HREF
+alternate = REFS | its successor, the RRFS ensemble, from NOAA's AWS bucket
 label = NOAA/NCEP HREF, 10 member 3 km ensemble, retired Nov 2026
 group = Archive
 kind = grib
@@ -1209,6 +2093,7 @@ hours = 0-0/1
         {"RRFSD", R"MODEL(
 # the same fields computed from the RRFS forecasts, a NetCDF file for each hour of each run
 id = RRFSD
+alternate = RRFS | the same RRFS, from NOAA's AWS bucket
 label = SPC severe weather fields from the RRFS (RRFSD)
 source_label = SPC severe weather fields from the RRFS
 include = spc_post
@@ -1225,6 +2110,7 @@ run_length = every 6 : 84 , else : 18
         {"GFS-WAVE", R"MODEL(
 # GFS-Wave: the global 0.16 degree sea state, one file for each hour
 id = GFS-WAVE
+alternate = MF-WAVE | Meteo-France's global wave model, via Open-Meteo (a different model)
 label = NOAA/NCEP GFS-Wave 0.16 degree
 kind = grib
 url = https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{date}/{cycle}/wave/gridded/gfswave.t{cycle}z.global.0p16.f{hour3}.grib2
@@ -1238,6 +2124,7 @@ list = true
         {"GEFS-WAVE", R"MODEL(
 # GEFS-Wave: the control member's sea state, 0.25 degree
 id = GEFS-WAVE
+alternate = MF-WAVE | Meteo-France's global wave model, via Open-Meteo (a different model)
 label = NOAA/NCEP GEFS-Wave, control member, 0.25 degree
 kind = grib
 url = https://noaa-gefs-pds.s3.amazonaws.com/gefs.{date}/{cycle}/wave/gridded/gefs.wave.t{cycle}z.c00.global.0p25.f{hour3}.grib2

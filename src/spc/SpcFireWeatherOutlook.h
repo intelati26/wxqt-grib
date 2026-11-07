@@ -7,10 +7,11 @@
 #ifndef SPCFIREWEATHEROUTLOOK_H
 #define SPCFIREWEATHEROUTLOOK_H
 
+#include <algorithm>
 #include <string>
 #include <vector>
 #include "ui/ComboBox.h"
-#include "ui/Photo.h"
+#include "ui/Image.h"
 #include "ui/Shortcut.h"
 #include "ui/Text.h"
 #include "ui/TwoWidgetScroll.h"
@@ -21,7 +22,8 @@
 // categorical graphic and (days 3-8) the probability graphic, with who issued it and when, what the lines mean, and the text product.
 class SpcFireWeatherOutlook : public Window {
 public:
-    SpcFireWeatherOutlook(Window *, int);   // the day to start on: 0 day 1, 1 day 2, 2 days 3-8
+    SpcFireWeatherOutlook(Window *, int);
+    void selectDay(int day) { comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 8))); showDay(comboDay.getIndex()); }   // the day to start on: 0 day 1, 1 day 2, 2 days 3-8 together, 3 to 8 day 3 .. day 8
 
 private:
     void showDay(int index);
@@ -29,7 +31,7 @@ private:
     ComboBox comboDay;
     ComboBox comboGraphic;
     Text header;
-    Photo photo;
+    Image photo;
     Text text;
     TwoWidgetScroll sw;
     Shortcut shortcutImage;
