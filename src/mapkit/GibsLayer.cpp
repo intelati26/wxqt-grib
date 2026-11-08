@@ -196,24 +196,28 @@ void GibsLayer::request(MapHost& host, const Product& product, const string& dat
     const string url = urlOf(product, date, tile);
     const bool keep = date < QDateTime::currentDateTimeUtc().addDays(-1).toString("yyyy-MM-dd").toStdString();
     const QString file = cacheFile(key, product.extension);
-    auto bytes = std::make_shared<QByteArray>();
-    host.background([url, bytes, keep, file] {
+    auto decoded = std::make_shared<QImage>();
+    // the tile is decoded, and put in the format the painter draws fastest, on the worker: the window thread only draws
+    host.background([url, decoded, keep, file] {
+                        QByteArray bytes;
                         QFile disk{file};
                         if (keep && disk.open(QIODevice::ReadOnly)) {
-                            *bytes = disk.readAll();
+                            bytes = disk.readAll();
+                        } else {
+                            bytes = UtilityIO::downloadAsByteArray(url);
+                        }
+                        QImage image = bytes.isEmpty() ? QImage{} : QImage::fromData(bytes);
+                        if (image.isNull()) {
                             return;
                         }
-                        *bytes = UtilityIO::downloadAsByteArray(url);
-                        if (keep && !bytes->isEmpty() && !QImage::fromData(*bytes).isNull() && disk.open(QIODevice::WriteOnly)) {
-                            disk.write(*bytes);
+                        if (keep && !disk.isOpen() && disk.open(QIODevice::WriteOnly)) {
+                            disk.write(bytes);
                         }
+                        *decoded = image.convertToFormat(image.hasAlphaChannel() ? QImage::Format_ARGB32_Premultiplied : QImage::Format_RGB32);
                     },
-                    [this, key, bytes, &host] {
-                        if (!bytes->isEmpty()) {
-                            const auto decoded = QImage::fromData(*bytes);
-                            if (!decoded.isNull()) {
-                                tiles[key] = decoded;
-                            }
+                    [this, key, decoded, &host] {
+                        if (!decoded->isNull()) {
+                            tiles[key] = *decoded;
                         }
                         host.redraw();
                     });
@@ -339,16 +343,29 @@ void GibsLayer::paint(QPainter& painter, MapHost& host) {
             if (parent != tiles.end()) {
                 const int span = 1 << up;
                 const int px = tile.x & (span - 1), py = tile.y & (span - 1);
-                const QImage part = parent->second.copy(parent->second.width() * px / span, parent->second.height() * py / span, parent->second.width() / span, parent->second.height() / span);
-                painter.drawImage(where, part);
+                const QRectF part{static_cast<double>(parent->second.width() * px / span), static_cast<double>(parent->second.height() * py / span),
+                                  static_cast<double>(parent->second.width() / span), static_cast<double>(parent->second.height() / span)};
+                painter.drawImage(where, parent->second, part);   // the piece of the coarser tile, drawn in place (no copy a frame)
                 break;
             }
         }
     }
     painter.restore();
-    if (tiles.size() > 600) {   // the session's tiles are kept up to a few hundred, then started over (the disk copies stay)
-        tiles.clear();
-        asked.clear();
+    if (tiles.size() > 600) {   // the session's tiles are kept up to a few hundred; then the ones that are not in the view go (the disk copies stay), not all of them at once
+        std::set<string> inView;
+        for (const auto& tile : wanted) {
+            for (int up = 0; up <= 3 && tile.z - up >= 0; up++) {
+                inView.insert(tileKey(product, date, {tile.z - up, tile.x >> up, tile.y >> up}));
+            }
+        }
+        for (auto it = tiles.begin(); it != tiles.end();) {
+            if (inView.count(it->first) == 0) {
+                asked.erase(it->first);
+                it = tiles.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 }
 

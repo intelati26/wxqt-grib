@@ -158,6 +158,28 @@ void EumetViewLayer::paint(QPainter& painter, MapHost& host) {
     }
     const auto t = view.transform();
     const QPointF a = t(north, west), b = t(south, east);
+    // what was on the map stays under the new pictures until they are here (this view's pictures are drawn over it)
+    bool allHere = true;
+    std::vector<Shown> nowShown;
+    for (const auto& time : times) {
+        const string key = string{product().layer} + "|" + time + "|" + std::to_string(static_cast<int>(west)) + "," + std::to_string(static_cast<int>(south)) + "," + std::to_string(static_cast<int>(east)) + "," +
+                           std::to_string(static_cast<int>(north)) + "|" + std::to_string(width) + "x" + std::to_string(height);
+        const auto have = images.find(key);
+        if (have == images.end()) {
+            allHere = false;
+        } else if (!have->second.isNull()) {
+            nowShown.push_back({have->second, west, south, east, north});
+        }
+    }
+    if (!allHere) {
+        painter.save();
+        painter.setOpacity(opacity / 100.0);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        for (const auto& old : lastShown) {
+            painter.drawImage(QRectF{t(old.north, old.west), t(old.south, old.east)}.normalized(), old.image);
+        }
+        painter.restore();
+    }
     for (const auto& time : times) {
         const string key = string{product().layer} + "|" + time + "|" + std::to_string(static_cast<int>(west)) + "," + std::to_string(static_cast<int>(south)) + "," + std::to_string(static_cast<int>(east)) + "," +
                            std::to_string(static_cast<int>(north)) + "|" + std::to_string(width) + "x" + std::to_string(height);
@@ -165,16 +187,17 @@ void EumetViewLayer::paint(QPainter& painter, MapHost& host) {
         if (found == images.end()) {
             if (asked.insert(key).second) {
                 const auto url = imageUrl(west, south, east, north, width, height, time);
-                auto bytes = std::make_shared<QByteArray>();
+                auto decoded = std::make_shared<QImage>();
                 fetching++;
-                host.background([bytes, url] { *bytes = URL::getBytes(url); }, [this, bytes, key, &host] {
-                    fetching--;
+                // decoded and put in the painter's fastest format on the worker: the window thread only draws
+                host.background([decoded, url] {
                     QImage image;
-                    if (image.loadFromData(*bytes)) {
-                        images[key] = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-                    } else {
-                        images[key] = QImage{};   // an error page, or nothing: not asked again for this view
+                    if (image.loadFromData(URL::getBytes(url))) {
+                        *decoded = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
                     }
+                }, [this, decoded, key, &host] {
+                    fetching--;
+                    images[key] = *decoded;   // null: an error page, or nothing: not asked again for this view
                     host.redraw();
                 });
             }
@@ -189,9 +212,19 @@ void EumetViewLayer::paint(QPainter& painter, MapHost& host) {
         painter.drawImage(QRectF{a, b}.normalized(), found->second);
         painter.restore();
     }
-    if (images.size() > 60) {   // a session's pictures are a few MB each: the older ones go
-        images.clear();
-        asked.clear();
+    if (allHere && !nowShown.empty()) {
+        lastShown = nowShown;
+    }
+    if (images.size() > 60) {   // a session's pictures are a few MB each: the older ones go (the ones of this view and the one on the map stay)
+        for (auto it = images.begin(); it != images.end();) {
+            const bool mine = std::any_of(nowShown.begin(), nowShown.end(), [&] (const Shown& s2) { return s2.image.cacheKey() == it->second.cacheKey(); });
+            if (mine) {
+                ++it;
+            } else {
+                asked.erase(it->first);
+                it = images.erase(it);
+            }
+        }
     }
 }
 

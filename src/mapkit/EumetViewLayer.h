@@ -67,6 +67,12 @@ private:
     int opacity{100};
     int fetching{0};
     QString shownBox;
+    // the last picture drawn with its box: it stays on the map, under the new one, while the next view is on its way (a pan or a zoom would otherwise blank the layer)
+    struct Shown {
+        QImage image;
+        double west{0}, south{0}, east{0}, north{0};
+    };
+    std::vector<Shown> lastShown;
 };
 
 #endif  // EUMETVIEWLAYER_H
