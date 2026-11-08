@@ -128,6 +128,8 @@ private:
     static string seasonalPartner(const string& param, const string& model);   // the chart of a long-range model (EC46, SEAS5, CFS30) that goes with a chart of another of them
     static const std::vector<string>& seasonalModels();
     void applyTileLayout();
+    void alignCaptions();   // the panes' caption rows as tall as the tallest (a wrapped caption would push its picture below the others')
+    bool aligningCaptions{false};
     void resetTileSpecs(bool keepPicked = false);
     string tileBase;   // the model and chart the tiles were last set for
     Job makeJob(int index, int mainHour, bool ahead) const;

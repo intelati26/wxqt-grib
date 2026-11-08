@@ -76,6 +76,22 @@
 #include "ui/UiStandards.h"
 
 namespace {
+    // calls back when a caption's width changes (its text wraps differently)
+    class WidthWatcher : public QObject {
+    public:
+        WidthWatcher(QObject * parent, std::function<void()> changed) : QObject{parent}, changed{std::move(changed)} {}
+        bool eventFilter(QObject *, QEvent * event) override {
+            if (event->type() == QEvent::Resize && static_cast<QResizeEvent *>(event)->size().width() != static_cast<QResizeEvent *>(event)->oldSize().width()) {
+                QTimer::singleShot(0, this, changed);
+            }
+            return false;
+        }
+    private:
+        std::function<void()> changed;
+    };
+}
+
+namespace {
     std::string sectorLabel(const std::string& id);   // defined with the sector picker below
 }
 
@@ -480,8 +496,10 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         mainPane->setParent(compareArea);
         mainPane->change->hide();
         mainCaption = mainPane->caption;
+        mainCaption->installEventFilter(new WidthWatcher{this, [this] { alignCaptions(); }});
         for (size_t i = 0; i < tiles.size(); i++) {
             tiles[i] = new CompareTile{compareArea};
+            tiles[i]->caption->installEventFilter(new WidthWatcher{this, [this] { alignCaptions(); }});
             const int index = static_cast<int>(i) + 1;
             QObject::connect(tiles[i]->change, &QPushButton::clicked, this, [this, index] { changeTile(index); });
             QObject::connect(tiles[i]->image, &ZoomImage::clicked, this, [this, index] (double fx, double fy) { pickFromTiles(index, fx, fy); });
@@ -1243,6 +1261,7 @@ void ModelViewer::showFrame(const Frame& frame) {
     refreshStationPins();
     hodoTimer.start(120);
     mainCaption->setText(QString::fromStdString(caption(makeJob(0, std::atoi(objectModel.getTime().c_str()), false))));
+    QTimer::singleShot(0, this, [this] { alignCaptions(); });
     renderTiles();
 }
 
@@ -2741,6 +2760,7 @@ void ModelViewer::applyTileLayout() {
     mainTile->setFrameShape(n > 0 ? QFrame::StyledPanel : QFrame::NoFrame);
     PaneLayout::apply(grid, {mainTile, tiles[0], tiles[1], tiles[2]}, n + 1);   // 1, 1 x 2, 1 x 3 or 2 x 2: the rule of every screen of panes
     mainTile->setVisible(true);
+    QTimer::singleShot(0, this, [this] { alignCaptions(); });
 }
 
 // what the other tiles show to begin with: the next charts of the list (favorites first), the other models that draw this chart, or the older runs 6, 12 and 18 hours back
@@ -2851,6 +2871,28 @@ string ModelViewer::memberLabel(const string& value) const {
 }
 
 // what the tile at `index` (0 the screen's own chart) draws at the hour shown by the first tile
+void ModelViewer::alignCaptions() {
+    if (aligningCaptions) {
+        return;
+    }
+    aligningCaptions = true;
+    std::vector<CompareTile *> panes{mainPane, tiles[0], tiles[1], tiles[2]};
+    int tallest = 0;
+    for (auto * pane : panes) {
+        if (pane == nullptr || pane->isHidden() || pane->caption->isHidden()) {
+            continue;
+        }
+        pane->caption->setMinimumHeight(0);
+        tallest = std::max({tallest, pane->caption->heightForWidth(pane->caption->width()), pane->change->isHidden() ? 0 : pane->change->sizeHint().height()});
+    }
+    for (auto * pane : panes) {
+        if (pane != nullptr && !pane->isHidden() && !pane->caption->isHidden()) {
+            pane->caption->setMinimumHeight(tallest);
+        }
+    }
+    aligningCaptions = false;
+}
+
 ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const {
     Job job;
     job.hour = mainHour;
@@ -3113,6 +3155,7 @@ void ModelViewer::renderTile(int index) {
     const int mainHour = std::atoi(objectModel.getTime().c_str());
     const auto job = makeJob(index, mainHour, false);
     tile->caption->setText(QString::fromStdString(caption(job)));
+    QTimer::singleShot(0, this, [this] { alignCaptions(); });
     const int mine = ++tileGeneration[static_cast<size_t>(index) - 1];
     if (!job.ok) {
         tile->setMessage(QString::fromStdString(job.why));
