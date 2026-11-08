@@ -139,7 +139,7 @@ private:
     void showTile(int index, const Job&, const Frame&);
     void changeTile(int index);
     void pickFromTiles(int source, double fx, double fy);
-    QByteArray compositePicture() const;
+    QByteArray compositePicture(const std::vector<QByteArray>& drawnAgain = {}) const;
     QDateTime runTime(const string& run) const;
     ComboBox comboTiles, comboTilesShow;
     std::vector<string> memberLabels;     // what comboMember lists, by memberValues

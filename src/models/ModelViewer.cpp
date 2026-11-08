@@ -908,8 +908,55 @@ void ModelViewer::saveLoop() {
         return;
     }
     if (tileCount() > 0) {   // the tiles side by side, as one picture
-        const auto picture = compositePicture();   // (the tiles' pictures go as they are)
         const auto stem = QString::fromStdString(objectModel.model + "_compare_" + objectModel.sector + "_" + objectModel.run);
+        // tiles of the same chart (models, runs, members of one chart) are drawn again with one color bar for all, holding the full range seen across them; tiles of different charts keep their own
+        const int shownHour = std::atoi(objectModel.getTime().c_str());
+        std::vector<std::tuple<string, string, string, string, int, std::vector<string>>> jobs;
+        std::vector<GfsRender::Variant> variants;
+        bool shared = shownProbe && shownProbe->hasRange;
+        double low = std::numeric_limits<double>::max(), high = std::numeric_limits<double>::lowest();
+        string chart;
+        for (int spec = 0; spec <= tileCount() && shared; spec++) {
+            const auto job = makeJob(spec, shownHour, false);
+            const auto& probe = spec == 0 ? shownProbe : tiles[static_cast<size_t>(spec - 1)]->probe;
+            if (!job.ok || !probe || !probe->hasRange || (spec > 0 && job.param != chart)) {
+                shared = false;
+                break;
+            }
+            chart = job.param;
+            low = std::min(low, probe->fillMin);
+            high = std::max(high, probe->fillMax);
+            auto variant = job.variant;
+            variant.legendRange = true;
+            variants.push_back(variant);
+            jobs.emplace_back(job.model, job.param, job.sector, job.cycle, job.hour, job.overlays);
+        }
+        if (shared && high > low) {
+            if (!gfsSession) {
+                gfsSession = std::make_shared<GfsRender::Session>();
+            }
+            auto session = gfsSession;
+            auto out = std::make_shared<std::vector<QByteArray>>();
+            const auto titleBefore = windowTitle();
+            setWindowTitle("Drawing the pictures to save...");
+            for (auto& variant : variants) {
+                variant.legendLow = low;
+                variant.legendHigh = high;
+            }
+            new FutureVoid{this, [=] {
+                               for (size_t i = 0; i < jobs.size(); i++) {
+                                   const auto& [model, param, sector, cycle, hour, overlays] = jobs[i];
+                                   string error;
+                                   out->push_back(GfsRender::png(*session, model, param, sector, cycle, hour, overlays, error, nullptr, variants[i]));
+                               }
+                           },
+                           [this, out, stem, titleBefore] {
+                               setWindowTitle(titleBefore);
+                               UtilityAnimationExport::saveWithDialog(this, std::vector<QByteArray>{}, strip->intervalMs(), compositePicture(*out), stem, QByteArray{}, false, stem);
+                           }};
+            return;
+        }
+        const auto picture = compositePicture();   // (the tiles' pictures go as they are)
         UtilityAnimationExport::saveWithDialog(this, std::vector<QByteArray>{}, strip->intervalMs(), picture, stem, QByteArray{}, false, stem);
         return;
     }
@@ -930,8 +977,8 @@ void ModelViewer::saveLoop() {
         versus += "_" + other;
     }
     const auto name = QString::fromStdString(objectModel.model + (versus.empty() ? "" : "_vs" + versus) + "_" + objectModel.param + "_" + objectModel.sector + "_" + objectModel.run);
-    // The color bar of an export holds only the values of what is saved: the picture's, or the whole loop's (the smallest at the left, the largest at the right). The pictures are drawn again
-    // with that bar; a chart with no fill to range over, or that cannot be drawn again, is saved as it is on view.
+    // The color bar of an export holds only the values of what is saved: the picture's, or the whole loop's, every hour of it, the smallest at the left and the largest at the right.
+    // The pictures are drawn again with that bar; a chart with no fill to range over, or that cannot be drawn again, is saved as it is on view.
     {
         const bool single = drawn.size() < 2;
         const int shownHour = std::atoi(objectModel.getTime().c_str());
@@ -939,25 +986,23 @@ void ModelViewer::saveLoop() {
         if (single) {
             hours.push_back(shownHour);
         } else {
-            for (const auto& [hour, bytes] : drawn) {
-                hours.push_back(hour);
+            for (const auto& t : objectModel.times) {   // every hour of the loop, the ones not drawn yet too (they are drawn here, for their values and their place in the loop)
+                hours.push_back(std::atoi(t.c_str()));
             }
         }
         bool ranged = shownProbe && shownProbe->hasRange;
         double low = std::numeric_limits<double>::max(), high = std::numeric_limits<double>::lowest();
-        for (const auto& [hour, bytes] : drawn) {
-            const auto& probe = frames.at(frameKey(hour)).probe;
-            if (single && hour != shownHour) {
-                continue;
+        std::vector<char> known;   // the hours whose range is already known from the picture on view
+        for (const int hour : hours) {
+            const auto found = frames.find(frameKey(hour));
+            const bool has = found != frames.end() && found->second.probe && found->second.probe->hasRange;
+            known.push_back(has ? 1 : 0);
+            if (has) {
+                low = std::min(low, found->second.probe->fillMin);
+                high = std::max(high, found->second.probe->fillMax);
             }
-            if (!probe || !probe->hasRange) {
-                ranged = false;
-                break;
-            }
-            low = std::min(low, probe->fillMin);
-            high = std::max(high, probe->fillMax);
         }
-        std::vector<GfsRender::Variant> variants;
+        std::vector<GfsRender::Variant> variants, plain;
         std::vector<std::tuple<string, string, string, string, int, std::vector<string>>> jobs;
         for (const int hour : hours) {
             const auto job = makeJob(0, hour, false);
@@ -966,10 +1011,9 @@ void ModelViewer::saveLoop() {
                 break;
             }
             auto variant = job.variant;
+            plain.push_back(variant);
             variant.legendFit = single;
             variant.legendRange = !single;
-            variant.legendLow = low;
-            variant.legendHigh = high;
             variants.push_back(variant);
             jobs.emplace_back(job.model, job.param, job.sector, job.cycle, job.hour, job.overlays);
         }
@@ -987,12 +1031,29 @@ void ModelViewer::saveLoop() {
             const int interval = strip->intervalMs();
             setWindowTitle("Drawing the pictures to save...");
             new FutureVoid{this, [=] {
+                               double lo = low, hi = high;
+                               if (!single) {
+                                   for (size_t i = 0; i < jobs.size(); i++) {   // an hour not drawn yet: drawn for its values
+                                       if (!known[i]) {
+                                           const auto& [model, param, sector, cycle, hour, overlays] = jobs[i];
+                                           string error;
+                                           GfsChart::Probe probe;
+                                           GfsRender::png(*session, model, param, sector, cycle, hour, overlays, error, &probe, plain[i]);
+                                           if (probe.hasRange) {
+                                               lo = std::min(lo, probe.fillMin);
+                                               hi = std::max(hi, probe.fillMax);
+                                           }
+                                       }
+                                   }
+                               }
                                for (size_t i = 0; i < jobs.size(); i++) {
                                    const auto& [model, param, sector, cycle, hour, overlays] = jobs[i];
                                    string error;
                                    auto probe = std::make_shared<GfsChart::Probe>();
-                                   auto bytes = GfsRender::png(*session, model, param, sector, cycle, hour, overlays, error, probe.get(), variants[i]);
-                                   out->bytes.push_back(bytes);
+                                   auto variant = variants[i];
+                                   variant.legendLow = lo;
+                                   variant.legendHigh = hi;
+                                   out->bytes.push_back(GfsRender::png(*session, model, param, sector, cycle, hour, overlays, error, probe.get(), variant));
                                    out->probes.push_back(probe);
                                }
                            },
@@ -3266,15 +3327,16 @@ void ModelViewer::pickFromTiles(int source, double fx, double fy) {
 }
 
 // all the tiles in one picture, each under its caption
-QByteArray ModelViewer::compositePicture() const {
+QByteArray ModelViewer::compositePicture(const std::vector<QByteArray>& drawnAgain) const {
     struct Cell {
         QImage image;
         QString text;
     };
     std::vector<Cell> cells;
-    cells.push_back({QImage::fromData(shownBytes), mainCaption->text()});
+    cells.push_back({QImage::fromData(drawnAgain.size() > 0 && !drawnAgain[0].isEmpty() ? drawnAgain[0] : shownBytes), mainCaption->text()});
     for (int i = 0; i < tileCount(); i++) {
-        cells.push_back({QImage::fromData(tiles[static_cast<size_t>(i)]->shownBytes), tiles[static_cast<size_t>(i)]->caption->text()});
+        const auto at = static_cast<size_t>(i) + 1;
+        cells.push_back({QImage::fromData(at < drawnAgain.size() && !drawnAgain[at].isEmpty() ? drawnAgain[at] : tiles[static_cast<size_t>(i)]->shownBytes), tiles[static_cast<size_t>(i)]->caption->text()});
     }
     const int cellWidth = 900, head = 30;
     const int columns = tileCount() == 3 ? 2 : tileCount() + 1;
