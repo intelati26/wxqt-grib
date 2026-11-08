@@ -70,6 +70,7 @@
 #include "spc/SvrComparison.h"
 #include "spc/WatchProbabilityViewer.h"
 #include "space/UtilitySun.h"
+#include "space/SolarFleetViewer.h"
 #include "space/SunViewer.h"
 #include "models/AnalysisLoop.h"
 #include "models/SubhourlyViewer.h"
@@ -291,6 +292,8 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("sun:")) {   // WXQT_OPEN=sun:<out.png>[:width]: the labelled Sun picture saved, then the program goes on
                 const auto parts = route.split(':');
                 UtilitySun::labelled(parts.value(2, "900").toInt()).save(parts.value(1));
+            } else if (route == "solarfleet") {   // WXQT_OPEN=solarfleet: the plan view of the spacecraft that watch the Sun
+                new SolarFleetViewer{&w};
             } else if (route == "sunviewer" || route.startsWith("sunviewer:")) {   // WXQT_OPEN=sunviewer[:<picture number>]: the Sun window with the hover on its regions, on that picture of its list
                 auto * sun = new SunViewer{&w};
                 if (route.startsWith("sunviewer:")) {

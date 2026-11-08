@@ -5,6 +5,7 @@
 
 #include "ui/ChartPainter.h"
 #include "space/SpaceWeatherViewer.h"
+#include "space/SolarFleetViewer.h"
 #include "space/SunViewer.h"
 #include "space/UtilitySun.h"
 #include "vis/GoesViewer.h"
@@ -393,6 +394,10 @@ SpaceWeatherViewer::SpaceWeatherViewer(Window * parent)
         sun->connect([this] { new SunViewer{this}; });
         row.addWidget(*sun);
         textButtons.push_back(sun);
+        auto * fleetButton = new Button{this, None, "Who watches the Sun...", "A plan view of the inner solar system with STEREO-A, Parker Solar Probe and Solar Orbiter, and the satellites at L1 and round the Earth, with the instruments of each"};
+        fleetButton->connect([this] { new SolarFleetViewer{this}; });
+        row.addWidget(*fleetButton);
+        textButtons.push_back(fleetButton);
     }
     row.addStretch();
     content = new QWidget{this};
