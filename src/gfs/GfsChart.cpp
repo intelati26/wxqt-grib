@@ -7718,20 +7718,28 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     const Ramp * ramp = &product.ramp;
     QImage map(static_cast<int>(std::lround(area.width() * S)), static_cast<int>(std::lround(area.height() * S)), QImage::Format_ARGB32_Premultiplied);
     map.fill(QColor{244, 244, 244});
-    float fillMax = std::nanf(""), fillMin = std::nanf("");   // the largest and smallest value on view: marked on the legend
+    float fillMax = std::nanf(""), fillMin = std::nanf(""), anyMax = std::nanf(""), anyMin = std::nanf("");   // the largest and smallest value on view: marked on the legend
     for (int y = 0; y < map.height(); y++) {
         auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
         const double lat = view.latAt(area.top() + (y + 0.5) / S);
         for (int x = 0; x < map.width(); x++) {
             const float value = fill.sample(view.lonAt(area.left() + (x + 0.5) / S), lat);
             if (!std::isnan(value)) {
-                if (std::isnan(fillMax) || value > fillMax) {
-                    fillMax = value;
+                if (std::isnan(anyMax) || value > anyMax) {
+                    anyMax = value;
                 }
-                if (std::isnan(fillMin) || value < fillMin) {
-                    fillMin = value;
+                if (std::isnan(anyMin) || value < anyMin) {
+                    anyMin = value;
                 }
                 const QRgb c = ramp->at(value);
+                if (qAlpha(c) >= 128) {   // (what the picture shows: the clear part of a scale, a reflectivity under 5 dBZ, is not in the range)
+                    if (std::isnan(fillMax) || value > fillMax) {
+                        fillMax = value;
+                    }
+                    if (std::isnan(fillMin) || value < fillMin) {
+                        fillMin = value;
+                    }
+                }
                 const int a = qAlpha(c);
                 if (a == 255) {
                     row[x] = qPremultiply(c);
@@ -8379,6 +8387,10 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
     p.drawText(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 
+    if (std::isnan(fillMax)) {   // nothing drawn in a color: the range of what there is
+        fillMax = anyMax;
+        fillMin = anyMin;
+    }
     if (options.probe && !std::isnan(fillMax)) {   // (the export's legend and a loop's range read these)
         options.probe->hasRange = true;
         options.probe->fillMin = fillMin;
