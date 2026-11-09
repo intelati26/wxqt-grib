@@ -1762,7 +1762,7 @@ const std::vector<Product>& products() {
                             if (!std::isnan(meanK)) {
                                 meanK = meanK > 150.0 ? meanK - 273.15 : meanK;
                                 const double normalHigh = meanK * 1.8 + 32.0 + 9.0;
-                                middle = 69.0 + 0.5 * std::max(0.0, normalHigh - 69.0);   // (the comfort is absolute, 61.5 to 76.5 F; a hot normal moves it up half way, a cold one does not move it down)
+                                middle = 64.0 + 0.5 * std::max(0.0, normalHigh - 64.0);   // (the comfort is absolute, 56.5 to 71.5 F; a hot normal moves it up half way, a cold one does not move it down)
                             }
                         }
                         const double nowLocal = runHours + zone;
@@ -1863,9 +1863,9 @@ const std::vector<Product>& products() {
                     const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at];
                     const double base = 0.35 * tScore + 0.25 * rScore + 0.15 * dScore + 0.10 * cScore + 0.15 * wScore;
                     int value = 0;
-                    if (base >= 0.97 && apparentMean >= 62.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.9) {
+                    if (base >= 0.97 && apparentMean >= 62.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.97) {
                         value = 5;
-                    } else if (base >= 0.91 && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.88 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.7) {
+                    } else if (base >= 0.91 && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.8 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.88) {
                         value = 4;
                     } else if (base >= 0.84 && tScore >= 0.7 && rScore >= 0.75 && wScore >= 0.5 && dScore >= 0.4) {
                         value = 3;

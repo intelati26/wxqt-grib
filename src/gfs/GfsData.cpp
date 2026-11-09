@@ -372,7 +372,7 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     const auto warp = warpFor(run);
     const QString decoded = warp.enabled ? QString{"w%1_%2_%3_%4_%5"}.arg(warp.step).arg(warp.west).arg(warp.south).arg(warp.east).arg(warp.north) : QString{"p"};
     const QString missing = std::isnan(source.extraMissing) ? QString{} : QString{"_m%1"}.arg(static_cast<double>(source.extraMissing));
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_") + QString::fromStdString(want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail) + "_" + decoded + missing;
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_") + QString::fromStdString(want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail) + "_" + decoded + missing + (want.variable == "MASSDEN" ? "_u" : "");
     if (!want.stat.empty()) {   // an ensemble member of the same file and record is a field of its own
         name += "_" + QString::fromStdString(want.stat);
     }
@@ -436,7 +436,11 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
         }
     }
     std::string message;
-    if (!GdalRaster::translate(gribPath, config.cacheFolder + "/" + scratch, gdalOptions(warpFor(run), config.gdalBin, 0), message)) {
+    auto readOptions = gdalOptions(warpFor(run), config.gdalBin, 0);
+    if (want.variable == "MASSDEN") {   // (GDAL reads the particles' mass density as a temperature and subtracts 273.15, which a float does not survive: the values as the file has them)
+        readOptions.extra << "--config" << "GRIB_NORMALIZE_UNITS" << "NO";
+    }
+    if (!GdalRaster::translate(gribPath, config.cacheFolder + "/" + scratch, readOptions, message)) {
         error = "gdal_translate failed on " + want.variable + " " + want.level + ": " + message;
         if (message.find("libaec") != std::string::npos) {   // ECMWF's CCSDS compression: only a GDAL built with libaec reads it
             error = "this GDAL cannot read CCSDS (AEC) compressed GRIB, which ECMWF's IFS and AIFS use: it was built without libaec (" + want.variable + " " + want.level + ")";
