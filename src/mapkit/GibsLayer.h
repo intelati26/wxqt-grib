@@ -22,6 +22,7 @@ public:
     string source() const override { return "NASA GIBS / EOSDIS (VIIRS NOAA-20, NOAA-21, Suomi NPP; MODIS Terra, Aqua)"; }
     string tip() const override { return "Daily imagery of the polar-orbiting satellites as tiles for any date: true color, false color (snow, ice and fire scars), the infrared window and the night lights. A day's picture is built from that day's passes, so the gaps are where no pass reached"; }
     bool underCoast() const override { return true; }
+    bool working() const override { return fetching > 0 || notStarted > 0; }   // tiles on their way, or in view and not asked for yet (a picture of the whole world waits for them)
     int order() const override { return 6; }
     void paint(QPainter&, MapHost&) override;
     // the days as frames of the map's time bar: stepping or looping through them with the other layers on top
@@ -69,6 +70,8 @@ private:
     int daysBack{1};           // 0 today (a partial day), 1 yesterday ...
     int opacity{100};
     int shownZoom{0};
+    int fetching{0};           // tiles being read
+    int notStarted{0};         // tiles of the view not asked for yet (a paint asks for a few at a time)
     int liveDays{1};           // the day the bar's "latest" shows (the choice in the options)
 };
 

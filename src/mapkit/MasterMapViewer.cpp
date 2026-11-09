@@ -2209,7 +2209,7 @@ GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, doubl
     };
     paintImage();
     // the model charts are drawn for the view on screen: a picture of the whole world waits until they have drawn the whole world
-    for (int round = 0; waitForLayers && round < 2 && anyWorking(); round++) {
+    for (int round = 0; waitForLayers && round < 12 && anyWorking(); round++) {   // (a few rounds for the models, the polar orbiters' tiles come eight at a time)
         QEventLoop loop;
         QTimer poll;
         QTimer limit;

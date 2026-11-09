@@ -193,6 +193,7 @@ void GibsLayer::request(MapHost& host, const Product& product, const string& dat
         return;
     }
     asked.insert(key);
+    fetching++;
     const string url = urlOf(product, date, tile);
     const bool keep = date < QDateTime::currentDateTimeUtc().addDays(-1).toString("yyyy-MM-dd").toStdString();
     const QString file = cacheFile(key, product.extension);
@@ -216,6 +217,7 @@ void GibsLayer::request(MapHost& host, const Product& product, const string& dat
                         *decoded = image.convertToFormat(image.hasAlphaChannel() ? QImage::Format_ARGB32_Premultiplied : QImage::Format_RGB32);
                     },
                     [this, key, decoded, &host] {
+                        fetching--;
                         if (!decoded->isNull()) {
                             tiles[key] = *decoded;
                         }
@@ -324,6 +326,7 @@ void GibsLayer::paint(QPainter& painter, MapHost& host) {
     painter.setOpacity(opacity / 100.0);
     painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
     int started = 0;
+    notStarted = 0;
     for (const auto& tile : wanted) {
         const string key = tileKey(product, date, tile);
         const auto found = tiles.find(key);
@@ -333,9 +336,13 @@ void GibsLayer::paint(QPainter& painter, MapHost& host) {
             painter.drawImage(where, found->second);
             continue;
         }
-        if (started < 8 && asked.count(key) == 0) {
-            started++;
-            request(host, product, date, tile);
+        if (asked.count(key) == 0) {
+            if (started < 8) {
+                started++;
+                request(host, product, date, tile);
+            } else {
+                notStarted++;
+            }
         }
         // while a tile is on its way a coarser one that is already here stands in (up to three levels)
         for (int up = 1; up <= 3 && tile.z - up >= 0; up++) {
