@@ -6,10 +6,13 @@
 #include "gfs/GfsModelFile.h"
 #include "gfs/GeosOpendap.h"
 #include "util/Utility.h"
+#include "util/UtilityIO.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <sstream>
 #include <QDateTime>
 #include <QDir>
@@ -605,6 +608,42 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
                 break;
             }
             source.warp = {true, v[0], v[1], v[2], v[3], v[4]};
+        } else if (key == "nest_center") {   // url of the file with the area's centre, half width km, half height km: the run's own box (the `warp` box is the fallback and must hold every place)
+            const auto parts = split(value, ',');
+            double halfWidth = 0, halfHeight = 0;
+            if (parts.size() != 3 || !toDouble(parts[1], halfWidth) || !toDouble(parts[2], halfHeight)) {
+                reader.fail("nest_center is url,half width km,half height km");
+                break;
+            }
+            const std::string pattern = parts[0];
+            source.warpOf = [pattern, halfWidth, halfHeight] (const GfsData::Run& run, GfsData::Source::Warp& warp) {
+                static std::mutex mutex;
+                static std::map<std::string, std::pair<double, double>> known;   // by url: read once a session (a run's centre does not change)
+                std::string url = pattern;
+                replaceAll(url, "{date}", run.date);
+                replaceAll(url, "{cycle}", run.cycle);
+                double lat = 0, lon = 0;
+                {
+                    std::lock_guard<std::mutex> lock{mutex};
+                    const auto found = known.find(url);
+                    if (found != known.end()) {
+                        lat = found->second.first;
+                        lon = found->second.second;
+                    } else {
+                        std::istringstream in{UtilityIO::downloadAsByteArray(url).toStdString()};
+                        if (!(in >> lat >> lon) || std::abs(lat) > 90.0 || std::abs(lon) > 360.0) {
+                            return false;
+                        }
+                        known[url] = {lat, lon};
+                    }
+                }
+                const double dLat = halfHeight / 111.2, dLon = halfWidth / (111.2 * std::cos(lat * 3.14159265358979 / 180.0));
+                warp.west = lon - dLon;
+                warp.east = lon + dLon;
+                warp.south = lat - dLat;
+                warp.north = lat + dLat;
+                return true;
+            };
         } else if (key == "member") {
             if (!parseMembers(value, *definition, reader)) {
                 break;

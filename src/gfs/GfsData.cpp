@@ -339,11 +339,22 @@ namespace {
     }
 }
 
+GfsData::Source::Warp GfsData::warpFor(const Run& run) const {
+    Source::Warp warp = source.warp;
+    if (warp.enabled && source.warpOf) {
+        Source::Warp moved = warp;
+        if (source.warpOf(run, moved)) {
+            return moved;
+        }
+    }
+    return warp;
+}
+
 namespace {
-    GdalRaster::Options gdalOptions(const GfsData::Source& source, const std::string& gdalBin, int band) {
+    GdalRaster::Options gdalOptions(const GfsData::Source::Warp& warp, const std::string& gdalBin, int band) {
         GdalRaster::Options options;
         options.gdalBin = QString::fromStdString(gdalBin);
-        options.warp = {source.warp.enabled, source.warp.west, source.warp.south, source.warp.east, source.warp.north, source.warp.step};
+        options.warp = {warp.enabled, warp.west, warp.south, warp.east, warp.north, warp.step};
         options.band = band;
         return options;
     }
@@ -357,7 +368,8 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     }
     // The name says what the field is: the model, the run, the hour, the file, the record, and how it was decoded (the grid it was warped to and which value means "no data"), so a change in
     // either is a different entry and an old one is never served in its place.
-    const QString decoded = source.warp.enabled ? QString{"w%1_%2_%3_%4_%5"}.arg(source.warp.step).arg(source.warp.west).arg(source.warp.south).arg(source.warp.east).arg(source.warp.north) : QString{"p"};
+    const auto warp = warpFor(run);
+    const QString decoded = warp.enabled ? QString{"w%1_%2_%3_%4_%5"}.arg(warp.step).arg(warp.west).arg(warp.south).arg(warp.east).arg(warp.north) : QString{"p"};
     const QString missing = std::isnan(source.extraMissing) ? QString{} : QString{"_m%1"}.arg(static_cast<double>(source.extraMissing));
     QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_") + QString::fromStdString(want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail) + "_" + decoded + missing;
     if (!want.stat.empty()) {   // an ensemble member of the same file and record is a field of its own
@@ -423,7 +435,7 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
         }
     }
     std::string message;
-    if (!GdalRaster::translate(gribPath, config.cacheFolder + "/" + scratch, gdalOptions(source, config.gdalBin, 0), message)) {
+    if (!GdalRaster::translate(gribPath, config.cacheFolder + "/" + scratch, gdalOptions(warpFor(run), config.gdalBin, 0), message)) {
         error = "gdal_translate failed on " + want.variable + " " + want.level + ": " + message;
         if (message.find("libaec") != std::string::npos) {   // ECMWF's CCSDS compression: only a GDAL built with libaec reads it
             error = "this GDAL cannot read CCSDS (AEC) compressed GRIB, which ECMWF's IFS and AIFS use: it was built without libaec (" + want.variable + " " + want.level + ")";
@@ -999,7 +1011,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
             return false;
         }
     }
-    auto options = gdalOptions(source, config.gdalBin, band);
+    auto options = gdalOptions(warpFor(run), config.gdalBin, band);
     options.timeoutMs = 300000;
     if (source.netcdf) {   // by range: a few requests of a megabyte or so, not the file
         options.extra << "--config" << "CPL_VSIL_CURL_CHUNK_SIZE" << "2097152" << "--config" << "GDAL_HTTP_USERAGENT" << "wxqt";

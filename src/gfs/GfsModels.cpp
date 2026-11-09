@@ -265,7 +265,7 @@ std::string GfsModels::pickerGroup(const std::string& id) {
     static const std::map<std::string, std::string> groups{
         {"GFS", "Global"}, {"AIGFS", "Global"}, {"IFS", "Global"}, {"AIFS", "Global"}, {"GEOS-FP", "Global"}, {"CFS", "Seasonal"}, {"CFS-ANL", "Seasonal"}, {"CFS30", "Seasonal"}, {"EC46", "Seasonal"}, {"SEAS5", "Seasonal"}, {"MRMS", "Archive"},
         {"NAM", "Archive"}, {"RAP", "Regional"}, {"NBM", "Regional"}, {"FIREWX", "Archive"},
-        {"HRRR", "Convection allowing"}, {"MPAS-HT", "Convection allowing"}, {"MPAS-RN", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"RRFS-AK", "Convection allowing"}, {"HRRR-AK", "Convection allowing"}, {"ICON-EU", "Regional"}, {"ICON-D2", "Convection allowing"}, {"HRDPS", "Convection allowing"}, {"RRFS-HI", "Convection allowing"}, {"RRFS-PR", "Convection allowing"}, {"RRFS-NA", "Regional"}, {"NAM-HIRES", "Archive"}, {"HRW-ARW", "Archive"},
+        {"HRRR", "Convection allowing"}, {"MPAS-HT", "Convection allowing"}, {"MPAS-RN", "Convection allowing"}, {"RRFS", "Convection allowing"}, {"RRFS-AK", "Convection allowing"}, {"RRFS-FIREWX", "Convection allowing"}, {"HRRR-AK", "Convection allowing"}, {"ICON-EU", "Regional"}, {"ICON-D2", "Convection allowing"}, {"HRDPS", "Convection allowing"}, {"RRFS-HI", "Convection allowing"}, {"RRFS-PR", "Convection allowing"}, {"RRFS-NA", "Regional"}, {"NAM-HIRES", "Archive"}, {"HRW-ARW", "Archive"},
         {"HRW-ARW2", "Archive"}, {"HRW-FV3", "Archive"},
         {"GEFS", "Ensembles"}, {"GEPS", "Ensembles"}, {"IFS-ENS", "Ensembles"}, {"ENS-ALL", "Ensembles"}, {"REFS", "Ensembles"}, {"NAEFS", "Ensembles"},
         {"GEFS-MEAN-SPRD", "Ensembles"}, {"GEFS-SPAG", "Ensembles"},
@@ -352,6 +352,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("RRFS-AK"));
         m.push_back(fromFile("RRFS-HI"));
         m.push_back(fromFile("RRFS-PR"));
+        m.push_back(fromFile("RRFS-FIREWX"));
         m.push_back(fromFile("RRFS-NA"));
         m.push_back(rrfsWithSubhourly("HRRR", "subh"));
         m.push_back(fromFile("HRRR-AK"));

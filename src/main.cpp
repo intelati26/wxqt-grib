@@ -377,11 +377,11 @@ int main(int argc, char * argv[]) {
                     }
                 }
                 (void) viewer;
-            } else if (route.startsWith("modelat:")) {   // WXQT_OPEN=modelat:<model>:<yyyyMMddHHmm UTC>: the Model Viewer on that model at the run and hour of that time
+            } else if (route.startsWith("modelat:")) {   // WXQT_OPEN=modelat:<model>:<yyyyMMddHHmm UTC>[:<chart id>[:<area id, : written _>]]: the Model Viewer on that model at the run and hour of that time
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
                 when.setTimeZone(QTimeZone::utc());
-                MasterMapViewer::openModels(&w, parts.value(1).toStdString(), {}, {}, when);
+                MasterMapViewer::openModels(&w, parts.value(1).toStdString(), parts.value(3).toStdString(), parts.value(4).replace('_', ':').toStdString(), when);
             } else if (route == "events" && !qEnvironmentVariable("WXQT_KEEP").isEmpty()) {   // WXQT_OPEN=events WXQT_KEEP=1: the first saved event is selected and its offline copy is made
                 auto * viewer = new EventsViewer{&w};
                 QTimer::singleShot(1500, viewer, [viewer] {

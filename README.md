@@ -101,6 +101,7 @@ and their old runs stay. The program has no SREF.
 
 | Model | Scope | Source | Notes |
 |---|---|---|---|
+| RRFS-FIREWX | The fire weather nest, 1.5 km, over the part of the West the forecasters chose for each run (the NAM nest it replaces is in Archive) | AWS (`noaa-rrfs-ops-pds`) | |
 | RRFS-AK, RRFS-HI, RRFS-PR | Alaska (3 km), Hawaii and Puerto Rico (2.5 km) | AWS (`noaa-rrfs-ops-pds`) | |
 | RRFS-NA | North America, 13 km | AWS (`noaa-rrfs-ops-pds`) | not convection allowing |
 | HRRR-AK | Alaska, 3 km | AWS (`noaa-hrrr-bdp-pds`) | |

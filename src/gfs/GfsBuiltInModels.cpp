@@ -1285,6 +1285,38 @@ clone_skip = anom
 clone_pieces = false
 clone_rename = PRMSL:MSLET
 )MODEL"},
+        {"RRFS-FIREWX", R"MODEL(
+# The RRFS fire weather nest (the one that replaces the NAM's, retired in November 2026): 1.5 km (a 1.27 km grid, 522 x 390 points, about 660 x 495 km), a run at 00, 06 and 12Z, hourly to 36 hours. The nest
+# is put over a different part of the West by the forecasters (the run's own file says where: 39 N 112 W, Utah and Nevada, or 42 N 122.3 W, Oregon, so far), so each run is warped to a box round its own centre;
+# the fixed box is what holds both places (and is used when the centre can't be read). The 2D fields and the pressure levels are files of their own.
+id = RRFS-FIREWX
+label = NOAA/NCEP RRFS fire weather nest, 1.5 km
+kind = grib
+url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/firewx.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.firewx_lcc.grib2
+file_default = 2dfld.1p5km
+file = when level~"^[0-9]+ mb$" => prslev.1p5km
+file = 2dfld.1p5km
+probe_file = 2dfld.1p5km
+cycle_hours = 6
+lag_hours = 3
+probe_hour = 0
+cycles_to_try = 6
+warp = 0.0125, -127.5, 36.4, -107.5, 44.6
+nest_center = https://noaa-rrfs-ops-pds.s3.amazonaws.com/firewx.{date}/{cycle}/input/rrfs.t{cycle}z.firewxnest_center_latlon, 340, 255
+sectors = world
+hours = 0-36/1
+run_every = 6
+on_missing = previous_run
+preload_hours = 12
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, PRMSL, PWAT, CAPE, CIN, APCP, CRAIN, CSNOW, CFRZR, CICEP, TCDC, GUST, SNOD, WEASD, REFC, HLCY, VIS, PRATE
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom
+clone_pieces = false
+clone_rename = PRMSL:MSLET
+)MODEL"},
         {"RRFS-HI", R"MODEL(
 # The RRFS for Hawaii (the same open data bucket and runs as the contiguous United States one): 2.5 km, every hour, to 84 hours from 00, 06, 12 and 18Z. The 2D fields and the pressure levels
 # are files of their own; the grid is put on a regular 0.025 degree one.

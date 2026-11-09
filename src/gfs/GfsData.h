@@ -109,6 +109,9 @@ public:
             double step{0.025};
             double west{-127.0}, south{22.0}, east{-65.0}, north{52.0};
         } warp;
+        // A model whose area moves from run to run (the RRFS fire weather nest, 1.5 km, placed over a different part of the West by the forecasters): the box of a run, read from its own files (the
+        // nest's centre); false when it can't be told (the fixed `warp` box, which must hold every place the area may be, is used).
+        std::function<bool(const Run&, Warp&)> warpOf;
     };
     // Every model's Source is made from its definition file (GfsModelFile.h; GfsBuiltInModels.cpp for those that ship with the program). A model whose files need code to be read has a loader:
     // a Source with `custom` is read by the function registered for its id (the SPC REFS Zarr store, spcrefs/SpcRefsLoader.cpp).
@@ -123,6 +126,9 @@ public:
     static std::vector<WrfRunInfo> wrfRunsIn(const std::vector<std::string>& folders);
     // The box (degrees; a little outside the points) a `wrf` run covers, from the latitudes and longitudes of its first file; false when there is no such run or file.
     static bool wrfDomain(const std::string& gdalBin, const std::vector<std::string>& folders, const std::string& runId, double& west, double& south, double& east, double& north);
+
+    // the box a run's fields are warped to: the source's own, or the run's when the area moves
+    Source::Warp warpFor(const Run& run) const;
 
     // a field at a forecast hour (a precipitation period needs the running total at two hours)
     struct Need {
