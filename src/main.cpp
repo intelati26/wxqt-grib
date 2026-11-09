@@ -759,6 +759,17 @@ int main(int argc, char * argv[]) {
                 if (out.open(QIODevice::WriteOnly)) out.write(bytes);
                 fprintf(stderr, "thumb: %lld bytes\n", static_cast<long long>(bytes.size()));
                 std::_Exit(0);
+            } else if (route.startsWith("chartpng:")) {   // WXQT_OPEN=chartpng:<model>:<chart>:<forecast hour>:<area id>:<out file>[:<run yyyyMMddHH>]: the model screen's chart of the newest run (or that one) drawn to a file (640 wide, as a tile)
+                const auto parts = route.split(':');
+                GfsRender::Session session;
+                std::string error;
+                GfsRender::Variant variant;
+                variant.width = 640;
+                const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), {}, error, nullptr, variant);
+                QFile out{parts.value(5)};
+                if (out.open(QIODevice::WriteOnly)) out.write(bytes);
+                fprintf(stderr, "chartpng: %lld bytes %s\n", static_cast<long long>(bytes.size()), error.c_str());
+                std::_Exit(0);
             } else if (route.startsWith("sar:")) {   // WXQT_OPEN=sar:<NHC id>:<name>:<year>, e.g. sar:ep202026:Simon:2026: NOAA STAR's SAR winds of the storm
                 new SarWindsViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString(), route.section(':', 3, 3).toInt()};
             } else if (route == "drought") {   // WXQT_OPEN=drought: the drought dashboard (WXQT_TAB=<n> for its other tabs)

@@ -1687,20 +1687,23 @@ const std::vector<Product>& products() {
             p.push_back(x);
         }
         // ---- the nice weather outlook (a work in progress): where the daytime weather of a day is the best for being outside, in five levels (Decent, Fair, Nice, Beautiful, Perfect). The idea and the
-        // levels are Ryan Hall, Y'all's; the scoring is our own and is meant to be tuned. A frame is a day: the forecast hour 24 is day 1, 48 day 2 ... 168 day 7. The blend's apparent temperature, dewpoint,
+        // levels are Ryan Hall, Y'all's; the scoring is our own and is meant to be tuned. A frame is a day: the forecast hour 24 is day 1, 48 day 2 ... 168 day 7. The apparent temperature, dewpoint,
         // cloud cover, gusts and chance of rain at the hours of the local daytime (9 to 19 o'clock by the sun, worked out for each cell from its longitude) are scored and put together; a top level also
-        // needs every ingredient to be good (the gates), and the further the day the lower the level it can reach.
-        {
+        // needs every ingredient to be good (the gates), and the further the day the lower the level it can reach. The RRFS version (days 1 to 3) also has the near-surface smoke (PM2.5), which can
+        // cap or remove a level.
+        for (const std::string source : {"NBM", "RRFS"}) {
+            const bool blend = source == "NBM";
+            const int lastDay = blend ? 7 : 3;
             Product x;
-            x.source = "NBM";
+            x.source = source;
             x.id = "nice_weather";
-            x.label = "Nice Weather Outlook (hour 24 = day 1)";
+            x.label = blend ? "Nice Weather Outlook (hour 24 = day 1)" : "Nice Weather Outlook with smoke (hour 24 = day 1)";
             x.periodHours = 24;
             x.mainCycleStep = 6;   // the long hours are made by the main runs
-            const auto sampleHours = [] (int day) {   // the forecast hours that can fall in a cell's daytime of that day, whatever the run's hour: 3-hourly where the blend has the hourly and 3-hourly fields, then 6-hourly
+            const auto sampleHours = [blend] (int day) {   // the forecast hours that can fall in a cell's daytime of that day, whatever the run's hour: 3-hourly where the model has them, then (the blend) 6-hourly
                 std::vector<int> hours;
                 for (int f = 24 * (day - 1) + 3; f <= 24 * (day - 1) + 27; f += 3) {
-                    if (f <= 36 || f % 6 == 0) {
+                    if (!blend || f <= 36 || f % 6 == 0) {
                         hours.push_back(f);
                     }
                 }
@@ -1708,19 +1711,28 @@ const std::vector<Product>& products() {
             };
             x.needs = [=] (int hour) {
                 std::vector<GfsData::Need> needs;
-                const int day = std::clamp(hour / 24, 1, 7);
+                const int day = std::clamp(hour / 24, 1, lastDay);
                 for (const int f : sampleHours(day)) {
                     const std::string at = std::to_string(f);
-                    needs.push_back({f, nbmWant("a" + at, "APTMP", "2 m above ground", atHour(f))});
-                    needs.push_back({f, nbmWant("d" + at, "DPT", "2 m above ground", atHour(f))});
-                    needs.push_back({f, nbmWant("c" + at, "TCDC", "surface", atHour(f))});
-                    needs.push_back({f, nbmWant("g" + at, "GUST", "10 m above ground", atHour(f))});
-                    needs.push_back({f, nbmWant("p" + at, "APCP", "surface", window(f, f <= 36 ? 1 : 6, "acc"), "prob >0.254")});
+                    if (blend) {
+                        needs.push_back({f, nbmWant("a" + at, "APTMP", "2 m above ground", atHour(f))});
+                        needs.push_back({f, nbmWant("d" + at, "DPT", "2 m above ground", atHour(f))});
+                        needs.push_back({f, nbmWant("c" + at, "TCDC", "surface", atHour(f))});
+                        needs.push_back({f, nbmWant("g" + at, "GUST", "10 m above ground", atHour(f))});
+                        needs.push_back({f, nbmWant("p" + at, "APCP", "surface", window(f, f <= 36 ? 1 : 6, "acc"), "prob >0.254")});
+                    } else {
+                        needs.push_back({f, nbmWant("a" + at, "TMP", "2 m above ground", atHour(f))});
+                        needs.push_back({f, nbmWant("d" + at, "DPT", "2 m above ground", atHour(f))});
+                        needs.push_back({f, nbmWant("c" + at, "TCDC", "entire atmosphere (considered as a single layer)", atHour(f))});
+                        needs.push_back({f, nbmWant("g" + at, "GUST", "surface", atHour(f))});
+                        needs.push_back({f, nbmWant("p" + at, "APCP", "surface", window(f, 1, "acc"))});
+                        needs.push_back({f, nbmWant("s" + at, "MASSDEN", "8 m above ground", window(f, 1, "ave"), "aerosol=Total aerosol")});
+                    }
                 }
                 return needs;
             };
             x.derive = [=] (Grids& g, const Context& context) {
-                const int day = std::clamp(context.hour / 24, 1, 7);
+                const int day = std::clamp(context.hour / 24, 1, lastDay);
                 const auto hours = sampleHours(day);
                 const auto& shape = g["a" + std::to_string(hours.front())];
                 GfsGrid::Grid level = shape;
@@ -1738,7 +1750,7 @@ const std::vector<Product>& products() {
                         const double nowLocal = runHours + zone;
                         const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
                         const double target = std::floor(nowLocal / 24.0) + (hourNow < 17.0 ? 0 : 1) + (day - 1);
-                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0;
+                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0;
                         int count = 0;
                         for (const int f : hours) {
                             const double local = runHours + f + zone;
@@ -1747,8 +1759,20 @@ const std::vector<Product>& products() {
                                 continue;
                             }
                             const std::string name = std::to_string(f);
-                            const double apparent = g["a" + name].values[at] * 1.8 + 32.0, dew = g["d" + name].values[at] * 1.8 + 32.0, cloud = g["c" + name].values[at];
-                            const double gust = g["g" + name].values[at] * 2.23694, rain = g["p" + name].values[at];
+                            double apparent = g["a" + name].values[at], dewC = g["d" + name].values[at];
+                            const double cloud = g["c" + name].values[at], gust = g["g" + name].values[at] * 2.23694;
+                            double rain = g["p" + name].values[at];
+                            if (!blend) {   // the model's own temperature (degrees C) made into the apparent one (the vapor pressure adds to it, as Steadman's does); a rain amount is a yes or no
+                                const double vapor = 6.105 * std::exp(17.27 * dewC / (237.7 + dewC));
+                                apparent = apparent + 0.33 * vapor - 4.0;
+                                rain = rain >= 0.25 ? 100.0 : 0.0;
+                                const double micrograms = g["s" + name].values[at] * 1.0e9;
+                                if (!std::isnan(micrograms)) {
+                                    smoke += micrograms;
+                                }
+                            }
+                            apparent = apparent * 1.8 + 32.0;
+                            const double dew = dewC * 1.8 + 32.0;
                             if (std::isnan(apparent) || std::isnan(dew) || std::isnan(cloud) || std::isnan(gust) || std::isnan(rain)) {
                                 continue;
                             }
@@ -1769,6 +1793,7 @@ const std::vector<Product>& products() {
                         dScore /= count;
                         cScore /= count;
                         wScore /= count;
+                        smoke /= count;
                         const double rain = 0.5 * pMax + 0.5 * pSum / count;   // a chance of rain at some hour counts more than the average
                         const double rScore = ramp(rain, 0.0, 50.0);
                         const double base = 0.35 * tScore + 0.25 * rScore + 0.15 * dScore + 0.10 * cScore + 0.15 * wScore;
@@ -1785,6 +1810,9 @@ const std::vector<Product>& products() {
                             value = 1;
                         }
                         value = std::min(value, day <= 2 ? 5 : day == 3 ? 4 : 3);   // the further the day, the lower the level the forecast can stand behind
+                        if (!blend) {   // smoke: the daytime mean of the fine particles (micrograms a cubic meter; the EPA's good air is under 9, moderate to 35, unhealthy for sensitive groups above)
+                            value = smoke > 35.0 ? 0 : smoke > 20.0 ? std::min(value, 1) : smoke > 12.0 ? std::min(value, 2) : smoke > 9.0 ? std::min(value, 3) : value;
+                        }
                         level.values[at] = static_cast<float>(value);
                     }
                 }
