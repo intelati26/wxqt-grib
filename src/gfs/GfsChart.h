@@ -22,6 +22,9 @@
 // The GFS model charts drawn here from the GRIB data (the ones that used to be pictures from the NCEP model guidance site): a color fill, contour lines, wind barbs, highs and lows.
 // A chart is a recipe of grids by name; the recipes are in GfsChart.cpp, keyed by the same product codes the model screen has always used ("500_wnd_ht").
 namespace GfsChart {
+    // a rough outline of the contiguous United States (the Great Lakes inside it): where the nice weather outlook has a level (the blend's grid reaches into Canada, Mexico and the sea)
+    bool insideUnitedStates(double lon, double lat);
+
     struct Sector {
         std::string id;      // "CONUS"
         double west, south, east, north;
