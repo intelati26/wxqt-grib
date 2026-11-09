@@ -983,6 +983,9 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     if (base && variant.standardDeviations) {
         composed = GfsChart::withStandardDeviations(composed);
     }
+    if (base && variant.climateAdjusted) {
+        composed = GfsChart::withClimateAdjusted(composed);
+    }
     if (base && !variant.poolOnly.empty()) {
         composed = GfsChart::withPoolOnly(composed, variant.poolOnly);
     }

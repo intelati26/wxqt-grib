@@ -72,6 +72,7 @@ namespace GfsChart {
         GfsData::Run run;
         const GfsClimate * climate;
         std::string source;   // the model the chart is of ("CFS": its anomalies are from the CFS's own normal)
+        bool climateAdjusted{false};   // the nice weather chart: the comfortable range moves up where the normal high is hot (withClimateAdjusted)
     };
     // One family of contour lines
     struct ContourSet {
@@ -158,6 +159,7 @@ namespace GfsChart {
         // An anomaly chart that can also be drawn in standard deviations (withStandardDeviations): `sigma` makes the grids of that view (the fill "anom" in deviations, and the two named
         // below in the chart's own unit). Set only on the charts that have a climatology with deviations.
         std::function<void(Grids&, const Context&)> sigma;
+        bool climateOption{false};   // the nice weather outlook: it has a climate adjusted version (withClimateAdjusted)
         // The chart's fields are made only by the runs whose hour is a multiple of this (the NBM: 6 for the 6 and 12 hour chances, 12 for the 12 hour extremes; the hourly runs have the 1 hour
         // fields only). 0: every run has them.
         int mainCycleStep{0};
@@ -233,6 +235,9 @@ namespace GfsChart {
     Product withMember(const Product& product, const std::string& member, const std::string& runId = {});
     // The anomaly chart in standard deviations from the 1991-2020 mean (the legend gives the unit's equivalents too); the chart itself when it has none (see Product::sigma)
     bool hasStandardDeviations(const Product& product);
+    // The nice weather outlook can be drawn with the comfortable temperature range moved up where the normal high of the place is hot (an 85 F normal high: a warmer comfort range)
+    bool hasClimateAdjustment(const Product& product);
+    Product withClimateAdjusted(const Product& product);
     Product withStandardDeviations(const Product& product);
     // A pooled chart (ENS-ALL) drawn from the members of one of its ensembles only, to compare that ensemble with the pool: same grid, same valid time, same chart. Titles say so.
     Product withPoolOnly(const Product& product, const std::string& source);
