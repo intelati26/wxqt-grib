@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsData.h"
+#include <QCryptographicHash>
 #include "gfs/GdalRaster.h"
 #include "gfs/TarReader.h"
 #include "gfs/GfsModels.h"
@@ -1017,7 +1018,38 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         options.extra << "--config" << "CPL_VSIL_CURL_CHUNK_SIZE" << "2097152" << "--config" << "GDAL_HTTP_USERAGENT" << "wxqt";
     }
     std::string message;
-    if (!GdalRaster::translate(input, config.cacheFolder + "/" + scratch, options, message)) {
+    // GDAL's NetCDF driver reads a NetCDF-4 file over the network (by range, "/vsicurl/") only where the system has Linux's userfaultfd (Windows and the Mac have not): there the whole file is
+    // downloaded once (kept in the cache, shared by the fields of the hour) and read from the disk. Once that has been seen, the next fields go straight to the disk copy.
+    static std::atomic<bool> netcdfNeedsFile{false};
+    const auto localCopy = [&] (const std::string& whichUrl, QString& localInput) {
+        static std::mutex downloading;
+        std::lock_guard<std::mutex> lock{downloading};   // one download at a time: the fields of an hour want the same file
+        const auto hash = QCryptographicHash::hash(QByteArray::fromStdString(whichUrl), QCryptographicHash::Sha1).toHex();
+        const QString local = config.cacheFolder + "/nc_" + QString::fromLatin1(hash) + ".nc4";
+        if (!QFileInfo::exists(local) || QFileInfo{local}.size() < 100) {
+            const auto bytes = config.bytes(whichUrl, 0, -1);
+            QSaveFile f{local};
+            if (bytes.size() < 100 || !f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size() || !f.commit()) {
+                return false;
+            }
+        }
+        localInput = "NETCDF:\"" + local + "\":" + QString::fromStdString(variable);
+        return true;
+    };
+    const std::string ncUrl = source.netcdf && input.startsWith("NETCDF:\"/vsicurl/") ? input.mid(18, input.lastIndexOf("\":") - 18).toStdString() : std::string{};
+    if (!ncUrl.empty() && netcdfNeedsFile) {
+        localCopy(ncUrl, input);
+    }
+    bool translated = GdalRaster::translate(input, config.cacheFolder + "/" + scratch, options, message);
+    if (!translated && !ncUrl.empty() && message.find("userfaultfd") != std::string::npos) {
+        netcdfNeedsFile = true;
+        QString local;
+        if (localCopy(ncUrl, local)) {
+            message.clear();
+            translated = GdalRaster::translate(local, config.cacheFolder + "/" + scratch, options, message);
+        }
+    }
+    if (!translated) {
         error = "gdal failed on " + want.variable + " " + want.level + ": " + message;
         cleanup();
         return false;
