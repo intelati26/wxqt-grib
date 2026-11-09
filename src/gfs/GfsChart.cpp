@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "gfs/GfsChart.h"
+#include <limits>
+#include <QDate>
 #include <algorithm>
 #include <regex>
 #include <chrono>
@@ -1682,6 +1684,116 @@ const std::vector<Product>& products() {
         {   // the gust is the fill; the barbs are the sustained wind
             auto x = nbmSurface("10m_wnd_gust", "10 m Wind and Gust", "GUST", "10 m above ground", lowWind(), "10 m wind gust (kt)", Quantity::Other, 10);
             x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), msToKnots); };
+            p.push_back(x);
+        }
+        // ---- the nice weather outlook (a work in progress): where the daytime weather of a day is the best for being outside, in five levels (Decent, Fair, Nice, Beautiful, Perfect). The idea and the
+        // levels are Ryan Hall, Y'all's; the scoring is our own and is meant to be tuned. A frame is a day: the forecast hour 24 is day 1, 48 day 2 ... 168 day 7. The blend's apparent temperature, dewpoint,
+        // cloud cover, gusts and chance of rain at the hours of the local daytime (9 to 19 o'clock by the sun, worked out for each cell from its longitude) are scored and put together; a top level also
+        // needs every ingredient to be good (the gates), and the further the day the lower the level it can reach.
+        {
+            Product x;
+            x.source = "NBM";
+            x.id = "nice_weather";
+            x.label = "Nice Weather Outlook (hour 24 = day 1)";
+            x.periodHours = 24;
+            x.mainCycleStep = 6;   // the long hours are made by the main runs
+            const auto sampleHours = [] (int day) {   // the forecast hours that can fall in a cell's daytime of that day, whatever the run's hour: 3-hourly where the blend has the hourly and 3-hourly fields, then 6-hourly
+                std::vector<int> hours;
+                for (int f = 24 * (day - 1) + 3; f <= 24 * (day - 1) + 27; f += 3) {
+                    if (f <= 36 || f % 6 == 0) {
+                        hours.push_back(f);
+                    }
+                }
+                return hours;
+            };
+            x.needs = [=] (int hour) {
+                std::vector<GfsData::Need> needs;
+                const int day = std::clamp(hour / 24, 1, 7);
+                for (const int f : sampleHours(day)) {
+                    const std::string at = std::to_string(f);
+                    needs.push_back({f, nbmWant("a" + at, "APTMP", "2 m above ground", atHour(f))});
+                    needs.push_back({f, nbmWant("d" + at, "DPT", "2 m above ground", atHour(f))});
+                    needs.push_back({f, nbmWant("c" + at, "TCDC", "surface", atHour(f))});
+                    needs.push_back({f, nbmWant("g" + at, "GUST", "10 m above ground", atHour(f))});
+                    needs.push_back({f, nbmWant("p" + at, "APCP", "surface", window(f, f <= 36 ? 1 : 6, "acc"), "prob >0.254")});
+                }
+                return needs;
+            };
+            x.derive = [=] (Grids& g, const Context& context) {
+                const int day = std::clamp(context.hour / 24, 1, 7);
+                const auto hours = sampleHours(day);
+                const auto& shape = g["a" + std::to_string(hours.front())];
+                GfsGrid::Grid level = shape;
+                const QDate runDate = QDate::fromString(QString::fromStdString(context.run.date), "yyyyMMdd");
+                const double runHours = QDate{1970, 1, 1}.daysTo(runDate) * 24.0 + std::atoi(context.run.cycle.c_str());
+                const auto ramp = [] (double v, double good, double bad) { return std::clamp((bad - v) / (bad - good), 0.0, 1.0); };   // 1 at `good`, 0 at `bad` (either way round)
+                for (int row = 0; row < shape.rows; row++) {
+                    for (int column = 0; column < shape.columns; column++) {
+                        const size_t at = static_cast<size_t>(row) * static_cast<size_t>(shape.columns) + static_cast<size_t>(column);
+                        double lon = shape.lon0 + column * shape.step;
+                        if (lon > 180.0) {
+                            lon -= 360.0;
+                        }
+                        const double zone = lon / 15.0;   // hours of the sun's time ahead of UTC
+                        const double nowLocal = runHours + zone;
+                        const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
+                        const double target = std::floor(nowLocal / 24.0) + (hourNow < 17.0 ? 0 : 1) + (day - 1);
+                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0;
+                        int count = 0;
+                        for (const int f : hours) {
+                            const double local = runHours + f + zone;
+                            const double dayIndex = std::floor(local / 24.0), hourOfDay = local - 24.0 * dayIndex;
+                            if (dayIndex != target || hourOfDay < 9.0 || hourOfDay > 19.0) {
+                                continue;
+                            }
+                            const std::string name = std::to_string(f);
+                            const double apparent = g["a" + name].values[at] * 1.8 + 32.0, dew = g["d" + name].values[at] * 1.8 + 32.0, cloud = g["c" + name].values[at];
+                            const double gust = g["g" + name].values[at] * 2.23694, rain = g["p" + name].values[at];
+                            if (std::isnan(apparent) || std::isnan(dew) || std::isnan(cloud) || std::isnan(gust) || std::isnan(rain)) {
+                                continue;
+                            }
+                            const double outside = std::max(0.0, std::max(64.0 - apparent, apparent - 80.0));   // degrees F outside the comfortable 64 to 80
+                            tScore += ramp(outside, 0.0, 22.0);
+                            dScore += ramp(dew, 58.0, 72.0);
+                            cScore += 1.0 - 0.6 * std::clamp((cloud - 30.0) / 70.0, 0.0, 1.0);
+                            wScore += ramp(gust, 15.0, 40.0);
+                            pMax = std::max(pMax, rain);
+                            pSum += rain;
+                            count++;
+                        }
+                        if (count == 0) {
+                            level.values[at] = std::numeric_limits<float>::quiet_NaN();
+                            continue;
+                        }
+                        tScore /= count;
+                        dScore /= count;
+                        cScore /= count;
+                        wScore /= count;
+                        const double rain = 0.5 * pMax + 0.5 * pSum / count;   // a chance of rain at some hour counts more than the average
+                        const double rScore = ramp(rain, 0.0, 50.0);
+                        const double base = 0.35 * tScore + 0.25 * rScore + 0.15 * dScore + 0.10 * cScore + 0.15 * wScore;
+                        int value = 0;
+                        if (base >= 0.97 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.85) {
+                            value = 5;
+                        } else if (base >= 0.91 && tScore >= 0.85 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.6) {
+                            value = 4;
+                        } else if (base >= 0.80 && tScore >= 0.6 && rScore >= 0.7 && wScore >= 0.5 && dScore >= 0.4) {
+                            value = 3;
+                        } else if (base >= 0.68 && tScore >= 0.45 && rScore >= 0.5) {
+                            value = 2;
+                        } else if (base >= 0.55 && tScore >= 0.3 && rScore >= 0.3) {
+                            value = 1;
+                        }
+                        value = std::min(value, day <= 2 ? 5 : day == 3 ? 4 : 3);   // the further the day, the lower the level the forecast can stand behind
+                        level.values[at] = static_cast<float>(value);
+                    }
+                }
+                g["level"] = std::move(level);
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "level"); };
+            x.ramp = Ramp{{{0.5, QColor{"#d6e7a3"}}, {1.5, QColor{"#9fd486"}}, {2.5, QColor{"#4fb868"}}, {3.5, QColor{"#1b9a86"}}, {4.5, QColor{"#1a6fb0"}}, {5.5, QColor{"#1a6fb0"}}}, true};
+            x.fillTitle = "Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, 5 Perfect";
+            x.legendStep = 1;
             p.push_back(x);
         }
         // ---- the RTMA and URMA surface analyses (2.5 km, the hour of the analysis only): the blend's surface charts made from the analysis's own fields
