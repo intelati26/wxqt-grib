@@ -7,6 +7,7 @@
 #include "MainWindow.h"
 #include "models/AnalysisLoop.h"
 #include "gfs/GfsModels.h"
+#include "misc/OutlookScreen.h"
 #include "misc/UtilityOpenMeteoPressure.h"
 #include "vis/GoesViewer.h"
 #include "objects/WString.h"
@@ -533,10 +534,7 @@ void MainWindow::launchImageScreen(const string& token) {
         Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
         toolbar.launchModelViewer();   // the Model Viewer on the CFS 30 day chart
     } else if (token == "NICE_DAY1") {
-        Utility::writePref("NCEP", "NBM");
-        Utility::writePref("MODELNCEPPARAMLASTUSED", "nice_weather");
-        Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
-        toolbar.launchModelViewer();   // the Model Viewer on the nice weather outlook (its first frame is day 1)
+        OutlookScreen::open(this, OutlookNav::NiceDay, 0);   // the outlook window's page of the nice weather outlook, on day 1
     } else if (token.compare(0, 8, "WPC_PPP_") == 0) {
         Utility::writePref("NCEP", "WPC-PPP");
         Utility::writePref("MODELNCEPPARAMLASTUSED", "ppp_" + token.substr(8) + "h_median");
