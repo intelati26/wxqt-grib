@@ -1734,6 +1734,27 @@ const std::vector<Product>& products() {
                 const QDate runDate = QDate::fromString(QString::fromStdString(context.run.date), "yyyyMMdd");
                 const double runHours = QDate{1970, 1, 1}.daysTo(runDate) * 24.0 + std::atoi(context.run.cycle.c_str());
                 const auto ramp = [] (double v, double good, double bad) { return std::clamp((bad - v) / (bad - good), 0.0, 1.0); };   // 1 at `good`, 0 at `bad` (either way round)
+                // the curves of the ingredients' scores (0 to 1): a flat top where the weather is no bother, a steepening loss, and a floor or an end. Shaped by what Ryan Hall, Y'all's published city scores show of
+                // how people take each (their numbers, read as curves, not copied rules).
+                using Curve = std::vector<std::pair<double, double>>;
+                const auto along = [] (const Curve& curve, double v) {
+                    if (v <= curve.front().first) {
+                        return curve.front().second;
+                    }
+                    for (size_t i = 1; i < curve.size(); i++) {
+                        if (v <= curve[i].first) {
+                            const double f = (v - curve[i - 1].first) / (curve[i].first - curve[i - 1].first);
+                            return curve[i - 1].second + f * (curve[i].second - curve[i - 1].second);
+                        }
+                    }
+                    return curve.back().second;
+                };
+                static const Curve skyCurve{{0, 1.0}, {13, 1.0}, {20, 0.95}, {25, 0.92}, {30, 0.85}, {40, 0.756}, {50, 0.61}, {60, 0.41}, {70, 0.24}, {80, 0.11}, {90, 0.02}, {100, 0.0}};   // by the cloud cover, %
+                static const Curve rainCurve{{0, 1.0}, {4, 1.0}, {6, 0.90}, {8, 0.72}, {10, 0.55}, {13, 0.33}, {15, 0.23}, {18, 0.13}, {22, 0.05}, {28, 0.0}};                           // by the chance of rain, %
+                static const Curve dewCurve{{0, 0.5}, {28, 0.5}, {30, 0.6}, {35, 0.8}, {40, 0.92}, {45, 0.974}, {50, 1.0}, {57, 1.0}, {60, 0.86}, {65, 0.54}, {70, 0.26}, {75, 0.08}, {78, 0.0}};   // by the dewpoint, F
+                static const Curve sustainedCurve{{0, 1.0}, {6, 1.0}, {8, 0.985}, {10, 0.945}, {12, 0.90}, {14, 0.855}, {16, 0.78}, {18, 0.70}, {20, 0.62}, {22, 0.54}, {24, 0.44}, {26, 0.18}, {28, 0.05}, {30, 0.0}};   // by the sustained wind, mph
+                static const Curve gustCurve{{0, 1.0}, {17, 1.0}, {20, 0.80}, {28, 0.80}, {30, 0.60}, {36, 0.55}, {40, 0.50}};                                                                      // times, by the gust, mph
+                static const Curve heatCurve{{0, 1.0}, {82, 1.0}, {85, 0.88}, {88, 0.80}, {92, 0.60}, {96, 0.30}, {100, 0.0}};                                                                       // by the day's high (feels like), F
                 // the climate adjusted version: the normal of the place for the day (the 1991-2020 daily mean near the surface, 2.5 degrees: its high taken as 9 F above it) moves the comfortable
                 // range up half way where the normal high is above its middle (an 85 F normal high: 64 + 10.5, 59 to 74 F becomes 67 to 82 F); a cold normal does not move it down
                 GfsGrid::Grid normal;
@@ -1748,7 +1769,7 @@ const std::vector<Product>& products() {
                 // the ingredients of each cell, which are smoothed over a radius of 50 miles before the levels are made of them (a map of the weather people can plan by, not of every ridge and valley)
                 const float none = std::numeric_limits<float>::quiet_NaN();
                 const size_t cells = shape.values.size();
-                std::vector<float> cT(cells, none), cR(cells, none), cD(cells, none), cC(cells, none), cW(cells, none), cA(cells, none), cS(cells, none), cG(cells, none);
+                std::vector<float> cHt(cells, none), cT(cells, none), cR(cells, none), cD(cells, none), cC(cells, none), cW(cells, none), cA(cells, none), cS(cells, none), cG(cells, none);
                 for (int row = 0; row < shape.rows; row++) {
                     const double lat = shape.lat0 - row * shape.step;
                     for (int column = 0; column < shape.columns; column++) {
@@ -1809,12 +1830,12 @@ const std::vector<Product>& products() {
                                 gustMax = std::max(gustMax, gust);
                             }
                             tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 14.0));   // (dangerous heat is never nice)
-                            dScore += weight * (dew < 52.0 ? std::max(0.5, 1.0 - 0.0095 * (52.0 - dew)) : ramp(dew, 58.0, 70.0));   // (a little under full marks for very dry air: about 92 at a 44 F dewpoint)
+                            dScore += weight * along(dewCurve, dew);   // (a little under full marks for very dry air: about 92 at a 44 F dewpoint)
                             if (weight >= 0.5) {
                                 high = std::max(high, apparent);
                             }
-                            cScore += weight * std::max(0.0, 1.0 - 0.000746 * std::pow(std::max(0.0, cloud), 1.67));   // (his sky: 5% cloud 98.9, 36% cloud 70.4; the power curve through both, nothing at an overcast)
-                            const double windNow = ramp(gust, 18.0, 40.0) * ramp(sustained, 10.0, 26.0);
+                            cScore += weight * along(skyCurve, cloud);   // (his sky: 5% cloud 98.9, 36% cloud 70.4; the power curve through both, nothing at an overcast)
+                            const double windNow = along(sustainedCurve, sustained) * along(gustCurve, gust);
                             wScore += weight * windNow;
                             if (weight >= 0.5) {
                                 wWorst = std::min(wWorst, windNow);   // (the windiest hour counts as much as the day's mean: a breezy afternoon is what people feel)
@@ -1837,7 +1858,8 @@ const std::vector<Product>& products() {
                         cD[at] = static_cast<float>(dScore / count);
                         cC[at] = static_cast<float>(cScore / count);
                         cW[at] = static_cast<float>(0.5 * wScore / count + 0.5 * wWorst);
-                        cR[at] = static_cast<float>(ramp(rain, 0.0, 40.0));   // (a moderate chance pulls the score down a good bit)
+                        cR[at] = static_cast<float>(along(rainCurve, rain));
+                        cHt[at] = static_cast<float>(along(heatCurve, rawHigh));   // (a moderate chance pulls the score down a good bit)
                         cA[at] = static_cast<float>(aSum / count);   // (the top levels are for a day that is warm in itself)
                         cS[at] = static_cast<float>(smokeWeight >= 0.5 ? smoke / smokeWeight : 0.0);   // (no particles forecast, no cap)
                         cG[at] = gustMax > 35.0 ? 1.0f : 0.0f;   // a gust over 35 mph at some hour: the share of the area around that has one is what caps
@@ -1847,7 +1869,7 @@ const std::vector<Product>& products() {
                     const double radiusKm = 80.5;
                     const int rows = shape.rows, columns = shape.columns;
                     const int ry = std::max(1, static_cast<int>(std::lround(radiusKm / (111.32 * shape.step))));
-                    for (auto * v : {&cT, &cR, &cD, &cC, &cW, &cA, &cS, &cG}) {
+                    for (auto * v : {&cT, &cR, &cD, &cC, &cW, &cA, &cS, &cG, &cHt}) {
                         std::vector<float> across(cells, none);
                         std::vector<double> sum(static_cast<size_t>(std::max(rows, columns)) + 1), number(static_cast<size_t>(std::max(rows, columns)) + 1);
                         for (int row = 0; row < rows; row++) {
@@ -1933,18 +1955,23 @@ const std::vector<Product>& products() {
                     const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at], gusty = cG[at];
                     // his score reads as 100 less a penalty for each ingredient, the temperature by far the heaviest (fitted to nine of his city scores: 90 points for a whole unit short on the temperature, 50 on the dewpoint,
                     // 25 on the sky; rain and wind lighter, from his zone texts)
-                    const double base = 1.0 - (0.90 * (1.0 - tScore) + 0.50 * (1.0 - dScore) + 0.25 * (1.0 - cScore) + 0.30 * (1.0 - wScore) + 0.20 * (1.0 - rScore));
-                    int value = 0;
-                    if (base >= thP && apparentMean >= 66.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.97) {
+                    const double heatScore = cHt[at];
+                    const double base = (0.35 * tScore + 0.25 * rScore + 0.06 * heatScore + 0.06 * dScore + 0.10 * cScore + 0.11 * wScore) / 0.93;
+                    // each ingredient allows a level up to the one its score reaches (the weakest of them rules: a level needs all of the ingredients at its mark, whatever the others are). The marks were
+                    // fitted to how Ryan Hall, Y'all's levels follow his ingredient scores (about 77% of 21,000 cities at the same level, against 69% for a cutoff on the weighted score)
+                    static const double marks[6][4] = {   // Decent, Fair, Nice, Beautiful (of 100): temperature, rain, heat, dewpoint, sky, wind
+                        {0, 18, 79, 79}, {11, 11, 87, 99}, {0, 50, 78, 100}, {17, 29, 44, 94}, {0, 0, 78, 97}, {0, 15, 79, 98}};
+                    const double scores[6] = {tScore * 100.0, rScore * 100.0, heatScore * 100.0, dScore * 100.0, cScore * 100.0, wScore * 100.0};
+                    int value = 4;
+                    for (int ingredient = 0; ingredient < 6; ingredient++) {
+                        int reached = 0;
+                        for (int level = 0; level < 4; level++) {
+                            reached += scores[ingredient] >= marks[ingredient][level] ? 1 : 0;
+                        }
+                        value = std::min(value, reached);
+                    }
+                    if (value == 4 && base >= thP && *std::min_element(scores, scores + 6) >= 96.0) {   // (Perfect: every ingredient all but flawless)
                         value = 5;
-                    } else if (base >= thB && apparentMean >= 50.0 && apparentMean <= 90.0 && tScore >= 0.8 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.88) {
-                        value = 4;
-                    } else if (base >= thN && tScore >= 0.7 && rScore >= 0.75 && wScore >= 0.5 && dScore >= 0.4) {
-                        value = 3;
-                    } else if (base >= thF && tScore >= 0.5 && rScore >= 0.5) {
-                        value = 2;
-                    } else if (base >= thD && tScore >= 0.3 && rScore >= 0.3) {
-                        value = 1;
                     }
                     value = std::min(value, day <= 2 ? 5 : day == 3 ? 4 : 3);   // the further the day, the lower the level the forecast can stand behind
                     // the fine particles, the daytime mean (micrograms a cubic meter), by the EPA's air quality index: Perfect needs an index of 35 (8.4 micrograms), Beautiful about 55 (14), Nice 100 (35.4), Fair
