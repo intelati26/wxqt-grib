@@ -1749,11 +1749,11 @@ const std::vector<Product>& products() {
                     }
                     return curve.back().second;
                 };
-                static const Curve skyCurve{{0, 1.0}, {13, 1.0}, {20, 0.95}, {25, 0.92}, {30, 0.85}, {40, 0.756}, {50, 0.61}, {60, 0.41}, {70, 0.24}, {80, 0.11}, {90, 0.02}, {100, 0.0}};   // by the cloud cover, %
+                static const Curve skyCurve{{0, 1.0}, {12, 1.0}, {16, 0.994}, {20, 0.967}, {24, 0.94}, {28, 0.913}, {32, 0.88}, {36, 0.84}, {40, 0.80}, {44, 0.76}, {48, 0.72}, {52, 0.66}, {56, 0.58}, {60, 0.50}, {64, 0.421}, {68, 0.34}, {72, 0.274}, {76, 0.22}, {80, 0.167}, {84, 0.113}, {88, 0.08}, {92, 0.053}, {96, 0.027}, {100, 0.0}};   // by the cloud cover, % (read off his scores: one curve for every city, 100 to 12% cloud, 50 at 60%, 0 at 100%)
                 static const Curve rainCurve{{0, 1.0}, {4, 1.0}, {6, 0.90}, {8, 0.72}, {10, 0.55}, {13, 0.33}, {15, 0.23}, {18, 0.13}, {22, 0.05}, {28, 0.0}};                           // by the chance of rain, %
                 static const Curve dewCurve{{0, 0.5}, {30, 0.5}, {40, 0.90}, {50, 1.0}, {60, 1.0}, {61, 0.939}, {62, 0.884}, {63, 0.824}, {64, 0.765}, {65, 0.708}, {66, 0.637}, {67, 0.563}, {68, 0.5}, {69, 0.423}, {70, 0.351}, {71, 0.306}, {72, 0.251}, {73, 0.194}, {74, 0.171}, {80, 0.05}, {84, 0.0}};   // by the dewpoint, F (read off his scores: nothing under 30 F is 50, 90 at 40, 100 from 50 to 60, then 6 points a degree to 50 at 68; the same at every city)
-                static const Curve sustainedCurve{{0, 1.0}, {6, 1.0}, {8, 0.985}, {10, 0.945}, {12, 0.90}, {14, 0.855}, {16, 0.78}, {18, 0.70}, {20, 0.62}, {22, 0.54}, {24, 0.44}, {26, 0.18}, {28, 0.05}, {30, 0.0}};   // by the sustained wind, mph
-                static const Curve gustCurve{{0, 1.0}, {17, 1.0}, {20, 0.80}, {28, 0.80}, {30, 0.60}, {36, 0.55}, {40, 0.50}};                                                                      // times, by the gust, mph
+                static const Curve sustainedCurve{{0, 1.0}, {8, 1.0}, {9, 0.981}, {10, 0.959}, {11, 0.939}, {12, 0.917}, {13, 0.895}, {14, 0.875}, {15, 0.857}, {16, 0.80}, {17, 0.732}, {18, 0.684}, {19, 0.633}, {20, 0.582}, {21, 0.52}, {22, 0.454}, {23, 0.388}, {24, 0.329}, {25, 0.268}, {26, 0.20}, {27, 0.141}, {28, 0.065}, {29, 0.016}, {30, 0.0}};   // by the sustained wind, mph (read off his scores)
+                static const Curve gustCurve{{0, 1.0}, {19.9, 1.0}, {20.5, 0.78}, {29.9, 0.78}, {30.6, 0.565}, {60, 0.545}};   // times, by the gust, mph: his two steps, the gust factor 0.78 from 20 mph and 0.57 from 31
                 static const Curve coldCurve{{0, 0.0}, {10, 0.06}, {20, 0.17}, {23, 0.23}, {29, 0.375}, {35, 0.51}, {41, 0.68}, {46, 0.84}, {50, 0.91}, {56.5, 1.0}};   // by the apparent temperature of a cold day, F (his: 23 F is 23 of 100, 35 F 51, 41 F 68, 47 F 83, whatever is normal for the place)
                 static const Curve warmCurve{{-20, 0.94}, {1, 0.92}, {4, 0.88}, {7, 0.84}, {7.3, 0.56}, {10, 0.47}, {13, 0.36}, {16, 0.20}, {22, 0.0}};   // by the day's high over the normal high, F (his, in the flat states: 90 of 100 at the normal, 84 at 7 F over, then a step to 56 within a third of a degree, 47 at 10 over and 20 at 16)
                 // his normal high less ours (degrees F), what his temperature scores imply at 14,000 of his cities, interpolated to a 1 degree grid (latitude 24 to 50 north, longitude 125 to 66 west): his normals run
@@ -1792,6 +1792,11 @@ const std::vector<Product>& products() {
                     const double ty = fy - y, tx = fx - x;
                     return std::clamp((1.0 - ty) * ((1.0 - tx) * normalOffset[y][x] + tx * normalOffset[y][x + 1]) + ty * ((1.0 - tx) * normalOffset[y + 1][x] + tx * normalOffset[y + 1][x + 1]), -6.0, 8.0);
                 };
+                // the blend's values on his scale: what his weather is on average where the blend has the value (42,000 city days; his sources differ from the blend's: his cloud is 20 points over at 8%, his wind 6 mph over in calm,
+                // the gusts flatten above 20 mph)
+                static const Curve cloudToHis{{0, 3}, {2.5, 6.2}, {7.5, 20.8}, {12.5, 28}, {17.5, 33.2}, {25, 39.8}, {35, 49.1}, {45, 51.6}, {55, 64.7}, {65, 72.7}, {75, 83.2}, {85, 91.6}, {95, 95.6}, {100, 100}};
+                static const Curve windToHis{{0, 6.5}, {1, 7.1}, {2.5, 8.2}, {3.5, 8.8}, {4.5, 9.9}, {5.5, 11.3}, {7, 12.4}, {9, 14.5}, {11, 16.7}, {13.5, 18.3}, {17.5, 21.9}, {25, 28}, {35, 36}};
+                static const Curve gustToHis{{0, 11}, {4, 12.7}, {10, 14.5}, {14, 19.6}, {18, 25.6}, {22, 28.3}, {26, 29.8}, {30, 31.2}, {36, 35.8}, {60, 60}};
                 static const Curve heatCurve{{0, 1.0}, {85, 1.0}, {86, 0.963}, {87, 0.925}, {88, 0.883}, {89, 0.841}, {90, 0.805}, {91, 0.759}, {95, 0.55}, {100, 0.2}, {105, 0.0}};   // by the day's high (feels like), F (his: full marks to 85, then 4 points a degree to 76 at 91; above that is a guess: his week had none)
                 // the climate adjusted version: the normal of the place for the day (the 1991-2020 daily mean near the surface, 2.5 degrees: its high taken as 9 F above it) moves the comfortable
                 // range up half way where the normal high is above its middle (an 85 F normal high: 64 + 10.5, 59 to 74 F becomes 67 to 82 F); a cold normal does not move it down
@@ -1842,7 +1847,7 @@ const std::vector<Product>& products() {
                             const std::string name = std::to_string(f);
                             double apparent = g["a" + name].values[at], dewC = g["d" + name].values[at];
                             // the blend's inputs on the scale his scores read them (his cloud cover is 11 points above the blend's, his wind 5 mph, his gusts 4 mph; fitted over 8,000 city days: correlations 0.86 to 0.92)
-                            const double cloud = std::min(100.0, 1.06 * g["c" + name].values[at] + 11.0), gust = 1.08 * g["g" + name].values[at] * 2.23694 + 3.6, sustained = 1.1 * g["u" + name].values[at] * 2.23694 + 4.7;
+                            const double cloud = along(cloudToHis, g["c" + name].values[at]), gust = along(gustToHis, g["g" + name].values[at] * 2.23694), sustained = along(windToHis, g["u" + name].values[at] * 2.23694);
                             double rain = g["p" + name].values[at];
                             {   // the fine particles (micrograms a cubic meter): the RRFS's (where it reaches) and GEOS-FP's (the dust, sea salt, black and organic carbon and sulfate), the larger where both have them
                                 double fine = std::numeric_limits<double>::quiet_NaN();
@@ -1999,7 +2004,7 @@ const std::vector<Product>& products() {
                     // each ingredient allows a level up to the one its score reaches (the weakest of them rules: a level needs all of the ingredients at its mark, whatever the others are). The marks were
                     // fitted to how Ryan Hall, Y'all's levels follow his ingredient scores (about 77% of 21,000 cities at the same level, against 69% for a cutoff on the weighted score)
                     static const double marks[6][4] = {   // Decent, Fair, Nice, Beautiful (of 100): temperature, rain, heat, dewpoint, sky, wind
-                        {0, 18, 66, 91}, {0, 38, 89, 100}, {0, 50, 78, 100}, {17, 40, 71, 91}, {0, 10, 73, 86}, {0, 34, 70, 84}};   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
+                        {0, 18, 68, 91}, {0, 34, 89, 100}, {0, 50, 78, 100}, {17, 39, 67, 92}, {0, 25, 76, 89}, {0, 38, 75, 82}};   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
                     const double scores[6] = {tScore * 100.0, rScore * 100.0, heatScore * 100.0, dScore * 100.0, cScore * 100.0, wScore * 100.0};
                     int value = 4;
                     for (int ingredient = 0; ingredient < 6; ingredient++) {
