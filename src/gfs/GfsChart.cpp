@@ -1767,7 +1767,7 @@ const std::vector<Product>& products() {
                         const double nowLocal = runHours + zone;
                         const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
                         const double target = std::floor(nowLocal / 24.0) + (hourNow < 17.0 ? 0 : 1) + (day - 1);
-                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0;
+                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0;
                         double count = 0;   // the weight of the hours (an hour counts fully from 10 to 18 o'clock and less towards 8 and 20, so that the cells where the hours fall differently do not make a line)
                         for (const int f : hours) {
                             const double local = runHours + f + zone;
@@ -1792,7 +1792,10 @@ const std::vector<Product>& products() {
                             const double outside = std::max(0.0, std::max(middle - 7.5 - apparent, apparent - (middle + 7.5)));   // degrees F outside the comfortable range
                             aSum += weight * apparent;
                             tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 14.0));   // (dangerous heat is never nice)
-                            dScore += weight * ramp(dew, 58.0, 72.0);
+                            dScore += weight * (dew < 50.0 ? std::max(0.5, 1.0 - 0.012 * (50.0 - dew)) : ramp(dew, 58.0, 72.0));   // (a little under full marks for very dry air: about 92 at a 44 F dewpoint)
+                            if (weight >= 0.5) {
+                                high = std::max(high, apparent);
+                            }
                             cScore += weight * (1.0 - 0.8 * std::clamp((cloud - 25.0) / 75.0, 0.0, 1.0));
                             wScore += weight * ramp(gust, 15.0, 35.0);
                             pMax = std::max(pMax, weight * rain);
@@ -1803,7 +1806,9 @@ const std::vector<Product>& products() {
                             continue;
                         }
                         const double rain = 0.5 * pMax + 0.5 * pSum / count;   // a chance of rain at some hour counts more than the average
-                        cT[at] = static_cast<float>(tScore / count);
+                        // the temperature: half the hours' score (the range) and half the day's high (full marks from 70 F, 90 at 66 F, a steeper loss under 60 and over 80)
+                        const double highScore = high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : high >= 60.0 ? 1.0 - 0.0226 * (70.0 - high) : std::max(0.0, 0.774 - 0.04 * (60.0 - high));
+                        cT[at] = static_cast<float>(0.5 * tScore / count + 0.5 * highScore);
                         cD[at] = static_cast<float>(dScore / count);
                         cC[at] = static_cast<float>(cScore / count);
                         cW[at] = static_cast<float>(wScore / count);
