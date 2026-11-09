@@ -1762,7 +1762,7 @@ const std::vector<Product>& products() {
                             if (!std::isnan(meanK)) {
                                 meanK = meanK > 150.0 ? meanK - 273.15 : meanK;
                                 const double normalHigh = meanK * 1.8 + 32.0 + 9.0;
-                                middle = 0.7 * 67.5 + 0.3 * normalHigh;   // (mostly the absolute comfort, the normal a smaller adjustment)
+                                middle = 69.0 + 0.5 * std::max(0.0, normalHigh - 69.0);   // (the comfort is absolute, 61.5 to 76.5 F; a hot normal moves it up half way, a cold one does not move it down)
                             }
                         }
                         const double nowLocal = runHours + zone;
@@ -1792,7 +1792,7 @@ const std::vector<Product>& products() {
                             }
                             const double outside = std::max(0.0, std::max(middle - 7.5 - apparent, apparent - (middle + 7.5)));   // degrees F outside the comfortable range
                             aSum += weight * apparent;
-                            tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 22.0));   // (dangerous heat is never nice, whatever is normal)
+                            tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 14.0));   // (dangerous heat is never nice, whatever is normal)
                             dScore += weight * ramp(dew, 58.0, 72.0);
                             cScore += weight * (1.0 - 0.8 * std::clamp((cloud - 25.0) / 75.0, 0.0, 1.0));
                             wScore += weight * ramp(gust, 15.0, 35.0);
@@ -1867,9 +1867,9 @@ const std::vector<Product>& products() {
                         value = 5;
                     } else if (base >= 0.91 && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.88 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.7) {
                         value = 4;
-                    } else if (base >= 0.80 && tScore >= 0.6 && rScore >= 0.7 && wScore >= 0.5 && dScore >= 0.4) {
+                    } else if (base >= 0.84 && tScore >= 0.7 && rScore >= 0.75 && wScore >= 0.5 && dScore >= 0.4) {
                         value = 3;
-                    } else if (base >= 0.68 && tScore >= 0.45 && rScore >= 0.5) {
+                    } else if (base >= 0.72 && tScore >= 0.5 && rScore >= 0.5) {
                         value = 2;
                     } else if (base >= 0.55 && tScore >= 0.3 && rScore >= 0.3) {
                         value = 1;
