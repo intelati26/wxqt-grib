@@ -27,6 +27,7 @@
 #include "cfs/UtilityCfs.h"
 #include "gfs/AirNowLoader.h"
 #include "gfs/GfsClimate.h"
+#include "gfs/GfsNormals.h"
 #include "gfs/GfsModels.h"
 #include "spcrefs/UtilitySpcRefs.h"
 #include "gfs/BarbGrid.h"
@@ -1755,6 +1756,8 @@ const std::vector<Product>& products() {
                 static const Curve sustainedCurve{{0, 1.0}, {8, 1.0}, {9, 0.981}, {10, 0.959}, {11, 0.939}, {12, 0.917}, {13, 0.895}, {14, 0.875}, {15, 0.857}, {16, 0.80}, {17, 0.732}, {18, 0.684}, {19, 0.633}, {20, 0.582}, {21, 0.52}, {22, 0.454}, {23, 0.388}, {24, 0.329}, {25, 0.268}, {26, 0.20}, {27, 0.141}, {28, 0.065}, {29, 0.016}, {30, 0.0}};   // by the sustained wind, mph (read off his scores)
                 static const Curve gustCurve{{0, 1.0}, {19.9, 1.0}, {20.5, 0.78}, {29.9, 0.78}, {30.6, 0.565}, {60, 0.545}};   // times, by the gust, mph: his two steps, the gust factor 0.78 from 20 mph and 0.57 from 31
                 static const Curve coldCurve{{0, 0.0}, {10, 0.06}, {20, 0.17}, {23, 0.23}, {29, 0.375}, {35, 0.51}, {41, 0.68}, {46, 0.84}, {50, 0.91}, {56.5, 1.0}};   // by the apparent temperature of a cold day, F (his: 23 F is 23 of 100, 35 F 51, 41 F 68, 47 F 83, whatever is normal for the place)
+                // the cold side, relative: his score against his high under the normal high (the 5 km NCEI normal is his), where the cold of the day itself does not bind (the south: 82 of 100 at 8 F under, 56 at 14, 32 at 20)
+                static const Curve coldBelowCurve{{-40, 0.0}, {-26, 0.08}, {-22.5, 0.22}, {-19.5, 0.32}, {-16.5, 0.44}, {-13.5, 0.56}, {-10.5, 0.70}, {-7.5, 0.82}, {-4.5, 0.93}, {-2, 1.0}};
                 static const Curve warmCurve{{-20, 0.94}, {1, 0.92}, {4, 0.88}, {7, 0.84}, {7.3, 0.56}, {10, 0.47}, {13, 0.36}, {16, 0.20}, {22, 0.0}};   // by the day's high over the normal high, F (his, in the flat states: 90 of 100 at the normal, 84 at 7 F over, then a step to 56 within a third of a degree, 47 at 10 over and 20 at 16)
                 // his normal high less ours (degrees F), what his temperature scores imply at 14,000 of his cities, interpolated to a 1 degree grid (latitude 24 to 50 north, longitude 125 to 66 west): his normals run
                 // 3 F over ours on the whole and differ by state (5 to 6 in the south east, 1 to 2 in the plains, -3 in Minnesota); cities held out are placed to 1.4 F by their neighbours' offsets
@@ -1802,12 +1805,20 @@ const std::vector<Product>& products() {
                 // range up half way where the normal high is above its middle (an 85 F normal high: 64 + 10.5, 59 to 74 F becomes 67 to 82 F); a cold normal does not move it down
                 GfsGrid::Grid normal;
                 bool haveNormal = false;
-                if (context.climate) {
+                // the contiguous states have NOAA's own normal high of the day, 5 km (GfsNormals: 15 small files the first time, 2.6 MB kept): his normal, to within a degree or two. The reanalysis one
+                // (2.5 degrees, its mean taken 9 F under the high, 3 F cold on the whole) stays for the rest of the world and for a place the 5 km grid does not hold
+                GfsNormals::Day normalDay;
+                bool haveNcei = false;
+                {
                     auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
                     t.setTimeZone(QTimeZone::utc());
                     t = t.addSecs(context.hour * 3600);
                     std::string why;
-                    haveNormal = context.climate->at(GfsClimate::surfaceTemperature(), GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day()), normal, why);
+                    haveNcei = GfsNormals::shared().prepare(GfsNormals::Kind::High, why);
+                    normalDay = GfsNormals::day(t.date().month(), t.date().day());
+                    if (context.climate) {
+                        haveNormal = context.climate->at(GfsClimate::surfaceTemperature(), GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day()), normal, why);
+                    }
                 }
                 // the ingredients of each cell, which are smoothed over a radius of 50 miles before the levels are made of them (a map of the weather people can plan by, not of every ridge and valley)
                 const float none = std::numeric_limits<float>::quiet_NaN();
@@ -1824,7 +1835,14 @@ const std::vector<Product>& products() {
                         const double zone = lon / 15.0;   // hours of the sun's time ahead of UTC
                         double normalHigh = std::numeric_limits<double>::quiet_NaN();   // the normal high of the day at the place (degrees F), where the climate adjustment has it
                         double middle = 64.0;   // the middle of the comfortable range, degrees F (56.5 to 71.5): the weather of the day itself, whatever is normal for the place
-                        if (haveNormal) {
+                        if (haveNcei) {
+                            const double ncei = GfsNormals::shared().at(GfsNormals::Kind::High, normalDay, lon, lat);
+                            if (std::isfinite(ncei)) {
+                                normalHigh = ncei;
+                                middle = std::max(64.0, normalHigh - 6.0);
+                            }
+                        }
+                        if (std::isnan(normalHigh) && haveNormal) {
                             double meanK = normal.sample(lon < 0.0 ? lon + 360.0 : lon, lat);
                             if (!std::isnan(meanK)) {
                                 meanK = meanK > 150.0 ? meanK - 273.15 : meanK;
@@ -1897,7 +1915,7 @@ const std::vector<Product>& products() {
                         const double highShift = middle - 64.0;   // (the day's high is judged by the same range, moved with it)
                         high -= highShift;
                         // (his day high against the normal: Dayton, 59 F with a 57 F normal, is 92 of 100; a high 12 F over the normal scores 70, 4 F over 90: 2.4 points a degree over, half that under)
-                        const double highScore = !std::isnan(normalHigh) ? (rawHigh < -500.0 || rawHigh >= 95.0 ? 0.0 : std::min(rawHigh - 5.5 < 56.5 ? along(coldCurve, rawHigh - 5.5) : 1.0, along(warmCurve, rawHigh - 1.5 - normalHigh))) : high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));   // (our apparent high is 5.5 F over his apparent and 1.5 F over his 2 m high; his normals are in the offset map)
+                        const double highScore = !std::isnan(normalHigh) ? (rawHigh < -500.0 || rawHigh >= 95.0 ? 0.0 : std::min({rawHigh - 5.5 < 56.5 ? along(coldCurve, rawHigh - 5.5) : 1.0, along(warmCurve, rawHigh - 1.5 - normalHigh), along(coldBelowCurve, rawHigh - 1.5 - normalHigh)})) : high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));   // (our apparent high is 5.5 F over his apparent and 1.5 F over his 2 m high; his normals are in the offset map)
                         cT[at] = static_cast<float>(0.25 * tScore / count + 0.75 * highScore);
                         cD[at] = static_cast<float>(dScore / count);
                         cC[at] = static_cast<float>(cScore / count);
