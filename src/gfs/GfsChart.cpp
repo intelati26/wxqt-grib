@@ -1746,7 +1746,7 @@ const std::vector<Product>& products() {
                 // the ingredients of each cell, which are smoothed over a radius of 50 miles before the levels are made of them (a map of the weather people can plan by, not of every ridge and valley)
                 const float none = std::numeric_limits<float>::quiet_NaN();
                 const size_t cells = shape.values.size();
-                std::vector<float> cT(cells, none), cR(cells, none), cD(cells, none), cC(cells, none), cW(cells, none), cA(cells, none), cS(cells, none);
+                std::vector<float> cT(cells, none), cR(cells, none), cD(cells, none), cC(cells, none), cW(cells, none), cA(cells, none), cS(cells, none), cG(cells, none);
                 for (int row = 0; row < shape.rows; row++) {
                     const double lat = shape.lat0 - row * shape.step;
                     for (int column = 0; column < shape.columns; column++) {
@@ -1767,7 +1767,7 @@ const std::vector<Product>& products() {
                         const double nowLocal = runHours + zone;
                         const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
                         const double target = std::floor(nowLocal / 24.0) + (hourNow < 17.0 ? 0 : 1) + (day - 1);
-                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0;
+                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0, gustMax = 0;
                         double count = 0;   // the weight of the hours (an hour counts fully from 10 to 18 o'clock and less towards 8 and 20, so that the cells where the hours fall differently do not make a line)
                         for (const int f : hours) {
                             const double local = runHours + f + zone;
@@ -1780,9 +1780,30 @@ const std::vector<Product>& products() {
                             double apparent = g["a" + name].values[at], dewC = g["d" + name].values[at];
                             const double cloud = g["c" + name].values[at], gust = g["g" + name].values[at] * 2.23694;
                             double rain = g["p" + name].values[at];
-                            if (const auto found = g.find("s" + name); found != g.end() && !found->second.values.empty() && !std::isnan(found->second.values[at])) {   // the RRFS's fine particles (kg a cubic meter), where it reaches
-                                smoke += weight * found->second.values[at] * 1.0e9;
-                                smokeWeight += weight;
+                            {   // the fine particles (micrograms a cubic meter): the RRFS's (where it reaches) and GEOS-FP's (the dust, sea salt, black and organic carbon and sulfate), the larger where both have them
+                                double fine = std::numeric_limits<double>::quiet_NaN();
+                                if (const auto found = g.find("s" + name); found != g.end() && !found->second.values.empty() && !std::isnan(found->second.values[at])) {
+                                    fine = found->second.values[at] * 1.0e9;
+                                }
+                                static const char * const species[5] = {"y", "z", "e", "h", "k"};
+                                static const double factor[5] = {1.0, 1.0, 1.0, 1.4, 1.375};
+                                double geos = 0.0;
+                                bool haveGeos = true;
+                                for (int part = 0; part < 5 && haveGeos; part++) {
+                                    const auto found = g.find(species[part] + name);
+                                    if (found == g.end() || found->second.values.empty() || std::isnan(found->second.values[at])) {
+                                        haveGeos = false;
+                                    } else {
+                                        geos += factor[part] * found->second.values[at] * 1.0e9;
+                                    }
+                                }
+                                if (haveGeos) {
+                                    fine = std::isnan(fine) ? geos : std::max(fine, geos);
+                                }
+                                if (!std::isnan(fine)) {
+                                    smoke += weight * fine;
+                                    smokeWeight += weight;
+                                }
                             }
                             apparent = apparent * 1.8 + 32.0;
                             const double dew = dewC * 1.8 + 32.0;
@@ -1791,6 +1812,9 @@ const std::vector<Product>& products() {
                             }
                             const double outside = std::max(0.0, std::max(middle - 7.5 - apparent, apparent - (middle + 7.5)));   // degrees F outside the comfortable range
                             aSum += weight * apparent;
+                            if (weight >= 0.5) {
+                                gustMax = std::max(gustMax, gust);
+                            }
                             tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 14.0));   // (dangerous heat is never nice)
                             dScore += weight * (dew < 50.0 ? std::max(0.5, 1.0 - 0.012 * (50.0 - dew)) : ramp(dew, 58.0, 72.0));   // (a little under full marks for very dry air: about 92 at a 44 F dewpoint)
                             if (weight >= 0.5) {
@@ -1806,22 +1830,23 @@ const std::vector<Product>& products() {
                             continue;
                         }
                         const double rain = 0.5 * pMax + 0.5 * pSum / count;   // a chance of rain at some hour counts more than the average
-                        // the temperature: half the hours' score (the range) and half the day's high (full marks from 70 F, 90 at 66 F, a steeper loss under 60 and over 80)
-                        const double highScore = high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : high >= 60.0 ? 1.0 - 0.0226 * (70.0 - high) : std::max(0.0, 0.774 - 0.04 * (60.0 - high));
+                        // the temperature: half the hours' score (the range) and half the day's high (full marks from 70 F, 90 at 66 F, 70 at 62.6 F, nothing under 56 F; a loss over 80)
+                        const double highScore = high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));
                         cT[at] = static_cast<float>(0.5 * tScore / count + 0.5 * highScore);
                         cD[at] = static_cast<float>(dScore / count);
                         cC[at] = static_cast<float>(cScore / count);
                         cW[at] = static_cast<float>(wScore / count);
                         cR[at] = static_cast<float>(ramp(rain, 0.0, 50.0));
                         cA[at] = static_cast<float>(aSum / count);   // (the top levels are for a day that is warm in itself)
-                        cS[at] = static_cast<float>(smokeWeight >= 0.5 ? smoke / smokeWeight : 0.0);   // (no smoke forecast, no cap)
+                        cS[at] = static_cast<float>(smokeWeight >= 0.5 ? smoke / smokeWeight : 0.0);   // (no particles forecast, no cap)
+                        cG[at] = gustMax > 35.0 ? 1.0f : 0.0f;   // a gust over 35 mph at some hour: the share of the area around that has one is what caps
                     }
                 }
                 {   // the smoothing: the mean of the cells within 50 miles (a box: the width in cells follows the latitude), where there is a value
                     const double radiusKm = 80.5;
                     const int rows = shape.rows, columns = shape.columns;
                     const int ry = std::max(1, static_cast<int>(std::lround(radiusKm / (111.32 * shape.step))));
-                    for (auto * v : {&cT, &cR, &cD, &cC, &cW, &cA, &cS}) {
+                    for (auto * v : {&cT, &cR, &cD, &cC, &cW, &cA, &cS, &cG}) {
                         std::vector<float> across(cells, none);
                         std::vector<double> sum(static_cast<size_t>(std::max(rows, columns)) + 1), number(static_cast<size_t>(std::max(rows, columns)) + 1);
                         for (int row = 0; row < rows; row++) {
@@ -1864,7 +1889,7 @@ const std::vector<Product>& products() {
                         level.values[at] = none;
                         continue;
                     }
-                    const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at];
+                    const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at], gusty = cG[at];
                     const double base = 0.35 * tScore + 0.25 * rScore + 0.15 * dScore + 0.10 * cScore + 0.15 * wScore;
                     int value = 0;
                     if (base >= 0.97 && apparentMean >= 66.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.97) {
@@ -1879,9 +1904,10 @@ const std::vector<Product>& products() {
                         value = 1;
                     }
                     value = std::min(value, day <= 2 ? 5 : day == 3 ? 4 : 3);   // the further the day, the lower the level the forecast can stand behind
-                    // smoke: the daytime mean of the fine particles (micrograms a cubic meter; the EPA's good air is under 9, moderate to 35, unhealthy for sensitive groups above)
-                    value = smoke > 35.0 ? 0 : smoke > 20.0 ? std::min(value, 1) : smoke > 12.0 ? std::min(value, 2) : smoke > 9.0 ? std::min(value, 3) : smoke > 8.4 ? std::min(value, 4) : value;
-                    if (wScore < 0.2) {   // a mean gust past about 31 mph is not a nice day
+                    // the fine particles, the daytime mean (micrograms a cubic meter), by the EPA's air quality index: Perfect needs an index of 35 (8.4 micrograms), Beautiful about 55 (14), Nice 100 (35.4), Fair
+                    // 150 (55.4), Decent 250 (125)
+                    value = std::min(value, smoke <= 8.4 ? 5 : smoke <= 14.0 ? 4 : smoke <= 35.4 ? 3 : smoke <= 55.4 ? 2 : smoke <= 125.0 ? 1 : 0);
+                    if (wScore < 0.2 || gusty >= 0.05) {   // gusts over 35 mph in the area around (or a mean gust past about 31 mph) are not a nice day
                         value = std::min(value, 2);
                     }
                     level.values[at] = static_cast<float>(value);
@@ -1890,6 +1916,14 @@ const std::vector<Product>& products() {
             };
             // the smoke is the RRFS's (the blend has none): its near-surface fine particles at the same hours, for the first days it reaches
             x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 7)); }, 6});
+            {   // GEOS-FP's fine particles at the same hours (the daytime of the days it has): the dust, sea salt, black carbon, organic matter and sulfate of its 3 hour surface averages
+                const auto geosHours = [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 7)); };
+                const char * const names[5] = {"DUSMASS25", "SSSMASS25", "BCSMASS", "OCSMASS", "SO4SMASS"};
+                const char * const keys[5] = {"y", "z", "e", "h", "k"};
+                for (int part = 0; part < 5; part++) {
+                    x.extras.push_back({"GEOS-FP", GfsData::Want{keys[part], names[part], "aerosol", "", ""}, part == 0 ? "GEOS-FP particles" : "", 0, geosHours, 0});
+                }
+            }
             x.fill = [] (const Grids& g) { return pick(g, "level"); };
             x.ramp = Ramp{{{1.0, QColor{"#d6e7a3"}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1a8c9a"}}, {5.0, QColor{"#f5b800"}}}, true};   // each level starts at its whole number; the scale ends at 5
             x.fillTitle = "Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, Perfect 5/5";
