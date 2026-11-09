@@ -1801,7 +1801,7 @@ const std::vector<Product>& products() {
                             if (std::isnan(apparent) || std::isnan(dew) || std::isnan(cloud) || std::isnan(gust) || std::isnan(sustained) || std::isnan(rain)) {
                                 continue;
                             }
-                            const double outside = std::max(0.0, std::max(middle - 7.5 - apparent, apparent - (middle + 7.5)));   // degrees F outside the comfortable range
+                            const double outside = std::max(0.0, std::max(middle - 7.5 - apparent, apparent - (middle + 12.0)));   // degrees F outside the comfortable range (a warm day is fine to 76 F: his Tucson, 74 F, is Beautiful)
                             aSum += weight * apparent;
                             if (weight >= 0.5) {
                                 gustMax = std::max(gustMax, gust);
@@ -1914,7 +1914,11 @@ const std::vector<Product>& products() {
                 // the base each level needs (his day 1 colored 10% of the area Beautiful, 17% Nice, 63% Fair and 10% Decent: Fair is the wide band, Nice and Beautiful are the narrow ones)
                 const double thB = 0.975, thN = 0.935, thF = 0.60, thD = 0.30;
                 for (size_t at = 0; at < cells; at++) {
-                    if (std::isnan(cT[at])) {
+                    double lonAt = shape.lon0 + static_cast<double>(at % static_cast<size_t>(shape.columns)) * shape.step;
+                    if (lonAt > 180.0) {
+                        lonAt -= 360.0;
+                    }
+                    if (std::isnan(cT[at]) || !insideUnitedStates(lonAt, shape.lat0 - static_cast<double>(at / static_cast<size_t>(shape.columns)) * shape.step)) {   // (a map of the land of the United States)
                         level.values[at] = none;
                         continue;
                     }
@@ -8927,3 +8931,25 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     return image;
 }
 }
+
+// a rough outline of the contiguous United States (longitude, latitude), the Great Lakes inside it: what the summary counts (the blend's grid reaches into Canada, Mexico and the sea)
+bool GfsChart::insideUnitedStates(double lon, double lat) {
+    static const std::vector<std::array<double, 2>> outline{
+        {-124.7, 48.4}, {-123.3, 49.0}, {-95.2, 49.0}, {-95.2, 49.4}, {-94.6, 48.7}, {-91.5, 48.1}, {-89.6, 48.0}, {-84.8, 46.9}, {-83.0, 46.0}, {-82.4, 43.0}, {-83.1, 42.0}, {-82.7, 41.5},
+        {-79.0, 42.8}, {-76.8, 43.6}, {-75.0, 45.0}, {-71.5, 45.0}, {-70.2, 46.7}, {-69.2, 47.45}, {-67.8, 47.1}, {-67.0, 44.8}, {-70.0, 43.7}, {-70.7, 42.7}, {-70.0, 41.8}, {-71.5, 41.3},
+        {-73.7, 40.9}, {-74.0, 40.4}, {-74.9, 38.9}, {-75.5, 38.0}, {-76.0, 36.9}, {-75.5, 35.3}, {-77.0, 34.6}, {-78.5, 33.8}, {-79.9, 32.7}, {-81.3, 31.5}, {-81.4, 30.4}, {-80.5, 28.5},
+        {-80.0, 26.8}, {-80.2, 25.5}, {-81.1, 25.1}, {-81.8, 26.1}, {-82.8, 27.8}, {-82.7, 29.2}, {-83.7, 29.9}, {-85.3, 29.6}, {-86.5, 30.4}, {-88.0, 30.3}, {-89.4, 30.2}, {-89.4, 29.0},
+        {-91.0, 29.2}, {-93.8, 29.7}, {-94.8, 29.2}, {-96.4, 28.3}, {-97.3, 27.2}, {-97.2, 25.95}, {-99.1, 26.4}, {-99.5, 27.5}, {-100.7, 29.1}, {-101.4, 29.8}, {-102.4, 29.8}, {-103.1, 29.0},
+        {-104.5, 29.7}, {-104.9, 30.6}, {-106.5, 31.75}, {-108.2, 31.8}, {-108.2, 31.33}, {-111.1, 31.33}, {-114.8, 32.5}, {-117.1, 32.5}, {-117.3, 33.1}, {-118.4, 33.7}, {-119.3, 34.1},
+        {-120.6, 34.5}, {-121.9, 36.6}, {-122.5, 37.7}, {-123.7, 39.0}, {-124.4, 40.4}, {-124.1, 41.9}, {-124.5, 43.0}, {-124.0, 46.2}};
+    bool inside = false;
+    for (size_t i = 0, j = outline.size() - 1; i < outline.size(); j = i++) {
+        const auto& a = outline[i];
+        const auto& b = outline[j];
+        if ((a[1] > lat) != (b[1] > lat) && lon < (b[0] - a[0]) * (lat - a[1]) / (b[1] - a[1]) + a[0]) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
+
