@@ -1810,7 +1810,8 @@ const std::vector<Product>& products() {
                             const double weight = std::min({1.0, (hourOfDay - 8.0) / 2.0, (20.0 - hourOfDay) / 2.0});
                             const std::string name = std::to_string(f);
                             double apparent = g["a" + name].values[at], dewC = g["d" + name].values[at];
-                            const double cloud = g["c" + name].values[at], gust = g["g" + name].values[at] * 2.23694, sustained = g["u" + name].values[at] * 2.23694;
+                            // the blend's inputs on the scale his scores read them (his cloud cover is 11 points above the blend's, his wind 5 mph, his gusts 4 mph; fitted over 8,000 city days: correlations 0.86 to 0.92)
+                            const double cloud = std::min(100.0, 1.06 * g["c" + name].values[at] + 11.0), gust = 1.08 * g["g" + name].values[at] * 2.23694 + 3.6, sustained = 1.1 * g["u" + name].values[at] * 2.23694 + 4.7;
                             double rain = g["p" + name].values[at];
                             {   // the fine particles (micrograms a cubic meter): the RRFS's (where it reaches) and GEOS-FP's (the dust, sea salt, black and organic carbon and sulfate), the larger where both have them
                                 double fine = std::numeric_limits<double>::quiet_NaN();
@@ -1854,7 +1855,7 @@ const std::vector<Product>& products() {
                         if (count < 0.5) {
                             continue;
                         }
-                        const double rain = 0.5 * pMax + 0.5 * pSum / count;   // a chance of rain at some hour counts more than the average
+                        const double rain = std::min(100.0, 1.5 * pSum / count + 1.5);   // (his chance of rain is 1.5 times the blend's mean hourly chance of the daytime hours: correlation 0.93)
                         // the temperature: half the hours' score (the range) and half the day's high (full marks from 70 F, 90 at 66 F, 70 at 62.6 F, nothing under 56 F; a loss over 80)
                         const double rawHigh = high;
                         const double highShift = middle - 64.0;   // (the day's high is judged by the same range, moved with it)
@@ -1969,7 +1970,7 @@ const std::vector<Product>& products() {
                     // each ingredient allows a level up to the one its score reaches (the weakest of them rules: a level needs all of the ingredients at its mark, whatever the others are). The marks were
                     // fitted to how Ryan Hall, Y'all's levels follow his ingredient scores (about 77% of 21,000 cities at the same level, against 69% for a cutoff on the weighted score)
                     static const double marks[6][4] = {   // Decent, Fair, Nice, Beautiful (of 100): temperature, rain, heat, dewpoint, sky, wind
-                        {0, 18, 84, 93}, {0, 63, 99, 99}, {0, 50, 78, 100}, {17, 46, 86, 96}, {0, 39, 93, 98}, {0, 15, 79, 92}};   // (refitted so that the shares of the levels are his, 15% Decent, 61% Fair, 22% Nice, 1.6% Beautiful: 60% of his cities at the same level over two days, 97% within one)
+                        {0, 18, 69, 80}, {0, 29, 88, 100}, {0, 50, 78, 92}, {17, 29, 76, 94}, {0, 0, 63, 82}, {0, 36, 73, 83}};   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
                     const double scores[6] = {tScore * 100.0, rScore * 100.0, heatScore * 100.0, dScore * 100.0, cScore * 100.0, wScore * 100.0};
                     int value = 4;
                     for (int ingredient = 0; ingredient < 6; ingredient++) {
