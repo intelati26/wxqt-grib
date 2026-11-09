@@ -1831,16 +1831,10 @@ const std::vector<Product>& products() {
                         const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
                         const double target = std::floor(nowLocal / 24.0) + (hourNow <= 9.5 ? 0 : 1) + (day - 1);
                         double wWorst = 1.0, tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0, gustMax = 0;
-                        double lowApparent = 1000.0;
                         double count = 0;   // the weight of the hours (an hour counts fully from 10 to 18 o'clock and less towards 8 and 20, so that the cells where the hours fall differently do not make a line)
                         for (const int f : hours) {
                             const double local = runHours + f + zone;
                             const double dayIndex = std::floor(local / 24.0), hourOfDay = local - 24.0 * dayIndex;
-                            if (dayIndex == target + 1 && hourOfDay <= 9.0) {   // the next morning's hours: the night's low (feels like), what his low reads as (corr 0.90 to 0.95 with his low, 100% of the cells, 3 F under his on average)
-                                if (const auto found = g.find("a" + std::to_string(f)); found != g.end() && !std::isnan(found->second.values[at])) {
-                                    lowApparent = std::min(lowApparent, found->second.values[at] * 1.8 + 32.0);
-                                }
-                            }
                             if (dayIndex != target || hourOfDay <= 8.0 || hourOfDay >= 20.0) {
                                 continue;
                             }
@@ -1899,9 +1893,7 @@ const std::vector<Product>& products() {
                         high -= highShift;
                         // (his day high against the normal: Dayton, 59 F with a 57 F normal, is 92 of 100; a high 12 F over the normal scores 70, 4 F over 90: 2.4 points a degree over, half that under)
                         const double highScore = !std::isnan(normalHigh) ? (rawHigh < -500.0 || rawHigh >= 95.0 ? 0.0 : std::min(rawHigh - 5.5 < 56.5 ? along(coldCurve, rawHigh - 5.5) : 1.0, along(warmCurve, rawHigh - 1.5 - normalHigh))) : high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));   // (our apparent high is 5.5 F over his apparent and 1.5 F over his 2 m high; his normals are in the offset map)
-                        // (his Ozarks: the same 69.8 F high is 55 with a 48 F low and 65 with a 42 F low, so a low above the normal low, taken 9 F under the mean, costs 1.75 points a degree)
-                        const double lowPenalty = (std::isnan(normalHigh) || lowApparent > 500.0) ? 0.0 : 0.015 * std::max(0.0, lowApparent - (normalHigh - 18.0) + 2.3);   // (fitted to his 12 states over a week: 94 less 3.7 a degree of the day's high over the normal high + 5, and 0.9 a degree of the low over its normal + 2)
-                        cT[at] = static_cast<float>(0.25 * tScore / count + 0.75 * std::max(0.0, highScore - lowPenalty));
+                        cT[at] = static_cast<float>(0.25 * tScore / count + 0.75 * highScore);
                         cD[at] = static_cast<float>(dScore / count);
                         cC[at] = static_cast<float>(cScore / count);
                         cW[at] = static_cast<float>(0.5 * wScore / count + 0.5 * wWorst);
@@ -2007,7 +1999,7 @@ const std::vector<Product>& products() {
                     // each ingredient allows a level up to the one its score reaches (the weakest of them rules: a level needs all of the ingredients at its mark, whatever the others are). The marks were
                     // fitted to how Ryan Hall, Y'all's levels follow his ingredient scores (about 77% of 21,000 cities at the same level, against 69% for a cutoff on the weighted score)
                     static const double marks[6][4] = {   // Decent, Fair, Nice, Beautiful (of 100): temperature, rain, heat, dewpoint, sky, wind
-                        {0, 18, 51, 84}, {0, 35, 88, 100}, {0, 50, 78, 100}, {9, 28, 74, 95}, {0, 13, 76, 85}, {0, 31, 68, 86}};   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
+                        {0, 18, 67, 91}, {0, 37, 88, 100}, {0, 50, 78, 100}, {9, 29, 72, 93}, {0, 11, 73, 91}, {0, 33, 72, 85}};   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
                     const double scores[6] = {tScore * 100.0, rScore * 100.0, heatScore * 100.0, dScore * 100.0, cScore * 100.0, wScore * 100.0};
                     int value = 4;
                     for (int ingredient = 0; ingredient < 6; ingredient++) {
