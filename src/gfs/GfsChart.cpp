@@ -1769,7 +1769,7 @@ const std::vector<Product>& products() {
                         const double nowLocal = runHours + zone;
                         const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
                         const double target = std::floor(nowLocal / 24.0) + (hourNow < 17.0 ? 0 : 1) + (day - 1);
-                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0, gustMax = 0;
+                        double wWorst = 1.0, tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0, gustMax = 0;
                         double count = 0;   // the weight of the hours (an hour counts fully from 10 to 18 o'clock and less towards 8 and 20, so that the cells where the hours fall differently do not make a line)
                         for (const int f : hours) {
                             const double local = runHours + f + zone;
@@ -1812,7 +1812,11 @@ const std::vector<Product>& products() {
                                 high = std::max(high, apparent);
                             }
                             cScore += weight * std::max(0.0, 1.0 - 0.000746 * std::pow(std::max(0.0, cloud), 1.67));   // (his sky: 5% cloud 98.9, 36% cloud 70.4; the power curve through both, nothing at an overcast)
-                            wScore += weight * ramp(gust, 13.0, 35.0) * ramp(sustained, 7.0, 26.0);   // (his Topeka, 12 mph, is Fair; a 7.8 mph day with 12.7 mph gusts scores 96.7: the sustained wind counts from 8 mph, nothing at 26)
+                            const double windNow = ramp(gust, 13.0, 35.0) * ramp(sustained, 7.0, 26.0);
+                            wScore += weight * windNow;
+                            if (weight >= 0.5) {
+                                wWorst = std::min(wWorst, windNow);   // (the windiest hour counts as much as the day's mean: a breezy afternoon is what people feel)
+                            }   // (his Topeka, 12 mph, is Fair; a 7.8 mph day with 12.7 mph gusts scores 96.7: the sustained wind counts from 8 mph, nothing at 26)
                             pMax = std::max(pMax, weight * rain);
                             pSum += weight * rain;
                             count += weight;
@@ -1828,7 +1832,7 @@ const std::vector<Product>& products() {
                         cT[at] = static_cast<float>(0.5 * tScore / count + 0.5 * highScore);
                         cD[at] = static_cast<float>(dScore / count);
                         cC[at] = static_cast<float>(cScore / count);
-                        cW[at] = static_cast<float>(wScore / count);
+                        cW[at] = static_cast<float>(0.5 * wScore / count + 0.5 * wWorst);
                         cR[at] = static_cast<float>(ramp(rain, 0.0, 40.0));   // (a moderate chance pulls the score down a good bit)
                         cA[at] = static_cast<float>(aSum / count);   // (the top levels are for a day that is warm in itself)
                         cS[at] = static_cast<float>(smokeWeight >= 0.5 ? smoke / smokeWeight : 0.0);   // (no particles forecast, no cap)
