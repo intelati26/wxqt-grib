@@ -1810,7 +1810,7 @@ const std::vector<Product>& products() {
                             if (weight >= 0.5) {
                                 high = std::max(high, apparent);
                             }
-                            cScore += weight * (1.0 - 0.8 * std::clamp((cloud - 25.0) / 75.0, 0.0, 1.0));
+                            cScore += weight * std::max(0.0, 1.0 - 0.000746 * std::pow(std::max(0.0, cloud), 1.67));   // (his sky: 5% cloud 98.9, 36% cloud 70.4; the power curve through both, nothing at an overcast)
                             wScore += weight * ramp(gust, 15.0, 35.0);
                             pMax = std::max(pMax, weight * rain);
                             pSum += weight * rain;
@@ -1916,7 +1916,7 @@ const std::vector<Product>& products() {
                         continue;
                     }
                     const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at], gusty = cG[at];
-                    const double base = 0.35 * tScore + 0.25 * rScore + 0.15 * dScore + 0.10 * cScore + 0.15 * wScore;
+                    const double base = 0.30 * tScore + 0.20 * rScore + 0.10 * dScore + 0.25 * cScore + 0.15 * wScore;   // (his Dallas, 96% cloud with the rest fine, scores 65.5, his northern Fair zone 73.4 with the sky at 70: the sky weighs a quarter)
                     int value = 0;
                     if (base >= 0.97 && apparentMean >= 66.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.97) {
                         value = 5;
