@@ -1738,7 +1738,7 @@ const std::vector<Product>& products() {
                 // range up half way where the normal high is above its middle (an 85 F normal high: 64 + 10.5, 59 to 74 F becomes 67 to 82 F); a cold normal does not move it down
                 GfsGrid::Grid normal;
                 bool haveNormal = false;
-                if (context.climateAdjusted && context.climate) {
+                if (context.climate) {
                     auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
                     t.setTimeZone(QTimeZone::utc());
                     t = t.addSecs(context.hour * 3600);
@@ -1966,7 +1966,6 @@ const std::vector<Product>& products() {
             x.ramp = Ramp{{{1.0, QColor{"#d6e7a3"}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1a8c9a"}}, {5.0, QColor{"#f5b800"}}}, true};   // each level starts at its whole number; the scale ends at 5
             x.fillTitle = "Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, Perfect 5/5";
             x.legendStep = 1;
-            x.climateOption = true;
             p.push_back(x);
         }
         // ---- the RTMA and URMA surface analyses (2.5 km, the hour of the analysis only): the blend's surface charts made from the analysis's own fields
@@ -7486,24 +7485,6 @@ Product withMember(const Product& product, const std::string& member, const std:
 
 bool hasStandardDeviations(const Product& product) {
     return static_cast<bool>(product.sigma);
-}
-
-bool hasClimateAdjustment(const Product& product) {
-    return product.climateOption;
-}
-
-Product withClimateAdjusted(const Product& product) {
-    if (!product.climateOption || !product.derive) {
-        return product;
-    }
-    Product out = product;
-    out.derive = [inner = product.derive] (Grids& g, const Context& context) {
-        Context adjusted = context;
-        adjusted.climateAdjusted = true;
-        inner(g, adjusted);
-    };
-    out.label = "Nice Weather Outlook, climate adjusted";
-    return out;
 }
 
 Product withPoolOnly(const Product& product, const std::string& source) {

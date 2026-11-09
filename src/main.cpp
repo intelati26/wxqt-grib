@@ -781,13 +781,12 @@ int main(int argc, char * argv[]) {
                 const bool ok = Hdf5Range::extract(fetch, qEnvironmentVariable("WXQT_HDF5_VAR").toStdString(), qEnvironmentVariable("WXQT_HDF5_OUT"), error, qEnvironmentVariable("WXQT_HDF5_CACHE"));
                 fprintf(stderr, "hdf5extract: %s %s (%lld bytes read)\n", ok ? "ok" : "failed", error.c_str(), *fetched);
                 std::_Exit(ok ? 0 : 1);
-            } else if (route.startsWith("chartpng:")) {   // WXQT_OPEN=chartpng:<model>:<chart>:<forecast hour>:<area id>:<out file>[:<run yyyyMMddHH>[:climate]]: the model screen's chart of the newest run (or that one) drawn to a file (640 wide, as a tile)
+            } else if (route.startsWith("chartpng:")) {   // WXQT_OPEN=chartpng:<model>:<chart>:<forecast hour>:<area id>:<out file>[:<run yyyyMMddHH>]: the model screen's chart of the newest run (or that one) drawn to a file (640 wide, as a tile)
                 const auto parts = route.split(':');
                 GfsRender::Session session;
                 std::string error;
                 GfsRender::Variant variant;
                 variant.width = 640;
-                variant.climateAdjusted = parts.value(7) == "climate";   // a last part "climate": the climate adjusted nice weather chart
                 GfsChart::Probe probe;
                 const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), {}, error, &probe, variant);
                 if (parts.value(2) == "nice_weather" && probe.valid()) {   // the area at each level, as the nice weather page counts it

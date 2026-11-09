@@ -348,17 +348,6 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             strip->stop();
             reload();
         });
-        buttonClimate = entry(menuAnalysis, "Climate adjusted", "The nice weather outlook with its comfortable temperature range moved up where the normal high of the place is hot (the 1991-2020 daily mean near the surface, from Settings, Model Sources, Climatology): an 85 F normal high is not judged by the standard of a 65 F one. Off: the same range everywhere.", true);
-        buttonClimate->setVisible(false);
-        buttonClimate->setChecked(Utility::readPrefInt("MODEL_NICE_CLIMATE", 0) != 0);
-        climateAdjusted = buttonClimate->isChecked();
-        QObject::connect(buttonClimate, &QAction::toggled, this, [this] (bool on) {
-            climateAdjusted = on;
-            Utility::writePref("MODEL_NICE_CLIMATE", on ? "1" : "0");
-            startPlaying(false);
-            strip->stop();
-            reload();
-        });
         comboTiles.getView()->setToolTip("Several charts of the same hour side by side. They zoom, pan and read out together.");
         comboTilesShow.getView()->setToolTip("What the other tiles show: other charts of this model, the same chart from other models, or the same valid time from older runs. 'Ensemble parts' (with the ENS-ALL pool): the same chart from the members of the ECMWF, the GEFS and the GEPS alone. 'Seasonal models': the EC46, SEAS5 and CFS30 side by side, each in the period that overlaps the main one most. 'ENS-ALL, REFS, PPP vs deterministic': the pooled chart beside the matching chart of GFS, the IFS and the AIFS (precipitation of the same period, the model's own sea level pressure, heights or temperature); the REFS beside the RRFS, the HRRR and the NSSL MPAS (echoes, updraft helicity, temperature); the WPC portal's rain amount beside the global models' precipitation of the same period.");
         comboTiles.setIndex(static_cast<size_t>(std::clamp(Utility::readPrefInt("MODEL_TILES", 0), 0, 3)));
@@ -791,7 +780,7 @@ string ModelViewer::frameKey(int hour) const {
     for (const auto& layer : hiddenLayers) {
         key += "|hide=" + layer;
     }
-    return key + ChartResolution::keyPart() + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + (climateAdjusted ? "|clim" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
+    return key + ChartResolution::keyPart() + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
 }
 
 void ModelViewer::setVariant(GfsRender::Variant v) {
@@ -2922,7 +2911,6 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         job.variant = ahead && variant.kind != GfsRender::Variant::Kind::Change ? GfsRender::Variant{} : variant;
         job.variant.member = member;
         job.variant.standardDeviations = standardDeviations;
-        job.variant.climateAdjusted = climateAdjusted;
         job.variant.overlayModels = overlayModels;
         job.variant.overlayKeepFill = overlayKeepFill;
         job.variant.hideKeys = hiddenLayers;
@@ -3079,14 +3067,12 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         if (show == TilesShow::Members) {   // each tile its own member of the same chart
             v.member = tileMember(index);
             v.standardDeviations = standardDeviations;
-            v.climateAdjusted = climateAdjusted;
         } else if (show == TilesShow::Deterministic && spec.model == "REFS" && (objectModel.model == "MPAS-HT" || objectModel.model == "MPAS-RN")) {   // the RRFS control is the RRFS tile; the REFS tile is its second member
             v.member = spec.member.empty() ? "m002" : spec.member;
         } else if (spec.model == objectModel.model) {   // the same model's tiles show the member too (another model's charts have none)
             v.member = member;
             v.hideKeys = hiddenLayers;
             v.standardDeviations = standardDeviations;
-            v.climateAdjusted = climateAdjusted;
         }
         if (byClock && job.ok) {   // by the clock: each model's own hour for the first tile's valid time
             const auto start = runTime(objectModel.run);
@@ -3122,9 +3108,6 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         }
         if (v.standardDeviations) {
             job.key += "|sd";
-        }
-        if (v.climateAdjusted) {
-            job.key += "|clim";
         }
         if (!v.poolOnly.empty()) {
             job.key += "|only=" + v.poolOnly;
@@ -3623,7 +3606,6 @@ void ModelViewer::refreshMembers() {
         buttonSigma->blockSignals(false);
     }
     buttonSigma->setVisible(offered);
-    buttonClimate->setVisible(shown != nullptr && GfsChart::hasClimateAdjustment(*shown));
 }
 
 void ModelViewer::syncMenus() {
