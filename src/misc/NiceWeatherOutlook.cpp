@@ -127,7 +127,6 @@ std::string NiceWeatherOutlook::summaryOf(const GfsGrid::Grid& grid) {
 NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)
     : Window{parent}
     , comboDay{this, dayLabels}
-    , comboRange{this, {"Comfortable range: the same everywhere", "Climate adjusted: warmer where the normal high is hot"}}
     , header{this}
     , photo{this}
     , text{this}
@@ -137,17 +136,11 @@ NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)
     setTitle("Nice Weather Outlook");
     photo.imageSize = UiStandards::tileImage;
     leftBox.addWidget(comboDay);
-    leftBox.addWidget(comboRange);
     leftBox.addWidget(header);
     leftBox.addWidget(photo);
     leftBox.addStretch();
     comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 6)));
-    comboRange.setIndex(Utility::readPrefInt("MODEL_NICE_CLIMATE", 0) != 0 ? 1 : 0);
     comboDay.connect([this] { showDay(); });
-    comboRange.connect([this] {
-        Utility::writePref("MODEL_NICE_CLIMATE", comboRange.getIndex() == 1 ? "1" : "0");
-        showDay();
-    });
     photo.connect([this, parent] { new ImageViewer{parent, photo.bytes}; });
     shortcutImage.connect([this, parent] { new ImageViewer{parent, photo.bytes}; });
     showDay();
@@ -155,18 +148,16 @@ NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)
 
 void NiceWeatherOutlook::showDay() {
     const int index = std::clamp(static_cast<int>(comboDay.getIndex()), 0, 6);
-    const bool climate = comboRange.getIndex() == 1;
     const int mine = ++generation;
     setTitle("Nice Weather Outlook, " + dayLabels[static_cast<size_t>(index)]);
     header.setText("Loading " + dayLabels[static_cast<size_t>(index)] + " ...");
     photo.setBytes(QByteArray{});
     text.setText(std::string{});
     auto result = std::make_shared<Result>();
-    new FutureVoid{this, [result, index, climate] {
+    new FutureVoid{this, [result, index] {
         GfsRender::Session session;
         GfsRender::Variant variant;
         variant.width = 1100;
-        variant.climateAdjusted = climate;
         GfsChart::Probe probe;
         result->png = GfsRender::png(session, "NBM", "nice_weather", "CONUS", "", 24 * (index + 1), {}, result->error, &probe, variant);
         if (probe.valid()) {

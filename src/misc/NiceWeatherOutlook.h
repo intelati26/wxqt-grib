@@ -29,7 +29,6 @@ private:
     void showDay();
     VBox leftBox;
     ComboBox comboDay;
-    ComboBox comboRange;
     Text header;
     Image photo;
     Text text;

@@ -227,8 +227,6 @@ private:
     void refreshSectorList();   // the ring and the name of the place on an area round a saved location (a pref, MODEL_PLACE_MARK)
     QAction * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
     bool standardDeviations{false};
-    QAction * buttonClimate{nullptr};   // the nice weather outlook with the comfortable range moved up where the normal high is hot
-    bool climateAdjusted{false};
     QPushButton * buttonBuild{};
     QPushButton * buttonSubhourly{};   // the RRFS and HRRR: their 15 minute surface fields
     QPushButton * buttonRange{};   // the RTMA and URMA only: a loop from one date-time to another
