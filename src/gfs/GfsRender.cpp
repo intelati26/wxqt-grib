@@ -670,36 +670,49 @@ namespace {
         for (const auto& extra : chart.extras) {
             auto gfs = data(session.folder(), extra.source);
             const auto * def = GfsModels::find(extra.source);
-            const int step = gfs.model().cycleHours;
-            const int first = extra.lag > 0 ? baseBack[extra.source] + extra.lag : 0, last = extra.lag > 0 ? first + 1 : 3;
-            for (int back = first; back < last; back++) {
-                const auto t = start.addSecs(-static_cast<qint64>(back) * step * 3600 - static_cast<qint64>(start.time().hour() % step) * 3600);
-                const GfsData::Run used{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
-                const int h = static_cast<int>((valid.toSecsSinceEpoch() - t.toSecsSinceEpoch()) / 3600);
-                bool offered = def == nullptr;
-                for (const auto& range : def ? def->hours : std::vector<GfsModels::Hours>{}) {
-                    offered = offered || (h >= range.from && h <= range.to && (h - range.from) % range.step == 0);
+            const int step = extra.cycleStep > 0 ? extra.cycleStep : gfs.model().cycleHours;
+            // the valid times wanted, and the key each is kept under: the chart's own, or one for each of the sample hours (a field read at several times of a day)
+            std::vector<std::pair<std::string, QDateTime>> targets;
+            if (extra.samples) {
+                for (const int f : extra.samples(hour)) {
+                    targets.push_back({extra.want.key + std::to_string(f), start.addSecs(static_cast<qint64>(f) * 3600)});
                 }
-                GfsChart::Grids loaded;
-                std::string why;
-                if (!offered || !gfs.load(used, {{h, extra.want}}, loaded, why)) {
-                    continue;
-                }
-                const auto found = loaded.find(extra.want.key);
-                if (found == loaded.end() || found->second.empty()) {
-                    continue;
-                }
-                auto onto = *reference;
-                for (int r = 0; r < onto.rows; r++) {
-                    for (int c = 0; c < onto.columns; c++) {
-                        onto.values[static_cast<size_t>(r) * static_cast<size_t>(onto.columns) + static_cast<size_t>(c)] = found->second.sample(onto.lon0 + c * onto.step, onto.lat0 - r * onto.step);
+            } else {
+                targets.push_back({extra.want.key, valid});
+            }
+            for (const auto& [key, validAt] : targets) {
+                const int first = extra.lag > 0 ? baseBack[extra.source] + extra.lag : 0, last = extra.lag > 0 ? first + 1 : 3;
+                for (int back = first; back < last; back++) {
+                    const auto t = start.addSecs(-static_cast<qint64>(back) * step * 3600 - static_cast<qint64>(start.time().hour() % step) * 3600);
+                    const GfsData::Run used{t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+                    const int h = static_cast<int>((validAt.toSecsSinceEpoch() - t.toSecsSinceEpoch()) / 3600);
+                    bool offered = def == nullptr;
+                    for (const auto& range : def ? def->hours : std::vector<GfsModels::Hours>{}) {
+                        offered = offered || (h >= range.from && h <= range.to && (h - range.from) % range.step == 0);
                     }
+                    GfsChart::Grids loaded;
+                    std::string why;
+                    auto want = extra.want;
+                    want.key = key;
+                    if (!offered || !gfs.load(used, {{h, want}}, loaded, why)) {
+                        continue;
+                    }
+                    const auto found = loaded.find(key);
+                    if (found == loaded.end() || found->second.empty()) {
+                        continue;
+                    }
+                    auto onto = *reference;
+                    for (int r = 0; r < onto.rows; r++) {
+                        for (int c = 0; c < onto.columns; c++) {
+                            onto.values[static_cast<size_t>(r) * static_cast<size_t>(onto.columns) + static_cast<size_t>(c)] = found->second.sample(onto.lon0 + c * onto.step, onto.lat0 - r * onto.step);
+                        }
+                    }
+                    grids[key] = std::move(onto);
+                    if (extra.lag == 0 && !extra.samples) {
+                        baseBack[extra.source] = back;
+                    }
+                    break;
                 }
-                grids[extra.want.key] = std::move(onto);
-                if (extra.lag == 0) {
-                    baseBack[extra.source] = back;
-                }
-                break;
             }
         }
     }
