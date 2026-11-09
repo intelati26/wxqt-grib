@@ -1720,6 +1720,7 @@ const std::vector<Product>& products() {
                         needs.push_back({f, nbmWant("d" + at, "DPT", "2 m above ground", atHour(f))});
                         needs.push_back({f, nbmWant("c" + at, "TCDC", "surface", atHour(f))});
                         needs.push_back({f, nbmWant("g" + at, "GUST", "10 m above ground", atHour(f))});
+                        needs.push_back({f, nbmWant("u" + at, "WIND", "10 m above ground", atHour(f))});
                         needs.push_back({f, nbmWant("p" + at, "APCP", "surface", window(f, f <= 36 ? 1 : 6, "acc"), "prob >0.254")});
                     }
                 }
@@ -1779,7 +1780,7 @@ const std::vector<Product>& products() {
                             const double weight = std::min({1.0, (hourOfDay - 8.0) / 2.0, (20.0 - hourOfDay) / 2.0});
                             const std::string name = std::to_string(f);
                             double apparent = g["a" + name].values[at], dewC = g["d" + name].values[at];
-                            const double cloud = g["c" + name].values[at], gust = g["g" + name].values[at] * 2.23694;
+                            const double cloud = g["c" + name].values[at], gust = g["g" + name].values[at] * 2.23694, sustained = g["u" + name].values[at] * 2.23694;
                             double rain = g["p" + name].values[at];
                             {   // the fine particles (micrograms a cubic meter): the RRFS's (where it reaches) and GEOS-FP's (the dust, sea salt, black and organic carbon and sulfate), the larger where both have them
                                 double fine = std::numeric_limits<double>::quiet_NaN();
@@ -1797,7 +1798,7 @@ const std::vector<Product>& products() {
                             }
                             apparent = apparent * 1.8 + 32.0;
                             const double dew = dewC * 1.8 + 32.0;
-                            if (std::isnan(apparent) || std::isnan(dew) || std::isnan(cloud) || std::isnan(gust) || std::isnan(rain)) {
+                            if (std::isnan(apparent) || std::isnan(dew) || std::isnan(cloud) || std::isnan(gust) || std::isnan(sustained) || std::isnan(rain)) {
                                 continue;
                             }
                             const double outside = std::max(0.0, std::max(middle - 7.5 - apparent, apparent - (middle + 7.5)));   // degrees F outside the comfortable range
@@ -1811,7 +1812,7 @@ const std::vector<Product>& products() {
                                 high = std::max(high, apparent);
                             }
                             cScore += weight * std::max(0.0, 1.0 - 0.000746 * std::pow(std::max(0.0, cloud), 1.67));   // (his sky: 5% cloud 98.9, 36% cloud 70.4; the power curve through both, nothing at an overcast)
-                            wScore += weight * ramp(gust, 15.0, 35.0);
+                            wScore += weight * ramp(gust, 15.0, 35.0) * ramp(sustained, 8.0, 26.0);   // (his Topeka, 12 mph, is Fair; a 7.8 mph day with 12.7 mph gusts scores 96.7: the sustained wind counts from 8 mph, nothing at 26)
                             pMax = std::max(pMax, weight * rain);
                             pSum += weight * rain;
                             count += weight;
