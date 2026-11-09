@@ -22,6 +22,7 @@ public:
     static Field height(int hPa);   // geopotential height (m) at a pressure level, or an invalid field (empty file) if the reanalysis has no such level
     static Field seaLevelPressure();   // Pa
     static Field temperature(int hPa); // K, at a pressure level
+    static Field surfaceTemperature(); // K, near the surface (sigma 0.995): the daily mean
     static Field precipitableWater();   // kg/m2 (a surface field)
 
     // gdalBin: the folder with gdal_translate. baseUrl: where the files are (overridable for tests)
