@@ -1943,8 +1943,8 @@ const std::vector<Product>& products() {
                     // 150 (55.4), and over that no level at all (Unhealthy)
                     value = std::min(value, smoke <= 8.4 ? 5 : smoke <= 14.0 ? 4 : smoke <= 35.4 ? 3 : smoke <= 55.4 ? 2 : 0);
                     value = std::min(value, airCap[at]);
-                    if (wScore < 0.2 || gusty >= 0.05) {   // gusts over 35 mph in the area around (or a mean gust past about 31 mph) are not a nice day
-                        value = std::min(value, 2);
+                    if (wScore < 0.2 || gusty >= 0.05) {   // gusts over 35 mph in the area around (or a mean gust past about 31 mph) hold a place at Decent whatever its score
+                        value = std::min(value, 1);
                     }
                     level.values[at] = static_cast<float>(value);
                 }
