@@ -1886,7 +1886,7 @@ const std::vector<Product>& products() {
                     }
                 }
                 // AirNow's air quality (the reporting areas, the cities and their surroundings) for the day: the worst category within 50 miles caps a place (Good: nothing, but an index known to be over 35
-                // is not for Perfect; Moderate: Beautiful; Unhealthy for Sensitive Groups: Fair; Unhealthy: Decent; worse: none). Where the file has nothing for the day (the forecasts go about five days
+                // is not for Perfect; Moderate: Beautiful; Unhealthy for Sensitive Groups: Fair; Unhealthy and worse: no level). Where the file has nothing for the day (the forecasts go about five days
                 // out) there is no cap from it.
                 std::vector<int> airCap(cells, 5);
                 {
@@ -1896,7 +1896,7 @@ const std::vector<Product>& products() {
                     const auto points = AirNow::points(QDate{1970, 1, 1}.addDays(dayCount));
                     const double radiusKm = 80.5;
                     for (const auto& point : points) {
-                        const int cap = point.category >= 4 ? 0 : point.category == 3 ? 1 : point.category == 2 ? 2 : point.category == 1 ? 4 : point.aqi > 35.0 ? 4 : 5;
+                        const int cap = point.category >= 3 ? 0 : point.category == 2 ? 2 : point.category == 1 ? 4 : point.aqi > 35.0 ? 4 : 5;
                         if (cap >= 5) {
                             continue;
                         }
@@ -1940,8 +1940,8 @@ const std::vector<Product>& products() {
                     }
                     value = std::min(value, day <= 2 ? 5 : day == 3 ? 4 : 3);   // the further the day, the lower the level the forecast can stand behind
                     // the fine particles, the daytime mean (micrograms a cubic meter), by the EPA's air quality index: Perfect needs an index of 35 (8.4 micrograms), Beautiful about 55 (14), Nice 100 (35.4), Fair
-                    // 150 (55.4), Decent 250 (125)
-                    value = std::min(value, smoke <= 8.4 ? 5 : smoke <= 14.0 ? 4 : smoke <= 35.4 ? 3 : smoke <= 55.4 ? 2 : smoke <= 125.0 ? 1 : 0);
+                    // 150 (55.4), and over that no level at all (Unhealthy)
+                    value = std::min(value, smoke <= 8.4 ? 5 : smoke <= 14.0 ? 4 : smoke <= 35.4 ? 3 : smoke <= 55.4 ? 2 : 0);
                     value = std::min(value, airCap[at]);
                     if (wScore < 0.2 || gusty >= 0.05) {   // gusts over 35 mph in the area around (or a mean gust past about 31 mph) are not a nice day
                         value = std::min(value, 2);
