@@ -1762,7 +1762,7 @@ const std::vector<Product>& products() {
                             if (!std::isnan(meanK)) {
                                 meanK = meanK > 150.0 ? meanK - 273.15 : meanK;
                                 const double normalHigh = meanK * 1.8 + 32.0 + 9.0;
-                                middle = 0.5 * (67.5 + normalHigh);
+                                middle = 0.7 * 67.5 + 0.3 * normalHigh;   // (mostly the absolute comfort, the normal a smaller adjustment)
                             }
                         }
                         const double nowLocal = runHours + zone;
@@ -1794,8 +1794,8 @@ const std::vector<Product>& products() {
                             aSum += weight * apparent;
                             tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 22.0));   // (dangerous heat is never nice, whatever is normal)
                             dScore += weight * ramp(dew, 58.0, 72.0);
-                            cScore += weight * (1.0 - 0.6 * std::clamp((cloud - 30.0) / 70.0, 0.0, 1.0));
-                            wScore += weight * ramp(gust, 15.0, 40.0);
+                            cScore += weight * (1.0 - 0.8 * std::clamp((cloud - 25.0) / 75.0, 0.0, 1.0));
+                            wScore += weight * ramp(gust, 15.0, 35.0);
                             pMax = std::max(pMax, weight * rain);
                             pSum += weight * rain;
                             count += weight;
@@ -1863,9 +1863,9 @@ const std::vector<Product>& products() {
                     const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at];
                     const double base = 0.35 * tScore + 0.25 * rScore + 0.15 * dScore + 0.10 * cScore + 0.15 * wScore;
                     int value = 0;
-                    if (base >= 0.97 && apparentMean >= 62.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.85) {
+                    if (base >= 0.97 && apparentMean >= 62.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.9) {
                         value = 5;
-                    } else if (base >= 0.91 && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.85 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.6) {
+                    } else if (base >= 0.91 && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.88 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.7) {
                         value = 4;
                     } else if (base >= 0.80 && tScore >= 0.6 && rScore >= 0.7 && wScore >= 0.5 && dScore >= 0.4) {
                         value = 3;
@@ -1876,7 +1876,10 @@ const std::vector<Product>& products() {
                     }
                     value = std::min(value, day <= 2 ? 5 : day == 3 ? 4 : 3);   // the further the day, the lower the level the forecast can stand behind
                     // smoke: the daytime mean of the fine particles (micrograms a cubic meter; the EPA's good air is under 9, moderate to 35, unhealthy for sensitive groups above)
-                    value = smoke > 35.0 ? 0 : smoke > 20.0 ? std::min(value, 1) : smoke > 12.0 ? std::min(value, 2) : smoke > 9.0 ? std::min(value, 3) : value;
+                    value = smoke > 35.0 ? 0 : smoke > 20.0 ? std::min(value, 1) : smoke > 12.0 ? std::min(value, 2) : smoke > 9.0 ? std::min(value, 3) : smoke > 8.4 ? std::min(value, 4) : value;
+                    if (wScore < 0.2) {   // a mean gust past about 31 mph is not a nice day
+                        value = std::min(value, 2);
+                    }
                     level.values[at] = static_cast<float>(value);
                 }
                 g["level"] = std::move(level);
