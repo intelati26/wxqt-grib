@@ -1754,6 +1754,7 @@ const std::vector<Product>& products() {
                 static const Curve dewCurve{{0, 0.5}, {28, 0.5}, {30, 0.6}, {35, 0.8}, {40, 0.92}, {45, 0.974}, {50, 1.0}, {57, 1.0}, {60, 0.86}, {65, 0.54}, {70, 0.26}, {75, 0.08}, {78, 0.0}};   // by the dewpoint, F
                 static const Curve sustainedCurve{{0, 1.0}, {6, 1.0}, {8, 0.985}, {10, 0.945}, {12, 0.90}, {14, 0.855}, {16, 0.78}, {18, 0.70}, {20, 0.62}, {22, 0.54}, {24, 0.44}, {26, 0.18}, {28, 0.05}, {30, 0.0}};   // by the sustained wind, mph
                 static const Curve gustCurve{{0, 1.0}, {17, 1.0}, {20, 0.80}, {28, 0.80}, {30, 0.60}, {36, 0.55}, {40, 0.50}};                                                                      // times, by the gust, mph
+                static const Curve coldCurve{{0, 0.0}, {10, 0.06}, {20, 0.17}, {23, 0.23}, {29, 0.375}, {35, 0.51}, {41, 0.68}, {46, 0.84}, {50, 0.91}, {56.5, 1.0}};   // by the apparent temperature of a cold day, F (his: 23 F is 23 of 100, 35 F 51, 41 F 68, 47 F 83, whatever is normal for the place)
                 static const Curve heatCurve{{0, 1.0}, {82, 1.0}, {85, 0.88}, {88, 0.80}, {92, 0.60}, {96, 0.30}, {100, 0.0}};                                                                       // by the day's high (feels like), F
                 // the climate adjusted version: the normal of the place for the day (the 1991-2020 daily mean near the surface, 2.5 degrees: its high taken as 9 F above it) moves the comfortable
                 // range up half way where the normal high is above its middle (an 85 F normal high: 64 + 10.5, 59 to 74 F becomes 67 to 82 F); a cold normal does not move it down
@@ -1786,7 +1787,7 @@ const std::vector<Product>& products() {
                             if (!std::isnan(meanK)) {
                                 meanK = meanK > 150.0 ? meanK - 273.15 : meanK;
                                 normalHigh = meanK * 1.8 + 32.0 + 9.0;
-                                middle = normalHigh - 6.0;   // (the hours' range moves with the normal: at a 70 F normal high it is the fixed range)
+                                middle = std::max(64.0, normalHigh - 6.0);   // (the hours' range moves with the normal: at a 70 F normal high it is the fixed range)
                             }
                         }
                         const double nowLocal = runHours + zone;
@@ -1835,7 +1836,7 @@ const std::vector<Product>& products() {
                             if (weight >= 0.5) {
                                 gustMax = std::max(gustMax, gust);
                             }
-                            tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 14.0));   // (dangerous heat is never nice)
+                            tScore += weight * (apparent >= 95.0 ? 0.0 : apparent < middle - 7.5 ? along(coldCurve, apparent + 4.0) : ramp(outside, 0.0, 14.0));   // (dangerous heat is never nice)
                             dScore += weight * along(dewCurve, dew);   // (a little under full marks for very dry air: about 92 at a 44 F dewpoint)
                             if (weight >= 0.5) {
                                 high = std::max(high, apparent);
@@ -1859,10 +1860,10 @@ const std::vector<Product>& products() {
                         const double highShift = middle - 64.0;   // (the day's high is judged by the same range, moved with it)
                         high -= highShift;
                         // (his day high against the normal: Dayton, 59 F with a 57 F normal, is 92 of 100; a high 12 F over the normal scores 70, 4 F over 90: 2.4 points a degree over, half that under)
-                        const double highScore = !std::isnan(normalHigh) ? (rawHigh < -500.0 || rawHigh >= 95.0 ? 0.0 : std::clamp(1.0 - (rawHigh > normalHigh ? 0.024 : 0.012) * std::abs(rawHigh - normalHigh), 0.0, 1.0)) : high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));
+                        const double highScore = !std::isnan(normalHigh) ? (rawHigh < -500.0 || rawHigh >= 95.0 ? 0.0 : std::min(rawHigh < 56.5 ? along(coldCurve, rawHigh) : 1.0, std::clamp((94.0 - 3.7 * std::max(0.0, rawHigh - normalHigh - 4.9)) / 100.0, 0.0, 1.0))) : high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));
                         // (his Ozarks: the same 69.8 F high is 55 with a 48 F low and 65 with a 42 F low, so a low above the normal low, taken 9 F under the mean, costs 1.75 points a degree)
-                        const double lowPenalty = (std::isnan(normalHigh) || lowApparent > 500.0) ? 0.0 : 0.0175 * std::max(0.0, lowApparent - (normalHigh - 18.0));
-                        cT[at] = static_cast<float>(0.5 * tScore / count + 0.5 * std::max(0.0, highScore - lowPenalty));
+                        const double lowPenalty = (std::isnan(normalHigh) || lowApparent > 500.0) ? 0.0 : 0.0091 * std::max(0.0, lowApparent - (normalHigh - 18.0) + 2.3);   // (fitted to his 12 states over a week: 94 less 3.7 a degree of the day's high over the normal high + 5, and 0.9 a degree of the low over its normal + 2)
+                        cT[at] = static_cast<float>(0.25 * tScore / count + 0.75 * std::max(0.0, highScore - lowPenalty));
                         cD[at] = static_cast<float>(dScore / count);
                         cC[at] = static_cast<float>(cScore / count);
                         cW[at] = static_cast<float>(0.5 * wScore / count + 0.5 * wWorst);
@@ -1968,7 +1969,7 @@ const std::vector<Product>& products() {
                     // each ingredient allows a level up to the one its score reaches (the weakest of them rules: a level needs all of the ingredients at its mark, whatever the others are). The marks were
                     // fitted to how Ryan Hall, Y'all's levels follow his ingredient scores (about 77% of 21,000 cities at the same level, against 69% for a cutoff on the weighted score)
                     static const double marks[6][4] = {   // Decent, Fair, Nice, Beautiful (of 100): temperature, rain, heat, dewpoint, sky, wind
-                        {0, 18, 79, 79}, {11, 11, 87, 99}, {0, 50, 78, 100}, {17, 29, 44, 94}, {0, 0, 78, 97}, {0, 15, 79, 98}};
+                        {0, 18, 89, 94}, {0, 2, 95, 99}, {0, 50, 78, 100}, {17, 48, 84, 84}, {0, 2, 93, 100}, {0, 15, 80, 93}};   // (refitted with the temperature's new cold and warm sides: 73% of his day 2 at 21,000 cities)
                     const double scores[6] = {tScore * 100.0, rScore * 100.0, heatScore * 100.0, dScore * 100.0, cScore * 100.0, wScore * 100.0};
                     int value = 4;
                     for (int ingredient = 0; ingredient < 6; ingredient++) {
