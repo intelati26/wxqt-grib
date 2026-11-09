@@ -32,6 +32,9 @@ public:
     void showTime(long seconds, MapHost&) override;
     string timeText() const override;
     void setAsOf(const QDateTime& utc, MapHost&) override;
+    // for a picture of a pole (the polar export): the cap of the picture within about 28 degrees of the pole painted again from GIBS's own polar tiles (EPSG:3413 and 3031), which run to the pole
+    // itself where the Mercator tiles stop short of it; `world` is the picture, `scale` its pixels per projection unit. Reads the tiles (blocking: call it on a worker); false when there were none
+    bool fillPolar(QImage& world, bool north, double centre, double scale);
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     string summary() const override;
     vector<MapLegendRow> legend() const override;

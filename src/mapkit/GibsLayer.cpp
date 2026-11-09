@@ -4,6 +4,9 @@
 // *****************************************************************************
 
 #include "mapkit/GibsLayer.h"
+#include "mapkit/GlobeMapView.h"
+#include <atomic>
+#include <thread>
 #include <algorithm>
 #include <cmath>
 #include <numbers>
@@ -20,6 +23,7 @@
 #include <QDateTime>
 #include <QLabel>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QSlider>
 #include <QVBoxLayout>
 #include <QXmlStreamReader>
@@ -223,6 +227,161 @@ void GibsLayer::request(MapHost& host, const Product& product, const string& dat
                         }
                         host.redraw();
                     });
+}
+
+namespace {
+    // GIBS's polar tile grids (EPSG:3413 north, 3031 south): 512 pixel tiles from -4194304 to 4194304 metres, 8192 metres a pixel at level 0, halving each level
+    constexpr double wgsA = 6378137.0, wgsE = 0.0818191908426;
+    double polarT(double phi) {
+        return std::tan(std::numbers::pi / 4.0 - phi / 2.0) / std::pow((1.0 - wgsE * std::sin(phi)) / (1.0 + wgsE * std::sin(phi)), wgsE / 2.0);
+    }
+    // metres east and north in the polar grid of a place
+    void polarForward(bool north, double lat, double lon, double& x, double& y) {
+        const double lon0 = north ? -45.0 : 0.0, parallel = north ? 70.0 : 71.0;
+        const double phi = std::abs(lat) * std::numbers::pi / 180.0, phiC = parallel * std::numbers::pi / 180.0;
+        const double mc = std::cos(phiC) / std::sqrt(1.0 - wgsE * wgsE * std::sin(phiC) * std::sin(phiC));
+        const double rho = wgsA * mc * polarT(phi) / polarT(phiC);
+        const double d = (lon - lon0) * std::numbers::pi / 180.0;
+        x = rho * std::sin(d);
+        y = north ? -rho * std::cos(d) : rho * std::cos(d);
+    }
+}
+
+bool GibsLayer::fillPolar(QImage& world, bool north, double centre, double scale) {
+    const auto& product = products()[static_cast<size_t>(productIndex)];
+    const string date = dateText();
+    const string system = north ? "epsg3413" : "epsg3031";
+    // which tile set and format the product has there (the capabilities, once a session): not every product is made for the poles
+    static std::map<string, QByteArray> capabilities;
+    if (capabilities.count(system) == 0) {
+        capabilities[system] = UtilityIO::downloadAsByteArray("https://gibs.earthdata.nasa.gov/wmts/" + system + "/best/wmts.cgi?SERVICE=WMTS&request=GetCapabilities");
+    }
+    const QString text = QString::fromUtf8(capabilities[system]);
+    const auto at = text.indexOf(QString{"<ows:Identifier>%1</ows:Identifier>"}.arg(product.id));
+    if (at < 0) {
+        return false;
+    }
+    const auto layerText = text.mid(at, 6000);
+    const auto setMatch = QRegularExpression{"<TileMatrixSet>([^<]+)</TileMatrixSet>"}.match(layerText);
+    const auto formatMatch = QRegularExpression{"<Format>image/(\\w+)</Format>"}.match(layerText);
+    if (!setMatch.hasMatch() || !formatMatch.hasMatch()) {
+        return false;
+    }
+    const QString matrixSet = setMatch.captured(1);
+    const QString extension = formatMatch.captured(1) == "jpeg" ? "jpeg" : formatMatch.captured(1);
+    const auto setAt = text.indexOf(QString{"<ows:Identifier>%1</ows:Identifier>"}.arg(matrixSet));
+    const auto setEnd = text.indexOf("</TileMatrixSet>", setAt);
+    int maxZoom = static_cast<int>(text.mid(setAt, setEnd - setAt).count("<TileMatrix>")) - 1;
+    if (setAt < 0 || maxZoom < 0) {
+        return false;
+    }
+    const double hemisphere = north ? 1.0 : -1.0;
+    const double minLat = 62.0;   // inside this (towards the pole) the polar tiles replace the Mercator ones
+    const int width = world.width(), height = world.height();
+    const auto place = [&] (int px, int py, double& lat, double& lon) {
+        const double x = (px + 0.5 - width / 2.0) / scale, y = (height / 2.0 - py - 0.5) / scale;
+        double lonRelative;
+        if (!GlobeMapView::inverse(north ? GlobeMapView::Projection::PolarNorth : GlobeMapView::Projection::PolarSouth, x, y, lat, lonRelative)) {
+            return false;
+        }
+        lon = centre + lonRelative;
+        return hemisphere * lat >= minLat;
+    };
+    // the level whose pixel is about the picture's own at the pole, and not more than a few dozen tiles
+    int z = std::clamp(static_cast<int>(std::ceil(std::log2(8192.0 / (6371000.0 / scale)))), 0, maxZoom);
+    const auto tileSet = [&] (int level) {
+        std::set<std::pair<int, int>> set;   // (row, column)
+        const double metresPerTile = 8192.0 / std::pow(2.0, level) * 512.0;
+        for (int py = 0; py < height; py += 5) {
+            for (int px = 0; px < width; px += 5) {
+                double lat, lon, x, y;
+                if (place(px, py, lat, lon)) {
+                    polarForward(north, lat, lon, x, y);
+                    const int column = static_cast<int>(std::floor((x + 4194304.0) / metresPerTile)), row = static_cast<int>(std::floor((4194304.0 - y) / metresPerTile));
+                    const int count = 1 << (level + 1);
+                    if (column >= 0 && row >= 0 && column < count && row < count) {
+                        set.insert({row, column});
+                    }
+                }
+            }
+        }
+        return set;
+    };
+    auto wanted = tileSet(z);
+    while (z > 0 && wanted.size() > 120) {
+        wanted = tileSet(--z);
+    }
+    std::vector<std::pair<int, int>> list{wanted.begin(), wanted.end()};
+    std::vector<QImage> images(list.size());
+    const bool keep = date < QDateTime::currentDateTimeUtc().addDays(-1).toString("yyyy-MM-dd").toStdString();
+    std::atomic<size_t> next{0};
+    const auto work = [&] {
+        for (size_t i = next++; i < list.size(); i = next++) {
+            const string key = string{product.id} + "|" + date + "|" + system + "/" + std::to_string(z) + "/" + std::to_string(list[i].first) + "/" + std::to_string(list[i].second);
+            const string url = "https://gibs.earthdata.nasa.gov/wmts/" + system + "/best/" + product.id + "/default/" + date + "/" + matrixSet.toStdString() + "/" + std::to_string(z) + "/" + std::to_string(list[i].first) + "/" +
+                std::to_string(list[i].second) + "." + extension.toStdString();
+            QByteArray bytes;
+            QFile disk{cacheFile(key, "polar")};
+            if (keep && disk.open(QIODevice::ReadOnly)) {
+                bytes = disk.readAll();
+            } else {
+                bytes = UtilityIO::downloadAsByteArray(url);
+            }
+            const QImage image = bytes.isEmpty() ? QImage{} : QImage::fromData(bytes);
+            if (image.isNull()) {
+                continue;
+            }
+            if (keep && !disk.isOpen() && disk.open(QIODevice::WriteOnly)) {
+                disk.write(bytes);
+            }
+            images[i] = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        }
+    };
+    {
+        std::vector<std::thread> threads;
+        for (int t = 0; t < 8; t++) {
+            threads.emplace_back(work);
+        }
+        for (auto& t : threads) {
+            t.join();
+        }
+    }
+    std::map<std::pair<int, int>, const QImage *> byPlace;
+    bool any = false;
+    for (size_t i = 0; i < list.size(); i++) {
+        if (!images[i].isNull()) {
+            byPlace[list[i]] = &images[i];
+            any = true;
+        }
+    }
+    if (!any) {
+        return false;
+    }
+    const double pixelMetres = 8192.0 / std::pow(2.0, z);
+    for (int py = 0; py < height; py++) {
+        auto * row = reinterpret_cast<QRgb *>(world.scanLine(py));
+        for (int px = 0; px < width; px++) {
+            double lat, lon, x, y;
+            if (!place(px, py, lat, lon)) {
+                continue;
+            }
+            polarForward(north, lat, lon, x, y);
+            const double fx = (x + 4194304.0) / pixelMetres, fy = (4194304.0 - y) / pixelMetres;
+            if (fx < 0.0 || fy < 0.0) {
+                continue;
+            }
+            const int tx = static_cast<int>(fx) / 512, ty = static_cast<int>(fy) / 512;
+            const auto found = byPlace.find({ty, tx});
+            if (found == byPlace.end()) {
+                continue;
+            }
+            const QRgb c = reinterpret_cast<const QRgb *>(found->second->constScanLine(static_cast<int>(fy) % 512))[static_cast<int>(fx) % 512];
+            if (qAlpha(c) > 0) {
+                row[px] = c | 0xff000000u;
+            }
+        }
+    }
+    return true;
 }
 
 namespace {

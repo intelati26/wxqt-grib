@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/MasterMapViewer.h"
+#include "mapkit/GibsLayer.h"
 #include "tropical/PhaseViewer.h"
 #include "mapkit/TropicalLayers.h"
 #include "mapkit/GlobeAreaPicker.h"
@@ -1645,6 +1646,19 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         const auto skin = makeSkin(-85.0, 85.0, centre - 180.0, centre + 180.0, std::min(6000, static_cast<int>(width * 1.4)), 1300.0 / 360.0, true);   // (marks spaced as on a world map 1300 pixels wide)
         deferNow = false;
         world = GlobeMapView::projectWorld(skin, projection, centre, width);
+        if (GlobeMapView::isPolar(projection)) {   // the polar tiles of the polar orbiters' layer run to the pole itself, where the world's Mercator picture stops
+            for (const auto& layer : layers) {
+                if (layer->enabled() && layer->id() == "satellite/polar") {
+                    double halfW, halfH;
+                    GlobeMapView::extent(projection, halfW, halfH);
+                    const bool north = projection == GlobeMapView::Projection::PolarNorth;
+                    QEventLoop loop;
+                    status("reading the polar tiles ...");
+                    new FutureVoid{this, [&] { static_cast<GibsLayer *>(layer.get())->fillPolar(world, north, centre, world.width() / (2.0 * halfW)); }, [&loop] { loop.quit(); }};
+                    loop.exec();
+                }
+            }
+        }
         {   // the marks (stations) upright on the projected picture, each turned to the local north
             double halfW, halfH;
             GlobeMapView::extent(projection, halfW, halfH);
