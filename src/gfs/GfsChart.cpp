@@ -1920,7 +1920,7 @@ const std::vector<Product>& products() {
                     }
                 }
                 // the base each level needs (his day 1 colored 10% of the area Beautiful, 17% Nice, 63% Fair and 10% Decent: Fair is the wide band, Nice and Beautiful are the narrow ones; fitted with the temperature judged against the normal)
-                const double thB = 0.935, thN = 0.915, thF = 0.66, thD = 0.35;
+                const double thP = 0.92, thB = 0.82, thN = 0.76, thF = 0.45, thD = 0.20;   // (his scale: Beautiful from about 82 of 100, as at Huntsville; the shares of his day 1: 10% Beautiful, 17% Nice, 60% Fair)
                 for (size_t at = 0; at < cells; at++) {
                     double lonAt = shape.lon0 + static_cast<double>(at % static_cast<size_t>(shape.columns)) * shape.step;
                     if (lonAt > 180.0) {
@@ -1931,9 +1931,11 @@ const std::vector<Product>& products() {
                         continue;
                     }
                     const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at], gusty = cG[at];
-                    const double base = 0.30 * tScore + 0.20 * rScore + 0.10 * dScore + 0.25 * cScore + 0.15 * wScore;   // (his Dallas, 96% cloud with the rest fine, scores 65.5, his northern Fair zone 73.4 with the sky at 70: the sky weighs a quarter)
+                    // his score reads as 100 less a penalty for each ingredient, the temperature by far the heaviest (fitted to nine of his city scores: 90 points for a whole unit short on the temperature, 50 on the dewpoint,
+                    // 25 on the sky; rain and wind lighter, from his zone texts)
+                    const double base = 1.0 - (0.90 * (1.0 - tScore) + 0.50 * (1.0 - dScore) + 0.25 * (1.0 - cScore) + 0.30 * (1.0 - wScore) + 0.20 * (1.0 - rScore));
                     int value = 0;
-                    if (base >= 0.97 && apparentMean >= 66.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.97) {
+                    if (base >= thP && apparentMean >= 66.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.97) {
                         value = 5;
                     } else if (base >= thB && apparentMean >= 50.0 && apparentMean <= 90.0 && tScore >= 0.8 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.88) {
                         value = 4;
