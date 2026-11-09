@@ -1739,7 +1739,19 @@ const std::vector<Product>& products() {
                 const QDate runDate = QDate::fromString(QString::fromStdString(context.run.date), "yyyyMMdd");
                 const double runHours = QDate{1970, 1, 1}.daysTo(runDate) * 24.0 + std::atoi(context.run.cycle.c_str());
                 const auto ramp = [] (double v, double good, double bad) { return std::clamp((bad - v) / (bad - good), 0.0, 1.0); };   // 1 at `good`, 0 at `bad` (either way round)
+                // the normal of the place for the day (the 1991-2020 daily mean near the surface, 2.5 degrees: its high taken as 9 F above it): the comfortable range of the apparent temperature is
+                // 60 to 75 F where the normal high is the middle of it, and moves half way to the normal high where it is not (an 85 F normal high: 68 to 83 F)
+                GfsGrid::Grid normal;
+                bool haveNormal = false;
+                if (context.climate) {
+                    auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
+                    t.setTimeZone(QTimeZone::utc());
+                    t = t.addSecs(context.hour * 3600);
+                    std::string why;
+                    haveNormal = context.climate->at(GfsClimate::surfaceTemperature(), GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day()), normal, why);
+                }
                 for (int row = 0; row < shape.rows; row++) {
+                    const double lat = shape.lat0 - row * shape.step;
                     for (int column = 0; column < shape.columns; column++) {
                         const size_t at = static_cast<size_t>(row) * static_cast<size_t>(shape.columns) + static_cast<size_t>(column);
                         double lon = shape.lon0 + column * shape.step;
@@ -1747,17 +1759,27 @@ const std::vector<Product>& products() {
                             lon -= 360.0;
                         }
                         const double zone = lon / 15.0;   // hours of the sun's time ahead of UTC
+                        double middle = 67.5;   // the middle of the comfortable range, degrees F
+                        if (haveNormal) {
+                            double meanK = normal.sample(lon < 0.0 ? lon + 360.0 : lon, lat);
+                            if (!std::isnan(meanK)) {
+                                meanK = meanK > 150.0 ? meanK - 273.15 : meanK;
+                                const double normalHigh = meanK * 1.8 + 32.0 + 9.0;
+                                middle = 0.5 * (67.5 + normalHigh);
+                            }
+                        }
                         const double nowLocal = runHours + zone;
                         const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
                         const double target = std::floor(nowLocal / 24.0) + (hourNow < 17.0 ? 0 : 1) + (day - 1);
-                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0;
-                        int count = 0;
+                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, aSum = 0;
+                        double count = 0;   // the weight of the hours (an hour counts fully from 10 to 18 o'clock and less towards 8 and 20, so that the cells where the hours fall differently do not make a line)
                         for (const int f : hours) {
                             const double local = runHours + f + zone;
                             const double dayIndex = std::floor(local / 24.0), hourOfDay = local - 24.0 * dayIndex;
-                            if (dayIndex != target || hourOfDay < 9.0 || hourOfDay > 19.0) {
+                            if (dayIndex != target || hourOfDay <= 8.0 || hourOfDay >= 20.0) {
                                 continue;
                             }
+                            const double weight = std::min({1.0, (hourOfDay - 8.0) / 2.0, (20.0 - hourOfDay) / 2.0});
                             const std::string name = std::to_string(f);
                             double apparent = g["a" + name].values[at], dewC = g["d" + name].values[at];
                             const double cloud = g["c" + name].values[at], gust = g["g" + name].values[at] * 2.23694;
@@ -1768,7 +1790,7 @@ const std::vector<Product>& products() {
                                 rain = rain >= 0.25 ? 100.0 : 0.0;
                                 const double micrograms = g["s" + name].values[at] * 1.0e9;
                                 if (!std::isnan(micrograms)) {
-                                    smoke += micrograms;
+                                    smoke += weight * micrograms;
                                 }
                             }
                             apparent = apparent * 1.8 + 32.0;
@@ -1776,16 +1798,17 @@ const std::vector<Product>& products() {
                             if (std::isnan(apparent) || std::isnan(dew) || std::isnan(cloud) || std::isnan(gust) || std::isnan(rain)) {
                                 continue;
                             }
-                            const double outside = std::max(0.0, std::max(64.0 - apparent, apparent - 80.0));   // degrees F outside the comfortable 64 to 80
-                            tScore += ramp(outside, 0.0, 22.0);
-                            dScore += ramp(dew, 58.0, 72.0);
-                            cScore += 1.0 - 0.6 * std::clamp((cloud - 30.0) / 70.0, 0.0, 1.0);
-                            wScore += ramp(gust, 15.0, 40.0);
-                            pMax = std::max(pMax, rain);
-                            pSum += rain;
-                            count++;
+                            const double outside = std::max(0.0, std::max(middle - 7.5 - apparent, apparent - (middle + 7.5)));   // degrees F outside the comfortable range
+                            aSum += weight * apparent;
+                            tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 22.0));   // (dangerous heat is never nice, whatever is normal)
+                            dScore += weight * ramp(dew, 58.0, 72.0);
+                            cScore += weight * (1.0 - 0.6 * std::clamp((cloud - 30.0) / 70.0, 0.0, 1.0));
+                            wScore += weight * ramp(gust, 15.0, 40.0);
+                            pMax = std::max(pMax, weight * rain);
+                            pSum += weight * rain;
+                            count += weight;
                         }
-                        if (count == 0) {
+                        if (count < 0.5) {
                             level.values[at] = std::numeric_limits<float>::quiet_NaN();
                             continue;
                         }
@@ -1794,13 +1817,14 @@ const std::vector<Product>& products() {
                         cScore /= count;
                         wScore /= count;
                         smoke /= count;
+                        const double apparentMean = aSum / count;   // (whatever is normal, the top levels are for a day that is warm in itself)
                         const double rain = 0.5 * pMax + 0.5 * pSum / count;   // a chance of rain at some hour counts more than the average
                         const double rScore = ramp(rain, 0.0, 50.0);
                         const double base = 0.35 * tScore + 0.25 * rScore + 0.15 * dScore + 0.10 * cScore + 0.15 * wScore;
                         int value = 0;
-                        if (base >= 0.97 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.85) {
+                        if (base >= 0.97 && apparentMean >= 62.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.85) {
                             value = 5;
-                        } else if (base >= 0.91 && tScore >= 0.85 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.6) {
+                        } else if (base >= 0.91 && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.85 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.6) {
                             value = 4;
                         } else if (base >= 0.80 && tScore >= 0.6 && rScore >= 0.7 && wScore >= 0.5 && dScore >= 0.4) {
                             value = 3;

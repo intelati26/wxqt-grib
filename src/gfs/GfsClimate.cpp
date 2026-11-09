@@ -49,6 +49,10 @@ GfsClimate::Field GfsClimate::temperature(int hPa) {
     return {};
 }
 
+GfsClimate::Field GfsClimate::surfaceTemperature() {
+    return {"surface/air.sig995.day.ltm.1991-2020.nc", "air", -1};
+}
+
 GfsClimate::Field GfsClimate::precipitableWater() {
     return {"surface/pr_wtr.eatm.day.ltm.1991-2020.nc", "pr_wtr", -1};
 }
