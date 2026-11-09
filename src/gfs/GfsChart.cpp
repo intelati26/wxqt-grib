@@ -1751,7 +1751,7 @@ const std::vector<Product>& products() {
                 };
                 static const Curve skyCurve{{0, 1.0}, {13, 1.0}, {20, 0.95}, {25, 0.92}, {30, 0.85}, {40, 0.756}, {50, 0.61}, {60, 0.41}, {70, 0.24}, {80, 0.11}, {90, 0.02}, {100, 0.0}};   // by the cloud cover, %
                 static const Curve rainCurve{{0, 1.0}, {4, 1.0}, {6, 0.90}, {8, 0.72}, {10, 0.55}, {13, 0.33}, {15, 0.23}, {18, 0.13}, {22, 0.05}, {28, 0.0}};                           // by the chance of rain, %
-                static const Curve dewCurve{{0, 0.5}, {28, 0.5}, {30, 0.6}, {35, 0.8}, {40, 0.92}, {45, 0.974}, {50, 1.0}, {57, 1.0}, {60, 0.86}, {65, 0.54}, {70, 0.26}, {75, 0.08}, {78, 0.0}};   // by the dewpoint, F
+                static const Curve dewCurve{{0, 0.5}, {30, 0.5}, {40, 0.90}, {50, 1.0}, {60, 1.0}, {61, 0.939}, {62, 0.884}, {63, 0.824}, {64, 0.765}, {65, 0.708}, {66, 0.637}, {67, 0.563}, {68, 0.5}, {69, 0.423}, {70, 0.351}, {71, 0.306}, {72, 0.251}, {73, 0.194}, {74, 0.171}, {80, 0.05}, {84, 0.0}};   // by the dewpoint, F (read off his scores: nothing under 30 F is 50, 90 at 40, 100 from 50 to 60, then 6 points a degree to 50 at 68; the same at every city)
                 static const Curve sustainedCurve{{0, 1.0}, {6, 1.0}, {8, 0.985}, {10, 0.945}, {12, 0.90}, {14, 0.855}, {16, 0.78}, {18, 0.70}, {20, 0.62}, {22, 0.54}, {24, 0.44}, {26, 0.18}, {28, 0.05}, {30, 0.0}};   // by the sustained wind, mph
                 static const Curve gustCurve{{0, 1.0}, {17, 1.0}, {20, 0.80}, {28, 0.80}, {30, 0.60}, {36, 0.55}, {40, 0.50}};                                                                      // times, by the gust, mph
                 static const Curve coldCurve{{0, 0.0}, {10, 0.06}, {20, 0.17}, {23, 0.23}, {29, 0.375}, {35, 0.51}, {41, 0.68}, {46, 0.84}, {50, 0.91}, {56.5, 1.0}};   // by the apparent temperature of a cold day, F (his: 23 F is 23 of 100, 35 F 51, 41 F 68, 47 F 83, whatever is normal for the place)
@@ -1792,7 +1792,7 @@ const std::vector<Product>& products() {
                     const double ty = fy - y, tx = fx - x;
                     return std::clamp((1.0 - ty) * ((1.0 - tx) * normalOffset[y][x] + tx * normalOffset[y][x + 1]) + ty * ((1.0 - tx) * normalOffset[y + 1][x] + tx * normalOffset[y + 1][x + 1]), -6.0, 8.0);
                 };
-                static const Curve heatCurve{{0, 1.0}, {82, 1.0}, {85, 0.88}, {88, 0.80}, {92, 0.60}, {96, 0.30}, {100, 0.0}};                                                                       // by the day's high (feels like), F
+                static const Curve heatCurve{{0, 1.0}, {85, 1.0}, {86, 0.963}, {87, 0.925}, {88, 0.883}, {89, 0.841}, {90, 0.805}, {91, 0.759}, {95, 0.55}, {100, 0.2}, {105, 0.0}};   // by the day's high (feels like), F (his: full marks to 85, then 4 points a degree to 76 at 91; above that is a guess: his week had none)
                 // the climate adjusted version: the normal of the place for the day (the 1991-2020 daily mean near the surface, 2.5 degrees: its high taken as 9 F above it) moves the comfortable
                 // range up half way where the normal high is above its middle (an 85 F normal high: 64 + 10.5, 59 to 74 F becomes 67 to 82 F); a cold normal does not move it down
                 GfsGrid::Grid normal;
@@ -1999,7 +1999,7 @@ const std::vector<Product>& products() {
                     // each ingredient allows a level up to the one its score reaches (the weakest of them rules: a level needs all of the ingredients at its mark, whatever the others are). The marks were
                     // fitted to how Ryan Hall, Y'all's levels follow his ingredient scores (about 77% of 21,000 cities at the same level, against 69% for a cutoff on the weighted score)
                     static const double marks[6][4] = {   // Decent, Fair, Nice, Beautiful (of 100): temperature, rain, heat, dewpoint, sky, wind
-                        {0, 18, 67, 91}, {0, 37, 88, 100}, {0, 50, 78, 100}, {9, 29, 72, 93}, {0, 11, 73, 91}, {0, 33, 72, 85}};   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
+                        {0, 18, 66, 91}, {0, 38, 89, 100}, {0, 50, 78, 100}, {17, 40, 71, 91}, {0, 10, 73, 86}, {0, 34, 70, 84}};   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
                     const double scores[6] = {tScore * 100.0, rScore * 100.0, heatScore * 100.0, dScore * 100.0, cScore * 100.0, wScore * 100.0};
                     int value = 4;
                     for (int ingredient = 0; ingredient < 6; ingredient++) {
