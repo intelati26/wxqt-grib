@@ -1814,7 +1814,7 @@ const std::vector<Product>& products() {
                                 high = std::max(high, apparent);
                             }
                             cScore += weight * std::max(0.0, 1.0 - 0.000746 * std::pow(std::max(0.0, cloud), 1.67));   // (his sky: 5% cloud 98.9, 36% cloud 70.4; the power curve through both, nothing at an overcast)
-                            const double windNow = ramp(gust, 13.0, 35.0) * ramp(sustained, 7.0, 26.0);
+                            const double windNow = ramp(gust, 18.0, 40.0) * ramp(sustained, 10.0, 26.0);
                             wScore += weight * windNow;
                             if (weight >= 0.5) {
                                 wWorst = std::min(wWorst, windNow);   // (the windiest hour counts as much as the day's mean: a breezy afternoon is what people feel)
@@ -1920,7 +1920,7 @@ const std::vector<Product>& products() {
                     }
                 }
                 // the base each level needs (his day 1 colored 10% of the area Beautiful, 17% Nice, 63% Fair and 10% Decent: Fair is the wide band, Nice and Beautiful are the narrow ones; fitted with the temperature judged against the normal)
-                const double thB = 0.94, thN = 0.915, thF = 0.66, thD = 0.35;
+                const double thB = 0.935, thN = 0.915, thF = 0.66, thD = 0.35;
                 for (size_t at = 0; at < cells; at++) {
                     double lonAt = shape.lon0 + static_cast<double>(at % static_cast<size_t>(shape.columns)) * shape.step;
                     if (lonAt > 180.0) {
