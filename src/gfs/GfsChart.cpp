@@ -1732,11 +1732,11 @@ const std::vector<Product>& products() {
                 const QDate runDate = QDate::fromString(QString::fromStdString(context.run.date), "yyyyMMdd");
                 const double runHours = QDate{1970, 1, 1}.daysTo(runDate) * 24.0 + std::atoi(context.run.cycle.c_str());
                 const auto ramp = [] (double v, double good, double bad) { return std::clamp((bad - v) / (bad - good), 0.0, 1.0); };   // 1 at `good`, 0 at `bad` (either way round)
-                // the normal of the place for the day (the 1991-2020 daily mean near the surface, 2.5 degrees: its high taken as 9 F above it): the comfortable range of the apparent temperature is
-                // 60 to 75 F where the normal high is the middle of it, and moves half way to the normal high where it is not (an 85 F normal high: 68 to 83 F)
+                // the climate adjusted version: the normal of the place for the day (the 1991-2020 daily mean near the surface, 2.5 degrees: its high taken as 9 F above it) moves the comfortable
+                // range up half way where the normal high is above its middle (an 85 F normal high: 64 + 10.5, 59 to 74 F becomes 67 to 82 F); a cold normal does not move it down
                 GfsGrid::Grid normal;
                 bool haveNormal = false;
-                if (context.climate) {
+                if (context.climateAdjusted && context.climate) {
                     auto t = QDateTime::fromString(QString::fromStdString(context.run.id()), "yyyyMMddHH");
                     t.setTimeZone(QTimeZone::utc());
                     t = t.addSecs(context.hour * 3600);
@@ -1756,13 +1756,12 @@ const std::vector<Product>& products() {
                             lon -= 360.0;
                         }
                         const double zone = lon / 15.0;   // hours of the sun's time ahead of UTC
-                        double middle = 67.5;   // the middle of the comfortable range, degrees F
+                        double middle = 64.0;   // the middle of the comfortable range, degrees F (56.5 to 71.5): the weather of the day itself, whatever is normal for the place
                         if (haveNormal) {
                             double meanK = normal.sample(lon < 0.0 ? lon + 360.0 : lon, lat);
                             if (!std::isnan(meanK)) {
                                 meanK = meanK > 150.0 ? meanK - 273.15 : meanK;
-                                const double normalHigh = meanK * 1.8 + 32.0 + 9.0;
-                                middle = 64.0 + 0.5 * std::max(0.0, normalHigh - 64.0);   // (the comfort is absolute, 56.5 to 71.5 F; a hot normal moves it up half way, a cold one does not move it down)
+                                middle = 64.0 + 0.5 * std::max(0.0, meanK * 1.8 + 32.0 + 9.0 - 64.0);
                             }
                         }
                         const double nowLocal = runHours + zone;
@@ -1792,7 +1791,7 @@ const std::vector<Product>& products() {
                             }
                             const double outside = std::max(0.0, std::max(middle - 7.5 - apparent, apparent - (middle + 7.5)));   // degrees F outside the comfortable range
                             aSum += weight * apparent;
-                            tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 14.0));   // (dangerous heat is never nice, whatever is normal)
+                            tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 14.0));   // (dangerous heat is never nice)
                             dScore += weight * ramp(dew, 58.0, 72.0);
                             cScore += weight * (1.0 - 0.8 * std::clamp((cloud - 25.0) / 75.0, 0.0, 1.0));
                             wScore += weight * ramp(gust, 15.0, 35.0);
@@ -1809,7 +1808,7 @@ const std::vector<Product>& products() {
                         cC[at] = static_cast<float>(cScore / count);
                         cW[at] = static_cast<float>(wScore / count);
                         cR[at] = static_cast<float>(ramp(rain, 0.0, 50.0));
-                        cA[at] = static_cast<float>(aSum / count);   // (whatever is normal, the top levels are for a day that is warm in itself)
+                        cA[at] = static_cast<float>(aSum / count);   // (the top levels are for a day that is warm in itself)
                         cS[at] = static_cast<float>(smokeWeight >= 0.5 ? smoke / smokeWeight : 0.0);   // (no smoke forecast, no cap)
                     }
                 }
@@ -1890,6 +1889,7 @@ const std::vector<Product>& products() {
             x.ramp = Ramp{{{1.0, QColor{"#d6e7a3"}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1a8c9a"}}, {5.0, QColor{"#f5b800"}}}, true};   // each level starts at its whole number; the scale ends at 5
             x.fillTitle = "Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, Perfect 5/5";
             x.legendStep = 1;
+            x.climateOption = true;
             p.push_back(x);
         }
         // ---- the RTMA and URMA surface analyses (2.5 km, the hour of the analysis only): the blend's surface charts made from the analysis's own fields
@@ -7409,6 +7409,24 @@ Product withMember(const Product& product, const std::string& member, const std:
 
 bool hasStandardDeviations(const Product& product) {
     return static_cast<bool>(product.sigma);
+}
+
+bool hasClimateAdjustment(const Product& product) {
+    return product.climateOption;
+}
+
+Product withClimateAdjusted(const Product& product) {
+    if (!product.climateOption || !product.derive) {
+        return product;
+    }
+    Product out = product;
+    out.derive = [inner = product.derive] (Grids& g, const Context& context) {
+        Context adjusted = context;
+        adjusted.climateAdjusted = true;
+        inner(g, adjusted);
+    };
+    out.label = "Nice Weather Outlook, climate adjusted";
+    return out;
 }
 
 Product withPoolOnly(const Product& product, const std::string& source) {

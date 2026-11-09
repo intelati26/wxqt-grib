@@ -61,6 +61,7 @@ namespace GfsRender {
         std::string otherRun;     // Difference: that model's run ("yyyyMMddHH") when it is a particular one; "" the run of the nearest time at or before this chart's
         std::string otherModel;   // Difference: this chart (the model drawn) minus the same chart of this model at the same valid time
         bool standardDeviations{false};   // an anomaly chart in standard deviations (GfsChart::withStandardDeviations)
+        bool climateAdjusted{false};      // the nice weather outlook with the normal high of the place moving its comfortable range (GfsChart::withClimateAdjusted)
         // the valid time to draw ("yyyyMMddHH", UTC): the forecast hour is then worked out from the run actually used, so models of other runs are compared at the same real time
         std::string validTime;
         int minutes{0};   // a subhourly time of the run, in minutes of lead (the RRFS and HRRR 15 minute files: 195 is 3 h 15 min; `hour` is then the file's hour, the one the minutes fall in); 0: the hour

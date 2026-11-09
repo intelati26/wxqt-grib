@@ -759,12 +759,13 @@ int main(int argc, char * argv[]) {
                 if (out.open(QIODevice::WriteOnly)) out.write(bytes);
                 fprintf(stderr, "thumb: %lld bytes\n", static_cast<long long>(bytes.size()));
                 std::_Exit(0);
-            } else if (route.startsWith("chartpng:")) {   // WXQT_OPEN=chartpng:<model>:<chart>:<forecast hour>:<area id>:<out file>[:<run yyyyMMddHH>]: the model screen's chart of the newest run (or that one) drawn to a file (640 wide, as a tile)
+            } else if (route.startsWith("chartpng:")) {   // WXQT_OPEN=chartpng:<model>:<chart>:<forecast hour>:<area id>:<out file>[:<run yyyyMMddHH>[:climate]]: the model screen's chart of the newest run (or that one) drawn to a file (640 wide, as a tile)
                 const auto parts = route.split(':');
                 GfsRender::Session session;
                 std::string error;
                 GfsRender::Variant variant;
                 variant.width = 640;
+                variant.climateAdjusted = parts.value(7) == "climate";   // a last part "climate": the climate adjusted nice weather chart
                 const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), {}, error, nullptr, variant);
                 QFile out{parts.value(5)};
                 if (out.open(QIODevice::WriteOnly)) out.write(bytes);
