@@ -6,6 +6,7 @@
 #include "mapkit/GibsLayer.h"
 #include "mapkit/GlobeMapView.h"
 #include <atomic>
+#include <functional>
 #include <thread>
 #include <algorithm>
 #include <cmath>
@@ -20,6 +21,7 @@
 #include <QFile>
 #include <QDir>
 #include <QCryptographicHash>
+#include <QDate>
 #include <QDateTime>
 #include <QLabel>
 #include <QPainter>
@@ -91,6 +93,7 @@ GibsLayer::GibsLayer() {
     productIndex = std::clamp(Utility::readPrefInt("MM_GIBS_PRODUCT", 0), 0, static_cast<int>(products().size()) - 1);
     daysBack = std::clamp(Utility::readPrefInt("MM_GIBS_DAYS", 1), 0, 4000);
     liveDays = daysBack;
+    fillDays = std::clamp(Utility::readPrefInt("MM_GIBS_FILL", 4), 0, 30);
 }
 
 string GibsLayer::dateText() const {
@@ -109,7 +112,7 @@ namespace {
     }
 }
 
-string GibsLayer::tileKey(const Product& product, const string& date, const Tile& tile) {
+string GibsLayer::rawKey(const Product& product, const string& date, const Tile& tile) {
     return string{product.id} + "|" + date + "|" + std::to_string(tile.z) + "/" + std::to_string(tile.y) + "/" + std::to_string(tile.x);
 }
 
@@ -191,6 +194,80 @@ std::vector<GibsLayer::Tile> GibsLayer::tilesInView(MapHost& host, int& zoom) co
 }
 
 // one tile: the disk copy if it is there, else the network (and kept on disk when the day is complete); asked for once, the map painted again as it arrives
+namespace {
+    // a pixel where no pass reached: transparent, or the black of a picture with no data
+    bool isGap(QRgb c) { return qAlpha(c) == 0 || (c & 0x00ffffffu) == 0; }
+    // the number of gap pixels of a picture, and those of it that the picture of an earlier day has (put in)
+    size_t countGaps(const QImage& image) {
+        size_t n = 0;
+        for (int y = 0; y < image.height(); y++) {
+            const auto * row = reinterpret_cast<const QRgb *>(image.constScanLine(y));
+            for (int x = 0; x < image.width(); x++) {
+                n += isGap(row[x]) ? 1 : 0;
+            }
+        }
+        return n;
+    }
+    size_t fillFrom(QImage& image, const QImage& older) {
+        if (older.size() != image.size()) {
+            return countGaps(image);
+        }
+        size_t left = 0;
+        for (int y = 0; y < image.height(); y++) {
+            auto * row = reinterpret_cast<QRgb *>(image.scanLine(y));
+            const auto * old = reinterpret_cast<const QRgb *>(older.constScanLine(y));
+            for (int x = 0; x < image.width(); x++) {
+                if (isGap(row[x])) {
+                    if (isGap(old[x])) {
+                        left++;
+                    } else {
+                        row[x] = old[x];
+                    }
+                }
+            }
+        }
+        return left;
+    }
+    // a tile from its disk copy or the network (and the disk copy made, for a day that is complete)
+    QImage readTile(const string& url, const QString& file, bool keep) {
+        QByteArray bytes;
+        QFile disk{file};
+        if (keep && disk.open(QIODevice::ReadOnly)) {
+            bytes = disk.readAll();
+        } else {
+            bytes = UtilityIO::downloadAsByteArray(url);
+        }
+        QImage image = bytes.isEmpty() ? QImage{} : QImage::fromData(bytes);
+        if (image.isNull()) {
+            return image;
+        }
+        if (keep && !disk.isOpen() && disk.open(QIODevice::WriteOnly)) {
+            disk.write(bytes);
+        }
+        return image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    }
+    bool completeDay(const string& date) { return date < QDateTime::currentDateTimeUtc().addDays(-1).toString("yyyy-MM-dd").toStdString(); }
+    string dayBefore(const string& date, int days) { return QDate::fromString(QString::fromStdString(date), "yyyy-MM-dd").addDays(-days).toString("yyyy-MM-dd").toStdString(); }
+    // the gaps of a picture filled from the same tile of the days before, until there are (nearly) none or the days are used
+    void fillFromEarlier(QImage& image, int days, const std::function<QImage(int)>& earlier) {
+        int back = 1;
+        for (; image.isNull() && back <= days; back++) {   // the day has no tile (its picture is not made yet): the first day before that has
+            image = earlier(back);
+        }
+        if (image.isNull()) {
+            return;
+        }
+        size_t gaps = countGaps(image);
+        const size_t enough = static_cast<size_t>(image.width()) * static_cast<size_t>(image.height()) / 500;
+        for (; back <= days && gaps > enough; back++) {
+            const QImage old = earlier(back);
+            if (!old.isNull()) {
+                gaps = fillFrom(image, old);
+            }
+        }
+    }
+}
+
 void GibsLayer::request(MapHost& host, const Product& product, const string& date, const Tile& tile) {
     const string key = tileKey(product, date, tile);
     if (tiles.count(key) > 0 || asked.count(key) > 0) {
@@ -198,27 +275,20 @@ void GibsLayer::request(MapHost& host, const Product& product, const string& dat
     }
     asked.insert(key);
     fetching++;
-    const string url = urlOf(product, date, tile);
-    const bool keep = date < QDateTime::currentDateTimeUtc().addDays(-1).toString("yyyy-MM-dd").toStdString();
-    const QString file = cacheFile(key, product.extension);
+    const int days = product.colormap == nullptr ? fillDays : 0;   // (the science products are one day's measurements: not mixed)
+    const bool jpeg = string{product.extension} == "jpg";
     auto decoded = std::make_shared<QImage>();
-    // the tile is decoded, and put in the format the painter draws fastest, on the worker: the window thread only draws
-    host.background([url, decoded, keep, file] {
-                        QByteArray bytes;
-                        QFile disk{file};
-                        if (keep && disk.open(QIODevice::ReadOnly)) {
-                            bytes = disk.readAll();
-                        } else {
-                            bytes = UtilityIO::downloadAsByteArray(url);
+    // the tile is decoded, and put in the format the painter draws fastest, on the worker: the window thread only draws; the gaps of the day's picture are filled from the days before
+    host.background([this, product, date, tile, decoded, days, jpeg] {
+                        const auto fetch = [&] (const string& day) { return readTile(urlOf(product, day, tile), cacheFile(rawKey(product, day, tile), product.extension), completeDay(day)); };
+                        QImage image = fetch(date);
+                        if (days > 0) {
+                            fillFromEarlier(image, days, [&] (int back) { return fetch(dayBefore(date, back)); });
                         }
-                        QImage image = bytes.isEmpty() ? QImage{} : QImage::fromData(bytes);
                         if (image.isNull()) {
                             return;
                         }
-                        if (keep && !disk.isOpen() && disk.open(QIODevice::WriteOnly)) {
-                            disk.write(bytes);
-                        }
-                        *decoded = image.convertToFormat(image.hasAlphaChannel() ? QImage::Format_ARGB32_Premultiplied : QImage::Format_RGB32);
+                        *decoded = jpeg ? image.convertToFormat(QImage::Format_RGB32) : image;
                     },
                     [this, key, decoded, &host] {
                         fetching--;
@@ -313,28 +383,21 @@ bool GibsLayer::fillPolar(QImage& world, bool north, double centre, double scale
     }
     std::vector<std::pair<int, int>> list{wanted.begin(), wanted.end()};
     std::vector<QImage> images(list.size());
-    const bool keep = date < QDateTime::currentDateTimeUtc().addDays(-1).toString("yyyy-MM-dd").toStdString();
+    const int days = product.colormap == nullptr ? fillDays : 0;
     std::atomic<size_t> next{0};
     const auto work = [&] {
         for (size_t i = next++; i < list.size(); i = next++) {
-            const string key = string{product.id} + "|" + date + "|" + system + "/" + std::to_string(z) + "/" + std::to_string(list[i].first) + "/" + std::to_string(list[i].second);
-            const string url = "https://gibs.earthdata.nasa.gov/wmts/" + system + "/best/" + product.id + "/default/" + date + "/" + matrixSet.toStdString() + "/" + std::to_string(z) + "/" + std::to_string(list[i].first) + "/" +
-                std::to_string(list[i].second) + "." + extension.toStdString();
-            QByteArray bytes;
-            QFile disk{cacheFile(key, "polar")};
-            if (keep && disk.open(QIODevice::ReadOnly)) {
-                bytes = disk.readAll();
-            } else {
-                bytes = UtilityIO::downloadAsByteArray(url);
+            const auto fetch = [&] (const string& day) {
+                const string where = system + "/" + std::to_string(z) + "/" + std::to_string(list[i].first) + "/" + std::to_string(list[i].second);
+                const string url = "https://gibs.earthdata.nasa.gov/wmts/" + system + "/best/" + product.id + "/default/" + day + "/" + matrixSet.toStdString() + "/" + std::to_string(z) + "/" +
+                    std::to_string(list[i].first) + "/" + std::to_string(list[i].second) + "." + extension.toStdString();
+                return readTile(url, cacheFile(string{product.id} + "|" + day + "|" + where, "polar"), completeDay(day));
+            };
+            QImage image = fetch(date);
+            if (days > 0) {
+                fillFromEarlier(image, days, [&] (int back) { return fetch(dayBefore(date, back)); });
             }
-            const QImage image = bytes.isEmpty() ? QImage{} : QImage::fromData(bytes);
-            if (image.isNull()) {
-                continue;
-            }
-            if (keep && !disk.isOpen() && disk.open(QIODevice::WriteOnly)) {
-                disk.write(bytes);
-            }
-            images[i] = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+            images[i] = image;
         }
     };
     {
@@ -678,6 +741,16 @@ QWidget * GibsLayer::options(QWidget * parent, const std::function<void()>& chan
     }
     day->setCurrentIndex(std::clamp(daysBack, 0, day->count() - 1));
     layout->addWidget(day);
+    layout->addWidget(new QLabel{"Gaps (where no pass reached):", widget});
+    auto * fill = UiStandards::combo(widget);
+    const std::vector<int> fills{0, 1, 2, 4, 7, 14};
+    for (const int f : fills) {
+        fill->addItem(f == 0 ? "Leave empty" : "Fill from the " + QString::number(f) + (f == 1 ? " day before" : " days before"));
+        if (f == fillDays) {
+            fill->setCurrentIndex(fill->count() - 1);
+        }
+    }
+    layout->addWidget(fill);
     layout->addWidget(new QLabel{"Opacity:", widget});
     auto * slider = new QSlider{Qt::Horizontal, widget};
     slider->setRange(20, 100);
@@ -692,6 +765,11 @@ QWidget * GibsLayer::options(QWidget * parent, const std::function<void()>& chan
         daysBack = index;
         liveDays = index;
         Utility::writePrefInt("MM_GIBS_DAYS", index);
+        changed();
+    });
+    QObject::connect(fill, &QComboBox::currentIndexChanged, [this, changed, fills] (int index) {
+        fillDays = fills[static_cast<size_t>(index)];
+        Utility::writePrefInt("MM_GIBS_FILL", fillDays);
         changed();
     });
     QObject::connect(slider, &QSlider::valueChanged, [this, changed] (int value) { opacity = value; changed(); });

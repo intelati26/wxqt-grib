@@ -63,7 +63,8 @@ private:
     };
     std::vector<Tile> tilesInView(MapHost&, int& zoom) const;   // the tiles that cover the view, at the zoom that matches its pixels
     void request(MapHost&, const Product&, const string& date, const Tile&);   // from the disk copy, or the network, once
-    static string tileKey(const Product&, const string& date, const Tile&);
+    static string rawKey(const Product&, const string& date, const Tile&);   // the tile of a day as GIBS has it (the disk copy's name)
+    string tileKey(const Product& p, const string& date, const Tile& t) const { return rawKey(p, date, t) + (fillDays > 0 && p.colormap == nullptr ? "|f" + std::to_string(fillDays) : string{}); }   // (with the gaps filled from earlier days, another picture)
     string urlOf(const Product&, const string& date, const Tile&) const;
     std::map<string, vector<MapLegendRow>> legends;   // by color map, read once from GIBS
     std::set<string> legendAsked;
@@ -72,6 +73,7 @@ private:
     int productIndex{0};
     int daysBack{1};           // 0 today (a partial day), 1 yesterday ...
     int opacity{100};
+    int fillDays{4};           // the gaps of a day's picture (where no pass reached) filled from the days before, up to this many (0: not)
     int shownZoom{0};
     int fetching{0};           // tiles being read
     int notStarted{0};         // tiles of the view not asked for yet (a paint asks for a few at a time)
