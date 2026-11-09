@@ -1969,7 +1969,7 @@ const std::vector<Product>& products() {
                     // each ingredient allows a level up to the one its score reaches (the weakest of them rules: a level needs all of the ingredients at its mark, whatever the others are). The marks were
                     // fitted to how Ryan Hall, Y'all's levels follow his ingredient scores (about 77% of 21,000 cities at the same level, against 69% for a cutoff on the weighted score)
                     static const double marks[6][4] = {   // Decent, Fair, Nice, Beautiful (of 100): temperature, rain, heat, dewpoint, sky, wind
-                        {0, 18, 89, 94}, {0, 2, 95, 99}, {0, 50, 78, 100}, {17, 48, 84, 84}, {0, 2, 93, 100}, {0, 15, 80, 93}};   // (refitted with the temperature's new cold and warm sides: 73% of his day 2 at 21,000 cities)
+                        {0, 18, 84, 93}, {0, 63, 99, 99}, {0, 50, 78, 100}, {17, 46, 86, 96}, {0, 39, 93, 98}, {0, 15, 79, 92}};   // (refitted so that the shares of the levels are his, 15% Decent, 61% Fair, 22% Nice, 1.6% Beautiful: 60% of his cities at the same level over two days, 97% within one)
                     const double scores[6] = {tScore * 100.0, rScore * 100.0, heatScore * 100.0, dScore * 100.0, cScore * 100.0, wScore * 100.0};
                     int value = 4;
                     for (int ingredient = 0; ingredient < 6; ingredient++) {
