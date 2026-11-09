@@ -7,6 +7,7 @@
 #include "util/Utility.h"
 #include <QCryptographicHash>
 #include "gfs/GdalRaster.h"
+#include "gfs/Hdf5Range.h"
 #include "gfs/TarReader.h"
 #include "gfs/GfsModels.h"
 #include "gfs/OmFile.h"
@@ -1022,13 +1023,32 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
     if (source.netcdf) {   // by range: a few requests of a megabyte or so, not the file
         options.extra << "--config" << "CPL_VSIL_CURL_CHUNK_SIZE" << "2097152" << "--config" << "GDAL_HTTP_USERAGENT" << "wxqt";
     }
+    if (source.netcdf && options.warp.enabled && input.contains("rrfs_d")) {   // SPC's RRFS fields are on a rotated pole: GDAL places them by their 2D latitude and longitude, not by the (index) coordinates
+        options.extra << "-geoloc";
+    }
     std::string message;
     // GDAL's NetCDF driver reads a NetCDF-4 file over the network (by range, "/vsicurl/") only where the system has Linux's userfaultfd (Windows and the Mac have not): there the whole file is
     // downloaded once (kept in the cache, shared by the fields of the hour) and read from the disk. Once that has been seen, the next fields go straight to the disk copy.
-    static std::atomic<bool> netcdfNeedsFile{false};
+    static std::atomic<bool> netcdfNeedsFile{qEnvironmentVariableIsSet("WXQT_NETCDF_PIECES")};   // set: the variable is read as Windows would (a hook for testing on Linux)
     std::string tooBig;
     const auto localCopy = [&] (const std::string& whichUrl, QString& localInput) {
         // how big the file is (megabytes, about: the collections are known) against what the settings allow; a file over it is not downloaded
+        // first the variable alone, by byte ranges (a few megabytes of the file, written as a small file); the whole file only if that cannot be done
+        {
+            const auto key = QCryptographicHash::hash(QByteArray::fromStdString(whichUrl + "|" + variable), QCryptographicHash::Sha1).toHex();
+            const QString part = config.cacheFolder + "/ncv_" + QString::fromLatin1(key) + ".nc";
+            if (!QFileInfo::exists(part) || QFileInfo{part}.size() < 100) {
+                std::string why;
+                const Hdf5Range::Fetch fetch = [&] (long long start, long long end) { return config.bytes(whichUrl, start, end); };
+                if (!Hdf5Range::extract(fetch, variable, part, why, config.cacheFolder)) {
+                    QFile::remove(part);
+                }
+            }
+            if (QFileInfo::exists(part) && QFileInfo{part}.size() >= 100) {
+                localInput = "NETCDF:\"" + part + "\":" + QString::fromStdString(variable);
+                return true;
+            }
+        }
         const long long megabytes = whichUrl.find("tavg1_2d_slv_Nx") != std::string::npos ? 48 : whichUrl.find("tavg3_2d_aer_Nx") != std::string::npos ? 260 : whichUrl.find("sfcoa") != std::string::npos ? 520 : whichUrl.find("rrfs_d") != std::string::npos ? 3800 : 1000;
         const int allowed = Utility::readPrefInt("NETCDF_WHOLE_MAX_MB", 100);
         if (megabytes > allowed) {
