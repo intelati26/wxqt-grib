@@ -1762,7 +1762,7 @@ const std::vector<Product>& products() {
                             double meanK = normal.sample(lon < 0.0 ? lon + 360.0 : lon, lat);
                             if (!std::isnan(meanK)) {
                                 meanK = meanK > 150.0 ? meanK - 273.15 : meanK;
-                                middle = 64.0 + 0.5 * std::max(0.0, meanK * 1.8 + 32.0 + 9.0 - 64.0);
+                                middle = 0.5 * (64.0 + (meanK * 1.8 + 32.0 + 9.0));   // (half way between the fixed range and the normal high)
                             }
                         }
                         const double nowLocal = runHours + zone;
@@ -1786,19 +1786,8 @@ const std::vector<Product>& products() {
                                 if (const auto found = g.find("s" + name); found != g.end() && !found->second.values.empty() && !std::isnan(found->second.values[at])) {
                                     fine = found->second.values[at] * 1.0e9;
                                 }
-                                static const char * const species[5] = {"y", "z", "e", "h", "k"};
-                                static const double factor[5] = {1.0, 1.0, 1.0, 1.4, 1.375};
-                                double geos = 0.0;
-                                bool haveGeos = true;
-                                for (int part = 0; part < 5 && haveGeos; part++) {
-                                    const auto found = g.find(species[part] + name);
-                                    if (found == g.end() || found->second.values.empty() || std::isnan(found->second.values[at])) {
-                                        haveGeos = false;
-                                    } else {
-                                        geos += factor[part] * found->second.values[at] * 1.0e9;
-                                    }
-                                }
-                                if (haveGeos) {
+                                if (const auto found = g.find("y" + name); found != g.end() && !found->second.values.empty() && !std::isnan(found->second.values[at])) {   // GEOS-FP's own PM2.5 (kg a cubic meter)
+                                    const double geos = found->second.values[at] * 1.0e9;
                                     fine = std::isnan(fine) ? geos : std::max(fine, geos);
                                 }
                                 if (!std::isnan(fine)) {
@@ -1832,6 +1821,8 @@ const std::vector<Product>& products() {
                         }
                         const double rain = 0.5 * pMax + 0.5 * pSum / count;   // a chance of rain at some hour counts more than the average
                         // the temperature: half the hours' score (the range) and half the day's high (full marks from 70 F, 90 at 66 F, 70 at 62.6 F, nothing under 56 F; a loss over 80)
+                        const double highShift = middle - 64.0;   // (the day's high is judged by the same range, moved with it)
+                        high -= highShift;
                         const double highScore = high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));
                         cT[at] = static_cast<float>(0.5 * tScore / count + 0.5 * highScore);
                         cD[at] = static_cast<float>(dScore / count);
@@ -1954,11 +1945,7 @@ const std::vector<Product>& products() {
             x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 7)); }, 6});
             {   // GEOS-FP's fine particles at the same hours (the daytime of the days it has): the dust, sea salt, black carbon, organic matter and sulfate of its 3 hour surface averages
                 const auto geosHours = [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 7)); };
-                const char * const names[5] = {"DUSMASS25", "SSSMASS25", "BCSMASS", "OCSMASS", "SO4SMASS"};
-                const char * const keys[5] = {"y", "z", "e", "h", "k"};
-                for (int part = 0; part < 5; part++) {
-                    x.extras.push_back({"GEOS-FP", GfsData::Want{keys[part], names[part], "aerosol", "", ""}, part == 0 ? "GEOS-FP particles" : "", 0, geosHours, 0});
-                }
+                x.extras.push_back({"GEOS-FP", GfsData::Want{"y", "PM25", "aerosol", "", ""}, "GEOS-FP particles", 0, geosHours, 0});
             }
             x.fill = [] (const Grids& g) { return pick(g, "level"); };
             x.ramp = Ramp{{{1.0, QColor{"#d6e7a3"}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1a8c9a"}}, {5.0, QColor{"#f5b800"}}}, true};   // each level starts at its whole number; the scale ends at 5

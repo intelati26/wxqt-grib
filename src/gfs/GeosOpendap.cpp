@@ -100,7 +100,8 @@ bool GeosOpendap::parseDods(const std::string& reply, size_t expected, std::vect
 }
 
 bool GeosOpendap::read(const GfsData::Run& run, int forecastHour, const std::string& file, const std::string& variable, GfsGrid::Grid& out, std::string& error) {
-    if (file != "tavg1_2d_slv_Nx" || variable.empty()) {   // (the other collections are read as files)
+    const bool aerosol = file == "tavg3_2d_aer_Nx";   // the 3 hour averages of the aerosol species (260 MB a file; stamped in the middle of the 3 hours)
+    if ((file != "tavg1_2d_slv_Nx" && !aerosol) || variable.empty()) {   // (the other collections are read as files)
         error = "not a collection read this way";
         return false;
     }
@@ -114,7 +115,7 @@ bool GeosOpendap::read(const GfsData::Run& run, int forecastHour, const std::str
     }
     auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
     t.setTimeZone(QTimeZone::utc());
-    const long long valid = t.toSecsSinceEpoch() + static_cast<long long>(forecastHour) * 3600 + 30 * 60;   // (an hour's average is stamped in the middle of it)
+    const long long valid = t.toSecsSinceEpoch() + static_cast<long long>(forecastHour) * 3600 + (aerosol ? -90 : 30) * 60;   // (an average is stamped in the middle of its hour: the 3 hour ones end at the forecast hour)
     const long long offset = valid - axis.start;
     if (offset < 0 || offset % (static_cast<long long>(axis.stepMinutes) * 60) != 0 || offset / (static_cast<long long>(axis.stepMinutes) * 60) >= axis.count) {
         error = "the hour is not in the server's dataset of this run";

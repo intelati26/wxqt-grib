@@ -14,6 +14,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QComboBox>
 #include <QLineEdit>
 #include <QProcess>
 #include <QRegularExpression>
@@ -83,6 +84,26 @@ SettingsGdalBox::SettingsGdalBox(QWidget * parent)
     column->addWidget(newest);
     QObject::connect(check, &QPushButton::clicked, this, [this] { checkNewest(); });
     layout->addWidget(box);
+    {   // the NetCDF files that cannot be read in parts: GDAL's NetCDF driver reads a NetCDF-4 file over the network (a part at a time) only on Linux; elsewhere the file is downloaded whole
+        auto * group = new QGroupBox{"NetCDF files read whole (Windows and macOS)", this};
+        auto * inner = new QVBoxLayout{group};
+        auto * text = new QLabel{"GDAL's NetCDF driver can read a part of a remote NetCDF-4 file only on Linux. Elsewhere the file is downloaded whole, once, and kept in the cache. Most of the program's "
+                                 "sources have a way to ask for just one variable or area; these are the exceptions: GEOS-FP's hourly surface file is 48 MB, its aerosol file 260 MB (read in parts through NASA's "
+                                 "server instead), SPC's mesoanalysis (SFCOA) about 520 MB an hour and the RRFSD severe fields about 3.8 GB an hour. Files over this size are not downloaded.", group};
+        text->setWordWrap(true);
+        text->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+        text->setMinimumHeight(90);
+        inner->addWidget(text);
+        auto * limit = new QComboBox{group};
+        for (const auto& [label, megabytes] : {std::pair<const char *, int>{"Up to 100 MB (the default)", 100}, {"Up to 600 MB", 600}, {"Up to 4 GB", 4000}, {"None (do not download whole files)", 0}}) {
+            limit->addItem(label, megabytes);
+        }
+        const int now = Utility::readPrefInt("NETCDF_WHOLE_MAX_MB", 100);
+        limit->setCurrentIndex(std::max(0, limit->findData(now)));
+        QObject::connect(limit, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [limit] (int) { Utility::writePref("NETCDF_WHOLE_MAX_MB", std::to_string(limit->currentData().toInt())); });
+        inner->addWidget(limit);
+        layout->addWidget(group);
+    }
     layout->addStretch();
     const auto save = [this] {
         Utility::writePref("GDAL_BIN_FOLDER", folder->text().trimmed().toStdString());

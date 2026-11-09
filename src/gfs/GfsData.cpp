@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsData.h"
+#include "util/Utility.h"
 #include <QCryptographicHash>
 #include "gfs/GdalRaster.h"
 #include "gfs/TarReader.h"
@@ -1025,8 +1026,13 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
     // GDAL's NetCDF driver reads a NetCDF-4 file over the network (by range, "/vsicurl/") only where the system has Linux's userfaultfd (Windows and the Mac have not): there the whole file is
     // downloaded once (kept in the cache, shared by the fields of the hour) and read from the disk. Once that has been seen, the next fields go straight to the disk copy.
     static std::atomic<bool> netcdfNeedsFile{false};
+    std::string tooBig;
     const auto localCopy = [&] (const std::string& whichUrl, QString& localInput) {
-        if (whichUrl.find("tavg3_2d_aer_Nx") != std::string::npos) {   // (260 MB an hour of the forecast: not worth a whole file for one field, until a part of a file can be read)
+        // how big the file is (megabytes, about: the collections are known) against what the settings allow; a file over it is not downloaded
+        const long long megabytes = whichUrl.find("tavg1_2d_slv_Nx") != std::string::npos ? 48 : whichUrl.find("tavg3_2d_aer_Nx") != std::string::npos ? 260 : whichUrl.find("sfcoa") != std::string::npos ? 520 : whichUrl.find("rrfs_d") != std::string::npos ? 3800 : 1000;
+        const int allowed = Utility::readPrefInt("NETCDF_WHOLE_MAX_MB", 100);
+        if (megabytes > allowed) {
+            tooBig = "this NetCDF file (about " + std::to_string(megabytes) + " MB) can only be read whole on this system, and the limit is " + std::to_string(allowed) + " MB (Settings, GDAL, NetCDF files read whole)";
             return false;
         }
         static std::mutex downloading;
@@ -1057,7 +1063,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         }
     }
     if (!translated) {
-        error = "gdal failed on " + want.variable + " " + want.level + ": " + message;
+        error = tooBig.empty() ? "gdal failed on " + want.variable + " " + want.level + ": " + message : tooBig;
         cleanup();
         return false;
     }
