@@ -1691,13 +1691,13 @@ const std::vector<Product>& products() {
         // cloud cover, gusts and chance of rain at the hours of the local daytime (9 to 19 o'clock by the sun, worked out for each cell from its longitude) are scored and put together; a top level also
         // needs every ingredient to be good (the gates), and the further the day the lower the level it can reach. The RRFS version (days 1 to 3) also has the near-surface smoke (PM2.5), which can
         // cap or remove a level.
-        for (const std::string source : {"NBM", "RRFS"}) {
-            const bool blend = source == "NBM";
-            const int lastDay = blend ? 7 : 3;
+        for (const std::string source : {"NBM"}) {
+            const bool blend = true;
+            const int lastDay = 7;
             Product x;
             x.source = source;
             x.id = "nice_weather";
-            x.label = blend ? "Nice Weather Outlook (hour 24 = day 1)" : "Nice Weather Outlook with smoke (hour 24 = day 1)";
+            x.label = "Nice Weather Outlook (hour 24 = day 1)";
             x.periodHours = 24;
             x.mainCycleStep = 6;   // the long hours are made by the main runs
             const auto sampleHours = [blend] (int day) {   // the forecast hours that can fall in a cell's daytime of that day, whatever the run's hour: 3-hourly where the model has them, then (the blend) 6-hourly
@@ -1720,13 +1720,6 @@ const std::vector<Product>& products() {
                         needs.push_back({f, nbmWant("c" + at, "TCDC", "surface", atHour(f))});
                         needs.push_back({f, nbmWant("g" + at, "GUST", "10 m above ground", atHour(f))});
                         needs.push_back({f, nbmWant("p" + at, "APCP", "surface", window(f, f <= 36 ? 1 : 6, "acc"), "prob >0.254")});
-                    } else {
-                        needs.push_back({f, nbmWant("a" + at, "TMP", "2 m above ground", atHour(f))});
-                        needs.push_back({f, nbmWant("d" + at, "DPT", "2 m above ground", atHour(f))});
-                        needs.push_back({f, nbmWant("c" + at, "TCDC", "entire atmosphere (considered as a single layer)", atHour(f))});
-                        needs.push_back({f, nbmWant("g" + at, "GUST", "surface", atHour(f))});
-                        needs.push_back({f, nbmWant("p" + at, "APCP", "surface", window(f, 1, "acc"))});
-                        needs.push_back({f, nbmWant("s" + at, "MASSDEN", "8 m above ground", window(f, 1, "ave"), "aerosol=Total aerosol")});
                     }
                 }
                 return needs;
@@ -1750,6 +1743,10 @@ const std::vector<Product>& products() {
                     std::string why;
                     haveNormal = context.climate->at(GfsClimate::surfaceTemperature(), GfsClimate::dayIndex(t.date().year(), t.date().month(), t.date().day()), normal, why);
                 }
+                // the ingredients of each cell, which are smoothed over a radius of 50 miles before the levels are made of them (a map of the weather people can plan by, not of every ridge and valley)
+                const float none = std::numeric_limits<float>::quiet_NaN();
+                const size_t cells = shape.values.size();
+                std::vector<float> cT(cells, none), cR(cells, none), cD(cells, none), cC(cells, none), cW(cells, none), cA(cells, none), cS(cells, none);
                 for (int row = 0; row < shape.rows; row++) {
                     const double lat = shape.lat0 - row * shape.step;
                     for (int column = 0; column < shape.columns; column++) {
@@ -1771,7 +1768,7 @@ const std::vector<Product>& products() {
                         const double nowLocal = runHours + zone;
                         const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
                         const double target = std::floor(nowLocal / 24.0) + (hourNow < 17.0 ? 0 : 1) + (day - 1);
-                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, aSum = 0;
+                        double tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0;
                         double count = 0;   // the weight of the hours (an hour counts fully from 10 to 18 o'clock and less towards 8 and 20, so that the cells where the hours fall differently do not make a line)
                         for (const int f : hours) {
                             const double local = runHours + f + zone;
@@ -1784,14 +1781,9 @@ const std::vector<Product>& products() {
                             double apparent = g["a" + name].values[at], dewC = g["d" + name].values[at];
                             const double cloud = g["c" + name].values[at], gust = g["g" + name].values[at] * 2.23694;
                             double rain = g["p" + name].values[at];
-                            if (!blend) {   // the model's own temperature (degrees C) made into the apparent one (the vapor pressure adds to it, as Steadman's does); a rain amount is a yes or no
-                                const double vapor = 6.105 * std::exp(17.27 * dewC / (237.7 + dewC));
-                                apparent = apparent + 0.33 * vapor - 4.0;
-                                rain = rain >= 0.25 ? 100.0 : 0.0;
-                                const double micrograms = g["s" + name].values[at] * 1.0e9;
-                                if (!std::isnan(micrograms)) {
-                                    smoke += weight * micrograms;
-                                }
+                            if (const auto found = g.find("s" + name); found != g.end() && !found->second.values.empty() && !std::isnan(found->second.values[at])) {   // the RRFS's fine particles (kg a cubic meter), where it reaches
+                                smoke += weight * found->second.values[at] * 1.0e9;
+                                smokeWeight += weight;
                             }
                             apparent = apparent * 1.8 + 32.0;
                             const double dew = dewC * 1.8 + 32.0;
@@ -1809,39 +1801,88 @@ const std::vector<Product>& products() {
                             count += weight;
                         }
                         if (count < 0.5) {
-                            level.values[at] = std::numeric_limits<float>::quiet_NaN();
                             continue;
                         }
-                        tScore /= count;
-                        dScore /= count;
-                        cScore /= count;
-                        wScore /= count;
-                        smoke /= count;
-                        const double apparentMean = aSum / count;   // (whatever is normal, the top levels are for a day that is warm in itself)
                         const double rain = 0.5 * pMax + 0.5 * pSum / count;   // a chance of rain at some hour counts more than the average
-                        const double rScore = ramp(rain, 0.0, 50.0);
-                        const double base = 0.35 * tScore + 0.25 * rScore + 0.15 * dScore + 0.10 * cScore + 0.15 * wScore;
-                        int value = 0;
-                        if (base >= 0.97 && apparentMean >= 62.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.85) {
-                            value = 5;
-                        } else if (base >= 0.91 && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.85 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.6) {
-                            value = 4;
-                        } else if (base >= 0.80 && tScore >= 0.6 && rScore >= 0.7 && wScore >= 0.5 && dScore >= 0.4) {
-                            value = 3;
-                        } else if (base >= 0.68 && tScore >= 0.45 && rScore >= 0.5) {
-                            value = 2;
-                        } else if (base >= 0.55 && tScore >= 0.3 && rScore >= 0.3) {
-                            value = 1;
-                        }
-                        value = std::min(value, day <= 2 ? 5 : day == 3 ? 4 : 3);   // the further the day, the lower the level the forecast can stand behind
-                        if (!blend) {   // smoke: the daytime mean of the fine particles (micrograms a cubic meter; the EPA's good air is under 9, moderate to 35, unhealthy for sensitive groups above)
-                            value = smoke > 35.0 ? 0 : smoke > 20.0 ? std::min(value, 1) : smoke > 12.0 ? std::min(value, 2) : smoke > 9.0 ? std::min(value, 3) : value;
-                        }
-                        level.values[at] = static_cast<float>(value);
+                        cT[at] = static_cast<float>(tScore / count);
+                        cD[at] = static_cast<float>(dScore / count);
+                        cC[at] = static_cast<float>(cScore / count);
+                        cW[at] = static_cast<float>(wScore / count);
+                        cR[at] = static_cast<float>(ramp(rain, 0.0, 50.0));
+                        cA[at] = static_cast<float>(aSum / count);   // (whatever is normal, the top levels are for a day that is warm in itself)
+                        cS[at] = static_cast<float>(smokeWeight >= 0.5 ? smoke / smokeWeight : 0.0);   // (no smoke forecast, no cap)
                     }
+                }
+                {   // the smoothing: the mean of the cells within 50 miles (a box: the width in cells follows the latitude), where there is a value
+                    const double radiusKm = 80.5;
+                    const int rows = shape.rows, columns = shape.columns;
+                    const int ry = std::max(1, static_cast<int>(std::lround(radiusKm / (111.32 * shape.step))));
+                    for (auto * v : {&cT, &cR, &cD, &cC, &cW, &cA, &cS}) {
+                        std::vector<float> across(cells, none);
+                        std::vector<double> sum(static_cast<size_t>(std::max(rows, columns)) + 1), number(static_cast<size_t>(std::max(rows, columns)) + 1);
+                        for (int row = 0; row < rows; row++) {
+                            const double lat = shape.lat0 - row * shape.step;
+                            const int rx = std::min(columns / 2, static_cast<int>(std::lround(ry / std::max(0.2, std::cos(lat * pi / 180.0)))));
+                            for (int column = 0; column < columns; column++) {
+                                const float value = (*v)[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)];
+                                sum[static_cast<size_t>(column) + 1] = sum[static_cast<size_t>(column)] + (std::isnan(value) ? 0.0 : value);
+                                number[static_cast<size_t>(column) + 1] = number[static_cast<size_t>(column)] + (std::isnan(value) ? 0.0 : 1.0);
+                            }
+                            for (int column = 0; column < columns; column++) {
+                                const int lo = std::max(0, column - rx), hi = std::min(columns - 1, column + rx);
+                                const double n = number[static_cast<size_t>(hi) + 1] - number[static_cast<size_t>(lo)];
+                                if (n > 0.0) {
+                                    across[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)] = static_cast<float>((sum[static_cast<size_t>(hi) + 1] - sum[static_cast<size_t>(lo)]) / n);
+                                }
+                            }
+                        }
+                        std::vector<float> result(cells, none);
+                        for (int column = 0; column < columns; column++) {
+                            for (int row = 0; row < rows; row++) {
+                                const float value = across[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)];
+                                sum[static_cast<size_t>(row) + 1] = sum[static_cast<size_t>(row)] + (std::isnan(value) ? 0.0 : value);
+                                number[static_cast<size_t>(row) + 1] = number[static_cast<size_t>(row)] + (std::isnan(value) ? 0.0 : 1.0);
+                            }
+                            for (int row = 0; row < rows; row++) {
+                                const int lo = std::max(0, row - ry), hi = std::min(rows - 1, row + ry);
+                                const double n = number[static_cast<size_t>(hi) + 1] - number[static_cast<size_t>(lo)];
+                                const size_t at = static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column);
+                                if (n > 0.0 && !std::isnan((*v)[at])) {   // (not past the edge of the data)
+                                    result[at] = static_cast<float>((sum[static_cast<size_t>(hi) + 1] - sum[static_cast<size_t>(lo)]) / n);
+                                }
+                            }
+                        }
+                        *v = std::move(result);
+                    }
+                }
+                for (size_t at = 0; at < cells; at++) {
+                    if (std::isnan(cT[at])) {
+                        level.values[at] = none;
+                        continue;
+                    }
+                    const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at];
+                    const double base = 0.35 * tScore + 0.25 * rScore + 0.15 * dScore + 0.10 * cScore + 0.15 * wScore;
+                    int value = 0;
+                    if (base >= 0.97 && apparentMean >= 62.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.85) {
+                        value = 5;
+                    } else if (base >= 0.91 && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.85 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.6) {
+                        value = 4;
+                    } else if (base >= 0.80 && tScore >= 0.6 && rScore >= 0.7 && wScore >= 0.5 && dScore >= 0.4) {
+                        value = 3;
+                    } else if (base >= 0.68 && tScore >= 0.45 && rScore >= 0.5) {
+                        value = 2;
+                    } else if (base >= 0.55 && tScore >= 0.3 && rScore >= 0.3) {
+                        value = 1;
+                    }
+                    value = std::min(value, day <= 2 ? 5 : day == 3 ? 4 : 3);   // the further the day, the lower the level the forecast can stand behind
+                    // smoke: the daytime mean of the fine particles (micrograms a cubic meter; the EPA's good air is under 9, moderate to 35, unhealthy for sensitive groups above)
+                    value = smoke > 35.0 ? 0 : smoke > 20.0 ? std::min(value, 1) : smoke > 12.0 ? std::min(value, 2) : smoke > 9.0 ? std::min(value, 3) : value;
+                    level.values[at] = static_cast<float>(value);
                 }
                 g["level"] = std::move(level);
             };
+            // the smoke is the RRFS's (the blend has none): its near-surface fine particles at the same hours, for the first days it reaches
+            x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 7)); }, 6});
             x.fill = [] (const Grids& g) { return pick(g, "level"); };
             x.ramp = Ramp{{{0.5, QColor{"#d6e7a3"}}, {1.5, QColor{"#9fd486"}}, {2.5, QColor{"#4fb868"}}, {3.5, QColor{"#1b9a86"}}, {4.5, QColor{"#1a6fb0"}}, {5.5, QColor{"#1a6fb0"}}}, true};
             x.fillTitle = "Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, 5 Perfect";

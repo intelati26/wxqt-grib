@@ -178,6 +178,8 @@ namespace GfsChart {
             GfsData::Want want;
             std::string credit;   // what the chart's "Data:" line adds for it (short: the line is by the legend's)
             int lag{0};           // 0: the newest run that has the valid time; n: the run n cycles older than the one the source's newest is on (the lagged pool: older runs of the same source for the same valid time)
+            std::function<std::vector<int>(int hour)> samples;   // the chart's forecast hours (for the chart hour given) at which the field is wanted, each its own valid time, as "<want key><hour>"; empty: the chart's own valid time only
+            int cycleStep{0};     // the hours between the runs that are tried, newest first (the RRFS's main runs, which have the long hours: 6); 0: the model's own cycle
         };
         std::vector<Extra> extras;
         std::vector<std::pair<std::string, std::string>> layers;   // the sets of a paintball that can be taken out (grid key, name): the screen lists them with a check box each, the chance lines are worked out again from those left
