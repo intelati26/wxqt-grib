@@ -6,6 +6,7 @@
 #include "OutlookScreen.h"
 #include <QHBoxLayout>
 #include <QLabel>
+#include "misc/NiceWeatherOutlook.h"
 #include "spc/SpcFireSummary.h"
 #include "spc/SpcFireWeatherOutlook.h"
 #include "spc/SpcSwoDay1.h"
@@ -20,7 +21,7 @@
 namespace {
     // the fire weather page has the days in a box of its own: one page for all of them
     int keyOf(OutlookNav::Kind kind, int value) {
-        return static_cast<int>(kind) * 100 + (kind == OutlookNav::FireDay ? 0 : value);
+        return static_cast<int>(kind) * 100 + (kind == OutlookNav::FireDay || kind == OutlookNav::NiceDay ? 0 : value);
     }
 }
 
@@ -74,6 +75,7 @@ Window * OutlookScreen::make(OutlookNav::Kind kind, int value) {
         case OutlookNav::FireSummary: page = new SpcFireSummary{this}; break;
         case OutlookNav::FireDay: page = new SpcFireWeatherOutlook{this, value}; break;
         case OutlookNav::Thunderstorm: page = new SpcTstormOutlooks{this}; break;
+        case OutlookNav::NiceDay: page = new NiceWeatherOutlook{this, value}; break;
         case OutlookNav::RainfallSummary: page = new RainfallOutlookSummary{this}; break;
         case OutlookNav::NationalImages: page = new NationalImages{this}; break;
         default: page = new RainfallOutlook{this, value}; break;
@@ -106,9 +108,14 @@ void OutlookScreen::showPage(OutlookNav::Kind kind, int value) {
             fire->selectDay(value);
         }
     }
+    if (kind == OutlookNav::NiceDay) {
+        if (auto * nice = dynamic_cast<NiceWeatherOutlook *>(page)) {
+            nice->selectDay(value);
+        }
+    }
     stack->setCurrentWidget(page);
     setWindowTitle(page->windowTitle());
-    shown = static_cast<int>(kind) * 100 + (kind == OutlookNav::FireDay ? 0 : value);
+    shown = static_cast<int>(kind) * 100 + (kind == OutlookNav::FireDay || kind == OutlookNav::NiceDay ? 0 : value);
     int index = combo->findData(shown);
     if (index < 0 && kind == OutlookNav::State) {   // state graphics of day 2 or 3: the list has the one entry
         index = combo->findData(static_cast<int>(kind) * 100 + 1);

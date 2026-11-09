@@ -17,7 +17,7 @@
 // tropical screens. Choosing one opens it, in the outlook window when it is a page of it, and leaves this screen where it is. Put combo() in the screen's layout.
 class OutlookNav {
 public:
-    enum Kind { SevereSummary, SevereDay, FireSummary, FireDay, Thunderstorm, State, StormReports, Mesoanalysis, Comparison, CompositeMap, Dashboard, RainfallSummary, RainfallDay, NationalText, NationalImages, NhcProducts, Hurricanes, TropicalHub };
+    enum Kind { SevereSummary, SevereDay, FireSummary, FireDay, Thunderstorm, State, StormReports, Mesoanalysis, Comparison, CompositeMap, Dashboard, RainfallSummary, RainfallDay, NationalText, NationalImages, NhcProducts, Hurricanes, TropicalHub, NiceDay };
     // owner: the screen the list is in; kind and value: what that screen is (the day for SevereDay / State, 0 .. 2 for FireDay, 0 today / 1 yesterday for StormReports, 0 .. 4 for RainfallDay); it is left out of the list
     OutlookNav(Window * owner, Kind kind, int value = 0);
     ComboBox& combo() { return comboBox; }

@@ -5,6 +5,7 @@
 
 #include "OutlookNav.h"
 #include "misc/OutlookScreen.h"
+#include "misc/NiceWeatherOutlook.h"
 #include <algorithm>
 #include "dashboard/Dashboards.h"
 #include "hurricane/HurricaneViewer.h"
@@ -36,6 +37,7 @@ const std::vector<OutlookNav::Destination>& OutlookNav::destinations() {
         {FireSummary, 0, "SPC: Fire weather outlooks, summary"},
         {FireDay, 0, "SPC: Fire weather outlook, days 1-8"},
         {Thunderstorm, 0, "SPC: Thunderstorm outlooks"},
+        {NiceDay, 0, "Nice weather outlook, days 1-7 (a work in progress)"},
         {RainfallSummary, 0, "WPC: Excessive rainfall outlooks, summary"},
         {RainfallDay, 0, "WPC: Excessive rainfall outlook, day 1"},
         {RainfallDay, 1, "WPC: Excessive rainfall outlook, day 2"},
@@ -58,7 +60,7 @@ const std::vector<OutlookNav::Destination>& OutlookNav::destinations() {
 }
 
 bool OutlookNav::isPage(Kind kind) {
-    return kind == SevereSummary || kind == SevereDay || kind == State || kind == FireSummary || kind == FireDay || kind == Thunderstorm || kind == RainfallSummary || kind == RainfallDay || kind == NationalImages;
+    return kind == SevereSummary || kind == SevereDay || kind == State || kind == FireSummary || kind == FireDay || kind == NiceDay || kind == Thunderstorm || kind == RainfallSummary || kind == RainfallDay || kind == NationalImages;
 }
 
 OutlookNav::OutlookNav(Window * owner, Kind kind, int value)
@@ -69,7 +71,7 @@ OutlookNav::OutlookNav(Window * owner, Kind kind, int value)
     items.push_back({SevereSummary, 0});   // the prompt: nothing opens
     for (const auto& d : destinations()) {
         // the screen itself is left out, and the pages of the outlook window are not listed in a screen that is not one (they have the window's own list)
-        if ((d.kind == kind && d.value == value) || (d.kind == FireDay && kind == FireDay)) {
+        if ((d.kind == kind && d.value == value) || (d.kind == FireDay && kind == FireDay) || (d.kind == NiceDay && kind == NiceDay)) {
             continue;
         }
         items.push_back({d.kind, d.value});
