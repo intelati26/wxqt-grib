@@ -89,6 +89,7 @@
 #include "sounding/SoundingHazard.h"
 #include "models/UtilityModelNcepInterface.h"
 #include "gfs/GfsChart.h"
+#include "misc/NiceWeatherOutlook.h"
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "climate/TempHistoryViewer.h"
@@ -787,7 +788,11 @@ int main(int argc, char * argv[]) {
                 GfsRender::Variant variant;
                 variant.width = 640;
                 variant.climateAdjusted = parts.value(7) == "climate";   // a last part "climate": the climate adjusted nice weather chart
-                const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), {}, error, nullptr, variant);
+                GfsChart::Probe probe;
+                const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), {}, error, &probe, variant);
+                if (parts.value(2) == "nice_weather" && probe.valid()) {   // the area at each level, as the nice weather page counts it
+                    fprintf(stderr, "%s\n", NiceWeatherOutlook::summaryOf(probe.fields.front().grid).c_str());
+                }
                 QFile out{parts.value(5)};
                 if (out.open(QIODevice::WriteOnly)) out.write(bytes);
                 fprintf(stderr, "chartpng: %lld bytes %s\n", static_cast<long long>(bytes.size()), error.c_str());
