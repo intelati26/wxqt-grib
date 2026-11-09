@@ -1763,7 +1763,7 @@ const std::vector<Product>& products() {
                             double meanK = normal.sample(lon < 0.0 ? lon + 360.0 : lon, lat);
                             if (!std::isnan(meanK)) {
                                 meanK = meanK > 150.0 ? meanK - 273.15 : meanK;
-                                middle = 64.0 + 0.3 * (meanK * 1.8 + 32.0 + 9.0 - 64.0);   // (30% of the way from the fixed range to the normal high: the Ohio Valley's cool normals come out Nice to Beautiful, the north not past Nice)
+                                middle = 64.0 + 0.5 * (meanK * 1.8 + 32.0 + 9.0 - 64.0);   // (half way from the fixed range to the normal high: the Ohio Valley's cool normals come out Nice to Beautiful, the north Fair)
                             }
                         }
                         const double nowLocal = runHours + zone;
