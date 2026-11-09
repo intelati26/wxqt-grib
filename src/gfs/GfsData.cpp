@@ -1026,6 +1026,9 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
     // downloaded once (kept in the cache, shared by the fields of the hour) and read from the disk. Once that has been seen, the next fields go straight to the disk copy.
     static std::atomic<bool> netcdfNeedsFile{false};
     const auto localCopy = [&] (const std::string& whichUrl, QString& localInput) {
+        if (whichUrl.find("tavg3_2d_aer_Nx") != std::string::npos) {   // (260 MB an hour of the forecast: not worth a whole file for one field, until a part of a file can be read)
+            return false;
+        }
         static std::mutex downloading;
         std::lock_guard<std::mutex> lock{downloading};   // one download at a time: the fields of an hour want the same file
         const auto hash = QCryptographicHash::hash(QByteArray::fromStdString(whichUrl), QCryptographicHash::Sha1).toHex();
