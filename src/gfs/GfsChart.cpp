@@ -1758,12 +1758,14 @@ const std::vector<Product>& products() {
                             lon -= 360.0;
                         }
                         const double zone = lon / 15.0;   // hours of the sun's time ahead of UTC
+                        double normalHigh = std::numeric_limits<double>::quiet_NaN();   // the normal high of the day at the place (degrees F), where the climate adjustment has it
                         double middle = 64.0;   // the middle of the comfortable range, degrees F (56.5 to 71.5): the weather of the day itself, whatever is normal for the place
                         if (haveNormal) {
                             double meanK = normal.sample(lon < 0.0 ? lon + 360.0 : lon, lat);
                             if (!std::isnan(meanK)) {
                                 meanK = meanK > 150.0 ? meanK - 273.15 : meanK;
-                                middle = 64.0 + 0.5 * (meanK * 1.8 + 32.0 + 9.0 - 64.0);   // (half way from the fixed range to the normal high: the Ohio Valley's cool normals come out Nice to Beautiful, the north Fair)
+                                normalHigh = meanK * 1.8 + 32.0 + 9.0;
+                                middle = normalHigh - 6.0;   // (the hours' range moves with the normal: at a 70 F normal high it is the fixed range)
                             }
                         }
                         const double nowLocal = runHours + zone;
@@ -1826,9 +1828,11 @@ const std::vector<Product>& products() {
                         }
                         const double rain = 0.5 * pMax + 0.5 * pSum / count;   // a chance of rain at some hour counts more than the average
                         // the temperature: half the hours' score (the range) and half the day's high (full marks from 70 F, 90 at 66 F, 70 at 62.6 F, nothing under 56 F; a loss over 80)
+                        const double rawHigh = high;
                         const double highShift = middle - 64.0;   // (the day's high is judged by the same range, moved with it)
                         high -= highShift;
-                        const double highScore = high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));
+                        // (his day high against the normal: Dayton, 59 F with a 57 F normal, is 92 of 100; a high 12 F over the normal scores 70, 4 F over 90: 2.4 points a degree over, half that under)
+                        const double highScore = !std::isnan(normalHigh) ? (rawHigh < -500.0 || rawHigh >= 95.0 ? 0.0 : std::clamp(1.0 - (rawHigh > normalHigh ? 0.024 : 0.012) * std::abs(rawHigh - normalHigh), 0.0, 1.0)) : high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));
                         cT[at] = static_cast<float>(0.5 * tScore / count + 0.5 * highScore);
                         cD[at] = static_cast<float>(dScore / count);
                         cC[at] = static_cast<float>(cScore / count);
@@ -1915,8 +1919,8 @@ const std::vector<Product>& products() {
                         }
                     }
                 }
-                // the base each level needs (his day 1 colored 10% of the area Beautiful, 17% Nice, 63% Fair and 10% Decent: Fair is the wide band, Nice and Beautiful are the narrow ones)
-                const double thB = 0.975, thN = 0.935, thF = 0.60, thD = 0.30;
+                // the base each level needs (his day 1 colored 10% of the area Beautiful, 17% Nice, 63% Fair and 10% Decent: Fair is the wide band, Nice and Beautiful are the narrow ones; fitted with the temperature judged against the normal)
+                const double thB = 0.94, thN = 0.915, thF = 0.66, thD = 0.35;
                 for (size_t at = 0; at < cells; at++) {
                     double lonAt = shape.lon0 + static_cast<double>(at % static_cast<size_t>(shape.columns)) * shape.step;
                     if (lonAt > 180.0) {
@@ -1931,7 +1935,7 @@ const std::vector<Product>& products() {
                     int value = 0;
                     if (base >= 0.97 && apparentMean >= 66.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.97) {
                         value = 5;
-                    } else if (base >= thB && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.8 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.88) {
+                    } else if (base >= thB && apparentMean >= 50.0 && apparentMean <= 90.0 && tScore >= 0.8 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.88) {
                         value = 4;
                     } else if (base >= thN && tScore >= 0.7 && rScore >= 0.75 && wScore >= 0.5 && dScore >= 0.4) {
                         value = 3;
