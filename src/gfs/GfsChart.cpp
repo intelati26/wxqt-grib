@@ -1807,12 +1807,12 @@ const std::vector<Product>& products() {
                                 gustMax = std::max(gustMax, gust);
                             }
                             tScore += weight * (apparent >= 95.0 ? 0.0 : ramp(outside, 0.0, 14.0));   // (dangerous heat is never nice)
-                            dScore += weight * (dew < 50.0 ? std::max(0.5, 1.0 - 0.012 * (50.0 - dew)) : ramp(dew, 58.0, 72.0));   // (a little under full marks for very dry air: about 92 at a 44 F dewpoint)
+                            dScore += weight * (dew < 52.0 ? std::max(0.5, 1.0 - 0.0095 * (52.0 - dew)) : ramp(dew, 58.0, 70.0));   // (a little under full marks for very dry air: about 92 at a 44 F dewpoint)
                             if (weight >= 0.5) {
                                 high = std::max(high, apparent);
                             }
                             cScore += weight * std::max(0.0, 1.0 - 0.000746 * std::pow(std::max(0.0, cloud), 1.67));   // (his sky: 5% cloud 98.9, 36% cloud 70.4; the power curve through both, nothing at an overcast)
-                            wScore += weight * ramp(gust, 15.0, 35.0) * ramp(sustained, 8.0, 26.0);   // (his Topeka, 12 mph, is Fair; a 7.8 mph day with 12.7 mph gusts scores 96.7: the sustained wind counts from 8 mph, nothing at 26)
+                            wScore += weight * ramp(gust, 13.0, 35.0) * ramp(sustained, 7.0, 26.0);   // (his Topeka, 12 mph, is Fair; a 7.8 mph day with 12.7 mph gusts scores 96.7: the sustained wind counts from 8 mph, nothing at 26)
                             pMax = std::max(pMax, weight * rain);
                             pSum += weight * rain;
                             count += weight;
@@ -1829,7 +1829,7 @@ const std::vector<Product>& products() {
                         cD[at] = static_cast<float>(dScore / count);
                         cC[at] = static_cast<float>(cScore / count);
                         cW[at] = static_cast<float>(wScore / count);
-                        cR[at] = static_cast<float>(ramp(rain, 0.0, 50.0));
+                        cR[at] = static_cast<float>(ramp(rain, 0.0, 40.0));   // (a moderate chance pulls the score down a good bit)
                         cA[at] = static_cast<float>(aSum / count);   // (the top levels are for a day that is warm in itself)
                         cS[at] = static_cast<float>(smokeWeight >= 0.5 ? smoke / smokeWeight : 0.0);   // (no particles forecast, no cap)
                         cG[at] = gustMax > 35.0 ? 1.0f : 0.0f;   // a gust over 35 mph at some hour: the share of the area around that has one is what caps
