@@ -1456,10 +1456,10 @@ void MasterMapViewer::exportWorld() {
     standardWidths();
     // the polar maps: how far from the pole the sides reach, and a circle (the hemisphere) or a wide frame (as a polar vortex chart)
     auto * reachBox = UiStandards::combo(&dialog);
-    for (const int lat : {10, 20, 30, 40, 50}) {
-        reachBox->addItem(QString{"Reaches to %1 degrees latitude"}.arg(lat), lat);
+    for (const int lat : {0, 10, 20, 30, 40, 50}) {
+        reachBox->addItem(lat == 0 ? QString{"Reaches to the equator (the whole hemisphere)"} : QString{"Reaches to %1 degrees latitude"}.arg(lat), lat);
     }
-    reachBox->setCurrentIndex(2);
+    reachBox->setCurrentIndex(3);
     auto * frameBox = UiStandards::combo(&dialog);
     frameBox->addItem("Wide frame, filled to the corners (a polar vortex chart)", 1);
     frameBox->addItem("Circle (the whole hemisphere to that latitude)", 0);
@@ -1521,6 +1521,7 @@ void MasterMapViewer::exportWorld() {
     double centre = centerBox->currentData().toDouble();
     const int width = widthBox->currentData().toInt();
     int autoReach = 0;
+    bool autoPolar = false;
     if (projectionBox->currentData().toInt() < 0) {   // automatic: from the view
         const auto topLeft = mapView->toLatLon(QPointF{0.0, 0.0});
         const auto bottomRight = mapView->toLatLon(QPointF{static_cast<double>(mapView->pixelWidth()), static_cast<double>(mapView->pixelHeight())});
@@ -1534,8 +1535,9 @@ void MasterMapViewer::exportWorld() {
             const bool northern = (north >= 80.0 && south > -80.0) || latMiddle > 0.0;
             projection = northern ? GlobeMapView::Projection::PolarNorth : GlobeMapView::Projection::PolarSouth;
             const double edge = northern ? south : -north;   // the latitude the far side of the view reaches (toward the equator)
-            autoReach = 10;
-            for (const int lat : {10, 20, 30, 40, 50}) {
+            autoPolar = true;
+            autoReach = 0;
+            for (const int lat : {0, 10, 20, 30, 40, 50}) {
                 if (lat <= edge + 1.0e-6) {
                     autoReach = lat;
                 }
@@ -1549,7 +1551,7 @@ void MasterMapViewer::exportWorld() {
         return;
     }
     if (GlobeMapView::isPolar(projection)) {
-        if (autoReach > 0) {
+        if (autoPolar) {
             GlobeMapView::setPolarFrame(autoReach, false);
         } else {
             GlobeMapView::setPolarFrame(reachBox->currentData().toDouble(), frameBox->currentData().toInt() == 1);
