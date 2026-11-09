@@ -52,6 +52,7 @@
 #include <QDir>
 #include <QStandardPaths>
 #include "gfs/GfsRender.h"
+#include "gfs/Hdf5Range.h"
 #include "tropical/PhaseViewer.h"
 #include "misc/AhdViewer.h"
 #include "rivers/RiverForecastList.h"
@@ -759,6 +760,26 @@ int main(int argc, char * argv[]) {
                 if (out.open(QIODevice::WriteOnly)) out.write(bytes);
                 fprintf(stderr, "thumb: %lld bytes\n", static_cast<long long>(bytes.size()));
                 std::_Exit(0);
+            } else if (route == "hdf5extract") {   // WXQT_OPEN=hdf5extract WXQT_HDF5_SRC=<file or url> WXQT_HDF5_VAR=<variable> WXQT_HDF5_OUT=<out.nc>: a variable of a NetCDF-4 file read by ranges and written as a small classic NetCDF file
+                const auto source = qEnvironmentVariable("WXQT_HDF5_SRC");
+                auto fetched = std::make_shared<long long>(0);
+                const Hdf5Range::Fetch fetch = [source, fetched] (long long start, long long end) {
+                    QByteArray bytes;
+                    if (source.startsWith("/")) {
+                        QFile f{source};
+                        if (f.open(QIODevice::ReadOnly) && f.seek(start)) {
+                            bytes = f.read(end - start + 1);
+                        }
+                    } else {
+                        bytes = URL::getBytesRangeManaged(source.toStdString(), start, end);
+                    }
+                    *fetched += bytes.size();
+                    return bytes;
+                };
+                std::string error;
+                const bool ok = Hdf5Range::extract(fetch, qEnvironmentVariable("WXQT_HDF5_VAR").toStdString(), qEnvironmentVariable("WXQT_HDF5_OUT"), error, qEnvironmentVariable("WXQT_HDF5_CACHE"));
+                fprintf(stderr, "hdf5extract: %s %s (%lld bytes read)\n", ok ? "ok" : "failed", error.c_str(), *fetched);
+                std::_Exit(ok ? 0 : 1);
             } else if (route.startsWith("chartpng:")) {   // WXQT_OPEN=chartpng:<model>:<chart>:<forecast hour>:<area id>:<out file>[:<run yyyyMMddHH>[:climate]]: the model screen's chart of the newest run (or that one) drawn to a file (640 wide, as a tile)
                 const auto parts = route.split(':');
                 GfsRender::Session session;
