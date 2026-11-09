@@ -72,6 +72,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"WPC_PPP_36", "WPC median rain, snow and ice - next 36 hours", "baseline_show_chart_black_48dp.png#2", false, false},
         {"WPC_PPP_48", "WPC median rain, snow and ice - next 48 hours", "baseline_show_chart_black_48dp.png#2", false, false},
         {"WPC_PPP_72", "WPC median rain, snow and ice - next 72 hours", "baseline_show_chart_black_48dp.png#2", false, false},
+        {"NICE_DAY1", "Nice weather outlook, day 1 (from the National Blend of Models: a work in progress)", "grib.png", true, false},
         {"GRIB_LATEST", "Model viewer - your last model, chart and area, newest run", "grib.png", true, false},
     };
     return entries;
@@ -117,6 +118,7 @@ namespace {
         {"WPC_PPP_36", {"WPC 36 hr", "The Weather Prediction Center's probabilistic precipitation portal: the median (50th percentile) amount of rain, snow and ice in the first 36 hour period of the newest run. Click for the Model Viewer on this chart."}},
         {"WPC_PPP_48", {"WPC 48 hr", "The Weather Prediction Center's probabilistic precipitation portal: the median (50th percentile) amount of rain, snow and ice in the first 48 hour period of the newest run. Click for the Model Viewer on this chart."}},
         {"WPC_PPP_72", {"WPC 72 hr", "The Weather Prediction Center's probabilistic precipitation portal: the median (50th percentile) amount of rain, snow and ice in the 72 hour period of the newest run. Click for the Model Viewer on this chart."}},
+        {"NICE_DAY1", {"Nice weather: day 1", "Where the daytime weather is best for being outside today or tomorrow in five levels (Decent, Fair, Nice, Beautiful, Perfect), made from the National Blend of Models' temperature, dewpoint, cloud, gusts and rain chance. A work in progress. Click for the days 1 to 7."}},
         {"GRIB_LATEST", {"Model chart", "The model, chart and area you last looked at in the Model Viewer, from the newest run."}},
         };
         return table;
@@ -276,6 +278,13 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         GfsRender::Variant variant;
         variant.width = 640;
         return GfsRender::png(session, "WPC-PPP", "ppp_" + hoursText + "h_median", "CONUS", run.id(), hour, {}, error, nullptr, variant);
+    }
+    if (token == "NICE_DAY1") {
+        GfsRender::Session session;
+        string error;
+        GfsRender::Variant variant;
+        variant.width = 640;
+        return GfsRender::png(session, "NBM", "nice_weather", "CONUS", "", 24, {}, error, nullptr, variant);
     }
     if (token == "RTMA_AREA") {
         // the model screen's last area (RTMA covers the United States only: another area than a saved place is drawn as CONUS), from the newest analysis
