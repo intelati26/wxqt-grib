@@ -1884,7 +1884,7 @@ const std::vector<Product>& products() {
             // the smoke is the RRFS's (the blend has none): its near-surface fine particles at the same hours, for the first days it reaches
             x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 7)); }, 6});
             x.fill = [] (const Grids& g) { return pick(g, "level"); };
-            x.ramp = Ramp{{{0.5, QColor{"#d6e7a3"}}, {1.5, QColor{"#9fd486"}}, {2.5, QColor{"#4fb868"}}, {3.5, QColor{"#1b9a86"}}, {4.5, QColor{"#1a6fb0"}}, {5.5, QColor{"#1a6fb0"}}}, true};
+            x.ramp = Ramp{{{1.0, QColor{"#d6e7a3"}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1b9a86"}}, {5.0, QColor{"#1a6fb0"}}}, true};   // each level starts at its whole number; the scale ends at 5
             x.fillTitle = "Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, 5 Perfect";
             x.legendStep = 1;
             p.push_back(x);
