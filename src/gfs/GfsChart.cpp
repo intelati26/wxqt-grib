@@ -1703,7 +1703,7 @@ const std::vector<Product>& products() {
             x.mainCycleStep = 6;   // the long hours are made by the main runs
             const auto sampleHours = [blend] (int day) {   // the forecast hours that can fall in a cell's daytime of that day, whatever the run's hour: 3-hourly where the model has them, then (the blend) 6-hourly
                 std::vector<int> hours;
-                for (int f = 24 * (day - 1) + 3; f <= 24 * (day - 1) + 27; f += 3) {
+                for (int f = 24 * (day - 1) + 3; f <= 24 * (day - 1) + 36; f += 3) {   // (to 36 hours: a late run's tomorrow reaches to the evening of the west coast)
                     if (!blend || f <= 36 || f % 6 == 0) {
                         hours.push_back(f);
                     }
@@ -1792,7 +1792,7 @@ const std::vector<Product>& products() {
                         }
                         const double nowLocal = runHours + zone;
                         const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
-                        const double target = std::floor(nowLocal / 24.0) + (hourNow < 17.0 ? 0 : 1) + (day - 1);
+                        const double target = std::floor(nowLocal / 24.0) + (hourNow <= 9.5 ? 0 : 1) + (day - 1);
                         double wWorst = 1.0, tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0, gustMax = 0;
                         double lowApparent = 1000.0;
                         double count = 0;   // the weight of the hours (an hour counts fully from 10 to 18 o'clock and less towards 8 and 20, so that the cells where the hours fall differently do not make a line)
