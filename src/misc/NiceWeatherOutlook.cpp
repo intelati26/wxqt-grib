@@ -137,6 +137,10 @@ namespace {
     };
 }
 
+std::string NiceWeatherOutlook::summaryOf(const GfsGrid::Grid& grid) {
+    return summary(grid);
+}
+
 NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)
     : Window{parent}
     , comboDay{this, dayLabels}

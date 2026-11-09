@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <string>
+#include "gfs/GfsGrid.h"
 #include "ui/ComboBox.h"
 #include "ui/Image.h"
 #include "ui/Shortcut.h"
@@ -21,6 +22,7 @@
 class NiceWeatherOutlook : public Window {
 public:
     NiceWeatherOutlook(Window *, int);
+    static std::string summaryOf(const GfsGrid::Grid& grid);   // the summary text of a grid of levels (what the page shows beside the map)
     void selectDay(int day) { if (comboDay.getIndex() != std::clamp(day, 0, 6)) { comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 6))); showDay(); } }   // 0 day 1 .. 6 day 7
 
 private:

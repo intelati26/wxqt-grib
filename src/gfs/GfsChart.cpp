@@ -1911,6 +1911,8 @@ const std::vector<Product>& products() {
                         }
                     }
                 }
+                // the base each level needs (his day 1 colored 10% of the area Beautiful, 17% Nice, 63% Fair and 10% Decent: Fair is the wide band, Nice and Beautiful are the narrow ones)
+                const double thB = 0.975, thN = 0.935, thF = 0.60, thD = 0.30;
                 for (size_t at = 0; at < cells; at++) {
                     if (std::isnan(cT[at])) {
                         level.values[at] = none;
@@ -1921,13 +1923,13 @@ const std::vector<Product>& products() {
                     int value = 0;
                     if (base >= 0.97 && apparentMean >= 66.0 && apparentMean <= 85.0 && tScore >= 0.97 && rScore >= 0.98 && dScore >= 0.95 && wScore >= 0.9 && cScore >= 0.97) {
                         value = 5;
-                    } else if (base >= 0.91 && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.8 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.88) {
+                    } else if (base >= thB && apparentMean >= 55.0 && apparentMean <= 90.0 && tScore >= 0.8 && rScore >= 0.9 && dScore >= 0.7 && wScore >= 0.75 && cScore >= 0.88) {
                         value = 4;
-                    } else if (base >= 0.84 && tScore >= 0.7 && rScore >= 0.75 && wScore >= 0.5 && dScore >= 0.4) {
+                    } else if (base >= thN && tScore >= 0.7 && rScore >= 0.75 && wScore >= 0.5 && dScore >= 0.4) {
                         value = 3;
-                    } else if (base >= 0.72 && tScore >= 0.5 && rScore >= 0.5) {
+                    } else if (base >= thF && tScore >= 0.5 && rScore >= 0.5) {
                         value = 2;
-                    } else if (base >= 0.55 && tScore >= 0.3 && rScore >= 0.3) {
+                    } else if (base >= thD && tScore >= 0.3 && rScore >= 0.3) {
                         value = 1;
                     }
                     value = std::min(value, day <= 2 ? 5 : day == 3 ? 4 : 3);   // the further the day, the lower the level the forecast can stand behind
