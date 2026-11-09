@@ -1920,7 +1920,7 @@ const std::vector<Product>& products() {
                     }
                 }
                 // the base each level needs (his day 1 colored 10% of the area Beautiful, 17% Nice, 63% Fair and 10% Decent: Fair is the wide band, Nice and Beautiful are the narrow ones; fitted with the temperature judged against the normal)
-                const double thP = 0.92, thB = 0.82, thN = 0.76, thF = 0.45, thD = 0.20;   // (his scale: Beautiful from about 82 of 100, as at Huntsville; the shares of his day 1: 10% Beautiful, 17% Nice, 60% Fair)
+                const double thP = 0.92, thB = 0.805, thN = 0.76, thF = 0.45, thD = 0.20;   // (his scale: Beautiful from about 82 of 100, as at Huntsville; the shares of his day 1: 10% Beautiful, 17% Nice, 60% Fair)
                 for (size_t at = 0; at < cells; at++) {
                     double lonAt = shape.lon0 + static_cast<double>(at % static_cast<size_t>(shape.columns)) * shape.step;
                     if (lonAt > 180.0) {
