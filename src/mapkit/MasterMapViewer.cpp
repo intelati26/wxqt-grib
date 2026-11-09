@@ -1433,6 +1433,8 @@ void MasterMapViewer::exportWorld() {
     auto * column = new QVBoxLayout{&dialog};
     column->addWidget(new QLabel{"The layers as they are on the map, over the whole world, with nothing stretched toward the poles as on Mercator: Robinson is the compromise the United Nations' world maps use; Equal Earth and Mollweide keep areas true.", &dialog});
     auto * projectionBox = UiStandards::combo(&dialog);
+    // the first choice: the projection that suits the part of the world in view (a polar one for a view of the pole, else Equal Earth centred on the view)
+    projectionBox->addItem("Automatic: the best for what is in view", -1);
     projectionBox->addItem("Robinson (the United Nations' world maps)", static_cast<int>(GlobeMapView::Projection::Robinson));
     projectionBox->addItem("Equal Earth (equal area)", static_cast<int>(GlobeMapView::Projection::EqualEarth));
     projectionBox->addItem("Mollweide (equal area)", static_cast<int>(GlobeMapView::Projection::Mollweide));
@@ -1464,7 +1466,7 @@ void MasterMapViewer::exportWorld() {
     auto * graticuleBox = new QCheckBox{"Lines of latitude and longitude, with their numbers", &dialog};
     graticuleBox->setChecked(true);
     const auto polarControls = [=] {
-        const bool polar = GlobeMapView::isPolar(static_cast<GlobeMapView::Projection>(projectionBox->currentData().toInt()));
+        const bool polar = projectionBox->currentData().toInt() >= 0 && GlobeMapView::isPolar(static_cast<GlobeMapView::Projection>(projectionBox->currentData().toInt()));
         reachBox->setVisible(polar);
         frameBox->setVisible(polar);
     };
@@ -1515,15 +1517,43 @@ void MasterMapViewer::exportWorld() {
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
-    const auto projection = static_cast<GlobeMapView::Projection>(projectionBox->currentData().toInt());
-    const double centre = centerBox->currentData().toDouble();
+    auto projection = static_cast<GlobeMapView::Projection>(std::max(0, projectionBox->currentData().toInt()));
+    double centre = centerBox->currentData().toDouble();
     const int width = widthBox->currentData().toInt();
+    int autoReach = 0;
+    if (projectionBox->currentData().toInt() < 0) {   // automatic: from the view
+        const auto topLeft = mapView->toLatLon(QPointF{0.0, 0.0});
+        const auto bottomRight = mapView->toLatLon(QPointF{static_cast<double>(mapView->pixelWidth()), static_cast<double>(mapView->pixelHeight())});
+        const double north = std::min(topLeft.first, 90.0), south = std::max(bottomRight.first, -90.0);
+        double lonSpan = bottomRight.second - topLeft.second;
+        const auto middle = mapView->toLatLon(QPointF{mapView->pixelWidth() / 2.0, mapView->pixelHeight() / 2.0});
+        const double latMiddle = middle.first;
+        const bool wholeWorld = north - south > 100.0 || lonSpan > 300.0;   // the whole world (or most of its latitudes) is in view
+        centre = lonSpan > 300.0 ? 0.0 : std::round(middle.second / 10.0) * 10.0;
+        if (!wholeWorld && (latMiddle >= 55.0 || latMiddle <= -55.0 || north >= 80.0 || south <= -80.0)) {   // the pole is in the view, or it is a high latitude view: from the pole, as far as the view reaches
+            const bool northern = (north >= 80.0 && south > -80.0) || latMiddle > 0.0;
+            projection = northern ? GlobeMapView::Projection::PolarNorth : GlobeMapView::Projection::PolarSouth;
+            const double edge = northern ? south : -north;   // the latitude the far side of the view reaches (toward the equator)
+            autoReach = 10;
+            for (const int lat : {10, 20, 30, 40, 50}) {
+                if (lat <= edge + 1.0e-6) {
+                    autoReach = lat;
+                }
+            }
+        } else {
+            projection = GlobeMapView::Projection::EqualEarth;   // areas true: the pictures of the weather and the night lights compare fairly, and nothing is stretched toward the poles
+        }
+    }
     const auto path = QFileDialog::getSaveFileName(this, "Export the whole world", ChartExport::startFolder() + "/" + ChartExport::fileName("world map", "png"), "PNG image (*.png)");
     if (path.isEmpty()) {
         return;
     }
     if (GlobeMapView::isPolar(projection)) {
-        GlobeMapView::setPolarFrame(reachBox->currentData().toDouble(), frameBox->currentData().toInt() == 1);
+        if (autoReach > 0) {
+            GlobeMapView::setPolarFrame(autoReach, false);
+        } else {
+            GlobeMapView::setPolarFrame(reachBox->currentData().toDouble(), frameBox->currentData().toInt() == 1);
+        }
     }
     exportWorldTo(path, projection, centre, width, highBox != nullptr && highBox->isChecked(), graticuleBox->isChecked());
 }
