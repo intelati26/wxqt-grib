@@ -25,6 +25,7 @@
 #include <set>
 #include <tuple>
 #include "cfs/UtilityCfs.h"
+#include "gfs/AirNowLoader.h"
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsModels.h"
 #include "spcrefs/UtilitySpcRefs.h"
@@ -1884,6 +1885,40 @@ const std::vector<Product>& products() {
                         *v = std::move(result);
                     }
                 }
+                // AirNow's air quality (the reporting areas, the cities and their surroundings) for the day: the worst category within 50 miles caps a place (Good: nothing, but an index known to be over 35
+                // is not for Perfect; Moderate: Beautiful; Unhealthy for Sensitive Groups: Fair; Unhealthy: Decent; worse: none). Where the file has nothing for the day (the forecasts go about five days
+                // out) there is no cap from it.
+                std::vector<int> airCap(cells, 5);
+                {
+                    const double midLocal = runHours - 6.3;   // the day's date by the sun's time at the middle of the country
+                    const double hourMid = midLocal - 24.0 * std::floor(midLocal / 24.0);
+                    const long dayCount = static_cast<long>(std::floor(midLocal / 24.0)) + (hourMid < 17.0 ? 0 : 1) + (day - 1);
+                    const auto points = AirNow::points(QDate{1970, 1, 1}.addDays(dayCount));
+                    const double radiusKm = 80.5;
+                    for (const auto& point : points) {
+                        const int cap = point.category >= 4 ? 0 : point.category == 3 ? 1 : point.category == 2 ? 2 : point.category == 1 ? 4 : point.aqi > 35.0 ? 4 : 5;
+                        if (cap >= 5) {
+                            continue;
+                        }
+                        const int rowCenter = static_cast<int>(std::lround((shape.lat0 - point.lat) / shape.step));
+                        const int spanRows = static_cast<int>(radiusKm / (111.32 * shape.step)) + 1;
+                        for (int row = std::max(0, rowCenter - spanRows); row <= std::min(shape.rows - 1, rowCenter + spanRows); row++) {
+                            const double lat = shape.lat0 - row * shape.step;
+                            const double perDegree = 111.32 * std::max(0.2, std::cos(lat * pi / 180.0));
+                            double lonCell = point.lon - shape.lon0;
+                            while (lonCell < 0.0) lonCell += 360.0;
+                            const int columnCenter = static_cast<int>(std::lround(lonCell / shape.step));
+                            const int spanColumns = static_cast<int>(radiusKm / (perDegree * shape.step)) + 1;
+                            for (int column = std::max(0, columnCenter - spanColumns); column <= std::min(shape.columns - 1, columnCenter + spanColumns); column++) {
+                                const double dy = (lat - point.lat) * 111.32, dx = (shape.lon0 + column * shape.step - (point.lon < 0 && shape.lon0 >= 0 ? point.lon + 360.0 : point.lon)) * perDegree;
+                                if (dx * dx + dy * dy <= radiusKm * radiusKm) {
+                                    auto& value = airCap[static_cast<size_t>(row) * static_cast<size_t>(shape.columns) + static_cast<size_t>(column)];
+                                    value = std::min(value, cap);
+                                }
+                            }
+                        }
+                    }
+                }
                 for (size_t at = 0; at < cells; at++) {
                     if (std::isnan(cT[at])) {
                         level.values[at] = none;
@@ -1907,6 +1942,7 @@ const std::vector<Product>& products() {
                     // the fine particles, the daytime mean (micrograms a cubic meter), by the EPA's air quality index: Perfect needs an index of 35 (8.4 micrograms), Beautiful about 55 (14), Nice 100 (35.4), Fair
                     // 150 (55.4), Decent 250 (125)
                     value = std::min(value, smoke <= 8.4 ? 5 : smoke <= 14.0 ? 4 : smoke <= 35.4 ? 3 : smoke <= 55.4 ? 2 : smoke <= 125.0 ? 1 : 0);
+                    value = std::min(value, airCap[at]);
                     if (wScore < 0.2 || gusty >= 0.05) {   // gusts over 35 mph in the area around (or a mean gust past about 31 mph) are not a nice day
                         value = std::min(value, 2);
                     }
