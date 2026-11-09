@@ -1793,10 +1793,16 @@ const std::vector<Product>& products() {
                         const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
                         const double target = std::floor(nowLocal / 24.0) + (hourNow < 17.0 ? 0 : 1) + (day - 1);
                         double wWorst = 1.0, tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0, gustMax = 0;
+                        double lowApparent = 1000.0;
                         double count = 0;   // the weight of the hours (an hour counts fully from 10 to 18 o'clock and less towards 8 and 20, so that the cells where the hours fall differently do not make a line)
                         for (const int f : hours) {
                             const double local = runHours + f + zone;
                             const double dayIndex = std::floor(local / 24.0), hourOfDay = local - 24.0 * dayIndex;
+                            if (dayIndex == target && hourOfDay <= 9.0) {   // the morning's hours: the day's low (feels like)
+                                if (const auto found = g.find("a" + std::to_string(f)); found != g.end() && !std::isnan(found->second.values[at])) {
+                                    lowApparent = std::min(lowApparent, found->second.values[at] * 1.8 + 32.0);
+                                }
+                            }
                             if (dayIndex != target || hourOfDay <= 8.0 || hourOfDay >= 20.0) {
                                 continue;
                             }
@@ -1854,7 +1860,9 @@ const std::vector<Product>& products() {
                         high -= highShift;
                         // (his day high against the normal: Dayton, 59 F with a 57 F normal, is 92 of 100; a high 12 F over the normal scores 70, 4 F over 90: 2.4 points a degree over, half that under)
                         const double highScore = !std::isnan(normalHigh) ? (rawHigh < -500.0 || rawHigh >= 95.0 ? 0.0 : std::clamp(1.0 - (rawHigh > normalHigh ? 0.024 : 0.012) * std::abs(rawHigh - normalHigh), 0.0, 1.0)) : high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));
-                        cT[at] = static_cast<float>(0.5 * tScore / count + 0.5 * highScore);
+                        // (his Ozarks: the same 69.8 F high is 55 with a 48 F low and 65 with a 42 F low, so a low above the normal low, taken 9 F under the mean, costs 1.75 points a degree)
+                        const double lowPenalty = (std::isnan(normalHigh) || lowApparent > 500.0) ? 0.0 : 0.0175 * std::max(0.0, lowApparent - (normalHigh - 18.0));
+                        cT[at] = static_cast<float>(0.5 * tScore / count + 0.5 * std::max(0.0, highScore - lowPenalty));
                         cD[at] = static_cast<float>(dScore / count);
                         cC[at] = static_cast<float>(cScore / count);
                         cW[at] = static_cast<float>(0.5 * wScore / count + 0.5 * wWorst);
