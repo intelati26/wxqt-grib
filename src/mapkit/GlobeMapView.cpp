@@ -329,6 +329,12 @@ bool GlobeMapView::place(const QPointF& p, double& lat, double& lon) const {
     return true;
 }
 
+void GlobeMapView::setPoleCaps(const QImage& north, const QImage& south) {
+    poleNorth = north;
+    poleSouth = south;
+    update();
+}
+
 // the skin for the part of the world in view: the whole world while it is all there, the cap of the globe that shows when it is zoomed
 void GlobeMapView::makeNow() {
     if (!makeSkin || width() < 100) {
@@ -455,6 +461,20 @@ void GlobeMapView::paintEvent(QPaintEvent *) {
                             const double u = std::min(1.0, (std::fabs(trueLat) - 84.95) / 5.05);
                             color = rowAverage(trueLat > 0 ? sumsNorth : sumsSouth, sx, static_cast<int>(u * skin.width / 2.0) + 2);
                         }
+                    }
+                }
+            }
+            if (std::fabs(trueLat) >= 78.0) {   // toward the poles the model's own polar picture takes over from the skin (faded in over 78 - 82 degrees)
+                const QImage& cap = trueLat > 0 ? poleNorth : poleSouth;
+                if (!cap.isNull()) {
+                    const double r = 2.0 * std::tan((90.0 - std::fabs(trueLat)) * rad / 2.0);
+                    const double scale = cap.width() / (2.0 * polarRadius(poleCapReach, 1)), phi = (lon - 0.0) * rad;
+                    const int cxp = static_cast<int>(cap.width() / 2.0 + (trueLat > 0 ? 1 : -1) * r * std::sin(phi) * scale);
+                    const int cyp = static_cast<int>(cap.height() / 2.0 + r * std::cos(phi) * scale);
+                    if (cxp >= 0 && cyp >= 0 && cxp < cap.width() && cyp < cap.height()) {
+                        const QRgb q = cap.pixel(cxp, cyp);
+                        const double u = std::min(1.0, (std::fabs(trueLat) - 78.0) / 4.0), k = u * u * (3.0 - 2.0 * u);
+                        color = qRgb(static_cast<int>(qRed(color) + (qRed(q) - qRed(color)) * k), static_cast<int>(qGreen(color) + (qGreen(q) - qGreen(color)) * k), static_cast<int>(qBlue(color) + (qBlue(q) - qBlue(color)) * k));
                     }
                 }
             }

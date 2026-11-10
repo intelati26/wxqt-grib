@@ -2554,6 +2554,43 @@ GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, doubl
 }
 
 // the map or the globe
+void MasterMapViewer::ensurePoleCaps() {
+    string chart;
+    vector<string> models;
+    QDateTime when;
+    if (!modelSpec(chart, models, when)) {
+        if (!poleCapKey.empty()) {
+            poleCapKey.clear();
+            globeView->setPoleCaps(QImage{}, QImage{});
+        }
+        return;
+    }
+    string key = chart + "|" + when.toString("yyyyMMddHH").toStdString();
+    for (const auto& m : models) {
+        key += "|" + m;
+    }
+    if (key == poleCapKey || poleCapBusy) {
+        return;
+    }
+    poleCapBusy = true;
+    auto north = std::make_shared<QImage>(), south = std::make_shared<QImage>();
+    new FutureVoid{this, [chart, models, when, north, south] {
+        const auto sources = WorldRender::loadSources(chart, models, when);
+        if (sources.empty()) {
+            return;
+        }
+        std::atomic<int> rows{0};
+        GlobeMapView::setPolarFrame(GlobeMapView::poleCapReach, false);
+        *north = WorldRender::renderWorld(sources, static_cast<int>(GlobeMapView::Projection::PolarNorth), 0.0, 1400, &rows);
+        *south = WorldRender::renderWorld(sources, static_cast<int>(GlobeMapView::Projection::PolarSouth), 0.0, 1400, &rows);
+    }, [this, key, north, south] {
+        poleCapBusy = false;
+        poleCapKey = key;
+        globeView->setPoleCaps(*north, *south);
+        ensurePoleCaps();   // the chart may have changed meanwhile
+    }};
+}
+
 void MasterMapViewer::setGlobe(bool on) {
     globeOn = on;
     buttonGlobe.getView()->setText(on ? "Flat map" : "Globe");
@@ -2565,7 +2602,7 @@ void MasterMapViewer::setGlobe(bool on) {
     }
     const auto * widget = mapView->map();
     const auto middle = mapView->toLatLon(QPointF{widget->width() / 2.0, widget->height() / 2.0});
-    globeView->makeSkin = [this] (double a, double b, double c, double d, int w, double reference) { return makeSkin(a, b, c, d, w, reference); };
+    globeView->makeSkin = [this] (double a, double b, double c, double d, int w, double reference) { ensurePoleCaps(); return makeSkin(a, b, c, d, w, reference); };
     globeView->pick = [this] (const GlobeMapView::Skin& skin, double lat, double lon) {
         const auto saved = mapView->saveState();
         mapView->restoreState(skin.state);
