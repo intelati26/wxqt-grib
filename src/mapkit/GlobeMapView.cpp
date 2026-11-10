@@ -372,7 +372,41 @@ void GlobeMapView::paintEvent(QPaintEvent *) {
     const auto t = skin.transform;
     const double skinCentre = (skin.west + skin.east) / 2.0;
     const double toPixels = skin.width / 1000.0;
-    const QRgb background = skin.image.pixel(0, 0) | 0xff000000u;   // the map's own background, where the skin has nothing (the poles)
+    const QRgb background = skin.image.pixel(0, 0) | 0xff000000u;
+    // the rows at the top and the bottom of the skin as running sums (the cap beyond them is the average of a stretch of the row, a longer one the nearer the pole)
+    const bool goesRound = skin.east - skin.west >= 359.0;
+    const auto sums = [&] (int y) {
+        std::vector<double> total(static_cast<size_t>(skin.width + 1) * 3, 0.0);
+        for (int x = 0; x < skin.width; x++) {
+            const QRgb c = skin.image.pixel(x, y);
+            const bool has = qAlpha(c) > 0;
+            total[(x + 1) * 3] = total[x * 3] + (has ? qRed(c) : qRed(background));
+            total[(x + 1) * 3 + 1] = total[x * 3 + 1] + (has ? qGreen(c) : qGreen(background));
+            total[(x + 1) * 3 + 2] = total[x * 3 + 2] + (has ? qBlue(c) : qBlue(background));
+        }
+        return total;
+    };
+    const auto sumsNorth = sums(1), sumsSouth = sums(std::max(0, skin.height - 2));
+    const auto rowAverage = [&] (const std::vector<double>& total, int sx, int half) {   // the colour averaged over sx - half .. sx + half (round the skin when it goes round)
+        const int w = skin.width;
+        double v[3] = {0.0, 0.0, 0.0};
+        int n = 0;
+        const auto add = [&] (int from, int to) {   // columns from .. to - 1, inside the skin
+            from = std::clamp(from, 0, w);
+            to = std::clamp(to, 0, w);
+            for (int k = 0; k < 3; k++) {
+                v[k] += total[static_cast<size_t>(to) * 3 + k] - total[static_cast<size_t>(from) * 3 + k];
+            }
+            n += to - from;
+        };
+        half = std::min(half, w / 2);
+        add(sx - half, sx + half + 1);
+        if (goesRound) {
+            if (sx - half < 0) { add(sx - half + w, w); }
+            if (sx + half + 1 > w) { add(0, sx + half + 1 - w); }
+        }
+        return n == 0 ? background : qRgb(static_cast<int>(v[0] / n), static_cast<int>(v[1] / n), static_cast<int>(v[2] / n));
+    };
     for (int py = top; py <= bottom; py++) {
         auto * row = reinterpret_cast<QRgb *>(image.scanLine(py));
         const double y = (cy - py) / R;
@@ -391,11 +425,14 @@ void GlobeMapView::paintEvent(QPaintEvent *) {
             QRgb color = background;
             // the poles: the skin is Mercator and stops at its top and bottom row (85 degrees on a skin of the whole world); the cap beyond takes the nearest row along its meridian, so that it is wedges
             // of the colours of the rim, not a flat disc
-            const bool wholeWorld = skin.north >= 84.9 && skin.south <= -84.9;
-            if (wholeWorld) {
-                lat = std::clamp(lat, -84.95, 84.95);
+            const bool capNorth = skin.north >= 84.9, capSouth = skin.south <= -84.9;
+            const double trueLat = lat;
+            if (capNorth && lat > 84.95) {
+                lat = 84.95;
+            } else if (capSouth && lat < -84.95) {
+                lat = -84.95;
             }
-            if (lat > -85.0 && lat < 85.0) {
+            {
                 // the longitude as the skin has it (within half a turn of its middle)
                 double lonSkin = lon;
                 while (lonSkin - skinCentre > 180.0) {
@@ -407,13 +444,17 @@ void GlobeMapView::paintEvent(QPaintEvent *) {
                 const auto units = t(lat, lonSkin);
                 int sx = static_cast<int>((units.x() + 500.0) * toPixels);
                 const int sy = static_cast<int>((units.y() + 250.0) * toPixels);
-                if (skin.east - skin.west >= 359.0) {   // a skin of the whole world goes round: the pixels on the seam (a column of the globe exactly on the meridian opposite the middle) read the edge column, not the dark ground
+                if (goesRound) {   // a skin of the whole world goes round: the pixels on the seam (a column of the globe exactly on the meridian opposite the middle) read the edge column, not the dark ground
                     sx = std::clamp(sx, 0, skin.width - 1);
                 }
                 if (sx >= 0 && sy >= 0 && sx < skin.width && sy < skin.height) {
                     const QRgb s = reinterpret_cast<const QRgb *>(skin.image.constScanLine(sy))[sx];
                     if (qAlpha(s) > 0) {
                         color = s;
+                        if (trueLat != lat) {   // in the cap the meridians meet: the colour is the row's average over a stretch that grows toward the pole, so that it is not wedges
+                            const double u = std::min(1.0, (std::fabs(trueLat) - 84.95) / 5.05);
+                            color = rowAverage(trueLat > 0 ? sumsNorth : sumsSouth, sx, static_cast<int>(u * skin.width / 2.0) + 2);
+                        }
                     }
                 }
             }

@@ -95,6 +95,7 @@ private:
         int widthPixels{0};
     };
     void paintContours(QPainter&, MapHost&, const Rendered&) const;
+    static void paintStackedBarbs(QPainter&, MapHost&, const Rendered&);   // the winds ticked onto the chart (850 red, 700 green, 500 blue ...), a set of barbs each
     string runOf() const;                      // "yyyyMMddHH": the run on view
     int hourShown() const;
     bool visibleBox(MapHost&, double& west, double& south, double& east, double& north) const;

@@ -111,6 +111,15 @@ namespace GfsChart {
         };
         std::vector<Line> lines;
         std::vector<Label> labels;
+        // the winds ticked onto the chart (850, 700, 500 mb ...): one set each, the grids of the area on view (m/s), the color of the level and the length of its barbs as a part of the
+        // longest (each next one a little shorter, as the picture draws them). `ownBarbs`: the chart has barbs of its own (the first and longest), which the layer draws itself
+        struct WindSet {
+            GfsGrid::Grid u, v;
+            QColor color;
+            double length{1.0};
+        };
+        std::vector<WindSet> windSets;
+        bool ownBarbs{false};
     };
     struct ContourOut {   // a set of lines with the grid it is drawn from, for whoever draws the fill itself (the high resolution world export)
         ContourSet set;
