@@ -983,6 +983,13 @@ void MasterMapViewer::updateModelBar() {
     if (chart != nullptr && modelBar == nullptr) {
         modelBar = chart->bar(modelBarRow, [this, chart] { chart->optionChanged(*this); redraw(); QTimer::singleShot(0, this, [this] { refreshActiveList(); }); });
         modelBarRow->layout()->addWidget(modelBar);
+        // The area is part of what the Model Viewer's bar has; the same chooser as the map's own button.
+        if (auto * flow = modelBar->layout()) {
+            auto * area = new QPushButton{"Area...", modelBar};
+            area->setToolTip("Move the map to a named area (the same as the Area button above)");
+            connect(area, &QPushButton::clicked, this, [this] { chooseArea(); });
+            flow->addWidget(area);
+        }
         chart->setBarOnScreen(true);
         modelBarRow->setVisible(true);
     } else if (chart == nullptr && modelBar != nullptr) {
