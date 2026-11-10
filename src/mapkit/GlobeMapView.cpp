@@ -302,6 +302,9 @@ QPointF GlobeMapView::center() const {
 }
 
 void GlobeMapView::scheduleSkin(int milliseconds) {
+    if (!isVisible()) {
+        return;   // (the flat map is showing: no picture of the world to make behind it)
+    }
     timer.start(milliseconds);
 }
 
