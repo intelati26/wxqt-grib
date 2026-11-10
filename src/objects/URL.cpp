@@ -143,9 +143,16 @@ namespace {
         QNetworkReply * response = manager.get(request);
         QEventLoop event;
         QObject::connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);
+        bool tooLarge = false;   // an answer is held in memory whole: one past the limit is dropped (see maxAnswerBytes)
+        QObject::connect(response, &QNetworkReply::downloadProgress, response, [response, &tooLarge] (qint64 got, qint64 total) {
+            if ((got > URL::maxAnswerBytes || total > URL::maxAnswerBytes) && !tooLarge) {
+                tooLarge = true;
+                response->abort();
+            }
+        });
         event.exec();
         Fetched result;
-        result.bytes = response->readAll();
+        result.bytes = tooLarge ? QByteArray{} : response->readAll();
         result.status = response->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         result.lastModified = response->header(QNetworkRequest::LastModifiedHeader).toDateTime();
         delete response;

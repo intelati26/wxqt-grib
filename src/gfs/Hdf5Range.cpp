@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/Hdf5Range.h"
+#include "util/UtilityGzip.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -31,6 +32,9 @@ namespace {
         std::string why;
     };
 
+    // the most one read, one variable or one chunk may be (1 GB): the sizes are the file's own numbers, and what is read of these files is some megabytes
+    const quint64 maxBytes = 1024ull * 1024 * 1024;
+
     // The file as it is asked for: ranges of it in blocks that are kept (the metadata is small and scattered)
     class Source {
     public:
@@ -38,6 +42,9 @@ namespace {
         QByteArray read(quint64 offset, quint64 length) {
             if (length == 0) {
                 return {};
+            }
+            if (length > maxBytes) {   // (the length is the file's own word)
+                throw Failure{"the file asks for a read of a size that can not be right (" + std::to_string(length) + ")"};
             }
             if (length > 4 * blockSize) {   // the chunks of a variable: read as they are
                 const auto bytes = fetch(static_cast<long long>(offset), static_cast<long long>(offset + length - 1));
@@ -121,6 +128,9 @@ namespace {
         quint64 count() const {
             quint64 n = 1;
             for (const auto d : dims) {
+                if (d != 0 && n > maxBytes / d) {   // (no product that wraps around: a size past the limit is refused where it is used)
+                    return maxBytes + 1;
+                }
                 n *= d;
             }
             return n;
@@ -171,8 +181,17 @@ namespace {
             if (sb.size() < 96 || std::memcmp(sb.constData(), signature, 8) != 0) {
                 throw Failure{"not an HDF5 file"};
             }
-            if (sb[8] != 0 && sb[8] != 1) {
-                throw Failure{"an HDF5 superblock of version " + std::to_string(static_cast<int>(sb[8])) + " (only the original format is read)"};
+            const int version = static_cast<unsigned char>(sb[8]);
+            if (version == 2 || version == 3) {   // the newer superblock (GEOS-FP's files): the sizes, the base address, the extension, the end of the file and the root group's object header
+                if (sb[9] != 8 || sb[10] != 8) {
+                    throw Failure{"an HDF5 file with offsets that are not 8 bytes"};
+                }
+                base = le(sb.constData() + 12, 8);
+                root = readObject("/", le(sb.constData() + 36, 8) + base);
+                return;
+            }
+            if (version != 0 && version != 1) {
+                throw Failure{"an HDF5 superblock of version " + std::to_string(version) + " (versions 0 to 3 are read)"};
             }
             if (sb[13] != 8 || sb[14] != 8) {
                 throw Failure{"an HDF5 file with offsets that are not 8 bytes"};
@@ -647,16 +666,12 @@ namespace {
                 continue;
             }
             const auto& f = d.filters[i];
-            if (f.id == 1) {   // deflate: Qt's qUncompress wants the size in front, big endian
-                QByteArray framed(4, '\0');
-                for (int k = 0; k < 4; k++) {
-                    framed[k] = static_cast<char>((chunkBytes >> (8 * (3 - k))) & 0xFF);
-                }
-                framed.append(bytes);
-                bytes = qUncompress(framed);
-                if (bytes.isEmpty()) {
+            if (f.id == 1) {   // deflate: a chunk unpacks to its own size and no more (the decoding stops there, so a small chunk made to unpack without end costs nothing)
+                std::string plain;
+                if (!UtilityGzip::inflateZlib(reinterpret_cast<const unsigned char *>(bytes.constData()), static_cast<size_t>(bytes.size()), chunkBytes, plain) || plain.empty()) {
                     throw Failure{"a chunk did not inflate"};
                 }
+                bytes = QByteArray{plain.data(), static_cast<qsizetype>(plain.size())};
             } else if (f.id == 2) {   // shuffle
                 unshuffle(bytes, f.values.empty() ? elementSize : static_cast<size_t>(f.values[0]));
             } else if (f.id == 3) {   // fletcher32: a checksum after the data
@@ -671,6 +686,9 @@ namespace {
     // the dataset's values, as the bytes of the file's own type and order, in the order of the dimensions
     QByteArray readData(File& file, const Dataset& d) {
         const size_t elementSize = static_cast<size_t>(d.type.size);
+        if (elementSize == 0 || d.count() > maxBytes / elementSize) {
+            throw Failure{"the variable has a size that can not be right"};
+        }
         const quint64 total = d.count() * elementSize;
         QByteArray out(static_cast<qsizetype>(total), '\0');
         if (d.layout == 0) {
@@ -686,6 +704,9 @@ namespace {
             const size_t rank = d.dims.size();
             quint64 chunkElements = 1;
             for (const auto c : d.chunkDims) {
+                if (c == 0 || chunkElements > maxBytes / elementSize / c) {
+                    throw Failure{"the variable's chunks have a size that can not be right"};
+                }
                 chunkElements *= c;
             }
             const size_t chunkBytes = static_cast<size_t>(chunkElements * elementSize);

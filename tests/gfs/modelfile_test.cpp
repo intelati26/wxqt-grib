@@ -120,6 +120,22 @@ static int mistakes() {
     expect("id = A\nlabel = x\nurl = http://x\nhours = 0-6/3\ncolour = red\n", "unknown key colour");
     expect("id = A\nlabel = x\nurl = http://x\nhours = 0-6/3\nfile = when depth=3 => a\n", "unknown condition field depth");
     expect("id = A\nlabel = x\nurl = http://x\nhours = 0-6/3\nkind = grid\n", "kind is grib, whole");
+    // a file can come from someone else: a place is a web address and nothing more, and no name can end the quoted name GDAL is handed or step out of a folder
+    const std::string head = "id = A\nlabel = x\nhours = 0-6/3\n";
+    expect(head + "url = file:///etc/passwd\n", "begins with https:// or http://");
+    expect(head + "url = /vsicurl/http://x/a\n", "begins with https:// or http://");
+    expect(head + "url = /home/me/a.grib2\n", "begins with https:// or http://");
+    expect(head + "url = https://{file}.example/a\n", "server of a url is written out");
+    expect(head + "url = https://user@x/a\n", "server of a url is written out");
+    expect(head + "url = https://x/a\"b\n", "is not allowed");
+    expect(head + "url = https://x/a b\n", "no spaces");
+    expect(head + "url = https://x/../../a\n", "as a folder");
+    expect(head + "url = https://x/a?u=/vsizip/b\n", "/vsi");
+    expect(head + "url = https://x/a\nsubset_url = ftp://x/a\n", "subset_url");
+    expect(head + "url = https://x/a\nkind = netcdf\nnc_variable = T\":/etc/passwd\n", "nc_variable");
+    expect(head + "url = https://x/a\nkind = tar\ntar_member = ../a.grib2\n", "tar_member");
+    expect(head + "url = https://x/a\nfile = -config\n", "can not begin with -");
+    expect(head + "url = https://x/a\nfile_default = a\\b\n", "file_default");
     const auto good = GfsModelFile::parse("id = A\nlabel = x\nkind = whole\nurl = http://x/{date}/{cycle}/{file}_{hour3}\nfile = when level=\"2 m above ground\" => {variable}_2m\nfile = {variable}\nhours = 0-6/3\n", "test");
     if (!good.ok) {
         std::printf("FAIL: a good file did not parse: %s\n", good.error.c_str());

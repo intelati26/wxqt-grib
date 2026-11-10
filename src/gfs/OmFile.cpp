@@ -15,6 +15,14 @@ extern "C" {
 #include "external/omfile/om_variable.h"
 }
 
+namespace {
+    // what a file's own numbers are held to (they come from the server): the root, the count of variables, the values of one read (1 GB of floats) and one range of bytes
+    const uint64_t maxMeta = 1u << 24;
+    const uint32_t maxVariables = 100000;
+    const uint64_t maxValues = 256ull * 1024 * 1024;
+    const uint64_t maxRange = 512ull * 1024 * 1024;
+}
+
 bool OmFile::open(const Io& io, std::string& error) {
     io_ = io;
     variables_.clear();
@@ -28,6 +36,10 @@ bool OmFile::open(const Io& io, std::string& error) {
         error = "not an Open-Meteo file (or an older kind)";
         return false;
     }
+    if (rootSize > maxMeta) {   // (the sizes are the file's own word: none is believed past what such a file can have)
+        error = "the file's root has a size that can not be right";
+        return false;
+    }
     std::string root;
     if (!io.range(rootOffset, rootSize, root) || root.size() < rootSize) {
         error = "could not read the file's root";
@@ -35,6 +47,10 @@ bool OmFile::open(const Io& io, std::string& error) {
     }
     const auto * rootVariable = om_variable_init(root.data());
     const uint32_t count = om_variable_get_children_count(rootVariable);
+    if (count > maxVariables) {
+        error = "the file names more variables than a file can have";
+        return false;
+    }
     std::vector<uint64_t> offsets(count), sizes(count);
     if (count == 0 || !om_variable_get_children(rootVariable, 0, count, offsets.data(), sizes.data())) {
         error = "the file has no variables";
@@ -101,6 +117,10 @@ bool OmFile::read(const std::string& name, const std::vector<uint64_t>& offset, 
     }
     uint64_t total = 1;
     for (const auto c : count) {
+        if (c == 0 || c > maxValues || total > maxValues / c) {   // (no product that wraps around, no grid past what is ever read)
+            error = name + " has a size that can not be right";
+            return false;
+        }
         total *= c;
     }
     out.assign(total, std::nanf(""));
@@ -111,12 +131,16 @@ bool OmFile::read(const std::string& name, const std::vector<uint64_t>& offset, 
         error = std::string{"cannot read "} + name + ": " + om_error_string(result);
         return false;
     }
+    if (om_decoder_read_buffer_size(&decoder) > maxRange) {
+        error = name + " has chunks of a size that can not be right";
+        return false;
+    }
     std::string buffer(om_decoder_read_buffer_size(&decoder), '\0');
     OmDecoder_indexRead_t indexRead;
     om_decoder_init_index_read(&decoder, &indexRead);
     while (om_decoder_next_index_read(&decoder, &indexRead)) {
         std::string index;
-        if (!io_.range(indexRead.offset, indexRead.count, index) || index.size() < indexRead.count) {
+        if (indexRead.count > maxRange || !io_.range(indexRead.offset, indexRead.count, index) || index.size() < indexRead.count) {
             error = "could not read " + name + "'s lookup table";
             return false;
         }
@@ -125,7 +149,7 @@ bool OmFile::read(const std::string& name, const std::vector<uint64_t>& offset, 
         OmError_t err = ERROR_OK;
         while (om_decoder_next_data_read(&decoder, &dataRead, index.data(), indexRead.count, &err)) {
             std::string data;
-            if (!io_.range(dataRead.offset, dataRead.count, data) || data.size() < dataRead.count) {
+            if (dataRead.count > maxRange || !io_.range(dataRead.offset, dataRead.count, data) || data.size() < dataRead.count) {
                 error = "could not read " + name + "'s data";
                 return false;
             }

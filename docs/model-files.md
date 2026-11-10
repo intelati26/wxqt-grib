@@ -10,6 +10,8 @@ does not parse is left out, and the line is reported in that tab's problem list.
 
 Lines are `key = value`; `#` at the start of a line is a comment. Values with spaces at the ends go in quotes.
 
+A file can come from someone else, so what it may name is narrow: a `url` (and `subset_url`, `legacy_url`) begins with `https://` or `http://` and has its server written out (no token, `user@` or space in it); no url, file, variable or member pattern has a quote, a backslash, a control character, `..` as a folder or a GDAL `/vsi` path, and none begins with `-`. A line that breaks this is reported like any other mistake and the model is left out.
+
 | key | meaning |
 |---|---|
 | `id`, `label` | the name in the picker, and the credit under a chart |

@@ -581,6 +581,11 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
     const int timeBand = source.ncBand ? source.ncBand(run, hour, want) : 0;
     const bool tar = static_cast<bool>(source.tarMember);
     QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_" + ((source.netcdf || source.custom || tar || source.om.enabled || source.wrf.enabled) ? variable + ((source.custom || tar) && !want.level.empty() ? "_" + want.level + "_" + want.forecast : std::string{}) : std::string{}) + ((source.om.enabled || source.wrf.enabled) ? "_" + want.variable : std::string{}) + (source.id == "MRMS" ? "_v2" : "") + (source.wrf.enabled ? "_w2" : "") + (timeBand > 0 ? "_b" + std::to_string(timeBand) : std::string{}) + "_");
+    // Open-Meteo's files are chunked: with a box only the chunks it touches are read, and what is kept is that part (named by the box, as the boxes cut by a server are)
+    const bool omRegion = boxSet && source.om.enabled && source.om.gaussian <= 0;
+    if (omRegion) {
+        name += QString{"b%1_%2_%3_%4_"}.arg(static_cast<int>(box.west)).arg(static_cast<int>(box.south)).arg(static_cast<int>(box.east)).arg(static_cast<int>(box.north));
+    }
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
         name = name.left(80) + "_" + QString::number(qHash(name), 16) + "_";
@@ -795,6 +800,32 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         }
         std::vector<float> values;
         std::string dimensionsOf = variable;   // (the variable whose dimensions say the grid)
+        // the part of a regular grid that the box covers: the rows and columns from `first`, `count` of them (the file's first row is the southern one); the whole grid when there is no box, or the
+        // grid is not one whose place is known, or the box is not inside it (a grid of 0 to 360 degrees east, say)
+        double south = 0, west = 0, north = 0, east = 0;
+        bool bounded = false;
+        std::vector<uint64_t> first, count;
+        const auto readField = [&] (const std::string& name, std::vector<float>& into) {
+            const auto * v = om.variable(name);
+            if (first.empty() && omRegion && v && v->dimensions.size() == 2 && v->dimensions[0] >= 2 && v->dimensions[1] >= 2 && omBounds(config, url, south, west, north, east)) {
+                bounded = true;
+                const double rows = static_cast<double>(v->dimensions[0]), columns = static_cast<double>(v->dimensions[1]);
+                const double dy = (north - south) / (rows - 1), dx = (east - west) / (columns - 1);
+                if (dy > 0 && dx > 0 && box.west >= west - dx && box.east <= east + dx) {
+                    const double r0 = std::clamp(std::floor((box.south - south) / dy), 0.0, rows - 1), r1 = std::clamp(std::ceil((box.north - south) / dy), 0.0, rows - 1);
+                    const double c0 = std::clamp(std::floor((box.west - west) / dx), 0.0, columns - 1), c1 = std::clamp(std::ceil((box.east - west) / dx), 0.0, columns - 1);
+                    if (r1 - r0 >= 1 && c1 - c0 >= 1 && (r1 - r0 + 1) * (c1 - c0 + 1) < 0.8 * rows * columns) {   // (nearly all of it: the whole grid, which the other views share)
+                        first = {static_cast<uint64_t>(r0), static_cast<uint64_t>(c0)};
+                        count = {static_cast<uint64_t>(r1 - r0 + 1), static_cast<uint64_t>(c1 - c0 + 1)};
+                        north = south + r1 * dy;
+                        south += r0 * dy;
+                        east = west + c1 * dx;
+                        west += c0 * dx;
+                    }
+                }
+            }
+            return first.empty() ? om.readAll(name, into, error) : om.read(name, first, count, into, error);
+        };
         if (const auto slash = variable.find('/'); slash != std::string::npos) {
             // a wind given as speed and direction (the UK Met Office's files): `speed/direction`; the want's component is made from them (the direction is where the wind comes from, in degrees)
             const auto speedName = variable.substr(0, slash), directionName = variable.substr(slash + 1);
@@ -803,7 +834,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
                 error = source.id + " has no " + variable + " in " + run.id() + " f" + pad(hour, 3);
                 return false;
             }
-            if (!om.readAll(speedName, speed, error) || !om.readAll(directionName, direction, error) || speed.size() != direction.size()) {
+            if (!readField(speedName, speed) || !readField(directionName, direction) || speed.size() != direction.size()) {
                 return false;
             }
             const bool east = want.variable == "UGRD";
@@ -818,7 +849,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
                 error = source.id + " has no " + variable + " in " + run.id() + " f" + pad(hour, 3);
                 return false;
             }
-            if (!om.readAll(variable, values, error)) {
+            if (!readField(variable, values)) {
                 return false;
             }
         }
@@ -828,9 +859,11 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
                 return false;
             }
         } else {   // a regular grid of the box the meta.json says, the first row at the south
-            const auto& dims = om.variable(dimensionsOf)->dimensions;
-            double south = 0, west = 0, north = 0, east = 0;
-            if (dims.size() != 2 || !omBounds(config, url, south, west, north, east)) {
+            auto dims = om.variable(dimensionsOf)->dimensions;
+            if (!count.empty()) {   // (the part read: its own rows, columns and corners)
+                dims = count;
+            }
+            if (dims.size() != 2 || (!bounded && !omBounds(config, url, south, west, north, east))) {
                 error = source.id + ": the grid of " + variable + " is not a regular one this program knows";
                 return false;
             }
@@ -893,7 +926,8 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         out = std::move(g);
         return true;
     }
-    if (source.partial) {   // the part of the file that is wanted, from a server that gives it: kept like the others; when it cannot, the file is read as usual
+    static const bool noPartial = qEnvironmentVariableIsSet("WXQT_NO_PARTIAL");   // (a hook for testing: the server's part is not asked for, as when it is down)
+    if (source.partial && !noPartial) {   // the part of the file that is wanted, from a server that gives it: kept like the others; when it cannot, the file is read as usual
         GfsGrid::Grid g;
         std::string why;
         if (source.partial(run, hour, file, variable, g, why) && !g.values.empty()) {
@@ -980,6 +1014,11 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
             if (source.netcdf) {
                 const auto head = config.bytes(url, 0, 3);
                 if (head.startsWith("CDF") || head.startsWith("\x89HDF")) {
+                    // the name GDAL is handed is the url in quotes and the variable after it: neither may have a quote (it would end the name early) or be anything but a web address
+                    if (url.find_first_of("\"'\\ ") != std::string::npos || variable.find_first_of("\"'\\") != std::string::npos || (url.rfind("https://", 0) != 0 && url.rfind("http://", 0) != 0)) {
+                        failed = "the url or the variable's name has a character that is not allowed";
+                        continue;
+                    }
                     input = "NETCDF:\"/vsicurl/" + QString::fromStdString(url) + "\":" + QString::fromStdString(variable);
                     have = true;
                     break;
@@ -1069,11 +1108,19 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
         localInput = "NETCDF:\"" + local + "\":" + QString::fromStdString(variable);
         return true;
     };
-    const std::string ncUrl = source.netcdf && input.startsWith("NETCDF:\"/vsicurl/") ? input.mid(18, input.lastIndexOf("\":") - 18).toStdString() : std::string{};
+    static const QString remotePrefix = "NETCDF:\"/vsicurl/";   // (what the url is after in the name GDAL is handed, and the quote and the variable's name after it)
+    const std::string ncUrl = source.netcdf && input.startsWith(remotePrefix) ? input.mid(remotePrefix.size(), input.lastIndexOf("\":") - remotePrefix.size()).toStdString() : std::string{};
+    static const bool piecesOnly = qEnvironmentVariableIsSet("WXQT_NETCDF_PIECES");   // (the hook: as on Windows, the remote file itself is never handed to GDAL, so a failure of the pieces shows)
+    bool remoteRefused = false;
     if (!ncUrl.empty() && netcdfNeedsFile) {
-        localCopy(ncUrl, input);
+        remoteRefused = !localCopy(ncUrl, input) && piecesOnly;
     }
-    bool translated = GdalRaster::translate(input, config.cacheFolder + "/" + scratch, options, message);
+    bool translated = false;
+    if (remoteRefused) {
+        message = "the variable could not be read in pieces, nor the file whole (" + ncUrl + ")";
+    } else {
+        translated = GdalRaster::translate(input, config.cacheFolder + "/" + scratch, options, message);
+    }
     if (!translated && !ncUrl.empty() && message.find("userfaultfd") != std::string::npos) {
         netcdfNeedsFile = true;
         QString local;

@@ -21,6 +21,7 @@ namespace {
         size_t limit{0};
         size_t start{0};     // the first byte of `out` the sink has not seen
         bool stopped{false};
+        size_t cap{0};       // not streaming: the most the decoded bytes may be (0: the general limit)
 
         int get(int n) {   // n bits, least significant first
             while (count < n) {
@@ -39,10 +40,16 @@ namespace {
     };
 
     const size_t window = 32768;
+    const size_t maxPlain = 1536ull * 1024 * 1024;   // the most a download may unpack to when it is kept in memory (1.5 GB)
 
     // true while decoding may go on
     bool flush(Bits& bits, std::string& out, bool final) {
         if (bits.sink == nullptr) {
+            // (a small download that unpacks without end is a mistake or an attack: nothing the program reads whole is near this size)
+            if (out.size() > (bits.cap != 0 ? bits.cap : maxPlain)) {
+                bits.failed = true;
+                return false;
+            }
             return true;
         }
         if (final) {
@@ -123,7 +130,7 @@ namespace {
             }
             if (symbol < 256) {
                 out.push_back(static_cast<char>(symbol));
-                if (bits.sink != nullptr && !flush(bits, out, false)) {
+                if (!flush(bits, out, false)) {
                     return false;
                 }
             } else if (symbol == 256) {
@@ -145,7 +152,7 @@ namespace {
                 for (int i = 0; i < length; i++) {
                     out.push_back(out[out.size() - distance]);
                 }
-                if (bits.sink != nullptr && !flush(bits, out, false)) {
+                if (!flush(bits, out, false)) {
                     return false;
                 }
             }
@@ -243,7 +250,7 @@ namespace {
         return pos >= size ? 0 : pos;
     }
 
-    bool inflateInto(const unsigned char * p, size_t size, std::string& out, const std::function<bool(const char *, size_t)> * sink, size_t chunk);
+    bool inflateInto(const unsigned char * p, size_t size, std::string& out, const std::function<bool(const char *, size_t)> * sink, size_t chunk, size_t cap = 0);
 }
 
 bool UtilityGzip::gunzip(const std::string& in, std::string& out) {
@@ -259,11 +266,12 @@ bool UtilityGzip::gunzipStream(const std::string& in, size_t chunk, const std::f
 }
 
 namespace {
-bool inflateInto(const unsigned char * p, size_t size, std::string& out, const std::function<bool(const char *, size_t)> * sink, size_t chunk) {
+bool inflateInto(const unsigned char * p, size_t size, std::string& out, const std::function<bool(const char *, size_t)> * sink, size_t chunk, size_t cap) {
     out.clear();
     Bits bits{p, size};
     bits.sink = sink;
     bits.limit = chunk;
+    bits.cap = cap;
     bool last = false;
     while (!last) {
         last = bits.get(1) != 0;
@@ -298,4 +306,13 @@ bool inflateInto(const unsigned char * p, size_t size, std::string& out, const s
 
 bool UtilityGzip::inflate(const unsigned char * p, size_t size, std::string& out) {
     return inflateInto(p, size, out, nullptr, 0);
+}
+
+bool UtilityGzip::inflateZlib(const unsigned char * p, size_t size, size_t most, std::string& out) {
+    out.clear();
+    // RFC 1950: two bytes in front (deflate, a window of up to 32 kB, no preset dictionary, a check on the pair), four behind (a checksum, not looked at)
+    if (size < 6 || (p[0] & 0x0f) != 8 || (p[0] >> 4) > 7 || (p[1] & 0x20) != 0 || ((static_cast<unsigned>(p[0]) << 8) | p[1]) % 31 != 0) {
+        return false;
+    }
+    return inflateInto(p + 2, size - 2, out, nullptr, 0, most) && out.size() <= most;
 }

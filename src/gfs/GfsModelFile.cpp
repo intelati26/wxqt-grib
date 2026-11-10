@@ -15,6 +15,7 @@
 #include <mutex>
 #include <sstream>
 #include <QDateTime>
+#include <cctype>
 #include <QDir>
 #include <QFile>
 #include <QRegularExpression>
@@ -168,7 +169,15 @@ namespace {
         replaceAll(url, "{name}", name);
         replaceAll(url, "{tag}", colon == std::string::npos ? alt : alt.substr(0, colon));
         replaceAll(url, "{tail}", colon == std::string::npos ? alt : alt.substr(colon + 1));
-        replaceAll(url, "{storm}", d.storm);
+        {   // (the storm's id comes from a server's list: only its letters and digits go into a url)
+            std::string storm;
+            for (const char c : d.storm) {
+                if (std::isalnum(static_cast<unsigned char>(c))) {
+                    storm += c;
+                }
+            }
+            replaceAll(url, "{storm}", storm);
+        }
         return url;
     }
 
@@ -216,6 +225,49 @@ namespace {
             }
         }
         return out;
+    }
+
+    // What a definition file may name. A file can come from someone else, so a place is a web address and nothing more (not a file of this computer, not one of GDAL's "/vsi..." paths), and no
+    // pattern has the characters that would end the quoted name it is handed to GDAL in or step out of a folder. "" when it is fine, or what is wrong with it.
+    std::string textProblem(const std::string& text) {
+        for (const unsigned char c : text) {
+            if (c < 0x20 || c == 0x7f || c == '"' || c == '\'' || c == '\\' || c == '`' || c == '<' || c == '>') {
+                return c < 0x20 || c == 0x7f ? "a control character is not allowed" : std::string{"the character "} + static_cast<char>(c) + " is not allowed";
+            }
+        }
+        if (text.find("..") != std::string::npos && (text.find("../") != std::string::npos || text.find("/..") != std::string::npos)) {
+            return "\"..\" as a folder is not allowed";
+        }
+        if (text.find("/vsi") != std::string::npos) {
+            return "a GDAL \"/vsi\" path is not allowed";
+        }
+        return {};
+    }
+
+    std::string urlProblem(const std::string& url) {
+        const bool https = url.rfind("https://", 0) == 0;
+        if (!https && url.rfind("http://", 0) != 0) {
+            return "a url begins with https:// or http://";
+        }
+        const size_t from = https ? 8 : 7;
+        const auto host = url.substr(from, url.find_first_of("/?#", from) - from);
+        if (host.empty() || host.find_first_of("{}@ ") != std::string::npos) {   // (the server is written out: no token decides it, and no "user@" in front of it)
+            return "the server of a url is written out (no token, space or @ in it)";
+        }
+        if (url.find(' ') != std::string::npos) {
+            return "a url has no spaces (write %20)";
+        }
+        return textProblem(url);
+    }
+
+    std::string nameProblem(const std::string& name, bool slashes) {
+        if (!slashes && name.find('/') != std::string::npos) {
+            return "a / is not allowed here";
+        }
+        if (!name.empty() && name.front() == '-') {
+            return "it can not begin with -";
+        }
+        return textProblem(name);
     }
 
     struct Reader {
@@ -468,6 +520,10 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             definition->legacyBefore.erase(definition->legacyBefore.find_last_not_of(' ') + 1);
             definition->legacyUrl = value.substr(arrow + 2);
             definition->legacyUrl.erase(0, definition->legacyUrl.find_first_not_of(' '));
+            if (const auto problem = urlProblem(definition->legacyUrl); !problem.empty()) {
+                reader.fail("legacy_url: " + problem);
+                break;
+            }
         } else if (key == "url") {
             Rule rule;
             if (!parseRule(value, rule, reader)) {
@@ -478,10 +534,18 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
                     reader.fail("a url is chosen by the file only: when file...");
                 }
             }
+            if (const auto problem = urlProblem(rule.pattern); !problem.empty()) {
+                reader.fail("url: " + problem);
+                break;
+            }
             definition->urls.push_back(rule);
         } else if (key == "nc_variable") {
             Rule rule;
             if (!parseRule(value, rule, reader)) {
+                break;
+            }
+            if (const auto problem = nameProblem(rule.pattern, true); !problem.empty()) {
+                reader.fail("nc_variable: " + problem);
                 break;
             }
             definition->variables.push_back(rule);
@@ -496,6 +560,10 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
                 definition->offsets.emplace_back(item.substr(0, colon), amount);
             }
         } else if (key == "tar_member") {
+            if (const auto problem = nameProblem(value, false); !problem.empty()) {
+                reader.fail("tar_member: " + problem);
+                break;
+            }
             definition->tarMember = value;
         } else if (key == "partial") {
             if (value != "geos-opendap") {
@@ -517,10 +585,22 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             }
             definition->validOffsetByFile[value.substr(0, colon)] = n;
         } else if (key == "subset_url") {
+            if (const auto problem = urlProblem(value); !problem.empty()) {
+                reader.fail("subset_url: " + problem);
+                break;
+            }
             definition->subsetUrl = value;
         } else if (key == "subset_variable") {
+            if (const auto problem = textProblem(value); !problem.empty()) {
+                reader.fail("subset_variable: " + problem);
+                break;
+            }
             definition->subsetVariable = value;
         } else if (key == "subset_level") {
+            if (const auto problem = textProblem(value); !problem.empty()) {
+                reader.fail("subset_level: " + problem);
+                break;
+            }
             definition->subsetLevel = value;
         } else if (key == "storm") {
             stormModel = toBool(value);
@@ -529,8 +609,16 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             if (!parseRule(value, rule, reader)) {
                 break;
             }
+            if (const auto problem = nameProblem(rule.pattern, true); !problem.empty()) {
+                reader.fail("file: " + problem);
+                break;
+            }
             definition->rules.push_back(rule);
         } else if (key == "file_default") {
+            if (const auto problem = nameProblem(value, true); !problem.empty()) {
+                reader.fail("file_default: " + problem);
+                break;
+            }
             definition->fileDefault = value;
         } else if (key == "index_format") {
             if (value != "noaa" && value != "ecmwf") {
@@ -539,8 +627,16 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             }
             indexFormat = value;
         } else if (key == "index_suffix") {
+            if (const auto problem = textProblem(value); !problem.empty()) {
+                reader.fail("index_suffix: " + problem);
+                break;
+            }
             source.indexSuffix = value;
         } else if (key == "index_replaces") {
+            if (const auto problem = textProblem(value); !problem.empty()) {
+                reader.fail("index_replaces: " + problem);
+                break;
+            }
             source.indexReplaces = value;
         } else if (key == "default_detail") {
             source.defaultDetail = value;
@@ -549,6 +645,10 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
         } else if (key == "check_run") {
             source.checkRun = value;
         } else if (key == "probe_file") {
+            if (const auto problem = textProblem(value); !problem.empty()) {
+                reader.fail("probe_file: " + problem);
+                break;
+            }
             source.probeFile = value;
         } else if (key == "probe_hour" || key == "cycle_hours" || key == "lag_hours" || key == "cycles_to_try" || key == "max_parallel") {
             if (!toInt(value, n)) {

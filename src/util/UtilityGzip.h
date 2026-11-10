@@ -19,6 +19,8 @@ public:
     static bool gunzipStream(const std::string& in, size_t chunk, const std::function<bool(const char *, size_t)>& sink);
     // the bare deflate stream (RFC 1951): what a zip file keeps for each entry
     static bool inflate(const unsigned char * data, size_t size, std::string& out);
+    // a zlib stream (RFC 1950: what an HDF5 file keeps for each chunk) that may unpack to `most` bytes and no more: false, and the decoding stopped, when it would be more
+    static bool inflateZlib(const unsigned char * data, size_t size, size_t most, std::string& out);
 };
 
 #endif  // UTILITYGZIP_H
