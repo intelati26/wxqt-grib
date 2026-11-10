@@ -101,7 +101,7 @@ std::vector<WorldRender::Source> WorldRender::loadSources(const std::string& cha
 // the fill grid of each model for the valid time: its own run and hour
 
 // the world on an export projection, painted from the grids at their own resolution
-QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projectionId, double centerLon, int width, std::atomic<int> * done) {
+QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projectionId, double centerLon, int width, std::atomic<int> * done, bool whiteGround) {
     const auto projection = static_cast<GlobeMapView::Projection>(projectionId);
     double halfW, halfH;
     GlobeMapView::extent(projection, halfW, halfH);
@@ -109,7 +109,7 @@ QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projecti
     QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
     image.fill(Qt::transparent);
     const double scale = width / (2.0 * halfW);
-    const QRgb land = RadarPreferences::mapBackgroundColor.rgb();   // where no model has a value: the map's own background, as on the flat map
+    const QRgb land = whiteGround ? qRgb(255, 255, 255) : RadarPreferences::mapBackgroundColor.rgb();   // where no model has a value: the map's own background, as on the flat map
     const unsigned threads = std::max(1u, std::thread::hardware_concurrency());
     std::vector<std::thread> workers;
     for (unsigned t = 0; t < threads; t++) {
