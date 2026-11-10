@@ -475,6 +475,22 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     hoursButton->setToolTip("A grid of every hour of the forecast (or every frame) to jump to");
     timeLayout->addWidget(hoursButton);
     QObject::connect(hoursButton, &QPushButton::clicked, [this] { openHours(); });
+    timeOwnerBox = UiStandards::combo(timeRow);
+    timeOwnerBox->addItem("Time: the model's hours", "model");
+    timeOwnerBox->addItem("Time: every frame", "all");
+    timeOwnerBox->setToolTip("With a model chart on beside layers that have frames of their own (radar scans, satellite pictures). The model's hours: the bar steps the run's forecast hours, and the other "
+                             "layers show their frame at or before each (the list of layers says what each is drawing). Every frame: the bar has every layer's frames, the radar's scans between two "
+                             "model hours too.");
+    timeOwnerBox->setCurrentIndex(Utility::readPref("MM_MODELBAR_TIME", "model") == "all" ? 1 : 0);
+    timeOwnerBox->setVisible(false);
+    timeLayout->addWidget(timeOwnerBox);
+    QObject::connect(timeOwnerBox, &QComboBox::currentIndexChanged, [this] (int) {
+        Utility::writePref("MM_MODELBAR_TIME", timeOwnerBox->currentData().toString().toStdString());
+        rebuildTicks();
+        if (!ticks.empty()) {
+            goTo(std::clamp(timeSlider->value(), 0, static_cast<int>(ticks.size()) - 1));
+        }
+    });
     {   // the slider under its hour labels
         auto * sliderColumn = new QWidget{timeRow};
         auto * columnLayout = new QVBoxLayout{sliderColumn};
@@ -883,7 +899,7 @@ void MasterMapViewer::updateTimeline() {
     if (ticks.size() < 2) {
         return;
     }
-    const bool forecasts = forecastsOnly();
+    const bool forecasts = forecastsOnly() || modelOwnsTime();
     std::set<long> ready;
     for (const auto& layer : layers) {
         if (layer->enabled() && layer->timeAware()) {
@@ -915,7 +931,7 @@ void MasterMapViewer::openHours() {
     if (ticks.size() < 2) {
         return;
     }
-    const bool forecasts = forecastsOnly();
+    const bool forecasts = forecastsOnly() || modelOwnsTime();
     auto * popup = new QFrame{this, Qt::Popup};
     popup->setAttribute(Qt::WA_DeleteOnClose);
     popup->setFrameShape(QFrame::StyledPanel);
@@ -977,6 +993,11 @@ void MasterMapViewer::updateModelBar() {
             layer->setBarOnScreen(false);
         }
     }
+}
+
+bool MasterMapViewer::modelOwnsTime() const {
+    const auto * chart = modelLayer();
+    return chart != nullptr && chart->timeAware() && (timeOwnerBox == nullptr || timeOwnerBox->currentIndex() == 0);
 }
 
 bool MasterMapViewer::mixedTimes() const {
@@ -1106,15 +1127,28 @@ void MasterMapViewer::setBarLabel() {
 void MasterMapViewer::rebuildTicks() {
     std::set<long> all;
     bool any = false;
+    int withFrames = 0;
+    // with the model bar up the bar is the run's hours (the rule of the model bar: it owns the time, the others follow the valid time), unless every frame is asked for
+    const MapLayer * owner = modelOwnsTime() ? modelLayer() : nullptr;
+    if (owner != nullptr && owner->times().empty()) {   // (its run is not known yet: the others' frames meanwhile)
+        owner = nullptr;
+    }
     for (const auto& layer : layers) {
         if (layer->enabled() && layer->timeAware()) {
             any = true;
+            withFrames++;
+            if (owner != nullptr && layer.get() != owner) {
+                continue;
+            }
             for (const long t : layer->times()) {
                 all.insert(t);
             }
         }
     }
     timeRow->setVisible(any);
+    if (timeOwnerBox != nullptr) {
+        timeOwnerBox->setVisible(modelLayer() != nullptr && withFrames > 1);
+    }
     {   // the members graph is for the REFS charts
         const auto * chart = modelLayer();
         buttonMembers.getView()->setVisible(chart != nullptr && chart->modelName() == "REFS");

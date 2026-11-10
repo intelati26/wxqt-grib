@@ -136,7 +136,7 @@ Not checked in the running program: the two handoffs clicked through; loops and 
    - `ModelChartLayer::optionChanged` calls `refreshControls()` so a choice made in one place shows in the other.
    - The bar gets what the Model Viewer's top rows have and the panel lacks: the area (the map's "Area..." moved into it) and the hour strip (step 2).
    - Check: the bar and the panel stay the same after each choice; a saved view restores both; the combo chart layer (`ComboChartLayer`), which has model layers as its parts, is not given a bar.
-2. **The bar owns the time.**
+2. **The bar owns the time.** (done 2026-11-10: with the model chart on beside other layers a "Time: the model's hours / every frame" box picks whether the strip is the model's forecast hours or every layer's frames; the others show the frame at or before the valid time.)
    - `MasterMapViewer::rebuildTicks`: while the model layer is on, the ticks are its hours only; the others are shown the frame at or before each (they already are: `showLayerAt`). The
      strip is labelled in forecast hours with the valid time beside it; "Latest" stays the hour of now.
    - A way out for the case it takes away: stepping the radar's own scans between two model hours. A choice on the bar, "Time: the model's hours / every frame", the first by default.

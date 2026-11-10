@@ -115,6 +115,8 @@ private:
     void paintExport(QPainter&, int mapSide, double scale, bool vectorOutput);
     // the time bar: stepping and looping through the frames of the layers that have them
     bool forecastsOnly() const;
+    bool modelOwnsTime() const;     // the model bar is up and the bar steps its hours (the choice beside it): the ticks are the run's hours, and the other layers follow the valid time
+    QComboBox * timeOwnerBox{};     // "Time: the model's hours / every frame", shown while the model chart is on beside a layer with frames of its own
     bool mixedTimes() const;        // forecasts and observed frames are on the bar together
     int liveIndex() const;          // the tick that is "latest": the first hour of a forecast, the newest frame of what is observed, and with both the frame of now
     long barTime() const;           // the time the bar is on (0: none)
