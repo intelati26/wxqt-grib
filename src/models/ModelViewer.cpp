@@ -251,7 +251,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonOnMap = entry(menuMap, "On the map...", "This chart on the master map (scroll and zoom it, put radar, satellite, storms or rivers with it): the same model, chart, area and valid time", false);
         QObject::connect(buttonOnMap, &QAction::triggered, this, [this] {
             if (GfsRender::drawsModel(objectModel.model)) {
-                MasterMapViewer::openModels(this, objectModel.model, objectModel.param, objectModel.sector, shownProbe ? shownProbe->validUtc : QDateTime{});
+                MasterMapViewer::openModels(this, objectModel.model, objectModel.param, objectModel.sector, shownProbe ? shownProbe->validUtc : QDateTime{}, selection());
             }
         });
         // the hurricane models (HAFS-A, HAFS-B): the wind field of the chart, and the intensity forecast of the storm
@@ -2541,6 +2541,54 @@ void ModelViewer::openSubhourly() {
     viewer->setLeads(std::max(15, hour * 60 - 60), std::min(1080, std::max(60, hour * 60 + 120)));
 }
 
+ChartSelection ModelViewer::selection() const {
+    ChartSelection s;
+    s.model = objectModel.model;
+    s.param = objectModel.param;
+    s.sector = objectModel.sector;
+    s.overlays = overlays;
+    s.overlayModels = overlayModels;
+    s.member = member;
+    s.sigma = standardDeviations;
+    s.changeBack = variant.kind == GfsRender::Variant::Kind::Change ? variant.hoursBack : 0;
+    s.maxDay = variant.kind == GfsRender::Variant::Kind::Max;
+    if (shownProbe) {
+        s.valid = shownProbe->validUtc;
+    }
+    return s;
+}
+
+void ModelViewer::applyVariants(const ChartSelection& chosen) {
+    overlays = chosen.overlays;
+    overlayModels = chosen.overlayModels;
+    refreshOverlays();
+    pendingMember = chosen.member;
+    if (const auto found = std::find(memberValues.begin(), memberValues.end(), chosen.member); !chosen.member.empty() && found != memberValues.end()) {
+        member = chosen.member;
+        pendingMember.clear();
+        comboMember.block();
+        comboMember.setIndex(static_cast<size_t>(found - memberValues.begin()));
+        comboMember.unblock();
+    }
+    if (buttonSigma != nullptr) {
+        standardDeviations = chosen.sigma;
+        buttonSigma->blockSignals(true);
+        buttonSigma->setChecked(chosen.sigma);
+        buttonSigma->blockSignals(false);
+    }
+    GfsRender::Variant v;
+    const int index = chosen.changeBack == 6 ? 1 : chosen.changeBack == 12 ? 2 : chosen.changeBack == 24 ? 3 : 0;   // (the changes the box offers)
+    if (index > 0) {
+        v.kind = GfsRender::Variant::Kind::Change;
+        v.hoursBack = chosen.changeBack;
+    }
+    comboCompare.block();
+    comboCompare.setIndex(static_cast<size_t>(index));
+    comboCompare.unblock();
+    refreshProductButton();
+    setVariant(v);   // (draws again)
+}
+
 void ModelViewer::setOverlays(const std::vector<string>& ids) {
     overlays = ids;
     refreshProductButton();
@@ -3584,9 +3632,15 @@ void ModelViewer::refreshMembers() {
             spec.memberPicked = false;
         }
         member = memberValues.empty() ? string{} : memberValues.front();
+        size_t chosen = 0;
+        if (const auto found = std::find(memberValues.begin(), memberValues.end(), pendingMember); !pendingMember.empty() && found != memberValues.end()) {   // one asked for from the map
+            member = pendingMember;
+            chosen = static_cast<size_t>(found - memberValues.begin());
+        }
+        pendingMember.clear();
         comboMember.block();
         comboMember.setList(labels);
-        comboMember.setIndex(0);
+        comboMember.setIndex(chosen);
         comboMember.unblock();
     } else if (labels != memberLabels) {   // the same members, named now (SPC REFS knows its members' names once a run has been opened)
         memberLabels = labels;

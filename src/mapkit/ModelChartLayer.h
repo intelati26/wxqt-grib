@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <QImage>
+#include "gfs/ChartSelection.h"
 #include "gfs/GfsChart.h"
 #include "gfs/GfsRender.h"
 class Window;
@@ -35,6 +36,8 @@ public:
     MapHit pick(const QPointF& pixels, MapHost&) const override;
     vector<MapLegendRow> legend() const override;
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
+    // the same choices as a bar across the top of a screen (model, chart, run, change, member ... side by side, on as many rows as the width needs): the model bar of the master map
+    QWidget * bar(QWidget * parent, const std::function<void()>& changed) { return controls(parent, changed, true); }
     void optionChanged(MapHost& host) override;
     string summary() const override;
     bool working() const override { return busy || finding; }
@@ -58,6 +61,9 @@ public:
     // the model, chart and variants as one line (for a saved view) and back
     string settings() const;
     void setSettings(const string& line, MapHost&);
+    // the chart on the layer in the form the Model Viewer has too (gfs/ChartSelection), and a chart taken from there: whole, with its lines, members and variants
+    ChartSelection selection() const;
+    void apply(const ChartSelection& chosen, MapHost&);
     // the valid time of the chart on view (invalid before a run is known), for the tools at a point
     QDateTime validTime() const;
     // the members graph of a REFS chart at a point (a window); false with the reason when the chart has none
@@ -110,7 +116,9 @@ private:
     bool sigma{false};                         // in standard deviations from the normal
     bool maxDay{false};                        // the largest of the fill over the 24 hours ending at the hour shown
     string pinnedRun;                          // "yyyyMMddHH" of a run picked from the list; empty: the newest, or the time bar's
-    std::function<void()> optionsRefresh;      // redraws the option panel's boxes (while it is open)
+    QWidget * controls(QWidget * parent, const std::function<void()>& changed, bool asBar);
+    std::map<QWidget *, std::function<void()>> refreshers;   // each set of the choices on screen (the panel, the bar) and what redraws its boxes
+    void refreshControls() { for (const auto& [widget, refresh] : refreshers) { refresh(); } }
     string newestRun;                          // the newest run found
     int changeBack{0};                         // hours: the change since the run that much older (0: the plain chart)
     string runChosen;                          // the run asked for (the newest, the time bar's, the one picked); `run` is the one the chart is drawn from (a chart that needs a main run moves it)
