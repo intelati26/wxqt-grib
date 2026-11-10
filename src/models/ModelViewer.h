@@ -225,6 +225,7 @@ private:
     void refreshStationPins();
     QAction * buttonPlace{nullptr};
     QAction * buttonOnMap{nullptr};   // the chart on the master map
+    QAction * buttonStormPage{nullptr};   // the hurricane models: the hurricane screen's page of the storm (CiraStorm)
     QAction * buttonIntensity{nullptr};   // the hurricane models: the intensity forecast of the storm
     QAction * checkRadii{nullptr};            // the hurricane models: the wind field on the chart
     int stormLoading{0};

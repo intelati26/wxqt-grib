@@ -37,6 +37,7 @@
 #include "mapkit/MasterMapViewer.h"
 #include "models/ChartBuilder.h"
 #include "models/ModelBar.h"
+#include "tropical/CiraStorm.h"
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -276,6 +277,14 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         QObject::connect(buttonIntensity, &QAction::triggered, this, [this] {
             if (Hafs::isStormId(objectModel.sector)) {
                 HafsIntensityViewer::open(this, objectModel.sector, [this] (const string& text) { setTitle(text.empty() ? objectModel.model + " " + sectorLabel(objectModel.sector) : text); });
+            }
+        });
+        buttonStormPage = entry(menuMap, "Storm page...", "The hurricane screen's page of this storm: loops, the JTWC and JMA text and the SAR winds", false);
+        buttonStormPage->setVisible(false);
+        QObject::connect(buttonStormPage, &QAction::triggered, this, [this] {
+            const auto id = Hafs::nhcId(objectModel.sector, QDate::currentDate().year());
+            if (!id.empty()) {
+                new CiraStorm{this, id, sectorLabel(objectModel.sector)};
             }
         });
         buttonStations = entry(menuMap, "Stations", "A button on the map at each station of the BUFKIT model soundings (airports and sounding sites): click one for that station's RRFS sounding, every forecast hour "
@@ -2009,6 +2018,7 @@ void ModelViewer::reload() {
         const bool storm = GfsModels::isStormModel(objectModel.model);
         checkRadii->setVisible(storm);
         buttonIntensity->setVisible(storm && Hafs::isStormId(objectModel.sector));
+        buttonStormPage->setVisible(storm && !Hafs::nhcId(objectModel.sector, 2000).empty());
     }
     if (comboLocalKm != nullptr) {   // the size of an area round a saved location, beside it
         double lat = 0, lon = 0, km = 0;
@@ -2117,6 +2127,7 @@ void ModelViewer::startRun() {
             buttonSector.setText("No storm  \xE2\x96\xBE");
             if (buttonIntensity != nullptr) {
                 buttonIntensity->setVisible(false);
+                buttonStormPage->setVisible(false);
             }
             setTitle(model + " has no storm in its newest cycle (it runs only for active storms and invests).");
             return;
