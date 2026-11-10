@@ -693,7 +693,10 @@ void ModelChartLayer::paint(QPainter& painter, MapHost& host) {
     painter.restore();
     paintContours(painter, host, *shownImage);
     if (!barbsByOwner) {
-        paintBarbs(painter, host, {this});
+        if (shownImage->vectors.windSets.empty() || shownImage->vectors.ownBarbs) {   // (the first ticked wind is the chart's barbs when it has none of its own: drawn with the others, in its color)
+            paintBarbs(painter, host, {this});
+        }
+        paintStackedBarbs(painter, host, *shownImage);
     }
     render(host);   // (asks only when what is on hand no longer fits the view)
 }
@@ -732,6 +735,62 @@ void ModelChartLayer::paintContours(QPainter& painter, MapHost& host, const Rend
     for (const auto& label : shown.vectors.labels) {
         MarkText::halo(host, painter, px, label.lat, label.lon, label.text, label.color);
     }
+}
+
+// the winds ticked onto the chart: each a set of barbs from the same points, in the color of its level, the later ones a little shorter and drawn over the first (as the picture has them)
+void ModelChartLayer::paintStackedBarbs(QPainter& painter, MapHost& host, const Rendered& shown) {
+    if (shown.vectors.windSets.empty()) {
+        return;
+    }
+    auto& view = host.view();
+    const auto t = view.transform();
+    const double upp = view.unitsPerPixel();
+    const double marksScale = std::max(0.1, host.markScale());
+    const double scale = marksScale > 1.0 ? std::max(1.0, marksScale * 1300.0 / 2800.0) : marksScale;
+    const double perDegree = std::abs(t(0.0, 1.0).x() - t(0.0, 0.0).x()) / std::max(1e-9, upp);
+    if (perDegree <= 0.0 || view.pixelWidth() < 50) {
+        return;
+    }
+    const double span = view.pixelWidth() / perDegree / scale;
+    const auto look = BarbGrid::look(span, perDegree, scale);
+    const double step = look.step;
+    const double length = look.length * upp;
+    const QRectF window = QRectF{painter.window()}.adjusted(-length, -length, length, length);
+    painter.save();
+    for (double lat = std::ceil(-85.0 / step) * step; lat <= 85.0; lat += step) {
+        const double lonStep = BarbGrid::lonStep(step, lat);
+        for (double lon = std::ceil(-180.0 / lonStep) * lonStep; lon < 180.0 - 1e-6; lon += lonStep) {
+            const QPointF at = t(lat, lon);
+            if (!window.contains(at)) {
+                continue;
+            }
+            for (const auto& set : shown.vectors.windSets) {
+                float u = set.u.sample(lon, lat), v = set.v.sample(lon, lat);
+                if (std::isnan(u) || std::isnan(v)) {
+                    continue;
+                }
+                const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
+                const double speed = std::hypot(u, v) * 1.943844;
+                if (host.deferMarks()) {   // a projected world picture (the globe): upright there, the staff turned to the local north
+                    const double nominal = look.length / scale * (marksScale > 1.0 ? 1300.0 / 2800.0 : 1.0) * set.length, south = lat < 0.0;
+                    const QColor ink = set.color;
+                    host.deferMark(lat, lon, [from, speed, nominal, south, ink] (QPainter& p, double unit, double north) {
+                        p.save();
+                        p.rotate(north);
+                        p.setPen(QPen{QColor{ink.red(), ink.green(), ink.blue(), 230}, std::max(1.0, unit * 0.7)});
+                        p.setBrush(ink);
+                        WindBarb::draw(p, QPointF{0.0, 0.0}, from, speed, nominal * unit, south);
+                        p.restore();
+                    });
+                    continue;
+                }
+                painter.setPen(QPen{QColor{set.color.red(), set.color.green(), set.color.blue(), 230}, std::max(upp, 1.3 * scale * upp)});
+                painter.setBrush(set.color);
+                WindBarb::draw(painter, at, from, speed, length * set.length, lat < 0.0);
+            }
+        }
+    }
+    painter.restore();
 }
 
 // the wind (m/s) of the chart on view at a place; false where the chart has none (no barbs on this chart, outside its box, the picture not drawn yet)

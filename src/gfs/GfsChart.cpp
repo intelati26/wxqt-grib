@@ -8084,6 +8084,18 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 probe.fields.push_back({value.title.empty() ? value.key : value.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(value.key), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
             }
         }
+        if (options.vectorOut != nullptr) {   // the ticked winds, for a layer that draws the barbs itself
+            options.vectorOut->ownBarbs = !product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV);
+            size_t index = options.vectorOut->ownBarbs ? 1 : 0;
+            for (const auto& set : product.barbSets) {
+                if (grids.count(set.u) && grids.count(set.v)) {
+                    options.vectorOut->windSets.push_back({GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.u), sector.west, sector.south, sector.east, sector.north), 120000),
+                                                           GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.v), sector.west, sector.south, sector.east, sector.north), 120000), set.color,
+                                                           1.0 - 0.12 * static_cast<double>(index)});
+                    index++;
+                }
+            }
+        }
         if (!windU.empty() && grids.count(windU) && grids.count(windV)) {
             probe.windU = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(windU), sector.west, sector.south, sector.east, sector.north), 120000);
             probe.windV = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(windV), sector.west, sector.south, sector.east, sector.north), 120000);
