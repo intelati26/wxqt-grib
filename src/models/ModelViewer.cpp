@@ -210,7 +210,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         comboMember.getView()->setToolTip("An ensemble's charts for one member instead of the mean: the GEFS control and its 30 members, the 5 REFS members. Charts that are made from all the members (spread, chances, percentiles) have no single member.");
         comboMember.connect([this] {
             const auto i = static_cast<size_t>(std::max(comboMember.getIndex(), 0));
-            member = i < memberValues.size() ? memberValues[i] : string{};
+            picked.member = i < memberValues.size() ? memberValues[i] : string{};
             startPlaying(false);
             strip->stop();
             reload();
@@ -343,7 +343,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonSigma = entry(menuAnalysis, "Std deviations", "The anomaly in standard deviations from the 1991-2020 mean (the day's own spread of the reanalysis) instead of in decameters or millibars. The legend says how big one deviation is over the map (it differs by place), and the read-out shows both values at the point. The deviations are downloaded once, from Settings, Model Sources, Climatology.", true);
         buttonSigma->setVisible(false);
         QObject::connect(buttonSigma, &QAction::toggled, this, [this] (bool on) {
-            standardDeviations = on;
+            picked.sigma = on;
             startPlaying(false);
             strip->stop();
             reload();
@@ -770,17 +770,17 @@ string ModelViewer::frameKey(int hour) const {
         }
     }
     string key = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector + "|" + run + "|" + std::to_string(hour) + "|bs" + std::to_string(Utility::readPrefInt("BARB_SPACING", 100)) + (GfsModels::isStormModel(objectModel.model) ? "|rad" + Utility::readPref("HAFS_RADII", "true").substr(0, 1) : string{});   // (the barbs are in the picture: another spacing, another picture)
-    for (const auto& id : overlays) {
+    for (const auto& id : picked.overlays) {
         key += "|" + id;
     }
     string overlay;
-    for (const auto& other : overlayModels) {
+    for (const auto& other : picked.overlayModels) {
         overlay += (overlay.empty() ? "|overlay=" : ",") + other;
     }
     for (const auto& layer : hiddenLayers) {
         key += "|hide=" + layer;
     }
-    return key + ChartResolution::keyPart() + variantKey + (member.empty() ? string{} : "|member=" + member) + (standardDeviations ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
+    return key + ChartResolution::keyPart() + variantKey + (picked.member.empty() ? string{} : "|member=" + picked.member) + (picked.sigma ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
 }
 
 void ModelViewer::setVariant(GfsRender::Variant v) {
@@ -871,7 +871,7 @@ void ModelViewer::saveView() {
         return;
     }
     string extras;
-    for (const auto& id : overlays) {
+    for (const auto& id : picked.overlays) {
         extras += (extras.empty() ? "" : ",") + id;
     }
     const std::array<string, 5> view{name.toStdString(), objectModel.model, objectModel.param, objectModel.sector, extras};
@@ -905,9 +905,9 @@ void ModelViewer::applyView(const std::array<string, 5>& view) {
     }
     objectModel.param = view[2];
     objectModel.sector = view[3];
-    overlays.clear();
+    picked.overlays.clear();
     for (const auto& id : QString::fromStdString(view[4]).split(',', Qt::SkipEmptyParts)) {
-        overlays.push_back(id.toStdString());
+        picked.overlays.push_back(id.toStdString());
     }
     pendingView = {};
     comboboxProduct.block();
@@ -991,7 +991,7 @@ void ModelViewer::saveLoop() {
         loop.push_back(bytes);
     }
     string versus;
-    for (const auto& other : overlayModels) {
+    for (const auto& other : picked.overlayModels) {
         versus += "_" + other;
     }
     const auto name = QString::fromStdString(objectModel.model + (versus.empty() ? "" : "_vs" + versus) + "_" + objectModel.param + "_" + objectModel.sector + "_" + objectModel.run);
@@ -1248,7 +1248,7 @@ void ModelViewer::showFrame(const Frame& frame) {
     shownBytes = frame.bytes;
     shownProbe = frame.probe;
     string chart = objectModel.model + "|" + objectModel.param + "|" + objectModel.sector;
-    for (const auto& id : overlays) {
+    for (const auto& id : picked.overlays) {
         chart += "|" + id;
     }
     if (chart == lastChart && image.hasImage()) {   // another hour of the chart on view: the zoom and the place stay
@@ -2054,7 +2054,7 @@ void ModelViewer::reload() {
             }
         }
         const auto model = objectModel.model, param = objectModel.param, sector = objectModel.sector, run = runToDraw;
-        const auto overlayIds = overlays;
+        const auto overlayIds = picked.overlays;
         auto shownVariant = variant;
         shownVariant.scale = ChartResolution::scale();   // the size the charts are drawn at (the key of this frame has it)
         const int hour = std::atoi(objectModel.getTime().c_str());
@@ -2399,7 +2399,7 @@ void ModelViewer::refreshProductButton() {
             label = objectModel.paramLabels[i];
         }
     }
-    buttonProducts.setText(label + (overlays.empty() ? "" : " + " + std::to_string(overlays.size())) + "  \xE2\x96\xBE");
+    buttonProducts.setText(label + (picked.overlays.empty() ? "" : " + " + std::to_string(picked.overlays.size())) + "  \xE2\x96\xBE");
 }
 
 namespace {
@@ -2510,7 +2510,7 @@ void ModelViewer::showPicker() {
         ids.push_back(objectModel.params[i]);
         labels.push_back(objectModel.paramLabels[i]);
     }
-    picker = ChartPickers::chartPicker(this, model, ChartPickers::chartEntries(model, ids, labels), objectModel.param, [this] (const string& id) { chooseChart(id); }, GfsChart::overlayChoices(model), overlays);
+    picker = ChartPickers::chartPicker(this, model, ChartPickers::chartEntries(model, ids, labels), objectModel.param, [this] (const string& id) { chooseChart(id); }, GfsChart::overlayChoices(model), picked.overlays);
     if (hidden > 0) {
         picker->setNote(QString::number(hidden) + (hidden == 1 ? " chart is" : " charts are") + " not listed: the newest run of " + QString::fromStdString(model) + " has no data for " + (hidden == 1 ? "it." : "them."));
     }
@@ -2542,14 +2542,10 @@ void ModelViewer::openSubhourly() {
 }
 
 ChartSelection ModelViewer::selection() const {
-    ChartSelection s;
+    ChartSelection s = picked;
     s.model = objectModel.model;
     s.param = objectModel.param;
     s.sector = objectModel.sector;
-    s.overlays = overlays;
-    s.overlayModels = overlayModels;
-    s.member = member;
-    s.sigma = standardDeviations;
     s.changeBack = variant.kind == GfsRender::Variant::Kind::Change ? variant.hoursBack : 0;
     s.maxDay = variant.kind == GfsRender::Variant::Kind::Max;
     if (shownProbe) {
@@ -2559,19 +2555,19 @@ ChartSelection ModelViewer::selection() const {
 }
 
 void ModelViewer::applyVariants(const ChartSelection& chosen) {
-    overlays = chosen.overlays;
-    overlayModels = chosen.overlayModels;
+    picked.overlays = chosen.overlays;
+    picked.overlayModels = chosen.overlayModels;
     refreshOverlays();
     pendingMember = chosen.member;
     if (const auto found = std::find(memberValues.begin(), memberValues.end(), chosen.member); !chosen.member.empty() && found != memberValues.end()) {
-        member = chosen.member;
+        picked.member = chosen.member;
         pendingMember.clear();
         comboMember.block();
         comboMember.setIndex(static_cast<size_t>(found - memberValues.begin()));
         comboMember.unblock();
     }
     if (buttonSigma != nullptr) {
-        standardDeviations = chosen.sigma;
+        picked.sigma = chosen.sigma;
         buttonSigma->blockSignals(true);
         buttonSigma->setChecked(chosen.sigma);
         buttonSigma->blockSignals(false);
@@ -2590,7 +2586,7 @@ void ModelViewer::applyVariants(const ChartSelection& chosen) {
 }
 
 void ModelViewer::setOverlays(const std::vector<string>& ids) {
-    overlays = ids;
+    picked.overlays = ids;
     refreshProductButton();
     reload();
 }
@@ -2908,7 +2904,7 @@ string ModelViewer::tileMember(int index) const {
     if (memberValues.empty()) {
         return {};
     }
-    const auto at = std::find(memberValues.begin(), memberValues.end(), member);
+    const auto at = std::find(memberValues.begin(), memberValues.end(), picked.member);
     const size_t base = at == memberValues.end() ? 0 : static_cast<size_t>(at - memberValues.begin());
     return memberValues[(base + static_cast<size_t>(index)) % memberValues.size()];
 }
@@ -2955,11 +2951,11 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
                 job.cycle = t.toString("yyyyMMddHH").toStdString();
             }
         }
-            job.overlays = overlays;
+            job.overlays = picked.overlays;
         job.variant = ahead && variant.kind != GfsRender::Variant::Kind::Change ? GfsRender::Variant{} : variant;
-        job.variant.member = member;
-        job.variant.standardDeviations = standardDeviations;
-        job.variant.overlayModels = overlayModels;
+        job.variant.member = picked.member;
+        job.variant.standardDeviations = picked.sigma;
+        job.variant.overlayModels = picked.overlayModels;
         job.variant.overlayKeepFill = overlayKeepFill;
         job.variant.hideKeys = hiddenLayers;
         job.variant.scale = ChartResolution::scale();
@@ -3080,7 +3076,7 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         }
         {   // the lines and barbs ticked on the main chart go on the tiles too, on every tile whose model has them (another model's tile drew without them)
             const auto offered = GfsChart::overlayChoices(job.model);
-            for (const auto& id : overlays) {
+            for (const auto& id : picked.overlays) {
                 if (std::any_of(offered.begin(), offered.end(), [&id] (const GfsChart::OverlayChoice& choice) { return choice.id == id; })) {
                     job.overlays.push_back(id);
                 }
@@ -3114,13 +3110,13 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         }
         if (show == TilesShow::Members) {   // each tile its own member of the same chart
             v.member = tileMember(index);
-            v.standardDeviations = standardDeviations;
+            v.standardDeviations = picked.sigma;
         } else if (show == TilesShow::Deterministic && spec.model == "REFS" && (objectModel.model == "MPAS-HT" || objectModel.model == "MPAS-RN")) {   // the RRFS control is the RRFS tile; the REFS tile is its second member
             v.member = spec.member.empty() ? "m002" : spec.member;
         } else if (spec.model == objectModel.model) {   // the same model's tiles show the member too (another model's charts have none)
-            v.member = member;
+            v.member = picked.member;
             v.hideKeys = hiddenLayers;
-            v.standardDeviations = standardDeviations;
+            v.standardDeviations = picked.sigma;
         }
         if (byClock && job.ok) {   // by the clock: each model's own hour for the first tile's valid time
             const auto start = runTime(objectModel.run);
@@ -3631,10 +3627,10 @@ void ModelViewer::refreshMembers() {
         for (auto& spec : tileSpecs) {   // a member picked for a tile of another chart is not one of this chart's
             spec.memberPicked = false;
         }
-        member = memberValues.empty() ? string{} : memberValues.front();
+        picked.member = memberValues.empty() ? string{} : memberValues.front();
         size_t chosen = 0;
         if (const auto found = std::find(memberValues.begin(), memberValues.end(), pendingMember); !pendingMember.empty() && found != memberValues.end()) {   // one asked for from the map
-            member = pendingMember;
+            picked.member = pendingMember;
             chosen = static_cast<size_t>(found - memberValues.begin());
         }
         pendingMember.clear();
@@ -3653,8 +3649,8 @@ void ModelViewer::refreshMembers() {
     comboMember.setVisible(!memberValues.empty());
     const auto * shown = GfsRender::drawsModel(objectModel.model) ? GfsChart::product(objectModel.param, objectModel.model) : nullptr;
     const bool offered = shown != nullptr && GfsChart::hasStandardDeviations(*shown);
-    if (!offered && standardDeviations) {
-        standardDeviations = false;
+    if (!offered && picked.sigma) {
+        picked.sigma = false;
         buttonSigma->blockSignals(true);
         buttonSigma->setChecked(false);
         buttonSigma->blockSignals(false);
@@ -3762,14 +3758,14 @@ void ModelViewer::refreshOverlays() {
     }
     const bool grib = GfsRender::drawsModel(objectModel.model);
     std::vector<string> kept;
-    for (const auto& other : overlayModels) {
+    for (const auto& other : picked.overlayModels) {
         if (grib && other != objectModel.model && GfsChart::product(objectModel.param, other) != nullptr) {
             kept.push_back(other);
         }
     }
-    overlayModels = kept;
+    picked.overlayModels = kept;
     buttonOverlay->setVisible(grib);
-    buttonOverlay->setText(overlayModels.empty() ? "Overlay models..." : "Overlay: " + QString::number(overlayModels.size()) + " model" + (overlayModels.size() == 1 ? "" : "s") + "...");
+    buttonOverlay->setText(picked.overlayModels.empty() ? "Overlay models..." : "Overlay: " + QString::number(picked.overlayModels.size()) + " model" + (picked.overlayModels.size() == 1 ? "" : "s") + "...");
 }
 
 void ModelViewer::chooseOverlays() {
@@ -3798,7 +3794,7 @@ void ModelViewer::chooseOverlays() {
             }
             auto * box = new QCheckBox{QString::fromStdString(def.id + "   " + def.label), &dialog};
             box->setProperty("model", QString::fromStdString(def.id));
-            box->setChecked(std::find(overlayModels.begin(), overlayModels.end(), def.id) != overlayModels.end());
+            box->setChecked(std::find(picked.overlayModels.begin(), picked.overlayModels.end(), def.id) != picked.overlayModels.end());
             layout->addWidget(box);
             boxes.push_back(box);
         }
@@ -3823,11 +3819,11 @@ void ModelViewer::chooseOverlays() {
             chosen.push_back(box->property("model").toString().toStdString());
         }
     }
-    if (chosen == overlayModels && keepFill->isChecked() == overlayKeepFill) {
+    if (chosen == picked.overlayModels && keepFill->isChecked() == overlayKeepFill) {
         return;
     }
     overlayKeepFill = keepFill->isChecked();
-    overlayModels = chosen;
+    picked.overlayModels = chosen;
     refreshOverlays();
     startPlaying(false);
     strip->stop();

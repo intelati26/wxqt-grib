@@ -180,7 +180,7 @@ private:
     FlowBox boxH2;   // wraps onto more rows when the window is narrowed, so the buttons never set a minimum width
     ComboBox comboCompare, comboPreload;
     std::vector<std::string> memberValues;   // the members' names in the model's files, as the combo lists them
-    std::string member;                   // the one chosen: "" the chart as it is
+    ChartSelection picked;                // what is chosen of the chart on view: the ticked lines, the other models, the member ("" the mean) and standard deviations (the model, chart and area stay in objectModel)
     std::string pendingMember;            // a member asked for (applyVariants) before the model's list of them was read: chosen when it is
     void refreshMembers();
     void addLocalSectors();
@@ -233,7 +233,6 @@ private:
     QComboBox * comboLocalKm{nullptr};   // the size of an area round a saved location (one entry per place in the area list, this sets how big)
     void refreshSectorList();   // the ring and the name of the place on an area round a saved location (a pref, MODEL_PLACE_MARK)
     QAction * buttonSigma{nullptr};   // an anomaly chart in standard deviations instead of its own unit (dam, mb), for the charts that have both
-    bool standardDeviations{false};
     QPushButton * buttonBuild{};
     QPushButton * buttonSubhourly{};   // the RRFS and HRRR: their 15 minute surface fields
     QPushButton * buttonRange{};   // the RTMA and URMA only: a loop from one date-time to another
@@ -250,7 +249,6 @@ private:
     void refreshLayersButton();
     void chooseOverlays();                 // the other models whose lines are drawn over this chart's (a dialog of the models that have the chart)
     void refreshOverlays();                // keeps the ones that still have the chart on screen, and the button's text
-    std::vector<std::string> overlayModels;
     bool overlayKeepFill{false};   // the lines of the other models over the first one's fill and barbs (Overlay models...)
     QPushButton * buttonOverlay{};
     void editColors();   // the color scale of the chart on screen (PaletteEditor)
@@ -279,7 +277,6 @@ private:
     string lastChart;                    // the model, chart, area and extras of the picture shown: a new hour of the same keeps the zoom
     int drawing{0};
     std::shared_ptr<GfsRender::Session> gfsSession;
-    std::vector<std::string> overlays;   // the lines and barbs ticked onto the chart
     void startRun();   // getRun, after the storms of a hurricane model are listed
     void getRun();
     std::vector<string> allTimes;         // every hour the model offers; objectModel.times is the part the run on show reaches (the RRFS's hourly runs stop at 18 h)
