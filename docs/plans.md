@@ -112,7 +112,7 @@ notes under each layer in the layer manager say which layers have nothing at tha
 
 ### Where it stands (2026-11-10)
 
-Done and in the working tree, **not committed**:
+Done (committed 2026-11-10; the steps below say what each became):
 
 - `gfs/ChartSelection` (new): the model, the chart, the ticked lines, the other models' lines, the member, standard deviations, the change since an older run, the day's maximum, the area
   and the valid time, as one object with a line form (a saved view's) and the one function that makes the renderer's request (`variant`).
@@ -124,7 +124,7 @@ Done and in the working tree, **not committed**:
 - Started, compiles, not on screen yet: `ModelChartLayer::controls(parent, changed, asBar)`: the layer's choices as its panel (as before) or as a bar (the same widgets and handlers side by
   side on a flow layout), `ModelChartLayer::bar()`, and `refreshers` so the panel and the bar show each other's changes.
 
-Not checked in the running program: the two handoffs clicked through; loops and the From-to range with the new "Latest"; the bar anywhere.
+Checked offscreen (screenshots), not by clicking: the bar, the Time box, the handoffs both ways, the Picture | Map box. Not checked: loops and the From-to range with the new "Latest", the compare map's two bars.
 
 ### Steps
 
@@ -156,6 +156,19 @@ Not checked in the running program: the two handoffs clicked through; loops and 
    the rest of the map's layers. "On the map..." becomes that switch.
 6. **One window.** The model screen and the master map are the same screen opened two ways (step 5's switch and the layer list shown or hidden). The source box of the model screen (SPC
    Post, NSSL CAMs, the picture models) stays as pages beside it.
+
+### Remaining work (as of 2026-11-10; steps 1, 2, 3 and 5 are done, 4 is as far as it should go)
+
+In order, each its own commit:
+
+1. **Click it through** (nothing below was clicked, only screenshotted): the Time box with a loop and From-to; "Other models > Model Viewer" and "On the map..." from the real menus; the Picture | Map box on a local area, a storm model and with a member or a change; the Colors, Build and Overlay dialogs from the map's bar.
+2. **The MAG page without what a picture can not use** (Map, Analysis, tiles of GRIB charts, Sounding, Colors, Build hidden on it). Small.
+3. **The last callers off the preferences**: the history page's and the Events screen's `ModelScreen::openAt` (and `MainWindow`'s `NCEP` writes) onto `applySelection`.
+4. **Step 4's end, if wanted**: the viewer's remaining rows (member box, standard deviations, Build) read from `ModelBar` too. Little code is still twice; do it only with the next change to those rows.
+5. **Step 6, one window**: the model screen and the master map opened two ways. The toolbar, home screen and history page open "Models" on the picture and "Master map" on the map, both the one screen; the layer list shown or hidden by the switch; the Source box only for the pages (SPC Post, CAMs, MAG, the old picture sources). Decide first: does the master map's own window stay for the layers-first use, or is it only this screen?
+6. **The open points below** that step 6 meets: compare tiles on the map (panes) or kept to the picture; the fitted legend; one Save; storm models' area on the map.
+7. **The rest of "Also from this look"**: the model family's pages sharing time and area, the hurricane links, the master map's layer search and shared choices.
+8. **Unrelated to the model screen, still open**: the day-2 / per-day marks comparison against a second date of the nice-weather data; HDF5 reader fuzzing; GDAL driver restriction for MRMS, GOES, SAR and drought reads; the intermittent GDAL read error (now reported with its reason, `b1ceabe`).
 
 ### The pictures of the model guidance site (MAG), apart (2026-11-10)
 
