@@ -11,10 +11,14 @@
 #include <QFile>
 #include <QSaveFile>
 #include <QTextStream>
+#include <algorithm>
 #include "objects/URL.h"
 #include "util/UtilityGzip.h"
 
 namespace {
+    // the most a file of a tar may be (an hour of a model is some hundreds of megabytes at the most): a header that says more is not believed
+    const long long maxMember = 1536ll * 1024 * 1024;
+
     struct Member {
         long long offset{0};   // of the file's bytes in the tar
         long long size{0};
@@ -68,8 +72,16 @@ namespace {
             }
             const std::string entry{header.constData(), strnlen(header.constData(), 100)};
             const long long size = QByteArray{header.constData() + 124, 12}.trimmed().toLongLong(nullptr, 8);
+            if (size < 0 || size > maxMember) {   // a header that is not one (or a tar that is not ours): stop, do not follow it
+                break;
+            }
             const long long data = next + 512;
             next = data + (size + 511) / 512 * 512;
+            // (a name goes into the index file, a line of words: one with a space or a control character would be read back as something else)
+            const bool plainName = std::none_of(entry.begin(), entry.end(), [] (unsigned char c) { return c <= 0x20 || c == 0x7f; });
+            if (!plainName) {
+                continue;
+            }
             if (size > 0) {
                 const auto slash = entry.rfind('/');
                 const auto base = slash == std::string::npos ? entry : entry.substr(slash + 1);
@@ -101,6 +113,10 @@ bool TarReader::extract(const std::string& url, const std::string& name, const Q
     }
     Member member;
     if (!findMember(url, indexPath, name, member, error)) {
+        return false;
+    }
+    if (member.offset < 0 || member.size <= 0 || member.size > maxMember) {   // (also what an index file kept from before says)
+        error = name + " has a size that can not be right";
         return false;
     }
     const auto packed = URL::getBytesRange(url, member.offset, member.offset + member.size - 1);

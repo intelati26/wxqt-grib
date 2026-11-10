@@ -20,6 +20,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include "objects/URL.h"
 #include "util/Earthdata.h"
 #include <QObject>
 #include <QThread>
@@ -203,15 +204,23 @@ namespace {
             OpenMeteoUsage::record(entry->url);   // (a try that is made again counts again: the service counts what it is sent)
             auto * reply = manager->get(request);
             entry->reply = reply;
-            QObject::connect(reply, &QNetworkReply::downloadProgress, this, [entry] (qint64 got, qint64 total) {
-                const std::lock_guard lock{tableMutex};
-                entry->received = got;
-                entry->total = total;
+            QObject::connect(reply, &QNetworkReply::downloadProgress, this, [entry, reply] (qint64 got, qint64 total) {
+                {
+                    const std::lock_guard lock{tableMutex};
+                    entry->received = got;
+                    entry->total = total;
+                }
+                // an answer is held in memory whole: one past the limit (nothing the program asks for is near it) is a mistake of the server's or an attack, and is dropped
+                if ((got > URL::maxAnswerBytes || total > URL::maxAnswerBytes) && !reply->property("tooLarge").toBool()) {
+                    reply->setProperty("tooLarge", true);
+                    reply->abort();
+                }
             });
             QObject::connect(reply, &QNetworkReply::finished, this, [this, entry, reply] {
                 NetManager::Result result;
-                result.bytes = reply->readAll();
-                result.status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                const bool tooLarge = reply->property("tooLarge").toBool();
+                result.bytes = tooLarge ? QByteArray{} : reply->readAll();
+                result.status = tooLarge ? 413 : reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();   // (413: not tried again)
                 result.lastModified = reply->header(QNetworkRequest::LastModifiedHeader).toDateTime();
                 const auto retryAfter = reply->rawHeader("Retry-After").toInt();
                 reply->deleteLater();

@@ -137,11 +137,12 @@ public:
     };
 
     explicit GfsData(Config config, Source source) : config{std::move(config)}, source{std::move(source)} {}
-    GfsData(const GfsData& other) : config{other.config}, source{other.source}, box{other.box}, boxEnabled{other.boxEnabled} {}
+    GfsData(const GfsData& other) : config{other.config}, source{other.source}, box{other.box}, boxEnabled{other.boxEnabled}, boxSet{other.boxSet} {}
     // Fetch only this box when every field asked for can be had that way (otherwise the whole messages, as always): the grids come back as a regional grid, not a global one.
     void setBox(const Box& wanted) {
         box = wanted;
         boxEnabled = static_cast<bool>(source.subsetUrl);
+        boxSet = true;
     }
     // the newest cycle whose probe hour has been published (tries the last few cycles back from now)
     bool latestRun(Run& run) const;
@@ -188,6 +189,7 @@ private:
     Source source;
     Box box;
     bool boxEnabled{false};
+    bool boxSet{false};   // a box was given (a source that reads a file in chunks, Open-Meteo's, reads only those of the box)
     mutable std::mutex partialMutex;
 };
 

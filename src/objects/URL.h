@@ -16,6 +16,9 @@ using std::string;
 
 class URL {
 public:
+    // The most one answer may be (1.5 GB): an answer is held in memory whole, the reads are ranges of some megabytes and the largest whole files some hundreds, so more than this is a
+    // server's mistake or an attack. Such an answer is stopped as it arrives and comes back empty.
+    static constexpr long long maxAnswerBytes = 1536ll * 1024 * 1024;
     static string getText(const string&);
     static string getTextXmlAcceptHeader(const string&);
     static QByteArray getBytes(const string&);
