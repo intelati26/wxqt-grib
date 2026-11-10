@@ -36,6 +36,7 @@
 #include "models/MrmsVerifyViewer.h"
 #include "mapkit/MasterMapViewer.h"
 #include "models/ChartBuilder.h"
+#include "models/ModelBar.h"
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -109,7 +110,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , hover{mainPane->hover}
     , buttonProducts{this, None, "Charts..."}
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
-    , comboCompare{this, {"Plain chart", "Change since run 6 h earlier", "Change since run 12 h earlier", "Change since run 24 h earlier"}}
+    , comboCompare{this, ModelBar::changeLabels(true)}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
     , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL, REFS, PPP vs deterministic", "Compare: seasonal models (same dates)", "Compare: difference from the main model (same valid time)"}}
     , comboMember{this, {"Ensemble mean"}}
@@ -2423,40 +2424,7 @@ void ModelViewer::showModelPicker() {
         modelPicker->activateWindow();
         return;
     }
-    std::vector<ProductPicker::Entry> entries;
-    // The models the program has no description for (the charts of NCEP's model guidance site are pictures)
-    static const std::map<string, string> pictureModels{
-        {"ESTOFS", "NOAA/NOS ESTOFS storm surge and tide"}, {"FIREWX", "NOAA/NCEP NAM fire weather nest, retired Nov 2026"}, {"GEFS-MEAN-SPRD", "NOAA/NCEP GEFS ensemble mean and spread"},
-        {"GEFS-SPAG", "NOAA/NCEP GEFS spaghetti charts"}, {"HRW-ARW", "NOAA/NCEP HiResW ARW, 3 km, retired Nov 2026"}, {"HRW-ARW2", "NOAA/NCEP HiResW ARW, second run, 3 km, retired Nov 2026"}, {"HRW-FV3", "NOAA/NCEP HiResW FV3, 3 km, retired Nov 2026"},
-        {"NAEFS", "North American Ensemble Forecast System (GEFS with Canada's GEPS)"}, {"NAM", "NOAA/NCEP NAM, 12 km, retired Nov 2026"}, {"NAM-HIRES", "NOAA/NCEP NAM CONUS nest, 3 km, retired Nov 2026"},
-        {"POLAR", "Polar charts of NCEP's model guidance site"}, {"RAP", "NOAA/NCEP Rapid Refresh, 13 km"}, {"WW3", "NOAA/NCEP WAVEWATCH III, global"},
-        {"WW3-ENP", "NOAA/NCEP WAVEWATCH III, eastern North Pacific"}, {"WW3-WNA", "NOAA/NCEP WAVEWATCH III, western North Atlantic"}};
-    // the label of the list: what the model is, without the notes of licence and dates (those are in the hover text and the search)
-    static const QRegularExpression notes{"\\s*\\([^)]*\\)"};
-    for (const auto& id : objectModel.models) {
-        auto group = GfsModels::pickerGroup(id);
-        if (group == "Global" || group == "Regional" || group == "Convection allowing") {
-            group = "Deterministic: " + group;   // (the ensembles are the other list)
-        }
-        const auto * def = GfsModels::find(id);   // every model says what it is, so a model is found by who makes it ("ECMWF", "NASA") as well as by its short name
-        string full = def && def->label != id ? def->label : string{};
-        if (full.empty()) {
-            const auto found = pictureModels.find(id);
-            full = found == pictureModels.end() ? string{} : found->second;
-        }
-        const string brief = QString::fromStdString(full).remove(notes).replace(" ,", ",").simplified().toStdString();
-        entries.push_back({id, brief.empty() ? id : id + "  -  " + brief, group, full == brief ? string{} : id + "  -  " + full});
-    }
-    // the main models first in a group (what a person looks for), the rest in the order the program has them
-    static const std::vector<string> first{"GFS", "IFS", "AIFS", "AIGFS", "GEOS-FP", "NAM", "RAP", "NBM", "RRFS-NA", "ICON-EU", "HRRR", "RRFS", "NAM-HIRES", "HRW-FV3", "HRW-ARW", "HRW-ARW2", "HRDPS",
-                                           "ICON-D2", "ENS-ALL", "GEFS", "IFS-ENS", "GEPS", "NAEFS", "HREF", "REFS", "CFS30", "CFS", "EC46", "SEAS5", "GFS-WAVE", "WW3", "GEFS-WAVE"};
-    const auto rank = [] (const string& id) { return static_cast<int>(std::find(first.begin(), first.end(), id) - first.begin()); };
-    std::stable_sort(entries.begin(), entries.end(), [&rank] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) { return rank(a.id) < rank(b.id); });
-    static const std::vector<string> order{"Deterministic: Global", "Deterministic: Regional", "Deterministic: Convection allowing", "Ensembles", "Probabilistic precipitation", "Seasonal", "Waves and ocean", "Air quality", "Tropical cyclones", "NWS analysis", "Archive",
-                                           "SPC guidance and mesoanalysis", "Other"};
-    std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
-        return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
-    });
+    auto entries = ModelBar::modelEntries(objectModel.models);
     if (qEnvironmentVariableIsSet("WXQT_MODEL_LIST")) {   // (a development aid: the list as the picker has it)
         for (const auto& e : entries) {
             std::fprintf(stdout, "%s | %s\n", e.group.c_str(), e.label.c_str());
@@ -3694,29 +3662,14 @@ void ModelViewer::syncMenus() {
 }
 
 void ModelViewer::editColors() {
-    const auto * product = GfsRender::drawsModel(objectModel.model) ? GfsChart::product(objectModel.param, objectModel.model) : nullptr;
-    if (product == nullptr) {
-        setTitle("Model screen - the color editor is for the charts drawn from GRIB (not the pictures fetched from other sites)");
-        return;
-    }
-    if (variant.kind == GfsRender::Variant::Kind::Change) {
-        setTitle("Model screen - a change chart has its own blue / red scale; show the plain chart to edit its colors");
-        return;
-    }
-    const bool magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;
-    const auto ramp = GfsChart::defaultRamp(*product, magColors);
-    if (ramp.stops.empty()) {
-        setTitle("Model screen - this chart is lines only, it has no color scale");
-        return;
-    }
-    new PaletteEditor{this, product->label, ramp, product->quantity, UIPreferences::unitsF, [this] {
+    ModelBar::editColors(this, objectModel.model, objectModel.param, variant.kind == GfsRender::Variant::Kind::Change ? variant.hoursBack : 0, [this] (const QString& why) { setTitle("Model screen - " + why.toStdString()); }, [this] {
         frames.clear();   // every picture drawn so far was drawn with the old colors
         frameOrder.clear();
         frameBytes = 0;
         failedAhead.clear();
         refreshLoaded();
         reload();
-    }};
+    });
 }
 
 void ModelViewer::refreshLayersButton() {

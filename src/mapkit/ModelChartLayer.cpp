@@ -24,6 +24,7 @@
 #include <QVBoxLayout>
 #include "gfs/GfsModels.h"
 #include "models/ChartBuilder.h"
+#include "models/ModelBar.h"
 #include "models/PaletteEditor.h"
 #include "models/ChartPickers.h"
 #include "models/ProductPicker.h"
@@ -923,7 +924,9 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
     layout->addWidget(modelButton);
     layout->addWidget(chartButton);
     auto * changeBox = UiStandards::combo(widget);
-    changeBox->addItems({"Plain chart", "Change since the run 6 h earlier", "Change since the run 12 h earlier", "Change since the run 24 h earlier", "Maximum of the 24 hours ending at this hour"});
+    for (const auto& label : ModelBar::changeLabels(false)) {
+        changeBox->addItem(QString::fromStdString(label));
+    }
     changeBox->setToolTip("How the chart changed since an earlier run: the same valid time from the older run is subtracted (blue = lower now, red = higher now). Charts of lines only have none");
     layout->addWidget(changeBox);
     auto * toolsRow = new QHBoxLayout;
@@ -990,7 +993,7 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
             overlayButton->setText(overlayModels.empty() ? "Overlay models..." : QString::fromStdString("Overlay: " + std::to_string(overlayModels.size()) + " model" + (overlayModels.size() == 1 ? "" : "s") + "..."));
         }
         changeBox->blockSignals(true);
-        changeBox->setCurrentIndex(maxDay ? 4 : changeBack == 0 ? 0 : changeBack == 6 ? 1 : changeBack == 12 ? 2 : 3);
+        changeBox->setCurrentIndex(std::max(0, ModelBar::changeIndex(changeBack, maxDay)));
         changeBox->setVisible(product != nullptr && !product->linesOnly);
         changeBox->blockSignals(false);
         // the runs: this one or the newest, then the earlier ones on the model's steps
@@ -1051,17 +1054,13 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
         Utility::writePref("MM_MODELCHART_OVERLAYMODELS", joinList(overlayModels));
     };
     QObject::connect(modelButton, &QPushButton::clicked, [this, widget, refresh, save, changed] {
-        std::vector<ProductPicker::Entry> entries;
+        std::vector<string> ids;
         for (const auto& def : GfsModels::all()) {
             if (!def.storm && GfsRender::drawsModel(def.id)) {
-                const auto group = GfsModels::pickerGroup(def.id);
-                entries.push_back({def.id, group == "SPC guidance and mesoanalysis" ? def.id + "  -  " + def.label : def.id, group});
+                ids.push_back(def.id);
             }
         }
-        static const std::vector<string> order{"Global", "Regional", "Convection allowing", "Ensembles", "Waves and ocean", "Other"};
-        std::stable_sort(entries.begin(), entries.end(), [] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
-            return std::find(order.begin(), order.end(), a.group) < std::find(order.begin(), order.end(), b.group);
-        });
+        auto entries = ModelBar::modelEntries(ids);
         auto * picker = new ProductPicker{widget->window(), "NCEP", entries, model, {}, {}, {}};
         picker->setAttribute(Qt::WA_DeleteOnClose);
         picker->setWording("models", "Show this model");
@@ -1123,27 +1122,11 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
         picker->show();
     });
     QObject::connect(changeBox, &QComboBox::currentIndexChanged, [this, changed] (int i) {
-        maxDay = i == 4;
-        changeBack = i == 0 || i == 4 ? 0 : i == 1 ? 6 : i == 2 ? 12 : 24;
+        ModelBar::changeFromIndex(i, changeBack, maxDay);
         changed();
     });
     QObject::connect(colorsButton, &QPushButton::clicked, [this, widget, changed] {
-        const auto * product = GfsChart::product(param, model);
-        if (product == nullptr) {
-            return;
-        }
-        if (changeBack > 0) {
-            QMessageBox::information(widget->window(), "Colors", "A change chart has its own blue / red scale; show the plain chart to edit its colors.");
-            return;
-        }
-        const bool magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;
-        const auto ramp = GfsChart::defaultRamp(*product, magColors);
-        if (ramp.stops.empty()) {
-            QMessageBox::information(widget->window(), "Colors", "This chart is lines only, it has no color scale.");
-            return;
-        }
-        auto * editor = new PaletteEditor{widget->window(), product->label, ramp, product->quantity, UIPreferences::unitsF, [changed] { changed(); }};
-        editor->show();
+        ModelBar::editColors(widget->window(), model, param, changeBack, [widget] (const QString& why) { QMessageBox::information(widget->window(), "Colors", why); }, [changed] { changed(); });
     });
     QObject::connect(buildButton, &QPushButton::clicked, [this, widget, refresh, save, changed] {
         const auto templates = GfsChart::templates(model);
