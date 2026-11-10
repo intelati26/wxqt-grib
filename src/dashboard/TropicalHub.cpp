@@ -36,6 +36,7 @@
 #include "hurricane/PodViewer.h"
 #include "hurricane/SeasonViewer.h"
 #include "models/ModelScreen.h"
+#include "gfs/ChartSelection.h"
 #include "models/ModelViewer.h"
 #include "util/Utility.h"
 #include "hurricane/StrikeReport.h"
@@ -186,10 +187,11 @@ TropicalHub::TropicalHub(Window * parent)
         }
     });
     buttonModels.connect([this] {   // the model screen opened on a tropical chart (the deep-layer shear over the western Atlantic); it is the last used choice from then on, as any other
-        Utility::writePref("NCEP", "GFS");
-        Utility::writePref("MODELNCEPPARAMLASTUSED", "shear_850_200");
-        Utility::writePref("MODELNCEPSECTORLASTUSED", "WEST-ATL");
-        new ModelScreen{this, "NCEP"};
+        ChartSelection chosen;
+        chosen.model = "GFS";
+        chosen.param = "shear_850_200";
+        chosen.sector = "WEST-ATL";
+        (new ModelScreen{this, "NCEP"})->applySelection(chosen);
     });
     buttonHafs.connect([this] { openHafs(""); });
     buttonTropical.connect([this] { new TropicalViewer{this}; });
@@ -671,10 +673,9 @@ void TropicalHub::fillSeasons() {
 
 // The hurricane model is a model of the model screen, the storm its area (the last storm looked at, or the one asked for)
 void TropicalHub::openHafs(const string& storm) {
-    Utility::writePref("NCEP", Utility::readPref("NCEP", "") == "HAFSB" ? "HAFSB" : "HAFSA");
-    Utility::writePref("MODELNCEPPARAMLASTUSED", "wind_mslp");
-    if (!storm.empty()) {
-        Utility::writePref("MODELNCEPSECTORLASTUSED", storm);
-    }
-    new ModelScreen{this, "NCEP"};
+    ChartSelection chosen;
+    chosen.model = Utility::readPref("NCEP", "") == "HAFSB" ? "HAFSB" : "HAFSA";
+    chosen.param = "wind_mslp";
+    chosen.sector = storm;   // ("": the last storm looked at)
+    (new ModelScreen{this, "NCEP"})->applySelection(chosen);
 }
