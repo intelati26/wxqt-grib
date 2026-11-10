@@ -2394,10 +2394,15 @@ void ModelViewer::refreshProductButton() {
     buttonSector.setVisible(grib);
     buttonSector.setText(sectorLabel(objectModel.sector) + "  \xE2\x96\xBE");
     buttonProducts.setVisible(grib);
+    if (buttonColors != nullptr) {
+        buttonColors->setVisible(grib);   // (the color scale is the program's: a picture has its own)
+    }
+    soundingPick.button().setVisible(grib);
     refreshBuildMenu();
     refreshMembers();
     refreshLayersButton();
     refreshOverlays();
+    syncMenus();
     if (!grib) {
         return;
     }
@@ -3681,7 +3686,7 @@ void ModelViewer::syncMenus() {
         for (const auto * action : menu->actions()) {
             any = any || action->isVisible();
         }
-        button->setVisible(any);
+        button->setVisible(any && GfsRender::drawsModel(objectModel.model));   // (a picture from another site has no stations, hodographs, maxima or plume of its own)
     }
 }
 
