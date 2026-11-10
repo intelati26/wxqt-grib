@@ -167,8 +167,9 @@ In order, each its own commit:
 4. **Step 4's end, if wanted**: the viewer's remaining rows (member box, standard deviations, Build) read from `ModelBar` too. Little code is still twice; do it only with the next change to those rows.
 5. **Step 6, one window**: the model screen and the master map opened two ways. The toolbar, home screen and history page open "Models" on the picture and "Master map" on the map, both the one screen; the layer list shown or hidden by the switch; the Source box only for the pages (SPC Post, CAMs, MAG, the old picture sources). Decide first: does the master map's own window stay for the layers-first use, or is it only this screen?
 6. **The open points below** that step 6 meets: compare tiles on the map (panes) or kept to the picture; the fitted legend; one Save; storm models' area on the map.
-7. **The rest of "Also from this look"**: the model family's pages sharing time and area, the hurricane links, the master map's layer search and shared choices.
-8. **Unrelated to the model screen, still open**: the day-2 / per-day marks comparison against a second date of the nice-weather data; HDF5 reader fuzzing; GDAL driver restriction for MRMS, GOES, SAR and drought reads; the intermittent GDAL read error (now reported with its reason, `b1ceabe`).
+7. **WOOF-NAM from its site** (section 7 below): a hosted source for the model that is a local one today.
+8. **The rest of "Also from this look"**: the model family's pages sharing time and area, the hurricane links, the master map's layer search and shared choices.
+9. **Unrelated to the model screen, still open**: the day-2 / per-day marks comparison against a second date of the nice-weather data; HDF5 reader fuzzing; GDAL driver restriction for MRMS, GOES, SAR and drought reads; the intermittent GDAL read error (now reported with its reason, `b1ceabe`).
 
 ### The pictures of the model guidance site (MAG), apart (2026-11-10)
 
@@ -189,3 +190,23 @@ The model screen's NCEP page lists only the models drawn from GRIB; the models t
 - The hurricane screen and the models: "HAFS for this storm" and "Model charts here" on the hurricane screen, "Storm page..." in the Model Viewer on a storm model, HAFS-A and B as a
   family of the hurricane intensity chart (one intensity chart, not two).
 - The master map: the layers' shared choices (opacity, order) in the manager, a search box and the layers last used, "Show on the map" from the radar, outlook and satellite screens.
+
+## 7. WOOF-NAM from its own site (a hosted source for the model that is already a local one)
+
+**What the site is** (read 2026-11-10 from its index page, `README.txt` and `status.json`; nothing downloaded yet, so every number is the site's): `https://woof-nam.recastsystems.com`, free forecast files from Recast's WOOF-NAM, a NAM-style model on a GPU at 12 km over North America (not NOAA's: GRIB2 process 254). NCEP grid 218 (Lambert conformal, 614 x 428, 12.19 km, grid-relative winds), the fields and levels of NOAA's NAM `awphys` files (1000 to 50 hPa every 25 hPa; no lightning, cloud-top visibility, Blackadar length or accumulated snow). Four runs a day (00, 06, 12, 18Z) to hour 84, started from the GFS 0.25 degree analysis of the cycle; the first file about 3 h 30 after the cycle, all 84 hours about 4 h 20 after; files deleted after 7 days. CC BY 4.0: credit "WOOF-NAM by Recast"; not an official forecast. No API: plain HTTP.
+
+**Files:** `woof-nam/12km/<yyyymmdd>/<HH>z/woof-nam.t<HH>z.awphys<FF>.tm00.grib2` with a wgrib2 `.grib2.idx` beside it (so a field is a Range read, as the program already does for NOMADS and the AWS buckets), `cycle.json` (the run's files, sizes, SHA-256) and `maps/`. A run is about 5.9 GB (66 MB an hour from the 06Z run of 5 Nov 2026; the earlier layout was 175 MB an hour), so **only by the index and ranges**, never a whole file. `status.json` says the newest run, its state (running, complete, did not finish, skipped; the page and the file disagree on one word, "failed"), the hours available and the next cycle expected: one small request finds the run, no folder listing. Hindcasts of about 25 past events (2011 to 2026) are under `woof-nam/hindcasts/<event>/`, in the same layout with a `cycle.json`.
+
+**Why it fits:** NCEP retired the NAM on 2026-11-03 and the program's WOOF-NAM today is the local one (`kind = wrf`, folders on this computer, `source_label = WOOF-NAM (local run)`). The site gives the same model to everyone, as the NAM's replacement in the model list, with no GPU run needed.
+
+**Steps**
+
+1. **A second source of the same model** (the registry's `source` mechanism the other models use for a mirror): `kind = grib` with the site's `url` / `file` / `index_suffix = .idx`, `cycle_hours = 6`, `hours = 0-84/1`, the local run kept as the first source when its folders exist, the hosted one otherwise; `source_label = WOOF-NAM (Recast, hosted)`. Check first what the file's variable and level names are in the `.idx` (wgrib2 names, as NOAA's) so the chart list of NAM's `awphys` charts is reused.
+2. **The Lambert grid 218.** The registry reads the NOAA Lambert grids (HRRR, NAM 12 km) through the GDAL warp already: the same path, a 614 x 428 grid; winds are grid-relative and turned east / north as the NAM's are. Test: the same hour from the hosted file and from a local run, compared at a handful of points.
+3. **The run:** from `status.json` (the newest complete run, and the hours available while it is still running), not by probing. A run that `status.json` calls running is shown with the hours it has.
+4. **Hours and fields that are not there:** the missing fields (lightning, snowfall) hide their charts for this model; the precipitation-type fields only from the 12Z run of 9 Nov 2026, so a chart of them says so for an older run. Hours beyond 84 are not offered.
+5. **Credit and manners:** "WOOF-NAM by Recast" in the legend's data line and the model list's text, the not-NOAA note beside it, one request a second and the plain `wxqt` agent, and ask before the first download (as for any new source).
+6. **Hindcasts** (a second step, if wanted): the 25 events as archive runs in the history page's model choice, the way the other archives are; the comparison PNGs are the site's own and are not copied.
+7. **The model list:** WOOF-NAM goes in the NCEP page's "Convection allowing" group as the NAM's successor; the NAM pictures stay on the MAG page while NCEP serves them.
+
+**Open points:** whether the site keeps this URL layout (it changed layout once, on 5 Nov 2026: check `cycle.json` for the file list rather than assuming 84 files); its capacity (a 5.9 GB run a day times four is theirs to carry: ranges and the preload limit keep the program to the fields on view); the contact in the README is for the site's maker, for any question of use beyond the CC BY terms.
