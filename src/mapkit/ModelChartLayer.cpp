@@ -1166,38 +1166,9 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
         builder->show();
     });
     QObject::connect(overlayButton, &QPushButton::clicked, [this, widget, refresh, changed] {
-        QDialog dialog{widget->window()};
-        dialog.setWindowTitle("Overlay models");
-        auto * column = new QVBoxLayout{&dialog};
-        auto * about = new QLabel{QString::fromStdString("Lines of the chart from these models are drawn over " + model + "'s, for the same valid time, each in its own color (at most four). The fill is left out so the lines can be read. Models are listed when they draw this chart."), &dialog};
-        about->setWordWrap(true);
-        column->addWidget(about);
-        std::vector<QCheckBox *> boxes;
-        for (const auto& def : GfsModels::all()) {
-            if (def.id == model || def.storm || !GfsRender::drawsModel(def.id) || GfsChart::product(param, def.id) == nullptr) {
-                continue;
-            }
-            auto * box = new QCheckBox{QString::fromStdString(def.id + "   " + def.label), &dialog};
-            box->setProperty("model", QString::fromStdString(def.id));
-            box->setChecked(std::find(overlayModels.begin(), overlayModels.end(), def.id) != overlayModels.end());
-            column->addWidget(box);
-            boxes.push_back(box);
-        }
-        if (boxes.empty()) {
-            column->addWidget(new QLabel{"No other model draws this chart.", &dialog});
-        }
-        auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
-        QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-        QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-        column->addWidget(buttons);
-        if (dialog.exec() != QDialog::Accepted) {
+        auto chosen = overlayModels;
+        if (!ChartPickers::chooseOverlayModels(widget->window(), model, param, chosen)) {
             return;
-        }
-        std::vector<string> chosen;
-        for (auto * box : boxes) {
-            if (box->isChecked() && chosen.size() < 4) {
-                chosen.push_back(box->property("model").toString().toStdString());
-            }
         }
         overlayModels = chosen;
         Utility::writePref("MM_MODELCHART_OVERLAYMODELS", joinList(overlayModels));

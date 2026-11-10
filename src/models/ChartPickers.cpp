@@ -4,6 +4,12 @@
 // *****************************************************************************
 
 #include "models/ChartPickers.h"
+#include <QCheckBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QLabel>
+#include <QVBoxLayout>
+#include "gfs/GfsModels.h"
 #include <algorithm>
 #include <cmath>
 #include "gfs/GfsChart.h"
@@ -98,4 +104,61 @@ ProductPicker * ChartPickers::areaPicker(QWidget * parent, const std::string& mo
     picker->onPick = onPick;
     picker->onFavorites = [key] (const std::vector<std::string>& ids) { saveFavorites(key, ids); };
     return picker;
+}
+
+bool ChartPickers::chooseOverlayModels(QWidget * parent, const std::string& model, const std::string& param, std::vector<std::string>& chosen, bool * keepFill) {
+    const auto * here = GfsChart::product(param, model);
+    QDialog dialog{parent};
+    dialog.setWindowTitle("Overlay models");
+    auto * layout = new QVBoxLayout{&dialog};
+    auto * about = new QLabel{"Lines of " + QString::fromStdString(here != nullptr ? here->label : param) + " from these models are drawn over " + QString::fromStdString(model) +
+                              "'s, for the same valid time, each model in its own color (at most four), every set of lines of the chart, the later sets dashed. Models are listed when they draw this chart.", &dialog};
+    about->setWordWrap(true);
+    layout->addWidget(about);
+    std::vector<QCheckBox *> boxes;
+    for (const bool ensembles : {false, true}) {   // two lists: the deterministic models, then the ensembles
+        bool headed = false;
+        for (const auto& def : GfsModels::all()) {
+            if (def.id == model || def.storm || GfsChart::product(param, def.id) == nullptr || (GfsModels::pickerGroup(def.id) == "Ensembles") != ensembles) {
+                continue;
+            }
+            if (!headed) {
+                headed = true;
+                layout->addWidget(new QLabel{ensembles ? "<b>Ensembles</b>" : "<b>Deterministic models</b>", &dialog});
+            }
+            auto * box = new QCheckBox{QString::fromStdString(def.id + "   " + def.label), &dialog};
+            box->setProperty("model", QString::fromStdString(def.id));
+            box->setChecked(std::find(chosen.begin(), chosen.end(), def.id) != chosen.end());
+            layout->addWidget(box);
+            boxes.push_back(box);
+        }
+    }
+    if (boxes.empty()) {
+        layout->addWidget(new QLabel{"No other model draws this chart.", &dialog});
+    }
+    QCheckBox * fill = nullptr;
+    if (keepFill != nullptr) {
+        fill = new QCheckBox{"Keep " + QString::fromStdString(model) + "'s fill and barbs under the lines", &dialog};
+        fill->setToolTip("Off: the lines alone, so they can be read. On: the first model's colors (and wind barbs) stay beneath them.");
+        fill->setChecked(*keepFill);
+        layout->addWidget(fill);
+    }
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) {
+        return false;
+    }
+    std::vector<std::string> now;
+    for (auto * box : boxes) {
+        if (box->isChecked() && now.size() < 4) {
+            now.push_back(box->property("model").toString().toStdString());
+        }
+    }
+    chosen = now;
+    if (fill != nullptr) {
+        *keepFill = fill->isChecked();
+    }
+    return true;
 }

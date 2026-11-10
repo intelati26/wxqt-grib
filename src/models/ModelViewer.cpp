@@ -3796,55 +3796,15 @@ void ModelViewer::chooseOverlays() {
         setTitle("Model screen - pick a chart with lines (heights or pressure) to put other models' lines over it");
         return;
     }
-    QDialog dialog{this};
-    dialog.setWindowTitle("Overlay models");
-    auto * layout = new QVBoxLayout{&dialog};
-    auto * about = new QLabel{"Lines of " + QString::fromStdString(here->label) + " from these models are drawn over " + QString::fromStdString(objectModel.model) +
-                              "'s, for the same valid time, each model in its own color (at most four), every set of lines of the chart, the later sets dashed. Models are listed when they draw this chart.", &dialog};
-    about->setWordWrap(true);
-    layout->addWidget(about);
-    std::vector<QCheckBox *> boxes;
-    for (const bool ensembles : {false, true}) {   // two lists: the deterministic models, then the ensembles
-        bool headed = false;
-        for (const auto& def : GfsModels::all()) {
-            if (def.id == objectModel.model || def.storm || GfsChart::product(objectModel.param, def.id) == nullptr || (GfsModels::pickerGroup(def.id) == "Ensembles") != ensembles) {
-                continue;
-            }
-            if (!headed) {
-                headed = true;
-                layout->addWidget(new QLabel{ensembles ? "<b>Ensembles</b>" : "<b>Deterministic models</b>", &dialog});
-            }
-            auto * box = new QCheckBox{QString::fromStdString(def.id + "   " + def.label), &dialog};
-            box->setProperty("model", QString::fromStdString(def.id));
-            box->setChecked(std::find(picked.overlayModels.begin(), picked.overlayModels.end(), def.id) != picked.overlayModels.end());
-            layout->addWidget(box);
-            boxes.push_back(box);
-        }
-    }
-    if (boxes.empty()) {
-        layout->addWidget(new QLabel{"No other model draws this chart.", &dialog});
-    }
-    auto * keepFill = new QCheckBox{"Keep " + QString::fromStdString(objectModel.model) + "'s fill and barbs under the lines", &dialog};
-    keepFill->setToolTip("Off: the lines alone, so they can be read. On: the first model's colors (and wind barbs) stay beneath them.");
-    keepFill->setChecked(overlayKeepFill);
-    layout->addWidget(keepFill);
-    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
-    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-    layout->addWidget(buttons);
-    if (dialog.exec() != QDialog::Accepted) {
+    auto chosen = picked.overlayModels;
+    bool fillKept = overlayKeepFill;
+    if (!ChartPickers::chooseOverlayModels(this, objectModel.model, objectModel.param, chosen, &fillKept)) {
         return;
     }
-    std::vector<string> chosen;
-    for (auto * box : boxes) {
-        if (box->isChecked() && chosen.size() < 4) {
-            chosen.push_back(box->property("model").toString().toStdString());
-        }
-    }
-    if (chosen == picked.overlayModels && keepFill->isChecked() == overlayKeepFill) {
+    if (chosen == picked.overlayModels && fillKept == overlayKeepFill) {
         return;
     }
-    overlayKeepFill = keepFill->isChecked();
+    overlayKeepFill = fillKept;
     picked.overlayModels = chosen;
     refreshOverlays();
     startPlaying(false);
