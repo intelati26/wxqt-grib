@@ -576,6 +576,9 @@ static double achievable(double west, double east, int widthNow) {
 
 void ModelChartLayer::render(MapHost& host) {
     askHours(host);   // (once for each run and chart; again while hours are still missing)
+    if (!host.viewIsShown()) {
+        return;
+    }
     if (busy || run.size() < 10 || hours.empty()) {
         return;
     }
