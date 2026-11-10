@@ -36,6 +36,7 @@
 #include "hurricane/Coast.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "mapkit/ModelChartLayer.h"
+#include "ui/ActivityLabel.h"
 #include "ui/ExportDialog.h"
 #include "mapkit/OfficeAreas.h"
 #include "climate/UtilityAcisClimate.h"
@@ -562,6 +563,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     box.addWidgetReal(modelBarRow, 0, Qt::Alignment{});
     box.addWidgetReal(timeRow, 0, Qt::Alignment{});
     box.addLayout(rowMain, 1);
+    box.addWidgetReal(new ActivityLabel{this});   // the layers and frames download together: what is in flight, and a click for the network list
     box.getAndShow(this);
     if (const auto saved = Utility::readPref("MM_OFFICE", ""); !saved.empty()) {   // the office outlined last time: read in the background (from the disk copy), then drawn
         background([] { string problem; OfficeAreas::all(problem); }, [this, saved] { selectOffice(saved, false); });

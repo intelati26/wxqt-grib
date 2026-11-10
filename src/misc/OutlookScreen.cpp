@@ -14,6 +14,7 @@
 #include "spc/SpcSwoStateGraphics.h"
 #include "spc/SpcSwoSummary.h"
 #include "spc/SpcTstormOutlooks.h"
+#include "ui/ActivityLabel.h"
 #include "ui/UiStandards.h"
 #include "wpc/NationalImages.h"
 #include "wpc/RainfallOutlook.h"
@@ -45,6 +46,7 @@ OutlookScreen::OutlookScreen(Window * parent, OutlookNav::Kind kind, int value)
     stack = new QStackedWidget{this};
     box.addWidgetReal(row, 0, Qt::Alignment{});
     box.addWidgetReal(stack, 1, Qt::Alignment{});
+    box.addWidgetReal(new ActivityLabel{this});
     box.getAndShow(this);
     QObject::connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this] (int index) {
         if (index < 0) {

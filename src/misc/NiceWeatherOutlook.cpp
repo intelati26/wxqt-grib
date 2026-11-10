@@ -14,6 +14,7 @@
 #include "gfs/GfsRender.h"
 #include "misc/ImageViewer.h"
 #include "objects/FutureVoid.h"
+#include "ui/ActivityLabel.h"
 #include "ui/UiStandards.h"
 #include "util/Utility.h"
 
@@ -165,6 +166,7 @@ NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)
     leftBox.addWidget(header);
     leftBox.addWidget(photo);
     leftBox.addStretch();
+    leftBox.addWidgetReal(new ActivityLabel{this});   // what is downloading for the chart (and a click for the network list)
     comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 7)));
     comboDay.connect([this] { showDay(); });
     photo.connect([this, parent] { new ImageViewer{parent, photo.bytes}; });

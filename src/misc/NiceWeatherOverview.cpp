@@ -3,12 +3,14 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "ui/ActivityLabel.h"
 #include "misc/NiceWeatherOverview.h"
 #include <memory>
 #include <QDateTime>
 #include <QGridLayout>
 #include <QVBoxLayout>
 #include "gfs/GfsChart.h"
+#include "ui/ActivityLabel.h"
 #include "gfs/GfsRender.h"
 #include "misc/NiceWeatherOutlook.h"
 #include "misc/OutlookNav.h"
@@ -47,6 +49,7 @@ NiceWeatherOverview::NiceWeatherOverview(Window * parent)
     notes->setWordWrap(true);
     box.addWidgetReal(notes);
     box.addStretch();
+    box.addWidgetReal(new ActivityLabel{this});   // the eight days download together: what is in flight, and a click for the network list
     load(0);
 }
 
