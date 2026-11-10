@@ -20,6 +20,8 @@
 using std::function;
 using std::vector;
 
+class ModelScreen;
+
 class Toolbar : public VBox {
 public:
     Toolbar(Window *, const function<void()>&);
@@ -39,7 +41,7 @@ public:
     void launchObservationSites();
     void launchObservations();
     void launchSpcMeso(const string& = "");
-    void launchModelViewer();
+    ModelScreen * launchModelViewer();
     void launchModelViewerGeneric(const string&);
     void launchNationalImages();
     void launchUsAlerts();
