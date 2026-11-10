@@ -252,7 +252,9 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         });
         buttonOnMap = entry(menuMap, "On the map...", "This chart on the master map (scroll and zoom it, put radar, satellite, storms or rivers with it): the same model, chart, area and valid time", false);
         QObject::connect(buttonOnMap, &QAction::triggered, this, [this] {
-            if (GfsRender::drawsModel(objectModel.model)) {
+            if (GfsRender::drawsModel(objectModel.model) && openMap) {
+                openMap(selection());
+            } else if (GfsRender::drawsModel(objectModel.model)) {
                 MasterMapViewer::openModels(this, objectModel.model, objectModel.param, objectModel.sector, shownProbe ? shownProbe->validUtc : QDateTime{}, selection());
             }
         });

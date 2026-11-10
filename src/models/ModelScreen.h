@@ -28,6 +28,7 @@ public:
     // the Model Viewer on a model, at the run and hour whose valid time is `validUtc` (the history page)
     void openAt(const string& model, const QDateTime& validUtc);
     void applySelection(const ChartSelection& chosen);   // opens the NCEP page on that chart
+    void showMap(const ChartSelection& chosen);          // the map (the model chart on it, the same selection) in the place of the pictures; applySelection brings the pictures back
     void applyVariants(const ChartSelection& chosen);   // the Model Viewer page takes the lines, members and variants of a chart handed over (ModelViewer::applyVariants)
     struct Source {
         const char * id;
@@ -37,9 +38,11 @@ public:
 
 private:
     Window * make(const string& id);
+    void syncViewBox();
     void closeEventCustom() override;
     VBox box;
     QComboBox * combo{};
+    QComboBox * viewBox{};   // Picture | Map, for the page of the charts drawn here
     QStackedWidget * stack{};
     std::map<string, Window *> pages;
     string shown;

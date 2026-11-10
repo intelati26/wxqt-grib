@@ -50,6 +50,9 @@ public:
     bool saveModelChart(const QString& path, std::string& problem);   // the model chart layer's Model Viewer picture of what is in view (false: none is on, or why it could not be made)
     // startView: the start of a saved view's name to open with (empty: what was on last time)
     explicit MasterMapViewer(Window * parent, const string& startView = {});
+    // the chart on the map's model layer as a selection (the model screen's switch back to the picture); empty model when the layer is off
+    ChartSelection modelSelection() const;
+    std::function<void(const ChartSelection&)> backToPicture;   // set by the model screen: "Other models > Model Viewer" shows the picture in its place, not in a window of its own
     // the map at a time of the past and a place (the history page): only the layers given (those that can show a past time), each set to that time; the region is the point
     // with its radius
     // The map as the model browser (what the Model Viewer page was): the model chart layer alone, on a model / chart / area (sector id; "" the ones used last, or the United States) and, when `valid` is
