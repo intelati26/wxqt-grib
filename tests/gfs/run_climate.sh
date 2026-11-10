@@ -1,8 +1,7 @@
 #!/bin/bash
-# builds and runs the climatology numerics tests (no network); exits non-zero on the first failure
+# manual: builds from the program's own objects (make first) and runs climate_test
 set -e
 here="$(cd "$(dirname "$0")" && pwd)"
-root="$here/../.."
 out="${TMPDIR:-/tmp}/wxqt_climate_test"
-${CXX:-g++} -std=c++20 -fPIC -O2 -Wall -Wextra -I"$root/src" $(pkg-config --cflags Qt6Core) "$here/climate_test.cpp" "$root"/src/gfs/GfsClimate.cpp "$root"/src/gfs/GfsData.cpp "$root"/src/gfs/GfsModels.cpp "$root"/src/gfs/GfsModelFile.cpp "$root"/src/gfs/GfsBuiltInModels.cpp "$root"/src/gfs/GfsGrid.cpp "$root"/src/util/PermanentCache.cpp $(pkg-config --libs Qt6Core) -o "$out"
+"$here/build_with_app.sh" "$here/climate_test.cpp" "$out"
 "$out"
