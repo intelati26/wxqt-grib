@@ -439,8 +439,8 @@ void Toolbar::launchSpcMeso(const string& product) {
     new SpcMeso{parent, product};
 }
 
-void Toolbar::launchModelViewer() {
-    new ModelScreen{parent, "NCEP"};
+ModelScreen * Toolbar::launchModelViewer() {
+    return new ModelScreen{parent, "NCEP"};
 }
 
 void Toolbar::launchModelViewerGeneric(const string& modelType) {

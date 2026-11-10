@@ -162,8 +162,8 @@ Checked offscreen (screenshots), not by clicking: the bar, the Time box, the han
 In order, each its own commit:
 
 1. **Click it through** (nothing below was clicked, only screenshotted): the Time box with a loop and From-to; "Other models > Model Viewer" and "On the map..." from the real menus; the Picture | Map box on a local area, a storm model and with a member or a change; the Colors, Build and Overlay dialogs from the map's bar.
-2. **The MAG page without what a picture can not use** (Map, Analysis, tiles of GRIB charts, Sounding, Colors, Build hidden on it). Small.
-3. **The last callers off the preferences**: the history page's and the Events screen's `ModelScreen::openAt` (and `MainWindow`'s `NCEP` writes) onto `applySelection`.
+2. **The MAG page without what a picture can not use** (done: Map, Analysis, Colors and Sounding hidden on it; its GRIB tiles stay).
+3. **The last callers off the preferences** (done for the CFS 30 day and WPC PPP buttons of the home screen; left: the "last forecast" thumbnail route (`GRIB_LATEST`), which is the saved choice by design).
 4. **Step 4's end, if wanted**: the viewer's remaining rows (member box, standard deviations, Build) read from `ModelBar` too. Little code is still twice; do it only with the next change to those rows.
 5. **Step 6, one window**: the model screen and the master map opened two ways. The toolbar, home screen and history page open "Models" on the picture and "Master map" on the map, both the one screen; the layer list shown or hidden by the switch; the Source box only for the pages (SPC Post, CAMs, MAG, the old picture sources). Decide first: does the master map's own window stay for the layers-first use, or is it only this screen?
 6. **The open points below** that step 6 meets: compare tiles on the map (panes) or kept to the picture; the fitted legend; one Save; storm models' area on the map.

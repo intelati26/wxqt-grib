@@ -5,6 +5,8 @@
 // *****************************************************************************
 
 #include "MainWindow.h"
+#include "gfs/ChartSelection.h"
+#include "models/ModelScreen.h"
 #include "models/AnalysisLoop.h"
 #include "gfs/GfsModels.h"
 #include "misc/OutlookScreen.h"
@@ -529,17 +531,19 @@ void MainWindow::launchImageScreen(const string& token) {
     } else if (token == "SPC_MESO_500MB") {
         toolbar.launchSpcMeso("500mb");
     } else if (token == "CFS_30DAY") {
-        Utility::writePref("NCEP", "CFS30");
-        Utility::writePref("MODELNCEPPARAMLASTUSED", "cfs30_t2m_precip");
-        Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
-        toolbar.launchModelViewer();   // the Model Viewer on the CFS 30 day chart
+        ChartSelection chosen;
+        chosen.model = "CFS30";
+        chosen.param = "cfs30_t2m_precip";
+        chosen.sector = "CONUS";
+        toolbar.launchModelViewer()->applySelection(chosen);   // the Model Viewer on the CFS 30 day chart
     } else if (token == "NICE_DAY1") {
         OutlookScreen::open(this, OutlookNav::NiceDay, 0);   // the outlook window's page of the nice weather outlook, on day 1
     } else if (token.compare(0, 8, "WPC_PPP_") == 0) {
-        Utility::writePref("NCEP", "WPC-PPP");
-        Utility::writePref("MODELNCEPPARAMLASTUSED", "ppp_" + token.substr(8) + "h_median");
-        Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
-        toolbar.launchModelViewer();   // the Model Viewer on the portal's median chart of that period
+        ChartSelection chosen;
+        chosen.model = "WPC-PPP";
+        chosen.param = "ppp_" + token.substr(8) + "h_median";
+        chosen.sector = "CONUS";
+        toolbar.launchModelViewer()->applySelection(chosen);   // the Model Viewer on the portal's median chart of that period
     } else if (token == "RTMA_SECOND" || token == "RTMA_AREA") {
         // the NWS analysis window (the RTMA / URMA loop) on the chart of the picture, in the area last used, the last 24 hours up to the newest analysis
         AnalysisLoop::openLatest(this, token == "RTMA_AREA" ? string{"2m_temp_10m_wnd"} : HomeThumbnails::rtmaSecondChart());
