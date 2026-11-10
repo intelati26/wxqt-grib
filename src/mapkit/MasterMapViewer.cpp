@@ -1908,6 +1908,14 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
     QCoreApplication::processEvents();
     QImage world;
     string highNote;
+    {   // a polar map with a model chart on the map is always painted from the model's grid (the Mercator picture stops at 85 degrees, short of the pole)
+        string chart;
+        vector<string> models;
+        QDateTime when;
+        if (GlobeMapView::isPolar(projection) && !highResolution && modelSpec(chart, models, when)) {
+            highResolution = true;
+        }
+    }
     if (highResolution) {
         string chart;
         vector<string> models;
