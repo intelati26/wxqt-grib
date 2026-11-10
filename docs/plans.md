@@ -128,7 +128,9 @@ Not checked in the running program: the two handoffs clicked through; loops and 
 
 ### Steps
 
-1. **The model bar on the master map** (in hand).
+1. **The model bar on the master map** (the first part done 2026-11-10: the bar is up while the layer is on, with the model, chart, change, colors, build, other models, run, member and
+   standard deviations; the panel keeps the draw-ahead and the opacity and shows the rest only when there is no bar; the two stay in step. Left: the area and the hour strip in the bar,
+   and a look at it with the panel open, with a saved view, and with the combo chart layer).
    - `MasterMapViewer`: a row above the time bar that holds `modelLayer()->bar(...)` while the layer "model/chart" is on, made and removed where the layer manager's rows are (the same
      `changed` callback as the layer's options: `optionChanged`, `redraw`). The layer's panel in the manager then keeps only what is the layer's own (opacity, draw ahead).
    - `ModelChartLayer::optionChanged` calls `refreshControls()` so a choice made in one place shows in the other.

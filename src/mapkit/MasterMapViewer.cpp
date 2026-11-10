@@ -528,6 +528,13 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     ElidedText::install(sidePanel);
     box.addLayout(rowTop);
     box.addWidget(textStatus);
+    modelBarRow = new QWidget{this};
+    {
+        auto * rowLayout = new QVBoxLayout{modelBarRow};
+        rowLayout->setContentsMargins(0, 2, 0, 2);
+    }
+    modelBarRow->setVisible(false);
+    box.addWidgetReal(modelBarRow, 0, Qt::Alignment{});
     box.addWidgetReal(timeRow, 0, Qt::Alignment{});
     box.addLayout(rowMain, 1);
     box.getAndShow(this);
@@ -680,6 +687,7 @@ void MasterMapViewer::refreshActiveList() {
         return;
     }
     updateTimeline();   // (frames become ready while the layers work: the list is looked at every half second after a redraw)
+    updateModelBar();
     string signature;
     for (const auto& layer : layers) {
         if (layer->enabled()) {
@@ -947,6 +955,28 @@ bool MasterMapViewer::forecastsOnly() const {
         }
     }
     return any;
+}
+
+// The model bar: while the model chart layer is on, its choices (model, chart, change, colors, other models, run, member) are a row across the top, as the Model Viewer has them, and the
+// layer's panel in the manager keeps only what is the layer's own. Off with the layer.
+void MasterMapViewer::updateModelBar() {
+    if (modelBarRow == nullptr) {
+        return;
+    }
+    auto * chart = modelLayer();
+    if (chart != nullptr && modelBar == nullptr) {
+        modelBar = chart->bar(modelBarRow, [this, chart] { chart->optionChanged(*this); redraw(); QTimer::singleShot(0, this, [this] { refreshActiveList(); }); });
+        modelBarRow->layout()->addWidget(modelBar);
+        chart->setBarOnScreen(true);
+        modelBarRow->setVisible(true);
+    } else if (chart == nullptr && modelBar != nullptr) {
+        modelBar->deleteLater();
+        modelBar = nullptr;
+        modelBarRow->setVisible(false);
+        if (auto * layer = dynamic_cast<ModelChartLayer *>(layerOf("model/chart"))) {
+            layer->setBarOnScreen(false);
+        }
+    }
 }
 
 bool MasterMapViewer::mixedTimes() const {
