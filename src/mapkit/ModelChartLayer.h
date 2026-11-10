@@ -38,6 +38,7 @@ public:
     QWidget * options(QWidget * parent, const std::function<void()>& changed) override;
     // the same choices as a bar across the top of a screen (model, chart, run, change, member ... side by side, on as many rows as the width needs): the model bar of the master map
     QWidget * bar(QWidget * parent, const std::function<void()>& changed) { return controls(parent, changed, true); }
+    void setBarOnScreen(bool on);   // the screen has the bar up: the panels keep only the layer's own choices
     void optionChanged(MapHost& host) override;
     string summary() const override;
     bool working() const override { return busy || finding; }
@@ -119,6 +120,8 @@ private:
     QWidget * controls(QWidget * parent, const std::function<void()>& changed, bool asBar);
     std::map<QWidget *, std::function<void()>> refreshers;   // each set of the choices on screen (the panel, the bar) and what redraws its boxes
     void refreshControls() { for (const auto& [widget, refresh] : refreshers) { refresh(); } }
+    std::map<QWidget *, QWidget *> sharedBoxes;              // in each panel: the box of the chart's choices, hidden while a bar has them
+    bool barOnScreen{false};
     string newestRun;                          // the newest run found
     int changeBack{0};                         // hours: the change since the run that much older (0: the plain chart)
     string runChosen;                          // the run asked for (the newest, the time bar's, the one picked); `run` is the one the chart is drawn from (a chart that needs a main run moves it)

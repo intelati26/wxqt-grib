@@ -202,6 +202,9 @@ private:
     QCheckBox * legendCheck{};
     QLabel * noticeLabel{};
     QWidget * timeRow{};
+    QWidget * modelBarRow{};        // above the time bar while the model chart layer is on: the chart's choices side by side (ModelChartLayer::bar), as the Model Viewer has them along its top
+    QWidget * modelBar{};
+    void updateModelBar();
     QSlider * timeSlider{};
     QPushButton * playButton{};
     QPushButton * rangeButton{};

@@ -329,7 +329,15 @@ void ModelChartLayer::refresh(MapHost& host) {
         });
 }
 
+void ModelChartLayer::setBarOnScreen(bool on) {
+    barOnScreen = on;
+    for (const auto& [widget, shared] : sharedBoxes) {
+        shared->setVisible(!on);
+    }
+}
+
 void ModelChartLayer::optionChanged(MapHost& host) {
+    refreshControls();   // (a choice made in the bar shows in the panel, and the other way)
     forget();
     run.clear();
     runChosen.clear();
@@ -882,14 +890,32 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
 // the panel can not come to differ.
 QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()>& changed, bool asBar) {
     auto * widget = new QWidget{parent};
-    QLayout * layout = nullptr;
+    // The choices that say what chart it is (model, chart, change, colors, other models, run, member, standard deviations) are the bar's; the layer's own (how far ahead it draws, its
+    // opacity) are the panel's. A panel shows the chart's choices too while there is no bar on the screen (`sharedBoxes`: hidden when there is one, so they are not there twice).
+    QLayout * layout = nullptr;    // the chart's choices
+    QLayout * own = nullptr;       // the layer's own (nullptr: not shown here)
     if (asBar) {
         layout = new FlowLayout{4};
         widget->setLayout(layout);
     } else {
-        layout = new QVBoxLayout{widget};
+        auto * column = new QVBoxLayout{widget};
+        column->setContentsMargins(0, 0, 0, 0);
+        auto * shared = new QWidget{widget};
+        layout = new QVBoxLayout{shared};
+        column->addWidget(shared);
+        own = column;
+        shared->setVisible(!barOnScreen);
+        sharedBoxes[widget] = shared;
     }
     layout->setContentsMargins(0, 0, 0, 0);
+    const auto ownWidget = [own, widget] (QWidget * w) {
+        if (own != nullptr) {
+            own->addWidget(w);
+        } else {
+            w->setParent(widget);
+            w->setVisible(false);
+        }
+    };
     auto * modelButton = new QPushButton{widget};
     auto * chartButton = new QPushButton{widget};
     modelButton->setToolTip("The model of the chart: opens the list of models in groups (global, regional, convection allowing, ensembles ...), with a search box");
@@ -924,7 +950,7 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
     aheadBox->addItem("Draw ahead: the whole run", "all");
     aheadBox->setCurrentIndex(std::max(0, aheadBox->findData(QString::fromStdString(Utility::readPref("MM_MODELCHART_PRELOAD", "auto")))));
     aheadBox->setToolTip("The hours after the one shown are drawn in the background so that stepping and loops find them ready. Automatic: the model's own number (24 hours for most; the whole run when it is under a day). Every hour is a download: the whole run is a lot for the long models");
-    layout->addWidget(aheadBox);
+    ownWidget(aheadBox);
     QObject::connect(aheadBox, &QComboBox::currentIndexChanged, [this, aheadBox] (int) {
         Utility::writePref("MM_MODELCHART_PRELOAD", aheadBox->currentData().toString().toStdString());
         fillAhead(aheadCount());
@@ -937,15 +963,14 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
     layout->addWidget(memberBox);
     auto * sigmaBox = new QCheckBox{"In standard deviations from the normal", widget};
     layout->addWidget(sigmaBox);
-    layout->addWidget(new QLabel{"Opacity:", widget});
+    ownWidget(new QLabel{"Opacity:", widget});
     auto * slider = new QSlider{Qt::Horizontal, widget};
     slider->setRange(20, 100);
     slider->setValue(opacity);
     if (asBar) {
-        slider->setFixedWidth(110);
         sigmaBox->setText("Std deviations");
     }
-    layout->addWidget(slider);
+    ownWidget(slider);
 
     // what the buttons say and which of the extra boxes the chart has
     const auto refresh = [this, modelButton, chartButton, overlayButton, changeBox, runBox, memberBox, sigmaBox] {
@@ -1012,7 +1037,13 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
     };
     refresh();
     refreshers[widget] = refresh;   // (the run list is filled when the newest run is found; a choice made in the bar shows in the panel, and the other way)
-    QObject::connect(widget, &QObject::destroyed, [this, widget] { refreshers.erase(widget); });
+    // (the widgets are the screen's and can outlive the layer when the screen closes: the layer is then gone, and there is nothing of it to tidy)
+    QObject::connect(widget, &QObject::destroyed, [this, widget, here = std::weak_ptr<bool>{alive}] {
+        if (const auto still = here.lock(); still && *still) {   // (its destructor says so: other holders may keep the flag itself a little longer)
+            refreshers.erase(widget);
+            sharedBoxes.erase(widget);
+        }
+    });
     const auto save = [this] {
         Utility::writePref("MM_MODELCHART_MODEL", model);
         Utility::writePref("MM_MODELCHART_PARAM", param);
