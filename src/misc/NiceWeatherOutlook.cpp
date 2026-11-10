@@ -18,7 +18,7 @@
 #include "util/Utility.h"
 
 namespace {
-    const std::vector<std::string> dayLabels{"Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"};
+    const std::vector<std::string> dayLabels{"Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7", "Day 8"};
     const char * const levelNames[6] = {"Below Decent", "Decent (1)", "Fair (2)", "Nice (3)", "Beautiful (4)", "Perfect (5/5)"};
 
     bool insideUnitedStates(double lon, double lat) {
@@ -124,6 +124,32 @@ std::string NiceWeatherOutlook::summaryOf(const GfsGrid::Grid& grid) {
     return summary(grid);
 }
 
+std::string NiceWeatherOutlook::headlineOf(const GfsGrid::Grid& grid) {
+    double nice = 0.0, beautiful = 0.0, total = 0.0;
+    for (int row = 0; row < grid.rows; row++) {
+        const double lat = grid.lat0 - row * grid.step;
+        const double weight = std::cos(lat * M_PI / 180.0);
+        for (int column = 0; column < grid.columns; column++) {
+            const float value = grid.values[static_cast<size_t>(row) * static_cast<size_t>(grid.columns) + static_cast<size_t>(column)];
+            double lon = grid.lon0 + column * grid.step;
+            if (lon > 180.0) {
+                lon -= 360.0;
+            }
+            if (std::isnan(value) || !insideUnitedStates(lon, lat)) {
+                continue;
+            }
+            const int level = std::clamp(static_cast<int>(std::lround(value)), 0, 5);
+            total += weight;
+            nice += level >= 3 ? weight : 0.0;
+            beautiful += level >= 4 ? weight : 0.0;
+        }
+    }
+    if (total <= 0.0) {
+        return "no forecast yet";
+    }
+    return QString{"Nice or better %1%, Beautiful or better %2%"}.arg(100.0 * nice / total, 0, 'f', 0).arg(100.0 * beautiful / total, 0, 'f', 0).toStdString();
+}
+
 NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)
     : Window{parent}
     , comboDay{this, dayLabels}
@@ -139,7 +165,7 @@ NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)
     leftBox.addWidget(header);
     leftBox.addWidget(photo);
     leftBox.addStretch();
-    comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 6)));
+    comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 7)));
     comboDay.connect([this] { showDay(); });
     photo.connect([this, parent] { new ImageViewer{parent, photo.bytes}; });
     shortcutImage.connect([this, parent] { new ImageViewer{parent, photo.bytes}; });
@@ -147,7 +173,7 @@ NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)
 }
 
 void NiceWeatherOutlook::showDay() {
-    const int index = std::clamp(static_cast<int>(comboDay.getIndex()), 0, 6);
+    const int index = std::clamp(static_cast<int>(comboDay.getIndex()), 0, 7);
     const int mine = ++generation;
     setTitle("Nice Weather Outlook, " + dayLabels[static_cast<size_t>(index)]);
     header.setText("Loading " + dayLabels[static_cast<size_t>(index)] + " ...");

@@ -1695,7 +1695,7 @@ const std::vector<Product>& products() {
         // cap or remove a level.
         for (const std::string source : {"NBM"}) {
             const bool blend = true;
-            const int lastDay = 7;
+            const int lastDay = 8;
             Product x;
             x.source = source;
             x.id = "nice_weather";
@@ -2048,9 +2048,9 @@ const std::vector<Product>& products() {
                 g["level"] = std::move(level);
             };
             // the smoke is the RRFS's (the blend has none): its near-surface fine particles at the same hours, for the first days it reaches
-            x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 7)); }, 6});
+            x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 8)); }, 6});
             {   // GEOS-FP's fine particles at the same hours (the daytime of the days it has): the dust, sea salt, black carbon, organic matter and sulfate of its 3 hour surface averages
-                const auto geosHours = [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 7)); };
+                const auto geosHours = [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 8)); };
                 x.extras.push_back({"GEOS-FP", GfsData::Want{"y", "PM25", "aerosol", "", ""}, "GEOS-FP particles", 0, geosHours, 0});
             }
             x.fill = [] (const Grids& g) { return pick(g, "level"); };
@@ -8993,6 +8993,16 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         p.setBrush(Qt::NoBrush);
         p.drawRect(QRectF{keyLeft + nameWidth, top, width, 9});
         keyLeft += nameWidth + width + 22;
+    }
+    if (product.id == "nice_weather") {   // the places with no value (outside the blend's grid, or no normal) are left as the map: a key for them
+        const double top = image.height() / S - 15.0;
+        p.setBrush(QColor{244, 244, 244});
+        p.setPen(QColor{60, 60, 60});
+        p.drawRect(QRectF{keyLeft, top, 9, 9});
+        p.setPen(QColor{70, 70, 70});
+        p.drawText(QRectF{keyLeft + 13, top - 1, 60, 12}, Qt::AlignLeft | Qt::AlignVCenter, "No data");
+        p.setBrush(Qt::NoBrush);
+        keyLeft += 13 + 52;
     }
     p.setPen(QColor{110, 110, 110});
     p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product] {
