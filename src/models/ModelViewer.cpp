@@ -2971,10 +2971,13 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
             }
         }
             job.overlays = picked.overlays;
-        job.variant = ahead && variant.kind != GfsRender::Variant::Kind::Change ? GfsRender::Variant{} : variant;
-        job.variant.member = picked.member;
-        job.variant.standardDeviations = picked.sigma;
-        job.variant.overlayModels = picked.overlayModels;
+        if (variant.kind == GfsRender::Variant::Kind::Max) {   // (the hours of a maximum are the viewer's: Day 1 as well as the 24 hours ending now)
+            job.variant = ahead ? GfsRender::Variant{} : variant;
+            job.variant.member = picked.member;
+            job.variant.standardDeviations = picked.sigma;
+        } else {   // the request the master map makes of the same selection
+            job.variant = selection().variant({}, 0);
+        }
         job.variant.overlayKeepFill = overlayKeepFill;
         job.variant.hideKeys = hiddenLayers;
         job.variant.scale = ChartResolution::scale();
