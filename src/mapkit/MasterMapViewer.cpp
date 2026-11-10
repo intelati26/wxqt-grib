@@ -100,6 +100,7 @@ namespace {
             const int labelWidth = widest + 14;
             const int every = std::max(1, static_cast<int>(std::ceil(labelWidth / slot)));
             double lastRight = -1e9;
+            std::vector<QRectF> written;   // where the names are (the word "now" keeps off them)
             for (size_t i = 0; i < names.size(); i += static_cast<size_t>(every)) {
                 const double x = margin + slot * static_cast<double>(i);
                 const double left = std::clamp(x - labelWidth / 2.0, 0.0, std::max(0.0, width() - static_cast<double>(labelWidth)));
@@ -108,13 +109,17 @@ namespace {
                 }
                 p.setPen(static_cast<int>(i) == current ? QColor{"#c0392b"} : palette().color(QPalette::WindowText));
                 p.drawText(QRectF{left, 0, static_cast<double>(labelWidth), 17.0}, Qt::AlignCenter, names[i]);
+                const double textWidth = p.fontMetrics().horizontalAdvance(names[i]);
+                written.push_back(QRectF{left + (labelWidth - textWidth) / 2.0 - 2.0, 0.0, textWidth + 4.0, 20.0});
                 lastRight = left + labelWidth;
             }
             if (now >= 0.0) {   // the present: what is left of it has happened, what is right of it is forecast
                 const double nx = margin + slot * now;
                 p.setPen(QPen{QColor{"#2e9e5b"}, 1.5, Qt::DashLine});
                 p.drawLine(QPointF{nx, 0.0}, QPointF{nx, 24.0});
-                if (std::abs(now - current) > 0.5 && slot * std::abs(now - current) > 40.0) {   // (on the frame of now the bar's own line says so, and the word would lie over the tick's name)
+                const QRectF word{nx + 3.0, 8.0, 26.0, 12.0};
+                const bool onName = std::any_of(written.begin(), written.end(), [&word] (const QRectF& r) { return r.intersects(word); });
+                if (std::abs(now - current) > 0.5 && slot * std::abs(now - current) > 40.0 && !onName) {   // (on the frame of now the bar's own line says so, and the word would lie over a name)
                     p.setPen(QColor{"#2e9e5b"});
                     p.drawText(QRectF{nx + 3.0, 8.0, 34.0, 12.0}, Qt::AlignLeft | Qt::AlignVCenter, "now");
                 }
