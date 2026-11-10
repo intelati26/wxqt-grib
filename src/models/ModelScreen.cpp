@@ -120,6 +120,13 @@ void ModelScreen::closeEventCustom() {
     }
 }
 
+void ModelScreen::applySelection(const ChartSelection& chosen) {
+    showSource("NCEP");
+    if (auto * viewer = dynamic_cast<ModelViewer *>(pages["NCEP"])) {
+        viewer->applySelection(chosen);
+    }
+}
+
 void ModelScreen::applyVariants(const ChartSelection& chosen) {
     showSource("NCEP");
     if (auto * viewer = dynamic_cast<ModelViewer *>(pages["NCEP"])) {

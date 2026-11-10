@@ -338,15 +338,10 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
                 double degrees = std::fabs(east.second - west.second);
                 degrees = degrees > 180.0 ? 360.0 - degrees : degrees;
                 const double km = std::clamp(degrees * 111.0 * std::cos(middle.first * 3.14159265358979 / 180.0), 300.0, 5000.0);
-                const auto model = chart->modelName();
-                Utility::writePref("NCEP", model);
-                Utility::writePref("MODELNCEPPARAMLASTUSED", chart->chartName());
-                Utility::writePref("MODELNCEPSECTORLASTUSED", GfsChart::localId(middle.first, middle.second, std::round(km / 100.0) * 100.0, "the map's view"));
+                auto selection = chart->selection();
+                selection.sector = GfsChart::localId(middle.first, middle.second, std::round(km / 100.0) * 100.0, "the map's view");
                 auto * screen = new ModelScreen{this, "NCEP"};
-                if (chart->validTime().isValid()) {
-                    screen->openAt(model, chart->validTime());
-                }
-                screen->applyVariants(chart->selection());   // (its lines, the other models' lines, the member, standard deviations and a change go with it)
+                screen->applySelection(selection);   // (the model, chart and area, the time, the lines, other models, member, deviations and change go with it)
             } else {
                 new ModelScreen{this, chosen->data().toString().toStdString()};
             }

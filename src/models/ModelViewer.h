@@ -69,6 +69,7 @@ public:
     // standard deviations, the change since an older run and the member (the member once the model's list of them is known). The model, chart, area and time are set as before
     // (selectModel, openAt): this is what used to be dropped on the way.
     ChartSelection selection() const;
+    void applySelection(const ChartSelection& chosen);   // the model, chart and area, the time, and the variants (applyVariants)
     void applyVariants(const ChartSelection& chosen);
     void setTileModel(int index, const string& model, const string& run);   // the tile's model (and run), as its Change... menu does (a development aid)
     void setTileRun(int index, const string& run);   // as the tile's Change... menu does (a development aid)

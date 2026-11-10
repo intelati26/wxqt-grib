@@ -2527,6 +2527,27 @@ ChartSelection ModelViewer::selection() const {
     return s;
 }
 
+// A chart handed over whole: its model, chart and area as well as its lines, member, deviations, change and time. (What a screen that opens a model used to do by writing the preferences the viewer
+// reads when it starts.)
+void ModelViewer::applySelection(const ChartSelection& chosen) {
+    const bool known = std::find(objectModel.models.begin(), objectModel.models.end(), chosen.model) != objectModel.models.end();
+    if (known) {
+        objectModel.param = chosen.param;   // (setModelVars keeps them when the model has them, else takes the model's first)
+        if (!chosen.sector.empty()) {
+            objectModel.sector = chosen.sector;
+        }
+        if (chosen.valid.isValid()) {
+            openAt(chosen.model, chosen.valid);   // the run at or before that time, at the hour that lands on it
+        } else if (chosen.model != objectModel.model) {
+            selectModel(chosen.model);
+        } else {
+            objectModel.setModelVars(chosen.model);
+            reload();
+        }
+    }
+    applyVariants(chosen);
+}
+
 void ModelViewer::applyVariants(const ChartSelection& chosen) {
     picked.overlays = chosen.overlays;
     picked.overlayModels = chosen.overlayModels;
