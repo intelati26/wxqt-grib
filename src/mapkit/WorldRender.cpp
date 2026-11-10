@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "settings/RadarPreferences.h"
 #include "mapkit/WorldRender.h"
 #include "gfs/BarbGrid.h"
 #include "ui/WindBarb.h"
@@ -108,7 +109,7 @@ QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projecti
     QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
     image.fill(Qt::transparent);
     const double scale = width / (2.0 * halfW);
-    const QRgb land = qRgb(24, 30, 44);   // where no model has a value
+    const QRgb land = RadarPreferences::mapBackgroundColor.rgb();   // where no model has a value: the map's own background, as on the flat map
     const unsigned threads = std::max(1u, std::thread::hardware_concurrency());
     std::vector<std::thread> workers;
     for (unsigned t = 0; t < threads; t++) {
@@ -152,7 +153,8 @@ QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projecti
         disc.addEllipse(QRectF{0.0, 0.0, static_cast<double>(width), static_cast<double>(height)});
         p.setClipPath(disc);
     }
-    p.setPen(QPen{QColor{20, 20, 28, 210}, std::max(1.0, width / 6000.0)});
+    const bool darkGround = qGray(land) < 128;   // the lines are light on a dark ground, dark on a light one
+    p.setPen(QPen{darkGround ? QColor{190, 198, 215, 200} : QColor{20, 20, 28, 210}, std::max(1.0, width / 6000.0)});
     for (const auto& line : Coast::borders()) {
         QPainterPath path;
         bool started = false;
