@@ -188,7 +188,7 @@ The model screen's NCEP page lists only the models drawn from GRIB; the models t
 - The model family: carry the valid time and the area between the pages of the model screen; fold SPC Post into the Model Viewer (it is there already as the models `SPCPOST` and
   `SPCGEFS`); list the 15 minute window and the analysis loop as pages; open MRMS verification on the chart, area and time on view.
 - The hurricane screen and the models: "HAFS model..." was there; "Model charts here..." on the hurricane screen (the GFS's shear on an area round the storm) and "Storm page..." in the Model Viewer's Map menu on a storm model are done 2026-11-10 (built, not clicked; the storm page's year is the calendar year, wrong for a January look at a December storm). Left: HAFS-A and B as a family of the hurricane intensity chart (one intensity chart, not two).
-- The master map: the layers' shared choices (opacity, order) in the manager, a search box and the layers last used, "Show on the map" from the radar, outlook and satellite screens.
+- The master map: done 2026-11-10: a search box and the layers last used in the Layers window, a layer-opacity slider for every layer but the model chart (kept as MASTERMAP_OPACITY; checked on the radar, by a screenshot); the time bar's "now" word keeps off the names; a loop between two hours of a model run (the looprange hook) steps F000 to F018 as it should. Left: the order of the layers (painting order is fixed by kind), "Show on the map" from the radar, outlook and satellite screens; the search and last used were built, not seen (the Layers window has no hook).
 
 ## 7. WOOF-NAM from its own site (a hosted source for the model that is already a local one)
 
