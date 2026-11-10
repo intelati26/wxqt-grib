@@ -170,6 +170,11 @@ In order, each its own commit:
 7. **WOOF-NAM from its site** (section 7 below): a hosted source for the model that is a local one today.
 8. **The rest of "Also from this look"**: the model family's pages sharing time and area, the hurricane links, the master map's layer search and shared choices.
 9. **Unrelated to the model screen, still open**: the day-2 / per-day marks comparison against a second date of the nice-weather data; HDF5 reader fuzzing; GDAL driver restriction for MRMS, GOES, SAR and drought reads; the intermittent GDAL read error (now reported with its reason, `b1ceabe`).
+10. **Nice weather levels against his, by date (2026-11-10):**
+   - **His days are one ahead of ours.** His `all_cities_day<N>.json` has a `valid_date`: day 1 is today (Tue 11-10), day 2 is Wed 11-11 (his "Tomorrow"). Our Day 1 is the next daytime after the run (from a 20Z run on Tuesday it is Wednesday), so our Day N is his day N+1. A screenshot of our Day 2 (Thu) lines up with his Thursday (his day 3), not his Tomorrow tab. Consider naming our days by date in the window ("Wed 11-11") so the two can be set side by side.
+   - **Wed 11-11, ours Day 1 (the 20Z run, F024) against his day 2 file, 19,908 cities: 64% the same level.** By his level (rows) and ours (columns Decent, Fair, Nice, Beautiful): Decent 2,897 / 2,467 / 140 / 0; Fair 528 / 8,608 / 1,466 / 5; Nice 0 / 61 / 1,193 / 51; Beautiful 0 / 14 / 85 / 19. We are too generous where he says Decent (as many Fair as Decent) and not generous enough at the top (his 124 Beautiful cities: 19 match). His whole day: Fair 10,877, Decent 6,027, Nice 1,371, Beautiful 124, none 2,716.
+   - **To do:** the same comparison for Thu 11-12 (our Day 2 against his day 3 file; the download needs the user's yes), then the sub-scores of the cities that disagree (the file by state has them) to see which input (cloud, rain chance, temperature against the normal) separates the Decent/Fair and the Nice/Beautiful boundaries; compare only a run that covers the whole target day (12Z for a next-day target).
+   - **Tool:** `WXQT_SAMPLES=<in.csv>,<out.csv>` on the `chartpng` route writes the chart's value at each "lat,lon" line (the cities of his file), for such comparisons. His data stays in the scratchpad, never in the app.
 
 ### The pictures of the model guidance site (MAG), apart (2026-11-10)
 

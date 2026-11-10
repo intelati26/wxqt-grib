@@ -796,6 +796,18 @@ int main(int argc, char * argv[]) {
                 if (parts.value(2) == "nice_weather" && probe.valid()) {   // the area at each level, as the nice weather page counts it
                     fprintf(stderr, "%s\n", NiceWeatherOutlook::summaryOf(probe.fields.front().grid).c_str());
                 }
+                if (const auto samples = qEnvironmentVariable("WXQT_SAMPLES"); !samples.isEmpty() && probe.valid()) {   // WXQT_SAMPLES=<in.csv>,<out.csv>: the chart's value at each "lat,lon" line (the fill grid at those places)
+                    QFile in{samples.section(',', 0, 0)}, result{samples.section(',', 1, 1)};
+                    if (in.open(QIODevice::ReadOnly) && result.open(QIODevice::WriteOnly)) {
+                        const auto& grid = probe.fields.front().grid;
+                        while (!in.atEnd()) {
+                            const auto cells = in.readLine().trimmed().split(',');
+                            if (cells.size() >= 2) {
+                                result.write(QByteArray::number(grid.sample(cells[1].toDouble(), cells[0].toDouble()), 'f', 3) + "\n");
+                            }
+                        }
+                    }
+                }
                 QFile out{parts.value(5)};
                 if (out.open(QIODevice::WriteOnly)) out.write(bytes);
                 fprintf(stderr, "chartpng: %lld bytes %s\n", static_cast<long long>(bytes.size()), error.c_str());
