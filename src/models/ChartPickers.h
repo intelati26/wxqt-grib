@@ -36,6 +36,10 @@ namespace ChartPickers {
                                 const std::vector<GfsChart::OverlayChoice>& extras = {}, const std::vector<std::string>& ticked = {});
     // the area picker (favorites kept per model, titled "areas"): the pick goes to onPick. Not shown.
     ProductPicker * areaPicker(QWidget * parent, const std::string& model, const std::vector<ProductPicker::Entry>& entries, const std::string& current, const std::function<void(const std::string&)>& onPick);
+
+    // the dialog of the other models whose lines are drawn over a chart ("Overlay models..."): the models that draw `param`, the deterministic ones then the ensembles, at most four. `chosen` is
+    // what is ticked going in and what was ticked coming out; `keepFill` (when not nullptr) offers the first model's fill and barbs under the lines. false when cancelled (nothing changed).
+    bool chooseOverlayModels(QWidget * parent, const std::string& model, const std::string& param, std::vector<std::string>& chosen, bool * keepFill = nullptr);
 }
 
 #endif  // CHARTPICKERS_H
