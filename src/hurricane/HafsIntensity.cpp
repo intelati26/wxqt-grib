@@ -42,6 +42,15 @@ string Hafs::modelId(const string& nhcId) {
     return nhcId.substr(2, 2) + (basin == "al" ? "l" : basin == "ep" ? "e" : basin == "cp" ? "c" : basin == "wp" ? "w" : "x");
 }
 
+string Hafs::nhcId(const string& id, int year) {
+    if (!isStormId(id)) {
+        return {};
+    }
+    const char basin = id[2];
+    const string prefix = basin == 'l' ? "al" : basin == 'e' ? "ep" : basin == 'c' ? "cp" : basin == 'w' ? "wp" : "";
+    return prefix.empty() ? string{} : prefix + id.substr(0, 2) + std::to_string(year);
+}
+
 bool Hafs::isStormId(const string& id) {
     return id.size() == 3 && std::isdigit(static_cast<unsigned char>(id[0])) && std::isdigit(static_cast<unsigned char>(id[1])) && std::islower(static_cast<unsigned char>(id[2]));
 }

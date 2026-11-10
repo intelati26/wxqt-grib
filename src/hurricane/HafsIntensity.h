@@ -43,6 +43,8 @@ private:
 namespace Hafs {
     // the model's own id of an NHC storm id: "al092026" is "09l", "ep182026" is "18e"
     string modelId(const string& nhcId);
+    // the NHC id of a storm of the model in a year: "09l" in 2026 is "al092026" ("" for a basin the NHC has no id for)
+    string nhcId(const string& modelId, int year);
     // "09L Atlantic": how a storm of the model is listed
     string label(const string& modelId);
     // true for "09l", "18e" ... (a storm of the model, not an area)
