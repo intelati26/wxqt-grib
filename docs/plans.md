@@ -141,7 +141,7 @@ Not checked in the running program: the two handoffs clicked through; loops and 
      strip is labelled in forecast hours with the valid time beside it; "Latest" stays the hour of now.
    - A way out for the case it takes away: stepping the radar's own scans between two model hours. A choice on the bar, "Time: the model's hours / every frame", the first by default.
    - Check: loops, From-to, the history page's `openAt`, the compare map (two maps whose bars move together).
-3. **The Model Viewer on the same selection.** (first part done 2026-11-10: the four fields are one `ChartSelection picked` and `selection()` starts from it; left: the model, chart and area, the change and the day's maximum, the renderer's request from `ChartSelection::variant`.)
+3. **The Model Viewer on the same selection.** (first part done 2026-11-10: the four fields are one `ChartSelection picked` and `selection()` starts from it; a change of other than 6, 12 or 24 hours gets its own item in the box, and the day's maximum is taken (waits for the hours if they are not known yet; both built, not clicked); left: the model, chart and area, the renderer's request from `ChartSelection::variant`.)
    - Its own members (`overlays`, `overlayModels`, `member`, `standardDeviations`, `variant`, the model, chart and area of `objectModel`) become one `ChartSelection`, and its requests to the
      renderer come from `ChartSelection::variant` (the tiles of a compare add their own on top). The differences that stay are named in the object: the difference from another model or
      run, the same valid time across models, the hidden layers of a paintball, the pooled ensembles' choice, the fitted legend.

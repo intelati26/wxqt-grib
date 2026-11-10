@@ -202,7 +202,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             const auto i = comboCompare.getIndex();
             if (i > 0) {
                 v.kind = GfsRender::Variant::Kind::Change;
-                v.hoursBack = i * 6 + (i == 3 ? 6 : 0);   // 6, 12, 24
+                v.hoursBack = i == 4 ? comboCompare.getView()->itemData(4).toInt() : i * 6 + (i == 3 ? 6 : 0);   // 6, 12, 24 (the fifth item is a change handed over from the map)
             }
             setVariant(v);
         });
@@ -1898,6 +1898,10 @@ void ModelViewer::fitHoursToRun() {
     if (strip) {
         refreshTimeStrip();
     }
+    if (pendingMax) {   // the day's maximum handed over before the hours were known
+        pendingMax = false;
+        QTimer::singleShot(0, this, [this] { showMax(false); });
+    }
 }
 
 string ModelViewer::hoursKey() const {
@@ -2573,7 +2577,16 @@ void ModelViewer::applyVariants(const ChartSelection& chosen) {
         buttonSigma->blockSignals(false);
     }
     GfsRender::Variant v;
-    const int index = chosen.changeBack == 6 ? 1 : chosen.changeBack == 12 ? 2 : chosen.changeBack == 24 ? 3 : 0;   // (the changes the box offers)
+    int index = chosen.changeBack == 6 ? 1 : chosen.changeBack == 12 ? 2 : chosen.changeBack == 24 ? 3 : 0;   // (the changes the box offers)
+    if (index == 0 && chosen.changeBack > 0) {   // another change: the box gets an item for it
+        auto * box = comboCompare.getView();
+        if (box->count() < 5) {
+            box->addItem({});
+        }
+        box->setItemText(4, QString{"Change since run %1 h earlier"}.arg(chosen.changeBack));
+        box->setItemData(4, chosen.changeBack);
+        index = 4;
+    }
     if (index > 0) {
         v.kind = GfsRender::Variant::Kind::Change;
         v.hoursBack = chosen.changeBack;
@@ -2582,6 +2595,12 @@ void ModelViewer::applyVariants(const ChartSelection& chosen) {
     comboCompare.setIndex(static_cast<size_t>(index));
     comboCompare.unblock();
     refreshProductButton();
+    pendingMax = chosen.maxDay && index == 0;
+    if (pendingMax && !objectModel.times.empty()) {
+        pendingMax = false;
+        showMax(false);   // (draws again)
+        return;
+    }
     setVariant(v);   // (draws again)
 }
 

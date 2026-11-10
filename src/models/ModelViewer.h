@@ -181,6 +181,7 @@ private:
     ComboBox comboCompare, comboPreload;
     std::vector<std::string> memberValues;   // the members' names in the model's files, as the combo lists them
     ChartSelection picked;                // what is chosen of the chart on view: the ticked lines, the other models, the member ("" the mean) and standard deviations (the model, chart and area stay in objectModel)
+    bool pendingMax{false};               // the day's maximum asked for (applyVariants) before the model's hours were known
     std::string pendingMember;            // a member asked for (applyVariants) before the model's list of them was read: chosen when it is
     void refreshMembers();
     void addLocalSectors();
