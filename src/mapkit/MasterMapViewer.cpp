@@ -340,6 +340,10 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
                 const double km = std::clamp(degrees * 111.0 * std::cos(middle.first * 3.14159265358979 / 180.0), 300.0, 5000.0);
                 auto selection = chart->selection();
                 selection.sector = GfsChart::localId(middle.first, middle.second, std::round(km / 100.0) * 100.0, "the map's view");
+                if (backToPicture) {   // inside the model screen: its picture comes back in the map's place
+                    backToPicture(selection);
+                    return;
+                }
                 auto * screen = new ModelScreen{this, "NCEP"};
                 screen->applySelection(selection);   // (the model, chart and area, the time, the lines, other models, member, deviations and change go with it)
             } else {
@@ -2594,6 +2598,22 @@ bool MasterMapViewer::pointFor(double& lat, double& lon) const {
         lon = middle.second;
     }
     return havePointer;
+}
+
+ChartSelection MasterMapViewer::modelSelection() const {
+    const auto * chart = modelLayer();
+    if (chart == nullptr) {
+        return ChartSelection{"", ""};
+    }
+    auto selection = chart->selection();
+    const auto * widget = mapView->map();
+    const auto middle = mapView->toLatLon(QPointF{widget->width() / 2.0, widget->height() / 2.0});
+    const auto west = mapView->toLatLon(QPointF{0.0, widget->height() / 2.0}), east = mapView->toLatLon(QPointF{static_cast<double>(widget->width()), widget->height() / 2.0});
+    double degrees = std::fabs(east.second - west.second);
+    degrees = degrees > 180.0 ? 360.0 - degrees : degrees;
+    const double km = std::clamp(degrees * 111.0 * std::cos(middle.first * 3.14159265358979 / 180.0), 300.0, 5000.0);
+    selection.sector = GfsChart::localId(middle.first, middle.second, std::round(km / 100.0) * 100.0, "the map's view");
+    return selection;
 }
 
 ModelChartLayer * MasterMapViewer::modelLayer() const {

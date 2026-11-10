@@ -9,6 +9,7 @@
 #include <QWidget>
 #include "models/CamsViewer.h"
 #include "models/ModelViewer.h"
+#include "mapkit/MasterMapViewer.h"
 #include "models/SpcPostViewer.h"
 #include "util/Utility.h"
 #include "ui/UiStandards.h"
@@ -43,7 +44,26 @@ ModelScreen::ModelScreen(Window * parent, const string& source)
     combo->setToolTip("Every source of model charts is a page of this window: the charts drawn here from the models' own data, SPC's REFS store and post-processed chances, "
                       "and the picture sources of other sites");
     rowLayout->addWidget(combo);
+    viewBox = UiStandards::combo(row);
+    viewBox->addItem("Picture", "picture");
+    viewBox->addItem("Map", "map");
+    viewBox->setToolTip("The chart as a titled picture, or on the map (scroll and zoom it, put radar, satellite, storms or rivers with it): the same model, chart, area and valid time either way");
+    viewBox->setVisible(false);
+    rowLayout->addWidget(viewBox);
     rowLayout->addStretch();
+    QObject::connect(viewBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this] (int index) {
+        if (index == 1 && shown == "NCEP") {
+            if (auto * viewer = dynamic_cast<ModelViewer *>(pages["NCEP"])) {
+                showMap(viewer->selection());
+            }
+        } else if (index == 0 && shown == "MAP") {
+            if (auto * map = dynamic_cast<MasterMapViewer *>(pages["MAP"]); map != nullptr && !map->modelSelection().model.empty()) {
+                applySelection(map->modelSelection());
+            } else {
+                showSource("NCEP");
+            }
+        }
+    });
     stack = new QStackedWidget{this};
     box.addWidgetReal(row, 0, Qt::Alignment{});
     box.addWidgetReal(stack, 1, Qt::Alignment{});
@@ -66,6 +86,7 @@ Window * ModelScreen::make(const string& id) {
     } else {
         auto * viewer = new ModelViewer{this, id};
         viewer->openSource = [this] (const string& other) { showSource(other); };   // its "Image models" menu changes the page, not the window
+        viewer->openMap = [this] (const ChartSelection& chosen) { showMap(chosen); };
         page = viewer;
     }
     page->setAttribute(Qt::WA_DeleteOnClose, false);   // the page goes with the window
@@ -112,12 +133,44 @@ void ModelScreen::showSource(const string& requested) {
     combo->blockSignals(true);
     combo->setCurrentIndex(index);
     combo->blockSignals(false);
+    syncViewBox();
+}
+
+void ModelScreen::syncViewBox() {
+    viewBox->blockSignals(true);
+    viewBox->setCurrentIndex(shown == "MAP" ? 1 : 0);
+    viewBox->setVisible(shown == "NCEP" || shown == "MAP");
+    viewBox->blockSignals(false);
 }
 
 void ModelScreen::closeEventCustom() {
     for (auto& [id, page] : pages) {   // each page closes as its own window would (stops its timers and loops)
         page->close();
     }
+}
+
+void ModelScreen::showMap(const ChartSelection& chosen) {
+    if (const auto old = pages.find("MAP"); old != pages.end()) {   // made again each time: it opens on the selection it is given
+        stack->removeWidget(old->second);
+        old->second->close();
+        old->second->deleteLater();
+        pages.erase(old);
+    }
+    Window::embedNextWindow();
+    auto * map = MasterMapViewer::openModels(this, chosen.model, chosen.param, chosen.sector, chosen.valid, chosen);
+    map->setAttribute(Qt::WA_DeleteOnClose, false);
+    map->backToPicture = [this] (const ChartSelection& back) { applySelection(back); };
+    QObject::connect(map, &QWidget::windowTitleChanged, this, [this, map] (const QString& title) {
+        if (stack->currentWidget() == map) {
+            setWindowTitle(title);
+        }
+    });
+    stack->addWidget(map);
+    pages["MAP"] = map;
+    shown = "MAP";
+    stack->setCurrentWidget(map);
+    setWindowTitle(map->windowTitle());
+    syncViewBox();
 }
 
 void ModelScreen::applySelection(const ChartSelection& chosen) {

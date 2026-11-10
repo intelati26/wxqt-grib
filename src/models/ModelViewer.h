@@ -56,6 +56,7 @@ public:
     ModelViewer(Window *, const string&);
     // set when this viewer is a page of the model screen: another source is shown there (its id, ModelScreen::sources) instead of in a window of its own
     std::function<void(const string&)> openSource;
+    std::function<void(const ChartSelection&)> openMap;   // set by the model screen: "On the map..." shows the map in its place, not in a window of its own
     void selectModel(const string& id);   // show this model ("SPCREFS" ...), as the model box would
     // a model's run and hour of the past: the latest run (every 6 hours) at or before this valid time, at that forecast hour; it stays (the newest run is not looked for) until
     // another model is chosen
