@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include "misc/NiceWeatherOutlook.h"
+#include "misc/NiceWeatherOverview.h"
 #include "spc/SpcFireSummary.h"
 #include "spc/SpcFireWeatherOutlook.h"
 #include "spc/SpcSwoDay1.h"
@@ -75,6 +76,7 @@ Window * OutlookScreen::make(OutlookNav::Kind kind, int value) {
         case OutlookNav::FireSummary: page = new SpcFireSummary{this}; break;
         case OutlookNav::FireDay: page = new SpcFireWeatherOutlook{this, value}; break;
         case OutlookNav::Thunderstorm: page = new SpcTstormOutlooks{this}; break;
+        case OutlookNav::NiceOverview: page = new NiceWeatherOverview{this}; break;
         case OutlookNav::NiceDay: page = new NiceWeatherOutlook{this, value}; break;
         case OutlookNav::RainfallSummary: page = new RainfallOutlookSummary{this}; break;
         case OutlookNav::NationalImages: page = new NationalImages{this}; break;

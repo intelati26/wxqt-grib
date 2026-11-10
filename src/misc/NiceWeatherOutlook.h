@@ -22,8 +22,9 @@
 class NiceWeatherOutlook : public Window {
 public:
     NiceWeatherOutlook(Window *, int);
+    static std::string headlineOf(const GfsGrid::Grid& grid);   // one line: the share of the area at Nice or better and at Beautiful or better
     static std::string summaryOf(const GfsGrid::Grid& grid);   // the summary text of a grid of levels (what the page shows beside the map)
-    void selectDay(int day) { if (comboDay.getIndex() != std::clamp(day, 0, 6)) { comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 6))); showDay(); } }   // 0 day 1 .. 6 day 7
+    void selectDay(int day) { if (comboDay.getIndex() != std::clamp(day, 0, 7)) { comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 7))); showDay(); } }   // 0 day 1 .. 7 day 8
 
 private:
     void showDay();
