@@ -11,6 +11,7 @@
 #include <QComboBox>
 #include <QDateTime>
 #include <QStackedWidget>
+#include "gfs/ChartSelection.h"
 #include "ui/VBox.h"
 #include "ui/Window.h"
 
@@ -26,6 +27,7 @@ public:
     void showSource(const string& id);
     // the Model Viewer on a model, at the run and hour whose valid time is `validUtc` (the history page)
     void openAt(const string& model, const QDateTime& validUtc);
+    void applyVariants(const ChartSelection& chosen);   // the Model Viewer page takes the lines, members and variants of a chart handed over (ModelViewer::applyVariants)
     struct Source {
         const char * id;
         const char * label;

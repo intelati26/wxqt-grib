@@ -31,6 +31,7 @@
 #include "objects/FutureVoid.h"
 #include "models/RefsPointGraph.h"
 #include "spcrefs/SpcRefsLoader.h"
+#include "ui/FlowBox.h"
 #include "ui/Window.h"
 #include "radar/MapLegend.h"
 #include "radar/MapView.h"
@@ -118,37 +119,53 @@ string ModelChartLayer::timeText() const {
            runTimeOf(run).addSecs(hour * 3600LL).toString("ddd yyyy-MM-dd HH:mm").toStdString() + "Z";
 }
 
-string ModelChartLayer::settings() const {
-    return model + "|" + param + "|" + joinList(overlays) + "|" + joinList(overlayModels) + "|" + member + "|" + (sigma ? "1" : "0") + "|" + std::to_string(changeBack) + "|" + (maxDay ? "1" : "0") + "|" +
-           std::to_string(opacity);
+ChartSelection ModelChartLayer::selection() const {
+    ChartSelection s;
+    s.model = model;
+    s.param = param;
+    s.overlays = overlays;
+    s.overlayModels = overlayModels;
+    s.member = member;
+    s.sigma = sigma;
+    s.changeBack = changeBack;
+    s.maxDay = maxDay;
+    s.valid = validTime();
+    return s;
 }
 
-void ModelChartLayer::setSettings(const string& line, MapHost& host) {
-    std::vector<string> p;
-    for (size_t at = 0; at <= line.size();) {
-        auto end = line.find('|', at);
-        end = end == string::npos ? line.size() : end;
-        p.push_back(line.substr(at, end - at));
-        at = end + 1;
-    }
-    if (p.size() < 9 || GfsChart::product(p[1], p[0]) == nullptr) {
+void ModelChartLayer::apply(const ChartSelection& chosen, MapHost& host) {
+    if (!chosen.usable()) {
         return;
     }
-    model = p[0];
-    param = p[1];
-    overlays = splitList(p[2]);
-    overlayModels = splitList(p[3]);
-    member = p[4];
-    sigma = p[5] == "1";
-    changeBack = std::atoi(p[6].c_str());
-    maxDay = p[7] == "1";
-    opacity = std::clamp(std::atoi(p[8].c_str()), 20, 100);
+    model = chosen.model;
+    param = chosen.param;
+    overlays = chosen.overlays;
+    overlayModels = chosen.overlayModels;
+    member = chosen.member;
+    sigma = chosen.sigma;
+    changeBack = chosen.changeBack;
+    maxDay = chosen.maxDay;
     Utility::writePref("MM_MODELCHART_MODEL", model);
     Utility::writePref("MM_MODELCHART_PARAM", param);
     Utility::writePref("MM_MODELCHART_OVERLAYS", joinList(overlays));
     Utility::writePref("MM_MODELCHART_OVERLAYMODELS", joinList(overlayModels));
     pinnedRun.clear();
     optionChanged(host);
+}
+
+// (a saved view's line: the selection, then the layer's own opacity)
+string ModelChartLayer::settings() const {
+    return selection().line() + "|" + std::to_string(opacity);
+}
+
+void ModelChartLayer::setSettings(const string& line, MapHost& host) {
+    ChartSelection chosen;
+    const auto last = line.rfind('|');
+    if (last == string::npos || !ChartSelection::fromLine(line, chosen)) {
+        return;
+    }
+    opacity = std::clamp(std::atoi(line.c_str() + last + 1), 20, 100);
+    apply(chosen, host);
 }
 
 QDateTime ModelChartLayer::validTime() const {
@@ -297,9 +314,7 @@ void ModelChartLayer::refresh(MapHost& host) {
                 error.clear();
                 const string newest = found->first + found->second;
                 newestRun = newest;
-                if (optionsRefresh) {
-                    optionsRefresh();
-                }
+                refreshControls();
                 if (!pinnedRun.empty()) {
                     runChosen = pinnedRun;
                     settle();
@@ -510,28 +525,7 @@ string ModelChartLayer::variantKey() const {
 }
 
 GfsRender::Variant ModelChartLayer::variantNow(int hour) const {
-    GfsRender::Variant v;
-    if (maxDay) {   // the largest of the chart's fill over the 24 hours ending at this hour
-        for (const int h : hours) {
-            if (h >= hour - 24 && h <= hour) {
-                v.hours.push_back(h);
-            }
-        }
-        if (v.hours.size() >= 2) {
-            v.kind = GfsRender::Variant::Kind::Max;
-        } else {
-            v.hours.clear();
-        }
-    } else if (changeBack > 0) {
-        v.kind = GfsRender::Variant::Kind::Change;
-        v.hoursBack = changeBack;
-    }
-    v.member = member;
-    v.standardDeviations = sigma;
-    if (v.kind == GfsRender::Variant::Kind::None) {
-        v.overlayModels = overlayModels;
-    }
-    return v;
+    return selection().variant(hours, hour);   // (the same request the Model Viewer would make of the same choices)
 }
 
 // the part of the world in view, as longitudes and latitudes (the map widget's corners)
@@ -881,8 +875,20 @@ bool ModelChartLayer::titled(MapHost& host, QImage& out, string& problem, int ho
 // The same pickers as the Model Viewer's page: models in groups, charts in groups with a search box, favorites and the lines and barbs that can be ticked on, the member of an ensemble,
 // deviations, the change since an older run
 QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>& changed) {
+    return controls(parent, changed, false);
+}
+
+// The choices of the chart, as the panel of the layer (one under another) or as a bar (side by side, wrapped to the width). Both are the same widgets on the same handlers, so the bar and
+// the panel can not come to differ.
+QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()>& changed, bool asBar) {
     auto * widget = new QWidget{parent};
-    auto * layout = new QVBoxLayout{widget};
+    QLayout * layout = nullptr;
+    if (asBar) {
+        layout = new FlowLayout{4};
+        widget->setLayout(layout);
+    } else {
+        layout = new QVBoxLayout{widget};
+    }
     layout->setContentsMargins(0, 0, 0, 0);
     auto * modelButton = new QPushButton{widget};
     auto * chartButton = new QPushButton{widget};
@@ -899,9 +905,15 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     colorsButton->setToolTip("Edit the color scale this kind of chart is drawn with (stops, banded or smooth, transparency, import and export a file)");
     auto * buildButton = UiStandards::button(widget, "Build a chart...");
     buildButton->setToolTip("A chart made to order from a template of the model (the chance of rain over a limit in a period, of a temperature under a limit, of gusts over one)");
-    toolsRow->addWidget(colorsButton);
-    toolsRow->addWidget(buildButton);
-    layout->addLayout(toolsRow);
+    if (asBar) {
+        delete toolsRow;
+        layout->addWidget(colorsButton);
+        layout->addWidget(buildButton);
+    } else {
+        toolsRow->addWidget(colorsButton);
+        toolsRow->addWidget(buildButton);
+        static_cast<QVBoxLayout *>(layout)->addLayout(toolsRow);
+    }
     auto * overlayButton = new QPushButton{widget};
     overlayButton->setToolTip("Lines (heights, pressure) of other models drawn over this chart, for the same valid time, each in its own color (at most four); the fill is left out so the lines can be read");
     layout->addWidget(overlayButton);
@@ -929,6 +941,10 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
     auto * slider = new QSlider{Qt::Horizontal, widget};
     slider->setRange(20, 100);
     slider->setValue(opacity);
+    if (asBar) {
+        slider->setFixedWidth(110);
+        sigmaBox->setText("Std deviations");
+    }
     layout->addWidget(slider);
 
     // what the buttons say and which of the extra boxes the chart has
@@ -995,8 +1011,8 @@ QWidget * ModelChartLayer::options(QWidget * parent, const std::function<void()>
         sigmaBox->blockSignals(false);
     };
     refresh();
-    optionsRefresh = refresh;   // (the run list is filled when the newest run is found)
-    QObject::connect(widget, &QObject::destroyed, [this] { optionsRefresh = nullptr; });
+    refreshers[widget] = refresh;   // (the run list is filled when the newest run is found; a choice made in the bar shows in the panel, and the other way)
+    QObject::connect(widget, &QObject::destroyed, [this, widget] { refreshers.erase(widget); });
     const auto save = [this] {
         Utility::writePref("MM_MODELCHART_MODEL", model);
         Utility::writePref("MM_MODELCHART_PARAM", param);

@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <string>
+#include "gfs/ChartSelection.h"
 #include "gfs/GfsRender.h"
 #include "gfs/ChartHours.h"
 #include "models/ObjectModel.h"
@@ -64,6 +65,11 @@ public:
     void openSubhourly();
     QSize shownPictureSize() const { return QImage::fromData(shownBytes).size(); }   // (a development aid: the size of the chart on view)
     void setOverlays(const std::vector<string>& ids);   // as ticking them in the chart picker does
+    // the chart on view in the form the master map's model layer has too (gfs/ChartSelection), and the variants of one taken from there: its ticked lines, the other models' lines,
+    // standard deviations, the change since an older run and the member (the member once the model's list of them is known). The model, chart, area and time are set as before
+    // (selectModel, openAt): this is what used to be dropped on the way.
+    ChartSelection selection() const;
+    void applyVariants(const ChartSelection& chosen);
     void setTileModel(int index, const string& model, const string& run);   // the tile's model (and run), as its Change... menu does (a development aid)
     void setTileRun(int index, const string& run);   // as the tile's Change... menu does (a development aid)
     void noticeTest(const string& text) { showNotice(text); }   // a development aid: the card over the picture with this text
@@ -175,6 +181,7 @@ private:
     ComboBox comboCompare, comboPreload;
     std::vector<std::string> memberValues;   // the members' names in the model's files, as the combo lists them
     std::string member;                   // the one chosen: "" the chart as it is
+    std::string pendingMember;            // a member asked for (applyVariants) before the model's list of them was read: chosen when it is
     void refreshMembers();
     void addLocalSectors();
     std::string hourText(const std::string& timeItem, bool forList) const;   // "264 Wed 7am" as "d11" (a run longer than ten days is counted in days) for the strip, with the date for the list

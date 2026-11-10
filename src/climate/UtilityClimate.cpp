@@ -166,6 +166,61 @@ namespace UtilityClimate {
             }
         }
 
+        // CPC's monthly teleconnection files after the February 2027 change (Service Change Notice 26-102): comma-separated, a line of names and then a line for each month. The files were not
+        // out when this was written, so the columns are found, not assumed: the month from a date ("1950-01-01", "1950-01", "195001") or from a year and a month in two fields, the value from
+        // the first other field that is a plain number.
+        void parseMonthlyCsv(const string& text, Series& out) {
+            std::istringstream in{text};
+            string line;
+            static const QRegularExpression dated{"^(\\d{4})-?(\\d{2})(?:-?\\d{2})?(?:[T ].*)?$"};
+            while (std::getline(in, line)) {
+                const auto fields = QString::fromStdString(line).trimmed().split(',');
+                int year = 0, month = 0;
+                int used = -1, usedToo = -1;
+                for (int i = 0; i < fields.size() && year == 0; i++) {
+                    if (const auto m = dated.match(fields[i].trimmed()); m.hasMatch()) {
+                        year = m.captured(1).toInt();
+                        month = m.captured(2).toInt();
+                        used = i;
+                    }
+                }
+                if (year == 0 && fields.size() >= 3) {   // a year and a month of their own
+                    bool okYear = false, okMonth = false;
+                    const int y = fields[0].trimmed().toInt(&okYear), m = fields[1].trimmed().toInt(&okMonth);
+                    if (okYear && okMonth && y >= 1900 && y <= 2200) {
+                        year = y;
+                        month = m;
+                        used = 0;
+                        usedToo = 1;
+                    }
+                }
+                if (year < 1900 || month < 1 || month > 12) {
+                    continue;
+                }
+                for (int i = 0; i < fields.size(); i++) {
+                    if (i == used || i == usedToo || dated.match(fields[i].trimmed()).hasMatch()) {
+                        continue;
+                    }
+                    bool ok = false;
+                    const double value = fields[i].trimmed().toDouble(&ok);
+                    if (ok && fields[i].contains('.') && value > -90.0 && value < 90.0) {   // (a whole number is a lead or a count, not the index)
+                        out.push_back({year, month, value});
+                        break;
+                    }
+                }
+            }
+        }
+
+        // where each of those files is to be from February 2027 (the notice's list; the Arctic Oscillation's name is printed there with a digit short, so both are tried)
+        vector<string> laterUrls(const string& key) {
+            const string base = "https://ftp.cpc.ncep.noaa.gov/cwlinks/monthly.";
+            if (key == "nao") return {base + "nao.core.z500.195001_current.csv"};
+            if (key == "pna") return {base + "pna.core.z500.195001_current.csv"};
+            if (key == "aao") return {base + "aao.core.z700.195001_current.csv"};
+            if (key == "ao") return {base + "ao.core.z1000.195001_current.csv", base + "ao.core.z1000.19501_current.csv"};
+            return {};
+        }
+
         QString decode(QString text) {
             static const std::vector<std::pair<QString, QString>> named{
                 {"&ntilde;", QString::fromUtf8("ñ")}, {"&Ntilde;", QString::fromUtf8("Ñ")}, {"&deg;", QString::fromUtf8("°")},
@@ -361,6 +416,15 @@ namespace UtilityClimate {
         out.clear();
         const auto text = URL::getText(info.url);
         if (text.empty() || text.find("<html") != string::npos || text.find("<HTML") != string::npos) {
+            for (const auto& later : laterUrls(info.key)) {   // the file is gone: CPC's teleconnection files change name and form in February 2027
+                const auto csv = URL::getText(later);
+                if (!csv.empty() && csv.find("<html") == string::npos && csv.find("<HTML") == string::npos) {
+                    parseMonthlyCsv(csv, out);
+                    if (!out.empty()) {
+                        return true;
+                    }
+                }
+            }
             error = info.label + " is not available right now.";
             return false;
         }

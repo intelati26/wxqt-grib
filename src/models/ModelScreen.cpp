@@ -119,6 +119,13 @@ void ModelScreen::closeEventCustom() {
     }
 }
 
+void ModelScreen::applyVariants(const ChartSelection& chosen) {
+    showSource("NCEP");
+    if (auto * viewer = dynamic_cast<ModelViewer *>(pages["NCEP"])) {
+        viewer->applyVariants(chosen);
+    }
+}
+
 void ModelScreen::openAt(const string& model, const QDateTime& validUtc) {
     showSource("NCEP");
     if (auto * viewer = dynamic_cast<ModelViewer *>(pages["NCEP"])) {

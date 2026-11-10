@@ -95,3 +95,78 @@ The library is GPL-2.0 and wxqt is GPLv3, so the reader is **not linked into wxq
 - New to the app: UK Met Office global 10 km and its 20 km ensemble (`ukmo_global_*`), JMA GSM and MSM, Meteo-France ARPEGE world 0.25 (and AROME France), DWD ICON global (ICON-EU and ICON-D2 are "have"), CMA GRAPES, ECMWF WAM waves, CAMS global (air quality, greenhouse gases), CMC GDPS and RDPS, NCEP hurricane GEFS ensemble mean (`ncep_hgefs025_ensemble_mean`), AIGEFS, and the regional European models (KNMI, DMI, MetNo, MeteoSwiss, ARPAE ICON-2I, GeoSphere Austria) if wanted.
 - Have: GFS, GEFS, HRRR, NAM, NBM, RRFS, AIGFS, IFS, IFS ensemble, AIFS, HRDPS, GEPS. These would only be a second source (a mirror when NOMADS is down, or a smaller regional read), and carry only the variables Open-Meteo keeps (no radar reflectivity fields, for one).
 - Check before relying on a model: the variables list in its `latest.json`, and the run's lag behind the provider's own files.
+
+## 6. One model screen over two canvases (the Model Viewer and the master map)
+
+**Why:** the Model Viewer works the way the model sites do (model, run, chart and area along the top, step through the hours; the chart is the subject). The master map works by layers (the
+map is the subject, the model chart one layer of 38; its model and chart are chosen in the layer's option panel, and the time bar belongs to every layer at once). "On the map..." therefore
+opens a second window where the controls just used are gone or moved. Both draw through the same renderer (`GfsRender::png`, `GfsChart`, `GfsData`), so the difference is only in what is
+round the chart.
+
+**The idea:** one set of model controls, the **model bar**, over one of two canvases: the **picture** (the titled chart with its legend) or the **map** (the scrollable map with the chart as
+a layer). Opened from Models it starts on the picture with the layer list hidden; opened from the master map it starts on the map with the layer list shown. With no model chart on, there is
+no model bar and the screen is today's master map.
+
+**The rule for time:** while the model bar is there it owns the time: the bar steps the run's forecast hours and every other layer follows the valid time (the frame at or before it). The
+notes under each layer in the layer manager say which layers have nothing at that time. Without the model bar, the map's general time bar is used as now.
+
+### Where it stands (2026-11-10)
+
+Done and in the working tree, **not committed**:
+
+- `gfs/ChartSelection` (new): the model, the chart, the ticked lines, the other models' lines, the member, standard deviations, the change since an older run, the day's maximum, the area
+  and the valid time, as one object with a line form (a saved view's) and the one function that makes the renderer's request (`variant`).
+- The map's model layer holds its state through it (`selection()`, `apply()`), its saved-view line and its request to the renderer come from it. Saved views keep their format.
+- The handoffs carry it: "On the map..." gives the layer the whole selection; the map's "Other models... > Model Viewer" gives the viewer the lines, other models, standard deviations, the
+  change and the member (`ModelViewer::applyVariants`, the member once the model's list is read).
+- The master map says what time each layer is drawing against the bar's (a line under each layer that is on, amber when it is behind), what kind of time the bar is on, where "now" is on the
+  strip, and "Latest" is the frame of now when forecasts and observed layers are on together.
+- Started, compiles, not on screen yet: `ModelChartLayer::controls(parent, changed, asBar)`: the layer's choices as its panel (as before) or as a bar (the same widgets and handlers side by
+  side on a flow layout), `ModelChartLayer::bar()`, and `refreshers` so the panel and the bar show each other's changes.
+
+Not checked in the running program: the two handoffs clicked through; loops and the From-to range with the new "Latest"; the bar anywhere.
+
+### Steps
+
+1. **The model bar on the master map** (in hand).
+   - `MasterMapViewer`: a row above the time bar that holds `modelLayer()->bar(...)` while the layer "model/chart" is on, made and removed where the layer manager's rows are (the same
+     `changed` callback as the layer's options: `optionChanged`, `redraw`). The layer's panel in the manager then keeps only what is the layer's own (opacity, draw ahead).
+   - `ModelChartLayer::optionChanged` calls `refreshControls()` so a choice made in one place shows in the other.
+   - The bar gets what the Model Viewer's top rows have and the panel lacks: the area (the map's "Area..." moved into it) and the hour strip (step 2).
+   - Check: the bar and the panel stay the same after each choice; a saved view restores both; the combo chart layer (`ComboChartLayer`), which has model layers as its parts, is not given a bar.
+2. **The bar owns the time.**
+   - `MasterMapViewer::rebuildTicks`: while the model layer is on, the ticks are its hours only; the others are shown the frame at or before each (they already are: `showLayerAt`). The
+     strip is labelled in forecast hours with the valid time beside it; "Latest" stays the hour of now.
+   - A way out for the case it takes away: stepping the radar's own scans between two model hours. A choice on the bar, "Time: the model's hours / every frame", the first by default.
+   - Check: loops, From-to, the history page's `openAt`, the compare map (two maps whose bars move together).
+3. **The Model Viewer on the same selection.**
+   - Its own members (`overlays`, `overlayModels`, `member`, `standardDeviations`, `variant`, the model, chart and area of `objectModel`) become one `ChartSelection`, and its requests to the
+     renderer come from `ChartSelection::variant` (the tiles of a compare add their own on top). The differences that stay are named in the object: the difference from another model or
+     run, the same valid time across models, the hidden layers of a paintball, the pooled ensembles' choice, the fitted legend.
+   - The model, chart and area of a chart handed over are set from the selection, not by writing `NCEP`, `MODELNCEPPARAMLASTUSED` and `MODELNCEPSECTORLASTUSED` first (the Tropical Hub
+     and the history page do the same and move to the selection too).
+   - The day's maximum comes back from the map; a change of other than 6, 12 or 24 hours is kept, not dropped.
+   - Check: `tests/gfs` still pass; each menu of the viewer on GFS, REFS, a storm model, a local area and a picture model; the settings kept between runs.
+4. **The bar is one piece.** The Model Viewer's top rows and the map's bar become the same widget (`models/ModelBar`), bound to a `ChartSelection`, the run and the hour. The layer's
+   `controls(..., asBar)` is the first form of it; the viewer's rows (the model box, the run box, the chart button, the area button, the time strip, member, change) are moved onto it one at a
+   time, each a commit that changes nothing on screen.
+5. **Picture / Map in the Model Viewer.** A switch under the bar: the picture is replaced in place by the map widget with the same selection as its model layer, and "Add layers..." offers
+   the rest of the map's layers. "On the map..." becomes that switch.
+6. **One window.** The model screen and the master map are the same screen opened two ways (step 5's switch and the layer list shown or hidden). The source box of the model screen (SPC
+   Post, NSSL CAMs, the picture models) stays as pages beside it.
+
+### Open points
+
+- **Compare tiles.** Four pictures side by side have no map form beyond the map's two maps. Either the tiles stay a thing of the picture canvas, or the map gets panes.
+- **The legend.** The picture's fitted legend (the range of what is on view) needs a place on the map canvas; the map's legend strip shows the whole scale.
+- **Exports.** "Export view" of the map already saves the Model Viewer's titled picture (`titled()`); with one screen there is one Save.
+- **Storm models.** Their area is the storm; on the map the view follows the storm's grid. Not designed.
+- **Size.** `ModelViewer.cpp` is 3,800 lines whose rows are tied to its combo boxes and `objectModel`; step 4 is the long one. Steps 1 and 2 give the familiar controls on the map without it.
+
+### Also from this look (not part of the steps above)
+
+- The model family: carry the valid time and the area between the pages of the model screen; fold SPC Post into the Model Viewer (it is there already as the models `SPCPOST` and
+  `SPCGEFS`); list the 15 minute window and the analysis loop as pages; open MRMS verification on the chart, area and time on view.
+- The hurricane screen and the models: "HAFS for this storm" and "Model charts here" on the hurricane screen, "Storm page..." in the Model Viewer on a storm model, HAFS-A and B as a
+  family of the hurricane intensity chart (one intensity chart, not two).
+- The master map: the layers' shared choices (opacity, order) in the manager, a search box and the layers last used, "Show on the map" from the radar, outlook and satellite screens.

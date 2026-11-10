@@ -24,6 +24,7 @@
 #include <QTimer>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include "gfs/ChartSelection.h"
 #include "mapkit/GlobeMapView.h"
 #include "mapkit/MapLayer.h"
 #include "mapkit/ClimateGridLayer.h"
@@ -54,7 +55,8 @@ public:
     // The map as the model browser (what the Model Viewer page was): the model chart layer alone, on a model / chart / area (sector id; "" the ones used last, or the United States) and, when `valid` is
     // set, at that valid time
     void exportWithContext(const QString& path, const string& acisProduct, const string& office = {});   // (the lighter ACIS map under it; for the dev route)
-    static MasterMapViewer * openModels(Window * parent, const string& model = {}, const string& param = {}, const string& sector = {}, const QDateTime& valid = {});
+    static MasterMapViewer * openModels(Window * parent, const string& model = {}, const string& param = {}, const string& sector = {}, const QDateTime& valid = {},
+                                        const ChartSelection& chosen = ChartSelection{"", ""});   // (with a selection of that model and chart: its lines, members and variants too)
     // the radar: the master map at the current location with the MRMS mosaic, the warning polygons and the mesoscale discussions (the MRMS screen's place: it has no window of its own)
     static MasterMapViewer * openRadar(Window * parent);
     void openAt(const QDateTime& utc, double lat, double lon, double radiusKm, const vector<string>& layerIds, bool liveView = false);
@@ -113,6 +115,13 @@ private:
     void paintExport(QPainter&, int mapSide, double scale, bool vectorOutput);
     // the time bar: stepping and looping through the frames of the layers that have them
     bool forecastsOnly() const;
+    bool mixedTimes() const;        // forecasts and observed frames are on the bar together
+    int liveIndex() const;          // the tick that is "latest": the first hour of a forecast, the newest frame of what is observed, and with both the frame of now
+    long barTime() const;           // the time the bar is on (0: none)
+    void showLayerAt(MapLayer& layer, long barSeconds);   // a layer told the bar's time (live: its newest, or for a forecast beside observations the hour of now)
+    QString timeNoteOf(const MapLayer& layer, bool& behind) const;   // what time the layer is drawing against the bar's ("holding 14:30Z, 6 h before the bar")
+    void updateTimeNotes();
+    void setBarLabel();
     void openHours();
     void updateTimeline();
     void updateWorking();   // the hour labels over the slider and the bar of the frames that are ready
@@ -216,6 +225,7 @@ private:
     std::set<string> expanded;      // the layers whose options are open in the manager
     std::map<string, QWidget *> inlineOptions;   // their option panels (kept, not made again)
     std::map<string, QLabel *> summaryLabels;
+    std::map<string, QLabel *> timeNotes;   // under each layer that is on: the time it is drawing, against the bar's
     string activeSignature;
     bool live{true};                // the newest of everything (the frames follow new scans)
     bool playing{false};

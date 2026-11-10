@@ -74,6 +74,7 @@ namespace {
         std::vector<QString> names;
         std::vector<bool> ready;
         int current{0};
+        double now{-1.0};   // where the present is along the ticks (a place between two of them), under 0: not on the bar
 
     protected:
         void paintEvent(QPaintEvent *) override {
@@ -108,6 +109,15 @@ namespace {
                 p.setPen(static_cast<int>(i) == current ? QColor{"#c0392b"} : palette().color(QPalette::WindowText));
                 p.drawText(QRectF{left, 0, static_cast<double>(labelWidth), 17.0}, Qt::AlignCenter, names[i]);
                 lastRight = left + labelWidth;
+            }
+            if (now >= 0.0) {   // the present: what is left of it has happened, what is right of it is forecast
+                const double nx = margin + slot * now;
+                p.setPen(QPen{QColor{"#2e9e5b"}, 1.5, Qt::DashLine});
+                p.drawLine(QPointF{nx, 0.0}, QPointF{nx, 24.0});
+                if (std::abs(now - current) > 0.5 && slot * std::abs(now - current) > 40.0) {   // (on the frame of now the bar's own line says so, and the word would lie over the tick's name)
+                    p.setPen(QColor{"#2e9e5b"});
+                    p.drawText(QRectF{nx + 3.0, 8.0, 34.0, 12.0}, Qt::AlignLeft | Qt::AlignVCenter, "now");
+                }
             }
             const double x = margin + slot * current;   // the frame on show
             p.setPen(QPen{QColor{"#c0392b"}, 2.0});
@@ -336,6 +346,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
                 if (chart->validTime().isValid()) {
                     screen->openAt(model, chart->validTime());
                 }
+                screen->applyVariants(chart->selection());   // (its lines, the other models' lines, the member, standard deviations and a change go with it)
             } else {
                 new ModelScreen{this, chosen->data().toString().toStdString()};
             }
@@ -683,10 +694,13 @@ void MasterMapViewer::refreshActiveList() {
                 found->second->setVisible(!text.empty());
             }
         }
+        updateTimeNotes();
         return;
     }
     activeSignature = signature;
+    QTimer::singleShot(0, this, [this] { updateTimeNotes(); });   // (once the rows below are made)
     summaryLabels.clear();
+    timeNotes.clear();
     while (auto * item = activeLayout->takeAt(0)) {
         if (auto * widget = item->widget()) {
             if (widget->property("keep").toBool()) {   // an open option panel: kept for the next time
@@ -739,6 +753,12 @@ void MasterMapViewer::refreshActiveList() {
         note->setVisible(!layer->summary().empty());
         activeLayout->addWidget(note);
         summaryLabels[id] = note;
+        auto * when = new QLabel{activeBox};   // the time the layer is drawing against the bar's (updateTimeNotes)
+        UiStandards::muted(when);
+        when->setWordWrap(true);
+        when->setVisible(false);
+        activeLayout->addWidget(when);
+        timeNotes[id] = when;
         if (open) {
             auto found = inlineOptions.find(id);
             if (found == inlineOptions.end()) {
@@ -873,6 +893,12 @@ void MasterMapViewer::updateTimeline() {
         strip->ready.push_back(ready.count(t) > 0);
     }
     strip->current = std::clamp(timeSlider->value(), 0, static_cast<int>(ticks.size()) - 1);
+    strip->now = -1.0;
+    if (const long present = QDateTime::currentSecsSinceEpoch(); present > ticks.front() && present < ticks.back()) {
+        const auto after = std::upper_bound(ticks.begin(), ticks.end(), present);
+        const size_t i = static_cast<size_t>(after - ticks.begin()) - 1;
+        strip->now = static_cast<double>(i) + static_cast<double>(present - ticks[i]) / static_cast<double>(std::max(1L, ticks[i + 1] - ticks[i]));
+    }
     strip->update();
 }
 
@@ -923,6 +949,129 @@ bool MasterMapViewer::forecastsOnly() const {
     return any;
 }
 
+bool MasterMapViewer::mixedTimes() const {
+    bool forecasts = false, observed = false;
+    for (const auto& layer : layers) {
+        if (layer->enabled() && layer->timeAware()) {
+            (layer->forecast() ? forecasts : observed) = true;
+        }
+    }
+    return forecasts && observed;
+}
+
+int MasterMapViewer::liveIndex() const {
+    if (ticks.empty() || forecastsOnly()) {
+        return 0;
+    }
+    if (!mixedTimes()) {
+        return static_cast<int>(ticks.size()) - 1;
+    }
+    // forecasts beside observations: the last tick is days ahead, and nothing observed is there. "Latest" is the frame of now
+    const auto after = std::upper_bound(ticks.begin(), ticks.end(), static_cast<long>(QDateTime::currentSecsSinceEpoch()));
+    return std::max(0, static_cast<int>(after - ticks.begin()) - 1);
+}
+
+long MasterMapViewer::barTime() const {
+    const int index = timeSlider != nullptr ? timeSlider->value() : -1;
+    return index >= 0 && static_cast<size_t>(index) < ticks.size() ? ticks[static_cast<size_t>(index)] : 0;
+}
+
+void MasterMapViewer::showLayerAt(MapLayer& layer, long barSeconds) {
+    if (!live) {
+        layer.showTime(barSeconds, *this);
+    } else if (layer.forecast() && mixedTimes() && !ticks.empty()) {   // (a forecast's own "latest" is its first hour: beside the radar it is the hour of now that goes with it)
+        layer.showTime(ticks[static_cast<size_t>(liveIndex())], *this);
+    } else {
+        layer.showTime(0, *this);
+    }
+}
+
+// The time a layer is drawing against the time the bar is on. A layer shows its frame at or just before the bar's time, so one whose frames stop earlier (the radar under a forecast hour of
+// tomorrow) holds its last and says how far behind it is; one with no frames in time is not on the bar at all and shows what is newest.
+QString MasterMapViewer::timeNoteOf(const MapLayer& layer, bool& behind) const {
+    behind = false;
+    const auto clock = [] (long t) { return QDateTime::fromSecsSinceEpoch(t, QTimeZone::utc()).toString("ddd HH:mm'Z'"); };
+    const auto span = [] (long seconds) {
+        return seconds >= 2 * 86400 ? QString::number(seconds / 86400) + " days" : seconds >= 5400 ? QString::number(std::lround(seconds / 3600.0)) + " h" : QString::number(std::max(1L, seconds / 60)) + " min";
+    };
+    if (!layer.timeAware()) {
+        return ticks.size() > 1 ? QString{"not on the time bar: shows its newest"} : QString{};
+    }
+    const auto times = layer.times();
+    const long bar = barTime();
+    if (times.empty() || bar == 0) {
+        return times.empty() ? QString{"no frames yet"} : QString{};
+    }
+    if (live && !(layer.forecast() && mixedTimes())) {
+        return layer.forecast() ? QString{"first hour of the run, "} + clock(times.front()) : QString{"newest frame, "} + clock(times.back());
+    }
+    const auto after = std::upper_bound(times.begin(), times.end(), bar);
+    if (after == times.begin()) {
+        behind = true;
+        return "nothing this early: its first frame is " + clock(times.front()) + ", " + span(times.front() - bar) + " after the bar";
+    }
+    const long shown = *(after - 1);
+    long step = 0;   // how far apart its frames are about there: a frame is "the bar's" within that
+    if (times.size() > 1) {
+        const size_t i = static_cast<size_t>(after - times.begin()) - 1;
+        step = i + 1 < times.size() ? times[i + 1] - times[i] : times[i] - times[i - 1];
+    }
+    const QString hour = layer.forecast() ? QString{"F%1, "}.arg((shown - times.front()) / 3600, 3, 10, QChar{'0'}) : QString{};
+    if (bar - shown <= std::max(step, 60L) && !(after == times.end() && bar - shown > 0 && bar - shown >= step && step > 0)) {
+        return hour + clock(shown) + (bar == shown ? "" : "  (the frame for the bar's time)");
+    }
+    behind = true;
+    return hour + "holding " + clock(shown) + ", " + span(bar - shown) + " before the bar (it has nothing later)";
+}
+
+void MasterMapViewer::updateTimeNotes() {
+    for (const auto& layer : layers) {
+        const auto found = timeNotes.find(layer->id());
+        if (found == timeNotes.end() || !layer->enabled()) {
+            continue;
+        }
+        bool behind = false;
+        const auto text = timeNoteOf(*layer, behind);
+        found->second->setText((behind ? QString::fromUtf8("\xE2\x9A\xA0 ") : QString{}) + text);
+        found->second->setStyleSheet(QString{"font-size: 9pt; margin-left: 22px;"} + (behind ? " color: #c77700;" : ""));
+        found->second->setVisible(!text.isEmpty());
+    }
+}
+
+// the bar's own line: the time it is on and what kind of time that is (the layers' own times are under each of them in the list)
+void MasterMapViewer::setBarLabel() {
+    const long bar = barTime();
+    if (bar == 0 || ticks.size() < 2) {
+        string text = live ? "latest" : "";
+        for (const auto& layer : layers) {
+            if (layer->enabled() && layer->timeAware() && !layer->timeText().empty()) {
+                text = layer->timeText() + (live ? "  (latest)" : "");
+                break;
+            }
+        }
+        timeLabel->setText(QString::fromStdString(text));
+        timeLabel->setToolTip({});
+        return;
+    }
+    const long present = QDateTime::currentSecsSinceEpoch();
+    const bool mixed = mixedTimes(), forecasts = forecastsOnly();
+    QString text = QDateTime::fromSecsSinceEpoch(bar, QTimeZone::utc()).toString("ddd d MMM HH:mm'Z'");
+    if (forecasts) {
+        text += QString{"  F%1"}.arg((bar - ticks.front()) / 3600, 3, 10, QChar{'0'});
+    } else if (mixed) {
+        text += bar > present + 900 ? "  forecast (ahead of now)" : "  observed";
+    }
+    if (live) {
+        text += !mixed ? "  (latest)" : bar <= present + 900 ? "  (now)" : "";   // (with nothing observed yet the first forecast frame is on show: that is not now)
+    }
+    timeLabel->setText(text);
+    timeLabel->setToolTip(mixed ? "Forecasts and observed layers are on together. Left of the green \"now\" mark every layer has frames; right of it only the forecasts move, and the observed layers hold "
+                                  "their newest (the list of layers says how far behind the bar each is). Latest is the frame of now."
+                                : forecasts ? "Only forecasts are on: the bar is the hours of the run, and Latest is its first hour."
+                                            : "Only observed layers are on: the bar is their frames, and Latest is the newest.");
+    updateTimeNotes();
+}
+
 // the frames of every layer that has them, in one list for the bar; the bar is shown only while there is such a layer
 void MasterMapViewer::rebuildTicks() {
     std::set<long> all;
@@ -946,7 +1095,7 @@ void MasterMapViewer::rebuildTicks() {
     timeSlider->setMaximum(std::max(0, static_cast<int>(ticks.size()) - 1));
     timeSlider->setEnabled(ticks.size() > 1);
     hoursButton->setVisible(ticks.size() > 1);
-    int index = forecastsOnly() ? 0 : static_cast<int>(ticks.size()) - 1;
+    int index = liveIndex();
     if (!live && keep != 0) {
         const auto found = std::lower_bound(ticks.begin(), ticks.end(), keep);
         index = found == ticks.end() ? static_cast<int>(ticks.size()) - 1 : static_cast<int>(found - ticks.begin());
@@ -959,14 +1108,7 @@ void MasterMapViewer::rebuildTicks() {
         playButton->setText("Stop");
         playTimer.start();
     }
-    string text = live ? "latest" : "";
-    for (const auto& layer : layers) {
-        if (layer->enabled() && layer->timeAware() && !layer->timeText().empty()) {
-            text = layer->timeText() + (live ? "  (latest)" : "");
-            break;
-        }
-    }
-    timeLabel->setText(QString::fromStdString(text));
+    setBarLabel();
     if (ticks.size() > 1) {
         extra.clear();   // the "loading the frames" note
         if (!playing && playButton->text() == "Loading...") {
@@ -1018,7 +1160,7 @@ void MasterMapViewer::goLive() {
     playButton->setText("Loop");
     for (auto& layer : layers) {
         if (layer->enabled() && layer->timeAware()) {
-            layer->showTime(0, *this);
+            showLayerAt(*layer, 0);
         }
     }
     rebuildTicks();
@@ -1028,25 +1170,18 @@ void MasterMapViewer::goTo(int index) {
     if (ticks.empty() || index < 0 || static_cast<size_t>(index) >= ticks.size()) {
         return;
     }
-    live = (forecastsOnly() ? index == 0 : static_cast<size_t>(index) + 1 == ticks.size()) && !playing;
+    live = index == liveIndex() && !playing;
     const long t = ticks[static_cast<size_t>(index)];
     wantedTime = t;   // (a chart changed under the bar keeps this hour)
     for (auto& layer : layers) {
         if (layer->enabled() && layer->timeAware()) {
-            layer->showTime(live ? 0 : t, *this);
+            showLayerAt(*layer, t);
         }
     }
     settingSlider = true;
     timeSlider->setValue(index);
     settingSlider = false;
-    string text;
-    for (const auto& layer : layers) {
-        if (layer->enabled() && layer->timeAware() && !layer->timeText().empty()) {
-            text = layer->timeText();
-            break;
-        }
-    }
-    timeLabel->setText(QString::fromStdString(text + (live ? "  (latest)" : "")));
+    setBarLabel();
     if (timePick != nullptr && !live) {
         timePick->setDateTime(QDateTime::fromSecsSinceEpoch(ticks[static_cast<size_t>(index)], QTimeZone::utc()));
     }
@@ -2404,7 +2539,7 @@ ModelChartLayer * MasterMapViewer::modelLayer() const {
     return nullptr;
 }
 
-MasterMapViewer * MasterMapViewer::openModels(Window * parent, const string& modelWanted, const string& paramWanted, const string& sectorWanted, const QDateTime& valid) {
+MasterMapViewer * MasterMapViewer::openModels(Window * parent, const string& modelWanted, const string& paramWanted, const string& sectorWanted, const QDateTime& valid, const ChartSelection& chosen) {
     // the choices the model page kept (its thumbnail on the home screen says what they are) are the starting point
     string model = modelWanted.empty() ? Utility::readPref("NCEP", Utility::readPref("MM_MODELCHART_MODEL", "GFS")) : modelWanted;
     if (GfsModels::find(model) == nullptr || !GfsRender::drawsModel(model)) {
@@ -2428,10 +2563,15 @@ MasterMapViewer * MasterMapViewer::openModels(Window * parent, const string& mod
     if (!param.empty()) {
         Utility::writePref("MM_MODELCHART_PARAM", param);
     }
-    Utility::writePref("MM_MODELCHART_OVERLAYS", "");
-    Utility::writePref("MM_MODELCHART_OVERLAYMODELS", "");
+    // the chart as the screen it comes from has it (its ticked lines, the other models' lines, a member, standard deviations, a change or a maximum), when it is that model's and chart's
+    const bool whole = chosen.model == model && chosen.param == param && chosen.usable();
+    Utility::writePref("MM_MODELCHART_OVERLAYS", whole ? ChartSelection::joinList(chosen.overlays) : string{});
+    Utility::writePref("MM_MODELCHART_OVERLAYMODELS", whole ? ChartSelection::joinList(chosen.overlayModels) : string{});
     auto * map = new MasterMapViewer{parent};
     map->onlyLayer("model/chart");
+    if (auto * chart = map->modelLayer(); whole && chart != nullptr) {
+        chart->apply(chosen, *map);
+    }
     string sector = sectorWanted.empty() ? Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS") : sectorWanted;
     double lat = 0, lon = 0, km = 0;
     string name;
