@@ -54,6 +54,8 @@ public:
     // with the painter at the place, `unit` = the size of one screen pixel of the mark, `north` = degrees clockwise the picture's up is from north there (for a barb). On the map itself the layer paints
     // it at once (paintMark).
     virtual bool deferMarks() const { return false; }
+    // false while the flat map is hidden behind the globe (and the view it keeps is not the one being drawn): a layer then does not draw for that view, or it and the globe's own picture would redraw each other for ever
+    virtual bool viewIsShown() const { return true; }
     virtual void deferMark(double /*lat*/, double /*lon*/, std::function<void(QPainter&, double unit, double north)> /*paint*/) {}
     // work on another thread, then `done` on this one (dropped when the screen has been closed)
     virtual void background(std::function<void()> work, std::function<void()> done) = 0;

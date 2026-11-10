@@ -75,6 +75,7 @@ private:
     void redraw() override { mapView->map()->update(); listTimer.start(500); if (globeView != nullptr && globeOn) { globeView->scheduleSkin(); } }   // (a layer that has read something has a new summary for the list)
     void status(const string& text) override { extra = text; updateStatus(); }
     bool claimCell(const QPointF& pixels, double spacing) override;
+    bool viewIsShown() const override { return !globeOn || makingSkin; }
     double markScale() const override { return thinning; }
     bool deferMarks() const override { return deferNow; }
     void deferMark(double lat, double lon, std::function<void(QPainter&, double, double)> paint) override { marks.push_back({lat, lon, std::move(paint)}); }
@@ -162,6 +163,7 @@ private:
     Button buttonAreas;
     GlobeMapView * globeView{};
     bool globeOn{false};
+    bool makingSkin{false};   // (the map's view is the globe's picture for the while)
     GlobeMapView::Skin makeSkin(double minLat, double maxLat, double minLon, double maxLon, int width, double referencePixelsPerDegree = 0.0, bool waitForLayers = false);
     struct DeferredMark {
         double lat, lon;

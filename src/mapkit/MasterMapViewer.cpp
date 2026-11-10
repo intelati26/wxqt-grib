@@ -2510,6 +2510,8 @@ GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, doubl
     // the labels and marks that thin themselves (claimCell) are spaced as they would be at the reference scale, whatever the picture's size: automatic thinning
     thinning = referencePixelsPerDegree > 0.0 ? std::max(1.0, (width / std::max(1.0, maxLon - minLon)) / referencePixelsPerDegree) : 1.0;
     const auto saved = mapView->saveState();
+    const bool madeBefore = makingSkin;
+    makingSkin = true;
     mapView->setRenderSize(width, width);
     mapView->showRegion(minLat, maxLat, minLon, maxLon);
     const auto first = mapView->transform();
@@ -2559,6 +2561,7 @@ GlobeMapView::Skin MasterMapViewer::makeSkin(double minLat, double maxLat, doubl
     skin.north = maxLat;
     mapView->setRenderSize(0, 0);
     mapView->restoreState(saved);
+    makingSkin = madeBefore;
     thinning = 1.0;
     return skin;
 }
