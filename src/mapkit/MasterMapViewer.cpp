@@ -1945,7 +1945,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
             QTimer ticker;
             QObject::connect(&ticker, &QTimer::timeout, [&] { status("painting the world: " + std::to_string(rows.load() * 100 / std::max(1, totalRows)) + " %"); });
             ticker.start(500);
-            new FutureVoid{this, [&] { world = WorldRender::renderWorld(sources, static_cast<int>(projection), centre, width, &rows); }, [&loop] { loop.quit(); }};
+            new FutureVoid{this, [&] { world = WorldRender::renderWorld(sources, static_cast<int>(projection), centre, width, &rows, true); }, [&loop] { loop.quit(); }};
             loop.exec();
         }
         for (const auto& s : sources) {

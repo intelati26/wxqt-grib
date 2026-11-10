@@ -35,7 +35,7 @@ namespace WorldRender {
     std::vector<Source> loadSources(const std::string& chart, const std::vector<std::string>& names, const QDateTime& when);
     // the world on one of the export projections painted from the grids themselves, at their own resolution (any width): each pixel samples the finest model that has a value; coastlines and
     // borders over it. Threads work on bands of rows; `done` counts the rows made.
-    QImage renderWorld(const std::vector<Source>& sources, int projection, double centerLon, int width, std::atomic<int> * done);
+    QImage renderWorld(const std::vector<Source>& sources, int projection, double centerLon, int width, std::atomic<int> * done, bool whiteGround = false);   // whiteGround: where no model has a value it is white (the pictures made to keep), else the map's own background
 }
 
 #endif  // WORLDRENDER_H
