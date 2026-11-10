@@ -786,9 +786,13 @@ int main(int argc, char * argv[]) {
                 GfsRender::Session session;
                 std::string error;
                 GfsRender::Variant variant;
-                variant.width = 640;
+                variant.width = qEnvironmentVariableIntValue("WXQT_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WIDTH") : 640;   // WXQT_WIDTH=<pixels>
+                std::vector<std::string> ticked;   // WXQT_OVERLAYS=<id,id ...>: the lines and barbs ticked onto the chart (barbs_850,barbs_700,barbs_500 for the stacked winds)
+                for (const auto& id : qEnvironmentVariable("WXQT_OVERLAYS").split(',', Qt::SkipEmptyParts)) {
+                    ticked.push_back(id.toStdString());
+                }
                 GfsChart::Probe probe;
-                const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), {}, error, &probe, variant);
+                const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), ticked, error, &probe, variant);
                 if (parts.value(2) == "nice_weather" && probe.valid()) {   // the area at each level, as the nice weather page counts it
                     fprintf(stderr, "%s\n", NiceWeatherOutlook::summaryOf(probe.fields.front().grid).c_str());
                 }
