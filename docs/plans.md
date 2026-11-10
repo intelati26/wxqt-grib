@@ -165,7 +165,7 @@ In order, each its own commit:
 2. **The MAG page without what a picture can not use** (done: Map, Analysis, Colors and Sounding hidden on it; its GRIB tiles stay).
 3. **The last callers off the preferences** (done for the CFS 30 day and WPC PPP buttons of the home screen; left: the "last forecast" thumbnail route (`GRIB_LATEST`), which is the saved choice by design).
 4. **Step 4's end, if wanted**: the viewer's remaining rows (member box, standard deviations, Build) read from `ModelBar` too. Little code is still twice; do it only with the next change to those rows.
-5. **Step 6, one window**: the model screen and the master map opened two ways. The toolbar, home screen and history page open "Models" on the picture and "Master map" on the map, both the one screen; the layer list shown or hidden by the switch; the Source box only for the pages (SPC Post, CAMs, MAG, the old picture sources). Decide first: does the master map's own window stay for the layers-first use, or is it only this screen?
+5. **Step 6, one window** (decided 2026-11-10: the master map keeps its own window for layers-first use and the model screen is the picture and the map with the source pages; so what is left of step 6 is only the open points): the model screen and the master map opened two ways. The toolbar, home screen and history page open "Models" on the picture and "Master map" on the map, both the one screen; the layer list shown or hidden by the switch; the Source box only for the pages (SPC Post, CAMs, MAG, the old picture sources). Decide first: does the master map's own window stay for the layers-first use, or is it only this screen?
 6. **The open points below** that step 6 meets: compare tiles on the map (panes) or kept to the picture; the fitted legend; one Save; storm models' area on the map.
 7. **WOOF-NAM from its site** (section 7 below): a hosted source for the model that is a local one today.
 8. **The rest of "Also from this look"**: the model family's pages sharing time and area, the hurricane links, the master map's layer search and shared choices.
@@ -187,8 +187,7 @@ The model screen's NCEP page lists only the models drawn from GRIB; the models t
 
 - The model family: carry the valid time and the area between the pages of the model screen; fold SPC Post into the Model Viewer (it is there already as the models `SPCPOST` and
   `SPCGEFS`); list the 15 minute window and the analysis loop as pages; open MRMS verification on the chart, area and time on view.
-- The hurricane screen and the models: "HAFS for this storm" and "Model charts here" on the hurricane screen, "Storm page..." in the Model Viewer on a storm model, HAFS-A and B as a
-  family of the hurricane intensity chart (one intensity chart, not two).
+- The hurricane screen and the models: "HAFS model..." was there; "Model charts here..." on the hurricane screen (the GFS's shear on an area round the storm) and "Storm page..." in the Model Viewer's Map menu on a storm model are done 2026-11-10 (built, not clicked; the storm page's year is the calendar year, wrong for a January look at a December storm). Left: HAFS-A and B as a family of the hurricane intensity chart (one intensity chart, not two).
 - The master map: the layers' shared choices (opacity, order) in the manager, a search box and the layers last used, "Show on the map" from the radar, outlook and satellite screens.
 
 ## 7. WOOF-NAM from its own site (a hosted source for the model that is already a local one)

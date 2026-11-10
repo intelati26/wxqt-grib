@@ -433,6 +433,17 @@ QWidget * TropicalHub::card(const HurricaneData::StormEntry& entry, const string
     };
     const auto id = entry.id;
     addButton("Track and recon...", "The track, model guidance and recon of this storm", [this, basin, id] { new HurricaneViewer{this, basin, id}; });
+    if (entry.lat != 0.0 || entry.lon != 0.0) {   // the global model's chart of the storm's surroundings: the deep-layer shear, on an area 1,500 km across centred on it
+        const double lat = entry.lat, lon = entry.lon;
+        const string name = HurricaneData::idLabel(entry.id) + " " + entry.name;
+        addButton("Model charts here...", "The model screen on the GFS's deep-layer shear in an area round this storm (change the model or chart there)", [this, lat, lon, name] {
+            ChartSelection chosen;
+            chosen.model = "GFS";
+            chosen.param = "shear_850_200";
+            chosen.sector = GfsChart::localId(lat, lon, 1500.0, name);
+            (new ModelScreen{this, "NCEP"})->applySelection(chosen);
+        });
+    }
     {   // the hurricane model for this storm (it runs for active storms and invests)
         addButton("HAFS model...", "The hurricane model's forecast of this storm", [this, id] { openHafs(Hafs::modelId(id)); });
     }
