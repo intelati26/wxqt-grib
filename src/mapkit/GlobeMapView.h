@@ -52,6 +52,10 @@ public:
     std::function<MapHit(const Skin&, double lat, double lon)> pick;
     std::function<void(QPainter&, int width, int height)> paintLegend;
 
+    // The caps of the poles from the model's own grid (the view only: the skin is Mercator and stops short of the poles): a north and a south polar picture made by WorldRender
+    // (reaching 20 degrees from the pole, centred on longitude 0); empty images take them away
+    void setPoleCaps(const QImage& north, const QImage& south);
+    static constexpr double poleCapReach = 20.0;
     void setCenter(double lat, double lon) { lat0 = lat; lon0 = lon; scheduleSkin(); update(); }
     // An area shown on the globe as a rectangle with its name (MAG's area picker: hover an area, see where it is); the globe can turn to it, smoothly
     void setPreview(const std::string& name, double west, double south, double east, double north);
@@ -72,6 +76,7 @@ public:
     bool place(const QPointF& pixel, double& lat, double& lon) const;
 
 protected:
+    QImage poleNorth, poleSouth;
     void paintEvent(QPaintEvent *) override;
     void mousePressEvent(QMouseEvent *) override;
     void mouseReleaseEvent(QMouseEvent *) override;
