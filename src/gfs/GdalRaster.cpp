@@ -45,7 +45,14 @@ bool GdalRaster::translate(const QString& input, const QString& base, const Opti
     args << options.extra << input << base + ".raw";
     QProcess process;
     process.start(options.gdalBin + program, args);
-    process.waitForFinished(options.timeoutMs);
+    // A run that outlives the timeout is still going (and exitStatus() says "normal, 0" of a process that has not exited): stop it and report it, or the half-written files are read as the result
+    if (!process.waitForStarted(10000) || !process.waitForFinished(options.timeoutMs)) {
+        const bool started = process.state() != QProcess::NotRunning;
+        process.kill();
+        process.waitForFinished(3000);
+        message = started ? "gdal did not finish in time" : "gdal could not be started: " + process.errorString().toStdString();
+        return false;
+    }
     // GDAL prints errors about drivers a machine lacks: only the exit code counts
     if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
         message = process.readAllStandardError().trimmed().toStdString();
@@ -56,7 +63,11 @@ bool GdalRaster::translate(const QString& input, const QString& base, const Opti
 
 bool GdalRaster::readEnvi(const QString& rawPath, const QString& hdrPath, GfsGrid::Grid& g, int& bands, std::vector<float>& values, std::string& error, bool requirePlain) {
     QFile hdr{hdrPath};
-    const auto hdrText = hdr.open(QIODevice::ReadOnly) ? QString::fromUtf8(hdr.readAll()) : QString{};
+    if (!hdr.open(QIODevice::ReadOnly)) {
+        error = "gdal wrote no header for the grid";
+        return false;
+    }
+    const auto hdrText = QString::fromUtf8(hdr.readAll());
     const auto number = [&hdrText] (const QString& key) {
         const auto m = QRegularExpression{"\\b" + key + "\\s*=\\s*([-0-9.]+)"}.match(hdrText);
         return m.hasMatch() ? m.captured(1).toDouble() : -1e9;
