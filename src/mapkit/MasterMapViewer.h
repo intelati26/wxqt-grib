@@ -203,6 +203,8 @@ private:
     QScrollArea * activeScroll{};
     QVBoxLayout * activeLayout{};
     QDialog * addDialog{};
+    std::map<string, int> layerOpacity;   // how strongly each layer is painted over the ones under it, percent (kept as MASTERMAP_OPACITY; the model chart has its own)
+    double opacityOf(const string& id) const;
     QWidget * optionsBox{};
     QCheckBox * legendCheck{};
     QLabel * noticeLabel{};

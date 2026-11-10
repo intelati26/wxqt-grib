@@ -225,6 +225,11 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
         scroll->setMinimumHeight(60);
         column->addWidget(scroll);
     }
+    for (const auto& part : QString::fromStdString(Utility::readPref("MASTERMAP_OPACITY", "")).split(',', Qt::SkipEmptyParts)) {
+        if (const auto pair = part.split('='); pair.size() == 2) {
+            layerOpacity[pair[0].toStdString()] = pair[1].toInt();
+        }
+    }
     for (const auto& id : QString::fromStdString(Utility::readPref("MASTERMAP_OPEN_OPTIONS", "")).split(',', Qt::SkipEmptyParts)) {
         expanded.insert(id.toStdString());
     }
@@ -641,8 +646,18 @@ void MasterMapViewer::buildTree() {
         }
         const auto id = item->data(0, Qt::UserRole).toString().toStdString();
         if (!id.empty()) {
-            setLayerOn(id, item->checkState(0) == Qt::Checked);
+            const bool on = item->checkState(0) == Qt::Checked;
+            setLayerOn(id, on);
             comboView.setIndex(0);
+            if (on) {   // the layers last used, newest first (the Layers window lists them)
+                QStringList recent{QString::fromStdString(id)};
+                for (const auto& old : QString::fromStdString(Utility::readPref("MASTERMAP_RECENT", "")).split(',', Qt::SkipEmptyParts)) {
+                    if (old.toStdString() != id && recent.size() < 8) {
+                        recent << old;
+                    }
+                }
+                Utility::writePref("MASTERMAP_RECENT", recent.join(',').toStdString());
+            }
         }
     });
     QObject::connect(tree, &QTreeWidget::currentItemChanged, [this] (QTreeWidgetItem * item, QTreeWidgetItem *) {
@@ -797,6 +812,29 @@ void MasterMapViewer::refreshActiveList() {
                     none->setEnabled(false);
                     holderLayout->addWidget(none);
                 }
+                if (id != "model/chart") {   // the layer's strength over the others (the model chart has its own, in its options)
+                    auto * strength = new QWidget{holder};
+                    auto * strengthRow = new QHBoxLayout{strength};
+                    strengthRow->setContentsMargins(0, 0, 0, 0);
+                    strengthRow->addWidget(new QLabel{"Layer opacity:", strength});
+                    auto * slider = new QSlider{Qt::Horizontal, strength};
+                    slider->setRange(10, 100);
+                    slider->setValue(static_cast<int>(std::lround(opacityOf(id) * 100.0)));
+                    slider->setToolTip("How strongly this layer is painted over the ones under it");
+                    QObject::connect(slider, &QSlider::valueChanged, this, [this, id] (int value) {
+                        layerOpacity[id] = value;
+                        QStringList parts;
+                        for (const auto& [key, percent] : layerOpacity) {
+                            if (percent < 100) {
+                                parts << QString::fromStdString(key) + "=" + QString::number(percent);
+                            }
+                        }
+                        Utility::writePref("MASTERMAP_OPACITY", parts.join(',').toStdString());
+                        redraw();
+                    });
+                    strengthRow->addWidget(slider, 1);
+                    holderLayout->addWidget(strength);
+                }
                 ElidedText::install(holder);
                 found = inlineOptions.emplace(id, holder).first;
             }
@@ -841,6 +879,55 @@ void MasterMapViewer::showAddLayers() {
         addDialog = new QDialog{this};
         addDialog->setWindowTitle("Layers");
         auto * column = new QVBoxLayout{addDialog};
+        // a search over every layer's name and group, and the ones last used
+        auto * search = new QLineEdit{addDialog};
+        search->setPlaceholderText("Search layers (radar, rivers, drought, GOES ...)");
+        search->setClearButtonEnabled(true);
+        column->addWidget(search);
+        auto * recent = UiStandards::combo(addDialog);
+        column->addWidget(recent);
+        const auto fillRecent = [this, recent] {
+            recent->blockSignals(true);
+            recent->clear();
+            recent->addItem("Last used layers...", "");
+            for (const auto& id : QString::fromStdString(Utility::readPref("MASTERMAP_RECENT", "")).split(',', Qt::SkipEmptyParts)) {
+                if (const auto * layer = layerOf(id.toStdString())) {
+                    auto name = QString::fromStdString(layer->path());
+                    recent->addItem(name.replace('/', "  >  "), id);
+                }
+            }
+            recent->blockSignals(false);
+        };
+        fillRecent();
+        QObject::connect(recent, QOverload<int>::of(&QComboBox::activated), addDialog, [this, recent] (int index) {
+            const auto id = recent->itemData(index).toString().toStdString();
+            if (const auto found = items.find(id); !id.empty() && found != items.end()) {
+                found->second->setCheckState(0, Qt::Checked);   // (its handler turns the layer on)
+                tree->setCurrentItem(found->second);
+                tree->scrollToItem(found->second);
+            }
+        });
+        QObject::connect(addDialog, &QDialog::finished, addDialog, [fillRecent] (int) { fillRecent(); });
+        QObject::connect(search, &QLineEdit::textChanged, addDialog, [this] (const QString& text) {
+            const auto wanted = text.trimmed().toLower();
+            // an item shows when its own text or the text of a group above it has the words, or something below it does
+            std::function<bool(QTreeWidgetItem *, bool)> filter = [&] (QTreeWidgetItem * item, bool groupMatches) {
+                const bool selfMatches = wanted.isEmpty() || groupMatches || item->text(0).toLower().contains(wanted);
+                bool any = false;
+                for (int i = 0; i < item->childCount(); i++) {
+                    any = filter(item->child(i), selfMatches) || any;
+                }
+                const bool show = selfMatches || any;
+                item->setHidden(!show);
+                if (!wanted.isEmpty() && any) {
+                    item->setExpanded(true);
+                }
+                return show;
+            };
+            for (int i = 0; i < tree->topLevelItemCount(); i++) {
+                filter(tree->topLevelItem(i), false);
+            }
+        });
         column->addWidget(tree, 3);
         column->addWidget(optionsTitle);
         column->addWidget(optionsBox, 1);
@@ -854,6 +941,11 @@ void MasterMapViewer::showAddLayers() {
 }
 
 // the layers' option panels go before the layers do (a panel being deleted tells its layer)
+double MasterMapViewer::opacityOf(const string& id) const {
+    const auto found = layerOpacity.find(id);
+    return found == layerOpacity.end() ? 1.0 : std::clamp(found->second, 10, 100) / 100.0;
+}
+
 MasterMapViewer::~MasterMapViewer() {
     for (auto& [id, holder] : inlineOptions) {
         delete holder;
@@ -2814,6 +2906,7 @@ void MasterMapViewer::paintMapCopy(QPainter& painter) {
     for (auto& layer : layers) {
         if (layer->enabled() && layer->underCoast()) {
             painter.save();
+            painter.setOpacity(opacityOf(layer->id()));
             layer->paint(painter, *this);
             painter.restore();
         }
@@ -2842,6 +2935,7 @@ void MasterMapViewer::paintMapCopy(QPainter& painter) {
     for (auto& layer : layers) {
         if (layer->enabled() && !layer->underCoast()) {
             painter.save();
+            painter.setOpacity(opacityOf(layer->id()));
             layer->paint(painter, *this);
             painter.restore();
         }
