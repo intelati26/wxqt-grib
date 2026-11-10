@@ -185,6 +185,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         // a page of the model screen changes the page; on its own it opens a window
         const auto screen = [this, opener] (const string& type) { return [this, opener, type] { openSource ? openSource(type) : (void) new ModelViewer{opener ? opener : this, type}; }; };
         add("NSSL CAMs (MPAS, WRF, HRRR, RRFS)", [this, opener] { openSource ? openSource("CAMS") : (void) new CamsViewer{opener ? opener : this}; });
+        add("NCEP MAG pictures (RAP, NAM, HiResW, WAVEWATCH ...)", screen("NCEPMAG"));
         menu->addSeparator();
         menu->addSection("Pending discontinuation (pictures from MAG / SPC)");
         add("NSSL WRF (WRF, FV3, HRRRv3)", screen("NSSLWRF"));
@@ -2381,7 +2382,7 @@ void ModelViewer::refreshProductButton() {
         buttonVerify->setVisible(GfsRender::drawsModel(objectModel.model) && (has("refc") || has("refd") || has("reflectivity") || has("cref") || has("maxref") || has("sim_radar")) &&
                                  !has("prob") && !has("paintball") && !has("nmep") && !has("member"));
     }
-    const bool ncep = objectModel.prefModel == "NCEP";   // the model guidance site's list is long: the grouped picker
+    const bool ncep = objectModel.kind == "NCEP";   // the model guidance site's list is long: the grouped picker
     comboboxModel.setVisible(!ncep);
     buttonModel.setVisible(ncep);
     buttonModel.setText(objectModel.model + "  \xE2\x96\xBE");

@@ -157,6 +157,10 @@ Not checked in the running program: the two handoffs clicked through; loops and 
 6. **One window.** The model screen and the master map are the same screen opened two ways (step 5's switch and the layer list shown or hidden). The source box of the model screen (SPC
    Post, NSSL CAMs, the picture models) stays as pages beside it.
 
+### The pictures of the model guidance site (MAG), apart (2026-11-10)
+
+The model screen's NCEP page lists only the models drawn from GRIB; the models that are only pictures there (RAP, NAM, NAM-HIRES, HiResW, NAEFS, WAVEWATCH, ESTOFS, POLAR ...) are their own page, **NCEP MAG pictures** (`ObjectModel` prefModel `NCEPMAG`, `kind` `NCEP` so the picture code is the same; its choices are kept apart). What it makes possible: the NCEP page is only models whose state is a `ChartSelection`, so step 3's last part and a bar widget need not carry the pictures. Left on the MAG page for now that a picture has no use for: Map, Analysis, tiles of GRIB charts, Sounding, Colors, Build (hide them there).
+
 ### Open points
 
 - **Compare tiles.** Four pictures side by side have no map form beyond the map's two maps. Either the tiles stay a thing of the picture canvas, or the map gets panes.

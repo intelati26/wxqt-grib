@@ -1103,7 +1103,7 @@ int main(int argc, char * argv[]) {
                 Utility::writePref("NCEP", route.section(':', 1, 1).toStdString());
                 Utility::writePref("MODELNCEPPARAMLASTUSED", qEnvironmentVariable("WXQT_PARAM", "500_wnd_ht").toStdString());   // WXQT_PARAM=<chart id>: open on that chart
                 Utility::writePref("MODELNCEPSECTORLASTUSED", "CONUS");
-                auto * viewer = new ModelViewer{&w, "NCEP"};
+                auto * viewer = new ModelViewer{&w, qEnvironmentVariable("WXQT_TYPE", "NCEP").toStdString()};   // WXQT_TYPE=NCEPMAG: the page of the model guidance site's pictures
                 if (qEnvironmentVariableIsSet("WXQT_OVERLAYS")) {   // WXQT_OVERLAYS=<id,id ...>: 12 s in those lines and barbs are ticked in the chart picker's way
                     std::vector<std::string> ids;
                     for (const auto& id : qEnvironmentVariable("WXQT_OVERLAYS").split(',', Qt::SkipEmptyParts)) {

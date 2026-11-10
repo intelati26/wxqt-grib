@@ -18,7 +18,7 @@
 void ObjectModelGet::runStatus(ObjectModel& om) {
     if (om.prefModel == "NSSLWRF") {
         om.runTimeData = UtilityModelNsslWrfInputOutput::getRunTime();
-    } else if (om.prefModel == "NCEP" && GfsModels::draws(om.model)) {
+    } else if (om.kind == "NCEP" && GfsModels::draws(om.model)) {
         // these two come from NOAA's open data, not the model guidance pages: the newest run is the newest one whose files are there
         string cycle;
         RunTimeData found;
@@ -31,7 +31,7 @@ void ObjectModelGet::runStatus(ObjectModel& om) {
         }
         om.runTimeData = found;
         om.runTimeData.listRun = om.runs;
-    } else if (om.prefModel == "NCEP") {
+    } else if (om.kind == "NCEP") {
         om.runTimeData = UtilityModelNcepInputOutput::getRunTime(&om);
         om.runTimeData.listRun = om.runs;
     } else if (om.prefModel == "WPCGEFS") {
@@ -47,7 +47,7 @@ void ObjectModelGet::runStatus(ObjectModel& om) {
 string ObjectModelGet::imageUrl(ObjectModel& om) {
     if (om.prefModel == "NSSLWRF") {
         return UtilityModelNsslWrfInputOutput::getImageUrl(&om);
-    } else if (om.prefModel == "NCEP") {
+    } else if (om.kind == "NCEP") {
         if (om.model == "NAM4KM") {
             om.model = "NAM-HIRES";
         }
