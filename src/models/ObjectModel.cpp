@@ -22,6 +22,7 @@
 
 ObjectModel::ObjectModel(const string& prefModel)
     : prefModel{prefModel}
+    , kind{prefModel == "NCEPMAG" ? string{"NCEP"} : prefModel}
     , prefSector{"MODEL" + prefModel + "SECTORLASTUSED"}
     , prefParam{"MODEL" + prefModel + "PARAMLASTUSED"}
     , prefRunPosn{prefModel + "RUNPOSN"}
@@ -51,7 +52,7 @@ ObjectModel::ObjectModel(const string& prefModel)
         model = "GLCFS";
         models = {"GLCFS"};
         sector = "All Lakes";
-    } else if (prefModel == "NCEP") {
+    } else if (kind == "NCEP") {
         run = "00Z";
         timeStr = "003";
         timeIdx = 1;
@@ -59,6 +60,11 @@ ObjectModel::ObjectModel(const string& prefModel)
         model = "GFS";
         sector = "NAMER";
         models = UtilityModelNcepInterface::models();
+        if (prefModel == "NCEPMAG") {   // the pictures of the model guidance site, on a page of their own
+            models = UtilityModelNcepInterface::pictureModels();
+            model = models.empty() ? string{"RAP"} : (std::find(models.begin(), models.end(), "RAP") != models.end() ? string{"RAP"} : models.front());
+            param = "500_vort_ht";
+        }
     } else if (prefModel == "WPCGEFS") {
         run = "00Z";
         timeStr = "01";
@@ -132,8 +138,8 @@ void ObjectModel::loadRunList(int from, int to, int by) {
 }
 
 void ObjectModel::setModelVars(const string& modelName) {
-    modelToken = prefModel + ":" + modelName;
-    const auto * gribModel = prefModel == "NCEP" ? GfsModels::find(modelName) : nullptr;   // a model drawn from GRIB: the registry says how its screen is set up
+    modelToken = kind + ":" + modelName;
+    const auto * gribModel = kind == "NCEP" ? GfsModels::find(modelName) : nullptr;   // a model drawn from GRIB: the registry says how its screen is set up
     if (gribModel != nullptr) {
         UtilityModelNcepInterface::chartList(*gribModel, params, paramLabels);
         sectors = gribModel->sectors == GfsModels::Sectors::Conus ? UtilityModelNcepInterface::sectorsNbm : UtilityModelNcepInterface::sectorsGfs;
@@ -320,7 +326,7 @@ void ObjectModel::setModelVars(const string& modelName) {
         }
     }
     // (a chart made to order, "gen~...", is not in the model's list: the screen puts it there; it is kept when the model can make it)
-    const bool madeToOrder = prefModel == "NCEP" && param.compare(0, 4, "gen~") == 0 && GfsChart::product(param, modelName) != nullptr;
+    const bool madeToOrder = kind == "NCEP" && param.compare(0, 4, "gen~") == 0 && GfsChart::product(param, modelName) != nullptr;
     if (!contains(params, param) && !madeToOrder) {
         if (!params.empty()) {
             param = params[0];

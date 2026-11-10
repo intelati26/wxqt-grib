@@ -40,7 +40,8 @@ public:
     vector<string> models;
     RunTimeData runTimeData;
     string modelToken;
-    string prefModel;
+    string prefModel;   // where its choices are kept (and which page of the model screen it is): "NCEP" or "NCEPMAG" for the pictures of the model guidance site
+    string kind;        // what it is: prefModel, but "NCEP" for both of the above (the way the charts are listed and fetched is the same)
     string prefSector;
     string prefParam;
     string prefRunPosn;

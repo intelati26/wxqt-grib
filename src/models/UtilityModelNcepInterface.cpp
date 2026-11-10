@@ -31,16 +31,32 @@ namespace {
         "WW3-WNA"
     };
 
+    // the models drawn from GRIB: the registry's (those of the older list that the registry has are among them)
     vector<string> buildModels() {
-        auto out = legacyModels;
+        vector<string> out;
         for (const auto& def : GfsModels::all()) {
-            if (std::find(out.begin(), out.end(), def.id) == out.end()) {
-                out.push_back(def.id);
+            out.push_back(def.id);
+        }
+        std::sort(out.begin(), out.end());
+        return out;
+    }
+
+    // the older list's models that nothing draws from GRIB: the pictures of the model guidance site
+    vector<string> buildPictureModels() {
+        vector<string> out;
+        for (const auto& id : legacyModels) {
+            if (!GfsModels::draws(id)) {
+                out.push_back(id);
             }
         }
         std::sort(out.begin(), out.end());
         return out;
     }
+}
+
+const vector<string>& UtilityModelNcepInterface::pictureModels() {
+    static const vector<string> list = buildPictureModels();
+    return list;
 }
 
 const vector<string>& UtilityModelNcepInterface::models() {

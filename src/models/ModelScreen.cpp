@@ -16,6 +16,7 @@
 const std::vector<ModelScreen::Source>& ModelScreen::sources() {
     static const std::vector<Source> all{
         {"NCEP", "Models drawn here (GFS, ECMWF, RRFS, REFS, GEFS, NBM, SPC REFS ...)"},
+        {"NCEPMAG", "NCEP MAG pictures (RAP, NAM, HiResW, WAVEWATCH, NAEFS, polar ...: models not drawn from GRIB)"},
         {"SPCPOST", "SPC Post: calibrated thunder, severe and lightning chances, GEFS-MLP"},
         {"CAMS", "NSSL CAMs pictures (MPAS, WRF, HRRR, RRFS)"},
         {"SPCHRRR", "SPC HRRR pictures (pending discontinuation)"},
