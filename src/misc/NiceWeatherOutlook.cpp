@@ -13,6 +13,7 @@
 #include "gfs/GfsChart.h"
 #include "gfs/GfsRender.h"
 #include "misc/ImageViewer.h"
+#include "misc/NiceWeatherCache.h"
 #include "objects/FutureVoid.h"
 #include "ui/ActivityLabel.h"
 #include "ui/UiStandards.h"
@@ -113,12 +114,6 @@ namespace {
         return out;
     }
 
-    struct Result {
-        QByteArray png;
-        std::string summary;
-        QDateTime valid;
-        std::string error;
-    };
 }
 
 std::string NiceWeatherOutlook::summaryOf(const GfsGrid::Grid& grid) {
@@ -178,30 +173,28 @@ void NiceWeatherOutlook::showDay() {
     const int index = std::clamp(static_cast<int>(comboDay.getIndex()), 0, 7);
     const int mine = ++generation;
     setTitle("Nice Weather Outlook, " + dayLabels[static_cast<size_t>(index)]);
+    // the day as it is shown: from the cache (the summary of days 1 to 8, or an earlier visit, made it) at once, else made off the screen's thread and kept for the others
+    const auto show = [this, index] (const NiceWeatherCache::Day& day) {
+        header.setText(dayLabels[static_cast<size_t>(index)] + (day.valid.isValid() ? "   Valid: " + day.valid.toString("ddd yyyy-MM-dd").toStdString() + " (the daytime, by the sun's time of each place)" : std::string{}) + "   Source: National Blend of Models");
+        photo.setBytes(day.png);
+        text.setText(day.summary);
+    };
+    if (const auto cached = NiceWeatherCache::find(index)) {
+        show(*cached);
+        return;
+    }
     header.setText("Loading " + dayLabels[static_cast<size_t>(index)] + " ...");
     photo.setBytes(QByteArray{});
     text.setText(std::string{});
-    auto result = std::make_shared<Result>();
-    new FutureVoid{this, [result, index] {
-        GfsRender::Session session;
-        GfsRender::Variant variant;
-        variant.width = 1100;
-        GfsChart::Probe probe;
-        result->png = GfsRender::png(session, "NBM", "nice_weather", "CONUS", "", 24 * (index + 1), {}, result->error, &probe, variant);
-        if (probe.valid()) {
-            result->summary = summary(probe.fields.front().grid);
-            result->valid = probe.validUtc;
-        }
-    }, [this, result, mine, index] {
+    auto result = std::make_shared<std::pair<std::shared_ptr<const NiceWeatherCache::Day>, std::string>>();
+    new FutureVoid{this, [result, index] { result->first = NiceWeatherCache::make(index, result->second); }, [this, result, mine, index, show] {
         if (mine != generation) {
             return;
         }
-        if (result->png.isEmpty()) {
-            header.setText(dayLabels[static_cast<size_t>(index)] + ": no chart" + (result->error.empty() ? std::string{} : " (" + result->error + ")"));
+        if (!result->first) {
+            header.setText(dayLabels[static_cast<size_t>(index)] + ": no chart" + (result->second.empty() ? std::string{} : " (" + result->second + ")"));
             return;
         }
-        header.setText(dayLabels[static_cast<size_t>(index)] + (result->valid.isValid() ? "   Valid: " + result->valid.toString("ddd yyyy-MM-dd").toStdString() + " (the daytime, by the sun's time of each place)" : std::string{}) + "   Source: National Blend of Models");
-        photo.setBytes(result->png);
-        text.setText(result->summary);
+        show(*result->first);
     }};
 }

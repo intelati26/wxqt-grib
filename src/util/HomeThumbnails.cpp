@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "util/HomeThumbnails.h"
+#include "misc/NiceWeatherCache.h"
 #include <QBuffer>
 #include "space/UtilitySun.h"
 #include <algorithm>
@@ -279,12 +280,10 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         variant.width = 640;
         return GfsRender::png(session, "WPC-PPP", "ppp_" + hoursText + "h_median", "CONUS", run.id(), hour, {}, error, nullptr, variant);
     }
-    if (token == "NICE_DAY1") {
-        GfsRender::Session session;
+    if (token == "NICE_DAY1") {   // the day the Nice weather pages show (made once, by whichever asks first; the picture is scaled to the tile)
         string error;
-        GfsRender::Variant variant;
-        variant.width = 640;
-        return GfsRender::png(session, "NBM", "nice_weather", "CONUS", "", 24, {}, error, nullptr, variant);
+        const auto day = NiceWeatherCache::make(0, error);
+        return day ? day->png : QByteArray{};
     }
     if (token == "RTMA_AREA") {
         // the model screen's last area (RTMA covers the United States only: another area than a saved place is drawn as CONUS), from the newest analysis
