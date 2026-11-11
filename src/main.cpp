@@ -318,6 +318,16 @@ int main(int argc, char * argv[]) {
                         }
                     }
                 });
+            } else if (route.startsWith("nicepage:")) {   // WXQT_OPEN=nicepage:<day 1-8>:<fx>:<fy>: the Nice weather page of that day, and (after WXQT_WAIT seconds) the read-out at that point of the picture
+                const auto parts = route.split(':');
+                OutlookNav::open(&w, OutlookNav::NiceDay, std::max(0, parts.value(1, "1").toInt() - 1));
+                QTimer::singleShot(std::max(10, qEnvironmentVariableIntValue("WXQT_WAIT")) * 1000, &w, [parts] {
+                    for (auto * widget : QApplication::allWidgets()) {
+                        if (auto * page = dynamic_cast<NiceWeatherOutlook *>(widget)) {
+                            page->hoverAt(parts.value(2, "0.5").toDouble(), parts.value(3, "0.5").toDouble());
+                        }
+                    }
+                });
             } else if (route == "nicecache") {   // WXQT_OPEN=nicecache: makes days 1 to 3 of the Nice weather outlook, each twice, and says how long each took (the second is the cache's)
                 for (int day = 0; day < 3; day++) {
                     for (int again = 0; again < 2; again++) {

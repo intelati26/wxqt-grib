@@ -13,6 +13,7 @@
 #include "gfs/GfsChart.h"
 #include "gfs/GfsRender.h"
 #include "misc/ImageViewer.h"
+#include "models/ChartHover.h"
 #include "misc/NiceWeatherCache.h"
 #include "objects/FutureVoid.h"
 #include "ui/ActivityLabel.h"
@@ -164,9 +165,16 @@ NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)
     leftBox.addWidgetReal(new ActivityLabel{this});   // what is downloading for the chart (and a click for the network list)
     comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 7)));
     comboDay.connect([this] { showDay(); });
+    hover = std::make_unique<ChartHover>(photo.getView());   // the values under the pointer, and what limits the level there (the day's probe, kept with the day)
     photo.connect([this, parent] { new ImageViewer{parent, photo.bytes}; });
     shortcutImage.connect([this, parent] { new ImageViewer{parent, photo.bytes}; });
     showDay();
+}
+
+void NiceWeatherOutlook::hoverAt(double fx, double fy) {
+    if (hover) {
+        hover->show(fx, fy, 12, 12);
+    }
 }
 
 void NiceWeatherOutlook::showDay() {
@@ -177,6 +185,7 @@ void NiceWeatherOutlook::showDay() {
     const auto show = [this, index] (const NiceWeatherCache::Day& day) {
         header.setText(dayLabels[static_cast<size_t>(index)] + (day.valid.isValid() ? "   Valid: " + day.valid.toString("ddd yyyy-MM-dd").toStdString() + " (the daytime, by the sun's time of each place)" : std::string{}) + "   Source: National Blend of Models");
         photo.setBytes(day.png);
+        hover->set(day.probe);
         text.setText(day.summary);
     };
     if (const auto cached = NiceWeatherCache::find(index)) {
@@ -185,6 +194,7 @@ void NiceWeatherOutlook::showDay() {
     }
     header.setText("Loading " + dayLabels[static_cast<size_t>(index)] + " ...");
     photo.setBytes(QByteArray{});
+    hover->set(nullptr);
     text.setText(std::string{});
     auto result = std::make_shared<std::pair<std::shared_ptr<const NiceWeatherCache::Day>, std::string>>();
     new FutureVoid{this, [result, index] { result->first = NiceWeatherCache::make(index, result->second); }, [this, result, mine, index, show] {

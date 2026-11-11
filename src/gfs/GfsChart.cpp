@@ -2004,6 +2004,7 @@ const std::vector<Product>& products() {
                     }
                 }
                 // the base each level needs (his day 1 colored 10% of the area Beautiful, 17% Nice, 63% Fair and 10% Decent: Fair is the wide band, Nice and Beautiful are the narrow ones; fitted with the temperature judged against the normal)
+                GfsGrid::Grid gate = level, gateValue = level;   // what sets each cell's level, and its score (for the hover)
                 const double thP = 0.92, thB = 0.805, thN = 0.76, thF = 0.45, thD = 0.20;   // (his scale: Beautiful from about 82 of 100, as at Huntsville; the shares of his day 1: 10% Beautiful, 17% Nice, 60% Fair)
                 for (size_t at = 0; at < cells; at++) {
                     double lonAt = shape.lon0 + static_cast<double>(at % static_cast<size_t>(shape.columns)) * shape.step;
@@ -2012,6 +2013,8 @@ const std::vector<Product>& products() {
                     }
                     if (std::isnan(cT[at]) || !insideUnitedStates(lonAt, shape.lat0 - static_cast<double>(at / static_cast<size_t>(shape.columns)) * shape.step)) {   // (a map of the land of the United States)
                         level.values[at] = none;
+                        gate.values[at] = none;
+                        gateValue.values[at] = none;
                         continue;
                     }
                     const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at], gusty = cG[at];
@@ -2024,28 +2027,58 @@ const std::vector<Product>& products() {
                     static const double marks[6][4] = {   // Decent, Fair, Nice, Beautiful (of 100): temperature, rain, heat, dewpoint, sky, wind
                         {0, 18, 68, 91}, {0, 34, 89, 100}, {0, 50, 78, 100}, {17, 39, 67, 92}, {0, 25, 76, 89}, {0, 38, 75, 82}};   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
                     const double scores[6] = {tScore * 100.0, rScore * 100.0, heatScore * 100.0, dScore * 100.0, cScore * 100.0, wScore * 100.0};
+                    // what sets the level, for the hover: the ingredient (0 temperature ... 5 wind) with the fewest marks reached, or the cap that took the level down last, or 10: nothing holds it back
                     int value = 4;
+                    int weakest = 0;
+                    int weakestReached = 99;
                     for (int ingredient = 0; ingredient < 6; ingredient++) {
                         int reached = 0;
                         for (int level = 0; level < 4; level++) {
                             reached += scores[ingredient] >= marks[ingredient][level] ? 1 : 0;
                         }
+                        if (reached < weakestReached || (reached == weakestReached && scores[ingredient] < scores[weakest])) {
+                            weakestReached = reached;
+                            weakest = ingredient;
+                        }
                         value = std::min(value, reached);
                     }
-                    if (value == 4 && base >= thP && *std::min_element(scores, scores + 6) >= 96.0) {   // (Perfect: every ingredient all but flawless)
-                        value = 5;
+                    const int lowest = static_cast<int>(std::min_element(scores, scores + 6) - scores);   // the ingredient with the lowest score
+                    int gateCode = 10;
+                    double gateScore = std::numeric_limits<double>::quiet_NaN();
+                    if (value < 4) {
+                        gateCode = weakest;
+                        gateScore = scores[weakest];
                     }
-                    value = std::min(value, day <= 2 ? 5 : day == 3 ? 4 : 3);   // the further the day, the lower the level the forecast can stand behind
+                    if (value == 4) {
+                        if (base >= thP && scores[lowest] >= 96.0) {   // (Perfect: every ingredient all but flawless)
+                            value = 5;
+                        } else {   // Beautiful, and the lowest ingredient is what keeps it from Perfect
+                            gateCode = lowest;
+                            gateScore = scores[lowest];
+                        }
+                    }
+                    const auto cap = [&] (int limit, int code) {
+                        if (limit < value) {
+                            value = limit;
+                            gateCode = code;
+                            gateScore = std::numeric_limits<double>::quiet_NaN();
+                        }
+                    };
+                    cap(day <= 2 ? 5 : day == 3 ? 4 : 3, 6);   // the further the day, the lower the level the forecast can stand behind
                     // the fine particles, the daytime mean (micrograms a cubic meter), by the EPA's air quality index: Perfect needs an index of 35 (8.4 micrograms), Beautiful about 55 (14), Nice 100 (35.4), Fair
                     // 150 (55.4), and over that no level at all (Unhealthy)
-                    value = std::min(value, smoke <= 8.4 ? 5 : smoke <= 14.0 ? 4 : smoke <= 35.4 ? 3 : smoke <= 55.4 ? 2 : 0);
-                    value = std::min(value, airCap[at]);
+                    cap(smoke <= 8.4 ? 5 : smoke <= 14.0 ? 4 : smoke <= 35.4 ? 3 : smoke <= 55.4 ? 2 : 0, 7);
+                    cap(airCap[at], 8);
                     if (wScore < 0.2 || gusty >= 0.05) {   // gusts over 35 mph in the area around (or a mean gust past about 31 mph) hold a place at Decent whatever its score
-                        value = std::min(value, 1);
+                        cap(1, 9);
                     }
+                    gate.values[at] = static_cast<float>(gateCode);
+                    gateValue.values[at] = static_cast<float>(gateScore);
                     level.values[at] = static_cast<float>(value);
                 }
                 g["level"] = std::move(level);
+                g["gate"] = std::move(gate);
+                g["gatescore"] = std::move(gateValue);
             };
             // the smoke is the RRFS's (the blend has none): its near-surface fine particles at the same hours, for the first days it reaches
             x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 8)); }, 6});
@@ -2054,6 +2087,9 @@ const std::vector<Product>& products() {
                 x.extras.push_back({"GEOS-FP", GfsData::Want{"y", "PM25", "aerosol", "", ""}, "GEOS-FP particles", 0, geosHours, 0});
             }
             x.fill = [] (const Grids& g) { return pick(g, "level"); };
+            x.hoverValues = {{"gate", "Limited by", {"Temperature", "Chance of rain", "Heat", "Dewpoint (humidity)", "Cloud cover (sky)", "Wind", "How far off the day is (a later day is held to a lower level)", "Smoke (fine particles)", "Air quality (AirNow)",
+                                                    "Gusts over 35 mph nearby", "Nothing: every ingredient allows the level"}},
+                             {"gatescore", "Its score (of 100)", {}}};
             x.ramp = Ramp{{{1.0, QColor{"#d6e7a3"}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1a8c9a"}}, {5.0, QColor{"#f5b800"}}}, true};   // each level starts at its whole number; the scale ends at 5
             x.fillTitle = "Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, Perfect 5/5";
             x.legendStep = 1;
@@ -7840,6 +7876,13 @@ QString Probe::read(double fx, double fy) const {
         if (std::isnan(value)) {
             continue;
         }
+        if (!field.names.empty()) {   // a whole number that is a name
+            const long named = std::lround(value);
+            if (named >= 0 && named < static_cast<long>(field.names.size())) {
+                lines << QString::fromStdString(field.label) + ": " + QString::fromStdString(field.names[static_cast<size_t>(named)]);
+            }
+            continue;
+        }
         const double number = field.convert ? shown(field.quantity, value, us) : value * field.scale;
         lines << QString::fromStdString(field.label) + ": " + numberText(number);
     }
@@ -8082,6 +8125,11 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         for (const auto& value : product.pointValues) {
             if (grids.count(value.key)) {
                 probe.fields.push_back({value.title.empty() ? value.key : value.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(value.key), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
+            }
+        }
+        for (const auto& value : product.hoverValues) {
+            if (grids.count(value.key)) {
+                probe.fields.push_back({value.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(value.key), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, Quantity::Other, false, value.names});
             }
         }
         if (options.vectorOut != nullptr) {   // the ticked winds, for a layer that draws the barbs itself
