@@ -114,6 +114,7 @@ private:
     void showAreaPicker();   // MAG's area picker on the globe: point at an area, see it; click, go there                          // the whole world, equal area, as one picture (asks)
 
 public:
+    void globeHoverProbe();   // (a development aid: a mouse move to the middle of the globe, and what the hover says there, to stderr)
     void previewArea(const string& id, bool goThere);   // the area as a rectangle on the globe, which turns to it (goThere: and zooms to fit, and the flat map follows)
     void exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centerLongitude, int width, bool highResolution = false, bool graticule = false);
 
