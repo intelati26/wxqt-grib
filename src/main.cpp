@@ -89,6 +89,7 @@
 #include "sounding/SoundingHazard.h"
 #include "models/UtilityModelNcepInterface.h"
 #include "gfs/GfsChart.h"
+#include "misc/NiceWeatherCache.h"
 #include "misc/NiceWeatherOutlook.h"
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
@@ -317,6 +318,16 @@ int main(int argc, char * argv[]) {
                         }
                     }
                 });
+            } else if (route == "nicecache") {   // WXQT_OPEN=nicecache: makes days 1 to 3 of the Nice weather outlook, each twice, and says how long each took (the second is the cache's)
+                for (int day = 0; day < 3; day++) {
+                    for (int again = 0; again < 2; again++) {
+                        std::string error;
+                        QElapsedTimer clock;
+                        clock.start();
+                        const auto made = NiceWeatherCache::make(day, error);
+                        std::fprintf(stderr, "NICECACHE day %d %s: %lld ms %s%s\n", day + 1, again == 0 ? "first" : "second", static_cast<long long>(clock.elapsed()), made ? "ok" : "FAILED ", error.c_str());
+                    }
+                }
             } else if (route.startsWith("homeclick:")) {   // WXQT_OPEN=homeclick:<home thumbnail token, e.g. RTMA_SECOND>: what a click on that home picture opens
                 w.clickPicture(route.section(':', 1, 1).toStdString());
             } else if (route.startsWith("subhourly:")) {   // WXQT_OPEN=subhourly:<RRFS|HRRR>[:<run yyyyMMddHH>][:<to minutes>]: the 15 minute surface fields window, drawing 15 minutes to that lead in four panes

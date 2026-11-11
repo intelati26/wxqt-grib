@@ -12,6 +12,7 @@
 #include "gfs/GfsChart.h"
 #include "ui/ActivityLabel.h"
 #include "gfs/GfsRender.h"
+#include "misc/NiceWeatherCache.h"
 #include "misc/NiceWeatherOutlook.h"
 #include "misc/OutlookNav.h"
 #include "objects/FutureVoid.h"
@@ -57,31 +58,26 @@ void NiceWeatherOverview::load(int day) {
     if (day >= days) {
         return;
     }
-    struct Result {
-        QByteArray png;
-        std::string headline, error;
-        QDateTime valid;
-    };
-    auto result = std::make_shared<Result>();
-    new FutureVoid{this, [result, day] {
-        GfsRender::Session session;
-        GfsRender::Variant variant;
-        variant.width = 900;
-        GfsChart::Probe probe;
-        result->png = GfsRender::png(session, "NBM", "nice_weather", "CONUS", "", 24 * (day + 1), {}, result->error, &probe, variant);
-        if (probe.valid()) {
-            result->headline = NiceWeatherOutlook::headlineOf(probe.fields.front().grid);
-            result->valid = probe.validUtc;
-        }
-    }, [this, result, day] {
+    // a day is shown from the cache when it is there (the page of the day, or an earlier look, made it); else it is made, and kept for the page of the day
+    const auto show = [this, day] (const NiceWeatherCache::Day * made, const std::string& error) {
         auto * label = labels[static_cast<size_t>(day)];
-        if (result->png.isEmpty()) {
+        if (made == nullptr) {
             label->setText(QString{"Day %1: no chart"}.arg(day + 1));
+            (void)error;
         } else {
-            label->setText(QString{"<b>Day %1</b>%2<br>%3"}.arg(day + 1).arg(result->valid.isValid() ? "  " + result->valid.toString("ddd MMM d") : QString{}).arg(QString::fromStdString(result->headline)));
-            images[static_cast<size_t>(day)].setBytes(result->png);
+            label->setText(QString{"<b>Day %1</b>%2<br>%3"}.arg(day + 1).arg(made->valid.isValid() ? "  " + made->valid.toString("ddd MMM d") : QString{}).arg(QString::fromStdString(made->headline)));
+            images[static_cast<size_t>(day)].setBytes(made->png);
             images[static_cast<size_t>(day)].resizeToWidth(static_cast<float>(width()) / across - 8);
         }
+    };
+    if (const auto cached = NiceWeatherCache::find(day)) {
+        show(cached.get(), std::string{});
+        load(day + 1);
+        return;
+    }
+    auto result = std::make_shared<std::pair<std::shared_ptr<const NiceWeatherCache::Day>, std::string>>();
+    new FutureVoid{this, [result, day] { result->first = NiceWeatherCache::make(day, result->second); }, [this, result, day, show] {
+        show(result->first.get(), result->second);
         load(day + 1);
     }};
 }
