@@ -4,6 +4,9 @@
 // *****************************************************************************
 
 #include "mapkit/MasterMapViewer.h"
+#include <cstdio>
+#include <QToolTip>
+#include <QMouseEvent>
 #include "mapkit/GibsLayer.h"
 #include "tropical/PhaseViewer.h"
 #include "mapkit/TropicalLayers.h"
@@ -2602,6 +2605,32 @@ void MasterMapViewer::ensurePoleCaps() {
         globeView->setPoleCaps(*north, *south);
         ensurePoleCaps();   // the chart may have changed meanwhile
     }};
+}
+
+void MasterMapViewer::globeHoverProbe() {
+    if (!globeOn) {
+        std::fprintf(stderr, "GLOBEHOVER: the globe is not on\n");
+        return;
+    }
+    // a grid of points over the middle of the globe: how many say something, and the first of them
+    int tried = 0, said = 0;
+    QString first;
+    for (int row = 0; row < 25; row++) {
+        for (int column = 0; column < 25; column++) {
+            const QPointF at{globeView->width() * (0.15 + 0.7 * column / 24.0), globeView->height() * (0.15 + 0.7 * row / 24.0)};
+            QToolTip::hideText();
+            QMouseEvent move{QEvent::MouseMove, at, globeView->mapToGlobal(at), Qt::NoButton, Qt::NoButton, Qt::NoModifier};
+            QApplication::sendEvent(globeView, &move);
+            tried++;
+            if (const auto text = QToolTip::text(); !text.isEmpty()) {
+                said++;
+                if (first.isEmpty()) {
+                    first = text;
+                }
+            }
+        }
+    }
+    std::fprintf(stderr, "GLOBEHOVER: %d of %d points said something; first: [%s]\n", said, tried, first.replace("\n", " | ").toStdString().c_str());
 }
 
 void MasterMapViewer::setGlobe(bool on) {

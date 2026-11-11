@@ -884,7 +884,7 @@ MapHit ModelChartLayer::pick(const QPointF& pixels, MapHost& host) const {
         return hit;
     }
     const auto text = current->probe.read(fx, fy);
-    if (text.isEmpty()) {
+    if (text.isEmpty() || !text.contains('\n')) {   // (just the place and no value: the point is outside the model's grid, and no hit lets the combo go on to the next model)
         return hit;
     }
     hit.distance = 0.0;
