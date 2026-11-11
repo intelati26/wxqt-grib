@@ -167,6 +167,13 @@ namespace GfsChart {
             std::string title;   // for the hover read-out: "10th percentile"
         };
         std::vector<PointValue> pointValues;
+        // Grids (made by `derive`) that are only in the hover read-out, not on the map: `names` read a grid of whole numbers as words (empty: the number)
+        struct HoverValue {
+            std::string key;
+            std::string title;
+            std::vector<std::string> names;
+        };
+        std::vector<HoverValue> hoverValues;
         // An anomaly chart that can also be drawn in standard deviations (withStandardDeviations): `sigma` makes the grids of that view (the fill "anom" in deviations, and the two named
         // below in the chart's own unit). Set only on the charts that have a climatology with deviations.
         std::function<void(Grids&, const Context&)> sigma;
@@ -275,6 +282,7 @@ namespace GfsChart {
             double scale{1.0};      // the number shown = value * scale (before the units)
             Quantity quantity{Quantity::Other};
             bool convert{false};    // shown in the user's units
+            std::vector<std::string> names;   // a grid of whole numbers read as names (0 the first): "Limited by: Dewpoint"; the value is left out where there is no name for it
         };
         double west{0}, east{0}, south{0}, north{0};
         double areaLeft{0}, areaTop{0}, areaWidth{0}, areaHeight{0}, imageWidth{1}, imageHeight{1};
