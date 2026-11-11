@@ -1756,6 +1756,34 @@ clone_levels = 1 mb
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
+        {"WOOF-NAM-HOSTED", R"MODEL(
+# WOOF-NAM, the GPU port of the NAM's NMMB (recastsystems/woof-nam; NCEP retired the NAM on 2026-11-03), from the files its operators publish at woof-nam.recastsystems.com (CC BY 4.0, not NOAA data): NCEP grid 218, 12 km, four runs
+# a day (00, 06, 12, 18Z) to 84 hours, the first file 3.5 hours after the run and the last at about 4.3. A run is 5.9 GB, so only the fields wanted are read, by the index file's ranges. The Lambert grid is put on a regular 0.1 degree one.
+# Only the plain `wxqt` agent and a request or two a second: the site is a volunteer's. The precipitation type fields are there from the 12Z run of 9 November 2026.
+id = WOOF-NAM-HOSTED
+group = Convection allowing
+label = WOOF-NAM, the NAM's NMMB on a GPU (Recast, hosted), 12 km
+source_label = WOOF-NAM by Recast (hosted, CC BY 4.0)
+kind = grib
+url = https://woof-nam.recastsystems.com/woof-nam/12km/{date}/{cycle}z/woof-nam.t{cycle}z.awphys{hour2}.tm00.grib2
+index_suffix = .idx
+cycle_hours = 6
+lag_hours = 4
+probe_hour = 0
+cycles_to_try = 4
+max_parallel = 1
+warp = 0.1, -152.0, 12.0, -49.0, 62.0
+sectors = conus
+hours = 0-84/1
+run_every = 6
+overlays = true
+list = true
+clone = true
+clone_variables = HGT, TMP, RH, UGRD, VGRD, DPT, PRMSL, PWAT, CAPE, CIN, APCP, CRAIN, CSNOW, TCDC, GUST, REFC, HLCY, VIS
+clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_skip = anom
+clone_pieces = false
+)MODEL"},
         {"MRMS", R"MODEL(
 # MRMS's composite reflectivity as it was observed, to put beside the models' (Compare: difference from the main model, or models at the same valid time). A run is an hour and its one hour 0 the first scan
 # of it, from NOAA's open bucket noaa-mrms-pds (2020 on): the 0.01 degree grid taken to 0.04 degrees by its largest value, read by the program's own loader (registered for this id).

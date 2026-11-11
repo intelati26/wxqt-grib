@@ -177,11 +177,19 @@ static bool matches(const std::string& have, const std::string& want) {
     return have == want || wholeHours(have) == wholeHours(want);
 }
 
+namespace {
+    std::string plainLevel(const std::string& level) {   // "entire atmosphere" and "entire atmosphere (considered as a single layer)" are one level (the GFS and the HRRR say the first, the NAM the second)
+        static const std::string suffix = " (considered as a single layer)";
+        return level.size() > suffix.size() && level.compare(level.size() - suffix.size(), suffix.size(), suffix) == 0 ? level.substr(0, level.size() - suffix.size()) : level;
+    }
+}
+
 const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string& variable, const std::string& level, const std::string& forecast, const std::string& detail, const std::string& date) {
     const IdxRecord * first = nullptr;
     const IdxRecord * last = nullptr;
+    const auto wantLevel = plainLevel(level);
     for (const auto& r : records) {
-        if (r.variable == variable && r.level == level && matches(r.forecast, forecast) && (detail == "*" || r.detail == detail) && (date.empty() || r.date == date)) {
+        if (r.variable == variable && (r.level == level || plainLevel(r.level) == wantLevel) && matches(r.forecast, forecast) && (detail == "*" || r.detail == detail) && (date.empty() || r.date == date)) {
             if (!forecast.empty()) {
                 return &r;
             }

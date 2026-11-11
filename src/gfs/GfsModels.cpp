@@ -313,6 +313,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("MRMS"));
         m.push_back(fromFile("ARWEN"));
         m.push_back(fromFile("WOOF-NAM"));
+        m.push_back(fromFile("WOOF-NAM-HOSTED"));
         m.push_back(fromFile("SEAS5"));
         m.push_back(fromFile("HRDPS"));
         m.push_back(fromFile("ICON-D2"));
