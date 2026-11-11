@@ -132,9 +132,9 @@ void AnalysisLoop::build() {
     done = urma = rtma = failed = 0;
     firstError.clear();
     status->setText(QString{"Drawing %1 hours..."}.arg(times.size()));
-    for (size_t index = 0; index < times.size(); index++) {
-        renderFrame(index, mine, false);
-    }
+    showNewestFirst = true;   // the hour of now (the last) is drawn and shown first, alone (so it is not slowed by the rest), then the hour before it, and so back
+    restStarted = false;
+    renderFrame(times.size() - 1, mine, false);
 }
 
 // One hour's panes (and the values under the pointer): from the URMA when it has the hour, else the RTMA. `again`: an hour already drawn, its values (let go of) wanted back, from the model it came from.
@@ -192,7 +192,7 @@ void AnalysisLoop::renderFrame(size_t index, int mine, bool again) {
                            }
                        }
                    },
-                   [this, mine, index, result, error, valid, again] {
+                   [this, mine, index, result, error, valid, again, urmaModel, hasUrma, ends, charts, flag] {
                        if (closed || mine != generation) {
                            return;
                        }
@@ -201,11 +201,43 @@ void AnalysisLoop::renderFrame(size_t index, int mine, bool again) {
                            return;
                        }
                        ++done;
+                       if (!restStarted && index + 1 == times.size()) {   // the newest is in (or could not be made): the others, the one before it first
+                           restStarted = true;
+                           // where the URMA ends is found first, by looking for its file hour by hour back from the newest: the hours after it are drawn from the RTMA at once, without each asking the URMA first
+                           const auto newest = QDateTime::fromString(QString::fromStdString(valid), "yyyyMMddHH");
+                           new FutureVoid{this, [urmaModel, hasUrma, ends, newest, charts, flag] {
+                                              if (!hasUrma || charts.empty()) {
+                                                  return;
+                                              }
+                                              GfsRender::Session session;
+                                              auto start = newest;
+                                              start.setTimeZone(QTimeZone::utc());
+                                              for (int back = 1; back <= 14 && !flag->load(); back++) {
+                                                  const auto at = start.addSecs(-3600LL * back);
+                                                  if (!GfsRender::availableHours(session, urmaModel, charts.front(), at.toString("yyyyMMddHH").toStdString(), {0}).empty()) {
+                                                      auto current = ends->load();
+                                                      const long long edge = at.toSecsSinceEpoch() + 3600;   // the hours after this one have no URMA
+                                                      while (edge < current && !ends->compare_exchange_weak(current, edge)) {
+                                                      }
+                                                      return;
+                                                  }
+                                              }
+                                          },
+                                          [this, mine, index] {
+                                              if (closed || mine != generation) {
+                                                  return;
+                                              }
+                                              for (size_t earlier = index; earlier-- > 0;) {
+                                                  renderFrame(earlier, mine, false);
+                                              }
+                                          }};
+                       }
                        if (result->first.empty()) {
                            ++failed;
                            if (firstError.empty()) {
                                firstError = valid + ": " + *error;
                            }
+                           frameFailed(index);
                        } else {
                            sources[index] = result->second;
                            (result->second.compare(0, 4, "URMA") == 0 ? urma : rtma)++;

@@ -5,6 +5,7 @@
 
 #include "models/LoopWindow.h"
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include "gfs/GfsModels.h"
 #include "models/ChartPickers.h"
@@ -186,15 +187,30 @@ void LoopWindow::beginFrames(size_t count) {
 }
 
 void LoopWindow::storeFrame(size_t index, std::vector<Cell>&& cells, const QString& name) {
+    if (qEnvironmentVariableIsSet("WXQT_LOOP_TRACE")) {   // (a development aid: the order the frames come in, and which is on view)
+        std::fprintf(stderr, "LOOP stored %zu of %zu, on view %d\n", index, frames.size(), shown);
+    }
     if (index >= frames.size()) {
         return;
     }
     frames[index] = std::move(cells);
     frameNames[index] = name;
-    if (shown < 0) {
+    if (shown < 0 && (!showNewestFirst || index + 1 == frames.size())) {   // (the newest is the one to see first: the older ones are drawn behind it)
         showFrame(static_cast<int>(index));
     }
     trimProbes();
+}
+
+void LoopWindow::frameFailed(size_t index) {
+    if (showNewestFirst && index + 1 == frames.size() && shown < 0) {   // the newest cannot be drawn: the newest that can is shown instead
+        showNewestFirst = false;
+        for (size_t i = frames.size(); i-- > 0;) {
+            if (!frames[i].empty()) {
+                showFrame(static_cast<int>(i));
+                break;
+            }
+        }
+    }
 }
 
 void LoopWindow::storeAgain(size_t index, std::vector<Cell>&& cells) {

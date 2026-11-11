@@ -35,6 +35,7 @@ public:
         std::shared_ptr<GfsChart::Probe> probe;   // the values under the pointer
     };
     void hoverAt(double fx, double fy) { grid->hoverAt(fx, fy); }   // (a development aid)
+    int shownIndex() const { return shown; }   // (a development aid)
     QSize firstPictureSize() const {   // (a development aid: the size of the first chart drawn)
         for (const auto& cells : frames) {
             if (!cells.empty()) {
@@ -60,7 +61,8 @@ protected:
 
     // ---- what it can use
     void beginFrames(size_t count);                                       // a new draw: nothing drawn yet, the slider and Save ready
-    void storeFrame(size_t index, std::vector<Cell>&& cells, const QString& name);   // a frame drawn (the first one is shown)
+    void storeFrame(size_t index, std::vector<Cell>&& cells, const QString& name);   // a frame drawn (the first one is shown, or the last one when showNewestFirst)
+    void frameFailed(size_t index);                                       // a frame that could not be drawn (the newest one failing lets the next frame drawn be shown)
     void storeAgain(size_t index, std::vector<Cell>&& cells);             // the values of a frame drawn again
     void invalidate(const QString& why);                                  // the charts, the area or the range changed: what was drawn is of something else
     void stop();                                                          // the frames not yet started are left
@@ -89,6 +91,7 @@ protected:
     int shown{-1};
     int generation{0};
     bool closed{false};
+    bool showNewestFirst{false};   // the loop is of times up to now: the last frame is shown as soon as it is drawn and the others come after it (newest first), not whichever frame is done first
     std::shared_ptr<std::atomic<bool>> cancel;
 
 private:

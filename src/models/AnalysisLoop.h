@@ -42,6 +42,7 @@ private:
     QDateTimeEdit * from{}, * to{};
     QComboBox * step{}, * regionBox{};
     int done{0}, urma{0}, rtma{0}, failed{0};
+    bool restStarted{false};   // the newest hour is drawn alone first; the others start when it is done
     std::string firstError;
     std::shared_ptr<std::atomic<long long>> urmaEnds;   // the first valid time (seconds since the epoch) the URMA turned out not to have: later ones go straight to the RTMA
 };
