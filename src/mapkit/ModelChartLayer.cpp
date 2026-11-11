@@ -374,7 +374,7 @@ void ModelChartLayer::settle() {
     hours.clear();
     if (run.size() >= 10) {
         const int cycle = std::stoi(run.substr(8, 2));
-        const auto rules = ChartHours::rules(model, param, cycle, ChartHours::modelHours(model, 100));   // (the model's whole list: the rules cut it at this run's length)
+        const auto rules = ChartHours::rules(model, param, cycle, ChartHours::modelHours(model, cycle));   // (the list of this run's own length)
         hours = rules.hours;
         if (const auto * known = book.find(ChartHours::Book::key(model, run, param)); known != nullptr && !known->hours.empty()) {
             std::vector<int> kept;
@@ -404,7 +404,7 @@ void ModelChartLayer::askHours(MapHost& host) {
         return;
     }
     const auto modelNow = model, paramNow = param, runNow = run;
-    const auto listed = ChartHours::rules(model, param, std::stoi(run.substr(8, 2)), ChartHours::modelHours(model, 100)).hours;
+    const auto listed = ChartHours::rules(model, param, std::stoi(run.substr(8, 2)), ChartHours::modelHours(model, std::stoi(run.substr(8, 2)))).hours;
     auto found = std::make_shared<std::vector<int>>();
     host.background([found, modelNow, paramNow, runNow, listed] {
         GfsRender::Session session;
