@@ -365,6 +365,9 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto * sub = new SubhourlyViewer{&w, parts.value(1).toStdString(), "CONUS", parts.value(2).toStdString(), {"sim_radar_comp", "2m_temp_10m_wnd", "10m_wnd_gust", "visibility"}};
                 sub->setLeads(15, parts.value(3, "120").toInt());
+                if (const auto barbs = qEnvironmentVariable("WXQT_PANE_BARBS"); !barbs.isEmpty()) {   // WXQT_PANE_BARBS=<pane 0-3>:<barbs id>: that pane draws with those barbs
+                    sub->setBarbs(static_cast<size_t>(barbs.section(':', 0, 0).toInt()), barbs.section(':', 1, 1).toStdString());
+                }
                 QTimer::singleShot(25000, sub, [sub] { sub->draw(); });
                 QTimer::singleShot(55000, sub, [sub] { sub->hoverAt(0.5, 0.45); });
             } else if (route.startsWith("rangeloop:")) {   // WXQT_OPEN=rangeloop:<hours back>:<charts 1-4>[:<region -AK|-HI|-PR|-GU>]: the RTMA / URMA loop window, drawing that many hours up to the newest RTMA hour

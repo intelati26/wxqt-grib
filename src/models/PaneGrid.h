@@ -49,7 +49,8 @@ public:
     CompareTile * tile(size_t index) const { return tiles[index]; }
     void setCount(int panes);                                   // how many are shown
     int count() const { return shownCount; }
-    void onChange(const std::function<void(int)>& handler);     // a pane's Change... button
+    void onChange(const std::function<void(int)>& handler);
+    void onBarbs(const std::function<void(int)>& handler);       // a pane's Barbs button     // a pane's Change... button
     void setMessage(const QString& text);                       // the same words over every pane's picture
     void hoverAt(double fx, double fy);                         // the read-out of every pane at that point of the picture (a development aid)
     // the pictures side by side in one picture, laid out as the panes are (900 pixels wide each)

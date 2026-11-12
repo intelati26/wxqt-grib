@@ -113,6 +113,12 @@ void PaneGrid::onChange(const std::function<void(int)>& handler) {
     }
 }
 
+void PaneGrid::onBarbs(const std::function<void(int)>& handler) {
+    for (size_t i = 0; i < tiles.size(); i++) {
+        QObject::connect(tiles[i]->barbs, &QPushButton::clicked, this, [handler, i] { handler(static_cast<int>(i)); });
+    }
+}
+
 void PaneGrid::setCount(int panes) {
     shownCount = std::clamp(panes, 1, maxPanes);
     PaneLayout::apply(grid, std::vector<QWidget *>(tiles.begin(), tiles.end()), shownCount);

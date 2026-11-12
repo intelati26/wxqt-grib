@@ -34,6 +34,7 @@ public:
         QByteArray bytes;
         std::shared_ptr<GfsChart::Probe> probe;   // the values under the pointer
     };
+    void setBarbs(size_t pane, const std::string& id) { if (pane < paneBarbs.size()) { paneBarbs[pane] = id; } }   // (a development aid)
     void hoverAt(double fx, double fy) { grid->hoverAt(fx, fy); }   // (a development aid)
     int shownIndex() const { return shown; }   // (a development aid)
     QSize firstPictureSize() const {   // (a development aid: the size of the first chart drawn)
@@ -68,6 +69,8 @@ protected:
     void stop();                                                          // the frames not yet started are left
     int paneCount() const { return grid->count(); }
     std::vector<std::string> activeCharts() const;                        // the charts of the panes in use
+    void enableBarbs();                                                   // the panes' Barbs buttons shown (a window whose charts can have barbs ticked on: the 15 minute one)
+    std::vector<std::string> activeBarbs() const;                         // the wind barbs of each pane in use ("" none): the overlay to ask of the renderer
     std::string chartLabel(const std::string& id) const;
     void refreshAreaButton();
     void setCharts(const std::vector<std::string>& ids, const std::vector<std::string>& names);   // the charts the pickers offer
@@ -84,6 +87,7 @@ protected:
     PaneGrid * grid{};
     std::string sector;
     std::vector<std::string> paneCharts;      // the chart of each of the four panes
+    std::vector<std::string> paneBarbs;       // the barbs of each of the four panes (an overlay id, "" none), chosen with the pane's own Barbs button
     std::vector<std::string> chartIds;        // the charts the pickers offer
     std::vector<std::string> chartNames;
     std::vector<std::vector<Cell>> frames;
@@ -99,6 +103,7 @@ private:
     void advance();
     void save();
     void pickChart(int pane);
+    void pickBarbs(int pane);
     void pickArea();
     void trimProbes();
     QSlider * slider{};
