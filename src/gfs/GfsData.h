@@ -48,6 +48,8 @@ public:
     struct Source {
         std::string id;                                                  // "GFS", "NBM": the model screen's name for it
         std::string label;                                               // "NOAA/NCEP GFS 0.25 degree", for under a chart
+        std::string legacyBefore;                                        // yyyyMMddHH: the runs from before it are in the legacy file (a model that changed its files); a newer run whose new files are not there yet is read from it too
+        std::function<std::string(const Run&, int forecastHour, const std::string& file)> legacyFileUrl;   // the legacy file of a run (the IFS's 0.25 degree one)
         std::function<std::string(const Run&, int forecastHour, const std::string& file)> fileUrl;   // the GRIB2 file; its index is that + ".idx". `file` is "" unless fileOf says
         std::function<std::string(const Want&)> fileOf;                  // which of a run's files holds a record (AIGFS: pressure levels in one, the surface in another); empty: one file
         float extraMissing{std::numeric_limits<float>::quiet_NaN()};     // a value the source uses for "no data" besides GRIB's own (HAFS: 9999 outside its tilted footprint); NaN: none
@@ -152,9 +154,16 @@ public:
     // grids by key, or false with the reason. A need whose record does not exist at hour 0 ("anl" has no precipitation) is simply absent from out; any other missing record fails.
     bool load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const;
     bool load(const Run& run, int forecastHour, const std::vector<Want>& wants, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const;
-    std::string fileUrl(const Run& run, int forecastHour, const std::string& file = "") const { return source.fileUrl(run, forecastHour, file); }
+    // The file of a run. A run newer than the model's change of files whose new files are not published yet is read from the legacy ones (the IFS's 0.25 degree files come about 2 hours before
+    // the 0.1 degree ones); the answer for a run is asked of the server once (kept for good when the new files are there, for 90 seconds when not).
+    std::string fileUrl(const Run& run, int forecastHour, const std::string& file = "") const {
+        return fellBack(run) ? source.legacyFileUrl(run, forecastHour, file) : source.fileUrl(run, forecastHour, file);
+    }
+    // whether this run is read from the legacy files because the new ones are not there yet (the run's own date before the change of files is not "falling back": that is how it always was)
+    bool fellBack(const Run& run) const;
+    static bool fellBack(const std::string& sourceId, const std::string& runId);   // what was last found for that run (false when nothing was asked)
     std::string indexUrl(const Run& run, int forecastHour, const std::string& file = "") const {
-        auto url = source.fileUrl(run, forecastHour, file);
+        auto url = fileUrl(run, forecastHour, file);
         if (source.indexOf) {
             return source.indexOf(url);
         }

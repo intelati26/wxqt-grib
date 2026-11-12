@@ -6939,7 +6939,7 @@ std::string generatedChart(const std::string& templateId, const std::vector<doub
 
 std::string sourceLabel(const std::string& source, const std::string& runId) {
     const auto * def = GfsModels::find(source);
-    if (def && !def->legacyLabel.empty() && runId.size() >= 10 && runId < def->legacyBefore) {   // a run from before the model's files changed
+    if (def && !def->legacyLabel.empty() && runId.size() >= 10 && (runId < def->legacyBefore || GfsData::fellBack(source, runId))) {   // a run from before the model's files changed
         return def->legacyLabel;
     }
     return def ? def->label : "NOAA/NCEP GFS 0.25 degree";
