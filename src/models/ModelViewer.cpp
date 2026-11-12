@@ -707,7 +707,24 @@ void ModelViewer::changeTimeCb() {
     changeTime(comboboxTime.getIndex());
 }
 
+QDateTime ModelViewer::shownValid() const {
+    const auto start = runTime(objectModel.run);
+    const auto text = objectModel.getTime();
+    if (!start.isValid() || text.empty() || !std::isdigit(static_cast<unsigned char>(text[0]))) {
+        return {};
+    }
+    return start.addSecs(3600LL * std::atoi(text.c_str()));
+}
+
+void ModelViewer::runSwitchTest(int timeIndex, int runIndex) {
+    changeTime(static_cast<size_t>(timeIndex));
+    std::fprintf(stderr, "RUNSWITCH before: run %s hour %s valid %s\n", objectModel.run.c_str(), objectModel.getTime().c_str(), shownValid().toString("yyyy-MM-dd HH").toStdString().c_str());
+    changeRun(runIndex);
+    QTimer::singleShot(4000, this, [this] { std::fprintf(stderr, "RUNSWITCH after: run %s hour %s valid %s\n", objectModel.run.c_str(), objectModel.getTime().c_str(), shownValid().toString("yyyy-MM-dd HH").toStdString().c_str()); });
+}
+
 void ModelViewer::changeModel(int index) {
+    wantValid = shownValid();
     if (objectModel.models[index] != pinnedModel) {
         pinnedValid = QDateTime{};   // another model: back to the newest runs
     }
@@ -729,12 +746,14 @@ void ModelViewer::changeSector(int index) {
 }
 
 void ModelViewer::changeRun(int index) {
+    wantValid = shownValid();
     objectModel.run = objectModel.runs[index];
     runSwappedFrom.clear();   // the person chose: that is the run, whatever the chart
     reload();
 }
 
 void ModelViewer::changeTime(size_t index) {
+    wantValid = QDateTime{};   // a time was picked: it is what is wanted now
     if (variant.kind == GfsRender::Variant::Kind::Max) {
         variant = {};
         variantKey.clear();
@@ -1885,15 +1904,33 @@ void ModelViewer::fitHoursToRun() {
             wanted = common;
         }
     }
-    if (wanted == objectModel.times) {
-        return;
-    }
     const int shown = std::atoi(objectModel.getTime().c_str());
     size_t index = 0;
     for (size_t i = 0; i < wanted.size(); i++) {
         if (std::atoi(wanted[i].c_str()) <= shown) {
             index = i;   // the same hour, else the last one the run has
         }
+    }
+    bool sameTime = false;   // the run or the model was changed: the hour of this run that is the valid time that was on show
+    if (wantValid.isValid()) {
+        if (const auto start = runTime(objectModel.run); start.isValid() && start.secsTo(wantValid) % 3600 == 0) {
+            const long target = static_cast<long>(start.secsTo(wantValid) / 3600);
+            for (size_t i = 0; i < wanted.size(); i++) {
+                if (std::atoi(wanted[i].c_str()) == target) {
+                    index = i;
+                    sameTime = true;
+                }
+            }
+        }
+    }
+    if (wanted == objectModel.times) {
+        if (sameTime && static_cast<int>(index) != objectModel.timeIdx) {
+            objectModel.setTimeIdx(static_cast<int>(index));
+            comboboxTime.block();
+            comboboxTime.setIndex(index);
+            comboboxTime.unblock();
+        }
+        return;
     }
     objectModel.times = wanted;
     objectModel.setTimeIdx(static_cast<int>(index));
