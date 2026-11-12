@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstdio>
 #include "gfs/GfsModelFile.h"
+#include "gfs/GfsData.h"
 
 namespace {
     std::string userFolder;
@@ -415,4 +416,12 @@ std::vector<std::string> GfsModels::overlayModels() {
         }
     }
     return out;
+}
+
+std::string GfsModels::runNote(const std::string& id, const std::string& runId) {
+    const auto * def = find(id);
+    if (def == nullptr || def->runNote.empty() || runId.size() < 10) {
+        return {};
+    }
+    return !def->legacyRunNote.empty() && (runId < def->legacyBefore || GfsData::fellBack(id, runId)) ? def->legacyRunNote : def->runNote;
 }

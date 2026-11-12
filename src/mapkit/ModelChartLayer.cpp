@@ -1069,7 +1069,8 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
             auto when = runTimeOf(base);
             for (int i = 0; i < 24; i++) {
                 const auto id = when.toString("yyyyMMddHH");
-                runBox->addItem(when.toString("yyyy-MM-dd HH") + "Z run", id);
+                const auto note = GfsModels::runNote(model, id.toStdString());
+                runBox->addItem(when.toString("yyyy-MM-dd HH") + "Z run" + (note.empty() ? QString{} : QString::fromStdString("  (" + note + ")")), id);
                 when = when.addSecs(-3600LL * step);
             }
         }

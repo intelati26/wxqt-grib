@@ -483,6 +483,10 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             def.id = value;
         } else if (key == "label") {
             def.label = value;
+        } else if (key == "run_note") {   // run_note = 0.1 degree: said beside each run in a list of runs
+            def.runNote = value;
+        } else if (key == "legacy_run_note") {
+            def.legacyRunNote = value;
         } else if (key == "legacy_label") {   // legacy_label = text: the credit of the runs before legacy_url's time
             def.legacyLabel = value;
         } else if (key == "group") {

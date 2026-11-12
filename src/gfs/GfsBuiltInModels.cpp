@@ -414,6 +414,8 @@ id = IFS
 alternate = GFS | NOAA's global model, from NOAA's AWS bucket (a different model)
 label = ECMWF IFS 0.1 degree (open data, CC BY 4.0)
 legacy_label = ECMWF IFS 0.25 degree (open data, CC BY 4.0)
+run_note = 0.1 degree
+legacy_run_note = 0.25 degree
 kind = grib
 url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p1/oper/{date}{cycle}0000-{hour}h-oper-fc-{file}.grib2
 legacy_url = 2026102006 => https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/oper/{date}{cycle}0000-{hour}h-oper-fc.grib2
