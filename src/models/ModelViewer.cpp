@@ -508,6 +508,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         mainTile = mainPane;   // the chart's own pane is a tile like the others (it has no Change... button: the screen's own pickers choose its chart)
         mainPane->setParent(compareArea);
         mainPane->change->hide();
+        mainPane->barbs->hide();   // (the main chart's barbs are the Analysis menu's ticks)
         mainCaption = mainPane->caption;
         mainCaption->installEventFilter(new WidthWatcher{this, [this] { alignCaptions(); }});
         for (size_t i = 0; i < tiles.size(); i++) {
@@ -515,6 +516,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             tiles[i]->caption->installEventFilter(new WidthWatcher{this, [this] { alignCaptions(); }});
             const int index = static_cast<int>(i) + 1;
             QObject::connect(tiles[i]->change, &QPushButton::clicked, this, [this, index] { changeTile(index); });
+            QObject::connect(tiles[i]->barbs, &QPushButton::clicked, this, [this, index] { chooseTileBarbs(index); });
             QObject::connect(tiles[i]->image, &ZoomImage::clicked, this, [this, index] (double fx, double fy) { pickFromTiles(index, fx, fy); });
             QObject::connect(tiles[i]->image, &ZoomImage::doubleClicked, this, [this, i] {
                 if (!tiles[i]->shownBytes.isEmpty()) {
@@ -2684,6 +2686,12 @@ void ModelViewer::setTileModel(int index, const string& model, const string& run
     }
 }
 
+void ModelViewer::setTileBarbs(int index, const string& value) {
+    tileSpecs[static_cast<size_t>(index) - 1].barbs = value;
+    renderTile(index);
+    prefetch(prefetchGeneration);
+}
+
 void ModelViewer::setTileRun(int index, const string& run) {
     if (index >= 1 && index <= tileCount()) {
         tileSpecs[static_cast<size_t>(index) - 1].run = run;
@@ -3145,10 +3153,17 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
         }
         {   // the lines and barbs ticked on the main chart go on the tiles too, on every tile whose model has them (another model's tile drew without them)
             const auto offered = GfsChart::overlayChoices(job.model);
+            const auto isBarbs = [&offered] (const string& id) {
+                return std::any_of(offered.begin(), offered.end(), [&id] (const GfsChart::OverlayChoice& choice) { return choice.id == id && choice.group == "Wind barbs"; });
+            };
+            const auto has = [&offered] (const string& id) { return std::any_of(offered.begin(), offered.end(), [&id] (const GfsChart::OverlayChoice& choice) { return choice.id == id; }); };
             for (const auto& id : picked.overlays) {
-                if (std::any_of(offered.begin(), offered.end(), [&id] (const GfsChart::OverlayChoice& choice) { return choice.id == id; })) {
+                if (has(id) && (spec.barbs == "main" || !isBarbs(id))) {   // (the lines go on every pane; the barbs as this pane's own button says)
                     job.overlays.push_back(id);
                 }
+            }
+            if (spec.barbs != "main" && spec.barbs != "none" && has(spec.barbs)) {
+                job.overlays.push_back(spec.barbs);
             }
         }
         auto v = variant;
@@ -3311,6 +3326,31 @@ void ModelViewer::showTile(int index, const Job& job, const Frame& frame) {
 }
 
 // the button of a tile: another chart, another model or another run, as the comparison is set
+void ModelViewer::chooseTileBarbs(int index) {
+    auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
+    QMenu menu;
+    const auto add = [&] (const QString& text, const string& value) {
+        auto * action = menu.addAction(text);
+        action->setCheckable(true);
+        action->setChecked(spec.barbs == value);
+        QObject::connect(action, &QAction::triggered, this, [this, index, value] {
+            tileSpecs[static_cast<size_t>(index) - 1].barbs = value;
+            renderTile(index);
+            prefetch(prefetchGeneration);
+        });
+    };
+    add("Same as the main chart", "main");
+    add("None", "none");
+    menu.addSeparator();
+    const auto model = spec.model.empty() ? objectModel.model : spec.model;
+    for (const auto& choice : GfsChart::overlayChoices(tilesShow() == TilesShow::Members || tilesShow() == TilesShow::Runs || tilesShow() == TilesShow::Charts ? objectModel.model : model)) {
+        if (choice.group == "Wind barbs") {
+            add(QString::fromStdString(choice.label), choice.id);
+        }
+    }
+    menu.exec(tiles[static_cast<size_t>(index) - 1]->barbs->mapToGlobal(QPoint{0, tiles[static_cast<size_t>(index) - 1]->barbs->height()}));
+}
+
 void ModelViewer::changeTile(int index) {
     auto& spec = tileSpecs[static_cast<size_t>(index) - 1];
     auto * button = tiles[static_cast<size_t>(index) - 1]->change;

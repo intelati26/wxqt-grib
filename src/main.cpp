@@ -1180,6 +1180,10 @@ int main(int argc, char * argv[]) {
                     const auto parts = qEnvironmentVariable("WXQT_TILE_MODEL").split(':');
                     QTimer::singleShot(12000, viewer, [viewer, parts] { viewer->setTileModel(parts.value(0).toInt(), parts.value(1).toStdString(), parts.value(2).toStdString()); });
                 }
+                if (qEnvironmentVariableIsSet("WXQT_TILE_BARBS")) {   // WXQT_TILE_BARBS=<tile 1-3>:<main|none|barbs id>: 18 s in that pane's barbs are set
+                    const auto parts = qEnvironmentVariable("WXQT_TILE_BARBS").split(':');
+                    QTimer::singleShot(18000, viewer, [viewer, parts] { viewer->setTileBarbs(parts.value(0).toInt(), parts.value(1).toStdString()); });
+                }
                 if (qEnvironmentVariableIsSet("WXQT_TILE_RUN")) {   // WXQT_TILE_RUN=<tile 1-3>:<yyyyMMddHH>: 12 s in that tile's model is drawn from that run (captions printed after)
                     const auto parts = qEnvironmentVariable("WXQT_TILE_RUN").split(':');
                     QTimer::singleShot(12000, viewer, [viewer, parts] { viewer->setTileRun(parts.value(0).toInt(), parts.value(1).toStdString()); });

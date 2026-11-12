@@ -74,6 +74,7 @@ public:
     void applySelection(const ChartSelection& chosen);   // the model, chart and area, the time, and the variants (applyVariants)
     void applyVariants(const ChartSelection& chosen);
     void setTileModel(int index, const string& model, const string& run);   // the tile's model (and run), as its Change... menu does (a development aid)
+    void setTileBarbs(int index, const string& value);   // as the pane's Barbs button does (a development aid)
     void setTileRun(int index, const string& run);   // as the tile's Change... menu does (a development aid)
     void noticeTest(const string& text) { showNotice(text); }   // a development aid: the card over the picture with this text
     void clickAt(double fx, double fy, bool areaButton);   // a click on the picture, then the "Area around point" button (a development aid)
@@ -115,6 +116,7 @@ private:
         string member;  // members: the member this tile shows (when picked with its button); parts: the ensemble ("IFS-ENS", "GEFS", "GEPS") whose members this tile draws
         bool memberPicked{false};
         string run;     // models: the run this tile's model is drawn from (yyyyMMddHH); "" its newest
+        string barbs{"main"};   // this pane's wind barbs: "main" the ones ticked on the main chart, "none", or the id of a set of barbs of its own
         bool picked{false};   // set with the tile's own button: a tile that is not picked follows the main chart when it changes
     };
     struct Job {
@@ -149,6 +151,7 @@ private:
     void renderTile(int index);
     void showTile(int index, const Job&, const Frame&);
     void changeTile(int index);
+    void chooseTileBarbs(int index);   // the pane's own Barbs button: the main chart's, none, or a set
     void pickFromTiles(int source, double fx, double fy);
     QByteArray compositePicture(const std::vector<QByteArray>& drawnAgain = {}) const;
     QDateTime runTime(const string& run) const;
