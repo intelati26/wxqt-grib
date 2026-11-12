@@ -18,7 +18,7 @@
 // draws into it and keeps its zoom and place equal to the other tiles'.
 class CompareTile : public QFrame {
 public:
-    explicit CompareTile(QWidget * parent) : QFrame{parent}, caption{new QLabel{this}}, change{new QPushButton{"Change...", this}}, image{new ZoomImage{nullptr}} {
+    explicit CompareTile(QWidget * parent) : QFrame{parent}, caption{new QLabel{this}}, change{new QPushButton{"Change...", this}}, barbs{new QPushButton{"Barbs", this}}, image{new ZoomImage{nullptr}} {
         setFrameShape(QFrame::StyledPanel);
         auto * column = new QVBoxLayout{this};
         column->setContentsMargins(2, 2, 2, 2);
@@ -27,6 +27,8 @@ public:
         caption->setStyleSheet("font-weight: bold;");
         caption->setWordWrap(true);   // a long caption wraps in a narrow tile instead of running out of it
         head->addWidget(caption, 1);
+        barbs->setToolTip("The wind barbs of this pane: the same as the main chart's (as they were), none, or a set of its own.");
+        head->addWidget(barbs);
         head->addWidget(change);
         column->addLayout(head);
         image->setParent(this);
@@ -66,6 +68,7 @@ public:
     }
     QLabel * caption;
     QPushButton * change;
+    QPushButton * barbs;
     ZoomImage * image;
     std::unique_ptr<ChartHover> hover;
     std::shared_ptr<GfsChart::Probe> probe;
