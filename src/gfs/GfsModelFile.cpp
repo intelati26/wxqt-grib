@@ -937,6 +937,13 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
                 return std::string{};
             };
         }
+        if (!d->legacyBefore.empty()) {
+            made.legacyBefore = d->legacyBefore;
+            made.legacyFileUrl = [d] (const Run& run, int hour, const std::string&) {
+                const int cycle = std::atoi(run.cycle.c_str());
+                return expandUrl(d->legacyUrl, *d, run, hour, {}, padded((cycle + 18) % 24, 2));
+            };
+        }
         made.fileUrl = [d] (const Run& run, int hour, const std::string& file) {
             const auto urls = urlsOf(*d, run, hour, file);
             return urls.empty() ? std::string{} : urls.front();

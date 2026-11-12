@@ -372,7 +372,7 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     // The name says what the field is: the model, the run, the hour, the file, the record, and how it was decoded (the grid it was warped to and which value means "no data"), so a change in
     // either is a different entry and an old one is never served in its place.
     const auto warp = warpFor(run);
-    const QString decoded = warp.enabled ? QString{"w%1_%2_%3_%4_%5"}.arg(warp.step).arg(warp.west).arg(warp.south).arg(warp.east).arg(warp.north) : QString{"p"};
+    const QString decoded = (warp.enabled ? QString{"w%1_%2_%3_%4_%5"}.arg(warp.step).arg(warp.west).arg(warp.south).arg(warp.east).arg(warp.north) : QString{"p"}) + (fellBack(run) ? "_lo" : "");   // (a run read from the legacy files while the new ones are not there: its own entries)
     const QString missing = std::isnan(source.extraMissing) ? QString{} : QString{"_m%1"}.arg(static_cast<double>(source.extraMissing));
     QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_") + QString::fromStdString(want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail) + "_" + decoded + missing + (want.variable == "MASSDEN" ? "_u" : "");
     if (!want.stat.empty()) {   // an ensemble member of the same file and record is a field of its own
@@ -495,7 +495,59 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     return true;
 }
 
+namespace {
+    struct Fall {
+        bool ready{false};   // the new files were there
+        std::chrono::steady_clock::time_point asked;
+    };
+    std::mutex fallMutex;
+    std::map<std::string, Fall>& fallen() {
+        static std::map<std::string, Fall> list;
+        return list;
+    }
+}
+
+bool GfsData::fellBack(const Run& run) const {
+    if (source.legacyBefore.empty() || !source.legacyFileUrl || run.id() < source.legacyBefore) {
+        return false;
+    }
+    const auto key = source.id + "|" + run.id();
+    {
+        const std::lock_guard lock{fallMutex};
+        const auto found = fallen().find(key);
+        if (found != fallen().end() && (found->second.ready || std::chrono::steady_clock::now() - found->second.asked < std::chrono::seconds(90))) {
+            return !found->second.ready;
+        }
+    }
+    // the new files' index of the probe hour: there, the run is read as the model says
+    auto url = source.fileUrl(run, source.probeHour, source.probeFile);
+    if (source.indexOf) {
+        url = source.indexOf(url);
+    } else {
+        for (const auto& ending : {source.indexReplaces}) {
+            if (!ending.empty() && url.size() >= ending.size() && url.compare(url.size() - ending.size(), ending.size(), ending) == 0) {
+                url.resize(url.size() - ending.size());
+            }
+        }
+        url += source.indexSuffix;
+    }
+    const auto head = config.bytes(url, 0, 200);
+    const bool ready = source.parseIndex ? head.startsWith("{") : head.startsWith("1:0:d=");
+    const std::lock_guard lock{fallMutex};
+    fallen()[key] = {ready, std::chrono::steady_clock::now()};
+    return !ready;
+}
+
+bool GfsData::fellBack(const std::string& sourceId, const std::string& runId) {
+    const std::lock_guard lock{fallMutex};
+    const auto found = fallen().find(sourceId + "|" + runId);
+    return found != fallen().end() && !found->second.ready;
+}
+
 std::vector<std::string> GfsData::urlsFor(const Run& run, int hour, const std::string& file) const {
+    if (fellBack(run)) {
+        return {source.legacyFileUrl(run, hour, file)};
+    }
     if (source.candidates) {
         return source.candidates(run, hour, file);
     }
