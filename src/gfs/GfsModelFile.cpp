@@ -483,6 +483,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             def.id = value;
         } else if (key == "label") {
             def.label = value;
+        } else if (key == "legacy_label") {   // legacy_label = text: the credit of the runs before legacy_url's time
+            def.legacyLabel = value;
         } else if (key == "group") {
             def.group = value;
         } else if (key == "alternate") {
@@ -518,6 +520,7 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             }
             definition->legacyBefore = value.substr(0, arrow);
             definition->legacyBefore.erase(definition->legacyBefore.find_last_not_of(' ') + 1);
+            def.legacyBefore = definition->legacyBefore;
             definition->legacyUrl = value.substr(arrow + 2);
             definition->legacyUrl.erase(0, definition->legacyUrl.find_first_not_of(' '));
             if (const auto problem = urlProblem(definition->legacyUrl); !problem.empty()) {

@@ -1,6 +1,6 @@
 # IFS
 
-*ECMWF IFS 0.1 degree (0.25 degree for runs before 20 Oct 2026; open data, CC BY 4.0)*
+*ECMWF IFS 0.1 degree (open data, CC BY 4.0); runs before 20 Oct 2026 are the 0.25 degree set*
 
 ## Why it matters
 

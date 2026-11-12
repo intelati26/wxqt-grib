@@ -44,6 +44,7 @@ namespace GfsModels {
     struct Def {
         std::string id;                                // the model screen's name: "GFS", "RRFS"
         std::string label;                             // the credit under a chart
+        std::string legacyLabel, legacyBefore;         // the credit under a chart of a run before legacyBefore (yyyyMMddHH), when the model's files changed (the IFS: 0.25 degree before its 0.1 degree set)
         std::string group;                             // where the model screen's picker puts it ("": by its id, or Other)
         std::string alternate;                         // `alternate = ID | what it is`: another model to use meanwhile (the same system from another server, or a comparable model); a chart says so when this one has no run (nothing is mapped or swapped)
         std::string alternateNote;                     // the words after the "|": what the alternate is

@@ -6937,8 +6937,11 @@ std::string generatedChart(const std::string& templateId, const std::vector<doub
     return generatedId(templateId, values);
 }
 
-std::string sourceLabel(const std::string& source) {
+std::string sourceLabel(const std::string& source, const std::string& runId) {
     const auto * def = GfsModels::find(source);
+    if (def && !def->legacyLabel.empty() && runId.size() >= 10 && runId < def->legacyBefore) {   // a run from before the model's files changed
+        return def->legacyLabel;
+    }
     return def ? def->label : "NOAA/NCEP GFS 0.25 degree";
 }
 
@@ -9065,8 +9068,8 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         keyLeft += 13 + 52;
     }
     p.setPen(QColor{110, 110, 110});
-    p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product] {
-        auto text = sourceLabel(product.source);
+    p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product, &run] {
+        auto text = sourceLabel(product.source, run.date + run.cycle);
         for (const auto& extra : product.extras) {   // the other models a chart draws from
             if (extra.lag > 0) {   // (an older run of a source that is credited already)
                 continue;
