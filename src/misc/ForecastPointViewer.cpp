@@ -33,6 +33,10 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QVBoxLayout>
+#include "misc/ForecastPointExtended.h"
+#include "models/ModelScreen.h"
+#include "gfs/GfsRender.h"
+#include "spcrefs/SpcRefsLoader.h"
 #include "misc/TextViewerStatic.h"
 #include "objects/FutureText.h"
 #include "objects/FutureVoid.h"
@@ -513,6 +517,14 @@ ForecastPointViewer::ForecastPointViewer(Window * parent, const std::shared_ptr<
         scroll->setWidget(allGraphs);
         tabs->addTab(scroll, "All graphs");
     }
+    extended = new ForecastPointExtended{this, tabs};
+    extended->openSynoptic = [this] (const QDateTime& valid) { openSynoptic(valid); };
+    tabs->addTab(extended, "Extended (11 days)");
+    QObject::connect(tabs, &QTabWidget::currentChanged, [this] (int) {
+        if (tabs->currentWidget() == extended) {
+            extended->showing();
+        }
+    });
     comboSeries.connect([this] { showSeries(); });
     box.addLayout(rowTop);
     box.addWidgetReal(title);
@@ -546,6 +558,41 @@ void ForecastPointViewer::apply() {
     showSeries();
     fillHourly();
     fillAllGraphs();
+    extended->setPoint(data);
+}
+
+void ForecastPointViewer::showExtended() {
+    tabs->setCurrentWidget(extended);
+}
+
+// The heights and winds of a time of the extended page: SPC's REFS when its newest run has the time in its own time coordinate (asked, not guessed: a run still being written has only its first
+// hours), else the GFS at the nearest frame. (The Model Viewer opens a model on the newest run at or before the time, so an older REFS run that has the time is not used.)
+void ForecastPointViewer::openSynoptic(const QDateTime& validUtc) {
+    auto useRefs = std::make_shared<bool>(false);
+    const auto valid = validUtc.toUTC();
+    new FutureVoid{this, [useRefs, valid] {
+                       const qint64 ahead = QDateTime::currentDateTimeUtc().secsTo(valid) / 3600;
+                       if (ahead < 0 || ahead > 66) {
+                           return;
+                       }
+                       std::string cycle, date;
+                       if (!GfsRender::latestCycle("SPCREFS", cycle, "", &date) || date.size() != 8 || cycle.size() < 2) {
+                           return;
+                       }
+                       const QDateTime start{QDate::fromString(QString::fromStdString(date), "yyyyMMdd"), QTime{std::stoi(cycle.substr(0, 2)), 0}, QTimeZone::utc()};
+                       const long hour = static_cast<long>(start.secsTo(valid) / 3600);
+                       if (hour < 0 || hour > 60) {
+                           return;
+                       }
+                       const auto hours = SpcRefsLoader::fieldHours(GfsData::Run{date, cycle.substr(0, 2)}, "z500_mean");
+                       *useRefs = std::find(hours.begin(), hours.end(), static_cast<int>(hour)) != hours.end();
+                   }, [this, useRefs, valid] {
+                       ChartSelection chosen;
+                       chosen.model = *useRefs ? "SPCREFS" : "GFS";
+                       chosen.param = *useRefs ? "z500_mean" : "500_wnd_ht";
+                       chosen.valid = valid;
+                       (new ModelScreen{this, "NCEP"})->applySelection(chosen);
+                   }};
 }
 
 void ForecastPointViewer::loadPoint(double lat, double lon) {
