@@ -57,6 +57,7 @@ public:
     // set when this viewer is a page of the model screen: another source is shown there (its id, ModelScreen::sources) instead of in a window of its own
     std::function<void(const string&)> openSource;
     std::function<void(const ChartSelection&)> openMap;   // set by the model screen: "On the map..." shows the map in its place, not in a window of its own
+    void runSwitchTest(int timeIndex, int runIndex);   // a development aid: the valid time on show before and after a run is chosen, to stderr
     void selectModel(const string& id);   // show this model ("SPCREFS" ...), as the model box would
     // a model's run and hour of the past: the latest run (every 6 hours) at or before this valid time, at that forecast hour; it stays (the newest run is not looked for) until
     // another model is chosen
@@ -168,6 +169,7 @@ private:
     class PaneLink * paneLink{};   // the panes as one view (zoom, read-outs, cursor)
     void showFrame(const Frame&);
     void selectHour(int index);
+    QDateTime shownValid() const;   // the valid time on show: the run's time and the hour (invalid when the run's time is not known)
     void startPlaying(bool on);
     void prefetch(int generation);
     void refreshTimeStrip();
@@ -283,6 +285,7 @@ private:
     std::shared_ptr<GfsRender::Session> gfsSession;
     void startRun();   // getRun, after the storms of a hurricane model are listed
     void getRun();
+    QDateTime wantValid;                  // set when the run or the model is changed: the valid time that was on show, kept (the hour of the new run that lands on it is shown, F378 of one run is F372 of the next); cleared when a time is picked
     std::vector<string> allTimes;         // every hour the model offers; objectModel.times is the part the run on show reaches (the RRFS's hourly runs stop at 18 h)
     void fitHoursToRun();
     void fitTimesToTiles();

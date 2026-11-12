@@ -1172,6 +1172,10 @@ int main(int argc, char * argv[]) {
                     }
                     QTimer::singleShot(12000, viewer, [viewer, ids] { viewer->setOverlays(ids); });
                 }
+                if (qEnvironmentVariableIsSet("WXQT_RUNSWITCH")) {   // WXQT_RUNSWITCH=<time index>:<run index>: 12 s in that hour is picked, then that run, and the valid time before and after goes to stderr
+                    const auto parts = qEnvironmentVariable("WXQT_RUNSWITCH").split(':');
+                    QTimer::singleShot(12000, viewer, [viewer, parts] { viewer->runSwitchTest(parts.value(0).toInt(), parts.value(1).toInt()); });
+                }
                 if (qEnvironmentVariableIsSet("WXQT_TILE_MODEL")) {   // WXQT_TILE_MODEL=<tile 1-3>:<model>[:<yyyyMMddHH>]: 12 s in that tile shows that model (and run)
                     const auto parts = qEnvironmentVariable("WXQT_TILE_MODEL").split(':');
                     QTimer::singleShot(12000, viewer, [viewer, parts] { viewer->setTileModel(parts.value(0).toInt(), parts.value(1).toStdString(), parts.value(2).toStdString()); });
