@@ -4,6 +4,8 @@
 // *****************************************************************************
 
 #include "models/LoopWindow.h"
+#include <QAction>
+#include <QMenu>
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -17,6 +19,7 @@ LoopWindow::LoopWindow(Window * parent, const std::string& area0, const std::vec
     : Window{parent}
     , sector{area0}
     , paneCharts{charts}
+    , paneBarbs(PaneGrid::maxPanes)
     , cancel{std::make_shared<std::atomic<bool>>(false)}
 {
     setAttribute(Qt::WA_DeleteOnClose);
@@ -62,6 +65,10 @@ LoopWindow::LoopWindow(Window * parent, const std::string& area0, const std::vec
     panes->setCurrentIndex(std::clamp(static_cast<int>(charts.size()), 1, PaneGrid::maxPanes) - 1);
     grid->setCount(panes->currentData().toInt());
     grid->onChange([this] (int pane) { pickChart(pane); });
+    grid->onBarbs([this] (int pane) { pickBarbs(pane); });
+    for (size_t i = 0; i < PaneGrid::maxPanes; i++) {
+        grid->tile(i)->barbs->hide();   // (a window turns them on with enableBarbs)
+    }
     QObject::connect(areaButton, &QPushButton::clicked, this, [this] { pickArea(); });
     QObject::connect(panes, &QComboBox::currentIndexChanged, this, [this] (int) {
         grid->setCount(panes->currentData().toInt());
@@ -101,6 +108,40 @@ void LoopWindow::setCharts(const std::vector<std::string>& ids, const std::vecto
 
 std::vector<std::string> LoopWindow::activeCharts() const {
     return std::vector<std::string>(paneCharts.begin(), paneCharts.begin() + paneCount());
+}
+
+void LoopWindow::enableBarbs() {
+    for (size_t i = 0; i < PaneGrid::maxPanes; i++) {
+        grid->tile(i)->barbs->show();
+    }
+}
+
+std::vector<std::string> LoopWindow::activeBarbs() const {
+    return std::vector<std::string>(paneBarbs.begin(), paneBarbs.begin() + paneCount());
+}
+
+// the pane's own wind barbs: none, or a set of the model's (each pane its own)
+void LoopWindow::pickBarbs(int pane) {
+    QMenu menu;
+    const auto current = paneBarbs[static_cast<size_t>(pane)];
+    const auto add = [&] (const QString& text, const std::string& value) {
+        auto * action = menu.addAction(text);
+        action->setCheckable(true);
+        action->setChecked(current == value);
+        QObject::connect(action, &QAction::triggered, this, [this, pane, value] {
+            paneBarbs[static_cast<size_t>(pane)] = value;
+            invalidate("The barbs changed: Draw the loop again.");
+        });
+    };
+    add("None", "");
+    menu.addSeparator();
+    for (const auto& choice : GfsChart::overlayChoices(pickerModel())) {
+        if (choice.group == "Wind barbs") {
+            add(QString::fromStdString(choice.label), choice.id);
+        }
+    }
+    auto * button = grid->tile(static_cast<size_t>(pane))->barbs;
+    menu.exec(button->mapToGlobal(QPoint{0, button->height()}));
 }
 
 void LoopWindow::closeEventCustom() {

@@ -24,6 +24,7 @@ SubhourlyViewer::SubhourlyViewer(Window * parent, const std::string& modelId, co
     , model{modelId}
 {
     setTitle(model + " 15 minute surface fields");
+    enableBarbs();   // (each pane its own wind barbs, as the Model Viewer's extra panes)
     std::vector<std::string> ids, names;
     if (const auto * def = GfsModels::find(model); def != nullptr) {
         UtilityModelNcepInterface::chartList(*def, ids, names);   // (all of them until the ones with fields in the subhourly files are known)
@@ -248,26 +249,28 @@ void SubhourlyViewer::build() {
 
 void SubhourlyViewer::renderFrame(size_t index, int mine, bool again) {
     const auto charts = activeCharts();
+    const auto barbs = activeBarbs();
     const int lead = minutes[index];
     const auto flag = cancel;
     const auto id = model, area0 = sector, run = runId;
     const double scale = ChartResolution::scale();   // (read here, on the screen's thread)
     auto result = std::make_shared<std::vector<Cell>>();
     auto error = std::make_shared<std::string>();
-    new FutureVoid{this, [result, error, charts, lead, flag, id, area0, run, scale] {
+    new FutureVoid{this, [result, error, charts, barbs, lead, flag, id, area0, run, scale] {
                        if (flag->load()) {
                            return;
                        }
                        GfsRender::Session session;
                        std::vector<Cell> cells;
                        std::string problem;
-                       for (const auto& chart : charts) {
+                       for (size_t pane = 0; pane < charts.size(); pane++) {
+                           const auto& chart = charts[pane];
                            GfsRender::Variant variant;
                            variant.minutes = lead;
                            variant.scale = scale;
                            Cell cell;
                            cell.probe = std::make_shared<GfsChart::Probe>();
-                           cell.bytes = GfsRender::png(session, id, chart, area0, run, (lead + 59) / 60, {}, problem, cell.probe.get(), variant);
+                           cell.bytes = GfsRender::png(session, id, chart, area0, run, (lead + 59) / 60, barbs[pane].empty() ? std::vector<std::string>{} : std::vector<std::string>{barbs[pane]}, problem, cell.probe.get(), variant);
                            if (cell.bytes.isEmpty()) {
                                break;
                            }
