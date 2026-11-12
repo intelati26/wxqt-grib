@@ -339,13 +339,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The runners' apt mirror (azure.archive.ubuntu.com) sometimes fails to resolve; apt then
+      # retries for tens of minutes and the job fails. Short network timeouts, a few tries of the
+      # whole step, and a step limit, so a bad moment costs minutes and is usually survived.
       - name: Install build dependencies
+        timeout-minutes: 15
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            g++ make \
-            qt6-base-dev \
-            webp
+          apt_opts="-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20"
+          for attempt in 1 2 3; do
+            if sudo apt-get $apt_opts update && sudo apt-get $apt_opts install -y --no-install-recommends \
+                g++ make \
+                qt6-base-dev \
+                webp; then
+              exit 0
+            fi
+            echo "apt failed (attempt $attempt of 3); trying again in $((attempt * 20)) seconds"
+            sleep $((attempt * 20))
+          done
+          exit 1
 
       # GDAL runs as a separate subprocess (never linked into wxqt). Built by vcpkg
       # with only what wxqt uses - the same minimal manifest as the Windows job
