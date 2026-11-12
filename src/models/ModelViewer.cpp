@@ -2185,7 +2185,9 @@ vector<string> ModelViewer::runLabels() const {
             t = t.addDays(-1);
         }
         const int days = static_cast<int>(t.date().daysTo(utc.date()));
-        labels.push_back(pinnedValid.isValid() && t == utc ? run + "  " + t.toString("yyyy-MM-dd").toStdString() + " (history)" : t == utc ? run + "  newest" : days == 0 ? run : days == 1 ? run + "  yesterday" : run + "  " + t.toString("MMM d").toStdString());
+        const auto note = GfsModels::runNote(objectModel.model, t.toString("yyyyMMddHH").toStdString());   // (a model whose runs differ in resolution: "(0.25 degree)")
+        const string text = pinnedValid.isValid() && t == utc ? run + "  " + t.toString("yyyy-MM-dd").toStdString() + " (history)" : t == utc ? run + "  newest" : days == 0 ? run : days == 1 ? run + "  yesterday" : run + "  " + t.toString("MMM d").toStdString();
+        labels.push_back(note.empty() ? text : text + "  (" + note + ")");
     }
     return labels;
 }

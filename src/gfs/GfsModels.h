@@ -44,6 +44,7 @@ namespace GfsModels {
     struct Def {
         std::string id;                                // the model screen's name: "GFS", "RRFS"
         std::string label;                             // the credit under a chart
+        std::string runNote, legacyRunNote;            // what a run list says beside a run's hour ("0.1 degree"), and for the runs before legacyBefore or read from the legacy files for now ("0.25 degree")
         std::string legacyLabel, legacyBefore;         // the credit under a chart of a run before legacyBefore (yyyyMMddHH), when the model's files changed (the IFS: 0.25 degree before its 0.1 degree set)
         std::string group;                             // where the model screen's picker puts it ("": by its id, or Other)
         std::string alternate;                         // `alternate = ID | what it is`: another model to use meanwhile (the same system from another server, or a comparable model); a chart says so when this one has no run (nothing is mapped or swapped)
@@ -77,6 +78,8 @@ namespace GfsModels {
     // in the order they are listed and their charts made
     const std::vector<Def>& all();
     const Def * find(const std::string& id);
+    // the note for a run in a list of runs ("0.25 degree"), or "" when the model has none
+    std::string runNote(const std::string& id, const std::string& runId);
     // true for a model drawn from GRIB (including the storm model)
     bool draws(const std::string& id);
     // a model that looks ahead: not an analysis (RTMA, URMA and the other models with one hour, the analysis) and not a product of another's forecasts (the WPC probabilistic precipitation portal)
