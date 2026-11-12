@@ -412,7 +412,8 @@ clone_specific_humidity = true
 # runs go to 360 hours, the 06Z and 18Z to 144. The runs before it are read from the 0.25 degree file.
 id = IFS
 alternate = GFS | NOAA's global model, from NOAA's AWS bucket (a different model)
-label = ECMWF IFS 0.1 degree (0.25 degree for runs before 20 Oct 2026; open data, CC BY 4.0)
+label = ECMWF IFS 0.1 degree (open data, CC BY 4.0)
+legacy_label = ECMWF IFS 0.25 degree (open data, CC BY 4.0)
 kind = grib
 url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p1/oper/{date}{cycle}0000-{hour}h-oper-fc-{file}.grib2
 legacy_url = 2026102006 => https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/oper/{date}{cycle}0000-{hour}h-oper-fc.grib2

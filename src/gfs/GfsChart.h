@@ -258,7 +258,7 @@ namespace GfsChart {
     Product withPoolOnly(const Product& product, const std::string& source);
 
     // the names for under a chart, and the sectors a model can show (the blend covers only the contiguous United States)
-    std::string sourceLabel(const std::string& source);
+    std::string sourceLabel(const std::string& source, const std::string& runId = "");
     std::vector<std::string> sectorIds(const std::string& source);
 
     // One point of a forecast track (the hurricane model's ATCF file): position, intensity and the radii of 34, 50 and 64 kt wind in nautical miles by quadrant (NE, SE, SW, NW; 0: none)
