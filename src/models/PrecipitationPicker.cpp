@@ -48,7 +48,11 @@ PrecipitationPicker::PrecipitationPicker(QWidget * parent, const std::vector<std
     add(0, 0, 4, "850_temp_mslp_precip");
     add(0, 0, 5, "10m_wnd_precip");
     add(1, 0, 0, "precip_ptot");
-    add(2, 0, 0, "precip_type");
+    add(2, 0, 1, "precip_type");
+    add(2, 0, 2, "1000_850_thick_type");
+    add(2, 0, 3, "850_700_thick_type");
+    add(2, 0, 4, "850_temp_mslp_precip_type");
+    add(2, 0, 5, "10m_wnd_precip_type");
     add(3, 0, 0, "precip_rate_type");
     add(4, 0, 0, "precip_rate");
     add(5, 0, 0, "snow_total");

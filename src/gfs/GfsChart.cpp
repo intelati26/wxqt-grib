@@ -1561,6 +1561,52 @@ const std::vector<Product>& products() {
             thick.width = 1.3;
             x.contours = {pressure(), thick};
             p.push_back(x);
+            // the same under the other sets of lines (1000-850 and 850-700 mb thickness, 850 mb temperature, 10 m wind): the amount in the colors of what is falling
+            const auto splitType = [] (Grids& g) {
+                const auto& total = g["precip"];
+                auto rain = total, snow = total, mix = total;
+                for (size_t i = 0; i < total.values.size(); i++) {
+                    const bool isSnow = g["cs"].values[i] >= 0.5f;
+                    const bool isMix = g["cf"].values[i] >= 0.5f || g["ci"].values[i] >= 0.5f;
+                    rain.values[i] = (!isSnow && !isMix) ? total.values[i] : 0.0f;
+                    snow.values[i] = isSnow && !isMix ? total.values[i] : 0.0f;
+                    mix.values[i] = isMix ? total.values[i] : 0.0f;
+                }
+                g["rain"] = std::move(rain);
+                g["snow"] = std::move(snow);
+                g["mix"] = std::move(mix);
+            };
+            for (const auto& [baseId, typedId, typedLabel] : {std::tuple{"1000_850_thick", "1000_850_thick_type", "MSLP, 1000-850mb thickness and precipitation type"},
+                                                              {"850_700_thick", "850_700_thick_type", "MSLP, 850-700mb thickness and precipitation type"},
+                                                              {"850_temp_mslp_precip", "850_temp_mslp_precip_type", "MSLP, 850mb temperature and precipitation type"},
+                                                              {"10m_wnd_precip", "10m_wnd_precip_type", "MSLP, 10m wind and precipitation type"}}) {
+                const auto found = std::find_if(p.begin(), p.end(), [id = std::string{baseId}] (const Product& q) { return q.id == id; });
+                if (found == p.end()) {
+                    continue;
+                }
+                Product y = *found;
+                y.id = typedId;
+                y.label = typedLabel;
+                y.needs = [inner = found->needs] (int hour) {
+                    auto needs = inner(hour);
+                    for (const auto& [key, variable] : {std::pair{"cr", "CRAIN"}, {"cs", "CSNOW"}, {"cf", "CFRZR"}, {"ci", "CICEP"}}) {
+                        needs.push_back({hour, {key, variable, "surface", ""}});
+                    }
+                    return needs;
+                };
+                y.derive = [inner = found->derive, splitType] (Grids& g, const Context& context) {
+                    if (inner) {
+                        inner(g, context);
+                    }
+                    splitType(g);
+                };
+                y.fill = x.fill;
+                y.ramp = x.ramp;
+                y.palette = x.palette;
+                y.overlays = x.overlays;
+                y.fillTitleFor = x.fillTitleFor;
+                p.push_back(std::move(y));
+            }
         }
         {   // the same by rate: the precipitation rate (inches per hour) in the colors of what is falling, with the pressure and the thickness
             Product x;
