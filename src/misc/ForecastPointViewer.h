@@ -73,9 +73,13 @@ private:
 
 // The full page, as the NWS "IDSS Forecast Points" page has it: the weekly summary with every row, the outlooks, the hourly graph of any of its series (or all of them one under
 // another), the hourly table, the forecast discussion of the office, and any of the saved locations or a point of one's own.
+class ForecastPointExtended;
+
 class ForecastPointViewer : public Window {
 public:
     ForecastPointViewer(Window * parent, const std::shared_ptr<UtilityForecastPoint::Data>& data);
+    void openSynoptic(const QDateTime& validUtc);   // the extended page's button: the heights and winds of that time (REFS when its newest run has it, else GFS)
+    void showExtended();   // the Extended page to the front (a development aid and the page's own entry)
 
 private:
     void apply();                 // fill every part from `data`
@@ -102,6 +106,7 @@ private:
     ForecastPointChart * chart;
     QTableWidget * hourlyTable;
     QWidget * allGraphs;
+    ForecastPointExtended * extended;
     QVBoxLayout * allLayout;
     std::shared_ptr<UtilityForecastPoint::Data> data;
     std::vector<std::pair<double, double>> savedPoints;   // the saved locations, as the combo lists them (the last entry is the point of one's own, when there is one)

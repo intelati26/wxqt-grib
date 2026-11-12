@@ -205,6 +205,24 @@ namespace UtilityForecastPoint {
                 data.hourly[parameter.key] = std::move(series);
             }
         }
+        {   // the wind direction (not one of the series the page offers: the extended page's arrows)
+            const auto item = grid.value("windDirection").toObject();
+            Series series;
+            for (const auto& entry : item.value("values").toArray()) {
+                const auto o = entry.toObject();
+                if (o.value("value").isNull()) {
+                    continue;
+                }
+                for (auto& [t, v] : expand(o.value("validTime").toString().toStdString(), o.value("value").toDouble(), horizon)) {
+                    if (t + 3600 > now - 3600) {
+                        series.emplace_back(t, v);
+                    }
+                }
+            }
+            if (!series.empty()) {
+                data.hourly["windDirection"] = std::move(series);
+            }
+        }
         // the wet bulb temperature of each hour from its temperature and humidity (Stull 2011, good from -20 to 50 C and 5 to 99 per cent; near sea level pressure)
         if (data.hourly.count("temperature") && data.hourly.count("relativeHumidity")) {
             std::map<qint64, double> humidity;

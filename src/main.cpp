@@ -96,6 +96,7 @@
 #include "climate/TempHistoryViewer.h"
 #include "mapkit/WorldRender.h"
 #include "mapkit/ModelChartLayer.h"
+#include "misc/NbmText.h"
 #include "mapkit/UpperAirLayer.h"
 #include "dashboard/Dashboards.h"
 #include "models/CamsViewer.h"
@@ -337,6 +338,26 @@ int main(int argc, char * argv[]) {
                         const auto made = NiceWeatherCache::make(day, error);
                         std::fprintf(stderr, "NICECACHE day %d %s: %lld ms %s%s\n", day + 1, again == 0 ? "first" : "second", static_cast<long long>(clock.elapsed()), made ? "ok" : "FAILED ", error.c_str());
                     }
+                }
+            } else if (route.startsWith("nbmpoint:")) {   // WXQT_OPEN=nbmpoint:<lat>:<lon>: the extended forecast table of that place from the NBM bulletins (the columns to stderr)
+                const auto parts = route.split(':');
+                QElapsedTimer clock;
+                clock.start();
+                const auto grid = UtilityForecastPoint::fetch(parts.value(1).toDouble(), parts.value(2).toDouble());
+                const auto table = NbmText::fetch(grid);
+                std::fprintf(stderr, "NBMPOINT %s %s %s: %zu columns in %lld ms %s\n", table.ok ? "ok" : "FAILED", table.station.c_str(), table.name.c_str(), table.columns.size(), static_cast<long long>(clock.elapsed()), table.error.c_str());
+                for (const auto& c : table.columns) {
+                    std::fprintf(stderr, "NBMCOL %s %s %s TMP %d DPT %d SKY %d WDR %d WSP %d GST %d P12 %d TSD %d TXN %d\n", QDateTime::fromSecsSinceEpoch(c.time, QTimeZone::utc()).toString("ddd dd HH'Z'").toStdString().c_str(), c.source.c_str(), "", c.get("TMP"), c.get("DPT"), c.get("SKY"), c.get("WDR"), c.get("WSP"), c.get("GST"), c.get("P12"), c.get("TSD"), c.get("TXN"));
+                }
+            } else if (route.startsWith("extpoint:")) {   // WXQT_OPEN=extpoint:<lat>:<lon>: the forecast point window of that place on its Extended tab (WXQT_GRAB for a picture)
+                const auto parts = route.split(':');
+                auto data = std::make_shared<UtilityForecastPoint::Data>(UtilityForecastPoint::fetch(parts.value(1).toDouble(), parts.value(2).toDouble()));
+                auto * viewer = new ForecastPointViewer{&w, data};
+                QTimer::singleShot(1500, viewer, [viewer] { viewer->showExtended(); });
+                if (const auto pick = qEnvironmentVariable("WXQT_EXTPICK"); !pick.isEmpty()) {   // WXQT_EXTPICK=<yyyyMMddHH UTC>: then the button for that time
+                    auto when = QDateTime::fromString(pick, "yyyyMMddHH");
+                    when.setTimeZone(QTimeZone::utc());
+                    QTimer::singleShot(4000, viewer, [viewer, when] { viewer->openSynoptic(when); });
                 }
             } else if (route.startsWith("homeclick:")) {   // WXQT_OPEN=homeclick:<home thumbnail token, e.g. RTMA_SECOND>: what a click on that home picture opens
                 w.clickPicture(route.section(':', 1, 1).toStdString());
