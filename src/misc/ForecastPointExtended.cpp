@@ -16,9 +16,9 @@
 #include "ui/Window.h"
 
 namespace {
-    constexpr int columnWidth = 46, labelWidth = 104;
+    constexpr int columnWidth = 46, labelWidth = 112;
 
-    enum class Kind { Day, Hour, TempGraph, WindGraph, PrecipGraph, Line };
+    enum class Kind { Day, Hour, Title, TempGraph, WindGraph, PrecipGraph, Line };
 
     struct Row {
         Kind kind;
@@ -57,14 +57,16 @@ namespace {
         Model m;
         m.columns = columns;
         const auto any = [&m] (const char * code, int above) { return m.some([&] (const NbmText::Column& c) { return c.get(code, 0) > above; }); };
-        m.rows = {{Kind::Day, "", 18, ""}, {Kind::Hour, "UTC", 18, ""}, {Kind::TempGraph, "", 140, ""}, {Kind::Line, "Temp F", 18, "TMP"}, {Kind::Line, "+/- spread", 18, "TSD"}, {Kind::Line, "Dewpt F", 18, "DPT"}};
+        m.rows = {{Kind::Day, "", 18, ""}, {Kind::Hour, "UTC", 18, ""}, {Kind::Title, "Temp, dew", 20, ""}, {Kind::TempGraph, "", 140, ""}, {Kind::Line, "Temp F", 18, "TMP"}, {Kind::Line, "+/- spread", 18, "TSD"}, {Kind::Line, "Dewpt F", 18, "DPT"}};
         if (m.some([] (const NbmText::Column& c) { return c.has("TXN"); })) {
             m.rows.push_back({Kind::Line, "Hi / Lo", 18, "TXN"});
         }
         m.rows.push_back({Kind::Line, "Sky %", 18, "SKY"});
+        m.rows.push_back({Kind::Title, "Wind, gust", 20, ""});
         m.rows.push_back({Kind::WindGraph, "", 110, ""});
         m.rows.push_back({Kind::Line, "Speed kt", 18, "WSP"});
         m.rows.push_back({Kind::Line, "Gust kt", 18, "GST"});
+        m.rows.push_back({Kind::Title, "Precip %", 20, ""});
         m.rows.push_back({Kind::PrecipGraph, "", 90, ""});
         m.rows.push_back({Kind::Line, "Chance %", 18, "CHANCE"});
         m.rows.push_back({Kind::Line, "Rain in", 18, "RAIN"});
@@ -371,23 +373,20 @@ protected:
                 p.drawLine(0, row.top, width(), row.top);
             }
             p.setPen(palette().color(QPalette::WindowText));
-            if (row.kind == Kind::Line || row.kind == Kind::Hour) {
+            if (row.kind == Kind::Line || row.kind == Kind::Hour || row.kind == Kind::Title) {
                 p.drawText(QRect{4, row.top, width() - 8, row.height}, Qt::AlignLeft | Qt::AlignVCenter, row.label);
             } else if (row.kind == Kind::TempGraph) {
                 for (double g = m.temp.lo; g <= m.temp.hi; g += 10) {
                     p.drawText(QRect{0, static_cast<int>(m.temp.y(g, row.top, row.height)) - 8, width() - 6, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(static_cast<int>(g)) + (g == m.temp.lo ? " F" : ""));
                 }
-                p.drawText(QRect{4, row.top, width() - 8, 14}, Qt::AlignLeft, "Temp, dewpt");
             } else if (row.kind == Kind::WindGraph) {
                 for (double g = 0; g <= m.wind.hi; g += 10) {
                     p.drawText(QRect{0, static_cast<int>(m.wind.y(g, row.top, row.height - 16)) - 8, width() - 6, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(static_cast<int>(g)) + (g == 0 ? " kt" : ""));
                 }
-                p.drawText(QRect{4, row.top, width() - 8, 14}, Qt::AlignLeft, "Wind, gust");
             } else if (row.kind == Kind::PrecipGraph) {
                 for (double g = 0; g <= 100; g += 25) {
                     p.drawText(QRect{0, static_cast<int>(m.rain.y(g, row.top, row.height)) - 8, width() - 6, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(static_cast<int>(g)) + (g == 0 ? " %" : ""));
                 }
-                p.drawText(QRect{4, row.top, width() - 8, 14}, Qt::AlignLeft, "Chance");
             }
         }
     }
