@@ -7319,7 +7319,7 @@ namespace {
                     df.sources = GfsModels::overlayModels();
                     df.fill = true;
                     df.fillName = "Dewpoint 2 m (C)";
-                    df.fillRamp = translucent(dewpoint(), 120, -1e9);
+                    df.fillRamp = translucent(dewpoint(), 150, 15.0);   // (the moist air of the surface, from about 60 F: under it the chart's own fill shows)
                     df.needs = [key = "fill|" + df.fillName] (int hour) { return std::vector<GfsData::Need>{{hour, {key, "DPT", "2 m above ground", "", ""}}}; };
                     list.push_back(df);
                     Overlay dl;
@@ -7552,6 +7552,63 @@ std::string category(const Product& product) {
         return "Upper air";
     }
     return "Surface";
+}
+
+namespace {
+
+// the strongest tint of an overlay fill's scale (the see-through the program gave it)
+int fillAlpha(const Ramp& ramp) {
+    int alpha = 0;
+    for (const auto& stop : ramp.stops) {
+        alpha = std::max(alpha, stop.second.alpha());
+    }
+    return alpha > 0 ? alpha : 150;
+}
+
+// the scale's own cut-off: the first value that is tinted when some of the lower ones are clear, else the bottom of the scale
+double standardFrom(const Ramp& ramp) {
+    for (const auto& stop : ramp.stops) {
+        if (stop.second.alpha() > 0) {
+            return stop.first;
+        }
+    }
+    return ramp.stops.empty() ? 0.0 : ramp.stops.front().first;
+}
+
+// the scale as the preference FILLFROM_<id> has it: clear below the value, the tint from it up
+Ramp adjustedFillRamp(const Overlay& o) {
+    const auto text = Utility::readPref("FILLFROM_" + o.id, "");
+    if (text.empty()) {
+        return o.fillRamp;
+    }
+    Ramp ramp = o.fillRamp;
+    const int alpha = fillAlpha(ramp);
+    const double from = text == "all" ? -1e9 : std::atof(text.c_str());
+    for (auto& stop : ramp.stops) {
+        stop.second.setAlpha(stop.first < from ? 0 : alpha);
+    }
+    return ramp;
+}
+
+}  // namespace
+
+FillFrom fillFrom(const std::string& overlayId) {
+    FillFrom out;
+    for (const auto& o : overlayCatalog()) {
+        if (o.id != overlayId || !o.fill || o.fillRamp.stops.empty()) {
+            continue;
+        }
+        out.available = true;
+        out.standard = standardFrom(o.fillRamp);
+        out.low = o.fillRamp.stops.front().first;
+        out.high = o.fillRamp.stops.back().first;
+        const auto text = Utility::readPref("FILLFROM_" + o.id, "");
+        out.value = text.empty() ? out.standard : text == "all" ? out.low : std::atof(text.c_str());
+        const auto open = o.fillName.rfind('('), close = o.fillName.rfind(')');
+        out.unit = open != std::string::npos && close != std::string::npos && close > open ? o.fillName.substr(open + 1, close - open - 1) : std::string{};
+        break;
+    }
+    return out;
 }
 
 std::vector<OverlayChoice> overlayChoices(const std::string& source) {
@@ -7789,7 +7846,7 @@ Product compose(const Product& base, const std::vector<std::string>& ids) {
         labelText += (o == used.front() ? ", with " : ", ") + o->label + (o->fill ? " (fill)" : "");
         if (o->fill) {   // a fill over the chart's own: translucent, and the chart's colors stay (one at a time)
             p.overlays.erase(std::remove_if(p.overlays.begin(), p.overlays.end(), [] (const std::pair<std::string, Ramp>& entry) { return entry.first.compare(0, 2, "o_") == 0; }), p.overlays.end());
-            p.overlays.push_back({prefix + "fill|" + o->fillName, o->fillRamp});
+            p.overlays.push_back({prefix + "fill|" + o->fillName, adjustedFillRamp(*o)});
         } else if (o->barbs) {   // each ticked wind is a set of its own: they stack on the chart's own barbs
             p.barbSets.push_back({prefix + o->barbU, prefix + o->barbV, o->barbColor, o->label, o->barbColorName});
         } else {

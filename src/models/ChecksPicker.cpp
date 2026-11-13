@@ -6,6 +6,7 @@
 #include "models/ChecksPicker.h"
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <map>
 #include <regex>
@@ -14,12 +15,14 @@
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QMenu>
+#include <QSpinBox>
 #include <QStandardItemModel>
 #include <QWidgetAction>
 #include <QVBoxLayout>
 #include "gfs/ChartAlias.h"
 #include "gfs/ChartPreset.h"
 #include "models/ChartPickers.h"
+#include "util/Utility.h"
 
 namespace {
 
@@ -218,7 +221,31 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
                 box->setChecked(std::find(ticked.begin(), ticked.end(), c->id) != ticked.end());
                 QObject::connect(box, &QCheckBox::toggled, this, [this] { ticks(); });
                 auto * action = new QWidgetAction{menu};   // (a widget in the menu: ticking it does not close the menu)
-                action->setDefaultWidget(box);
+                const auto from = group == "Fill" ? GfsChart::fillFrom(c->id) : GfsChart::FillFrom{};
+                if (from.available) {   // a fill: and where it starts (clear under it, tinted from it up), so it does not mix with the chart's own fill everywhere
+                    auto * line = new QWidget{menu};
+                    auto * lineLayout = new QHBoxLayout{line};
+                    lineLayout->setContentsMargins(6, 2, 6, 2);
+                    lineLayout->addWidget(box, 1);
+                    auto * spin = new QSpinBox{line};
+                    spin->setPrefix("from ");
+                    spin->setSuffix(QString::fromStdString(from.unit.empty() ? std::string{} : " " + from.unit));
+                    spin->setRange(static_cast<int>(std::floor(from.low)), static_cast<int>(std::ceil(from.high)));
+                    spin->setValue(static_cast<int>(std::lround(from.value)));
+                    spin->setToolTip("The fill is clear under this value and tinted from it up (the lowest value shows it everywhere)");
+                    const auto id = QString::fromStdString(c->id);
+                    const int low = spin->minimum();
+                    QObject::connect(spin, &QSpinBox::valueChanged, this, [this, id, box, low] (int v) {
+                        Utility::writePref("FILLFROM_" + id.toStdString(), v <= low ? "all" : std::to_string(v));
+                        if (box->isChecked() && !quiet) {
+                            ticks();   // (the picture again, with the new start)
+                        }
+                    });
+                    lineLayout->addWidget(spin);
+                    action->setDefaultWidget(line);
+                } else {
+                    action->setDefaultWidget(box);
+                }
                 menu->addAction(action);
                 f.boxes.push_back(box);
                 boxes.push_back(box);

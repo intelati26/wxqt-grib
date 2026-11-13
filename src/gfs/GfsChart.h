@@ -239,6 +239,17 @@ namespace GfsChart {
         std::string group;
     };
     std::vector<OverlayChoice> overlayChoices(const std::string& source);
+    // The "from" of a ticked fill: the fill is clear under that value and tinted from it up (a wind fill from 15 kt, the dewpoint from 15 C, the humidity from 50 %), so that it does not mix with
+    // the chart's own fill everywhere. The program's value is the scale's own cut-off; the one kept under the preference FILLFROM_<overlay id> (a number, or "all") takes its place.
+    // `available` is false for an overlay that is not a fill.
+    struct FillFrom {
+        bool available{false};
+        double value{0.0};      // the one in use
+        double standard{0.0};   // the program's
+        double low{0.0}, high{0.0};   // the scale's range
+        std::string unit;       // "kt", "C", "%", "m"
+    };
+    FillFrom fillFrom(const std::string& overlayId);
     // the base chart with the ticked overlays added (the barbs of the last one ticked replace the base's); the base itself when none applies
     Product compose(const Product& base, const std::vector<std::string>& overlayIds);
     // One member of the ensemble instead of the mean: the choices a chart offers (empty when it cannot show a single member: spread, probability and counting charts) and the chart for one.
