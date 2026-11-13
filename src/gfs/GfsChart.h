@@ -250,6 +250,17 @@ namespace GfsChart {
         std::string unit;       // "kt", "C", "%", "m"
     };
     FillFrom fillFrom(const std::string& overlayId);
+    // The color scale of a ticked fill, opaque (the tint is the overlay's own): the default scale the Colors editor changes. A scale kept there for the same default (rampKey) is drawn on the
+    // ticked fill as well as on every chart that has it as its own fill. `available` is false for an overlay that is not a fill.
+    struct FillScale {
+        bool available{false};
+        Ramp ramp;
+        Quantity quantity{Quantity::Other};
+        std::string title;   // the fill's name ("Wind 850mb (kt)")
+    };
+    FillScale fillScale(const std::string& overlayId);
+    // the user's scale `user` as a ticked fill: its colors, with the tint and the start of the overlay's own scale `overlay` (clear under the first tinted value, the same see-through above)
+    Ramp asFillOverlay(const Ramp& user, const Ramp& overlay);
     // the base chart with the ticked overlays added (the barbs of the last one ticked replace the base's); the base itself when none applies
     Product compose(const Product& base, const std::vector<std::string>& overlayIds);
     // One member of the ensemble instead of the mean: the choices a chart offers (empty when it cannot show a single member: spread, probability and counting charts) and the chart for one.

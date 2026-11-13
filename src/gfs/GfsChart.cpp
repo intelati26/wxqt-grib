@@ -7611,6 +7611,41 @@ FillFrom fillFrom(const std::string& overlayId) {
     return out;
 }
 
+Ramp asFillOverlay(const Ramp& user, const Ramp& overlay) {
+    const int alpha = fillAlpha(overlay);
+    double from = -1e9;
+    const bool hasClear = std::any_of(overlay.stops.begin(), overlay.stops.end(), [] (const auto& stop) { return stop.second.alpha() == 0; });
+    for (const auto& stop : overlay.stops) {
+        if (hasClear && stop.second.alpha() > 0) {
+            from = stop.first;
+            break;
+        }
+    }
+    Ramp out = user;
+    for (auto& stop : out.stops) {
+        stop.second.setAlpha(stop.first < from ? 0 : alpha);
+    }
+    return out;
+}
+
+FillScale fillScale(const std::string& overlayId) {
+    FillScale out;
+    for (const auto& o : overlayCatalog()) {
+        if (o.id != overlayId || !o.fill || o.fillRamp.stops.empty()) {
+            continue;
+        }
+        out.available = true;
+        out.ramp = o.fillRamp;
+        for (auto& stop : out.ramp.stops) {
+            stop.second.setAlpha(255);
+        }
+        out.quantity = overlayId.compare(0, 9, "fill_temp") == 0 || overlayId.compare(0, 13, "fill_dewpoint") == 0 ? Quantity::Temperature : Quantity::Other;
+        out.title = o.fillName.empty() ? o.label : o.fillName;
+        break;
+    }
+    return out;
+}
+
 std::vector<OverlayChoice> overlayChoices(const std::string& source) {
     std::vector<OverlayChoice> out;
     for (const auto& o : overlayCatalog()) {
@@ -8105,6 +8140,14 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     product.ramp = defaultRamp(drawn, options.magColors);
     if (const auto found = options.palettes.find(rampKey(product.ramp)); found != options.palettes.end()) {   // the user's own scale for this kind of chart
         product.ramp = found->second;
+    }
+    for (auto& [key, overlayRamp] : product.overlays) {   // the fills ticked onto the chart: the user's scale for the same default, with the tint and the start the overlay has
+        if (key.compare(0, 2, "o_") != 0 || overlayRamp.stops.empty()) {
+            continue;
+        }
+        if (const auto found = options.palettes.find(rampKey(overlayRamp)); found != options.palettes.end()) {
+            overlayRamp = asFillOverlay(found->second, overlayRamp);
+        }
     }
     if (product.ramp.stops.empty()) {   // a chart of lines only has no scale: a clear one so nothing reads an empty list
         product.ramp.stops = {{0.0, QColor{0, 0, 0, 0}}, {1.0, QColor{0, 0, 0, 0}}};
