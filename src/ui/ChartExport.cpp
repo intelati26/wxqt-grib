@@ -29,6 +29,20 @@ namespace {
         painter.drawText(QRect{6, top, width - 12, footer}, Qt::AlignVCenter | Qt::AlignLeft, title + "  -  saved " + QDateTime::currentDateTimeUtc().toString("yyyy-MM-dd HH:mm") + " UTC  -  exported by wxqt-grib");
     }
 
+    // a picture that is already encoded, with the footer line under it as a painted chart has
+    QImage stillWithFooter(const QByteArray& bytes, const QString& title) {
+        const QImage source = QImage::fromData(bytes);
+        if (source.isNull()) {
+            return source;
+        }
+        QImage image{source.width(), source.height() + footer, QImage::Format_ARGB32};
+        image.fill(Qt::white);
+        QPainter painter{&image};
+        painter.drawImage(0, 0, source);
+        drawFooter(painter, source.width(), source.height(), QString{title}.replace('_', ' ').trimmed());   // (the title of a window as a file name has underscores)
+        return image;
+    }
+
     QString fileNameImpl(const QString& title, const QString& extension) {
         QString base = title.toLower();
         for (auto& c : base) {
@@ -165,14 +179,14 @@ void ChartExport::popupMenu(QWidget * anchor, const QPoint& globalPos, const Cap
             UtilityAnimationExport::saveWithDialog(anchor->window(), {}, 0, caps.still, fileNameImpl(title, "").chopped(1));
         }
     } else if (chosen == copy) {
-        QApplication::clipboard()->setImage(painted ? render(caps.paint, title) : QImage::fromData(caps.still));
+        QApplication::clipboard()->setImage(painted ? render(caps.paint, title) : stillWithFooter(caps.still, title));
     } else if (chosen == png) {
         const auto path = askSave(anchor->window(), "Save the picture", title, "png", "PNG image (*.png)");
         if (!path.isEmpty()) {
             if (painted) {
                 savePng(caps.paint, title, path);
             } else {
-                QImage::fromData(caps.still).save(path, "PNG");
+                stillWithFooter(caps.still, title).save(path, "PNG");
             }
         }
     } else if (chosen == pdf) {
@@ -181,7 +195,7 @@ void ChartExport::popupMenu(QWidget * anchor, const QPoint& globalPos, const Cap
             if (painted) {
                 savePdf(caps.paint, title, path);
             } else {
-                saveImagePdf(QImage::fromData(caps.still), title, path);
+                saveImagePdf(QImage::fromData(caps.still), QString{title}.replace('_', ' ').trimmed(), path);
             }
         }
     }
