@@ -1,0 +1,72 @@
+picker,entry,GFS charts using it,example ids
+Barbs (levels stack),850 mb,7,850_vort_ht 850_temp_ht 850_rh_ht 850_pw_ht
+Barbs (levels stack),10 m,7,10m_wnd_2m_temp 10m_wnd_precip 2m_dewpoint 2m_rh_10m_wnd_derived
+Barbs (levels stack),500 mb,4,500_wnd_ht 500_vort_ht 500_rh_ht 500_hgt_anom
+Barbs (levels stack),700 mb,3,700_rh_ht 700_hgt_anom 700_temp_mslp
+Barbs (levels stack),850-200 mb,2,shear_850_200 steering_850_200
+Barbs (levels stack),925 mb,1,925_temp_ht
+Barbs (levels stack),200 mb,1,200_div_wnd
+Barbs (levels stack),chart level,1,mslp_anom
+Barbs (levels stack),700-300 mb,1,rh_700_300
+Contours: Heights,Height,20,200_wnd_ht 250_wnd_ht 300_wnd_ht 500_wnd_ht
+Contours: Omega,Omega,1,700_rh_ht
+Contours: Pressure,Sea level pressure,31,10m_wnd_2m_temp shear_850_200 steering_850_200 mslp_anom
+Contours: Temperature,850mb temperature,2,850_temp_mslp_precip 850_temp_mslp_precip_type
+Contours: Thickness,1000-500mb thickness,11,precip_p01 precip_p03 precip_p06 precip_p12
+Contours: Thickness,1000-850mb thickness,2,1000_850_thick 1000_850_thick_type
+Contours: Thickness,850-700mb thickness,2,850_700_thick 850_700_thick_type
+Fill field,"Precipitation, hours #",14,precip_p01 precip_p03 precip_p06 precip_p12
+Fill field,Wind speed,5,200_wnd_ht 250_wnd_ht 300_wnd_ht 500_wnd_ht
+Fill field,"Precipitation (green rain, blue snow, pink mixed), hours #",5,precip_type 1000_850_thick_type 850_700_thick_type 850_temp_mslp_precip_type
+Fill field,Relative vorticity,3,500_vort_ht 850_vort_ht 850_stream_vort
+Fill field,Relative humidity,3,500_rh_ht 850_rh_ht 700_rh_ht
+Fill field,Temperature,2,850_temp_ht 925_temp_ht
+Fill field,Precipitable water,2,850_pw_ht mslp_pwat
+Fill field,Divergence,2,200_div_wnd 200_stream_div
+Fill field,Height anomaly from the # mean,2,500_hgt_anom 700_hgt_anom
+Fill field,Mean relative humidity of # and # mb,1,850_700_rh
+Fill field,#mb relative vorticity,1,850vor_500ht_200wd
+Fill field,# m temperature,1,10m_wnd_2m_temp
+Fill field,Shear magnitude,1,shear_850_200
+Fill field,Mean wind speed,1,steering_850_200
+Fill field,Equivalent potential temperature,1,850_thetae_ht
+Fill field,Pressure anomaly from the # mean,1,mslp_anom
+Fill field,Composite reflectivity,1,sim_radar_comp
+Fill field,Snow depth change,1,snodpth_chng
+Fill field,# m dewpoint,1,2m_dewpoint
+Fill field,# m relative humidity,1,2m_rh_10m_wnd_derived
+Fill field,"Mean relative humidity, #mb",1,rh_700_300
+Fill field,Surface-based CAPE,1,sbcape_wind
+Fill field,#mb temperature,1,700_temp_mslp
+Fill field,# m wind speed,1,mslp_10m_wind
+Fill field,Precipitation rate per hour,1,precip_rate_type
+Fill field,Sea level pressure change,1,mslp_trend
+Fill field,#mb height change,1,z500_trend
+Level / layer,850 mb,10,850_vort_ht 850_temp_ht 850_rh_ht 850_pw_ht
+Level / layer,10 m,7,10m_wnd_2m_temp 10m_wnd_precip 2m_dewpoint 2m_rh_10m_wnd_derived
+Level / layer,500 mb,5,500_wnd_ht 500_vort_ht 500_rh_ht 500_hgt_anom
+Level / layer,200 mb,3,200_wnd_ht 200_div_wnd 200_stream_div
+Level / layer,850-700 mb,3,850_700_rh 850_700_thick 850_700_thick_type
+Level / layer,700 mb,3,700_rh_ht 700_hgt_anom 700_temp_mslp
+Level / layer,850-200 mb,2,shear_850_200 steering_850_200
+Level / layer,1000-500 mb,2,1000_500_thick precip_rate_type
+Level / layer,1000-850 mb,2,1000_850_thick 1000_850_thick_type
+Level / layer,250 mb,1,250_wnd_ht
+Level / layer,300 mb,1,300_wnd_ht
+Level / layer,925 mb,1,925_temp_ht
+Level / layer,700-300 mb,1,rh_700_300
+Mode,Value,50,200_wnd_ht 250_wnd_ht 300_wnd_ht 500_wnd_ht
+Mode,Anomaly,3,500_hgt_anom 700_hgt_anom mslp_anom
+Mode,Change,3,snodpth_chng mslp_trend z500_trend
+Period,total / since start,12,precip_ptot 1000_500_thick 1000_850_thick 850_700_thick
+Period,01 h,1,precip_p01
+Period,03 h,1,precip_p03
+Period,06 h,1,precip_p06
+Period,12 h,1,precip_p12
+Period,24 h,1,precip_p24
+Period,36 h,1,precip_p36
+Period,48 h,1,precip_p48
+Period,60 h,1,precip_p60
+Streamlines,200 mb,1,200_stream_div
+Streamlines,850 mb,1,850_stream_vort
+Type bands,rain / snow / mixed,6,precip_type 1000_850_thick_type 850_700_thick_type 850_temp_mslp_precip_type
