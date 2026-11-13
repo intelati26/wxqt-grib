@@ -246,3 +246,25 @@ The model screen's NCEP page lists only the models drawn from GRIB; the models t
 **Not in the first version (as in the source):** mph, precipitation type as colours, a map thumbnail beside the table, Guam's max / min convention, NBP and NBH, the v5.0 additions (WBG). Older cycles' hour lists were not looked at.
 
 **Open points:** where the NBM text bulletins fit with the NBM GRIB model's own run list (the page could say which run it used, as the model does); whether the tab or a window of its own: a tab keeps the place box shared; whether wind in mph needs `windDirection` and the other bulletin elements added to `parameters()` or stays inside the new code.
+
+## 9. Charts as presets of the checks (plan, 2026-11-13; nothing written)
+
+Today the Model Viewer's picker lists every chart of a model (GFS: 62; the picker says 51 once the precipitation ones sit behind "Precip by parts"), and under the list a grid of checks (fill, lines, barbs by level and field) adds fields to the chosen chart. Most of the list is a base fill plus some of those same lines and barbs, so the list can shrink to a few base charts and the grid says the rest.
+
+**A preset** = a base chart id + the ticked check ids (+ the level, for the level charts). Stored as one line per preset in a preference (`MODEL_PRESETS`, `name|model|base|check,check,...`), like the saved views. Built-in presets are the same record, read-only. A favorite is a preset (the star on a built-in saves it under Your presets).
+
+**What folds into the grid** (GFS ids; the checks exist already: `fill_/line_` temp, rh, wind, hgt per level, `barbs_<level>`, `z<level>`, `mslp`, `thick_*`):
+- Level charts: `200/250/300/500_wnd_ht`, `850_wnd_ht`, `850/925_temp_ht`, `500/850/700_rh_ht`, `700_temp_mslp`, `850_pw_ht` -> one "Level chart" with a level row (200 ... 925) and the fill chosen by the column (wind, temperature, humidity, height). 13 charts -> 1 base + presets for the usual ones.
+- Surface: `mslp_10m_wind`, `10m_wnd_2m_temp`, `2m_dewpoint`, `2m_rh_10m_wnd_derived`, `mslp_pwat` -> one "Surface" base (the 10 m / 2 m row of the grid, plus MSLP lines and 10 m barbs). 5 -> 1.
+- Precipitation with lines: the five `*_thick`/`850_temp_mslp_precip`/`10m_wnd_precip` and their five `*_type` twins -> "Precipitation" base with a Type switch and the lines as checks (thickness, 850 mb temperature, 10 m wind). 10 -> 1 (the Precip by parts dialog stays for amount and period).
+- Stay as charts of their own (not a fill plus lines): vorticity, divergence, streamlines, shear, steering, theta-e, anomalies, trends, snow depth change, simulated radar, CAPE, the precipitation totals by period.
+
+Result: GFS ~62 -> about 12 "base charts" and 4 to 6 built-in presets (500 wind and height, 850/700/500 wind, Surface, Precipitation + type, ...). The existing "850/700/500 wind" and "850/700 humidity" buttons become two of those built-in presets.
+
+**Picker** (see the two mockups in the conversation): A keeps today's list, shortened, with a "Your presets" group on top and a level row for the level chart; B puts presets as chips above an always-open grid. Either way changing a check turns the name into "Custom: <base> + N changes" with Save as preset... and Reset. Hover on a preset names its checks.
+
+**Compatibility**: saved views, favorites and the model-comparison tiles store chart ids. Every folded id stays valid: the id is read as "base + checks" (an alias table), so nothing saved breaks. The charts a person picks by id from outside the picker (the Extended page's Heights & winds, the Events viewer) keep working.
+
+**Steps**: (1) alias table + Preset record + save/load (no UI change); (2) "Save checks as preset..." and a Your presets group in the current picker; (3) built-in list cut to the base charts and presets; (4) other models (HRRR, NAM, ECMWF) the same, each source with its own base charts; (5) layout B if A is not enough.
+
+**To decide**: layout A or B; whether the level becomes a row of buttons (as drawn) or stays a grid row; whether presets are per model or shared by every model that has the fields (shared is simpler to use: "Chase day" works on GFS, NAM and ECMWF when the fields exist).

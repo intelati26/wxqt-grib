@@ -250,6 +250,17 @@ int main(int argc, char * argv[]) {
             return ids.empty() ? std::vector<std::string>{"radar/mrms"} : ids;
         };
         QWidget * opened = nullptr;
+        if (qEnvironmentVariableIsSet("WXQT_CHARTS_DUMP")) {   // (a development aid: every chart of a model, group|id|label, to stderr; WXQT_CHARTS_DUMP=<model>)
+            const auto model = qEnvironmentVariable("WXQT_CHARTS_DUMP").toStdString();
+            for (const auto& product : GfsChart::products()) {
+                if (product.source == model) {
+                    std::fprintf(stderr, "CHART %s|%s|%s\n", GfsChart::category(product).c_str(), product.id.c_str(), product.label.c_str());
+                }
+            }
+            for (const auto& choice : GfsChart::overlayChoices(model)) {
+                std::fprintf(stderr, "CHECK %s|%s|%s\n", choice.group.c_str(), choice.id.c_str(), choice.label.c_str());
+            }
+        }
         if (qEnvironmentVariableIsSet("WXQT_TOOLBAR_DUMP")) {   // (a development aid: the toolbar's groups and their entries, to stderr)
             for (const auto& group : ToolbarGroups::groups()) {
                 std::fprintf(stderr, "GROUP %s:", group.name.c_str());
