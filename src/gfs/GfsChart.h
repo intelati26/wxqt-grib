@@ -261,6 +261,27 @@ namespace GfsChart {
     FillScale fillScale(const std::string& overlayId);
     // the user's scale `user` as a ticked fill: its colors, with the tint and the start of the overlay's own scale `overlay` (clear under the first tinted value, the same see-through above)
     Ramp asFillOverlay(const Ramp& user, const Ramp& overlay);
+    // The style of a ticked line (a contour overlay: sea level pressure, a thickness, a height or temperature at a level ...): its color, weight, dashes, interval and whether the numbers are written.
+    // The program's is the standard; the one kept under the preference LINESTYLE_<overlay id> replaces it, for every chart and model the line is ticked onto.
+    struct LineStyle {
+        QColor color{30, 30, 30};
+        double width{1.0};
+        bool dashed{false};
+        double interval{0.0};   // in the unit of the line's title (dam, mb, C)
+        bool labelled{true};
+        bool operator==(const LineStyle& other) const { return color == other.color && width == other.width && dashed == other.dashed && interval == other.interval && labelled == other.labelled; }
+    };
+    struct LineStyleInfo {
+        bool available{false};   // false for an overlay that is not a line
+        LineStyle standard;
+        LineStyle value;         // the one in use
+        std::string title;       // "500mb height (dam, blue)"
+    };
+    LineStyleInfo lineStyle(const std::string& overlayId);
+    void setLineStyle(const std::string& overlayId, const LineStyle& style);   // keeps it (nothing when it is the standard)
+    void clearLineStyle(const std::string& overlayId);
+    std::string lineStyleToText(const LineStyle& style);                        // "#rrggbb|width|dashed|interval|labelled"
+    bool lineStyleFromText(const std::string& text, LineStyle& out);
     // the base chart with the ticked overlays added (the barbs of the last one ticked replace the base's); the base itself when none applies
     Product compose(const Product& base, const std::vector<std::string>& overlayIds);
     // One member of the ensemble instead of the mean: the choices a chart offers (empty when it cannot show a single member: spread, probability and counting charts) and the chart for one.

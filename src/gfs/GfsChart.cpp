@@ -7628,6 +7628,84 @@ Ramp asFillOverlay(const Ramp& user, const Ramp& overlay) {
     return out;
 }
 
+std::string lineStyleToText(const LineStyle& style) {
+    return style.color.name().toStdString() + "|" + QByteArray::number(style.width, 'g', 6).toStdString() + "|" + (style.dashed ? "1" : "0") + "|" + QByteArray::number(style.interval, 'g', 8).toStdString() + "|" + (style.labelled ? "1" : "0");
+}
+
+bool lineStyleFromText(const std::string& text, LineStyle& out) {
+    const auto parts = QString::fromStdString(text).split('|');
+    if (parts.size() != 5 || !QColor::isValidColorName(parts[0])) {
+        return false;
+    }
+    bool okWidth = false, okInterval = false;
+    const double width = parts[1].toDouble(&okWidth), interval = parts[3].toDouble(&okInterval);
+    if (!okWidth || !okInterval || width <= 0.0 || width > 10.0 || interval < 0.0) {
+        return false;
+    }
+    out.color = QColor{parts[0]};
+    out.width = width;
+    out.dashed = parts[2] == "1";
+    out.interval = interval;
+    out.labelled = parts[4] != "0";
+    return true;
+}
+
+namespace {
+
+LineStyle styleOfSet(const ContourSet& set) {
+    return {set.color, set.width, set.dashed, set.interval, set.labelled};
+}
+
+// the line as the preference LINESTYLE_<id> has it (the program's when there is none, or it is not a style)
+ContourSet styledContour(const Overlay& o) {
+    ContourSet set = o.contour;
+    LineStyle style;
+    if (const auto text = Utility::readPref("LINESTYLE_" + o.id, ""); !text.empty() && lineStyleFromText(text, style)) {
+        if (style.color != set.color) {   // the legend names the color in its title ("500mb height (dam, blue)"): a color of the user's is not that word
+            static const QRegularExpression colorWord{", [a-z ]+\\)$"};
+            auto title = QString::fromStdString(set.title);
+            title.replace(colorWord, ")");
+            set.title = title.toStdString();
+        }
+        set.color = style.color;
+        set.width = style.width;
+        set.dashed = style.dashed;
+        set.interval = style.interval > 0.0 ? style.interval : set.interval;
+        set.labelled = style.labelled;
+    }
+    return set;
+}
+
+}  // namespace
+
+LineStyleInfo lineStyle(const std::string& overlayId) {
+    LineStyleInfo out;
+    for (const auto& o : overlayCatalog()) {
+        if (o.id != overlayId || o.fill || o.barbs || o.contour.key.empty()) {
+            continue;
+        }
+        out.available = true;
+        out.standard = styleOfSet(o.contour);
+        const auto set = styledContour(o);
+        out.value = styleOfSet(set);
+        out.title = o.contour.title;
+        break;
+    }
+    return out;
+}
+
+void setLineStyle(const std::string& overlayId, const LineStyle& style) {
+    const auto info = lineStyle(overlayId);
+    if (!info.available) {
+        return;
+    }
+    Utility::writePref("LINESTYLE_" + overlayId, style == info.standard ? std::string{} : lineStyleToText(style));
+}
+
+void clearLineStyle(const std::string& overlayId) {
+    Utility::writePref("LINESTYLE_" + overlayId, "");
+}
+
 FillScale fillScale(const std::string& overlayId) {
     FillScale out;
     for (const auto& o : overlayCatalog()) {
@@ -7885,7 +7963,7 @@ Product compose(const Product& base, const std::vector<std::string>& ids) {
         } else if (o->barbs) {   // each ticked wind is a set of its own: they stack on the chart's own barbs
             p.barbSets.push_back({prefix + o->barbU, prefix + o->barbV, o->barbColor, o->label, o->barbColorName});
         } else {
-            auto set = o->contour;
+            auto set = styledContour(*o);
             set.key = prefix + set.key;
             p.contours.push_back(std::move(set));
         }
