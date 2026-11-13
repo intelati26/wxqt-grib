@@ -9027,11 +9027,22 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     const auto valid = initUtc.addSecs(forecastHour * 3600);
     QFont big = font;
     big.setPixelSize(17);
-    const QString headline = QString::fromStdString(product.source + "  " + product.label);
-    {   // a long title (a chart with several things ticked onto it) gets a smaller type, down to 11, so that it stays clear of the run and valid times at the right
+    QString headline = QString::fromStdString(product.source + "  " + product.label);
+    {   // a long title (a chart with several things ticked onto it) gets a smaller type, down to 11, so that it stays clear of the run and valid times at the right; when even that is too long
+        // the things ticked on are counted ("with 7 more": the line under it names them), and the end is cut as the last resort
         const double room = image.width() / S - 2.0 * margin - 330.0;
         while (big.pixelSize() > 11 && QFontMetricsF{big}.horizontalAdvance(headline) > room) {
             big.setPixelSize(big.pixelSize() - 1);
+        }
+        if (QFontMetricsF{big}.horizontalAdvance(headline) > room) {
+            if (const auto with = headline.indexOf(", with "); with > 0) {
+                QStringList lineAndBarbs, fills;   // (the fill is what colors the map: it stays named, the lines and barbs are counted)
+                for (const auto& item : headline.mid(with + 7).split(", ")) {
+                    (item.endsWith("(fill)") ? fills : lineAndBarbs) << item;
+                }
+                headline = headline.left(with) + ", with " + (lineAndBarbs.isEmpty() ? QString{} : QString::number(lineAndBarbs.size()) + " more" + (fills.isEmpty() ? QString{} : " and ")) + fills.join(", ");
+            }
+            headline = QFontMetricsF{big}.elidedText(headline, Qt::ElideRight, room);
         }
     }
     p.setFont(big);
@@ -9062,7 +9073,17 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         }
         barbText = ";  barbs, kt: " + names.join(", ");
     }
-    p.drawText(QPointF{static_cast<double>(margin), 43.0}, fillTitle + (lines.isEmpty() ? "" : (fillTitle.isEmpty() ? "lines: " : ";  lines: ") + lines.join(", ")) + (!product.barbU.empty() || !product.barbSets.empty() ? barbText : QString{}));
+    {   // the line under the title names the fill, the lines (with the color of each) and the barbs: with many ticked on it, a smaller type (down to 9), and the end cut only if that is not enough
+        const QString subtitle = fillTitle + (lines.isEmpty() ? "" : (fillTitle.isEmpty() ? "lines: " : ";  lines: ") + lines.join(", ")) + (!product.barbU.empty() || !product.barbSets.empty() ? barbText : QString{});
+        const double room = image.width() / S - 2.0 * margin;
+        QFont small = font;
+        while (small.pixelSize() > 9 && QFontMetricsF{small}.horizontalAdvance(subtitle) > room) {
+            small.setPixelSize(small.pixelSize() - 1);
+        }
+        p.setFont(small);
+        p.drawText(QPointF{static_cast<double>(margin), 43.0}, QFontMetricsF{small}.elidedText(subtitle, Qt::ElideRight, room));
+        p.setFont(font);
+    }
     const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
     p.drawText(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 
