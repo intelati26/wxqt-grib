@@ -14,6 +14,7 @@
 #include "gfs/ChartHours.h"
 #include "models/ObjectModel.h"
 #include <QPointer>
+#include "models/ChecksPicker.h"
 #include "models/ProductPicker.h"
 #include "ui/BackForward.h"
 #include "ui/Button.h"
@@ -64,6 +65,7 @@ public:
     // `runStart`: the time is a RUN's (the cycle at or before it, at its first hour) instead of a valid time (the run at or before it, at the hour that lands on the time)
     void openAt(const string& model, const QDateTime& validUtc, bool runStart = false);
     void showPicker();
+    void showChecks();   // the same charts as checks (ChecksPicker), beside the Charts... picker
     void openSubhourly();
     QSize shownPictureSize() const { return QImage::fromData(shownBytes).size(); }   // (a development aid: the size of the chart on view)
     void setOverlays(const std::vector<string>& ids);   // as ticking them in the chart picker does
@@ -324,11 +326,13 @@ private:
     BackForward backForward;
     std::unique_ptr<ChartHover>& hover;  // the value under the pointer, for the charts drawn from GRIB (the pane's)
     Button buttonProducts;
+    Button buttonChecks;
     Button buttonSector;
     Button buttonModel;
     QPointer<ProductPicker> modelPicker;
     QPointer<ProductPicker> sectorPicker;
     QPointer<ProductPicker> picker;
+    QPointer<ChecksPicker> checks;
 };
 
 #endif  // MODELVIEWER_H

@@ -110,6 +110,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , backForward{this, [this] { moveBack(); }, [this] { moveForward(); }}
     , hover{mainPane->hover}
     , buttonProducts{this, None, "Charts..."}
+    , buttonChecks{this, None, "Checks..."}
     , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, ModelBar::changeLabels(true)}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
@@ -170,6 +171,8 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     boxH.addWidget(comboboxProduct);
     boxH.addWidget(buttonProducts);
     buttonProducts.connect([this] { showPicker(); });
+    boxH.addWidget(buttonChecks);
+    buttonChecks.connect([this] { showChecks(); });
     boxH.addWidget(comboboxTime);
     {   // a flow holds widgets, not layouts
         auto * stepper = new QWidget{this};
@@ -2446,6 +2449,7 @@ void ModelViewer::refreshProductButton() {
     buttonSector.setVisible(grib);
     buttonSector.setText(sectorLabel(objectModel.sector) + "  \xE2\x96\xBE");
     buttonProducts.setVisible(grib);
+    buttonChecks.setVisible(grib);
     if (buttonColors != nullptr) {
         buttonColors->setVisible(grib);   // (the color scale is the program's: a picture has its own)
     }
@@ -2465,6 +2469,13 @@ void ModelViewer::refreshProductButton() {
         }
     }
     buttonProducts.setText(label + (picked.overlays.empty() ? "" : " + " + std::to_string(picked.overlays.size())) + "  \xE2\x96\xBE");
+    if (checks) {   // the checks follow the chart (another model: its list is another one, so the window goes)
+        if (checks->modelId() != objectModel.model) {
+            checks->close();
+        } else {
+            checks->setState(objectModel.param, picked.overlays);
+        }
+    }
 }
 
 namespace {
@@ -2548,6 +2559,27 @@ void ModelViewer::showPicker() {
     }
     picker->onOverlays = [this] (const std::vector<string>& ids) { setOverlays(ids); };
     picker->show();
+}
+
+void ModelViewer::showChecks() {
+    if (checks) {
+        checks->raise();
+        checks->activateWindow();
+        return;
+    }
+    const auto model = objectModel.model;
+    std::vector<string> ids, labels;
+    for (size_t i = 0; i < objectModel.params.size() && i < objectModel.paramLabels.size(); i++) {
+        if (!chartAbsent(objectModel.params[i])) {
+            ids.push_back(objectModel.params[i]);
+            labels.push_back(objectModel.paramLabels[i]);
+        }
+    }
+    checks = new ChecksPicker{this, model, ChartPickers::chartEntries(model, ids, labels), objectModel.param, GfsChart::overlayChoices(model), picked.overlays};
+    checks->setAttribute(Qt::WA_DeleteOnClose);
+    checks->onPick = [this] (const string& id) { chooseChart(id); };
+    checks->onOverlays = [this] (const std::vector<string>& ids) { setOverlays(ids); };
+    checks->show();
 }
 
 // ---- the comparison tiles ----
