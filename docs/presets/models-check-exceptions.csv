@@ -35,7 +35,7 @@ HREF,prob_low_IFR,Probability of Low Instrument Flight Rules,Chance,no limit (fi
 HREF,prob_IFR,Probability of Instrument Flight Rules,Chance,no limit (fixed definition)
 HREF,prob_marginal_VFR,Probability of Marginal Visual Flight Rules,Chance,no limit (fixed definition)
 HREF,prob_VFR,Probability of Visual Flight Rules,Chance,no limit (fixed definition)
-HREF,prob_lowIFR_IFR,Probability of Low Instrument Flight Rules and Instrument Flight Rules,Chance,two or more limits
+HREF,prob_lowIFR_IFR,Probability of Low Instrument Flight Rules and Instrument Flight Rules,Chance,no limit (fixed definition)
 HRRR,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
 HRRR,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
 HRRR,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
@@ -115,17 +115,4 @@ SPCPOST,severe_wind_4hr,GREFS Calibrated Wind Probability (4-hour),Chance,no lim
 SPCPOST,severe_wind_full,GREFS Calibrated Wind Probability (rest of the convective day),Chance,no limit (fixed definition)
 SPCREFS,bliz_prob_t<0p250_t>035_t>0p010,"Blizzard Probability: visibility < 0.25 mi, 10-m wind > 35 mph, snow",Chance,two or more limits
 SPCREFS,bliz_prob_t<0p500_t>030_t>0p010,"Blizzard Probability: visibility < 0.5 mi, 10-m wind > 30 mph, snow",Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<020_t>015,Wind > 15 mph and RH < 20% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<010_t>030,Wind > 30 mph and RH < 10% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<015_t>015,Wind > 15 mph and RH < 15% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<015_t>020,Wind > 20 mph and RH < 15% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<015_t>025,Wind > 25 mph and RH < 15% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<020_t>020,Wind > 20 mph and RH < 20% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<020_t>025,Wind > 25 mph and RH < 20% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<025_t>015,Wind > 15 mph and RH < 25% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<025_t>020,Wind > 20 mph and RH < 25% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<025_t>025,Wind > 25 mph and RH < 25% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<030_t>015,Wind > 15 mph and RH < 30% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<030_t>020,Wind > 20 mph and RH < 30% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<035_t>010,Wind > 10 mph and RH < 35% (ensemble probability),Chance,two or more limits
-SPCREFS,rh2m_s10m_prob_t<035_t>015,Wind > 15 mph and RH < 35% (ensemble probability),Chance,two or more limits
+SPCREFS,pwat_prob_t>0p500_t<0p800,Precipitable Water between 0.5 and 0.8 in (ensemble probability),Chance,two or more limits

@@ -218,7 +218,7 @@ HREF,prob_vwshr_30kt,Probability of 0-6 km Vertical Wind Shear over 30 kt,Shear,
 HREF,prob_max_hlcy_25,Probability of Maximum 2-5 km Updraft Helicity over 25,Updraft helicity,,over 25,ensemble,"fits (product, window, one limit, kind)"
 HREF,prob_max_hlcy_75,Probability of Maximum 2-5 km Updraft Helicity over 75,Updraft helicity,,over 75,ensemble,"fits (product, window, one limit, kind)"
 HREF,prob_max_hlcy_150,Probability of Maximum 2-5 km Updraft Helicity over 150,Updraft helicity,,over 150,ensemble,"fits (product, window, one limit, kind)"
-HREF,prob_lowIFR_IFR,Probability of Low Instrument Flight Rules and Instrument Flight Rules,Flight category,,,ensemble,two or more limits
+HREF,prob_lowIFR_IFR,Probability of Low Instrument Flight Rules and Instrument Flight Rules,Flight category,,,ensemble,no limit (fixed definition)
 REFS,prob_refc_40,Probability of Composite Reflectivity of 40 dBZ or more,Reflectivity,,>= 40 dbz,ensemble,"fits (product, window, one limit, kind)"
 REFS,prob_refc_50,Probability of Composite Reflectivity of 50 dBZ or more,Reflectivity,,>= 50 dbz,ensemble,"fits (product, window, one limit, kind)"
 REFS,prob_uphl_75,Probability of 2-5 km Updraft Helicity of 75 or more (last hour),Updraft helicity,1 h,>= 75,ensemble,"fits (product, window, one limit, kind)"
@@ -310,20 +310,20 @@ SPCREFS,snow_24h_acc_overlap12h_prob_t>012,24-h Snowfall > 12 in (ensemble proba
 SPCREFS,frzr_qpf_24h_acc_overlap12h_prob_t>0p060,24-h Freezing Rain QPF > 0.06 in (ensemble probability),"Ice (freezing rain, sleet)",24 h,> 0.06 in,ensemble,"fits (product, window, one limit, kind)"
 SPCREFS,bliz_prob_t<0p250_t>035_t>0p010,"Blizzard Probability: visibility < 0.25 mi, 10-m wind > 35 mph, snow",Blizzard,,< 0.25 mi & > 35 mph,ensemble,two or more limits
 SPCREFS,bliz_prob_t<0p500_t>030_t>0p010,"Blizzard Probability: visibility < 0.5 mi, 10-m wind > 30 mph, snow",Blizzard,,< 0.5 mi & > 30 mph,ensemble,two or more limits
-SPCREFS,pwat_prob_t>0p500_t<0p800,Precipitable Water between 0.5 and 0.8 in (ensemble probability),Precipitable water,,between 0.5 & and 0.8 in,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,pwat_prob_t>0p500_t<0p800,Precipitable Water between 0.5 and 0.8 in (ensemble probability),Precipitable water,,between 0.5 & and 0.8 in,ensemble,two or more limits
 SPCREFS,fosberg_prob_t>050,Fosberg Index > 50 (ensemble probability),Fosberg index,,> 50,ensemble,"fits (product, window, one limit, kind)"
 SPCREFS,fosberg_prob_t>075,Fosberg Index > 75 (ensemble probability),Fosberg index,,> 75,ensemble,"fits (product, window, one limit, kind)"
-SPCREFS,rh2m_s10m_prob_t<020_t>015,Wind > 15 mph and RH < 20% (ensemble probability),Fire weather: wind and RH,,> 15 mph & < 20 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<010_t>030,Wind > 30 mph and RH < 10% (ensemble probability),Fire weather: wind and RH,,> 30 mph & < 10 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<015_t>015,Wind > 15 mph and RH < 15% (ensemble probability),Fire weather: wind and RH,,> 15 mph & < 15 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<015_t>020,Wind > 20 mph and RH < 15% (ensemble probability),Fire weather: wind and RH,,> 20 mph & < 15 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<015_t>025,Wind > 25 mph and RH < 15% (ensemble probability),Fire weather: wind and RH,,> 25 mph & < 15 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<020_t>020,Wind > 20 mph and RH < 20% (ensemble probability),Fire weather: wind and RH,,> 20 mph & < 20 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<020_t>025,Wind > 25 mph and RH < 20% (ensemble probability),Fire weather: wind and RH,,> 25 mph & < 20 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<025_t>015,Wind > 15 mph and RH < 25% (ensemble probability),Fire weather: wind and RH,,> 15 mph & < 25 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<025_t>020,Wind > 20 mph and RH < 25% (ensemble probability),Fire weather: wind and RH,,> 20 mph & < 25 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<025_t>025,Wind > 25 mph and RH < 25% (ensemble probability),Fire weather: wind and RH,,> 25 mph & < 25 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<030_t>015,Wind > 15 mph and RH < 30% (ensemble probability),Fire weather: wind and RH,,> 15 mph & < 30 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<030_t>020,Wind > 20 mph and RH < 30% (ensemble probability),Fire weather: wind and RH,,> 20 mph & < 30 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<035_t>010,Wind > 10 mph and RH < 35% (ensemble probability),Fire weather: wind and RH,,> 10 mph & < 35 %,ensemble,two or more limits
-SPCREFS,rh2m_s10m_prob_t<035_t>015,Wind > 15 mph and RH < 35% (ensemble probability),Fire weather: wind and RH,,> 15 mph & < 35 %,ensemble,two or more limits
+SPCREFS,rh2m_s10m_prob_t<020_t>015,Wind > 15 mph and RH < 20% (ensemble probability),Fire weather: wind and RH,,> 15 mph & < 20 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<010_t>030,Wind > 30 mph and RH < 10% (ensemble probability),Fire weather: wind and RH,,> 30 mph & < 10 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<015_t>015,Wind > 15 mph and RH < 15% (ensemble probability),Fire weather: wind and RH,,> 15 mph & < 15 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<015_t>020,Wind > 20 mph and RH < 15% (ensemble probability),Fire weather: wind and RH,,> 20 mph & < 15 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<015_t>025,Wind > 25 mph and RH < 15% (ensemble probability),Fire weather: wind and RH,,> 25 mph & < 15 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<020_t>020,Wind > 20 mph and RH < 20% (ensemble probability),Fire weather: wind and RH,,> 20 mph & < 20 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<020_t>025,Wind > 25 mph and RH < 20% (ensemble probability),Fire weather: wind and RH,,> 25 mph & < 20 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<025_t>015,Wind > 15 mph and RH < 25% (ensemble probability),Fire weather: wind and RH,,> 15 mph & < 25 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<025_t>020,Wind > 20 mph and RH < 25% (ensemble probability),Fire weather: wind and RH,,> 20 mph & < 25 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<025_t>025,Wind > 25 mph and RH < 25% (ensemble probability),Fire weather: wind and RH,,> 25 mph & < 25 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<030_t>015,Wind > 15 mph and RH < 30% (ensemble probability),Fire weather: wind and RH,,> 15 mph & < 30 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<030_t>020,Wind > 20 mph and RH < 30% (ensemble probability),Fire weather: wind and RH,,> 20 mph & < 30 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<035_t>010,Wind > 10 mph and RH < 35% (ensemble probability),Fire weather: wind and RH,,> 10 mph & < 35 %,ensemble,"fits (product, window, one limit, kind)"
+SPCREFS,rh2m_s10m_prob_t<035_t>015,Wind > 15 mph and RH < 35% (ensemble probability),Fire weather: wind and RH,,> 15 mph & < 35 %,ensemble,"fits (product, window, one limit, kind)"
