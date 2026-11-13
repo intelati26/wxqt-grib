@@ -54,6 +54,10 @@ std::string idFor(const Entry& like) {
     return it != by.end() && it->second.size() == 1 ? std::string{it->second.front()->id} : std::string{};
 }
 
+bool sameChecks(const Entry& a, const Entry& b) {
+    return keyOf(a) == keyOf(b);
+}
+
 int ambiguous() {
     int n = 0;
     for (const auto& [key, list] : index().byChecks) {
