@@ -247,3 +247,82 @@ with open(os.path.join(here, 'gfs-pickers.csv'), 'w', newline='') as f:
     w = csv.writer(f); w.writerow(['picker', 'entry', 'GFS charts using it', 'example ids'])
     for (p, e), ids in sorted(ent.items(), key=lambda x: (x[0][0], -len(x[1]))): w.writerow([p, e, len(ids), ' '.join(ids[:4])])
 print(f'GFS: {len(gfs)} charts, {len(gp)} presets, {len(ent)} picker entries')
+
+# --- the Chance family: every chance chart parsed into product, window, limit(s) and kind
+PROD = [('blizzard', 'Blizzard'), ('wind > .* rh|rh <', 'Fire weather: wind and RH'), ('fosberg', 'Fosberg index'), ('stp', 'Significant tornado parameter'),
+        ('tornado', 'Severe: tornado'), ('hail', 'Severe: hail'), ('any severe|severe', 'Severe: any'), ('wind probability', 'Severe: wind'), ('thunder', 'Thunderstorm'),
+        ('flight rules|ifr|vfr', 'Flight category'), ('visibility', 'Visibility'), ('ceiling', 'Ceiling'), ('echo top', 'Echo top'), ('reflectivity|refc|refd|dbz', 'Reflectivity'),
+        ('helicity|\\buh\\b|uphl|hlcy', 'Updraft helicity'), ('updraft speed', 'Updraft speed'), ('cape', 'CAPE'), ('shear', 'Shear'), ('precipitable', 'Precipitable water'),
+        ('2 ?m temperature|2m temp|t2m', '2 m temperature'), ('dew', '2 m dewpoint'), ('10 ?m wind|wind speed|10m_wspd', '10 m wind speed'),
+        ('freezing rain|frzr|ice pellet|\\bice\\b|sleet', 'Ice (freezing rain, sleet)'), ('snow', 'Snow'), ('rain|qpf|precip', 'Rain / total precipitation')]
+def chance_parse(r):
+    lab = r['lab']; ll = lab.lower(); i = r['id'].lower()
+    if re.search(r'probability matched mean|lpmm|pmm', ll + ' ' + i): return dict(fit='not a chance (a probability-matched mean amount)', product='Rain / total precipitation' if 'precip' in ll else 'Reflectivity')
+    prod = next((n for p, n in PROD if re.search(p, ll + ' ' + i)), 'other')
+    m = re.search(r'(\d+)[- ]?(?:hr|h|hour)s?\b', ll) or re.search(r'_(\d+)h', i)
+    window = (m.group(1) + ' h') if m else ('rest of the convective day' if 'rest of the convective day' in ll or '_full' in i else ('since the start of the run' if 'start of the run' in ll or 'total' in i else ''))
+    if 'last hour' in ll: window = '1 h'
+    kind = ('neighborhood' if 'neighborhood' in ll or 'nmep' in i else 'calibrated' if re.search(r'calibrated|gefs-mlp|refsct|gefsct', ll) else 'pooled' if 'pooled' in ll else 'agreement scale' if 'agreement scale' in ll else "members' chance" if "members' chance" in ll else 'ensemble')
+    txt = re.sub(r'\d+[- ]?(?:hr|h|hour)s?\b', ' ', ll)
+    txt = re.sub(r'\d+(?:-\d+)? ?-?km\b', ' ', txt)
+    txt = re.sub(r'last \d+ runs', ' ', txt)
+    lims = []
+    for d, n, u in re.findall(r'(>|<|over|under|between|more than|less than|and|of)?\s*(-?\d[\d,]*\.?\d*)\s*(inch(?:es)?|in|miles?|mi|kt|mph|dbz|m/s|m2/s2|j/kg|feet|ft|percentile|%|f|c)?(?=\W|$)', txt):
+        d = d.strip()
+        if u or d in ('>', '<', 'over', 'under', 'between', 'more than', 'less than') or (d == 'and' and lims and lims[-1][0] == 'between') or (d == 'of' and re.search(re.escape(n) + r' or (more|less)', txt)):
+            lims.append((d if d != 'of' else '>=', n, u))
+    if 'freezing' in ll and 'rain' not in ll and 'freezing' in i: lims.append(('<=', '0', 'C'))
+    lim_texts = [' '.join(x for x in l if x) for l in lims]
+    nl = len(lims) - (1 if lims and lims[0][0] == 'between' else 0)
+    fit = 'fits (product, window, one limit, kind)'
+    if re.search(r'blizzard|rh <|wind > .* and rh|low instrument flight rules and', ll) or nl > 1: fit = 'two or more limits'
+    elif re.search(r'flight rules|ifr|vfr', ll) or kind == 'calibrated' or not lims: fit = 'no limit (fixed definition)'
+    if kind == "members' chance": fit = 'not a chance family (chance contour over a base chart)'
+    return dict(fit=fit, product=prod, window=window, kind=kind, limits=' & '.join(lim_texts[:3]))
+chance_rows = [r for r in rows if r['spec']['mode'] == 'Chance of a limit']
+with open(os.path.join(here, 'chance-charts.csv'), 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['model', 'chart id', 'label', 'product', 'window', 'limit(s) read from the label', 'kind', 'fit'])
+    cnt = collections.Counter(); byprod = collections.defaultdict(collections.Counter)
+    for r in chance_rows:
+        p = chance_parse(r); cnt[p['fit']] += 1; byprod[p['product']][p['fit'][:4]] += 1
+        w.writerow([r['src'], r['id'], r['lab'], p['product'], p.get('window', ''), p.get('limits', ''), p.get('kind', ''), p['fit']])
+print('CHANCE:', len(chance_rows), 'charts;', dict(cnt))
+print('  products:', {k: sum(v.values()) for k, v in sorted(byprod.items(), key=lambda x: -sum(x[1].values()))})
+
+# --- the proposed families, one row each: what it draws, the dropdowns it needs, how many charts and models use it
+def fam_of(r):
+    s = r['spec']
+    if s['mode'] == 'Chance of a limit': return 'Chance'
+    if s['mode'] == 'Amount: expected / percentile': return 'Amount (expected, percentile)'
+    if s['mode'] == 'Ensemble: members / spread': return 'Ensemble (members, spread)'
+    if s['mode'] == 'Anomaly': return 'Anomaly'
+    if s['mode'] == 'Change': return 'Change'
+    if re.search(r'hour|precip', s['field'], re.I) and not r['id'].startswith(('prob', 'ens_')): return 'Precipitation (period)'
+    return 'Value (field at a level)'
+FAMDEF = {
+ 'Value (field at a level)': ('One field drawn as a fill, with the overlays ticked', 'Field | Level or layer | (Units)', 'The default for deterministic models; 200/250/300 mb winds start without barbs'),
+ 'Precipitation (period)': ('Accumulated precipitation over a period, with MSLP and thickness or the type bands', 'Period | Shown as (amount, type, rate) | Units', 'Period list is per model (GFS 1-60 h, NBM 1/6/12 h, IFS 3-60 h)'),
+ 'Chance': ('Chance of the product exceeding a limit, with a highlight above a chosen chance', 'Product | Window | Limit (with direction) | Kind (ensemble, neighborhood, pooled)', '17 charts need two limits; 35 have a fixed definition; 7 are probability-matched means and belong to Amount'),
+ 'Amount (expected, percentile)': ('An amount from an ensemble: the expected value or a percentile', 'Product | Window | Statistic (expected, 5th ... 95th percentile)', 'WPC percentiles and the extreme forecast index charts (put here by their names, not checked one by one)'),
+ 'Ensemble (members, spread)': ('The ensemble itself: mean, spread, or the members as contours (spaghetti)', 'Field | Level | Statistic (mean, spread, member, all members) | Contour value (for the spaghetti)', 'The spaghetti contour value is the dependent list (a height value that exists for that level)'),
+ 'Anomaly': ('The field minus its climate', 'Field | Level | (Climate period)', 'Few: GFS 500 and 700 mb heights and MSLP, the CFS and the EC46'),
+ 'Change': ('The field now minus the field at an earlier time', 'Field | Level | Since (F00, 6, 12, 24, 48 h earlier)', 'Few per model; GFS has MSLP, 500 mb height and snow depth'),
+}
+fc = collections.defaultdict(lambda: [0, set(), set(), []])
+for r in rows:
+    k = fam_of(r); fc[k][0] += 1; fc[k][1].add(r['src']); fc[k][2].add(r['id']); fc[k][3].append(r['id'])
+with open(os.path.join(here, 'families-proposed.csv'), 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['family', 'what it draws', 'dropdowns (in order)', 'chart entries', 'distinct ids', 'models', 'example ids', 'where it does not fit'])
+    for k in FAMDEF:
+        n, ms, ids, ex = fc[k]
+        w.writerow([k, FAMDEF[k][0], FAMDEF[k][1], n, len(ids), len(ms), ' '.join(sorted(ids)[:4]), FAMDEF[k][2]])
+    ov = [('Contours: pressure (MSLP)', 'Pressure'), ('Contours: heights', 'Heights'), ('Contours: thickness', 'Thickness'), ('Contours: temperature', 'Temperature'), ('Contours: omega', 'Omega'), ('Contours: ensemble members / mean / spread', 'Members'), ('Contours: chance (line form of Chance)', 'Chance contour'), ('Contours: other (CAPE/CIN, ship, CFS)', 'Other lines'), ('Contours: waves', 'Waves')]
+    for name, fm in ov:
+        ids = {r['id'] for r in rows if fm in r['spec']['fams'] or (fm == 'Ensemble mean / spread' and 'Ensemble mean / spread' in r['spec']['fams'])}
+        if fm == 'Members': ids |= {r['id'] for r in rows if 'Ensemble mean / spread' in r['spec']['fams']}
+        n = sum(1 for r in rows if r['id'] in ids); ms = {r['src'] for r in rows if r['id'] in ids}
+        w.writerow([name, 'An overlay family: its own levels, line style and spacing', 'Level (when it has levels) | Style (swatch)', n, len(ids), len(ms), ' '.join(sorted(ids)[:4]), {'Other lines': 'Not a family: each needs its own line family or stays a one-off chart', 'Chance contour': 'Folds into the Chance highlight', 'Members': 'Needs a family that draws many members at once (up to 51)'}.get(fm, '')])
+    for name, cond, dd in [('Wind barbs (levels stack)', lambda r: r['spec']['barbs'], 'Level toggles, one colour each'), ('Streamlines', lambda r: r['spec']['stream'], 'Level'), ('Type bands (rain / snow / mixed)', lambda r: r['spec']['ov'] > 0, 'None (an option on the fill)')]:
+        rs = [r for r in rows if cond(r)]
+        w.writerow([name, 'An overlay', dd, len(rs), len({r['id'] for r in rs}), len({r['src'] for r in rs}), ' '.join(sorted({r['id'] for r in rs})[:4]), ''])
+print('FAMILIES: ' + ', '.join(f'{k} {fc[k][0]}' for k in FAMDEF))
