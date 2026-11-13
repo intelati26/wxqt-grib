@@ -41,7 +41,7 @@ namespace {
 // the numbers of a label, with the unit that follows each ("500mb", "6 hours")
 std::vector<std::string> numbersOf(const std::string& label) {
     std::vector<std::string> out;
-    static const std::regex number{R"(\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?(?:\s?(?:mb|hours?|hrs?|in|kt|mph|%)|m\b)?)"};
+    static const std::regex number{R"(\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?(?:[\s-]?(?:mb|hours?|hrs?|in|kt|mph|%)|m\b)?)"};
     for (std::sregex_iterator it{label.begin(), label.end(), number}, end; it != end; ++it) {
         out.push_back((*it)[0].str());
     }
@@ -161,14 +161,15 @@ std::vector<ChecksPicker::Kind> ChecksPicker::kinds(const std::vector<ProductPic
         std::string group = alias != nullptr && !ChartAlias::oneOff(*alias) ? std::string{alias->group} : "one:" + e.id;
         if (alias != nullptr) {
             const std::string family = alias->family;
-            if ((family == "Chance" || family.compare(0, 12, "Product grid") == 0) && *alias->product != '\0') {   // a product of hours, types and limits: one kind for the product
+            if ((family == "Chance" || family.compare(0, 12, "Product grid") == 0 || family.compare(0, 6, "Amount") == 0) && *alias->product != '\0') {   // a product of hours, types and limits: one kind for the product
                 group = "product:" + std::string{alias->product};
                 partsOf[e.id] = {alias->window, alias->kind, alias->limit};
             }
         }
-        const auto found = at.find(e.group + "|" + group);
+        const std::string slot = group.compare(0, 8, "product:") == 0 ? group : e.group + "|" + group;   // (a product is one kind whatever the categories of its charts: WPC's rain amounts and its chances of an amount)
+        const auto found = at.find(slot);
         if (found == at.end()) {
-            at[e.group + "|" + group] = out.size();
+            at[slot] = out.size();
             out.push_back({e.label, e.group, {e}, {}});
         } else {
             out[found->second].charts.push_back(e);
@@ -248,8 +249,12 @@ std::vector<ChecksPicker::Kind> ChecksPicker::kinds(const std::vector<ProductPic
         for (const auto i : varying) {
             const auto token = nums.front()[i];
             const auto place = name.find(token);
-            if (place != std::string::npos) {
-                name.replace(place, token.size(), "#");
+            if (place != std::string::npos) {   // (the number only: "1-hour" becomes "#-hour")
+                std::size_t digits = 0;
+                while (digits < token.size() && (std::isdigit(static_cast<unsigned char>(token[digits])) || token[digits] == '.' || (token[digits] == '-' && digits + 1 < token.size() && std::isdigit(static_cast<unsigned char>(token[digits + 1]))))) {
+                    digits++;
+                }
+                name.replace(place, digits, "#");
             }
         }
         if (name.compare(0, 2, "# ") == 0) {   // ("#mb Wind and Height": the number is the Value row's)

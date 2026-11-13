@@ -393,6 +393,16 @@ for i, rs in sorted(byid2.items()):
         p = dict(product=g['product'], window=g['window'], limits=g['limit'], kind=g['type'])
     elif g and re.search(r'rh2m_s10m_prob', i):
         fm, ok, note = 'Chance', True, ''
+    if fm == 'Chance' and (m := re.match(r'ppp_(\d+)h_(qpf|sn|zr)_prob_', i)):   # WPC: the chance of an amount is the same product as the amount (rain, snow, ice), a type of its own
+        p = dict(p, product={'qpf': 'Rain', 'sn': 'Snow', 'zr': 'Ice (freezing rain)'}[m.group(2)], window=m.group(1) + ' h', kind='Chance of an amount')
+    if fm.startswith('Amount'):   # an amount from an ensemble: its product, its hours and its statistic (expected, a percentile, the extreme forecast index)
+        lab = r['lab']
+        if m := re.match(r'ppp_(\d+)h_(qpf|sn|zr)_(expected|p\d+)$', i):
+            p = dict(product={'qpf': 'Rain', 'sn': 'Snow', 'zr': 'Ice (freezing rain)'}[m.group(2)], window=m.group(1) + ' h', limits='', kind='Expected amount' if m.group(3) == 'expected' else m.group(3)[1:] + 'th percentile')
+        elif m := re.match(r'(\d+)th percentile (.*)$', lab, re.I):
+            p = dict(product=m.group(2), window='', limits='', kind=m.group(1) + 'th percentile')
+        elif m := re.match(r'Extreme Forecast Index (.*)$', lab):
+            p = dict(product=m.group(1), window='', limits='', kind='Extreme forecast index')
     alias.append(dict(id=i, label=r['lab'], category=r['cat'], models=len(rs), family=fm if ok else 'One-off', reads=('yes' if ok else note), field=s['field'] if s['field'] != '(lines only)' else '', level=s['level'], mode=s['mode'],
                       chance=' | '.join(x for x in (p.get('product', ''), p.get('window', ''), p.get('limits', ''), p.get('kind', '')) if x), product=p.get('product', ''), window=p.get('window', ''), limit=p.get('limits', ''), kind=p.get('kind', ''), contours=', '.join(s['fams']), barbs='yes' if s['barbs'] else '', stream='yes' if s['stream'] else '', bands='yes' if s['ov'] else '',
                       detail=DETAIL.get(i, ''), values=' | '.join(re.findall(r'\d+(?:\.\d+)?', i)), group=key(i), group_size=gsize[key(i)], single='yes' if gsize[key(i)] == 1 else '', differs_by_model='yes' if len({(x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) for x in rs}) > 1 else ''))
