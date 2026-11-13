@@ -1,0 +1,31 @@
+FORWARD 1: 2656 chart entries, 865 distinct ids; ids whose mode, line families or barbs differ between models: 27
+   500_vort_ht: AIFS=Relative vorticity/Heights; AIGFS=Relative vorticity/Heights; AROME=Relative vorticity/Heights; ARPEGE=Relative vorticity/Heights; ERA5=Relative vorticity/
+   850_vort_ht: AIFS=Relative vorticity/Heights; AIGFS=Relative vorticity/Heights; AROME=Relative vorticity/Heights; ARPEGE=Relative vorticity/Heights; ERA5=Relative vorticity/
+   precip_p01: GEFS=Precipitation, hours #/; GFS=Precipitation, hours #/Pressure,Thickness; HRRR-AK=Precipitation, hours #/Pressure,Thickness; HRRR=Precipitation, hours #/Pres
+   precip_p03: GEFS=Precipitation, hours #/; GEPS=Precipitation, hours #/Pressure,Thickness; GFS=Precipitation, hours #/Pressure,Thickness; HRRR-AK=Precipitation, hours #/Pres
+   precip_p06: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Mean precipitation, # hours/Ensemble mean / spread; GEPS=P
+   precip_p12: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Precipitation, hours #/; GEPS=Precipitation, hours #/Press
+   precip_p24: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Mean precipitation, # hours/Ensemble mean / spread; GEPS=P
+   precip_p36: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Precipitation, hours #/; GEPS=Precipitation, hours #/Press
+   precip_p48: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Precipitation, hours #/; GEPS=Precipitation, hours #/Press
+   precip_p60: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Precipitation, hours #/; GEPS=Precipitation, hours #/Press
+FORWARD 2: charts with neither a fill nor lines: 0 
+FORWARD 3: ids that start with a level but no level was read: 0 []
+BACKWARD 1: expanding every preset with its dropdown values: ids lost 0; combinations that are not charts (gaps in the dropdowns) 448
+   WPC-PPP: 248 gaps, e.g. ['ppp_24h_qpf_prob_0p0', 'ppp_24h_qpf_prob_0p00', 'ppp_24h_qpf_prob_12p00']
+   GEFS: 65 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '500_510_558_ht']
+   SPCREFS: 25 gaps, e.g. ['bliz_prob_t<0p250_t>030_t>0p010', 'bliz_prob_t<0p500_t>035_t>0p010', 'qpf_01h_acc_prob_t>002']
+   IFS-ENS: 24 gaps, e.g. ['spag_500_522_570', 'spag_500_522_576', 'spag_500_522_582']
+   ENS-ALL: 24 gaps, e.g. ['all_spag_500_522_570', 'all_spag_500_522_576', 'all_spag_500_522_582']
+   GFS: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
+   RRFS: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
+   RRFS-AK: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
+   RRFS-HI: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
+   RRFS-PR: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
+   RRFS-FIREWX: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
+   RRFS-NA: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
+BACKWARD 2: vocabulary entries no chart uses: 0
+VOCABULARY: barbs 1, extra fills 1, fill field 375, level 17, line family 10, mode 6, streamlines 1
+PRESETS: 1890 presets for 2656 chart entries across 76 models (largest: SPCREFS 113 of 168, RRFS 75 of 94, RRFS-AK 75 of 94, RRFS-HI 75 of 94, RRFS-PR 75 of 94, RRFS-FIREWX 75 of 94)
+CORE: 45 distinct combinations of mode + line families + barbs + streamlines + bands when the fill field and the level are dropdowns
+SHORT LIST: 536 presets for 2656 chart entries; per model: GEFS 29/122, RRFS 18/94, RRFS-AK 18/94, RRFS-HI 18/94, RRFS-PR 18/94, RRFS-FIREWX 18/94, RRFS-NA 18/94, HRRR 18/94, HRRR-AK 18/94, GFS 17/56, AIGFS 13/42, IFS 13/46

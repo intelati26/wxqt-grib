@@ -263,7 +263,7 @@ int main(int argc, char * argv[]) {
                     for (const auto& set : product.barbSets) {
                         barbs += (barbs.empty() ? "" : ";") + set.name;
                     }
-                    std::fprintf(stderr, "CHART %s|%s|%s|%s|%s|%s|%s|%s|%d\n", product.source.c_str(), GfsChart::category(product).c_str(), product.id.c_str(), product.label.c_str(), product.linesOnly ? "" : product.fillTitle.c_str(), lines.c_str(), barbs.c_str(), product.streamU.empty() ? "" : "streamlines", static_cast<int>(product.overlays.size()));
+                    std::fprintf(stderr, "CHART %s|%s|%s|%s|%s|%s|%s|%s|%d\n", product.source.c_str(), GfsChart::category(product).c_str(), product.id.c_str(), product.label.c_str(), product.linesOnly ? "" : (product.fillTitle.empty() && product.fillTitleFor ? product.fillTitleFor(12) : product.fillTitle).c_str(), lines.c_str(), barbs.c_str(), product.streamU.empty() ? "" : "streamlines", static_cast<int>(product.overlays.size()));
                 }
                 }
             }
