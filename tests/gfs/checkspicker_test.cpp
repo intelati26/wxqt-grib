@@ -41,7 +41,8 @@ int main(int argc, char ** argv) {
             std::set<std::string> values;
             for (size_t i = 0; i < k.charts.size(); i++) {
                 CHECK(seen.insert(k.charts[i].id).second);   // in one kind only
-                CHECK(k.parts.empty() ? k.charts[i].group == k.group : true);   // (a product kind has the charts of all its categories)
+                const auto * alias = ChartAlias::find(k.charts[i].id);
+                CHECK(k.charts[i].group == k.group || (alias != nullptr && *alias->product != '\0'));   // (a product's kind has the charts of all its categories)
                 if (k.charts.size() > 1) {
                     const bool ok = !k.values[i].empty() && values.insert(k.values[i]).second;
                     if (!ok) {
