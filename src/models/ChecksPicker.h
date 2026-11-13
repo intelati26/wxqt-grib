@@ -6,6 +6,7 @@
 #ifndef CHECKSPICKER_H
 #define CHECKSPICKER_H
 
+#include <array>
 #include <functional>
 #include <string>
 #include <map>
@@ -38,6 +39,8 @@ public:
         std::string group;
         std::vector<ProductPicker::Entry> charts;
         std::vector<std::string> values;   // one per chart: "500mb", "6 hours" ("" when the kind has one chart)
+        // a product of hours, types and limits (a chance, an ensemble statistic: ChartAlias's product, window, kind and limit): one per chart, {hour, type, limit}; empty for the other kinds
+        std::vector<std::array<std::string, 3>> parts;
     };
     static std::vector<Kind> kinds(const std::vector<ProductPicker::Entry>& entries);
 
@@ -45,6 +48,8 @@ private:
     void fillKinds();   // the Chart list: the favorites, then the kinds that match the search (and always the one on show)
     void toggleFavorite();
     void fillValues(size_t kind, const std::string& select);
+    void fillAxes(size_t kind, const std::string& chartId);   // the Hour, Type and Limit lists of a product kind: each offers what exists with the ones chosen before it
+    void pickAxis(int axis);                                  // 0 hour, 1 type, 2 limit
     void fillPresets();
     void pickKind(int row);
     void pickValue(int row);
@@ -66,6 +71,10 @@ private:
     std::map<std::string, std::string> labelOf;   // chart id -> its label
     QComboBox * valueBox{};
     QLabel * valueLabel{};
+    QWidget * variantBody{};
+    QLabel * variantLabel{};
+    std::array<QComboBox *, 3> axes{};
+    size_t shownKind{0};
     QLabel * note{};
     struct Family {
         QString name;

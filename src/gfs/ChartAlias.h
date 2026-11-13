@@ -26,6 +26,10 @@ struct Entry {
     const char * level;       // "500 mb", "850-700 mb", "10 m" ("" none)
     const char * mode;        // "Value", "Chance of a limit", "Amount: expected / percentile", "Ensemble: members / spread", "Anomaly", "Change"
     const char * chance;      // "product | hour | limit | kind" of a chance or product-grid chart ("" none)
+    const char * product;     // a chance or a product grid chart's parts: what it is of ("Snowfall", "2-5 km Updraft Helicity"), the hour ("24 h", "instant"), the limit ("> 2 in") and the kind
+    const char * window;      // ("Ensemble mean", "Paintball", "Neighborhood probability", "ensemble"); empty for every other chart
+    const char * limit;
+    const char * kind;
     const char * values;      // the numbers in the id, in order, as the picker's dropdown values ("24 | 05": the hour and the percentile); with the rest they name the chart exactly
     const char * contours;    // the line families, comma separated ("Pressure, Thickness")
     bool barbs;
