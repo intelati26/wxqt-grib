@@ -8168,6 +8168,23 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             }
             probe.fields.push_back({title.toStdString(), GfsGrid::reducedTo(GfsGrid::cropped(fill, sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
         }
+        for (const auto& [key, overlayRamp] : product.overlays) {   // the fills ticked onto the chart (each its own read-out line)
+            const auto found = grids.find(key);
+            const auto bar = key.find("fill|");
+            if (found == grids.end() || bar == std::string::npos) {   // (the key may carry the prefix of the model it is of)
+                continue;
+            }
+            std::string name = key.substr(bar + 5);
+            auto quantity = Quantity::Other;
+            if (const auto c = name.rfind(" (C)"); c != std::string::npos && c + 4 == name.size()) {   // a temperature: shown in the user's units like the chart's own
+                name.erase(c);
+                quantity = Quantity::Temperature;
+                if (const auto unit = unitText(quantity, us); !unit.isEmpty()) {
+                    name += " (" + unit.toStdString() + ")";
+                }
+            }
+            probe.fields.push_back({name, GfsGrid::reducedTo(GfsGrid::cropped(found->second, sector.west, sector.south, sector.east, sector.north), 120000), 1.0, quantity, quantity != Quantity::Other});
+        }
         for (const auto& set : product.contours) {
             probe.fields.push_back({set.title.empty() ? set.key : set.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.key), sector.west, sector.south, sector.east, sector.north), 120000), set.scale, Quantity::Other, false});
         }
