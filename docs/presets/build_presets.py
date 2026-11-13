@@ -370,3 +370,30 @@ with open(os.path.join(here, 'models-check-exceptions.csv'), 'w', newline='') as
     w = csv.writer(f); w.writerow(['model', 'chart id', 'label', 'family', 'why it did not read']); w.writerows(exc)
 tot = sum(x[1] for x in mrows); okn = sum(x[2] for x in mrows)
 print(f'MODELS: {len(mrows)} models, {okn} of {tot} chart entries read by a family ({round(100*okn/tot)}%); models fully read {sum(1 for x in mrows if x[1]==x[2])}; under 90%: ' + ', '.join(f'{x[0]} {x[3]}%' for x in sorted(mrows, key=lambda x: x[3]) if x[3] < 90))
+
+# --- the alias table: every distinct chart id read as a family and its settings (the id and the checks give each other)
+byid2 = collections.defaultdict(list)
+for r in rows: byid2[r['id']].append(r)
+gsize = collections.Counter(key(i) for i in byid2)
+alias = []
+for i, rs in sorted(byid2.items()):
+    lead = collections.Counter((x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) for x in rs).most_common(1)[0][0]
+    r = next(x for x in rs if (x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) == lead)
+    fm, ok, note = axes(r); s = r['spec']
+    p = chance_parse(r) if fm == 'Chance' else {}
+    alias.append(dict(id=i, label=r['lab'], category=r['cat'], models=len(rs), family=fm if ok else 'One-off', reads=('yes' if ok else note), field=s['field'] if s['field'] != '(lines only)' else '', level=s['level'], mode=s['mode'],
+                      chance=' | '.join(x for x in (p.get('product', ''), p.get('window', ''), p.get('limits', ''), p.get('kind', '')) if x), contours=', '.join(s['fams']), barbs='yes' if s['barbs'] else '', stream='yes' if s['stream'] else '', bands='yes' if s['ov'] else '',
+                      group=key(i), group_size=gsize[key(i)], single='yes' if gsize[key(i)] == 1 else '', differs_by_model='yes' if len({(x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) for x in rs}) > 1 else ''))
+cols = ['id', 'label', 'category', 'models', 'family', 'reads', 'field', 'level', 'mode', 'chance', 'contours', 'barbs', 'stream', 'bands', 'group', 'group_size', 'single', 'differs_by_model']
+with open(os.path.join(here, 'alias-table.csv'), 'w', newline='') as f:
+    w = csv.DictWriter(f, cols, extrasaction='ignore'); w.writeheader(); w.writerows(alias)
+singles = [a for a in alias if a['single'] == 'yes' or a['family'] == 'One-off']
+print(f'ALIAS: {len(alias)} ids; family read {sum(1 for a in alias if a["family"] != "One-off")}; one-off {sum(1 for a in alias if a["family"] == "One-off")}; singles (group of 1) {sum(1 for a in alias if a["single"])}; singles or one-offs {len(singles)}')
+# the singles: those that look alike (same mode, lines, barbs, bands) could be one preset with a field dropdown
+clu = collections.defaultdict(list)
+for a in singles: clu[(a['category'], a['mode'], a['contours'], a['barbs'], a['stream'], a['bands'])].append(a)
+with open(os.path.join(here, 'singles.csv'), 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['category', 'mode', 'contours', 'barbs', 'streamlines', 'bands', 'singles that look alike', 'one preset with a field dropdown could replace', 'models (most used)', 'examples (field)'])
+    for k, v in sorted(clu.items(), key=lambda x: (x[0][0], -len(x[1]))):
+        w.writerow([*k, len(v), 'yes' if len(v) > 1 else '', max(a['models'] for a in v), '; '.join(f"{a['id']} ({a['field'][:28]})" for a in v[:5])])
+print(f'SINGLES: {len(singles)} ids in {len(clu)} look-alike groups; groups of 2 or more: {sum(1 for v in clu.values() if len(v) > 1)} holding {sum(len(v) for v in clu.values() if len(v) > 1)} ids; alone in their group: {sum(1 for v in clu.values() if len(v) == 1)}')
