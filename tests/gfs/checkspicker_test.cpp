@@ -4,6 +4,8 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
+#include <QLineEdit>
+#include <QPushButton>
 #include <QSettings>
 #include "util/MyApplication.h"
 #include <cstdio>
@@ -12,6 +14,7 @@
 #include "gfs/ChartPreset.h"
 #include "gfs/GfsModels.h"
 #include "models/ChecksPicker.h"
+#include "util/Utility.h"
 
 static int failures = 0;
 #define CHECK(c) do { if (!(c)) { std::printf("FAIL line %d: %s\n", __LINE__, #c); failures++; } } while (0)
@@ -109,6 +112,35 @@ int main(int argc, char ** argv) {
             }
         }
         CHECK(picks.size() == 2 && picks.back() == "500_vort_ht");
+        // the search narrows the Chart list (and always keeps the chart on show); clearing it brings the list back
+        const int allItems = kinds->count();
+        auto * search = dialog.findChild<QLineEdit *>();
+        CHECK(search != nullptr);
+        search->setText("precipitable");
+        CHECK(kinds->count() < allItems && kinds->count() >= 2);
+        bool hasPw = false;
+        for (int i = 0; i < kinds->count(); i++) {
+            hasPw = hasPw || kinds->itemText(i).contains("Precipitable");
+        }
+        CHECK(hasPw);
+        search->setText("");
+        CHECK(kinds->count() == allItems);
+        // favorites: the star keeps the chart under MODELFAV_GFS (as the Charts... picker does), a Favorites group heads the list, and choosing the favorite picks that chart
+        QPushButton * starButton = nullptr;
+        for (auto * b : dialog.findChildren<QPushButton *>()) {
+            if (b->maximumWidth() == 40) {
+                starButton = b;
+            }
+        }
+        CHECK(starButton != nullptr);
+        starButton->click();
+        CHECK(Utility::readPref("MODELFAV_GFS", "") == "500_vort_ht");
+        CHECK(kinds->itemText(0) == "Favorites" && kinds->itemText(1).contains("Vorticity"));
+        const size_t before = picks.size();
+        kinds->setCurrentIndex(1);   // (the favorite is the chart on show: nothing is picked again)
+        CHECK(picks.size() == before);
+        starButton->click();
+        CHECK(Utility::readPref("MODELFAV_GFS", "x").empty() && kinds->itemText(0) != "Favorites");
         ChartPreset::put({"Mine", "850_temp_ht", {boxes.front()->property("id").toString().toStdString()}});
         dialog.close();
     }
