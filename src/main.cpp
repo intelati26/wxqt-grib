@@ -254,7 +254,17 @@ int main(int argc, char * argv[]) {
             const auto model = qEnvironmentVariable("WXQT_CHARTS_DUMP").toStdString();
             for (const auto& product : GfsChart::products()) {
                 if (model == "*" || product.source == model) {
-                    std::fprintf(stderr, "CHART %s|%s|%s|%s\n", product.source.c_str(), GfsChart::category(product).c_str(), product.id.c_str(), product.label.c_str());
+                    {
+                    std::string lines;
+                    for (const auto& set : product.contours) {
+                        lines += (lines.empty() ? "" : ";") + (set.title.empty() ? set.key : set.title);
+                    }
+                    std::string barbs = product.barbU.empty() ? "" : "own";
+                    for (const auto& set : product.barbSets) {
+                        barbs += (barbs.empty() ? "" : ";") + set.name;
+                    }
+                    std::fprintf(stderr, "CHART %s|%s|%s|%s|%s|%s|%s|%s|%d\n", product.source.c_str(), GfsChart::category(product).c_str(), product.id.c_str(), product.label.c_str(), product.linesOnly ? "" : product.fillTitle.c_str(), lines.c_str(), barbs.c_str(), product.streamU.empty() ? "" : "streamlines", static_cast<int>(product.overlays.size()));
+                }
                 }
             }
             for (const auto& choice : GfsChart::overlayChoices(model)) {
