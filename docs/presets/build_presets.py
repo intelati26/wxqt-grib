@@ -170,3 +170,62 @@ with open(os.path.join(here, 'checks-by-family.csv'), 'w', newline='') as f:
     w.writerow(['family', 'example_label', 'category', 'models', 'charts', 'mode', 'fill_light (field)', 'fill_dark'] + ['lines: ' + x for x in FAMS] + ['barbs', 'streamlines', 'dropdown: other numbers', 'dropdown: level', 'dropdown: period', 'dropdown: limit / percentile', 'units', 'default scale', 'differs_by_model'])
     w.writerows(grid)
 print(f'CHECKS GRID: {len(grid)} families')
+
+# --- GFS as the standard: the preset list and the pickers behind it
+gfs = []; seen = set()
+for r in rows:
+    if r['src'] == 'GFS' and r['id'] not in seen: seen.add(r['id']); gfs.append(r)
+def gfs_layer(r):
+    m = re.search(r'(\d{3,4})\s?-\s?(\d{3,4})\s?mb', r['lab'] + ' ' + ' '.join(r['lines']))
+    return f'{m.group(1)}-{m.group(2)} mb' if m else ''
+def lines_at(r):
+    out = []
+    for f in r['spec']['fams']:
+        ts = [strip_units(t) for t in r['lines'] if fam(t) == f]
+        out.append(f + (' @ ' + '; '.join(ts) if f in ('Thickness', 'Temperature') else (' @ ' + r['spec']['level'] if r['spec']['level'] and f in ('Heights', 'Omega') else (' (MSLP)' if f == 'Pressure' else ''))))
+    return out
+def barbs_at(r):
+    if not r['barbs']: return ''
+    lv = r['spec']['level']
+    if lv and not lv.endswith('2 m'): return lv
+    if re.search(r'10 ?m', r['lab'] + r['id']): return '10 m'
+    return 'chart level'
+gp = collections.defaultdict(list)
+for r in gfs:
+    s = r['spec']; gp[(s['mode'], re.sub(r'\d+(?:\.\d+)?', '#', s['field']), s['fams'], s['barbs'], s['stream'], s['ov'] > 0, re.sub(r'^\d+_\d+_thick', 'THICK', re.sub(r'^\d+_\d+_thick_type', 'THICK_type', key(r['id']))) if 'thick' in r['id'] else key(r['id']))].append(r)
+def dd(rs):
+    k0 = key(rs[0]['id']); out = []
+    if len(rs) < 2: return out
+    nums = []
+    c0 = len(re.findall(r'\d+(?:\.\d+)?', rs[0]['id']))
+    for col in zip(*[re.findall(r'\d+(?:\.\d+)?', x['id']) for x in rs if len(re.findall(r'\d+(?:\.\d+)?', x['id'])) == c0]):
+        v = sorted(set(col), key=float)
+        if len(v) > 1: nums.append('/'.join(v))
+    if 'thick' in k0: return ['Layer: ' + ' / '.join(sorted({gfs_layer(x) for x in rs if gfs_layer(x)}))]
+    if re.search(r'p#$', k0): return ['Period (h): ' + nums[0].replace('01', '1').replace('03', '3').replace('06', '6')]
+    return [('Level (mb): ' if any(r['spec']['level'] for r in rs) else 'Number: ') + n for n in nums]
+with open(os.path.join(here, 'gfs-presets.csv'), 'w', newline='') as f:
+    w = csv.writer(f)
+    w.writerow(['preset', 'category', 'mode', 'fill (light)', 'fill (dark / highlight)', 'value dropdown(s)', 'contours', 'barbs', 'streamlines', 'type bands', 'charts covered', 'chart ids'])
+    for k, rs in sorted(gp.items(), key=lambda x: (x[1][0]['cat'], -len(x[1]))):
+        r0 = rs[0]
+        lab = r0['lab'] if len(rs) == 1 else re.sub(r'\d+(?:\.\d+)?', '#', r0['lab'])
+        lv = sorted({x['spec']['level'] for x in rs if x['spec']['level']})
+        w.writerow([lab, r0['cat'], k[0], k[1] if k[1] != '(lines only)' else '', 'bands: rain / snow / mixed' if k[5] else '', ' | '.join(dd(rs)),
+                    ' + '.join(lines_at(r0)), ('barbs @ ' + barbs_at(r0)) if r0['barbs'] else '', 'yes' if k[4] else '', 'yes' if k[5] else '', len(rs), ' '.join(x['id'] for x in rs)])
+ent = collections.defaultdict(list)
+def add(p, e, r): ent[(p, e)].append(r['id'])
+for r in gfs:
+    s = r['spec']
+    add('Mode', s['mode'], r)
+    if s['field'] != '(lines only)': add('Fill field', s['field'], r)
+    if s['level']: add('Level / layer', s['level'], r)
+    if re.search(r'hour', s['field'], re.I): add('Period', re.sub(r'\D', '', re.search(r'p(\d+)$', r['id']).group(1)) + ' h' if re.search(r'p(\d+)$', r['id']) else 'total / since start', r)
+    for t in r['lines']: add('Contours: ' + fam(t), strip_units(t), r)
+    if r['barbs']: add('Barbs (levels stack)', barbs_at(r), r)
+    if s['stream']: add('Streamlines', s['level'] or 'chart level', r)
+    if s['ov']: add('Type bands', 'rain / snow / mixed', r)
+with open(os.path.join(here, 'gfs-pickers.csv'), 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['picker', 'entry', 'GFS charts using it', 'example ids'])
+    for (p, e), ids in sorted(ent.items(), key=lambda x: (x[0][0], -len(x[1]))): w.writerow([p, e, len(ids), ' '.join(ids[:4])])
+print(f'GFS: {len(gfs)} charts, {len(gp)} presets, {len(ent)} picker entries')
