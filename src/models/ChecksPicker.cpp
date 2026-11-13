@@ -15,6 +15,7 @@
 #include <QInputDialog>
 #include <QMenu>
 #include <QStandardItemModel>
+#include <QWidgetAction>
 #include <QVBoxLayout>
 #include "gfs/ChartAlias.h"
 #include "gfs/ChartPreset.h"
@@ -158,51 +159,68 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
     auto * rule = new QFrame{this};
     rule->setFrameShape(QFrame::HLine);
     layout->addWidget(rule);
-    // the lines and barbs one row to a family: "500mb height", "850mb height" are the chips 500mb and 850mb of the row "height"; what has no level is a chip of its own in the row "other"
+    // the lines, barbs and fills one dropdown to a family: "500mb height", "850mb height" are the levels 500mb and 850mb of the button "Height"; what has no level is a button of its own
+    // ("Sea level pressure"). The buttons say how many levels are on, and a line under them says what is on.
     const auto splitLabel = [] (const std::string& label) {
         static const std::regex lead{R"(^((?:\d+-)?\d+\s?mb|\d+\s?m)\s+(.*)$)"};
         std::smatch m;
         return std::regex_match(label, m, lead) ? std::pair<std::string, std::string>{m[2].str(), m[1].str()} : std::pair<std::string, std::string>{"other", label};
     };
-    for (const auto& group : {std::string{"Lines"}, std::string{"Wind barbs"}, std::string{"Fill"}}) {
+    const std::vector<std::pair<std::string, QString>> groups{{"Lines", "Contours"}, {"Wind barbs", "Barbs"}, {"Fill", "Fills (drawn over the chart's own)"}};
+    for (const auto& [group, title] : groups) {
         std::vector<std::string> order;
-        std::map<std::string, std::vector<const GfsChart::OverlayChoice *>> rows;
+        std::map<std::string, std::vector<const GfsChart::OverlayChoice *>> byFamily;
         for (const auto& c : choices) {
             if (c.group != group) {
                 continue;
             }
             const auto family = group == "Wind barbs" ? std::string{"barbs"} : splitLabel(c.label).first;
-            if (rows.find(family) == rows.end()) {
+            if (byFamily.find(family) == byFamily.end()) {
                 order.push_back(family);
             }
-            rows[family].push_back(&c);
+            byFamily[family].push_back(&c);
         }
+        if (order.empty()) {
+            continue;
+        }
+        auto * body = new QWidget{this};
+        auto * flow = new QHBoxLayout{body};
+        flow->setContentsMargins(0, 0, 0, 0);
         for (const auto& family : order) {
-            auto * body = new QWidget{this};
-            auto * flow = new QHBoxLayout{body};
-            flow->setContentsMargins(0, 0, 0, 0);
-            for (const auto * c : rows[family]) {
+            Family f;
+            f.name = family == "barbs" ? "Barbs" : family == "other" ? "Pressure" : QString::fromStdString(family);
+            f.name[0] = f.name[0].toUpper();
+            f.group = group;
+            f.button = new QPushButton{body};
+            auto * menu = new QMenu{f.button};
+            for (const auto * c : byFamily[family]) {
                 const auto parts = splitLabel(c->label);
-                auto * box = new QCheckBox{QString::fromStdString(group == "Wind barbs" ? (parts.first == "other" ? c->label : parts.second) : (parts.first == "other" ? c->label : parts.second)), body};
+                auto * box = new QCheckBox{QString::fromStdString(parts.first == "other" ? c->label : parts.second), menu};
                 box->setToolTip(QString::fromStdString(c->label));
                 box->setProperty("id", QString::fromStdString(c->id));
                 box->setChecked(std::find(ticked.begin(), ticked.end(), c->id) != ticked.end());
                 QObject::connect(box, &QCheckBox::toggled, this, [this] { ticks(); });
-                flow->addWidget(box);
+                auto * action = new QWidgetAction{menu};   // (a widget in the menu: ticking it does not close the menu)
+                action->setDefaultWidget(box);
+                menu->addAction(action);
+                f.boxes.push_back(box);
                 boxes.push_back(box);
             }
-            flow->addStretch(1);
-            auto name = family == "barbs" ? std::string{"Barbs"} : family == "other" ? std::string{"Lines"} : family;
-            name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
-            if (group == "Fill") {   // (a fill ticked on is drawn over the chart's own, lighter)
-                name = "Fill: " + family;
-            }
-            row(QString::fromStdString(name), body);
+            f.button->setMenu(menu);
+            flow->addWidget(f.button);
+            families.push_back(f);
         }
+        flow->addStretch(1);
+        row(title, body);
     }
+    summary = new QLabel{this};
+    summary->setWordWrap(true);
+    summary->setStyleSheet("color: palette(mid);");
+    layout->addWidget(summary);
     note = new QLabel{this};
     note->setWordWrap(true);
     layout->addWidget(note);
+    refreshFamilies();
     fillKinds();
     fillPresets();
     QObject::connect(kindBox, &QComboBox::currentIndexChanged, this, [this] (int i) { pickKind(i); });
@@ -295,7 +313,26 @@ void ChecksPicker::pickValue(int row) {
     }
 }
 
+void ChecksPicker::refreshFamilies() {
+    QStringList on;
+    for (const auto& f : families) {
+        QStringList levels;
+        for (auto * box : f.boxes) {
+            if (box->isChecked()) {
+                levels << box->text();
+            }
+        }
+        f.button->setText(f.name + (levels.isEmpty() ? QString{} : "  (" + QString::number(levels.size()) + ")"));
+        f.button->setStyleSheet(levels.isEmpty() ? QString{} : "font-weight: bold;");
+        if (!levels.isEmpty()) {
+            on << f.name + (f.group == "Fill" ? " fill" : "") + " " + (f.name == "Pressure" && levels.size() == 1 ? QString{} : levels.join(", "));
+        }
+    }
+    summary->setText(on.isEmpty() ? QString{"Ticked on top of the chart: nothing."} : "Ticked on top of the chart: " + on.join("  |  "));
+}
+
 void ChecksPicker::ticks() {
+    refreshFamilies();
     if (quiet) {
         return;
     }
@@ -316,6 +353,7 @@ void ChecksPicker::setState(const std::string& newChart, const std::vector<std::
         box->setChecked(std::find(ticked.begin(), ticked.end(), box->property("id").toString().toStdString()) != ticked.end());
     }
     quiet = false;
+    refreshFamilies();
     if (newChart != chart) {
         chart = newChart;
         fillKinds();
@@ -402,6 +440,7 @@ void ChecksPicker::applyPreset(const ChartPreset::Preset& p) {
         box->setChecked(std::find(r.selection.overlays.begin(), r.selection.overlays.end(), box->property("id").toString().toStdString()) != r.selection.overlays.end());
     }
     quiet = false;
+    refreshFamilies();
     chart = r.selection.param;
     fillKinds();
     if (onPick) {
