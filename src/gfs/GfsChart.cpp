@@ -8619,6 +8619,16 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     const double span = sector.east - sector.west;
     const double extremeRadius = span > 150.0 ? 12.0 : span > 80.0 ? 8.0 : 6.0;
     std::vector<QRectF> placed;   // where the numbers on the lines already are
+    // where the wind barbs will stand (they are drawn after the lines): the numbers keep clear of them when they can
+    const bool barbsShown = !options.noBarbs && ((!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) || std::any_of(product.barbSets.begin(), product.barbSets.end(), [&grids] (const auto& set) { return grids.count(set.u) && grids.count(set.v); }));
+    const auto barbLook = BarbGrid::look(span, area.width() / std::max(0.1, span));
+    const auto nearBarb = [&] (const QPointF& at) {
+        const double la = std::round(view.latAt(at.y()) / barbLook.step) * barbLook.step;
+        const double lonStep = BarbGrid::lonStep(barbLook.step, la);
+        const double lo = std::round(view.lonAt(at.x()) / lonStep) * lonStep;
+        const auto node = view.toPixel(lo, la);
+        return std::hypot(node.x() - at.x(), node.y() - at.y()) < barbLook.length * 0.8;
+    };
     for (const auto& set : product.contours) {
         const double interval = set.interval * (span > 150.0 ? 2.0 : 1.0);
         GfsGrid::Grid smooth;
@@ -8670,11 +8680,25 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                     p.setPen(pen);
                     p.drawPath(path);
                 }
-                // one label near the middle of a line long enough to carry it
+                // one label near the middle of a line long enough to carry it; not over another number, and, when the line has a free stretch, not over a wind barb
                 if (set.labelled && path.length() > 150.0) {
-                    const auto mid = path.pointAtPercent(0.5);
+                    QPointF mid = path.pointAtPercent(0.5);
                     const QString text = interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level)));
-                    const QRectF box{mid.x() - text.size() * 4.0 - 4.0, mid.y() - 9.0, text.size() * 8.0 + 8.0, 18.0};
+                    const auto boxAt = [&text] (const QPointF& at) { return QRectF{at.x() - text.size() * 4.0 - 4.0, at.y() - 9.0, text.size() * 8.0 + 8.0, 18.0}; };
+                    const auto free = [&] (const QPointF& at) {
+                        const auto b = boxAt(at);
+                        return area.adjusted(24, 14, -24, -14).contains(at) && !std::any_of(placed.begin(), placed.end(), [&b] (const QRectF& other) { return other.intersects(b); });
+                    };
+                    if (barbsShown) {   // along the line from the middle: the first place a number is clear of the others and of the barbs
+                        for (const double at : {0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8}) {
+                            const auto candidate = path.pointAtPercent(at);
+                            if (free(candidate) && !nearBarb(candidate)) {
+                                mid = candidate;
+                                break;
+                            }
+                        }
+                    }
+                    const QRectF box = boxAt(mid);
                     const bool crowded = std::any_of(placed.begin(), placed.end(), [&box] (const QRectF& other) { return other.intersects(box); });   // a number over another is unreadable: skip it
                     if (!crowded && area.adjusted(24, 14, -24, -14).contains(mid)) {
                         placed.push_back(box);
@@ -9056,33 +9080,72 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     if (!unit.isEmpty()) {
         fillTitle += " (" + unit + ")";
     }
-    QStringList lines;
+    // the line under the title: the fill, then the lines and the barbs, each name in the color it is drawn in ("850mb height (dam, red)" in red), so it reads as a key
+    struct Piece {
+        QString text;
+        QColor color;
+    };
+    const QColor ink{70, 70, 70};
+    std::vector<Piece> pieces;
+    pieces.push_back({fillTitle, ink});
+    bool anyLines = false;
     for (const auto& set : product.contours) {
-        if (!set.title.empty()) {
-            lines << QString::fromStdString(set.title);
+        if (set.title.empty()) {
+            continue;
+        }
+        pieces.push_back({anyLines ? ", " : (fillTitle.isEmpty() ? "lines: " : ";  lines: "), ink});
+        const auto shade = set.color;
+        pieces.push_back({QString::fromStdString(set.title), shade.lightness() > 150 ? shade.darker(150) : shade});
+        anyLines = true;
+    }
+    if (!product.barbU.empty() || !product.barbSets.empty()) {
+        if (product.barbSets.empty()) {
+            pieces.push_back({";  barbs: kt", ink});
+        } else {   // stacked winds: which color is which level
+            pieces.push_back({";  barbs, kt: ", ink});
+            bool first = true;
+            if (!product.barbU.empty()) {
+                pieces.push_back({"chart's own (black)", ink});
+                first = false;
+            }
+            for (const auto& set : product.barbSets) {
+                if (!first) {
+                    pieces.push_back({", ", ink});
+                }
+                first = false;
+                pieces.push_back({QString::fromStdString(set.name + " (" + set.colorName + ")"), set.color.lightness() > 150 ? set.color.darker(150) : set.color});
+            }
         }
     }
-    QString barbText = ";  barbs: kt";
-    if (!product.barbSets.empty()) {   // stacked winds: which color is which level
-        QStringList names;
-        if (!product.barbU.empty()) {
-            names << "chart's own (black)";
-        }
-        for (const auto& set : product.barbSets) {
-            names << QString::fromStdString(set.name + " (" + set.colorName + ")");
-        }
-        barbText = ";  barbs, kt: " + names.join(", ");
-    }
-    {   // the line under the title names the fill, the lines (with the color of each) and the barbs: with many ticked on it, a smaller type (down to 9), and the end cut only if that is not enough
-        const QString subtitle = fillTitle + (lines.isEmpty() ? "" : (fillTitle.isEmpty() ? "lines: " : ";  lines: ") + lines.join(", ")) + (!product.barbU.empty() || !product.barbSets.empty() ? barbText : QString{});
+    {   // the whole line in 11 px when it fits, a smaller type down to 9 when it does not, and the end cut (with an ellipsis) only if that is not enough
         const double room = image.width() / S - 2.0 * margin;
         QFont small = font;
-        while (small.pixelSize() > 9 && QFontMetricsF{small}.horizontalAdvance(subtitle) > room) {
+        const auto width = [&pieces] (const QFont& f) {
+            double w = 0.0;
+            for (const auto& piece : pieces) {
+                w += QFontMetricsF{f}.horizontalAdvance(piece.text);
+            }
+            return w;
+        };
+        while (small.pixelSize() > 9 && width(small) > room) {
             small.setPixelSize(small.pixelSize() - 1);
         }
         p.setFont(small);
-        p.drawText(QPointF{static_cast<double>(margin), 43.0}, QFontMetricsF{small}.elidedText(subtitle, Qt::ElideRight, room));
+        double x = margin;
+        const QFontMetricsF metrics{small};
+        for (const auto& piece : pieces) {
+            const double w = metrics.horizontalAdvance(piece.text);
+            if (x + w > margin + room) {   // the rest does not fit: what still does, and an ellipsis
+                p.setPen(ink);
+                p.drawText(QPointF{x, 43.0}, metrics.elidedText(piece.text, Qt::ElideRight, std::max(0.0, margin + room - x)));
+                break;
+            }
+            p.setPen(piece.color);
+            p.drawText(QPointF{x, 43.0}, piece.text);
+            x += w;
+        }
         p.setFont(font);
+        p.setPen(ink);
     }
     const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
     p.drawText(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
