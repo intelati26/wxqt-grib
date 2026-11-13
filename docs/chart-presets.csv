@@ -1,0 +1,57 @@
+chart_id,chart_label,today_group,becomes,light_fill,dark_fill,pressure,heights,thickness,temperature,humidity,wind_speed,barbs,dropdowns,needs_new_check
+200_wnd_ht,200mb Wind and Height,Upper air,Preset: level chart,Wind speed 200,,,200,,,,,200,Level 200/250/300/500/700/850/925,
+250_wnd_ht,250mb Wind and Height,Upper air,Preset: level chart,Wind speed 250,,,250,,,,,250,Level 200/250/300/500/700/850/925,
+300_wnd_ht,300mb Wind and Height,Upper air,Preset: level chart,Wind speed 300,,,300,,,,,300,Level 200/250/300/500/700/850/925,
+500_wnd_ht,500mb Wind and Height,Upper air,Preset: level chart,Wind speed 500,,,500,,,,,500,Level 200/250/300/500/700/850/925,
+850_wnd_ht,850mb Height and Wind,Upper air,Preset: level chart,Wind speed 850,,,850,,,,,850,Level 200/250/300/500/700/850/925,
+850_temp_ht,"850mb Temperature, Wind and Height",Upper air,Preset: level chart,Temperature 850,,,850,,,,,850,Level 200/250/300/500/700/850/925,
+925_temp_ht,"925mb Temperature, Wind and Height",Upper air,Preset: level chart,Temperature 925,,,925,,,,,925,Level 200/250/300/500/700/850/925,
+500_rh_ht,500mb Relative Humidity and Height,Upper air,Preset: level chart,Relative humidity 500,,,500,,,,,,Level 200/250/300/500/700/850/925,
+850_rh_ht,850mb Relative Humidity and Height,Upper air,Preset: level chart,Relative humidity 850,,,850,,,,,,Level 200/250/300/500/700/850/925,
+700_rh_ht,"700mb Relative Humidity, Height and Omega",Upper air,Preset: level chart + omega,Relative humidity 700,,,700,,,,,,Level 200/250/300/500/700/850/925,Omega lines (vertical motion) as a family
+850_700_rh,850-700mb Mean Relative Humidity,Upper air,Preset: layer humidity,Mean RH 850-700,,,"850, 700",,,,,"850, 700",Layer 850-700 / 700-300,Layer-mean RH fill
+rh_700_300,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Preset: layer humidity,Mean RH 700-300,,,500,,,,,500,Layer 850-700 / 700-300,Layer-mean RH fill
+850_pw_ht,"850mb Height, Precipitable Water and Wind",Upper air,Preset: level chart (PW fill),Precipitable water,,,850,,,,,850,,PW as a fill field
+700_temp_mslp,"700mb Temperature, Wind and MSLP",Upper air,Preset: level chart,Temperature 700,,MSLP,,,,,,700,Level 200/250/300/500/700/850/925,
+10m_wnd_2m_temp,"MSLP, 10m wind, 2m temperature",Surface,Preset: Surface,Temperature 2 m,,MSLP,,,,,,10 m,,
+mslp_10m_wind,MSLP and 10m Wind,Surface,Preset: Surface,Wind speed 10 m,,MSLP,,,,,,10 m,,
+2m_dewpoint,"MSLP, 10m wind, 2m dewpoint",Surface,Preset: Surface,Dewpoint 2 m,,MSLP,,,,,,10 m,,
+2m_rh_10m_wnd_derived,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Preset: Surface,Relative humidity 2 m,,MSLP,,,,,,10 m,,
+mslp_pwat,MSLP and Precipitable Water,Surface,Preset: Surface,Precipitable water,,MSLP,,,,,,,,PW as a fill field
+precip_p01,Total Precipitation every 1 hour,Precipitation and moisture,Preset: Precipitation (period = dropdown),Precipitation amount,,,,,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+precip_p03,Total Precipitation every 3 hours,Precipitation and moisture,Preset: Precipitation (period = dropdown),Precipitation amount,,,,,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+precip_p06,Total Precipitation every 6 hours,Precipitation and moisture,Preset: Precipitation (period = dropdown),Precipitation amount,,,,,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+precip_p12,Total Precipitation every 12 hours,Precipitation and moisture,Preset: Precipitation (period = dropdown),Precipitation amount,,,,,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+precip_p24,Total Precipitation every 24 hours,Precipitation and moisture,Preset: Precipitation (period = dropdown),Precipitation amount,,,,,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+precip_p36,Total Precipitation every 36 hours,Precipitation and moisture,Preset: Precipitation (period = dropdown),Precipitation amount,,,,,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+precip_p48,Total Precipitation every 48 hours,Precipitation and moisture,Preset: Precipitation (period = dropdown),Precipitation amount,,,,,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+precip_p60,Total Precipitation every 60 hours,Precipitation and moisture,Preset: Precipitation (period = dropdown),Precipitation amount,,,,,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+precip_ptot,Total Accumulated Precipitation of Period,Precipitation and moisture,Preset: Precipitation (period = total),Precipitation amount,,,,,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+1000_500_thick,"MSLP, 1000-500mb thickness and precipitation",Precipitation and moisture,Preset: Precipitation + lines,Precipitation amount,,MSLP,,1000-500,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+1000_850_thick,"MSLP, 1000-850mb thickness and precipitation",Precipitation and moisture,Preset: Precipitation + lines,Precipitation amount,,MSLP,,1000-850,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+850_700_thick,"MSLP, 850-700mb thickness and precipitation",Precipitation and moisture,Preset: Precipitation + lines,Precipitation amount,,MSLP,,850-700,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+850_temp_mslp_precip,"MSLP, 850mb temperature and precipitation",Precipitation and moisture,Preset: Precipitation + lines,Precipitation amount,,MSLP,,,850,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+10m_wnd_precip,"MSLP, 10m wind and precipitation",Precipitation and moisture,Preset: Precipitation + lines,Precipitation amount,,MSLP,,,,,,10 m,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+precip_type,MSLP and Precipitation (Rain / Snow / Mixed),Precipitation and moisture,"Preset: Precipitation, Type switch",Precipitation type,,MSLP,,,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+1000_850_thick_type,"MSLP, 1000-850mb thickness and precipitation type",Precipitation and moisture,"Preset: Precipitation + lines, Type switch",Precipitation type,,MSLP,,1000-850,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+850_700_thick_type,"MSLP, 850-700mb thickness and precipitation type",Precipitation and moisture,"Preset: Precipitation + lines, Type switch",Precipitation type,,MSLP,,850-700,,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+850_temp_mslp_precip_type,"MSLP, 850mb temperature and precipitation type",Precipitation and moisture,"Preset: Precipitation + lines, Type switch",Precipitation type,,MSLP,,,850,,,,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+10m_wnd_precip_type,"MSLP, 10m wind and precipitation type",Precipitation and moisture,"Preset: Precipitation + lines, Type switch",Precipitation type,,MSLP,,,,,,10 m,Period 1/3/6/12/24/36/48/60 h or period total; Amount or Rain/Snow/Mixed; units in/mm,
+precip_rate_type,"MSLP, 1000-500mb thickness and Precipitation Rate (Rain / Snow / Mixed)",Precipitation and moisture,Preset: Precipitation rate + type,Precipitation rate + type,,MSLP,,1000-500,,,,,Rate / amount; Type switch,
+500_vort_ht,"500mb Vorticity, Wind, and Height",Tropical and dynamics,Preset: level chart (vorticity fill),Vorticity 500,,,500,,,,,500,Level 500/850,Vorticity as a fill field
+850_vort_ht,"850mb Vorticity, Wind and Height",Tropical and dynamics,Preset: level chart (vorticity fill),Vorticity 850,,,850,,,,,850,Level 500/850,Vorticity as a fill field
+850vor_500ht_200wd,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Preset: level chart (vorticity fill),Vorticity 850,,,500,,,,,200,,Vorticity as a fill field
+200_div_wnd,"200mb Divergence, Wind and Height",Tropical and dynamics,Preset: level chart (divergence fill),Divergence 200,,,200,,,,,200,,Divergence as a fill field
+850_thetae_ht,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Preset: level chart (theta-e fill),Theta-e 850,,,850,,,,,850,,Theta-e as a fill field
+shear_850_200,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Own chart (or layer fill),Shear 850-200,,,,,,,,,,Shear as a fill field
+steering_850_200,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Own chart (or layer fill),Mean wind 850-200,,,,,,,,,,Layer mean wind as a fill field
+200_stream_div,200mb Divergence and Streamlines,Tropical and dynamics,Own chart,Divergence 200,,,,,,,,,,Streamlines as a family
+850_stream_vort,850mb Vorticity and Streamlines,Tropical and dynamics,Own chart,Vorticity 850,,,,,,,,,,Streamlines as a family
+500_hgt_anom,500mb Height and Anomaly,Anomalies / changes,"Preset: level chart, Mode = Anomaly",Height anomaly 500,,,500,,,,,,Mode Value / Anomaly / Change since F00 / 6 12 24 48 h earlier run,
+700_hgt_anom,700mb Height and Anomaly,Anomalies / changes,"Preset: level chart, Mode = Anomaly",Height anomaly 700,,,700,,,,,,Mode Value / Anomaly / Change since F00 / 6 12 24 48 h earlier run,
+mslp_anom,MSLP and Anomaly,Anomalies / changes,"Preset: Surface, Mode = Anomaly",MSLP anomaly,,MSLP,,,,,,,Mode Value / Anomaly / Change since F00 / 6 12 24 48 h earlier run,
+mslp_trend,MSLP and 48-hour Change,Anomalies / changes,"Preset: Surface, Mode = Change 48 h",MSLP change,,MSLP,,,,,,,Mode Value / Anomaly / Change since F00 / 6 12 24 48 h earlier run,
+z500_trend,500mb Height and 48-hour Change,Anomalies / changes,"Preset: level chart, Mode = Change 48 h",Height change 500,,,500,,,,,,Mode Value / Anomaly / Change since F00 / 6 12 24 48 h earlier run,
+snodpth_chng,Snow Depth Change from F00,Anomalies / changes,"Own chart, Mode = Change",Snow depth change,,,,,,,,,Mode Value / Anomaly / Change since F00 / 6 12 24 48 h earlier run,
+sim_radar_comp,Simulated Composite Radar Reflectivity,Severe,Own chart,Reflectivity,,,,,,,,,,
+sbcape_wind,"Surface-Based CAPE, MSLP and 10m Wind",Severe,Preset: Surface (CAPE fill),SBCAPE,,MSLP,,,,,,10 m,,CAPE as a fill field
