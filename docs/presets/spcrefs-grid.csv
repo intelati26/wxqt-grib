@@ -1,0 +1,169 @@
+id,label,category,product,window,type,limit,fit
+cref,Composite Reflectivity (one member),SPC REFS: Severe storms,Composite Reflectivity,instant,One member,,fits
+cref_max,Composite Reflectivity (ensemble maximum),SPC REFS: Severe storms,Composite Reflectivity,instant,Ensemble max,,fits
+cref_pb_t040,Composite Reflectivity Paintball > 40 dBZ,SPC REFS: Severe storms,Composite Reflectivity,instant,Paintball,> 40 dBZ,fits
+cref_nmep_r013_t040,"Composite Reflectivity > 40 dBZ, 40-km neighborhood probability",SPC REFS: Severe storms,Composite Reflectivity,instant,Neighborhood probability,> 40 dBZ,fits
+maxref1km_04h_max_overlap_max,4-h Max Reflectivity (ensemble maximum),SPC REFS: Severe storms,Reflectivity,4 h,Ensemble max,,fits
+maxref1km_mucape_04h_max_overlap_pb_t>040,4-h Max Reflectivity Paintball > 40 dBZ (where MUCAPE > 50 J/kg),SPC REFS: Severe storms,Reflectivity,4 h,Paintball,> 40 dBZ & > 50 J/kg,two or more limits / combination
+maxref1km_mucape_04h_max_overlap_nmep_r013_t>040,"4-h Max Reflectivity > 40 dBZ, neighborhood probability",SPC REFS: Severe storms,Reflectivity,4 h,Neighborhood probability,> 40 dBZ,fits
+maxref1km_24h_max_overlap12h_max,24-h Max Reflectivity (ensemble maximum),SPC REFS: Severe storms,Reflectivity,24 h,Ensemble max,,fits
+maxref1km_mucape_24h_max_overlap12h_pb_t>040,24-h Max Reflectivity Paintball > 40 dBZ (where MUCAPE > 50 J/kg),SPC REFS: Severe storms,Reflectivity,24 h,Paintball,> 40 dBZ & > 50 J/kg,two or more limits / combination
+uh25_04h_max_overlap_max,4-h Max 2-5 km Updraft Helicity (ensemble maximum),SPC REFS: Severe storms,2-5 km Updraft Helicity,4 h,Ensemble max,,fits
+uh25_04h_max_overlap_pb_t>99.85p,4-h Paintball 2-5 km UH > 99.85 percentile,SPC REFS: Severe storms,2-5 km Updraft Helicity,4 h,Paintball,> 99.85 percentile,fits
+uh25_04h_max_overlap_pb_t>99.95p,4-h Paintball 2-5 km UH > 99.95 percentile,SPC REFS: Severe storms,2-5 km Updraft Helicity,4 h,Paintball,> 99.95 percentile,fits
+uh25_04h_max_overlap_nmep_r013_t>99.85p,"4-h 2-5 km UH > 99.85 percentile, 40-km neighborhood probability",SPC REFS: Severe storms,2-5 km Updraft Helicity,4 h,Neighborhood probability,> 99.85 percentile,fits
+uh25_04h_max_overlap_nmep_r013_t>99.95p,"4-h 2-5 km UH > 99.95 percentile, 40-km neighborhood probability",SPC REFS: Severe storms,2-5 km Updraft Helicity,4 h,Neighborhood probability,> 99.95 percentile,fits
+uh25_04h_max_overlap,4-h Max 2-5 km Updraft Helicity (one member),SPC REFS: Severe storms,2-5 km Updraft Helicity,4 h,One member,,fits
+uh03_04h_max_overlap,4-h Max 0-3 km Updraft Helicity (one member),SPC REFS: Severe storms,0-3 km Updraft Helicity,4 h,One member,,fits
+uh25_24h_max_overlap12h_max,24-h Max 2-5 km Updraft Helicity (ensemble maximum),SPC REFS: Severe storms,2-5 km Updraft Helicity,24 h,Ensemble max,,fits
+uh25_24h_max_overlap12h_pb_t>99.85p,24-h Paintball 2-5 km UH > 99.85 percentile,SPC REFS: Severe storms,2-5 km Updraft Helicity,24 h,Paintball,> 99.85 percentile,fits
+uh25_24h_max_overlap12h_pb_t>99.95p,24-h Paintball 2-5 km UH > 99.95 percentile,SPC REFS: Severe storms,2-5 km Updraft Helicity,24 h,Paintball,> 99.95 percentile,fits
+uh25_01h_max_max,1-h Max 2-5 km Updraft Helicity (ensemble maximum),SPC REFS: Severe storms,2-5 km Updraft Helicity,1 h,Ensemble max,,fits
+uh25min_04h_min_overlap_min,"4-h Min 2-5 km Updraft Helicity (ensemble minimum, shown as magnitude)",SPC REFS: Severe storms,2-5 km Updraft Helicity,4 h,Ensemble min,,fits
+uh25min_04h_min_overlap,"4-h Min 2-5 km Updraft Helicity (one member, shown as magnitude)",SPC REFS: Severe storms,2-5 km Updraft Helicity,4 h,One member,,fits
+uh25min_24h_min_overlap12h_min,"24-h Min 2-5 km Updraft Helicity (ensemble minimum, shown as magnitude)",SPC REFS: Severe storms,2-5 km Updraft Helicity,24 h,Ensemble min,,fits
+wmax_04h_max_overlap_max,4-h Max Updraft Speed (ensemble maximum),SPC REFS: Severe storms,Updraft Speed,4 h,Ensemble max,,fits
+wmax_04h_max_overlap_pb_t020,4-h Paintball Updraft Speed > 20 m/s,SPC REFS: Severe storms,Updraft Speed,4 h,Paintball,> 20 m/s,fits
+wmax_04h_max_overlap_nmep_r013_t020,"4-h Updraft Speed > 20 m/s, neighborhood probability",SPC REFS: Severe storms,Updraft Speed,4 h,Neighborhood probability,> 20 m/s,fits
+wmax_04h_max_overlap_nmep_r013_t030,"4-h Updraft Speed > 30 m/s, neighborhood probability",SPC REFS: Severe storms,Updraft Speed,4 h,Neighborhood probability,> 30 m/s,fits
+wmax_24h_max_overlap12h_max,24-h Max Updraft Speed (ensemble maximum),SPC REFS: Severe storms,Updraft Speed,24 h,Ensemble max,,fits
+wmax_24h_max_overlap12h_pb_t020,24-h Paintball Updraft Speed > 20 m/s,SPC REFS: Severe storms,Updraft Speed,24 h,Paintball,> 20 m/s,fits
+s10m_04h_max_overlap_max,4-h Max 10-m Wind Speed where Reflectivity > 20 dBZ (ensemble maximum),SPC REFS: Severe storms,10-m Wind Speed,4 h,Ensemble max,> 20 dBZ,fits
+s10m_04h_max_overlap_pb_t030,4-h Paintball 10-m Wind Speed > 30 kt,SPC REFS: Severe storms,10-m Wind Speed,4 h,Paintball,> 30 kt,fits
+s10m_04h_max_overlap_nmep_r013_t030,"4-h 10-m Wind Speed > 30 kt, neighborhood probability",SPC REFS: Severe storms,10-m Wind Speed,4 h,Neighborhood probability,> 30 kt,fits
+s10m_04h_max_overlap_nmep_r013_t050,"4-h 10-m Wind Speed > 50 kt, neighborhood probability",SPC REFS: Severe storms,10-m Wind Speed,4 h,Neighborhood probability,> 50 kt,fits
+s10m_24h_max_overlap12h_max,24-h Max 10-m Wind Speed where Reflectivity > 20 dBZ (ensemble maximum),SPC REFS: Severe storms,10-m Wind Speed,24 h,Ensemble max,> 20 dBZ,fits
+s10m_24h_max_overlap12h_pb_t030,24-h Paintball 10-m Wind Speed > 30 kt,SPC REFS: Severe storms,10-m Wind Speed,24 h,Paintball,> 30 kt,fits
+maxref1km_mucape_24h_max_overlap12h_nmep_r013_t>040,"24-h Max Reflectivity > 40 dBZ, neighborhood probability",SPC REFS: Severe storms,Reflectivity,24 h,Neighborhood probability,> 40 dBZ,fits
+uh25_24h_max_overlap12h,24-h Max 2-5 km Updraft Helicity (one member),SPC REFS: Severe storms,2-5 km Updraft Helicity,24 h,One member,,fits
+uh25_24h_max_overlap12h_nmep_r013_t>99.85p,"24-h 2-5 km UH > 99.85 percentile, 40-km neighborhood probability",SPC REFS: Severe storms,2-5 km Updraft Helicity,24 h,Neighborhood probability,> 99.85 percentile,fits
+uh25_24h_max_overlap12h_nmep_r013_t>99.95p,"24-h 2-5 km UH > 99.95 percentile, 40-km neighborhood probability",SPC REFS: Severe storms,2-5 km Updraft Helicity,24 h,Neighborhood probability,> 99.95 percentile,fits
+uh25min_04h_min_overlap_nmep_r013_t<-35,"4-h 2-5 km UH < -35 m2/s2, 40-km neighborhood probability",SPC REFS: Severe storms,2-5 km Updraft Helicity,4 h,Neighborhood probability,< -35 m2/s2,fits
+uh25min_04h_min_overlap_nmep_r013_t<-70,"4-h 2-5 km UH < -70 m2/s2, 40-km neighborhood probability",SPC REFS: Severe storms,2-5 km Updraft Helicity,4 h,Neighborhood probability,< -70 m2/s2,fits
+uh25min_24h_min_overlap12h,"24-h Min 2-5 km Updraft Helicity (one member, shown as magnitude)",SPC REFS: Severe storms,2-5 km Updraft Helicity,24 h,One member,,fits
+uh25min_24h_min_overlap12h_nmep_r013_t<-35,"24-h 2-5 km UH < -35 m2/s2, 40-km neighborhood probability",SPC REFS: Severe storms,2-5 km Updraft Helicity,24 h,Neighborhood probability,< -35 m2/s2,fits
+uh25min_24h_min_overlap12h_nmep_r013_t<-70,"24-h 2-5 km UH < -70 m2/s2, 40-km neighborhood probability",SPC REFS: Severe storms,2-5 km Updraft Helicity,24 h,Neighborhood probability,< -70 m2/s2,fits
+wmax_24h_max_overlap12h_nmep_r013_t020,"24-h Updraft Speed > 20 m/s, neighborhood probability",SPC REFS: Severe storms,Updraft Speed,24 h,Neighborhood probability,> 20 m/s,fits
+wmax_24h_max_overlap12h_nmep_r013_t030,"24-h Updraft Speed > 30 m/s, neighborhood probability",SPC REFS: Severe storms,Updraft Speed,24 h,Neighborhood probability,> 30 m/s,fits
+s10m_24h_max_overlap12h_nmep_r013_t030,"24-h 10-m Wind Speed > 30 kt, neighborhood probability",SPC REFS: Severe storms,10-m Wind Speed,24 h,Neighborhood probability,> 30 kt,fits
+s10m_24h_max_overlap12h_nmep_r013_t050,"24-h 10-m Wind Speed > 50 kt, neighborhood probability",SPC REFS: Severe storms,10-m Wind Speed,24 h,Neighborhood probability,> 50 kt,fits
+sbcape_mean,Surface-Based CAPE (ensemble mean),SPC REFS: Instability and shear,Surface-Based CAPE,instant,Ensemble mean,,fits
+sbcape_max,Surface-Based CAPE (ensemble maximum),SPC REFS: Instability and shear,Surface-Based CAPE,instant,Ensemble max,,fits
+sbcape_min,Surface-Based CAPE (ensemble minimum),SPC REFS: Instability and shear,Surface-Based CAPE,instant,Ensemble min,,fits
+sbcape_prob_t>500,SBCAPE > 500 J/kg (ensemble probability),SPC REFS: Instability and shear,Surface-Based CAPE,instant,Ensemble probability,> 500 J/kg,fits
+sbcape_prob_t>1000,SBCAPE > 1000 J/kg (ensemble probability),SPC REFS: Instability and shear,Surface-Based CAPE,instant,Ensemble probability,> 1000 J/kg,fits
+sbcape_prob_t>2000,SBCAPE > 2000 J/kg (ensemble probability),SPC REFS: Instability and shear,Surface-Based CAPE,instant,Ensemble probability,> 2000 J/kg,fits
+mucape_mean,Most-Unstable CAPE (ensemble mean),SPC REFS: Instability and shear,Most-Unstable CAPE,instant,Ensemble mean,,fits
+sbcinh_mean,"Surface-Based CIN (ensemble mean, shown as magnitude)",SPC REFS: Instability and shear,Surface-Based CIN,instant,Ensemble mean,,fits
+srh01_mean,0-1 km Storm-Relative Helicity (ensemble mean),SPC REFS: Instability and shear,0-1 km Storm-Relative Helicity,instant,Ensemble mean,,fits
+srh03_mean,0-3 km Storm-Relative Helicity (ensemble mean),SPC REFS: Instability and shear,0-3 km Storm-Relative Helicity,instant,Ensemble mean,,fits
+shrmag06_mean,0-6 km Shear Magnitude (ensemble mean),SPC REFS: Instability and shear,0-6 km Shear Magnitude,instant,Ensemble mean,,fits
+stp_fixed_mean,Fixed-Layer Significant Tornado Parameter (ensemble mean),SPC REFS: Instability and shear,Fixed-Layer Significant Tornado Parameter,instant,Ensemble mean,,fits
+stp_fixed_prob_t>001,Fixed-Layer STP > 1 (ensemble probability),SPC REFS: Instability and shear,Fixed-Layer Significant Tornado Parameter,instant,Ensemble probability,> 1,fits
+stp_fixed_prob_t>003,Fixed-Layer STP > 3 (ensemble probability),SPC REFS: Instability and shear,Fixed-Layer Significant Tornado Parameter,instant,Ensemble probability,> 3,fits
+sbcape_smooth_mean,"Surface-Based CAPE (ensemble mean, smoothed)",SPC REFS: Instability and shear,Surface-Based CAPE,instant,Ensemble mean,,fits
+ushr06_mean,"0-6 km Shear, west-east component (ensemble mean)",SPC REFS: Instability and shear,"0-6 km Shear, west-east component",instant,Ensemble mean,,fits
+vshr06_mean,"0-6 km Shear, south-north component (ensemble mean)",SPC REFS: Instability and shear,"0-6 km Shear, south-north component",instant,Ensemble mean,,fits
+stp_fixed_24h_max_overlap12h_mean,24-h Max Fixed-Layer Significant Tornado Parameter (ensemble mean),SPC REFS: Instability and shear,Fixed-Layer Significant Tornado Parameter,24 h,Ensemble mean,,fits
+qpf_01h_acc_mean,1-h QPF (ensemble mean),SPC REFS: Precipitation,QPF,1 h,Ensemble mean,,fits
+qpf_01h_acc_prob_t>0p010,1-h QPF > 0.01 in (ensemble probability),SPC REFS: Precipitation,QPF,1 h,Ensemble probability,> 0.01 in,fits
+qpf_01h_acc_prob_t>001,1-h QPF > 1 in (ensemble probability),SPC REFS: Precipitation,QPF,1 h,Ensemble probability,> 1 in,fits
+qpf_03h_acc_pmmean,3-h QPF (PM mean),SPC REFS: Precipitation,QPF,3 h,PM mean,,fits
+qpf_03h_acc_mean,3-h QPF (ensemble mean),SPC REFS: Precipitation,QPF,3 h,Ensemble mean,,fits
+qpf_03h_acc_max,3-h QPF (ensemble maximum),SPC REFS: Precipitation,QPF,3 h,Ensemble max,,fits
+qpf_03h_acc_nmep_r013_t>001,"3-h QPF > 1 in, neighborhood probability",SPC REFS: Precipitation,QPF,3 h,Neighborhood probability,> 1 in,fits
+qpf_03h_acc_nmep_r013_t>003,"3-h QPF > 3 in, neighborhood probability",SPC REFS: Precipitation,QPF,3 h,Neighborhood probability,> 3 in,fits
+qpf_06h_acc_pmmean,6-h QPF (PM mean),SPC REFS: Precipitation,QPF,6 h,PM mean,,fits
+qpf_06h_acc_mean,6-h QPF (ensemble mean),SPC REFS: Precipitation,QPF,6 h,Ensemble mean,,fits
+qpf_06h_acc_max,6-h QPF (ensemble maximum),SPC REFS: Precipitation,QPF,6 h,Ensemble max,,fits
+qpf_06h_acc,6-h QPF (one member),SPC REFS: Precipitation,QPF,6 h,One member,,fits
+qpf_06h_acc_prob_t>0p010,6-h QPF > 0.01 in (ensemble probability),SPC REFS: Precipitation,QPF,6 h,Ensemble probability,> 0.01 in,fits
+qpf_06h_acc_prob_t>001,6-h QPF > 1 in (ensemble probability),SPC REFS: Precipitation,QPF,6 h,Ensemble probability,> 1 in,fits
+qpf_06h_acc_prob_t>002,6-h QPF > 2 in (ensemble probability),SPC REFS: Precipitation,QPF,6 h,Ensemble probability,> 2 in,fits
+qpf_06h_acc_prob_t>003,6-h QPF > 3 in (ensemble probability),SPC REFS: Precipitation,QPF,6 h,Ensemble probability,> 3 in,fits
+qpf_06h_acc_nmep_r013_t>0p100,"6-h QPF > 0.1 in, neighborhood probability",SPC REFS: Precipitation,QPF,6 h,Neighborhood probability,> 0.1 in,fits
+qpf_06h_acc_nmep_r013_t>0p250,"6-h QPF > 0.25 in, neighborhood probability",SPC REFS: Precipitation,QPF,6 h,Neighborhood probability,> 0.25 in,fits
+qpf_24h_acc_overlap12h_pmmean,24-h QPF (PM mean),SPC REFS: Precipitation,QPF,24 h,PM mean,,fits
+qpf_24h_acc_overlap12h_mean,24-h QPF (ensemble mean),SPC REFS: Precipitation,QPF,24 h,Ensemble mean,,fits
+qpf_24h_acc_overlap12h_max,24-h QPF (ensemble maximum),SPC REFS: Precipitation,QPF,24 h,Ensemble max,,fits
+qpf_48h_acc_overlap12h_pmmean,48-h QPF (PM mean),SPC REFS: Precipitation,QPF,48 h,PM mean,,fits
+qpf_48h_acc_overlap12h_mean,48-h QPF (ensemble mean),SPC REFS: Precipitation,QPF,48 h,Ensemble mean,,fits
+qpf_48h_acc_overlap12h_max,48-h QPF (ensemble maximum),SPC REFS: Precipitation,QPF,48 h,Ensemble max,,fits
+snow_01h_acc_mean,1-h Snowfall (ensemble mean),SPC REFS: Precipitation,Snowfall,1 h,Ensemble mean,,fits
+snow_01h_acc_prob_t>001,1-h Snowfall > 1 in (ensemble probability),SPC REFS: Precipitation,Snowfall,1 h,Ensemble probability,> 1 in,fits
+snow_01h_acc_prob_t>002,1-h Snowfall > 2 in (ensemble probability),SPC REFS: Precipitation,Snowfall,1 h,Ensemble probability,> 2 in,fits
+snow_12h_acc_pmmean,12-h Snowfall (PM mean),SPC REFS: Precipitation,Snowfall,12 h,PM mean,,fits
+snow_12h_acc_mean,12-h Snowfall (ensemble mean),SPC REFS: Precipitation,Snowfall,12 h,Ensemble mean,,fits
+snow_12h_acc_max,12-h Snowfall (ensemble maximum),SPC REFS: Precipitation,Snowfall,12 h,Ensemble max,,fits
+snow_12h_acc_prob_t>004,12-h Snowfall > 4 in (ensemble probability),SPC REFS: Precipitation,Snowfall,12 h,Ensemble probability,> 4 in,fits
+snow_12h_acc_prob_t>008,12-h Snowfall > 8 in (ensemble probability),SPC REFS: Precipitation,Snowfall,12 h,Ensemble probability,> 8 in,fits
+snow_12h_acc_prob_t>012,12-h Snowfall > 12 in (ensemble probability),SPC REFS: Precipitation,Snowfall,12 h,Ensemble probability,> 12 in,fits
+snow_24h_acc_overlap12h_pmmean,24-h Snowfall (PM mean),SPC REFS: Precipitation,Snowfall,24 h,PM mean,,fits
+snow_24h_acc_overlap12h_mean,24-h Snowfall (ensemble mean),SPC REFS: Precipitation,Snowfall,24 h,Ensemble mean,,fits
+snow_24h_acc_overlap12h_max,24-h Snowfall (ensemble maximum),SPC REFS: Precipitation,Snowfall,24 h,Ensemble max,,fits
+frzr_qpf_03h_acc_mean,3-h Freezing Rain QPF (ensemble mean),SPC REFS: Precipitation,Freezing Rain QPF,3 h,Ensemble mean,,fits
+frzr_qpf_03h_acc_max,3-h Freezing Rain QPF (ensemble maximum),SPC REFS: Precipitation,Freezing Rain QPF,3 h,Ensemble max,,fits
+frzr_qpf_03h_acc_prob_t>0p060,3-h Freezing Rain QPF > 0.06 in (ensemble probability),SPC REFS: Precipitation,Freezing Rain QPF,3 h,Ensemble probability,> 0.06 in,fits
+frzr_fram_03h_acc_mean,3-h FRAM Ice Accretion (ensemble mean),SPC REFS: Precipitation,FRAM Ice Accretion,3 h,Ensemble mean,,fits
+frzr_qpf_24h_acc_overlap12h_mean,24-h Freezing Rain QPF (ensemble mean),SPC REFS: Precipitation,Freezing Rain QPF,24 h,Ensemble mean,,fits
+frzr_qpf_24h_acc_overlap12h_max,24-h Freezing Rain QPF (ensemble maximum),SPC REFS: Precipitation,Freezing Rain QPF,24 h,Ensemble max,,fits
+frzr_fram_24h_acc_overlap12h_mean,24-h FRAM Ice Accretion (ensemble mean),SPC REFS: Precipitation,FRAM Ice Accretion,24 h,Ensemble mean,,fits
+qpf_24h_acc_overlap12h,24-h QPF (one member),SPC REFS: Precipitation,QPF,24 h,One member,,fits
+snow_24h_acc_overlap12h_prob_t>004,24-h Snowfall > 4 in (ensemble probability),SPC REFS: Precipitation,Snowfall,24 h,Ensemble probability,> 4 in,fits
+snow_24h_acc_overlap12h_prob_t>008,24-h Snowfall > 8 in (ensemble probability),SPC REFS: Precipitation,Snowfall,24 h,Ensemble probability,> 8 in,fits
+snow_24h_acc_overlap12h_prob_t>012,24-h Snowfall > 12 in (ensemble probability),SPC REFS: Precipitation,Snowfall,24 h,Ensemble probability,> 12 in,fits
+frzr_qpf_24h_acc_overlap12h_prob_t>0p060,24-h Freezing Rain QPF > 0.06 in (ensemble probability),SPC REFS: Precipitation,Freezing Rain QPF,24 h,Ensemble probability,> 0.06 in,fits
+bliz_prob_t<0p250_t>035_t>0p010,"Blizzard Probability: visibility < 0.25 mi, 10-m wind > 35 mph, snow",SPC REFS: Precipitation,"Blizzard Probability: visibility mi, 10-m wind",instant,Ensemble probability,< 0.25 mi & > 35 mph,two or more limits / combination
+bliz_prob_t<0p500_t>030_t>0p010,"Blizzard Probability: visibility < 0.5 mi, 10-m wind > 30 mph, snow",SPC REFS: Precipitation,"Blizzard Probability: visibility mi, 10-m wind",instant,Ensemble probability,< 0.5 mi & > 30 mph,two or more limits / combination
+t2m_mean,2-m Temperature (ensemble mean),SPC REFS: Surface and upper air,2-m Temperature,instant,Ensemble mean,,fits
+td2m_mean,2-m Dewpoint (ensemble mean),SPC REFS: Surface and upper air,2-m Dewpoint,instant,Ensemble mean,,fits
+pmsl_mean,Mean Sea-Level Pressure (ensemble mean),SPC REFS: Surface and upper air,Mean Sea-Level Pressure,instant,Ensemble mean,,fits
+pwat_mean,Precipitable Water (ensemble mean),SPC REFS: Surface and upper air,Precipitable Water,instant,Ensemble mean,,fits
+pwat_prob_t>0p500_t<0p800,Precipitable Water between 0.5 and 0.8 in (ensemble probability),SPC REFS: Surface and upper air,Precipitable Water between 0.5 and 0.8 in,instant,Ensemble probability,between 0.5,two or more limits / combination
+cld_low_mean,Low Cloud Cover (ensemble mean),SPC REFS: Surface and upper air,Low Cloud Cover,instant,Ensemble mean,,fits
+cld_mid_mean,Mid Cloud Cover (ensemble mean),SPC REFS: Surface and upper air,Mid Cloud Cover,instant,Ensemble mean,,fits
+cld_high_mean,High Cloud Cover (ensemble mean),SPC REFS: Surface and upper air,High Cloud Cover,instant,Ensemble mean,,fits
+z500_mean,500 mb Height (ensemble mean),SPC REFS: Surface and upper air,500 mb Height,instant,Ensemble mean,,fits
+z700_mean,700 mb Height (ensemble mean),SPC REFS: Surface and upper air,700 mb Height,instant,Ensemble mean,,fits
+z850_mean,850 mb Height (ensemble mean),SPC REFS: Surface and upper air,850 mb Height,instant,Ensemble mean,,fits
+t500_mean,500 mb Temperature (ensemble mean),SPC REFS: Surface and upper air,500 mb Temperature,instant,Ensemble mean,,fits
+t700_mean,700 mb Temperature (ensemble mean),SPC REFS: Surface and upper air,700 mb Temperature,instant,Ensemble mean,,fits
+t850_mean,850 mb Temperature (ensemble mean),SPC REFS: Surface and upper air,850 mb Temperature,instant,Ensemble mean,,fits
+gust_mean,10-m Gusts (ensemble mean),SPC REFS: Surface and upper air,10-m Gusts,instant,Ensemble mean,,fits
+gust_max,10-m Gusts (ensemble maximum),SPC REFS: Surface and upper air,10-m Gusts,instant,Ensemble max,,fits
+gust_min,10-m Gusts (ensemble minimum),SPC REFS: Surface and upper air,10-m Gusts,instant,Ensemble min,,fits
+s10m_01h_max_mean,1-h Max 10-m Wind (ensemble mean),SPC REFS: Surface and upper air,10-m Wind,1 h,Ensemble mean,,fits
+s10m_01h_max_max,1-h Max 10-m Wind (ensemble maximum),SPC REFS: Surface and upper air,10-m Wind,1 h,Ensemble max,,fits
+s10m_01h_max_min,1-h Max 10-m Wind (ensemble minimum),SPC REFS: Surface and upper air,10-m Wind,1 h,Ensemble min,,fits
+u10m_mean,"10-m Wind, west-east component (ensemble mean)",SPC REFS: Surface and upper air,"10-m Wind, west-east component",instant,Ensemble mean,,fits
+v10m_mean,"10-m Wind, south-north component (ensemble mean)",SPC REFS: Surface and upper air,"10-m Wind, south-north component",instant,Ensemble mean,,fits
+u500_mean,"500 mb Wind, west-east component (ensemble mean)",SPC REFS: Surface and upper air,"500 mb Wind, west-east component",instant,Ensemble mean,,fits
+v500_mean,"500 mb Wind, south-north component (ensemble mean)",SPC REFS: Surface and upper air,"500 mb Wind, south-north component",instant,Ensemble mean,,fits
+u700_mean,"700 mb Wind, west-east component (ensemble mean)",SPC REFS: Surface and upper air,"700 mb Wind, west-east component",instant,Ensemble mean,,fits
+v700_mean,"700 mb Wind, south-north component (ensemble mean)",SPC REFS: Surface and upper air,"700 mb Wind, south-north component",instant,Ensemble mean,,fits
+u850_mean,"850 mb Wind, west-east component (ensemble mean)",SPC REFS: Surface and upper air,"850 mb Wind, west-east component",instant,Ensemble mean,,fits
+v850_mean,"850 mb Wind, south-north component (ensemble mean)",SPC REFS: Surface and upper air,"850 mb Wind, south-north component",instant,Ensemble mean,,fits
+lr75_mean,700-500 mb Lapse Rate (ensemble mean),SPC REFS: Surface and upper air,700-500 mb Lapse Rate,instant,Ensemble mean,,fits
+rh2m_mean,2-m Relative Humidity (ensemble mean),SPC REFS: Fire weather,2-m Relative Humidity,instant,Ensemble mean,,fits
+rh2m_max,2-m Relative Humidity (ensemble maximum),SPC REFS: Fire weather,2-m Relative Humidity,instant,Ensemble max,,fits
+rh2m_min,2-m Relative Humidity (ensemble minimum),SPC REFS: Fire weather,2-m Relative Humidity,instant,Ensemble min,,fits
+fosberg_mean,Fosberg Index (ensemble mean),SPC REFS: Fire weather,Fosberg Index,instant,Ensemble mean,,fits
+fosberg_max,Fosberg Index (ensemble maximum),SPC REFS: Fire weather,Fosberg Index,instant,Ensemble max,,fits
+fosberg_min,Fosberg Index (ensemble minimum),SPC REFS: Fire weather,Fosberg Index,instant,Ensemble min,,fits
+fosberg_prob_t>050,Fosberg Index > 50 (ensemble probability),SPC REFS: Fire weather,Fosberg Index,instant,Ensemble probability,> 50,fits
+fosberg_prob_t>075,Fosberg Index > 75 (ensemble probability),SPC REFS: Fire weather,Fosberg Index,instant,Ensemble probability,> 75,fits
+rh2m_s10m_prob_t<020_t>015,Wind > 15 mph and RH < 20% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 15 mph & < 20 %,two or more limits / combination
+rh2m_s10m_prob_t<010_t>030,Wind > 30 mph and RH < 10% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 30 mph & < 10 %,two or more limits / combination
+rh2m_s10m_prob_t<015_t>015,Wind > 15 mph and RH < 15% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 15 mph & < 15 %,two or more limits / combination
+rh2m_s10m_prob_t<015_t>020,Wind > 20 mph and RH < 15% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 20 mph & < 15 %,two or more limits / combination
+rh2m_s10m_prob_t<015_t>025,Wind > 25 mph and RH < 15% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 25 mph & < 15 %,two or more limits / combination
+rh2m_s10m_prob_t<020_t>020,Wind > 20 mph and RH < 20% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 20 mph & < 20 %,two or more limits / combination
+rh2m_s10m_prob_t<020_t>025,Wind > 25 mph and RH < 20% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 25 mph & < 20 %,two or more limits / combination
+rh2m_s10m_prob_t<025_t>015,Wind > 15 mph and RH < 25% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 15 mph & < 25 %,two or more limits / combination
+rh2m_s10m_prob_t<025_t>020,Wind > 20 mph and RH < 25% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 20 mph & < 25 %,two or more limits / combination
+rh2m_s10m_prob_t<025_t>025,Wind > 25 mph and RH < 25% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 25 mph & < 25 %,two or more limits / combination
+rh2m_s10m_prob_t<030_t>015,Wind > 15 mph and RH < 30% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 15 mph & < 30 %,two or more limits / combination
+rh2m_s10m_prob_t<030_t>020,Wind > 20 mph and RH < 30% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 20 mph & < 30 %,two or more limits / combination
+rh2m_s10m_prob_t<035_t>010,Wind > 10 mph and RH < 35% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 10 mph & < 35 %,two or more limits / combination
+rh2m_s10m_prob_t<035_t>015,Wind > 15 mph and RH < 35% (ensemble probability),SPC REFS: Fire weather,Wind and RH,instant,Ensemble probability,> 15 mph & < 35 %,two or more limits / combination
+qpf_01h_ptype,1-h QPF and Dominant Precipitation Type,SPC REFS: Precipitation,QPF and Dominant Precipitation Type,1 h,,,a combination (QPF with a type)

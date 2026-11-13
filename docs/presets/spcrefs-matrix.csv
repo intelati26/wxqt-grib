@@ -1,0 +1,46 @@
+product,Neighborhood probability,Paintball,Ensemble probability,Ensemble max,Ensemble min,Ensemble mean,PM mean,One member,charts
+QPF,3 h/6 h,,1 h/6 h,3 h/6 h/24 h/48 h,,1 h/3 h/6 h/24 h/48 h,3 h/6 h/24 h/48 h,6 h/24 h,25
+2-5 km Updraft Helicity,4 h/24 h,4 h/24 h,,1 h/4 h/24 h,4 h/24 h,,,4 h/24 h,21
+Snowfall,,,1 h/12 h/24 h,12 h/24 h,,1 h/12 h/24 h,12 h/24 h,,15
+Updraft Speed,4 h/24 h,4 h/24 h,,4 h/24 h,,,,,8
+10-m Wind Speed,4 h/24 h,4 h/24 h,,4 h/24 h,,,,,8
+Freezing Rain QPF,,,3 h/24 h,3 h/24 h,,3 h/24 h,,,6
+Composite Reflectivity,instant,instant,,instant,,,,instant,4
+Reflectivity,4 h/24 h,,,4 h/24 h,,,,,4
+Surface-Based CAPE,,,instant,instant,instant,instant,,,7
+Fosberg Index,,,instant,instant,instant,instant,,,5
+Fixed-Layer Significant Tornado Parameter,,,instant,,,24 h/instant,,,4
+10-m Gusts,,,,instant,instant,instant,,,3
+10-m Wind,,,,1 h,1 h,1 h,,,3
+2-m Relative Humidity,,,,instant,instant,instant,,,3
+FRAM Ice Accretion,,,,,,3 h/24 h,,,2
+0-3 km Updraft Helicity,,,,,,,,4 h,1
+Most-Unstable CAPE,,,,,,instant,,,1
+Surface-Based CIN,,,,,,instant,,,1
+0-1 km Storm-Relative Helicity,,,,,,instant,,,1
+0-3 km Storm-Relative Helicity,,,,,,instant,,,1
+0-6 km Shear Magnitude,,,,,,instant,,,1
+"0-6 km Shear, west-east component",,,,,,instant,,,1
+"0-6 km Shear, south-north component",,,,,,instant,,,1
+2-m Temperature,,,,,,instant,,,1
+2-m Dewpoint,,,,,,instant,,,1
+Mean Sea-Level Pressure,,,,,,instant,,,1
+Precipitable Water,,,,,,instant,,,1
+Low Cloud Cover,,,,,,instant,,,1
+Mid Cloud Cover,,,,,,instant,,,1
+High Cloud Cover,,,,,,instant,,,1
+500 mb Height,,,,,,instant,,,1
+700 mb Height,,,,,,instant,,,1
+850 mb Height,,,,,,instant,,,1
+500 mb Temperature,,,,,,instant,,,1
+700 mb Temperature,,,,,,instant,,,1
+850 mb Temperature,,,,,,instant,,,1
+"10-m Wind, west-east component",,,,,,instant,,,1
+"10-m Wind, south-north component",,,,,,instant,,,1
+"500 mb Wind, west-east component",,,,,,instant,,,1
+"500 mb Wind, south-north component",,,,,,instant,,,1
+"700 mb Wind, west-east component",,,,,,instant,,,1
+"700 mb Wind, south-north component",,,,,,instant,,,1
+"850 mb Wind, west-east component",,,,,,instant,,,1
+"850 mb Wind, south-north component",,,,,,instant,,,1
+700-500 mb Lapse Rate,,,,,,instant,,,1
