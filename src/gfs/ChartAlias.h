@@ -42,6 +42,8 @@ const std::vector<Entry>& table();
 const Entry * find(const std::string& id);
 // the id of the entry with these checks (the family, field, level, mode, chance, values, contours, barbs, streamlines and bands of `like`), "" when there is none or more than one
 std::string idFor(const Entry& like);
+// true when the two entries have the same checks (their ids may differ: the same chart on another model under another id)
+bool sameChecks(const Entry& a, const Entry& b);
 // how many entries share their checks with another one (0: the checks name a chart exactly)
 int ambiguous();
 // true when the entry is a one-off: no family reads it, it keeps its own id
