@@ -1,0 +1,442 @@
+group_key,charts_in_group,category,example_label,dropdown_values_by_number_position,models_count,becomes
+aod,1,Air quality and smoke,Aerosol optical depth (550 nm),,1,Own chart
+aod_total,1,Air quality and smoke,All aerosols: optical thickness,,1,Own chart
+co_aq,1,Air quality and smoke,Carbon monoxide,,1,Own chart
+dust,1,Air quality and smoke,Dust,,1,Own chart
+dust_aod,1,Air quality and smoke,Dust: aerosol optical thickness,,1,Own chart
+dust_column,1,Air quality and smoke,Dust: column mass,,1,Own chart
+dust_pm#,1,Air quality and smoke,Dust: fine (PM2.5) surface concentration,,1,Own chart
+dust_surface,1,Air quality and smoke,Dust: surface concentration,,1,Own chart
+glyoxal_aq,1,Air quality and smoke,Glyoxal,,1,Own chart
+hcho_aq,1,Air quality and smoke,Formaldehyde,,1,Own chart
+no#_aq,1,Air quality and smoke,Nitrogen dioxide,,1,Own chart
+no_aq,1,Air quality and smoke,Nitrogen monoxide,,1,Own chart
+ozone_aq,1,Air quality and smoke,Ozone (surface),,1,Own chart
+pan_aq,1,Air quality and smoke,Peroxyacyl nitrates,,1,Own chart
+pm#,1,Air quality and smoke,PM2.5 fine particles,,1,Own chart
+pm#_aq,1,Air quality and smoke,PM10 particles,,1,Own chart
+pm#_total,1,Air quality and smoke,"Fine particles (PM2.5), all species",,1,Own chart
+seasalt_aq,1,Air quality and smoke,Sea salt,,1,Own chart
+seasalt_surface,1,Air quality and smoke,Sea salt at the surface,,1,Own chart
+smoke_surface,1,Air quality and smoke,Smoke: black and organic carbon at the surface,,1,Own chart
+so#_aq,1,Air quality and smoke,Sulphur dioxide,,1,Own chart
+sulfate_surface,1,Air quality and smoke,Sulfate at the surface,,1,Own chart
+uv_index,1,Air quality and smoke,UV index,,1,Own chart
+uv_index_clear,1,Air quality and smoke,"UV index, clear sky",,1,Own chart
+#_hgt_anom,2,Anomalies,500mb Height and Anomaly,500/700,7,Preset (see chart-presets.csv)
+mslp_anom,1,Anomalies,MSLP and Anomaly,,7,Preset (see chart-presets.csv)
+ceiling,1,Aviation and visibility,Ceiling,,11,Own chart
+mean_vis,1,Aviation and visibility,Mean Visibility,,1,Own chart
+vis,1,Aviation and visibility,Surface Visibility,,10,Own chart
+visibility,1,Aviation and visibility,2-meter Visibility,,10,Own chart
+#m_rh_#m_wnd,1,Boundary layer and fire weather,"1-hr Minimum Relative Humidity, 10m Wind",,10,Own chart
+haines,1,Boundary layer and fire weather,Haines Index (850-700 mb),,10,Own chart
+pbl_height,1,Boundary layer and fire weather,PBL Height,,10,Own chart
+pbl_rich_height,1,Boundary layer and fire weather,PBL Height (Based on Richardson Number),,10,Own chart
+transport_wind,1,Boundary layer and fire weather,Transport Wind and Terrain Height,,10,Own chart
+vent_rate,1,Boundary layer and fire weather,Ventilation Rate,,10,Own chart
+mslp_trend,1,Changes and trends,MSLP and 48-hour Change,,42,Preset (see chart-presets.csv)
+snodpth_chng,1,Changes and trends,Snow Depth Change from F00,,11,Preset (see chart-presets.csv)
+snodpth_chng_mean,1,Changes and trends,Mean Snow Depth Change from the previous 24 hours,,1,Own chart
+snodpth_chng_sprd,1,Changes and trends,Spread of the Snow Depth Change from the previous 24 hours,,1,Own chart
+z#_trend,1,Changes and trends,500mb Height and 48-hour Change,,38,Preset (see chart-presets.csv)
+pct#_#m_temp,3,Ensemble: percentiles and extremes,10th percentile 2m Temperature,10/50/90,1,"One chart, dropdown(s)"
+pct#_#m_wnd,3,Ensemble: percentiles and extremes,10th percentile 10m Winds,10/50/90,1,"One chart, dropdown(s)"
+efi_#m_temp,1,Ensemble: percentiles and extremes,Extreme Forecast Index 2m Temperature,,1,Own chart
+efi_#m_wnd,1,Ensemble: percentiles and extremes,Extreme Forecast Index 10m Winds,,1,Own chart
+efi_mslp,1,Ensemble: percentiles and extremes,Extreme Forecast Index mslp,,1,Own chart
+pct#_#m_temp_range,1,Ensemble: percentiles and extremes,Median 2m Temperature with 10th / 90th percentiles,,1,Own chart
+member_#_ht,1,Ensemble: single members,Member: 500mb Height,,1,Own chart
+member_#_temp_mslp,1,Ensemble: single members,Member: 850mb Temperature and MSLP,,1,Own chart
+member_#m_temp_mslp,1,Ensemble: single members,Member: 2 m Temperature and MSLP,,1,Own chart
+member_cape,1,Ensemble: single members,Member: Surface CAPE,,1,Own chart
+member_gust,1,Ensemble: single members,Member: Surface Wind Gust,,1,Own chart
+member_refc,1,Ensemble: single members,Member: Composite Reflectivity,,1,Own chart
+member_tmp#m,1,Ensemble: single members,Member: 2 m Temperature,,1,Own chart
+member_uphl,1,Ensemble: single members,Member: 2-5 km Updraft Helicity (last hour),,1,Own chart
+#_#_#_ht,6,"Ensemble: spread, spaghetti and paintballs",500mb 510/552 Height Contours,510/516/522/528/534/540 | 552/558/564/570/576/582,1,"One chart, dropdown(s)"
+#_#_ht,6,"Ensemble: spread, spaghetti and paintballs",200mb 1176 Height Contours,1176/1188/1200/1212/1224/1230,1,"One chart, dropdown(s)"
+mslp_#_#_iso,6,"Ensemble: spread, spaghetti and paintballs",MSLP 984/1024 Isobar Contours,984/996/1000/1004/1008/1012 | 1024/1036/1040/1044/1048/1052,1,"One chart, dropdown(s)"
+all_spag_#_#_#,4,"Ensemble: spread, spaghetti and paintballs",500mb 522/564 Height Contours (spaghetti),522/528/534/540 | 564/570/576/582,1,"One chart, dropdown(s)"
+all_spag_mslp_#_#,4,"Ensemble: spread, spaghetti and paintballs",MSLP 996/1036 Isobar Contours (spaghetti),996/1000/1004/1008 | 1036/1040/1044/1048,1,"One chart, dropdown(s)"
+spag_#_#_#,4,"Ensemble: spread, spaghetti and paintballs",500mb 522/564 Height Contours (spaghetti),522/528/534/540 | 564/570/576/582,1,"One chart, dropdown(s)"
+spag_mslp_#_#,4,"Ensemble: spread, spaghetti and paintballs",MSLP 996/1036 Isobar Contours (spaghetti),996/1000/1004/1008 | 1036/1040/1044/1048,1,"One chart, dropdown(s)"
+spread_#_ht,4,"Ensemble: spread, spaghetti and paintballs",500mb Height: ensemble mean and spread,250/500/700/850,3,"One chart, dropdown(s)"
+spread_#_wnd,4,"Ensemble: spread, spaghetti and paintballs","250mb Wind Spread, Mean Wind and Height",250/500/700/850,1,"One chart, dropdown(s)"
+spread_#_temp,3,"Ensemble: spread, spaghetti and paintballs",850mb Temperature: ensemble mean and spread,500/700/850,2,"One chart, dropdown(s)"
+all_spread_#_ht,1,"Ensemble: spread, spaghetti and paintballs","500mb Height: all ensembles, mean and spread",,1,Own chart
+all_spread_#_temp,1,"Ensemble: spread, spaghetti and paintballs","850mb Temperature: all ensembles, mean and spread",,1,Own chart
+all_spread_#m_temp,1,"Ensemble: spread, spaghetti and paintballs","2 m Temperature: all ensembles, mean and spread",,1,Own chart
+all_spread_mslp,1,"Ensemble: spread, spaghetti and paintballs","MSLP: all ensembles, mean and spread",,1,Own chart
+combo_temp_spread,1,"Ensemble: spread, spaghetti and paintballs",RRFS 2 m Temperature with the Members' Spread,,1,Own chart
+refc_paintball,1,"Ensemble: spread, spaghetti and paintballs","Paintball: Composite Reflectivity of 40 dBZ or more, each member",,1,Own chart
+refc_paintball_mpas,1,"Ensemble: spread, spaghetti and paintballs","Paintball: Composite Reflectivity of 40 dBZ or more, each member and the NSSL MPAS runs",,1,Own chart
+refc_paintball_spc,1,"Ensemble: spread, spaghetti and paintballs","Paintball: 40 dBZ or more, REFS, HRRR and NSSL MPAS, with the chance",,1,Own chart
+spread_#m_temp,1,"Ensemble: spread, spaghetti and paintballs",2 m Temperature: ensemble mean and spread,,4,Own chart
+spread_#m_wnd,1,"Ensemble: spread, spaghetti and paintballs",10m Wind Spread and Mean Wind,,1,Own chart
+spread_cape,1,"Ensemble: spread, spaghetti and paintballs",Surface-Based CAPE Spread,,1,Own chart
+spread_mslp,1,"Ensemble: spread, spaghetti and paintballs",MSLP: ensemble mean and spread,,3,Own chart
+spread_pwat,1,"Ensemble: spread, spaghetti and paintballs",Precipitable Water Spread,,1,Own chart
+ppp_#h_zr_p#,28,"Ice: amount in the period (expected, percentiles)","24 hr Ice, 05th percentile",24/36/48/72 | 05/10/25/50/75/90/95,1,"One chart, dropdown(s)"
+ppp_#h_zr_expected,4,"Ice: amount in the period (expected, percentiles)","24 hr Ice, expected amount",24/36/48/72,1,"One chart, dropdown(s)"
+ppp_#h_zr_prob_#p#,36,Ice: chance of an amount,"24 hr Ice, chance of 0.01 in or more",24/36/48/72 | 0/1/2 | 00/01/10/25/50/75,1,"One chart, dropdown(s)"
+ppp_#h_median,4,"Median of all three (rain, snow, ice)","24 hr median: rain, snow and ice",24/36/48/72,1,"One chart, dropdown(s)"
+swell#_dir_per,3,Ocean and waves,Primary Swell Direction and Period (sec),1/2/3,3,"One chart, dropdown(s)"
+swell#_wv_ht,3,Ocean and waves,Primary Swell,1/2/3,3,"One chart, dropdown(s)"
+peak_dir_per,1,Ocean and waves,Significant Wave Height Direction and Period (sec),,3,Own chart
+sig_wv_ht,1,Ocean and waves,Significant Wave Height,,3,Own chart
+sst,1,Ocean and waves,Sea Surface Temperature,,3,Own chart
+waves,1,Ocean and waves,"Significant Wave Height, Peak Period and Wind",,2,Own chart
+wsea_dir_per,1,Ocean and waves,Wind Sea Direction and Period (sec),,3,Own chart
+wsea_wv_ht,1,Ocean and waves,Wind Sea,,3,Own chart
+precip_p#,8,Precipitation and moisture,Total Precipitation every 1 hour,01/03/06/12/24/36/48/60,16,Preset (see chart-presets.csv)
+#_#_thick,3,Precipitation and moisture,"MSLP, 1000-500mb thickness and precipitation",850/1000 | 500/700/850,14,Preset (see chart-presets.csv)
+#hour_precip_chance,3,Precipitation and moisture,1-hour Chance of Precipitation,1/6/12,1,"One chart, dropdown(s)"
+#th_percentile_#hr_snow,3,Precipitation and moisture,10th Percentile Hourly Snowfall,10/50/90,1,"One chart, dropdown(s)"
+ens_#_#_thick,3,Precipitation and moisture,Mean 1000-500mb Thickness,850/1000 | 500/700/850,1,"One chart, dropdown(s)"
+ens_precip_p#,3,Precipitation and moisture,Mean 6-hour Precipitation,06/12/24,1,"One chart, dropdown(s)"
+#_#_thick_type,2,Precipitation and moisture,"MSLP, 1000-850mb thickness and precipitation type",850/1000 | 700/850,10,Preset (see chart-presets.csv)
+blend_mean_precip_p#,2,Precipitation and moisture,Blend Mean 1-hour Precipitation,01/03,1,"One chart, dropdown(s)"
+lpmm_mean_precip_p#,2,Precipitation and moisture,Localized Probability Matched Mean 1-hour Precipitation,01/03,1,"One chart, dropdown(s)"
+mean_precip_p#,2,Precipitation and moisture,Mean 1-hour Precipitation and MSLP,01/03,2,"One chart, dropdown(s)"
+mean_snow_#h,2,Precipitation and moisture,Mean 1-hour Snow (10 to 1 ratio),1/3,1,"One chart, dropdown(s)"
+snow_p#,2,Precipitation and moisture,Snowfall,06/12,1,"One chart, dropdown(s)"
+#_temp_mslp_precip,1,Precipitation and moisture,"MSLP, 850mb temperature and precipitation",,14,Preset (see chart-presets.csv)
+#_temp_mslp_precip_type,1,Precipitation and moisture,"MSLP, 850mb temperature and precipitation type",,10,Preset (see chart-presets.csv)
+#hour_accu_snow,1,Precipitation and moisture,1-hour accumulated snow,,1,Own chart
+#m_wnd_precip,1,Precipitation and moisture,"MSLP, 10m wind and precipitation",,14,Preset (see chart-presets.csv)
+#m_wnd_precip_type,1,Precipitation and moisture,"MSLP, 10m wind and precipitation type",,10,Preset (see chart-presets.csv)
+blend_mean_precip_ptot,1,Precipitation and moisture,Blend Mean Total Precipitation,,1,Own chart
+cfs#_precip,1,Precipitation and moisture,Next days: precipitation against the normal,,1,Own chart
+cfs#_precip_value,1,Precipitation and moisture,Next days: total precipitation,,1,Own chart
+cfs#_t#m_precip,1,Precipitation and moisture,Next days: temperature and precipitation against the normal,,1,Own chart
+dom_precip_type,1,Precipitation and moisture,Dominant Precipitation Type,,1,Own chart
+ec#_precip,1,Precipitation and moisture,Precipitation: total of the week,,1,Own chart
+ec#_precip_departure,1,Precipitation and moisture,Precipitation: departure of the week,,1,Own chart
+ens_snow_total_mean,1,Precipitation and moisture,Snow Total Mean,,1,Own chart
+ens_snow_total_sprd,1,Precipitation and moisture,Snow Total Spread,,1,Own chart
+lpmm_mean_precip_ptot,1,Precipitation and moisture,Localized Probability Matched Mean Total Precipitation,,1,Own chart
+mean_precip_ptot,1,Precipitation and moisture,Mean Total Precipitation and MSLP,,1,Own chart
+mean_pwat,1,Precipitation and moisture,Mean Precipitable Water,,1,Own chart
+mean_snow_total,1,Precipitation and moisture,Mean Total Snow (10 to 1 ratio),,1,Own chart
+mslp_pwat,1,Precipitation and moisture,MSLP and Precipitable Water,,23,Preset (see chart-presets.csv)
+nice_weather,1,Precipitation and moisture,Nice Weather Outlook (hour 24 = day 1),,1,Own chart
+precip_duration,1,Precipitation and moisture,Precipitation duration,,1,Own chart
+precip_ptot,1,Precipitation and moisture,Total Accumulated Precipitation of Period,,16,Preset (see chart-presets.csv)
+precip_pwat,1,Precipitation and moisture,Total Column Precipitable Water,,10,Own chart
+precip_rate,1,Precipitation and moisture,Precipitation Rate,,10,Own chart
+precip_rate_type,1,Precipitation and moisture,"MSLP, 1000-500mb thickness and Precipitation Rate (Rain / Snow / Mixed)",,9,Preset (see chart-presets.csv)
+precip_type,1,Precipitation and moisture,MSLP and Precipitation (Rain / Snow / Mixed),,10,Preset (see chart-presets.csv)
+pwat,1,Precipitation and moisture,Precipitable Water,,2,Own chart
+rain_total,1,Precipitation and moisture,Rainfall since the start of the run and MSLP,,2,Own chart
+seas#_precip,1,Precipitation and moisture,Precipitation: total of the month,,1,Own chart
+seas#_precip_departure,1,Precipitation and moisture,Precipitation: departure of the month,,1,Own chart
+snow_liquid_ratio,1,Precipitation and moisture,Snow Liquid Ratio,,1,Own chart
+snow_ptot,1,Precipitation and moisture,Accumulated Snowfall,,1,Own chart
+snow_total,1,Precipitation and moisture,Total Snowfall since the start of the run,,10,Own chart
+prob_vis_#mi,5,Probability: aviation and visibility,Probability of Visibility 5 miles or less,0.5/1/2/3/5,2,"One chart, dropdown(s)"
+prob_ceil_#ft,4,Probability: aviation and visibility,Probability of Ceiling Less than 1000 feet,1000/2000/3000/6500,2,"One chart, dropdown(s)"
+prob_IFR,1,Probability: aviation and visibility,Probability of Instrument Flight Rules,,1,Own chart
+prob_VFR,1,Probability: aviation and visibility,Probability of Visual Flight Rules,,1,Own chart
+prob_lowIFR_IFR,1,Probability: aviation and visibility,Probability of Low Instrument Flight Rules and Instrument Flight Rules,,1,Own chart
+prob_low_IFR,1,Probability: aviation and visibility,Probability of Low Instrument Flight Rules,,1,Own chart
+prob_marginal_VFR,1,Probability: aviation and visibility,Probability of Marginal Visual Flight Rules,,1,Own chart
+prob_#h_snow_#in,9,Probability: precipitation,Probability of 1-hour 0.1 inch of snow,1/3 | 0.1/0.5/1/1.5/2/3/4,2,"One chart, dropdown(s)"
+eas_prob_#h_rain_#in,6,Probability: precipitation,Ensemble Agreement Scale Probability of 1-hour Rain over 0.01 in,1/3 | 0.01/0.25/0.5,1,"One chart, dropdown(s)"
+ens_prob_total_#in,6,Probability: precipitation,Probability of total precipitation of 0.01 in or more (since the start of the run),0.01/0.1/0.25/0.5/1/2,1,"One chart, dropdown(s)"
+prob_precip_#h_#in,6,Probability: precipitation,Probability of 0.25 in or more of rain in an hour,1/3 | 0.25/0.5/1/2,1,"One chart, dropdown(s)"
+prob_total_#in,6,Probability: precipitation,Probability of total precipitation of 0.01 in or more (since the start of the run),0.01/0.1/0.25/0.5/1/2,1,"One chart, dropdown(s)"
+eas_prob_#h_snow_#in,4,Probability: precipitation,Ensemble Agreement Scale Probability of 1-hour Snow over 0.1 in,1/3 | 0.1/0.3,1,"One chart, dropdown(s)"
+ens_prob_precip_#h_#in,3,Probability: precipitation,Probability of 6-hour Precipitation over 0.25 in,0.25/0.5/1,1,"One chart, dropdown(s)"
+prob_precip_#in,3,Probability: precipitation,Probability of 6-hour Precipitation over 0.25 in,0.25/0.5/1,1,"One chart, dropdown(s)"
+prob_#h_rain_#in,2,Probability: precipitation,Probability of 3-hour Rain over 0.5 in,0.5/1,1,"One chart, dropdown(s)"
+prob_pwat_#in,2,Probability: precipitation,Probability of Precipitable Water over 1.5 in,1.5/2,1,"One chart, dropdown(s)"
+prob_snow_#h_#in,2,Probability: precipitation,Probability of 1 in or more of snow in 3 hours,1/3,1,"One chart, dropdown(s)"
+prob_freezing_rain,1,Probability: precipitation,Probability of Freezing Rain,,2,Own chart
+prob_ice_#in,1,Probability: precipitation,Probability of Ice Pellets over 0.25 in,,1,Own chart
+prob_rain,1,Probability: precipitation,Probability of Rain,,2,Own chart
+prob_sleet,1,Probability: precipitation,Probability of Sleet,,2,Own chart
+prob_snow,1,Probability: precipitation,Probability of Snow,,2,Own chart
+prob_cape_#,6,Probability: severe and storms,Probability of CAPE over 250,250/500/1000/2000/3000/4000,2,"One chart, dropdown(s)"
+ens_prob_cape_#,3,Probability: severe and storms,Probability of CAPE over 500,500/1000/2000,1,"One chart, dropdown(s)"
+prob_max_hlcy_#,3,Probability: severe and storms,Probability of Maximum 2-5 km Updraft Helicity over 25,25/75/150,1,"One chart, dropdown(s)"
+thunder_#hr,3,Probability: severe and storms,REFSCT Thunderstorm Probability (1-hour),1/4/24,2,"One chart, dropdown(s)"
+prob_cref_#dbz,2,Probability: severe and storms,Probability of Composite Reflectivity over 40 dBZ,40/50,1,"One chart, dropdown(s)"
+prob_etop_#ft,2,Probability: severe and storms,"Probability of Echo Top over 30,000 ft",30000/35000,1,"One chart, dropdown(s)"
+prob_refc_#,2,Probability: severe and storms,Probability of Composite Reflectivity of 40 dBZ or more,40/50,1,"One chart, dropdown(s)"
+gefsmlp_hail_sig,1,Probability: severe and storms,GEFS-MLP Hail Probability (Significant),,1,Own chart
+gefsmlp_hail_std,1,Probability: severe and storms,GEFS-MLP Hail Probability (Any Severe),,1,Own chart
+gefsmlp_severe_sig,1,Probability: severe and storms,GEFS-MLP Any Severe Probability (Significant),,1,Own chart
+gefsmlp_severe_std,1,Probability: severe and storms,GEFS-MLP Any Severe Probability (Any Severe),,1,Own chart
+gefsmlp_tor_sig,1,Probability: severe and storms,GEFS-MLP Tornado Probability (Significant),,1,Own chart
+gefsmlp_tor_std,1,Probability: severe and storms,GEFS-MLP Tornado Probability (Any Severe),,1,Own chart
+gefsmlp_wind_sig,1,Probability: severe and storms,GEFS-MLP Wind Probability (Significant),,1,Own chart
+gefsmlp_wind_std,1,Probability: severe and storms,GEFS-MLP Wind Probability (Any Severe),,1,Own chart
+prob_refd_#dbz,1,Probability: severe and storms,Probability of 1 km Reflectivity over 40 dBZ,,1,Own chart
+prob_refd_max_#dbz,1,Probability: severe and storms,Probability of 1 km Maximum Reflectivity over 40 dBZ,,1,Own chart
+prob_tstm,1,Probability: severe and storms,Thunderstorm Probability,,1,Own chart
+prob_uphl_#,1,Probability: severe and storms,Probability of 2-5 km Updraft Helicity of 75 or more (last hour),,1,Own chart
+prob_vwshr_#kt,1,Probability: severe and storms,Probability of 0-6 km Vertical Wind Shear over 30 kt,,1,Own chart
+severe_hail_#hr,1,Probability: severe and storms,GREFS Calibrated Hail Probability (4-hour),,1,Own chart
+severe_hail_full,1,Probability: severe and storms,GREFS Calibrated Hail Probability (rest of the convective day),,1,Own chart
+severe_tor_#hr,1,Probability: severe and storms,GREFS Calibrated Tornado Probability (4-hour),,1,Own chart
+severe_tor_full,1,Probability: severe and storms,GREFS Calibrated Tornado Probability (rest of the convective day),,1,Own chart
+severe_wind_#hr,1,Probability: severe and storms,GREFS Calibrated Wind Probability (4-hour),,1,Own chart
+severe_wind_full,1,Probability: severe and storms,GREFS Calibrated Wind Probability (rest of the convective day),,1,Own chart
+thunder_full,1,Probability: severe and storms,REFSCT Thunderstorm Probability (rest of the convective day),,1,Own chart
+tstm_prob,1,Probability: severe and storms,Thunderstorm Probability (6 hours ending),,1,Own chart
+all_prob_#h_#in,6,Probability: temperature and wind,Probability of 0.01 in or more of precipitation in 24 hours: all ensembles,0.01/0.1/0.25/0.5/1/2,1,"One chart, dropdown(s)"
+prob_#m_dewp_#F,2,Probability: temperature and wind,Probability of 2 m Dew Point over 55 F,55/65,1,"One chart, dropdown(s)"
+prob_#m_wspd_#kt,2,Probability: temperature and wind,Probability of 10 m Wind Speed over 20 kt,20/30,1,"One chart, dropdown(s)"
+ens_prob_#m_temp_#C,1,Probability: temperature and wind,Probability of 2m Temperature under 0 C,,1,Own chart
+ens_prob_#m_wind_#kt,1,Probability: temperature and wind,Probability of 10m Wind Speeds over 25 kt,,1,Own chart
+prob_#m_temp_#C,1,Probability: temperature and wind,Probability of 2 m Temperature under 0 C,,1,Own chart
+prob_#m_temp_#f,1,Probability: temperature and wind,Probability of 2m Temperature at or over 90 F,,1,Own chart
+prob_#m_temp_freezing,1,Probability: temperature and wind,Probability of 2m Temperature at or under Freezing,,1,Own chart
+ppp_#h_qpf_p#,28,"Rain: amount in the period (expected, percentiles)","24 hr Rain, 05th percentile",24/36/48/72 | 05/10/25/50/75/90/95,1,"One chart, dropdown(s)"
+ppp_#h_qpf_expected,4,"Rain: amount in the period (expected, percentiles)","24 hr Rain, expected amount",24/36/48/72,1,"One chart, dropdown(s)"
+ppp_#h_qpf_prob_#p#,44,Rain: chance of an amount,"24 hr Rain, chance of 0.01 in or more",24/36/48/72 | 0/1/2/3/4/6/8/12 | 0/00/01/10/25/50,1,"One chart, dropdown(s)"
+rh#m_s#m_prob_t<#_t>#,14,SPC REFS: Fire weather,Wind > 15 mph and RH < 20% (ensemble probability),010/015/020/025/030/035 | 010/015/020/025/030,1,"One chart, dropdown(s)"
+fosberg_prob_t>#,2,SPC REFS: Fire weather,Fosberg Index > 50 (ensemble probability),050/075,1,"One chart, dropdown(s)"
+fosberg_max,1,SPC REFS: Fire weather,Fosberg Index (ensemble maximum),,1,Own chart
+fosberg_mean,1,SPC REFS: Fire weather,Fosberg Index (ensemble mean),,1,Own chart
+fosberg_min,1,SPC REFS: Fire weather,Fosberg Index (ensemble minimum),,1,Own chart
+rh#m_max,1,SPC REFS: Fire weather,2-m Relative Humidity (ensemble maximum),,1,Own chart
+rh#m_mean,1,SPC REFS: Fire weather,2-m Relative Humidity (ensemble mean),,1,Own chart
+rh#m_min,1,SPC REFS: Fire weather,2-m Relative Humidity (ensemble minimum),,1,Own chart
+sbcape_prob_t>#,3,SPC REFS: Instability and shear,SBCAPE > 500 J/kg (ensemble probability),500/1000/2000,1,"One chart, dropdown(s)"
+srh#_mean,2,SPC REFS: Instability and shear,0-1 km Storm-Relative Helicity (ensemble mean),01/03,1,"One chart, dropdown(s)"
+stp_fixed_prob_t>#,2,SPC REFS: Instability and shear,Fixed-Layer STP > 1 (ensemble probability),001/003,1,"One chart, dropdown(s)"
+mucape_mean,1,SPC REFS: Instability and shear,Most-Unstable CAPE (ensemble mean),,1,Own chart
+sbcape_max,1,SPC REFS: Instability and shear,Surface-Based CAPE (ensemble maximum),,1,Own chart
+sbcape_mean,1,SPC REFS: Instability and shear,Surface-Based CAPE (ensemble mean),,1,Own chart
+sbcape_min,1,SPC REFS: Instability and shear,Surface-Based CAPE (ensemble minimum),,1,Own chart
+sbcape_smooth_mean,1,SPC REFS: Instability and shear,"Surface-Based CAPE (ensemble mean, smoothed)",,1,Own chart
+sbcinh_mean,1,SPC REFS: Instability and shear,"Surface-Based CIN (ensemble mean, shown as magnitude)",,1,Own chart
+shrmag#_mean,1,SPC REFS: Instability and shear,0-6 km Shear Magnitude (ensemble mean),,1,Own chart
+stp_fixed_#h_max_overlap#h_mean,1,SPC REFS: Instability and shear,24-h Max Fixed-Layer Significant Tornado Parameter (ensemble mean),,1,Own chart
+stp_fixed_mean,1,SPC REFS: Instability and shear,Fixed-Layer Significant Tornado Parameter (ensemble mean),,1,Own chart
+ushr#_mean,1,SPC REFS: Instability and shear,"0-6 km Shear, west-east component (ensemble mean)",,1,Own chart
+vshr#_mean,1,SPC REFS: Instability and shear,"0-6 km Shear, south-north component (ensemble mean)",,1,Own chart
+snow_#h_acc_prob_t>#,5,SPC REFS: Precipitation,1-h Snowfall > 1 in (ensemble probability),01/12 | 001/002/004/008/012,1,"One chart, dropdown(s)"
+qpf_#h_acc_prob_t>#,4,SPC REFS: Precipitation,1-h QPF > 1 in (ensemble probability),01/06 | 001/002/003,1,"One chart, dropdown(s)"
+qpf_#h_acc_mean,3,SPC REFS: Precipitation,1-h QPF (ensemble mean),01/03/06,1,"One chart, dropdown(s)"
+snow_#h_acc_overlap#h_prob_t>#,3,SPC REFS: Precipitation,24-h Snowfall > 4 in (ensemble probability),004/008/012,1,"One chart, dropdown(s)"
+bliz_prob_t<#p#_t>#_t>#p#,2,SPC REFS: Precipitation,"Blizzard Probability: visibility < 0.25 mi, 10-m wind > 35 mph, snow",250/500 | 030/035,1,"One chart, dropdown(s)"
+qpf_#h_acc_max,2,SPC REFS: Precipitation,3-h QPF (ensemble maximum),03/06,1,"One chart, dropdown(s)"
+qpf_#h_acc_nmep_r#_t>#,2,SPC REFS: Precipitation,"3-h QPF > 1 in, neighborhood probability",001/003,1,"One chart, dropdown(s)"
+qpf_#h_acc_nmep_r#_t>#p#,2,SPC REFS: Precipitation,"6-h QPF > 0.1 in, neighborhood probability",100/250,1,"One chart, dropdown(s)"
+qpf_#h_acc_overlap#h_max,2,SPC REFS: Precipitation,24-h QPF (ensemble maximum),24/48,1,"One chart, dropdown(s)"
+qpf_#h_acc_overlap#h_mean,2,SPC REFS: Precipitation,24-h QPF (ensemble mean),24/48,1,"One chart, dropdown(s)"
+qpf_#h_acc_overlap#h_pmmean,2,SPC REFS: Precipitation,24-h QPF (PM mean),24/48,1,"One chart, dropdown(s)"
+qpf_#h_acc_pmmean,2,SPC REFS: Precipitation,3-h QPF (PM mean),03/06,1,"One chart, dropdown(s)"
+qpf_#h_acc_prob_t>#p#,2,SPC REFS: Precipitation,1-h QPF > 0.01 in (ensemble probability),01/06,1,"One chart, dropdown(s)"
+snow_#h_acc_mean,2,SPC REFS: Precipitation,1-h Snowfall (ensemble mean),01/12,1,"One chart, dropdown(s)"
+frzr_fram_#h_acc_mean,1,SPC REFS: Precipitation,3-h FRAM Ice Accretion (ensemble mean),,1,Own chart
+frzr_fram_#h_acc_overlap#h_mean,1,SPC REFS: Precipitation,24-h FRAM Ice Accretion (ensemble mean),,1,Own chart
+frzr_qpf_#h_acc_max,1,SPC REFS: Precipitation,3-h Freezing Rain QPF (ensemble maximum),,1,Own chart
+frzr_qpf_#h_acc_mean,1,SPC REFS: Precipitation,3-h Freezing Rain QPF (ensemble mean),,1,Own chart
+frzr_qpf_#h_acc_overlap#h_max,1,SPC REFS: Precipitation,24-h Freezing Rain QPF (ensemble maximum),,1,Own chart
+frzr_qpf_#h_acc_overlap#h_mean,1,SPC REFS: Precipitation,24-h Freezing Rain QPF (ensemble mean),,1,Own chart
+frzr_qpf_#h_acc_overlap#h_prob_t>#p#,1,SPC REFS: Precipitation,24-h Freezing Rain QPF > 0.06 in (ensemble probability),,1,Own chart
+frzr_qpf_#h_acc_prob_t>#p#,1,SPC REFS: Precipitation,3-h Freezing Rain QPF > 0.06 in (ensemble probability),,1,Own chart
+qpf_#h_acc,1,SPC REFS: Precipitation,6-h QPF (one member),,1,Own chart
+qpf_#h_acc_overlap#h,1,SPC REFS: Precipitation,24-h QPF (one member),,1,Own chart
+qpf_#h_ptype,1,SPC REFS: Precipitation,1-h QPF and Dominant Precipitation Type,,1,Own chart
+snow_#h_acc_max,1,SPC REFS: Precipitation,12-h Snowfall (ensemble maximum),,1,Own chart
+snow_#h_acc_overlap#h_max,1,SPC REFS: Precipitation,24-h Snowfall (ensemble maximum),,1,Own chart
+snow_#h_acc_overlap#h_mean,1,SPC REFS: Precipitation,24-h Snowfall (ensemble mean),,1,Own chart
+snow_#h_acc_overlap#h_pmmean,1,SPC REFS: Precipitation,24-h Snowfall (PM mean),,1,Own chart
+snow_#h_acc_pmmean,1,SPC REFS: Precipitation,12-h Snowfall (PM mean),,1,Own chart
+s#m_#h_max_overlap#h_nmep_r#_t#,2,SPC REFS: Severe storms,"24-h 10-m Wind Speed > 30 kt, neighborhood probability",030/050,1,"One chart, dropdown(s)"
+s#m_#h_max_overlap_nmep_r#_t#,2,SPC REFS: Severe storms,"4-h 10-m Wind Speed > 30 kt, neighborhood probability",030/050,1,"One chart, dropdown(s)"
+uh#_#h_max_overlap,2,SPC REFS: Severe storms,4-h Max 2-5 km Updraft Helicity (one member),03/25,1,"One chart, dropdown(s)"
+uh#_#h_max_overlap#h_nmep_r#_t>#p,2,SPC REFS: Severe storms,"24-h 2-5 km UH > 99.85 percentile, 40-km neighborhood probability",99.85/99.95,1,"One chart, dropdown(s)"
+uh#_#h_max_overlap#h_pb_t>#p,2,SPC REFS: Severe storms,24-h Paintball 2-5 km UH > 99.85 percentile,99.85/99.95,1,"One chart, dropdown(s)"
+uh#_#h_max_overlap_nmep_r#_t>#p,2,SPC REFS: Severe storms,"4-h 2-5 km UH > 99.85 percentile, 40-km neighborhood probability",99.85/99.95,1,"One chart, dropdown(s)"
+uh#_#h_max_overlap_pb_t>#p,2,SPC REFS: Severe storms,4-h Paintball 2-5 km UH > 99.85 percentile,99.85/99.95,1,"One chart, dropdown(s)"
+uh#min_#h_min_overlap#h_nmep_r#_t<-#,2,SPC REFS: Severe storms,"24-h 2-5 km UH < -35 m2/s2, 40-km neighborhood probability",35/70,1,"One chart, dropdown(s)"
+uh#min_#h_min_overlap_nmep_r#_t<-#,2,SPC REFS: Severe storms,"4-h 2-5 km UH < -35 m2/s2, 40-km neighborhood probability",35/70,1,"One chart, dropdown(s)"
+wmax_#h_max_overlap#h_nmep_r#_t#,2,SPC REFS: Severe storms,"24-h Updraft Speed > 20 m/s, neighborhood probability",020/030,1,"One chart, dropdown(s)"
+wmax_#h_max_overlap_nmep_r#_t#,2,SPC REFS: Severe storms,"4-h Updraft Speed > 20 m/s, neighborhood probability",020/030,1,"One chart, dropdown(s)"
+cref,1,SPC REFS: Severe storms,Composite Reflectivity (one member),,1,Own chart
+cref_max,1,SPC REFS: Severe storms,Composite Reflectivity (ensemble maximum),,1,Own chart
+cref_nmep_r#_t#,1,SPC REFS: Severe storms,"Composite Reflectivity > 40 dBZ, 40-km neighborhood probability",,1,Own chart
+cref_pb_t#,1,SPC REFS: Severe storms,Composite Reflectivity Paintball > 40 dBZ,,1,Own chart
+maxref#km_#h_max_overlap#h_max,1,SPC REFS: Severe storms,24-h Max Reflectivity (ensemble maximum),,1,Own chart
+maxref#km_#h_max_overlap_max,1,SPC REFS: Severe storms,4-h Max Reflectivity (ensemble maximum),,1,Own chart
+maxref#km_mucape_#h_max_overlap#h_nmep_r#_t>#,1,SPC REFS: Severe storms,"24-h Max Reflectivity > 40 dBZ, neighborhood probability",,1,Own chart
+maxref#km_mucape_#h_max_overlap#h_pb_t>#,1,SPC REFS: Severe storms,24-h Max Reflectivity Paintball > 40 dBZ (where MUCAPE > 50 J/kg),,1,Own chart
+maxref#km_mucape_#h_max_overlap_nmep_r#_t>#,1,SPC REFS: Severe storms,"4-h Max Reflectivity > 40 dBZ, neighborhood probability",,1,Own chart
+maxref#km_mucape_#h_max_overlap_pb_t>#,1,SPC REFS: Severe storms,4-h Max Reflectivity Paintball > 40 dBZ (where MUCAPE > 50 J/kg),,1,Own chart
+s#m_#h_max_overlap#h_max,1,SPC REFS: Severe storms,24-h Max 10-m Wind Speed where Reflectivity > 20 dBZ (ensemble maximum),,1,Own chart
+s#m_#h_max_overlap#h_pb_t#,1,SPC REFS: Severe storms,24-h Paintball 10-m Wind Speed > 30 kt,,1,Own chart
+s#m_#h_max_overlap_max,1,SPC REFS: Severe storms,4-h Max 10-m Wind Speed where Reflectivity > 20 dBZ (ensemble maximum),,1,Own chart
+s#m_#h_max_overlap_pb_t#,1,SPC REFS: Severe storms,4-h Paintball 10-m Wind Speed > 30 kt,,1,Own chart
+uh#_#h_max_max,1,SPC REFS: Severe storms,1-h Max 2-5 km Updraft Helicity (ensemble maximum),,1,Own chart
+uh#_#h_max_overlap#h,1,SPC REFS: Severe storms,24-h Max 2-5 km Updraft Helicity (one member),,1,Own chart
+uh#_#h_max_overlap#h_max,1,SPC REFS: Severe storms,24-h Max 2-5 km Updraft Helicity (ensemble maximum),,1,Own chart
+uh#_#h_max_overlap_max,1,SPC REFS: Severe storms,4-h Max 2-5 km Updraft Helicity (ensemble maximum),,1,Own chart
+uh#min_#h_min_overlap,1,SPC REFS: Severe storms,"4-h Min 2-5 km Updraft Helicity (one member, shown as magnitude)",,1,Own chart
+uh#min_#h_min_overlap#h,1,SPC REFS: Severe storms,"24-h Min 2-5 km Updraft Helicity (one member, shown as magnitude)",,1,Own chart
+uh#min_#h_min_overlap#h_min,1,SPC REFS: Severe storms,"24-h Min 2-5 km Updraft Helicity (ensemble minimum, shown as magnitude)",,1,Own chart
+uh#min_#h_min_overlap_min,1,SPC REFS: Severe storms,"4-h Min 2-5 km Updraft Helicity (ensemble minimum, shown as magnitude)",,1,Own chart
+wmax_#h_max_overlap#h_max,1,SPC REFS: Severe storms,24-h Max Updraft Speed (ensemble maximum),,1,Own chart
+wmax_#h_max_overlap#h_pb_t#,1,SPC REFS: Severe storms,24-h Paintball Updraft Speed > 20 m/s,,1,Own chart
+wmax_#h_max_overlap_max,1,SPC REFS: Severe storms,4-h Max Updraft Speed (ensemble maximum),,1,Own chart
+wmax_#h_max_overlap_pb_t#,1,SPC REFS: Severe storms,4-h Paintball Updraft Speed > 20 m/s,,1,Own chart
+t#_mean,3,SPC REFS: Surface and upper air,500 mb Temperature (ensemble mean),500/700/850,1,"One chart, dropdown(s)"
+u#_mean,3,SPC REFS: Surface and upper air,"500 mb Wind, west-east component (ensemble mean)",500/700/850,1,"One chart, dropdown(s)"
+v#_mean,3,SPC REFS: Surface and upper air,"500 mb Wind, south-north component (ensemble mean)",500/700/850,1,"One chart, dropdown(s)"
+z#_mean,3,SPC REFS: Surface and upper air,500 mb Height (ensemble mean),500/700/850,1,"One chart, dropdown(s)"
+cld_high_mean,1,SPC REFS: Surface and upper air,High Cloud Cover (ensemble mean),,1,Own chart
+cld_low_mean,1,SPC REFS: Surface and upper air,Low Cloud Cover (ensemble mean),,1,Own chart
+cld_mid_mean,1,SPC REFS: Surface and upper air,Mid Cloud Cover (ensemble mean),,1,Own chart
+gust_max,1,SPC REFS: Surface and upper air,10-m Gusts (ensemble maximum),,1,Own chart
+gust_mean,1,SPC REFS: Surface and upper air,10-m Gusts (ensemble mean),,1,Own chart
+gust_min,1,SPC REFS: Surface and upper air,10-m Gusts (ensemble minimum),,1,Own chart
+lr#_mean,1,SPC REFS: Surface and upper air,700-500 mb Lapse Rate (ensemble mean),,1,Own chart
+pmsl_mean,1,SPC REFS: Surface and upper air,Mean Sea-Level Pressure (ensemble mean),,1,Own chart
+pwat_mean,1,SPC REFS: Surface and upper air,Precipitable Water (ensemble mean),,1,Own chart
+pwat_prob_t>#p#_t<#p#,1,SPC REFS: Surface and upper air,Precipitable Water between 0.5 and 0.8 in (ensemble probability),,1,Own chart
+s#m_#h_max_max,1,SPC REFS: Surface and upper air,1-h Max 10-m Wind (ensemble maximum),,1,Own chart
+s#m_#h_max_mean,1,SPC REFS: Surface and upper air,1-h Max 10-m Wind (ensemble mean),,1,Own chart
+s#m_#h_max_min,1,SPC REFS: Surface and upper air,1-h Max 10-m Wind (ensemble minimum),,1,Own chart
+t#m_mean,1,SPC REFS: Surface and upper air,2-m Temperature (ensemble mean),,1,Own chart
+td#m_mean,1,SPC REFS: Surface and upper air,2-m Dewpoint (ensemble mean),,1,Own chart
+u#m_mean,1,SPC REFS: Surface and upper air,"10-m Wind, west-east component (ensemble mean)",,1,Own chart
+v#m_mean,1,SPC REFS: Surface and upper air,"10-m Wind, south-north component (ensemble mean)",,1,Own chart
+sat_ir,1,Satellite,Simulated Satellite: Infrared (window),,2,Own chart
+sat_wv_low,1,Satellite,"Simulated Satellite: Water Vapor, lower level",,2,Own chart
+sat_wv_mid,1,Satellite,"Simulated Satellite: Water Vapor, middle level",,2,Own chart
+sat_wv_upper,1,Satellite,"Simulated Satellite: Water Vapor, upper level",,2,Own chart
+ehi_#_#km,2,Severe: composite indices,0-1 km Energy Helicity Index,1/3,2,"One chart, dropdown(s)"
+dcp,1,Severe: composite indices,Derecho Composite Parameter,,2,Own chart
+scp,1,Severe: composite indices,Supercell Composite Parameter,,2,Own chart
+ship,1,Severe: composite indices,SHIP (Significant Hail Parameter),,12,Own chart
+stp,1,Severe: composite indices,"STP (Significant Tornado Parameter, fixed layer)",,10,Own chart
+stp_eff,1,Severe: composite indices,Significant Tornado Parameter (effective layer),,2,Own chart
+stp_fix,1,Severe: composite indices,Significant Tornado Parameter (fixed layer),,2,Own chart
+best_cape,1,Severe: instability,Best (Most Unstable) CAPE,,10,Own chart
+best_cape_cin,1,Severe: instability,Most Unstable CAPE and CIN,,10,Own chart
+cape,1,Severe: instability,Surface-Based CAPE,,2,Own chart
+dcape,1,Severe: instability,Downdraft CAPE,,2,Own chart
+ens_cape,1,Severe: instability,Mean Convective Available Potential Energy,,1,Own chart
+ens_cin,1,Severe: instability,Mean Convective Inhibition,,1,Own chart
+lapse_#_#,1,Severe: instability,700-500 mb Lapse Rate,,2,Own chart
+lapse_#_#km,1,Severe: instability,0-3 km Lapse Rate,,2,Own chart
+lcl_ml,1,Severe: instability,Mixed-Layer LCL Height,,2,Own chart
+lfc_sb,1,Severe: instability,Surface-Based LFC Height,,2,Own chart
+lifted_index_ml,1,Severe: instability,Best Lifted Index (lowest 180 mb),,10,Own chart
+mean_ml_cape,1,Severe: instability,Mean Mixed Layer CAPE,,1,Own chart
+mlcape,1,Severe: instability,Mixed-Layer CAPE (lowest 100 mb),,2,Own chart
+mlcin,1,Severe: instability,Mixed-Layer CIN,,2,Own chart
+mucape,1,Severe: instability,Most Unstable CAPE,,2,Own chart
+mucin,1,Severe: instability,Most Unstable CIN,,2,Own chart
+sbcape,1,Severe: instability,Surface-Based CAPE,,2,Own chart
+sbcape_wind,1,Severe: instability,"Surface-Based CAPE, MSLP and 10m Wind",,30,Preset (see chart-presets.csv)
+sbcin,1,Severe: instability,Surface-Based CIN,,2,Own chart
+sfc_cape_cin,1,Severe: instability,Surface-Based CAPE and CIN,,10,Own chart
+helicity_#km,2,Severe: rotation and shear,0-1 km Storm-Relative Helicity,1/3,10,"One chart, dropdown(s)"
+max_relv_#_#km,2,Severe: rotation and shear,Maximum 0-1 km Relative Vorticity in the last hour,1/2,10,"One chart, dropdown(s)"
+shear_#_#km,2,Severe: rotation and shear,0-6 km Bulk Wind Shear,1/6,2,"One chart, dropdown(s)"
+srh_#_#km,2,Severe: rotation and shear,0-1 km Storm Relative Helicity,1/3,2,"One chart, dropdown(s)"
+accu_max_updraft_hlcy,1,Severe: rotation and shear,Accumulated Maximum 2-5 km Updraft Helicity,,10,Own chart
+combo_uphl_chance,1,Severe: rotation and shear,RRFS Updraft Helicity with the Members' Chance of 75 or more,,1,Own chart
+critical_angle,1,Severe: rotation and shear,Critical Angle,,2,Own chart
+effective_shear,1,Severe: rotation and shear,Effective Bulk Wind Difference,,2,Own chart
+helicity,1,Severe: rotation and shear,Helicity and 30m Wind,,10,Own chart
+max_updraft_hlcy,1,Severe: rotation and shear,Maximum 2-5 km Updraft Helicity in the last hour,,10,Own chart
+max_uphl,1,Severe: rotation and shear,Strongest 2-5 km Updraft Helicity of any member (last hour),,1,Own chart
+mean_vwshr,1,Severe: rotation and shear,Mean 0-6 km Vertical Wind Shear,,1,Own chart
+mean_wind_#_#km,1,Severe: rotation and shear,0-6 km Mean Wind,,2,Own chart
+srh_eff,1,Severe: rotation and shear,Effective Storm Relative Helicity,,2,Own chart
+pool_refc_#_lag#,4,Severe: storm structure,"Pooled REFS + MPAS: chance of 40 dBZ or more, last 2 runs of each",40/50 | 2/3,1,"One chart, dropdown(s)"
+pool_refc_#,2,Severe: storm structure,"Pooled REFS + MPAS: chance of 40 dBZ or more, most recent runs",40/50,1,"One chart, dropdown(s)"
+combo_refc_chance,1,Severe: storm structure,RRFS Radar with the Members' Chance of 40 dBZ or more,,1,Own chart
+echo_top,1,Severe: storm structure,Echo Top Height,,11,Own chart
+lightning,1,Severe: storm structure,Lightning (flashes in the last hour),,10,Own chart
+max_downdraft,1,Severe: storm structure,Maximum 1-hr Downdraft Vertical Velocity,,10,Own chart
+max_updraft,1,Severe: storm structure,Maximum 1-hr Updraft Vertical Velocity,,10,Own chart
+pmm_refd_#km,1,Severe: storm structure,Probability Matched Mean of 1 km Reflectivity,,1,Own chart
+pmm_refd_#km_emsl,1,Severe: storm structure,Probability Matched Mean of 1 km Reflectivity and MSLP,,1,Own chart
+pmm_refd_max,1,Severe: storm structure,Probability Matched Mean of Maximum Reflectivity,,1,Own chart
+pmm_refd_max_emsl,1,Severe: storm structure,Probability Matched Mean of Maximum Reflectivity and MSLP,,1,Own chart
+reflectivity,1,Severe: storm structure,Simulated Radar (Composite Reflectivity) and MSLP,,2,Own chart
+sim_radar_#km,1,Severe: storm structure,Simulated Radar at 1 km,,10,Own chart
+sim_radar_comp,1,Severe: storm structure,Simulated Composite Radar Reflectivity,,17,Preset (see chart-presets.csv)
+sim_radar_max,1,Severe: storm structure,Maximum Simulated Radar of the last hour,,10,Own chart
+ppp_#h_sn_p#,28,"Snow: amount in the period (expected, percentiles)","24 hr Snow, 05th percentile",24/36/48/72 | 05/10/25/50/75/90/95,1,"One chart, dropdown(s)"
+ppp_#h_sn_expected,4,"Snow: amount in the period (expected, percentiles)","24 hr Snow, expected amount",24/36/48/72,1,"One chart, dropdown(s)"
+ppp_#h_sn_prob_#p#,32,Snow: chance of an amount,"24 hr Snow, chance of 0.1 in or more",24/36/48/72 | 0/1/2/4/6/8/12/18 | 00/0/10,1,"One chart, dropdown(s)"
+#m_apparent_temp,1,Surface,2 m Apparent Temperature and 10 m Wind,,1,Own chart
+#m_dewp_#m_wnd,1,Surface,2 m Dewpoint and 10 m Wind,,20,Own chart
+#m_dewpoint,1,Surface,"MSLP, 10m wind, 2m dewpoint",,24,Preset (see chart-presets.csv)
+#m_dwpc,1,Surface,Shelter (2 m) Dew Point Temperature,,10,Own chart
+#m_max_temp,1,Surface,2 m Maximum Temperature (12 hours ending),,1,Own chart
+#m_maxwnd,1,Surface,Maximum 10m Wind in the last hour,,10,Own chart
+#m_min_temp,1,Surface,2 m Minimum Temperature (12 hours ending),,1,Own chart
+#m_relh_#m_wnd,1,Surface,2 m Relative Humidity and 10 m Wind,,1,Own chart
+#m_rh_#m_wnd_derived,1,Surface,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",,24,Preset (see chart-presets.csv)
+#m_temp,1,Surface,Mean 2m Temperature and Spread,,1,Own chart
+#m_temp_#m_wnd,1,Surface,2 m Temperature and 10 m Wind,,20,Own chart
+#m_tmpc,1,Surface,Shelter (2 m) Temperature,,10,Own chart
+#m_wnd,1,Surface,Mean 10m Winds and Spread,,11,Own chart
+#m_wnd_#m_temp,1,Surface,"MSLP, 10m wind, 2m temperature",,42,Preset (see chart-presets.csv)
+#m_wnd_gust,1,Surface,10 m Wind and Gust,,10,Own chart
+#m_wnd_sfc_gust,1,Surface,10m Wind Barbs and Surface Gust,,10,Own chart
+cfs#_mslp,1,Surface,Next days: mean sea level pressure,,1,Own chart
+cfs#_mslp_departure,1,Surface,Next days: sea level pressure against the normal,,1,Own chart
+cfs#_t#m,1,Surface,Next days: temperature against the normal,,1,Own chart
+cfs#_t#m_value,1,Surface,Next days: mean temperature,,1,Own chart
+dewpoint_#m,1,Surface,2 m Dewpoint,,2,Own chart
+ec#_mslp,1,Surface,Sea Level Pressure: mean of the week,,1,Own chart
+ec#_mslp_departure,1,Surface,Sea Level Pressure: departure of the week,,1,Own chart
+ec#_t#m,1,Surface,2 m Temperature: mean of the week,,1,Own chart
+ec#_t#m_departure,1,Surface,2 m Temperature: departure of the week,,1,Own chart
+ens_#m_temp,1,Surface,Mean 2m Temperature,,1,Own chart
+ens_#m_wind,1,Surface,Mean 10m Winds,,1,Own chart
+ens_mslp,1,Surface,Mean Sea Level Pressure and Spread,,1,Own chart
+fzl,1,Surface,Freezing Level Height,,2,Own chart
+inverse_barometer,1,Surface,Sea Level Lift from Air Pressure,,1,Own chart
+mean_#m_dewp,1,Surface,Mean 2 m Dew Point,,1,Own chart
+mean_#m_temp,1,Surface,Mean 2 m Temperature,,2,Own chart
+mixr_#m,1,Surface,2 m Mixing Ratio,,2,Own chart
+mslp,1,Surface,Mean Sea Level Pressure and Spread,,1,Own chart
+mslp_#m_wind,1,Surface,MSLP and 10m Wind,,42,Preset (see chart-presets.csv)
+ocean_current,1,Surface,Surface Current,,1,Own chart
+rh_#m,1,Surface,2 m Relative Humidity,,2,Own chart
+sea_level_height,1,Surface,Sea Surface Height,,1,Own chart
+seas#_mslp,1,Surface,Sea Level Pressure: mean of the month,,1,Own chart
+seas#_mslp_departure,1,Surface,Sea Level Pressure: departure of the month,,1,Own chart
+seas#_t#m,1,Surface,2 m Temperature: mean of the month,,1,Own chart
+seas#_t#m_departure,1,Surface,2 m Temperature: departure of the month,,1,Own chart
+temp_#m,1,Surface,2 m Temperature,,2,Own chart
+thetae_#m,1,Surface,2 m Equivalent Potential Temperature,,2,Own chart
+total_cloud_cover,1,Surface,Total Cloud Cover and 10 m Wind,,10,Own chart
+tstm_coverage,1,Surface,Thunderstorm Coverage,,1,Own chart
+wind_mslp,1,Surface,"10m Wind, MSLP and Barbs",,2,Own chart
+swath_gust,1,Swaths,Swath: Strongest 10m Gust so far,,2,Own chart
+swath_wind,1,Swaths,Swath: Strongest 10m Wind so far,,2,Own chart
+#_vort_ht,3,Tropical and dynamics,"500mb Vorticity, Wind, and Height",500/700/850,35,Preset (see chart-presets.csv)
+ens_#_vort_ht,2,Tropical and dynamics,250mb Vorticity and Height,250/500,1,"One chart, dropdown(s)"
+#_div_wnd,1,Tropical and dynamics,"200mb Divergence, Wind and Height",,32,Preset (see chart-presets.csv)
+#_stream_div,1,Tropical and dynamics,200mb Divergence and Streamlines,,32,Preset (see chart-presets.csv)
+#_stream_vort,1,Tropical and dynamics,850mb Vorticity and Streamlines,,37,Preset (see chart-presets.csv)
+#_thetae_ht,1,Tropical and dynamics,"850mb Equivalent Potential Temperature, Wind and Height",,38,Preset (see chart-presets.csv)
+#vor_#ht_#wd,1,Tropical and dynamics,"850mb Vorticity, 500mb Height, 200mb Wind",,31,Preset (see chart-presets.csv)
+shear_#_#,1,Tropical and dynamics,850-200mb Deep-Layer Wind Shear,,32,Preset (see chart-presets.csv)
+steering_#_#,1,Tropical and dynamics,850-200mb Mean Wind (Steering Flow),,30,Preset (see chart-presets.csv)
+#_wnd,6,Upper air,Mean 250mb Winds and Spread,250/300/500/700/850/925,11,"One chart, dropdown(s)"
+#_wnd_ht,5,Upper air,200mb Wind and Height,200/250/300/500/850,38,Preset (see chart-presets.csv)
+#_temp,4,Upper air,Mean 250mb Temperature and Spread,250/500/700/850,1,"One chart, dropdown(s)"
+#_rh_ht,3,Upper air,500mb Relative Humidity and Height,500/700/850,38,Preset (see chart-presets.csv)
+#_temp_ht,3,Upper air,"850mb Temperature, Wind and Height",500/850/925,38,Preset (see chart-presets.csv)
+ens_#_rh,2,Upper air,700mb Relative Humidity,700/850,1,"One chart, dropdown(s)"
+ens_#_temp,2,Upper air,700mb Temperature,700/850,1,"One chart, dropdown(s)"
+ens_#_wnd,2,Upper air,250mb Wind,250/850,1,"One chart, dropdown(s)"
+#_#_rh,1,Upper air,850-700mb Mean Relative Humidity,,37,Preset (see chart-presets.csv)
+#_pw_ht,1,Upper air,"850mb Height, Precipitable Water and Wind",,24,Preset (see chart-presets.csv)
+#_temp_mslp,1,Upper air,"700mb Temperature, Wind and MSLP",,35,Preset (see chart-presets.csv)
+#_temp_wnd,1,Upper air,925mb Temperature and Wind,,10,Own chart
+rh_#_#,1,Upper air,"700-300mb Mean Relative Humidity, 500mb Height and Wind",,30,Preset (see chart-presets.csv)
