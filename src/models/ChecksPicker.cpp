@@ -158,7 +158,7 @@ std::vector<ChecksPicker::Kind> ChecksPicker::kinds(const std::vector<ProductPic
     std::map<std::string, std::array<std::string, 3>> partsOf;   // chart id -> hour, type, limit (a product chart)
     for (const auto& e : entries) {
         const auto * alias = ChartAlias::find(e.id);
-        std::string group = alias != nullptr && !ChartAlias::oneOff(*alias) ? std::string{alias->group} : "one:" + e.id;
+        std::string group = alias != nullptr && !ChartAlias::oneOff(*alias) ? std::string{alias->group} : "one:" + std::regex_replace(e.id, std::regex{R"(\d+(?:\.\d+)?)"}, "#");   // (a chart no family reads: one kind with the charts of its id's pattern, "500mb 510/552 Height Contours" and the five like it)
         if (alias != nullptr) {
             const std::string family = alias->family;
             if ((family == "Chance" || family.compare(0, 12, "Product grid") == 0 || family.compare(0, 6, "Amount") == 0) && *alias->product != '\0') {   // a product of hours, types and limits: one kind for the product
