@@ -1277,6 +1277,9 @@ int main(int argc, char * argv[]) {
                     });
                 }
                 qEnvironmentVariable("WXQT_PICK") == "net" ? (NetStatus::show(viewer), opened = NetStatus::current(), void()) : qEnvironmentVariable("WXQT_PICK") == "sector" ? viewer->showSectorPicker() : qEnvironmentVariable("WXQT_PICK") == "model" ? viewer->showModelPicker() : qEnvironmentVariable("WXQT_PICK") == "late" ? QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_PICK_WAIT") * 1000, viewer, [viewer] { viewer->showPicker(); }) : viewer->showPicker();   // WXQT_PICK=late: the chart picker after WXQT_PICK_WAIT seconds (once the run has said which charts it lacks)   // WXQT_PICK=sector: the area picker
+                if (qEnvironmentVariable("WXQT_PICK") == "checks") {   // WXQT_PICK=checks: the checks picker (Checks...) as well; WXQT_PICKER_PNG with WXQT_PICKER_TITLE="as checks" saves its picture
+                    viewer->showChecks();
+                }
                 if (qEnvironmentVariable("WXQT_PICK") == "levels") {   // WXQT_PICK=levels: the picker's "850/700/500 wind" clicked
                     QTimer::singleShot(800, viewer, [viewer] {
                         for (auto * button : viewer->findChildren<QPushButton *>()) {
