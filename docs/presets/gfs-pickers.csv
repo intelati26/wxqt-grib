@@ -1,13 +1,12 @@
 picker,entry,GFS charts using it,example ids
-Barbs (levels stack),850 mb,7,850_vort_ht 850_temp_ht 850_rh_ht 850_pw_ht
-Barbs (levels stack),10 m,7,10m_wnd_2m_temp 10m_wnd_precip 2m_dewpoint 2m_rh_10m_wnd_derived
-Barbs (levels stack),500 mb,4,500_wnd_ht 500_vort_ht 500_rh_ht 500_hgt_anom
-Barbs (levels stack),700 mb,3,700_rh_ht 700_hgt_anom 700_temp_mslp
+Barbs (levels stack),850 mb (checked),6,850_vort_ht 850_temp_ht 850_rh_ht 850_pw_ht
+Barbs (levels stack),10 m (checked),6,10m_wnd_2m_temp mslp_anom 2m_dewpoint 2m_rh_10m_wnd_derived
+Barbs (levels stack),500 mb (checked),5,500_wnd_ht 500_vort_ht 500_rh_ht 500_hgt_anom
+Barbs (levels stack),700 mb (checked),3,700_rh_ht 700_hgt_anom 700_temp_mslp
+Barbs (levels stack),200 mb (checked),2,850vor_500ht_200wd 200_div_wnd
 Barbs (levels stack),850-200 mb,2,shear_850_200 steering_850_200
-Barbs (levels stack),925 mb,1,925_temp_ht
-Barbs (levels stack),200 mb,1,200_div_wnd
-Barbs (levels stack),chart level,1,mslp_anom
-Barbs (levels stack),700-300 mb,1,rh_700_300
+Barbs (levels stack),10 m,2,10m_wnd_precip 10m_wnd_precip_type
+Barbs (levels stack),925 mb (checked),1,925_temp_ht
 Contours: Heights,Height,20,200_wnd_ht 250_wnd_ht 300_wnd_ht 500_wnd_ht
 Contours: Omega,Omega,1,700_rh_ht
 Contours: Pressure,Sea level pressure,31,10m_wnd_2m_temp shear_850_200 steering_850_200 mslp_anom
