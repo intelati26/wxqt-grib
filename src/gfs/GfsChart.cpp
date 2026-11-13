@@ -8497,8 +8497,17 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     font.setPixelSize(11);
     font.setBold(true);
     p.setFont(font);
+    // text goes through here: with Options::noLabels none is drawn (a picture of the colors, lines and barbs alone)
+    const auto drawLabel = [&] (auto&&... args) {
+        if (!options.noLabels) {
+            p.drawText(std::forward<decltype(args)>(args)...);
+        }
+    };
     const QFontMetricsF metrics{font};
     const auto halo = [&] (const QPointF& at, const QString& text, const QColor& color) {   // a label with a light edge so it reads over the colors
+        if (options.noLabels) {
+            return;
+        }
         const QPointF origin{at.x() - metrics.horizontalAdvance(text) / 2.0, at.y() + metrics.ascent() / 2.0 - 1};
         QPainterPath path;
         path.addText(origin, font, text);
@@ -8811,6 +8820,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                     }
                 }
                 boxes.push_back(box);
+                if (options.noLabels) {
+                    return true;
+                }
                 p.setPen(Qt::NoPen);
                 p.setBrush(QColor{255, 255, 255, 150});
                 p.drawRoundedRect(box, 3.0, 3.0);
@@ -8961,13 +8973,13 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         const double y = box.center().y();
         p.setPen(QPen{QColor{20, 20, 20}, 2.0});
         p.drawLine(QPointF{x, y}, QPointF{x + 22.0, y});
-        p.drawText(QPointF{x + 28.0, y + 4.0}, first);
+        drawLabel(QPointF{x + 28.0, y + 4.0}, first);
         x += 28.0 + QFontMetricsF{keyFont}.horizontalAdvance(first) + 14.0;
         if (!options.trackOther.empty()) {
             p.setPen(QPen{QColor{20, 90, 220}, 2.0, Qt::DashLine});
             p.drawLine(QPointF{x, y}, QPointF{x + 22.0, y});
             p.setPen(QColor{20, 20, 20});
-            p.drawText(QPointF{x + 28.0, y + 4.0}, second);
+            drawLabel(QPointF{x + 28.0, y + 4.0}, second);
         }
     }
     p.setClipping(false);
@@ -8991,10 +9003,10 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 const QString label = QString::fromStdString(options.markerName);
                 p.setPen(QColor{255, 255, 255});
                 for (const QPointF d : {QPointF{1, 1}, QPointF{-1, 1}, QPointF{1, -1}, QPointF{-1, -1}}) {
-                    p.drawText(at + QPointF{10, -8} + d, label);
+                    drawLabel(at + QPointF{10, -8} + d, label);
                 }
                 p.setPen(QColor{140, 10, 10});
-                p.drawText(at + QPointF{10, -8}, label);
+                drawLabel(at + QPointF{10, -8}, label);
             }
             p.setClipping(false);
         }
@@ -9032,7 +9044,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             if (shownLon > 180.0) {
                 shownLon -= 360.0;
             }
-            p.drawText(QRectF{x - 30, area.bottom() - 22, 60, 14}, Qt::AlignHCenter, numberOf(shownLon, lonStep, "E", "W"));
+            drawLabel(QRectF{x - 30, area.bottom() - 22, 60, 14}, Qt::AlignHCenter, numberOf(shownLon, lonStep, "E", "W"));
         }
         const double latStep = stepFor(sector.north - sector.south);
         for (double lat = std::ceil(sector.south / latStep) * latStep; lat <= sector.north + 1e-9; lat += latStep) {
@@ -9044,7 +9056,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 const double dir = x == area.left() ? 1.0 : -1.0;
                 p.drawLine(QPointF{x, y}, QPointF{x + dir * 7.0, y});
             }
-            p.drawText(QRectF{area.left() + 9, y - 7, 60, 14}, Qt::AlignLeft | Qt::AlignVCenter, numberOf(lat, latStep, "N", "S"));
+            drawLabel(QRectF{area.left() + 9, y - 7, 60, 14}, Qt::AlignLeft | Qt::AlignVCenter, numberOf(lat, latStep, "N", "S"));
         }
         p.setPen(QPen{QColor{60, 60, 60}, 1.0});
     }
@@ -9075,7 +9087,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
     p.setFont(big);
     p.setPen(QColor{25, 25, 25});
-    p.drawText(QPointF{static_cast<double>(margin), 22.0}, headline);
+    drawLabel(QPointF{static_cast<double>(margin), 22.0}, headline);
     font.setBold(false);
     p.setFont(font);
     p.setPen(QColor{70, 70, 70});
@@ -9141,18 +9153,18 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             const double w = metrics.horizontalAdvance(piece.text);
             if (x + w > margin + room) {   // the rest does not fit: what still does, and an ellipsis
                 p.setPen(ink);
-                p.drawText(QPointF{x, 43.0}, metrics.elidedText(piece.text, Qt::ElideRight, std::max(0.0, margin + room - x)));
+                drawLabel(QPointF{x, 43.0}, metrics.elidedText(piece.text, Qt::ElideRight, std::max(0.0, margin + room - x)));
                 break;
             }
             p.setPen(piece.color);
-            p.drawText(QPointF{x, 43.0}, piece.text);
+            drawLabel(QPointF{x, 43.0}, piece.text);
             x += w;
         }
         p.setFont(font);
         p.setPen(ink);
     }
     const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
-    p.drawText(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
+    drawLabel(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 
     if (std::isnan(fillMax)) {   // nothing drawn in a color: the range of what there is
         fillMax = anyMax;
@@ -9219,16 +9231,16 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             p.setPen(QPen{set.color, 3.0});
             p.drawLine(QPointF{x, barTop + barHeight / 2.0}, QPointF{x + 26.0, barTop + barHeight / 2.0});
             p.setPen(QColor{60, 60, 60});
-            p.drawText(QRectF{x + 32.0, barTop, width + 4.0, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            drawLabel(QRectF{x + 32.0, barTop, width + 4.0, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, name);
             x += 32.0 + width + 22.0;
         }
     } else {   // the lines are the chart: a line of explanation where the color bar would be
-        p.drawText(QRectF{barLeft, barTop, barWidth, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(product.fillTitle));
+        drawLabel(QRectF{barLeft, barTop, barWidth, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(product.fillTitle));
     }
     const auto tick = [&] (double t, double value) {
         const double x = barLeft + t * barWidth;
         p.drawLine(QPointF{x, barTop + barHeight}, QPointF{x, barTop + barHeight + 4});
-        p.drawText(QRectF{x - 24, barTop + barHeight + 4, 48, 14}, Qt::AlignHCenter, numberText(shown(product.quantity, value, us)));
+        drawLabel(QRectF{x - 24, barTop + barHeight + 4, 48, 14}, Qt::AlignHCenter, numberText(shown(product.quantity, value, us)));
     };
     if (noBar) {
         // no scale to number
@@ -9277,8 +9289,8 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         small.setBold(true);
         p.setFont(small);
         p.setPen(QColor{60, 60, 60});
-        p.drawText(QRectF{barLeft, barTop - 12.0, barWidth / 2.0, 11.0}, Qt::AlignLeft | Qt::AlignVCenter, "min " + numberText(shown(product.quantity, rangeLow, us)));
-        p.drawText(QRectF{barLeft + barWidth / 2.0, barTop - 12.0, barWidth / 2.0, 11.0}, Qt::AlignRight | Qt::AlignVCenter, "max " + numberText(shown(product.quantity, rangeHigh, us)));
+        drawLabel(QRectF{barLeft, barTop - 12.0, barWidth / 2.0, 11.0}, Qt::AlignLeft | Qt::AlignVCenter, "min " + numberText(shown(product.quantity, rangeLow, us)));
+        drawLabel(QRectF{barLeft + barWidth / 2.0, barTop - 12.0, barWidth / 2.0, 11.0}, Qt::AlignRight | Qt::AlignVCenter, "max " + numberText(shown(product.quantity, rangeHigh, us)));
         p.setFont(font);
     } else if (!noBar && !std::isnan(fillMax)) {   // the largest value of the chart on view: a line through the bar and its number above it
         double at = 0.0;
@@ -9297,7 +9309,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         const QString label = "max " + numberText(shown(product.quantity, fillMax, us));
         const double width = QFontMetricsF{small}.horizontalAdvance(label) + 4.0;
         const bool flip = mx + width > barLeft + barWidth;
-        p.drawText(QRectF{flip ? mx - width - 2.0 : mx + 3.0, barTop - 12.0, width, 11.0}, (flip ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter, label);
+        drawLabel(QRectF{flip ? mx - width - 2.0 : mx + 3.0, barTop - 12.0, width, 11.0}, (flip ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter, label);
         p.setFont(font);
     }
     if (deviationHigh > 0.0) {   // a line under the ticks: how big one deviation is here (it is not the same everywhere)
@@ -9307,7 +9319,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         const QString low = number(deviationLow), high = number(deviationHigh);
         const QString text = low == high ? "1 std dev = about " + high + " " + unitName
                                          : "1 std dev = " + low + " to " + high + " " + unitName + " over this map (it varies by place; hover for the value here)";
-        p.drawText(QRectF{barLeft, barTop + barHeight + 18.0, barWidth, 14}, Qt::AlignLeft, text);
+        drawLabel(QRectF{barLeft, barTop + barHeight + 18.0, barWidth, 14}, Qt::AlignLeft, text);
     }
     // a small key for each overlay's colors (the same amounts as the main scale, from light to heavy)
     double keyLeft = barLeft;
@@ -9327,7 +9339,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             p.setPen(QColor{60, 60, 60});
             p.drawRect(QRectF{keyLeft, top, 9, 9});
             p.setPen(QColor{70, 70, 70});
-            p.drawText(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            drawLabel(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
             keyLeft += 13 + metrics.horizontalAdvance(name) + 14;
         }
         p.setBrush(Qt::NoBrush);
@@ -9351,7 +9363,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             p.setPen(QColor{60, 60, 60});
             p.drawRect(QRectF{keyLeft, top, 9, 9});
             p.setPen(QColor{70, 70, 70});
-            p.drawText(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            drawLabel(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
             keyLeft += 13 + metrics.horizontalAdvance(name) + 12;
         }
         p.setBrush(Qt::NoBrush);
@@ -9363,7 +9375,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             p.setPen(QPen{set.color, 2.5});
             p.drawLine(QPointF{keyLeft + 6.0, top + 4.5}, QPointF{keyLeft + 24.0, top + 4.5});
             p.setPen(QColor{70, 70, 70});
-            p.drawText(QRectF{keyLeft + 30.0, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            drawLabel(QRectF{keyLeft + 30.0, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
             keyLeft += 30.0 + metrics.horizontalAdvance(name) + 12;
         }
     }
@@ -9375,7 +9387,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         const double top = image.height() / S - 15.0, width = 80.0;
         p.setPen(QColor{70, 70, 70});
         const double nameWidth = std::max(44.0, QFontMetricsF{p.font()}.horizontalAdvance(name) + 6.0);   // (an overlay's name is longer than "Snow")
-        p.drawText(QRectF{keyLeft, top - 1, nameWidth, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+        drawLabel(QRectF{keyLeft, top - 1, nameWidth, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
         const auto& s = overlayRamp.stops;
         for (int x = 0; x < static_cast<int>(width); x++) {
             const QRgb c = overlayRamp.at(s[1].first + (s.back().first - s[1].first) * x / width);
@@ -9392,12 +9404,12 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         p.setPen(QColor{60, 60, 60});
         p.drawRect(QRectF{keyLeft, top, 9, 9});
         p.setPen(QColor{70, 70, 70});
-        p.drawText(QRectF{keyLeft + 13, top - 1, 60, 12}, Qt::AlignLeft | Qt::AlignVCenter, "No data");
+        drawLabel(QRectF{keyLeft + 13, top - 1, 60, 12}, Qt::AlignLeft | Qt::AlignVCenter, "No data");
         p.setBrush(Qt::NoBrush);
         keyLeft += 13 + 52;
     }
     p.setPen(QColor{110, 110, 110});
-    p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product, &run] {
+    drawLabel(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product, &run] {
         auto text = sourceLabel(product.source, run.date + run.cycle);
         for (const auto& extra : product.extras) {   // the other models a chart draws from
             if (extra.lag > 0) {   // (an older run of a source that is credited already)

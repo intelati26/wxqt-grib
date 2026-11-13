@@ -355,6 +355,7 @@ namespace GfsChart {
         GfsGrid::Grid * windUOut{nullptr}, * windVOut{nullptr};   // with fillOut: the chart's wind (m/s) too, for barbs drawn by whoever draws the fill
         std::vector<ContourOut> * contoursOut{nullptr};           // with fillOut: the chart's line sets and their grids
         VectorLines * vectorOut{nullptr};                          // the contour lines, their numbers and the highs / lows are handed over here instead of being painted into the picture
+        bool noLabels{false};                  // no text anywhere in the picture (the title, the numbers on the lines, the highs and lows, the legend's words and numbers, the credit): the colors, lines and barbs only, for tests that compare pictures and must not change when the rules that place text do
         bool noBarbs{false};                   // the picture has no barbs (the map layer draws them itself, as vectors on a world grid; the probe still holds the wind)
         int width{1100};
         // an export's color bar: only the values the picture (legendFit) or the loop (legendRange: legendLow to legendHigh, grid units) holds, the smallest at the left and the largest at the right
