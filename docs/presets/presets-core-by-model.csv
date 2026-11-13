@@ -1,0 +1,537 @@
+model,mode,line_families,barbs,streamlines,bands,charts_covered,fill_fields_in_dropdown,levels_in_dropdown,example_ids
+AIFS,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+AIFS,Value,Pressure,yes,,,7,7,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 2m_dewpoint
+AIFS,Value,"Pressure, Thickness",,,,6,1,,precip_p06 precip_p12 precip_p24 precip_p36
+AIFS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+AIFS,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+AIFS,Value,,,,,1,1,850-700 mb,850_700_rh
+AIFS,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+AIFS,Anomaly,Heights,yes,,,1,1,500 mb,500_hgt_anom
+AIFS,Anomaly,Pressure,yes,,,1,1,,mslp_anom
+AIFS,Value,Pressure,,,,1,1,,precip_ptot
+AIFS,Change,Pressure,,,,1,1,,mslp_trend
+AIFS,Change,Heights,,,,1,1,500 mb,z500_trend
+AIGFS,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+AIGFS,Value,"Pressure, Thickness",,,,9,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p06 precip_p12 precip_p24 precip_p36
+AIGFS,Value,Pressure,yes,,,8,8,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+AIGFS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+AIGFS,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+AIGFS,Value,,,,,1,1,850-700 mb,850_700_rh
+AIGFS,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+AIGFS,Anomaly,Heights,yes,,,1,1,500 mb,500_hgt_anom
+AIGFS,Anomaly,Pressure,yes,,,1,1,,mslp_anom
+AIGFS,Value,Pressure,,,,1,1,,precip_ptot
+AIGFS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+AIGFS,Change,Pressure,,,,1,1,,mslp_trend
+AIGFS,Change,Heights,,,,1,1,500 mb,z500_trend
+AROME,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+AROME,Value,Pressure,yes,,,6,6,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 sbcape_wind
+AROME,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+AROME,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+AROME,Value,,,,,1,1,850-700 mb,850_700_rh
+AROME,Change,Pressure,,,,1,1,,mslp_trend
+AROME,Change,Heights,,,,1,1,500 mb,z500_trend
+AROME-AT,Value,Pressure,yes,,,3,3,10 m,10m_wnd_2m_temp sbcape_wind mslp_10m_wind
+AROME-AT,Change,Pressure,,,,1,1,,mslp_trend
+ARPEGE,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+ARPEGE,Value,Pressure,yes,,,6,6,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 sbcape_wind
+ARPEGE,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+ARPEGE,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+ARPEGE,Value,,,,,1,1,850-700 mb,850_700_rh
+ARPEGE,Change,Pressure,,,,1,1,,mslp_trend
+ARPEGE,Change,Heights,,,,1,1,500 mb,z500_trend
+ARPEGE-EU,Value,Pressure,yes,,,2,2,10 m,10m_wnd_2m_temp mslp_10m_wind
+ARPEGE-EU,Change,Pressure,,,,1,1,,mslp_trend
+ARWEN,Value,Pressure,yes,,,2,2,10 m,10m_wnd_2m_temp mslp_10m_wind
+ARWEN,Value,,,,,1,1,,sim_radar_comp
+ARWEN,Change,Pressure,,,,1,1,,mslp_trend
+CFS,Value,Heights,yes,,,7,5,500 mb 850 mb,500_wnd_ht 850_temp_ht 500_rh_ht 850_rh_ht
+CFS,Value,Pressure,yes,,,3,3,10 m 700 mb,10m_wnd_2m_temp 700_temp_mslp mslp_10m_wind
+CFS,Value,,,,,1,1,850-700 mb,850_700_rh
+CFS,Value,,,yes,,1,1,850 mb,850_stream_vort
+CFS,Anomaly,Heights,yes,,,1,1,500 mb,500_hgt_anom
+CFS,Anomaly,Pressure,yes,,,1,1,,mslp_anom
+CFS,Value,Pressure,,,,1,1,,mslp_pwat
+CFS,Change,Pressure,,,,1,1,,mslp_trend
+CFS,Change,Heights,,,,1,1,500 mb,z500_trend
+CFS-ANL,Value,Heights,yes,,,7,5,500 mb 850 mb,500_wnd_ht 850_temp_ht 500_rh_ht 850_rh_ht
+CFS-ANL,Value,Pressure,yes,,,3,3,10 m 700 mb,10m_wnd_2m_temp 700_temp_mslp mslp_10m_wind
+CFS-ANL,Value,,,,,1,1,850-700 mb,850_700_rh
+CFS-ANL,Value,,,yes,,1,1,850 mb,850_stream_vort
+CFS-ANL,Anomaly,Heights,yes,,,1,1,500 mb,500_hgt_anom
+CFS-ANL,Anomaly,Pressure,yes,,,1,1,,mslp_anom
+CFS-ANL,Value,Pressure,,,,1,1,,mslp_pwat
+CFS-ANL,Change,Pressure,,,,1,1,,mslp_trend
+CFS-ANL,Change,Heights,,,,1,1,500 mb,z500_trend
+CFS30,Value,,,,,6,6,,cfs30_precip cfs30_mslp_departure cfs30_t2m_value cfs30_precip_value
+CFS30,Value,Other lines,,,,1,1,,cfs30_t2m_precip
+COPERNICUS,Value,,,,,15,15,,pm25 pm10_aq dust seasalt_aq
+EC46,Value,,,,,6,6,2 m,ec46_t2m_departure ec46_precip_departure ec46_mslp_departure ec46_t2m
+ENS-ALL,Ensemble: members / spread,"Ensemble mean / spread, Members",,,,8,1,500 mb,all_spag_500_522_564 all_spag_500_528_570 all_spag_500_534_576 all_spag_500_540_582
+ENS-ALL,Chance of a limit,,,,,6,1,,all_prob_24h_0.01in all_prob_24h_0.1in all_prob_24h_0.25in all_prob_24h_0.5in
+ENS-ALL,Ensemble: members / spread,Temperature,,,,2,2,2 m 850 mb,all_spread_850_temp all_spread_2m_temp
+ENS-ALL,Ensemble: members / spread,Heights,,,,1,1,500 mb,all_spread_500_ht
+ENS-ALL,Ensemble: members / spread,Ensemble mean / spread,,,,1,1,,all_spread_mslp
+ERA5,Value,Heights,yes,,,13,9,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+ERA5,Value,Pressure,yes,,,8,8,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 2m_dewpoint
+ERA5,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+ERA5,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+ERA5,Value,,,,,1,1,850-700 mb,850_700_rh
+ERA5,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+ERA5,Value,Pressure,,,,1,1,,mslp_pwat
+ERA5,Change,Pressure,,,,1,1,,mslp_trend
+ERA5,Change,Heights,,,,1,1,500 mb,z500_trend
+GDPS,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+GDPS,Value,Pressure,yes,,,5,5,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 700_temp_mslp
+GDPS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+GDPS,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+GDPS,Value,,,,,1,1,850-700 mb,850_700_rh
+GDPS,Change,Pressure,,,,1,1,,mslp_trend
+GDPS,Change,Heights,,,,1,1,500 mb,z500_trend
+GEFS,Ensemble: members / spread,Members,,,,18,1,200 mb 500 mb,200_1176_ht 200_1188_ht 200_1200_ht 200_1212_ht
+GEFS,Value,Heights,yes,,,11,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 850_temp_ht 925_temp_ht 500_rh_ht
+GEFS,Amount: expected / percentile,,,,,10,6,10 m 2 m,pct10_10m_wnd pct10_2m_temp pct50_10m_wnd pct50_2m_temp
+GEFS,Value,,,,,9,3,850-700 mb,850_700_rh precip_p01 precip_p03 precip_p12
+GEFS,Value,Pressure,yes,,,9,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+GEFS,Chance of a limit,,,,,8,3,,prob_precip_0.25in prob_precip_0.5in prob_precip_1in prob_ice_0.25in
+GEFS,Ensemble: members / spread,Heights,,,,7,2,250 mb 500 mb 700 mb 850 mb,spread_250_ht spread_500_ht spread_500_temp spread_700_ht
+GEFS,Value,,yes,,,6,2,10 m 250 mb 500 mb 700 mb 850 mb 925 mb,250_wnd 500_wnd 700_wnd 850_wnd
+GEFS,Value,Temperature,,,,5,2,2 m 250 mb 500 mb 700 mb 850 mb,250_temp 500_temp 700_temp 850_temp
+GEFS,Ensemble: members / spread,Heights,yes,,,4,1,250 mb 500 mb 700 mb 850 mb,spread_250_wnd spread_500_wnd spread_700_wnd spread_850_wnd
+GEFS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+GEFS,Change,,,,,3,3,,snodpth_chng snodpth_chng_mean snodpth_chng_sprd
+GEFS,Value,"Pressure, Thickness",,,,3,1,1000-500 mb 1000-850 mb 850-700 mb,1000_500_thick 1000_850_thick 850_700_thick
+GEFS,Value,"Pressure, Thickness",,,yes,3,1,1000-850 mb 850-700 mb,precip_type 1000_850_thick_type 850_700_thick_type
+GEFS,Value,"Ensemble mean / spread, Heights",,,,3,1,500 mb 700 mb 850 mb,500_vort_ht 700_vort_ht 850_vort_ht
+GEFS,Value,Ensemble mean / spread,,,,3,2,,cape precip_p06 precip_p24
+GEFS,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+GEFS,Value,Pressure,,,,2,2,,mslp_pwat mslp
+GEFS,Ensemble: members / spread,Pressure,,,,2,2,,spread_mslp spread_pwat
+GEFS,Ensemble: members / spread,Pressure,yes,,,2,2,10 m 2 m,spread_2m_temp spread_10m_wnd
+GEFS,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+GEFS,Anomaly,Heights,yes,,,1,1,500 mb,500_hgt_anom
+GEFS,Anomaly,Pressure,yes,,,1,1,,mslp_anom
+GEFS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+GEFS,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
+GEFS,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
+GEFS,Change,Pressure,,,,1,1,,mslp_trend
+GEFS,Change,Heights,,,,1,1,500 mb,z500_trend
+GEFS,Ensemble: members / spread,,,,,1,1,,spread_cape
+GEFS-WAVE,Value,,yes,,,5,5,,sig_wv_ht wsea_wv_ht swell1_wv_ht swell2_wv_ht
+GEFS-WAVE,Value,,,yes,,5,5,,peak_dir_per wsea_dir_per swell1_dir_per swell2_dir_per
+GEOS-FP,Value,,yes,,,9,9,,dust_surface dust_pm25 dust_column dust_aod
+GEOS-FP,Value,Heights,yes,,,7,5,500 mb 850 mb,500_wnd_ht 850_temp_ht 500_rh_ht 850_rh_ht
+GEOS-FP,Value,Pressure,yes,,,2,2,10 m,10m_wnd_2m_temp mslp_10m_wind
+GEOS-FP,Value,Heights,,,,1,1,250 mb,250_wnd_ht
+GEOS-FP,Value,,,yes,,1,1,850 mb,850_stream_vort
+GEOS-FP,Value,Pressure,,,,1,1,,mslp_pwat
+GEOS-FP,Change,Pressure,,,,1,1,,mslp_trend
+GEOS-FP,Change,Heights,,,,1,1,500 mb,z500_trend
+GEPS,Value,"Pressure, Thickness",,,,10,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p03 precip_p06 precip_p12 precip_p24
+GEPS,Value,Heights,yes,,,9,6,200 mb 500 mb 850 mb 925 mb,500_wnd_ht 850_temp_ht 925_temp_ht 500_rh_ht
+GEPS,Chance of a limit,,,,,8,3,2 m,prob_2m_temp_freezing prob_2m_temp_90f prob_total_0.01in prob_total_0.1in
+GEPS,Value,Pressure,yes,,,7,7,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+GEPS,Ensemble: members / spread,,,,,4,3,2 m 500 mb 850 mb,spread_2m_temp spread_mslp spread_500_ht spread_850_ht
+GEPS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+GEPS,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+GEPS,Value,,,,,1,1,850-700 mb,850_700_rh
+GEPS,Value,,,yes,,1,1,200 mb,200_stream_div
+GEPS,Change,,,,,1,1,,snodpth_chng
+GEPS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+GEPS,Change,Pressure,,,,1,1,,mslp_trend
+GEPS,Change,Heights,,,,1,1,500 mb,z500_trend
+GFS,Value,Heights,yes,,,13,9,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+GFS,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p01 precip_p03 precip_p06 precip_p12
+GFS,Value,Pressure,yes,,,9,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+GFS,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,precip_type 1000_850_thick_type 850_700_thick_type precip_rate_type
+GFS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+GFS,Value,,,,,2,2,850-700 mb,850_700_rh sim_radar_comp
+GFS,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+GFS,Anomaly,Heights,yes,,,2,1,500 mb 700 mb,500_hgt_anom 700_hgt_anom
+GFS,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+GFS,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+GFS,Anomaly,Pressure,yes,,,1,1,,mslp_anom
+GFS,Change,,,,,1,1,,snodpth_chng
+GFS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+GFS,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
+GFS,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
+GFS,Change,Pressure,,,,1,1,,mslp_trend
+GFS,Change,Heights,,,,1,1,500 mb,z500_trend
+GFS-ANL,Value,Heights,yes,,,13,9,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+GFS-ANL,Value,Pressure,yes,,,8,8,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 2m_dewpoint
+GFS-ANL,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+GFS-ANL,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+GFS-ANL,Value,,,,,1,1,850-700 mb,850_700_rh
+GFS-ANL,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+GFS-ANL,Value,Pressure,,,,1,1,,mslp_pwat
+GFS-ANL,Change,Pressure,,,,1,1,,mslp_trend
+GFS-ANL,Change,Heights,,,,1,1,500 mb,z500_trend
+GFS-WAVE,Value,,yes,,,5,5,,sig_wv_ht wsea_wv_ht swell1_wv_ht swell2_wv_ht
+GFS-WAVE,Value,,,yes,,5,5,,peak_dir_per wsea_dir_per swell1_dir_per swell2_dir_per
+GFS1-ANL,Value,Heights,yes,,,13,9,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+GFS1-ANL,Value,Pressure,yes,,,8,8,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 2m_dewpoint
+GFS1-ANL,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+GFS1-ANL,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+GFS1-ANL,Value,,,,,1,1,850-700 mb,850_700_rh
+GFS1-ANL,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+GFS1-ANL,Value,Pressure,,,,1,1,,mslp_pwat
+GFS1-ANL,Change,Pressure,,,,1,1,,mslp_trend
+GFS1-ANL,Change,Heights,,,,1,1,500 mb,z500_trend
+GRAPES,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+GRAPES,Value,Pressure,yes,,,6,6,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 sbcape_wind
+GRAPES,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+GRAPES,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+GRAPES,Value,,,,,1,1,850-700 mb,850_700_rh
+GRAPES,Change,Pressure,,,,1,1,,mslp_trend
+GRAPES,Change,Heights,,,,1,1,500 mb,z500_trend
+GSM,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+GSM,Value,Pressure,yes,,,5,5,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 700_temp_mslp
+GSM,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+GSM,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+GSM,Value,,,,,1,1,850-700 mb,850_700_rh
+GSM,Change,Pressure,,,,1,1,,mslp_trend
+GSM,Change,Heights,,,,1,1,500 mb,z500_trend
+HAFSA,Value,,,,,6,3,10 m,sat_ir sat_wv_upper sat_wv_mid sat_wv_low
+HAFSA,Value,Pressure,,,,3,3,,reflectivity rain_total sst
+HAFSA,Value,Pressure,yes,,,2,2,10 m 850-200 mb,wind_mslp shear_850_200
+HAFSA,Value,Heights,yes,,,1,1,850 mb,850_vort_ht
+HAFSA,Value,Waves,yes,,,1,1,,waves
+HAFSB,Value,,,,,6,3,10 m,sat_ir sat_wv_upper sat_wv_mid sat_wv_low
+HAFSB,Value,Pressure,,,,3,3,,reflectivity rain_total sst
+HAFSB,Value,Pressure,yes,,,2,2,10 m 850-200 mb,wind_mslp shear_850_200
+HAFSB,Value,Heights,yes,,,1,1,850 mb,850_vort_ht
+HAFSB,Value,Waves,yes,,,1,1,,waves
+HGEFS,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+HGEFS,Value,Pressure,yes,,,5,5,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 700_temp_mslp
+HGEFS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+HGEFS,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+HGEFS,Value,,,,,1,1,850-700 mb,850_700_rh
+HGEFS,Change,Pressure,,,,1,1,,mslp_trend
+HGEFS,Change,Heights,,,,1,1,500 mb,z500_trend
+HRDPS,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+HRDPS,Value,Pressure,yes,,,8,8,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 2m_dewpoint
+HRDPS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+HRDPS,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+HRDPS,Value,,,,,1,1,850-700 mb,850_700_rh
+HRDPS,Change,Pressure,,,,1,1,,mslp_trend
+HRDPS,Change,Heights,,,,1,1,500 mb,z500_trend
+HREF,Chance of a limit,,,,,53,33,10 m 2 m,lpmm_mean_precip_p01 lpmm_mean_precip_p03 lpmm_mean_precip_ptot pmm_refd_1km
+HREF,Value,,,,,12,12,2 m,blend_mean_precip_p01 blend_mean_precip_p03 blend_mean_precip_ptot mean_snow_1h
+HREF,Value,Pressure,,,,3,3,,mean_precip_p01 mean_precip_p03 mean_precip_ptot
+HREF,Chance of a limit,Pressure,,,,2,2,,pmm_refd_1km_emsl pmm_refd_max_emsl
+HREF,Chance of a limit,Chance contour,,,,1,1,,prob_lowIFR_IFR
+HRRR,Value,,,,,26,23,10 m 180 mb 2 m 850-700 mb,850_700_rh 10m_maxwnd lifted_index_ml helicity_1km
+HRRR,Value,Heights,yes,,,15,11,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+HRRR,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p01 precip_p03 precip_p06 precip_p12
+HRRR,Value,Pressure,yes,,,10,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+HRRR,Value,,yes,,,9,8,10 m 250 mb 300 mb 925 mb,10m_wnd_sfc_gust 925_temp_wnd 2m_temp_10m_wnd 2m_dewp_10m_wnd
+HRRR,Value,Other lines,,,,4,3,,sim_radar_comp sfc_cape_cin best_cape_cin ship
+HRRR,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,precip_type 1000_850_thick_type 850_700_thick_type precip_rate_type
+HRRR,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+HRRR,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+HRRR,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+HRRR,Change,,,,,1,1,,snodpth_chng
+HRRR,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+HRRR,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
+HRRR,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
+HRRR,Change,Pressure,,,,1,1,,mslp_trend
+HRRR,Change,Heights,,,,1,1,500 mb,z500_trend
+HRRR,Value,,,,yes,1,1,,sim_radar_1km
+HRRR,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+HRRR-AK,Value,,,,,26,23,10 m 180 mb 2 m 850-700 mb,850_700_rh 10m_maxwnd lifted_index_ml helicity_1km
+HRRR-AK,Value,Heights,yes,,,15,11,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+HRRR-AK,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p01 precip_p03 precip_p06 precip_p12
+HRRR-AK,Value,Pressure,yes,,,10,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+HRRR-AK,Value,,yes,,,9,8,10 m 250 mb 300 mb 925 mb,10m_wnd_sfc_gust 925_temp_wnd 2m_temp_10m_wnd 2m_dewp_10m_wnd
+HRRR-AK,Value,Other lines,,,,4,3,,sim_radar_comp sfc_cape_cin best_cape_cin ship
+HRRR-AK,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,precip_type 1000_850_thick_type 850_700_thick_type precip_rate_type
+HRRR-AK,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+HRRR-AK,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+HRRR-AK,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+HRRR-AK,Change,,,,,1,1,,snodpth_chng
+HRRR-AK,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+HRRR-AK,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
+HRRR-AK,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
+HRRR-AK,Change,Pressure,,,,1,1,,mslp_trend
+HRRR-AK,Change,Heights,,,,1,1,500 mb,z500_trend
+HRRR-AK,Value,,,,yes,1,1,,sim_radar_1km
+HRRR-AK,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+ICON,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+ICON,Value,Pressure,yes,,,6,6,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 sbcape_wind
+ICON,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+ICON,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+ICON,Value,,,,,1,1,850-700 mb,850_700_rh
+ICON,Change,Pressure,,,,1,1,,mslp_trend
+ICON,Change,Heights,,,,1,1,500 mb,z500_trend
+ICON-2I,Value,Heights,yes,,,9,5,500 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+ICON-2I,Value,Pressure,yes,,,4,4,10 m 700 mb,10m_wnd_2m_temp sbcape_wind 700_temp_mslp mslp_10m_wind
+ICON-2I,Value,Heights,,,,1,1,250 mb,250_wnd_ht
+ICON-2I,Value,,,,,1,1,850-700 mb,850_700_rh
+ICON-2I,Value,,,yes,,1,1,850 mb,850_stream_vort
+ICON-2I,Change,Pressure,,,,1,1,,mslp_trend
+ICON-2I,Change,Heights,,,,1,1,500 mb,z500_trend
+ICON-D2,Value,Pressure,yes,,,5,5,10 m,10m_wnd_2m_temp 2m_dewpoint 2m_rh_10m_wnd_derived sbcape_wind
+ICON-D2,Change,Pressure,,,,1,1,,mslp_trend
+ICON-EU,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+ICON-EU,Value,Pressure,yes,,,8,8,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 2m_dewpoint
+ICON-EU,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+ICON-EU,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+ICON-EU,Value,,,,,1,1,850-700 mb,850_700_rh
+ICON-EU,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+ICON-EU,Change,Pressure,,,,1,1,,mslp_trend
+ICON-EU,Change,Heights,,,,1,1,500 mb,z500_trend
+IFS,Value,Heights,yes,,,13,9,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+IFS,Value,"Pressure, Thickness",,,,10,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p03 precip_p06 precip_p12 precip_p24
+IFS,Value,Pressure,yes,,,9,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+IFS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+IFS,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+IFS,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+IFS,Value,,,,,1,1,850-700 mb,850_700_rh
+IFS,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+IFS,Anomaly,Heights,yes,,,1,1,500 mb,500_hgt_anom
+IFS,Anomaly,Pressure,yes,,,1,1,,mslp_anom
+IFS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+IFS,Change,Pressure,,,,1,1,,mslp_trend
+IFS,Change,Heights,,,,1,1,500 mb,z500_trend
+IFS-ENS,Ensemble: members / spread,Members,,,,8,1,500 mb,spag_500_522_564 spag_500_528_570 spag_500_534_576 spag_500_540_582
+IFS-ENS,Chance of a limit,,,,,6,1,,ens_prob_total_0.01in ens_prob_total_0.1in ens_prob_total_0.25in ens_prob_total_0.5in
+IFS-ENS,Ensemble: members / spread,Heights,,,,2,2,500 mb,spread_500_ht member_500_ht
+IFS-ENS,Ensemble: members / spread,Temperature,,,,2,2,2 m 850 mb,spread_850_temp spread_2m_temp
+IFS-ENS,Ensemble: members / spread,Pressure,,,,2,2,2 m 850 mb,member_2m_temp_mslp member_850_temp_mslp
+IFS-ENS,Ensemble: members / spread,Ensemble mean / spread,,,,1,1,,spread_mslp
+MF-CURRENT,Value,,,,,2,2,,sea_level_height inverse_barometer
+MF-CURRENT,Value,,,yes,,1,1,,ocean_current
+MF-SST,Value,,,,,1,1,,sst
+MF-WAVE,Value,,,,,4,4,,sig_wv_ht wsea_wv_ht swell1_wv_ht swell2_wv_ht
+MF-WAVE,Value,,,yes,,4,4,,peak_dir_per wsea_dir_per swell1_dir_per swell2_dir_per
+MPAS-HT,Value,,,,,26,23,10 m 180 mb 2 m 850-700 mb,850_700_rh 10m_maxwnd lifted_index_ml helicity_1km
+MPAS-HT,Value,Heights,yes,,,12,8,500 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+MPAS-HT,Value,,yes,,,9,8,10 m 250 mb 300 mb 925 mb,10m_wnd_sfc_gust 925_temp_wnd 2m_temp_10m_wnd 2m_dewp_10m_wnd
+MPAS-HT,Value,Pressure,yes,,,7,6,10 m 700 mb,10m_wnd_2m_temp 2m_dewpoint 2m_rh_10m_wnd_derived sbcape_wind
+MPAS-HT,Value,Other lines,,,,4,3,,sim_radar_comp sfc_cape_cin best_cape_cin ship
+MPAS-HT,Value,Heights,,,,1,1,250 mb,250_wnd_ht
+MPAS-HT,Value,,,yes,,1,1,850 mb,850_stream_vort
+MPAS-HT,Value,Pressure,,,,1,1,,mslp_pwat
+MPAS-HT,Change,Pressure,,,,1,1,,mslp_trend
+MPAS-HT,Change,Heights,,,,1,1,500 mb,z500_trend
+MPAS-HT,Value,,,,yes,1,1,,sim_radar_1km
+MPAS-HT,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+MPAS-RN,Value,,,,,26,23,10 m 180 mb 2 m 850-700 mb,850_700_rh 10m_maxwnd lifted_index_ml helicity_1km
+MPAS-RN,Value,Heights,yes,,,12,8,500 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+MPAS-RN,Value,,yes,,,9,8,10 m 250 mb 300 mb 925 mb,10m_wnd_sfc_gust 925_temp_wnd 2m_temp_10m_wnd 2m_dewp_10m_wnd
+MPAS-RN,Value,Pressure,yes,,,7,6,10 m 700 mb,10m_wnd_2m_temp 2m_dewpoint 2m_rh_10m_wnd_derived sbcape_wind
+MPAS-RN,Value,Other lines,,,,4,3,,sim_radar_comp sfc_cape_cin best_cape_cin ship
+MPAS-RN,Value,Heights,,,,1,1,250 mb,250_wnd_ht
+MPAS-RN,Value,,,yes,,1,1,850 mb,850_stream_vort
+MPAS-RN,Value,Pressure,,,,1,1,,mslp_pwat
+MPAS-RN,Change,Pressure,,,,1,1,,mslp_trend
+MPAS-RN,Change,Heights,,,,1,1,500 mb,z500_trend
+MPAS-RN,Value,,,,yes,1,1,,sim_radar_1km
+MPAS-RN,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+MRMS,Value,,,,,1,1,,sim_radar_comp
+MSM,Value,Pressure,yes,,,2,2,10 m,10m_wnd_2m_temp mslp_10m_wind
+MSM,Change,Pressure,,,,1,1,,mslp_trend
+MSM-UL,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+MSM-UL,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+MSM-UL,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+MSM-UL,Value,,,,,1,1,850-700 mb,850_700_rh
+MSM-UL,Change,Heights,,,,1,1,500 mb,z500_trend
+NAM-ANL,Value,Heights,yes,,,13,9,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+NAM-ANL,Value,Pressure,yes,,,8,8,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 2m_dewpoint
+NAM-ANL,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+NAM-ANL,Value,,,,,2,2,850-700 mb,850_700_rh sim_radar_comp
+NAM-ANL,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+NAM-ANL,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+NAM-ANL,Value,Pressure,,,,1,1,,mslp_pwat
+NAM-ANL,Change,Pressure,,,,1,1,,mslp_trend
+NAM-ANL,Change,Heights,,,,1,1,500 mb,z500_trend
+NARR,Value,Heights,yes,,,9,7,200 mb 500 mb 850 mb,500_wnd_ht 850_temp_ht 500_rh_ht 850_rh_ht
+NARR,Value,Pressure,yes,,,8,8,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 2m_dewpoint
+NARR,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+NARR,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+NARR,Value,,,,,1,1,850-700 mb,850_700_rh
+NARR,Value,Pressure,,,,1,1,,mslp_pwat
+NARR,Change,Pressure,,,,1,1,,mslp_trend
+NARR,Change,Heights,,,,1,1,500 mb,z500_trend
+NBM,Chance of a limit,,,,,24,12,,tstm_prob 1hour_precip_chance 6hour_precip_chance 12hour_precip_chance
+NBM,Value,,,,,18,14,2 m,nice_weather 2m_min_temp 2m_max_temp precip_p01
+NBM,Value,,yes,,,6,6,10 m,2m_temp_10m_wnd 2m_dewp_10m_wnd 2m_relh_10m_wnd 2m_apparent_temp
+NBM,Amount: expected / percentile,,,,,3,1,,10th_percentile_1hr_snow 50th_percentile_1hr_snow 90th_percentile_1hr_snow
+RAP-ANL,Value,Heights,yes,,,13,9,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+RAP-ANL,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+RAP-ANL,Value,,,,,2,2,850-700 mb,850_700_rh sim_radar_comp
+RAP-ANL,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+RAP-ANL,Change,Heights,,,,1,1,500 mb,z500_trend
+REFS,Chance of a limit,,,,,25,9,10 m 2 m,prob_refc_40 prob_refc_50 prob_uphl_75 pool_refc_40
+REFS,Ensemble: members / spread,,,,,14,12,2 m,member_refc member_tmp2m member_cape member_gust
+REFS,Ensemble: members / spread,Heights,yes,,,6,3,250 mb 700 mb 850 mb,ens_250_wnd ens_850_wnd ens_700_temp ens_850_temp
+REFS,Value,,,,,4,4,2 m,max_uphl mean_2m_temp mean_precip_p01 mean_precip_p03
+REFS,Ensemble: members / spread,Chance contour,,,yes,3,3,,refc_paintball refc_paintball_mpas refc_paintball_spc
+REFS,Ensemble: members / spread,Thickness,,,,3,1,1000-500 mb 1000-850 mb 850-700 mb,ens_1000_500_thick ens_1000_850_thick ens_850_700_thick
+REFS,Chance of a limit,Chance contour,,,,2,2,,combo_refc_chance combo_uphl_chance
+REFS,Ensemble: members / spread,Heights,,,,2,1,250 mb 500 mb,ens_250_vort_ht ens_500_vort_ht
+REFS,Ensemble: members / spread,Ensemble mean / spread,,,,1,1,2 m,combo_temp_spread
+REFS,Ensemble: members / spread,,yes,,,1,1,10 m,ens_10m_wind
+REFS,Ensemble: members / spread,Pressure,,,,1,1,,ens_mslp
+RRFS,Value,,,,,26,23,10 m 180 mb 2 m 850-700 mb,850_700_rh 10m_maxwnd lifted_index_ml helicity_1km
+RRFS,Value,Heights,yes,,,15,11,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+RRFS,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p01 precip_p03 precip_p06 precip_p12
+RRFS,Value,Pressure,yes,,,10,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+RRFS,Value,,yes,,,9,8,10 m 250 mb 300 mb 925 mb,10m_wnd_sfc_gust 925_temp_wnd 2m_temp_10m_wnd 2m_dewp_10m_wnd
+RRFS,Value,Other lines,,,,4,3,,sim_radar_comp sfc_cape_cin best_cape_cin ship
+RRFS,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,precip_type 1000_850_thick_type 850_700_thick_type precip_rate_type
+RRFS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+RRFS,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+RRFS,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+RRFS,Change,,,,,1,1,,snodpth_chng
+RRFS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+RRFS,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
+RRFS,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
+RRFS,Change,Pressure,,,,1,1,,mslp_trend
+RRFS,Change,Heights,,,,1,1,500 mb,z500_trend
+RRFS,Value,,,,yes,1,1,,sim_radar_1km
+RRFS,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+RRFS-AK,Value,,,,,26,23,10 m 180 mb 2 m 850-700 mb,850_700_rh 10m_maxwnd lifted_index_ml helicity_1km
+RRFS-AK,Value,Heights,yes,,,15,11,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+RRFS-AK,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p01 precip_p03 precip_p06 precip_p12
+RRFS-AK,Value,Pressure,yes,,,10,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+RRFS-AK,Value,,yes,,,9,8,10 m 250 mb 300 mb 925 mb,10m_wnd_sfc_gust 925_temp_wnd 2m_temp_10m_wnd 2m_dewp_10m_wnd
+RRFS-AK,Value,Other lines,,,,4,3,,sim_radar_comp sfc_cape_cin best_cape_cin ship
+RRFS-AK,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,precip_type 1000_850_thick_type 850_700_thick_type precip_rate_type
+RRFS-AK,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+RRFS-AK,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+RRFS-AK,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+RRFS-AK,Change,,,,,1,1,,snodpth_chng
+RRFS-AK,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+RRFS-AK,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
+RRFS-AK,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
+RRFS-AK,Change,Pressure,,,,1,1,,mslp_trend
+RRFS-AK,Change,Heights,,,,1,1,500 mb,z500_trend
+RRFS-AK,Value,,,,yes,1,1,,sim_radar_1km
+RRFS-AK,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+RRFS-FIREWX,Value,,,,,26,23,10 m 180 mb 2 m 850-700 mb,850_700_rh 10m_maxwnd lifted_index_ml helicity_1km
+RRFS-FIREWX,Value,Heights,yes,,,15,11,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+RRFS-FIREWX,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p01 precip_p03 precip_p06 precip_p12
+RRFS-FIREWX,Value,Pressure,yes,,,10,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+RRFS-FIREWX,Value,,yes,,,9,8,10 m 250 mb 300 mb 925 mb,10m_wnd_sfc_gust 925_temp_wnd 2m_temp_10m_wnd 2m_dewp_10m_wnd
+RRFS-FIREWX,Value,Other lines,,,,4,3,,sim_radar_comp sfc_cape_cin best_cape_cin ship
+RRFS-FIREWX,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,precip_type 1000_850_thick_type 850_700_thick_type precip_rate_type
+RRFS-FIREWX,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+RRFS-FIREWX,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+RRFS-FIREWX,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+RRFS-FIREWX,Change,,,,,1,1,,snodpth_chng
+RRFS-FIREWX,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+RRFS-FIREWX,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
+RRFS-FIREWX,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
+RRFS-FIREWX,Change,Pressure,,,,1,1,,mslp_trend
+RRFS-FIREWX,Change,Heights,,,,1,1,500 mb,z500_trend
+RRFS-FIREWX,Value,,,,yes,1,1,,sim_radar_1km
+RRFS-FIREWX,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+RRFS-HI,Value,,,,,26,23,10 m 180 mb 2 m 850-700 mb,850_700_rh 10m_maxwnd lifted_index_ml helicity_1km
+RRFS-HI,Value,Heights,yes,,,15,11,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+RRFS-HI,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p01 precip_p03 precip_p06 precip_p12
+RRFS-HI,Value,Pressure,yes,,,10,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+RRFS-HI,Value,,yes,,,9,8,10 m 250 mb 300 mb 925 mb,10m_wnd_sfc_gust 925_temp_wnd 2m_temp_10m_wnd 2m_dewp_10m_wnd
+RRFS-HI,Value,Other lines,,,,4,3,,sim_radar_comp sfc_cape_cin best_cape_cin ship
+RRFS-HI,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,precip_type 1000_850_thick_type 850_700_thick_type precip_rate_type
+RRFS-HI,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+RRFS-HI,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+RRFS-HI,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+RRFS-HI,Change,,,,,1,1,,snodpth_chng
+RRFS-HI,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+RRFS-HI,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
+RRFS-HI,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
+RRFS-HI,Change,Pressure,,,,1,1,,mslp_trend
+RRFS-HI,Change,Heights,,,,1,1,500 mb,z500_trend
+RRFS-HI,Value,,,,yes,1,1,,sim_radar_1km
+RRFS-HI,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+RRFS-NA,Value,,,,,26,23,10 m 180 mb 2 m 850-700 mb,850_700_rh 10m_maxwnd lifted_index_ml helicity_1km
+RRFS-NA,Value,Heights,yes,,,15,11,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+RRFS-NA,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p01 precip_p03 precip_p06 precip_p12
+RRFS-NA,Value,Pressure,yes,,,10,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+RRFS-NA,Value,,yes,,,9,8,10 m 250 mb 300 mb 925 mb,10m_wnd_sfc_gust 925_temp_wnd 2m_temp_10m_wnd 2m_dewp_10m_wnd
+RRFS-NA,Value,Other lines,,,,4,3,,sim_radar_comp sfc_cape_cin best_cape_cin ship
+RRFS-NA,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,precip_type 1000_850_thick_type 850_700_thick_type precip_rate_type
+RRFS-NA,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+RRFS-NA,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+RRFS-NA,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+RRFS-NA,Change,,,,,1,1,,snodpth_chng
+RRFS-NA,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+RRFS-NA,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
+RRFS-NA,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
+RRFS-NA,Change,Pressure,,,,1,1,,mslp_trend
+RRFS-NA,Change,Heights,,,,1,1,500 mb,z500_trend
+RRFS-NA,Value,,,,yes,1,1,,sim_radar_1km
+RRFS-NA,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+RRFS-PR,Value,,,,,26,23,10 m 180 mb 2 m 850-700 mb,850_700_rh 10m_maxwnd lifted_index_ml helicity_1km
+RRFS-PR,Value,Heights,yes,,,15,11,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+RRFS-PR,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p01 precip_p03 precip_p06 precip_p12
+RRFS-PR,Value,Pressure,yes,,,10,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+RRFS-PR,Value,,yes,,,9,8,10 m 250 mb 300 mb 925 mb,10m_wnd_sfc_gust 925_temp_wnd 2m_temp_10m_wnd 2m_dewp_10m_wnd
+RRFS-PR,Value,Other lines,,,,4,3,,sim_radar_comp sfc_cape_cin best_cape_cin ship
+RRFS-PR,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,precip_type 1000_850_thick_type 850_700_thick_type precip_rate_type
+RRFS-PR,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+RRFS-PR,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+RRFS-PR,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+RRFS-PR,Change,,,,,1,1,,snodpth_chng
+RRFS-PR,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+RRFS-PR,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
+RRFS-PR,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
+RRFS-PR,Change,Pressure,,,,1,1,,mslp_trend
+RRFS-PR,Change,Heights,,,,1,1,500 mb,z500_trend
+RRFS-PR,Value,,,,yes,1,1,,sim_radar_1km
+RRFS-PR,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
+RRFSD,Value,,,,,33,30,100 mb 2 m 700-500 mb,sbcape mlcape mucape sbcin
+RTMA,Value,,yes,,,4,4,10 m,2m_temp_10m_wnd 2m_dewp_10m_wnd total_cloud_cover 10m_wnd_gust
+RTMA,Value,,,,,1,1,,visibility
+RTMA-AK,Value,,yes,,,4,4,10 m,2m_temp_10m_wnd 2m_dewp_10m_wnd total_cloud_cover 10m_wnd_gust
+RTMA-AK,Value,,,,,1,1,,visibility
+RTMA-GU,Value,,yes,,,4,4,10 m,2m_temp_10m_wnd 2m_dewp_10m_wnd total_cloud_cover 10m_wnd_gust
+RTMA-GU,Value,,,,,1,1,,visibility
+RTMA-HI,Value,,yes,,,4,4,10 m,2m_temp_10m_wnd 2m_dewp_10m_wnd total_cloud_cover 10m_wnd_gust
+RTMA-HI,Value,,,,,1,1,,visibility
+RTMA-PR,Value,,yes,,,4,4,10 m,2m_temp_10m_wnd 2m_dewp_10m_wnd total_cloud_cover 10m_wnd_gust
+RTMA-PR,Value,,,,,1,1,,visibility
+SEAS5,Value,,,,,6,6,2 m,seas5_t2m_departure seas5_precip_departure seas5_mslp_departure seas5_t2m
+SFCOA,Value,,,,,33,30,100 mb 2 m 700-500 mb,sbcape mlcape mucape sbcin
+SPCGEFS,Chance of a limit,,,,,9,5,,thunder_24hr gefsmlp_tor_std gefsmlp_tor_sig gefsmlp_wind_std
+SPCPOST,Chance of a limit,,,,,9,8,,thunder_1hr thunder_4hr thunder_full severe_tor_4hr
+SPCREFS,Value,,,,,70,44,500 mb 700 mb 700-500 mb 850 mb,cref cref_max uh25_04h_max_overlap uh03_04h_max_overlap
+SPCREFS,Chance of a limit,,,,,45,13,,cref_nmep_r013_t040 maxref1km_mucape_04h_max_overlap_nmep_r013_t>040 uh25_04h_max_overlap_nmep_r013_t>99.85p uh25_04h_max_overlap_nmep_r013_t>99.95p
+SPCREFS,Chance of a limit,Temperature,,,,18,3,,bliz_prob_t<0p250_t>035_t>0p010 bliz_prob_t<0p500_t>030_t>0p010 fosberg_prob_t>050 fosberg_prob_t>075
+SPCREFS,Value,Chance contour,,,,14,8,,maxref1km_04h_max_overlap_max maxref1km_24h_max_overlap12h_max uh25_04h_max_overlap_max uh25_24h_max_overlap12h_max
+SPCREFS,Value,Temperature,,,,9,7,,gust_mean gust_max gust_min s10m_01h_max_mean
+SPCREFS,Value,Chance contour,,,yes,7,4,,cref_pb_t040 maxref1km_mucape_04h_max_overlap_pb_t>040 maxref1km_mucape_24h_max_overlap12h_pb_t>040 wmax_04h_max_overlap_pb_t020
+SPCREFS,Amount: expected / percentile,Chance contour,,,yes,4,1,,uh25_04h_max_overlap_pb_t>99.85p uh25_04h_max_overlap_pb_t>99.95p uh25_24h_max_overlap12h_pb_t>99.85p uh25_24h_max_overlap12h_pb_t>99.95p
+SPCREFS,Value,Temperature,,,yes,1,1,,qpf_01h_ptype
+UKMO,Value,Heights,yes,,,12,8,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+UKMO,Value,Pressure,yes,,,6,6,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 sbcape_wind
+UKMO,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+UKMO,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+UKMO,Value,,,,,1,1,850-700 mb,850_700_rh
+UKMO,Change,Pressure,,,,1,1,,mslp_trend
+UKMO,Change,Heights,,,,1,1,500 mb,z500_trend
+URMA,Value,,yes,,,4,4,10 m,2m_temp_10m_wnd 2m_dewp_10m_wnd total_cloud_cover 10m_wnd_gust
+URMA,Value,,,,,1,1,,visibility
+URMA-AK,Value,,yes,,,4,4,10 m,2m_temp_10m_wnd 2m_dewp_10m_wnd total_cloud_cover 10m_wnd_gust
+URMA-AK,Value,,,,,1,1,,visibility
+URMA-HI,Value,,yes,,,4,4,10 m,2m_temp_10m_wnd 2m_dewp_10m_wnd total_cloud_cover 10m_wnd_gust
+URMA-HI,Value,,,,,1,1,,visibility
+URMA-PR,Value,,yes,,,4,4,10 m,2m_temp_10m_wnd 2m_dewp_10m_wnd total_cloud_cover 10m_wnd_gust
+URMA-PR,Value,,,,,1,1,,visibility
+WOOF-NAM,Value,Pressure,yes,,,2,2,10 m,10m_wnd_2m_temp mslp_10m_wind
+WOOF-NAM,Value,,,,,1,1,,sim_radar_comp
+WOOF-NAM,Change,Pressure,,,,1,1,,mslp_trend
+WOOF-NAM-HOSTED,Value,Heights,yes,,,13,9,200 mb 500 mb 700-300 mb 850 mb 925 mb,500_wnd_ht 500_vort_ht 850_vort_ht 850_temp_ht
+WOOF-NAM-HOSTED,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,precip_p01 precip_p03 precip_p06 precip_p12
+WOOF-NAM-HOSTED,Value,Pressure,yes,,,9,9,10 m 700 mb 850-200 mb,10m_wnd_2m_temp shear_850_200 steering_850_200 10m_wnd_precip
+WOOF-NAM-HOSTED,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+WOOF-NAM-HOSTED,Value,,,,,2,2,850-700 mb,850_700_rh sim_radar_comp
+WOOF-NAM-HOSTED,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
+WOOF-NAM-HOSTED,Value,Pressure,,,,2,2,,precip_ptot mslp_pwat
+WOOF-NAM-HOSTED,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+WOOF-NAM-HOSTED,Change,Pressure,,,,1,1,,mslp_trend
+WOOF-NAM-HOSTED,Change,Heights,,,,1,1,500 mb,z500_trend
+WPC-PPP,Chance of a limit,,,,,112,3,,ppp_24h_qpf_prob_0p01 ppp_24h_qpf_prob_0p10 ppp_24h_qpf_prob_0p25 ppp_24h_qpf_prob_0p50
+WPC-PPP,Amount: expected / percentile,,,,,96,6,,ppp_24h_qpf_expected ppp_24h_qpf_p05 ppp_24h_qpf_p10 ppp_24h_qpf_p25
+WPC-PPP,Value,,,,yes,4,1,,ppp_24h_median ppp_36h_median ppp_48h_median ppp_72h_median
