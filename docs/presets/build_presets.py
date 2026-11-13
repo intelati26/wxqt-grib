@@ -376,19 +376,26 @@ print(f'MODELS: {len(mrows)} models, {okn} of {tot} chart entries read by a fami
 byid2 = collections.defaultdict(list)
 for r in rows: byid2[r['id']].append(r)
 gsize = collections.Counter(key(i) for i in byid2)
+refs_grid = {x['id']: x for x in csv.DictReader(open(os.path.join(here, 'spcrefs-grid.csv')))} if os.path.exists(os.path.join(here, 'spcrefs-grid.csv')) else {}
 alias = []
 for i, rs in sorted(byid2.items()):
     lead = collections.Counter((x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) for x in rs).most_common(1)[0][0]
     r = next(x for x in rs if (x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) == lead)
     fm, ok, note = axes(r); s = r['spec']
     p = chance_parse(r) if fm == 'Chance' else {}
+    g = refs_grid.get(i) if {x['src'] for x in rs} == {'SPCREFS'} else None
+    if g and g['fit'] == 'fits':
+        fm, ok, note = 'Product grid (product, hour, type)', True, ''
+        p = dict(product=g['product'], window=g['window'], limits=g['limit'], kind=g['type'])
+    elif g and re.search(r'rh2m_s10m_prob', i):
+        fm, ok, note = 'Chance', True, ''
     alias.append(dict(id=i, label=r['lab'], category=r['cat'], models=len(rs), family=fm if ok else 'One-off', reads=('yes' if ok else note), field=s['field'] if s['field'] != '(lines only)' else '', level=s['level'], mode=s['mode'],
                       chance=' | '.join(x for x in (p.get('product', ''), p.get('window', ''), p.get('limits', ''), p.get('kind', '')) if x), contours=', '.join(s['fams']), barbs='yes' if s['barbs'] else '', stream='yes' if s['stream'] else '', bands='yes' if s['ov'] else '',
                       group=key(i), group_size=gsize[key(i)], single='yes' if gsize[key(i)] == 1 else '', differs_by_model='yes' if len({(x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) for x in rs}) > 1 else ''))
 cols = ['id', 'label', 'category', 'models', 'family', 'reads', 'field', 'level', 'mode', 'chance', 'contours', 'barbs', 'stream', 'bands', 'group', 'group_size', 'single', 'differs_by_model']
 with open(os.path.join(here, 'alias-table.csv'), 'w', newline='') as f:
     w = csv.DictWriter(f, cols, extrasaction='ignore'); w.writeheader(); w.writerows(alias)
-singles = [a for a in alias if a['single'] == 'yes' or a['family'] == 'One-off']
+singles = [a for a in alias if a['family'] == 'One-off' or (a['single'] == 'yes' and a['family'] == 'Value (field at a level)')]   # alone in its id pattern and not folded into a family that has a number or a statistic to pick
 print(f'ALIAS: {len(alias)} ids; family read {sum(1 for a in alias if a["family"] != "One-off")}; one-off {sum(1 for a in alias if a["family"] == "One-off")}; singles (group of 1) {sum(1 for a in alias if a["single"])}; singles or one-offs {len(singles)}')
 # the singles: those that look alike (same mode, lines, barbs, bands) could be one preset with a field dropdown
 clu = collections.defaultdict(list)
