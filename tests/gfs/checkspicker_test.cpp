@@ -41,7 +41,7 @@ int main(int argc, char ** argv) {
             std::set<std::string> values;
             for (size_t i = 0; i < k.charts.size(); i++) {
                 CHECK(seen.insert(k.charts[i].id).second);   // in one kind only
-                CHECK(k.charts[i].group == k.group);
+                CHECK(k.parts.empty() ? k.charts[i].group == k.group : true);   // (a product kind has the charts of all its categories)
                 if (k.charts.size() > 1) {
                     const bool ok = !k.values[i].empty() && values.insert(k.values[i]).second;
                     if (!ok) {
@@ -204,6 +204,53 @@ int main(int argc, char ** argv) {
         const auto * prob = alias(picks.back());
         CHECK(prob != nullptr && std::string{prob->kind} == "Ensemble probability" && !std::string{prob->limit}.empty());
         dialog.close();
+    }
+    {   // every chart of every product kind of every model is reachable through the Hour, Type and Limit lists (each list offers what exists, and the three choose the chart)
+        int variantKinds = 0, reachable = 0, unreachable = 0;
+        for (const auto& def : GfsModels::all()) {
+            std::vector<ProductPicker::Entry> entries;
+            for (const auto& p : GfsChart::products()) {
+                if (p.source == def.id) {
+                    entries.push_back({p.id, p.label, GfsChart::category(p)});
+                }
+            }
+            const auto kinds = ChecksPicker::kinds(entries);
+            for (size_t k = 0; k < kinds.size(); k++) {
+                if (kinds[k].parts.empty()) {
+                    continue;
+                }
+                variantKinds++;
+                std::string shown = kinds[k].charts.front().id;
+                ChecksPicker dialog{nullptr, def.id, entries, shown, {}, {}};
+                std::string last = shown;
+                dialog.onPick = [&last] (const std::string& id) { last = id; };
+                const auto combos = dialog.findChildren<QComboBox *>();
+                auto * box = combos[0];
+                for (size_t c = 0; c < kinds[k].charts.size(); c++) {
+                    const auto id = kinds[k].charts[c].id;
+                    for (int i = 0; i < box->count(); i++) {   // this product's item
+                        if (box->itemData(i, Qt::UserRole).isValid() && static_cast<size_t>(box->itemData(i, Qt::UserRole).toInt()) == k && box->currentIndex() != i) {
+                            box->setCurrentIndex(i);
+                        }
+                    }
+                    for (size_t a = 0; a < 3; a++) {   // the hour, then the type, then the limit (each list is made from the ones before it)
+                        auto * axis = combos[2 + a];
+                        for (int i = 0; i < axis->count(); i++) {
+                            if (axis->itemData(i).toString().toStdString() == kinds[k].parts[c][a] && axis->currentIndex() != i) {
+                                axis->setCurrentIndex(i);
+                            }
+                        }
+                    }
+                    (last == id ? reachable : unreachable)++;
+                    if (last != id) {
+                        std::printf("  not reached: %s %s -> %s\n", def.id.c_str(), id.c_str(), last.c_str());
+                    }
+                }
+                dialog.close();
+            }
+        }
+        std::printf("product kinds %d, charts reached through their lists %d, not reached %d\n", variantKinds, reachable, unreachable);
+        CHECK(unreachable == 0 && variantKinds > 10);
     }
     std::printf("kinds %d for %d charts over all models (%d of one chart)\n", kindsTotal, charts, single);
     std::printf(failures == 0 ? "OK\n" : "FAILED: %d\n", failures);
