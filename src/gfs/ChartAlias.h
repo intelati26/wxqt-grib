@@ -30,6 +30,7 @@ struct Entry {
     const char * window;      // ("Ensemble mean", "Paintball", "Neighborhood probability", "ensemble"); empty for every other chart
     const char * limit;
     const char * kind;
+    const char * detail;      // what tells apart two charts of one model that read the same ("maximum" and "minimum" 2 m temperature, "significant" and "any severe" tornado); empty for the rest
     const char * values;      // the numbers in the id, in order, as the picker's dropdown values ("24 | 05": the hour and the percentile); with the rest they name the chart exactly
     const char * contours;    // the line families, comma separated ("Pressure, Thickness")
     bool barbs;
@@ -44,8 +45,13 @@ struct Entry {
 const std::vector<Entry>& table();
 // the entry of an id, or null when there is none
 const Entry * find(const std::string& id);
-// the id of the entry with these checks (the family, field, level, mode, chance, values, contours, barbs, streamlines and bands of `like`), "" when there is none or more than one
+// the id of the entry with these checks (the family, field, level, mode, chance, values, detail, contours, barbs, streamlines and bands of `like`), "" when there is none or more than one anywhere
 std::string idFor(const Entry& like);
+// the chart of that model with these checks: `like` itself when the model has it, else the model's first chart (in its list) that reads the same, "" when it has none. The same chart is often
+// under another id on another model ("2m_tmpc" and "temp_2m"), and a model can have two ids for one chart ("10m_wnd" and "mslp_10m_wind" on HRRR): the first of them
+std::string idFor(const Entry& like, const std::string& model);
+// how many charts of that model share their checks with another chart of the same model (0: the checks name each chart of the model exactly)
+int ambiguousIn(const std::string& model);
 // true when the two entries have the same checks (their ids may differ: the same chart on another model under another id)
 bool sameChecks(const Entry& a, const Entry& b);
 // how many entries share their checks with another one (0: the checks name a chart exactly)

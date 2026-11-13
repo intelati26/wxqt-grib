@@ -66,6 +66,40 @@ int main() {
     std::printf("entries %zu, programs ids %zu, round trip exact %d, ids whose checks another id shares %d (ambiguous() says %d), one-offs %d\n", ChartAlias::table().size(), programModels.size(), roundTrip, same,
                 ChartAlias::ambiguous(), static_cast<int>(std::count_if(ChartAlias::table().begin(), ChartAlias::table().end(), [] (const ChartAlias::Entry& e) { return ChartAlias::oneOff(e); })));
     CHECK(same == ChartAlias::ambiguous());
+    // by model: ids that share their checks within one model are charts that read the same (a model with two ids for one chart); the rest of the 'same' above are the same chart under another id on
+    // another model ("2m_tmpc" and "temp_2m"), which the model-aware lookup resolves
+    std::set<std::string> models;
+    for (const auto& product : GfsChart::products()) {
+        models.insert(product.source);
+    }
+    int inModel = 0, wrong = 0, otherId = 0;
+    std::set<std::string> twice;
+    for (const auto& model : models) {
+        const int n = ChartAlias::ambiguousIn(model);
+        inModel += n;
+        if (n > 0) {
+            twice.insert(model);
+        }
+    }
+    for (const auto& product : GfsChart::products()) {
+        const auto * e = ChartAlias::find(product.id);
+        CHECK(e != nullptr);
+        if (e == nullptr) {
+            continue;
+        }
+        const auto got = ChartAlias::idFor(*e, product.source);
+        wrong += got != product.id ? 1 : 0;   // a model has its own chart, whatever the checks say
+        for (const auto& model : models) {      // on any model: its own id, or an id of that model, or none
+            const auto there = ChartAlias::idFor(*e, model);
+            CHECK(there.empty() || GfsChart::product(there, model) != nullptr);
+            otherId += !there.empty() && there != product.id ? 1 : 0;
+        }
+    }
+    CHECK(wrong == 0);
+    std::printf("within a model: %d charts share their checks with another chart of the same model (%zu models); another model's id for a chart: %d\n", inModel, twice.size(), otherId);
+    for (const auto& model : twice) {
+        CHECK(model == "HRRR" || ChartAlias::ambiguousIn(model) <= 4);   // (the few true duplicates: 10m_wnd and mslp_10m_wind)
+    }
     std::printf(failures == 0 ? "OK\n" : "FAILED: %d\n", failures);
     return failures == 0 ? 0 : 1;
 }

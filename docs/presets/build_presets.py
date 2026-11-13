@@ -377,6 +377,10 @@ byid2 = collections.defaultdict(list)
 for r in rows: byid2[r['id']].append(r)
 gsize = collections.Counter(key(i) for i in byid2)
 refs_grid = {x['id']: x for x in csv.DictReader(open(os.path.join(here, 'spcrefs-grid.csv')))} if os.path.exists(os.path.join(here, 'spcrefs-grid.csv')) else {}
+# what tells apart charts that read the same (one model has both): the fill or the product is the same word, the thing differs
+DETAIL = {'2m_max_temp': 'maximum', '2m_min_temp': 'minimum', 'best_cape_cin': 'most unstable', 'sfc_cape_cin': 'surface-based', 'gefsmlp_hail_sig': 'significant', 'gefsmlp_hail_std': 'any severe',
+          'gefsmlp_severe_sig': 'significant', 'gefsmlp_severe_std': 'any severe', 'gefsmlp_tor_sig': 'significant', 'gefsmlp_tor_std': 'any severe', 'pbl_height': 'bulk', 'pbl_rich_height': 'richardson',
+          'sat_ir': 'infrared', 'sat_wv_low': 'water vapor, lower', 'sat_wv_mid': 'water vapor, middle', 'sat_wv_upper': 'water vapor, upper'}
 alias = []
 for i, rs in sorted(byid2.items()):
     lead = collections.Counter((x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) for x in rs).most_common(1)[0][0]
@@ -391,8 +395,8 @@ for i, rs in sorted(byid2.items()):
         fm, ok, note = 'Chance', True, ''
     alias.append(dict(id=i, label=r['lab'], category=r['cat'], models=len(rs), family=fm if ok else 'One-off', reads=('yes' if ok else note), field=s['field'] if s['field'] != '(lines only)' else '', level=s['level'], mode=s['mode'],
                       chance=' | '.join(x for x in (p.get('product', ''), p.get('window', ''), p.get('limits', ''), p.get('kind', '')) if x), product=p.get('product', ''), window=p.get('window', ''), limit=p.get('limits', ''), kind=p.get('kind', ''), contours=', '.join(s['fams']), barbs='yes' if s['barbs'] else '', stream='yes' if s['stream'] else '', bands='yes' if s['ov'] else '',
-                      values=' | '.join(re.findall(r'\d+(?:\.\d+)?', i)), group=key(i), group_size=gsize[key(i)], single='yes' if gsize[key(i)] == 1 else '', differs_by_model='yes' if len({(x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) for x in rs}) > 1 else ''))
-cols = ['id', 'label', 'category', 'models', 'family', 'reads', 'field', 'level', 'mode', 'chance', 'product', 'window', 'limit', 'kind', 'values', 'contours', 'barbs', 'stream', 'bands', 'group', 'group_size', 'single', 'differs_by_model']
+                      detail=DETAIL.get(i, ''), values=' | '.join(re.findall(r'\d+(?:\.\d+)?', i)), group=key(i), group_size=gsize[key(i)], single='yes' if gsize[key(i)] == 1 else '', differs_by_model='yes' if len({(x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) for x in rs}) > 1 else ''))
+cols = ['id', 'label', 'category', 'models', 'family', 'reads', 'field', 'level', 'mode', 'chance', 'product', 'window', 'limit', 'kind', 'detail', 'values', 'contours', 'barbs', 'stream', 'bands', 'group', 'group_size', 'single', 'differs_by_model']
 with open(os.path.join(here, 'alias-table.csv'), 'w', newline='') as f:
     w = csv.DictWriter(f, cols, extrasaction='ignore'); w.writeheader(); w.writerows(alias)
 singles = [a for a in alias if a['family'] == 'One-off' or (a['single'] == 'yes' and a['family'] == 'Value (field at a level)')]   # alone in its id pattern and not folded into a family that has a number or a statistic to pick

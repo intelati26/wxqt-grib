@@ -18,8 +18,8 @@ out = ['// *********************************************************************
        '    static const std::vector<Entry> entries = {']
 for r in rows:
     fam = r['family']
-    out.append('        {%s, %s, %s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s},' % (
-        q(r['id']), q(r['label']), q(r['category']), int(r['models']), q(fam), q(r['field']), q(r['level']), q(r['mode']), q(r['chance']), q(r['product']), q(r['window']), q(r['limit']), q(r['kind']), q(r['values']), q(r['contours']),
+    out.append('        {%s, %s, %s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s},' % (
+        q(r['id']), q(r['label']), q(r['category']), int(r['models']), q(fam), q(r['field']), q(r['level']), q(r['mode']), q(r['chance']), q(r['product']), q(r['window']), q(r['limit']), q(r['kind']), q(r['detail']), q(r['values']), q(r['contours']),
         'true' if r['barbs'] else 'false', 'true' if r['stream'] else 'false', 'true' if r['bands'] else 'false', q(r['group']), 'true' if r['single'] else 'false', 'true' if r['differs_by_model'] else 'false'))
 out += ['    };', '    return entries;', '}', '}  // namespace ChartAlias', '']
 open(os.path.join(here, '..', '..', 'src', 'gfs', 'ChartAliasData.cpp'), 'w').write('\n'.join(out))
