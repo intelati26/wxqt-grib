@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/ChartAlias.h"
+#include "gfs/GfsChart.h"
 #include <algorithm>
 #include <map>
 #include <string>
@@ -14,7 +15,7 @@ namespace {
 
 std::string keyOf(const Entry& e) {
     std::string k;
-    for (const char * part : {e.family, e.field, e.level, e.mode, e.chance, e.values, e.contours}) {
+    for (const char * part : {e.family, e.field, e.level, e.mode, e.chance, e.detail, e.values, e.contours}) {
         k += part;
         k += '|';
     }
@@ -56,6 +57,36 @@ std::string idFor(const Entry& like) {
 
 bool sameChecks(const Entry& a, const Entry& b) {
     return keyOf(a) == keyOf(b);
+}
+
+std::string idFor(const Entry& like, const std::string& model) {
+    if (GfsChart::product(like.id, model) != nullptr) {
+        return like.id;
+    }
+    const auto key = keyOf(like);
+    for (const auto& product : GfsChart::products()) {   // (the model's list order: the first of two ids for one chart)
+        if (product.source != model) {
+            continue;
+        }
+        if (const auto * have = find(product.id); have != nullptr && keyOf(*have) == key) {
+            return product.id;
+        }
+    }
+    return {};
+}
+
+int ambiguousIn(const std::string& model) {
+    std::map<std::string, int> count;
+    for (const auto& product : GfsChart::products()) {
+        if (const auto * have = find(product.id); product.source == model && have != nullptr) {
+            count[keyOf(*have)]++;
+        }
+    }
+    int n = 0;
+    for (const auto& [key, c] : count) {
+        n += c > 1 ? c : 0;
+    }
+    return n;
 }
 
 int ambiguous() {

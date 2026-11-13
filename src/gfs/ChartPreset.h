@@ -36,7 +36,7 @@ std::vector<Preset> load();
 void put(const Preset& preset);
 bool erase(const std::string& name);
 
-// A preset on a model: the chart (the same id when the model has it, else the model's one chart with the same checks, else none), and the overlays the model offers (the rest are named in
+// A preset on a model: the chart (the same id when the model has it, else the model's chart with the same checks (its first, when it has two ids for one chart), else none), and the overlays the model offers (the rest are named in
 // `dropped`, for the picker to grey). `found` is false when the model has no such chart.
 struct Resolved {
     bool found{false};

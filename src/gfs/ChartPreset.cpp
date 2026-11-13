@@ -128,19 +128,7 @@ Resolved resolve(const Preset& preset, const std::string& model) {
     if (GfsChart::product(preset.chart, model) != nullptr) {
         chart = preset.chart;
     } else if (const auto * want = ChartAlias::find(preset.chart); want != nullptr && !ChartAlias::oneOff(*want)) {
-        for (const auto& product : GfsChart::products()) {   // the model's own id for the same checks, when there is exactly one
-            if (product.source != model) {
-                continue;
-            }
-            const auto * have = ChartAlias::find(product.id);
-            if (have != nullptr && ChartAlias::sameChecks(*want, *have)) {
-                if (!chart.empty()) {
-                    chart.clear();   // two charts of the model read the same: no way to choose
-                    break;
-                }
-                chart = product.id;
-            }
-        }
+        chart = ChartAlias::idFor(*want, model);   // the model's own id for the same checks (the first, when it has two ids for one chart)
     }
     if (chart.empty()) {
         r.dropped = preset.overlays;
