@@ -8619,6 +8619,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     const double span = sector.east - sector.west;
     const double extremeRadius = span > 150.0 ? 12.0 : span > 80.0 ? 8.0 : 6.0;
     std::vector<QRectF> placed;   // where the numbers on the lines already are
+    std::vector<std::tuple<QPointF, QString, QColor>> numbersToDraw;   // the numbers on the lines, drawn after the barbs so that no barb is over one
     // where the wind barbs will stand (they are drawn after the lines): the numbers keep clear of them when they can
     const bool barbsShown = !options.noBarbs && ((!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) || std::any_of(product.barbSets.begin(), product.barbSets.end(), [&grids] (const auto& set) { return grids.count(set.u) && grids.count(set.v); }));
     const auto barbLook = BarbGrid::look(span, area.width() / std::max(0.1, span));
@@ -8627,7 +8628,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         const double lonStep = BarbGrid::lonStep(barbLook.step, la);
         const double lo = std::round(view.lonAt(at.x()) / lonStep) * lonStep;
         const auto node = view.toPixel(lo, la);
-        return std::hypot(node.x() - at.x(), node.y() - at.y()) < barbLook.length * 0.8;
+        return std::hypot(node.x() - at.x(), node.y() - at.y()) < barbLook.length * 1.1;
     };
     for (const auto& set : product.contours) {
         const double interval = set.interval * (span > 150.0 ? 2.0 : 1.0);
@@ -8705,7 +8706,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                         if (options.vectorOut != nullptr) {
                             options.vectorOut->labels.push_back({view.lonAt(mid.x()), view.latAt(mid.y()), text, color.darker(130)});
                         } else {
-                            halo(mid, interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level))), color.darker(130));   // a fractional interval keeps its decimals
+                            numbersToDraw.emplace_back(mid, interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level))), color.darker(130));   // a fractional interval keeps its decimals
                         }
                     }
                 }
@@ -8771,6 +8772,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
                 }
             }
         }
+    }
+    for (const auto& [at, text, color] : numbersToDraw) {   // (over the barbs, with their halo: a number is read before a barb is)
+        halo(at, text, color);
     }
     // numbers at points ("41 63": the 10th and 90th percentile): at cities, biggest first, then evenly over what is left of the map; never one box on another
     if (!product.pointValues.empty()) {
