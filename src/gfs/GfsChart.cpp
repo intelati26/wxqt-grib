@@ -9114,6 +9114,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         keyLeft += 13 + 52;
     }
     p.setPen(QColor{110, 110, 110});
+    p.drawText(QRectF{keyLeft, image.height() / S - 16.0, 160, 14}, Qt::AlignLeft, "wxqt-grib");   // (the program's name, small, at the left of the footer, after any key that is there)
     p.drawText(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product, &run] {
         auto text = sourceLabel(product.source, run.date + run.cycle);
         for (const auto& extra : product.extras) {   // the other models a chart draws from
