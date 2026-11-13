@@ -1,0 +1,20 @@
+dropdown,values,used by
+Level,"200, 250, 300, 500, 700, 850, 925 mb","level charts, heights, temperature, humidity, wind speed, barbs"
+Layer,"850-700, 700-300 mb mean RH; 850-200 mb shear and mean wind",layer fills
+Light fill field,"Wind speed, Temperature, Dewpoint, Relative humidity, Height, Precipitable water, Vorticity, Divergence, Theta-e, Precipitation (amount, rate, type), CAPE, Reflectivity, Anomaly, Change",every preset
+Dark fill field,"same fields as the light fill, with a threshold (from / up to)",presets with two fills
+Fill level,"10 m / 2 m, 850, 700, 500, 300, 250, 200, 925",level fills
+Period (precipitation),"1, 3, 6, 12, 24, 36, 48, 60 h; period total; since the start",precipitation presets
+Precipitation shown as,"Amount; Type (rain, snow, mixed); Rate + type",precipitation presets
+Units,in / mm (follows the unit setting),"precipitation, snow depth"
+Mode,"Value; Anomaly; Change since F00; Change since the run 6, 12, 24, 48 h earlier",anomaly and trend presets
+Pressure family,MSLP,surface presets
+Heights family,"925, 850, 700, 500, 300, 250, 200 mb",level charts
+Thickness family,"1000-500, 1000-850, 850-700",precipitation + lines
+Temperature family,"2 m, 850, 700, 500, 300, 250, 200",lines of temperature
+Humidity family,"2 m, 850, 700, 500, 300, 250, 200",lines of humidity
+Wind speed family,"10 m, 850, 700, 500, 300, 250, 200",lines of wind speed
+Barbs family,"10 m, 850, 700, 500, 300, 250, 200",every chart with wind
+Omega family (new),700 mb,700 mb humidity chart
+Streamlines family (new),"200, 850 mb",streamline charts
+Threshold (dark fill),"a number in the field's unit (dewpoint 60 F, wind 25 kt ...)",presets with two fills
