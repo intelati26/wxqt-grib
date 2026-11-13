@@ -263,6 +263,26 @@ int main(int argc, char * argv[]) {
                     for (const auto& set : product.barbSets) {
                         barbs += (barbs.empty() ? "" : ";") + set.name;
                     }
+                    const auto levelOf = [&product] (const std::string& key) {
+                        for (const auto& want : product.wants) {
+                            if (want.key == key) {
+                                return want.variable + "@" + want.level;
+                            }
+                        }
+                        return std::string{};
+                    };
+                    std::string wants, contourAt, barbAt;
+                    for (const auto& want : product.wants) {
+                        wants += (wants.empty() ? "" : ",") + want.key + "=" + want.variable + "@" + want.level;
+                    }
+                    for (const auto& set : product.contours) {
+                        contourAt += (contourAt.empty() ? "" : ";") + levelOf(set.key);
+                    }
+                    barbAt = product.barbU.empty() ? "" : levelOf(product.barbU);
+                    for (const auto& set : product.barbSets) {
+                        barbAt += (barbAt.empty() ? "" : ";") + levelOf(set.u);
+                    }
+                    std::fprintf(stderr, "LEVELS %s|%s|%s|%s|%s\n", product.source.c_str(), product.id.c_str(), wants.c_str(), contourAt.c_str(), barbAt.c_str());
                     std::fprintf(stderr, "CHART %s|%s|%s|%s|%s|%s|%s|%s|%d\n", product.source.c_str(), GfsChart::category(product).c_str(), product.id.c_str(), product.label.c_str(), product.linesOnly ? "" : (product.fillTitle.empty() && product.fillTitleFor ? product.fillTitleFor(12) : product.fillTitle).c_str(), lines.c_str(), barbs.c_str(), product.streamU.empty() ? "" : "streamlines", static_cast<int>(product.overlays.size()));
                 }
                 }

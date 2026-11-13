@@ -4,10 +4,15 @@ Input: charts-dump.txt (WXQT_CHARTS_DUMP='*' output). Output: vocabulary.csv, pr
 import re, csv, collections, itertools, sys, os
 here = os.path.dirname(os.path.abspath(__file__))
 rows = []
+lv = {}
 for l in open(os.path.join(here, 'charts-dump.txt')):
+    if l.startswith('LEVELS '):
+        q = l[7:].rstrip('\n').split('|'); lv[(q[0], q[1])] = q[2:5]
+for l in open(os.path.join(here, 'charts-dump.txt')):
+    if not l.startswith('CHART '): continue
     f = l[6:].rstrip('\n').split('|')
     src, cat, i, lab, fill, lines, barbs, stream, ov = f[:9]
-    rows.append(dict(src=src, cat=cat, id=i, lab=lab, fill=fill, lines=[t for t in lines.split(';') if t], barbs=barbs, stream=stream, ov=int(ov)))
+    rows.append(dict(wants=lv.get((src, i), ['', '', ''])[0], cat_at=lv.get((src, i), ['', '', ''])[1], barb_at=lv.get((src, i), ['', '', ''])[2], src=src, cat=cat, id=i, lab=lab, fill=fill, lines=[t for t in lines.split(';') if t], barbs=barbs, stream=stream, ov=int(ov)))
 
 def strip_units(t): return re.sub(r'\s*\([^)]*\)\s*$', '', t).strip()
 def norm(t):
@@ -179,17 +184,30 @@ def gfs_layer(r):
     m = re.search(r'(\d{3,4})\s?-\s?(\d{3,4})\s?mb', r['lab'] + ' ' + ' '.join(r['lines']))
     return f'{m.group(1)}-{m.group(2)} mb' if m else ''
 def lines_at(r):
+    at = r['cat_at'].split(';') if r['cat_at'] else []
     out = []
-    for f in r['spec']['fams']:
-        ts = [strip_units(t) for t in r['lines'] if fam(t) == f]
-        out.append(f + (' @ ' + '; '.join(ts) if f in ('Thickness', 'Temperature') else (' @ ' + r['spec']['level'] if r['spec']['level'] and f in ('Heights', 'Omega') else (' (MSLP)' if f == 'Pressure' else ''))))
+    for j, t in enumerate(r['lines']):
+        lvl = real_level(at[j]) if j < len(at) else ''
+        f = fam(t)
+        out.append(f + ' ' + (strip_units(t) if f in ('Thickness', 'Temperature') else (lvl or 'derived field')) + ('' if lvl or f == 'Thickness' else '') + (' (checked)' if lvl else ''))
     return out
+def real_level(t):
+    m = re.search(r'@(\d+) mb', t)
+    if m: return m.group(1) + ' mb'
+    if '10 m above' in t: return '10 m'
+    if 'mean sea level' in t: return 'MSLP'
+    if '2 m above' in t: return '2 m'
+    return ''
+def lv_label(r): return r['spec']['level']
 def barbs_at(r):
     if not r['barbs']: return ''
+    got = [real_level(t) for t in r['barb_at'].split(';') if t]
+    got = [g for g in got if g]
+    if got: return ' + '.join(got) + ' (checked)'
     lv = r['spec']['level']
     if lv and not lv.endswith('2 m'): return lv
     if re.search(r'10 ?m', r['lab'] + r['id']): return '10 m'
-    return 'chart level'
+    return 'derived wind, not in the files (' + ('label says ' + lv_label(r) if lv_label(r) else 'no level in the label') + ')'
 gp = collections.defaultdict(list)
 for r in gfs:
     s = r['spec']; gp[(s['mode'], re.sub(r'\d+(?:\.\d+)?', '#', s['field']), s['fams'], s['barbs'], s['stream'], s['ov'] > 0, re.sub(r'^\d+_\d+_thick', 'THICK', re.sub(r'^\d+_\d+_thick_type', 'THICK_type', key(r['id']))) if 'thick' in r['id'] else key(r['id']))].append(r)
