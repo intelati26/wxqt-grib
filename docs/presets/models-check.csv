@@ -1,0 +1,77 @@
+model,chart entries,read by a family,percent read,ids shared with GFS,ids not in GFS,Value (field at a level),Precipitation (period),Chance,"Amount (expected, percentile)","Ensemble (members, spread)",Anomaly,Change,what did not read
+SPCGEFS,9,0,0,0,9,0,0,9,0,0,0,0,9 x no limit (fixed definition)
+SPCPOST,9,0,0,0,9,0,0,9,0,0,0,0,9 x no limit (fixed definition)
+HREF,71,55,77,0,71,9,6,56,0,0,0,0,8 x no limit (fixed definition); 7 x not a chance (a probability-matched mean amount); 1 x two or more limits
+NBM,51,42,82,4,47,19,5,24,3,0,0,0,9 x no limit (fixed definition)
+REFS,62,52,84,0,62,2,2,27,0,31,0,0,8 x statistic not read; 2 x not a chance family (chance contour over a base chart)
+GEFS,122,104,85,53,69,43,20,8,10,34,2,5,18 x statistic not read
+CFS30,7,6,86,0,7,5,2,0,0,0,0,0,1 x line family outside the list: Other lines
+SPCREFS,168,152,90,0,168,101,0,63,4,0,0,0,16 x two or more limits
+HAFSA,13,12,92,2,11,13,0,0,0,0,0,0,1 x line family outside the list: Waves
+HAFSB,13,12,92,2,11,13,0,0,0,0,0,0,1 x line family outside the list: Waves
+MPAS-HT,65,61,94,24,41,62,1,0,0,0,0,2,4 x line family outside the list: Other lines
+MPAS-RN,65,61,94,24,41,62,1,0,0,0,0,2,4 x line family outside the list: Other lines
+HRRR,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
+HRRR-AK,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
+RRFS,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
+RRFS-AK,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
+RRFS-FIREWX,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
+RRFS-HI,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
+RRFS-NA,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
+RRFS-PR,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
+AIFS,37,37,100,37,0,26,7,0,0,0,2,2,
+AIGFS,42,42,100,42,0,26,12,0,0,0,2,2,
+AROME,26,26,100,26,0,24,0,0,0,0,0,2,
+AROME-AT,4,4,100,4,0,3,0,0,0,0,0,1,
+ARPEGE,26,26,100,26,0,24,0,0,0,0,0,2,
+ARPEGE-EU,3,3,100,3,0,2,0,0,0,0,0,1,
+ARWEN,4,4,100,4,0,3,0,0,0,0,0,1,
+CFS,17,17,100,17,0,13,0,0,0,0,2,2,
+CFS-ANL,17,17,100,17,0,13,0,0,0,0,2,2,
+COPERNICUS,15,15,100,0,15,15,0,0,0,0,0,0,
+EC46,6,6,100,0,6,4,2,0,0,0,0,0,
+ENS-ALL,18,18,100,0,18,0,0,6,0,12,0,0,
+ERA5,31,31,100,31,0,29,0,0,0,0,0,2,
+GDPS,25,25,100,25,0,23,0,0,0,0,0,2,
+GEFS-WAVE,10,10,100,0,10,10,0,0,0,0,0,0,
+GEOS-FP,23,23,100,14,9,21,0,0,0,0,0,2,
+GEPS,49,49,100,37,12,21,13,8,0,4,0,3,
+GFS,56,56,100,56,0,30,20,0,0,0,3,3,
+GFS-ANL,31,31,100,31,0,29,0,0,0,0,0,2,
+GFS-WAVE,10,10,100,0,10,10,0,0,0,0,0,0,
+GFS1-ANL,31,31,100,31,0,29,0,0,0,0,0,2,
+GRAPES,26,26,100,26,0,24,0,0,0,0,0,2,
+GSM,25,25,100,25,0,23,0,0,0,0,0,2,
+HGEFS,25,25,100,25,0,23,0,0,0,0,0,2,
+HRDPS,28,28,100,28,0,26,0,0,0,0,0,2,
+ICON,26,26,100,26,0,24,0,0,0,0,0,2,
+ICON-2I,18,18,100,18,0,16,0,0,0,0,0,2,
+ICON-D2,6,6,100,6,0,5,0,0,0,0,0,1,
+ICON-EU,29,29,100,29,0,27,0,0,0,0,0,2,
+IFS,46,46,100,46,0,29,13,0,0,0,2,2,
+IFS-ENS,21,21,100,0,21,0,0,6,0,15,0,0,
+MF-CURRENT,3,3,100,0,3,3,0,0,0,0,0,0,
+MF-SST,1,1,100,0,1,1,0,0,0,0,0,0,
+MF-WAVE,8,8,100,0,8,8,0,0,0,0,0,0,
+MRMS,1,1,100,1,0,1,0,0,0,0,0,0,
+MSM,3,3,100,3,0,2,0,0,0,0,0,1,
+MSM-UL,19,19,100,19,0,18,0,0,0,0,0,1,
+NAM-ANL,32,32,100,32,0,30,0,0,0,0,0,2,
+NARR,26,26,100,26,0,24,0,0,0,0,0,2,
+RAP-ANL,21,21,100,21,0,20,0,0,0,0,0,1,
+RRFSD,33,33,100,0,33,33,0,0,0,0,0,0,
+RTMA,5,5,100,0,5,5,0,0,0,0,0,0,
+RTMA-AK,5,5,100,0,5,5,0,0,0,0,0,0,
+RTMA-GU,5,5,100,0,5,5,0,0,0,0,0,0,
+RTMA-HI,5,5,100,0,5,5,0,0,0,0,0,0,
+RTMA-PR,5,5,100,0,5,5,0,0,0,0,0,0,
+SEAS5,6,6,100,0,6,4,2,0,0,0,0,0,
+SFCOA,33,33,100,0,33,33,0,0,0,0,0,0,
+UKMO,26,26,100,26,0,24,0,0,0,0,0,2,
+URMA,5,5,100,0,5,5,0,0,0,0,0,0,
+URMA-AK,5,5,100,0,5,5,0,0,0,0,0,0,
+URMA-HI,5,5,100,0,5,5,0,0,0,0,0,0,
+URMA-PR,5,5,100,0,5,5,0,0,0,0,0,0,
+WOOF-NAM,4,4,100,4,0,3,0,0,0,0,0,1,
+WOOF-NAM-HOSTED,45,45,100,45,0,29,14,0,0,0,0,2,
+WPC-PPP,212,212,100,0,212,4,0,112,96,0,0,0,

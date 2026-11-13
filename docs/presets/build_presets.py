@@ -297,7 +297,7 @@ def fam_of(r):
     if s['mode'] == 'Ensemble: members / spread': return 'Ensemble (members, spread)'
     if s['mode'] == 'Anomaly': return 'Anomaly'
     if s['mode'] == 'Change': return 'Change'
-    if re.search(r'hour|precip', s['field'], re.I) and not r['id'].startswith(('prob', 'ens_')): return 'Precipitation (period)'
+    if re.search(r'precipitation|precip rate|precip', re.sub(r'precipitable', '', s['field'], flags=re.I), re.I) and not r['id'].startswith(('prob', 'ens_')): return 'Precipitation (period)'
     return 'Value (field at a level)'
 FAMDEF = {
  'Value (field at a level)': ('One field drawn as a fill, with the overlays ticked', 'Field | Level or layer | (Units)', 'The default for deterministic models; 200/250/300 mb winds start without barbs'),
@@ -326,3 +326,47 @@ with open(os.path.join(here, 'families-proposed.csv'), 'w', newline='') as f:
         rs = [r for r in rows if cond(r)]
         w.writerow([name, 'An overlay', dd, len(rs), len({r['id'] for r in rs}), len({r['src'] for r in rs}), ' '.join(sorted({r['id'] for r in rs})[:4]), ''])
 print('FAMILIES: ' + ', '.join(f'{k} {fc[k][0]}' for k in FAMDEF))
+
+# --- model by model: every chart entry goes to its family and its axes are read; whatever cannot be read is listed
+def axes(r):
+    """returns (family, ok, note) for one chart entry"""
+    fm = fam_of(r); lab = r['lab'].lower(); i = r['id'].lower(); s = r['spec']
+    odd = [x for x in s['fams'] if x in ('Other lines', 'Waves')]
+    note = ''
+    if fm == 'Chance':
+        p = chance_parse(r); ok = p['fit'].startswith('fits'); note = '' if ok else p['fit']
+        return fm, ok, note
+    if fm == 'Precipitation (period)':
+        ok = True   # the period is the picker's own Period dropdown (the id carries it only for the precip_p# charts)
+    elif fm == 'Amount (expected, percentile)':
+        ok = bool(re.search(r'percentile|_p\d+|pct\d+|median|expected|efi|extreme forecast|paintball', i + ' ' + lab)); note = '' if ok else 'statistic not read'
+    elif fm == 'Ensemble (members, spread)':
+        ok = bool(re.search(r'spread|spag|member|paintball|mean|_mem', i + ' ' + lab)); note = '' if ok else 'statistic not read'
+        
+    elif fm == 'Change':
+        ok = bool(re.search(r'chng|change|trend|diff', i + ' ' + lab)); note = '' if ok else 'since not read'
+    elif fm == 'Anomaly':
+        ok = 'anom' in i + lab; note = '' if ok else 'anomaly not read'
+    else:
+        ok = s['field'] != '(lines only)' or bool(r['lines'])
+        note = '' if ok else 'no fill, no lines'
+    if odd and ok: ok = False; note = 'line family outside the list: ' + ', '.join(odd)
+    return fm, ok, note
+gfs_ids = {r['id'] for r in rows if r['src'] == 'GFS'}
+mrows = []; exc = []
+for src in sorted({r['src'] for r in rows}):
+    rs = [r for r in rows if r['src'] == src]
+    fams = collections.Counter(); bad = collections.Counter()
+    for r in rs:
+        fm, ok, note = axes(r); fams[fm] += 1
+        if not ok: bad[note or 'other'] += 1; exc.append([src, r['id'], r['lab'], fm, note])
+    ids = {r['id'] for r in rs}
+    mrows.append([src, len(rs), len(rs) - sum(bad.values()), round(100 * (len(rs) - sum(bad.values())) / len(rs)), len(ids & gfs_ids), len(ids - gfs_ids),
+                  *[fams[k] for k in FAMDEF], '; '.join(f'{n} x {k}' for k, n in bad.most_common(4))])
+with open(os.path.join(here, 'models-check.csv'), 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['model', 'chart entries', 'read by a family', 'percent read', 'ids shared with GFS', 'ids not in GFS'] + list(FAMDEF) + ['what did not read'])
+    w.writerows(sorted(mrows, key=lambda x: (x[3], x[0])))
+with open(os.path.join(here, 'models-check-exceptions.csv'), 'w', newline='') as f:
+    w = csv.writer(f); w.writerow(['model', 'chart id', 'label', 'family', 'why it did not read']); w.writerows(exc)
+tot = sum(x[1] for x in mrows); okn = sum(x[2] for x in mrows)
+print(f'MODELS: {len(mrows)} models, {okn} of {tot} chart entries read by a family ({round(100*okn/tot)}%); models fully read {sum(1 for x in mrows if x[1]==x[2])}; under 90%: ' + ', '.join(f'{x[0]} {x[3]}%' for x in sorted(mrows, key=lambda x: x[3]) if x[3] < 90))
