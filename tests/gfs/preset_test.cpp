@@ -86,6 +86,19 @@ int main() {
     }
     std::printf("resolved: found %d (same id %d, the model's own id %d), no chart %d, with dropped overlays %d\n", found, sameId, otherId, none, droppedAny);
     CHECK(found > 0 && sameId > 0 && none > 0);
+    // the starters: each is a chart of GFS with lines and barbs GFS offers (nothing dropped), named once, and not the chart alone
+    {
+        std::set<std::string> names;
+        for (const auto& p : starters()) {
+            CHECK(names.insert(p.name).second && !p.overlays.empty());
+            const auto r = resolve(p, "GFS");
+            CHECK(r.found && !r.otherId && r.dropped.empty() && r.selection.overlays == p.overlays);
+            if (!r.found || !r.dropped.empty()) {
+                std::printf("  starter '%s' does not resolve on GFS\n", p.name.c_str());
+            }
+        }
+        CHECK(starters().size() >= 8);
+    }
     // a one-off never moves to another id: it is found only where its id exists
     for (const auto& e : ChartAlias::table()) {
         if (ChartAlias::oneOff(e)) {

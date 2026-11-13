@@ -14,6 +14,7 @@
 #include <QDialog>
 #include <QLabel>
 #include <QPushButton>
+#include "gfs/ChartPreset.h"
 #include "gfs/GfsChart.h"
 #include "models/ProductPicker.h"
 
@@ -47,6 +48,7 @@ private:
     void ticks();
     void savePreset();
     void usePreset(const std::string& name);
+    void applyPreset(const ChartPreset::Preset& preset);
     std::string model;
     std::vector<Kind> kindList;
     std::vector<GfsChart::OverlayChoice> choices;
