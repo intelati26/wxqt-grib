@@ -46,6 +46,7 @@ private:
     void pickKind(int row);
     void pickValue(int row);
     void ticks();
+    void refreshFamilies();   // the buttons' counts and the line that says what is on
     void savePreset();
     void usePreset(const std::string& name);
     void applyPreset(const ChartPreset::Preset& preset);
@@ -59,6 +60,14 @@ private:
     QComboBox * valueBox{};
     QLabel * valueLabel{};
     QLabel * note{};
+    struct Family {
+        QString name;
+        std::string group;
+        QPushButton * button{};
+        std::vector<QCheckBox *> boxes;
+    };
+    std::vector<Family> families;
+    QLabel * summary{};
     std::vector<QCheckBox *> boxes;
 };
 

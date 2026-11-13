@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QLabel>
 #include <QSettings>
 #include "util/MyApplication.h"
 #include <cstdio>
@@ -90,8 +91,17 @@ int main(int argc, char ** argv) {
         CHECK(!boxes.empty());
         boxes.front()->setChecked(true);
         CHECK(ticks.size() == 1 && ticks[0].size() == 1);
+        const auto summaryOf = [&dialog] {
+            for (auto * label : dialog.findChildren<QLabel *>()) {
+                if (label->text().startsWith("Ticked on top of the chart")) {
+                    return label->text();
+                }
+            }
+            return QString{"?"};
+        };
+        CHECK(summaryOf().startsWith("Ticked on top of the chart: ") && !summaryOf().contains("nothing") && summaryOf().contains("Pressure"));
         dialog.setState("500_wnd_ht", {});   // something else changed the chart: the rows follow, nothing is called
-        CHECK(picks.size() == 1 && ticks.size() == 1 && !boxes.front()->isChecked() && values->currentText() == "500mb");
+        CHECK(picks.size() == 1 && ticks.size() == 1 && !boxes.front()->isChecked() && values->currentText() == "500mb" && summaryOf().endsWith("nothing."));
         for (int i = 0; i < kinds->count(); i++) {   // another kind: the same value when it has one (500mb stays 500mb)
             if (kinds->itemText(i).contains("Vorticity")) {
                 kinds->setCurrentIndex(i);
