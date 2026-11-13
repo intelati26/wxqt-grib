@@ -132,3 +132,41 @@ with open(os.path.join(here, 'presets-core-by-model.csv'), 'w', newline='') as f
 short = {s: len(d) for s, d in cm.items()}
 extra = f'SHORT LIST: {sum(short.values())} presets for {len(rows)} chart entries; per model: ' + ', '.join(f'{s} {n}/{sum(1 for r in rows if r["src"]==s)}' for s, n in sorted(short.items(), key=lambda x: -x[1])[:12])
 print(extra); open(os.path.join(here, 'check-report.txt'), 'a').write(extra + '\n')
+
+# --- the checks grid: one row per chart family, every cell taken from the vocabulary (a tick means the check is ticked, a name means the dropdown or fill it picks)
+FAMS = ['Pressure', 'Heights', 'Thickness', 'Temperature', 'Humidity', 'Wind speed', 'Omega', 'Members', 'Ensemble mean / spread', 'Chance contour', 'Waves', 'Other lines']
+fam_rows = collections.defaultdict(list)
+for r in rows: fam_rows[key(r['id'])].append(r)
+def unit_of(t):
+    m = re.search(r'\(([^)]*)\)\s*$', t); return m.group(1) if m else ''
+grid = []
+for k, rs in sorted(fam_rows.items(), key=lambda x: (x[1][0]['cat'], x[0])):
+    shapes = collections.Counter((x['spec']['mode'], x['spec']['fams'], x['spec']['barbs'], x['spec']['stream'], x['spec']['ov'] > 0) for x in rs)
+    (mode, fams, barbs, stream, bands), n = shapes.most_common(1)[0]
+    lead = next(x for x in rs if (x['spec']['mode'], x['spec']['fams'], x['spec']['barbs'], x['spec']['stream'], x['spec']['ov'] > 0) == (mode, fams, barbs, stream, bands))
+    fields = sorted({x['spec']['field'] for x in rs if x['spec']['field'] != '(lines only)'})
+    ids = sorted({x['id'] for x in rs})
+    levels = sorted({x['spec']['level'] for x in rs if x['spec']['level']})
+    nums = []
+    if len(ids) > 1:
+        cnt = len(re.findall(r'\d+(?:\.\d+)?', ids[0]))
+        for col in zip(*[re.findall(r'\d+(?:\.\d+)?', i) for i in ids if len(re.findall(r'\d+(?:\.\d+)?', i)) == cnt]):
+            v = sorted(set(col), key=float)
+            if len(v) > 1: nums.append('/'.join(v))
+    period = ''; limit = ''
+    if re.search(r'(^|_)p#$|_#h(_|$)|^#h|#hour|#hr|#_?hr', k, re.I) and nums: period = nums[0]; nums = nums[1:]
+    if mode in ('Chance of a limit', 'Amount: expected / percentile') and nums: limit = ' | '.join(nums); nums = []
+    fillv = fields[0] if len(fields) == 1 else (f'{len(fields)} fields in one dropdown' if fields else 'none (lines only)')
+    dark = 'above the limit' if mode == 'Chance of a limit' else (f'bands over the fill ({lead["ov"]})' if bands else '')
+    units = sorted({unit_of(x['fill']) for x in rs if x['fill'] and unit_of(x['fill'])})
+    models = sorted({x['src'] for x in rs})
+    if levels: nums = [x for x in nums if not all(re.sub(r'\D', '', v) in {re.sub(r'\D', '', l) for l in ' '.join(levels).replace('-', ' ').split()} for v in x.split('/'))]
+    row = [k, lead['lab'] if len(ids) == 1 else re.sub(r'\d+(?:\.\d+)?', '#', lead['lab']), lead['cat'], len(models), len(ids), mode, fillv, dark]
+    row += ['yes' if f in fams else '' for f in FAMS]
+    row += ['yes' if barbs else '', 'yes' if stream else '', ' | '.join(nums) if nums else '', '/'.join(levels) if len(levels) > 1 else '', period, limit, '/'.join(units), (fields[0] if len(fields) == 1 else 'one scale per field') if fields else '', 'yes' if len(shapes) > 1 else '']
+    grid.append(row)
+with open(os.path.join(here, 'checks-by-family.csv'), 'w', newline='') as f:
+    w = csv.writer(f)
+    w.writerow(['family', 'example_label', 'category', 'models', 'charts', 'mode', 'fill_light (field)', 'fill_dark'] + ['lines: ' + x for x in FAMS] + ['barbs', 'streamlines', 'dropdown: other numbers', 'dropdown: level', 'dropdown: period', 'dropdown: limit / percentile', 'units', 'default scale', 'differs_by_model'])
+    w.writerows(grid)
+print(f'CHECKS GRID: {len(grid)} families')
