@@ -64,6 +64,22 @@ Preset fromSelection(const std::string& name, const ChartSelection& selection) {
     return {cleanName(name), selection.param, selection.overlays};
 }
 
+const std::vector<Preset>& starters() {
+    static const std::vector<Preset> list = {
+        {"Steering winds", "500_wnd_ht", {"barbs_850", "barbs_700", "barbs_300"}},
+        {"Jet stream", "250_wnd_ht", {"barbs_250", "z500"}},
+        {"Low-level moisture", "850_rh_ht", {"line_temp_850"}},
+        {"Fronts and thickness", "850_temp_ht", {"mslp", "thick_1000_500"}},
+        {"Surface wind and dewpoint", "mslp_10m_wind", {"fill_dewpoint_2m"}},
+        {"Surface chase", "2m_dewpoint", {"line_temp_2m"}},
+        {"Dry air aloft", "500_wnd_ht", {"fill_rh_700"}},
+        {"Convective setup", "sbcape_wind", {"z500", "barbs_500"}},
+        {"Vorticity and temperature", "500_vort_ht", {"line_temp_500", "mslp"}},
+        {"Rain or snow line", "precip_p06", {"line_temp_850"}},
+    };
+    return list;
+}
+
 std::vector<Preset> load() {
     std::vector<Preset> out;
     const auto text = Utility::readPref(pref, "");

@@ -28,6 +28,9 @@ std::string cleanName(const std::string& name);
 // the preset for the chart on show
 Preset fromSelection(const std::string& name, const ChartSelection& selection);
 
+// the presets that come with the program (GFS's charts and lines; on another model `resolve` keeps what it offers): combinations that are not a chart of the list as it is
+const std::vector<Preset>& starters();
+
 // the presets kept, in the order they were made; put adds one or replaces the one of that name, erase deletes by name (not called remove: that is also the C function that deletes a file) (false when there is none)
 std::vector<Preset> load();
 void put(const Preset& preset);

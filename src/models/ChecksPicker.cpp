@@ -141,7 +141,7 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
     const auto row = [this, layout] (const QString& name, QWidget * body) {
         auto * line = new QHBoxLayout;
         auto * label = new QLabel{name, this};
-        label->setMinimumWidth(120);
+        label->setMinimumWidth(170);
         line->addWidget(label);
         line->addWidget(body, 1);
         layout->addLayout(line);
@@ -164,7 +164,7 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
         std::smatch m;
         return std::regex_match(label, m, lead) ? std::pair<std::string, std::string>{m[2].str(), m[1].str()} : std::pair<std::string, std::string>{"other", label};
     };
-    for (const auto& group : {std::string{"Lines"}, std::string{"Wind barbs"}}) {
+    for (const auto& group : {std::string{"Lines"}, std::string{"Wind barbs"}, std::string{"Fill"}}) {
         std::vector<std::string> order;
         std::map<std::string, std::vector<const GfsChart::OverlayChoice *>> rows;
         for (const auto& c : choices) {
@@ -194,6 +194,9 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
             flow->addStretch(1);
             auto name = family == "barbs" ? std::string{"Barbs"} : family == "other" ? std::string{"Lines"} : family;
             name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
+            if (group == "Fill") {   // (a fill ticked on is drawn over the chart's own, lighter)
+                name = "Fill: " + family;
+            }
             row(QString::fromStdString(name), body);
         }
     }
@@ -342,6 +345,20 @@ void ChecksPicker::fillPresets() {
         });
         layout->addWidget(button);
     }
+    auto * starters = new QPushButton{"Starters  \xE2\x96\xBE", presetRow};
+    QObject::connect(starters, &QPushButton::clicked, this, [this, starters] {
+        QMenu menu;
+        for (const auto& p : ChartPreset::starters()) {
+            const auto resolved = ChartPreset::resolve(p, model);
+            auto * action = menu.addAction(QString::fromStdString(p.name));
+            action->setEnabled(resolved.found);
+            action->setToolTip(resolved.found ? QString{} : QString::fromStdString(model) + " has no such chart");
+            const auto name = p.name;
+            QObject::connect(action, &QAction::triggered, this, [this, p] { applyPreset(p); });
+        }
+        menu.exec(starters->mapToGlobal(QPoint{0, starters->height()}));
+    });
+    layout->addWidget(starters);
     auto * save = new QPushButton{"Save checks as preset...", presetRow};
     QObject::connect(save, &QPushButton::clicked, this, [this] { savePreset(); });
     layout->addWidget(save);
@@ -366,28 +383,31 @@ void ChecksPicker::savePreset() {
 
 void ChecksPicker::usePreset(const std::string& name) {
     for (const auto& p : ChartPreset::load()) {
-        if (p.name != name) {
-            continue;
-        }
-        const auto r = ChartPreset::resolve(p, model);
-        if (!r.found) {
-            note->setText("\"" + QString::fromStdString(name) + "\": " + QString::fromStdString(model) + " has no such chart.");
+        if (p.name == name) {
+            applyPreset(p);
             return;
         }
-        note->setText(r.dropped.empty() ? QString{} : "\"" + QString::fromStdString(name) + "\": " + QString::number(r.dropped.size()) + " of its lines or barbs are not offered by " + QString::fromStdString(model) + ".");
-        quiet = true;
-        for (auto * box : boxes) {
-            box->setChecked(std::find(r.selection.overlays.begin(), r.selection.overlays.end(), box->property("id").toString().toStdString()) != r.selection.overlays.end());
-        }
-        quiet = false;
-        chart = r.selection.param;
-        fillKinds();
-        if (onPick) {
-            onPick(chart);
-        }
-        if (onOverlays) {
-            onOverlays(r.selection.overlays);
-        }
+    }
+}
+
+void ChecksPicker::applyPreset(const ChartPreset::Preset& p) {
+    const auto r = ChartPreset::resolve(p, model);
+    if (!r.found) {
+        note->setText("\"" + QString::fromStdString(p.name) + "\": " + QString::fromStdString(model) + " has no such chart.");
         return;
+    }
+    note->setText(r.dropped.empty() ? QString{} : "\"" + QString::fromStdString(p.name) + "\": " + QString::number(r.dropped.size()) + " of its lines or barbs are not offered by " + QString::fromStdString(model) + ".");
+    quiet = true;
+    for (auto * box : boxes) {
+        box->setChecked(std::find(r.selection.overlays.begin(), r.selection.overlays.end(), box->property("id").toString().toStdString()) != r.selection.overlays.end());
+    }
+    quiet = false;
+    chart = r.selection.param;
+    fillKinds();
+    if (onPick) {
+        onPick(chart);
+    }
+    if (onOverlays) {
+        onOverlays(r.selection.overlays);
     }
 }
