@@ -59,6 +59,30 @@ int main() {
         CHECK(alpha > 0);
         (void) value;
     }
+    // the user's scale on a ticked fill: its colors, the overlay's tint and start
+    Utility::writePref("FILLFROM_fill_dewpoint_2m", "");
+    const auto scale = GfsChart::fillScale("fill_dewpoint_2m");
+    CHECK(scale.available && scale.quantity == GfsChart::Quantity::Temperature && !scale.title.empty());
+    for (const auto& stop : scale.ramp.stops) {
+        CHECK(stop.second.alpha() == 255);   // (opaque: the editor edits the colors)
+    }
+    GfsChart::Ramp user;
+    user.stops = {{-40.0, QColor{255, 0, 0}}, {10.0, QColor{0, 255, 0}}, {20.0, QColor{0, 0, 255}}, {35.0, QColor{255, 255, 0}}};
+    const auto * base = GfsChart::product("mslp_10m_wind", "GFS");
+    CHECK(base != nullptr && GfsChart::compose(*base, {"fill_dewpoint_2m"}).overlays.size() >= 1);
+    GfsChart::Ramp overlay;
+    for (const auto& [key, ramp] : GfsChart::compose(*base, {"fill_dewpoint_2m"}).overlays) {
+        if (key.compare(0, 2, "o_") == 0) {
+            overlay = ramp;
+        }
+    }
+    const auto shown = GfsChart::asFillOverlay(user, overlay);
+    CHECK(shown.stops.size() == user.stops.size());
+    const int tint = overlay.stops.back().second.alpha();
+    for (size_t i = 0; i < shown.stops.size(); i++) {
+        CHECK(shown.stops[i].second.red() == user.stops[i].second.red() && shown.stops[i].second.green() == user.stops[i].second.green());   // its colors
+        CHECK(shown.stops[i].second.alpha() == (shown.stops[i].first < dew.standard ? 0 : tint));                                              // the overlay's start and tint
+    }
     MyApplication::preferences->clear();
     std::printf(failures == 0 ? "OK\n" : "FAILED: %d\n", failures);
     return failures == 0 ? 0 : 1;

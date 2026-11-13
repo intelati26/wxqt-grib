@@ -14,7 +14,11 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QInputDialog>
+#include <QIcon>
+#include <QLinearGradient>
 #include <QMenu>
+#include <QPainter>
+#include <QPixmap>
 #include <QSpinBox>
 #include <QStandardItemModel>
 #include <QWidgetAction>
@@ -22,6 +26,9 @@
 #include "gfs/ChartAlias.h"
 #include "gfs/ChartPreset.h"
 #include "models/ChartPickers.h"
+#include "models/PaletteEditor.h"
+#include "models/PaletteStore.h"
+#include "settings/UIPreferences.h"
 #include "util/Utility.h"
 
 namespace {
@@ -34,6 +41,31 @@ std::vector<std::string> numbersOf(const std::string& label) {
         out.push_back((*it)[0].str());
     }
     return out;
+}
+
+// a strip of a color scale (the one the user kept for the same default, else the program's)
+QPixmap rampSwatch(const GfsChart::Ramp& program) {
+    auto ramp = program;
+    if (const auto kept = PaletteStore::all(); kept.find(GfsChart::rampKey(program)) != kept.end()) {
+        ramp = kept.at(GfsChart::rampKey(program));
+    }
+    QPixmap pixmap{52, 14};
+    pixmap.fill(Qt::transparent);
+    if (ramp.stops.size() < 2) {
+        return pixmap;
+    }
+    QPainter painter{&pixmap};
+    const double low = ramp.stops.front().first, high = ramp.stops.back().first;
+    QLinearGradient gradient{0, 0, 52, 0};
+    for (const auto& stop : ramp.stops) {
+        auto color = stop.second;
+        color.setAlpha(255);
+        gradient.setColorAt(high > low ? (stop.first - low) / (high - low) : 0.0, color);
+    }
+    painter.fillRect(0, 0, 52, 14, gradient);
+    painter.setPen(QColor{90, 90, 90});
+    painter.drawRect(0, 0, 51, 13);
+    return pixmap;
 }
 
 }  // namespace
@@ -227,6 +259,23 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
                     auto * lineLayout = new QHBoxLayout{line};
                     lineLayout->setContentsMargins(6, 2, 6, 2);
                     lineLayout->addWidget(box, 1);
+                    if (const auto scale = GfsChart::fillScale(c->id); scale.available) {   // the fill's color scale: a strip of it, and the Colors editor behind it
+                        auto * swatch = new QPushButton{line};
+                        swatch->setFixedSize(60, 22);
+                        swatch->setIconSize(QSize{52, 14});
+                        swatch->setIcon(QIcon{rampSwatch(scale.ramp)});
+                        swatch->setToolTip("Colors of this fill (shared with every chart that has the same scale)");
+                        QObject::connect(swatch, &QPushButton::clicked, this, [this, scale, swatch, box] {
+                            auto * editor = new PaletteEditor{this, scale.title, scale.ramp, scale.quantity, UIPreferences::unitsF, [this, scale, swatch, box] {
+                                swatch->setIcon(QIcon{rampSwatch(scale.ramp)});
+                                if (box->isChecked() && !quiet) {
+                                    ticks();   // (the picture again, in the new colors)
+                                }
+                            }};
+                            editor->setAttribute(Qt::WA_DeleteOnClose);
+                        });
+                        lineLayout->addWidget(swatch);
+                    }
                     auto * spin = new QSpinBox{line};
                     spin->setPrefix("from ");
                     spin->setSuffix(QString::fromStdString(from.unit.empty() ? std::string{} : " " + from.unit));
