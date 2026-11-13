@@ -1,12 +1,11 @@
 model,chart entries,read by a family,percent read,ids shared with GFS,ids not in GFS,Value (field at a level),Precipitation (period),Chance,"Amount (expected, percentile)","Ensemble (members, spread)",Anomaly,Change,what did not read
 SPCGEFS,9,0,0,0,9,0,0,9,0,0,0,0,9 x no limit (fixed definition)
 SPCPOST,9,0,0,0,9,0,0,9,0,0,0,0,9 x no limit (fixed definition)
-HREF,71,55,77,0,71,9,6,56,0,0,0,0,8 x no limit (fixed definition); 7 x not a chance (a probability-matched mean amount); 1 x two or more limits
+HREF,71,55,77,0,71,9,6,56,0,0,0,0,9 x no limit (fixed definition); 7 x not a chance (a probability-matched mean amount)
 NBM,51,42,82,4,47,19,5,24,3,0,0,0,9 x no limit (fixed definition)
 REFS,62,52,84,0,62,2,2,27,0,31,0,0,8 x statistic not read; 2 x not a chance family (chance contour over a base chart)
 GEFS,122,104,85,53,69,43,20,8,10,34,2,5,18 x statistic not read
 CFS30,7,6,86,0,7,5,2,0,0,0,0,0,1 x line family outside the list: Other lines
-SPCREFS,168,152,90,0,168,101,0,63,4,0,0,0,16 x two or more limits
 HAFSA,13,12,92,2,11,13,0,0,0,0,0,0,1 x line family outside the list: Waves
 HAFSB,13,12,92,2,11,13,0,0,0,0,0,0,1 x line family outside the list: Waves
 MPAS-HT,65,61,94,24,41,62,1,0,0,0,0,2,4 x line family outside the list: Other lines
@@ -19,6 +18,7 @@ RRFS-FIREWX,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Oth
 RRFS-HI,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
 RRFS-NA,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
 RRFS-PR,94,90,96,53,41,70,21,0,0,0,0,3,4 x line family outside the list: Other lines
+SPCREFS,168,165,98,0,168,101,0,63,4,0,0,0,3 x two or more limits
 AIFS,37,37,100,37,0,26,7,0,0,0,2,2,
 AIGFS,42,42,100,42,0,26,12,0,0,0,2,2,
 AROME,26,26,100,26,0,24,0,0,0,0,0,2,

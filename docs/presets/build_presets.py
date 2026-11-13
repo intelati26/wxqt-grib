@@ -275,7 +275,8 @@ def chance_parse(r):
     lim_texts = [' '.join(x for x in l if x) for l in lims]
     nl = len(lims) - (1 if lims and lims[0][0] == 'between' else 0)
     fit = 'fits (product, window, one limit, kind)'
-    if re.search(r'blizzard|rh <|wind > .* and rh|low instrument flight rules and', ll) or nl > 1: fit = 'two or more limits'
+    if re.search(r'blizzard|low instrument flight rules and', ll) or (nl > 1 and not re.search(r'wind > .* and rh', ll)) or ('between' in ll): fit = 'two or more limits'
+    if re.search(r'wind > .* and rh', ll): fit = 'fits (product, window, one limit, kind)'   # the fire weather pairs: a second limit row, only for this group
     elif re.search(r'flight rules|ifr|vfr', ll) or kind == 'calibrated' or not lims: fit = 'no limit (fixed definition)'
     if kind == "members' chance": fit = 'not a chance family (chance contour over a base chart)'
     return dict(fit=fit, product=prod, window=window, kind=kind, limits=' & '.join(lim_texts[:3]))
