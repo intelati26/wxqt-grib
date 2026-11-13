@@ -14,6 +14,10 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QInputDialog>
+#include <QColorDialog>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
 #include <QIcon>
 #include <QLinearGradient>
 #include <QMenu>
@@ -66,6 +70,83 @@ QPixmap rampSwatch(const GfsChart::Ramp& program) {
     painter.setPen(QColor{90, 90, 90});
     painter.drawRect(0, 0, 51, 13);
     return pixmap;
+}
+
+// a short stretch of a line as it is drawn
+QPixmap lineSwatch(const GfsChart::LineStyle& style) {
+    QPixmap pixmap{52, 14};
+    pixmap.fill(Qt::transparent);
+    QPainter painter{&pixmap};
+    QPen pen{style.color};
+    pen.setWidthF(std::min(style.width * 1.5, 6.0));
+    pen.setStyle(style.dashed ? Qt::DashLine : Qt::SolidLine);
+    painter.setPen(pen);
+    painter.drawLine(2, 7, 50, 7);
+    return pixmap;
+}
+
+// the style of a line: its color, weight, dashes, the interval and the numbers; true when it was changed (kept, or taken away by "Standard")
+bool editLineStyle(QWidget * parent, const std::string& id) {
+    const auto info = GfsChart::lineStyle(id);
+    if (!info.available) {
+        return false;
+    }
+    QDialog dialog{parent};
+    dialog.setWindowTitle(QString::fromStdString(info.title));
+    auto * form = new QFormLayout{&dialog};
+    QColor color = info.value.color;
+    auto * colorButton = new QPushButton{&dialog};
+    const auto paintColor = [&color, colorButton] {
+        QPixmap chip{40, 16};
+        chip.fill(color);
+        colorButton->setIcon(QIcon{chip});
+        colorButton->setText(color.name());
+    };
+    paintColor();
+    QObject::connect(colorButton, &QPushButton::clicked, &dialog, [&] {
+        const auto chosen = QColorDialog::getColor(color, &dialog, "Line color");
+        if (chosen.isValid()) {
+            color = chosen;
+            paintColor();
+        }
+    });
+    form->addRow("Color", colorButton);
+    auto * width = new QDoubleSpinBox{&dialog};
+    width->setRange(0.5, 6.0);
+    width->setSingleStep(0.25);
+    width->setValue(info.value.width);
+    form->addRow("Weight", width);
+    auto * dashed = new QCheckBox{"Dashed", &dialog};
+    dashed->setChecked(info.value.dashed);
+    form->addRow("", dashed);
+    auto * interval = new QDoubleSpinBox{&dialog};
+    interval->setRange(0.1, 1000.0);
+    interval->setDecimals(1);
+    interval->setValue(info.value.interval > 0.0 ? info.value.interval : 1.0);
+    interval->setEnabled(info.standard.interval > 0.0);
+    form->addRow("Every", interval);
+    auto * labelled = new QCheckBox{"Write the numbers on the line", &dialog};
+    labelled->setChecked(info.value.labelled);
+    form->addRow("", labelled);
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::RestoreDefaults, &dialog};
+    buttons->button(QDialogButtonBox::RestoreDefaults)->setText("Standard");
+    form->addRow(buttons);
+    bool standard = false;
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    QObject::connect(buttons->button(QDialogButtonBox::RestoreDefaults), &QPushButton::clicked, &dialog, [&] {
+        standard = true;
+        dialog.accept();
+    });
+    if (dialog.exec() != QDialog::Accepted) {
+        return false;
+    }
+    if (standard) {
+        GfsChart::clearLineStyle(id);
+    } else {
+        GfsChart::setLineStyle(id, {color, width->value(), dashed->isChecked(), info.standard.interval > 0.0 ? interval->value() : info.standard.interval, labelled->isChecked()});
+    }
+    return true;
 }
 
 }  // namespace
@@ -291,6 +372,27 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
                         }
                     });
                     lineLayout->addWidget(spin);
+                    action->setDefaultWidget(line);
+                } else if (const auto style = group == "Lines" ? GfsChart::lineStyle(c->id) : GfsChart::LineStyleInfo{}; style.available) {   // a line: how it is drawn (color, weight, dashes, interval, numbers)
+                    auto * line = new QWidget{menu};
+                    auto * lineLayout = new QHBoxLayout{line};
+                    lineLayout->setContentsMargins(6, 2, 6, 2);
+                    lineLayout->addWidget(box, 1);
+                    auto * swatch = new QPushButton{line};
+                    swatch->setFixedSize(60, 22);
+                    swatch->setIconSize(QSize{52, 14});
+                    swatch->setIcon(QIcon{lineSwatch(style.value)});
+                    swatch->setToolTip("How this line is drawn: color, weight, dashes, interval, numbers");
+                    const auto id = c->id;
+                    QObject::connect(swatch, &QPushButton::clicked, this, [this, id, swatch, box] {
+                        if (editLineStyle(this, id)) {
+                            swatch->setIcon(QIcon{lineSwatch(GfsChart::lineStyle(id).value)});
+                            if (box->isChecked() && !quiet) {
+                                ticks();   // (the picture again, drawn the new way)
+                            }
+                        }
+                    });
+                    lineLayout->addWidget(swatch);
                     action->setDefaultWidget(line);
                 } else {
                     action->setDefaultWidget(box);
