@@ -1,0 +1,131 @@
+model,chart id,label,family,why it did not read
+CFS30,cfs30_t2m_precip,Next days: temperature and precipitation against the normal,Value (field at a level),line family outside the list: Other lines
+GEFS,200_1176_ht,200mb 1176 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,200_1188_ht,200mb 1188 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,200_1200_ht,200mb 1200 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,200_1212_ht,200mb 1212 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,200_1224_ht,200mb 1224 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,200_1230_ht,200mb 1230 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,500_510_552_ht,500mb 510/552 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,500_516_558_ht,500mb 516/558 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,500_522_564_ht,500mb 522/564 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,500_528_570_ht,500mb 528/570 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,500_534_576_ht,500mb 534/576 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,500_540_582_ht,500mb 540/582 Height Contours,"Ensemble (members, spread)",statistic not read
+GEFS,mslp_984_1024_iso,MSLP 984/1024 Isobar Contours,"Ensemble (members, spread)",statistic not read
+GEFS,mslp_996_1036_iso,MSLP 996/1036 Isobar Contours,"Ensemble (members, spread)",statistic not read
+GEFS,mslp_1000_1040_iso,MSLP 1000/1040 Isobar Contours,"Ensemble (members, spread)",statistic not read
+GEFS,mslp_1004_1044_iso,MSLP 1004/1044 Isobar Contours,"Ensemble (members, spread)",statistic not read
+GEFS,mslp_1008_1048_iso,MSLP 1008/1048 Isobar Contours,"Ensemble (members, spread)",statistic not read
+GEFS,mslp_1012_1052_iso,MSLP 1012/1052 Isobar Contours,"Ensemble (members, spread)",statistic not read
+HAFSA,waves,"Significant Wave Height, Peak Period and Wind",Value (field at a level),line family outside the list: Waves
+HAFSB,waves,"Significant Wave Height, Peak Period and Wind",Value (field at a level),line family outside the list: Waves
+HREF,lpmm_mean_precip_p01,Localized Probability Matched Mean 1-hour Precipitation,Chance,not a chance (a probability-matched mean amount)
+HREF,lpmm_mean_precip_p03,Localized Probability Matched Mean 3-hour Precipitation,Chance,not a chance (a probability-matched mean amount)
+HREF,lpmm_mean_precip_ptot,Localized Probability Matched Mean Total Precipitation,Chance,not a chance (a probability-matched mean amount)
+HREF,pmm_refd_1km,Probability Matched Mean of 1 km Reflectivity,Chance,not a chance (a probability-matched mean amount)
+HREF,pmm_refd_1km_emsl,Probability Matched Mean of 1 km Reflectivity and MSLP,Chance,not a chance (a probability-matched mean amount)
+HREF,pmm_refd_max,Probability Matched Mean of Maximum Reflectivity,Chance,not a chance (a probability-matched mean amount)
+HREF,pmm_refd_max_emsl,Probability Matched Mean of Maximum Reflectivity and MSLP,Chance,not a chance (a probability-matched mean amount)
+HREF,prob_rain,Probability of Rain,Chance,no limit (fixed definition)
+HREF,prob_snow,Probability of Snow,Chance,no limit (fixed definition)
+HREF,prob_sleet,Probability of Sleet,Chance,no limit (fixed definition)
+HREF,prob_freezing_rain,Probability of Freezing Rain,Chance,no limit (fixed definition)
+HREF,prob_low_IFR,Probability of Low Instrument Flight Rules,Chance,no limit (fixed definition)
+HREF,prob_IFR,Probability of Instrument Flight Rules,Chance,no limit (fixed definition)
+HREF,prob_marginal_VFR,Probability of Marginal Visual Flight Rules,Chance,no limit (fixed definition)
+HREF,prob_VFR,Probability of Visual Flight Rules,Chance,no limit (fixed definition)
+HREF,prob_lowIFR_IFR,Probability of Low Instrument Flight Rules and Instrument Flight Rules,Chance,two or more limits
+HRRR,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
+HRRR,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+HRRR,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+HRRR,ship,SHIP (Significant Hail Parameter),Value (field at a level),line family outside the list: Other lines
+HRRR-AK,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
+HRRR-AK,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+HRRR-AK,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+HRRR-AK,ship,SHIP (Significant Hail Parameter),Value (field at a level),line family outside the list: Other lines
+MPAS-HT,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
+MPAS-HT,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+MPAS-HT,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+MPAS-HT,ship,SHIP (Significant Hail Parameter),Value (field at a level),line family outside the list: Other lines
+MPAS-RN,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
+MPAS-RN,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+MPAS-RN,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+MPAS-RN,ship,SHIP (Significant Hail Parameter),Value (field at a level),line family outside the list: Other lines
+NBM,tstm_prob,Thunderstorm Probability (6 hours ending),Chance,no limit (fixed definition)
+NBM,1hour_precip_chance,1-hour Chance of Precipitation,Chance,no limit (fixed definition)
+NBM,6hour_precip_chance,6-hour Chance of Precipitation,Chance,no limit (fixed definition)
+NBM,12hour_precip_chance,12-hour Chance of Precipitation,Chance,no limit (fixed definition)
+NBM,prob_rain,Probability of Rain,Chance,no limit (fixed definition)
+NBM,prob_snow,Probability of Snow,Chance,no limit (fixed definition)
+NBM,prob_sleet,Probability of Sleet,Chance,no limit (fixed definition)
+NBM,prob_freezing_rain,Probability of Freezing Rain,Chance,no limit (fixed definition)
+NBM,prob_tstm,Thunderstorm Probability,Chance,no limit (fixed definition)
+REFS,combo_refc_chance,RRFS Radar with the Members' Chance of 40 dBZ or more,Chance,not a chance family (chance contour over a base chart)
+REFS,combo_uphl_chance,RRFS Updraft Helicity with the Members' Chance of 75 or more,Chance,not a chance family (chance contour over a base chart)
+REFS,ens_250_vort_ht,250mb Vorticity and Height,"Ensemble (members, spread)",statistic not read
+REFS,ens_500_vort_ht,500mb Vorticity and Height,"Ensemble (members, spread)",statistic not read
+REFS,ens_250_wnd,250mb Wind,"Ensemble (members, spread)",statistic not read
+REFS,ens_850_wnd,850mb Wind,"Ensemble (members, spread)",statistic not read
+REFS,ens_700_temp,700mb Temperature,"Ensemble (members, spread)",statistic not read
+REFS,ens_850_temp,850mb Temperature,"Ensemble (members, spread)",statistic not read
+REFS,ens_700_rh,700mb Relative Humidity,"Ensemble (members, spread)",statistic not read
+REFS,ens_850_rh,850mb Relative Humidity,"Ensemble (members, spread)",statistic not read
+RRFS,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
+RRFS,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS,ship,SHIP (Significant Hail Parameter),Value (field at a level),line family outside the list: Other lines
+RRFS-AK,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
+RRFS-AK,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS-AK,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS-AK,ship,SHIP (Significant Hail Parameter),Value (field at a level),line family outside the list: Other lines
+RRFS-FIREWX,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
+RRFS-FIREWX,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS-FIREWX,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS-FIREWX,ship,SHIP (Significant Hail Parameter),Value (field at a level),line family outside the list: Other lines
+RRFS-HI,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
+RRFS-HI,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS-HI,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS-HI,ship,SHIP (Significant Hail Parameter),Value (field at a level),line family outside the list: Other lines
+RRFS-NA,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
+RRFS-NA,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS-NA,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS-NA,ship,SHIP (Significant Hail Parameter),Value (field at a level),line family outside the list: Other lines
+RRFS-PR,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
+RRFS-PR,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS-PR,best_cape_cin,Most Unstable CAPE and CIN,Value (field at a level),line family outside the list: Other lines
+RRFS-PR,ship,SHIP (Significant Hail Parameter),Value (field at a level),line family outside the list: Other lines
+SPCGEFS,thunder_24hr,"GEFSCT Thunderstorm Probability (24-hour, 12Z to 12Z)",Chance,no limit (fixed definition)
+SPCGEFS,gefsmlp_tor_std,GEFS-MLP Tornado Probability (Any Severe),Chance,no limit (fixed definition)
+SPCGEFS,gefsmlp_tor_sig,GEFS-MLP Tornado Probability (Significant),Chance,no limit (fixed definition)
+SPCGEFS,gefsmlp_wind_std,GEFS-MLP Wind Probability (Any Severe),Chance,no limit (fixed definition)
+SPCGEFS,gefsmlp_wind_sig,GEFS-MLP Wind Probability (Significant),Chance,no limit (fixed definition)
+SPCGEFS,gefsmlp_hail_std,GEFS-MLP Hail Probability (Any Severe),Chance,no limit (fixed definition)
+SPCGEFS,gefsmlp_hail_sig,GEFS-MLP Hail Probability (Significant),Chance,no limit (fixed definition)
+SPCGEFS,gefsmlp_severe_std,GEFS-MLP Any Severe Probability (Any Severe),Chance,no limit (fixed definition)
+SPCGEFS,gefsmlp_severe_sig,GEFS-MLP Any Severe Probability (Significant),Chance,no limit (fixed definition)
+SPCPOST,thunder_1hr,REFSCT Thunderstorm Probability (1-hour),Chance,no limit (fixed definition)
+SPCPOST,thunder_4hr,REFSCT Thunderstorm Probability (4-hour),Chance,no limit (fixed definition)
+SPCPOST,thunder_full,REFSCT Thunderstorm Probability (rest of the convective day),Chance,no limit (fixed definition)
+SPCPOST,severe_tor_4hr,GREFS Calibrated Tornado Probability (4-hour),Chance,no limit (fixed definition)
+SPCPOST,severe_tor_full,GREFS Calibrated Tornado Probability (rest of the convective day),Chance,no limit (fixed definition)
+SPCPOST,severe_hail_4hr,GREFS Calibrated Hail Probability (4-hour),Chance,no limit (fixed definition)
+SPCPOST,severe_hail_full,GREFS Calibrated Hail Probability (rest of the convective day),Chance,no limit (fixed definition)
+SPCPOST,severe_wind_4hr,GREFS Calibrated Wind Probability (4-hour),Chance,no limit (fixed definition)
+SPCPOST,severe_wind_full,GREFS Calibrated Wind Probability (rest of the convective day),Chance,no limit (fixed definition)
+SPCREFS,bliz_prob_t<0p250_t>035_t>0p010,"Blizzard Probability: visibility < 0.25 mi, 10-m wind > 35 mph, snow",Chance,two or more limits
+SPCREFS,bliz_prob_t<0p500_t>030_t>0p010,"Blizzard Probability: visibility < 0.5 mi, 10-m wind > 30 mph, snow",Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<020_t>015,Wind > 15 mph and RH < 20% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<010_t>030,Wind > 30 mph and RH < 10% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<015_t>015,Wind > 15 mph and RH < 15% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<015_t>020,Wind > 20 mph and RH < 15% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<015_t>025,Wind > 25 mph and RH < 15% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<020_t>020,Wind > 20 mph and RH < 20% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<020_t>025,Wind > 25 mph and RH < 20% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<025_t>015,Wind > 15 mph and RH < 25% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<025_t>020,Wind > 20 mph and RH < 25% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<025_t>025,Wind > 25 mph and RH < 25% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<030_t>015,Wind > 15 mph and RH < 30% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<030_t>020,Wind > 20 mph and RH < 30% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<035_t>010,Wind > 10 mph and RH < 35% (ensemble probability),Chance,two or more limits
+SPCREFS,rh2m_s10m_prob_t<035_t>015,Wind > 15 mph and RH < 35% (ensemble probability),Chance,two or more limits
