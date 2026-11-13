@@ -8,10 +8,12 @@
 
 #include <functional>
 #include <string>
+#include <map>
 #include <vector>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
+#include <QLineEdit>
 #include <QLabel>
 #include <QPushButton>
 #include "gfs/ChartPreset.h"
@@ -40,7 +42,8 @@ public:
     static std::vector<Kind> kinds(const std::vector<ProductPicker::Entry>& entries);
 
 private:
-    void fillKinds();
+    void fillKinds();   // the Chart list: the favorites, then the kinds that match the search (and always the one on show)
+    void toggleFavorite();
     void fillValues(size_t kind, const std::string& select);
     void fillPresets();
     void pickKind(int row);
@@ -57,6 +60,10 @@ private:
     bool quiet{false};
     QWidget * presetRow{};
     QComboBox * kindBox{};
+    QLineEdit * search{};
+    QPushButton * star{};
+    std::vector<std::string> favorites;
+    std::map<std::string, std::string> labelOf;   // chart id -> its label
     QComboBox * valueBox{};
     QLabel * valueLabel{};
     QLabel * note{};

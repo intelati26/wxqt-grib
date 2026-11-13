@@ -19,6 +19,7 @@
 #include <QVBoxLayout>
 #include "gfs/ChartAlias.h"
 #include "gfs/ChartPreset.h"
+#include "models/ChartPickers.h"
 
 namespace {
 
@@ -136,7 +137,11 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
     , kindList{kinds(entries)}
     , choices{choices}
     , chart{current}
+    , favorites{ChartPickers::favorites("MODELFAV_" + model)}
 {
+    for (const auto& e : entries) {
+        labelOf[e.id] = e.label;
+    }
     setWindowTitle(QString::fromStdString(model) + " charts as checks");
     auto * layout = new QVBoxLayout{this};
     const auto row = [this, layout] (const QString& name, QWidget * body) {
@@ -151,9 +156,21 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
     presetRow = new QWidget{this};
     new QHBoxLayout{presetRow};
     row("Presets", presetRow);
-    kindBox = new QComboBox{this};
+    search = new QLineEdit{this};
+    search->setPlaceholderText(QString{"Search %1 charts"}.arg(entries.size()));
+    search->setClearButtonEnabled(true);
+    row("Search", search);
+    auto * chartRow = new QWidget{this};
+    auto * chartLine = new QHBoxLayout{chartRow};
+    chartLine->setContentsMargins(0, 0, 0, 0);
+    kindBox = new QComboBox{chartRow};
     kindBox->setMinimumWidth(300);
-    row("Chart", kindBox);
+    chartLine->addWidget(kindBox, 1);
+    star = new QPushButton{chartRow};
+    star->setToolTip("Add this chart to the favorites, or take it out");
+    star->setMaximumWidth(40);
+    chartLine->addWidget(star);
+    row("Chart", chartRow);
     valueBox = new QComboBox{this};
     valueLabel = row("Value", valueBox);
     auto * rule = new QFrame{this};
@@ -224,6 +241,9 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
     fillKinds();
     fillPresets();
     QObject::connect(kindBox, &QComboBox::currentIndexChanged, this, [this] (int i) { pickKind(i); });
+    QObject::connect(search, &QLineEdit::textChanged, this, [this] { fillKinds(); });
+    QObject::connect(search, &QLineEdit::returnPressed, this, [this] { kindBox->showPopup(); });
+    QObject::connect(star, &QPushButton::clicked, this, [this] { toggleFavorite(); });
     QObject::connect(valueBox, &QComboBox::currentIndexChanged, this, [this] (int i) { pickValue(i); });
     resize(560, sizeHint().height());
 }
@@ -231,34 +251,76 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
 void ChecksPicker::fillKinds() {
     quiet = true;
     kindBox->clear();
-    auto * model = new QStandardItemModel{kindBox};
+    auto * listModel = new QStandardItemModel{kindBox};
+    const auto heading = [&listModel] (const std::string& text) {
+        auto * head = new QStandardItem{QString::fromStdString(text)};
+        head->setFlags(Qt::NoItemFlags);
+        QFont f = head->font();
+        f.setBold(true);
+        head->setFont(f);
+        listModel->appendRow(head);
+    };
+    const auto words = search->text().trimmed().toLower().split(' ', Qt::SkipEmptyParts);
+    const auto matches = [&words] (const std::string& text) {
+        const auto lower = QString::fromStdString(text).toLower();
+        return std::all_of(words.begin(), words.end(), [&lower] (const QString& w) { return lower.contains(w); });
+    };
+    // the favorites first (a chart each, by its own label)
+    bool headed = false;
+    for (const auto& id : favorites) {
+        const auto found = labelOf.find(id);
+        if (found == labelOf.end() || (!words.isEmpty() && !matches(found->second + " " + id))) {
+            continue;
+        }
+        if (!headed) {
+            headed = true;
+            heading("Favorites");
+        }
+        auto * item = new QStandardItem{QString::fromUtf8("   \xE2\x98\x85 ") + QString::fromStdString(found->second)};
+        item->setData(QString::fromStdString(id), Qt::UserRole + 1);
+        listModel->appendRow(item);
+    }
     std::string group;
     int select = -1;
     for (size_t k = 0; k < kindList.size(); k++) {
-        if (kindList[k].group != group) {
-            group = kindList[k].group;
-            auto * head = new QStandardItem{QString::fromStdString(group)};
-            head->setFlags(Qt::NoItemFlags);
-            QFont f = head->font();
-            f.setBold(true);
-            head->setFont(f);
-            model->appendRow(head);
+        const auto& kind = kindList[k];
+        const bool onShow = std::any_of(kind.charts.begin(), kind.charts.end(), [this] (const ProductPicker::Entry& c) { return c.id == chart; });
+        bool found = words.isEmpty() || onShow || matches(kind.name + " " + kind.group);
+        for (size_t i = 0; i < kind.charts.size() && !found; i++) {
+            found = matches(kind.charts[i].label + " " + kind.charts[i].id + " " + kind.values[i]);
         }
-        auto * item = new QStandardItem{"   " + QString::fromStdString(kindList[k].name)};
+        if (!found) {
+            continue;
+        }
+        if (kind.group != group) {
+            group = kind.group;
+            heading(group);
+        }
+        auto * item = new QStandardItem{"   " + QString::fromStdString(kind.name)};
         item->setData(static_cast<int>(k), Qt::UserRole);
-        model->appendRow(item);
-        for (const auto& c : kindList[k].charts) {
-            if (c.id == chart) {
-                select = model->rowCount() - 1;
-            }
+        listModel->appendRow(item);
+        if (onShow) {
+            select = listModel->rowCount() - 1;
         }
     }
-    kindBox->setModel(model);
+    kindBox->setModel(listModel);
     kindBox->setCurrentIndex(select);
+    star->setText(std::find(favorites.begin(), favorites.end(), chart) != favorites.end() ? QString::fromUtf8("\xE2\x98\x85") : QString::fromUtf8("\xE2\x98\x86"));
     quiet = false;
     if (select >= 0) {
         fillValues(static_cast<size_t>(kindBox->itemData(select, Qt::UserRole).toInt()), chart);
     }
+}
+
+void ChecksPicker::toggleFavorite() {
+    const auto found = std::find(favorites.begin(), favorites.end(), chart);
+    if (found != favorites.end()) {
+        favorites.erase(found);
+    } else {
+        favorites.push_back(chart);
+    }
+    ChartPickers::saveFavorites("MODELFAV_" + model, favorites);
+    fillKinds();
 }
 
 void ChecksPicker::fillValues(size_t kind, const std::string& select) {
@@ -280,6 +342,17 @@ void ChecksPicker::fillValues(size_t kind, const std::string& select) {
 
 void ChecksPicker::pickKind(int row) {
     if (quiet || row < 0) {
+        return;
+    }
+    if (const auto favorite = kindBox->itemData(row, Qt::UserRole + 1); favorite.isValid()) {   // a favorite: that chart, in its own kind
+        const auto id = favorite.toString().toStdString();
+        if (id != chart) {
+            chart = id;
+            if (onPick) {
+                onPick(id);
+            }
+        }
+        fillKinds();
         return;
     }
     const auto kind = kindBox->itemData(row, Qt::UserRole);
