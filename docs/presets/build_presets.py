@@ -391,8 +391,8 @@ for i, rs in sorted(byid2.items()):
         fm, ok, note = 'Chance', True, ''
     alias.append(dict(id=i, label=r['lab'], category=r['cat'], models=len(rs), family=fm if ok else 'One-off', reads=('yes' if ok else note), field=s['field'] if s['field'] != '(lines only)' else '', level=s['level'], mode=s['mode'],
                       chance=' | '.join(x for x in (p.get('product', ''), p.get('window', ''), p.get('limits', ''), p.get('kind', '')) if x), contours=', '.join(s['fams']), barbs='yes' if s['barbs'] else '', stream='yes' if s['stream'] else '', bands='yes' if s['ov'] else '',
-                      group=key(i), group_size=gsize[key(i)], single='yes' if gsize[key(i)] == 1 else '', differs_by_model='yes' if len({(x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) for x in rs}) > 1 else ''))
-cols = ['id', 'label', 'category', 'models', 'family', 'reads', 'field', 'level', 'mode', 'chance', 'contours', 'barbs', 'stream', 'bands', 'group', 'group_size', 'single', 'differs_by_model']
+                      values=' | '.join(re.findall(r'\d+(?:\.\d+)?', i)), group=key(i), group_size=gsize[key(i)], single='yes' if gsize[key(i)] == 1 else '', differs_by_model='yes' if len({(x['spec']['mode'], x['spec']['fams'], x['spec']['barbs']) for x in rs}) > 1 else ''))
+cols = ['id', 'label', 'category', 'models', 'family', 'reads', 'field', 'level', 'mode', 'chance', 'values', 'contours', 'barbs', 'stream', 'bands', 'group', 'group_size', 'single', 'differs_by_model']
 with open(os.path.join(here, 'alias-table.csv'), 'w', newline='') as f:
     w = csv.DictWriter(f, cols, extrasaction='ignore'); w.writeheader(); w.writerows(alias)
 singles = [a for a in alias if a['family'] == 'One-off' or (a['single'] == 'yes' and a['family'] == 'Value (field at a level)')]   # alone in its id pattern and not folded into a family that has a number or a statistic to pick
