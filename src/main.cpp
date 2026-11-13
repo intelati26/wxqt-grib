@@ -253,8 +253,8 @@ int main(int argc, char * argv[]) {
         if (qEnvironmentVariableIsSet("WXQT_CHARTS_DUMP")) {   // (a development aid: every chart of a model, group|id|label, to stderr; WXQT_CHARTS_DUMP=<model>)
             const auto model = qEnvironmentVariable("WXQT_CHARTS_DUMP").toStdString();
             for (const auto& product : GfsChart::products()) {
-                if (product.source == model) {
-                    std::fprintf(stderr, "CHART %s|%s|%s\n", GfsChart::category(product).c_str(), product.id.c_str(), product.label.c_str());
+                if (model == "*" || product.source == model) {
+                    std::fprintf(stderr, "CHART %s|%s|%s|%s\n", product.source.c_str(), GfsChart::category(product).c_str(), product.id.c_str(), product.label.c_str());
                 }
             }
             for (const auto& choice : GfsChart::overlayChoices(model)) {
@@ -740,7 +740,7 @@ int main(int argc, char * argv[]) {
                 if (const auto model = qEnvironmentVariable("WXQT_RENDER").toStdString(); !model.empty()) {   // WXQT_RENDER=<model>: draw every chart of that model once (hour 3, newest run) and say which could not be
                     GfsRender::Session session;
                     for (const auto& product : GfsChart::products()) {
-                        if (product.source == model) {
+                        if (model == "*" || product.source == model) {
                             std::string error;
                             int hour = qEnvironmentVariableIntValue("WXQT_HOUR") > 0 ? qEnvironmentVariableIntValue("WXQT_HOUR") : 3;   // (WXQT_HOUR=<n>: another hour)
                             if (model == "SPCREFS") {   // a field of SPC's store has its own hours (the 24 hour periods end at 00 and 12Z): the first one it has, as the screen's hour list offers

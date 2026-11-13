@@ -1,0 +1,866 @@
+chart_id,chart_label,category,models_count,models,group_key,ids_in_group,becomes
+aod,Aerosol optical depth (550 nm),Air quality and smoke,1,COPERNICUS,aod,1,Own chart
+aod_total,All aerosols: optical thickness,Air quality and smoke,1,GEOS-FP,aod_total,1,Own chart
+co_aq,Carbon monoxide,Air quality and smoke,1,COPERNICUS,co_aq,1,Own chart
+dust,Dust,Air quality and smoke,1,COPERNICUS,dust,1,Own chart
+dust_aod,Dust: aerosol optical thickness,Air quality and smoke,1,GEOS-FP,dust_aod,1,Own chart
+dust_column,Dust: column mass,Air quality and smoke,1,GEOS-FP,dust_column,1,Own chart
+dust_pm25,Dust: fine (PM2.5) surface concentration,Air quality and smoke,1,GEOS-FP,dust_pm#,1,Own chart
+dust_surface,Dust: surface concentration,Air quality and smoke,1,GEOS-FP,dust_surface,1,Own chart
+glyoxal_aq,Glyoxal,Air quality and smoke,1,COPERNICUS,glyoxal_aq,1,Own chart
+hcho_aq,Formaldehyde,Air quality and smoke,1,COPERNICUS,hcho_aq,1,Own chart
+no2_aq,Nitrogen dioxide,Air quality and smoke,1,COPERNICUS,no#_aq,1,Own chart
+no_aq,Nitrogen monoxide,Air quality and smoke,1,COPERNICUS,no_aq,1,Own chart
+ozone_aq,Ozone (surface),Air quality and smoke,1,COPERNICUS,ozone_aq,1,Own chart
+pan_aq,Peroxyacyl nitrates,Air quality and smoke,1,COPERNICUS,pan_aq,1,Own chart
+pm25,PM2.5 fine particles,Air quality and smoke,1,COPERNICUS,pm#,1,Own chart
+pm10_aq,PM10 particles,Air quality and smoke,1,COPERNICUS,pm#_aq,1,Own chart
+pm25_total,"Fine particles (PM2.5), all species",Air quality and smoke,1,GEOS-FP,pm#_total,1,Own chart
+seasalt_aq,Sea salt,Air quality and smoke,1,COPERNICUS,seasalt_aq,1,Own chart
+seasalt_surface,Sea salt at the surface,Air quality and smoke,1,GEOS-FP,seasalt_surface,1,Own chart
+smoke_surface,Smoke: black and organic carbon at the surface,Air quality and smoke,1,GEOS-FP,smoke_surface,1,Own chart
+so2_aq,Sulphur dioxide,Air quality and smoke,1,COPERNICUS,so#_aq,1,Own chart
+sulfate_surface,Sulfate at the surface,Air quality and smoke,1,GEOS-FP,sulfate_surface,1,Own chart
+uv_index,UV index,Air quality and smoke,1,COPERNICUS,uv_index,1,Own chart
+uv_index_clear,"UV index, clear sky",Air quality and smoke,1,COPERNICUS,uv_index_clear,1,Own chart
+500_hgt_anom,500mb Height and Anomaly,Anomalies,7,AIFS AIGFS CFS CFS-ANL GEFS GFS IFS,#_hgt_anom,2,"Preset: level chart, Mode = Anomaly"
+700_hgt_anom,700mb Height and Anomaly,Anomalies,1,GFS,#_hgt_anom,2,"Preset: level chart, Mode = Anomaly"
+mslp_anom,MSLP and Anomaly,Anomalies,7,AIFS AIGFS CFS CFS-ANL GEFS GFS IFS,mslp_anom,1,"Preset: Surface, Mode = Anomaly"
+ceiling,Ceiling,Aviation and visibility,11,HRRR HRRR-AK MPAS-HT MPAS-RN NBM RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,ceiling,1,Own chart
+mean_vis,Mean Visibility,Aviation and visibility,1,HREF,mean_vis,1,Own chart
+vis,Surface Visibility,Aviation and visibility,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,vis,1,Own chart
+visibility,2-meter Visibility,Aviation and visibility,10,NBM RTMA RTMA-AK RTMA-GU RTMA-HI RTMA-PR URMA URMA-AK URMA-HI URMA-PR,visibility,1,Own chart
+2m_rh_10m_wnd,"1-hr Minimum Relative Humidity, 10m Wind",Boundary layer and fire weather,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#m_rh_#m_wnd,1,Own chart
+haines,Haines Index (850-700 mb),Boundary layer and fire weather,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,haines,1,Own chart
+pbl_height,PBL Height,Boundary layer and fire weather,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,pbl_height,1,Own chart
+pbl_rich_height,PBL Height (Based on Richardson Number),Boundary layer and fire weather,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,pbl_rich_height,1,Own chart
+transport_wind,Transport Wind and Terrain Height,Boundary layer and fire weather,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,transport_wind,1,Own chart
+vent_rate,Ventilation Rate,Boundary layer and fire weather,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,vent_rate,1,Own chart
+mslp_trend,MSLP and 48-hour Change,Changes and trends,42,AIFS AIGFS AROME AROME-AT ARPEGE ARPEGE-EU ARWEN CFS CFS-ANL ERA5 GDPS GEFS ...,mslp_trend,1,"Preset: Surface, Mode = Change 48 h"
+snodpth_chng,Snow Depth Change from F00,Changes and trends,11,GEFS GEPS GFS HRRR HRRR-AK RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,snodpth_chng,1,"Own chart, Mode = Change"
+snodpth_chng_mean,Mean Snow Depth Change from the previous 24 hours,Changes and trends,1,GEFS,snodpth_chng_mean,1,Own chart
+snodpth_chng_sprd,Spread of the Snow Depth Change from the previous 24 hours,Changes and trends,1,GEFS,snodpth_chng_sprd,1,Own chart
+z500_trend,500mb Height and 48-hour Change,Changes and trends,38,AIFS AIGFS AROME ARPEGE CFS CFS-ANL ERA5 GDPS GEFS GEOS-FP GEPS GFS ...,z#_trend,1,"Preset: level chart, Mode = Change 48 h"
+efi_2m_temp,Extreme Forecast Index 2m Temperature,Ensemble: percentiles and extremes,1,GEFS,efi_#m_temp,1,Own chart
+efi_10m_wnd,Extreme Forecast Index 10m Winds,Ensemble: percentiles and extremes,1,GEFS,efi_#m_wnd,1,Own chart
+efi_mslp,Extreme Forecast Index mslp,Ensemble: percentiles and extremes,1,GEFS,efi_mslp,1,Own chart
+pct10_2m_temp,10th percentile 2m Temperature,Ensemble: percentiles and extremes,1,GEFS,pct#_#m_temp,3,One chart with dropdown(s) for the numbers in the id
+pct50_2m_temp,50th percentile 2m Temperature,Ensemble: percentiles and extremes,1,GEFS,pct#_#m_temp,3,One chart with dropdown(s) for the numbers in the id
+pct90_2m_temp,90th percentile 2m Temperature,Ensemble: percentiles and extremes,1,GEFS,pct#_#m_temp,3,One chart with dropdown(s) for the numbers in the id
+pct50_2m_temp_range,Median 2m Temperature with 10th / 90th percentiles,Ensemble: percentiles and extremes,1,GEFS,pct#_#m_temp_range,1,Own chart
+pct10_10m_wnd,10th percentile 10m Winds,Ensemble: percentiles and extremes,1,GEFS,pct#_#m_wnd,3,One chart with dropdown(s) for the numbers in the id
+pct50_10m_wnd,50th percentile 10m Winds,Ensemble: percentiles and extremes,1,GEFS,pct#_#m_wnd,3,One chart with dropdown(s) for the numbers in the id
+pct90_10m_wnd,90th percentile 10m Winds,Ensemble: percentiles and extremes,1,GEFS,pct#_#m_wnd,3,One chart with dropdown(s) for the numbers in the id
+member_500_ht,Member: 500mb Height,Ensemble: single members,1,IFS-ENS,member_#_ht,1,Own chart
+member_850_temp_mslp,Member: 850mb Temperature and MSLP,Ensemble: single members,1,IFS-ENS,member_#_temp_mslp,1,Own chart
+member_2m_temp_mslp,Member: 2 m Temperature and MSLP,Ensemble: single members,1,IFS-ENS,member_#m_temp_mslp,1,Own chart
+member_cape,Member: Surface CAPE,Ensemble: single members,1,REFS,member_cape,1,Own chart
+member_gust,Member: Surface Wind Gust,Ensemble: single members,1,REFS,member_gust,1,Own chart
+member_refc,Member: Composite Reflectivity,Ensemble: single members,1,REFS,member_refc,1,Own chart
+member_tmp2m,Member: 2 m Temperature,Ensemble: single members,1,REFS,member_tmp#m,1,Own chart
+member_uphl,Member: 2-5 km Updraft Helicity (last hour),Ensemble: single members,1,REFS,member_uphl,1,Own chart
+500_510_552_ht,500mb 510/552 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+500_516_558_ht,500mb 516/558 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+500_522_564_ht,500mb 522/564 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+500_528_570_ht,500mb 528/570 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+500_534_576_ht,500mb 534/576 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+500_540_582_ht,500mb 540/582 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+200_1176_ht,200mb 1176 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+200_1188_ht,200mb 1188 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+200_1200_ht,200mb 1200 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+200_1212_ht,200mb 1212 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+200_1224_ht,200mb 1224 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+200_1230_ht,200mb 1230 Height Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,#_#_ht,6,One chart with dropdown(s) for the numbers in the id
+all_spag_500_522_564,500mb 522/564 Height Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spag_#_#_#,4,One chart with dropdown(s) for the numbers in the id
+all_spag_500_528_570,500mb 528/570 Height Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spag_#_#_#,4,One chart with dropdown(s) for the numbers in the id
+all_spag_500_534_576,500mb 534/576 Height Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spag_#_#_#,4,One chart with dropdown(s) for the numbers in the id
+all_spag_500_540_582,500mb 540/582 Height Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spag_#_#_#,4,One chart with dropdown(s) for the numbers in the id
+all_spag_mslp_1000_1040,MSLP 1000/1040 Isobar Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spag_mslp_#_#,4,One chart with dropdown(s) for the numbers in the id
+all_spag_mslp_1004_1044,MSLP 1004/1044 Isobar Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spag_mslp_#_#,4,One chart with dropdown(s) for the numbers in the id
+all_spag_mslp_1008_1048,MSLP 1008/1048 Isobar Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spag_mslp_#_#,4,One chart with dropdown(s) for the numbers in the id
+all_spag_mslp_996_1036,MSLP 996/1036 Isobar Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spag_mslp_#_#,4,One chart with dropdown(s) for the numbers in the id
+all_spread_500_ht,"500mb Height: all ensembles, mean and spread","Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spread_#_ht,1,Own chart
+all_spread_850_temp,"850mb Temperature: all ensembles, mean and spread","Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spread_#_temp,1,Own chart
+all_spread_2m_temp,"2 m Temperature: all ensembles, mean and spread","Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spread_#m_temp,1,Own chart
+all_spread_mslp,"MSLP: all ensembles, mean and spread","Ensemble: spread, spaghetti and paintballs",1,ENS-ALL,all_spread_mslp,1,Own chart
+combo_temp_spread,RRFS 2 m Temperature with the Members' Spread,"Ensemble: spread, spaghetti and paintballs",1,REFS,combo_temp_spread,1,Own chart
+mslp_1000_1040_iso,MSLP 1000/1040 Isobar Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,mslp_#_#_iso,6,One chart with dropdown(s) for the numbers in the id
+mslp_1004_1044_iso,MSLP 1004/1044 Isobar Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,mslp_#_#_iso,6,One chart with dropdown(s) for the numbers in the id
+mslp_1008_1048_iso,MSLP 1008/1048 Isobar Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,mslp_#_#_iso,6,One chart with dropdown(s) for the numbers in the id
+mslp_1012_1052_iso,MSLP 1012/1052 Isobar Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,mslp_#_#_iso,6,One chart with dropdown(s) for the numbers in the id
+mslp_984_1024_iso,MSLP 984/1024 Isobar Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,mslp_#_#_iso,6,One chart with dropdown(s) for the numbers in the id
+mslp_996_1036_iso,MSLP 996/1036 Isobar Contours,"Ensemble: spread, spaghetti and paintballs",1,GEFS,mslp_#_#_iso,6,One chart with dropdown(s) for the numbers in the id
+refc_paintball,"Paintball: Composite Reflectivity of 40 dBZ or more, each member","Ensemble: spread, spaghetti and paintballs",1,REFS,refc_paintball,1,Own chart
+refc_paintball_mpas,"Paintball: Composite Reflectivity of 40 dBZ or more, each member and the NSSL MPAS runs","Ensemble: spread, spaghetti and paintballs",1,REFS,refc_paintball_mpas,1,Own chart
+refc_paintball_spc,"Paintball: 40 dBZ or more, REFS, HRRR and NSSL MPAS, with the chance","Ensemble: spread, spaghetti and paintballs",1,REFS,refc_paintball_spc,1,Own chart
+spag_500_522_564,500mb 522/564 Height Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,IFS-ENS,spag_#_#_#,4,One chart with dropdown(s) for the numbers in the id
+spag_500_528_570,500mb 528/570 Height Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,IFS-ENS,spag_#_#_#,4,One chart with dropdown(s) for the numbers in the id
+spag_500_534_576,500mb 534/576 Height Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,IFS-ENS,spag_#_#_#,4,One chart with dropdown(s) for the numbers in the id
+spag_500_540_582,500mb 540/582 Height Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,IFS-ENS,spag_#_#_#,4,One chart with dropdown(s) for the numbers in the id
+spag_mslp_1000_1040,MSLP 1000/1040 Isobar Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,IFS-ENS,spag_mslp_#_#,4,One chart with dropdown(s) for the numbers in the id
+spag_mslp_1004_1044,MSLP 1004/1044 Isobar Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,IFS-ENS,spag_mslp_#_#,4,One chart with dropdown(s) for the numbers in the id
+spag_mslp_1008_1048,MSLP 1008/1048 Isobar Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,IFS-ENS,spag_mslp_#_#,4,One chart with dropdown(s) for the numbers in the id
+spag_mslp_996_1036,MSLP 996/1036 Isobar Contours (spaghetti),"Ensemble: spread, spaghetti and paintballs",1,IFS-ENS,spag_mslp_#_#,4,One chart with dropdown(s) for the numbers in the id
+spread_250_ht,250mb Height Spread and Mean Height,"Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_#_ht,4,One chart with dropdown(s) for the numbers in the id
+spread_500_ht,500mb Height: ensemble mean and spread,"Ensemble: spread, spaghetti and paintballs",3,GEFS GEPS IFS-ENS,spread_#_ht,4,One chart with dropdown(s) for the numbers in the id
+spread_700_ht,700mb Height Spread and Mean Height,"Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_#_ht,4,One chart with dropdown(s) for the numbers in the id
+spread_850_ht,850mb Height Spread and Mean Height,"Ensemble: spread, spaghetti and paintballs",2,GEFS GEPS,spread_#_ht,4,One chart with dropdown(s) for the numbers in the id
+spread_500_temp,500mb Temperature Spread and Mean Height,"Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_#_temp,3,One chart with dropdown(s) for the numbers in the id
+spread_700_temp,700mb Temperature Spread and Mean Height,"Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_#_temp,3,One chart with dropdown(s) for the numbers in the id
+spread_850_temp,850mb Temperature: ensemble mean and spread,"Ensemble: spread, spaghetti and paintballs",2,GEFS IFS-ENS,spread_#_temp,3,One chart with dropdown(s) for the numbers in the id
+spread_250_wnd,"250mb Wind Spread, Mean Wind and Height","Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_#_wnd,4,One chart with dropdown(s) for the numbers in the id
+spread_500_wnd,"500mb Wind Spread, Mean Wind and Height","Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_#_wnd,4,One chart with dropdown(s) for the numbers in the id
+spread_700_wnd,"700mb Wind Spread, Mean Wind and Height","Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_#_wnd,4,One chart with dropdown(s) for the numbers in the id
+spread_850_wnd,"850mb Wind Spread, Mean Wind and Height","Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_#_wnd,4,One chart with dropdown(s) for the numbers in the id
+spread_2m_temp,2 m Temperature: ensemble mean and spread,"Ensemble: spread, spaghetti and paintballs",4,GEFS GEPS IFS-ENS REFS,spread_#m_temp,1,Own chart
+spread_10m_wnd,10m Wind Spread and Mean Wind,"Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_#m_wnd,1,Own chart
+spread_cape,Surface-Based CAPE Spread,"Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_cape,1,Own chart
+spread_mslp,MSLP: ensemble mean and spread,"Ensemble: spread, spaghetti and paintballs",3,GEFS GEPS IFS-ENS,spread_mslp,1,Own chart
+spread_pwat,Precipitable Water Spread,"Ensemble: spread, spaghetti and paintballs",1,GEFS,spread_pwat,1,Own chart
+ppp_24h_zr_expected,"24 hr Ice, expected amount","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_expected,"36 hr Ice, expected amount","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_expected,"48 hr Ice, expected amount","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_expected,"72 hr Ice, expected amount","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_p05,"24 hr Ice, 05th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_p10,"24 hr Ice, 10th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_p25,"24 hr Ice, 25th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_p50,"24 hr Ice, 50th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_p75,"24 hr Ice, 75th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_p90,"24 hr Ice, 90th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_p95,"24 hr Ice, 95th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_p05,"36 hr Ice, 05th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_p10,"36 hr Ice, 10th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_p25,"36 hr Ice, 25th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_p50,"36 hr Ice, 50th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_p75,"36 hr Ice, 75th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_p90,"36 hr Ice, 90th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_p95,"36 hr Ice, 95th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_p05,"48 hr Ice, 05th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_p10,"48 hr Ice, 10th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_p25,"48 hr Ice, 25th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_p50,"48 hr Ice, 50th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_p75,"48 hr Ice, 75th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_p90,"48 hr Ice, 90th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_p95,"48 hr Ice, 95th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_p05,"72 hr Ice, 05th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_p10,"72 hr Ice, 10th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_p25,"72 hr Ice, 25th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_p50,"72 hr Ice, 50th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_p75,"72 hr Ice, 75th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_p90,"72 hr Ice, 90th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_p95,"72 hr Ice, 95th percentile","Ice: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_zr_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_prob_0p01,"24 hr Ice, chance of 0.01 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_prob_0p10,"24 hr Ice, chance of 0.10 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_prob_0p25,"24 hr Ice, chance of 0.25 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_prob_0p50,"24 hr Ice, chance of 0.50 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_prob_0p75,"24 hr Ice, chance of 0.75 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_prob_1p00,"24 hr Ice, chance of 1 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_prob_1p25,"24 hr Ice, chance of 1.25 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_prob_1p50,"24 hr Ice, chance of 1.5 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_24h_zr_prob_2p00,"24 hr Ice, chance of 2 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_prob_0p01,"36 hr Ice, chance of 0.01 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_prob_0p10,"36 hr Ice, chance of 0.10 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_prob_0p25,"36 hr Ice, chance of 0.25 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_prob_0p50,"36 hr Ice, chance of 0.50 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_prob_0p75,"36 hr Ice, chance of 0.75 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_prob_1p00,"36 hr Ice, chance of 1 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_prob_1p25,"36 hr Ice, chance of 1.25 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_prob_1p50,"36 hr Ice, chance of 1.5 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_36h_zr_prob_2p00,"36 hr Ice, chance of 2 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_prob_0p01,"48 hr Ice, chance of 0.01 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_prob_0p10,"48 hr Ice, chance of 0.10 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_prob_0p25,"48 hr Ice, chance of 0.25 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_prob_0p50,"48 hr Ice, chance of 0.50 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_prob_0p75,"48 hr Ice, chance of 0.75 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_prob_1p00,"48 hr Ice, chance of 1 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_prob_1p25,"48 hr Ice, chance of 1.25 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_prob_1p50,"48 hr Ice, chance of 1.5 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_48h_zr_prob_2p00,"48 hr Ice, chance of 2 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_prob_0p01,"72 hr Ice, chance of 0.01 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_prob_0p10,"72 hr Ice, chance of 0.10 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_prob_0p25,"72 hr Ice, chance of 0.25 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_prob_0p50,"72 hr Ice, chance of 0.50 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_prob_0p75,"72 hr Ice, chance of 0.75 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_prob_1p00,"72 hr Ice, chance of 1 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_prob_1p25,"72 hr Ice, chance of 1.25 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_prob_1p50,"72 hr Ice, chance of 1.5 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_72h_zr_prob_2p00,"72 hr Ice, chance of 2 in or more",Ice: chance of an amount,1,WPC-PPP,ppp_#h_zr_prob_#p#,36,One chart with dropdown(s) for the numbers in the id
+ppp_24h_median,"24 hr median: rain, snow and ice","Median of all three (rain, snow, ice)",1,WPC-PPP,ppp_#h_median,4,One chart with dropdown(s) for the numbers in the id
+ppp_36h_median,"36 hr median: rain, snow and ice","Median of all three (rain, snow, ice)",1,WPC-PPP,ppp_#h_median,4,One chart with dropdown(s) for the numbers in the id
+ppp_48h_median,"48 hr median: rain, snow and ice","Median of all three (rain, snow, ice)",1,WPC-PPP,ppp_#h_median,4,One chart with dropdown(s) for the numbers in the id
+ppp_72h_median,"72 hr median: rain, snow and ice","Median of all three (rain, snow, ice)",1,WPC-PPP,ppp_#h_median,4,One chart with dropdown(s) for the numbers in the id
+peak_dir_per,Significant Wave Height Direction and Period (sec),Ocean and waves,3,GEFS-WAVE GFS-WAVE MF-WAVE,peak_dir_per,1,Own chart
+sig_wv_ht,Significant Wave Height,Ocean and waves,3,GEFS-WAVE GFS-WAVE MF-WAVE,sig_wv_ht,1,Own chart
+sst,Sea Surface Temperature,Ocean and waves,3,HAFSA HAFSB MF-SST,sst,1,Own chart
+swell1_dir_per,Primary Swell Direction and Period (sec),Ocean and waves,3,GEFS-WAVE GFS-WAVE MF-WAVE,swell#_dir_per,3,One chart with dropdown(s) for the numbers in the id
+swell2_dir_per,Secondary Swell Direction and Period (sec),Ocean and waves,3,GEFS-WAVE GFS-WAVE MF-WAVE,swell#_dir_per,3,One chart with dropdown(s) for the numbers in the id
+swell3_dir_per,Tertiary Swell Direction and Period (sec),Ocean and waves,2,GEFS-WAVE GFS-WAVE,swell#_dir_per,3,One chart with dropdown(s) for the numbers in the id
+swell1_wv_ht,Primary Swell,Ocean and waves,3,GEFS-WAVE GFS-WAVE MF-WAVE,swell#_wv_ht,3,One chart with dropdown(s) for the numbers in the id
+swell2_wv_ht,Secondary Swell,Ocean and waves,3,GEFS-WAVE GFS-WAVE MF-WAVE,swell#_wv_ht,3,One chart with dropdown(s) for the numbers in the id
+swell3_wv_ht,Tertiary Swell Wave Height and Wind,Ocean and waves,2,GEFS-WAVE GFS-WAVE,swell#_wv_ht,3,One chart with dropdown(s) for the numbers in the id
+waves,"Significant Wave Height, Peak Period and Wind",Ocean and waves,2,HAFSA HAFSB,waves,1,Own chart
+wsea_dir_per,Wind Sea Direction and Period (sec),Ocean and waves,3,GEFS-WAVE GFS-WAVE MF-WAVE,wsea_dir_per,1,Own chart
+wsea_wv_ht,Wind Sea,Ocean and waves,3,GEFS-WAVE GFS-WAVE MF-WAVE,wsea_wv_ht,1,Own chart
+1000_500_thick,"MSLP, 1000-500mb thickness and precipitation",Precipitation and moisture,14,AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA ...,#_#_thick,3,Preset: Precipitation + lines
+1000_850_thick,"MSLP, 1000-850mb thickness and precipitation",Precipitation and moisture,14,AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA ...,#_#_thick,3,Preset: Precipitation + lines
+850_700_thick,"MSLP, 850-700mb thickness and precipitation",Precipitation and moisture,14,AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA ...,#_#_thick,3,Preset: Precipitation + lines
+1000_850_thick_type,"MSLP, 1000-850mb thickness and precipitation type",Precipitation and moisture,10,GEFS GFS HRRR HRRR-AK RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#_#_thick_type,2,"Preset: Precipitation + lines, Type switch"
+850_700_thick_type,"MSLP, 850-700mb thickness and precipitation type",Precipitation and moisture,10,GEFS GFS HRRR HRRR-AK RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#_#_thick_type,2,"Preset: Precipitation + lines, Type switch"
+850_temp_mslp_precip,"MSLP, 850mb temperature and precipitation",Precipitation and moisture,14,AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA ...,#_temp_mslp_precip,1,Preset: Precipitation + lines
+850_temp_mslp_precip_type,"MSLP, 850mb temperature and precipitation type",Precipitation and moisture,10,GEFS GFS HRRR HRRR-AK RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#_temp_mslp_precip_type,1,"Preset: Precipitation + lines, Type switch"
+1hour_accu_snow,1-hour accumulated snow,Precipitation and moisture,1,NBM,#hour_accu_snow,1,Own chart
+12hour_precip_chance,12-hour Chance of Precipitation,Precipitation and moisture,1,NBM,#hour_precip_chance,3,One chart with dropdown(s) for the numbers in the id
+1hour_precip_chance,1-hour Chance of Precipitation,Precipitation and moisture,1,NBM,#hour_precip_chance,3,One chart with dropdown(s) for the numbers in the id
+6hour_precip_chance,6-hour Chance of Precipitation,Precipitation and moisture,1,NBM,#hour_precip_chance,3,One chart with dropdown(s) for the numbers in the id
+10m_wnd_precip,"MSLP, 10m wind and precipitation",Precipitation and moisture,14,AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA ...,#m_wnd_precip,1,Preset: Precipitation + lines
+10m_wnd_precip_type,"MSLP, 10m wind and precipitation type",Precipitation and moisture,10,GEFS GFS HRRR HRRR-AK RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#m_wnd_precip_type,1,"Preset: Precipitation + lines, Type switch"
+10th_percentile_1hr_snow,10th Percentile Hourly Snowfall,Precipitation and moisture,1,NBM,#th_percentile_#hr_snow,3,One chart with dropdown(s) for the numbers in the id
+50th_percentile_1hr_snow,50th Percentile Hourly Snowfall,Precipitation and moisture,1,NBM,#th_percentile_#hr_snow,3,One chart with dropdown(s) for the numbers in the id
+90th_percentile_1hr_snow,90th Percentile Hourly Snowfall,Precipitation and moisture,1,NBM,#th_percentile_#hr_snow,3,One chart with dropdown(s) for the numbers in the id
+blend_mean_precip_p01,Blend Mean 1-hour Precipitation,Precipitation and moisture,1,HREF,blend_mean_precip_p#,2,One chart with dropdown(s) for the numbers in the id
+blend_mean_precip_p03,Blend Mean 3-hour Precipitation,Precipitation and moisture,1,HREF,blend_mean_precip_p#,2,One chart with dropdown(s) for the numbers in the id
+blend_mean_precip_ptot,Blend Mean Total Precipitation,Precipitation and moisture,1,HREF,blend_mean_precip_ptot,1,Own chart
+cfs30_precip,Next days: precipitation against the normal,Precipitation and moisture,1,CFS30,cfs#_precip,1,Own chart
+cfs30_precip_value,Next days: total precipitation,Precipitation and moisture,1,CFS30,cfs#_precip_value,1,Own chart
+cfs30_t2m_precip,Next days: temperature and precipitation against the normal,Precipitation and moisture,1,CFS30,cfs#_t#m_precip,1,Own chart
+dom_precip_type,Dominant Precipitation Type,Precipitation and moisture,1,GEFS,dom_precip_type,1,Own chart
+ec46_precip,Precipitation: total of the week,Precipitation and moisture,1,EC46,ec#_precip,1,Own chart
+ec46_precip_departure,Precipitation: departure of the week,Precipitation and moisture,1,EC46,ec#_precip_departure,1,Own chart
+ens_1000_500_thick,Mean 1000-500mb Thickness,Precipitation and moisture,1,REFS,ens_#_#_thick,3,One chart with dropdown(s) for the numbers in the id
+ens_1000_850_thick,Mean 1000-850mb Thickness,Precipitation and moisture,1,REFS,ens_#_#_thick,3,One chart with dropdown(s) for the numbers in the id
+ens_850_700_thick,Mean 850-700mb Thickness,Precipitation and moisture,1,REFS,ens_#_#_thick,3,One chart with dropdown(s) for the numbers in the id
+ens_precip_p06,Mean 6-hour Precipitation,Precipitation and moisture,1,REFS,ens_precip_p#,3,One chart with dropdown(s) for the numbers in the id
+ens_precip_p12,Mean 12-hour Precipitation,Precipitation and moisture,1,REFS,ens_precip_p#,3,One chart with dropdown(s) for the numbers in the id
+ens_precip_p24,Mean 24-hour Precipitation,Precipitation and moisture,1,REFS,ens_precip_p#,3,One chart with dropdown(s) for the numbers in the id
+ens_snow_total_mean,Snow Total Mean,Precipitation and moisture,1,REFS,ens_snow_total_mean,1,Own chart
+ens_snow_total_sprd,Snow Total Spread,Precipitation and moisture,1,REFS,ens_snow_total_sprd,1,Own chart
+lpmm_mean_precip_p01,Localized Probability Matched Mean 1-hour Precipitation,Precipitation and moisture,1,HREF,lpmm_mean_precip_p#,2,One chart with dropdown(s) for the numbers in the id
+lpmm_mean_precip_p03,Localized Probability Matched Mean 3-hour Precipitation,Precipitation and moisture,1,HREF,lpmm_mean_precip_p#,2,One chart with dropdown(s) for the numbers in the id
+lpmm_mean_precip_ptot,Localized Probability Matched Mean Total Precipitation,Precipitation and moisture,1,HREF,lpmm_mean_precip_ptot,1,Own chart
+mean_precip_p01,Mean 1-hour Precipitation and MSLP,Precipitation and moisture,2,HREF REFS,mean_precip_p#,2,One chart with dropdown(s) for the numbers in the id
+mean_precip_p03,Mean 3-hour Precipitation and MSLP,Precipitation and moisture,2,HREF REFS,mean_precip_p#,2,One chart with dropdown(s) for the numbers in the id
+mean_precip_ptot,Mean Total Precipitation and MSLP,Precipitation and moisture,1,HREF,mean_precip_ptot,1,Own chart
+mean_pwat,Mean Precipitable Water,Precipitation and moisture,1,HREF,mean_pwat,1,Own chart
+mean_snow_1h,Mean 1-hour Snow (10 to 1 ratio),Precipitation and moisture,1,HREF,mean_snow_#h,2,One chart with dropdown(s) for the numbers in the id
+mean_snow_3h,Mean 3-hour Snow (10 to 1 ratio),Precipitation and moisture,1,HREF,mean_snow_#h,2,One chart with dropdown(s) for the numbers in the id
+mean_snow_total,Mean Total Snow (10 to 1 ratio),Precipitation and moisture,1,HREF,mean_snow_total,1,Own chart
+mslp_pwat,MSLP and Precipitable Water,Precipitation and moisture,23,CFS CFS-ANL ERA5 GEFS GEOS-FP GEPS GFS GFS-ANL GFS1-ANL HRRR HRRR-AK IFS ...,mslp_pwat,1,Preset: Surface
+nice_weather,Nice Weather Outlook (hour 24 = day 1),Precipitation and moisture,1,NBM,nice_weather,1,Own chart
+precip_duration,Precipitation duration,Precipitation and moisture,1,NBM,precip_duration,1,Own chart
+precip_p01,Total Precipitation every 1 hour,Precipitation and moisture,12,GEFS GFS HRRR HRRR-AK NBM RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR WOOF-NAM-HOSTED,precip_p#,8,Preset: Precipitation (period = dropdown)
+precip_p03,Total Precipitation every 3 hours,Precipitation and moisture,13,GEFS GEPS GFS HRRR HRRR-AK IFS RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR ...,precip_p#,8,Preset: Precipitation (period = dropdown)
+precip_p06,Total Precipitation every 6 hours,Precipitation and moisture,16,AIFS AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS NBM RRFS RRFS-AK RRFS-FIREWX ...,precip_p#,8,Preset: Precipitation (period = dropdown)
+precip_p12,Total Precipitation every 12 hours,Precipitation and moisture,16,AIFS AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS NBM RRFS RRFS-AK RRFS-FIREWX ...,precip_p#,8,Preset: Precipitation (period = dropdown)
+precip_p24,Total Precipitation every 24 hours,Precipitation and moisture,15,AIFS AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS RRFS RRFS-AK RRFS-FIREWX RRFS-HI ...,precip_p#,8,Preset: Precipitation (period = dropdown)
+precip_p36,Total Precipitation every 36 hours,Precipitation and moisture,15,AIFS AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS RRFS RRFS-AK RRFS-FIREWX RRFS-HI ...,precip_p#,8,Preset: Precipitation (period = dropdown)
+precip_p48,Total Precipitation every 48 hours,Precipitation and moisture,15,AIFS AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS RRFS RRFS-AK RRFS-FIREWX RRFS-HI ...,precip_p#,8,Preset: Precipitation (period = dropdown)
+precip_p60,Total Precipitation every 60 hours,Precipitation and moisture,15,AIFS AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS RRFS RRFS-AK RRFS-FIREWX RRFS-HI ...,precip_p#,8,Preset: Precipitation (period = dropdown)
+precip_ptot,Total Accumulated Precipitation of Period,Precipitation and moisture,16,AIFS AIGFS GEFS GEPS GFS HRRR HRRR-AK IFS NBM RRFS RRFS-AK RRFS-FIREWX ...,precip_ptot,1,Preset: Precipitation (period = total)
+precip_pwat,Total Column Precipitable Water,Precipitation and moisture,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,precip_pwat,1,Own chart
+precip_rate,Precipitation Rate,Precipitation and moisture,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,precip_rate,1,Own chart
+precip_rate_type,"MSLP, 1000-500mb thickness and Precipitation Rate (Rain / Snow / Mixed)",Precipitation and moisture,9,GFS HRRR HRRR-AK RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,precip_rate_type,1,Preset: Precipitation rate + type
+precip_type,MSLP and Precipitation (Rain / Snow / Mixed),Precipitation and moisture,10,GEFS GFS HRRR HRRR-AK RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,precip_type,1,"Preset: Precipitation, Type switch"
+pwat,Precipitable Water,Precipitation and moisture,2,RRFSD SFCOA,pwat,1,Own chart
+rain_total,Rainfall since the start of the run and MSLP,Precipitation and moisture,2,HAFSA HAFSB,rain_total,1,Own chart
+seas5_precip,Precipitation: total of the month,Precipitation and moisture,1,SEAS5,seas#_precip,1,Own chart
+seas5_precip_departure,Precipitation: departure of the month,Precipitation and moisture,1,SEAS5,seas#_precip_departure,1,Own chart
+snow_liquid_ratio,Snow Liquid Ratio,Precipitation and moisture,1,NBM,snow_liquid_ratio,1,Own chart
+snow_p06,Snowfall,Precipitation and moisture,1,NBM,snow_p#,2,One chart with dropdown(s) for the numbers in the id
+snow_p12,Snowfall,Precipitation and moisture,1,NBM,snow_p#,2,One chart with dropdown(s) for the numbers in the id
+snow_ptot,Accumulated Snowfall,Precipitation and moisture,1,NBM,snow_ptot,1,Own chart
+snow_total,Total Snowfall since the start of the run,Precipitation and moisture,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,snow_total,1,Own chart
+prob_IFR,Probability of Instrument Flight Rules,Probability: aviation and visibility,1,HREF,prob_IFR,1,Own chart
+prob_VFR,Probability of Visual Flight Rules,Probability: aviation and visibility,1,HREF,prob_VFR,1,Own chart
+prob_ceil_1000ft,Probability of Ceiling Less than 1000 feet,Probability: aviation and visibility,2,HREF NBM,prob_ceil_#ft,4,One chart with dropdown(s) for the numbers in the id
+prob_ceil_2000ft,Probability of Ceiling Less than 2000 feet,Probability: aviation and visibility,2,HREF NBM,prob_ceil_#ft,4,One chart with dropdown(s) for the numbers in the id
+prob_ceil_3000ft,Probability of Ceiling 3000 feet or less,Probability: aviation and visibility,2,HREF NBM,prob_ceil_#ft,4,One chart with dropdown(s) for the numbers in the id
+prob_ceil_6500ft,Probability of Ceiling 6500 feet or less,Probability: aviation and visibility,1,NBM,prob_ceil_#ft,4,One chart with dropdown(s) for the numbers in the id
+prob_lowIFR_IFR,Probability of Low Instrument Flight Rules and Instrument Flight Rules,Probability: aviation and visibility,1,HREF,prob_lowIFR_IFR,1,Own chart
+prob_low_IFR,Probability of Low Instrument Flight Rules,Probability: aviation and visibility,1,HREF,prob_low_IFR,1,Own chart
+prob_marginal_VFR,Probability of Marginal Visual Flight Rules,Probability: aviation and visibility,1,HREF,prob_marginal_VFR,1,Own chart
+prob_vis_0.5mi,Probability of Visibility under 0.5 mile,Probability: aviation and visibility,1,HREF,prob_vis_#mi,5,One chart with dropdown(s) for the numbers in the id
+prob_vis_1mi,Probability of Visibility less than 1 mile,Probability: aviation and visibility,1,NBM,prob_vis_#mi,5,One chart with dropdown(s) for the numbers in the id
+prob_vis_2mi,Probability of Visibility less than 2 miles,Probability: aviation and visibility,1,NBM,prob_vis_#mi,5,One chart with dropdown(s) for the numbers in the id
+prob_vis_3mi,Probability of Visibility less than 3 miles,Probability: aviation and visibility,1,NBM,prob_vis_#mi,5,One chart with dropdown(s) for the numbers in the id
+prob_vis_5mi,Probability of Visibility 5 miles or less,Probability: aviation and visibility,1,NBM,prob_vis_#mi,5,One chart with dropdown(s) for the numbers in the id
+eas_prob_1h_rain_0.01in,Ensemble Agreement Scale Probability of 1-hour Rain over 0.01 in,Probability: precipitation,1,HREF,eas_prob_#h_rain_#in,6,One chart with dropdown(s) for the numbers in the id
+eas_prob_1h_rain_0.25in,Ensemble Agreement Scale Probability of 1-hour Rain over 0.25 in,Probability: precipitation,1,HREF,eas_prob_#h_rain_#in,6,One chart with dropdown(s) for the numbers in the id
+eas_prob_1h_rain_0.5in,Ensemble Agreement Scale Probability of 1-hour Rain over 0.5 in,Probability: precipitation,1,HREF,eas_prob_#h_rain_#in,6,One chart with dropdown(s) for the numbers in the id
+eas_prob_3h_rain_0.01in,Ensemble Agreement Scale Probability of 3-hour Rain over 0.01 in,Probability: precipitation,1,HREF,eas_prob_#h_rain_#in,6,One chart with dropdown(s) for the numbers in the id
+eas_prob_3h_rain_0.25in,Ensemble Agreement Scale Probability of 3-hour Rain over 0.25 in,Probability: precipitation,1,HREF,eas_prob_#h_rain_#in,6,One chart with dropdown(s) for the numbers in the id
+eas_prob_3h_rain_0.5in,Ensemble Agreement Scale Probability of 3-hour Rain over 0.5 in,Probability: precipitation,1,HREF,eas_prob_#h_rain_#in,6,One chart with dropdown(s) for the numbers in the id
+eas_prob_1h_snow_0.1in,Ensemble Agreement Scale Probability of 1-hour Snow over 0.1 in,Probability: precipitation,1,HREF,eas_prob_#h_snow_#in,4,One chart with dropdown(s) for the numbers in the id
+eas_prob_1h_snow_0.3in,Ensemble Agreement Scale Probability of 1-hour Snow over 0.3 in,Probability: precipitation,1,HREF,eas_prob_#h_snow_#in,4,One chart with dropdown(s) for the numbers in the id
+eas_prob_3h_snow_0.1in,Ensemble Agreement Scale Probability of 3-hour Snow over 0.1 in,Probability: precipitation,1,HREF,eas_prob_#h_snow_#in,4,One chart with dropdown(s) for the numbers in the id
+eas_prob_3h_snow_0.3in,Ensemble Agreement Scale Probability of 3-hour Snow over 0.3 in,Probability: precipitation,1,HREF,eas_prob_#h_snow_#in,4,One chart with dropdown(s) for the numbers in the id
+ens_prob_precip_6h_0.25in,Probability of 6-hour Precipitation over 0.25 in,Probability: precipitation,1,REFS,ens_prob_precip_#h_#in,3,One chart with dropdown(s) for the numbers in the id
+ens_prob_precip_6h_0.5in,Probability of 6-hour Precipitation over 0.5 in,Probability: precipitation,1,REFS,ens_prob_precip_#h_#in,3,One chart with dropdown(s) for the numbers in the id
+ens_prob_precip_6h_1in,Probability of 6-hour Precipitation over 1 in,Probability: precipitation,1,REFS,ens_prob_precip_#h_#in,3,One chart with dropdown(s) for the numbers in the id
+ens_prob_total_0.01in,Probability of total precipitation of 0.01 in or more (since the start of the run),Probability: precipitation,1,IFS-ENS,ens_prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+ens_prob_total_0.1in,Probability of total precipitation of 0.10 in or more (since the start of the run),Probability: precipitation,1,IFS-ENS,ens_prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+ens_prob_total_0.25in,Probability of total precipitation of 0.25 in or more (since the start of the run),Probability: precipitation,1,IFS-ENS,ens_prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+ens_prob_total_0.5in,Probability of total precipitation of 0.50 in or more (since the start of the run),Probability: precipitation,1,IFS-ENS,ens_prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+ens_prob_total_1in,Probability of total precipitation of 1.00 in or more (since the start of the run),Probability: precipitation,1,IFS-ENS,ens_prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+ens_prob_total_2in,Probability of total precipitation of 2.00 in or more (since the start of the run),Probability: precipitation,1,IFS-ENS,ens_prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_3h_rain_0.5in,Probability of 3-hour Rain over 0.5 in,Probability: precipitation,1,HREF,prob_#h_rain_#in,2,One chart with dropdown(s) for the numbers in the id
+prob_3h_rain_1in,Probability of 3-hour Rain over 1 in,Probability: precipitation,1,HREF,prob_#h_rain_#in,2,One chart with dropdown(s) for the numbers in the id
+prob_1h_snow_0.1in,Probability of 1-hour 0.1 inch of snow,Probability: precipitation,1,NBM,prob_#h_snow_#in,9,One chart with dropdown(s) for the numbers in the id
+prob_1h_snow_0.5in,Probability of 1-hour 0.5 inch of snow,Probability: precipitation,1,NBM,prob_#h_snow_#in,9,One chart with dropdown(s) for the numbers in the id
+prob_1h_snow_1.5in,Probability of 1-hour 1.5 inch of snow,Probability: precipitation,1,NBM,prob_#h_snow_#in,9,One chart with dropdown(s) for the numbers in the id
+prob_1h_snow_1in,Probability of 1-hour 1 inch of snow,Probability: precipitation,2,HREF NBM,prob_#h_snow_#in,9,One chart with dropdown(s) for the numbers in the id
+prob_1h_snow_2in,Probability of 1-hour 2 inches of snow,Probability: precipitation,1,NBM,prob_#h_snow_#in,9,One chart with dropdown(s) for the numbers in the id
+prob_1h_snow_3in,Probability of 1-hour 3 inches of snow,Probability: precipitation,1,NBM,prob_#h_snow_#in,9,One chart with dropdown(s) for the numbers in the id
+prob_1h_snow_4in,Probability of 1-hour 4 inches of snow,Probability: precipitation,1,NBM,prob_#h_snow_#in,9,One chart with dropdown(s) for the numbers in the id
+prob_3h_snow_1in,Probability of 3-hour Snow over 1 in,Probability: precipitation,1,HREF,prob_#h_snow_#in,9,One chart with dropdown(s) for the numbers in the id
+prob_3h_snow_3in,Probability of 3-hour Snow over 3 in,Probability: precipitation,1,HREF,prob_#h_snow_#in,9,One chart with dropdown(s) for the numbers in the id
+prob_freezing_rain,Probability of Freezing Rain,Probability: precipitation,2,HREF NBM,prob_freezing_rain,1,Own chart
+prob_ice_0.25in,Probability of Ice Pellets over 0.25 in,Probability: precipitation,1,GEFS,prob_ice_#in,1,Own chart
+prob_precip_1h_0.25in,Probability of 0.25 in or more of rain in an hour,Probability: precipitation,1,REFS,prob_precip_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_precip_1h_0.5in,Probability of 0.5 in or more of rain in an hour,Probability: precipitation,1,REFS,prob_precip_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_precip_1h_1in,Probability of 1 in or more of rain in an hour,Probability: precipitation,1,REFS,prob_precip_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_precip_3h_0.5in,Probability of 0.5 in or more of rain in 3 hours,Probability: precipitation,1,REFS,prob_precip_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_precip_3h_1in,Probability of 1 in or more of rain in 3 hours,Probability: precipitation,1,REFS,prob_precip_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_precip_3h_2in,Probability of 2 in or more of rain in 3 hours,Probability: precipitation,1,REFS,prob_precip_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_precip_0.25in,Probability of 6-hour Precipitation over 0.25 in,Probability: precipitation,1,GEFS,prob_precip_#in,3,One chart with dropdown(s) for the numbers in the id
+prob_precip_0.5in,Probability of 6-hour Precipitation over 0.50 in,Probability: precipitation,1,GEFS,prob_precip_#in,3,One chart with dropdown(s) for the numbers in the id
+prob_precip_1in,Probability of 6-hour Precipitation over 1.00 in,Probability: precipitation,1,GEFS,prob_precip_#in,3,One chart with dropdown(s) for the numbers in the id
+prob_pwat_1.5in,Probability of Precipitable Water over 1.5 in,Probability: precipitation,1,HREF,prob_pwat_#in,2,One chart with dropdown(s) for the numbers in the id
+prob_pwat_2in,Probability of Precipitable Water over 2 in,Probability: precipitation,1,HREF,prob_pwat_#in,2,One chart with dropdown(s) for the numbers in the id
+prob_rain,Probability of Rain,Probability: precipitation,2,HREF NBM,prob_rain,1,Own chart
+prob_sleet,Probability of Sleet,Probability: precipitation,2,HREF NBM,prob_sleet,1,Own chart
+prob_snow,Probability of Snow,Probability: precipitation,2,HREF NBM,prob_snow,1,Own chart
+prob_snow_3h_1in,Probability of 1 in or more of snow in 3 hours,Probability: precipitation,1,REFS,prob_snow_#h_#in,2,One chart with dropdown(s) for the numbers in the id
+prob_snow_3h_3in,Probability of 3 in or more of snow in 3 hours,Probability: precipitation,1,REFS,prob_snow_#h_#in,2,One chart with dropdown(s) for the numbers in the id
+prob_total_0.01in,Probability of total precipitation of 0.01 in or more (since the start of the run),Probability: precipitation,1,GEPS,prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_total_0.1in,Probability of total precipitation of 0.10 in or more (since the start of the run),Probability: precipitation,1,GEPS,prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_total_0.25in,Probability of total precipitation of 0.25 in or more (since the start of the run),Probability: precipitation,1,GEPS,prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_total_0.5in,Probability of total precipitation of 0.50 in or more (since the start of the run),Probability: precipitation,1,GEPS,prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_total_1in,Probability of total precipitation of 1.00 in or more (since the start of the run),Probability: precipitation,1,GEPS,prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+prob_total_2in,Probability of total precipitation of 2.00 in or more (since the start of the run),Probability: precipitation,1,GEPS,prob_total_#in,6,One chart with dropdown(s) for the numbers in the id
+ens_prob_cape_1000,Probability of CAPE over 1000,Probability: severe and storms,1,REFS,ens_prob_cape_#,3,One chart with dropdown(s) for the numbers in the id
+ens_prob_cape_2000,Probability of CAPE over 2000,Probability: severe and storms,1,REFS,ens_prob_cape_#,3,One chart with dropdown(s) for the numbers in the id
+ens_prob_cape_500,Probability of CAPE over 500,Probability: severe and storms,1,REFS,ens_prob_cape_#,3,One chart with dropdown(s) for the numbers in the id
+gefsmlp_hail_sig,GEFS-MLP Hail Probability (Significant),Probability: severe and storms,1,SPCGEFS,gefsmlp_hail_sig,1,Own chart
+gefsmlp_hail_std,GEFS-MLP Hail Probability (Any Severe),Probability: severe and storms,1,SPCGEFS,gefsmlp_hail_std,1,Own chart
+gefsmlp_severe_sig,GEFS-MLP Any Severe Probability (Significant),Probability: severe and storms,1,SPCGEFS,gefsmlp_severe_sig,1,Own chart
+gefsmlp_severe_std,GEFS-MLP Any Severe Probability (Any Severe),Probability: severe and storms,1,SPCGEFS,gefsmlp_severe_std,1,Own chart
+gefsmlp_tor_sig,GEFS-MLP Tornado Probability (Significant),Probability: severe and storms,1,SPCGEFS,gefsmlp_tor_sig,1,Own chart
+gefsmlp_tor_std,GEFS-MLP Tornado Probability (Any Severe),Probability: severe and storms,1,SPCGEFS,gefsmlp_tor_std,1,Own chart
+gefsmlp_wind_sig,GEFS-MLP Wind Probability (Significant),Probability: severe and storms,1,SPCGEFS,gefsmlp_wind_sig,1,Own chart
+gefsmlp_wind_std,GEFS-MLP Wind Probability (Any Severe),Probability: severe and storms,1,SPCGEFS,gefsmlp_wind_std,1,Own chart
+prob_cape_1000,Probability of Mixed Layer CAPE over 1000,Probability: severe and storms,1,HREF,prob_cape_#,6,One chart with dropdown(s) for the numbers in the id
+prob_cape_2000,Probability of CAPE over 2000,Probability: severe and storms,2,GEFS HREF,prob_cape_#,6,One chart with dropdown(s) for the numbers in the id
+prob_cape_250,Probability of CAPE over 250,Probability: severe and storms,1,GEFS,prob_cape_#,6,One chart with dropdown(s) for the numbers in the id
+prob_cape_3000,Probability of Mixed Layer CAPE over 3000,Probability: severe and storms,1,HREF,prob_cape_#,6,One chart with dropdown(s) for the numbers in the id
+prob_cape_4000,Probability of CAPE over 4000,Probability: severe and storms,1,GEFS,prob_cape_#,6,One chart with dropdown(s) for the numbers in the id
+prob_cape_500,Probability of CAPE over 500,Probability: severe and storms,2,GEFS HREF,prob_cape_#,6,One chart with dropdown(s) for the numbers in the id
+prob_cref_40dbz,Probability of Composite Reflectivity over 40 dBZ,Probability: severe and storms,1,HREF,prob_cref_#dbz,2,One chart with dropdown(s) for the numbers in the id
+prob_cref_50dbz,Probability of Composite Reflectivity over 50 dBZ,Probability: severe and storms,1,HREF,prob_cref_#dbz,2,One chart with dropdown(s) for the numbers in the id
+prob_etop_30000ft,"Probability of Echo Top over 30,000 ft",Probability: severe and storms,1,HREF,prob_etop_#ft,2,One chart with dropdown(s) for the numbers in the id
+prob_etop_35000ft,"Probability of Echo Top over 35,000 ft",Probability: severe and storms,1,HREF,prob_etop_#ft,2,One chart with dropdown(s) for the numbers in the id
+prob_max_hlcy_150,Probability of Maximum 2-5 km Updraft Helicity over 150,Probability: severe and storms,1,HREF,prob_max_hlcy_#,3,One chart with dropdown(s) for the numbers in the id
+prob_max_hlcy_25,Probability of Maximum 2-5 km Updraft Helicity over 25,Probability: severe and storms,1,HREF,prob_max_hlcy_#,3,One chart with dropdown(s) for the numbers in the id
+prob_max_hlcy_75,Probability of Maximum 2-5 km Updraft Helicity over 75,Probability: severe and storms,1,HREF,prob_max_hlcy_#,3,One chart with dropdown(s) for the numbers in the id
+prob_refc_40,Probability of Composite Reflectivity of 40 dBZ or more,Probability: severe and storms,1,REFS,prob_refc_#,2,One chart with dropdown(s) for the numbers in the id
+prob_refc_50,Probability of Composite Reflectivity of 50 dBZ or more,Probability: severe and storms,1,REFS,prob_refc_#,2,One chart with dropdown(s) for the numbers in the id
+prob_refd_40dbz,Probability of 1 km Reflectivity over 40 dBZ,Probability: severe and storms,1,HREF,prob_refd_#dbz,1,Own chart
+prob_refd_max_40dbz,Probability of 1 km Maximum Reflectivity over 40 dBZ,Probability: severe and storms,1,HREF,prob_refd_max_#dbz,1,Own chart
+prob_tstm,Thunderstorm Probability,Probability: severe and storms,1,NBM,prob_tstm,1,Own chart
+prob_uphl_75,Probability of 2-5 km Updraft Helicity of 75 or more (last hour),Probability: severe and storms,1,REFS,prob_uphl_#,1,Own chart
+prob_vwshr_30kt,Probability of 0-6 km Vertical Wind Shear over 30 kt,Probability: severe and storms,1,HREF,prob_vwshr_#kt,1,Own chart
+severe_hail_4hr,GREFS Calibrated Hail Probability (4-hour),Probability: severe and storms,1,SPCPOST,severe_hail_#hr,1,Own chart
+severe_hail_full,GREFS Calibrated Hail Probability (rest of the convective day),Probability: severe and storms,1,SPCPOST,severe_hail_full,1,Own chart
+severe_tor_4hr,GREFS Calibrated Tornado Probability (4-hour),Probability: severe and storms,1,SPCPOST,severe_tor_#hr,1,Own chart
+severe_tor_full,GREFS Calibrated Tornado Probability (rest of the convective day),Probability: severe and storms,1,SPCPOST,severe_tor_full,1,Own chart
+severe_wind_4hr,GREFS Calibrated Wind Probability (4-hour),Probability: severe and storms,1,SPCPOST,severe_wind_#hr,1,Own chart
+severe_wind_full,GREFS Calibrated Wind Probability (rest of the convective day),Probability: severe and storms,1,SPCPOST,severe_wind_full,1,Own chart
+thunder_1hr,REFSCT Thunderstorm Probability (1-hour),Probability: severe and storms,1,SPCPOST,thunder_#hr,3,One chart with dropdown(s) for the numbers in the id
+thunder_24hr,"GEFSCT Thunderstorm Probability (24-hour, 12Z to 12Z)",Probability: severe and storms,1,SPCGEFS,thunder_#hr,3,One chart with dropdown(s) for the numbers in the id
+thunder_4hr,REFSCT Thunderstorm Probability (4-hour),Probability: severe and storms,1,SPCPOST,thunder_#hr,3,One chart with dropdown(s) for the numbers in the id
+thunder_full,REFSCT Thunderstorm Probability (rest of the convective day),Probability: severe and storms,1,SPCPOST,thunder_full,1,Own chart
+tstm_prob,Thunderstorm Probability (6 hours ending),Probability: severe and storms,1,NBM,tstm_prob,1,Own chart
+all_prob_24h_0.01in,Probability of 0.01 in or more of precipitation in 24 hours: all ensembles,Probability: temperature and wind,1,ENS-ALL,all_prob_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+all_prob_24h_0.1in,Probability of 0.10 in or more of precipitation in 24 hours: all ensembles,Probability: temperature and wind,1,ENS-ALL,all_prob_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+all_prob_24h_0.25in,Probability of 0.25 in or more of precipitation in 24 hours: all ensembles,Probability: temperature and wind,1,ENS-ALL,all_prob_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+all_prob_24h_0.5in,Probability of 0.50 in or more of precipitation in 24 hours: all ensembles,Probability: temperature and wind,1,ENS-ALL,all_prob_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+all_prob_24h_1in,Probability of 1.00 in or more of precipitation in 24 hours: all ensembles,Probability: temperature and wind,1,ENS-ALL,all_prob_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+all_prob_24h_2in,Probability of 2.00 in or more of precipitation in 24 hours: all ensembles,Probability: temperature and wind,1,ENS-ALL,all_prob_#h_#in,6,One chart with dropdown(s) for the numbers in the id
+ens_prob_2m_temp_0C,Probability of 2m Temperature under 0 C,Probability: temperature and wind,1,REFS,ens_prob_#m_temp_#C,1,Own chart
+ens_prob_10m_wind_25kt,Probability of 10m Wind Speeds over 25 kt,Probability: temperature and wind,1,REFS,ens_prob_#m_wind_#kt,1,Own chart
+prob_2m_dewp_55F,Probability of 2 m Dew Point over 55 F,Probability: temperature and wind,1,HREF,prob_#m_dewp_#F,2,One chart with dropdown(s) for the numbers in the id
+prob_2m_dewp_65F,Probability of 2 m Dew Point over 65 F,Probability: temperature and wind,1,HREF,prob_#m_dewp_#F,2,One chart with dropdown(s) for the numbers in the id
+prob_2m_temp_0C,Probability of 2 m Temperature under 0 C,Probability: temperature and wind,1,HREF,prob_#m_temp_#C,1,Own chart
+prob_2m_temp_90f,Probability of 2m Temperature at or over 90 F,Probability: temperature and wind,1,GEPS,prob_#m_temp_#f,1,Own chart
+prob_2m_temp_freezing,Probability of 2m Temperature at or under Freezing,Probability: temperature and wind,1,GEPS,prob_#m_temp_freezing,1,Own chart
+prob_10m_wspd_20kt,Probability of 10 m Wind Speed over 20 kt,Probability: temperature and wind,1,HREF,prob_#m_wspd_#kt,2,One chart with dropdown(s) for the numbers in the id
+prob_10m_wspd_30kt,Probability of 10 m Wind Speed over 30 kt,Probability: temperature and wind,1,HREF,prob_#m_wspd_#kt,2,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_expected,"24 hr Rain, expected amount","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_expected,"36 hr Rain, expected amount","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_expected,"48 hr Rain, expected amount","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_expected,"72 hr Rain, expected amount","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_p05,"24 hr Rain, 05th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_p10,"24 hr Rain, 10th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_p25,"24 hr Rain, 25th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_p50,"24 hr Rain, 50th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_p75,"24 hr Rain, 75th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_p90,"24 hr Rain, 90th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_p95,"24 hr Rain, 95th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_p05,"36 hr Rain, 05th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_p10,"36 hr Rain, 10th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_p25,"36 hr Rain, 25th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_p50,"36 hr Rain, 50th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_p75,"36 hr Rain, 75th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_p90,"36 hr Rain, 90th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_p95,"36 hr Rain, 95th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_p05,"48 hr Rain, 05th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_p10,"48 hr Rain, 10th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_p25,"48 hr Rain, 25th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_p50,"48 hr Rain, 50th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_p75,"48 hr Rain, 75th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_p90,"48 hr Rain, 90th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_p95,"48 hr Rain, 95th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_p05,"72 hr Rain, 05th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_p10,"72 hr Rain, 10th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_p25,"72 hr Rain, 25th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_p50,"72 hr Rain, 50th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_p75,"72 hr Rain, 75th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_p90,"72 hr Rain, 90th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_p95,"72 hr Rain, 95th percentile","Rain: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_qpf_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_0p01,"24 hr Rain, chance of 0.01 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_0p10,"24 hr Rain, chance of 0.10 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_0p25,"24 hr Rain, chance of 0.25 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_0p50,"24 hr Rain, chance of 0.50 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_12p0,"24 hr Rain, chance of 12 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_1p00,"24 hr Rain, chance of 1 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_2p00,"24 hr Rain, chance of 2 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_3p00,"24 hr Rain, chance of 3 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_4p00,"24 hr Rain, chance of 4 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_6p00,"24 hr Rain, chance of 6 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_24h_qpf_prob_8p00,"24 hr Rain, chance of 8 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_0p01,"36 hr Rain, chance of 0.01 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_0p10,"36 hr Rain, chance of 0.10 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_0p25,"36 hr Rain, chance of 0.25 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_0p50,"36 hr Rain, chance of 0.50 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_12p0,"36 hr Rain, chance of 12 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_1p00,"36 hr Rain, chance of 1 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_2p00,"36 hr Rain, chance of 2 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_3p00,"36 hr Rain, chance of 3 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_4p00,"36 hr Rain, chance of 4 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_6p00,"36 hr Rain, chance of 6 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_36h_qpf_prob_8p00,"36 hr Rain, chance of 8 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_0p01,"48 hr Rain, chance of 0.01 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_0p10,"48 hr Rain, chance of 0.10 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_0p25,"48 hr Rain, chance of 0.25 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_0p50,"48 hr Rain, chance of 0.50 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_12p0,"48 hr Rain, chance of 12 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_1p00,"48 hr Rain, chance of 1 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_2p00,"48 hr Rain, chance of 2 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_3p00,"48 hr Rain, chance of 3 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_4p00,"48 hr Rain, chance of 4 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_6p00,"48 hr Rain, chance of 6 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_48h_qpf_prob_8p00,"48 hr Rain, chance of 8 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_0p01,"72 hr Rain, chance of 0.01 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_0p10,"72 hr Rain, chance of 0.10 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_0p25,"72 hr Rain, chance of 0.25 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_0p50,"72 hr Rain, chance of 0.50 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_12p0,"72 hr Rain, chance of 12 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_1p00,"72 hr Rain, chance of 1 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_2p00,"72 hr Rain, chance of 2 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_3p00,"72 hr Rain, chance of 3 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_4p00,"72 hr Rain, chance of 4 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_6p00,"72 hr Rain, chance of 6 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+ppp_72h_qpf_prob_8p00,"72 hr Rain, chance of 8 in or more",Rain: chance of an amount,1,WPC-PPP,ppp_#h_qpf_prob_#p#,44,One chart with dropdown(s) for the numbers in the id
+fosberg_max,Fosberg Index (ensemble maximum),SPC REFS: Fire weather,1,SPCREFS,fosberg_max,1,Own chart
+fosberg_mean,Fosberg Index (ensemble mean),SPC REFS: Fire weather,1,SPCREFS,fosberg_mean,1,Own chart
+fosberg_min,Fosberg Index (ensemble minimum),SPC REFS: Fire weather,1,SPCREFS,fosberg_min,1,Own chart
+fosberg_prob_t>050,Fosberg Index > 50 (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,fosberg_prob_t>#,2,One chart with dropdown(s) for the numbers in the id
+fosberg_prob_t>075,Fosberg Index > 75 (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,fosberg_prob_t>#,2,One chart with dropdown(s) for the numbers in the id
+rh2m_max,2-m Relative Humidity (ensemble maximum),SPC REFS: Fire weather,1,SPCREFS,rh#m_max,1,Own chart
+rh2m_mean,2-m Relative Humidity (ensemble mean),SPC REFS: Fire weather,1,SPCREFS,rh#m_mean,1,Own chart
+rh2m_min,2-m Relative Humidity (ensemble minimum),SPC REFS: Fire weather,1,SPCREFS,rh#m_min,1,Own chart
+rh2m_s10m_prob_t<010_t>030,Wind > 30 mph and RH < 10% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<015_t>015,Wind > 15 mph and RH < 15% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<015_t>020,Wind > 20 mph and RH < 15% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<015_t>025,Wind > 25 mph and RH < 15% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<020_t>015,Wind > 15 mph and RH < 20% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<020_t>020,Wind > 20 mph and RH < 20% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<020_t>025,Wind > 25 mph and RH < 20% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<025_t>015,Wind > 15 mph and RH < 25% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<025_t>020,Wind > 20 mph and RH < 25% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<025_t>025,Wind > 25 mph and RH < 25% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<030_t>015,Wind > 15 mph and RH < 30% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<030_t>020,Wind > 20 mph and RH < 30% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<035_t>010,Wind > 10 mph and RH < 35% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+rh2m_s10m_prob_t<035_t>015,Wind > 15 mph and RH < 35% (ensemble probability),SPC REFS: Fire weather,1,SPCREFS,rh#m_s#m_prob_t<#_t>#,14,One chart with dropdown(s) for the numbers in the id
+mucape_mean,Most-Unstable CAPE (ensemble mean),SPC REFS: Instability and shear,1,SPCREFS,mucape_mean,1,Own chart
+sbcape_max,Surface-Based CAPE (ensemble maximum),SPC REFS: Instability and shear,1,SPCREFS,sbcape_max,1,Own chart
+sbcape_mean,Surface-Based CAPE (ensemble mean),SPC REFS: Instability and shear,1,SPCREFS,sbcape_mean,1,Own chart
+sbcape_min,Surface-Based CAPE (ensemble minimum),SPC REFS: Instability and shear,1,SPCREFS,sbcape_min,1,Own chart
+sbcape_prob_t>1000,SBCAPE > 1000 J/kg (ensemble probability),SPC REFS: Instability and shear,1,SPCREFS,sbcape_prob_t>#,3,One chart with dropdown(s) for the numbers in the id
+sbcape_prob_t>2000,SBCAPE > 2000 J/kg (ensemble probability),SPC REFS: Instability and shear,1,SPCREFS,sbcape_prob_t>#,3,One chart with dropdown(s) for the numbers in the id
+sbcape_prob_t>500,SBCAPE > 500 J/kg (ensemble probability),SPC REFS: Instability and shear,1,SPCREFS,sbcape_prob_t>#,3,One chart with dropdown(s) for the numbers in the id
+sbcape_smooth_mean,"Surface-Based CAPE (ensemble mean, smoothed)",SPC REFS: Instability and shear,1,SPCREFS,sbcape_smooth_mean,1,Own chart
+sbcinh_mean,"Surface-Based CIN (ensemble mean, shown as magnitude)",SPC REFS: Instability and shear,1,SPCREFS,sbcinh_mean,1,Own chart
+shrmag06_mean,0-6 km Shear Magnitude (ensemble mean),SPC REFS: Instability and shear,1,SPCREFS,shrmag#_mean,1,Own chart
+srh01_mean,0-1 km Storm-Relative Helicity (ensemble mean),SPC REFS: Instability and shear,1,SPCREFS,srh#_mean,2,One chart with dropdown(s) for the numbers in the id
+srh03_mean,0-3 km Storm-Relative Helicity (ensemble mean),SPC REFS: Instability and shear,1,SPCREFS,srh#_mean,2,One chart with dropdown(s) for the numbers in the id
+stp_fixed_24h_max_overlap12h_mean,24-h Max Fixed-Layer Significant Tornado Parameter (ensemble mean),SPC REFS: Instability and shear,1,SPCREFS,stp_fixed_#h_max_overlap#h_mean,1,Own chart
+stp_fixed_mean,Fixed-Layer Significant Tornado Parameter (ensemble mean),SPC REFS: Instability and shear,1,SPCREFS,stp_fixed_mean,1,Own chart
+stp_fixed_prob_t>001,Fixed-Layer STP > 1 (ensemble probability),SPC REFS: Instability and shear,1,SPCREFS,stp_fixed_prob_t>#,2,One chart with dropdown(s) for the numbers in the id
+stp_fixed_prob_t>003,Fixed-Layer STP > 3 (ensemble probability),SPC REFS: Instability and shear,1,SPCREFS,stp_fixed_prob_t>#,2,One chart with dropdown(s) for the numbers in the id
+ushr06_mean,"0-6 km Shear, west-east component (ensemble mean)",SPC REFS: Instability and shear,1,SPCREFS,ushr#_mean,1,Own chart
+vshr06_mean,"0-6 km Shear, south-north component (ensemble mean)",SPC REFS: Instability and shear,1,SPCREFS,vshr#_mean,1,Own chart
+bliz_prob_t<0p250_t>035_t>0p010,"Blizzard Probability: visibility < 0.25 mi, 10-m wind > 35 mph, snow",SPC REFS: Precipitation,1,SPCREFS,bliz_prob_t<#p#_t>#_t>#p#,2,One chart with dropdown(s) for the numbers in the id
+bliz_prob_t<0p500_t>030_t>0p010,"Blizzard Probability: visibility < 0.5 mi, 10-m wind > 30 mph, snow",SPC REFS: Precipitation,1,SPCREFS,bliz_prob_t<#p#_t>#_t>#p#,2,One chart with dropdown(s) for the numbers in the id
+frzr_fram_03h_acc_mean,3-h FRAM Ice Accretion (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,frzr_fram_#h_acc_mean,1,Own chart
+frzr_fram_24h_acc_overlap12h_mean,24-h FRAM Ice Accretion (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,frzr_fram_#h_acc_overlap#h_mean,1,Own chart
+frzr_qpf_03h_acc_max,3-h Freezing Rain QPF (ensemble maximum),SPC REFS: Precipitation,1,SPCREFS,frzr_qpf_#h_acc_max,1,Own chart
+frzr_qpf_03h_acc_mean,3-h Freezing Rain QPF (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,frzr_qpf_#h_acc_mean,1,Own chart
+frzr_qpf_24h_acc_overlap12h_max,24-h Freezing Rain QPF (ensemble maximum),SPC REFS: Precipitation,1,SPCREFS,frzr_qpf_#h_acc_overlap#h_max,1,Own chart
+frzr_qpf_24h_acc_overlap12h_mean,24-h Freezing Rain QPF (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,frzr_qpf_#h_acc_overlap#h_mean,1,Own chart
+frzr_qpf_24h_acc_overlap12h_prob_t>0p060,24-h Freezing Rain QPF > 0.06 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,frzr_qpf_#h_acc_overlap#h_prob_t>#p#,1,Own chart
+frzr_qpf_03h_acc_prob_t>0p060,3-h Freezing Rain QPF > 0.06 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,frzr_qpf_#h_acc_prob_t>#p#,1,Own chart
+qpf_06h_acc,6-h QPF (one member),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc,1,Own chart
+qpf_03h_acc_max,3-h QPF (ensemble maximum),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_max,2,One chart with dropdown(s) for the numbers in the id
+qpf_06h_acc_max,6-h QPF (ensemble maximum),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_max,2,One chart with dropdown(s) for the numbers in the id
+qpf_01h_acc_mean,1-h QPF (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_mean,3,One chart with dropdown(s) for the numbers in the id
+qpf_03h_acc_mean,3-h QPF (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_mean,3,One chart with dropdown(s) for the numbers in the id
+qpf_06h_acc_mean,6-h QPF (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_mean,3,One chart with dropdown(s) for the numbers in the id
+qpf_03h_acc_nmep_r013_t>001,"3-h QPF > 1 in, neighborhood probability",SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_nmep_r#_t>#,2,One chart with dropdown(s) for the numbers in the id
+qpf_03h_acc_nmep_r013_t>003,"3-h QPF > 3 in, neighborhood probability",SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_nmep_r#_t>#,2,One chart with dropdown(s) for the numbers in the id
+qpf_06h_acc_nmep_r013_t>0p100,"6-h QPF > 0.1 in, neighborhood probability",SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_nmep_r#_t>#p#,2,One chart with dropdown(s) for the numbers in the id
+qpf_06h_acc_nmep_r013_t>0p250,"6-h QPF > 0.25 in, neighborhood probability",SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_nmep_r#_t>#p#,2,One chart with dropdown(s) for the numbers in the id
+qpf_24h_acc_overlap12h,24-h QPF (one member),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_overlap#h,1,Own chart
+qpf_24h_acc_overlap12h_max,24-h QPF (ensemble maximum),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_overlap#h_max,2,One chart with dropdown(s) for the numbers in the id
+qpf_48h_acc_overlap12h_max,48-h QPF (ensemble maximum),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_overlap#h_max,2,One chart with dropdown(s) for the numbers in the id
+qpf_24h_acc_overlap12h_mean,24-h QPF (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_overlap#h_mean,2,One chart with dropdown(s) for the numbers in the id
+qpf_48h_acc_overlap12h_mean,48-h QPF (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_overlap#h_mean,2,One chart with dropdown(s) for the numbers in the id
+qpf_24h_acc_overlap12h_pmmean,24-h QPF (PM mean),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_overlap#h_pmmean,2,One chart with dropdown(s) for the numbers in the id
+qpf_48h_acc_overlap12h_pmmean,48-h QPF (PM mean),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_overlap#h_pmmean,2,One chart with dropdown(s) for the numbers in the id
+qpf_03h_acc_pmmean,3-h QPF (PM mean),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_pmmean,2,One chart with dropdown(s) for the numbers in the id
+qpf_06h_acc_pmmean,6-h QPF (PM mean),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_pmmean,2,One chart with dropdown(s) for the numbers in the id
+qpf_01h_acc_prob_t>001,1-h QPF > 1 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_prob_t>#,4,One chart with dropdown(s) for the numbers in the id
+qpf_06h_acc_prob_t>001,6-h QPF > 1 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_prob_t>#,4,One chart with dropdown(s) for the numbers in the id
+qpf_06h_acc_prob_t>002,6-h QPF > 2 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_prob_t>#,4,One chart with dropdown(s) for the numbers in the id
+qpf_06h_acc_prob_t>003,6-h QPF > 3 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_prob_t>#,4,One chart with dropdown(s) for the numbers in the id
+qpf_01h_acc_prob_t>0p010,1-h QPF > 0.01 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_prob_t>#p#,2,One chart with dropdown(s) for the numbers in the id
+qpf_06h_acc_prob_t>0p010,6-h QPF > 0.01 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,qpf_#h_acc_prob_t>#p#,2,One chart with dropdown(s) for the numbers in the id
+qpf_01h_ptype,1-h QPF and Dominant Precipitation Type,SPC REFS: Precipitation,1,SPCREFS,qpf_#h_ptype,1,Own chart
+snow_12h_acc_max,12-h Snowfall (ensemble maximum),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_max,1,Own chart
+snow_01h_acc_mean,1-h Snowfall (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_mean,2,One chart with dropdown(s) for the numbers in the id
+snow_12h_acc_mean,12-h Snowfall (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_mean,2,One chart with dropdown(s) for the numbers in the id
+snow_24h_acc_overlap12h_max,24-h Snowfall (ensemble maximum),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_overlap#h_max,1,Own chart
+snow_24h_acc_overlap12h_mean,24-h Snowfall (ensemble mean),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_overlap#h_mean,1,Own chart
+snow_24h_acc_overlap12h_pmmean,24-h Snowfall (PM mean),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_overlap#h_pmmean,1,Own chart
+snow_24h_acc_overlap12h_prob_t>004,24-h Snowfall > 4 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_overlap#h_prob_t>#,3,One chart with dropdown(s) for the numbers in the id
+snow_24h_acc_overlap12h_prob_t>008,24-h Snowfall > 8 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_overlap#h_prob_t>#,3,One chart with dropdown(s) for the numbers in the id
+snow_24h_acc_overlap12h_prob_t>012,24-h Snowfall > 12 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_overlap#h_prob_t>#,3,One chart with dropdown(s) for the numbers in the id
+snow_12h_acc_pmmean,12-h Snowfall (PM mean),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_pmmean,1,Own chart
+snow_01h_acc_prob_t>001,1-h Snowfall > 1 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_prob_t>#,5,One chart with dropdown(s) for the numbers in the id
+snow_01h_acc_prob_t>002,1-h Snowfall > 2 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_prob_t>#,5,One chart with dropdown(s) for the numbers in the id
+snow_12h_acc_prob_t>004,12-h Snowfall > 4 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_prob_t>#,5,One chart with dropdown(s) for the numbers in the id
+snow_12h_acc_prob_t>008,12-h Snowfall > 8 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_prob_t>#,5,One chart with dropdown(s) for the numbers in the id
+snow_12h_acc_prob_t>012,12-h Snowfall > 12 in (ensemble probability),SPC REFS: Precipitation,1,SPCREFS,snow_#h_acc_prob_t>#,5,One chart with dropdown(s) for the numbers in the id
+cref,Composite Reflectivity (one member),SPC REFS: Severe storms,1,SPCREFS,cref,1,Own chart
+cref_max,Composite Reflectivity (ensemble maximum),SPC REFS: Severe storms,1,SPCREFS,cref_max,1,Own chart
+cref_nmep_r013_t040,"Composite Reflectivity > 40 dBZ, 40-km neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,cref_nmep_r#_t#,1,Own chart
+cref_pb_t040,Composite Reflectivity Paintball > 40 dBZ,SPC REFS: Severe storms,1,SPCREFS,cref_pb_t#,1,Own chart
+maxref1km_24h_max_overlap12h_max,24-h Max Reflectivity (ensemble maximum),SPC REFS: Severe storms,1,SPCREFS,maxref#km_#h_max_overlap#h_max,1,Own chart
+maxref1km_04h_max_overlap_max,4-h Max Reflectivity (ensemble maximum),SPC REFS: Severe storms,1,SPCREFS,maxref#km_#h_max_overlap_max,1,Own chart
+maxref1km_mucape_24h_max_overlap12h_nmep_r013_t>040,"24-h Max Reflectivity > 40 dBZ, neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,maxref#km_mucape_#h_max_overlap#h_nmep_r#_t>#,1,Own chart
+maxref1km_mucape_24h_max_overlap12h_pb_t>040,24-h Max Reflectivity Paintball > 40 dBZ (where MUCAPE > 50 J/kg),SPC REFS: Severe storms,1,SPCREFS,maxref#km_mucape_#h_max_overlap#h_pb_t>#,1,Own chart
+maxref1km_mucape_04h_max_overlap_nmep_r013_t>040,"4-h Max Reflectivity > 40 dBZ, neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,maxref#km_mucape_#h_max_overlap_nmep_r#_t>#,1,Own chart
+maxref1km_mucape_04h_max_overlap_pb_t>040,4-h Max Reflectivity Paintball > 40 dBZ (where MUCAPE > 50 J/kg),SPC REFS: Severe storms,1,SPCREFS,maxref#km_mucape_#h_max_overlap_pb_t>#,1,Own chart
+s10m_24h_max_overlap12h_max,24-h Max 10-m Wind Speed where Reflectivity > 20 dBZ (ensemble maximum),SPC REFS: Severe storms,1,SPCREFS,s#m_#h_max_overlap#h_max,1,Own chart
+s10m_24h_max_overlap12h_nmep_r013_t030,"24-h 10-m Wind Speed > 30 kt, neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,s#m_#h_max_overlap#h_nmep_r#_t#,2,One chart with dropdown(s) for the numbers in the id
+s10m_24h_max_overlap12h_nmep_r013_t050,"24-h 10-m Wind Speed > 50 kt, neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,s#m_#h_max_overlap#h_nmep_r#_t#,2,One chart with dropdown(s) for the numbers in the id
+s10m_24h_max_overlap12h_pb_t030,24-h Paintball 10-m Wind Speed > 30 kt,SPC REFS: Severe storms,1,SPCREFS,s#m_#h_max_overlap#h_pb_t#,1,Own chart
+s10m_04h_max_overlap_max,4-h Max 10-m Wind Speed where Reflectivity > 20 dBZ (ensemble maximum),SPC REFS: Severe storms,1,SPCREFS,s#m_#h_max_overlap_max,1,Own chart
+s10m_04h_max_overlap_nmep_r013_t030,"4-h 10-m Wind Speed > 30 kt, neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,s#m_#h_max_overlap_nmep_r#_t#,2,One chart with dropdown(s) for the numbers in the id
+s10m_04h_max_overlap_nmep_r013_t050,"4-h 10-m Wind Speed > 50 kt, neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,s#m_#h_max_overlap_nmep_r#_t#,2,One chart with dropdown(s) for the numbers in the id
+s10m_04h_max_overlap_pb_t030,4-h Paintball 10-m Wind Speed > 30 kt,SPC REFS: Severe storms,1,SPCREFS,s#m_#h_max_overlap_pb_t#,1,Own chart
+uh25_01h_max_max,1-h Max 2-5 km Updraft Helicity (ensemble maximum),SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_max,1,Own chart
+uh03_04h_max_overlap,4-h Max 0-3 km Updraft Helicity (one member),SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap,2,One chart with dropdown(s) for the numbers in the id
+uh25_04h_max_overlap,4-h Max 2-5 km Updraft Helicity (one member),SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap,2,One chart with dropdown(s) for the numbers in the id
+uh25_24h_max_overlap12h,24-h Max 2-5 km Updraft Helicity (one member),SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap#h,1,Own chart
+uh25_24h_max_overlap12h_max,24-h Max 2-5 km Updraft Helicity (ensemble maximum),SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap#h_max,1,Own chart
+uh25_24h_max_overlap12h_nmep_r013_t>99.85p,"24-h 2-5 km UH > 99.85 percentile, 40-km neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap#h_nmep_r#_t>#p,2,One chart with dropdown(s) for the numbers in the id
+uh25_24h_max_overlap12h_nmep_r013_t>99.95p,"24-h 2-5 km UH > 99.95 percentile, 40-km neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap#h_nmep_r#_t>#p,2,One chart with dropdown(s) for the numbers in the id
+uh25_24h_max_overlap12h_pb_t>99.85p,24-h Paintball 2-5 km UH > 99.85 percentile,SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap#h_pb_t>#p,2,One chart with dropdown(s) for the numbers in the id
+uh25_24h_max_overlap12h_pb_t>99.95p,24-h Paintball 2-5 km UH > 99.95 percentile,SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap#h_pb_t>#p,2,One chart with dropdown(s) for the numbers in the id
+uh25_04h_max_overlap_max,4-h Max 2-5 km Updraft Helicity (ensemble maximum),SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap_max,1,Own chart
+uh25_04h_max_overlap_nmep_r013_t>99.85p,"4-h 2-5 km UH > 99.85 percentile, 40-km neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap_nmep_r#_t>#p,2,One chart with dropdown(s) for the numbers in the id
+uh25_04h_max_overlap_nmep_r013_t>99.95p,"4-h 2-5 km UH > 99.95 percentile, 40-km neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap_nmep_r#_t>#p,2,One chart with dropdown(s) for the numbers in the id
+uh25_04h_max_overlap_pb_t>99.85p,4-h Paintball 2-5 km UH > 99.85 percentile,SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap_pb_t>#p,2,One chart with dropdown(s) for the numbers in the id
+uh25_04h_max_overlap_pb_t>99.95p,4-h Paintball 2-5 km UH > 99.95 percentile,SPC REFS: Severe storms,1,SPCREFS,uh#_#h_max_overlap_pb_t>#p,2,One chart with dropdown(s) for the numbers in the id
+uh25min_04h_min_overlap,"4-h Min 2-5 km Updraft Helicity (one member, shown as magnitude)",SPC REFS: Severe storms,1,SPCREFS,uh#min_#h_min_overlap,1,Own chart
+uh25min_24h_min_overlap12h,"24-h Min 2-5 km Updraft Helicity (one member, shown as magnitude)",SPC REFS: Severe storms,1,SPCREFS,uh#min_#h_min_overlap#h,1,Own chart
+uh25min_24h_min_overlap12h_min,"24-h Min 2-5 km Updraft Helicity (ensemble minimum, shown as magnitude)",SPC REFS: Severe storms,1,SPCREFS,uh#min_#h_min_overlap#h_min,1,Own chart
+uh25min_24h_min_overlap12h_nmep_r013_t<-35,"24-h 2-5 km UH < -35 m2/s2, 40-km neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,uh#min_#h_min_overlap#h_nmep_r#_t<-#,2,One chart with dropdown(s) for the numbers in the id
+uh25min_24h_min_overlap12h_nmep_r013_t<-70,"24-h 2-5 km UH < -70 m2/s2, 40-km neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,uh#min_#h_min_overlap#h_nmep_r#_t<-#,2,One chart with dropdown(s) for the numbers in the id
+uh25min_04h_min_overlap_min,"4-h Min 2-5 km Updraft Helicity (ensemble minimum, shown as magnitude)",SPC REFS: Severe storms,1,SPCREFS,uh#min_#h_min_overlap_min,1,Own chart
+uh25min_04h_min_overlap_nmep_r013_t<-35,"4-h 2-5 km UH < -35 m2/s2, 40-km neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,uh#min_#h_min_overlap_nmep_r#_t<-#,2,One chart with dropdown(s) for the numbers in the id
+uh25min_04h_min_overlap_nmep_r013_t<-70,"4-h 2-5 km UH < -70 m2/s2, 40-km neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,uh#min_#h_min_overlap_nmep_r#_t<-#,2,One chart with dropdown(s) for the numbers in the id
+wmax_24h_max_overlap12h_max,24-h Max Updraft Speed (ensemble maximum),SPC REFS: Severe storms,1,SPCREFS,wmax_#h_max_overlap#h_max,1,Own chart
+wmax_24h_max_overlap12h_nmep_r013_t020,"24-h Updraft Speed > 20 m/s, neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,wmax_#h_max_overlap#h_nmep_r#_t#,2,One chart with dropdown(s) for the numbers in the id
+wmax_24h_max_overlap12h_nmep_r013_t030,"24-h Updraft Speed > 30 m/s, neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,wmax_#h_max_overlap#h_nmep_r#_t#,2,One chart with dropdown(s) for the numbers in the id
+wmax_24h_max_overlap12h_pb_t020,24-h Paintball Updraft Speed > 20 m/s,SPC REFS: Severe storms,1,SPCREFS,wmax_#h_max_overlap#h_pb_t#,1,Own chart
+wmax_04h_max_overlap_max,4-h Max Updraft Speed (ensemble maximum),SPC REFS: Severe storms,1,SPCREFS,wmax_#h_max_overlap_max,1,Own chart
+wmax_04h_max_overlap_nmep_r013_t020,"4-h Updraft Speed > 20 m/s, neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,wmax_#h_max_overlap_nmep_r#_t#,2,One chart with dropdown(s) for the numbers in the id
+wmax_04h_max_overlap_nmep_r013_t030,"4-h Updraft Speed > 30 m/s, neighborhood probability",SPC REFS: Severe storms,1,SPCREFS,wmax_#h_max_overlap_nmep_r#_t#,2,One chart with dropdown(s) for the numbers in the id
+wmax_04h_max_overlap_pb_t020,4-h Paintball Updraft Speed > 20 m/s,SPC REFS: Severe storms,1,SPCREFS,wmax_#h_max_overlap_pb_t#,1,Own chart
+cld_high_mean,High Cloud Cover (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,cld_high_mean,1,Own chart
+cld_low_mean,Low Cloud Cover (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,cld_low_mean,1,Own chart
+cld_mid_mean,Mid Cloud Cover (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,cld_mid_mean,1,Own chart
+gust_max,10-m Gusts (ensemble maximum),SPC REFS: Surface and upper air,1,SPCREFS,gust_max,1,Own chart
+gust_mean,10-m Gusts (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,gust_mean,1,Own chart
+gust_min,10-m Gusts (ensemble minimum),SPC REFS: Surface and upper air,1,SPCREFS,gust_min,1,Own chart
+lr75_mean,700-500 mb Lapse Rate (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,lr#_mean,1,Own chart
+pmsl_mean,Mean Sea-Level Pressure (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,pmsl_mean,1,Own chart
+pwat_mean,Precipitable Water (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,pwat_mean,1,Own chart
+pwat_prob_t>0p500_t<0p800,Precipitable Water between 0.5 and 0.8 in (ensemble probability),SPC REFS: Surface and upper air,1,SPCREFS,pwat_prob_t>#p#_t<#p#,1,Own chart
+s10m_01h_max_max,1-h Max 10-m Wind (ensemble maximum),SPC REFS: Surface and upper air,1,SPCREFS,s#m_#h_max_max,1,Own chart
+s10m_01h_max_mean,1-h Max 10-m Wind (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,s#m_#h_max_mean,1,Own chart
+s10m_01h_max_min,1-h Max 10-m Wind (ensemble minimum),SPC REFS: Surface and upper air,1,SPCREFS,s#m_#h_max_min,1,Own chart
+t500_mean,500 mb Temperature (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,t#_mean,3,One chart with dropdown(s) for the numbers in the id
+t700_mean,700 mb Temperature (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,t#_mean,3,One chart with dropdown(s) for the numbers in the id
+t850_mean,850 mb Temperature (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,t#_mean,3,One chart with dropdown(s) for the numbers in the id
+t2m_mean,2-m Temperature (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,t#m_mean,1,Own chart
+td2m_mean,2-m Dewpoint (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,td#m_mean,1,Own chart
+u500_mean,"500 mb Wind, west-east component (ensemble mean)",SPC REFS: Surface and upper air,1,SPCREFS,u#_mean,3,One chart with dropdown(s) for the numbers in the id
+u700_mean,"700 mb Wind, west-east component (ensemble mean)",SPC REFS: Surface and upper air,1,SPCREFS,u#_mean,3,One chart with dropdown(s) for the numbers in the id
+u850_mean,"850 mb Wind, west-east component (ensemble mean)",SPC REFS: Surface and upper air,1,SPCREFS,u#_mean,3,One chart with dropdown(s) for the numbers in the id
+u10m_mean,"10-m Wind, west-east component (ensemble mean)",SPC REFS: Surface and upper air,1,SPCREFS,u#m_mean,1,Own chart
+v500_mean,"500 mb Wind, south-north component (ensemble mean)",SPC REFS: Surface and upper air,1,SPCREFS,v#_mean,3,One chart with dropdown(s) for the numbers in the id
+v700_mean,"700 mb Wind, south-north component (ensemble mean)",SPC REFS: Surface and upper air,1,SPCREFS,v#_mean,3,One chart with dropdown(s) for the numbers in the id
+v850_mean,"850 mb Wind, south-north component (ensemble mean)",SPC REFS: Surface and upper air,1,SPCREFS,v#_mean,3,One chart with dropdown(s) for the numbers in the id
+v10m_mean,"10-m Wind, south-north component (ensemble mean)",SPC REFS: Surface and upper air,1,SPCREFS,v#m_mean,1,Own chart
+z500_mean,500 mb Height (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,z#_mean,3,One chart with dropdown(s) for the numbers in the id
+z700_mean,700 mb Height (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,z#_mean,3,One chart with dropdown(s) for the numbers in the id
+z850_mean,850 mb Height (ensemble mean),SPC REFS: Surface and upper air,1,SPCREFS,z#_mean,3,One chart with dropdown(s) for the numbers in the id
+sat_ir,Simulated Satellite: Infrared (window),Satellite,2,HAFSA HAFSB,sat_ir,1,Own chart
+sat_wv_low,"Simulated Satellite: Water Vapor, lower level",Satellite,2,HAFSA HAFSB,sat_wv_low,1,Own chart
+sat_wv_mid,"Simulated Satellite: Water Vapor, middle level",Satellite,2,HAFSA HAFSB,sat_wv_mid,1,Own chart
+sat_wv_upper,"Simulated Satellite: Water Vapor, upper level",Satellite,2,HAFSA HAFSB,sat_wv_upper,1,Own chart
+dcp,Derecho Composite Parameter,Severe: composite indices,2,RRFSD SFCOA,dcp,1,Own chart
+ehi_0_1km,0-1 km Energy Helicity Index,Severe: composite indices,2,RRFSD SFCOA,ehi_#_#km,2,One chart with dropdown(s) for the numbers in the id
+ehi_0_3km,0-3 km Energy Helicity Index,Severe: composite indices,2,RRFSD SFCOA,ehi_#_#km,2,One chart with dropdown(s) for the numbers in the id
+scp,Supercell Composite Parameter,Severe: composite indices,2,RRFSD SFCOA,scp,1,Own chart
+ship,SHIP (Significant Hail Parameter),Severe: composite indices,12,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR RRFSD SFCOA,ship,1,Own chart
+stp,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite indices,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,stp,1,Own chart
+stp_eff,Significant Tornado Parameter (effective layer),Severe: composite indices,2,RRFSD SFCOA,stp_eff,1,Own chart
+stp_fix,Significant Tornado Parameter (fixed layer),Severe: composite indices,2,RRFSD SFCOA,stp_fix,1,Own chart
+best_cape,Best (Most Unstable) CAPE,Severe: instability,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,best_cape,1,Own chart
+best_cape_cin,Most Unstable CAPE and CIN,Severe: instability,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,best_cape_cin,1,Own chart
+cape,Surface-Based CAPE,Severe: instability,2,GEFS NBM,cape,1,Own chart
+dcape,Downdraft CAPE,Severe: instability,2,RRFSD SFCOA,dcape,1,Own chart
+ens_cape,Mean Convective Available Potential Energy,Severe: instability,1,REFS,ens_cape,1,Own chart
+ens_cin,Mean Convective Inhibition,Severe: instability,1,REFS,ens_cin,1,Own chart
+lapse_700_500,700-500 mb Lapse Rate,Severe: instability,2,RRFSD SFCOA,lapse_#_#,1,Own chart
+lapse_0_3km,0-3 km Lapse Rate,Severe: instability,2,RRFSD SFCOA,lapse_#_#km,1,Own chart
+lcl_ml,Mixed-Layer LCL Height,Severe: instability,2,RRFSD SFCOA,lcl_ml,1,Own chart
+lfc_sb,Surface-Based LFC Height,Severe: instability,2,RRFSD SFCOA,lfc_sb,1,Own chart
+lifted_index_ml,Best Lifted Index (lowest 180 mb),Severe: instability,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,lifted_index_ml,1,Own chart
+mean_ml_cape,Mean Mixed Layer CAPE,Severe: instability,1,HREF,mean_ml_cape,1,Own chart
+mlcape,Mixed-Layer CAPE (lowest 100 mb),Severe: instability,2,RRFSD SFCOA,mlcape,1,Own chart
+mlcin,Mixed-Layer CIN,Severe: instability,2,RRFSD SFCOA,mlcin,1,Own chart
+mucape,Most Unstable CAPE,Severe: instability,2,RRFSD SFCOA,mucape,1,Own chart
+mucin,Most Unstable CIN,Severe: instability,2,RRFSD SFCOA,mucin,1,Own chart
+sbcape,Surface-Based CAPE,Severe: instability,2,RRFSD SFCOA,sbcape,1,Own chart
+sbcape_wind,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,30,AROME AROME-AT ARPEGE ERA5 GEFS GEPS GFS GFS-ANL GFS1-ANL GRAPES HRDPS HRRR ...,sbcape_wind,1,Preset: Surface (CAPE fill)
+sbcin,Surface-Based CIN,Severe: instability,2,RRFSD SFCOA,sbcin,1,Own chart
+sfc_cape_cin,Surface-Based CAPE and CIN,Severe: instability,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,sfc_cape_cin,1,Own chart
+accu_max_updraft_hlcy,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,accu_max_updraft_hlcy,1,Own chart
+combo_uphl_chance,RRFS Updraft Helicity with the Members' Chance of 75 or more,Severe: rotation and shear,1,REFS,combo_uphl_chance,1,Own chart
+critical_angle,Critical Angle,Severe: rotation and shear,2,RRFSD SFCOA,critical_angle,1,Own chart
+effective_shear,Effective Bulk Wind Difference,Severe: rotation and shear,2,RRFSD SFCOA,effective_shear,1,Own chart
+helicity,Helicity and 30m Wind,Severe: rotation and shear,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,helicity,1,Own chart
+helicity_1km,0-1 km Storm-Relative Helicity,Severe: rotation and shear,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,helicity_#km,2,One chart with dropdown(s) for the numbers in the id
+helicity_3km,0-3 km Storm-Relative Helicity,Severe: rotation and shear,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,helicity_#km,2,One chart with dropdown(s) for the numbers in the id
+max_relv_0_1km,Maximum 0-1 km Relative Vorticity in the last hour,Severe: rotation and shear,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,max_relv_#_#km,2,One chart with dropdown(s) for the numbers in the id
+max_relv_0_2km,Maximum 0-2 km Relative Vorticity in the last hour,Severe: rotation and shear,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,max_relv_#_#km,2,One chart with dropdown(s) for the numbers in the id
+max_updraft_hlcy,Maximum 2-5 km Updraft Helicity in the last hour,Severe: rotation and shear,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,max_updraft_hlcy,1,Own chart
+max_uphl,Strongest 2-5 km Updraft Helicity of any member (last hour),Severe: rotation and shear,1,REFS,max_uphl,1,Own chart
+mean_vwshr,Mean 0-6 km Vertical Wind Shear,Severe: rotation and shear,1,HREF,mean_vwshr,1,Own chart
+mean_wind_0_6km,0-6 km Mean Wind,Severe: rotation and shear,2,RRFSD SFCOA,mean_wind_#_#km,1,Own chart
+shear_0_1km,0-1 km Bulk Wind Shear,Severe: rotation and shear,2,RRFSD SFCOA,shear_#_#km,2,One chart with dropdown(s) for the numbers in the id
+shear_0_6km,0-6 km Bulk Wind Shear,Severe: rotation and shear,2,RRFSD SFCOA,shear_#_#km,2,One chart with dropdown(s) for the numbers in the id
+srh_0_1km,0-1 km Storm Relative Helicity,Severe: rotation and shear,2,RRFSD SFCOA,srh_#_#km,2,One chart with dropdown(s) for the numbers in the id
+srh_0_3km,0-3 km Storm Relative Helicity,Severe: rotation and shear,2,RRFSD SFCOA,srh_#_#km,2,One chart with dropdown(s) for the numbers in the id
+srh_eff,Effective Storm Relative Helicity,Severe: rotation and shear,2,RRFSD SFCOA,srh_eff,1,Own chart
+combo_refc_chance,RRFS Radar with the Members' Chance of 40 dBZ or more,Severe: storm structure,1,REFS,combo_refc_chance,1,Own chart
+echo_top,Echo Top Height,Severe: storm structure,11,HRRR HRRR-AK MPAS-HT MPAS-RN NBM RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,echo_top,1,Own chart
+lightning,Lightning (flashes in the last hour),Severe: storm structure,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,lightning,1,Own chart
+max_downdraft,Maximum 1-hr Downdraft Vertical Velocity,Severe: storm structure,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,max_downdraft,1,Own chart
+max_updraft,Maximum 1-hr Updraft Vertical Velocity,Severe: storm structure,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,max_updraft,1,Own chart
+pmm_refd_1km,Probability Matched Mean of 1 km Reflectivity,Severe: storm structure,1,HREF,pmm_refd_#km,1,Own chart
+pmm_refd_1km_emsl,Probability Matched Mean of 1 km Reflectivity and MSLP,Severe: storm structure,1,HREF,pmm_refd_#km_emsl,1,Own chart
+pmm_refd_max,Probability Matched Mean of Maximum Reflectivity,Severe: storm structure,1,HREF,pmm_refd_max,1,Own chart
+pmm_refd_max_emsl,Probability Matched Mean of Maximum Reflectivity and MSLP,Severe: storm structure,1,HREF,pmm_refd_max_emsl,1,Own chart
+pool_refc_40,"Pooled REFS + MPAS: chance of 40 dBZ or more, most recent runs",Severe: storm structure,1,REFS,pool_refc_#,2,One chart with dropdown(s) for the numbers in the id
+pool_refc_50,"Pooled REFS + MPAS: chance of 50 dBZ or more, most recent runs",Severe: storm structure,1,REFS,pool_refc_#,2,One chart with dropdown(s) for the numbers in the id
+pool_refc_40_lag2,"Pooled REFS + MPAS: chance of 40 dBZ or more, last 2 runs of each",Severe: storm structure,1,REFS,pool_refc_#_lag#,4,One chart with dropdown(s) for the numbers in the id
+pool_refc_40_lag3,"Pooled REFS + MPAS: chance of 40 dBZ or more, last 3 runs of each",Severe: storm structure,1,REFS,pool_refc_#_lag#,4,One chart with dropdown(s) for the numbers in the id
+pool_refc_50_lag2,"Pooled REFS + MPAS: chance of 50 dBZ or more, last 2 runs of each",Severe: storm structure,1,REFS,pool_refc_#_lag#,4,One chart with dropdown(s) for the numbers in the id
+pool_refc_50_lag3,"Pooled REFS + MPAS: chance of 50 dBZ or more, last 3 runs of each",Severe: storm structure,1,REFS,pool_refc_#_lag#,4,One chart with dropdown(s) for the numbers in the id
+reflectivity,Simulated Radar (Composite Reflectivity) and MSLP,Severe: storm structure,2,HAFSA HAFSB,reflectivity,1,Own chart
+sim_radar_1km,Simulated Radar at 1 km,Severe: storm structure,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,sim_radar_#km,1,Own chart
+sim_radar_comp,Simulated Composite Radar Reflectivity,Severe: storm structure,17,ARWEN GFS HRRR HRRR-AK MPAS-HT MPAS-RN MRMS NAM-ANL RAP-ANL RRFS RRFS-AK RRFS-FIREWX ...,sim_radar_comp,1,Own chart
+sim_radar_max,Maximum Simulated Radar of the last hour,Severe: storm structure,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,sim_radar_max,1,Own chart
+ppp_24h_sn_expected,"24 hr Snow, expected amount","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_expected,"36 hr Snow, expected amount","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_expected,"48 hr Snow, expected amount","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_expected,"72 hr Snow, expected amount","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_expected,4,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_p05,"24 hr Snow, 05th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_p10,"24 hr Snow, 10th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_p25,"24 hr Snow, 25th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_p50,"24 hr Snow, 50th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_p75,"24 hr Snow, 75th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_p90,"24 hr Snow, 90th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_p95,"24 hr Snow, 95th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_p05,"36 hr Snow, 05th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_p10,"36 hr Snow, 10th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_p25,"36 hr Snow, 25th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_p50,"36 hr Snow, 50th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_p75,"36 hr Snow, 75th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_p90,"36 hr Snow, 90th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_p95,"36 hr Snow, 95th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_p05,"48 hr Snow, 05th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_p10,"48 hr Snow, 10th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_p25,"48 hr Snow, 25th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_p50,"48 hr Snow, 50th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_p75,"48 hr Snow, 75th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_p90,"48 hr Snow, 90th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_p95,"48 hr Snow, 95th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_p05,"72 hr Snow, 05th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_p10,"72 hr Snow, 10th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_p25,"72 hr Snow, 25th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_p50,"72 hr Snow, 50th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_p75,"72 hr Snow, 75th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_p90,"72 hr Snow, 90th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_p95,"72 hr Snow, 95th percentile","Snow: amount in the period (expected, percentiles)",1,WPC-PPP,ppp_#h_sn_p#,28,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_prob_0p10,"24 hr Snow, chance of 0.1 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_prob_12p0,"24 hr Snow, chance of 12 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_prob_18p0,"24 hr Snow, chance of 18 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_prob_1p00,"24 hr Snow, chance of 1 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_prob_2p00,"24 hr Snow, chance of 2 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_prob_4p00,"24 hr Snow, chance of 4 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_prob_6p00,"24 hr Snow, chance of 6 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_24h_sn_prob_8p00,"24 hr Snow, chance of 8 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_prob_0p10,"36 hr Snow, chance of 0.1 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_prob_12p0,"36 hr Snow, chance of 12 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_prob_18p0,"36 hr Snow, chance of 18 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_prob_1p00,"36 hr Snow, chance of 1 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_prob_2p00,"36 hr Snow, chance of 2 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_prob_4p00,"36 hr Snow, chance of 4 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_prob_6p00,"36 hr Snow, chance of 6 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_36h_sn_prob_8p00,"36 hr Snow, chance of 8 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_prob_0p10,"48 hr Snow, chance of 0.1 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_prob_12p0,"48 hr Snow, chance of 12 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_prob_18p0,"48 hr Snow, chance of 18 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_prob_1p00,"48 hr Snow, chance of 1 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_prob_2p00,"48 hr Snow, chance of 2 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_prob_4p00,"48 hr Snow, chance of 4 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_prob_6p00,"48 hr Snow, chance of 6 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_48h_sn_prob_8p00,"48 hr Snow, chance of 8 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_prob_0p10,"72 hr Snow, chance of 0.1 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_prob_12p0,"72 hr Snow, chance of 12 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_prob_18p0,"72 hr Snow, chance of 18 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_prob_1p00,"72 hr Snow, chance of 1 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_prob_2p00,"72 hr Snow, chance of 2 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_prob_4p00,"72 hr Snow, chance of 4 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_prob_6p00,"72 hr Snow, chance of 6 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+ppp_72h_sn_prob_8p00,"72 hr Snow, chance of 8 in or more",Snow: chance of an amount,1,WPC-PPP,ppp_#h_sn_prob_#p#,32,One chart with dropdown(s) for the numbers in the id
+2m_apparent_temp,2 m Apparent Temperature and 10 m Wind,Surface,1,NBM,#m_apparent_temp,1,Own chart
+2m_dewp_10m_wnd,2 m Dewpoint and 10 m Wind,Surface,20,HRRR HRRR-AK MPAS-HT MPAS-RN NBM RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR RTMA ...,#m_dewp_#m_wnd,1,Own chart
+2m_dewpoint,"MSLP, 10m wind, 2m dewpoint",Surface,24,AIFS AIGFS ERA5 GEFS GFS GFS-ANL GFS1-ANL HRDPS HRRR HRRR-AK ICON-D2 ICON-EU ...,#m_dewpoint,1,Preset: Surface
+2m_dwpc,Shelter (2 m) Dew Point Temperature,Surface,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#m_dwpc,1,Own chart
+2m_max_temp,2 m Maximum Temperature (12 hours ending),Surface,1,NBM,#m_max_temp,1,Own chart
+10m_maxwnd,Maximum 10m Wind in the last hour,Surface,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#m_maxwnd,1,Own chart
+2m_min_temp,2 m Minimum Temperature (12 hours ending),Surface,1,NBM,#m_min_temp,1,Own chart
+2m_relh_10m_wnd,2 m Relative Humidity and 10 m Wind,Surface,1,NBM,#m_relh_#m_wnd,1,Own chart
+2m_rh_10m_wnd_derived,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,24,AIFS AIGFS ERA5 GEFS GFS GFS-ANL GFS1-ANL HRDPS HRRR HRRR-AK ICON-D2 ICON-EU ...,#m_rh_#m_wnd_derived,1,Preset: Surface
+2m_temp,Mean 2m Temperature and Spread,Surface,1,GEFS,#m_temp,1,Own chart
+2m_temp_10m_wnd,2 m Temperature and 10 m Wind,Surface,20,HRRR HRRR-AK MPAS-HT MPAS-RN NBM RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR RTMA ...,#m_temp_#m_wnd,1,Own chart
+2m_tmpc,Shelter (2 m) Temperature,Surface,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#m_tmpc,1,Own chart
+10m_wnd,Mean 10m Winds and Spread,Surface,11,GEFS HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#m_wnd,1,Own chart
+10m_wnd_2m_temp,"MSLP, 10m wind, 2m temperature",Surface,42,AIFS AIGFS AROME AROME-AT ARPEGE ARPEGE-EU ARWEN CFS CFS-ANL ERA5 GDPS GEFS ...,#m_wnd_#m_temp,1,Preset: Surface
+10m_wnd_gust,10 m Wind and Gust,Surface,10,NBM RTMA RTMA-AK RTMA-GU RTMA-HI RTMA-PR URMA URMA-AK URMA-HI URMA-PR,#m_wnd_gust,1,Own chart
+10m_wnd_sfc_gust,10m Wind Barbs and Surface Gust,Surface,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#m_wnd_sfc_gust,1,Own chart
+cfs30_mslp,Next days: mean sea level pressure,Surface,1,CFS30,cfs#_mslp,1,Own chart
+cfs30_mslp_departure,Next days: sea level pressure against the normal,Surface,1,CFS30,cfs#_mslp_departure,1,Own chart
+cfs30_t2m,Next days: temperature against the normal,Surface,1,CFS30,cfs#_t#m,1,Own chart
+cfs30_t2m_value,Next days: mean temperature,Surface,1,CFS30,cfs#_t#m_value,1,Own chart
+dewpoint_2m,2 m Dewpoint,Surface,2,RRFSD SFCOA,dewpoint_#m,1,Own chart
+ec46_mslp,Sea Level Pressure: mean of the week,Surface,1,EC46,ec#_mslp,1,Own chart
+ec46_mslp_departure,Sea Level Pressure: departure of the week,Surface,1,EC46,ec#_mslp_departure,1,Own chart
+ec46_t2m,2 m Temperature: mean of the week,Surface,1,EC46,ec#_t#m,1,Own chart
+ec46_t2m_departure,2 m Temperature: departure of the week,Surface,1,EC46,ec#_t#m_departure,1,Own chart
+ens_2m_temp,Mean 2m Temperature,Surface,1,REFS,ens_#m_temp,1,Own chart
+ens_10m_wind,Mean 10m Winds,Surface,1,REFS,ens_#m_wind,1,Own chart
+ens_mslp,Mean Sea Level Pressure and Spread,Surface,1,REFS,ens_mslp,1,Own chart
+fzl,Freezing Level Height,Surface,2,RRFSD SFCOA,fzl,1,Own chart
+inverse_barometer,Sea Level Lift from Air Pressure,Surface,1,MF-CURRENT,inverse_barometer,1,Own chart
+mean_2m_dewp,Mean 2 m Dew Point,Surface,1,HREF,mean_#m_dewp,1,Own chart
+mean_2m_temp,Mean 2 m Temperature,Surface,2,HREF REFS,mean_#m_temp,1,Own chart
+mixr_2m,2 m Mixing Ratio,Surface,2,RRFSD SFCOA,mixr_#m,1,Own chart
+mslp,Mean Sea Level Pressure and Spread,Surface,1,GEFS,mslp,1,Own chart
+mslp_10m_wind,MSLP and 10m Wind,Surface,42,AIFS AIGFS AROME AROME-AT ARPEGE ARPEGE-EU ARWEN CFS CFS-ANL ERA5 GDPS GEFS ...,mslp_#m_wind,1,Preset: Surface
+ocean_current,Surface Current,Surface,1,MF-CURRENT,ocean_current,1,Own chart
+rh_2m,2 m Relative Humidity,Surface,2,RRFSD SFCOA,rh_#m,1,Own chart
+sea_level_height,Sea Surface Height,Surface,1,MF-CURRENT,sea_level_height,1,Own chart
+seas5_mslp,Sea Level Pressure: mean of the month,Surface,1,SEAS5,seas#_mslp,1,Own chart
+seas5_mslp_departure,Sea Level Pressure: departure of the month,Surface,1,SEAS5,seas#_mslp_departure,1,Own chart
+seas5_t2m,2 m Temperature: mean of the month,Surface,1,SEAS5,seas#_t#m,1,Own chart
+seas5_t2m_departure,2 m Temperature: departure of the month,Surface,1,SEAS5,seas#_t#m_departure,1,Own chart
+temp_2m,2 m Temperature,Surface,2,RRFSD SFCOA,temp_#m,1,Own chart
+thetae_2m,2 m Equivalent Potential Temperature,Surface,2,RRFSD SFCOA,thetae_#m,1,Own chart
+total_cloud_cover,Total Cloud Cover and 10 m Wind,Surface,10,NBM RTMA RTMA-AK RTMA-GU RTMA-HI RTMA-PR URMA URMA-AK URMA-HI URMA-PR,total_cloud_cover,1,Own chart
+tstm_coverage,Thunderstorm Coverage,Surface,1,NBM,tstm_coverage,1,Own chart
+wind_mslp,"10m Wind, MSLP and Barbs",Surface,2,HAFSA HAFSB,wind_mslp,1,Own chart
+swath_gust,Swath: Strongest 10m Gust so far,Swaths,2,HAFSA HAFSB,swath_gust,1,Own chart
+swath_wind,Swath: Strongest 10m Wind so far,Swaths,2,HAFSA HAFSB,swath_wind,1,Own chart
+200_div_wnd,"200mb Divergence, Wind and Height",Tropical and dynamics,32,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GEPS GFS GFS-ANL GFS1-ANL GRAPES ...,#_div_wnd,1,Preset: level chart (divergence fill)
+200_stream_div,200mb Divergence and Streamlines,Tropical and dynamics,32,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GEPS GFS GFS-ANL GFS1-ANL GRAPES ...,#_stream_div,1,Own chart
+850_stream_vort,850mb Vorticity and Streamlines,Tropical and dynamics,37,AIFS AIGFS AROME ARPEGE CFS CFS-ANL ERA5 GDPS GEFS GEOS-FP GFS GFS-ANL ...,#_stream_vort,1,Own chart
+850_thetae_ht,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,38,AIFS AIGFS AROME ARPEGE CFS CFS-ANL ERA5 GDPS GEFS GEOS-FP GEPS GFS ...,#_thetae_ht,1,Preset: level chart (theta-e fill)
+500_vort_ht,"500mb Vorticity, Wind, and Height",Tropical and dynamics,33,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GFS GFS-ANL GFS1-ANL GRAPES GSM ...,#_vort_ht,3,Preset: level chart (vorticity fill)
+700_vort_ht,"Mean 700mb Height, Vorticity and Spread",Tropical and dynamics,1,GEFS,#_vort_ht,3,One chart with dropdown(s) for the numbers in the id
+850_vort_ht,"850mb Vorticity, Wind and Height",Tropical and dynamics,35,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GFS GFS-ANL GFS1-ANL GRAPES GSM ...,#_vort_ht,3,Preset: level chart (vorticity fill)
+850vor_500ht_200wd,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,31,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GFS GFS-ANL GFS1-ANL GRAPES GSM ...,#vor_#ht_#wd,1,Preset: level chart (vorticity fill)
+ens_250_vort_ht,250mb Vorticity and Height,Tropical and dynamics,1,REFS,ens_#_vort_ht,2,One chart with dropdown(s) for the numbers in the id
+ens_500_vort_ht,500mb Vorticity and Height,Tropical and dynamics,1,REFS,ens_#_vort_ht,2,One chart with dropdown(s) for the numbers in the id
+shear_850_200,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,32,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GEPS GFS GFS-ANL GFS1-ANL GRAPES ...,shear_#_#,1,Own chart (or layer fill)
+steering_850_200,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,30,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GEPS GFS GFS-ANL GFS1-ANL GRAPES ...,steering_#_#,1,Own chart (or layer fill)
+850_700_rh,850-700mb Mean Relative Humidity,Upper air,37,AIFS AIGFS AROME ARPEGE CFS CFS-ANL ERA5 GDPS GEFS GEPS GFS GFS-ANL ...,#_#_rh,1,Preset: layer humidity
+850_pw_ht,"850mb Height, Precipitable Water and Wind",Upper air,24,CFS CFS-ANL ERA5 GEFS GEOS-FP GEPS GFS GFS-ANL GFS1-ANL HRRR HRRR-AK IFS ...,#_pw_ht,1,Preset: level chart (PW fill)
+500_rh_ht,500mb Relative Humidity and Height,Upper air,38,AIFS AIGFS AROME ARPEGE CFS CFS-ANL ERA5 GDPS GEFS GEOS-FP GEPS GFS ...,#_rh_ht,3,Preset: level chart
+700_rh_ht,"700mb Relative Humidity, Height and Omega",Upper air,20,AIFS AIGFS ERA5 GEFS GFS GFS-ANL GFS1-ANL HRRR HRRR-AK ICON-EU IFS MPAS-HT ...,#_rh_ht,3,Preset: level chart + omega
+850_rh_ht,850mb Relative Humidity and Height,Upper air,38,AIFS AIGFS AROME ARPEGE CFS CFS-ANL ERA5 GDPS GEFS GEOS-FP GEPS GFS ...,#_rh_ht,3,Preset: level chart
+250_temp,Mean 250mb Temperature and Spread,Upper air,1,GEFS,#_temp,4,One chart with dropdown(s) for the numbers in the id
+500_temp,Mean 500mb Temperature and Spread,Upper air,1,GEFS,#_temp,4,One chart with dropdown(s) for the numbers in the id
+700_temp,Mean 700mb Temperature and Spread,Upper air,1,GEFS,#_temp,4,One chart with dropdown(s) for the numbers in the id
+850_temp,Mean 850mb Temperature and Spread,Upper air,1,GEFS,#_temp,4,One chart with dropdown(s) for the numbers in the id
+500_temp_ht,500mb Temperature and Height,Upper air,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#_temp_ht,3,One chart with dropdown(s) for the numbers in the id
+850_temp_ht,"850mb Temperature, Wind and Height",Upper air,38,AIFS AIGFS AROME ARPEGE CFS CFS-ANL ERA5 GDPS GEFS GEOS-FP GEPS GFS ...,#_temp_ht,3,Preset: level chart
+925_temp_ht,"925mb Temperature, Wind and Height",Upper air,34,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GEPS GFS GFS-ANL GFS1-ANL GRAPES ...,#_temp_ht,3,Preset: level chart
+700_temp_mslp,"700mb Temperature, Wind and MSLP",Upper air,35,AIFS AIGFS AROME ARPEGE CFS CFS-ANL ERA5 GDPS GEFS GEPS GFS GFS-ANL ...,#_temp_mslp,1,Preset: level chart
+925_temp_wnd,925mb Temperature and Wind,Upper air,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#_temp_wnd,1,Own chart
+250_wnd,Mean 250mb Winds and Spread,Upper air,11,GEFS HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#_wnd,6,One chart with dropdown(s) for the numbers in the id
+300_wnd,300mb Wind,Upper air,10,HRRR HRRR-AK MPAS-HT MPAS-RN RRFS RRFS-AK RRFS-FIREWX RRFS-HI RRFS-NA RRFS-PR,#_wnd,6,One chart with dropdown(s) for the numbers in the id
+500_wnd,Mean 500mb Winds and Spread,Upper air,1,GEFS,#_wnd,6,One chart with dropdown(s) for the numbers in the id
+700_wnd,Mean 700mb Winds and Spread,Upper air,1,GEFS,#_wnd,6,One chart with dropdown(s) for the numbers in the id
+850_wnd,Mean 850mb Winds and Spread,Upper air,1,GEFS,#_wnd,6,One chart with dropdown(s) for the numbers in the id
+925_wnd,Mean 925mb Winds and Spread,Upper air,1,GEFS,#_wnd,6,One chart with dropdown(s) for the numbers in the id
+200_wnd_ht,200mb Wind and Height,Upper air,32,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GEPS GFS GFS-ANL GFS1-ANL GRAPES ...,#_wnd_ht,5,Preset: level chart
+250_wnd_ht,250mb Wind and Height,Upper air,36,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GEOS-FP GEPS GFS GFS-ANL GFS1-ANL ...,#_wnd_ht,5,Preset: level chart
+300_wnd_ht,300mb Wind and Height,Upper air,32,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GEPS GFS GFS-ANL GFS1-ANL GRAPES ...,#_wnd_ht,5,Preset: level chart
+500_wnd_ht,500mb Wind and Height,Upper air,38,AIFS AIGFS AROME ARPEGE CFS CFS-ANL ERA5 GDPS GEFS GEOS-FP GEPS GFS ...,#_wnd_ht,5,Preset: level chart
+850_wnd_ht,850mb Height and Wind,Upper air,38,AIFS AIGFS AROME ARPEGE CFS CFS-ANL ERA5 GDPS GEFS GEOS-FP GEPS GFS ...,#_wnd_ht,5,Preset: level chart
+ens_700_rh,700mb Relative Humidity,Upper air,1,REFS,ens_#_rh,2,One chart with dropdown(s) for the numbers in the id
+ens_850_rh,850mb Relative Humidity,Upper air,1,REFS,ens_#_rh,2,One chart with dropdown(s) for the numbers in the id
+ens_700_temp,700mb Temperature,Upper air,1,REFS,ens_#_temp,2,One chart with dropdown(s) for the numbers in the id
+ens_850_temp,850mb Temperature,Upper air,1,REFS,ens_#_temp,2,One chart with dropdown(s) for the numbers in the id
+ens_250_wnd,250mb Wind,Upper air,1,REFS,ens_#_wnd,2,One chart with dropdown(s) for the numbers in the id
+ens_850_wnd,850mb Wind,Upper air,1,REFS,ens_#_wnd,2,One chart with dropdown(s) for the numbers in the id
+rh_700_300,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,30,AIFS AIGFS AROME ARPEGE ERA5 GDPS GEFS GFS GFS-ANL GFS1-ANL GRAPES GSM ...,rh_#_#,1,Preset: layer humidity
