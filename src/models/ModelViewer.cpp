@@ -2595,8 +2595,17 @@ void ModelViewer::applySelection(const ChartSelection& chosen) {
         if (!chosen.sector.empty()) {
             objectModel.sector = chosen.sector;
         }
-        if (chosen.valid.isValid()) {
+        if (chosen.valid.isValid() && chosen.valid.toUTC() <= QDateTime::currentDateTimeUtc()) {
             openAt(chosen.model, chosen.valid);   // the run at or before that time, at the hour that lands on it
+        } else if (chosen.valid.isValid()) {   // a time still to come: the newest run, at the hour that lands on it (openAt would look for a run of that day, which does not exist yet)
+            pinnedValid = QDateTime{};
+            if (chosen.model != objectModel.model) {
+                selectModel(chosen.model);
+            } else {
+                objectModel.setModelVars(chosen.model);
+                reload();
+            }
+            wantValid = chosen.valid.toUTC();   // (after the change above, which sets it from what was on show)
         } else if (chosen.model != objectModel.model) {
             selectModel(chosen.model);
         } else {
