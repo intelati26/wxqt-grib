@@ -11,6 +11,7 @@
 #include <map>
 #include <regex>
 #include <set>
+#include <tuple>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QInputDialog>
@@ -154,9 +155,17 @@ bool editLineStyle(QWidget * parent, const std::string& id) {
 std::vector<ChecksPicker::Kind> ChecksPicker::kinds(const std::vector<ProductPicker::Entry>& entries) {
     std::vector<Kind> out;
     std::map<std::string, size_t> at;   // the alias group (the id with its numbers as '#') -> its place in out
+    std::map<std::string, std::array<std::string, 3>> partsOf;   // chart id -> hour, type, limit (a product chart)
     for (const auto& e : entries) {
         const auto * alias = ChartAlias::find(e.id);
-        const std::string group = alias != nullptr && !ChartAlias::oneOff(*alias) ? std::string{alias->group} : "one:" + e.id;
+        std::string group = alias != nullptr && !ChartAlias::oneOff(*alias) ? std::string{alias->group} : "one:" + e.id;
+        if (alias != nullptr) {
+            const std::string family = alias->family;
+            if ((family == "Chance" || family.compare(0, 12, "Product grid") == 0) && *alias->product != '\0') {   // a product of hours, types and limits: one kind for the product
+                group = "product:" + std::string{alias->product};
+                partsOf[e.id] = {alias->window, alias->kind, alias->limit};
+            }
+        }
         const auto found = at.find(e.group + "|" + group);
         if (found == at.end()) {
             at[e.group + "|" + group] = out.size();
@@ -166,6 +175,28 @@ std::vector<ChecksPicker::Kind> ChecksPicker::kinds(const std::vector<ProductPic
         }
     }
     for (auto& k : out) {
+        if (k.charts.size() >= 2 && std::all_of(k.charts.begin(), k.charts.end(), [&partsOf] (const ProductPicker::Entry& c) { return partsOf.count(c.id) > 0; })) {
+            std::set<std::array<std::string, 3>> seen;
+            bool unique = true;
+            for (const auto& c : k.charts) {
+                unique = seen.insert(partsOf[c.id]).second && unique;
+            }
+            if (unique) {   // told apart by their hour, type and limit: the three lists do it, in the order hours (instant first, then by length), types, limits
+                const auto hours = [] (const std::string& w) { return w == "instant" ? -1 : w.empty() ? -2 : std::atoi(w.c_str()); };
+                std::stable_sort(k.charts.begin(), k.charts.end(), [&] (const ProductPicker::Entry& a, const ProductPicker::Entry& b) {
+                    const auto& pa = partsOf[a.id];
+                    const auto& pb = partsOf[b.id];
+                    return std::make_tuple(hours(pa[0]), pa[1], std::atof(pa[2].c_str()), pa[2]) < std::make_tuple(hours(pb[0]), pb[1], std::atof(pb[2].c_str()), pb[2]);
+                });
+                for (const auto& c : k.charts) {
+                    k.parts.push_back(partsOf[c.id]);
+                    k.values.push_back(partsOf[c.id][0] + " " + partsOf[c.id][1] + " " + partsOf[c.id][2]);
+                }
+                const auto * alias = ChartAlias::find(k.charts.front().id);
+                k.name = alias != nullptr && *alias->product != '\0' ? std::string{alias->product} : k.name;
+                continue;
+            }
+        }
         if (k.charts.size() < 2) {
             k.values.assign(k.charts.size(), std::string{});
             continue;
@@ -289,6 +320,21 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
     row("Chart", chartRow);
     valueBox = new QComboBox{this};
     valueLabel = row("Value", valueBox);
+    variantBody = new QWidget{this};
+    {
+        auto * line = new QHBoxLayout{variantBody};
+        line->setContentsMargins(0, 0, 0, 0);
+        for (size_t a = 0; a < 3; a++) {
+            axes[a] = new QComboBox{variantBody};
+            axes[a]->setMinimumWidth(a == 1 ? 170 : 110);
+            auto * name = new QLabel{a == 0 ? "Hour" : a == 1 ? "Type" : "Limit", variantBody};
+            line->addWidget(name);
+            line->addWidget(axes[a], 1);
+        }
+    }
+    variantLabel = row("Variant", variantBody);
+    variantBody->hide();
+    variantLabel->hide();
     auto * rule = new QFrame{this};
     rule->setFrameShape(QFrame::HLine);
     layout->addWidget(rule);
@@ -423,6 +469,9 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
     QObject::connect(search, &QLineEdit::returnPressed, this, [this] { kindBox->showPopup(); });
     QObject::connect(star, &QPushButton::clicked, this, [this] { toggleFavorite(); });
     QObject::connect(valueBox, &QComboBox::currentIndexChanged, this, [this] (int i) { pickValue(i); });
+    for (int a = 0; a < 3; a++) {
+        QObject::connect(axes[static_cast<size_t>(a)], &QComboBox::currentIndexChanged, this, [this, a] (int) { pickAxis(a); });
+    }
     resize(560, sizeHint().height());
 }
 
@@ -502,9 +551,19 @@ void ChecksPicker::toggleFavorite() {
 }
 
 void ChecksPicker::fillValues(size_t kind, const std::string& select) {
+    const auto& k = kindList[kind];
+    shownKind = kind;
+    const bool product = !k.parts.empty();
+    valueBox->setVisible(!product);
+    valueLabel->setVisible(!product);
+    variantBody->setVisible(product);
+    variantLabel->setVisible(product);
+    if (product) {
+        fillAxes(kind, select);
+        return;
+    }
     quiet = true;
     valueBox->clear();
-    const auto& k = kindList[kind];
     int at = 0;
     for (size_t i = 0; i < k.charts.size(); i++) {
         valueBox->addItem(QString::fromStdString(k.values[i].empty() ? k.charts[i].label : k.values[i]), QString::fromStdString(k.charts[i].id));
@@ -516,6 +575,94 @@ void ChecksPicker::fillValues(size_t kind, const std::string& select) {
     valueBox->setEnabled(k.charts.size() > 1);
     valueLabel->setEnabled(k.charts.size() > 1);
     quiet = false;
+}
+
+void ChecksPicker::fillAxes(size_t kind, const std::string& chartId) {
+    const auto& k = kindList[kind];
+    size_t at = 0;
+    for (size_t i = 0; i < k.charts.size(); i++) {
+        if (k.charts[i].id == chartId) {
+            at = i;
+        }
+    }
+    const auto& now = k.parts[at];
+    quiet = true;
+    const auto fill = [] (QComboBox * box, const std::vector<std::string>& values, const std::string& select) {
+        box->clear();
+        int current = 0;
+        for (const auto& v : values) {
+            box->addItem(QString::fromStdString(v.empty() ? std::string{"-"} : v), QString::fromStdString(v));
+            if (v == select) {
+                current = box->count() - 1;
+            }
+        }
+        box->setCurrentIndex(current);
+        box->setEnabled(values.size() > 1);
+    };
+    std::vector<std::string> hours, types, limits;
+    const auto add = [] (std::vector<std::string>& list, const std::string& v) {
+        if (std::find(list.begin(), list.end(), v) == list.end()) {
+            list.push_back(v);
+        }
+    };
+    for (const auto& p : k.parts) {
+        add(hours, p[0]);
+    }
+    for (const auto& p : k.parts) {
+        if (p[0] == now[0]) {
+            add(types, p[1]);
+        }
+    }
+    for (const auto& p : k.parts) {
+        if (p[0] == now[0] && p[1] == now[1]) {
+            add(limits, p[2]);
+        }
+    }
+    fill(axes[0], hours, now[0]);
+    fill(axes[1], types, now[1]);
+    fill(axes[2], limits, now[2]);
+    quiet = false;
+}
+
+void ChecksPicker::pickAxis(int axis) {
+    if (quiet || kindList.empty() || shownKind >= kindList.size() || kindList[shownKind].parts.empty()) {
+        return;
+    }
+    const auto& k = kindList[shownKind];
+    std::array<std::string, 3> want;
+    for (size_t a = 0; a < 3; a++) {
+        want[a] = axes[a]->currentData().toString().toStdString();
+    }
+    // the chart that has what was chosen, and as much of the rest as it can keep (a later list is made from the earlier ones, so the earlier choice wins)
+    int best = -1, bestScore = -1;
+    for (size_t i = 0; i < k.parts.size(); i++) {
+        int score = 0;
+        bool fits = true;
+        for (int a = 0; a <= axis; a++) {
+            fits = fits && k.parts[i][static_cast<size_t>(a)] == want[static_cast<size_t>(a)];
+        }
+        if (!fits) {
+            continue;
+        }
+        for (int a = axis + 1; a < 3; a++) {
+            score = score * 2 + (k.parts[i][static_cast<size_t>(a)] == want[static_cast<size_t>(a)] ? 1 : 0);
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            best = static_cast<int>(i);
+        }
+    }
+    if (best < 0) {
+        return;
+    }
+    const auto id = k.charts[static_cast<size_t>(best)].id;
+    fillAxes(shownKind, id);
+    if (id != chart) {
+        chart = id;
+        if (onPick) {
+            onPick(id);
+        }
+    }
 }
 
 void ChecksPicker::pickKind(int row) {
@@ -545,6 +692,25 @@ void ChecksPicker::pickKind(int row) {
         if (!now.empty() && k.values[i] == now) {
             keep = k.charts[i].id;
         }
+    }
+    if (!k.parts.empty()) {   // a product: the chart with the hour and type now chosen when it has them, else its first
+        std::string first = k.charts.front().id;
+        const auto hour = axes[0]->currentData().toString().toStdString();
+        const auto type = axes[1]->currentData().toString().toStdString();
+        for (size_t i = 0; i < k.charts.size(); i++) {
+            if (k.parts[i][0] == hour && k.parts[i][1] == type) {
+                first = k.charts[i].id;
+                break;
+            }
+        }
+        fillValues(static_cast<size_t>(kind.toInt()), first);
+        if (first != chart) {
+            chart = first;
+            if (onPick) {
+                onPick(first);
+            }
+        }
+        return;
     }
     fillValues(static_cast<size_t>(kind.toInt()), keep);
     pickValue(valueBox->currentIndex());

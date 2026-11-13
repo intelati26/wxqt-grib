@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <set>
 #include "gfs/GfsChart.h"
+#include "gfs/ChartAlias.h"
 #include "gfs/ChartPreset.h"
 #include "gfs/GfsModels.h"
 #include "models/ChecksPicker.h"
@@ -80,7 +81,7 @@ int main(int argc, char ** argv) {
         dialog.onPick = [&picks] (const std::string& id) { picks.push_back(id); };
         dialog.onOverlays = [&ticks] (const std::vector<std::string>& ids) { ticks.push_back(ids); };
         const auto combos = dialog.findChildren<QComboBox *>();
-        CHECK(combos.size() == 2);
+        CHECK(combos.size() == 5);   // (the chart's kind, its value, and the hour, type and limit of a product)
         auto * kinds = combos[0];
         auto * values = combos[1];
         CHECK(values->isEnabled() && values->currentText() == "500mb");
@@ -142,6 +143,66 @@ int main(int argc, char ** argv) {
         starButton->click();
         CHECK(Utility::readPref("MODELFAV_GFS", "x").empty() && kinds->itemText(0) != "Favorites");
         ChartPreset::put({"Mine", "850_temp_ht", {boxes.front()->property("id").toString().toStdString()}});
+        dialog.close();
+    }
+    {   // a product of hours, types and limits (SPC REFS): the three lists offer only what exists, and a choice picks the chart that has it
+        std::vector<ProductPicker::Entry> entries;
+        for (const auto& p : GfsChart::products()) {
+            if (p.source == "SPCREFS") {
+                entries.push_back({p.id, p.label, GfsChart::category(p)});
+            }
+        }
+        MyApplication::preferences->clear();
+        std::vector<std::string> picks;
+        ChecksPicker dialog{nullptr, "SPCREFS", entries, "qpf_06h_acc_max", GfsChart::overlayChoices("SPCREFS"), {}};
+        dialog.onPick = [&picks] (const std::string& id) { picks.push_back(id); };
+        const auto combos = dialog.findChildren<QComboBox *>();
+        CHECK(combos.size() == 5);
+        auto * kindsBox = combos[0];
+        auto * hour = combos[2];
+        auto * type = combos[3];
+        auto * limit = combos[4];
+        CHECK(kindsBox->currentText().contains("QPF") && hour->currentData().toString() == "6 h" && type->currentData().toString() == "Ensemble max");
+        const auto alias = [] (const std::string& id) { return ChartAlias::find(id); };
+        for (int i = 0; i < type->count(); i++) {   // every type offered has a chart at this hour
+            bool any = false;
+            for (const auto& e : entries) {
+                const auto * a = alias(e.id);
+                any = any || (a != nullptr && std::string{a->product} == "QPF" && std::string{a->window} == "6 h" && std::string{a->kind} == type->itemData(i).toString().toStdString());
+            }
+            CHECK(any);
+        }
+        for (int i = 0; i < hour->count(); i++) {   // another hour: the type stays when that hour has it, and the chart is of that hour
+            if (hour->itemData(i).toString() == "24 h") {
+                hour->setCurrentIndex(i);
+            }
+        }
+        CHECK(!picks.empty());
+        const auto * a24 = alias(picks.back());
+        CHECK(a24 != nullptr && std::string{a24->window} == "24 h" && std::string{a24->product} == "QPF" && std::string{a24->kind} == "Ensemble max");
+        for (int i = 0; i < type->count(); i++) {   // another type
+            if (type->itemData(i).toString() == "Ensemble mean") {
+                type->setCurrentIndex(i);
+            }
+        }
+        const auto * mean = alias(picks.back());
+        CHECK(mean != nullptr && std::string{mean->kind} == "Ensemble mean" && std::string{mean->window} == "24 h");
+        for (int i = 0; i < type->count(); i++) {   // (a 24 hour QPF has no probability: that type is not offered there)
+            CHECK(type->itemData(i).toString() != "Ensemble probability");
+        }
+        for (int i = 0; i < hour->count(); i++) {
+            if (hour->itemData(i).toString() == "1 h") {
+                hour->setCurrentIndex(i);
+            }
+        }
+        for (int i = 0; i < type->count(); i++) {
+            if (type->itemData(i).toString() == "Ensemble probability") {
+                type->setCurrentIndex(i);
+            }
+        }
+        CHECK(limit->isEnabled() && limit->count() >= 2);   // a probability has limits to choose from
+        const auto * prob = alias(picks.back());
+        CHECK(prob != nullptr && std::string{prob->kind} == "Ensemble probability" && !std::string{prob->limit}.empty());
         dialog.close();
     }
     std::printf("kinds %d for %d charts over all models (%d of one chart)\n", kindsTotal, charts, single);
